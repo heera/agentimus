@@ -451,7 +451,7 @@ select.ar-input {
 
 /* Content types — compact, scalable selectable cards */
 .ar-types-bar { display: flex; align-items: center; gap: 14px; margin: 4px 0 12px; }
-.ar-types-search { max-width: 220px; padding: 7px 11px; }
+.ar-types-search { flex: 1 1 240px; max-width: 480px; padding: 9px 13px; }
 .ar-types-count { font-family: var(--ar-mono); font-size: 11px; color: var(--ar-ink-faint); margin-left: auto; }
 .ar-types-bar .ar-linkbtn { font-family: var(--ar-mono); font-size: 11px; text-decoration: none; }
 .ar-types-bar .ar-linkbtn:hover { text-decoration: underline; }
@@ -462,28 +462,24 @@ select.ar-input {
 .ar-types-empty { grid-column: 1 / -1; margin: 6px 2px; font-size: 12.5px; color: var(--ar-ink-soft); }
 
 .ar-type {
+  position: relative;
   display: flex; align-items: center; gap: 11px;
-  padding: 10px 13px; border: 1px solid var(--ar-line); border-radius: var(--ar-radius);
+  padding: 10px 26px 10px 14px; border: 1px solid var(--ar-line); border-radius: var(--ar-radius);
   background: #fffefb; cursor: pointer; transition: border-color 0.15s, background 0.15s;
 }
 .ar-type:hover { border-color: var(--ar-line-strong); }
 .ar-type.is-on { border-color: var(--ar-accent); background: #f0f6f4; }
 .ar-type input { position: absolute; opacity: 0; width: 0; height: 0; }
 
-/* Custom checkbox — accent fill + tick when on. */
-.ar-type__check {
-  position: relative; flex: 0 0 auto; width: 18px; height: 18px; border-radius: 5px;
-  border: 1.5px solid var(--ar-line-strong); background: #fff;
-  transition: background 0.15s, border-color 0.15s;
+/* No visible checkbox — the whole card is the control. Selected reads as the
+   accent border + tint (above) plus a small corner tick. */
+.ar-type__check { display: none; }
+.ar-type.is-on::after {
+  content: "✓"; position: absolute; top: 8px; right: 11px;
+  font-size: 11px; line-height: 1; font-weight: 700; color: var(--ar-accent);
 }
-.ar-type input:checked + .ar-type__check { background: var(--ar-accent); border-color: var(--ar-accent); }
-.ar-type__check::after {
-  content: ""; position: absolute; left: 5.5px; top: 2px; width: 4px; height: 8px;
-  border: solid #fff; border-width: 0 2px 2px 0;
-  transform: rotate(45deg) scale(0); transition: transform 0.15s;
-}
-.ar-type input:checked + .ar-type__check::after { transform: rotate(45deg) scale(1); }
-.ar-type input:focus-visible + .ar-type__check { outline: 2px solid var(--ar-accent); outline-offset: 2px; }
+/* The real <input> is visually hidden, so ring the whole card on keyboard focus. */
+.ar-type:focus-within { border-color: var(--ar-accent); outline: 2px solid var(--ar-accent); outline-offset: 2px; }
 
 .ar-type__body { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
 .ar-type__label {
