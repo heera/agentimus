@@ -1,5 +1,7 @@
 # Agentify
 
+[![PHP compatibility](https://github.com/heera/agentify/actions/workflows/php-compat.yml/badge.svg?branch=main)](https://github.com/heera/agentify/actions/workflows/php-compat.yml)
+
 Make any WordPress site legible to AI agents and crawlers — `llms.txt`, a full-text
 edition, markdown delivery, JSON-LD, and content-signal robots rules. Lightweight,
 no SEO bloat, no framework.
