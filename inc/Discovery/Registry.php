@@ -2,11 +2,12 @@
 /**
  * Registry — the collector every provider registers with.
  *
- * Fires the public `agentify_discovery_register` action exactly once per request,
- * passing itself so providers can call `$registry->register()`. Also drains the
- * static queue filled by the global `Agentify_Discovery::register()` facade, so it
- * doesn't matter whether an author registers via the hook or the facade, or in
- * what order. Validation runs synchronously; rejects land in `errors()` for the
+ * Fires the canonical `wp_discovery_register` action (and the back-compat
+ * `agentify_discovery_register` alias) exactly once per request, passing itself
+ * so providers can call `$registry->register()`. Also drains the static queue
+ * filled by the global `Agentify_Discovery::register()` facade, so it doesn't
+ * matter whether an author registers via the hook or the facade, or in what
+ * order. Validation runs synchronously; rejects land in `notices()` for the
  * admin Validation screen.
  *
  * @package Agentify
@@ -150,14 +151,18 @@ final class Registry {
 		/**
 		 * The public registration hook. Providers do:
 		 *
-		 *     add_action( 'agentify_discovery_register', function ( $registry ) {
+		 *     add_action( 'wp_discovery_register', function ( $registry ) {
 		 *         $registry->register( [ 'id' => '…', 'title' => '…', 'type' => '…' ] );
 		 *     } );
 		 *
-		 * If this plugin is absent the action simply never fires — no guard needed.
+		 * If no WP_Discovery engine is active the action simply never fires — no
+		 * guard needed. We fire the canonical `wp_discovery_register` first, then
+		 * the product-branded `agentify_discovery_register` alias for back-compat;
+		 * a provider SHOULD hook only the canonical name.
 		 *
 		 * @param Registry $registry The collector.
 		 */
+		do_action( WP_DISCOVERY_HOOK, $this );
 		do_action( AGENTIFY_DISCOVERY_HOOK, $this );
 
 		// Drain anything queued through the global facade before we were ready.

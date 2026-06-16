@@ -3,7 +3,7 @@
  * Fluent Cart adapter — a second built-in provider, proving the public hook
  * works for an arbitrary commerce plugin (not just WooCommerce).
  *
- * Like the others it registers through the public `agentify_discovery_register`
+ * Like the others it registers through the public `wp_discovery_register`
  * hook. Fluent Cart exposes a full REST API at /wp-json/fluent-cart/v2
  * (products, orders, customers, subscriptions, coupons, checkout). Capabilities
  * are declared as dot-notation intent; the concrete route lives in `endpoints`.
@@ -23,7 +23,7 @@ final class FluentCart {
 	 * Hook the public registration action; availability is checked at fire-time.
 	 */
 	public function register() {
-		add_action( AGENTIFY_DISCOVERY_HOOK, array( $this, 'provide' ) );
+		add_action( WP_DISCOVERY_HOOK, array( $this, 'provide' ) );
 	}
 
 	/**

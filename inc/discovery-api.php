@@ -10,9 +10,9 @@
  *
  * Authors have two equivalent options:
  *
- *   // 1. The action hook — zero hard dependency, no guard needed. If this
- *   //    plugin is absent the action simply never fires.
- *   add_action( 'agentify_discovery_register', function ( $registry ) {
+ *   // 1. The action hook — zero hard dependency, no guard needed. If no
+ *   //    WP_Discovery engine is active the action simply never fires.
+ *   add_action( 'wp_discovery_register', function ( $registry ) {
  *       $registry->register( [ 'id' => 'acme', 'title' => 'Acme', 'type' => 'commerce' ] );
  *   } );
  *
