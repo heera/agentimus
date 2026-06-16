@@ -46,6 +46,8 @@
   background: transparent;
 }
 #agentify-app * { box-sizing: border-box; }
+/* Breathing room when a dashboard tile scrolls a section to the top. */
+#agentify-app [id^="ar-wd-"] { scroll-margin-top: 16px; }
 #agentify-app code { font-family: var(--ar-mono); font-size: 0.86em; }
 
 /* ---- Header bar (brand · tabs · gauge in one slim row) ------------------ */
@@ -278,13 +280,20 @@
 .ar-rail-links a:hover { color: var(--ar-accent); }
 
 /* Save block — bottom of the rail; full-width black button. */
-.ar-rail-save { display: grid; gap: 10px; }
-.ar-rail-save__status {
-  margin: 0; text-align: center;
+.ar-rail-save { display: flex; align-items: center; justify-content: center; gap: 8px; }
+.ar-rail-save__dot {
+  width: 8px; height: 8px; border-radius: 50%; flex: 0 0 auto;
+  background: var(--ar-line-strong); transition: background 0.15s ease;
+}
+.ar-rail-save__label {
   font-family: var(--ar-mono); font-size: 11px; letter-spacing: 0.04em; color: var(--ar-ink-faint);
 }
-.ar-rail-save__status.is-dirty { color: var(--ar-warn); }
-.ar-rail-save__status.is-dirty::before { content: "●"; margin-right: 7px; font-size: 9px; vertical-align: 1px; }
+.ar-rail-save.is-saving .ar-rail-save__dot { background: var(--ar-accent); }
+.ar-rail-save.is-saving .ar-rail-save__label { color: var(--ar-accent); font-weight: 600; }
+.ar-rail-save.is-saved .ar-rail-save__dot { background: #2f9e5e; }
+.ar-rail-save.is-saved .ar-rail-save__label { color: #2f9e5e; }
+.ar-rail-save.is-error .ar-rail-save__dot { background: var(--ar-warn); }
+.ar-rail-save.is-error .ar-rail-save__label { color: var(--ar-warn); }
 .ar-btn--block { width: 100%; }
 /* Stack the rail below the form when the panel gets narrow (sidebar-aware), so
    the Save block at its foot stays reachable. The rail keeps the endpoints, so
@@ -318,7 +327,15 @@
   letter-spacing: -0.01em;
   color: var(--ar-ink);
 }
-.ar-card__lead { margin: 0 0 18px; color: var(--ar-ink-soft); font-size: 13px; max-width: 88ch; }
+.ar-card__lead { margin: 0 0 18px; color: var(--ar-ink-soft); font-size: 13px; max-width: 95ch; }
+/* Quiet aside that clarifies a control's scope (e.g. "advertises, not enforces"). */
+.ar-card__note {
+  margin: 14px 0 0; padding: 9px 12px; max-width: 88ch;
+  border-left: 2px solid var(--ar-line-strong); border-radius: 0 var(--ar-radius) var(--ar-radius) 0;
+  background: #faf8f2; color: var(--ar-ink-faint); font-size: 12px; line-height: 1.5;
+}
+.ar-card__note strong { color: var(--ar-ink-soft); font-weight: 600; }
+.ar-card__note code { font-size: 11px; }
 /* Small scope chip next to a card title, e.g. "Last 30 days". */
 .ar-card__tag {
   font-family: var(--ar-mono); font-size: 9.5px; letter-spacing: 0.08em; text-transform: uppercase;
@@ -361,6 +378,13 @@
 .ar-toggle__text { display: flex; flex-direction: column; gap: 1px; }
 .ar-toggle__text strong { font-size: 14px; font-weight: 600; }
 .ar-toggle__text small { color: var(--ar-ink-soft); font-size: 12px; }
+
+/* Provider-integration row: a metadata line (type · plugin · capabilities). */
+.ar-prov-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; margin-top: 2px; }
+.ar-prov-meta > * { position: relative; }
+.ar-prov-meta > * + *::before { content: "·"; position: absolute; left: -7px; color: var(--ar-line-strong); }
+.ar-prov-meta code { font-size: 11px; }
+.ar-prov { font-family: var(--ar-mono); font-size: 11px; color: var(--ar-accent); }
 
 /* Allowed / Blocked status pill on each signal toggle. */
 .ar-signal-state {
@@ -480,7 +504,6 @@ select.ar-input {
 .ar-id-foot__status { font-family: var(--ar-mono); font-size: 11px; color: var(--ar-ink-faint); margin-right: auto; }
 .ar-id-foot__status.is-dirty { color: var(--ar-accent); }
 .ar-id-foot__status.is-saved { color: #2f9e5e; }
-.ar-rail-save__hint { font-size: 11px; line-height: 1.45; color: var(--ar-ink-faint); margin: 6px 0 0; }
 
 .ar-type {
   position: relative;
@@ -615,9 +638,44 @@ select.ar-input {
 .ar-wd-stat { display: flex; flex-direction: column; gap: 2px; padding: 14px 16px; background: var(--ar-surface); text-align: center; }
 .ar-wd-stat strong { font-family: var(--ar-mono); font-size: 24px; font-weight: 600; }
 .ar-wd-stat span { font-family: var(--ar-mono); font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--ar-ink-faint); }
+.ar-wd-stat small { margin-top: 2px; font-size: 11px; line-height: 1.3; color: var(--ar-ink-soft); }
 .ar-wd-stat.is-bad strong { color: var(--ar-bad); }
 
 .ar-wd-empty { margin: 8px 0 0; color: var(--ar-ink-soft); font-size: 13px; }
+
+/* Provider groups: Declared (always shown) and Auto-discovered (collapsible). */
+.ar-wd-group { margin-top: 18px; }
+.ar-wd-group__title {
+  margin: 0; font-size: 11px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase;
+  color: var(--ar-ink-faint);
+}
+.ar-wd-group__toggle {
+  display: flex; align-items: center; gap: 7px; width: 100%; padding: 0; border: 0; background: none;
+  cursor: pointer; font: inherit; text-align: left;
+  font-size: 11px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ar-ink-faint);
+}
+.ar-wd-group__toggle:hover { color: var(--ar-ink-soft); }
+.ar-wd-group__caret { font-size: 9px; transition: transform 0.15s ease; }
+.ar-wd-group__caret.is-open { transform: rotate(90deg); }
+.ar-wd-group__count {
+  font-family: var(--ar-mono); font-size: 10px; font-weight: 600; letter-spacing: 0;
+  padding: 1px 7px; border-radius: 999px; border: 1px solid var(--ar-line-strong); color: var(--ar-ink-faint);
+}
+/* Tighten the list when it sits directly under a group header. */
+.ar-wd-group .ar-wd-list { margin-top: 10px; }
+
+/* Inline engine status under the "Found automatically" header: which places
+   Agentify scanned, each with a ✓/✕. Always visible, even when rows collapse. */
+.ar-wd-engines {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px;
+  margin: 8px 0 0; font-size: 12px; color: var(--ar-ink-soft);
+}
+.ar-wd-engine {
+  font-family: var(--ar-mono); font-size: 11px;
+  padding: 1px 8px; border-radius: 999px; border: 1px solid var(--ar-line-strong);
+}
+.ar-wd-engine.is-on { color: var(--ar-good); border-color: #bcdcc6; background: #eef5f0; }
+.ar-wd-engine.is-off { color: var(--ar-bad); border-color: #e6c1b9; background: #f8ebe8; }
 
 /* Provider rows */
 .ar-wd-list { margin: 14px 0 0; padding: 0; list-style: none; display: grid; gap: 0; border-top: 1px solid var(--ar-line); }
@@ -773,8 +831,14 @@ select.ar-input {
 /* Recent feed */
 .ar-act-feed { margin: 14px 0 0; padding: 0; list-style: none; display: grid; gap: 0; border-top: 1px solid var(--ar-line); }
 .ar-act-feed li {
-  display: flex; align-items: center; gap: 12px; padding: 10px 2px; border-bottom: 1px solid var(--ar-line);
+  display: flex; flex-direction: column; gap: 4px; padding: 10px 2px; border-bottom: 1px solid var(--ar-line);
 }
+.ar-act-feed__row { display: flex; align-items: center; gap: 12px; }
+.ar-act-feed__ua {
+  font-family: var(--ar-mono); font-size: 11px; color: var(--ar-ink-faint);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%;
+}
+.ar-act-feed__ua.is-empty { font-style: italic; }
 .ar-act-feed__agent { font-size: 13px; font-weight: 600; color: var(--ar-ink); flex: 0 0 auto; min-width: 0; }
 .ar-act-feed__ep {
   font-family: var(--ar-mono); font-size: 11.5px; color: var(--ar-ink-soft);

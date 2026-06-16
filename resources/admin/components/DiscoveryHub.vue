@@ -1,11 +1,20 @@
 <script>
+import ProviderRow from './ProviderRow.vue';
+
 export default {
   name: 'DiscoveryHub',
+  components: { ProviderRow },
   props: {
     data: { type: Object, default: () => ({}) },
     refreshing: { type: Boolean, default: false },
   },
   emits: ['refresh'],
+  data() {
+    // Expand the auto-discovered group by default ONLY when there is nothing
+    // declared — otherwise it stays collapsed, since it's predictable baseline.
+    const resources = (this.data && this.data.resources) || [];
+    return { showAuto: !resources.some((r) => !r.auto) };
+  },
   computed: {
     endpoints() {
       return this.data.endpoints || {};
@@ -15,6 +24,20 @@ export default {
     },
     resources() {
       return this.data.resources || [];
+    },
+    declared() {
+      return this.resources.filter((r) => !r.auto);
+    },
+    autoDiscovered() {
+      return this.resources.filter((r) => r.auto);
+    },
+    // The auto-discovery engines as compact status chips, shown inline in the
+    // "Found automatically" group header (so engine + its results sit together).
+    engineChips() {
+      return this.adapters.map((a) => ({
+        label: a.title.replace(' (auto-discovery)', '').replace('WordPress ', ''),
+        ok: a.available,
+      }));
     },
     adapters() {
       return this.data.adapters || [];
@@ -80,100 +103,90 @@ export default {
         <div class="ar-wd-stat">
           <strong>{{ counts.resources }}</strong>
           <span>providers</span>
+          <small>Sources describing your site</small>
         </div>
         <div class="ar-wd-stat">
           <strong>{{ counts.capabilities }}</strong>
           <span>capabilities</span>
+          <small>What agents can do or read</small>
         </div>
         <div class="ar-wd-stat">
           <strong>{{ counts.tools }}</strong>
           <span>tools</span>
+          <small>Actions agents can run</small>
         </div>
         <div class="ar-wd-stat">
           <strong>{{ counts.apis }}</strong>
           <span>APIs</span>
+          <small>Endpoints agents can read</small>
         </div>
         <div class="ar-wd-stat" :class="{ 'is-bad': counts.errors > 0 }">
           <strong>{{ counts.errors }}</strong>
           <span>errors</span>
+          <small>Problems to fix</small>
         </div>
       </div>
     </section>
 
     <!-- Registered providers -->
-    <section class="ar-card">
+    <section id="ar-wd-providers" class="ar-card">
       <h2 class="ar-card__title">Registered providers</h2>
       <p class="ar-card__lead">
-        Resources discovered on this site — auto-detected by Agentify, or declared by a plugin via the <code>wpdiscovery_register</code> hook.
+        Everything this site tells AI agents about itself. Two sources: things <strong>provided by your
+        plugins</strong>, and things Agentify <strong>found automatically</strong> by scanning the site.
       </p>
 
       <p v-if="!resources.length" class="ar-wd-empty">
-        No plugins have registered yet. Install a WP_Discovery-aware plugin, or one of the built-in
-        adapters below will populate this automatically.
+        Nothing registered yet. Agentify will populate this automatically as it scans your site, and any
+        WP_Discovery-aware plugin you install will add to it.
       </p>
 
-      <ul v-else class="ar-wd-list">
-        <li v-for="r in resources" :key="r.id" class="ar-wd-prov">
-          <div class="ar-wd-prov__bar" aria-hidden="true"></div>
-          <div class="ar-wd-prov__body">
-            <div class="ar-wd-prov__head">
-              <strong>{{ r.title }}</strong>
-              <span class="ar-wd-type">{{ r.type }}</span>
-              <span v-if="r.hasAgent" class="ar-wd-type ar-wd-type--agent">agent</span>
-              <span v-if="r.version" class="ar-wd-ver">v{{ r.version }}</span>
-            </div>
-            <p v-if="r.description" class="ar-wd-prov__desc">{{ r.description }}</p>
-            <p class="ar-wd-prov__provider">
-              <span v-if="r.auto">Auto-discovered by Agentify</span>
-              <span v-else>Declared by <code>{{ r.provider }}</code></span>
-            </p>
+      <template v-else>
+        <!-- Provided by plugins — what a plugin deliberately declared. -->
+        <div v-if="declared.length" class="ar-wd-group">
+          <h3 class="ar-wd-group__title">
+            Provided by your plugins <span class="ar-wd-group__count">{{ declared.length }}</span>
+          </h3>
+          <ul class="ar-wd-list">
+            <ProviderRow v-for="r in declared" :key="r.id" :r="r" />
+          </ul>
+        </div>
 
-            <div v-if="r.capabilities.length" class="ar-wd-caps">
-              <span v-for="c in r.capabilities" :key="c" class="ar-wd-cap">{{ c }}</span>
-            </div>
-
-            <ul v-if="r.endpoints.length" class="ar-wd-eps">
-              <li v-for="(e, i) in r.endpoints" :key="i">
-                <span class="ar-wd-ep__type">{{ e.type }}</span>
-                <code>{{ e.url }}</code>
-                <span class="ar-wd-auth" :class="`is-${e.auth === 'none' ? 'open' : 'locked'}`">
-                  {{ e.auth === 'none' ? 'public' : e.auth }}
-                </span>
-              </li>
-            </ul>
-          </div>
-        </li>
-      </ul>
-    </section>
-
-    <!-- Built-in adapters -->
-    <section class="ar-card ar-card--muted">
-      <h2 class="ar-card__title">Built-in adapters</h2>
-      <p class="ar-card__lead">
-        First-party providers that register through the same public hook — active automatically when
-        their plugin is present.
-      </p>
-      <ul class="ar-checks">
-        <li v-for="a in adapters" :key="a.id" class="ar-check" :class="a.available ? 'is-pass' : 'is-warn'">
-          <span class="ar-check__rule" aria-hidden="true"></span>
-          <div class="ar-check__text">
-            <strong>{{ a.title }}</strong>
-            <small>{{ a.available ? 'Detected — contributing to the registry.' : 'Not installed — will activate when present.' }}</small>
-          </div>
-          <span class="ar-check__tag" :class="a.available ? 'is-pass' : 'is-warn'">
-            {{ a.available ? 'ACTIVE' : 'INACTIVE' }}
-          </span>
-        </li>
-      </ul>
+        <!-- Found automatically — Agentify's own scan, with engine status inline. -->
+        <div v-if="autoDiscovered.length" class="ar-wd-group">
+          <button
+            type="button"
+            class="ar-wd-group__toggle"
+            :aria-expanded="showAuto"
+            @click="showAuto = !showAuto"
+          >
+            <span class="ar-wd-group__caret" :class="{ 'is-open': showAuto }" aria-hidden="true">▸</span>
+            Found automatically by Agentify
+            <span class="ar-wd-group__count">{{ autoDiscovered.length }}</span>
+          </button>
+          <p v-if="engineChips.length" class="ar-wd-engines">
+            Agentify checked:
+            <span
+              v-for="e in engineChips"
+              :key="e.label"
+              class="ar-wd-engine"
+              :class="e.ok ? 'is-on' : 'is-off'"
+            >{{ e.label }} {{ e.ok ? '✓' : '✕' }}</span>
+          </p>
+          <ul v-show="showAuto" class="ar-wd-list">
+            <ProviderRow v-for="r in autoDiscovered" :key="r.id" :r="r" />
+          </ul>
+        </div>
+      </template>
     </section>
 
     <!-- MCP & tools -->
-    <section class="ar-card">
+    <section id="ar-wd-tools" class="ar-card">
       <h2 class="ar-card__title">MCP &amp; tools</h2>
       <p class="ar-card__lead">
-        Executable units from the WordPress Abilities API, projected into MCP tool shape and
-        published at <code>/.well-known/mcp.json</code>. This plugin advertises tools — it doesn't run
-        an MCP server.
+        The executable side of the WordPress Abilities API — the same source as the
+        <strong>Core abilities</strong> resource above, projected into MCP tool shape and published at
+        <code>/.well-known/mcp.json</code>. This plugin advertises tools — it doesn't run an MCP server.
       </p>
 
       <div class="ar-wd-mcp">

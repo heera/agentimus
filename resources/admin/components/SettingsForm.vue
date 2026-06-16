@@ -11,6 +11,7 @@ export default {
     knownTrainers: { type: Array, default: () => [] },
     endpoints: { type: Object, default: () => ({}) },
     restNamespacesDetected: { type: Array, default: () => [] },
+    providerResources: { type: Array, default: () => [] },
     profileDirty: { type: Boolean, default: false },
     profileSaving: { type: Boolean, default: false },
     profileSaved: { type: Boolean, default: false },
@@ -147,6 +148,21 @@ export default {
       const i = list.indexOf(ns);
       if (i === -1) list.push(ns);
       else list.splice(i, 1);
+    },
+    // Provider resources publish by default; the owner opts OUT by suppressing.
+    isPublished(id) {
+      const sup = Array.isArray(this.settings.suppressed_resources) ? this.settings.suppressed_resources : [];
+      return !sup.includes(id);
+    },
+    togglePublish(id) {
+      if (!Array.isArray(this.settings.suppressed_resources)) this.settings.suppressed_resources = [];
+      const list = this.settings.suppressed_resources;
+      const i = list.indexOf(id);
+      if (i === -1) list.push(id); // now suppressed
+      else list.splice(i, 1); // back to published
+    },
+    providerLabel(plugin) {
+      return plugin ? String(plugin).split('/')[0] : '';
     },
   },
 };
@@ -353,6 +369,11 @@ export default {
           <p v-if="!filteredPostTypes.length" class="ar-types-empty">No types match “{{ typeQuery }}”.</p>
         </div>
       </div>
+      <p class="ar-card__note">
+        <strong>Curates what's advertised — not an access control.</strong>
+        Unticking a type removes it from llms.txt, schema and discovery, but your
+        WordPress REST API stays public: <code>/wp-json/wp/v2</code> remains reachable regardless.
+      </p>
     </section>
 
     <!-- Discovery: REST APIs (advanced, opt-in) ------------------------ -->
@@ -392,6 +413,43 @@ export default {
           <p v-if="!filteredNamespaces.length" class="ar-types-empty">No APIs match “{{ nsQuery }}”.</p>
         </div>
       </div>
+      <p class="ar-card__note">
+        <strong>Publishing advertises an API — it doesn't open or close it.</strong>
+        Ticking one lists it in discovery so agents prefer it; leaving it off just hides it from
+        the map. Either way the route is exactly as reachable as WordPress already makes it.
+      </p>
+    </section>
+
+    <!-- Provider integrations ------------------------------------------ -->
+    <section v-if="providerResources.length" class="ar-card">
+      <h2 class="ar-card__title">Provider integrations</h2>
+      <p class="ar-card__lead">
+        Resources that installed plugins declared for agents. Each is <strong>published by default</strong> —
+        switch off any you'd rather not advertise. You decide whether it's listed; the plugin decides what it says.
+      </p>
+
+      <label v-for="r in providerResources" :key="r.id" class="ar-toggle ar-toggle--rich">
+        <input type="checkbox" :checked="isPublished(r.id)" @change="togglePublish(r.id)" />
+        <span class="ar-toggle__track" aria-hidden="true"></span>
+        <span class="ar-toggle__text">
+          <strong>{{ r.title }}</strong>
+          <small class="ar-prov-meta">
+            <code>{{ r.type }}</code>
+            <span v-if="r.provider" class="ar-prov">{{ providerLabel(r.provider) }}</span>
+            <span v-if="r.capabilities && r.capabilities.length">{{ r.capabilities.length }} capabilit{{ r.capabilities.length === 1 ? 'y' : 'ies' }}</span>
+            <span v-if="r.hasAgent">agent card</span>
+          </small>
+        </span>
+        <span class="ar-signal-state" :class="isPublished(r.id) ? 'is-allow' : 'is-block'">
+          {{ isPublished(r.id) ? 'Published' : 'Suppressed' }}
+        </span>
+      </label>
+
+      <p class="ar-card__note">
+        <strong>This controls listing, not access.</strong>
+        Suppressing removes a resource from discovery, the agent card and the REST mirror — but the
+        plugin and its endpoints keep working exactly as before. It changes what agents are told, not what the site does.
+      </p>
     </section>
 
     <!-- Endpoints (hidden when the rail shows them; returns on narrow screens) -->

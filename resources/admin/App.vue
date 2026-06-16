@@ -76,8 +76,15 @@ export default {
         enable_schema: s.enable_schema, enable_activity: s.enable_activity,
         llms_full_posts: s.llms_full_posts, post_types: s.post_types,
         rest_namespaces: s.rest_namespaces, content_signal: s.content_signal,
-        blocked_trainers: s.blocked_trainers, expertise: id.expertise, same_as: id.same_as,
+        blocked_trainers: s.blocked_trainers, suppressed_resources: s.suppressed_resources,
+        expertise: id.expertise, same_as: id.same_as,
       });
+    },
+    // Third-party DECLARED resources the owner can publish/suppress. Our own
+    // auto-discovery (wordpress-core, REST stubs, abilities) is curated elsewhere.
+    providerResources() {
+      const list = (this.discovery && this.discovery.resources) || [];
+      return list.filter((r) => !r.auto);
     },
     circumference() {
       return 2 * Math.PI * 52;
@@ -182,6 +189,18 @@ export default {
     window.removeEventListener('hashchange', this.syncTabFromHash);
   },
   methods: {
+    // Dashboard tiles emit { tab, anchor? }. Switch tab, then (once the now-shown
+    // tab has laid out) scroll the target section into view so a click lands on
+    // the relevant content, not just the top of the page.
+    goTo(target) {
+      const { tab, anchor } = typeof target === 'string' ? { tab: target } : target || {};
+      if (tab) this.tab = tab;
+      if (!anchor) return;
+      this.$nextTick(() => {
+        const el = document.getElementById(anchor);
+        if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      });
+    },
     reloadPlugin() {
       // Drop any #tab and do a full reload, landing on the default page.
       window.history.replaceState(null, '', window.location.pathname + window.location.search);
@@ -354,6 +373,7 @@ export default {
           :known-trainers="knownTrainers"
           :endpoints="endpoints"
           :rest-namespaces-detected="restNamespacesDetected"
+          :provider-resources="providerResources"
           :profile-dirty="profileDirty"
           :profile-saving="profileSaving"
           :profile-saved="profileSaved"
@@ -378,7 +398,7 @@ export default {
           :refreshing="refreshingActivity"
           @refresh="refreshActivity"
           @clear="clearActivity"
-          @navigate="tab = $event"
+          @navigate="goTo"
         />
       </div>
 
@@ -432,11 +452,11 @@ export default {
           </ul>
         </div>
 
-        <div v-if="tab === 'settings'" class="ar-rail-save">
-          <p class="ar-rail-save__status" :class="{ 'is-dirty': autoStatus === 'saving' || autoStatus === 'error' }">
-            {{ autoStatus === 'saving' ? 'Saving…' : autoStatus === 'error' ? 'Save failed' : 'Changes save automatically' }}
-          </p>
-          <p class="ar-rail-save__hint">Toggles &amp; selections save instantly. The profile block has its own Save.</p>
+        <div v-if="tab === 'settings'" class="ar-rail-save" :class="`is-${autoStatus}`">
+          <span class="ar-rail-save__dot" aria-hidden="true"></span>
+          <span class="ar-rail-save__label">
+            {{ autoStatus === 'saving' ? 'Saving…' : autoStatus === 'error' ? 'Save failed' : autoStatus === 'saved' ? 'Saved' : 'Auto-save on' }}
+          </span>
         </div>
       </aside>
     </main>

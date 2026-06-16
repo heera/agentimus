@@ -65,25 +65,25 @@ export default {
   <div class="ar-act">
     <!-- At-a-glance summary (clickable → jumps to the relevant tab) -->
     <div v-if="summary" class="ar-dash-sum">
-      <button type="button" class="ar-dash-tile" @click="$emit('navigate', 'readiness')">
+      <button type="button" class="ar-dash-tile" @click="$emit('navigate', { tab: 'readiness' })">
         <span class="ar-dash-tile__k">Readiness</span>
         <strong class="ar-dash-tile__v" :data-tone="summary.tone">{{ summary.readiness.pass }}/{{ summary.readiness.total }}</strong>
         <span class="ar-dash-tile__sub">{{ summary.readiness.pct }}% pass</span>
       </button>
-      <button type="button" class="ar-dash-tile" @click="$emit('navigate', 'discovery')">
+      <button type="button" class="ar-dash-tile" @click="$emit('navigate', { tab: 'discovery', anchor: 'ar-wd-providers' })">
         <span class="ar-dash-tile__k">Providers</span>
         <strong class="ar-dash-tile__v">{{ summary.providers }}</strong>
-        <span class="ar-dash-tile__sub">registered</span>
+        <span class="ar-dash-tile__sub">sources describing your site</span>
       </button>
-      <button type="button" class="ar-dash-tile" @click="$emit('navigate', 'discovery')">
+      <button type="button" class="ar-dash-tile" @click="$emit('navigate', { tab: 'discovery', anchor: 'ar-wd-providers' })">
         <span class="ar-dash-tile__k">Capabilities</span>
         <strong class="ar-dash-tile__v">{{ summary.capabilities }}</strong>
-        <span class="ar-dash-tile__sub">declared</span>
+        <span class="ar-dash-tile__sub">what agents can do or read</span>
       </button>
-      <button type="button" class="ar-dash-tile" @click="$emit('navigate', 'discovery')">
+      <button type="button" class="ar-dash-tile" @click="$emit('navigate', { tab: 'discovery', anchor: 'ar-wd-tools' })">
         <span class="ar-dash-tile__k">Tools</span>
         <strong class="ar-dash-tile__v">{{ summary.tools }}</strong>
-        <span class="ar-dash-tile__sub">MCP</span>
+        <span class="ar-dash-tile__sub">actions agents can run</span>
       </button>
     </div>
 
@@ -160,11 +160,19 @@ export default {
       <!-- Recent feed -->
       <section class="ar-card">
         <h2 class="ar-card__title">Recent requests</h2>
+        <p class="ar-card__lead">
+          Identified from the User-Agent — major AI crawlers self-identify; scripts and anonymous
+          clients may not. Your own logged-in visits aren't recorded.
+        </p>
         <ul v-if="recent.length" class="ar-act-feed">
           <li v-for="(r, i) in recent" :key="i">
-            <span class="ar-act-feed__agent">{{ r.agent }}</span>
-            <code class="ar-act-feed__ep">{{ r.endpoint }}</code>
-            <span class="ar-act-feed__at">{{ ago(r.at) }}</span>
+            <div class="ar-act-feed__row">
+              <span class="ar-act-feed__agent">{{ r.agent }}</span>
+              <code class="ar-act-feed__ep">{{ r.endpoint }}</code>
+              <span class="ar-act-feed__at">{{ ago(r.at) }}</span>
+            </div>
+            <code v-if="r.ua" class="ar-act-feed__ua" :title="r.ua">{{ r.ua }}</code>
+            <span v-else class="ar-act-feed__ua is-empty">no User-Agent sent</span>
           </li>
         </ul>
         <p v-else class="ar-wd-empty">
