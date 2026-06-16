@@ -12,7 +12,7 @@
  *
  *   // 1. The action hook — zero hard dependency, no guard needed. If no
  *   //    WP_Discovery engine is active the action simply never fires.
- *   add_action( 'wp_discovery_register', function ( $registry ) {
+ *   add_action( 'wpdiscovery_register', function ( $registry ) {
  *       $registry->register( [ 'id' => 'acme', 'title' => 'Acme', 'type' => 'commerce' ] );
  *   } );
  *

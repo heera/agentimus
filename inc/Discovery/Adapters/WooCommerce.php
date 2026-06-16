@@ -3,7 +3,7 @@
  * WooCommerce adapter — the first built-in provider.
  *
  * It is *not* a privileged back-channel: it registers through the exact public
- * `wp_discovery_register` hook a third-party plugin would use, so it doubles as
+ * `wpdiscovery_register` hook a third-party plugin would use, so it doubles as
  * the reference implementation of the registration contract. Capabilities are
  * declared as dot-notation intent (commerce.products.read), per the protocol's
  * "describe intent, not implementation" rule — the concrete /wp-json/wc/* paths
@@ -26,7 +26,7 @@ final class WooCommerce {
 	 * yet at `plugins_loaded`, but it always is by `template_redirect`/REST.
 	 */
 	public function register() {
-		add_action( WP_DISCOVERY_HOOK, array( $this, 'provide' ) );
+		add_action( AGENTIFY_CANONICAL_HOOK, array( $this, 'provide' ) );
 	}
 
 	/**

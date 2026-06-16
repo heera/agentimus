@@ -27,11 +27,11 @@ define( 'AGENTIFY_URL', plugin_dir_url( __FILE__ ) );
 
 /**
  * The public registration actions the discovery standard is built on.
- * WP_DISCOVERY_HOOK is the canonical, vendor-neutral hook of the WP_Discovery
+ * AGENTIFY_CANONICAL_HOOK is the canonical, vendor-neutral hook of the WP_Discovery
  * protocol; AGENTIFY_DISCOVERY_HOOK is a back-compat alias the engine also fires.
  * Providers SHOULD hook the canonical name.
  */
-define( 'WP_DISCOVERY_HOOK', 'wp_discovery_register' );
+define( 'AGENTIFY_CANONICAL_HOOK', 'wpdiscovery_register' );
 define( 'AGENTIFY_DISCOVERY_HOOK', 'agentify_discovery_register' );
 
 /**

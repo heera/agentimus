@@ -24,7 +24,7 @@ final class AbilitiesApi {
 	 * Hook the public registration action. Availability is checked at fire-time.
 	 */
 	public function register() {
-		add_action( WP_DISCOVERY_HOOK, array( $this, 'provide' ) );
+		add_action( AGENTIFY_CANONICAL_HOOK, array( $this, 'provide' ) );
 	}
 
 	/**

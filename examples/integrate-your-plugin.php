@@ -4,7 +4,7 @@
  *
  * Drop the snippet below into your own plugin to make it discoverable. There is
  * NO dependency and NO library to load: if no WP_Discovery engine (such as
- * Agentify) is active, the `wp_discovery_register` action simply never fires, so
+ * Agentify) is active, the `wpdiscovery_register` action simply never fires, so
  * the code is inert.
  *
  * Your plugin is then aggregated into the site's /.well-known/discovery.json
@@ -23,7 +23,7 @@ defined( 'ABSPATH' ) || exit;
  * -------------------------------------------------------------------------- */
 
 add_action(
-	'wp_discovery_register',
+	'wpdiscovery_register',
 	function ( $registry ) {
 		$registry->register(
 			array(
@@ -42,7 +42,7 @@ add_action(
  * -------------------------------------------------------------------------- */
 
 add_action(
-	'wp_discovery_register',
+	'wpdiscovery_register',
 	function ( $registry ) {
 		$registry->register(
 			array(
@@ -125,7 +125,7 @@ add_action(
 
 /* -------------------------------------------------------------------------- *
  *  4. Facade alternative — a direct-call convenience (guard it, since the call
- *     is direct). The `wp_discovery_register` hook above is the vendor-neutral
+ *     is direct). The `wpdiscovery_register` hook above is the vendor-neutral
  *     path; this facade class is implementation-specific (Agentify ships
  *     `Agentify_Discovery`).
  * -------------------------------------------------------------------------- */
@@ -145,7 +145,7 @@ if ( class_exists( 'Agentify_Discovery' ) ) {
  * -------------------------------------------------------------------------- */
 
 add_action(
-	'wp_discovery_register',
+	'wpdiscovery_register',
 	function ( $registry ) {
 
 		// Serve a document under /.well-known/ (callback | redirect | file).
