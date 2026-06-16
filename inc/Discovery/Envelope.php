@@ -497,7 +497,11 @@ final class Envelope {
 
 	/** @return array Minimal trust surface (v2: jwks_uri, signed cards, DID). */
 	private function trust() {
-		$trust = array();
+		// Always state authenticity explicitly. Wire-format 1.0 documents are NOT
+		// cryptographically signed, so a consumer MUST NOT assume this document is
+		// verified — say so rather than leaving an empty {} that implies nothing.
+		// (Signing — jwks_uri / signed cards / DID — is the deferred v2 surface.)
+		$trust = array( 'signed' => false );
 		if ( file_exists( ABSPATH . '.well-known/security.txt' ) || isset( $this->registry->well_known()['security.txt'] ) ) {
 			$trust['security_txt'] = home_url( '/.well-known/security.txt' );
 		}
