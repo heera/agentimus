@@ -183,13 +183,17 @@ final class RestApi {
 	}
 
 	/**
-	 * A resource-id slug for a namespace ("acme/v1" → "acme-v1").
+	 * A valid resource-id slug for a namespace. Any run of non-alphanumeric
+	 * characters (slashes, underscores, dots) becomes a single hyphen, so the
+	 * result always satisfies the Resource id pattern: "wc/v3/wc_paypal" →
+	 * "wc-v3-wc-paypal", "acme/v1" → "acme-v1".
 	 *
 	 * @param string $namespace REST namespace.
 	 * @return string
 	 */
 	public static function slug( $namespace ) {
-		return sanitize_key( str_replace( '/', '-', (string) $namespace ) );
+		$slug = preg_replace( '/[^a-z0-9]+/', '-', strtolower( (string) $namespace ) );
+		return trim( (string) $slug, '-' );
 	}
 
 	/**

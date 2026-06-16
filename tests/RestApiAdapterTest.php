@@ -56,5 +56,8 @@ final class RestApiAdapterTest extends TestCase {
 	public function test_slug() {
 		$this->assertSame( 'acme-v1', RestApi::slug( 'acme/v1' ) );
 		$this->assertSame( 'wc-store-v1', RestApi::slug( 'wc/store/v1' ) );
+		// Underscores (and any non-alphanumeric) must become hyphens, or the id
+		// fails the Resource slug pattern — the bug that produced a validation error.
+		$this->assertSame( 'wc-v3-wc-paypal', RestApi::slug( 'wc/v3/wc_paypal' ) );
 	}
 }
