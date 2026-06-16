@@ -60,7 +60,12 @@ final class WellKnown {
 	 * @return string[]
 	 */
 	public static function routed_names() {
-		$names = array( 'discovery.json', 'agent-card.json', 'agent.json', 'mcp.json', 'security.txt' );
+		// ONLY names this plugin actually serves. Routing a name we don't serve is
+		// harmful: with our rewrite tag set but no body produced, WordPress's
+		// canonical redirect resolves it to the homepage (a 200, not a 404). So
+		// security.txt etc. are intentionally absent — a provider that serves one
+		// adds its name here via the `agentify_well_known_routed` filter.
+		$names = array( 'discovery.json', 'agent-card.json', 'agent.json', 'mcp.json' );
 
 		/**
 		 * Filter the /.well-known names routed to WordPress by an explicit rule.
@@ -145,8 +150,18 @@ final class WellKnown {
 			$this->serve_provider( $providers[ $name ] );
 		}
 
-		// 4. A name we don't own — do nothing. WordPress handles it (404 or
-		// another plugin's handler); we never captured it, so nothing to undo.
+		// 4. We produced nothing. If WE routed this request (our rewrite tag is set)
+		// it would otherwise resolve to the homepage via WordPress's canonical
+		// redirect — so force a clean 404 instead. A name we never routed is left
+		// entirely untouched for WordPress (or another plugin) to handle.
+		if ( '' !== (string) get_query_var( 'wpd_well_known' ) ) {
+			global $wp_query;
+			if ( $wp_query instanceof \WP_Query ) {
+				$wp_query->set_404();
+			}
+			status_header( 404 );
+			nocache_headers();
+		}
 	}
 
 	/* ---------------------------------------------------------------------- *
