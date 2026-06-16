@@ -552,17 +552,11 @@ final class Envelope {
 	}
 
 	/**
-	 * Best-effort sitemap URL (mirrors Endpoints).
+	 * The detected sitemap URL (core or a known SEO plugin), or '' if none.
 	 *
 	 * @return string
 	 */
 	private function sitemap_url() {
-		if ( function_exists( 'wp_sitemaps_get_server' ) ) {
-			$server = wp_sitemaps_get_server();
-			if ( $server && $server->sitemaps_enabled() ) {
-				return home_url( '/wp-sitemap.xml' );
-			}
-		}
-		return home_url( '/sitemap_index.xml' );
+		return \Agentify\Sitemap::url();
 	}
 }

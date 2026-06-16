@@ -48,7 +48,7 @@ final class Repository {
 			'byAgent'    => self::group_counts( 'agent', $month, 8 ),
 			'byEndpoint' => self::group_counts( 'endpoint', $month, 12 ),
 			'daily'      => self::daily(),
-			'recent'     => self::recent( 20 ),
+			'recent'     => self::recent( 50 ),
 		);
 	}
 

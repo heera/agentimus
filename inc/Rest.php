@@ -55,6 +55,16 @@ final class Rest {
 
 		register_rest_route(
 			self::NAMESPACE,
+			'/settings/reset',
+			array(
+				'methods'             => \WP_REST_Server::EDITABLE,
+				'callback'            => array( $this, 'reset_settings' ),
+				'permission_callback' => array( $this, 'can_manage' ),
+			)
+		);
+
+		register_rest_route(
+			self::NAMESPACE,
 			'/readiness',
 			array(
 				'methods'             => \WP_REST_Server::READABLE,
@@ -109,6 +119,23 @@ final class Rest {
 				'settings'  => $saved,
 				'readiness' => ( new Readiness( $this->settings ) )->report(),
 				'saved'     => true,
+			)
+		);
+	}
+
+	/**
+	 * POST /settings/reset — restore factory defaults.
+	 *
+	 * @return \WP_REST_Response
+	 */
+	public function reset_settings() {
+		$defaults = $this->settings->reset();
+
+		return rest_ensure_response(
+			array(
+				'settings'  => $defaults,
+				'readiness' => ( new Readiness( $this->settings ) )->report(),
+				'reset'     => true,
 			)
 		);
 	}

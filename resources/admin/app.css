@@ -10,7 +10,12 @@
 #wpcontent { padding-left: 0; }
 .wrap { margin: 0; }
 
-#agentify-app {
+/* Design tokens — defined globally rather than only on #agentify-app. Custom
+   properties are inert (they paint nothing until a property references them),
+   so this leaks no visuals into wp-admin, but it DOES let UI we Teleport to
+   <body> (toasts, the reset modal) read the same tokens. Visual rules below
+   stay scoped to .ar-* / #agentify-app. */
+:root {
   /* Type */
   --ar-serif: "Iowan Old Style", "Palatino Linotype", Palatino, "Book Antiqua", Georgia, serif;
   --ar-mono: ui-monospace, "SF Mono", "JetBrains Mono", "Cascadia Code", Menlo, Consolas, monospace;
@@ -33,6 +38,9 @@
   --ar-bad: #b93c2b;
 
   --ar-radius: 4px;
+}
+
+#agentify-app {
 
   /* Full-bleed: wp-admin's content padding is neutralized below, so the app
      fills the admin body edge-to-edge with no left/right gap. Transparent so it
@@ -578,16 +586,123 @@ select.ar-input {
 .ar-btn:hover:not(:disabled) { background: #000; box-shadow: 0 6px 18px -8px rgba(27, 25, 19, 0.7); }
 .ar-btn:active:not(:disabled) { transform: translateY(1px); }
 .ar-btn:disabled { opacity: 0.5; cursor: default; }
+.ar-btn--danger { background: transparent; color: var(--ar-bad); border-color: var(--ar-bad); }
+.ar-btn--danger:hover:not(:disabled) { background: var(--ar-bad); color: var(--ar-paper); box-shadow: 0 6px 18px -8px rgba(185, 60, 43, 0.6); }
+
+/* ---- Reset to defaults -------------------------------------------------- */
+.ar-card--reset { border-color: var(--ar-line); }
+.ar-reset { display: flex; align-items: center; gap: 20px; }
+.ar-reset__text { flex: 1; display: flex; flex-direction: column; gap: 3px; }
+.ar-reset__text strong { font-size: 14px; font-weight: 600; }
+.ar-reset__text small { color: var(--ar-ink-soft); font-size: 12.5px; line-height: 1.5; }
+.ar-reset .ar-btn { flex: 0 0 auto; }
+
+/* ---- Modal (reset confirmation + preview) ------------------------------ */
+.ar-modal {
+  position: fixed; inset: 0; z-index: 100001;
+  display: flex; align-items: center; justify-content: center;
+  padding: 20px;
+  background: rgba(27, 25, 19, 0.42);
+  -webkit-backdrop-filter: blur(3px); backdrop-filter: blur(3px);
+}
+.ar-modal__panel {
+  display: flex; flex-direction: column;
+  width: 100%; max-width: 560px; max-height: min(calc(100vh - 40px), 600px); overflow: hidden;
+  background: var(--ar-surface); border: 1px solid var(--ar-line-strong);
+  border-radius: 10px;
+  box-shadow: 0 24px 60px -20px rgba(27, 25, 19, 0.5);
+}
+.ar-modal__panel:focus { outline: none; }
+/* Header + footer stay put; only the preview body scrolls, so the actions are
+   always reachable on a short screen. */
+.ar-modal__head { flex: 0 0 auto; padding: 24px 28px 16px; border-bottom: 1px solid var(--ar-line); }
+/* Nested-flex scroll: each level needs flex + min-height:0 so the scroller gets
+   a resolved height. A percentage height here would NOT resolve (the flex item's
+   height is auto) and the content would overflow instead of scrolling. */
+.ar-modal__body { position: relative; flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; }
+.ar-modal__scroll { flex: 1 1 auto; min-height: 0; overflow-y: auto; padding: 8px 28px 10px; }
+/* Scroll affordance: a bottom fade + chevron, shown only while more is below. */
+.ar-modal__fade {
+  position: absolute; left: 0; right: 0; bottom: 0; height: 52px;
+  display: flex; align-items: flex-end; justify-content: center; padding-bottom: 6px;
+  pointer-events: none; opacity: 0; transition: opacity 0.18s ease;
+  background: linear-gradient(to bottom, rgba(255, 253, 247, 0), var(--ar-surface) 80%);
+}
+.ar-modal__fade.is-visible { opacity: 1; }
+.ar-modal__chev { color: var(--ar-ink-faint); }
+.ar-modal__title { margin: 0 0 8px; font-size: 19px; letter-spacing: -0.01em; color: var(--ar-ink); }
+.ar-modal__lead { margin: 0; font-size: 13px; line-height: 1.55; color: var(--ar-ink-soft); }
+
+.ar-preview { display: grid; gap: 16px; }
+.ar-preview__group { display: grid; gap: 6px; }
+.ar-preview__label {
+  margin: 0; font-family: var(--ar-mono); font-size: 10.5px; letter-spacing: 0.12em;
+  text-transform: uppercase; color: var(--ar-ink-faint);
+}
+.ar-preview__list { margin: 0; padding: 0; list-style: none; display: grid; gap: 0; }
+.ar-preview__list li {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  padding: 7px 0; border-bottom: 1px solid var(--ar-line); font-size: 13px;
+}
+.ar-preview__list li:last-child { border-bottom: 0; }
+.ar-preview__state {
+  font-family: var(--ar-mono); font-size: 10.5px; letter-spacing: 0.06em;
+  padding: 2px 8px; border-radius: 3px; border: 1px solid;
+}
+.ar-preview__state.is-on { color: var(--ar-good); border-color: #bcdcc6; background: #eef5f0; }
+.ar-preview__state.is-off { color: var(--ar-ink-soft); border-color: var(--ar-line-strong); background: #f4f1e8; }
+.ar-preview__muted { color: var(--ar-ink-soft); font-size: 12.5px; }
+
+.ar-modal__actions {
+  flex: 0 0 auto; display: flex; justify-content: flex-end; gap: 10px;
+  padding: 14px 28px 18px; border-top: 1px solid var(--ar-line);
+}
+.ar-btn--ghost { background: transparent; color: var(--ar-ink); border-color: var(--ar-line-strong); }
+.ar-btn--ghost:hover:not(:disabled) { background: var(--ar-paper); box-shadow: none; }
+
+.ar-modal-enter-active { transition: opacity 0.2s ease; }
+.ar-modal-leave-active { transition: opacity 0.16s ease; }
+.ar-modal-enter-from, .ar-modal-leave-to { opacity: 0; }
+.ar-modal-enter-active .ar-modal__panel { transition: transform 0.24s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.24s ease; }
+.ar-modal-enter-from .ar-modal__panel { transform: translateY(10px) scale(0.98); opacity: 0; }
+@media (prefers-reduced-motion: reduce) {
+  .ar-modal-enter-active .ar-modal__panel { transition: none; }
+  .ar-modal-enter-from .ar-modal__panel { transform: none; }
+}
+/* Small / short viewports: tighten the gap and let the panel use more height.
+   Placed after the base rules so it wins the cascade. */
+@media (max-width: 600px), (max-height: 560px) {
+  .ar-modal { padding: 10px; }
+  .ar-modal__panel { max-height: calc(100vh - 20px); }
+}
 
 /* ---- Readiness ---------------------------------------------------------- */
 .ar-checks { margin: 14px 0 0; padding: 0; list-style: none; display: grid; gap: 0; border-top: 1px solid var(--ar-line); }
 .ar-check {
-  display: flex; align-items: center; gap: 16px;
+  display: flex; align-items: flex-start; gap: 16px;
   padding: 15px 4px; border-bottom: 1px solid var(--ar-line);
 }
 .ar-check__text { flex: 1; display: flex; flex-direction: column; gap: 2px; }
 .ar-check__text strong { font-size: 14px; font-weight: 600; }
 .ar-check__text small { color: var(--ar-ink-soft); font-size: 12.5px; }
+.ar-check__fix {
+  margin: 8px 0 0; padding: 8px 11px;
+  font-size: 12.5px; line-height: 1.5; color: var(--ar-ink);
+  background: var(--ar-paper); border-radius: 6px;
+  border-left: 2px solid var(--ar-line-strong);
+}
+.ar-check.is-warn .ar-check__fix { border-left-color: var(--ar-warn); }
+.ar-check.is-fail .ar-check__fix { border-left-color: var(--ar-bad); }
+.ar-check__action {
+  align-self: flex-start; margin: 8px 0 0; padding: 0;
+  background: none; border: 0; cursor: pointer;
+  font-family: var(--ar-mono); font-size: 11px; letter-spacing: 0.04em;
+  color: var(--ar-accent);
+}
+.ar-check__action:hover { text-decoration: underline; }
+.ar-check__action:focus-visible { outline: 2px solid var(--ar-accent); outline-offset: 3px; border-radius: 3px; }
+/* The status tag sits on the first text line even though the row is top-aligned. */
+.ar-check__tag { margin-top: 1px; }
 .ar-check__tag {
   flex: 0 0 auto; min-width: 64px; text-align: center;
   font-family: var(--ar-mono); font-size: 10.5px; letter-spacing: 0.1em;
@@ -829,22 +944,70 @@ select.ar-input {
 .ar-act-rank__n { font-family: var(--ar-mono); font-size: 12px; color: var(--ar-ink-soft); text-align: right; min-width: 24px; }
 
 /* Recent feed */
-.ar-act-feed { margin: 14px 0 0; padding: 0; list-style: none; display: grid; gap: 0; border-top: 1px solid var(--ar-line); }
+/* Capped, scrollable feed with a bottom fade cue (same pattern as the modal). */
+.ar-act-feedwrap { position: relative; margin: 14px 0 0; }
+.ar-act-feed { margin: 0; padding: 0; list-style: none; display: grid; gap: 0; border-top: 1px solid var(--ar-line); max-height: 340px; overflow-y: auto; }
+.ar-act-feedfade {
+  position: absolute; left: 0; right: 0; bottom: 0; height: 44px;
+  display: flex; align-items: flex-end; justify-content: center; padding-bottom: 4px;
+  pointer-events: none; opacity: 0; transition: opacity 0.18s ease;
+  background: linear-gradient(to bottom, rgba(255, 253, 247, 0), var(--ar-surface) 82%);
+}
+.ar-act-feedfade.is-visible { opacity: 1; }
+.ar-act-feedfade__chev { color: var(--ar-ink-faint); }
 .ar-act-feed li {
-  display: flex; flex-direction: column; gap: 4px; padding: 10px 2px; border-bottom: 1px solid var(--ar-line);
+  display: flex; align-items: center; gap: 10px;
+  padding: 8px 2px; border-bottom: 1px solid var(--ar-line);
 }
-.ar-act-feed__row { display: flex; align-items: center; gap: 12px; }
-.ar-act-feed__ua {
-  font-family: var(--ar-mono); font-size: 11px; color: var(--ar-ink-faint);
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%;
-}
-.ar-act-feed__ua.is-empty { font-style: italic; }
-.ar-act-feed__agent { font-size: 13px; font-weight: 600; color: var(--ar-ink); flex: 0 0 auto; min-width: 0; }
+.ar-act-feed__agent { font-size: 13px; font-weight: 600; color: var(--ar-ink); flex: 0 0 auto; white-space: nowrap; }
 .ar-act-feed__ep {
   font-family: var(--ar-mono); font-size: 11.5px; color: var(--ar-ink-soft);
-  background: var(--ar-surface-2); padding: 2px 7px; border-radius: 3px; white-space: nowrap;
+  background: var(--ar-surface-2); padding: 2px 7px; border-radius: 3px; white-space: nowrap; flex: 0 0 auto;
 }
-.ar-act-feed__at { margin-left: auto; font-family: var(--ar-mono); font-size: 11px; color: var(--ar-ink-faint); flex: 0 0 auto; }
+/* UA takes the remaining space and truncates — the row never wraps. */
+.ar-act-feed__ua {
+  flex: 1 1 auto; min-width: 0;
+  font-family: var(--ar-mono); font-size: 11px; color: var(--ar-ink-faint);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.ar-act-feed__ua.is-empty { font-style: italic; }
+.ar-act-feed__count {
+  flex: 0 0 auto; font-family: var(--ar-mono); font-size: 11px; color: var(--ar-ink-soft);
+  background: var(--ar-surface-2); padding: 1px 6px; border-radius: 3px;
+}
+.ar-act-feed__count:empty { background: none; padding: 0; } /* count=1: keep the cell, hide the pill */
+.ar-act-feed__at { flex: 0 0 auto; font-family: var(--ar-mono); font-size: 11px; color: var(--ar-ink-faint); }
+/* Align every row's columns. Subgrid lets each <li> share the <ul>'s column
+   tracks, so the agent, endpoint, count and time columns line up across rows
+   (the User-Agent fills the slack). Falls back to the flex layout above where
+   subgrid is unsupported. */
+@supports (grid-template-columns: subgrid) {
+  .ar-act-feed {
+    grid-template-columns: max-content max-content minmax(0, 1fr) max-content max-content;
+  }
+  .ar-act-feed li {
+    grid-column: 1 / -1;
+    display: grid;
+    grid-template-columns: subgrid;
+    align-items: center;
+  }
+  .ar-act-feed__at { text-align: right; }
+}
+
+/* ---- Loading skeleton (activity first load) ---------------------------- */
+.ar-skel { display: grid; gap: 14px; margin-top: 16px; }
+.ar-skel__tiles { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+.ar-skel__box { height: 58px; border-radius: var(--ar-radius); }
+.ar-skel__line { height: 13px; border-radius: 4px; }
+.ar-skel__box, .ar-skel__line {
+  background: linear-gradient(90deg, var(--ar-surface-2) 25%, var(--ar-line) 50%, var(--ar-surface-2) 75%);
+  background-size: 200% 100%;
+  animation: ar-shimmer 1.3s ease-in-out infinite;
+}
+@keyframes ar-shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+@media (prefers-reduced-motion: reduce) {
+  .ar-skel__box, .ar-skel__line { animation: none; background: var(--ar-surface-2); }
+}
 
 /* ---- One-time load reveal (no perpetual motion) ------------------------- */
 .ar__body > * { animation: ar-rise 0.5s cubic-bezier(0.22, 1, 0.36, 1) both; }

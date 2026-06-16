@@ -18,6 +18,7 @@ export default {
       // Restore the tab from the URL hash so a refresh keeps the same page.
       tab: ['dashboard', 'settings', 'readiness', 'discovery'].includes(fromHash) ? fromHash : 'dashboard',
       settings: JSON.parse(JSON.stringify(this.boot.settings || {})),
+      defaults: this.boot.defaults || {},
       readiness: this.boot.readiness || [],
       refreshingReadiness: false,
       discovery: this.boot.discovery || {},
@@ -32,6 +33,7 @@ export default {
       endpoints: this.boot.endpoints || {},
       version: this.boot.version || '',
       saving: false,
+      resetting: false,
       profileSaving: false,
       profileSaved: false,
       autoStatus: 'idle',
@@ -74,6 +76,7 @@ export default {
         enable_llms_txt: s.enable_llms_txt, enable_llms_full: s.enable_llms_full,
         enable_markdown: s.enable_markdown, enable_robots: s.enable_robots,
         enable_schema: s.enable_schema, enable_activity: s.enable_activity,
+        enable_sitemap: s.enable_sitemap,
         llms_full_posts: s.llms_full_posts, post_types: s.post_types,
         rest_namespaces: s.rest_namespaces, content_signal: s.content_signal,
         blocked_trainers: s.blocked_trainers, suppressed_resources: s.suppressed_resources,
@@ -165,6 +168,12 @@ export default {
       }
     },
     instantState() {
+      // A reset just replaced the whole settings object; don't autosave that
+      // (the server already stored the defaults).
+      if (this._skipAutosave) {
+        this._skipAutosave = false;
+        return;
+      }
       // A toggle / selection / chip changed → autosave (debounced), leaving the
       // in-progress profile text untouched (it has its own Save).
       this.queueAutosave();
@@ -235,6 +244,30 @@ export default {
         this.flash('error', e.message);
       } finally {
         this.profileSaving = false;
+      }
+    },
+    // Restore factory defaults. Wipes the stored option server-side, then
+    // adopts the returned defaults as the new live + saved state so the form
+    // reflects them immediately (no reload) and autosave won't fight it.
+    async resetSettings() {
+      if (this.resetting) return;
+      this.resetting = true;
+      // Suspend autosave: replacing this.settings changes instantState, which
+      // would otherwise queue a redundant save of the defaults we just stored.
+      clearTimeout(this._autoTimer);
+      try {
+        const res = await this.api.resetSettings();
+        this._skipAutosave = true;
+        this.settings = JSON.parse(JSON.stringify(res.settings || {}));
+        this.$nextTick(() => { this._skipAutosave = false; });
+        this.savedSnapshot = JSON.stringify(res.settings || {});
+        this.readiness = res.readiness || this.readiness;
+        this.autoStatus = 'idle';
+        this.flash('success', 'Settings restored to defaults.');
+      } catch (e) {
+        this.flash('error', e.message);
+      } finally {
+        this.resetting = false;
       }
     },
     // Debounced autosave for toggles / selections / chips.
@@ -377,13 +410,17 @@ export default {
           :profile-dirty="profileDirty"
           :profile-saving="profileSaving"
           :profile-saved="profileSaved"
+          :resetting="resetting"
+          :defaults="defaults"
           @save-profile="saveProfile"
+          @reset="resetSettings"
         />
         <ReadinessPanel
           v-show="tab === 'readiness'"
           :checks="readiness"
           :refreshing="refreshingReadiness"
           @refresh="refreshReadiness"
+          @navigate="goTo"
         />
         <DiscoveryHub
           v-show="tab === 'discovery'"
@@ -395,6 +432,7 @@ export default {
           v-show="tab === 'dashboard'"
           :data="activity"
           :summary="dashSummary"
+          :loaded="activityLoaded"
           :refreshing="refreshingActivity"
           @refresh="refreshActivity"
           @clear="clearActivity"

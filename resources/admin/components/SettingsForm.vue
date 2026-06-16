@@ -15,10 +15,18 @@ export default {
     profileDirty: { type: Boolean, default: false },
     profileSaving: { type: Boolean, default: false },
     profileSaved: { type: Boolean, default: false },
+    resetting: { type: Boolean, default: false },
+    defaults: { type: Object, default: () => ({}) },
   },
-  emits: ['save-profile'],
+  emits: ['save-profile', 'reset'],
   data() {
-    return { typeQuery: '', nsQuery: '' };
+    return { typeQuery: '', nsQuery: '', showReset: false, scrollMore: false };
+  },
+  mounted() {
+    window.addEventListener('resize', this.updateScrollHint);
+  },
+  beforeUnmount() {
+    window.removeEventListener('resize', this.updateScrollHint);
   },
   computed: {
     filteredPostTypes() {
@@ -62,7 +70,21 @@ export default {
         { key: 'enable_robots', label: 'robots.txt rules', hint: 'Content-signal intent plus a model-training crawler blocklist.' },
         { key: 'enable_schema', label: 'JSON-LD schema', hint: 'WebSite, entity and article structured data (defers to SEO plugins).' },
         { key: 'enable_activity', label: 'Agent activity log', hint: 'Record which AI agents request your discovery & llms endpoints (local-only, no IP).' },
+        { key: 'enable_sitemap', label: 'XML sitemap (fallback)', hint: 'Generate a sitemap only when WordPress core and SEO-plugin sitemaps are both absent — never duplicates an existing one.' },
       ];
+    },
+    resetPreview() {
+      // A compact summary of the factory defaults, shown in the reset dialog so
+      // the user sees exactly what they'll get before confirming.
+      const d = this.defaults || {};
+      const cs = d.content_signal || {};
+      return {
+        features: this.features.map((f) => ({ label: f.label, on: !!d[f.key] })),
+        signals: this.signalRows.map((r) => ({ label: r.label, allow: !!cs[r.key] })),
+        trainers: Array.isArray(d.blocked_trainers) ? d.blocked_trainers.length : 0,
+        types: Array.isArray(d.post_types) ? d.post_types.length : 0,
+        fullPosts: d.llms_full_posts,
+      };
     },
     signal() {
       // Content-Signal is a fixed vocabulary; guard against a missing object.
@@ -119,6 +141,30 @@ export default {
     isUrl(value) {
       return /^https?:\/\//i.test(value);
     },
+    openReset() {
+      if (this.resetting) return;
+      this.showReset = true;
+      this.$nextTick(() => {
+        if (this.$refs.resetDialog) this.$refs.resetDialog.focus();
+        this.updateScrollHint();
+      });
+    },
+    closeReset() {
+      this.showReset = false;
+    },
+    onBodyScroll() {
+      this.updateScrollHint();
+    },
+    // Show the bottom fade + chevron only while there's more content below, so
+    // the user knows the list scrolls (and the cue disappears at the end).
+    updateScrollHint() {
+      const el = this.$refs.resetBody;
+      this.scrollMore = !!el && el.scrollHeight - el.scrollTop - el.clientHeight > 4;
+    },
+    doReset() {
+      this.showReset = false;
+      this.$emit('reset');
+    },
     addTrainer(name) {
       if (!Array.isArray(this.settings.blocked_trainers)) this.settings.blocked_trainers = [];
       if (!this.settings.blocked_trainers.includes(name)) this.settings.blocked_trainers.push(name);
@@ -171,7 +217,7 @@ export default {
 <template>
   <form class="ar-form" @submit.prevent="$emit('save-profile')">
     <!-- Identity ------------------------------------------------------- -->
-    <section class="ar-card">
+    <section id="ar-sec-identity" class="ar-card">
       <h2 class="ar-card__title">Identity</h2>
       <p class="ar-card__lead">The highest-signal data an agent reads — who owns this site and what it's about.</p>
 
@@ -243,7 +289,7 @@ export default {
     </section>
 
     <!-- Features ------------------------------------------------------- -->
-    <section class="ar-card">
+    <section id="ar-sec-features" class="ar-card">
       <h2 class="ar-card__title">Features</h2>
       <p class="ar-card__lead">Toggle each agent-readiness signal.</p>
 
@@ -461,5 +507,91 @@ export default {
         <li><a :href="endpoints.robots" target="_blank" rel="noopener">{{ endpoints.robots }}</a></li>
       </ul>
     </section>
+
+    <!-- Reset ---------------------------------------------------------- -->
+    <section class="ar-card ar-card--reset">
+      <div class="ar-reset">
+        <div class="ar-reset__text">
+          <strong>Reset to defaults</strong>
+          <small>Restore every setting — identity, crawler policy and feature toggles — to the recommended factory defaults.</small>
+        </div>
+        <button type="button" class="ar-btn ar-btn--danger" :disabled="resetting" @click="openReset">
+          {{ resetting ? 'Resetting…' : 'Reset' }}
+        </button>
+      </div>
+    </section>
+
+    <Teleport to="body">
+      <transition name="ar-modal">
+        <div v-if="showReset" class="ar-modal" @click.self="closeReset">
+          <div
+            ref="resetDialog"
+            class="ar-modal__panel"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="ar-reset-title"
+            tabindex="-1"
+            @keydown.esc="closeReset"
+          >
+            <div class="ar-modal__head">
+              <h2 id="ar-reset-title" class="ar-modal__title">Reset to defaults?</h2>
+              <p class="ar-modal__lead">
+                Every setting returns to the recommended factory defaults below. Your identity
+                profile — name, about, expertise and links — is cleared. This can’t be undone.
+              </p>
+            </div>
+
+            <div class="ar-modal__body">
+              <div ref="resetBody" class="ar-modal__scroll" @scroll="onBodyScroll">
+                <div class="ar-preview">
+              <div class="ar-preview__group">
+                <p class="ar-preview__label">Features</p>
+                <ul class="ar-preview__list">
+                  <li v-for="f in resetPreview.features" :key="f.label">
+                    <span>{{ f.label }}</span>
+                    <span class="ar-preview__state" :class="f.on ? 'is-on' : 'is-off'">{{ f.on ? 'On' : 'Off' }}</span>
+                  </li>
+                </ul>
+              </div>
+
+              <div class="ar-preview__group">
+                <p class="ar-preview__label">Crawler policy</p>
+                <ul class="ar-preview__list">
+                  <li v-for="s in resetPreview.signals" :key="s.label">
+                    <span>{{ s.label }}</span>
+                    <span class="ar-preview__state" :class="s.allow ? 'is-on' : 'is-off'">{{ s.allow ? 'Allowed' : 'Refused' }}</span>
+                  </li>
+                  <li>
+                    <span>Blocked AI trainers</span>
+                    <span class="ar-preview__muted">{{ resetPreview.trainers }} crawlers</span>
+                  </li>
+                </ul>
+              </div>
+
+              <div class="ar-preview__group">
+                <p class="ar-preview__label">Content</p>
+                <ul class="ar-preview__list">
+                  <li><span>Content types indexed</span><span class="ar-preview__muted">{{ resetPreview.types }} (all public)</span></li>
+                  <li><span>Posts in /llms-full.txt</span><span class="ar-preview__muted">{{ resetPreview.fullPosts }}</span></li>
+                  <li><span>Identity profile</span><span class="ar-preview__muted">cleared</span></li>
+                </ul>
+              </div>
+                </div>
+              </div>
+              <div class="ar-modal__fade" :class="{ 'is-visible': scrollMore }" aria-hidden="true">
+                <svg viewBox="0 0 16 16" class="ar-modal__chev" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6l4 4 4-4" /></svg>
+              </div>
+            </div>
+
+            <div class="ar-modal__actions">
+              <button type="button" class="ar-btn ar-btn--ghost" @click="closeReset">Cancel</button>
+              <button type="button" class="ar-btn ar-btn--danger" :disabled="resetting" @click="doReset">
+                {{ resetting ? 'Resetting…' : 'Reset to defaults' }}
+              </button>
+            </div>
+          </div>
+        </div>
+      </transition>
+    </Teleport>
   </form>
 </template>

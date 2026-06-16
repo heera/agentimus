@@ -105,6 +105,7 @@ final class Admin {
 			'restUrl'     => esc_url_raw( rest_url( Rest::NAMESPACE ) ),
 			'nonce'       => wp_create_nonce( 'wp_rest' ),
 			'settings'    => $this->settings->all(),
+			'defaults'    => $this->settings->defaults(), // Powers the reset-preview.
 			'readiness'   => ( new Readiness( $this->settings ) )->report(),
 			'discovery'   => Discovery\Hub::data( $this->settings, Discovery\Registry::instance() ),
 			'restNamespacesDetected' => Discovery\Adapters\RestApi::detected(),

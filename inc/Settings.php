@@ -29,6 +29,7 @@ final class Settings {
 			'enable_robots'    => true,
 			'enable_schema'    => true,
 			'enable_activity'  => true,
+			'enable_sitemap'   => true, // Gap-only fallback: stands down when core/SEO provides one, so it's safe on by default.
 			'llms_full_posts'  => 50,
 			'post_types'       => Content::available(),
 			'rest_namespaces'  => array(), // Owner-curated REST namespaces to publish in discovery (opt-in; empty = none).
@@ -157,6 +158,27 @@ final class Settings {
 	}
 
 	/**
+	 * Restore every setting to its factory default, wiping the stored option and
+	 * any generated caches. Identity text, crawler policy and feature toggles all
+	 * revert. Returns the resolved (default) settings.
+	 *
+	 * @return array
+	 */
+	public function reset() {
+		delete_option( self::OPTION );
+		add_option( self::OPTION, $this->defaults() );
+		Cache::flush();
+
+		/**
+		 * Fires after settings are reset to defaults (a Pro add-on can clear its
+		 * own state too).
+		 */
+		do_action( 'agentify_settings_reset' );
+
+		return $this->all();
+	}
+
+	/**
 	 * Seed defaults on activation if the option is absent.
 	 */
 	public function ensure_defaults() {
@@ -175,7 +197,7 @@ final class Settings {
 		$defaults = $this->defaults();
 		$clean    = array();
 
-		foreach ( array( 'enable_llms_txt', 'enable_llms_full', 'enable_markdown', 'enable_robots', 'enable_schema', 'enable_activity' ) as $flag ) {
+		foreach ( array( 'enable_llms_txt', 'enable_llms_full', 'enable_markdown', 'enable_robots', 'enable_schema', 'enable_activity', 'enable_sitemap' ) as $flag ) {
 			$clean[ $flag ] = ! empty( $input[ $flag ] );
 		}
 

@@ -5,7 +5,7 @@ export default {
     checks: { type: Array, default: () => [] },
     refreshing: { type: Boolean, default: false },
   },
-  emits: ['refresh'],
+  emits: ['refresh', 'navigate'],
   computed: {
     grouped() {
       const order = { fail: 0, warn: 1, pass: 2 };
@@ -35,6 +35,20 @@ export default {
         <div class="ar-check__text">
           <strong>{{ c.label }}</strong>
           <small>{{ c.detail }}</small>
+          <p v-if="c.fix" class="ar-check__fix">{{ c.fix }}</p>
+          <a
+            v-if="c.action && c.action.href"
+            class="ar-check__action"
+            :href="c.action.href"
+            target="_blank"
+            rel="noopener"
+          >{{ c.action.label }} ↗</a>
+          <button
+            v-else-if="c.action"
+            type="button"
+            class="ar-check__action"
+            @click="$emit('navigate', { tab: c.action.tab, anchor: c.action.anchor })"
+          >{{ c.action.label }} →</button>
         </div>
         <span class="ar-check__tag" :class="`is-${c.status}`">{{ tagLabel(c.status) }}</span>
       </li>

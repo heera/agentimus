@@ -60,6 +60,19 @@ final class Endpoints {
 			$this->send( $this->llms_full_txt(), 'text/plain', 'llms-full.txt' );
 		}
 
+		// The opt-in fallback sitemap (index + paginated sub-sitemaps) — served
+		// only while Agentify actually owns the sitemap (core/SEO absent), so we
+		// never shadow another plugin's file.
+		if ( 0 === strpos( $path, '/agentify-sitemap' ) && '.xml' === substr( $path, -4 ) ) {
+			if ( 'agentify' === Sitemap::detect()['source'] ) {
+				$body = Sitemap::body( $path );
+				if ( '' !== $body ) {
+					$this->send( $body, 'application/xml', 'sitemap' );
+				}
+			}
+			return; // Unknown/inactive sitemap path: let WordPress 404 it normally.
+		}
+
 		if ( ! $this->settings->enabled( 'enable_markdown' ) ) {
 			return;
 		}
@@ -112,11 +125,12 @@ final class Endpoints {
 			header( 'X-Content-Type-Options: nosniff' );
 			header( 'Vary: Accept', false );
 
-			if ( 'text/plain' === $content_type ) {
-				header( 'Cache-Control: public, max-age=3600' );
-			} else {
+			if ( 'text/markdown' === $content_type ) {
 				// Negotiated markdown shares a URL with HTML; never let it be cached.
 				header( 'Cache-Control: no-store, max-age=0' );
+			} else {
+				// Stable URLs (llms.txt, the sitemap) are safe to cache.
+				header( 'Cache-Control: public, max-age=3600' );
 			}
 		}
 
@@ -412,18 +426,12 @@ final class Endpoints {
 	}
 
 	/**
-	 * Best-effort sitemap URL (core sitemaps or a common plugin location).
+	 * The detected sitemap URL (core or a known SEO plugin), or '' if none.
 	 *
 	 * @return string
 	 */
 	private function sitemap_url() {
-		if ( function_exists( 'wp_sitemaps_get_server' ) ) {
-			$server = wp_sitemaps_get_server();
-			if ( $server && $server->sitemaps_enabled() ) {
-				return home_url( '/wp-sitemap.xml' );
-			}
-		}
-		return home_url( '/sitemap_index.xml' );
+		return Sitemap::url();
 	}
 
 	/**

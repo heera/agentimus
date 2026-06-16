@@ -16,6 +16,10 @@ final class Cache {
 	const LLMS_TXT  = 'agentify_llms_txt';
 	const LLMS_FULL = 'agentify_llms_full';
 	const DISCOVERY = 'agentify_discovery';
+	// The sitemap is generated as an index + many paginated sub-sitemaps, so it
+	// can't use one fixed key. This holds a generation token that namespaces all
+	// of its transient keys; deleting it invalidates every page at once.
+	const SITEMAP_GEN = 'agentify_sitemap_gen';
 
 	const TTL = HOUR_IN_SECONDS;
 
@@ -46,6 +50,7 @@ final class Cache {
 		delete_transient( self::LLMS_TXT );
 		delete_transient( self::LLMS_FULL );
 		delete_transient( self::DISCOVERY );
+		delete_transient( self::SITEMAP_GEN ); // Orphans every sub-sitemap transient.
 	}
 
 	/**
