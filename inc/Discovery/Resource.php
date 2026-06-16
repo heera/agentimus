@@ -61,6 +61,7 @@ final class Resource {
 		// --- title (required) ---------------------------------------------- //
 		$title = isset( $raw['title'] ) ? sanitize_text_field( (string) $raw['title'] ) : '';
 		if ( '' === $title ) {
+			/* translators: %s: resource id. */
 			return new \WP_Error( 'wpd_resource_title', sprintf( __( 'Resource "%s" is missing a title.', 'agentify' ), $id ) );
 		}
 

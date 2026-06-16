@@ -1,8 +1,8 @@
 === Agentify ===
 Contributors: heera
 Tags: llms-txt, ai-crawlers, schema, robots-txt, ai-agents
-Requires at least: 6.3
-Tested up to: 6.8
+Requires at least: 6.9
+Tested up to: 7.0
 Requires PHP: 7.4
 Stable tag: 1.0.0
 License: GPLv2 or later

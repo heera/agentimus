@@ -110,6 +110,7 @@ final class Registry {
 			return new \WP_Error( 'wpd_wk_name', __( 'A well-known document needs a name.', 'agentify' ) );
 		}
 		if ( empty( $def['callback'] ) && empty( $def['redirect'] ) && empty( $def['file'] ) ) {
+			/* translators: %s: well-known document name, e.g. "security.txt". */
 			return new \WP_Error( 'wpd_wk_source', sprintf( __( 'Well-known "%s" needs a callback, redirect or file.', 'agentify' ), $name ) );
 		}
 		if ( isset( $this->well_known[ $name ] ) ) {

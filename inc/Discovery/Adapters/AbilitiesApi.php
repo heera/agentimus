@@ -55,7 +55,10 @@ final class AbilitiesApi {
 	 * @param Registry $registry The collector.
 	 */
 	public function provide( Registry $registry ) {
-		if ( ! self::is_available() ) {
+		// Inline guard (not just self::is_available()) so static analysis can see
+		// that wp_get_abilities() — a WP 6.9+ API — is never called on older cores;
+		// the plugin's baseline (llms/schema/robots/discovery) supports 6.3+.
+		if ( ! function_exists( 'wp_get_abilities' ) ) {
 			return;
 		}
 

@@ -4,14 +4,13 @@
  * Plugin URI:        https://github.com/heera/agentify
  * Description:       Make any WordPress site legible to AI agents and crawlers — llms.txt, a full-text edition, markdown delivery, JSON-LD, and content-signal robots rules. Lightweight, no SEO bloat.
  * Version:           1.0.0
- * Requires at least: 6.3
+ * Requires at least: 6.9
  * Requires PHP:      7.4
  * Author:            Sheikh Heera
  * Author URI:        https://heera.it
  * License:           GPL-2.0-or-later
  * License URI:       https://www.gnu.org/licenses/gpl-2.0.html
  * Text Domain:       agentify
- * Domain Path:       /languages
  *
  * @package Agentify
  */

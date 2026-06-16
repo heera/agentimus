@@ -36,11 +36,8 @@ final class Plugin {
 	 * own hooks; nothing runs work eagerly here.
 	 */
 	public function boot() {
-		load_plugin_textdomain(
-			'agentify',
-			false,
-			dirname( plugin_basename( AGENTIFY_FILE ) ) . '/languages'
-		);
+		// Translations are loaded automatically by WordPress for plugins hosted on
+		// wordpress.org (since 4.6) — no manual load_plugin_textdomain() needed.
 
 		$this->settings = new Settings();
 
