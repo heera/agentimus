@@ -240,7 +240,7 @@ final class Content {
 		 */
 		$html = apply_filters( 'agentify_markdown_source', null, $post );
 		if ( null === $html ) {
-			$html = apply_filters( 'the_content', $post->post_content );
+			$html = apply_filters( 'the_content', $post->post_content ); // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound -- intentionally running content through WordPress core's own the_content filter, not declaring a new hook.
 		}
 		return (string) $html;
 	}

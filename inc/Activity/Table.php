@@ -72,7 +72,7 @@ final class Table {
 	public static function drop() {
 		global $wpdb;
 		$table = self::name();
-		$wpdb->query( "DROP TABLE IF EXISTS $table" ); // phpcs:ignore WordPress.DB -- schema teardown; name is prefix-derived.
+		$wpdb->query( "DROP TABLE IF EXISTS $table" ); // phpcs:ignore WordPress.DB, PluginCheck.Security.DirectDB.UnescapedDBParameter -- schema teardown; $table is our own prefix-derived name, not user input.
 		delete_option( self::VERSION_OPTION );
 	}
 }

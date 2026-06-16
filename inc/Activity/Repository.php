@@ -42,8 +42,8 @@ final class Repository {
 				'today'  => self::count_since( $today ),
 				'week'   => self::count_since( $week ),
 				'month'  => self::count_since( $month ),
-				'all'    => (int) $wpdb->get_var( "SELECT COUNT(*) FROM $table" ), // phpcs:ignore WordPress.DB
-				'agents' => (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(DISTINCT agent) FROM $table WHERE hit_at >= %s", $month ) ), // phpcs:ignore WordPress.DB
+				'all'    => (int) $wpdb->get_var( "SELECT COUNT(*) FROM $table" ), // phpcs:ignore WordPress.DB, PluginCheck.Security.DirectDB.UnescapedDBParameter -- $table is our own prefix-derived table name (not user input); SQL identifiers can't be bound via prepare().
+				'agents' => (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(DISTINCT agent) FROM $table WHERE hit_at >= %s", $month ) ), // phpcs:ignore WordPress.DB, PluginCheck.Security.DirectDB.UnescapedDBParameter -- $table is our own prefix-derived table name; the value is bound via prepare().
 			),
 			'byAgent'    => self::group_counts( 'agent', $month, 8 ),
 			'byEndpoint' => self::group_counts( 'endpoint', $month, 12 ),
@@ -61,7 +61,7 @@ final class Repository {
 	private static function count_since( $threshold ) {
 		global $wpdb;
 		$table = Table::name();
-		return (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM $table WHERE hit_at >= %s", $threshold ) ); // phpcs:ignore WordPress.DB
+		return (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM $table WHERE hit_at >= %s", $threshold ) ); // phpcs:ignore WordPress.DB, PluginCheck.Security.DirectDB.UnescapedDBParameter -- $table is our own prefix-derived table name; the value is bound via prepare().
 	}
 
 	/**
@@ -76,10 +76,12 @@ final class Repository {
 		global $wpdb;
 		$table  = Table::name();
 		$column = in_array( $column, array( 'agent', 'endpoint' ), true ) ? $column : 'agent';
-		$rows   = $wpdb->get_results( // phpcs:ignore WordPress.DB
+		// phpcs:disable WordPress.DB, PluginCheck.Security.DirectDB.UnescapedDBParameter -- $table is our own prefix-derived table and $column is whitelisted just above; SQL identifiers can't be bound via prepare(), only the values ($since/$limit), which are.
+		$rows   = $wpdb->get_results(
 			$wpdb->prepare( "SELECT $column AS label, COUNT(*) AS hits FROM $table WHERE hit_at >= %s GROUP BY $column ORDER BY hits DESC LIMIT %d", $since, $limit ),
 			ARRAY_A
 		);
+		// phpcs:enable WordPress.DB, PluginCheck.Security.DirectDB.UnescapedDBParameter
 		return array_map(
 			static function ( $r ) {
 				return array( 'label' => (string) $r['label'], 'hits' => (int) $r['hits'] );
@@ -98,10 +100,12 @@ final class Repository {
 		$table = Table::name();
 		$since = gmdate( 'Y-m-d 00:00:00', time() - ( self::DAILY_DAYS - 1 ) * DAY_IN_SECONDS );
 
-		$rows = $wpdb->get_results( // phpcs:ignore WordPress.DB
+		// phpcs:disable WordPress.DB, PluginCheck.Security.DirectDB.UnescapedDBParameter -- $table is our own prefix-derived table name; the value ($since) is bound via prepare().
+		$rows = $wpdb->get_results(
 			$wpdb->prepare( "SELECT DATE(hit_at) AS d, COUNT(*) AS c FROM $table WHERE hit_at >= %s GROUP BY DATE(hit_at)", $since ),
 			OBJECT_K
 		);
+		// phpcs:enable WordPress.DB, PluginCheck.Security.DirectDB.UnescapedDBParameter
 
 		$out = array();
 		for ( $i = self::DAILY_DAYS - 1; $i >= 0; $i-- ) {
@@ -120,10 +124,12 @@ final class Repository {
 	private static function recent( $limit ) {
 		global $wpdb;
 		$table = Table::name();
-		$rows  = $wpdb->get_results( // phpcs:ignore WordPress.DB
+		// phpcs:disable WordPress.DB, PluginCheck.Security.DirectDB.UnescapedDBParameter -- $table is our own prefix-derived table name; the value ($limit) is bound via prepare().
+		$rows  = $wpdb->get_results(
 			$wpdb->prepare( "SELECT endpoint, agent, ua, hit_at FROM $table ORDER BY id DESC LIMIT %d", $limit ),
 			ARRAY_A
 		);
+		// phpcs:enable WordPress.DB, PluginCheck.Security.DirectDB.UnescapedDBParameter
 		return array_map(
 			static function ( $r ) {
 				return array(
@@ -151,7 +157,7 @@ final class Repository {
 		 */
 		$days   = (int) apply_filters( 'agentify_activity_retention_days', self::WINDOW_DAYS );
 		$cutoff = gmdate( 'Y-m-d H:i:s', time() - max( 1, $days ) * DAY_IN_SECONDS );
-		$wpdb->query( $wpdb->prepare( "DELETE FROM $table WHERE hit_at < %s", $cutoff ) ); // phpcs:ignore WordPress.DB
+		$wpdb->query( $wpdb->prepare( "DELETE FROM $table WHERE hit_at < %s", $cutoff ) ); // phpcs:ignore WordPress.DB, PluginCheck.Security.DirectDB.UnescapedDBParameter -- $table is our own prefix-derived table name; the value is bound via prepare().
 	}
 
 	/**
@@ -160,6 +166,6 @@ final class Repository {
 	public static function clear() {
 		global $wpdb;
 		$table = Table::name();
-		$wpdb->query( "TRUNCATE TABLE $table" ); // phpcs:ignore WordPress.DB -- admin-gated clear of our own table.
+		$wpdb->query( "TRUNCATE TABLE $table" ); // phpcs:ignore WordPress.DB, PluginCheck.Security.DirectDB.UnescapedDBParameter -- admin-gated truncation of our own prefix-derived table.
 	}
 }
