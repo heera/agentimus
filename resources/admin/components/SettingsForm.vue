@@ -147,104 +147,6 @@ export default {
 
 <template>
   <form class="ar-form" @submit.prevent="$emit('save')">
-    <!-- Features ------------------------------------------------------- -->
-    <section class="ar-card">
-      <h2 class="ar-card__title">Features</h2>
-      <p class="ar-card__lead">Toggle each agent-readiness signal.</p>
-
-      <label v-for="f in features" :key="f.key" class="ar-toggle">
-        <input v-model="settings[f.key]" type="checkbox" />
-        <span class="ar-toggle__track" aria-hidden="true"></span>
-        <span class="ar-toggle__text">
-          <strong>{{ f.label }}</strong>
-          <small>{{ f.hint }}</small>
-        </span>
-      </label>
-
-      <div class="ar-field ar-field--inline">
-        <label for="ar-full-count">Posts in /llms-full.txt</label>
-        <input
-          id="ar-full-count"
-          v-model.number="settings.llms_full_posts"
-          type="number"
-          min="1"
-          max="500"
-          class="ar-input ar-input--sm"
-        />
-      </div>
-    </section>
-
-    <!-- Content types -------------------------------------------------- -->
-    <section v-if="postTypes.length" class="ar-card">
-      <h2 class="ar-card__title">Content types</h2>
-      <p class="ar-card__lead">
-        Which content agents see — in llms.txt, the full-text edition, markdown delivery and schema.
-        Enable products or custom post types to cover e-commerce and beyond.
-      </p>
-      <div class="ar-types-bar">
-        <input
-          v-if="postTypes.length > 8"
-          v-model="typeQuery"
-          type="search"
-          class="ar-input ar-types-search"
-          placeholder="Filter types…"
-        />
-        <span class="ar-types-count">{{ selectedTypeCount }} / {{ postTypes.length }} enabled</span>
-        <button type="button" class="ar-linkbtn" @click="selectAllTypes">Select all</button>
-      </div>
-
-      <div class="ar-types-scroll">
-        <div class="ar-types-grid">
-          <label
-            v-for="pt in filteredPostTypes"
-            :key="pt.slug"
-            class="ar-type"
-            :class="{ 'is-on': isTypeOn(pt.slug) }"
-          >
-            <input type="checkbox" :checked="isTypeOn(pt.slug)" @change="toggleType(pt.slug)" />
-            <span class="ar-type__check" aria-hidden="true"></span>
-            <span class="ar-type__body">
-              <span class="ar-type__label">{{ pt.label }}</span>
-              <span class="ar-type__meta">
-                <span v-if="pt.source" class="ar-type__src">{{ pt.source }}</span>
-                <code>{{ pt.slug }}</code>
-              </span>
-            </span>
-          </label>
-          <p v-if="!filteredPostTypes.length" class="ar-types-empty">No types match “{{ typeQuery }}”.</p>
-        </div>
-      </div>
-    </section>
-
-    <!-- Discovery: REST APIs ------------------------------------------- -->
-    <section v-if="restNamespacesDetected.length" class="ar-card">
-      <h2 class="ar-card__title">Discovery — REST APIs</h2>
-      <p class="ar-card__lead">
-        REST APIs detected on your site. Publish the ones agents should use; internal or admin
-        APIs (analytics, telemetry, admin) are best left off. Nothing is published unless you tick it.
-      </p>
-      <div class="ar-types-bar">
-        <span class="ar-types-count">{{ publishedNsCount }} / {{ restNamespacesDetected.length }} published</span>
-      </div>
-      <div class="ar-types-scroll">
-        <div class="ar-types-grid">
-          <label
-            v-for="ns in restNamespacesDetected"
-            :key="ns"
-            class="ar-type"
-            :class="{ 'is-on': isNsOn(ns) }"
-          >
-            <input type="checkbox" :checked="isNsOn(ns)" @change="toggleNs(ns)" />
-            <span class="ar-type__check" aria-hidden="true"></span>
-            <span class="ar-type__body">
-              <span class="ar-type__label">{{ ns }}</span>
-              <span class="ar-type__meta"><code>/wp-json/{{ ns }}</code></span>
-            </span>
-          </label>
-        </div>
-      </div>
-    </section>
-
     <!-- Identity ------------------------------------------------------- -->
     <section class="ar-card">
       <h2 class="ar-card__title">Identity</h2>
@@ -304,6 +206,33 @@ export default {
       </div>
     </section>
 
+    <!-- Features ------------------------------------------------------- -->
+    <section class="ar-card">
+      <h2 class="ar-card__title">Features</h2>
+      <p class="ar-card__lead">Toggle each agent-readiness signal.</p>
+
+      <label v-for="f in features" :key="f.key" class="ar-toggle">
+        <input v-model="settings[f.key]" type="checkbox" />
+        <span class="ar-toggle__track" aria-hidden="true"></span>
+        <span class="ar-toggle__text">
+          <strong>{{ f.label }}</strong>
+          <small>{{ f.hint }}</small>
+        </span>
+      </label>
+
+      <div class="ar-field ar-field--inline">
+        <label for="ar-full-count">Posts in /llms-full.txt</label>
+        <input
+          id="ar-full-count"
+          v-model.number="settings.llms_full_posts"
+          type="number"
+          min="1"
+          max="500"
+          class="ar-input ar-input--sm"
+        />
+      </div>
+    </section>
+
     <!-- Crawler policy ------------------------------------------------- -->
     <section class="ar-card">
       <h2 class="ar-card__title">Crawler policy</h2>
@@ -358,6 +287,77 @@ export default {
             <span v-if="signal.ai_train">Training is Allowed, so only the crawlers you list here are blocked.</span>
             <button v-if="!isDefaultTrainers" type="button" class="ar-linkbtn" @click="resetTrainers">Reset to defaults</button>
           </small>
+        </div>
+      </div>
+    </section>
+
+    <!-- Content types -------------------------------------------------- -->
+    <section v-if="postTypes.length" class="ar-card">
+      <h2 class="ar-card__title">Content types</h2>
+      <p class="ar-card__lead">
+        Which content agents see — in llms.txt, the full-text edition, markdown delivery and schema.
+        Enable products or custom post types to cover e-commerce and beyond.
+      </p>
+      <div class="ar-types-bar">
+        <input
+          v-if="postTypes.length > 8"
+          v-model="typeQuery"
+          type="search"
+          class="ar-input ar-types-search"
+          placeholder="Filter types…"
+        />
+        <span class="ar-types-count">{{ selectedTypeCount }} / {{ postTypes.length }} enabled</span>
+        <button type="button" class="ar-linkbtn" @click="selectAllTypes">Select all</button>
+      </div>
+
+      <div class="ar-types-scroll">
+        <div class="ar-types-grid">
+          <label
+            v-for="pt in filteredPostTypes"
+            :key="pt.slug"
+            class="ar-type"
+            :class="{ 'is-on': isTypeOn(pt.slug) }"
+          >
+            <input type="checkbox" :checked="isTypeOn(pt.slug)" @change="toggleType(pt.slug)" />
+            <span class="ar-type__check" aria-hidden="true"></span>
+            <span class="ar-type__body">
+              <span class="ar-type__label">{{ pt.label }}</span>
+              <span class="ar-type__meta">
+                <span v-if="pt.source" class="ar-type__src">{{ pt.source }}</span>
+                <code>{{ pt.slug }}</code>
+              </span>
+            </span>
+          </label>
+          <p v-if="!filteredPostTypes.length" class="ar-types-empty">No types match “{{ typeQuery }}”.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- Discovery: REST APIs (advanced, opt-in) ------------------------ -->
+    <section v-if="restNamespacesDetected.length" class="ar-card">
+      <h2 class="ar-card__title">Discovery — REST APIs</h2>
+      <p class="ar-card__lead">
+        REST APIs detected on your site. Publish the ones agents should use; internal or admin
+        APIs (analytics, telemetry, admin) are best left off. Nothing is published unless you tick it.
+      </p>
+      <div class="ar-types-bar">
+        <span class="ar-types-count">{{ publishedNsCount }} / {{ restNamespacesDetected.length }} published</span>
+      </div>
+      <div class="ar-types-scroll">
+        <div class="ar-types-grid">
+          <label
+            v-for="ns in restNamespacesDetected"
+            :key="ns"
+            class="ar-type"
+            :class="{ 'is-on': isNsOn(ns) }"
+          >
+            <input type="checkbox" :checked="isNsOn(ns)" @change="toggleNs(ns)" />
+            <span class="ar-type__check" aria-hidden="true"></span>
+            <span class="ar-type__body">
+              <span class="ar-type__label">{{ ns }}</span>
+              <span class="ar-type__meta"><code>/wp-json/{{ ns }}</code></span>
+            </span>
+          </label>
         </div>
       </div>
     </section>
