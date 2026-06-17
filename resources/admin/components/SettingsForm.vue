@@ -153,11 +153,14 @@ export default {
     },
     aboutPlaceholder() {
       return this.isOrg
-        ? 'One factual sentence on what your organization does and its focus.'
+        ? 'One factual sentence on what your business or organization does and its focus.'
         : 'One factual sentence stating who you are and your expertise.';
     },
     expertiseLabel() {
-      return this.isOrg ? 'Areas of expertise' : 'Expertise topics';
+      return this.isOrg ? 'Topics & specialties' : 'Expertise topics';
+    },
+    profileUrlPlaceholder() {
+      return this.isOrg ? 'https://www.linkedin.com/company/you' : 'https://github.com/you';
     },
     trainerSuggestions() {
       const current = this.settings.blocked_trainers || [];
@@ -316,14 +319,14 @@ export default {
       <div class="ar-field">
         <label>{{ expertiseLabel }}</label>
         <TagInput v-model="identity.expertise" placeholder="Add a topic, press Enter" />
-        <small class="ar-field__hint">Feeds the {{ isOrg ? 'expertise' : 'Expertise' }} list and schema <code>knowsAbout</code>. Saved as you add.</small>
+        <small class="ar-field__hint">Feeds this list and schema <code>knowsAbout</code>. Saved as you add.</small>
       </div>
 
       <div class="ar-field">
         <label>Profile URLs</label>
-        <TagInput v-model="identity.same_as" placeholder="https://github.com/you" />
+        <TagInput v-model="identity.same_as" :placeholder="profileUrlPlaceholder" />
         <small class="ar-field__hint">
-          Public profile URLs (GitHub, LinkedIn, X…) that help agents resolve your entity. Saved as you add.
+          Public profile URLs (LinkedIn, X, GitHub, Facebook, Wikipedia…) that help agents resolve your entity. Saved as you add.
           <span v-if="identity.same_as.some((u) => !isUrl(u))" class="ar-warn">Some entries are not full https:// URLs.</span>
         </small>
       </div>
