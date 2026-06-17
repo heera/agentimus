@@ -76,6 +76,25 @@ final class WellKnown {
 	}
 
 	/**
+	 * Nested /.well-known docs this plugin serves — names that contain a '/' and so
+	 * can't go through the flat router. An EXACT allow-list (never a wildcard), each
+	 * backed by a dedicated rewrite rule, so we never capture a nested namespace we
+	 * don't own. Currently the MCP Server Card and the Agent Skills index.
+	 *
+	 * @return string[]
+	 */
+	public static function nested_routes() {
+		$names = array( 'mcp/server-card.json', 'agent-skills/index.json' );
+
+		/**
+		 * Filter the nested /.well-known names routed to WordPress.
+		 *
+		 * @param string[] $names Nested doc paths (no leading slash).
+		 */
+		return array_values( array_unique( (array) apply_filters( 'agentify_well_known_nested', $names ) ) );
+	}
+
+	/**
 	 * Route ONLY our own names to WordPress, so requests reach template_redirect
 	 * even on servers that 404 the path at disk level. A narrow alternation (not
 	 * a catch-all) means we never capture — and therefore never have to 404 —
@@ -96,6 +115,22 @@ final class WellKnown {
 		}
 		add_rewrite_rule( '^\.well-known/(' . $alt . ')$', 'index.php?wpd_well_known=$matches[1]', 'top' );
 		add_rewrite_tag( '%wpd_well_known%', '([^/]+)' );
+
+		// Nested docs (mcp/server-card.json, …) get a dedicated EXACT-match rule, so
+		// the capture can contain a '/' without opening a wildcard nesting surface.
+		$nested = implode(
+			'|',
+			array_map(
+				static function ( $name ) {
+					return preg_quote( $name );
+				},
+				self::nested_routes()
+			)
+		);
+		if ( '' !== $nested ) {
+			add_rewrite_rule( '^\.well-known/(' . $nested . ')$', 'index.php?wpd_well_known_nested=$matches[1]', 'top' );
+			add_rewrite_tag( '%wpd_well_known_nested%', '(.+)' );
+		}
 	}
 
 	/**
@@ -118,8 +153,25 @@ final class WellKnown {
 		}
 
 		$name = trim( substr( $path, strlen( self::PREFIX ) ), '/' );
-		if ( '' === $name || false !== strpos( $name, '/' ) || false !== strpos( $name, '..' ) ) {
-			return; // No nested or traversal names.
+		if ( '' === $name || false !== strpos( $name, '..' ) ) {
+			return; // Never serve a traversal path.
+		}
+
+		// Nested, whitelisted docs (e.g. mcp/server-card.json) contain a '/', which
+		// the flat handling below rejects — dispatch them first against an EXACT
+		// allow-list. A real on-disk file still wins; an empty generator (the doc is
+		// gated off) falls through to a clean 404.
+		if ( false !== strpos( $name, '/' ) ) {
+			if ( in_array( $name, self::nested_routes(), true ) ) {
+				$nested_file = ABSPATH . '.well-known/' . $name;
+				if ( is_file( $nested_file ) && 0 === strpos( wp_normalize_path( (string) realpath( $nested_file ) ), wp_normalize_path( ABSPATH . '.well-known/' ) ) ) {
+					$this->stream( $nested_file );
+				}
+				$this->registry->collect();
+				$this->route_nested( $name );
+			}
+			$this->maybe_clean_404();
+			return;
 		}
 
 		// 1. Real file on disk wins. If the server didn't serve it, stream it.
@@ -154,18 +206,49 @@ final class WellKnown {
 			$this->serve_provider( $providers[ $name ] );
 		}
 
-		// 4. We produced nothing. If WE routed this request (our rewrite tag is set)
-		// it would otherwise resolve to the homepage via WordPress's canonical
-		// redirect — so force a clean 404 instead. A name we never routed is left
-		// entirely untouched for WordPress (or another plugin) to handle.
-		if ( '' !== (string) get_query_var( 'wpd_well_known' ) ) {
-			global $wp_query;
-			if ( $wp_query instanceof \WP_Query ) {
-				$wp_query->set_404();
-			}
-			status_header( 404 );
-			nocache_headers();
+		// 4. We produced nothing — force a clean 404 if WE routed this request.
+		$this->maybe_clean_404();
+	}
+
+	/**
+	 * Dispatch a whitelisted nested /.well-known doc. Sends (and exits) on a
+	 * non-empty body; an empty body means the doc is gated off (no MCP server, no
+	 * abilities), so we return and let route() emit a clean 404 — never a stub.
+	 *
+	 * @param string $name Nested doc path (already allow-list checked).
+	 */
+	private function route_nested( $name ) {
+		switch ( $name ) {
+			case 'mcp/server-card.json':
+				$body = $this->envelope->mcp_server_card_json();
+				if ( '' !== $body ) {
+					$this->send( $body, 'application/json', 'mcp/server-card.json' );
+				}
+				break;
+			case 'agent-skills/index.json':
+				$body = $this->envelope->agent_skills_index_json();
+				if ( '' !== $body ) {
+					$this->send( $body, 'application/json', 'agent-skills/index.json' );
+				}
+				break;
 		}
+	}
+
+	/**
+	 * If WE routed this request (either rewrite tag is set) and produced nothing,
+	 * WordPress's canonical redirect would resolve it to the homepage — force a
+	 * clean 404 instead. A name we never routed is left entirely untouched.
+	 */
+	private function maybe_clean_404() {
+		if ( '' === (string) get_query_var( 'wpd_well_known' ) && '' === (string) get_query_var( 'wpd_well_known_nested' ) ) {
+			return;
+		}
+		global $wp_query;
+		if ( $wp_query instanceof \WP_Query ) {
+			$wp_query->set_404();
+		}
+		status_header( 404 );
+		nocache_headers();
 	}
 
 	/* ---------------------------------------------------------------------- *

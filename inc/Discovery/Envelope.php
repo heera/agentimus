@@ -361,6 +361,8 @@ final class Envelope {
 			'agent-card.json'            => 'A2A',
 			'agent.json'                 => 'A2A (legacy)',
 			'mcp.json'                   => 'MCP (experimental)',
+			'mcp/server-card.json'       => 'MCP Server Card',
+			'agent-skills/index.json'    => 'Agent Skills',
 			'api-catalog'                => 'RFC 9727',
 			// Security.
 			'security.txt'               => 'RFC 9116',
@@ -643,6 +645,108 @@ final class Envelope {
 		);
 		$json = wp_json_encode( $doc, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE );
 		return is_string( $json ) ? $json : '{}';
+	}
+
+	/**
+	 * The MCP Server Card at /.well-known/mcp/server-card.json — the same MCP surface
+	 * as mcp.json, projected into the schema scanners look for at that path. Served
+	 * ONLY when a real MCP server is advertised (mcp.available); a content site with
+	 * no server returns '' → a clean 404 (honest, never a stub).
+	 *
+	 * @return string JSON, or '' when no MCP server is available.
+	 */
+	public function mcp_server_card_json() {
+		$surface = $this->mcp_surface();
+		$mcp     = $surface['mcp'];
+		if ( empty( $mcp['available'] ) ) {
+			return '';
+		}
+
+		$site   = $this->site();
+		$server = ! empty( $mcp['servers'][0] ) ? $mcp['servers'][0] : array();
+
+		$tools = array();
+		foreach ( $surface['tools'] as $tool ) {
+			$tools[] = array(
+				'name'        => isset( $tool['name'] ) ? $tool['name'] : '',
+				'description' => isset( $tool['description'] ) ? $tool['description'] : '',
+			);
+		}
+
+		$card = array(
+			'schemaVersion' => '2024-11-05',
+			'serverInfo'    => array(
+				'name'    => $site['name'],
+				'version' => ( isset( $server['version'] ) && '' !== $server['version'] ) ? $server['version'] : '1.0.0',
+			),
+			'transport'     => array(
+				'type' => ( isset( $mcp['transport'] ) && '' !== $mcp['transport'] ) ? $mcp['transport'] : 'http',
+				'url'  => isset( $mcp['endpoint'] ) ? $mcp['endpoint'] : '',
+			),
+			'tools'         => $tools,
+		);
+		if ( ! empty( $mcp['auth'] ) ) {
+			$card['auth'] = array( 'type' => $mcp['auth'] );
+			if ( ! empty( $mcp['auth_metadata'] ) ) {
+				$card['auth']['metadata'] = $mcp['auth_metadata'];
+			}
+		}
+
+		$json = wp_json_encode( $card, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE );
+		return is_string( $json ) ? $json : '';
+	}
+
+	/**
+	 * The Agent Skills index at /.well-known/agent-skills/index.json — the executable
+	 * skills agents can invoke, projected from the per-namespace `agent.skills[]` the
+	 * Abilities adapter already builds (respecting owner suppression). Served ONLY
+	 * when real skills exist; otherwise '' → a clean 404.
+	 *
+	 * @return string JSON, or '' when no skills are exposed.
+	 */
+	public function agent_skills_index_json() {
+		$this->registry->collect();
+		$resources  = array_values( $this->registry->resources() );
+		$suppressed = $this->suppressed_ids();
+
+		$skills = array();
+		foreach ( $resources as $resource ) {
+			$agent = ( isset( $resource['agent'] ) && is_array( $resource['agent'] ) ) ? $resource['agent'] : array();
+			if ( in_array( $resource['id'], $suppressed, true ) || empty( $agent['skills'] ) || ! is_array( $agent['skills'] ) ) {
+				continue;
+			}
+			foreach ( $agent['skills'] as $skill ) {
+				$id = isset( $skill['id'] ) ? (string) $skill['id'] : '';
+				if ( '' === $id ) {
+					continue;
+				}
+				$skills[] = array(
+					'id'          => $id,
+					'name'        => ( isset( $skill['name'] ) && '' !== $skill['name'] ) ? $skill['name'] : $id,
+					'description' => isset( $skill['description'] ) ? (string) $skill['description'] : '',
+					'resource'    => $resource['id'],
+				);
+			}
+		}
+
+		/**
+		 * Filter the Agent Skills index entries.
+		 *
+		 * @param array[] $skills    Skill entries.
+		 * @param array[] $resources Collected resources.
+		 */
+		$skills = (array) apply_filters( 'agentify_agent_skills', $skills, $resources );
+		if ( empty( $skills ) ) {
+			return '';
+		}
+
+		$doc  = array(
+			'schemaVersion' => '2024-11-05',
+			'site'          => $this->site()['name'],
+			'skills'        => array_values( $skills ),
+		);
+		$json = wp_json_encode( $doc, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE );
+		return is_string( $json ) ? $json : '';
 	}
 
 	/** @return array Minimal trust surface (v2: jwks_uri, signed cards, DID). */
