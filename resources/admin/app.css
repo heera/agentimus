@@ -676,6 +676,17 @@ select.ar-input {
   .ar-modal__panel { max-height: calc(100vh - 20px); }
 }
 
+/* ---- Onboarding wizard (reuses the modal shell) ------------------------ */
+.ar-modal__panel.ar-wiz { max-width: 600px; }
+.ar-wiz__steps { display: flex; align-items: center; gap: 6px; }
+.ar-wiz__dot { width: 7px; height: 7px; border-radius: 50%; background: var(--ar-line-strong); transition: background 0.2s ease; }
+.ar-wiz__dot.is-on { background: var(--ar-accent); }
+.ar-wiz__count { margin: 8px 0 0; font-family: var(--ar-mono); font-size: 10.5px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--ar-ink-faint); }
+.ar-wiz__step { display: flex; flex-direction: column; gap: 14px; }
+.ar-wiz__step > * { margin: 0; }
+.ar-wiz__subhead { font-family: var(--ar-mono); font-size: 10.5px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--ar-ink-faint); }
+.ar-wiz__skip { margin-right: auto; }
+
 /* ---- Readiness ---------------------------------------------------------- */
 .ar-checks { margin: 14px 0 0; padding: 0; list-style: none; display: grid; gap: 0; border-top: 1px solid var(--ar-line); }
 .ar-check {

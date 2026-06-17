@@ -18,7 +18,7 @@ export default {
     resetting: { type: Boolean, default: false },
     defaults: { type: Object, default: () => ({}) },
   },
-  emits: ['save-profile', 'reset'],
+  emits: ['save-profile', 'reset', 'reopen-wizard'],
   data() {
     return { typeQuery: '', nsQuery: '', showReset: false, scrollMore: false };
   },
@@ -609,6 +609,17 @@ export default {
       </ul>
     </section>
 
+    <!-- Setup guide --------------------------------------------------- -->
+    <section class="ar-card ar-card--muted">
+      <div class="ar-reset">
+        <div class="ar-reset__text">
+          <strong>Setup guide</strong>
+          <small>Re-run the short guided setup to review who you are and what AI assistants can read.</small>
+        </div>
+        <button type="button" class="ar-btn ar-btn--ghost" @click="$emit('reopen-wizard')">Run setup again</button>
+      </div>
+    </section>
+
     <!-- Reset ---------------------------------------------------------- -->
     <section class="ar-card ar-card--reset">
       <div class="ar-reset">
@@ -672,7 +683,7 @@ export default {
               <div class="ar-preview__group">
                 <p class="ar-preview__label">Content</p>
                 <ul class="ar-preview__list">
-                  <li><span>Content types indexed</span><span class="ar-preview__muted">{{ resetPreview.types }} (all public)</span></li>
+                  <li><span>Content types indexed</span><span class="ar-preview__muted">{{ resetPreview.types }}</span></li>
                   <li><span>Posts in /llms-full.txt</span><span class="ar-preview__muted">{{ resetPreview.fullPosts }}</span></li>
                   <li><span>Identity profile</span><span class="ar-preview__muted">cleared</span></li>
                 </ul>

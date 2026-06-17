@@ -32,6 +32,7 @@ export function createApi(boot) {
     saveSettings: (settings) =>
       request('/settings', { method: 'POST', body: JSON.stringify({ settings }) }),
     resetSettings: () => request('/settings/reset', { method: 'POST' }),
+    completeOnboarding: () => request('/onboarding', { method: 'POST' }),
     getReadiness: () => request('/readiness'),
     getDiscoveryHub: () => request('/discovery/hub'),
     getActivity: () => request('/activity'),

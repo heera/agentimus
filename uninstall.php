@@ -8,9 +8,11 @@
 defined( 'WP_UNINSTALL_PLUGIN' ) || exit;
 
 delete_option( 'agentify_settings' );
+delete_option( 'agentify_onboarded' );
 delete_transient( 'agentify_llms_txt' );
 delete_transient( 'agentify_llms_full' );
 delete_transient( 'agentify_discovery' );
+delete_transient( 'agentify_activation_redirect' );
 
 // Activity log: drop the table, version flag and prune schedule.
 global $wpdb;

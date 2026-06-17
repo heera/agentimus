@@ -65,6 +65,16 @@ final class Rest {
 
 		register_rest_route(
 			self::NAMESPACE,
+			'/onboarding',
+			array(
+				'methods'             => \WP_REST_Server::EDITABLE,
+				'callback'            => array( $this, 'complete_onboarding' ),
+				'permission_callback' => array( $this, 'can_manage' ),
+			)
+		);
+
+		register_rest_route(
+			self::NAMESPACE,
 			'/readiness',
 			array(
 				'methods'             => \WP_REST_Server::READABLE,
@@ -138,6 +148,18 @@ final class Rest {
 				'reset'     => true,
 			)
 		);
+	}
+
+	/**
+	 * POST /onboarding — mark the first-run setup wizard complete (or skipped) so
+	 * it never shows again. Stored as its own option, not inside settings, so a
+	 * factory reset doesn't re-trigger the wizard.
+	 *
+	 * @return \WP_REST_Response
+	 */
+	public function complete_onboarding() {
+		update_option( 'agentify_onboarded', AGENTIFY_VERSION );
+		return rest_ensure_response( array( 'onboarded' => true ) );
 	}
 
 	/**

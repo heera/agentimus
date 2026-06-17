@@ -32,6 +32,7 @@ final class Admin {
 		add_action( 'admin_menu', array( $this, 'menu' ) );
 		add_action( 'admin_enqueue_scripts', array( $this, 'assets' ) );
 		add_filter( 'plugin_action_links_' . plugin_basename( AGENTIFY_FILE ), array( $this, 'action_links' ) );
+		add_action( 'admin_init', array( $this, 'maybe_activation_redirect' ) );
 	}
 
 	/**
@@ -59,6 +60,55 @@ final class Admin {
 		$url = admin_url( 'admin.php?page=' . self::SLUG );
 		array_unshift( $links, '<a href="' . esc_url( $url ) . '">' . esc_html__( 'Settings', 'agentify' ) . '</a>' );
 		return $links;
+	}
+
+	/**
+	 * One-time redirect to the plugin screen right after a fresh activation, so a
+	 * non-technical admin lands on the setup wizard instead of the Plugins list.
+	 * Guarded against AJAX, network admin and bulk activation; the transient is
+	 * one-shot.
+	 */
+	public function maybe_activation_redirect() {
+		if ( ! get_transient( 'agentify_activation_redirect' ) ) {
+			return;
+		}
+		delete_transient( 'agentify_activation_redirect' );
+
+		// Never hijack a bulk activation or a network-admin context.
+		if ( wp_doing_ajax() || is_network_admin() || isset( $_GET['activate-multi'] ) ) { // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- reading WordPress's own bulk-activation marker, no state change.
+			return;
+		}
+		if ( ! current_user_can( 'manage_options' ) ) {
+			return;
+		}
+
+		wp_safe_redirect( admin_url( 'admin.php?page=' . self::SLUG ) );
+		exit;
+	}
+
+	/**
+	 * Whether the setup wizard is done — or shouldn't appear because the install
+	 * is clearly already configured. The explicit flag is set when the wizard is
+	 * finished or skipped (and on activation for pre-existing installs). The
+	 * heuristic additionally suppresses the wizard for installs that updated via
+	 * wordpress.org without re-running the activation hook: any sign of prior
+	 * configuration — a profile sentence, or a content selection that differs
+	 * from the fresh-install default — counts as onboarded.
+	 *
+	 * @return bool
+	 */
+	private function is_onboarded() {
+		if ( false !== get_option( 'agentify_onboarded', false ) ) {
+			return true;
+		}
+		if ( '' !== trim( (string) $this->settings->identity( 'about', '' ) ) ) {
+			return true;
+		}
+		$selected = (array) $this->settings->get( 'post_types', array() );
+		$default  = Settings::default_post_types();
+		sort( $selected );
+		sort( $default );
+		return $selected !== $default;
 	}
 
 	/**
@@ -118,6 +168,7 @@ final class Admin {
 				'robots'   => home_url( '/robots.txt' ),
 			),
 			'version'     => AGENTIFY_VERSION,
+			'onboarded'   => $this->is_onboarded(),
 		);
 	}
 

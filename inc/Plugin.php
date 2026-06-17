@@ -71,12 +71,19 @@ final class Plugin {
 	 * flushing, so the discovery endpoints resolve on the very first request.
 	 */
 	public static function activate() {
+		// Detect a truly fresh install BEFORE seeding anything, so the onboarding
+		// wizard shows only for new users — never for an upgrade or a migrant from
+		// the pre-rename "Agent Ready" option.
+		$had_settings = ( false !== get_option( Settings::OPTION, false ) )
+			|| ( false !== get_option( 'agent_ready_settings', false ) );
+
 		self::migrate_legacy_option();
 		( new Settings() )->ensure_defaults();
 		Activity\Table::install();
 		Activity\Module::schedule();
 		Discovery\WellKnown::add_rules();
 		flush_rewrite_rules();
+		self::seed_onboarding_state( $had_settings );
 	}
 
 	/**
@@ -92,6 +99,22 @@ final class Plugin {
 		if ( is_array( $legacy ) ) {
 			add_option( Settings::OPTION, $legacy );
 		}
+	}
+
+	/**
+	 * Decide whether the first-run setup wizard should appear. A fresh install
+	 * leaves the flag unset (wizard shows) and queues a one-time redirect to the
+	 * plugin screen; an install that already had settings is marked onboarded so
+	 * an existing user never sees the wizard.
+	 *
+	 * @param bool $had_settings Whether configuration existed before activation.
+	 */
+	private static function seed_onboarding_state( $had_settings ) {
+		if ( $had_settings ) {
+			add_option( 'agentify_onboarded', AGENTIFY_VERSION ); // No-op if already present.
+			return;
+		}
+		set_transient( 'agentify_activation_redirect', 1, 30 );
 	}
 
 	/**

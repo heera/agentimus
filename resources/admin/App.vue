@@ -4,10 +4,11 @@ import SettingsForm from './components/SettingsForm.vue';
 import ReadinessPanel from './components/ReadinessPanel.vue';
 import DiscoveryHub from './components/DiscoveryHub.vue';
 import ActivityPanel from './components/ActivityPanel.vue';
+import OnboardingWizard from './components/OnboardingWizard.vue';
 
 export default {
   name: 'AgentifyApp',
-  components: { SettingsForm, ReadinessPanel, DiscoveryHub, ActivityPanel },
+  components: { SettingsForm, ReadinessPanel, DiscoveryHub, ActivityPanel, OnboardingWizard },
   props: {
     boot: { type: Object, required: true },
   },
@@ -34,6 +35,9 @@ export default {
       version: this.boot.version || '',
       saving: false,
       resetting: false,
+      onboarded: !!this.boot.onboarded,
+      showWizard: false,
+      onboarding: false,
       profileSaving: false,
       profileSaved: false,
       autoStatus: 'idle',
@@ -194,6 +198,10 @@ export default {
     if (this.tab === 'dashboard') {
       this.refreshActivity();
     }
+    // First run: greet a new admin with the setup wizard.
+    if (!this.onboarded) {
+      this.showWizard = true;
+    }
   },
   beforeUnmount() {
     window.removeEventListener('hashchange', this.syncTabFromHash);
@@ -270,6 +278,55 @@ export default {
       } finally {
         this.resetting = false;
       }
+    },
+    // First-run wizard: persist the captured identity + content choices in one
+    // save, adopt the result without re-triggering autosave, then mark onboarding
+    // done. Wizard state lives in the child; we only receive the final payload.
+    async finishWizard(payload) {
+      if (this.onboarding) return;
+      this.onboarding = true;
+      clearTimeout(this._autoTimer); // the settings swap below must not queue a save
+      try {
+        const next = JSON.parse(JSON.stringify(this.settings));
+        next.identity = next.identity || {};
+        next.identity.entity_type = payload.entity_type;
+        next.identity.name = payload.name;
+        next.identity.about = payload.about;
+        next.identity.expertise = payload.expertise;
+        next.post_types = payload.types;
+        const res = await this.api.saveSettings(next);
+        this._skipAutosave = true;
+        this.settings = JSON.parse(JSON.stringify(res.settings || {}));
+        this.$nextTick(() => { this._skipAutosave = false; });
+        this.savedSnapshot = JSON.stringify(res.settings || {});
+        this.readiness = res.readiness || this.readiness;
+        await this.api.completeOnboarding();
+        this.onboarded = true;
+        this.showWizard = false;
+        this.flash('success', 'Your site is set up for AI assistants.');
+      } catch (e) {
+        this.flash('error', e.message);
+      } finally {
+        this.onboarding = false;
+      }
+    },
+    async skipWizard() {
+      if (this.onboarding) return;
+      this.onboarding = true;
+      try {
+        await this.api.completeOnboarding();
+        this.onboarded = true;
+        this.showWizard = false;
+      } catch (e) {
+        this.flash('error', e.message);
+      } finally {
+        this.onboarding = false;
+      }
+    },
+    // "Run setup again" from Settings — reopen over the current settings (the
+    // child re-seeds itself from them on open). Does not clear the onboarded flag.
+    reopenWizard() {
+      this.showWizard = true;
     },
     // Debounced autosave for toggles / selections / chips.
     queueAutosave() {
@@ -392,6 +449,16 @@ export default {
       </transition>
     </Teleport>
 
+    <OnboardingWizard
+      :open="showWizard"
+      :settings="settings"
+      :entity-types="entityTypes"
+      :post-types="postTypes"
+      :saving="onboarding"
+      @finish="finishWizard"
+      @skip="skipWizard"
+    />
+
     <div class="ar__pagehead">
       <h1 class="ar__pagehead-title">{{ pageMeta.title }}</h1>
       <p v-if="pageMeta.description" class="ar__pagehead-desc">{{ pageMeta.description }}</p>
@@ -415,6 +482,7 @@ export default {
           :defaults="defaults"
           @save-profile="saveProfile"
           @reset="resetSettings"
+          @reopen-wizard="reopenWizard"
         />
         <ReadinessPanel
           v-show="tab === 'readiness'"
