@@ -92,10 +92,10 @@ Agentify also fires the product-aliased `agentify_discovery_register`; you may h
 
 == Screenshots ==
 
-1. The Agentify dashboard with the readiness score and agent-activity log.
-2. The settings screen — identity, features, crawler policy and content types.
-3. The readiness report.
-4. The Discovery Hub — what an agent can see, and what you publish.
+1. Dashboard — your readiness score plus a first-party log of which AI agents and crawlers fetched your endpoints (no IP logging).
+2. Settings — your public identity, a security.txt contact, and one toggle per agent-readiness signal.
+3. Readiness report — a plain-English pass/warn checklist of what's enabled and what's still missing.
+4. Discovery Hub — every plugin's capabilities aggregated into one document, with per-item publish/suppress control.
 
 == Source & build ==
 

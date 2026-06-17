@@ -31,6 +31,7 @@ final class Admin {
 	public function register() {
 		add_action( 'admin_menu', array( $this, 'menu' ) );
 		add_action( 'admin_enqueue_scripts', array( $this, 'assets' ) );
+		add_action( 'admin_head', array( $this, 'menu_icon_style' ) );
 		add_filter( 'plugin_action_links_' . plugin_basename( AGENTIFY_FILE ), array( $this, 'action_links' ) );
 		add_action( 'admin_init', array( $this, 'maybe_activation_redirect' ) );
 	}
@@ -45,9 +46,40 @@ final class Admin {
 			'manage_options',
 			self::SLUG,
 			array( $this, 'render' ),
-			'dashicons-superhero',
+			$this->menu_icon_uri(),
 			81
 		);
+	}
+
+	/**
+	 * The brand "A" monogram as a single-colour SVG data URI for the admin-menu
+	 * icon — the same mark as the in-app logo and the wp.org icon, in the line form
+	 * a menu icon needs. The stroke colour is a sensible idle fallback; menu_icon_style()
+	 * recolours it per state (idle grey -> white on hover/current) via a CSS mask.
+	 *
+	 * @return string
+	 */
+	private function menu_icon_uri() {
+		$svg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="#a7aaad" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="2.6" y="2.6" width="18.8" height="18.8" rx="5.4"/><path d="M8.4 16.6 12 8 15.6 16.6"/><path d="M9.9 13.6H14.1"/></svg>';
+		return 'data:image/svg+xml;base64,' . base64_encode( $svg );
+	}
+
+	/**
+	 * Recolour the SVG menu icon to match a native dashicon: masked by the "A", filled
+	 * with the menu's per-state icon colour (idle grey, white when hovered/current),
+	 * so it adapts across admin colour schemes instead of being a fixed-colour image.
+	 */
+	public function menu_icon_style() {
+		$uri = $this->menu_icon_uri();
+		$sel = '#adminmenu #toplevel_page_' . self::SLUG;
+		echo '<style id="agentify-menu-icon">'
+			. esc_html( $sel ) . ' .wp-menu-image{background-image:none!important;position:relative}'
+			. esc_html( $sel ) . ' .wp-menu-image::before{content:"";position:absolute;inset:0;background-color:rgba(240,246,252,.6);-webkit-mask:url("' . esc_attr( $uri ) . '") center/21px no-repeat;mask:url("' . esc_attr( $uri ) . '") center/21px no-repeat}'
+			. esc_html( $sel ) . ':hover .wp-menu-image::before,'
+			. esc_html( $sel ) . '.current .wp-menu-image::before,'
+			. esc_html( $sel ) . '.wp-has-current-submenu .wp-menu-image::before,'
+			. esc_html( $sel ) . '.opensub .wp-menu-image::before{background-color:#fff}'
+			. '</style>';
 	}
 
 	/**
