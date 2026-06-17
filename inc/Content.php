@@ -36,8 +36,10 @@ final class Content {
 
 	/**
 	 * The post types Agentify actually exposes: the configured selection
-	 * (intersected with what's available), falling back to everything public,
-	 * then filtered so an add-on can add or remove types programmatically.
+	 * (intersected with what's available), falling back to the privacy-safe
+	 * default (posts + pages) — never silently to every public type, which
+	 * would leak every CPT — then filtered so an add-on can add or remove types
+	 * programmatically.
 	 *
 	 * @return string[]
 	 */
@@ -47,7 +49,7 @@ final class Content {
 
 		$types = array_values( array_intersect( $configured, $available ) );
 		if ( empty( $types ) ) {
-			$types = $available;
+			$types = Settings::default_post_types();
 		}
 
 		/**

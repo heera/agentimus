@@ -72,7 +72,7 @@ namespace {
 	if ( ! function_exists( 'get_option' ) )            { function get_option( $k, $d = false ) { return array_key_exists( $k, $GLOBALS['_af_options'] ) ? $GLOBALS['_af_options'][ $k ] : $d; } }
 	if ( ! function_exists( 'update_option' ) )         { function update_option( $k, $v ) { $GLOBALS['_af_options'][ $k ] = $v; return true; } }
 	if ( ! function_exists( 'add_option' ) )            { function add_option( $k, $v ) { $GLOBALS['_af_options'][ $k ] = $v; return true; } }
-	function _af_reset_options() { $GLOBALS['_af_options'] = array(); }
+	function _af_reset_options() { $GLOBALS['_af_options'] = array(); unset( $GLOBALS['_af_available_post_types'] ); }
 	// Always-miss transient stubs so cached endpoint bodies (e.g. security.txt)
 	// recompute deterministically in tests.
 	if ( ! function_exists( 'get_transient' ) )         { function get_transient( $k ) { return false; } }
@@ -113,10 +113,17 @@ namespace {
 
 namespace Agentify {
 	// Stub the one in-plugin dependency that needs the WP post-type registry,
-	// so Settings::defaults() works without loading the real Content class.
+	// so Settings::defaults() works without loading the real Content class. The
+	// available() list is overridable via $GLOBALS['_af_available_post_types'] so
+	// a test can introduce a third public type (e.g. a CPT) and prove the safe
+	// default never widens to "all public types".
 	if ( ! class_exists( 'Agentify\\Content', false ) ) {
 		class Content {
-			public static function available() { return array( 'post', 'page' ); }
+			public static function available() {
+				return isset( $GLOBALS['_af_available_post_types'] )
+					? (array) $GLOBALS['_af_available_post_types']
+					: array( 'post', 'page' );
+			}
 			public static function source( $post_type ) { return ''; }
 		}
 	}

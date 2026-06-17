@@ -32,7 +32,7 @@ final class Settings {
 			'enable_sitemap'   => true, // Gap-only fallback: stands down when core/SEO provides one, so it's safe on by default.
 			'enable_security_txt' => false, // Opt-in: generate /.well-known/security.txt only when asked AND no file/other plugin already provides one.
 			'llms_full_posts'  => 50,
-			'post_types'       => Content::available(),
+			'post_types'       => self::default_post_types(),
 			'rest_namespaces'  => array(), // Owner-curated REST namespaces to publish in discovery (opt-in; empty = none).
 			'suppressed_resources' => array(), // Owner opt-OUT: ids of provider-registered Resources to hide from all output. Declared Resources default to published (spec §04), so empty = publish everything a provider declared.
 			'identity'         => array(
@@ -95,6 +95,21 @@ final class Settings {
 		 */
 		$known = (array) apply_filters( 'agentify_known_trainers', $known );
 		return array_values( array_unique( array_filter( array_map( 'trim', $known ) ) ) );
+	}
+
+	/**
+	 * The privacy-safe default content selection: posts and pages only. Every
+	 * other public post type (WooCommerce products, CRM/support/forms/boards
+	 * CPTs, …) is opt-IN, so a fresh install never advertises or dumps content
+	 * the owner didn't choose. Falls back to all public types only on the rare
+	 * site that registers neither `post` nor `page`.
+	 *
+	 * @return string[]
+	 */
+	public static function default_post_types() {
+		$available = Content::available();
+		$safe      = array_values( array_intersect( array( 'post', 'page' ), $available ) );
+		return ! empty( $safe ) ? $safe : $available;
 	}
 
 	/**
@@ -222,7 +237,12 @@ final class Settings {
 		$requested           = $this->sanitize_list( isset( $input['post_types'] ) ? $input['post_types'] : array(), 'sanitize_key' );
 		$clean['post_types'] = array_values( array_intersect( $requested, $available ) );
 		if ( empty( $clean['post_types'] ) ) {
-			$clean['post_types'] = $available; // Never store an empty set — that would hide all content.
+			// Never store an empty set (that would hide all content) — but never
+			// silently widen to ALL public types either, which would leak every
+			// CPT. Keep the current selection if there is one; otherwise fall
+			// back to the privacy-safe default (posts + pages).
+			$current             = array_values( array_intersect( (array) ( new self() )->get( 'post_types', array() ), $available ) );
+			$clean['post_types'] = ! empty( $current ) ? $current : self::default_post_types();
 		}
 
 		// Owner-curated REST namespaces to publish (e.g. "wc/store/v1"). Keep only
