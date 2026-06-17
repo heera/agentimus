@@ -201,6 +201,11 @@ final class WellKnown {
 		}
 		if ( ! headers_sent() ) {
 			status_header( 200 );
+			// A name reached via the 404-intercept path (anything not in our rewrite,
+			// e.g. security.txt) inherits WordPress's 404 no-cache headers; clear them
+			// so our Cache-Control governs and the doc stays edge-cacheable.
+			header_remove( 'Expires' );
+			header_remove( 'Pragma' );
 			header( 'Content-Type: ' . $content_type . '; charset=UTF-8' );
 			header( 'X-Content-Type-Options: nosniff' );
 			header( 'Access-Control-Allow-Origin: *' ); // Discovery docs are public by design.
@@ -224,8 +229,11 @@ final class WellKnown {
 		}
 		if ( ! headers_sent() ) {
 			status_header( 200 );
+			header_remove( 'Expires' ); // Drop WP's 404-path no-cache headers (see send()).
+			header_remove( 'Pragma' );
 			header( 'Content-Type: ' . $content_type . '; charset=UTF-8' );
 			header( 'X-Content-Type-Options: nosniff' );
+			header( 'Access-Control-Allow-Origin: *' ); // Public docs — match send() so on-disk files are cross-origin fetchable too.
 			header( 'Cache-Control: public, max-age=3600' );
 		}
 		if ( ! $this->is_head() ) {

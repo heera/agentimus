@@ -37,6 +37,7 @@ final class Readiness {
 			$this->check_about(),
 			$this->check_expertise(),
 			$this->check_same_as(),
+			$this->check_security_txt(),
 			$this->check_schema_conflict(),
 			$this->check_static_robots(),
 			$this->check_sitemap(),
@@ -204,6 +205,63 @@ final class Readiness {
 				__( 'Add your GitHub, LinkedIn, or X profile URLs under Settings → Identity. These “sameAs” links let an agent tie this site to a known entity instead of guessing.', 'agentify' ),
 				$this->nav( __( 'Add profiles', 'agentify' ), 'ar-sec-identity' )
 			);
+	}
+
+	private function check_security_txt() {
+		$url = home_url( '/.well-known/security.txt' );
+
+		// A real on-disk file always wins (the generator stands down) — and it's
+		// still the goal: a published security contact. Report it as a pass.
+		if ( file_exists( ABSPATH . '.well-known/security.txt' ) ) {
+			return $this->row(
+				'security_txt',
+				__( 'security.txt contact', 'agentify' ),
+				'pass',
+				/* translators: %s: URL. */
+				sprintf( __( 'A security.txt file is published at %s; Agentify links it and stands aside.', 'agentify' ), $url )
+			);
+		}
+
+		// Mirror the generator's real decision so the check never drifts from it.
+		$sec = new Discovery\SecurityTxt( $this->settings );
+
+		// Off (and no file): a disclosure contact is a recommended trust signal.
+		if ( ! $sec->should_serve() ) {
+			return $this->row(
+				'security_txt',
+				__( 'security.txt contact', 'agentify' ),
+				'warn',
+				__( 'No security.txt. Researchers and agents have no machine-readable way to report a vulnerability.', 'agentify' ),
+				__( 'Turn on “Generate security.txt” under Settings → Security.txt and add a contact (your Identity email is reused automatically). It publishes an RFC 9116 disclosure contact at /.well-known/security.txt.', 'agentify' ),
+				$this->nav( __( 'Enable security.txt', 'agentify' ), 'ar-sec-security' )
+			);
+		}
+
+		// On, but no contact ⇒ RFC 9116 makes the document invalid ⇒ nothing served.
+		$contacts = $sec->contacts();
+		if ( empty( $contacts ) ) {
+			return $this->row(
+				'security_txt',
+				__( 'security.txt contact', 'agentify' ),
+				'warn',
+				__( 'security.txt is enabled but has no contact, so RFC 9116 makes it invalid and nothing is served.', 'agentify' ),
+				__( 'Add at least one Security contact (or a public contact email under Identity) in Settings → Security.txt. Without a Contact line the document can’t be published.', 'agentify' ),
+				$this->nav( __( 'Add a contact', 'agentify' ), 'ar-sec-security' )
+			);
+		}
+
+		// On, with a contact, and no file shadowing it → live.
+		return $this->row(
+			'security_txt',
+			__( 'security.txt contact', 'agentify' ),
+			'pass',
+			sprintf(
+				/* translators: 1: number of contacts, 2: URL. */
+				_n( 'Serving %1$d security contact at %2$s.', 'Serving %1$d security contacts at %2$s.', count( $contacts ), 'agentify' ),
+				count( $contacts ),
+				$url
+			)
+		);
 	}
 
 	private function check_schema_conflict() {

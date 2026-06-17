@@ -62,6 +62,30 @@ export default {
       }
       return this.settings.identity;
     },
+    security() {
+      // Guard against a missing security object on first paint.
+      if (!this.settings.security || typeof this.settings.security !== 'object') {
+        this.settings.security = {
+          contacts: [], policy: '', acknowledgments: '',
+          encryption: '', hiring: '', preferred_languages: '', expires_days: 182,
+        };
+      }
+      return this.settings.security;
+    },
+    // RFC 9116 requires at least one Contact; the identity email seeds the first.
+    // Without any contact the generator emits nothing, so we warn before that.
+    hasSecurityContact() {
+      const email = (this.identity.contact_email || '').trim();
+      const extra = Array.isArray(this.security.contacts) ? this.security.contacts : [];
+      return !!email || extra.length > 0;
+    },
+    securityTxtUrl() {
+      try {
+        return new URL('/.well-known/security.txt', this.endpoints.robots || this.endpoints.llms || window.location.origin).href;
+      } catch (e) {
+        return '';
+      }
+    },
     features() {
       return [
         { key: 'enable_llms_txt', label: '/llms.txt index', hint: 'A link map of your pages, topics and recent posts.' },
@@ -285,6 +309,83 @@ export default {
           Public profile URLs (GitHub, LinkedIn, X…) that help agents resolve your entity. Saved as you add.
           <span v-if="identity.same_as.some((u) => !isUrl(u))" class="ar-warn">Some entries are not full https:// URLs.</span>
         </small>
+      </div>
+    </section>
+
+    <!-- Security.txt --------------------------------------------------- -->
+    <section id="ar-sec-security" class="ar-card">
+      <h2 class="ar-card__title">Security.txt</h2>
+      <p class="ar-card__lead">
+        A machine- and human-readable security contact at
+        <code>/.well-known/security.txt</code> (RFC 9116). Generated only when enabled —
+        and it stands aside automatically if a real file or another plugin already provides one.
+      </p>
+
+      <label class="ar-toggle">
+        <input v-model="settings.enable_security_txt" type="checkbox" />
+        <span class="ar-toggle__track" aria-hidden="true"></span>
+        <span class="ar-toggle__text">
+          <strong>Generate security.txt</strong>
+          <small>Publish a vulnerability-disclosure contact for security researchers and agents.</small>
+        </span>
+      </label>
+
+      <div v-show="settings.enable_security_txt">
+        <p v-if="!hasSecurityContact" class="ar-card__note ar-warn">
+          Add at least one contact below (or a public contact email under Identity) —
+          RFC 9116 requires one, so until then nothing is served.
+        </p>
+
+        <div class="ar-field">
+          <label>Security contacts</label>
+          <TagInput v-model="security.contacts" placeholder="security@example.com, https://… or tel:+…" />
+          <small class="ar-field__hint">
+            Emails, <code>https://</code> report forms or <code>tel:</code> numbers; press Enter to add.
+            <span v-if="identity.contact_email">Your Identity email <code>{{ identity.contact_email }}</code> is used automatically as the first contact.</span>
+            <span v-else>The public contact email under Identity, if set, is reused here automatically.</span>
+          </small>
+        </div>
+
+        <div class="ar-grid">
+          <div class="ar-field">
+            <label for="ar-sec-policy">Disclosure policy URL <span class="ar-field__tag">optional</span></label>
+            <input id="ar-sec-policy" v-model="security.policy" type="url" class="ar-input" placeholder="https://example.com/security-policy" />
+          </div>
+          <div class="ar-field">
+            <label for="ar-sec-ack">Acknowledgments URL <span class="ar-field__tag">optional</span></label>
+            <input id="ar-sec-ack" v-model="security.acknowledgments" type="url" class="ar-input" placeholder="https://example.com/hall-of-fame" />
+          </div>
+          <div class="ar-field">
+            <label for="ar-sec-enc">Encryption key URL <span class="ar-field__tag">optional</span></label>
+            <input id="ar-sec-enc" v-model="security.encryption" type="url" class="ar-input" placeholder="https://example.com/pgp-key.txt" />
+          </div>
+          <div class="ar-field">
+            <label for="ar-sec-hiring">Security hiring URL <span class="ar-field__tag">optional</span></label>
+            <input id="ar-sec-hiring" v-model="security.hiring" type="url" class="ar-input" placeholder="https://example.com/jobs/security" />
+          </div>
+        </div>
+
+        <div class="ar-grid">
+          <div class="ar-field">
+            <label for="ar-sec-langs">Preferred languages <span class="ar-field__tag">optional</span></label>
+            <input id="ar-sec-langs" v-model="security.preferred_languages" type="text" class="ar-input" placeholder="en, fr" />
+            <small class="ar-field__hint">Comma-separated; defaults to your site language.</small>
+          </div>
+          <div class="ar-field ar-field--inline">
+            <label for="ar-sec-exp">Expires after (days)</label>
+            <input id="ar-sec-exp" v-model.number="security.expires_days" type="number" min="1" max="365" class="ar-input ar-input--sm" />
+          </div>
+        </div>
+
+        <p class="ar-card__note">
+          <strong>Gap-filling, never override.</strong>
+          A real <code>/.well-known/security.txt</code> file or another plugin's document always wins;
+          this generator only fills the gap.
+          <span v-if="hasSecurityContact">
+            Live at <a :href="securityTxtUrl" target="_blank" rel="noopener"><code>/.well-known/security.txt</code></a>,
+            and indexed in <code>discovery.json</code> under <code>trust</code>.
+          </span>
+        </p>
       </div>
     </section>
 

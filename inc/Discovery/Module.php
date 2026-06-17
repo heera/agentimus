@@ -42,6 +42,10 @@ final class Module {
 		( new Adapters\RestApi() )->register();
 		( new Adapters\AbilitiesApi() )->register();
 
+		// Opt-in well-known generators that fill a gap WITHOUT overriding a real
+		// on-disk file or another plugin's document (each class owns its precedence).
+		( new SecurityTxt( $this->settings ) )->register();
+
 		add_action( 'send_headers', array( $this, 'link_header' ) );
 		add_action( 'rest_api_init', array( $this, 'rest_routes' ) );
 	}
@@ -54,10 +58,13 @@ final class Module {
 		if ( is_admin() ) {
 			return;
 		}
-		header(
-			'Link: <' . esc_url_raw( home_url( '/.well-known/discovery.json' ) ) . '>; rel="discovery"; type="application/json"',
-			false
-		);
+		$url = esc_url_raw( home_url( '/.well-known/discovery.json' ) );
+		// Advertise with a REGISTERED relation (RFC 8631 `service-desc`, a
+		// machine-readable description of the service) so standards-aware clients
+		// recognise the entry point, plus the protocol's own `discovery` rel for
+		// WP_Discovery-aware agents.
+		header( 'Link: <' . $url . '>; rel="service-desc"; type="application/json"', false );
+		header( 'Link: <' . $url . '>; rel="discovery"; type="application/json"', false );
 	}
 
 	/**

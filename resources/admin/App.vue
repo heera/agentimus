@@ -76,10 +76,11 @@ export default {
         enable_llms_txt: s.enable_llms_txt, enable_llms_full: s.enable_llms_full,
         enable_markdown: s.enable_markdown, enable_robots: s.enable_robots,
         enable_schema: s.enable_schema, enable_activity: s.enable_activity,
-        enable_sitemap: s.enable_sitemap,
+        enable_sitemap: s.enable_sitemap, enable_security_txt: s.enable_security_txt,
         llms_full_posts: s.llms_full_posts, post_types: s.post_types,
         rest_namespaces: s.rest_namespaces, content_signal: s.content_signal,
         blocked_trainers: s.blocked_trainers, suppressed_resources: s.suppressed_resources,
+        security: s.security,
         expertise: id.expertise, same_as: id.same_as,
       });
     },

@@ -30,6 +30,7 @@ final class Settings {
 			'enable_schema'    => true,
 			'enable_activity'  => true,
 			'enable_sitemap'   => true, // Gap-only fallback: stands down when core/SEO provides one, so it's safe on by default.
+			'enable_security_txt' => false, // Opt-in: generate /.well-known/security.txt only when asked AND no file/other plugin already provides one.
 			'llms_full_posts'  => 50,
 			'post_types'       => Content::available(),
 			'rest_namespaces'  => array(), // Owner-curated REST namespaces to publish in discovery (opt-in; empty = none).
@@ -42,6 +43,15 @@ final class Settings {
 				'contact_email' => '', // Opt-in; published in discovery.json only if set.
 				'expertise'     => array(),
 				'same_as'       => array(),
+			),
+			'security'         => array(
+				'contacts'            => array(), // Extra Contact URIs/emails beyond identity.contact_email (which seeds the first one).
+				'policy'              => '',       // URL to the vuln-disclosure policy.
+				'acknowledgments'     => '',       // URL to a hall-of-fame / thanks page.
+				'encryption'          => '',       // URL to an OpenPGP key.
+				'hiring'              => '',       // URL to security job listings.
+				'preferred_languages' => '',       // e.g. "en, fr"; empty falls back to the site locale.
+				'expires_days'        => 182,      // RFC 9116 SHOULD keep Expires < 1 year.
 			),
 			'content_signal'   => array(
 				'search'   => true,
@@ -100,6 +110,10 @@ final class Settings {
 		$all['identity'] = wp_parse_args(
 			isset( $saved['identity'] ) && is_array( $saved['identity'] ) ? $saved['identity'] : array(),
 			$this->defaults()['identity']
+		);
+		$all['security'] = wp_parse_args(
+			isset( $saved['security'] ) && is_array( $saved['security'] ) ? $saved['security'] : array(),
+			$this->defaults()['security']
 		);
 
 		/**
@@ -197,7 +211,7 @@ final class Settings {
 		$defaults = $this->defaults();
 		$clean    = array();
 
-		foreach ( array( 'enable_llms_txt', 'enable_llms_full', 'enable_markdown', 'enable_robots', 'enable_schema', 'enable_activity', 'enable_sitemap' ) as $flag ) {
+		foreach ( array( 'enable_llms_txt', 'enable_llms_full', 'enable_markdown', 'enable_robots', 'enable_schema', 'enable_activity', 'enable_sitemap', 'enable_security_txt' ) as $flag ) {
 			$clean[ $flag ] = ! empty( $input[ $flag ] );
 		}
 
@@ -265,6 +279,19 @@ final class Settings {
 			'same_as'       => $this->sanitize_list( isset( $identity_in['same_as'] ) ? $identity_in['same_as'] : array(), 'esc_url_raw' ),
 		);
 
+		// security.txt (RFC 9116) fields. Contacts accept an email or an http(s)/
+		// mailto/tel URI; the rest are URLs; the freshness window is clamped < 1 year.
+		$security_in       = isset( $input['security'] ) && is_array( $input['security'] ) ? $input['security'] : array();
+		$clean['security'] = array(
+			'contacts'            => $this->sanitize_list( isset( $security_in['contacts'] ) ? $security_in['contacts'] : array(), array( $this, 'sanitize_contact_value' ) ),
+			'policy'              => isset( $security_in['policy'] ) ? esc_url_raw( (string) $security_in['policy'] ) : '',
+			'acknowledgments'     => isset( $security_in['acknowledgments'] ) ? esc_url_raw( (string) $security_in['acknowledgments'] ) : '',
+			'encryption'          => isset( $security_in['encryption'] ) ? esc_url_raw( (string) $security_in['encryption'] ) : '',
+			'hiring'              => isset( $security_in['hiring'] ) ? esc_url_raw( (string) $security_in['hiring'] ) : '',
+			'preferred_languages' => isset( $security_in['preferred_languages'] ) ? sanitize_text_field( (string) $security_in['preferred_languages'] ) : '',
+			'expires_days'        => isset( $security_in['expires_days'] ) ? max( 1, min( 365, (int) $security_in['expires_days'] ) ) : 182,
+		);
+
 		$trainers                 = isset( $input['blocked_trainers'] ) ? $input['blocked_trainers'] : $defaults['blocked_trainers'];
 		$clean['blocked_trainers'] = $this->sanitize_list( $trainers, 'sanitize_text_field' );
 
@@ -292,5 +319,26 @@ final class Settings {
 		return array_values( array_filter( $value, static function ( $item ) {
 			return '' !== $item;
 		} ) );
+	}
+
+	/**
+	 * Sanitise one security.txt Contact value: an email is kept as a bare address
+	 * (SecurityTxt prefixes mailto: at render time); otherwise it must be an
+	 * http(s)/mailto/tel URI. Anything else collapses to '' and is dropped.
+	 *
+	 * @param string $value Raw contact.
+	 * @return string
+	 */
+	public function sanitize_contact_value( $value ) {
+		$value = trim( (string) $value );
+		if ( is_email( $value ) ) {
+			return sanitize_email( $value );
+		}
+		// Require an explicit, allowed scheme so esc_url_raw() can't turn a bare
+		// word into a bogus "https://…" contact.
+		if ( ! preg_match( '#^(https?|mailto|tel):#i', $value ) ) {
+			return '';
+		}
+		return (string) esc_url_raw( $value, array( 'https', 'http', 'mailto', 'tel' ) );
 	}
 }
