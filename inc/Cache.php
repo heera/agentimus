@@ -15,6 +15,7 @@ final class Cache {
 
 	const LLMS_TXT  = 'agentify_llms_txt';
 	const LLMS_FULL = 'agentify_llms_full';
+	const LLMS_FULL_STAT = 'agentify_llms_full_stat'; // Last-generation status for /llms-full.txt (bytes/truncated/reason/items/generated_at).
 	const DISCOVERY = 'agentify_discovery';
 	const SECURITY_TXT = 'agentify_security_txt';
 	// The sitemap is generated as an index + many paginated sub-sitemaps, so it
@@ -23,6 +24,9 @@ final class Cache {
 	const SITEMAP_GEN = 'agentify_sitemap_gen';
 
 	const TTL = HOUR_IN_SECONDS;
+	// A truncated full-text body is re-attempted sooner — content or settings may
+	// change and bring it back under budget.
+	const TTL_PARTIAL = 15 * MINUTE_IN_SECONDS;
 
 	/**
 	 * Read a cached value.
@@ -38,10 +42,11 @@ final class Cache {
 	 * Store a value.
 	 *
 	 * @param string $key   Transient key.
-	 * @param string $value Body.
+	 * @param mixed  $value Body (string) or a status array.
+	 * @param int    $ttl   Lifetime in seconds; defaults to the standard TTL.
 	 */
-	public static function set( $key, $value ) {
-		set_transient( $key, $value, self::TTL );
+	public static function set( $key, $value, $ttl = self::TTL ) {
+		set_transient( $key, $value, $ttl );
 	}
 
 	/**
@@ -50,6 +55,7 @@ final class Cache {
 	public static function flush() {
 		delete_transient( self::LLMS_TXT );
 		delete_transient( self::LLMS_FULL );
+		delete_transient( self::LLMS_FULL_STAT );
 		delete_transient( self::DISCOVERY );
 		delete_transient( self::SECURITY_TXT );
 		delete_transient( self::SITEMAP_GEN ); // Orphans every sub-sitemap transient.

@@ -33,6 +33,7 @@ final class Readiness {
 			$this->check_permalinks(),
 			$this->check_llms_txt(),
 			$this->check_llms_full(),
+			$this->check_llms_full_size(),
 			$this->check_post_types(),
 			$this->check_about(),
 			$this->check_expertise(),
@@ -150,6 +151,57 @@ final class Readiness {
 				__( 'Enable “/llms-full.txt full text” under Settings → Features so an agent can pull your whole corpus in one fetch instead of crawling page by page.', 'agentify' ),
 				$this->nav( __( 'Enable in Features', 'agentify' ), 'ar-sec-features' )
 			);
+	}
+
+	private function check_llms_full_size() {
+		// Only meaningful when the full-text edition is on; when off, check_llms_full()
+		// already covers it — don't double-warn.
+		if ( ! $this->settings->enabled( 'enable_llms_full' ) ) {
+			return $this->row( 'llms_full_size', __( 'Full-text file size', 'agentify' ), 'pass', __( 'The full-text edition is off, so there is nothing to size.', 'agentify' ) );
+		}
+
+		$est       = Content::estimate_full_size( $this->settings );
+		$stat      = Cache::get( Cache::LLMS_FULL_STAT );
+		$truncated = is_array( $stat ) && ! empty( $stat['truncated'] );
+
+		if ( $est['will_truncate'] || $truncated ) {
+			$detail = ( $truncated && is_array( $stat ) )
+				? sprintf(
+					/* translators: 1: served size e.g. "1 MB"; 2: budget size. */
+					__( 'The full-text file was last served at %1$s and truncated at the %2$s limit, so some content is left out.', 'agentify' ),
+					size_format( (int) $stat['bytes'] ),
+					size_format( $est['budget_bytes'] )
+				)
+				: sprintf(
+					/* translators: 1: item count; 2: estimated size; 3: budget size. */
+					__( 'About %1$s items (~%2$s) would exceed the %3$s size limit, so the file will be truncated.', 'agentify' ),
+					number_format_i18n( $est['items'] ),
+					size_format( $est['est_bytes'] ),
+					size_format( $est['budget_bytes'] )
+				);
+
+			return $this->row(
+				'llms_full_size',
+				__( 'Full-text file size', 'agentify' ),
+				'warn',
+				$detail,
+				__( 'Lower “Posts in /llms-full.txt” under Settings → Features so the file fits, or rely on the /llms.txt index — agents can still fetch any page by appending .md to its URL.', 'agentify' ),
+				$this->nav( __( 'Adjust in Features', 'agentify' ), 'ar-sec-features' )
+			);
+		}
+
+		return $this->row(
+			'llms_full_size',
+			__( 'Full-text file size', 'agentify' ),
+			'pass',
+			sprintf(
+				/* translators: 1: item count; 2: estimated size; 3: budget size. */
+				__( 'About %1$s items (~%2$s), within the %3$s limit.', 'agentify' ),
+				number_format_i18n( $est['items'] ),
+				size_format( $est['est_bytes'] ),
+				size_format( $est['budget_bytes'] )
+			)
+		);
 	}
 
 	private function check_post_types() {

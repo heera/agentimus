@@ -365,21 +365,110 @@ final class Endpoints {
 
 		$out .= $this->about_block();
 
-		$count = (int) $this->settings->get( 'llms_full_posts', 50 );
+		// Bounded generation. This runs synchronously on a PUBLIC request (a
+		// crawler can trigger a cold-cache build), so on a large site — many post
+		// types × many items, each rendered through the_content + DOM→markdown — an
+		// unbounded build could exhaust PHP's memory_limit / max_execution_time.
+		// We bound the WORK (rather than raise limits, which would be wrong on an
+		// unauthenticated request) with three guards: a total byte budget, a
+		// per-item cap, and a wall-clock deadline. When any trips we stop at an
+		// item boundary (never mid-markdown, so the document stays valid), append a
+		// note pointing back to the index, and cache what we produced.
+		$budget   = max( 64, (int) $this->settings->get( 'llms_full_max_kb', 1024 ) ) * 1024;
+		$item_cap = (int) apply_filters( 'agentify_llms_full_item_max_bytes', min( 256 * 1024, max( 32 * 1024, intdiv( $budget, 4 ) ) ) );
+		$deadline = $this->generation_deadline();
+		$start    = microtime( true );
+
+		$count     = (int) $this->settings->get( 'llms_full_posts', 50 );
+		$emitted   = 0;
+		$truncated = false;
+		$reason    = '';
+
 		foreach ( Content::index_sections() as $post_type ) {
 			// Pages are few and structural — include the lot; cap the rest.
 			$limit = 'page' === $post_type ? 50 : ( $count > 0 ? $count : 50 );
 			foreach ( Content::query( $post_type, $limit ) as $item ) {
+				// Time guard first — before the (expensive) render, so we never
+				// start work we can't finish within budget.
+				if ( microtime( true ) - $start >= $deadline ) {
+					$truncated = true;
+					$reason    = 'time';
+					break 2;
+				}
 				if ( ! Content::has_body( $item ) ) {
 					continue; // No prose body (template-only or builder-empty).
 				}
-				$out .= "\n---\n\n" . Markdown::post( $item->ID ) . "\n";
+				$md = Markdown::post( $item->ID );
+				// Per-item cap: skip a single runaway item rather than let it
+				// dominate; it stays reachable via its own .md URL and the index.
+				if ( strlen( $md ) > $item_cap ) {
+					continue;
+				}
+				$piece = "\n---\n\n" . $md . "\n";
+				// Byte budget: test the PROJECTED size before appending, so even the
+				// first item can't overshoot. Stop at the boundary → always valid.
+				if ( strlen( $out ) + strlen( $piece ) > $budget ) {
+					$truncated = true;
+					$reason    = 'budget';
+					break 2;
+				}
+				$out .= $piece;
+				++$emitted;
 			}
 		}
 
+		if ( $truncated ) {
+			$out .= $this->truncation_note();
+		}
+
 		$out = rtrim( $out ) . "\n";
-		Cache::set( Cache::LLMS_FULL, $out );
+
+		// Cache what we produced — a truncated body for a shorter window (content
+		// or settings may change and bring it back under budget) — and record the
+		// status so the admin can see a cap was hit without re-fetching the file.
+		$ttl = $truncated ? Cache::TTL_PARTIAL : Cache::TTL;
+		Cache::set( Cache::LLMS_FULL, $out, $ttl );
+		Cache::set(
+			Cache::LLMS_FULL_STAT,
+			array(
+				'bytes'        => strlen( $out ),
+				'truncated'    => $truncated,
+				'reason'       => $reason,
+				'items'        => $emitted,
+				'generated_at' => time(),
+			),
+			$ttl
+		);
 		return $out;
+	}
+
+	/**
+	 * A safe wall-clock budget (seconds) for one full-text generation: half of
+	 * PHP's max_execution_time, floored at 5s and ceiled at 20s. When the limit is
+	 * unlimited (0 — CLI or some hosts) we still cap at 20s so a single public
+	 * request can never run away.
+	 *
+	 * @return float
+	 */
+	private function generation_deadline() {
+		$max = (int) ini_get( 'max_execution_time' );
+		if ( $max <= 0 ) {
+			return 20.0;
+		}
+		return (float) max( 5, min( 20, (int) floor( $max * 0.5 ) ) );
+	}
+
+	/**
+	 * The note appended when the full-text edition is cut short by a guard. Valid
+	 * markdown (rule + blockquote); because we only ever stop at an item boundary
+	 * it never glues onto a half-open construct.
+	 *
+	 * @return string
+	 */
+	private function truncation_note() {
+		return "\n---\n\n> Note: this full-text edition was truncated to stay within a size limit, so not every page is included above. "
+			. 'For the complete list of pages see the index at ' . esc_url_raw( home_url( '/llms.txt' ) )
+			. ', and append `.md` to any page URL (or send `Accept: text/markdown`) to fetch that page in full.' . "\n";
 	}
 
 	/**

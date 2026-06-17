@@ -27,6 +27,7 @@ namespace {
 	if ( ! defined( 'AGENTIFY_CANONICAL_HOOK' ) )  define( 'AGENTIFY_CANONICAL_HOOK', 'wpdiscovery_register' );
 	if ( ! defined( 'AGENTIFY_DISCOVERY_HOOK' ) )  define( 'AGENTIFY_DISCOVERY_HOOK', 'agentify_discovery_register' );
 	if ( ! defined( 'HOUR_IN_SECONDS' ) )          define( 'HOUR_IN_SECONDS', 3600 );
+		if ( ! defined( 'MINUTE_IN_SECONDS' ) ) define( 'MINUTE_IN_SECONDS', 60 );
 	if ( ! defined( 'DAY_IN_SECONDS' ) )           define( 'DAY_IN_SECONDS', 86400 );
 
 	if ( ! class_exists( 'WP_Error' ) ) {

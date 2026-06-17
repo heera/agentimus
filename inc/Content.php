@@ -85,6 +85,48 @@ final class Content {
 	}
 
 	/**
+	 * A cheap (COUNT-only) estimate of the /llms-full.txt size, for the admin's
+	 * size warning. Never runs the_content or the markdown converter. Mirrors the
+	 * real generator's per-type limits (pages → 50, others → llms_full_posts) so
+	 * the estimate can't drift from what is actually emitted.
+	 *
+	 * @param Settings $settings Settings store.
+	 * @return array{items:int,est_bytes:int,budget_bytes:int,will_truncate:bool}
+	 */
+	public static function estimate_full_size( Settings $settings ) {
+		$per_type = (int) $settings->get( 'llms_full_posts', 50 );
+		$per_type = $per_type > 0 ? $per_type : 50;
+
+		$items = 0;
+		foreach ( self::index_sections() as $post_type ) {
+			$limit  = 'page' === $post_type ? 50 : $per_type;
+			$items += min( self::published_count( $post_type ), $limit );
+		}
+
+		$avg_bytes    = max( 1, (int) apply_filters( 'agentify_llms_full_avg_item_bytes', 4096 ) );
+		$est_bytes    = $items * $avg_bytes;
+		$budget_bytes = max( 64, (int) $settings->get( 'llms_full_max_kb', 1024 ) ) * 1024;
+
+		return array(
+			'items'         => $items,
+			'est_bytes'     => $est_bytes,
+			'budget_bytes'  => $budget_bytes,
+			'will_truncate' => $est_bytes > $budget_bytes,
+		);
+	}
+
+	/**
+	 * Published-item count for a post type (cheap; from wp_count_posts).
+	 *
+	 * @param string $post_type Post type slug.
+	 * @return int
+	 */
+	private static function published_count( $post_type ) {
+		$counts = wp_count_posts( $post_type );
+		return ( is_object( $counts ) && isset( $counts->publish ) ) ? (int) $counts->publish : 0;
+	}
+
+	/**
 	 * The plural label for a post type's section heading.
 	 *
 	 * @param string $post_type Post type slug.
