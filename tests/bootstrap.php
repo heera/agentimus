@@ -59,6 +59,7 @@ namespace {
 	if ( ! function_exists( 'esc_url' ) )               { function esc_url( $u, $p = null ) { return trim( (string) $u ); } }
 	if ( ! function_exists( 'is_email' ) )              { function is_email( $e ) { return filter_var( $e, FILTER_VALIDATE_EMAIL ) ? $e : false; } }
 	if ( ! function_exists( 'wp_normalize_path' ) )     { function wp_normalize_path( $p ) { return str_replace( '\\', '/', (string) $p ); } }
+	if ( ! function_exists( 'wp_strip_all_tags' ) )     { function wp_strip_all_tags( $s ) { return trim( strip_tags( (string) $s ) ); } }
 	if ( ! function_exists( 'plugin_basename' ) )       { function plugin_basename( $f ) { return basename( dirname( $f ) ) . '/' . basename( $f ); } }
 	if ( ! function_exists( 'home_url' ) )              { function home_url( $path = '' ) { $b = 'https://example.test'; $path = (string) $path; return '' === $path ? $b . '/' : $b . ( '/' === $path[0] ? $path : '/' . $path ); } }
 	if ( ! function_exists( 'get_bloginfo' ) )          { function get_bloginfo( $k = '' ) { $m = array( 'name' => 'Test Site', 'description' => 'A test site.', 'language' => 'en-US' ); return isset( $m[ $k ] ) ? $m[ $k ] : ''; } }

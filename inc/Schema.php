@@ -119,8 +119,8 @@ final class Schema {
 			'@type'           => 'WebSite',
 			'@id'             => home_url( '/#website' ),
 			'url'             => home_url( '/' ),
-			'name'            => get_bloginfo( 'name' ),
-			'description'     => get_bloginfo( 'description' ),
+			'name'            => $this->clean( get_bloginfo( 'name' ) ),
+			'description'     => $this->clean( get_bloginfo( 'description' ) ),
 			'inLanguage'      => get_bloginfo( 'language' ),
 			'potentialAction' => array(
 				'@type'       => 'SearchAction',
@@ -131,6 +131,18 @@ final class Schema {
 				'query-input' => 'required name=search_term_string',
 			),
 		);
+	}
+
+	/**
+	 * Decode HTML entities and strip tags so a value reads as clean plain text in the
+	 * JSON-LD. get_bloginfo() can return entity-encoded text (e.g. "&amp;"), which is
+	 * wrong inside a JSON string value.
+	 *
+	 * @param string $value Possibly entity-encoded text.
+	 * @return string
+	 */
+	private function clean( $value ) {
+		return trim( html_entity_decode( wp_strip_all_tags( (string) $value ), ENT_QUOTES | ENT_HTML5, 'UTF-8' ) );
 	}
 
 	/**
