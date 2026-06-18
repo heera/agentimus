@@ -78,7 +78,7 @@ final class AbilitiesApi {
 			 * @param string $name         Ability name (e.g. "core/get-site-info").
 			 * @param mixed  $ability      The ability object.
 			 */
-			if ( ! apply_filters( 'heera_agent_discoverable_ability', true, $name, $ability ) ) {
+			if ( ! apply_filters( 'agentomatic_discoverable_ability', true, $name, $ability ) ) {
 				continue;
 			}
 

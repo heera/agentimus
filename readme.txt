@@ -8,7 +8,7 @@ Stable tag: 1.0.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
-An AI-discovery layer for your site: a /.well-known discovery document, machine-readable pages, AI-crawl controls, and a first-party agent-activity log.
+An AI-discovery layer for your site: a /.well-known discovery document, machine-readable pages, AI-crawl controls, and an agent-activity log.
 
 == Description ==
 

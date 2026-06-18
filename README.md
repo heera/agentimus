@@ -107,7 +107,7 @@ The dev-facing subset (the plugin fires ~40 in all; every one is optional).
 - `agentomatic_mcp` `(array $mcp, array $resources)` — the advertised MCP descriptor.
 - `agentomatic_agent_skills` `(array $skills, array $resources)` — the Agent Skills index.
 - `agentomatic_rest_namespaces` `(array $allowed)` — REST namespaces to publish.
-- `heera_agent_discoverable_ability` `(bool $ok, string $name, $ability)` — include/exclude a WP ability.
+- `agentomatic_discoverable_ability` `(bool $ok, string $name, $ability)` — include/exclude a WP ability.
 - `agentomatic_schema_url` `(string $url)` — the `$schema` value; return `''` to omit it.
 - `agentomatic_well_known_nested` `(array $names)` — extra exact-match nested `/.well-known/…` paths.
 
