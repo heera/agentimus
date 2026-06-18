@@ -3,10 +3,10 @@
  * Readiness report — a list of pass/warn/fail checks that the admin "Readiness"
  * panel renders. Each check is cheap and side-effect free.
  *
- * @package HeeraAgentDiscovery
+ * @package Agentomatic
  */
 
-namespace HeeraAgentDiscovery;
+namespace Agentomatic;
 
 defined( 'ABSPATH' ) || exit;
 
@@ -51,7 +51,7 @@ final class Readiness {
 		 * @param array    $checks   Check rows.
 		 * @param Settings $settings Settings store.
 		 */
-		return apply_filters( 'heera_agent_discovery_readiness_checks', $checks, $this->settings );
+		return apply_filters( 'agentomatic_readiness_checks', $checks, $this->settings );
 	}
 
 	/**
@@ -102,54 +102,54 @@ final class Readiness {
 	private function check_site_public() {
 		$public = (bool) get_option( 'blog_public', 1 );
 		return $public
-			? $this->row( 'public', __( 'Search engine visibility', 'heera-agent-discovery' ), 'pass', __( 'The site is public, so agents and crawlers can read it.', 'heera-agent-discovery' ) )
+			? $this->row( 'public', __( 'Search engine visibility', 'agentomatic' ), 'pass', __( 'The site is public, so agents and crawlers can read it.', 'agentomatic' ) )
 			: $this->row(
 				'public',
-				__( 'Search engine visibility', 'heera-agent-discovery' ),
+				__( 'Search engine visibility', 'agentomatic' ),
 				'fail',
-				__( 'Settings → Reading is set to discourage search engines. Agents will be blocked.', 'heera-agent-discovery' ),
-				__( 'Open Settings → Reading and uncheck “Discourage search engines from indexing this site.” Nothing else here matters until this is on.', 'heera-agent-discovery' ),
-				$this->link( __( 'Open Reading settings', 'heera-agent-discovery' ), admin_url( 'options-reading.php' ) )
+				__( 'Settings → Reading is set to discourage search engines. Agents will be blocked.', 'agentomatic' ),
+				__( 'Open Settings → Reading and uncheck “Discourage search engines from indexing this site.” Nothing else here matters until this is on.', 'agentomatic' ),
+				$this->link( __( 'Open Reading settings', 'agentomatic' ), admin_url( 'options-reading.php' ) )
 			);
 	}
 
 	private function check_permalinks() {
 		$pretty = (bool) get_option( 'permalink_structure' );
 		return $pretty
-			? $this->row( 'permalinks', __( 'Pretty permalinks', 'heera-agent-discovery' ), 'pass', __( 'Markdown URLs like /post-slug.md resolve cleanly.', 'heera-agent-discovery' ) )
+			? $this->row( 'permalinks', __( 'Pretty permalinks', 'agentomatic' ), 'pass', __( 'Markdown URLs like /post-slug.md resolve cleanly.', 'agentomatic' ) )
 			: $this->row(
 				'permalinks',
-				__( 'Pretty permalinks', 'heera-agent-discovery' ),
+				__( 'Pretty permalinks', 'agentomatic' ),
 				'warn',
-				__( 'Plain permalinks are active. Switch to a pretty structure for tidy .md URLs.', 'heera-agent-discovery' ),
-				__( 'In Settings → Permalinks choose “Post name” (or any non-plain structure). With plain links, the /slug.md markdown URLs agents prefer can’t resolve.', 'heera-agent-discovery' ),
-				$this->link( __( 'Open Permalinks', 'heera-agent-discovery' ), admin_url( 'options-permalink.php' ) )
+				__( 'Plain permalinks are active. Switch to a pretty structure for tidy .md URLs.', 'agentomatic' ),
+				__( 'In Settings → Permalinks choose “Post name” (or any non-plain structure). With plain links, the /slug.md markdown URLs agents prefer can’t resolve.', 'agentomatic' ),
+				$this->link( __( 'Open Permalinks', 'agentomatic' ), admin_url( 'options-permalink.php' ) )
 			);
 	}
 
 	private function check_llms_txt() {
 		return $this->settings->enabled( 'enable_llms_txt' )
-			? $this->row( 'llms', __( '/llms.txt index', 'heera-agent-discovery' ), 'pass', sprintf( /* translators: %s: URL. */ __( 'Served at %s.', 'heera-agent-discovery' ), home_url( '/llms.txt' ) ) )
+			? $this->row( 'llms', __( '/llms.txt index', 'agentomatic' ), 'pass', sprintf( /* translators: %s: URL. */ __( 'Served at %s.', 'agentomatic' ), home_url( '/llms.txt' ) ) )
 			: $this->row(
 				'llms',
-				__( '/llms.txt index', 'heera-agent-discovery' ),
+				__( '/llms.txt index', 'agentomatic' ),
 				'warn',
-				__( 'Disabled. Enable it so agents can discover your content map.', 'heera-agent-discovery' ),
-				__( 'Turn on “/llms.txt index” under Settings → Features. It publishes a single map of your site that crawlers and agents check first.', 'heera-agent-discovery' ),
-				$this->nav( __( 'Enable in Features', 'heera-agent-discovery' ), 'ar-sec-features' )
+				__( 'Disabled. Enable it so agents can discover your content map.', 'agentomatic' ),
+				__( 'Turn on “/llms.txt index” under Settings → Features. It publishes a single map of your site that crawlers and agents check first.', 'agentomatic' ),
+				$this->nav( __( 'Enable in Features', 'agentomatic' ), 'ar-sec-features' )
 			);
 	}
 
 	private function check_llms_full() {
 		return $this->settings->enabled( 'enable_llms_full' )
-			? $this->row( 'llms_full', __( '/llms-full.txt full text', 'heera-agent-discovery' ), 'pass', sprintf( /* translators: %s: URL. */ __( 'Served at %s.', 'heera-agent-discovery' ), home_url( '/llms-full.txt' ) ) )
+			? $this->row( 'llms_full', __( '/llms-full.txt full text', 'agentomatic' ), 'pass', sprintf( /* translators: %s: URL. */ __( 'Served at %s.', 'agentomatic' ), home_url( '/llms-full.txt' ) ) )
 			: $this->row(
 				'llms_full',
-				__( '/llms-full.txt full text', 'heera-agent-discovery' ),
+				__( '/llms-full.txt full text', 'agentomatic' ),
 				'warn',
-				__( 'Disabled. The full-text edition lets agents ingest everything in one request.', 'heera-agent-discovery' ),
-				__( 'Enable “/llms-full.txt full text” under Settings → Features so an agent can pull your whole corpus in one fetch instead of crawling page by page.', 'heera-agent-discovery' ),
-				$this->nav( __( 'Enable in Features', 'heera-agent-discovery' ), 'ar-sec-features' )
+				__( 'Disabled. The full-text edition lets agents ingest everything in one request.', 'agentomatic' ),
+				__( 'Enable “/llms-full.txt full text” under Settings → Features so an agent can pull your whole corpus in one fetch instead of crawling page by page.', 'agentomatic' ),
+				$this->nav( __( 'Enable in Features', 'agentomatic' ), 'ar-sec-features' )
 			);
 	}
 
@@ -157,7 +157,7 @@ final class Readiness {
 		// Only meaningful when the full-text edition is on; when off, check_llms_full()
 		// already covers it — don't double-warn.
 		if ( ! $this->settings->enabled( 'enable_llms_full' ) ) {
-			return $this->row( 'llms_full_size', __( 'Full-text file size', 'heera-agent-discovery' ), 'pass', __( 'The full-text edition is off, so there is nothing to size.', 'heera-agent-discovery' ) );
+			return $this->row( 'llms_full_size', __( 'Full-text file size', 'agentomatic' ), 'pass', __( 'The full-text edition is off, so there is nothing to size.', 'agentomatic' ) );
 		}
 
 		$est       = Content::estimate_full_size( $this->settings );
@@ -168,13 +168,13 @@ final class Readiness {
 			$detail = ( $truncated && is_array( $stat ) )
 				? sprintf(
 					/* translators: 1: served size e.g. "1 MB"; 2: budget size. */
-					__( 'The full-text file was last served at %1$s and truncated at the %2$s limit, so some content is left out.', 'heera-agent-discovery' ),
+					__( 'The full-text file was last served at %1$s and truncated at the %2$s limit, so some content is left out.', 'agentomatic' ),
 					size_format( (int) $stat['bytes'] ),
 					size_format( $est['budget_bytes'] )
 				)
 				: sprintf(
 					/* translators: 1: item count; 2: estimated size; 3: budget size. */
-					__( 'About %1$s items (~%2$s) would exceed the %3$s size limit, so the file will be truncated.', 'heera-agent-discovery' ),
+					__( 'About %1$s items (~%2$s) would exceed the %3$s size limit, so the file will be truncated.', 'agentomatic' ),
 					number_format_i18n( $est['items'] ),
 					size_format( $est['est_bytes'] ),
 					size_format( $est['budget_bytes'] )
@@ -182,21 +182,21 @@ final class Readiness {
 
 			return $this->row(
 				'llms_full_size',
-				__( 'Full-text file size', 'heera-agent-discovery' ),
+				__( 'Full-text file size', 'agentomatic' ),
 				'warn',
 				$detail,
-				__( 'Lower “Posts in /llms-full.txt” under Settings → Features so the file fits, or rely on the /llms.txt index — agents can still fetch any page by appending .md to its URL.', 'heera-agent-discovery' ),
-				$this->nav( __( 'Adjust in Features', 'heera-agent-discovery' ), 'ar-sec-features' )
+				__( 'Lower “Posts in /llms-full.txt” under Settings → Features so the file fits, or rely on the /llms.txt index — agents can still fetch any page by appending .md to its URL.', 'agentomatic' ),
+				$this->nav( __( 'Adjust in Features', 'agentomatic' ), 'ar-sec-features' )
 			);
 		}
 
 		return $this->row(
 			'llms_full_size',
-			__( 'Full-text file size', 'heera-agent-discovery' ),
+			__( 'Full-text file size', 'agentomatic' ),
 			'pass',
 			sprintf(
 				/* translators: 1: item count; 2: estimated size; 3: budget size. */
-				__( 'About %1$s items (~%2$s), within the %3$s limit.', 'heera-agent-discovery' ),
+				__( 'About %1$s items (~%2$s), within the %3$s limit.', 'agentomatic' ),
 				number_format_i18n( $est['items'] ),
 				size_format( $est['est_bytes'] ),
 				size_format( $est['budget_bytes'] )
@@ -209,11 +209,11 @@ final class Readiness {
 		$labels = array_map( array( Content::class, 'label' ), $types );
 		return $this->row(
 			'post_types',
-			__( 'Content coverage', 'heera-agent-discovery' ),
+			__( 'Content coverage', 'agentomatic' ),
 			'pass',
 			sprintf(
 				/* translators: 1: number of content types, 2: comma-separated list. */
-				__( 'Indexing %1$d content type(s): %2$s.', 'heera-agent-discovery' ),
+				__( 'Indexing %1$d content type(s): %2$s.', 'agentomatic' ),
 				count( $types ),
 				implode( ', ', $labels )
 			)
@@ -222,40 +222,40 @@ final class Readiness {
 
 	private function check_about() {
 		return '' !== trim( (string) $this->settings->identity( 'about' ) )
-			? $this->row( 'about', __( 'Author / entity profile', 'heera-agent-discovery' ), 'pass', __( 'A profile sentence is set — the highest-signal line for retrieval.', 'heera-agent-discovery' ) )
+			? $this->row( 'about', __( 'Author / entity profile', 'agentomatic' ), 'pass', __( 'A profile sentence is set — the highest-signal line for retrieval.', 'agentomatic' ) )
 			: $this->row(
 				'about',
-				__( 'Author / entity profile', 'heera-agent-discovery' ),
+				__( 'Author / entity profile', 'agentomatic' ),
 				'fail',
-				__( 'No profile set. Add one under Identity so agents know who owns this site.', 'heera-agent-discovery' ),
-				__( 'Write one plain sentence under Settings → Identity: who you are, your role, and what this site is about. It’s the single line agents quote most when they cite you.', 'heera-agent-discovery' ),
-				$this->nav( __( 'Edit Identity', 'heera-agent-discovery' ), 'ar-sec-identity' )
+				__( 'No profile set. Add one under Identity so agents know who owns this site.', 'agentomatic' ),
+				__( 'Write one plain sentence under Settings → Identity: who you are, your role, and what this site is about. It’s the single line agents quote most when they cite you.', 'agentomatic' ),
+				$this->nav( __( 'Edit Identity', 'agentomatic' ), 'ar-sec-identity' )
 			);
 	}
 
 	private function check_expertise() {
 		return ! empty( array_filter( (array) $this->settings->identity( 'expertise', array() ) ) )
-			? $this->row( 'expertise', __( 'Expertise topics', 'heera-agent-discovery' ), 'pass', __( 'Expertise is declared (feeds llms.txt and knowsAbout).', 'heera-agent-discovery' ) )
+			? $this->row( 'expertise', __( 'Expertise topics', 'agentomatic' ), 'pass', __( 'Expertise is declared (feeds llms.txt and knowsAbout).', 'agentomatic' ) )
 			: $this->row(
 				'expertise',
-				__( 'Expertise topics', 'heera-agent-discovery' ),
+				__( 'Expertise topics', 'agentomatic' ),
 				'warn',
-				__( 'No expertise topics set. They establish topical authority for agents.', 'heera-agent-discovery' ),
-				__( 'Add three to five topics under Settings → Identity (e.g. “WordPress development”, “API design”). They flow into llms.txt and the schema knowsAbout list so agents know what you’re an authority on.', 'heera-agent-discovery' ),
-				$this->nav( __( 'Add topics', 'heera-agent-discovery' ), 'ar-sec-identity' )
+				__( 'No expertise topics set. They establish topical authority for agents.', 'agentomatic' ),
+				__( 'Add three to five topics under Settings → Identity (e.g. “WordPress development”, “API design”). They flow into llms.txt and the schema knowsAbout list so agents know what you’re an authority on.', 'agentomatic' ),
+				$this->nav( __( 'Add topics', 'agentomatic' ), 'ar-sec-identity' )
 			);
 	}
 
 	private function check_same_as() {
 		return ! empty( array_filter( (array) $this->settings->identity( 'same_as', array() ) ) )
-			? $this->row( 'same_as', __( 'sameAs profiles', 'heera-agent-discovery' ), 'pass', __( 'Linked profiles help agents resolve your entity confidently.', 'heera-agent-discovery' ) )
+			? $this->row( 'same_as', __( 'sameAs profiles', 'agentomatic' ), 'pass', __( 'Linked profiles help agents resolve your entity confidently.', 'agentomatic' ) )
 			: $this->row(
 				'same_as',
-				__( 'sameAs profiles', 'heera-agent-discovery' ),
+				__( 'sameAs profiles', 'agentomatic' ),
 				'warn',
-				__( 'No sameAs links (GitHub, LinkedIn, X…). Add them to strengthen entity matching.', 'heera-agent-discovery' ),
-				__( 'Add your GitHub, LinkedIn, or X profile URLs under Settings → Identity. These “sameAs” links let an agent tie this site to a known entity instead of guessing.', 'heera-agent-discovery' ),
-				$this->nav( __( 'Add profiles', 'heera-agent-discovery' ), 'ar-sec-identity' )
+				__( 'No sameAs links (GitHub, LinkedIn, X…). Add them to strengthen entity matching.', 'agentomatic' ),
+				__( 'Add your GitHub, LinkedIn, or X profile URLs under Settings → Identity. These “sameAs” links let an agent tie this site to a known entity instead of guessing.', 'agentomatic' ),
+				$this->nav( __( 'Add profiles', 'agentomatic' ), 'ar-sec-identity' )
 			);
 	}
 
@@ -264,13 +264,13 @@ final class Readiness {
 
 		// A real on-disk file always wins (the generator stands down) — and it's
 		// still the goal: a published security contact. Report it as a pass.
-		if ( file_exists( \HeeraAgentDiscovery\Paths::site_root() . '.well-known/security.txt' ) ) {
+		if ( file_exists( \Agentomatic\Paths::site_root() . '.well-known/security.txt' ) ) {
 			return $this->row(
 				'security_txt',
-				__( 'security.txt contact', 'heera-agent-discovery' ),
+				__( 'security.txt contact', 'agentomatic' ),
 				'pass',
 				/* translators: %s: URL. */
-				sprintf( __( 'A security.txt file is published at %s; Heera Discovery links it and stands aside.', 'heera-agent-discovery' ), $url )
+				sprintf( __( 'A security.txt file is published at %s; Agentomatic links it and stands aside.', 'agentomatic' ), $url )
 			);
 		}
 
@@ -281,11 +281,11 @@ final class Readiness {
 		if ( ! $sec->should_serve() ) {
 			return $this->row(
 				'security_txt',
-				__( 'security.txt contact', 'heera-agent-discovery' ),
+				__( 'security.txt contact', 'agentomatic' ),
 				'warn',
-				__( 'No security.txt. Researchers and agents have no machine-readable way to report a vulnerability.', 'heera-agent-discovery' ),
-				__( 'Turn on “Generate security.txt” under Settings → Security.txt and add a contact (your Identity email is reused automatically). It publishes an RFC 9116 disclosure contact at /.well-known/security.txt.', 'heera-agent-discovery' ),
-				$this->nav( __( 'Enable security.txt', 'heera-agent-discovery' ), 'ar-sec-security' )
+				__( 'No security.txt. Researchers and agents have no machine-readable way to report a vulnerability.', 'agentomatic' ),
+				__( 'Turn on “Generate security.txt” under Settings → Security.txt and add a contact (your Identity email is reused automatically). It publishes an RFC 9116 disclosure contact at /.well-known/security.txt.', 'agentomatic' ),
+				$this->nav( __( 'Enable security.txt', 'agentomatic' ), 'ar-sec-security' )
 			);
 		}
 
@@ -294,22 +294,22 @@ final class Readiness {
 		if ( empty( $contacts ) ) {
 			return $this->row(
 				'security_txt',
-				__( 'security.txt contact', 'heera-agent-discovery' ),
+				__( 'security.txt contact', 'agentomatic' ),
 				'warn',
-				__( 'security.txt is enabled but has no contact, so RFC 9116 makes it invalid and nothing is served.', 'heera-agent-discovery' ),
-				__( 'Add at least one Security contact (or a public contact email under Identity) in Settings → Security.txt. Without a Contact line the document can’t be published.', 'heera-agent-discovery' ),
-				$this->nav( __( 'Add a contact', 'heera-agent-discovery' ), 'ar-sec-security' )
+				__( 'security.txt is enabled but has no contact, so RFC 9116 makes it invalid and nothing is served.', 'agentomatic' ),
+				__( 'Add at least one Security contact (or a public contact email under Identity) in Settings → Security.txt. Without a Contact line the document can’t be published.', 'agentomatic' ),
+				$this->nav( __( 'Add a contact', 'agentomatic' ), 'ar-sec-security' )
 			);
 		}
 
 		// On, with a contact, and no file shadowing it → live.
 		return $this->row(
 			'security_txt',
-			__( 'security.txt contact', 'heera-agent-discovery' ),
+			__( 'security.txt contact', 'agentomatic' ),
 			'pass',
 			sprintf(
 				/* translators: 1: number of contacts, 2: URL. */
-				_n( 'Serving %1$d security contact at %2$s.', 'Serving %1$d security contacts at %2$s.', count( $contacts ), 'heera-agent-discovery' ),
+				_n( 'Serving %1$d security contact at %2$s.', 'Serving %1$d security contacts at %2$s.', count( $contacts ), 'agentomatic' ),
 				count( $contacts ),
 				$url
 			)
@@ -321,29 +321,29 @@ final class Readiness {
 		if ( ! $this->settings->enabled( 'enable_schema' ) ) {
 			return $this->row(
 				'schema',
-				__( 'JSON-LD structured data', 'heera-agent-discovery' ),
+				__( 'JSON-LD structured data', 'agentomatic' ),
 				'warn',
-				__( 'Schema output is disabled in settings.', 'heera-agent-discovery' ),
-				__( 'Enable “JSON-LD structured data” under Settings → Features — unless an SEO plugin already emits schema, in which case leaving it off avoids duplicate markup.', 'heera-agent-discovery' ),
-				$this->nav( __( 'Enable in Features', 'heera-agent-discovery' ), 'ar-sec-features' )
+				__( 'Schema output is disabled in settings.', 'agentomatic' ),
+				__( 'Enable “JSON-LD structured data” under Settings → Features — unless an SEO plugin already emits schema, in which case leaving it off avoids duplicate markup.', 'agentomatic' ),
+				$this->nav( __( 'Enable in Features', 'agentomatic' ), 'ar-sec-features' )
 			);
 		}
 		return $schema->seo_plugin_active()
-			? $this->row( 'schema', __( 'JSON-LD structured data', 'heera-agent-discovery' ), 'pass', __( 'An SEO plugin owns schema; Heera Discovery is standing down to avoid duplicates.', 'heera-agent-discovery' ) )
-			: $this->row( 'schema', __( 'JSON-LD structured data', 'heera-agent-discovery' ), 'pass', __( 'Heera Discovery is emitting WebSite + entity + article schema.', 'heera-agent-discovery' ) );
+			? $this->row( 'schema', __( 'JSON-LD structured data', 'agentomatic' ), 'pass', __( 'An SEO plugin owns schema; Agentomatic is standing down to avoid duplicates.', 'agentomatic' ) )
+			: $this->row( 'schema', __( 'JSON-LD structured data', 'agentomatic' ), 'pass', __( 'Agentomatic is emitting WebSite + entity + article schema.', 'agentomatic' ) );
 	}
 
 	private function check_static_robots() {
-		$file = \HeeraAgentDiscovery\Paths::site_root() . 'robots.txt';
+		$file = \Agentomatic\Paths::site_root() . 'robots.txt';
 		return file_exists( $file )
 			? $this->row(
 				'robots',
-				__( 'robots.txt control', 'heera-agent-discovery' ),
+				__( 'robots.txt control', 'agentomatic' ),
 				'warn',
-				__( 'A static robots.txt exists at the web root and overrides this plugin. Remove it to let Heera Discovery manage robots rules, or edit it by hand.', 'heera-agent-discovery' ),
-				__( 'Delete robots.txt from your site root to let Heera Discovery serve a managed virtual one — or, if you maintain it by hand, add your crawler and Sitemap directives there yourself.', 'heera-agent-discovery' )
+				__( 'A static robots.txt exists at the web root and overrides this plugin. Remove it to let Agentomatic manage robots rules, or edit it by hand.', 'agentomatic' ),
+				__( 'Delete robots.txt from your site root to let Agentomatic serve a managed virtual one — or, if you maintain it by hand, add your crawler and Sitemap directives there yourself.', 'agentomatic' )
 			)
-			: $this->row( 'robots', __( 'robots.txt control', 'heera-agent-discovery' ), 'pass', __( 'WordPress serves a virtual robots.txt that this plugin manages.', 'heera-agent-discovery' ) );
+			: $this->row( 'robots', __( 'robots.txt control', 'agentomatic' ), 'pass', __( 'WordPress serves a virtual robots.txt that this plugin manages.', 'agentomatic' ) );
 	}
 
 	private function check_sitemap() {
@@ -353,11 +353,11 @@ final class Readiness {
 		if ( '' === $sitemap['url'] ) {
 			return $this->row(
 				'sitemap',
-				__( 'XML sitemap', 'heera-agent-discovery' ),
+				__( 'XML sitemap', 'agentomatic' ),
 				'warn',
-				__( 'No sitemap detected. Crawlers and agents have no single index of your URLs to start from.', 'heera-agent-discovery' ),
-				__( 'Turn on “XML sitemap” under Settings → Features and Heera Discovery will generate one for you — no SEO plugin required. (Re-enabling WordPress core sitemaps, or any major SEO plugin, also satisfies this; Heera Discovery auto-detects and links whichever exists.)', 'heera-agent-discovery' ),
-				$this->nav( __( 'Enable in Features', 'heera-agent-discovery' ), 'ar-sec-features' )
+				__( 'No sitemap detected. Crawlers and agents have no single index of your URLs to start from.', 'agentomatic' ),
+				__( 'Turn on “XML sitemap” under Settings → Features and Agentomatic will generate one for you — no SEO plugin required. (Re-enabling WordPress core sitemaps, or any major SEO plugin, also satisfies this; Agentomatic auto-detects and links whichever exists.)', 'agentomatic' ),
+				$this->nav( __( 'Enable in Features', 'agentomatic' ), 'ar-sec-features' )
 			);
 		}
 
@@ -365,21 +365,21 @@ final class Readiness {
 		if ( 'core' === $sitemap['source'] ) {
 			return $this->row(
 				'sitemap',
-				__( 'XML sitemap', 'heera-agent-discovery' ),
+				__( 'XML sitemap', 'agentomatic' ),
 				'pass',
-				__( 'WordPress core sitemap is live and advertised in robots.txt and llms.txt.', 'heera-agent-discovery' )
+				__( 'WordPress core sitemap is live and advertised in robots.txt and llms.txt.', 'agentomatic' )
 			);
 		}
 
-		// Heera Discovery's own fallback generator is filling the gap.
-		if ( 'heera-agent-discovery' === $sitemap['source'] ) {
+		// Agentomatic's own fallback generator is filling the gap.
+		if ( 'agentomatic' === $sitemap['source'] ) {
 			return $this->row(
 				'sitemap',
-				__( 'XML sitemap', 'heera-agent-discovery' ),
+				__( 'XML sitemap', 'agentomatic' ),
 				'pass',
 				sprintf(
 					/* translators: %s: sitemap URL. */
-					__( 'Heera Discovery is generating your sitemap at %s and advertising it in robots.txt and llms.txt.', 'heera-agent-discovery' ),
+					__( 'Agentomatic is generating your sitemap at %s and advertising it in robots.txt and llms.txt.', 'agentomatic' ),
 					home_url( Sitemap::PATH )
 				)
 			);
@@ -388,11 +388,11 @@ final class Readiness {
 		// A known SEO plugin owns it — detected and linked, never duplicated.
 		return $this->row(
 			'sitemap',
-			__( 'XML sitemap', 'heera-agent-discovery' ),
+			__( 'XML sitemap', 'agentomatic' ),
 			'pass',
 			sprintf(
 				/* translators: %s: SEO plugin name, e.g. “Yoast SEO”. */
-				__( 'Provided by %s and advertised in robots.txt and llms.txt — Heera Discovery links it rather than emitting a duplicate.', 'heera-agent-discovery' ),
+				__( 'Provided by %s and advertised in robots.txt and llms.txt — Agentomatic links it rather than emitting a duplicate.', 'agentomatic' ),
 				$sitemap['label']
 			)
 		);
@@ -407,9 +407,9 @@ final class Readiness {
 		if ( $has ) {
 			return $this->row(
 				'robots_sitemap',
-				__( 'Sitemap in robots.txt', 'heera-agent-discovery' ),
+				__( 'Sitemap in robots.txt', 'agentomatic' ),
 				'pass',
-				__( 'robots.txt declares a Sitemap: line, so crawlers discover your sitemap automatically.', 'heera-agent-discovery' )
+				__( 'robots.txt declares a Sitemap: line, so crawlers discover your sitemap automatically.', 'agentomatic' )
 			);
 		}
 
@@ -418,10 +418,10 @@ final class Readiness {
 		if ( ! (bool) get_option( 'blog_public', 1 ) && ! $robots['static'] ) {
 			return $this->row(
 				'robots_sitemap',
-				__( 'Sitemap in robots.txt', 'heera-agent-discovery' ),
+				__( 'Sitemap in robots.txt', 'agentomatic' ),
 				'warn',
-				__( 'robots.txt currently blocks all crawlers, so it advertises no sitemap.', 'heera-agent-discovery' ),
-				__( 'This follows from “Search engine visibility” being off — fix that check first and the Sitemap: line is emitted automatically.', 'heera-agent-discovery' )
+				__( 'robots.txt currently blocks all crawlers, so it advertises no sitemap.', 'agentomatic' ),
+				__( 'This follows from “Search engine visibility” being off — fix that check first and the Sitemap: line is emitted automatically.', 'agentomatic' )
 			);
 		}
 
@@ -429,11 +429,11 @@ final class Readiness {
 		if ( '' === $sitemap['url'] ) {
 			return $this->row(
 				'robots_sitemap',
-				__( 'Sitemap in robots.txt', 'heera-agent-discovery' ),
+				__( 'Sitemap in robots.txt', 'agentomatic' ),
 				'warn',
-				__( 'robots.txt has no Sitemap: line — there is no sitemap to point to yet.', 'heera-agent-discovery' ),
-				__( 'Enable “XML sitemap” under Settings → Features: Heera Discovery then generates a sitemap and adds the Sitemap: line to robots.txt in one step. (Core or an SEO-plugin sitemap would be linked automatically too.)', 'heera-agent-discovery' ),
-				$this->nav( __( 'Enable in Features', 'heera-agent-discovery' ), 'ar-sec-features' )
+				__( 'robots.txt has no Sitemap: line — there is no sitemap to point to yet.', 'agentomatic' ),
+				__( 'Enable “XML sitemap” under Settings → Features: Agentomatic then generates a sitemap and adds the Sitemap: line to robots.txt in one step. (Core or an SEO-plugin sitemap would be linked automatically too.)', 'agentomatic' ),
+				$this->nav( __( 'Enable in Features', 'agentomatic' ), 'ar-sec-features' )
 			);
 		}
 
@@ -441,12 +441,12 @@ final class Readiness {
 		if ( $robots['static'] ) {
 			return $this->row(
 				'robots_sitemap',
-				__( 'Sitemap in robots.txt', 'heera-agent-discovery' ),
+				__( 'Sitemap in robots.txt', 'agentomatic' ),
 				'warn',
 				/* translators: %s: sitemap URL. */
-				sprintf( __( 'A sitemap exists (%s) but your static robots.txt doesn’t link it, so crawlers may miss it.', 'heera-agent-discovery' ), $sitemap['url'] ),
+				sprintf( __( 'A sitemap exists (%s) but your static robots.txt doesn’t link it, so crawlers may miss it.', 'agentomatic' ), $sitemap['url'] ),
 				/* translators: %s: sitemap URL. */
-				sprintf( __( 'Add this line to the robots.txt file at your site root: “Sitemap: %s”. A static file overrides the one Heera Discovery manages, so the link has to be added by hand.', 'heera-agent-discovery' ), $sitemap['url'] )
+				sprintf( __( 'Add this line to the robots.txt file at your site root: “Sitemap: %s”. A static file overrides the one Agentomatic manages, so the link has to be added by hand.', 'agentomatic' ), $sitemap['url'] )
 			);
 		}
 
@@ -454,25 +454,25 @@ final class Readiness {
 		// almost always because the robots.txt feature is switched off.
 		return $this->row(
 			'robots_sitemap',
-			__( 'Sitemap in robots.txt', 'heera-agent-discovery' ),
+			__( 'Sitemap in robots.txt', 'agentomatic' ),
 			'warn',
 			/* translators: %s: sitemap URL. */
-			sprintf( __( 'A sitemap exists (%s) but isn’t advertised in robots.txt, so crawlers may not find it.', 'heera-agent-discovery' ), $sitemap['url'] ),
-			__( 'Turn on “robots.txt rules” under Settings → Features so Heera Discovery advertises your sitemap to crawlers.', 'heera-agent-discovery' ),
-			$this->nav( __( 'Enable in Features', 'heera-agent-discovery' ), 'ar-sec-features' )
+			sprintf( __( 'A sitemap exists (%s) but isn’t advertised in robots.txt, so crawlers may not find it.', 'agentomatic' ), $sitemap['url'] ),
+			__( 'Turn on “robots.txt rules” under Settings → Features so Agentomatic advertises your sitemap to crawlers.', 'agentomatic' ),
+			$this->nav( __( 'Enable in Features', 'agentomatic' ), 'ar-sec-features' )
 		);
 	}
 
 	/**
 	 * The robots.txt a crawler would see: the static file if one exists at the
 	 * web root, otherwise the virtual output assembled exactly as WordPress's
-	 * do_robots() does (so every robots_txt filter — core, SEO plugins, Heera Discovery
+	 * do_robots() does (so every robots_txt filter — core, SEO plugins, Agentomatic
 	 * — is reflected).
 	 *
 	 * @return array{contents:string,static:bool}
 	 */
 	private function robots_txt_contents() {
-		$file = \HeeraAgentDiscovery\Paths::site_root() . 'robots.txt';
+		$file = \Agentomatic\Paths::site_root() . 'robots.txt';
 		if ( file_exists( $file ) ) {
 			return array(
 				'contents' => (string) file_get_contents( $file ), // phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents -- local read-only diagnostic.

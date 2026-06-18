@@ -4,16 +4,16 @@
  * readiness report. All routes require `manage_options` and the standard REST
  * nonce (apiFetch / X-WP-Nonce).
  *
- * @package HeeraAgentDiscovery
+ * @package Agentomatic
  */
 
-namespace HeeraAgentDiscovery;
+namespace Agentomatic;
 
 defined( 'ABSPATH' ) || exit;
 
 final class Rest {
 
-	const NAMESPACE = 'heera-agent-discovery/v1';
+	const NAMESPACE = 'agentomatic/v1';
 
 	/** @var Settings */
 	private $settings;
@@ -158,7 +158,7 @@ final class Rest {
 	 * @return \WP_REST_Response
 	 */
 	public function complete_onboarding() {
-		update_option( 'heera_agent_discovery_onboarded', HEERA_AGENT_DISCOVERY_VERSION );
+		update_option( 'agentomatic_onboarded', AGENTOMATIC_VERSION );
 		return rest_ensure_response( array( 'onboarded' => true ) );
 	}
 

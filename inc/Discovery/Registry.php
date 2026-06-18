@@ -3,17 +3,17 @@
  * Registry — the collector every provider registers with.
  *
  * Fires the canonical `wpdiscovery_register` action (and the back-compat
- * `heera_agent_discovery_register` alias) exactly once per request, passing itself
+ * `agentomatic_register` alias) exactly once per request, passing itself
  * so providers can call `$registry->register()`. Also drains the static queue
- * filled by the global `Heera_Agent_Discovery::register()` facade, so it doesn't
+ * filled by the global `Agentomatic_Discovery::register()` facade, so it doesn't
  * matter whether an author registers via the hook or the facade, or in what
  * order. Validation runs synchronously; rejects land in `notices()` for the
  * admin Validation screen.
  *
- * @package HeeraAgentDiscovery
+ * @package Agentomatic
  */
 
-namespace HeeraAgentDiscovery\Discovery;
+namespace Agentomatic\Discovery;
 
 defined( 'ABSPATH' ) || exit;
 
@@ -83,7 +83,7 @@ final class Registry {
 			$this->notices[] = array(
 				'level'   => 'warning',
 				/* translators: %s: resource id. */
-				'message' => sprintf( __( 'Duplicate resource id "%s" — the later registration won.', 'heera-agent-discovery' ), $id ),
+				'message' => sprintf( __( 'Duplicate resource id "%s" — the later registration won.', 'agentomatic' ), $id ),
 			);
 		}
 		$this->resources[ $id ] = $resource;
@@ -107,19 +107,19 @@ final class Registry {
 	public function add_well_known( $def ) {
 		$name = isset( $def['name'] ) ? ltrim( sanitize_file_name( (string) $def['name'] ), '/' ) : '';
 		if ( '' === $name ) {
-			return new \WP_Error( 'wpd_wk_name', __( 'A well-known document needs a name.', 'heera-agent-discovery' ) );
+			return new \WP_Error( 'wpd_wk_name', __( 'A well-known document needs a name.', 'agentomatic' ) );
 		}
 		if ( empty( $def['callback'] ) && empty( $def['redirect'] ) && empty( $def['file'] ) ) {
 			/* translators: %s: well-known document name, e.g. "security.txt". */
-			return new \WP_Error( 'wpd_wk_source', sprintf( __( 'Well-known "%s" needs a callback, redirect or file.', 'heera-agent-discovery' ), $name ) );
+			return new \WP_Error( 'wpd_wk_source', sprintf( __( 'Well-known "%s" needs a callback, redirect or file.', 'agentomatic' ), $name ) );
 		}
 		if ( isset( $this->well_known[ $name ] ) ) {
 			$this->notices[] = array(
 				'level'   => 'warning',
 				/* translators: %s: well-known name. */
-				'message' => sprintf( __( 'Well-known "%s" already claimed — first provider kept.', 'heera-agent-discovery' ), $name ),
+				'message' => sprintf( __( 'Well-known "%s" already claimed — first provider kept.', 'agentomatic' ), $name ),
 			);
-			return new \WP_Error( 'wpd_wk_conflict', __( 'Already claimed.', 'heera-agent-discovery' ) );
+			return new \WP_Error( 'wpd_wk_conflict', __( 'Already claimed.', 'agentomatic' ) );
 		}
 
 		$this->well_known[ $name ] = array(
@@ -153,8 +153,8 @@ final class Registry {
 		// facade are already present when the hook fires. The late-priority (99)
 		// auto-discovery adapter can then treat them, too, as already-described
 		// namespaces and skip its generic stub for them.
-		if ( class_exists( '\Heera_Agent_Discovery' ) ) {
-			foreach ( \Heera_Agent_Discovery::drain() as $queued ) {
+		if ( class_exists( '\Agentomatic_Discovery' ) ) {
+			foreach ( \Agentomatic_Discovery::drain() as $queued ) {
 				$this->add( $queued );
 			}
 		}
@@ -168,13 +168,13 @@ final class Registry {
 		 *
 		 * If no WP_Discovery engine is active the action simply never fires — no
 		 * guard needed. We fire the canonical `wpdiscovery_register` first, then
-		 * the product-branded `heera_agent_discovery_register` alias for back-compat;
+		 * the product-branded `agentomatic_register` alias for back-compat;
 		 * a provider SHOULD hook only the canonical name.
 		 *
 		 * @param Registry $registry The collector.
 		 */
-		do_action( HEERA_AGENT_DISCOVERY_CANONICAL_HOOK, $this );
-		do_action( HEERA_AGENT_DISCOVERY_ALIAS_HOOK, $this );
+		do_action( AGENTOMATIC_CANONICAL_HOOK, $this );
+		do_action( AGENTOMATIC_ALIAS_HOOK, $this );
 
 		return $this;
 	}

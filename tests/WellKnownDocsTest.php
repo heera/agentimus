@@ -8,14 +8,14 @@
  * The gating is the load-bearing behaviour: a surface is emitted ONLY when the
  * real thing exists — otherwise '' → a clean 404, never a fabricated stub.
  *
- * @package HeeraAgentDiscovery\Tests
+ * @package Agentomatic\Tests
  */
 
-namespace HeeraAgentDiscovery\Tests;
+namespace Agentomatic\Tests;
 
-use HeeraAgentDiscovery\Discovery\Envelope;
-use HeeraAgentDiscovery\Discovery\Registry;
-use HeeraAgentDiscovery\Settings;
+use Agentomatic\Discovery\Envelope;
+use Agentomatic\Discovery\Registry;
+use Agentomatic\Settings;
 use PHPUnit\Framework\TestCase;
 
 final class WellKnownDocsTest extends TestCase {

@@ -5,7 +5,7 @@
          colors="true"
          cacheResult="false">
   <testsuites>
-    <testsuite name="heera-agent-discovery-unit">
+    <testsuite name="agentomatic-unit">
       <directory>tests</directory>
     </testsuite>
   </testsuites>

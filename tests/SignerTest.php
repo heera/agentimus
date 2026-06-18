@@ -7,13 +7,13 @@
  * actually verifies against that published key (RFC 9421 base reconstructed from
  * the emitted headers).
  *
- * @package HeeraAgentDiscovery\Tests
+ * @package Agentomatic\Tests
  */
 
-namespace HeeraAgentDiscovery\Tests;
+namespace Agentomatic\Tests;
 
-use HeeraAgentDiscovery\Discovery\Signer;
-use HeeraAgentDiscovery\Settings;
+use Agentomatic\Discovery\Signer;
+use Agentomatic\Settings;
 use PHPUnit\Framework\TestCase;
 
 final class SignerTest extends TestCase {

@@ -8,7 +8,7 @@
  * auth is the adapter default; when the owner declares an auth server, the MCP
  * block AND the server card reflect oauth + link the RFC 9728 metadata.
  *
- * @package HeeraAgentDiscovery\Tests
+ * @package Agentomatic\Tests
  */
 
 namespace WP\MCP\Core {
@@ -28,11 +28,11 @@ namespace WP\MCP\Core {
 	}
 }
 
-namespace HeeraAgentDiscovery\Tests {
+namespace Agentomatic\Tests {
 
-	use HeeraAgentDiscovery\Discovery\Envelope;
-	use HeeraAgentDiscovery\Discovery\Registry;
-	use HeeraAgentDiscovery\Settings;
+	use Agentomatic\Discovery\Envelope;
+	use Agentomatic\Discovery\Registry;
+	use Agentomatic\Settings;
 	use PHPUnit\Framework\TestCase;
 
 	/** A fake adapter server exposing the getters Envelope::mcp_servers() reads. */

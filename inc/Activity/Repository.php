@@ -4,12 +4,12 @@
  * retention pruning and clearing. All timestamps are stored/queried in GMT;
  * the UI renders relative times client-side, so there's no timezone ambiguity.
  *
- * @package HeeraAgentDiscovery
+ * @package Agentomatic
  */
 
-namespace HeeraAgentDiscovery\Activity;
+namespace Agentomatic\Activity;
 
-use HeeraAgentDiscovery\Settings;
+use Agentomatic\Settings;
 
 defined( 'ABSPATH' ) || exit;
 
@@ -155,7 +155,7 @@ final class Repository {
 		 *
 		 * @param int $days Default 30.
 		 */
-		$days   = (int) apply_filters( 'heera_agent_discovery_activity_retention_days', self::WINDOW_DAYS );
+		$days   = (int) apply_filters( 'agentomatic_activity_retention_days', self::WINDOW_DAYS );
 		$cutoff = gmdate( 'Y-m-d H:i:s', time() - max( 1, $days ) * DAY_IN_SECONDS );
 		$wpdb->query( $wpdb->prepare( "DELETE FROM $table WHERE hit_at < %s", $cutoff ) ); // phpcs:ignore WordPress.DB, PluginCheck.Security.DirectDB.UnescapedDBParameter -- $table is our own prefix-derived table name; the value is bound via prepare().
 	}

@@ -1,8 +1,8 @@
 {
-  "name": "heera-agent-discovery",
+  "name": "agentomatic",
   "version": "1.0.0",
   "private": true,
-  "description": "Vue 3 admin app for the Heera Discovery WordPress plugin.",
+  "description": "Vue 3 admin app for the Agentomatic WordPress plugin.",
   "type": "module",
   "scripts": {
     "dev": "vite build --watch",

@@ -5,10 +5,10 @@
  * right tool for append-heavy event logging: no option read-modify-write race,
  * and it queries cleanly for the dashboard.
  *
- * @package HeeraAgentDiscovery
+ * @package Agentomatic
  */
 
-namespace HeeraAgentDiscovery\Activity;
+namespace Agentomatic\Activity;
 
 defined( 'ABSPATH' ) || exit;
 
@@ -16,7 +16,7 @@ final class Table {
 
 	/** Bump when the schema changes to trigger a dbDelta upgrade. */
 	const VERSION        = '1';
-	const VERSION_OPTION = 'heera_agent_discovery_activity_db_version';
+	const VERSION_OPTION = 'agentomatic_activity_db_version';
 
 	/**
 	 * Fully-qualified table name (site-prefixed).
@@ -25,7 +25,7 @@ final class Table {
 	 */
 	public static function name() {
 		global $wpdb;
-		return $wpdb->prefix . 'heera_agent_discovery_agent_hits';
+		return $wpdb->prefix . 'agentomatic_agent_hits';
 	}
 
 	/**

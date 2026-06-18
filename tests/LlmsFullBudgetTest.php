@@ -9,13 +9,13 @@
  * against a real multi-type site (curl /llms-full.txt with a tiny budget); they
  * need the post + markdown stack and aren't unit-isolated here.
  *
- * @package HeeraAgentDiscovery\Tests
+ * @package Agentomatic\Tests
  */
 
-namespace HeeraAgentDiscovery\Tests;
+namespace Agentomatic\Tests;
 
-use HeeraAgentDiscovery\Endpoints;
-use HeeraAgentDiscovery\Settings;
+use Agentomatic\Endpoints;
+use Agentomatic\Settings;
 use PHPUnit\Framework\TestCase;
 
 final class LlmsFullBudgetTest extends TestCase {

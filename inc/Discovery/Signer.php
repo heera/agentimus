@@ -11,19 +11,19 @@
  * low-volume discovery JSON docs ONLY — never the cached HTML / llms.txt hot
  * paths, where an edge-cached body would carry a frozen signature.
  *
- * @package HeeraAgentDiscovery
+ * @package Agentomatic
  */
 
-namespace HeeraAgentDiscovery\Discovery;
+namespace Agentomatic\Discovery;
 
-use HeeraAgentDiscovery\Settings;
+use Agentomatic\Settings;
 
 defined( 'ABSPATH' ) || exit;
 
 final class Signer {
 
 	/** Option holding the generated keypair (NON-autoloaded — a secret must not ride every page load). */
-	const OPTION = 'heera_agent_discovery_signing_keys';
+	const OPTION = 'agentomatic_signing_keys';
 
 	/** The well-known key directory name. */
 	const DIRECTORY = 'http-message-signatures-directory';
@@ -50,7 +50,7 @@ final class Signer {
 	/**
 	 * The signing keypair {kid, public (raw 32B), secret (raw 64B)}, generating and
 	 * persisting one on first use. A site can supply its own secret key — kept out
-	 * of the DB — via the `heera_agent_discovery_signing_secret_key` filter (base64 of the
+	 * of the DB — via the `agentomatic_signing_secret_key` filter (base64 of the
 	 * 64-byte libsodium secret key, whose last 32 bytes are the public key).
 	 *
 	 * @return array{kid:string,public:string,secret:string}|null
@@ -61,7 +61,7 @@ final class Signer {
 		}
 
 		// External secret-key override (constant/env/file) — never touches the DB.
-		$override = (string) apply_filters( 'heera_agent_discovery_signing_secret_key', '' );
+		$override = (string) apply_filters( 'agentomatic_signing_secret_key', '' );
 		if ( '' !== $override ) {
 			$secret = base64_decode( $override, true );
 			if ( false !== $secret && SODIUM_CRYPTO_SIGN_SECRETKEYBYTES === strlen( $secret ) ) {

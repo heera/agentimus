@@ -4,18 +4,18 @@
  * exposes the admin REST surface (read + clear), and runs the daily prune cron.
  * Recording itself is done at the endpoint serve-paths via Recorder::record().
  *
- * @package HeeraAgentDiscovery
+ * @package Agentomatic
  */
 
-namespace HeeraAgentDiscovery\Activity;
+namespace Agentomatic\Activity;
 
-use HeeraAgentDiscovery\Settings;
+use Agentomatic\Settings;
 
 defined( 'ABSPATH' ) || exit;
 
 final class Module {
 
-	const CRON = 'heera_agent_discovery_prune_activity';
+	const CRON = 'agentomatic_prune_activity';
 
 	/** @var Settings */
 	private $settings;
@@ -41,7 +41,7 @@ final class Module {
 	 */
 	public function routes() {
 		register_rest_route(
-			'heera-agent-discovery/v1',
+			'agentomatic/v1',
 			'/activity',
 			array(
 				array(

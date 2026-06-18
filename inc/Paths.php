@@ -2,10 +2,10 @@
 /**
  * Filesystem-location helpers.
  *
- * @package HeeraAgentDiscovery
+ * @package Agentomatic
  */
 
-namespace HeeraAgentDiscovery;
+namespace Agentomatic;
 
 defined( 'ABSPATH' ) || exit;
 
