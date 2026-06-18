@@ -10,12 +10,12 @@
  * path — delegates to Settings::default_post_types() and is verified live on a
  * real multi-type site.)
  *
- * @package Agentify\Tests
+ * @package HeeraAgentDiscovery\Tests
  */
 
-namespace Agentify\Tests;
+namespace HeeraAgentDiscovery\Tests;
 
-use Agentify\Settings;
+use HeeraAgentDiscovery\Settings;
 use PHPUnit\Framework\TestCase;
 
 final class SettingsDefaultsTest extends TestCase {

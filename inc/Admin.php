@@ -3,17 +3,17 @@
  * Admin screen: a top-level menu that mounts the Vue 3 app, plus the data the
  * app needs (REST root, nonce, settings, entity types, endpoint URLs).
  *
- * @package Agentify
+ * @package HeeraAgentDiscovery
  */
 
-namespace Agentify;
+namespace HeeraAgentDiscovery;
 
 defined( 'ABSPATH' ) || exit;
 
 final class Admin {
 
-	const SLUG   = 'agentify';
-	const HANDLE = 'agentify-admin';
+	const SLUG   = 'heera-agent-discovery';
+	const HANDLE = 'heera-agent-discovery-admin';
 
 	/** @var Settings */
 	private $settings;
@@ -31,8 +31,8 @@ final class Admin {
 	public function register() {
 		add_action( 'admin_menu', array( $this, 'menu' ) );
 		add_action( 'admin_enqueue_scripts', array( $this, 'assets' ) );
-		add_action( 'admin_head', array( $this, 'menu_icon_style' ) );
-		add_filter( 'plugin_action_links_' . plugin_basename( AGENTIFY_FILE ), array( $this, 'action_links' ) );
+		add_action( 'admin_enqueue_scripts', array( $this, 'menu_icon_style' ) );
+		add_filter( 'plugin_action_links_' . plugin_basename( HEERA_AGENT_DISCOVERY_FILE ), array( $this, 'action_links' ) );
 		add_action( 'admin_init', array( $this, 'maybe_activation_redirect' ) );
 	}
 
@@ -41,8 +41,8 @@ final class Admin {
 	 */
 	public function menu() {
 		add_menu_page(
-			__( 'Agentify', 'agentify' ),
-			__( 'Agentify', 'agentify' ),
+			__( 'Heera Discovery', 'heera-agent-discovery' ),
+			__( 'Heera Discovery', 'heera-agent-discovery' ),
 			'manage_options',
 			self::SLUG,
 			array( $this, 'render' ),
@@ -68,18 +68,27 @@ final class Admin {
 	 * Recolour the SVG menu icon to match a native dashicon: masked by the "A", filled
 	 * with the menu's per-state icon colour (idle grey, white when hovered/current),
 	 * so it adapts across admin colour schemes instead of being a fixed-colour image.
+	 *
+	 * Attached to a src-less registered handle via wp_add_inline_style() — the menu is
+	 * present on every admin screen, so this runs on all of them, independent of the
+	 * plugin app enqueued in assets(). The mask URL is a static, plugin-generated SVG
+	 * data URI (no user input), so it is safe to inline verbatim.
 	 */
 	public function menu_icon_style() {
-		$uri = $this->menu_icon_uri();
-		$sel = '#adminmenu #toplevel_page_' . self::SLUG;
-		echo '<style id="agentify-menu-icon">'
-			. esc_html( $sel ) . ' .wp-menu-image{background-image:none!important;position:relative}'
-			. esc_html( $sel ) . ' .wp-menu-image::before{content:"";position:absolute;inset:0;background-color:rgba(240,246,252,.6);-webkit-mask:url("' . esc_attr( $uri ) . '") center/21px no-repeat;mask:url("' . esc_attr( $uri ) . '") center/21px no-repeat}'
-			. esc_html( $sel ) . ':hover .wp-menu-image::before,'
-			. esc_html( $sel ) . '.current .wp-menu-image::before,'
-			. esc_html( $sel ) . '.wp-has-current-submenu .wp-menu-image::before,'
-			. esc_html( $sel ) . '.opensub .wp-menu-image::before{background-color:#fff}'
-			. '</style>';
+		$uri    = $this->menu_icon_uri();
+		$sel    = '#adminmenu #toplevel_page_' . self::SLUG;
+		$handle = self::HANDLE . '-menu';
+
+		$css = $sel . ' .wp-menu-image{background-image:none!important;position:relative}'
+			. $sel . ' .wp-menu-image::before{content:"";position:absolute;inset:0;background-color:rgba(240,246,252,.6);-webkit-mask:url("' . $uri . '") center/21px no-repeat;mask:url("' . $uri . '") center/21px no-repeat}'
+			. $sel . ':hover .wp-menu-image::before,'
+			. $sel . '.current .wp-menu-image::before,'
+			. $sel . '.wp-has-current-submenu .wp-menu-image::before,'
+			. $sel . '.opensub .wp-menu-image::before{background-color:#fff}';
+
+		wp_register_style( $handle, false, array(), HEERA_AGENT_DISCOVERY_VERSION );
+		wp_enqueue_style( $handle );
+		wp_add_inline_style( $handle, $css );
 	}
 
 	/**
@@ -90,7 +99,7 @@ final class Admin {
 	 */
 	public function action_links( $links ) {
 		$url = admin_url( 'admin.php?page=' . self::SLUG );
-		array_unshift( $links, '<a href="' . esc_url( $url ) . '">' . esc_html__( 'Settings', 'agentify' ) . '</a>' );
+		array_unshift( $links, '<a href="' . esc_url( $url ) . '">' . esc_html__( 'Settings', 'heera-agent-discovery' ) . '</a>' );
 		return $links;
 	}
 
@@ -101,10 +110,10 @@ final class Admin {
 	 * one-shot.
 	 */
 	public function maybe_activation_redirect() {
-		if ( ! get_transient( 'agentify_activation_redirect' ) ) {
+		if ( ! get_transient( 'heera_agent_discovery_activation_redirect' ) ) {
 			return;
 		}
-		delete_transient( 'agentify_activation_redirect' );
+		delete_transient( 'heera_agent_discovery_activation_redirect' );
 
 		// Never hijack a bulk activation or a network-admin context.
 		if ( wp_doing_ajax() || is_network_admin() || isset( $_GET['activate-multi'] ) ) { // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- reading WordPress's own bulk-activation marker, no state change.
@@ -130,7 +139,7 @@ final class Admin {
 	 * @return bool
 	 */
 	private function is_onboarded() {
-		if ( false !== get_option( 'agentify_onboarded', false ) ) {
+		if ( false !== get_option( 'heera_agent_discovery_onboarded', false ) ) {
 			return true;
 		}
 		if ( '' !== trim( (string) $this->settings->identity( 'about', '' ) ) ) {
@@ -153,24 +162,24 @@ final class Admin {
 			return;
 		}
 
-		$js  = AGENTIFY_DIR . 'assets/admin/app.js';
-		$css = AGENTIFY_DIR . 'assets/admin/app.css';
+		$js  = HEERA_AGENT_DISCOVERY_DIR . 'assets/admin/app.js';
+		$css = HEERA_AGENT_DISCOVERY_DIR . 'assets/admin/app.css';
 
 		if ( is_readable( $js ) ) {
 			wp_enqueue_script(
 				self::HANDLE,
-				AGENTIFY_URL . 'assets/admin/app.js',
+				HEERA_AGENT_DISCOVERY_URL . 'assets/admin/app.js',
 				array(),
 				$this->asset_version( $js ),
 				true
 			);
-			wp_localize_script( self::HANDLE, 'AgentifyData', $this->bootstrap_data() );
+			wp_localize_script( self::HANDLE, 'HeeraAgentDiscoveryData', $this->bootstrap_data() );
 		}
 
 		if ( is_readable( $css ) ) {
 			wp_enqueue_style(
 				self::HANDLE,
-				AGENTIFY_URL . 'assets/admin/app.css',
+				HEERA_AGENT_DISCOVERY_URL . 'assets/admin/app.css',
 				array(),
 				$this->asset_version( $css )
 			);
@@ -199,7 +208,7 @@ final class Admin {
 				'llmsFull' => home_url( '/llms-full.txt' ),
 				'robots'   => home_url( '/robots.txt' ),
 			),
-			'version'     => AGENTIFY_VERSION,
+			'version'     => HEERA_AGENT_DISCOVERY_VERSION,
 			'onboarded'   => $this->is_onboarded(),
 			'llmsFullEstimate' => Content::estimate_full_size( $this->settings ),
 		);
@@ -226,11 +235,11 @@ final class Admin {
 	 * Mount point (and a graceful notice if the app hasn't been built yet).
 	 */
 	public function render() {
-		echo '<div class="wrap"><div id="agentify-app">';
+		echo '<div class="wrap"><div id="heera-agent-discovery-app">';
 
-		if ( ! is_readable( AGENTIFY_DIR . 'assets/admin/app.js' ) ) {
+		if ( ! is_readable( HEERA_AGENT_DISCOVERY_DIR . 'assets/admin/app.js' ) ) {
 			echo '<div class="notice notice-warning"><p>' .
-				esc_html__( 'The admin interface has not been built yet. Run "npm install && npm run build" in the plugin directory.', 'agentify' ) .
+				esc_html__( 'The admin interface has not been built yet. Run "npm install && npm run build" in the plugin directory.', 'heera-agent-discovery' ) .
 				'</p></div>';
 		}
 
@@ -250,6 +259,6 @@ final class Admin {
 				return (string) $mtime;
 			}
 		}
-		return AGENTIFY_VERSION;
+		return HEERA_AGENT_DISCOVERY_VERSION;
 	}
 }

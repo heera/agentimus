@@ -1,7 +1,7 @@
 name: PHP compatibility
 
 # Keeps the plugin runnable on its declared floor (PHP 7.4) — see the
-# "Requires PHP" header in agentify.php. Two layers:
+# "Requires PHP" header in heera-agent-discovery.php. Two layers:
 #   1. `php -l` across 7.4 → 8.3, which catches any syntax a version can't parse
 #      (match, enums, nullsafe, constructor promotion, named args, …).
 #   2. PHPCompatibilityWP, which catches *API* usage newer than 7.4 (e.g.
@@ -71,4 +71,4 @@ jobs:
             --runtime-set ignore_warnings_on_exit 1 \
             --extensions=php \
             --ignore="*/vendor/*,*/node_modules/*" \
-            inc/ agentify.php
+            inc/ heera-agent-discovery.php

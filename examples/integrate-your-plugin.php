@@ -1,19 +1,19 @@
 <?php
 /**
- * Agentify — example integration for plugin authors.
+ * Heera Discovery — example integration for plugin authors.
  *
  * Drop the snippet below into your own plugin to make it discoverable. There is
  * NO dependency and NO library to load: if no WP_Discovery engine (such as
- * Agentify) is active, the `wpdiscovery_register` action simply never fires, so
+ * Heera Discovery) is active, the `wpdiscovery_register` action simply never fires, so
  * the code is inert.
  *
  * Your plugin is then aggregated into the site's /.well-known/discovery.json
  * (and agent-card.json / mcp.json), so an AI agent learns what your plugin does
  * and how to reach it — without ever knowing your plugin exists.
  *
- * This file is documentation only; it is not loaded by Agentify.
+ * This file is documentation only; it is not loaded by Heera Discovery.
  *
- * @package Agentify\Examples
+ * @package HeeraAgentDiscovery\Examples
  */
 
 defined( 'ABSPATH' ) || exit;
@@ -77,7 +77,7 @@ add_action(
 				// HOW to authenticate. type: none | apikey | basic | oauth2 | oidc | custom
 				'auth'         => array(
 					'type'   => 'apikey',
-					'docs'   => 'https://acme.dev/api/auth',
+					'docs'   => 'https://example.com/api/auth',
 					'scopes' => array( 'bookings:write' ),
 				),
 
@@ -93,7 +93,7 @@ add_action(
 					),
 				),
 
-				'docs'         => 'https://acme.dev/docs',
+				'docs'         => 'https://example.com/docs',
 			)
 		);
 	}
@@ -126,12 +126,12 @@ add_action(
 /* -------------------------------------------------------------------------- *
  *  4. Facade alternative — a direct-call convenience (guard it, since the call
  *     is direct). The `wpdiscovery_register` hook above is the vendor-neutral
- *     path; this facade class is implementation-specific (Agentify ships
- *     `Agentify_Discovery`).
+ *     path; this facade class is implementation-specific (Heera Discovery ships
+ *     `Heera_Agent_Discovery`).
  * -------------------------------------------------------------------------- */
 
-if ( class_exists( 'Agentify_Discovery' ) ) {
-	Agentify_Discovery::register(
+if ( class_exists( 'Heera_Agent_Discovery' ) ) {
+	Heera_Agent_Discovery::register(
 		array(
 			'id'    => 'acme-bookings',
 			'title' => 'Acme Bookings',
@@ -154,7 +154,7 @@ add_action(
 				'name'         => 'security.txt', // → /.well-known/security.txt
 				'content_type' => 'text/plain',
 				'callback'     => function () {
-					return "Contact: mailto:security@acme.dev\n";
+					return "Contact: mailto:security@example.com\n";
 				},
 			)
 		);
@@ -187,13 +187,13 @@ add_action(
 
 /* -------------------------------------------------------------------------- *
  *  6. Customization filters (site owners / companion plugins) — these tune
- *     Agentify's own output, independent of registering a resource above.
+ *     Heera Discovery's own output, independent of registering a resource above.
  * -------------------------------------------------------------------------- */
 
 // Offer extra schema.org entity types in Settings -> Identity.
 // (Person, Organization, LocalBusiness and Store ship by default.)
 add_filter(
-	'agentify_entity_types',
+	'heera_agent_discovery_entity_types',
 	function ( $types ) {
 		$types[] = 'Restaurant';
 		$types[] = 'EducationalOrganization';
@@ -201,10 +201,10 @@ add_filter(
 	}
 );
 
-// Purge your CDN / page cache whenever Agentify regenerates its documents
+// Purge your CDN / page cache whenever Heera Discovery regenerates its documents
 // (llms.txt, discovery.json, ...). Fires once per flush, debounced.
 add_action(
-	'agentify_cache_flushed',
+	'heera_agent_discovery_cache_flushed',
 	function () {
 		// my_cdn_purge( array( '/llms.txt', '/llms-full.txt', '/.well-known/discovery.json' ) );
 	}

@@ -1,5 +1,5 @@
 {
-  "name": "heera/agentify",
+  "name": "heera/heera-agent-discovery",
   "description": "Make any WordPress site legible to AI agents and crawlers. Reference implementation of the WP_Discovery protocol.",
   "type": "wordpress-plugin",
   "license": "GPL-2.0-or-later",

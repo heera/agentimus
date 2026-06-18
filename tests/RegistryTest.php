@@ -2,12 +2,12 @@
 /**
  * Registry — the collector providers register with (spec §04).
  *
- * @package Agentify\Tests
+ * @package HeeraAgentDiscovery\Tests
  */
 
-namespace Agentify\Tests;
+namespace HeeraAgentDiscovery\Tests;
 
-use Agentify\Discovery\Registry;
+use HeeraAgentDiscovery\Discovery\Registry;
 use PHPUnit\Framework\TestCase;
 use WP_Error;
 

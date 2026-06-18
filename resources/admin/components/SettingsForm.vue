@@ -623,7 +623,7 @@ export default {
     <section class="ar-card">
       <h2 class="ar-card__title">Authenticated API <span class="ar-field__tag">optional</span></h2>
       <p class="ar-card__lead">
-        If your site exposes an API protected by OAuth, name its authorization server and Agentify
+        If your site exposes an API protected by OAuth, name its authorization server and Heera Discovery
         publishes RFC 9728 metadata at <code>/.well-known/oauth-protected-resource</code> so agents can
         find the auth flow. Leave empty for a content site.
       </p>

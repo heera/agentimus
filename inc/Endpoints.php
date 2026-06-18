@@ -4,10 +4,10 @@
  * (.md URLs + `Accept: text/markdown`), the robots.txt content-signal rules,
  * and the discovery Link headers.
  *
- * @package Agentify
+ * @package HeeraAgentDiscovery
  */
 
-namespace Agentify;
+namespace HeeraAgentDiscovery;
 
 defined( 'ABSPATH' ) || exit;
 
@@ -33,8 +33,8 @@ final class Endpoints {
 		add_action( 'send_headers', array( $this, 'link_headers' ), 99 );
 		add_filter( 'robots_txt', array( $this, 'robots_txt' ), 20, 2 );
 		// Re-warm the heavy full-text edition out-of-band after content changes.
-		add_action( 'agentify_cache_flushed', array( $this, 'schedule_warm' ) );
-		add_action( 'agentify_warm_llms_full', array( $this, 'warm_llms_full' ) );
+		add_action( 'heera_agent_discovery_cache_flushed', array( $this, 'schedule_warm' ) );
+		add_action( 'heera_agent_discovery_warm_llms_full', array( $this, 'warm_llms_full' ) );
 	}
 
 	/**
@@ -49,8 +49,8 @@ final class Endpoints {
 			return;
 		}
 		if ( function_exists( 'wp_next_scheduled' ) && function_exists( 'wp_schedule_single_event' )
-			&& ! wp_next_scheduled( 'agentify_warm_llms_full' ) ) {
-			wp_schedule_single_event( time() + 30, 'agentify_warm_llms_full' );
+			&& ! wp_next_scheduled( 'heera_agent_discovery_warm_llms_full' ) ) {
+			wp_schedule_single_event( time() + 30, 'heera_agent_discovery_warm_llms_full' );
 		}
 	}
 
@@ -94,10 +94,10 @@ final class Endpoints {
 		}
 
 		// The opt-in fallback sitemap (index + paginated sub-sitemaps) — served
-		// only while Agentify actually owns the sitemap (core/SEO absent), so we
+		// only while Heera Discovery actually owns the sitemap (core/SEO absent), so we
 		// never shadow another plugin's file.
-		if ( 0 === strpos( $path, '/agentify-sitemap' ) && '.xml' === substr( $path, -4 ) ) {
-			if ( 'agentify' === Sitemap::detect()['source'] ) {
+		if ( 0 === strpos( $path, '/heera-agent-discovery-sitemap' ) && '.xml' === substr( $path, -4 ) ) {
+			if ( 'heera-agent-discovery' === Sitemap::detect()['source'] ) {
 				$body = Sitemap::body( $path );
 				if ( '' !== $body ) {
 					$this->send( $body, 'application/xml', 'sitemap' );
@@ -150,7 +150,7 @@ final class Endpoints {
 	 */
 	private function send( $body, $content_type, $label = '' ) {
 		if ( '' !== $label ) {
-			\Agentify\Activity\Recorder::record( $label );
+			\HeeraAgentDiscovery\Activity\Recorder::record( $label );
 		}
 		if ( ! headers_sent() ) {
 			status_header( 200 );
@@ -175,28 +175,28 @@ final class Endpoints {
 	}
 
 	/**
-	 * Whether Agentify should STAND DOWN for an agent-readiness surface, so another
+	 * Whether Heera Discovery should STAND DOWN for an agent-readiness surface, so another
 	 * producer (a theme or plugin that emits its own llms.txt, markdown, robots
 	 * rules or Link headers) owns it instead. This is the documented way to coexist
 	 * — a producer cedes a surface in one line, using this public API rather than
 	 * sniffing for the plugin:
 	 *
-	 *     add_filter( 'agentify_yield_surface', function ( $yield, $surface ) {
+	 *     add_filter( 'heera_agent_discovery_yield_surface', function ( $yield, $surface ) {
 	 *         // My theme already serves these — let it.
 	 *         return in_array( $surface, array( 'llms_txt', 'markdown' ), true ) ? true : $yield;
 	 *     }, 10, 2 );
 	 *
 	 * @param string $surface One of: llms_txt, llms_full, markdown, link_headers, robots.
-	 * @return bool True if Agentify must not handle this surface.
+	 * @return bool True if Heera Discovery must not handle this surface.
 	 */
 	private function yields( $surface ) {
 		/**
 		 * Cede an agent-readiness surface to another producer.
 		 *
-		 * @param bool   $yield   Whether Agentify should stand down. Default false.
+		 * @param bool   $yield   Whether Heera Discovery should stand down. Default false.
 		 * @param string $surface Surface key (llms_txt|llms_full|markdown|link_headers|robots).
 		 */
-		return (bool) apply_filters( 'agentify_yield_surface', false, $surface );
+		return (bool) apply_filters( 'heera_agent_discovery_yield_surface', false, $surface );
 	}
 
 	/**
@@ -406,7 +406,7 @@ final class Endpoints {
 		// item boundary (never mid-markdown, so the document stays valid), append a
 		// note pointing back to the index, and cache what we produced.
 		$budget   = max( 64, (int) $this->settings->get( 'llms_full_max_kb', 1024 ) ) * 1024;
-		$item_cap = (int) apply_filters( 'agentify_llms_full_item_max_bytes', min( 256 * 1024, max( 32 * 1024, intdiv( $budget, 4 ) ) ) );
+		$item_cap = (int) apply_filters( 'heera_agent_discovery_llms_full_item_max_bytes', min( 256 * 1024, max( 32 * 1024, intdiv( $budget, 4 ) ) ) );
 		$deadline = $this->generation_deadline();
 		$start    = microtime( true );
 
@@ -547,7 +547,7 @@ final class Endpoints {
 	 * @return string
 	 */
 	private function topics() {
-		$exclude = apply_filters( 'agentify_topic_exclude', array( 'uncategorized' ) );
+		$exclude = apply_filters( 'heera_agent_discovery_topic_exclude', array( 'uncategorized' ) );
 
 		$cats = get_categories(
 			array(
@@ -569,7 +569,7 @@ final class Endpoints {
 			$desc = $this->text( $cat->description );
 			if ( '' === $desc ) {
 				/* translators: %s: number of posts. */
-				$desc = sprintf( _n( '%s article', '%s articles', $cat->count, 'agentify' ), number_format_i18n( $cat->count ) );
+				$desc = sprintf( _n( '%s article', '%s articles', $cat->count, 'heera-agent-discovery' ), number_format_i18n( $cat->count ) );
 			}
 			$lines .= '- [' . $this->text( $cat->name ) . '](' . esc_url_raw( get_category_link( $cat ) ) . '): ' . $desc . "\n";
 		}

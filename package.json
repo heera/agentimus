@@ -1,8 +1,8 @@
 {
-  "name": "agentify",
+  "name": "heera-agent-discovery",
   "version": "1.0.0",
   "private": true,
-  "description": "Vue 3 admin app for the Agentify WordPress plugin.",
+  "description": "Vue 3 admin app for the Heera Discovery WordPress plugin.",
   "type": "module",
   "scripts": {
     "dev": "vite build --watch",

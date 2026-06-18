@@ -3,10 +3,10 @@
  * Classify a raw User-Agent string into a friendly agent label, so the activity
  * dashboard reads "Claude", "GPTBot", "Perplexity" rather than raw UA noise.
  *
- * @package Agentify
+ * @package HeeraAgentDiscovery
  */
 
-namespace Agentify\Activity;
+namespace HeeraAgentDiscovery\Activity;
 
 defined( 'ABSPATH' ) || exit;
 
@@ -49,7 +49,7 @@ final class Classifier {
 		 *
 		 * @param array<string,string> $map Token => label.
 		 */
-		return (array) apply_filters( 'agentify_agent_map', $map );
+		return (array) apply_filters( 'heera_agent_discovery_agent_map', $map );
 	}
 
 	/**

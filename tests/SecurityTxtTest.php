@@ -9,14 +9,14 @@
  *   - the Expires clamp (RFC 9116: keep it under a year).
  * Plus a smoke test of the emitted document.
  *
- * @package Agentify\Tests
+ * @package HeeraAgentDiscovery\Tests
  */
 
-namespace Agentify\Tests;
+namespace HeeraAgentDiscovery\Tests;
 
-use Agentify\Discovery\Registry;
-use Agentify\Discovery\SecurityTxt;
-use Agentify\Settings;
+use HeeraAgentDiscovery\Discovery\Registry;
+use HeeraAgentDiscovery\Discovery\SecurityTxt;
+use HeeraAgentDiscovery\Settings;
 use PHPUnit\Framework\TestCase;
 
 final class SecurityTxtTest extends TestCase {

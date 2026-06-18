@@ -17,12 +17,12 @@
  * with intent and agent cards; they are no longer a prerequisite for a useful
  * discovery document. No AI, no external calls — just introspection.
  *
- * @package Agentify
+ * @package HeeraAgentDiscovery
  */
 
-namespace Agentify\Discovery\Adapters;
+namespace HeeraAgentDiscovery\Discovery\Adapters;
 
-use Agentify\Discovery\Registry;
+use HeeraAgentDiscovery\Discovery\Registry;
 
 defined( 'ABSPATH' ) || exit;
 
@@ -30,10 +30,10 @@ final class RestApi {
 
 	/**
 	 * Namespace prefixes to skip: WordPress core (`wp/`, `wp-`, `oembed`) and this
-	 * plugin (`agentify`). Everything else is treated as a third-party API to
+	 * plugin (`heera-agent-discovery`). Everything else is treated as a third-party API to
 	 * surface — no plugin-specific names are hardcoded here.
 	 */
-	const SKIP = array( 'wp/', 'wp-', 'oembed', 'agentify' );
+	const SKIP = array( 'wp/', 'wp-', 'oembed', 'heera-agent-discovery' );
 
 	/**
 	 * Hook the public registration action. Availability is checked at fire-time,
@@ -45,7 +45,7 @@ final class RestApi {
 	 * is left untouched, never shadowed or duplicated by a generic stub.
 	 */
 	public function register() {
-		add_action( AGENTIFY_CANONICAL_HOOK, array( $this, 'provide' ), 99 );
+		add_action( HEERA_AGENT_DISCOVERY_CANONICAL_HOOK, array( $this, 'provide' ), 99 );
 	}
 
 	/**
@@ -85,7 +85,7 @@ final class RestApi {
 		 *
 		 * @param bool $enabled Default true.
 		 */
-		if ( ! apply_filters( 'agentify_rest_discovery', true ) ) {
+		if ( ! apply_filters( 'heera_agent_discovery_rest_discovery', true ) ) {
 			return;
 		}
 
@@ -104,7 +104,7 @@ final class RestApi {
 					'id'           => 'wordpress-core',
 					'title'        => 'WordPress Core',
 					'type'         => 'content',
-					'description'  => __( 'Core content exposed via the WordPress REST API.', 'agentify' ),
+					'description'  => __( 'Core content exposed via the WordPress REST API.', 'heera-agent-discovery' ),
 					'capabilities' => self::content_capabilities(),
 					'endpoints'    => array(
 						array(
@@ -112,14 +112,14 @@ final class RestApi {
 							'type'        => 'rest',
 							'methods'     => array( 'GET' ),
 							'auth'        => 'none',
-							'description' => __( 'Public WordPress REST API (read).', 'agentify' ),
+							'description' => __( 'Public WordPress REST API (read).', 'heera-agent-discovery' ),
 						),
 					),
 				)
 			);
 		}
 
-		$skip = (array) apply_filters( 'agentify_rest_skip_namespaces', self::SKIP );
+		$skip = (array) apply_filters( 'heera_agent_discovery_rest_skip_namespaces', self::SKIP );
 
 		/**
 		 * Allow-list of third-party REST namespaces to PUBLISH. Default is the
@@ -130,7 +130,7 @@ final class RestApi {
 		 *
 		 * @param string[] $allowed Namespace names to publish.
 		 */
-		$allowed = (array) apply_filters( 'agentify_rest_namespaces', self::allowed() );
+		$allowed = (array) apply_filters( 'heera_agent_discovery_rest_namespaces', self::allowed() );
 
 		// 2. Only the third-party namespaces the owner opted in (or a filter added)
 		//    AND that no explicit provider has already described.
@@ -146,7 +146,7 @@ final class RestApi {
 					'id'          => self::slug( $namespace ),
 					'title'       => (string) $namespace,
 					'type'        => 'x-rest-api',
-					'description' => __( 'REST API namespace published via discovery.', 'agentify' ),
+					'description' => __( 'REST API namespace published via discovery.', 'heera-agent-discovery' ),
 					'endpoints'   => array(
 						array( 'url' => '/wp-json/' . $namespace, 'type' => 'rest', 'auth' => 'none' ),
 					),
@@ -165,7 +165,7 @@ final class RestApi {
 		if ( ! self::is_available() ) {
 			return array();
 		}
-		$skip = (array) apply_filters( 'agentify_rest_skip_namespaces', self::SKIP );
+		$skip = (array) apply_filters( 'heera_agent_discovery_rest_skip_namespaces', self::SKIP );
 		$out  = array();
 		foreach ( (array) rest_get_server()->get_namespaces() as $namespace ) {
 			if ( self::is_third_party( $namespace, $skip ) ) {
@@ -182,10 +182,10 @@ final class RestApi {
 	 * @return string[]
 	 */
 	private static function allowed() {
-		if ( ! class_exists( '\Agentify\Settings' ) ) {
+		if ( ! class_exists( '\HeeraAgentDiscovery\Settings' ) ) {
 			return array();
 		}
-		return array_values( (array) ( new \Agentify\Settings() )->get( 'rest_namespaces', array() ) );
+		return array_values( (array) ( new \HeeraAgentDiscovery\Settings() )->get( 'rest_namespaces', array() ) );
 	}
 
 	/**
@@ -199,8 +199,8 @@ final class RestApi {
 	 */
 	private static function content_capabilities() {
 		$selected = array();
-		if ( class_exists( '\Agentify\Settings' ) ) {
-			$selected = (array) ( new \Agentify\Settings() )->get( 'post_types', array() );
+		if ( class_exists( '\HeeraAgentDiscovery\Settings' ) ) {
+			$selected = (array) ( new \HeeraAgentDiscovery\Settings() )->get( 'post_types', array() );
 		}
 
 		$post_objects = array();

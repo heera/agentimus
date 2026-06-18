@@ -7,7 +7,7 @@ import ActivityPanel from './components/ActivityPanel.vue';
 import OnboardingWizard from './components/OnboardingWizard.vue';
 
 export default {
-  name: 'AgentifyApp',
+  name: 'HeeraAgentDiscoveryApp',
   components: { SettingsForm, ReadinessPanel, DiscoveryHub, ActivityPanel, OnboardingWizard },
   props: {
     boot: { type: Object, required: true },
@@ -138,7 +138,7 @@ export default {
           },
           settings: {
             title: 'Settings',
-            description: 'Configure the signals Agentify exposes and the identity agents read.',
+            description: 'Configure the signals Heera Discovery exposes and the identity agents read.',
           },
           readiness: {
             title: 'Readiness',
@@ -410,7 +410,7 @@ export default {
 <template>
   <div class="ar">
     <header class="ar__bar">
-      <button type="button" class="ar__brand" aria-label="Agentify — reload" @click="reloadPlugin">
+      <button type="button" class="ar__brand" aria-label="Heera Discovery — reload" @click="reloadPlugin">
         <span class="ar__mark" aria-hidden="true">
           <svg class="ar__logo" viewBox="0 0 24 24" fill="none" stroke-linecap="round" stroke-linejoin="round">
             <path class="ar__logo-line" d="M4.5 20.5 L12 3.5 L19.5 20.5" />
@@ -418,7 +418,7 @@ export default {
           </svg>
         </span>
         <span class="ar__brandtext">
-          <span class="ar__name">Agentify</span>
+          <span class="ar__name">Heera Discovery</span>
           <span v-if="version" class="ar__ver">Version - {{ version }}</span>
         </span>
       </button>

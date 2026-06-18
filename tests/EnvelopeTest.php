@@ -6,14 +6,14 @@
  * per-endpoint auth precedence (M11), deduplicated capabilities (M7), agent
  * derivation, and that the MCP/tools surface is kept OUT of the core.
  *
- * @package Agentify\Tests
+ * @package HeeraAgentDiscovery\Tests
  */
 
-namespace Agentify\Tests;
+namespace HeeraAgentDiscovery\Tests;
 
-use Agentify\Discovery\Envelope;
-use Agentify\Discovery\Registry;
-use Agentify\Settings;
+use HeeraAgentDiscovery\Discovery\Envelope;
+use HeeraAgentDiscovery\Discovery\Registry;
+use HeeraAgentDiscovery\Settings;
 use PHPUnit\Framework\TestCase;
 
 final class EnvelopeTest extends TestCase {

@@ -3,16 +3,16 @@
  * Settings store — a single option array, with defaults, typed getters and
  * sanitisation. The one source of truth shared by every module and the REST API.
  *
- * @package Agentify
+ * @package HeeraAgentDiscovery
  */
 
-namespace Agentify;
+namespace HeeraAgentDiscovery;
 
 defined( 'ABSPATH' ) || exit;
 
 final class Settings {
 
-	const OPTION = 'agentify_settings';
+	const OPTION = 'heera_agent_discovery_settings';
 
 	/**
 	 * Default settings. Identity defaults stay deliberately empty so the admin
@@ -69,7 +69,7 @@ final class Settings {
 		 *
 		 * @param array $defaults Default settings.
 		 */
-		return apply_filters( 'agentify_default_settings', $defaults );
+		return apply_filters( 'heera_agent_discovery_default_settings', $defaults );
 	}
 
 	/**
@@ -96,7 +96,7 @@ final class Settings {
 		 *
 		 * @param string[] $known User-agent tokens.
 		 */
-		$known = (array) apply_filters( 'agentify_known_trainers', $known );
+		$known = (array) apply_filters( 'heera_agent_discovery_known_trainers', $known );
 		return array_values( array_unique( array_filter( array_map( 'trim', $known ) ) ) );
 	}
 
@@ -139,7 +139,7 @@ final class Settings {
 		 *
 		 * @param array $all Resolved settings.
 		 */
-		return apply_filters( 'agentify_settings', $all );
+		return apply_filters( 'heera_agent_discovery_settings', $all );
 	}
 
 	/**
@@ -205,7 +205,7 @@ final class Settings {
 		 * Fires after settings are reset to defaults (a Pro add-on can clear its
 		 * own state too).
 		 */
-		do_action( 'agentify_settings_reset' );
+		do_action( 'heera_agent_discovery_settings_reset' );
 
 		return $this->all();
 	}
@@ -222,7 +222,7 @@ final class Settings {
 	/**
 	 * The selectable schema.org entity types (filterable). 'Person' is the human
 	 * case; the rest are Organization subtypes (a shop is a Store → LocalBusiness →
-	 * Organization). Add-ons/devs can extend via the `agentify_entity_types` filter
+	 * Organization). Add-ons/devs can extend via the `heera_agent_discovery_entity_types` filter
 	 * (e.g. add 'Restaurant'). 'Person' is always guaranteed present so the
 	 * sanitiser's fallback stays valid.
 	 *
@@ -230,7 +230,7 @@ final class Settings {
 	 */
 	public function entity_types() {
 		$types = array( 'Person', 'Organization', 'LocalBusiness', 'Store' );
-		$types = (array) apply_filters( 'agentify_entity_types', $types );
+		$types = (array) apply_filters( 'heera_agent_discovery_entity_types', $types );
 		$types = array_values( array_unique( array_filter( array_map( 'strval', $types ) ) ) );
 		return in_array( 'Person', $types, true ) ? $types : array_merge( array( 'Person' ), $types );
 	}
@@ -345,7 +345,7 @@ final class Settings {
 		 * @param array $clean Sanitised settings.
 		 * @param array $input Raw input.
 		 */
-		return apply_filters( 'agentify_sanitize_settings', $clean, $input );
+		return apply_filters( 'heera_agent_discovery_sanitize_settings', $clean, $input );
 	}
 
 	/**

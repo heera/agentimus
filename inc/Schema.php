@@ -7,10 +7,10 @@
  * never ships duplicate or conflicting structured data — the single most
  * common reason schema plugins get rejected or one-starred.
  *
- * @package Agentify
+ * @package HeeraAgentDiscovery
  */
 
-namespace Agentify;
+namespace HeeraAgentDiscovery;
 
 defined( 'ABSPATH' ) || exit;
 
@@ -49,11 +49,11 @@ final class Schema {
 			|| defined( 'AIOSEO_VERSION' );                  // All in One SEO.
 
 		/**
-		 * Filter whether Agentify should stand down on schema.
+		 * Filter whether Heera Discovery should stand down on schema.
 		 *
 		 * @param bool $active Whether to defer.
 		 */
-		return (bool) apply_filters( 'agentify_defer_schema', $active );
+		return (bool) apply_filters( 'heera_agent_discovery_defer_schema', $active );
 	}
 
 	/**
@@ -76,7 +76,7 @@ final class Schema {
 			 * @param array|null $node Schema node.
 			 * @param \WP_Post   $post Post.
 			 */
-			$node = apply_filters( 'agentify_schema_for_post', $node, $post );
+			$node = apply_filters( 'heera_agent_discovery_schema_for_post', $node, $post );
 			if ( ! empty( $node ) ) {
 				$graph[] = $node;
 			}
@@ -90,7 +90,7 @@ final class Schema {
 		 *
 		 * @param array $graph Schema nodes.
 		 */
-		$graph = apply_filters( 'agentify_schema_graph', $graph );
+		$graph = apply_filters( 'heera_agent_discovery_schema_graph', $graph );
 		if ( empty( $graph ) ) {
 			return;
 		}
@@ -188,7 +188,7 @@ final class Schema {
 		 * @param array $map Map of post_type => schema type.
 		 */
 		$map = apply_filters(
-			'agentify_schema_type_map',
+			'heera_agent_discovery_schema_type_map',
 			array(
 				'post' => 'BlogPosting',
 				'page' => 'WebPage',
@@ -220,7 +220,7 @@ final class Schema {
 			array(
 				'@type'    => 'ListItem',
 				'position' => 1,
-				'name'     => __( 'Home', 'agentify' ),
+				'name'     => __( 'Home', 'heera-agent-discovery' ),
 				'item'     => home_url( '/' ),
 			),
 		);

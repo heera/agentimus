@@ -5,10 +5,10 @@
  * plugin cover any site: WooCommerce products, custom post types, and
  * page-builder content all flow through here via settings + filters.
  *
- * @package Agentify
+ * @package HeeraAgentDiscovery
  */
 
-namespace Agentify;
+namespace HeeraAgentDiscovery;
 
 defined( 'ABSPATH' ) || exit;
 
@@ -35,7 +35,7 @@ final class Content {
 	}
 
 	/**
-	 * The post types Agentify actually exposes: the configured selection
+	 * The post types Heera Discovery actually exposes: the configured selection
 	 * (intersected with what's available), falling back to the privacy-safe
 	 * default (posts + pages) — never silently to every public type, which
 	 * would leak every CPT — then filtered so an add-on can add or remove types
@@ -58,7 +58,7 @@ final class Content {
 		 * @param string[] $types     Resolved post types.
 		 * @param string[] $available All public post types.
 		 */
-		$types = (array) apply_filters( 'agentify_post_types', $types, $available );
+		$types = (array) apply_filters( 'heera_agent_discovery_post_types', $types, $available );
 		return array_values( array_unique( array_filter( $types ) ) );
 	}
 
@@ -103,7 +103,7 @@ final class Content {
 			$items += min( self::published_count( $post_type ), $limit );
 		}
 
-		$avg_bytes    = max( 1, (int) apply_filters( 'agentify_llms_full_avg_item_bytes', 4096 ) );
+		$avg_bytes    = max( 1, (int) apply_filters( 'heera_agent_discovery_llms_full_avg_item_bytes', 4096 ) );
 		$est_bytes    = $items * $avg_bytes;
 		$budget_bytes = max( 64, (int) $settings->get( 'llms_full_max_kb', 1024 ) ) * 1024;
 
@@ -172,8 +172,8 @@ final class Content {
 	 * @return string
 	 */
 	private static function registrant_dir() {
-		$plugins = wp_normalize_path( defined( 'WP_PLUGIN_DIR' ) ? WP_PLUGIN_DIR : WP_CONTENT_DIR . '/plugins' );
-		$ours    = wp_normalize_path( AGENTIFY_DIR );
+		$plugins = wp_normalize_path( WP_PLUGIN_DIR );
+		$ours    = wp_normalize_path( HEERA_AGENT_DISCOVERY_DIR );
 		foreach ( debug_backtrace( DEBUG_BACKTRACE_IGNORE_ARGS ) as $frame ) { // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_debug_backtrace
 			if ( empty( $frame['file'] ) ) {
 				continue;
@@ -207,7 +207,7 @@ final class Content {
 		 * @param string $source    Source plugin name, or ''.
 		 * @param string $post_type Post type slug.
 		 */
-		return (string) apply_filters( 'agentify_post_type_source', $source, $post_type );
+		return (string) apply_filters( 'heera_agent_discovery_post_type_source', $source, $post_type );
 	}
 
 	/**
@@ -268,7 +268,7 @@ final class Content {
 
 	/**
 	 * Resolve the HTML body for a post. Add-ons (page builders, custom
-	 * renderers) can short-circuit with `agentify_markdown_source`;
+	 * renderers) can short-circuit with `heera_agent_discovery_markdown_source`;
 	 * otherwise we run the standard `the_content` filter.
 	 *
 	 * @param \WP_Post $post Post.
@@ -282,7 +282,7 @@ final class Content {
 		 * @param string|null $html Override HTML, or null.
 		 * @param \WP_Post     $post Post.
 		 */
-		$html = apply_filters( 'agentify_markdown_source', null, $post );
+		$html = apply_filters( 'heera_agent_discovery_markdown_source', null, $post );
 		if ( null === $html ) {
 			$html = apply_filters( 'the_content', $post->post_content ); // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound -- intentionally running content through WordPress core's own the_content filter, not declaring a new hook.
 		}
@@ -300,6 +300,6 @@ final class Content {
 		if ( '' !== trim( (string) $post->post_content ) ) {
 			return true;
 		}
-		return null !== apply_filters( 'agentify_markdown_source', null, $post );
+		return null !== apply_filters( 'heera_agent_discovery_markdown_source', null, $post );
 	}
 }

@@ -6,12 +6,12 @@
  * (so a shop = Store is selectable), 'Person' is always present, a valid subtype
  * survives sanitise, and anything off-list falls back to 'Person'.
  *
- * @package Agentify\Tests
+ * @package HeeraAgentDiscovery\Tests
  */
 
-namespace Agentify\Tests;
+namespace HeeraAgentDiscovery\Tests;
 
-use Agentify\Settings;
+use HeeraAgentDiscovery\Settings;
 use PHPUnit\Framework\TestCase;
 
 final class EntityTypeTest extends TestCase {

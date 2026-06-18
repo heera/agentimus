@@ -127,7 +127,7 @@ export default {
               <div v-if="step === 1" class="ar-wiz__step">
                 <h2 id="ar-wiz-title" class="ar-modal__title">Make your site readable by AI assistants</h2>
                 <p class="ar-modal__lead">
-                  Agentify helps assistants like ChatGPT and Claude understand and cite your site
+                  Heera Discovery helps assistants like ChatGPT and Claude understand and cite your site
                   correctly. First, tell them who's behind it — the single most useful thing you can add.
                 </p>
 
@@ -209,7 +209,7 @@ export default {
               <div v-else class="ar-wiz__step">
                 <h2 class="ar-modal__title">All set — here's the summary</h2>
                 <p class="ar-modal__lead">
-                  Agentify will use this to describe your site to AI assistants. You can fine-tune
+                  Heera Discovery will use this to describe your site to AI assistants. You can fine-tune
                   everything later in Settings.
                 </p>
 

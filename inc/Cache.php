@@ -4,24 +4,24 @@
  * hooks that bust it. Respects an external object cache automatically (it is
  * just the Transients API).
  *
- * @package Agentify
+ * @package HeeraAgentDiscovery
  */
 
-namespace Agentify;
+namespace HeeraAgentDiscovery;
 
 defined( 'ABSPATH' ) || exit;
 
 final class Cache {
 
-	const LLMS_TXT  = 'agentify_llms_txt';
-	const LLMS_FULL = 'agentify_llms_full';
-	const LLMS_FULL_STAT = 'agentify_llms_full_stat'; // Last-generation status for /llms-full.txt (bytes/truncated/reason/items/generated_at).
-	const DISCOVERY = 'agentify_discovery';
-	const SECURITY_TXT = 'agentify_security_txt';
+	const LLMS_TXT  = 'heera_agent_discovery_llms_txt';
+	const LLMS_FULL = 'heera_agent_discovery_llms_full';
+	const LLMS_FULL_STAT = 'heera_agent_discovery_llms_full_stat'; // Last-generation status for /llms-full.txt (bytes/truncated/reason/items/generated_at).
+	const DISCOVERY = 'heera_agent_discovery';
+	const SECURITY_TXT = 'heera_agent_discovery_security_txt';
 	// The sitemap is generated as an index + many paginated sub-sitemaps, so it
 	// can't use one fixed key. This holds a generation token that namespaces all
 	// of its transient keys; deleting it invalidates every page at once.
-	const SITEMAP_GEN = 'agentify_sitemap_gen';
+	const SITEMAP_GEN = 'heera_agent_discovery_sitemap_gen';
 
 	const TTL = HOUR_IN_SECONDS;
 	// A truncated full-text body is re-attempted sooner — content or settings may
@@ -64,7 +64,7 @@ final class Cache {
 		 * Fires after the generated caches are dropped (content changed) — the seam
 		 * used to schedule a debounced out-of-band re-warm of the heavy full-text edition.
 		 */
-		do_action( 'agentify_cache_flushed' );
+		do_action( 'heera_agent_discovery_cache_flushed' );
 	}
 
 	/**

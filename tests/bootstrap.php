@@ -1,31 +1,31 @@
 <?php
 /**
- * PHPUnit bootstrap for Agentify's pure-logic unit tests.
+ * PHPUnit bootstrap for Heera Discovery's pure-logic unit tests.
  *
  * These tests exercise the discovery contract logic (Resource validation,
  * the Registry collector, Envelope derivation) WITHOUT a full WordPress
  * install. We define the minimal WordPress surface the tested classes touch,
  * stub the one in-plugin class with heavy WP dependencies (Content), and
- * autoload the rest of the Agentify\ classes straight from inc/.
+ * autoload the rest of the HeeraAgentDiscovery\ classes straight from inc/.
  *
- * @package Agentify\Tests
+ * @package HeeraAgentDiscovery\Tests
  */
 
 namespace {
 
 	error_reporting( E_ALL & ~E_DEPRECATED );
 
-	$plugin_dir = dirname( __DIR__ ); // .../plugins/agentify
+	$plugin_dir = dirname( __DIR__ ); // .../plugins/heera-agent-discovery
 
-	if ( ! defined( 'ABSPATH' ) )            define( 'ABSPATH', sys_get_temp_dir() . '/agentify-test-abspath/' );
+	if ( ! defined( 'ABSPATH' ) )            define( 'ABSPATH', sys_get_temp_dir() . '/heera-agent-discovery-test-abspath/' );
 	if ( ! defined( 'WPINC' ) )              define( 'WPINC', 'wp-includes' );
 	if ( ! defined( 'WP_CONTENT_DIR' ) )     define( 'WP_CONTENT_DIR', dirname( dirname( $plugin_dir ) ) );
 	if ( ! defined( 'WP_PLUGIN_DIR' ) )      define( 'WP_PLUGIN_DIR', dirname( $plugin_dir ) );
-	if ( ! defined( 'AGENTIFY_FILE' ) )      define( 'AGENTIFY_FILE', $plugin_dir . '/agentify.php' );
-	if ( ! defined( 'AGENTIFY_DIR' ) )       define( 'AGENTIFY_DIR', $plugin_dir . '/' );
-	if ( ! defined( 'AGENTIFY_VERSION' ) )   define( 'AGENTIFY_VERSION', '1.0.0' );
-	if ( ! defined( 'AGENTIFY_CANONICAL_HOOK' ) )  define( 'AGENTIFY_CANONICAL_HOOK', 'wpdiscovery_register' );
-	if ( ! defined( 'AGENTIFY_DISCOVERY_HOOK' ) )  define( 'AGENTIFY_DISCOVERY_HOOK', 'agentify_discovery_register' );
+	if ( ! defined( 'HEERA_AGENT_DISCOVERY_FILE' ) )      define( 'HEERA_AGENT_DISCOVERY_FILE', $plugin_dir . '/heera-agent-discovery.php' );
+	if ( ! defined( 'HEERA_AGENT_DISCOVERY_DIR' ) )       define( 'HEERA_AGENT_DISCOVERY_DIR', $plugin_dir . '/' );
+	if ( ! defined( 'HEERA_AGENT_DISCOVERY_VERSION' ) )   define( 'HEERA_AGENT_DISCOVERY_VERSION', '1.0.0' );
+	if ( ! defined( 'HEERA_AGENT_DISCOVERY_CANONICAL_HOOK' ) )  define( 'HEERA_AGENT_DISCOVERY_CANONICAL_HOOK', 'wpdiscovery_register' );
+	if ( ! defined( 'HEERA_AGENT_DISCOVERY_ALIAS_HOOK' ) )  define( 'HEERA_AGENT_DISCOVERY_ALIAS_HOOK', 'heera_agent_discovery_register' );
 	if ( ! defined( 'HOUR_IN_SECONDS' ) )          define( 'HOUR_IN_SECONDS', 3600 );
 		if ( ! defined( 'MINUTE_IN_SECONDS' ) ) define( 'MINUTE_IN_SECONDS', 60 );
 	if ( ! defined( 'DAY_IN_SECONDS' ) )           define( 'DAY_IN_SECONDS', 86400 );
@@ -86,14 +86,14 @@ namespace {
 	if ( ! function_exists( 'rest_url' ) )              { function rest_url( $p = '' ) { return 'https://example.test/wp-json/' . ltrim( (string) $p, '/' ); } }
 	if ( ! function_exists( 'absint' ) )                { function absint( $n ) { return abs( (int) $n ); } }
 
-	// Autoload Agentify\ classes from inc/ (runtime uses its own loader).
+	// Autoload HeeraAgentDiscovery\ classes from inc/ (runtime uses its own loader).
 	spl_autoload_register(
 		function ( $class ) {
-			if ( 0 !== strpos( $class, 'Agentify\\' ) ) {
+			if ( 0 !== strpos( $class, 'HeeraAgentDiscovery\\' ) ) {
 				return;
 			}
-			$rel  = str_replace( '\\', '/', substr( $class, strlen( 'Agentify\\' ) ) );
-			$file = AGENTIFY_DIR . 'inc/' . $rel . '.php';
+			$rel  = str_replace( '\\', '/', substr( $class, strlen( 'HeeraAgentDiscovery\\' ) ) );
+			$file = HEERA_AGENT_DISCOVERY_DIR . 'inc/' . $rel . '.php';
 			if ( is_file( $file ) ) {
 				require $file;
 			}
@@ -102,10 +102,10 @@ namespace {
 
 	// Reset the Registry singleton between tests (it is process-global).
 	function _af_reset_registry() {
-		if ( ! class_exists( 'Agentify\\Discovery\\Registry' ) ) {
+		if ( ! class_exists( 'HeeraAgentDiscovery\\Discovery\\Registry' ) ) {
 			return;
 		}
-		$prop = new \ReflectionProperty( 'Agentify\\Discovery\\Registry', 'instance' );
+		$prop = new \ReflectionProperty( 'HeeraAgentDiscovery\\Discovery\\Registry', 'instance' );
 		$prop->setAccessible( true );
 		$prop->setValue( null, null );
 	}
@@ -113,13 +113,13 @@ namespace {
 	require __DIR__ . '/../vendor/autoload.php';
 }
 
-namespace Agentify {
+namespace HeeraAgentDiscovery {
 	// Stub the one in-plugin dependency that needs the WP post-type registry,
 	// so Settings::defaults() works without loading the real Content class. The
 	// available() list is overridable via $GLOBALS['_af_available_post_types'] so
 	// a test can introduce a third public type (e.g. a CPT) and prove the safe
 	// default never widens to "all public types".
-	if ( ! class_exists( 'Agentify\\Content', false ) ) {
+	if ( ! class_exists( 'HeeraAgentDiscovery\\Content', false ) ) {
 		class Content {
 			public static function available() {
 				return isset( $GLOBALS['_af_available_post_types'] )

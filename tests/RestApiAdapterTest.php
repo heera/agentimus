@@ -3,12 +3,12 @@
  * RestApi adapter — the pure, WordPress-free helpers behind zero-config
  * auto-discovery (namespace classification, slugging, capability derivation).
  *
- * @package Agentify\Tests
+ * @package HeeraAgentDiscovery\Tests
  */
 
-namespace Agentify\Tests;
+namespace HeeraAgentDiscovery\Tests;
 
-use Agentify\Discovery\Adapters\RestApi;
+use HeeraAgentDiscovery\Discovery\Adapters\RestApi;
 use PHPUnit\Framework\TestCase;
 
 final class RestApiAdapterTest extends TestCase {
@@ -43,7 +43,7 @@ final class RestApiAdapterTest extends TestCase {
 			'core content'      => array( 'wp/v2', false ),
 			'core internal'     => array( 'wp-site-health/v1', false ),
 			'oembed'            => array( 'oembed/1.0', false ),
-			'own'               => array( 'agentify/v1', false ),
+			'own'               => array( 'heera-agent-discovery/v1', false ),
 			// Third-party — surfaced (no plugin names are special-cased).
 			'woo store'         => array( 'wc/store/v1', true ),
 			'fluent cart'       => array( 'fluent-cart/v2', true ),

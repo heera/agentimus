@@ -6,10 +6,10 @@
  * emphasis, code blocks, etc. survive. Good enough for prose; not a full
  * CommonMark serializer.
  *
- * @package Agentify
+ * @package HeeraAgentDiscovery
  */
 
-namespace Agentify;
+namespace HeeraAgentDiscovery;
 
 defined( 'ABSPATH' ) || exit;
 
@@ -69,13 +69,13 @@ final class Markdown {
 		$dom  = new \DOMDocument();
 		$prev = libxml_use_internal_errors( true );
 		$dom->loadHTML(
-			'<?xml encoding="UTF-8"><div id="agentify-md-root">' . $html . '</div>',
+			'<?xml encoding="UTF-8"><div id="heera-agent-discovery-md-root">' . $html . '</div>',
 			LIBXML_HTML_NOIMPLIED | LIBXML_HTML_NODEFDTD
 		);
 		libxml_clear_errors();
 		libxml_use_internal_errors( $prev );
 
-		$root = $dom->getElementById( 'agentify-md-root' );
+		$root = $dom->getElementById( 'heera-agent-discovery-md-root' );
 		$md   = $root ? self::children( $root ) : '';
 
 		$md = preg_replace( "/[ \t]+\n/", "\n", $md );

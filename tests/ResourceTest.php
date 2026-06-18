@@ -2,12 +2,12 @@
 /**
  * Resource — the registration validator/normalizer (spec §04).
  *
- * @package Agentify\Tests
+ * @package HeeraAgentDiscovery\Tests
  */
 
-namespace Agentify\Tests;
+namespace HeeraAgentDiscovery\Tests;
 
-use Agentify\Discovery\Resource;
+use HeeraAgentDiscovery\Discovery\Resource;
 use PHPUnit\Framework\TestCase;
 use WP_Error;
 
@@ -54,7 +54,7 @@ final class ResourceTest extends TestCase {
 
 	public function test_provider_is_auto_attributed_and_overwrites_author_value() {
 		$r = Resource::normalize( array( 'id' => 'a', 'title' => 'A', 'type' => 'commerce', 'provider' => array( 'plugin' => 'evil/evil.php' ) ) );
-		$this->assertSame( 'agentify/agentify.php', $r['provider']['plugin'] );
+		$this->assertSame( 'heera-agent-discovery/heera-agent-discovery.php', $r['provider']['plugin'] );
 	}
 
 	public function test_capabilities_are_preserved_as_list() {

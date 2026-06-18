@@ -1,5 +1,5 @@
 # Files & folders excluded from the distributed plugin ZIP / SVN.
-# What SHIPS: agentify.php, uninstall.php, readme.txt, LICENSE, inc/,
+# What SHIPS: heera-agent-discovery.php, uninstall.php, readme.txt, LICENSE, inc/,
 # assets/ (built), resources/ (Vue source) + vite.config.js + package.json
 # (so the build is reproducible and the source is human-readable).
 

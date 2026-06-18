@@ -7,10 +7,10 @@
  * returns a clean, fully-defaulted array or a WP_Error explaining the rejection
  * (surfaced to the admin Validation screen) so authors get actionable feedback.
  *
- * @package Agentify
+ * @package HeeraAgentDiscovery
  */
 
-namespace Agentify\Discovery;
+namespace HeeraAgentDiscovery\Discovery;
 
 defined( 'ABSPATH' ) || exit;
 
@@ -45,7 +45,7 @@ final class Resource {
 	 */
 	public static function normalize( $raw ) {
 		if ( ! is_array( $raw ) ) {
-			return new \WP_Error( 'wpd_resource_invalid', __( 'A discovery resource must be an array.', 'agentify' ) );
+			return new \WP_Error( 'wpd_resource_invalid', __( 'A discovery resource must be an array.', 'heera-agent-discovery' ) );
 		}
 
 		// --- id (required) ------------------------------------------------- //
@@ -54,7 +54,7 @@ final class Resource {
 			return new \WP_Error(
 				'wpd_resource_id',
 				/* translators: %s: supplied id. */
-				sprintf( __( 'Resource "id" must be a lowercase slug; got "%s".', 'agentify' ), isset( $raw['id'] ) ? (string) $raw['id'] : '' )
+				sprintf( __( 'Resource "id" must be a lowercase slug; got "%s".', 'heera-agent-discovery' ), isset( $raw['id'] ) ? (string) $raw['id'] : '' )
 			);
 		}
 
@@ -62,7 +62,7 @@ final class Resource {
 		$title = isset( $raw['title'] ) ? sanitize_text_field( (string) $raw['title'] ) : '';
 		if ( '' === $title ) {
 			/* translators: %s: resource id. */
-			return new \WP_Error( 'wpd_resource_title', sprintf( __( 'Resource "%s" is missing a title.', 'agentify' ), $id ) );
+			return new \WP_Error( 'wpd_resource_title', sprintf( __( 'Resource "%s" is missing a title.', 'heera-agent-discovery' ), $id ) );
 		}
 
 		// --- type (required, controlled) ----------------------------------- //
@@ -71,7 +71,7 @@ final class Resource {
 			return new \WP_Error(
 				'wpd_resource_type',
 				/* translators: 1: resource id, 2: supplied type. */
-				sprintf( __( 'Resource "%1$s" has an unknown type "%2$s". Use a known type or an "x-vendor-name" extension.', 'agentify' ), $id, $type )
+				sprintf( __( 'Resource "%1$s" has an unknown type "%2$s". Use a known type or an "x-vendor-name" extension.', 'heera-agent-discovery' ), $id, $type )
 			);
 		}
 
@@ -347,7 +347,7 @@ final class Resource {
 	 * Best-effort attribution. Walks out past this plugin's own frames and
 	 * WordPress core's hook-dispatch frames; the first frame outside both is the
 	 * registrant. A registrant in a plugin, a mu-plugin, or a theme is all
-	 * third-party — what matters for owner curation is "Agentify's own code vs
+	 * third-party — what matters for owner curation is "Heera Discovery's own code vs
 	 * everyone else," so anything that is not us is attributed to its source and
 	 * stays owner-curatable. Only a pure internal call (every frame ours/core —
 	 * e.g. a built-in auto-discovery adapter) attributes to this plugin itself.
@@ -356,12 +356,12 @@ final class Resource {
 	 * @return array{plugin:string}
 	 */
 	private static function detect_provider() {
-		$self    = function_exists( 'plugin_basename' ) ? plugin_basename( AGENTIFY_FILE ) : basename( AGENTIFY_FILE );
-		$ours    = wp_normalize_path( AGENTIFY_DIR );
+		$self    = function_exists( 'plugin_basename' ) ? plugin_basename( HEERA_AGENT_DISCOVERY_FILE ) : basename( HEERA_AGENT_DISCOVERY_FILE );
+		$ours    = wp_normalize_path( HEERA_AGENT_DISCOVERY_DIR );
 		$wpinc   = wp_normalize_path( ABSPATH . WPINC . '/' );
-		$content = wp_normalize_path( defined( 'WP_CONTENT_DIR' ) ? WP_CONTENT_DIR : ABSPATH . 'wp-content' );
-		$plugins = wp_normalize_path( defined( 'WP_PLUGIN_DIR' ) ? WP_PLUGIN_DIR : $content . '/plugins' );
-		$mu      = wp_normalize_path( defined( 'WPMU_PLUGIN_DIR' ) ? WPMU_PLUGIN_DIR : $content . '/mu-plugins' );
+		$content = wp_normalize_path( WP_CONTENT_DIR );
+		$plugins = wp_normalize_path( defined( 'WP_PLUGIN_DIR' ) ? WP_PLUGIN_DIR : WP_CONTENT_DIR . '/plugins' );
+		$mu      = wp_normalize_path( defined( 'WPMU_PLUGIN_DIR' ) ? WPMU_PLUGIN_DIR : WP_CONTENT_DIR . '/mu-plugins' );
 		$themes  = wp_normalize_path( $content . '/themes' );
 
 		$frames = debug_backtrace( DEBUG_BACKTRACE_IGNORE_ARGS ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_debug_backtrace
@@ -373,7 +373,7 @@ final class Resource {
 			if ( 0 === strpos( $file, $ours ) || 0 === strpos( $file, $wpinc ) ) {
 				continue; // Our own code, or core's do_action dispatch — keep climbing.
 			}
-			// First frame outside Agentify and core = the registrant. Attribute by
+			// First frame outside Heera Discovery and core = the registrant. Attribute by
 			// where it lives; check mu-plugins before plugins (mu lives outside the
 			// plugins dir, but be explicit) and themes too — none of these are us.
 			if ( 0 === strpos( $file, $plugins ) ) {
