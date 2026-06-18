@@ -228,12 +228,24 @@ final class Envelope {
 	/** @return array */
 	private function site() {
 		return array(
-			'name'        => $this->settings->identity( 'name', get_bloginfo( 'name' ) ),
+			'name'        => $this->clean( $this->settings->identity( 'name', get_bloginfo( 'name' ) ) ),
 			'url'         => home_url( '/' ),
-			'description' => get_bloginfo( 'description' ),
+			'description' => $this->clean( get_bloginfo( 'description' ) ),
 			'lang'        => get_bloginfo( 'language' ),
 			'logo'        => (string) get_site_icon_url(),
 		);
+	}
+
+	/**
+	 * Decode HTML entities and strip tags so a value reads as clean plain text in the
+	 * JSON output. get_bloginfo() can hand back entity-encoded text (e.g. an "&" comes
+	 * through as "&amp;"), which would otherwise appear literally in the document.
+	 *
+	 * @param string $value Possibly entity-encoded text.
+	 * @return string
+	 */
+	private function clean( $value ) {
+		return trim( html_entity_decode( wp_strip_all_tags( (string) $value ), ENT_QUOTES | ENT_HTML5, 'UTF-8' ) );
 	}
 
 	/** @return array The "whoami" — the person/org behind the site. */
