@@ -5,12 +5,12 @@
  * they're active, and the validation notices. Shared by the admin bootstrap and
  * the REST re-scan route so both see identical data.
  *
- * @package Agentomatic
+ * @package Agentimus
  */
 
-namespace Agentomatic\Discovery;
+namespace Agentimus\Discovery;
 
-use Agentomatic\Settings;
+use Agentimus\Settings;
 
 defined( 'ABSPATH' ) || exit;
 
@@ -59,7 +59,7 @@ final class Hub {
 				'agentCard' => home_url( '/.well-known/agent-card.json' ),
 				'agentJson' => home_url( '/.well-known/agent.json' ),
 				'mcp'       => home_url( '/.well-known/mcp.json' ),
-				'rest'      => rest_url( 'agentomatic/v1/discovery' ),
+				'rest'      => rest_url( 'agentimus/v1/discovery' ),
 			),
 			'site'         => $envelope['site'],
 			'resources'    => $rows,
@@ -114,7 +114,7 @@ final class Hub {
 	 */
 	private static function resource_row( $resource, array $suppressed = array() ) {
 		$provider = isset( $resource['provider']['plugin'] ) ? $resource['provider']['plugin'] : '';
-		$ours     = function_exists( 'plugin_basename' ) ? plugin_basename( AGENTOMATIC_FILE ) : 'agentomatic/agentomatic.php';
+		$ours     = function_exists( 'plugin_basename' ) ? plugin_basename( AGENTIMUS_FILE ) : 'agentimus/agentimus.php';
 		$auto     = ( '' !== $provider && $provider === $ours );
 		// Which built-in engine found an auto resource — so the UI can show
 		// "Found via the REST API / Abilities API" and link it to the engine status.
@@ -131,7 +131,7 @@ final class Hub {
 			'description'  => $resource['description'],
 			'version'      => $resource['version'],
 			'provider'     => $provider,
-			// True when Agentomatic's own adapter registered it (auto-discovery), not a third-party plugin declaring itself.
+			// True when Agentimus's own adapter registered it (auto-discovery), not a third-party plugin declaring itself.
 			'auto'         => $auto,
 			'engine'       => $engine,
 			// True when the owner has suppressed this Resource from served output.

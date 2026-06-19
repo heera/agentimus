@@ -9,12 +9,12 @@
  * registry — not a bespoke hook — ANY plugin that registers an ability becomes
  * discoverable with zero extra work. We advertise tools; we never execute them.
  *
- * @package Agentomatic
+ * @package Agentimus
  */
 
-namespace Agentomatic\Discovery\Adapters;
+namespace Agentimus\Discovery\Adapters;
 
-use Agentomatic\Discovery\Registry;
+use Agentimus\Discovery\Registry;
 
 defined( 'ABSPATH' ) || exit;
 
@@ -24,7 +24,7 @@ final class AbilitiesApi {
 	 * Hook the public registration action. Availability is checked at fire-time.
 	 */
 	public function register() {
-		add_action( AGENTOMATIC_CANONICAL_HOOK, array( $this, 'provide' ) );
+		add_action( AGENTIMUS_CANONICAL_HOOK, array( $this, 'provide' ) );
 	}
 
 	/**
@@ -78,7 +78,7 @@ final class AbilitiesApi {
 			 * @param string $name         Ability name (e.g. "core/get-site-info").
 			 * @param mixed  $ability      The ability object.
 			 */
-			if ( ! apply_filters( 'agentomatic_discoverable_ability', true, $name, $ability ) ) {
+			if ( ! apply_filters( 'agentimus_discoverable_ability', true, $name, $ability ) ) {
 				continue;
 			}
 
@@ -130,7 +130,7 @@ final class AbilitiesApi {
 			'title'        => ucfirst( $namespace ) . ' abilities',
 			'type'         => 'agent',
 			/* translators: 1: count, 2: namespace. */
-			'description'  => sprintf( _n( '%1$d ability from the "%2$s" namespace.', '%1$d abilities from the "%2$s" namespace.', count( $items ), 'agentomatic' ), count( $items ), $namespace ),
+			'description'  => sprintf( _n( '%1$d ability from the "%2$s" namespace.', '%1$d abilities from the "%2$s" namespace.', count( $items ), 'agentimus' ), count( $items ), $namespace ),
 			'abilities'    => $abilities,
 			'tools'        => $tools,
 			'agent'        => array(

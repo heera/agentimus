@@ -2,10 +2,10 @@
 /**
  * Plugin orchestrator — wires the modules together and owns shared services.
  *
- * @package Agentomatic
+ * @package Agentimus
  */
 
-namespace Agentomatic;
+namespace Agentimus;
 
 defined( 'ABSPATH' ) || exit;
 
@@ -44,7 +44,7 @@ final class Plugin {
 		// Figure out post-type vendor labels at runtime (no hardcoded plugin list).
 		// Only on our settings screen, so the per-registration backtrace cost is
 		// never paid on a normal page load.
-		if ( is_admin() && 'agentomatic' === ( isset( $_GET['page'] ) ? sanitize_key( wp_unslash( $_GET['page'] ) ) : '' ) ) { // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only admin screen check, no state change.
+		if ( is_admin() && 'agentimus' === ( isset( $_GET['page'] ) ? sanitize_key( wp_unslash( $_GET['page'] ) ) : '' ) ) { // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only admin screen check, no state change.
 			Content::watch_origins();
 		}
 
@@ -58,12 +58,12 @@ final class Plugin {
 		( new Activity\Module( $this->settings ) )->register();
 
 		/**
-		 * Fires after Agentomatic has booted. The seam a Pro add-on hooks to
+		 * Fires after Agentimus has booted. The seam a Pro add-on hooks to
 		 * register its own features against the shared Settings instance.
 		 *
 		 * @param Plugin $plugin The plugin instance.
 		 */
-		do_action( 'agentomatic_booted', $this );
+		do_action( 'agentimus_booted', $this );
 	}
 
 	/**
@@ -88,7 +88,7 @@ final class Plugin {
 
 	/**
 	 * Carry settings over from the pre-rename "Agent Ready" option key, so an
-	 * existing install keeps its configuration after the rename to Agentomatic.
+	 * existing install keeps its configuration after the rename to Agentimus.
 	 * One-time: runs only when the new key is absent.
 	 */
 	private static function migrate_legacy_option() {
@@ -111,10 +111,10 @@ final class Plugin {
 	 */
 	private static function seed_onboarding_state( $had_settings ) {
 		if ( $had_settings ) {
-			add_option( 'agentomatic_onboarded', AGENTOMATIC_VERSION ); // No-op if already present.
+			add_option( 'agentimus_onboarded', AGENTIMUS_VERSION ); // No-op if already present.
 			return;
 		}
-		set_transient( 'agentomatic_activation_redirect', 1, 30 );
+		set_transient( 'agentimus_activation_redirect', 1, 30 );
 	}
 
 	/**
@@ -124,7 +124,7 @@ final class Plugin {
 	public static function deactivate() {
 		Cache::flush();
 		Activity\Module::unschedule();
-		wp_clear_scheduled_hook( 'agentomatic_warm_llms_full' );
+		wp_clear_scheduled_hook( 'agentimus_warm_llms_full' );
 		flush_rewrite_rules();
 	}
 }

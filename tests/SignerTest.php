@@ -7,13 +7,13 @@
  * actually verifies against that published key (RFC 9421 base reconstructed from
  * the emitted headers).
  *
- * @package Agentomatic\Tests
+ * @package Agentimus\Tests
  */
 
-namespace Agentomatic\Tests;
+namespace Agentimus\Tests;
 
-use Agentomatic\Discovery\Signer;
-use Agentomatic\Settings;
+use Agentimus\Discovery\Signer;
+use Agentimus\Settings;
 use PHPUnit\Framework\TestCase;
 
 final class SignerTest extends TestCase {

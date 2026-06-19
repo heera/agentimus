@@ -12,12 +12,12 @@
  * left entirely alone and falls through to WordPress's normal handling/404 — so
  * we never hijack a namespace we don't own.
  *
- * @package Agentomatic
+ * @package Agentimus
  */
 
-namespace Agentomatic\Discovery;
+namespace Agentimus\Discovery;
 
-use Agentomatic\Settings;
+use Agentimus\Settings;
 
 defined( 'ABSPATH' ) || exit;
 
@@ -68,7 +68,7 @@ final class WellKnown {
 		// harmful: with our rewrite tag set but no body produced, WordPress's
 		// canonical redirect resolves it to the homepage (a 200, not a 404). So
 		// security.txt etc. are intentionally absent — a provider that serves one
-		// adds its name here via the `agentomatic_well_known_routed` filter.
+		// adds its name here via the `agentimus_well_known_routed` filter.
 		$names = array( 'discovery.json', 'agent-card.json', 'agent.json', 'mcp.json', 'api-catalog', 'oauth-protected-resource', Signer::DIRECTORY );
 
 		/**
@@ -76,7 +76,7 @@ final class WellKnown {
 		 *
 		 * @param string[] $names Doc names (no leading slash).
 		 */
-		return array_values( array_unique( (array) apply_filters( 'agentomatic_well_known_routed', $names ) ) );
+		return array_values( array_unique( (array) apply_filters( 'agentimus_well_known_routed', $names ) ) );
 	}
 
 	/**
@@ -95,7 +95,7 @@ final class WellKnown {
 		 *
 		 * @param string[] $names Nested doc paths (no leading slash).
 		 */
-		return array_values( array_unique( (array) apply_filters( 'agentomatic_well_known_nested', $names ) ) );
+		return array_values( array_unique( (array) apply_filters( 'agentimus_well_known_nested', $names ) ) );
 	}
 
 	/**
@@ -167,8 +167,8 @@ final class WellKnown {
 		// gated off) falls through to a clean 404.
 		if ( false !== strpos( $name, '/' ) ) {
 			if ( in_array( $name, self::nested_routes(), true ) ) {
-				$nested_file = \Agentomatic\Paths::site_root() . '.well-known/' . $name;
-				if ( is_file( $nested_file ) && 0 === strpos( wp_normalize_path( (string) realpath( $nested_file ) ), wp_normalize_path( \Agentomatic\Paths::site_root() . '.well-known/' ) ) ) {
+				$nested_file = \Agentimus\Paths::site_root() . '.well-known/' . $name;
+				if ( is_file( $nested_file ) && 0 === strpos( wp_normalize_path( (string) realpath( $nested_file ) ), wp_normalize_path( \Agentimus\Paths::site_root() . '.well-known/' ) ) ) {
 					$this->stream( $nested_file );
 				}
 				$this->registry->collect();
@@ -179,8 +179,8 @@ final class WellKnown {
 		}
 
 		// 1. Real file on disk wins. If the server didn't serve it, stream it.
-		$file = \Agentomatic\Paths::site_root() . '.well-known/' . $name;
-		if ( is_file( $file ) && 0 === strpos( wp_normalize_path( realpath( $file ) ), wp_normalize_path( \Agentomatic\Paths::site_root() . '.well-known/' ) ) ) {
+		$file = \Agentimus\Paths::site_root() . '.well-known/' . $name;
+		if ( is_file( $file ) && 0 === strpos( wp_normalize_path( realpath( $file ) ), wp_normalize_path( \Agentimus\Paths::site_root() . '.well-known/' ) ) ) {
 			$this->stream( $file );
 		}
 
@@ -302,7 +302,7 @@ final class WellKnown {
 	 */
 	private function send( $body, $content_type, $label = '' ) {
 		if ( '' !== $label ) {
-			\Agentomatic\Activity\Recorder::record( $label );
+			\Agentimus\Activity\Recorder::record( $label );
 		}
 		if ( ! headers_sent() ) {
 			status_header( 200 );
@@ -337,7 +337,7 @@ final class WellKnown {
 	 * @return string[]
 	 */
 	private function signed_surfaces() {
-		return (array) apply_filters( 'agentomatic_signed_surfaces', array( 'discovery.json', 'agent-card.json', 'agent.json', 'mcp.json' ) );
+		return (array) apply_filters( 'agentimus_signed_surfaces', array( 'discovery.json', 'agent-card.json', 'agent.json', 'mcp.json' ) );
 	}
 
 	/**

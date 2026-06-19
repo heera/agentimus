@@ -3,10 +3,10 @@
  * Classify a raw User-Agent string into a friendly agent label, so the activity
  * dashboard reads "Claude", "GPTBot", "Perplexity" rather than raw UA noise.
  *
- * @package Agentomatic
+ * @package Agentimus
  */
 
-namespace Agentomatic\Activity;
+namespace Agentimus\Activity;
 
 defined( 'ABSPATH' ) || exit;
 
@@ -49,7 +49,7 @@ final class Classifier {
 		 *
 		 * @param array<string,string> $map Token => label.
 		 */
-		return (array) apply_filters( 'agentomatic_agent_map', $map );
+		return (array) apply_filters( 'agentimus_agent_map', $map );
 	}
 
 	/**

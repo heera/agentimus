@@ -8,12 +8,12 @@
  * discovery/agent serve paths (low-frequency), so a single INSERT per hit is
  * negligible.
  *
- * @package Agentomatic
+ * @package Agentimus
  */
 
-namespace Agentomatic\Activity;
+namespace Agentimus\Activity;
 
-use Agentomatic\Settings;
+use Agentimus\Settings;
 
 defined( 'ABSPATH' ) || exit;
 
@@ -40,7 +40,7 @@ final class Recorder {
 		 *
 		 * @param bool $skip Whether to skip this request. Default true for admins.
 		 */
-		if ( apply_filters( 'agentomatic_activity_skip_self', is_user_logged_in() && current_user_can( 'manage_options' ) ) ) {
+		if ( apply_filters( 'agentimus_activity_skip_self', is_user_logged_in() && current_user_can( 'manage_options' ) ) ) {
 			return;
 		}
 

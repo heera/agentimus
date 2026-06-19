@@ -10,12 +10,12 @@
  * path — delegates to Settings::default_post_types() and is verified live on a
  * real multi-type site.)
  *
- * @package Agentomatic\Tests
+ * @package Agentimus\Tests
  */
 
-namespace Agentomatic\Tests;
+namespace Agentimus\Tests;
 
-use Agentomatic\Settings;
+use Agentimus\Settings;
 use PHPUnit\Framework\TestCase;
 
 final class SettingsDefaultsTest extends TestCase {

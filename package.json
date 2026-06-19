@@ -1,8 +1,8 @@
 {
-  "name": "agentomatic",
+  "name": "agentimus",
   "version": "1.0.0",
   "private": true,
-  "description": "Vue 3 admin app for the Agentomatic WordPress plugin.",
+  "description": "Vue 3 admin app for the Agentimus WordPress plugin.",
   "type": "module",
   "scripts": {
     "dev": "vite build --watch",

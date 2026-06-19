@@ -2,12 +2,12 @@
 /**
  * Resource — the registration validator/normalizer (spec §04).
  *
- * @package Agentomatic\Tests
+ * @package Agentimus\Tests
  */
 
-namespace Agentomatic\Tests;
+namespace Agentimus\Tests;
 
-use Agentomatic\Discovery\Resource;
+use Agentimus\Discovery\Resource;
 use PHPUnit\Framework\TestCase;
 use WP_Error;
 
@@ -54,7 +54,7 @@ final class ResourceTest extends TestCase {
 
 	public function test_provider_is_auto_attributed_and_overwrites_author_value() {
 		$r = Resource::normalize( array( 'id' => 'a', 'title' => 'A', 'type' => 'commerce', 'provider' => array( 'plugin' => 'evil/evil.php' ) ) );
-		$this->assertSame( 'agentomatic/agentomatic.php', $r['provider']['plugin'] );
+		$this->assertSame( 'agentimus/agentimus.php', $r['provider']['plugin'] );
 	}
 
 	public function test_capabilities_are_preserved_as_list() {

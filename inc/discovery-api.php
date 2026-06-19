@@ -3,7 +3,7 @@
  * Public global facade for the discovery standard.
  *
  * This file is required eagerly (not via the namespaced autoloader) so the
- * `Agentomatic_Discovery` class name is available to third-party plugins regardless of
+ * `Agentimus_Discovery` class name is available to third-party plugins regardless of
  * load order. It is a thin, dependency-free queue: calls made before the
  * registry has run are buffered and drained during collection, so authors can
  * register from anywhere without worrying about timing.
@@ -17,22 +17,22 @@
  *   } );
  *
  *   // 2. The facade — guard with class_exists() since the call is direct.
- *   if ( class_exists( 'Agentomatic_Discovery' ) ) {
- *       Agentomatic_Discovery::register( [ 'id' => 'acme', 'title' => 'Acme', 'type' => 'commerce' ] );
+ *   if ( class_exists( 'Agentimus_Discovery' ) ) {
+ *       Agentimus_Discovery::register( [ 'id' => 'acme', 'title' => 'Acme', 'type' => 'commerce' ] );
  *   }
  *
- * @package Agentomatic
+ * @package Agentimus
  */
 
 defined( 'ABSPATH' ) || exit;
 
-if ( ! class_exists( 'Agentomatic_Discovery' ) ) {
+if ( ! class_exists( 'Agentimus_Discovery' ) ) {
 
 	/**
-	 * Convenience facade over the Agentomatic discovery registry. Named without
+	 * Convenience facade over the Agentimus discovery registry. Named without
 	 * the reserved `WP_` prefix so it cannot collide with a future core class.
 	 */
-	final class Agentomatic_Discovery {
+	final class Agentimus_Discovery {
 
 		/** @var array<int,array> Buffered registrations awaiting collection. */
 		private static $queue = array();

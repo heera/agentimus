@@ -1,20 +1,20 @@
 /* ============================================================================
-   Agentomatic — admin UI
+   Agentimus — admin UI
    Aesthetic: "technical broadsheet". Warm paper, dark ink masthead, editorial
-   serif headings + monospace data. Scoped under #agentomatic-app so nothing
+   serif headings + monospace data. Scoped under #agentimus-app so nothing
    leaks into wp-admin. No external fonts (wordpress.org rule); system stacks.
    ========================================================================= */
 
 /* Page-level: make our admin screen full-bleed. This file loads only on the
-   Agentomatic page, so these wp-admin overrides never touch other screens. */
+   Agentimus page, so these wp-admin overrides never touch other screens. */
 #wpcontent { padding-left: 0; }
 .wrap { margin: 0; }
 
-/* Design tokens — defined globally rather than only on #agentomatic-app. Custom
+/* Design tokens — defined globally rather than only on #agentimus-app. Custom
    properties are inert (they paint nothing until a property references them),
    so this leaks no visuals into wp-admin, but it DOES let UI we Teleport to
    <body> (toasts, the reset modal) read the same tokens. Visual rules below
-   stay scoped to .ar-* / #agentomatic-app. */
+   stay scoped to .ar-* / #agentimus-app. */
 :root {
   /* Type */
   --ar-serif: "Iowan Old Style", "Palatino Linotype", Palatino, "Book Antiqua", Georgia, serif;
@@ -40,7 +40,7 @@
   --ar-radius: 4px;
 }
 
-#agentomatic-app {
+#agentimus-app {
 
   /* Full-bleed: wp-admin's content padding is neutralized below, so the app
      fills the admin body edge-to-edge with no left/right gap. Transparent so it
@@ -53,10 +53,10 @@
   line-height: 1.5;
   background: transparent;
 }
-#agentomatic-app * { box-sizing: border-box; }
+#agentimus-app * { box-sizing: border-box; }
 /* Breathing room when a dashboard tile scrolls a section to the top. */
-#agentomatic-app [id^="ar-wd-"] { scroll-margin-top: 16px; }
-#agentomatic-app code { font-family: var(--ar-mono); font-size: 0.86em; }
+#agentimus-app [id^="ar-wd-"] { scroll-margin-top: 16px; }
+#agentimus-app code { font-family: var(--ar-mono); font-size: 0.86em; }
 
 /* ---- Header bar (brand · tabs · gauge in one slim row) ------------------ */
 .ar__bar {
@@ -221,7 +221,7 @@
 .ar-rail-card--readiness .ar-rail-link:hover { color: #6fc7b8; }
 
 /* ---- Toast (teleported to <body>, so no UI shift & viewport-fixed) ------- */
-/* Self-contained: it lives outside #agentomatic-app, so it can't rely on the CSS
+/* Self-contained: it lives outside #agentimus-app, so it can't rely on the CSS
    variables defined there — radius/font are hardcoded. */
 .ar-toast {
   position: fixed;
@@ -829,7 +829,7 @@ select.ar-input {
 .ar-wd-group .ar-wd-list { margin-top: 10px; }
 
 /* Inline engine status under the "Found automatically" header: which places
-   Agentomatic scanned, each with a ✓/✕. Always visible, even when rows collapse. */
+   Agentimus scanned, each with a ✓/✕. Always visible, even when rows collapse. */
 .ar-wd-engines {
   display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px;
   margin: 8px 0 0; font-size: 12px; color: var(--ar-ink-soft);

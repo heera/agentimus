@@ -4,12 +4,12 @@
  * advertising Link header, and a CI-friendly validation endpoint. This is the
  * single seam Plugin::boot() turns on.
  *
- * @package Agentomatic
+ * @package Agentimus
  */
 
-namespace Agentomatic\Discovery;
+namespace Agentimus\Discovery;
 
-use Agentomatic\Settings;
+use Agentimus\Settings;
 
 defined( 'ABSPATH' ) || exit;
 
@@ -69,27 +69,27 @@ final class Module {
 
 	/**
 	 * Read-only REST surface:
-	 *   GET /wp-json/agentomatic/v1/discovery  → the live envelope
-	 *   GET /wp-json/agentomatic/v1/validate   → validation notices for CI
+	 *   GET /wp-json/agentimus/v1/discovery  → the live envelope
+	 *   GET /wp-json/agentimus/v1/validate   → validation notices for CI
 	 */
 	public function rest_routes() {
 		$envelope = new Envelope( $this->settings, $this->registry );
 
 		register_rest_route(
-			'agentomatic/v1',
+			'agentimus/v1',
 			'/discovery',
 			array(
 				'methods'             => 'GET',
 				'permission_callback' => '__return_true',
 				'callback'            => function () use ( $envelope ) {
-					\Agentomatic\Activity\Recorder::record( 'rest:discovery' );
+					\Agentimus\Activity\Recorder::record( 'rest:discovery' );
 					return rest_ensure_response( $envelope->build() );
 				},
 			)
 		);
 
 		register_rest_route(
-			'agentomatic/v1',
+			'agentimus/v1',
 			'/discovery/hub',
 			array(
 				'methods'             => 'GET',
@@ -103,7 +103,7 @@ final class Module {
 		);
 
 		register_rest_route(
-			'agentomatic/v1',
+			'agentimus/v1',
 			'/validate',
 			array(
 				'methods'             => 'GET',

@@ -96,7 +96,7 @@ export default {
       <ul class="ar-links ar-wd-altlinks">
         <li><a :href="endpoints.agentCard" target="_blank" rel="noopener">agent-card.json</a></li>
         <li><a :href="endpoints.agentJson" target="_blank" rel="noopener">agent.json (alias)</a></li>
-        <li><a :href="endpoints.rest" target="_blank" rel="noopener">REST: /agentomatic/v1/discovery</a></li>
+        <li><a :href="endpoints.rest" target="_blank" rel="noopener">REST: /agentimus/v1/discovery</a></li>
       </ul>
 
       <div class="ar-wd-stats">
@@ -133,11 +133,11 @@ export default {
       <h2 class="ar-card__title">Registered providers</h2>
       <p class="ar-card__lead">
         Everything this site tells AI agents about itself. Two sources: things <strong>provided by your
-        plugins</strong>, and things Agentomatic <strong>found automatically</strong> by scanning the site.
+        plugins</strong>, and things Agentimus <strong>found automatically</strong> by scanning the site.
       </p>
 
       <p v-if="!resources.length" class="ar-wd-empty">
-        Nothing registered yet. Agentomatic will populate this automatically as it scans your site, and any
+        Nothing registered yet. Agentimus will populate this automatically as it scans your site, and any
         WP_Discovery-aware plugin you install will add to it.
       </p>
 
@@ -152,7 +152,7 @@ export default {
           </ul>
         </div>
 
-        <!-- Found automatically — Agentomatic's own scan, with engine status inline. -->
+        <!-- Found automatically — Agentimus's own scan, with engine status inline. -->
         <div v-if="autoDiscovered.length" class="ar-wd-group">
           <button
             type="button"
@@ -161,11 +161,11 @@ export default {
             @click="showAuto = !showAuto"
           >
             <span class="ar-wd-group__caret" :class="{ 'is-open': showAuto }" aria-hidden="true">▸</span>
-            Found automatically by Agentomatic
+            Found automatically by Agentimus
             <span class="ar-wd-group__count">{{ autoDiscovered.length }}</span>
           </button>
           <p v-if="engineChips.length" class="ar-wd-engines">
-            Agentomatic checked:
+            Agentimus checked:
             <span
               v-for="e in engineChips"
               :key="e.label"

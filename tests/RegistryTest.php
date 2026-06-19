@@ -2,12 +2,12 @@
 /**
  * Registry — the collector providers register with (spec §04).
  *
- * @package Agentomatic\Tests
+ * @package Agentimus\Tests
  */
 
-namespace Agentomatic\Tests;
+namespace Agentimus\Tests;
 
-use Agentomatic\Discovery\Registry;
+use Agentimus\Discovery\Registry;
 use PHPUnit\Framework\TestCase;
 use WP_Error;
 

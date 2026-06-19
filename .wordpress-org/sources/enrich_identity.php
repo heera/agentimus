@@ -1,8 +1,8 @@
 <?php
 // Temporarily enrich the local identity so screenshots look complete.
 // Backs up the current option first; restore_identity.php puts it back.
-$opt = get_option( 'agentomatic_settings', array() );
-file_put_contents( '/tmp/agentomatic-settings-backup.json', wp_json_encode( $opt ) );
+$opt = get_option( 'agentimus_settings', array() );
+file_put_contents( '/tmp/agentimus-settings-backup.json', wp_json_encode( $opt ) );
 
 if ( ! isset( $opt['identity'] ) || ! is_array( $opt['identity'] ) ) {
 	$opt['identity'] = array();
@@ -13,5 +13,5 @@ $opt['identity']['about']     = 'Sheikh Heera is a software architect and CTO of
 $opt['identity']['expertise'] = array( 'Software Architecture', 'AI Engineering', 'Security', 'PHP', 'JavaScript', 'WordPress', 'Laravel', 'Vue', 'Fragrance' );
 $opt['identity']['same_as']   = array( 'https://github.com/heera', 'https://heera.it' );
 
-update_option( 'agentomatic_settings', $opt );
-echo "enriched (backup at /tmp/agentomatic-settings-backup.json)\n";
+update_option( 'agentimus_settings', $opt );
+echo "enriched (backup at /tmp/agentimus-settings-backup.json)\n";

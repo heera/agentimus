@@ -6,14 +6,14 @@
  * per-endpoint auth precedence (M11), deduplicated capabilities (M7), agent
  * derivation, and that the MCP/tools surface is kept OUT of the core.
  *
- * @package Agentomatic\Tests
+ * @package Agentimus\Tests
  */
 
-namespace Agentomatic\Tests;
+namespace Agentimus\Tests;
 
-use Agentomatic\Discovery\Envelope;
-use Agentomatic\Discovery\Registry;
-use Agentomatic\Settings;
+use Agentimus\Discovery\Envelope;
+use Agentimus\Discovery\Registry;
+use Agentimus\Settings;
 use PHPUnit\Framework\TestCase;
 
 final class EnvelopeTest extends TestCase {

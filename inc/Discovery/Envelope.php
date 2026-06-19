@@ -5,13 +5,13 @@
  * A2A `agent-card.json`. Nothing here is hand-maintained; every section is a
  * projection of the registry + site identity, cached for an hour.
  *
- * @package Agentomatic
+ * @package Agentimus
  */
 
-namespace Agentomatic\Discovery;
+namespace Agentimus\Discovery;
 
-use Agentomatic\Cache;
-use Agentomatic\Settings;
+use Agentimus\Cache;
+use Agentimus\Settings;
 
 defined( 'ABSPATH' ) || exit;
 
@@ -22,7 +22,7 @@ final class Envelope {
 	 * semver. A consumer selects its parser on this exact string (spec §02), so it
 	 * stays "1.0" for the life of the 1.x wire format; additive, backward-compatible
 	 * changes do not bump it. The plugin's own release version is separate (see the
-	 * header in agentomatic.php).
+	 * header in agentimus.php).
 	 */
 	const SPEC_VERSION = '1.0';
 
@@ -30,7 +30,7 @@ final class Envelope {
 	 * Home of the JSON Schema. A `$schema` is fundamentally an identifier, so it
 	 * lives on a domain we actually control and that resolves; the bytes can be
 	 * served from anywhere (GitHub Pages on the spec repo, a CNAME, the WP host).
-	 * Per-site overridable via the `agentomatic_schema_url` filter, so a
+	 * Per-site overridable via the `agentimus_schema_url` filter, so a
 	 * vendor-neutral home can replace this with no release once one is registered.
 	 */
 	const SCHEMA_BASE = 'https://heera.github.io/wp-discovery-protocol/schemas';
@@ -168,7 +168,7 @@ final class Envelope {
 		// they are served at /.well-known/mcp.json (linked from `well_known`) so they
 		// can track the still-unsettled MCP discovery proposal without a wire bump.
 		// A consumer needing extras inline can add `x-`-prefixed keys via the
-		// `agentomatic_envelope` filter; the unprefixed namespace is the spec's.
+		// `agentimus_envelope` filter; the unprefixed namespace is the spec's.
 		$envelope = array(
 			/**
 			 * The JSON Schema URL. Filter to point at a different (e.g. GitHub-
@@ -176,7 +176,7 @@ final class Envelope {
 			 *
 			 * @param string $url Schema URL.
 			 */
-			'$schema'      => apply_filters( 'agentomatic_schema_url', self::SCHEMA_BASE . '/discovery/' . self::SPEC_VERSION . '/discovery.schema.json' ),
+			'$schema'      => apply_filters( 'agentimus_schema_url', self::SCHEMA_BASE . '/discovery/' . self::SPEC_VERSION . '/discovery.schema.json' ),
 			'spec_version' => self::SPEC_VERSION,
 			'site'         => $this->site(),
 			'identity'     => $this->identity(),
@@ -196,7 +196,7 @@ final class Envelope {
 		 * @param array    $envelope  The envelope.
 		 * @param Registry $registry  The collector.
 		 */
-		return apply_filters( 'agentomatic_envelope', $envelope, $this->registry );
+		return apply_filters( 'agentimus_envelope', $envelope, $this->registry );
 	}
 
 	/**
@@ -289,10 +289,10 @@ final class Envelope {
 		if ( $this->settings->enabled( 'enable_llms_full' ) ) {
 			$docs['llms_full'] = home_url( '/llms-full.txt' );
 		}
-		if ( file_exists( \Agentomatic\Paths::site_root() . 'humans.txt' ) ) {
+		if ( file_exists( \Agentimus\Paths::site_root() . 'humans.txt' ) ) {
 			$docs['humans'] = home_url( '/humans.txt' );
 		}
-		if ( file_exists( \Agentomatic\Paths::site_root() . '.well-known/security.txt' ) || isset( $this->registry->well_known()['security.txt'] ) ) {
+		if ( file_exists( \Agentimus\Paths::site_root() . '.well-known/security.txt' ) || isset( $this->registry->well_known()['security.txt'] ) ) {
 			$docs['security'] = home_url( '/.well-known/security.txt' );
 		}
 
@@ -300,7 +300,7 @@ final class Envelope {
 		 * Filter the discovery `documents` map. Add a standard document the plugin
 		 * can't auto-detect — e.g. an OpenAPI description or a web-app manifest:
 		 *
-		 *     add_filter( 'agentomatic_documents', function ( $docs ) {
+		 *     add_filter( 'agentimus_documents', function ( $docs ) {
 		 *         $docs['openapi'] = home_url( '/wp-json/myplugin/v1/openapi.json' );
 		 *         return $docs;
 		 *     } );
@@ -310,7 +310,7 @@ final class Envelope {
 		 * @param array    $docs     name => URL.
 		 * @param Registry $registry The collector.
 		 */
-		$docs = (array) apply_filters( 'agentomatic_documents', $docs, $this->registry );
+		$docs = (array) apply_filters( 'agentimus_documents', $docs, $this->registry );
 
 		return array_filter( $docs );
 	}
@@ -346,7 +346,7 @@ final class Envelope {
 		}
 
 		// 3. Real files on disk (authoritative — server serves these directly).
-		$dir = \Agentomatic\Paths::site_root() . '.well-known/';
+		$dir = \Agentimus\Paths::site_root() . '.well-known/';
 		if ( is_dir( $dir ) ) {
 			foreach ( (array) glob( $dir . '*' ) as $path ) {
 				if ( is_file( $path ) ) {
@@ -420,7 +420,7 @@ final class Envelope {
 		 *
 		 * @param array<string,string> $specs name => spec label.
 		 */
-		return (array) apply_filters( 'agentomatic_well_known_specs', $specs );
+		return (array) apply_filters( 'agentimus_well_known_specs', $specs );
 	}
 
 	/**
@@ -590,7 +590,7 @@ final class Envelope {
 		 * @param array   $mcp       The descriptor.
 		 * @param array[] $resources Collected resources.
 		 */
-		return (array) apply_filters( 'agentomatic_mcp', $mcp, $resources );
+		return (array) apply_filters( 'agentimus_mcp', $mcp, $resources );
 	}
 
 	/**
@@ -763,7 +763,7 @@ final class Envelope {
 		 * @param array[] $skills    Skill entries.
 		 * @param array[] $resources Collected resources.
 		 */
-		$skills = (array) apply_filters( 'agentomatic_agent_skills', $skills, $resources );
+		$skills = (array) apply_filters( 'agentimus_agent_skills', $skills, $resources );
 		if ( empty( $skills ) ) {
 			return '';
 		}
@@ -811,7 +811,7 @@ final class Envelope {
 			$trust['signature_alg'] = 'ed25519';
 			$trust['jwks_uri']      = $signer->directory_url();
 		}
-		if ( file_exists( \Agentomatic\Paths::site_root() . '.well-known/security.txt' ) || isset( $this->registry->well_known()['security.txt'] ) ) {
+		if ( file_exists( \Agentimus\Paths::site_root() . '.well-known/security.txt' ) || isset( $this->registry->well_known()['security.txt'] ) ) {
 			$trust['security_txt'] = home_url( '/.well-known/security.txt' );
 		}
 		$policy = get_privacy_policy_url();
@@ -869,7 +869,7 @@ final class Envelope {
 	 * @return string Absolute URL, or '' if not served here.
 	 */
 	private function well_known_if_present( $name ) {
-		if ( file_exists( \Agentomatic\Paths::site_root() . '.well-known/' . $name ) || isset( $this->registry->well_known()[ $name ] ) ) {
+		if ( file_exists( \Agentimus\Paths::site_root() . '.well-known/' . $name ) || isset( $this->registry->well_known()[ $name ] ) ) {
 			return home_url( '/.well-known/' . $name );
 		}
 		return '';
@@ -887,7 +887,7 @@ final class Envelope {
 	 */
 	private function oauth_prm_url() {
 		$served = '' !== trim( (string) $this->settings->get( 'oauth_auth_server', '' ) )
-			|| file_exists( \Agentomatic\Paths::site_root() . '.well-known/oauth-protected-resource' )
+			|| file_exists( \Agentimus\Paths::site_root() . '.well-known/oauth-protected-resource' )
 			|| isset( $this->registry->well_known()['oauth-protected-resource'] );
 		return $served ? home_url( '/.well-known/oauth-protected-resource' ) : '';
 	}
@@ -929,6 +929,6 @@ final class Envelope {
 	 * @return string
 	 */
 	private function sitemap_url() {
-		return \Agentomatic\Sitemap::url();
+		return \Agentimus\Sitemap::url();
 	}
 }

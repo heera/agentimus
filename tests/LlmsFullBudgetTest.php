@@ -9,13 +9,13 @@
  * against a real multi-type site (curl /llms-full.txt with a tiny budget); they
  * need the post + markdown stack and aren't unit-isolated here.
  *
- * @package Agentomatic\Tests
+ * @package Agentimus\Tests
  */
 
-namespace Agentomatic\Tests;
+namespace Agentimus\Tests;
 
-use Agentomatic\Endpoints;
-use Agentomatic\Settings;
+use Agentimus\Endpoints;
+use Agentimus\Settings;
 use PHPUnit\Framework\TestCase;
 
 final class LlmsFullBudgetTest extends TestCase {

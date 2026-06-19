@@ -1,19 +1,19 @@
 <?php
 /**
- * Agentomatic — example integration for plugin authors.
+ * Agentimus — example integration for plugin authors.
  *
  * Drop the snippet below into your own plugin to make it discoverable. There is
  * NO dependency and NO library to load: if no WP_Discovery engine (such as
- * Agentomatic) is active, the `wpdiscovery_register` action simply never fires, so
+ * Agentimus) is active, the `wpdiscovery_register` action simply never fires, so
  * the code is inert.
  *
  * Your plugin is then aggregated into the site's /.well-known/discovery.json
  * (and agent-card.json / mcp.json), so an AI agent learns what your plugin does
  * and how to reach it — without ever knowing your plugin exists.
  *
- * This file is documentation only; it is not loaded by Agentomatic.
+ * This file is documentation only; it is not loaded by Agentimus.
  *
- * @package Agentomatic\Examples
+ * @package Agentimus\Examples
  */
 
 defined( 'ABSPATH' ) || exit;
@@ -126,12 +126,12 @@ add_action(
 /* -------------------------------------------------------------------------- *
  *  4. Facade alternative — a direct-call convenience (guard it, since the call
  *     is direct). The `wpdiscovery_register` hook above is the vendor-neutral
- *     path; this facade class is implementation-specific (Agentomatic ships
- *     `Agentomatic_Discovery`).
+ *     path; this facade class is implementation-specific (Agentimus ships
+ *     `Agentimus_Discovery`).
  * -------------------------------------------------------------------------- */
 
-if ( class_exists( 'Agentomatic_Discovery' ) ) {
-	Agentomatic_Discovery::register(
+if ( class_exists( 'Agentimus_Discovery' ) ) {
+	Agentimus_Discovery::register(
 		array(
 			'id'    => 'acme-bookings',
 			'title' => 'Acme Bookings',
@@ -187,13 +187,13 @@ add_action(
 
 /* -------------------------------------------------------------------------- *
  *  6. Customization filters (site owners / companion plugins) — these tune
- *     Agentomatic's own output, independent of registering a resource above.
+ *     Agentimus's own output, independent of registering a resource above.
  * -------------------------------------------------------------------------- */
 
 // Offer extra schema.org entity types in Settings -> Identity.
 // (Person, Organization, LocalBusiness and Store ship by default.)
 add_filter(
-	'agentomatic_entity_types',
+	'agentimus_entity_types',
 	function ( $types ) {
 		$types[] = 'Restaurant';
 		$types[] = 'EducationalOrganization';
@@ -201,10 +201,10 @@ add_filter(
 	}
 );
 
-// Purge your CDN / page cache whenever Agentomatic regenerates its documents
+// Purge your CDN / page cache whenever Agentimus regenerates its documents
 // (llms.txt, discovery.json, ...). Fires once per flush, debounced.
 add_action(
-	'agentomatic_cache_flushed',
+	'agentimus_cache_flushed',
 	function () {
 		// my_cdn_purge( array( '/llms.txt', '/llms-full.txt', '/.well-known/discovery.json' ) );
 	}

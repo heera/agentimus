@@ -1,29 +1,29 @@
 <?php
 /**
  * Sitemap detection — the single source of truth for *which* XML sitemap this
- * site serves and *who* owns it. Agentomatic never generates a competing sitemap;
+ * site serves and *who* owns it. Agentimus never generates a competing sitemap;
  * it detects the existing one (WordPress core or a major SEO plugin) and links
  * it from robots.txt, llms.txt and the discovery document.
  *
  * Detection mirrors Schema::seo_plugin_active() so the two stay in lockstep.
  *
- * @package Agentomatic
+ * @package Agentimus
  */
 
-namespace Agentomatic;
+namespace Agentimus;
 
 defined( 'ABSPATH' ) || exit;
 
 final class Sitemap {
 
-	/** Where the Agentomatic-generated fallback sitemap is served. */
-	const PATH = '/agentomatic-sitemap.xml';
+	/** Where the Agentimus-generated fallback sitemap is served. */
+	const PATH = '/agentimus-sitemap.xml';
 
 	/**
 	 * Resolve the live sitemap, in priority order:
 	 *   1. WordPress core sitemaps (on by default since 5.5).
 	 *   2. A known SEO plugin (which would have disabled core).
-	 *   3. Agentomatic's own generator — but ONLY if the owner opted in AND neither
+	 *   3. Agentimus's own generator — but ONLY if the owner opted in AND neither
 	 *      of the above provides one, so we never emit a duplicate.
 	 *
 	 * When nothing provides one, `url` is an empty string — callers must treat
@@ -39,7 +39,7 @@ final class Sitemap {
 				return array(
 					'url'    => home_url( '/wp-sitemap.xml' ),
 					'source' => 'core',
-					'label'  => __( 'WordPress core', 'agentomatic' ),
+					'label'  => __( 'WordPress core', 'agentimus' ),
 				);
 			}
 		}
@@ -55,12 +55,12 @@ final class Sitemap {
 			}
 		}
 
-		// 3. Agentomatic's opt-in fallback — fills the gap when nobody else does.
+		// 3. Agentimus's opt-in fallback — fills the gap when nobody else does.
 		if ( ( new Settings() )->enabled( 'enable_sitemap' ) ) {
 			return array(
 				'url'    => home_url( self::PATH ),
-				'source' => 'agentomatic',
-				'label'  => __( 'Agentomatic', 'agentomatic' ),
+				'source' => 'agentimus',
+				'label'  => __( 'Agentimus', 'agentimus' ),
 			);
 		}
 
@@ -72,12 +72,12 @@ final class Sitemap {
 		);
 
 		/**
-		 * Filter the detected sitemap (lets an add-on declare one Agentomatic can't
+		 * Filter the detected sitemap (lets an add-on declare one Agentimus can't
 		 * see, e.g. a less common plugin or a hand-rolled file).
 		 *
 		 * @param array $none The "no sitemap" result.
 		 */
-		return apply_filters( 'agentomatic_sitemap', $none );
+		return apply_filters( 'agentimus_sitemap', $none );
 	}
 
 	/* ---------------------------------------------------------------------- *
@@ -89,12 +89,12 @@ final class Sitemap {
 
 	/**
 	 * Render the document for a sitemap request path, or '' if the path is not a
-	 * valid Agentomatic sitemap (so the caller can 404 it). Results are cached for
+	 * valid Agentimus sitemap (so the caller can 404 it). Results are cached for
 	 * an hour, namespaced by a generation token that Cache::flush() resets on
 	 * any content change.
 	 *
-	 * @param string $path Request path, e.g. '/agentomatic-sitemap.xml' or
-	 *                     '/agentomatic-sitemap-post-2.xml'.
+	 * @param string $path Request path, e.g. '/agentimus-sitemap.xml' or
+	 *                     '/agentimus-sitemap-post-2.xml'.
 	 * @return string
 	 */
 	public static function body( $path ) {
@@ -102,9 +102,9 @@ final class Sitemap {
 			return self::cached( $path, array( __CLASS__, 'index_xml' ) );
 		}
 
-		// /agentomatic-sitemap-{type}-{page}.xml — {type} may contain hyphens, so
+		// /agentimus-sitemap-{type}-{page}.xml — {type} may contain hyphens, so
 		// anchor on the trailing -{digits}.xml and treat the rest as the type.
-		if ( preg_match( '#^/agentomatic-sitemap-(.+)-(\d+)\.xml$#', $path, $m ) ) {
+		if ( preg_match( '#^/agentimus-sitemap-(.+)-(\d+)\.xml$#', $path, $m ) ) {
 			$type = $m[1];
 			$page = (int) $m[2];
 			if ( $page < 1 || ! in_array( $type, Content::post_types(), true ) ) {
@@ -217,12 +217,12 @@ final class Sitemap {
 
 	/** Sub-sitemap path for a type + page. */
 	private static function sub_path( $type, $page ) {
-		return '/agentomatic-sitemap-' . $type . '-' . (int) $page . '.xml';
+		return '/agentimus-sitemap-' . $type . '-' . (int) $page . '.xml';
 	}
 
 	/** Max URLs per sub-sitemap (protocol ceiling is 50k). */
 	private static function per_page() {
-		$n = (int) apply_filters( 'agentomatic_sitemap_max_urls', 2000 );
+		$n = (int) apply_filters( 'agentimus_sitemap_max_urls', 2000 );
 		return max( 1, min( 50000, $n ) );
 	}
 
@@ -316,7 +316,7 @@ final class Sitemap {
 			$gen = (string) time();
 			set_transient( Cache::SITEMAP_GEN, $gen, DAY_IN_SECONDS );
 		}
-		return 'agentomatic_sm_' . $gen . '_' . md5( $path );
+		return 'agentimus_sm_' . $gen . '_' . md5( $path );
 	}
 
 	/**
@@ -341,31 +341,31 @@ final class Sitemap {
 			array(
 				'active' => defined( 'WPSEO_VERSION' ),
 				'source' => 'yoast',
-				'label'  => __( 'Yoast SEO', 'agentomatic' ),
+				'label'  => __( 'Yoast SEO', 'agentimus' ),
 				'path'   => '/sitemap_index.xml',
 			),
 			array(
 				'active' => class_exists( 'RankMath' ),
 				'source' => 'rankmath',
-				'label'  => __( 'Rank Math', 'agentomatic' ),
+				'label'  => __( 'Rank Math', 'agentimus' ),
 				'path'   => '/sitemap_index.xml',
 			),
 			array(
 				'active' => defined( 'AIOSEO_VERSION' ),
 				'source' => 'aioseo',
-				'label'  => __( 'All in One SEO', 'agentomatic' ),
+				'label'  => __( 'All in One SEO', 'agentimus' ),
 				'path'   => '/sitemap.xml',
 			),
 			array(
 				'active' => defined( 'SEOPRESS_VERSION' ),
 				'source' => 'seopress',
-				'label'  => __( 'SEOPress', 'agentomatic' ),
+				'label'  => __( 'SEOPress', 'agentimus' ),
 				'path'   => '/sitemap.xml',
 			),
 			array(
 				'active' => class_exists( '\\The_SEO_Framework\\Load' ),
 				'source' => 'seoframework',
-				'label'  => __( 'The SEO Framework', 'agentomatic' ),
+				'label'  => __( 'The SEO Framework', 'agentimus' ),
 				'path'   => '/sitemap.xml',
 			),
 		);

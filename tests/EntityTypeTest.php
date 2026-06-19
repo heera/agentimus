@@ -6,12 +6,12 @@
  * (so a shop = Store is selectable), 'Person' is always present, a valid subtype
  * survives sanitise, and anything off-list falls back to 'Person'.
  *
- * @package Agentomatic\Tests
+ * @package Agentimus\Tests
  */
 
-namespace Agentomatic\Tests;
+namespace Agentimus\Tests;
 
-use Agentomatic\Settings;
+use Agentimus\Settings;
 use PHPUnit\Framework\TestCase;
 
 final class EntityTypeTest extends TestCase {

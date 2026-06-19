@@ -1,6 +1,6 @@
 # WordPress.org listing assets
 
-The wp.org plugin-directory assets for **Agentomatic** — the icon, banner and
+The wp.org plugin-directory assets for **Agentimus** — the icon, banner and
 screenshots shown on the listing page. They live here (and are excluded from the
 distributed plugin via `.distignore`) because they are *directory* assets, not
 plugin code: at publish time they go into the SVN `assets/` directory, never into
@@ -18,7 +18,7 @@ read this `.wordpress-org/` directory.
   then downscaled to 772×250. Uses an inline vector of the "A" tile.
 - **Screenshots** — the *real* built admin app (`assets/admin/app.js` + `app.css`)
   rendered through `sources/harness.html`, which:
-  - injects `window.AgentomaticData` from a wp-cli reflection dump of
+  - injects `window.AgentimusData` from a wp-cli reflection dump of
     `Admin::bootstrap_data()` (`sources/dump_bootstrap.php`; the site host is
     rewritten to `heera.it`),
   - stubs the `/activity` REST call with sample data (`sources/gen_activity.py`),

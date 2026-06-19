@@ -2,10 +2,10 @@
 /**
  * Filesystem-location helpers.
  *
- * @package Agentomatic
+ * @package Agentimus
  */
 
-namespace Agentomatic;
+namespace Agentimus;
 
 defined( 'ABSPATH' ) || exit;
 

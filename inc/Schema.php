@@ -7,10 +7,10 @@
  * never ships duplicate or conflicting structured data — the single most
  * common reason schema plugins get rejected or one-starred.
  *
- * @package Agentomatic
+ * @package Agentimus
  */
 
-namespace Agentomatic;
+namespace Agentimus;
 
 defined( 'ABSPATH' ) || exit;
 
@@ -49,11 +49,11 @@ final class Schema {
 			|| defined( 'AIOSEO_VERSION' );                  // All in One SEO.
 
 		/**
-		 * Filter whether Agentomatic should stand down on schema.
+		 * Filter whether Agentimus should stand down on schema.
 		 *
 		 * @param bool $active Whether to defer.
 		 */
-		return (bool) apply_filters( 'agentomatic_defer_schema', $active );
+		return (bool) apply_filters( 'agentimus_defer_schema', $active );
 	}
 
 	/**
@@ -76,7 +76,7 @@ final class Schema {
 			 * @param array|null $node Schema node.
 			 * @param \WP_Post   $post Post.
 			 */
-			$node = apply_filters( 'agentomatic_schema_for_post', $node, $post );
+			$node = apply_filters( 'agentimus_schema_for_post', $node, $post );
 			if ( ! empty( $node ) ) {
 				$graph[] = $node;
 			}
@@ -90,7 +90,7 @@ final class Schema {
 		 *
 		 * @param array $graph Schema nodes.
 		 */
-		$graph = apply_filters( 'agentomatic_schema_graph', $graph );
+		$graph = apply_filters( 'agentimus_schema_graph', $graph );
 		if ( empty( $graph ) ) {
 			return;
 		}
@@ -200,7 +200,7 @@ final class Schema {
 		 * @param array $map Map of post_type => schema type.
 		 */
 		$map = apply_filters(
-			'agentomatic_schema_type_map',
+			'agentimus_schema_type_map',
 			array(
 				'post' => 'BlogPosting',
 				'page' => 'WebPage',
@@ -232,7 +232,7 @@ final class Schema {
 			array(
 				'@type'    => 'ListItem',
 				'position' => 1,
-				'name'     => __( 'Home', 'agentomatic' ),
+				'name'     => __( 'Home', 'agentimus' ),
 				'item'     => home_url( '/' ),
 			),
 		);

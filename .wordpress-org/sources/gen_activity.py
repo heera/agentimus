@@ -50,5 +50,5 @@ recent = [{"endpoint": e, "agent": a, "ua": UA.get(a, a), "at": iso(m)} for (a, 
 
 out = {"enabled": True, "window": 30, "totals": totals, "byAgent": byAgent,
        "byEndpoint": byEndpoint, "daily": daily, "recent": recent}
-open('/tmp/agentomatic-activity-sample.json', 'w').write(json.dumps(out))
+open('/tmp/agentimus-activity-sample.json', 'w').write(json.dumps(out))
 print("wrote sample activity:", json.dumps(totals))

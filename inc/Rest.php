@@ -4,16 +4,16 @@
  * readiness report. All routes require `manage_options` and the standard REST
  * nonce (apiFetch / X-WP-Nonce).
  *
- * @package Agentomatic
+ * @package Agentimus
  */
 
-namespace Agentomatic;
+namespace Agentimus;
 
 defined( 'ABSPATH' ) || exit;
 
 final class Rest {
 
-	const NAMESPACE = 'agentomatic/v1';
+	const NAMESPACE = 'agentimus/v1';
 
 	/** @var Settings */
 	private $settings;
@@ -158,7 +158,7 @@ final class Rest {
 	 * @return \WP_REST_Response
 	 */
 	public function complete_onboarding() {
-		update_option( 'agentomatic_onboarded', AGENTOMATIC_VERSION );
+		update_option( 'agentimus_onboarded', AGENTIMUS_VERSION );
 		return rest_ensure_response( array( 'onboarded' => true ) );
 	}
 

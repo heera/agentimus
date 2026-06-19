@@ -3,17 +3,17 @@
  * Admin screen: a top-level menu that mounts the Vue 3 app, plus the data the
  * app needs (REST root, nonce, settings, entity types, endpoint URLs).
  *
- * @package Agentomatic
+ * @package Agentimus
  */
 
-namespace Agentomatic;
+namespace Agentimus;
 
 defined( 'ABSPATH' ) || exit;
 
 final class Admin {
 
-	const SLUG   = 'agentomatic';
-	const HANDLE = 'agentomatic-admin';
+	const SLUG   = 'agentimus';
+	const HANDLE = 'agentimus-admin';
 
 	/** @var Settings */
 	private $settings;
@@ -32,7 +32,7 @@ final class Admin {
 		add_action( 'admin_menu', array( $this, 'menu' ) );
 		add_action( 'admin_enqueue_scripts', array( $this, 'assets' ) );
 		add_action( 'admin_enqueue_scripts', array( $this, 'menu_icon_style' ) );
-		add_filter( 'plugin_action_links_' . plugin_basename( AGENTOMATIC_FILE ), array( $this, 'action_links' ) );
+		add_filter( 'plugin_action_links_' . plugin_basename( AGENTIMUS_FILE ), array( $this, 'action_links' ) );
 		add_action( 'admin_init', array( $this, 'maybe_activation_redirect' ) );
 	}
 
@@ -41,8 +41,8 @@ final class Admin {
 	 */
 	public function menu() {
 		add_menu_page(
-			__( 'Agentomatic', 'agentomatic' ),
-			__( 'Agentomatic', 'agentomatic' ),
+			__( 'Agentimus', 'agentimus' ),
+			__( 'Agentimus', 'agentimus' ),
 			'manage_options',
 			self::SLUG,
 			array( $this, 'render' ),
@@ -86,7 +86,7 @@ final class Admin {
 			. $sel . '.wp-has-current-submenu .wp-menu-image::before,'
 			. $sel . '.opensub .wp-menu-image::before{background-color:#fff}';
 
-		wp_register_style( $handle, false, array(), AGENTOMATIC_VERSION );
+		wp_register_style( $handle, false, array(), AGENTIMUS_VERSION );
 		wp_enqueue_style( $handle );
 		wp_add_inline_style( $handle, $css );
 	}
@@ -99,7 +99,7 @@ final class Admin {
 	 */
 	public function action_links( $links ) {
 		$url = admin_url( 'admin.php?page=' . self::SLUG );
-		array_unshift( $links, '<a href="' . esc_url( $url ) . '">' . esc_html__( 'Settings', 'agentomatic' ) . '</a>' );
+		array_unshift( $links, '<a href="' . esc_url( $url ) . '">' . esc_html__( 'Settings', 'agentimus' ) . '</a>' );
 		return $links;
 	}
 
@@ -110,10 +110,10 @@ final class Admin {
 	 * one-shot.
 	 */
 	public function maybe_activation_redirect() {
-		if ( ! get_transient( 'agentomatic_activation_redirect' ) ) {
+		if ( ! get_transient( 'agentimus_activation_redirect' ) ) {
 			return;
 		}
-		delete_transient( 'agentomatic_activation_redirect' );
+		delete_transient( 'agentimus_activation_redirect' );
 
 		// Never hijack a bulk activation or a network-admin context.
 		if ( wp_doing_ajax() || is_network_admin() || isset( $_GET['activate-multi'] ) ) { // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- reading WordPress's own bulk-activation marker, no state change.
@@ -139,7 +139,7 @@ final class Admin {
 	 * @return bool
 	 */
 	private function is_onboarded() {
-		if ( false !== get_option( 'agentomatic_onboarded', false ) ) {
+		if ( false !== get_option( 'agentimus_onboarded', false ) ) {
 			return true;
 		}
 		if ( '' !== trim( (string) $this->settings->identity( 'about', '' ) ) ) {
@@ -162,24 +162,24 @@ final class Admin {
 			return;
 		}
 
-		$js  = AGENTOMATIC_DIR . 'assets/admin/app.js';
-		$css = AGENTOMATIC_DIR . 'assets/admin/app.css';
+		$js  = AGENTIMUS_DIR . 'assets/admin/app.js';
+		$css = AGENTIMUS_DIR . 'assets/admin/app.css';
 
 		if ( is_readable( $js ) ) {
 			wp_enqueue_script(
 				self::HANDLE,
-				AGENTOMATIC_URL . 'assets/admin/app.js',
+				AGENTIMUS_URL . 'assets/admin/app.js',
 				array(),
 				$this->asset_version( $js ),
 				true
 			);
-			wp_localize_script( self::HANDLE, 'AgentomaticData', $this->bootstrap_data() );
+			wp_localize_script( self::HANDLE, 'AgentimusData', $this->bootstrap_data() );
 		}
 
 		if ( is_readable( $css ) ) {
 			wp_enqueue_style(
 				self::HANDLE,
-				AGENTOMATIC_URL . 'assets/admin/app.css',
+				AGENTIMUS_URL . 'assets/admin/app.css',
 				array(),
 				$this->asset_version( $css )
 			);
@@ -208,7 +208,7 @@ final class Admin {
 				'llmsFull' => home_url( '/llms-full.txt' ),
 				'robots'   => home_url( '/robots.txt' ),
 			),
-			'version'     => AGENTOMATIC_VERSION,
+			'version'     => AGENTIMUS_VERSION,
 			'onboarded'   => $this->is_onboarded(),
 			'llmsFullEstimate' => Content::estimate_full_size( $this->settings ),
 		);
@@ -235,11 +235,11 @@ final class Admin {
 	 * Mount point (and a graceful notice if the app hasn't been built yet).
 	 */
 	public function render() {
-		echo '<div class="wrap"><div id="agentomatic-app">';
+		echo '<div class="wrap"><div id="agentimus-app">';
 
-		if ( ! is_readable( AGENTOMATIC_DIR . 'assets/admin/app.js' ) ) {
+		if ( ! is_readable( AGENTIMUS_DIR . 'assets/admin/app.js' ) ) {
 			echo '<div class="notice notice-warning"><p>' .
-				esc_html__( 'The admin interface has not been built yet. Run "npm install && npm run build" in the plugin directory.', 'agentomatic' ) .
+				esc_html__( 'The admin interface has not been built yet. Run "npm install && npm run build" in the plugin directory.', 'agentimus' ) .
 				'</p></div>';
 		}
 
@@ -259,6 +259,6 @@ final class Admin {
 				return (string) $mtime;
 			}
 		}
-		return AGENTOMATIC_VERSION;
+		return AGENTIMUS_VERSION;
 	}
 }

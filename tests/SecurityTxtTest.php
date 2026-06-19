@@ -9,14 +9,14 @@
  *   - the Expires clamp (RFC 9116: keep it under a year).
  * Plus a smoke test of the emitted document.
  *
- * @package Agentomatic\Tests
+ * @package Agentimus\Tests
  */
 
-namespace Agentomatic\Tests;
+namespace Agentimus\Tests;
 
-use Agentomatic\Discovery\Registry;
-use Agentomatic\Discovery\SecurityTxt;
-use Agentomatic\Settings;
+use Agentimus\Discovery\Registry;
+use Agentimus\Discovery\SecurityTxt;
+use Agentimus\Settings;
 use PHPUnit\Framework\TestCase;
 
 final class SecurityTxtTest extends TestCase {

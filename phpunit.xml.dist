@@ -5,7 +5,7 @@
          colors="true"
          cacheResult="false">
   <testsuites>
-    <testsuite name="agentomatic-unit">
+    <testsuite name="agentimus-unit">
       <directory>tests</directory>
     </testsuite>
   </testsuites>

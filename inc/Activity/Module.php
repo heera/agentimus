@@ -4,18 +4,18 @@
  * exposes the admin REST surface (read + clear), and runs the daily prune cron.
  * Recording itself is done at the endpoint serve-paths via Recorder::record().
  *
- * @package Agentomatic
+ * @package Agentimus
  */
 
-namespace Agentomatic\Activity;
+namespace Agentimus\Activity;
 
-use Agentomatic\Settings;
+use Agentimus\Settings;
 
 defined( 'ABSPATH' ) || exit;
 
 final class Module {
 
-	const CRON = 'agentomatic_prune_activity';
+	const CRON = 'agentimus_prune_activity';
 
 	/** @var Settings */
 	private $settings;
@@ -41,7 +41,7 @@ final class Module {
 	 */
 	public function routes() {
 		register_rest_route(
-			'agentomatic/v1',
+			'agentimus/v1',
 			'/activity',
 			array(
 				array(

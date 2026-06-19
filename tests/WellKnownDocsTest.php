@@ -8,14 +8,14 @@
  * The gating is the load-bearing behaviour: a surface is emitted ONLY when the
  * real thing exists — otherwise '' → a clean 404, never a fabricated stub.
  *
- * @package Agentomatic\Tests
+ * @package Agentimus\Tests
  */
 
-namespace Agentomatic\Tests;
+namespace Agentimus\Tests;
 
-use Agentomatic\Discovery\Envelope;
-use Agentomatic\Discovery\Registry;
-use Agentomatic\Settings;
+use Agentimus\Discovery\Envelope;
+use Agentimus\Discovery\Registry;
+use Agentimus\Settings;
 use PHPUnit\Framework\TestCase;
 
 final class WellKnownDocsTest extends TestCase {
