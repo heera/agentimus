@@ -26,6 +26,13 @@ read this `.wordpress-org/` directory.
     trimmed of trailing background (`sources/trim.py`).
   - `sources/enrich_identity.php` / `restore_identity.php` temporarily fill the
     local identity (bio / expertise) for the capture, then revert it.
+  - **`screenshot-2` (Settings) is cropped** to 1440×1820: the Settings page is
+    ~4350px tall fully expanded (Identity, Security, Features, Crawler policy,
+    Content types, REST APIs, Provider integrations), so the capture keeps only the
+    top — Identity + Security + Features — instead of a 4000px strip. Render with a
+    tall window (e.g. 1440×6000) and **crop**, not trim. `trim.py` only trims
+    correctly when the window is taller than the content; otherwise it samples a
+    content pixel as the background and returns the full (un-trimmed) window height.
 
 To regenerate after a UI change: `npm run build`, then re-run the steps above.
 (Paths inside the source files are local to the author's machine — adjust them
