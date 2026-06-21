@@ -398,6 +398,21 @@ export default {
         this.flash('error', e.message);
       }
     },
+    async blockAgent(payload) {
+      try {
+        // The endpoint returns the refreshed activity stats, so the flagged row
+        // flips to "Blocked" in place.
+        this.activity = await this.api.blockAgent(payload);
+        this.flash(
+          'success',
+          payload.spoofed
+            ? 'Spoofed / scanner user-agents are now blocked.'
+            : 'Client blocked — it now gets a 403 at your endpoints.'
+        );
+      } catch (e) {
+        this.flash('error', e.message);
+      }
+    },
     flash(type, text) {
       this.notice = { type, text };
       window.clearTimeout(this._noticeTimer);
@@ -520,6 +535,7 @@ export default {
           @refresh="refreshActivity"
           @clear="clearActivity"
           @navigate="goTo"
+          @block="blockAgent"
         />
       </div>
 

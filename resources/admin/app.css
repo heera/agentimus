@@ -1075,6 +1075,58 @@ select.ar-input {
   .ar-act-feed__at { text-align: right; }
 }
 
+/* ---- Suspicious activity (UA-only abuse signals) ----------------------- */
+.ar-susp-counts { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; flex: 0 0 auto; }
+/* Small status pills — colours mirror the readiness notices (bad/warn/neutral). */
+.ar-susp-badge {
+  font-family: var(--ar-mono); font-size: 9.5px; font-weight: 600;
+  letter-spacing: 0.08em; text-transform: uppercase;
+  padding: 2px 6px; border-radius: 3px; border: 1px solid; white-space: nowrap;
+}
+.ar-susp-badge.is-spoof { color: var(--ar-bad); background: #f8ebe8; border-color: #e6c1b9; }
+.ar-susp-badge.is-heavy { color: var(--ar-warn); background: #f7f1df; border-color: #e6d5a8; }
+.ar-susp-badge.is-new { color: var(--ar-ink-soft); background: var(--ar-surface-2); border-color: var(--ar-line); }
+
+.ar-susp-banner {
+  margin: 0 0 14px; padding: 9px 13px; border-radius: var(--ar-radius);
+  background: #f7f1df; border: 1px solid #e6d5a8; color: var(--ar-ink-soft); font-size: 12.5px;
+}
+.ar-susp-banner .ar-linkbtn { font-size: 12.5px; }
+
+.ar-susp-list { margin: 4px 0 0; padding: 0; list-style: none; }
+.ar-susp-row {
+  display: flex; align-items: center; gap: 14px;
+  padding: 12px 0; border-bottom: 1px solid var(--ar-line);
+}
+.ar-susp-row:last-child { border-bottom: 0; padding-bottom: 0; }
+.ar-susp-row__info { flex: 1 1 auto; min-width: 0; display: grid; gap: 3px; }
+.ar-susp-row__head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.ar-susp-row__agent { font-size: 13px; font-weight: 600; color: var(--ar-ink); }
+.ar-susp-badges { display: inline-flex; gap: 5px; }
+.ar-susp-row__ua {
+  font-family: var(--ar-mono); font-size: 11px; color: var(--ar-ink-faint);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%;
+}
+.ar-susp-row__meta { font-family: var(--ar-mono); font-size: 10.5px; color: var(--ar-ink-faint); }
+.ar-susp-row__action { flex: 0 0 auto; }
+.ar-susp-block {
+  appearance: none; cursor: pointer; white-space: nowrap;
+  font-family: var(--ar-mono); font-size: 11px; letter-spacing: 0.03em;
+  padding: 6px 12px; border-radius: 3px;
+  border: 1px solid var(--ar-line-strong); background: var(--ar-surface); color: var(--ar-ink);
+  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+.ar-susp-block:hover { background: var(--ar-ink); color: var(--ar-paper); border-color: var(--ar-ink); }
+.ar-susp-block:focus-visible { outline: 2px solid var(--ar-accent); outline-offset: 2px; }
+.ar-susp-blocked { font-family: var(--ar-mono); font-size: 11px; color: var(--ar-good); white-space: nowrap; }
+.ar-susp-reason { font-size: 11px; font-style: italic; color: var(--ar-ink-faint); }
+
+@container (max-width: 600px) {
+  /* Stack the action under the info so a long "Block <token>" never crushes the row. */
+  .ar-susp-row { flex-direction: column; align-items: stretch; gap: 8px; }
+  .ar-susp-row__action { align-self: flex-start; }
+}
+
 /* ---- Loading skeleton (activity first load) ---------------------------- */
 .ar-skel { display: grid; gap: 14px; margin-top: 16px; }
 .ar-skel__tiles { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }

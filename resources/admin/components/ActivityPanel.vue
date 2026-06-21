@@ -7,7 +7,7 @@ export default {
     loaded: { type: Boolean, default: false },
     refreshing: { type: Boolean, default: false },
   },
-  emits: ['refresh', 'clear', 'navigate'],
+  emits: ['refresh', 'clear', 'navigate', 'block'],
   data() {
     return { feedMore: false };
   },
@@ -40,6 +40,11 @@ export default {
     },
     recent() {
       return this.data.recent || [];
+    },
+    // Abuse/threat signals computed server-side (UA-only heuristics). Empty-safe
+    // so the "Suspicious activity" card simply doesn't render when nothing's flagged.
+    threats() {
+      return this.data.threats || { sources: [], counts: { new: 0, heavy: 0, spoof: 0 }, blockingOn: false };
     },
     // Collapse the raw feed into one row per identical request
     // (client + endpoint + User-Agent), with a hit count and the latest time.
@@ -92,6 +97,23 @@ export default {
       if (window.confirm('Clear the entire agent activity log? This cannot be undone.')) {
         this.$emit('clear');
       }
+    },
+    // One-click block from a flagged row. Confirms first (it also turns
+    // enforcement on), then emits the payload the /activity/block endpoint wants:
+    // {spoofed:true} arms the whole scanner class, {ua} blocks a derived token.
+    blockSource(s) {
+      const msg = 'spoofed' === s.action
+        ? 'Block spoofed / scanner user-agents? They will get a 403 at your discovery & llms endpoints. This also turns agent blocking on.'
+        : `Block "${s.token}"? Requests with this user-agent will get a 403 at your discovery & llms endpoints. This also turns agent blocking on.`;
+      if (window.confirm(msg)) {
+        this.$emit('block', 'spoofed' === s.action ? { spoofed: true } : { ua: s.ua });
+      }
+    },
+    // Plain-English note for a flagged row that isn't safely one-click-blockable.
+    reasonText(reason) {
+      if ('no-ua' === reason) return 'No User-Agent to match';
+      if ('no-token' === reason) return 'Looks like a browser — block manually if needed';
+      return '';
     },
     onFeedScroll() {
       this.updateFeedHint();
@@ -199,6 +221,53 @@ export default {
           </div>
         </div>
         <p class="ar-act-sparkcap">Hits per day · last {{ daily.length }} days</p>
+      </section>
+
+      <!-- Suspicious activity — only shown when something is actually flagged -->
+      <section v-if="threats.sources.length" class="ar-card ar-susp">
+        <div class="ar-card__head">
+          <div>
+            <h2 class="ar-card__title">Suspicious activity</h2>
+            <p class="ar-card__lead">
+              Heuristics from the User-Agent &amp; request rate — visibility, not a firewall.
+            </p>
+          </div>
+          <div class="ar-susp-counts">
+            <span v-if="threats.counts.spoof" class="ar-susp-badge is-spoof">{{ threats.counts.spoof }} spoof</span>
+            <span v-if="threats.counts.heavy" class="ar-susp-badge is-heavy">{{ threats.counts.heavy }} heavy</span>
+            <span v-if="threats.counts.new" class="ar-susp-badge is-new">{{ threats.counts.new }} new</span>
+          </div>
+        </div>
+
+        <p v-if="!threats.blockingOn" class="ar-susp-banner">
+          Blocking is off — flagged clients are still served. Use <strong>Block</strong> below, or turn it on in
+          <button type="button" class="ar-linkbtn" @click="$emit('navigate', { tab: 'settings' })">Settings</button>.
+        </p>
+
+        <ul class="ar-susp-list">
+          <li v-for="(s, i) in threats.sources" :key="i" class="ar-susp-row">
+            <div class="ar-susp-row__info">
+              <div class="ar-susp-row__head">
+                <span class="ar-susp-row__agent">{{ s.agent }}</span>
+                <span class="ar-susp-badges">
+                  <span v-if="s.flags.spoof" class="ar-susp-badge is-spoof">spoof</span>
+                  <span v-if="s.flags.heavy" class="ar-susp-badge is-heavy">heavy</span>
+                  <span v-if="s.flags.new" class="ar-susp-badge is-new">new</span>
+                </span>
+              </div>
+              <code class="ar-susp-row__ua" :title="s.ua">{{ s.ua || 'No User-Agent' }}</code>
+              <div class="ar-susp-row__meta">
+                {{ s.hits }} hit{{ 1 === s.hits ? '' : 's' }}<template v-if="s.recent"> · {{ s.recent }} in last hr</template><template v-if="s.lastSeen"> · {{ ago(s.lastSeen) }}</template>
+              </div>
+            </div>
+            <div class="ar-susp-row__action">
+              <span v-if="s.blocked" class="ar-susp-blocked">✓ Blocked</span>
+              <button v-else-if="'agent' === s.action" type="button" class="ar-susp-block" @click="blockSource(s)">Block {{ s.token }}</button>
+              <button v-else-if="'spoofed' === s.action" type="button" class="ar-susp-block" @click="blockSource(s)">Block scanners</button>
+              <span v-else class="ar-susp-reason">{{ reasonText(s.reason) }}</span>
+            </div>
+          </li>
+        </ul>
       </section>
 
       <!-- Top agents + by endpoint -->

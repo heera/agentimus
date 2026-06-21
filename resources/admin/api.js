@@ -37,5 +37,7 @@ export function createApi(boot) {
     getDiscoveryHub: () => request('/discovery/hub'),
     getActivity: () => request('/activity'),
     clearActivity: () => request('/activity', { method: 'DELETE' }),
+    blockAgent: (payload) =>
+      request('/activity/block', { method: 'POST', body: JSON.stringify(payload) }),
   };
 }
