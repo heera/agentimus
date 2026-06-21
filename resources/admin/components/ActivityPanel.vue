@@ -229,8 +229,8 @@ export default {
           <div>
             <h2 class="ar-card__title">Activity to review</h2>
             <p class="ar-card__lead">
-              Clients worth a closer look — newly seen, high request volume, or using an
-              evasive user-agent. Visibility, not a firewall.
+              Clients worth a closer look — new, unusually busy, or disguising what they are.
+              It only flags them for you; nothing is blocked unless you choose to.
             </p>
           </div>
           <div class="ar-susp-counts">
