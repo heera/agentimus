@@ -10,6 +10,7 @@
 namespace Agentimus\Activity;
 
 use Agentimus\Settings;
+use Agentimus\Guard;
 
 defined( 'ABSPATH' ) || exit;
 
@@ -61,6 +62,48 @@ final class Module {
 				),
 			)
 		);
+
+		register_rest_route(
+			'agentimus/v1',
+			'/activity/block',
+			array(
+				'methods'             => 'POST',
+				'permission_callback' => array( $this, 'can_manage' ),
+				'callback'            => array( $this, 'block' ),
+				'args'                => array(
+					'ua'      => array( 'type' => 'string' ),
+					'spoofed' => array( 'type' => 'boolean' ),
+				),
+			)
+		);
+	}
+
+	/**
+	 * REST: POST /activity/block — the activity panel's one-click "Block this".
+	 * Either arms the spoofed/scanner class (spoofed=true) or appends a safe,
+	 * UA-derived token to the denylist; both turn enforcement on. Returns the
+	 * refreshed stats so the panel updates the flag / blocked states in place.
+	 *
+	 * @param \WP_REST_Request $request Request.
+	 * @return \WP_REST_Response|\WP_Error
+	 */
+	public function block( \WP_REST_Request $request ) {
+		if ( $request->get_param( 'spoofed' ) ) {
+			$this->settings->block_spoofed_class();
+			return rest_ensure_response( Repository::stats( $this->settings ) );
+		}
+
+		$ua    = (string) $request->get_param( 'ua' );
+		$token = Guard::suggest_token( $ua );
+		if ( '' === $token ) {
+			return new \WP_Error(
+				'agentimus_no_safe_token',
+				__( 'No safe block rule could be derived for this client. Add one under Settings → Block scanners & scrapers.', 'agentimus' ),
+				array( 'status' => 422 )
+			);
+		}
+		$this->settings->block_agent( $token );
+		return rest_ensure_response( Repository::stats( $this->settings ) );
 	}
 
 	/**

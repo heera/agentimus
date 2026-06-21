@@ -228,6 +228,49 @@ final class Settings {
 	}
 
 	/**
+	 * Add one user-agent token to the hard-block denylist AND arm enforcement —
+	 * the persistence side of the activity panel's one-click "Block this client".
+	 * The denylist is inert while block_agents is off, so a "block" that didn't turn
+	 * blocking on would silently do nothing; flipping it on here makes the see-it →
+	 * block-it loop actually bite. Reads the full resolved settings and writes them
+	 * back through update() (a partial update would reset omitted keys to defaults).
+	 * Idempotent: a token already present (case-insensitively) is not duplicated.
+	 *
+	 * @param string $token Raw user-agent substring (or glob/regex) to deny.
+	 * @return array The stored settings.
+	 */
+	public function block_agent( $token ) {
+		$token = substr( trim( (string) $token ), 0, 200 );
+		$all   = $this->all();
+		if ( '' !== $token ) {
+			$list  = array_values( (array) $all['blocked_agents'] );
+			$lower = array_map( 'strtolower', $list );
+			if ( ! in_array( strtolower( $token ), $lower, true ) ) {
+				$list[] = $token;
+			}
+			$all['blocked_agents'] = $list;
+		}
+		$all['block_agents'] = true;
+		return $this->update( $all );
+	}
+
+	/**
+	 * Arm hard enforcement for the spoofed/legacy-device class — the action behind
+	 * "Block scanners" on a flagged spoof row. Turns on the master switch and the
+	 * spoof heuristic together (no per-UA token: the class is matched by
+	 * {@see \Agentimus\Activity\Classifier::is_spoof()}). Full read-modify-write, as
+	 * in {@see block_agent()}.
+	 *
+	 * @return array The stored settings.
+	 */
+	public function block_spoofed_class() {
+		$all                  = $this->all();
+		$all['block_agents']  = true;
+		$all['block_spoofed'] = true;
+		return $this->update( $all );
+	}
+
+	/**
 	 * Restore every setting to its factory default, wiping the stored option and
 	 * any generated caches. Identity text, crawler policy and feature toggles all
 	 * revert. Returns the resolved (default) settings.

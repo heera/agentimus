@@ -184,6 +184,67 @@ final class Guard {
 	}
 
 	/**
+	 * Derive a SAFE denylist token from a raw User-Agent — the substring the
+	 * activity panel's one-click "Block" appends to blocked_agents. Returns '' when
+	 * no specific, safe token can be found, so the caller never adds an over-broad
+	 * rule. Guarantees:
+	 *   • a protected search engine yields '' (never proposes blocking Googlebot);
+	 *   • a generic browser yields '' (its only tokens are mozilla/webkit/chrome/… —
+	 *     blocking those would 403 every real visitor and most bots);
+	 *   • a spoofed/legacy-device UA yields '' (handled by the block_spoofed class,
+	 *     not a token — its tokens are generic too).
+	 * What it DOES return is the crawler/tool product token: the `name` in the
+	 * standard `name/version` signature (SemrushBot, AhrefsBot, python-requests, …),
+	 * skipping generic ones, so blocking is specific to the abusing client.
+	 *
+	 * @param string $ua Raw User-Agent.
+	 * @return string Lowercased token, or '' when none is safe.
+	 */
+	public static function suggest_token( $ua ) {
+		$ua_lc = substr( strtolower( trim( (string) $ua ) ), 0, 1000 );
+		if ( '' === $ua_lc || self::is_protected( $ua_lc ) ) {
+			return '';
+		}
+		// Every `name/version` pair in the UA, in order. The first one that isn't a
+		// generic engine/browser token is the client's real product name.
+		if ( preg_match_all( '#([a-z][a-z0-9._+-]{1,40})/[0-9]#', $ua_lc, $matches ) ) {
+			foreach ( $matches[1] as $candidate ) {
+				if ( ! self::is_generic_token( $candidate ) ) {
+					return $candidate;
+				}
+			}
+		}
+		// Fallback: a "compatible; Name" comment with no version (some crawlers).
+		if ( preg_match( '#compatible;\s*([a-z][a-z0-9._+-]{1,40})#', $ua_lc, $m ) && ! self::is_generic_token( $m[1] ) ) {
+			return $m[1];
+		}
+		return '';
+	}
+
+	/**
+	 * Whether a product token is a generic browser/engine name that must never be a
+	 * block rule on its own (it would match nearly every visitor). Filterable.
+	 *
+	 * @param string $token Lowercased candidate token.
+	 * @return bool
+	 */
+	private static function is_generic_token( $token ) {
+		$generic = array(
+			'mozilla', 'applewebkit', 'gecko', 'khtml', 'webkit', 'like',
+			'safari', 'chrome', 'chromium', 'crios', 'firefox', 'fxios',
+			'version', 'edg', 'edge', 'opr', 'opera', 'trident', 'msie',
+			'mobile', 'windows', 'macintosh', 'linux', 'android', 'ios', 'x11',
+		);
+		/**
+		 * Filter the generic-token stoplist used by the one-click block suggestion.
+		 *
+		 * @param string[] $generic Lowercase tokens that are never a safe block rule.
+		 */
+		$generic = (array) apply_filters( 'agentimus_generic_ua_tokens', $generic );
+		return in_array( $token, $generic, true );
+	}
+
+	/**
 	 * Refuse the current request with a bare 403 and stop — but only when
 	 * {@see denies()} says so. A no-op otherwise, so a serve path can gate every
 	 * emit with a single leading call. Mirrors the HEAD handling of the real

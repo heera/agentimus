@@ -148,4 +148,47 @@ final class GuardTest extends TestCase {
 		$this->assertContains( 'googlebot', Guard::protected_agents() );
 		$this->assertContains( 'bingbot', Guard::protected_agents() );
 	}
+
+	/* -- Block-token suggestion (the one-click "Block this") -------------- */
+
+	public function test_suggest_token_extracts_the_crawler_product_name() {
+		$this->assertSame( 'semrushbot', Guard::suggest_token( self::SEMRUSH ) );
+		$this->assertSame( 'ahrefsbot', Guard::suggest_token( self::AHREFS ) );
+		$this->assertSame( 'python-requests', Guard::suggest_token( 'python-requests/2.31.0' ) );
+		$this->assertSame( 'ccbot', Guard::suggest_token( 'CCBot/2.0 (https://commoncrawl.org/faq/)' ) );
+	}
+
+	public function test_suggest_token_is_empty_for_a_generic_browser() {
+		// A real browser's only tokens are mozilla/applewebkit/chrome/safari — all
+		// generic, so there is no safe rule to propose.
+		$this->assertSame( '', Guard::suggest_token( self::CHROME ) );
+	}
+
+	public function test_suggest_token_is_empty_for_protected_and_missing() {
+		$this->assertSame( '', Guard::suggest_token( self::GOOGLEBOT ), 'A protected search engine is never proposed for blocking.' );
+		$this->assertSame( '', Guard::suggest_token( '' ) );
+	}
+
+	/* -- One-click block persistence (Settings::block_agent / spoofed) ---- */
+
+	public function test_block_agent_appends_the_token_and_arms_enforcement() {
+		$saved = ( new Settings() )->block_agent( 'SemrushBot' );
+		$this->assertTrue( $saved['block_agents'], 'Blocking must be turned on, or the denylist is inert.' );
+		$this->assertContains( 'SemrushBot', $saved['blocked_agents'] );
+		$this->assertTrue( Guard::denies( self::SEMRUSH ), 'The client is denied immediately after blocking it.' );
+	}
+
+	public function test_block_agent_does_not_duplicate_case_insensitively() {
+		$settings = new Settings();
+		$settings->block_agent( 'AhrefsBot' );
+		$saved = $settings->block_agent( 'ahrefsbot' );
+		$this->assertSame( array( 'AhrefsBot' ), $saved['blocked_agents'] );
+	}
+
+	public function test_block_spoofed_class_arms_master_and_heuristic() {
+		$saved = ( new Settings() )->block_spoofed_class();
+		$this->assertTrue( $saved['block_agents'] );
+		$this->assertTrue( $saved['block_spoofed'] );
+		$this->assertTrue( Guard::denies( self::NOKIA ) );
+	}
 }

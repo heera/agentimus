@@ -10,6 +10,7 @@
 namespace Agentimus\Activity;
 
 use Agentimus\Settings;
+use Agentimus\Guard;
 
 defined( 'ABSPATH' ) || exit;
 
@@ -20,6 +21,18 @@ final class Repository {
 
 	/** Sparkline span. */
 	const DAILY_DAYS = 14;
+
+	/** A source first seen within this many hours is flagged "new". */
+	const NEW_AGENT_HOURS = 48;
+
+	/** Hits in the last hour at/above this count flag a "heavy" (burst) source. */
+	const BURST_MIN_HITS = 30;
+
+	/** Hits over the whole window at/above this count also flag "heavy" (sustained). */
+	const HEAVY_MIN_HITS = 500;
+
+	/** Max suspicious sources returned to the panel. */
+	const THREATS_LIMIT = 12;
 
 	/**
 	 * Assemble the dashboard payload.
@@ -49,6 +62,7 @@ final class Repository {
 			'byEndpoint' => self::group_counts( 'endpoint', $month, 12 ),
 			'daily'      => self::daily(),
 			'recent'     => self::recent( 50 ),
+			'threats'    => self::threats( $settings ),
 		);
 	}
 
@@ -140,6 +154,167 @@ final class Repository {
 				);
 			},
 			(array) $rows
+		);
+	}
+
+	/**
+	 * Suspicious-source signals for the dashboard's "Suspicious activity" section.
+	 * Thin DB layer: pulls per-UA aggregates over the window plus a last-hour burst
+	 * count, then hands them to the pure {@see analyze_threats()} for flagging and
+	 * ranking. UA-only by design — no IP is stored — so this is heuristic
+	 * VISIBILITY (novelty, request rate, spoofed-UA), never a substitute for a WAF.
+	 *
+	 * @param Settings $settings Settings store.
+	 * @return array{sources:array,counts:array,blockingOn:bool}
+	 */
+	public static function threats( Settings $settings ) {
+		global $wpdb;
+		$table = Table::name();
+		$now   = time();
+		$since = gmdate( 'Y-m-d H:i:s', $now - self::WINDOW_DAYS * DAY_IN_SECONDS );
+		$hour  = gmdate( 'Y-m-d H:i:s', $now - HOUR_IN_SECONDS );
+
+		// One row per distinct UA over the window. MAX(agent) is unambiguous: the
+		// agent label is a pure function of the UA, so every row in a UA-group shares
+		// it. Bounded to the 200 busiest sources — far more than a content site sees,
+		// and the pure pass only keeps the flagged ones anyway.
+		// phpcs:disable WordPress.DB, PluginCheck.Security.DirectDB.UnescapedDBParameter -- $table is our own prefix-derived name; values are bound via prepare().
+		$sources = $wpdb->get_results(
+			$wpdb->prepare(
+				"SELECT ua, MAX(agent) AS agent, COUNT(*) AS hits, MIN(hit_at) AS first_seen, MAX(hit_at) AS last_seen FROM $table WHERE hit_at >= %s GROUP BY ua ORDER BY hits DESC LIMIT 200",
+				$since
+			),
+			ARRAY_A
+		);
+		$recent_rows = $wpdb->get_results(
+			$wpdb->prepare( "SELECT ua, COUNT(*) AS c FROM $table WHERE hit_at >= %s GROUP BY ua", $hour ),
+			ARRAY_A
+		);
+		// phpcs:enable WordPress.DB, PluginCheck.Security.DirectDB.UnescapedDBParameter
+
+		$recent = array();
+		foreach ( (array) $recent_rows as $r ) {
+			$recent[ (string) $r['ua'] ] = (int) $r['c'];
+		}
+
+		return self::analyze_threats(
+			(array) $sources,
+			$recent,
+			$now,
+			array(
+				'blockingOn' => (bool) $settings->enabled( 'block_agents' ),
+				'newSecs'    => (int) apply_filters( 'agentimus_new_agent_seconds', self::NEW_AGENT_HOURS * HOUR_IN_SECONDS ),
+				'burstMin'   => (int) apply_filters( 'agentimus_burst_min_hits', self::BURST_MIN_HITS ),
+				'heavyMin'   => (int) apply_filters( 'agentimus_heavy_min_hits', self::HEAVY_MIN_HITS ),
+				'limit'      => (int) apply_filters( 'agentimus_threats_limit', self::THREATS_LIMIT ),
+			)
+		);
+	}
+
+	/**
+	 * Pure flagging + ranking of suspicious sources — no DB, no time() — so it's
+	 * unit-testable in isolation. Each input source is `{ua, agent, hits, first_seen,
+	 * last_seen}` (GMT strings). Flags: NEW (first seen within newSecs), HEAVY (burst
+	 * in the last hour OR sustained over the window), SPOOF (legacy-device heuristic).
+	 * Only flagged sources are returned, ranked spoof > heavy > new then by volume.
+	 * Each carries the live "already blocked" state ({@see Guard::denies()}) and, when
+	 * actionable, a safe block token / spoof-class action for the one-click button.
+	 *
+	 * @param array $sources Per-UA aggregates.
+	 * @param array $recent  Map of UA => hits in the last hour.
+	 * @param int   $now     Current GMT unix time.
+	 * @param array $opts    blockingOn, newSecs, burstMin, heavyMin, limit.
+	 * @return array{sources:array,counts:array,blockingOn:bool}
+	 */
+	public static function analyze_threats( array $sources, array $recent, $now, array $opts ) {
+		$new_secs  = isset( $opts['newSecs'] ) ? (int) $opts['newSecs'] : self::NEW_AGENT_HOURS * HOUR_IN_SECONDS;
+		$burst_min = isset( $opts['burstMin'] ) ? (int) $opts['burstMin'] : self::BURST_MIN_HITS;
+		$heavy_min = isset( $opts['heavyMin'] ) ? (int) $opts['heavyMin'] : self::HEAVY_MIN_HITS;
+		$limit     = isset( $opts['limit'] ) ? (int) $opts['limit'] : self::THREATS_LIMIT;
+
+		$out    = array();
+		$counts = array( 'new' => 0, 'heavy' => 0, 'spoof' => 0 );
+
+		foreach ( $sources as $s ) {
+			$ua    = isset( $s['ua'] ) ? (string) $s['ua'] : '';
+			$hits  = isset( $s['hits'] ) ? (int) $s['hits'] : 0;
+			$first = isset( $s['first_seen'] ) ? strtotime( $s['first_seen'] . ' UTC' ) : 0;
+			$last  = isset( $s['last_seen'] ) ? strtotime( $s['last_seen'] . ' UTC' ) : 0;
+			$rec   = isset( $recent[ $ua ] ) ? (int) $recent[ $ua ] : 0;
+
+			$is_new   = $first > 0 && ( $now - $first ) <= $new_secs;
+			$is_heavy = $rec >= $burst_min || $hits >= $heavy_min;
+			$is_spoof = Classifier::is_spoof( $ua );
+
+			if ( ! $is_new && ! $is_heavy && ! $is_spoof ) {
+				continue; // Not suspicious — skip.
+			}
+			if ( $is_new ) {
+				++$counts['new'];
+			}
+			if ( $is_heavy ) {
+				++$counts['heavy'];
+			}
+			if ( $is_spoof ) {
+				++$counts['spoof'];
+			}
+
+			$blocked  = Guard::denies( $ua );
+			$token    = $blocked ? '' : Guard::suggest_token( $ua );
+			$severity = ( $is_spoof ? 4 : 0 ) + ( $is_heavy ? 2 : 0 ) + ( $is_new ? 1 : 0 );
+
+			// What the one-click action does for this row: nothing when already
+			// denied; for a spoofed UA, arm the whole scanner class (more useful than
+			// blocking its single legacy-device string); else block the derived token
+			// when one is safe; otherwise it isn't safely actionable (no UA, a real
+			// browser, or a protected search engine) — say why instead.
+			$action = '';
+			$reason = '';
+			if ( $blocked ) {
+				$action = '';
+			} elseif ( $is_spoof ) {
+				$action = 'spoofed';
+			} elseif ( '' !== $token ) {
+				$action = 'agent';
+			} else {
+				$reason = '' === trim( $ua ) ? 'no-ua' : 'no-token';
+			}
+
+			$out[] = array(
+				'ua'        => substr( $ua, 0, 255 ),
+				'agent'     => isset( $s['agent'] ) ? (string) $s['agent'] : '',
+				'hits'      => $hits,
+				'recent'    => $rec,
+				'firstSeen' => $first ? gmdate( 'c', $first ) : '',
+				'lastSeen'  => $last ? gmdate( 'c', $last ) : '',
+				'flags'     => array(
+					'new'   => $is_new,
+					'heavy' => $is_heavy,
+					'spoof' => $is_spoof,
+				),
+				'severity'  => $severity,
+				'blocked'   => $blocked,
+				'action'    => $action,
+				'token'     => $token,
+				'reason'    => $reason,
+			);
+		}
+
+		// Rank: most severe first, then by raw volume.
+		usort(
+			$out,
+			static function ( $a, $b ) {
+				if ( $a['severity'] !== $b['severity'] ) {
+					return $b['severity'] - $a['severity'];
+				}
+				return $b['hits'] - $a['hits'];
+			}
+		);
+
+		return array(
+			'sources'    => array_slice( $out, 0, max( 1, $limit ) ),
+			'counts'     => $counts,
+			'blockingOn' => ! empty( $opts['blockingOn'] ),
 		);
 	}
 
