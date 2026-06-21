@@ -68,7 +68,7 @@ export default {
     },
     reasonText(reason) {
       if ('no-ua' === reason) return 'No User-Agent to match';
-      if ('no-token' === reason) return 'Looks like a browser — block manually if needed';
+      if ('no-token' === reason) return 'No safe one-click rule — block in Settings if needed';
       return '';
     },
     ago(iso) {

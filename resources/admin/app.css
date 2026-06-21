@@ -1150,16 +1150,16 @@ select.ar-input {
 }
 .ar-susp-row__meta { font-family: var(--ar-mono); font-size: 10.5px; color: var(--ar-ink-faint); }
 .ar-susp-row__action { justify-self: end; text-align: right; max-width: 230px; }
+/* Text-style action link (not a heavy boxed button) — compact in the dropdown row. */
 .ar-susp-block {
   appearance: none; cursor: pointer; white-space: nowrap;
-  font-family: var(--ar-mono); font-size: 11px; letter-spacing: 0.03em;
-  padding: 6px 12px; border-radius: 3px;
-  border: 1px solid var(--ar-line-strong); background: var(--ar-surface); color: var(--ar-ink);
-  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+  font-family: var(--ar-mono); font-size: 11.5px; letter-spacing: 0.02em;
+  padding: 0; border: 0; background: none; color: var(--ar-bad);
+  transition: color 0.15s ease;
 }
-.ar-susp-block:hover { background: var(--ar-ink); color: var(--ar-paper); border-color: var(--ar-ink); }
-.ar-susp-block:focus-visible { outline: 2px solid var(--ar-accent); outline-offset: 2px; }
-.ar-susp-block:disabled { opacity: 0.6; cursor: default; background: var(--ar-surface); color: var(--ar-ink-soft); border-color: var(--ar-line); }
+.ar-susp-block:hover { text-decoration: underline; }
+.ar-susp-block:focus-visible { outline: 2px solid var(--ar-accent); outline-offset: 2px; border-radius: 2px; }
+.ar-susp-block:disabled { color: var(--ar-ink-faint); cursor: default; text-decoration: none; }
 .ar-susp-blocked { font-family: var(--ar-mono); font-size: 11px; color: var(--ar-good); white-space: nowrap; }
 .ar-susp-reason { font-size: 11px; font-style: italic; color: var(--ar-ink-faint); line-height: 1.45; }
 

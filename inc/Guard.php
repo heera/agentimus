@@ -218,6 +218,13 @@ final class Guard {
 		if ( '' === $ua_lc || self::is_protected( $ua_lc ) ) {
 			return '';
 		}
+		// A generic HTTP client / scripting tool (curl, wget, python-requests…) has a
+		// broad name, and fetching the AI files is exactly what this plugin invites —
+		// so it is never a safe one-click block. (A heavy one still surfaces for review;
+		// block it explicitly in Settings if you must.)
+		if ( 'Script/tool' === Classifier::classify( $ua_lc ) ) {
+			return '';
+		}
 		// Every `name/version` pair in the UA, in order. The first one that isn't a
 		// generic engine/browser token is the client's real product name.
 		if ( preg_match_all( '#([a-z][a-z0-9._+-]{1,40})/[0-9]#', $ua_lc, $matches ) ) {

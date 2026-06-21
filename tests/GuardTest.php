@@ -154,8 +154,15 @@ final class GuardTest extends TestCase {
 	public function test_suggest_token_extracts_the_crawler_product_name() {
 		$this->assertSame( 'semrushbot', Guard::suggest_token( self::SEMRUSH ) );
 		$this->assertSame( 'ahrefsbot', Guard::suggest_token( self::AHREFS ) );
-		$this->assertSame( 'python-requests', Guard::suggest_token( 'python-requests/2.31.0' ) );
 		$this->assertSame( 'ccbot', Guard::suggest_token( 'CCBot/2.0 (https://commoncrawl.org/faq/)' ) );
+	}
+
+	public function test_suggest_token_is_empty_for_generic_http_tools() {
+		// curl/wget/python-requests are broad tool names — and fetching the AI files is
+		// what the plugin invites — so they are not safe one-click blocks.
+		$this->assertSame( '', Guard::suggest_token( 'curl/8.7.1' ) );
+		$this->assertSame( '', Guard::suggest_token( 'python-requests/2.31.0' ) );
+		$this->assertSame( '', Guard::suggest_token( 'Wget/1.21.3' ) );
 	}
 
 	public function test_suggest_token_is_empty_for_a_generic_browser() {
