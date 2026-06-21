@@ -400,9 +400,12 @@ export default {
     },
     async blockAgent(payload) {
       try {
-        // The endpoint returns the refreshed activity stats, so the flagged row
-        // flips to "Blocked" in place.
-        this.activity = await this.api.blockAgent(payload);
+        // Returns { activity, settings }: refreshed stats (so the flagged row flips
+        // to "Blocked" in place) plus the updated settings, so the Settings tab's
+        // denylist / toggles stay in sync without a reload or a second request.
+        const res = await this.api.blockAgent(payload);
+        this.activity = res.activity || res;
+        if (res.settings) this.syncBlockSettings(res.settings);
         this.flash(
           'success',
           payload.spoofed
@@ -411,6 +414,30 @@ export default {
         );
       } catch (e) {
         this.flash('error', e.message);
+      }
+    },
+    // Reflect a Dashboard block into the live Settings state + saved snapshot, so the
+    // Settings tab shows the new denylist entry / armed toggle immediately — without
+    // overwriting an unsaved profile draft or tripping the autosave.
+    syncBlockSettings(saved) {
+      if (!saved) return;
+      this._skipAutosave = true; // instantState includes these fields; don't re-save.
+      this.settings.blocked_agents = Array.isArray(saved.blocked_agents)
+        ? saved.blocked_agents.slice()
+        : (this.settings.blocked_agents || []);
+      this.settings.block_agents = !!saved.block_agents;
+      this.settings.block_spoofed = !!saved.block_spoofed;
+      this.$nextTick(() => { this._skipAutosave = false; });
+      // Keep only these fields in the saved snapshot in step (so they don't read as
+      // unsaved); an unsaved profile draft in identity is left exactly as it was.
+      try {
+        const snap = JSON.parse(this.savedSnapshot);
+        snap.blocked_agents = this.settings.blocked_agents;
+        snap.block_agents = this.settings.block_agents;
+        snap.block_spoofed = this.settings.block_spoofed;
+        this.savedSnapshot = JSON.stringify(snap);
+      } catch (e) {
+        /* leave the snapshot as-is */
       }
     },
     flash(type, text) {

@@ -90,7 +90,7 @@ final class Module {
 	public function block( \WP_REST_Request $request ) {
 		if ( $request->get_param( 'spoofed' ) ) {
 			$this->settings->block_spoofed_class();
-			return rest_ensure_response( Repository::stats( $this->settings ) );
+			return rest_ensure_response( $this->block_payload() );
 		}
 
 		$ua    = (string) $request->get_param( 'ua' );
@@ -103,7 +103,22 @@ final class Module {
 			);
 		}
 		$this->settings->block_agent( $token );
-		return rest_ensure_response( Repository::stats( $this->settings ) );
+		return rest_ensure_response( $this->block_payload() );
+	}
+
+	/**
+	 * Block response: refreshed activity stats PLUS the updated settings — the block
+	 * writes to the same blocked_agents / block_agents the Settings tab shows, so
+	 * returning them lets the admin reflect the new denylist entry there immediately,
+	 * with no reload and no second request.
+	 *
+	 * @return array{activity:array,settings:array}
+	 */
+	private function block_payload() {
+		return array(
+			'activity' => Repository::stats( $this->settings ),
+			'settings' => $this->settings->all(),
+		);
 	}
 
 	/**
