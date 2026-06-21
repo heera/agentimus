@@ -402,18 +402,13 @@ export default {
     },
     async blockAgent(payload) {
       try {
-        // Returns { activity, settings }: refreshed stats (so the flagged row flips
-        // to "Blocked" in place) plus the updated settings, so the Settings tab's
-        // denylist / toggles stay in sync without a reload or a second request.
-        const wasOff = !this.settings.block_agents;
+        // Returns { activity, settings }: refreshed stats (the row drops out of the
+        // "to review" list — feedback enough, no toast) plus the updated settings so
+        // the Settings denylist / toggles stay in sync without a reload.
         const res = await this.api.blockAgent(payload);
         this.activity = res.activity || res;
         if (res.settings) this.syncBlockSettings(res.settings);
         this._activityBlockKey = this.blockingKeyOf(this.settings);
-        const base = payload.spoofed
-          ? 'Spoofed / scanner user-agents are now blocked.'
-          : 'Client blocked — it now gets a 403 at your endpoints.';
-        this.flash('success', wasOff ? `${base} Blocking is now on.` : base);
       } catch (e) {
         this.flash('error', e.message);
       }

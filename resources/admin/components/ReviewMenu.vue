@@ -12,7 +12,7 @@ export default {
   },
   emits: ['block', 'navigate'],
   data() {
-    return { open: false, confirmKey: null };
+    return { open: false };
   },
   computed: {
     // Pending = still needs a decision. A blocked client is handled, not "to review".
@@ -40,11 +40,9 @@ export default {
   methods: {
     toggle() {
       this.open = !this.open;
-      this.confirmKey = null;
     },
     close() {
       this.open = false;
-      this.confirmKey = null;
     },
     onDocClick(e) {
       if (this.open && this.$el && !this.$el.contains(e.target)) this.close();
@@ -52,14 +50,7 @@ export default {
     onKey(e) {
       if ('Escape' === e.key) this.close();
     },
-    armBlock(key) {
-      this.confirmKey = key;
-    },
-    cancelBlock() {
-      this.confirmKey = null;
-    },
     doBlock(s) {
-      this.confirmKey = null;
       this.$emit('block', 'spoofed' === s.action ? { spoofed: true } : { ua: s.ua });
     },
     reasonText(reason) {
@@ -131,15 +122,14 @@ export default {
             </div>
           </div>
           <div class="ar-susp-row__action">
-            <template v-if="'agent' === s.action || 'spoofed' === s.action">
-              <span v-if="confirmKey === i" class="ar-susp-confirm">
-                <button type="button" class="ar-susp-block ar-susp-block--go" @click="doBlock(s)">Confirm</button>
-                <button type="button" class="ar-susp-cancel" @click="cancelBlock">Cancel</button>
-              </span>
-              <button v-else type="button" class="ar-susp-block" @click="armBlock(i)">
-                {{ 'spoofed' === s.action ? 'Block scanners' : 'Block ' + s.token }}
-              </button>
-            </template>
+            <button
+              v-if="'agent' === s.action || 'spoofed' === s.action"
+              type="button"
+              class="ar-susp-block"
+              @click="doBlock(s)"
+            >
+              {{ 'spoofed' === s.action ? 'Block scanners' : 'Block ' + s.token }}
+            </button>
             <span v-else class="ar-susp-reason">{{ reasonText(s.reason) }}</span>
           </div>
         </li>
