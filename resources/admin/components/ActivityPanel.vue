@@ -227,14 +227,15 @@ export default {
       <section v-if="threats.sources.length" class="ar-card ar-susp">
         <div class="ar-card__head">
           <div>
-            <h2 class="ar-card__title">Suspicious activity</h2>
+            <h2 class="ar-card__title">Activity to review</h2>
             <p class="ar-card__lead">
-              Heuristics from the User-Agent &amp; request rate — visibility, not a firewall.
+              Clients worth a closer look — newly seen, high request volume, or using an
+              evasive user-agent. Visibility, not a firewall.
             </p>
           </div>
           <div class="ar-susp-counts">
-            <span v-if="threats.counts.spoof" class="ar-susp-badge is-spoof">{{ threats.counts.spoof }} spoof</span>
-            <span v-if="threats.counts.heavy" class="ar-susp-badge is-heavy">{{ threats.counts.heavy }} heavy</span>
+            <span v-if="threats.counts.spoof" class="ar-susp-badge is-spoof">{{ threats.counts.spoof }} spoofed</span>
+            <span v-if="threats.counts.heavy" class="ar-susp-badge is-heavy">{{ threats.counts.heavy }} high-volume</span>
             <span v-if="threats.counts.new" class="ar-susp-badge is-new">{{ threats.counts.new }} new</span>
           </div>
         </div>
@@ -250,8 +251,8 @@ export default {
               <div class="ar-susp-row__head">
                 <span class="ar-susp-row__agent">{{ s.agent }}</span>
                 <span class="ar-susp-badges">
-                  <span v-if="s.flags.spoof" class="ar-susp-badge is-spoof">spoof</span>
-                  <span v-if="s.flags.heavy" class="ar-susp-badge is-heavy">heavy</span>
+                  <span v-if="s.flags.spoof" class="ar-susp-badge is-spoof">spoofed UA</span>
+                  <span v-if="s.flags.heavy" class="ar-susp-badge is-heavy">high volume</span>
                   <span v-if="s.flags.new" class="ar-susp-badge is-new">new</span>
                 </span>
               </div>

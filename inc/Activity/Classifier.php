@@ -97,12 +97,15 @@ final class Classifier {
 
 	/**
 	 * Lowercase regex fragments that mark a User-Agent as a near-certain spoof: a
-	 * client claiming to be a long-obsolete mobile/embedded stack that essentially
-	 * no longer exists on the live web, let alone fetching a JSON/text machine
-	 * endpoint. Scanners and scrapers reach for these strings precisely because
-	 * they read as an innocuous old handset. Deliberately conservative — every
-	 * token here is a dead platform, so a modern browser/LG-webOS-TV/known crawler
-	 * (caught earlier) never matches. Extensible via filter.
+	 * client claiming a long-obsolete mobile/embedded PLATFORM that no longer exists
+	 * on the live web, let alone fetching a JSON/text machine endpoint. Scanners reach
+	 * for these precisely because they read as an innocuous old handset.
+	 *
+	 * These are platform/stack markers (Symbian, Java ME, Windows CE, Palm…), NOT brand
+	 * or carrier names: a brand like "Nokia" or carrier like "DoCoMo" still ships modern
+	 * Android phones, so matching those produced false positives (a real "Nokia 5.4"
+	 * flagged as a scanner — and, with blocking on, 403'd). is_spoof() also bails on any
+	 * "android" UA, so a modern device echoing an old name is never caught. Filterable.
 	 *
 	 * @return string[]
 	 */
@@ -110,11 +113,11 @@ final class Classifier {
 		$signatures = array(
 			'symbianos', 'series ?60', 'series ?40', 's60v',
 			'midp[-/]', 'cldc[-/]', 'j2me',
-			'nokia ?[0-9]', 'sonyericsson', 'samsung-sgh',
+			'sonyericsson', 'samsung-sgh',
 			'blackberry ?[0-9]', 'bb10',
 			'windows ?ce', 'wince', 'pocketpc',
 			'openwave', 'up\.browser', 'up\.link', 'avantgo',
-			'docomo', 'kddi-', 'portalmmm',
+			'portalmmm',
 			'netfront', 'obigo', 'teleca', 'polaris ?[0-9]',
 			'palmos', 'maemo',
 		);
@@ -141,6 +144,13 @@ final class Classifier {
 	public static function is_spoof( $ua ) {
 		$ua = strtolower( (string) $ua );
 		if ( '' === $ua ) {
+			return false;
+		}
+		// A genuine dead-platform device (Symbian, Java ME, Windows CE, Palm…) predates
+		// Android and never runs it. So any UA that says "android" is a modern device —
+		// bail out. This kills false positives like current Nokia ("Nokia 5.4") or
+		// carrier (DoCoMo) Android phones whose model/carrier name echoes a dead brand.
+		if ( false !== strpos( $ua, 'android' ) ) {
 			return false;
 		}
 		foreach ( self::spoof_signatures() as $signature ) {

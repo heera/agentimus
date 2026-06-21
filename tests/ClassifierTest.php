@@ -80,6 +80,11 @@ final class ClassifierTest extends TestCase {
 			'android'    => array( 'Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36' ),
 			'lg_webos_tv' => array( 'Mozilla/5.0 (Web0S; Linux/SmartTV) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/87.0 Safari/537.36 WebAppManager' ),
 			'curl'       => array( 'curl/8.4.0' ),
+			// Regression: modern devices whose model/carrier name echoes a dead brand
+			// must NOT be flagged (these were false positives — and 403'd with blocking on).
+			'nokia_5.4_android'  => array( 'Mozilla/5.0 (Linux; Android 11; Nokia 5.4) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/96.0.4664.45 Mobile Safari/537.36' ),
+			'docomo_android'     => array( 'Mozilla/5.0 (Linux; Android 10; SO-01M) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/110.0.0.0 Mobile Safari/537.36 DoCoMo' ),
+			'nokia_8110_kaios'   => array( 'Mozilla/5.0 (Mobile; Nokia 8110 4G; rv:48.0) Gecko/48.0 Firefox/48.0 KAIOS/2.5' ),
 		);
 	}
 }
