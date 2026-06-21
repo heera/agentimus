@@ -99,7 +99,7 @@ export default {
       <svg class="ar__review-caret" viewBox="0 0 16 16" width="11" height="11" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6l4 4 4-4" /></svg>
     </button>
 
-    <div v-if="open" class="ar__review-pop" role="dialog" aria-label="Activity to review">
+    <div v-if="open" class="ar__review-pop" role="dialog" aria-label="Activity to review" @click.stop>
       <div class="ar__review-pop-head">
         <strong class="ar__review-title">Activity to review</strong>
         <div class="ar-susp-counts">
