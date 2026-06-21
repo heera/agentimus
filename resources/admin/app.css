@@ -38,6 +38,9 @@
   --ar-bad: #b93c2b;
 
   --ar-radius: 4px;
+  /* Shared height for the nav bar and the page-head below it, so the two strips
+     are always exactly the same height. Change here, both follow. */
+  --ar-bar-h: 72px;
 }
 
 #agentimus-app {
@@ -66,7 +69,7 @@
   /* Match .ar__body's 34px so the brand mark and gauge line up with the
      content cards' left/right edges. */
   padding: 0 34px;
-  min-height: 72px;
+  min-height: var(--ar-bar-h);
   background: var(--ar-surface);
   border-bottom: 1px solid var(--ar-line);
 }
@@ -162,19 +165,25 @@
 
 /* ---- Page header (per-tab title + intro, below the nav bar) ------------- */
 .ar__pagehead {
-  min-height: 72px; /* match the nav bar's height (content stays within it, so min-height binds) */
+  /* Locked to the nav bar's exact height (shared token) and the content is
+     vertically centred — so the title/intro never make this strip taller or
+     shorter than the nav above it, whatever the per-tab text. */
+  height: var(--ar-bar-h);
   display: flex; flex-direction: column; justify-content: center;
-  padding: 0 34px 8px;
+  padding: 0 34px;
   background: var(--ar-surface);
   border-bottom: 1px solid var(--ar-line);
 }
-.ar__pagehead-title {
-  margin: 0;
+/* #agentimus-app lifts specificity (1,1,0) above wp-admin's core .wrap h1
+   (0,1,1), which would otherwise force 23px / weight 400 / 5px padding onto our
+   title and inflate the page header. padding:0 explicitly drops the .wrap h1 5px. */
+#agentimus-app .ar__pagehead-title {
+  margin: 0; padding: 0;
   font-family: var(--ar-serif); font-weight: 600; font-size: 22px;
   line-height: 1.1; letter-spacing: -0.01em; color: var(--ar-ink);
 }
 .ar__pagehead-desc {
-  margin: 0 0 10px 0; font-size: 13px; line-height: 1.5; color: var(--ar-ink-soft);
+  margin: 0; font-size: 13px; line-height: 1.5; color: var(--ar-ink-soft);
   /* Keep to one line so the header height stays locked to the nav's 72px;
      truncates with an ellipsis only on very narrow viewports. */
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
@@ -995,7 +1004,10 @@ select.ar-input {
 /* Recent feed */
 /* Capped, scrollable feed with a bottom fade cue (same pattern as the modal). */
 .ar-act-feedwrap { position: relative; margin: 14px 0 0; }
-.ar-act-feed { margin: 0; padding: 0; list-style: none; display: grid; gap: 0; border-top: 1px solid var(--ar-line); max-height: 340px; overflow-y: auto; }
+/* padding-right is a gutter for the scroll thumb: macOS overlay scrollbars sit
+   on top of content, so without it the bar overlaps the right-aligned time/count
+   column. scrollbar-gutter keeps the layout stable for classic scrollbars too. */
+.ar-act-feed { margin: 0; padding: 0 14px 0 0; list-style: none; display: grid; gap: 0; border-top: 1px solid var(--ar-line); max-height: 340px; overflow-y: auto; scrollbar-gutter: stable; }
 .ar-act-feedfade {
   position: absolute; left: 0; right: 0; bottom: 0; height: 44px;
   display: flex; align-items: flex-end; justify-content: center; padding-bottom: 4px;
@@ -1003,7 +1015,20 @@ select.ar-input {
   background: linear-gradient(to bottom, rgba(255, 253, 247, 0), var(--ar-surface) 82%);
 }
 .ar-act-feedfade.is-visible { opacity: 1; }
-.ar-act-feedfade__chev { color: var(--ar-ink-faint); }
+/* The chevron is a real button: click it to nudge the feed down (the list also
+   scrolls on its own). pointer-events is re-enabled here because the fade
+   gradient above is click-through; disabled = nothing more to scroll. */
+.ar-act-feedfade__btn {
+  pointer-events: auto; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  width: 26px; height: 26px; padding: 0; margin: 0;
+  border: 0; border-radius: 999px; background: transparent;
+  color: var(--ar-ink-faint); transition: color 0.15s ease, background 0.15s ease;
+}
+.ar-act-feedfade__btn:hover { color: var(--ar-ink); background: var(--ar-surface-2); }
+.ar-act-feedfade__btn:focus-visible { outline: 2px solid var(--ar-accent); outline-offset: 2px; }
+.ar-act-feedfade__btn:disabled { pointer-events: none; }
+.ar-act-feedfade__chev { display: block; }
 .ar-act-feed li {
   display: flex; align-items: center; gap: 10px;
   padding: 8px 2px; border-bottom: 1px solid var(--ar-line);
@@ -1011,7 +1036,11 @@ select.ar-input {
 .ar-act-feed__agent { font-size: 13px; font-weight: 600; color: var(--ar-ink); flex: 0 0 auto; white-space: nowrap; }
 .ar-act-feed__ep {
   font-family: var(--ar-mono); font-size: 11.5px; color: var(--ar-ink-soft);
-  background: var(--ar-surface-2); padding: 2px 7px; border-radius: 3px; white-space: nowrap; flex: 0 0 auto;
+  background: var(--ar-surface-2); padding: 2px 7px; border-radius: 3px; white-space: nowrap;
+  /* Shrink + truncate a long endpoint (e.g. http-message-signatures-directory)
+     so one row can never force the feed — and the whole dashboard grid — wider
+     than the container at narrow widths. */
+  flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis;
 }
 /* UA takes the remaining space and truncates — the row never wraps. */
 .ar-act-feed__ua {
@@ -1032,7 +1061,10 @@ select.ar-input {
    subgrid is unsupported. */
 @supports (grid-template-columns: subgrid) {
   .ar-act-feed {
-    grid-template-columns: max-content max-content minmax(0, 1fr) max-content max-content;
+    /* Endpoint column is minmax(0, max-content) — full width when there's room,
+       but able to shrink (its cell truncates) so a long endpoint can't blow the
+       feed past the container and break the dashboard layout. */
+    grid-template-columns: max-content minmax(0, max-content) minmax(0, 1fr) max-content max-content;
   }
   .ar-act-feed li {
     grid-column: 1 / -1;

@@ -13,6 +13,9 @@ export default {
   },
   mounted() {
     window.addEventListener('resize', this.updateFeedHint);
+    // Init the cue/button state on first paint — data may already be present on
+    // remount, so the recentGrouped watcher won't fire to set feedMore.
+    this.$nextTick(this.updateFeedHint);
   },
   beforeUnmount() {
     window.removeEventListener('resize', this.updateFeedHint);
@@ -97,6 +100,14 @@ export default {
     updateFeedHint() {
       const el = this.$refs.feedScroll;
       this.feedMore = !!el && el.scrollHeight - el.scrollTop - el.clientHeight > 4;
+    },
+    // Clicking the chevron nudges the feed down by ~one viewport of rows. The
+    // list already scrolls on its own; this just makes the cue an affordance.
+    scrollFeed() {
+      const el = this.$refs.feedScroll;
+      if (!el) return;
+      const reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      el.scrollBy({ top: Math.round(el.clientHeight * 0.8), behavior: reduce ? 'auto' : 'smooth' });
     },
   },
 };
@@ -239,8 +250,16 @@ export default {
               <span class="ar-act-feed__at">{{ ago(r.at) }}</span>
             </li>
           </ul>
-          <div class="ar-act-feedfade" :class="{ 'is-visible': feedMore }" aria-hidden="true">
-            <svg viewBox="0 0 16 16" class="ar-act-feedfade__chev" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6l4 4 4-4" /></svg>
+          <div class="ar-act-feedfade" :class="{ 'is-visible': feedMore }">
+            <button
+              type="button"
+              class="ar-act-feedfade__btn"
+              :disabled="!feedMore"
+              aria-label="Scroll down for more requests"
+              @click="scrollFeed"
+            >
+              <svg viewBox="0 0 16 16" class="ar-act-feedfade__chev" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6l4 4 4-4" /></svg>
+            </button>
           </div>
         </div>
         <p v-else class="ar-wd-empty">
