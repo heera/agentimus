@@ -9,6 +9,7 @@ export default {
     entityTypes: { type: Array, default: () => ['Person', 'Organization', 'LocalBusiness', 'Store'] },
     postTypes: { type: Array, default: () => [] },
     knownTrainers: { type: Array, default: () => [] },
+    knownScanners: { type: Array, default: () => [] },
     endpoints: { type: Object, default: () => ({}) },
     restNamespacesDetected: { type: Array, default: () => [] },
     providerResources: { type: Array, default: () => [] },
@@ -166,6 +167,26 @@ export default {
       const current = this.settings.blocked_trainers || [];
       return this.knownTrainers.filter((t) => !current.includes(t));
     },
+    scannerSuggestions() {
+      const current = this.settings.blocked_agents || [];
+      return this.knownScanners.filter((s) => !current.includes(s));
+    },
+    riskyBlockedAgents() {
+      // Flag entries broad enough to catch legitimate traffic, so the admin gets a
+      // heads-up. (Search engines are always allowed by the server regardless; this
+      // is the softer "you might also block real browsers/AI crawlers" warning.)
+      const danger = ['bot', 'mozilla', 'safari', 'chrome', 'gecko', 'webkit', 'applewebkit',
+        'android', 'iphone', 'ipad', 'mobile', 'compatible', 'crawler', 'spider', 'http', 'www', 'like'];
+      const list = Array.isArray(this.settings.blocked_agents) ? this.settings.blocked_agents : [];
+      return list.filter((a) => {
+        const t = String(a).trim().toLowerCase();
+        if (!t) return false;
+        const literal = t.replace(/[/^$.*+?()[\]{}|\\]/g, ''); // strip pattern chars to gauge real breadth
+        if (literal === '' && t.includes('*')) return true;    // all-wildcard ("*", ".*") — matches everyone
+        if (literal.length > 0 && literal.length < 3) return true; // ultra-short token → broad
+        return danger.includes(t) || danger.includes(literal);
+      });
+    },
     isDefaultTrainers() {
       const a = [...(this.settings.blocked_trainers || [])].sort();
       const b = [...this.knownTrainers].sort();
@@ -215,6 +236,10 @@ export default {
     },
     resetTrainers() {
       this.settings.blocked_trainers = [...this.knownTrainers];
+    },
+    addScanner(name) {
+      if (!Array.isArray(this.settings.blocked_agents)) this.settings.blocked_agents = [];
+      if (!this.settings.blocked_agents.includes(name)) this.settings.blocked_agents.push(name);
     },
     isTypeOn(slug) {
       return Array.isArray(this.settings.post_types) && this.settings.post_types.includes(slug);
@@ -491,6 +516,69 @@ export default {
             <button v-if="!isDefaultTrainers" type="button" class="ar-linkbtn" @click="resetTrainers">Reset to defaults</button>
           </small>
         </div>
+      </div>
+    </section>
+
+    <!-- Block scanners & scrapers -------------------------------------- -->
+    <section id="ar-sec-blocking" class="ar-card">
+      <h2 class="ar-card__title">Block scanners &amp; scrapers <span class="ar-field__tag">optional</span></h2>
+      <p class="ar-card__lead">
+        The crawler policy above is advisory — polite agents honour it. This is enforcement:
+        refuse a request outright with <code>403 Forbidden</code> at your AI endpoints. Off by default.
+      </p>
+
+      <label class="ar-toggle">
+        <input v-model="settings.block_agents" type="checkbox" />
+        <span class="ar-toggle__track" aria-hidden="true"></span>
+        <span class="ar-toggle__text">
+          <strong>Deny blocked agents</strong>
+          <small>Return 403 instead of serving <code>discovery.json</code>, <code>llms.txt</code> and the other generated files to the agents below.</small>
+        </span>
+      </label>
+
+      <div v-show="settings.block_agents" class="ar-enforce-body">
+        <label class="ar-toggle">
+          <input v-model="settings.block_spoofed" type="checkbox" />
+          <span class="ar-toggle__track" aria-hidden="true"></span>
+          <span class="ar-toggle__text">
+            <strong>Auto-deny spoofed / legacy-device agents</strong>
+            <small>Blocks user-agents impersonating long-dead handsets (Symbian, J2ME, old Nokia/BlackBerry…) — the ones the visit log marks “Likely spoof/scanner”. Almost always scanners.</small>
+          </span>
+        </label>
+
+        <div class="ar-field">
+          <label>Blocked user-agents <span class="ar-field__tag">optional</span></label>
+          <TagInput v-model="settings.blocked_agents" placeholder="Add a user-agent to deny" />
+          <div v-if="scannerSuggestions.length" class="ar-suggest">
+            <span class="ar-suggest__label">Add a known scanner</span>
+            <button
+              v-for="s in scannerSuggestions"
+              :key="s"
+              type="button"
+              class="ar-suggest__chip"
+              @click="addScanner(s)"
+            >+ {{ s }}</button>
+          </div>
+          <p v-if="riskyBlockedAgents.length" class="ar-card__note ar-warn">
+            ⚠ Broad {{ riskyBlockedAgents.length === 1 ? 'entry' : 'entries' }}:
+            <code>{{ riskyBlockedAgents.join(', ') }}</code> —
+            {{ riskyBlockedAgents.length === 1 ? 'this is' : 'these are' }} broad enough to also hit real browsers or AI crawlers you may want.
+            Major search engines (Googlebot, Bingbot…) are always allowed regardless, but consider a more specific token.
+          </p>
+          <small class="ar-field__hint">
+            Matched case-insensitively against the request's user-agent. Plain text = <strong>substring</strong>
+            (<code>SemrushBot</code> catches <code>SemrushBot/7~bl</code>); use <code>*</code> as a <strong>wildcard</strong>
+            (<code>Semrush*</code>, <code>*bot/2*</code>), or wrap in <code>/…/</code> for a <strong>regex</strong>
+            (<code>/semrushbot\/\d+/</code>). Refused with <code>403 Forbidden</code>.
+          </small>
+        </div>
+
+        <p class="ar-card__note">
+          <strong>Targets the generated files only.</strong>
+          Real files on disk under <code>/.well-known/</code> (ACME certificate challenges, a hand-placed
+          security.txt) are never blocked, and your normal pages and REST API are untouched — this gates
+          only the discovery/llms documents this plugin produces.
+        </p>
       </div>
     </section>
 

@@ -30,6 +30,7 @@ export default {
       entityTypes: this.boot.entityTypes || ['Person', 'Organization'],
       postTypes: this.boot.postTypes || [],
       knownTrainers: this.boot.knownTrainers || [],
+      knownScanners: this.boot.knownScanners || [],
       restNamespacesDetected: this.boot.restNamespacesDetected || [],
       endpoints: this.boot.endpoints || {},
       llmsFullEstimate: this.boot.llmsFullEstimate || {},
@@ -86,6 +87,7 @@ export default {
         llms_full_posts: s.llms_full_posts, post_types: s.post_types,
         rest_namespaces: s.rest_namespaces, oauth_auth_server: s.oauth_auth_server, content_signal: s.content_signal,
         blocked_trainers: s.blocked_trainers, suppressed_resources: s.suppressed_resources,
+        block_agents: s.block_agents, block_spoofed: s.block_spoofed, blocked_agents: s.blocked_agents,
         security: s.security,
         expertise: id.expertise, same_as: id.same_as,
       });
@@ -482,6 +484,7 @@ export default {
           :entity-types="entityTypes"
           :post-types="postTypes"
           :known-trainers="knownTrainers"
+          :known-scanners="knownScanners"
           :endpoints="endpoints"
           :rest-namespaces-detected="restNamespacesDetected"
           :provider-resources="providerResources"

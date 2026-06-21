@@ -62,6 +62,12 @@ final class Settings {
 				'ai_train' => false,
 			),
 			'blocked_trainers' => self::known_trainers(),
+			// Optional HARD enforcement (opt-in). robots.txt above is advisory; this
+			// actually refuses the request with a 403. Off by default so a fresh
+			// install never silently blocks anyone.
+			'block_agents'     => false, // Master switch for denying agents at the generated endpoints.
+			'block_spoofed'    => true,  // When blocking is on, also deny spoofed/legacy-device UAs (the "Likely spoof/scanner" class). No effect while block_agents is false.
+			'blocked_agents'   => array(), // Owner's custom user-agent substrings to deny (case-insensitive). Empty = none.
 		);
 
 		/**
@@ -97,6 +103,38 @@ final class Settings {
 		 * @param string[] $known User-agent tokens.
 		 */
 		$known = (array) apply_filters( 'agentimus_known_trainers', $known );
+		return array_values( array_unique( array_filter( array_map( 'trim', $known ) ) ) );
+	}
+
+	/**
+	 * Suggested user-agents for the hard-block denylist: aggressive SEO/scraper
+	 * crawlers that frequently ignore robots.txt. Powers the "add a known scanner"
+	 * chips in the admin — purely suggestions; nothing is denied until the owner
+	 * adds it AND turns blocking on. (The legacy-device spoof class is handled
+	 * separately by the block_spoofed heuristic, so it isn't duplicated here.)
+	 *
+	 * @return string[]
+	 */
+	public static function known_scanners() {
+		$known = array(
+			'AhrefsBot',
+			'SemrushBot',
+			'DotBot',
+			'MJ12bot',
+			'BLEXBot',
+			'PetalBot',
+			'DataForSeoBot',
+			'SeekportBot',
+			'serpstatbot',
+			'ZoominfoBot',
+		);
+
+		/**
+		 * Filter the suggested scanner catalogue shown in the admin denylist UI.
+		 *
+		 * @param string[] $known User-agent tokens.
+		 */
+		$known = (array) apply_filters( 'agentimus_known_scanners', $known );
 		return array_values( array_unique( array_filter( array_map( 'trim', $known ) ) ) );
 	}
 
@@ -338,6 +376,15 @@ final class Settings {
 
 		$trainers                 = isset( $input['blocked_trainers'] ) ? $input['blocked_trainers'] : $defaults['blocked_trainers'];
 		$clean['blocked_trainers'] = $this->sanitize_list( $trainers, 'sanitize_text_field' );
+
+		// Optional hard-block enforcement. block_spoofed defaults true and is only
+		// flipped off by an explicit false, so a client that omits the key (e.g. a
+		// partial programmatic update) keeps the safe default rather than silently
+		// disabling the spoof heuristic.
+		$clean['block_agents']   = ! empty( $input['block_agents'] );
+		$clean['block_spoofed']  = ! isset( $input['block_spoofed'] ) ? $defaults['block_spoofed'] : ! empty( $input['block_spoofed'] );
+		$agents                  = isset( $input['blocked_agents'] ) ? $input['blocked_agents'] : array();
+		$clean['blocked_agents'] = $this->sanitize_list( $agents, 'sanitize_text_field' );
 
 		/**
 		 * Filter the sanitised settings before they are stored.

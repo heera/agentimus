@@ -301,6 +301,10 @@ final class WellKnown {
 	 * @param string $label        Activity-log endpoint label (empty = no log).
 	 */
 	private function send( $body, $content_type, $label = '' ) {
+		// Optional hard enforcement (opt-in): deny denylisted/spoofed agents before
+		// emitting a generated doc. On-disk files served by stream() are left alone
+		// (so ACME challenges etc. never break).
+		\Agentimus\Guard::maybe_block();
 		if ( '' !== $label ) {
 			\Agentimus\Activity\Recorder::record( $label );
 		}

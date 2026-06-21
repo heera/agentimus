@@ -70,6 +70,15 @@ final class Classifier {
 				return $label;
 			}
 		}
+		// A client impersonating a long-dead mobile/embedded stack (Symbian, J2ME,
+		// old Nokia/BlackBerry/Windows CE…). No real visitor fetches a machine
+		// endpoint from a 2004 feature phone — these are near-always scanners and
+		// scrapers hiding behind a quaint, "harmless" user-agent. Checked before the
+		// generic bot/browser tiers because such strings usually still carry a
+		// "Mozilla" token and would otherwise be mislabelled "Browser".
+		if ( self::is_spoof( $ua ) ) {
+			return 'Likely spoof/scanner';
+		}
 		// A self-declared crawler we don't have a friendly name for.
 		if ( preg_match( '/bot|crawler|spider|crawl/', $ua ) ) {
 			return 'Other bot';
@@ -84,5 +93,61 @@ final class Classifier {
 		}
 		// Non-empty, but matches nothing above.
 		return 'Unidentified';
+	}
+
+	/**
+	 * Lowercase regex fragments that mark a User-Agent as a near-certain spoof: a
+	 * client claiming to be a long-obsolete mobile/embedded stack that essentially
+	 * no longer exists on the live web, let alone fetching a JSON/text machine
+	 * endpoint. Scanners and scrapers reach for these strings precisely because
+	 * they read as an innocuous old handset. Deliberately conservative — every
+	 * token here is a dead platform, so a modern browser/LG-webOS-TV/known crawler
+	 * (caught earlier) never matches. Extensible via filter.
+	 *
+	 * @return string[]
+	 */
+	private static function spoof_signatures() {
+		$signatures = array(
+			'symbianos', 'series ?60', 'series ?40', 's60v',
+			'midp[-/]', 'cldc[-/]', 'j2me',
+			'nokia ?[0-9]', 'sonyericsson', 'samsung-sgh',
+			'blackberry ?[0-9]', 'bb10',
+			'windows ?ce', 'wince', 'pocketpc',
+			'openwave', 'up\.browser', 'up\.link', 'avantgo',
+			'docomo', 'kddi-', 'portalmmm',
+			'netfront', 'obigo', 'teleca', 'polaris ?[0-9]',
+			'palmos', 'maemo',
+		);
+
+		/**
+		 * Filter the spoof/legacy-device signatures. Each entry is a lowercase
+		 * regex fragment matched (case-insensitively, '#' delimiter) against the UA.
+		 *
+		 * @param string[] $signatures Regex fragments.
+		 */
+		return (array) apply_filters( 'agentimus_spoof_signatures', $signatures );
+	}
+
+	/**
+	 * Whether a User-Agent looks like a spoofed/legacy-device scanner — the same
+	 * test that powers the "Likely spoof/scanner" label, exposed so the optional
+	 * request Guard can DENY exactly what the activity log NAMES (one definition,
+	 * no drift). Known agents are not pre-excluded here because the only caller for
+	 * blocking, and classify() itself, both check the known-agent map first.
+	 *
+	 * @param string $ua Raw User-Agent.
+	 * @return bool
+	 */
+	public static function is_spoof( $ua ) {
+		$ua = strtolower( (string) $ua );
+		if ( '' === $ua ) {
+			return false;
+		}
+		foreach ( self::spoof_signatures() as $signature ) {
+			if ( preg_match( '#' . $signature . '#', $ua ) ) {
+				return true;
+			}
+		}
+		return false;
 	}
 }

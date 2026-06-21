@@ -203,6 +203,7 @@ final class Admin {
 			'entityTypes'   => $this->settings->entity_types(),
 			'postTypes'     => $this->available_post_types(),
 			'knownTrainers' => Settings::known_trainers(),
+			'knownScanners' => Settings::known_scanners(),
 			'endpoints'   => array(
 				'llms'     => home_url( '/llms.txt' ),
 				'llmsFull' => home_url( '/llms-full.txt' ),

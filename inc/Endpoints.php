@@ -149,6 +149,10 @@ final class Endpoints {
 	 * @param string $label        Activity-log endpoint label (empty = no log).
 	 */
 	private function send( $body, $content_type, $label = '' ) {
+		// Optional hard enforcement (opt-in): deny denylisted/spoofed agents before
+		// we serve — and before we record a hit, so a blocked request never appears
+		// in the log as though it were served.
+		Guard::maybe_block();
 		if ( '' !== $label ) {
 			\Agentimus\Activity\Recorder::record( $label );
 		}
