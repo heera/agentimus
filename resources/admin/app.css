@@ -163,6 +163,50 @@
 .ar__tab:hover { color: var(--ar-ink-soft); }
 .ar__tab.is-active { color: var(--ar-ink); border-bottom-color: var(--ar-accent); }
 
+/* ---- Nav "Activity to review" badge + dropdown ------------------------- */
+.ar__review { flex: 0 0 auto; align-self: center; position: relative; }
+.ar__review-btn {
+  appearance: none; cursor: pointer;
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 5px 9px; border-radius: 999px;
+  border: 1px solid var(--ar-line-strong); background: var(--ar-surface); color: var(--ar-ink-soft);
+  transition: color 0.15s ease, border-color 0.15s ease, background 0.15s ease;
+}
+.ar__review-btn:hover,
+.ar__review.is-open .ar__review-btn { color: var(--ar-ink); border-color: var(--ar-ink-faint); background: var(--ar-surface-2); }
+.ar__review-btn:focus-visible { outline: 2px solid var(--ar-accent); outline-offset: 2px; }
+.ar__review-count {
+  font-family: var(--ar-mono); font-size: 10px; font-weight: 700; line-height: 1;
+  min-width: 16px; height: 16px; padding: 0 4px; border-radius: 999px;
+  display: inline-flex; align-items: center; justify-content: center;
+  background: var(--ar-bad); color: var(--ar-paper);
+}
+.ar__review-caret { color: var(--ar-ink-faint); transition: transform 0.18s ease; }
+.ar__review.is-open .ar__review-caret { transform: rotate(180deg); }
+.ar__review-pop {
+  position: absolute; top: calc(100% + 8px); right: 0; z-index: 60;
+  width: 400px; max-width: calc(100cqw - 32px);
+  max-height: 72vh; overflow-y: auto;
+  background: var(--ar-surface); border: 1px solid var(--ar-line-strong); border-radius: var(--ar-radius);
+  box-shadow: 0 14px 36px -12px rgba(27, 25, 19, 0.45);
+  padding: 16px 18px;
+}
+.ar__review-pop-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.ar__review-title { font-family: var(--ar-serif); font-size: 16px; font-weight: 600; color: var(--ar-ink); }
+.ar__review-lead { margin: 6px 0 12px; font-size: 12px; line-height: 1.5; color: var(--ar-ink-soft); }
+.ar__review-empty { margin: 6px 0; font-size: 13px; color: var(--ar-ink-soft); }
+.ar__review-foot {
+  appearance: none; cursor: pointer; text-align: left; width: 100%;
+  margin: 12px 0 0; padding: 12px 0 0; border: 0; border-top: 1px solid var(--ar-line); background: none;
+  font-family: var(--ar-mono); font-size: 11.5px; color: var(--ar-good);
+  transition: color 0.15s ease;
+}
+.ar__review-foot:hover { color: var(--ar-ink); }
+/* Dropdown rows always stack (container queries key off the app width, not the popover). */
+.ar__review-pop .ar-susp-row { grid-template-columns: 1fr; row-gap: 8px; padding: 12px 0; }
+.ar__review-pop .ar-susp-row:first-child { padding-top: 6px; }
+.ar__review-pop .ar-susp-row__action { justify-self: start; text-align: left; max-width: none; }
+
 /* ---- Page header (per-tab title + intro, below the nav bar) ------------- */
 .ar__pagehead {
   /* Locked to the nav bar's exact height (shared token) and the content is

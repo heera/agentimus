@@ -4,11 +4,12 @@ import SettingsForm from './components/SettingsForm.vue';
 import ReadinessPanel from './components/ReadinessPanel.vue';
 import DiscoveryHub from './components/DiscoveryHub.vue';
 import ActivityPanel from './components/ActivityPanel.vue';
+import ReviewMenu from './components/ReviewMenu.vue';
 import OnboardingWizard from './components/OnboardingWizard.vue';
 
 export default {
   name: 'AgentimusApp',
-  components: { SettingsForm, ReadinessPanel, DiscoveryHub, ActivityPanel, OnboardingWizard },
+  components: { SettingsForm, ReadinessPanel, DiscoveryHub, ActivityPanel, ReviewMenu, OnboardingWizard },
   props: {
     boot: { type: Object, required: true },
   },
@@ -171,10 +172,6 @@ export default {
       if (window.location.hash.replace(/^#/, '') !== val) {
         window.history.replaceState(null, '', `#${val}`);
       }
-      // Activity data is lazy-loaded the first time the Dashboard is opened.
-      if (val === 'dashboard' && !this.activityLoaded) {
-        this.refreshActivity();
-      }
     },
     instantState() {
       // A reset just replaced the whole settings object; don't autosave that
@@ -197,11 +194,9 @@ export default {
       window.history.replaceState(null, '', `#${this.tab}`);
     }
     window.addEventListener('hashchange', this.syncTabFromHash);
-    // Dashboard is the default landing (and a possible deep-link): the watcher
-    // won't fire on the initial value, so load its data here.
-    if (this.tab === 'dashboard') {
-      this.refreshActivity();
-    }
+    // Load activity eagerly (not only on the Dashboard): the nav "to review"
+    // badge needs the threat data on every tab.
+    this.refreshActivity();
     // First run: greet a new admin with the setup wizard.
     if (!this.onboarded) {
       this.showWizard = true;
@@ -502,6 +497,11 @@ export default {
         </button>
       </nav>
 
+      <ReviewMenu
+        :threats="(activity && activity.threats) || {}"
+        @block="blockAgent"
+        @navigate="goTo"
+      />
     </header>
 
     <Teleport to="body">
@@ -575,7 +575,6 @@ export default {
           @refresh="refreshActivity"
           @clear="clearActivity"
           @navigate="goTo"
-          @block="blockAgent"
         />
       </div>
 
