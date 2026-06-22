@@ -23,7 +23,10 @@ final class Markdown {
 	 */
 	public static function post( $post_id ) {
 		$post = get_post( $post_id );
-		if ( ! $post || 'publish' !== $post->post_status ) {
+		// Never expose what the HTML site itself gates: non-published statuses and
+		// password-protected posts — whose body would otherwise be dumped in full
+		// to any anonymous client via .md, Accept negotiation, or /llms-full.txt.
+		if ( ! $post || 'publish' !== $post->post_status || '' !== (string) $post->post_password ) {
 			return "# Not found\n";
 		}
 

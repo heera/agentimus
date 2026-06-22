@@ -122,10 +122,10 @@ final class Endpoints {
 			if ( ! $post_id ) {
 				$post_id = url_to_postid( home_url( $clean ) );
 			}
-			if ( $post_id ) {
+			if ( $post_id && $this->post_in_scope( $post_id ) ) {
 				$this->send( Markdown::post( $post_id ), 'text/markdown', 'markdown' );
 			}
-			return; // Unknown .md path: let WordPress 404 normally.
+			return; // Unknown / out-of-scope .md path: let WordPress 404 normally.
 		}
 
 		// Content negotiation on the resolved view.
@@ -134,11 +134,26 @@ final class Endpoints {
 			return;
 		}
 		if ( is_singular() ) {
-			$this->send( Markdown::post( get_queried_object_id() ), 'text/markdown', 'markdown' );
+			$id = get_queried_object_id();
+			if ( $id && $this->post_in_scope( $id ) ) {
+				$this->send( Markdown::post( $id ), 'text/markdown', 'markdown' );
+			}
 		}
 		if ( is_front_page() || is_home() || is_archive() || is_search() ) {
 			$this->send( $this->index_markdown(), 'text/markdown', 'markdown' );
 		}
+	}
+
+	/**
+	 * Whether a post's type is in the owner's agent-visible selection. Guards the
+	 * direct .md / Accept routes so they expose exactly what /llms.txt lists — not
+	 * every public post type.
+	 *
+	 * @param int $post_id Post ID.
+	 * @return bool
+	 */
+	private function post_in_scope( $post_id ) {
+		return in_array( get_post_type( $post_id ), Content::post_types(), true );
 	}
 
 	/**

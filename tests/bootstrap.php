@@ -76,10 +76,14 @@ namespace {
 	// the default until a test writes — reset between tests via _af_reset_options().
 	$GLOBALS['_af_options'] = array();
 	$GLOBALS['_af_did_actions'] = array(); // Tests flip e.g. 'mcp_adapter_init' to exercise the server-present path.
+	$GLOBALS['_af_posts'] = array(); // id => post object fixtures for the Markdown privacy tests.
 	if ( ! function_exists( 'get_option' ) )            { function get_option( $k, $d = false ) { return array_key_exists( $k, $GLOBALS['_af_options'] ) ? $GLOBALS['_af_options'][ $k ] : $d; } }
 	if ( ! function_exists( 'update_option' ) )         { function update_option( $k, $v ) { $GLOBALS['_af_options'][ $k ] = $v; return true; } }
 	if ( ! function_exists( 'add_option' ) )            { function add_option( $k, $v ) { $GLOBALS['_af_options'][ $k ] = $v; return true; } }
-	function _af_reset_options() { $GLOBALS['_af_options'] = array(); $GLOBALS['_af_did_actions'] = array(); unset( $GLOBALS['_af_available_post_types'] ); }
+	if ( ! function_exists( 'get_post' ) )              { function get_post( $id ) { return isset( $GLOBALS['_af_posts'][ (int) $id ] ) ? $GLOBALS['_af_posts'][ (int) $id ] : null; } }
+	if ( ! function_exists( 'get_the_title' ) )         { function get_the_title( $p ) { $p = is_object( $p ) ? $p : get_post( $p ); return $p ? (string) $p->post_title : ''; } }
+	if ( ! function_exists( 'get_permalink' ) )         { function get_permalink( $p ) { $id = is_object( $p ) ? $p->ID : (int) $p; return 'https://example.com/?p=' . $id; } }
+	function _af_reset_options() { $GLOBALS['_af_options'] = array(); $GLOBALS['_af_did_actions'] = array(); $GLOBALS['_af_posts'] = array(); unset( $GLOBALS['_af_available_post_types'] ); }
 	// Always-miss transient stubs so cached endpoint bodies (e.g. security.txt)
 	// recompute deterministically in tests.
 	if ( ! function_exists( 'get_transient' ) )         { function get_transient( $k ) { return false; } }
@@ -132,6 +136,9 @@ namespace Agentimus {
 					: array( 'post', 'page' );
 			}
 			public static function source( $post_type ) { return ''; }
+			// Mirrors the real Content::markdown_source closely enough for the Markdown
+			// privacy tests: run the (mocked) the_content filter over the stored body.
+			public static function markdown_source( $post ) { return (string) apply_filters( 'the_content', $post->post_content ); }
 		}
 	}
 }

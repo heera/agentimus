@@ -246,10 +246,20 @@ final class Content {
 		$limit = $limit > 0 ? $limit : 50;
 
 		if ( 'page' === $post_type ) {
-			return (array) get_pages(
+			// get_pages() has no has_password filter, so drop password-protected
+			// pages here — they must not surface in the index or full-text edition.
+			$pages = (array) get_pages(
 				array(
 					'sort_column' => 'menu_order,post_title',
 					'number'      => $limit,
+				)
+			);
+			return array_values(
+				array_filter(
+					$pages,
+					static function ( $page ) {
+						return '' === (string) $page->post_password;
+					}
 				)
 			);
 		}
@@ -258,6 +268,7 @@ final class Content {
 			array(
 				'post_type'        => $post_type,
 				'post_status'      => 'publish',
+				'has_password'     => false, // Exclude password-protected posts from agent-visible content.
 				'numberposts'      => $limit,
 				'orderby'          => 'date',
 				'order'            => 'DESC',
