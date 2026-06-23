@@ -14,6 +14,8 @@ See which AI agents read your site and block the bad ones — plus llms.txt, cra
 
 Agentimus makes your site legible to AI agents and crawlers — and shows you which ones actually read it. You get a first-party log of every AI crawler that fetches your content, one-click blocking for the bots you don't want, and the machine-readable signals search engines and AI tools read *today*: a clean llms.txt, JSON-LD, markdown delivery, and AI-crawl controls. A one-screen readiness report scores how machine-readable your site is and what's still missing.
 
+This is **AI readiness** — sometimes called AI SEO, GEO (Generative Engine Optimization), or AEO (Answer Engine Optimization): publishing the machine-readable signals AI systems need to find, read, and correctly represent your site.
+
 Underneath, it ties these together with a single, normalized **discovery document** at `/.well-known/discovery.json` — an open, standards-aligned map of your site's identity, capabilities and APIs, and a reference implementation of that open convention, not a private format. This is more than an llms.txt generator: llms.txt is one signal among several, sitting under a coherent discovery layer rather than being the whole product.
 
 It makes no outbound requests, collects no analytics, and logs no IP addresses. Everything runs on your own site.
