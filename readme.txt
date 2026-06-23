@@ -4,7 +4,7 @@ Tags: ai-agents, ai-crawlers, discovery, schema, llms-txt
 Requires at least: 6.9
 Tested up to: 7.0
 Requires PHP: 7.4
-Stable tag: 1.0.0
+Stable tag: 1.1.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -123,6 +123,12 @@ There is no minified-only code. The admin interface is built from Vue 3 source i
 
 == Changelog ==
 
+= 1.1.0 =
+* Endpoint-activity dashboard: click any day on the chart to open a per-day report — that day's top clients and endpoints, plus its full request log with exact times.
+* The activity chart now spans your whole retention window (default 30 days), and the dashboard states how long records are kept before they are removed.
+* "Activity to review" now helps with unrecognised crawlers — it surfaces the client's own self-declared info link (clearly marked "not verified", with the destination shown) or a one-click web search, and names the row by the crawler's own token.
+* Fixed several outdated "what is this?" crawler links (Barkrowler, Omgili, YouBot, Diffbot, BLEXBot).
+
 = 1.0.0 =
 * /llms.txt, /llms-full.txt, markdown delivery, JSON-LD, robots content-signals, and a readiness report.
 * Agent-activity log — first-party, no IP logging.
@@ -130,3 +136,8 @@ There is no minified-only code. The admin interface is built from Vue 3 source i
 * MCP & tools: projects the WordPress Abilities API into MCP-shaped tool descriptors, plus /.well-known/mcp.json and agent-card.json. Zero-config auto-discovery of REST namespaces and public post types.
 * Standards `.well-known` endpoints: api-catalog (RFC 9727); an MCP server card and an Agent Skills index when applicable; optional Ed25519 response signing (Web Bot Auth, RFC 9421) for the discovery documents, off by default.
 * Admin Discovery Hub for inspecting what agents can see, with per-item publish/suppress control.
+
+== Upgrade Notice ==
+
+= 1.1.0 =
+Richer activity dashboard: click a day for a full per-day report with exact times. Plus guidance for unrecognised crawlers and refreshed crawler info links.
