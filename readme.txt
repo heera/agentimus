@@ -143,6 +143,9 @@ There is no minified-only code. The admin interface is built from Vue 3 source i
 
 == Changelog ==
 
+= Unreleased =
+* _Nothing yet — entries for the next release accumulate here, then this heading is renamed to the version number at publish time._
+
 = 1.2.0 =
 * AI-usage signals beyond robots.txt: when you block AI training, the "Allow AI training" switch now also publishes a standardized TDM Reservation Protocol response header (`tdm-reservation: 1`) and an opt-out file at `/.well-known/tdmrep.json` — one decision, every channel, so a crawler that ignores robots.txt still sees your choice. Both are on by default and individually toggleable. An open site publishes neither (on the web, no signal already means "allowed").
 * Optional extras under Crawler policy: the non-standard `X-Robots-Tag: noai, noimageai` header (off by default) and an AI-usage policy URL surfaced as `tdm-policy`.
