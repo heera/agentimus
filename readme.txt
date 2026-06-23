@@ -4,7 +4,7 @@ Tags: ai-agents, ai-crawlers, agent-readiness, llms-txt, ai-seo
 Requires at least: 6.9
 Tested up to: 7.0
 Requires PHP: 7.4
-Stable tag: 1.2.0
+Stable tag: 1.3.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -144,6 +144,9 @@ There is no minified-only code. The admin interface is built from Vue 3 source i
 == Changelog ==
 
 = Unreleased =
+* _Nothing yet — entries for the next release accumulate here, then this heading is renamed to the version number at publish time._
+
+= 1.3.0 =
 * Readiness report reorganised into a Findable → Readable → Trusted ladder: each rung groups its checks under a status-coloured heading, and the dashboard rail shows which rung you've reached plus a one-line next step that jumps straight to the check to fix.
 * "Verify live" on the readiness report: a one-click self-check that fetches your own agent endpoints **from your browser** (through the real public URL, so it sees what an agent gets — including anything a CDN serves) and shows what actually comes back. The server still makes no request; the check runs in your browser, only when you click it.
 * Agent endpoints (/llms.txt, /llms-full.txt, markdown, the fallback sitemap) now send `Access-Control-Allow-Origin: *`, so browser-based agents can read them cross-origin — matching the discovery documents.
@@ -173,6 +176,9 @@ There is no minified-only code. The admin interface is built from Vue 3 source i
 * Admin Discovery Hub for inspecting what agents can see, with per-item publish/suppress control.
 
 == Upgrade Notice ==
+
+= 1.3.0 =
+The readiness report is now a Findable → Readable → Trusted ladder with a one-click "Verify live" self-check (runs in your browser; the server still makes no outbound request). Agent endpoints now allow cross-origin reads and advertise each page's markdown twin, and two optional Identity fields ("What you're not", "Audience") sharpen how agents represent you.
 
 = 1.2.0 =
 Your "Allow AI training" choice now reaches crawlers that ignore robots.txt, via the standard tdm-reservation header and /.well-known/tdmrep.json (both opt-out-only, on by default). Adds a "Traffic from AI" dashboard card and a one-click admin-bar shortcut.
