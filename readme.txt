@@ -4,7 +4,7 @@ Tags: ai-agents, ai-crawlers, agent-readiness, llms-txt, ai-seo
 Requires at least: 6.0
 Tested up to: 7.0
 Requires PHP: 7.4
-Stable tag: 1.4.1
+Stable tag: 1.4.2
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -145,6 +145,9 @@ There is no minified-only code. The admin interface is built from Vue 3 source i
 
 == Changelog ==
 
+= 1.4.2 =
+* Fixed the `readOnlyHint` on discovered MCP tools. It was guessed from the tool name's verb, which mislabeled read-only resources whose names lack a read verb (e.g. a "contribution-guide" resource showed read-only as false) and could even mark a mutating "get-and-delete"-style tool as read-only. It now follows the ability's declared annotation, then its type (a resource is read-only by definition), and only then a guarded name heuristic that marks a tool read-only solely when its name leads with a read verb and contains no mutation token.
+
 = 1.4.1 =
 * Lowered the minimum WordPress version from 6.9 to 6.0. The plugin already ran fine on older cores — 6.9 was needlessly blocking updates and fresh installs. The optional WordPress Abilities API integration is feature-detected (`wp_get_abilities`), so it activates wherever that API is present — in core from WordPress 6.9, or via the Abilities API plugin on older versions — and is simply skipped where it isn't. No other behaviour changes.
 * Reworded the "MCP & tools" empty state: it no longer suggests "installing" the Abilities API, and points to WordPress 6.9+ (or the Abilities API plugin) instead.
@@ -185,6 +188,9 @@ There is no minified-only code. The admin interface is built from Vue 3 source i
 * Admin Discovery Hub for inspecting what agents can see, with per-item publish/suppress control.
 
 == Upgrade Notice ==
+
+= 1.4.2 =
+Corrects the read-only hint on discovered MCP tools — it now follows the ability's declared annotation and type (resources are read-only) instead of guessing from the name, so a read-only resource isn't mislabeled and a mutating tool is never marked "safe". No other changes.
 
 = 1.4.1 =
 Compatibility fix: minimum WordPress lowered from 6.9 to 6.0, so the plugin updates and installs on more sites. No feature changes; the Abilities API integration still activates wherever that API is available (core 6.9+, or the Abilities API plugin on older versions).
