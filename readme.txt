@@ -147,6 +147,9 @@ There is no minified-only code. The admin interface is built from Vue 3 source i
 
 = Unreleased =
 * New readiness check, "/llms.txt substance": warns when your generated llms.txt is thin (under the ~200-word minimum agents expect) and a sparse index gives them little to read or cite. Rather than padding the file with filler, it points you at Identity to add a profile and expertise — real content that lifts the file over the line. Sits on the Readable rung.
+* OpenAPI 3.1 description of your site's existing public read API, served at `/.well-known/openapi.json` and advertised from discovery.json. It documents the WordPress REST endpoints for your agent-indexed content types (list + single, with parameters and a content schema) so agent tooling gets a typed contract — it describes the REST you already have and adds no new endpoints.
+* FAQPage schema: when a page clearly is an FAQ (Details/disclosure blocks, or headings that ask a question with their answer below), Agentimus publishes FAQPage JSON-LD so agents can lift the Q&A. Only fires with two or more pairs, so it never emits guessed markup; defers to your SEO plugin like the rest of the schema.
+* Service schema (opt-in): a Services list under Identity (name + description + optional link). Each becomes a Schema.org `Service` linked to you as the provider, so agents can answer "what does this site offer?". Left empty by default — never guessed from your content.
 
 = 1.3.0 =
 * Readiness report reorganised into a Findable → Readable → Trusted ladder: each rung groups its checks under a status-coloured heading, and the dashboard rail shows which rung you've reached plus a one-line next step that jumps straight to the check to fix.

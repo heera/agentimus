@@ -66,6 +66,14 @@ final class Schema {
 
 		$graph = array( $this->website_node(), $this->entity_node() );
 
+		// Services are an entity-level offering, so they belong on the front page
+		// alongside the site identity — not repeated on every post.
+		if ( is_front_page() ) {
+			foreach ( $this->service_nodes() as $service ) {
+				$graph[] = $service;
+			}
+		}
+
 		if ( is_singular( Content::post_types() ) ) {
 			$post = get_post();
 			$node = $this->article_node( $post );
@@ -81,6 +89,12 @@ final class Schema {
 				$graph[] = $node;
 			}
 			$graph[] = $this->breadcrumb_node();
+
+			// A FAQPage when the content clearly is one — agents lift the Q&A.
+			$faq = $this->faq_node( $post );
+			if ( $faq ) {
+				$graph[] = $faq;
+			}
 		}
 
 		$graph = array_values( array_filter( $graph ) );
@@ -192,6 +206,95 @@ final class Schema {
 			}
 		}
 		return $node;
+	}
+
+	/**
+	 * `Service` nodes from the owner-declared services list (opt-in; empty unless
+	 * the site actually offers services — we never guess them from content). Each
+	 * is linked back to the site entity as its provider, so an agent can answer
+	 * "what can I hire this site for?".
+	 *
+	 * @return array[] Zero or more Service nodes.
+	 */
+	private function service_nodes() {
+		$services = (array) $this->settings->identity( 'services', array() );
+		$nodes    = array();
+		foreach ( $services as $svc ) {
+			if ( ! is_array( $svc ) ) {
+				continue;
+			}
+			$name = isset( $svc['name'] ) ? $this->clean( $svc['name'] ) : '';
+			if ( '' === $name ) {
+				continue; // A nameless service is not a service.
+			}
+			$node = array(
+				'@type'    => 'Service',
+				'name'     => $name,
+				'provider' => array( '@id' => home_url( '/#identity' ) ),
+			);
+			$desc = isset( $svc['description'] ) ? $this->clean( $svc['description'] ) : '';
+			if ( '' !== $desc ) {
+				$node['description'] = $desc;
+			}
+			$url = isset( $svc['url'] ) ? esc_url_raw( (string) $svc['url'] ) : '';
+			if ( '' !== $url ) {
+				$node['url'] = $url;
+			}
+			$nodes[] = $node;
+		}
+		return $nodes;
+	}
+
+	/**
+	 * A `FAQPage` node when the post clearly is one. We require at least two Q&A
+	 * pairs — a single question is prose, a list is an FAQ — so we never emit
+	 * guessed/spammy FAQ markup. The detected pairs are filterable.
+	 *
+	 * @param \WP_Post $post Post.
+	 * @return array|null
+	 */
+	private function faq_node( $post ) {
+		// Render blocks (so the Details block becomes <details><summary>) without
+		// firing the full the_content chain — avoids third-party render side effects.
+		$html  = function_exists( 'do_blocks' ) ? do_blocks( (string) $post->post_content ) : (string) $post->post_content;
+		$pairs = Faq::extract( $html );
+
+		/**
+		 * Filter the FAQ pairs detected for a post — supply or refine them.
+		 *
+		 * @param array    $pairs `[ ['q'=>…,'a'=>…], … ]`.
+		 * @param \WP_Post $post  The post.
+		 */
+		$pairs = (array) apply_filters( 'agentimus_faq_pairs', $pairs, $post );
+
+		$entities = array();
+		foreach ( $pairs as $pair ) {
+			$q = isset( $pair['q'] ) ? $this->clean( $pair['q'] ) : '';
+			$a = isset( $pair['a'] ) ? $this->clean( $pair['a'] ) : '';
+			if ( '' === $q || '' === $a ) {
+				continue;
+			}
+			$entities[] = array(
+				'@type'          => 'Question',
+				'name'           => $q,
+				'acceptedAnswer' => array(
+					'@type' => 'Answer',
+					'text'  => $a,
+				),
+			);
+		}
+
+		if ( count( $entities ) < 2 ) {
+			return null;
+		}
+
+		$url = get_permalink( $post );
+		return array(
+			'@type'      => 'FAQPage',
+			'@id'        => $url . '#faq',
+			'url'        => $url,
+			'mainEntity' => $entities,
+		);
 	}
 
 	/**

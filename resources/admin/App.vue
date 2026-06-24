@@ -111,7 +111,7 @@ export default {
         ai_noai_header: s.ai_noai_header, tdm_policy_url: s.tdm_policy_url,
         block_agents: s.block_agents, block_spoofed: s.block_spoofed, blocked_agents: s.blocked_agents, allowed_agents: s.allowed_agents,
         security: s.security,
-        expertise: id.expertise, same_as: id.same_as,
+        expertise: id.expertise, same_as: id.same_as, services: id.services,
       });
     },
     // Third-party DECLARED resources the owner can publish/suppress. Our own

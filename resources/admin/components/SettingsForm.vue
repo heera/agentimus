@@ -60,7 +60,12 @@ export default {
           contact_email: '',
           expertise: [],
           same_as: [],
+          services: [],
         };
+      }
+      // Older saved settings predate services — make sure it's always an array.
+      if (!Array.isArray(this.settings.identity.services)) {
+        this.settings.identity.services = [];
       }
       return this.settings.identity;
     },
@@ -253,6 +258,12 @@ export default {
       this.showReset = false;
       this.$emit('reset');
     },
+    addService() {
+      this.identity.services.push({ name: '', description: '', url: '' });
+    },
+    removeService(index) {
+      this.identity.services.splice(index, 1);
+    },
     addTrainer(name) {
       if (!Array.isArray(this.settings.blocked_trainers)) this.settings.blocked_trainers = [];
       if (!this.settings.blocked_trainers.includes(name)) this.settings.blocked_trainers.push(name);
@@ -395,6 +406,40 @@ export default {
           Public profile URLs (LinkedIn, X, GitHub, Facebook, Wikipedia…) that help agents resolve your entity. Saved as you add.
           <span v-if="identity.same_as.some((u) => !isUrl(u))" class="ar-warn">Some entries are not full https:// URLs.</span>
         </small>
+      </div>
+
+      <div class="ar-field">
+        <label>Services</label>
+        <small class="ar-field__hint">
+          What you can be hired for — each becomes a Schema.org <code>Service</code> linked to you as the provider, so agents can answer “what does this site offer?”. Optional; leave empty if you don't sell services. Saved as you edit.
+        </small>
+        <div v-for="(svc, i) in identity.services" :key="i" class="ar-svc">
+          <div class="ar-svc__head">
+            <input
+              v-model="svc.name"
+              type="text"
+              class="ar-input"
+              placeholder="Service name (e.g. WordPress plugin development)"
+              aria-label="Service name"
+            />
+            <button type="button" class="ar-btn ar-btn--ghost ar-svc__rm" aria-label="Remove service" @click="removeService(i)">Remove</button>
+          </div>
+          <textarea
+            v-model="svc.description"
+            class="ar-input ar-svc__desc"
+            rows="2"
+            placeholder="One line on what it includes (optional)"
+            aria-label="Service description"
+          ></textarea>
+          <input
+            v-model="svc.url"
+            type="url"
+            class="ar-input"
+            placeholder="https://… a page about it (optional)"
+            aria-label="Service URL"
+          />
+        </div>
+        <button type="button" class="ar-btn ar-btn--ghost ar-svc__add" @click="addService">+ Add a service</button>
       </div>
     </section>
 

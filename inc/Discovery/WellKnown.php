@@ -69,7 +69,7 @@ final class WellKnown {
 		// canonical redirect resolves it to the homepage (a 200, not a 404). So
 		// security.txt etc. are intentionally absent — a provider that serves one
 		// adds its name here via the `agentimus_well_known_routed` filter.
-		$names = array( 'discovery.json', 'agent-card.json', 'agent.json', 'mcp.json', 'api-catalog', 'oauth-protected-resource', 'tdmrep.json', Signer::DIRECTORY );
+		$names = array( 'discovery.json', 'agent-card.json', 'agent.json', 'mcp.json', 'openapi.json', 'api-catalog', 'oauth-protected-resource', 'tdmrep.json', Signer::DIRECTORY );
 
 		/**
 		 * Filter the /.well-known names routed to WordPress by an explicit rule.
@@ -197,6 +197,10 @@ final class WellKnown {
 				break;
 			case 'mcp.json':
 				$this->send( $this->envelope->mcp_json(), 'application/json', 'mcp.json' );
+				break;
+			case 'openapi.json':
+				// OpenAPI 3.1 description of the existing public REST read API.
+				$this->send( ( new OpenApi( $this->settings ) )->json(), 'application/json', 'openapi.json' );
 				break;
 			case 'api-catalog':
 				// RFC 9727 API catalog, as an RFC 9264 link set.

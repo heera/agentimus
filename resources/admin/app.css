@@ -632,6 +632,22 @@ select.ar-input {
 }
 
 .ar-warn { color: var(--ar-bad); }
+
+/* Services repeater (Identity → Services): one bordered row per service. */
+.ar-svc {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px;
+  margin-top: 8px;
+  border: 1px solid var(--ar-line);
+  border-radius: var(--ar-radius);
+  background: var(--ar-paper);
+}
+.ar-svc__head { display: flex; gap: 8px; align-items: flex-start; }
+.ar-svc__head .ar-input { flex: 1 1 auto; min-width: 0; }
+.ar-svc__rm { flex: 0 0 auto; white-space: nowrap; }
+.ar-svc__add { margin-top: 8px; }
 .ar-signals { display: flex; flex-direction: column; }
 
 /* Known-crawler suggestions */

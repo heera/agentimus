@@ -48,6 +48,7 @@ final class Settings {
 				'contact_email' => '', // Opt-in; published in discovery.json only if set.
 				'expertise'     => array(),
 				'same_as'       => array(),
+				'services'      => array(), // Opt-in: owner-declared services [{name, description, url}] → Schema.org Service. Empty = none (never guessed from content).
 			),
 			'security'         => array(
 				'contacts'            => array(), // Extra Contact URIs/emails beyond identity.contact_email (which seeds the first one).
@@ -439,6 +440,7 @@ final class Settings {
 			'contact_email' => isset( $identity_in['contact_email'] ) ? sanitize_email( (string) $identity_in['contact_email'] ) : '',
 			'expertise'     => $this->sanitize_list( isset( $identity_in['expertise'] ) ? $identity_in['expertise'] : array(), 'sanitize_text_field' ),
 			'same_as'       => $this->sanitize_list( isset( $identity_in['same_as'] ) ? $identity_in['same_as'] : array(), 'esc_url_raw' ),
+			'services'      => $this->sanitize_services( isset( $identity_in['services'] ) ? $identity_in['services'] : array() ),
 		);
 
 		// security.txt (RFC 9116) fields. Contacts accept an email or an http(s)/
@@ -501,6 +503,33 @@ final class Settings {
 		return array_values( array_filter( $value, static function ( $item ) {
 			return '' !== $item;
 		} ) );
+	}
+
+	/**
+	 * Sanitise the owner-declared services list into clean `{name, description, url}`
+	 * rows. A row with no name is dropped (a nameless service is meaningless);
+	 * description and url are optional. Accepts the array the UI sends.
+	 *
+	 * @param mixed $value Raw services list.
+	 * @return array<int,array{name:string,description:string,url:string}>
+	 */
+	private function sanitize_services( $value ) {
+		$out = array();
+		foreach ( (array) $value as $row ) {
+			if ( ! is_array( $row ) ) {
+				continue;
+			}
+			$name = isset( $row['name'] ) ? sanitize_text_field( (string) $row['name'] ) : '';
+			if ( '' === $name ) {
+				continue;
+			}
+			$out[] = array(
+				'name'        => $name,
+				'description' => isset( $row['description'] ) ? sanitize_textarea_field( (string) $row['description'] ) : '',
+				'url'         => isset( $row['url'] ) ? esc_url_raw( (string) $row['url'] ) : '',
+			);
+		}
+		return $out;
 	}
 
 	/**
