@@ -1,10 +1,10 @@
 === Agentimus ===
 Contributors: heera
 Tags: ai-agents, ai-crawlers, agent-readiness, llms-txt, ai-seo
-Requires at least: 6.9
+Requires at least: 6.0
 Tested up to: 7.0
 Requires PHP: 7.4
-Stable tag: 1.4.0
+Stable tag: 1.4.1
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -145,6 +145,10 @@ There is no minified-only code. The admin interface is built from Vue 3 source i
 
 == Changelog ==
 
+= 1.4.1 =
+* Lowered the minimum WordPress version from 6.9 to 6.0. The plugin already ran fine on older cores — 6.9 was needlessly blocking updates and fresh installs. The optional WordPress Abilities API integration is feature-detected (`wp_get_abilities`), so it activates wherever that API is present — in core from WordPress 6.9, or via the Abilities API plugin on older versions — and is simply skipped where it isn't. No other behaviour changes.
+* Reworded the "MCP & tools" empty state: it no longer suggests "installing" the Abilities API, and points to WordPress 6.9+ (or the Abilities API plugin) instead.
+
 = 1.4.0 =
 * OpenAPI 3.1 description of your site's existing public read API, served at `/.well-known/openapi.json` and advertised from discovery.json. It documents the WordPress REST endpoints for your agent-indexed content types (list + single, with parameters and a content schema) so agent tooling gets a typed contract — it describes the REST you already have and adds no new endpoints.
 * FAQPage schema: when a page clearly is an FAQ (Details/disclosure blocks, or headings that ask a question with their answer below), Agentimus publishes FAQPage JSON-LD so agents can lift the Q&A. Only fires with two or more pairs, so it never emits guessed markup; defers to your SEO plugin like the rest of the schema.
@@ -181,6 +185,9 @@ There is no minified-only code. The admin interface is built from Vue 3 source i
 * Admin Discovery Hub for inspecting what agents can see, with per-item publish/suppress control.
 
 == Upgrade Notice ==
+
+= 1.4.1 =
+Compatibility fix: minimum WordPress lowered from 6.9 to 6.0, so the plugin updates and installs on more sites. No feature changes; the Abilities API integration still activates wherever that API is available (core 6.9+, or the Abilities API plugin on older versions).
 
 = 1.4.0 =
 Three new machine-readable surfaces: an OpenAPI 3.1 description of your existing REST at /.well-known/openapi.json, automatic FAQPage schema on pages that are clearly FAQs, and an opt-in Services list that publishes Schema.org Service. Plus a readiness check that flags a too-thin llms.txt.

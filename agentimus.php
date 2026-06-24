@@ -3,8 +3,8 @@
  * Plugin Name:       Agentimus
  * Plugin URI:        https://github.com/heera/agentimus
  * Description:       An AI-discovery layer for your site: a /.well-known discovery document, machine-readable pages (llms.txt, markdown, JSON-LD), AI-crawl controls, and a first-party agent-activity log. Lightweight, no SEO bloat.
- * Version:           1.4.0
- * Requires at least: 6.9
+ * Version:           1.4.1
+ * Requires at least: 6.0
  * Requires PHP:      7.4
  * Author:            Sheikh Heera
  * Author URI:        https://heera.it
@@ -19,7 +19,7 @@ namespace Agentimus;
 
 defined( 'ABSPATH' ) || exit;
 
-define( 'AGENTIMUS_VERSION', '1.4.0' );
+define( 'AGENTIMUS_VERSION', '1.4.1' );
 define( 'AGENTIMUS_FILE', __FILE__ );
 define( 'AGENTIMUS_DIR', plugin_dir_path( __FILE__ ) );
 define( 'AGENTIMUS_URL', plugin_dir_url( __FILE__ ) );

@@ -232,7 +232,8 @@ export default {
         </li>
       </ul>
       <p v-else class="ar-wd-empty">
-        No tools registered. Install the Abilities API (heading for core) or an MCP-aware plugin.
+        No agent tools yet. They come from the WordPress Abilities API (in core from 6.9, or the Abilities
+        API plugin on older versions) or an MCP-aware plugin — once abilities are registered, they appear here.
       </p>
     </section>
 
