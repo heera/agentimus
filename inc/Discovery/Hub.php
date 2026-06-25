@@ -53,14 +53,21 @@ final class Hub {
 			$builder->all_resources()
 		);
 
+		$endpoints = array(
+			'discovery' => home_url( '/.well-known/discovery.json' ),
+			'agentCard' => home_url( '/.well-known/agent-card.json' ),
+			'agentJson' => home_url( '/.well-known/agent.json' ),
+			'mcp'       => home_url( '/.well-known/mcp.json' ),
+			'rest'      => rest_url( 'agentimus/v1/discovery' ),
+		);
+		// The primary MCP server card is served only when a real server is detected
+		// (it 404s otherwise), so surface it to the admin only when it's actually live.
+		if ( ! empty( $surface['mcp']['available'] ) && ! empty( $surface['mcp']['servers'] ) ) {
+			$endpoints['mcpServerCard'] = home_url( '/.well-known/mcp/server-card.json' );
+		}
+
 		return array(
-			'endpoints'    => array(
-				'discovery' => home_url( '/.well-known/discovery.json' ),
-				'agentCard' => home_url( '/.well-known/agent-card.json' ),
-				'agentJson' => home_url( '/.well-known/agent.json' ),
-				'mcp'       => home_url( '/.well-known/mcp.json' ),
-				'rest'      => rest_url( 'agentimus/v1/discovery' ),
-			),
+			'endpoints'    => $endpoints,
 			'site'         => $envelope['site'],
 			'resources'    => $rows,
 			'capabilities' => $envelope['capabilities'],

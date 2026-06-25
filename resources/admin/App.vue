@@ -199,6 +199,7 @@ export default {
         { label: 'discovery.json', url: e.discovery },
         { label: 'agent-card.json', url: e.agentCard },
         { label: 'mcp.json', url: e.mcp },
+        { label: 'mcp/server-card.json', url: e.mcpServerCard },
       ].filter((d) => d.url);
     },
     noticeTitle() {
