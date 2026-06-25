@@ -4,7 +4,7 @@ Tags: ai-agents, ai-crawlers, agent-readiness, llms-txt, ai-seo
 Requires at least: 6.0
 Tested up to: 7.0
 Requires PHP: 7.4
-Stable tag: 1.4.2
+Stable tag: 1.4.3
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -145,6 +145,11 @@ There is no minified-only code. The admin interface is built from Vue 3 source i
 
 == Changelog ==
 
+= 1.4.3 =
+* The MCP server card at `/.well-known/mcp/server-card.json` now describes a real MCP server using that server's own tools — exactly what's callable at its endpoint — instead of the site-wide ability list (which could list tools that weren't actually exposed there). On a site running more than one MCP server, the card represents the richest server, and every other server gets its own card at `/.well-known/mcp/{server}/server-card.json`; a site with no MCP server returns a clean 404 as before.
+* The `/.well-known/mcp.json` manifest now links each server to its own card, so an agent can enumerate the servers a site exposes and jump straight to each card without guessing the URL.
+* Admin: when a real MCP server is detected, the Discovery-docs rail lists the server card alongside discovery.json, agent-card.json and mcp.json (hidden on sites with no server, so there's never a dead link).
+
 = 1.4.2 =
 * Fixed the `readOnlyHint` on discovered MCP tools. It was guessed from the tool name's verb, which mislabeled read-only resources whose names lack a read verb (e.g. a "contribution-guide" resource showed read-only as false) and could even mark a mutating "get-and-delete"-style tool as read-only. It now follows the ability's declared annotation, then its type (a resource is read-only by definition), and only then a guarded name heuristic that marks a tool read-only solely when its name leads with a read verb and contains no mutation token.
 
@@ -188,6 +193,9 @@ There is no minified-only code. The admin interface is built from Vue 3 source i
 * Admin Discovery Hub for inspecting what agents can see, with per-item publish/suppress control.
 
 == Upgrade Notice ==
+
+= 1.4.3 =
+The MCP server card now describes a real MCP server and its actual tools instead of the site-wide ability list. Sites running several MCP servers get one card each at /.well-known/mcp/{server}/server-card.json, and mcp.json now links to every server's card. No change for sites without an MCP server.
 
 = 1.4.2 =
 Corrects the read-only hint on discovered MCP tools — it now follows the ability's declared annotation and type (resources are read-only) instead of guessing from the name, so a read-only resource isn't mislabeled and a mutating tool is never marked "safe". No other changes.
