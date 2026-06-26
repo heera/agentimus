@@ -1017,23 +1017,24 @@ export default {
       </ul>
     </section>
 
-    <!-- Setup guide --------------------------------------------------- -->
-    <section class="ar-card ar-card--muted">
+    <!-- Manage setup: a guided (non-destructive) review and a destructive
+         reset, grouped in ONE block so they read as related lifecycle actions
+         (and share one background). The red button carries the danger cue. -->
+    <section class="ar-card ar-card--muted ar-manage">
       <div class="ar-reset">
         <div class="ar-reset__text">
           <strong>Setup guide</strong>
-          <small>Re-run the short guided setup to review who you are and what AI assistants can read.</small>
+          <small>Re-open the guided setup with your current answers filled in — review or fine-tune who you are and what AI assistants can read. <em>Nothing is reset.</em></small>
         </div>
-        <button type="button" class="ar-btn ar-btn--ghost" @click="$emit('reopen-wizard')">Run setup again</button>
+        <button type="button" class="ar-btn ar-btn--ghost" @click="$emit('reopen-wizard')">Review setup</button>
       </div>
-    </section>
 
-    <!-- Reset ---------------------------------------------------------- -->
-    <section class="ar-card ar-card--reset">
+      <hr class="ar-manage__sep" />
+
       <div class="ar-reset">
         <div class="ar-reset__text">
           <strong>Reset to defaults</strong>
-          <small>Restore every setting — identity, crawler policy and feature toggles — to the recommended factory defaults.</small>
+          <small>Wipe every setting back to the recommended factory defaults. This also <em>clears your identity profile</em> (name, about, links) and can’t be undone.</small>
         </div>
         <button type="button" class="ar-btn ar-btn--danger" :disabled="resetting" @click="openReset">
           {{ resetting ? 'Resetting…' : 'Reset' }}

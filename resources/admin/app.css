@@ -1623,3 +1623,8 @@ select.ar-input {
 @media (prefers-reduced-motion: reduce) {
   .ar-adv__chev { transition: none !important; }
 }
+
+/* Manage-setup block (Setup guide + Reset, grouped) ---------------- */
+.ar-manage { display: flex; flex-direction: column; gap: 18px; }
+.ar-manage__sep { border: 0; border-top: 1px solid var(--ar-line); margin: 0; width: 100%; }
+.ar-reset__text em { font-style: normal; font-weight: 600; color: var(--ar-ink-soft); }
