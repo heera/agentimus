@@ -1602,3 +1602,24 @@ select.ar-input {
 @media (prefers-reduced-motion: reduce) {
   .ar__body > *, .ar-rail-gauge__fill { animation: none !important; transition: none !important; }
 }
+
+/* Advanced / Authenticated API ------------------------------------- */
+.ar-adv__toggle { width: 100%; background: none; border: 0; padding: 0; cursor: pointer; text-align: left; color: inherit; font: inherit; }
+.ar-adv__toggle:focus-visible { outline: 2px solid var(--ar-accent); outline-offset: 3px; border-radius: var(--ar-radius); }
+.ar-adv__chev { flex: 0 0 auto; color: var(--ar-ink-faint); transition: transform 0.18s ease; }
+.ar-adv__chev.is-open { transform: rotate(180deg); }
+.ar-adv__body { margin-top: 18px; border-top: 1px solid var(--ar-line); padding-top: 18px; }
+.ar-adv__title { font-family: var(--ar-serif); font-size: 16px; font-weight: 600; margin: 0 0 8px; }
+.ar-oauth { display: flex; gap: 8px; align-items: stretch; }
+.ar-oauth .ar-input { flex: 1 1 auto; min-width: 0; } /* min-width:0 lets the field shrink below its intrinsic size on narrow screens */
+.ar-oauth__check { flex: 0 0 auto; }
+.ar-oauth__msg { font-size: 12.5px; line-height: 1.5; margin-top: 8px; overflow-wrap: anywhere; } /* break the long /.well-known/… token instead of overflowing */
+/* The hint embeds a long, space-free URL path — let it wrap on mobile. */
+.ar-adv__body .ar-field__hint, .ar-adv__body .ar-field__hint code { overflow-wrap: anywhere; }
+.ar-oauth__msg.is-ok { color: var(--ar-good); }
+.ar-oauth__msg.is-bad { color: var(--ar-bad); }
+.ar-oauth__msg.is-info { color: var(--ar-ink-soft); }
+
+@media (prefers-reduced-motion: reduce) {
+  .ar-adv__chev { transition: none !important; }
+}

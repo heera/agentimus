@@ -25,7 +25,17 @@ export default {
   },
   emits: ['save-profile', 'save-services', 'reset', 'reopen-wizard'],
   data() {
-    return { typeQuery: '', nsQuery: '', showReset: false, scrollMore: false };
+    return {
+      typeQuery: '',
+      nsQuery: '',
+      showReset: false,
+      scrollMore: false,
+      // Keep the developer section open if a value is already configured, so an
+      // existing setup is never hidden; collapsed by default on a fresh install.
+      showAdvanced: !!(this.settings && (this.settings.oauth_auth_server || '').trim()),
+      oauthChecking: false,
+      oauthCheck: null,
+    };
   },
   mounted() {
     window.addEventListener('resize', this.updateScrollHint);
@@ -51,6 +61,12 @@ export default {
     },
     blockedCount() {
       return Array.isArray(this.settings.blocked_trainers) ? this.settings.blocked_trainers.length : 0;
+    },
+    oauthCheckClass() {
+      if (!this.oauthCheck) return '';
+      if (this.oauthCheck.ok === true) return 'is-ok';
+      if (this.oauthCheck.ok === false) return 'is-bad';
+      return 'is-info';
     },
     identity() {
       // Guard against a missing identity object on first paint.
@@ -230,6 +246,60 @@ export default {
   methods: {
     isUrl(value) {
       return /^https?:\/\//i.test(value);
+    },
+    // The same-origin RFC 9728 doc the plugin publishes from this setting. We
+    // check OUR OWN site (not the third-party auth server) on purpose: it's
+    // readable cross-origin-free, and it answers the real question — "is my auth
+    // flow now discoverable?" — rather than poking someone else's server.
+    oauthWellKnownUrl() {
+      const base = this.endpoints.robots || this.endpoints.llms || '';
+      try {
+        return `${new URL(base).origin}/.well-known/oauth-protected-resource`;
+      } catch (e) {
+        return '';
+      }
+    },
+    async checkOauth() {
+      if (this.oauthChecking) return;
+      const entered = (this.settings.oauth_auth_server || '').trim();
+      this.oauthCheck = null;
+      if (!entered) {
+        this.oauthCheck = { ok: null, msg: 'Nothing to check — leave this blank unless your site has a login-protected API.' };
+        return;
+      }
+      if (!this.isUrl(entered)) {
+        this.oauthCheck = { ok: false, msg: 'Enter a full address, e.g. https://auth.example.com' };
+        return;
+      }
+      const url = this.oauthWellKnownUrl();
+      if (!url) {
+        this.oauthCheck = { ok: false, msg: 'Could not work out your site address to run the check.' };
+        return;
+      }
+      const norm = (v) => String(v).replace(/\/+$/, '');
+      this.oauthChecking = true;
+      try {
+        // Anonymous, uncached — exactly what an agent sees on the public URL.
+        const res = await fetch(url, { method: 'GET', credentials: 'omit', cache: 'no-store' });
+        if (res.status !== 200) {
+          this.oauthCheck = { ok: false, msg: `Not published yet (HTTP ${res.status}). Save your settings, then check again.` };
+          return;
+        }
+        let doc = null;
+        try { doc = await res.json(); } catch (e) { doc = null; }
+        const servers = doc && Array.isArray(doc.authorization_servers) ? doc.authorization_servers : [];
+        if (servers.some((s) => norm(s) === norm(entered))) {
+          this.oauthCheck = { ok: true, msg: 'Published ✓ — agents can now discover your login server at /.well-known/oauth-protected-resource.' };
+        } else if (servers.length) {
+          this.oauthCheck = { ok: false, msg: `Published, but it still lists ${servers[0]} — save your latest change, then check again.` };
+        } else {
+          this.oauthCheck = { ok: false, msg: 'Published, but no login server is listed yet. Save your settings, then check again.' };
+        }
+      } catch (e) {
+        this.oauthCheck = { ok: false, msg: 'Could not reach the metadata on your own site (offline or blocked).' };
+      } finally {
+        this.oauthChecking = false;
+      }
     },
     openReset() {
       if (this.resetting) return;
@@ -897,17 +967,43 @@ export default {
       </p>
     </section>
 
-    <!-- Authenticated API (RFC 9728, optional) ------------------------- -->
-    <section class="ar-card">
-      <h2 class="ar-card__title">Authenticated API <span class="ar-field__tag">optional</span></h2>
-      <p class="ar-card__lead">
-        If your site exposes an API protected by OAuth, name its authorization server and Agentimus
-        publishes RFC 9728 metadata at <code>/.well-known/oauth-protected-resource</code> so agents can
-        find the auth flow. Leave empty for a content site.
-      </p>
-      <div class="ar-field">
-        <label for="ar-oauth-as">OAuth authorization server URL</label>
-        <input id="ar-oauth-as" v-model="settings.oauth_auth_server" type="url" class="ar-input" placeholder="https://auth.example.com" />
+    <!-- Advanced / Developer (collapsed; Authenticated API lives here) -- -->
+    <section class="ar-card ar-card--muted ar-adv">
+      <button
+        type="button"
+        class="ar-adv__toggle ar-reset"
+        :aria-expanded="showAdvanced ? 'true' : 'false'"
+        aria-controls="ar-adv-body"
+        @click="showAdvanced = !showAdvanced"
+      >
+        <span class="ar-reset__text">
+          <strong>Advanced <span class="ar-field__tag">developer</span></strong>
+          <small>Authenticated-API discovery for sites with a login-protected API. Most sites don’t need this.</small>
+        </span>
+        <svg class="ar-adv__chev" :class="{ 'is-open': showAdvanced }" viewBox="0 0 16 16" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6l4 4 4-4" /></svg>
+      </button>
+
+      <div v-if="showAdvanced" id="ar-adv-body" class="ar-adv__body">
+        <h3 class="ar-adv__title">Authenticated API <span class="ar-field__tag">optional</span></h3>
+        <p class="ar-card__lead">
+          Only for a site whose API apps or AI agents <strong>log into</strong> — a headless build or app backend that uses OAuth.
+          <strong>Most sites should leave this blank.</strong> And if your API already publishes its own login metadata,
+          Agentimus finds it automatically, so there’s nothing to enter here.
+        </p>
+        <div class="ar-field">
+          <label for="ar-oauth-as">Login (authorization) server address</label>
+          <div class="ar-oauth">
+            <input id="ar-oauth-as" v-model="settings.oauth_auth_server" type="url" class="ar-input" placeholder="https://auth.example.com" />
+            <button type="button" class="ar-btn ar-btn--ghost ar-oauth__check" :disabled="oauthChecking" @click="checkOauth">
+              {{ oauthChecking ? 'Checking…' : 'Check' }}
+            </button>
+          </div>
+          <p class="ar-field__hint">
+            This is where apps sign in — your API platform shows it; you don’t make it up. Agentimus then publishes it at
+            <code>/.well-known/oauth-protected-resource</code> so agents can find the login. <strong>Check</strong> confirms it’s live on your site.
+          </p>
+          <p v-if="oauthCheck" class="ar-oauth__msg" :class="oauthCheckClass" role="status" aria-live="polite">{{ oauthCheck.msg }}</p>
+        </div>
       </div>
     </section>
 
