@@ -39,6 +39,12 @@ final class Admin {
 		add_action( 'admin_bar_menu', array( $this, 'admin_bar_node' ), 80 );
 		add_action( 'wp_enqueue_scripts', array( $this, 'admin_bar_style' ) );
 		add_action( 'admin_enqueue_scripts', array( $this, 'admin_bar_style' ) );
+
+		// Native admin-footer text + version, on our own screens ONLY (the
+		// scoped WordPress convention WooCommerce and others follow — we never
+		// touch the global admin footer or any unrelated screen).
+		add_filter( 'admin_footer_text', array( $this, 'admin_footer_text' ) );
+		add_filter( 'update_footer', array( $this, 'admin_footer_version' ), 15 );
 	}
 
 	/**
@@ -162,6 +168,56 @@ final class Admin {
 	}
 
 	/**
+	 * Left admin-footer text on our own screens: a polite, optional rating
+	 * request. Off our screens we return WordPress's default text untouched, so
+	 * the global admin experience is never altered (a wp.org guideline). The
+	 * name and the star link are pre-escaped; the translatable string carries
+	 * only placeholders.
+	 *
+	 * @param string $text Default footer text.
+	 * @return string
+	 */
+	public function admin_footer_text( $text ) {
+		if ( ! $this->is_plugin_screen() ) {
+			return $text;
+		}
+
+		$name  = '<strong>' . esc_html__( 'Agentimus', 'agentimus' ) . '</strong>';
+		$stars = sprintf(
+			'<a href="%1$s" target="_blank" rel="noopener" aria-label="%2$s" class="agentimus-rating-link">&#9733;&#9733;&#9733;&#9733;&#9733;</a>',
+			esc_url( 'https://wordpress.org/support/plugin/agentimus/reviews/?rate=5#new-post' ),
+			esc_attr__( 'Rate Agentimus five stars on WordPress.org (opens in a new tab)', 'agentimus' )
+		);
+
+		return sprintf(
+			/* translators: 1: plugin name (bold), 2: five-star rating link. */
+			__( 'If you like %1$s please give this plugin a %2$s rating. A huge thanks in advance!', 'agentimus' ),
+			$name,
+			$stars
+		);
+	}
+
+	/**
+	 * Right admin-footer text on our own screens: the plugin version (priority 15
+	 * so it wins over core's WP-version line). Off our screens core's default
+	 * version/update text is left intact.
+	 *
+	 * @param string $text Default upgrade/version text.
+	 * @return string
+	 */
+	public function admin_footer_version( $text ) {
+		if ( ! $this->is_plugin_screen() ) {
+			return $text;
+		}
+
+		return sprintf(
+			/* translators: %s: plugin version number. */
+			esc_html__( 'Version %s', 'agentimus' ),
+			esc_html( AGENTIMUS_VERSION )
+		);
+	}
+
+	/**
 	 * Style the toolbar node's brand monogram. Reuses the menu icon's SVG as a
 	 * CSS mask filled with `currentColor`, so the "A" tracks the toolbar's own
 	 * text colour in every admin scheme and on the front-end bar alike. Enqueued
@@ -279,6 +335,13 @@ final class Admin {
 				AGENTIMUS_URL . 'assets/admin/app.css',
 				array(),
 				$this->asset_version( $css )
+			);
+
+			// Gold, underline-free stars for the admin-footer rating link (the
+			// footer sits outside the Vue app, so it needs a global selector).
+			wp_add_inline_style(
+				self::HANDLE,
+				'.agentimus-rating-link{color:#e0a32e;text-decoration:none}.agentimus-rating-link:hover,.agentimus-rating-link:focus{color:#c8881d}'
 			);
 		}
 	}

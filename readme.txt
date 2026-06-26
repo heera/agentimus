@@ -130,6 +130,7 @@ Agentimus also fires the product-aliased `agentimus_register`; you may hook eith
 4. Discovery Hub — every plugin's capabilities aggregated into one document, with per-item publish/suppress control.
 5. Crawler policy & scanner blocking — declare your content-usage signals, block AI-training crawlers by name, and turn away spoofed or scanner traffic.
 6. Activity to review — a nav-bar alert surfaces new, high-volume or spoofed clients from any screen, with one-click Block or Allow (no IP logging).
+7. About — a plain-English account of every feature and what it publishes, a privacy & data section (no outbound calls, no IP/PII, signing key stays on your server), the open WP_Discovery Protocol it implements, and an FAQ.
 
 == External services ==
 
@@ -154,6 +155,7 @@ There is no minified-only code. The admin interface is built from Vue 3 source i
 * Clearer Settings: the Authenticated API field is plain-language with a one-click same-origin check, Setup-guide and Reset are grouped into one block with equal-width actions, and the security-contact and signing copy were reworded so every option explains itself.
 * Discovery tab: "Well-known documents" now spans the full width, and validation moved to a compact "Registration status" card in the sidebar that expands to a full list only when there's something to fix.
 * Admin nav keeps all tabs on a single row at narrow widths, and the notification bell drops its dropdown caret.
+* Admin polish: a quiet maker credit in the sidebar (linking to the author's site) and a small, optional review link in the footer — both shown only on Agentimus's own screens, never elsewhere in wp-admin.
 
 = 1.4.3 =
 * The MCP server card at `/.well-known/mcp/server-card.json` now describes a real MCP server using that server's own tools — exactly what's callable at its endpoint — instead of the site-wide ability list (which could list tools that weren't actually exposed there). On a site running more than one MCP server, the card represents the richest server, and every other server gets its own card at `/.well-known/mcp/{server}/server-card.json`; a site with no MCP server returns a clean 404 as before.
