@@ -378,18 +378,14 @@ export default {
         this.onboarding = false;
       }
     },
-    async skipWizard() {
-      if (this.onboarding) return;
-      this.onboarding = true;
-      try {
-        await this.api.completeOnboarding();
-        this.onboarded = true;
-        this.showWizard = false;
-      } catch (e) {
-        this.flash('error', e.message);
-      } finally {
-        this.onboarding = false;
-      }
+    skipWizard() {
+      // Skipping must feel instant: close now and persist the "onboarded" flag
+      // in the background. There's no entered data to lose if the write is slow,
+      // and awaiting the round-trip made the click look dead (it just dimmed).
+      // If the write fails the modal simply reappears next load — self-correcting.
+      this.showWizard = false;
+      this.onboarded = true;
+      this.api.completeOnboarding().catch((e) => this.flash('error', e.message));
     },
     // "Run setup again" from Settings — reopen over the current settings (the
     // child re-seeds itself from them on open). Does not clear the onboarded flag.
