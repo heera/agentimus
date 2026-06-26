@@ -43,6 +43,7 @@ export default {
       resetting: false,
       onboarded: !!this.boot.onboarded,
       showWizard: false,
+      wizardCelebrate: false,
       onboarding: false,
       profileSaving: false,
       profileSaved: false,
@@ -352,6 +353,7 @@ export default {
     // done. Wizard state lives in the child; we only receive the final payload.
     async finishWizard(payload) {
       if (this.onboarding) return;
+      const firstRun = !this.onboarded; // decided before we flip the flag below
       this.onboarding = true;
       clearTimeout(this._autoTimer); // the settings swap below must not queue a save
       try {
@@ -369,14 +371,26 @@ export default {
         this.savedSnapshot = JSON.stringify(res.settings || {});
         this.readiness = res.readiness || this.readiness;
         await this.api.completeOnboarding();
-        this.onboarded = true;
-        this.showWizard = false;
-        this.flash('success', 'Your site is set up for AI assistants.');
+        if (firstRun) {
+          // First-time setup earns a moment: keep the modal open and let the
+          // wizard switch to its celebration view. Reviews just save quietly.
+          this.onboarded = true;
+          this.wizardCelebrate = true;
+        } else {
+          this.onboarded = true;
+          this.showWizard = false;
+          this.flash('success', 'Changes saved.');
+        }
       } catch (e) {
         this.flash('error', e.message);
       } finally {
         this.onboarding = false;
       }
+    },
+    // Dismiss the celebration (the wizard's "done" view) and close the modal.
+    closeWizard() {
+      this.showWizard = false;
+      this.wizardCelebrate = false;
     },
     skipWizard() {
       // Skipping must feel instant: close now and persist the "onboarded" flag
@@ -390,6 +404,7 @@ export default {
     // "Run setup again" from Settings — reopen over the current settings (the
     // child re-seeds itself from them on open). Does not clear the onboarded flag.
     reopenWizard() {
+      this.wizardCelebrate = false; // a review never shows the first-run celebration
       this.showWizard = true;
     },
     // Debounced autosave for toggles / selections / chips.
@@ -612,8 +627,11 @@ export default {
       :entity-types="entityTypes"
       :post-types="postTypes"
       :saving="onboarding"
+      :returning="onboarded"
+      :celebrate="wizardCelebrate"
       @finish="finishWizard"
       @skip="skipWizard"
+      @done="closeWizard"
     />
 
     <div class="ar__pagehead">

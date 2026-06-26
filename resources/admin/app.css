@@ -933,6 +933,30 @@ select.ar-input {
 .ar-wiz__protect li { display: flex; gap: 8px; font-size: 13px; color: var(--ar-ink-soft); line-height: 1.45; }
 .ar-wiz__protect li::before { content: "✓"; color: var(--ar-good); font-weight: 700; flex: 0 0 auto; }
 
+/* Welcome screen (first run) */
+.ar-wiz__welcome { text-align: center; padding: 6px 0 2px; }
+.ar-wiz__welcome-mark { width: 56px; height: 56px; border-radius: 50%; background: var(--ar-surface-2); border: 1px solid var(--ar-line); display: flex; align-items: center; justify-content: center; margin: 2px auto 16px; color: var(--ar-accent); }
+.ar-wiz__welcome-title { font-family: var(--ar-serif); font-size: 24px; font-weight: 600; margin: 0 0 10px; }
+.ar-wiz__welcome-lead { color: var(--ar-ink-soft); font-size: 14px; line-height: 1.6; max-width: 46ch; margin: 0 auto 18px; }
+.ar-wiz__welcome-points { list-style: none; margin: 0 auto; padding: 0; display: inline-flex; flex-direction: column; gap: 9px; text-align: left; }
+.ar-wiz__welcome-points li { display: flex; gap: 10px; font-size: 13.5px; color: var(--ar-ink); }
+.ar-wiz__welcome-points li::before { content: ""; flex: 0 0 auto; width: 7px; height: 7px; margin-top: 6px; border-radius: 50%; background: var(--ar-accent); }
+
+/* Done / first-run celebration */
+.ar-wiz__done { position: relative; text-align: center; padding: 10px 0 4px; }
+.ar-wiz__done-check { width: 66px; height: 66px; border-radius: 50%; background: var(--ar-good); color: #fff; display: flex; align-items: center; justify-content: center; margin: 4px auto 18px; animation: ar-pop 360ms cubic-bezier(0.2, 0.8, 0.2, 1.5) both; }
+.ar-wiz__done-title { font-family: var(--ar-serif); font-size: 23px; font-weight: 600; margin: 0 0 9px; }
+.ar-wiz__done-lead { color: var(--ar-ink-soft); font-size: 14px; line-height: 1.6; max-width: 44ch; margin: 0 auto; }
+.ar-wiz__done-btn { width: 100%; }
+.ar-wiz__confetti { position: absolute; left: 0; right: 0; top: -8px; height: 1px; pointer-events: none; }
+.ar-wiz__confetti span { position: absolute; top: 0; width: 8px; height: 14px; border-radius: 1px; opacity: 0; animation-name: ar-confetti; animation-timing-function: ease-in; animation-iteration-count: 1; animation-fill-mode: forwards; }
+@keyframes ar-pop { 0% { transform: scale(0.4); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
+@keyframes ar-confetti { 0% { transform: translateY(0) rotate(0); opacity: 1; } 100% { transform: translateY(340px) rotate(560deg); opacity: 0; } }
+@media (prefers-reduced-motion: reduce) {
+  .ar-wiz__done-check { animation: none; }
+  .ar-wiz__confetti { display: none; }
+}
+
 /* ---- Readiness ---------------------------------------------------------- */
 /* Each rung is a titled group of checks, with its own pass tally. */
 .ar-checkgroup { margin-top: 26px; }
