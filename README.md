@@ -108,67 +108,71 @@ full copy-paste reference, and the [**WP_Discovery Protocol**](https://github.co
 
 ## Hooks & filters
 
-The dev-facing subset (the plugin fires ~55 in all; every one is optional).
+The dev-facing subset below; the plugin fires ~55 in all and every one is optional. They fall into three tiers: **Stable** — the `wpdiscovery_register` registration API plus `agentimus_entity_types` and `agentimus_cache_flushed`, frozen at WP_Discovery spec 1.0; **Extension** — the output-shaping filters listed here, supported but with signatures that may evolve between releases; and **Internal** — advanced Guard/Classifier/Activity/Settings tuning, not a third-party integration surface. The complete, tier-annotated catalogue with every signature is in [`examples/all-hooks-reference.php`](examples/all-hooks-reference.php).
 
-**Identity**
-- `agentimus_entity_types` `(array $types)` — selectable schema.org entity types; add subtypes (e.g. `Restaurant`).
-
-**Content, llms.txt & markdown**
-- `agentimus_post_types` `(array $types, array $available)` — which post types are agent-visible.
-- `agentimus_topic_exclude` `(array $slugs)` — topic/category slugs to omit from llms.txt (default `['uncategorized']`).
-- `agentimus_markdown_source` `(?string $html, WP_Post $post)` — supply rendered HTML for page-builder content.
-- `agentimus_defer_schema` `(bool $active)` — force JSON-LD to stand down for (or override) an SEO plugin.
-
-**Discovery & `.well-known`**
-- `agentimus_envelope` `(array $envelope, $registry)` — the assembled `discovery.json`.
-- `agentimus_mcp` `(array $mcp, array $resources)` — the advertised MCP descriptor.
-- `agentimus_agent_skills` `(array $skills, array $resources)` — the Agent Skills index.
-- `agentimus_rest_namespaces` `(array $allowed)` — REST namespaces to publish.
-- `agentimus_discoverable_ability` `(bool $ok, string $name, $ability)` — include/exclude a WP ability.
-- `agentimus_schema_url` `(string $url)` — the `$schema` value; return `''` to omit it.
-- `agentimus_well_known_nested` `(array $names)` — extra exact-match nested `/.well-known/…` paths.
-
-**Signing / Web Bot Auth**
-- `agentimus_signed_surfaces` `(array $docs)` — which discovery docs are signed (default the four core docs).
-- `agentimus_signing_secret_key` `(string '')` — supply the Ed25519 secret key from a constant/env instead of the DB.
-
-**Crawlers, blocking & activity log**
-- `agentimus_known_trainers` `(array $uas)` — AI-trainer user-agents offered for `robots.txt` blocking.
-- `agentimus_known_scanners` `(array $uas)` — scanner user-agents offered as one-click block suggestions.
-- `agentimus_spoof_signatures` `(array $sigs)` — platform markers that flag a spoofed/legacy-device "scanner".
-- `agentimus_deny_request` `(bool $deny, string $ua)` — the Guard's final say on whether to 403 a request.
-- `agentimus_block_allowlist` `(array $uas)` — clients that must never be hard-blocked (search engines + your allow-list).
-- `agentimus_agent_map` `(array $map)` — user-agent → friendly label for the activity log.
-- `agentimus_activity_retention_days` `(int $days)` — how long agent hits are kept.
-- `agentimus_heavy_min_hits` / `agentimus_burst_min_hits` / `agentimus_new_agent_seconds` / `agentimus_threats_limit` — thresholds for the "activity to review" queue.
-
-**Schema (JSON-LD)**
-- `agentimus_schema_for_post` `(array $node, WP_Post $post)` — replace a post's node (e.g. a `Product`).
-- `agentimus_schema_graph` `(array $graph)` — the whole `@graph`.
-
-**Security.txt**
-- `agentimus_security_txt` `(string $body)` — the `/.well-known/security.txt` body.
-
-**Cache / CDN**
-- `agentimus_cache_flushed` *(action)* — fires after Agentimus clears its caches; hook it to purge your CDN / page cache.
-
-**Settings & lifecycle**
-- `agentimus_default_settings` / `agentimus_settings` — the default and live settings arrays.
-- `agentimus_readiness_checks` `(array $checks, Settings $settings)` — add or adjust readiness checks.
-- `agentimus_booted` *(action)* `($plugin)` — after the plugin boots.
+**Stable** — public and won't break under you: the registration API above (frozen at WP_Discovery spec 1.0), plus these identity/lifecycle hooks.
 
 ```php
-// Add schema.org entity types (Person, Organization, LocalBusiness, Store ship by default).
-add_filter( 'agentimus_entity_types', function ( $types ) {
-    $types[] = 'Restaurant';
-    return $types;
+add_filter( 'agentimus_entity_types', function ( $types ) { $types[] = 'Restaurant'; return $types; } ); // schema.org subtypes in Settings → Identity
+add_action( 'agentimus_cache_flushed', function () {                                                     // after Agentimus regenerates its docs
+    my_cdn_purge( array( '/llms.txt', '/llms-full.txt', '/.well-known/discovery.json' ) );               //   → purge your CDN / page cache
 } );
-
-// Purge your CDN whenever Agentimus regenerates its documents.
-add_action( 'agentimus_cache_flushed', function () {
-    my_cdn_purge( array( '/llms.txt', '/llms-full.txt', '/.well-known/discovery.json' ) );
-} );
+add_action( 'agentimus_booted', function ( $plugin ) {} );                                               // after boot (companion / Pro add-on seam)
 ```
+
+**Extension** — supported output-shaping filters; useful for deeper integrations, but signatures may evolve between releases.
+
+```php
+// Discovery document & .well-known
+add_filter( 'agentimus_envelope', function ( $envelope, $registry ) { return $envelope; }, 10, 2 );        // the assembled discovery.json
+add_filter( 'agentimus_schema_url', function ( $url ) { return $url; } );                                  // the $schema value; '' to omit
+add_filter( 'agentimus_well_known_nested', function ( $names ) { return $names; } );                       // extra nested /.well-known/ paths
+add_filter( 'agentimus_signed_surfaces', function ( $docs ) { return $docs; } );                           // which discovery docs are signed
+add_filter( 'agentimus_signing_secret_key', function ( $key ) { return $key; } );                         // supply the Ed25519 key from a constant/env
+
+// MCP & agents
+add_filter( 'agentimus_mcp', function ( $mcp, $resources ) { return $mcp; }, 10, 2 );                      // advertised MCP descriptor
+add_filter( 'agentimus_agent_skills', function ( $skills, $resources ) { return $skills; }, 10, 2 );       // Agent Skills index
+add_filter( 'agentimus_discoverable_ability', function ( $ok, $name, $ability ) { return $ok; }, 10, 3 );  // include/exclude a WP ability
+add_filter( 'agentimus_rest_namespaces', function ( $allowed ) { return $allowed; } );                    // REST namespaces to publish
+
+// Content, llms.txt & markdown
+add_filter( 'agentimus_post_types', function ( $types, $available ) { return $types; }, 10, 2 );           // which post types are agent-visible
+add_filter( 'agentimus_topic_exclude', function ( $slugs ) { return $slugs; } );                          // omit topic slugs from llms.txt
+add_filter( 'agentimus_markdown_source', function ( $html, $post ) { return $html; }, 10, 2 );            // rendered HTML for page-builder content
+
+// schema.org JSON-LD
+add_filter( 'agentimus_defer_schema', function ( $active ) { return $active; } );                         // stand JSON-LD down for an SEO plugin
+add_filter( 'agentimus_schema_for_post', function ( $node, $post ) { return $node; }, 10, 2 );            // replace a post's node (e.g. Product)
+add_filter( 'agentimus_schema_graph', function ( $graph ) { return $graph; } );                          // the whole @graph
+
+// security.txt & readiness
+add_filter( 'agentimus_security_txt', function ( $body ) { return $body; } );                            // the /.well-known/security.txt body
+add_filter( 'agentimus_readiness_checks', function ( $checks, $settings ) { return $checks; }, 10, 2 );  // add/adjust admin readiness checks
+```
+
+**Internal** — advanced Guard / Classifier / Activity / Settings tuning. Not a third-party integration surface; shown for completeness.
+
+```php
+// Guard, Classifier & activity log
+add_filter( 'agentimus_deny_request', function ( $deny, $ua ) { return $deny; }, 10, 2 );     // the Guard's final say on a 403
+add_filter( 'agentimus_block_allowlist', function ( $uas ) { return $uas; } );                // clients that must never be hard-blocked
+add_filter( 'agentimus_known_trainers', function ( $uas ) { return $uas; } );                 // AI-trainer UAs offered for robots.txt
+add_filter( 'agentimus_known_scanners', function ( $uas ) { return $uas; } );                 // scanner UAs offered as block suggestions
+add_filter( 'agentimus_spoof_signatures', function ( $sigs ) { return $sigs; } );            // platform markers that flag a spoofed scanner
+add_filter( 'agentimus_agent_map', function ( $map ) { return $map; } );                      // UA → friendly label for the activity log
+add_filter( 'agentimus_activity_retention_days', function ( $days ) { return $days; } );      // how long agent hits are kept
+add_filter( 'agentimus_heavy_min_hits', function ( $n ) { return $n; } );                     // "activity to review" thresholds:
+add_filter( 'agentimus_burst_min_hits', function ( $n ) { return $n; } );
+add_filter( 'agentimus_new_agent_seconds', function ( $secs ) { return $secs; } );
+add_filter( 'agentimus_threats_limit', function ( $n ) { return $n; } );
+
+// Settings
+add_filter( 'agentimus_default_settings', function ( $defaults ) { return $defaults; } );     // default settings array
+add_filter( 'agentimus_settings', function ( $all ) { return $all; } );                       // live settings array
+```
+
+> The complete, tier-annotated catalogue with every hook is in [`examples/all-hooks-reference.php`](examples/all-hooks-reference.php).
 
 ## Development
 
