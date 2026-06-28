@@ -272,8 +272,30 @@ export default {
       if (!anchor) return;
       this.$nextTick(() => {
         const el = document.getElementById(anchor);
-        if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        if (!el) return;
+        // Reveal the target if it's tucked inside one or more collapsed <details>.
+        for (let d = el.closest('details'); d; d = d.parentElement && d.parentElement.closest('details')) {
+          d.open = true;
+        }
+        el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        this.flashTarget(el);
       });
+    },
+    // Briefly ring a jumped-to element so the eye lands on the exact control to
+    // change, and focus it when it's a form field (ready to act). The ring is CSS;
+    // reduced-motion users get a static outline instead (see app.css).
+    flashTarget(el) {
+      el.classList.remove('ar-jump-flash');
+      void el.offsetWidth; // restart the animation when re-jumping the same target
+      el.classList.add('ar-jump-flash');
+      clearTimeout(this._jumpFlash);
+      this._jumpFlash = setTimeout(() => el.classList.remove('ar-jump-flash'), 1500);
+      const field = el.matches('input, select, textarea')
+        ? el
+        : el.querySelector('input, select, textarea');
+      if (field) {
+        try { field.focus({ preventScroll: true }); } catch (e) { field.focus(); }
+      }
     },
     reloadPlugin() {
       // Drop any #tab and do a full reload, landing on the default page.

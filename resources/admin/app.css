@@ -57,9 +57,23 @@
   background: transparent;
 }
 #agentimus-app * { box-sizing: border-box; }
-/* Breathing room when a dashboard tile scrolls a section to the top. */
-#agentimus-app [id^="ar-wd-"] { scroll-margin-top: 16px; }
+/* Breathing room when a tile or readiness link scrolls a target to the top. */
+#agentimus-app [id^="ar-"] { scroll-margin-top: 16px; }
 #agentimus-app code { font-family: var(--ar-mono); font-size: 0.86em; }
+
+/* A jumped-to target (a readiness "fix" link, a rail rung, a dashboard tile)
+   briefly rings so the eye lands on the exact control to change. */
+@keyframes ar-jump-flash {
+  from { box-shadow: 0 0 0 2px var(--ar-accent), 0 0 0 7px rgba(20, 107, 100, 0.16); }
+  to   { box-shadow: 0 0 0 2px rgba(20, 107, 100, 0), 0 0 0 7px rgba(20, 107, 100, 0); }
+}
+#agentimus-app .ar-jump-flash { animation: ar-jump-flash 1.5s ease-out forwards; }
+@media (prefers-reduced-motion: reduce) {
+  #agentimus-app .ar-jump-flash { animation: none; box-shadow: 0 0 0 2px var(--ar-accent); }
+}
+
+/* Quiet privacy framing under the dashboard summary tiles. */
+.ar-dash-note { margin: 2px 0 16px; font-size: 12.5px; line-height: 1.5; color: var(--ar-ink-faint); }
 
 /* ---- Header bar (brand · tabs · gauge in one slim row) ------------------ */
 .ar__bar {

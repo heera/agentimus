@@ -19,6 +19,11 @@ defined( 'ABSPATH' ) || exit;
 
 final class Recorder {
 
+	/** Sample rate for the opportunistic row-count cap: roughly one insert in this
+	 *  many runs the bounded trim (see Repository::trim_to_cap), keeping the table
+	 *  near its ceiling mid-day without a per-request COUNT. */
+	const CAP_CHECK_ODDS = 200;
+
 	/** @var bool|null Per-request cache of the enable flag. */
 	private static $enabled = null;
 
@@ -57,6 +62,13 @@ final class Recorder {
 			),
 			array( '%s', '%s', '%s', '%s' )
 		);
+
+		// Opportunistic backstop: most inserts pay only a cheap rand(); roughly one
+		// in CAP_CHECK_ODDS runs a single bounded DELETE, so the table can't bank
+		// unbounded rows on an extreme-traffic day before the daily prune cron.
+		if ( 1 === wp_rand( 1, self::CAP_CHECK_ODDS ) ) {
+			Repository::trim_to_cap();
+		}
 	}
 
 	/**

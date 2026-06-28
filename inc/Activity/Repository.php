@@ -32,6 +32,11 @@ final class Repository {
 	/** Max suspicious sources returned to the panel. */
 	const THREATS_LIMIT = 12;
 
+	/** Hard ceiling on stored rows — a backstop to the daily age-based prune so an
+	 *  extreme-traffic day can't bank unbounded rows before the cron fires.
+	 *  Generous; filter `agentimus_activity_max_rows` (0 disables the cap). */
+	const MAX_ROWS = 50000;
+
 	/**
 	 * Days of activity kept — and therefore reported on. Filterable; defaults to
 	 * {@see WINDOW_DAYS}. The daily chart, the aggregate window and the prune cutoff
@@ -471,6 +476,28 @@ final class Repository {
 		$table  = Table::name();
 		$cutoff = gmdate( 'Y-m-d H:i:s', time() - self::retention_days() * DAY_IN_SECONDS );
 		$wpdb->query( $wpdb->prepare( "DELETE FROM $table WHERE hit_at < %s", $cutoff ) ); // phpcs:ignore WordPress.DB, PluginCheck.Security.DirectDB.UnescapedDBParameter -- $table is our own prefix-derived table name; the value is bound via prepare().
+	}
+
+	/**
+	 * Cap the table to the newest {@see MAX_ROWS} rows — a backstop to the daily,
+	 * age-based {@see prune()} so an extreme-traffic day can't bank unbounded rows
+	 * before the cron fires. Called opportunistically (sampled) from the insert
+	 * path, so it costs nothing on the common request. Filterable; a cap of 0
+	 * disables it.
+	 */
+	public static function trim_to_cap() {
+		$max = (int) apply_filters( 'agentimus_activity_max_rows', self::MAX_ROWS );
+		if ( $max < 1 ) {
+			return; // Cap disabled.
+		}
+		global $wpdb;
+		$table = Table::name();
+		// id of the (max+1)-th newest row; everything with a smaller id is beyond
+		// the cap and is removed in one bounded DELETE.
+		$cutoff = $wpdb->get_var( $wpdb->prepare( "SELECT id FROM $table ORDER BY id DESC LIMIT 1 OFFSET %d", $max ) ); // phpcs:ignore WordPress.DB, PluginCheck.Security.DirectDB.UnescapedDBParameter -- $table is our own prefix-derived name; the offset is bound via prepare().
+		if ( $cutoff ) {
+			$wpdb->query( $wpdb->prepare( "DELETE FROM $table WHERE id < %d", (int) $cutoff ) ); // phpcs:ignore WordPress.DB, PluginCheck.Security.DirectDB.UnescapedDBParameter -- $table is our own prefix-derived name; the id is bound via prepare().
+		}
 	}
 
 	/**

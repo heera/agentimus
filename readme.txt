@@ -4,19 +4,17 @@ Tags: ai-agents, ai-crawlers, agent-readiness, llms-txt, ai-seo
 Requires at least: 6.0
 Tested up to: 7.0
 Requires PHP: 7.4
-Stable tag: 1.7.0
+Stable tag: 1.8.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
-See which AI agents read your site and block the bad ones — plus llms.txt, crawl controls and a /.well-known discovery layer. AI agent readiness.
+Help AI assistants like ChatGPT and Claude understand and cite your site correctly — and see which ones are reading it. No tech setup needed.
 
 == Description ==
 
-Agentimus makes your site legible to AI agents and crawlers — and shows you which ones actually read it. You get a first-party log of every AI crawler that fetches your content, one-click blocking for the bots you don't want, and the machine-readable signals search engines and AI tools read *today*: a clean llms.txt, JSON-LD, markdown delivery, and AI-crawl controls. A one-screen readiness report scores how machine-readable your site is and what's still missing.
+Agentimus helps AI assistants like ChatGPT, Claude and Perplexity find your site, read it correctly, and cite it in your own words — and shows you which AI bots are actually visiting. **You don't need to understand AI or web standards to use it:** a setup wizard walks you through everything in about a minute on your first visit, then it runs on its own.
 
-This is **AI readiness** — sometimes called AI SEO, GEO (Generative Engine Optimization), or AEO (Answer Engine Optimization): publishing the machine-readable signals AI systems need to find, read, and correctly represent your site.
-
-Underneath, it ties these together with a single, normalized **discovery document** at `/.well-known/discovery.json` — an open, standards-aligned map of your site's identity, capabilities and APIs, and a reference implementation of that open convention, not a private format. This is more than an llms.txt generator: llms.txt is one signal among several, sitting under a coherent discovery layer rather than being the whole product.
+Want more control? You also get a first-party log of every AI crawler that fetches your content, one-click blocking for the bots you don't want, and a one-screen readiness report that scores how AI-ready your site is — and tells you the next thing to improve.
 
 It makes no outbound requests, collects no analytics, and logs no IP addresses. Everything runs on your own site.
 
@@ -64,13 +62,33 @@ Honest framing: the content signals above (JSON-LD, robots, llms.txt, markdown) 
 
 Most tools cover one slice — an llms.txt file, an AI-bot blocker, or structured data. Agentimus brings content control, agent-traffic visibility, clean machine-readable output and a forward-looking discovery document together in one coherent, lightweight package — and tells you what's still missing.
 
+*AI readiness is also called AI SEO, GEO (Generative Engine Optimization) and AEO (Answer Engine Optimization) — publishing the machine-readable signals AI systems need to find, read and correctly represent your site.*
+
 == Installation ==
 
 1. Upload the `agentimus` folder to `/wp-content/plugins/`, or install via Plugins → Add New.
 2. Activate the plugin.
-3. Open **Agentimus** in the admin menu, fill in your Identity (name, profile sentence, expertise, profile links) and review the readiness report.
+3. A setup wizard opens automatically on your first visit to the admin and walks you through your identity and content choices in about a minute. After that everything runs on its own — open **Agentimus** any time to review the readiness report or adjust settings.
 
 == Frequently Asked Questions ==
+
+= Do I need to be technical to use this? =
+
+No. A setup wizard opens automatically the first time you visit the admin and walks you through everything in about a minute — you write a sentence about who you are and tick what AI assistants may read. Everything else runs on its own, and you can change any of it later.
+
+= What does Agentimus change on my site? Will my visitors notice? =
+
+Nothing your visitors see changes — there's no new front-end script, style or layout. Behind the scenes it publishes machine-readable files and signals (like llms.txt and a discovery document) that only AI assistants and crawlers read. It also stands down automatically next to SEO plugins, so it won't duplicate or fight your existing setup.
+
+= What's the quickest way to set this up for my site? =
+
+Activate Agentimus and run the one-minute setup wizard — that covers most sites. Then, depending on what you do:
+
+* **Consultant, freelancer or personal brand:** fill in your Identity — your name, a one-sentence bio, your expertise topics, and links to your other profiles. That's the highest-signal information an AI assistant uses to describe and cite you correctly.
+* **Business or agency:** set the entity type to Organization, list the services you offer, and add a contact email so an agent can point enquiries the right way.
+* **Blog or publisher:** the defaults are already right — your posts and pages flow into llms.txt automatically. Just add a profile sentence so an assistant knows whose site it is.
+
+Whatever your case, the Readiness report always tells you the single next thing worth improving.
 
 = Does Agentimus make external requests or send my data anywhere? =
 
@@ -83,6 +101,10 @@ No. JSON-LD output automatically stands down when Yoast, Rank Math, SEOPress, AI
 = My robots.txt rules aren't showing. =
 
 If a static `robots.txt` file exists at your site root, or your CDN serves its own, it overrides WordPress's virtual robots.txt. The readiness report flags this. Remove the static file to let Agentimus manage the rules.
+
+= I turned something on but nothing seems to happen — is it broken? =
+
+Almost always it's working — here's how to confirm. The generated AI files are cached for up to an hour, so a change may not show instantly: open the file directly (for example `yoursite.com/llms.txt`) and refresh. The Readiness report's **Verify live** button fetches your real URLs from your browser and shows exactly what an agent receives — including anything your CDN is caching. If a file still isn't appearing, check that a static file or your CDN isn't overriding it (the report flags a static robots.txt, for instance).
 
 = How do I tell AI not to train on my content? =
 
@@ -160,6 +182,13 @@ There is no minified-only code. The admin interface is built from Vue 3 source i
 
 == Changelog ==
 
+= 1.8.0 =
+* Onboarding & listing: plain-language wording throughout — what Agentimus does, who it's for, and that it needs no technical setup — so a non-technical site owner can tell at a glance whether it's for them.
+* Readiness: every check that needs attention now links straight to the exact setting that fixes it — switching to the right tab, scrolling the field into view, highlighting it and focusing it, so the next step is one click away.
+* Settings: simplified several feature hints (dropped low-value cryptographic acronyms) while keeping the underlying file and standard names you can search for.
+* Dashboard: a short, plain line making clear the activity log is aggregate and private — no IP addresses, no personal data, nothing sent anywhere.
+* Hardened: the agent-activity table is now capped to a generous, filterable maximum as a backstop to daily pruning, so an extreme-traffic day can't bank unbounded rows; activating an unrelated plugin no longer regenerates the heavy /llms-full.txt; and an invalid /…/ block pattern is flagged in Settings instead of silently matching as plain text.
+
 = 1.7.0 =
 * Dashboard: "Traffic from AI" is now a single, clearer card with a new by-day breakdown — expand a day to see which assistant (ChatGPT, Perplexity, …) sent a reader to which page. Counts only; no IPs or exact times are stored.
 * Dashboard: the Readiness summary in the sidebar is now a clean, clickable overview — the score and each rung jump straight to the relevant section of the full report.
@@ -230,6 +259,9 @@ There is no minified-only code. The admin interface is built from Vue 3 source i
 * Admin Discovery Hub for inspecting what agents can see, with per-item publish/suppress control.
 
 == Upgrade Notice ==
+
+= 1.8.0 =
+Friendlier, plainer wording for non-technical owners; Readiness checks now jump to and highlight the exact setting that fixes them; plus activity-table, cache and block-pattern hardening. No breaking changes.
 
 = 1.7.0 =
 Clearer "Traffic from AI" card with a per-day breakdown, a tidier clickable Readiness summary, styled confirm dialogs, and major hardening so a buggy third-party plugin can never blank the admin or corrupt your published discovery/schema documents.

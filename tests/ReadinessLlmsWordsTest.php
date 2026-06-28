@@ -77,7 +77,7 @@ final class ReadinessLlmsWordsTest extends TestCase {
 		// content — a profile, expertise — is added, never filler).
 		$row = $this->grade( 40 );
 		$this->assertSame( 'warn', $row['status'] );
-		$this->assertSame( 'ar-sec-identity', $row['action']['anchor'] );
+		$this->assertSame( 'ar-about', $row['action']['anchor'] );
 		$this->assertStringContainsString( '200', $row['detail'] );
 	}
 

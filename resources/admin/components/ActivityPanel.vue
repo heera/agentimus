@@ -328,6 +328,12 @@ export default {
       </button>
     </div>
 
+    <!-- Quiet privacy framing so the dashboard reads as informational, not surveillance. -->
+    <p class="ar-dash-note">
+      Informational only — which AI assistants read your site, in aggregate. No IP addresses, no
+      personal data, nothing sent anywhere.
+    </p>
+
     <!-- First load in flight: show a skeleton, not the empty state. -->
     <template v-if="!loaded">
       <section class="ar-card" aria-busy="true">

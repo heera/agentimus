@@ -187,7 +187,7 @@ final class Readiness {
 				'warn',
 				__( 'Disabled. Enable it so agents can discover your content map.', 'agentimus' ),
 				__( 'Turn on “/llms.txt index” under Settings → Features. It publishes a single map of your site that crawlers and agents check first.', 'agentimus' ),
-				$this->nav( __( 'Enable in Features', 'agentimus' ), 'ar-sec-features' )
+				$this->nav( __( 'Enable in Features', 'agentimus' ), 'ar-feat-enable_llms_txt' )
 			);
 	}
 
@@ -241,7 +241,7 @@ final class Readiness {
 				number_format_i18n( self::MIN_LLMS_WORDS )
 			),
 			__( 'Flesh it out with real content, not filler: add a profile sentence and 3–5 expertise topics under Settings → Identity, and publish a few pages or posts. Each flows into llms.txt and lifts it over the minimum.', 'agentimus' ),
-			$this->nav( __( 'Edit Identity', 'agentimus' ), 'ar-sec-identity' )
+			$this->nav( __( 'Edit Identity', 'agentimus' ), 'ar-about' )
 		);
 	}
 
@@ -267,7 +267,7 @@ final class Readiness {
 				'warn',
 				__( 'Disabled. The full-text edition lets agents ingest everything in one request.', 'agentimus' ),
 				__( 'Enable “/llms-full.txt full text” under Settings → Features so an agent can pull your whole corpus in one fetch instead of crawling page by page.', 'agentimus' ),
-				$this->nav( __( 'Enable in Features', 'agentimus' ), 'ar-sec-features' )
+				$this->nav( __( 'Enable in Features', 'agentimus' ), 'ar-feat-enable_llms_full' )
 			);
 	}
 
@@ -304,7 +304,7 @@ final class Readiness {
 				'warn',
 				$detail,
 				__( 'Lower “Posts in /llms-full.txt” under Settings → Features so the file fits, or rely on the /llms.txt index — agents can still fetch any page by appending .md to its URL.', 'agentimus' ),
-				$this->nav( __( 'Adjust in Features', 'agentimus' ), 'ar-sec-features' )
+				$this->nav( __( 'Adjust in Features', 'agentimus' ), 'ar-full-count' )
 			);
 		}
 
@@ -347,7 +347,7 @@ final class Readiness {
 				'fail',
 				__( 'No profile set. Add one under Identity so agents know who owns this site.', 'agentimus' ),
 				__( 'Write one plain sentence under Settings → Identity: who you are, your role, and what this site is about. It’s the single line agents quote most when they cite you.', 'agentimus' ),
-				$this->nav( __( 'Edit Identity', 'agentimus' ), 'ar-sec-identity' )
+				$this->nav( __( 'Edit Identity', 'agentimus' ), 'ar-about' )
 			);
 	}
 
@@ -360,7 +360,7 @@ final class Readiness {
 				'warn',
 				__( 'No expertise topics set. They establish topical authority for agents.', 'agentimus' ),
 				__( 'Add three to five topics under Settings → Identity (e.g. “WordPress development”, “API design”). They flow into llms.txt and the schema knowsAbout list so agents know what you’re an authority on.', 'agentimus' ),
-				$this->nav( __( 'Add topics', 'agentimus' ), 'ar-sec-identity' )
+				$this->nav( __( 'Add topics', 'agentimus' ), 'ar-id-expertise' )
 			);
 	}
 
@@ -373,7 +373,7 @@ final class Readiness {
 				'warn',
 				__( 'No sameAs links (GitHub, LinkedIn, X…). Add them to strengthen entity matching.', 'agentimus' ),
 				__( 'Add your GitHub, LinkedIn, or X profile URLs under Settings → Identity. These “sameAs” links let an agent tie this site to a known entity instead of guessing.', 'agentimus' ),
-				$this->nav( __( 'Add profiles', 'agentimus' ), 'ar-sec-identity' )
+				$this->nav( __( 'Add profiles', 'agentimus' ), 'ar-id-sameas' )
 			);
 	}
 
@@ -403,7 +403,7 @@ final class Readiness {
 				'warn',
 				__( 'No security.txt. Researchers and agents have no machine-readable way to report a vulnerability.', 'agentimus' ),
 				__( 'Turn on “Generate security.txt” under Settings → Security.txt and add a contact (your Identity email is reused automatically). It publishes an RFC 9116 disclosure contact at /.well-known/security.txt.', 'agentimus' ),
-				$this->nav( __( 'Enable security.txt', 'agentimus' ), 'ar-sec-security' )
+				$this->nav( __( 'Enable security.txt', 'agentimus' ), 'ar-feat-enable_security_txt' )
 			);
 		}
 
@@ -443,7 +443,7 @@ final class Readiness {
 				'warn',
 				__( 'Schema output is disabled in settings.', 'agentimus' ),
 				__( 'Enable “JSON-LD structured data” under Settings → Features — unless an SEO plugin already emits schema, in which case leaving it off avoids duplicate markup.', 'agentimus' ),
-				$this->nav( __( 'Enable in Features', 'agentimus' ), 'ar-sec-features' )
+				$this->nav( __( 'Enable in Features', 'agentimus' ), 'ar-feat-enable_schema' )
 			);
 		}
 		return $schema->seo_plugin_active()
@@ -508,7 +508,7 @@ final class Readiness {
 			'warn',
 			__( 'You ask AI not to train on your content, but only in robots.txt — which a crawler can ignore.', 'agentimus' ),
 			__( 'Turn on the tdm-reservation header and /.well-known/tdmrep.json under Settings → Crawler policy so your preference is published as standardized, harder-to-ignore signals.', 'agentimus' ),
-			$this->nav( __( 'Enable AI signals', 'agentimus' ), 'ar-sec-ai' )
+			$this->nav( __( 'Enable AI signals', 'agentimus' ), 'ar-feat-enable_ai_header' )
 		);
 	}
 
@@ -523,7 +523,7 @@ final class Readiness {
 				'warn',
 				__( 'No sitemap detected. Crawlers and agents have no single index of your URLs to start from.', 'agentimus' ),
 				__( 'Turn on “XML sitemap” under Settings → Features and Agentimus will generate one for you — no SEO plugin required. (Re-enabling WordPress core sitemaps, or any major SEO plugin, also satisfies this; Agentimus auto-detects and links whichever exists.)', 'agentimus' ),
-				$this->nav( __( 'Enable in Features', 'agentimus' ), 'ar-sec-features' )
+				$this->nav( __( 'Enable in Features', 'agentimus' ), 'ar-feat-enable_sitemap' )
 			);
 		}
 
@@ -599,7 +599,7 @@ final class Readiness {
 				'warn',
 				__( 'robots.txt has no Sitemap: line — there is no sitemap to point to yet.', 'agentimus' ),
 				__( 'Enable “XML sitemap” under Settings → Features: Agentimus then generates a sitemap and adds the Sitemap: line to robots.txt in one step. (Core or an SEO-plugin sitemap would be linked automatically too.)', 'agentimus' ),
-				$this->nav( __( 'Enable in Features', 'agentimus' ), 'ar-sec-features' )
+				$this->nav( __( 'Enable in Features', 'agentimus' ), 'ar-feat-enable_sitemap' )
 			);
 		}
 
@@ -625,7 +625,7 @@ final class Readiness {
 			/* translators: %s: sitemap URL. */
 			sprintf( __( 'A sitemap exists (%s) but isn’t advertised in robots.txt, so crawlers may not find it.', 'agentimus' ), $sitemap['url'] ),
 			__( 'Turn on “robots.txt rules” under Settings → Features so Agentimus advertises your sitemap to crawlers.', 'agentimus' ),
-			$this->nav( __( 'Enable in Features', 'agentimus' ), 'ar-sec-features' )
+			$this->nav( __( 'Enable in Features', 'agentimus' ), 'ar-feat-enable_robots' )
 		);
 	}
 

@@ -123,7 +123,7 @@ export default {
         { key: 'enable_schema', label: 'Rich data for search', hint: 'Adds structured data search engines and assistants understand (JSON-LD). Leave off if your SEO plugin already does this.' },
         { key: 'enable_activity', label: 'Visit log', hint: 'Records which AI assistants fetch your AI files, and counts visitors AI sends you. Local-only, no IP addresses.' },
         { key: 'enable_sitemap', label: 'Sitemap (backup)', hint: 'Adds a sitemap only when WordPress core and your SEO plugin don’t already provide one — never duplicates.' },
-        { key: 'enable_signing', label: 'Verified responses', hint: 'Cryptographically signs your AI files so assistants can confirm they really came from your site and weren’t tampered with on the way. On by default and needs no setup. (Ed25519 / Web Bot Auth)' },
+        { key: 'enable_signing', label: 'Verified responses', hint: 'Digitally signs your AI files so assistants can confirm they really came from your site and weren’t tampered with on the way. On by default; no setup needed.' },
       ];
     },
     // A heads-up under the posts-per-type input: the server's COUNT-only estimate
@@ -226,6 +226,21 @@ export default {
         if (literal === '' && t.includes('*')) return true;    // all-wildcard ("*", ".*") — matches everyone
         if (literal.length > 0 && literal.length < 3) return true; // ultra-short token → broad
         return danger.includes(t) || danger.includes(literal);
+      });
+    },
+    invalidBlockedPatterns() {
+      // Entries written as /…/ whose body isn't a valid expression: the server
+      // would silently fall back to matching the literal text, so warn that the
+      // "advanced" pattern won't work as intended. Best-effort (JS regex syntax),
+      // which still catches the common typos — an unbalanced ( or [.
+      const list = Array.isArray(this.settings.blocked_agents) ? this.settings.blocked_agents : [];
+      return list.filter((a) => {
+        const s = String(a).trim();
+        const close = s.lastIndexOf('/');
+        if (s[0] !== '/' || close <= 0) return false; // not a /…/ pattern
+        const body = s.slice(1, close);
+        if (body === '') return true;
+        try { new RegExp(body); return false; } catch (e) { return true; }
       });
     },
     isDefaultTrainers() {
@@ -476,13 +491,13 @@ export default {
         </div>
       </div>
 
-      <div class="ar-field">
+      <div id="ar-id-expertise" class="ar-field">
         <label>{{ expertiseLabel }}</label>
         <TagInput v-model="identity.expertise" placeholder="Add a topic, press Enter" />
         <small class="ar-field__hint">Feeds this list and schema <code>knowsAbout</code>. Saved as you add.</small>
       </div>
 
-      <div class="ar-field">
+      <div id="ar-id-sameas" class="ar-field">
         <label>Profile URLs</label>
         <TagInput v-model="identity.same_as" :placeholder="profileUrlPlaceholder" />
         <small class="ar-field__hint">
@@ -551,7 +566,7 @@ export default {
         It steps aside automatically if your site already provides one.
       </p>
 
-      <label class="ar-toggle">
+      <label id="ar-feat-enable_security_txt" class="ar-toggle">
         <input v-model="settings.enable_security_txt" type="checkbox" />
         <span class="ar-toggle__track" aria-hidden="true"></span>
         <span class="ar-toggle__text">
@@ -563,7 +578,7 @@ export default {
       <div v-show="settings.enable_security_txt">
         <p v-if="!hasSecurityContact" class="ar-card__note ar-warn">
           Add at least one contact below (or a public contact email under Identity) —
-          RFC 9116 requires one, so until then nothing is served.
+          the standard requires one, so until then nothing is served.
         </p>
 
         <div class="ar-field">
@@ -624,7 +639,7 @@ export default {
       <h2 class="ar-card__title">Features</h2>
       <p class="ar-card__lead">Toggle each agent-readiness signal.</p>
 
-      <label v-for="f in features" :key="f.key" class="ar-toggle">
+      <label v-for="f in features" :id="'ar-feat-' + f.key" :key="f.key" class="ar-toggle">
         <input v-model="settings[f.key]" type="checkbox" />
         <span class="ar-toggle__track" aria-hidden="true"></span>
         <span class="ar-toggle__text">
@@ -722,7 +737,7 @@ export default {
               default — turn one off only if you don’t want to publish through that channel.
             </p>
 
-            <label class="ar-toggle">
+            <label id="ar-feat-enable_ai_header" class="ar-toggle">
               <input v-model="settings.enable_ai_header" type="checkbox" />
               <span class="ar-toggle__track" aria-hidden="true"></span>
               <span class="ar-toggle__text">
@@ -817,6 +832,12 @@ export default {
             <code>{{ riskyBlockedAgents.join(', ') }}</code> —
             {{ riskyBlockedAgents.length === 1 ? 'this is' : 'these are' }} broad enough to also hit real browsers or AI crawlers you may want.
             Major search engines (Googlebot, Bingbot…) are always allowed regardless, but consider something more specific.
+          </p>
+          <p v-if="invalidBlockedPatterns.length" class="ar-card__note ar-warn">
+            ⚠ Invalid {{ invalidBlockedPatterns.length === 1 ? 'pattern' : 'patterns' }}:
+            <code>{{ invalidBlockedPatterns.join(', ') }}</code> —
+            {{ invalidBlockedPatterns.length === 1 ? "that isn't a valid /…/ expression, so it'll be matched as plain text, not a pattern." : "those aren't valid /…/ expressions, so they'll be matched as plain text, not patterns." }}
+            Fix the pattern, or drop the slashes to match it as a plain fragment.
           </p>
           <small class="ar-field__hint">
             Type part of a bot's name — capitalisation doesn't matter, and a fragment is enough

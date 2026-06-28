@@ -132,7 +132,7 @@ final class AiUsageSignalsTest extends TestCase {
 		) );
 		$row = $this->ai_check();
 		$this->assertSame( 'warn', $row['status'] );
-		$this->assertSame( 'ar-sec-ai', $row['action']['anchor'] );
+		$this->assertSame( 'ar-feat-enable_ai_header', $row['action']['anchor'] );
 	}
 
 	public function test_readiness_pass_is_informational_when_training_allowed() {

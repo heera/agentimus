@@ -68,10 +68,23 @@ final class Cache {
 	}
 
 	/**
+	 * Drop only the discovery-document cache. Used when a provider plugin is
+	 * activated/deactivated: that changes the discovery registry, but NOT your
+	 * llms.txt / sitemap content — so there's no reason to bust those or re-warm
+	 * the heavy full-text edition on every unrelated plugin toggle. Deliberately
+	 * does not fire `agentimus_cache_flushed`.
+	 */
+	public static function flush_discovery() {
+		delete_transient( self::DISCOVERY );
+	}
+
+	/**
 	 * Bust the cache whenever content or site identity changes.
 	 */
 	public static function register_flush_hooks() {
-		$hooks = array(
+		// Content / identity changes rebuild everything (llms.txt, full text,
+		// schema, discovery, sitemap).
+		$content_hooks = array(
 			'save_post',
 			'deleted_post',
 			'trashed_post',
@@ -80,12 +93,15 @@ final class Cache {
 			'delete_term',
 			'update_option_blogname',
 			'update_option_blogdescription',
-			// A provider plugin coming or going changes the discovery registry.
-			'activated_plugin',
-			'deactivated_plugin',
 		);
-		foreach ( $hooks as $hook ) {
+		foreach ( $content_hooks as $hook ) {
 			add_action( $hook, array( __CLASS__, 'flush' ) );
 		}
+
+		// A provider plugin coming or going changes ONLY the discovery registry —
+		// flush just that, not the heavy content caches, so toggling an unrelated
+		// plugin never regenerates llms-full.txt.
+		add_action( 'activated_plugin', array( __CLASS__, 'flush_discovery' ) );
+		add_action( 'deactivated_plugin', array( __CLASS__, 'flush_discovery' ) );
 	}
 }
