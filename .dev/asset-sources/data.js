@@ -3,3 +3,8 @@ window.__ACTIVITY__ = {"enabled": true, "window": 30, "totals": {"today": 38, "w
 window.AgentimusData.webmcpTools = [{"name":"search_site","description":"Search Sheikh Heera and return matching posts and pages."}];
 window.AgentimusData.settings.enable_webmcp = true;
 window.AgentimusData.settings.webmcp_hidden_tools = [];
+// Trust-list staging (1.10.0): the owner's allow-list, the one-click AI-agent
+// suggestion chips, and the read-only built-in search engines shown beneath them.
+window.AgentimusData.settings.allowed_agents = ["PerplexityBot", "Claude-SearchBot"];
+window.AgentimusData.knownAllowed = ["ChatGPT-User", "OAI-SearchBot", "Claude-User", "Claude-SearchBot", "PerplexityBot", "Perplexity-User", "DuckAssistBot", "MistralAI-User", "Meta-ExternalFetcher"];
+window.AgentimusData.defaultAllowed = ["Googlebot", "Bingbot", "DuckDuckBot", "Applebot", "Yandex"];

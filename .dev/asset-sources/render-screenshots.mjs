@@ -110,5 +110,18 @@ async function settingsGroup(page, label) {
   await page.close();
 }
 
+// Shot 8 — Settings ▸ Exposure: opt-in, off-by-default controls that limit what
+// an anonymous crawler can read about the site. All toggles ship off, so no
+// data.js staging is needed — the card renders in its default (everything off) state.
+{
+  const page = await open('#settings');
+  await settingsGroup(page, 'exposure');
+  await page.waitForSelector('#ar-sec-exposure');
+  const h = await page.evaluate(() => document.getElementById('ar-sec-exposure').getBoundingClientRect().bottom);
+  await page.screenshot({ path: `${OUT}/screenshot-8.png`, clip: clip(W, h + 22), captureBeyondViewport: true });
+  console.log('screenshot-8', Math.round(h + 22));
+  await page.close();
+}
+
 await browser.close();
-console.log('done → .wordpress-org/screenshot-{1..6}.png');
+console.log('done → .wordpress-org/screenshot-{1..6,8}.png');

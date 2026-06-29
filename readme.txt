@@ -4,7 +4,7 @@ Tags: ai-agents, ai-crawlers, agent-readiness, llms-txt, ai-seo
 Requires at least: 6.0
 Tested up to: 7.0
 Requires PHP: 7.4
-Stable tag: 1.9.0
+Stable tag: 1.10.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -21,7 +21,7 @@ It makes no outbound requests, collects no analytics, and logs no IP addresses. 
 **Control — who may use your content**
 
 * **robots.txt content-signals + AI-training blocklist** — declare your content-usage policy and block named model-training crawlers (GPTBot, CCBot, ClaudeBot, Google-Extended, Bytespider, …) by name, while leaving read/cite bots free.
-* **Block scanners & scrapers (opt-in hard block)** — robots rules are a polite request; this enforces them. Turn it on to return 403 to the user-agents on your denylist, and optionally auto-deny agents that disguise themselves as ancient handsets (a classic scanner trick). Protected search engines and anything on your allow-list are never blocked, and `/.well-known/acme-challenge/` (SSL renewal) always stays reachable.
+* **Block scanners & scrapers (opt-in hard block)** — robots rules are a polite request; this enforces them. Turn it on to return 403 to the user-agents on your denylist, and optionally auto-deny agents that disguise themselves as ancient handsets (a classic scanner trick). Your **always-allowed** list is never blocked — pre-trust well-known AI assistants and answer engines (ChatGPT, Claude, Perplexity, …) with one click, while the major search engines (Googlebot, Bingbot, …) are recognised and trusted automatically. `/.well-known/acme-challenge/` (SSL renewal) always stays reachable.
 
 **Reduce exposure — what your site reveals to bots**
 
@@ -126,6 +126,10 @@ The header and file are on by default and can be toggled per channel under "Publ
 
 Yes — list them under **Block specific crawlers**. That writes a per-name `Disallow: /` to robots.txt for each. The `/.well-known/tdmrep.json` opt-out file and the `tdm-reservation` header are **site-wide** — the standard has no per-bot dial — so per-bot blocking lives in robots.txt (and in scanner blocking for a hard 403), while the file and header carry your overall site-wide choice. (Those site-wide signals are published only when you block AI training; an open site publishes none.)
 
+= Which AI agents are allowed by default? =
+
+Out of the box Agentimus blocks nothing — it's a discovery layer, so every agent is served until you turn on the optional scanner blocking. Even then, an **always-allowed** list keeps trusted clients flowing: the major search engines (Googlebot, Bingbot, DuckDuckBot, Applebot, Yandex) are recognised automatically and never blocked or flagged, and the *AI access* tab shows them read-only so you know exactly what's trusted. You can add well-known AI assistants and answer engines (ChatGPT, Claude, Perplexity, …) with one click, or mark any client **Allow** from the activity review queue. Training crawlers (GPTBot, ClaudeBot, …) are deliberately not on the trust list — those belong to your separate AI-training choice, so trusting them here wouldn't quietly undo an opt-out you may have set.
+
 = Can I see if AI is sending me visitors? =
 
 Yes — the dashboard's "Traffic from AI" card counts real people who landed on your site from an AI assistant (ChatGPT, Perplexity, Gemini, …), detected from the visit's referrer and the `utm_source` tag some AI tools add to their links. It's the mirror of the activity log: that shows bots *reading* your content; this shows AI *bringing you readers*, with a by-source and top-landing-pages breakdown. Like the rest of the log it's first-party and aggregate-only — no IP, no per-visitor records, nothing sent anywhere. Some AI visits can't be detected (stripped referrers, Google's AI Overviews, cached pages), so read the figure as a floor: at least this many.
@@ -172,9 +176,10 @@ Yes. The discovery document implements the **WP_Discovery Protocol**, an openly-
 2. Settings — a tidy, tabbed control panel; the Discovery section gives you a toggle for each agent-readiness signal, plus experimental browser tools (WebMCP) that let an in-browser AI agent call your site search.
 3. Readiness report — a plain-English pass/warn checklist of what's enabled and what's still missing.
 4. Discovery Hub — every plugin's capabilities aggregated into one document, with per-item publish/suppress control.
-5. Crawler policy & scanner blocking — declare your content-usage signals, block AI-training crawlers by name, and turn away spoofed or scanner traffic.
+5. Crawler policy & scanner blocking — declare your content-usage signals, block AI-training crawlers by name, turn away spoofed or scanner traffic, and keep an always-allowed list of trusted agents — with one-click suggestions for well-known AI assistants and the search engines trusted automatically.
 6. Activity to review — a nav-bar alert surfaces new, high-volume or spoofed clients from any screen, with one-click Block or Allow (no IP logging).
 7. About — a plain-English account of every feature and what it publishes, a privacy & data section (no outbound calls, no IP/PII, signing key stays on your server), the open WP_Discovery Protocol it implements, and an FAQ.
+8. Exposure controls — opt-in, off-by-default switches that limit what anonymous crawlers can read about your site: username enumeration, author archives, the WordPress version, auto-generated head links, and XML-RPC.
 
 == External services ==
 
@@ -190,8 +195,9 @@ There is no minified-only code. The admin interface is built from Vue 3 source i
 
 == Changelog ==
 
-= Unreleased =
+= 1.10.0 =
 * New "Exposure" settings tab — opt-in, off-by-default controls that limit what an anonymous visitor can read about your site, the defensive counterpart to the Discovery tab. Hide username enumeration (the REST `/wp/v2/users` and `?author=N` leak, the users sitemap, and oEmbed author fields), 404 author-archive pages, hide the WordPress version (generator tag + core asset `?ver=`), drop the rarely-used auto-generated `<head>` discovery links (shortlink, RSD, Windows Live Writer, oEmbed), and disable XML-RPC (renders its methods inert and drops the X-Pingback header). Every control ships OFF, is scoped to logged-out requests so signed-in admins and the block editor keep full access, and a fresh install changes nothing until you opt in.
+* Trusted-agents list, easier to use — the "Always allowed" list (clients that are never blocked and never flagged) no longer hides itself when it's empty, so you can trust an agent up front instead of waiting for one to turn up in the review queue. It now offers one-click chips for well-known AI assistants and answer engines (ChatGPT, Claude, Perplexity, DuckDuckGo, Mistral, …), and shows — read-only — the major search engines (Googlebot, Bingbot, DuckDuckBot, Applebot, Yandex) that are already trusted automatically, so you can see exactly what's allowed without adding anything. New `agentimus_known_allowed` and `agentimus_default_allowed` filters let companion plugins extend both lists.
 
 = 1.9.0 =
 * WebMCP bridge (experimental, opt-in, OFF by default): registers your site's read-only tools — starting with site search — with AI agents working inside a browser, via the emerging WebMCP standard (navigator.modelContext). Adds a tiny front-end script only when you enable it, and it stays completely inert in browsers without the API, so a default install still ships no front-end JavaScript. Companion plugins can add their own read-only tools with the `agentimus_webmcp_tools` filter.
@@ -277,6 +283,9 @@ There is no minified-only code. The admin interface is built from Vue 3 source i
 * Admin Discovery Hub for inspecting what agents can see, with per-item publish/suppress control.
 
 == Upgrade Notice ==
+
+= 1.10.0 =
+Adds a new "Exposure" tab — opt-in, off-by-default controls that limit what anonymous crawlers can read about your site (username enumeration, author archives, WP version, head-link clutter, XML-RPC). Also makes the "Always allowed" trusted-agents list easier to use, with one-click chips for well-known AI assistants and a read-only view of the search engines trusted automatically. Everything new ships off/unchanged by default; no breaking changes.
 
 = 1.9.0 =
 Adds an optional, off-by-default experimental WebMCP bridge (browser tools for AI agents), mirrors the key discovery links into the HTML head, answers CORS preflights on the discovery docs, and an honest note on what a discovery layer can and can't do. No breaking changes.
