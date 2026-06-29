@@ -197,6 +197,7 @@ There is no minified-only code. The admin interface is built from Vue 3 source i
 
 = 1.10.1 =
 * Fix: the Exposure tab now saves. The five Exposure toggles weren't wired into the admin's auto-save, so flipping one looked like it did nothing and reverted on reload. The settings were always handled correctly on the server — only the admin screen's save trigger was missing. No data or settings were lost.
+* Fix: the auto-save status ("Saving…" / "Saved") is now a small pill pinned to the corner of the screen, so it's always fully visible instead of being clipped at the foot of a tall sidebar.
 
 = 1.10.0 =
 * New "Exposure" settings tab — opt-in, off-by-default controls that limit what an anonymous visitor can read about your site, the defensive counterpart to the Discovery tab. Hide username enumeration (the REST `/wp/v2/users` and `?author=N` leak, the users sitemap, and oEmbed author fields), 404 author-archive pages, hide the WordPress version (generator tag + core asset `?ver=`), drop the rarely-used auto-generated `<head>` discovery links (shortlink, RSD, Windows Live Writer, oEmbed), and disable XML-RPC (renders its methods inert and drops the X-Pingback header). Every control ships OFF, is scoped to logged-out requests so signed-in admins and the block editor keep full access, and a fresh install changes nothing until you opt in.

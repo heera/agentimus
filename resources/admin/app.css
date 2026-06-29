@@ -480,30 +480,35 @@
 /* Save block — bottom of the rail; full-width black button. */
 /* Autosave status — a centred pill that only appears while saving / just saved /
    on error (the idle state renders nothing, so there's no standing "Auto-save on"). */
+/* Pinned bottom-right so the save state is ALWAYS fully visible — it used to sit
+   at the foot of the sticky rail, which is clipped when the rail is taller than
+   the viewport. Floats over content, so it needs an opaque base + soft shadow. */
 .ar-rail-save {
-  display: flex; align-items: center; justify-content: center; gap: 8px;
-  width: fit-content; margin: 0 auto;
-  padding: 8px 16px; border-radius: 999px;
-  border: 1px solid transparent;
+  position: fixed; right: 22px; bottom: 22px; z-index: 9000;
+  display: inline-flex; align-items: center; gap: 7px;
+  padding: 5px 13px; border-radius: 999px;
+  border: 1px solid var(--ar-line);
+  background: var(--ar-paper);
+  box-shadow: 0 4px 14px rgba(31, 41, 51, 0.12);
   transition: background 0.2s ease, border-color 0.2s ease;
 }
 .ar-rail-save__dot {
-  width: 9px; height: 9px; border-radius: 50%; flex: 0 0 auto;
+  width: 8px; height: 8px; border-radius: 50%; flex: 0 0 auto;
   background: var(--ar-line-strong); transition: background 0.15s ease;
 }
 .ar-rail-save__label {
-  font-family: var(--ar-mono); font-size: 12px; letter-spacing: 0.04em;
+  font-family: var(--ar-mono); font-size: 11px; letter-spacing: 0.04em;
   color: var(--ar-ink-faint); font-weight: 600;
 }
 /* Saving — the prominent, eye-catching state, with a gentle activity pulse that
    runs only while a save is in flight, then settles into "Saved". */
-.ar-rail-save.is-saving { background: rgba(20, 107, 100, 0.10); border-color: rgba(20, 107, 100, 0.32); }
+.ar-rail-save.is-saving { background: #e7f1ef; border-color: rgba(20, 107, 100, 0.32); }
 .ar-rail-save.is-saving .ar-rail-save__dot { background: var(--ar-accent); animation: ar-save-pulse 1s ease-in-out infinite; }
-.ar-rail-save.is-saving .ar-rail-save__label { color: var(--ar-accent); font-size: 13px; }
-.ar-rail-save.is-saved { background: rgba(47, 158, 94, 0.10); border-color: rgba(47, 158, 94, 0.28); }
+.ar-rail-save.is-saving .ar-rail-save__label { color: var(--ar-accent); font-size: 12px; }
+.ar-rail-save.is-saved { background: #e9f5ee; border-color: rgba(47, 158, 94, 0.30); }
 .ar-rail-save.is-saved .ar-rail-save__dot { background: #2f9e5e; }
 .ar-rail-save.is-saved .ar-rail-save__label { color: #2f9e5e; }
-.ar-rail-save.is-error { background: rgba(173, 123, 24, 0.10); border-color: rgba(173, 123, 24, 0.32); }
+.ar-rail-save.is-error { background: #f7f0df; border-color: rgba(173, 123, 24, 0.34); }
 .ar-rail-save.is-error .ar-rail-save__dot { background: var(--ar-warn); }
 .ar-rail-save.is-error .ar-rail-save__label { color: var(--ar-warn); }
 @keyframes ar-save-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.35; } }
