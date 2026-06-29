@@ -15,8 +15,12 @@ export default {
     // is — a stable, quiet resting state (no count badge) rather than vanishing the
     // moment the queue clears. With logging off there's nothing to watch, so hide it.
     enabled: { type: Boolean, default: false },
+    // Live updates: whether this screen is auto-refreshing, and how often (seconds),
+    // for the toggle's label. The parent owns the state and the interval.
+    live: { type: Boolean, default: false },
+    liveInterval: { type: Number, default: 15 },
   },
-  emits: ['block', 'allow', 'navigate'],
+  emits: ['block', 'allow', 'navigate', 'set-live'],
   data() {
     return { open: false };
   },
@@ -128,10 +132,25 @@ export default {
     <div v-if="open" class="ar__review-pop" role="dialog" aria-label="Activity to review" @click.stop>
       <div class="ar__review-pop-head">
         <strong class="ar__review-title">Activity to review</strong>
-        <div class="ar-susp-counts">
-          <span v-if="counts.spoof" class="ar-susp-badge is-spoof">{{ counts.spoof }} spoofed</span>
-          <span v-if="counts.heavy" class="ar-susp-badge is-heavy">{{ counts.heavy }} high-volume</span>
-          <span v-if="counts.new" class="ar-susp-badge is-new">{{ counts.new }} new</span>
+        <div class="ar__review-head-right">
+          <div class="ar-susp-counts">
+            <span v-if="counts.spoof" class="ar-susp-badge is-spoof">{{ counts.spoof }} spoofed</span>
+            <span v-if="counts.heavy" class="ar-susp-badge is-heavy">{{ counts.heavy }} high-volume</span>
+            <span v-if="counts.new" class="ar-susp-badge is-new">{{ counts.new }} new</span>
+          </div>
+          <button
+            type="button"
+            class="ar__live"
+            :class="{ 'is-on': live }"
+            role="switch"
+            :aria-checked="live"
+            :aria-label="`Auto-refresh — check for new activity every ${liveInterval} seconds`"
+            :title="live ? `Auto-refresh is on — checking for new activity every ${liveInterval}s. Click to stop.` : `Auto-refresh is off — click to check for new activity every ${liveInterval}s, without reloading.`"
+            @click="$emit('set-live', !live)"
+          >
+            <span class="ar__live-dot" aria-hidden="true"></span>
+            <span class="ar__live-label">Auto-refresh</span>
+          </button>
         </div>
       </div>
       <p class="ar__review-lead">New, unusually busy, or disguising what they are. Nothing is blocked unless you choose to.</p>

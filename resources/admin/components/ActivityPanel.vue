@@ -374,10 +374,10 @@ export default {
             </p>
           </div>
           <div class="ar-act-controls">
-            <button type="button" class="ar-btn" :disabled="refreshing" @click="$emit('refresh')">
+            <button type="button" class="ar-btn ar-btn--ghost" :disabled="refreshing" @click="$emit('refresh')">
               {{ refreshing ? 'Refreshing…' : 'Refresh' }}
             </button>
-            <button type="button" class="ar-linkbtn" @click="confirmClear">Clear log</button>
+            <button type="button" class="ar-btn ar-btn--danger" @click="confirmClear">Clear log</button>
           </div>
         </div>
 

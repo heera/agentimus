@@ -10,6 +10,19 @@ import OnboardingWizard from './components/OnboardingWizard.vue';
 import AboutPanel from './components/AboutPanel.vue';
 import ConfirmDialog from './components/ConfirmDialog.vue';
 
+// Live updates: poll the same /activity endpoint the Refresh button uses, on a
+// gentle interval. Polling (not SSE/WebSockets) on purpose — it works on any
+// shared host without holding a PHP-FPM worker open per admin tab.
+const ACTIVITY_POLL_MS = 15000;
+// Per-admin viewing preference (their own browser), not a site setting — it only
+// governs how often this screen re-fetches, never what the site exposes.
+const LIVE_PREF_KEY = 'agentimus:liveUpdates';
+// Suspend polling after this long with no interaction — even on a focused tab —
+// the way WordPress Heartbeat backs off an idle admin. Resumes on the next move.
+const ACTIVITY_IDLE_MS = 5 * 60 * 1000;
+// Cheap "is the human still here" signals. Kept in one place so add/remove agree.
+const ACTIVITY_EVENTS = ['mousemove', 'keydown', 'wheel', 'pointerdown', 'touchstart'];
+
 export default {
   name: 'AgentimusApp',
   components: { SettingsForm, ReadinessPanel, DiscoveryHub, ActivityPanel, ReviewMenu, OnboardingWizard, AboutPanel, ConfirmDialog },
@@ -31,6 +44,10 @@ export default {
       activity: {},
       activityLoaded: false,
       refreshingActivity: false,
+      // Opt-in live updates (off by default). Remembered per browser.
+      live: (() => {
+        try { return window.localStorage.getItem(LIVE_PREF_KEY) === '1'; } catch (e) { return false; }
+      })(),
       blockingNow: null,
       allowingNow: null,
       entityTypes: this.boot.entityTypes || ['Person', 'Organization'],
@@ -255,6 +272,8 @@ export default {
     // Load activity eagerly (not only on the Dashboard): the nav "to review"
     // badge needs the threat data on every tab.
     this.refreshActivity();
+    // Resume live updates if this admin left them on.
+    if (this.live) this.startActivityPolling();
     // First run: greet a new admin with the setup wizard.
     if (!this.onboarded) {
       this.showWizard = true;
@@ -262,6 +281,7 @@ export default {
   },
   beforeUnmount() {
     window.removeEventListener('hashchange', this.syncTabFromHash);
+    this.stopActivityPolling();
   },
   methods: {
     // Dashboard tiles emit { tab, anchor? }. Switch tab, then (once the now-shown
@@ -518,6 +538,99 @@ export default {
         this.refreshingActivity = false;
       }
     },
+    // Opt-in live updates. Toggled from the "Activity to review" bell menu; we own
+    // the state here because we own the interval. Persisted per browser.
+    setLive(on) {
+      this.live = !!on;
+      try { window.localStorage.setItem(LIVE_PREF_KEY, this.live ? '1' : '0'); } catch (e) { /* private mode */ }
+      if (this.live) {
+        this.startActivityPolling();
+        this.silentRefreshActivity(); // don't make them wait a full tick for the first update
+      } else {
+        this.stopActivityPolling();
+      }
+    },
+    startActivityPolling() {
+      if (this._pollTimer) return; // already running
+      this._pollFails = 0;
+      this._idle = false;
+      this._lastActivity = Date.now();
+      this._pollTimer = window.setInterval(this.pollTick, ACTIVITY_POLL_MS);
+      // Returning to the tab should feel instant, and we skip ticks while it's
+      // hidden, so treat coming back as activity and refresh on the way in.
+      this._onVisible = () => {
+        if (document.hidden) return;
+        this._lastActivity = Date.now();
+        this._idle = false;
+        if (this.live) this.silentRefreshActivity();
+      };
+      document.addEventListener('visibilitychange', this._onVisible);
+      // Any interaction marks the admin present, and wakes a suspended loop.
+      this._onActivity = () => this.noteActivity();
+      ACTIVITY_EVENTS.forEach((evt) => window.addEventListener(evt, this._onActivity, { passive: true }));
+    },
+    stopActivityPolling() {
+      if (this._pollTimer) { window.clearInterval(this._pollTimer); this._pollTimer = null; }
+      if (this._onVisible) { document.removeEventListener('visibilitychange', this._onVisible); this._onVisible = null; }
+      if (this._onActivity) {
+        ACTIVITY_EVENTS.forEach((evt) => window.removeEventListener(evt, this._onActivity));
+        this._onActivity = null;
+      }
+      this._idle = false;
+    },
+    // Record presence. Just a number write on most events (cheap enough to skip
+    // throttling); on the idle→active edge it wakes the loop with a fresh pull.
+    noteActivity() {
+      this._lastActivity = Date.now();
+      if (this._idle) {
+        this._idle = false;
+        if (this.live && !document.hidden) this.silentRefreshActivity();
+      }
+    },
+    pollTick() {
+      // Don't poll a backgrounded tab, and never stack a request on top of an
+      // in-flight refresh / block / allow.
+      if (document.hidden || this.refreshingActivity || this.blockingNow || this.allowingNow) return;
+      // Suspend on a focused-but-idle tab too, the way Heartbeat does — the next
+      // interaction resumes via noteActivity(). The interval keeps ticking (a free
+      // no-op) so we don't have to tear down and rebuild the timer.
+      if (Date.now() - (this._lastActivity || 0) > ACTIVITY_IDLE_MS) { this._idle = true; return; }
+      this.silentRefreshActivity();
+    },
+    // Background refresh: no spinner, no success toast. Compares the "to review"
+    // count against what's on screen and nudges only when something NEW shows up.
+    async silentRefreshActivity() {
+      if (this._silentInFlight) return; // never let two background fetches overlap
+      this._silentInFlight = true;
+      let fresh = null;
+      try {
+        fresh = await this.api.getActivity();
+        this._pollFails = 0;
+      } catch (e) {
+        // A transient blip shouldn't nag; a persistently dead endpoint shouldn't
+        // hammer the server forever either — back off after a few failures.
+        this._pollFails = (this._pollFails || 0) + 1;
+        if (this._pollFails >= 4) this.stopActivityPolling();
+      } finally {
+        this._silentInFlight = false;
+      }
+      if (!fresh) return;
+      const before = this.reviewCountOf(this.activity);
+      const after = this.reviewCountOf(fresh);
+      this.activity = fresh;
+      this.activityLoaded = true;
+      this._activityBlockKey = this.blockingKeyOf(this.settings);
+      if (after > before) {
+        const d = after - before;
+        this.flash('warning', `${d} new client${1 === d ? '' : 's'} to review.`);
+      }
+    },
+    // Pending clients still needing a decision — mirrors ReviewMenu's badge count
+    // (blocked ones are handled, so they don't count).
+    reviewCountOf(activity) {
+      const sources = (activity && activity.threats && activity.threats.sources) || [];
+      return sources.filter((s) => !s.blocked).length;
+    },
     async clearActivity() {
       try {
         this.activity = await this.api.clearActivity();
@@ -649,8 +762,11 @@ export default {
         :enabled="!!(activity && activity.enabled)"
         :blocking="blockingNow"
         :allowing="allowingNow"
+        :live="live"
+        :live-interval="15"
         @block="blockAgent"
         @allow="allowAgent"
+        @set-live="setLive"
         @navigate="goTo"
       />
     </header>
