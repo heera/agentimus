@@ -9,14 +9,14 @@
 
 namespace Agentimus\Tests;
 
-use Agentimus\Discovery\Envelope;
+use Agentimus\Discovery\McpSurface;
 use PHPUnit\Framework\TestCase;
 
 final class McpServerCardTest extends TestCase {
 
-	/** Reflection-call a private static method on Envelope. */
+	/** Reflection-call a private static method on McpSurface (server_tools/primary_server/card_tools moved there). */
 	private function call( string $method, ...$args ) {
-		$m = new \ReflectionMethod( Envelope::class, $method );
+		$m = new \ReflectionMethod( McpSurface::class, $method );
 		$m->setAccessible( true );
 		return $m->invoke( null, ...$args );
 	}
