@@ -598,6 +598,45 @@
   padding: 2px 7px; border-radius: 999px; margin-left: 9px; vertical-align: 3px; white-space: nowrap;
 }
 
+/* Settings sub-navigation — a segmented control that splits the page into a few
+   labelled groups, shown one at a time. Styled as pills (distinct from the
+   masthead tabs, which are underlined) so the two nav levels never read as the
+   same control. The caption beneath names the purpose of the group on screen. */
+.ar-subnav-wrap { display: grid; gap: 8px; }
+.ar-subnav {
+  display: flex; gap: 4px; padding: 4px;
+  background: var(--ar-surface-2);
+  border: 1px solid var(--ar-line);
+  border-radius: 999px;
+  overflow-x: auto; scrollbar-width: none; -ms-overflow-style: none;
+}
+.ar-subnav::-webkit-scrollbar { display: none; }
+.ar-subnav__item {
+  appearance: none; cursor: pointer; background: transparent; border: 0;
+  flex: 1 1 0; min-width: max-content; white-space: nowrap; text-align: center;
+  padding: 9px 18px; border-radius: 999px;
+  font-family: var(--ar-mono); font-size: 11px; font-weight: 600;
+  letter-spacing: 0.12em; text-transform: uppercase;
+  color: var(--ar-ink-faint);
+  transition: color 0.15s ease, background 0.15s ease, box-shadow 0.15s ease;
+}
+.ar-subnav__item:hover { color: var(--ar-ink-soft); }
+.ar-subnav__item.is-active {
+  background: var(--ar-surface); color: var(--ar-ink);
+  box-shadow: 0 1px 3px rgba(27, 25, 19, 0.13);
+}
+.ar-subnav__item:focus-visible { outline: 2px solid var(--ar-accent); outline-offset: 2px; }
+.ar-subnav__caption { margin: 0; padding-left: 8px; font-size: 12.5px; color: var(--ar-ink-soft); }
+
+/* Each settings group stacks its cards exactly as the whole form used to, and
+   restarts the spec-sheet numbering so the visible group always reads 01, 02…
+   (hidden groups are display:none, so they neither lay out nor count). */
+.ar-group { display: grid; gap: 22px; counter-reset: arcard; }
+
+/* WebMCP per-tool list, revealed under the Browser-tools master toggle. */
+.ar-webmcp-tools { margin-top: 4px; padding-top: 2px; border-top: 1px solid var(--ar-line); }
+.ar-webmcp-tools__head { margin: 13px 0 0; font-size: 12px; color: var(--ar-ink-faint); }
+
 /* Numbered sections inside the settings form, spec-sheet style. */
 .ar-form { counter-reset: arcard; display: grid; gap: 22px; }
 .ar-form .ar-card { counter-increment: arcard; }

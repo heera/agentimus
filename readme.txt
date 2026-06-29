@@ -191,6 +191,7 @@ There is no minified-only code. The admin interface is built from Vue 3 source i
 * Discovery links in the HTML <head>: the llms.txt and OpenAPI links are now mirrored into the page markup as well as the HTTP Link header, so crawlers and readiness scanners that read the HTML — not the headers — find them too.
 * CORS preflight: the /.well-known discovery docs now answer an OPTIONS preflight (scoped strictly to the names this plugin serves), so strict cross-origin agent clients aren't blocked. Simple GET access was already cross-origin-enabled.
 * About tab + FAQ: an honest note on what a discovery layer can and can't do — it makes your site discoverable and correctly understood, but it can't manufacture the authority that gets you spontaneously cited. No tool can; anything promising "instant AI visibility" is overselling.
+* Settings, redesigned: the page is now split into four focused sections — Discovery, Identity, AI access and Advanced — shown one at a time via a sub-navigation, instead of one long stack of cards. The experimental Browser-tools toggle and its per-tool list are unified into a single card. Readiness "fix this" links still jump straight to the right field, now opening the section that holds it.
 
 = 1.8.0 =
 * Onboarding & listing: plain-language wording throughout — what Agentimus does, who it's for, and that it needs no technical setup — so a non-technical site owner can tell at a glance whether it's for them.

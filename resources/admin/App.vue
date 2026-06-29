@@ -271,6 +271,13 @@ export default {
       const { tab, anchor } = typeof target === 'string' ? { tab: target } : target || {};
       if (tab) this.tab = tab;
       if (!anchor) return;
+      // The Settings form is now split into groups shown one at a time; a target
+      // may live in a group that isn't active (and is therefore display:none, so
+      // scrollIntoView would no-op). Ask the form to surface the right group
+      // first — it's harmless for anchors on other tabs.
+      if (this.$refs.settingsForm && this.$refs.settingsForm.revealAnchor) {
+        this.$refs.settingsForm.revealAnchor(anchor);
+      }
       this.$nextTick(() => {
         const el = document.getElementById(anchor);
         if (!el) return;
@@ -685,6 +692,7 @@ export default {
       <div class="ar__main">
         <SettingsForm
           v-show="tab === 'settings'"
+          ref="settingsForm"
           v-model:settings="settings"
           :entity-types="entityTypes"
           :post-types="postTypes"

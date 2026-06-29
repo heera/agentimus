@@ -27,6 +27,9 @@ export default {
   emits: ['save-profile', 'save-services', 'reset', 'reopen-wizard'],
   data() {
     return {
+      // Which settings group the sub-nav is showing. One group is visible at a
+      // time so the page reads as a few focused screens, not one long scroll.
+      group: 'discovery',
       typeQuery: '',
       nsQuery: '',
       showReset: false,
@@ -45,6 +48,22 @@ export default {
     window.removeEventListener('resize', this.updateScrollHint);
   },
   computed: {
+    // The settings page is split into a few labelled groups, shown one at a time
+    // via the sub-nav. Order runs broad → specific: what you publish, who you
+    // are, what bots may do, then the rarely-touched developer/maintenance bits.
+    groups() {
+      return [
+        { key: 'discovery', label: 'Discovery', hint: 'Files & data AI can read' },
+        { key: 'identity', label: 'Identity', hint: 'Who owns this site' },
+        { key: 'access', label: 'AI access', hint: 'What bots may do — and who to block' },
+        { key: 'advanced', label: 'Advanced', hint: 'Trust, developer & maintenance' },
+      ];
+    },
+    // One-line description of the group on screen, shown under the sub-nav.
+    activeGroupHint() {
+      const g = this.groups.find((x) => x.key === this.group);
+      return g ? g.hint : '';
+    },
     filteredPostTypes() {
       const q = this.typeQuery.trim().toLowerCase();
       if (!q) return this.postTypes;
@@ -125,7 +144,6 @@ export default {
         { key: 'enable_activity', label: 'Visit log', hint: 'Records which AI assistants fetch your AI files, and counts visitors AI sends you. Local-only, no IP addresses.' },
         { key: 'enable_sitemap', label: 'Sitemap (backup)', hint: 'Adds a sitemap only when WordPress core and your SEO plugin don’t already provide one — never duplicates.' },
         { key: 'enable_signing', label: 'Verified responses', hint: 'Digitally signs your AI files so assistants can confirm they really came from your site and weren’t tampered with on the way. On by default; no setup needed.' },
-        { key: 'enable_webmcp', label: 'Browser tools for AI (experimental)', hint: 'Lets an AI agent working inside a browser call your site’s read-only tools (like site search) directly, via the emerging WebMCP browser standard. Adds a tiny script that does nothing in browsers without it. Off by default — turn on only to be an early adopter.' },
       ];
     },
     // A heads-up under the posts-per-type input: the server's COUNT-only estimate
@@ -263,6 +281,18 @@ export default {
   methods: {
     isUrl(value) {
       return /^https?:\/\//i.test(value);
+    },
+    // A deep-link (from Readiness / Dashboard) may target a field that lives in a
+    // group other than the one on screen. That group is display:none, so the
+    // parent's scrollIntoView would no-op — switch to the group that contains the
+    // anchor first. DOM-based (closest [data-group]) so it needs no anchor→group
+    // map and keeps working as sections move between groups.
+    revealAnchor(anchor) {
+      const el = anchor && document.getElementById(anchor);
+      if (!el) return;
+      const grp = el.closest('[data-group]');
+      const key = grp && grp.getAttribute('data-group');
+      if (key && key !== this.group) this.group = key;
     },
     // WebMCP per-tool expose/hide. Stored as a deny-list (webmcp_hidden_tools), so a
     // tool is exposed by default and only hidden when the owner turns it off.
@@ -434,672 +464,729 @@ export default {
 
 <template>
   <form class="ar-form" @submit.prevent="$emit('save-profile')">
-    <!-- Identity ------------------------------------------------------- -->
-    <section id="ar-sec-identity" class="ar-card">
-      <h2 class="ar-card__title">Identity</h2>
-      <p class="ar-card__lead">The highest-signal data an agent reads — who owns this site and what it's about.</p>
+    <!-- Settings sub-navigation: the page is split into a few labelled groups,
+         shown one at a time, so it reads as focused screens instead of one long
+         stack. Styled as a segmented control — visually distinct from the
+         masthead tabs so the two nav levels never read as the same control. -->
+    <div class="ar-subnav-wrap">
+      <nav class="ar-subnav" aria-label="Settings sections">
+        <button
+          v-for="g in groups"
+          :key="g.key"
+          type="button"
+          class="ar-subnav__item"
+          :class="{ 'is-active': group === g.key }"
+          :aria-current="group === g.key ? 'page' : null"
+          :title="g.hint"
+          @click="group = g.key"
+        >{{ g.label }}</button>
+      </nav>
+      <p class="ar-subnav__caption">{{ activeGroupHint }}</p>
+    </div>
 
-      <!-- Compose-and-save block: free text you compose, then commit with Save. -->
-      <div class="ar-id-block">
-        <div class="ar-grid">
-        <div class="ar-field">
-          <label for="ar-type">Entity type</label>
-          <select id="ar-type" v-model="identity.entity_type" class="ar-input">
-            <option v-for="t in entityTypes" :key="t" :value="t">{{ t.replace(/([a-z])([A-Z])/g, '$1 $2') }}</option>
-          </select>
-        </div>
-        <div class="ar-field">
-          <label for="ar-name">Name</label>
-          <input id="ar-name" v-model="identity.name" type="text" class="ar-input" :placeholder="namePlaceholder" />
-        </div>
-        <div v-if="identity.entity_type === 'Person'" class="ar-field">
-          <label for="ar-role">Role / title</label>
-          <input id="ar-role" v-model="identity.role" type="text" class="ar-input" placeholder="Software architect" />
-        </div>
-      </div>
+    <!-- ============================================================ -->
+    <!-- DISCOVERY — files & data AI can read                         -->
+    <!-- ============================================================ -->
+    <div v-show="group === 'discovery'" class="ar-group" data-group="discovery">
+      <!-- Features ----------------------------------------------------- -->
+      <section id="ar-sec-features" class="ar-card">
+        <h2 class="ar-card__title">Features</h2>
+        <p class="ar-card__lead">Toggle each agent-readiness signal.</p>
 
-      <div class="ar-field">
-        <label for="ar-about">Profile sentence</label>
-        <textarea
-          id="ar-about"
-          v-model="identity.about"
-          class="ar-input"
-          rows="3"
-          :placeholder="aboutPlaceholder"
-        ></textarea>
-        <small class="ar-field__hint">Used at the top of llms.txt, the full-text edition, and the JSON-LD description.</small>
-      </div>
-
-      <div class="ar-field">
-        <label for="ar-not">What you’re not <span class="ar-field__tag">optional</span></label>
-        <textarea
-          id="ar-not"
-          v-model="identity.not_description"
-          class="ar-input"
-          rows="2"
-          placeholder="e.g. This is not a personal blog or a news site."
-        ></textarea>
-        <small class="ar-field__hint">An explicit exclusion so agents don’t miscategorize you. Becomes JSON-LD <code>disambiguatingDescription</code> and a line in llms.txt.</small>
-      </div>
-
-      <div class="ar-field">
-        <label for="ar-audience">Audience <span class="ar-field__tag">optional</span></label>
-        <input id="ar-audience" v-model="identity.audience" type="text" class="ar-input" placeholder="e.g. Small business owners evaluating IT services" />
-        <small class="ar-field__hint">Who the site is for. Feeds JSON-LD <code>audience</code> and llms.txt.</small>
-      </div>
-
-      <div class="ar-field">
-        <label for="ar-contact">Public contact email <span class="ar-field__tag">optional</span></label>
-        <input id="ar-contact" v-model="identity.contact_email" type="email" class="ar-input" placeholder="hello@example.com" />
-        <small class="ar-field__hint">
-          Published in <code>discovery.json</code> so agents can reach you. Leave empty to expose none —
-          your WordPress admin email is never used.
-        </small>
-      </div>
-
-        <div class="ar-id-foot">
-          <span v-if="profileSaving" class="ar-id-foot__status">Saving…</span>
-          <span v-else-if="profileDirty" class="ar-id-foot__status is-dirty">Unsaved changes</span>
-          <span v-else-if="profileSaved" class="ar-id-foot__status is-saved">Saved ✓</span>
-          <span v-else class="ar-id-foot__status">Saved</span>
-          <button type="button" class="ar-btn" :disabled="profileSaving || !profileDirty" @click="$emit('save-profile')">
-            {{ profileSaving ? 'Saving…' : 'Save profile' }}
-          </button>
-        </div>
-      </div>
-
-      <div id="ar-id-expertise" class="ar-field">
-        <label>{{ expertiseLabel }}</label>
-        <TagInput v-model="identity.expertise" placeholder="Add a topic, press Enter" />
-        <small class="ar-field__hint">Feeds this list and schema <code>knowsAbout</code>. Saved as you add.</small>
-      </div>
-
-      <div id="ar-id-sameas" class="ar-field">
-        <label>Profile URLs</label>
-        <TagInput v-model="identity.same_as" :placeholder="profileUrlPlaceholder" />
-        <small class="ar-field__hint">
-          Public profile URLs (LinkedIn, X, GitHub, Facebook, Wikipedia…) that help agents resolve your entity. Saved as you add.
-          <span v-if="identity.same_as.some((u) => !isUrl(u))" class="ar-warn">Some entries are not full https:// URLs.</span>
-        </small>
-      </div>
-
-    </section>
-
-    <!-- Services ------------------------------------------------------- -->
-    <section id="ar-sec-services" class="ar-card">
-      <h2 class="ar-card__title">Services</h2>
-      <p class="ar-card__lead">
-        What you can be hired for — each becomes a Schema.org <code>Service</code> linked to you as
-        the provider, so agents can answer “what does this site offer?”. Optional; leave empty if
-        you don't sell services.
-      </p>
-
-      <div v-for="(svc, i) in identity.services" :key="i" class="ar-svc">
-        <button type="button" class="ar-svc__x" aria-label="Remove service" title="Remove service" @click="removeService(i)">×</button>
-        <div class="ar-svc__row">
-          <input
-            v-model="svc.name"
-            type="text"
-            class="ar-input ar-svc__name"
-            placeholder="Service name (e.g. WordPress plugin development)"
-            aria-label="Service name"
-          />
-          <input
-            v-model="svc.url"
-            type="url"
-            class="ar-input ar-svc__url"
-            placeholder="https://… (optional)"
-            aria-label="Service URL"
-          />
-        </div>
-        <input
-          v-model="svc.description"
-          type="text"
-          class="ar-input"
-          placeholder="One line on what it includes (optional)"
-          aria-label="Service description"
-        />
-      </div>
-      <button type="button" class="ar-svc__add" @click="addService">+ Add a service</button>
-
-      <div class="ar-id-foot">
-        <span v-if="servicesSaving" class="ar-id-foot__status">Saving…</span>
-        <span v-else-if="servicesDirty" class="ar-id-foot__status is-dirty">Unsaved changes</span>
-        <span v-else-if="servicesSaved" class="ar-id-foot__status is-saved">Saved ✓</span>
-        <span v-else class="ar-id-foot__status">Saved</span>
-        <button type="button" class="ar-btn" :disabled="servicesSaving || !servicesDirty" @click="$emit('save-services')">
-          {{ servicesSaving ? 'Saving…' : 'Save services' }}
-        </button>
-      </div>
-    </section>
-
-    <!-- Security.txt --------------------------------------------------- -->
-    <section id="ar-sec-security" class="ar-card">
-      <h2 class="ar-card__title">Security contact</h2>
-      <p class="ar-card__lead">
-        If someone spots a security problem on your site, this tells them where to report it —
-        published at the standard place (<code>/.well-known/security.txt</code>) that researchers and
-        agents look. <strong>What to do:</strong> turn it on and add one contact (usually your email).
-        It steps aside automatically if your site already provides one.
-      </p>
-
-      <label id="ar-feat-enable_security_txt" class="ar-toggle">
-        <input v-model="settings.enable_security_txt" type="checkbox" />
-        <span class="ar-toggle__track" aria-hidden="true"></span>
-        <span class="ar-toggle__text">
-          <strong>Publish a security contact</strong>
-          <small>So researchers know how to reach you to report a problem responsibly, instead of disclosing it publicly.</small>
-        </span>
-      </label>
-
-      <div v-show="settings.enable_security_txt">
-        <p v-if="!hasSecurityContact" class="ar-card__note ar-warn">
-          Add at least one contact below (or a public contact email under Identity) —
-          the standard requires one, so until then nothing is served.
-        </p>
-
-        <div class="ar-field">
-          <label>Security contacts</label>
-          <TagInput v-model="security.contacts" placeholder="security@example.com, https://… or tel:+…" />
-          <small class="ar-field__hint">
-            Add an email, a report-form URL, or a phone number, then press Enter.
-            <span v-if="identity.contact_email">Your Identity email <code>{{ identity.contact_email }}</code> is reused here automatically as the first contact.</span>
-            <span v-else>A public contact email set under Identity is reused here automatically.</span>
-          </small>
-        </div>
-
-        <div class="ar-grid">
-          <div class="ar-field">
-            <label for="ar-sec-policy">Disclosure policy URL <span class="ar-field__tag">optional</span></label>
-            <input id="ar-sec-policy" v-model="security.policy" type="url" class="ar-input" placeholder="https://example.com/security-policy" />
-          </div>
-          <div class="ar-field">
-            <label for="ar-sec-ack">Acknowledgments URL <span class="ar-field__tag">optional</span></label>
-            <input id="ar-sec-ack" v-model="security.acknowledgments" type="url" class="ar-input" placeholder="https://example.com/hall-of-fame" />
-          </div>
-          <div class="ar-field">
-            <label for="ar-sec-enc">Encryption key URL <span class="ar-field__tag">optional</span></label>
-            <input id="ar-sec-enc" v-model="security.encryption" type="url" class="ar-input" placeholder="https://example.com/pgp-key.txt" />
-          </div>
-          <div class="ar-field">
-            <label for="ar-sec-hiring">Security hiring URL <span class="ar-field__tag">optional</span></label>
-            <input id="ar-sec-hiring" v-model="security.hiring" type="url" class="ar-input" placeholder="https://example.com/jobs/security" />
-          </div>
-        </div>
-
-        <div class="ar-grid">
-          <div class="ar-field">
-            <label for="ar-sec-langs">Preferred languages <span class="ar-field__tag">optional</span></label>
-            <input id="ar-sec-langs" v-model="security.preferred_languages" type="text" class="ar-input" placeholder="en, fr" />
-            <small class="ar-field__hint">Comma-separated; defaults to your site language.</small>
-          </div>
-          <div class="ar-field ar-field--inline">
-            <label for="ar-sec-exp">Expires after (days)</label>
-            <input id="ar-sec-exp" v-model.number="security.expires_days" type="number" min="1" max="365" class="ar-input ar-input--sm" />
-          </div>
-        </div>
-
-        <p class="ar-card__note">
-          <strong>Gap-filling, never override.</strong>
-          A real <code>/.well-known/security.txt</code> file or another plugin's document always wins;
-          this generator only fills the gap.
-          <span v-if="hasSecurityContact">
-            Live at <a :href="securityTxtUrl" target="_blank" rel="noopener"><code>/.well-known/security.txt</code></a>,
-            and indexed in <code>discovery.json</code> under <code>trust</code>.
-          </span>
-        </p>
-      </div>
-    </section>
-
-    <!-- Features ------------------------------------------------------- -->
-    <section id="ar-sec-features" class="ar-card">
-      <h2 class="ar-card__title">Features</h2>
-      <p class="ar-card__lead">Toggle each agent-readiness signal.</p>
-
-      <label v-for="f in features" :id="'ar-feat-' + f.key" :key="f.key" class="ar-toggle">
-        <input v-model="settings[f.key]" type="checkbox" />
-        <span class="ar-toggle__track" aria-hidden="true"></span>
-        <span class="ar-toggle__text">
-          <strong>{{ f.label }}</strong>
-          <small>{{ f.hint }}</small>
-        </span>
-      </label>
-
-      <div class="ar-field ar-field--inline">
-        <label for="ar-full-count">Posts in /llms-full.txt</label>
-        <input
-          id="ar-full-count"
-          v-model.number="settings.llms_full_posts"
-          type="number"
-          min="1"
-          max="500"
-          class="ar-input ar-input--sm"
-        />
-      </div>
-      <small v-if="fullSizeNote" class="ar-field__hint" :class="{ 'ar-warn': fullSizeNote.warn }">{{ fullSizeNote.text }}</small>
-    </section>
-
-    <!-- Browser tools (WebMCP) — per-tool expose/hide ------------------ -->
-    <section v-show="settings.enable_webmcp" id="ar-sec-webmcp" class="ar-card">
-      <h2 class="ar-card__title">Browser tools</h2>
-      <p class="ar-card__lead">
-        These read-only tools are offered to AI agents working inside a browser (via WebMCP). Turn one
-        off to hide it — it won’t be registered with the browser at all.
-      </p>
-
-      <p v-if="!webmcpTools.length" class="ar-card__lead">No browser tools are registered yet.</p>
-
-      <label v-for="t in webmcpTools" :key="t.name" class="ar-toggle">
-        <input type="checkbox" :checked="isToolExposed(t.name)" @change="toggleToolHidden(t.name)" />
-        <span class="ar-toggle__track" aria-hidden="true"></span>
-        <span class="ar-toggle__text">
-          <strong><code>{{ t.name }}</code></strong>
-          <small>{{ t.description }}</small>
-        </span>
-      </label>
-    </section>
-
-    <!-- Crawler policy ------------------------------------------------- -->
-    <section id="ar-sec-ai" class="ar-card">
-      <h2 class="ar-card__title">Crawler policy</h2>
-      <p class="ar-card__lead">
-        Decide what AI assistants may do with your content. Search and citation stay on by default;
-        you can refuse training.
-      </p>
-
-      <div class="ar-field">
-        <label>Usage declaration <span class="ar-field__tag">Content-Signal</span></label>
-        <div class="ar-signals">
-          <label v-for="row in signalRows" :key="row.key" class="ar-toggle">
-            <input v-model="signal[row.key]" type="checkbox" />
-            <span class="ar-toggle__track" aria-hidden="true"></span>
-            <span class="ar-toggle__text">
-              <strong>{{ row.label }}</strong>
-              <small>{{ row.hint }}</small>
-            </span>
-            <span class="ar-signal-state" :class="signal[row.key] ? 'is-allow' : 'is-block'">
-              {{ signal[row.key] ? 'Allowed' : 'Blocked' }}
-            </span>
-          </label>
-        </div>
-        <small class="ar-field__hint">Emitted in robots.txt as <code>{{ signalPreview }}</code></small>
-      </div>
-
-      <div class="ar-field">
-        <!-- Allowed: an explicit list to refuse specific crawlers. -->
-        <label v-if="signal.ai_train">Block specific crawlers <span class="ar-field__tag">optional</span></label>
-        <!-- Blocked: no specifics — just a one-line note. -->
-        <small v-else class="ar-field__hint">
-          {{ blockedCount
-            ? 'Known AI-training crawlers are also hard-blocked by name for stronger enforcement.'
-            : 'No crawlers are hard-blocked — relying on the ai-train=no signal alone.' }}
-        </small>
-
-        <div v-show="signal.ai_train" class="ar-enforce-body">
-          <TagInput v-model="settings.blocked_trainers" placeholder="Add a custom user-agent" />
-          <div v-if="trainerSuggestions.length" class="ar-suggest">
-            <span class="ar-suggest__label">Add a known crawler</span>
-            <button
-              v-for="t in trainerSuggestions"
-              :key="t"
-              type="button"
-              class="ar-suggest__chip"
-              @click="addTrainer(t)"
-            >+ {{ t }}</button>
-          </div>
-          <small class="ar-field__hint">
-            Refused by name with <code>Disallow: /</code>.
-            <span v-if="signal.ai_train">Training is Allowed, so only the crawlers you list here are blocked.</span>
-            <button v-if="!isDefaultTrainers" type="button" class="ar-linkbtn" @click="resetTrainers">Reset to defaults</button>
-          </small>
-        </div>
-      </div>
-
-      <!-- Opt-out channels — only relevant when reserving (training blocked) -->
-      <div class="ar-field">
-        <div v-if="reservedSignal" class="ar-channels-panel">
-          <div class="ar-channels-panel__head">
-            Published beyond robots.txt <span class="ar-field__tag">stronger signals</span>
-          </div>
-          <p class="ar-channels-panel__lead">{{ channelsSummary }}</p>
-          <p class="ar-channels-panel__note">
-            The opt-out file is site-wide — it can’t block individual bots. Per-bot blocks live in the
-            crawler list above (robots.txt), and in scanner blocking below for a hard 403.
-          </p>
-
-          <details>
-            <summary class="ar-linkbtn">Publishing channels</summary>
-            <p class="ar-field__hint">
-              Each channel states the same “no AI training” choice in a different place. They’re on by
-              default — turn one off only if you don’t want to publish through that channel.
-            </p>
-
-            <label id="ar-feat-enable_ai_header" class="ar-toggle">
-              <input v-model="settings.enable_ai_header" type="checkbox" />
-              <span class="ar-toggle__track" aria-hidden="true"></span>
-              <span class="ar-toggle__text">
-                <strong>Response header</strong>
-                <small>Attaches an invisible “do not train” tag to every page your site serves, so an AI crawler gets the signal directly — even if it never reads your robots.txt.</small>
-              </span>
-            </label>
-
-            <label class="ar-toggle">
-              <input v-model="settings.enable_tdmrep" type="checkbox" />
-              <span class="ar-toggle__track" aria-hidden="true"></span>
-              <span class="ar-toggle__text">
-                <strong>Opt-out file</strong>
-                <small>Publishes a small standard file that formally declares your content off-limits for AI training — the machine-readable format AI companies check, and the one that lines up with EU text-and-data-mining rules. <a :href="tdmrepUrl" target="_blank" rel="noopener">View the file</a>.</small>
-              </span>
-            </label>
-
-            <label class="ar-toggle">
-              <input v-model="settings.ai_noai_header" type="checkbox" />
-              <span class="ar-toggle__track" aria-hidden="true"></span>
-              <span class="ar-toggle__text">
-                <strong>Also send a “noai” header</strong>
-                <small>An extra page header asking AI tools not to use your text or images. It isn’t an official standard — only some platforms honor it — so treat it as a harmless bonus signal on top of the two above.</small>
-              </span>
-            </label>
-
-            <div class="ar-field">
-              <label for="ar-tdm-policy">AI-usage policy URL <span class="ar-field__tag">optional</span></label>
-              <input id="ar-tdm-policy" v-model="settings.tdm_policy_url" type="url" class="ar-input" placeholder="https://example.com/ai-policy" />
-              <small class="ar-field__hint">
-                A link to your own page spelling out your AI terms — e.g. “training allowed only with a
-                licence; email us.” When set, the header and opt-out file point AI companies to it so they
-                know your conditions or how to ask permission. Leave it blank for a plain “no” — your
-                opt-out still works exactly the same without it.
-              </small>
-            </div>
-          </details>
-        </div>
-
-        <p v-else class="ar-card__note">
-          AI training is allowed, so no opt-out signals are published — on the web, no signal already
-          means “allowed”. To opt out, turn off <strong>Allow AI training</strong> above: that publishes a
-          no-training signal in robots.txt, a response header, and <code>/.well-known/tdmrep.json</code> at
-          once. To keep specific crawlers out while staying open, list them under
-          <strong>Block specific crawlers</strong> above.
-        </p>
-      </div>
-    </section>
-
-    <!-- Block scanners & scrapers -------------------------------------- -->
-    <section id="ar-sec-blocking" class="ar-card">
-      <h2 class="ar-card__title">Block scanners &amp; scrapers <span class="ar-field__tag">optional</span></h2>
-      <p class="ar-card__lead">
-        The crawler rules above are a polite request — well-behaved bots honour them. This is the
-        hard stop: the bots below are turned away from your AI files instead of being served. Off by default.
-      </p>
-
-      <label class="ar-toggle">
-        <input v-model="settings.block_agents" type="checkbox" />
-        <span class="ar-toggle__track" aria-hidden="true"></span>
-        <span class="ar-toggle__text">
-          <strong>Deny blocked agents</strong>
-          <small>Turn the bots in the list below away — they get nothing instead of your <code>llms.txt</code>, <code>discovery.json</code> and other AI files.</small>
-        </span>
-      </label>
-
-      <div v-show="settings.block_agents" class="ar-enforce-body">
-        <label class="ar-toggle">
-          <input v-model="settings.block_spoofed" type="checkbox" />
+        <label v-for="f in features" :id="'ar-feat-' + f.key" :key="f.key" class="ar-toggle">
+          <input v-model="settings[f.key]" type="checkbox" />
           <span class="ar-toggle__track" aria-hidden="true"></span>
           <span class="ar-toggle__text">
-            <strong>Auto-deny spoofed / legacy-device agents</strong>
-            <small>Turn away bots that disguise themselves as ancient phones (old Nokia/BlackBerry handsets) — a classic scanner trick. These show up as “Likely spoof/scanner” in your activity log.</small>
+            <strong>{{ f.label }}</strong>
+            <small>{{ f.hint }}</small>
           </span>
         </label>
 
-        <div class="ar-field">
-          <label>Blocked user-agents <span class="ar-field__tag">optional</span></label>
-          <TagInput v-model="settings.blocked_agents" placeholder="Add a user-agent to deny" />
-          <div v-if="scannerSuggestions.length" class="ar-suggest">
-            <span class="ar-suggest__label">Add a known scanner</span>
-            <button
-              v-for="s in scannerSuggestions"
-              :key="s"
-              type="button"
-              class="ar-suggest__chip"
-              @click="addScanner(s)"
-            >+ {{ s }}</button>
-          </div>
-          <p v-if="riskyBlockedAgents.length" class="ar-card__note ar-warn">
-            ⚠ Broad {{ riskyBlockedAgents.length === 1 ? 'entry' : 'entries' }}:
-            <code>{{ riskyBlockedAgents.join(', ') }}</code> —
-            {{ riskyBlockedAgents.length === 1 ? 'this is' : 'these are' }} broad enough to also hit real browsers or AI crawlers you may want.
-            Major search engines (Googlebot, Bingbot…) are always allowed regardless, but consider something more specific.
-          </p>
-          <p v-if="invalidBlockedPatterns.length" class="ar-card__note ar-warn">
-            ⚠ Invalid {{ invalidBlockedPatterns.length === 1 ? 'pattern' : 'patterns' }}:
-            <code>{{ invalidBlockedPatterns.join(', ') }}</code> —
-            {{ invalidBlockedPatterns.length === 1 ? "that isn't a valid /…/ expression, so it'll be matched as plain text, not a pattern." : "those aren't valid /…/ expressions, so they'll be matched as plain text, not patterns." }}
-            Fix the pattern, or drop the slashes to match it as a plain fragment.
-          </p>
-          <small class="ar-field__hint">
-            Type part of a bot's name — capitalisation doesn't matter, and a fragment is enough
-            (<code>SemrushBot</code> also catches <code>SemrushBot/7~bl</code>). Use <code>*</code> to stand in for
-            anything (<code>Semrush*</code>, <code>*bot/2*</code>), or wrap a pattern in <code>/…/</code> for
-            <strong>advanced matching</strong> (<code>/semrushbot\/\d+/</code>).
-          </small>
+        <div class="ar-field ar-field--inline">
+          <label for="ar-full-count">Posts in /llms-full.txt</label>
+          <input
+            id="ar-full-count"
+            v-model.number="settings.llms_full_posts"
+            type="number"
+            min="1"
+            max="500"
+            class="ar-input ar-input--sm"
+          />
         </div>
+        <small v-if="fullSizeNote" class="ar-field__hint" :class="{ 'ar-warn': fullSizeNote.warn }">{{ fullSizeNote.text }}</small>
+      </section>
+
+      <!-- Browser tools (WebMCP) — master toggle + per-tool expose/hide - -->
+      <section id="ar-sec-webmcp" class="ar-card">
+        <h2 class="ar-card__title">Browser tools <span class="ar-card__tag">experimental</span></h2>
+        <p class="ar-card__lead">
+          Lets an AI agent working inside a browser call your site’s read-only tools (like site
+          search) directly, via the emerging <strong>WebMCP</strong> browser standard. It adds a
+          tiny script that does nothing in browsers without support. Off by default — turn it on
+          only to be an early adopter.
+        </p>
+
+        <label id="ar-feat-enable_webmcp" class="ar-toggle">
+          <input v-model="settings.enable_webmcp" type="checkbox" />
+          <span class="ar-toggle__track" aria-hidden="true"></span>
+          <span class="ar-toggle__text">
+            <strong>Offer browser tools to AI agents</strong>
+            <small>Registers the read-only tools below with the browser, for agents that support WebMCP.</small>
+          </span>
+        </label>
+
+        <div v-show="settings.enable_webmcp" class="ar-webmcp-tools">
+          <p v-if="!webmcpTools.length" class="ar-field__hint">No browser tools are registered yet.</p>
+          <template v-else>
+            <p class="ar-webmcp-tools__head">
+              Tools offered to agents — turn one off to hide it (it won’t be registered with the browser at all).
+            </p>
+            <label v-for="t in webmcpTools" :key="t.name" class="ar-toggle">
+              <input type="checkbox" :checked="isToolExposed(t.name)" @change="toggleToolHidden(t.name)" />
+              <span class="ar-toggle__track" aria-hidden="true"></span>
+              <span class="ar-toggle__text">
+                <strong><code>{{ t.name }}</code></strong>
+                <small>{{ t.description }}</small>
+              </span>
+            </label>
+          </template>
+        </div>
+      </section>
+
+      <!-- Content types ------------------------------------------------ -->
+      <section v-if="postTypes.length" class="ar-card">
+        <h2 class="ar-card__title">Content types</h2>
+        <p class="ar-card__lead">
+          Pick which kinds of content AI assistants can read. Posts and pages are usually enough;
+          add products or other types if you want them included.
+        </p>
+        <div class="ar-types-bar">
+          <input
+            v-if="postTypes.length > 8"
+            v-model="typeQuery"
+            type="search"
+            class="ar-input ar-types-search"
+            placeholder="Filter types…"
+          />
+          <div class="ar-types-meta">
+            <span class="ar-types-count">{{ selectedTypeCount }} / {{ postTypes.length }} enabled</span>
+            <button type="button" class="ar-linkbtn" @click="selectAllTypes">Select all</button>
+          </div>
+        </div>
+
+        <div class="ar-types-scroll">
+          <div class="ar-types-grid">
+            <label
+              v-for="pt in filteredPostTypes"
+              :key="pt.slug"
+              class="ar-type"
+              :class="{ 'is-on': isTypeOn(pt.slug) }"
+            >
+              <input type="checkbox" :checked="isTypeOn(pt.slug)" @change="toggleType(pt.slug)" />
+              <span class="ar-type__check" aria-hidden="true"></span>
+              <span class="ar-type__body">
+                <span class="ar-type__label">{{ pt.label }}</span>
+                <span class="ar-type__meta">
+                  <span v-if="pt.source" class="ar-type__src">{{ pt.source }}</span>
+                  <code>{{ pt.slug }}</code>
+                </span>
+              </span>
+            </label>
+            <p v-if="!filteredPostTypes.length" class="ar-types-empty">No types match “{{ typeQuery }}”.</p>
+          </div>
+        </div>
+        <p class="ar-card__note">
+          <strong>Curates what's advertised — not an access control.</strong>
+          Unticking a type removes it from llms.txt, schema and discovery, but your
+          WordPress REST API stays public: <code>/wp-json/wp/v2</code> remains reachable regardless.
+        </p>
+      </section>
+
+      <!-- Discovery: REST APIs (opt-in) -------------------------------- -->
+      <section v-if="restNamespacesDetected.length" class="ar-card">
+        <h2 class="ar-card__title">Discovery — REST APIs</h2>
+        <p class="ar-card__lead">
+          REST APIs detected on your site. Publish the ones agents should use; internal or admin
+          APIs (analytics, telemetry, admin) are best left off. Nothing is published unless you tick it.
+        </p>
+        <div class="ar-types-bar">
+          <input
+            v-if="restNamespacesDetected.length > 8"
+            v-model="nsQuery"
+            type="search"
+            class="ar-input ar-types-search"
+            placeholder="Filter APIs…"
+          />
+          <div class="ar-types-meta">
+            <span class="ar-types-count">{{ publishedNsCount }} / {{ restNamespacesDetected.length }} published</span>
+          </div>
+        </div>
+        <div class="ar-types-scroll">
+          <div class="ar-types-grid">
+            <label
+              v-for="ns in filteredNamespaces"
+              :key="ns"
+              class="ar-type"
+              :class="{ 'is-on': isNsOn(ns) }"
+            >
+              <input type="checkbox" :checked="isNsOn(ns)" @change="toggleNs(ns)" />
+              <span class="ar-type__check" aria-hidden="true"></span>
+              <span class="ar-type__body">
+                <span class="ar-type__label">{{ ns }}</span>
+                <span class="ar-type__meta"><code>/wp-json/{{ ns }}</code></span>
+              </span>
+            </label>
+            <p v-if="!filteredNamespaces.length" class="ar-types-empty">No APIs match “{{ nsQuery }}”.</p>
+          </div>
+        </div>
+        <p class="ar-card__note">
+          <strong>Publishing advertises an API — it doesn't open or close it.</strong>
+          Ticking one lists it in discovery so agents prefer it; leaving it off just hides it from
+          the map. Either way the route is exactly as reachable as WordPress already makes it.
+        </p>
+      </section>
+
+      <!-- Provider integrations ---------------------------------------- -->
+      <section v-if="providerResources.length" class="ar-card">
+        <h2 class="ar-card__title">Provider integrations</h2>
+        <p class="ar-card__lead">
+          Resources that installed plugins declared for agents. Each is <strong>published by default</strong> —
+          switch off any you'd rather not advertise. You decide whether it's listed; the plugin decides what it says.
+        </p>
+
+        <label v-for="r in providerResources" :key="r.id" class="ar-toggle ar-toggle--rich">
+          <input type="checkbox" :checked="isPublished(r.id)" @change="togglePublish(r.id)" />
+          <span class="ar-toggle__track" aria-hidden="true"></span>
+          <span class="ar-toggle__text">
+            <strong>{{ r.title }}</strong>
+            <small class="ar-prov-meta">
+              <code>{{ r.type }}</code>
+              <span v-if="r.provider" class="ar-prov">{{ providerLabel(r.provider) }}</span>
+              <span v-if="r.capabilities && r.capabilities.length">{{ r.capabilities.length }} capabilit{{ r.capabilities.length === 1 ? 'y' : 'ies' }}</span>
+              <span v-if="r.hasAgent">agent card</span>
+            </small>
+          </span>
+          <span class="ar-signal-state" :class="isPublished(r.id) ? 'is-allow' : 'is-block'">
+            {{ isPublished(r.id) ? 'Published' : 'Suppressed' }}
+          </span>
+        </label>
 
         <p class="ar-card__note">
-          <strong>Safe by design.</strong>
-          This only affects the AI files this plugin makes (like <code>llms.txt</code> and <code>discovery.json</code>).
-          Your normal pages, your real files on disk, and anything your SSL certificate needs keep working as usual.
+          <strong>This controls listing, not access.</strong>
+          Suppressing removes a resource from discovery, the agent card and the REST mirror — but the
+          plugin and its endpoints keep working exactly as before. It changes what agents are told, not what the site does.
         </p>
-      </div>
+      </section>
+    </div>
 
-      <div v-if="(settings.allowed_agents || []).length" class="ar-field ar-field--allow">
-        <label>Always allowed <span class="ar-field__tag">trusted</span></label>
-        <TagInput v-model="settings.allowed_agents" placeholder="Add a user-agent to trust" />
-        <small class="ar-field__hint">
-          Clients you marked <strong>Allow</strong> in the review list — never blocked and never flagged
-          again (the same treatment as Googlebot). Remove one to start flagging it again.
-        </small>
-      </div>
-    </section>
+    <!-- ============================================================ -->
+    <!-- IDENTITY — who owns this site                                -->
+    <!-- ============================================================ -->
+    <div v-show="group === 'identity'" class="ar-group" data-group="identity">
+      <!-- Identity ----------------------------------------------------- -->
+      <section id="ar-sec-identity" class="ar-card">
+        <h2 class="ar-card__title">Identity</h2>
+        <p class="ar-card__lead">The highest-signal data an agent reads — who owns this site and what it's about.</p>
 
-    <!-- Content types -------------------------------------------------- -->
-    <section v-if="postTypes.length" class="ar-card">
-      <h2 class="ar-card__title">Content types</h2>
-      <p class="ar-card__lead">
-        Pick which kinds of content AI assistants can read. Posts and pages are usually enough;
-        add products or other types if you want them included.
-      </p>
-      <div class="ar-types-bar">
-        <input
-          v-if="postTypes.length > 8"
-          v-model="typeQuery"
-          type="search"
-          class="ar-input ar-types-search"
-          placeholder="Filter types…"
-        />
-        <div class="ar-types-meta">
-          <span class="ar-types-count">{{ selectedTypeCount }} / {{ postTypes.length }} enabled</span>
-          <button type="button" class="ar-linkbtn" @click="selectAllTypes">Select all</button>
+        <!-- Compose-and-save block: free text you compose, then commit with Save. -->
+        <div class="ar-id-block">
+          <div class="ar-grid">
+          <div class="ar-field">
+            <label for="ar-type">Entity type</label>
+            <select id="ar-type" v-model="identity.entity_type" class="ar-input">
+              <option v-for="t in entityTypes" :key="t" :value="t">{{ t.replace(/([a-z])([A-Z])/g, '$1 $2') }}</option>
+            </select>
+          </div>
+          <div class="ar-field">
+            <label for="ar-name">Name</label>
+            <input id="ar-name" v-model="identity.name" type="text" class="ar-input" :placeholder="namePlaceholder" />
+          </div>
+          <div v-if="identity.entity_type === 'Person'" class="ar-field">
+            <label for="ar-role">Role / title</label>
+            <input id="ar-role" v-model="identity.role" type="text" class="ar-input" placeholder="Software architect" />
+          </div>
         </div>
-      </div>
 
-      <div class="ar-types-scroll">
-        <div class="ar-types-grid">
-          <label
-            v-for="pt in filteredPostTypes"
-            :key="pt.slug"
-            class="ar-type"
-            :class="{ 'is-on': isTypeOn(pt.slug) }"
-          >
-            <input type="checkbox" :checked="isTypeOn(pt.slug)" @change="toggleType(pt.slug)" />
-            <span class="ar-type__check" aria-hidden="true"></span>
-            <span class="ar-type__body">
-              <span class="ar-type__label">{{ pt.label }}</span>
-              <span class="ar-type__meta">
-                <span v-if="pt.source" class="ar-type__src">{{ pt.source }}</span>
-                <code>{{ pt.slug }}</code>
-              </span>
-            </span>
-          </label>
-          <p v-if="!filteredPostTypes.length" class="ar-types-empty">No types match “{{ typeQuery }}”.</p>
-        </div>
-      </div>
-      <p class="ar-card__note">
-        <strong>Curates what's advertised — not an access control.</strong>
-        Unticking a type removes it from llms.txt, schema and discovery, but your
-        WordPress REST API stays public: <code>/wp-json/wp/v2</code> remains reachable regardless.
-      </p>
-    </section>
-
-    <!-- Discovery: REST APIs (opt-in) ---------------------------------- -->
-    <section v-if="restNamespacesDetected.length" class="ar-card">
-      <h2 class="ar-card__title">Discovery — REST APIs</h2>
-      <p class="ar-card__lead">
-        REST APIs detected on your site. Publish the ones agents should use; internal or admin
-        APIs (analytics, telemetry, admin) are best left off. Nothing is published unless you tick it.
-      </p>
-      <div class="ar-types-bar">
-        <input
-          v-if="restNamespacesDetected.length > 8"
-          v-model="nsQuery"
-          type="search"
-          class="ar-input ar-types-search"
-          placeholder="Filter APIs…"
-        />
-        <div class="ar-types-meta">
-          <span class="ar-types-count">{{ publishedNsCount }} / {{ restNamespacesDetected.length }} published</span>
-        </div>
-      </div>
-      <div class="ar-types-scroll">
-        <div class="ar-types-grid">
-          <label
-            v-for="ns in filteredNamespaces"
-            :key="ns"
-            class="ar-type"
-            :class="{ 'is-on': isNsOn(ns) }"
-          >
-            <input type="checkbox" :checked="isNsOn(ns)" @change="toggleNs(ns)" />
-            <span class="ar-type__check" aria-hidden="true"></span>
-            <span class="ar-type__body">
-              <span class="ar-type__label">{{ ns }}</span>
-              <span class="ar-type__meta"><code>/wp-json/{{ ns }}</code></span>
-            </span>
-          </label>
-          <p v-if="!filteredNamespaces.length" class="ar-types-empty">No APIs match “{{ nsQuery }}”.</p>
-        </div>
-      </div>
-      <p class="ar-card__note">
-        <strong>Publishing advertises an API — it doesn't open or close it.</strong>
-        Ticking one lists it in discovery so agents prefer it; leaving it off just hides it from
-        the map. Either way the route is exactly as reachable as WordPress already makes it.
-      </p>
-    </section>
-
-    <!-- Provider integrations ------------------------------------------ -->
-    <section v-if="providerResources.length" class="ar-card">
-      <h2 class="ar-card__title">Provider integrations</h2>
-      <p class="ar-card__lead">
-        Resources that installed plugins declared for agents. Each is <strong>published by default</strong> —
-        switch off any you'd rather not advertise. You decide whether it's listed; the plugin decides what it says.
-      </p>
-
-      <label v-for="r in providerResources" :key="r.id" class="ar-toggle ar-toggle--rich">
-        <input type="checkbox" :checked="isPublished(r.id)" @change="togglePublish(r.id)" />
-        <span class="ar-toggle__track" aria-hidden="true"></span>
-        <span class="ar-toggle__text">
-          <strong>{{ r.title }}</strong>
-          <small class="ar-prov-meta">
-            <code>{{ r.type }}</code>
-            <span v-if="r.provider" class="ar-prov">{{ providerLabel(r.provider) }}</span>
-            <span v-if="r.capabilities && r.capabilities.length">{{ r.capabilities.length }} capabilit{{ r.capabilities.length === 1 ? 'y' : 'ies' }}</span>
-            <span v-if="r.hasAgent">agent card</span>
-          </small>
-        </span>
-        <span class="ar-signal-state" :class="isPublished(r.id) ? 'is-allow' : 'is-block'">
-          {{ isPublished(r.id) ? 'Published' : 'Suppressed' }}
-        </span>
-      </label>
-
-      <p class="ar-card__note">
-        <strong>This controls listing, not access.</strong>
-        Suppressing removes a resource from discovery, the agent card and the REST mirror — but the
-        plugin and its endpoints keep working exactly as before. It changes what agents are told, not what the site does.
-      </p>
-    </section>
-
-    <!-- Advanced / Developer (collapsed; Authenticated API lives here) -- -->
-    <section class="ar-card ar-card--muted ar-adv">
-      <button
-        type="button"
-        class="ar-adv__toggle ar-reset"
-        :aria-expanded="showAdvanced ? 'true' : 'false'"
-        aria-controls="ar-adv-body"
-        @click="showAdvanced = !showAdvanced"
-      >
-        <span class="ar-reset__text">
-          <strong>Advanced <span class="ar-field__tag">developer</span></strong>
-          <small>Authenticated-API discovery for sites with a login-protected API. Most sites don’t need this.</small>
-        </span>
-        <svg class="ar-adv__chev" :class="{ 'is-open': showAdvanced }" viewBox="0 0 16 16" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6l4 4 4-4" /></svg>
-      </button>
-
-      <div v-if="showAdvanced" id="ar-adv-body" class="ar-adv__body">
-        <h3 class="ar-adv__title">Authenticated API <span class="ar-field__tag">optional</span></h3>
-        <p class="ar-card__lead">
-          Only for a site whose API apps or AI agents <strong>log into</strong> — a headless build or app backend that uses OAuth.
-          <strong>Most sites should leave this blank.</strong> And if your API already publishes its own login metadata,
-          Agentimus finds it automatically, so there’s nothing to enter here.
-        </p>
         <div class="ar-field">
-          <label for="ar-oauth-as">Login (authorization) server address</label>
-          <div class="ar-oauth">
-            <input id="ar-oauth-as" v-model="settings.oauth_auth_server" type="url" class="ar-input" placeholder="https://auth.example.com" />
-            <button type="button" class="ar-btn ar-btn--ghost ar-oauth__check" :disabled="oauthChecking" @click="checkOauth">
-              {{ oauthChecking ? 'Checking…' : 'Check' }}
+          <label for="ar-about">Profile sentence</label>
+          <textarea
+            id="ar-about"
+            v-model="identity.about"
+            class="ar-input"
+            rows="3"
+            :placeholder="aboutPlaceholder"
+          ></textarea>
+          <small class="ar-field__hint">Used at the top of llms.txt, the full-text edition, and the JSON-LD description.</small>
+        </div>
+
+        <div class="ar-field">
+          <label for="ar-not">What you’re not <span class="ar-field__tag">optional</span></label>
+          <textarea
+            id="ar-not"
+            v-model="identity.not_description"
+            class="ar-input"
+            rows="2"
+            placeholder="e.g. This is not a personal blog or a news site."
+          ></textarea>
+          <small class="ar-field__hint">An explicit exclusion so agents don’t miscategorize you. Becomes JSON-LD <code>disambiguatingDescription</code> and a line in llms.txt.</small>
+        </div>
+
+        <div class="ar-field">
+          <label for="ar-audience">Audience <span class="ar-field__tag">optional</span></label>
+          <input id="ar-audience" v-model="identity.audience" type="text" class="ar-input" placeholder="e.g. Small business owners evaluating IT services" />
+          <small class="ar-field__hint">Who the site is for. Feeds JSON-LD <code>audience</code> and llms.txt.</small>
+        </div>
+
+        <div class="ar-field">
+          <label for="ar-contact">Public contact email <span class="ar-field__tag">optional</span></label>
+          <input id="ar-contact" v-model="identity.contact_email" type="email" class="ar-input" placeholder="hello@example.com" />
+          <small class="ar-field__hint">
+            Published in <code>discovery.json</code> so agents can reach you. Leave empty to expose none —
+            your WordPress admin email is never used.
+          </small>
+        </div>
+
+          <div class="ar-id-foot">
+            <span v-if="profileSaving" class="ar-id-foot__status">Saving…</span>
+            <span v-else-if="profileDirty" class="ar-id-foot__status is-dirty">Unsaved changes</span>
+            <span v-else-if="profileSaved" class="ar-id-foot__status is-saved">Saved ✓</span>
+            <span v-else class="ar-id-foot__status">Saved</span>
+            <button type="button" class="ar-btn" :disabled="profileSaving || !profileDirty" @click="$emit('save-profile')">
+              {{ profileSaving ? 'Saving…' : 'Save profile' }}
             </button>
           </div>
-          <p class="ar-field__hint">
-            This is where apps sign in — your API platform shows it; you don’t make it up. Agentimus then publishes it at
-            <code>/.well-known/oauth-protected-resource</code> so agents can find the login. <strong>Check</strong> confirms it’s live on your site.
+        </div>
+
+        <div id="ar-id-expertise" class="ar-field">
+          <label>{{ expertiseLabel }}</label>
+          <TagInput v-model="identity.expertise" placeholder="Add a topic, press Enter" />
+          <small class="ar-field__hint">Feeds this list and schema <code>knowsAbout</code>. Saved as you add.</small>
+        </div>
+
+        <div id="ar-id-sameas" class="ar-field">
+          <label>Profile URLs</label>
+          <TagInput v-model="identity.same_as" :placeholder="profileUrlPlaceholder" />
+          <small class="ar-field__hint">
+            Public profile URLs (LinkedIn, X, GitHub, Facebook, Wikipedia…) that help agents resolve your entity. Saved as you add.
+            <span v-if="identity.same_as.some((u) => !isUrl(u))" class="ar-warn">Some entries are not full https:// URLs.</span>
+          </small>
+        </div>
+
+      </section>
+
+      <!-- Services ----------------------------------------------------- -->
+      <section id="ar-sec-services" class="ar-card">
+        <h2 class="ar-card__title">Services</h2>
+        <p class="ar-card__lead">
+          What you can be hired for — each becomes a Schema.org <code>Service</code> linked to you as
+          the provider, so agents can answer “what does this site offer?”. Optional; leave empty if
+          you don't sell services.
+        </p>
+
+        <div v-for="(svc, i) in identity.services" :key="i" class="ar-svc">
+          <button type="button" class="ar-svc__x" aria-label="Remove service" title="Remove service" @click="removeService(i)">×</button>
+          <div class="ar-svc__row">
+            <input
+              v-model="svc.name"
+              type="text"
+              class="ar-input ar-svc__name"
+              placeholder="Service name (e.g. WordPress plugin development)"
+              aria-label="Service name"
+            />
+            <input
+              v-model="svc.url"
+              type="url"
+              class="ar-input ar-svc__url"
+              placeholder="https://… (optional)"
+              aria-label="Service URL"
+            />
+          </div>
+          <input
+            v-model="svc.description"
+            type="text"
+            class="ar-input"
+            placeholder="One line on what it includes (optional)"
+            aria-label="Service description"
+          />
+        </div>
+        <button type="button" class="ar-svc__add" @click="addService">+ Add a service</button>
+
+        <div class="ar-id-foot">
+          <span v-if="servicesSaving" class="ar-id-foot__status">Saving…</span>
+          <span v-else-if="servicesDirty" class="ar-id-foot__status is-dirty">Unsaved changes</span>
+          <span v-else-if="servicesSaved" class="ar-id-foot__status is-saved">Saved ✓</span>
+          <span v-else class="ar-id-foot__status">Saved</span>
+          <button type="button" class="ar-btn" :disabled="servicesSaving || !servicesDirty" @click="$emit('save-services')">
+            {{ servicesSaving ? 'Saving…' : 'Save services' }}
+          </button>
+        </div>
+      </section>
+    </div>
+
+    <!-- ============================================================ -->
+    <!-- AI ACCESS — what bots may do, and who to block               -->
+    <!-- ============================================================ -->
+    <div v-show="group === 'access'" class="ar-group" data-group="access">
+      <!-- Crawler policy ----------------------------------------------- -->
+      <section id="ar-sec-ai" class="ar-card">
+        <h2 class="ar-card__title">Crawler policy</h2>
+        <p class="ar-card__lead">
+          Decide what AI assistants may do with your content. Search and citation stay on by default;
+          you can refuse training.
+        </p>
+
+        <div class="ar-field">
+          <label>Usage declaration <span class="ar-field__tag">Content-Signal</span></label>
+          <div class="ar-signals">
+            <label v-for="row in signalRows" :key="row.key" class="ar-toggle">
+              <input v-model="signal[row.key]" type="checkbox" />
+              <span class="ar-toggle__track" aria-hidden="true"></span>
+              <span class="ar-toggle__text">
+                <strong>{{ row.label }}</strong>
+                <small>{{ row.hint }}</small>
+              </span>
+              <span class="ar-signal-state" :class="signal[row.key] ? 'is-allow' : 'is-block'">
+                {{ signal[row.key] ? 'Allowed' : 'Blocked' }}
+              </span>
+            </label>
+          </div>
+          <small class="ar-field__hint">Emitted in robots.txt as <code>{{ signalPreview }}</code></small>
+        </div>
+
+        <div class="ar-field">
+          <!-- Allowed: an explicit list to refuse specific crawlers. -->
+          <label v-if="signal.ai_train">Block specific crawlers <span class="ar-field__tag">optional</span></label>
+          <!-- Blocked: no specifics — just a one-line note. -->
+          <small v-else class="ar-field__hint">
+            {{ blockedCount
+              ? 'Known AI-training crawlers are also hard-blocked by name for stronger enforcement.'
+              : 'No crawlers are hard-blocked — relying on the ai-train=no signal alone.' }}
+          </small>
+
+          <div v-show="signal.ai_train" class="ar-enforce-body">
+            <TagInput v-model="settings.blocked_trainers" placeholder="Add a custom user-agent" />
+            <div v-if="trainerSuggestions.length" class="ar-suggest">
+              <span class="ar-suggest__label">Add a known crawler</span>
+              <button
+                v-for="t in trainerSuggestions"
+                :key="t"
+                type="button"
+                class="ar-suggest__chip"
+                @click="addTrainer(t)"
+              >+ {{ t }}</button>
+            </div>
+            <small class="ar-field__hint">
+              Refused by name with <code>Disallow: /</code>.
+              <span v-if="signal.ai_train">Training is Allowed, so only the crawlers you list here are blocked.</span>
+              <button v-if="!isDefaultTrainers" type="button" class="ar-linkbtn" @click="resetTrainers">Reset to defaults</button>
+            </small>
+          </div>
+        </div>
+
+        <!-- Opt-out channels — only relevant when reserving (training blocked) -->
+        <div class="ar-field">
+          <div v-if="reservedSignal" class="ar-channels-panel">
+            <div class="ar-channels-panel__head">
+              Published beyond robots.txt <span class="ar-field__tag">stronger signals</span>
+            </div>
+            <p class="ar-channels-panel__lead">{{ channelsSummary }}</p>
+            <p class="ar-channels-panel__note">
+              The opt-out file is site-wide — it can’t block individual bots. Per-bot blocks live in the
+              crawler list above (robots.txt), and in scanner blocking below for a hard 403.
+            </p>
+
+            <details>
+              <summary class="ar-linkbtn">Publishing channels</summary>
+              <p class="ar-field__hint">
+                Each channel states the same “no AI training” choice in a different place. They’re on by
+                default — turn one off only if you don’t want to publish through that channel.
+              </p>
+
+              <label id="ar-feat-enable_ai_header" class="ar-toggle">
+                <input v-model="settings.enable_ai_header" type="checkbox" />
+                <span class="ar-toggle__track" aria-hidden="true"></span>
+                <span class="ar-toggle__text">
+                  <strong>Response header</strong>
+                  <small>Attaches an invisible “do not train” tag to every page your site serves, so an AI crawler gets the signal directly — even if it never reads your robots.txt.</small>
+                </span>
+              </label>
+
+              <label class="ar-toggle">
+                <input v-model="settings.enable_tdmrep" type="checkbox" />
+                <span class="ar-toggle__track" aria-hidden="true"></span>
+                <span class="ar-toggle__text">
+                  <strong>Opt-out file</strong>
+                  <small>Publishes a small standard file that formally declares your content off-limits for AI training — the machine-readable format AI companies check, and the one that lines up with EU text-and-data-mining rules. <a :href="tdmrepUrl" target="_blank" rel="noopener">View the file</a>.</small>
+                </span>
+              </label>
+
+              <label class="ar-toggle">
+                <input v-model="settings.ai_noai_header" type="checkbox" />
+                <span class="ar-toggle__track" aria-hidden="true"></span>
+                <span class="ar-toggle__text">
+                  <strong>Also send a “noai” header</strong>
+                  <small>An extra page header asking AI tools not to use your text or images. It isn’t an official standard — only some platforms honor it — so treat it as a harmless bonus signal on top of the two above.</small>
+                </span>
+              </label>
+
+              <div class="ar-field">
+                <label for="ar-tdm-policy">AI-usage policy URL <span class="ar-field__tag">optional</span></label>
+                <input id="ar-tdm-policy" v-model="settings.tdm_policy_url" type="url" class="ar-input" placeholder="https://example.com/ai-policy" />
+                <small class="ar-field__hint">
+                  A link to your own page spelling out your AI terms — e.g. “training allowed only with a
+                  licence; email us.” When set, the header and opt-out file point AI companies to it so they
+                  know your conditions or how to ask permission. Leave it blank for a plain “no” — your
+                  opt-out still works exactly the same without it.
+                </small>
+              </div>
+            </details>
+          </div>
+
+          <p v-else class="ar-card__note">
+            AI training is allowed, so no opt-out signals are published — on the web, no signal already
+            means “allowed”. To opt out, turn off <strong>Allow AI training</strong> above: that publishes a
+            no-training signal in robots.txt, a response header, and <code>/.well-known/tdmrep.json</code> at
+            once. To keep specific crawlers out while staying open, list them under
+            <strong>Block specific crawlers</strong> above.
           </p>
-          <p v-if="oauthCheck" class="ar-oauth__msg" :class="oauthCheckClass" role="status" aria-live="polite">{{ oauthCheck.msg }}</p>
         </div>
-      </div>
-    </section>
+      </section>
 
-    <!-- Endpoints (hidden when the rail shows them; returns on narrow screens) -->
-    <section class="ar-card ar-card--muted ar-card--endpoints">
-      <h2 class="ar-card__title">Live endpoints</h2>
-      <ul class="ar-links">
-        <li><a :href="endpoints.llms" target="_blank" rel="noopener">{{ endpoints.llms }}</a></li>
-        <li><a :href="endpoints.llmsFull" target="_blank" rel="noopener">{{ endpoints.llmsFull }}</a></li>
-        <li><a :href="endpoints.robots" target="_blank" rel="noopener">{{ endpoints.robots }}</a></li>
-      </ul>
-    </section>
+      <!-- Block scanners & scrapers ------------------------------------ -->
+      <section id="ar-sec-blocking" class="ar-card">
+        <h2 class="ar-card__title">Block scanners &amp; scrapers <span class="ar-field__tag">optional</span></h2>
+        <p class="ar-card__lead">
+          The crawler rules above are a polite request — well-behaved bots honour them. This is the
+          hard stop: the bots below are turned away from your AI files instead of being served. Off by default.
+        </p>
 
-    <!-- Manage setup: a guided (non-destructive) review and a destructive
-         reset, grouped in ONE block so they read as related lifecycle actions
-         (and share one background). The red button carries the danger cue. -->
-    <section class="ar-card ar-card--muted ar-manage">
-      <div class="ar-reset">
-        <div class="ar-reset__text">
-          <strong>Setup guide</strong>
-          <small>Re-open the guided setup with your current answers filled in — review or fine-tune who you are and what AI assistants can read. <em>Nothing is reset.</em></small>
+        <label class="ar-toggle">
+          <input v-model="settings.block_agents" type="checkbox" />
+          <span class="ar-toggle__track" aria-hidden="true"></span>
+          <span class="ar-toggle__text">
+            <strong>Deny blocked agents</strong>
+            <small>Turn the bots in the list below away — they get nothing instead of your <code>llms.txt</code>, <code>discovery.json</code> and other AI files.</small>
+          </span>
+        </label>
+
+        <div v-show="settings.block_agents" class="ar-enforce-body">
+          <label class="ar-toggle">
+            <input v-model="settings.block_spoofed" type="checkbox" />
+            <span class="ar-toggle__track" aria-hidden="true"></span>
+            <span class="ar-toggle__text">
+              <strong>Auto-deny spoofed / legacy-device agents</strong>
+              <small>Turn away bots that disguise themselves as ancient phones (old Nokia/BlackBerry handsets) — a classic scanner trick. These show up as “Likely spoof/scanner” in your activity log.</small>
+            </span>
+          </label>
+
+          <div class="ar-field">
+            <label>Blocked user-agents <span class="ar-field__tag">optional</span></label>
+            <TagInput v-model="settings.blocked_agents" placeholder="Add a user-agent to deny" />
+            <div v-if="scannerSuggestions.length" class="ar-suggest">
+              <span class="ar-suggest__label">Add a known scanner</span>
+              <button
+                v-for="s in scannerSuggestions"
+                :key="s"
+                type="button"
+                class="ar-suggest__chip"
+                @click="addScanner(s)"
+              >+ {{ s }}</button>
+            </div>
+            <p v-if="riskyBlockedAgents.length" class="ar-card__note ar-warn">
+              ⚠ Broad {{ riskyBlockedAgents.length === 1 ? 'entry' : 'entries' }}:
+              <code>{{ riskyBlockedAgents.join(', ') }}</code> —
+              {{ riskyBlockedAgents.length === 1 ? 'this is' : 'these are' }} broad enough to also hit real browsers or AI crawlers you may want.
+              Major search engines (Googlebot, Bingbot…) are always allowed regardless, but consider something more specific.
+            </p>
+            <p v-if="invalidBlockedPatterns.length" class="ar-card__note ar-warn">
+              ⚠ Invalid {{ invalidBlockedPatterns.length === 1 ? 'pattern' : 'patterns' }}:
+              <code>{{ invalidBlockedPatterns.join(', ') }}</code> —
+              {{ invalidBlockedPatterns.length === 1 ? "that isn't a valid /…/ expression, so it'll be matched as plain text, not a pattern." : "those aren't valid /…/ expressions, so they'll be matched as plain text, not patterns." }}
+              Fix the pattern, or drop the slashes to match it as a plain fragment.
+            </p>
+            <small class="ar-field__hint">
+              Type part of a bot's name — capitalisation doesn't matter, and a fragment is enough
+              (<code>SemrushBot</code> also catches <code>SemrushBot/7~bl</code>). Use <code>*</code> to stand in for
+              anything (<code>Semrush*</code>, <code>*bot/2*</code>), or wrap a pattern in <code>/…/</code> for
+              <strong>advanced matching</strong> (<code>/semrushbot\/\d+/</code>).
+            </small>
+          </div>
+
+          <p class="ar-card__note">
+            <strong>Safe by design.</strong>
+            This only affects the AI files this plugin makes (like <code>llms.txt</code> and <code>discovery.json</code>).
+            Your normal pages, your real files on disk, and anything your SSL certificate needs keep working as usual.
+          </p>
         </div>
-        <button type="button" class="ar-btn ar-btn--ghost" @click="$emit('reopen-wizard')">Review setup</button>
-      </div>
 
-      <hr class="ar-manage__sep" />
-
-      <div class="ar-reset">
-        <div class="ar-reset__text">
-          <strong>Reset to defaults</strong>
-          <small>Wipe every setting back to the recommended factory defaults. This also <em>clears your identity profile</em> (name, about, links) and can’t be undone.</small>
+        <div v-if="(settings.allowed_agents || []).length" class="ar-field ar-field--allow">
+          <label>Always allowed <span class="ar-field__tag">trusted</span></label>
+          <TagInput v-model="settings.allowed_agents" placeholder="Add a user-agent to trust" />
+          <small class="ar-field__hint">
+            Clients you marked <strong>Allow</strong> in the review list — never blocked and never flagged
+            again (the same treatment as Googlebot). Remove one to start flagging it again.
+          </small>
         </div>
-        <button type="button" class="ar-btn ar-btn--danger" :disabled="resetting" @click="openReset">
-          {{ resetting ? 'Resetting…' : 'Reset all' }}
+      </section>
+    </div>
+
+    <!-- ============================================================ -->
+    <!-- ADVANCED — trust, developer & maintenance                    -->
+    <!-- ============================================================ -->
+    <div v-show="group === 'advanced'" class="ar-group" data-group="advanced">
+      <!-- Security.txt ------------------------------------------------- -->
+      <section id="ar-sec-security" class="ar-card">
+        <h2 class="ar-card__title">Security contact</h2>
+        <p class="ar-card__lead">
+          If someone spots a security problem on your site, this tells them where to report it —
+          published at the standard place (<code>/.well-known/security.txt</code>) that researchers and
+          agents look. <strong>What to do:</strong> turn it on and add one contact (usually your email).
+          It steps aside automatically if your site already provides one.
+        </p>
+
+        <label id="ar-feat-enable_security_txt" class="ar-toggle">
+          <input v-model="settings.enable_security_txt" type="checkbox" />
+          <span class="ar-toggle__track" aria-hidden="true"></span>
+          <span class="ar-toggle__text">
+            <strong>Publish a security contact</strong>
+            <small>So researchers know how to reach you to report a problem responsibly, instead of disclosing it publicly.</small>
+          </span>
+        </label>
+
+        <div v-show="settings.enable_security_txt">
+          <p v-if="!hasSecurityContact" class="ar-card__note ar-warn">
+            Add at least one contact below (or a public contact email under Identity) —
+            the standard requires one, so until then nothing is served.
+          </p>
+
+          <div class="ar-field">
+            <label>Security contacts</label>
+            <TagInput v-model="security.contacts" placeholder="security@example.com, https://… or tel:+…" />
+            <small class="ar-field__hint">
+              Add an email, a report-form URL, or a phone number, then press Enter.
+              <span v-if="identity.contact_email">Your Identity email <code>{{ identity.contact_email }}</code> is reused here automatically as the first contact.</span>
+              <span v-else>A public contact email set under Identity is reused here automatically.</span>
+            </small>
+          </div>
+
+          <div class="ar-grid">
+            <div class="ar-field">
+              <label for="ar-sec-policy">Disclosure policy URL <span class="ar-field__tag">optional</span></label>
+              <input id="ar-sec-policy" v-model="security.policy" type="url" class="ar-input" placeholder="https://example.com/security-policy" />
+            </div>
+            <div class="ar-field">
+              <label for="ar-sec-ack">Acknowledgments URL <span class="ar-field__tag">optional</span></label>
+              <input id="ar-sec-ack" v-model="security.acknowledgments" type="url" class="ar-input" placeholder="https://example.com/hall-of-fame" />
+            </div>
+            <div class="ar-field">
+              <label for="ar-sec-enc">Encryption key URL <span class="ar-field__tag">optional</span></label>
+              <input id="ar-sec-enc" v-model="security.encryption" type="url" class="ar-input" placeholder="https://example.com/pgp-key.txt" />
+            </div>
+            <div class="ar-field">
+              <label for="ar-sec-hiring">Security hiring URL <span class="ar-field__tag">optional</span></label>
+              <input id="ar-sec-hiring" v-model="security.hiring" type="url" class="ar-input" placeholder="https://example.com/jobs/security" />
+            </div>
+          </div>
+
+          <div class="ar-grid">
+            <div class="ar-field">
+              <label for="ar-sec-langs">Preferred languages <span class="ar-field__tag">optional</span></label>
+              <input id="ar-sec-langs" v-model="security.preferred_languages" type="text" class="ar-input" placeholder="en, fr" />
+              <small class="ar-field__hint">Comma-separated; defaults to your site language.</small>
+            </div>
+            <div class="ar-field ar-field--inline">
+              <label for="ar-sec-exp">Expires after (days)</label>
+              <input id="ar-sec-exp" v-model.number="security.expires_days" type="number" min="1" max="365" class="ar-input ar-input--sm" />
+            </div>
+          </div>
+
+          <p class="ar-card__note">
+            <strong>Gap-filling, never override.</strong>
+            A real <code>/.well-known/security.txt</code> file or another plugin's document always wins;
+            this generator only fills the gap.
+            <span v-if="hasSecurityContact">
+              Live at <a :href="securityTxtUrl" target="_blank" rel="noopener"><code>/.well-known/security.txt</code></a>,
+              and indexed in <code>discovery.json</code> under <code>trust</code>.
+            </span>
+          </p>
+        </div>
+      </section>
+
+      <!-- Advanced / Developer (collapsed; Authenticated API lives here) -->
+      <section class="ar-card ar-card--muted ar-adv">
+        <button
+          type="button"
+          class="ar-adv__toggle ar-reset"
+          :aria-expanded="showAdvanced ? 'true' : 'false'"
+          aria-controls="ar-adv-body"
+          @click="showAdvanced = !showAdvanced"
+        >
+          <span class="ar-reset__text">
+            <strong>Authenticated API <span class="ar-field__tag">developer</span></strong>
+            <small>Authenticated-API discovery for sites with a login-protected API. Most sites don’t need this.</small>
+          </span>
+          <svg class="ar-adv__chev" :class="{ 'is-open': showAdvanced }" viewBox="0 0 16 16" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6l4 4 4-4" /></svg>
         </button>
-      </div>
-    </section>
+
+        <div v-if="showAdvanced" id="ar-adv-body" class="ar-adv__body">
+          <h3 class="ar-adv__title">Authenticated API <span class="ar-field__tag">optional</span></h3>
+          <p class="ar-card__lead">
+            Only for a site whose API apps or AI agents <strong>log into</strong> — a headless build or app backend that uses OAuth.
+            <strong>Most sites should leave this blank.</strong> And if your API already publishes its own login metadata,
+            Agentimus finds it automatically, so there’s nothing to enter here.
+          </p>
+          <div class="ar-field">
+            <label for="ar-oauth-as">Login (authorization) server address</label>
+            <div class="ar-oauth">
+              <input id="ar-oauth-as" v-model="settings.oauth_auth_server" type="url" class="ar-input" placeholder="https://auth.example.com" />
+              <button type="button" class="ar-btn ar-btn--ghost ar-oauth__check" :disabled="oauthChecking" @click="checkOauth">
+                {{ oauthChecking ? 'Checking…' : 'Check' }}
+              </button>
+            </div>
+            <p class="ar-field__hint">
+              This is where apps sign in — your API platform shows it; you don’t make it up. Agentimus then publishes it at
+              <code>/.well-known/oauth-protected-resource</code> so agents can find the login. <strong>Check</strong> confirms it’s live on your site.
+            </p>
+            <p v-if="oauthCheck" class="ar-oauth__msg" :class="oauthCheckClass" role="status" aria-live="polite">{{ oauthCheck.msg }}</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- Endpoints (hidden when the rail shows them; returns on narrow screens) -->
+      <section class="ar-card ar-card--muted ar-card--endpoints">
+        <h2 class="ar-card__title">Live endpoints</h2>
+        <ul class="ar-links">
+          <li><a :href="endpoints.llms" target="_blank" rel="noopener">{{ endpoints.llms }}</a></li>
+          <li><a :href="endpoints.llmsFull" target="_blank" rel="noopener">{{ endpoints.llmsFull }}</a></li>
+          <li><a :href="endpoints.robots" target="_blank" rel="noopener">{{ endpoints.robots }}</a></li>
+        </ul>
+      </section>
+
+      <!-- Manage setup: a guided (non-destructive) review and a destructive
+           reset, grouped in ONE block so they read as related lifecycle actions
+           (and share one background). The red button carries the danger cue. -->
+      <section class="ar-card ar-card--muted ar-manage">
+        <div class="ar-reset">
+          <div class="ar-reset__text">
+            <strong>Setup guide</strong>
+            <small>Re-open the guided setup with your current answers filled in — review or fine-tune who you are and what AI assistants can read. <em>Nothing is reset.</em></small>
+          </div>
+          <button type="button" class="ar-btn ar-btn--ghost" @click="$emit('reopen-wizard')">Review setup</button>
+        </div>
+
+        <hr class="ar-manage__sep" />
+
+        <div class="ar-reset">
+          <div class="ar-reset__text">
+            <strong>Reset to defaults</strong>
+            <small>Wipe every setting back to the recommended factory defaults. This also <em>clears your identity profile</em> (name, about, links) and can’t be undone.</small>
+          </div>
+          <button type="button" class="ar-btn ar-btn--danger" :disabled="resetting" @click="openReset">
+            {{ resetting ? 'Resetting…' : 'Reset all' }}
+          </button>
+        </div>
+      </section>
+    </div>
 
     <Teleport to="body">
       <transition name="ar-modal">
