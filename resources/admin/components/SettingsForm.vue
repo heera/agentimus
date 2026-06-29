@@ -469,8 +469,8 @@ export default {
          shown one at a time, so it reads as focused screens instead of one long
          stack. Styled as a segmented control — visually distinct from the
          masthead tabs so the two nav levels never read as the same control. -->
-    <div class="ar-subnav-wrap">
-      <nav class="ar-subnav" aria-label="Settings sections">
+    <div class="ar-tabpanel">
+      <nav class="ar-tabpanel__tabs" aria-label="Settings sections">
         <button
           v-for="g in groups"
           :key="g.key"
@@ -482,9 +482,9 @@ export default {
           @click="group = g.key"
         >{{ g.label }}</button>
       </nav>
-      <p class="ar-subnav__caption">{{ activeGroupHint }}</p>
-    </div>
+      <p class="ar-tabpanel__caption">{{ activeGroupHint }}</p>
 
+      <div class="ar-tabpanel__body">
     <!-- ============================================================ -->
     <!-- DISCOVERY — files & data AI can read                         -->
     <!-- ============================================================ -->
@@ -1187,6 +1187,8 @@ export default {
           </button>
         </div>
       </section>
+    </div>
+      </div>
     </div>
 
     <Teleport to="body">

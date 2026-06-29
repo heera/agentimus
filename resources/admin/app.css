@@ -598,40 +598,59 @@
   padding: 2px 7px; border-radius: 999px; margin-left: 9px; vertical-align: 3px; white-space: nowrap;
 }
 
-/* Settings sub-navigation — a segmented control that splits the page into a few
-   labelled groups, shown one at a time. Styled as pills (distinct from the
-   masthead tabs, which are underlined) so the two nav levels never read as the
-   same control. The caption beneath names the purpose of the group on screen. */
-.ar-subnav-wrap { display: grid; gap: 8px; }
-.ar-subnav {
-  display: flex; gap: 4px; padding: 4px;
-  background: var(--ar-surface-2);
+/* Tabbed settings panel — the section nav is docked onto the top of a single
+   content surface, so the tabs and the content read as one unit, not a floating
+   control above separate cards. The active tab is white (the panel-body colour)
+   with a top accent rule; its bottom edge drops over the tab-row border so the
+   body merges seamlessly into it. */
+.ar-tabpanel {
+  background: var(--ar-surface);
   border: 1px solid var(--ar-line);
-  border-radius: 999px;
+  border-radius: var(--ar-radius);
+}
+.ar-tabpanel__tabs {
+  display: flex; gap: 0;
+  background: var(--ar-surface-2);
+  border-bottom: 1px solid var(--ar-line);
+  border-radius: var(--ar-radius) var(--ar-radius) 0 0;
   overflow-x: auto; scrollbar-width: none; -ms-overflow-style: none;
 }
-.ar-subnav::-webkit-scrollbar { display: none; }
+.ar-tabpanel__tabs::-webkit-scrollbar { display: none; }
 .ar-subnav__item {
   appearance: none; cursor: pointer; background: transparent; border: 0;
   flex: 1 1 0; min-width: max-content; white-space: nowrap; text-align: center;
-  padding: 9px 18px; border-radius: 999px;
+  padding: 14px 20px;
   font-family: var(--ar-mono); font-size: 11px; font-weight: 600;
-  letter-spacing: 0.12em; text-transform: uppercase;
-  color: var(--ar-ink-faint);
-  transition: color 0.15s ease, background 0.15s ease, box-shadow 0.15s ease;
+  letter-spacing: 0.12em; text-transform: uppercase; color: var(--ar-ink-faint);
+  transition: color 0.15s ease, background 0.15s ease;
 }
+.ar-subnav__item + .ar-subnav__item { box-shadow: inset 1px 0 0 var(--ar-line); }
 .ar-subnav__item:hover { color: var(--ar-ink-soft); }
 .ar-subnav__item.is-active {
-  background: var(--ar-surface); color: var(--ar-ink);
-  box-shadow: 0 1px 3px rgba(27, 25, 19, 0.13);
+  color: var(--ar-ink); background: var(--ar-surface);
+  margin-bottom: -1px;                                   /* cover the tab-row rule… */
+  border-bottom: 1px solid var(--ar-surface);            /* …so the body merges in */
+  box-shadow: inset 0 2px 0 0 var(--ar-accent);          /* top accent indicator */
 }
-.ar-subnav__item:focus-visible { outline: 2px solid var(--ar-accent); outline-offset: 2px; }
-.ar-subnav__caption { margin: 0; padding-left: 8px; font-size: 12.5px; color: var(--ar-ink-soft); }
+.ar-subnav__item:focus-visible { outline: 2px solid var(--ar-accent); outline-offset: -2px; }
 
-/* Each settings group stacks its cards exactly as the whole form used to, and
-   restarts the spec-sheet numbering so the visible group always reads 01, 02…
-   (hidden groups are display:none, so they neither lay out nor count). */
-.ar-group { display: grid; gap: 22px; counter-reset: arcard; }
+/* Slim section description, a band under the tabs. */
+.ar-tabpanel__caption {
+  margin: 0; padding: 11px 26px; font-size: 12.5px; color: var(--ar-ink-soft);
+  border-bottom: 1px solid var(--ar-line);
+}
+
+/* Inside the panel the cards drop their own frame and become segments of the one
+   surface, divided by a hairline — so the whole thing reads as a single panel.
+   Each group restarts the spec-sheet numbering (hidden groups are display:none,
+   so they neither lay out nor count). */
+.ar-group { display: grid; gap: 0; counter-reset: arcard; }
+.ar-tabpanel .ar-card {
+  border: 0; border-radius: 0; background: transparent;
+  border-top: 1px solid var(--ar-line);
+}
+.ar-tabpanel .ar-group > .ar-card:first-child { border-top: 0; }
+.ar-tabpanel .ar-card--muted { background: var(--ar-surface-2); }
 
 /* WebMCP per-tool list, revealed under the Browser-tools master toggle. */
 .ar-webmcp-tools { margin-top: 4px; padding-top: 2px; border-top: 1px solid var(--ar-line); }
