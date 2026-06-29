@@ -2,10 +2,11 @@
 /**
  * WebMcp — the opt-in, experimental browser-tool bridge.
  *
- * The unit under test is the tool MANIFEST: it must ship one genuinely callable
- * read-only tool (site search over the core REST API), let a companion plugin
- * extend it via the `agentimus_webmcp_tools` filter, and silently drop anything
- * malformed so a bad provider entry can never reach the page. Also locks the
+ * Two surfaces are tested. registered_tools() (public) is every tool the site
+ * registers — the built-in read-only site search plus anything a provider adds
+ * via the `agentimus_webmcp_tools` filter; it backs the admin panel. tools()
+ * (private) is what's actually exposed to browser agents: the registered set
+ * minus the owner's per-tool hide list (`webmcp_hidden_tools`). Also locks the
  * default-OFF guarantee — a fresh install adds no front-end script.
  *
  * @package Agentimus\Tests
@@ -27,8 +28,13 @@ final class WebMcpTest extends TestCase {
 		\_af_reset_options();
 	}
 
-	/** Invoke the private manifest builder. */
-	private function tools(): array {
+	/** Every tool the site registers (baseline + filter), before the hide list. */
+	private function registered(): array {
+		return ( new WebMcp( new Settings() ) )->registered_tools();
+	}
+
+	/** The tools actually exposed to agents — registered minus the owner's hide list. */
+	private function exposed(): array {
 		$method = new \ReflectionMethod( WebMcp::class, 'tools' );
 		$method->setAccessible( true );
 		return (array) $method->invoke( new WebMcp( new Settings() ) );
@@ -47,9 +53,9 @@ final class WebMcpTest extends TestCase {
 	/* -- The default tool ------------------------------------------------- */
 
 	public function test_ships_a_callable_read_only_site_search_tool() {
-		$search = $this->find( $this->tools(), 'search_site' );
+		$search = $this->find( $this->registered(), 'search_site' );
 
-		$this->assertIsArray( $search, 'A default install must expose site search.' );
+		$this->assertIsArray( $search, 'A default install must register site search.' );
 		$this->assertSame( 'GET', $search['method'], 'Search must be a read-only GET.' );
 		$this->assertStringContainsString( 'wp/v2/search', $search['endpoint'], 'Search must hit the real core REST endpoint, not a dead URL.' );
 		$this->assertSame( array( 'search' ), $search['inputSchema']['required'] );
@@ -73,7 +79,7 @@ final class WebMcpTest extends TestCase {
 			}
 		);
 
-		$this->assertNotNull( $this->find( $this->tools(), 'check_availability' ) );
+		$this->assertNotNull( $this->find( $this->registered(), 'check_availability' ) );
 	}
 
 	public function test_malformed_filter_entries_are_dropped() {
@@ -87,19 +93,40 @@ final class WebMcpTest extends TestCase {
 			}
 		);
 
-		$tools = $this->tools();
+		$tools = $this->registered();
 		foreach ( $tools as $tool ) {
 			$this->assertIsArray( $tool );
 			$this->assertNotEmpty( $tool['name'] );
 			$this->assertNotEmpty( $tool['endpoint'] );
 		}
-		// The valid baseline tool still survives the cull.
-		$this->assertNotNull( $this->find( $tools, 'search_site' ) );
+		$this->assertNotNull( $this->find( $tools, 'search_site' ), 'The valid baseline tool survives the cull.' );
 	}
 
 	public function test_filter_returning_a_non_array_is_handled_safely() {
 		add_filter( 'agentimus_webmcp_tools', static function () { return 'boom'; } );
-		$this->assertSame( array(), $this->tools(), 'A hostile filter return must not fatal — just yield no tools.' );
+		$this->assertSame( array(), $this->registered(), 'A hostile filter return must not fatal — just yield no tools.' );
+	}
+
+	/* -- Per-tool hide list ----------------------------------------------- */
+
+	public function test_hidden_tool_is_excluded_from_exposed_output_but_still_registered() {
+		update_option( Settings::OPTION, array( 'webmcp_hidden_tools' => array( 'search_site' ) ) );
+
+		$this->assertNotNull( $this->find( $this->registered(), 'search_site' ), 'A hidden tool is still REGISTERED (the admin can re-expose it).' );
+		$this->assertNull( $this->find( $this->exposed(), 'search_site' ), 'A hidden tool must NOT be exposed to browser agents.' );
+	}
+
+	public function test_tools_are_exposed_by_default() {
+		// Empty hide list (the default) → everything registered is exposed.
+		$this->assertNotNull( $this->find( $this->exposed(), 'search_site' ) );
+		$this->assertSame( array(), ( new Settings() )->defaults()['webmcp_hidden_tools'] );
+	}
+
+	public function test_hide_list_is_sanitised_to_tool_name_safe_strings() {
+		$clean = ( new Settings() )->sanitize( array( 'webmcp_hidden_tools' => array( 'search_site', 'bad name!<script>', 'search_site' ) ) );
+		$this->assertContains( 'search_site', $clean['webmcp_hidden_tools'] );
+		$this->assertNotContains( 'bad name!<script>', $clean['webmcp_hidden_tools'], 'Unsafe characters must be stripped.' );
+		$this->assertSame( count( $clean['webmcp_hidden_tools'] ), count( array_unique( $clean['webmcp_hidden_tools'] ) ), 'No duplicates.' );
 	}
 
 	/* -- Default-OFF guarantee -------------------------------------------- */

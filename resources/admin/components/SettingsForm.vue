@@ -10,6 +10,7 @@ export default {
     postTypes: { type: Array, default: () => [] },
     knownTrainers: { type: Array, default: () => [] },
     knownScanners: { type: Array, default: () => [] },
+    webmcpTools: { type: Array, default: () => [] },
     endpoints: { type: Object, default: () => ({}) },
     restNamespacesDetected: { type: Array, default: () => [] },
     providerResources: { type: Array, default: () => [] },
@@ -262,6 +263,21 @@ export default {
   methods: {
     isUrl(value) {
       return /^https?:\/\//i.test(value);
+    },
+    // WebMCP per-tool expose/hide. Stored as a deny-list (webmcp_hidden_tools), so a
+    // tool is exposed by default and only hidden when the owner turns it off.
+    isToolExposed(name) {
+      const hidden = this.settings.webmcp_hidden_tools || [];
+      return !hidden.includes(name);
+    },
+    toggleToolHidden(name) {
+      if (!Array.isArray(this.settings.webmcp_hidden_tools)) {
+        this.settings.webmcp_hidden_tools = [];
+      }
+      const arr = this.settings.webmcp_hidden_tools;
+      const i = arr.indexOf(name);
+      if (i === -1) arr.push(name);
+      else arr.splice(i, 1);
     },
     // The same-origin RFC 9728 doc the plugin publishes from this setting. We
     // check OUR OWN site (not the third-party auth server) on purpose: it's
@@ -661,6 +677,26 @@ export default {
         />
       </div>
       <small v-if="fullSizeNote" class="ar-field__hint" :class="{ 'ar-warn': fullSizeNote.warn }">{{ fullSizeNote.text }}</small>
+    </section>
+
+    <!-- Browser tools (WebMCP) — per-tool expose/hide ------------------ -->
+    <section v-show="settings.enable_webmcp" id="ar-sec-webmcp" class="ar-card">
+      <h2 class="ar-card__title">Browser tools</h2>
+      <p class="ar-card__lead">
+        These read-only tools are offered to AI agents working inside a browser (via WebMCP). Turn one
+        off to hide it — it won’t be registered with the browser at all.
+      </p>
+
+      <p v-if="!webmcpTools.length" class="ar-card__lead">No browser tools are registered yet.</p>
+
+      <label v-for="t in webmcpTools" :key="t.name" class="ar-toggle">
+        <input type="checkbox" :checked="isToolExposed(t.name)" @change="toggleToolHidden(t.name)" />
+        <span class="ar-toggle__track" aria-hidden="true"></span>
+        <span class="ar-toggle__text">
+          <strong><code>{{ t.name }}</code></strong>
+          <small>{{ t.description }}</small>
+        </span>
+      </label>
     </section>
 
     <!-- Crawler policy ------------------------------------------------- -->

@@ -70,9 +70,11 @@ final class WebMcp {
 	}
 
 	/**
-	 * The tools registered with the browsing agent. Ships one genuinely useful,
-	 * always-callable READ-ONLY tool — site search over the core REST API — and
-	 * exposes a filter so a companion plugin can add its own callable tools.
+	 * Every WebMCP tool this site registers — the built-in baseline (site search
+	 * over the core REST API) plus whatever a companion plugin adds via the filter.
+	 * NOT filtered by the owner's hide list; that's applied at output time in
+	 * tools(). Public because the admin UI lists these so the owner can choose,
+	 * per tool, which to expose or hide.
 	 *
 	 * Every tool: name, description, inputSchema (JSON Schema), endpoint (URL),
 	 * method (GET|POST). For anonymous visitors keep them READ-ONLY (see the
@@ -80,7 +82,7 @@ final class WebMcp {
 	 *
 	 * @return array<int,array>
 	 */
-	private function tools() {
+	public function registered_tools() {
 		$tools = array(
 			array(
 				'name'        => 'search_site',
@@ -123,6 +125,28 @@ final class WebMcp {
 				$tools,
 				static function ( $tool ) {
 					return is_array( $tool ) && ! empty( $tool['name'] ) && ! empty( $tool['endpoint'] );
+				}
+			)
+		);
+	}
+
+	/**
+	 * The tools actually exposed to browser agents: every registered tool minus the
+	 * ones the owner has hidden in Settings (the `webmcp_hidden_tools` deny-list, so
+	 * a tool is exposed by default and stays exposed unless explicitly turned off).
+	 *
+	 * @return array<int,array>
+	 */
+	private function tools() {
+		$hidden = (array) $this->settings->get( 'webmcp_hidden_tools', array() );
+		if ( empty( $hidden ) ) {
+			return $this->registered_tools();
+		}
+		return array_values(
+			array_filter(
+				$this->registered_tools(),
+				static function ( $tool ) use ( $hidden ) {
+					return ! in_array( $tool['name'], $hidden, true );
 				}
 			)
 		);

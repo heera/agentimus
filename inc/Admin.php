@@ -379,6 +379,17 @@ final class Admin {
 				'specUrl'   => 'https://github.com/heera/wp-discovery-protocol',
 				'schemaUrl' => Discovery\Envelope::schema_url(),
 			),
+			// Every registered WebMCP tool (baseline + provider-added), so the
+			// Settings panel can list them with a per-tool expose/hide toggle.
+			'webmcpTools' => array_map(
+				static function ( $t ) {
+					return array(
+						'name'        => $t['name'],
+						'description' => isset( $t['description'] ) ? $t['description'] : '',
+					);
+				},
+				( new WebMcp( $this->settings ) )->registered_tools()
+			),
 			'onboarded'   => $this->is_onboarded(),
 			'llmsFullEstimate' => Content::estimate_full_size( $this->settings ),
 			// A real published, in-scope permalink for the live self-check to probe

@@ -33,6 +33,7 @@ final class Settings {
 			'enable_security_txt' => false, // Opt-in: generate /.well-known/security.txt only when asked AND no file/other plugin already provides one.
 			'enable_signing'   => true,     // On by default: RFC 9421 signatures on the discovery docs + a published Web Bot Auth key directory. Feature-detected — silently stands down when libsodium is unavailable, so it's safe as a default.
 			'enable_webmcp'    => false,    // Experimental, opt-in: register the site's READ-ONLY tools with in-browser AI agents via the WebMCP browser API (navigator.modelContext). Off by default — it's an emerging, Chrome-experimental standard and it adds a small front-end script, so it ships only when the owner asks. The script is inert in browsers without the API.
+			'webmcp_hidden_tools' => array(), // Owner opt-OUT: names of WebMCP tools to hide from browser agents (deny-list; empty = expose every registered tool). Lets the owner curate per-tool which to expose.
 			'llms_full_posts'  => 50,
 			'llms_full_max_kb' => 1024, // Hard byte budget for /llms-full.txt (KB): generation stops cleanly here and links the index. Keeps the file ingestible and under common 1 MB object-cache row limits.
 			'post_types'       => self::default_post_types(),
@@ -477,6 +478,22 @@ final class Settings {
 
 		// Experimental WebMCP browser-tool registration — default-OFF, plain ! empty().
 		$clean['enable_webmcp'] = ! empty( $input['enable_webmcp'] );
+
+		// Owner's per-tool hide list (deny-list of WebMCP tool names). Keep only
+		// tool-name-safe characters; empty = expose every registered tool.
+		$hidden_in = isset( $input['webmcp_hidden_tools'] ) && is_array( $input['webmcp_hidden_tools'] ) ? $input['webmcp_hidden_tools'] : array();
+		$clean['webmcp_hidden_tools'] = array_values(
+			array_unique(
+				array_filter(
+					array_map(
+						static function ( $name ) {
+							return preg_replace( '#[^a-zA-Z0-9._/-]#', '', (string) $name );
+						},
+						$hidden_in
+					)
+				)
+			)
+		);
 
 		// Optional hard-block enforcement. block_spoofed defaults true and is only
 		// flipped off by an explicit false, so a client that omits the key (e.g. a
