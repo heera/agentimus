@@ -1214,7 +1214,25 @@ select.ar-input {
 .ar-live__label { flex: 1; min-width: 0; color: var(--ar-ink); }
 .ar-live__detail { flex: 0 0 auto; font-family: var(--ar-mono); font-size: 12px; color: var(--ar-ink-soft); text-align: right; }
 .ar-live__row.is-bad .ar-live__detail { color: var(--ar-bad); }
-.ar-live__running { margin: 6px 0 0; font-size: 12.5px; color: var(--ar-ink-soft); }
+/* Loading state while the browser fetches the live endpoints (~1s). */
+.ar-live__loading {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 13px; padding: 34px 0 38px;
+}
+.ar-live__loading-label { font-size: 12.5px; color: var(--ar-ink-soft); }
+/* A clean ring spinner: faint track with one accent arc rotating. */
+.ar-spinner {
+  width: 26px; height: 26px; border-radius: 50%;
+  border: 2.5px solid var(--ar-line-strong);
+  border-top-color: var(--ar-accent);
+  animation: ar-spin 0.7s linear infinite;
+}
+@keyframes ar-spin { to { transform: rotate(360deg); } }
+/* A progress spinner is functional, not decorative — keep it turning under
+   reduce-motion (a frozen ring reads as broken), just slow it right down. */
+@media (prefers-reduced-motion: reduce) {
+  .ar-spinner { animation-duration: 1.6s; }
+}
 
 /* ---- Discovery Hub ------------------------------------------------------ */
 .ar-wd { display: grid; gap: 22px; min-width: 0; }

@@ -153,7 +153,10 @@ export default {
                     <span class="ar-live__detail">{{ r.detail }}</span>
                   </li>
                 </ul>
-                <p v-else class="ar-live__running">Fetching your endpoints…</p>
+                <div v-else class="ar-live__loading">
+                  <span class="ar-spinner" aria-hidden="true"></span>
+                  <span class="ar-live__loading-label">Fetching your endpoints…</span>
+                </div>
               </div>
             </div>
 
