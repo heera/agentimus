@@ -73,7 +73,7 @@ export default {
         { q: 'Is my private or password-protected content exposed?', a: 'No. Drafts, private and password-protected posts are excluded from every output — llms.txt, Markdown, JSON-LD and the sitemap. Only published, publicly-visible content is ever described.' },
         { q: 'Will this block Google or real search engines?', a: 'No. Blocking is opt-in and aimed at AI training crawlers and spoofed bots. Real search engines are recognised and never blocked by default.' },
         { q: 'What does “Verified responses” (signing) do?', a: 'It signs your discovery documents (RFC 9421) so an agent can confirm they really came from your server and weren’t altered in transit. The key is generated on your server and never leaves it.' },
-        { q: 'Does it slow my site down?', a: 'Barely. Generated documents are cached, JSON-LD is tiny, and the plugin makes no external calls — nothing is fetched from another server while your pages load.' },
+        { q: 'Does it slow my site down?', a: 'Barely. Generated documents are cached, JSON-LD is tiny, and the plugin makes no external calls on the front end — nothing is fetched from another server while your pages load. (The optional AI Visibility checks run only in the admin or on a schedule, never during a page view.)' },
         { q: 'Does it collect personal data?', a: 'No. The activity log stores no IP addresses, no identities and no query strings, and logged-in admins are skipped. See “Privacy & data” above.' },
         { q: 'What happens to AI training of my content?', a: 'By default Agentimus signals “do not train” (via tdmrep.json, the tdm-reservation header and robots Content-Signal) while still letting search engines and AI assistants read it. You control all of this in Settings.' },
       ],
@@ -169,11 +169,13 @@ export default {
             <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l7 3v6c0 4.4-3 7.4-7 9-4-1.6-7-4.6-7-9V6z"/></svg>
           </span>
           <div>
-            <h3>What leaves your server: nothing</h3>
+            <h3>What leaves your server: nothing by default</h3>
             <p>
-              No outbound calls, no phone-home, no telemetry, no remote config. The only network request is the
-              optional <strong>“Verify live”</strong> check, and that runs in <em>your browser</em> against your
-              own URLs — the server never reaches out.
+              No phone-home, no telemetry, no remote config. The only outbound calls come from the optional
+              <strong>AI Visibility</strong> feature — off unless you switch it on and add your own AI API
+              key, at which point it queries the engines you chose (OpenAI, Perplexity, Gemini, Claude) to
+              check whether they cite you. Your keys stay on your server. The “Verify live” readiness check
+              also runs in <em>your browser</em> against your own URLs.
             </p>
           </div>
         </div>

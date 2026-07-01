@@ -32,6 +32,14 @@ function agentimus_uninstall_site() {
 	delete_option( 'agentimus_referrals_db_version' );
 	wp_clear_scheduled_hook( 'agentimus_prune_activity' );
 	wp_clear_scheduled_hook( 'agentimus_warm_llms_full' );
+
+	// AI Visibility monitoring: results table, options and scheduled run.
+	$wpdb->query( "DROP TABLE IF EXISTS {$wpdb->prefix}agentimus_visibility" ); // phpcs:ignore WordPress.DB
+	delete_option( 'agentimus_visibility' );
+	delete_option( 'agentimus_visibility_last_run' );
+	delete_option( 'agentimus_visibility_db_version' );
+	delete_option( 'agentimus_visibility_demo' );
+	wp_clear_scheduled_hook( 'agentimus_visibility_run' );
 }
 
 if ( is_multisite() ) {

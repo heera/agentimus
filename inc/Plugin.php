@@ -82,6 +82,15 @@ final class Plugin {
 		( new WebMcp( $this->settings ) )->register();
 		( new Exposure( $this->settings ) )->register();
 
+		// AI Visibility monitoring (opt-in, BYOK). Its config, keys and results live
+		// in their own option/table, independent of the core settings above.
+		$visibility = new Visibility\Settings();
+		( new Visibility\Module( $visibility ) )->register();
+		( new Visibility\Rest( $visibility ) )->register();
+		if ( is_multisite() ) {
+			( new Visibility\Network() )->register();
+		}
+
 		// Self-heal the /.well-known rewrite rules: flush ONCE whenever the routed-name
 		// set changes — an Agentimus update that adds a built-in name (e.g. tdmrep.json)
 		// OR a provider plugin that opts a name in via the `agentimus_well_known_routed`
@@ -146,6 +155,8 @@ final class Plugin {
 		Activity\Table::install();
 		Activity\Referrals::install();
 		Activity\Module::schedule();
+		Visibility\Table::install();
+		Visibility\Module::schedule();
 		Discovery\WellKnown::add_rules();
 		flush_rewrite_rules();
 		// Record the signature we just flushed for, so maybe_flush_rewrites() no-ops on
@@ -276,6 +287,7 @@ final class Plugin {
 	private static function deactivate_site() {
 		Cache::flush();
 		Activity\Module::unschedule();
+		Visibility\Module::unschedule();
 		wp_clear_scheduled_hook( 'agentimus_warm_llms_full' );
 		flush_rewrite_rules();
 	}

@@ -16,7 +16,7 @@ Agentimus helps AI assistants like ChatGPT, Claude and Perplexity find your site
 
 Want more control? You also get a first-party log of every AI crawler that fetches your content, one-click blocking for the bots you don't want, and a one-screen readiness report that scores how AI-ready your site is — and tells you the next thing to improve.
 
-It makes no outbound requests, collects no analytics, and logs no IP addresses. Everything runs on your own site.
+By default it makes no outbound requests, collects no analytics, and logs no IP addresses — everything runs on your own site. The optional **AI Visibility** feature is the one exception: turn it on and add your own AI provider API key, and it queries that provider to check whether AIs cite you (see *External services*).
 
 **Control — who may use your content**
 
@@ -31,6 +31,7 @@ It makes no outbound requests, collects no analytics, and logs no IP addresses. 
 
 * **Agent activity log** — a dashboard of which AI crawlers and agents actually fetch your content and endpoints (GPTBot, Claude, Perplexity, Googlebot, …), recorded first-party in your own database, with no IP logging.
 * **Activity to review** — a nav-bar queue surfaces the clients worth a second look — new, unusually high-volume, or spoofing what they are — names a recognised crawler where it can, and offers one-click **Block** or **Allow** (trust). Nothing is blocked unless you choose to.
+* **AI Visibility (opt-in)** — ask ChatGPT, Perplexity, Gemini and Claude the questions your audience asks and track whether they actually **mention and cite you**, over time: a visibility score, citation rate, share-of-voice against competitors, and a per-prompt breakdown. Off by default; **you bring your own API key** for each engine, and this is the one feature that makes an outbound request (see *External services*).
 
 **Content — clean, machine-readable output**
 
@@ -96,7 +97,7 @@ Whatever your case, the Readiness report always tells you the single next thing 
 
 = Does Agentimus make external requests or send my data anywhere? =
 
-No. Agentimus makes no outbound HTTP requests — nothing is sent to any external service, and no analytics or telemetry are collected. The agent-activity log is stored in your own database with no IP addresses. The discovery document includes a `$schema` value that *identifies* the document format (the same way a schema.org URL identifies a vocabulary); it is a label in the output, never fetched. The one place a request is made is the optional "Verify live" self-check on the readiness report — and that runs in *your browser*, fetching your own public URLs only when you click it; the server itself still makes no request.
+By default, no — Agentimus makes no outbound HTTP requests out of the box, sends nothing to any external service, collects no analytics or telemetry, and stores the agent-activity log in your own database with no IP addresses. **The one exception is the optional AI Visibility feature:** if you enable it and add your own API key, Agentimus queries the AI provider(s) you chose (OpenAI, Perplexity, Gemini and/or Anthropic) to check whether they mention and cite you — only for the engines you turn on, and only when a check runs (on demand or on your schedule). Your keys stay on your server and nothing else is sent anywhere. See *External services* for the full disclosure. The discovery document includes a `$schema` value that *identifies* the document format (the same way a schema.org URL identifies a vocabulary); it is a label in the output, never fetched. The one place a request is made is the optional "Verify live" self-check on the readiness report — and that runs in *your browser*, fetching your own public URLs only when you click it; the server itself still makes no request.
 
 = Does this conflict with my SEO plugin? =
 
@@ -183,7 +184,14 @@ Yes. The discovery document implements the **WP_Discovery Protocol**, an openly-
 
 == External services ==
 
-Agentimus does not use, connect to, or send any data to any external or third-party service. Everything runs on your own site: it makes no outbound HTTP requests, loads no remote scripts, fonts or analytics, and stores the agent-activity log in your own database with no IP addresses.
+By default, Agentimus does not connect to or send any data to any external service: it makes no outbound HTTP requests, loads no remote scripts, fonts or analytics, and stores the agent-activity log in your own database with no IP addresses.
+
+**The optional AI Visibility feature is the only part that calls an external service, and it is off by default.** When you enable it and add your own API key for one or more AI providers, Agentimus sends the prompts you configured to those providers to check whether they mention and cite your site. This happens only for the engines you turn on, and only when a check runs — either when you click "Run check now" or on the schedule you set. Your API keys are stored on your own site and are used solely to make these calls; nothing else is sent anywhere. The providers you can enable — and their terms and privacy policies — are:
+
+* **OpenAI (ChatGPT)** — https://openai.com/policies/terms-of-use · https://openai.com/policies/privacy-policy
+* **Perplexity** — https://www.perplexity.ai/hub/legal/terms-of-service · https://www.perplexity.ai/hub/legal/privacy-policy
+* **Google (Gemini)** — https://ai.google.dev/gemini-api/terms · https://policies.google.com/privacy
+* **Anthropic (Claude)** — https://www.anthropic.com/legal/consumer-terms · https://www.anthropic.com/legal/privacy
 
 The generated discovery documents contain a `$schema` value that *names* the document format (in the same way a schema.org URL identifies a vocabulary). It is a label inside the output only — it is never fetched.
 

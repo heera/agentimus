@@ -9,6 +9,7 @@ import ReviewMenu from './components/ReviewMenu.vue';
 import OnboardingWizard from './components/OnboardingWizard.vue';
 import AboutPanel from './components/AboutPanel.vue';
 import ConfirmDialog from './components/ConfirmDialog.vue';
+import VisibilityPanel from './components/VisibilityPanel.vue';
 
 // Live updates: poll the same /activity endpoint the Refresh button uses, on a
 // gentle interval. Polling (not SSE/WebSockets) on purpose — it works on any
@@ -25,7 +26,7 @@ const ACTIVITY_EVENTS = ['mousemove', 'keydown', 'wheel', 'pointerdown', 'touchs
 
 export default {
   name: 'AgentimusApp',
-  components: { SettingsForm, ReadinessPanel, DiscoveryHub, ActivityPanel, ReviewMenu, OnboardingWizard, AboutPanel, ConfirmDialog },
+  components: { SettingsForm, ReadinessPanel, DiscoveryHub, ActivityPanel, ReviewMenu, OnboardingWizard, AboutPanel, ConfirmDialog, VisibilityPanel },
   props: {
     boot: { type: Object, required: true },
   },
@@ -34,7 +35,7 @@ export default {
     return {
       api: createApi(this.boot),
       // Restore the tab from the URL hash so a refresh keeps the same page.
-      tab: ['dashboard', 'settings', 'readiness', 'discovery', 'about'].includes(fromHash) ? fromHash : 'dashboard',
+      tab: ['dashboard', 'visibility', 'settings', 'readiness', 'discovery', 'about'].includes(fromHash) ? fromHash : 'dashboard',
       settings: JSON.parse(JSON.stringify(this.boot.settings || {})),
       defaults: this.boot.defaults || {},
       readiness: this.boot.readiness || [],
@@ -182,6 +183,7 @@ export default {
     tabs() {
       return [
         { id: 'dashboard', label: 'Dashboard' },
+        { id: 'visibility', label: 'AI Visibility' },
         { id: 'settings', label: 'Settings' },
         { id: 'readiness', label: 'Readiness' },
         { id: 'discovery', label: 'Discovery' },
@@ -204,6 +206,10 @@ export default {
           dashboard: {
             title: 'Dashboard',
             description: 'An overview of your agent-readiness — what you expose, and who is reading it.',
+          },
+          visibility: {
+            title: 'AI Visibility',
+            description: 'Track whether ChatGPT, Perplexity, Gemini and Claude mention and cite your site — over time.',
           },
           settings: {
             title: 'Settings',
@@ -919,6 +925,10 @@ export default {
           @refresh="refreshActivity"
           @clear="clearActivity"
           @navigate="goTo"
+        />
+        <VisibilityPanel
+          v-show="tab === 'visibility'"
+          :api="api"
         />
         <AboutPanel
           v-show="tab === 'about'"
