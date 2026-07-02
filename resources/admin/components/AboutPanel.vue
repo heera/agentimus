@@ -38,7 +38,7 @@ export default {
           lead: 'Standards search engines and agents already understand.',
           items: [
             { name: 'JSON-LD schema', where: 'in your page <head>', desc: 'schema.org WebSite, Person/Organization, articles, breadcrumbs and FAQ.', tag: 'On' },
-            { name: 'Topics for AI', where: 'per post', desc: 'Per-page topics that become JSON-LD keywords and a Markdown line, so assistants grasp what each page is about.', tag: 'On' },
+            { name: 'Topics for AI', where: 'per post', desc: 'Per-page topics → JSON-LD keywords and about entities (linkable to Wikidata/Wikipedia) plus a Markdown line, so assistants know exactly what each page is about.', tag: 'On' },
             { name: 'robots.txt', where: '/robots.txt', desc: 'Adds Content-Signal directives and advertises your sitemap.', tag: 'On' },
             { name: 'XML sitemap', where: '/agentimus-sitemap.xml', desc: 'A fallback sitemap — stands down when core or an SEO plugin provides one.', tag: 'On' },
           ],
