@@ -213,6 +213,44 @@ final class TopicsTest extends TestCase {
 		$this->assertStringContainsString( 'Beta', $out );
 	}
 
+	/** JSON-LD: topics also surface as `about` DefinedTerm entities. */
+	public function test_schema_emits_about_definedterm_nodes() {
+		$this->fixture( 60, array( Topics::META_TOPICS => array( 'WordPress' ), Topics::META_DERIVE => '0' ) );
+		$GLOBALS['_af_current_post_id'] = 60;
+		$GLOBALS['_af_is_singular']     = true;
+
+		\ob_start();
+		( new Schema( new Settings() ) )->output();
+		$out = (string) \ob_get_clean();
+
+		$this->assertStringContainsString( '"about"', $out );
+		$this->assertStringContainsString( 'DefinedTerm', $out );
+	}
+
+	/** An owner/add-on can attach authoritative links (Wikidata) as `sameAs`. */
+	public function test_schema_topic_links_become_sameas() {
+		\add_filter(
+			'agentimus_topic_links',
+			static function ( $urls, $topic ) {
+				return 'WordPress' === $topic ? array( 'https://www.wikidata.org/wiki/Q11235' ) : $urls;
+			},
+			10,
+			2
+		);
+		$this->fixture( 62, array( Topics::META_TOPICS => array( 'WordPress' ), Topics::META_DERIVE => '0' ) );
+		$GLOBALS['_af_current_post_id'] = 62;
+		$GLOBALS['_af_is_singular']     = true;
+
+		\ob_start();
+		( new Schema( new Settings() ) )->output();
+		$out = (string) \ob_get_clean();
+
+		$this->assertStringContainsString( '"sameAs"', $out );
+		// Slashes are escaped (\/) inside the <script> JSON — match on the stable parts.
+		$this->assertStringContainsString( 'wikidata.org', $out );
+		$this->assertStringContainsString( 'Q11235', $out );
+	}
+
 	public function test_schema_omits_keywords_when_no_topics() {
 		$this->fixture( 11, array( Topics::META_DERIVE => '0' ) ); // no manual topics, derive off
 		$GLOBALS['_af_current_post_id'] = 11;

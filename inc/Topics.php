@@ -35,6 +35,9 @@ final class Topics {
 	/** @var int Hard cap on the length of a single topic (chars), so one value can't bloat a machine surface. */
 	const MAX_LEN = 60;
 
+	/** @var string Transient caching the editor's topic-suggestion pool. */
+	const SUGGEST_TRANSIENT = 'agentimus_topic_suggest';
+
 	/** @var Settings */
 	private $settings;
 
@@ -308,6 +311,7 @@ final class Topics {
 	public static function flush_on_meta( $meta_id, $object_id, $meta_key ) {
 		if ( self::META_TOPICS === $meta_key || self::META_DERIVE === $meta_key ) {
 			Cache::flush();
+			delete_transient( self::SUGGEST_TRANSIENT ); // A new topic should show up in suggestions.
 		}
 	}
 
@@ -395,6 +399,17 @@ final class Topics {
 				: esc_html( implode( ', ', $resolved ) ) )
 			. '</span></p>';
 
+		// Autocomplete from a consistent vocabulary — the chip input references this
+		// via `list` (see inline_js), so the browser suggests as the author types.
+		$suggestions = self::suggestions();
+		if ( ! empty( $suggestions ) ) {
+			echo '<datalist id="agentimus-topics-suggest">';
+			foreach ( $suggestions as $suggestion ) {
+				echo '<option value="' . esc_attr( $suggestion ) . '"></option>';
+			}
+			echo '</datalist>';
+		}
+
 		echo '</div>';
 	}
 
@@ -438,7 +453,7 @@ final class Topics {
 	 */
 	private static function inline_js() {
 		return <<<'JS'
-(function(){var root=document.querySelector('.agentimus-topics');if(!root){return;}var cfg;try{cfg=JSON.parse(root.getAttribute('data-config')||'{}');}catch(e){return;}var textarea=root.querySelector('.agentimus-topics__raw');var checkbox=root.querySelector('input[name="agentimus_topics_derive"]');var preview=root.querySelector('.agentimus-topics__preview-value');if(!textarea){return;}var cap=cfg.cap>0?cfg.cap:12;var maxLen=cfg.maxLen>0?cfg.maxLen:60;var derived=Array.isArray(cfg.derived)?cfg.derived:[];var empty=preview?(preview.getAttribute('data-empty')||'nothing yet'):'nothing yet';function clean(s){return String(s).replace(/<[^>]*>/g,'').replace(/\s+/g,' ').trim().slice(0,maxLen);}function splitList(str){return String(str||'').split(/[\r\n,]+/).map(clean).filter(Boolean);}function normalize(list){var out=[],seen={};for(var i=0;i<list.length;i++){var item=clean(list[i]);if(!item){continue;}var key=item.toLowerCase();if(seen[key]){continue;}seen[key]=true;out.push(item);if(out.length>=cap){break;}}return out;}var manual=normalize(splitList(textarea.value));var editor=document.createElement('div');editor.className='agentimus-topics__chips';var input=document.createElement('input');input.type='text';input.className='agentimus-topics__input';input.id='agentimus-topics-chipinput';input.setAttribute('placeholder',textarea.getAttribute('placeholder')||'');textarea.style.display='none';textarea.setAttribute('tabindex','-1');textarea.setAttribute('aria-hidden','true');textarea.parentNode.insertBefore(editor,textarea);editor.appendChild(input);function syncTextarea(){textarea.value=manual.join(', ');}function updatePreview(){if(!preview){return;}var derive=checkbox?checkbox.checked:false;var merged=normalize(manual.concat(derive?derived:[]));if(merged.length){preview.textContent=merged.join(', ');}else{preview.innerHTML='<em></em>';preview.firstChild.textContent=empty;}}function renderChips(){var chips=editor.querySelectorAll('.agentimus-topics__chip');for(var i=0;i<chips.length;i++){chips[i].parentNode.removeChild(chips[i]);}manual.forEach(function(topic,idx){var chip=document.createElement('span');chip.className='agentimus-topics__chip';var text=document.createElement('span');text.className='agentimus-topics__chip-text';text.textContent=topic;var x=document.createElement('button');x.type='button';x.className='agentimus-topics__chip-remove';x.setAttribute('aria-label','Remove '+topic);x.textContent='×';x.addEventListener('click',function(){removeAt(idx);});chip.appendChild(text);chip.appendChild(x);editor.insertBefore(chip,input);});}function commit(){syncTextarea();renderChips();updatePreview();}function removeAt(idx){manual.splice(idx,1);commit();}function addFromInput(){var parts=splitList(input.value);if(parts.length){manual=normalize(manual.concat(parts));input.value='';commit();}}input.addEventListener('keydown',function(e){if('Enter'===e.key||','===e.key){e.preventDefault();addFromInput();}else if('Backspace'===e.key&&''===input.value&&manual.length){removeAt(manual.length-1);}});input.addEventListener('blur',addFromInput);editor.addEventListener('click',function(e){if(e.target===editor){input.focus();}});if(checkbox){checkbox.addEventListener('change',updatePreview);}commit();})();
+(function(){var root=document.querySelector('.agentimus-topics');if(!root){return;}var cfg;try{cfg=JSON.parse(root.getAttribute('data-config')||'{}');}catch(e){return;}var textarea=root.querySelector('.agentimus-topics__raw');var checkbox=root.querySelector('input[name="agentimus_topics_derive"]');var preview=root.querySelector('.agentimus-topics__preview-value');if(!textarea){return;}var cap=cfg.cap>0?cfg.cap:12;var maxLen=cfg.maxLen>0?cfg.maxLen:60;var derived=Array.isArray(cfg.derived)?cfg.derived:[];var empty=preview?(preview.getAttribute('data-empty')||'nothing yet'):'nothing yet';function clean(s){return String(s).replace(/<[^>]*>/g,'').replace(/\s+/g,' ').trim().slice(0,maxLen);}function splitList(str){return String(str||'').split(/[\r\n,]+/).map(clean).filter(Boolean);}function normalize(list){var out=[],seen={};for(var i=0;i<list.length;i++){var item=clean(list[i]);if(!item){continue;}var key=item.toLowerCase();if(seen[key]){continue;}seen[key]=true;out.push(item);if(out.length>=cap){break;}}return out;}var manual=normalize(splitList(textarea.value));var editor=document.createElement('div');editor.className='agentimus-topics__chips';var input=document.createElement('input');input.type='text';input.className='agentimus-topics__input';input.id='agentimus-topics-chipinput';input.setAttribute('placeholder',textarea.getAttribute('placeholder')||'');if(document.getElementById('agentimus-topics-suggest')){input.setAttribute('list','agentimus-topics-suggest');}textarea.style.display='none';textarea.setAttribute('tabindex','-1');textarea.setAttribute('aria-hidden','true');textarea.parentNode.insertBefore(editor,textarea);editor.appendChild(input);function syncTextarea(){textarea.value=manual.join(', ');}function updatePreview(){if(!preview){return;}var derive=checkbox?checkbox.checked:false;var merged=normalize(manual.concat(derive?derived:[]));if(merged.length){preview.textContent=merged.join(', ');}else{preview.innerHTML='<em></em>';preview.firstChild.textContent=empty;}}function renderChips(){var chips=editor.querySelectorAll('.agentimus-topics__chip');for(var i=0;i<chips.length;i++){chips[i].parentNode.removeChild(chips[i]);}manual.forEach(function(topic,idx){var chip=document.createElement('span');chip.className='agentimus-topics__chip';var text=document.createElement('span');text.className='agentimus-topics__chip-text';text.textContent=topic;var x=document.createElement('button');x.type='button';x.className='agentimus-topics__chip-remove';x.setAttribute('aria-label','Remove '+topic);x.textContent='×';x.addEventListener('click',function(){removeAt(idx);});chip.appendChild(text);chip.appendChild(x);editor.insertBefore(chip,input);});}function commit(){syncTextarea();renderChips();updatePreview();}function removeAt(idx){manual.splice(idx,1);commit();}function addFromInput(){var parts=splitList(input.value);if(parts.length){manual=normalize(manual.concat(parts));input.value='';commit();}}input.addEventListener('keydown',function(e){if('Enter'===e.key||','===e.key){e.preventDefault();addFromInput();}else if('Backspace'===e.key&&''===input.value&&manual.length){removeAt(manual.length-1);}});input.addEventListener('blur',addFromInput);editor.addEventListener('click',function(e){if(e.target===editor){input.focus();}});if(checkbox){checkbox.addEventListener('change',updatePreview);}commit();})();
 JS;
 	}
 
@@ -556,6 +571,121 @@ JS;
 			return mb_substr( $value, 0, $len );
 		}
 		return substr( $value, 0, $len );
+	}
+
+	/**
+	 * A de-duplicated pool of topics to suggest in the editor, so authors reuse a
+	 * consistent vocabulary instead of fragmenting it ("WP" vs "WordPress"). Drawn
+	 * from topics already used elsewhere, the site's own tags & categories, and the
+	 * declared Expertise. Bounded and cached (busts when a post's topics change).
+	 *
+	 * @return string[]
+	 */
+	public static function suggestions() {
+		$cached = get_transient( self::SUGGEST_TRANSIENT );
+		if ( is_array( $cached ) ) {
+			return $cached;
+		}
+
+		$pool = array();
+
+		// 1. Topics already used on other posts (bounded scan, most-used first).
+		global $wpdb;
+		if ( isset( $wpdb ) && is_object( $wpdb ) ) {
+			// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+			$rows = $wpdb->get_col( $wpdb->prepare( "SELECT meta_value FROM {$wpdb->postmeta} WHERE meta_key = %s LIMIT 500", self::META_TOPICS ) );
+			$freq = array();
+			foreach ( (array) $rows as $val ) {
+				foreach ( (array) maybe_unserialize( $val ) as $topic ) {
+					$topic = trim( (string) $topic );
+					if ( '' === $topic ) {
+						continue;
+					}
+					$key = strtolower( $topic );
+					if ( ! isset( $freq[ $key ] ) ) {
+						$freq[ $key ] = array( 'label' => $topic, 'n' => 0 );
+					}
+					++$freq[ $key ]['n'];
+				}
+			}
+			uasort( $freq, static function ( $a, $b ) { return $b['n'] - $a['n']; } );
+			foreach ( $freq as $row ) {
+				$pool[] = $row['label'];
+			}
+		}
+
+		// 2. The site's own tags & categories — the canonical existing vocabulary.
+		foreach ( array( 'category', 'post_tag' ) as $tax ) {
+			$terms = get_terms( array( 'taxonomy' => $tax, 'hide_empty' => false, 'number' => 100, 'fields' => 'names' ) );
+			if ( ! is_wp_error( $terms ) ) {
+				$pool = array_merge( $pool, (array) $terms );
+			}
+		}
+
+		// 3. The site's declared Expertise (its knowsAbout pillars).
+		$pool = array_merge( $pool, (array) ( new Settings() )->identity( 'expertise', array() ) );
+
+		/**
+		 * Filter the topic suggestions offered in the editor's Topics-for-AI box.
+		 *
+		 * @param string[] $pool Suggested topic strings.
+		 */
+		$pool = apply_filters( 'agentimus_topic_suggestions', $pool );
+
+		$out  = array();
+		$seen = array();
+		foreach ( (array) $pool as $item ) {
+			$item = trim( wp_strip_all_tags( (string) $item ) );
+			if ( '' === $item ) {
+				continue;
+			}
+			$key = strtolower( $item );
+			if ( isset( $seen[ $key ] ) ) {
+				continue;
+			}
+			$seen[ $key ] = true;
+			$out[]        = $item;
+			if ( count( $out ) >= 150 ) {
+				break;
+			}
+		}
+
+		set_transient( self::SUGGEST_TRANSIENT, $out, HOUR_IN_SECONDS );
+		return $out;
+	}
+
+	/**
+	 * Topic coverage across published, agent-visible content, for the Readiness
+	 * report: how many such posts exist and how many carry their own (manual) topics,
+	 * plus whether auto-fill is on by default. Cheap — two counts, no per-post render.
+	 *
+	 * @return array{total:int,with_topics:int,derive:bool}
+	 */
+	public static function coverage() {
+		$types = Content::post_types();
+
+		$total = 0;
+		foreach ( $types as $type ) {
+			$counts = wp_count_posts( $type );
+			if ( is_object( $counts ) && isset( $counts->publish ) ) {
+				$total += (int) $counts->publish;
+			}
+		}
+
+		$with = 0;
+		global $wpdb;
+		if ( ! empty( $types ) && isset( $wpdb ) && is_object( $wpdb ) ) {
+			$placeholders = implode( ', ', array_fill( 0, count( $types ), '%s' ) );
+			$args         = array_merge( array( self::META_TOPICS, 'a:0:{}' ), $types );
+			// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+			$with = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(DISTINCT p.ID) FROM {$wpdb->posts} p INNER JOIN {$wpdb->postmeta} m ON m.post_id = p.ID WHERE m.meta_key = %s AND m.meta_value <> '' AND m.meta_value <> %s AND p.post_status = 'publish' AND p.post_type IN ($placeholders)", $args ) );
+		}
+
+		return array(
+			'total'       => $total,
+			'with_topics' => $with,
+			'derive'      => (bool) ( new Settings() )->get( 'topics_derive_default', true ),
+		);
 	}
 
 	/**

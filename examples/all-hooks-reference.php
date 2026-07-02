@@ -327,6 +327,49 @@ add_filter(
 );
 
 /**
+ * Authoritative reference URLs for a topic — emitted as schema.org `sameAs` on
+ * its `about` DefinedTerm so an assistant resolves the exact entity (e.g. the
+ * planet Mercury, not the element). Agentimus never looks these up itself — no
+ * front-end calls and no risky auto-matching — so you supply them, e.g. from a
+ * small topic → Wikidata map.
+ *
+ * @param string[] $urls  Reference URLs (default none).
+ * @param string   $topic The topic text.
+ * @param \WP_Post  $post  The post.
+ */
+add_filter(
+	'agentimus_topic_links',
+	function ( $urls, $topic ) {
+		$map = array(
+			'WordPress' => 'https://www.wikidata.org/wiki/Q13166',
+			'PHP'       => 'https://www.wikidata.org/wiki/Q59',
+		);
+		if ( isset( $map[ $topic ] ) ) {
+			$urls[] = $map[ $topic ];
+		}
+		return $urls;
+	},
+	10,
+	2
+);
+
+/**
+ * The suggestions offered (as you type) in the editor's "Topics for AI" box.
+ * Defaults to topics already used on the site, its tags & categories, and your
+ * declared Expertise — add your own controlled vocabulary here.
+ *
+ * @param string[] $pool Suggested topic strings.
+ */
+add_filter(
+	'agentimus_topic_suggestions',
+	function ( $pool ) {
+		$pool[] = 'llms.txt';
+		$pool[] = 'AI visibility';
+		return $pool;
+	}
+);
+
+/**
  * Per-item byte cap for the llms-full.txt full-text edition.
  */
 add_filter( 'agentimus_llms_full_item_max_bytes', fn( $bytes ) => $bytes );

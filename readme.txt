@@ -207,6 +207,7 @@ There is no minified-only code. The admin interface is built from Vue 3 source i
 
 = 1.13.0 =
 * New — **Topics for AI.** Each post gets a "Topics for AI" box in the editor where you say, in plain words, what it's about (for example: *llms.txt, AI visibility, structured data*). Those topics are added to the page's machine-readable data — the JSON-LD `keywords` and the page's `.md` version — so AI assistants understand and cite it correctly. Leave it blank to have Agentimus use the post's own tags and categories automatically, or type your own to take control. Turn the whole feature on or off, and choose how topics are picked, under Agentimus → Settings → Topics for AI. Nothing shows on the visible page; this is only for the AI/agent layer, and it steps aside for your SEO plugin's structured data just like the rest of Agentimus.
+* New — the Topics for AI box **suggests topics as you type** — drawn from ones you've already used, your tags and categories, and your expertise — so your wording stays consistent instead of drifting ("WP" vs "WordPress"). The **Readiness report** now tracks how well your content is covered by topics, and each topic is also published as a proper entity (schema.org `about`) that can carry a Wikidata or Wikipedia link so assistants identify the exact thing you mean.
 
 = 1.12.4 =
 * Fixed — live web-search checks no longer time out on slower questions: grounded engines (Claude, Perplexity, ChatGPT, Gemini) get a longer request window, and Claude runs fewer searches per check so answers come back sooner.

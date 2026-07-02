@@ -42,6 +42,7 @@ final class Readiness {
 			$this->check_llms_full(),
 			$this->check_llms_full_size(),
 			$this->check_post_types(),
+			$this->check_topics(),
 			$this->check_about(),
 			$this->check_expertise(),
 			$this->check_same_as(),
@@ -335,6 +336,81 @@ final class Readiness {
 				count( $types ),
 				implode( ', ', $labels )
 			)
+		);
+	}
+
+	private function check_topics() {
+		if ( ! $this->settings->enabled( 'enable_topics' ) ) {
+			return $this->row(
+				'topics',
+				__( 'Topics for AI', 'agentimus' ),
+				'warn',
+				__( 'Topics for AI is off, so no page tells assistants what it’s specifically about.', 'agentimus' ),
+				__( 'Turn on “Topics for AI” under Settings → Topics for AI. Each post can then carry a short list of topics that become JSON-LD keywords and a line in its .md, so assistants grasp and cite it correctly.', 'agentimus' ),
+				$this->nav( __( 'Enable Topics for AI', 'agentimus' ), 'ar-feat-enable_topics' )
+			);
+		}
+		$cov = Topics::coverage();
+		return $this->topics_row( (int) $cov['total'], (int) $cov['with_topics'], ! empty( $cov['derive'] ) );
+	}
+
+	/**
+	 * Grade topic coverage. Split from check_topics() so the thresholds and
+	 * messaging are testable without a database (Topics::coverage() runs SQL).
+	 *
+	 * @param int  $total  Published, agent-visible posts.
+	 * @param int  $with   Of those, how many carry their own (manual) topics.
+	 * @param bool $derive Whether auto-fill from tags & categories is on by default.
+	 * @return array
+	 */
+	private function topics_row( $total, $with, $derive ) {
+		if ( $total <= 0 ) {
+			return $this->row( 'topics', __( 'Topics for AI', 'agentimus' ), 'pass', __( 'On. No published content yet — topics apply once you publish.', 'agentimus' ) );
+		}
+
+		// Auto-fill on → every post with a tag or category already carries topics; the
+		// only lever left is adding sharper, post-specific ones, so this is a pass.
+		if ( $derive ) {
+			return $this->row(
+				'topics',
+				__( 'Topics for AI', 'agentimus' ),
+				'pass',
+				sprintf(
+					/* translators: 1: posts with their own topics; 2: total published posts. */
+					__( 'On, and auto-filling topics from tags & categories. %1$s of %2$s posts also have their own specific topics — add more to sharpen how assistants describe them.', 'agentimus' ),
+					number_format_i18n( $with ),
+					number_format_i18n( $total )
+				)
+			);
+		}
+
+		// Auto-fill off → coverage rests entirely on manually-set topics.
+		if ( ( $with / $total ) >= 0.5 ) {
+			return $this->row(
+				'topics',
+				__( 'Topics for AI', 'agentimus' ),
+				'pass',
+				sprintf(
+					/* translators: 1: posts with topics; 2: total published posts. */
+					__( '%1$s of %2$s published posts have topics set.', 'agentimus' ),
+					number_format_i18n( $with ),
+					number_format_i18n( $total )
+				)
+			);
+		}
+
+		return $this->row(
+			'topics',
+			__( 'Topics for AI', 'agentimus' ),
+			'warn',
+			sprintf(
+				/* translators: 1: posts with topics; 2: total published posts. */
+				__( 'Only %1$s of %2$s posts have topics, and auto-fill from tags & categories is off — so most tell assistants nothing about their subject.', 'agentimus' ),
+				number_format_i18n( $with ),
+				number_format_i18n( $total )
+			),
+			__( 'Add a few topics to your key posts in the editor’s “Topics for AI” box, or turn on “Use tags & categories by default” under Settings → Topics for AI to fill them in automatically.', 'agentimus' ),
+			$this->nav( __( 'Open Topics for AI', 'agentimus' ), 'ar-sec-topics' )
 		);
 	}
 

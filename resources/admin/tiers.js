@@ -16,7 +16,7 @@ export const RUNGS = [
     key: 'readable',
     label: 'Readable',
     blurb: 'What it crawls comes back clean and structured.',
-    ids: ['llms', 'llms_words', 'llms_full', 'llms_full_size', 'schema', 'post_types'],
+    ids: ['llms', 'llms_words', 'llms_full', 'llms_full_size', 'schema', 'post_types', 'topics'],
   },
   {
     key: 'trusted',

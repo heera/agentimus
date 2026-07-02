@@ -342,15 +342,79 @@ final class Schema {
 			'mainEntityOfPage' => $url,
 		);
 
-		// Per-page AI topics → schema.org `keywords` (an array of what the page is
-		// about), so answer engines index and cite the page correctly. Emitted only
-		// when the owner set topics; inherits this method's password/publish guard.
+		// Per-page AI topics → schema.org `keywords` (flat terms) plus `about`
+		// DefinedTerm entities. Each `about` node can carry `sameAs` links (Wikidata,
+		// Wikipedia, an official site) that disambiguate the exact entity for an
+		// assistant — supplied via the `agentimus_topic_links` filter, never a
+		// front-end lookup. Emitted only when topics exist; inherits this method's
+		// password/publish guard.
 		$topics = Topics::for_post( $post );
 		if ( ! empty( $topics ) ) {
 			$node['keywords'] = $topics;
+			$about            = $this->about_nodes( $topics, $post );
+			if ( ! empty( $about ) ) {
+				$node['about'] = $about;
+			}
 		}
 
 		return $node;
+	}
+
+	/**
+	 * Build the `about` DefinedTerm nodes for a post's topics. Each is the topic as
+	 * a named entity; when an owner/add-on supplies authoritative reference URLs for
+	 * it (see {@see topic_links()}), they are attached as `sameAs` so an assistant can
+	 * resolve the exact thing — e.g. "Mercury" the planet vs the element.
+	 *
+	 * @param string[] $topics Resolved topics.
+	 * @param \WP_Post  $post   Post.
+	 * @return array[]
+	 */
+	private function about_nodes( array $topics, $post ) {
+		$nodes = array();
+		foreach ( $topics as $topic ) {
+			$term = array(
+				'@type' => 'DefinedTerm',
+				'name'  => $topic,
+			);
+			$links = $this->topic_links( $topic, $post );
+			if ( ! empty( $links ) ) {
+				$term['sameAs'] = 1 === count( $links ) ? $links[0] : $links;
+			}
+			$nodes[] = $term;
+		}
+		return $nodes;
+	}
+
+	/**
+	 * Authoritative reference URLs for one topic, emitted as `sameAs`. Core supplies
+	 * NONE — no front-end network calls and no risky auto-matching (a wrong Wikidata
+	 * guess is worse than none). An owner or add-on maps topics to Wikidata/Wikipedia
+	 * URLs via the filter; the result is sanitised and de-duplicated.
+	 *
+	 * @param string   $topic Topic text.
+	 * @param \WP_Post  $post  Post.
+	 * @return string[]
+	 */
+	private function topic_links( $topic, $post ) {
+		/**
+		 * Filter authoritative reference URLs (Wikidata, Wikipedia, an official site)
+		 * for a topic — emitted as schema.org `sameAs` on its `about` DefinedTerm.
+		 *
+		 * @param string[] $urls  Reference URLs (default none).
+		 * @param string   $topic The topic text.
+		 * @param \WP_Post  $post  The post.
+		 */
+		$urls = (array) apply_filters( 'agentimus_topic_links', array(), (string) $topic, $post );
+
+		$out = array();
+		foreach ( $urls as $url ) {
+			$url = esc_url_raw( (string) $url );
+			if ( '' !== $url && ! in_array( $url, $out, true ) ) {
+				$out[] = $url;
+			}
+		}
+		return $out;
 	}
 
 	/**
