@@ -82,6 +82,64 @@ final class Rest {
 				'permission_callback' => array( $this, 'can_manage' ),
 			)
 		);
+
+		// JSON-LD preview: the exact @graph the front end would emit for the site
+		// or a chosen post, so an owner can inspect and validate it without viewing
+		// page source. `post` = 0/absent → the site-wide identity graph.
+		register_rest_route(
+			self::NAMESPACE,
+			'/preview/schema',
+			array(
+				'methods'             => \WP_REST_Server::READABLE,
+				'callback'            => array( $this, 'get_schema_preview' ),
+				'permission_callback' => array( $this, 'can_manage' ),
+				'args'                => array(
+					'post' => array(
+						'type'              => 'integer',
+						'default'           => 0,
+						'sanitize_callback' => 'absint',
+					),
+				),
+			)
+		);
+
+		// The Markdown twin of a page/post — what an agent receives when it requests
+		// the page as text/markdown. Per-page, so the site target has no Markdown.
+		register_rest_route(
+			self::NAMESPACE,
+			'/preview/markdown',
+			array(
+				'methods'             => \WP_REST_Server::READABLE,
+				'callback'            => array( $this, 'get_markdown_preview' ),
+				'permission_callback' => array( $this, 'can_manage' ),
+				'args'                => array(
+					'post' => array(
+						'type'              => 'integer',
+						'default'           => 0,
+						'sanitize_callback' => 'absint',
+					),
+				),
+			)
+		);
+
+		// The pickable targets for the preview: the in-scope pages & posts, most
+		// recently edited first, optionally filtered by a title search.
+		register_rest_route(
+			self::NAMESPACE,
+			'/preview/targets',
+			array(
+				'methods'             => \WP_REST_Server::READABLE,
+				'callback'            => array( $this, 'get_schema_targets' ),
+				'permission_callback' => array( $this, 'can_manage' ),
+				'args'                => array(
+					'search' => array(
+						'type'              => 'string',
+						'default'           => '',
+						'sanitize_callback' => 'sanitize_text_field',
+					),
+				),
+			)
+		);
 	}
 
 	/**
@@ -169,5 +227,225 @@ final class Rest {
 	 */
 	public function get_readiness() {
 		return rest_ensure_response( ( new Readiness( $this->settings ) )->report() );
+	}
+
+	/**
+	 * GET /preview/schema — the JSON-LD document for the site or a chosen post.
+	 *
+	 * Returns the graph regardless of whether the front end is currently emitting
+	 * it (schema disabled, or an SEO plugin owns it): the point of a preview is to
+	 * show what WOULD ship. The `active`/`reason` fields let the UI explain when the
+	 * live `<head>` is empty. The per-post privacy guard still applies — a draft or
+	 * password-protected post yields only the site-level nodes, with `postNote`
+	 * saying why.
+	 *
+	 * @param \WP_REST_Request $request Request.
+	 * @return \WP_REST_Response|\WP_Error
+	 */
+	public function get_schema_preview( \WP_REST_Request $request ) {
+		$schema  = new Schema( $this->settings );
+		$seo     = $schema->seo_plugin_active();
+		$enabled = $this->settings->enabled( 'enable_schema' );
+		$post_id = absint( $request->get_param( 'post' ) );
+
+		$post          = null;
+		$post_included = true;
+		$post_note     = '';
+		$target        = array(
+			'type'  => 'site',
+			'id'    => 0,
+			'label' => __( 'Site-wide identity', 'agentimus' ),
+			'url'   => home_url( '/' ),
+		);
+
+		if ( $post_id > 0 ) {
+			$post = get_post( $post_id );
+			if ( ! $post || ! in_array( $post->post_type, Content::post_types(), true ) ) {
+				return new \WP_Error(
+					'agentimus_preview_not_found',
+					__( 'That content is not available to preview.', 'agentimus' ),
+					array( 'status' => 404 )
+				);
+			}
+			$target = array(
+				'type'  => 'post',
+				'id'    => (int) $post->ID,
+				'label' => $this->preview_label( $post ),
+				'url'   => (string) get_permalink( $post ),
+			);
+			// Mirror the front-end guard so the note explains an identity-only graph.
+			if ( 'publish' !== $post->post_status ) {
+				$post_included = false;
+				$post_note     = __( 'This isn’t published, so it carries no per-post schema yet — only the site-wide identity below.', 'agentimus' );
+			} elseif ( '' !== (string) $post->post_password ) {
+				$post_included = false;
+				$post_note     = __( 'This is password-protected, so its content is never exposed as schema — only the site-wide identity below.', 'agentimus' );
+			}
+		}
+
+		$doc = ( null === $post )
+			? $schema->build_document( null, true )
+			: $schema->build_document( $post, false );
+
+		return rest_ensure_response(
+			array(
+				'active'       => (bool) ( $enabled && ! $seo ),
+				'reason'       => ! $enabled ? 'disabled' : ( $seo ? 'seo_plugin' : 'ok' ),
+				'seoPlugin'    => (bool) $seo,
+				'target'       => $target,
+				'postIncluded' => (bool) $post_included,
+				'postNote'     => $post_note,
+				'graph'        => $doc,
+				// Pretty, slash-unescaped JSON for reading/validating. The live <head>
+				// escapes slashes to stay safe inside <script>; the data is identical.
+				'json'         => null === $doc
+					? ''
+					: (string) wp_json_encode( $doc, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE ),
+			)
+		);
+	}
+
+	/**
+	 * GET /preview/markdown — the Markdown a page/post is served as (`.md` / the
+	 * `Accept: text/markdown` twin). Per-page: the site target (post = 0) has no
+	 * Markdown. Mirrors the front-end privacy guard — a draft or password-protected
+	 * post yields nothing, with `postNote` saying why. `active`/`reason` report
+	 * whether Markdown delivery is switched on, so the UI can preview it either way.
+	 *
+	 * @param \WP_REST_Request $request Request.
+	 * @return \WP_REST_Response|\WP_Error
+	 */
+	public function get_markdown_preview( \WP_REST_Request $request ) {
+		$enabled = $this->settings->enabled( 'enable_markdown' );
+		$post_id = absint( $request->get_param( 'post' ) );
+
+		if ( $post_id <= 0 ) {
+			return rest_ensure_response(
+				array(
+					'active'       => (bool) $enabled,
+					'reason'       => $enabled ? 'ok' : 'disabled',
+					'target'       => array(
+						'type'  => 'site',
+						'id'    => 0,
+						'label' => __( 'Site-wide identity', 'agentimus' ),
+						'url'   => home_url( '/' ),
+					),
+					'postIncluded' => false,
+					'postNote'     => __( 'Markdown is generated per page — pick a page or post to preview its Markdown.', 'agentimus' ),
+					'markdown'     => '',
+					'mdUrl'        => '',
+				)
+			);
+		}
+
+		$post = get_post( $post_id );
+		if ( ! $post || ! in_array( $post->post_type, Content::post_types(), true ) ) {
+			return new \WP_Error(
+				'agentimus_preview_not_found',
+				__( 'That content is not available to preview.', 'agentimus' ),
+				array( 'status' => 404 )
+			);
+		}
+
+		$target = array(
+			'type'  => 'post',
+			'id'    => (int) $post->ID,
+			'label' => $this->preview_label( $post ),
+			'url'   => (string) get_permalink( $post ),
+		);
+
+		$post_included = true;
+		$post_note     = '';
+		$markdown      = '';
+		$md_url        = '';
+
+		if ( 'publish' !== $post->post_status ) {
+			$post_included = false;
+			$post_note     = __( 'This isn’t published, so no Markdown is served for it yet.', 'agentimus' );
+		} elseif ( '' !== (string) $post->post_password ) {
+			$post_included = false;
+			$post_note     = __( 'This is password-protected, so its content is never served as Markdown.', 'agentimus' );
+		} else {
+			$markdown  = Markdown::post( $post->ID );
+			$permalink = (string) get_permalink( $post );
+			// Mirrors Endpoints::markdown_alternate_url(): the permalink with `.md`.
+			$md_url = '' !== $permalink ? untrailingslashit( $permalink ) . '.md' : '';
+		}
+
+		return rest_ensure_response(
+			array(
+				'active'       => (bool) $enabled,
+				'reason'       => $enabled ? 'ok' : 'disabled',
+				'target'       => $target,
+				'postIncluded' => (bool) $post_included,
+				'postNote'     => $post_note,
+				'markdown'     => (string) $markdown,
+				'mdUrl'        => $md_url,
+			)
+		);
+	}
+
+	/**
+	 * GET /preview/targets — the in-scope pages & posts the preview can describe,
+	 * most-recently-modified first, filtered by an optional title search.
+	 *
+	 * @param \WP_REST_Request $request Request.
+	 * @return \WP_REST_Response
+	 */
+	public function get_schema_targets( \WP_REST_Request $request ) {
+		$search = sanitize_text_field( (string) $request->get_param( 'search' ) );
+
+		$args = array(
+			'post_type'        => Content::post_types(),
+			'post_status'      => array( 'publish', 'private', 'draft', 'pending', 'future' ),
+			'posts_per_page'   => 50,
+			'orderby'          => 'modified',
+			'order'            => 'DESC',
+			'suppress_filters' => false,
+			'no_found_rows'    => true,
+		);
+		if ( '' !== $search ) {
+			$args['s'] = $search;
+		}
+
+		$targets     = array();
+		$type_labels = array(); // slug → plural label, resolved once per type.
+		foreach ( get_posts( $args ) as $post ) {
+			$type = $post->post_type;
+			if ( ! isset( $type_labels[ $type ] ) ) {
+				$obj                  = get_post_type_object( $type );
+				$type_labels[ $type ] = ( $obj && ! empty( $obj->labels->name ) )
+					? $obj->labels->name
+					: ucfirst( $type );
+			}
+			$targets[] = array(
+				'id'        => (int) $post->ID,
+				'type'      => $type,
+				'typeLabel' => $type_labels[ $type ],
+				'label'     => $this->preview_label( $post ),
+				'status'    => $post->post_status,
+				'url'       => (string) get_permalink( $post ),
+			);
+		}
+
+		return rest_ensure_response( array( 'targets' => $targets ) );
+	}
+
+	/**
+	 * A human label for a previewable post — its title, or a stable placeholder for
+	 * an untitled draft so the picker never shows a blank row.
+	 *
+	 * @param \WP_Post $post Post.
+	 * @return string
+	 */
+	private function preview_label( $post ) {
+		// Decode entities (get_the_title() returns e.g. &#8220;…&#8221;) so the label
+		// reads as clean text, not raw HTML entities.
+		$title = trim( html_entity_decode( wp_strip_all_tags( get_the_title( $post ) ), ENT_QUOTES | ENT_HTML5, 'UTF-8' ) );
+		if ( '' === $title ) {
+			/* translators: %d: post ID. */
+			$title = sprintf( __( '(untitled #%d)', 'agentimus' ), (int) $post->ID );
+		}
+		return $title;
 	}
 }

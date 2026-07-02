@@ -75,6 +75,7 @@ final class Plugin {
 
 		( new Endpoints( $this->settings ) )->register();
 		( new Schema( $this->settings ) )->register();
+		( new SchemaMetaBox( $this->settings ) )->register();
 		( new Topics( $this->settings ) )->register();
 		( new Rest( $this->settings ) )->register();
 		( new Admin( $this->settings ) )->register();

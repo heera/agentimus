@@ -1,17 +1,20 @@
 <script>
 import { groupChecks } from '../tiers.js';
 import { runAll } from '../livecheck.js';
+import SchemaPreview from './SchemaPreview.vue';
 
 export default {
   name: 'ReadinessPanel',
+  components: { SchemaPreview },
   props: {
     checks: { type: Array, default: () => [] },
     refreshing: { type: Boolean, default: false },
     liveConfig: { type: Object, default: () => ({}) },
+    api: { type: Object, required: true },
   },
-  emits: ['refresh', 'navigate'],
+  emits: ['refresh', 'navigate', 'flash'],
   data() {
-    return { live: null, liveRunning: false };
+    return { live: null, liveRunning: false, schemaOpen: false };
   },
   computed: {
     // The same checks, grouped under the Findable → Readable → Trusted rungs.
@@ -65,6 +68,9 @@ export default {
     <div class="ar-card__head ar-card__head--inline">
       <h2 class="ar-card__title">Readiness report</h2>
       <div class="ar-card__actions">
+        <button type="button" class="ar-btn" @click="schemaOpen = true">
+          Agent preview
+        </button>
         <button type="button" class="ar-btn" :disabled="liveRunning" @click="verifyLive">
           {{ liveRunning ? 'Checking…' : 'Verify live' }}
         </button>
@@ -167,5 +173,14 @@ export default {
         </div>
       </transition>
     </Teleport>
+
+    <!-- JSON-LD preview: the exact structured data Agentimus emits, for the site
+         or any page/post. Its own focus-trapped dialog on the same .ar-modal shell. -->
+    <SchemaPreview
+      :open="schemaOpen"
+      :api="api"
+      @close="schemaOpen = false"
+      @flash="(...args) => $emit('flash', ...args)"
+    />
   </section>
 </template>

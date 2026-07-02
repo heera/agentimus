@@ -49,6 +49,7 @@ By default it makes no outbound requests, collects no analytics, and logs no IP 
 **Readiness report**
 
 * A one-screen score of how machine-readable your site is, with a plain-English checklist of what's enabled and what's still missing.
+* **Agent preview** — open it from the Readiness tab to see the exact JSON-LD *and* Markdown an AI agent receives for the whole site or any page or post, then copy it. It shows what would ship even when the feature is off or an SEO plugin owns your schema, and a matching read-only preview also sits right in the post editor — so you never have to view page source to check what agents read.
 
 **Machine discovery (forward-looking)**
 
@@ -206,6 +207,7 @@ There is no minified-only code. The admin interface is built from Vue 3 source i
 == Changelog ==
 
 = 1.13.0 =
+* New — **Agent preview.** See exactly what an AI agent receives for any page — its JSON-LD structured data *and* its Markdown twin — without leaving the admin or viewing page source. Open it from the Readiness tab, pick the whole site or any page or post (grouped by type), and read or copy the output; a matching read-only preview also appears right in the post editor. It shows what *would* ship even when a feature is off or an SEO plugin owns your schema, and never exposes draft or password-protected content — matching the front end exactly.
 * New — **Topics for AI.** Each post gets a "Topics for AI" box in the editor where you say, in plain words, what it's about (for example: *llms.txt, AI visibility, structured data*). Those topics are added to the page's machine-readable data — the JSON-LD `keywords` and the page's `.md` version — so AI assistants understand and cite it correctly. Leave it blank to have Agentimus use the post's own tags and categories automatically, or type your own to take control. Turn the whole feature on or off, and choose how topics are picked, under Agentimus → Settings → Topics for AI. Nothing shows on the visible page; this is only for the AI/agent layer, and it steps aside for your SEO plugin's structured data just like the rest of Agentimus.
 * New — the Topics for AI box **suggests topics as you type** — drawn from ones you've already used, your tags and categories, and your expertise — so your wording stays consistent instead of drifting ("WP" vs "WordPress"). The **Readiness report** now tracks how well your content is covered by topics.
 * New — **sharper structured data.** Each topic is also published as a proper entity (schema.org `about`), and can be linked to its Wikidata or Wikipedia entry so assistants identify the exact thing you mean — the difference between "Mercury" the planet and the element.

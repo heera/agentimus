@@ -906,8 +906,10 @@ export default {
           :checks="readiness"
           :refreshing="refreshingReadiness"
           :live-config="liveConfig"
+          :api="api"
           @refresh="refreshReadiness"
           @navigate="goTo"
+          @flash="flash"
         />
         <DiscoveryHub
           v-show="tab === 'discovery'"

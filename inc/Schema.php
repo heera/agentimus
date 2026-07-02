@@ -64,11 +64,49 @@ final class Schema {
 			return;
 		}
 
+		// Per-post structured data only on a singular view of a covered type; the
+		// site-level identity nodes stand on every front-end request. Services ride
+		// the front page (which may itself be a singular page — both sets then apply,
+		// exactly as before).
+		$post = is_singular( Content::post_types() ) ? get_post() : null;
+		$doc  = $this->build_document( $post, is_front_page() );
+		if ( null === $doc ) {
+			return;
+		}
+
+		// Do NOT use JSON_UNESCAPED_SLASHES here — this JSON sits inside an HTML
+		// <script> tag, and escaped slashes ("<\/script>") are exactly what stop a
+		// graph value containing "</script>" from breaking out of the tag. (The
+		// .well-known/*.json files, served as application/json, can unescape them.)
+		echo "\n<script type=\"application/ld+json\">" .
+			wp_json_encode( $doc, JSON_UNESCAPED_UNICODE ) . // phpcs:ignore WordPress.Security.EscapeOutput -- slash-escaped JSON in a script context.
+			"</script>\n";
+	}
+
+	/**
+	 * Assemble the JSON-LD document — the `{ @context, @graph }` wrapper — for one
+	 * target. Pure construction with no emission guards: the front-end path
+	 * ({@see output()}) applies the enable/defer checks before calling this, while
+	 * the admin preview ({@see Rest}) wants the graph regardless, so it can show the
+	 * owner exactly what WOULD ship. The per-post privacy guard (published, not
+	 * password-protected) is intrinsic to the data, so it lives here.
+	 *
+	 * @param \WP_Post|null $post             Post to describe, or null for the
+	 *                                        site-level (front-page) graph.
+	 * @param bool|null     $include_services Whether to add Service nodes; defaults to
+	 *                                        true for the site graph, false for a post.
+	 * @return array|null The document, or null when the graph is empty.
+	 */
+	public function build_document( $post = null, $include_services = null ) {
+		if ( null === $include_services ) {
+			$include_services = ( null === $post );
+		}
+
 		$graph = array( $this->website_node(), $this->entity_node() );
 
-		// Services are an entity-level offering, so they belong on the front page
-		// alongside the site identity — not repeated on every post.
-		if ( is_front_page() ) {
+		// Services are an entity-level offering, so they belong alongside the site
+		// identity — not repeated on every post.
+		if ( $include_services ) {
 			foreach ( $this->service_nodes() as $service ) {
 				$graph[] = $service;
 			}
@@ -78,7 +116,6 @@ final class Schema {
 		// gates: a password-protected post (whose body Q&A would otherwise leak
 		// into the public FAQPage node) or a non-published status. Mirrors the
 		// guard in Markdown::post(); the site-level identity nodes above stand.
-		$post = is_singular( Content::post_types() ) ? get_post() : null;
 		if ( $post && 'publish' === $post->post_status && '' === (string) $post->post_password ) {
 			$node = $this->article_node( $post );
 			/**
@@ -94,7 +131,7 @@ final class Schema {
 			if ( is_array( $node ) && ! empty( $node ) ) {
 				$graph[] = $node;
 			}
-			$graph[] = $this->breadcrumb_node();
+			$graph[] = $this->breadcrumb_node( $post );
 
 			// A FAQPage when the content clearly is one — agents lift the Q&A.
 			$faq = $this->faq_node( $post );
@@ -115,21 +152,13 @@ final class Schema {
 		// only array nodes — the @graph that reaches json_encode is always well-formed.
 		$graph = array_values( array_filter( is_array( $filtered ) ? $filtered : $graph, 'is_array' ) );
 		if ( empty( $graph ) ) {
-			return;
+			return null;
 		}
 
-		$doc = array(
+		return array(
 			'@context' => 'https://schema.org',
 			'@graph'   => $graph,
 		);
-
-		// Do NOT use JSON_UNESCAPED_SLASHES here — this JSON sits inside an HTML
-		// <script> tag, and escaped slashes ("<\/script>") are exactly what stop a
-		// graph value containing "</script>" from breaking out of the tag. (The
-		// .well-known/*.json files, served as application/json, can unescape them.)
-		echo "\n<script type=\"application/ld+json\">" .
-			wp_json_encode( $doc, JSON_UNESCAPED_UNICODE ) . // phpcs:ignore WordPress.Security.EscapeOutput -- slash-escaped JSON in a script context.
-			"</script>\n";
 	}
 
 	/**
@@ -334,7 +363,7 @@ final class Schema {
 			'@type'            => $type,
 			'@id'              => $url . '#' . strtolower( $type ),
 			'url'              => $url,
-			'headline'         => wp_strip_all_tags( get_the_title( $post ) ),
+			'headline'         => $this->clean( get_the_title( $post ) ),
 			'datePublished'    => get_the_date( DATE_W3C, $post ),
 			'dateModified'     => get_the_modified_date( DATE_W3C, $post ),
 			'author'           => array( '@id' => home_url( '/#identity' ) ),
@@ -418,11 +447,14 @@ final class Schema {
 	}
 
 	/**
-	 * BreadcrumbList for the current single post (Home → Category → Post).
+	 * BreadcrumbList for a single post (Home → Category → Post). Takes the post
+	 * explicitly so it can be built outside the loop — the admin preview describes
+	 * an arbitrary post that is not the current query.
 	 *
+	 * @param \WP_Post $post Post.
 	 * @return array
 	 */
-	private function breadcrumb_node() {
+	private function breadcrumb_node( $post ) {
 		$items = array(
 			array(
 				'@type'    => 'ListItem',
@@ -432,22 +464,22 @@ final class Schema {
 			),
 		);
 
-		$cats = get_the_category();
+		$cats = get_the_category( $post->ID );
 		$pos  = 2;
 		if ( ! empty( $cats ) ) {
 			$cat     = $cats[0];
 			$items[] = array(
 				'@type'    => 'ListItem',
 				'position' => $pos++,
-				'name'     => $cat->name,
+				'name'     => $this->clean( $cat->name ),
 				'item'     => get_category_link( $cat ),
 			);
 		}
 		$items[] = array(
 			'@type'    => 'ListItem',
 			'position' => $pos,
-			'name'     => wp_strip_all_tags( get_the_title() ),
-			'item'     => get_permalink(),
+			'name'     => $this->clean( get_the_title( $post ) ),
+			'item'     => get_permalink( $post ),
 		);
 
 		return array(

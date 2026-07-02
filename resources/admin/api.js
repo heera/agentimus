@@ -34,6 +34,12 @@ export function createApi(boot) {
     resetSettings: () => request('/settings/reset', { method: 'POST' }),
     completeOnboarding: () => request('/onboarding', { method: 'POST' }),
     getReadiness: () => request('/readiness'),
+    // JSON-LD preview: the site graph (post omitted / 0) or a chosen post's graph.
+    getSchemaPreview: (post = 0) => request(`/preview/schema?post=${encodeURIComponent(post || 0)}`),
+    // Markdown preview: the .md twin of a page/post (per-page; site has none).
+    getMarkdownPreview: (post = 0) => request(`/preview/markdown?post=${encodeURIComponent(post || 0)}`),
+    getSchemaTargets: (search = '') =>
+      request(`/preview/targets?search=${encodeURIComponent(search || '')}`),
     getDiscoveryHub: () => request('/discovery/hub'),
     getActivity: () => request('/activity'),
     getActivityDay: (date) => request(`/activity/day?date=${encodeURIComponent(date)}`),
