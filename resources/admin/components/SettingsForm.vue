@@ -595,6 +595,49 @@ export default {
         <small v-if="fullSizeNote" class="ar-field__hint" :class="{ 'ar-warn': fullSizeNote.warn }">{{ fullSizeNote.text }}</small>
       </section>
 
+      <!-- AI Topics — master toggle + how topics are chosen ------------ -->
+      <section id="ar-sec-topics" class="ar-card">
+        <h2 class="ar-card__title">AI Topics</h2>
+        <p class="ar-card__lead">
+          Adds a short list of topics to your content’s AI data — the structured data (JSON-LD
+          <code>keywords</code>) and the plain-text (<code>.md</code>) version — so assistants
+          understand and cite it correctly. You set the topics in the editor; nothing shows on
+          the visible page. Stands aside for your SEO plugin’s structured data, like the rest of Agentimus.
+        </p>
+
+        <label id="ar-feat-enable_topics" class="ar-toggle">
+          <input v-model="settings.enable_topics" type="checkbox" />
+          <span class="ar-toggle__track" aria-hidden="true"></span>
+          <span class="ar-toggle__text">
+            <strong>Add topics to your content’s AI data</strong>
+            <small>Shows an “AI Topics” box in the editor.</small>
+          </span>
+        </label>
+
+        <div v-show="settings.enable_topics" class="ar-webmcp-tools">
+          <label id="ar-feat-topics_derive_default" class="ar-toggle">
+            <input v-model="settings.topics_derive_default" type="checkbox" />
+            <span class="ar-toggle__track" aria-hidden="true"></span>
+            <span class="ar-toggle__text">
+              <strong>Use tags &amp; categories by default</strong>
+              <small>New content fills its topics from its own tags and categories automatically. Anything you type overrides this.</small>
+            </span>
+          </label>
+
+          <div class="ar-field ar-field--inline">
+            <label for="ar-topics-max">Most topics per item</label>
+            <input
+              id="ar-topics-max"
+              v-model.number="settings.topics_max"
+              type="number"
+              min="1"
+              max="50"
+              class="ar-input ar-input--sm"
+            />
+          </div>
+        </div>
+      </section>
+
       <!-- Browser tools (WebMCP) — master toggle + per-tool expose/hide - -->
       <section id="ar-sec-webmcp" class="ar-card">
         <h2 class="ar-card__title">Browser tools <span class="ar-card__tag">experimental</span></h2>

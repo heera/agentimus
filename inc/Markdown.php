@@ -49,6 +49,13 @@ final class Markdown {
 		$meta[] = '<' . $url . '>';
 		$out   .= '*' . implode( ' · ', $meta ) . "*\n\n";
 
+		// Per-page AI topics as a front-matter line — an agent fetching this .md gets
+		// what the page is about even when the JSON-LD stands down for an SEO plugin.
+		$topics = Topics::for_post( $post );
+		if ( ! empty( $topics ) ) {
+			$out .= 'Topics: ' . implode( ', ', $topics ) . "\n\n";
+		}
+
 		$out .= self::from_html( Content::markdown_source( $post ) );
 
 		return rtrim( $out ) . "\n";

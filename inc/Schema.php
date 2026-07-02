@@ -330,7 +330,7 @@ final class Schema {
 		$type = isset( $map[ $post->post_type ] ) ? $map[ $post->post_type ] : 'Article';
 		$url  = get_permalink( $post );
 
-		return array(
+		$node = array(
 			'@type'            => $type,
 			'@id'              => $url . '#' . strtolower( $type ),
 			'url'              => $url,
@@ -341,6 +341,16 @@ final class Schema {
 			'publisher'        => array( '@id' => home_url( '/#identity' ) ),
 			'mainEntityOfPage' => $url,
 		);
+
+		// Per-page AI topics → schema.org `keywords` (an array of what the page is
+		// about), so answer engines index and cite the page correctly. Emitted only
+		// when the owner set topics; inherits this method's password/publish guard.
+		$topics = Topics::for_post( $post );
+		if ( ! empty( $topics ) ) {
+			$node['keywords'] = $topics;
+		}
+
+		return $node;
 	}
 
 	/**

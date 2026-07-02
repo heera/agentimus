@@ -28,6 +28,9 @@ final class Settings {
 			'enable_markdown'  => true,
 			'enable_robots'    => true,
 			'enable_schema'    => true,
+			'enable_topics'    => true,  // Per-page AI topics → JSON-LD keywords + per-page markdown front matter. On by default; each page still controls its own topics via the editor meta box.
+			'topics_derive_default' => true, // Default for new posts: also derive topics from the page's tags & categories (a manual list still wins).
+			'topics_max'       => 12,    // Hard cap on emitted topics per page, to keep the machine surfaces lean.
 			'enable_activity'  => true,
 			'enable_sitemap'   => true, // Gap-only fallback: stands down when core/SEO provides one, so it's safe on by default.
 			'enable_security_txt' => false, // Opt-in: generate /.well-known/security.txt only when asked AND no file/other plugin already provides one.
@@ -420,6 +423,15 @@ final class Settings {
 		foreach ( array( 'enable_llms_txt', 'enable_llms_full', 'enable_markdown', 'enable_robots', 'enable_schema', 'enable_activity', 'enable_sitemap', 'enable_security_txt', 'enable_signing', 'hide_user_enumeration', 'disable_author_archives', 'hide_wp_version', 'tidy_head_links', 'disable_xmlrpc' ) as $flag ) {
 			$clean[ $flag ] = ! empty( $input[ $flag ] );
 		}
+
+		// Per-page AI topics. Both toggles default ON, so they use the isset-guard
+		// (like enable_ai_header): a partial programmatic update that omits the key
+		// keeps the default rather than silently turning the feature off. The cap is
+		// clamped to a sane range.
+		$clean['enable_topics']          = ! isset( $input['enable_topics'] ) ? $defaults['enable_topics'] : ! empty( $input['enable_topics'] );
+		$clean['topics_derive_default']  = ! isset( $input['topics_derive_default'] ) ? $defaults['topics_derive_default'] : ! empty( $input['topics_derive_default'] );
+		$topics_max                      = isset( $input['topics_max'] ) ? (int) $input['topics_max'] : $defaults['topics_max'];
+		$clean['topics_max']             = max( 1, min( 50, $topics_max ) );
 
 		$posts                    = isset( $input['llms_full_posts'] ) ? (int) $input['llms_full_posts'] : $defaults['llms_full_posts'];
 		$clean['llms_full_posts'] = max( 1, min( 500, $posts ) );
