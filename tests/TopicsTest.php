@@ -157,6 +157,22 @@ final class TopicsTest extends TestCase {
 		$this->assertSame( array( 'Guides' ), Topics::for_post( 42 ) );
 	}
 
+	public function test_derive_taxonomies_filter_lets_a_vendor_add_its_taxonomy() {
+		// A content type with only a vendor taxonomy (like WooCommerce's product_cat).
+		$GLOBALS['_af_taxonomies'] = array( 'product_cat' );
+		\add_filter( 'agentimus_derive_taxonomies', static function ( $tax ) { $tax[] = 'product_cat'; return $tax; } );
+		$this->fixture( 50, array( Topics::META_DERIVE => '1' ), array( 'product_cat' => array( 'Hoodies', 'Cotton' ) ), array( 'post_type' => 'product' ) );
+		$this->assertSame( array( 'Hoodies', 'Cotton' ), Topics::for_post( 50 ) );
+	}
+
+	public function test_core_ignores_a_vendor_taxonomy_without_the_filter() {
+		// Vendor-neutral: core only knows category/post_tag, so product_cat is untouched
+		// until a vendor opts it in via agentimus_derive_taxonomies.
+		$GLOBALS['_af_taxonomies'] = array( 'product_cat' );
+		$this->fixture( 51, array( Topics::META_DERIVE => '1' ), array( 'product_cat' => array( 'Hoodies' ) ), array( 'post_type' => 'product' ) );
+		$this->assertSame( array(), Topics::for_post( 51 ) );
+	}
+
 	public function test_cap_accessor_clamps_to_range() {
 		\update_option( Settings::OPTION, array( 'topics_max' => 999 ) );
 		$this->assertSame( 50, Topics::cap() );

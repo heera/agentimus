@@ -269,7 +269,8 @@ add_filter(
 add_filter( 'agentimus_markdown_source', fn( $html, $post ) => $html, 10, 2 );
 
 /**
- * Topic/category slugs to omit from the llms.txt Topics list.
+ * Topic/category slugs to omit from the llms.txt Topics list AND from a post's
+ * auto-derived "Topics for AI". The default already excludes 'uncategorized'.
  */
 add_filter(
 	'agentimus_topic_exclude',
@@ -277,6 +278,52 @@ add_filter(
 		$slugs[] = 'changelog';
 		return $slugs;
 	}
+);
+
+/**
+ * Which taxonomies feed a post's auto-derived "Topics for AI". Core reads only the
+ * WordPress built-ins (category, post_tag); declare your own so its terms are
+ * offered as topics wherever your content type is agent-visible. The terms flow
+ * through the SAME path as the core ones — the editor's derive toggle, the exclude
+ * list above, de-duplication and the per-item cap — so vendors give their data
+ * WITHOUT any vendor-specific code living in Agentimus.
+ *
+ * Example: a WooCommerce store surfacing product categories, tags and a brand
+ * attribute as topics on its products.
+ *
+ * @param string[] $taxonomies Taxonomy slugs.
+ * @param \WP_Post  $post       The post being described.
+ */
+add_filter(
+	'agentimus_derive_taxonomies',
+	function ( $taxonomies, $post ) {
+		if ( 'product' === $post->post_type ) {
+			$taxonomies[] = 'product_cat';
+			$taxonomies[] = 'product_tag';
+			$taxonomies[] = 'pa_brand'; // a global product attribute
+		}
+		return $taxonomies;
+	},
+	10,
+	2
+);
+
+/**
+ * Last word on a post's "Topics for AI": add or refine the final list directly.
+ * Use this when your topics are NOT taxonomy terms (e.g. computed from post meta).
+ * Whatever you return is re-normalised — trimmed, de-duplicated case-insensitively
+ * and capped — so a filter can never overflow or corrupt a machine surface.
+ *
+ * @param string[] $topics Resolved topics (manual + derived).
+ * @param \WP_Post  $post   The post.
+ */
+add_filter(
+	'agentimus_post_topics',
+	function ( $topics, $post ) {
+		return $topics;
+	},
+	10,
+	2
 );
 
 /**

@@ -151,6 +151,7 @@ Supported output-shaping filters; signatures may evolve between releases.
 | `agentimus_post_type_source` | filter | `( string $source, string $post_type ): string` | Attribute a post type's llms.txt section to your plugin. |
 | `agentimus_markdown_source` | filter | `( ?string $html, WP_Post $post ): ?string` | Supply rendered HTML for page-builder content (`null` = render normally). |
 | `agentimus_topic_exclude` | filter | `( string[] $slugs ): string[]` | Topic/category slugs to omit from the llms.txt Topics list and per-page derived topics. |
+| `agentimus_derive_taxonomies` | filter | `( string[] $taxonomies, WP_Post $post ): string[]` | Which taxonomies auto-fill a post's Topics for AI (default `category`, `post_tag`). A vendor adds e.g. `product_cat`; terms flow through the derive toggle, exclude list and cap. |
 | `agentimus_post_topics` | filter | `( string[] $topics, WP_Post $post ): string[]` | Add or refine a post's Topics-for-AI list (→ JSON-LD `keywords` + Markdown). Re-normalised after (deduped, capped). |
 | `agentimus_llms_full_item_max_bytes` | filter | `( int $bytes ): int` | Per-item byte cap for the llms-full.txt edition. |
 | `agentimus_llms_full_avg_item_bytes` | filter | `( int $bytes ): int` | Average item size used to estimate llms-full.txt in the admin. |

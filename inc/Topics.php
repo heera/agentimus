@@ -212,10 +212,7 @@ final class Topics {
 		$exclude = (array) apply_filters( 'agentimus_topic_exclude', array( 'uncategorized' ) );
 
 		$names = array();
-		foreach ( array( 'category', 'post_tag' ) as $tax ) {
-			if ( ! is_object_in_taxonomy( $post->post_type, $tax ) ) {
-				continue;
-			}
+		foreach ( self::derive_taxonomies( $post ) as $tax ) {
 			// Full term objects (not just names) so we can filter by slug.
 			$terms = wp_get_post_terms( $post->ID, $tax );
 			if ( is_wp_error( $terms ) ) {
@@ -228,6 +225,38 @@ final class Topics {
 			}
 		}
 		return $names;
+	}
+
+	/**
+	 * The taxonomies whose terms feed the auto-derived topics, narrowed to those the
+	 * post's type actually has. Core ships only the two WordPress built-ins; a vendor
+	 * (e.g. WooCommerce) declares its own via the filter, and those terms then flow
+	 * through the SAME path — the derive toggle, the exclude list, dedupe and the cap
+	 * — so no vendor-specific code ever lives in core.
+	 *
+	 * @param \WP_Post $post Post.
+	 * @return string[]
+	 */
+	private static function derive_taxonomies( $post ) {
+		/**
+		 * Filter which taxonomies the auto-derive reads topics from. Default: the
+		 * WordPress built-ins `category` and `post_tag`. A vendor adds its own
+		 * (e.g. `product_cat`) so its terms are offered as topics wherever its
+		 * content type is agent-visible — Agentimus needs no knowledge of the vendor.
+		 *
+		 * @param string[] $taxonomies Taxonomy slugs.
+		 * @param \WP_Post  $post       The post being described.
+		 */
+		$taxonomies = (array) apply_filters( 'agentimus_derive_taxonomies', array( 'category', 'post_tag' ), $post );
+
+		$out = array();
+		foreach ( $taxonomies as $tax ) {
+			$tax = (string) $tax;
+			if ( '' !== $tax && ! in_array( $tax, $out, true ) && is_object_in_taxonomy( $post->post_type, $tax ) ) {
+				$out[] = $tax;
+			}
+		}
+		return $out;
 	}
 
 	/**
@@ -349,10 +378,11 @@ final class Topics {
 			. esc_attr__( 'e.g. llms.txt, AI visibility, structured data', 'agentimus' ) . '">'
 			. esc_textarea( implode( ', ', $manual ) ) . '</textarea>';
 
-		// Only offer "derive from tags & categories" where the content type actually
-		// has those taxonomies — on a Page (no tags/categories) the checkbox would do
-		// nothing, so it's hidden rather than shown as a dead control.
-		if ( is_object_in_taxonomy( $post->post_type, 'category' ) || is_object_in_taxonomy( $post->post_type, 'post_tag' ) ) {
+		// Only offer "derive from taxonomies" where the content type actually has one
+		// (core: tags/categories; a vendor may add its own via agentimus_derive_taxonomies).
+		// On a type with none — e.g. a plain Page — the checkbox would do nothing, so it's
+		// hidden rather than shown as a dead control.
+		if ( ! empty( self::derive_taxonomies( $post ) ) ) {
 			echo '<p><label><input type="checkbox" name="agentimus_topics_derive" value="1" '
 				. checked( $derive, true, false ) . ' /> '
 				. esc_html__( 'Also include all tags & categories', 'agentimus' ) . '</label></p>';
