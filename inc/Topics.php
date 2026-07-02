@@ -1,6 +1,6 @@
 <?php
 /**
- * AI Topics — per-page topic keywords that flow into the machine-readable
+ * Topics for AI — per-page topic keywords that flow into the machine-readable
  * surfaces (JSON-LD `keywords`, per-page markdown front matter). Extends the
  * site-level `## Topics` idea (which is derived from categories in
  * {@see LlmsText::topics()}) down to the page level: a *static* list the editor
@@ -283,7 +283,7 @@ final class Topics {
 	}
 
 	/**
-	 * Add the "AI Topics" meta box to every agent-visible post type. Skipped
+	 * Add the "Topics for AI" meta box to every agent-visible post type. Skipped
 	 * entirely when the feature is off.
 	 */
 	public function add_meta_box() {
@@ -293,7 +293,7 @@ final class Topics {
 		foreach ( Content::post_types() as $type ) {
 			add_meta_box(
 				'agentimus-topics',
-				__( 'AI Topics', 'agentimus' ),
+				__( 'Topics for AI', 'agentimus' ),
 				array( $this, 'render_meta_box' ),
 				$type,
 				'side',

@@ -38,6 +38,7 @@ By default it makes no outbound requests, collects no analytics, and logs no IP 
 * **Markdown delivery** — request any page as clean markdown by appending `.md` to its URL (or, where your server allows it, with an `Accept: text/markdown` header).
 * **/llms.txt** & **/llms-full.txt** — an [llmstxt.org](https://llmstxt.org) index of your pages, topics and recent posts, plus a full-text edition an agent can ingest in a single request.
 * **JSON-LD** — WebSite + Person/Organization, plus BlogPosting and BreadcrumbList on posts. Automatically **defers to Yoast, Rank Math, SEOPress, AIOSEO and The SEO Framework** so you never ship duplicate schema.
+* **Topics for AI** — say what each post is about in plain words, right in the editor; those topics become the JSON-LD `keywords` and a line in the page's `.md`, so assistants understand each page's subject. Type your own, or let Agentimus fill them in from the post's own tags and categories. Nothing shows on the visible page.
 * **XML sitemap** — an opt-in fallback sitemap (index + paginated sub-sitemaps), generated only when neither WordPress core nor an SEO plugin already provides one, and advertised in robots.txt and llms.txt.
 
 **Identity & contact**
@@ -205,7 +206,7 @@ There is no minified-only code. The admin interface is built from Vue 3 source i
 == Changelog ==
 
 = 1.13.0 =
-* New — **Page topics for AI.** Each page and post gets an "AI Topics" box in the editor where you say, in plain words, what the page is about (for example: *llms.txt, AI visibility, structured data*). Those topics are added to the page's machine-readable data — the JSON-LD `keywords` and the page's `.md` version — so AI assistants understand and cite it correctly. Leave it blank to have Agentimus use the page's own tags and categories automatically, or type your own to take control. Turn the whole feature on or off, and choose how topics are picked, under Agentimus → Settings → Page topics. Nothing shows on the visible page; this is only for the AI/agent layer, and it steps aside for your SEO plugin's structured data just like the rest of Agentimus.
+* New — **Topics for AI.** Each post gets a "Topics for AI" box in the editor where you say, in plain words, what it's about (for example: *llms.txt, AI visibility, structured data*). Those topics are added to the page's machine-readable data — the JSON-LD `keywords` and the page's `.md` version — so AI assistants understand and cite it correctly. Leave it blank to have Agentimus use the post's own tags and categories automatically, or type your own to take control. Turn the whole feature on or off, and choose how topics are picked, under Agentimus → Settings → Topics for AI. Nothing shows on the visible page; this is only for the AI/agent layer, and it steps aside for your SEO plugin's structured data just like the rest of Agentimus.
 
 = 1.12.4 =
 * Fixed — live web-search checks no longer time out on slower questions: grounded engines (Claude, Perplexity, ChatGPT, Gemini) get a longer request window, and Claude runs fewer searches per check so answers come back sooner.

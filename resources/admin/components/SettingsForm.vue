@@ -595,9 +595,9 @@ export default {
         <small v-if="fullSizeNote" class="ar-field__hint" :class="{ 'ar-warn': fullSizeNote.warn }">{{ fullSizeNote.text }}</small>
       </section>
 
-      <!-- AI Topics — master toggle + how topics are chosen ------------ -->
+      <!-- Topics for AI — master toggle + how topics are chosen -------- -->
       <section id="ar-sec-topics" class="ar-card">
-        <h2 class="ar-card__title">AI Topics</h2>
+        <h2 class="ar-card__title">Topics for AI</h2>
         <p class="ar-card__lead">
           Adds a short list of topics to your content’s AI data — the structured data (JSON-LD
           <code>keywords</code>) and the plain-text (<code>.md</code>) version — so assistants
@@ -610,7 +610,7 @@ export default {
           <span class="ar-toggle__track" aria-hidden="true"></span>
           <span class="ar-toggle__text">
             <strong>Add topics to your content’s AI data</strong>
-            <small>Shows an “AI Topics” box in the editor.</small>
+            <small>Shows a “Topics for AI” box in the editor.</small>
           </span>
         </label>
 
