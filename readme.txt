@@ -204,6 +204,9 @@ There is no minified-only code. The admin interface is built from Vue 3 source i
 
 == Changelog ==
 
+= 1.13.0 =
+* New — **Page topics for AI.** Each page and post gets an "AI Topics" box in the editor where you say, in plain words, what the page is about (for example: *llms.txt, AI visibility, structured data*). Those topics are added to the page's machine-readable data — the JSON-LD `keywords` and the page's `.md` version — so AI assistants understand and cite it correctly. Leave it blank to have Agentimus use the page's own tags and categories automatically, or type your own to take control. Turn the whole feature on or off, and choose how topics are picked, under Agentimus → Settings → Page topics. Nothing shows on the visible page; this is only for the AI/agent layer, and it steps aside for your SEO plugin's structured data just like the rest of Agentimus.
+
 = 1.12.4 =
 * Fixed — live web-search checks no longer time out on slower questions: grounded engines (Claude, Perplexity, ChatGPT, Gemini) get a longer request window, and Claude runs fewer searches per check so answers come back sooner.
 * Improved — when a check fails, the reason (for example a timeout) now shows inline under the result, instead of only on hover.

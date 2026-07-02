@@ -145,6 +145,7 @@ export default {
         enable_schema: s.enable_schema, enable_activity: s.enable_activity,
         enable_sitemap: s.enable_sitemap, enable_security_txt: s.enable_security_txt,
         enable_signing: s.enable_signing, enable_webmcp: s.enable_webmcp, webmcp_hidden_tools: s.webmcp_hidden_tools,
+        enable_topics: s.enable_topics, topics_derive_default: s.topics_derive_default, topics_max: s.topics_max,
         llms_full_posts: s.llms_full_posts, post_types: s.post_types,
         rest_namespaces: s.rest_namespaces, oauth_auth_server: s.oauth_auth_server, content_signal: s.content_signal,
         blocked_trainers: s.blocked_trainers, suppressed_resources: s.suppressed_resources,

@@ -93,7 +93,7 @@ namespace {
 	if ( ! function_exists( 'is_admin' ) )              { function is_admin() { return ! empty( $GLOBALS['_af_is_admin'] ); } }
 	if ( ! function_exists( 'flush_rewrite_rules' ) )   { function flush_rewrite_rules( $hard = true ) { $GLOBALS['_af_flush_count'] = (int) ( $GLOBALS['_af_flush_count'] ?? 0 ) + 1; return true; } }
 	if ( ! function_exists( 'add_option' ) )            { function add_option( $k, $v ) { $GLOBALS['_af_options'][ $k ] = $v; return true; } }
-	if ( ! function_exists( 'get_post' ) )              { function get_post( $id = 0 ) { $id = (int) $id; if ( ! $id ) { $id = (int) ( $GLOBALS['_af_current_post_id'] ?? 0 ); } return isset( $GLOBALS['_af_posts'][ $id ] ) ? $GLOBALS['_af_posts'][ $id ] : null; } }
+	if ( ! function_exists( 'get_post' ) )              { function get_post( $id = 0 ) { if ( is_object( $id ) ) { return $id; } $id = (int) $id; if ( ! $id ) { $id = (int) ( $GLOBALS['_af_current_post_id'] ?? 0 ); } return isset( $GLOBALS['_af_posts'][ $id ] ) ? $GLOBALS['_af_posts'][ $id ] : null; } }
 	if ( ! function_exists( 'get_the_title' ) )         { function get_the_title( $p = null ) { $p = is_object( $p ) ? $p : get_post( $p ); return $p ? (string) $p->post_title : ''; } }
 	if ( ! function_exists( 'get_permalink' ) )         { function get_permalink( $p = 0 ) { $p = is_object( $p ) ? $p : get_post( $p ); return 'https://example.com/?p=' . ( $p ? (int) $p->ID : 0 ); } }
 	// Singular-view surface for the Schema privacy tests (toggle via the globals).
@@ -104,7 +104,18 @@ namespace {
 	if ( ! function_exists( 'get_the_modified_date' ) ) { function get_the_modified_date( $format = '', $p = null ) { return '2026-01-02T00:00:00+00:00'; } }
 	if ( ! function_exists( 'get_the_category' ) )      { function get_the_category( $id = false ) { return isset( $GLOBALS['_af_categories'] ) ? (array) $GLOBALS['_af_categories'] : array(); } }
 	if ( ! function_exists( 'get_category_link' ) )     { function get_category_link( $cat ) { return 'https://example.com/cat/'; } }
-	function _af_reset_options() { $GLOBALS['_af_options'] = array(); $GLOBALS['_af_filters'] = array(); $GLOBALS['_af_did_actions'] = array(); $GLOBALS['_af_posts'] = array(); $GLOBALS['_af_is_admin'] = false; $GLOBALS['_af_flush_count'] = 0; unset( $GLOBALS['_af_available_post_types'], $GLOBALS['_af_current_post_id'], $GLOBALS['_af_is_singular'], $GLOBALS['_af_is_front_page'], $GLOBALS['_af_categories'] ); }
+	// Post-meta + taxonomy surface for the Topics tests. Meta is a stateful id→[key→value]
+	// store; terms are id→[taxonomy→names]; is_object_in_taxonomy() knows the two core taxonomies.
+	$GLOBALS['_af_postmeta'] = array();
+	$GLOBALS['_af_terms']    = array();
+	if ( ! function_exists( 'get_post_meta' ) )         { function get_post_meta( $id, $key = '', $single = false ) { $all = isset( $GLOBALS['_af_postmeta'][ $id ] ) ? $GLOBALS['_af_postmeta'][ $id ] : array(); if ( '' === $key ) { return $all; } if ( ! array_key_exists( $key, $all ) ) { return $single ? '' : array(); } return $single ? $all[ $key ] : array( $all[ $key ] ); } }
+	if ( ! function_exists( 'update_post_meta' ) )      { function update_post_meta( $id, $key, $value ) { $GLOBALS['_af_postmeta'][ $id ][ $key ] = $value; return true; } }
+	if ( ! function_exists( 'delete_post_meta' ) )      { function delete_post_meta( $id, $key ) { unset( $GLOBALS['_af_postmeta'][ $id ][ $key ] ); return true; } }
+	// Terms are stored as name strings (a slug is synthesised) or as objects; returns
+	// name strings when fields=names is asked, otherwise term-like {name, slug} objects.
+	if ( ! function_exists( 'wp_get_post_terms' ) )     { function wp_get_post_terms( $id, $tax, $args = array() ) { $stored = isset( $GLOBALS['_af_terms'][ $id ][ $tax ] ) ? (array) $GLOBALS['_af_terms'][ $id ][ $tax ] : array(); $names_only = isset( $args['fields'] ) && 'names' === $args['fields']; $out = array(); foreach ( $stored as $entry ) { if ( is_object( $entry ) ) { $name = isset( $entry->name ) ? (string) $entry->name : ''; $slug = isset( $entry->slug ) ? (string) $entry->slug : ''; } else { $name = (string) $entry; $slug = ''; } if ( '' === $slug ) { $slug = trim( preg_replace( '/[^a-z0-9]+/', '-', strtolower( $name ) ), '-' ); } $out[] = $names_only ? $name : (object) array( 'name' => $name, 'slug' => $slug ); } return $out; } }
+	if ( ! function_exists( 'is_object_in_taxonomy' ) ) { function is_object_in_taxonomy( $type, $tax ) { return in_array( $tax, array( 'category', 'post_tag' ), true ); } }
+	function _af_reset_options() { $GLOBALS['_af_options'] = array(); $GLOBALS['_af_filters'] = array(); $GLOBALS['_af_did_actions'] = array(); $GLOBALS['_af_posts'] = array(); $GLOBALS['_af_postmeta'] = array(); $GLOBALS['_af_terms'] = array(); $GLOBALS['_af_is_admin'] = false; $GLOBALS['_af_flush_count'] = 0; unset( $GLOBALS['_af_available_post_types'], $GLOBALS['_af_current_post_id'], $GLOBALS['_af_is_singular'], $GLOBALS['_af_is_front_page'], $GLOBALS['_af_categories'] ); }
 	// Always-miss transient stubs so cached endpoint bodies (e.g. security.txt)
 	// recompute deterministically in tests.
 	if ( ! function_exists( 'get_transient' ) )         { function get_transient( $k ) { return false; } }
