@@ -25,7 +25,7 @@ no SEO bloat, no framework.
 | Full-text edition | `/llms-full.txt` |
 | Markdown delivery | `/<slug>.md` or `Accept: text/markdown` |
 | Structured data | JSON-LD `WebSite` + `Person`/`Organization` + `BlogPosting` + `BreadcrumbList` (defers to SEO plugins) |
-| Topics for AI | Per-page topics → JSON-LD `keywords` + a `Topics:` line in `/<slug>.md`; static (editor) or derived from the post's tags & categories |
+| Topics for AI | Per-page topics → JSON-LD `keywords` + `about` DefinedTerm entities (with optional Wikidata `sameAs` via the `agentimus_topic_links` filter) + a `Topics:` line in `/<slug>.md`; static (editor) or derived from tags & categories |
 | XML sitemap | `/agentimus-sitemap.xml` — opt-in fallback, generated **only** when neither WordPress core nor an SEO plugin already provides one (sitemap index + paginated sub-sitemaps) |
 | Crawler policy | `robots.txt` content-signal + training-crawler blocklist |
 | Discovery layer | `/.well-known/discovery.json` (+ `agent-card.json`, `mcp.json`) |
@@ -34,7 +34,7 @@ no SEO bloat, no framework.
 ## In the admin
 
 - **Readiness report** — pass/warn/fail checks, each with a plain-English suggestion and a deep link to the fix (including a "sitemap advertised in robots.txt" check).
-- **Agent preview** — a modal (from Readiness) showing the exact **JSON-LD** and **Markdown** an agent receives for the site or any page/post, with a grouped site/page/post picker, copy, and validator links. It renders what *would* ship even when schema is disabled or an SEO plugin owns it, and applies the same publish/password privacy guard as the front end. A read-only twin also sits in the post editor.
+- **Agent preview** — a modal (from Readiness) showing the exact **JSON-LD** and **Markdown** an agent receives for the site or any page/post, with a grouped site/page/post picker, copy, and validator links. It renders what *would* ship even when schema is disabled or an SEO plugin owns it; password-protected posts stay hidden, and an unpublished draft is shown as a preview of what it will emit once published. A read-only twin also sits in the post editor.
 - **AI Visibility** (opt-in, bring-your-own-key) — track each brand, product or person you choose across ChatGPT, Perplexity, Gemini and Claude. For every one it asks the questions your audience types and reports whether it's **mentioned, linked, and how it ranks against its own rivals**, over time. Each item has its own website, competitors, questions and scoreboard; pause any single one or the whole schedule. Results are stored locally; it's the only feature that makes outbound calls — using API keys you provide, off by default.
 - **Agent activity log** — a local-only dashboard (no IP logged) of which AI agents and crawlers fetch your endpoints; repeat hits are grouped with a count, newest first.
 - **Activity to review** — flags new, unusually high-volume, or spoofed/scanner clients in a nav-bar review queue, each with one-click **Block** (or **Allow**/trust). Pairs with the opt-in *Block scanners & scrapers* enforcement in Settings.
@@ -154,8 +154,9 @@ Supported output-shaping filters; signatures may evolve between releases.
 | `agentimus_topic_exclude` | filter | `( string[] $slugs ): string[]` | Topic/category slugs to omit from the llms.txt Topics list and per-page derived topics. |
 | `agentimus_derive_taxonomies` | filter | `( string[] $taxonomies, WP_Post $post ): string[]` | Which taxonomies auto-fill a post's Topics for AI (default `category`, `post_tag`). A vendor adds e.g. `product_cat`; terms flow through the derive toggle, exclude list and cap. |
 | `agentimus_post_topics` | filter | `( string[] $topics, WP_Post $post ): string[]` | Add or refine a post's Topics-for-AI list (→ JSON-LD `keywords` + Markdown). Re-normalised after (deduped, capped). |
-| `agentimus_topic_links` | filter | `( string[] $urls, string $topic, WP_Post $post ): string[]` | Reference URLs (Wikidata, Wikipedia…) for a topic → schema.org `about` `sameAs`. Core supplies none (no front-end lookups); you map them. Drop-in example: [`topic-links-wikidata.php`](examples/topic-links-wikidata.php). |
+| `agentimus_topic_links` | filter | `( string[] $urls, string $topic, WP_Post $post ): string[]` | Reference URLs (Wikidata, Wikipedia…) for a topic → schema.org `about` `sameAs`. Core supplies none (no automatic lookups); you map them. Drop-in example: [`topic-links-wikidata.php`](examples/topic-links-wikidata.php). |
 | `agentimus_topic_suggestions` | filter | `( string[] $pool ): string[]` | The autocomplete pool in the editor's Topics-for-AI box (default: used topics + tags/categories + Expertise). |
+| `agentimus_topic_meaningful` | filter | `( bool $meaningful, string $name, ?object $term ): bool` | Whether an auto-derived taxonomy term becomes a topic. Default drops purely-numeric names ("67", stray IDs); return `true` to keep a number that really is the subject (e.g. "1984"). |
 | `agentimus_llms_full_item_max_bytes` | filter | `( int $bytes ): int` | Per-item byte cap for the llms-full.txt edition. |
 | `agentimus_llms_full_avg_item_bytes` | filter | `( int $bytes ): int` | Average item size used to estimate llms-full.txt in the admin. |
 | `agentimus_yield_surface` | filter | `( bool $yield, string $surface ): bool` | Cede a surface (`llms_txt`, `robots`, …) to your own producer. |

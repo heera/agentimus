@@ -2,8 +2,10 @@
 /**
  * Schema::build_document() — the graph assembler shared by the front-end output
  * and the admin JSON-LD preview. Proves the two target shapes (site vs post), the
- * services-placement rule, and that the per-post privacy guard still holds when a
- * post is built directly (the preview path), not just via output().
+ * services-placement rule, that the per-post privacy guard still holds when a post
+ * is built directly (the preview path), and that the preview flag relaxes only the
+ * publish-status half of that guard (draft → would-be node) while password gating
+ * still holds.
  *
  * @package Agentimus\Tests
  */
@@ -125,6 +127,24 @@ final class SchemaPreviewTest extends TestCase {
 
 	public function test_password_protected_post_yields_site_nodes_only() {
 		$types = $this->types( $this->schema()->build_document( $this->post( array( 'post_password' => 'secret' ) ), false ) );
+		$this->assertContains( 'WebSite', $types );
+		$this->assertNotContains( 'BlogPosting', $types );
+	}
+
+	/* -- Preview relaxes ONLY the publish-status guard -------------------- */
+
+	public function test_preview_includes_would_be_node_for_draft() {
+		// preview = true → the admin preview shows the per-post node a draft WILL emit
+		// once published, so the owner can check it before publishing.
+		$types = $this->types( $this->schema()->build_document( $this->post( array( 'post_status' => 'draft' ) ), false, true ) );
+		$this->assertContains( 'BlogPosting', $types );
+		$this->assertContains( 'BreadcrumbList', $types );
+	}
+
+	public function test_preview_still_excludes_password_protected_post() {
+		// The password guard is never relaxed — a gated body stays private even once
+		// published, so the preview must not fabricate a would-be node for it.
+		$types = $this->types( $this->schema()->build_document( $this->post( array( 'post_password' => 'secret' ) ), false, true ) );
 		$this->assertContains( 'WebSite', $types );
 		$this->assertNotContains( 'BlogPosting', $types );
 	}

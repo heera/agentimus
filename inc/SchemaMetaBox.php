@@ -80,7 +80,9 @@ final class SchemaMetaBox {
 	public function render_meta_box( $post ) {
 		$schema = new Schema( $this->settings );
 		$seo    = $schema->seo_plugin_active();
-		$doc    = $schema->build_document( $post, false );
+		// preview = true: show a draft/scheduled post's would-be node, matching the
+		// central JSON-LD tab. The front end still gates it; this box is owner-only.
+		$doc = $schema->build_document( $post, false, true );
 
 		$obj  = get_post_type_object( $post->post_type );
 		$noun = ( $obj && ! empty( $obj->labels->singular_name ) ) ? strtolower( $obj->labels->singular_name ) : $post->post_type;
@@ -98,20 +100,22 @@ final class SchemaMetaBox {
 				. '</p>';
 		}
 
-		// Why a draft / protected post shows only the site-level identity.
-		if ( 'publish' !== $post->post_status ) {
+		// A password-protected post never ships per-post schema — even the preview
+		// shows only the site identity, so check it first (it holds whatever the
+		// publish status). A draft/scheduled post DOES get a would-be node below.
+		if ( '' !== (string) $post->post_password ) {
+			echo '<p class="agentimus-schema-box__note">'
+				. esc_html__( 'This is password-protected, so its content is never exposed as schema — only the site-wide identity below.', 'agentimus' )
+				. '</p>';
+		} elseif ( 'publish' !== $post->post_status ) {
 			echo '<p class="agentimus-schema-box__note">'
 				. esc_html(
 					sprintf(
 						/* translators: %s: the content type in lowercase, e.g. "post", "page". */
-						__( 'This %s isn’t published, so it carries no per-post schema yet — only the site-wide identity below.', 'agentimus' ),
+						__( 'This %s isn’t published yet — below is a preview of the per-post schema it will emit once you publish. It isn’t in your live page’s <head> yet.', 'agentimus' ),
 						$noun
 					)
 				)
-				. '</p>';
-		} elseif ( '' !== (string) $post->post_password ) {
-			echo '<p class="agentimus-schema-box__note">'
-				. esc_html__( 'This is password-protected, so its content is never exposed as schema — only the site-wide identity below.', 'agentimus' )
 				. '</p>';
 		}
 

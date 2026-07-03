@@ -72,6 +72,55 @@ final class TopicsTest extends TestCase {
 		$this->assertSame( array( 'News', 'WordPress' ), Topics::for_post( 2 ) );
 	}
 
+	/* -- Junk numeric terms never become AI topics ------------------------ */
+
+	public function test_purely_numeric_derived_terms_are_skipped() {
+		$this->fixture(
+			20,
+			array( Topics::META_DERIVE => '1' ),
+			array( 'category' => array( '67', 'WordPress' ), 'post_tag' => array( '68' ) )
+		);
+		// "67" / "68" are junk/placeholder category names — dropped; the real term stays.
+		$this->assertSame( array( 'WordPress' ), Topics::for_post( 20 ) );
+	}
+
+	public function test_manually_typed_number_is_kept_as_a_topic() {
+		// A number the owner TYPED is explicit intent — the derive-only guard never
+		// touches the manual list.
+		$this->fixture( 21, array( Topics::META_TOPICS => array( '1984' ), Topics::META_DERIVE => '0' ) );
+		$this->assertSame( array( '1984' ), Topics::for_post( 21 ) );
+	}
+
+	public function test_meaningful_filter_can_reinclude_numeric_terms() {
+		\add_filter( 'agentimus_topic_meaningful', static function () { return true; } );
+		$this->fixture( 22, array( Topics::META_DERIVE => '1' ), array( 'category' => array( '1984' ) ) );
+		$this->assertSame( array( '1984' ), Topics::for_post( 22 ) );
+	}
+
+	public function test_suggestions_never_offer_a_bare_number() {
+		// The editor's own autocomplete must not suggest junk like "67". Inject a pool
+		// via the public filter (runs after the term/meta scan) and assert it's dropped.
+		\add_filter(
+			'agentimus_topic_suggestions',
+			static function () {
+				return array( 'PHP', '67', '1984', 'WordPress' );
+			}
+		);
+		$out = Topics::suggestions();
+		$this->assertContains( 'PHP', $out );
+		$this->assertContains( 'WordPress', $out );
+		$this->assertNotContains( '67', $out );
+		$this->assertNotContains( '1984', $out );
+	}
+
+	public function test_is_meaningful_topic_name_rules() {
+		$this->assertTrue( Topics::is_meaningful_topic_name( 'PHP' ) );
+		$this->assertTrue( Topics::is_meaningful_topic_name( 'Web3' ) );  // has letters
+		$this->assertFalse( Topics::is_meaningful_topic_name( '67' ) );
+		$this->assertFalse( Topics::is_meaningful_topic_name( '3.14' ) ); // digits + separators
+		$this->assertFalse( Topics::is_meaningful_topic_name( '  ' ) );   // blank
+	}
+
 	public function test_manual_and_derived_merge_dedupe_case_insensitively() {
 		$this->fixture(
 			3,

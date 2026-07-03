@@ -291,6 +291,11 @@ final class LlmsText {
 			if ( in_array( $cat->slug, (array) $exclude, true ) ) {
 				continue;
 			}
+			// Skip junk/placeholder categories that are just a number ("67", a stray
+			// ID) — same rule the per-post topics use, so the site directory stays clean.
+			if ( ! Topics::is_meaningful_topic_name( $cat->name, $cat ) ) {
+				continue;
+			}
 			$desc = $this->text( $cat->description );
 			if ( '' === $desc ) {
 				/* translators: %s: number of posts. */

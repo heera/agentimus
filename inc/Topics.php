@@ -222,12 +222,46 @@ final class Topics {
 				continue;
 			}
 			foreach ( (array) $terms as $term ) {
-				if ( is_object( $term ) && ! in_array( $term->slug, $exclude, true ) ) {
+				if ( ! is_object( $term ) || in_array( $term->slug, $exclude, true ) ) {
+					continue;
+				}
+				if ( self::is_meaningful_topic_name( $term->name, $term ) ) {
 					$names[] = $term->name;
 				}
 			}
 		}
 		return $names;
+	}
+
+	/**
+	 * Whether a TAXONOMY-DERIVED term name is worth surfacing as an AI topic. Default:
+	 * drop a name that is only digits and separators — a placeholder/junk category like
+	 * "67", a stray numeric ID, a bare year used as a noise category. Such a value tells
+	 * an assistant nothing (a wrong keyword is worse than a missing one), and no site
+	 * owner should have to hunt these down for clean output. Applies only to the
+	 * auto-derive paths (per-post {@see derived()} and the site-level llms.txt category
+	 * list) — a manually typed topic is explicit intent and is never filtered here. It
+	 * is overridable for the rare site where a number really is the subject.
+	 *
+	 * @param string $name Term name.
+	 * @param object $term Term object (for filter context).
+	 * @return bool
+	 */
+	public static function is_meaningful_topic_name( $name, $term = null ) {
+		$name       = trim( (string) $name );
+		$meaningful = '' !== $name && ! preg_match( '/^[\d\s.,\/-]+$/', $name );
+
+		/**
+		 * Filter whether an auto-derived taxonomy term becomes an AI topic. Default
+		 * false for a purely-numeric name (junk/placeholder categories, stray IDs).
+		 * Return true to keep a numeric term — e.g. a history or film site where "1984"
+		 * is genuinely the subject.
+		 *
+		 * @param bool   $meaningful Whether to keep the term as a topic.
+		 * @param string $name       The term name.
+		 * @param object $term       The term object (may be null).
+		 */
+		return (bool) apply_filters( 'agentimus_topic_meaningful', $meaningful, $name, $term );
 	}
 
 	/**
@@ -326,13 +360,32 @@ final class Topics {
 		foreach ( Content::post_types() as $type ) {
 			add_meta_box(
 				'agentimus-topics',
-				__( 'Topics for AI', 'agentimus' ),
+				self::meta_box_title( __( 'Topics for AI', 'agentimus' ) ),
 				array( $this, 'render_meta_box' ),
 				$type,
 				'side',
 				'default'
 			);
 		}
+	}
+
+	/**
+	 * A meta-box title prefixed with the Agentimus "A" mark, so an owner sees at a
+	 * glance which plugin owns the box. WordPress echoes meta-box titles as raw HTML,
+	 * so the inline SVG renders in the handle; it's decorative (aria-hidden) because
+	 * the text still labels the box. Same mark as the admin menu icon (Admin.php), in
+	 * the brand teal. A small size + the no-wrap rule in inline_css() keep it on one
+	 * line beside WordPress's own header controls in the narrow sidebar.
+	 *
+	 * @param string $text The plain-text title (already translated).
+	 * @return string
+	 */
+	private static function meta_box_title( $text ) {
+		$icon = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#146b64" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false" style="flex:none">'
+			. '<rect x="2.6" y="2.6" width="18.8" height="18.8" rx="5.4"/><path d="M8.4 16.6 12 8 15.6 16.6"/><path d="M9.9 13.6H14.1"/></svg>';
+		// Glue the mark + text into ONE inline-flex unit so the header's flex layout
+		// can't spread them apart, and so they read as a single left-aligned label.
+		return '<span style="display:inline-flex;align-items:center;gap:5px;white-space:nowrap">' . $icon . esc_html( $text ) . '</span>';
 	}
 
 	/**
@@ -348,16 +401,19 @@ final class Topics {
 
 		$manual   = self::manual( $post->ID );
 		$derive   = self::derive_enabled( $post->ID );
-		$resolved = self::for_post( $post );
 
-		// Seed for the client-side live preview: the manual list, the page's derived
-		// tags/categories, and the same cap/length limits the resolver applies.
+		// Seed for the client-side chip editor: the manual list, the page's derived
+		// tags/categories, the cap/length limits the resolver applies, plus the derive
+		// taxonomies and exclude slugs so the block editor can live-sync the "auto"
+		// chips as terms are added/removed (see the live-sync block in inline_js).
 		$config = wp_json_encode(
 			array(
-				'manual'  => array_values( $manual ),
-				'derived' => array_values( self::derived_topics( $post ) ),
-				'cap'     => self::cap(),
-				'maxLen'  => self::MAX_LEN,
+				'manual'    => array_values( $manual ),
+				'derived'   => array_values( self::derived_topics( $post ) ),
+				'cap'       => self::cap(),
+				'maxLen'    => self::MAX_LEN,
+				'deriveTax' => array_values( self::derive_taxonomies( $post ) ),
+				'exclude'   => array_values( (array) apply_filters( 'agentimus_topic_exclude', array( 'uncategorized' ) ) ),
 			)
 		);
 
@@ -391,13 +447,6 @@ final class Topics {
 				. checked( $derive, true, false ) . ' /> '
 				. esc_html__( 'Also include all tags & categories', 'agentimus' ) . '</label></p>';
 		}
-
-		echo '<p class="description agentimus-topics__preview">' . esc_html__( 'Will be emitted:', 'agentimus' )
-			. ' <span class="agentimus-topics__preview-value" data-empty="' . esc_attr__( 'nothing yet', 'agentimus' ) . '">'
-			. ( empty( $resolved )
-				? '<em>' . esc_html__( 'nothing yet', 'agentimus' ) . '</em>'
-				: esc_html( implode( ', ', $resolved ) ) )
-			. '</span></p>';
 
 		// Autocomplete from a consistent vocabulary — the chip input references this
 		// via `list` (see inline_js), so the browser suggests as the author types.
@@ -444,16 +493,133 @@ final class Topics {
 	}
 
 	/**
-	 * The chip-editor + live-preview enhancement script. Self-contained vanilla JS:
-	 * turns .agentimus-topics__raw into chips, keeps the (hidden) textarea in sync
-	 * for submission, and recomputes the "Will be emitted" preview — manual ∪
-	 * derived seed, deduped case-insensitively and capped — mirroring for_post().
+	 * The chip-editor enhancement script. Self-contained vanilla JS: turns
+	 * .agentimus-topics__raw into a chip strip (manual chips you can remove, plus
+	 * tag/category "auto" chips when derivation is on) and keeps the hidden textarea in
+	 * sync for submission.
 	 *
 	 * @return string
 	 */
 	private static function inline_js() {
 		return <<<'JS'
-(function(){var root=document.querySelector('.agentimus-topics');if(!root){return;}var cfg;try{cfg=JSON.parse(root.getAttribute('data-config')||'{}');}catch(e){return;}var textarea=root.querySelector('.agentimus-topics__raw');var checkbox=root.querySelector('input[name="agentimus_topics_derive"]');var preview=root.querySelector('.agentimus-topics__preview-value');if(!textarea){return;}var cap=cfg.cap>0?cfg.cap:12;var maxLen=cfg.maxLen>0?cfg.maxLen:60;var derived=Array.isArray(cfg.derived)?cfg.derived:[];var empty=preview?(preview.getAttribute('data-empty')||'nothing yet'):'nothing yet';function clean(s){return String(s).replace(/<[^>]*>/g,'').replace(/\s+/g,' ').trim().slice(0,maxLen);}function splitList(str){return String(str||'').split(/[\r\n,]+/).map(clean).filter(Boolean);}function normalize(list){var out=[],seen={};for(var i=0;i<list.length;i++){var item=clean(list[i]);if(!item){continue;}var key=item.toLowerCase();if(seen[key]){continue;}seen[key]=true;out.push(item);if(out.length>=cap){break;}}return out;}var manual=normalize(splitList(textarea.value));var editor=document.createElement('div');editor.className='agentimus-topics__chips';var input=document.createElement('input');input.type='text';input.className='agentimus-topics__input';input.id='agentimus-topics-chipinput';input.setAttribute('placeholder',textarea.getAttribute('placeholder')||'');if(document.getElementById('agentimus-topics-suggest')){input.setAttribute('list','agentimus-topics-suggest');}textarea.style.display='none';textarea.setAttribute('tabindex','-1');textarea.setAttribute('aria-hidden','true');textarea.parentNode.insertBefore(editor,textarea);editor.appendChild(input);function syncTextarea(){textarea.value=manual.join(', ');}function updatePreview(){if(!preview){return;}var derive=checkbox?checkbox.checked:false;var merged=normalize(manual.concat(derive?derived:[]));if(merged.length){preview.textContent=merged.join(', ');}else{preview.innerHTML='<em></em>';preview.firstChild.textContent=empty;}}function renderChips(){var chips=editor.querySelectorAll('.agentimus-topics__chip');for(var i=0;i<chips.length;i++){chips[i].parentNode.removeChild(chips[i]);}manual.forEach(function(topic,idx){var chip=document.createElement('span');chip.className='agentimus-topics__chip';var text=document.createElement('span');text.className='agentimus-topics__chip-text';text.textContent=topic;var x=document.createElement('button');x.type='button';x.className='agentimus-topics__chip-remove';x.setAttribute('aria-label','Remove '+topic);x.textContent='×';x.addEventListener('click',function(){removeAt(idx);});chip.appendChild(text);chip.appendChild(x);editor.insertBefore(chip,input);});}function commit(){syncTextarea();renderChips();updatePreview();}function removeAt(idx){manual.splice(idx,1);commit();}function addFromInput(){var parts=splitList(input.value);if(parts.length){manual=normalize(manual.concat(parts));input.value='';commit();}}input.addEventListener('keydown',function(e){if('Enter'===e.key||','===e.key){e.preventDefault();addFromInput();}else if('Backspace'===e.key&&''===input.value&&manual.length){removeAt(manual.length-1);}});input.addEventListener('blur',addFromInput);editor.addEventListener('click',function(e){if(e.target===editor){input.focus();}});if(checkbox){checkbox.addEventListener('change',updatePreview);}commit();})();
+(function(){
+  var root = document.querySelector('.agentimus-topics');
+  if (!root) { return; }
+  var cfg; try { cfg = JSON.parse(root.getAttribute('data-config') || '{}'); } catch (e) { return; }
+  var textarea = root.querySelector('.agentimus-topics__raw');
+  var checkbox = root.querySelector('input[name="agentimus_topics_derive"]');
+  if (!textarea) { return; }
+
+  var cap    = cfg.cap > 0 ? cfg.cap : 12;
+  var maxLen = cfg.maxLen > 0 ? cfg.maxLen : 60;
+  var derived = Array.isArray(cfg.derived) ? cfg.derived : [];
+  var showAuto = checkbox ? checkbox.checked : false;
+
+  function lc(s){ return String(s).toLowerCase(); }
+  function clean(s){ return String(s).replace(/<[^>]*>/g,'').replace(/\s+/g,' ').trim().slice(0,maxLen); }
+  function splitList(str){ return String(str||'').split(/[\r\n,]+/).map(clean).filter(Boolean); }
+  function normalize(list){ var out=[],seen={}; for(var i=0;i<list.length;i++){ var item=clean(list[i]); if(!item){continue;} var key=item.toLowerCase(); if(seen[key]){continue;} seen[key]=true; out.push(item); if(out.length>=cap){break;} } return out; }
+
+  var manual = normalize(splitList(textarea.value));
+
+  // ---- chip editor (progressive enhancement of the textarea) ----
+  var editor = document.createElement('div');
+  editor.className = 'agentimus-topics__chips';
+  var input = document.createElement('input');
+  input.type = 'text';
+  input.className = 'agentimus-topics__input';
+  input.id = 'agentimus-topics-chipinput';
+  input.setAttribute('placeholder', textarea.getAttribute('placeholder') || '');
+  if (document.getElementById('agentimus-topics-suggest')) { input.setAttribute('list','agentimus-topics-suggest'); }
+  textarea.style.display = 'none';
+  textarea.setAttribute('tabindex','-1');
+  textarea.setAttribute('aria-hidden','true');
+  textarea.parentNode.insertBefore(editor, textarea);
+  editor.appendChild(input);
+
+  function syncTextarea(){ textarea.value = manual.join(', '); }
+
+  // The unified topic set: manual chips, then tag/category ("auto") chips when the
+  // derive box is on. Auto chips a manual entry already covers are dropped (dedupe).
+  function currentTopics(){
+    var out = manual.map(function(n){ return { name:n, kind:'manual' }; });
+    if (showAuto) {
+      var seen = {}; manual.forEach(function(n){ seen[lc(n)] = 1; });
+      derived.forEach(function(n){ var k = lc(n); if (!seen[k]) { seen[k] = 1; out.push({ name:n, kind:'auto' }); } });
+    }
+    return out;
+  }
+
+  function renderChips(){
+    var chips = editor.querySelectorAll('.agentimus-topics__chip');
+    for (var i=0;i<chips.length;i++){ chips[i].parentNode.removeChild(chips[i]); }
+    currentTopics().forEach(function(t){
+      var chip = document.createElement('span');
+      chip.className = 'agentimus-topics__chip' + (t.kind==='auto' ? ' is-auto' : '');
+      var text = document.createElement('span'); text.className='agentimus-topics__chip-text'; text.textContent = t.name; chip.appendChild(text);
+      if (t.kind==='auto') {
+        var badge = document.createElement('span'); badge.className='agentimus-topics__chip-auto'; badge.textContent='auto'; chip.appendChild(badge);
+      } else {
+        var x = document.createElement('button'); x.type='button'; x.className='agentimus-topics__chip-remove'; x.setAttribute('aria-label','Remove ' + t.name); x.textContent='×';
+        x.addEventListener('click', function(){ removeTopic(t.name); });
+        chip.appendChild(x);
+      }
+      editor.insertBefore(chip, input);
+    });
+  }
+
+  function commit(){ syncTextarea(); renderChips(); }
+  function removeTopic(name){ manual = manual.filter(function(n){ return n !== name; }); commit(); }
+  function addFromInput(){ var parts = splitList(input.value); if (parts.length) { manual = normalize(manual.concat(parts)); input.value=''; commit(); } }
+
+  input.addEventListener('keydown', function(e){
+    if ('Enter'===e.key || ','===e.key) { e.preventDefault(); addFromInput(); }
+    else if ('Backspace'===e.key && ''===input.value && manual.length) { removeTopic(manual[manual.length-1]); }
+  });
+  input.addEventListener('blur', addFromInput);
+  editor.addEventListener('click', function(e){ if (e.target===editor) { input.focus(); } });
+  if (checkbox) { checkbox.addEventListener('change', function(){ showAuto = checkbox.checked; commit(); }); }
+  commit();
+
+  // Live-sync the tag/category "auto" chips with the block editor as you add or remove
+  // terms — no save/refresh. Block editor only (needs wp.data); the classic editor keeps
+  // the on-load snapshot, and a non-core derive taxonomy still refreshes on save. Mirrors
+  // the server's default rules (excluded slugs + purely-numeric names skipped); the SAVED
+  // output is always the authoritative server value.
+  (function(){
+    var attrFor = { category: 'categories', post_tag: 'tags' };
+    var watch = (Array.isArray(cfg.deriveTax) ? cfg.deriveTax : []).filter(function(t){ return attrFor[t]; });
+    if (!watch.length) { return; }
+    var exclude = {}; (Array.isArray(cfg.exclude) ? cfg.exclude : []).forEach(function(s){ exclude[String(s).toLowerCase()] = 1; });
+    function compute(){
+      if (!(window.wp && wp.data && wp.data.select)) { return null; }
+      var ed = wp.data.select('core/editor'), core = wp.data.select('core');
+      if (!ed || !core || !ed.getEditedPostAttribute) { return null; }
+      var names = [];
+      watch.forEach(function(tax){
+        (ed.getEditedPostAttribute(attrFor[tax]) || []).forEach(function(id){
+          var rec = core.getEntityRecord('taxonomy', tax, id);
+          if (!rec || !rec.name) { return; }
+          if (exclude[String(rec.slug || '').toLowerCase()]) { return; }
+          if (/^[\d\s.,\/-]+$/.test(String(rec.name).trim())) { return; }
+          names.push(rec.name);
+        });
+      });
+      return names;
+    }
+    var lastKey = derived.slice().sort().join('');
+    function start(tries){
+      if (!(window.wp && wp.data && wp.data.subscribe)) { if (tries > 0) { setTimeout(function(){ start(tries - 1); }, 300); } return; }
+      wp.data.subscribe(function(){
+        var next = compute();
+        if (!next) { return; }
+        var key = next.slice().sort().join('');
+        if (key !== lastKey) { lastKey = key; derived = next; if (showAuto) { renderChips(); } }
+      });
+    }
+    start(20);
+  })();
+})();
 JS;
 	}
 
@@ -463,17 +629,19 @@ JS;
 	 * @return string
 	 */
 	private static function inline_css() {
-		return '.agentimus-topics__chips{display:flex;flex-wrap:wrap;gap:4px;align-items:center;padding:4px;min-height:34px;border:1px solid #8c8f94;border-radius:4px;background:#fff;cursor:text}'
+		// Keep the "A" mark + title on one line beside WP's own header controls
+		// (move up/down + collapse) in the narrow sidebar, instead of wrapping.
+		return '#agentimus-topics .hndle{white-space:nowrap}'
+			. '.agentimus-topics__chips{display:flex;flex-wrap:wrap;gap:5px;align-items:center;padding:5px;min-height:36px;border:1px solid #8c8f94;border-radius:4px;background:#fff;cursor:text}'
 			. '.agentimus-topics__chips:focus-within{border-color:#2271b1;box-shadow:0 0 0 1px #2271b1}'
-			. '.agentimus-topics__chip{display:inline-flex;align-items:center;gap:2px;background:#f0f0f1;border:1px solid #dcdcde;border-radius:3px;padding:1px 2px 1px 8px;font-size:12px;line-height:1.8}'
-			. '.agentimus-topics__chip-remove{border:0;background:transparent;cursor:pointer;font-size:15px;line-height:1;color:#646970;padding:0 3px}'
+			. '.agentimus-topics__chip{display:inline-flex;align-items:center;gap:5px;background:#f0f0f1;border:1px solid #dcdcde;border-radius:3px;padding:2px 4px 2px 8px;font-size:12px;line-height:1.7;color:#2c3338}'
+			. '.agentimus-topics__chip.is-auto{background:#f4f1fa;border-color:#ddd4ee;border-style:dashed;color:#5b5170}'
+			. '.agentimus-topics__chip-auto{font-size:9px;letter-spacing:.05em;text-transform:uppercase;color:#8073a6;background:#ece5f7;border-radius:3px;padding:1px 4px}'
+			. '.agentimus-topics__chip-remove{border:0;background:transparent;cursor:pointer;font-size:14px;line-height:1;color:#787c82;padding:0 2px;border-radius:2px}'
 			. '.agentimus-topics__chip-remove:hover{color:#d63638}'
-			// flex-basis:100% forces the input onto its own row below the chips, always.
-			// The scoped selector (and :focus) out-specifies WordPress admin's
-			// input[type=text] chrome, so it reads as one clean box, not a field-in-a-field.
-			. '.agentimus-topics__chips .agentimus-topics__input,.agentimus-topics__chips .agentimus-topics__input:focus{flex:1 0 100%;min-width:0;margin:0;border:0;outline:0;box-shadow:none;background:transparent;min-height:0;padding:3px 2px;font-size:13px;color:inherit}'
-			. '.agentimus-topics__preview{margin-top:8px}'
-			. '.agentimus-topics__preview-value{font-style:normal}';
+			// The chip-add input sits on its own row below the chips (flex-basis:100%);
+			// the scoped selector out-specifies WordPress admin input chrome.
+			. '.agentimus-topics__chips .agentimus-topics__input,.agentimus-topics__chips .agentimus-topics__input:focus{flex:1 0 100%;min-width:0;margin:0;border:0;outline:0;box-shadow:none;background:transparent;min-height:0;padding:3px 2px;font-size:13px;color:inherit}';
 	}
 
 	/**
@@ -637,6 +805,11 @@ JS;
 		foreach ( (array) $pool as $item ) {
 			$item = trim( wp_strip_all_tags( (string) $item ) );
 			if ( '' === $item ) {
+				continue;
+			}
+			// Never SUGGEST a bare number ("67", a stray ID) as a topic — same rule the
+			// derived/emitted topics use, so the editor's own autocomplete stays clean.
+			if ( ! self::is_meaningful_topic_name( $item ) ) {
 				continue;
 			}
 			$key = strtolower( $item );

@@ -28,8 +28,8 @@ export default {
       error: '',
       // Which format the viewer shows for the selected target.
       format: 'jsonld',   // 'jsonld' | 'markdown'
-      result: null,       // JSON-LD: { target, graph, json, active, reason, seoPlugin, postIncluded, postNote }
-      mdResult: null,     // Markdown: { target, markdown, mdUrl, active, reason, postIncluded, postNote }
+      result: null,       // JSON-LD: { target, graph, json, active, reason, seoPlugin, postIncluded, postNote, livePublic }
+      mdResult: null,     // Markdown: { target, markdown, mdUrl, active, reason, postIncluded, postNote, livePublic }
       // The pickable posts/pages (the "Site" entry is rendered separately, pinned).
       targets: [],
       targetsLoading: false,
@@ -86,9 +86,12 @@ export default {
           text: 'An SEO plugin currently owns your schema, so Agentimus stands down to avoid duplicates. This is what Agentimus would emit instead.',
         };
       }
-      // "Served live" only makes sense for a target that actually has a .md — not
-      // the site or a draft; there the postNote carries the explanation instead.
+      // The reassuring "served/live" banner only fits a target actually emitting
+      // live: markdown needs a real .md (postIncluded), and a JSON-LD draft preview
+      // is a would-be node that isn't live yet (livePublic false). In those cases the
+      // postNote carries the explanation instead.
       if (md && !this.res.postIncluded) return null;
+      if (!md && !this.res.livePublic) return null;
       return {
         tone: 'good',
         text: md
@@ -97,9 +100,11 @@ export default {
       };
     },
     // A public, fetchable URL exists only for the site or a published (non-gated)
-    // post — the only cases the URL-based validators can actually read.
+    // post — the only cases the URL-based validators can actually read. A draft's
+    // would-be node is previewable but its URL 404s, so livePublic (not postIncluded)
+    // is the right gate here.
     hasPublicUrl() {
-      return !!(this.res && (this.res.target.type === 'site' || this.res.postIncluded));
+      return !!(this.res && this.res.livePublic);
     },
     // The URL-based validators reflect the LIVE page, so they're only meaningful
     // when Agentimus is actually emitting there. Otherwise we steer to copy-paste.

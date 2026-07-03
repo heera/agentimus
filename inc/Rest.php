@@ -140,6 +140,7 @@ final class Rest {
 				),
 			)
 		);
+
 	}
 
 	/**
@@ -235,9 +236,12 @@ final class Rest {
 	 * Returns the graph regardless of whether the front end is currently emitting
 	 * it (schema disabled, or an SEO plugin owns it): the point of a preview is to
 	 * show what WOULD ship. The `active`/`reason` fields let the UI explain when the
-	 * live `<head>` is empty. The per-post privacy guard still applies — a draft or
-	 * password-protected post yields only the site-level nodes, with `postNote`
-	 * saying why.
+	 * live `<head>` is empty. An unpublished post (draft/pending/scheduled/private)
+	 * is previewed with its would-be per-post node — flagged by `postNote` as not yet
+	 * live — so the owner sees what publishing will emit. A password-protected post
+	 * is the one exception: its body never ships as schema, so it still yields only
+	 * the site-level nodes. `livePublic` marks whether the target is reachable at a
+	 * public URL right now, gating the URL-based validators.
 	 *
 	 * @param \WP_REST_Request $request Request.
 	 * @return \WP_REST_Response|\WP_Error
@@ -251,6 +255,7 @@ final class Rest {
 		$post          = null;
 		$post_included = true;
 		$post_note     = '';
+		$live_public   = true; // The site view is always reachable at a public URL.
 		$target        = array(
 			'type'  => 'site',
 			'id'    => 0,
@@ -273,19 +278,23 @@ final class Rest {
 				'label' => $this->preview_label( $post ),
 				'url'   => (string) get_permalink( $post ),
 			);
-			// Mirror the front-end guard so the note explains an identity-only graph.
-			if ( 'publish' !== $post->post_status ) {
-				$post_included = false;
-				$post_note     = __( 'This isn’t published, so it carries no per-post schema yet — only the site-wide identity below.', 'agentimus' );
-			} elseif ( '' !== (string) $post->post_password ) {
+			// Only a published, non-gated post is reachable at a public URL — the
+			// precondition for the URL-based validators (a draft URL would 404).
+			$live_public = ( 'publish' === $post->post_status && '' === (string) $post->post_password );
+			if ( '' !== (string) $post->post_password ) {
+				// Never previewed: a gated body stays private even once published.
 				$post_included = false;
 				$post_note     = __( 'This is password-protected, so its content is never exposed as schema — only the site-wide identity below.', 'agentimus' );
+			} elseif ( 'publish' !== $post->post_status ) {
+				// Preview the node this post WILL emit once it's published — clearly
+				// flagged as not-yet-live so the owner doesn't mistake it for live output.
+				$post_note = __( 'Not published yet — this is a preview of the per-post schema that will ship once you publish. It isn’t in your live page’s <head> yet.', 'agentimus' );
 			}
 		}
 
 		$doc = ( null === $post )
 			? $schema->build_document( null, true )
-			: $schema->build_document( $post, false );
+			: $schema->build_document( $post, false, true );
 
 		return rest_ensure_response(
 			array(
@@ -295,6 +304,7 @@ final class Rest {
 				'target'       => $target,
 				'postIncluded' => (bool) $post_included,
 				'postNote'     => $post_note,
+				'livePublic'   => (bool) $live_public,
 				'graph'        => $doc,
 				// Pretty, slash-unescaped JSON for reading/validating. The live <head>
 				// escapes slashes to stay safe inside <script>; the data is identical.
@@ -332,6 +342,7 @@ final class Rest {
 					),
 					'postIncluded' => false,
 					'postNote'     => __( 'Markdown is generated per page — pick a page or post to preview its Markdown.', 'agentimus' ),
+					'livePublic'   => true, // The site home URL is public (though it has no .md).
 					'markdown'     => '',
 					'mdUrl'        => '',
 				)
@@ -358,6 +369,9 @@ final class Rest {
 		$post_note     = '';
 		$markdown      = '';
 		$md_url        = '';
+		// Markdown is genuine served content (no "would-be" preview), so a public URL
+		// exists only for a published, non-gated post — same rule as the schema path.
+		$live_public = ( 'publish' === $post->post_status && '' === (string) $post->post_password );
 
 		if ( 'publish' !== $post->post_status ) {
 			$post_included = false;
@@ -379,6 +393,7 @@ final class Rest {
 				'target'       => $target,
 				'postIncluded' => (bool) $post_included,
 				'postNote'     => $post_note,
+				'livePublic'   => (bool) $live_public,
 				'markdown'     => (string) $markdown,
 				'mdUrl'        => $md_url,
 			)

@@ -123,6 +123,9 @@ namespace {
 	if ( ! function_exists( 'get_transient' ) )         { function get_transient( $k ) { return false; } }
 	if ( ! function_exists( 'set_transient' ) )         { function set_transient( $k, $v, $t = 0 ) { return true; } }
 	if ( ! function_exists( 'delete_transient' ) )      { function delete_transient( $k ) { return true; } }
+	// Site-wide term query (used by Topics::suggestions() / LlmsText::topics()); empty
+	// unless a test seeds $GLOBALS['_af_get_terms'].
+	if ( ! function_exists( 'get_terms' ) )             { function get_terms( $args = array() ) { return isset( $GLOBALS['_af_get_terms'] ) ? $GLOBALS['_af_get_terms'] : array(); } }
 	if ( ! function_exists( 'wp_parse_args' ) )         { function wp_parse_args( $a, $d = array() ) { if ( is_object( $a ) ) { $a = get_object_vars( $a ); } elseif ( ! is_array( $a ) ) { $a = array(); } return array_merge( $d, $a ); } }
 	if ( ! function_exists( 'wp_json_encode' ) )        { function wp_json_encode( $d, $f = 0, $depth = 512 ) { return json_encode( $d, $f, $depth ); } }
 	if ( ! function_exists( 'trailingslashit' ) )       { function trailingslashit( $s ) { return rtrim( (string) $s, '/\\' ) . '/'; } }

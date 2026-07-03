@@ -89,15 +89,22 @@ final class Schema {
 	 * ({@see output()}) applies the enable/defer checks before calling this, while
 	 * the admin preview ({@see Rest}) wants the graph regardless, so it can show the
 	 * owner exactly what WOULD ship. The per-post privacy guard (published, not
-	 * password-protected) is intrinsic to the data, so it lives here.
+	 * password-protected) is intrinsic to the data, so it lives here — except that
+	 * $preview relaxes the publish-status half of it, so the admin preview can show a
+	 * not-yet-published post's would-be node ("here's what ships when you publish").
+	 * The password guard is NEVER relaxed: that body stays gated even once published,
+	 * so a full node would misrepresent what actually ships.
 	 *
 	 * @param \WP_Post|null $post             Post to describe, or null for the
 	 *                                        site-level (front-page) graph.
 	 * @param bool|null     $include_services Whether to add Service nodes; defaults to
 	 *                                        true for the site graph, false for a post.
+	 * @param bool          $preview          Admin preview: also emit the per-post node
+	 *                                        for an unpublished (draft/pending/future/
+	 *                                        private) post. Front-end callers omit this.
 	 * @return array|null The document, or null when the graph is empty.
 	 */
-	public function build_document( $post = null, $include_services = null ) {
+	public function build_document( $post = null, $include_services = null, $preview = false ) {
 		if ( null === $include_services ) {
 			$include_services = ( null === $post );
 		}
@@ -116,7 +123,10 @@ final class Schema {
 		// gates: a password-protected post (whose body Q&A would otherwise leak
 		// into the public FAQPage node) or a non-published status. Mirrors the
 		// guard in Markdown::post(); the site-level identity nodes above stand.
-		if ( $post && 'publish' === $post->post_status && '' === (string) $post->post_password ) {
+		// $preview relaxes only the publish-status half — the admin preview shows an
+		// unpublished post's would-be node — but a password-protected post is still
+		// excluded, since its body never ships as schema even once published.
+		if ( $post && '' === (string) $post->post_password && ( 'publish' === $post->post_status || $preview ) ) {
 			$node = $this->article_node( $post );
 			/**
 			 * Filter the per-post schema node. An add-on (e.g. WooCommerce) can
