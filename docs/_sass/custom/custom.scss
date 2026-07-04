@@ -113,6 +113,23 @@ $ag-measure:     64rem;   // content column cap — wide but still readable
   background-position: center;
 }
 
+// "By Sheikh Heera" byline, directly under the title. The header's own bottom
+// rule moves below the byline so title + byline read as one block.
+.site-header { border-bottom: none; }
+.site-byline {
+  width: 18rem;
+  padding: 0.15rem 1.5rem 0.75rem 2rem;
+  font-size: 0.78rem;
+  color: #6b7975;
+  border-bottom: 1px solid #eeebee;
+}
+.site-byline a {
+  color: $ag-accent;
+  font-weight: 600;
+  text-decoration: none;
+}
+.site-byline a:hover { text-decoration: underline; }
+
 // ---------------------------------------------------------------------------
 // 3. Content typography — quiet, professional.
 // ---------------------------------------------------------------------------

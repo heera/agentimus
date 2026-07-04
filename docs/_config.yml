@@ -25,7 +25,6 @@ search:
 heading_anchors: true
 
 aux_links:
-  "heera.it ↗": "https://heera.it"
   "GitHub ↗": "https://github.com/heera/agentimus"
 aux_links_new_tab: true
 
