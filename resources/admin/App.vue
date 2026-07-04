@@ -143,6 +143,7 @@ export default {
         enable_llms_txt: s.enable_llms_txt, enable_llms_full: s.enable_llms_full,
         enable_markdown: s.enable_markdown, enable_robots: s.enable_robots,
         enable_schema: s.enable_schema, enable_activity: s.enable_activity,
+        enable_page_checks: s.enable_page_checks,
         enable_sitemap: s.enable_sitemap, enable_security_txt: s.enable_security_txt,
         enable_signing: s.enable_signing, enable_webmcp: s.enable_webmcp, webmcp_hidden_tools: s.webmcp_hidden_tools,
         enable_topics: s.enable_topics, topics_derive_default: s.topics_derive_default, topics_max: s.topics_max,

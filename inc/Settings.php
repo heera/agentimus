@@ -32,6 +32,7 @@ final class Settings {
 			'topics_derive_default' => true, // Default for new posts: also derive topics from the page's tags & categories (a manual list still wins).
 			'topics_max'       => 12,    // Hard cap on emitted topics per page, to keep the machine surfaces lean.
 			'enable_activity'  => true,
+			'enable_page_checks' => true, // Editor-only "AI Readability" panel: per-page pass/warn checks (headings, summary, thin content, link density, image alt). No front-end output — an authoring aid — so it's safe on by default.
 			'enable_sitemap'   => true, // Gap-only fallback: stands down when core/SEO provides one, so it's safe on by default.
 			'enable_security_txt' => false, // Opt-in: generate /.well-known/security.txt only when asked AND no file/other plugin already provides one.
 			'enable_signing'   => true,     // On by default: RFC 9421 signatures on the discovery docs + a published Web Bot Auth key directory. Feature-detected — silently stands down when libsodium is unavailable, so it's safe as a default.
@@ -420,7 +421,7 @@ final class Settings {
 		$defaults = $this->defaults();
 		$clean    = array();
 
-		foreach ( array( 'enable_llms_txt', 'enable_llms_full', 'enable_markdown', 'enable_robots', 'enable_schema', 'enable_activity', 'enable_sitemap', 'enable_security_txt', 'enable_signing', 'hide_user_enumeration', 'disable_author_archives', 'hide_wp_version', 'tidy_head_links', 'disable_xmlrpc' ) as $flag ) {
+		foreach ( array( 'enable_llms_txt', 'enable_llms_full', 'enable_markdown', 'enable_robots', 'enable_schema', 'enable_activity', 'enable_page_checks', 'enable_sitemap', 'enable_security_txt', 'enable_signing', 'hide_user_enumeration', 'disable_author_archives', 'hide_wp_version', 'tidy_head_links', 'disable_xmlrpc' ) as $flag ) {
 			$clean[ $flag ] = ! empty( $input[ $flag ] );
 		}
 
