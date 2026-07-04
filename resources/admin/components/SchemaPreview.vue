@@ -630,13 +630,10 @@ export default {
 }
 .agentimus-jsonld__target-badge {
   text-transform: uppercase;
-  letter-spacing: .04em;
+  letter-spacing: .15em;
   font-size: 9px;
-  font-weight: 700;
-  padding: 1px 5px;
-  border-radius: 999px;
-  background: var(--ar-warn);
-  color: #fff;
+  font-weight: 600;
+  color: var(--ar-ink-soft);
 }
 
 /* Viewer ------------------------------------------------------------------ */
