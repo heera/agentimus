@@ -360,6 +360,9 @@ final class Envelope {
 		if ( $this->settings->enabled( 'enable_llms_full' ) ) {
 			$docs['llms_full'] = home_url( '/llms-full.txt' );
 		}
+		if ( $this->settings->enabled( 'enable_changes' ) ) {
+			$docs['changes'] = home_url( '/agentimus-changes.json' );
+		}
 		if ( file_exists( \Agentimus\Paths::site_root() . 'humans.txt' ) ) {
 			$docs['humans'] = home_url( '/humans.txt' );
 		}

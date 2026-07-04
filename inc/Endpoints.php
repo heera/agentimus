@@ -103,6 +103,15 @@ final class Endpoints {
 			$this->send( $this->llms->llms_full_txt(), 'text/plain', 'llms-full.txt' );
 		}
 
+		// The change feed: recently added/updated content as JSON, with a `?since=`
+		// delta filter. Freshness is the point, so it gets a short edge max-age.
+		if ( '/agentimus-changes.json' === $path && $this->settings->enabled( 'enable_changes' ) && ! $this->yields( 'changes' ) ) {
+			// Public, read-only endpoint: `since` is a filter value, not a state
+			// change, so no nonce applies.
+			$since = isset( $_GET['since'] ) ? sanitize_text_field( wp_unslash( $_GET['since'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+			$this->send( Changes::document( $this->settings, $since ), 'application/json', 'changes', 300 );
+		}
+
 		// The opt-in fallback sitemap (index + paginated sub-sitemaps) — served
 		// only while Agentimus actually owns the sitemap (core/SEO absent), so we
 		// never shadow another plugin's file.
@@ -172,8 +181,10 @@ final class Endpoints {
 	 * @param string $body         Response body.
 	 * @param string $content_type MIME type.
 	 * @param string $label        Activity-log endpoint label (empty = no log).
+	 * @param int    $max_age      Cache-Control max-age (seconds) for cacheable
+	 *                             (non-markdown) bodies. Defaults to one hour.
 	 */
-	private function send( $body, $content_type, $label = '' ) {
+	private function send( $body, $content_type, $label = '', $max_age = 3600 ) {
 		// Optional hard enforcement (opt-in): deny denylisted/spoofed agents before
 		// we serve — and before we record a hit, so a blocked request never appears
 		// in the log as though it were served.
@@ -194,8 +205,9 @@ final class Endpoints {
 				// Negotiated markdown shares a URL with HTML; never let it be cached.
 				header( 'Cache-Control: no-store, max-age=0' );
 			} else {
-				// Stable URLs (llms.txt, the sitemap) are safe to cache.
-				header( 'Cache-Control: public, max-age=3600' );
+				// Stable URLs (llms.txt, the sitemap) are safe to cache; the change
+				// feed passes a shorter max-age since freshness is its whole point.
+				header( 'Cache-Control: public, max-age=' . max( 0, (int) $max_age ) );
 			}
 		}
 
@@ -218,7 +230,7 @@ final class Endpoints {
 	 *         return in_array( $surface, array( 'llms_txt', 'markdown' ), true ) ? true : $yield;
 	 *     }, 10, 2 );
 	 *
-	 * @param string $surface One of: llms_txt, llms_full, markdown, link_headers, robots.
+	 * @param string $surface One of: llms_txt, llms_full, changes, markdown, link_headers, robots.
 	 * @return bool True if Agentimus must not handle this surface.
 	 */
 	private function yields( $surface ) {
@@ -226,7 +238,7 @@ final class Endpoints {
 		 * Cede an agent-readiness surface to another producer.
 		 *
 		 * @param bool   $yield   Whether Agentimus should stand down. Default false.
-		 * @param string $surface Surface key (llms_txt|llms_full|markdown|link_headers|robots).
+		 * @param string $surface Surface key (llms_txt|llms_full|changes|markdown|link_headers|robots).
 		 */
 		return (bool) apply_filters( 'agentimus_yield_surface', false, $surface );
 	}

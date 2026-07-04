@@ -15,6 +15,7 @@ final class Cache {
 
 	const LLMS_TXT  = 'agentimus_llms_txt';
 	const LLMS_FULL = 'agentimus_llms_full';
+	const CHANGES   = 'agentimus_changes'; // Cached item list for the /agentimus-changes.json feed.
 	const LLMS_FULL_STAT = 'agentimus_llms_full_stat'; // Last-generation status for /llms-full.txt (bytes/truncated/reason/items/generated_at).
 	const DISCOVERY = 'agentimus';
 	const SECURITY_TXT = 'agentimus_security_txt';
@@ -56,6 +57,7 @@ final class Cache {
 		delete_transient( self::LLMS_TXT );
 		delete_transient( self::LLMS_FULL );
 		delete_transient( self::LLMS_FULL_STAT );
+		delete_transient( self::CHANGES );
 		delete_transient( self::DISCOVERY );
 		delete_transient( self::SECURITY_TXT );
 		delete_transient( self::SITEMAP_GEN ); // Orphans every sub-sitemap transient.

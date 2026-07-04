@@ -74,6 +74,7 @@ final class Plugin {
 		Cache::register_flush_hooks();
 
 		( new Endpoints( $this->settings ) )->register();
+		( new Tombstones() )->register(); // Records removals for the change feed (self-gates on enable_changes).
 		( new Schema( $this->settings ) )->register();
 		( new SchemaMetaBox( $this->settings ) )->register();
 		( new Topics( $this->settings ) )->register();
