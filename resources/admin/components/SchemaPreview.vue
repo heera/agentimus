@@ -133,7 +133,7 @@ export default {
       const order = [];
       this.targets.forEach((t) => {
         if (!groups[t.type]) {
-          groups[t.type] = { type: t.type, label: t.typeLabel || t.type, items: [] };
+          groups[t.type] = { type: t.type, label: t.typeLabel || t.type, source: t.typeSource || '', items: [] };
           order.push(t.type);
         }
         groups[t.type].items.push(t);
@@ -318,7 +318,9 @@ export default {
 <template>
   <Teleport to="body">
     <transition name="ar-modal">
-      <div v-if="open" class="ar-modal" @click.self="close">
+      <!-- No backdrop-click-to-close: the preview is a working surface, so a stray
+           click outside the panel must not discard it. Close via the button or Esc. -->
+      <div v-if="open" class="ar-modal">
         <div
           ref="dialog"
           class="ar-modal__panel agentimus-jsonld__panel"
@@ -339,8 +341,17 @@ export default {
           <div class="ar-modal__body">
             <div class="ar-modal__scroll">
               <div class="agentimus-jsonld" :class="{ 'show-detail': mobileView === 'detail' }">
-                <!-- Picker: pinned Site entry, a search box, then the page/post list. -->
+                <!-- Picker: a search box on top, then the pinned Site entry and the page/post list. -->
                 <aside ref="picker" class="agentimus-jsonld__picker" tabindex="-1">
+                  <input
+                    v-model="search"
+                    type="search"
+                    class="ar-input agentimus-jsonld__search"
+                    placeholder="Search pages & posts…"
+                    aria-label="Search pages and posts to preview"
+                    @input="onSearch"
+                  />
+
                   <button
                     type="button"
                     class="agentimus-jsonld__target agentimus-jsonld__target--site"
@@ -350,15 +361,6 @@ export default {
                     <span class="agentimus-jsonld__target-label">Site-wide identity</span>
                     <span class="agentimus-jsonld__target-sub">WebSite · Person/Organization · Services</span>
                   </button>
-
-                  <input
-                    v-model="search"
-                    type="search"
-                    class="ar-input agentimus-jsonld__search"
-                    placeholder="Search pages & posts…"
-                    aria-label="Search pages and posts to preview"
-                    @input="onSearch"
-                  />
 
                   <p v-if="targetsLoading" class="agentimus-jsonld__hint">Loading…</p>
                   <p v-else-if="!targets.length" class="agentimus-jsonld__hint">No matching content.</p>
@@ -374,6 +376,7 @@ export default {
                           <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6" /></svg>
                         </span>
                         <span class="agentimus-jsonld__groupname">{{ g.label }}</span>
+                        <span v-if="g.source" class="agentimus-jsonld__groupsource">{{ g.source }}</span>
                         <span class="agentimus-jsonld__groupcount">{{ g.items.length }}</span>
                       </button>
                       <ul v-show="!isCollapsed(g.type)" class="agentimus-jsonld__groupitems">
@@ -386,7 +389,7 @@ export default {
                           >
                             <span class="agentimus-jsonld__target-label">{{ t.label }}</span>
                             <span v-if="statusBadge(t.status)" class="agentimus-jsonld__target-meta">
-                              <span class="agentimus-jsonld__target-badge">{{ statusBadge(t.status) }}</span>
+                              <span class="agentimus-jsonld__target-badge" :class="'is-' + t.status">{{ statusBadge(t.status) }}</span>
                             </span>
                           </button>
                         </li>
@@ -501,13 +504,14 @@ export default {
 </template>
 
 <style scoped>
-/* Wider and taller than the default modal — the picker + viewer sit side by
-   side, and JSON graphs get long, so give them room. A FIXED height keeps the
-   dialog from resizing as content loads in (it opens at full size, not small). */
+/* Near full-screen — the picker + viewer sit side by side and JSON graphs get
+   long, so give them the whole window (a thin frame from .ar-modal's padding).
+   A viewport-locked height keeps the dialog from resizing as content loads in. */
 .ar-modal__panel.agentimus-jsonld__panel {
-  max-width: min(1240px, 96vw);
-  height: min(760px, calc(100vh - 32px));
-  max-height: calc(100vh - 32px);
+  max-width: none;
+  width: 100%;
+  height: calc(100vh - 40px);
+  max-height: calc(100vh - 40px);
 }
 
 /* Split view: picker and viewer side by side. The list and the JSON each scroll
@@ -515,7 +519,7 @@ export default {
    layout can't collapse (no fragile fill-height chain). */
 .agentimus-jsonld {
   display: grid;
-  grid-template-columns: minmax(200px, 280px) 1fr;
+  grid-template-columns: minmax(260px, 360px) 1fr;
   gap: 20px;
   align-items: start;
   min-width: 0;
@@ -567,7 +571,7 @@ export default {
   .agentimus-jsonld__caret { transition: none; }
 }
 .agentimus-jsonld__groupname {
-  flex: 1 1 auto;
+  flex: 0 1 auto;
   min-width: 0;
   font-weight: 600;
   font-size: 12px;
@@ -575,8 +579,24 @@ export default {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+/* Vendor of the post type (e.g. FluentCart), so a generic "Products" isn't ambiguous. */
+.agentimus-jsonld__groupsource {
+  flex: 0 1 auto;
+  min-width: 0;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--ar-ink-soft);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.agentimus-jsonld__groupsource::before {
+  content: '·';
+  margin-right: 6px;
+}
 .agentimus-jsonld__groupcount {
   flex: 0 0 auto;
+  margin-left: auto;
   font-size: 11px;
   color: var(--ar-ink-soft);
   background: var(--ar-surface);
@@ -615,7 +635,7 @@ export default {
   border-radius: var(--ar-radius);
 }
 .agentimus-jsonld__target-label {
-  font-weight: 600;
+  font-weight: 400;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -630,13 +650,14 @@ export default {
 }
 .agentimus-jsonld__target-badge {
   text-transform: uppercase;
-  letter-spacing: .04em;
-  font-size: 9px;
-  font-weight: 700;
-  padding: 1px 5px;
-  border-radius: 999px;
-  background: var(--ar-warn);
-  color: #fff;
+  letter-spacing: .15em;
+  font-size: 8px;
+  font-weight: 500;
+  color: var(--ar-ink-soft);
+}
+/* Draft stays distinct from Pending/Private/Scheduled — a quiet amber, not gray. */
+.agentimus-jsonld__target-badge.is-draft {
+  color: var(--ar-warn);
 }
 
 /* Viewer ------------------------------------------------------------------ */
