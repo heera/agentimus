@@ -386,7 +386,7 @@ export default {
                           >
                             <span class="agentimus-jsonld__target-label">{{ t.label }}</span>
                             <span v-if="statusBadge(t.status)" class="agentimus-jsonld__target-meta">
-                              <span class="agentimus-jsonld__target-badge">{{ statusBadge(t.status) }}</span>
+                              <span class="agentimus-jsonld__target-badge" :class="'is-' + t.status">{{ statusBadge(t.status) }}</span>
                             </span>
                           </button>
                         </li>
@@ -501,13 +501,14 @@ export default {
 </template>
 
 <style scoped>
-/* Wider and taller than the default modal — the picker + viewer sit side by
-   side, and JSON graphs get long, so give them room. A FIXED height keeps the
-   dialog from resizing as content loads in (it opens at full size, not small). */
+/* Near full-screen — the picker + viewer sit side by side and JSON graphs get
+   long, so give them the whole window (a thin frame from .ar-modal's padding).
+   A viewport-locked height keeps the dialog from resizing as content loads in. */
 .ar-modal__panel.agentimus-jsonld__panel {
-  max-width: min(1240px, 96vw);
-  height: min(760px, calc(100vh - 32px));
-  max-height: calc(100vh - 32px);
+  max-width: none;
+  width: 100%;
+  height: calc(100vh - 40px);
+  max-height: calc(100vh - 40px);
 }
 
 /* Split view: picker and viewer side by side. The list and the JSON each scroll
@@ -515,7 +516,7 @@ export default {
    layout can't collapse (no fragile fill-height chain). */
 .agentimus-jsonld {
   display: grid;
-  grid-template-columns: minmax(200px, 280px) 1fr;
+  grid-template-columns: minmax(260px, 360px) 1fr;
   gap: 20px;
   align-items: start;
   min-width: 0;
@@ -615,7 +616,7 @@ export default {
   border-radius: var(--ar-radius);
 }
 .agentimus-jsonld__target-label {
-  font-weight: 600;
+  font-weight: 400;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -631,9 +632,13 @@ export default {
 .agentimus-jsonld__target-badge {
   text-transform: uppercase;
   letter-spacing: .15em;
-  font-size: 9px;
-  font-weight: 600;
+  font-size: 8px;
+  font-weight: 500;
   color: var(--ar-ink-soft);
+}
+/* Draft stays distinct from Pending/Private/Scheduled — a quiet amber, not gray. */
+.agentimus-jsonld__target-badge.is-draft {
+  color: var(--ar-warn);
 }
 
 /* Viewer ------------------------------------------------------------------ */
