@@ -8,8 +8,9 @@
  *
  * Scope is exactly what /llms.txt and the sitemap expose: the agent-visible post
  * types ({@see Content::post_types()}), published, non-password-protected, newest
- * modified first. It never reports deletions — an addition/edit feed only — so it
- * needs no stored tombstones and stays a pure query.
+ * modified first. Additions and edits come from a live query; removals are merged
+ * in from {@see Tombstones} as `action:"deleted"` items so a caching agent can
+ * evict URLs that no longer exist.
  *
  * Each item carries a `_links.rest` pointer to its canonical WordPress core
  * `wp/v2` resource (when the type is REST-exposed), so an agent can drill down
@@ -48,13 +49,37 @@ final class Changes {
 	 * @return string JSON.
 	 */
 	public static function document( Settings $settings, $since_raw = '' ) {
-		$items     = self::items();
-		$truncated = count( $items ) >= self::max_items();
-		$since     = self::parse_since( $since_raw );
-		$markdown  = $settings->enabled( 'enable_markdown' );
+		$live = self::items();
+
+		// Merge in deletions (tombstones), excluding any post that is live again so
+		// a re-published page never reads as deleted. Both live and deleted rows
+		// carry `_ts` (modified time / deletion time), so they order together.
+		$live_ids = array_map(
+			static function ( $row ) {
+				return (int) $row['id'];
+			},
+			$live
+		);
+		$all = array_merge( $live, Tombstones::rows( $live_ids ) );
+		usort(
+			$all,
+			static function ( $a, $b ) {
+				return (int) $b['_ts'] <=> (int) $a['_ts'];
+			}
+		);
+
+		// The window is the newest max_items events (edits + deletions combined).
+		$max       = self::max_items();
+		$truncated = count( $all ) > $max;
+		if ( $truncated ) {
+			$all = array_slice( $all, 0, $max );
+		}
+
+		$since    = self::parse_since( $since_raw );
+		$markdown = $settings->enabled( 'enable_markdown' );
 
 		$out = array();
-		foreach ( self::filter_since( $items, $since ) as $raw ) {
+		foreach ( self::filter_since( $all, $since ) as $raw ) {
 			$out[] = self::shape( $raw, $markdown );
 		}
 
@@ -144,6 +169,19 @@ final class Changes {
 	 * @return array<string,mixed>
 	 */
 	private static function shape( array $raw, $markdown ) {
+		// A deletion tombstone: just the URL to evict and when it went away — no
+		// title/markdown/rest link, since the resource no longer exists.
+		if ( isset( $raw['action'] ) && 'deleted' === $raw['action'] ) {
+			return array(
+				'id'      => $raw['id'],
+				'type'    => $raw['type'],
+				'url'     => $raw['url'],
+				'action'  => 'deleted',
+				'deleted' => $raw['deleted'],
+				'_links'  => array( 'self' => array( 'href' => $raw['url'] ) ),
+			);
+		}
+
 		$item = array(
 			'id'        => $raw['id'],
 			'type'      => $raw['type'],

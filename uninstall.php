@@ -20,8 +20,10 @@ function agentimus_uninstall_site() {
 	delete_option( 'agentimus_signing_keys' );
 	delete_option( 'agentimus_rewrite_version' );
 	delete_option( 'agentimus_rewrite_flushed_at' );
+	delete_option( 'agentimus_tombstones' );
 	delete_transient( 'agentimus_llms_txt' );
 	delete_transient( 'agentimus_llms_full' );
+	delete_transient( 'agentimus_changes' );
 	delete_transient( 'agentimus' );
 	delete_transient( 'agentimus_activation_redirect' );
 

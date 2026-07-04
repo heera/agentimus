@@ -383,10 +383,20 @@ add_filter( 'agentimus_llms_full_avg_item_bytes', fn( $bytes ) => 4096 );
  * Size of the change feed window (/agentimus-changes.json) — how many
  * newest-modified items it can hold. Clamped to [1, 2000]. Agents pass
  * `?since=<ISO-8601 or Unix time>` to receive only items changed after that.
+ * The feed reports additions/edits (`action:"created"|"updated"`) plus
+ * removals (`action:"deleted"`), so a caching agent can also evict gone URLs.
  *
  * @param int $max Default 200.
  */
 add_filter( 'agentimus_changes_max', fn( $max ) => 200 );
+
+/**
+ * How long a deletion stays in the change feed before it's pruned (days).
+ * Clamped to [1, 3650].
+ *
+ * @param int $days Default 90.
+ */
+add_filter( 'agentimus_tombstone_retain_days', fn( $days ) => 90 );
 
 /**
  * Cede a surface to your own producer so Agentimus stops emitting it.
