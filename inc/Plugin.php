@@ -75,8 +75,7 @@ final class Plugin {
 
 		( new Endpoints( $this->settings ) )->register();
 		( new Schema( $this->settings ) )->register();
-		( new SchemaMetaBox( $this->settings ) )->register();
-		( new PageCheckMetaBox( $this->settings ) )->register();
+		( new EditorPanel( $this->settings ) )->register(); // One "Agentimus" editor box: JSON-LD + AI Readability as tabs.
 		( new Topics( $this->settings ) )->register();
 		( new Rest( $this->settings ) )->register();
 		( new Admin( $this->settings ) )->register();

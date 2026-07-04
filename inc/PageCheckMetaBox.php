@@ -1,12 +1,12 @@
 <?php
 /**
- * The editor-side page-quality panel: a read-only meta box that runs
- * {@see PageCheck} over the post being edited and lists what would make it easier
- * for an AI to read, section and cite. Server-rendered, so it reflects the SAVED
- * post (save to refresh) — mirroring the JSON-LD and Topics meta boxes.
+ * AI Readability — one section of the unified "Agentimus" editor panel
+ * ({@see EditorPanel}). Runs {@see PageCheck} over the post being edited and lists
+ * what would make it easier for an AI to read, section and cite. Server-rendered,
+ * so it reflects the SAVED post. Admin-only and advisory — no front-end output.
  *
- * Admin-only and advisory: it emits nothing on the front end. Shown for the
- * agent-visible post types while the feature is on.
+ * Registration and asset loading are owned by EditorPanel; this class provides the
+ * section's enabled-state, body render, and its styles.
  *
  * @package Agentimus
  */
@@ -16,8 +16,6 @@ namespace Agentimus;
 defined( 'ABSPATH' ) || exit;
 
 final class PageCheckMetaBox {
-
-	const HANDLE = 'agentimus-pagecheck-box';
 
 	/** @var Settings */
 	private $settings;
@@ -30,44 +28,15 @@ final class PageCheckMetaBox {
 	}
 
 	/**
-	 * Register the meta box and its styles — admin only.
-	 */
-	public function register() {
-		if ( ! is_admin() ) {
-			return;
-		}
-		add_action( 'add_meta_boxes', array( $this, 'add_meta_box' ) );
-		add_action( 'admin_enqueue_scripts', array( $this, 'assets' ) );
-	}
-
-	/**
 	 * @return bool
 	 */
-	private function enabled() {
+	public function is_enabled() {
 		return (bool) $this->settings->enabled( 'enable_page_checks' );
 	}
 
 	/**
-	 * Add the box to every agent-visible post type, low in the main column.
-	 */
-	public function add_meta_box() {
-		if ( ! $this->enabled() ) {
-			return;
-		}
-		foreach ( Content::post_types() as $type ) {
-			add_meta_box(
-				'agentimus-pagecheck',
-				__( 'AI Readability (Agentimus)', 'agentimus' ),
-				array( $this, 'render_meta_box' ),
-				$type,
-				'normal',
-				'low'
-			);
-		}
-	}
-
-	/**
-	 * Render the pass/warn rows and a one-line summary. Reflects the saved post.
+	 * Render the pass/warn rows and a one-line summary (section body). Reflects the
+	 * saved post.
 	 *
 	 * @param \WP_Post $post Post being edited.
 	 */
@@ -107,33 +76,11 @@ final class PageCheckMetaBox {
 	}
 
 	/**
-	 * Inline the panel styles — only on the editor for a covered type. Same
-	 * no-build pattern as the JSON-LD / Topics meta boxes.
-	 *
-	 * @param string $hook Current admin page hook.
-	 */
-	public function assets( $hook ) {
-		if ( ! $this->enabled() ) {
-			return;
-		}
-		if ( 'post.php' !== $hook && 'post-new.php' !== $hook ) {
-			return;
-		}
-		$screen = function_exists( 'get_current_screen' ) ? get_current_screen() : null;
-		if ( ! $screen || ! in_array( $screen->post_type, Content::post_types(), true ) ) {
-			return;
-		}
-		wp_register_style( self::HANDLE, false, array(), AGENTIMUS_VERSION );
-		wp_enqueue_style( self::HANDLE );
-		wp_add_inline_style( self::HANDLE, self::inline_css() );
-	}
-
-	/**
-	 * Styles for the panel. WordPress-admin palette; scoped to our container.
+	 * Styles for the readability section. WordPress-admin palette; scoped to our container.
 	 *
 	 * @return string
 	 */
-	private static function inline_css() {
+	public static function css() {
 		return '.agentimus-pc__head{margin:0 0 10px;font-weight:600;font-size:13px}'
 			. '.agentimus-pc__list{margin:0;padding:0;list-style:none}'
 			. '.agentimus-pc__row{display:flex;gap:9px;align-items:flex-start;padding:7px 0;border-top:1px solid #f0f0f1;font-size:13px}'

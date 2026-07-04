@@ -1,0 +1,185 @@
+<?php
+/**
+ * The single "Agentimus" editor meta box: one branded panel that gathers the
+ * per-post Agentimus tools as tabs, instead of scattering a separate meta box per
+ * feature across the editor's generic "Meta Boxes" strip.
+ *
+ * Each tab is a self-contained section renderer ({@see PageCheckMetaBox} = AI
+ * Readability, {@see SchemaMetaBox} = JSON-LD). Only the enabled sections appear;
+ * with a single one enabled the tab bar is omitted. Server-rendered, admin-only.
+ *
+ * @package Agentimus
+ */
+
+namespace Agentimus;
+
+defined( 'ABSPATH' ) || exit;
+
+final class EditorPanel {
+
+	const HANDLE = 'agentimus-editor-panel';
+
+	/** @var Settings */
+	private $settings;
+
+	/** @var PageCheckMetaBox */
+	private $readability;
+
+	/** @var SchemaMetaBox */
+	private $schema;
+
+	/**
+	 * @param Settings $settings Settings store.
+	 */
+	public function __construct( Settings $settings ) {
+		$this->settings    = $settings;
+		$this->readability = new PageCheckMetaBox( $settings );
+		$this->schema      = new SchemaMetaBox( $settings );
+	}
+
+	/**
+	 * Register the box and its assets — admin only.
+	 */
+	public function register() {
+		if ( ! is_admin() ) {
+			return;
+		}
+		add_action( 'add_meta_boxes', array( $this, 'add_meta_box' ) );
+		add_action( 'admin_enqueue_scripts', array( $this, 'assets' ) );
+	}
+
+	/**
+	 * The enabled sections in tab order: key => { label, render }. Readability
+	 * first (the friendliest at-a-glance view), then the JSON-LD graph.
+	 *
+	 * @return array<string,array{label:string,render:callable}>
+	 */
+	private function sections() {
+		$sections = array();
+		if ( $this->readability->is_enabled() ) {
+			$sections['readability'] = array(
+				'label'  => __( 'AI Readability', 'agentimus' ),
+				'render' => array( $this->readability, 'render_meta_box' ),
+			);
+		}
+		if ( $this->schema->is_enabled() ) {
+			$sections['schema'] = array(
+				'label'  => __( 'JSON-LD', 'agentimus' ),
+				'render' => array( $this->schema, 'render_meta_box' ),
+			);
+		}
+		return $sections;
+	}
+
+	/**
+	 * Add the one box to every agent-visible post type — but only when at least one
+	 * section is enabled.
+	 */
+	public function add_meta_box() {
+		if ( empty( $this->sections() ) ) {
+			return;
+		}
+		foreach ( Content::post_types() as $type ) {
+			add_meta_box(
+				'agentimus-panel',
+				__( 'Agentimus', 'agentimus' ),
+				array( $this, 'render_meta_box' ),
+				$type,
+				'normal',
+				'low'
+			);
+		}
+	}
+
+	/**
+	 * Render the tabbed panel. A single enabled section renders plainly (no tabs);
+	 * two or more get a tab bar with the first active.
+	 *
+	 * @param \WP_Post $post Post being edited.
+	 */
+	public function render_meta_box( $post ) {
+		$sections = $this->sections();
+		$tabbed   = count( $sections ) > 1;
+
+		echo '<div class="agentimus-panel">';
+
+		if ( $tabbed ) {
+			echo '<div class="agentimus-panel__tabs" role="tablist">';
+			$first = true;
+			foreach ( $sections as $key => $section ) {
+				printf(
+					'<button type="button" class="agentimus-panel__tab%1$s" data-target="%2$s">%3$s</button>',
+					$first ? ' is-active' : '',
+					esc_attr( $key ),
+					esc_html( $section['label'] )
+				);
+				$first = false;
+			}
+			echo '</div>';
+		}
+
+		$first = true;
+		foreach ( $sections as $key => $section ) {
+			$active = ( ! $tabbed || $first ) ? ' is-active' : '';
+			printf( '<div class="agentimus-panel__pane%1$s" data-pane="%2$s">', $active, esc_attr( $key ) );
+			call_user_func( $section['render'], $post );
+			echo '</div>';
+			$first = false;
+		}
+
+		echo '</div>';
+	}
+
+	/**
+	 * Enqueue the combined panel + section assets — only on the editor for a
+	 * covered post type, and only when a section is enabled. Same no-build inline
+	 * pattern the sections used before.
+	 *
+	 * @param string $hook Current admin page hook.
+	 */
+	public function assets( $hook ) {
+		if ( 'post.php' !== $hook && 'post-new.php' !== $hook ) {
+			return;
+		}
+		if ( empty( $this->sections() ) ) {
+			return;
+		}
+		$screen = function_exists( 'get_current_screen' ) ? get_current_screen() : null;
+		if ( ! $screen || ! in_array( $screen->post_type, Content::post_types(), true ) ) {
+			return;
+		}
+
+		wp_register_style( self::HANDLE, false, array(), AGENTIMUS_VERSION );
+		wp_enqueue_style( self::HANDLE );
+		wp_add_inline_style( self::HANDLE, self::css() . PageCheckMetaBox::css() . SchemaMetaBox::css() );
+
+		wp_register_script( self::HANDLE, false, array(), AGENTIMUS_VERSION, true );
+		wp_enqueue_script( self::HANDLE );
+		wp_add_inline_script( self::HANDLE, self::js() . SchemaMetaBox::js() );
+	}
+
+	/**
+	 * Tab-switch behaviour, scoped per panel so multiple panels never cross-talk.
+	 *
+	 * @return string
+	 */
+	private static function js() {
+		return <<<'JS'
+(function(){var tabs=document.querySelectorAll('.agentimus-panel__tab');Array.prototype.forEach.call(tabs,function(tab){tab.addEventListener('click',function(){var panel=tab.closest('.agentimus-panel');if(!panel){return;}var target=tab.getAttribute('data-target');Array.prototype.forEach.call(panel.querySelectorAll('.agentimus-panel__tab'),function(t){t.classList.toggle('is-active',t===tab);});Array.prototype.forEach.call(panel.querySelectorAll('.agentimus-panel__pane'),function(p){p.classList.toggle('is-active',p.getAttribute('data-pane')===target);});});});})();
+JS;
+	}
+
+	/**
+	 * Tab-bar styles. The section styles are appended by their own css() methods.
+	 *
+	 * @return string
+	 */
+	private static function css() {
+		return '.agentimus-panel__tabs{display:flex;gap:16px;border-bottom:1px solid #dcdcde;margin:0 0 14px;padding:0}'
+			. '.agentimus-panel__tab{appearance:none;background:none;border:0;border-bottom:2px solid transparent;padding:6px 2px;margin-bottom:-1px;cursor:pointer;font-size:13px;color:#646970}'
+			. '.agentimus-panel__tab:hover{color:#1d2327}'
+			. '.agentimus-panel__tab.is-active{color:#1d2327;border-bottom-color:#2271b1;font-weight:600}'
+			. '.agentimus-panel__pane{display:none}'
+			. '.agentimus-panel__pane.is-active{display:block}';
+	}
+}
