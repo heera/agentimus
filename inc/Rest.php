@@ -423,23 +423,26 @@ final class Rest {
 			$args['s'] = $search;
 		}
 
-		$targets     = array();
-		$type_labels = array(); // slug → plural label, resolved once per type.
+		$targets      = array();
+		$type_labels  = array(); // slug → plural label, resolved once per type.
+		$type_sources = array(); // slug → vendor plugin name, so a generic "Products" type can be attributed (FluentCart vs WooCommerce vs …).
 		foreach ( get_posts( $args ) as $post ) {
 			$type = $post->post_type;
 			if ( ! isset( $type_labels[ $type ] ) ) {
-				$obj                  = get_post_type_object( $type );
-				$type_labels[ $type ] = ( $obj && ! empty( $obj->labels->name ) )
+				$obj                   = get_post_type_object( $type );
+				$type_labels[ $type ]  = ( $obj && ! empty( $obj->labels->name ) )
 					? $obj->labels->name
 					: ucfirst( $type );
+				$type_sources[ $type ] = Content::source( $type );
 			}
 			$targets[] = array(
-				'id'        => (int) $post->ID,
-				'type'      => $type,
-				'typeLabel' => $type_labels[ $type ],
-				'label'     => $this->preview_label( $post ),
-				'status'    => $post->post_status,
-				'url'       => (string) get_permalink( $post ),
+				'id'         => (int) $post->ID,
+				'type'       => $type,
+				'typeLabel'  => $type_labels[ $type ],
+				'typeSource' => $type_sources[ $type ],
+				'label'      => $this->preview_label( $post ),
+				'status'     => $post->post_status,
+				'url'        => (string) get_permalink( $post ),
 			);
 		}
 

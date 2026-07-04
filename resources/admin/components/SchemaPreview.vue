@@ -133,7 +133,7 @@ export default {
       const order = [];
       this.targets.forEach((t) => {
         if (!groups[t.type]) {
-          groups[t.type] = { type: t.type, label: t.typeLabel || t.type, items: [] };
+          groups[t.type] = { type: t.type, label: t.typeLabel || t.type, source: t.typeSource || '', items: [] };
           order.push(t.type);
         }
         groups[t.type].items.push(t);
@@ -376,6 +376,7 @@ export default {
                           <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6" /></svg>
                         </span>
                         <span class="agentimus-jsonld__groupname">{{ g.label }}</span>
+                        <span v-if="g.source" class="agentimus-jsonld__groupsource">{{ g.source }}</span>
                         <span class="agentimus-jsonld__groupcount">{{ g.items.length }}</span>
                       </button>
                       <ul v-show="!isCollapsed(g.type)" class="agentimus-jsonld__groupitems">
@@ -570,7 +571,7 @@ export default {
   .agentimus-jsonld__caret { transition: none; }
 }
 .agentimus-jsonld__groupname {
-  flex: 1 1 auto;
+  flex: 0 1 auto;
   min-width: 0;
   font-weight: 600;
   font-size: 12px;
@@ -578,8 +579,24 @@ export default {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+/* Vendor of the post type (e.g. FluentCart), so a generic "Products" isn't ambiguous. */
+.agentimus-jsonld__groupsource {
+  flex: 0 1 auto;
+  min-width: 0;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--ar-ink-soft);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.agentimus-jsonld__groupsource::before {
+  content: '·';
+  margin-right: 6px;
+}
 .agentimus-jsonld__groupcount {
   flex: 0 0 auto;
+  margin-left: auto;
   font-size: 11px;
   color: var(--ar-ink-soft);
   background: var(--ar-surface);
