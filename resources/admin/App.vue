@@ -252,9 +252,12 @@ export default {
   },
   watch: {
     tab(val) {
-      // Reflect the active tab in the URL hash (no history spam, no reload).
+      // Reflect the active tab in the URL hash, PUSHING a history entry so the
+      // browser Back/Forward buttons step through the tabs. The guard skips the
+      // push when the hash already matches — i.e. when the change itself came from
+      // Back/Forward (hashchange → syncTabFromHash) — so there's no loop or dupe.
       if (window.location.hash.replace(/^#/, '') !== val) {
-        window.history.replaceState(null, '', `#${val}`);
+        window.history.pushState(null, '', `#${val}`);
       }
     },
     instantState() {
