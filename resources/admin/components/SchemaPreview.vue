@@ -339,8 +339,17 @@ export default {
           <div class="ar-modal__body">
             <div class="ar-modal__scroll">
               <div class="agentimus-jsonld" :class="{ 'show-detail': mobileView === 'detail' }">
-                <!-- Picker: pinned Site entry, a search box, then the page/post list. -->
+                <!-- Picker: a search box on top, then the pinned Site entry and the page/post list. -->
                 <aside ref="picker" class="agentimus-jsonld__picker" tabindex="-1">
+                  <input
+                    v-model="search"
+                    type="search"
+                    class="ar-input agentimus-jsonld__search"
+                    placeholder="Search pages & posts…"
+                    aria-label="Search pages and posts to preview"
+                    @input="onSearch"
+                  />
+
                   <button
                     type="button"
                     class="agentimus-jsonld__target agentimus-jsonld__target--site"
@@ -350,15 +359,6 @@ export default {
                     <span class="agentimus-jsonld__target-label">Site-wide identity</span>
                     <span class="agentimus-jsonld__target-sub">WebSite · Person/Organization · Services</span>
                   </button>
-
-                  <input
-                    v-model="search"
-                    type="search"
-                    class="ar-input agentimus-jsonld__search"
-                    placeholder="Search pages & posts…"
-                    aria-label="Search pages and posts to preview"
-                    @input="onSearch"
-                  />
 
                   <p v-if="targetsLoading" class="agentimus-jsonld__hint">Loading…</p>
                   <p v-else-if="!targets.length" class="agentimus-jsonld__hint">No matching content.</p>
