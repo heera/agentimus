@@ -64,10 +64,17 @@ final class Plugin {
 
 		$this->settings = new Settings();
 
-		// Figure out post-type vendor labels at runtime (no hardcoded plugin list).
-		// Only on our settings screen, so the per-registration backtrace cost is
-		// never paid on a normal page load.
-		if ( is_admin() && 'agentimus' === ( isset( $_GET['page'] ) ? sanitize_key( wp_unslash( $_GET['page'] ) ) : '' ) ) { // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only admin screen check, no state change.
+		// Record which plugin registered each post type at runtime (a one-time
+		// backtrace, no hardcoded plugin list) so Content::source() can name a CPT's
+		// vendor — e.g. a generic "Products" type attributed to FluentCart vs
+		// WooCommerce. Enabled on our settings screen AND on the Agent Preview REST
+		// call that resolves the picker's sources; scoped tight so the backtrace cost
+		// is never paid on a normal front-end page load. The REST route is matched on
+		// the request URI because REST_REQUEST isn't defined this early (plugins_loaded).
+		$on_settings = is_admin() && 'agentimus' === ( isset( $_GET['page'] ) ? sanitize_key( wp_unslash( $_GET['page'] ) ) : '' ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only screen check, no state change.
+		$request_uri = isset( $_SERVER['REQUEST_URI'] ) ? sanitize_text_field( wp_unslash( $_SERVER['REQUEST_URI'] ) ) : '';
+		$on_preview  = false !== strpos( $request_uri, 'agentimus/v1/preview' );
+		if ( $on_settings || $on_preview ) {
 			Content::watch_origins();
 		}
 
