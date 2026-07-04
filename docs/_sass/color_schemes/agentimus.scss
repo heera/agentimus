@@ -1,15 +1,14 @@
-// Agentimus brand scheme for Just-the-Docs — a calm teal accent (#146b64, the
-// mark used in the plugin admin) on the theme's default light ground. Only the
-// variables below are overridden; everything else inherits the light scheme.
+// Agentimus brand scheme for Just-the-Docs — a soft teal accent (#4a7d79) on the
+// theme's default light ground. Only the variables below are overridden;
+// everything else inherits the light scheme.
 
-$link-color: #146b64;
-$btn-primary-color: #146b64;
+$link-color: #4a7d79;
+$btn-primary-color: #4a7d79;
 $nav-child-link-color: #4a5568;
 
 // Sidebar + search accents.
 $search-result-preview-color: #57606a;
 
-// Inline code + code blocks: a slightly warm neutral so snippets sit apart
-// from body text without shouting.
+// Inline code + code blocks.
 $code-background-color: #f4f6f6;
-$feedback-color: darken($link-color, 6%);
+$feedback-color: darken($link-color, 8%);

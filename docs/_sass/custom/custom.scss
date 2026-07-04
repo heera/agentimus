@@ -7,9 +7,8 @@
 // Brand accent: teal #146b64 (the mark used in the plugin admin).
 // ============================================================================
 
-$ag-accent:      #146b64;
-$ag-accent-dark: #0f544e;
-$ag-accent-tint: rgba(20, 107, 100, 0.10);
+$ag-accent:      #4a7d79;
+$ag-accent-dark: #3d6763;
 $ag-rule:        #e6ebe9;
 
 $ag-sidebar:     18rem;   // roomier than the theme's 15.5rem
@@ -62,21 +61,40 @@ $ag-measure:     64rem;   // content column cap — wide but still readable
   .nav-list .nav-list-item { margin-bottom: 0.12rem; }
   .nav-list .nav-list .nav-list-link { font-size: 0.82rem; }
 
-  // Hover: a soft brand tint with readable text — replaces the dark gradient.
+  // Hover: solid brand fill with white text (no dark gradient).
   .nav-list-link:hover {
-    background-image: none;
-    background-color: $ag-accent-tint;
-    color: $ag-accent-dark;
-  }
-
-  // Active page: solid brand fill, white text. High contrast, no gradient.
-  .nav-list .nav-list-item .nav-list-link.active,
-  .nav-list .nav-list-item .nav-list-link.active:hover {
     background-image: none;
     background-color: $ag-accent;
     color: #fff;
+  }
+
+  // Active page: a darker brand fill, white text, bold — clearly the current page.
+  .nav-list .nav-list-item .nav-list-link.active,
+  .nav-list .nav-list-item .nav-list-link.active:hover {
+    background-image: none;
+    background-color: $ag-accent-dark;
+    color: #fff;
     font-weight: 600;
   }
+}
+
+// ---------------------------------------------------------------------------
+// Brand — the Agentimus "A" mark before the site title.
+// ---------------------------------------------------------------------------
+.site-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+.site-title::before {
+  content: "";
+  flex: none;
+  width: 1.3em;
+  height: 1.3em;
+  background-image: url("/agentimus/assets/images/agentimus-mark.svg");
+  background-size: contain;
+  background-repeat: no-repeat;
+  background-position: center;
 }
 
 // ---------------------------------------------------------------------------
