@@ -37,8 +37,19 @@ final class ClassifierTest extends TestCase {
 		$this->assertSame( 'No user-agent', Classifier::classify( '' ) );
 	}
 
-	public function test_unknown_non_mozilla_string_falls_through_to_unidentified() {
-		$this->assertSame( 'Unidentified', Classifier::classify( 'SomeRandomFetcher/2.0' ) );
+	public function test_self_declaring_client_is_named_from_its_own_ua() {
+		// A client that isn't cataloged but declares its own product token is named
+		// by that token — matching the review queue (Catalog::self_declared) instead
+		// of a generic bucket. Regression: "TheWebReport" (allow-listed, cleanly named
+		// in the review queue) used to read "Unidentified" in the activity feed.
+		$this->assertSame( 'TheWebReport', Classifier::classify( 'TheWebReport/1.0; +https://theweb.report' ) );
+		$this->assertSame( 'SomeRandomFetcher', Classifier::classify( 'SomeRandomFetcher/2.0' ) );
+	}
+
+	public function test_client_with_no_parseable_name_is_unrecognized() {
+		// Non-empty UA, but nothing to name it by: no known token, no product token,
+		// no browser/bot/script markers. Renamed from "Unidentified".
+		$this->assertSame( 'Unrecognized', Classifier::classify( 'opaque-client-no-version' ) );
 	}
 
 	public function test_self_declared_unknown_bot_is_other_bot() {
@@ -119,7 +130,10 @@ final class ClassifierTest extends TestCase {
 			'no_ua'          => array( '' ),
 			'script_curl'    => array( 'curl/8.4.0' ),
 			'other_bot'      => array( 'WhateverBot/1.0 (+http://example.com)' ),
-			'unidentified'   => array( 'SomeRandomFetcher/2.0' ),
+			'self_declared'  => array( 'SomeRandomFetcher/2.0' ),
+			// A self-declaring, allow-listed-but-uncataloged agent is NAMED in the feed
+			// yet still throttle-eligible — it must not earn the flood fast-pass.
+			'thewebreport'   => array( 'TheWebReport/1.0; +https://theweb.report' ),
 			'flood_evilbot'  => array( 'EvilBot-7/4213 (flood test)' ),
 			'legacy_spoof'   => array( self::NOKIA ),
 		);

@@ -111,14 +111,14 @@ As with the traffic card, **you are skipped**: a logged-in administrator opening
 
 ### How agents are identified
 
-Raw User-Agent strings are noisy, so Agentimus translates each one into a **plain-English label**. Recognised crawlers get their real name — for example **GPTBot (OpenAI)**, **ClaudeBot (Anthropic)**, **PerplexityBot**, **Googlebot**, **Bingbot**, **Bytespider (ByteDance)**, **CCBot (Common Crawl)**. Where a client isn't specifically recognised, it falls into a clear generic bucket instead:
+Raw User-Agent strings are noisy, so Agentimus translates each one into a **plain-English label**. Recognised crawlers get their real name — for example **GPTBot (OpenAI)**, **ClaudeBot (Anthropic)**, **PerplexityBot**, **Googlebot**, **Bingbot**, **Bytespider (ByteDance)**, **CCBot (Common Crawl)**. A client that isn't in that catalog but which **declares its own product name** — for example `TheWebReport/1.0` — is shown by that name (**TheWebReport**), the very name the review queue uses, so the two never disagree. Only when there's no name to show at all does a client fall into a clear generic bucket:
 
 - **Other bot** — self-declares as a crawler, but isn't one Agentimus has a name for.
 - **Script/tool** — an HTTP library or command-line tool (curl, wget, Python requests, and the like).
 - **Likely spoof/scanner** — a client pretending to be a long-dead phone or embedded device (Symbian, Java ME, old BlackBerry, Windows CE…). No real reader fetches a machine endpoint from a 2004 feature phone, so these are almost always scanners hiding behind a harmless-looking string.
 - **Browser** — a normal web browser.
 - **No user-agent** — the client sent no User-Agent at all.
-- **Unidentified** — none of the above.
+- **Unrecognized** — the client sent a User-Agent, but nothing Agentimus can name it by.
 
 These same labels feed the review queue, so the naming never disagrees with itself.
 

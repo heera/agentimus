@@ -59,7 +59,8 @@ final class Classifier {
 	 * @return string
 	 */
 	public static function classify( $ua ) {
-		$ua = strtolower( (string) $ua );
+		$raw = (string) $ua;
+		$ua  = strtolower( $raw );
 		// No User-Agent at all — distinct from an unrecognized one, and worth
 		// naming as such rather than hiding it under a vague "Unknown".
 		if ( '' === $ua ) {
@@ -98,38 +99,31 @@ final class Classifier {
 		if ( false !== strpos( $ua, 'mozilla' ) ) {
 			return 'Browser';
 		}
-		// Non-empty, but matches nothing above.
-		return 'Unidentified';
-	}
-
-	/**
-	 * The generic, non-identifying buckets classify() falls back to when a UA is
-	 * not a specific named crawler. Anything NOT in this set is a recognised agent.
-	 *
-	 * @return string[]
-	 */
-	private static function generic_labels() {
-		return array(
-			'No user-agent',
-			'Likely spoof/scanner',
-			'Other bot',
-			'Script/tool',
-			'Browser',
-			'Unidentified',
-		);
+		// Nothing matched — but before falling back to a generic bucket, honour what
+		// the client calls ITSELF. A UA like "TheWebReport/1.0; +https://theweb.report"
+		// declares a clear product name; the review queue already shows it by that name
+		// (Catalog::self_declared), so the activity feed names it the same way — else a
+		// named, allow-listed agent reads as a vague "Unrecognized" and the two surfaces
+		// disagree on who a client is. Uses the ORIGINAL-case UA so casing is preserved.
+		$declared = Catalog::self_declared( $raw );
+		if ( '' !== $declared['name'] ) {
+			return $declared['name'];
+		}
+		// A non-empty UA that names nothing we can parse.
+		return 'Unrecognized';
 	}
 
 	/**
 	 * Whether a User-Agent resolves to a SPECIFIC, recognised agent — a named
-	 * crawler from the map or the catalog (GPTBot, ClaudeBot, Googlebot…) rather
-	 * than a generic browser/script/unknown bucket.
+	 * crawler from the map or the recognition catalog (GPTBot, ClaudeBot, ShapBot…),
+	 * NOT a generic client and NOT one merely named from its own self-declaration.
+	 * This gates the logger's flood fast-pass, so it stays narrow on purpose: a
+	 * self-declaring scraper (which classify() now names from its own UA) is still
+	 * throttle-eligible — otherwise it could flood the log behind a made-up name.
 	 *
 	 * Deliberately SPOOF-AWARE: a UA that trips the legacy-device spoof test is
-	 * never "recognised", even when it ALSO carries a known-bot token. classify()
-	 * matches the agent map BEFORE the spoof test, so a scanner could otherwise
-	 * paste "GPTBot" into a Symbian/Java-ME string and inherit the friendly name;
-	 * the explicit is_spoof() veto here is what stops a spoofed client earning the
-	 * recognised fast-pass that callers (e.g. the logger's flood guard) grant.
+	 * never recognised, even when it ALSO carries a known-bot token — otherwise a
+	 * scanner could paste "GPTBot" into a Symbian/Java-ME string and earn the pass.
 	 *
 	 * @param string $ua Raw User-Agent.
 	 * @return bool
@@ -138,7 +132,16 @@ final class Classifier {
 		if ( self::is_spoof( $ua ) ) {
 			return false;
 		}
-		return ! in_array( self::classify( $ua ), self::generic_labels(), true );
+		$ua_lc = strtolower( (string) $ua );
+		if ( '' === $ua_lc ) {
+			return false;
+		}
+		foreach ( self::map() as $token => $label ) {
+			if ( false !== strpos( $ua_lc, $token ) ) {
+				return true;
+			}
+		}
+		return null !== Catalog::identify( $ua_lc );
 	}
 
 	/**
