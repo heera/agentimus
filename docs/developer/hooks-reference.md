@@ -1,0 +1,263 @@
+---
+title: Hooks & filters reference
+parent: Developer Reference
+nav_order: 3
+---
+
+Agentimus exposes its behaviour through WordPress actions and filters. Everything on this page is optional — a stock install works with none of them registered. Add a hook only when you need to register a plugin, shape a machine surface, or tune a default.
+
+Every hook name, signature and default on this page is taken from the plugin source. Copy-paste examples for all of them live in `examples/all-hooks-reference.php` in the plugin (documentation-only; it is not loaded at runtime). The registration schema used with `$registry->register()` and `$registry->add_well_known()` is documented separately in `examples/integrate-your-plugin.php`.
+
+## Stability tiers
+
+Hooks fall into three tiers, mirrored in `examples/all-hooks-reference.php`:
+
+- **Stable** — the public integration API, frozen at WP_Discovery spec 1.0. Safe to build on.
+- **Extension** — supported output-shaping filters. Useful for deeper integrations; signatures may evolve between releases, so test against the version you target.
+- **Internal** — advanced site-owner and internal-tuning knobs. Not a third-party integration surface; listed for completeness.
+
+In the signatures below, `Registry`, `Settings` and `Plugin` are `Agentimus\Discovery\Registry`, `Agentimus\Settings` and `Agentimus\Plugin`. A `filter` must return a value of the same shape it receives; an `action` returns nothing.
+
+## Discovery & output
+
+### Registration
+
+There is no `agentimus_resources` filter — you register resources imperatively on the `Registry` passed to the registration action, not by filtering an array.
+
+| Hook | Type | Signature | Purpose |
+| --- | --- | --- | --- |
+| `wpdiscovery_register` | action | `( Registry $registry )` | Register your resources and serve your own `/.well-known` documents. |
+| `agentimus_register` | action | `( Registry $registry )` | Product-aliased copy of `wpdiscovery_register`. |
+
+Both actions fire (the `Registry` dispatches `AGENTIMUS_CANONICAL_HOOK` then `AGENTIMUS_ALIAS_HOOK`). Hook **one** of them, not both, or your resources register twice. Inside the callback, call `$registry->register( [...] )` and, optionally, `$registry->add_well_known( [...] )`. The full resource schema (capabilities, endpoints, auth, agent cards, MCP tools) is in `examples/integrate-your-plugin.php`.
+
+```php
+add_action( 'wpdiscovery_register', function ( $registry ) {
+    $registry->register( array(
+        'id'    => 'acme',
+        'title' => 'Acme',
+        'type'  => 'commerce',
+    ) );
+
+    $registry->add_well_known( array(
+        'name'     => 'acme.json',
+        'callback' => fn() => wp_json_encode( array( 'ok' => true ) ),
+    ) );
+} );
+```
+
+### Discovery document (discovery.json)
+
+| Hook | Type | Signature | Purpose |
+| --- | --- | --- | --- |
+| `agentimus_envelope` | filter | `( array $envelope, Registry $registry ): array` | The whole assembled `discovery.json` envelope — add `x-<vendor>` extension keys. |
+| `agentimus_schema_url` | filter | `( string $url ): string` | The `$schema` URL of the discovery document; return `''` to omit it. |
+| `agentimus_documents` | filter | `( array $docs, Registry $registry ): array` | The `documents` map (`name => URL`) — add a standard document Agentimus can't auto-detect. |
+
+The unprefixed key namespace in the envelope is reserved for the spec; put vendor extensions under an `x-<vendor>` key.
+
+```php
+add_filter( 'agentimus_documents', function ( $docs, $registry ) {
+    $docs['acme_openapi'] = home_url( '/wp-json/acme/v1/openapi.json' );
+    return $docs;
+}, 10, 2 );
+```
+
+### .well-known routing & labelling
+
+| Hook | Type | Signature | Purpose |
+| --- | --- | --- | --- |
+| `agentimus_well_known_routed` | filter | `( string[] $names ): string[]` | Route a flat `/.well-known/<name>` you serve so it resolves on every host. |
+| `agentimus_well_known_nested` | filter | `( string[] $names ): string[]` | Route an exact-match nested `/.well-known/<dir>/<file>`. |
+| `agentimus_well_known_specs` | filter | `( array $specs ): array` | Label a `/.well-known` name with the standard that governs it (`name => label`). |
+| `agentimus_signed_surfaces` | filter | `( string[] $surfaces ): string[]` | Which discovery documents a companion signer signs. Default: `discovery.json`, `agent-card.json`, `agent.json`, `mcp.json`. |
+
+### MCP & Agent Skills
+
+| Hook | Type | Signature | Purpose |
+| --- | --- | --- | --- |
+| `agentimus_mcp` | filter | `( array $mcp, array $resources ): array` | Annotate the advertised MCP descriptor served at `/.well-known/mcp.json`. |
+| `agentimus_mcp_card_server` | filter | `( string $id, array $servers ): string` | Pin which server the MCP server card describes (`''` = auto-pick the server with the most tools). |
+| `agentimus_agent_skills` | filter | `( array $skills, array $resources ): array` | Append entries to the Agent Skills index at `/.well-known/agent-skills/index.json`. |
+| `agentimus_webmcp_tools` | filter | `( array $tools, Settings $settings ): array` | The WebMCP tools registered with in-browser agents. Each entry needs `name`, `description`, `inputSchema`, `endpoint`, `method`. Expose read-only tools only — `execute()` runs in the visitor's browser session. |
+
+### Post content, llms.txt & yielding
+
+| Hook | Type | Signature | Purpose |
+| --- | --- | --- | --- |
+| `agentimus_post_types` | filter | `( string[] $types, string[] $available ): string[]` | Which post types are agent-visible — each gets its own section in llms.txt. |
+| `agentimus_post_type_source` | filter | `( string $source, string $post_type ): string` | Attribute a post type's llms.txt section to your plugin (vendor label; `''` = none). |
+| `agentimus_markdown_source` | filter | `( ?string $html, WP_Post $post ): ?string` | Supply rendered HTML for a post (e.g. page-builder content). Return `null` to let Agentimus render it normally. |
+| `agentimus_llms_full_item_max_bytes` | filter | `( int $bytes ): int` | Per-item byte cap for the llms-full.txt full-text edition. Default is derived from the budget: `min(256KB, max(32KB, budget/4))`. |
+| `agentimus_llms_full_avg_item_bytes` | filter | `( int $bytes ): int` | Average item size (default `4096`) used only to **estimate** the full-text edition size in the admin. |
+| `agentimus_yield_surface` | filter | `( bool $yield, string $surface ): bool` | Cede a surface to your own producer so Agentimus stops emitting it. Surface keys: `llms_txt`, `llms_full`, `markdown`, `link_headers`, `robots`. |
+
+```php
+// Hand robots.txt output to your own plugin.
+add_filter( 'agentimus_yield_surface', function ( $yield, $surface ) {
+    return 'robots' === $surface ? true : $yield;
+}, 10, 2 );
+```
+
+### Sitemap
+
+| Hook | Type | Signature | Purpose |
+| --- | --- | --- | --- |
+| `agentimus_sitemap` | filter | `( array $sitemap ): array` | The detected sitemap descriptor — declare one Agentimus can't auto-detect. Shape: `array( 'url' => string, 'source' => string, 'label' => string )`. |
+| `agentimus_sitemap_max_urls` | filter | `( int $max ): int` | Cap the number of URLs in Agentimus's generated fallback sitemap (default `2000`). |
+
+### REST auto-discovery
+
+| Hook | Type | Signature | Purpose |
+| --- | --- | --- | --- |
+| `agentimus_rest_discovery` | filter | `( bool $enabled ): bool` | Master switch for REST namespace auto-discovery. |
+| `agentimus_rest_namespaces` | filter | `( string[] $namespaces ): string[]` | REST namespaces to publish in the discovery document. |
+| `agentimus_rest_skip_namespaces` | filter | `( string[] $namespaces ): string[]` | REST namespaces to exclude from discovery. |
+| `agentimus_discoverable_ability` | filter | `( bool $discoverable, string $name, mixed $ability ): bool` | Include or exclude a single WP ability from discovery. |
+
+### robots.txt
+
+Agentimus does **not** declare its own robots.txt filter. It appends AI-crawler rules to robots.txt through WordPress core's own `robots_txt` filter, and reconstructs the served file (mirroring `do_robots()`) via that same core filter when building the admin readiness preview. To hook robots.txt yourself, use WordPress core's `robots_txt` filter; to take the surface over entirely so Agentimus stops writing to it, use `agentimus_yield_surface` with the `robots` surface key (see above).
+
+## Structured data & topics
+
+### JSON-LD schema
+
+| Hook | Type | Signature | Purpose |
+| --- | --- | --- | --- |
+| `agentimus_defer_schema` | filter | `( bool $active ): bool` | Whether to emit the front-end JSON-LD. Return `false` to stand down for an SEO plugin. |
+| `agentimus_schema_for_post` | filter | `( array $node, WP_Post $post ): array` | Replace a single post's JSON-LD node (e.g. a `Product` or `Service`). |
+| `agentimus_schema_type_map` | filter | `( array $map ): array` | The post-type → schema `@type` map. Default: `array( 'post' => 'BlogPosting', 'page' => 'WebPage' )`; anything unmapped falls back to `Article`. |
+| `agentimus_schema_graph` | filter | `( array $graph ): array` | Last-chance edit of the entire JSON-LD `@graph` before output. |
+| `agentimus_faq_pairs` | filter | `( array $pairs, WP_Post $post ): array` | Contribute extra question/answer pairs to the `FAQPage` schema. |
+
+```php
+add_filter( 'agentimus_schema_for_post', function ( $node, $post ) {
+    if ( 'acme_product' === $post->post_type ) {
+        $node['@type'] = 'Product';
+    }
+    return $node;
+}, 10, 2 );
+```
+
+### Topics for AI
+
+Per-page topics become JSON-LD `keywords` plus `about` `DefinedTerm` entities, and appear in the Markdown output. These filters shape how topics are derived, cleaned, suggested and linked.
+
+| Hook | Type | Signature | Purpose |
+| --- | --- | --- | --- |
+| `agentimus_derive_taxonomies` | filter | `( string[] $taxonomies, WP_Post $post ): string[]` | Which taxonomies auto-fill a post's Topics for AI. Default: `category`, `post_tag`. Added taxonomies (e.g. `product_cat`) flow through the same derive toggle, exclude list, dedupe and cap. |
+| `agentimus_post_topics` | filter | `( string[] $topics, WP_Post $post ): string[]` | The last word on a post's resolved topics (manual + derived). Use it when topics are not taxonomy terms. The return value is re-normalised — trimmed, case-insensitively deduped and capped. |
+| `agentimus_topic_exclude` | filter | `( string[] $slugs ): string[]` | Topic/category slugs omitted from the llms.txt Topics list and from a post's auto-derived topics. Default: `array( 'uncategorized' )`. |
+| `agentimus_topic_meaningful` | filter | `( bool $meaningful, string $name, ?object $term ): bool` | Whether an auto-derived taxonomy term becomes a topic. Default is `false` for a purely-numeric name (junk/placeholder categories, stray IDs); return `true` to keep a number that really is the subject, e.g. "1984". |
+| `agentimus_topic_suggestions` | filter | `( string[] $pool ): string[]` | The autocomplete pool in the editor's Topics-for-AI box. Default: topics already used on the site, its tags and categories, and declared Expertise. |
+| `agentimus_topic_links` | filter | `( string[] $urls, string $topic, WP_Post $post ): string[]` | Authoritative reference URLs for a topic, emitted as schema.org `sameAs` on its `about` `DefinedTerm` so an assistant resolves the exact entity. Core supplies **none** — no front-end lookups and no risky auto-matching; you map them. The result is sanitised (`esc_url_raw`) and de-duplicated. |
+
+```php
+// Disambiguate topics with Wikidata IDs. Core never looks these up itself.
+add_filter( 'agentimus_topic_links', function ( $urls, $topic ) {
+    $map = array(
+        'WordPress' => 'https://www.wikidata.org/wiki/Q13166',
+        'PHP'       => 'https://www.wikidata.org/wiki/Q59',
+    );
+    if ( isset( $map[ $topic ] ) ) {
+        $urls[] = $map[ $topic ];
+    }
+    return $urls;
+}, 10, 2 );
+```
+
+## Crawl & security
+
+These are the Guard (opt-in UA blocking), the activity Classifier (labelling, not blocking) and the suggestion catalogues behind the admin allow/deny lists. They are internal-tier tuning knobs, not a third-party integration surface. Nothing is blocked until the owner adds a client to a list **and** turns blocking on.
+
+### Guard (blocking)
+
+| Hook | Type | Signature | Purpose |
+| --- | --- | --- | --- |
+| `agentimus_deny_request` | filter | `( bool $deny, string $ua_lc ): bool` | The Guard's final say on whether to 403 a request. `$ua_lc` is the lower-cased user agent. |
+| `agentimus_block_allowlist` | filter | `( string[] $allowed ): string[]` | Clients that must never be hard-blocked (search engines plus the owner's allow-list). |
+| `agentimus_default_allowed` | filter | `( string[] $engines ): string[]` | The built-in always-allowed engine **display names** shown in the admin. Default: `Googlebot`, `Bingbot`, `DuckDuckBot`, `Applebot`, `Yandex`. Display-only — the actual matcher is `engine_signatures()`, so keep the two in step. |
+| `agentimus_engine_signatures` | filter | `( array $signatures ): array` | Structured signatures used to match real crawlers at a token boundary. |
+| `agentimus_generic_ua_tokens` | filter | `( string[] $tokens ): string[]` | Generic user-agent tokens treated as low-signal. |
+
+### Classifier (labelling)
+
+| Hook | Type | Signature | Purpose |
+| --- | --- | --- | --- |
+| `agentimus_agent_map` | filter | `( array $map ): array` | User-agent → friendly label for the activity log. |
+| `agentimus_spoof_signatures` | filter | `( string[] $signatures ): string[]` | Platform markers that flag a spoofed/legacy-device "scanner". |
+
+### Suggestion catalogues
+
+These power the one-click "add a known …" chips in the admin. They are suggestions only.
+
+| Hook | Type | Signature | Purpose |
+| --- | --- | --- | --- |
+| `agentimus_known_agents` | filter | `( array $catalog ): array` | Known-agent catalog (`user-agent => label`) for the activity log. |
+| `agentimus_known_trainers` | filter | `( string[] $known ): string[]` | AI-trainer user-agents offered for robots.txt blocking (e.g. GPTBot, ClaudeBot, CCBot). |
+| `agentimus_known_scanners` | filter | `( string[] $known ): string[]` | Aggressive SEO/scraper user-agents offered as one-click hard-block suggestions. |
+| `agentimus_known_allowed` | filter | `( string[] $known ): string[]` | On-behalf-of-user AI agents offered for the always-allow trust-list (e.g. ChatGPT-User, PerplexityBot). Deliberately excludes training crawlers. |
+
+### security.txt, readiness & signing
+
+| Hook | Type | Signature | Purpose |
+| --- | --- | --- | --- |
+| `agentimus_serve_security_txt` | filter | `( bool $serve ): bool` | Whether Agentimus generates a `/.well-known/security.txt`. |
+| `agentimus_security_txt` | filter | `( string $body ): string` | Edit the final `security.txt` body. |
+| `agentimus_security_txt_expires_days` | filter | `( int $days ): int` | The `security.txt` `Expires` window, in days. |
+| `agentimus_readiness_checks` | filter | `( array $checks, Settings $settings ): array` | Add or adjust the admin Discovery Hub readiness checks. |
+| `agentimus_signed_surfaces` | filter | `( string[] $surfaces ): string[]` | Which discovery documents a companion signer signs (also listed under Discovery & output). |
+| `agentimus_signing_secret_key` | filter | `( string $key ): string` | Supply the Ed25519 signing secret key from a constant or vault instead of the database (default `''`). |
+
+```php
+add_filter( 'agentimus_deny_request', function ( $deny, $ua_lc ) {
+    return $deny;
+}, 10, 2 );
+```
+
+## Activity & analytics
+
+Tuning knobs for the activity log, its retention and the "activity to review" panel.
+
+| Hook | Type | Signature | Purpose |
+| --- | --- | --- | --- |
+| `agentimus_activity_skip_self` | filter | `( bool $skip ): bool` | Whether to skip recording hits from logged-in admins. Default: `is_user_logged_in() && current_user_can( 'manage_options' )`. |
+| `agentimus_activity_retention_days` | filter | `( int $days ): int` | How long agent hits are retained, in days. |
+| `agentimus_activity_max_rows` | filter | `( int $max ): int` | Hard cap on rows in the activity table — a backstop to age-based pruning. A cap of `0` disables it. |
+| `agentimus_ai_referral_sources` | filter | `( array $map ): array` | Referrer host → friendly name for "Traffic from AI" attribution. |
+| `agentimus_new_agent_seconds` | filter | `( int $seconds ): int` | The "new agent" window for the activity-to-review panel, in seconds. |
+| `agentimus_burst_min_hits` | filter | `( int $hits ): int` | Minimum hits to flag a burst. |
+| `agentimus_heavy_min_hits` | filter | `( int $hits ): int` | Minimum hits to flag heavy usage. |
+| `agentimus_threats_limit` | filter | `( int $limit ): int` | Maximum rows in the "activity to review" panel. |
+
+## Settings & lifecycle
+
+Stable extension points for companions and Pro add-ons, plus the settings pipeline.
+
+| Hook | Type | Signature | Purpose |
+| --- | --- | --- | --- |
+| `agentimus_entity_types` | filter | `( string[] $types ): string[]` | Add selectable schema.org entity types to Settings → Identity. |
+| `agentimus_default_settings` | filter | `( array $defaults ): array` | The default settings array — seed your own companion defaults. |
+| `agentimus_settings` | filter | `( array $settings ): array` | The live, merged settings array at read time. |
+| `agentimus_sanitize_settings` | filter | `( array $clean, array $input ): array` | Validate/coerce companion-added fields when settings are saved. |
+| `agentimus_settings_reset` | action | `()` | Runs when the owner resets settings — clear your own caches. |
+| `agentimus_cache_flushed` | action | `()` | Runs after Agentimus regenerates its documents — purge your CDN / page cache. |
+| `agentimus_booted` | action | `( Plugin $plugin )` | Runs after the plugin finishes booting — a companion or Pro add-on registers its features here against the shared instance. |
+
+```php
+add_filter( 'agentimus_entity_types', function ( $types ) {
+    $types[] = 'Restaurant';
+    return $types;
+} );
+
+add_action( 'agentimus_booted', function ( $plugin ) {
+    // my_addon_boot( $plugin );
+} );
+```
+
+## See also
+
+- `examples/all-hooks-reference.php` — a copy-paste block for every hook on this page, grouped by the same stability tiers.
+- `examples/integrate-your-plugin.php` — the full `Registry::register()` / `add_well_known()` schema used inside the registration action.
+- The **Registering your plugin** and **Topics for AI** pages walk through the two most common integrations end to end.

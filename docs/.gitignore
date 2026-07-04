@@ -1,0 +1,6 @@
+# Local Jekyll build output — GitHub Pages builds server-side.
+_site/
+.jekyll-cache/
+.jekyll-metadata
+Gemfile.lock
+vendor/

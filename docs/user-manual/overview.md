@@ -1,0 +1,115 @@
+---
+title: Overview
+parent: User Manual
+nav_order: 1
+---
+
+## What Agentimus is
+
+Agentimus is an **AI-discovery layer for your WordPress site**. It publishes clean, machine-readable versions of your content so that AI assistants and agents — ChatGPT, Claude, Perplexity, Gemini and the crawlers behind them — can find your site, read it correctly, and describe or cite it in your own words.
+
+It sits quietly alongside your existing setup. Your visitors see nothing new: no extra scripts, no styling, no layout changes on the pages people actually view. Everything Agentimus adds is written for the machines that read your site on a person's behalf — the AI tools more and more of your audience now ask instead of typing a search into Google.
+
+You do not need to understand AI, web standards, or any of the file formats involved to use it. A setup wizard opens automatically the first time you visit the admin and walks you through your identity and content choices in about a minute. After that, Agentimus runs on its own.
+
+## The problem it solves
+
+For twenty years, "getting found" online meant getting found by a search engine, which sent a person to your page. That is changing. People increasingly ask an AI assistant a question and read the answer it composes — an answer stitched together from many sites, often without the person ever clicking through.
+
+That shift creates two new problems for a site owner:
+
+- **Being read correctly.** An AI assistant reading a page of WordPress HTML has to wade through menus, sidebars, widgets, cookie banners and theme markup to find the actual content. It can misread who you are, what you do, or what a page is about — and then repeat that mistake to everyone who asks about you.
+- **Being represented on your terms.** When an assistant summarises your site, you want it working from an accurate, clean version you control — not a garbled guess. And you may want a say in whether AI companies are allowed to train on your content at all.
+
+Agentimus addresses both. It gives AI tools a tidy, unambiguous version of your site to read, lets you state your identity and expertise in the exact words you'd choose, and gives you controls over who may crawl your content and what they may do with it.
+
+## Who it's for
+
+Agentimus is built for **WordPress site owners**, not developers. It's a good fit if you are any of these:
+
+- **A consultant, freelancer or personal brand** who wants AI assistants to describe you and your expertise accurately when someone asks about your field.
+- **A business or agency** that wants AI tools to understand your services and point enquiries the right way.
+- **A blogger or publisher** whose posts and pages should flow into AI-readable form automatically, so your writing is available to be quoted correctly.
+- **Anyone** who simply wants to see which AI bots are visiting their site, and to decide who is welcome.
+
+If you can write a sentence about who you are and tick a few boxes, you can run Agentimus. Developers get a rich set of hooks and an open discovery standard to build on too, but none of that is required for a site owner to get the full benefit.
+
+## The core idea: machine-readable versions of your site
+
+A web page is built for human eyes. The same information, laid out for a machine, is far easier for an AI tool to read accurately. That is the heart of what Agentimus does: for the content you already publish, it produces **parallel, machine-friendly editions** and points AI tools at them.
+
+Concretely, that means:
+
+- A plain **Markdown** version of any page — just the words, no theme clutter — available by adding `.md` to the page's URL.
+- An **index file** (`/llms.txt`) that lists your pages, topics and recent posts in one place, plus a **full-text edition** (`/llms-full.txt`) an agent can read in a single request.
+- **Structured data** (JSON-LD) that states, in a format search engines and AI tools already understand, who you are and what each post is about.
+- A single, forward-looking **discovery document** at `/.well-known/discovery.json` that describes your site's identity, capabilities and APIs in one predictable place.
+
+None of this is guesswork on your part. You supply a short profile and your content choices; Agentimus generates and keeps these files up to date, and caches them so they load fast and never slow your site.
+
+## What it publishes at a glance
+
+Here is the machine-readable output Agentimus can generate. Some is on by default; some is opt-in. Later pages in this manual cover each one in detail.
+
+| Signal | Where it lives | What it's for |
+|---|---|---|
+| Markdown delivery | Add `.md` to any page URL | A clean, text-only version of the page for AI tools to read |
+| Link index | `/llms.txt` | A one-page directory of your site's pages, topics and recent posts |
+| Full-text edition | `/llms-full.txt` | Your content in full, in one file an agent can read in a single request |
+| Structured data | JSON-LD in the page `<head>` | `WebSite` + `Person`/`Organization`, plus `BlogPosting` and `BreadcrumbList` on posts |
+| Topics for AI | JSON-LD `keywords` + a line in each page's `.md` | Says, in plain words, what each post is about |
+| Crawler policy | `robots.txt` | Declares your content-usage signals and can block named AI-training crawlers |
+| AI-training opt-out | `robots.txt`, a response header, and `/.well-known/tdmrep.json` | Publishes your "don't train on this" choice in three places at once |
+| XML sitemap | `/agentimus-sitemap.xml` | An opt-in fallback, generated only if nothing else already provides one |
+| Discovery document | `/.well-known/discovery.json` | One predictable place describing your identity, capabilities and APIs |
+| Agent & tool cards | `/.well-known/agent-card.json`, `/.well-known/mcp.json` | Machine descriptions of what an agent can do with your site |
+| security.txt | `/.well-known/security.txt` | An optional, standard way for researchers and agents to report an issue |
+
+Alongside what it *publishes*, Agentimus also gives you a private, first-party **log of which AI crawlers actually visit** your site (no IP addresses recorded), a one-click way to **block** bots you don't want, and a one-screen **readiness report** that scores how AI-ready your site is and names the single next thing worth improving.
+
+## Lightweight by design — no SEO bloat
+
+Most tools in this space cover one narrow slice: just an llms.txt file, or just an AI-bot blocker, or just structured data. Agentimus brings content control, agent-traffic visibility, clean machine-readable output and a forward-looking discovery document together in one coherent package — and stays deliberately small doing it.
+
+What that means in practice:
+
+- **No front-end JavaScript or CSS for your visitors.** A default install ships nothing to the browsers of the people reading your site.
+- **No performance cost.** The text files are cached and CDN-friendly. The admin interface loads only on Agentimus's own screen, never across the rest of your dashboard.
+- **No framework.** The plugin is plain PHP with a small, hand-rolled loader — the codebase is intentionally lean so it can't become the heavy dependency it's meant to help you avoid.
+- **No phoning home.** Out of the box Agentimus makes no outbound requests, collects no analytics or telemetry, and logs no IP addresses. Everything runs on your own site. (The one exception is the optional AI Visibility feature, which is off by default and only calls an AI provider you choose after you add your own API key.)
+
+## It defers to your SEO plugin
+
+If you run Yoast, Rank Math, SEOPress, All in One SEO (AIOSEO) or The SEO Framework, you don't have to choose between them and Agentimus. Agentimus is built to **stand down** where your SEO plugin already does the job.
+
+Specifically, the JSON-LD structured data automatically switches off when one of those SEO plugins is active, so your site never ships duplicate or conflicting schema. Agentimus recognises that your SEO plugin owns that job and gets out of the way. The rest of what Agentimus produces — llms.txt, the full-text edition, Markdown delivery, the discovery document — doesn't overlap with SEO plugins at all, so those keep working regardless.
+
+The result: Agentimus fills the gaps your SEO plugin doesn't cover (the AI/agent layer) without fighting it over the parts it already handles. Even when your SEO plugin owns the schema, the **Agent preview** in the admin still shows you exactly what an AI agent receives, so you can always check what's being published.
+
+## What Agentimus is NOT
+
+Being clear about the limits matters as much as the features. Agentimus **cannot manufacture authority**.
+
+Agentimus makes your site *discoverable and correctly understood* — when an AI assistant looks at your site, it can find your content, read a clean version, and describe you accurately. That is what the plugin controls, and it does it well.
+
+But whether an AI *spontaneously mentions you* when someone asks a broad question ("best resources for X") is a matter of **authority and reputation** — earned over time through genuinely useful content that other people reference. No plugin, llms.txt file, or piece of schema can conjure that. Any tool promising "instant AI visibility" is overselling.
+
+Think of it this way: Agentimus makes sure that when your authority *does* bring an AI agent to your door, nothing is lost in translation. It readies the site; it doesn't fake the reputation.
+
+A few other things Agentimus is deliberately not:
+
+- **It is not a security suite.** The optional Exposure controls tidy up what stock WordPress reveals to anonymous crawlers, but Agentimus stays a discovery layer, not a firewall. It describes what your site already makes public; it grants no new access and exposes nothing private.
+- **It does not let agents change your site.** Agentimus advertises tools and capabilities; it does not execute them. Suppressing or removing an item changes what is *advertised*, not what is reachable — your underlying endpoints behave exactly as before, behind their own authentication.
+- **It is not a magic switch for AI rankings.** The content signals it publishes (JSON-LD, robots, llms.txt, Markdown) are read by AI tools today; the discovery document is forward-looking and prepares you for agents as they adopt these conventions. The plugin works fully whether or not any given agent consumes that document yet.
+
+## Where to go next
+
+Now that you know what Agentimus is for, the rest of this manual walks through using it:
+
+- **Getting started** — installing, activating, and the one-minute setup wizard.
+- **Identity** — the profile, expertise and linked-profile fields that are the highest-signal information an AI assistant uses to describe you.
+- **The readiness report** — reading your score and the plain-English checklist of what's still worth improving.
+- **Crawler policy and AI access** — declaring your content-usage signals and deciding which bots are welcome.
+- **The activity log** — seeing which AI crawlers and agents actually fetch your content.
+
+If you take just one action after reading this page, run the setup wizard and add a sentence about who you are — that single line is the most valuable thing an AI assistant reads about your site.

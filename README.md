@@ -11,6 +11,8 @@ no SEO bloat, no framework.
 
 **Live on WordPress.org:** <https://wordpress.org/plugins/agentimus/>
 
+**📖 Documentation:** <https://heera.github.io/agentimus/> — full user manual and developer reference.
+
 ## Install
 
 - **From your dashboard** — Plugins → Add New → search **"Agentimus"** → Install → Activate.

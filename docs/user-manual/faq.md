@@ -1,0 +1,125 @@
+---
+title: FAQ
+parent: User Manual
+nav_order: 14
+---
+
+Short, honest answers to the questions site owners ask most. If you are weighing up whether Agentimus is safe to run on a live site, this is the page to read. The recurring theme: Agentimus adds a machine-readable layer *for AI tools* without touching what your visitors see, without phoning home, and without taking over jobs your other plugins already do.
+
+## Will it slow my site down?
+
+No. Agentimus is built to stay out of the way of your visitors and your server.
+
+- **No front-end scripts or styles.** Agentimus adds no JavaScript or CSS to the pages your visitors load. Your theme, your page speed, and your Core Web Vitals are untouched. (The one exception is the optional WebMCP bridge, which is off by default — see below — and even when on it adds only a tiny script that stays inert in browsers without the API.)
+- **The admin app loads on one screen only.** The plugin's dashboard code loads on Agentimus's own admin page and nowhere else, so the rest of wp-admin stays as fast as before.
+- **The AI files are cached.** The text files Agentimus serves (like `llms.txt`) are generated once, cached for up to an hour, and are CDN-friendly. An AI crawler fetching them costs you almost nothing.
+
+If you ever want to see the effect for yourself, open `yoursite.com/llms.txt` in a browser — it is a plain text file that loads instantly.
+
+## Does it change anything my visitors see?
+
+No. Nothing on your visible pages changes — no new layout, no banner, no widget, no font. Everything Agentimus publishes is *machine-readable* and meant only for AI assistants and crawlers:
+
+- A small block of structured data (JSON-LD) in the page's hidden `<head>`, which humans never see.
+- Plain files served off your own domain, such as `llms.txt` and a discovery document, that only automated tools request.
+
+Your readers get exactly the same site they got before. The whole point of Agentimus is to add an *invisible* layer that helps machines understand your content correctly.
+
+## Does it conflict with my SEO plugin?
+
+No — and this is deliberate. Agentimus is designed to stand down gracefully next to the SEO plugins people already run.
+
+- **Structured data (JSON-LD)** automatically switches itself off when it detects Yoast, Rank Math, SEOPress, All in One SEO, or The SEO Framework. That way your page never carries two competing blocks of structured data. The Readiness report tells you when Agentimus has stepped aside for this reason.
+- **The sitemap** is gap-only: if WordPress core or your SEO plugin already publishes a sitemap, Agentimus does not add a second one.
+- **The other outputs don't overlap.** `llms.txt`, the Markdown versions of your pages, and the discovery document are things SEO plugins don't produce, so there is nothing to collide with.
+
+In short, Agentimus fills the gaps your SEO plugin leaves and yields on the ground your SEO plugin already covers.
+
+## Does Agentimus make outbound requests or send my data anywhere?
+
+By default, **no.** Out of the box, Agentimus:
+
+- Makes no outbound HTTP requests.
+- Sends nothing to any external service.
+- Collects no analytics or telemetry.
+- Stores its agent-activity log in your own database, with **no IP addresses** recorded.
+
+Everything runs on your own site. There are two things worth knowing so the picture is complete:
+
+- **The optional AI Visibility feature is the one real exception.** If you turn it on and add your *own* API key, Agentimus queries the AI providers you chose (OpenAI, Perplexity, Gemini and/or Anthropic) to check whether they mention and cite you. It only contacts the engines you switch on, only when a check runs (on demand or on your schedule), and your keys stay on your server. If you never enable it, no request is ever made. The plugin's readme carries the full *External services* disclosure.
+- **The "Verify live" self-check runs in your browser, not on your server.** The Readiness report has a button that fetches your own public URLs to show you exactly what an AI tool would receive. That fetch happens from *your* browser, hitting *your* own pages — the server itself still makes no outbound request.
+
+One common point of confusion: the discovery document contains a `$schema` value. That is a *label* that names the document's format (the same way a `schema.org` link names a vocabulary). It is text in the file; nothing fetches it.
+
+## Is my data private? Can agents change my site through Agentimus?
+
+Yes to privacy, and no to any new access.
+
+- Agentimus only describes content your site **already makes public**. It does not expose drafts, private pages, user data, or anything behind a login.
+- Removing or hiding an item in Agentimus changes what is *advertised* to AI tools — not what is reachable. The underlying pages and endpoints behave exactly as they did before, still behind their own authentication.
+- The activity log is first-party and aggregate: it records that a bot fetched your content, without storing IP addresses or per-visitor records.
+
+Agentimus grants agents **no** ability to write to, edit, or control your site. It is a read-and-describe layer, not an access layer.
+
+## What is llms.txt, and what do you mean by a "discovery layer"?
+
+These two ideas are the heart of what Agentimus does, so it is worth a plain explanation.
+
+**`llms.txt`** is a plain text file served at your site root (`yoursite.com/llms.txt`). Think of it as a table of contents written for AI assistants: it lists your key pages and posts in a clean, easy-to-read form, so a tool like ChatGPT or Claude can quickly see what your site is about and where to look. It sits alongside the familiar `robots.txt`, but where `robots.txt` says *what a crawler may fetch*, `llms.txt` helps an AI *understand and summarise* what it finds. There is also a fuller `llms-full.txt` that includes the actual content of your top pages.
+
+A **discovery layer** is the broader set of machine-readable files Agentimus publishes so AI tools can find and interpret your site without guessing from your visual layout. Besides `llms.txt`, it includes:
+
+- A **discovery document** — a structured description of your site (who you are, what it offers, where the important content lives).
+- **Markdown versions** of your pages — a clean, plain-text rendering an AI can read without wading through your theme's HTML.
+- **Structured data (JSON-LD)** in the page head.
+
+The discovery document isn't a format private to this plugin — it implements the openly-licensed **WP_Discovery Protocol**, and Agentimus is its reference implementation. The point of the whole layer is simple: when an AI shows up, it gets a clean, accurate version of your site instead of scraping and misreading your page markup.
+
+## Will Agentimus guarantee that ChatGPT cites me, or improve my "AI ranking"?
+
+Honest answer: **no plugin can promise that, and Agentimus does not.** Here is the real split.
+
+There are two halves to being cited by an AI:
+
+1. **Being discoverable and correctly understood.** When an assistant does look at your site, can it find your content, read a clean version, and describe you accurately? **This is exactly what Agentimus controls, and it does it well.**
+2. **Being spontaneously mentioned** when someone asks a broad question like "best resources for X." That depends on your site's **authority and reputation** — earned over time through genuinely notable content that other people reference.
+
+No plugin, no `llms.txt`, and no schema can manufacture authority. Any tool promising "instant AI visibility" is overselling. What Agentimus guarantees is that when your authority *does* bring an AI to your door, nothing is lost in translation — you are read correctly and described in your own words.
+
+A related feature worth knowing: the dashboard's **Traffic from AI** card counts real people who arrived from an AI assistant (detected from the referrer and the `utm_source` some AI tools add). Treat that number as a floor — "at least this many" — because some AI visits can't be detected at all.
+
+## How do I turn features off?
+
+Every output Agentimus produces has its own switch under **Settings**, so you can run only the parts you want. You never have to take an all-or-nothing approach. Toggles include:
+
+| Feature | What turning it off does |
+| --- | --- |
+| `llms.txt` and `llms-full.txt` | Stops serving the AI table-of-contents / full-text files |
+| Markdown mirror | Stops serving plain-text Markdown versions of your pages |
+| Structured data (JSON-LD) | Stops printing the hidden data block (it already stands down for SEO plugins) |
+| Topics for AI | Stops adding your per-page topic words to the AI layer |
+| robots.txt management | Hands `robots.txt` back to WordPress/your other plugins |
+| Sitemap | Stops the gap-only sitemap (already off when core/SEO provides one) |
+| Activity log | Stops recording which bots fetched your content |
+
+A few features are **off by default** and only run when you ask: the AI Visibility checks, the WebMCP browser bridge, `security.txt`, and the non-standard `noai` header. Whole-plugin off is just as easy — deactivate Agentimus from your Plugins screen and every file and header it served stops immediately; nothing is left behind on your public pages.
+
+If you turn something on and it doesn't seem to appear, it is almost always working: the AI files are cached for up to an hour, so open the file directly (e.g. `yoursite.com/llms.txt`) and refresh, or use the Readiness report's **Verify live** button to see exactly what an AI tool receives right now.
+
+## Does it work with page builders and custom post types?
+
+Yes. Agentimus was built to cover real-world sites, not just plain posts and pages.
+
+- **Page builders.** Content built with Elementor, Beaver Builder, Divi, Gutenberg blocks, or shortcodes is rendered through WordPress's own standard content pipeline before Agentimus reads it. That means the Markdown and `llms.txt` output reflects your *finished* page, not raw shortcodes or builder markup. (For unusual custom renderers, developers can supply the content through a filter — see the Developer reference.)
+- **Custom post types.** Out of the box Agentimus exposes your **posts and pages**, which is the privacy-safe default. Any *public* custom post type — WooCommerce products, a portfolio type, a docs type, and so on — can be added to the mix from the post-type selection in Settings. It never silently exposes every custom type on its own, so nothing leaks by surprise; you choose what to include.
+
+So whether you run a page-builder marketing site, a WooCommerce store, or a blog, Agentimus can describe the content that matters to you.
+
+## A file isn't showing up — is it broken?
+
+Almost always it is working. Two things to check:
+
+- **Caching.** The generated AI files are cached for up to an hour. Open the file directly and refresh, or use **Verify live** on the Readiness report to fetch your real URLs from your browser and see what an agent actually receives — including anything your CDN is caching.
+- **A static file is overriding it.** If a real `robots.txt` file exists at your site root, or your CDN serves its own, it overrides the one WordPress (and Agentimus) generates. The Readiness report flags this. Remove the static file to let Agentimus manage the rules.
+
+For a full tour of every file, where it lives, and how to open it, see the **Machine-readable outputs** page.
