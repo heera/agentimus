@@ -29,8 +29,10 @@ export default {
       format: 'jsonld',   // 'jsonld' | 'markdown'
       result: null,       // JSON-LD: { target, graph, json, active, reason, seoPlugin, postIncluded, postNote, livePublic }
       mdResult: null,     // Markdown: { target, markdown, mdUrl, active, reason, postIncluded, postNote, livePublic }
-      // The pickable posts/pages (the "Site" entry is rendered separately, pinned).
-      targets: [],
+      // The pickable content, grouped by post type and paginated per group (the
+      // "Site" entry is rendered separately, pinned). Each group is
+      // { type, label, source, total, items, offset, hasMore, loadingMore }.
+      groups: [],
       targetsLoading: false,
       search: '',
       // Which post-type groups are collapsed, keyed by type slug. Empty = all open.
@@ -125,22 +127,9 @@ export default {
         ? !this.res.markdown
         : (!this.res.json || this.res.json === '');
     },
-    // The pickable targets grouped by post type: Pages, then Posts, then any CPTs
-    // (alphabetically by label). Each group is { type, label, items }.
-    groupedTargets() {
-      const groups = {};
-      const order = [];
-      this.targets.forEach((t) => {
-        if (!groups[t.type]) {
-          groups[t.type] = { type: t.type, label: t.typeLabel || t.type, source: t.typeSource || '', items: [] };
-          order.push(t.type);
-        }
-        groups[t.type].items.push(t);
-      });
-      const rank = (type) => (type === 'page' ? 0 : type === 'post' ? 1 : 2);
-      return order
-        .map((type) => groups[type])
-        .sort((a, b) => rank(a.type) - rank(b.type) || a.label.localeCompare(b.label));
+    // Whether any group holds any item — drives the "No matching content" hint.
+    hasAnyTarget() {
+      return this.groups.some((g) => g.items.length > 0);
     },
   },
   watch: {
@@ -251,15 +240,29 @@ export default {
         if (this.$refs.picker) this.$refs.picker.focus();
       });
     },
+    // Normalize a server group into the shape the picker renders, adding the
+    // client-only `loadingMore` flag its "Load more" button toggles.
+    mapGroup(g) {
+      return {
+        type: g.type,
+        label: g.typeLabel || g.type,
+        source: g.typeSource || '',
+        total: g.total || 0,
+        items: g.items || [],
+        offset: g.offset || 0,
+        hasMore: !!g.hasMore,
+        loadingMore: false,
+      };
+    },
     async loadTargets({ collapseAll = false } = {}) {
       this.targetsLoading = true;
       try {
         const res = await this.api.getSchemaTargets(this.search);
-        this.targets = (res && res.targets) || [];
+        this.groups = ((res && res.groups) || []).map((g) => this.mapGroup(g));
         if (collapseAll) {
           // Fresh open: start every group collapsed (just labels + counts).
           const collapsed = {};
-          this.targets.forEach((t) => { collapsed[t.type] = true; });
+          this.groups.forEach((g) => { collapsed[g.type] = true; });
           this.collapsedGroups = collapsed;
         }
       } catch (e) {
@@ -267,6 +270,32 @@ export default {
       } finally {
         this.targetsLoading = false;
       }
+    },
+    // Append the next batch of one type's items (the "Load more" button). Offsets by
+    // what's already loaded and de-dupes by id, so a concurrent edit can't double a row.
+    async loadMore(group) {
+      if (group.loadingMore || !group.hasMore) return;
+      group.loadingMore = true;
+      try {
+        const res = await this.api.getSchemaTargets(this.search, group.type, group.items.length);
+        const next = ((res && res.groups) || []).find((g) => g.type === group.type);
+        if (next) {
+          const seen = new Set(group.items.map((i) => i.id));
+          (next.items || []).forEach((it) => { if (!seen.has(it.id)) group.items.push(it); });
+          if (typeof next.total === 'number') group.total = next.total;
+          group.hasMore = !!next.hasMore && group.items.length < group.total;
+        } else {
+          group.hasMore = false;
+        }
+      } catch (e) {
+        this.$emit('flash', 'error', (e && e.message) || 'Could not load more items.');
+      } finally {
+        group.loadingMore = false;
+      }
+    },
+    // "Load more" copy — names how many of this type remain unloaded.
+    remaining(group) {
+      return Math.max(0, group.total - group.items.length);
     },
     // Debounce the search so we don't query on every keystroke. A search reveals
     // matches, so expand the groups — collapsed defaults would otherwise hide them.
@@ -375,9 +404,9 @@ export default {
                   </button>
 
                   <p v-if="targetsLoading" class="agentimus-jsonld__hint">Loading…</p>
-                  <p v-else-if="!targets.length" class="agentimus-jsonld__hint">No matching content.</p>
+                  <p v-else-if="!hasAnyTarget" class="agentimus-jsonld__hint">No matching content.</p>
                   <div v-else class="agentimus-jsonld__list">
-                    <div v-for="g in groupedTargets" :key="g.type" class="agentimus-jsonld__group">
+                    <div v-for="g in groups" :key="g.type" class="agentimus-jsonld__group">
                       <button
                         type="button"
                         class="agentimus-jsonld__grouphead"
@@ -389,7 +418,7 @@ export default {
                         </span>
                         <span class="agentimus-jsonld__groupname">{{ g.label }}</span>
                         <span v-if="g.source" class="agentimus-jsonld__groupsource">{{ g.source }}</span>
-                        <span class="agentimus-jsonld__groupcount">{{ g.items.length }}</span>
+                        <span class="agentimus-jsonld__groupcount">{{ g.total }}</span>
                       </button>
                       <ul v-show="!isCollapsed(g.type)" class="agentimus-jsonld__groupitems">
                         <li v-for="t in g.items" :key="t.id">
@@ -403,6 +432,16 @@ export default {
                             <span v-if="statusBadge(t.status)" class="agentimus-jsonld__target-meta">
                               <span class="agentimus-jsonld__target-badge" :class="'is-' + t.status">{{ statusBadge(t.status) }}</span>
                             </span>
+                          </button>
+                        </li>
+                        <li v-if="g.hasMore" class="agentimus-jsonld__morerow">
+                          <button
+                            type="button"
+                            class="agentimus-jsonld__more"
+                            :disabled="g.loadingMore"
+                            @click="loadMore(g)"
+                          >
+                            {{ g.loadingMore ? 'Loading…' : `Load more (${remaining(g)} left)` }}
                           </button>
                         </li>
                       </ul>
@@ -622,6 +661,24 @@ export default {
   padding: 0;
 }
 .agentimus-jsonld__groupitems li + li { border-top: 1px solid var(--ar-line); }
+
+/* "Load more" — a quiet full-width action that reads as a continuation of the
+   list, not a primary button. Sits below the last row of a paginated group. */
+.agentimus-jsonld__more {
+  display: block;
+  width: 100%;
+  padding: 8px 10px;
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ar-accent);
+  text-align: center;
+}
+.agentimus-jsonld__more:hover:not(:disabled) { background: var(--ar-surface-2); text-decoration: underline; }
+.agentimus-jsonld__more:disabled { color: var(--ar-ink-soft); cursor: default; }
 
 .agentimus-jsonld__target {
   display: flex;

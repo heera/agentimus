@@ -38,8 +38,13 @@ export function createApi(boot) {
     getSchemaPreview: (post = 0) => request(`/preview/schema?post=${encodeURIComponent(post || 0)}`),
     // Markdown preview: the .md twin of a page/post (per-page; site has none).
     getMarkdownPreview: (post = 0) => request(`/preview/markdown?post=${encodeURIComponent(post || 0)}`),
-    getSchemaTargets: (search = '') =>
-      request(`/preview/targets?search=${encodeURIComponent(search || '')}`),
+    // Preview targets grouped by post type. `type` + `offset` fetch one group's
+    // next batch (the "Load more" button); omit them for the initial, all-types load.
+    getSchemaTargets: (search = '', type = '', offset = 0) =>
+      request(
+        `/preview/targets?search=${encodeURIComponent(search || '')}`
+        + `&type=${encodeURIComponent(type || '')}&offset=${Math.max(0, offset | 0)}`,
+      ),
     getDiscoveryHub: () => request('/discovery/hub'),
     getActivity: () => request('/activity'),
     getActivityDay: (date) => request(`/activity/day?date=${encodeURIComponent(date)}`),

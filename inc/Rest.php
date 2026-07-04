@@ -15,6 +15,13 @@ final class Rest {
 
 	const NAMESPACE = 'agentimus/v1';
 
+	/**
+	 * How many targets of one post type the preview picker loads per batch. A type
+	 * with fewer than this returns in full (no "Load more"); a bigger one (posts,
+	 * products, any CPT) paginates via `offset`. Pages are few, so they load whole.
+	 */
+	const PREVIEW_PAGE_SIZE = 25;
+
 	/** @var Settings */
 	private $settings;
 
@@ -123,7 +130,9 @@ final class Rest {
 		);
 
 		// The pickable targets for the preview: the in-scope pages & posts, most
-		// recently edited first, optionally filtered by a title search.
+		// recently edited first, optionally filtered by a title search. Grouped by
+		// post type and paginated per group — `type` + `offset` fetch a group's next
+		// batch for the "Load more" button (see get_schema_targets()).
 		register_rest_route(
 			self::NAMESPACE,
 			'/preview/targets',
@@ -136,6 +145,16 @@ final class Rest {
 						'type'              => 'string',
 						'default'           => '',
 						'sanitize_callback' => 'sanitize_text_field',
+					),
+					'type'   => array(
+						'type'              => 'string',
+						'default'           => '',
+						'sanitize_callback' => 'sanitize_key',
+					),
+					'offset' => array(
+						'type'              => 'integer',
+						'default'           => 0,
+						'sanitize_callback' => 'absint',
 					),
 				),
 			)
@@ -401,52 +420,99 @@ final class Rest {
 	}
 
 	/**
-	 * GET /preview/targets — the in-scope pages & posts the preview can describe,
-	 * most-recently-modified first, filtered by an optional title search.
+	 * GET /preview/targets — the in-scope content the preview can describe, grouped
+	 * by post type (Pages, Posts, then CPTs), most-recently-modified first, filtered
+	 * by an optional title search.
+	 *
+	 * Each group carries its full `total` and a batch of up to PREVIEW_PAGE_SIZE
+	 * `items`, so a small type (pages) arrives whole while a large one (posts,
+	 * products) paginates: pass `type` + `offset` to fetch that group's next batch
+	 * for the "Load more" button. Response: `{ groups: [ { type, typeLabel,
+	 * typeSource, total, items, offset, hasMore } ] }`.
 	 *
 	 * @param \WP_REST_Request $request Request.
 	 * @return \WP_REST_Response
 	 */
 	public function get_schema_targets( \WP_REST_Request $request ) {
-		$search = sanitize_text_field( (string) $request->get_param( 'search' ) );
+		$search    = sanitize_text_field( (string) $request->get_param( 'search' ) );
+		$only_type = sanitize_key( (string) $request->get_param( 'type' ) );
+		$offset    = absint( $request->get_param( 'offset' ) );
 
-		$args = array(
-			'post_type'        => Content::post_types(),
-			'post_status'      => array( 'publish', 'private', 'draft', 'pending', 'future' ),
-			'posts_per_page'   => 50,
-			'orderby'          => 'modified',
-			'order'            => 'DESC',
-			'suppress_filters' => false,
-			'no_found_rows'    => true,
-		);
-		if ( '' !== $search ) {
-			$args['s'] = $search;
+		$scoped = Content::post_types();
+
+		// A "Load more" request names one type and an offset; the initial load walks
+		// every in-scope type from the top.
+		if ( '' !== $only_type && in_array( $only_type, $scoped, true ) ) {
+			$types = array( $only_type );
+		} else {
+			$types  = $scoped;
+			$offset = 0; // offset only makes sense for a single-type batch.
 		}
 
-		$targets      = array();
-		$type_labels  = array(); // slug → plural label, resolved once per type.
-		$type_sources = array(); // slug → vendor plugin name, so a generic "Products" type can be attributed (FluentCart vs WooCommerce vs …).
-		foreach ( get_posts( $args ) as $post ) {
-			$type = $post->post_type;
-			if ( ! isset( $type_labels[ $type ] ) ) {
-				$obj                   = get_post_type_object( $type );
-				$type_labels[ $type ]  = ( $obj && ! empty( $obj->labels->name ) )
-					? $obj->labels->name
-					: ucfirst( $type );
-				$type_sources[ $type ] = Content::source( $type );
+		// Pages first, then Posts, then any CPTs (alphabetically) — mirrors the picker.
+		$rank = static function ( $t ) {
+			return 'page' === $t ? 0 : ( 'post' === $t ? 1 : 2 );
+		};
+		usort(
+			$types,
+			static function ( $a, $b ) use ( $rank ) {
+				$d = $rank( $a ) - $rank( $b );
+				return 0 !== $d ? $d : strcmp( $a, $b );
 			}
-			$targets[] = array(
-				'id'         => (int) $post->ID,
+		);
+
+		$groups = array();
+		foreach ( $types as $type ) {
+			$args = array(
+				'post_type'           => $type,
+				'post_status'         => array( 'publish', 'private', 'draft', 'pending', 'future' ),
+				'posts_per_page'      => self::PREVIEW_PAGE_SIZE,
+				'offset'              => $offset,
+				'orderby'             => 'modified',
+				'order'               => 'DESC',
+				'suppress_filters'    => false,
+				'ignore_sticky_posts' => true,
+			);
+			if ( '' !== $search ) {
+				$args['s'] = $search;
+			}
+
+			$query = new \WP_Query( $args );
+
+			$items = array();
+			foreach ( $query->posts as $post ) {
+				$items[] = array(
+					'id'     => (int) $post->ID,
+					'type'   => $type,
+					'label'  => $this->preview_label( $post ),
+					'status' => $post->post_status,
+					'url'    => (string) get_permalink( $post ),
+				);
+			}
+
+			$total = (int) $query->found_posts;
+
+			// An empty type is simply absent from the initial list; a Load-more request
+			// still returns its (empty) group so the client can settle its state.
+			if ( 0 === $total && '' === $only_type ) {
+				continue;
+			}
+
+			$obj = get_post_type_object( $type );
+
+			$groups[] = array(
 				'type'       => $type,
-				'typeLabel'  => $type_labels[ $type ],
-				'typeSource' => $type_sources[ $type ],
-				'label'      => $this->preview_label( $post ),
-				'status'     => $post->post_status,
-				'url'        => (string) get_permalink( $post ),
+				'typeLabel'  => ( $obj && ! empty( $obj->labels->name ) ) ? $obj->labels->name : ucfirst( $type ),
+				// Vendor that registered the type, so a generic "Products" can be attributed (FluentCart vs WooCommerce vs …).
+				'typeSource' => Content::source( $type ),
+				'total'      => $total,
+				'items'      => $items,
+				'offset'     => $offset,
+				'hasMore'    => ( $offset + count( $items ) ) < $total,
 			);
 		}
 
-		return rest_ensure_response( array( 'targets' => $targets ) );
+		return rest_ensure_response( array( 'groups' => $groups ) );
 	}
 
 	/**
