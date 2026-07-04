@@ -1,24 +1,150 @@
-// Custom overrides layered on top of Just-the-Docs (imported last by the theme).
+// ============================================================================
+// Agentimus documentation — custom layer on top of Just-the-Docs.
+// Imported last by the theme, so these rules win. Three goals:
+//   1. A wider, roomier layout (more room for the sidebar and the content).
+//   2. A readable, on-brand active/hover state in the sidebar (no dark washout).
+//   3. Professional dark code blocks with teal-accented syntax highlighting.
+// Brand accent: teal #146b64 (the mark used in the plugin admin).
+// ============================================================================
 
-// --- Sidebar navigation -------------------------------------------------------
-// Keep every menu item on a single line — no wrapping. Titles are already short;
-// this is the belt-and-suspenders guarantee, with an ellipsis as the last resort
-// rather than a second line.
+$ag-accent:      #146b64;
+$ag-accent-dark: #0f544e;
+$ag-accent-tint: rgba(20, 107, 100, 0.10);
+$ag-rule:        #e6ebe9;
+
+$ag-sidebar:     18rem;   // roomier than the theme's 15.5rem
+$ag-measure:     64rem;   // content column cap — wide but still readable
+
+// ---------------------------------------------------------------------------
+// 1. Layout — wider content, roomier fixed sidebar (Laravel-ish).
+// ---------------------------------------------------------------------------
+@media (min-width: 50rem) {
+  .side-bar { width: $ag-sidebar; }
+  .site-header,
+  .site-nav,
+  .site-footer { width: $ag-sidebar; }
+  .main { margin-left: $ag-sidebar; }
+}
+
+// On large screens the theme widens the sidebar to a centring calc and caps the
+// content at 50rem. Replace that: keep the sidebar a fixed width and let the
+// content fill the space (capped for readability, centred in what's left).
+@media (min-width: 66.5rem) {
+  .side-bar { width: $ag-sidebar; min-width: $ag-sidebar; }
+  .site-header,
+  .site-nav,
+  .site-footer { width: $ag-sidebar; }
+  .side-bar + .main { margin-left: $ag-sidebar; }
+  .main { max-width: none; }
+  .main-content-wrap {
+    max-width: $ag-measure;
+    margin-left: auto;
+    margin-right: auto;
+    padding-left: 2.75rem;
+    padding-right: 2.75rem;
+  }
+}
+
+// ---------------------------------------------------------------------------
+// 2. Sidebar navigation — one line per item, readable brand states.
+// ---------------------------------------------------------------------------
 .site-nav {
+  padding-top: 1rem;
+
   .nav-list-link {
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
     line-height: 1.4;
+    border-radius: 6px;
   }
 
-  // A touch more breathing room between items so the list scans cleanly.
-  .nav-list .nav-list-item {
-    margin-bottom: 0.05rem;
+  .nav-list .nav-list-item { margin-bottom: 0.12rem; }
+  .nav-list .nav-list .nav-list-link { font-size: 0.82rem; }
+
+  // Hover: a soft brand tint with readable text — replaces the dark gradient.
+  .nav-list-link:hover {
+    background-image: none;
+    background-color: $ag-accent-tint;
+    color: $ag-accent-dark;
   }
 
-  // Child (sub-page) links sit a hair smaller and quieter than their section head.
-  .nav-list .nav-list .nav-list-link {
-    font-size: 0.82rem;
+  // Active page: solid brand fill, white text. High contrast, no gradient.
+  .nav-list .nav-list-item .nav-list-link.active,
+  .nav-list .nav-list-item .nav-list-link.active:hover {
+    background-image: none;
+    background-color: $ag-accent;
+    color: #fff;
+    font-weight: 600;
   }
+}
+
+// ---------------------------------------------------------------------------
+// 3. Content typography — quiet, professional.
+// ---------------------------------------------------------------------------
+.main-content {
+  a:not(.btn) { text-decoration: none; }
+  a:not(.btn):hover { text-decoration: underline; text-underline-offset: 2px; }
+
+  h1, h2, h3, h4, h5 { font-weight: 600; }
+  h2 {
+    padding-bottom: 0.3em;
+    border-bottom: 1px solid $ag-rule;
+  }
+  h1 + p, h2 + p { margin-top: 0.5rem; }
+
+  // Tables: clean, full-width-friendly.
+  table { display: table; width: 100%; }
+  thead th { border-bottom: 2px solid $ag-rule; }
+}
+
+// ---------------------------------------------------------------------------
+// 4. Code — inline pills stay light; fenced blocks go dark with teal syntax.
+// ---------------------------------------------------------------------------
+
+// Inline `code` — a small tinted pill.
+.main-content code.highlighter-rouge {
+  background-color: #eef4f2;
+  color: $ag-accent-dark;
+  border: 1px solid #dbe7e4;
+  border-radius: 5px;
+  padding: 0.12em 0.4em;
+  font-size: 0.86em;
+}
+
+// Fenced blocks (the `.highlight` wrapper only exists inside code blocks).
+.main-content div.highlighter-rouge,
+.main-content pre.highlight,
+.main-content .highlight {
+  background-color: #0c211e;
+}
+.main-content div.highlighter-rouge {
+  border: 1px solid #1c453f;
+  border-radius: 8px;
+  box-shadow: 0 1px 2px rgba(12, 33, 30, 0.12);
+}
+.main-content .highlight pre,
+.main-content pre.highlight,
+.main-content .highlight pre.highlight code {
+  background-color: transparent;
+}
+
+// Dark syntax palette, teal-forward. Rouge token classes, scoped to blocks.
+.main-content .highlight {
+  color: #e6edeb;
+
+  .c, .c1, .cm, .cd, .cp, .cs   { color: #5f8378; font-style: italic; } // comments
+  .k, .kc, .kd, .kn, .kp, .kr, .kt { color: #5eead4; }                  // keywords (teal)
+  .o, .ow, .p, .pi              { color: #9fb8b2; }                     // operators/punct
+  .s, .s1, .s2, .sb, .sc, .sd, .se, .sh, .si, .sx, .sr, .dl { color: #9ae6b4; } // strings
+  .m, .mi, .mf, .mh, .mo, .il   { color: #f6c177; }                     // numbers
+  .nt                           { color: #5eead4; }                     // HTML tag
+  .na                           { color: #f6c177; }                     // attribute
+  .nf, .nx                      { color: #cdefe8; }                     // function
+  .nc, .nn, .no, .nl            { color: #a5e8dd; }                     // class/namespace/const
+  .nb, .bp                      { color: #7fd8cb; }                     // builtins
+  .nv, .vi, .vg, .vc            { color: #f0a5a0; }                     // variables
+  .gd                           { color: #f0a5a0; }                     // diff removed
+  .gi                           { color: #9ae6b4; }                     // diff added
+  .err                          { color: #ffb4a2; background: transparent; }
 }
