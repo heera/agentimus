@@ -1,13 +1,12 @@
 <?php
 /**
- * The editor-side JSON-LD preview: a read-only meta box on the post/page editor
- * showing the exact structured data Agentimus would emit for that post — the same
- * Schema::build_document() the front end and the admin "JSON-LD" tab use.
+ * JSON-LD preview — one section of the unified "Agentimus" editor panel
+ * ({@see EditorPanel}). Renders the exact structured data Agentimus would emit for
+ * the post being edited (the same Schema::build_document() the front end and the
+ * admin "JSON-LD" tab use). Server-rendered, so it reflects the SAVED post.
  *
- * Server-rendered, so it reflects the SAVED post (save to refresh). The central
- * "JSON-LD" tab covers the whole site with a live picker; this is the in-context
- * convenience for the post you're editing. Shown only when the schema feature is
- * on, mirroring Topics' meta box.
+ * Registration and asset loading are owned by EditorPanel; this class provides the
+ * section's enabled-state, body render, and its styles/scripts.
  *
  * @package Agentimus
  */
@@ -17,8 +16,6 @@ namespace Agentimus;
 defined( 'ABSPATH' ) || exit;
 
 final class SchemaMetaBox {
-
-	const HANDLE = 'agentimus-schema-box';
 
 	/** @var Settings */
 	private $settings;
@@ -31,49 +28,19 @@ final class SchemaMetaBox {
 	}
 
 	/**
-	 * Register the meta box and its (copy-button) assets — admin only.
-	 */
-	public function register() {
-		if ( ! is_admin() ) {
-			return;
-		}
-		add_action( 'add_meta_boxes', array( $this, 'add_meta_box' ) );
-		add_action( 'admin_enqueue_scripts', array( $this, 'assets' ) );
-	}
-
-	/**
-	 * Whether the JSON-LD feature is on. The box tracks the front-end feature so it
-	 * never advertises output that isn't happening.
+	 * Whether the JSON-LD feature is on. The section tracks the front-end feature
+	 * so it never advertises output that isn't happening.
 	 *
 	 * @return bool
 	 */
-	private function enabled() {
+	public function is_enabled() {
 		return (bool) $this->settings->enabled( 'enable_schema' );
 	}
 
 	/**
-	 * Add the box to every agent-visible post type, low in the main column so it
-	 * sits below the content without crowding the primary editing area.
-	 */
-	public function add_meta_box() {
-		if ( ! $this->enabled() ) {
-			return;
-		}
-		foreach ( Content::post_types() as $type ) {
-			add_meta_box(
-				'agentimus-schema',
-				__( 'JSON-LD Preview (Agentimus)', 'agentimus' ),
-				array( $this, 'render_meta_box' ),
-				$type,
-				'normal',
-				'low'
-			);
-		}
-	}
-
-	/**
-	 * Render the read-only preview: a status line (live / an SEO plugin owns it),
-	 * the pretty-printed graph, and validate/open links. Reflects the saved post.
+	 * Render the read-only preview (section body): a status line (live / an SEO
+	 * plugin owns it), the pretty-printed graph, and validate/open links. Reflects
+	 * the saved post.
 	 *
 	 * @param \WP_Post $post Post being edited.
 	 */
@@ -158,50 +125,22 @@ final class SchemaMetaBox {
 	}
 
 	/**
-	 * Enqueue the copy-button behaviour — only on the editor for a covered type.
-	 * Vanilla JS + CSS inlined on a registered handle (the same no-build pattern as
-	 * the Topics meta box).
-	 *
-	 * @param string $hook Current admin page hook.
-	 */
-	public function assets( $hook ) {
-		if ( ! $this->enabled() ) {
-			return;
-		}
-		if ( 'post.php' !== $hook && 'post-new.php' !== $hook ) {
-			return;
-		}
-		$screen = function_exists( 'get_current_screen' ) ? get_current_screen() : null;
-		if ( ! $screen || ! in_array( $screen->post_type, Content::post_types(), true ) ) {
-			return;
-		}
-
-		wp_register_script( self::HANDLE, false, array(), AGENTIMUS_VERSION, true );
-		wp_enqueue_script( self::HANDLE );
-		wp_add_inline_script( self::HANDLE, self::inline_js() );
-
-		wp_register_style( self::HANDLE, false, array(), AGENTIMUS_VERSION );
-		wp_enqueue_style( self::HANDLE );
-		wp_add_inline_style( self::HANDLE, self::inline_css() );
-	}
-
-	/**
 	 * Copy-to-clipboard for the code block, with a select-and-copy fallback.
 	 *
 	 * @return string
 	 */
-	private static function inline_js() {
+	public static function js() {
 		return <<<'JS'
 (function(){var btns=document.querySelectorAll('.agentimus-schema-box__copy');Array.prototype.forEach.call(btns,function(btn){btn.addEventListener('click',function(){var box=btn.closest('.agentimus-schema-box');var pre=box?box.querySelector('.agentimus-schema-box__code'):null;if(!pre){return;}var text=pre.innerText;var done=function(){var label=btn.textContent;btn.textContent=btn.getAttribute('data-done')||'Copied';setTimeout(function(){btn.textContent=label;},2000);};if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(text).then(done).catch(function(){});}else{try{var r=document.createRange();r.selectNodeContents(pre);var s=window.getSelection();s.removeAllRanges();s.addRange(r);document.execCommand('copy');s.removeAllRanges();done();}catch(e){}}});});})();
 JS;
 	}
 
 	/**
-	 * Styles for the box. WordPress-admin palette; scoped to our container.
+	 * Styles for the JSON-LD section. WordPress-admin palette; scoped to our container.
 	 *
 	 * @return string
 	 */
-	private static function inline_css() {
+	public static function css() {
 		return '.agentimus-schema-box__status{margin:0 0 10px;padding:8px 11px;border-radius:4px;background:#f6f7f7;border-left:3px solid #c3c4c7;font-size:13px}'
 			. '.agentimus-schema-box__status.is-good{border-left-color:#00a32a}'
 			. '.agentimus-schema-box__status.is-info{border-left-color:#2271b1}'
