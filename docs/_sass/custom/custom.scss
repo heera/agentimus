@@ -122,7 +122,7 @@ $ag-measure:     64rem;   // content column cap — wide but still readable
 }
 
 // ---------------------------------------------------------------------------
-// 4. Code — inline pills stay light; fenced blocks go dark with teal syntax.
+// 4. Code — soft, low-contrast highlighting that's easy on the eyes.
 // ---------------------------------------------------------------------------
 
 // Inline `code` — a small tinted pill.
@@ -135,16 +135,16 @@ $ag-measure:     64rem;   // content column cap — wide but still readable
   font-size: 0.86em;
 }
 
-// Fenced blocks (the `.highlight` wrapper only exists inside code blocks).
+// Fenced blocks — a soft light panel (no harsh near-black), muted syntax.
 .main-content div.highlighter-rouge,
 .main-content pre.highlight,
 .main-content .highlight {
-  background-color: #0c211e;
+  background-color: #f5f8f7;
 }
 .main-content div.highlighter-rouge {
-  border: 1px solid #1c453f;
+  border: 1px solid #e2eae8;
   border-radius: 8px;
-  box-shadow: 0 1px 2px rgba(12, 33, 30, 0.12);
+  box-shadow: none;
 }
 .main-content .highlight pre,
 .main-content pre.highlight,
@@ -152,22 +152,23 @@ $ag-measure:     64rem;   // content column cap — wide but still readable
   background-color: transparent;
 }
 
-// Dark syntax palette, teal-forward. Rouge token classes, scoped to blocks.
+// Muted, desaturated palette — a teal accent on keywords, everything else quiet.
+// Scoped to code blocks (Rouge token classes).
 .main-content .highlight {
-  color: #e6edeb;
+  color: #37474a;
 
-  .c, .c1, .cm, .cd, .cp, .cs   { color: #5f8378; font-style: italic; } // comments
-  .k, .kc, .kd, .kn, .kp, .kr, .kt { color: #5eead4; }                  // keywords (teal)
-  .o, .ow, .p, .pi              { color: #9fb8b2; }                     // operators/punct
-  .s, .s1, .s2, .sb, .sc, .sd, .se, .sh, .si, .sx, .sr, .dl { color: #9ae6b4; } // strings
-  .m, .mi, .mf, .mh, .mo, .il   { color: #f6c177; }                     // numbers
-  .nt                           { color: #5eead4; }                     // HTML tag
-  .na                           { color: #f6c177; }                     // attribute
-  .nf, .nx                      { color: #cdefe8; }                     // function
-  .nc, .nn, .no, .nl            { color: #a5e8dd; }                     // class/namespace/const
-  .nb, .bp                      { color: #7fd8cb; }                     // builtins
-  .nv, .vi, .vg, .vc            { color: #f0a5a0; }                     // variables
-  .gd                           { color: #f0a5a0; }                     // diff removed
-  .gi                           { color: #9ae6b4; }                     // diff added
-  .err                          { color: #ffb4a2; background: transparent; }
+  .c, .c1, .cm, .cd, .cp, .cs   { color: #8a9a95; font-style: italic; } // comments
+  .k, .kc, .kd, .kn, .kp, .kr, .kt { color: #3d6763; font-weight: 600; } // keywords (accent)
+  .o, .ow, .p, .pi              { color: #6c7a76; }                      // operators/punct
+  .s, .s1, .s2, .sb, .sc, .sd, .se, .sh, .si, .sx, .sr, .dl { color: #5f7a4c; } // strings
+  .m, .mi, .mf, .mh, .mo, .il   { color: #a06a3c; }                      // numbers
+  .nt                           { color: #3d6763; }                      // HTML tag
+  .na                           { color: #a06a3c; }                      // attribute
+  .nf, .nx                      { color: #3f6087; }                      // function
+  .nc, .nn, .no, .nl            { color: #34637a; }                      // class/namespace/const
+  .nb, .bp                      { color: #4a7d79; }                      // builtins
+  .nv, .vi, .vg, .vc            { color: #97605b; }                      // variables
+  .gd                           { color: #a4443f; }                      // diff removed
+  .gi                           { color: #4e7a44; }                      // diff added
+  .err                          { color: #b1524d; background: transparent; }
 }
