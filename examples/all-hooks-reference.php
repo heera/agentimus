@@ -527,6 +527,43 @@ add_filter(
 );
 
 /**
+ * Add, retune or drop the per-page "AI Readability" checks shown in the editor —
+ * the per-post sibling of agentimus_readiness_checks (which is site-wide). You get
+ * the computed rows PLUS the parsed page $stats, so you can re-grade against your
+ * own thresholds without re-parsing the HTML.
+ *
+ * $stats keys: words, headings (int levels[]), paragraphs (int word-counts[]),
+ *              links, link_words, images, images_no_alt, has_excerpt (bool).
+ * Row shape:   { id, label, status: pass|warn|fail, detail }.
+ *
+ * @param array[]  $checks Computed rows.
+ * @param array    $stats  Parsed page stats.
+ * @param \WP_Post $post   The post.
+ */
+add_filter(
+	'agentimus_page_checks',
+	function ( $checks, $stats, $post ) {
+		// 1. Retune a threshold — require 150 words instead of the default 100.
+		$checks   = array_values( array_filter( $checks, fn( $c ) => 'words' !== $c['id'] ) );
+		$checks[] = $stats['words'] >= 150
+			? array( 'id' => 'words', 'label' => 'Enough substance', 'status' => 'pass', 'detail' => $stats['words'] . ' words.' )
+			: array( 'id' => 'words', 'label' => 'Thin content', 'status' => 'warn', 'detail' => 'Aim for 150+ words.' );
+
+		// 2. Add your own check (e.g. require a featured image on image-heavy posts).
+		if ( $stats['images'] > 0 && ! has_post_thumbnail( $post ) ) {
+			$checks[] = array( 'id' => 'featured', 'label' => 'No featured image', 'status' => 'warn', 'detail' => 'Set one so cards and previews have an image.' );
+		}
+
+		// 3. Drop a check you don't want surfaced.
+		$checks = array_values( array_filter( $checks, fn( $c ) => 'link_density' !== $c['id'] ) );
+
+		return $checks;
+	},
+	10,
+	3
+);
+
+/**
  * Supply the Ed25519 signing secret key from a constant/vault instead of the DB.
  */
 add_filter( 'agentimus_signing_secret_key', fn( $key ) => $key );
