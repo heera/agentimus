@@ -6,17 +6,16 @@ description: "Official documentation for Agentimus — the WordPress plugin that
 permalink: /
 ---
 
-# Agentimus documentation
-{: .fs-9 }
-
-Make your WordPress site legible to AI assistants and agents — without touching a line of your theme, and without the SEO bloat.
-{: .fs-6 .fw-300 }
-
-[User Manual]({{ '/user-manual.html' | relative_url }}){: .btn .btn-primary .mr-2 }
-[Developer Reference]({{ '/developer.html' | relative_url }}){: .btn }
-[View on GitHub](https://github.com/heera/agentimus){: .btn .ml-2 }
-
----
+<div class="ag-hero">
+  <p class="ag-hero__eyebrow">WordPress plugin · Documentation</p>
+  <h1 class="ag-hero__title">Agentimus documentation</h1>
+  <p class="ag-hero__lead">Make your WordPress site legible to AI assistants and agents — without touching a line of your theme, and without the SEO bloat.</p>
+  <div class="ag-hero__cta">
+    <a class="ag-btn ag-btn--primary" href="{{ '/user-manual.html' | relative_url }}">Read the User Manual</a>
+    <a class="ag-btn ag-btn--ghost" href="{{ '/developer.html' | relative_url }}">Developer Reference</a>
+    <a class="ag-btn ag-btn--ghost" href="https://github.com/heera/agentimus">View on GitHub&nbsp;↗</a>
+  </div>
+</div>
 
 ## What is Agentimus?
 

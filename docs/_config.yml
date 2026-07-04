@@ -26,6 +26,7 @@ heading_anchors: true
 
 aux_links:
   "GitHub ↗": "https://github.com/heera/agentimus"
+  "heera.it ↗": "https://heera.it"
 aux_links_new_tab: true
 
 # Footer.

@@ -113,22 +113,14 @@ $ag-measure:     64rem;   // content column cap — wide but still readable
   background-position: center;
 }
 
-// "By Sheikh Heera" byline, directly under the title. The header's own bottom
-// rule moves below the byline so title + byline read as one block.
-.site-header { border-bottom: none; }
-.site-byline {
-  width: 18rem;
-  padding: 0.15rem 1.5rem 0.75rem 2rem;
-  font-size: 0.78rem;
-  color: #6b7975;
-  border-bottom: 1px solid #eeebee;
-}
-.site-byline a {
+// Aux nav (top-right) links use the `.site-button` class — its default hover is
+// the theme's dark gradient with dark text. Make it a clean, readable hover.
+.aux-nav .site-button:hover {
+  background-image: none;
+  background-color: transparent;
   color: $ag-accent;
-  font-weight: 600;
-  text-decoration: none;
+  text-decoration: underline;
 }
-.site-byline a:hover { text-decoration: underline; }
 
 // ---------------------------------------------------------------------------
 // 3. Content typography — quiet, professional.
@@ -199,4 +191,75 @@ $ag-measure:     64rem;   // content column cap — wide but still readable
   .gd                           { color: #a4443f; }                      // diff removed
   .gi                           { color: #4e7a44; }                      // diff added
   .err                          { color: #b1524d; background: transparent; }
+}
+
+// ---------------------------------------------------------------------------
+// 5. Home hero.
+// ---------------------------------------------------------------------------
+.ag-hero {
+  padding: 0.25rem 0 2rem;
+  margin-bottom: 2.25rem;
+  border-bottom: 1px solid $ag-rule;
+
+  .ag-hero__eyebrow {
+    margin: 0 0 0.85rem;
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+    color: $ag-accent;
+  }
+  .ag-hero__title {
+    margin: 0 0 0.7rem;
+    font-size: 2.7rem;
+    line-height: 1.08;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    color: #1c2b29;
+  }
+  .ag-hero__lead {
+    margin: 0 0 1.6rem;
+    max-width: 42rem;
+    font-size: 1.15rem;
+    line-height: 1.6;
+    color: #4b5c58;
+  }
+  .ag-hero__cta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.6rem;
+  }
+}
+
+// Buttons — prefixed with .main-content to beat the theme's `.main-content a`.
+.main-content .ag-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.6rem 1.2rem;
+  border-radius: 8px;
+  border: 1px solid transparent;
+  font-size: 0.92rem;
+  font-weight: 600;
+  text-decoration: none !important;
+  transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+.main-content .ag-btn--primary {
+  background-color: $ag-accent;
+  color: #fff;
+  box-shadow: 0 1px 2px rgba(61, 103, 99, 0.25);
+}
+.main-content .ag-btn--primary:hover {
+  background-color: $ag-accent-dark;
+  color: #fff;
+}
+.main-content .ag-btn--ghost {
+  background-color: #fff;
+  color: $ag-accent-dark;
+  border-color: #d6e2df;
+}
+.main-content .ag-btn--ghost:hover {
+  background-color: #f3f8f7;
+  border-color: $ag-accent;
+  color: $ag-accent-dark;
 }
