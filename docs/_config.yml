@@ -25,6 +25,7 @@ search:
 heading_anchors: true
 
 aux_links:
+  "heera.it ↗": "https://heera.it"
   "GitHub ↗": "https://github.com/heera/agentimus"
 aux_links_new_tab: true
 
@@ -34,7 +35,8 @@ back_to_top: true
 back_to_top_text: "Back to top"
 
 footer_content: >-
-  Agentimus is free software (GPL-2.0-or-later). This documentation is generated
+  Built and maintained by <a href="https://heera.it">Sheikh Heera</a>.
+  Agentimus is free software (GPL-2.0-or-later); this documentation is generated
   from the plugin source — if something here disagrees with the code, the code wins.
 
 # Coloured callout boxes ({: .note }, {: .warning }, {: .tip } in Markdown).

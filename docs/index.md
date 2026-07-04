@@ -57,3 +57,7 @@ The architecture, the WP_Discovery Protocol, the full hooks & filters reference,
 - **Defers to your SEO plugin** — if another plugin already emits schema or a sitemap, Agentimus stands down.
 
 Ready? Start with the **[User Manual]({{ '/user-manual.html' | relative_url }})**.
+
+---
+
+Agentimus is built and maintained by **[Sheikh Heera](https://heera.it)**.

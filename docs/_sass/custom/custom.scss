@@ -50,31 +50,42 @@ $ag-measure:     64rem;   // content column cap — wide but still readable
 .site-nav {
   padding-top: 1rem;
 
-  .nav-list-link {
+  // Link box: an inset, rounded pill with gaps around it. Specificity (0,4,0)
+  // to beat the theme's own .nav-list .nav-list-item .nav-list-link rules.
+  .nav-list .nav-list-item .nav-list-link {
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    line-height: 1.4;
-    border-radius: 6px;
+    border-radius: 8px;
+    margin: 0.1rem 0.55rem;
   }
 
-  .nav-list .nav-list-item { margin-bottom: 0.12rem; }
-  .nav-list .nav-list .nav-list-link { font-size: 0.82rem; }
+  .nav-list .nav-list .nav-list-item .nav-list-link { font-size: 0.82rem; }
 
-  // Hover: solid brand fill with white text (no dark gradient).
-  .nav-list-link:hover {
+  // Section chevron: pull it inside the inset pill.
+  .nav-list-expander { right: 0.55rem; }
+
+  // Hover: solid brand fill, white text. (0,5,0) beats the theme's (0,4,0)
+  // gradient-with-dark-text rule that made hovered items unreadable.
+  .nav-list .nav-list-item .nav-list-link:hover {
     background-image: none;
     background-color: $ag-accent;
     color: #fff;
   }
 
-  // Active page: a darker brand fill, white text, bold — clearly the current page.
+  // Active page: a darker fill, white bold text — clearly the current page.
   .nav-list .nav-list-item .nav-list-link.active,
   .nav-list .nav-list-item .nav-list-link.active:hover {
     background-image: none;
     background-color: $ag-accent-dark;
     color: #fff;
     font-weight: 600;
+  }
+
+  // Keep the chevron readable when its row is highlighted (hover or active).
+  .nav-list-item > .nav-list-link:hover ~ .nav-list-expander,
+  .nav-list-item > .nav-list-link.active ~ .nav-list-expander {
+    color: #fff;
   }
 }
 
