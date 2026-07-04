@@ -380,8 +380,17 @@ add_filter( 'agentimus_llms_full_item_max_bytes', fn( $bytes ) => $bytes );
 add_filter( 'agentimus_llms_full_avg_item_bytes', fn( $bytes ) => 4096 );
 
 /**
+ * Size of the change feed window (/agentimus-changes.json) — how many
+ * newest-modified items it can hold. Clamped to [1, 2000]. Agents pass
+ * `?since=<ISO-8601 or Unix time>` to receive only items changed after that.
+ *
+ * @param int $max Default 200.
+ */
+add_filter( 'agentimus_changes_max', fn( $max ) => 200 );
+
+/**
  * Cede a surface to your own producer so Agentimus stops emitting it.
- * Surfaces: llms_txt | llms_full | markdown | link_headers | robots.
+ * Surfaces: llms_txt | llms_full | changes | markdown | link_headers | robots.
  *
  * @param bool   $yield   Whether to yield.
  * @param string $surface The surface key.

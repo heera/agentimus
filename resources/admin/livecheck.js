@@ -31,6 +31,7 @@ export function buildChecks(cfg) {
   add('robots', 'robots.txt', ep.robots, { status: 200, type: 'text/plain' });
   if (s.enable_llms_txt !== false) add('llms', '/llms.txt', ep.llms, { status: 200, type: 'text/plain', cors: true });
   if (s.enable_llms_full) add('llms_full', '/llms-full.txt', ep.llmsFull, { status: 200, type: 'text/plain', cors: true });
+  if (s.enable_changes !== false) add('changes', '/agentimus-changes.json', origin ? `${origin}/agentimus-changes.json` : '', { status: 200, type: 'application/json', json: true, cors: true });
   add('discovery', '/.well-known/discovery.json', de.discovery, { status: 200, type: 'application/json', json: true, cors: true });
   add('agent_card', '/.well-known/agent-card.json', de.agentCard, { status: 200, type: 'application/json', json: true, cors: true });
   add('mcp', '/.well-known/mcp.json', de.mcp, { status: 200, type: 'application/json', json: true, cors: true });
