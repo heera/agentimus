@@ -1,5 +1,5 @@
 ---
-title: AI access & crawler controls
+title: AI access & crawlers
 parent: User Manual
 nav_order: 10
 ---

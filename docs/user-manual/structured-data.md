@@ -1,5 +1,5 @@
 ---
-title: Structured data (JSON-LD)
+title: Structured data
 parent: User Manual
 nav_order: 6
 ---

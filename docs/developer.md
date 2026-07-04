@@ -13,11 +13,11 @@ Agentimus is a small, framework-free plugin with a wide, well-documented hook su
 
 1. **Architecture** — how the plugin is put together.
 2. **WP_Discovery Protocol** — the open registration hook other plugins can implement.
-3. **Hooks & filters reference** — the complete extension surface.
-4. **REST & public endpoints** — the admin API and the front-end machine files.
+3. **Hooks & filters** — the complete extension surface.
+4. **REST & endpoints** — the admin API and the front-end machine files.
 5. **Integrate your plugin** — make your content discoverable in a few lines.
-6. **Customizing topics & schema** — shape the structured data by code.
-7. **Building from source & contributing** — dev setup, tests, and releases.
+6. **Topics & schema** — shape the structured data by code.
+7. **Building & contributing** — dev setup, tests, and releases.
 
 {: .note }
 > Every hook, endpoint, and file name here is drawn from the plugin source. When in doubt, read the code — the `examples/` folder ships runnable references (`all-hooks-reference.php`, `integrate-your-plugin.php`, `topic-links-wikidata.php`).

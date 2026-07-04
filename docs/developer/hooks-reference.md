@@ -1,5 +1,5 @@
 ---
-title: Hooks & filters reference
+title: Hooks & filters
 parent: Developer Reference
 nav_order: 3
 ---

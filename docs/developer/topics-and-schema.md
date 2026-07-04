@@ -1,5 +1,5 @@
 ---
-title: Customizing topics & schema
+title: Topics & schema
 parent: Developer Reference
 nav_order: 6
 ---

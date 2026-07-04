@@ -1,5 +1,5 @@
 ---
-title: Building from source & contributing
+title: Building & contributing
 parent: Developer Reference
 nav_order: 7
 ---

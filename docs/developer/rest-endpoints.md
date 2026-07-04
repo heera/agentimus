@@ -1,5 +1,5 @@
 ---
-title: REST & public endpoints
+title: REST & endpoints
 parent: Developer Reference
 nav_order: 4
 ---

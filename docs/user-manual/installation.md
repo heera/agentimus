@@ -1,5 +1,5 @@
 ---
-title: Installation & first run
+title: Installation
 parent: User Manual
 nav_order: 2
 ---

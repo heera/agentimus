@@ -1,5 +1,5 @@
 ---
-title: Privacy & external services
+title: Privacy & data
 parent: User Manual
 nav_order: 13
 ---

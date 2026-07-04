@@ -1,5 +1,5 @@
 ---
-title: AI Visibility monitoring
+title: AI Visibility
 parent: User Manual
 nav_order: 12
 ---

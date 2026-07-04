@@ -1,5 +1,5 @@
 ---
-title: Dashboard & activity log
+title: Dashboard & activity
 parent: User Manual
 nav_order: 3
 ---

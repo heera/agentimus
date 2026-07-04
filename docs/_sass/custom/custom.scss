@@ -1,0 +1,24 @@
+// Custom overrides layered on top of Just-the-Docs (imported last by the theme).
+
+// --- Sidebar navigation -------------------------------------------------------
+// Keep every menu item on a single line — no wrapping. Titles are already short;
+// this is the belt-and-suspenders guarantee, with an ellipsis as the last resort
+// rather than a second line.
+.site-nav {
+  .nav-list-link {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    line-height: 1.4;
+  }
+
+  // A touch more breathing room between items so the list scans cleanly.
+  .nav-list .nav-list-item {
+    margin-bottom: 0.05rem;
+  }
+
+  // Child (sub-page) links sit a hair smaller and quieter than their section head.
+  .nav-list .nav-list .nav-list-link {
+    font-size: 0.82rem;
+  }
+}

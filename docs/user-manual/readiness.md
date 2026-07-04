@@ -1,5 +1,5 @@
 ---
-title: Readiness report
+title: Readiness
 parent: User Manual
 nav_order: 4
 ---

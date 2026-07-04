@@ -1,5 +1,5 @@
 ---
-title: Identity setup
+title: Identity
 parent: User Manual
 nav_order: 7
 ---
