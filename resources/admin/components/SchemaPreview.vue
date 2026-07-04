@@ -318,7 +318,9 @@ export default {
 <template>
   <Teleport to="body">
     <transition name="ar-modal">
-      <div v-if="open" class="ar-modal" @click.self="close">
+      <!-- No backdrop-click-to-close: the preview is a working surface, so a stray
+           click outside the panel must not discard it. Close via the button or Esc. -->
+      <div v-if="open" class="ar-modal">
         <div
           ref="dialog"
           class="ar-modal__panel agentimus-jsonld__panel"
