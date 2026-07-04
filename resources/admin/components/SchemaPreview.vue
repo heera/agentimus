@@ -23,7 +23,6 @@ export default {
   emits: ['close', 'flash'],
   data() {
     return {
-      started: false,     // has the first load run?
       busy: false,        // a fetch is in flight
       error: '',
       // Which format the viewer shows for the selected target.
@@ -147,18 +146,21 @@ export default {
   watch: {
     open(on) {
       if (!on) return;
-      // Every open starts on the list (matters only on the narrow slide layout).
+      // Always open FRESH — a reopen must never inherit the last pick, format,
+      // search or expanded groups. Reset the chrome, reload the list (groups
+      // collapsed for a compact overview) and preview the site-wide identity as JSON-LD.
+      this.format = 'jsonld';
+      this.search = '';
+      this.error = '';
+      this.copied = false;
       this.mobileView = 'list';
+      this.collapsedGroups = {};
+      this.loadTargets({ collapseAll: true });
+      this.select({ type: 'site', id: 0 });
       // Land focus on the dialog so Esc closes it and it reads as modal.
       this.$nextTick(() => {
         if (this.$refs.dialog) this.$refs.dialog.focus();
       });
-      // Lazy first load — don't fetch until the modal is actually opened.
-      if (!this.started) {
-        this.started = true;
-        this.loadTargets();
-        this.select({ type: 'site', id: 0 });
-      }
     },
   },
   mounted() {
@@ -249,21 +251,31 @@ export default {
         if (this.$refs.picker) this.$refs.picker.focus();
       });
     },
-    async loadTargets() {
+    async loadTargets({ collapseAll = false } = {}) {
       this.targetsLoading = true;
       try {
         const res = await this.api.getSchemaTargets(this.search);
         this.targets = (res && res.targets) || [];
+        if (collapseAll) {
+          // Fresh open: start every group collapsed (just labels + counts).
+          const collapsed = {};
+          this.targets.forEach((t) => { collapsed[t.type] = true; });
+          this.collapsedGroups = collapsed;
+        }
       } catch (e) {
         this.$emit('flash', 'error', (e && e.message) || 'Could not load the page list.');
       } finally {
         this.targetsLoading = false;
       }
     },
-    // Debounce the search so we don't query on every keystroke.
+    // Debounce the search so we don't query on every keystroke. A search reveals
+    // matches, so expand the groups — collapsed defaults would otherwise hide them.
     onSearch() {
       clearTimeout(this._searchTimer);
-      this._searchTimer = setTimeout(() => this.loadTargets(), 250);
+      this._searchTimer = setTimeout(() => {
+        this.collapsedGroups = {};
+        this.loadTargets();
+      }, 250);
     },
     // A friendly status badge for a non-published pick in the list.
     statusBadge(status) {
