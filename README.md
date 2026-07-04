@@ -31,6 +31,7 @@ no SEO bloat, no framework.
 | XML sitemap | `/agentimus-sitemap.xml` — opt-in fallback, generated **only** when neither WordPress core nor an SEO plugin already provides one (sitemap index + paginated sub-sitemaps) |
 | Crawler policy | `robots.txt` content-signal + training-crawler blocklist |
 | Discovery layer | `/.well-known/discovery.json` (+ `agent-card.json`, `mcp.json`) |
+| Change feed | `/agentimus-changes.json?since=` — recently added, updated and removed content as JSON, so an agent fetches only the delta (advertised in `discovery.json`; on by default) |
 | Crawl enforcement (opt-in) | hard-block (403) denylisted or spoofed "scanner" user-agents at the generated endpoints — ACME-safe, off by default |
 
 ## In the admin
@@ -151,7 +152,10 @@ Supported output-shaping filters; signatures may evolve between releases.
 | `agentimus_mcp_card_server` | filter | `( string $id, array $servers ): string` | Pin which server the MCP server card describes (`''` = auto). |
 | `agentimus_agent_skills` | filter | `( array $skills, array $resources ): array` | Entries in the Agent Skills index. |
 | `agentimus_post_types` | filter | `( string[] $types, string[] $available ): string[]` | Which post types are agent-visible (each gets an llms.txt section). |
-| `agentimus_post_type_source` | filter | `( string $source, string $post_type ): string` | Attribute a post type's llms.txt section to your plugin. |
+| `agentimus_post_type_source` | filter | `( string $source, string $post_type ): string` | Attribute a post type's llms.txt section (and the Agent preview picker) to your plugin. |
+| `agentimus_changes_max` | filter | `( int $max ): int` | Size of the change-feed window — newest items it can hold (default 200, max 2000). |
+| `agentimus_tombstone_retain_days` | filter | `( int $days ): int` | How long a deletion stays in the change feed before it's pruned (default 90). |
+| `agentimus_page_checks` | filter | `( array $checks, array $stats, WP_Post $post ): array` | Add, retune or drop the per-page "AI Readability" checks shown in the editor. |
 | `agentimus_markdown_source` | filter | `( ?string $html, WP_Post $post ): ?string` | Supply rendered HTML for page-builder content (`null` = render normally). |
 | `agentimus_topic_exclude` | filter | `( string[] $slugs ): string[]` | Topic/category slugs to omit from the llms.txt Topics list and per-page derived topics. |
 | `agentimus_derive_taxonomies` | filter | `( string[] $taxonomies, WP_Post $post ): string[]` | Which taxonomies auto-fill a post's Topics for AI (default `category`, `post_tag`). A vendor adds e.g. `product_cat`; terms flow through the derive toggle, exclude list and cap. |

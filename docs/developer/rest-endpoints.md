@@ -261,11 +261,19 @@ All generated documents are served by `WellKnown::send()`, which sets:
 
 The master index, built by `Agentimus\Discovery\Envelope::build()` and cached for an hour. It is a projection of the registry plus site identity — nothing is hand-maintained. The wire format is frozen at `spec_version` `"1.0"` and carries exactly these top-level keys, in order: `$schema`, `spec_version`, `site`, `identity`, `documents`, `well_known`, `apis`, `agents`, `resources`, `capabilities`, `trust`.
 
-- `documents` maps standard site documents (sitemap, robots, feed, `openapi`, and — when enabled — `llms`/`llms_full`, plus `humans`/`security` when present) to URLs. Filterable via `agentimus_documents`.
+- `documents` maps standard site documents (sitemap, robots, feed, `openapi`, and — when enabled — `llms`/`llms_full` and `changes` (the change feed), plus `humans`/`security` when present) to URLs. Filterable via `agentimus_documents`.
 - `well_known` indexes every `/.well-known/*` resource the site exposes (generated, provider-managed, and real files on disk), annotated with the governing spec label.
 - The whole envelope is filterable via `agentimus_envelope`; the JSON Schema URL via `agentimus_schema_url`.
 
 Experimental surfaces (the MCP descriptor and tool list) are intentionally **not** in the frozen core — they are served at `/.well-known/mcp.json` and linked from `well_known`.
+
+### Change feed (`/agentimus-changes.json`)
+
+A public JSON feed of recently changed content, served by the front controller (`inc/Endpoints.php`, not `WellKnown`) and advertised as `documents.changes`. Built by `Agentimus\Changes`, gated by the `enable_changes` setting (on by default), with a short `Cache-Control: max-age=300`.
+
+- `GET /agentimus-changes.json` returns the newest window of items (default 200, `agentimus_changes_max`), newest change first.
+- `?since=<ISO-8601 or Unix timestamp>` filters to items changed strictly after that instant.
+- Each item is `{ id, type, title, url, modified, published, action, markdown, _links }`, where `action` is `created`, `updated` or `deleted` and `_links.rest` points at the canonical `wp/v2` resource. A `deleted` item — a tombstone recorded on unpublish/trash/delete and kept ~90 days (`agentimus_tombstone_retain_days`) — carries just the URL to evict and when.
 
 ### agent-card.json / agent.json
 

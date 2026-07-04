@@ -106,6 +106,13 @@ add_filter( 'agentimus_yield_surface', function ( $yield, $surface ) {
 | `agentimus_sitemap` | filter | `( array $sitemap ): array` | The detected sitemap descriptor — declare one Agentimus can't auto-detect. Shape: `array( 'url' => string, 'source' => string, 'label' => string )`. |
 | `agentimus_sitemap_max_urls` | filter | `( int $max ): int` | Cap the number of URLs in Agentimus's generated fallback sitemap (default `2000`). |
 
+### Change feed
+
+| Hook | Type | Signature | Purpose |
+| --- | --- | --- | --- |
+| `agentimus_changes_max` | filter | `( int $max ): int` | Size of the change-feed window at `/agentimus-changes.json` — how many newest items it holds (default `200`, clamped to `2000`). |
+| `agentimus_tombstone_retain_days` | filter | `( int $days ): int` | How long a deletion (an `action: "deleted"` item) stays in the change feed before it is pruned (default `90`). |
+
 ### REST auto-discovery
 
 | Hook | Type | Signature | Purpose |
@@ -207,6 +214,7 @@ These power the one-click "add a known …" chips in the admin. They are suggest
 | `agentimus_security_txt` | filter | `( string $body ): string` | Edit the final `security.txt` body. |
 | `agentimus_security_txt_expires_days` | filter | `( int $days ): int` | The `security.txt` `Expires` window, in days. |
 | `agentimus_readiness_checks` | filter | `( array $checks, Settings $settings ): array` | Add or adjust the admin Discovery Hub readiness checks. |
+| `agentimus_page_checks` | filter | `( array $checks, array $stats, WP_Post $post ): array` | Add, retune or drop the per-page "AI Readability" checks shown in the editor — the per-post sibling of `agentimus_readiness_checks`. `$stats` carries the parsed page (words, headings, links, images, …). |
 | `agentimus_signed_surfaces` | filter | `( string[] $surfaces ): string[]` | Which discovery documents a companion signer signs (also listed under Discovery & output). |
 | `agentimus_signing_secret_key` | filter | `( string $key ): string` | Supply the Ed25519 signing secret key from a constant or vault instead of the database (default `''`). |
 

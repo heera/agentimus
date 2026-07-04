@@ -4,7 +4,7 @@ Tags: ai-agents, ai-crawlers, agent-readiness, llms-txt, ai-seo
 Requires at least: 6.0
 Tested up to: 7.0
 Requires PHP: 7.4
-Stable tag: 1.12.4
+Stable tag: 1.13.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -213,12 +213,16 @@ There is no minified-only code. The admin interface is built from Vue 3 source i
 == Changelog ==
 
 = 1.13.0 =
+* New — **Change feed.** A single JSON feed at `/agentimus-changes.json` lists your recently added, updated and removed pages, with a `?since=` filter — so an AI assistant can re-check just what changed instead of re-reading your whole site. It's advertised in your discovery document and on by default; each item links to its Markdown twin and its canonical REST resource.
+* New — **AI Readability tips.** The post editor now shows an "AI Readability" panel — tucked into one tidy "Agentimus" box alongside the JSON-LD preview — that flags what makes a page hard for an AI to read as you write it: thin content, missing headings, no opening summary, a nav-heavy page, or images without alt text, each with a plain pass or "to improve". Editor-only; nothing is shown to visitors.
+* New — **Plugin attribution.** When another plugin adds its own content type (for example FluentCart or WooCommerce products), Agentimus now names the source next to it — so a generic "Products" group reads as "Products · FluentCart" and is never ambiguous.
 * New — **Agent preview.** See exactly what an AI agent receives for any page — its JSON-LD structured data *and* its Markdown twin — without leaving the admin or viewing page source. Open it from the Readiness tab, pick the whole site or any page or post (grouped by type), and read or copy the output; a matching read-only preview also appears right in the post editor. It shows what *would* ship even when a feature is off or an SEO plugin owns your schema. Password-protected posts never expose their content, and an unpublished draft is clearly marked as a preview of what it will emit once you publish it.
 * New — **Topics for AI.** Each post gets a "Topics for AI" box in the editor where you say, in plain words, what it's about (for example: *llms.txt, AI visibility, structured data*). Those topics are added to the page's machine-readable data — the JSON-LD `keywords` and the page's `.md` version — so AI assistants understand and cite it correctly. Leave it blank to have Agentimus use the post's own tags and categories automatically, or type your own to take control. Your topics show as tidy chips — the ones pulled from the post's tags and categories are labelled *auto* and update live as you add or remove tags and categories, so what will be emitted is always in front of you. Turn the whole feature on or off, and choose how topics are picked, under Agentimus → Settings → Topics for AI. Nothing shows on the visible page; this is only for the AI/agent layer, and it steps aside for your SEO plugin's structured data just like the rest of Agentimus.
 * New — the Topics for AI box **suggests topics as you type** — drawn from ones you've already used, your tags and categories, and your expertise — so your wording stays consistent instead of drifting ("WP" vs "WordPress"). The **Readiness report** now tracks how well your content is covered by topics.
 * New — **sharper structured data.** Each topic is also published as a proper entity (schema.org `about`), and can be linked to its Wikidata or Wikipedia entry so assistants identify the exact thing you mean — the difference between "Mercury" the planet and the element. Agentimus never looks these up itself (a wrong match is worse than none); you supply a small topic → URL map with a one-line filter — see the drop-in `examples/topic-links-wikidata.php`.
 * Improved — **no junk topics.** A tag or category that's just a number (like "67") is never turned into an AI topic or offered as a suggestion, so your machine-readable data stays clean with nothing for you to tidy up. Topics you type yourself are always kept.
 * Fixed — the activity log now names a crawler by the name it **declares in its own User-Agent** (for example a `TheWebReport/1.0` bot you've allowed) — the same name shown in the review queue — instead of the vague "Unidentified". The remaining catch-all bucket, for a client that sends no readable name at all, is now labelled "Unrecognized".
+* Fixed — the admin tabs now work with the browser's Back and Forward buttons, and the Agent preview opens fresh every time (it no longer keeps your last selection).
 
 = 1.12.4 =
 * Fixed — live web-search checks no longer time out on slower questions: grounded engines (Claude, Perplexity, ChatGPT, Gemini) get a longer request window, and Claude runs fewer searches per check so answers come back sooner.
@@ -341,6 +345,9 @@ There is no minified-only code. The admin interface is built from Vue 3 source i
 * Admin Discovery Hub for inspecting what agents can see, with per-item publish/suppress control.
 
 == Upgrade Notice ==
+
+= 1.13.0 =
+Adds a change feed (`/agentimus-changes.json`) so agents fetch only what changed, per-page "AI Readability" tips in the editor, an in-admin Agent preview, Topics for AI, and plugin attribution for third-party content types. On-by-default additions are read-only and safe — no breaking changes.
 
 = 1.12.4 =
 Fixes live web-search checks timing out on slower questions, and shows check errors inline. No breaking changes.

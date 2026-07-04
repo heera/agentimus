@@ -143,3 +143,7 @@ The Readiness checks reason from your *settings*. The **Verify live** button (al
 This catches things settings alone can't see, such as a CDN or caching layer sitting in front of your site and altering a response. It runs only when you click it, entirely in your browser (the server makes no outbound request), and shows a tally like `9/9 OK` with a line per endpoint. Think of the Readiness report as "is it configured right?" and Verify live as "is it truly being served right?"
 
 A companion **Agent preview** button lets you see the exact JSON-LD and Markdown Agentimus emits for your site or any single post — handy for confirming the structured data behind the Readable and Trusted rungs.
+
+## Per-page AI Readability (in the editor)
+
+The Readiness report grades the whole *site*. Its per-page companion lives in the post editor: an **AI Readability** panel (in the "Agentimus" box, alongside the JSON-LD preview) that grades the page you're writing. It flags what makes a single page hard for an agent to read and cite — thin content, missing headings, no opening summary, a nav-heavy page, or images without alt text — each as a plain pass or "to improve". It's editor-only (nothing shows to visitors) and can be turned off under Settings → **Discovery** → *AI readability tips*.

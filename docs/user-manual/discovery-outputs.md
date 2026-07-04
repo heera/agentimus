@@ -15,6 +15,7 @@ None of these files change what your human visitors see. They are parallel, mach
 | AI page guide | `/llms.txt` | Yes | Settings → **Discovery** → *AI page guide* |
 | Full-text edition | `/llms-full.txt` | Yes | Settings → **Discovery** → *Full text for AI* |
 | Per-page Markdown | add `.md` to any page URL | Yes | Settings → **Discovery** → *Plain-text versions* |
+| Change feed | `/agentimus-changes.json` | Yes | Settings → **Discovery** → *Change feed* |
 | Discovery document | `/.well-known/discovery.json` | Always on | (no toggle — served while the plugin is active) |
 | Agent card | `/.well-known/agent-card.json` | Always on | (no toggle) |
 | MCP / tools manifest | `/.well-known/mcp.json` | Always on | (no toggle) |
@@ -87,6 +88,16 @@ Agentimus also advertises the current page's `.md` twin in the page's response, 
 **When it's served:** whenever the *Plain-text versions* toggle is on and the request targets an included page — either via its `.md` address or the Accept header. Negotiated (Accept-header) responses are never cached, since they share a URL with the normal HTML page.
 
 **Turn it off:** Settings → **Discovery** → untick *Plain-text versions*.
+
+## The change feed — `/agentimus-changes.json`
+
+Assistants shouldn't have to re-read your whole site to notice one edit. The change feed is a compact JSON list of your **recently added, updated and removed** pages, so an agent can ask "what's new since last time?" and fetch only that.
+
+Open `https://yoursite.com/agentimus-changes.json` to see it. Each item carries the page's title and URL, when it changed, whether it was `created`, `updated` or `deleted`, a link to its Markdown twin, and a link to its canonical REST resource. An agent that already has a copy of your site can add `?since=` with a date or timestamp — for example `/agentimus-changes.json?since=2026-07-01` — to receive only what changed after that moment.
+
+Removals are included too: unpublish, trash or delete a page and it appears once as a `deleted` item (for about 90 days) so an assistant knows to drop it from its own copy — something a plain sitemap can't tell it.
+
+It is **on by default** and advertised in your discovery document, so agents find it automatically. Turn it off under Settings → **Discovery** → *Change feed*.
 
 ## The discovery documents — `/.well-known/`
 
