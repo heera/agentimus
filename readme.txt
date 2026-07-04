@@ -42,6 +42,7 @@ By default it makes no outbound requests, collects no analytics, and logs no IP 
 * **JSON-LD** — WebSite + Person/Organization, plus BlogPosting and BreadcrumbList on posts. Automatically **defers to Yoast, Rank Math, SEOPress, AIOSEO and The SEO Framework** so you never ship duplicate schema.
 * **Topics for AI** — say what each post is about in plain words, right in the editor; those topics become the JSON-LD `keywords` and a line in the page's `.md`, so assistants understand each page's subject. Type your own, or let Agentimus fill them in from the post's own tags and categories. Nothing shows on the visible page.
 * **XML sitemap** — an opt-in fallback sitemap (index + paginated sub-sitemaps), generated only when neither WordPress core nor an SEO plugin already provides one, and advertised in robots.txt and llms.txt.
+* **Change feed** — a JSON feed at `/agentimus-changes.json` lists your recently added, updated and removed pages, with a `?since=` filter, so an assistant re-checks only what changed instead of re-reading your whole site. On by default and advertised in your discovery document.
 
 **Identity & contact**
 
@@ -52,6 +53,7 @@ By default it makes no outbound requests, collects no analytics, and logs no IP 
 
 * A one-screen score of how machine-readable your site is, with a plain-English checklist of what's enabled and what's still missing.
 * **Agent preview** — open it from the Readiness tab to see the exact JSON-LD *and* Markdown an AI agent receives for the whole site or any page or post, then copy it. It shows what would ship even when the feature is off or an SEO plugin owns your schema, and a matching read-only preview also sits right in the post editor — so you never have to view page source to check what agents read.
+* **AI Readability tips** — as you write, an "AI Readability" panel in the post editor flags what makes a page hard for an assistant to read and cite: thin content, missing headings, no opening summary, a nav-heavy page, or images without alt text. It sits in the same "Agentimus" box as the per-page Agent preview, so you check what an agent receives *and* how readable it is in one place. Editor-only — nothing shows to visitors.
 
 **Machine discovery (forward-looking)**
 
@@ -190,6 +192,9 @@ Yes. The discovery document implements the **WP_Discovery Protocol**, an openly-
 7. About — a plain-English account of every feature and what it publishes, a privacy & data section (no outbound calls, no IP/PII, signing key stays on your server), the open WP_Discovery Protocol it implements, and an FAQ.
 8. Exposure controls — opt-in, off-by-default switches that limit what anonymous crawlers can read about your site: username enumeration, author archives, the WordPress version, auto-generated head links, and XML-RPC.
 9. AI Visibility — an opt-in, bring-your-own-key scoreboard showing whether ChatGPT, Perplexity, Gemini and Claude mention and link each brand, product or person you track: seen-in-answers and linked-your-site rates, rank against each item's own rivals, and question-by-question results with the sources each engine cited. Off by default; you bring your own API key and nothing runs until you enable it.
+10. In the post editor — the "Topics for AI" panel: say in plain words what a page is about (chips), or let Agentimus fill them in from the post's tags and categories (the *auto* chips); those topics flow into the page's JSON-LD keywords and its .md edition. Nothing shows to visitors.
+11. In the post editor — the "Agentimus" box, AI Readability tab: a per-page pass/warn check of what makes the page hard for an assistant to read and cite — enough substance, an opening summary, section headings, heading order, prose vs links, and image alt text.
+12. In the post editor — the "Agentimus" box, JSON-LD tab: the exact structured data the page emits in its `<head>`, with a copy button and Google Rich Results / Schema.org validator links.
 
 == External services ==
 
