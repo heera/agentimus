@@ -86,6 +86,11 @@ $ag-measure:     64rem;   // content column cap — wide but still readable
   align-items: center;
   gap: 0.5rem;
 }
+// The title is not a nav item — no hover fill/gradient on it.
+.site-title:hover {
+  background-image: none;
+  background-color: transparent;
+}
 .site-title::before {
   content: "";
   flex: none;
