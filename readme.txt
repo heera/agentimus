@@ -18,6 +18,8 @@ Want more control? You also get a first-party log of every AI crawler that fetch
 
 By default it makes no outbound requests, collects no analytics, and logs no IP addresses — everything runs on your own site. The optional **AI Visibility** feature is the one exception: turn it on and add your own AI provider API key, and it queries that provider to check whether AIs cite you (see *External services*).
 
+**📖 Full documentation** — a plain-English user manual and a developer reference, with step-by-step guides for every feature: https://heera.github.io/agentimus/
+
 **Control — who may use your content**
 
 * **robots.txt content-signals + AI-training blocklist** — declare your content-usage policy and block named model-training crawlers (GPTBot, CCBot, ClaudeBot, Google-Extended, Bytespider, …) by name, while leaving read/cite bots free.
@@ -78,6 +80,10 @@ Most tools cover one slice — an llms.txt file, an AI-bot blocker, or structure
 3. A setup wizard opens automatically on your first visit to the admin and walks you through your identity and content choices in about a minute. After that everything runs on its own — open **Agentimus** any time to review the readiness report or adjust settings.
 
 == Frequently Asked Questions ==
+
+= Where is the documentation? =
+
+The full documentation — a plain-English user manual and a developer reference — is at https://heera.github.io/agentimus/. It has step-by-step guides for every feature, plus the hooks, filters and endpoints for developers.
 
 = Do I need to be technical to use this? =
 

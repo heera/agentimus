@@ -128,6 +128,9 @@ export default {
         <button type="button" class="ar-linkbtn" @click="$emit('navigate', { tab: 'discovery' })">Discovery</button>
         tab and change any default under
         <button type="button" class="ar-linkbtn" @click="$emit('navigate', { tab: 'settings' })">Settings</button>.
+        New here? The full
+        <a class="ar-linkbtn" href="https://heera.github.io/agentimus/" target="_blank" rel="noopener">documentation ↗</a>
+        walks through every feature, step by step.
       </p>
 
       <div v-for="g in featureGroups" :key="g.title" class="ar-about-feat">
@@ -276,6 +279,20 @@ export default {
           <p v-show="openFaq === i" class="ar-about-faq__a">{{ f.a }}</p>
         </li>
       </ul>
+    </section>
+
+    <!-- Documentation & links -->
+    <section class="ar-card">
+      <h2 class="ar-card__title">Documentation &amp; links</h2>
+      <p class="ar-card__lead">
+        Step-by-step guides for every feature, plus a developer reference — the full documentation lives
+        online, and the source is on GitHub.
+      </p>
+      <p class="ar-card__lead">
+        <a class="ar-linkbtn" href="https://heera.github.io/agentimus/" target="_blank" rel="noopener">Documentation ↗</a>
+        &nbsp;·&nbsp;
+        <a class="ar-linkbtn" href="https://github.com/heera/agentimus" target="_blank" rel="noopener">GitHub ↗</a>
+      </p>
     </section>
   </div>
 </template>
