@@ -28,6 +28,18 @@ export default {
     liveOpen() {
       return !!(this.live || this.liveRunning);
     },
+    // Endpoints a shared cache/CDN served from its store — those fetches bypass
+    // WordPress, so the activity log never sees them and freshness can lag.
+    cachedChecks() {
+      return this.live ? this.live.filter((r) => r.cache) : [];
+    },
+    cachedVia() {
+      const hit = this.cachedChecks.find((r) => r.cache && r.cache.via);
+      return hit ? hit.cache.via : 'A CDN / cache';
+    },
+    cachedNames() {
+      return this.cachedChecks.map((r) => r.label).join(', ');
+    },
   },
   watch: {
     // Land focus on the dialog when it opens so Esc closes it and it reads as modal.
@@ -41,6 +53,11 @@ export default {
   methods: {
     tagLabel(status) {
       return { pass: 'PASS', warn: 'WARN', fail: 'FAIL' }[status] || String(status || 'CHECK').toUpperCase();
+    },
+    cacheTitle(r) {
+      if (!r.cache) return '';
+      const age = r.cache.age != null ? ` · age ${r.cache.age}s` : '';
+      return `served from ${r.cache.via}${age} — this fetch bypassed WordPress, so it isn't in your activity log`;
     },
     // Fetch the real endpoints from this browser and grade what an agent receives.
     // The server makes no request — this runs here, same-origin, on click only.
@@ -152,11 +169,20 @@ export default {
 
             <div class="ar-modal__body">
               <div class="ar-modal__scroll">
+                <!-- A shared cache served stored copies → those fetches skip WordPress,
+                     so the activity log under-counts and discovery can go stale. -->
+                <div v-if="cachedChecks.length" class="ar-live-cache" role="alert">
+                  <strong class="ar-live-cache__title">A cache is sitting in front of your AI endpoints</strong>
+                  <p>{{ cachedVia }} returned a <em>stored</em> copy of {{ cachedChecks.length }} endpoint{{ cachedChecks.length > 1 ? 's' : '' }} ({{ cachedNames }}), so those agent fetches never reach WordPress. Your <strong>Activity log under-counts</strong> real AI traffic, and freshness-sensitive endpoints (the change feed, page markdown) can go <strong>stale</strong>.</p>
+                  <p class="ar-live-cache__fix"><strong>Fix:</strong> bypass cache for <code>*.md</code>, <code>/llms.txt</code>, <code>/.well-known/*</code> and <code>*changes.json</code> at your CDN/proxy. <a href="https://heera.github.io/agentimus/user-manual/caching.html" target="_blank" rel="noopener">How to fix it ↗</a></p>
+                </div>
+
                 <ul v-if="live" class="ar-live__list">
-                  <li v-for="r in live" :key="r.key" class="ar-live__row" :class="{ 'is-bad': !r.ok }">
+                  <li v-for="r in live" :key="r.key" class="ar-live__row" :class="{ 'is-bad': !r.ok, 'is-cached': !!r.cache }">
                     <span class="ar-live__dot" aria-hidden="true"></span>
                     <span class="ar-live__label">{{ r.label }}</span>
                     <span class="ar-live__detail">{{ r.detail }}</span>
+                    <span v-if="r.cache" class="ar-live__cachetag" :title="cacheTitle(r)">cached</span>
                   </li>
                 </ul>
                 <div v-else class="ar-live__loading">

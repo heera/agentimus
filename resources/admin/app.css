@@ -1299,6 +1299,25 @@ select.ar-input {
 .ar-live__label { flex: 1; min-width: 0; color: var(--ar-ink); }
 .ar-live__detail { flex: 0 0 auto; font-family: var(--ar-mono); font-size: 12px; color: var(--ar-ink-soft); text-align: right; }
 .ar-live__row.is-bad .ar-live__detail { color: var(--ar-bad); }
+/* CDN / edge-cache warning: a shared cache served stored copies, so those fetches
+   bypassed WordPress — the activity log under-counts and discovery can go stale. */
+.ar-live-cache {
+  margin: 0 0 14px; padding: 12px 14px;
+  background: rgba(173, 123, 24, 0.08);
+  border: 1px solid rgba(173, 123, 24, 0.35); border-radius: 8px;
+  font-size: 12.5px; line-height: 1.55; color: var(--ar-ink);
+}
+.ar-live-cache__title { display: block; margin-bottom: 5px; color: var(--ar-warn); font-size: 13px; }
+.ar-live-cache p { margin: 0; }
+.ar-live-cache__fix { margin-top: 7px !important; }
+.ar-live-cache code { font-family: var(--ar-mono); font-size: 11.5px; background: rgba(173, 123, 24, 0.12); padding: 1px 5px; border-radius: 4px; }
+.ar-live-cache a { color: var(--ar-warn); font-weight: 600; }
+/* Per-row "cached" marker + amber dot when a cache served that endpoint. */
+.ar-live__cachetag {
+  flex: 0 0 auto; font-family: var(--ar-mono); font-size: 10px; letter-spacing: 0.04em; text-transform: uppercase;
+  color: var(--ar-warn); background: rgba(173, 123, 24, 0.12); padding: 1px 6px; border-radius: 999px; cursor: help;
+}
+.ar-live__row.is-cached .ar-live__dot { background: var(--ar-warn); }
 /* Loading state while the browser fetches the live endpoints (~1s). */
 .ar-live__loading {
   display: flex; flex-direction: column; align-items: center; justify-content: center;

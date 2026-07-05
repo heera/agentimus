@@ -13,6 +13,28 @@ function originOf(url) {
   }
 }
 
+// Detect a shared/edge cache (CDN or reverse proxy) that served a STORED copy of this
+// response — meaning the request never reached WordPress, so the agent-activity log never
+// saw it and a freshness-sensitive endpoint (the change feed, a page's .md) may be stale.
+// Same-origin, so every response header is readable. Returns { via, age } or null.
+function detectCache(res) {
+  const h = (n) => (res.headers.get(n) || '').toLowerCase();
+  const server = h('server');
+  const cf = h('cf-cache-status'); // Cloudflare: HIT / MISS / EXPIRED / DYNAMIC / BYPASS
+  const ageRaw = res.headers.get('age'); // RFC: seconds since a cache stored it.
+  const age = ageRaw === null ? null : parseInt(ageRaw, 10);
+  // Varnish / Nginx / LiteSpeed / other proxies advertise a hit/miss here.
+  const proxyKeys = ['x-cache', 'x-proxy-cache', 'x-fastcgi-cache', 'x-nginx-cache', 'x-litespeed-cache', 'x-srcache-fetch-status'];
+  const proxyHit = proxyKeys.some((k) => /\bhit\b/.test(h(k)));
+
+  let via = '';
+  if ('hit' === cf) via = 'Cloudflare';
+  else if (proxyHit) via = server.indexOf('cloudflare') !== -1 ? 'Cloudflare' : 'a CDN / reverse proxy';
+  else if (Number.isFinite(age) && age > 0) via = server.indexOf('cloudflare') !== -1 ? 'Cloudflare' : 'a shared cache';
+
+  return via ? { via, age: Number.isFinite(age) ? age : null } : null;
+}
+
 // Translate boot config into the list of { key, label, url, expect } to fetch.
 // Mirrors what each feature, when enabled, is supposed to serve.
 export function buildChecks(cfg) {
@@ -77,9 +99,11 @@ export async function runCheck(c) {
       url: c.url,
       ok: problems.length === 0,
       detail: problems.length ? problems.join(' · ') : okDetail,
+      // Whether a shared cache served this (so the fetch bypassed WordPress / the log).
+      cache: detectCache(res),
     };
   } catch (e) {
-    return { key: c.key, label: c.label, url: c.url, ok: false, detail: 'unreachable (blocked, offline, or wrong host)' };
+    return { key: c.key, label: c.label, url: c.url, ok: false, detail: 'unreachable (blocked, offline, or wrong host)', cache: null };
   }
 }
 
