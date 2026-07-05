@@ -19,6 +19,17 @@ final class Runner {
 	/** @var string Option storing the unix time of the last completed run. */
 	const LAST_RUN_OPTION = 'agentimus_visibility_last_run';
 
+	/** @var string Option holding the unix time the in-progress run took the lock. */
+	const LOCK_OPTION = 'agentimus_visibility_lock';
+
+	/** @var int Seconds after which a lock left behind by a crashed run is treated as
+	 * stale and may be stolen — a ceiling on one run, so monitoring can never wedge. */
+	const LOCK_TTL = HOUR_IN_SECONDS;
+
+	/** @var int Default hard ceiling on (prompt × provider) checks per run — a spend
+	 * backstop above the structural product/prompt/provider caps. Filterable. */
+	const DEFAULT_MAX_CHECKS = 1000;
+
 	/** @var int Milliseconds to pause between checks, so a burst can't trip a per-minute limit. */
 	const PACE_MS = 300;
 
@@ -48,6 +59,31 @@ final class Runner {
 			return array( 'ran' => false, 'reason' => $reason );
 		}
 
+		// A run spends real money on every (prompt × provider) check, so two runs must
+		// never overlap — a second "Run now", or a scheduled tick firing while a
+		// previous run is still going, would double the bill. Take a durable, cross-
+		// process lock (an option, so it holds across the separate cron/loopback
+		// processes a run spans, even with no object cache) and bail if a run already
+		// holds it. A crashed run's lock self-heals after LOCK_TTL, so monitoring can
+		// never wedge permanently.
+		if ( ! self::acquire_run_lock() ) {
+			return array( 'ran' => false, 'reason' => 'already_running' );
+		}
+		try {
+			return $this->do_run();
+		} finally {
+			self::release_run_lock();
+		}
+	}
+
+	/**
+	 * The run body, executed under the run lock (see run()). Loops every active
+	 * product × prompt × provider, stores each result, and stops early if the per-run
+	 * check ceiling is reached.
+	 *
+	 * @return array
+	 */
+	private function do_run() {
 		$targets   = array_values( (array) $this->settings->get( 'targets', array() ) );
 		$providers = $this->settings->active_providers();
 
@@ -57,8 +93,10 @@ final class Runner {
 			@set_time_limit( 0 ); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged
 		}
 
-		$run_id = time();
-		$checks = 0;
+		$run_id     = time();
+		$checks     = 0;
+		$capped     = false;
+		$max_checks = $this->max_checks_per_run();
 
 		// Each product is checked on its own name, website and competitors, against
 		// its own list of questions. Paused products are skipped.
@@ -104,6 +142,13 @@ final class Runner {
 						)
 					);
 					$checks++;
+
+					// Spend backstop: stop the whole run once the ceiling is hit,
+					// rather than keep spending past it.
+					if ( $checks >= $max_checks ) {
+						$capped = true;
+						break 3;
+					}
 				}
 			}
 		}
@@ -115,7 +160,54 @@ final class Runner {
 			'ran'    => true,
 			'runId'  => $run_id,
 			'checks' => $checks,
+			'capped' => $capped,
 		);
+	}
+
+	/**
+	 * The hard ceiling on (prompt × provider) checks a single run performs — a spend
+	 * backstop above the structural caps (products × prompts × providers), in case a
+	 * filter injects extra targets or those caps change. Each check's cost is itself
+	 * bounded by the providers' max-output-token caps, so this bounds a run's total
+	 * spend; lower it via the filter to cap monitoring spend more tightly.
+	 *
+	 * @return int
+	 */
+	public function max_checks_per_run() {
+		/**
+		 * Filter the per-run check ceiling.
+		 *
+		 * @param int $max Default ceiling (self::DEFAULT_MAX_CHECKS).
+		 */
+		$max = (int) apply_filters( 'agentimus_visibility_max_checks_per_run', self::DEFAULT_MAX_CHECKS );
+		return $max > 0 ? $max : self::DEFAULT_MAX_CHECKS;
+	}
+
+	/**
+	 * Acquire the run lock, or false if a run already holds it. Backed by an option so
+	 * it is durable across the separate cron/loopback processes a run spans (a
+	 * transient/object-cache lock would not survive them without a persistent cache).
+	 * A lock older than LOCK_TTL is stale — left by a crashed run — and is stolen, so
+	 * monitoring can never be wedged permanently. Public for the run-lock test.
+	 *
+	 * @return bool True if this caller acquired the lock and should run.
+	 */
+	public static function acquire_run_lock() {
+		$held = (int) get_option( self::LOCK_OPTION, 0 );
+		if ( $held > 0 && ( time() - $held ) < self::LOCK_TTL ) {
+			return false;
+		}
+		update_option( self::LOCK_OPTION, time(), false );
+		return true;
+	}
+
+	/**
+	 * Release the run lock. Call in a `finally` so a run that throws frees it at once.
+	 *
+	 * @return void
+	 */
+	public static function release_run_lock() {
+		delete_option( self::LOCK_OPTION );
 	}
 
 	/**

@@ -22,6 +22,9 @@ final class OpenAI extends Provider {
 	const CHAT_ENDPOINT      = 'https://api.openai.com/v1/chat/completions';
 	const RESPONSES_ENDPOINT = 'https://api.openai.com/v1/responses';
 
+	/** @var int Bounds the answer length (and therefore per-check token cost). */
+	const MAX_TOKENS = 1024;
+
 	/** {@inheritDoc} */
 	public function id() {
 		return 'openai';
@@ -42,8 +45,9 @@ final class OpenAI extends Provider {
 			self::CHAT_ENDPOINT,
 			array( 'authorization' => 'Bearer ' . $key ),
 			array(
-				'model'    => $model,
-				'messages' => array(
+				'model'      => $model,
+				'max_tokens' => self::MAX_TOKENS,
+				'messages'   => array(
 					array( 'role' => 'user', 'content' => $prompt ),
 				),
 			)
@@ -57,7 +61,7 @@ final class OpenAI extends Provider {
 			? (string) $result['json']['choices'][0]['message']['content']
 			: '';
 
-		return $this->ok( $text );
+		return $this->answer( $text, array(), isset( $result['json']['choices'] ) );
 	}
 
 	/**
@@ -68,9 +72,10 @@ final class OpenAI extends Provider {
 			self::RESPONSES_ENDPOINT,
 			array( 'authorization' => 'Bearer ' . $key ),
 			array(
-				'model' => $model,
-				'tools' => array( array( 'type' => 'web_search' ) ),
-				'input' => $prompt,
+				'model'             => $model,
+				'tools'             => array( array( 'type' => 'web_search' ) ),
+				'input'             => $prompt,
+				'max_output_tokens' => self::MAX_TOKENS,
 			),
 			self::WEB_TIMEOUT // Live web search runs a slow server-side loop.
 		);
@@ -79,7 +84,8 @@ final class OpenAI extends Provider {
 			return $this->fail( $result['error'] );
 		}
 
-		return $this->ok( ...$this->parse_responses( $result['json'] ) );
+		list( $text, $citations ) = $this->parse_responses( $result['json'] );
+		return $this->answer( $text, $citations, isset( $result['json']['output'] ) );
 	}
 
 	/**

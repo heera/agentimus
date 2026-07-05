@@ -322,7 +322,26 @@ final class Sitemap {
 		if ( is_string( $hit ) && '' !== $hit ) {
 			return $hit;
 		}
-		$xml = (string) call_user_func( $builder );
+
+		// Cold cache. Take a short build lock so a crawler burst on the sitemap can't
+		// each run the DB-heavy generation at once. If we don't win the lock, re-read
+		// the transient — the winner may have just filled it — and serve that; only
+		// build ourselves when it is still cold, so a real sitemap URL never 404s
+		// under load. (A true mutex only on object-cache sites; see Cache::acquire_lock.)
+		$locked = Cache::acquire_lock( $key );
+		if ( ! $locked ) {
+			$hit = get_transient( $key );
+			if ( is_string( $hit ) && '' !== $hit ) {
+				return $hit;
+			}
+		}
+		try {
+			$xml = (string) call_user_func( $builder );
+		} finally {
+			if ( $locked ) {
+				Cache::release_lock( $key );
+			}
+		}
 		if ( '' !== $xml ) {
 			set_transient( $key, $xml, HOUR_IN_SECONDS );
 		}

@@ -178,6 +178,28 @@ abstract class Provider {
 	}
 
 	/**
+	 * Normalize a parsed 2xx answer, guarding against a shape mismatch. A success body
+	 * whose expected answer container was ABSENT ($shaped === false) and that yielded
+	 * no text and no citations is not a real "the model said nothing" — it's a provider
+	 * changing its response format, or a proxy returning an HTML/error page with a 200.
+	 * Recording that as a genuine empty answer would silently poison the visibility
+	 * metric with fabricated "not mentioned" data, so surface it as an error instead.
+	 * An empty answer WITH the right shape (e.g. a safety refusal) is a legitimate
+	 * "not mentioned" and passes through untouched.
+	 *
+	 * @param string   $text      Extracted answer text.
+	 * @param string[] $citations Extracted cited URLs.
+	 * @param bool     $shaped    Whether the expected answer container was present.
+	 * @return array { text, citations, error }
+	 */
+	protected function answer( $text, array $citations, $shaped ) {
+		if ( ! $shaped && '' === (string) $text && empty( $citations ) ) {
+			return $this->fail( __( 'The provider returned an unexpected response format.', 'agentimus' ) );
+		}
+		return $this->ok( $text, $citations );
+	}
+
+	/**
 	 * A normalized error result.
 	 *
 	 * @param string $message Error message.

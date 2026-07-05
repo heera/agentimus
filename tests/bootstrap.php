@@ -78,6 +78,21 @@ namespace {
 	if ( ! function_exists( 'add_filter' ) )            { function add_filter( $tag, $cb, $priority = 10, $args = 1 ) { $GLOBALS['_af_filters'][ $tag ][] = $cb; return true; } }
 	if ( ! function_exists( 'remove_all_filters' ) )    { function remove_all_filters( $tag = false ) { if ( false === $tag ) { $GLOBALS['_af_filters'] = array(); } else { unset( $GLOBALS['_af_filters'][ $tag ] ); } return true; } }
 	if ( ! function_exists( 'did_action' ) )            { function did_action( $tag ) { return ! empty( $GLOBALS['_af_did_actions'][ $tag ] ) ? 1 : 0; } }
+	// Minimal object-cache surface with faithful add-semantics, so the build-lock
+	// mutex (Cache::acquire_lock/release_lock) can be exercised: wp_cache_add writes
+	// only when the key is absent. Reset between tests via _af_reset_options().
+	if ( ! function_exists( 'wp_cache_add' ) )          { function wp_cache_add( $key, $data, $group = '', $ttl = 0 ) { $k = $group . ':' . $key; if ( isset( $GLOBALS['_af_cache'][ $k ] ) ) { return false; } $GLOBALS['_af_cache'][ $k ] = $data; return true; } }
+	if ( ! function_exists( 'wp_cache_set' ) )          { function wp_cache_set( $key, $data, $group = '', $ttl = 0 ) { $GLOBALS['_af_cache'][ $group . ':' . $key ] = $data; return true; } }
+	if ( ! function_exists( 'wp_cache_get' ) )          { function wp_cache_get( $key, $group = '' ) { $k = $group . ':' . $key; return isset( $GLOBALS['_af_cache'][ $k ] ) ? $GLOBALS['_af_cache'][ $k ] : false; } }
+	if ( ! function_exists( 'wp_cache_delete' ) )       { function wp_cache_delete( $key, $group = '' ) { unset( $GLOBALS['_af_cache'][ $group . ':' . $key ] ); return true; } }
+	// HTTP round-trip stubs so the Visibility provider layer (token caps, response
+	// parsing, error/shape handling) is testable without a network. wp_remote_post
+	// records the last request in $_af_http_last and returns the next queued response
+	// from $_af_http_queue (a WP_Error or a { response:{code}, body, headers } array).
+	if ( ! function_exists( 'wp_remote_post' ) )        { function wp_remote_post( $url, $args = array() ) { $GLOBALS['_af_http_last'] = array( 'url' => $url, 'args' => $args ); $q = &$GLOBALS['_af_http_queue']; return ! empty( $q ) ? array_shift( $q ) : array( 'response' => array( 'code' => 200 ), 'body' => '{}', 'headers' => array() ); } }
+	if ( ! function_exists( 'wp_remote_retrieve_response_code' ) ) { function wp_remote_retrieve_response_code( $r ) { return is_array( $r ) && isset( $r['response']['code'] ) ? (int) $r['response']['code'] : 0; } }
+	if ( ! function_exists( 'wp_remote_retrieve_body' ) )          { function wp_remote_retrieve_body( $r ) { return is_array( $r ) && isset( $r['body'] ) ? (string) $r['body'] : ''; } }
+	if ( ! function_exists( 'wp_remote_retrieve_header' ) )        { function wp_remote_retrieve_header( $r, $h ) { return is_array( $r ) && isset( $r['headers'][ $h ] ) ? $r['headers'][ $h ] : ''; } }
 	// Stateful option store so tests can set values (e.g. suppressed_resources)
 	// and read them back. Empty by default, so it behaves exactly like returning
 	// the default until a test writes — reset between tests via _af_reset_options().
@@ -93,6 +108,7 @@ namespace {
 	if ( ! function_exists( 'is_admin' ) )              { function is_admin() { return ! empty( $GLOBALS['_af_is_admin'] ); } }
 	if ( ! function_exists( 'flush_rewrite_rules' ) )   { function flush_rewrite_rules( $hard = true ) { $GLOBALS['_af_flush_count'] = (int) ( $GLOBALS['_af_flush_count'] ?? 0 ) + 1; return true; } }
 	if ( ! function_exists( 'add_option' ) )            { function add_option( $k, $v ) { $GLOBALS['_af_options'][ $k ] = $v; return true; } }
+	if ( ! function_exists( 'delete_option' ) )         { function delete_option( $k ) { unset( $GLOBALS['_af_options'][ $k ] ); return true; } }
 	if ( ! function_exists( 'get_post' ) )              { function get_post( $id = 0 ) { if ( is_object( $id ) ) { return $id; } $id = (int) $id; if ( ! $id ) { $id = (int) ( $GLOBALS['_af_current_post_id'] ?? 0 ); } return isset( $GLOBALS['_af_posts'][ $id ] ) ? $GLOBALS['_af_posts'][ $id ] : null; } }
 	if ( ! function_exists( 'get_the_title' ) )         { function get_the_title( $p = null ) { $p = is_object( $p ) ? $p : get_post( $p ); return $p ? (string) $p->post_title : ''; } }
 	if ( ! function_exists( 'get_permalink' ) )         { function get_permalink( $p = 0 ) { $p = is_object( $p ) ? $p : get_post( $p ); return 'https://example.com/?p=' . ( $p ? (int) $p->ID : 0 ); } }
@@ -117,7 +133,7 @@ namespace {
 	// The taxonomies that "exist" for object types; a test can add a vendor one (e.g. product_cat).
 	$GLOBALS['_af_taxonomies'] = array( 'category', 'post_tag' );
 	if ( ! function_exists( 'is_object_in_taxonomy' ) ) { function is_object_in_taxonomy( $type, $tax ) { return in_array( $tax, (array) $GLOBALS['_af_taxonomies'], true ); } }
-	function _af_reset_options() { $GLOBALS['_af_options'] = array(); $GLOBALS['_af_filters'] = array(); $GLOBALS['_af_did_actions'] = array(); $GLOBALS['_af_posts'] = array(); $GLOBALS['_af_postmeta'] = array(); $GLOBALS['_af_terms'] = array(); $GLOBALS['_af_taxonomies'] = array( 'category', 'post_tag' ); $GLOBALS['_af_is_admin'] = false; $GLOBALS['_af_flush_count'] = 0; unset( $GLOBALS['_af_available_post_types'], $GLOBALS['_af_current_post_id'], $GLOBALS['_af_is_singular'], $GLOBALS['_af_is_front_page'], $GLOBALS['_af_categories'] ); }
+	function _af_reset_options() { $GLOBALS['_af_options'] = array(); $GLOBALS['_af_filters'] = array(); $GLOBALS['_af_did_actions'] = array(); $GLOBALS['_af_posts'] = array(); $GLOBALS['_af_postmeta'] = array(); $GLOBALS['_af_terms'] = array(); $GLOBALS['_af_taxonomies'] = array( 'category', 'post_tag' ); $GLOBALS['_af_is_admin'] = false; $GLOBALS['_af_flush_count'] = 0; $GLOBALS['_af_cache'] = array(); $GLOBALS['_af_http_queue'] = array(); $GLOBALS['_af_http_last'] = null; unset( $GLOBALS['_af_available_post_types'], $GLOBALS['_af_current_post_id'], $GLOBALS['_af_is_singular'], $GLOBALS['_af_is_front_page'], $GLOBALS['_af_categories'] ); }
 	// Always-miss transient stubs so cached endpoint bodies (e.g. security.txt)
 	// recompute deterministically in tests.
 	if ( ! function_exists( 'get_transient' ) )         { function get_transient( $k ) { return false; } }

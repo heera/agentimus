@@ -15,6 +15,9 @@ final class Perplexity extends Provider {
 
 	const ENDPOINT = 'https://api.perplexity.ai/chat/completions';
 
+	/** @var int Bounds the answer length (and therefore per-check token cost). */
+	const MAX_TOKENS = 1024;
+
 	/** {@inheritDoc} */
 	public function id() {
 		return 'perplexity';
@@ -26,8 +29,9 @@ final class Perplexity extends Provider {
 			self::ENDPOINT,
 			array( 'authorization' => 'Bearer ' . $key ),
 			array(
-				'model'    => $model,
-				'messages' => array(
+				'model'      => $model,
+				'max_tokens' => self::MAX_TOKENS,
+				'messages'   => array(
 					array( 'role' => 'user', 'content' => $prompt ),
 				),
 			),
@@ -43,7 +47,7 @@ final class Perplexity extends Provider {
 			? (string) $json['choices'][0]['message']['content']
 			: '';
 
-		return $this->ok( $text, $this->citations( $json ) );
+		return $this->answer( $text, $this->citations( $json ), isset( $json['choices'] ) );
 	}
 
 	/**

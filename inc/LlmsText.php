@@ -106,6 +106,32 @@ final class LlmsText {
 			return $cached;
 		}
 
+		// Cold cache. This build renders every page/post through the_content and
+		// DOM→markdown, so its cost scales with the site — and it runs on an
+		// UNAUTHENTICATED request, where a burst of crawlers hitting a cold cache would
+		// otherwise each launch a full build at once (a cache stampede). Serialise it:
+		// one caller builds and populates the cache; the rest fall back to the lighter
+		// /llms.txt index this once rather than pile a second heavy build onto the same
+		// moment. A true cross-request mutex only on object-cache sites; elsewhere every
+		// caller builds as before — the lock only ever helps, never blocks.
+		if ( ! Cache::acquire_lock( Cache::LLMS_FULL ) ) {
+			return $this->llms_txt();
+		}
+		try {
+			return $this->build_llms_full();
+		} finally {
+			Cache::release_lock( Cache::LLMS_FULL );
+		}
+	}
+
+	/**
+	 * Assemble the full-text edition. Bounded by a byte budget, a per-item cap and a
+	 * wall-clock deadline (the guards inline). Only ever called by llms_full_txt(),
+	 * which holds the build lock around it and caches the result.
+	 *
+	 * @return string
+	 */
+	private function build_llms_full() {
 		$name    = $this->text( $this->settings->identity( 'name', get_bloginfo( 'name' ) ) );
 		$tagline = $this->text( get_bloginfo( 'description' ) );
 

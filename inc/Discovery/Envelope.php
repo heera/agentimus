@@ -162,10 +162,16 @@ final class Envelope {
 		 * @param array    $envelope  The envelope.
 		 * @param Registry $registry  The collector.
 		 */
-		$filtered = apply_filters( 'agentimus_envelope', $envelope, $this->registry );
 		// The envelope is the discovery document: it's json_encoded for the public
-		// endpoints and array-accessed by the admin Discovery tab. A filter that
-		// returns a non-array must not be able to corrupt either — keep the valid one.
+		// endpoints and array-accessed by the admin Discovery tab. Isolate the filter
+		// on both axes — a third-party callback that THROWS must not 500 discovery.json,
+		// and one that returns a NON-ARRAY must not corrupt the shape — falling back to
+		// the valid, unfiltered envelope in either case.
+		try {
+			$filtered = apply_filters( 'agentimus_envelope', $envelope, $this->registry );
+		} catch ( \Throwable $e ) {
+			return $envelope;
+		}
 		return is_array( $filtered ) ? $filtered : $envelope;
 	}
 

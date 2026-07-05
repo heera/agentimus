@@ -29,6 +29,14 @@ final class Cache {
 	// change and bring it back under budget.
 	const TTL_PARTIAL = 15 * MINUTE_IN_SECONDS;
 
+	// Namespacing + lifetime for the short-lived build locks that keep a cold-cache
+	// crawler burst from stampeding the expensive generators (see acquire_lock()).
+	const LOCK_PREFIX = 'agentimus_lock_';
+	const LOCK_GROUP  = 'agentimus';
+	// A build lock lasts at most this long — a ceiling on one generation so a builder
+	// that dies mid-run can't wedge the lock; the winner normally releases it far sooner.
+	const LOCK_TTL = 30;
+
 	/**
 	 * Read a cached value.
 	 *
@@ -48,6 +56,43 @@ final class Cache {
 	 */
 	public static function set( $key, $value, $ttl = self::TTL ) {
 		set_transient( $key, $value, $ttl );
+	}
+
+	/**
+	 * Try to acquire a short-lived build lock so only ONE request runs an expensive,
+	 * post-count-scaling generation on a cold cache; a concurrent caller gets false and
+	 * should serve a fallback (a stale copy, or a lighter document) instead of piling a
+	 * second heavy build onto the same cold-cache moment — a cache stampede.
+	 *
+	 * Backed by wp_cache_add() — an atomic "write only if absent" — so it is a true
+	 * cross-request mutex on any site with a PERSISTENT object cache (Redis/Memcached),
+	 * exactly where high crawler traffic and stampedes occur. Without a persistent cache
+	 * the add is per-request and always succeeds, so every request builds as it does
+	 * today: the lock only ever helps, never blocks or breaks a build. When the object-
+	 * cache API is entirely absent (minimal/CLI contexts) we likewise return true.
+	 *
+	 * @param string $key Base key being built (e.g. self::LLMS_FULL); the lock derives from it.
+	 * @param int    $ttl Lock lifetime in seconds. Defaults to self::LOCK_TTL.
+	 * @return bool True to the single caller that should build.
+	 */
+	public static function acquire_lock( $key, $ttl = self::LOCK_TTL ) {
+		if ( ! function_exists( 'wp_cache_add' ) ) {
+			return true;
+		}
+		return (bool) wp_cache_add( self::LOCK_PREFIX . $key, 1, self::LOCK_GROUP, max( 1, (int) $ttl ) );
+	}
+
+	/**
+	 * Release a build lock acquired via acquire_lock(). Call it in a `finally` so a
+	 * builder that throws frees the lock at once rather than holding it for the full TTL.
+	 *
+	 * @param string $key Base key passed to acquire_lock().
+	 * @return void
+	 */
+	public static function release_lock( $key ) {
+		if ( function_exists( 'wp_cache_delete' ) ) {
+			wp_cache_delete( self::LOCK_PREFIX . $key, self::LOCK_GROUP );
+		}
 	}
 
 	/**

@@ -69,4 +69,27 @@ final class MarkdownTest extends TestCase {
 		$this->assertStringContainsString( 'Readable body.', $md );
 		$this->assertStringNotContainsString( 'Not found', $md );
 	}
+
+	/**
+	 * Failure isolation: /slug.md, `Accept: text/markdown` and every item of
+	 * /llms-full.txt run the body through `the_content` — arbitrary shortcode /
+	 * block / page-builder callbacks. One that throws must degrade this post to its
+	 * title + metadata, never bubble a fatal out to the (unauthenticated) request.
+	 */
+	public function test_a_throwing_the_content_filter_degrades_to_title_not_a_fatal() {
+		$this->fixture( 4 );
+		add_filter(
+			'the_content',
+			static function ( $content ) {
+				throw new \RuntimeException( 'boom inside a shortcode' );
+			}
+		);
+
+		$md = Markdown::post( 4 ); // Must not throw.
+
+		$this->assertStringContainsString( '# Public Page', $md );
+		$this->assertStringNotContainsString( 'Readable body.', $md );
+		$this->assertStringNotContainsString( 'boom', $md );
+		$this->assertStringEndsWith( "\n", $md );
+	}
 }

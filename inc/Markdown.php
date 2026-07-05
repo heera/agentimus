@@ -51,12 +51,28 @@ final class Markdown {
 
 		// Per-page AI topics as a front-matter line — an agent fetching this .md gets
 		// what the page is about even when the JSON-LD stands down for an SEO plugin.
-		$topics = Topics::for_post( $post );
+		// Topics::for_post() runs the `agentimus_topics` filter (third-party code), and
+		// the body below runs `the_content` — every shortcode, block and page-builder
+		// callback on the site. This method serves UNAUTHENTICATED endpoints (/slug.md,
+		// `Accept: text/markdown`, and each item of /llms-full.txt), so a single post
+		// whose filters throw must degrade to title + metadata, never fatal the request
+		// (or, in the full-text loop, take the whole document down with it).
+		try {
+			$topics = Topics::for_post( $post );
+		} catch ( \Throwable $e ) {
+			$topics = array();
+		}
 		if ( ! empty( $topics ) ) {
 			$out .= 'Topics: ' . implode( ', ', $topics ) . "\n\n";
 		}
 
-		$out .= self::from_html( Content::markdown_source( $post ) );
+		try {
+			$out .= self::from_html( Content::markdown_source( $post ) );
+		} catch ( \Throwable $e ) {
+			// A shortcode/block/page-builder callback inside the_content threw — serve
+			// the title + metadata already assembled rather than 500 the endpoint.
+			$out = rtrim( $out );
+		}
 
 		return rtrim( $out ) . "\n";
 	}

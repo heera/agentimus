@@ -180,6 +180,33 @@ final class EnvelopeTest extends TestCase {
 		$this->assertSame( 'RFC 9116', $by['security.txt']['spec'] );
 	}
 
+	/* -- Failure isolation: a third-party filter must not fatal discovery.json -- */
+
+	public function test_a_throwing_envelope_filter_falls_back_to_the_valid_envelope() {
+		add_filter(
+			'agentimus_envelope',
+			static function ( $envelope ) {
+				throw new \RuntimeException( 'a bad add-on' );
+			}
+		);
+
+		$env = $this->build(); // Must not throw.
+
+		// The unfiltered, valid envelope is served rather than a 500.
+		$this->assertSame( self::CORE, array_keys( $env ) );
+	}
+
+	public function test_a_non_array_envelope_filter_return_is_ignored() {
+		add_filter(
+			'agentimus_envelope',
+			static function () {
+				return 'not an array';
+			}
+		);
+
+		$this->assertSame( self::CORE, array_keys( $this->build() ) );
+	}
+
 	private function api_by_id( array $apis, string $id ) {
 		foreach ( $apis as $api ) {
 			if ( $id === $api['id'] ) {

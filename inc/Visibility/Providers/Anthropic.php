@@ -82,9 +82,11 @@ final class Anthropic extends Provider {
 			return $this->fail( $result['error'] );
 		}
 
-		return $this->ok(
-			$this->text_from( $result['json'] ),
-			$this->citations_from( $result['json'] )
+		$json = $result['json'];
+		return $this->answer(
+			$this->text_from( $json ),
+			$this->citations_from( $json ),
+			isset( $json['content'] )
 		);
 	}
 

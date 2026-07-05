@@ -173,10 +173,38 @@ final class Registry {
 		 *
 		 * @param Registry $registry The collector.
 		 */
-		do_action( AGENTIMUS_CANONICAL_HOOK, $this );
-		do_action( AGENTIMUS_ALIAS_HOOK, $this );
+		$this->fire( AGENTIMUS_CANONICAL_HOOK );
+		$this->fire( AGENTIMUS_ALIAS_HOOK );
 
 		return $this;
+	}
+
+	/**
+	 * Fire one registration hook with failure isolation. A provider callback that
+	 * throws — or a page that fatals inside it — must not take down the whole
+	 * discovery surface: discovery.json, the REST route and the admin Hub all drain
+	 * through collect(). We contain the Throwable, record it for the Validation
+	 * screen, and keep every resource registered before the fault. The two hooks are
+	 * isolated separately so one bad canonical provider can't suppress the back-compat
+	 * alias providers (or vice-versa).
+	 *
+	 * @param string $hook Hook name to fire, passing $this as the sole argument.
+	 * @return void
+	 */
+	private function fire( $hook ) {
+		try {
+			do_action( $hook, $this );
+		} catch ( \Throwable $e ) {
+			$this->notices[] = array(
+				'level'   => 'error',
+				/* translators: 1: registration hook name, 2: PHP error message. */
+				'message' => sprintf(
+					__( 'A discovery provider errored on "%1$s" and was skipped: %2$s', 'agentimus' ),
+					$hook,
+					$e->getMessage()
+				),
+			);
+		}
 	}
 
 	/* ---------------------------------------------------------------------- *

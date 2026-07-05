@@ -15,6 +15,9 @@ final class Gemini extends Provider {
 
 	const BASE = 'https://generativelanguage.googleapis.com/v1beta/models/';
 
+	/** @var int Bounds the answer length (and therefore per-check token cost). */
+	const MAX_TOKENS = 1024;
+
 	/** {@inheritDoc} */
 	public function id() {
 		return 'gemini';
@@ -27,13 +30,14 @@ final class Gemini extends Provider {
 		$url   = self::BASE . rawurlencode( $model ) . ':generateContent';
 
 		$body = array(
-			'contents' => array(
+			'contents'         => array(
 				array(
 					'parts' => array(
 						array( 'text' => $prompt ),
 					),
 				),
 			),
+			'generationConfig' => array( 'maxOutputTokens' => self::MAX_TOKENS ),
 		);
 
 		// Ground the answer on Google Search (returns groundingMetadata with sources).
@@ -47,7 +51,8 @@ final class Gemini extends Provider {
 			return $this->fail( $result['error'] );
 		}
 
-		return $this->ok( $this->text_from( $result['json'] ), $this->citations_from( $result['json'] ) );
+		$json = $result['json'];
+		return $this->answer( $this->text_from( $json ), $this->citations_from( $json ), isset( $json['candidates'] ) );
 	}
 
 	/**
