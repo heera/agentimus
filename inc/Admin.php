@@ -216,7 +216,7 @@ final class Admin {
 
 		return sprintf(
 			/* translators: 1: plugin name (bold), 2: five-star rating link. */
-			__( 'If you like %1$s please give this plugin a %2$s rating. A huge thanks in advance!', 'agentimus' ),
+			__( 'If you like %1$s please give it a %2$s rating. A huge thanks in advance!', 'agentimus' ),
 			$name,
 			$stars
 		);
