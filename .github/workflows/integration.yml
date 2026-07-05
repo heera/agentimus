@@ -16,7 +16,7 @@ concurrency:
 
 jobs:
   integration:
-    name: Integration · PHP ${{ matrix.php }} · WP ${{ matrix.wp }}
+    name: Integration · PHP ${{ matrix.php }} · WP ${{ matrix.wp }}${{ matrix.multisite && ' · multisite' || '' }}
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -26,6 +26,9 @@ jobs:
             wp: 'latest'
           - php: '8.2'
             wp: 'latest'
+          - php: '8.2'
+            wp: 'latest'
+            multisite: '1'
 
     services:
       mysql:
@@ -64,3 +67,5 @@ jobs:
 
       - name: Run integration tests
         run: composer test:integration
+        env:
+          WP_MULTISITE: ${{ matrix.multisite }}

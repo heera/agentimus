@@ -33,6 +33,12 @@ if ( is_dir( $_polyfills ) && ! defined( 'WP_TESTS_PHPUNIT_POLYFILLS_PATH' ) ) {
 	define( 'WP_TESTS_PHPUNIT_POLYFILLS_PATH', $_polyfills );
 }
 
+// Install as a network when WP_MULTISITE=1, so the multisite-only lifecycle tests can
+// run (they self-skip in a single-site install).
+if ( getenv( 'WP_MULTISITE' ) && ! defined( 'WP_TESTS_MULTISITE' ) ) {
+	define( 'WP_TESTS_MULTISITE', 1 );
+}
+
 require_once "{$_tests_dir}/includes/functions.php";
 
 // Load the plugin as early as a mu-plugin, so it is active for the whole run and its
