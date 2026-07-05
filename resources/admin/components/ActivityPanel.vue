@@ -663,6 +663,10 @@ export default {
           </li>
         </ul>
         <p v-else class="ar-wd-empty">No page-level AI hits yet. This fills in when an assistant fetches a specific page's Markdown twin (<code>/your-page.md</code>) — general endpoints like <code>llms.txt</code> aren't tied to one page.</p>
+        <p v-if="byPage.length" class="ar-act-floornote">
+          Counts fetches that reach WordPress. Behind a CDN or full-page cache, cached fetches aren't counted — read this as a floor.
+          <a href="https://heera.github.io/agentimus/user-manual/caching.html" target="_blank" rel="noopener">Why &amp; how to fix ↗</a>
+        </p>
       </section>
 
       <!-- Recent requests (latest, live — static) -->

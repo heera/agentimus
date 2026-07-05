@@ -79,6 +79,7 @@ final class Plugin {
 		}
 
 		Cache::register_flush_hooks();
+		MarkdownCache::register();
 
 		( new Endpoints( $this->settings ) )->register();
 		( new Tombstones() )->register(); // Records removals for the change feed (self-gates on enable_changes).

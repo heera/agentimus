@@ -1739,6 +1739,10 @@ select.ar-input {
 .ar-act-rank--pages .ar-act-rank__label a { color: var(--ar-ink); text-decoration: none; }
 .ar-act-rank--pages .ar-act-rank__label a:hover { color: var(--ar-accent); text-decoration: underline; }
 .ar-act-rank__by { font-family: var(--ar-mono); font-size: 10.5px; font-style: normal; color: var(--ar-ink-faint); }
+/* Honest floor caveat under the per-page card — counts under-report behind a CDN cache. */
+.ar-act-floornote { margin: 13px 0 0; font-size: 11px; line-height: 1.5; color: var(--ar-ink-faint); }
+.ar-act-floornote a { color: var(--ar-ink-soft); text-decoration: underline; white-space: nowrap; }
+.ar-act-floornote a:hover { color: var(--ar-accent); }
 .ar-act-more { margin: 11px 0 0; font-size: 11px; color: var(--ar-ink-faint); }
 /* As a button: expand/collapse the day breakdown. Caret signals it unfolds (no underline). */
 button.ar-act-more { appearance: none; background: none; border: 0; padding: 0; cursor: pointer; font-family: inherit; display: inline-flex; align-items: center; gap: 4px; transition: color 0.15s ease; }

@@ -142,7 +142,7 @@ final class Endpoints {
 				$post_id = url_to_postid( home_url( $clean ) );
 			}
 			if ( $post_id && $this->post_in_scope( $post_id ) ) {
-				$this->send( Markdown::post( $post_id ), 'text/markdown', 'markdown', 3600, $post_id );
+				$this->send( MarkdownCache::post( $post_id ), 'text/markdown', 'markdown', 3600, $post_id );
 			}
 			return; // Unknown / out-of-scope .md path: let WordPress 404 normally.
 		}
@@ -155,7 +155,7 @@ final class Endpoints {
 		if ( is_singular() ) {
 			$id = get_queried_object_id();
 			if ( $id && $this->post_in_scope( $id ) ) {
-				$this->send( Markdown::post( $id ), 'text/markdown', 'markdown', 3600, $id );
+				$this->send( MarkdownCache::post( $id ), 'text/markdown', 'markdown', 3600, $id );
 			}
 		}
 		if ( is_front_page() || is_home() || is_archive() || is_search() ) {

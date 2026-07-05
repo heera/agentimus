@@ -27,6 +27,19 @@ function agentimus_uninstall_site() {
 	delete_transient( 'agentimus' );
 	delete_transient( 'agentimus_activation_redirect' );
 
+	// Markdown body cache: the settings epoch + the filesystem cache directory.
+	delete_option( 'agentimus_md_cache_epoch' );
+	$agentimus_up = wp_upload_dir();
+	if ( empty( $agentimus_up['error'] ) && ! empty( $agentimus_up['basedir'] ) ) {
+		$agentimus_md_dir = $agentimus_up['basedir'] . '/agentimus-md-cache';
+		if ( is_dir( $agentimus_md_dir ) ) {
+			foreach ( (array) glob( $agentimus_md_dir . '/*.md' ) as $agentimus_md_file ) {
+				@unlink( $agentimus_md_file ); // phpcs:ignore WordPress.WP.AlternativeFunctions.unlink_unlink, WordPress.PHP.NoSilencedErrors -- our own cache files.
+			}
+			@rmdir( $agentimus_md_dir ); // phpcs:ignore WordPress.WP.AlternativeFunctions.directory_rmdir, WordPress.PHP.NoSilencedErrors -- our own now-empty cache dir.
+		}
+	}
+
 	// Activity log: drop the tables, version flags and prune schedule.
 	$wpdb->query( "DROP TABLE IF EXISTS {$wpdb->prefix}agentimus_agent_hits" ); // phpcs:ignore WordPress.DB
 	$wpdb->query( "DROP TABLE IF EXISTS {$wpdb->prefix}agentimus_ai_referrals" ); // phpcs:ignore WordPress.DB
