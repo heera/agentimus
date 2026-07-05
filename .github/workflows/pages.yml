@@ -1,0 +1,54 @@
+name: pages
+
+# Builds + deploys the /docs Jekyll site (Just-the-Docs) to GitHub Pages.
+#
+# Replaces the automatic "deploy from a branch" builder, which fired on EVERY push
+# (even plugin-only ones that never touch /docs) with no concurrency control — so a
+# burst of pushes raced and the older Pages deployment failed with "Deployment failed,
+# try again later". Here the deploy is path-scoped to docs changes and serialised via
+# a `pages` concurrency group, so those collisions can't happen.
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'docs/**'
+      - '.github/workflows/pages.yml'
+  workflow_dispatch:
+
+# Least privilege for an OIDC Pages deploy.
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# One Pages deployment at a time; never cancel one mid-flight.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Configure Pages
+        uses: actions/configure-pages@v5
+      - name: Build the Jekyll site (/docs)
+        uses: actions/jekyll-build-pages@v1
+        with:
+          source: ./docs
+          destination: ./_site
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
