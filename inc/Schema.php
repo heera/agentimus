@@ -68,10 +68,29 @@ final class Schema {
 		// site-level identity nodes stand on every front-end request. Services ride
 		// the front page (which may itself be a singular page — both sets then apply,
 		// exactly as before).
-		$post = is_singular( Content::post_types() ) ? get_post() : null;
-		$doc  = $this->build_document( $post, is_front_page() );
-		if ( null === $doc ) {
-			return;
+		$post  = is_singular( Content::post_types() ) ? get_post() : null;
+		$front = is_front_page();
+
+		// On a site with a persistent object cache, memo the rendered JSON per (post
+		// revision + settings/site-identity) signature, so a crawl doesn't re-run
+		// do_blocks + a DOM parse + topic derivation on every hit. Skipped without a
+		// persistent cache — there, per-URL transients would just churn wp_options; the
+		// FAQ size ceiling bounds the per-request cost instead. The signature self-
+		// invalidates: a post edit bumps its modified time, a settings or site-identity
+		// change bumps the fingerprint, so no explicit flush is needed.
+		$key  = $this->cache_key( $post, $front );
+		$json = ( '' !== $key ) ? Cache::get( $key ) : false;
+
+		if ( ! is_string( $json ) ) {
+			$doc  = $this->build_document( $post, $front );
+			$json = ( null === $doc ) ? '' : (string) wp_json_encode( $doc, JSON_UNESCAPED_UNICODE );
+			if ( '' !== $key ) {
+				Cache::set( $key, $json, 12 * HOUR_IN_SECONDS );
+			}
+		}
+
+		if ( '' === $json ) {
+			return; // Empty graph (or an encode failure) — nothing to print.
 		}
 
 		// Do NOT use JSON_UNESCAPED_SLASHES here — this JSON sits inside an HTML
@@ -79,8 +98,31 @@ final class Schema {
 		// graph value containing "</script>" from breaking out of the tag. (The
 		// .well-known/*.json files, served as application/json, can unescape them.)
 		echo "\n<script type=\"application/ld+json\">" .
-			wp_json_encode( $doc, JSON_UNESCAPED_UNICODE ) . // phpcs:ignore WordPress.Security.EscapeOutput -- slash-escaped JSON in a script context.
+			$json . // phpcs:ignore WordPress.Security.EscapeOutput -- slash-escaped JSON in a script context.
 			"</script>\n";
+	}
+
+	/**
+	 * A self-invalidating cache key for the rendered JSON, or '' to skip caching. Only
+	 * returns a key when a PERSISTENT object cache is present — otherwise per-URL
+	 * transients would accumulate in wp_options with no bound. The key folds in the
+	 * post's revision (its modified time) and a fingerprint of the settings + core site
+	 * identity, so any change that affects the graph produces a fresh key.
+	 *
+	 * @param \WP_Post|null $post  Post being described, or null for the site graph.
+	 * @param bool          $front Whether this is the front page.
+	 * @return string Cache key, or '' to skip caching.
+	 */
+	private function cache_key( $post, $front ) {
+		if ( ! function_exists( 'wp_using_ext_object_cache' ) || ! wp_using_ext_object_cache() ) {
+			return '';
+		}
+		$post_sig = $post ? ( (int) $post->ID . ':' . (string) $post->post_modified_gmt ) : 'site';
+		$fingerprint = md5(
+			(string) wp_json_encode( $this->settings->all() )
+			. '|' . get_bloginfo( 'name' ) . '|' . get_bloginfo( 'description' ) . '|' . get_locale()
+		);
+		return 'agentimus_schema_' . md5( $post_sig . '|' . ( $front ? '1' : '0' ) . '|' . $fingerprint );
 	}
 
 	/**
@@ -302,9 +344,19 @@ final class Schema {
 	 * @return array|null
 	 */
 	private function faq_node( $post ) {
+		$content = (string) $post->post_content;
+
+		// Size ceiling: do_blocks + a DOM parse of a very large (page-builder) body runs
+		// on every front-end view, so skip FAQ detection above a byte cap — such a post
+		// is rarely a clean FAQ anyway. Filterable; 0 disables the ceiling.
+		$max = (int) apply_filters( 'agentimus_faq_max_bytes', 256 * 1024 );
+		if ( $max > 0 && strlen( $content ) > $max ) {
+			return null;
+		}
+
 		// Render blocks (so the Details block becomes <details><summary>) without
 		// firing the full the_content chain — avoids third-party render side effects.
-		$html  = function_exists( 'do_blocks' ) ? do_blocks( (string) $post->post_content ) : (string) $post->post_content;
+		$html  = function_exists( 'do_blocks' ) ? do_blocks( $content ) : $content;
 		$pairs = Faq::extract( $html );
 
 		/**

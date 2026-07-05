@@ -502,11 +502,11 @@ final class Settings {
 		$type                 = isset( $identity_in['entity_type'] ) ? (string) $identity_in['entity_type'] : 'Person';
 		$clean['identity']    = array(
 			'entity_type' => in_array( $type, $this->entity_types(), true ) ? $type : 'Person',
-			'name'        => isset( $identity_in['name'] ) ? sanitize_text_field( (string) $identity_in['name'] ) : '',
-			'role'        => isset( $identity_in['role'] ) ? sanitize_text_field( (string) $identity_in['role'] ) : '',
-			'about'         => isset( $identity_in['about'] ) ? sanitize_textarea_field( (string) $identity_in['about'] ) : '',
-			'not_description' => isset( $identity_in['not_description'] ) ? sanitize_textarea_field( (string) $identity_in['not_description'] ) : '',
-			'audience'      => isset( $identity_in['audience'] ) ? sanitize_text_field( (string) $identity_in['audience'] ) : '',
+			'name'        => isset( $identity_in['name'] ) ? $this->clip( sanitize_text_field( (string) $identity_in['name'] ), 200 ) : '',
+			'role'        => isset( $identity_in['role'] ) ? $this->clip( sanitize_text_field( (string) $identity_in['role'] ), 200 ) : '',
+			'about'         => isset( $identity_in['about'] ) ? $this->clip( sanitize_textarea_field( (string) $identity_in['about'] ), 2000 ) : '',
+			'not_description' => isset( $identity_in['not_description'] ) ? $this->clip( sanitize_textarea_field( (string) $identity_in['not_description'] ), 2000 ) : '',
+			'audience'      => isset( $identity_in['audience'] ) ? $this->clip( sanitize_text_field( (string) $identity_in['audience'] ), 300 ) : '',
 			'contact_email' => isset( $identity_in['contact_email'] ) ? sanitize_email( (string) $identity_in['contact_email'] ) : '',
 			'expertise'     => $this->sanitize_list( isset( $identity_in['expertise'] ) ? $identity_in['expertise'] : array(), 'sanitize_text_field' ),
 			'same_as'       => $this->sanitize_list( isset( $identity_in['same_as'] ) ? $identity_in['same_as'] : array(), 'esc_url_raw' ),
@@ -588,14 +588,43 @@ final class Settings {
 	 * @param callable $callback Per-item sanitiser.
 	 * @return string[]
 	 */
-	private function sanitize_list( $value, $callback ) {
+	private function sanitize_list( $value, $callback, $max_items = 200, $max_length = 300 ) {
 		if ( is_string( $value ) ) {
 			$value = preg_split( '/[\r\n,]+/', $value );
 		}
 		$value = array_map( $callback, array_map( 'trim', (array) $value ) );
-		return array_values( array_filter( $value, static function ( $item ) {
-			return '' !== $item;
-		} ) );
+
+		// Bound BOTH the item count and each item's length, so a paste of tens of
+		// thousands of tokens (or one enormous entry) can't bloat the autoloaded option
+		// that is read on every front-end request.
+		$out = array();
+		foreach ( $value as $item ) {
+			$item = (string) $item;
+			if ( '' === $item ) {
+				continue;
+			}
+			if ( strlen( $item ) > $max_length ) {
+				$item = substr( $item, 0, $max_length );
+			}
+			$out[] = $item;
+			if ( count( $out ) >= $max_items ) {
+				break;
+			}
+		}
+		return array_values( $out );
+	}
+
+	/**
+	 * Clip a scalar string to a maximum length — a length bound for the free-text
+	 * identity/service fields, which flow into the autoloaded option and the JSON-LD.
+	 *
+	 * @param string $value Sanitised text.
+	 * @param int    $max   Maximum length in bytes.
+	 * @return string
+	 */
+	private function clip( $value, $max ) {
+		$value = (string) $value;
+		return strlen( $value ) > $max ? substr( $value, 0, $max ) : $value;
 	}
 
 	/**
@@ -612,15 +641,18 @@ final class Settings {
 			if ( ! is_array( $row ) ) {
 				continue;
 			}
-			$name = isset( $row['name'] ) ? sanitize_text_field( (string) $row['name'] ) : '';
+			$name = isset( $row['name'] ) ? $this->clip( sanitize_text_field( (string) $row['name'] ), 200 ) : '';
 			if ( '' === $name ) {
 				continue;
 			}
 			$out[] = array(
 				'name'        => $name,
-				'description' => isset( $row['description'] ) ? sanitize_textarea_field( (string) $row['description'] ) : '',
+				'description' => isset( $row['description'] ) ? $this->clip( sanitize_textarea_field( (string) $row['description'] ), 1000 ) : '',
 				'url'         => isset( $row['url'] ) ? esc_url_raw( (string) $row['url'] ) : '',
 			);
+			if ( count( $out ) >= 50 ) {
+				break; // Bound the services list.
+			}
 		}
 		return $out;
 	}

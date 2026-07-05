@@ -76,4 +76,33 @@ final class SettingsDefaultsTest extends TestCase {
 		$this->assertSame( array( 'post', 'page' ), $clean['post_types'] );
 		$this->assertNotContains( 'product', $clean['post_types'], 'A stale selection must fall back to post+page, never to all public types.' );
 	}
+
+	/* -- Size caps: a paste can't bloat the autoloaded option ------------- */
+
+	public function test_a_list_is_capped_in_both_count_and_item_length() {
+		$many = array();
+		for ( $i = 0; $i < 500; $i++ ) {
+			$many[] = 'agent-' . $i;
+		}
+		$many[] = str_repeat( 'z', 900 ); // one oversized entry
+		$clean  = ( new Settings() )->sanitize( array( 'block_agents' => true, 'blocked_agents' => $many ) );
+
+		$this->assertLessThanOrEqual( 200, count( $clean['blocked_agents'] ), 'the list count is bounded' );
+		foreach ( $clean['blocked_agents'] as $item ) {
+			$this->assertLessThanOrEqual( 300, strlen( $item ), 'each item length is bounded' );
+		}
+	}
+
+	public function test_identity_free_text_is_length_capped() {
+		$clean = ( new Settings() )->sanitize(
+			array(
+				'identity' => array(
+					'name'  => str_repeat( 'y', 500 ),
+					'about' => str_repeat( 'x', 5000 ),
+				),
+			)
+		);
+		$this->assertLessThanOrEqual( 200, strlen( $clean['identity']['name'] ) );
+		$this->assertLessThanOrEqual( 2000, strlen( $clean['identity']['about'] ) );
+	}
 }

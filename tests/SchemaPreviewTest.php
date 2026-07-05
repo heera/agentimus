@@ -158,4 +158,22 @@ final class SchemaPreviewTest extends TestCase {
 		// A post with the default (unspecified) flag → services omitted.
 		$this->assertNotContains( 'Service', $this->types( $this->schema()->build_document( $this->post() ) ) );
 	}
+
+	/* -- FAQ size ceiling (bounds the per-request DOM cost) --------------- */
+
+	private const FAQ_HTML = '<details><summary>What is it?</summary><p>A discovery layer.</p></details>'
+		. '<details><summary>Is it free?</summary><p>Yes, fully.</p></details>';
+
+	public function test_a_normal_faq_post_still_emits_a_faqpage_node() {
+		$doc = $this->schema()->build_document( $this->post( array( 'post_content' => self::FAQ_HTML ) ), false );
+		$this->assertContains( 'FAQPage', $this->types( $doc ) );
+	}
+
+	public function test_faq_detection_is_skipped_above_the_size_ceiling() {
+		// Force a tiny ceiling so even this small FAQ post exceeds it — the expensive
+		// do_blocks + DOM parse must be skipped on an oversized body.
+		add_filter( 'agentimus_faq_max_bytes', static function () { return 10; } );
+		$doc = $this->schema()->build_document( $this->post( array( 'post_content' => self::FAQ_HTML ) ), false );
+		$this->assertNotContains( 'FAQPage', $this->types( $doc ) );
+	}
 }
