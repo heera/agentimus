@@ -41,6 +41,40 @@ final class TableInstallTest extends DbTestCase {
 		$this->assertSame( Table::VERSION, get_option( Table::VERSION_OPTION ) );
 	}
 
+	public function test_dbdelta_creates_the_post_id_column_and_index() {
+		global $wpdb;
+		$table = Table::name();
+		$wpdb->query( "DROP TABLE IF EXISTS `$table`" ); // phpcs:ignore WordPress.DB
+		delete_option( Table::VERSION_OPTION );
+		Table::install();
+
+		$cols = $wpdb->get_col( "SHOW COLUMNS FROM `$table`" ); // phpcs:ignore WordPress.DB
+		$this->assertContains( 'post_id', $cols, 'the schema v3 post_id column must exist' );
+
+		$idx = $wpdb->get_results( "SHOW INDEX FROM `$table` WHERE Key_name = 'post_id'", ARRAY_A ); // phpcs:ignore WordPress.DB
+		$this->assertNotEmpty( $idx, 'the post_id index must exist' );
+		$this->assertSame( 'post_id', $idx[0]['Column_name'] );
+	}
+
+	/** An existing pre-v3 install (no post_id) self-heals: dbDelta ADDs the column,
+	 *  and old rows take the default 0 — no data loss, no manual migration. */
+	public function test_upgrade_adds_post_id_to_a_pre_existing_table() {
+		global $wpdb;
+		$table   = Table::name();
+		$collate = $wpdb->get_charset_collate();
+		$wpdb->query( "DROP TABLE IF EXISTS `$table`" ); // phpcs:ignore WordPress.DB
+		// A v2-shaped table: no post_id column.
+		$wpdb->query( "CREATE TABLE `$table` (\n  id bigint(20) unsigned NOT NULL AUTO_INCREMENT,\n  endpoint varchar(64) NOT NULL DEFAULT '',\n  agent varchar(64) NOT NULL DEFAULT '',\n  ua varchar(255) NOT NULL DEFAULT '',\n  hit_at datetime NOT NULL,\n  PRIMARY KEY  (id)\n) $collate" ); // phpcs:ignore WordPress.DB
+		$wpdb->insert( $table, array( 'endpoint' => 'llms.txt', 'agent' => 'GPTBot', 'ua' => 'x', 'hit_at' => current_time( 'mysql', true ) ), array( '%s', '%s', '%s', '%s' ) ); // phpcs:ignore WordPress.DB
+
+		$this->assertNotContains( 'post_id', $wpdb->get_col( "SHOW COLUMNS FROM `$table`" ) ); // phpcs:ignore WordPress.DB
+
+		Table::install(); // the real upgrade path
+
+		$this->assertContains( 'post_id', $wpdb->get_col( "SHOW COLUMNS FROM `$table`" ), 'dbDelta must add post_id' ); // phpcs:ignore WordPress.DB
+		$this->assertSame( '0', $wpdb->get_var( "SELECT post_id FROM `$table` ORDER BY id ASC LIMIT 1" ), 'existing rows default to 0' ); // phpcs:ignore WordPress.DB
+	}
+
 	public function test_a_row_round_trips_through_the_real_table() {
 		global $wpdb;
 		Table::install();

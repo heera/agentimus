@@ -1712,6 +1712,14 @@ select.ar-input {
 .ar-act-rank__track { height: 7px; background: var(--ar-surface-2); border-radius: 999px; overflow: hidden; }
 .ar-act-rank__bar { display: block; height: 100%; background: var(--ar-accent); border-radius: 999px; }
 .ar-act-rank__n { font-family: var(--ar-mono); font-size: 12px; color: var(--ar-ink-soft); text-align: right; min-width: 24px; }
+/* Top-pages variant: a page title is longer than an endpoint code, so the label stacks
+   the (linked) title over its busiest agent; each line truncates rather than wrapping. */
+.ar-act-rank--pages .ar-act-rank__label { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.ar-act-rank--pages .ar-act-rank__label > a,
+.ar-act-rank--pages .ar-act-rank__label > span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+.ar-act-rank--pages .ar-act-rank__label a { color: var(--ar-ink); text-decoration: none; }
+.ar-act-rank--pages .ar-act-rank__label a:hover { color: var(--ar-accent); text-decoration: underline; }
+.ar-act-rank__by { font-family: var(--ar-mono); font-size: 10.5px; font-style: normal; color: var(--ar-ink-faint); }
 .ar-act-more { margin: 11px 0 0; font-size: 11px; color: var(--ar-ink-faint); }
 /* As a button: expand/collapse the day breakdown. Caret signals it unfolds (no underline). */
 button.ar-act-more { appearance: none; background: none; border: 0; padding: 0; cursor: pointer; font-family: inherit; display: inline-flex; align-items: center; gap: 4px; transition: color 0.15s ease; }

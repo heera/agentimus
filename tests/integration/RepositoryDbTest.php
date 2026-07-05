@@ -25,12 +25,12 @@ final class RepositoryDbTest extends DbTestCase {
 		$wpdb->query( 'TRUNCATE TABLE ' . Table::name() );
 	}
 
-	private function hit( $endpoint, $agent, $ua, $at = null ) {
+	private function hit( $endpoint, $agent, $ua, $at = null, $post_id = 0 ) {
 		global $wpdb;
 		$wpdb->insert(
 			Table::name(),
-			array( 'endpoint' => $endpoint, 'agent' => $agent, 'ua' => $ua, 'hit_at' => $at ?: gmdate( 'Y-m-d H:i:s' ) ),
-			array( '%s', '%s', '%s', '%s' )
+			array( 'endpoint' => $endpoint, 'agent' => $agent, 'ua' => $ua, 'post_id' => (int) $post_id, 'hit_at' => $at ?: gmdate( 'Y-m-d H:i:s' ) ),
+			array( '%s', '%s', '%s', '%d', '%s' )
 		);
 	}
 
@@ -73,6 +73,51 @@ final class RepositoryDbTest extends DbTestCase {
 
 		$uas = array_map( static function ( $s ) { return $s['ua']; }, $threats['sources'] );
 		$this->assertContains( self::NOKIA, $uas, 'a spoofed legacy-device UA must be flagged' );
+	}
+
+	/* -- Per-page report (top_pages) ------------------------------------- */
+
+	public function test_top_pages_ranks_pages_by_hits_with_their_busiest_agent() {
+		$a = self::factory()->post->create( array( 'post_title' => 'Popular Guide', 'post_status' => 'publish' ) );
+		$b = self::factory()->post->create( array( 'post_title' => 'Second Page', 'post_status' => 'publish' ) );
+
+		// Page A: 3 GPTBot + 1 Googlebot = 4 hits (busiest = GPTBot, 3).
+		$this->hit( 'markdown', 'GPTBot', 'GPTBot/1.0', null, $a );
+		$this->hit( 'markdown', 'GPTBot', 'GPTBot/1.0', null, $a );
+		$this->hit( 'markdown', 'GPTBot', 'GPTBot/1.0', null, $a );
+		$this->hit( 'markdown', 'Googlebot', 'Googlebot/2.1', null, $a );
+		// Page B: 2 ClaudeBot.
+		$this->hit( 'markdown', 'ClaudeBot', 'ClaudeBot/1.0', null, $b );
+		$this->hit( 'markdown', 'ClaudeBot', 'ClaudeBot/1.0', null, $b );
+		// A non-page endpoint (post_id 0) — MUST be excluded from the per-page report.
+		$this->hit( 'llms.txt', 'GPTBot', 'GPTBot/1.0' );
+
+		$since = gmdate( 'Y-m-d H:i:s', time() - 30 * DAY_IN_SECONDS );
+		$pages = Repository::top_pages( $since, 12 );
+
+		$this->assertCount( 2, $pages, 'only the two pages, not the post_id=0 llms.txt hit' );
+
+		$this->assertSame( $a, $pages[0]['id'], 'busiest page ranks first' );
+		$this->assertSame( 4, $pages[0]['hits'] );
+		$this->assertSame( 'Popular Guide', $pages[0]['title'] );
+		$this->assertNotNull( $pages[0]['url'] );
+		$this->assertSame( 'GPTBot', $pages[0]['topAgent']['label'] );
+		$this->assertSame( 3, $pages[0]['topAgent']['hits'] );
+
+		$this->assertSame( $b, $pages[1]['id'] );
+		$this->assertSame( 2, $pages[1]['hits'] );
+	}
+
+	/** A hit for a since-deleted post is kept as history, labelled removed, URL null. */
+	public function test_top_pages_labels_a_removed_post() {
+		$this->hit( 'markdown', 'GPTBot', 'GPTBot/1.0', null, 999999 );
+		$since = gmdate( 'Y-m-d H:i:s', time() - 30 * DAY_IN_SECONDS );
+		$pages = Repository::top_pages( $since, 12 );
+
+		$this->assertCount( 1, $pages );
+		$this->assertSame( 999999, $pages[0]['id'] );
+		$this->assertStringContainsString( 'removed', $pages[0]['title'] );
+		$this->assertNull( $pages[0]['url'] );
 	}
 
 	/* -- Maintenance: OFFSET trim, day range, prune ---------------------- */

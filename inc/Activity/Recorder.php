@@ -49,8 +49,11 @@ final class Recorder {
 	 * Record a hit on the named endpoint, if logging is enabled.
 	 *
 	 * @param string $endpoint Short endpoint label (e.g. "discovery.json").
+	 * @param int    $post_id  The specific page/post a per-post .md hit was for; 0 for a
+	 *                         non-page endpoint. Powers the per-page report; no IP is ever
+	 *                         stored, so this stays the log's only content-identifying field.
 	 */
-	public static function record( $endpoint ) {
+	public static function record( $endpoint, $post_id = 0 ) {
 		if ( ! self::enabled() ) {
 			return;
 		}
@@ -93,9 +96,10 @@ final class Recorder {
 				'endpoint' => substr( (string) $endpoint, 0, 64 ),
 				'agent'    => substr( $agent, 0, 64 ),
 				'ua'       => substr( $ua, 0, 255 ),
+				'post_id'  => max( 0, (int) $post_id ),
 				'hit_at'   => current_time( 'mysql', true ), // GMT.
 			),
-			array( '%s', '%s', '%s', '%s' )
+			array( '%s', '%s', '%s', '%d', '%s' )
 		);
 
 		// Opportunistic backstop: most inserts pay only a cheap rand(); roughly one
