@@ -86,6 +86,7 @@ final class Settings {
 			// install never silently blocks anyone.
 			'block_agents'     => false, // Master switch for denying agents at the generated endpoints.
 			'block_spoofed'    => true,  // When blocking is on, also deny spoofed/legacy-device UAs (the "Likely spoof/scanner" class). No effect while block_agents is false.
+			'verify_bots'      => false, // Opt-in: forward-confirm a claimed search engine by reverse DNS before granting it always-allow status, so a spoofed "Googlebot" UA can't inherit a real crawler's trust. OFF by default because it makes outbound DNS lookups (all this plugin ever makes). No effect while block_agents is false.
 			'blocked_agents'   => array(), // Owner's custom user-agent substrings to deny (case-insensitive). Empty = none.
 			'allowed_agents'   => array(), // Owner's trust-list (via the activity panel's "Allow"): never blocked, never flagged for review. Empty = none.
 			// Exposure controls — reduce what an ANONYMOUS visitor (crawler / bot /
@@ -562,6 +563,7 @@ final class Settings {
 		// disabling the spoof heuristic.
 		$clean['block_agents']   = ! empty( $input['block_agents'] );
 		$clean['block_spoofed']  = ! isset( $input['block_spoofed'] ) ? $defaults['block_spoofed'] : ! empty( $input['block_spoofed'] );
+		$clean['verify_bots']    = ! empty( $input['verify_bots'] );
 		$agents                  = isset( $input['blocked_agents'] ) ? $input['blocked_agents'] : array();
 		$clean['blocked_agents'] = $this->sanitize_list( $agents, 'sanitize_text_field' );
 		$allowed                 = isset( $input['allowed_agents'] ) ? $input['allowed_agents'] : array();

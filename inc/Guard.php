@@ -210,12 +210,16 @@ final class Guard {
 	 * @return bool
 	 */
 	public static function verification_on() {
+		$on = (bool) ( new Settings() )->enabled( 'verify_bots' );
+
 		/**
 		 * Enable forward-confirmed reverse-DNS verification of claimed search engines.
+		 * Defaults to the `verify_bots` setting; a filter still wins, so it can be forced
+		 * on/off in code regardless of the admin toggle.
 		 *
-		 * @param bool $on Default false (no outbound lookups).
+		 * @param bool $on Whether verification is enabled (the stored setting by default).
 		 */
-		return (bool) apply_filters( 'agentimus_verify_bots', false );
+		return (bool) apply_filters( 'agentimus_verify_bots', $on );
 	}
 
 	/**

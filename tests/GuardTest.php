@@ -105,6 +105,16 @@ final class GuardTest extends TestCase {
 		$this->assertFalse( Guard::denies( self::GOOGLEBOT ) );
 	}
 
+	/** The admin toggle (the persisted verify_bots setting) drives verification too —
+	 *  not only the code filter. */
+	public function test_verification_is_driven_by_the_setting_not_only_the_filter() {
+		add_filter( 'agentimus_client_ip', static function () { return '203.0.113.9'; } );
+		add_filter( 'agentimus_reverse_dns', static function () { return 'host.scanner-farm.example'; }, 10, 2 );
+		$this->configure( array( 'block_agents' => true, 'block_spoofed' => false, 'verify_bots' => true, 'blocked_agents' => array( 'scanner' ) ) );
+
+		$this->assertTrue( Guard::denies( 'scanner masquerading as Googlebot/2.1' ) );
+	}
+
 	/* -- Never block a missing UA (too blunt, trivially spoofed) ---------- */
 
 	public function test_empty_ua_is_not_blocked_even_with_blocking_on() {

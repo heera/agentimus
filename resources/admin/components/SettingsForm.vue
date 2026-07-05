@@ -1103,6 +1103,21 @@ export default {
             </span>
           </label>
 
+          <label class="ar-toggle">
+            <input v-model="settings.verify_bots" type="checkbox" />
+            <span class="ar-toggle__track" aria-hidden="true"></span>
+            <span class="ar-toggle__text">
+              <strong>Verify search engines by reverse DNS</strong>
+              <small>
+                Before trusting a visitor that <em>says</em> it's Googlebot, Bingbot, Applebot, DuckDuckBot or Yandex,
+                confirm its network address really belongs to that engine — so a scanner can't earn a free pass just by
+                copying a crawler's name. This is the one feature that makes a small outbound DNS lookup (cached per visitor).
+                <strong>Behind a proxy or CDN (e.g. Cloudflare)?</strong> Leave this off unless you've supplied the real
+                visitor IP, or real crawlers may lose their trusted status.
+              </small>
+            </span>
+          </label>
+
           <div class="ar-field">
             <label>Blocked user-agents <span class="ar-field__tag">optional</span></label>
             <TagInput v-model="settings.blocked_agents" placeholder="Add a user-agent to deny" />
