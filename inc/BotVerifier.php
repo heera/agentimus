@@ -8,13 +8,24 @@
  * bypass of the always-allow list.
  *
  * OFF by default (see {@see Guard::verification_on}): DNS is an outbound lookup, and
- * this plugin makes none unless the owner opts in. When on it runs ONLY on the already-
- * opt-in hard-block path, caches each IP's verdict, and spends a bounded number of NEW
- * lookups per window — so a flood of spoofed IPs can't turn it into a DNS-amplification
- * vector (past the budget, an uncached IP is treated as unverified: fail-closed for
- * trust). Reverse/forward resolution is filterable (`agentimus_reverse_dns` /
- * `agentimus_forward_dns`) so a site behind a CDN can wire in its own resolver, and so
- * the decision logic is testable without a live network.
+ * this plugin makes none unless the owner opts in.
+ *
+ * FAIL-OPEN by design. The verdict is three-valued:
+ *   true  = forward-confirmed (a real crawler).
+ *   false = CONCLUSIVELY someone else — the resolver answered promptly and the IP does
+ *           not belong to the claimed engine. Only this strips a crawler's always-allow.
+ *   null  = COULD NOT determine — no IP, the resolver was slow/unreachable, the lookup
+ *           budget is spent, the circuit breaker is open, or the answer was incomplete
+ *           (e.g. an IPv6 client on a host without AAAA support). The caller keeps the
+ *           crawler protected, so a DNS hiccup never loses a real crawler.
+ *
+ * Three guards keep it cheap and safe on the unauthenticated bot path: a per-IP verdict
+ * cache (an IP's crawler identity is stable), a bounded NEW-lookup budget per window
+ * (anti-amplification — past it, uncached IPs return null, never a DNS storm), and a
+ * circuit breaker that stops touching DNS for a cooldown after a couple of slow/failing
+ * lookups (so a broken resolver can never keep stalling requests). Reverse/forward
+ * resolution and the thresholds are filterable, so a site behind a CDN can wire in its
+ * own resolver and the decision logic is testable without a live network.
  *
  * @package Agentimus
  */
@@ -33,6 +44,19 @@ final class BotVerifier {
 	const BUDGET_PREFIX = 'agentimus_botv_budget_';
 	const BUDGET_WINDOW = 60;
 	const BUDGET_MAX    = 30;
+
+	/**
+	 * Circuit breaker: a lookup slower than SLOW_MS is a "strike"; after TRIP_STRIKES
+	 * strikes within STRIKE_TTL the breaker opens for TRIP_TTL, during which no DNS is
+	 * performed and every claimed crawler fails OPEN (stays protected). So a slow or
+	 * unreachable resolver can stall at most a couple of requests before it stops trying.
+	 */
+	const SLOW_MS      = 900;
+	const STRIKE_KEY   = 'agentimus_botv_strikes';
+	const STRIKE_TTL   = 120;
+	const TRIP_KEY     = 'agentimus_botv_trip';
+	const TRIP_STRIKES = 2;
+	const TRIP_TTL     = 300;
 
 	/**
 	 * Verifiable engines: the token as it appears in the UA => the reverse-DNS domain
@@ -75,17 +99,20 @@ final class BotVerifier {
 	}
 
 	/**
-	 * Whether $ip forward-confirms as the engine the UA claims. False when the UA
-	 * claims nothing verifiable, the IP is empty, or the DNS check does not confirm.
+	 * Tri-state verdict for the engine a UA claims. true = forward-confirmed;
+	 * false = conclusively not that engine; null = could not determine (fail open).
 	 *
 	 * @param string $ua_lc Lowercased User-Agent.
 	 * @param string $ip    Source IP.
-	 * @return bool
+	 * @return bool|null
 	 */
 	public static function verify_engine( $ua_lc, $ip ) {
 		$engine = self::claimed_engine( $ua_lc );
-		if ( '' === $engine || '' === (string) $ip ) {
-			return false;
+		if ( '' === $engine ) {
+			return false; // Not a claim we verify (the Guard gates on is_real_engine).
+		}
+		if ( '' === (string) $ip ) {
+			return null; // No IP to check → cannot determine → keep the crawler protected.
 		}
 		$all     = self::engine_domains();
 		$domains = isset( $all[ $engine ] ) ? (array) $all[ $engine ] : array();
@@ -93,57 +120,86 @@ final class BotVerifier {
 	}
 
 	/**
-	 * Whether $ip reverse-resolves into one of $domains AND forward-resolves back to
-	 * $ip. Cached per (ip, domains); bounded by the per-window lookup budget.
+	 * Cached tri-state FCrDNS verdict for $ip against $domains. Bounded by the per-window
+	 * budget and the circuit breaker — both of which fail OPEN (null), never closed.
 	 *
 	 * @param string   $ip      Source IP.
 	 * @param string[] $domains Expected rDNS domain suffixes.
-	 * @return bool
+	 * @return bool|null
 	 */
 	public static function verify_ip( $ip, array $domains ) {
 		$key    = self::CACHE_PREFIX . md5( $ip . '|' . implode( ',', $domains ) );
 		$cached = get_transient( $key );
-		if ( '1' === $cached ) {
+		if ( 'v' === $cached ) {
 			return true;
 		}
-		if ( '0' === $cached ) {
+		if ( 's' === $cached ) {
 			return false;
 		}
 
-		// Past the per-window budget, don't perform an uncached lookup — treat the IP as
-		// unverified (fail-closed for trust) so a spoofed-IP flood can't amplify into a
-		// DNS storm.
+		// Circuit breaker open (the resolver has been slow/failing) → don't touch DNS;
+		// fail OPEN so a broken resolver can't keep stalling requests or lose crawlers.
+		if ( get_transient( self::TRIP_KEY ) ) {
+			return null;
+		}
+		// Past the anti-amplification budget → don't perform a NEW lookup; fail OPEN.
 		if ( ! self::spend_lookup() ) {
-			return false;
+			return null;
 		}
 
-		$ok = self::fcrdns( $ip, $domains );
-		set_transient( $key, $ok ? '1' : '0', self::CACHE_TTL );
-		return $ok;
+		$verdict = self::fcrdns( $ip, $domains ); // true | false | null
+
+		// Cache CONCLUSIVE verdicts only. An inconclusive (null) result is never cached,
+		// so a transient DNS failure is not remembered as a lasting "unverified".
+		if ( true === $verdict ) {
+			set_transient( $key, 'v', self::CACHE_TTL );
+		} elseif ( false === $verdict ) {
+			set_transient( $key, 's', self::CACHE_TTL );
+		}
+		return $verdict;
 	}
 
 	/**
-	 * The forward-confirmed reverse-DNS check itself.
+	 * The forward-confirmed reverse-DNS check, three-valued and time-bounded. A slow
+	 * reverse or forward lookup records a strike and returns null (never proceeds to
+	 * stack a second slow lookup); a non-match is only called a spoof (false) when we
+	 * actually resolved addresses of the client IP's family, else it stays null.
 	 *
 	 * @param string   $ip      Source IP.
 	 * @param string[] $domains Expected rDNS domain suffixes.
-	 * @return bool
+	 * @return bool|null
 	 */
 	private static function fcrdns( $ip, array $domains ) {
+		$t0   = microtime( true );
 		$host = strtolower( rtrim( self::reverse( $ip ), '.' ) );
+		if ( self::too_slow( $t0 ) ) {
+			self::record_strike();
+			return null; // Slow reverse lookup → keep the crawler; retry later.
+		}
 		if ( '' === $host || $host === strtolower( (string) $ip ) ) {
-			return false; // No PTR record → cannot confirm.
+			return false; // Resolver answered promptly with no usable PTR → conclusive.
 		}
 		if ( ! self::host_in_domains( $host, $domains ) ) {
-			return false; // PTR points somewhere other than the claimed engine.
+			return false; // PTR points to another domain → conclusive.
 		}
+
 		// Forward-confirm: the PTR hostname must resolve back to the same IP.
-		foreach ( self::forward( $host ) as $resolved ) {
+		$t1  = microtime( true );
+		$ips = self::forward( $host );
+		if ( self::too_slow( $t1 ) ) {
+			self::record_strike();
+			return null; // Slow forward lookup → keep the crawler.
+		}
+		foreach ( $ips as $resolved ) {
 			if ( self::same_ip( $resolved, $ip ) ) {
 				return true;
 			}
 		}
-		return false;
+		// No match. Only a fake PTR (conclusive spoof) when the hostname actually
+		// resolved to addresses of the client's family; if we got none of that family
+		// (e.g. an IPv6 client on a host that can't resolve AAAA) we could not really
+		// check — stay inconclusive and keep the crawler.
+		return self::forward_had_family( $ips, $ip ) ? false : null;
 	}
 
 	/**
@@ -172,6 +228,44 @@ final class BotVerifier {
 			}
 		}
 		return false;
+	}
+
+	/**
+	 * Whether $ips contains at least one address of the same family (IPv4/IPv6) as $ip —
+	 * i.e. whether the forward lookup could actually speak to the client's address family.
+	 *
+	 * @param string[] $ips List of resolved IP strings.
+	 * @param string   $ip  Client IP.
+	 * @return bool
+	 */
+	private static function forward_had_family( array $ips, $ip ) {
+		$target = self::family( $ip );
+		if ( '' === $target ) {
+			return false;
+		}
+		foreach ( $ips as $cand ) {
+			if ( self::family( $cand ) === $target ) {
+				return true;
+			}
+		}
+		return false;
+	}
+
+	/**
+	 * The address family of an IP string: 'v4', 'v6', or '' when not a valid IP.
+	 *
+	 * @param string $ip IP string.
+	 * @return string
+	 */
+	private static function family( $ip ) {
+		$packed = @inet_pton( (string) $ip ); // phpcs:ignore WordPress.PHP.NoSilencedErrors -- invalid input returns false.
+		if ( false === $packed ) {
+			return '';
+		}
+		if ( 4 === strlen( $packed ) ) {
+			return 'v4';
+		}
+		return 16 === strlen( $packed ) ? 'v6' : '';
 	}
 
 	/**
@@ -256,6 +350,45 @@ final class BotVerifier {
 			}
 		}
 		return $out;
+	}
+
+	/**
+	 * Whether the elapsed time since $start exceeds the slow-lookup threshold.
+	 *
+	 * @param float $start microtime(true) captured before the lookup.
+	 * @return bool
+	 */
+	private static function too_slow( $start ) {
+		$ms = ( microtime( true ) - $start ) * 1000;
+		/**
+		 * Milliseconds beyond which a single DNS lookup counts as "slow" (a circuit-
+		 * breaker strike, and a fail-open null verdict).
+		 *
+		 * @param int $ms The threshold in milliseconds.
+		 */
+		$limit = (int) apply_filters( 'agentimus_verify_slow_ms', self::SLOW_MS );
+		return $ms > max( 1, $limit );
+	}
+
+	/**
+	 * Record one slow/failed-lookup strike; open the circuit breaker once enough
+	 * accumulate within the window, so DNS is skipped entirely for a cooldown.
+	 *
+	 * @return void
+	 */
+	private static function record_strike() {
+		$n = (int) get_transient( self::STRIKE_KEY ) + 1;
+		set_transient( self::STRIKE_KEY, $n, self::STRIKE_TTL );
+
+		/**
+		 * How many slow-lookup strikes open the verification circuit breaker.
+		 *
+		 * @param int $strikes Strike count that trips the breaker.
+		 */
+		$trip = (int) apply_filters( 'agentimus_verify_trip_strikes', self::TRIP_STRIKES );
+		if ( $n >= max( 1, $trip ) ) {
+			set_transient( self::TRIP_KEY, 1, self::TRIP_TTL );
+		}
 	}
 
 	/**

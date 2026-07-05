@@ -100,6 +100,7 @@ namespace {
 	// and read them back. Empty by default, so it behaves exactly like returning
 	// the default until a test writes — reset between tests via _af_reset_options().
 	$GLOBALS['_af_options'] = array();
+	$GLOBALS['_af_transients'] = array();
 	$GLOBALS['_af_did_actions'] = array(); // Tests flip e.g. 'mcp_adapter_init' to exercise the server-present path.
 	$GLOBALS['_af_posts'] = array(); // id => post object fixtures for the Markdown privacy tests.
 	if ( ! function_exists( 'get_option' ) )            { function get_option( $k, $d = false ) { return array_key_exists( $k, $GLOBALS['_af_options'] ) ? $GLOBALS['_af_options'][ $k ] : $d; } }
@@ -136,12 +137,14 @@ namespace {
 	// The taxonomies that "exist" for object types; a test can add a vendor one (e.g. product_cat).
 	$GLOBALS['_af_taxonomies'] = array( 'category', 'post_tag' );
 	if ( ! function_exists( 'is_object_in_taxonomy' ) ) { function is_object_in_taxonomy( $type, $tax ) { return in_array( $tax, (array) $GLOBALS['_af_taxonomies'], true ); } }
-	function _af_reset_options() { $GLOBALS['_af_options'] = array(); $GLOBALS['_af_filters'] = array(); $GLOBALS['_af_did_actions'] = array(); $GLOBALS['_af_posts'] = array(); $GLOBALS['_af_postmeta'] = array(); $GLOBALS['_af_terms'] = array(); $GLOBALS['_af_taxonomies'] = array( 'category', 'post_tag' ); $GLOBALS['_af_is_admin'] = false; $GLOBALS['_af_flush_count'] = 0; $GLOBALS['_af_cache'] = array(); $GLOBALS['_af_http_queue'] = array(); $GLOBALS['_af_http_last'] = null; unset( $GLOBALS['_af_available_post_types'], $GLOBALS['_af_current_post_id'], $GLOBALS['_af_is_singular'], $GLOBALS['_af_is_front_page'], $GLOBALS['_af_categories'] ); }
-	// Always-miss transient stubs so cached endpoint bodies (e.g. security.txt)
-	// recompute deterministically in tests.
-	if ( ! function_exists( 'get_transient' ) )         { function get_transient( $k ) { return false; } }
-	if ( ! function_exists( 'set_transient' ) )         { function set_transient( $k, $v, $t = 0 ) { return true; } }
-	if ( ! function_exists( 'delete_transient' ) )      { function delete_transient( $k ) { return true; } }
+	function _af_reset_options() { $GLOBALS['_af_options'] = array(); $GLOBALS['_af_filters'] = array(); $GLOBALS['_af_did_actions'] = array(); $GLOBALS['_af_posts'] = array(); $GLOBALS['_af_postmeta'] = array(); $GLOBALS['_af_terms'] = array(); $GLOBALS['_af_taxonomies'] = array( 'category', 'post_tag' ); $GLOBALS['_af_is_admin'] = false; $GLOBALS['_af_flush_count'] = 0; $GLOBALS['_af_cache'] = array(); $GLOBALS['_af_transients'] = array(); unset( $GLOBALS['_af_transients_on'] ); $GLOBALS['_af_http_queue'] = array(); $GLOBALS['_af_http_last'] = null; unset( $GLOBALS['_af_available_post_types'], $GLOBALS['_af_current_post_id'], $GLOBALS['_af_is_singular'], $GLOBALS['_af_is_front_page'], $GLOBALS['_af_categories'] ); }
+	// Transient stubs. Default: always-miss, so cached endpoint bodies (e.g. security.txt)
+	// recompute deterministically in tests. A test that needs to exercise real transient
+	// state (the bot-verifier budget/circuit-breaker counters) opts in by setting
+	// $GLOBALS['_af_transients_on'] = true in its setUp; _af_reset_options() clears both.
+	if ( ! function_exists( 'get_transient' ) )         { function get_transient( $k ) { return ! empty( $GLOBALS['_af_transients_on'] ) && array_key_exists( $k, $GLOBALS['_af_transients'] ) ? $GLOBALS['_af_transients'][ $k ] : false; } }
+	if ( ! function_exists( 'set_transient' ) )         { function set_transient( $k, $v, $t = 0 ) { if ( ! empty( $GLOBALS['_af_transients_on'] ) ) { $GLOBALS['_af_transients'][ $k ] = $v; } return true; } }
+	if ( ! function_exists( 'delete_transient' ) )      { function delete_transient( $k ) { unset( $GLOBALS['_af_transients'][ $k ] ); return true; } }
 	// Site-wide term query (used by Topics::suggestions() / LlmsText::topics()); empty
 	// unless a test seeds $GLOBALS['_af_get_terms'].
 	if ( ! function_exists( 'get_terms' ) )             { function get_terms( $args = array() ) { return isset( $GLOBALS['_af_get_terms'] ) ? $GLOBALS['_af_get_terms'] : array(); } }

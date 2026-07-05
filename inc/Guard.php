@@ -51,14 +51,15 @@ final class Guard {
 		$protected = self::is_protected( $ua_lc );
 
 		// Optional forward-confirmed reverse DNS. When verification is on, a UA that
-		// CLAIMS a real search engine keeps its always-allow status only if the request's
-		// source IP forward-confirms as that engine; a scanner that merely pastes
-		// "Googlebot/2.1" into its UA fails and is treated as unprotected (subject to the
-		// block rules). Only the engine claim is verified — the owner's explicit allow-
-		// list is a deliberate choice, not a spoofable identity, so it still protects
-		// unconditionally even if DNS can't confirm.
+		// CLAIMS a real search engine keeps its always-allow status unless the source IP
+		// is CONCLUSIVELY not that engine — the resolver answered promptly and the IP
+		// belongs to someone else (verdict false). It is FAIL-OPEN: if DNS is slow,
+		// unreachable, budgeted-out, or otherwise inconclusive (verdict null), the crawler
+		// STAYS protected, because a DNS hiccup must never lose a real crawler. Only a
+		// definite spoof drops it to the block rules. The owner's explicit allow-list is a
+		// deliberate choice, not a spoofable identity, so it protects unconditionally.
 		if ( $protected && '' !== $ua_lc && self::verification_on() && self::is_real_engine( $ua_lc )
-			&& ! BotVerifier::verify_engine( $ua_lc, self::client_ip() ) && ! self::owner_allows( $ua_lc ) ) {
+			&& false === BotVerifier::verify_engine( $ua_lc, self::client_ip() ) && ! self::owner_allows( $ua_lc ) ) {
 			$protected = false;
 		}
 

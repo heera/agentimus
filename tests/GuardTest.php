@@ -115,6 +115,19 @@ final class GuardTest extends TestCase {
 		$this->assertTrue( Guard::denies( 'scanner masquerading as Googlebot/2.1' ) );
 	}
 
+	/** FAIL-OPEN: when the resolver is slow (a DNS hiccup, not a spoof), a genuine
+	 *  Googlebot keeps its protection and is served — even against a rule that names it.
+	 *  A DNS latency problem must never lose a real crawler. */
+	public function test_verification_fails_open_when_dns_is_slow_and_keeps_the_crawler() {
+		add_filter( 'agentimus_verify_bots', static function () { return true; } );
+		add_filter( 'agentimus_client_ip', static function () { return '66.249.66.1'; } );
+		add_filter( 'agentimus_verify_slow_ms', static function () { return 5; } );
+		add_filter( 'agentimus_reverse_dns', static function () { usleep( 20000 ); return 'crawl-66-249-66-1.googlebot.com'; }, 10, 2 );
+		$this->configure( array( 'block_agents' => true, 'block_spoofed' => false, 'blocked_agents' => array( 'googlebot' ) ) );
+
+		$this->assertFalse( Guard::denies( self::GOOGLEBOT ), 'A slow DNS lookup must not de-index a real crawler.' );
+	}
+
 	/* -- Never block a missing UA (too blunt, trivially spoofed) ---------- */
 
 	public function test_empty_ua_is_not_blocked_even_with_blocking_on() {
