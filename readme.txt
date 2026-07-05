@@ -4,7 +4,7 @@ Tags: ai-agents, ai-crawlers, agent-readiness, llms-txt, ai-seo
 Requires at least: 6.0
 Tested up to: 7.0
 Requires PHP: 7.4
-Stable tag: 1.14.0
+Stable tag: 1.14.1
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -217,6 +217,10 @@ There is no minified-only code. The admin interface is built from Vue 3 source i
 
 == Changelog ==
 
+= 1.14.1 =
+* Improved — the admin footer on the Agentimus screen now shows both the Agentimus version and your WordPress version, with a subtly engraved separator that reads correctly on light or dark admin surfaces.
+* Improved — the About tab now lists the optional "verify search engines by reverse DNS" control and notes that your AI Visibility API keys are stored encrypted at rest.
+
 = 1.14.0 =
 * New — **Verify search engines (optional).** Turn on "Verify search engines by reverse DNS" under Settings → Block scanners, and Agentimus confirms a visitor claiming to be Googlebot, Bingbot, Applebot, DuckDuckBot or Yandex really is — by checking its network address — before trusting it, so a scanner can't slip past your block just by copying a crawler's name. Off by default (it's the one feature that makes a small, cached DNS lookup); leave it off behind a proxy/CDN unless you've supplied the real visitor IP.
 * New — **Copy a User-Agent in one click.** In the activity log and the day report, hovering a visitor's User-Agent now shows the full text in a tidy tooltip, and clicking it copies the whole string — no more fighting the cut-off text.
@@ -361,6 +365,9 @@ There is no minified-only code. The admin interface is built from Vue 3 source i
 * Admin Discovery Hub for inspecting what agents can see, with per-item publish/suppress control.
 
 == Upgrade Notice ==
+
+= 1.14.1 =
+Small admin-UI polish: the footer shows both the Agentimus and WordPress versions, and the About tab documents the reverse-DNS verification and encrypted keys. No functional changes.
 
 = 1.14.0 =
 Encrypts your AI Visibility API keys at rest, adds optional reverse-DNS verification of search engines and one-click copying of a visitor's User-Agent, plus a lot of behind-the-scenes hardening — resilience under heavy crawler load, safer AI-check spending, and a flood-resistant activity log. Also fixes a bug where a settings switch could silently fail to save. No breaking changes.
