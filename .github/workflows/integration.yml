@@ -1,0 +1,61 @@
+name: integration
+
+# Boots the plugin inside REAL WordPress + MySQL (WP_UnitTestCase) so the seams the
+# fast `ci` unit suite has to stub — dbDelta, raw $wpdb, REST dispatch, rewrite
+# routing, real escaping, cron — are exercised for real. Slower than `ci`; `ci` stays
+# the quick gate, this is the thorough one.
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+
+concurrency:
+  group: integration-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  integration:
+    name: Integration · PHP ${{ matrix.php }} · WP ${{ matrix.wp }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - php: '7.4'
+            wp: 'latest'
+          - php: '8.2'
+            wp: 'latest'
+
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: root
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -proot"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up PHP ${{ matrix.php }}
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          extensions: mysqli, sodium
+          tools: composer
+          coverage: none
+
+      - name: Install Composer dependencies
+        run: composer install --prefer-dist --no-progress
+
+      - name: Install the WordPress test suite
+        run: bash bin/install-wp-tests.sh wordpress_test root root 127.0.0.1:3306 ${{ matrix.wp }}
+
+      - name: Run integration tests
+        run: composer test:integration

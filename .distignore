@@ -13,7 +13,9 @@
 /node_modules
 /vendor
 /tests
+/bin
 /phpunit.xml.dist
+/phpunit-integration.xml.dist
 /composer.json
 /composer.lock
 /package-lock.json
