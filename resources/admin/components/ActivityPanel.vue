@@ -25,6 +25,10 @@ export default {
       dayExpand: { clients: false, endpoints: false },
       // Styled hover tooltip above the bars.
       tip: { show: false, day: null, x: 0, caret: 0 },
+      // Styled hover tooltip for long inline values (a full User-Agent). position:fixed
+      // so the scrolling request feed / day modal never clips it — replaces the native
+      // title="…" bubble with the same dark look as the chart tooltip.
+      uaTip: { show: false, text: '', x: 0, y: 0, below: false },
       // Which "AI visits by day" rows are expanded to show their source → page rows.
       refOpenDays: [],
     };
@@ -243,6 +247,23 @@ export default {
     },
     hideTip() {
       this.tip.show = false;
+    },
+    // Show/hide the styled tooltip for a long value (User-Agent). Positioned in the
+    // fixed viewport off the hovered cell's rect, so it escapes the feed's scroll clip.
+    showUaTip(ev, text) {
+      if (!text) return;
+      const rect = ev.currentTarget.getBoundingClientRect();
+      const below = rect.top < 96; // not enough room above → drop below.
+      this.uaTip = {
+        show: true,
+        text,
+        x: Math.min(Math.max(rect.left, 12), window.innerWidth - 372),
+        y: below ? rect.bottom + 8 : rect.top - 8,
+        below,
+      };
+    },
+    hideUaTip() {
+      this.uaTip.show = false;
     },
     positionTip(bar) {
       const wrap = this.$refs.sparkWrap;
@@ -586,7 +607,7 @@ export default {
               <li v-for="(r, i) in recentGrouped" :key="i">
                 <span class="ar-act-feed__agent">{{ r.agent }}</span>
                 <code class="ar-act-feed__ep">{{ r.endpoint }}</code>
-                <code v-if="r.ua" class="ar-act-feed__ua" :title="r.ua">{{ r.ua }}</code>
+                <code v-if="r.ua" class="ar-act-feed__ua" :aria-label="r.ua" @mouseenter="showUaTip($event, r.ua)" @mouseleave="hideUaTip">{{ r.ua }}</code>
                 <span v-else class="ar-act-feed__ua is-empty">no User-Agent</span>
                 <span class="ar-act-feed__count" :title="r.count > 1 ? `${r.count} hits` : null">{{ r.count > 1 ? '×' + r.count : '' }}</span>
                 <span class="ar-act-feed__at">{{ ago(r.at) }}</span>
@@ -696,7 +717,7 @@ export default {
                     <li v-for="(r, i) in dayModal.rows" :key="i">
                       <span class="ar-act-feed__agent">{{ r.agent }}</span>
                       <code class="ar-act-feed__ep">{{ r.endpoint }}</code>
-                      <code v-if="r.ua" class="ar-act-feed__ua" :title="r.ua">{{ r.ua }}</code>
+                      <code v-if="r.ua" class="ar-act-feed__ua" :aria-label="r.ua" @mouseenter="showUaTip($event, r.ua)" @mouseleave="hideUaTip">{{ r.ua }}</code>
                       <span v-else class="ar-act-feed__ua is-empty">no User-Agent</span>
                       <span class="ar-act-log__at" :title="exactStamp(r.at)">{{ exactTime(r.at) }}</span>
                     </li>
@@ -718,5 +739,18 @@ export default {
         </div>
       </transition>
     </Teleport>
+
+    <!-- Styled hover tooltip for long values (User-Agent). position:fixed, so the
+         scrolling request feed and the day modal never clip it. -->
+    <transition name="ar-tip">
+      <div
+        v-if="uaTip.show"
+        class="ar-act-uatip"
+        :class="{ 'is-below': uaTip.below }"
+        :style="{ left: uaTip.x + 'px', top: uaTip.y + 'px' }"
+        role="tooltip"
+        aria-hidden="true"
+      >{{ uaTip.text }}<span class="ar-act-uatip__caret"></span></div>
+    </transition>
   </div>
 </template>
