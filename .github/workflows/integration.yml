@@ -43,6 +43,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # ubuntu-latest no longer ships Subversion (used to export the WP test library)
+      # or a MySQL client (used to create the test DB) — install both.
+      - name: Install system dependencies
+        run: sudo apt-get update -qq && sudo apt-get install -y --no-install-recommends subversion default-mysql-client
+
       - name: Set up PHP ${{ matrix.php }}
         uses: shivammathur/setup-php@v2
         with:
