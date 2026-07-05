@@ -65,14 +65,15 @@ export default {
           lead: 'See and shape who reaches your endpoints — all on your server.',
           items: [
             { name: 'Agent guard', where: 'your generated endpoints', desc: 'Blocks (403) denylisted or spoofed agents at the documents above.', tag: 'Opt-in' },
+            { name: 'Verified search engines', where: 'reverse-DNS check', desc: 'Optionally confirm a visitor claiming to be Googlebot, Bingbot, Applebot, DuckDuckBot or Yandex really is — by forward-confirmed reverse DNS — before trusting it, so a scanner can’t pass by copying a crawler’s name.', tag: 'Opt-in' },
             { name: 'Activity & AI referrals', where: 'stored locally', desc: 'A local log of which agents hit your endpoints, and human visits referred by AI assistants.', tag: 'On' },
           ],
         },
         {
           title: 'AI Visibility monitoring',
-          lead: 'Optional — check how AI assistants actually describe you. The one feature that reaches out, using API keys you provide.',
+          lead: 'Optional — check how AI assistants actually describe you. The one feature that reaches out, using API keys you provide (stored encrypted at rest).',
           items: [
-            { name: 'AI Visibility checks', where: 'AI Visibility tab · admin or on a schedule', desc: 'Asks ChatGPT, Perplexity, Gemini and Claude the questions you set, then tracks whether each brand or product you track gets mentioned, linked and ranked against its rivals. Results are stored locally.', tag: 'Opt-in' },
+            { name: 'AI Visibility checks', where: 'AI Visibility tab · admin or on a schedule', desc: 'Asks ChatGPT, Perplexity, Gemini and Claude the questions you set, then tracks whether each brand or product you track gets mentioned, linked and ranked against its rivals. Results are stored locally; your API keys are encrypted at rest.', tag: 'Opt-in' },
           ],
         },
       ],

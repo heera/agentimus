@@ -132,6 +132,20 @@ The major search engines — **Googlebot, Bingbot, DuckDuckBot, Applebot, and Ya
 
 Crucially, they're matched by *signature*, not by a loose text search. Agentimus checks for the real product token in its genuine form (like `Googlebot/2.1`), so a scanner that simply pastes the word "googlebot" into its user-agent to sneak past earns nothing. A user-agent can always be forged, so this can't *prove* identity — but it does remove the trivial "append the magic word" bypass, and it works the same on any host without needing a network lookup.
 
+#### Verify search engines by reverse DNS (optional)
+
+Signature-matching removes the *easy* spoof, but a determined scanner can still copy a crawler's full user-agent word for word. For the cases where that matters, there's an optional next step under **Settings → Block scanners & scrapers**: **Verify search engines by reverse DNS**.
+
+When it's on, a visitor claiming to be Googlebot, Bingbot, Applebot, DuckDuckBot, or Yandex is only trusted after a *forward-confirmed reverse-DNS* check — the same method Google itself recommends:
+
+1. Look up the name of the visitor's IP address (a reverse, or "PTR", lookup).
+2. Check that name ends in the crawler's official domain (for example `googlebot.com`).
+3. Look that name back up to an IP address and confirm it matches the visitor.
+
+Only a request that passes all three is treated as the real crawler; anything else is handled like any other unknown client. Results are cached briefly, so a busy crawler isn't looked up on every hit.
+
+**It's off by default, on purpose.** The check makes a small DNS lookup, and — more importantly — it needs your visitor's *real* IP address. If your site sits behind a proxy or CDN (Cloudflare and friends) and you haven't configured WordPress to see the true client IP, every visitor looks like the proxy and the check can't work. Leave it off unless you know your real client IP is being passed through. When it's off, nothing changes: search engines are still trusted by signature exactly as before.
+
 ### Your trusted AI assistants
 
 Below the search engines you can add your own trusted agents. The **"Add a trusted AI agent"** chips make this one click for the well-known assistants and answer engines that fetch a page on a user's behalf:

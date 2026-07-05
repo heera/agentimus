@@ -32,13 +32,13 @@ no SEO bloat, no framework.
 | Crawler policy | `robots.txt` content-signal + training-crawler blocklist |
 | Discovery layer | `/.well-known/discovery.json` (+ `agent-card.json`, `mcp.json`) |
 | Change feed | `/agentimus-changes.json?since=` — recently added, updated and removed content as JSON, so an agent fetches only the delta (advertised in `discovery.json`; on by default) |
-| Crawl enforcement (opt-in) | hard-block (403) denylisted or spoofed "scanner" user-agents at the generated endpoints — ACME-safe, off by default |
+| Crawl enforcement (opt-in) | hard-block (403) denylisted or spoofed "scanner" user-agents at the generated endpoints — ACME-safe, off by default; optional forward-confirmed reverse-DNS verification so a spoofed search-engine name can't earn the allowlist |
 
 ## In the admin
 
 - **Readiness report** — pass/warn/fail checks, each with a plain-English suggestion and a deep link to the fix (including a "sitemap advertised in robots.txt" check).
 - **Agent preview** — a modal (from Readiness) showing the exact **JSON-LD** and **Markdown** an agent receives for the site or any page/post, with a grouped site/page/post picker, copy, and validator links. It renders what *would* ship even when schema is disabled or an SEO plugin owns it; password-protected posts stay hidden, and an unpublished draft is shown as a preview of what it will emit once published. A read-only twin also sits in the post editor.
-- **AI Visibility** (opt-in, bring-your-own-key) — track each brand, product or person you choose across ChatGPT, Perplexity, Gemini and Claude. For every one it asks the questions your audience types and reports whether it's **mentioned, linked, and how it ranks against its own rivals**, over time. Each item has its own website, competitors, questions and scoreboard; pause any single one or the whole schedule. Results are stored locally; it's the only feature that makes outbound calls — using API keys you provide, off by default.
+- **AI Visibility** (opt-in, bring-your-own-key) — track each brand, product or person you choose across ChatGPT, Perplexity, Gemini and Claude. For every one it asks the questions your audience types and reports whether it's **mentioned, linked, and how it ranks against its own rivals**, over time. Each item has its own website, competitors, questions and scoreboard; pause any single one or the whole schedule. Results are stored locally; it's the only feature that makes outbound calls — using API keys you provide (stored **encrypted at rest**), off by default.
 - **Agent activity log** — a local-only dashboard (no IP logged) of which AI agents and crawlers fetch your endpoints; repeat hits are grouped with a count, newest first.
 - **Activity to review** — flags new, unusually high-volume, or spoofed/scanner clients in a nav-bar review queue, each with one-click **Block** (or **Allow**/trust). Pairs with the opt-in *Block scanners & scrapers* enforcement in Settings.
 - **Factory reset** — one click restores every setting to its recommended defaults, with a preview of exactly what will change.
@@ -198,6 +198,9 @@ Advanced site-owner tuning — not a third-party integration surface.
 | --- | --- | --- | --- |
 | `agentimus_deny_request` | filter | `( bool $deny, string $ua ): bool` | The Guard's final say on whether to 403 a request. |
 | `agentimus_block_allowlist` | filter | `( string[] $allowed ): string[]` | Clients that must never be hard-blocked (search engines + your list). |
+| `agentimus_verify_bots` | filter | `( bool $on ): bool` | Force forward-confirmed reverse-DNS verification of search-engine crawlers on/off, overriding the setting. |
+| `agentimus_reverse_dns` | filter | `( ?string $host, string $ip ): ?string` | Override the PTR lookup in the reverse-DNS check — return a hostname (`''` for none), or `null` to use the native resolver. |
+| `agentimus_forward_dns` | filter | `( ?array $ips, string $host ): ?array` | Override the forward A/AAAA lookup — return an array of IP strings, or `null` to use the native resolver. |
 | `agentimus_engine_signatures` | filter | `( array $signatures ): array` | Structured signatures that match real crawlers at a token boundary. |
 | `agentimus_generic_ua_tokens` | filter | `( string[] $tokens ): string[]` | Generic user-agent tokens treated as low-signal. |
 | `agentimus_agent_map` | filter | `( array $map ): array` | User-agent → friendly label for the activity log. |

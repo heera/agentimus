@@ -187,6 +187,9 @@ These are the Guard (opt-in UA blocking), the activity Classifier (labelling, no
 | `agentimus_default_allowed` | filter | `( string[] $engines ): string[]` | The built-in always-allowed engine **display names** shown in the admin. Default: `Googlebot`, `Bingbot`, `DuckDuckBot`, `Applebot`, `Yandex`. Display-only — the actual matcher is `engine_signatures()`, so keep the two in step. |
 | `agentimus_engine_signatures` | filter | `( array $signatures ): array` | Structured signatures used to match real crawlers at a token boundary. |
 | `agentimus_generic_ua_tokens` | filter | `( string[] $tokens ): string[]` | Generic user-agent tokens treated as low-signal. |
+| `agentimus_verify_bots` | filter | `( bool $on ): bool` | Force forward-confirmed reverse-DNS verification of search-engine crawlers on or off, overriding the **Verify search engines by reverse DNS** setting. |
+| `agentimus_reverse_dns` | filter | `( ?string $host, string $ip ): ?string` | Override the reverse (PTR) lookup used by the verifier — return a hostname string (`''` for none) to inject a resolver or cache, or `null` to fall through to the built-in lookup. |
+| `agentimus_forward_dns` | filter | `( ?array $ips, string $host ): ?array` | Override the forward (A/AAAA) lookup used by the verifier — return an array of IP strings, or `null` to fall through to the built-in lookup. |
 
 ### Classifier (labelling)
 
