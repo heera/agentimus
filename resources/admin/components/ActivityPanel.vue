@@ -564,26 +564,6 @@ export default {
         </section>
       </div>
 
-      <!-- Per-page AI hits: which page each agent fetched (its Markdown twin) and how
-           often — the "which page, how many hits, from whom" report. Hidden entirely when
-           per-page tracking is off (Markdown endpoint disabled) AND there's no history,
-           since it could never fill; existing data always shows. -->
-      <section v-if="byPage.length || pagesTracked" class="ar-card">
-        <h2 class="ar-card__title">Top pages by AI hits <span class="ar-card__tag">Last {{ data.window || 30 }} days</span></h2>
-        <ul v-if="byPage.length" class="ar-act-rank ar-act-rank--pages">
-          <li v-for="p in byPage" :key="p.id">
-            <span class="ar-act-rank__label">
-              <a v-if="p.url" :href="p.url" target="_blank" rel="noopener" :title="p.title">{{ p.title }}</a>
-              <span v-else :title="p.title">{{ p.title }}</span>
-              <em v-if="p.topAgent" class="ar-act-rank__by">mostly {{ p.topAgent.label }}</em>
-            </span>
-            <span class="ar-act-rank__track"><span class="ar-act-rank__bar" :style="{ width: pct(p.hits, maxPage) }"></span></span>
-            <span class="ar-act-rank__n">{{ p.hits }}</span>
-          </li>
-        </ul>
-        <p v-else class="ar-wd-empty">No page-level AI hits yet. This fills in when an assistant fetches a specific page's Markdown twin (<code>/your-page.md</code>) — general endpoints like <code>llms.txt</code> aren't tied to one page.</p>
-      </section>
-
       <!-- Traffic from AI — one report card: magnitude (KPIs), composition
            (top sources + pages), and the timeline drill-down (which source →
            which page, by day). All from the same aggregate-by-day store. -->
@@ -663,6 +643,26 @@ export default {
           No AI-referred visits recorded yet. When someone arrives from ChatGPT, Perplexity and the like,
           it’ll show here.
         </p>
+      </section>
+
+      <!-- Per-page AI hits: which page each agent fetched (its Markdown twin) and how
+           often — the "which page, how many hits, from whom" report. Hidden entirely when
+           per-page tracking is off (Markdown endpoint disabled) AND there's no history,
+           since it could never fill; existing data always shows. -->
+      <section v-if="byPage.length || pagesTracked" class="ar-card">
+        <h2 class="ar-card__title">Top pages by AI hits <span class="ar-card__tag">Last {{ data.window || 30 }} days</span></h2>
+        <ul v-if="byPage.length" class="ar-act-rank ar-act-rank--pages">
+          <li v-for="p in byPage" :key="p.id">
+            <span class="ar-act-rank__label">
+              <a v-if="p.url" :href="p.url" target="_blank" rel="noopener" :title="p.title">{{ p.title }}</a>
+              <span v-else :title="p.title">{{ p.title }}</span>
+              <em v-if="p.topAgent" class="ar-act-rank__by">mostly {{ p.topAgent.label }}</em>
+            </span>
+            <span class="ar-act-rank__track"><span class="ar-act-rank__bar" :style="{ width: pct(p.hits, maxPage) }"></span></span>
+            <span class="ar-act-rank__n">{{ p.hits }}</span>
+          </li>
+        </ul>
+        <p v-else class="ar-wd-empty">No page-level AI hits yet. This fills in when an assistant fetches a specific page's Markdown twin (<code>/your-page.md</code>) — general endpoints like <code>llms.txt</code> aren't tied to one page.</p>
       </section>
 
       <!-- Recent requests (latest, live — static) -->
