@@ -17,6 +17,10 @@ final class Cache {
 	const LLMS_FULL = 'agentimus_llms_full';
 	const CHANGES   = 'agentimus_changes'; // Cached item list for the /agentimus-changes.json feed.
 	const LLMS_FULL_STAT = 'agentimus_llms_full_stat'; // Last-generation status for /llms-full.txt (bytes/truncated/reason/items/generated_at).
+	// Readiness-report derived numbers, recomputed only on a content/settings change
+	// (not on every admin load): the /llms.txt word count and the full-text size estimate.
+	const LLMS_WORDS    = 'agentimus_llms_words';
+	const LLMS_FULL_EST = 'agentimus_llms_full_est';
 	const DISCOVERY = 'agentimus';
 	const SECURITY_TXT = 'agentimus_security_txt';
 	// The sitemap is generated as an index + many paginated sub-sitemaps, so it
@@ -102,6 +106,8 @@ final class Cache {
 		delete_transient( self::LLMS_TXT );
 		delete_transient( self::LLMS_FULL );
 		delete_transient( self::LLMS_FULL_STAT );
+		delete_transient( self::LLMS_WORDS );
+		delete_transient( self::LLMS_FULL_EST );
 		delete_transient( self::CHANGES );
 		delete_transient( self::DISCOVERY );
 		delete_transient( self::SECURITY_TXT );

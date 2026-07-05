@@ -251,7 +251,10 @@ final class Plugin {
 		}
 		$legacy = get_option( 'agent_ready_settings', false ); // Old key — intentionally literal.
 		if ( is_array( $legacy ) ) {
-			add_option( Settings::OPTION, $legacy );
+			// Run the carried-over config through sanitize() rather than trusting it
+			// verbatim: it applies the current allow-lists, escaping and size caps, and
+			// drops any retired keys, so an old option can't seed stale/garbage values.
+			add_option( Settings::OPTION, ( new Settings() )->sanitize( $legacy ) );
 		}
 	}
 

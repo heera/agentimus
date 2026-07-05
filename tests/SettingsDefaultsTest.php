@@ -105,4 +105,27 @@ final class SettingsDefaultsTest extends TestCase {
 		$this->assertLessThanOrEqual( 200, strlen( $clean['identity']['name'] ) );
 		$this->assertLessThanOrEqual( 2000, strlen( $clean['identity']['about'] ) );
 	}
+
+	/* -- Deep-merge of nested defaults on read (upgrade safety) ----------- */
+
+	public function test_a_stored_nested_map_inherits_sub_keys_added_in_a_later_version() {
+		// Simulate an install whose stored content_signal predates a sub-key: it only
+		// carries `search`. The missing sub-keys must fall back to the current defaults,
+		// not vanish (which would silently flip the AI-training signal).
+		update_option( Settings::OPTION, array( 'content_signal' => array( 'search' => false ) ) );
+
+		$signal = ( new Settings() )->get( 'content_signal' );
+		$this->assertFalse( $signal['search'], 'the stored value is kept' );
+		$this->assertArrayHasKey( 'ai_input', $signal, 'a missing sub-key is restored' );
+		$this->assertArrayHasKey( 'ai_train', $signal );
+		$this->assertTrue( $signal['ai_input'], 'restored from the default' );
+		$this->assertFalse( $signal['ai_train'], 'restored from the default' );
+	}
+
+	public function test_a_stored_list_is_not_polluted_by_the_default_list() {
+		// A list default (blocked_trainers) must NOT deep-merge: an explicitly emptied
+		// list stays empty rather than inheriting the shipped defaults.
+		update_option( Settings::OPTION, array( 'blocked_trainers' => array() ) );
+		$this->assertSame( array(), ( new Settings() )->get( 'blocked_trainers' ) );
+	}
 }

@@ -205,7 +205,17 @@ final class Readiness {
 			return $this->row( 'llms_words', __( '/llms.txt substance', 'agentimus' ), 'pass', __( 'The /llms.txt index is off, so there is nothing to measure.', 'agentimus' ) );
 		}
 
-		return $this->llms_words_row( self::word_count( ( new LlmsText( $this->settings ) )->llms_txt() ) );
+		// Cache the word count so a repeat admin load (report() runs on every settings
+		// load/save) doesn't re-derive it — and, when the /llms.txt cache has gone cold,
+		// doesn't trigger a synchronous rebuild just to count. Busted with the rest on a
+		// content/settings change.
+		$words = Cache::get( Cache::LLMS_WORDS );
+		if ( false === $words ) {
+			$words = self::word_count( ( new LlmsText( $this->settings ) )->llms_txt() );
+			Cache::set( Cache::LLMS_WORDS, $words );
+		}
+
+		return $this->llms_words_row( (int) $words );
 	}
 
 	/**

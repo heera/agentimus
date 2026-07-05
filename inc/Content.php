@@ -94,6 +94,15 @@ final class Content {
 	 * @return array{items:int,est_bytes:int,budget_bytes:int,will_truncate:bool}
 	 */
 	public static function estimate_full_size( Settings $settings ) {
+		// Cache the estimate: it runs a COUNT query per post type, and its only caller
+		// (the Readiness report) is rebuilt on every admin load/save. The inputs are
+		// content (published counts) and settings, both of which fire Cache::flush, so
+		// the cached value is always current.
+		$cached = Cache::get( Cache::LLMS_FULL_EST );
+		if ( is_array( $cached ) ) {
+			return $cached;
+		}
+
 		$per_type = (int) $settings->get( 'llms_full_posts', 50 );
 		$per_type = $per_type > 0 ? $per_type : 50;
 
@@ -107,12 +116,14 @@ final class Content {
 		$est_bytes    = $items * $avg_bytes;
 		$budget_bytes = max( 64, (int) $settings->get( 'llms_full_max_kb', 1024 ) ) * 1024;
 
-		return array(
+		$result = array(
 			'items'         => $items,
 			'est_bytes'     => $est_bytes,
 			'budget_bytes'  => $budget_bytes,
 			'will_truncate' => $est_bytes > $budget_bytes,
 		);
+		Cache::set( Cache::LLMS_FULL_EST, $result );
+		return $result;
 	}
 
 	/**

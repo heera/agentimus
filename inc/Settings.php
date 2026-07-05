@@ -230,18 +230,25 @@ final class Settings {
 	 * @return array
 	 */
 	public function all() {
-		$saved = get_option( self::OPTION, array() );
-		$saved = is_array( $saved ) ? $saved : array();
-		$all   = wp_parse_args( $saved, $this->defaults() );
-		// Merge the identity sub-array too (wp_parse_args is shallow).
-		$all['identity'] = wp_parse_args(
-			isset( $saved['identity'] ) && is_array( $saved['identity'] ) ? $saved['identity'] : array(),
-			$this->defaults()['identity']
-		);
-		$all['security'] = wp_parse_args(
-			isset( $saved['security'] ) && is_array( $saved['security'] ) ? $saved['security'] : array(),
-			$this->defaults()['security']
-		);
+		$saved    = get_option( self::OPTION, array() );
+		$saved    = is_array( $saved ) ? $saved : array();
+		$defaults = $this->defaults();
+		$all      = wp_parse_args( $saved, $defaults );
+
+		// wp_parse_args is shallow, so a stored ASSOCIATIVE nested setting (identity,
+		// security, content_signal) would replace its default wholesale and lose any
+		// sub-key added in a later version — silently dropping, e.g., a content-signal /
+		// AI-training default. Deep-merge each so a stored value keeps its own keys but
+		// still inherits new ones. List defaults (blocked_trainers, post_types…) are left
+		// alone: an empty stored list is a deliberate "none", not "inherit the defaults".
+		foreach ( $defaults as $key => $default_value ) {
+			if ( is_array( $default_value ) && self::is_assoc( $default_value ) ) {
+				$all[ $key ] = wp_parse_args(
+					isset( $saved[ $key ] ) && is_array( $saved[ $key ] ) ? $saved[ $key ] : array(),
+					$default_value
+				);
+			}
+		}
 
 		/**
 		 * Filter the resolved settings on read.
@@ -625,6 +632,20 @@ final class Settings {
 	private function clip( $value, $max ) {
 		$value = (string) $value;
 		return strlen( $value ) > $max ? substr( $value, 0, $max ) : $value;
+	}
+
+	/**
+	 * Whether an array is associative (a keyed map, e.g. content_signal) rather than a
+	 * plain list (e.g. blocked_trainers) — so all() deep-merges only the maps.
+	 *
+	 * @param array $arr Array to test.
+	 * @return bool
+	 */
+	private static function is_assoc( array $arr ) {
+		if ( array() === $arr ) {
+			return false;
+		}
+		return array_keys( $arr ) !== range( 0, count( $arr ) - 1 );
 	}
 
 	/**
