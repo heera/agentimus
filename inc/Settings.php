@@ -430,18 +430,22 @@ final class Settings {
 		$defaults = $this->defaults();
 		$clean    = array();
 
-		foreach ( array( 'enable_llms_txt', 'enable_llms_full', 'enable_markdown', 'enable_robots', 'enable_schema', 'enable_activity', 'enable_page_checks', 'enable_sitemap', 'enable_changes', 'enable_security_txt', 'enable_signing', 'hide_user_enumeration', 'disable_author_archives', 'hide_wp_version', 'tidy_head_links', 'disable_xmlrpc' ) as $flag ) {
-			$clean[ $flag ] = ! empty( $input[ $flag ] );
+		// Every top-level BOOLEAN setting is sanitised uniformly and AUTOMATICALLY from
+		// the schema: a checkbox that is present becomes its bool; one omitted from a
+		// partial update keeps its DEFAULT (so a partial save never silently flips a flag
+		// off). Deriving the set from defaults() means a new switch is saveable the moment
+		// it is added there — there is NO second list to keep in sync, so a toggle can
+		// never silently fail to save. SettingsDefaultsTest locks this guarantee in.
+		foreach ( $defaults as $flag => $default ) {
+			if ( is_bool( $default ) ) {
+				$clean[ $flag ] = ! isset( $input[ $flag ] ) ? $default : ! empty( $input[ $flag ] );
+			}
 		}
 
-		// Per-page AI topics. Both toggles default ON, so they use the isset-guard
-		// (like enable_ai_header): a partial programmatic update that omits the key
-		// keeps the default rather than silently turning the feature off. The cap is
-		// clamped to a sane range.
-		$clean['enable_topics']          = ! isset( $input['enable_topics'] ) ? $defaults['enable_topics'] : ! empty( $input['enable_topics'] );
-		$clean['topics_derive_default']  = ! isset( $input['topics_derive_default'] ) ? $defaults['topics_derive_default'] : ! empty( $input['topics_derive_default'] );
-		$topics_max                      = isset( $input['topics_max'] ) ? (int) $input['topics_max'] : $defaults['topics_max'];
-		$clean['topics_max']             = max( 1, min( 50, $topics_max ) );
+		// Per-page AI topics: the two toggles are handled by the boolean loop above; only
+		// the numeric cap needs its own clamp.
+		$topics_max          = isset( $input['topics_max'] ) ? (int) $input['topics_max'] : $defaults['topics_max'];
+		$clean['topics_max'] = max( 1, min( 50, $topics_max ) );
 
 		$posts                    = isset( $input['llms_full_posts'] ) ? (int) $input['llms_full_posts'] : $defaults['llms_full_posts'];
 		$clean['llms_full_posts'] = max( 1, min( 500, $posts ) );
@@ -536,18 +540,11 @@ final class Settings {
 		$trainers                 = isset( $input['blocked_trainers'] ) ? $input['blocked_trainers'] : $defaults['blocked_trainers'];
 		$clean['blocked_trainers'] = $this->sanitize_list( $trainers, 'sanitize_text_field' );
 
-		// AI-usage signal channels. The two default-ON channels use the isset-guard
-		// (like block_spoofed) so a partial programmatic update that omits the key
-		// keeps the default rather than silently going dark; the default-OFF extras
-		// are a plain ! empty().
-		$clean['enable_ai_header'] = ! isset( $input['enable_ai_header'] ) ? $defaults['enable_ai_header'] : ! empty( $input['enable_ai_header'] );
-		$clean['enable_tdmrep']    = ! isset( $input['enable_tdmrep'] ) ? $defaults['enable_tdmrep'] : ! empty( $input['enable_tdmrep'] );
-		$clean['ai_noai_header']   = ! empty( $input['ai_noai_header'] );
-		$clean['tdm_policy_url']    = isset( $input['tdm_policy_url'] ) ? esc_url_raw( (string) $input['tdm_policy_url'] ) : '';
+		// AI-usage signal channels: the header/tdmrep toggles are handled by the boolean
+		// loop above; only the optional policy URL needs sanitising here.
+		$clean['tdm_policy_url'] = isset( $input['tdm_policy_url'] ) ? esc_url_raw( (string) $input['tdm_policy_url'] ) : '';
 
-		// Experimental WebMCP browser-tool registration — default-OFF, plain ! empty().
-		$clean['enable_webmcp'] = ! empty( $input['enable_webmcp'] );
-
+		// (enable_webmcp is handled by the boolean loop above.)
 		// Owner's per-tool hide list (deny-list of WebMCP tool names). Keep only
 		// tool-name-safe characters; empty = expose every registered tool.
 		$hidden_in = isset( $input['webmcp_hidden_tools'] ) && is_array( $input['webmcp_hidden_tools'] ) ? $input['webmcp_hidden_tools'] : array();
@@ -564,13 +561,9 @@ final class Settings {
 			)
 		);
 
-		// Optional hard-block enforcement. block_spoofed defaults true and is only
-		// flipped off by an explicit false, so a client that omits the key (e.g. a
-		// partial programmatic update) keeps the safe default rather than silently
-		// disabling the spoof heuristic.
-		$clean['block_agents']   = ! empty( $input['block_agents'] );
-		$clean['block_spoofed']  = ! isset( $input['block_spoofed'] ) ? $defaults['block_spoofed'] : ! empty( $input['block_spoofed'] );
-		$clean['verify_bots']    = ! empty( $input['verify_bots'] );
+		// Optional hard-block enforcement. The switches (block_agents, block_spoofed,
+		// verify_bots) are handled by the boolean loop above — the isset-guard keeps
+		// block_spoofed's safe default on a partial update. Here we sanitise its lists.
 		$agents                  = isset( $input['blocked_agents'] ) ? $input['blocked_agents'] : array();
 		$clean['blocked_agents'] = $this->sanitize_list( $agents, 'sanitize_text_field' );
 		$allowed                 = isset( $input['allowed_agents'] ) ? $input['allowed_agents'] : array();

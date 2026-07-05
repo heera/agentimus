@@ -134,32 +134,22 @@ export default {
       );
       return named(cur.services) !== named(saved.services);
     },
-    // Serializes every AUTOSAVED field (toggles, selections, chips). When this
-    // changes we debounce-autosave — without touching the unsaved profile text.
+    // A signature of every AUTOSAVED field. When it changes we debounce-autosave.
+    // Derived (the WHOLE settings object minus the fields that save via the Identity
+    // card's own Save button — the profile text block and services) rather than an
+    // enumerated allow-list, so a NEW toggle/field autosaves automatically. There is no
+    // list to keep in sync, so a new switch can never be silently forgotten. This
+    // deliberately mirrors exactly what autosaveInstant() sends.
     instantState() {
-      const s = this.settings;
+      const s = JSON.parse(JSON.stringify(this.settings || {}));
       const id = s.identity || {};
-      return JSON.stringify({
-        enable_llms_txt: s.enable_llms_txt, enable_llms_full: s.enable_llms_full,
-        enable_markdown: s.enable_markdown, enable_robots: s.enable_robots,
-        enable_schema: s.enable_schema, enable_activity: s.enable_activity,
-        enable_page_checks: s.enable_page_checks,
-        enable_sitemap: s.enable_sitemap, enable_changes: s.enable_changes, enable_security_txt: s.enable_security_txt,
-        enable_signing: s.enable_signing, enable_webmcp: s.enable_webmcp, webmcp_hidden_tools: s.webmcp_hidden_tools,
-        enable_topics: s.enable_topics, topics_derive_default: s.topics_derive_default, topics_max: s.topics_max,
-        llms_full_posts: s.llms_full_posts, post_types: s.post_types,
-        rest_namespaces: s.rest_namespaces, oauth_auth_server: s.oauth_auth_server, content_signal: s.content_signal,
-        blocked_trainers: s.blocked_trainers, suppressed_resources: s.suppressed_resources,
-        enable_ai_header: s.enable_ai_header, enable_tdmrep: s.enable_tdmrep,
-        ai_noai_header: s.ai_noai_header, tdm_policy_url: s.tdm_policy_url,
-        block_agents: s.block_agents, block_spoofed: s.block_spoofed, blocked_agents: s.blocked_agents, allowed_agents: s.allowed_agents,
-        hide_user_enumeration: s.hide_user_enumeration, disable_author_archives: s.disable_author_archives,
-        hide_wp_version: s.hide_wp_version, tidy_head_links: s.tidy_head_links, disable_xmlrpc: s.disable_xmlrpc,
-        security: s.security,
-        expertise: id.expertise, same_as: id.same_as,
-        // NB: services are NOT here — they save explicitly via the Identity card's
-        // Save button (see profileDirty/saveProfile), not on every keystroke.
-      });
+      // These are saved on the Identity card, not on every change, so they must NOT
+      // trigger autosave (kept identical to autosaveInstant's exclusion list + services).
+      ['entity_type', 'name', 'role', 'about', 'not_description', 'audience', 'contact_email', 'services'].forEach(
+        (k) => { delete id[k]; },
+      );
+      s.identity = id;
+      return JSON.stringify(s);
     },
     // Third-party DECLARED resources the owner can publish/suppress. Our own
     // auto-discovery (wordpress-core, REST stubs, abilities) is curated elsewhere.

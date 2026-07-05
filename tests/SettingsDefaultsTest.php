@@ -128,4 +128,36 @@ final class SettingsDefaultsTest extends TestCase {
 		update_option( Settings::OPTION, array( 'blocked_trainers' => array() ) );
 		$this->assertSame( array(), ( new Settings() )->get( 'blocked_trainers' ) );
 	}
+
+	/* -- No switch may ever silently fail to save ------------------------- */
+
+	/**
+	 * Every boolean setting in the schema must round-trip through sanitize(). This is
+	 * the guard against the old trap where a new switch had to be hand-added to a list
+	 * or it would silently never save: submit the OPPOSITE of each flag's default and
+	 * assert it persists. A flag that isn't handled fails HERE, loudly, not in the wild.
+	 */
+	public function test_every_boolean_setting_round_trips_so_none_can_silently_fail() {
+		$settings = new Settings();
+		$defaults = $settings->defaults();
+
+		$checked = 0;
+		foreach ( $defaults as $key => $default ) {
+			if ( ! is_bool( $default ) ) {
+				continue;
+			}
+			$flipped = ! $default;
+			$clean   = $settings->sanitize( array( $key => $flipped ) );
+			$this->assertArrayHasKey( $key, $clean, "boolean setting '$key' is dropped by sanitize()" );
+			$this->assertSame( $flipped, $clean[ $key ], "boolean setting '$key' did not save (add it to the schema's defaults)" );
+			$checked++;
+		}
+		$this->assertGreaterThanOrEqual( 20, $checked, 'sanity: the boolean flags were actually exercised' );
+	}
+
+	public function test_verify_bots_saves_both_ways() {
+		$settings = new Settings();
+		$this->assertTrue( $settings->sanitize( array( 'verify_bots' => true ) )['verify_bots'] );
+		$this->assertFalse( $settings->sanitize( array( 'verify_bots' => false ) )['verify_bots'] );
+	}
 }
