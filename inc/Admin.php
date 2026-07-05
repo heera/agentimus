@@ -223,9 +223,9 @@ final class Admin {
 	}
 
 	/**
-	 * Right admin-footer text on our own screens: the plugin version (priority 15
-	 * so it wins over core's WP-version line). Off our screens core's default
-	 * version/update text is left intact.
+	 * Right admin-footer text on our own screens: the plugin version alongside the
+	 * running WordPress version (priority 15 so it wins over core's WP-version line).
+	 * Off our screens core's default version/update text is left intact.
 	 *
 	 * @param string $text Default upgrade/version text.
 	 * @return string
@@ -236,9 +236,10 @@ final class Admin {
 		}
 
 		return sprintf(
-			/* translators: %s: plugin version number. */
-			esc_html__( 'Version %s', 'agentimus' ),
-			esc_html( AGENTIMUS_VERSION )
+			/* translators: 1: Agentimus plugin version, 2: WordPress core version. */
+			esc_html__( 'Agentimus - %1$s | WordPress - %2$s', 'agentimus' ),
+			esc_html( AGENTIMUS_VERSION ),
+			esc_html( get_bloginfo( 'version' ) )
 		);
 	}
 
