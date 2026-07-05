@@ -63,8 +63,10 @@ final class TableInstallTest extends DbTestCase {
 		$table   = Table::name();
 		$collate = $wpdb->get_charset_collate();
 		$wpdb->query( "DROP TABLE IF EXISTS `$table`" ); // phpcs:ignore WordPress.DB
-		// A v2-shaped table: no post_id column.
-		$wpdb->query( "CREATE TABLE `$table` (\n  id bigint(20) unsigned NOT NULL AUTO_INCREMENT,\n  endpoint varchar(64) NOT NULL DEFAULT '',\n  agent varchar(64) NOT NULL DEFAULT '',\n  ua varchar(255) NOT NULL DEFAULT '',\n  hit_at datetime NOT NULL,\n  PRIMARY KEY  (id)\n) $collate" ); // phpcs:ignore WordPress.DB
+		// The REAL v2 table: no post_id, but WITH the secondary indexes — including the
+		// prefixed `ua(191)` that makes dbDelta silently skip the v3 ADD COLUMN. (A
+		// PRIMARY-KEY-only table doesn't reproduce the bug, so it must carry these.)
+		$wpdb->query( "CREATE TABLE `$table` (\n  id bigint(20) unsigned NOT NULL AUTO_INCREMENT,\n  endpoint varchar(64) NOT NULL DEFAULT '',\n  agent varchar(64) NOT NULL DEFAULT '',\n  ua varchar(255) NOT NULL DEFAULT '',\n  hit_at datetime NOT NULL,\n  PRIMARY KEY  (id),\n  KEY hit_at (hit_at),\n  KEY endpoint (endpoint),\n  KEY agent (agent),\n  KEY ua (ua(191))\n) $collate" ); // phpcs:ignore WordPress.DB
 		$wpdb->insert( $table, array( 'endpoint' => 'llms.txt', 'agent' => 'GPTBot', 'ua' => 'x', 'hit_at' => current_time( 'mysql', true ) ), array( '%s', '%s', '%s', '%s' ) ); // phpcs:ignore WordPress.DB
 
 		$this->assertNotContains( 'post_id', $wpdb->get_col( "SHOW COLUMNS FROM `$table`" ) ); // phpcs:ignore WordPress.DB

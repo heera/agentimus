@@ -70,7 +70,51 @@ final class Table {
 ) $collate;";
 
 		dbDelta( $sql );
+
+		// dbDelta CAN silently skip an ADD COLUMN — notably on a table that already carries
+		// a prefixed index like `ua(191)` — which would leave the v3 per-page query hitting
+		// a missing `post_id` and, worse, the version stamped as upgraded so it never retries.
+		// Guarantee the column and its index exist before recording the version, so the
+		// upgrade is all-or-nothing.
+		self::ensure_column( 'post_id', 'bigint(20) unsigned NOT NULL DEFAULT 0' );
+		self::ensure_index( 'post_id', 'post_id' );
+
 		update_option( self::VERSION_OPTION, self::VERSION, false );
+	}
+
+	/**
+	 * Add a column if it is missing — a dbDelta backstop. $name and $definition are code
+	 * literals (never user input), so they are safe to interpolate.
+	 *
+	 * @param string $name       Column name.
+	 * @param string $definition Column type/definition.
+	 */
+	private static function ensure_column( $name, $definition ) {
+		global $wpdb;
+		$table = self::name();
+		// phpcs:disable WordPress.DB, PluginCheck.Security.DirectDB.UnescapedDBParameter -- $table is our own prefix-derived name; $name is bound via prepare in the check and a code literal in the DDL; SQL identifiers can't be bound.
+		$has = $wpdb->get_var( $wpdb->prepare( "SHOW COLUMNS FROM `$table` LIKE %s", $name ) );
+		if ( ! $has ) {
+			$wpdb->query( "ALTER TABLE `$table` ADD COLUMN `$name` $definition" );
+		}
+		// phpcs:enable WordPress.DB, PluginCheck.Security.DirectDB.UnescapedDBParameter
+	}
+
+	/**
+	 * Add a single-column KEY if it is missing. $name and $column are code literals.
+	 *
+	 * @param string $name   Index name.
+	 * @param string $column Column to index.
+	 */
+	private static function ensure_index( $name, $column ) {
+		global $wpdb;
+		$table = self::name();
+		// phpcs:disable WordPress.DB, PluginCheck.Security.DirectDB.UnescapedDBParameter -- $table is our own prefix-derived name; $name is bound via prepare in the check and a code literal in the DDL.
+		$has = $wpdb->get_var( $wpdb->prepare( "SHOW INDEX FROM `$table` WHERE Key_name = %s", $name ) );
+		if ( ! $has ) {
+			$wpdb->query( "ALTER TABLE `$table` ADD KEY `$name` (`$column`)" );
+		}
+		// phpcs:enable WordPress.DB, PluginCheck.Security.DirectDB.UnescapedDBParameter
 	}
 
 	/**
