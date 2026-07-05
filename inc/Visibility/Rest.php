@@ -202,7 +202,7 @@ final class Rest {
 		}
 
 		if ( '' === $key || Settings::KEY_MASK === $key ) {
-			$key = (string) $cfg['key'];
+			$key = $this->settings->provider_key( $id ); // Decrypted stored key.
 		}
 		if ( '' === $model ) {
 			$model = (string) $cfg['model'];
@@ -225,7 +225,8 @@ final class Rest {
 		$all = $this->settings->all();
 		$cfg = isset( $all['providers'][ $id ] ) ? $all['providers'][ $id ] : null;
 
-		return rest_ensure_response( array( 'key' => null === $cfg ? '' : (string) ( $cfg['key'] ?? '' ) ) );
+		// Decrypt the stored key for display; '' when the provider is unknown.
+		return rest_ensure_response( array( 'key' => null === $cfg ? '' : $this->settings->provider_key( $id ) ) );
 	}
 
 	/**

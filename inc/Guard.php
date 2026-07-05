@@ -48,12 +48,26 @@ final class Guard {
 		$settings = new Settings();
 		$deny     = false;
 
+		$protected = self::is_protected( $ua_lc );
+
+		// Optional forward-confirmed reverse DNS. When verification is on, a UA that
+		// CLAIMS a real search engine keeps its always-allow status only if the request's
+		// source IP forward-confirms as that engine; a scanner that merely pastes
+		// "Googlebot/2.1" into its UA fails and is treated as unprotected (subject to the
+		// block rules). Only the engine claim is verified — the owner's explicit allow-
+		// list is a deliberate choice, not a spoofable identity, so it still protects
+		// unconditionally even if DNS can't confirm.
+		if ( $protected && '' !== $ua_lc && self::verification_on() && self::is_real_engine( $ua_lc )
+			&& ! BotVerifier::verify_engine( $ua_lc, self::client_ip() ) && ! self::owner_allows( $ua_lc ) ) {
+			$protected = false;
+		}
+
 		// A missing UA is recorded as "No user-agent" but never blocked here: it's
 		// too blunt (many legitimate fetchers omit it) and trivially spoofed anyway.
 		// The protected allow-list is the safety net: a verified good agent (search
 		// engines by default) is NEVER denied, so an over-broad rule like "bot"
 		// can't accidentally de-index the site.
-		if ( '' !== $ua_lc && $settings->enabled( 'block_agents' ) && ! self::is_protected( $ua_lc ) ) {
+		if ( '' !== $ua_lc && $settings->enabled( 'block_agents' ) && ! $protected ) {
 			// 1. The owner's explicit denylist. Each entry is a substring by default,
 			// a glob when it has * / ?, or a regex when wrapped in /…/ — see ua_matches().
 			foreach ( (array) $settings->get( 'blocked_agents', array() ) as $needle ) {
@@ -167,15 +181,60 @@ final class Guard {
 	 * @return bool
 	 */
 	private static function is_protected( $ua_lc ) {
-		if ( self::is_real_engine( $ua_lc ) ) {
-			return true;
-		}
+		return self::is_real_engine( $ua_lc ) || self::owner_allows( $ua_lc );
+	}
+
+	/**
+	 * Whether the UA matches one of the owner's explicit always-allow substrings — a
+	 * deliberate choice by the owner, so it is never subject to bot verification (unlike
+	 * a spoofable search-engine claim).
+	 *
+	 * @param string $ua_lc Lowercased User-Agent.
+	 * @return bool
+	 */
+	private static function owner_allows( $ua_lc ) {
 		foreach ( self::allow_substrings() as $allow ) {
 			if ( '' !== $allow && false !== strpos( $ua_lc, $allow ) ) {
 				return true;
 			}
 		}
 		return false;
+	}
+
+	/**
+	 * Whether forward-confirmed reverse-DNS bot verification is enabled. OFF by default
+	 * — DNS is an outbound lookup, and this plugin makes none unless the owner opts in
+	 * (via this filter). When on it strengthens the always-allow list so a spoofed
+	 * search-engine UA can no longer inherit a real crawler's trust. {@see BotVerifier}.
+	 *
+	 * @return bool
+	 */
+	public static function verification_on() {
+		/**
+		 * Enable forward-confirmed reverse-DNS verification of claimed search engines.
+		 *
+		 * @param bool $on Default false (no outbound lookups).
+		 */
+		return (bool) apply_filters( 'agentimus_verify_bots', false );
+	}
+
+	/**
+	 * The request's source IP for verification. Defaults to REMOTE_ADDR — the only
+	 * value a client can't forge — and is filterable so a site behind a trusted reverse
+	 * proxy / CDN can supply the real client IP (e.g. from CF-Connecting-IP).
+	 *
+	 * @return string
+	 */
+	public static function client_ip() {
+		$ip = isset( $_SERVER['REMOTE_ADDR'] ) ? (string) $_SERVER['REMOTE_ADDR'] : ''; // phpcs:ignore WordPress.Security.ValidatedSanitizedInput -- compared as an IP, never output; the source is filterable below.
+
+		/**
+		 * Filter the client IP used for bot verification. Supply the real client IP on a
+		 * site behind a trusted proxy, where REMOTE_ADDR is the proxy's address.
+		 *
+		 * @param string $ip The source IP (REMOTE_ADDR by default).
+		 */
+		return (string) apply_filters( 'agentimus_client_ip', $ip );
 	}
 
 	/**

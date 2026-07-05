@@ -72,6 +72,39 @@ final class GuardTest extends TestCase {
 		$this->assertFalse( Guard::denies( self::CHROME ) );
 	}
 
+	/* -- Bot verification (opt-in, forward-confirmed reverse DNS) --------- */
+
+	/** With verification OFF (the default), a UA that claims Googlebot is protected on
+	 *  the UA string alone — the historical behaviour, unchanged. */
+	public function test_verification_is_off_by_default_and_the_ua_bypass_stands() {
+		$this->configure( array( 'block_agents' => true, 'block_spoofed' => false, 'blocked_agents' => array( 'scanner' ) ) );
+		$this->assertFalse( Guard::denies( 'scanner masquerading as Googlebot/2.1' ) );
+	}
+
+	/** With verification ON, a forged Googlebot whose IP does NOT forward-confirm loses
+	 *  its always-allow status and is caught by the denylist — the spoof-bypass fix. */
+	public function test_verification_denies_a_spoofed_engine_that_fails_reverse_dns() {
+		add_filter( 'agentimus_verify_bots', static function () { return true; } );
+		add_filter( 'agentimus_client_ip', static function () { return '203.0.113.9'; } );
+		add_filter( 'agentimus_reverse_dns', static function () { return 'host.scanner-farm.example'; }, 10, 2 );
+		$this->configure( array( 'block_agents' => true, 'block_spoofed' => false, 'blocked_agents' => array( 'scanner' ) ) );
+
+		$this->assertTrue( Guard::denies( 'scanner masquerading as Googlebot/2.1' ) );
+	}
+
+	/** With verification ON, a genuine Googlebot (forward-confirmed) keeps its
+	 *  protection — even against a rule that names it — so we never de-index a real
+	 *  crawler. */
+	public function test_verification_still_protects_a_forward_confirmed_engine() {
+		add_filter( 'agentimus_verify_bots', static function () { return true; } );
+		add_filter( 'agentimus_client_ip', static function () { return '66.249.66.1'; } );
+		add_filter( 'agentimus_reverse_dns', static function () { return 'crawl-66-249-66-1.googlebot.com'; }, 10, 2 );
+		add_filter( 'agentimus_forward_dns', static function () { return array( '66.249.66.1' ); }, 10, 2 );
+		$this->configure( array( 'block_agents' => true, 'block_spoofed' => false, 'blocked_agents' => array( 'googlebot' ) ) );
+
+		$this->assertFalse( Guard::denies( self::GOOGLEBOT ) );
+	}
+
 	/* -- Never block a missing UA (too blunt, trivially spoofed) ---------- */
 
 	public function test_empty_ua_is_not_blocked_even_with_blocking_on() {

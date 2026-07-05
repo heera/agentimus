@@ -35,6 +35,18 @@ final class Referrals {
 	 *  roll into a "+N more" so a busy day never balloons the card. */
 	const DAY_TOP = 12;
 
+	/** Hard ceiling on stored (day, source, path) rows — a backstop to the daily
+	 *  age-based prune, so a spoofed-referrer flood of many distinct one-hit paths
+	 *  can't bank unbounded rows before the cron fires. The trim keeps the BUSIEST
+	 *  rows (the ones the dashboard actually shows) and drops the long tail — exactly
+	 *  where such a flood lands. Generous; filter `agentimus_referrals_max_rows`
+	 *  (0 disables the cap). */
+	const MAX_ROWS = 50000;
+
+	/** Odds (1-in-N) that an upsert also runs the bounded row-cap trim, keeping the
+	 *  table near its ceiling mid-day without a per-request COUNT. */
+	const CAP_CHECK_ODDS = 200;
+
 	/**
 	 * Fully-qualified table name (site-prefixed).
 	 *
@@ -208,6 +220,46 @@ final class Referrals {
 				$path
 			)
 		);
+
+		// Opportunistic backstop: most upserts pay only a cheap rand(); roughly one in
+		// CAP_CHECK_ODDS runs a single bounded trim, so a flood of distinct landing
+		// paths can't bank unbounded rows before the daily prune cron.
+		if ( 1 === wp_rand( 1, self::CAP_CHECK_ODDS ) ) {
+			self::trim_to_cap();
+		}
+	}
+
+	/**
+	 * Cap the table to the busiest {@see MAX_ROWS} (day, source, path) rows — a backstop
+	 * to the daily, age-based {@see prune()}. Keeps the highest-hit rows (the ones the
+	 * dashboard surfaces) and drops the long tail, which is exactly where a spoofed-
+	 * referrer flood of one-hit paths accumulates. Called opportunistically (sampled)
+	 * from the upsert path, guarded by a COUNT so the heavier DELETE runs only when the
+	 * table is actually over the cap. Filterable; a cap of 0 disables it.
+	 */
+	public static function trim_to_cap() {
+		$max = (int) apply_filters( 'agentimus_referrals_max_rows', self::MAX_ROWS );
+		if ( $max < 1 ) {
+			return; // Cap disabled.
+		}
+		global $wpdb;
+		$table = self::name();
+		// phpcs:disable WordPress.DB, PluginCheck.Security.DirectDB.UnescapedDBParameter -- $table is our own prefix-derived name; the value ($max) is bound via prepare().
+		$count = (int) $wpdb->get_var( "SELECT COUNT(*) FROM $table" );
+		if ( $count <= $max ) {
+			return; // Under the cap — nothing to do.
+		}
+		// Keep the $max busiest rows; drop the rest. An anti-join (LEFT JOIN … IS NULL)
+		// against a derived "keep" set — the derived table both materializes first (so
+		// MySQL allows deleting from a table it selects from) and optimizes better than
+		// a NOT IN anti-subquery.
+		$wpdb->query(
+			$wpdb->prepare(
+				"DELETE t FROM $table t LEFT JOIN ( SELECT id FROM $table ORDER BY hits DESC, id DESC LIMIT %d ) keep ON t.id = keep.id WHERE keep.id IS NULL",
+				$max
+			)
+		);
+		// phpcs:enable WordPress.DB, PluginCheck.Security.DirectDB.UnescapedDBParameter
 	}
 
 	/**
@@ -322,6 +374,9 @@ final class Referrals {
 		$days   = max( 1, (int) apply_filters( 'agentimus_activity_retention_days', Repository::WINDOW_DAYS ) );
 		$cutoff = gmdate( 'Y-m-d', time() - $days * DAY_IN_SECONDS );
 		$wpdb->query( $wpdb->prepare( "DELETE FROM $table WHERE day < %s", $cutoff ) ); // phpcs:ignore WordPress.DB, PluginCheck.Security.DirectDB.UnescapedDBParameter -- $table is our own prefix-derived name; the value is bound via prepare().
+
+		// Guarantee the row cap at least daily, independent of the sampled upsert path.
+		self::trim_to_cap();
 	}
 
 	/**

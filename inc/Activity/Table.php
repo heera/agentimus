@@ -15,7 +15,7 @@ defined( 'ABSPATH' ) || exit;
 final class Table {
 
 	/** Bump when the schema changes to trigger a dbDelta upgrade. */
-	const VERSION        = '1';
+	const VERSION        = '2';
 	const VERSION_OPTION = 'agentimus_activity_db_version';
 
 	/**
@@ -59,7 +59,8 @@ final class Table {
   PRIMARY KEY  (id),
   KEY hit_at (hit_at),
   KEY endpoint (endpoint),
-  KEY agent (agent)
+  KEY agent (agent),
+  KEY ua (ua(191))
 ) $collate;";
 
 		dbDelta( $sql );

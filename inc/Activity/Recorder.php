@@ -30,6 +30,12 @@ final class Recorder {
 	/** Unrecognised hits allowed in a window before flood sampling engages. */
 	const FLOOD_THRESHOLD = 60;
 
+	/** Recognised-crawler hits allowed per window before sampling engages — generous,
+	 *  so a real bot's normal burst on the (low-frequency) discovery endpoints is kept
+	 *  in full, while a flood spoofing a known bot's NAME is still capped. Recognition
+	 *  is a forgeable UA string, so recognised traffic gets a budget, not a blank pass. */
+	const RECOGNISED_THRESHOLD = 300;
+
 	/** Once a window is flooding, keep roughly one unrecognised hit in this many. */
 	const FLOOD_SAMPLE = 20;
 
@@ -63,17 +69,20 @@ final class Recorder {
 
 		$ua = isset( $_SERVER['HTTP_USER_AGENT'] ) ? sanitize_text_field( wp_unslash( $_SERVER['HTTP_USER_AGENT'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification -- read-only logging of a public endpoint hit.
 
-		// Flood guard. A recognised crawler (GPTBot, Googlebot, ClaudeBot…) is ALWAYS
-		// logged, however fast it hits — that traffic is the signal we want. Every
-		// other client (unknown, script/tool, legacy-device spoof, no-UA) is
-		// throttle-eligible: once such hits exceed FLOOD_THRESHOLD in a window we keep
-		// only a 1-in-FLOOD_SAMPLE sample, so a burst of disposable user-agents
-		// (EvilBot-1, EvilBot-2, …) can't drown real agents out of a bounded log.
-		// Recognition is SPOOF-AWARE (Classifier::is_recognised_agent), so a scanner
-		// can't buy the fast-pass by pasting a known bot's name into a forged UA.
+		$agent = Classifier::classify( $ua );
+
+		// Per-source write budget. Recognition is only a forgeable UA-string match, so a
+		// recognised crawler (GPTBot, Googlebot, ClaudeBot…) is NOT given a blank pass —
+		// it gets a GENEROUS budget (a real bot's burst on these low-frequency endpoints
+		// is the signal we want, kept in full), while every other client gets a tight
+		// one. Each source is counted against its own (identity, window) bucket and
+		// sampled to ~1-in-FLOOD_SAMPLE once over budget, so NO single client — not even
+		// a flood that pastes a known bot's name into a forged UA — can drive unbounded
+		// INSERTs into the bounded log. The row cap (trim_to_cap) is the hard backstop.
 		$recognised = Classifier::is_recognised_agent( $ua );
-		$count      = $recognised ? 0 : self::note_unrecognised_hit();
-		if ( ! self::survives_flood( $recognised, $count, wp_rand( 1, self::FLOOD_SAMPLE ) ) ) {
+		$threshold  = $recognised ? self::RECOGNISED_THRESHOLD : self::FLOOD_THRESHOLD;
+		$count      = self::note_hit( $recognised ? 'a:' . $agent : 'u' );
+		if ( ! self::survives_flood( $count, $threshold, wp_rand( 1, self::FLOOD_SAMPLE ) ) ) {
 			return;
 		}
 
@@ -82,7 +91,7 @@ final class Recorder {
 			Table::name(),
 			array(
 				'endpoint' => substr( (string) $endpoint, 0, 64 ),
-				'agent'    => substr( Classifier::classify( $ua ), 0, 64 ),
+				'agent'    => substr( $agent, 0, 64 ),
 				'ua'       => substr( $ua, 0, 255 ),
 				'hit_at'   => current_time( 'mysql', true ), // GMT.
 			),
@@ -98,16 +107,19 @@ final class Recorder {
 	}
 
 	/**
-	 * Count one throttle-eligible (unrecognised) hit in the current flood window and
-	 * return the running total. A coarse per-minute transient bucket — approximate
-	 * under concurrency (a lost increment only ever UNDER-counts, i.e. errs toward
-	 * logging), which is fine here: the row cap (trim_to_cap) is the hard backstop.
-	 * Honours an external object cache automatically (it is just the Transients API).
+	 * Count one hit against a per-source flood bucket for the current window and return
+	 * the running total. A coarse per-minute transient counter, keyed per source so one
+	 * client's volume never samples another's — approximate under concurrency (a lost
+	 * increment only ever UNDER-counts, i.e. errs toward logging), which is fine here:
+	 * the row cap (trim_to_cap) is the hard backstop. Honours an external object cache
+	 * automatically (it is just the Transients API).
 	 *
-	 * @return int Unrecognised-hit count so far this window.
+	 * @param string $bucket Source key — a recognised crawler's own identity, or a
+	 *                       shared bucket for all unrecognised traffic.
+	 * @return int Hits so far this window for this bucket.
 	 */
-	private static function note_unrecognised_hit() {
-		$key   = self::RATE_PREFIX . (int) floor( time() / self::FLOOD_WINDOW );
+	private static function note_hit( $bucket ) {
+		$key   = self::RATE_PREFIX . md5( (string) $bucket ) . '_' . (int) floor( time() / self::FLOOD_WINDOW );
 		$count = (int) get_transient( $key ) + 1;
 		// Outlive the window so a flood straddling the bucket boundary still reads as
 		// elevated; the next window simply starts counting from zero again.
@@ -116,18 +128,20 @@ final class Recorder {
 	}
 
 	/**
-	 * Whether a hit survives flood sampling. Pure, with the random roll injected, so
-	 * the policy is unit-testable without transients or RNG. A recognised agent, or
-	 * any traffic below the window threshold, is always kept; over the threshold an
-	 * unrecognised hit is kept only when the roll lands (≈ 1 in FLOOD_SAMPLE).
+	 * Whether a hit survives flood sampling, given its source's window count and the
+	 * threshold that applies to its class. Pure, with the random roll injected, so the
+	 * policy is unit-testable without transients or RNG. At or below the threshold every
+	 * hit is kept; above it a hit is kept only when the roll lands (≈ 1 in FLOOD_SAMPLE).
+	 * A recognised crawler gets a generous threshold and an unrecognised client a tight
+	 * one — but NEITHER is unlimited, so no single source can drive unbounded inserts.
 	 *
-	 * @param bool $recognised Recognised crawler → always kept (the fast-pass).
-	 * @param int  $count      Unrecognised-hit count this window.
-	 * @param int  $roll       A 1..FLOOD_SAMPLE roll.
+	 * @param int $count     Hits from this source this window.
+	 * @param int $threshold Hits kept in full before sampling engages.
+	 * @param int $roll      A 1..FLOOD_SAMPLE roll.
 	 * @return bool True to log the hit.
 	 */
-	public static function survives_flood( $recognised, $count, $roll ) {
-		if ( $recognised || $count <= self::FLOOD_THRESHOLD ) {
+	public static function survives_flood( $count, $threshold, $roll ) {
+		if ( (int) $count <= (int) $threshold ) {
 			return true;
 		}
 		return 1 === (int) $roll;

@@ -40,6 +40,7 @@ function agentimus_uninstall_site() {
 	delete_option( 'agentimus_visibility' );
 	delete_option( 'agentimus_visibility_last_run' );
 	delete_option( 'agentimus_visibility_lock' );
+	delete_option( 'agentimus_visibility_cryptokey' );
 	delete_option( 'agentimus_visibility_db_version' );
 	delete_option( 'agentimus_visibility_demo' );
 	wp_clear_scheduled_hook( 'agentimus_visibility_run' );

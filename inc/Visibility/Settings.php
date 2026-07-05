@@ -353,9 +353,13 @@ final class Settings {
 	public function active_providers() {
 		$out = array();
 		foreach ( (array) $this->get( 'providers', array() ) as $id => $cfg ) {
-			if ( ! empty( $cfg['enabled'] ) && '' !== trim( (string) $cfg['key'] ) ) {
+			// Decrypt first, then gate on the usable key: a stored value that can't be
+			// decrypted (rotated salts) resolves to '' and the provider is skipped,
+			// rather than a garbage key being sent to the API.
+			$key = Crypto::decrypt( (string) ( $cfg['key'] ?? '' ) );
+			if ( ! empty( $cfg['enabled'] ) && '' !== trim( $key ) ) {
 				$out[ $id ] = array(
-					'key'        => (string) $cfg['key'],
+					'key'        => $key,
 					'model'      => (string) $cfg['model'],
 					'web_search' => ! empty( $cfg['web_search'] ),
 				);
@@ -491,9 +495,31 @@ final class Settings {
 			}
 		}
 
+		// Encrypt every provider key at rest — and migrate any legacy plaintext key —
+		// at this single persistence point, so a key is only ever STORED as ciphertext.
+		foreach ( (array) $clean['providers'] as $pid => $cfg ) {
+			if ( isset( $cfg['key'] ) ) {
+				$clean['providers'][ $pid ]['key'] = Crypto::encrypt_if_needed( (string) $cfg['key'] );
+			}
+		}
+
 		update_option( self::OPTION, $clean, false );
 		$this->cache = $clean;
 		return $clean;
+	}
+
+	/**
+	 * The decrypted API key for one provider, or '' when none is stored (or it can't be
+	 * decrypted — e.g. the site's salts were rotated). The only supported way to read a
+	 * usable key back out; the stored form is ciphertext (see {@see Crypto}).
+	 *
+	 * @param string $id Provider id.
+	 * @return string
+	 */
+	public function provider_key( $id ) {
+		$providers = (array) $this->get( 'providers', array() );
+		$stored    = isset( $providers[ $id ]['key'] ) ? (string) $providers[ $id ]['key'] : '';
+		return Crypto::decrypt( $stored );
 	}
 
 	/**
