@@ -45,3 +45,7 @@ tests_add_filter(
 );
 
 require "{$_tests_dir}/includes/bootstrap.php";
+
+// Shared base for the DB tests (not a *Test.php file, so PHPUnit won't autoload it).
+// Required after the WP test bootstrap so WP_UnitTestCase, which it extends, exists.
+require __DIR__ . '/DbTestCase.php';

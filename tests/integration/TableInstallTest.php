@@ -11,9 +11,8 @@
 namespace Agentimus\Tests\Integration;
 
 use Agentimus\Activity\Table;
-use WP_UnitTestCase;
 
-final class TableInstallTest extends WP_UnitTestCase {
+final class TableInstallTest extends DbTestCase {
 
 	public function test_dbdelta_creates_the_activity_table_with_the_ua_index() {
 		global $wpdb;

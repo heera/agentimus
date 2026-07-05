@@ -570,11 +570,12 @@ final class Repository {
 		}
 		global $wpdb;
 		$table = Table::name();
-		// id of the (max+1)-th newest row; everything with a smaller id is beyond
-		// the cap and is removed in one bounded DELETE.
+		// id of the (max+1)-th newest row: it and everything older is beyond the cap, so
+		// removing `id <= cutoff` leaves EXACTLY the newest $max rows. (An inclusive `<`
+		// here kept one row too many — caught by the integration suite.)
 		$cutoff = $wpdb->get_var( $wpdb->prepare( "SELECT id FROM $table ORDER BY id DESC LIMIT 1 OFFSET %d", $max ) ); // phpcs:ignore WordPress.DB, PluginCheck.Security.DirectDB.UnescapedDBParameter -- $table is our own prefix-derived name; the offset is bound via prepare().
 		if ( $cutoff ) {
-			$wpdb->query( $wpdb->prepare( "DELETE FROM $table WHERE id < %d", (int) $cutoff ) ); // phpcs:ignore WordPress.DB, PluginCheck.Security.DirectDB.UnescapedDBParameter -- $table is our own prefix-derived name; the id is bound via prepare().
+			$wpdb->query( $wpdb->prepare( "DELETE FROM $table WHERE id <= %d", (int) $cutoff ) ); // phpcs:ignore WordPress.DB, PluginCheck.Security.DirectDB.UnescapedDBParameter -- $table is our own prefix-derived name; the id is bound via prepare().
 		}
 	}
 
