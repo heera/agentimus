@@ -4,7 +4,7 @@ Tags: ai-agents, ai-crawlers, agent-readiness, llms-txt, ai-seo
 Requires at least: 6.0
 Tested up to: 7.0
 Requires PHP: 7.4
-Stable tag: 1.13.0
+Stable tag: 1.14.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -217,6 +217,17 @@ There is no minified-only code. The admin interface is built from Vue 3 source i
 
 == Changelog ==
 
+= 1.14.0 =
+* New — **Verify search engines (optional).** Turn on "Verify search engines by reverse DNS" under Settings → Block scanners, and Agentimus confirms a visitor claiming to be Googlebot, Bingbot, Applebot, DuckDuckBot or Yandex really is — by checking its network address — before trusting it, so a scanner can't slip past your block just by copying a crawler's name. Off by default (it's the one feature that makes a small, cached DNS lookup); leave it off behind a proxy/CDN unless you've supplied the real visitor IP.
+* New — **Copy a User-Agent in one click.** In the activity log and the day report, hovering a visitor's User-Agent now shows the full text in a tidy tooltip, and clicking it copies the whole string — no more fighting the cut-off text.
+* Security — **Your AI Visibility API keys are now encrypted at rest.** Provider keys used to be stored as plain text; they're now encrypted in the database using your site's own secret keys, so a leaked backup or a stray database read can't hand them over.
+* Improved — **Steadier under heavy crawler traffic.** The generated files (llms.txt, llms-full.txt, discovery.json, the fallback sitemap) are hardened so one misbehaving page or add-on can't take them down, and a burst of bots on a cold cache no longer makes the site rebuild the same large file many times at once.
+* Improved — **Safer AI Visibility spend.** Two checks can no longer run at the same time (which would double your API bill), each answer's length is capped, and a run has a hard ceiling — so monitoring can't run away with your budget. A garbled provider response is now recorded as an error instead of a fake "not mentioned".
+* Improved — **A flood-resistant activity log.** A burst of fake bots — even ones pretending to be a known crawler — can no longer swamp the log or push out your real history, and the AI-referrals table is now capped so it can't grow without bound.
+* Improved — the Settings and Readiness screens load faster, and the day-report's date picker now matches the rest of the interface.
+* Fixed — **Settings switches always save.** A newly added on/off switch could silently fail to save; every switch now saves reliably, with a safeguard so it can't happen again.
+* Fixed — upgrading no longer risks quietly changing your AI-training preference; a stored setting keeps all of its parts across an update.
+
 = 1.13.0 =
 * New — **Change feed.** A single JSON feed at `/agentimus-changes.json` lists your recently added, updated and removed pages, with a `?since=` filter — so an AI assistant can re-check just what changed instead of re-reading your whole site. It's advertised in your discovery document and on by default; each item links to its Markdown twin and its canonical REST resource.
 * New — **AI Readability tips.** The post editor now shows an "AI Readability" panel — tucked into one tidy "Agentimus" box alongside the JSON-LD preview — that flags what makes a page hard for an AI to read as you write it: thin content, missing headings, no opening summary, a nav-heavy page, or images without alt text, each with a plain pass or "to improve". Editor-only; nothing is shown to visitors.
@@ -350,6 +361,9 @@ There is no minified-only code. The admin interface is built from Vue 3 source i
 * Admin Discovery Hub for inspecting what agents can see, with per-item publish/suppress control.
 
 == Upgrade Notice ==
+
+= 1.14.0 =
+Encrypts your AI Visibility API keys at rest, adds optional reverse-DNS verification of search engines and one-click copying of a visitor's User-Agent, plus a lot of behind-the-scenes hardening — resilience under heavy crawler load, safer AI-check spending, and a flood-resistant activity log. Also fixes a bug where a settings switch could silently fail to save. No breaking changes.
 
 = 1.13.0 =
 Adds a change feed (`/agentimus-changes.json`) so agents fetch only what changed, per-page "AI Readability" tips in the editor, an in-admin Agent preview, Topics for AI, and plugin attribution for third-party content types. On-by-default additions are read-only and safe — no breaking changes.
