@@ -235,10 +235,17 @@ final class Admin {
 			return $text;
 		}
 
+		// The "|" is a decorative, letterpress-styled separator (see .agentimus-footer-sep
+		// in app.css); aria-hidden so screen readers skip the glyph. The version values are
+		// escaped; the span is our own static markup, and update_footer output is not
+		// auto-escaped by core (it renders HTML, as the star-rating link above does).
+		$sep = '<span class="agentimus-footer-sep" aria-hidden="true">|</span>';
+
 		return sprintf(
-			/* translators: 1: Agentimus plugin version, 2: WordPress core version. */
-			esc_html__( 'Agentimus - %1$s | WordPress - %2$s', 'agentimus' ),
+			/* translators: 1: Agentimus plugin version, 2: separator glyph, 3: WordPress core version. */
+			esc_html__( 'Agentimus - %1$s %2$s WordPress - %3$s', 'agentimus' ),
 			esc_html( AGENTIMUS_VERSION ),
+			$sep,
 			esc_html( get_bloginfo( 'version' ) )
 		);
 	}

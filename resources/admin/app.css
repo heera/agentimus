@@ -2091,3 +2091,12 @@ a.ar-about-proto__v:hover { text-decoration: underline; }
   .ar-about-item { flex-direction: column; }
   .ar-about-tag { align-self: flex-start; }
 }
+
+/* Letterpress separator in the admin-footer version line ("Agentimus - x | WordPress - y").
+   A muted glyph plus a 1px white highlight beneath it reads as pressed into the light
+   footer surface. Lives on core's #wpfooter (rendered by PHP), which this stylesheet is
+   loaded alongside on our screen. Light admin scheme only — the default. */
+#wpfooter .agentimus-footer-sep {
+  color: #b0b3b8;
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.95);
+}
