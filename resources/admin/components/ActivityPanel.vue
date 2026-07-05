@@ -1,8 +1,10 @@
 <script>
 import { confirm } from '../confirm.js';
+import SelectMenu from './SelectMenu.vue';
 
 export default {
   name: 'ActivityPanel',
+  components: { SelectMenu },
   props: {
     data: { type: Object, default: () => ({}) },
     summary: { type: Object, default: null },
@@ -145,6 +147,14 @@ export default {
     },
     hitDaysDesc() {
       return this.hitDays.slice().reverse();
+    },
+    // Options for the day picker (custom SelectMenu): newest first, each labelled with
+    // its date and hit count — the same text the old native <option>s carried.
+    dayOptions() {
+      return this.hitDaysDesc.map((d) => ({
+        value: d.date,
+        label: `${this.dateLabel(d.date)} · ${d.hits} ${d.hits === 1 ? 'hit' : 'hits'}`,
+      }));
     },
   },
   methods: {
@@ -686,9 +696,13 @@ export default {
                   <button type="button" class="ar-day-nav__btn" :disabled="!dayHasPrev || dayModal.loading" aria-label="Previous day with activity" @click="stepDay(-1)">
                     <svg viewBox="0 0 16 16" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 4l-4 4 4 4" /></svg>
                   </button>
-                  <select class="ar-day-select" :value="dayModal.date" :disabled="dayModal.loading" aria-label="Jump to a day with activity" @change="loadDay($event.target.value)">
-                    <option v-for="d in hitDaysDesc" :key="d.date" :value="d.date">{{ dateLabel(d.date) }} · {{ d.hits }} {{ d.hits === 1 ? 'hit' : 'hits' }}</option>
-                  </select>
+                  <SelectMenu
+                    class="ar-day-picker"
+                    :model-value="dayModal.date"
+                    :options="dayOptions"
+                    aria-label="Jump to a day with activity"
+                    @update:model-value="loadDay"
+                  />
                   <button type="button" class="ar-day-nav__btn" :disabled="!dayHasNext || dayModal.loading" aria-label="Next day with activity" @click="stepDay(1)">
                     <svg viewBox="0 0 16 16" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 4l4 4-4 4" /></svg>
                   </button>
