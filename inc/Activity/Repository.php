@@ -32,6 +32,11 @@ final class Repository {
 	/** Max suspicious sources returned to the panel. */
 	const THREATS_LIMIT = 12;
 
+	/** Default rows in each dashboard breakdown; each filterable (see stats()). */
+	const TOP_CLIENTS   = 8;
+	const TOP_ENDPOINTS = 12;
+	const TOP_PAGES     = 12;
+
 	/** Hard ceiling on stored rows — a backstop to the daily age-based prune so an
 	 *  extreme-traffic day can't bank unbounded rows before the cron fires.
 	 *  Generous; filter `agentimus_activity_max_rows` (0 disables the cap). */
@@ -80,13 +85,19 @@ final class Repository {
 				'all'    => (int) $wpdb->get_var( "SELECT COUNT(*) FROM $table" ), // phpcs:ignore WordPress.DB, PluginCheck.Security.DirectDB.UnescapedDBParameter -- $table is our own prefix-derived table name (not user input); SQL identifiers can't be bound via prepare().
 				'agents' => (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(DISTINCT agent) FROM $table WHERE hit_at >= %s", $month ) ), // phpcs:ignore WordPress.DB, PluginCheck.Security.DirectDB.UnescapedDBParameter -- $table is our own prefix-derived table name; the value is bound via prepare().
 			),
-			'byAgent'    => self::group_counts( 'agent', $month, 8 ),
-			'byEndpoint' => self::group_counts( 'endpoint', $month, 12 ),
-			'byPage'     => self::top_pages( $month, 12 ),
-			'daily'      => self::daily(),
-			'recent'     => self::recent( 50 ),
-			'threats'    => self::threats( $settings ),
-			'referrals'  => Referrals::summary( $window ),
+			// Rows in each breakdown are filterable (a site may want more or fewer),
+			// clamped to a sane 1–200: agentimus_activity_{clients,endpoints,pages}_limit.
+			'byAgent'      => self::group_counts( 'agent', $month, self::clamp_limit( apply_filters( 'agentimus_activity_clients_limit', self::TOP_CLIENTS ) ) ),
+			'byEndpoint'   => self::group_counts( 'endpoint', $month, self::clamp_limit( apply_filters( 'agentimus_activity_endpoints_limit', self::TOP_ENDPOINTS ) ) ),
+			'byPage'       => self::top_pages( $month, self::clamp_limit( apply_filters( 'agentimus_activity_pages_limit', self::TOP_PAGES ) ) ),
+			// Whether per-page hits can accrue at all — they only come from the Markdown
+			// twin endpoint. The UI hides the "Top pages" card when this is false AND there
+			// is no history (a permanently-empty card), but still shows existing data.
+			'pagesTracked' => (bool) $settings->enabled( 'enable_markdown' ),
+			'daily'        => self::daily(),
+			'recent'       => self::recent( 50 ),
+			'threats'      => self::threats( $settings ),
+			'referrals'    => Referrals::summary( $window ),
 		);
 	}
 
@@ -181,6 +192,17 @@ final class Repository {
 			);
 		}
 		return $out;
+	}
+
+	/**
+	 * Clamp a (filtered) breakdown row-limit to a sane 1–200, so a stray filter value
+	 * can't request zero rows or an unbounded query.
+	 *
+	 * @param mixed $n Requested limit.
+	 * @return int
+	 */
+	private static function clamp_limit( $n ) {
+		return max( 1, min( 200, (int) $n ) );
 	}
 
 	/** Per-day detail keeps at most this many rows per dimension; the rest roll

@@ -63,6 +63,12 @@ export default {
     byPage() {
       return this.data.byPage || [];
     },
+    pagesTracked() {
+      // Per-page hits only accrue from the Markdown twin endpoint. Hide the card only
+      // when it can NEVER fill (Markdown off) and there's no history; existing data still
+      // shows. Default true so an older payload without the flag still renders the card.
+      return this.data.pagesTracked !== false;
+    },
     // Traffic AI sent you (humans arriving from ChatGPT/Perplexity/… — the mirror
     // of the bot log above).
     referrals() {
@@ -559,8 +565,10 @@ export default {
       </div>
 
       <!-- Per-page AI hits: which page each agent fetched (its Markdown twin) and how
-           often — the "which page, how many hits, from whom" report. -->
-      <section class="ar-card">
+           often — the "which page, how many hits, from whom" report. Hidden entirely when
+           per-page tracking is off (Markdown endpoint disabled) AND there's no history,
+           since it could never fill; existing data always shows. -->
+      <section v-if="byPage.length || pagesTracked" class="ar-card">
         <h2 class="ar-card__title">Top pages by AI hits <span class="ar-card__tag">Last {{ data.window || 30 }} days</span></h2>
         <ul v-if="byPage.length" class="ar-act-rank ar-act-rank--pages">
           <li v-for="p in byPage" :key="p.id">

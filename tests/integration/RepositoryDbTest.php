@@ -120,6 +120,29 @@ final class RepositoryDbTest extends DbTestCase {
 		$this->assertNull( $pages[0]['url'] );
 	}
 
+	/* -- Configurable breakdown limits + per-page tracking flag ---------- */
+
+	public function test_breakdown_row_limits_are_filterable() {
+		foreach ( array( 'A', 'B', 'C', 'D', 'E' ) as $a ) {
+			$this->hit( 'discovery.json', $a, $a . '/1.0' );
+		}
+		// Default cap (8) shows all 5 distinct clients.
+		$this->assertCount( 5, Repository::stats( new Settings() )['byAgent'] );
+
+		// A filter tightens it — and is clamped to at least 1.
+		add_filter( 'agentimus_activity_clients_limit', static function () { return 2; } );
+		$this->assertCount( 2, Repository::stats( new Settings() )['byAgent'], 'the clients limit filter must apply' );
+	}
+
+	public function test_stats_flags_pages_tracked_by_the_markdown_setting() {
+		// Markdown on by default → per-page tracking is possible → card shown.
+		$this->assertTrue( Repository::stats( new Settings() )['pagesTracked'] );
+
+		// Turn the Markdown endpoint off → not tracked → the UI hides the empty card.
+		update_option( Settings::OPTION, array_merge( (array) get_option( Settings::OPTION, array() ), array( 'enable_markdown' => false ) ) );
+		$this->assertFalse( Repository::stats( new Settings() )['pagesTracked'] );
+	}
+
 	/* -- Maintenance: OFFSET trim, day range, prune ---------------------- */
 
 	public function test_trim_to_cap_keeps_only_the_newest_rows() {
