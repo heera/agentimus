@@ -239,12 +239,12 @@ final class BotVerifier {
 	 * @return bool
 	 */
 	private static function forward_had_family( array $ips, $ip ) {
-		$target = self::family( $ip );
+		$target = self::ip_family( $ip );
 		if ( '' === $target ) {
 			return false;
 		}
 		foreach ( $ips as $cand ) {
-			if ( self::family( $cand ) === $target ) {
+			if ( self::ip_family( $cand ) === $target ) {
 				return true;
 			}
 		}
@@ -257,7 +257,7 @@ final class BotVerifier {
 	 * @param string $ip IP string.
 	 * @return string
 	 */
-	private static function family( $ip ) {
+	private static function ip_family( $ip ) {
 		$packed = @inet_pton( (string) $ip ); // phpcs:ignore WordPress.PHP.NoSilencedErrors -- invalid input returns false.
 		if ( false === $packed ) {
 			return '';
