@@ -224,20 +224,23 @@ final class Guard {
 	}
 
 	/**
-	 * The request's source IP for verification. Defaults to REMOTE_ADDR — the only
-	 * value a client can't forge — and is filterable so a site behind a trusted reverse
-	 * proxy / CDN can supply the real client IP (e.g. from CF-Connecting-IP).
+	 * The request's source IP for verification. {@see ClientIp::resolve} returns the real
+	 * client behind a trusted proxy/CDN (e.g. Cloudflare's CF-Connecting-IP) automatically
+	 * — but only when the direct peer is provably that proxy, so the header can't be
+	 * forged; otherwise REMOTE_ADDR. Runs only on the verification path, and stays
+	 * filterable so a site can still override it entirely.
 	 *
 	 * @return string
 	 */
 	public static function client_ip() {
-		$ip = isset( $_SERVER['REMOTE_ADDR'] ) ? (string) $_SERVER['REMOTE_ADDR'] : ''; // phpcs:ignore WordPress.Security.ValidatedSanitizedInput -- compared as an IP, never output; the source is filterable below.
+		$ip = ClientIp::resolve();
 
 		/**
-		 * Filter the client IP used for bot verification. Supply the real client IP on a
-		 * site behind a trusted proxy, where REMOTE_ADDR is the proxy's address.
+		 * Filter the client IP used for bot verification. Already resolves the real client
+		 * behind a trusted proxy; this filter can still override it (e.g. an unusual proxy
+		 * header, or to pin a value in tests).
 		 *
-		 * @param string $ip The source IP (REMOTE_ADDR by default).
+		 * @param string $ip The resolved source IP.
 		 */
 		return (string) apply_filters( 'agentimus_client_ip', $ip );
 	}
