@@ -922,6 +922,7 @@ export default {
           @refresh="refreshActivity"
           @clear="clearActivity"
           @navigate="goTo"
+          @flash="flash"
         />
         <VisibilityPanel
           v-show="tab === 'visibility'"

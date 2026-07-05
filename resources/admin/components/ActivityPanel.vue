@@ -13,7 +13,7 @@ export default {
     live: { type: Boolean, default: false },
     api: { type: Object, default: null },
   },
-  emits: ['refresh', 'clear', 'navigate'],
+  emits: ['refresh', 'clear', 'navigate', 'flash'],
   data() {
     return {
       feedMore: false,
@@ -264,6 +264,38 @@ export default {
     },
     hideUaTip() {
       this.uaTip.show = false;
+    },
+    // Click a truncated value (the User-Agent) to copy the WHOLE string — the cell only
+    // shows an ellipsis, so this is the way to grab the full text. Clipboard API where
+    // available, with the legacy textarea fallback for plain-HTTP (non-secure) sites.
+    async copyUa(text) {
+      if (!text) return;
+      let ok = false;
+      try {
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          await navigator.clipboard.writeText(text);
+          ok = true;
+        }
+      } catch (e) { /* fall through to the legacy path */ }
+      if (!ok) ok = this.legacyCopy(text);
+      this.$emit('flash', ok ? 'success' : 'error', ok ? 'User-Agent copied.' : 'Could not copy — select the text and copy manually.');
+    },
+    legacyCopy(text) {
+      try {
+        const ta = document.createElement('textarea');
+        ta.value = text;
+        ta.setAttribute('readonly', '');
+        ta.style.position = 'fixed';
+        ta.style.top = '-1000px';
+        ta.style.opacity = '0';
+        document.body.appendChild(ta);
+        ta.select();
+        const ok = document.execCommand('copy');
+        document.body.removeChild(ta);
+        return ok;
+      } catch (e) {
+        return false;
+      }
     },
     positionTip(bar) {
       const wrap = this.$refs.sparkWrap;
@@ -607,7 +639,7 @@ export default {
               <li v-for="(r, i) in recentGrouped" :key="i">
                 <span class="ar-act-feed__agent">{{ r.agent }}</span>
                 <code class="ar-act-feed__ep">{{ r.endpoint }}</code>
-                <code v-if="r.ua" class="ar-act-feed__ua" :aria-label="r.ua" @mouseenter="showUaTip($event, r.ua)" @mouseleave="hideUaTip">{{ r.ua }}</code>
+                <code v-if="r.ua" class="ar-act-feed__ua is-copyable" :aria-label="r.ua" @mouseenter="showUaTip($event, r.ua)" @mouseleave="hideUaTip" @click.stop="copyUa(r.ua)">{{ r.ua }}</code>
                 <span v-else class="ar-act-feed__ua is-empty">no User-Agent</span>
                 <span class="ar-act-feed__count" :title="r.count > 1 ? `${r.count} hits` : null">{{ r.count > 1 ? '×' + r.count : '' }}</span>
                 <span class="ar-act-feed__at">{{ ago(r.at) }}</span>
@@ -717,7 +749,7 @@ export default {
                     <li v-for="(r, i) in dayModal.rows" :key="i">
                       <span class="ar-act-feed__agent">{{ r.agent }}</span>
                       <code class="ar-act-feed__ep">{{ r.endpoint }}</code>
-                      <code v-if="r.ua" class="ar-act-feed__ua" :aria-label="r.ua" @mouseenter="showUaTip($event, r.ua)" @mouseleave="hideUaTip">{{ r.ua }}</code>
+                      <code v-if="r.ua" class="ar-act-feed__ua is-copyable" :aria-label="r.ua" @mouseenter="showUaTip($event, r.ua)" @mouseleave="hideUaTip" @click.stop="copyUa(r.ua)">{{ r.ua }}</code>
                       <span v-else class="ar-act-feed__ua is-empty">no User-Agent</span>
                       <span class="ar-act-log__at" :title="exactStamp(r.at)">{{ exactTime(r.at) }}</span>
                     </li>
@@ -754,7 +786,7 @@ export default {
           :style="{ left: uaTip.x + 'px', top: uaTip.y + 'px' }"
           role="tooltip"
           aria-hidden="true"
-        >{{ uaTip.text }}<span class="ar-act-uatip__caret"></span></div>
+        ><span class="ar-act-uatip__ua">{{ uaTip.text }}</span><span class="ar-act-uatip__hint">Click to copy</span><span class="ar-act-uatip__caret"></span></div>
       </transition>
     </Teleport>
   </div>

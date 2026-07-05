@@ -1636,6 +1636,14 @@ select.ar-input {
   top: auto; bottom: 100%;
   border-top: 0; border-bottom: 6px solid var(--ar-ink);
 }
+.ar-act-uatip__ua { display: block; }
+.ar-act-uatip__hint {
+  display: block; margin-top: 5px;
+  font-size: 9.5px; letter-spacing: 0.06em; text-transform: uppercase; opacity: 0.55;
+}
+/* The User-Agent cell copies its full value on click (it's shown truncated). */
+.ar-act-feed__ua.is-copyable { cursor: pointer; transition: background-color 0.12s ease; }
+.ar-act-feed__ua.is-copyable:hover { background: #e6e4dd; }
 
 /* The modal lists every hit individually (ungrouped), each with its exact time.
    Reuses the feed cell styles (agent/endpoint/UA) in its own 4-column grid; the
