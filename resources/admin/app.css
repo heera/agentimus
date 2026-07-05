@@ -1617,7 +1617,7 @@ select.ar-input {
    JS) so the scrolling request feed / day modal never clips it; same look as the
    chart tooltip above (--ar-ink on --ar-surface, soft shadow, a caret). */
 .ar-act-uatip {
-  position: fixed; z-index: 60; pointer-events: none;
+  position: fixed; z-index: 9999; pointer-events: none; /* teleported to <body> */
   max-width: 360px; padding: 8px 11px;
   background: var(--ar-ink); color: var(--ar-surface);
   border-radius: 7px; box-shadow: 0 10px 24px -10px rgba(27, 25, 19, 0.55);

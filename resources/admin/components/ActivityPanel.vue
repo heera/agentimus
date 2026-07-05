@@ -740,17 +740,22 @@ export default {
       </transition>
     </Teleport>
 
-    <!-- Styled hover tooltip for long values (User-Agent). position:fixed, so the
-         scrolling request feed and the day modal never clip it. -->
-    <transition name="ar-tip">
-      <div
-        v-if="uaTip.show"
-        class="ar-act-uatip"
-        :class="{ 'is-below': uaTip.below }"
-        :style="{ left: uaTip.x + 'px', top: uaTip.y + 'px' }"
-        role="tooltip"
-        aria-hidden="true"
-      >{{ uaTip.text }}<span class="ar-act-uatip__caret"></span></div>
-    </transition>
+    <!-- Styled hover tooltip for long values (User-Agent). Teleported to <body>: the
+         panels animate (.ar__body > * { animation: ar-rise }), and a transform makes an
+         element a CONTAINING BLOCK for position:fixed — so a fixed tooltip left inside a
+         panel is anchored to the panel, not the viewport, and lands off-screen. At body
+         level it is viewport-anchored and never clipped by the scrolling feed / modal. -->
+    <Teleport to="body">
+      <transition name="ar-tip">
+        <div
+          v-if="uaTip.show"
+          class="ar-act-uatip"
+          :class="{ 'is-below': uaTip.below }"
+          :style="{ left: uaTip.x + 'px', top: uaTip.y + 'px' }"
+          role="tooltip"
+          aria-hidden="true"
+        >{{ uaTip.text }}<span class="ar-act-uatip__caret"></span></div>
+      </transition>
+    </Teleport>
   </div>
 </template>
