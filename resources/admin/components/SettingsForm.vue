@@ -146,7 +146,6 @@ export default {
         { key: 'enable_markdown', label: 'Plain-text versions', hint: 'Lets assistants fetch a clean text version of any included page — add .md to its URL.' },
         { key: 'enable_robots', label: 'Crawler rules', hint: 'States your preferences to crawlers and blocks known AI-training bots by name. (file: robots.txt)' },
         { key: 'enable_schema', label: 'Rich data for search', hint: 'Adds structured data search engines and assistants understand (JSON-LD). Leave off if your SEO plugin already does this.' },
-        { key: 'enable_activity', label: 'Visit log', hint: 'Records which AI assistants fetch your AI files, and counts visitors AI sends you. Local-only, no IP addresses.' },
         { key: 'enable_page_checks', label: 'AI readability tips', hint: 'Adds an “AI Readability” panel in the post editor with per-page tips (headings, summary, thin content, image alt). Editor-only — nothing is shown to visitors.' },
         { key: 'enable_sitemap', label: 'Sitemap (backup)', hint: 'Adds a sitemap only when WordPress core and your SEO plugin don’t already provide one — never duplicates.' },
         { key: 'enable_changes', label: 'Change feed', hint: 'A JSON feed of recently added or updated pages so assistants can re-check just what changed, instead of re-reading your whole site. (file: agentimus-changes.json)' },
@@ -203,7 +202,7 @@ export default {
       const d = this.defaults || {};
       const cs = d.content_signal || {};
       return {
-        features: this.features.map((f) => ({ label: f.label, on: !!d[f.key] })),
+        features: [...this.features.map((f) => ({ label: f.label, on: !!d[f.key] })), { label: 'Visit log', on: !!d.enable_activity }],
         signals: this.signalRows.map((r) => ({ label: r.label, allow: !!cs[r.key] })),
         trainers: Array.isArray(d.blocked_trainers) ? d.blocked_trainers.length : 0,
         types: Array.isArray(d.post_types) ? d.post_types.length : 0,
@@ -595,9 +594,28 @@ export default {
           />
         </div>
         <small v-if="fullSizeNote" class="ar-field__hint" :class="{ 'ar-warn': fullSizeNote.warn }">{{ fullSizeNote.text }}</small>
+      </section>
 
-        <!-- CDN mode: a situational sub-option of the visit log, shown only when it's on.
-             Recovers "Traffic from AI" counts on sites behind a full-page cache. -->
+      <!-- Visit log — master toggle + CDN-mode sub-option. A feature with a situational
+           nested setting, like Topics and Browser tools below; kept out of the Features
+           list because it's monitoring, not an agent-readiness signal the site emits. -->
+      <section id="ar-sec-activity" class="ar-card">
+        <h2 class="ar-card__title">Visit log</h2>
+        <p class="ar-card__lead">
+          Records which AI assistants fetch your AI files, and counts the visitors AI sends you
+          (“Traffic from AI”). Everything is stored on your own site — no IP addresses, nothing sent
+          anywhere. You read it all on the Activity tab.
+        </p>
+
+        <label id="ar-feat-enable_activity" class="ar-toggle">
+          <input v-model="settings.enable_activity" type="checkbox" />
+          <span class="ar-toggle__track" aria-hidden="true"></span>
+          <span class="ar-toggle__text">
+            <strong>Record AI activity &amp; referrals</strong>
+            <small>Powers the Activity tab: which assistants fetch your files, and who AI sends your way.</small>
+          </span>
+        </label>
+
         <div v-show="settings.enable_activity" class="ar-webmcp-tools">
           <label id="ar-feat-enable_referral_beacon" class="ar-toggle">
             <input v-model="settings.enable_referral_beacon" type="checkbox" />
