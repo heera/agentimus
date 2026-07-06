@@ -60,15 +60,6 @@ export default {
     byEndpoint() {
       return this.data.byEndpoint || [];
     },
-    byPage() {
-      return this.data.byPage || [];
-    },
-    pagesTracked() {
-      // Per-page hits only accrue from the Markdown twin endpoint. Hide the card only
-      // when it can NEVER fill (Markdown off) and there's no history; existing data still
-      // shows. Default true so an older payload without the flag still renders the card.
-      return this.data.pagesTracked !== false;
-    },
     // Traffic AI sent you (humans arriving from ChatGPT/Perplexity/… — the mirror
     // of the bot log above).
     referrals() {
@@ -112,9 +103,6 @@ export default {
     },
     maxEndpoint() {
       return Math.max(1, ...this.byEndpoint.map((e) => e.hits));
-    },
-    maxPage() {
-      return Math.max(1, ...this.byPage.map((p) => p.hits));
     },
     // The bar highlighted while its report is open.
     selectedDay() {
@@ -642,30 +630,6 @@ export default {
         <p v-else class="ar-wd-empty">
           No AI-referred visits recorded yet. When someone arrives from ChatGPT, Perplexity and the like,
           it’ll show here.
-        </p>
-      </section>
-
-      <!-- Per-page AI hits: which page each agent fetched (its Markdown twin) and how
-           often — the "which page, how many hits, from whom" report. Hidden entirely when
-           per-page tracking is off (Markdown endpoint disabled) AND there's no history,
-           since it could never fill; existing data always shows. -->
-      <section v-if="byPage.length || pagesTracked" class="ar-card">
-        <h2 class="ar-card__title">Top pages by AI hits <span class="ar-card__tag">Last {{ data.window || 30 }} days</span></h2>
-        <ul v-if="byPage.length" class="ar-act-rank ar-act-rank--pages">
-          <li v-for="p in byPage" :key="p.id">
-            <span class="ar-act-rank__label">
-              <a v-if="p.url" :href="p.url" target="_blank" rel="noopener" :title="p.title">{{ p.title }}</a>
-              <span v-else :title="p.title">{{ p.title }}</span>
-              <em v-if="p.topAgent" class="ar-act-rank__by">mostly {{ p.topAgent.label }}</em>
-            </span>
-            <span class="ar-act-rank__track"><span class="ar-act-rank__bar" :style="{ width: pct(p.hits, maxPage) }"></span></span>
-            <span class="ar-act-rank__n">{{ p.hits }}</span>
-          </li>
-        </ul>
-        <p v-else class="ar-wd-empty">No page-level AI hits yet. This fills in when an assistant fetches a specific page's Markdown twin (<code>/your-page.md</code>) — general endpoints like <code>llms.txt</code> aren't tied to one page.</p>
-        <p v-if="byPage.length" class="ar-act-floornote">
-          Counts fetches that reach WordPress. Behind a CDN or full-page cache, cached fetches aren't counted — read this as a floor.
-          <a href="https://heera.github.io/agentimus/user-manual/caching.html" target="_blank" rel="noopener">Why &amp; how to fix ↗</a>
         </p>
       </section>
 

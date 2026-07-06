@@ -12,7 +12,7 @@ When a cache serves a **stored copy** of your AI endpoints, those requests never
 
 A cache's whole job is to answer requests *without* bothering WordPress. That's great for your normal HTML pages. But your AI endpoints (`.md` page twins, `llms.txt`, the discovery documents, the change feed) are different: Agentimus needs the request to actually reach the plugin. When the cache answers instead, two things happen:
 
-1. **Your Activity log under-counts.** A crawler or assistant fetches `/your-page.md`, the cache hands back a saved copy, WordPress never runs, and the hit is **never recorded**. Your "Top pages by AI hits" and "Top clients" numbers become a *floor*, not a true total.
+1. **Your Activity log under-counts.** A crawler or assistant fetches `/your-page.md`, the cache hands back a saved copy, WordPress never runs, and the hit is **never recorded**. Your "Top clients" and endpoint numbers become a *floor*, not a true total.
 2. **Freshness-sensitive endpoints go stale.** The **change feed** (`/agentimus-changes.json`) is meant to always be current so an assistant can fetch just what changed. If it's cached for hours, agents get an old delta. Your page `.md` twins can also lag behind edits.
 
 Agentimus already tells caches *not* to store these responses (it sends `Cache-Control: no-store`). But an aggressive CDN setting — most commonly **Cloudflare's "Cache Everything"** — overrides that and caches them anyway. That override can only be undone at the cache itself.

@@ -35,7 +35,6 @@ final class Repository {
 	/** Default rows in each dashboard breakdown; each filterable (see stats()). */
 	const TOP_CLIENTS   = 8;
 	const TOP_ENDPOINTS = 12;
-	const TOP_PAGES     = 12;
 
 	/** Hard ceiling on stored rows — a backstop to the daily age-based prune so an
 	 *  extreme-traffic day can't bank unbounded rows before the cron fires.
@@ -86,14 +85,9 @@ final class Repository {
 				'agents' => (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(DISTINCT agent) FROM $table WHERE hit_at >= %s", $month ) ), // phpcs:ignore WordPress.DB, PluginCheck.Security.DirectDB.UnescapedDBParameter -- $table is our own prefix-derived table name; the value is bound via prepare().
 			),
 			// Rows in each breakdown are filterable (a site may want more or fewer),
-			// clamped to a sane 1–200: agentimus_activity_{clients,endpoints,pages}_limit.
+			// clamped to a sane 1–200: agentimus_activity_{clients,endpoints}_limit.
 			'byAgent'      => self::group_counts( 'agent', $month, self::clamp_limit( apply_filters( 'agentimus_activity_clients_limit', self::TOP_CLIENTS ) ) ),
 			'byEndpoint'   => self::group_counts( 'endpoint', $month, self::clamp_limit( apply_filters( 'agentimus_activity_endpoints_limit', self::TOP_ENDPOINTS ) ) ),
-			'byPage'       => self::top_pages( $month, self::clamp_limit( apply_filters( 'agentimus_activity_pages_limit', self::TOP_PAGES ) ) ),
-			// Whether per-page hits can accrue at all — they only come from the Markdown
-			// twin endpoint. The UI hides the "Top pages" card when this is false AND there
-			// is no history (a permanently-empty card), but still shows existing data.
-			'pagesTracked' => (bool) $settings->enabled( 'enable_markdown' ),
 			'daily'        => self::daily(),
 			'recent'       => self::recent( 50 ),
 			'threats'      => self::threats( $settings ),
@@ -137,61 +131,6 @@ final class Repository {
 			},
 			(array) $rows
 		);
-	}
-
-	/**
-	 * The pages that AI agents fetched most (the per-post .md twin) over the window, with
-	 * each page's busiest single agent — the "which page, how many hits, from whom" report.
-	 * Rows with post_id 0 (llms.txt, the markdown index, discovery docs) are non-page
-	 * endpoints and excluded. Title/URL are resolved live; a since-deleted post is kept
-	 * (its hits are real history) and labelled as removed. No IP is involved — post + agent
-	 * + count only.
-	 *
-	 * @param string $since GMT threshold (reporting window start).
-	 * @param int    $limit Max pages.
-	 * @return array<int,array{id:int,title:string,url:?string,hits:int,topAgent:?array{label:string,hits:int}}>
-	 */
-	public static function top_pages( $since, $limit = 12 ) {
-		global $wpdb;
-		$table = Table::name();
-		$limit = max( 1, min( 100, (int) $limit ) );
-
-		// phpcs:disable WordPress.DB, PluginCheck.Security.DirectDB.UnescapedDBParameter -- $table is our own prefix-derived name; values ($since/$limit) are bound via prepare().
-		$rows = $wpdb->get_results(
-			$wpdb->prepare( "SELECT post_id, COUNT(*) AS hits FROM $table WHERE post_id > 0 AND hit_at >= %s GROUP BY post_id ORDER BY hits DESC LIMIT %d", $since, $limit ),
-			ARRAY_A
-		);
-		// Busiest agent per page: a count-DESC per-(page,agent) rollup, folded so the first
-		// row seen for a page is its top agent (mirrors the daily breakdown pattern).
-		$agent_rows = $wpdb->get_results(
-			$wpdb->prepare( "SELECT post_id, agent, COUNT(*) AS c FROM $table WHERE post_id > 0 AND hit_at >= %s GROUP BY post_id, agent ORDER BY c DESC", $since ),
-			ARRAY_A
-		);
-		// phpcs:enable WordPress.DB, PluginCheck.Security.DirectDB.UnescapedDBParameter
-
-		$top_agent = array();
-		foreach ( (array) $agent_rows as $r ) {
-			$pid = (int) $r['post_id'];
-			if ( ! isset( $top_agent[ $pid ] ) ) {
-				$top_agent[ $pid ] = array( 'label' => (string) $r['agent'], 'hits' => (int) $r['c'] );
-			}
-		}
-
-		$out = array();
-		foreach ( (array) $rows as $r ) {
-			$pid   = (int) $r['post_id'];
-			$title = get_the_title( $pid );
-			$url   = get_permalink( $pid );
-			$out[] = array(
-				'id'       => $pid,
-				/* translators: %d: numeric ID of a page that has since been deleted. */
-				'title'    => '' !== $title ? $title : sprintf( __( '#%d (removed)', 'agentimus' ), $pid ),
-				'url'      => is_string( $url ) ? $url : null,
-				'hits'     => (int) $r['hits'],
-				'topAgent' => isset( $top_agent[ $pid ] ) ? $top_agent[ $pid ] : null,
-			);
-		}
-		return $out;
 	}
 
 	/**

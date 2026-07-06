@@ -15,7 +15,7 @@ defined( 'ABSPATH' ) || exit;
 final class Table {
 
 	/** Bump when the schema changes to trigger a dbDelta upgrade. */
-	const VERSION        = '3';
+	const VERSION        = '2';
 	const VERSION_OPTION = 'agentimus_activity_db_version';
 
 	/**
@@ -50,71 +50,21 @@ final class Table {
 		$collate = $wpdb->get_charset_collate();
 
 		// dbDelta is whitespace-sensitive: two spaces after PRIMARY KEY, lowercase types.
-		// post_id is the specific page/post a per-post .md hit was for (0 = a non-page
-		// endpoint like llms.txt or the markdown index). Its KEY powers the per-page
-		// "Top pages by AI hits" report. dbDelta ADDs it (and the index) on upgrade;
-		// existing rows default to 0. Still no IP column — the log stays PII-free.
 		$sql = "CREATE TABLE $table (
   id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
   endpoint varchar(64) NOT NULL DEFAULT '',
   agent varchar(64) NOT NULL DEFAULT '',
   ua varchar(255) NOT NULL DEFAULT '',
-  post_id bigint(20) unsigned NOT NULL DEFAULT 0,
   hit_at datetime NOT NULL,
   PRIMARY KEY  (id),
   KEY hit_at (hit_at),
   KEY endpoint (endpoint),
   KEY agent (agent),
-  KEY ua (ua(191)),
-  KEY post_id (post_id)
+  KEY ua (ua(191))
 ) $collate;";
 
 		dbDelta( $sql );
-
-		// dbDelta CAN silently skip an ADD COLUMN — notably on a table that already carries
-		// a prefixed index like `ua(191)` — which would leave the v3 per-page query hitting
-		// a missing `post_id` and, worse, the version stamped as upgraded so it never retries.
-		// Guarantee the column and its index exist before recording the version, so the
-		// upgrade is all-or-nothing.
-		self::ensure_column( 'post_id', 'bigint(20) unsigned NOT NULL DEFAULT 0' );
-		self::ensure_index( 'post_id', 'post_id' );
-
 		update_option( self::VERSION_OPTION, self::VERSION, false );
-	}
-
-	/**
-	 * Add a column if it is missing — a dbDelta backstop. $name and $definition are code
-	 * literals (never user input), so they are safe to interpolate.
-	 *
-	 * @param string $name       Column name.
-	 * @param string $definition Column type/definition.
-	 */
-	private static function ensure_column( $name, $definition ) {
-		global $wpdb;
-		$table = self::name();
-		// phpcs:disable WordPress.DB, PluginCheck.Security.DirectDB.UnescapedDBParameter -- $table is our own prefix-derived name; $name is bound via prepare in the check and a code literal in the DDL; SQL identifiers can't be bound.
-		$has = $wpdb->get_var( $wpdb->prepare( "SHOW COLUMNS FROM `$table` LIKE %s", $name ) );
-		if ( ! $has ) {
-			$wpdb->query( "ALTER TABLE `$table` ADD COLUMN `$name` $definition" );
-		}
-		// phpcs:enable WordPress.DB, PluginCheck.Security.DirectDB.UnescapedDBParameter
-	}
-
-	/**
-	 * Add a single-column KEY if it is missing. $name and $column are code literals.
-	 *
-	 * @param string $name   Index name.
-	 * @param string $column Column to index.
-	 */
-	private static function ensure_index( $name, $column ) {
-		global $wpdb;
-		$table = self::name();
-		// phpcs:disable WordPress.DB, PluginCheck.Security.DirectDB.UnescapedDBParameter -- $table is our own prefix-derived name; $name is bound via prepare in the check and a code literal in the DDL.
-		$has = $wpdb->get_var( $wpdb->prepare( "SHOW INDEX FROM `$table` WHERE Key_name = %s", $name ) );
-		if ( ! $has ) {
-			$wpdb->query( "ALTER TABLE `$table` ADD KEY `$name` (`$column`)" );
-		}
-		// phpcs:enable WordPress.DB, PluginCheck.Security.DirectDB.UnescapedDBParameter
 	}
 
 	/**

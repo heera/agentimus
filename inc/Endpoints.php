@@ -142,7 +142,7 @@ final class Endpoints {
 				$post_id = url_to_postid( home_url( $clean ) );
 			}
 			if ( $post_id && $this->post_in_scope( $post_id ) ) {
-				$this->send( MarkdownCache::post( $post_id ), 'text/markdown', 'markdown', 3600, $post_id );
+				$this->send( MarkdownCache::post( $post_id ), 'text/markdown', 'markdown' );
 			}
 			return; // Unknown / out-of-scope .md path: let WordPress 404 normally.
 		}
@@ -155,7 +155,7 @@ final class Endpoints {
 		if ( is_singular() ) {
 			$id = get_queried_object_id();
 			if ( $id && $this->post_in_scope( $id ) ) {
-				$this->send( MarkdownCache::post( $id ), 'text/markdown', 'markdown', 3600, $id );
+				$this->send( MarkdownCache::post( $id ), 'text/markdown', 'markdown' );
 			}
 		}
 		if ( is_front_page() || is_home() || is_archive() || is_search() ) {
@@ -183,16 +183,14 @@ final class Endpoints {
 	 * @param string $label        Activity-log endpoint label (empty = no log).
 	 * @param int    $max_age      Cache-Control max-age (seconds) for cacheable
 	 *                             (non-markdown) bodies. Defaults to one hour.
-	 * @param int    $post_id      The specific page/post this response is for, when it's a
-	 *                             per-post .md; 0 otherwise. Logged for the per-page report.
 	 */
-	private function send( $body, $content_type, $label = '', $max_age = 3600, $post_id = 0 ) {
+	private function send( $body, $content_type, $label = '', $max_age = 3600 ) {
 		// Optional hard enforcement (opt-in): deny denylisted/spoofed agents before
 		// we serve — and before we record a hit, so a blocked request never appears
 		// in the log as though it were served.
 		Guard::maybe_block();
 		if ( '' !== $label ) {
-			\Agentimus\Activity\Recorder::record( $label, $post_id );
+			\Agentimus\Activity\Recorder::record( $label );
 		}
 		if ( ! headers_sent() ) {
 			status_header( 200 );
