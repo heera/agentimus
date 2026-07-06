@@ -564,8 +564,8 @@ export default {
         </p>
         <p v-if="referrals.beacon" class="ar-card__lead">
           <strong>CDN mode is on</strong> — these are counted in your visitors’ browsers so the number
-          survives a full-page cache. Still first-party (no IP, nothing sent to third parties); visitors
-          using an ad-blocker won’t be counted.
+          survives a full-page cache. Still first-party (no IP, nothing sent to third parties); a few
+          visitors with strict privacy tools may not be counted.
         </p>
 
         <div class="ar-wd-stats ar-act-stats ar-act-stats--3">
