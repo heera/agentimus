@@ -99,6 +99,7 @@ final class Settings {
 			'hide_wp_version'         => false, // Remove the WordPress version fingerprint: the <meta generator> tag, the feed generator, and the core ?ver= on core assets.
 			'tidy_head_links'         => false, // Strip rarely-used auto-generated discovery links (shortlink, oEmbed discovery, RSD/WLW) from the page head + Link header — trims the scrapeable footprint. Keeps the REST api.w.org link (intentional discovery).
 			'disable_xmlrpc'          => false, // Disable legacy XML-RPC (xmlrpc.php) — the pingback / system.multicall brute-force-amplification + DDoS surface. Modern clients use the REST API.
+			'exposed_extra_paths'     => array(), // Owner-added paths for the "exposed files" self-check (Settings → Exposure), on top of the built-in list. Scan runs browser-side from Readiness; see Exposure::sensitive_paths().
 		);
 
 		/**
@@ -569,6 +570,18 @@ final class Settings {
 		$clean['blocked_agents'] = $this->sanitize_list( $agents, 'sanitize_text_field' );
 		$allowed                 = isset( $input['allowed_agents'] ) ? $input['allowed_agents'] : array();
 		$clean['allowed_agents'] = $this->sanitize_list( $allowed, 'sanitize_text_field' );
+
+		// Owner-added paths for the exposed-files self-check. Keep only path-safe characters
+		// and force a single leading slash; the scan + Exposure::sensitive_paths() normalise
+		// and dedupe further. Bounded in count/length like the other lists.
+		$paths_in                     = isset( $input['exposed_extra_paths'] ) ? $input['exposed_extra_paths'] : array();
+		$clean['exposed_extra_paths'] = $this->sanitize_list(
+			$paths_in,
+			static function ( $p ) {
+				$p = preg_replace( '#[^A-Za-z0-9._~/\-]#', '', trim( (string) $p ) );
+				return '' === $p ? '' : '/' . ltrim( $p, '/' );
+			}
+		);
 
 		/**
 		 * Filter the sanitised settings before they are stored.

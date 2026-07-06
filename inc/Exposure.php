@@ -255,4 +255,95 @@ final class Exposure {
 		$qs = http_build_query( $args );
 		return '' === $qs ? $base : $base . '?' . $qs;
 	}
+
+	/* ---------------------------------------------------------------------- *
+	 *  Exposed-files self-check (list only — the scan runs in the admin browser)
+	 * ---------------------------------------------------------------------- */
+
+	/**
+	 * The paths the "exposed files" self-check probes for — files/dirs that should NEVER
+	 * be publicly readable (config backups, secrets, keys, VCS metadata, DB dumps). These
+	 * are common, public attack paths, so nothing in the list is itself sensitive. The
+	 * owner's `exposed_extra_paths` (Settings → Exposure) merge in, and the whole list is
+	 * filterable.
+	 *
+	 * This only SUPPLIES the list — the actual probing happens in the admin browser
+	 * ({@see livecheck.js}), same-origin, so the plugin makes no outbound request and a
+	 * server loopback can't mask a leak the real public URL would reveal.
+	 *
+	 * @param Settings $settings Settings store (for the owner's extra paths).
+	 * @return string[] Root-relative paths, each beginning with "/", deduped.
+	 */
+	public static function sensitive_paths( Settings $settings ) {
+		$defaults = array(
+			'/wp-config.php.bak',
+			'/wp-config.php.save',
+			'/wp-config.php.old',
+			'/wp-config.php~',
+			'/wp-config.txt',
+			'/.env',
+			'/.env.bak',
+			'/.git/config',
+			'/.svn/entries',
+			'/.aws/credentials',
+			'/id_rsa',
+			'/private-key',
+			'/privatekey.key',
+			'/server.key',
+			'/firebase-adminsdk.json',
+			'/terraform.tfstate',
+			'/backup.sql',
+			'/database.sql',
+			'/dump.sql',
+			'/backup.zip',
+			'/.htpasswd',
+			'/wp-content/debug.log',
+			'/error_log',
+			'/composer.lock',
+			'/package-lock.json',
+		);
+
+		/**
+		 * Filter the sensitive-path list the exposed-files self-check probes for.
+		 *
+		 * @param string[] $defaults Root-relative paths.
+		 * @param Settings $settings Settings store.
+		 */
+		$paths = (array) apply_filters( 'agentimus_exposed_paths', $defaults, $settings );
+		$extra = (array) $settings->get( 'exposed_extra_paths', array() );
+
+		$out  = array();
+		$seen = array();
+		foreach ( array_merge( $paths, $extra ) as $p ) {
+			$p = self::normalise_scan_path( (string) $p );
+			if ( '' === $p || isset( $seen[ $p ] ) ) {
+				continue;
+			}
+			$seen[ $p ] = true;
+			$out[]      = $p;
+		}
+		return $out;
+	}
+
+	/**
+	 * Normalise a scan path to root-relative form: trim, keep only the path if a full URL
+	 * was entered, force a single leading slash, and cap length. '' for junk.
+	 *
+	 * @param string $p Raw path or URL.
+	 * @return string
+	 */
+	private static function normalise_scan_path( $p ) {
+		$p = trim( $p );
+		if ( '' === $p ) {
+			return '';
+		}
+		if ( preg_match( '#^https?://#i', $p ) ) {
+			$path = wp_parse_url( $p, PHP_URL_PATH );
+			$p    = is_string( $path ) ? $path : '';
+		}
+		if ( '' === $p ) {
+			return '';
+		}
+		return substr( '/' . ltrim( $p, '/' ), 0, 300 );
+	}
 }

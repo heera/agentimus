@@ -123,6 +123,47 @@ If you just want a sensible starting point and don't have special requirements:
 
 Because everything auto-saves and applies from the next request, you can turn a control on, glance at your live site (logged out, or in a private/incognito window) to confirm all is well, and turn it back off in seconds if anything you rely on depended on that behaviour.
 
+## Check for exposed files
+
+Alongside the toggles above, Agentimus can **check whether risky files are publicly readable** on your site — configuration backups, `.env` files, private keys, database dumps, `debug.log`, and the like. None of these should be downloadable by an anonymous visitor.
+
+Open **Agentimus → Readiness** and click **Scan for exposed files**. Your browser requests each risky path through your public URL — the same view an outside scanner gets — and reports which are reachable. It reads only whether each file responds and its size; it never opens or stores the contents. A path that answers "not found" (404) or "forbidden" (403) is safe; one that returns a real file is flagged.
+
+To include your own site-specific paths, add them under **Settings → Exposure → "Also scan these paths."** They're checked alongside the built-in list.
+
+An **"exposed but empty (0 bytes)"** file — a fresh `debug.log`, for instance — leaks nothing right now, but can fill up later, so it's still worth blocking.
+
+## Blocking exposed files
+
+If the scan finds an exposed file, the cleanest fix is to **delete it** — a stray `wp-config.php.bak` or an old `database.sql` you don't need has no business on the server. If the file must stay (an active `debug.log`), block public access to it at your webserver or CDN. Pick the snippet that matches your stack:
+
+**Nginx** — inside your `server { }` block:
+
+```nginx
+location ~* \.(bak|old|save|sql|tfstate|env|key|pem|log)$ { deny all; }
+location ~* /(wp-config\.php\.|\.git|\.env|\.aws|\.htpasswd|id_rsa|firebase-adminsdk) { deny all; }
+```
+
+**Apache** — in the `.htaccess` at your site root:
+
+```apache
+<FilesMatch "\.(bak|old|save|sql|tfstate|env|key|pem|log)$">
+  Require all denied
+</FilesMatch>
+```
+
+**Cloudflare** — a WAF custom rule (Security → WAF → Custom rules), action **Block**:
+
+```
+(lower(http.request.uri.path) contains ".bak") or (ends_with(lower(http.request.uri.path), ".sql"))
+or (ends_with(lower(http.request.uri.path), ".key")) or (lower(http.request.uri.path) contains "/.env")
+or (lower(http.request.uri.path) contains "/.git") or (lower(http.request.uri.path) contains "firebase-adminsdk")
+```
+
+After applying a rule, re-run **Scan for exposed files** — the flagged path should come back safe (403/404).
+
+> Blocking belongs at the webserver or CDN, not in PHP: your server hands back a static file before WordPress (or any plugin) can step in. Agentimus finds the leak and tells you — the block itself lives one layer out.
+
 ## Troubleshooting
 
 **I turned something on but I still see the old behaviour.** Settings are read when a page loads, and you're likely still viewing as a logged-in admin — the controls only affect logged-out visitors. Check in a private/incognito browser window, or on a page cache that has refreshed.

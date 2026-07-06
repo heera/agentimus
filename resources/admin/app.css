@@ -1296,6 +1296,7 @@ select.ar-input {
 .ar-live-head .ar-modal__title { margin: 0; }
 .ar-live__tally { flex: 0 0 auto; font-family: var(--ar-mono); font-size: 12px; font-weight: 600; color: var(--ar-good); }
 .ar-live__tally.is-bad { color: var(--ar-bad); }
+.ar-live__tally.is-warn { color: var(--ar-warn); }
 .ar-live__list { margin: 0; padding: 0; list-style: none; display: grid; gap: 0; }
 .ar-live__row {
   display: flex; align-items: center; gap: 10px;
@@ -1326,6 +1327,24 @@ select.ar-input {
   color: var(--ar-warn); background: rgba(173, 123, 24, 0.12); padding: 1px 6px; border-radius: 999px; cursor: help;
 }
 .ar-live__row.is-cached .ar-live__dot { background: var(--ar-warn); }
+/* Exposed-files scan: green all-clear box, red "exposed" dot/tag, muted skipped row. */
+.ar-live-allclear {
+  margin: 0 0 14px; padding: 12px 14px;
+  background: rgba(74, 124, 89, 0.09);
+  border: 1px solid rgba(74, 124, 89, 0.35); border-radius: 8px;
+  font-size: 12.5px; line-height: 1.55; color: var(--ar-ink);
+}
+.ar-live-allclear strong { color: var(--ar-good); }
+.ar-live__row.is-skip { opacity: 0.55; }
+.ar-live__row.is-bad .ar-live__cachetag { color: var(--ar-bad); background: rgba(180, 40, 40, 0.12); }
+.ar-live__row.is-warn .ar-live__dot { background: var(--ar-warn); }
+.ar-live__row.is-warn .ar-live__detail { color: var(--ar-warn); }
+/* Red variant of the alert box for a leaking (non-empty) exposed file; empty ones reuse
+   the base amber .ar-live-cache. */
+.ar-live-cache--bad { background: rgba(180, 40, 40, 0.07); border-color: rgba(180, 40, 40, 0.35); }
+.ar-live-cache__title--bad { color: var(--ar-bad); }
+.ar-live-cache--bad a { color: var(--ar-bad); }
+.ar-live__foot { margin: 12px 0 0; font-size: 11.5px; line-height: 1.5; color: var(--ar-ink-faint); }
 /* Loading state while the browser fetches the live endpoints (~1s). */
 .ar-live__loading {
   display: flex; flex-direction: column; align-items: center; justify-content: center;

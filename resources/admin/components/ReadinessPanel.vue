@@ -1,6 +1,6 @@
 <script>
 import { groupChecks } from '../tiers.js';
-import { runAll } from '../livecheck.js';
+import { runAll, runExposureScan } from '../livecheck.js';
 import SchemaPreview from './SchemaPreview.vue';
 
 export default {
@@ -14,7 +14,7 @@ export default {
   },
   emits: ['refresh', 'navigate', 'flash'],
   data() {
-    return { live: null, liveRunning: false, schemaOpen: false };
+    return { live: null, liveRunning: false, exposure: null, exposureRunning: false, schemaOpen: false };
   },
   computed: {
     // The same checks, grouped under the Findable → Readable → Trusted rungs.
@@ -40,6 +40,27 @@ export default {
     cachedNames() {
       return this.cachedChecks.map((r) => r.label).join(', ');
     },
+    // ── Exposed-files scan ──────────────────────────────────────────────
+    exposureOpen() {
+      return !!(this.exposure || this.exposureRunning);
+    },
+    exposureResults() {
+      return this.exposure ? this.exposure.results : [];
+    },
+    exposedRows() {
+      return this.exposureResults.filter((r) => r.state === 'exposed');
+    },
+    // Exposed AND has data → serious (red). Exposed but 0 bytes → lesser (amber): it
+    // leaks nothing yet, but a file like debug.log can fill up, so still worth blocking.
+    exposedLeaking() {
+      return this.exposedRows.filter((r) => !r.empty);
+    },
+    exposedEmpty() {
+      return this.exposedRows.filter((r) => r.empty);
+    },
+    exposureSkipped() {
+      return this.exposureResults.filter((r) => r.state === 'skip').length;
+    },
   },
   watch: {
     // Land focus on the dialog when it opens so Esc closes it and it reads as modal.
@@ -47,6 +68,12 @@ export default {
       if (!open) return;
       this.$nextTick(() => {
         if (this.$refs.liveDialog) this.$refs.liveDialog.focus();
+      });
+    },
+    exposureOpen(open) {
+      if (!open) return;
+      this.$nextTick(() => {
+        if (this.$refs.exposureDialog) this.$refs.exposureDialog.focus();
       });
     },
   },
@@ -76,6 +103,21 @@ export default {
       if (this.liveRunning) return;
       this.live = null;
     },
+    // Scan the site's own URL for publicly-readable sensitive files. Browser-side,
+    // same-origin, on click only — the server makes no request (see livecheck.js).
+    async scanExposure() {
+      if (this.exposureRunning) return;
+      this.exposureRunning = true;
+      try {
+        this.exposure = await runExposureScan(this.liveConfig);
+      } finally {
+        this.exposureRunning = false;
+      }
+    },
+    closeExposure() {
+      if (this.exposureRunning) return;
+      this.exposure = null;
+    },
   },
 };
 </script>
@@ -90,6 +132,9 @@ export default {
         </button>
         <button type="button" class="ar-btn" :disabled="liveRunning" @click="verifyLive">
           {{ liveRunning ? 'Checking…' : 'Verify live' }}
+        </button>
+        <button type="button" class="ar-btn" :disabled="exposureRunning" @click="scanExposure">
+          {{ exposureRunning ? 'Scanning…' : 'Scan for exposed files' }}
         </button>
         <button type="button" class="ar-btn" :disabled="refreshing" @click="$emit('refresh')">
           {{ refreshing ? 'Running…' : 'Re-run' }}
@@ -194,6 +239,84 @@ export default {
 
             <div class="ar-modal__actions">
               <button type="button" class="ar-btn ar-btn--ghost" :disabled="liveRunning" @click="closeLive">Close</button>
+            </div>
+          </div>
+        </div>
+      </transition>
+    </Teleport>
+
+    <!-- Exposed-files scan: same browser-side, same-origin approach as Verify live —
+         checks whether risky files are publicly downloadable, reading only status + size. -->
+    <Teleport to="body">
+      <transition name="ar-modal">
+        <div v-if="exposureOpen" class="ar-modal" @click.self="closeExposure">
+          <div
+            ref="exposureDialog"
+            class="ar-modal__panel ar-modal__panel--live"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="ar-exposure-title"
+            tabindex="-1"
+            @keydown.esc="closeExposure"
+          >
+            <div class="ar-modal__head">
+              <div class="ar-live-head">
+                <h2 id="ar-exposure-title" class="ar-modal__title">Exposed-files check</h2>
+                <span
+                  v-if="exposure"
+                  class="ar-live__tally"
+                  :class="{ 'is-bad': exposedLeaking.length > 0, 'is-warn': !exposedLeaking.length && exposedEmpty.length > 0 }"
+                >{{ exposedLeaking.length ? exposedLeaking.length + ' exposed' : (exposedEmpty.length ? exposedEmpty.length + ' empty' : 'all clear') }}</span>
+              </div>
+              <p class="ar-modal__lead">
+                Requested each risky path from your browser through the public URL — the same view an
+                outside scanner gets. It reads only whether a file is reachable, never its contents.
+              </p>
+            </div>
+
+            <div class="ar-modal__body">
+              <div class="ar-modal__scroll">
+                <div v-if="exposedLeaking.length" class="ar-live-cache ar-live-cache--bad" role="alert">
+                  <strong class="ar-live-cache__title ar-live-cache__title--bad">{{ exposedLeaking.length }} file{{ exposedLeaking.length > 1 ? 's are' : ' is' }} publicly downloadable</strong>
+                  <p>Anyone can fetch {{ exposedLeaking.length > 1 ? 'these' : 'this' }} — they may hold passwords, keys or private data. <strong>Delete {{ exposedLeaking.length > 1 ? 'them' : 'it' }} from your server</strong>, or block the path at your CDN/webserver.</p>
+                  <p class="ar-live-cache__fix"><strong>How to block:</strong> <a href="https://heera.github.io/agentimus/user-manual/exposure.html#blocking-exposed-files" target="_blank" rel="noopener">Nginx / Apache / Cloudflare rules ↗</a></p>
+                </div>
+                <div v-if="exposedEmpty.length" class="ar-live-cache" role="alert">
+                  <strong class="ar-live-cache__title">{{ exposedEmpty.length }} reachable but empty file{{ exposedEmpty.length > 1 ? 's' : '' }}</strong>
+                  <p>{{ exposedEmpty.length > 1 ? 'These are' : 'This is' }} publicly reachable but currently <strong>empty (0 bytes)</strong>, so {{ exposedEmpty.length > 1 ? 'they leak' : 'it leaks' }} nothing yet — but a file like <code>debug.log</code> can fill up later. Worth blocking or removing anyway. <a href="https://heera.github.io/agentimus/user-manual/exposure.html#blocking-exposed-files" target="_blank" rel="noopener">How to block ↗</a></p>
+                </div>
+                <div v-if="exposure && !exposedRows.length" class="ar-live-allclear">
+                  <strong>✓ All clear.</strong> None of the {{ exposureResults.length }} checked path{{ exposureResults.length === 1 ? '' : 's' }} {{ exposureResults.length === 1 ? 'is' : 'are' }} publicly readable.
+                  <template v-if="exposureSkipped"> ({{ exposureSkipped }} couldn’t be checked — blocked or offline.)</template>
+                </div>
+
+                <ul v-if="exposure" class="ar-live__list">
+                  <li
+                    v-for="r in exposureResults"
+                    :key="r.path"
+                    class="ar-live__row"
+                    :class="{ 'is-bad': r.state === 'exposed' && !r.empty, 'is-warn': r.state === 'exposed' && r.empty, 'is-skip': r.state === 'skip' }"
+                  >
+                    <span class="ar-live__dot" aria-hidden="true"></span>
+                    <span class="ar-live__label">{{ r.path }}</span>
+                    <span class="ar-live__detail">{{ r.detail }}</span>
+                    <span v-if="r.state === 'exposed' && !r.empty" class="ar-live__cachetag" title="This file is publicly downloadable">exposed</span>
+                    <span v-else-if="r.state === 'exposed' && r.empty" class="ar-live__cachetag" title="Reachable but empty (0 bytes)">empty</span>
+                  </li>
+                </ul>
+                <div v-else class="ar-live__loading">
+                  <span class="ar-spinner" aria-hidden="true"></span>
+                  <span class="ar-live__loading-label">Checking your site…</span>
+                </div>
+
+                <p v-if="exposure" class="ar-live__foot">
+                  Want to check your own files too? Add paths under <strong>Settings → Exposure → “Also scan these paths.”</strong>
+                </p>
+              </div>
+            </div>
+
+            <div class="ar-modal__actions">
+              <button type="button" class="ar-btn ar-btn--ghost" :disabled="exposureRunning" @click="closeExposure">Close</button>
             </div>
           </div>
         </div>

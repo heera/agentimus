@@ -430,6 +430,10 @@ final class Admin {
 			// A real published, in-scope permalink for the live self-check to probe
 			// (markdown + its advertised Link). '' when the site has no such post yet.
 			'samplePost'  => $this->sample_post_url(),
+			// Sensitive paths the browser-side "exposed files" scan probes for (built-in
+			// list + the owner's extra paths). The list is public attack paths; the scan
+			// itself runs in the browser, same-origin — the server makes no request.
+			'exposedPaths' => Exposure::sensitive_paths( $this->settings ),
 		);
 	}
 

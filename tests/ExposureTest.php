@@ -58,6 +58,52 @@ final class ExposureTest extends TestCase {
 		}
 	}
 
+	/* -- Exposed-files self-check: the sensitive-path list --------------- */
+
+	/** The built-in list is non-empty and every entry is a root-relative path. */
+	public function test_sensitive_paths_returns_root_relative_builtins() {
+		$paths = Exposure::sensitive_paths( new Settings() );
+		$this->assertNotEmpty( $paths );
+		$this->assertContains( '/.env', $paths );
+		$this->assertContains( '/wp-config.php.bak', $paths );
+		foreach ( $paths as $p ) {
+			$this->assertSame( '/', $p[0], "root-relative: $p" );
+		}
+	}
+
+	/** Owner extras merge in — a bare name gets a slash, a full URL keeps only its path,
+	 *  and a duplicate of a built-in is not listed twice. */
+	public function test_sensitive_paths_merges_owner_extras_normalised_and_deduped() {
+		update_option(
+			Settings::OPTION,
+			array(
+				'exposed_extra_paths' => array( 'my-export.csv', 'https://example.com/secret.json', '/.env' ),
+			)
+		);
+		$paths = Exposure::sensitive_paths( new Settings() );
+
+		$this->assertContains( '/my-export.csv', $paths );
+		$this->assertContains( '/secret.json', $paths );
+		$this->assertCount( 1, array_keys( $paths, '/.env', true ), '/.env must not be duplicated' );
+	}
+
+	/** The list is filterable — a plugin can replace it wholesale. */
+	public function test_exposed_paths_filter_replaces_the_list() {
+		add_filter( 'agentimus_exposed_paths', static function () { return array( '/only-this' ); } );
+		$this->assertSame( array( '/only-this' ), Exposure::sensitive_paths( new Settings() ) );
+	}
+
+	/** Extra paths are sanitised on save: junk chars stripped, a single leading slash forced. */
+	public function test_sanitize_cleans_extra_paths() {
+		$clean = ( new Settings() )->sanitize(
+			array( 'exposed_extra_paths' => array( 'foo/bar', '/keep-me', '  ', 'has space/x' ) )
+		);
+		$this->assertContains( '/foo/bar', $clean['exposed_extra_paths'] );
+		$this->assertContains( '/keep-me', $clean['exposed_extra_paths'] );
+		$this->assertContains( '/hasspace/x', $clean['exposed_extra_paths'] );
+		$this->assertNotContains( '', $clean['exposed_extra_paths'] );
+	}
+
 	/* -- User enumeration ------------------------------------------------ */
 
 	public function test_users_routes_removed_for_anonymous() {

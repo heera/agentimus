@@ -106,6 +106,7 @@ export default {
         discovery: this.discovery,
         settings: this.settings,
         samplePost: this.boot.samplePost || '',
+        exposedPaths: this.boot.exposedPaths || [],
       };
     },
     dirty() {

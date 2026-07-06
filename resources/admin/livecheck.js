@@ -111,3 +111,81 @@ export async function runCheck(c) {
 export function runAll(cfg) {
   return Promise.all(buildChecks(cfg).map(runCheck));
 }
+
+// ── Exposed-files self-check ───────────────────────────────────────────────
+// Probe the site's OWN URL for files that should never be public (config backups,
+// secrets, keys, DB dumps). Browser-side + same-origin, like the checks above — a
+// server loopback could slip past Nginx/CDN and miss a real leak. We read only the
+// HTTP status and body SIZE to decide exposed-vs-safe; the file's contents are never
+// surfaced or stored.
+
+function scanToken() {
+  return Math.random().toString(36).slice(2) + Date.now().toString(36);
+}
+
+function normalizePath(p) {
+  p = String(p || '').trim();
+  if (!p) return '';
+  try { if (/^https?:\/\//i.test(p)) return new URL(p).pathname; } catch (e) { /* not a URL */ }
+  return '/' + p.replace(/^\/+/, '');
+}
+
+// Fetch one URL as an anonymous visitor → { ok, status, len }. Never throws (a
+// blocked/offline/CORS failure becomes ok:false → graded "couldn't check"). Only the
+// response SIZE is used (to tell a real file from a "not found" page) — never its
+// contents. Prefer the Content-Length header so a large LEAKED file isn't downloaded;
+// fall back to reading the body (small, in practice) only when the header is absent.
+async function probePath(url) {
+  try {
+    const res = await fetch(url, { method: 'GET', credentials: 'omit', cache: 'no-store', redirect: 'follow' });
+    const cl = res.headers.get('content-length');
+    if (cl !== null && cl !== '') {
+      if (res.body && res.body.cancel) { try { res.body.cancel(); } catch (e) { /* ignore */ } }
+      return { ok: true, status: res.status, len: parseInt(cl, 10) || 0 };
+    }
+    const body = await res.text();
+    return { ok: true, status: res.status, len: body.length };
+  } catch (e) {
+    return { ok: false, status: 0, len: 0 };
+  }
+}
+
+function humanSize(n) {
+  if (n >= 1048576) return (n / 1048576).toFixed(1) + ' MB';
+  if (n >= 1024) return (n / 1024).toFixed(1) + ' KB';
+  return n + ' B';
+}
+
+// Grade one probed path against the "not found" baseline. A site may answer 200 for
+// everything (soft 404); a genuinely exposed file returns a body that DIFFERS from that
+// baseline, so we compare size rather than trusting the status alone. An exposed file
+// that's 0 bytes (a fresh debug.log) is flagged as `empty` — reachable but leaking
+// nothing yet, so the UI can treat it as a lesser (amber) concern than a file with data.
+function gradePath(path, hit, baseline) {
+  if (!hit.ok) return { path, status: null, state: 'skip', empty: false, detail: 'couldn’t check (blocked or offline)' };
+  const twoxx = hit.status >= 200 && hit.status < 300;
+  const matchesNotFound = baseline.ok && baseline.status === hit.status && Math.abs(hit.len - baseline.len) <= 64;
+  if (twoxx && !matchesNotFound) {
+    const empty = hit.len === 0;
+    return {
+      path,
+      status: hit.status,
+      state: 'exposed',
+      empty,
+      detail: empty ? `HTTP ${hit.status} · empty (0 bytes)` : `HTTP ${hit.status} · ${humanSize(hit.len)} — downloadable`,
+    };
+  }
+  return { path, status: hit.status, state: 'safe', empty: false, detail: `HTTP ${hit.status}` };
+}
+
+// Learn the site's "nothing here" baseline from a made-up path, then probe every
+// sensitive path concurrently. Resolves (never rejects) to { baseline, results }.
+export async function runExposureScan(cfg) {
+  const origin = originOf((cfg && cfg.endpoints && (cfg.endpoints.robots || cfg.endpoints.llms)) || '');
+  const paths = ((cfg && cfg.exposedPaths) || []).map(normalizePath).filter(Boolean);
+  if (!origin || !paths.length) return { baseline: null, results: [] };
+
+  const baseline = await probePath(`${origin}/agentimus-not-a-real-path-${scanToken()}`);
+  const results = await Promise.all(paths.map(async (p) => gradePath(p, await probePath(origin + p), baseline)));
+  return { baseline, results };
+}
