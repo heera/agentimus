@@ -575,6 +575,9 @@
 }
 .ar-card--muted { background: var(--ar-surface-2); }
 .ar-card__head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+/* When the title + a row of buttons can't share a line, let the button group drop to
+   its own row (labels stay on one line) rather than squeezing + wrapping mid-button. */
+.ar-card__head--inline { flex-wrap: wrap; }
 .ar-card__title {
   margin: 0 0 3px;
   font-family: var(--ar-serif);
@@ -1066,7 +1069,7 @@ select.ar-input {
 .ar-btn {
   appearance: none; cursor: pointer;
   font-family: var(--ar-mono); font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase;
-  padding: 12px 26px; border-radius: var(--ar-radius);
+  padding: 12px 26px; border-radius: var(--ar-radius); white-space: nowrap;
   background: var(--ar-ink); color: var(--ar-paper); border: 1px solid var(--ar-ink);
   transition: transform 0.12s, background 0.15s, box-shadow 0.15s;
 }
@@ -1301,7 +1304,7 @@ select.ar-input {
 .ar-check.is-fail .ar-check__rule { background: var(--ar-bad); }
 
 /* Two buttons in the report head (Verify live + Re-run). */
-.ar-card__actions { display: flex; align-items: center; gap: 8px; }
+.ar-card__actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
 
 /* Live self-check results — "what agents actually receive". */
 /* Verify-live result modal. Reuses the .ar-modal shell; the title shares its head
@@ -1428,6 +1431,13 @@ select.ar-input {
 .ar-wd-stats--fill .ar-wd-stat { flex: 1 1 108px; }
 
 .ar-wd-empty { margin: 8px 0 0; color: var(--ar-ink-soft); font-size: 13px; }
+
+/* Medium container: the Readiness header carries four buttons, so shrink just those a bit
+   earlier than the phone breakpoint — they stay a tidy single-line row instead of
+   dominating the header. Scoped to the inline header, so buttons elsewhere are untouched. */
+@container (max-width: 720px) {
+  .ar-card__head--inline .ar-btn { padding: 9px 16px; font-size: 11px; }
+}
 
 /* ---- Small screens: ease the chrome down so cards aren't desktop-sized on a
    phone — titles + big stat numbers shrink a notch, buttons stop hogging the
