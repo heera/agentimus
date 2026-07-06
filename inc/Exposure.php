@@ -362,7 +362,7 @@ final class Exposure {
 	 * @return array{state:string,message:string,fix:string,fixUrl:string}
 	 */
 	public static function debug_status() {
-		$env     = function_exists( 'wp_get_environment_type' ) ? wp_get_environment_type() : 'production';
+		$env     = self::environment_type();
 		$debug   = defined( 'WP_DEBUG' ) && WP_DEBUG;
 		$display = ! defined( 'WP_DEBUG_DISPLAY' ) || WP_DEBUG_DISPLAY; // WP defaults this on when undefined.
 		$log_raw = defined( 'WP_DEBUG_LOG' ) ? WP_DEBUG_LOG : false;
@@ -439,5 +439,90 @@ final class Exposure {
 			return true;
 		}
 		return 0 === strpos( wp_normalize_path( $path ), wp_normalize_path( $root ) );
+	}
+
+	/**
+	 * The site's environment. Honours an explicitly-declared WP_ENVIRONMENT_TYPE (constant OR
+	 * env var) — the owner's word is final, even on an unusual host. Otherwise it auto-detects
+	 * LOCAL, but only from signals a public production site cannot have (see {@see host_is_local()});
+	 * everything else is production. The bias is deliberate: mistaking production for local would
+	 * SILENCE the debug warning, so we downgrade to local only when it's certain.
+	 *
+	 * @return string 'production' | 'local' | any explicitly-declared type.
+	 */
+	public static function environment_type() {
+		if ( defined( 'WP_ENVIRONMENT_TYPE' ) || false !== getenv( 'WP_ENVIRONMENT_TYPE' ) ) {
+			return function_exists( 'wp_get_environment_type' ) ? wp_get_environment_type() : 'production';
+		}
+		return self::is_local_environment() ? 'local' : 'production';
+	}
+
+	/**
+	 * Whether the site's own address looks local. Reads the canonical home_url() host (not the
+	 * spoofable request Host) and defers to {@see host_is_local()}. Filterable.
+	 *
+	 * @return bool
+	 */
+	public static function is_local_environment() {
+		$host  = strtolower( (string) wp_parse_url( home_url(), PHP_URL_HOST ) );
+		$local = self::host_is_local( $host );
+		/**
+		 * Filter whether this is a local/development environment (used only when
+		 * WP_ENVIRONMENT_TYPE isn't explicitly declared).
+		 *
+		 * @param bool   $local Whether the host looks local.
+		 * @param string $host  The site's home host.
+		 */
+		return (bool) apply_filters( 'agentimus_is_local_env', $local, $host );
+	}
+
+	/**
+	 * Whether a host is unambiguously LOCAL — a value a public production site cannot have.
+	 * True only for the loopback names, the RFC-reserved / mDNS TLDs (.test .localhost .local
+	 * .example .invalid), the loopback-by-design dev domains (.ddev.site .lndo.site), or a
+	 * private/reserved IP literal. Everything else — INCLUDING the real, public .dev TLD —
+	 * returns false → production. This is the safety guarantee: no false "local" on a public
+	 * site. Pure string logic, so it unit-tests directly.
+	 *
+	 * @param string $host Host (any case; brackets/port tolerated).
+	 * @return bool
+	 */
+	public static function host_is_local( $host ) {
+		$host = trim( strtolower( (string) $host ), " \t[]" );
+		if ( '' === $host ) {
+			return false; // Unknown host → treat as production (safe).
+		}
+		if ( 'localhost' === $host || '127.0.0.1' === $host || '::1' === $host ) {
+			return true;
+		}
+		$suffixes = array( '.test', '.localhost', '.local', '.example', '.invalid', '.ddev.site', '.lndo.site' );
+		/**
+		 * Filter the host suffixes that mark a LOCAL environment. Only add suffixes a public
+		 * production site can NEVER use, or the debug warning may be wrongly silenced.
+		 *
+		 * @param string[] $suffixes Local host suffixes (each begins with a dot).
+		 */
+		$suffixes = (array) apply_filters( 'agentimus_local_host_suffixes', $suffixes );
+		foreach ( $suffixes as $s ) {
+			$len = strlen( (string) $s );
+			if ( $len > 0 && strlen( $host ) > $len && substr( $host, -$len ) === $s ) {
+				return true;
+			}
+		}
+		return self::is_private_ip( $host );
+	}
+
+	/**
+	 * Whether a host is a private / loopback / reserved IP literal (not a public IP, and not a
+	 * hostname). Uses PHP's own range validation, so it covers both IPv4 and IPv6.
+	 *
+	 * @param string $host Host string.
+	 * @return bool
+	 */
+	private static function is_private_ip( $host ) {
+		if ( false === filter_var( $host, FILTER_VALIDATE_IP ) ) {
+			return false; // A hostname, not an IP literal.
+		}
+		return false === filter_var( $host, FILTER_VALIDATE_IP, FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE );
 	}
 }

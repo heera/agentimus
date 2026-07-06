@@ -224,4 +224,34 @@ final class ExposureTest extends TestCase {
 	public function test_bare_debug_on_in_production_warns() {
 		$this->assertSame( array( 'warn', 'on' ), Exposure::debug_verdict( true, true, false, false, false ) );
 	}
+
+	/* -- Environment auto-detect (host heuristic) ------------------------ */
+
+	/** Loopback, RFC-reserved / mDNS / dev-tool TLDs, and private IPs → local. */
+	public function test_host_is_local_true_for_reserved_and_private() {
+		$local = array(
+			'localhost', '127.0.0.1', '::1', '[::1]',
+			'mysite.test', 'app.localhost', 'shop.local', 'x.example', 'y.invalid',
+			'proj.ddev.site', 'proj.lndo.site',
+			'192.168.1.10', '10.0.0.5', '172.16.9.9', 'fc00::1', 'MyProject.Test',
+		);
+		foreach ( $local as $h ) {
+			$this->assertTrue( Exposure::host_is_local( $h ), $h );
+		}
+	}
+
+	/**
+	 * The safety-critical direction: a public production host must NEVER read as local, or the
+	 * debug warning would be silenced. Note `.dev` is a REAL public TLD (Google) — not local.
+	 */
+	public function test_host_is_local_false_for_public_hosts() {
+		$public = array(
+			'heera.it', 'example.com', 'foo.dev', 'my-site.dev', 'staging.example.com',
+			'sub.wpengine.com', '8.8.8.8', '1.1.1.1', '2606:4700:4700::1111',
+			'notlocalhost.com', 'localhostx.io', 'test.com', '',
+		);
+		foreach ( $public as $h ) {
+			$this->assertFalse( Exposure::host_is_local( $h ), $h );
+		}
+	}
 }

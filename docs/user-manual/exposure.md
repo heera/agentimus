@@ -166,7 +166,7 @@ After applying a rule, re-run **Scan for exposed files** — the flagged path sh
 
 ## Debug logging in production
 
-WordPress's debug mode (`WP_DEBUG`) is invaluable while you build, but on a **live** site it can leak. The log file (`wp-content/debug.log`) is web-reachable by default and can grow to gigabytes, and `WP_DEBUG_DISPLAY` prints errors — file paths, and occasionally secrets — straight onto the page for visitors to see. Agentimus's **Readiness** report flags this when it detects debug mode on in a production environment.
+WordPress's debug mode (`WP_DEBUG`) is invaluable while you build, but on a **live** site it can leak. The log file (`wp-content/debug.log`) is web-reachable by default and can grow to gigabytes, and `WP_DEBUG_DISPLAY` prints errors — file paths, and occasionally secrets — straight onto the page for visitors to see. The **Exposure** tab shows a status line for this, and warns when it detects debug mode on in a **production** environment. It only warns where it matters: local sites are auto-detected (`localhost`, `*.test`, `*.local`, private IPs, and the like), and an explicit `WP_ENVIRONMENT_TYPE` is always respected.
 
 The fix is a small edit to **`wp-config.php`** — Agentimus won't touch that file, it's yours to control. For a live site, turn debug off:
 
