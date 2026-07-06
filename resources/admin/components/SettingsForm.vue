@@ -595,6 +595,19 @@ export default {
           />
         </div>
         <small v-if="fullSizeNote" class="ar-field__hint" :class="{ 'ar-warn': fullSizeNote.warn }">{{ fullSizeNote.text }}</small>
+
+        <!-- CDN mode: a situational sub-option of the visit log, shown only when it's on.
+             Recovers "Traffic from AI" counts on sites behind a full-page cache. -->
+        <div v-show="settings.enable_activity" class="ar-webmcp-tools">
+          <label id="ar-feat-enable_referral_beacon" class="ar-toggle">
+            <input v-model="settings.enable_referral_beacon" type="checkbox" />
+            <span class="ar-toggle__track" aria-hidden="true"></span>
+            <span class="ar-toggle__text">
+              <strong>CDN mode — count AI visits in the browser</strong>
+              <small>Turn on only if your site sits behind a full-page cache/CDN (e.g. Cloudflare “Cache Everything”). It counts “Traffic from AI” in the visitor’s browser so the number survives the cache. Adds a tiny script to your pages; visitors using an ad-blocker won’t be counted.</small>
+            </span>
+          </label>
+        </div>
       </section>
 
       <!-- Topics for AI — master toggle + how topics are chosen -------- -->
