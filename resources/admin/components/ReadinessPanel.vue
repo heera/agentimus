@@ -10,6 +10,7 @@ export default {
     checks: { type: Array, default: () => [] },
     refreshing: { type: Boolean, default: false },
     liveConfig: { type: Object, default: () => ({}) },
+    isLocal: { type: Boolean, default: false },
     api: { type: Object, required: true },
   },
   emits: ['refresh', 'navigate', 'flash'],
@@ -60,6 +61,13 @@ export default {
     },
     exposureSkipped() {
       return this.exposureResults.filter((r) => r.state === 'skip').length;
+    },
+    // Red only for a real leak on a PUBLIC site; on a detected-local site an exposed file
+    // isn't reachable from outside, so it's amber ("would leak once you deploy"), not red.
+    exposureSeverity() {
+      if (this.exposedLeaking.length && !this.isLocal) return 'bad';
+      if (this.exposedRows.length) return 'warn';
+      return 'ok';
     },
   },
   watch: {
@@ -265,20 +273,22 @@ export default {
                 <span
                   v-if="exposure"
                   class="ar-live__tally"
-                  :class="{ 'is-bad': exposedLeaking.length > 0, 'is-warn': !exposedLeaking.length && exposedEmpty.length > 0 }"
-                >{{ exposedLeaking.length ? exposedLeaking.length + ' exposed' : (exposedEmpty.length ? exposedEmpty.length + ' empty' : 'all clear') }}</span>
+                  :class="{ 'is-bad': exposureSeverity === 'bad', 'is-warn': exposureSeverity === 'warn' }"
+                >{{ exposedLeaking.length ? exposedLeaking.length + (isLocal ? ' to fix' : ' exposed') : (exposedEmpty.length ? exposedEmpty.length + ' empty' : 'all clear') }}</span>
               </div>
               <p class="ar-modal__lead">
                 Requested each risky path from your browser through the public URL — the same view an
-                outside scanner gets. It reads only whether a file is reachable, never its contents.
+                outside scanner gets. It reads only whether a file is reachable, never its contents.<template v-if="isLocal"> This is a local site, so nothing’s public yet — read any finding as a heads-up for when you deploy.</template>
               </p>
             </div>
 
             <div class="ar-modal__body">
               <div class="ar-modal__scroll">
-                <div v-if="exposedLeaking.length" class="ar-live-cache ar-live-cache--bad" role="alert">
-                  <strong class="ar-live-cache__title ar-live-cache__title--bad">{{ exposedLeaking.length }} file{{ exposedLeaking.length > 1 ? 's are' : ' is' }} publicly downloadable</strong>
-                  <p>Anyone can fetch {{ exposedLeaking.length > 1 ? 'these' : 'this' }} — they may hold passwords, keys or private data. <strong>Delete {{ exposedLeaking.length > 1 ? 'them' : 'it' }} from your server</strong>, or block the path at your CDN/webserver.</p>
+                <div v-if="exposedLeaking.length" class="ar-live-cache" :class="{ 'ar-live-cache--bad': !isLocal }" role="alert">
+                  <strong v-if="isLocal" class="ar-live-cache__title">{{ exposedLeaking.length }} file{{ exposedLeaking.length > 1 ? 's' : '' }} would be exposed once this is live</strong>
+                  <strong v-else class="ar-live-cache__title ar-live-cache__title--bad">{{ exposedLeaking.length }} file{{ exposedLeaking.length > 1 ? 's are' : ' is' }} publicly downloadable</strong>
+                  <p v-if="isLocal">Nothing is public on a local site — but {{ exposedLeaking.length > 1 ? 'these files' : 'this file' }} would be downloadable once you deploy. <strong>Delete {{ exposedLeaking.length > 1 ? 'them' : 'it' }}</strong> or add a block rule before going live.</p>
+                  <p v-else>Anyone can fetch {{ exposedLeaking.length > 1 ? 'these' : 'this' }} — they may hold passwords, keys or private data. <strong>Delete {{ exposedLeaking.length > 1 ? 'them' : 'it' }} from your server</strong>, or block the path at your CDN/webserver.</p>
                   <p class="ar-live-cache__fix"><strong>How to block:</strong> <a href="https://heera.github.io/agentimus/user-manual/exposure.html#blocking-exposed-files" target="_blank" rel="noopener">Nginx / Apache / Cloudflare rules ↗</a></p>
                 </div>
                 <div v-if="exposedEmpty.length" class="ar-live-cache" role="alert">
@@ -295,12 +305,13 @@ export default {
                     v-for="r in exposureResults"
                     :key="r.path"
                     class="ar-live__row"
-                    :class="{ 'is-bad': r.state === 'exposed' && !r.empty, 'is-warn': r.state === 'exposed' && r.empty, 'is-skip': r.state === 'skip' }"
+                    :class="{ 'is-bad': r.state === 'exposed' && !r.empty && !isLocal, 'is-warn': r.state === 'exposed' && (r.empty || isLocal), 'is-skip': r.state === 'skip' }"
                   >
                     <span class="ar-live__dot" aria-hidden="true"></span>
                     <span class="ar-live__label">{{ r.path }}</span>
                     <span class="ar-live__detail">{{ r.detail }}</span>
-                    <span v-if="r.state === 'exposed' && !r.empty" class="ar-live__cachetag" title="This file is publicly downloadable">exposed</span>
+                    <span v-if="r.state === 'exposed' && !r.empty && !isLocal" class="ar-live__cachetag" title="This file is publicly downloadable">exposed</span>
+                    <span v-else-if="r.state === 'exposed' && !r.empty && isLocal" class="ar-live__cachetag" title="Would be downloadable once deployed">on deploy</span>
                     <span v-else-if="r.state === 'exposed' && r.empty" class="ar-live__cachetag" title="Reachable but empty (0 bytes)">empty</span>
                   </li>
                 </ul>

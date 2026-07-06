@@ -437,6 +437,10 @@ final class Admin {
 			// WordPress debug posture (read-only) for the Exposure tab's status card:
 			// warns when debug logging/display is left on in production. No request.
 			'debug'        => Exposure::debug_status(),
+			// Whether this looks like a local/dev site (host-based, never a false positive
+			// on a public site) — softens the exposed-files scan from "publicly downloadable"
+			// to a deploy-time heads-up.
+			'isLocal'      => Exposure::is_local_environment(),
 		);
 	}
 

@@ -59,6 +59,7 @@ export default {
       defaultAllowed: this.boot.defaultAllowed || [],
       webmcpTools: this.boot.webmcpTools || [],
       debug: this.boot.debug || {},
+      isLocal: !!this.boot.isLocal,
       restNamespacesDetected: this.boot.restNamespacesDetected || [],
       endpoints: this.boot.endpoints || {},
       llmsFullEstimate: this.boot.llmsFullEstimate || {},
@@ -903,6 +904,7 @@ export default {
           :checks="readiness"
           :refreshing="refreshingReadiness"
           :live-config="liveConfig"
+          :is-local="isLocal"
           :api="api"
           @refresh="refreshReadiness"
           @navigate="goTo"
