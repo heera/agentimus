@@ -604,7 +604,7 @@ export default {
             <span class="ar-toggle__track" aria-hidden="true"></span>
             <span class="ar-toggle__text">
               <strong>CDN mode — count AI visits in the browser</strong>
-              <small>Turn on only if your site sits behind a full-page cache/CDN (e.g. Cloudflare “Cache Everything”). It counts “Traffic from AI” in the visitor’s browser so the number survives the cache. Adds a tiny script to your pages; a few visitors with strict privacy tools may not be counted.</small>
+              <small>Turn on only if your site sits behind a full-page cache/CDN (e.g. Cloudflare “Cache Everything”). It counts “Traffic from AI” in the visitor’s browser so the number survives the cache. Adds a tiny counting script to your pages. A few visitors — those using an ad-blocker or a privacy-focused browser that blocks scripts like this — won’t be counted, so read the total as a minimum, never an over-count.</small>
             </span>
           </label>
         </div>
