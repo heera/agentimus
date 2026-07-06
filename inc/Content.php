@@ -307,6 +307,18 @@ final class Content {
 		$html = apply_filters( 'agentimus_markdown_source', null, $post );
 		if ( null === $html ) {
 			$html = apply_filters( 'the_content', $post->post_content ); // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound -- intentionally running content through WordPress core's own the_content filter, not declaring a new hook.
+
+			// Defensive fallback. `the_content` carries every third-party filter on
+			// the site, and some blank the body when the filter runs outside the main
+			// front-end loop — the editor meta-box render (which makes a real post read
+			// as "0 words" in PageCheck) or our own off-loop .md generation for
+			// /slug.md and /llms-full.txt (which would ship a body-less document). When
+			// the filtered result comes back empty but the post genuinely has content,
+			// expand just this post's own blocks — no third-party filters in the chain —
+			// so we always measure and emit the real content.
+			if ( '' === trim( wp_strip_all_tags( (string) $html ) ) && '' !== trim( (string) $post->post_content ) ) {
+				$html = wpautop( do_blocks( $post->post_content ) );
+			}
 		}
 		return (string) $html;
 	}

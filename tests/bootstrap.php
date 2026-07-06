@@ -198,8 +198,15 @@ namespace Agentimus {
 			public static function post_types() { return self::available(); }
 			public static function source( $post_type ) { return ''; }
 			// Mirrors the real Content::markdown_source closely enough for the Markdown
-			// privacy tests: run the (mocked) the_content filter over the stored body.
-			public static function markdown_source( $post ) { return (string) apply_filters( 'the_content', $post->post_content ); }
+			// privacy tests: run the (mocked) the_content filter over the stored body,
+			// with the same blank-render fallback to the post's own blocks.
+			public static function markdown_source( $post ) {
+				$html = (string) apply_filters( 'the_content', $post->post_content );
+				if ( '' === trim( wp_strip_all_tags( $html ) ) && '' !== trim( (string) $post->post_content ) ) {
+					$html = do_blocks( $post->post_content );
+				}
+				return $html;
+			}
 		}
 	}
 }
