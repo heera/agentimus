@@ -731,13 +731,18 @@
 /* ---- Toggles ------------------------------------------------------------ */
 .ar-toggle {
   display: flex; align-items: flex-start; gap: 14px;
-  padding: 13px 0; border-top: 1px solid var(--ar-line); cursor: pointer;
+  padding: 13px 0; border-top: 1px solid var(--ar-line);
+  /* Only the switch toggles: the row/label ignores pointer clicks, so clicking the
+     text does nothing. Keyboard focus/activation and the label→input association (the
+     screen-reader name) are unaffected — pointer-events is mouse/touch only. */
+  cursor: default; pointer-events: none;
 }
 .ar-toggle:first-of-type { border-top: 0; padding-top: 2px; }
 .ar-toggle input { position: absolute; opacity: 0; width: 0; height: 0; }
 .ar-toggle__track {
   position: relative; flex: 0 0 auto; width: 40px; height: 22px; margin-top: 1px;
   background: #d8d2c2; border-radius: 999px; transition: background 0.18s;
+  pointer-events: auto; cursor: pointer; /* the one part of the row that flips it. */
 }
 .ar-toggle__track::after {
   content: ""; position: absolute; top: 2px; left: 2px;
@@ -747,6 +752,9 @@
 .ar-toggle input:checked + .ar-toggle__track { background: var(--ar-accent); }
 .ar-toggle input:checked + .ar-toggle__track::after { transform: translateX(18px); }
 .ar-toggle input:focus-visible + .ar-toggle__track { outline: 2px solid var(--ar-accent); outline-offset: 2px; }
+/* Links inside a hint stay clickable; the busy-lock still disables the switch mid-save. */
+.ar-toggle a { pointer-events: auto; }
+.ar-toggle[data-busy] .ar-toggle__track { pointer-events: none; }
 .ar-toggle__text { display: flex; flex-direction: column; gap: 1px; }
 .ar-toggle__text strong { font-size: 14px; font-weight: 600; }
 .ar-toggle__text small { color: var(--ar-ink-soft); font-size: 12px; }
