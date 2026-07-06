@@ -169,30 +169,14 @@ final class Referrals {
 			return;
 		}
 
-		// Skip the owner browsing their own site (shares Recorder's filter).
-		if ( apply_filters( 'agentimus_activity_skip_self', is_user_logged_in() && current_user_can( 'manage_options' ) ) ) {
-			return;
-		}
-
 		$referer = isset( $_SERVER['HTTP_REFERER'] ) ? wp_unslash( $_SERVER['HTTP_REFERER'] ) : ''; // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized,WordPress.Security.NonceVerification.Recommended -- only its host is parsed + matched against a fixed list, never stored or output.
 		$utm     = isset( $_GET['utm_source'] ) ? wp_unslash( $_GET['utm_source'] ) : ''; // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized,WordPress.Security.NonceVerification.Recommended -- matched against a fixed list, never stored or output.
 		if ( '' === $referer && '' === $utm ) {
 			return; // No source signal at all → cheapest exit (direct visits, most internal nav).
 		}
 
-		$source = self::source_for( (string) $referer, (string) $utm );
-		if ( '' === $source ) {
-			return; // Has a referrer/utm, but not from a known AI source.
-		}
-
-		// Count only human browsers — a bot arriving with a referrer isn't a
-		// "visitor AI sent". (A real reader clicking from an AI answer uses a browser.)
-		$ua = isset( $_SERVER['HTTP_USER_AGENT'] ) ? sanitize_text_field( wp_unslash( $_SERVER['HTTP_USER_AGENT'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only classification.
-		if ( 'Browser' !== Classifier::classify( $ua ) ) {
-			return;
-		}
-
-		self::increment( $source, self::current_path() );
+		$uri = isset( $_SERVER['REQUEST_URI'] ) ? wp_unslash( $_SERVER['REQUEST_URI'] ) : '/'; // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- path is parsed out by clean_path(); query (UTM) is discarded.
+		self::count_hit( (string) $referer, (string) $utm, (string) $uri );
 	}
 
 	/**
@@ -212,31 +196,38 @@ final class Referrals {
 		if ( ! self::beacon_enabled() ) {
 			return false;
 		}
-		// Skip the owner browsing their own site (shares the server-side recorder's filter).
+		return self::count_hit( (string) $referer, (string) $utm, (string) $path );
+	}
+
+	/**
+	 * The shared referral-counting core: skip the owner, resolve the AI source from
+	 * (referer, utm), keep only human browsers, and record one hit for the landing path.
+	 * Both entry points — the server-side {@see maybe_record()} and the browser beacon
+	 * {@see record_from_client()} — funnel through here, so the "what counts as an AI
+	 * referral" rule lives in exactly one place.
+	 *
+	 * @param string $referer Navigation referrer.
+	 * @param string $utm     utm_source value.
+	 * @param string $uri     Raw landing URL/URI (its query string is stripped before storing).
+	 * @return bool Whether a hit was counted.
+	 */
+	private static function count_hit( $referer, $utm, $uri ) {
+		// Skip the owner browsing their own site (shares Recorder's filter).
 		if ( apply_filters( 'agentimus_activity_skip_self', is_user_logged_in() && current_user_can( 'manage_options' ) ) ) {
 			return false;
 		}
-		$source = self::source_for( (string) $referer, (string) $utm );
+		$source = self::source_for( $referer, $utm );
 		if ( '' === $source ) {
-			return false; // Referrer/utm present, but not from a known AI assistant.
+			return false; // A referrer/utm, but not from a known AI assistant.
 		}
-		// Count only human browsers — the beacon carries the visitor's own User-Agent.
+		// Count only human browsers — a bot arriving with a referrer isn't a "visitor AI
+		// sent". (A real reader clicking from an AI answer uses a browser.)
 		$ua = isset( $_SERVER['HTTP_USER_AGENT'] ) ? sanitize_text_field( wp_unslash( $_SERVER['HTTP_USER_AGENT'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only classification, no state change.
 		if ( 'Browser' !== Classifier::classify( $ua ) ) {
 			return false;
 		}
-		self::increment( $source, self::clean_path( $path ) );
+		self::increment( $source, self::clean_path( $uri ) );
 		return true;
-	}
-
-	/**
-	 * The current request path, query string stripped (no UTM/PII stored) and capped.
-	 *
-	 * @return string
-	 */
-	private static function current_path() {
-		$uri = isset( $_SERVER['REQUEST_URI'] ) ? wp_unslash( $_SERVER['REQUEST_URI'] ) : '/'; // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- path is parsed out by clean_path(); query (UTM) is discarded.
-		return self::clean_path( $uri );
 	}
 
 	/**
