@@ -346,4 +346,98 @@ final class Exposure {
 		}
 		return substr( '/' . ltrim( $p, '/' ), 0, 300 );
 	}
+
+	/* ---------------------------------------------------------------------- *
+	 *  Debug-logging exposure (status for the Exposure tab's warning card)
+	 * ---------------------------------------------------------------------- */
+
+	/**
+	 * The site's WordPress debug posture, for the Exposure tab's status card. Reads the debug
+	 * constants + environment (a pure read — no HTTP request) and returns
+	 * { state, message, fix, fixUrl }. Risky combinations are flagged, above all in PRODUCTION:
+	 * errors shown to visitors, or a debug.log in a web-reachable folder (which the exposed-
+	 * files scan may find downloadable). Off, or any non-production environment, is a pass. The
+	 * fix is a wp-config.php edit — Agentimus detects and guides; it never changes that file.
+	 *
+	 * @return array{state:string,message:string,fix:string,fixUrl:string}
+	 */
+	public static function debug_status() {
+		$env     = function_exists( 'wp_get_environment_type' ) ? wp_get_environment_type() : 'production';
+		$debug   = defined( 'WP_DEBUG' ) && WP_DEBUG;
+		$display = ! defined( 'WP_DEBUG_DISPLAY' ) || WP_DEBUG_DISPLAY; // WP defaults this on when undefined.
+		$log_raw = defined( 'WP_DEBUG_LOG' ) ? WP_DEBUG_LOG : false;
+		$logging = ( true === $log_raw ) || ( is_string( $log_raw ) && '' !== $log_raw );
+		$path    = ( true === $log_raw )
+			? ( defined( 'WP_CONTENT_DIR' ) ? WP_CONTENT_DIR . '/debug.log' : '' )
+			: ( is_string( $log_raw ) ? $log_raw : '' );
+		$web = $logging && '' !== $path && self::path_in_webroot( $path );
+
+		list( $state, $reason ) = self::debug_verdict( 'production' === $env, $debug, (bool) $display, $logging, $web );
+
+		$messages = array(
+			'off'         => __( 'Debug logging is off.', 'agentimus' ),
+			/* translators: %s: environment type (e.g. "development"). */
+			'dev'         => sprintf( __( 'Debug mode is on — normal for a %s environment.', 'agentimus' ), $env ),
+			'display'     => __( 'WP_DEBUG_DISPLAY is on in production — PHP errors and file paths (sometimes secrets) may be shown to your visitors.', 'agentimus' ),
+			'log_web'     => __( 'Debug logging is on in production and the log sits in a web-reachable folder — it may be publicly downloadable. Run the exposed-files scan to confirm.', 'agentimus' ),
+			'log_private' => __( 'Debug logging is on in production (the log is outside the web root, so not downloadable — but production usually shouldn’t log debug output).', 'agentimus' ),
+			'on'          => __( 'Debug mode is on in production.', 'agentimus' ),
+		);
+		$risky = 'pass' !== $state;
+
+		return array(
+			'state'   => $state, // pass | warn | fail
+			'message' => isset( $messages[ $reason ] ) ? $messages[ $reason ] : '',
+			'fix'     => $risky ? __( 'Edit wp-config.php: set WP_DEBUG and WP_DEBUG_DISPLAY to false, or point WP_DEBUG_LOG at a path outside the web root. Agentimus won’t change wp-config.php for you.', 'agentimus' ) : '',
+			'fixUrl'  => $risky ? 'https://heera.github.io/agentimus/user-manual/exposure.html#debug-logging-in-production' : '',
+		);
+	}
+
+	/**
+	 * The pure decision behind {@see debug_status()} — state + reason code from the resolved
+	 * facts, split out so it unit-tests without touching PHP constants. Worst-first: errors on
+	 * screen, then a web-reachable log, then a private log, then bare debug-on. Anything
+	 * outside production, or with debug off, passes.
+	 *
+	 * @param bool $is_production Whether the environment is 'production'.
+	 * @param bool $debug         WP_DEBUG is on.
+	 * @param bool $display       WP_DEBUG_DISPLAY is on (errors rendered to the page).
+	 * @param bool $logging       A debug log is being written.
+	 * @param bool $log_web       That log sits inside the web root (potentially downloadable).
+	 * @return array{0:string,1:string} [ state (pass|warn|fail), reason code ].
+	 */
+	public static function debug_verdict( $is_production, $debug, $display, $logging, $log_web ) {
+		if ( ! $debug ) {
+			return array( 'pass', 'off' );
+		}
+		if ( ! $is_production ) {
+			return array( 'pass', 'dev' );
+		}
+		if ( $display ) {
+			return array( 'fail', 'display' );
+		}
+		if ( $logging && $log_web ) {
+			return array( 'fail', 'log_web' );
+		}
+		if ( $logging ) {
+			return array( 'warn', 'log_private' );
+		}
+		return array( 'warn', 'on' );
+	}
+
+	/**
+	 * Whether a filesystem path resolves inside the web root (ABSPATH) — a heuristic for
+	 * "an anonymous visitor could reach it over HTTP". Unknown → treated as reachable
+	 * (cautious). A plain compare on normalised paths; no filesystem access.
+	 *
+	 * @param string $path Absolute log path.
+	 * @return bool
+	 */
+	private static function path_in_webroot( $path ) {
+		$root = defined( 'ABSPATH' ) ? ABSPATH : '';
+		if ( '' === $root || '' === $path ) {
+			return true;
+		}
+		return 0 === strpos( wp_normalize_path( $path ), wp_normalize_path( $root ) );
+	}
 }

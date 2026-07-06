@@ -14,6 +14,7 @@ export default {
     knownAllowed: { type: Array, default: () => [] },
     defaultAllowed: { type: Array, default: () => [] },
     webmcpTools: { type: Array, default: () => [] },
+    debug: { type: Object, default: () => ({}) },
     endpoints: { type: Object, default: () => ({}) },
     restNamespacesDetected: { type: Array, default: () => [] },
     providerResources: { type: Array, default: () => [] },
@@ -1234,6 +1235,20 @@ export default {
           scanners. Every control here is off by default and affects only anonymous visitors — you
           and your editors are never restricted.
         </p>
+
+        <!-- WordPress debug posture: a subtle green line when fine, a prominent amber/red
+             card when debug logging/display is left on in production. Read-only — the fix
+             is a wp-config.php edit Agentimus won't make. -->
+        <div v-if="debug && debug.state" class="ar-dbgcard" :class="'is-' + debug.state">
+          <span v-if="debug.state === 'pass'" class="ar-dbgcard__ok">✓ {{ debug.message }}</span>
+          <template v-else>
+            <strong class="ar-dbgcard__title">{{ debug.message }}</strong>
+            <p v-if="debug.fix" class="ar-dbgcard__fix">
+              {{ debug.fix }}
+              <a v-if="debug.fixUrl" :href="debug.fixUrl" target="_blank" rel="noopener">How to fix ↗</a>
+            </p>
+          </template>
+        </div>
 
         <label v-for="c in exposureControls" :id="'ar-exp-' + c.key" :key="c.key" class="ar-toggle">
           <input v-model="settings[c.key]" type="checkbox" />

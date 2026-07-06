@@ -758,6 +758,21 @@
 .ar-toggle__text { display: flex; flex-direction: column; gap: 1px; }
 .ar-toggle__text strong { font-size: 14px; font-weight: 600; }
 .ar-toggle__text small { color: var(--ar-ink-soft); font-size: 12px; }
+/* Exposure tab: WordPress debug posture — a subtle green line when fine, a prominent
+   amber/red card when debug logging/display is left on in production. */
+.ar-dbgcard { margin: 2px 0 16px; }
+.ar-dbgcard.is-pass { font-size: 12.5px; color: var(--ar-good); }
+.ar-dbgcard.is-warn,
+.ar-dbgcard.is-fail { padding: 12px 14px; border-radius: 8px; font-size: 13px; line-height: 1.55; color: var(--ar-ink); }
+.ar-dbgcard.is-warn { background: rgba(173, 123, 24, 0.08); border: 1px solid rgba(173, 123, 24, 0.35); }
+.ar-dbgcard.is-fail { background: rgba(180, 40, 40, 0.07); border: 1px solid rgba(180, 40, 40, 0.35); }
+.ar-dbgcard__title { display: block; margin-bottom: 5px; }
+.ar-dbgcard.is-warn .ar-dbgcard__title { color: var(--ar-warn); }
+.ar-dbgcard.is-fail .ar-dbgcard__title { color: var(--ar-bad); }
+.ar-dbgcard__fix { margin: 0; font-size: 12.5px; color: var(--ar-ink-soft); }
+.ar-dbgcard__fix a { white-space: nowrap; font-weight: 600; }
+.ar-dbgcard.is-warn .ar-dbgcard__fix a { color: var(--ar-warn); }
+.ar-dbgcard.is-fail .ar-dbgcard__fix a { color: var(--ar-bad); }
 /* In-hint links to the standard each file/format implements (llms.txt, robots.txt,
    JSON-LD …). Kept subtle — accent + underline — so the hint still reads as a hint;
    no external-arrow glyph, which reads awkwardly on a term mid-sentence. */

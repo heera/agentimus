@@ -434,6 +434,9 @@ final class Admin {
 			// list + the owner's extra paths). The list is public attack paths; the scan
 			// itself runs in the browser, same-origin — the server makes no request.
 			'exposedPaths' => Exposure::sensitive_paths( $this->settings ),
+			// WordPress debug posture (read-only) for the Exposure tab's status card:
+			// warns when debug logging/display is left on in production. No request.
+			'debug'        => Exposure::debug_status(),
 		);
 	}
 

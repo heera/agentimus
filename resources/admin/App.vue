@@ -58,6 +58,7 @@ export default {
       knownAllowed: this.boot.knownAllowed || [],
       defaultAllowed: this.boot.defaultAllowed || [],
       webmcpTools: this.boot.webmcpTools || [],
+      debug: this.boot.debug || {},
       restNamespacesDetected: this.boot.restNamespacesDetected || [],
       endpoints: this.boot.endpoints || {},
       llmsFullEstimate: this.boot.llmsFullEstimate || {},
@@ -879,6 +880,7 @@ export default {
           :known-allowed="knownAllowed"
           :default-allowed="defaultAllowed"
           :webmcp-tools="webmcpTools"
+          :debug="debug"
           :endpoints="endpoints"
           :rest-namespaces-detected="restNamespacesDetected"
           :provider-resources="providerResources"

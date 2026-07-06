@@ -191,4 +191,37 @@ final class ExposureTest extends TestCase {
 		$src = 'https://x.test/a.js';
 		$this->assertSame( $src, Exposure::strip_core_version( $src, '6.9' ) );
 	}
+
+	/* -- Debug-logging verdict (Exposure tab's status card) -------------- */
+
+	/** Debug off → pass, regardless of the other flags or environment. */
+	public function test_debug_off_passes() {
+		$this->assertSame( array( 'pass', 'off' ), Exposure::debug_verdict( true, false, true, true, true ) );
+		$this->assertSame( array( 'pass', 'off' ), Exposure::debug_verdict( false, false, false, false, false ) );
+	}
+
+	/** Debug on but not production → pass (expected on dev / local / staging). */
+	public function test_debug_on_outside_production_passes() {
+		$this->assertSame( array( 'pass', 'dev' ), Exposure::debug_verdict( false, true, true, true, true ) );
+	}
+
+	/** Production + errors rendered on screen → the worst case: fail. */
+	public function test_display_in_production_fails() {
+		$this->assertSame( array( 'fail', 'display' ), Exposure::debug_verdict( true, true, true, true, true ) );
+	}
+
+	/** Production + a web-reachable log (display off) → fail (likely downloadable). */
+	public function test_web_reachable_log_fails() {
+		$this->assertSame( array( 'fail', 'log_web' ), Exposure::debug_verdict( true, true, false, true, true ) );
+	}
+
+	/** Production + logging to a path outside the web root → warn (noisy, not exposed). */
+	public function test_private_log_warns() {
+		$this->assertSame( array( 'warn', 'log_private' ), Exposure::debug_verdict( true, true, false, true, false ) );
+	}
+
+	/** Production + debug on but neither displaying nor logging → warn. */
+	public function test_bare_debug_on_in_production_warns() {
+		$this->assertSame( array( 'warn', 'on' ), Exposure::debug_verdict( true, true, false, false, false ) );
+	}
 }
