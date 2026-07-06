@@ -93,15 +93,33 @@ final class ExposureTest extends TestCase {
 		$this->assertSame( array( '/only-this' ), Exposure::sensitive_paths( new Settings() ) );
 	}
 
-	/** Extra paths are sanitised on save: junk chars stripped, a single leading slash forced. */
+	/** Extra paths are sanitised on save: junk chars stripped, kept AS ENTERED (no slash forced). */
 	public function test_sanitize_cleans_extra_paths() {
 		$clean = ( new Settings() )->sanitize(
-			array( 'exposed_extra_paths' => array( 'foo/bar', '/keep-me', '  ', 'has space/x' ) )
+			array( 'exposed_extra_paths' => array( 'foo/bar', '/keep-me', '  ', 'has space/x', 'backup.zip' ) )
 		);
-		$this->assertContains( '/foo/bar', $clean['exposed_extra_paths'] );
-		$this->assertContains( '/keep-me', $clean['exposed_extra_paths'] );
-		$this->assertContains( '/hasspace/x', $clean['exposed_extra_paths'] );
+		$this->assertContains( 'foo/bar', $clean['exposed_extra_paths'] );    // a slashed value is kept…
+		$this->assertContains( '/keep-me', $clean['exposed_extra_paths'] );   // …with no leading slash forced
+		$this->assertContains( 'hasspace/x', $clean['exposed_extra_paths'] ); // whitespace stripped
+		$this->assertContains( 'backup.zip', $clean['exposed_extra_paths'] ); // a bare filename stays bare
 		$this->assertNotContains( '', $clean['exposed_extra_paths'] );
+	}
+
+	/** A bare filename (no slash) is checked at the site root + wp-content + uploads. */
+	public function test_sensitive_paths_expands_a_bare_filename() {
+		update_option( Settings::OPTION, array( 'exposed_extra_paths' => array( 'backup.zip' ) ) );
+		$paths = Exposure::sensitive_paths( new Settings() );
+		$this->assertContains( '/backup.zip', $paths );
+		$this->assertContains( '/wp-content/backup.zip', $paths );
+		$this->assertContains( '/wp-content/uploads/backup.zip', $paths );
+	}
+
+	/** A value WITH a slash is an explicit path — checked verbatim, not expanded. */
+	public function test_sensitive_paths_keeps_an_explicit_path_verbatim() {
+		update_option( Settings::OPTION, array( 'exposed_extra_paths' => array( 'private/export.csv' ) ) );
+		$paths = Exposure::sensitive_paths( new Settings() );
+		$this->assertContains( '/private/export.csv', $paths );
+		$this->assertNotContains( '/wp-content/private/export.csv', $paths );
 	}
 
 	/* -- User enumeration ------------------------------------------------ */

@@ -312,9 +312,28 @@ final class Exposure {
 		$paths = (array) apply_filters( 'agentimus_exposed_paths', $defaults, $settings );
 		$extra = (array) $settings->get( 'exposed_extra_paths', array() );
 
+		// The built-in list is already explicit paths. For the owner's extras: a value that
+		// CONTAINS a slash is taken as an explicit path; a bare FILENAME (no slash) is expanded
+		// to the site root plus the two folders a stray file usually lands in — so an admin who
+		// knows only the name, not the location, still gets it checked in the likely spots.
+		$candidates = $paths;
+		foreach ( $extra as $raw ) {
+			$raw = trim( (string) $raw );
+			if ( '' === $raw ) {
+				continue;
+			}
+			if ( false === strpos( $raw, '/' ) ) {
+				$candidates[] = '/' . $raw;
+				$candidates[] = '/wp-content/' . $raw;
+				$candidates[] = '/wp-content/uploads/' . $raw;
+			} else {
+				$candidates[] = $raw;
+			}
+		}
+
 		$out  = array();
 		$seen = array();
-		foreach ( array_merge( $paths, $extra ) as $p ) {
+		foreach ( $candidates as $p ) {
 			$p = self::normalise_scan_path( (string) $p );
 			if ( '' === $p || isset( $seen[ $p ] ) ) {
 				continue;

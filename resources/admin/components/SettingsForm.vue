@@ -1263,11 +1263,14 @@ export default {
              Readiness (browser-side); this just curates what it looks for. -->
         <div class="ar-field" id="ar-exp-scan">
           <label>Also scan these paths for exposure <span class="ar-field__tag">optional</span></label>
-          <TagInput v-model="settings.exposed_extra_paths" placeholder="Add a path, e.g. /my-export.csv" />
+          <TagInput v-model="settings.exposed_extra_paths" placeholder="Add a filename or path, e.g. backup.zip or /private/export.csv" />
           <small class="ar-field__hint">
-            Extra paths to include in the exposed-files check. The built-in list already covers the common ones
-            (config backups, <code>.env</code>, keys, database dumps) — add anything site-specific you don’t want
-            public. Run it under <strong>Readiness → Scan for exposed files</strong>.
+            The built-in list already covers the common ones (config backups, <code>.env</code>, keys, database
+            dumps) — add anything site-specific you don’t want public. Don’t know the exact location? Just enter a
+            <strong>filename</strong> (<code>backup.zip</code>) and it’s checked at your site root and in
+            <code>wp-content</code> and <code>uploads</code>; or give a <strong>full path</strong>
+            (<code>/private/export.csv</code>) to check exactly that. Run it under
+            <strong>Readiness → Scan for exposed files</strong>.
           </small>
         </div>
       </section>

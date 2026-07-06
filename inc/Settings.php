@@ -571,15 +571,15 @@ final class Settings {
 		$allowed                 = isset( $input['allowed_agents'] ) ? $input['allowed_agents'] : array();
 		$clean['allowed_agents'] = $this->sanitize_list( $allowed, 'sanitize_text_field' );
 
-		// Owner-added paths for the exposed-files self-check. Keep only path-safe characters
-		// and force a single leading slash; the scan + Exposure::sensitive_paths() normalise
-		// and dedupe further. Bounded in count/length like the other lists.
+		// Owner-added paths/filenames for the exposed-files self-check. Keep only path-safe
+		// characters, AS ENTERED — a leading slash is NOT forced, because a bare filename (no
+		// slash) is meaningful: Exposure::sensitive_paths() expands it to the common locations,
+		// while a slashed value is treated as an explicit path. Bounded in count/length.
 		$paths_in                     = isset( $input['exposed_extra_paths'] ) ? $input['exposed_extra_paths'] : array();
 		$clean['exposed_extra_paths'] = $this->sanitize_list(
 			$paths_in,
 			static function ( $p ) {
-				$p = preg_replace( '#[^A-Za-z0-9._~/\-]#', '', trim( (string) $p ) );
-				return '' === $p ? '' : '/' . ltrim( $p, '/' );
+				return preg_replace( '#[^A-Za-z0-9._~/\-]#', '', trim( (string) $p ) );
 			}
 		);
 
