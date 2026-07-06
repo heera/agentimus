@@ -41,9 +41,22 @@ final class PageCheckMetaBox {
 	 * @param \WP_Post $post Post being edited.
 	 */
 	public function render_meta_box( $post ) {
+		echo self::rows_html( $post ); // phpcs:ignore WordPress.Security.EscapingOutput.OutputNotEscaped -- every field is escaped inside rows_html().
+	}
+
+	/**
+	 * The section body as an HTML string — the pass/warn rows and the one-line
+	 * summary. Pure given a post, so the meta box and the REST auto-refresh route
+	 * ({@see EditorPanel::rest_page_check()}) render byte-identical markup.
+	 *
+	 * @param \WP_Post $post Post being edited.
+	 * @return string
+	 */
+	public static function rows_html( $post ) {
 		$rows = PageCheck::analyze( $post );
 		$sum  = PageCheck::summary( $rows );
 
+		ob_start();
 		echo '<div class="agentimus-pc">';
 
 		$head = ( $sum['warn'] + $sum['fail'] ) > 0
@@ -71,8 +84,9 @@ final class PageCheckMetaBox {
 		}
 		echo '</ul>';
 
-		echo '<p class="agentimus-pc__reflect">' . esc_html__( 'Reflects the saved version — save to refresh.', 'agentimus' ) . '</p>';
+		echo '<p class="agentimus-pc__reflect">' . esc_html__( 'Updates when you save.', 'agentimus' ) . '</p>';
 		echo '</div>';
+		return (string) ob_get_clean();
 	}
 
 	/**

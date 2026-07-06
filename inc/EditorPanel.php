@@ -41,11 +41,69 @@ final class EditorPanel {
 	 * Register the box and its assets — admin only.
 	 */
 	public function register() {
+		// The refresh route must register on REST requests too (which are not
+		// is_admin()), so hook it before the admin-only meta box + assets.
+		add_action( 'rest_api_init', array( $this, 'register_rest' ) );
 		if ( ! is_admin() ) {
 			return;
 		}
 		add_action( 'add_meta_boxes', array( $this, 'add_meta_box' ) );
 		add_action( 'admin_enqueue_scripts', array( $this, 'assets' ) );
+	}
+
+	/**
+	 * Register the route the editor polls to refresh the AI Readability rows after a
+	 * save. The block editor saves without a page reload, so the server-rendered box
+	 * would otherwise stay stale until a manual refresh; this returns the same markup
+	 * the meta box renders. Gated per post by the edit_post capability.
+	 */
+	public function register_rest() {
+		register_rest_route(
+			'agentimus/v1',
+			'/page-check',
+			array(
+				'methods'             => \WP_REST_Server::READABLE,
+				'callback'            => array( $this, 'rest_page_check' ),
+				'permission_callback' => static function ( $request ) {
+					return current_user_can( 'edit_post', absint( $request['post'] ) );
+				},
+				'args'                => array(
+					'post' => array(
+						'type'              => 'integer',
+						'default'           => 0,
+						'sanitize_callback' => 'absint',
+					),
+				),
+			)
+		);
+	}
+
+	/**
+	 * GET /agentimus/v1/page-check/{id} — the AI Readability rows for a saved post,
+	 * as the markup the meta box would render. `enabled:false` when the section is
+	 * off (the editor simply leaves the panel as-is).
+	 *
+	 * @param \WP_REST_Request $request Request.
+	 * @return \WP_REST_Response|\WP_Error
+	 */
+	public function rest_page_check( \WP_REST_Request $request ) {
+		if ( ! $this->readability->is_enabled() ) {
+			return rest_ensure_response( array( 'enabled' => false, 'html' => '' ) );
+		}
+		$post = get_post( absint( $request['post'] ) );
+		if ( ! $post || ! in_array( $post->post_type, Content::post_types(), true ) ) {
+			return new \WP_Error(
+				'agentimus_page_check_not_found',
+				__( 'That content is not available.', 'agentimus' ),
+				array( 'status' => 404 )
+			);
+		}
+		return rest_ensure_response(
+			array(
+				'enabled' => true,
+				'html'    => PageCheckMetaBox::rows_html( $post ),
+			)
+		);
 	}
 
 	/**
@@ -153,7 +211,12 @@ final class EditorPanel {
 		wp_enqueue_style( self::HANDLE );
 		wp_add_inline_style( self::HANDLE, self::css() . PageCheckMetaBox::css() . SchemaMetaBox::css() );
 
-		wp_register_script( self::HANDLE, false, array(), AGENTIMUS_VERSION, true );
+		// In the block editor the panel refreshes itself over REST after a save (no
+		// page reload happens there); those two core scripts back that. The classic
+		// editor reloads the whole page on save, so it needs neither.
+		$is_block = $screen && method_exists( $screen, 'is_block_editor' ) && $screen->is_block_editor();
+		$deps     = $is_block ? array( 'wp-data', 'wp-api-fetch' ) : array();
+		wp_register_script( self::HANDLE, false, $deps, AGENTIMUS_VERSION, true );
 		wp_enqueue_script( self::HANDLE );
 		wp_add_inline_script( self::HANDLE, self::js() . SchemaMetaBox::js() );
 	}
@@ -166,6 +229,28 @@ final class EditorPanel {
 	private static function js() {
 		return <<<'JS'
 (function(){var tabs=document.querySelectorAll('.agentimus-panel__tab');Array.prototype.forEach.call(tabs,function(tab){tab.addEventListener('click',function(){var panel=tab.closest('.agentimus-panel');if(!panel){return;}var target=tab.getAttribute('data-target');Array.prototype.forEach.call(panel.querySelectorAll('.agentimus-panel__tab'),function(t){t.classList.toggle('is-active',t===tab);});Array.prototype.forEach.call(panel.querySelectorAll('.agentimus-panel__pane'),function(p){p.classList.toggle('is-active',p.getAttribute('data-pane')===target);});});});})();
+(function(){
+	if(!window.wp||!wp.data||!wp.apiFetch){return;}
+	if(!document.querySelector('.agentimus-panel__pane[data-pane="readability"]')){return;}
+	var sel=function(){return wp.data.select('core/editor');};
+	if(!sel()||!sel().getCurrentPostId){return;}
+	function refresh(){
+		var id=sel().getCurrentPostId();
+		if(!id){return;}
+		wp.apiFetch({path:'/agentimus/v1/page-check?post='+id}).then(function(res){
+			if(!res||typeof res.html!=='string'||!res.html){return;}
+			Array.prototype.forEach.call(document.querySelectorAll('.agentimus-panel__pane[data-pane="readability"]'),function(pane){pane.innerHTML=res.html;});
+		}).catch(function(){});
+	}
+	var was=false;
+	wp.data.subscribe(function(){
+		var ed=sel();
+		if(!ed||!ed.isSavingPost){return;}
+		var saving=ed.isSavingPost()&&!ed.isAutosavingPost();
+		if(was&&!saving&&(!ed.didPostSaveRequestSucceed||ed.didPostSaveRequestSucceed())){refresh();}
+		was=saving;
+	});
+})();
 JS;
 	}
 

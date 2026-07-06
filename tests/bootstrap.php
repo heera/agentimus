@@ -50,9 +50,29 @@ namespace {
 		}
 	}
 
+	if ( ! class_exists( 'WP_Post' ) ) {
+		class WP_Post {
+			public $ID = 0;
+			public $post_content = '';
+			public $post_excerpt = '';
+			public $post_title = '';
+			public $post_status = 'publish';
+			public $post_type = 'post';
+			public $post_password = '';
+			public $post_author = 1;
+			public function __construct( array $d = array() ) {
+				foreach ( $d as $k => $v ) { $this->$k = $v; }
+			}
+		}
+	}
+
 	// --- Minimal WordPress function surface (only what the tested code calls). ---
 	if ( ! function_exists( 'is_wp_error' ) )           { function is_wp_error( $t ) { return $t instanceof \WP_Error; } }
 	if ( ! function_exists( '__' ) )                    { function __( $s, $d = null ) { return $s; } }
+		if ( ! function_exists( 'esc_html' ) )              { function esc_html( $s ) { return htmlspecialchars( (string) $s, ENT_QUOTES ); } }
+		if ( ! function_exists( 'esc_attr' ) )              { function esc_attr( $s ) { return htmlspecialchars( (string) $s, ENT_QUOTES ); } }
+		if ( ! function_exists( 'esc_html__' ) )            { function esc_html__( $s, $d = null ) { return htmlspecialchars( (string) $s, ENT_QUOTES ); } }
+		if ( ! function_exists( 'esc_attr__' ) )            { function esc_attr__( $s, $d = null ) { return htmlspecialchars( (string) $s, ENT_QUOTES ); } }
 	if ( ! function_exists( 'sanitize_key' ) )          { function sanitize_key( $k ) { return preg_replace( '/[^a-z0-9_\-]/', '', strtolower( (string) $k ) ); } }
 	if ( ! function_exists( 'sanitize_text_field' ) )   { function sanitize_text_field( $s ) { return trim( preg_replace( '/\s+/', ' ', strip_tags( (string) $s ) ) ); } }
 	if ( ! function_exists( 'wp_unslash' ) )            { function wp_unslash( $v ) { return is_string( $v ) ? stripslashes( $v ) : $v; } }
