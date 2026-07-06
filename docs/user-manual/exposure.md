@@ -164,6 +164,26 @@ After applying a rule, re-run **Scan for exposed files** — the flagged path sh
 
 > Blocking belongs at the webserver or CDN, not in PHP: your server hands back a static file before WordPress (or any plugin) can step in. Agentimus finds the leak and tells you — the block itself lives one layer out.
 
+## Debug logging in production
+
+WordPress's debug mode (`WP_DEBUG`) is invaluable while you build, but on a **live** site it can leak. The log file (`wp-content/debug.log`) is web-reachable by default and can grow to gigabytes, and `WP_DEBUG_DISPLAY` prints errors — file paths, and occasionally secrets — straight onto the page for visitors to see. Agentimus's **Readiness** report flags this when it detects debug mode on in a production environment.
+
+The fix is a small edit to **`wp-config.php`** — Agentimus won't touch that file, it's yours to control. For a live site, turn debug off:
+
+```php
+define( 'WP_DEBUG', false );
+```
+
+If you genuinely need logging on a live site, keep it — but never display it, and move the log out of the web root:
+
+```php
+define( 'WP_DEBUG', true );
+define( 'WP_DEBUG_DISPLAY', false );                              // never shown to visitors
+define( 'WP_DEBUG_LOG', '/home/you/private-logs/wp-debug.log' );  // outside the web root
+```
+
+After changing it, re-open **Readiness** — the check turns green.
+
 ## Troubleshooting
 
 **I turned something on but I still see the old behaviour.** Settings are read when a page loads, and you're likely still viewing as a logged-in admin — the controls only affect logged-out visitors. Check in a private/incognito browser window, or on a page cache that has refreshed.
