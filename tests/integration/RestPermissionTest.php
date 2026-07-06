@@ -13,8 +13,9 @@ namespace Agentimus\Tests\Integration;
 
 final class RestPermissionTest extends RestTestCase {
 
-	/** Deliberately public: the WP namespace index, and the discovery document. */
-	private const PUBLIC_ROUTES = array( '/agentimus/v1', '/agentimus/v1/discovery' );
+	/** Deliberately public: the WP namespace index, the discovery document, and the
+	 *  front-end AI-referral beacon (same-origin + rate-limited, never admin data). */
+	private const PUBLIC_ROUTES = array( '/agentimus/v1', '/agentimus/v1/discovery', '/agentimus/v1/ai-hit' );
 
 	public function test_no_admin_route_is_reachable_by_a_subscriber() {
 		wp_set_current_user( $this->subscriber );

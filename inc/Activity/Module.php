@@ -18,6 +18,12 @@ final class Module {
 
 	const CRON = 'agentimus_prune_activity';
 
+	/** Site-wide flood cap for the public referral beacon: at most this many hits accepted
+	 *  per window (seconds), so a scripted same-origin flood can't inflate a page's count
+	 *  without bound. Generous; filter `agentimus_referral_beacon_rate` (0 disables it). */
+	const BEACON_RATE_MAX    = 600;
+	const BEACON_RATE_WINDOW = 60;
+
 	/** @var Settings */
 	private $settings;
 
@@ -42,6 +48,12 @@ final class Module {
 		self::schedule();
 		// Count human visits referred from AI assistants (the mirror of the bot log).
 		add_action( 'template_redirect', array( Referrals::class, 'maybe_record' ), 30 );
+		// Opt-in "CDN mode": when on, the server-side recorder above stands down and a tiny
+		// front-end beacon counts instead, so referrals survive a full-page cache. A default
+		// install adds no front-end script at all.
+		if ( Referrals::beacon_enabled() ) {
+			add_action( 'wp_enqueue_scripts', array( $this, 'enqueue_beacon' ) );
+		}
 		add_action( 'rest_api_init', array( $this, 'routes' ) );
 		add_action( self::CRON, array( Repository::class, 'prune' ) );
 		add_action( self::CRON, array( Referrals::class, 'prune' ) );
@@ -122,6 +134,112 @@ final class Module {
 				'callback'            => array( $this, 'allow' ),
 				'args'                => array( 'ua' => array( 'type' => 'string' ) ),
 			)
+		);
+
+		// Public, unauthenticated: the front-end AI-referral beacon ("CDN mode"). Same-
+		// origin + rate-limited; the server re-derives the source, stores no IP/UA, and
+		// always answers 204 (never revealing whether a hit counted, so a spoofer has no
+		// signal to tune against). Registered regardless of the setting so a stale cached
+		// page's beacon still resolves cleanly; the handler no-ops when the mode is off.
+		register_rest_route(
+			'agentimus/v1',
+			'/ai-hit',
+			array(
+				'methods'             => 'POST',
+				'permission_callback' => '__return_true',
+				'callback'            => array( $this, 'ai_hit' ),
+			)
+		);
+	}
+
+	/**
+	 * REST: POST /ai-hit — the public front-end AI-referral beacon ("CDN mode"). A
+	 * fire-and-forget counter: it ALWAYS answers 204 (the caller is navigator.sendBeacon,
+	 * which ignores the body, and a uniform reply denies a spoofer any success/fail
+	 * oracle). Guards, in order: same-origin (the beacon fires from our own pages) and a
+	 * coarse, IP-free site-wide rate cap. The source is re-derived server-side by
+	 * {@see Referrals::record_from_client()} — a client-sent label is never trusted — and
+	 * nothing identifying is stored.
+	 *
+	 * @param \WP_REST_Request $request Request.
+	 * @return \WP_REST_Response Always 204.
+	 */
+	public function ai_hit( \WP_REST_Request $request ) {
+		$noop = new \WP_REST_Response( null, 204 );
+
+		if ( ! $this->beacon_same_origin( $request ) || ! $this->beacon_within_rate() ) {
+			return $noop;
+		}
+
+		$body = (array) $request->get_json_params();
+		Referrals::record_from_client(
+			isset( $body['ref'] ) ? (string) $body['ref'] : '',
+			isset( $body['utm'] ) ? (string) $body['utm'] : '',
+			isset( $body['path'] ) ? (string) $body['path'] : ''
+		);
+		return $noop;
+	}
+
+	/**
+	 * Whether a beacon POST originated from this very site — the beacon only ever fires
+	 * from our own pages, so a cross-site (or origin-less) request is not a real arrival.
+	 * Prefers the Origin header, falling back to Referer for the browsers that omit Origin
+	 * on a same-origin beacon.
+	 *
+	 * @param \WP_REST_Request $request Request.
+	 * @return bool
+	 */
+	private function beacon_same_origin( \WP_REST_Request $request ) {
+		$origin = (string) $request->get_header( 'origin' );
+		if ( '' === $origin ) {
+			$origin = (string) $request->get_header( 'referer' );
+		}
+		$req_host  = strtolower( (string) wp_parse_url( $origin, PHP_URL_HOST ) );
+		$site_host = strtolower( (string) wp_parse_url( home_url(), PHP_URL_HOST ) );
+		return '' !== $req_host && $req_host === $site_host;
+	}
+
+	/**
+	 * A coarse, PII-free flood cap for the public beacon: bound how many hits the whole
+	 * site accepts per window with a single transient counter (no IP is read or stored).
+	 * Under normal traffic it never trips; only a flood is clipped — where dropping is the
+	 * goal. Site-wide by design; a very high-traffic site can raise it via the filter.
+	 *
+	 * @return bool True if this hit is within the cap.
+	 */
+	private function beacon_within_rate() {
+		$max = (int) apply_filters( 'agentimus_referral_beacon_rate', self::BEACON_RATE_MAX );
+		if ( $max < 1 ) {
+			return true; // Cap disabled.
+		}
+		$key   = 'agentimus_beacon_rate';
+		$count = (int) get_transient( $key );
+		if ( $count >= $max ) {
+			return false;
+		}
+		set_transient( $key, $count + 1, self::BEACON_RATE_WINDOW );
+		return true;
+	}
+
+	/**
+	 * Enqueue the tiny front-end beacon (footer, non-blocking) and hand it the endpoint
+	 * URL. Only wired when CDN mode is on, so a default install adds no front-end script.
+	 */
+	public function enqueue_beacon() {
+		if ( is_admin() ) {
+			return;
+		}
+		wp_enqueue_script(
+			'agentimus-referral',
+			AGENTIMUS_URL . 'assets/referral-beacon.js',
+			array(),
+			AGENTIMUS_VERSION,
+			true
+		);
+		wp_localize_script(
+			'agentimus-referral',
+			'AgentimusReferral',
+			array( 'endpoint' => esc_url_raw( rest_url( 'agentimus/v1/ai-hit' ) ) )
 		);
 	}
 

@@ -151,6 +151,12 @@ final class Referrals {
 		if ( ! self::enabled() ) {
 			return;
 		}
+		// In browser-beacon "CDN mode" the front-end beacon is the source of truth — stand
+		// the server-side path down so a visit is never counted twice (there is no per-visit
+		// id to dedupe on). See record_from_client().
+		if ( self::beacon_enabled() ) {
+			return;
+		}
 		if ( is_admin() || ( defined( 'REST_REQUEST' ) && REST_REQUEST ) || ( defined( 'DOING_AJAX' ) && DOING_AJAX ) ) {
 			return;
 		}
@@ -190,12 +196,58 @@ final class Referrals {
 	}
 
 	/**
-	 * The request path, query string stripped (no UTM/PII stored) and length-capped.
+	 * Record an AI-referral from the front-end beacon (opt-in "CDN mode"). The browser
+	 * sends the navigation's referrer, utm_source and landing path; the SERVER re-derives
+	 * the source with {@see source_for()} — never trusting a client-supplied label — exactly
+	 * as {@see maybe_record()} does, and stores only (day, source, path) as always: no IP,
+	 * no User-Agent, no query string. Runs only when beacon mode is the chosen source.
+	 * Returns whether it counted; the endpoint discards that so a spoofer gets no oracle.
+	 *
+	 * @param string $referer Navigation referrer (document.referrer).
+	 * @param string $utm     utm_source value.
+	 * @param string $path    Landing path.
+	 * @return bool
+	 */
+	public static function record_from_client( $referer, $utm, $path ) {
+		if ( ! self::beacon_enabled() ) {
+			return false;
+		}
+		// Skip the owner browsing their own site (shares the server-side recorder's filter).
+		if ( apply_filters( 'agentimus_activity_skip_self', is_user_logged_in() && current_user_can( 'manage_options' ) ) ) {
+			return false;
+		}
+		$source = self::source_for( (string) $referer, (string) $utm );
+		if ( '' === $source ) {
+			return false; // Referrer/utm present, but not from a known AI assistant.
+		}
+		// Count only human browsers — the beacon carries the visitor's own User-Agent.
+		$ua = isset( $_SERVER['HTTP_USER_AGENT'] ) ? sanitize_text_field( wp_unslash( $_SERVER['HTTP_USER_AGENT'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only classification, no state change.
+		if ( 'Browser' !== Classifier::classify( $ua ) ) {
+			return false;
+		}
+		self::increment( $source, self::clean_path( $path ) );
+		return true;
+	}
+
+	/**
+	 * The current request path, query string stripped (no UTM/PII stored) and capped.
 	 *
 	 * @return string
 	 */
 	private static function current_path() {
-		$uri  = isset( $_SERVER['REQUEST_URI'] ) ? wp_unslash( $_SERVER['REQUEST_URI'] ) : '/'; // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- path is parsed out below; query (UTM) is discarded.
+		$uri = isset( $_SERVER['REQUEST_URI'] ) ? wp_unslash( $_SERVER['REQUEST_URI'] ) : '/'; // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- path is parsed out by clean_path(); query (UTM) is discarded.
+		return self::clean_path( $uri );
+	}
+
+	/**
+	 * Reduce a raw URL/URI to a stored landing path: the path component only (query
+	 * string — and any UTM/PII in it — discarded), non-empty, length-capped. Shared by the
+	 * server-side recorder and the browser beacon so both store identical paths.
+	 *
+	 * @param string $uri Raw URL or request URI.
+	 * @return string
+	 */
+	private static function clean_path( $uri ) {
 		$path = (string) wp_parse_url( (string) $uri, PHP_URL_PATH );
 		if ( '' === $path ) {
 			$path = '/';
@@ -274,6 +326,28 @@ final class Referrals {
 		return self::$enabled;
 	}
 
+	/**
+	 * Whether browser-beacon "CDN mode" is the chosen source of truth for referrals. When
+	 * ON, the server-side {@see maybe_record()} stands down and the front-end beacon
+	 * ({@see record_from_client()}) counts instead — the two can't be deduped (no per-visit
+	 * id is stored), so it is deliberately one OR the other. Opt-in; default OFF, so a
+	 * normal install adds no front-end script and counts server-side. Its purpose is to
+	 * survive a full-page CDN/edge cache, which hides server-side hits. Requires activity
+	 * logging to be on. Filterable to force from code.
+	 *
+	 * @return bool
+	 */
+	public static function beacon_enabled() {
+		$on = self::enabled() && (bool) ( new Settings() )->enabled( 'enable_referral_beacon' );
+		/**
+		 * Filter whether AI-referral counting runs client-side (browser beacon) instead of
+		 * server-side. Return true to force "CDN mode" from code.
+		 *
+		 * @param bool $on Whether the browser beacon is the source of truth.
+		 */
+		return (bool) apply_filters( 'agentimus_referral_beacon', $on );
+	}
+
 	/* ---------------------------------------------------------------------- *
 	 *  Read (dashboard)
 	 * ---------------------------------------------------------------------- */
@@ -307,6 +381,7 @@ final class Referrals {
 
 		return array(
 			'enabled'  => true,
+			'beacon'   => self::beacon_enabled(),
 			'totals'   => array(
 				'today'  => $today_count,
 				'window' => $window_count,

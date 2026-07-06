@@ -11,8 +11,19 @@
 namespace Agentimus\Tests\Integration;
 
 use Agentimus\Activity\Referrals;
+use Agentimus\Settings;
 
 final class ReferralsDbTest extends DbTestCase {
+
+	/** A realistic desktop-browser UA (classifies as "Browser", which the beacon requires). */
+	const BROWSER_UA = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Safari/537.36';
+
+	private function enable_beacon() {
+		update_option(
+			Settings::OPTION,
+			array_merge( (array) get_option( Settings::OPTION, array() ), array( 'enable_referral_beacon' => true ) )
+		);
+	}
 
 	public function set_up(): void {
 		parent::set_up();
@@ -105,5 +116,55 @@ final class ReferralsDbTest extends DbTestCase {
 
 		global $wpdb;
 		$this->assertSame( array( '/new' ), $wpdb->get_col( 'SELECT path FROM ' . Referrals::name() ) );
+	}
+
+	/* -- Browser beacon ("CDN mode") ------------------------------------- */
+
+	public function test_record_from_client_only_counts_when_beacon_mode_is_on() {
+		$_SERVER['HTTP_USER_AGENT'] = self::BROWSER_UA;
+
+		// OFF by default → the client path is inert (server-side is the source of truth).
+		$this->assertFalse( Referrals::record_from_client( 'https://chatgpt.com/', '', '/guide' ) );
+		$this->assertSame( 0, $this->row_count() );
+
+		$this->enable_beacon();
+
+		// A ChatGPT referrer now counts...
+		$this->assertTrue( Referrals::record_from_client( 'https://chatgpt.com/', '', '/guide' ) );
+		// ...a non-AI referrer does not...
+		$this->assertFalse( Referrals::record_from_client( 'https://example.com/', '', '/guide' ) );
+		// ...and utm_source is caught even when the referrer was stripped.
+		$this->assertTrue( Referrals::record_from_client( '', 'chatgpt.com', '/guide' ) );
+
+		global $wpdb;
+		$table = Referrals::name();
+		$this->assertSame( '2', $wpdb->get_var( $wpdb->prepare( "SELECT hits FROM `$table` WHERE source = %s AND path = %s", 'ChatGPT', '/guide' ) ) );
+		$this->assertSame( 1, $this->row_count(), 'both AI hits fold into one (day, source, path) row' );
+
+		unset( $_SERVER['HTTP_USER_AGENT'] );
+	}
+
+	/** The stored landing path is the path only — any query string (and UTM/PII in it) is dropped. */
+	public function test_record_from_client_stores_path_without_query() {
+		$this->enable_beacon();
+		$_SERVER['HTTP_USER_AGENT'] = self::BROWSER_UA;
+
+		Referrals::record_from_client( 'https://perplexity.ai/', '', '/deals?utm_source=perplexity.ai&x=1' );
+
+		global $wpdb;
+		$this->assertSame( '/deals', $wpdb->get_var( 'SELECT path FROM ' . Referrals::name() ), 'the query string must not be stored' );
+
+		unset( $_SERVER['HTTP_USER_AGENT'] );
+	}
+
+	/** A non-browser UA (a bot arriving with a referrer) is not a "visitor AI sent". */
+	public function test_record_from_client_ignores_non_browser_agents() {
+		$this->enable_beacon();
+		$_SERVER['HTTP_USER_AGENT'] = 'GPTBot/1.0';
+
+		$this->assertFalse( Referrals::record_from_client( 'https://chatgpt.com/', '', '/guide' ) );
+		$this->assertSame( 0, $this->row_count() );
+
+		unset( $_SERVER['HTTP_USER_AGENT'] );
 	}
 }

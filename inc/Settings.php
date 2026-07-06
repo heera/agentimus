@@ -32,6 +32,7 @@ final class Settings {
 			'topics_derive_default' => true, // Default for new posts: also derive topics from the page's tags & categories (a manual list still wins).
 			'topics_max'       => 12,    // Hard cap on emitted topics per page, to keep the machine surfaces lean.
 			'enable_activity'  => true,
+			'enable_referral_beacon' => false, // Opt-in "CDN mode": count AI referrals via a tiny front-end beacon instead of server-side, so the count survives a full-page CDN/edge cache (which hides server-side hits). OFF by default — a normal site adds NO front-end script and counts server-side. When ON, the server-side recorder stands down (the two can't be deduped: no per-visit id). See Activity\Referrals::beacon_enabled().
 			'enable_page_checks' => true, // Editor-only "AI Readability" panel: per-page pass/warn checks (headings, summary, thin content, link density, image alt). No front-end output — an authoring aid — so it's safe on by default.
 			'enable_sitemap'   => true, // Gap-only fallback: stands down when core/SEO provides one, so it's safe on by default.
 			'enable_changes'   => true, // JSON change feed at /agentimus-changes.json — recently added/updated pages, with a `?since=` delta filter so agents re-check only what changed. Read-only and cheap (one bounded, cached query), so on by default like the sitemap.
