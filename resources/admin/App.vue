@@ -806,6 +806,7 @@ export default {
 
 <template>
   <div class="ar">
+    <div class="ar__sticky">
     <header class="ar__bar">
       <button type="button" class="ar__brand" aria-label="Agentimus — reload" @click="reloadPlugin">
         <span class="ar__mark" aria-hidden="true">
@@ -845,6 +846,7 @@ export default {
       <ReviewMenu
         :threats="(activity && activity.threats) || {}"
         :enabled="!!(activity && activity.enabled)"
+        :store-ips="!!settings.store_flagged_ips"
         :blocking="blockingNow"
         :allowing="allowingNow"
         :dismissing="dismissingNow"
@@ -858,6 +860,12 @@ export default {
         @flash="flash"
       />
     </header>
+
+    <div class="ar__pagehead">
+      <h1 class="ar__pagehead-title">{{ pageMeta.title }}</h1>
+      <p v-if="pageMeta.description" class="ar__pagehead-desc">{{ pageMeta.description }}</p>
+    </div>
+    </div>
 
     <Teleport to="body">
       <transition-group tag="div" name="ar-toast" class="ar-toasts" aria-live="polite">
@@ -886,11 +894,6 @@ export default {
       @skip="skipWizard"
       @done="closeWizard"
     />
-
-    <div class="ar__pagehead">
-      <h1 class="ar__pagehead-title">{{ pageMeta.title }}</h1>
-      <p v-if="pageMeta.description" class="ar__pagehead-desc">{{ pageMeta.description }}</p>
-    </div>
 
     <main class="ar__body is-railed">
       <div class="ar__main">
