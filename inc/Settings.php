@@ -87,7 +87,7 @@ final class Settings {
 			// install never silently blocks anyone.
 			'block_agents'     => false, // Master switch for denying agents at the generated endpoints.
 			'block_spoofed'    => true,  // When blocking is on, also deny spoofed/legacy-device UAs (the "Likely spoof/scanner" class). No effect while block_agents is false.
-			'verify_bots'      => false, // Opt-in: forward-confirm a claimed search engine by reverse DNS before granting it always-allow status, so a spoofed "Googlebot" UA can't inherit a real crawler's trust. OFF by default because it makes outbound DNS lookups (all this plugin ever makes). No effect while block_agents is false.
+			'verify_bots'      => false, // Opt-in: forward-confirm a claimed search engine by reverse DNS. Two independent effects — it flags a proven impersonator in the review queue (and records the verdict for "Check this bot"), and, WHEN blocking is on, stops a spoofed "Googlebot" UA inheriting a real crawler's always-allow. OFF by default because it makes outbound DNS lookups (all this plugin ever makes).
 			'blocked_agents'   => array(), // Owner's custom user-agent substrings to deny (case-insensitive). Empty = none.
 			'allowed_agents'   => array(), // Owner's trust-list (via the activity panel's "Allow"): never blocked, never flagged for review. Empty = none.
 			// Exposure controls — reduce what an ANONYMOUS visitor (crawler / bot /

@@ -51,6 +51,7 @@ export default {
       })(),
       blockingNow: null,
       allowingNow: null,
+      dismissingNow: null,
       entityTypes: this.boot.entityTypes || ['Person', 'Organization'],
       postTypes: this.boot.postTypes || [],
       knownTrainers: this.boot.knownTrainers || [],
@@ -724,6 +725,19 @@ export default {
         this.allowingNow = null;
       }
     },
+    // "Ignore" a flagged client — drops it from the review queue without allowing or
+    // blocking (no policy change, so no settings to sync). The endpoint returns refreshed
+    // stats with the row already gone; it reappears only if the client changes materially.
+    async dismissAgent(payload) {
+      this.dismissingNow = payload;
+      try {
+        this.activity = await this.api.dismissAgent(payload);
+      } catch (e) {
+        this.flash('error', e.message);
+      } finally {
+        this.dismissingNow = null;
+      }
+    },
     // A fingerprint of the block/allow-relevant settings, to detect when the
     // dashboard's flags have gone stale after a settings change.
     blockingKeyOf(s) {
@@ -825,12 +839,15 @@ export default {
         :enabled="!!(activity && activity.enabled)"
         :blocking="blockingNow"
         :allowing="allowingNow"
+        :dismissing="dismissingNow"
         :live="live"
         :live-interval="15"
         @block="blockAgent"
         @allow="allowAgent"
+        @dismiss="dismissAgent"
         @set-live="setLive"
         @navigate="goTo"
+        @flash="flash"
       />
     </header>
 

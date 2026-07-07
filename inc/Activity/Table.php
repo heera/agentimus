@@ -15,7 +15,7 @@ defined( 'ABSPATH' ) || exit;
 final class Table {
 
 	/** Bump when the schema changes to trigger a dbDelta upgrade. */
-	const VERSION        = '2';
+	const VERSION        = '3';
 	const VERSION_OPTION = 'agentimus_activity_db_version';
 
 	/**
@@ -50,11 +50,16 @@ final class Table {
 		$collate = $wpdb->get_charset_collate();
 
 		// dbDelta is whitespace-sensitive: two spaces after PRIMARY KEY, lowercase types.
+		// `verdict` records the live forward-confirmed reverse-DNS result for a UA that
+		// claimed a verifiable search engine, captured at hit-time and stored WITHOUT the
+		// IP that produced it (see Recorder): 0 = unchecked/inconclusive, 1 = verified,
+		// 2 = spoofed (conclusively not that engine). dbDelta adds the column on upgrade.
 		$sql = "CREATE TABLE $table (
   id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
   endpoint varchar(64) NOT NULL DEFAULT '',
   agent varchar(64) NOT NULL DEFAULT '',
   ua varchar(255) NOT NULL DEFAULT '',
+  verdict tinyint(1) NOT NULL DEFAULT 0,
   hit_at datetime NOT NULL,
   PRIMARY KEY  (id),
   KEY hit_at (hit_at),

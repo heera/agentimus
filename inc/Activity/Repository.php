@@ -32,6 +32,12 @@ final class Repository {
 	/** Max suspicious sources returned to the panel. */
 	const THREATS_LIMIT = 12;
 
+	/** Where "Ignore" dismissals live: a map of review-key => { at, hits }. Its own
+	 *  option (autoload off) so it stays out of the user-facing settings form, and is
+	 *  bounded to the most recent DISMISS_MAX entries. */
+	const DISMISS_OPTION = 'agentimus_review_dismissed';
+	const DISMISS_MAX    = 200;
+
 	/** Default rows in each dashboard breakdown; each filterable (see stats()). */
 	const TOP_CLIENTS   = 8;
 	const TOP_ENDPOINTS = 12;
@@ -322,9 +328,12 @@ final class Repository {
 		// it. Bounded to the 200 busiest sources — far more than a content site sees,
 		// and the pure pass only keeps the flagged ones anyway.
 		// phpcs:disable WordPress.DB, PluginCheck.Security.DirectDB.UnescapedDBParameter -- $table is our own prefix-derived name; values are bound via prepare().
+		// MAX(verdict) folds the per-hit reverse-DNS results to the WORST seen for this UA
+		// (2 spoofed > 1 verified > 0 unchecked): if any hit under this UA conclusively
+		// failed verification, the client is an impersonator and must surface as one.
 		$sources = $wpdb->get_results(
 			$wpdb->prepare(
-				"SELECT ua, MAX(agent) AS agent, COUNT(*) AS hits, MIN(hit_at) AS first_seen, MAX(hit_at) AS last_seen FROM $table WHERE hit_at >= %s GROUP BY ua ORDER BY hits DESC LIMIT 200",
+				"SELECT ua, MAX(agent) AS agent, COUNT(*) AS hits, MAX(verdict) AS verdict, MIN(hit_at) AS first_seen, MAX(hit_at) AS last_seen FROM $table WHERE hit_at >= %s GROUP BY ua ORDER BY hits DESC LIMIT 200",
 				$since
 			),
 			ARRAY_A
@@ -350,6 +359,7 @@ final class Repository {
 				'burstMin'   => (int) apply_filters( 'agentimus_burst_min_hits', self::BURST_MIN_HITS ),
 				'heavyMin'   => (int) apply_filters( 'agentimus_heavy_min_hits', self::HEAVY_MIN_HITS ),
 				'limit'      => (int) apply_filters( 'agentimus_threats_limit', self::THREATS_LIMIT ),
+				'dismissed'  => self::dismissed_map(),
 			)
 		);
 	}
@@ -379,11 +389,14 @@ final class Repository {
 		$counts = array( 'new' => 0, 'heavy' => 0, 'spoof' => 0 );
 
 		foreach ( $sources as $s ) {
-			$ua = isset( $s['ua'] ) ? (string) $s['ua'] : '';
+			$ua      = isset( $s['ua'] ) ? (string) $s['ua'] : '';
+			$verdict = isset( $s['verdict'] ) ? (int) $s['verdict'] : 0;
 
 			// A protected/allow-listed search engine (Googlebot, Bingbot…) is trusted
-			// by definition — never denied, never "suspicious". Keep it out entirely.
-			if ( '' !== $ua && Guard::is_protected_ua( $ua ) ) {
+			// by definition — never denied, never "suspicious". Keep it out entirely —
+			// UNLESS live reverse-DNS caught it impersonating the engine it claims
+			// (verdict 2): a forged "Googlebot" is exactly what the owner must see.
+			if ( '' !== $ua && Guard::is_protected_ua( $ua ) && 2 !== $verdict ) {
 				continue;
 			}
 
@@ -392,17 +405,20 @@ final class Repository {
 			$last  = isset( $s['last_seen'] ) ? strtotime( $s['last_seen'] . ' UTC' ) : 0;
 			$rec   = isset( $recent[ $ua ] ) ? (int) $recent[ $ua ] : 0;
 
-			$is_new   = $first > 0 && ( $now - $first ) <= $new_secs;
-			$is_heavy = $rec >= $burst_min || $hits >= $heavy_min;
-			$is_spoof = Classifier::is_spoof( $ua );
+			$is_new      = $first > 0 && ( $now - $first ) <= $new_secs;
+			$is_heavy    = $rec >= $burst_min || $hits >= $heavy_min;
+			$is_spoof    = Classifier::is_spoof( $ua );
+			$fake_engine = 2 === $verdict; // Live reverse-DNS: claims an engine it isn't.
 
-			if ( ! $is_new && ! $is_heavy && ! $is_spoof ) {
+			if ( ! $is_new && ! $is_heavy && ! $is_spoof && ! $fake_engine ) {
 				continue; // Nothing flags it.
 			}
 
 			$blocked  = Guard::denies( $ua );
 			$token    = $blocked ? '' : Guard::suggest_token( $ua );
-			$severity = ( $is_spoof ? 4 : 0 ) + ( $is_heavy ? 2 : 0 ) + ( $is_new ? 1 : 0 );
+			// An active impersonator outranks everything — it's a client lying about who
+			// it is, which no volume/novelty signal matches for seriousness.
+			$severity = ( $fake_engine ? 5 : 0 ) + ( $is_spoof ? 4 : 0 ) + ( $is_heavy ? 2 : 0 ) + ( $is_new ? 1 : 0 );
 
 			// What the one-click action does for this row: nothing when already
 			// denied; for a spoofed UA, arm the whole scanner class (more useful than
@@ -417,14 +433,20 @@ final class Repository {
 				$action = 'spoofed';
 			} elseif ( '' !== $token ) {
 				$action = 'agent';
+			} elseif ( $fake_engine ) {
+				// Impersonating a search engine, but its UA carries no safe block token
+				// (blocking "Googlebot" would also block the real crawler). Not one-click
+				// actionable — the honest remedy is an IP/firewall rule at the host/CDN.
+				$reason = 'fake-engine';
 			} else {
 				$reason = '' === trim( $ua ) ? 'no-ua' : 'no-token';
 			}
 
 			// A "new"-only source we can neither block nor flag as spoof/heavy is just
 			// noise here (a one-off new browser/script). Show only genuinely suspicious
-			// (spoof/heavy) or actionable / already-blocked rows. (Counted post-merge.)
-			if ( ! $is_spoof && ! $is_heavy && ! $blocked && '' === $action ) {
+			// (spoof/heavy/impersonating) or actionable / already-blocked rows. (Counted
+			// post-merge.)
+			if ( ! $is_spoof && ! $is_heavy && ! $fake_engine && ! $blocked && '' === $action ) {
 				continue;
 			}
 
@@ -450,6 +472,10 @@ final class Repository {
 				'action'    => $action,
 				'token'     => $token,
 				'reason'    => $reason,
+				// Live reverse-DNS result, for the "Check this bot" panel: 'spoofed' =
+				// caught impersonating the engine it claims, 'verified' = forward-confirmed,
+				// '' = unchecked (verification off, or not an engine we can check).
+				'verdict'   => 2 === $verdict ? 'spoofed' : ( 1 === $verdict ? 'verified' : '' ),
 			);
 		}
 
@@ -460,8 +486,17 @@ final class Repository {
 		// keeping the most-recent UA as the face of the row.
 		$out = self::merge_token_variants( $out );
 
-		// Count only what finally shows (post-merge) so the chips and badge match the
-		// rows the owner actually sees.
+		// Drop rows the owner dismissed ("not now"), unless they've materially changed
+		// since. Done AFTER the merge so the re-surface test compares against the same
+		// summed volume the owner saw when they chose to dismiss.
+		$out = self::apply_dismissals(
+			$out,
+			isset( $opts['dismissed'] ) ? (array) $opts['dismissed'] : array(),
+			$burst_min
+		);
+
+		// Count only what finally shows (post-merge, post-dismiss) so the chips and badge
+		// match the rows the owner actually sees.
 		$counts = array( 'new' => 0, 'heavy' => 0, 'spoof' => 0 );
 		foreach ( $out as $row ) {
 			if ( $row['flags']['new'] ) {
@@ -541,6 +576,11 @@ final class Repository {
 		$keep['hits']    += $add['hits'];
 		$keep['recent']  += $add['recent'];
 		$keep['severity'] = max( $keep['severity'], $add['severity'] );
+		// Worst verdict wins (spoofed > verified > unchecked): a client that impersonated
+		// its claimed engine in ANY variant is an impersonator.
+		if ( 'spoofed' === $add['verdict'] || ( 'verified' === $add['verdict'] && '' === $keep['verdict'] ) ) {
+			$keep['verdict'] = $add['verdict'];
+		}
 		foreach ( array( 'new', 'heavy', 'spoof' ) as $flag ) {
 			$keep['flags'][ $flag ] = $keep['flags'][ $flag ] || $add['flags'][ $flag ];
 		}
@@ -564,6 +604,119 @@ final class Repository {
 	}
 
 	/**
+	 * The stable "identity" key a dismissal is filed under — the same value derived at
+	 * dismiss-time and at analysis-time, so a "not now" sticks to the right client across
+	 * refreshes and UA version-bumps. A client with a safe block token keys on that token
+	 * (so every variant of it is one dismissal, mirroring the one-decision merge); one
+	 * without keys on a hash of its UA. Pure.
+	 *
+	 * @param string $ua Raw User-Agent.
+	 * @return string Dismissal key.
+	 */
+	public static function dismiss_key( $ua ) {
+		$ua    = (string) $ua;
+		$token = Guard::suggest_token( $ua ); // Already lowercased; '' when none is safe.
+		if ( '' !== $token ) {
+			return 'tok:' . $token;
+		}
+		return 'ua:' . md5( strtolower( trim( $ua ) ) );
+	}
+
+	/**
+	 * Drop dismissed rows from a merged review set — unless the client has changed enough
+	 * to earn another look. A dismissal (including of a caught impersonator — the owner has
+	 * seen it and the in-plugin remedy is an acknowledgement, since the real fix is an IP
+	 * rule at the host/CDN) is honoured until the client's volume both DOUBLES and grows by
+	 * at least a burst's worth — a materially different picture from the one the owner waved
+	 * off, not mere drift. So a persistent impersonator that keeps hammering re-surfaces on
+	 * its own. Pure (the map is passed in).
+	 *
+	 * @param array $rows      Merged review rows.
+	 * @param array $dismissed Map of key => { at, hits }.
+	 * @param int   $burst_min The burst threshold, reused as the minimum re-surface delta.
+	 * @return array Rows that still belong in the queue.
+	 */
+	private static function apply_dismissals( array $rows, array $dismissed, $burst_min ) {
+		if ( empty( $dismissed ) ) {
+			return $rows;
+		}
+		$out = array();
+		foreach ( $rows as $row ) {
+			$key = self::dismiss_key( $row['ua'] );
+			if ( isset( $dismissed[ $key ] ) ) {
+				$was  = isset( $dismissed[ $key ]['hits'] ) ? (int) $dismissed[ $key ]['hits'] : 0;
+				$grew = (int) $row['hits'] >= max( $was * 2, $was + (int) $burst_min );
+				if ( ! $grew ) {
+					continue; // Dismissed and materially unchanged — suppress.
+				}
+			}
+			$out[] = $row;
+		}
+		return $out;
+	}
+
+	/**
+	 * The dismissals map (key => { at, hits }). Always an array.
+	 *
+	 * @return array
+	 */
+	public static function dismissed_map() {
+		$map = get_option( self::DISMISS_OPTION, array() );
+		return is_array( $map ) ? $map : array();
+	}
+
+	/**
+	 * File an "Ignore" for a client: record its identity key with the volume the owner
+	 * saw, so {@see apply_dismissals()} can later tell "unchanged" from "changed". Bounded
+	 * to the most-recently dismissed DISMISS_MAX entries.
+	 *
+	 * @param string $ua   The client's raw User-Agent.
+	 * @param int    $hits Its hit count at dismiss-time (what the owner saw).
+	 * @return void
+	 */
+	public static function dismiss( $ua, $hits ) {
+		$map                             = self::dismissed_map();
+		$map[ self::dismiss_key( $ua ) ] = array(
+			'at'   => time(),
+			'hits' => max( 0, (int) $hits ),
+		);
+		if ( count( $map ) > self::DISMISS_MAX ) {
+			uasort(
+				$map,
+				static function ( $a, $b ) {
+					return ( isset( $b['at'] ) ? (int) $b['at'] : 0 ) - ( isset( $a['at'] ) ? (int) $a['at'] : 0 );
+				}
+			);
+			$map = array_slice( $map, 0, self::DISMISS_MAX, true );
+		}
+		update_option( self::DISMISS_OPTION, $map, false );
+	}
+
+	/**
+	 * Forget dismissals older than the retention window, so a long-gone client that
+	 * returns gets a fresh review rather than a stale, silent suppression. Runs with the
+	 * daily prune.
+	 *
+	 * @return void
+	 */
+	public static function prune_dismissed() {
+		$map = self::dismissed_map();
+		if ( empty( $map ) ) {
+			return;
+		}
+		$cutoff = time() - self::retention_days() * DAY_IN_SECONDS;
+		$kept   = array();
+		foreach ( $map as $k => $v ) {
+			if ( ( isset( $v['at'] ) ? (int) $v['at'] : 0 ) >= $cutoff ) {
+				$kept[ $k ] = $v;
+			}
+		}
+		if ( count( $kept ) !== count( $map ) ) {
+			update_option( self::DISMISS_OPTION, $kept, false );
+		}
+	}
+
+	/**
 	 * Delete rows older than the (filterable) retention window. Scheduled daily.
 	 */
 	public static function prune() {
@@ -571,6 +724,7 @@ final class Repository {
 		$table  = Table::name();
 		$cutoff = gmdate( 'Y-m-d H:i:s', time() - self::retention_days() * DAY_IN_SECONDS );
 		$wpdb->query( $wpdb->prepare( "DELETE FROM $table WHERE hit_at < %s", $cutoff ) ); // phpcs:ignore WordPress.DB, PluginCheck.Security.DirectDB.UnescapedDBParameter -- $table is our own prefix-derived table name; the value is bound via prepare().
+		self::prune_dismissed();
 	}
 
 	/**
@@ -597,11 +751,14 @@ final class Repository {
 	}
 
 	/**
-	 * Empty the log.
+	 * Empty the log — and, with it, the "Ignore" dismissals: once the history they were
+	 * judged against is gone, a stale suppression would only hide a client the owner can
+	 * no longer see any reason for.
 	 */
 	public static function clear() {
 		global $wpdb;
 		$table = Table::name();
 		$wpdb->query( "TRUNCATE TABLE $table" ); // phpcs:ignore WordPress.DB, PluginCheck.Security.DirectDB.UnescapedDBParameter -- admin-gated truncation of our own prefix-derived table.
+		delete_option( self::DISMISS_OPTION );
 	}
 }

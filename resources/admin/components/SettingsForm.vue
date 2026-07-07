@@ -1135,21 +1135,6 @@ export default {
             </span>
           </label>
 
-          <label class="ar-toggle">
-            <input v-model="settings.verify_bots" type="checkbox" />
-            <span class="ar-toggle__track" aria-hidden="true"></span>
-            <span class="ar-toggle__text">
-              <strong>Verify search engines by reverse DNS</strong>
-              <small>
-                Before trusting a visitor that <em>says</em> it's Googlebot, Bingbot, Applebot, DuckDuckBot or Yandex,
-                confirm its network address really belongs to that engine — so a scanner can't earn a free pass just by
-                copying a crawler's name. This is the one feature that makes a small outbound DNS lookup (cached per visitor).
-                <strong>Behind a proxy or CDN (e.g. Cloudflare)?</strong> Leave this off unless you've supplied the real
-                visitor IP, or real crawlers may lose their trusted status.
-              </small>
-            </span>
-          </label>
-
           <div class="ar-field">
             <label>Blocked user-agents <span class="ar-field__tag">optional</span></label>
             <TagInput v-model="settings.blocked_agents" placeholder="Add a user-agent to deny" />
@@ -1189,6 +1174,26 @@ export default {
             Your normal pages, your real files on disk, and anything your SSL certificate needs keep working as usual.
           </p>
         </div>
+
+        <!-- Verification is not gated by blocking: on its own it flags impersonators in
+             the review queue and powers "Check this bot", whether or not you deny anyone. -->
+        <label class="ar-toggle ar-toggle--standalone">
+          <input v-model="settings.verify_bots" type="checkbox" />
+          <span class="ar-toggle__track" aria-hidden="true"></span>
+          <span class="ar-toggle__text">
+            <strong>Verify search engines by reverse DNS</strong>
+            <small>
+              When a visitor <em>says</em> it's Googlebot, Bingbot, Applebot, DuckDuckBot or Yandex, confirm its
+              network address really belongs to that engine — the one check that catches a scanner copying a
+              crawler's name. A confirmed impersonator is flagged for review as an <strong>Impersonator</strong>,
+              and <strong>Check this bot</strong> shows the result. Works whether or not blocking is on; if blocking
+              <em>is</em> on, a proven fake also loses its free pass. This is the one feature that makes a small
+              outbound DNS lookup (cached per visitor).
+              <strong>Behind a proxy or CDN (e.g. Cloudflare)?</strong> Leave this off unless you've supplied the real
+              visitor IP, or real crawlers may lose their trusted status.
+            </small>
+          </span>
+        </label>
 
         <div class="ar-field ar-field--allow">
           <label>Always allowed <span class="ar-field__tag">trusted</span></label>

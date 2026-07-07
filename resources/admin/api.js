@@ -53,6 +53,8 @@ export function createApi(boot) {
       request('/activity/block', { method: 'POST', body: JSON.stringify(payload) }),
     allowAgent: (payload) =>
       request('/activity/allow', { method: 'POST', body: JSON.stringify(payload) }),
+    dismissAgent: (payload) =>
+      request('/activity/dismiss', { method: 'POST', body: JSON.stringify(payload) }),
 
     // AI Visibility monitoring.
     getVisibilityConfig: () => request('/visibility/config'),

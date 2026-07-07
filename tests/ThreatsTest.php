@@ -250,4 +250,87 @@ final class ThreatsTest extends TestCase {
 		$this->assertSame( 1, $r['sources'][0]['variants'] );
 		$this->assertSame( array( self::NEWBOT ), $r['sources'][0]['variantUas'] );
 	}
+
+	/* -- Live reverse-DNS verdict (verify the identity, keep no IP) -------- */
+
+	/** A per-UA aggregate carrying the folded reverse-DNS verdict (0/1/2). */
+	private function sourceV( string $ua, string $agent, int $hits, int $first_ago, int $verdict ): array {
+		return $this->source( $ua, $agent, $hits, $first_ago ) + array( 'verdict' => $verdict );
+	}
+
+	public function test_a_forward_confirmed_engine_stays_excluded_as_trusted() {
+		// Verdict 1 = reverse-DNS confirmed the real Googlebot. Still trusted, still no
+		// decision to make — so it stays out of the review queue.
+		$r = $this->analyze( array( $this->sourceV( self::GOOGLEBOT, 'Googlebot', 2, HOUR_IN_SECONDS, 1 ) ) );
+		$this->assertCount( 0, $r['sources'] );
+	}
+
+	public function test_a_spoofed_engine_verdict_surfaces_as_an_impersonator() {
+		// Verdict 2 = reverse-DNS caught it lying about being Googlebot. Its "protected"
+		// status is forged, so it must surface — ranked top, with an honest, non-blockable
+		// reason (you can't deny it by name without denying the real crawler).
+		$r = $this->analyze( array( $this->sourceV( self::GOOGLEBOT, 'Googlebot', 40, HOUR_IN_SECONDS, 2 ) ) );
+		$this->assertCount( 1, $r['sources'], 'A spoofed-engine verdict must not stay hidden as trusted.' );
+		$s = $r['sources'][0];
+		$this->assertSame( 'spoofed', $s['verdict'] );
+		$this->assertSame( 'fake-engine', $s['reason'] );
+		$this->assertSame( '', $s['action'], 'No safe one-click: blocking "Googlebot" would hit the real one.' );
+		$this->assertFalse( $s['flags']['spoof'], 'A forged engine is distinct from the legacy-device spoof class.' );
+		$this->assertFalse( $s['blocked'] );
+	}
+
+	public function test_a_low_volume_impersonator_still_surfaces() {
+		// Even with no volume/novelty signal, impersonation alone is enough to surface it.
+		$r = $this->analyze( array( $this->sourceV( self::GOOGLEBOT, 'Googlebot', 1, 10 * DAY_IN_SECONDS, 2 ) ) );
+		$this->assertCount( 1, $r['sources'] );
+		$this->assertSame( 'spoofed', $r['sources'][0]['verdict'] );
+	}
+
+	public function test_a_clean_row_reports_an_empty_verdict() {
+		$r = $this->analyze( array( $this->source( self::NEWBOT, 'Other bot', 3, HOUR_IN_SECONDS ) ) );
+		$this->assertSame( '', $r['sources'][0]['verdict'], 'No verification data → no verdict string.' );
+	}
+
+	/* -- Ignore / dismiss (a "not now" that respects and re-surfaces) ------ */
+
+	/** Analyze with a dismissals map keyed as the endpoint would file it. */
+	private function withDismissed( array $sources, array $dismissed, array $recent = array() ): array {
+		return $this->analyze( $sources, $recent, array( 'dismissed' => $dismissed ) );
+	}
+
+	public function test_a_dismissed_client_is_suppressed() {
+		$dismissed = array( 'tok:newbot' => array( 'at' => self::NOW, 'hits' => 3 ) );
+		$r = $this->withDismissed( array( $this->source( self::NEWBOT, 'Other bot', 3, HOUR_IN_SECONDS ) ), $dismissed );
+		$this->assertCount( 0, $r['sources'], 'A dismissed, unchanged client stays out of the queue.' );
+	}
+
+	public function test_a_dismissed_client_does_not_resurface_on_minor_growth() {
+		// From 3 → 20 hits: neither doubled-and-plus-a-burst, so still "not now".
+		$dismissed = array( 'tok:newbot' => array( 'at' => self::NOW, 'hits' => 3 ) );
+		$r = $this->withDismissed( array( $this->source( self::NEWBOT, 'Other bot', 20, HOUR_IN_SECONDS ) ), $dismissed );
+		$this->assertCount( 0, $r['sources'] );
+	}
+
+	public function test_a_dismissed_client_resurfaces_when_volume_grows_materially() {
+		// From 3 → 300 hits: a different picture from the one waved off — bring it back.
+		$dismissed = array( 'tok:newbot' => array( 'at' => self::NOW, 'hits' => 3 ) );
+		$r = $this->withDismissed( array( $this->source( self::NEWBOT, 'Other bot', 300, HOUR_IN_SECONDS ) ), $dismissed );
+		$this->assertCount( 1, $r['sources'], 'Materially busier than when dismissed → back for review.' );
+	}
+
+	public function test_a_dismissed_impersonator_is_acknowledged_and_suppressed() {
+		// An owner can acknowledge (Ignore) a caught impersonator — the in-plugin remedy,
+		// since the real fix is an IP rule at the host/CDN. Dismissed + unchanged → gone.
+		$dismissed = array( 'ua:' . md5( strtolower( self::GOOGLEBOT ) ) => array( 'at' => self::NOW, 'hits' => 8 ) );
+		$r = $this->withDismissed( array( $this->sourceV( self::GOOGLEBOT, 'Googlebot', 8, HOUR_IN_SECONDS, 2 ) ), $dismissed );
+		$this->assertCount( 0, $r['sources'], 'A dismissed, unchanged impersonator is set aside.' );
+	}
+
+	public function test_a_dismissed_impersonator_resurfaces_if_it_keeps_hammering() {
+		// But a persistent one that materially grows comes back on its own.
+		$dismissed = array( 'ua:' . md5( strtolower( self::GOOGLEBOT ) ) => array( 'at' => self::NOW, 'hits' => 8 ) );
+		$r = $this->withDismissed( array( $this->sourceV( self::GOOGLEBOT, 'Googlebot', 500, HOUR_IN_SECONDS, 2 ) ), $dismissed );
+		$this->assertCount( 1, $r['sources'] );
+		$this->assertSame( 'spoofed', $r['sources'][0]['verdict'] );
+	}
 }

@@ -14,6 +14,8 @@
 namespace Agentimus\Activity;
 
 use Agentimus\Settings;
+use Agentimus\Guard;
+use Agentimus\BotVerifier;
 
 defined( 'ABSPATH' ) || exit;
 
@@ -93,9 +95,10 @@ final class Recorder {
 				'endpoint' => substr( (string) $endpoint, 0, 64 ),
 				'agent'    => substr( $agent, 0, 64 ),
 				'ua'       => substr( $ua, 0, 255 ),
+				'verdict'  => self::verdict( $ua ),
 				'hit_at'   => current_time( 'mysql', true ), // GMT.
 			),
-			array( '%s', '%s', '%s', '%s' )
+			array( '%s', '%s', '%s', '%d', '%s' )
 		);
 
 		// Opportunistic backstop: most inserts pay only a cheap rand(); roughly one
@@ -125,6 +128,40 @@ final class Recorder {
 		// elevated; the next window simply starts counting from zero again.
 		set_transient( $key, $count, self::FLOOD_WINDOW * 2 );
 		return $count;
+	}
+
+	/**
+	 * The live forward-confirmed reverse-DNS verdict for a UA that CLAIMS a verifiable
+	 * search engine, as a storable tinyint — the "verify the identity, keep no IP"
+	 * design. Runs only when the owner has opted into verification and only for a UA
+	 * that names a checkable engine (Googlebot, Bingbot…); every other hit returns 0 for
+	 * free, doing no DNS. The source IP is resolved, used for the lookup, and DISCARDED —
+	 * only the verdict is persisted, so the log keeps its no-PII footprint.
+	 *
+	 * {@see BotVerifier} owns the lookup and its safety rails (per-IP cache, a bounded
+	 * per-window lookup budget, and a circuit breaker) so this stays cheap on the
+	 * unauthenticated serve path and FAILS OPEN — a slow/unreachable resolver yields 0
+	 * (unchecked), never a false "spoofed".
+	 *
+	 * @param string $ua Raw User-Agent.
+	 * @return int 0 = unchecked/inconclusive, 1 = verified, 2 = spoofed.
+	 */
+	private static function verdict( $ua ) {
+		if ( ! Guard::verification_on() ) {
+			return 0;
+		}
+		$ua_lc = strtolower( (string) $ua );
+		if ( '' === BotVerifier::claimed_engine( $ua_lc ) ) {
+			return 0; // Not a claim we can verify — no lookup, no cost.
+		}
+		$verified = BotVerifier::verify_engine( $ua_lc, Guard::client_ip() );
+		if ( true === $verified ) {
+			return 1;
+		}
+		if ( false === $verified ) {
+			return 2;
+		}
+		return 0; // null = could not determine → fail open.
 	}
 
 	/**

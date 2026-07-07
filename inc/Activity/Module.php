@@ -136,6 +136,20 @@ final class Module {
 			)
 		);
 
+		register_rest_route(
+			'agentimus/v1',
+			'/activity/dismiss',
+			array(
+				'methods'             => 'POST',
+				'permission_callback' => array( $this, 'can_manage' ),
+				'callback'            => array( $this, 'dismiss' ),
+				'args'                => array(
+					'ua'   => array( 'type' => 'string' ),
+					'hits' => array( 'type' => 'integer' ),
+				),
+			)
+		);
+
 		// Public, unauthenticated: the front-end AI-referral beacon ("CDN mode"). Same-
 		// origin + rate-limited; the server re-derives the source, stores no IP/UA, and
 		// always answers 204 (never revealing whether a hit counted, so a spoofer has no
@@ -291,6 +305,25 @@ final class Module {
 		}
 		$this->settings->allow_agent( $token );
 		return rest_ensure_response( $this->block_payload() );
+	}
+
+	/**
+	 * REST: POST /activity/dismiss — the review queue's "Ignore". Files a "not now" for
+	 * the client so it drops out of the list WITHOUT being allow- or block-listed (no
+	 * policy change), remembering the volume the owner saw so it can reappear if the
+	 * client later changes materially. Returns the refreshed stats so the row leaves in
+	 * place. No settings are touched, so — unlike block/allow — the response is stats
+	 * only.
+	 *
+	 * @param \WP_REST_Request $request Request.
+	 * @return \WP_REST_Response
+	 */
+	public function dismiss( \WP_REST_Request $request ) {
+		Repository::dismiss(
+			(string) $request->get_param( 'ua' ),
+			(int) $request->get_param( 'hits' )
+		);
+		return rest_ensure_response( Repository::stats( $this->settings ) );
 	}
 
 	/**
