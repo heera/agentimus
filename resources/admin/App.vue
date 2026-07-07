@@ -63,6 +63,10 @@ export default {
       isLocal: !!this.boot.isLocal,
       restNamespacesDetected: this.boot.restNamespacesDetected || [],
       endpoints: this.boot.endpoints || {},
+      // The exposed-files probe list. Seeded from boot but kept as reactive data (not
+      // read from the frozen boot prop) so a settings save can refresh it in place —
+      // a just-added custom path then scans without a page reload.
+      exposedPaths: this.boot.exposedPaths || [],
       llmsFullEstimate: this.boot.llmsFullEstimate || {},
       version: this.boot.version || '',
       protocol: this.boot.protocol || {},
@@ -109,7 +113,7 @@ export default {
         discovery: this.discovery,
         settings: this.settings,
         samplePost: this.boot.samplePost || '',
-        exposedPaths: this.boot.exposedPaths || [],
+        exposedPaths: this.exposedPaths,
       };
     },
     dirty() {
@@ -422,6 +426,7 @@ export default {
         this.$nextTick(() => { this._skipAutosave = false; });
         this.savedSnapshot = JSON.stringify(res.settings || {});
         this.readiness = res.readiness || this.readiness;
+        if (Array.isArray(res.exposedPaths)) this.exposedPaths = res.exposedPaths;
         this.flash('success', 'Settings restored to defaults.');
       } catch (e) {
         this.flash('error', e.message);
@@ -547,6 +552,9 @@ export default {
         const res = await this.api.saveSettings(payload);
         this.savedSnapshot = JSON.stringify(res.settings);
         this.readiness = res.readiness || this.readiness;
+        // Adopt the server's freshly-expanded exposed-files list so a just-edited
+        // custom path is scanned immediately, no reload (see data().exposedPaths).
+        if (Array.isArray(res.exposedPaths)) this.exposedPaths = res.exposedPaths;
         this.flash('success', 'Settings saved.', 2500);
         // If the save changed the blocking rules, the dashboard's "blocked" flags
         // are now stale (e.g. a denylist entry was removed) — re-fetch so those

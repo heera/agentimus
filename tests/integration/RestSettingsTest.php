@@ -32,4 +32,21 @@ final class RestSettingsTest extends RestTestCase {
 		$this->assertLessThanOrEqual( 200, count( $data['settings']['blocked_agents'] ) );
 		$this->assertTrue( (bool) $data['settings']['block_agents'] );
 	}
+
+	public function test_save_returns_the_freshly_expanded_exposed_paths() {
+		wp_set_current_user( $this->admin );
+
+		$save = new \WP_REST_Request( 'POST', '/agentimus/v1/settings' );
+		$save->set_header( 'Content-Type', 'application/json' );
+		$save->set_body( wp_json_encode( array( 'exposed_extra_paths' => array( 'secret.env' ) ) ) );
+		$res = rest_do_request( $save );
+		$this->assertSame( 200, $res->get_status() );
+		$data = (array) $res->get_data();
+
+		// The save response carries the freshly-expanded exposed-files probe list, so the
+		// admin's browser-side scan picks up a just-added custom path with no page reload.
+		$this->assertArrayHasKey( 'exposedPaths', $data );
+		$this->assertContains( '/secret.env', $data['exposedPaths'] );
+		$this->assertContains( '/wp-content/uploads/secret.env', $data['exposedPaths'] );
+	}
 }

@@ -180,8 +180,11 @@ final class Rest {
 	public function get_settings() {
 		return rest_ensure_response(
 			array(
-				'settings'  => $this->settings->all(),
-				'readiness' => ( new Readiness( $this->settings ) )->report(),
+				'settings'     => $this->settings->all(),
+				'readiness'    => ( new Readiness( $this->settings ) )->report(),
+				// The freshly-expanded exposed-files probe list, so the admin's
+				// browser-side scan reflects a just-edited custom path without a reload.
+				'exposedPaths' => Exposure::sensitive_paths( $this->settings ),
 			)
 		);
 	}
@@ -205,9 +208,10 @@ final class Rest {
 
 		return rest_ensure_response(
 			array(
-				'settings'  => $saved,
-				'readiness' => ( new Readiness( $this->settings ) )->report(),
-				'saved'     => true,
+				'settings'     => $saved,
+				'readiness'    => ( new Readiness( $this->settings ) )->report(),
+				'exposedPaths' => Exposure::sensitive_paths( $this->settings ),
+				'saved'        => true,
 			)
 		);
 	}
@@ -222,9 +226,10 @@ final class Rest {
 
 		return rest_ensure_response(
 			array(
-				'settings'  => $defaults,
-				'readiness' => ( new Readiness( $this->settings ) )->report(),
-				'reset'     => true,
+				'settings'     => $defaults,
+				'readiness'    => ( new Readiness( $this->settings ) )->report(),
+				'exposedPaths' => Exposure::sensitive_paths( $this->settings ),
+				'reset'        => true,
 			)
 		);
 	}

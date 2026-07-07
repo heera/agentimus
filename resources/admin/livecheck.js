@@ -138,15 +138,21 @@ function normalizePath(p) {
 async function probePath(url) {
   try {
     const res = await fetch(url, { method: 'GET', credentials: 'omit', cache: 'no-store', redirect: 'follow' });
+    // A redirect (→ homepage / login / canonical) or an HTML content type means the
+    // server is HANDLING a missing-or-blocked path, not serving the raw file — capture
+    // both so gradePath can reject them (a catch-all "/uploads/* → homepage" redirect
+    // otherwise reads as an 80 KB "downloadable" file). res.redirected is true when the
+    // final response came via one or more redirects.
+    const html = (res.headers.get('content-type') || '').toLowerCase().includes('text/html');
     const cl = res.headers.get('content-length');
     if (cl !== null && cl !== '') {
       if (res.body && res.body.cancel) { try { res.body.cancel(); } catch (e) { /* ignore */ } }
-      return { ok: true, status: res.status, len: parseInt(cl, 10) || 0 };
+      return { ok: true, status: res.status, len: parseInt(cl, 10) || 0, redirected: !!res.redirected, html };
     }
     const body = await res.text();
-    return { ok: true, status: res.status, len: body.length };
+    return { ok: true, status: res.status, len: body.length, redirected: !!res.redirected, html };
   } catch (e) {
-    return { ok: false, status: 0, len: 0 };
+    return { ok: false, status: 0, len: 0, redirected: false, html: false };
   }
 }
 
@@ -166,6 +172,19 @@ function gradePath(path, hit, baseline) {
   const twoxx = hit.status >= 200 && hit.status < 300;
   const matchesNotFound = baseline.ok && baseline.status === hit.status && Math.abs(hit.len - baseline.len) <= 64;
   if (twoxx && !matchesNotFound) {
+    // Before calling it exposed: a response that redirected, or that is an HTML page, is
+    // the server HANDLING a missing/blocked path (a catch-all "/uploads/* → homepage"
+    // redirect, a soft-404 page) — NOT the raw file. A genuinely exposed file is returned
+    // directly with its own, non-HTML content type. Reject these to avoid false positives.
+    if (hit.redirected || hit.html) {
+      return {
+        path,
+        status: hit.status,
+        state: 'safe',
+        empty: false,
+        detail: hit.redirected ? 'not a file — redirects to a page' : 'not a file — HTML page',
+      };
+    }
     const empty = hit.len === 0;
     return {
       path,
