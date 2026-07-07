@@ -11,6 +11,7 @@ namespace Agentimus\Activity;
 
 use Agentimus\Settings;
 use Agentimus\Guard;
+use Agentimus\BotVerifier;
 
 defined( 'ABSPATH' ) || exit;
 
@@ -494,6 +495,11 @@ final class Repository {
 				// caught impersonating the engine it claims, 'verified' = forward-confirmed,
 				// '' = unchecked (verification off, or not an engine we can check).
 				'verdict'   => 2 === $verdict ? 'spoofed' : ( 1 === $verdict ? 'verified' : '' ),
+				// Whether this client CLAIMS one of the reverse-DNS-verifiable engines
+				// (Googlebot/Bingbot/DuckDuckBot/Applebot/Yandex). Disambiguates an empty
+				// verdict: false here means "not an engine Verify can check" (e.g.
+				// Bytespider) — so the UI won't offer the dead-end "turn on Verify" nudge.
+				'verifiable' => '' !== BotVerifier::claimed_engine( strtolower( $ua ) ),
 			);
 		}
 

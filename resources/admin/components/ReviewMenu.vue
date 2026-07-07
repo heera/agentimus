@@ -13,6 +13,8 @@
  * firewall). Verification is a three-state fact (verified / failed / not-checked), never a
  * score.
  */
+import { impostorDetail, scannerDetail } from '../reviewCopy.js';
+
 export default {
   name: 'ReviewMenu',
   props: {
@@ -24,6 +26,11 @@ export default {
     // is — a stable, quiet resting state (no count badge) rather than vanishing the
     // moment the queue clears. With logging off there's nothing to watch, so hide it.
     enabled: { type: Boolean, default: false },
+    // Whether "Store IP addresses for flagged clients" is currently on. Drives the
+    // impostor Details copy: with it off we say "turn it on for future visits"; with it
+    // on but no IP stored (a hit that predates it) we say so instead of misleadingly
+    // telling the owner to enable a setting that's already enabled.
+    storeIps: { type: Boolean, default: false },
     // Live updates: whether this screen is auto-refreshing, and how often (seconds),
     // for the toggle's label. The parent owns the state and the interval.
     live: { type: Boolean, default: false },
@@ -181,18 +188,18 @@ export default {
     },
     detailSentence(s) {
       if ('spoofed' === s.verdict) {
-        const n = this.engineName(s);
-        if (s.ips && s.ips.length) {
-          return `It claims to be ${n}, but its address failed reverse-DNS verification when it visited — a forgery, not the real ${n}. Blocking the name would also block the genuine ${n}, so block the IP address${1 === s.ips.length ? '' : 'es'} above at your host or CDN/firewall.`;
-        }
-        return `It claims to be ${n}, but its network address failed reverse-DNS verification when it visited — a forgery, not the real ${n}. Blocking the name would also block the genuine ${n}, so block the impostor’s IP instead. To see the IP here, turn on “Store IP addresses for flagged clients” in Settings; otherwise find it in your server’s access log or CDN/firewall dashboard by searching for the User-Agent above, then block it there.`;
+        return impostorDetail({
+          name: this.engineName(s),
+          ipCount: (s.ips && s.ips.length) || 0,
+          storeIps: this.storeIps,
+        });
       }
       if (s.known) {
         const v = 'verified' === s.verdict ? ' Reverse-DNS confirmed it as genuine.' : '';
         return `${s.known.name} — ${this.kindLabel(s.known.kind)} operated by ${s.known.operator}.${v} ${this.kindAdvice(s.known.kind)}`;
       }
       if (s.flags && s.flags.spoof) {
-        return 'It claims a long-dead device (Symbian, Java ME, old Windows CE…) that no real visitor runs — near-always a scanner hiding behind an innocuous name. Blocking the scanner class is safe.';
+        return scannerDetail({ ipCount: (s.ips && s.ips.length) || 0 });
       }
       if (s.guide && s.guide.url) {
         return `It points to ${s.guide.host || 'a site'} in its own User-Agent — its claim, not verified. Open it with care, then Allow or Block.`;
@@ -284,8 +291,13 @@ export default {
         { label: 'DuckDuckGo', url: (s.guide && s.guide.lookup) || `https://duckduckgo.com/?q=${encodeURIComponent(q + ' crawler bot')}` },
       ];
     },
-    showNoIpNote(s) {
-      return '' === (s.verdict || '');
+    // The "turn on Verify search engines" nudge. Shown ONLY when the client claims one of
+    // the reverse-DNS-verifiable engines but hasn't been checked (verification off) — the
+    // one case where enabling Verify actually does something. A crawler that claims no
+    // verifiable engine (e.g. Bytespider) can never be verified by that feature, so the
+    // nudge would be dead-end advice and is suppressed.
+    showVerifyNote(s) {
+      return '' === (s.verdict || '') && !!s.verifiable;
     },
     rowTitle(s) {
       return (s.known && s.known.name) || (s.guide && s.guide.name) || s.agent;
@@ -474,7 +486,7 @@ export default {
               >{{ r.label }}</a>
             </div>
 
-            <p v-if="showNoIpNote(s)" class="ar-rev-details__note">
+            <p v-if="showVerifyNote(s)" class="ar-rev-details__note">
               This client wasn’t network-verified, so its identity can’t be re-checked after the fact.
               Turn on <button type="button" class="ar-linkbtn" @click="$emit('navigate', { tab: 'settings' }); close()">Verify search engines</button>
               to confirm crawlers live, as they arrive.

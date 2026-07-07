@@ -219,7 +219,7 @@ export default {
     },
     signalRows() {
       return [
-        { key: 'search', label: 'Show in search engines', hint: 'Let Google and other search engines find your pages.' },
+        { key: 'search', label: 'Show in search engines', hint: 'Let Google and other search engines find your pages. This writes a robots.txt Content-Signal — it’s not WordPress’s “Discourage search engines” setting (Settings → Reading), which is what actually controls indexing.' },
         { key: 'ai_input', label: 'Let AI read & cite you', hint: 'Allow assistants to read your content and cite it in their answers.' },
         { key: 'ai_train', label: 'Allow AI training', hint: 'Allow your content to be used to train AI models.' },
       ];
