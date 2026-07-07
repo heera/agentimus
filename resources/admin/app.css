@@ -1330,7 +1330,7 @@ select.ar-input {
 /* Live self-check results — "what agents actually receive". */
 /* Verify-live result modal. Reuses the .ar-modal shell; the title shares its head
    row with the n/n tally, and the result rows scroll in the body. */
-.ar-modal__panel--live { max-width: 540px; }
+.ar-modal__panel--live { max-width: 680px; }
 .ar-live-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
 .ar-live-head .ar-modal__title { margin: 0; }
 .ar-live__tally { flex: 0 0 auto; font-family: var(--ar-mono); font-size: 12px; font-weight: 600; color: var(--ar-good); }
@@ -1338,14 +1338,18 @@ select.ar-input {
 .ar-live__tally.is-warn { color: var(--ar-warn); }
 .ar-live__list { margin: 0; padding: 0; list-style: none; display: grid; gap: 0; }
 .ar-live__row {
-  display: flex; align-items: center; gap: 10px;
+  display: flex; flex-wrap: wrap; align-items: center; gap: 3px 10px;
   padding: 8px 2px; border-top: 1px solid var(--ar-line); font-size: 13px;
 }
 .ar-live__row:first-child { border-top: 0; }
 .ar-live__dot { flex: 0 0 auto; width: 8px; height: 8px; border-radius: 50%; background: var(--ar-good); }
 .ar-live__row.is-bad .ar-live__dot { background: var(--ar-bad); }
-.ar-live__label { flex: 1; min-width: 0; color: var(--ar-ink); }
-.ar-live__detail { flex: 0 0 auto; font-family: var(--ar-mono); font-size: 12px; color: var(--ar-ink-soft); text-align: right; }
+/* The path is the identifier — keep it readable. A min-width forces the detail + tag to
+   wrap to their own line (right-aligned, below) when they can't fit beside it, rather than
+   squeezing the path into a mid-word stack; overflow-wrap only kicks in if a single path
+   is genuinely wider than the row. */
+.ar-live__label { flex: 1 1 auto; min-width: 45%; overflow-wrap: anywhere; color: var(--ar-ink); }
+.ar-live__detail { flex: 0 0 auto; margin-left: auto; font-family: var(--ar-mono); font-size: 12px; color: var(--ar-ink-soft); text-align: right; }
 .ar-live__row.is-bad .ar-live__detail { color: var(--ar-bad); }
 /* CDN / edge-cache warning: a shared cache served stored copies, so those fetches
    bypassed WordPress — the activity log under-counts and discovery can go stale. */

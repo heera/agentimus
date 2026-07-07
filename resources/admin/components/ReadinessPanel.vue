@@ -323,8 +323,10 @@ export default {
                     <span class="ar-live__dot" aria-hidden="true"></span>
                     <span class="ar-live__label">{{ r.path }}</span>
                     <span class="ar-live__detail">{{ r.detail }}</span>
+                    <!-- Public site: a loud red urgency cue. On a local site the amber dot +
+                         "— downloadable" detail + the banner already say "would be exposed on
+                         deploy", so no per-row chip there — it was pure repetition. -->
                     <span v-if="r.state === 'exposed' && !r.empty && !isLocal" class="ar-live__cachetag" title="This file is publicly downloadable">exposed</span>
-                    <span v-else-if="r.state === 'exposed' && !r.empty && isLocal" class="ar-live__cachetag" title="Would be downloadable once deployed">on deploy</span>
                     <span v-else-if="r.state === 'exposed' && r.empty" class="ar-live__cachetag" title="Reachable but empty (0 bytes)">empty</span>
                   </li>
                 </ul>
