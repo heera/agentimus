@@ -1307,6 +1307,26 @@ select.ar-input {
 /* Two buttons in the report head (Verify live + Re-run). */
 .ar-card__actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
 
+/* Readiness: the report-refresh sits beside the title as a ↻ icon, kept apart from the
+   "open a view/test" buttons so it's never mistaken for a live check. Reuses ar-spin. */
+.ar-card__titlewrap { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.ar-card__titlewrap .ar-card__title { margin-bottom: 0; }
+.ar-readiness__refresh {
+  flex: 0 0 auto;
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 30px; height: 30px; padding: 0;
+  border: 0; border-radius: 8px;
+  background: transparent; color: var(--ar-ink-soft);
+  cursor: pointer;
+}
+.ar-readiness__refresh:hover:not(:disabled) { background: var(--ar-surface-2); color: var(--ar-ink); }
+.ar-readiness__refresh:focus-visible { outline: 2px solid var(--ar-accent); outline-offset: 2px; }
+.ar-readiness__refresh:disabled { cursor: default; opacity: 0.65; }
+.ar-readiness__refresh.is-busy svg { animation: ar-spin 0.8s linear infinite; }
+@media (prefers-reduced-motion: reduce) {
+  .ar-readiness__refresh.is-busy svg { animation: none; }
+}
+
 /* Live self-check results — "what agents actually receive". */
 /* Verify-live result modal. Reuses the .ar-modal shell; the title shares its head
    row with the n/n tally, and the result rows scroll in the body. */
@@ -1464,6 +1484,18 @@ select.ar-input {
   .ar-wd-endpoint-row { flex-direction: column; align-items: stretch; }
   .ar-wd-endpoint-row .ar-btn { width: 100%; }
   .ar-wd-canonical__path { font-size: 12px; }
+}
+
+/* Readiness header carries FOUR actions — too many to sit beside the title on a
+   narrow container without a ragged two-row wrap. Below this width, drop the actions
+   under the title and stack them full-width: one clear, un-truncated tap target per
+   row. Scoped to the Readiness header (--stack-sm), so other inline headers (which
+   carry a button or two) keep their compact single-row treatment. Placed AFTER the
+   560px block so it wins the equal-specificity ties at every width it covers. */
+@container (max-width: 640px) {
+  .ar-card__head--stack-sm { flex-direction: column; align-items: stretch; gap: 12px; }
+  .ar-card__head--stack-sm .ar-card__actions { width: 100%; flex-direction: column; align-items: stretch; }
+  .ar-card__head--stack-sm .ar-card__actions .ar-btn { width: 100%; }
 }
 
 /* Provider groups: Declared (always shown) and Auto-discovered (collapsible). */

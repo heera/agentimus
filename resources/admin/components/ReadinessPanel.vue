@@ -132,8 +132,24 @@ export default {
 
 <template>
   <section class="ar-card">
-    <div class="ar-card__head ar-card__head--inline">
-      <h2 class="ar-card__title">Readiness report</h2>
+    <div class="ar-card__head ar-card__head--inline ar-card__head--stack-sm">
+      <div class="ar-card__titlewrap">
+        <h2 class="ar-card__title">Readiness report</h2>
+        <!-- Refresh THIS report (recompute the checklist below). Kept beside the title
+             and apart from the tool buttons so it reads as "update this card", not as
+             another live check like "Verify live". -->
+        <button
+          type="button"
+          class="ar-readiness__refresh"
+          :class="{ 'is-busy': refreshing }"
+          :disabled="refreshing"
+          @click="$emit('refresh')"
+          :aria-label="refreshing ? 'Re-running the readiness checks…' : 'Re-run the readiness checks'"
+          :title="refreshing ? 'Re-running…' : 'Re-run the readiness checks'"
+        >
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="23 4 23 10 17 10" /><polyline points="1 20 1 14 7 14" /><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" /></svg>
+        </button>
+      </div>
       <div class="ar-card__actions">
         <button type="button" class="ar-btn" @click="schemaOpen = true">
           Agent preview
@@ -143,9 +159,6 @@ export default {
         </button>
         <button type="button" class="ar-btn" :disabled="exposureRunning" @click="scanExposure">
           {{ exposureRunning ? 'Scanning…' : 'Scan for exposed files' }}
-        </button>
-        <button type="button" class="ar-btn" :disabled="refreshing" @click="$emit('refresh')">
-          {{ refreshing ? 'Running…' : 'Re-run' }}
         </button>
       </div>
     </div>
