@@ -450,6 +450,7 @@ export default {
         next.identity.about = payload.about;
         next.identity.expertise = payload.expertise;
         next.post_types = payload.types;
+        if (payload.content_signal) next.content_signal = payload.content_signal;
         const res = await this.api.saveSettings(next);
         this._skipAutosave = true;
         this.settings = JSON.parse(JSON.stringify(res.settings || {}));
@@ -893,6 +894,7 @@ export default {
       @finish="finishWizard"
       @skip="skipWizard"
       @done="closeWizard"
+      @navigate="(t) => { closeWizard(); goTo(t); }"
     />
 
     <main class="ar__body is-railed">

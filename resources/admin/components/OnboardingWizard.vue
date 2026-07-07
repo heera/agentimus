@@ -22,7 +22,7 @@ export default {
     returning: { type: Boolean, default: false }, // "Review setup" entry, not first run
     celebrate: { type: Boolean, default: false },  // parent signals a first-run save succeeded
   },
-  emits: ['finish', 'skip', 'done'],
+  emits: ['finish', 'skip', 'done', 'navigate'],
   data() {
     return {
       step: 1,
@@ -33,6 +33,10 @@ export default {
       about: '',
       expertise: [],
       types: [],
+      // The Content-Signal stance, captured in Step 2 (search / cite / train). Working
+      // copy seeded from saved settings; emitted on finish. Default = privacy-first:
+      // findable + citable, training reserved.
+      signal: { search: true, ai_input: true, ai_train: false },
       confetti: [],
     };
   },
@@ -84,10 +88,11 @@ export default {
     // are on automatically, so the admin SEES the value without configuring it.
     protections() {
       const s = this.settings || {};
-      const cs = s.content_signal || {};
       const list = ['Discoverable by AI assistants — page guide, plain-text pages and rich data'];
       if (s.enable_signing !== false) list.push('Signed responses, so assistants can verify they’re really from you');
-      if (!cs.ai_train) list.push('Your content is reserved from AI training by default');
+      // Reads the in-wizard stance (this.signal), not saved settings, so the summary
+      // reflects the choice the owner just made in Step 2 before it's saved.
+      if (!this.signal.ai_train) list.push('Your content is reserved from AI training');
       if (s.enable_ai_header !== false || s.enable_tdmrep !== false) list.push('Your AI-usage choices stated everywhere agents look');
       return list;
     },
@@ -132,6 +137,12 @@ export default {
       // Privacy-safe default: posts + pages pre-selected, everything else opt-in.
       // On a site with neither, fall back to whatever content it actually has.
       this.types = safe.length ? safe : avail.slice();
+      const cs = (this.settings && this.settings.content_signal) || {};
+      this.signal = {
+        search: cs.search !== false,
+        ai_input: cs.ai_input !== false,
+        ai_train: !!cs.ai_train,
+      };
     },
     getStarted() {
       this.started = true;
@@ -158,6 +169,11 @@ export default {
         about: this.about,
         expertise: this.expertise,
         types: this.types,
+        content_signal: {
+          search: !!this.signal.search,
+          ai_input: !!this.signal.ai_input,
+          ai_train: !!this.signal.ai_train,
+        },
       });
     },
     // One-shot confetti for the celebration. Skipped entirely under
@@ -306,6 +322,38 @@ export default {
                     This only controls what's <strong>advertised</strong> to assistants — it doesn't make
                     anything public that wasn't already. You can change it any time in Settings.
                   </p>
+
+                  <p class="ar-wiz__subhead">What may they do with it?</p>
+                  <div class="ar-types-grid">
+                    <label class="ar-type" :class="{ 'is-on': signal.search }">
+                      <input type="checkbox" v-model="signal.search" />
+                      <span class="ar-type__check" aria-hidden="true"></span>
+                      <span class="ar-type__body">
+                        <span class="ar-type__label">Show me in search engines</span>
+                        <span class="ar-type__meta"><span class="ar-type__src">Google, Bing…</span></span>
+                      </span>
+                    </label>
+                    <label class="ar-type" :class="{ 'is-on': signal.ai_input }">
+                      <input type="checkbox" v-model="signal.ai_input" />
+                      <span class="ar-type__check" aria-hidden="true"></span>
+                      <span class="ar-type__body">
+                        <span class="ar-type__label">Read &amp; cite me in answers</span>
+                        <span class="ar-type__meta"><span class="ar-type__src">with attribution</span></span>
+                      </span>
+                    </label>
+                    <label class="ar-type" :class="{ 'is-on': signal.ai_train }">
+                      <input type="checkbox" v-model="signal.ai_train" />
+                      <span class="ar-type__check" aria-hidden="true"></span>
+                      <span class="ar-type__body">
+                        <span class="ar-type__label">Use my content to train AI</span>
+                        <span class="ar-type__meta"><span class="ar-type__src">off by default</span></span>
+                      </span>
+                    </label>
+                  </div>
+                  <p class="ar-card__note">
+                    Stated in your <code>robots.txt</code> as a Content-Signal — a polite request well-behaved
+                    crawlers honour.
+                  </p>
                 </div>
 
                 <!-- Step 3 — review -->
@@ -356,8 +404,31 @@ export default {
                 <h2 id="ar-wiz-title" class="ar-wiz__done-title">You’re all set{{ name ? ', ' + name : '' }}!</h2>
                 <p class="ar-wiz__done-lead">
                   Your site now speaks the language AI assistants understand — discoverable, signed and
-                  verifiable, and on your terms. That’s the best setup a site can offer.
+                  verifiable, and on your terms.
                 </p>
+                <!-- Orient the new owner to the capabilities added since setup was first built —
+                     each jumps to the relevant tab and closes the wizard. -->
+                <p class="ar-wiz__explore-label">Now explore</p>
+                <ul class="ar-wiz__explore">
+                  <li>
+                    <button type="button" @click="$emit('navigate', 'dashboard')">
+                      <span class="ar-wiz__explore-name">Dashboard</span>
+                      <span class="ar-wiz__explore-desc">See which AI assistants are actually reading you</span>
+                    </button>
+                  </li>
+                  <li>
+                    <button type="button" @click="$emit('navigate', 'readiness')">
+                      <span class="ar-wiz__explore-name">Readiness</span>
+                      <span class="ar-wiz__explore-desc">Your AI-readiness score, plus Agent preview & the exposed-files scan</span>
+                    </button>
+                  </li>
+                  <li>
+                    <button type="button" @click="$emit('navigate', 'discovery')">
+                      <span class="ar-wiz__explore-name">Discovery</span>
+                      <span class="ar-wiz__explore-desc">Everything agents can find — endpoints, providers, capabilities</span>
+                    </button>
+                  </li>
+                </ul>
               </div>
 
             </div>
