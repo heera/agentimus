@@ -111,7 +111,8 @@ final class Rest {
 		);
 
 		// The Markdown twin of a page/post — what an agent receives when it requests
-		// the page as text/markdown. Per-page, so the site target has no Markdown.
+		// the page as text/markdown. The site target (post = 0) previews the index
+		// Markdown served at the home URL and /llms.txt.
 		register_rest_route(
 			self::NAMESPACE,
 			'/preview/markdown',
@@ -336,8 +337,9 @@ final class Rest {
 
 	/**
 	 * GET /preview/markdown — the Markdown a page/post is served as (`.md` / the
-	 * `Accept: text/markdown` twin). Per-page: the site target (post = 0) has no
-	 * Markdown. Mirrors the front-end privacy guard — a draft or password-protected
+	 * `Accept: text/markdown` twin). The site target (post = 0) previews the index
+	 * Markdown (`index_markdown()`), served at the home URL (`.md`) and /llms.txt.
+	 * Mirrors the front-end privacy guard — a draft or password-protected
 	 * post yields nothing, with `postNote` saying why. `active`/`reason` report
 	 * whether Markdown delivery is switched on, so the UI can preview it either way.
 	 *
@@ -349,6 +351,12 @@ final class Rest {
 		$post_id = absint( $request->get_param( 'post' ) );
 
 		if ( $post_id <= 0 ) {
+			// The site target DOES have a Markdown twin: the index Agentimus serves at
+			// the home URL (append `.md`) and at /llms.txt — the exact bytes
+			// index_markdown() ships (which reuses the llms.txt index). It's built from
+			// the site identity + the page/post list, not a single page's body, so it's
+			// noted as such rather than presented as a per-page document.
+			$llms = new LlmsText( $this->settings );
 			return rest_ensure_response(
 				array(
 					'active'       => (bool) $enabled,
@@ -359,11 +367,11 @@ final class Rest {
 						'label' => __( 'Site-wide identity', 'agentimus' ),
 						'url'   => home_url( '/' ),
 					),
-					'postIncluded' => false,
-					'postNote'     => __( 'Markdown is generated per page — pick a page or post to preview its Markdown.', 'agentimus' ),
-					'livePublic'   => true, // The site home URL is public (though it has no .md).
-					'markdown'     => '',
-					'mdUrl'        => '',
+					'postIncluded' => true,
+					'postNote'     => __( 'The site index — built from your identity and the list of pages & posts, not a single page’s body.', 'agentimus' ),
+					'livePublic'   => true,
+					'markdown'     => (string) $llms->index_markdown(),
+					'mdUrl'        => home_url( '/index.md' ),
 				)
 			);
 		}
