@@ -98,7 +98,7 @@ Everything in Agentimus lives on that one screen, organised into **tabs across t
 
 | Tab | What it's for |
 | --- | --- |
-| **Dashboard** | Your at-a-glance home: your readiness score, and a private, first-party log of which AI agents and crawlers have been fetching your content (no IP addresses are stored). |
+| **Dashboard** | Your at-a-glance home: your readiness score, and a private, first-party log of which AI agents and crawlers have been fetching your content (no IP addresses are stored by default; one optional, off-by-default setting can store a flagged crawler's IP so you can block it). |
 | **AI Visibility** | An **opt-in, off-by-default** monitor that tracks whether ChatGPT, Perplexity, Gemini and Claude actually mention and cite you over time. It's the one feature that makes outbound calls, and only after you enable it and add your own API key. |
 | **Settings** | Every switch and field: the machine-readable signals Agentimus publishes, and the identity details agents read. This is also where **Run setup again** lives. |
 | **Readiness** | A plain-English pass / warn / fail checklist of how machine-legible your site is right now, with one-click jumps to fix anything missing — plus **Agent preview**, which shows the exact data an agent receives for any page. |
@@ -117,7 +117,7 @@ Everything in Agentimus lives on that one screen, organised into **tabs across t
 A brand-new Agentimus install is deliberately cautious. Out of the box:
 
 - It makes **no outbound HTTP requests**, loads no remote scripts or fonts, and sends no analytics or telemetry. Everything runs on your own server.
-- The activity log records which bots fetch your content **without storing any IP addresses** or personal data.
+- The activity log records which bots fetch your content **without storing any IP addresses** or personal data by default. (One optional setting, off by default, can store the IP of a *flagged* impersonating or spoofed crawler — never an ordinary visitor's — on your own server so you can block it.)
 - It **blocks nothing** — Agentimus is a discovery layer, so every agent is served until you deliberately turn on the optional scanner/agent blocking.
 - The features that publish clean, machine-readable versions of your public content (the llms.txt files, markdown delivery, JSON-LD structured data, the fallback sitemap, and per-page topics) are **on**, because they only ever describe content that's already public. The fallback sitemap even stands aside automatically if WordPress core or an SEO plugin already provides one.
 - The genuinely powerful or experimental switches — publishing a `security.txt` contact file, the browser-tools (WebMCP) bridge, and the exposure-hardening controls — all ship **off**, waiting for you to opt in.

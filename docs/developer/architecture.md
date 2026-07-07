@@ -182,11 +182,12 @@ The two options involved are `agentimus_rewrite_version` (the signature) and `ag
 |:------|:---------------|
 | `Activity\Module` | Wires the log: ensures the table exists, exposes the admin REST surface (read/clear/day/block/allow), records human referrals, and runs the daily prune cron. |
 | `Activity\Table` | Schema and install for the dedicated, append-only activity table (one INSERT per hit — no option read-modify-write race). |
-| `Activity\Recorder` | Logs one agent hit on a discovery/llms endpoint. First-party and local-only, storing the endpoint, the classified agent, and a truncated UA — deliberately no IP. |
+| `Activity\Recorder` | Logs one agent hit on a discovery/llms endpoint. First-party and local-only, storing the endpoint, the classified agent, and a truncated UA — deliberately no IP in the log row. When the opt-in `store_flagged_ips` setting is on, it *also* captures the source IP of a **flagged** client — a reverse-DNS-failed impersonator (verdict 2) or a legacy-device spoof — into the separate `Activity\FlaggedIps` store, never for ordinary traffic. |
 | `Activity\Classifier` | Turns a raw User-Agent into a friendly agent label ("Claude", "GPTBot", …) and provides the shared `is_spoof()` heuristic that `Guard` reuses. |
 | `Activity\Catalog` | Recognition layer that maps a known crawler UA to an identity card: who runs it, what kind it is (AI/SEO/search/social), and a docs link. |
 | `Activity\Repository` | The read/maintenance side — dashboard stats, retention pruning, and clearing. All timestamps are stored/queried in GMT. |
 | `Activity\Referrals` | The mirror of `Recorder`: counts real human visits that arrive *from* an AI assistant. |
+| `Activity\FlaggedIps` | The opt-in, minimised IP store: source IPs for *flagged* clients only (a reverse-DNS-failed impersonator or a legacy-device spoof), in its own table. Off by default (`store_flagged_ips`), short retention (~14 days, filter `agentimus_flagged_ip_retention_days`), deduped and capped per client, cleared with the log, and purged when the owner opts back out. The only PII the plugin ever stores. |
 
 ### The `Visibility\` subsystem (opt-in AI-visibility monitor)
 

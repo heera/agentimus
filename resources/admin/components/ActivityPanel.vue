@@ -426,8 +426,8 @@ export default {
 
     <!-- Quiet privacy framing so the dashboard reads as informational, not surveillance. -->
     <p class="ar-dash-note">
-      Informational only — which AI assistants read your site, in aggregate. No IP addresses, no
-      personal data, nothing sent anywhere.
+      Informational only — which AI assistants read your site, in aggregate. No IP addresses by default,
+      nothing sent anywhere.
     </p>
 
     <!-- First load in flight: show a skeleton, not the empty state. -->

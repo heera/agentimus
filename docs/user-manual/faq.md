@@ -42,7 +42,7 @@ By default, **no.** Out of the box, Agentimus:
 - Makes no outbound HTTP requests.
 - Sends nothing to any external service.
 - Collects no analytics or telemetry.
-- Stores its agent-activity log in your own database, with **no IP addresses** recorded.
+- Stores its agent-activity log in your own database, with **no IP addresses** recorded by default (see *Does Agentimus store IP addresses?* below for the one opt-in exception).
 
 Everything runs on your own site. There are two things worth knowing so the picture is complete:
 
@@ -57,9 +57,17 @@ Yes to privacy, and no to any new access.
 
 - Agentimus only describes content your site **already makes public**. It does not expose drafts, private pages, user data, or anything behind a login.
 - Removing or hiding an item in Agentimus changes what is *advertised* to AI tools — not what is reachable. The underlying pages and endpoints behave exactly as they did before, still behind their own authentication.
-- The activity log is first-party and aggregate: it records that a bot fetched your content, without storing IP addresses or per-visitor records.
+- The activity log is first-party and aggregate: it records that a bot fetched your content, without storing IP addresses or per-visitor records by default. (One optional setting, off by default, can store the IP of a *flagged* impersonating or spoofed crawler — never an ordinary visitor — so you can block it; see *Does Agentimus store IP addresses?* below.)
 
 Agentimus grants agents **no** ability to write to, edit, or control your site. It is a read-and-describe layer, not an access layer.
+
+## Does Agentimus store IP addresses?
+
+By default, **no** — and that was a deliberate design choice. The activity log records only technical request facts (the endpoint, a friendly agent label, a truncated User-Agent, and a UTC time), and the Traffic-from-AI card stores only per-day tallies. Neither keeps an IP address.
+
+There is one optional setting for this: **Store IP addresses for flagged clients**, which is **off by default**. When you switch it on, Agentimus records an IP *only* for a client it has flagged as an **impersonating crawler** (one that claims to be Googlebot, Bingbot and the like but fails a reverse-DNS check) or a **legacy-device spoof/scanner** — never for an ordinary visitor. The point is practical: it shows you the exact addresses to block at your host or CDN.
+
+When enabled, those IPs are personal data, but they stay tightly contained: kept in a separate store on **your own server only**, for a **short retention** (about 14 days), cleared whenever you clear the activity log, and deleted entirely if you turn the setting back off. Nothing is ever sent off your server. If you enable it, mention it in your site's privacy policy.
 
 ## What is llms.txt, and what do you mean by a "discovery layer"?
 

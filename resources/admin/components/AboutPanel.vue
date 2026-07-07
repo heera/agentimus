@@ -84,7 +84,7 @@ export default {
         { q: 'Will this block Google or real search engines?', a: 'No. Blocking is opt-in and aimed at AI training crawlers and spoofed bots. Real search engines are recognised and never blocked by default.' },
         { q: 'What does “Verified responses” (signing) do?', a: 'It signs your discovery documents (RFC 9421) so an agent can confirm they really came from your server and weren’t altered in transit. The key is generated on your server and never leaves it.' },
         { q: 'Does it slow my site down?', a: 'Barely. Generated documents are cached, JSON-LD is tiny, and the plugin makes no external calls on the front end — nothing is fetched from another server while your pages load. (The optional AI Visibility checks run only in the admin or on a schedule, never during a page view.)' },
-        { q: 'Does it collect personal data?', a: 'No. The activity log stores no IP addresses, no identities and no query strings, and logged-in admins are skipped. See “Privacy & data” above.' },
+        { q: 'Does it collect personal data?', a: 'By default, no — the activity log stores no IP addresses, no identities and no query strings, and logged-in admins are skipped. One optional setting, “Store IP addresses for flagged clients” (off by default), can record IPs, but only for crawlers flagged as impersonators or spoofs so you can block them. See “Privacy & data” above.' },
         { q: 'What happens to AI training of my content?', a: 'By default Agentimus signals “do not train” (via tdmrep.json, the tdm-reservation header and robots Content-Signal) while still letting search engines and AI assistants read it. You control all of this in Settings.' },
       ],
       // Open standards the discovery output speaks — shown as plain chips.
@@ -212,12 +212,15 @@ export default {
             Kept 30 days, pruned daily.
           </p>
           <ul class="ar-about-not">
-            <li>No IP addresses</li>
+            <li>No IP addresses in the log</li>
             <li>No identities or logins (admins are skipped)</li>
             <li>No emails</li>
             <li>No query strings or full URLs</li>
           </ul>
-          <p class="ar-about-priv__foot">No PII, no GDPR footprint by default. Your signing key is stored
+          <p class="ar-about-priv__foot">No PII and no GDPR footprint by default. One optional setting —
+            <strong>Store IP addresses for flagged clients</strong> (off by default) — can record IPs, but only for
+            crawlers flagged as impersonators or spoofs, kept briefly on your own server and deleted when you switch it
+            off; enable it and you take on that data (disclose it in your privacy policy). Your signing key is stored
             un-autoloaded and never leaves the server. Uninstalling removes the tables, settings and key.</p>
         </div>
       </div>

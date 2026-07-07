@@ -88,6 +88,7 @@ final class Settings {
 			'block_agents'     => false, // Master switch for denying agents at the generated endpoints.
 			'block_spoofed'    => true,  // When blocking is on, also deny spoofed/legacy-device UAs (the "Likely spoof/scanner" class). No effect while block_agents is false.
 			'verify_bots'      => false, // Opt-in: forward-confirm a claimed search engine by reverse DNS. Two independent effects — it flags a proven impersonator in the review queue (and records the verdict for "Check this bot"), and, WHEN blocking is on, stops a spoofed "Googlebot" UA inheriting a real crawler's always-allow. OFF by default because it makes outbound DNS lookups (all this plugin ever makes).
+				'store_flagged_ips' => false, // Opt-in, minimised IP capture: store the source IP ONLY for clients flagged as an impersonator (failed reverse-DNS) or a legacy-device spoof, so the review card can show real addresses to block. OFF by default — the ONLY setting that makes the plugin keep personal data. Short retention, cleared with the log, PURGED when switched back off. See Activity\FlaggedIps.
 			'blocked_agents'   => array(), // Owner's custom user-agent substrings to deny (case-insensitive). Empty = none.
 			'allowed_agents'   => array(), // Owner's trust-list (via the activity panel's "Allow"): never blocked, never flagged for review. Empty = none.
 			// Exposure controls — reduce what an ANONYMOUS visitor (crawler / bot /
@@ -304,9 +305,17 @@ final class Settings {
 	 * @return array The sanitised, stored settings.
 	 */
 	public function update( array $input ) {
+		$prev  = get_option( self::OPTION, array() );
 		$clean = $this->sanitize( $input );
 		update_option( self::OPTION, $clean );
 		Cache::flush();
+		// Opted back OUT of flagged-IP storage → purge what was kept, so the plugin never
+		// holds personal data the owner just declined. A listener (Activity\Module) clears
+		// the store; firing an action keeps Settings decoupled from the table.
+		if ( ! empty( $prev['store_flagged_ips'] ) && empty( $clean['store_flagged_ips'] ) ) {
+			/** Fires when the owner disables flagged-IP capture; purge the stored IPs. */
+			do_action( 'agentimus_flagged_ips_purge' );
+		}
 		return $clean;
 	}
 

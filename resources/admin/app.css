@@ -2171,6 +2171,15 @@ button.ar-act-more:hover { color: var(--ar-ink); }
 .ar-rev-ua.is-copyable { cursor: pointer; }
 .ar-rev-ua.is-copyable:hover { color: var(--ar-ink); }
 .ar-rev-ua.is-empty { font-style: italic; color: var(--ar-ink-faint); }
+/* Captured flagged-client IPs — copyable mono chips. */
+.ar-rev-ips { display: flex; flex-wrap: wrap; gap: 6px; }
+.ar-rev-ip {
+  appearance: none; cursor: pointer; font-family: var(--ar-mono); font-size: 11px; color: var(--ar-ink);
+  padding: 2px 7px; border-radius: 5px; border: 1px solid var(--ar-line-strong); background: var(--ar-surface-2);
+  transition: background 0.12s ease, border-color 0.12s ease;
+}
+.ar-rev-ip:hover { background: #f1e7d7; border-color: var(--ar-ink-faint); }
+.ar-rev-ip:focus-visible { outline: 2px solid var(--ar-accent); outline-offset: 1px; }
 .ar-rev-details__why { margin: 0; font-size: 12px; line-height: 1.55; color: var(--ar-ink-soft); }
 .ar-rev-details__research { display: flex; align-items: baseline; flex-wrap: wrap; gap: 10px; }
 .ar-rev-details__reslabel { font-size: 11px; color: var(--ar-ink-faint); }

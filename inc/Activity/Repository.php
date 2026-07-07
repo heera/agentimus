@@ -349,7 +349,7 @@ final class Repository {
 			$recent[ (string) $r['ua'] ] = (int) $r['c'];
 		}
 
-		return self::analyze_threats(
+		$result = self::analyze_threats(
 			(array) $sources,
 			$recent,
 			$now,
@@ -362,6 +362,24 @@ final class Repository {
 				'dismissed'  => self::dismissed_map(),
 			)
 		);
+
+		// Opt-in: decorate each row with the actual source IPs captured for that client
+		// (keyed by the same dismiss_key used at capture time). Only when IP storage is on
+		// — otherwise the store is empty and there's nothing to fetch.
+		if ( $settings->enabled( 'store_flagged_ips' ) && ! empty( $result['sources'] ) ) {
+			$keys = array();
+			foreach ( $result['sources'] as $row ) {
+				$keys[] = self::dismiss_key( $row['ua'] );
+			}
+			$ip_map = FlaggedIps::for_keys( $keys );
+			foreach ( $result['sources'] as &$row ) {
+				$key         = self::dismiss_key( $row['ua'] );
+				$row['ips']  = isset( $ip_map[ $key ] ) ? $ip_map[ $key ] : array();
+			}
+			unset( $row );
+		}
+
+		return $result;
 	}
 
 	/**
@@ -760,5 +778,6 @@ final class Repository {
 		$table = Table::name();
 		$wpdb->query( "TRUNCATE TABLE $table" ); // phpcs:ignore WordPress.DB, PluginCheck.Security.DirectDB.UnescapedDBParameter -- admin-gated truncation of our own prefix-derived table.
 		delete_option( self::DISMISS_OPTION );
+		FlaggedIps::clear(); // The captured IPs are judged against this history — clear them with it.
 	}
 }

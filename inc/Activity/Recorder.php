@@ -47,6 +47,9 @@ final class Recorder {
 	/** @var bool|null Per-request cache of the enable flag. */
 	private static $enabled = null;
 
+	/** @var bool|null Per-request cache of the opt-in flagged-IP-storage flag. */
+	private static $store_ips = null;
+
 	/**
 	 * Record a hit on the named endpoint, if logging is enabled.
 	 *
@@ -88,6 +91,9 @@ final class Recorder {
 			return;
 		}
 
+		$verdict  = self::verdict( $ua );
+		$is_spoof = Classifier::is_spoof( $ua );
+
 		global $wpdb;
 		$wpdb->insert( // phpcs:ignore WordPress.DB -- single insert into our own table.
 			Table::name(),
@@ -95,11 +101,20 @@ final class Recorder {
 				'endpoint' => substr( (string) $endpoint, 0, 64 ),
 				'agent'    => substr( $agent, 0, 64 ),
 				'ua'       => substr( $ua, 0, 255 ),
-				'verdict'  => self::verdict( $ua ),
+				'verdict'  => $verdict,
 				'hit_at'   => current_time( 'mysql', true ), // GMT.
 			),
 			array( '%s', '%s', '%s', '%d', '%s' )
 		);
+
+		// OPT-IN, minimised IP capture. Only when the owner turned it on, and only for a
+		// client that is suspicious at record time — a proven impersonator (verdict 2) or a
+		// legacy-device spoof — so the review card can show real addresses to block. The IP
+		// is resolved only here, stored ONLY for these flagged clients, and kept nowhere
+		// else (a normal install captures nothing). See {@see FlaggedIps}.
+		if ( self::should_capture_ip( $verdict, $is_spoof, self::store_ips_enabled() ) ) {
+			FlaggedIps::record( Repository::dismiss_key( $ua ), Guard::client_ip() );
+		}
 
 		// Opportunistic backstop: most inserts pay only a cheap rand(); roughly one
 		// in CAP_CHECK_ODDS runs a single bounded DELETE, so the table can't bank
@@ -194,5 +209,32 @@ final class Recorder {
 			self::$enabled = (bool) ( new Settings() )->enabled( 'enable_activity' );
 		}
 		return self::$enabled;
+	}
+
+	/**
+	 * Whether this hit's IP should be captured — the pure decision behind the opt-in
+	 * flagged-IP store. TRUE only when the owner enabled it AND the client is suspicious at
+	 * record time: a proven impersonator (verdict 2) or a legacy-device spoof. Never for
+	 * ordinary traffic. Pure, so the minimisation rule is unit-tested in isolation.
+	 *
+	 * @param int  $verdict  Live reverse-DNS verdict (2 = spoofed/impersonator).
+	 * @param bool $is_spoof Legacy-device spoof heuristic.
+	 * @param bool $enabled  Whether store_flagged_ips is on.
+	 * @return bool
+	 */
+	public static function should_capture_ip( $verdict, $is_spoof, $enabled ) {
+		return (bool) $enabled && ( 2 === (int) $verdict || (bool) $is_spoof );
+	}
+
+	/**
+	 * Whether opt-in IP capture for flagged clients is on (cached for the request).
+	 *
+	 * @return bool
+	 */
+	private static function store_ips_enabled() {
+		if ( null === self::$store_ips ) {
+			self::$store_ips = (bool) ( new Settings() )->enabled( 'store_flagged_ips' );
+		}
+		return self::$store_ips;
 	}
 }

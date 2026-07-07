@@ -13,7 +13,7 @@ The **Dashboard** is the first tab you land on when you open Agentimus. It answe
 
 Alongside these sits a **Readiness summary** — an at-a-glance health check of how well your site is set up for AI.
 
-Everything on this tab is **first-party and local-only**. All of it lives in your own WordPress database, nothing is ever sent to Agentimus or any third party, and — importantly — **no IP addresses and no personal data are stored**. The two data stores are pruned and size-capped automatically, so they never grow without bound.
+Everything on this tab is **first-party and local-only**. All of it lives in your own WordPress database, nothing is ever sent to Agentimus or any third party, and — importantly — **by default no IP addresses and no personal data are stored**. (One optional setting, off by default, can store an IP for a flagged impersonating or spoofed crawler so you can block it — never for an ordinary visitor, and never off your own server; see the privacy note below.) The two data stores are pruned and size-capped automatically, so they never grow without bound.
 
 The whole Dashboard is powered by a single setting, **Agent activity log**, which is **on by default**. It covers both directions at once — the traffic-in card and the bots-out log are one feature. If you ever turn it off in Settings, both stop recording.
 
@@ -105,7 +105,7 @@ Each logged hit stores just four small facts:
 - a **truncated copy of the User-Agent string** the client sent, and
 - the **time**, stored in UTC.
 
-That's it. **No IP address is ever recorded** — so there is no personal-data or GDPR footprint by default — and the log is never transmitted anywhere. Repeat hits from the same client are grouped with a count, newest first, so the view stays readable.
+That's it — the log row itself records **no IP address**. By default the plugin keeps no IP at all; the sole exception is an optional setting (**Store IP addresses for flagged clients**, off by default) that stores a flagged impersonating or spoofed crawler's IP in a *separate* store so you can block it — never an ordinary visitor's, and covered in the privacy note below. The log is never transmitted anywhere, and repeat hits from the same client are grouped with a count, newest first, so the view stays readable.
 
 As with the traffic card, **you are skipped**: a logged-in administrator opening `discovery.json` in a browser to check it isn't agent traffic, so it doesn't clutter the log.
 
@@ -138,12 +138,12 @@ To keep one abusive burst from drowning out the traffic you care about, the log 
 
 ---
 
-## Your privacy: local-only, no IPs, no personal data
+## Your privacy: local-only, no IPs by default
 
 This is the point worth repeating, because it shapes every design choice on this tab:
 
 - **Local-only.** Both the traffic card and the activity log live entirely in your WordPress database. Nothing is sent to Agentimus, and the plugin makes **no outbound calls** to gather any of it.
-- **No IP addresses.** Neither store records an IP, ever — so there's no personal-data trail to manage.
+- **No IP addresses by default.** Out of the box neither the traffic card nor the activity-log row records an IP. The one exception is an optional setting — **Store IP addresses for flagged clients** (off by default) — which records an IP *only* for a client flagged as an impersonating crawler (one that claims to be Googlebot, Bingbot and the like but fails a reverse-DNS check) or a legacy-device spoof/scanner, and never for an ordinary visitor. When it's on, those IPs are kept in a separate store on **your own server only**, for a short retention (about 14 days), cleared when you clear the log, and deleted entirely if you switch the setting back off — nothing is ever sent off your server. It exists so you can see the exact addresses to block at your host or CDN; if you enable it, disclose it in your site's privacy policy.
 - **The traffic card stores no person-level data at all.** Its rows are pure per-day tallies of *(assistant → page)* with no IP, no User-Agent, and no query string.
 - **The activity log keeps only technical request facts** — the endpoint, a friendly agent label, a truncated User-Agent, and a UTC time. A User-Agent is a self-declared software string, not a person.
 - **You're excluded.** Your own logged-in admin visits are skipped in both directions, so your browsing never skews the data.

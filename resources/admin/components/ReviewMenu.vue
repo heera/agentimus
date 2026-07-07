@@ -7,9 +7,10 @@
  * Design note — HONEST by construction. We show only signals we actually have: the
  * forward-confirmed reverse-DNS verdict (for the 5 verifiable search engines), the
  * known-bot identity, the legacy-device spoof heuristic, self-declaration, volume and
- * novelty. We deliberately DON'T fabricate a trust %, ASN/IP-ownership breakdown, or a
- * "Block IP" button — the plugin stores no IP and isn't a firewall, so those would be
- * invented. Verification is a three-state fact (verified / failed / not-checked), never a
+ * novelty — plus, when the owner opts in, the real source IPs captured for FLAGGED clients
+ * (Settings → "Store IP addresses for flagged clients"). We deliberately DON'T fabricate a
+ * trust %, an ASN/IP-ownership breakdown, or a "Block IP" button (the plugin isn't a
+ * firewall). Verification is a three-state fact (verified / failed / not-checked), never a
  * score.
  */
 export default {
@@ -139,7 +140,9 @@ export default {
           icon: 'x',
           state: 'Failed verification',
           why: `Claims to be ${this.engineName(s)}, but failed reverse-DNS verification when it visited.`,
-          recommend: `Can’t be blocked by name — block its IP at your host or CDN (Details shows how to find it).`,
+          recommend: (s.ips && s.ips.length)
+            ? `Can’t be blocked by name — block its ${s.ips.length} IP${1 === s.ips.length ? '' : 's'} (shown in Details) at your host or CDN.`
+            : `Can’t be blocked by name — block its IP at your host or CDN (Details shows how to find it).`,
         };
       }
       // Forward-confirmed — a genuine crawler (rare here; a verified engine is trusted and
@@ -179,7 +182,10 @@ export default {
     detailSentence(s) {
       if ('spoofed' === s.verdict) {
         const n = this.engineName(s);
-        return `It claims to be ${n}, but its network address failed reverse-DNS verification when it visited — a forgery, not the real ${n}. Blocking the name would also block the genuine ${n}, so block the impostor’s IP instead. Agentimus keeps no IP addresses (that’s the privacy promise), but your server’s access log and your CDN/firewall dashboard do — search either for the User-Agent above to find the addresses, then block them there.`;
+        if (s.ips && s.ips.length) {
+          return `It claims to be ${n}, but its address failed reverse-DNS verification when it visited — a forgery, not the real ${n}. Blocking the name would also block the genuine ${n}, so block the IP address${1 === s.ips.length ? '' : 'es'} above at your host or CDN/firewall.`;
+        }
+        return `It claims to be ${n}, but its network address failed reverse-DNS verification when it visited — a forgery, not the real ${n}. Blocking the name would also block the genuine ${n}, so block the impostor’s IP instead. To see the IP here, turn on “Store IP addresses for flagged clients” in Settings; otherwise find it in your server’s access log or CDN/firewall dashboard by searching for the User-Agent above, then block it there.`;
       }
       if (s.known) {
         const v = 'verified' === s.verdict ? ' Reverse-DNS confirmed it as genuine.' : '';
@@ -214,7 +220,7 @@ export default {
     hideUaTip() {
       this.uaTip.show = false;
     },
-    async copyUa(text) {
+    async copyValue(text, label = 'User-Agent') {
       if (!text) return;
       let ok = false;
       try {
@@ -224,7 +230,7 @@ export default {
         }
       } catch (e) { /* fall through to the legacy path */ }
       if (!ok) ok = this.legacyCopy(text);
-      this.$emit('flash', ok ? 'success' : 'error', ok ? 'User-Agent copied.' : 'Could not copy — select the text and copy manually.');
+      this.$emit('flash', ok ? 'success' : 'error', ok ? `${label} copied.` : 'Could not copy — select the text and copy manually.');
     },
     legacyCopy(text) {
       try {
@@ -434,9 +440,24 @@ export default {
                 :aria-label="s.ua"
                 @mouseenter="showUaTip($event, s.ua)"
                 @mouseleave="hideUaTip"
-                @click.stop="copyUa(s.ua)"
+                @click.stop="copyValue(s.ua, 'User-Agent')"
               >{{ s.ua }}</code>
               <span v-else class="ar-rev-kv__v ar-rev-ua is-empty">No User-Agent</span>
+            </div>
+
+            <!-- Captured source IPs (opt-in) — real addresses to block; click to copy. -->
+            <div v-if="s.ips && s.ips.length" class="ar-rev-kv">
+              <span class="ar-rev-kv__k">IP address{{ 1 === s.ips.length ? '' : 'es' }}</span>
+              <span class="ar-rev-kv__v ar-rev-ips">
+                <button
+                  v-for="ip in s.ips"
+                  :key="ip.ip"
+                  type="button"
+                  class="ar-rev-ip"
+                  :title="`Click to copy — seen ${ip.hits}×`"
+                  @click.stop="copyValue(ip.ip, 'IP address')"
+                >{{ ip.ip }}</button>
+              </span>
             </div>
 
             <p class="ar-rev-details__why">{{ detailSentence(s) }}</p>
@@ -454,7 +475,7 @@ export default {
             </div>
 
             <p v-if="showNoIpNote(s)" class="ar-rev-details__note">
-              Agentimus keeps no IP for logged hits, so a bot’s network identity can’t be re-checked after the fact.
+              This client wasn’t network-verified, so its identity can’t be re-checked after the fact.
               Turn on <button type="button" class="ar-linkbtn" @click="$emit('navigate', { tab: 'settings' }); close()">Verify search engines</button>
               to confirm crawlers live, as they arrive.
             </p>

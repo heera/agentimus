@@ -40,6 +40,9 @@ final class Module {
 	public function register() {
 		Table::maybe_install();
 		Referrals::maybe_install();
+		// The opt-in flagged-IP table installs regardless of the setting (so it's ready the
+		// moment the owner turns capture on); it simply stays empty until then.
+		FlaggedIps::maybe_install();
 		// Ensure the prune cron exists on THIS site. Scheduling only at activation
 		// misses network sub-sites, because a network activation does not run the
 		// activation hook per site; this self-heals them (and any site created
@@ -57,6 +60,28 @@ final class Module {
 		add_action( 'rest_api_init', array( $this, 'routes' ) );
 		add_action( self::CRON, array( Repository::class, 'prune' ) );
 		add_action( self::CRON, array( Referrals::class, 'prune' ) );
+		add_action( self::CRON, array( FlaggedIps::class, 'prune' ) );
+		// Opting back out of IP storage purges what was kept (Settings::update fires this).
+		add_action( 'agentimus_flagged_ips_purge', array( FlaggedIps::class, 'clear' ) );
+		// Suggest privacy-policy text for the site owner — but only while the opt-in
+		// feature is actually on, so a default install adds no misleading "we store IPs" copy.
+		add_action( 'admin_init', array( $this, 'privacy_declaration' ) );
+	}
+
+	/**
+	 * Feed WordPress's Privacy tool suggested policy text — ONLY when the owner has enabled
+	 * flagged-IP capture, so it appears in Settings → Privacy exactly when it's true.
+	 */
+	public function privacy_declaration() {
+		if ( ! function_exists( 'wp_add_privacy_policy_content' ) || ! $this->settings->enabled( 'store_flagged_ips' ) ) {
+			return;
+		}
+		wp_add_privacy_policy_content(
+			'Agentimus',
+			wp_kses_post(
+				'<p>' . __( 'When "Store IP addresses for flagged clients" is enabled, Agentimus records the IP address of visitors it flags as a spoofed/impersonating crawler, so you can block them. IPs are stored only for these flagged clients, kept for a short retention period, and never sent off your server.', 'agentimus' ) . '</p>'
+			)
+		);
 	}
 
 	/**

@@ -65,7 +65,7 @@ Here is the machine-readable output Agentimus can generate. Some is on by defaul
 | Agent & tool cards | `/.well-known/agent-card.json`, `/.well-known/mcp.json` | Machine descriptions of what an agent can do with your site |
 | security.txt | `/.well-known/security.txt` | An optional, standard way for researchers and agents to report an issue |
 
-Alongside what it *publishes*, Agentimus also gives you a private, first-party **log of which AI crawlers actually visit** your site (no IP addresses recorded), a one-click way to **block** bots you don't want, and a one-screen **readiness report** that scores how AI-ready your site is and names the single next thing worth improving.
+Alongside what it *publishes*, Agentimus also gives you a private, first-party **log of which AI crawlers actually visit** your site (by default no IP addresses recorded; one optional, off-by-default setting can store a flagged impersonating or spoofed crawler's IP so you can block it), a one-click way to **block** bots you don't want, and a one-screen **readiness report** that scores how AI-ready your site is and names the single next thing worth improving.
 
 ## Lightweight by design — no SEO bloat
 
@@ -76,7 +76,7 @@ What that means in practice:
 - **No front-end JavaScript or CSS for your visitors.** A default install ships nothing to the browsers of the people reading your site.
 - **No performance cost.** The text files are cached and CDN-friendly. The admin interface loads only on Agentimus's own screen, never across the rest of your dashboard.
 - **No framework.** The plugin is plain PHP with a small, hand-rolled loader — the codebase is intentionally lean so it can't become the heavy dependency it's meant to help you avoid.
-- **No phoning home.** Out of the box Agentimus makes no outbound requests, collects no analytics or telemetry, and logs no IP addresses. Everything runs on your own site. (The one exception is the optional AI Visibility feature, which is off by default and only calls an AI provider you choose after you add your own API key.)
+- **No phoning home.** Out of the box Agentimus makes no outbound requests, collects no analytics or telemetry, and by default logs no IP addresses. Everything runs on your own site. (One optional, off-by-default setting can store a flagged impersonating or spoofed crawler's IP — kept on your own server so you can block it, never sent anywhere. And the one feature that reaches an outside service is the optional AI Visibility monitor, which is off by default and only calls an AI provider you choose after you add your own API key.)
 
 ## It defers to your SEO plugin
 

@@ -604,8 +604,8 @@ export default {
         <h2 class="ar-card__title">Visit log</h2>
         <p class="ar-card__lead">
           Records which AI assistants fetch your AI files, and counts the visitors AI sends you
-          (“Traffic from AI”). Everything is stored on your own site — no IP addresses, nothing sent
-          anywhere. You read it all on the Activity tab.
+          (“Traffic from AI”). Everything is stored on your own site — no IP addresses by default (one optional
+          setting stores IPs for flagged crawlers only), nothing sent anywhere. You read it all on the Activity tab.
         </p>
 
         <label id="ar-feat-enable_activity" class="ar-toggle">
@@ -1191,6 +1191,22 @@ export default {
               outbound DNS lookup (cached per visitor).
               <strong>Behind a proxy or CDN (e.g. Cloudflare)?</strong> Leave this off unless you've supplied the real
               visitor IP, or real crawlers may lose their trusted status.
+            </small>
+          </span>
+        </label>
+
+        <label class="ar-toggle ar-toggle--standalone">
+          <input v-model="settings.store_flagged_ips" type="checkbox" />
+          <span class="ar-toggle__track" aria-hidden="true"></span>
+          <span class="ar-toggle__text">
+            <strong>Store IP addresses for flagged clients</strong>
+            <small>
+              By default Agentimus keeps <strong>no IP addresses</strong>. Turn this on and it stores the IP
+              <em>only</em> for clients flagged as an <strong>impersonator</strong> (failed reverse-DNS) or a
+              legacy-device <strong>scanner</strong> — never ordinary traffic — so the review card can show you the
+              exact addresses to block at your host or CDN. <strong>This is personal data:</strong> it's kept for a
+              short time, cleared when you clear the log, and deleted if you switch this back off. Nothing is ever sent
+              off your server. <em>(Needs “Verify search engines” on to catch impersonators.)</em>
             </small>
           </span>
         </label>

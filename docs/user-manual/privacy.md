@@ -11,8 +11,8 @@ Everything below is checked against the plugin's actual source code, not marketi
 ## The short version
 
 - **Out of the box, Agentimus makes no outbound connections at all.** No phone-home, no telemetry, no analytics, no remote fonts or scripts, no "check for updates" pings of its own.
-- **It collects no IP addresses and no personal data.** The activity log lives in your own WordPress database and deliberately never stores a visitor's IP.
-- **There is exactly one exception:** the optional **AI Visibility** feature. It is off until you switch it on and paste in your own AI provider API key. Only then does Agentimus call an outside service — the AI engines *you* chose — to check whether they mention and cite you.
+- **By default it collects no IP addresses and no personal data.** The activity log lives in your own WordPress database and deliberately never stores a visitor's IP. There is a single opt-in exception — **Store IP addresses for flagged clients** (off by default) — which records an IP *only* for a crawler flagged as an impersonator or a spoof, never an ordinary visitor, and keeps it on your own server so you can block it (explained in full below).
+- **There is exactly one exception to that no-outbound rule:** the optional **AI Visibility** feature. It is off until you switch it on and paste in your own AI provider API key. Only then does Agentimus call an outside service — the AI engines *you* chose — to check whether they mention and cite you.
 - **The signing key that proves your discovery documents are genuinely yours never leaves your server.**
 - Two things that might *look* like outside requests are not: the `$schema` label inside your discovery documents (it is never fetched), and the readiness report's **Verify live** button (it runs in your browser, against your own public URLs).
 
@@ -35,9 +35,29 @@ For each hit to one of its endpoints, the log stores:
 - **a truncated user-agent string**, and
 - **the time of the request**.
 
-That's it. The log **deliberately does not record IP addresses** and keeps no per-visitor identity. It is a picture of *what kind of client* is reading you, not *who*. All of it lives in your own WordPress database and nothing is sent anywhere.
+That's it. The log **deliberately does not record IP addresses** and keeps no per-visitor identity. It is a picture of *what kind of client* is reading you, not *who*. All of it lives in your own WordPress database and nothing is sent anywhere. (The one way any IP is ever stored — only for flagged impersonating or spoofed crawlers, and only if you opt in — is covered just below.)
 
 By default the log keeps **30 days** of history and prunes older rows automatically each day. (Developers can change the retention window with the `agentimus_activity_retention_days` filter.) Requests from you — a logged-in administrator inspecting your own endpoints — are skipped so they don't clutter the picture.
+
+### Storing IPs for flagged crawlers (off by default)
+
+There is exactly one setting that can change the no-IP default, and it ships **off**: **Store IP addresses for flagged clients**. Turn it on only if you want to see the actual addresses behind abusive crawlers so you can block them at your host or CDN.
+
+When it's on, Agentimus records an IP address in a **separate store** — never in the ordinary activity log — and only for a client it has already flagged as one of two things:
+
+- an **impersonating crawler**: one that claims to be Googlebot, Bingbot or another verifiable engine but fails a reverse-DNS check, or
+- a **legacy-device spoof / scanner**: a client hiding behind a long-dead phone or embedded-device user-agent.
+
+It never stores the IP of an ordinary visitor, and it never stores an IP for a client that isn't flagged.
+
+Those addresses are personal data, so Agentimus keeps the footprint as small as it honestly can:
+
+- they live **only on your own server**, in their own small table — nothing is ever sent off-site;
+- they're kept for a **short retention** (about 14 days) and pruned automatically;
+- they're wiped when you use the log's **Clear** action; and
+- they're **deleted in full the moment you switch the setting back off** — Agentimus won't hold data you've just declined.
+
+If you enable this setting, treat those IPs as personal data and disclose it in your site's privacy policy.
 
 ### "Traffic from AI" is aggregate too
 
@@ -125,6 +145,7 @@ To keep the whole picture in one place:
 |---|---|---|
 | llms.txt, Markdown, JSON-LD, robots rules, discovery documents | Generated and served from your own domain | Published publicly (that's their purpose) — but only ever describing already-public content |
 | Agent activity log (endpoint, agent type, truncated user-agent, time) | Your WordPress database | No |
+| Flagged-crawler IPs (opt-in, **off by default**) | A separate table in your WordPress database, short retention (~14 days), cleared with the log and purged when the setting is switched back off | No |
 | "Traffic from AI" counts | Your WordPress database (daily, aggregate) | No |
 | The private signing key | Your server, non-autoloaded (or your own vault via filter) | No |
 | The public signing key | Published at `/.well-known/http-message-signatures-directory` | Yes — public keys are meant to be shared, and it can't forge anything |
