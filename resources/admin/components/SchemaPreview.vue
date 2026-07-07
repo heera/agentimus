@@ -93,10 +93,15 @@ export default {
       // postNote carries the explanation instead.
       if (md && !this.res.postIncluded) return null;
       if (!md && !this.res.livePublic) return null;
+      // The site target's markdown is the index served at the home URL and /llms.txt,
+      // not a single page's .md — so its "served" line names where it actually lives.
+      const isSite = !!(this.res.target && this.res.target.type === 'site');
       return {
         tone: 'good',
         text: md
-          ? 'This is served at the page’s .md URL right now.'
+          ? (isSite
+            ? 'This is served at your home URL and at /llms.txt right now.'
+            : 'This is served at the page’s .md URL right now.')
           : 'This is live in your page’s HTML head right now.',
       };
     },
@@ -371,6 +376,10 @@ export default {
           tabindex="-1"
           @keydown.esc="close"
         >
+          <button type="button" class="agentimus-jsonld__close" @click="close" aria-label="Close preview" title="Close">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 6 18 18M18 6 6 18" /></svg>
+          </button>
+
           <div class="ar-modal__head">
             <h2 id="ar-jsonld-title" class="ar-modal__title">Agent preview</h2>
             <p class="ar-modal__lead">
@@ -496,9 +505,18 @@ export default {
                           <span v-for="(t, i) in nodeTypes" :key="i" class="agentimus-jsonld__typechip">{{ t }}</span>
                         </p>
                       </div>
-                      <button type="button" class="ar-btn agentimus-jsonld__copy" :disabled="isEmpty" @click="copy">
-                        {{ copied ? 'Copied ✓' : copyLabel }}
-                      </button>
+                      <!-- The "Open live" links sit top-right, where they're seen on load.
+                           Copy moved into the code block's corner (below). -->
+                      <div v-if="hasPublicUrl" class="agentimus-jsonld__actions">
+                        <a :href="liveUrl" target="_blank" rel="noopener" class="agentimus-jsonld__tool">Open live page ↗</a>
+                        <a
+                          v-if="format === 'markdown' && mdResult && mdResult.mdUrl"
+                          :href="mdResult.mdUrl"
+                          target="_blank"
+                          rel="noopener"
+                          class="agentimus-jsonld__tool"
+                        >Open live .md ↗</a>
+                      </div>
                     </div>
 
                     <p v-if="res.postNote" class="agentimus-jsonld__note">{{ res.postNote }}</p>
@@ -506,26 +524,30 @@ export default {
                     <!-- JSON-LD body -->
                     <template v-if="format === 'jsonld'">
                       <p v-if="isEmpty && !res.postNote" class="agentimus-jsonld__empty">Nothing would be emitted for this target.</p>
-                      <pre v-else-if="!isEmpty" class="agentimus-jsonld__code"><code>{{ result.json }}</code></pre>
+                      <div v-else-if="!isEmpty" class="agentimus-jsonld__codewrap">
+                        <button type="button" class="agentimus-jsonld__codecopy" :class="{ 'is-copied': copied }" @click="copy" :aria-label="copyLabel" :title="copyLabel">
+                          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="11" height="11" rx="2" /><path d="M6 15H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v1" /></svg>
+                          <span>{{ copied ? 'Copied' : 'Copy' }}</span>
+                        </button>
+                        <pre class="agentimus-jsonld__code"><code>{{ result.json }}</code></pre>
+                      </div>
                     </template>
                     <!-- Markdown body -->
                     <template v-else>
                       <p v-if="isEmpty && !res.postNote" class="agentimus-jsonld__empty">No Markdown is served for this target.</p>
-                      <pre v-else-if="!isEmpty" class="agentimus-jsonld__code agentimus-jsonld__code--md"><code>{{ mdResult.markdown }}</code></pre>
+                      <div v-else-if="!isEmpty" class="agentimus-jsonld__codewrap">
+                        <button type="button" class="agentimus-jsonld__codecopy" :class="{ 'is-copied': copied }" @click="copy" :aria-label="copyLabel" :title="copyLabel">
+                          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="11" height="11" rx="2" /><path d="M6 15H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v1" /></svg>
+                          <span>{{ copied ? 'Copied' : 'Copy' }}</span>
+                        </button>
+                        <pre class="agentimus-jsonld__code agentimus-jsonld__code--md"><code>{{ mdResult.markdown }}</code></pre>
+                      </div>
                     </template>
 
-                    <div class="agentimus-jsonld__tools">
-                      <a v-if="hasPublicUrl" :href="liveUrl" target="_blank" rel="noopener" class="agentimus-jsonld__tool">
-                        Open live page ↗
-                      </a>
-                      <a
-                        v-if="format === 'markdown' && mdResult && mdResult.mdUrl"
-                        :href="mdResult.mdUrl"
-                        target="_blank"
-                        rel="noopener"
-                        class="agentimus-jsonld__tool"
-                      >Open live .md ↗</a>
-                      <template v-if="format === 'jsonld' && canTestLiveUrl">
+                    <!-- Secondary: JSON-LD validators. The live-URL versions need a public,
+                         live-emitting page; otherwise steer to copy-paste. -->
+                    <div v-if="format === 'jsonld' && !isEmpty" class="agentimus-jsonld__tools">
+                      <template v-if="canTestLiveUrl">
                         <a :href="googleUrl" target="_blank" rel="noopener" class="agentimus-jsonld__tool">
                           Google Rich Results test ↗
                         </a>
@@ -533,8 +555,8 @@ export default {
                           Schema.org validator ↗
                         </a>
                       </template>
-                      <span v-else-if="format === 'jsonld' && !isEmpty" class="agentimus-jsonld__hint">
-                        To validate, copy the JSON and paste it into the Schema.org validator’s “Code” tab.
+                      <span v-else class="agentimus-jsonld__hint">
+                        To validate, copy the JSON and paste it into the Schema.org validator’s "Code" tab.
                       </span>
                     </div>
                   </template>
@@ -559,11 +581,37 @@ export default {
    long, so give them the whole window (a thin frame from .ar-modal's padding).
    A viewport-locked height keeps the dialog from resizing as content loads in. */
 .ar-modal__panel.agentimus-jsonld__panel {
+  position: relative;   /* positioning context for the top-right ✕ */
   max-width: none;
-  width: 100%;
-  height: calc(100vh - 40px);
-  max-height: calc(100vh - 40px);
+  /* A touch smaller than the full viewport frame — pulled in ~20px on each axis so
+     the dialog has a little breathing room instead of going edge-to-edge. */
+  width: calc(100% - 20px);
+  height: calc(100vh - 60px);
+  max-height: calc(100vh - 60px);
 }
+
+/* Top-right ✕ close, over the head. The head gets extra right padding so its lead
+   text never slips under the button. */
+.agentimus-jsonld__panel .ar-modal__head { padding-right: 60px; }
+.agentimus-jsonld__close {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  z-index: 3;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  background: transparent;
+  border: 0;
+  border-radius: 8px;
+  cursor: pointer;
+  color: var(--ar-ink-soft);
+}
+.agentimus-jsonld__close:hover { background: var(--ar-surface-2); color: var(--ar-ink); }
+.agentimus-jsonld__close:focus-visible { outline: 2px solid var(--ar-accent); outline-offset: 2px; }
 
 /* Split view: picker and viewer side by side. The list and the JSON each scroll
    in their own bounded box, so a long list never pushes the JSON down — and the
@@ -803,6 +851,7 @@ export default {
 
 .agentimus-jsonld__viewhead {
   display: flex;
+  flex-wrap: wrap;
   align-items: flex-start;
   justify-content: space-between;
   gap: 12px;
@@ -813,7 +862,16 @@ export default {
   margin: 0 0 6px;
   font-size: 15px;
 }
-.agentimus-jsonld__copy { flex: 0 0 auto; }
+/* The "Open live" links cluster, top-right of the header (Copy moved to the code
+   block's corner). Wraps under the title on narrow screens. */
+.agentimus-jsonld__actions {
+  flex: 0 0 auto;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 14px;
+}
 
 .agentimus-jsonld__types {
   display: flex;
@@ -844,6 +902,33 @@ export default {
   border: 1px dashed var(--ar-line);
   border-radius: var(--ar-radius);
 }
+
+/* The code box + its floating Copy button. The wrapper is the positioning context
+   and does NOT scroll (only the <pre> inside does), so the button stays pinned to
+   the top-right corner instead of scrolling away with the content. */
+.agentimus-jsonld__codewrap { position: relative; }
+.agentimus-jsonld__codecopy {
+  position: absolute;
+  top: 8px;
+  right: 10px;
+  z-index: 2;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 9px;
+  background: var(--ar-surface);
+  border: 1px solid var(--ar-line);
+  border-radius: 6px;
+  cursor: pointer;
+  font: inherit;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--ar-ink-soft);
+  opacity: 0.9;
+}
+.agentimus-jsonld__codecopy:hover { color: var(--ar-ink); opacity: 1; border-color: var(--ar-line-strong); }
+.agentimus-jsonld__codecopy:focus-visible { outline: 2px solid var(--ar-accent); outline-offset: 2px; }
+.agentimus-jsonld__codecopy.is-copied { color: var(--ar-good); border-color: var(--ar-good); opacity: 1; }
 
 .agentimus-jsonld__code {
   margin: 0;
