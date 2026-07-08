@@ -505,9 +505,16 @@
    background (no card, no divider), dimmed, with a muted (not loud red) heart
    so it sits calmly in the restrained palette. */
 .ar-rail-foot {
-  margin: 0 4px; text-align: center;
+  display: flex; align-items: center; justify-content: center; gap: 10px;
+  margin: 0 4px;
   font-size: 10px; line-height: 1.4; color: var(--ar-ink-faint);
 }
+/* Two short hairlines flanking the credit, each dissolving toward the outer edge. */
+.ar-rail-foot::before,
+.ar-rail-foot::after { content: ''; flex: 0 1 34px; height: 1px; }
+.ar-rail-foot::before { background: linear-gradient(to right, transparent, currentColor); }
+.ar-rail-foot::after { background: linear-gradient(to left, transparent, currentColor); }
+.ar-rail-foot__text { flex: 0 0 auto; white-space: nowrap; }
 .ar-rail-foot__heart { color: #d29991; }
 /* Quiet self-link: reads as plain dimmed text, reveals it's a link only on
    intent (darkens + underlines on hover/focus). */
