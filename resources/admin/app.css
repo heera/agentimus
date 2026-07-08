@@ -1826,6 +1826,12 @@ select.ar-input {
   transform: translateY(-100%); /* anchored ABOVE: the box's bottom sits at top:y */
 }
 .ar-act-uatip.is-below { transform: none; } /* anchored BELOW: the box's top sits at top:y */
+/* Info variant: plain prose (not a mono code value), e.g. the unverified-network hint.
+   Same dark bubble + caret, readable sans font, a touch narrower for a comfortable measure. */
+.ar-act-uatip--info {
+  max-width: 300px;
+  font-family: inherit; font-size: 12px; word-break: normal;
+}
 .ar-act-uatip__caret {
   position: absolute; left: 16px; top: 100%;
   width: 0; height: 0;
@@ -2032,6 +2038,18 @@ button.ar-act-more:hover { color: var(--ar-ink); }
   background: rgba(20, 107, 100, 0.08); padding: 2px 7px; border-radius: 3px;
 }
 .ar-act-feed__net-lbl { color: var(--ar-ink-faint); }
+/* An unverified network is the visitor IP's self-declared reverse-DNS (PTR) name — not
+   forward-confirmed, and possibly not even a reachable domain. Strip the accent (which
+   here reads as "verified") back to neutral metadata and mark it, so it never passes for
+   a trusted network or a site the visitor came from. Only forward-confirmed (verdict 1)
+   networks keep the teal chip. */
+.ar-act-feed__net.is-unverified {
+  color: var(--ar-ink-soft); background: var(--ar-surface-2); cursor: help;
+}
+.ar-act-feed__net-mark {
+  margin-left: 3px; font-size: 9px; font-weight: 600; vertical-align: super;
+  color: var(--ar-ink-faint);
+}
 /* UA takes the remaining space and truncates — the row never wraps. */
 .ar-act-feed__ua {
   flex: 1 1 auto; min-width: 0;

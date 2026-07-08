@@ -19,6 +19,13 @@ export default {
   data() {
     return {
       feedMore: false,
+      // Hint for an unverified network chip — folds in the "it's the IP, not the browser"
+      // explanation, in plain language (no PTR/reverse-DNS jargon), so a self-declared name
+      // is never read as a site the visitor came from. Shared by both feed surfaces.
+      netTip:
+        'This name comes from the visitor’s IP address, not their browser. It’s what the '
+        + 'network that owns the IP calls itself — looked up from the IP, and not confirmed '
+        + 'by Agentimus, so it may not be a real website you can open.',
       // The per-day report modal. The page itself never reflows; clicking a bar
       // opens this focused overlay with the day's breakdown + full request log.
       dayModal: { open: false, loading: false, error: '', date: '', total: 0, rows: [], capped: false },
@@ -31,6 +38,9 @@ export default {
       // so the scrolling request feed / day modal never clips it — replaces the native
       // title="…" bubble with the same dark look as the chart tooltip.
       uaTip: { show: false, text: '', x: 0, y: 0, caret: 16, below: false },
+      // Same styled bubble, for the unverified-network hint ({@see netTip}) — a custom
+      // tooltip rather than a native title="…", so it matches the UA/chart tooltips.
+      netHint: { show: false, x: 0, y: 0, caret: 16, below: false },
       // Which "AI visits by day" rows are expanded to show their source → page rows.
       refOpenDays: [],
     };
@@ -90,8 +100,8 @@ export default {
       for (const r of this.recent) {
         const key = `${r.agent}|${r.endpoint}|${r.ua || ''}`;
         const g = groups.get(key);
-        if (g) { g.count += 1; if (!g.network && r.network) g.network = r.network; }
-        else groups.set(key, { agent: r.agent, endpoint: r.endpoint, ua: r.ua, network: r.network || '', at: r.at, count: 1 });
+        if (g) { g.count += 1; if (!g.network && r.network) { g.network = r.network; g.verdict = r.verdict || 0; } }
+        else groups.set(key, { agent: r.agent, endpoint: r.endpoint, ua: r.ua, network: r.network || '', verdict: r.verdict || 0, at: r.at, count: 1 });
       }
       return Array.from(groups.values());
     },
@@ -341,6 +351,39 @@ export default {
       const x = Math.max(half + pad, Math.min(center, w.width - half - pad));
       this.tip.x = x;
       this.tip.caret = Math.max(10, Math.min(center - (x - half), tw - 10));
+    },
+    // A shown network is only *confirmed* when its hit forward-confirmed (verdict 1 — a
+    // real, verifiable engine). Any other network is just the visitor IP's self-declared
+    // reverse-DNS (PTR) name: it may not even resolve forward, so flag it as unverified
+    // rather than let it read like a site the visitor came from.
+    netUnverified(r) {
+      return !!(r && r.network) && 1 !== r.verdict;
+    },
+    // Show/hide the styled hint bubble for an unverified network chip. Positioned off the
+    // hovered chip's rect (fixed viewport), same measure-and-clamp as showUaTip so the box
+    // never overflows and the caret keeps pointing at the chip. Content is the static netTip.
+    showNetHint(ev) {
+      const rect = ev.currentTarget.getBoundingClientRect();
+      const below = rect.top < 96; // not enough room above → drop below.
+      const anchor = rect.left + 16;
+      this.netHint = {
+        show: true,
+        x: Math.max(rect.left, 12),
+        y: below ? rect.bottom + 8 : rect.top - 8,
+        caret: 16,
+        below,
+      };
+      this.$nextTick(() => {
+        const el = this.$refs.netHintEl;
+        if (!el) return;
+        const w = el.offsetWidth;
+        const x = Math.max(12, Math.min(this.netHint.x, window.innerWidth - w - 12));
+        this.netHint.x = x;
+        this.netHint.caret = Math.max(12, Math.min(anchor - x, w - 16));
+      });
+    },
+    hideNetHint() {
+      this.netHint.show = false;
     },
     // ---- Formatting ------------------------------------------------------------
     listMax(list) {
@@ -688,7 +731,13 @@ export default {
                   <td class="ar-act-table__agent">{{ r.agent }}</td>
                   <td><code class="ar-act-feed__ep">{{ r.endpoint }}</code></td>
                   <td v-if="hasNetwork">
-                    <span v-if="r.network" class="ar-act-feed__net">{{ r.network }}</span>
+                    <span
+                      v-if="r.network"
+                      class="ar-act-feed__net"
+                      :class="{ 'is-unverified': netUnverified(r) }"
+                      @mouseenter="netUnverified(r) && showNetHint($event)"
+                      @mouseleave="hideNetHint"
+                    >{{ r.network }}<span v-if="netUnverified(r)" class="ar-act-feed__net-mark" aria-label="unverified">?</span></span>
                     <span v-else class="ar-act-table__dash" aria-label="not identified">—</span>
                   </td>
                   <td class="ar-act-table__uacol">
@@ -809,7 +858,13 @@ export default {
                       <span class="ar-act-feed__agent">{{ r.agent }}</span>
                       <span class="ar-act-feed__loc">
                         <code class="ar-act-feed__ep">{{ r.endpoint }}</code>
-                        <span v-if="r.network" class="ar-act-feed__net"><span class="ar-act-feed__net-lbl">from</span> {{ r.network }}</span>
+                        <span
+                          v-if="r.network"
+                          class="ar-act-feed__net"
+                          :class="{ 'is-unverified': netUnverified(r) }"
+                          @mouseenter="netUnverified(r) && showNetHint($event)"
+                          @mouseleave="hideNetHint"
+                        ><span class="ar-act-feed__net-lbl">from</span> {{ r.network }}<span v-if="netUnverified(r)" class="ar-act-feed__net-mark" aria-label="unverified">?</span></span>
                       </span>
                       <code v-if="r.ua" class="ar-act-feed__ua is-copyable" :aria-label="r.ua" @mouseenter="showUaTip($event, r.ua)" @mouseleave="hideUaTip" @click.stop="copyUa(r.ua)">{{ r.ua }}</code>
                       <span v-else class="ar-act-feed__ua is-empty">no User-Agent</span>
@@ -850,6 +905,22 @@ export default {
           role="tooltip"
           aria-hidden="true"
         ><span class="ar-act-uatip__ua">{{ uaTip.text }}</span><span class="ar-act-uatip__hint">Click to copy</span><span class="ar-act-uatip__caret" :style="{ left: uaTip.caret + 'px' }"></span></div>
+      </transition>
+    </Teleport>
+
+    <!-- Same styled bubble as the UA tooltip, for the plain-language unverified-network
+         hint. The --info modifier drops the mono font for readable prose. -->
+    <Teleport to="body">
+      <transition name="ar-tip">
+        <div
+          v-if="netHint.show"
+          ref="netHintEl"
+          class="ar-act-uatip ar-act-uatip--info"
+          :class="{ 'is-below': netHint.below }"
+          :style="{ left: netHint.x + 'px', top: netHint.y + 'px' }"
+          role="tooltip"
+          aria-hidden="true"
+        >{{ netTip }}<span class="ar-act-uatip__caret" :style="{ left: netHint.caret + 'px' }"></span></div>
       </transition>
     </Teleport>
   </div>

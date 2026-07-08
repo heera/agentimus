@@ -244,14 +244,14 @@ final class Repository {
 	 * Most recent hits.
 	 *
 	 * @param int $limit Rows.
-	 * @return array<int,array{endpoint:string,agent:string,ua:string,at:string}>
+	 * @return array<int,array{endpoint:string,agent:string,ua:string,network:string,verdict:int,at:string}>
 	 */
 	private static function recent( $limit ) {
 		global $wpdb;
 		$table = Table::name();
 		// phpcs:disable WordPress.DB, PluginCheck.Security.DirectDB.UnescapedDBParameter -- $table is our own prefix-derived table name; the value ($limit) is bound via prepare().
 		$rows  = $wpdb->get_results(
-			$wpdb->prepare( "SELECT endpoint, agent, ua, network, hit_at FROM $table ORDER BY id DESC LIMIT %d", $limit ),
+			$wpdb->prepare( "SELECT endpoint, agent, ua, network, verdict, hit_at FROM $table ORDER BY id DESC LIMIT %d", $limit ),
 			ARRAY_A
 		);
 		// phpcs:enable WordPress.DB, PluginCheck.Security.DirectDB.UnescapedDBParameter
@@ -262,6 +262,7 @@ final class Repository {
 					'agent'    => (string) $r['agent'],
 					'ua'       => (string) $r['ua'],
 					'network'  => (string) $r['network'], // '' unless "identify every bot" is on.
+					'verdict'  => (int) $r['verdict'],     // 1 = forward-confirmed; a network with verdict != 1 is self-declared (PTR only).
 					'at'       => gmdate( 'c', strtotime( $r['hit_at'] . ' UTC' ) ), // ISO-8601 for client-side relative time.
 				);
 			},
@@ -276,7 +277,7 @@ final class Repository {
 	 *
 	 * @param string $date  GMT date, 'Y-m-d'.
 	 * @param int    $limit Max rows to return.
-	 * @return array{date:string,total:int,rows:array<int,array{endpoint:string,agent:string,ua:string,at:string}>,capped:bool}
+	 * @return array{date:string,total:int,rows:array<int,array{endpoint:string,agent:string,ua:string,network:string,verdict:int,at:string}>,capped:bool}
 	 */
 	public static function day_requests( $date, $limit = 500 ) {
 		global $wpdb;
@@ -291,7 +292,7 @@ final class Repository {
 			$wpdb->prepare( "SELECT COUNT(*) FROM $table WHERE hit_at >= %s AND hit_at < %s", $start, $end )
 		);
 		$rows = $wpdb->get_results(
-			$wpdb->prepare( "SELECT endpoint, agent, ua, network, hit_at FROM $table WHERE hit_at >= %s AND hit_at < %s ORDER BY id DESC LIMIT %d", $start, $end, $limit ),
+			$wpdb->prepare( "SELECT endpoint, agent, ua, network, verdict, hit_at FROM $table WHERE hit_at >= %s AND hit_at < %s ORDER BY id DESC LIMIT %d", $start, $end, $limit ),
 			ARRAY_A
 		);
 		// phpcs:enable WordPress.DB, PluginCheck.Security.DirectDB.UnescapedDBParameter
@@ -303,6 +304,7 @@ final class Repository {
 					'agent'    => (string) $r['agent'],
 					'ua'       => (string) $r['ua'],
 					'network'  => (string) $r['network'], // '' unless "identify every bot" is on.
+					'verdict'  => (int) $r['verdict'],     // 1 = forward-confirmed; a network with verdict != 1 is self-declared (PTR only).
 					'at'       => gmdate( 'c', strtotime( $r['hit_at'] . ' UTC' ) ),
 				);
 			},
