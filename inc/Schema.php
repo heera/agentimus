@@ -295,7 +295,33 @@ final class Schema {
 				$node['jobTitle'] = $role;
 			}
 		}
+		// A photo (Person) / logo (Organization) — engines show it in the entity and
+		// knowledge cards they build. `logo` is the property Google reads on an org.
+		$image = $this->entity_image();
+		if ( '' !== $image ) {
+			$node[ 'Person' === $type ? 'image' : 'logo' ] = $image;
+		}
 		return $node;
+	}
+
+	/**
+	 * The site entity's image — a Person's photo or an Organization's logo. Defaults
+	 * to the WordPress Site Icon (512px), overridable via `agentimus_entity_image` so
+	 * a site can point at a dedicated logo file. Public so the Readiness "Entity image"
+	 * check grades exactly what the entity node emits (never drifts from it).
+	 *
+	 * @return string Image URL, or '' when none is available.
+	 */
+	public function entity_image() {
+		$url = function_exists( 'get_site_icon_url' ) ? (string) get_site_icon_url( 512 ) : '';
+		/**
+		 * Filter the site entity's image/logo URL.
+		 *
+		 * @param string   $url      Default — the Site Icon at 512px, or '' when unset.
+		 * @param Settings $settings Settings store.
+		 */
+		$url = (string) apply_filters( 'agentimus_entity_image', $url, $this->settings );
+		return '' !== $url ? esc_url_raw( $url ) : '';
 	}
 
 	/**

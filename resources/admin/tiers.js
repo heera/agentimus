@@ -22,7 +22,7 @@ export const RUNGS = [
     key: 'trusted',
     label: 'Trusted',
     blurb: 'An agent can identify you, trust the source, and attribute it with confidence.',
-    ids: ['about', 'expertise', 'same_as', 'security_txt', 'ai_usage'],
+    ids: ['about', 'expertise', 'same_as', 'entity_image', 'entity_role', 'security_txt', 'ai_usage'],
   },
 ];
 

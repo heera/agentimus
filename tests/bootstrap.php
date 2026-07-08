@@ -88,6 +88,7 @@ namespace {
 	if ( ! function_exists( 'number_format_i18n' ) )    { function number_format_i18n( $n, $d = 0 ) { return number_format( (float) $n, (int) $d ); } }
 	if ( ! function_exists( 'plugin_basename' ) )       { function plugin_basename( $f ) { return basename( dirname( $f ) ) . '/' . basename( $f ); } }
 	if ( ! function_exists( 'home_url' ) )              { function home_url( $path = '' ) { $b = 'https://example.test'; $path = (string) $path; return '' === $path ? $b . '/' : $b . ( '/' === $path[0] ? $path : '/' . $path ); } }
+	if ( ! function_exists( 'admin_url' ) )             { function admin_url( $path = '' ) { return 'https://example.test/wp-admin/' . ltrim( (string) $path, '/' ); } }
 	if ( ! function_exists( 'get_bloginfo' ) )          { function get_bloginfo( $k = '' ) { $m = array( 'name' => 'Test Site', 'description' => 'A test site.', 'language' => 'en-US' ); return isset( $m[ $k ] ) ? $m[ $k ] : ''; } }
 	if ( ! function_exists( 'get_site_icon_url' ) )     { function get_site_icon_url() { return ''; } }
 	if ( ! function_exists( 'get_privacy_policy_url' ) ) { function get_privacy_policy_url() { return ''; } }

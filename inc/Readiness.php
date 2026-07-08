@@ -46,6 +46,8 @@ final class Readiness {
 			$this->check_about(),
 			$this->check_expertise(),
 			$this->check_same_as(),
+			$this->check_entity_image(),
+			$this->check_entity_role(),
 			$this->check_security_txt(),
 			$this->check_schema_conflict(),
 			$this->check_static_robots(),
@@ -461,6 +463,64 @@ final class Readiness {
 				__( 'Add your GitHub, LinkedIn, or X profile URLs under Settings → Identity. These “sameAs” links let an agent tie this site to a known entity instead of guessing.', 'agentimus' ),
 				$this->nav( __( 'Add profiles', 'agentimus' ), 'ar-id-sameas' )
 			);
+	}
+
+	/**
+	 * The site entity should carry an image/logo — engines show one in the entity and
+	 * knowledge cards they build. Grades exactly what {@see Schema::entity_image()}
+	 * emits, and stands down when Agentimus isn't the one publishing the entity schema.
+	 */
+	private function check_entity_image() {
+		if ( ! $this->settings->enabled( 'enable_schema' ) ) {
+			return $this->row( 'entity_image', __( 'Entity image', 'agentimus' ), 'pass', __( 'Schema output is off, so the entity image is handled elsewhere.', 'agentimus' ) );
+		}
+		$schema = new Schema( $this->settings );
+		if ( $schema->seo_plugin_active() ) {
+			return $this->row( 'entity_image', __( 'Entity image', 'agentimus' ), 'pass', __( 'An SEO plugin owns your schema, including the entity image.', 'agentimus' ) );
+		}
+		$is_org = 'Person' !== (string) $this->settings->identity( 'entity_type', 'Person' );
+		if ( '' !== $schema->entity_image() ) {
+			return $this->row(
+				'entity_image',
+				__( 'Entity image', 'agentimus' ),
+				'pass',
+				$is_org
+					? __( 'Your organization carries a logo that engines can show in knowledge and answer cards.', 'agentimus' )
+					: __( 'Your entity carries an image that engines can show in knowledge and answer cards.', 'agentimus' )
+			);
+		}
+		return $this->row(
+			'entity_image',
+			__( 'Entity image', 'agentimus' ),
+			'warn',
+			$is_org
+				? __( 'Your Organization schema has no logo. Engines display one in the entity cards they build from your site.', 'agentimus' )
+				: __( 'Your Person schema has no image. Engines display one in the entity cards they build from your site.', 'agentimus' ),
+			__( 'Set a Site Icon (Appearance → Customize → Site Identity). Agentimus publishes it as your entity’s image/logo — or point at a dedicated file with the agentimus_entity_image filter.', 'agentimus' ),
+			$this->link( __( 'Set a Site Icon', 'agentimus' ), admin_url( 'customize.php?autofocus[control]=site_icon' ) )
+		);
+	}
+
+	/**
+	 * A Person entity should state a role — it becomes the schema jobTitle, the
+	 * difference between an engine naming you and knowing what you do (an E-E-A-T
+	 * author signal). An Organization has no jobTitle, so the check doesn't apply.
+	 */
+	private function check_entity_role() {
+		if ( 'Person' !== (string) $this->settings->identity( 'entity_type', 'Person' ) ) {
+			return $this->row( 'entity_role', __( 'Role / title', 'agentimus' ), 'pass', __( 'Not applicable — this site’s entity is an organization, not a person.', 'agentimus' ) );
+		}
+		if ( '' !== trim( (string) $this->settings->identity( 'role', '' ) ) ) {
+			return $this->row( 'entity_role', __( 'Role / title', 'agentimus' ), 'pass', __( 'A role is set — it becomes your schema jobTitle, establishing who you are.', 'agentimus' ) );
+		}
+		return $this->row(
+			'entity_role',
+			__( 'Role / title', 'agentimus' ),
+			'warn',
+			__( 'No role or title set. An engine can name you but not say what you do — a weaker author signal.', 'agentimus' ),
+			__( 'Add a short role under Settings → Identity (e.g. “WordPress developer”, “Nutrition researcher”). It becomes your schema jobTitle and sharpens your standing as an author.', 'agentimus' ),
+			$this->nav( __( 'Add a role', 'agentimus' ), 'ar-about' )
+		);
 	}
 
 	private function check_security_txt() {
