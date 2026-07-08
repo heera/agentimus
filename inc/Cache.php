@@ -21,6 +21,10 @@ final class Cache {
 	// (not on every admin load): the /llms.txt word count and the full-text size estimate.
 	const LLMS_WORDS    = 'agentimus_llms_words';
 	const LLMS_FULL_EST = 'agentimus_llms_full_est';
+	// The AEO/GEO "Optimize" pillar aggregates per-page citability across a sample of
+	// posts (each parses HTML) — too heavy for every dashboard load, so it's cached and
+	// busted with the rest on a content/settings change.
+	const OPTIMIZE = 'agentimus_optimize';
 	const DISCOVERY = 'agentimus';
 	const SECURITY_TXT = 'agentimus_security_txt';
 	// The sitemap is generated as an index + many paginated sub-sitemaps, so it
@@ -108,6 +112,7 @@ final class Cache {
 		delete_transient( self::LLMS_FULL_STAT );
 		delete_transient( self::LLMS_WORDS );
 		delete_transient( self::LLMS_FULL_EST );
+		delete_transient( self::OPTIMIZE );
 		delete_transient( self::CHANGES );
 		delete_transient( self::DISCOVERY );
 		delete_transient( self::SECURITY_TXT );
