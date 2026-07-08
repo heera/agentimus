@@ -40,6 +40,14 @@ export default {
       return { tone: 'muted', head: 'No reverse-DNS record', detail: `${r.ip} has no PTR record — a genuine search-engine crawler always does.` };
     },
   },
+  watch: {
+    // The shown result belongs to the last-checked address; once the box is edited or
+    // cleared it no longer matches, so drop it and let the user run a fresh check.
+    ip() {
+      this.result = null;
+      this.error = '';
+    },
+  },
   methods: {
     async check() {
       const ip = (this.ip || '').trim();
