@@ -261,6 +261,11 @@ export default {
       if (window.location.hash.replace(/^#/, '') !== val) {
         window.history.pushState(null, '', `#${val}`);
       }
+      // A fresh tab should start at the top, not inherit the previous page's scroll —
+      // unless a jump-to-section is in flight (goTo owns that scroll for dashboard tiles).
+      if (!this._jumpAnchor) {
+        window.scrollTo(0, 0);
+      }
     },
     instantState() {
       // A reset just replaced the whole settings object; don't autosave that
@@ -298,7 +303,7 @@ export default {
       if (this._scrollRaf) return;
       this._scrollRaf = window.requestAnimationFrame(() => {
         this._scrollRaf = 0;
-        this.scrolled = window.scrollY > 4;
+        this.scrolled = window.scrollY > 40;
       });
     };
     window.addEventListener('scroll', this._onScroll, { passive: true });
@@ -326,6 +331,8 @@ export default {
     // the relevant content, not just the top of the page.
     goTo(target) {
       const { tab, anchor } = typeof target === 'string' ? { tab: target } : target || {};
+      // Tell the tab watcher not to snap to the top: we're aiming at a section below.
+      this._jumpAnchor = anchor || null;
       if (tab) this.tab = tab;
       if (!anchor) return;
       // The Settings form is now split into groups shown one at a time; a target
@@ -336,6 +343,9 @@ export default {
         this.$refs.settingsForm.revealAnchor(anchor);
       }
       this.$nextTick(() => {
+        // The watcher has already read the flag by now; clear it so a later plain
+        // tab switch still snaps to the top even if the anchor lookup below bails.
+        this._jumpAnchor = null;
         const el = document.getElementById(anchor);
         if (!el) return;
         // Reveal the target if it's tucked inside one or more collapsed <details>.
