@@ -25,7 +25,7 @@
 /* A narrower-breakpoint core rule drops the admin footer's side padding to 20px, which
    pulls its text left of our content. Hold it at 40px so the footer lines up with the
    full-bleed app. */
-#wpfooter { padding-left: 40px; padding-right: 40px; color: #898a8b; }
+#wpfooter { padding-left: 40px; padding-right: 40px; color: #a7a7a7; }
 
 /* Design tokens — defined globally rather than only on #agentimus-app. Custom
    properties are inert (they paint nothing until a property references them),
@@ -105,7 +105,12 @@
    sticky block so a nav row that wraps on a narrow screen can never desync from the title
    strip below it. Flush below the WP admin bar; z-index keeps it over the scrolling content
    while staying under the modals/toasts (which teleport to <body> at 100000+). */
-.ar__sticky { position: sticky; top: var(--ar-adminbar); z-index: 40; }
+.ar__sticky { position: sticky; top: var(--ar-adminbar); z-index: 40; transition: box-shadow 0.24s ease; }
+/* Once the page is scrolled, the pinned header lifts above the content with a soft
+   shadow (the pagehead's hairline stays as the crisp edge) so the two never merge.
+   The .is-stuck class is toggled from App.vue on scroll. */
+.ar__sticky.is-stuck { box-shadow: 0 8px 18px -12px rgba(38, 32, 24, 0.32), 0 2px 5px -3px rgba(38, 32, 24, 0.12); }
+@media (prefers-reduced-motion: reduce) { .ar__sticky { transition: none; } }
 
 .ar__bar {
   display: flex;

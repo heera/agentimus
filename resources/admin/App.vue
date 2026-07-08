@@ -34,6 +34,8 @@ export default {
     const fromHash = (window.location.hash || '').replace(/^#/, '');
     return {
       api: createApi(this.boot),
+      // Header lifts with a shadow once the page is scrolled; flush at the very top.
+      scrolled: false,
       // Restore the tab from the URL hash so a refresh keeps the same page.
       tab: ['dashboard', 'visibility', 'settings', 'readiness', 'discovery', 'about'].includes(fromHash) ? fromHash : 'dashboard',
       settings: JSON.parse(JSON.stringify(this.boot.settings || {})),
@@ -288,6 +290,17 @@ export default {
       if (c) this._lastChanged = c;
     };
     document.addEventListener('change', this._onControlChange, true);
+    // Header lift: shadow the pinned header once the page scrolls, so content tucks
+    // visibly beneath it instead of merging. rAF-throttled + passive so scroll stays smooth.
+    this._onScroll = () => {
+      if (this._scrollRaf) return;
+      this._scrollRaf = window.requestAnimationFrame(() => {
+        this._scrollRaf = 0;
+        this.scrolled = window.scrollY > 4;
+      });
+    };
+    window.addEventListener('scroll', this._onScroll, { passive: true });
+    this._onScroll();
     // Load activity eagerly (not only on the Dashboard): the nav "to review"
     // badge needs the threat data on every tab.
     this.refreshActivity();
@@ -301,6 +314,8 @@ export default {
   beforeUnmount() {
     window.removeEventListener('hashchange', this.syncTabFromHash);
     document.removeEventListener('change', this._onControlChange, true);
+    window.removeEventListener('scroll', this._onScroll);
+    if (this._scrollRaf) window.cancelAnimationFrame(this._scrollRaf);
     this.stopActivityPolling();
   },
   methods: {
@@ -807,7 +822,7 @@ export default {
 
 <template>
   <div class="ar">
-    <div class="ar__sticky">
+    <div class="ar__sticky" :class="{ 'is-stuck': scrolled }">
     <header class="ar__bar">
       <button type="button" class="ar__brand" aria-label="Agentimus — reload" @click="reloadPlugin">
         <span class="ar__mark" aria-hidden="true">
