@@ -130,6 +130,25 @@ The log includes a **per-day chart** spanning the retention window, with every d
 
 Click into a day and the **"View requests"** view shows every hit recorded on that date, newest first (capped at a generous per-day limit), so you can inspect a spike in detail.
 
+### Top clients and endpoints — and whether they're trending
+
+Two summary cards rank the whole window (30 days by default):
+
+- **Top clients** — which agents hit you most (up to eight), and
+- **By endpoint** — which of your machine-readable files got fetched most.
+
+Each row shows the name, a bar for its share, and its total count. Beside the bar is a small **trend** — a green ▲ or a red ▼ with a percentage — telling you whether that client or file is getting **more or less** AI attention across the window. It's the at-a-glance answer to "is GPTBot crawling me more this month?" or "is attention on `llms.txt` slipping?"
+
+Because Agentimus only keeps the last 30 days (see pruning below), there's no earlier month to compare against — so the trend is measured **inside** the window: the **recent half** of the period against the **earlier half**. No outside data, no guesswork.
+
+The arrow only appears when the number can be trusted. A row shows a quiet **"–"** — meaning *no trend to report* — whenever any of these is true:
+
+- it has **fewer than about 20 hits** over the window (too little to read a direction into),
+- it has **no activity in the earlier half** to compare against (common on a fresh install, or a client that only just started showing up), or
+- it **moved less than about ±10%** (steady, not really up or down).
+
+So a brand-new site — or one with only a few recent days of traffic — will show mostly "–" until enough history builds up. That's the trend staying honest rather than inventing a swing from thin data; once a site has a couple of weeks of steady bot traffic spread across the window, the real movers stand out on their own.
+
 ### Activity to review
 
 Sitting alongside the log is a small **review queue** that flags clients worth a second look — ones that are **new**, **unusually high-volume**, **spoofed/scanner** by the definition above, or an **impersonator**. An impersonator is a client claiming to be a *verifiable* search engine — Googlebot, Bingbot, Applebot, DuckDuckBot or Yandex — whose network address **fails a reverse-DNS check**: a forgery, not the real engine. (Impersonators are caught only when **Verify search engines by reverse DNS** is on, an opt-in setting covered on the **Settings** page.) Each flagged client comes with a one-click **Block** (or **Allow**/trust) action. This pairs with the optional *Block scanners & scrapers* enforcement covered on the **Settings** page — the review queue and the blocking feature share one definition of who is who, so a decision you make in one is honoured by the other.
