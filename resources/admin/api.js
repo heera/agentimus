@@ -55,6 +55,14 @@ export function createApi(boot) {
       request('/activity/allow', { method: 'POST', body: JSON.stringify(payload) }),
     dismissAgent: (payload) =>
       request('/activity/dismiss', { method: 'POST', body: JSON.stringify(payload) }),
+    // Admin "Re-check": run reverse-DNS live now on a flagged client's captured IP(s) ({ ua }).
+    // Returns { status, verdict?, perIp?, message?, activity }.
+    reverifyBot: (payload) =>
+      request('/activity/reverify', { method: 'POST', body: JSON.stringify(payload) }),
+    // "Check an IP" tool: engine-agnostic reverse-DNS identity of any address ({ ip }).
+    // Returns { ip, host, engine, verdict, slow }.
+    checkIp: (ip) =>
+      request('/activity/check-ip', { method: 'POST', body: JSON.stringify({ ip }) }),
 
     // AI Visibility monitoring.
     getVisibilityConfig: () => request('/visibility/config'),

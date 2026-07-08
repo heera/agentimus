@@ -333,4 +333,95 @@ final class ThreatsTest extends TestCase {
 		$this->assertCount( 1, $r['sources'] );
 		$this->assertSame( 'spoofed', $r['sources'][0]['verdict'] );
 	}
+
+	/* -- Admin "Re-check" overlay (re-confirm or clear a stored verdict) ---- */
+
+	/** Analyze with a re-check overlay map keyed as record_reverify() files it. */
+	private function withReverified( array $sources, array $reverified, array $recent = array() ): array {
+		return $this->analyze( $sources, $recent, array( 'reverified' => $reverified ) );
+	}
+
+	/** The review key a Googlebot UA files under (no safe block token → ua-hash). */
+	private function googlebotKey(): string {
+		return 'ua:' . md5( strtolower( self::GOOGLEBOT ) );
+	}
+
+	public function test_a_reverify_overlay_surfaces_a_freshly_caught_impersonator() {
+		// The real Googlebot string with no ingest verdict is trusted and excluded. An admin
+		// re-check that comes back "spoofed" (2) must override that and surface it as an impostor.
+		$rev = array( $this->googlebotKey() => array( 'verdict' => 2, 'at' => $this->gmt( 60 ) ) );
+		$r   = $this->withReverified( array( $this->source( self::GOOGLEBOT, 'Googlebot', 5, HOUR_IN_SECONDS ) ), $rev );
+		$this->assertCount( 1, $r['sources'], 'A re-check verdict of spoofed overrides the trusted ingest state.' );
+		$this->assertSame( 'spoofed', $r['sources'][0]['verdict'] );
+		$this->assertSame( 'fake-engine', $r['sources'][0]['reason'] );
+	}
+
+	public function test_a_reverify_overlay_clears_an_ingest_impersonator() {
+		// Ingest caught it as verdict 2, but an admin re-check now forward-confirms it (1) — the
+		// original IP was reassigned / the earlier call was wrong. It becomes trusted and leaves.
+		$rev = array( $this->googlebotKey() => array( 'verdict' => 1, 'at' => $this->gmt( 60 ) ) );
+		$r   = $this->withReverified( array( $this->sourceV( self::GOOGLEBOT, 'Googlebot', 40, HOUR_IN_SECONDS, 2 ) ), $rev );
+		$this->assertCount( 0, $r['sources'], 'A re-check that verifies the engine clears it from review.' );
+	}
+
+	public function test_a_surfaced_reverified_row_carries_the_recheck_stamp() {
+		$at  = $this->gmt( 120 );
+		$rev = array( $this->googlebotKey() => array( 'verdict' => 2, 'at' => $at ) );
+		$r   = $this->withReverified( array( $this->source( self::GOOGLEBOT, 'Googlebot', 5, HOUR_IN_SECONDS ) ), $rev );
+		$this->assertSame( gmdate( 'c', strtotime( $at . ' UTC' ) ), $r['sources'][0]['reverifiedAt'], 'A re-checked row exposes when it was checked (ISO-8601).' );
+	}
+
+	public function test_an_inconclusive_reverify_never_clears_a_known_impersonator() {
+		// A re-check that came back undetermined (0 — resolver down) carries no new information,
+		// so it must NOT downgrade a client the ingest lookup conclusively caught as an impostor.
+		$rev = array( $this->googlebotKey() => array( 'verdict' => 0, 'at' => $this->gmt( 60 ) ) );
+		$r   = $this->withReverified( array( $this->sourceV( self::GOOGLEBOT, 'Googlebot', 40, HOUR_IN_SECONDS, 2 ) ), $rev );
+		$this->assertCount( 1, $r['sources'], 'An inconclusive re-check leaves the impostor standing.' );
+		$this->assertSame( 'spoofed', $r['sources'][0]['verdict'] );
+		$this->assertSame( '', $r['sources'][0]['reverifiedAt'], 'No override → no stamp.' );
+	}
+
+	public function test_no_overlay_leaves_the_ingest_verdict_untouched() {
+		$r = $this->withReverified( array( $this->sourceV( self::GOOGLEBOT, 'Googlebot', 40, HOUR_IN_SECONDS, 2 ) ), array() );
+		$this->assertSame( 'spoofed', $r['sources'][0]['verdict'] );
+		$this->assertSame( '', $r['sources'][0]['reverifiedAt'] );
+	}
+
+	/* -- record_reverify / reverified_map storage (roundtrip + TTL) -------- */
+
+	public function test_record_reverify_roundtrips_by_review_key() {
+		Repository::record_reverify( self::GOOGLEBOT, 2 );
+		$map = Repository::reverified_map();
+		$this->assertArrayHasKey( $this->googlebotKey(), $map );
+		$this->assertSame( 2, $map[ $this->googlebotKey() ]['verdict'] );
+	}
+
+	public function test_record_reverify_clamps_the_verdict_to_range() {
+		Repository::record_reverify( self::GOOGLEBOT, 9 );
+		$this->assertSame( 2, Repository::reverified_map()[ $this->googlebotKey() ]['verdict'] );
+	}
+
+	public function test_reverified_map_drops_entries_past_the_ttl_at_read() {
+		// A re-check is a point-in-time fact: one older than the TTL must stop overriding, even
+		// before the daily prune runs.
+		$stale = gmdate( 'Y-m-d H:i:s', time() - Repository::REVERIFY_TTL - DAY_IN_SECONDS );
+		update_option( Repository::REVERIFY_OPTION, array( $this->googlebotKey() => array( 'verdict' => 2, 'at' => $stale ) ) );
+		$this->assertCount( 0, Repository::reverified_map(), 'A stale overlay is filtered at read.' );
+	}
+
+	public function test_prune_reverified_purges_stale_entries_from_storage() {
+		$fresh = gmdate( 'Y-m-d H:i:s', time() - HOUR_IN_SECONDS );
+		$stale = gmdate( 'Y-m-d H:i:s', time() - Repository::REVERIFY_TTL - DAY_IN_SECONDS );
+		update_option(
+			Repository::REVERIFY_OPTION,
+			array(
+				'tok:fresh' => array( 'verdict' => 1, 'at' => $fresh ),
+				'tok:stale' => array( 'verdict' => 2, 'at' => $stale ),
+			)
+		);
+		Repository::prune_reverified();
+		$stored = get_option( Repository::REVERIFY_OPTION );
+		$this->assertArrayHasKey( 'tok:fresh', $stored );
+		$this->assertArrayNotHasKey( 'tok:stale', $stored );
+	}
 }

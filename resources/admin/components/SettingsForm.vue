@@ -1,12 +1,14 @@
 <script>
 import TagInput from './TagInput.vue';
+import IpChecker from './IpChecker.vue';
 
 export default {
   name: 'SettingsForm',
-  components: { TagInput },
+  components: { TagInput, IpChecker },
   props: {
     settings: { type: Object, required: true },
     busy: { type: Boolean, default: false },
+    api: { type: Object, default: null },
     entityTypes: { type: Array, default: () => ['Person', 'Organization', 'LocalBusiness', 'Store'] },
     postTypes: { type: Array, default: () => [] },
     knownTrainers: { type: Array, default: () => [] },
@@ -1211,6 +1213,10 @@ export default {
             </small>
           </span>
         </label>
+
+        <!-- Ad-hoc identity lookup: paste any IP, see which engine it really is. Self-contained
+             (its own REST call); rendered only when the API handle is available. -->
+        <IpChecker v-if="api" :api="api" />
 
         <div class="ar-field ar-field--allow">
           <label>Always allowed <span class="ar-field__tag">trusted</span></label>

@@ -422,6 +422,8 @@
 .ar-toast.is-error .ar-toast__title { color: #a3271a; }
 .ar-toast.is-warning .ar-toast__bar { background: #d99a1c; }
 .ar-toast.is-warning .ar-toast__title { color: #936713; }
+.ar-toast.is-info .ar-toast__bar { background: #3a6ea5; }
+.ar-toast.is-info .ar-toast__title { color: #2c5680; }
 
 /* Slide in from the right (right-to-left), out to the right. The leaving toast is
    taken out of flow so the survivors slide up smoothly via the move transition. */
@@ -809,6 +811,32 @@
 .ar-toggle__text { display: flex; flex-direction: column; gap: 1px; }
 .ar-toggle__text strong { font-size: 14px; font-weight: 600; }
 .ar-toggle__text small { color: var(--ar-ink-soft); font-size: 12px; }
+
+/* "Check an IP" tool (AI Access) — a quiet inset utility below the verification toggles. */
+.ar-ipcheck { margin: 4px 0 2px; padding: 14px 15px; border-radius: 9px; background: var(--ar-surface-2); border: 1px solid var(--ar-line); }
+.ar-ipcheck__head { font-size: 13px; font-weight: 600; color: var(--ar-ink); }
+.ar-ipcheck__intro { margin: 3px 0 10px; font-size: 12px; line-height: 1.5; color: var(--ar-ink-soft); }
+.ar-ipcheck__row { display: flex; gap: 8px; max-width: 460px; }
+.ar-ipcheck__input {
+  flex: 1 1 auto; min-width: 0; font-family: var(--ar-mono); font-size: 12.5px; color: var(--ar-ink);
+  padding: 7px 10px; border-radius: 7px; border: 1px solid var(--ar-line-strong); background: var(--ar-surface);
+}
+.ar-ipcheck__input:focus-visible { outline: 2px solid var(--ar-accent); outline-offset: 0; border-color: var(--ar-accent); }
+.ar-ipcheck__btn {
+  appearance: none; cursor: pointer; white-space: nowrap; font-family: var(--ar-sans); font-size: 12.5px; font-weight: 600;
+  color: #fff; background: var(--ar-accent); padding: 7px 15px; border-radius: 7px; border: 1px solid var(--ar-accent);
+  transition: opacity 0.12s ease;
+}
+.ar-ipcheck__btn:hover:not(:disabled) { opacity: 0.9; }
+.ar-ipcheck__btn:focus-visible { outline: 2px solid var(--ar-accent); outline-offset: 2px; }
+.ar-ipcheck__btn:disabled { opacity: 0.5; cursor: default; }
+.ar-ipcheck__result { display: flex; flex-direction: column; gap: 2px; margin: 11px 0 0; font-size: 12.5px; line-height: 1.5; max-width: 560px; }
+.ar-ipcheck__result strong { font-weight: 700; }
+.ar-ipcheck__result span { color: var(--ar-ink-soft); }
+.ar-ipcheck__result.is-ok strong { color: var(--ar-good); }
+.ar-ipcheck__result.is-danger strong { color: var(--ar-bad); }
+.ar-ipcheck__result.is-muted strong { color: var(--ar-ink); }
+
 /* Exposure tab: WordPress debug posture — a subtle green line when fine, a prominent
    amber/red card when debug logging/display is left on in production. */
 .ar-dbgcard { margin: 2px 0 16px; }
@@ -2280,6 +2308,30 @@ button.ar-act-more:hover { color: var(--ar-ink); }
 }
 .ar-rev-ip:hover { background: #f1e7d7; border-color: var(--ar-ink-faint); }
 .ar-rev-ip:focus-visible { outline: 2px solid var(--ar-accent); outline-offset: 1px; }
+/* Admin "Re-check" controls (Details) — a quiet inset block, not a primary action. */
+.ar-rev-recheck { display: flex; flex-direction: column; gap: 7px; padding: 9px 10px; border-radius: 7px; background: var(--ar-surface-2); border: 1px solid var(--ar-line); }
+.ar-rev-recheck__row { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
+.ar-rev-recheck__btn {
+  appearance: none; display: inline-flex; align-items: center; gap: 5px; cursor: pointer;
+  font-family: var(--ar-sans); font-size: 11.5px; font-weight: 600; color: var(--ar-accent);
+  padding: 4px 9px; border-radius: 6px; border: 1px solid var(--ar-line-strong); background: var(--ar-surface);
+  transition: background 0.12s ease, border-color 0.12s ease, color 0.12s ease;
+}
+.ar-rev-recheck__btn:hover:not(:disabled) { border-color: var(--ar-accent); background: #eef5f3; }
+.ar-rev-recheck__btn:focus-visible { outline: 2px solid var(--ar-accent); outline-offset: 1px; }
+.ar-rev-recheck__btn:disabled { opacity: 0.55; cursor: default; }
+.ar-rev-recheck__ago { font-size: 11px; color: var(--ar-ink-faint); }
+.ar-rev-recheck__ip { display: flex; gap: 6px; }
+.ar-rev-recheck__input {
+  flex: 1 1 auto; min-width: 0; font-family: var(--ar-mono); font-size: 11.5px; color: var(--ar-ink);
+  padding: 4px 8px; border-radius: 6px; border: 1px solid var(--ar-line-strong); background: var(--ar-surface);
+}
+.ar-rev-recheck__input:focus-visible { outline: 2px solid var(--ar-accent); outline-offset: 0; border-color: var(--ar-accent); }
+.ar-rev-recheck__hint { margin: 0; font-size: 10.5px; line-height: 1.45; color: var(--ar-ink-faint); }
+.ar-rev-recheck__result { margin: 0; font-size: 11.5px; font-weight: 600; line-height: 1.4; }
+.ar-rev-recheck__result.is-ok { color: var(--ar-good); }
+.ar-rev-recheck__result.is-danger { color: var(--ar-bad); }
+.ar-rev-recheck__result.is-muted { color: var(--ar-ink-soft); font-weight: 500; }
 .ar-rev-details__why { margin: 0; font-size: 12px; line-height: 1.55; color: var(--ar-ink-soft); }
 .ar-rev-details__research { display: flex; align-items: baseline; flex-wrap: wrap; gap: 10px; }
 .ar-rev-details__reslabel { font-size: 11px; color: var(--ar-ink-faint); }

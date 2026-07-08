@@ -160,6 +160,125 @@ final class BotVerifier {
 	}
 
 	/**
+	 * Admin-initiated re-check of one IP: force a FRESH forward-confirmed reverse-DNS lookup,
+	 * bypassing the per-window NEW-lookup budget. That budget guards the unauthenticated serve
+	 * path against a DNS storm; a capability-gated admin click is not that threat model, so it
+	 * spends none of it. The per-IP cache is busted first, so a re-check never just replays a
+	 * stale verdict. The slow-lookup guard and circuit-breaker strikes inside {@see fcrdns()}
+	 * still apply, so a genuinely broken resolver still fails OPEN (null) rather than hanging.
+	 * The fresh CONCLUSIVE verdict is re-cached, so the next serve-path hit reflects it at once.
+	 *
+	 * @param string   $ip      Source IP.
+	 * @param string[] $domains Expected rDNS domain suffixes.
+	 * @return bool|null true = forward-confirmed, false = conclusive spoof, null = undetermined.
+	 */
+	public static function reverify_ip( $ip, array $domains ) {
+		if ( '' === (string) $ip ) {
+			return null;
+		}
+		$key = self::CACHE_PREFIX . md5( $ip . '|' . implode( ',', $domains ) );
+		delete_transient( $key ); // Never answer a re-check from the stale cached verdict.
+
+		$verdict = self::fcrdns( (string) $ip, $domains ); // true | false | null — no budget gate.
+
+		if ( true === $verdict ) {
+			set_transient( $key, 'v', self::CACHE_TTL );
+		} elseif ( false === $verdict ) {
+			set_transient( $key, 's', self::CACHE_TTL );
+		}
+		return $verdict;
+	}
+
+	/**
+	 * Admin re-check wrapper mirroring {@see verify_engine()}: resolve the engine a UA claims,
+	 * then re-run FCrDNS for $ip against that engine's domains. false when the UA claims no
+	 * engine we can verify; null when there's no IP; else the tri-state {@see reverify_ip()}.
+	 *
+	 * @param string $ua_lc Lowercased User-Agent.
+	 * @param string $ip    Source IP.
+	 * @return bool|null
+	 */
+	public static function reverify_engine( $ua_lc, $ip ) {
+		$engine = self::claimed_engine( $ua_lc );
+		if ( '' === $engine ) {
+			return false;
+		}
+		if ( '' === (string) $ip ) {
+			return null;
+		}
+		$all = self::engine_domains();
+		return self::reverify_ip( (string) $ip, isset( $all[ $engine ] ) ? (array) $all[ $engine ] : array() );
+	}
+
+	/**
+	 * Engine-agnostic identity of an IP, for the admin "Check an IP" tool: reverse-resolve it,
+	 * work out which verifiable engine (if any) its PTR belongs to, and forward-confirm. Unlike
+	 * {@see verify_engine()} there's no claimed UA — the caller just wants "whose address is
+	 * this?". Admin-initiated, so it skips the serve-path budget but keeps the slow-guard.
+	 *
+	 * @param string $ip Source IP.
+	 * @return array{ip:string,host:string,engine:string,verdict:int,slow:bool} verdict:
+	 *   1 = belongs to `engine` and forward-confirmed; 2 = PTR claims `engine` but does not
+	 *   forward-confirm (a forged PTR); 0 = resolves to no known engine, has no PTR, or could
+	 *   not be determined (`slow`).
+	 */
+	public static function identify_ip( $ip ) {
+		$ip   = (string) $ip;
+		$base = array(
+			'ip'      => $ip,
+			'host'    => '',
+			'engine'  => '',
+			'verdict' => 0,
+			'slow'    => false,
+		);
+		if ( '' === $ip || false === filter_var( $ip, FILTER_VALIDATE_IP ) ) {
+			return $base;
+		}
+
+		$t0   = microtime( true );
+		$host = strtolower( rtrim( self::reverse( $ip ), '.' ) );
+		if ( self::too_slow( $t0 ) ) {
+			self::record_strike();
+			return array( 'slow' => true ) + $base;
+		}
+		if ( '' === $host || $host === strtolower( $ip ) ) {
+			return $base; // No usable PTR.
+		}
+		$base['host'] = $host;
+
+		// Which verifiable engine, if any, does the PTR host belong to?
+		$engine  = '';
+		$domains = array();
+		foreach ( self::engine_domains() as $token => $suffixes ) {
+			if ( self::host_in_domains( $host, (array) $suffixes ) ) {
+				$engine  = (string) $token;
+				$domains = (array) $suffixes;
+				break;
+			}
+		}
+		if ( '' === $engine ) {
+			return $base; // Resolves, but not to a verifiable engine.
+		}
+		$base['engine'] = $engine;
+
+		// Forward-confirm: the PTR host must resolve back to this IP.
+		$t1  = microtime( true );
+		$ips = self::forward( $host );
+		if ( self::too_slow( $t1 ) ) {
+			self::record_strike();
+			return array( 'slow' => true ) + $base;
+		}
+		foreach ( $ips as $resolved ) {
+			if ( self::same_ip( $resolved, $ip ) ) {
+				return array( 'verdict' => 1 ) + $base; // Genuine.
+			}
+		}
+		// Claimed an engine's domain but didn't forward-confirm → forged PTR, but only when we
+		// actually resolved addresses of this IP's family (else we couldn't really check).
+		return array( 'verdict' => self::forward_had_family( $ips, $ip ) ? 2 : 0 ) + $base;
+	}
+
+	/**
 	 * The forward-confirmed reverse-DNS check, three-valued and time-bounded. A slow
 	 * reverse or forward lookup records a strike and returns null (never proceeds to
 	 * stack a second slow lookup); a non-match is only called a spoof (false) when we

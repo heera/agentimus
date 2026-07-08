@@ -22,6 +22,9 @@ export default {
     blocking: { type: Object, default: null },
     allowing: { type: Object, default: null },
     dismissing: { type: Object, default: null },
+    reverifying: { type: Object, default: null },
+    // The last re-check result, shown inline on the matching row: { ua, status, verdict }.
+    reverifyResult: { type: Object, default: null },
     // Whether activity logging is on. The bell is a persistent anchor whenever it
     // is — a stable, quiet resting state (no count badge) rather than vanishing the
     // moment the queue clears. With logging off there's nothing to watch, so hide it.
@@ -36,7 +39,7 @@ export default {
     live: { type: Boolean, default: false },
     liveInterval: { type: Number, default: 15 },
   },
-  emits: ['block', 'allow', 'dismiss', 'navigate', 'set-live', 'flash'],
+  emits: ['block', 'allow', 'dismiss', 'reverify', 'navigate', 'set-live', 'flash'],
   data() {
     // `tab` is the active filter (all | attention | new). `openRow` holds the identity key
     // of the one row whose Details panel is expanded (keyed, not indexed, so a live refresh
@@ -126,6 +129,28 @@ export default {
     },
     isDismissing(s) {
       return !!this.dismissing && this.dismissing.ua === s.ua;
+    },
+    // "Re-check": ask the server to run reverse-DNS live now against this client's captured
+    // IP(s). The parent owns the request + refresh; the result shows inline via reverifyResult.
+    doReverify(s) {
+      if (this.isReverifying(s)) return;
+      this.$emit('reverify', { ua: s.ua });
+    },
+    isReverifying(s) {
+      return !!this.reverifying && this.reverifying.ua === s.ua;
+    },
+    // The inline outcome of the most recent re-check, for this row only. Null unless the last
+    // result belongs to this client and it isn't mid-flight (so a re-run clears the old line).
+    reverifyResultFor(s) {
+      const r = this.reverifyResult;
+      if (!r || r.ua !== s.ua || this.isReverifying(s)) return null;
+      if ('checked' === r.status) {
+        if (2 === r.verdict) return { tone: 'danger', text: 'Confirmed impostor — failed reverse-DNS.' };
+        if (1 === r.verdict) return { tone: 'ok', text: 'Verified — forward-confirmed as genuine.' };
+        return { tone: 'muted', text: 'Couldn’t determine — the resolver gave no usable answer.' };
+      }
+      if ('no-ip' === r.status) return { tone: 'muted', text: 'No address on record to check.' };
+      return null;
     },
     // A stable identity for a pending row (survives a reorder on live refresh).
     rowKey(s) {
@@ -444,6 +469,28 @@ export default {
               <span class="ar-rev-kv__k">Verification</span>
               <span class="ar-rev-kv__v" :class="'is-' + verifyLine(s).tone">{{ verifyLine(s).text }}</span>
             </div>
+
+            <!-- Admin "Re-check": re-run reverse-DNS live now on this client's captured IP(s).
+                 Shown only when there's an address to check (a verifiable engine flagged while
+                 IP capture was on). Ad-hoc IP checks live in the global IP tool. Runs regardless
+                 of the always-on "Verify search engines" setting. -->
+            <div v-if="s.verifiable && s.ips && s.ips.length" class="ar-rev-recheck">
+              <div class="ar-rev-recheck__row">
+                <button
+                  type="button"
+                  class="ar-rev-recheck__btn"
+                  :disabled="isReverifying(s)"
+                  @click.stop="doReverify(s)"
+                >
+                  <svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M13.6 8a5.6 5.6 0 1 1-1.7-4M13.6 2.2v3.4h-3.4" /></svg>
+                  {{ isReverifying(s) ? 'Re-checking…' : 'Re-check now' }}
+                </button>
+                <span v-if="s.reverifiedAt" class="ar-rev-recheck__ago">Re-checked {{ ago(s.reverifiedAt) }}</span>
+              </div>
+              <p v-if="reverifyResultFor(s)" class="ar-rev-recheck__result" :class="'is-' + reverifyResultFor(s).tone">{{ reverifyResultFor(s).text }}</p>
+              <p v-else class="ar-rev-recheck__hint">Re-runs reverse-DNS live on the captured address{{ 1 === s.ips.length ? '' : 'es' }} — no “Verify search engines” needed.</p>
+            </div>
+
             <div class="ar-rev-kv">
               <span class="ar-rev-kv__k">User-Agent</span>
               <code
@@ -487,9 +534,9 @@ export default {
             </div>
 
             <p v-if="showVerifyNote(s)" class="ar-rev-details__note">
-              This client wasn’t network-verified, so its identity can’t be re-checked after the fact.
-              Turn on <button type="button" class="ar-linkbtn" @click="$emit('navigate', { tab: 'settings' }); close()">Verify search engines</button>
-              to confirm crawlers live, as they arrive.
+              This client wasn’t auto-verified when it visited, and no address was captured to
+              re-check. Turn on <button type="button" class="ar-linkbtn" @click="$emit('navigate', { tab: 'settings' }); close()">Verify search engines</button>
+              to confirm crawlers automatically, as they arrive.
             </p>
           </div>
         </li>

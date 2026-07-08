@@ -54,6 +54,8 @@ export default {
       blockingNow: null,
       allowingNow: null,
       dismissingNow: null,
+      reverifyingNow: null,
+      reverifyResult: null, // { ua, status, verdict } — shown inline on the row, not as a toast.
       entityTypes: this.boot.entityTypes || ['Person', 'Organization'],
       postTypes: this.boot.postTypes || [],
       knownTrainers: this.boot.knownTrainers || [],
@@ -678,7 +680,7 @@ export default {
     pollTick() {
       // Don't poll a backgrounded tab, and never stack a request on top of an
       // in-flight refresh / block / allow.
-      if (document.hidden || this.refreshingActivity || this.blockingNow || this.allowingNow) return;
+      if (document.hidden || this.refreshingActivity || this.blockingNow || this.allowingNow || this.reverifyingNow) return;
       // Suspend on a focused-but-idle tab too, the way Heartbeat does — the next
       // interaction resumes via noteActivity(). The interval keeps ticking (a free
       // no-op) so we don't have to tear down and rebuild the timer.
@@ -762,6 +764,23 @@ export default {
         this.dismissingNow = null;
       }
     },
+    // "Re-check" a flagged client — run reverse-DNS live now on its captured IP(s) and layer the
+    // result over the stored verdict. The endpoint returns refreshed stats (the row updates or
+    // clears in place); the outcome shows INLINE on the row (reverifyResult), matching the quiet,
+    // no-toast pattern of Block/Allow/Ignore. Only a real failure (network / throttle) toasts.
+    async reverifyBot(payload) {
+      this.reverifyingNow = payload;
+      this.reverifyResult = null; // Clear any prior line while this one runs.
+      try {
+        const res = await this.api.reverifyBot(payload);
+        this.activity = res.activity || res;
+        this.reverifyResult = { ua: payload.ua, status: res.status, verdict: res.verdict };
+      } catch (e) {
+        this.flash('error', e.message);
+      } finally {
+        this.reverifyingNow = null;
+      }
+    },
     // A fingerprint of the block/allow-relevant settings, to detect when the
     // dashboard's flags have gone stale after a settings change.
     blockingKeyOf(s) {
@@ -814,7 +833,7 @@ export default {
       }, duration);
     },
     titleFor(type) {
-      return { success: 'Success', error: 'Error', warning: 'Warning' }[type] || 'Notice';
+      return { success: 'Success', error: 'Error', warning: 'Warning', info: 'Heads up' }[type] || 'Notice';
     },
   },
 };
@@ -866,11 +885,14 @@ export default {
         :blocking="blockingNow"
         :allowing="allowingNow"
         :dismissing="dismissingNow"
+        :reverifying="reverifyingNow"
+        :reverify-result="reverifyResult"
         :live="live"
         :live-interval="15"
         @block="blockAgent"
         @allow="allowAgent"
         @dismiss="dismissAgent"
+        @reverify="reverifyBot"
         @set-live="setLive"
         @navigate="goTo"
         @flash="flash"
@@ -918,6 +940,7 @@ export default {
           v-show="tab === 'settings'"
           ref="settingsForm"
           :busy="savingSettings"
+          :api="api"
           v-model:settings="settings"
           :entity-types="entityTypes"
           :post-types="postTypes"

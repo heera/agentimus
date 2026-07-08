@@ -141,4 +141,85 @@ final class BotVerifierTest extends TestCase {
 		// While open, a NEW IP returns null without any DNS — even one that would confirm.
 		$this->assertNull( BotVerifier::verify_ip( '198.51.100.3', array( '.googlebot.com' ) ) );
 	}
+
+	/* -- Admin re-check: bypasses the budget, busts the cache -------------- */
+
+	public function test_reverify_runs_even_when_the_lookup_budget_is_spent() {
+		// The serve path's anti-amplification budget guards the unauthenticated path; a
+		// capability-gated admin re-check is not that threat, so it must run even when the
+		// budget is fully spent (where verify_engine() fails open to null on a fresh IP). The
+		// forward set carries both IPs so each forward-confirms against itself.
+		add_filter( 'agentimus_verify_lookup_budget', static function () { return 1; } );
+		$this->fake_dns( 'crawl.googlebot.com', array( self::GOOGLE_IP, '66.249.66.2' ) );
+
+		// One fresh lookup spends the single budgeted slot.
+		$this->assertTrue( BotVerifier::verify_engine( self::GOOGLEBOT, self::GOOGLE_IP ) );
+		// A second, different fresh IP is now past budget on the serve path → inconclusive.
+		$this->assertNull( BotVerifier::verify_engine( self::GOOGLEBOT, '66.249.66.2' ) );
+		// …but an admin re-check of that same IP still runs and forward-confirms it.
+		$this->assertTrue( BotVerifier::reverify_engine( self::GOOGLEBOT, '66.249.66.2' ) );
+	}
+
+	public function test_reverify_busts_a_stale_cached_verdict() {
+		// A prior serve-path check cached "verified" for this IP+engine. If the address is later
+		// reassigned (now a spoofer), the serve path keeps replaying the stale 'verified' — but a
+		// re-check must look again and return the fresh, conclusive spoof. Both use the same engine
+		// domains, so they share the cache key the re-check has to bust.
+		$this->fake_dns( 'crawl.googlebot.com', array( self::GOOGLE_IP ) );
+		$this->assertTrue( BotVerifier::verify_engine( self::GOOGLEBOT, self::GOOGLE_IP ) );
+		$this->assertTrue( BotVerifier::verify_engine( self::GOOGLEBOT, self::GOOGLE_IP ), 'served from cache' );
+
+		// The address now reverse-resolves to a non-crawler domain.
+		remove_all_filters( 'agentimus_reverse_dns' );
+		remove_all_filters( 'agentimus_forward_dns' );
+		$this->fake_dns( 'host.scanner-farm.example', array( '203.0.113.9' ) );
+
+		// The serve path still trusts the stale cache; only the re-check looks again.
+		$this->assertTrue( BotVerifier::verify_engine( self::GOOGLEBOT, self::GOOGLE_IP ), 'serve path replays the cached verdict' );
+		$this->assertFalse( BotVerifier::reverify_engine( self::GOOGLEBOT, self::GOOGLE_IP ), 'a re-check ignores the stale cached verdict' );
+	}
+
+	public function test_reverify_of_a_non_verifiable_ua_is_false_and_of_a_missing_ip_is_null() {
+		$this->assertFalse( BotVerifier::reverify_engine( 'mozilla/5.0 chrome/120 safari/537', self::GOOGLE_IP ) );
+		$this->assertNull( BotVerifier::reverify_engine( self::GOOGLEBOT, '' ) );
+	}
+
+	/* -- identify_ip: the engine-agnostic "Check an IP" tool --------------- */
+
+	public function test_identify_names_a_genuine_crawler_and_its_engine() {
+		$this->fake_dns( 'crawl-66-249-66-1.googlebot.com', array( self::GOOGLE_IP ) );
+		$r = BotVerifier::identify_ip( self::GOOGLE_IP );
+		$this->assertSame( 1, $r['verdict'] );
+		$this->assertSame( 'googlebot', $r['engine'] );
+		$this->assertSame( 'crawl-66-249-66-1.googlebot.com', $r['host'] );
+	}
+
+	public function test_identify_reports_a_non_engine_host_as_no_known_engine() {
+		$this->fake_dns( 'host.some-isp.example', array( '203.0.113.9' ) );
+		$r = BotVerifier::identify_ip( '203.0.113.9' );
+		$this->assertSame( 0, $r['verdict'] );
+		$this->assertSame( '', $r['engine'] );
+		$this->assertSame( 'host.some-isp.example', $r['host'], 'The resolved host is still reported.' );
+	}
+
+	public function test_identify_flags_a_forged_ptr_as_an_impostor() {
+		// PTR sits in googlebot.com but forward-resolves to a DIFFERENT same-family IP.
+		$this->fake_dns( 'crawl.googlebot.com', array( '1.2.3.4' ) );
+		$r = BotVerifier::identify_ip( self::GOOGLE_IP );
+		$this->assertSame( 2, $r['verdict'] );
+		$this->assertSame( 'googlebot', $r['engine'] );
+	}
+
+	public function test_identify_reports_no_ptr_record() {
+		$this->fake_dns( '', array() );
+		$r = BotVerifier::identify_ip( self::GOOGLE_IP );
+		$this->assertSame( 0, $r['verdict'] );
+		$this->assertSame( '', $r['host'] );
+	}
+
+	public function test_identify_rejects_a_non_ip() {
+		$r = BotVerifier::identify_ip( 'not-an-ip' );
+		$this->assertSame( 0, $r['verdict'] );
+		$this->assertSame( '', $r['host'] );
+	}
 }

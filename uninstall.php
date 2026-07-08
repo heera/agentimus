@@ -48,6 +48,7 @@ function agentimus_uninstall_site() {
 	delete_option( 'agentimus_referrals_db_version' );
 	delete_option( 'agentimus_flagged_ips_db_version' );
 	delete_option( 'agentimus_review_dismissed' );
+	delete_option( 'agentimus_review_reverified' );
 	wp_clear_scheduled_hook( 'agentimus_prune_activity' );
 	wp_clear_scheduled_hook( 'agentimus_warm_llms_full' );
 

@@ -11,6 +11,7 @@ namespace Agentimus\Activity;
 
 use Agentimus\Settings;
 use Agentimus\Guard;
+use Agentimus\BotVerifier;
 
 defined( 'ABSPATH' ) || exit;
 
@@ -23,6 +24,10 @@ final class Module {
 	 *  without bound. Generous; filter `agentimus_referral_beacon_rate` (0 disables it). */
 	const BEACON_RATE_MAX    = 600;
 	const BEACON_RATE_WINDOW = 60;
+
+	/** Per-admin "Re-check" rate cap (per minute): a re-check makes a live DNS lookup, so a
+	 *  click-storm shouldn't be able to hammer the resolver. Generous for real use. */
+	const REVERIFY_RATE_MAX = 20;
 
 	/** @var Settings */
 	private $settings;
@@ -171,6 +176,32 @@ final class Module {
 				'args'                => array(
 					'ua'   => array( 'type' => 'string' ),
 					'hits' => array( 'type' => 'integer' ),
+				),
+			)
+		);
+
+		register_rest_route(
+			'agentimus/v1',
+			'/activity/reverify',
+			array(
+				'methods'             => 'POST',
+				'permission_callback' => array( $this, 'can_manage' ),
+				'callback'            => array( $this, 'reverify' ),
+				'args'                => array(
+					'ua' => array( 'type' => 'string' ),
+				),
+			)
+		);
+
+		register_rest_route(
+			'agentimus/v1',
+			'/activity/check-ip',
+			array(
+				'methods'             => 'POST',
+				'permission_callback' => array( $this, 'can_manage' ),
+				'callback'            => array( $this, 'check_ip' ),
+				'args'                => array(
+					'ip' => array( 'type' => 'string' ),
 				),
 			)
 		);
@@ -349,6 +380,137 @@ final class Module {
 			(int) $request->get_param( 'hits' )
 		);
 		return rest_ensure_response( Repository::stats( $this->settings ) );
+	}
+
+	/**
+	 * REST: POST /activity/reverify — the review panel's admin "Re-check". On demand, run a
+	 * FRESH forward-confirmed reverse-DNS lookup for a flagged client and layer the result over
+	 * its stored (ingest-time) verdict, so an impostor can be re-confirmed — or cleared — without
+	 * waiting for its next visit.
+	 *
+	 * Deliberately runs REGARDLESS of the always-on "Verify search engines" setting: this single,
+	 * capability-gated, admin-initiated lookup is its own consent (unlike making outbound DNS on
+	 * every public bot hit), and it bypasses the serve-path lookup budget for the same reason.
+	 * A loose per-user rate cap keeps a click-storm from hammering the resolver.
+	 *
+	 * Checks the addresses already retained for this client (needs "Store IPs for flagged
+	 * clients"); the review UI only offers the button when there's an address to check. With
+	 * none, there's nothing to do — answered honestly as 'no-ip', never fabricated. Ad-hoc
+	 * checks of an arbitrary address live in {@see check_ip()}.
+	 *
+	 * @param \WP_REST_Request $request Request.
+	 * @return \WP_REST_Response|\WP_Error
+	 */
+	public function reverify( \WP_REST_Request $request ) {
+		// Loose per-user throttle: a re-check makes a live DNS lookup, so bound the clicks.
+		if ( ! $this->spend_dns_budget() ) {
+			return new \WP_Error(
+				'agentimus_reverify_throttled',
+				__( 'Too many re-checks in the last minute — pause a moment and try again.', 'agentimus' ),
+				array( 'status' => 429 )
+			);
+		}
+
+		$ua    = (string) $request->get_param( 'ua' );
+		$ua_lc = strtolower( $ua );
+		if ( '' === BotVerifier::claimed_engine( $ua_lc ) ) {
+			return new \WP_Error(
+				'agentimus_not_verifiable',
+				__( 'This client doesn’t claim a search engine we can reverse-DNS verify, so there’s nothing to re-check.', 'agentimus' ),
+				array( 'status' => 422 )
+			);
+		}
+
+		// The addresses retained for this client (keyed by its review identity).
+		$key  = Repository::dismiss_key( $ua );
+		$rows = FlaggedIps::for_keys( array( $key ) );
+		$ips  = array();
+		foreach ( isset( $rows[ $key ] ) ? $rows[ $key ] : array() as $r ) {
+			$ips[] = (string) $r['ip'];
+		}
+
+		if ( empty( $ips ) ) {
+			return rest_ensure_response(
+				array(
+					'status'   => 'no-ip',
+					'message'  => __( 'No address is on record for this client to re-check.', 'agentimus' ),
+					'activity' => Repository::stats( $this->settings ),
+				)
+			);
+		}
+
+		// Fresh FCrDNS for each address; fold to the WORST (spoofed > verified > undetermined),
+		// mirroring how the ingest verdict is aggregated across a client's hits.
+		$verdict = 0;
+		$per_ip  = array();
+		foreach ( $ips as $ip ) {
+			$r = BotVerifier::reverify_engine( $ua_lc, $ip ); // true | false | null
+			$v = ( true === $r ) ? 1 : ( ( false === $r ) ? 2 : 0 );
+			if ( $v > $verdict ) {
+				$verdict = $v;
+			}
+			$per_ip[] = array( 'ip' => $ip, 'verdict' => $v );
+		}
+
+		// Layer the result onto this client's review identity (never rewrites the hit log).
+		// Only a CONCLUSIVE result is persisted: an inconclusive re-check (0 — resolver gave no
+		// usable answer) is fail-open — it must not override the client's standing verdict.
+		if ( $verdict > 0 ) {
+			Repository::record_reverify( $ua, $verdict );
+		}
+
+		return rest_ensure_response(
+			array(
+				'status'   => 'checked',
+				'verdict'  => $verdict,
+				'perIp'    => $per_ip,
+				'activity' => Repository::stats( $this->settings ),
+			)
+		);
+	}
+
+	/**
+	 * REST: POST /activity/check-ip — the Settings "Check an IP" tool. An engine-agnostic,
+	 * read-only reverse-DNS identity lookup: given any IP, report which verifiable search engine
+	 * (if any) it actually belongs to. Touches no stored data and no review row — it just
+	 * identifies. Admin-gated, shares the same per-user DNS throttle as the re-check.
+	 *
+	 * @param \WP_REST_Request $request Request.
+	 * @return \WP_REST_Response|\WP_Error {@see BotVerifier::identify_ip()} on success.
+	 */
+	public function check_ip( \WP_REST_Request $request ) {
+		if ( ! $this->spend_dns_budget() ) {
+			return new \WP_Error(
+				'agentimus_reverify_throttled',
+				__( 'Too many lookups in the last minute — pause a moment and try again.', 'agentimus' ),
+				array( 'status' => 429 )
+			);
+		}
+		$ip = trim( (string) $request->get_param( 'ip' ) );
+		if ( '' === $ip || false === filter_var( $ip, FILTER_VALIDATE_IP ) ) {
+			return new \WP_Error(
+				'agentimus_bad_ip',
+				__( 'That doesn’t look like a valid IP address.', 'agentimus' ),
+				array( 'status' => 400 )
+			);
+		}
+		return rest_ensure_response( BotVerifier::identify_ip( $ip ) );
+	}
+
+	/**
+	 * Count one live-DNS admin lookup against a per-user, per-minute cap shared by the re-check
+	 * and the IP tool — a click-storm shouldn't be able to hammer the resolver. False once spent.
+	 *
+	 * @return bool True while the current user is within the cap.
+	 */
+	private function spend_dns_budget() {
+		$key   = 'agentimus_reverify_' . get_current_user_id();
+		$spent = (int) get_transient( $key );
+		if ( $spent >= self::REVERIFY_RATE_MAX ) {
+			return false;
+		}
+		set_transient( $key, $spent + 1, MINUTE_IN_SECONDS );
+		return true;
 	}
 
 	/**

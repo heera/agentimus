@@ -39,6 +39,14 @@ final class Repository {
 	const DISMISS_OPTION = 'agentimus_review_dismissed';
 	const DISMISS_MAX    = 200;
 
+	/** Where admin "Re-check" results live: a map of review-key => { verdict, at }, layered
+	 *  over the ingest verdict at analysis time (the hit log is never rewritten). Its own
+	 *  option (autoload off), bounded to REVERIFY_MAX, and short-lived — a re-check is a
+	 *  point-in-time fact, so a stale one must stop overriding a client's live verdict. */
+	const REVERIFY_OPTION = 'agentimus_review_reverified';
+	const REVERIFY_MAX    = 200;
+	const REVERIFY_TTL    = 7 * DAY_IN_SECONDS;
+
 	/** Default rows in each dashboard breakdown; each filterable (see stats()). */
 	const TOP_CLIENTS   = 8;
 	const TOP_ENDPOINTS = 12;
@@ -361,6 +369,7 @@ final class Repository {
 				'heavyMin'   => (int) apply_filters( 'agentimus_heavy_min_hits', self::HEAVY_MIN_HITS ),
 				'limit'      => (int) apply_filters( 'agentimus_threats_limit', self::THREATS_LIMIT ),
 				'dismissed'  => self::dismissed_map(),
+				'reverified' => self::reverified_map(),
 			)
 		);
 
@@ -404,12 +413,30 @@ final class Repository {
 		$heavy_min = isset( $opts['heavyMin'] ) ? (int) $opts['heavyMin'] : self::HEAVY_MIN_HITS;
 		$limit     = isset( $opts['limit'] ) ? (int) $opts['limit'] : self::THREATS_LIMIT;
 
-		$out    = array();
-		$counts = array( 'new' => 0, 'heavy' => 0, 'spoof' => 0 );
+		$out        = array();
+		$counts     = array( 'new' => 0, 'heavy' => 0, 'spoof' => 0 );
+		$reverified = isset( $opts['reverified'] ) ? (array) $opts['reverified'] : array();
 
 		foreach ( $sources as $s ) {
 			$ua      = isset( $s['ua'] ) ? (string) $s['ua'] : '';
 			$verdict = isset( $s['verdict'] ) ? (int) $s['verdict'] : 0;
+
+			// Layer an admin "Re-check" result over the ingest verdict, keyed by the same
+			// review identity — so a re-confirmed impostor stays flagged (and a re-cleared one
+			// drops out) everywhere the verdict is used below (the protected-engine skip, the
+			// fake-engine flag, severity, the panel badge), all WITHOUT rewriting the hit log.
+			$reverified_at = '';
+			$rv_key        = self::dismiss_key( $ua );
+			// Only a CONCLUSIVE re-check (verified/spoofed) overrides. An inconclusive one
+			// (0 — resolver down, undetermined) carries no new information, so it must never
+			// clear a verdict the way null never overrides a cached one at ingest.
+			if ( isset( $reverified[ $rv_key ]['verdict'] ) && (int) $reverified[ $rv_key ]['verdict'] > 0 ) {
+				$verdict = (int) $reverified[ $rv_key ]['verdict'];
+				$rv_at   = isset( $reverified[ $rv_key ]['at'] ) ? (string) $reverified[ $rv_key ]['at'] : '';
+				if ( '' !== $rv_at ) {
+					$reverified_at = gmdate( 'c', strtotime( $rv_at . ' UTC' ) );
+				}
+			}
 
 			// A protected/allow-listed search engine (Googlebot, Bingbot…) is trusted
 			// by definition — never denied, never "suspicious". Keep it out entirely —
@@ -500,6 +527,9 @@ final class Repository {
 				// verdict: false here means "not an engine Verify can check" (e.g.
 				// Bytespider) — so the UI won't offer the dead-end "turn on Verify" nudge.
 				'verifiable' => '' !== BotVerifier::claimed_engine( strtolower( $ua ) ),
+				// When the owner last ran an admin "Re-check" for this client (ISO-8601), so
+				// the panel can show "re-checked 2m ago". '' when never re-checked.
+				'reverifiedAt' => $reverified_at,
 			);
 		}
 
@@ -612,6 +642,11 @@ final class Repository {
 		if ( '' !== $add['firstSeen'] && ( '' === $keep['firstSeen'] || $add['firstSeen'] < $keep['firstSeen'] ) ) {
 			$keep['firstSeen'] = $add['firstSeen'];
 		}
+		// Keep the freshest re-check stamp across folded variants (they share a review key,
+		// so this is normally identical — max() just guards the edge where it isn't).
+		if ( '' !== $add['reverifiedAt'] && ( '' === $keep['reverifiedAt'] || $add['reverifiedAt'] > $keep['reverifiedAt'] ) ) {
+			$keep['reverifiedAt'] = $add['reverifiedAt'];
+		}
 		// The latest-seen variant becomes the row's face (UA + identity card).
 		if ( $add['lastSeen'] > $keep['lastSeen'] ) {
 			$keep['lastSeen'] = $add['lastSeen'];
@@ -690,6 +725,79 @@ final class Repository {
 	}
 
 	/**
+	 * The admin "Re-check" overlay (review-key => { verdict:int, at:string }), with entries
+	 * past {@see REVERIFY_TTL} filtered out AT READ time — a re-check is a point-in-time fact,
+	 * so a stale one must never keep overriding a client's live ingest verdict, even before the
+	 * daily prune runs. `at` is a GMT 'Y-m-d H:i:s' string, so the lexical compare is chronological.
+	 *
+	 * @return array<string,array{verdict:int,at:string}>
+	 */
+	public static function reverified_map() {
+		$map = get_option( self::REVERIFY_OPTION, array() );
+		if ( ! is_array( $map ) ) {
+			return array();
+		}
+		$cutoff = gmdate( 'Y-m-d H:i:s', time() - self::REVERIFY_TTL );
+		$fresh  = array();
+		foreach ( $map as $k => $v ) {
+			if ( isset( $v['at'] ) && (string) $v['at'] >= $cutoff ) {
+				$fresh[ (string) $k ] = array(
+					'verdict' => isset( $v['verdict'] ) ? (int) $v['verdict'] : 0,
+					'at'      => (string) $v['at'],
+				);
+			}
+		}
+		return $fresh;
+	}
+
+	/**
+	 * Record one admin "Re-check" result, keyed by the client's review identity so it layers
+	 * onto the right row across UA version-bumps (mirrors {@see dismiss()}). Bounded to the
+	 * most recent REVERIFY_MAX entries.
+	 *
+	 * @param string $ua      The client's raw User-Agent.
+	 * @param int    $verdict Fresh verdict: 0 = undetermined, 1 = verified, 2 = spoofed.
+	 * @return void
+	 */
+	public static function record_reverify( $ua, $verdict ) {
+		$map = get_option( self::REVERIFY_OPTION, array() );
+		if ( ! is_array( $map ) ) {
+			$map = array();
+		}
+		$map[ self::dismiss_key( $ua ) ] = array(
+			'verdict' => max( 0, min( 2, (int) $verdict ) ),
+			'at'      => current_time( 'mysql', true ), // GMT, matches the map's compare format.
+		);
+		if ( count( $map ) > self::REVERIFY_MAX ) {
+			uasort(
+				$map,
+				static function ( $a, $b ) {
+					return strcmp( isset( $b['at'] ) ? (string) $b['at'] : '', isset( $a['at'] ) ? (string) $a['at'] : '' );
+				}
+			);
+			$map = array_slice( $map, 0, self::REVERIFY_MAX, true );
+		}
+		update_option( self::REVERIFY_OPTION, $map, false );
+	}
+
+	/**
+	 * Drop re-check overlays past their TTL from storage (freshness is also enforced at read by
+	 * {@see reverified_map()}; this just keeps the option from growing). Runs with the daily prune.
+	 *
+	 * @return void
+	 */
+	public static function prune_reverified() {
+		$map = get_option( self::REVERIFY_OPTION, array() );
+		if ( ! is_array( $map ) || empty( $map ) ) {
+			return;
+		}
+		$fresh = self::reverified_map();
+		if ( count( $fresh ) !== count( $map ) ) {
+			update_option( self::REVERIFY_OPTION, $fresh, false );
+		}
+	}
+
+	/**
 	 * File an "Ignore" for a client: record its identity key with the volume the owner
 	 * saw, so {@see apply_dismissals()} can later tell "unchanged" from "changed". Bounded
 	 * to the most-recently dismissed DISMISS_MAX entries.
@@ -749,6 +857,7 @@ final class Repository {
 		$cutoff = gmdate( 'Y-m-d H:i:s', time() - self::retention_days() * DAY_IN_SECONDS );
 		$wpdb->query( $wpdb->prepare( "DELETE FROM $table WHERE hit_at < %s", $cutoff ) ); // phpcs:ignore WordPress.DB, PluginCheck.Security.DirectDB.UnescapedDBParameter -- $table is our own prefix-derived table name; the value is bound via prepare().
 		self::prune_dismissed();
+		self::prune_reverified();
 	}
 
 	/**
@@ -784,6 +893,7 @@ final class Repository {
 		$table = Table::name();
 		$wpdb->query( "TRUNCATE TABLE $table" ); // phpcs:ignore WordPress.DB, PluginCheck.Security.DirectDB.UnescapedDBParameter -- admin-gated truncation of our own prefix-derived table.
 		delete_option( self::DISMISS_OPTION );
+		delete_option( self::REVERIFY_OPTION ); // Re-checks judge the same history — clear them with it.
 		FlaggedIps::clear(); // The captured IPs are judged against this history — clear them with it.
 	}
 }
