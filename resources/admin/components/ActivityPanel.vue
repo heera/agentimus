@@ -65,10 +65,10 @@ export default {
       return this.data.daily || [];
     },
     byAgent() {
-      return this.data.byAgent || [];
+      return this.decorateRank(this.data.byAgent);
     },
     byEndpoint() {
-      return this.data.byEndpoint || [];
+      return this.decorateRank(this.data.byEndpoint);
     },
     // Traffic AI sent you (humans arriving from ChatGPT/Perplexity/… — the mirror
     // of the bot log above).
@@ -385,6 +385,25 @@ export default {
     hideNetHint() {
       this.netHint.show = false;
     },
+    // Attach a growth/down delta to each breakdown row, once per data change, so the
+    // template stays declarative (Top clients / By endpoint).
+    decorateRank(list) {
+      return (list || []).map((r) => ({ ...r, delta: this.trendView(r) }));
+    },
+    // A calm trend indicator: a colored arrow + % ONLY where there's enough signal to make
+    // the claim honestly. Anything else — too few hits, no earlier baseline to compare
+    // against, or movement within the dead-band — reads as a quiet "–" (no trend claimed),
+    // so half-vs-half jitter on sparse/spiky bot traffic isn't dressed up as a swing.
+    trendView(r) {
+      const MIN_HITS = 20; // below this, too little volume to call a trend.
+      const BAND = 10;     // |change| within this reads as steady, not movement.
+      const t = r ? r.trend : null;
+      const hits = (r && r.hits) || 0;
+      if (hits < MIN_HITS || t === null || t === undefined || Math.abs(t) <= BAND) {
+        return { dir: 'flat', label: '–' };
+      }
+      return t > 0 ? { dir: 'up', label: `▲ ${t}%` } : { dir: 'down', label: `▼ ${Math.abs(t)}%` };
+    },
     // ---- Formatting ------------------------------------------------------------
     listMax(list) {
       return Math.max(1, ...(list || []).map((x) => x.hits));
@@ -593,9 +612,10 @@ export default {
       <div class="ar-wd-cols">
         <section class="ar-card">
           <h2 class="ar-card__title">Top clients <span class="ar-card__tag">Last {{ data.window || 30 }} days</span></h2>
-          <ul v-if="byAgent.length" class="ar-act-rank">
+          <ul v-if="byAgent.length" class="ar-act-rank ar-act-rank--trend">
             <li v-for="a in byAgent" :key="a.label">
               <span class="ar-act-rank__label">{{ a.label }}</span>
+              <span class="ar-act-delta" :class="'is-' + a.delta.dir">{{ a.delta.label }}</span>
               <span class="ar-act-rank__track"><span class="ar-act-rank__bar" :style="{ width: pct(a.hits, maxAgent) }"></span></span>
               <span class="ar-act-rank__n">{{ a.hits }}</span>
             </li>
@@ -605,9 +625,10 @@ export default {
 
         <section class="ar-card">
           <h2 class="ar-card__title">By endpoint <span class="ar-card__tag">Last {{ data.window || 30 }} days</span></h2>
-          <ul v-if="byEndpoint.length" class="ar-act-rank">
+          <ul v-if="byEndpoint.length" class="ar-act-rank ar-act-rank--trend">
             <li v-for="e in byEndpoint" :key="e.label">
               <span class="ar-act-rank__label"><code>{{ e.label }}</code></span>
+              <span class="ar-act-delta" :class="'is-' + e.delta.dir">{{ e.delta.label }}</span>
               <span class="ar-act-rank__track"><span class="ar-act-rank__bar" :style="{ width: pct(e.hits, maxEndpoint) }"></span></span>
               <span class="ar-act-rank__n">{{ e.hits }}</span>
             </li>

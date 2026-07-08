@@ -123,29 +123,88 @@ final class Repository {
 	}
 
 	/**
-	 * Top counts grouped by a column over the window.
+	 * Top counts grouped by a column over the window, each row carrying a within-window
+	 * volume trend (for a growth/down arrow). The trend is computed from a gap-filled daily
+	 * series built here; retention == window, so there is no prior period to compare against
+	 * {@see trend_pct}. The series itself isn't shipped — only the resulting trend.
 	 *
 	 * @param string $column 'agent' or 'endpoint' (whitelisted).
-	 * @param string $since  GMT threshold.
+	 * @param string $since  GMT threshold (the reporting window; sets the shown totals).
 	 * @param int    $limit  Max rows.
-	 * @return array<int,array{label:string,hits:int}>
+	 * @return array<int,array{label:string,hits:int,trend:int|null}>
 	 */
 	private static function group_counts( $column, $since, $limit ) {
 		global $wpdb;
 		$table  = Table::name();
 		$column = in_array( $column, array( 'agent', 'endpoint' ), true ) ? $column : 'agent';
-		// phpcs:disable WordPress.DB, PluginCheck.Security.DirectDB.UnescapedDBParameter -- $table is our own prefix-derived table and $column is whitelisted just above; SQL identifiers can't be bound via prepare(), only the values ($since/$limit), which are.
-		$rows   = $wpdb->get_results(
+
+		// The calendar-day window the sparkline series spans — matched to {@see daily()}
+		// so the two charts line up.
+		$days  = self::retention_days();
+		$start = gmdate( 'Y-m-d 00:00:00', time() - ( $days - 1 ) * DAY_IN_SECONDS );
+
+		// phpcs:disable WordPress.DB, PluginCheck.Security.DirectDB.UnescapedDBParameter -- $table is our own prefix-derived table and $column is whitelisted just above; SQL identifiers can't be bound via prepare(), only the values ($since/$start/$limit), which are.
+		$rows        = $wpdb->get_results(
 			$wpdb->prepare( "SELECT $column AS label, COUNT(*) AS hits FROM $table WHERE hit_at >= %s GROUP BY $column ORDER BY hits DESC LIMIT %d", $since, $limit ),
 			ARRAY_A
 		);
+		// One bounded pass (distinct labels x days) for every label's per-day counts; the
+		// top-N are picked out below, aligned to a gap-filled day list.
+		$series_rows = $wpdb->get_results(
+			$wpdb->prepare( "SELECT $column AS label, DATE(hit_at) AS d, COUNT(*) AS c FROM $table WHERE hit_at >= %s GROUP BY $column, DATE(hit_at)", $start ),
+			ARRAY_A
+		);
 		// phpcs:enable WordPress.DB, PluginCheck.Security.DirectDB.UnescapedDBParameter
+
+		$by = array(); // label => ( 'Y-m-d' => count ).
+		foreach ( (array) $series_rows as $r ) {
+			$by[ (string) $r['label'] ][ (string) $r['d'] ] = (int) $r['c'];
+		}
+		$dates = array(); // Ordered oldest → newest, gap-filled.
+		for ( $i = $days - 1; $i >= 0; $i-- ) {
+			$dates[] = gmdate( 'Y-m-d', time() - $i * DAY_IN_SECONDS );
+		}
+
 		return array_map(
-			static function ( $r ) {
-				return array( 'label' => (string) $r['label'], 'hits' => (int) $r['hits'] );
+			static function ( $r ) use ( $by, $dates ) {
+				$label  = (string) $r['label'];
+				$counts = isset( $by[ $label ] ) ? $by[ $label ] : array();
+				$series = array();
+				foreach ( $dates as $d ) {
+					$series[] = isset( $counts[ $d ] ) ? (int) $counts[ $d ] : 0;
+				}
+				return array(
+					'label' => $label,
+					'hits'  => (int) $r['hits'],
+					'trend' => self::trend_pct( $series ),
+				);
 			},
 			(array) $rows
 		);
+	}
+
+	/**
+	 * Within-window volume trend as a signed percentage: the recent half of a daily
+	 * series against the earlier half. `null` means "new" — activity now with no earlier
+	 * baseline, where a percentage would mislead. When odd-length, the middle day is
+	 * dropped so the two halves stay the same size. Pure, so it is unit-testable.
+	 *
+	 * @param array<int,int> $series Daily counts, oldest → newest.
+	 * @return int|null Signed % change, capped to ±999; null = new.
+	 */
+	public static function trend_pct( array $series ) {
+		$n = count( $series );
+		if ( $n < 2 ) {
+			return 0;
+		}
+		$half    = intdiv( $n, 2 );
+		$earlier = array_sum( array_slice( $series, 0, $half ) );
+		$recent  = array_sum( array_slice( $series, $n - $half ) );
+		if ( 0 === $earlier ) {
+			return $recent > 0 ? null : 0;
+		}
+		$pct = (int) round( ( $recent - $earlier ) / $earlier * 100 );
+		return max( -999, min( 999, $pct ) );
 	}
 
 	/**

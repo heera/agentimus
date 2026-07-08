@@ -1918,6 +1918,15 @@ select.ar-input {
 .ar-act-rank__track { height: 7px; background: var(--ar-surface-2); border-radius: 999px; overflow: hidden; }
 .ar-act-rank__bar { display: block; height: 100%; background: var(--ar-accent); border-radius: 999px; }
 .ar-act-rank__n { font-family: var(--ar-mono); font-size: 12px; color: var(--ar-ink-soft); text-align: right; min-width: 24px; }
+/* Trend variant (Top clients / By endpoint only): a calm growth/down delta sits in a
+   FIXED-width column between the label and the bar, so bars stay aligned row to row. Only
+   real movers get a colored arrow + %; everything else is a quiet "–". The plain
+   .ar-act-rank (referral lists) keeps its 3-column layout. */
+.ar-act-rank--trend li { grid-template-columns: minmax(0, 1fr) 62px 90px auto; }
+.ar-act-delta { font-family: var(--ar-mono); font-size: 11px; white-space: nowrap; text-align: right; }
+.ar-act-delta.is-up { color: var(--ar-good); }
+.ar-act-delta.is-down { color: var(--ar-bad); }
+.ar-act-delta.is-flat { color: var(--ar-ink-faint); }
 .ar-act-more { margin: 11px 0 0; font-size: 11px; color: var(--ar-ink-faint); }
 /* As a button: expand/collapse the day breakdown. Caret signals it unfolds (no underline). */
 button.ar-act-more { appearance: none; background: none; border: 0; padding: 0; cursor: pointer; font-family: inherit; display: inline-flex; align-items: center; gap: 4px; transition: color 0.15s ease; }
