@@ -1,15 +1,17 @@
 <?php
 /**
  * AEO/GEO Score — the unifying number and the ranked "do this next" plan. It fuses
- * the four scored stages of the model into one 0–100 read on how ready a site is to
- * be found, understood, and cited by AI answer engines, then collects every gap into
- * one impact-ranked action list.
+ * ONE extended ladder into a single 0–100 read on how ready a site is to be found,
+ * understood, and cited by AI answer engines, then collects every gap into one
+ * impact-ranked action list. The first three rungs ARE the original readiness ladder
+ * (the "agent-ready" milestone); the last two extend it into AEO/GEO:
  *
- *   Serve      (30) — delivery legibility: the Findable + Readable readiness checks.
- *   Structure  (25) — identity & trust:    the Trusted readiness checks.
- *   Optimize   (30) — content citability:  the per-page {@see PageCheck} signals,
- *                                          averaged over a cached sample of posts.
- *   Measure    (15) — measured citation:   the AI-Visibility "seen in answers" rate.
+ *   Findable  (15) — an agent can reach and crawl you   ┐
+ *   Readable  (15) — content comes back clean            ├ the readiness ladder
+ *   Trusted   (25) — it can identify & trust the source ┘  (= "agent-ready")
+ *   Optimized (30) — content written to be cited: the per-page {@see PageCheck}
+ *                    signals, averaged over a cached sample of posts.
+ *   Cited     (15) — measured citation: the AI-Visibility "seen in answers" rate.
  *
  * A pillar with no data yet (no published posts to grade; AI Visibility not set up)
  * is EXCLUDED and its weight redistributed across the rest — a well-configured new
@@ -29,16 +31,19 @@ final class Score {
 	/** Pillar weights (AEO/GEO plan, Option A). They need not sum to 100 — the blend
 	 *  normalises over whichever pillars have data. */
 	const WEIGHTS = array(
-		'serve'     => 30,
-		'structure' => 25,
-		'optimize'  => 30,
-		'measure'   => 15,
+		'findable'  => 15,
+		'readable'  => 15,
+		'trusted'   => 25,
+		'optimized' => 30,
+		'cited'     => 15,
 	);
 
-	/** Readiness check ids that make up each config pillar (mirrors the UI rungs:
-	 *  Serve = Findable + Readable, Structure = Trusted). */
-	const SERVE_IDS     = array( 'public', 'permalinks', 'robots', 'sitemap', 'robots_sitemap', 'llms', 'llms_words', 'llms_full', 'llms_full_size', 'schema', 'post_types', 'topics' );
-	const STRUCTURE_IDS = array( 'about', 'expertise', 'same_as', 'entity_image', 'entity_role', 'security_txt', 'ai_usage' );
+	/** The three readiness rungs — mirrored from the admin's tiers.js so the score and
+	 *  the ladder never disagree. The last two rungs (optimized/cited) are computed from
+	 *  content and citations, not from these checks. */
+	const FINDABLE_IDS = array( 'public', 'permalinks', 'robots', 'sitemap', 'robots_sitemap' );
+	const READABLE_IDS = array( 'llms', 'llms_words', 'llms_full', 'llms_full_size', 'schema', 'post_types', 'topics' );
+	const TRUSTED_IDS  = array( 'about', 'expertise', 'same_as', 'entity_image', 'entity_role', 'security_txt', 'ai_usage' );
 
 	/** How many recent posts the Optimize pillar samples (each is parsed). */
 	const OPTIMIZE_SAMPLE = 25;
@@ -61,36 +66,42 @@ final class Score {
 	 *
 	 * @param array<int,array<string,mixed>>|null $readiness Precomputed readiness rows
 	 *        (the admin boot already runs the report — pass it so it isn't run twice).
-	 * @return array{score:int,band:string,blocked:bool,pillars:array,actions:array,measured:bool}
+	 * @return array{score:int,band:string,blocked:bool,ready:bool,measured:bool,rungs:array,actions:array}
 	 */
 	public function report( $readiness = null ) {
 		$readiness = is_array( $readiness ) ? $readiness : ( new Readiness( $this->settings ) )->report();
 		$optimize  = $this->optimize();
 		$measure   = $this->measure();
 
-		$pillars = array(
-			'serve'     => self::rows_score( $readiness, self::SERVE_IDS ),
-			'structure' => self::rows_score( $readiness, self::STRUCTURE_IDS ),
-			'optimize'  => $optimize['score'],
-			'measure'   => $measure['score'],
+		$scores = array(
+			'findable'  => self::rows_score( $readiness, self::FINDABLE_IDS ),
+			'readable'  => self::rows_score( $readiness, self::READABLE_IDS ),
+			'trusted'   => self::rows_score( $readiness, self::TRUSTED_IDS ),
+			'optimized' => $optimize['score'],
+			'cited'     => $measure['score'],
 		);
 
 		$blocked = self::has_fail( $readiness, 'public' );
-		$score   = self::blend( $pillars );
+		$score   = self::blend( $scores );
 		if ( $blocked ) {
 			$score = min( $score, 10 ); // Hidden from crawlers → nothing else can help yet.
 		}
+		// "Agent-ready" is the original readiness milestone: the three readiness rungs
+		// all pass (a warn or fail on any keeps the score below 100 there).
+		$ready = ! $blocked && 100 === (int) $scores['findable'] && 100 === (int) $scores['readable'] && 100 === (int) $scores['trusted'];
 
 		return array(
 			'score'    => $score,
 			'band'     => self::band( $blocked ? 0 : $score ),
 			'blocked'  => $blocked,
+			'ready'    => $ready,
 			'measured' => null !== $measure['score'],
-			'pillars'  => array(
-				'serve'     => $this->pillar_view( 'serve', $pillars['serve'], __( 'Serve', 'agentimus' ), __( 'Discovery files an agent can find and read.', 'agentimus' ) ),
-				'structure' => $this->pillar_view( 'structure', $pillars['structure'], __( 'Structure', 'agentimus' ), __( 'Who you are, in a form an engine can trust.', 'agentimus' ) ),
-				'optimize'  => $this->pillar_view( 'optimize', $pillars['optimize'], __( 'Optimize', 'agentimus' ), $this->optimize_note( $optimize ) ),
-				'measure'   => $this->pillar_view( 'measure', $pillars['measure'], __( 'Measure', 'agentimus' ), $measure['note'] ),
+			'rungs'    => array(
+				$this->check_rung( 'findable', __( 'Findable', 'agentimus' ), $scores['findable'], $readiness, self::FINDABLE_IDS, __( 'An agent can reach and crawl your site.', 'agentimus' ) ),
+				$this->check_rung( 'readable', __( 'Readable', 'agentimus' ), $scores['readable'], $readiness, self::READABLE_IDS, __( 'What it crawls comes back clean and structured.', 'agentimus' ) ),
+				$this->check_rung( 'trusted', __( 'Trusted', 'agentimus' ), $scores['trusted'], $readiness, self::TRUSTED_IDS, __( 'It can identify you and trust the source.', 'agentimus' ) ),
+				$this->signal_rung( 'optimized', __( 'Optimized', 'agentimus' ), $scores['optimized'], $this->optimize_note( $optimize ), '' ),
+				$this->signal_rung( 'cited', __( 'Cited', 'agentimus' ), $scores['cited'], $measure['note'], 'visibility' ),
 			),
 			'actions'  => $this->actions( $readiness, $optimize, $measure ),
 		);
@@ -179,24 +190,74 @@ final class Score {
 		return false;
 	}
 
-	private function pillar_view( $key, $score, $label, $note ) {
-		// Each pillar is a doorway to the stage where you act on it: the config pillars
-		// to the Readiness report, Measure to AI Visibility. Optimize is per-post (no
-		// tab), so it stays informational — its content gaps route from the action plan.
-		$to = array(
-			'serve'     => 'readiness',
-			'structure' => 'readiness',
-			'optimize'  => '',
-			'measure'   => 'visibility',
-		);
+	/**
+	 * A readiness rung (findable/readable/trusted) — carries its pass/total check tally
+	 * and links to the Readiness report where those checks live.
+	 */
+	private function check_rung( $key, $label, $score, array $readiness, array $ids, $note ) {
+		$tally = self::rows_tally( $readiness, $ids );
 		return array(
 			'key'    => $key,
 			'label'  => $label,
-			'score'  => $score, // int|null (null = not measured yet)
+			'score'  => $score,
 			'weight' => self::WEIGHTS[ $key ],
+			'kind'   => 'check',
+			'pass'   => $tally['pass'],
+			'total'  => $tally['total'],
 			'note'   => $note,
-			'to'     => isset( $to[ $key ] ) ? $to[ $key ] : '',
+			'to'     => 'readiness',
 		);
+	}
+
+	/**
+	 * An AEO/GEO rung (optimized/cited) — a measured signal, not a pass/total of checks.
+	 * `to` is the tab that improves it ('' for optimized, which is per-post).
+	 */
+	private function signal_rung( $key, $label, $score, $note, $to ) {
+		return array(
+			'key'    => $key,
+			'label'  => $label,
+			'score'  => $score, // int|null (null = not measured/no content yet)
+			'weight' => self::WEIGHTS[ $key ],
+			'kind'   => 'signal',
+			'pass'   => null,
+			'total'  => null,
+			'note'   => $note,
+			'to'     => $to,
+		);
+	}
+
+	/**
+	 * Count passing vs total checks for a rung's ids. Pure.
+	 *
+	 * @param array<int,array<string,mixed>> $rows Readiness rows.
+	 * @param array<int,string>              $ids  Ids in this rung.
+	 * @return array{pass:int,total:int}
+	 */
+	private static function rows_tally( array $rows, array $ids ) {
+		$pass  = 0;
+		$total = 0;
+		foreach ( $rows as $r ) {
+			if ( ! isset( $r['id'] ) || ! in_array( $r['id'], $ids, true ) ) {
+				continue;
+			}
+			++$total;
+			if ( isset( $r['status'] ) && 'pass' === $r['status'] ) {
+				++$pass;
+			}
+		}
+		return array( 'pass' => $pass, 'total' => $total );
+	}
+
+	/** The rung a readiness check id belongs to, for action ranking. Pure. */
+	private static function rung_of( $id ) {
+		if ( in_array( $id, self::TRUSTED_IDS, true ) ) {
+			return 'trusted';
+		}
+		if ( in_array( $id, self::READABLE_IDS, true ) ) {
+			return 'readable';
+		}
+		return 'findable';
 	}
 
 	/* ---------------------------------------------------------------------- *
@@ -336,10 +397,9 @@ final class Score {
 			if ( 'pass' === $r['status'] ) {
 				continue;
 			}
-			$pillar = in_array( $r['id'], self::STRUCTURE_IDS, true ) ? 'structure' : 'serve';
-			$out[]  = array(
+			$out[] = array(
 				'id'       => $r['id'],
-				'pillar'   => $pillar,
+				'pillar'   => self::rung_of( $r['id'] ),
 				'title'    => $r['label'],
 				'why'      => '' !== (string) $r['fix'] ? (string) $r['fix'] : (string) $r['detail'],
 				'severity' => 'fail' === $r['status'] ? 'fail' : 'warn',
@@ -360,7 +420,7 @@ final class Score {
 			++$shown;
 			$out[] = array(
 				'id'       => 'content_' . $id,
-				'pillar'   => 'optimize',
+				'pillar'   => 'optimized',
 				'title'    => $issue['label'],
 				'why'      => sprintf(
 					/* translators: %d: number of posts. */
@@ -376,7 +436,7 @@ final class Score {
 		if ( null === $measure['score'] ) {
 			$out[] = array(
 				'id'       => 'measure_setup',
-				'pillar'   => 'measure',
+				'pillar'   => 'cited',
 				'title'    => __( 'Measure whether AI cites you', 'agentimus' ),
 				'why'      => __( 'Set up AI Visibility (your own AI keys) to track whether engines mention and link to you over time.', 'agentimus' ),
 				'severity' => 'info',

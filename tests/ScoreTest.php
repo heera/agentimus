@@ -20,34 +20,34 @@ final class ScoreTest extends TestCase {
 
 	public function test_rows_score_averages_pass_warn_fail() {
 		$rows = array(
-			array( 'id' => 'public', 'status' => 'pass' ),  // 1.0
-			array( 'id' => 'llms', 'status' => 'warn' ),    // 0.5
-			array( 'id' => 'schema', 'status' => 'fail' ),  // 0.0
-			array( 'id' => 'about', 'status' => 'pass' ),   // not a SERVE id — ignored
+			array( 'id' => 'public', 'status' => 'pass' ),      // 1.0
+			array( 'id' => 'permalinks', 'status' => 'warn' ),  // 0.5
+			array( 'id' => 'robots', 'status' => 'fail' ),      // 0.0
+			array( 'id' => 'about', 'status' => 'pass' ),       // Trusted — ignored for Findable
 		);
 		// (1 + 0.5 + 0) / 3 = 0.5 → 50.
-		$this->assertSame( 50, Score::rows_score( $rows, Score::SERVE_IDS ) );
+		$this->assertSame( 50, Score::rows_score( $rows, Score::FINDABLE_IDS ) );
 	}
 
 	public function test_rows_score_is_null_when_no_ids_present() {
-		$this->assertNull( Score::rows_score( array(), Score::SERVE_IDS ) );
-		$this->assertNull( Score::rows_score( array( array( 'id' => 'nope', 'status' => 'pass' ) ), Score::SERVE_IDS ) );
+		$this->assertNull( Score::rows_score( array(), Score::FINDABLE_IDS ) );
+		$this->assertNull( Score::rows_score( array( array( 'id' => 'nope', 'status' => 'pass' ) ), Score::FINDABLE_IDS ) );
 	}
 
 	/* -- blend ------------------------------------------------------------ */
 
 	public function test_blend_is_full_weighting_when_all_present() {
-		$this->assertSame( 100, Score::blend( array( 'serve' => 100, 'structure' => 100, 'optimize' => 100, 'measure' => 100 ) ) );
+		$this->assertSame( 100, Score::blend( array( 'findable' => 100, 'readable' => 100, 'trusted' => 100, 'optimized' => 100, 'cited' => 100 ) ) );
 	}
 
-	public function test_blend_redistributes_a_missing_pillars_weight() {
-		// measure null → normalise over 30+25+30 = 85.
-		// (80*30 + 60*25 + 90*30) / 85 = 6600/85 = 77.6 → 78.
-		$this->assertSame( 78, Score::blend( array( 'serve' => 80, 'structure' => 60, 'optimize' => 90, 'measure' => null ) ) );
+	public function test_blend_redistributes_a_missing_rungs_weight() {
+		// cited null → normalise over 15+15+25+30 = 85.
+		// (100*15 + 100*15 + 100*25 + 50*30) / 85 = 7000/85 = 82.35 → 82.
+		$this->assertSame( 82, Score::blend( array( 'findable' => 100, 'readable' => 100, 'trusted' => 100, 'optimized' => 50, 'cited' => null ) ) );
 	}
 
 	public function test_blend_is_zero_when_nothing_has_data() {
-		$this->assertSame( 0, Score::blend( array( 'serve' => null, 'structure' => null, 'optimize' => null, 'measure' => null ) ) );
+		$this->assertSame( 0, Score::blend( array( 'findable' => null, 'readable' => null, 'trusted' => null, 'optimized' => null, 'cited' => null ) ) );
 	}
 
 	/* -- band ------------------------------------------------------------- */
@@ -63,16 +63,18 @@ final class ScoreTest extends TestCase {
 
 	public function test_rank_orders_by_severity_then_weight_then_stable() {
 		$actions = array(
-			array( 'id' => 'a', 'pillar' => 'measure', 'severity' => 'info' ),
-			array( 'id' => 'b', 'pillar' => 'serve', 'severity' => 'warn' ),      // warn, weight 30
-			array( 'id' => 'c', 'pillar' => 'structure', 'severity' => 'fail' ),  // fail → first
-			array( 'id' => 'd', 'pillar' => 'optimize', 'severity' => 'content' ),
-			array( 'id' => 'e', 'pillar' => 'optimize', 'severity' => 'warn' ),   // warn, weight 30 → ties b, keeps order
+			array( 'id' => 'a', 'pillar' => 'cited', 'severity' => 'info' ),
+			array( 'id' => 'b', 'pillar' => 'findable', 'severity' => 'warn' ),   // warn, weight 15
+			array( 'id' => 'c', 'pillar' => 'trusted', 'severity' => 'fail' ),    // fail → first
+			array( 'id' => 'd', 'pillar' => 'optimized', 'severity' => 'content' ),
+			array( 'id' => 'e', 'pillar' => 'optimized', 'severity' => 'warn' ),  // warn, weight 30 → outranks b
 		);
 		$ids = array();
 		foreach ( Score::rank( $actions ) as $a ) {
 			$ids[] = $a['id'];
 		}
-		$this->assertSame( array( 'c', 'b', 'e', 'd', 'a' ), $ids );
+		// fail (c); then warns by weight desc — e (optimized 30) before b (findable 15);
+		// then content (d); then info (a).
+		$this->assertSame( array( 'c', 'e', 'b', 'd', 'a' ), $ids );
 	}
 }

@@ -5,7 +5,6 @@ import SettingsForm from './components/SettingsForm.vue';
 import ReadinessPanel from './components/ReadinessPanel.vue';
 import DiscoveryHub from './components/DiscoveryHub.vue';
 import ActivityPanel from './components/ActivityPanel.vue';
-import ScorePanel from './components/ScorePanel.vue';
 import ReviewMenu from './components/ReviewMenu.vue';
 import OnboardingWizard from './components/OnboardingWizard.vue';
 import AboutPanel from './components/AboutPanel.vue';
@@ -27,7 +26,7 @@ const ACTIVITY_EVENTS = ['mousemove', 'keydown', 'wheel', 'pointerdown', 'touchs
 
 export default {
   name: 'AgentimusApp',
-  components: { SettingsForm, ReadinessPanel, DiscoveryHub, ActivityPanel, ScorePanel, ReviewMenu, OnboardingWizard, AboutPanel, ConfirmDialog, VisibilityPanel },
+  components: { SettingsForm, ReadinessPanel, DiscoveryHub, ActivityPanel, ReviewMenu, OnboardingWizard, AboutPanel, ConfirmDialog, VisibilityPanel },
   props: {
     boot: { type: Object, required: true },
   },
@@ -177,6 +176,19 @@ export default {
     dashOffset() {
       // Starts empty (full offset), animates to the score once mounted.
       return this.ringReady ? this.circumference * (1 - this.score.pct / 100) : this.circumference;
+    },
+    // The rail gauge now shows the composite AEO/GEO score {@see \Agentimus\Score}.
+    aeoTone() {
+      if (!this.aeo || this.aeo.blocked) return 'low';
+      return this.aeo.score >= 70 ? 'good' : this.aeo.score >= 50 ? 'ok' : 'low';
+    },
+    aeoDashOffset() {
+      const pct = this.aeo && !this.aeo.blocked ? this.aeo.score : 0;
+      return this.ringReady ? this.circumference * (1 - pct / 100) : this.circumference;
+    },
+    // The single most impactful next step, shown as the rail's next-step line.
+    aeoNext() {
+      return this.aeo && this.aeo.actions && this.aeo.actions.length ? this.aeo.actions[0] : null;
     },
     host() {
       const url = this.endpoints.robots || this.endpoints.llms || '';
@@ -331,6 +343,34 @@ export default {
     // Dashboard tiles emit { tab, anchor? }. Switch tab, then (once the now-shown
     // tab has laid out) scroll the target section into view so a click lands on
     // the relevant content, not just the top of the page.
+    // ---- AEO/GEO rail card rungs -------------------------------------------
+    // A rung's dot state: green when complete, amber when partway, muted when empty.
+    // Check rungs complete at 100 (all checks pass); signal rungs at 70+.
+    rungState(r) {
+      if (r.score === null) return '';
+      if ('check' === r.kind) return 100 === r.score ? 'done' : r.score >= 50 ? 'current' : '';
+      return r.score >= 70 ? 'done' : r.score >= 50 ? 'current' : '';
+    },
+    // Check rungs show a pass/total tally; the two AEO/GEO rungs show their score.
+    rungCount(r) {
+      return 'check' === r.kind ? `${r.pass}/${r.total}` : (null === r.score ? '—' : String(r.score));
+    },
+    rungTarget(r) {
+      return 'visibility' === r.to ? { tab: 'visibility' } : { tab: 'readiness', anchor: `ar-group-${r.key}` };
+    },
+    rungTitle(r) {
+      return 'visibility' === r.to ? 'Open AI Visibility' : `View ${r.label} checks in the readiness report`;
+    },
+    // The next-step line: follow the top action's own jump/link, or fall back to the
+    // full report. An external-link action opens in a new tab.
+    openNext() {
+      const a = this.aeoNext && this.aeoNext.action;
+      if (a && a.href) {
+        window.open(a.href, '_blank', 'noopener');
+        return;
+      }
+      this.goTo(a || 'readiness');
+    },
     goTo(target) {
       const { tab, anchor } = typeof target === 'string' ? { tab: target } : target || {};
       // Tell the tab watcher not to snap to the top: we're aiming at a section below.
@@ -996,12 +1036,6 @@ export default {
           :refreshing="refreshingDiscovery"
           @refresh="refreshDiscovery"
         />
-        <ScorePanel
-          v-if="aeo"
-          v-show="tab === 'dashboard'"
-          :aeo="aeo"
-          @navigate="goTo"
-        />
         <ActivityPanel
           v-show="tab === 'dashboard'"
           :data="activity"
@@ -1029,15 +1063,18 @@ export default {
       </div>
 
       <aside class="ar__rail">
-        <div class="ar-rail-card ar-rail-card--readiness">
-          <p class="ar-rail-card__label">Readiness</p>
+        <!-- The Readiness card, evolved: the gauge now shows the composite AEO/GEO
+             score, and the ladder extends the three readiness rungs with two AEO/GEO
+             rungs (Optimized, Cited). Same card, same dark look — extended. -->
+        <div v-if="aeo" class="ar-rail-card ar-rail-card--readiness">
+          <p class="ar-rail-card__label">AEO / GEO</p>
           <button
             type="button"
             class="ar-rail-readiness ar-rail-readiness--link"
             title="Open the full readiness report"
             @click="goTo('readiness')"
           >
-            <div class="ar-rail-gauge" role="img" :aria-label="`Readiness ${score.pct}%`">
+            <div class="ar-rail-gauge" role="img" :aria-label="`AEO/GEO score ${aeo.score} of 100`">
               <svg viewBox="0 0 116 116">
                 <circle class="ar-rail-gauge__track" cx="58" cy="58" r="52" />
                 <circle
@@ -1045,61 +1082,53 @@ export default {
                   cx="58"
                   cy="58"
                   r="52"
-                  :data-tone="tone"
+                  :data-tone="aeoTone"
                   :stroke-dasharray="circumference"
-                  :stroke-dashoffset="dashOffset"
+                  :stroke-dashoffset="aeoDashOffset"
                 />
               </svg>
-              <span class="ar-rail-gauge__num">{{ score.pct }}<small>%</small></span>
+              <span class="ar-rail-gauge__num">{{ aeo.blocked ? '—' : aeo.score }}</span>
             </div>
-            <div
-              class="ar-rail-tier"
-              :data-state="ladder.floor ? 'floor' : ladder.topped ? 'top' : ladder.achieved ? 'climb' : 'start'"
-            >
-              <strong class="ar-rail-tier__name">{{
-                ladder.floor ? 'Not reachable'
-                : ladder.achieved ? ladder.achieved.label
-                : 'Getting started'
-              }}</strong>
+            <div class="ar-rail-tier" :data-state="aeo.blocked ? 'floor' : (aeo.ready ? 'top' : 'climb')">
+              <strong class="ar-rail-tier__name">{{ aeo.blocked ? 'Not reachable' : aeo.band }}</strong>
               <span class="ar-rail-tier__sub">{{
-                ladder.floor ? 'agents can’t read the site'
-                : ladder.topped ? 'fully agent-ready'
-                : ladder.achieved ? 'rung reached'
-                : 'first rung in progress'
+                aeo.blocked ? 'agents can’t read the site'
+                : aeo.ready ? 'fully agent-ready'
+                : 'getting ready'
               }}</span>
             </div>
           </button>
 
-          <!-- Each rung is a quiet stat row that jumps to its group in the
-               Readiness tab — the report is where the per-check detail lives. -->
+          <!-- The three readiness rungs, extended by the two AEO/GEO rungs. Each links
+               to where you act on it; Optimized is per-post, so it's a plain stat row. -->
           <ol class="ar-rungs">
-            <li v-for="r in ladder.rungs" :key="r.key" class="ar-rung" :data-state="r.state">
+            <li v-for="r in aeo.rungs" :key="r.key" class="ar-rung" :data-state="rungState(r)">
               <button
+                v-if="r.to"
                 type="button"
                 class="ar-rung__btn"
-                :title="`View ${r.label} checks in the readiness report`"
-                @click="goTo({ tab: 'readiness', anchor: `ar-group-${r.key}` })"
+                :title="rungTitle(r)"
+                @click="goTo(rungTarget(r))"
               >
                 <span class="ar-rung__tick" aria-hidden="true"></span>
                 <span class="ar-rung__name">{{ r.label }}</span>
-                <span class="ar-rung__count">{{ r.pass }}/{{ r.total }}</span>
+                <span class="ar-rung__count">{{ rungCount(r) }}</span>
               </button>
+              <div v-else class="ar-rung__btn ar-rung__btn--static">
+                <span class="ar-rung__tick" aria-hidden="true"></span>
+                <span class="ar-rung__name">{{ r.label }}</span>
+                <span class="ar-rung__count">{{ rungCount(r) }}</span>
+              </div>
             </li>
           </ol>
 
           <button
-            v-if="ladder.floor"
+            v-if="aeoNext"
             type="button"
             class="ar-rail-link ar-rail-next"
-            @click="goTo({ tab: 'readiness', anchor: nextAnchor })"
-          >Make the site public →</button>
-          <button
-            v-else-if="ladder.next && ladder.next.remaining.length"
-            type="button"
-            class="ar-rail-link ar-rail-next"
-            :title="`Next: ${ladder.next.remaining[0].label}`"
-            @click="goTo({ tab: 'readiness', anchor: nextAnchor })"
-          >Next: {{ ladder.next.remaining[0].label }} →</button>
+            :title="`Next: ${aeoNext.title}`"
+            @click="openNext"
+          >Next: {{ aeoNext.title }} →</button>
           <p v-else class="ar-rail-allgood">All rungs complete.</p>
         </div>
 
