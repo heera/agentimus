@@ -191,7 +191,15 @@ final class Endpoints {
 		$out   .= ( '0' === (string) $public )
 			? "Disallow: /\n"
 			: "Disallow: /wp-admin/\nAllow: /wp-admin/admin-ajax.php\n";
-		return (string) apply_filters( 'robots_txt', $out, $public ); // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound -- invoking WordPress core's own robots_txt filter to reproduce do_robots(), not declaring a new hook.
+		// Failure isolation: robots.txt is hit by every crawler, so a throwing third-party
+		// robots_txt filter must never 500 this route (a crawler's retries would make it a
+		// self-renewing loop). On any error, fall back to the safe baseline.
+		try {
+			$filtered = (string) apply_filters( 'robots_txt', $out, $public ); // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound -- invoking WordPress core's own robots_txt filter to reproduce do_robots(), not declaring a new hook.
+			return '' !== trim( $filtered ) ? $filtered : $out;
+		} catch ( \Throwable $e ) {
+			return $out;
+		}
 	}
 
 	/**
