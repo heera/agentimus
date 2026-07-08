@@ -84,14 +84,24 @@ export default {
     </p>
 
     <div class="ar-score__pillars">
-      <div v-for="p in pillars" :key="p.key" class="ar-score__pillar" :data-tone="pillarTone(p)">
+      <component
+        :is="p.to ? 'button' : 'div'"
+        v-for="p in pillars"
+        :key="p.key"
+        class="ar-score__pillar"
+        :class="{ 'is-link': p.to }"
+        :data-tone="pillarTone(p)"
+        :type="p.to ? 'button' : undefined"
+        :title="p.to ? ('Open ' + (p.to === 'visibility' ? 'AI Visibility' : 'the Readiness report')) : undefined"
+        @click="p.to ? $emit('navigate', { tab: p.to }) : null"
+      >
         <div class="ar-score__pillar-top">
-          <span class="ar-score__pillar-label">{{ p.label }}</span>
+          <span class="ar-score__pillar-label">{{ p.label }}<span v-if="p.to" class="ar-score__pillar-go" aria-hidden="true">→</span></span>
           <span class="ar-score__pillar-num">{{ p.score === null ? '—' : p.score }}</span>
         </div>
         <span class="ar-score__track2"><span class="ar-score__bar" :style="{ width: (p.score === null ? 0 : p.score) + '%' }"></span></span>
         <span class="ar-score__pillar-note">{{ p.note }}</span>
-      </div>
+      </component>
     </div>
 
     <div v-if="actions.length" class="ar-score__actions">
@@ -155,6 +165,20 @@ export default {
 /* Pillars — four mini bars, each carrying its own tone. */
 .ar-score__pillars { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
 .ar-score__pillar { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+/* A pillar with a stage destination is a button — a doorway to where you act on it. */
+.ar-score__pillar.is-link {
+  cursor: pointer; text-align: left; font: inherit; appearance: none; -webkit-appearance: none;
+  background: none; border: 0; padding: 0; border-radius: 8px;
+  box-shadow: 0 0 0 0 transparent; transition: box-shadow 0.15s ease, background 0.15s ease;
+}
+/* A ring of surface colour on hover — reads as highlighted without a padding shift
+   that would misalign it against the non-clickable Optimize pillar. */
+.ar-score__pillar.is-link:hover { background: var(--ar-surface-2); box-shadow: 0 0 0 6px var(--ar-surface-2); }
+.ar-score__pillar.is-link:hover { background: var(--ar-surface-2); }
+.ar-score__pillar.is-link:focus-visible { outline: 2px solid var(--ar-accent); outline-offset: 2px; }
+.ar-score__pillar-go { margin-left: 5px; font-family: var(--ar-mono); font-size: 11px; color: var(--ar-ink-faint); opacity: 0; transition: opacity 0.15s ease; }
+.ar-score__pillar.is-link:hover .ar-score__pillar-go,
+.ar-score__pillar.is-link:focus-visible .ar-score__pillar-go { opacity: 1; }
 .ar-score__pillar-top { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
 .ar-score__pillar-label { font-size: 12.5px; font-weight: 600; color: var(--ar-ink); }
 .ar-score__pillar-num { font-family: var(--ar-mono); font-size: 13px; font-variant-numeric: tabular-nums; color: var(--ar-ink-soft); }

@@ -59,10 +59,12 @@ final class Score {
 	/**
 	 * The full report: the blended score, each pillar, and the ranked action plan.
 	 *
+	 * @param array<int,array<string,mixed>>|null $readiness Precomputed readiness rows
+	 *        (the admin boot already runs the report — pass it so it isn't run twice).
 	 * @return array{score:int,band:string,blocked:bool,pillars:array,actions:array,measured:bool}
 	 */
-	public function report() {
-		$readiness = ( new Readiness( $this->settings ) )->report();
+	public function report( $readiness = null ) {
+		$readiness = is_array( $readiness ) ? $readiness : ( new Readiness( $this->settings ) )->report();
 		$optimize  = $this->optimize();
 		$measure   = $this->measure();
 
@@ -178,12 +180,22 @@ final class Score {
 	}
 
 	private function pillar_view( $key, $score, $label, $note ) {
+		// Each pillar is a doorway to the stage where you act on it: the config pillars
+		// to the Readiness report, Measure to AI Visibility. Optimize is per-post (no
+		// tab), so it stays informational — its content gaps route from the action plan.
+		$to = array(
+			'serve'     => 'readiness',
+			'structure' => 'readiness',
+			'optimize'  => '',
+			'measure'   => 'visibility',
+		);
 		return array(
 			'key'    => $key,
 			'label'  => $label,
 			'score'  => $score, // int|null (null = not measured yet)
 			'weight' => self::WEIGHTS[ $key ],
 			'note'   => $note,
+			'to'     => isset( $to[ $key ] ) ? $to[ $key ] : '',
 		);
 	}
 
