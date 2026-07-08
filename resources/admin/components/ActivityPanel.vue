@@ -90,10 +90,15 @@ export default {
       for (const r of this.recent) {
         const key = `${r.agent}|${r.endpoint}|${r.ua || ''}`;
         const g = groups.get(key);
-        if (g) g.count += 1;
-        else groups.set(key, { agent: r.agent, endpoint: r.endpoint, ua: r.ua, at: r.at, count: 1 });
+        if (g) { g.count += 1; if (!g.network && r.network) g.network = r.network; }
+        else groups.set(key, { agent: r.agent, endpoint: r.endpoint, ua: r.ua, network: r.network || '', at: r.at, count: 1 });
       }
       return Array.from(groups.values());
+    },
+    // Whether any recent row carries an owning network — the "Identify every bot" column only
+    // appears when there's data for it, so a default install shows a plain table.
+    hasNetwork() {
+      return this.recentGrouped.some((r) => r.network);
     },
     maxDaily() {
       return Math.max(1, ...this.daily.map((d) => d.hits));
@@ -279,6 +284,9 @@ export default {
     // shows an ellipsis, so this is the way to grab the full text. Clipboard API where
     // available, with the legacy textarea fallback for plain-HTTP (non-secure) sites.
     async copyUa(text) {
+      return this.copyVal(text, 'User-Agent');
+    },
+    async copyVal(text, label) {
       if (!text) return;
       let ok = false;
       try {
@@ -288,7 +296,7 @@ export default {
         }
       } catch (e) { /* fall through to the legacy path */ }
       if (!ok) ok = this.legacyCopy(text);
-      this.$emit('flash', ok ? 'success' : 'error', ok ? 'User-Agent copied.' : 'Could not copy — select the text and copy manually.');
+      this.$emit('flash', ok ? 'success' : 'error', ok ? `${label} copied.` : 'Could not copy — select the text and copy manually.');
     },
     legacyCopy(text) {
       try {
@@ -651,16 +659,34 @@ export default {
         </p>
         <div v-if="recentGrouped.length" class="ar-act-feedwrap">
           <div ref="feedScroll" class="ar-act-reqs" @scroll="onFeedScroll">
-            <ul class="ar-act-feed">
-              <li v-for="(r, i) in recentGrouped" :key="i">
-                <span class="ar-act-feed__agent">{{ r.agent }}</span>
-                <code class="ar-act-feed__ep">{{ r.endpoint }}</code>
-                <code v-if="r.ua" class="ar-act-feed__ua is-copyable" :aria-label="r.ua" @mouseenter="showUaTip($event, r.ua)" @mouseleave="hideUaTip" @click.stop="copyUa(r.ua)">{{ r.ua }}</code>
-                <span v-else class="ar-act-feed__ua is-empty">no User-Agent</span>
-                <span class="ar-act-feed__count" :title="r.count > 1 ? `${r.count} hits` : null">{{ r.count > 1 ? '×' + r.count : '' }}</span>
-                <span class="ar-act-feed__at">{{ ago(r.at) }}</span>
-              </li>
-            </ul>
+            <table class="ar-act-table">
+              <thead>
+                <tr>
+                  <th scope="col">Agent</th>
+                  <th scope="col">Endpoint</th>
+                  <th v-if="hasNetwork" scope="col">Network</th>
+                  <th scope="col">User-Agent</th>
+                  <th scope="col">Hits</th>
+                  <th scope="col">Seen</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="(r, i) in recentGrouped" :key="i">
+                  <td class="ar-act-table__agent">{{ r.agent }}</td>
+                  <td><code class="ar-act-feed__ep">{{ r.endpoint }}</code></td>
+                  <td v-if="hasNetwork">
+                    <span v-if="r.network" class="ar-act-feed__net">{{ r.network }}</span>
+                    <span v-else class="ar-act-table__dash" aria-label="not identified">—</span>
+                  </td>
+                  <td class="ar-act-table__uacol">
+                    <code v-if="r.ua" class="ar-act-feed__ua is-copyable" :aria-label="r.ua" @mouseenter="showUaTip($event, r.ua)" @mouseleave="hideUaTip" @click.stop="copyUa(r.ua)">{{ r.ua }}</code>
+                    <span v-else class="ar-act-feed__ua is-empty">no User-Agent</span>
+                  </td>
+                  <td><span class="ar-act-feed__count" :title="r.count > 1 ? `${r.count} hits` : null">{{ r.count > 1 ? '×' + r.count : '' }}</span></td>
+                  <td class="ar-act-table__at">{{ ago(r.at) }}</td>
+                </tr>
+              </tbody>
+            </table>
           </div>
           <div class="ar-act-feedfade" :class="{ 'is-visible': feedMore }">
             <button
@@ -768,7 +794,10 @@ export default {
                   <ul v-else-if="dayModal.rows.length" class="ar-act-log">
                     <li v-for="(r, i) in dayModal.rows" :key="i">
                       <span class="ar-act-feed__agent">{{ r.agent }}</span>
-                      <code class="ar-act-feed__ep">{{ r.endpoint }}</code>
+                      <span class="ar-act-feed__loc">
+                        <code class="ar-act-feed__ep">{{ r.endpoint }}</code>
+                        <span v-if="r.network" class="ar-act-feed__net"><span class="ar-act-feed__net-lbl">from</span> {{ r.network }}</span>
+                      </span>
                       <code v-if="r.ua" class="ar-act-feed__ua is-copyable" :aria-label="r.ua" @mouseenter="showUaTip($event, r.ua)" @mouseleave="hideUaTip" @click.stop="copyUa(r.ua)">{{ r.ua }}</code>
                       <span v-else class="ar-act-feed__ua is-empty">no User-Agent</span>
                       <span class="ar-act-log__at" :title="exactStamp(r.at)">{{ exactTime(r.at) }}</span>

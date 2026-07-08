@@ -251,7 +251,7 @@ final class Repository {
 		$table = Table::name();
 		// phpcs:disable WordPress.DB, PluginCheck.Security.DirectDB.UnescapedDBParameter -- $table is our own prefix-derived table name; the value ($limit) is bound via prepare().
 		$rows  = $wpdb->get_results(
-			$wpdb->prepare( "SELECT endpoint, agent, ua, hit_at FROM $table ORDER BY id DESC LIMIT %d", $limit ),
+			$wpdb->prepare( "SELECT endpoint, agent, ua, network, hit_at FROM $table ORDER BY id DESC LIMIT %d", $limit ),
 			ARRAY_A
 		);
 		// phpcs:enable WordPress.DB, PluginCheck.Security.DirectDB.UnescapedDBParameter
@@ -261,6 +261,7 @@ final class Repository {
 					'endpoint' => (string) $r['endpoint'],
 					'agent'    => (string) $r['agent'],
 					'ua'       => (string) $r['ua'],
+					'network'  => (string) $r['network'], // '' unless "identify every bot" is on.
 					'at'       => gmdate( 'c', strtotime( $r['hit_at'] . ' UTC' ) ), // ISO-8601 for client-side relative time.
 				);
 			},
@@ -290,7 +291,7 @@ final class Repository {
 			$wpdb->prepare( "SELECT COUNT(*) FROM $table WHERE hit_at >= %s AND hit_at < %s", $start, $end )
 		);
 		$rows = $wpdb->get_results(
-			$wpdb->prepare( "SELECT endpoint, agent, ua, hit_at FROM $table WHERE hit_at >= %s AND hit_at < %s ORDER BY id DESC LIMIT %d", $start, $end, $limit ),
+			$wpdb->prepare( "SELECT endpoint, agent, ua, network, hit_at FROM $table WHERE hit_at >= %s AND hit_at < %s ORDER BY id DESC LIMIT %d", $start, $end, $limit ),
 			ARRAY_A
 		);
 		// phpcs:enable WordPress.DB, PluginCheck.Security.DirectDB.UnescapedDBParameter
@@ -301,6 +302,7 @@ final class Repository {
 					'endpoint' => (string) $r['endpoint'],
 					'agent'    => (string) $r['agent'],
 					'ua'       => (string) $r['ua'],
+					'network'  => (string) $r['network'], // '' unless "identify every bot" is on.
 					'at'       => gmdate( 'c', strtotime( $r['hit_at'] . ' UTC' ) ),
 				);
 			},
@@ -342,7 +344,7 @@ final class Repository {
 		// failed verification, the client is an impersonator and must surface as one.
 		$sources = $wpdb->get_results(
 			$wpdb->prepare(
-				"SELECT ua, MAX(agent) AS agent, COUNT(*) AS hits, MAX(verdict) AS verdict, MIN(hit_at) AS first_seen, MAX(hit_at) AS last_seen FROM $table WHERE hit_at >= %s GROUP BY ua ORDER BY hits DESC LIMIT 200",
+				"SELECT ua, MAX(agent) AS agent, COUNT(*) AS hits, MAX(verdict) AS verdict, MAX(network) AS network, MIN(hit_at) AS first_seen, MAX(hit_at) AS last_seen FROM $table WHERE hit_at >= %s GROUP BY ua ORDER BY hits DESC LIMIT 200",
 				$since
 			),
 			ARRAY_A
@@ -530,6 +532,9 @@ final class Repository {
 				// When the owner last ran an admin "Re-check" for this client (ISO-8601), so
 				// the panel can show "re-checked 2m ago". '' when never re-checked.
 				'reverifiedAt' => $reverified_at,
+				// The owning network (reverse-DNS attribution) when "identify every bot" is on;
+				// '' otherwise. Org-level (e.g. amazonaws.com), never the IP.
+				'network'    => isset( $s['network'] ) ? (string) $s['network'] : '',
 			);
 		}
 
@@ -646,6 +651,10 @@ final class Repository {
 		// so this is normally identical — max() just guards the edge where it isn't).
 		if ( '' !== $add['reverifiedAt'] && ( '' === $keep['reverifiedAt'] || $add['reverifiedAt'] > $keep['reverifiedAt'] ) ) {
 			$keep['reverifiedAt'] = $add['reverifiedAt'];
+		}
+		// Keep a non-empty network attribution across folded variants.
+		if ( '' === $keep['network'] && '' !== $add['network'] ) {
+			$keep['network'] = $add['network'];
 		}
 		// The latest-seen variant becomes the row's face (UA + identity card).
 		if ( $add['lastSeen'] > $keep['lastSeen'] ) {

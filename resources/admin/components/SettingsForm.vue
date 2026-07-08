@@ -1214,6 +1214,24 @@ export default {
           </span>
         </label>
 
+        <label class="ar-toggle ar-toggle--standalone">
+          <input v-model="settings.identify_bots" type="checkbox" />
+          <span class="ar-toggle__track" aria-hidden="true"></span>
+          <span class="ar-toggle__text">
+            <strong>Identify every bot by reverse DNS</strong>
+            <small>
+              Verification only covers the five search engines that publish reverse DNS. Turn this on to
+              reverse-resolve <strong>every</strong> recorded bot and show the <strong>network it belongs to</strong>
+              — <code>amazonaws.com</code>, <code>openai.com</code>, <code>googlebot.com</code> — so you can see
+              <em>what</em> is really accessing your site, not just its self-declared name. Agentimus stores the
+              <strong>network, not the IP</strong> (it's org-level, not personal), and verifiable engines get their
+              verified/impostor verdict from the same lookup. Makes a small outbound DNS lookup per new address
+              (cached, and bounded by the same limits as verification). To confirm a single address and see its full
+              host, use <strong>Check an IP</strong> below.
+            </small>
+          </span>
+        </label>
+
         <!-- Ad-hoc identity lookup: paste any IP, see which engine it really is. Self-contained
              (its own REST call); rendered only when the API handle is available. -->
         <IpChecker v-if="api" :api="api" />

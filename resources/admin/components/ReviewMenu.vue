@@ -211,6 +211,14 @@ export default {
       if ('verified' === s.verdict) return { text: 'Passed — forward-confirmed', tone: 'ok' };
       return { text: 'Not checked', tone: 'muted' };
     },
+    // How to read the attributed network — kept terse so the line never wraps. The red
+    // "Failed verification" hero already conveys the judgment; the note just says what the
+    // network IS: the confirmed engine, the impostor's real source, or plain reverse-DNS.
+    networkLine(s) {
+      if ('verified' === s.verdict) return { text: 'verified', tone: 'ok' };
+      if ('spoofed' === s.verdict) return { text: 'the real source', tone: 'danger' };
+      return { text: 'reverse DNS', tone: 'muted' };
+    },
     detailSentence(s) {
       if ('spoofed' === s.verdict) {
         return impostorDetail({
@@ -468,6 +476,13 @@ export default {
             <div class="ar-rev-kv">
               <span class="ar-rev-kv__k">Verification</span>
               <span class="ar-rev-kv__v" :class="'is-' + verifyLine(s).tone">{{ verifyLine(s).text }}</span>
+            </div>
+
+            <!-- Owning network (opt-in "Identify every bot") — the reverse-DNS attribution: what
+                 this client actually IS, even when it's not a verifiable engine. Org-level, no IP. -->
+            <div v-if="s.network" class="ar-rev-kv">
+              <span class="ar-rev-kv__k">Network</span>
+              <span class="ar-rev-kv__v ar-rev-network">{{ s.network }}<span class="ar-rev-network__note" :class="'is-' + networkLine(s).tone">· {{ networkLine(s).text }}</span></span>
             </div>
 
             <!-- Admin "Re-check": re-run reverse-DNS live now on this client's captured IP(s).

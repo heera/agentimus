@@ -41,6 +41,44 @@ final class TableInstallTest extends DbTestCase {
 		$this->assertSame( Table::VERSION, get_option( Table::VERSION_OPTION ) );
 	}
 
+	public function test_install_creates_the_verdict_and_network_columns() {
+		global $wpdb;
+		$table = Table::name();
+		$wpdb->query( "DROP TABLE IF EXISTS `$table`" ); // phpcs:ignore WordPress.DB
+		delete_option( Table::VERSION_OPTION );
+		Table::install();
+
+		foreach ( array( 'verdict', 'network' ) as $col ) {
+			$this->assertNotEmpty(
+				$wpdb->get_var( $wpdb->prepare( "SHOW COLUMNS FROM `$table` LIKE %s", $col ) ), // phpcs:ignore WordPress.DB
+				"the $col column must exist after install"
+			);
+		}
+	}
+
+	public function test_install_restores_a_column_missing_on_a_drifted_table() {
+		// The exact failure that shipped mid-development: a table whose schema had drifted lost
+		// (or never gained) the `network` column, yet the version was stamped migrated — so every
+		// query selecting it failed. install() must GUARANTEE the column exists (dbDelta, or the
+		// ensure_column guard), regardless of the table's prior state.
+		global $wpdb;
+		$table = Table::name();
+		Table::install();
+		$wpdb->query( "ALTER TABLE `$table` DROP COLUMN network" ); // phpcs:ignore WordPress.DB
+		$this->assertEmpty(
+			$wpdb->get_var( $wpdb->prepare( "SHOW COLUMNS FROM `$table` LIKE %s", 'network' ) ), // phpcs:ignore WordPress.DB
+			'precondition: network column dropped'
+		);
+
+		delete_option( Table::VERSION_OPTION );
+		Table::install();
+
+		$this->assertNotEmpty(
+			$wpdb->get_var( $wpdb->prepare( "SHOW COLUMNS FROM `$table` LIKE %s", 'network' ) ), // phpcs:ignore WordPress.DB
+			'install() must restore the network column on a drifted table'
+		);
+	}
+
 	public function test_a_row_round_trips_through_the_real_table() {
 		global $wpdb;
 		Table::install();

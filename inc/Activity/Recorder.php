@@ -50,6 +50,9 @@ final class Recorder {
 	/** @var bool|null Per-request cache of the opt-in flagged-IP-storage flag. */
 	private static $store_ips = null;
 
+	/** @var bool|null Per-request cache of the opt-in identify-every-bot flag. */
+	private static $identify = null;
+
 	/**
 	 * Record a hit on the named endpoint, if logging is enabled.
 	 *
@@ -91,7 +94,23 @@ final class Recorder {
 			return;
 		}
 
-		$verdict  = self::verdict( $ua );
+		// Attribution + verdict. When "identify every bot" is on, ONE reverse-DNS resolves the
+		// owning NETWORK for every bot AND (for a verifiable engine) its verdict from the same
+		// lookup — so we never look up twice, and identify implies engine verification for free.
+		// Otherwise fall back to the engine-only verdict path (gated on verify_bots). Either way
+		// the source IP is used for the lookup and DISCARDED — only the network/verdict persist.
+		$network = '';
+		if ( self::identify_on() ) {
+			$ip = Guard::client_ip();
+			// Network is IP-only attribution (the owning org). The VERDICT stays claim-based
+			// ({@see engine_verdict}) — NOT attribute_ip's PTR-derived verdict — so a UA claiming
+			// an engine from an IP that isn't that engine is still caught as an impostor. Runs even
+			// when verify_bots is off: turning identify on implies confirming a claimed engine too.
+			$network = (string) BotVerifier::attribute_ip( $ip )['network'];
+			$verdict = self::engine_verdict( $ua, $ip );
+		} else {
+			$verdict = self::verdict( $ua );
+		}
 		$is_spoof = Classifier::is_spoof( $ua );
 
 		global $wpdb;
@@ -102,9 +121,10 @@ final class Recorder {
 				'agent'    => substr( $agent, 0, 64 ),
 				'ua'       => substr( $ua, 0, 255 ),
 				'verdict'  => $verdict,
+				'network'  => substr( $network, 0, 128 ),
 				'hit_at'   => current_time( 'mysql', true ), // GMT.
 			),
-			array( '%s', '%s', '%s', '%d', '%s' )
+			array( '%s', '%s', '%s', '%d', '%s', '%s' )
 		);
 
 		// OPT-IN, minimised IP capture. Only when the owner turned it on, and only for a
@@ -165,11 +185,26 @@ final class Recorder {
 		if ( ! Guard::verification_on() ) {
 			return 0;
 		}
+		return self::engine_verdict( $ua, Guard::client_ip() );
+	}
+
+	/**
+	 * The claim-based verdict: forward-confirm the engine a UA CLAIMS against the source IP. Keyed
+	 * on the UA's claim (not the IP's PTR-derived engine), so a UA claiming Applebot from a non-Apple
+	 * address is still caught as an impostor (2). Ungated — the caller decides when to run it (the
+	 * verify_bots path, and the identify_bots path, which implies engine confirmation too). Returns
+	 * 0 for a UA that names no verifiable engine, doing no DNS.
+	 *
+	 * @param string $ua Raw User-Agent.
+	 * @param string $ip Source IP.
+	 * @return int 0 = unchecked/inconclusive, 1 = verified, 2 = spoofed.
+	 */
+	public static function engine_verdict( $ua, $ip ) {
 		$ua_lc = strtolower( (string) $ua );
 		if ( '' === BotVerifier::claimed_engine( $ua_lc ) ) {
 			return 0; // Not a claim we can verify — no lookup, no cost.
 		}
-		$verified = BotVerifier::verify_engine( $ua_lc, Guard::client_ip() );
+		$verified = BotVerifier::verify_engine( $ua_lc, (string) $ip );
 		if ( true === $verified ) {
 			return 1;
 		}
@@ -236,5 +271,17 @@ final class Recorder {
 			self::$store_ips = (bool) ( new Settings() )->enabled( 'store_flagged_ips' );
 		}
 		return self::$store_ips;
+	}
+
+	/**
+	 * Whether opt-in "identify every bot" attribution is on (cached for the request).
+	 *
+	 * @return bool
+	 */
+	private static function identify_on() {
+		if ( null === self::$identify ) {
+			self::$identify = (bool) ( new Settings() )->enabled( 'identify_bots' );
+		}
+		return self::$identify;
 	}
 }

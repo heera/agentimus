@@ -40,6 +40,10 @@ final class BotVerifier {
 	const CACHE_PREFIX = 'agentimus_botv_';
 	const CACHE_TTL    = 6 * HOUR_IN_SECONDS;
 
+	/** Per-IP attribution cache for serve-path "identify every bot" mode: the owning network
+	 *  (+ verdict for verifiable engines). An IP's network is stable, so cache it the same while. */
+	const ATTR_PREFIX  = 'agentimus_botattr_';
+
 	/** Bounded NEW-lookup budget per window (anti-amplification). */
 	const BUDGET_PREFIX = 'agentimus_botv_budget_';
 	const BUDGET_WINDOW = 60;
@@ -211,71 +215,172 @@ final class BotVerifier {
 	}
 
 	/**
-	 * Engine-agnostic identity of an IP, for the admin "Check an IP" tool: reverse-resolve it,
-	 * work out which verifiable engine (if any) its PTR belongs to, and forward-confirm. Unlike
-	 * {@see verify_engine()} there's no claimed UA — the caller just wants "whose address is
-	 * this?". Admin-initiated, so it skips the serve-path budget but keeps the slow-guard.
+	 * Reverse-resolve an IP into its owning network and (for a verifiable engine) verdict — the
+	 * shared core behind {@see identify_ip()} (admin tool) and {@see attribute_ip()} (serve path).
+	 * Records a slow-lookup strike and returns `ok:false` on a slow reverse/forward lookup, so a
+	 * broken resolver fails open at every caller.
 	 *
-	 * @param string $ip Source IP.
-	 * @return array{ip:string,host:string,engine:string,verdict:int,slow:bool} verdict:
-	 *   1 = belongs to `engine` and forward-confirmed; 2 = PTR claims `engine` but does not
-	 *   forward-confirm (a forged PTR); 0 = resolves to no known engine, has no PTR, or could
-	 *   not be determined (`slow`).
+	 * @param string $ip Source IP (already validated by the caller).
+	 * @return array{host:string,network:string,engine:string,verdict:int,ok:bool} host = the PTR
+	 *   hostname; network = its registrable domain (the org, IP-encoding labels dropped); verdict:
+	 *   1 = forward-confirmed engine, 2 = forged engine PTR, 0 = no engine / no PTR; ok = the
+	 *   lookup completed promptly (false when a lookup was too slow — an undetermined result).
 	 */
-	public static function identify_ip( $ip ) {
-		$ip   = (string) $ip;
-		$base = array(
-			'ip'      => $ip,
+	private static function resolve_attribution( $ip ) {
+		$out  = array(
 			'host'    => '',
+			'network' => '',
 			'engine'  => '',
 			'verdict' => 0,
-			'slow'    => false,
+			'ok'      => true,
 		);
-		if ( '' === $ip || false === filter_var( $ip, FILTER_VALIDATE_IP ) ) {
-			return $base;
-		}
-
 		$t0   = microtime( true );
 		$host = strtolower( rtrim( self::reverse( $ip ), '.' ) );
 		if ( self::too_slow( $t0 ) ) {
 			self::record_strike();
-			return array( 'slow' => true ) + $base;
+			$out['ok'] = false;
+			return $out;
 		}
-		if ( '' === $host || $host === strtolower( $ip ) ) {
-			return $base; // No usable PTR.
+		if ( '' === $host || $host === strtolower( (string) $ip ) ) {
+			return $out; // Conclusive: no usable PTR.
 		}
-		$base['host'] = $host;
+		$out['host']    = $host;
+		$out['network'] = self::network_from_host( $host );
 
 		// Which verifiable engine, if any, does the PTR host belong to?
-		$engine  = '';
-		$domains = array();
 		foreach ( self::engine_domains() as $token => $suffixes ) {
 			if ( self::host_in_domains( $host, (array) $suffixes ) ) {
-				$engine  = (string) $token;
-				$domains = (array) $suffixes;
+				$out['engine'] = (string) $token;
 				break;
 			}
 		}
-		if ( '' === $engine ) {
-			return $base; // Resolves, but not to a verifiable engine.
+		if ( '' === $out['engine'] ) {
+			return $out; // Attributed to a network, but no engine claim to forward-confirm.
 		}
-		$base['engine'] = $engine;
 
 		// Forward-confirm: the PTR host must resolve back to this IP.
 		$t1  = microtime( true );
 		$ips = self::forward( $host );
 		if ( self::too_slow( $t1 ) ) {
 			self::record_strike();
-			return array( 'slow' => true ) + $base;
+			$out['ok'] = false;
+			return $out;
 		}
 		foreach ( $ips as $resolved ) {
 			if ( self::same_ip( $resolved, $ip ) ) {
-				return array( 'verdict' => 1 ) + $base; // Genuine.
+				$out['verdict'] = 1; // Genuine.
+				return $out;
 			}
 		}
 		// Claimed an engine's domain but didn't forward-confirm → forged PTR, but only when we
 		// actually resolved addresses of this IP's family (else we couldn't really check).
-		return array( 'verdict' => self::forward_had_family( $ips, $ip ) ? 2 : 0 ) + $base;
+		$out['verdict'] = self::forward_had_family( $ips, $ip ) ? 2 : 0;
+		return $out;
+	}
+
+	/**
+	 * The registrable ("network") domain of a PTR hostname — the org that owns the IP, with the
+	 * IP-encoding subdomain labels dropped, so `ec2-52-1-2-3.compute.amazonaws.com` → `amazonaws.com`
+	 * and `crawl-66-249-66-1.googlebot.com` → `googlebot.com`. This is what "identify" stores: the
+	 * network is org-level, NOT the address (unlike the raw PTR, which encodes the IP for many hosts).
+	 * A short two-level-TLD list keeps `foo.co.uk` from collapsing to `co.uk`. Pure.
+	 *
+	 * @param string $host Lowercased PTR hostname (no trailing dot).
+	 * @return string Registrable domain, or '' when not a usable hostname.
+	 */
+	public static function network_from_host( $host ) {
+		$host = strtolower( trim( (string) $host, " \t." ) );
+		if ( '' === $host || false !== strpos( $host, ' ' ) || false === strpos( $host, '.' ) ) {
+			return '';
+		}
+		$labels = explode( '.', $host );
+		$n      = count( $labels );
+		if ( $n <= 2 ) {
+			return $host;
+		}
+		$two_level = array(
+			'co.uk', 'org.uk', 'com.au', 'net.au', 'co.jp', 'co.nz', 'co.za',
+			'com.br', 'co.in', 'com.cn', 'co.kr', 'com.mx', 'com.tr', 'com.sg', 'com.hk',
+		);
+		$last2 = $labels[ $n - 2 ] . '.' . $labels[ $n - 1 ];
+		if ( in_array( $last2, $two_level, true ) && $n >= 3 ) {
+			return $labels[ $n - 3 ] . '.' . $last2;
+		}
+		return $last2;
+	}
+
+	/**
+	 * Serve-path attribution for the opt-in "identify every bot" mode: reverse-resolve a hit's IP
+	 * to its owning network (+ verdict for a verifiable engine), CACHED per IP and bounded by the
+	 * same anti-amplification budget and circuit breaker as {@see verify_ip()}. FAILS OPEN — a spent
+	 * budget, an open breaker, or a slow lookup returns an EMPTY attribution (no network), never a
+	 * wrong one and never a stall. The raw IP is never returned to the caller; only the network is.
+	 *
+	 * @param string $ip Source IP.
+	 * @return array{host:string,network:string,engine:string,verdict:int}
+	 */
+	public static function attribute_ip( $ip ) {
+		$none = array(
+			'host'    => '',
+			'network' => '',
+			'engine'  => '',
+			'verdict' => 0,
+		);
+		$ip = (string) $ip;
+		if ( '' === $ip || false === filter_var( $ip, FILTER_VALIDATE_IP ) ) {
+			return $none;
+		}
+		$key    = self::ATTR_PREFIX . md5( $ip );
+		$cached = get_transient( $key );
+		if ( is_array( $cached ) ) {
+			return $cached;
+		}
+		// Circuit breaker open / budget spent → don't touch DNS; fail OPEN (no attribution).
+		if ( get_transient( self::TRIP_KEY ) || ! self::spend_lookup() ) {
+			return $none;
+		}
+
+		$r  = self::resolve_attribution( $ip );
+		$ok = $r['ok'];
+		unset( $r['ok'] );
+		// Cache only a promptly-completed lookup; a slow/undetermined one is NOT cached, so a
+		// transient DNS hiccup is never remembered as "no network".
+		if ( $ok ) {
+			set_transient( $key, $r, self::CACHE_TTL );
+		}
+		return $r;
+	}
+
+	/**
+	 * Engine-agnostic identity of an IP, for the admin "Check an IP" tool: reverse-resolve it,
+	 * report its owning network, and (when its PTR belongs to a verifiable engine) forward-confirm.
+	 * Unlike the serve path it skips the budget (a capability-gated admin action isn't the
+	 * amplification threat), but keeps the slow-guard.
+	 *
+	 * @param string $ip Source IP.
+	 * @return array{ip:string,host:string,network:string,engine:string,verdict:int,slow:bool}
+	 */
+	public static function identify_ip( $ip ) {
+		$ip = (string) $ip;
+		if ( '' === $ip || false === filter_var( $ip, FILTER_VALIDATE_IP ) ) {
+			return array(
+				'ip'      => $ip,
+				'host'    => '',
+				'network' => '',
+				'engine'  => '',
+				'verdict' => 0,
+				'slow'    => false,
+			);
+		}
+		$r = self::resolve_attribution( $ip );
+		return array(
+			'ip'      => $ip,
+			'host'    => $r['host'],
+			'network' => $r['network'],
+			'engine'  => $r['engine'],
+			'verdict' => $r['verdict'],
+			'slow'    => ! $r['ok'],
+		);
 	}
 
 	/**

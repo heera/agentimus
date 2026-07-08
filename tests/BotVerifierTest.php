@@ -222,4 +222,64 @@ final class BotVerifierTest extends TestCase {
 		$this->assertSame( 0, $r['verdict'] );
 		$this->assertSame( '', $r['host'] );
 	}
+
+	public function test_identify_reports_the_owning_network() {
+		$this->fake_dns( 'crawl-66-249-66-1.googlebot.com', array( self::GOOGLE_IP ) );
+		$this->assertSame( 'googlebot.com', BotVerifier::identify_ip( self::GOOGLE_IP )['network'] );
+	}
+
+	/* -- network_from_host: the registrable "owning network" --------------- */
+
+	public function test_network_from_host_strips_ip_encoding_labels() {
+		$this->assertSame( 'amazonaws.com', BotVerifier::network_from_host( 'ec2-52-1-2-3.compute.amazonaws.com' ) );
+		$this->assertSame( 'googlebot.com', BotVerifier::network_from_host( 'crawl-66-249-66-1.googlebot.com' ) );
+		$this->assertSame( 'example.co.uk', BotVerifier::network_from_host( 'host12.node.example.co.uk' ), 'two-level TLD kept' );
+		$this->assertSame( 'foo.com', BotVerifier::network_from_host( 'foo.com' ) );
+		$this->assertSame( '', BotVerifier::network_from_host( '' ) );
+		$this->assertSame( '', BotVerifier::network_from_host( 'localhost' ), 'no dot → no network' );
+	}
+
+	/* -- attribute_ip: serve-path attribution (cached, budgeted, fail-open) - */
+
+	public function test_attribute_names_the_network_and_verifies_an_engine() {
+		$this->fake_dns( 'crawl-66-249-66-1.googlebot.com', array( self::GOOGLE_IP ) );
+		$a = BotVerifier::attribute_ip( self::GOOGLE_IP );
+		$this->assertSame( 'googlebot.com', $a['network'] );
+		$this->assertSame( 'googlebot', $a['engine'] );
+		$this->assertSame( 1, $a['verdict'] );
+		$this->assertArrayNotHasKey( 'ip', $a, 'attribution never returns the raw IP' );
+	}
+
+	public function test_attribute_names_a_non_engine_network_without_a_verdict() {
+		$this->fake_dns( 'ec2-203-0-113-9.compute.amazonaws.com', array( '203.0.113.9' ) );
+		$a = BotVerifier::attribute_ip( '203.0.113.9' );
+		$this->assertSame( 'amazonaws.com', $a['network'] );
+		$this->assertSame( '', $a['engine'] );
+		$this->assertSame( 0, $a['verdict'], 'no engine claim → nothing to verify' );
+	}
+
+	public function test_attribute_flags_a_forged_engine_ptr() {
+		$this->fake_dns( 'crawl.googlebot.com', array( '1.2.3.4' ) );
+		$a = BotVerifier::attribute_ip( self::GOOGLE_IP );
+		$this->assertSame( 'googlebot.com', $a['network'] );
+		$this->assertSame( 2, $a['verdict'] );
+	}
+
+	public function test_attribute_fails_open_to_empty_when_the_budget_is_spent() {
+		add_filter( 'agentimus_verify_lookup_budget', static function () { return 1; } );
+		$this->fake_dns( 'ec2-203-0-113-9.compute.amazonaws.com', array( '203.0.113.9' ) );
+		$this->assertSame( 'amazonaws.com', BotVerifier::attribute_ip( '203.0.113.9' )['network'] );
+		// A different fresh IP is now past budget → empty attribution, never a wrong one.
+		$this->assertSame( '', BotVerifier::attribute_ip( '198.51.100.7' )['network'] );
+	}
+
+	public function test_attribute_caches_per_ip() {
+		$this->fake_dns( 'ec2-1.compute.amazonaws.com', array( '203.0.113.20' ) );
+		$this->assertSame( 'amazonaws.com', BotVerifier::attribute_ip( '203.0.113.20' )['network'] );
+		// Repoint DNS; the cached attribution is still returned without a fresh lookup.
+		remove_all_filters( 'agentimus_reverse_dns' );
+		remove_all_filters( 'agentimus_forward_dns' );
+		$this->fake_dns( 'somewhere.else.net', array( '203.0.113.20' ) );
+		$this->assertSame( 'amazonaws.com', BotVerifier::attribute_ip( '203.0.113.20' )['network'], 'served from cache' );
+	}
 }

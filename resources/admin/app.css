@@ -1970,13 +1970,17 @@ button.ar-act-more:hover { color: var(--ar-ink); }
 
 /* Recent feed */
 /* Capped, scrollable feed with a bottom fade cue (same pattern as the modal). */
-.ar-act-feedwrap { position: relative; margin: 14px 0 0; }
+/* Let the card and feed wrapper shrink below the table's min-width, so the scroll box (.ar-act-reqs)
+   actually scrolls horizontally instead of the whole card stretching off-screen. A grid item's
+   default min-width:auto refuses to shrink below its content — this overrides that down the chain. */
+.ar-act .ar-card { min-width: 0; }
+.ar-act-feedwrap { position: relative; margin: 14px 0 0; min-width: 0; }
 /* padding-right is a gutter for the scroll thumb: macOS overlay scrollbars sit
    on top of content, so without it the bar overlaps the right-aligned time/count
    column. scrollbar-gutter keeps the layout stable for classic scrollbars too. */
 /* The Requests card's scroll container owns the cap/scroll/border/gutter; the
    list inside (grouped feed OR per-day log) is just a grid. */
-.ar-act-reqs { margin: 0; border-top: 1px solid var(--ar-line); max-height: 340px; overflow-y: auto; scrollbar-gutter: stable; padding-right: 14px; }
+.ar-act-reqs { margin: 0; border-top: 1px solid var(--ar-line); max-height: 340px; overflow-y: auto; overflow-x: auto; scrollbar-gutter: stable; padding-right: 14px; }
 .ar-act-reqs__empty { padding: 12px 0; }
 .ar-act-feed { margin: 0; padding: 0; list-style: none; display: grid; gap: 0; }
 .ar-act-feedfade {
@@ -2013,6 +2017,21 @@ button.ar-act-more:hover { color: var(--ar-ink); }
      than the container at narrow widths. */
   flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis;
 }
+/* Endpoint + owning-network chips share ONE grid cell (this wrapper), so turning on Identify
+   never changes a row's column count — the UA / count / time columns stay aligned across every
+   row, with a network or without. The endpoint truncates under pressure; the short network chip
+   doesn't. */
+/* Endpoint + network on ONE line (never wrap — wrapping made the cell size to just the widest
+   chip and stack even with room to spare). Both shrink+truncate under real pressure; the UA fills
+   whatever's left. So every row keeps all its columns, and the pair only ellipses when genuinely tight. */
+.ar-act-feed__loc { display: flex; align-items: center; gap: 8px; min-width: 0; }
+/* "from <network>" attribution chip (opt-in Identify mode), beside the endpoint. */
+.ar-act-feed__net {
+  flex: 0 1 auto; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  font-family: var(--ar-mono); font-size: 11px; color: var(--ar-accent);
+  background: rgba(20, 107, 100, 0.08); padding: 2px 7px; border-radius: 3px;
+}
+.ar-act-feed__net-lbl { color: var(--ar-ink-faint); }
 /* UA takes the remaining space and truncates — the row never wraps. */
 .ar-act-feed__ua {
   flex: 1 1 auto; min-width: 0;
@@ -2045,6 +2064,27 @@ button.ar-act-more:hover { color: var(--ar-ink); }
   }
   .ar-act-feed__at { text-align: right; }
 }
+
+/* Recent-requests table. A real table with a header row: the "Network" column is named once in
+   the header instead of repeating "from" on every row, and the whole thing scrolls HORIZONTALLY
+   inside its box on narrow screens — the table's min-width forces a real scroll rather than
+   crushing columns to an ellipsis. The header sticks while the body scrolls vertically. */
+.ar-act-table { width: 100%; min-width: 620px; border-collapse: collapse; }
+.ar-act-table th, .ar-act-table td { padding: 7px 14px 7px 0; text-align: left; vertical-align: middle; white-space: nowrap; }
+.ar-act-table th:first-child, .ar-act-table td:first-child { padding-left: 2px; }
+.ar-act-table thead th {
+  position: sticky; top: 0; z-index: 1; background: var(--ar-surface);
+  font-family: var(--ar-sans); font-size: 10px; font-weight: 700; letter-spacing: 0.07em;
+  text-transform: uppercase; color: var(--ar-ink-faint);
+  padding-top: 2px; padding-bottom: 9px; border-bottom: 1px solid var(--ar-line-strong);
+}
+.ar-act-table tbody td { border-bottom: 1px solid var(--ar-line); }
+.ar-act-table tbody tr:last-child td { border-bottom: 0; }
+.ar-act-table__agent { font-size: 13px; font-weight: 600; color: var(--ar-ink); }
+.ar-act-table__at { font-family: var(--ar-mono); font-size: 11px; color: var(--ar-ink-faint); }
+.ar-act-table__dash { color: var(--ar-ink-faint); }
+/* User-Agent column takes the slack and truncates; the custom tooltip (hover) reveals it in full. */
+.ar-act-table td.ar-act-table__uacol { width: 100%; max-width: 0; overflow: hidden; text-overflow: ellipsis; }
 
 /* ---- Suspicious activity (UA-only abuse signals) ----------------------- */
 .ar-susp-counts { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; flex: 0 0 auto; }
@@ -2299,6 +2339,11 @@ button.ar-act-more:hover { color: var(--ar-ink); }
 .ar-rev-ua.is-copyable { cursor: pointer; }
 .ar-rev-ua.is-copyable:hover { color: var(--ar-ink); }
 .ar-rev-ua.is-empty { font-style: italic; color: var(--ar-ink-faint); }
+.ar-rev-network { font-family: var(--ar-mono); font-size: 11.5px; color: var(--ar-ink); word-break: break-all; }
+.ar-rev-network__note { font-family: var(--ar-sans); font-size: 11px; margin-left: 5px; }
+.ar-rev-network__note.is-ok { color: var(--ar-good); }
+.ar-rev-network__note.is-danger { color: var(--ar-bad); }
+.ar-rev-network__note.is-muted { color: var(--ar-ink-faint); }
 /* Captured flagged-client IPs — copyable mono chips. */
 .ar-rev-ips { display: flex; flex-wrap: wrap; gap: 6px; }
 .ar-rev-ip {

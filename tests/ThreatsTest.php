@@ -291,6 +291,19 @@ final class ThreatsTest extends TestCase {
 		$this->assertSame( '', $r['sources'][0]['verdict'], 'No verification data → no verdict string.' );
 	}
 
+	/* -- Attribution: the owning network on a review row ------------------- */
+
+	public function test_a_review_row_carries_the_owning_network() {
+		$src = $this->source( self::NEWBOT, 'Other bot', 3, HOUR_IN_SECONDS ) + array( 'network' => 'amazonaws.com' );
+		$r   = $this->analyze( array( $src ) );
+		$this->assertSame( 'amazonaws.com', $r['sources'][0]['network'] );
+	}
+
+	public function test_a_row_without_attribution_reports_an_empty_network() {
+		$r = $this->analyze( array( $this->source( self::NEWBOT, 'Other bot', 3, HOUR_IN_SECONDS ) ) );
+		$this->assertSame( '', $r['sources'][0]['network'] );
+	}
+
 	/* -- Ignore / dismiss (a "not now" that respects and re-surfaces) ------ */
 
 	/** Analyze with a dismissals map keyed as the endpoint would file it. */
