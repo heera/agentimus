@@ -100,6 +100,16 @@ final class Rest {
 
 		register_rest_route(
 			self::NS,
+			'/visibility/suggest',
+			array(
+				'methods'             => \WP_REST_Server::EDITABLE, // POST — the product's (possibly unsaved) fields ride in the body.
+				'callback'            => array( $this, 'suggest' ),
+				'permission_callback' => array( $this, 'can_manage' ),
+			)
+		);
+
+		register_rest_route(
+			self::NS,
 			'/visibility/clear',
 			array(
 				'methods'             => \WP_REST_Server::EDITABLE,
@@ -147,6 +157,27 @@ final class Rest {
 		$payload           = $this->config_payload();
 		$payload['saved']  = true;
 		return rest_ensure_response( $payload );
+	}
+
+	/**
+	 * POST /suggest — candidate tracking questions for a product, derived from its
+	 * (possibly unsaved) name/competitors/prompts plus the site's own topics. Read-only:
+	 * it computes suggestions, changing nothing.
+	 *
+	 * @param \WP_REST_Request $request Request.
+	 * @return \WP_REST_Response
+	 */
+	public function suggest( \WP_REST_Request $request ) {
+		$input = $request->get_json_params();
+		if ( ! is_array( $input ) ) {
+			$input = (array) $request->get_params();
+		}
+		$product = array(
+			'name'        => isset( $input['name'] ) ? (string) $input['name'] : '',
+			'competitors' => isset( $input['competitors'] ) ? (array) $input['competitors'] : array(),
+			'prompts'     => isset( $input['prompts'] ) ? (array) $input['prompts'] : array(),
+		);
+		return rest_ensure_response( array( 'questions' => Suggest::for_product( $product ) ) );
 	}
 
 	/**

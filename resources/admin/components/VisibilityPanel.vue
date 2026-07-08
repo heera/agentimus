@@ -36,6 +36,7 @@ export default {
       dashboard: null,
       providersMeta: {},
       tests: {},
+      sugg: {}, // Per-product prompt suggestions, keyed by card index: { loading, items }.
       errorDialog: null, // { id, label, msg, helpUrl } when a Test failure dialog is open.
       form: {
         // One card per product. Competitors and questions are chip lists (arrays).
@@ -310,6 +311,37 @@ export default {
     // Persist just the products (a partial save that leaves API keys / schedule
     // untouched), debounced so a burst of chip edits makes one request. No form
     // re-hydrate, so it never steals focus or resets a field you're editing.
+    // Fetch candidate questions for a product from its (unsaved) fields + the site's
+    // topics. Suggestions are per-card, ephemeral, and offered — never auto-added.
+    async suggestQuestions(i) {
+      const t = this.form.targets[i];
+      const prev = (this.sugg[i] && this.sugg[i].items) || [];
+      this.sugg[i] = { loading: true, items: prev };
+      try {
+        const r = await this.api.suggestVisibility({ name: t.name, competitors: t.competitors, prompts: t.prompts });
+        this.sugg[i] = { loading: false, items: (r && r.questions) || [] };
+      } catch (e) {
+        this.sugg[i] = { loading: false, items: [] };
+        this.notify('warn', 'Couldn’t fetch suggestions just now.');
+      }
+    },
+    // Add one suggested question to the product's tracked list (deduped, capped) and
+    // drop it from the offered chips. The server clamps the cap authoritatively on save.
+    addSuggestion(i, q) {
+      const t = this.form.targets[i];
+      const has = (t.prompts || []).some((p) => String(p).trim().toLowerCase() === q.trim().toLowerCase());
+      if (!has) {
+        if ((t.prompts || []).length >= 25) {
+          this.notify('warn', 'You can track up to 25 questions per product.');
+          return;
+        }
+        t.prompts.push(q);
+        this.autoSaveTargets(i);
+      }
+      if (this.sugg[i]) {
+        this.sugg[i] = { loading: false, items: this.sugg[i].items.filter((x) => x !== q) };
+      }
+    },
     autoSaveTargets(i) {
       // Mark the card being edited as "Saving…" right away for instant feedback.
       if (typeof i === 'number') {
@@ -759,6 +791,26 @@ export default {
                     <label>What should we ask AI?</label>
                     <TagInput v-model="t.prompts" placeholder="Type a question, press Enter" @update:modelValue="autoSaveTargets(i)" />
                     <small class="ar-field__hint">Real questions a person would type. Press Enter after each. These are the answers we grade.</small>
+                    <div class="agv-suggest">
+                      <button
+                        type="button"
+                        class="agv-linkbtn agv-suggest__trigger"
+                        :disabled="sugg[i] && sugg[i].loading"
+                        @click="suggestQuestions(i)"
+                      >{{ sugg[i] && sugg[i].loading ? 'Finding ideas…' : 'Suggest questions from your topics' }}</button>
+                      <div v-if="sugg[i] && sugg[i].items && sugg[i].items.length" class="agv-suggest__chips">
+                        <button
+                          v-for="q in sugg[i].items"
+                          :key="q"
+                          type="button"
+                          class="agv-suggest__chip"
+                          @click="addSuggestion(i, q)"
+                        ><span aria-hidden="true">+</span> {{ q }}</button>
+                      </div>
+                      <p v-else-if="sugg[i] && !sugg[i].loading && sugg[i].items" class="agv-muted agv-suggest__empty">
+                        No new ideas right now — add a few topics under Topics for AI, or just type your own above.
+                      </p>
+                    </div>
                   </div>
                 </div>
                 <p v-if="!(t.name || '').trim() || !t.prompts.length" class="agv-productcard__warn">
@@ -1039,6 +1091,23 @@ export default {
 /* A text button that reads like a link (used in the results empty states). */
 .agv-linkbtn { background: none; border: 0; padding: 0; font: inherit; color: var(--ar-accent); cursor: pointer; text-decoration: underline; text-underline-offset: 2px; }
 .agv-linkbtn:hover { text-decoration: none; }
+.agv-linkbtn:disabled { color: var(--ar-ink-faint); cursor: default; text-decoration: none; }
+
+/* Prompt suggestions — a quiet trigger under the questions field, then add-able chips. */
+.agv-suggest { margin-top: 9px; }
+.agv-suggest__trigger { font-size: 12.5px; }
+.agv-suggest__chips { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 9px; }
+.agv-suggest__chip {
+  max-width: 100%; text-align: left; cursor: pointer;
+  font: inherit; font-size: 12.5px; line-height: 1.3;
+  padding: 5px 10px; border-radius: 999px;
+  color: var(--ar-accent); background: rgba(20, 107, 100, 0.07);
+  border: 1px solid rgba(20, 107, 100, 0.24); transition: background 0.15s ease;
+}
+.agv-suggest__chip span { font-family: var(--ar-mono); opacity: 0.7; margin-right: 2px; }
+.agv-suggest__chip:hover { background: rgba(20, 107, 100, 0.15); }
+.agv-suggest__chip:focus-visible { outline: 2px solid var(--ar-accent); outline-offset: 2px; }
+.agv-suggest__empty { margin: 9px 0 0; font-size: 12px; }
 .agv-list__add {
   align-self: flex-start; font-family: var(--ar-mono); font-size: 11px;
   letter-spacing: 0.04em; color: var(--ar-accent); background: none;
