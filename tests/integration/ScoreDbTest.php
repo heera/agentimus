@@ -62,6 +62,35 @@ final class ScoreDbTest extends DbTestCase {
 		$this->assertLessThanOrEqual( 100, $optimized['score'] );
 	}
 
+	public function test_commerce_products_are_excluded_from_citability() {
+		// Register a commerce type and make it agent-visible, so it WOULD be sampled by the
+		// Optimize pillar unless it's dropped as commerce. Capture the final graded set.
+		register_post_type( 'product', array( 'public' => true ) );
+		$agentize = static function ( $t ) {
+			$t[] = 'product';
+			return array_values( array_unique( $t ) );
+		};
+		add_filter( 'agentimus_post_types', $agentize );
+
+		$captured = null;
+		$capture  = static function ( $types ) use ( &$captured ) {
+			$captured = $types;
+			return $types;
+		};
+		add_filter( 'agentimus_citability_post_types', $capture );
+
+		delete_transient( Cache::OPTIMIZE );
+		( new Score( new Settings() ) )->report();
+
+		remove_filter( 'agentimus_post_types', $agentize );
+		remove_filter( 'agentimus_citability_post_types', $capture );
+		unregister_post_type( 'product' );
+
+		$this->assertIsArray( $captured );
+		$this->assertContains( 'post', $captured, 'articles must still be graded' );
+		$this->assertNotContains( 'product', $captured, 'commerce products must be excluded from citability grading' );
+	}
+
 	public function test_adversarial_post_markup_never_crashes_the_report() {
 		// Unclosed tags, nested lists, a script and a bare img — the DOM parse must
 		// tolerate it, and the whole report must still return rather than fatal.

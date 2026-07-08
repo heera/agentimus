@@ -281,10 +281,48 @@ final class Score {
 		return $result;
 	}
 
+	/**
+	 * Post types graded for content citability (the Optimize pillar): articles, pages
+	 * and doc-like content — the stuff written to be read and cited. Commerce products
+	 * are excluded, because a product page is short by design and isn't written to be
+	 * quoted, so article checks (thin content, quotable passages) misfire on it. Starts
+	 * from the agent-visible types, drops known commerce types, and is filterable both
+	 * ways so an adapter can exclude its own type or force a custom one back in.
+	 *
+	 * @return string[]
+	 */
+	private function citability_post_types() {
+		/**
+		 * Commerce/product post types to exclude from citability grading. Seeded with the
+		 * common carts (WooCommerce, EDD, FluentCart).
+		 *
+		 * @param string[] $commerce Post-type slugs treated as commerce, not articles.
+		 */
+		$commerce = (array) apply_filters(
+			'agentimus_commerce_post_types',
+			array( 'product', 'product_variation', 'download', 'shop_order', 'shop_coupon', 'fluent-products' )
+		);
+
+		$types = array_values( array_diff( Content::post_types(), $commerce ) );
+
+		/**
+		 * The exact post types graded for content citability, after commerce is removed.
+		 *
+		 * @param string[] $types Post-type slugs to grade.
+		 */
+		return array_values( (array) apply_filters( 'agentimus_citability_post_types', $types ) );
+	}
+
 	private function compute_optimize() {
+		$types = $this->citability_post_types();
+		if ( empty( $types ) ) {
+			// No article-like content to grade (e.g. a commerce-only site) → the Optimize
+			// pillar is N/A (null), so blend() redistributes its weight instead of scoring 0.
+			return array( 'score' => null, 'posts' => 0, 'issues' => array() );
+		}
 		$ids = get_posts(
 			array(
-				'post_type'        => Content::post_types(),
+				'post_type'        => $types,
 				'post_status'      => 'publish',
 				'numberposts'      => self::OPTIMIZE_SAMPLE,
 				'orderby'          => 'modified',
