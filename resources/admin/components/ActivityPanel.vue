@@ -484,12 +484,10 @@ export default {
 <template>
   <div class="ar-act">
     <!-- At-a-glance summary (clickable → jumps to the relevant tab) -->
+    <!-- Readiness isn't a tile here — it's the rail's AEO/GEO card, which owns the score
+         and rungs. Repeating "19/19 · 100%" beside a "91" gauge just shows two readiness
+         numbers. These three describe the agent SURFACE instead. -->
     <div v-if="summary" class="ar-dash-sum">
-      <button type="button" class="ar-dash-tile" @click="$emit('navigate', { tab: 'readiness' })">
-        <span class="ar-dash-tile__k">Readiness</span>
-        <strong class="ar-dash-tile__v" :data-tone="summary.tone">{{ summary.readiness.pass }}/{{ summary.readiness.total }}</strong>
-        <span class="ar-dash-tile__sub">{{ summary.readiness.pct }}% pass</span>
-      </button>
       <button type="button" class="ar-dash-tile" @click="$emit('navigate', { tab: 'discovery', anchor: 'ar-wd-providers' })">
         <span class="ar-dash-tile__k">Providers</span>
         <strong class="ar-dash-tile__v">{{ summary.providers }}</strong>

@@ -384,6 +384,23 @@ final class Admin {
 	 *
 	 * @return array
 	 */
+	/**
+	 * The AEO/GEO score, computed fail-open. It samples posts (HTML parsing) and reads
+	 * the visibility store — more moving parts than the rest of the boot payload — so a
+	 * throw here must degrade to "no score card" (null), never take down the whole admin
+	 * screen. The rail's card is guarded on this value, so null just hides it.
+	 *
+	 * @param array<int,array<string,mixed>> $readiness Precomputed readiness rows.
+	 * @return array|null
+	 */
+	private function aeo_score( $readiness ) {
+		try {
+			return ( new Score( $this->settings ) )->report( $readiness );
+		} catch ( \Throwable $e ) {
+			return null;
+		}
+	}
+
 	private function bootstrap_data() {
 		return array(
 			'restUrl'     => esc_url_raw( rest_url( Rest::NAMESPACE ) ),
@@ -391,7 +408,7 @@ final class Admin {
 			'settings'    => $this->settings->all(),
 			'defaults'    => $this->settings->defaults(), // Powers the reset-preview.
 			'readiness'   => $readiness = ( new Readiness( $this->settings ) )->report(),
-			'score'       => ( new Score( $this->settings ) )->report( $readiness ), // AEO/GEO score + action plan, from the same readiness run.
+			'score'       => $this->aeo_score( $readiness ), // AEO/GEO score + action plan, from the same readiness run.
 			'discovery'   => Discovery\Hub::data( $this->settings, Discovery\Registry::instance() ),
 			'restNamespacesDetected' => Discovery\Adapters\RestApi::detected(),
 			'entityTypes'   => $this->settings->entity_types(),

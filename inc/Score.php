@@ -314,7 +314,9 @@ final class Score {
 				if ( 'pass' !== $r['status'] ) {
 					$key = (string) $r['id'];
 					if ( ! isset( $issues[ $key ] ) ) {
-						$issues[ $key ] = array( 'count' => 0, 'label' => (string) $r['label'] );
+						// Remember the first post that trips this check, so the action can
+						// link straight to its editor (where the fix guidance lives).
+						$issues[ $key ] = array( 'count' => 0, 'label' => (string) $r['label'], 'example' => (int) $id );
 					}
 					++$issues[ $key ]['count'];
 				}
@@ -418,17 +420,18 @@ final class Score {
 				break;
 			}
 			++$shown;
+			$edit = empty( $issue['example'] ) ? '' : (string) get_edit_post_link( (int) $issue['example'], 'raw' );
 			$out[] = array(
 				'id'       => 'content_' . $id,
 				'pillar'   => 'optimized',
 				'title'    => $issue['label'],
 				'why'      => sprintf(
 					/* translators: %d: number of posts. */
-					_n( '%d post could be more citable here — open its AI Readability panel in the editor.', '%d posts could be more citable here — open their AI Readability panels in the editor.', (int) $issue['count'], 'agentimus' ),
+					_n( '%d post could be more citable — open it to fix in the editor (its AI Readability panel).', '%d posts could be more citable — open one to fix in the editor (its AI Readability panel).', (int) $issue['count'], 'agentimus' ),
 					(int) $issue['count']
 				),
 				'severity' => 'content',
-				'action'   => null,
+				'action'   => '' !== $edit ? array( 'label' => __( 'Open the post', 'agentimus' ), 'href' => $edit ) : null,
 			);
 		}
 

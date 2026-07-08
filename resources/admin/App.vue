@@ -351,9 +351,10 @@ export default {
       if ('check' === r.kind) return 100 === r.score ? 'done' : r.score >= 50 ? 'current' : '';
       return r.score >= 70 ? 'done' : r.score >= 50 ? 'current' : '';
     },
-    // Check rungs show a pass/total tally; the two AEO/GEO rungs show their score.
+    // Every rung shows its 0–100 score on one consistent scale (they roll up to the
+    // composite in the gauge). The per-check tally lives on the Readiness tab.
     rungCount(r) {
-      return 'check' === r.kind ? `${r.pass}/${r.total}` : (null === r.score ? '—' : String(r.score));
+      return null === r.score ? '—' : String(r.score);
     },
     rungTarget(r) {
       return 'visibility' === r.to ? { tab: 'visibility' } : { tab: 'readiness', anchor: `ar-group-${r.key}` };
@@ -364,12 +365,15 @@ export default {
     // The next-step line: follow the top action's own jump/link, or fall back to the
     // full report. An external-link action opens in a new tab.
     openNext() {
+      // Only called when the top action has a real destination (config fix / measure);
+      // content gaps are per-post and render as a non-clickable info line instead.
       const a = this.aeoNext && this.aeoNext.action;
-      if (a && a.href) {
+      if (!a) return;
+      if (a.href) {
         window.open(a.href, '_blank', 'noopener');
         return;
       }
-      this.goTo(a || 'readiness');
+      this.goTo(a);
     },
     goTo(target) {
       const { tab, anchor } = typeof target === 'string' ? { tab: target } : target || {};
@@ -1123,12 +1127,12 @@ export default {
           </ol>
 
           <button
-            v-if="aeoNext"
+            v-if="aeoNext && aeoNext.action"
             type="button"
             class="ar-rail-link ar-rail-next"
-            :title="`Next: ${aeoNext.title}`"
             @click="openNext"
           >Next: {{ aeoNext.title }} →</button>
+          <p v-else-if="aeoNext" class="ar-rail-next ar-rail-next--info">Next: {{ aeoNext.title }}</p>
           <p v-else class="ar-rail-allgood">All rungs complete.</p>
         </div>
 
@@ -1150,30 +1154,19 @@ export default {
           </ul>
         </div>
 
-        <div class="ar-rail-card ar-rail-card--validation" :class="`is-${validation.tone}`">
-          <p class="ar-rail-card__label">Registration status</p>
-          <button
-            v-if="validation.ok"
-            type="button"
-            class="ar-rail-valid"
-            title="See what’s registered"
-            @click="goTo({ tab: 'discovery', anchor: 'ar-wd-providers' })"
-          >
-            <span class="ar-rail-valid__check" aria-hidden="true">
-              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 13l4 4L19 7" /></svg>
-            </span>
-            <span class="ar-rail-valid__text">All registrations are valid</span>
-            <span class="ar-rail-valid__go" aria-hidden="true">→</span>
-          </button>
-          <button
-            v-else
-            type="button"
-            class="ar-rail-link ar-rail-valid__alert"
-            @click="goTo({ tab: 'discovery', anchor: 'ar-wd-validation' })"
-          >
-            {{ validation.count }} {{ validation.count === 1 ? 'issue' : 'issues' }} to fix — Review →
-          </button>
-        </div>
+        <!-- Registration status — its own compact one-line card (separate from the black
+             card). Green ✓ when valid, amber alert when broken; the → is always shown. -->
+        <button
+          type="button"
+          class="ar-rail-card ar-rail-regcard"
+          :class="validation.ok ? 'is-ok' : 'is-alert'"
+          :title="validation.ok ? 'See what’s registered' : 'Review registration issues'"
+          @click="goTo({ tab: 'discovery', anchor: validation.ok ? 'ar-wd-providers' : 'ar-wd-validation' })"
+        >
+          <span class="ar-rail-regcard__icon" aria-hidden="true">{{ validation.ok ? '✓' : '⚠' }}</span>
+          <span class="ar-rail-regcard__text">{{ validation.ok ? 'All registrations are valid' : `${validation.count} ${validation.count === 1 ? 'issue' : 'issues'} to fix` }}</span>
+          <span class="ar-rail-regcard__go" aria-hidden="true">→</span>
+        </button>
 
         <p class="ar-rail-foot" aria-label="Made with love by Sheikh Heera"><span class="ar-rail-foot__text">Made with <span class="ar-rail-foot__heart" aria-hidden="true">♥</span> by <a class="ar-rail-foot__link" href="https://heera.it" target="_blank" rel="noopener">Sheikh Heera</a></span></p>
       </aside>
