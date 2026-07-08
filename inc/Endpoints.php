@@ -95,6 +95,19 @@ final class Endpoints {
 		$uri  = isset( $_SERVER['REQUEST_URI'] ) ? sanitize_text_field( wp_unslash( $_SERVER['REQUEST_URI'] ) ) : '/';
 		$path = '/' . ltrim( (string) wp_parse_url( $uri, PHP_URL_PATH ), '/' );
 
+		// Guarantee a 200 robots.txt. WordPress's virtual robots.txt can come back 404
+		// on some hosts — the body is served but the status is wrong, which a strict
+		// crawler may disregard, taking our crawler policy and sitemap line with it. When
+		// there's no static file and robots rules are on, serve it here on a clean 200,
+		// running the same robots_txt filter chain so core, SEO-plugin and our own
+		// directives all survive. A producer can cede it via agentimus_yield_surface.
+		if ( '/robots.txt' === $path
+			&& $this->settings->enabled( 'enable_robots' )
+			&& ! $this->yields( 'robots' )
+			&& ! file_exists( Paths::site_root() . 'robots.txt' ) ) {
+			$this->send_robots( $this->robots_body() );
+		}
+
 		if ( '/llms.txt' === $path && $this->settings->enabled( 'enable_llms_txt' ) && ! $this->yields( 'llms_txt' ) ) {
 			$this->send( $this->llms->llms_txt(), 'text/plain', 'llms.txt' );
 		}
@@ -161,6 +174,55 @@ final class Endpoints {
 		if ( is_front_page() || is_home() || is_archive() || is_search() ) {
 			$this->send( $this->llms->index_markdown(), 'text/markdown', 'markdown' );
 		}
+	}
+
+	/**
+	 * Assemble robots.txt exactly as WordPress core's do_robots() does — the allow-all
+	 * group and the public / non-public baseline — then run it through the robots_txt
+	 * filter so every contributor (core defaults, SEO plugins, and our own
+	 * {@see robots_txt()}) is preserved. Mirroring core means owning the route never
+	 * drops a directive another producer expected to add.
+	 *
+	 * @return string
+	 */
+	private function robots_body() {
+		$public = get_option( 'blog_public' );
+		$out    = "User-agent: *\n";
+		$out   .= ( '0' === (string) $public )
+			? "Disallow: /\n"
+			: "Disallow: /wp-admin/\nAllow: /wp-admin/admin-ajax.php\n";
+		return (string) apply_filters( 'robots_txt', $out, $public ); // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound -- invoking WordPress core's own robots_txt filter to reproduce do_robots(), not declaring a new hook.
+	}
+
+	/**
+	 * Emit robots.txt on a clean 200 and stop. Unlike {@see send()} it neither logs a
+	 * hit (every crawler fetches robots.txt — it would swamp the activity log) nor runs
+	 * the access block: robots.txt is the policy file itself, so even a blocked bot
+	 * should be able to read the rules telling it to stay out.
+	 *
+	 * @param string $body robots.txt content.
+	 */
+	private function send_robots( $body ) {
+		if ( ! headers_sent() ) {
+			// WordPress flagged this request a 404 during handle_404() before we ran;
+			// clear that so status_header() emits a clean 200 rather than being
+			// re-affirmed as 404, then set the status both ways to be certain.
+			if ( isset( $GLOBALS['wp_query'] ) && $GLOBALS['wp_query'] instanceof \WP_Query ) {
+				$GLOBALS['wp_query']->is_404 = false;
+			}
+			status_header( 200 );
+			if ( function_exists( 'http_response_code' ) ) {
+				http_response_code( 200 );
+			}
+			header( 'Content-Type: text/plain; charset=UTF-8' );
+			header( 'X-Content-Type-Options: nosniff' );
+			header( 'Cache-Control: public, max-age=' . HOUR_IN_SECONDS );
+		}
+		$is_head = isset( $_SERVER['REQUEST_METHOD'] ) && 'HEAD' === strtoupper( sanitize_text_field( wp_unslash( $_SERVER['REQUEST_METHOD'] ) ) );
+		if ( ! $is_head ) {
+			echo $body; // phpcs:ignore WordPress.Security.EscapeOutput -- plain-text robots.txt payload.
+		}
+		exit;
 	}
 
 	/**
