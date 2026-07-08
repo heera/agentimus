@@ -390,7 +390,8 @@ final class Admin {
 			'nonce'       => wp_create_nonce( 'wp_rest' ),
 			'settings'    => $this->settings->all(),
 			'defaults'    => $this->settings->defaults(), // Powers the reset-preview.
-			'readiness'   => ( new Readiness( $this->settings ) )->report(),
+			'readiness'   => $readiness = ( new Readiness( $this->settings ) )->report(),
+			'score'       => ( new Score( $this->settings ) )->report( $readiness ), // AEO/GEO score + action plan, from the same readiness run.
 			'discovery'   => Discovery\Hub::data( $this->settings, Discovery\Registry::instance() ),
 			'restNamespacesDetected' => Discovery\Adapters\RestApi::detected(),
 			'entityTypes'   => $this->settings->entity_types(),

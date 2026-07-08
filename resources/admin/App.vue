@@ -5,6 +5,7 @@ import SettingsForm from './components/SettingsForm.vue';
 import ReadinessPanel from './components/ReadinessPanel.vue';
 import DiscoveryHub from './components/DiscoveryHub.vue';
 import ActivityPanel from './components/ActivityPanel.vue';
+import ScorePanel from './components/ScorePanel.vue';
 import ReviewMenu from './components/ReviewMenu.vue';
 import OnboardingWizard from './components/OnboardingWizard.vue';
 import AboutPanel from './components/AboutPanel.vue';
@@ -26,7 +27,7 @@ const ACTIVITY_EVENTS = ['mousemove', 'keydown', 'wheel', 'pointerdown', 'touchs
 
 export default {
   name: 'AgentimusApp',
-  components: { SettingsForm, ReadinessPanel, DiscoveryHub, ActivityPanel, ReviewMenu, OnboardingWizard, AboutPanel, ConfirmDialog, VisibilityPanel },
+  components: { SettingsForm, ReadinessPanel, DiscoveryHub, ActivityPanel, ScorePanel, ReviewMenu, OnboardingWizard, AboutPanel, ConfirmDialog, VisibilityPanel },
   props: {
     boot: { type: Object, required: true },
   },
@@ -41,6 +42,7 @@ export default {
       settings: JSON.parse(JSON.stringify(this.boot.settings || {})),
       defaults: this.boot.defaults || {},
       readiness: this.boot.readiness || [],
+      aeo: this.boot.score || null,
       refreshingReadiness: false,
       discovery: this.boot.discovery || {},
       refreshingDiscovery: false,
@@ -993,6 +995,12 @@ export default {
           :data="discovery"
           :refreshing="refreshingDiscovery"
           @refresh="refreshDiscovery"
+        />
+        <ScorePanel
+          v-if="aeo"
+          v-show="tab === 'dashboard'"
+          :aeo="aeo"
+          @navigate="goTo"
         />
         <ActivityPanel
           v-show="tab === 'dashboard'"
