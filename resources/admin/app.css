@@ -425,10 +425,6 @@
   grid-template-columns: minmax(0, 1fr) 286px;
   gap: 26px;
   align-items: start;
-  /* A small floor under the grid so the sticky rail can stay pinned below the header
-     right to the page bottom, instead of its top tucking under the header on the last
-     stretch of scroll. (Only the very bottom is affected; it reads as normal spacing.) */
-  padding-bottom: 64px;
 }
 .ar__main { display: grid; gap: 22px; min-width: 0; }
 /* On wide screens the rail owns the endpoints list (the form's copy hides). */
@@ -518,7 +514,7 @@
    the Save block at its foot stays reachable. The rail keeps the endpoints, so
    the form's duplicate endpoints card stays hidden. */
 @container (max-width: 900px) {
-  .ar__body.is-railed { display: block; padding-bottom: 20px; }
+  .ar__body.is-railed { display: block; }
   .ar__rail { position: static; margin-top: 22px; max-height: none; overflow: visible; }
 }
 
