@@ -30,7 +30,7 @@ export default {
       // Styled hover tooltip for long inline values (a full User-Agent). position:fixed
       // so the scrolling request feed / day modal never clips it — replaces the native
       // title="…" bubble with the same dark look as the chart tooltip.
-      uaTip: { show: false, text: '', x: 0, y: 0, below: false },
+      uaTip: { show: false, text: '', x: 0, y: 0, caret: 16, below: false },
       // Which "AI visits by day" rows are expanded to show their source → page rows.
       refOpenDays: [],
     };
@@ -269,13 +269,26 @@ export default {
       if (!text) return;
       const rect = ev.currentTarget.getBoundingClientRect();
       const below = rect.top < 96; // not enough room above → drop below.
+      const anchor = rect.left + 16; // viewport x the caret points at — the cell's top-left, so the box hangs left-aligned like before.
       this.uaTip = {
         show: true,
         text,
-        x: Math.min(Math.max(rect.left, 12), window.innerWidth - 372),
+        x: Math.max(rect.left, 12),
         y: below ? rect.bottom + 8 : rect.top - 8,
+        caret: 16,
         below,
       };
+      // Measure the rendered box so a right-edge cell doesn't overflow the viewport, and
+      // keep the caret over the cell even after the box is clamped inward (mirrors the
+      // chart tooltip's positionTip — a fixed caret would drift off on narrow screens).
+      this.$nextTick(() => {
+        const el = this.$refs.uaTipEl;
+        if (!el) return;
+        const w = el.offsetWidth;
+        const x = Math.max(12, Math.min(this.uaTip.x, window.innerWidth - w - 12));
+        this.uaTip.x = x;
+        this.uaTip.caret = Math.max(12, Math.min(anchor - x, w - 16));
+      });
     },
     hideUaTip() {
       this.uaTip.show = false;
@@ -830,12 +843,13 @@ export default {
       <transition name="ar-tip">
         <div
           v-if="uaTip.show"
+          ref="uaTipEl"
           class="ar-act-uatip"
           :class="{ 'is-below': uaTip.below }"
           :style="{ left: uaTip.x + 'px', top: uaTip.y + 'px' }"
           role="tooltip"
           aria-hidden="true"
-        ><span class="ar-act-uatip__ua">{{ uaTip.text }}</span><span class="ar-act-uatip__hint">Click to copy</span><span class="ar-act-uatip__caret"></span></div>
+        ><span class="ar-act-uatip__ua">{{ uaTip.text }}</span><span class="ar-act-uatip__hint">Click to copy</span><span class="ar-act-uatip__caret" :style="{ left: uaTip.caret + 'px' }"></span></div>
       </transition>
     </Teleport>
   </div>
