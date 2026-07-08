@@ -25,7 +25,7 @@
 /* A narrower-breakpoint core rule drops the admin footer's side padding to 20px, which
    pulls its text left of our content. Hold it at 40px so the footer lines up with the
    full-bleed app. */
-#wpfooter { padding-left: 40px; padding-right: 40px; }
+#wpfooter { padding-left: 40px; padding-right: 40px; color: #898a8b; }
 
 /* Design tokens — defined globally rather than only on #agentimus-app. Custom
    properties are inert (they paint nothing until a property references them),
@@ -2452,4 +2452,13 @@ a.ar-about-proto__v:hover { text-decoration: underline; }
 #wpfooter .agentimus-footer-sep {
   color: #9a9ea4;
   text-shadow: 0 1px 0 rgba(255, 255, 255, 0.55), 0 -1px 0 rgba(0, 0, 0, 0.28);
+  margin: 0 5px;
+}
+
+/* Footer text: size + tracking so both footer lines sit evenly around the separator. */
+#wpfooter p {
+  font-size: 13px;
+  margin: 0;
+  line-height: 1.55;
+  letter-spacing: 0.09em;
 }
