@@ -22,6 +22,11 @@
    dial. 16px keeps the footer off the content while barely clipping the gauge. */
 #wpbody-content { padding-bottom: 16px; }
 
+/* A narrower-breakpoint core rule drops the admin footer's side padding to 20px, which
+   pulls its text left of our content. Hold it at 40px so the footer lines up with the
+   full-bleed app. */
+#wpfooter { padding-left: 40px; padding-right: 40px; }
+
 /* Design tokens — defined globally rather than only on #agentimus-app. Custom
    properties are inert (they paint nothing until a property references them),
    so this leaks no visuals into wp-admin, but it DOES let UI we Teleport to
