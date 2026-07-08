@@ -7,8 +7,10 @@
  *
  * The analysis is pure: it inspects a post's rendered HTML (via
  * {@see Content::markdown_source()}) — headings, a lead summary, word count, link
- * density, image alt text — and returns pass/warn rows. No front-end output; it's
- * an authoring aid only. Each check is cheap and side-effect free.
+ * density, image alt text — plus the traits that make a page *citable*: concrete
+ * figures or cited sources to quote, quotable (not over-long) passages, and how
+ * recently it was updated. It returns pass/warn rows. No front-end output; it's an
+ * authoring aid only. Each check is cheap and side-effect free.
  *
  * @package Agentimus
  */
@@ -31,6 +33,15 @@ final class PageCheck {
 	/** Warn when linked words exceed this share of the prose (nav-heavy content). */
 	const LINK_DENSITY_MAX = 0.35;
 
+	/** Below this a page is too short to expect figures or cited sources. */
+	const EVIDENCE_MIN_WORDS = 150;
+
+	/** A single paragraph longer than this is hard to lift as one clean quotable passage. */
+	const LONG_PARAGRAPH_WORDS = 160;
+
+	/** Past this age (days) a substantive page reads as stale — engines favour current sources. */
+	const STALE_DAYS = 730;
+
 	/**
 	 * Run the checks for a post.
 	 *
@@ -39,15 +50,20 @@ final class PageCheck {
 	 */
 	public static function analyze( \WP_Post $post ) {
 		$has_excerpt = '' !== trim( (string) $post->post_excerpt );
-		$stats       = self::stats( Content::markdown_source( $post ), $has_excerpt );
+		$stats       = self::stats( Content::markdown_source( $post ), $has_excerpt, self::home_host() );
+		// Recency is a post fact, not a content fact — fold it in after the pure parse.
+		$stats['age_days'] = self::age_days( $post );
 
 		$checks = array(
 			self::check_words( $stats ),
 			self::check_summary( $stats ),
+			self::check_evidence( $stats ),
 			self::check_headings( $stats ),
 			self::check_heading_order( $stats ),
+			self::check_passages( $stats ),
 			self::check_link_density( $stats ),
 			self::check_alt_text( $stats ),
+			self::check_freshness( $stats ),
 		);
 
 		/**
@@ -68,16 +84,22 @@ final class PageCheck {
 	 *
 	 * @param string $html        Rendered content HTML.
 	 * @param bool   $has_excerpt Whether the post has a manual excerpt.
+	 * @param string $home_host   The site's own host (lowercased), so links elsewhere
+	 *                            count as outbound (cited) sources. '' = don't classify.
 	 * @return array<string,mixed>
 	 */
-	public static function stats( $html, $has_excerpt = false ) {
-		$html  = (string) $html;
-		$words = self::word_count( self::text_of( $html ) );
+	public static function stats( $html, $has_excerpt = false, $home_host = '' ) {
+		$html    = (string) $html;
+		$text    = self::text_of( $html );
+		$words   = self::word_count( $text );
+		// Concrete, quotable specifics: numbers, percentages, dates, amounts.
+		$figures = (int) preg_match_all( '/\d[\d.,]*%?/', $text );
 
 		$headings   = array();
 		$paragraphs = array();
 		$links      = 0;
 		$link_words = 0;
+		$outbound   = 0;
 		$images     = 0;
 		$images_no_alt = 0;
 
@@ -92,6 +114,9 @@ final class PageCheck {
 				} elseif ( 'a' === $tag ) {
 					++$links;
 					$link_words += self::word_count( $node->textContent );
+					if ( self::is_outbound( (string) $node->getAttribute( 'href' ), $home_host ) ) {
+						++$outbound;
+					}
 				} elseif ( 'img' === $tag ) {
 					++$images;
 					if ( '' === trim( (string) $node->getAttribute( 'alt' ) ) ) {
@@ -102,14 +127,16 @@ final class PageCheck {
 		}
 
 		return array(
-			'words'         => $words,
-			'headings'      => $headings,   // heading levels in document order
-			'paragraphs'    => $paragraphs, // per-paragraph word counts
-			'links'         => $links,
-			'link_words'    => $link_words,
-			'images'        => $images,
-			'images_no_alt' => $images_no_alt,
-			'has_excerpt'   => (bool) $has_excerpt,
+			'words'          => $words,
+			'figures'        => $figures,
+			'headings'       => $headings,   // heading levels in document order
+			'paragraphs'     => $paragraphs, // per-paragraph word counts
+			'links'          => $links,
+			'link_words'     => $link_words,
+			'outbound_links' => $outbound,
+			'images'         => $images,
+			'images_no_alt'  => $images_no_alt,
+			'has_excerpt'    => (bool) $has_excerpt,
 		);
 	}
 
@@ -146,6 +173,24 @@ final class PageCheck {
 		);
 	}
 
+	private static function check_evidence( array $s ) {
+		// Short pages aren't expected to marshal figures or sources.
+		if ( (int) $s['words'] < self::EVIDENCE_MIN_WORDS ) {
+			return self::row( 'evidence', __( 'Backed with specifics', 'agentimus' ), 'pass', __( 'Short enough not to need figures or sources.', 'agentimus' ) );
+		}
+		$figures  = (int) ( isset( $s['figures'] ) ? $s['figures'] : 0 );
+		$outbound = (int) ( isset( $s['outbound_links'] ) ? $s['outbound_links'] : 0 );
+		if ( $figures >= 2 || $outbound >= 1 ) {
+			return self::row( 'evidence', __( 'Backed with specifics', 'agentimus' ), 'pass', __( 'Carries figures or cited sources — the kind of specifics an engine can quote and attribute.', 'agentimus' ) );
+		}
+		return self::row(
+			'evidence',
+			__( 'Nothing concrete to quote', 'agentimus' ),
+			'warn',
+			__( 'No figures, dates, or outbound sources. Answer engines lift and cite specifics — add a statistic, a concrete detail, or a link to a source you build on.', 'agentimus' )
+		);
+	}
+
 	private static function check_headings( array $s ) {
 		if ( (int) $s['words'] < self::HEADINGS_MIN_WORDS || ! empty( $s['headings'] ) ) {
 			return self::row( 'headings', __( 'Section headings', 'agentimus' ), 'pass', empty( $s['headings'] ) ? __( 'Short enough to read without headings.', 'agentimus' ) : sprintf( /* translators: %d: heading count. */ __( '%d heading(s) give the page navigable structure.', 'agentimus' ), count( $s['headings'] ) ) );
@@ -172,6 +217,22 @@ final class PageCheck {
 			$prev = (int) $level;
 		}
 		return self::row( 'heading_order', __( 'Heading order', 'agentimus' ), 'pass', __( 'Heading levels nest without skips.', 'agentimus' ) );
+	}
+
+	private static function check_passages( array $s ) {
+		if ( (int) $s['words'] < self::MIN_WORDS || empty( $s['paragraphs'] ) ) {
+			return self::row( 'passages', __( 'Quotable passages', 'agentimus' ), 'pass', __( 'Short enough to quote as-is.', 'agentimus' ) );
+		}
+		$longest = (int) max( (array) $s['paragraphs'] );
+		if ( $longest > self::LONG_PARAGRAPH_WORDS ) {
+			return self::row(
+				'passages',
+				__( 'One long block', 'agentimus' ),
+				'warn',
+				sprintf( /* translators: 1: word count, 2: the threshold. */ __( 'A paragraph runs ~%1$d words. Break blocks over ~%2$d into shorter ones, so an engine can lift a clean, self-contained passage.', 'agentimus' ), $longest, self::LONG_PARAGRAPH_WORDS )
+			);
+		}
+		return self::row( 'passages', __( 'Quotable passages', 'agentimus' ), 'pass', __( 'Paragraphs are a quotable length — easy to lift a clean passage from.', 'agentimus' ) );
 	}
 
 	private static function check_link_density( array $s ) {
@@ -203,9 +264,61 @@ final class PageCheck {
 		return self::row( 'alt_text', __( 'Image alt text', 'agentimus' ), 'pass', $detail );
 	}
 
+	private static function check_freshness( array $s ) {
+		$age = (int) ( isset( $s['age_days'] ) ? $s['age_days'] : 0 );
+		// Only nag substantive content, and only when we actually know its age.
+		if ( (int) $s['words'] < self::MIN_WORDS || $age <= 0 ) {
+			return self::row( 'freshness', __( 'Freshness', 'agentimus' ), 'pass', __( 'Nothing to flag.', 'agentimus' ) );
+		}
+		if ( $age > self::STALE_DAYS ) {
+			$months = (int) round( $age / 30 );
+			return self::row(
+				'freshness',
+				__( 'Getting stale', 'agentimus' ),
+				'warn',
+				sprintf( /* translators: %d: months since last update. */ __( 'Last updated about %d months ago. Answer engines favour current sources — a refresh (even a dated review note) helps this page stay citable.', 'agentimus' ), $months )
+			);
+		}
+		return self::row( 'freshness', __( 'Freshness', 'agentimus' ), 'pass', __( 'Recently enough updated to read as current.', 'agentimus' ) );
+	}
+
 	/* ---------------------------------------------------------------------- *
 	 *  Helpers
 	 * ---------------------------------------------------------------------- */
+
+	/** The site's own host (lowercased), for classifying links as outbound sources. */
+	private static function home_host() {
+		$host = wp_parse_url( home_url(), PHP_URL_HOST ); // home_url() only exists at runtime; this never runs in the pure stats() unit path.
+		return is_string( $host ) ? strtolower( $host ) : '';
+	}
+
+	/** Days since a post was last modified; 0 when unknown. */
+	private static function age_days( \WP_Post $post ) {
+		$stamp = ( isset( $post->post_modified_gmt ) && '0000-00-00 00:00:00' !== $post->post_modified_gmt )
+			? strtotime( $post->post_modified_gmt . ' UTC' )
+			: 0;
+		if ( ! $stamp ) {
+			return 0;
+		}
+		return max( 0, (int) floor( ( time() - $stamp ) / DAY_IN_SECONDS ) );
+	}
+
+	/**
+	 * Whether a link points off-site — an absolute http(s) URL to a different host
+	 * than the site's own. Relative and same-host links are internal, not sources.
+	 *
+	 * @param string $href      The link's href.
+	 * @param string $home_host The site's host, or '' to skip classification.
+	 * @return bool
+	 */
+	private static function is_outbound( $href, $home_host ) {
+		$href = trim( (string) $href );
+		if ( '' === $home_host || ! preg_match( '#^https?://#i', $href ) ) {
+			return false;
+		}
+		$host = parse_url( $href, PHP_URL_HOST ); // native: always available in the stats() unit path; href is already known-absolute.
+		return is_string( $host ) && strtolower( $host ) !== $home_host;
+	}
 
 	/**
 	 * A summary count of the rows by status, for the meta box header.

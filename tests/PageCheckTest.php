@@ -91,6 +91,49 @@ final class PageCheckTest extends TestCase {
 		$this->assertSame( 'pass', $this->check( 'check_summary', array( 'words' => 40, 'paragraphs' => array( 2 ), 'has_excerpt' => false ) )['status'] );
 	}
 
+	/* -- citability signals ----------------------------------------------- */
+
+	public function test_stats_counts_figures_and_outbound_sources() {
+		$html = '<p>In 2024, about 42% grew. '
+			. '<a href="https://external.example/report">source</a> '
+			. '<a href="https://mysite.test/x">internal</a> '
+			. '<a href="/rel">relative</a></p>';
+		$s = PageCheck::stats( $html, false, 'mysite.test' );
+		$this->assertSame( 2, $s['figures'] );        // "2024" and "42%"
+		$this->assertSame( 1, $s['outbound_links'] ); // only the off-site host counts
+	}
+
+	public function test_evidence_wants_figures_or_sources_on_substantial_pages() {
+		// Short page → not expected → pass.
+		$this->assertSame( 'pass', $this->check( 'check_evidence', array( 'words' => 80, 'figures' => 0, 'outbound_links' => 0 ) )['status'] );
+		// Substantial with figures → pass.
+		$this->assertSame( 'pass', $this->check( 'check_evidence', array( 'words' => 400, 'figures' => 3, 'outbound_links' => 0 ) )['status'] );
+		// Substantial with a cited source → pass.
+		$this->assertSame( 'pass', $this->check( 'check_evidence', array( 'words' => 400, 'figures' => 0, 'outbound_links' => 1 ) )['status'] );
+		// Substantial with nothing concrete → warn.
+		$this->assertSame( 'warn', $this->check( 'check_evidence', array( 'words' => 400, 'figures' => 0, 'outbound_links' => 0 ) )['status'] );
+	}
+
+	public function test_passages_flags_one_over_long_block() {
+		// A single over-long paragraph on a substantial page → warn.
+		$this->assertSame( 'warn', $this->check( 'check_passages', array( 'words' => 400, 'paragraphs' => array( 40, 200, 30 ) ) )['status'] );
+		// Reasonable paragraphs → pass.
+		$this->assertSame( 'pass', $this->check( 'check_passages', array( 'words' => 400, 'paragraphs' => array( 60, 80, 50 ) ) )['status'] );
+		// Short page → pass regardless.
+		$this->assertSame( 'pass', $this->check( 'check_passages', array( 'words' => 60, 'paragraphs' => array( 60 ) ) )['status'] );
+	}
+
+	public function test_freshness_flags_stale_substantial_pages() {
+		// Old + substantial → warn.
+		$this->assertSame( 'warn', $this->check( 'check_freshness', array( 'words' => 400, 'age_days' => 800 ) )['status'] );
+		// Recently updated → pass.
+		$this->assertSame( 'pass', $this->check( 'check_freshness', array( 'words' => 400, 'age_days' => 30 ) )['status'] );
+		// Age unknown → nothing to claim → pass.
+		$this->assertSame( 'pass', $this->check( 'check_freshness', array( 'words' => 400, 'age_days' => 0 ) )['status'] );
+		// Thin page → the thin check owns it → pass.
+		$this->assertSame( 'pass', $this->check( 'check_freshness', array( 'words' => 50, 'age_days' => 900 ) )['status'] );
+	}
+
 	/* -- summary() -------------------------------------------------------- */
 
 	public function test_summary_counts_by_status() {
