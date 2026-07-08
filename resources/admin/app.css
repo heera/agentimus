@@ -16,6 +16,12 @@
 .folded #wpcontent { padding-left: 0; }
 .wrap { margin: 0; }
 
+/* WP core gives #wpbody-content a 65px bottom padding. That space lives inside the
+   sticky readiness rail's scroll box, so at the page bottom it is *also* exactly how
+   far the rail's top tucks under the sticky header — footer gap and rail tuck are one
+   dial. 16px keeps the footer off the content while barely clipping the gauge. */
+#wpbody-content { padding-bottom: 16px; }
+
 /* Design tokens — defined globally rather than only on #agentimus-app. Custom
    properties are inert (they paint nothing until a property references them),
    so this leaks no visuals into wp-admin, but it DOES let UI we Teleport to
