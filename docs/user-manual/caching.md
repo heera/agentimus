@@ -63,3 +63,17 @@ Add the same paths to the plugin's **"Never cache these URLs" / cache-exclusion*
 Run **Verify live** again — the warning should be gone, and `curl -I` on those paths should show `cf-cache-status: DYNAMIC`/`BYPASS` (or no `age:` header). From then on, every real AI fetch reaches WordPress, so your Activity numbers are accurate and your change feed and `.md` twins are always current.
 
 > **Is bypassing the cache a performance problem?** No. These endpoints are fetched by bots at low volume, not by your human visitors — so excluding them from the page cache has a negligible effect on your site's speed, while making your AI tracking accurate and your discovery data fresh.
+
+## Alternative for the Traffic-from-AI count: CDN mode
+
+Bypassing the cache (above) is the clean, complete fix. But if you'd rather leave your cache untouched, there's a narrower **opt-in** option that rescues just the **Traffic from AI** count: **CDN mode**.
+
+When a full-page cache serves your pages, a reader who clicks through from ChatGPT or Perplexity gets a stored copy — WordPress never runs, so that AI-referral visit is never counted (the same physics as the under-counted Activity log above). CDN mode moves the counting into the **visitor's browser**: it adds one tiny script that reports the referral after the page loads, so the count survives the cache.
+
+Find it under **Settings → Visit log → "CDN mode — count AI visits in the browser."** It's **off by default** — only turn it on if a full-page cache/CDN actually fronts your site. Three things to know:
+
+- **Still no IP.** It stores only a per-day *(assistant → page)* tally — no IP address, no User-Agent, no query string, exactly like the server-side count. The server (not the browser) decides which assistant a visit came from, so a page can't fake its way into your numbers.
+- **Read the total as a floor.** Visitors using an ad-blocker, or a script-blocking privacy browser, won't be counted — so the number is a minimum, never an over-count.
+- **The server-side counter stands down.** With CDN mode on, Agentimus counts referrals *only* in the browser. A cache-served hit and a browser-beacon hit can't be told apart to de-duplicate, so running both would double some visits — one counter at a time keeps the number honest.
+
+CDN mode only helps the Traffic-from-AI count; it does nothing for the Activity log or endpoint freshness. For those, bypass the cache as described above.

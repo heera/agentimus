@@ -82,9 +82,11 @@ Here you choose which of your content types AI assistants are told about. **Post
 
 An important reassurance shown right on this step: this only controls what gets **advertised** to assistants. It never makes anything public that wasn't already public — the underlying content keeps its normal WordPress visibility either way.
 
+Alongside choosing *which* content types to advertise, this step is also where you set your **AI stance** — three simple checkboxes for what assistants may do with your content: **findable in search engines** (Google, Bing…), **read and cited in answers** (with attribution), and **used to train AI** (left off, so training is reserved by default). Your choices are stated in your `robots.txt` as a **Content-Signal** — a polite request that well-behaved crawlers honour — and you can change them any time later under **Crawler policy** in Settings.
+
 ### Step 3: Review and finish
 
-The last step is a plain-English summary: who your site represents, what assistants can read, and a short list of the strong protections that switched on **automatically** — such as being discoverable through machine-readable files, and (where your server supports it) signed responses agents can verify. Click **Finish setup** and Agentimus saves everything in one go, with a brief celebration to confirm you're done. Then it's fully running.
+The last step is a plain-English summary: who your site represents, what assistants can read, and a short list of the strong protections that switched on **automatically** — such as being discoverable through machine-readable files, and (where your server supports it) signed responses agents can verify. When you've left training off, this list also confirms your content is **reserved from AI training**, reflecting the stance you set in Step 2. Click **Finish setup** and Agentimus saves everything in one go, with a brief celebration to confirm you're done. Then it's fully running.
 
 ### Skipping or re-running the wizard
 

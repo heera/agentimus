@@ -6,7 +6,7 @@ nav_order: 3
 
 Agentimus exposes its behaviour through WordPress actions and filters. Everything on this page is optional — a stock install works with none of them registered. Add a hook only when you need to register a plugin, shape a machine surface, or tune a default.
 
-Every hook name, signature and default on this page is taken from the plugin source. Copy-paste examples for all of them live in `examples/all-hooks-reference.php` in the plugin (documentation-only; it is not loaded at runtime). The registration schema used with `$registry->register()` and `$registry->add_well_known()` is documented separately in `examples/integrate-your-plugin.php`.
+Every hook name, signature and default on this page is taken from the plugin source. Copy-paste examples for the most-used ones live in `examples/all-hooks-reference.php` in the plugin (documentation-only; it is not loaded at runtime). The registration schema used with `$registry->register()` and `$registry->add_well_known()` is documented separately in `examples/integrate-your-plugin.php`.
 
 ## Stability tiers
 
@@ -88,6 +88,7 @@ add_filter( 'agentimus_documents', function ( $docs, $registry ) {
 | `agentimus_post_types` | filter | `( string[] $types, string[] $available ): string[]` | Which post types are agent-visible — each gets its own section in llms.txt. |
 | `agentimus_post_type_source` | filter | `( string $source, string $post_type ): string` | Attribute a post type's llms.txt section to your plugin (vendor label; `''` = none). |
 | `agentimus_markdown_source` | filter | `( ?string $html, WP_Post $post ): ?string` | Supply rendered HTML for a post (e.g. page-builder content). Return `null` to let Agentimus render it normally. |
+| `agentimus_markdown_cache` | filter | `( bool $on ): bool` | Turn the tiered per-post `.md` body cache (object cache → file → regenerate) on or off. Default `true`; return `false` to force fresh rendering. It is self-invalidating on any content/settings change, so you rarely need this. |
 | `agentimus_llms_full_item_max_bytes` | filter | `( int $bytes ): int` | Per-item byte cap for the llms-full.txt full-text edition. Default is derived from the budget: `min(256KB, max(32KB, budget/4))`. |
 | `agentimus_llms_full_avg_item_bytes` | filter | `( int $bytes ): int` | Average item size (default `4096`) used only to **estimate** the full-text edition size in the admin. |
 | `agentimus_yield_surface` | filter | `( bool $yield, string $surface ): bool` | Cede a surface to your own producer so Agentimus stops emitting it. Surface keys: `llms_txt`, `llms_full`, `markdown`, `link_headers`, `robots`. |
@@ -137,6 +138,7 @@ Agentimus does **not** declare its own robots.txt filter. It appends AI-crawler 
 | `agentimus_schema_type_map` | filter | `( array $map ): array` | The post-type → schema `@type` map. Default: `array( 'post' => 'BlogPosting', 'page' => 'WebPage' )`; anything unmapped falls back to `Article`. |
 | `agentimus_schema_graph` | filter | `( array $graph ): array` | Last-chance edit of the entire JSON-LD `@graph` before output. |
 | `agentimus_faq_pairs` | filter | `( array $pairs, WP_Post $post ): array` | Contribute extra question/answer pairs to the `FAQPage` schema. |
+| `agentimus_faq_max_bytes` | filter | `( int $bytes ): int` | Byte ceiling above which `FAQPage` extraction is skipped for a post — a very large (page-builder) body is block-rendered and DOM-parsed on every front-end view and is rarely a clean FAQ anyway. Default `256 KB`; `0` disables the ceiling. |
 
 ```php
 add_filter( 'agentimus_schema_for_post', function ( $node, $post ) {
@@ -191,6 +193,19 @@ These are the Guard (opt-in UA blocking), the activity Classifier (labelling, no
 | `agentimus_reverse_dns` | filter | `( ?string $host, string $ip ): ?string` | Override the reverse (PTR) lookup used by the verifier — return a hostname string (`''` for none) to inject a resolver or cache, or `null` to fall through to the built-in lookup. |
 | `agentimus_forward_dns` | filter | `( ?array $ips, string $host ): ?array` | Override the forward (A/AAAA) lookup used by the verifier — return an array of IP strings, or `null` to fall through to the built-in lookup. |
 
+### Crawler verification & client IP
+
+The reverse-DNS crawler verifier (whose on/off and lookup hooks — `agentimus_verify_bots`, `agentimus_reverse_dns`, `agentimus_forward_dns` — are listed under Guard above) and the real-client-IP resolver that runs before it. The verifier **fails open**: a slow, budget-exhausted or tripped lookup returns no verdict rather than a wrong one. These knobs tune that circuit breaker and the proxy handling.
+
+| Hook | Type | Signature | Purpose |
+| --- | --- | --- | --- |
+| `agentimus_verified_bot_domains` | filter | `( array $map ): array` | The verifiable-engine map: UA token → the reverse-DNS domain suffixes an IP claiming it must resolve into (e.g. `googlebot` → `.googlebot.com`, `.google.com`). Add your CDN's own verified crawler, or tighten the set. |
+| `agentimus_verify_slow_ms` | filter | `( int $ms ): int` | Milliseconds beyond which a single DNS lookup counts as "slow" — one circuit-breaker strike, and a fail-open (null) verdict for that request. Default `900`. |
+| `agentimus_verify_trip_strikes` | filter | `( int $strikes ): int` | How many slow-lookup strikes (within the strike window) open the verifier's circuit breaker, after which DNS is skipped entirely for a cooldown. Default `2`. |
+| `agentimus_verify_lookup_budget` | filter | `( int $max ): int` | Maximum reverse-DNS lookups per rolling 60-second window; once spent, verification stands down (fail-open) until the window rolls. Default `30`. |
+| `agentimus_trusted_proxies` | filter | `( array $proxies ): array` | Trusted proxy/CDN definitions used to resolve the real client IP, each `array( 'header' => string, 'ranges' => string[] )` of CIDRs. Ships with Cloudflare's ranges + `CF-Connecting-IP`. A forwarded header is honoured **only** when the direct peer (`REMOTE_ADDR`) falls inside that proxy's ranges, so it can't be used to spoof a source IP from the open internet. |
+| `agentimus_client_ip` | filter | `( string $ip ): string` | Final override of the resolved client IP used for bot verification. It already resolves the real client behind a trusted proxy; reach for this only for an unusual proxy header or to pin a value in tests. |
+
 ### Classifier (labelling)
 
 | Hook | Type | Signature | Purpose |
@@ -227,20 +242,44 @@ add_filter( 'agentimus_deny_request', function ( $deny, $ua_lc ) {
 }, 10, 2 );
 ```
 
+### Exposure & environment
+
+The exposed-files self-check (Readiness → **Scan for exposed files**) and the local-vs-production detection behind the debug-config warning. Agentimus only points at a risk here — it never reads, edits or deletes a file; the probing happens same-origin from the admin browser.
+
+| Hook | Type | Signature | Purpose |
+| --- | --- | --- | --- |
+| `agentimus_exposed_paths` | filter | `( string[] $paths, Settings $settings ): string[]` | The sensitive, root-relative path list the scan probes for (e.g. `/.env`, `/.git/config`, `/wp-config.php.bak`, `/composer.lock`). The owner's extra paths from Settings are merged on top of the returned list. |
+| `agentimus_is_local_env` | filter | `( bool $local, string $host ): bool` | Override whether this counts as a local/development environment — consulted **only** when `WP_ENVIRONMENT_TYPE` isn't explicitly declared. `$host` is the site's canonical `home_url()` host. |
+| `agentimus_local_host_suffixes` | filter | `( string[] $suffixes ): string[]` | Host suffixes treated as LOCAL (each begins with a dot; defaults include `.test`, `.localhost`, `.local`, `.ddev.site`, `.lndo.site`). Add only suffixes a public production site can never use, or the debug warning may be wrongly silenced. |
+
 ## Activity & analytics
 
-Tuning knobs for the activity log, its retention and the "activity to review" panel.
+Tuning knobs for the activity log, its retention, AI-referral tracking and the "activity to review" panel.
 
 | Hook | Type | Signature | Purpose |
 | --- | --- | --- | --- |
 | `agentimus_activity_skip_self` | filter | `( bool $skip ): bool` | Whether to skip recording hits from logged-in admins. Default: `is_user_logged_in() && current_user_can( 'manage_options' )`. |
 | `agentimus_activity_retention_days` | filter | `( int $days ): int` | How long agent hits are retained, in days. |
+| `agentimus_flagged_ip_retention_days` | filter | `( int $days ): int` | Retention, in days, for the opt-in flagged-IP store (the only PII the plugin ever keeps, and only when the owner turns IP capture on for flagged clients). Default `14`. |
 | `agentimus_activity_max_rows` | filter | `( int $max ): int` | Hard cap on rows in the activity table — a backstop to age-based pruning. A cap of `0` disables it. |
+| `agentimus_activity_clients_limit` | filter | `( int $limit ): int` | Number of rows in the dashboard's "top clients" (by-agent) breakdown. Default `8`, clamped to `1–200`. |
+| `agentimus_activity_endpoints_limit` | filter | `( int $limit ): int` | Number of rows in the dashboard's "top endpoints" breakdown. Default `12`, clamped to `1–200`. |
 | `agentimus_ai_referral_sources` | filter | `( array $map ): array` | Referrer host → friendly name for "Traffic from AI" attribution. |
+| `agentimus_referrals_max_rows` | filter | `( int $max ): int` | Hard cap on stored AI-referral rows — a backstop to age-based pruning that keeps the busiest `(day, source, path)` rows and drops the long tail (where a spoofed-referrer flood lands). Default `50000`; `0` disables it. |
+| `agentimus_referral_beacon` | filter | `( bool $on ): bool` | Force "CDN mode": count AI referrals from a same-domain browser beacon instead of server-side, so the counts survive a full-page CDN/edge cache. Opt-in, default off (mirrors the `enable_referral_beacon` setting); the two sources can't be deduped, so it is deliberately one **or** the other. |
+| `agentimus_referral_beacon_rate` | filter | `( int $max ): int` | Site-wide, PII-free flood cap on the public `/ai-hit` beacon — hits accepted per rolling 60-second window (no IP is read or stored). Default `600`; `0` disables the cap. |
 | `agentimus_new_agent_seconds` | filter | `( int $seconds ): int` | The "new agent" window for the activity-to-review panel, in seconds. |
 | `agentimus_burst_min_hits` | filter | `( int $hits ): int` | Minimum hits to flag a burst. |
 | `agentimus_heavy_min_hits` | filter | `( int $hits ): int` | Minimum hits to flag heavy usage. |
 | `agentimus_threats_limit` | filter | `( int $limit ): int` | Maximum rows in the "activity to review" panel. |
+
+### AI-visibility monitor
+
+The opt-in AI-visibility monitor polls AI providers on a schedule to see whether they mention and cite you; it keeps its own settings and tables, separate from the activity log above. This knob bounds a single run.
+
+| Hook | Type | Signature | Purpose |
+| --- | --- | --- | --- |
+| `agentimus_visibility_max_checks_per_run` | filter | `( int $max ): int` | Hard ceiling on `(tracked prompt × active provider)` checks in one monitoring run — a spend backstop above the structural product/prompt/provider caps. Default `1000`; lower it to cap monitoring spend more tightly. |
 
 ## Settings & lifecycle
 
@@ -269,6 +308,6 @@ add_action( 'agentimus_booted', function ( $plugin ) {
 
 ## See also
 
-- `examples/all-hooks-reference.php` — a copy-paste block for every hook on this page, grouped by the same stability tiers.
+- `examples/all-hooks-reference.php` — copy-paste blocks for the most-used hooks on this page, grouped by the same stability tiers.
 - `examples/integrate-your-plugin.php` — the full `Registry::register()` / `add_well_known()` schema used inside the registration action.
 - The **Registering your plugin** and **Topics for AI** pages walk through the two most common integrations end to end.

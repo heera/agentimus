@@ -134,13 +134,13 @@ An unpublished post is previewed with its *would-be* per-post node (built via `S
 
 ### GET `/preview/markdown`
 
-Returns the Markdown a page/post is served as — the `.md` twin / the `Accept: text/markdown` response. Markdown is **per-page**: the site target (`post = 0`) has no Markdown.
+Returns the Markdown a page/post is served as — the `.md` twin / the `Accept: text/markdown` response. The site target (`post = 0`) returns the **site index** Markdown (`LlmsText::index_markdown()`) — the same document served at the home URL (`/index.md`) and at `/llms.txt`.
 
 **Parameters**
 
 | Name   | In    | Type    | Default | Notes                                                       |
 |--------|-------|---------|---------|-------------------------------------------------------------|
-| `post` | query | integer | `0`     | `absint`-sanitized. `0`/absent returns an empty site row.  |
+| `post` | query | integer | `0`     | `absint`-sanitized. `0`/absent returns the site-index Markdown. A non-zero id returns that post's Markdown. |
 
 A non-existent or out-of-scope post id returns `WP_Error` `agentimus_preview_not_found` (HTTP 404), same as the schema preview.
 
@@ -162,7 +162,7 @@ A non-existent or out-of-scope post id returns `WP_Error` `agentimus_preview_not
 - **`active`** / **`reason`** — whether Markdown delivery (`enable_markdown`) is switched on (`"ok"` or `"disabled"`).
 - Markdown is genuine served content (no "would-be" preview): a draft yields `postIncluded: false` and a `postNote` saying nothing is served yet; a password-protected post yields `postIncluded: false` and is never served as Markdown.
 - **`mdUrl`** mirrors the front-end resolution — the permalink with `.md` appended (`untrailingslashit( $permalink ) . '.md'`).
-- For `post = 0`, the response returns the site target with `postIncluded: false` and a note that Markdown is per-page.
+- For `post = 0`, the response returns the site target with `postIncluded: true`, the index Markdown in `markdown`, and `mdUrl` set to the home URL with `/index.md` appended (`home_url( '/index.md' )`).
 
 ### GET `/preview/targets`
 

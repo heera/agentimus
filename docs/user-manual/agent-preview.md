@@ -95,10 +95,13 @@ the two things an agent actually receives for a page.
   asks for the page as Markdown, served at the page's address with `.md` on the
   end.
 
-One important detail: **Markdown is generated per page**, so the **Site-wide
-identity** target has no Markdown. If you switch to the Markdown tab while the
-site is selected, it tells you to pick a page or post instead. Every other
-target offers both formats.
+The **Site-wide identity** target has a Markdown twin too, but a different kind:
+switch to the Markdown tab while the site is selected and you get the **site
+index** — the same document Agentimus serves at your home address (add `.md` to
+it) and at `/llms.txt`. It is built from your site identity plus the list of your
+pages and posts, not from any single page's body, so it reads as a map of the
+site rather than one page's text. Every other target shows that page's own
+Markdown.
 
 ## Reading the status banner
 
@@ -252,7 +255,7 @@ confirm that your published site is genuinely delivering it end to end.
 
 | Situation | JSON-LD tab | Markdown tab |
 | --- | --- | --- |
-| Site-wide identity | Full identity graph, live if schema is on | No Markdown (per-page only) |
+| Site-wide identity | Full identity graph, live if schema is on | Site-index Markdown (served at `/index.md` & `/llms.txt`) |
 | Published, normal post | Full per-post graph, marked live | Served `.md` text, marked live |
 | Feature turned off | Full preview, amber "turned off" banner | Full preview, amber "turned off" banner |
 | SEO plugin owns schema | What Agentimus would emit, blue banner | Not affected (Markdown is separate) |

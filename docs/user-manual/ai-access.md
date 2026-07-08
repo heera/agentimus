@@ -144,7 +144,13 @@ When it's on, a visitor claiming to be Googlebot, Bingbot, Applebot, DuckDuckBot
 
 Only a request that passes all three is treated as the real crawler; anything else is handled like any other unknown client. Results are cached briefly, so a busy crawler isn't looked up on every hit.
 
-**It's off by default, on purpose.** The check makes a small DNS lookup, and — more importantly — it needs your visitor's *real* IP address. If your site sits behind a proxy or CDN (Cloudflare and friends) and you haven't configured WordPress to see the true client IP, every visitor looks like the proxy and the check can't work. Leave it off unless you know your real client IP is being passed through. When it's off, nothing changes: search engines are still trusted by signature exactly as before.
+**It's off by default, on purpose** — the check makes a small outbound DNS lookup, and this plugin makes none unless you ask it to. It does need your visitor's *real* IP address to work, but since 1.15.0 that's handled for you in the common cases:
+
+- **Behind Cloudflare, it just works.** Agentimus reads the real client IP out of the box, so a crawler is checked against its own address, not the proxy's. It only trusts a forwarded IP when the request genuinely arrives from a proven proxy (the direct connection is inside Cloudflare's published ranges), so a visitor can never spoof a source IP by simply sending a header. There's nothing to configure and no reason to leave verification off just because you're on a CDN.
+- **Other proxies and load balancers** can be added in code with the `agentimus_trusted_proxies` filter — give it your proxy's IP ranges and the header it forwards the real client IP in, and verification works the same way there.
+- **It fails open.** If DNS is slow or unavailable, or the lookup can't reach a conclusion, a legitimate crawler is *never* dropped — it stays trusted. Only a request that conclusively resolves to someone other than the engine it claims loses its always-allow. So turning this on can't accidentally lock out a real search engine.
+
+When it's off, nothing changes: search engines are still trusted by signature exactly as before.
 
 ### Your trusted AI assistants
 

@@ -4,7 +4,7 @@ Tags: ai-agents, ai-crawlers, agent-readiness, llms-txt, ai-seo
 Requires at least: 6.0
 Tested up to: 7.0
 Requires PHP: 7.4
-Stable tag: 1.14.1
+Stable tag: 1.15.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -219,6 +219,16 @@ There is no minified-only code. The admin interface is built from Vue 3 source i
 
 == Changelog ==
 
+= 1.15.0 =
+* New — **Spot impostor crawlers.** The activity review queue now verifies a visitor that claims to be Googlebot, Bingbot, Applebot, DuckDuckBot or Yandex by its network address (reverse DNS), and flags a forgery as an **impersonator** — a scanner can't inherit a real crawler's trust just by copying its name. Each flagged client gets a plain "Check this bot" panel and one-click Block / Allow / Ignore. Optional **Store IP addresses for flagged clients** (off by default) records the address of an impersonator or spoof — only those, never ordinary visitors — for a short time, so you can see exactly which IP to block at your host or CDN. Nothing is ever sent off your server.
+* New — **Exposed-files check.** A one-click scan (Readiness → *Scan for exposed files*) asks your own public URL for the risky files that should never be reachable — backups, `.env`, database dumps, keys, a stray `debug.log` — and flags any that are actually downloadable, reading only whether each responds, never its contents. It's environment-aware (on a local site a finding reads as a heads-up "on deploy"), you can add your own paths under Settings → Exposure, and a companion card warns when WordPress debug logging is left on in production. Guidance, not a firewall — it tells you what to delete or block, with copy-paste Nginx, Apache and Cloudflare rules.
+* New — **CDN mode.** If a full-page cache (Cloudflare, a caching plugin) serves your pages, AI-referral visits never reach WordPress to be counted. Turn on CDN mode and Agentimus counts them in the browser instead, so your *Traffic from AI* numbers survive the cache. Off by default; no IP address and no per-visitor data.
+* New — **Set your AI stance during setup.** The setup wizard now lets you choose, in one step, whether AI may show you in search, read and cite you, and train on your content — and points you to the newer tabs (Dashboard, Readiness, Discovery) when you finish.
+* New — **Faster Markdown.** Per-page `.md` versions are now cached in tiers so a crawl doesn't rebuild them each time, and your home URL's site-index Markdown now previews in Agent preview alongside its JSON-LD.
+* Improved — **Reverse-DNS verification fails open**, so a slow DNS resolver can no longer make a real crawler lose its trusted status. When you've told Agentimus your CDN is trusted, it now reads the **real visitor IP behind the proxy** (for example Cloudflare's) so verification and flagged-IP capture are accurate. And the **Readiness report warns** when a shared cache is serving your AI endpoints, which would otherwise make the activity log under-count.
+* Improved — admin polish: the nav bar and page header now stay put as you scroll, the Readiness actions stack neatly on small screens, and there are several spacing and copy fixes across the dashboard.
+* Fixed — the exposed-files scan now picks up a path you just added without a page reload, and no longer mistakes a redirect or a soft-404 page for a downloadable file. A page's body is recovered for its Markdown and word count when another plugin's `the_content` filter blanks it outside the main loop. And a settings row now toggles only from its switch, not from a click anywhere on the row.
+
 = 1.14.1 =
 * Improved — the admin footer on the Agentimus screen now shows both the Agentimus version and your WordPress version, with a subtly engraved separator that reads correctly on light or dark admin surfaces.
 * Improved — the About tab now lists the optional "verify search engines by reverse DNS" control and notes that your AI Visibility API keys are stored encrypted at rest.
@@ -367,6 +377,9 @@ There is no minified-only code. The admin interface is built from Vue 3 source i
 * Admin Discovery Hub for inspecting what agents can see, with per-item publish/suppress control.
 
 == Upgrade Notice ==
+
+= 1.15.0 =
+Spot impostor crawlers, scan your site for exposed files (backups, .env, debug.log), and count AI visits even behind a CDN — plus faster Markdown, a friendlier setup, and a sticky admin header. All new features are opt-in; no breaking changes.
 
 = 1.14.1 =
 Small admin-UI polish: the footer shows both the Agentimus and WordPress versions, and the About tab documents the reverse-DNS verification and encrypted keys. No functional changes.

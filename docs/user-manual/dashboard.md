@@ -54,6 +54,8 @@ Both signals are lowercased, have any leading `www.` removed, and are matched ag
 
 One more gate: the visitor must be using a **real web browser**. A reader clicking out of an AI answer is a person on a browser; a bot that happens to arrive carrying a referrer is not "a visitor AI sent", so it is not counted here.
 
+If your site sits behind a full-page cache or CDN, these referrals can be served from cache and never reach WordPress to be counted — see **Caching & CDNs** for the fix, including an opt-in **CDN mode** that counts them in the visitor's browser instead.
+
 ### Which assistants are recognised
 
 | Assistant | Detected from |
@@ -130,7 +132,9 @@ Click into a day and the **"View requests"** view shows every hit recorded on th
 
 ### Activity to review
 
-Sitting alongside the log is a small **review queue** that flags clients worth a second look — ones that are **new**, **unusually high-volume**, or **spoofed/scanner** by the definition above. Each flagged client comes with a one-click **Block** (or **Allow**/trust) action. This pairs with the optional *Block scanners & scrapers* enforcement covered on the **Settings** page — the review queue and the blocking feature share one definition of who is who, so a decision you make in one is honoured by the other.
+Sitting alongside the log is a small **review queue** that flags clients worth a second look — ones that are **new**, **unusually high-volume**, **spoofed/scanner** by the definition above, or an **impersonator**. An impersonator is a client claiming to be a *verifiable* search engine — Googlebot, Bingbot, Applebot, DuckDuckBot or Yandex — whose network address **fails a reverse-DNS check**: a forgery, not the real engine. (Impersonators are caught only when **Verify search engines by reverse DNS** is on, an opt-in setting covered on the **Settings** page.) Each flagged client comes with a one-click **Block** (or **Allow**/trust) action. This pairs with the optional *Block scanners & scrapers* enforcement covered on the **Settings** page — the review queue and the blocking feature share one definition of who is who, so a decision you make in one is honoured by the other.
+
+Every flagged row's **Details** also gives a plain, honest verdict on that one client. For an impersonator it reads like *"claims to be Googlebot, but its address failed reverse-DNS verification when it visited — a forgery, not the real Googlebot."* Because blocking the *name* would also block the genuine engine, the guidance is to **block the IP** at your host or CDN instead. To see the exact address, turn on the opt-in **Store IP addresses for flagged clients** setting (off by default) — it records forward-only, so it shows the IP of future flagged visits — or find it now in your server's access log by matching the User-Agent shown in the panel. Beside Block and Allow sits an **Ignore** action, which dismisses a row you've judged harmless; it quietly re-surfaces if that client keeps hammering you.
 
 ### Flood protection
 

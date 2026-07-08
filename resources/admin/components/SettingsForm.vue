@@ -1176,7 +1176,7 @@ export default {
         </div>
 
         <!-- Verification is not gated by blocking: on its own it flags impersonators in
-             the review queue and powers "Check this bot", whether or not you deny anyone. -->
+             the review queue and powers the row's Details verdict, whether or not you deny anyone. -->
         <label class="ar-toggle ar-toggle--standalone">
           <input v-model="settings.verify_bots" type="checkbox" />
           <span class="ar-toggle__track" aria-hidden="true"></span>
@@ -1186,11 +1186,12 @@ export default {
               When a visitor <em>says</em> it's Googlebot, Bingbot, Applebot, DuckDuckBot or Yandex, confirm its
               network address really belongs to that engine — the one check that catches a scanner copying a
               crawler's name. A confirmed impersonator is flagged for review as an <strong>Impersonator</strong>,
-              and <strong>Check this bot</strong> shows the result. Works whether or not blocking is on; if blocking
+              and opening its <strong>Details</strong> shows the verdict. Works whether or not blocking is on; if blocking
               <em>is</em> on, a proven fake also loses its free pass. This is the one feature that makes a small
               outbound DNS lookup (cached per visitor).
-              <strong>Behind a proxy or CDN (e.g. Cloudflare)?</strong> Leave this off unless you've supplied the real
-              visitor IP, or real crawlers may lose their trusted status.
+              <strong>Behind a proxy or CDN?</strong> On Cloudflare it works automatically — Agentimus reads the real
+              visitor IP. Another proxy may need the true client IP passed through; either way, a slow or failed
+              lookup never drops a real crawler.
             </small>
           </span>
         </label>
