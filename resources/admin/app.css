@@ -433,7 +433,10 @@
 /* ---- Right rail --------------------------------------------------------- */
 /* Rail sticks BELOW the now-sticky header (admin bar + the two 72px strips). It's only
    sticky above 900px (it goes static below), where the header is always exactly 144px. */
-.ar__rail { position: sticky; top: calc(var(--ar-adminbar) + 2 * var(--ar-bar-h)); display: grid; gap: 14px; align-content: start; }
+/* The rail sticks below the sticky header. Cap it to the space that leaves in the
+   viewport and let it scroll internally, so a short screen can never clip the top or
+   bottom of it (the whole rail stays reachable while the header stays pinned). */
+.ar__rail { position: sticky; top: calc(var(--ar-adminbar) + 2 * var(--ar-bar-h)); max-height: calc(100vh - var(--ar-adminbar) - 2 * var(--ar-bar-h) - 24px); overflow-y: auto; overscroll-behavior: contain; display: grid; gap: 14px; align-content: start; }
 .ar-rail-card {
   background: var(--ar-surface);
   border: 1px solid var(--ar-line);
@@ -512,7 +515,7 @@
    the form's duplicate endpoints card stays hidden. */
 @container (max-width: 900px) {
   .ar__body.is-railed { display: block; }
-  .ar__rail { position: static; margin-top: 22px; }
+  .ar__rail { position: static; margin-top: 22px; max-height: none; overflow: visible; }
 }
 
 /* Narrow widths: stack the header into two rows. Row 1 is the brand alone; row 2
