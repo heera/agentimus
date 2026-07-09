@@ -812,9 +812,12 @@
 .ar-toggle {
   display: flex; align-items: flex-start; gap: 14px;
   padding: 13px 0; border-top: 1px solid var(--ar-line);
-  /* Only the switch toggles: the row/label ignores pointer clicks, so clicking the
-     text does nothing. Keyboard focus/activation and the label→input association (the
-     screen-reader name) are unaffected — pointer-events is mouse/touch only. */
+  /* The switch and its NAME toggle the setting; the rest of the row does not. The row is a
+     <label>, so natively every pixel of it flips the checkbox — including the hint, which
+     runs to two lines and which you may well be trying to select or to click a link inside.
+     So the row opts out of pointer events and the two parts that should respond opt back in.
+     Keyboard focus/activation and the label→input association (the screen-reader name) are
+     unaffected: pointer-events is mouse/touch only. */
   cursor: default; pointer-events: none;
 }
 .ar-toggle:first-of-type { border-top: 0; padding-top: 2px; }
@@ -834,9 +837,17 @@
 .ar-toggle input:focus-visible + .ar-toggle__track { outline: 2px solid var(--ar-accent); outline-offset: 2px; }
 /* Links inside a hint stay clickable; the busy-lock still disables the switch mid-save. */
 .ar-toggle a { pointer-events: auto; }
-.ar-toggle[data-busy] .ar-toggle__track { pointer-events: none; }
+.ar-toggle[data-busy] .ar-toggle__track,
+.ar-toggle[data-busy] .ar-toggle__text strong { pointer-events: none; }
 .ar-toggle__text { display: flex; flex-direction: column; gap: 1px; }
-.ar-toggle__text strong { font-size: 14px; font-weight: 600; }
+/* The setting's name is a second hit target for the switch beside it — a small control
+   deserves a big label. The hint below stays inert, so selecting it or following a link in
+   it can't flip the setting by accident. */
+.ar-toggle__text strong {
+  font-size: 14px; font-weight: 600;
+  pointer-events: auto; cursor: pointer;
+  align-self: flex-start; /* don't stretch the hit area across the row's full width. */
+}
 .ar-toggle__text small { color: var(--ar-ink-soft); font-size: 12px; }
 
 /* "Check an IP" tool (AI Access) — a quiet inset utility below the verification toggles. */
