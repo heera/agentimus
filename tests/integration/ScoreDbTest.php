@@ -13,6 +13,9 @@ namespace Agentimus\Tests\Integration;
 use Agentimus\Cache;
 use Agentimus\Score;
 use Agentimus\Settings;
+use Agentimus\Visibility\Runner;
+use Agentimus\Visibility\Store;
+use Agentimus\Visibility\Table;
 
 final class ScoreDbTest extends DbTestCase {
 
@@ -162,6 +165,43 @@ final class ScoreDbTest extends DbTestCase {
 			return (int) $p['id'];
 		}, $r['ignored'] );
 		$this->assertContains( (int) $id, $ignoredIds, 'a set-aside post must show in the visible list' );
+	}
+
+	public function test_cited_is_not_measured_once_ai_visibility_is_disabled() {
+		// "Set up, ran, then removed the key": a completed run with a mention sits in the
+		// store (so it WOULD score), but no provider is configured now.
+		Table::install();
+		global $wpdb;
+		$wpdb->query( 'TRUNCATE TABLE ' . Table::name() );
+		Store::insert(
+			array(
+				'run_id'      => 5000,
+				'brand'       => 'Acme',
+				'provider'    => 'openai',
+				'model'       => 'gpt-4o-mini',
+				'prompt'      => 'best acme tools',
+				'mentioned'   => true,
+				'cited'       => false,
+				'position'    => 1,
+				'competitors' => array(),
+				'answer'      => 'Acme is great.',
+				'sources'     => array(),
+				'error'       => '',
+			)
+		);
+		update_option( Runner::LAST_RUN_OPTION, 5000 );
+
+		$r = ( new Score( new Settings() ) )->report();
+		delete_option( Runner::LAST_RUN_OPTION );
+
+		$cited = null;
+		foreach ( $r['rungs'] as $g ) {
+			if ( 'cited' === $g['key'] ) {
+				$cited = $g;
+			}
+		}
+		$this->assertNull( $cited['score'], 'a stale run must not surface as Cited once AI Visibility has no active provider' );
+		$this->assertFalse( $r['measured'], 'measured is false when nothing is currently being measured' );
 	}
 
 	public function test_adversarial_post_markup_never_crashes_the_report() {

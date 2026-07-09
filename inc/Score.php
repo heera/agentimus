@@ -543,6 +543,17 @@ final class Score {
 	 * @return array{score:int|null,note:string}
 	 */
 	private function measure() {
+		// A live citation signal needs AI Visibility to be configured right now. If it was
+		// never set up — or was set up and run, then the provider key was removed/disabled
+		// — an old run's score is stale: it no longer reflects reality and won't update.
+		// Treat that as not-measured (null → excluded from the blend, its weight
+		// redistributed), never a frozen number masquerading as current.
+		if ( empty( ( new Visibility\Settings() )->active_providers() ) ) {
+			return array(
+				'score' => null,
+				'note'  => __( 'Not measured — add an AI provider key under AI Visibility to track whether engines cite you.', 'agentimus' ),
+			);
+		}
 		$run = (int) get_option( Visibility\Runner::LAST_RUN_OPTION, 0 );
 		if ( $run > 0 ) {
 			$summary = Visibility\Store::summarize( Visibility\Store::rows_for_run( $run ) );
@@ -560,7 +571,7 @@ final class Score {
 		}
 		return array(
 			'score' => null,
-			'note'  => __( 'Not measured yet — set up AI Visibility to track whether engines actually cite you.', 'agentimus' ),
+			'note'  => __( 'AI Visibility is set up — run a check to measure whether engines cite you.', 'agentimus' ),
 		);
 	}
 
