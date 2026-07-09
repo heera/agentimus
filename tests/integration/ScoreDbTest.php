@@ -14,6 +14,7 @@ use Agentimus\Cache;
 use Agentimus\Score;
 use Agentimus\Settings;
 use Agentimus\Visibility\Runner;
+use Agentimus\Visibility\Settings as VisibilitySettings;
 use Agentimus\Visibility\Store;
 use Agentimus\Visibility\Table;
 
@@ -202,6 +203,51 @@ final class ScoreDbTest extends DbTestCase {
 		}
 		$this->assertNull( $cited['score'], 'a stale run must not surface as Cited once AI Visibility has no active provider' );
 		$this->assertFalse( $r['measured'], 'measured is false when nothing is currently being measured' );
+	}
+
+	public function test_cited_drops_a_run_older_than_the_staleness_cutoff() {
+		// An active provider (a plaintext key passes through Crypto) + a completed run
+		// well past the 90-day cutoff — recent enough to score would be wrong.
+		update_option(
+			VisibilitySettings::OPTION,
+			array( 'providers' => array( 'openai' => array( 'key' => 'sk-plaintext-test', 'enabled' => true, 'model' => 'gpt-4o-mini', 'web_search' => false ) ) )
+		);
+		Table::install();
+		global $wpdb;
+		$wpdb->query( 'TRUNCATE TABLE ' . Table::name() );
+		$old = time() - 200 * DAY_IN_SECONDS;
+		Store::insert(
+			array(
+				'run_id'      => $old,
+				'brand'       => 'Acme',
+				'provider'    => 'openai',
+				'model'       => 'gpt-4o-mini',
+				'prompt'      => 'best acme tools',
+				'mentioned'   => true,
+				'cited'       => false,
+				'position'    => 1,
+				'competitors' => array(),
+				'answer'      => 'Acme is great.',
+				'sources'     => array(),
+				'error'       => '',
+			)
+		);
+		update_option( Runner::LAST_RUN_OPTION, $old );
+
+		$r = ( new Score( new Settings() ) )->report();
+		delete_option( Runner::LAST_RUN_OPTION );
+		delete_option( VisibilitySettings::OPTION );
+
+		$cited = null;
+		foreach ( $r['rungs'] as $g ) {
+			if ( 'cited' === $g['key'] ) {
+				$cited = $g;
+			}
+		}
+		$this->assertNull( $cited['score'], 'a run past the staleness cutoff must not drive the score' );
+		// The stale note (not the "add a key" note) — proves we reached the cutoff, i.e.
+		// the provider was active and the run was simply too old.
+		$this->assertStringContainsStringIgnoringCase( 'run a check', (string) $cited['note'] );
 	}
 
 	public function test_adversarial_post_markup_never_crashes_the_report() {

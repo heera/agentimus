@@ -51,6 +51,9 @@ final class Score {
 	/** Cap on affected pages listed per issue in the content worklist. */
 	const WORKLIST_POSTS_PER_ISSUE = 6;
 
+	/** A Cited reading older than this (days) is a dated reference only — not counted. */
+	const CITED_STALE_DAYS = 90;
+
 	/** Cap on the number of ranked actions returned. */
 	const MAX_ACTIONS = 8;
 
@@ -558,13 +561,32 @@ final class Score {
 		if ( $run > 0 ) {
 			$summary = Visibility\Store::summarize( Visibility\Store::rows_for_run( $run ) );
 			if ( (int) $summary['checks'] > 0 ) {
+				$score = (int) $summary['visibilityScore'];
+				$ago   = human_time_diff( $run, time() );
+				// A citation reading goes stale with time. Past the cutoff it no longer
+				// represents today, so it's shown only as a dated reference (the AI
+				// Visibility tab keeps the figure + "Last run" date) and dropped from the
+				// composite — never a months-old number silently driving the score.
+				$stale_after = (int) apply_filters( 'agentimus_cited_stale_days', self::CITED_STALE_DAYS );
+				if ( $stale_after > 0 && ( time() - $run ) > $stale_after * DAY_IN_SECONDS ) {
+					return array(
+						'score' => null,
+						'note'  => sprintf(
+							/* translators: 1: last score, 2: human-readable time difference. */
+							__( 'Last measured %1$d%% %2$s ago — run a check to refresh.', 'agentimus' ),
+							$score,
+							$ago
+						),
+					);
+				}
 				return array(
-					'score' => (int) $summary['visibilityScore'],
+					'score' => $score,
 					'note'  => sprintf(
-						/* translators: 1: mentions, 2: checks. */
-						__( 'AI named you in %1$d of %2$d answers in your last check.', 'agentimus' ),
+						/* translators: 1: mentions, 2: checks, 3: human-readable time difference. */
+						__( 'AI named you in %1$d of %2$d answers · checked %3$s ago.', 'agentimus' ),
 						(int) $summary['mentions'],
-						(int) $summary['checks']
+						(int) $summary['checks'],
+						$ago
 					),
 				);
 			}
