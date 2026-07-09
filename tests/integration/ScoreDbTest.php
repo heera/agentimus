@@ -134,6 +134,36 @@ final class ScoreDbTest extends DbTestCase {
 		$this->assertStringNotContainsString( 'post=' . $blog . '&', $urls, 'the Posts-page container must not be graded' );
 	}
 
+	public function test_set_aside_post_is_excluded_and_listed() {
+		// A thin post that would be graded and flagged...
+		$id = $this->post( 'Too short.' );
+		wp_set_current_user( self::factory()->user->create( array( 'role' => 'administrator' ) ) );
+
+		// ...until the owner sets it aside as "not cited content".
+		$s   = new Settings();
+		$all = $s->all();
+		$all['optimize_ignored'] = array( $id );
+		$s->update( $all );
+
+		$r = ( new Score( new Settings() ) )->report();
+
+		// Gone from the worklist, present in the visible "set aside" list.
+		$inWork = false;
+		foreach ( $r['content'] as $issue ) {
+			foreach ( $issue['pages'] as $p ) {
+				if ( (int) $p['id'] === (int) $id ) {
+					$inWork = true;
+				}
+			}
+		}
+		$this->assertFalse( $inWork, 'a set-aside post must leave the worklist' );
+
+		$ignoredIds = array_map( static function ( $p ) {
+			return (int) $p['id'];
+		}, $r['ignored'] );
+		$this->assertContains( (int) $id, $ignoredIds, 'a set-aside post must show in the visible list' );
+	}
+
 	public function test_adversarial_post_markup_never_crashes_the_report() {
 		// Unclosed tags, nested lists, a script and a bare img — the DOM parse must
 		// tolerate it, and the whole report must still return rather than fatal.

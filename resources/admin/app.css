@@ -1882,10 +1882,28 @@ select.ar-input {
    rung's destination). Reuses .ar-checkgroup / .ar-check; each issue lists the pages
    that trip it as edit links, matching the rung → tab-section model of the others. */
 .ar-optcheck__n { font-family: var(--ar-mono); font-size: 11px; font-weight: 400; color: var(--ar-warn); }
-.ar-optcheck__pages { display: flex; flex-direction: column; gap: 3px; margin: 8px 0 0; }
-.ar-optcheck__page { font-size: 13px; color: var(--ar-accent); text-decoration: none; }
+.ar-optcheck__pages { display: flex; flex-direction: column; gap: 4px; margin: 8px 0 0; }
+.ar-optcheck__row { display: flex; align-items: center; gap: 10px; }
+.ar-optcheck__page { flex: 1; min-width: 0; font-size: 13px; color: var(--ar-accent); text-decoration: none; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .ar-optcheck__page:hover, .ar-optcheck__page:focus-visible { text-decoration: underline; }
+.ar-optcheck__page--muted { color: var(--ar-ink-soft); }
 .ar-optcheck__more { margin: 7px 0 0; font-family: var(--ar-mono); font-size: 11px; color: var(--ar-ink-faint); }
+/* The set-aside / restore actions — quiet by default, revealed on row hover. */
+.ar-optcheck__aside, .ar-optcheck__restore {
+  flex: 0 0 auto; appearance: none; border: 0; background: none; cursor: pointer; padding: 2px 4px;
+  font-family: var(--ar-mono); font-size: 11px; color: var(--ar-ink-faint);
+  opacity: 0; transition: opacity 0.15s ease, color 0.15s ease;
+}
+.ar-optcheck__row:hover .ar-optcheck__aside, .ar-optcheck__row:hover .ar-optcheck__restore,
+.ar-optcheck__aside:focus-visible, .ar-optcheck__restore:focus-visible { opacity: 1; }
+.ar-optcheck__aside:hover { color: var(--ar-ink); }
+.ar-optcheck__restore { opacity: 0.8; color: var(--ar-accent); }
+.ar-optcheck__aside:disabled, .ar-optcheck__restore:disabled { opacity: 0.4; cursor: default; }
+.ar-optcheck__clear { margin: 4px 0 0; font-size: 13px; color: var(--ar-ink-soft); }
+/* Set-aside block: a quiet, dashed-off list under the issues so it reads as "parked". */
+.ar-setaside { margin: 16px 0 0; padding: 14px 0 0; border-top: 1px dashed var(--ar-line); }
+.ar-setaside__head { margin: 0 0 8px; font-family: var(--ar-mono); font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ar-ink-faint); }
+.ar-setaside__note { text-transform: none; letter-spacing: 0; margin-left: 6px; }
 
 /* Day-report modal: a wider panel; header with prev/next + a day dropdown. */
 .ar-modal__panel--day { max-width: 640px; }

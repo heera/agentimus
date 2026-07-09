@@ -44,6 +44,7 @@ final class Settings {
 			'llms_full_max_kb' => 1024, // Hard byte budget for /llms-full.txt (KB): generation stops cleanly here and links the index. Keeps the file ingestible and under common 1 MB object-cache row limits.
 			'post_types'       => self::default_post_types(),
 			'evergreen_categories' => array(), // Category term IDs whose posts are exempt from the content "freshness" check — timeless content (references, tutorials, legal) that doesn't go stale with age. Empty = every post is age-checked.
+			'optimize_ignored'     => array(), // Post IDs the owner marked "not cited content" from the Optimize worklist — pages that aren't meant to be quoted (landing/utility/index). Left out of citability grading entirely; always shown as a visible "set aside" count so the score stays honest.
 			'rest_namespaces'  => array(), // Owner-curated REST namespaces to publish in discovery (opt-in; empty = none).
 			'oauth_auth_server' => '',     // Optional OAuth authorization-server URL; when set, serve RFC 9728 protected-resource metadata. Never fabricate RFC 8414.
 			'suppressed_resources' => array(), // Owner opt-OUT: ids of provider-registered Resources to hide from all output. Declared Resources default to published (spec §04), so empty = publish everything a provider declared.
@@ -604,6 +605,16 @@ final class Settings {
 			}
 		);
 		$clean['evergreen_categories'] = array_values( array_slice( array_unique( $ever_ids ), 0, 200 ) );
+
+		// Optimize "set aside" list: bounded positive post IDs, same rules.
+		$ignored_in                = isset( $input['optimize_ignored'] ) ? (array) $input['optimize_ignored'] : array();
+		$ignored_ids               = array_filter(
+			array_map( 'intval', $ignored_in ),
+			static function ( $n ) {
+				return $n > 0;
+			}
+		);
+		$clean['optimize_ignored'] = array_values( array_slice( array_unique( $ignored_ids ), 0, 1000 ) );
 
 		/**
 		 * Filter the sanitised settings before they are stored.

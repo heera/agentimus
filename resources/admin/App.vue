@@ -195,6 +195,15 @@ export default {
     optimizeWork() {
       return (this.aeo && this.aeo.content) || [];
     },
+    // Pages the owner set aside as "not cited content" (excluded from grading).
+    optimizeIgnored() {
+      return (this.aeo && this.aeo.ignored) || [];
+    },
+    // The Optimized rung opens its section when there's anything to act on — issues to
+    // fix, or set-aside pages to review/restore.
+    optimizeActionable() {
+      return this.optimizeWork.length > 0 || this.optimizeIgnored.length > 0;
+    },
     host() {
       const url = this.endpoints.robots || this.endpoints.llms || '';
       try {
@@ -1033,6 +1042,8 @@ export default {
           v-show="tab === 'readiness'"
           :checks="readiness"
           :optimize="optimizeWork"
+          :optimize-ignored="optimizeIgnored"
+          :optimize-graded="(aeo && aeo.graded) || 0"
           :refreshing="refreshingReadiness"
           :live-config="liveConfig"
           :is-local="isLocal"
@@ -1040,6 +1051,7 @@ export default {
           @refresh="refreshReadiness"
           @navigate="goTo"
           @flash="flash"
+          @score-updated="(s) => { aeo = s; }"
         />
         <DiscoveryHub
           v-show="tab === 'discovery'"
@@ -1128,7 +1140,7 @@ export default {
               <!-- Optimized routes like the other rungs — to its section on the
                    Readiness tab (the per-page worklist), when there's work to do. -->
               <button
-                v-else-if="r.key === 'optimized' && optimizeWork.length"
+                v-else-if="r.key === 'optimized' && optimizeActionable"
                 type="button"
                 class="ar-rung__btn"
                 title="See which pages to optimize"

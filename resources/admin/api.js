@@ -32,6 +32,10 @@ export function createApi(boot) {
     saveSettings: (settings) =>
       request('/settings', { method: 'POST', body: JSON.stringify({ settings }) }),
     resetSettings: () => request('/settings/reset', { method: 'POST' }),
+    // Set aside (ignored=true) or restore (false) a page from citability grading.
+    // Returns the recomputed score so the worklist, set-aside list, and counts refresh.
+    ignoreOptimize: (post, ignored) =>
+      request('/optimize/ignore', { method: 'POST', body: JSON.stringify({ post, ignored }) }),
     completeOnboarding: () => request('/onboarding', { method: 'POST' }),
     getReadiness: () => request('/readiness'),
     // JSON-LD preview: the site graph (post omitted / 0) or a chosen post's graph.

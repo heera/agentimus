@@ -73,6 +73,13 @@ final class SettingsDefaultsTest extends TestCase {
 		$this->assertSame( array(), ( new Settings() )->defaults()['evergreen_categories'] );
 	}
 
+	public function test_sanitize_optimize_ignored_to_positive_ints() {
+		$clean = ( new Settings() )->sanitize(
+			array( 'optimize_ignored' => array( '210', 210, 0, -1, 'x', 3 ) )
+		);
+		$this->assertSame( array( 210, 3 ), $clean['optimize_ignored'] );
+	}
+
 	public function test_sanitize_empty_preserves_the_current_selection() {
 		$this->with_extra_type();
 		update_option( Settings::OPTION, array( 'post_types' => array( 'post' ) ) );

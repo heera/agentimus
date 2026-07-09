@@ -108,6 +108,8 @@ final class Score {
 			),
 			'actions'  => $this->actions( $readiness, $optimize, $measure ),
 			'content'  => $this->content_worklist( $optimize ),
+			'graded'   => (int) $optimize['posts'],
+			'ignored'  => $this->ignored_list(),
 		);
 	}
 
@@ -335,6 +337,12 @@ final class Score {
 		if ( (int) $post->ID === (int) get_option( 'page_for_posts' ) ) {
 			return false;
 		}
+		// Owner set-aside: pages marked "not cited content" from the worklist — content
+		// that isn't meant to be quoted (a landing/utility/index page). Always surfaced
+		// as a visible "set aside" count, so this never silently inflates the score.
+		if ( in_array( (int) $post->ID, $this->ignored_ids(), true ) ) {
+			return false;
+		}
 		if ( str_word_count( wp_strip_all_tags( (string) Content::markdown_source( $post ) ) ) < 1 ) {
 			return false;
 		}
@@ -449,6 +457,7 @@ final class Score {
 				}
 				$title   = html_entity_decode( wp_strip_all_tags( get_the_title( (int) $pid ) ), ENT_QUOTES, 'UTF-8' );
 				$pages[] = array(
+					'id'    => (int) $pid,
 					'title' => '' !== $title ? $title : __( '(untitled)', 'agentimus' ),
 					'url'   => $edit,
 				);
@@ -487,6 +496,38 @@ final class Score {
 			'freshness'     => __( 'Refresh it — engines favour current pages.', 'agentimus' ),
 		);
 		return isset( $map[ $id ] ) ? $map[ $id ] : __( 'Improve this page’s citability in the editor.', 'agentimus' );
+	}
+
+	/** Post IDs the owner set aside as "not cited content". */
+	private function ignored_ids() {
+		return array_values( array_filter( array_map( 'intval', (array) $this->settings->get( 'optimize_ignored', array() ) ) ) );
+	}
+
+	/**
+	 * The "set aside" list for the worklist: the owner's ignored pages, resolved to a
+	 * title + editor link so each can be shown and restored. Only live, editable posts —
+	 * a stale id (deleted/unpublished) is dropped rather than shown.
+	 *
+	 * @return array<int,array<string,mixed>>
+	 */
+	private function ignored_list() {
+		$out = array();
+		foreach ( $this->ignored_ids() as $id ) {
+			$post = get_post( $id );
+			if ( ! $post || 'publish' !== $post->post_status ) {
+				continue;
+			}
+			$edit = (string) get_edit_post_link( $id, 'raw' );
+			if ( '' === $edit ) {
+				continue;
+			}
+			$out[] = array(
+				'id'    => $id,
+				'title' => html_entity_decode( wp_strip_all_tags( get_the_title( $id ) ), ENT_QUOTES, 'UTF-8' ),
+				'url'   => $edit,
+			);
+		}
+		return $out;
 	}
 
 	/* ---------------------------------------------------------------------- *

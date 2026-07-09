@@ -9,14 +9,16 @@ export default {
   props: {
     checks: { type: Array, default: () => [] },
     optimize: { type: Array, default: () => [] }, // Content worklist behind the Optimized rung.
+    optimizeIgnored: { type: Array, default: () => [] }, // Pages set aside as "not cited content".
+    optimizeGraded: { type: Number, default: 0 }, // How many pages were actually graded.
     refreshing: { type: Boolean, default: false },
     liveConfig: { type: Object, default: () => ({}) },
     isLocal: { type: Boolean, default: false },
     api: { type: Object, required: true },
   },
-  emits: ['refresh', 'navigate', 'flash'],
+  emits: ['refresh', 'navigate', 'flash', 'score-updated'],
   data() {
-    return { live: null, liveRunning: false, exposure: null, exposureRunning: false, schemaOpen: false };
+    return { live: null, liveRunning: false, exposure: null, exposureRunning: false, schemaOpen: false, busyIgnore: 0 };
   },
   computed: {
     // The same checks, grouped under the Findable → Readable → Trusted rungs.
@@ -26,6 +28,10 @@ export default {
     // Total page-fixes across the content worklist (a page with two issues is two fixes).
     optimizeTotal() {
       return this.optimize.reduce((n, i) => n + Number(i.count || 0), 0);
+    },
+    // Show the section whenever there's anything to act on — issues, or set-aside pages.
+    hasOptimizeSection() {
+      return this.optimize.length > 0 || this.optimizeIgnored.length > 0;
     },
     livePass() {
       return this.live ? this.live.filter((r) => r.ok).length : 0;
@@ -93,6 +99,21 @@ export default {
   methods: {
     tagLabel(status) {
       return { pass: 'PASS', warn: 'WARN', fail: 'FAIL' }[status] || String(status || 'CHECK').toUpperCase();
+    },
+    // Set a page aside as "not cited content" (or restore it). The server returns the
+    // recomputed score, which the parent swaps in — so the worklist, the set-aside list,
+    // the counts, and the rung all update without a reload.
+    async setAside(page, ignored) {
+      if (this.busyIgnore || !page || !page.id) return;
+      this.busyIgnore = page.id;
+      try {
+        const res = await this.api.ignoreOptimize(page.id, ignored);
+        if (res && res.score) this.$emit('score-updated', res.score);
+      } catch (e) {
+        this.$emit('flash', { type: 'error', text: (e && e.message) || 'Could not update. Try again.' });
+      } finally {
+        this.busyIgnore = 0;
+      }
     },
     cacheTitle(r) {
       if (!r.cache) return '';
@@ -212,28 +233,40 @@ export default {
 
     <!-- The Optimized rung's section: per-page content citability. Unlike the config
          rungs above, these are fixed in each post's editor, so every issue lists the
-         pages that trip it as edit links. Matches the rung → tab-section model. -->
-    <div v-if="optimize.length" id="ar-group-optimized" class="ar-checkgroup is-warn">
+         pages that trip it as edit links. Each can be set aside as "not cited content"
+         — kept in a visible list, and always shown as a "set aside" count so the score
+         stays honest. Matches the rung → tab-section model. -->
+    <div v-if="hasOptimizeSection" id="ar-group-optimized" class="ar-checkgroup is-warn">
       <div class="ar-checkgroup__head">
         <span class="ar-checkgroup__rung" aria-hidden="true"></span>
         <div class="ar-checkgroup__text">
           <h3 class="ar-checkgroup__name">Optimize your content</h3>
           <p class="ar-checkgroup__blurb">
-            Pages an answer engine would find harder to read or quote. Open one to fix it in the editor — its AI Readability panel shows that page’s specifics.
+            Pages an answer engine would find harder to read or quote. Open one to fix it in the editor,
+            or set aside anything that isn’t meant to be cited.
           </p>
         </div>
-        <span class="ar-checkgroup__count">{{ optimizeTotal }}</span>
+        <span class="ar-checkgroup__count">
+          {{ optimizeGraded }} graded<template v-if="optimizeIgnored.length"> · {{ optimizeIgnored.length }} set aside</template>
+        </span>
       </div>
 
-      <ul class="ar-checks">
+      <ul v-if="optimize.length" class="ar-checks">
         <li v-for="issue in optimize" :id="`ar-opt-${issue.id}`" :key="issue.id" class="ar-check is-warn">
           <span class="ar-check__rule" aria-hidden="true"></span>
           <div class="ar-check__text">
             <strong>{{ issue.label }} <span class="ar-optcheck__n">· {{ issue.count }} {{ issue.count === 1 ? 'page' : 'pages' }}</span></strong>
             <small>{{ issue.why }}</small>
             <ul class="ar-optcheck__pages">
-              <li v-for="p in issue.pages" :key="p.url">
+              <li v-for="p in issue.pages" :key="p.id" class="ar-optcheck__row">
                 <a :href="p.url" target="_blank" rel="noopener" class="ar-optcheck__page">{{ p.title }} ↗</a>
+                <button
+                  type="button"
+                  class="ar-optcheck__aside"
+                  :disabled="busyIgnore === p.id"
+                  title="Not content you want cited — leave it out of the score"
+                  @click="setAside(p, true)"
+                >Not cited content</button>
               </li>
             </ul>
             <p v-if="issue.pages.length < issue.count" class="ar-optcheck__more">
@@ -243,6 +276,26 @@ export default {
           <span class="ar-check__tag is-warn">To improve</span>
         </li>
       </ul>
+      <p v-else class="ar-optcheck__clear">Every graded page reads as citable. Anything set aside is listed below.</p>
+
+      <!-- Set aside — always visible, one-click restore, so nothing is silently hidden. -->
+      <div v-if="optimizeIgnored.length" class="ar-setaside">
+        <p class="ar-setaside__head">
+          Set aside · {{ optimizeIgnored.length }}
+          <span class="ar-setaside__note">not cited content — left out of the score</span>
+        </p>
+        <ul class="ar-optcheck__pages">
+          <li v-for="p in optimizeIgnored" :key="p.id" class="ar-optcheck__row">
+            <a :href="p.url" target="_blank" rel="noopener" class="ar-optcheck__page ar-optcheck__page--muted">{{ p.title }} ↗</a>
+            <button
+              type="button"
+              class="ar-optcheck__restore"
+              :disabled="busyIgnore === p.id"
+              @click="setAside(p, false)"
+            >Restore</button>
+          </li>
+        </ul>
+      </div>
     </div>
 
     <!-- Verify-live result: a focused overlay; the report behind never reflows. -->

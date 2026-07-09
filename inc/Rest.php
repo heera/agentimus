@@ -161,6 +161,29 @@ final class Rest {
 			)
 		);
 
+		// POST /optimize/ignore — set aside (or restore) a page from citability grading.
+		register_rest_route(
+			self::NAMESPACE,
+			'/optimize/ignore',
+			array(
+				'methods'             => \WP_REST_Server::CREATABLE,
+				'callback'            => array( $this, 'optimize_ignore' ),
+				'permission_callback' => array( $this, 'can_manage' ),
+				'args'                => array(
+					'post'    => array(
+						'type'              => 'integer',
+						'required'          => true,
+						'sanitize_callback' => 'absint',
+					),
+					'ignored' => array(
+						'type'              => 'boolean',
+						'default'           => true,
+						'sanitize_callback' => 'rest_sanitize_boolean',
+					),
+				),
+			)
+		);
+
 	}
 
 	/**
@@ -212,6 +235,38 @@ final class Rest {
 				'readiness'    => ( new Readiness( $this->settings ) )->report(),
 				'exposedPaths' => Exposure::sensitive_paths( $this->settings ),
 				'saved'        => true,
+			)
+		);
+	}
+
+	/**
+	 * POST /optimize/ignore — set aside (ignored=true) or restore (false) a page from
+	 * content-citability grading. Returns the recomputed score so the worklist, the
+	 * set-aside list, and the counts update without a reload.
+	 *
+	 * @param \WP_REST_Request $request Request.
+	 * @return \WP_REST_Response|\WP_Error
+	 */
+	public function optimize_ignore( \WP_REST_Request $request ) {
+		$id = absint( $request->get_param( 'post' ) );
+		if ( $id < 1 ) {
+			return new \WP_Error( 'agentimus_bad_post', __( 'Invalid post.', 'agentimus' ), array( 'status' => 400 ) );
+		}
+		$ignore = (bool) $request->get_param( 'ignored' );
+
+		$all  = $this->settings->all();
+		$list = ( isset( $all['optimize_ignored'] ) && is_array( $all['optimize_ignored'] ) ) ? array_map( 'intval', $all['optimize_ignored'] ) : array();
+		$list = array_values( array_diff( $list, array( $id ) ) );
+		if ( $ignore ) {
+			$list[] = $id;
+		}
+		$all['optimize_ignored'] = $list;
+		$this->settings->update( $all ); // Sanitises + busts the OPTIMIZE cache.
+
+		return rest_ensure_response(
+			array(
+				'score' => ( new Score( new Settings() ) )->report(),
+				'saved' => true,
 			)
 		);
 	}
