@@ -161,9 +161,11 @@ To keep one abusive burst from drowning out the traffic you care about, the log 
 
 ---
 
-## The Request log tab
+## The Request log
 
-The Dashboard answers *who* visited and *how much*. The **Request log** tab answers **what a particular bot actually fetched** — the question the summary cards can't, because they show clients and endpoints as two separate lists.
+Open it from **More → Request log** in the nav bar. (The occasional screens — Request log, AI Visibility, About — live behind that one menu, so the bar stays readable on a narrow admin.)
+
+The Dashboard answers *who* visited and *how much*. The Request log answers **what a particular bot actually fetched** — the question the summary cards can't, because they show clients and endpoints as two separate lists.
 
 Filter by **Client** and **Endpoint** together and you get the intersection: every page GPTBot asked for, or every bot that pulled `llms-full.txt`. You can also filter by **User-Agent** (matches from the *start* of the string), by **Network** once bot identification is on, by **Verification** (verified / spoofed / unchecked), and by a date range.
 
@@ -176,7 +178,7 @@ Two limits worth knowing, both stated at the foot of the tab:
 - The log holds the **last 30 days**. Older requests are *deleted*, not hidden — no screen can show them, and neither can an export.
 - On a very busy site the oldest rows *inside* that window may also have been trimmed by the row cap (see [How data is pruned and capped](#how-data-is-pruned-and-capped)). So read a full page as a floor, not a total.
 
-The tab disappears when the agent activity log is switched off, since there would be nothing to page through.
+The menu entry disappears when the agent activity log is switched off, since there would be nothing to page through — and if you're looking at the log when you switch it off, Agentimus returns you to the Dashboard rather than leaving you on an empty screen.
 
 ---
 

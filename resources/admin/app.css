@@ -196,7 +196,10 @@
    takes the space left of the brand and scrolls horizontally when it can't fit,
    so no tab is ever clipped on narrow screens. */
 .ar__tabs {
-  flex: 1 1 auto; min-width: 0;
+  /* `0 1 auto`, not `1 1 auto`: the nav no longer absorbs the bar's free space, so the
+     More menu can sit immediately after Discovery instead of being pushed to the far
+     right. .ar__review takes the slack with margin-left:auto. */
+  flex: 0 1 auto; min-width: 0;
   display: flex; align-items: stretch; gap: 24px;
   overflow-x: auto; scrollbar-width: none; -ms-overflow-style: none;
 }
@@ -214,7 +217,7 @@
 .ar__tab.is-active { color: var(--ar-ink); border-bottom-color: var(--ar-accent); }
 
 /* ---- Nav "Activity to review" badge + dropdown ------------------------- */
-.ar__review { flex: 0 0 auto; align-self: center; position: relative; }
+.ar__review { flex: 0 0 auto; align-self: center; position: relative; margin-left: auto; }
 .ar__review-btn {
   appearance: none; cursor: pointer;
   display: inline-flex; align-items: center; gap: 6px;
@@ -2767,4 +2770,38 @@ a.ar-about-proto__v:hover { text-decoration: underline; }
   .ar-log__field, .ar-log__field--ua { flex: 1 1 100%; }
   .ar-log__field--date { width: 100%; }
   .ar-log__actions .ar-btn { flex: 1 1 auto; }
+}
+
+/* ---- "More" nav menu -----------------------------------------------------
+   Holds the occasional screens (Request log, AI Visibility, About). A sibling of
+   .ar__tabs rather than a child, because that nav is an overflow-x scroller and
+   would clip this menu. */
+.ar__more { flex: 0 0 auto; position: relative; display: flex; align-items: stretch; }
+.ar__more-btn { gap: 6px; }
+.ar__more-caret { display: inline-flex; align-items: center; transition: transform 0.15s; }
+.ar__more.is-open .ar__more-caret { transform: rotate(180deg); }
+
+.ar__more-menu {
+  position: absolute; top: calc(100% - 1px); left: 0; z-index: 30;
+  min-width: 190px; padding: 6px;
+  display: flex; flex-direction: column;
+  background: var(--ar-paper);
+  border: 1px solid var(--ar-line-strong); border-radius: var(--ar-radius);
+  box-shadow: 0 14px 34px -18px rgba(27, 25, 19, 0.55);
+}
+.ar__more-item {
+  appearance: none; background: none; border: 0; cursor: pointer;
+  text-align: left; white-space: nowrap;
+  padding: 9px 12px; border-radius: 6px;
+  font-family: var(--ar-mono); font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase;
+  color: var(--ar-ink-soft);
+}
+.ar__more-item:hover { background: var(--ar-surface-2); color: var(--ar-ink); }
+.ar__more-item:focus-visible { outline: 2px solid var(--ar-accent); outline-offset: -2px; }
+.ar__more-item.is-active { color: var(--ar-ink); box-shadow: inset 2px 0 0 var(--ar-accent); }
+
+/* On a narrow admin the bar gets tight: shrink the gap before anything scrolls. */
+@media (max-width: 960px) {
+  .ar__bar { gap: 16px; }
+  .ar__tabs { gap: 16px; }
 }

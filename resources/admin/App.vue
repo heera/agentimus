@@ -89,6 +89,8 @@ export default {
       saving: false,
       resetting: false,
       onboarded: !!this.boot.onboarded,
+      // The "More" nav menu (Request log / AI Visibility / About).
+      moreOpen: false,
       showWizard: false,
       wizardCelebrate: false,
       onboarding: false,
@@ -222,18 +224,42 @@ export default {
         return '';
       }
     },
-    tabs() {
+    // The four screens you work in day to day. Kept in the bar itself so the nav stays
+    // short enough to read on a narrow admin, where it would otherwise scroll sideways.
+    primaryTabs() {
       return [
         { id: 'dashboard', label: 'Dashboard' },
-        // The per-request log has nothing to show when recording is off.
-        ...(this.settings.enable_activity ? [{ id: 'log', label: 'Request log' }] : []),
-        // AI Visibility is opt-in — the tab only appears when citation tracking is on.
-        ...(this.settings.enable_visibility ? [{ id: 'visibility', label: 'AI Visibility' }] : []),
         { id: 'settings', label: 'Settings' },
         { id: 'readiness', label: 'Readiness' },
         { id: 'discovery', label: 'Discovery' },
+      ];
+    },
+    // The occasional ones, behind "More". Both conditional tabs live here, so the menu's
+    // contents change but the bar's width never does.
+    moreTabs() {
+      return [
+        // The per-request log has nothing to show when recording is off.
+        ...(this.settings.enable_activity ? [{ id: 'log', label: 'Request log' }] : []),
+        // AI Visibility is opt-in — it only appears when citation tracking is on.
+        ...(this.settings.enable_visibility ? [{ id: 'visibility', label: 'AI Visibility' }] : []),
         { id: 'about', label: 'About' },
       ];
+    },
+    // True when the screen you're on lives inside the menu, so "More" can carry the active
+    // underline — otherwise nothing in the bar would show where you are.
+    moreActive() {
+      return this.moreTabs.some((t) => t.id === this.tab);
+    },
+    // When you're on a screen inside the menu, the trigger names it instead of saying
+    // "More" — otherwise the bar reads as though nothing is selected.
+    activeMoreLabel() {
+      const hit = this.moreTabs.find((t) => t.id === this.tab);
+      return hit ? hit.label : 'More';
+    },
+    // Every reachable screen — what syncTabFromHash() validates a #hash against. Derived,
+    // so a tab can never exist in the bar or the menu without being deep-linkable.
+    tabs() {
+      return [...this.primaryTabs, ...this.moreTabs];
     },
     dashSummary() {
       const c = (this.discovery && this.discovery.counts) || {};
@@ -302,7 +328,15 @@ export default {
     'settings.enable_visibility'(on) {
       if (!on && this.tab === 'visibility') this.goTo('dashboard');
     },
+    // Same for the request log: its panel is v-if'd on this setting, so switching recording
+    // off while viewing it would unmount the panel and leave the screen blank.
+    'settings.enable_activity'(on) {
+      if (!on && this.tab === 'log') this.goTo('dashboard');
+    },
     tab(val) {
+      // Never leave the More menu hanging open over a screen you've already left — this
+      // also covers arriving via Back/Forward or a primary tab, not just picking an item.
+      this.moreOpen = false;
       // Reflect the active tab in the URL hash, PUSHING a history entry so the
       // browser Back/Forward buttons step through the tabs. The guard skips the
       // push when the hash already matches — i.e. when the change itself came from
@@ -329,6 +363,10 @@ export default {
     },
   },
   mounted() {
+    // `mousedown`, not `click`: the trigger's own click would otherwise fire after this
+    // handler had already closed the menu, and it would reopen on every second press.
+    document.addEventListener('mousedown', this.onMoreDocDown);
+    document.addEventListener('keydown', this.onMoreKey);
     window.requestAnimationFrame(() => {
       this.ringReady = true;
     });
@@ -368,6 +406,8 @@ export default {
     }
   },
   beforeUnmount() {
+    document.removeEventListener('mousedown', this.onMoreDocDown);
+    document.removeEventListener('keydown', this.onMoreKey);
     window.removeEventListener('hashchange', this.syncTabFromHash);
     document.removeEventListener('change', this._onControlChange, true);
     window.removeEventListener('scroll', this._onScroll);
@@ -411,6 +451,24 @@ export default {
         return;
       }
       this.goTo(a);
+    },
+    pickMore(id) {
+      // The tab watcher closes the menu; setting it here too would be redundant.
+      this.tab = id;
+    },
+    // Scoped to the menu's own wrapper, not $el — $el is the whole app, so a click on any
+    // tab would count as "inside" and the menu would never close.
+    onMoreDocDown(e) {
+      if (this.moreOpen && this.$refs.moreWrap && !this.$refs.moreWrap.contains(e.target)) {
+        this.moreOpen = false;
+      }
+    },
+    onMoreKey(e) {
+      if (this.moreOpen && e.key === 'Escape') {
+        this.moreOpen = false;
+        const btn = this.$refs.moreWrap && this.$refs.moreWrap.querySelector('.ar__more-btn');
+        if (btn) btn.focus();
+      }
     },
     goTo(target) {
       const { tab, anchor, view } = typeof target === 'string' ? { tab: target } : target || {};
@@ -972,7 +1030,7 @@ export default {
 
       <nav class="ar__tabs" role="tablist">
         <button
-          v-for="t in tabs"
+          v-for="t in primaryTabs"
           :key="t.id"
           class="ar__tab"
           :class="{ 'is-active': tab === t.id }"
@@ -983,6 +1041,45 @@ export default {
           {{ t.label }}
         </button>
       </nav>
+
+      <!-- The occasional screens. Folding them behind one control keeps the bar short on a
+           narrow admin, and lets AI Visibility appear and disappear without the nav's width
+           jumping. It carries the active underline when the screen you're on is inside it,
+           so the bar always shows where you are.
+
+           Deliberately a SIBLING of <nav>, not a child: .ar__tabs is an overflow-x scroller
+           (so the tabs can scroll on a narrow admin) and an absolutely-positioned menu inside
+           it would be clipped by that scroll box. .ar__review solves the same problem the
+           same way. It also keeps role="tablist" honest — a menu button is not a tab. -->
+      <div ref="moreWrap" class="ar__more" :class="{ 'is-open': moreOpen }">
+        <button
+          class="ar__tab ar__more-btn"
+          :class="{ 'is-active': moreActive }"
+          aria-haspopup="true"
+          :aria-expanded="moreOpen ? 'true' : 'false'"
+          :aria-label="moreActive ? `More — ${activeMoreLabel} selected` : 'More screens'"
+          @click="moreOpen = !moreOpen"
+        >
+          {{ moreActive ? activeMoreLabel : 'More' }}
+          <span class="ar__more-caret" aria-hidden="true">
+            <svg viewBox="0 0 12 12" width="9" height="9" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="2.5 4.5 6 8 9.5 4.5" /></svg>
+          </span>
+        </button>
+
+        <div v-if="moreOpen" class="ar__more-menu" role="menu">
+          <button
+            v-for="t in moreTabs"
+            :key="t.id"
+            class="ar__more-item"
+            :class="{ 'is-active': tab === t.id }"
+            role="menuitem"
+            :aria-current="tab === t.id ? 'page' : null"
+            @click="pickMore(t.id)"
+          >
+            {{ t.label }}
+          </button>
+        </div>
+      </div>
 
       <ReviewMenu
         :threats="(activity && activity.threats) || {}"
