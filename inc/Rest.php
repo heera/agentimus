@@ -227,16 +227,35 @@ final class Rest {
 			$input = $input['settings'];
 		}
 
-		$saved = $this->settings->update( (array) $input );
+		$saved     = $this->settings->update( (array) $input );
+		$readiness = ( new Readiness( $this->settings ) )->report();
 
 		return rest_ensure_response(
 			array(
 				'settings'     => $saved,
-				'readiness'    => ( new Readiness( $this->settings ) )->report(),
+				'readiness'    => $readiness,
+				// The recomputed score, so the rail card (e.g. the Cited rung when
+				// citation tracking is toggled) updates live without a page reload.
+				'score'        => $this->score_report( $readiness ),
 				'exposedPaths' => Exposure::sensitive_paths( $this->settings ),
 				'saved'        => true,
 			)
 		);
+	}
+
+	/**
+	 * The AEO/GEO score, computed fail-open (a throw degrades to null rather than failing
+	 * the settings save).
+	 *
+	 * @param array<int,array<string,mixed>> $readiness Precomputed readiness rows.
+	 * @return array|null
+	 */
+	private function score_report( array $readiness ) {
+		try {
+			return ( new Score( $this->settings ) )->report( $readiness );
+		} catch ( \Throwable $e ) {
+			return null;
+		}
 	}
 
 	/**

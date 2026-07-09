@@ -469,6 +469,7 @@ export default {
         });
         this.savedSnapshot = JSON.stringify(res.settings);
         this.readiness = res.readiness || this.readiness;
+        if (res.score) this.aeo = res.score; // Keep the rail card live with the save.
         this.profileSaved = true;
         clearTimeout(this._savedTimer);
         this._savedTimer = setTimeout(() => { this.profileSaved = false; }, 2500);
@@ -498,6 +499,7 @@ export default {
         if (this.settings.identity) this.settings.identity.services = storedServices;
         this.savedSnapshot = JSON.stringify(res.settings);
         this.readiness = res.readiness || this.readiness;
+        if (res.score) this.aeo = res.score; // Keep the rail card live with the save.
         this.servicesSaved = true;
         clearTimeout(this._svcSavedTimer);
         this._svcSavedTimer = setTimeout(() => { this.servicesSaved = false; }, 2500);
@@ -523,6 +525,7 @@ export default {
         this.$nextTick(() => { this._skipAutosave = false; });
         this.savedSnapshot = JSON.stringify(res.settings || {});
         this.readiness = res.readiness || this.readiness;
+        if (res.score) this.aeo = res.score; // Keep the rail card live with the save.
         if (Array.isArray(res.exposedPaths)) this.exposedPaths = res.exposedPaths;
         this.flash('success', 'Settings restored to defaults.');
       } catch (e) {
@@ -554,6 +557,7 @@ export default {
         this.$nextTick(() => { this._skipAutosave = false; });
         this.savedSnapshot = JSON.stringify(res.settings || {});
         this.readiness = res.readiness || this.readiness;
+        if (res.score) this.aeo = res.score; // Keep the rail card live with the save.
         await this.api.completeOnboarding();
         if (firstRun) {
           // First-time setup earns a moment: keep the modal open and let the
@@ -650,6 +654,7 @@ export default {
         const res = await this.api.saveSettings(payload);
         this.savedSnapshot = JSON.stringify(res.settings);
         this.readiness = res.readiness || this.readiness;
+        if (res.score) this.aeo = res.score; // Keep the rail card live with the save.
         // Adopt the server's freshly-expanded exposed-files list so a just-edited
         // custom path is scanned immediately, no reload (see data().exposedPaths).
         if (Array.isArray(res.exposedPaths)) this.exposedPaths = res.exposedPaths;
