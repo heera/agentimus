@@ -75,6 +75,41 @@ final class RepositoryDbTest extends DbTestCase {
 		$this->assertContains( self::NOKIA, $uas, 'a spoofed legacy-device UA must be flagged' );
 	}
 
+	/**
+	 * The review queue must look back over the RETAINED span, not a hardcoded 30 days.
+	 * HEAVY_MIN_HITS counts hits "over the whole window", so a site that extends retention
+	 * would otherwise see the dashboard report a client's full history while the queue
+	 * silently judged it on the last 30 days only.
+	 */
+	public function test_threats_window_follows_the_retention_filter() {
+		$old = gmdate( 'Y-m-d H:i:s', time() - 45 * DAY_IN_SECONDS );
+		for ( $i = 0; $i < 5; $i++ ) {
+			$this->hit( 'discovery.json', 'Likely spoof/scanner', self::NOKIA, $old );
+		}
+
+		$uas = static function ( $t ) {
+			return array_map( static function ( $s ) { return $s['ua']; }, $t['sources'] );
+		};
+
+		// Default retention (30 days): a 45-day-old client is outside the window.
+		$this->assertNotContains(
+			self::NOKIA,
+			$uas( Repository::threats( new Settings() ) ),
+			'a client older than the retained window must not surface'
+		);
+
+		// Retain 90 days and the same client is inside the window the dashboard reports on.
+		add_filter( 'agentimus_activity_retention_days', static fn() => 90 );
+		$widened = $uas( Repository::threats( new Settings() ) );
+		remove_all_filters( 'agentimus_activity_retention_days' );
+
+		$this->assertContains(
+			self::NOKIA,
+			$widened,
+			'threats() must span the filtered retention, not the raw WINDOW_DAYS default'
+		);
+	}
+
 	/* -- Configurable breakdown limits ----------------------------------- */
 
 	public function test_breakdown_row_limits_are_filterable() {

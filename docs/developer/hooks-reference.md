@@ -280,7 +280,7 @@ Tuning knobs for the activity log, its retention, AI-referral tracking and the "
 | Hook | Type | Signature | Purpose |
 | --- | --- | --- | --- |
 | `agentimus_activity_skip_self` | filter | `( bool $skip ): bool` | Whether to skip recording hits from logged-in admins. Default: `is_user_logged_in() && current_user_can( 'manage_options' )`. |
-| `agentimus_activity_retention_days` | filter | `( int $days ): int` | How long agent hits are retained, in days. |
+| `agentimus_activity_retention_days` | filter | `( int $days ): int` | How long agent hits are retained, in days. Default `30`. Governs the daily chart span, the aggregate window, the review queue's window, and the prune cutoff together — so what you see always equals what's kept. Raising it above 30 without also raising `agentimus_activity_max_rows` will not give you more days: the row cap trims the oldest rows regardless of age. |
 | `agentimus_flagged_ip_retention_days` | filter | `( int $days ): int` | Retention, in days, for the opt-in flagged-IP store (the only PII the plugin ever keeps, and only when the owner turns IP capture on for flagged clients). Default `14`. |
 | `agentimus_activity_max_rows` | filter | `( int $max ): int` | Hard cap on rows in the activity table — a backstop to age-based pruning. A cap of `0` disables it. |
 | `agentimus_activity_clients_limit` | filter | `( int $limit ): int` | Number of rows in the dashboard's "top clients" (by-agent) breakdown. Default `8`, clamped to `1–200`. |

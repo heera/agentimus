@@ -392,7 +392,13 @@ final class Repository {
 		global $wpdb;
 		$table = Table::name();
 		$now   = time();
-		$since = gmdate( 'Y-m-d H:i:s', $now - self::WINDOW_DAYS * DAY_IN_SECONDS );
+		// The retained span, not the raw default: HEAVY_MIN_HITS is documented as a total
+		// "over the whole window", so this must be the same window the chart and the
+		// aggregates report on. Reading WINDOW_DAYS directly meant a site that filtered
+		// retention up to 90 days still had its sustained-heavy check counting only 30 —
+		// the dashboard would show a bot's 1,200 hits while the review queue saw 300 and
+		// stayed silent.
+		$since = gmdate( 'Y-m-d H:i:s', $now - self::retention_days() * DAY_IN_SECONDS );
 		$hour  = gmdate( 'Y-m-d H:i:s', $now - HOUR_IN_SECONDS );
 
 		// One row per distinct UA over the window. MAX(agent) is unambiguous: the

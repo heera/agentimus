@@ -222,11 +222,20 @@ Turning it off doesn't delete what's already there — use the log's **Clear** a
 
 If you manage the site's code, a few filters let you tune this feature. Site owners can safely ignore this section.
 
+> **Keeping more than 30 days? Raise the row cap too.** Retention is only one of the two
+> limits on the log. Independently of age, the plugin trims the table back to
+> `agentimus_activity_max_rows` (50,000) so a traffic spike can't grow it without bound. On
+> a busy site, asking for 90 days while leaving the cap at its default means the oldest rows
+> are still discarded — you'd get fewer days than you asked for, and nothing would say so.
+> Raise both filters together, and keep an eye on the size of the `agentimus_activity`
+> table: rows are small, but 90 days of a heavily-crawled site is a lot of them.
+
 ```php
 // Change how long activity + referrals are kept and reported on (days). Default 30.
 add_filter( 'agentimus_activity_retention_days', fn() => 90 );
 
 // Change the hard row cap on the activity log (0 disables the cap). Default 50000.
+// Raise this alongside the retention above — otherwise the cap silently wins.
 add_filter( 'agentimus_activity_max_rows', fn() => 100000 );
 
 // Add your own AI-referral sources (referrer host / utm_source => display label).
