@@ -265,7 +265,7 @@ export default {
                   class="ar-optcheck__aside"
                   :disabled="busyIgnore === p.id"
                   @click="setAside(p, true)"
-                >Not cited content</button>
+                >Set aside</button>
               </li>
             </ul>
             <p v-if="issue.pages.length < issue.count" class="ar-optcheck__more">
