@@ -12,6 +12,8 @@ It sits quietly alongside your existing setup. Your visitors see nothing new: no
 
 You do not need to understand AI, web standards, or any of the file formats involved to use it. A setup wizard opens automatically the first time you visit the admin and walks you through your identity and content choices in about a minute. After that, Agentimus runs on its own.
 
+And it doesn't just publish — it **scores** how ready you are. The dashboard rolls everything into one **AEO/GEO score** (0–100) across five plain rungs — Findable, Readable, Trusted, Optimized and Cited — and always names the single next thing to improve, so you're never guessing where you stand. (AEO is Answer Engine Optimization; GEO is Generative Engine Optimization — the practice of being found, read and cited by AI answer engines.)
+
 ## The problem it solves
 
 For twenty years, "getting found" online meant getting found by a search engine, which sent a person to your page. That is changing. People increasingly ask an AI assistant a question and read the answer it composes — an answer stitched together from many sites, often without the person ever clicking through.

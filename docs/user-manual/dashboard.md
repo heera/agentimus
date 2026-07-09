@@ -11,7 +11,7 @@ The **Dashboard** is the first tab you land on when you open Agentimus. It answe
 - **Is AI sending readers *to* you?** The **Traffic from AI** card counts real people who clicked through to your site from an AI assistant like ChatGPT or Perplexity.
 - **Is AI reading *from* you?** The **agent activity log** records each time a bot or crawler fetches one of the machine-readable files Agentimus publishes (things like `/llms.txt` or a page's `.md` version).
 
-Alongside these sits a **Readiness summary** — an at-a-glance health check of how well your site is set up for AI.
+Alongside these, the sidebar carries your **AEO/GEO score** — a single 0–100 read on how ready your site is for AI, with the next thing to improve always in view.
 
 Everything on this tab is **first-party and local-only**. All of it lives in your own WordPress database, nothing is ever sent to Agentimus or any third party, and — importantly — **by default no IP addresses and no personal data are stored**. (One optional setting, off by default, can store an IP for a flagged impersonating or spoofed crawler so you can block it — never for an ordinary visitor, and never off your own server; see the privacy note below.) The two data stores are pruned and size-capped automatically, so they never grow without bound.
 
@@ -187,20 +187,23 @@ For most site owners the defaults are exactly right and need no attention. Devel
 
 ---
 
-## The Readiness summary in the sidebar
+## The AEO/GEO score in the sidebar
 
-The Dashboard sidebar carries a **condensed view of your Readiness report** — the same pass / warn / fail checks shown in full on the **Readiness** tab, boiled down to an at-a-glance signal of how AI-ready your site is.
+The Dashboard sidebar carries your **AEO/GEO score** — a single 0–100 measure of how ready your site is for AI answer engines (AEO = Answer Engine Optimization, GEO = Generative Engine Optimization), with the one most useful next step always in view. It rolls everything Agentimus does into one number, so you don't have to read a checklist to know where you stand.
 
-These checks look at the things that decide whether agents can find and read you well, such as:
+The score is a ladder of **five rungs**, each shown as a percentage:
 
-- whether your site is public and using pretty permalinks,
-- whether `/llms.txt` (and the full-text edition) are enabled and have real substance,
-- whether you've set an author/entity **profile** and expertise topics,
-- whether **Topics for AI** are in use,
-- whether a sitemap exists and is advertised in `robots.txt`, and
-- whether your AI-usage and security signals are in place.
+- **Findable** — an agent can reach and crawl your site (public, pretty permalinks, `robots.txt`, sitemap).
+- **Readable** — what it crawls comes back clean and structured (`llms.txt`, the full-text edition, schema, Topics for AI).
+- **Trusted** — it can identify you and trust the source (your profile, expertise, an entity image/logo, security and AI-usage signals).
+- **Optimized** — your individual pages are easy for an AI to read and quote (see *[Optimize your content](readiness.html)* on the Readiness page).
+- **Cited** — AI engines actually name you in their answers. This rung appears **only when you turn on "Track AI citations"** (see *[AI Visibility](ai-visibility.html)*); until then the score is a clean four-rung ladder.
 
-The sidebar summary is a jumping-off point: use it to spot that something needs attention, then open the **Readiness** tab for the full breakdown, where each item comes with a plain-English explanation and a deep link straight to the fix. The **Readiness & agent preview** page in this manual covers those checks in detail.
+The three readiness rungs — Findable, Readable, Trusted — are the original **"agent-ready"** milestone: when all three reach 100%, your site is fully agent-ready. Each rung links straight to where you act on it — the readiness rungs and Optimized open their section on the **Readiness** tab; Cited opens **AI Visibility**.
+
+At the top, a gauge shows the blended score and a plain band — **Needs work**, **Fair**, **Strong** or **Excellent** — and a **"Next:"** line names the single highest-impact thing to do next. A rung with nothing to measure yet (for example Cited before you've run a check) shows a grey **"—"** and is left out of the maths, its weight shared across the other rungs — so you're never penalised for a feature you don't use. (If your site is hidden from crawlers, the whole score is floored until you fix that first.)
+
+The full checks behind Findable / Readable / Trusted, and the per-page work behind Optimized, live on the **Readiness** tab — see the **[Readiness & agent preview](readiness.html)** page.
 
 ---
 

@@ -23,6 +23,8 @@ Agentimus is a free WordPress plugin that publishes **machine-readable versions 
 
 It runs quietly alongside your theme and your SEO plugin. Nothing changes on your visible pages; everything happens on the AI/agent layer.
 
+And it scores how ready you are: one **AEO/GEO score** across five rungs — Findable, Readable, Trusted, Optimized and Cited — with the single next thing to improve always in view.
+
 ## Two ways in
 
 <div class="code-example" markdown="1">

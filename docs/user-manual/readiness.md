@@ -91,31 +91,34 @@ If the **Search engine visibility** check fails, your site is hidden from crawle
 
 If you install a Pro add-on that contributes its own checks, any that don't map to one of the three rungs appear in a trailing **More checks** group rather than disappearing. For most sites this group won't exist.
 
-## How the score works
+## How this feeds your AEO/GEO score
 
-The report gives you your standing in two complementary ways.
+These checks are the foundation of the **[AEO/GEO score](dashboard.html)** on your Dashboard. Its first three rungs *are* the three here — Findable, Readable and Trusted — and when all three are clean your site is **fully agent-ready**. The score then extends them with two more rungs: **Optimized** (the per-page work below) and **Cited** (measured on the [AI Visibility](ai-visibility.html) tab, when you turn it on).
 
-### The percentage gauge
+On this tab each rung group shows a small tally like `5/5` and takes the colour of its worst check — one `FAIL` turns it red, one `WARN` amber, an all-clear group green. The single most useful **next step** is always named on the Dashboard score card. (For how the 0–100 number is blended and banded — Needs work / Fair / Strong / Excellent — see the [Dashboard page](dashboard.html).)
 
-The circular gauge in the sidebar is simply **the share of all checks that pass**, rounded to a whole percent. If 14 of 17 checks pass, you're at 82%. Its colour is a quick health read:
+## Optimize your content
 
-- **80% or above** — green ("good").
-- **50% to 79%** — amber ("ok").
-- **Below 50%** — red ("low").
+The three rungs above grade your *site's* setup. The fourth score rung, **Optimized**, grades your *pages* — how easy each article is for an AI to read and quote — and its worklist lives right here on the Readiness tab (click the **Optimized** rung on the Dashboard score card to jump to it).
 
-Because `WARN` and `FAIL` both count as "not passing", the percentage is deliberately strict: it nudges you toward a fully clean report, not just an absence of hard errors.
+Agentimus samples your recent **articles** and checks each for what makes content citable:
 
-### The rung ladder
+- **Thin content** — too little text for an agent to work with (under about 100 words).
+- **Nothing concrete to quote** — no figures, dates or cited sources; answer engines lift specifics, so give them one.
+- **Quotable passages** — an over-long paragraph an engine can't cleanly lift; break it up.
+- **Freshness** — a substantial page untouched for a couple of years reads as stale.
 
-Alongside the gauge, Agentimus shows which **rung** you've reached. This is stricter still, and it's the more meaningful measure:
+Issues are grouped, and each lists the exact pages affected as links straight to their editors — so fixing them is one click away. The same checks appear per-page in the editor's **AI Readability** panel while you write.
 
-- A rung counts as **reached** only when *every* check in it passes.
-- You climb from the bottom, so a gap low down caps you there — a complete Readable rung doesn't count if Findable still has a warning, because an agent never gets far enough to benefit.
-- Your headline standing is the highest rung that's complete with every rung below it complete too.
-- When all three rungs are clean, you're **fully agent-ready** ("topped").
-- The sidebar also surfaces the single **next step** — the first outstanding item on the next incomplete rung — so there's always one obvious thing to do.
+**Articles only.** Optimize grades the content that's *meant* to be cited — posts, pages and doc-like content. It deliberately leaves out **commerce products** (a product page is short by design) and **structural pages** with no real text of their own — your Posts page, a theme-rendered front page, a form or page-builder page — so they're never wrongly flagged as "thin".
 
-In short: the **percentage** tells you how tidy things are overall, and the **rung** tells you how far an agent can actually get.
+### Set aside pages that aren't meant to be cited
+
+Some pages simply aren't articles you're optimising for citation — a landing page, a "Thank you" page, an index. Next to any page in the worklist is **Set aside**: mark it *not cited content* and it leaves the score, moving to a visible **"Set aside"** list you can **Restore** from at any time. Nothing is deleted or changed — the page stays published exactly as it is; it just stops counting toward your Optimized rung. The section header always shows how many pages are graded and how many you've set aside, so the number stays honest.
+
+### Evergreen categories
+
+Timeless content — references, tutorials, legal pages — doesn't go stale with age, so the freshness check shouldn't nag it. Under **Settings**, mark the categories whose posts are evergreen and their posts are exempt from the freshness check (only that check; nothing else changes).
 
 ## Every failing check links straight to its fix
 

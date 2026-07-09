@@ -52,11 +52,13 @@ Read or persist the plugin settings.
 - a wrapped object: `{ "settings": { "enable_schema": false } }`
 - form params under a `settings` key
 
-The input is passed through `Settings::update()`, which sanitizes and merges against defaults, then the response echoes the **saved** (re-read) values plus a fresh readiness report:
+The input is passed through `Settings::update()`, which sanitizes and merges against defaults, then the response echoes the **saved** (re-read) values plus a fresh readiness report and the **recomputed AEO/GEO score** (so the admin's score card refreshes live on save without a reload):
 
 ```json
-{ "settings": { "...": "..." }, "readiness": [ ... ], "saved": true }
+{ "settings": { "...": "..." }, "readiness": [ ... ], "score": { "score": 99, "band": "Excellent", "rungs": [ ... ], "content": [ ... ], "...": "..." }, "saved": true }
 ```
+
+The `score` object is `Agentimus\Score::report()` — the blended 0–100 `score`, its `band`, the `rungs` array (Findable/Readable/Trusted/Optimized, plus Cited when `enable_visibility` is on), the per-page `content` worklist and the `ignored` (set-aside) list. It is `null` if the score can't be computed.
 
 Partial updates are supported for most flags, but note that boolean feature toggles have specific merge semantics in `Settings::update()` (some absent keys reset to default, others are treated as "off"); send the full settings object if you need deterministic results.
 
@@ -207,10 +209,11 @@ Registered separately in `inc/Discovery/Module.php`, still under `agentimus/v1`:
 
 ### Other admin route groups
 
-Two further groups register under `agentimus/v1`; all require `manage_options` and the REST nonce. They are outside the scope of this page but listed for completeness:
+Further groups register under `agentimus/v1`; all require `manage_options` and the REST nonce. They are outside the scope of this page but listed for completeness:
 
 - **Activity** (`inc/Activity/Module.php`): `GET`/`DELETE /activity`, `GET /activity/day` (requires a `date` param, `YYYY-MM-DD`), `POST /activity/block`, `POST /activity/allow`.
 - **AI Visibility** (`inc/Visibility/Rest.php`, the opt-in monitoring add-on): `GET`/`POST /visibility/config`, `GET /visibility/dashboard`, `POST /visibility/run`, `POST /visibility/test`, `POST /visibility/reveal-key`, `POST /visibility/clear`.
+- **Optimize** (`inc/Rest.php`): `POST /optimize/ignore` — body `{ post: int, ignored: bool }` sets a page aside from (or restores it to) the Optimized rung's citability grading. Returns the recomputed `score` so the admin updates live.
 
 ## Public discovery endpoints (`/.well-known/*`)
 

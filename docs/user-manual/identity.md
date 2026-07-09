@@ -186,15 +186,15 @@ There are three different save behaviours in this section, so it helps to know w
 
 Your `llms.txt` and `discovery.json` always carry your identity. The on-page **structured data (JSON-LD)**, though, only ships when Agentimus's "Rich data for search" feature is on **and** you don't already have an SEO plugin that outputs its own structured data. Agentimus deliberately stands down when it detects Yoast SEO, Rank Math, SEOPress, The SEO Framework or All in One SEO, so your pages never carry two conflicting sets of structured data. If you rely on one of those plugins for schema, fill in your identity there as well; your `llms.txt` and discovery manifest still carry everything you set here.
 
-## Identity and your readiness score
+## Identity and your AEO/GEO score
 
-The Agentimus dashboard scores how ready your site is for AI. Three of those checks come straight from this page:
+The Agentimus dashboard scores how ready your site is for AI. Three of the checks behind the **Trusted** rung of that score come straight from this page:
 
 - **Author / entity profile** — passes once your profile sentence is set.
 - **Expertise topics** — passes once you have at least one expertise tag.
 - **sameAs profiles** — passes once you add at least one profile link.
 
-Filling in all three lifts your readiness score and, more importantly, gives assistants a complete, trustworthy picture of who you are.
+Filling in all three lifts your Trusted rung — and your overall AEO/GEO score — and, more importantly, gives assistants a complete, trustworthy picture of who you are.
 
 ## A quick setup checklist
 

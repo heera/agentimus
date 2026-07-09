@@ -6,7 +6,7 @@ nav_order: 12
 
 AI Visibility monitoring is the one part of Agentimus that talks to the outside world. Everything else in the plugin runs quietly on your own site. This feature, when you switch it on and add your own AI keys, actually asks the big AI assistants questions and reports back whether they mention you, link to you, and how you stack up against your rivals — tracked over time so you can see the picture change.
 
-It is built into this plugin. There is nothing extra to install. It is simply switched off until you decide to use it.
+It is built into this plugin — nothing extra to install — but it's **hidden until you ask for it**. Because it's the one feature that spends your own AI credit, it's an explicit opt-in: turn on **Track AI citations** under **Settings → Features** and the **AI Visibility** tab appears, and a **Cited** rung joins your [AEO/GEO score](dashboard.html). Leave it off and neither shows — your score is a clean four-rung ladder.
 
 ## What it does, in plain terms
 
@@ -35,7 +35,7 @@ Your keys are stored on your own server, are used only to run your checks, and a
 
 ## Where to find it
 
-Open **Agentimus** in your WordPress admin menu and click the **AI Visibility** tab. Inside that tab there are two views:
+Once **Track AI citations** is on (Settings → Features), an **AI Visibility** tab appears in the Agentimus menu. Open it. Inside that tab there are two views:
 
 - **Results** — the scoreboard from your latest check.
 - **Settings** — where you add what to track, turn on engines, paste keys, and set the schedule.
@@ -122,6 +122,13 @@ Every question is listed with a small tag per engine so you can see exactly how 
 
 Answers that used a live web search carry a small **web** marker, and Agentimus lists the **actual pages each engine cited** as links — so you can see precisely where an AI is getting its information about you. This is often the most useful part: it tells you which of your (or a rival's) pages the AI is leaning on.
 
+## How this feeds the "Cited" rung
+
+When **Track AI citations** is on, your latest check's **"Seen in answers"** rate becomes the **Cited** rung of your [AEO/GEO score](dashboard.html) — the one rung that measures a real *outcome* rather than your setup. Two things keep it honest:
+
+- **It's dated, and it expires.** The rung notes *when* it was last checked, and a reading older than **90 days** stops counting toward the score (it's shown as a dated reference until you re-run). An old measurement never quietly stands in for a current one.
+- **No key, no number.** If you remove a provider key — or haven't run a check yet — Cited reads a grey **"—"** and is simply left out of the score, its weight shared across the other rungs. Clicking the **Cited** rung on the Dashboard takes you straight here: to **Settings** when your setup isn't complete enough to run a check, or to **Results** when it is.
+
 ## Turn on automatic checks (scheduling)
 
 Running by hand is fine, but the real value comes from tracking change over time. In **Settings → Schedule**:
@@ -168,7 +175,8 @@ Where Agentimus genuinely helps is making sure that when an AI *does* look at yo
 
 | Setting | Where | Notes |
 |---|---|---|
-| Turn the feature on | Enable an engine + add a key | Off by default; nothing runs until configured |
+| Show the feature | Settings → Features → **Track AI citations** | Off by default; the tab + the Cited rung appear when on |
+| Run checks | Enable an engine + add a key | Bring your own key; each check spends your own credit |
 | What to track | Settings → What you're tracking | Up to 10 items, each with its own name, site, rivals, questions |
 | Questions per item | Chips in each item | Up to 25 |
 | Rivals per item | Chips in each item | Up to 20 |

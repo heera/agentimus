@@ -6,6 +6,10 @@ nav_order: 14
 
 Short, honest answers to the questions site owners ask most. If you are weighing up whether Agentimus is safe to run on a live site, this is the page to read. The recurring theme: Agentimus adds a machine-readable layer *for AI tools* without touching what your visitors see, without phoning home, and without taking over jobs your other plugins already do.
 
+## What is the AEO/GEO score?
+
+It's the single 0–100 number on your Dashboard that sums up how ready your site is for AI answer engines. It blends five rungs — **Findable**, **Readable**, **Trusted**, **Optimized** and **Cited** — into one figure, and always names the single most useful next step; each rung links to where you fix it. The first three are your site setup (the Readiness checks), **Optimized** grades your individual pages for how quotable they are, and **Cited** measures whether AI engines actually name you — but Cited only counts when you turn on **Track AI citations**, and a rung with nothing to measure is left out entirely rather than counted as a zero, so you're never penalised for a feature you don't use.
+
 ## Will it slow my site down?
 
 No. Agentimus is built to stay out of the way of your visitors and your server.
