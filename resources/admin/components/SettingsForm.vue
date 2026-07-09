@@ -160,7 +160,10 @@ export default {
         { key: 'enable_robots', label: 'Crawler rules', hint: 'States your preferences to crawlers and blocks known AI-training bots by name. (file: robots.txt)' },
         { key: 'enable_schema', label: 'Rich data for search', hint: 'Adds structured data search engines and assistants understand (JSON-LD). Leave off if your SEO plugin already does this.' },
         { key: 'enable_page_checks', label: 'AI readability tips', hint: 'Adds an “AI Readability” panel in the post editor with per-page tips (headings, summary, thin content, image alt). Editor-only — nothing is shown to visitors.' },
-        { key: 'enable_visibility', label: 'Track AI citations', hint: 'Shows the AI Visibility tab and adds the “Cited” rung to your score — measures whether AI engines actually name your site in their answers. Off by default: it needs your own AI provider key and spends your credit to run checks.' },
+        // Named for the screen it unlocks, with what it literally does in a quieter aside —
+        // "Track AI citations" describes the mechanism, "AI Visibility" is what you look for
+        // in the nav. `sub` is optional; no other feature needs one yet.
+        { key: 'enable_visibility', label: 'AI Visibility', sub: '(Track AI citations)', hint: 'Shows the AI Visibility screen and adds the “Cited” rung to your score — measures whether AI engines actually name your site in their answers. Off by default: it needs your own AI provider key and spends your credit to run checks.' },
         { key: 'enable_sitemap', label: 'Sitemap (backup)', hint: 'Adds a sitemap only when WordPress core and your SEO plugin don’t already provide one — never duplicates.' },
         { key: 'enable_changes', label: 'Change feed', hint: 'A JSON feed of recently added or updated pages so assistants can re-check just what changed, instead of re-reading your whole site. (file: agentimus-changes.json)' },
         { key: 'enable_signing', label: 'Verified responses', hint: 'Digitally signs your AI files so assistants can confirm they really came from your site and weren’t tampered with on the way. On by default; no setup needed.' },
@@ -604,7 +607,7 @@ export default {
           <input v-model="settings[f.key]" type="checkbox" />
           <span class="ar-toggle__track" aria-hidden="true"></span>
           <span class="ar-toggle__text">
-            <strong>{{ f.label }}</strong>
+            <strong>{{ f.label }}<span v-if="f.sub" class="ar-toggle__sub">{{ f.sub }}</span></strong>
             <small><template v-for="(p, i) in specHintParts(f.hint)" :key="i"><a v-if="p.href" :href="p.href" class="ar-spec-link" target="_blank" rel="noopener noreferrer">{{ p.term }}</a><template v-else>{{ p.text }}</template></template></small>
           </span>
         </label>

@@ -234,32 +234,34 @@ export default {
         { id: 'discovery', label: 'Discovery' },
       ];
     },
-    // The occasional ones, behind "More". Both conditional tabs live here, so the menu's
-    // contents change but the bar's width never does.
+    // The occasional ones, behind "More…".
+    //
+    // AI Visibility is always LISTED, even when citation tracking is off — showing it greyed
+    // out tells an owner the feature exists and where to turn it on, where hiding it just
+    // leaves a hole they never learn about. The request log is different: it's on by default
+    // and switching recording off is a deliberate act, so it simply goes.
     moreTabs() {
       return [
-        // The per-request log has nothing to show when recording is off.
+        {
+          id: 'visibility',
+          label: 'AI Visibility',
+          disabled: !this.settings.enable_visibility,
+          note: 'Turn on in Settings',
+        },
         ...(this.settings.enable_activity ? [{ id: 'log', label: 'Request log' }] : []),
-        // AI Visibility is opt-in — it only appears when citation tracking is on.
-        ...(this.settings.enable_visibility ? [{ id: 'visibility', label: 'AI Visibility' }] : []),
-        { id: 'about', label: 'About' },
+        // About is reference material, not a working screen — the rule sets it apart.
+        { id: 'about', label: 'About', divided: true },
       ];
     },
-    // True when the screen you're on lives inside the menu, so "More" can carry the active
+    // True when the screen you're on lives inside the menu, so "More…" can carry the active
     // underline — otherwise nothing in the bar would show where you are.
     moreActive() {
-      return this.moreTabs.some((t) => t.id === this.tab);
+      return this.moreTabs.some((t) => t.id === this.tab && !t.disabled);
     },
-    // When you're on a screen inside the menu, the trigger names it instead of saying
-    // "More" — otherwise the bar reads as though nothing is selected.
-    activeMoreLabel() {
-      const hit = this.moreTabs.find((t) => t.id === this.tab);
-      return hit ? hit.label : 'More';
-    },
-    // Every reachable screen — what syncTabFromHash() validates a #hash against. Derived,
-    // so a tab can never exist in the bar or the menu without being deep-linkable.
+    // Every reachable screen — what syncTabFromHash() validates a #hash against. A disabled
+    // item is listed but NOT navigable, so #visibility must not resolve while it's off.
     tabs() {
-      return [...this.primaryTabs, ...this.moreTabs];
+      return [...this.primaryTabs, ...this.moreTabs.filter((t) => !t.disabled)];
     },
     dashSummary() {
       const c = (this.discovery && this.discovery.counts) || {};
@@ -452,9 +454,12 @@ export default {
       }
       this.goTo(a);
     },
-    pickMore(id) {
+    pickMore(t) {
+      // `disabled` already blocks the click, but a keyboard "Enter" on an aria-disabled
+      // element still fires in some browsers — refuse it here too.
+      if (t.disabled) return;
       // The tab watcher closes the menu; setting it here too would be redundant.
-      this.tab = id;
+      this.tab = t.id;
     },
     // Scoped to the menu's own wrapper, not $el — $el is the whole app, so a click on any
     // tab would count as "inside" and the menu would never close.
@@ -528,9 +533,16 @@ export default {
     },
     syncTabFromHash() {
       const h = window.location.hash.replace(/^#/, '');
-      if (h && h !== this.tab && this.tabs.some((t) => t.id === h)) {
+      if (!h || h === this.tab) return;
+      if (this.tabs.some((t) => t.id === h)) {
         this.tab = h;
+        return;
       }
+      // An unreachable hash — a typo, or #visibility while citation tracking is off. We stay
+      // where we are, so put the address bar back in step: a URL that names a screen you
+      // aren't looking at is worse than no deep link at all. replaceState, not pushState, or
+      // Back would bounce straight into the bad hash again.
+      window.history.replaceState(null, '', `#${this.tab}`);
     },
     // Persist the free-text profile block (entity/name/role/about/email). Sends the
     // full settings; reflects the sanitized profile back into the live object so the
@@ -1057,27 +1069,32 @@ export default {
           :class="{ 'is-active': moreActive }"
           aria-haspopup="true"
           :aria-expanded="moreOpen ? 'true' : 'false'"
-          :aria-label="moreActive ? `More — ${activeMoreLabel} selected` : 'More screens'"
+          aria-label="More screens"
           @click="moreOpen = !moreOpen"
         >
-          {{ moreActive ? activeMoreLabel : 'More' }}
+          More…
           <span class="ar__more-caret" aria-hidden="true">
             <svg viewBox="0 0 12 12" width="9" height="9" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="2.5 4.5 6 8 9.5 4.5" /></svg>
           </span>
         </button>
 
         <div v-if="moreOpen" class="ar__more-menu" role="menu">
-          <button
-            v-for="t in moreTabs"
-            :key="t.id"
-            class="ar__more-item"
-            :class="{ 'is-active': tab === t.id }"
-            role="menuitem"
-            :aria-current="tab === t.id ? 'page' : null"
-            @click="pickMore(t.id)"
-          >
-            {{ t.label }}
-          </button>
+          <template v-for="t in moreTabs" :key="t.id">
+            <div v-if="t.divided" class="ar__more-sep" role="separator"></div>
+            <button
+              class="ar__more-item"
+              :class="{ 'is-active': tab === t.id, 'is-disabled': t.disabled }"
+              role="menuitem"
+              :disabled="t.disabled"
+              :aria-disabled="t.disabled ? 'true' : null"
+              :aria-current="tab === t.id ? 'page' : null"
+              @click="pickMore(t)"
+            >
+              <span class="ar__more-item-label">{{ t.label }}</span>
+              <!-- Say why it's unreachable, rather than leaving a dead entry to puzzle over. -->
+              <span v-if="t.disabled && t.note" class="ar__more-item-note">{{ t.note }}</span>
+            </button>
+          </template>
         </div>
       </div>
 

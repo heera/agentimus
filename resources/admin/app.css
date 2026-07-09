@@ -2796,12 +2796,33 @@ a.ar-about-proto__v:hover { text-decoration: underline; }
   font-family: var(--ar-mono); font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase;
   color: var(--ar-ink-soft);
 }
-.ar__more-item:hover { background: var(--ar-surface-2); color: var(--ar-ink); }
+.ar__more-item:hover:not(:disabled) { background: var(--ar-surface-2); color: var(--ar-ink); }
 .ar__more-item:focus-visible { outline: 2px solid var(--ar-accent); outline-offset: -2px; }
 .ar__more-item.is-active { color: var(--ar-ink); box-shadow: inset 2px 0 0 var(--ar-accent); }
+
+/* Listed but unreachable: the feature exists, it's just switched off. Greying it out
+   teaches where the feature lives; hiding it leaves a hole nobody discovers. */
+.ar__more-item.is-disabled { cursor: default; color: var(--ar-ink-faint); }
+.ar__more-item-label { display: block; }
+.ar__more-item-note {
+  display: block; margin-top: 3px;
+  font-size: 9px; letter-spacing: 0.06em; text-transform: none;
+  color: var(--ar-ink-faint); opacity: 0.85;
+}
+
+/* About is reference material, not a working screen. */
+.ar__more-sep { height: 1px; margin: 6px 4px; background: var(--ar-line); }
 
 /* On a narrow admin the bar gets tight: shrink the gap before anything scrolls. */
 @media (max-width: 960px) {
   .ar__bar { gap: 16px; }
   .ar__tabs { gap: 16px; }
+}
+
+/* A feature named for the screen it unlocks, with the literal mechanism in a quieter
+   aside beside it: "AI Visibility (Track AI citations)". */
+.ar-toggle__sub {
+  margin-left: 7px;
+  font-weight: 400; font-size: 11px;
+  color: var(--ar-ink-faint);
 }

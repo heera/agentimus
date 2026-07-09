@@ -84,7 +84,7 @@ export default {
           title: 'AI Visibility monitoring',
           lead: 'Optional — check how AI assistants actually describe you, and add the “Cited” rung to your score. The one feature that reaches out, using API keys you provide (stored encrypted at rest).',
           items: [
-            { name: 'AI Visibility checks', where: 'Settings → Track AI citations', desc: 'Off by default. Turn it on and Agentimus asks ChatGPT, Perplexity, Gemini and Claude the questions you set — with your own keys — tracking whether each brand or product gets mentioned, linked and ranked against its rivals, and feeds the “Cited” rung of your score. Results and keys stay on your server (keys encrypted at rest).', tag: 'Opt-in' },
+            { name: 'AI Visibility checks', where: 'Settings → AI Visibility', desc: 'Off by default. Turn it on and Agentimus asks ChatGPT, Perplexity, Gemini and Claude the questions you set — with your own keys — tracking whether each brand or product gets mentioned, linked and ranked against its rivals, and feeds the “Cited” rung of your score. Results and keys stay on your server (keys encrypted at rest).', tag: 'Opt-in' },
           ],
         },
       ],
