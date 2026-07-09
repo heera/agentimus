@@ -130,6 +130,7 @@ The main node describes the content and its type is chosen to fit:
   "@id": "https://example.com/sourdough-guide/#blogposting",
   "url": "https://example.com/sourdough-guide/",
   "headline": "A Beginner's Guide to Sourdough",
+  "description": "A step-by-step introduction to keeping a starter and baking your first loaf.",
   "datePublished": "2026-05-01T09:00:00+00:00",
   "dateModified": "2026-06-12T14:30:00+00:00",
   "author": { "@id": "https://example.com/#identity" },
@@ -147,6 +148,18 @@ The main node describes the content and its type is chosen to fit:
 ```
 
 The `author` and `publisher` both point back to your identity node, so your credit travels with the page. The `keywords` and `about` fields appear only when you have given the page topics — see the **Topics for AI** page for how those work, including the authoritative `sameAs` links on each topic.
+
+### The one-line description
+
+The `description` on the node is a single plain sentence that sums the page up. You set it in the editor's **AI description** box, and that one line is the single source of truth for three surfaces at once, so they can never drift apart: the JSON-LD `description` above, the lead line of the page's `.md` twin, and the page's own HTML `<meta name="description">`.
+
+If you leave the box empty, Agentimus falls back to the post's manual excerpt or, failing that, a roughly thirty-word summary drawn straight from the start of the post body. It comes up empty only when a post has neither an excerpt nor any body text. Whatever the source, the final line is tidied — markup stripped, spacing collapsed — and capped at 300 characters.
+
+Because that line is authoritative, Agentimus doesn't just add its own tag: it looks at the `<meta name="description">` your theme printed and **replaces** it (or adds one if there wasn't any), so a page always carries exactly one, matching every other surface. It touches only `name="description"` — your `og:description` and `twitter:description` tags are left exactly as they are.
+
+Like the schema itself, this defers to a dedicated SEO plugin: if Yoast, Rank Math, SEOPress, All in One SEO or The SEO Framework is active, Agentimus leaves the description alone so it never duplicates or fights the one your SEO plugin writes.
+
+Both switches live on a dedicated **AI description** card under **Settings → Discovery**, each on by default. The master toggle turns the whole feature on or off; a sub-toggle lets you enrich only the JSON-LD and `.md` surfaces and never touch the page `<head>`, if you would rather keep managing the visible meta tag yourself.
 
 ### Breadcrumbs
 

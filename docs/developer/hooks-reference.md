@@ -176,6 +176,15 @@ add_filter( 'agentimus_topic_links', function ( $urls, $topic ) {
 }, 10, 2 );
 ```
 
+### AI description
+
+Each post's one-line description — the editor's **AI description** value, or an excerpt/body-summary fallback — is resolved once in `Description::for_post()` and feeds the JSON-LD `description`, the `.md` lead, and (unless a dedicated SEO plugin owns it) the page's `<meta name="description">`. These two filters shape it.
+
+| Hook | Type | Signature | Purpose |
+| --- | --- | --- | --- |
+| `agentimus_post_description` | filter | `( string $desc, WP_Post $post ): string` | The last word on a post's resolved AI description (editor value → excerpt/summary fallback). Feeds the JSON-LD `description`, the `.md` lead and the meta tag; the return is re-cleaned (tags stripped, whitespace collapsed, capped to 300 chars). The hook for supplying your own auto-summary logic. |
+| `agentimus_emit_meta_description` | filter | `( bool $emit, WP_Post $post ): bool` | Whether Agentimus manages the page `<meta name="description">` on this request. Return `false` to leave the `<head>` to your theme. (It already stands down for a dedicated SEO plugin and when the `ai_description_meta_tag` sub-toggle is off.) |
+
 ## Crawl & security
 
 These are the Guard (opt-in UA blocking), the activity Classifier (labelling, not blocking) and the suggestion catalogues behind the admin allow/deny lists. They are internal-tier tuning knobs, not a third-party integration surface. Nothing is blocked until the owner adds a client to a list **and** turns blocking on.

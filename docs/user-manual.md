@@ -16,7 +16,7 @@ New here? Read them roughly in order:
 3. **Dashboard & activity** — your AEO/GEO score, AI traffic, and what agents are doing.
 4. **Readiness** — the checks behind your score, plus the per-page Optimize worklist, with one-click fixes.
 5. **Machine-readable outputs** — llms.txt, Markdown, discovery docs, sitemap.
-6. **Structured data** — the Schema.org (JSON-LD) your pages emit.
+6. **Structured data** — the Schema.org (JSON-LD) your pages emit, plus the one-line AI description behind each page's summary.
 7. **Identity** — tell AI who you are and what you do.
 8. **Topics for AI** — say what each page is about.
 9. **Agent preview** — see exactly what an agent receives.

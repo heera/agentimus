@@ -46,6 +46,7 @@ The architecture, the WP_Discovery Protocol, the full hooks & filters reference,
 | JSON-LD structured data | Schema.org identity, articles, breadcrumbs, FAQ |
 | `/.well-known/` discovery docs | `discovery.json`, agent card, MCP descriptor |
 | Topics for AI | Per-page topics → `keywords` + `about` entities |
+| AI description | Per-page summary → JSON-LD `description`, the `.md` lead + `<meta name="description">` |
 | robots.txt + Content-Signal | Clear, honest crawl and AI-use signals |
 
 {: .note }

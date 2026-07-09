@@ -60,6 +60,7 @@ Here is the machine-readable output Agentimus can generate. Some is on by defaul
 | Full-text edition | `/llms-full.txt` | Your content in full, in one file an agent can read in a single request |
 | Structured data | JSON-LD in the page `<head>` | `WebSite` + `Person`/`Organization`, plus `BlogPosting` and `BreadcrumbList` on posts |
 | Topics for AI | JSON-LD `keywords` + a line in each page's `.md` | Says, in plain words, what each post is about |
+| AI description | JSON-LD `description`, the `.md` lead + the page's `<meta name="description">` | One editor-set line that summarises each post, kept the same everywhere |
 | Crawler policy | `robots.txt` | Declares your content-usage signals and can block named AI-training crawlers |
 | AI-training opt-out | `robots.txt`, a response header, and `/.well-known/tdmrep.json` | Publishes your "don't train on this" choice in three places at once |
 | XML sitemap | `/agentimus-sitemap.xml` | An opt-in fallback, generated only if nothing else already provides one |

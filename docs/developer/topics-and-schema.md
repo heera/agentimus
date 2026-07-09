@@ -6,7 +6,7 @@ nav_order: 6
 
 Agentimus emits two machine-readable descriptions of each page: the JSON-LD `<script type="application/ld+json">` graph in `wp_head`, and the per-page Markdown surfaces. Both are driven by a small set of filters, so you can shape exactly what an AI assistant sees without touching the plugin. This page documents every topic and schema hook, their signatures, and how per-page topics turn into `keywords` and `about` DefinedTerms.
 
-Everything here is drawn from `inc/Topics.php`, `inc/Schema.php`, and `examples/topic-links-wikidata.php`. Nothing described is a front-end network call: Agentimus never looks anything up at request time, so your filters are the only source of external knowledge (like Wikidata links).
+Everything here is drawn from `inc/Topics.php`, `inc/Description.php`, `inc/Schema.php`, and `examples/topic-links-wikidata.php`. Nothing described is a front-end network call: Agentimus never looks anything up at request time, so your filters are the only source of external knowledge (like Wikidata links).
 
 ## How the pieces fit together
 
@@ -196,6 +196,59 @@ This exact snippet ships as `examples/topic-links-wikidata.php`. Drop that file 
 {: .note }
 > `$topic` is matched by its exact resolved text, including casing as it appears in `keywords`. Key your map on the string the editor actually entered (or normalize both sides in the callback if you want case-insensitive matching).
 
+## AI description
+
+Alongside topics, Agentimus resolves a single one-line **description** for each page. Like topics, it is a single source of truth — `Agentimus\Description::for_post( $post )` — so the three surfaces it feeds can never disagree: the JSON-LD `description` on the per-post node, the `>` blockquote lead of the page's `.md`, and (optionally) the page's HTML `<meta name="description">`.
+
+`for_post()` resolves in this order:
+
+1. **Editor value** — the one-liner typed in the "AI description" meta box (post meta `_agentimus_description`).
+2. **Manual excerpt** — the post's own excerpt, when the editor field is blank.
+3. **Body summary** — failing both, a ~30-word summary derived from the *raw* post body (block delimiters, shortcodes and tags stripped). This is read straight from the stored content, deliberately **not** through `get_the_excerpt()` or `the_content`, so it stays robust on a site where an off-loop `the_content` filter would blank the body. It returns nothing only when a post has neither an excerpt nor any body text.
+
+The resolved value is cleaned (tags stripped, whitespace collapsed) and capped at 300 characters. Like the schema, the whole feature defers to a dedicated SEO plugin (Yoast, Rank Math, SEOPress, AIOSEO, The SEO Framework) — Agentimus leaves the description alone rather than duplicate it — and it is gated by the `enable_ai_description` setting.
+
+### agentimus_post_description
+
+Your last word on a page's resolved description, after the editor-value → excerpt → body-summary fallback. Whatever you return is re-cleaned (tags stripped, whitespace collapsed, capped to 300 chars), so you can't overflow the cap or slip markup into a machine surface. This is the hook for supplying your own auto-summary logic — an AI-generated abstract, a curated field, a page-builder subtitle.
+
+```php
+/**
+ * @param string    $desc The resolved description (editor value or excerpt/summary fallback).
+ * @param \WP_Post   $post The post being described.
+ * @return string
+ */
+add_filter( 'agentimus_post_description', function ( $desc, $post ) {
+	if ( '' === $desc && 'product' === $post->post_type ) {
+		$desc = get_post_meta( $post->ID, '_subtitle', true );
+	}
+	return $desc;
+}, 10, 2 );
+```
+
+This one value feeds the JSON-LD `description`, the `.md` lead and the meta tag — change it once and every surface follows.
+
+### agentimus_emit_meta_description
+
+Whether Agentimus manages the page `<meta name="description">` on this request. When it does, it buffers the `<head>`, **replaces** whatever `name="description"` tag the theme printed with the resolved description (or appends one if there was none), and leaves `og:description` and `twitter:description` untouched — always exactly one `name="description"`. Return `false` to bow out and leave the `<head>` to your theme.
+
+```php
+/**
+ * @param bool      $emit Whether to manage <meta name="description"> here.
+ * @param \WP_Post   $post The post being described.
+ * @return bool
+ */
+add_filter( 'agentimus_emit_meta_description', function ( $emit, $post ) {
+	// Let a landing-page template own its own meta description.
+	if ( 'landing.php' === get_page_template_slug( $post ) ) {
+		return false;
+	}
+	return $emit;
+}, 10, 2 );
+```
+
+Agentimus already stands down on its own for a dedicated SEO plugin, and when the `ai_description_meta_tag` sub-toggle is off; this filter is the per-request, code-level override on top of those.
+
 ## Schema hooks
 
 The JSON-LD graph is only emitted when the `enable_schema` setting is on **and** no schema-emitting SEO plugin is active — Agentimus stands down for Yoast, Rank Math, SEOPress, The SEO Framework, and All in One SEO so it never ships duplicate structured data. That deferral is itself filterable via `agentimus_defer_schema` (return `false` to force Agentimus to emit anyway). The per-post nodes below are also gated: a node is only built on a singular view of a covered type, and never for a password-protected or unpublished post (the admin preview relaxes only the publish-status half).
@@ -301,6 +354,8 @@ If your filter returns a non-array, Agentimus falls back to the valid graph; it 
 | `agentimus_topic_meaningful` | derived topics, suggestions, `llms.txt` | `($meaningful, $name, $term)` | `false` for a purely-numeric name; derived paths only. |
 | `agentimus_topic_suggestions` | `Topics::suggestions()` | `($pool)` | Editor autocomplete pool; cached; junk-numeric filtered. |
 | `agentimus_topic_links` | `Schema::topic_links()` | `($urls, $topic, $post)` | `[]` (core supplies none); emitted as `about` → `sameAs`. |
+| `agentimus_post_description` | `Description::for_post()` | `($desc, $post)` | Final description; return re-cleaned (trim/strip/cap 300). |
+| `agentimus_emit_meta_description` | `Description::should_emit()` | `($emit, $post)` | Manage `<meta name="description">`? `false` stands down; auto-off for SEO plugins. |
 | `agentimus_defer_schema` | `Schema::seo_plugin_active()` | `($active)` | `true` when a supported SEO plugin is active; stands schema down. |
 | `agentimus_schema_type_map` | `Schema::article_node()` | `($map)` | `post`→`BlogPosting`, `page`→`WebPage`, else `Article`. |
 | `agentimus_schema_for_post` | `Schema::build_document()` | `($node, $post)` | Per-post node; return array to replace, `null` to omit (scalars dropped). |
