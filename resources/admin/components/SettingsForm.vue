@@ -11,6 +11,7 @@ export default {
     api: { type: Object, default: null },
     entityTypes: { type: Array, default: () => ['Person', 'Organization', 'LocalBusiness', 'Store'] },
     postTypes: { type: Array, default: () => [] },
+    categories: { type: Array, default: () => [] }, // {id, name} for the evergreen picker.
     knownTrainers: { type: Array, default: () => [] },
     knownScanners: { type: Array, default: () => [] },
     knownAllowed: { type: Array, default: () => [] },
@@ -38,6 +39,7 @@ export default {
       // Identity leads — the highest-signal section, and where a new owner starts.
       group: 'identity',
       typeQuery: '',
+      catQuery: '',
       nsQuery: '',
       showReset: false,
       scrollMore: false,
@@ -86,6 +88,14 @@ export default {
       const sel = Array.isArray(this.settings.post_types) ? this.settings.post_types : [];
       const slugs = this.postTypes.map((p) => p.slug);
       return sel.filter((s) => slugs.includes(s)).length;
+    },
+    filteredCategories() {
+      const q = this.catQuery.trim().toLowerCase();
+      if (!q) return this.categories;
+      return this.categories.filter((c) => c.name.toLowerCase().includes(q));
+    },
+    evergreenCount() {
+      return Array.isArray(this.settings.evergreen_categories) ? this.settings.evergreen_categories.length : 0;
     },
     blockedCount() {
       return Array.isArray(this.settings.blocked_trainers) ? this.settings.blocked_trainers.length : 0;
@@ -516,6 +526,19 @@ export default {
     selectAllTypes() {
       this.settings.post_types = this.postTypes.map((p) => p.slug);
     },
+    isEvergreen(id) {
+      return Array.isArray(this.settings.evergreen_categories) && this.settings.evergreen_categories.includes(id);
+    },
+    toggleEvergreen(id) {
+      if (!Array.isArray(this.settings.evergreen_categories)) this.settings.evergreen_categories = [];
+      const list = this.settings.evergreen_categories;
+      const i = list.indexOf(id);
+      if (i === -1) list.push(id);
+      else list.splice(i, 1);
+    },
+    clearEvergreen() {
+      this.settings.evergreen_categories = [];
+    },
     isNsOn(ns) {
       return Array.isArray(this.settings.rest_namespaces) && this.settings.rest_namespaces.includes(ns);
     },
@@ -757,6 +780,49 @@ export default {
           <strong>Curates what's advertised — not an access control.</strong>
           Unticking a type removes it from llms.txt, schema and discovery, but your
           WordPress REST API stays public: <code>/wp-json/wp/v2</code> remains reachable regardless.
+        </p>
+      </section>
+
+      <!-- Evergreen content --------------------------------------------- -->
+      <section v-if="categories.length" class="ar-card">
+        <h2 class="ar-card__title">Evergreen content</h2>
+        <p class="ar-card__lead">
+          Mark categories whose posts are timeless — references, tutorials, definitions, legal pages.
+          Posts in them are left out of the “freshness” check, so they’re never flagged as stale just for being old.
+        </p>
+        <div class="ar-types-bar">
+          <input
+            v-if="categories.length > 8"
+            v-model="catQuery"
+            type="search"
+            class="ar-input ar-types-search"
+            placeholder="Filter categories…"
+          />
+          <div class="ar-types-meta">
+            <span class="ar-types-count">{{ evergreenCount }} evergreen</span>
+            <button v-if="evergreenCount" type="button" class="ar-linkbtn" @click="clearEvergreen">Clear</button>
+          </div>
+        </div>
+
+        <div class="ar-types-scroll">
+          <div class="ar-types-grid">
+            <label
+              v-for="c in filteredCategories"
+              :key="c.id"
+              class="ar-type"
+              :class="{ 'is-on': isEvergreen(c.id) }"
+            >
+              <input type="checkbox" :checked="isEvergreen(c.id)" @change="toggleEvergreen(c.id)" />
+              <span class="ar-type__check" aria-hidden="true"></span>
+              <span class="ar-type__body">
+                <span class="ar-type__label">{{ c.name }}</span>
+              </span>
+            </label>
+            <p v-if="!filteredCategories.length" class="ar-types-empty">No categories match “{{ catQuery }}”.</p>
+          </div>
+        </div>
+        <p class="ar-card__note">
+          Only affects the freshness check — nothing else changes. Leave empty to age-check every post.
         </p>
       </section>
 

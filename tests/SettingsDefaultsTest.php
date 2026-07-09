@@ -61,6 +61,18 @@ final class SettingsDefaultsTest extends TestCase {
 		$this->assertSame( array( 'product' ), $clean['post_types'] );
 	}
 
+	public function test_sanitize_evergreen_categories_to_positive_ints() {
+		$clean = ( new Settings() )->sanitize(
+			array( 'evergreen_categories' => array( '7', 7, 0, -3, 'x', 12 ) )
+		);
+		// Positive ints only, de-duplicated, blanks/zero/negatives dropped.
+		$this->assertSame( array( 7, 12 ), $clean['evergreen_categories'] );
+	}
+
+	public function test_default_evergreen_categories_is_empty() {
+		$this->assertSame( array(), ( new Settings() )->defaults()['evergreen_categories'] );
+	}
+
 	public function test_sanitize_empty_preserves_the_current_selection() {
 		$this->with_extra_type();
 		update_option( Settings::OPTION, array( 'post_types' => array( 'post' ) ) );

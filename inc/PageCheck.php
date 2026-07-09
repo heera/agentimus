@@ -52,7 +52,8 @@ final class PageCheck {
 		$has_excerpt = '' !== trim( (string) $post->post_excerpt );
 		$stats       = self::stats( Content::markdown_source( $post ), $has_excerpt, self::home_host() );
 		// Recency is a post fact, not a content fact — fold it in after the pure parse.
-		$stats['age_days'] = self::age_days( $post );
+		$stats['age_days']  = self::age_days( $post );
+		$stats['evergreen'] = self::is_evergreen( $post );
 
 		$checks = array(
 			self::check_words( $stats ),
@@ -268,6 +269,11 @@ final class PageCheck {
 
 	private static function check_freshness( array $s ) {
 		$age = (int) ( isset( $s['age_days'] ) ? $s['age_days'] : 0 );
+		// Evergreen content (owner-marked categories) is timeless — a reference, tutorial,
+		// or legal page doesn't go stale with age, so it's exempt from the age check.
+		if ( ! empty( $s['evergreen'] ) ) {
+			return self::row( 'freshness', __( 'Freshness', 'agentimus' ), 'pass', __( 'Evergreen — exempt from the freshness check.', 'agentimus' ) );
+		}
 		// Only nag substantive content, and only when we actually know its age.
 		if ( (int) $s['words'] < self::MIN_WORDS || $age <= 0 ) {
 			return self::row( 'freshness', __( 'Freshness', 'agentimus' ), 'pass', __( 'Nothing to flag.', 'agentimus' ) );
@@ -287,6 +293,29 @@ final class PageCheck {
 	/* ---------------------------------------------------------------------- *
 	 *  Helpers
 	 * ---------------------------------------------------------------------- */
+
+	/**
+	 * Whether a post sits in an owner-marked evergreen category, exempting it from the
+	 * freshness check. Timeless content (references, tutorials, legal) shouldn't read as
+	 * "stale" just for being old.
+	 *
+	 * @param \WP_Post $post The post.
+	 * @return bool
+	 */
+	private static function is_evergreen( \WP_Post $post ) {
+		$cats = ( new Settings() )->get( 'evergreen_categories', array() );
+		/**
+		 * Category term IDs whose posts are exempt from the freshness check.
+		 *
+		 * @param int[]    $cats Term IDs.
+		 * @param \WP_Post $post The post being considered.
+		 */
+		$cats = array_values( array_filter( array_map( 'intval', (array) apply_filters( 'agentimus_evergreen_categories', $cats, $post ) ) ) );
+		if ( empty( $cats ) ) {
+			return false;
+		}
+		return (bool) has_category( $cats, $post );
+	}
 
 	/** The site's own host (lowercased), for classifying links as outbound sources. */
 	private static function home_host() {

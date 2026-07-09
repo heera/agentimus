@@ -58,6 +58,7 @@ export default {
       reverifyingNow: null,
       reverifyResult: null, // { ua, status, verdict } — shown inline on the row, not as a toast.
       entityTypes: this.boot.entityTypes || ['Person', 'Organization'],
+      categories: this.boot.categories || [],
       postTypes: this.boot.postTypes || [],
       knownTrainers: this.boot.knownTrainers || [],
       knownScanners: this.boot.knownScanners || [],
@@ -1004,6 +1005,7 @@ export default {
           v-model:settings="settings"
           :entity-types="entityTypes"
           :post-types="postTypes"
+          :categories="categories"
           :known-trainers="knownTrainers"
           :known-scanners="knownScanners"
           :known-allowed="knownAllowed"

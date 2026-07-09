@@ -142,6 +142,14 @@ final class PageCheckTest extends TestCase {
 		$this->assertSame( 'pass', $this->check( 'check_freshness', array( 'words' => 50, 'age_days' => 900 ) )['status'] );
 	}
 
+	public function test_freshness_exempts_evergreen_content() {
+		// Old + substantial would warn, but an evergreen-marked post is timeless → pass.
+		$stale = array( 'words' => 400, 'age_days' => 800 );
+		$this->assertSame( 'warn', $this->check( 'check_freshness', $stale )['status'] );
+		$stale['evergreen'] = true;
+		$this->assertSame( 'pass', $this->check( 'check_freshness', $stale )['status'] );
+	}
+
 	/* -- summary() -------------------------------------------------------- */
 
 	public function test_summary_counts_by_status() {

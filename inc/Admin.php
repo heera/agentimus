@@ -413,6 +413,7 @@ final class Admin {
 			'restNamespacesDetected' => Discovery\Adapters\RestApi::detected(),
 			'entityTypes'   => $this->settings->entity_types(),
 			'postTypes'     => $this->available_post_types(),
+			'categories'    => $this->category_options(),
 			'knownTrainers' => Settings::known_trainers(),
 			'knownScanners' => Settings::known_scanners(),
 			'knownAllowed'  => Settings::known_allowed(),
@@ -498,6 +499,26 @@ final class Admin {
 				'label'  => Content::label( $slug ),
 				'source' => Content::source( $slug ),
 			);
+		}
+		return $out;
+	}
+
+	/**
+	 * The site's categories (id + name), for the "evergreen categories" picker in
+	 * Settings. Bounded, most-used first, so a huge taxonomy can't bloat the payload.
+	 *
+	 * @return array<int,array{id:int,name:string}>
+	 */
+	private function category_options() {
+		$terms = get_categories(
+			array( 'hide_empty' => false, 'number' => 200, 'orderby' => 'count', 'order' => 'DESC' )
+		);
+		if ( is_wp_error( $terms ) || ! is_array( $terms ) ) {
+			return array();
+		}
+		$out = array();
+		foreach ( $terms as $t ) {
+			$out[] = array( 'id' => (int) $t->term_id, 'name' => $t->name );
 		}
 		return $out;
 	}

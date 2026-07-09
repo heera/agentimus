@@ -43,6 +43,7 @@ final class Settings {
 			'llms_full_posts'  => 50,
 			'llms_full_max_kb' => 1024, // Hard byte budget for /llms-full.txt (KB): generation stops cleanly here and links the index. Keeps the file ingestible and under common 1 MB object-cache row limits.
 			'post_types'       => self::default_post_types(),
+			'evergreen_categories' => array(), // Category term IDs whose posts are exempt from the content "freshness" check — timeless content (references, tutorials, legal) that doesn't go stale with age. Empty = every post is age-checked.
 			'rest_namespaces'  => array(), // Owner-curated REST namespaces to publish in discovery (opt-in; empty = none).
 			'oauth_auth_server' => '',     // Optional OAuth authorization-server URL; when set, serve RFC 9728 protected-resource metadata. Never fabricate RFC 8414.
 			'suppressed_resources' => array(), // Owner opt-OUT: ids of provider-registered Resources to hide from all output. Declared Resources default to published (spec §04), so empty = publish everything a provider declared.
@@ -592,6 +593,17 @@ final class Settings {
 				return preg_replace( '#[^A-Za-z0-9._~/\-]#', '', trim( (string) $p ) );
 			}
 		);
+
+		// Evergreen categories: a bounded list of positive term IDs (drop blanks/zero/
+		// negatives outright rather than absint-ing a bad value into a real category ID).
+		$ever_in                       = isset( $input['evergreen_categories'] ) ? (array) $input['evergreen_categories'] : array();
+		$ever_ids                      = array_filter(
+			array_map( 'intval', $ever_in ),
+			static function ( $n ) {
+				return $n > 0;
+			}
+		);
+		$clean['evergreen_categories'] = array_values( array_slice( array_unique( $ever_ids ), 0, 200 ) );
 
 		/**
 		 * Filter the sanitised settings before they are stored.
