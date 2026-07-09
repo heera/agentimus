@@ -4,7 +4,7 @@ Tags: ai-agents, ai-crawlers, agent-readiness, llms-txt, ai-seo
 Requires at least: 6.0
 Tested up to: 7.0
 Requires PHP: 7.4
-Stable tag: 1.15.0
+Stable tag: 1.16.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -220,12 +220,20 @@ There is no minified-only code. The admin interface is built from Vue 3 source i
 
 == Changelog ==
 
-= 1.15.0 =
+= 1.16.0 =
 * New — **Your AI-readiness, as one score.** The dashboard now rolls everything up into a single AEO/GEO score (0–100) across five plain rungs — Findable, Readable, Trusted, Optimized and Cited — and always shows the one most useful next step. Each rung links straight to where you act on it.
 * New — **Optimize your content for citation.** A per-page check of how easy each article is for an AI to read and quote — enough substance, a concrete fact or source to quote, quotable passages, and freshness — with a worklist of exactly which pages to improve, plus the same tips in an "AI Readability" panel in the editor while you write. It grades articles only (commerce products and structural pages like your Posts and blog-index pages are left out), you can **set aside** any page that isn't meant to be cited (it stays published — it just leaves the score), and you can mark whole categories **evergreen** to exempt timeless content from the freshness check.
 * New — **AI description.** Write a one-line summary for each page — the sibling of Topics for AI — and Agentimus feeds it to your structured data (the JSON-LD `description`) and the plain-text (`.md`) version, and makes it your page's meta description, replacing your theme's weaker auto-generated one while still standing aside for a dedicated SEO plugin. Leave it blank and it falls back to the page's excerpt — or a short summary drawn from the page when you haven't written one; a sub-switch on the new "AI description" settings card keeps it out of your page `<head>` if you'd rather it enrich only the AI data.
 * New — **Track AI citations (optional, off by default).** The AI Visibility feature — asking ChatGPT, Perplexity, Gemini and Claude, with your own keys, whether they actually name your site — is now an explicit opt-in switch. Turn it on and it adds the **Cited** rung to your score; leave it off and the score is a clean four-rung ladder. A reading it gives you is dated and expires after 90 days, so an old check never quietly stands in for a current one.
 * New — **Agentimus serves your robots.txt.** A managed robots.txt on a guaranteed 200 that advertises your sitemap and states your crawler preferences, so AI files and rules are always discoverable.
+* New — **See which network every bot really comes from.** Every visit in the activity log is now traced back to the network that owns it — Google, Amazon, a hosting company — rather than left as a name a crawler chose for itself. A client that only *claims* to be a known engine is marked as self-declared, so you can tell a verified crawler from an unverified one at a glance.
+* New — **Re-check a crawler, and check any IP.** A flagged client can be re-checked on demand, and a "Check an IP" tool tells you who an address really belongs to. Useful when you want to confirm a verdict before you block anything.
+* New — **Suggest questions to check.** When AI Visibility is on, Agentimus can propose the questions worth asking the AIs about your site, so you don't have to invent them yourself.
+* Improved — the *Top clients* and *By endpoint* breakdowns now show whether each row is trending up or down, and the score's rung numbers read as percentages. Plus admin polish: the sticky header lifts with a shadow as you scroll, switching tabs returns you to the top, and several layout fixes stop wide rows from overflowing on smaller screens.
+* Fixed — **a misbehaving plugin or theme can no longer take a page down with it.** Agentimus runs other people's code when it builds a page's structured data and description; if any of that threw an error, the page failed to load. Now the page simply goes without that data. Its `robots.txt` route is protected the same way.
+* Fixed — the citability grade no longer counts structural or empty pages, no longer treats a purely decorative image as a missing alt text, and reports the **Cited** rung as *not measured* (rather than zero) when AI Visibility has no provider set up. The dashboard's score card also refreshes as soon as you save your settings.
+
+= 1.15.0 =
 * New — **Spot impostor crawlers.** The activity review queue now verifies a visitor that claims to be Googlebot, Bingbot, Applebot, DuckDuckBot or Yandex by its network address (reverse DNS), and flags a forgery as an **impersonator** — a scanner can't inherit a real crawler's trust just by copying its name. Each flagged client gets a plain "Check this bot" panel and one-click Block / Allow / Ignore. Optional **Store IP addresses for flagged clients** (off by default) records the address of an impersonator or spoof — only those, never ordinary visitors — for a short time, so you can see exactly which IP to block at your host or CDN. Nothing is ever sent off your server.
 * New — **Exposed-files check.** A one-click scan (Readiness → *Scan for exposed files*) asks your own public URL for the risky files that should never be reachable — backups, `.env`, database dumps, keys, a stray `debug.log` — and flags any that are actually downloadable, reading only whether each responds, never its contents. It's environment-aware (on a local site a finding reads as a heads-up "on deploy"), you can add your own paths under Settings → Exposure, and a companion card warns when WordPress debug logging is left on in production. Guidance, not a firewall — it tells you what to delete or block, with copy-paste Nginx, Apache and Cloudflare rules.
 * New — **CDN mode.** If a full-page cache (Cloudflare, a caching plugin) serves your pages, AI-referral visits never reach WordPress to be counted. Turn on CDN mode and Agentimus counts them in the browser instead, so your *Traffic from AI* numbers survive the cache. Off by default; no IP address and no per-visitor data.
@@ -384,8 +392,11 @@ There is no minified-only code. The admin interface is built from Vue 3 source i
 
 == Upgrade Notice ==
 
+= 1.16.0 =
+Your AI-readiness as one AEO/GEO score, with per-page tips on making content easier for AI to quote, a per-page AI description, a managed robots.txt, and an opt-in "Cited" check. Also fixes a bug where another plugin or theme misbehaving could stop a page loading. All new features are opt-in; no breaking changes.
+
 = 1.15.0 =
-Your AI-readiness as one AEO/GEO score, with per-page tips on making content easier for AI to quote and an opt-in "Cited" check — plus impostor-crawler detection, an exposed-files scan, and CDN-safe AI-visit counting. All new features are opt-in; no breaking changes.
+Spot impostor crawlers, scan your site for exposed files (backups, .env, debug.log), and count AI visits even behind a CDN — plus faster Markdown, a friendlier setup, and a sticky admin header. All new features are opt-in; no breaking changes.
 
 = 1.14.1 =
 Small admin-UI polish: the footer shows both the Agentimus and WordPress versions, and the About tab documents the reverse-DNS verification and encrypted keys. No functional changes.
