@@ -184,18 +184,19 @@ Yes. The discovery document implements the **WP_Discovery Protocol**, an openly-
 
 == Screenshots ==
 
-1. Dashboard — your readiness score plus a first-party log of which AI agents and crawlers fetched your endpoints (no IP logging).
-2. Settings — a tidy, tabbed control panel; the Discovery section gives you a toggle for each agent-readiness signal, plus experimental browser tools (WebMCP) that let an in-browser AI agent call your site search.
-3. Readiness report — a plain-English pass/warn checklist of what's enabled and what's still missing.
+1. Dashboard — your AEO/GEO score across five plain rungs (Findable, Readable, Trusted, Optimized, Cited) with the one next step worth taking, alongside a first-party log of which AI agents and crawlers fetched your endpoints (no IP logging) and whether each client's volume is trending up or down.
+2. Settings — a tidy, tabbed control panel; the Discovery section gives you a toggle for each agent-readiness signal, cards for Topics for AI and the per-page AI description, plus experimental browser tools (WebMCP) that let an in-browser AI agent call your site search.
+3. Readiness report — a plain-English pass/warn checklist of what's enabled and what's still missing, and beneath it the Optimize worklist: exactly which pages an answer engine would struggle to quote, and why. Set aside anything that isn't meant to be cited.
 4. Discovery Hub — every plugin's capabilities aggregated into one document, with per-item publish/suppress control.
 5. Crawler policy & scanner blocking — declare your content-usage signals, block AI-training crawlers by name, turn away spoofed or scanner traffic, and keep an always-allowed list of trusted agents — with one-click suggestions for well-known AI assistants and the search engines trusted automatically.
 6. Activity to review — a nav-bar alert surfaces new, high-volume or spoofed clients from any screen, with one-click Block or Allow (no IP logging by default; an optional setting can store IPs for flagged crawlers only).
 7. About — a plain-English account of every feature and what it publishes, a privacy & data section (no outbound calls, no IP/PII by default, signing key stays on your server), the open WP_Discovery Protocol it implements, and an FAQ.
 8. Exposure controls — opt-in, off-by-default switches that limit what anonymous crawlers can read about your site: username enumeration, author archives, the WordPress version, auto-generated head links, and XML-RPC.
 9. AI Visibility — an opt-in, bring-your-own-key scoreboard showing whether ChatGPT, Perplexity, Gemini and Claude mention and link each brand, product or person you track: seen-in-answers and linked-your-site rates, rank against each item's own rivals, and question-by-question results with the sources each engine cited. Off by default; you bring your own API key and nothing runs until you enable it.
-10. In the post editor — the "Topics for AI" panel: say in plain words what a page is about (chips), or let Agentimus fill them in from the post's tags and categories (the *auto* chips); those topics flow into the page's JSON-LD keywords and its .md edition. Nothing shows to visitors.
+10. In the post editor — the "Topics for AI" panel: say in plain words what a page is about, one chip at a time, or leave it blank and let Agentimus fill them in from the post's tags and categories (those arrive marked *auto*); either way the topics flow into the page's JSON-LD keywords and its .md edition. Nothing shows to visitors.
 11. In the post editor — the "Agentimus" box, AI Readability tab: a per-page pass/warn check of what makes the page hard for an assistant to read and cite — enough substance, an opening summary, section headings, heading order, prose vs links, and image alt text.
 12. In the post editor — the "Agentimus" box, JSON-LD tab: the exact structured data the page emits in its `<head>`, with a copy button and Google Rich Results / Schema.org validator links.
+13. In the post editor — the "AI description" panel: a one-line summary of the page for AI assistants. It feeds the page's structured data and its .md edition, and becomes the page's meta description unless a dedicated SEO plugin manages that. Leave it blank and Agentimus falls back to the excerpt.
 
 == External services ==
 
