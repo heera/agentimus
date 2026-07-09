@@ -383,7 +383,7 @@ There is no minified-only code. The admin interface is built from Vue 3 source i
 == Upgrade Notice ==
 
 = 1.15.0 =
-Spot impostor crawlers, scan your site for exposed files (backups, .env, debug.log), and count AI visits even behind a CDN — plus faster Markdown, a friendlier setup, and a sticky admin header. All new features are opt-in; no breaking changes.
+Your AI-readiness as one AEO/GEO score, with per-page tips on making content easier for AI to quote and an opt-in "Cited" check — plus impostor-crawler detection, an exposed-files scan, and CDN-safe AI-visit counting. All new features are opt-in; no breaking changes.
 
 = 1.14.1 =
 Small admin-UI polish: the footer shows both the Agentimus and WordPress versions, and the About tab documents the reverse-DNS verification and encrypted keys. No functional changes.
