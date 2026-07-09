@@ -110,6 +110,30 @@ final class ScoreDbTest extends DbTestCase {
 		$this->assertStringContainsString( 'post.php', (string) $issue['pages'][0]['url'] );
 	}
 
+	public function test_empty_and_structural_pages_are_excluded_from_grading() {
+		// An empty page — theme-rendered front page, a page-builder/form page, a
+		// placeholder: 0 extractable words, so not an article to grade.
+		$empty = self::factory()->post->create( array( 'post_type' => 'page', 'post_status' => 'publish', 'post_content' => '' ) );
+		// A Posts-page container that even carries some text is still structural — the
+		// theme renders the loop, so it's excluded regardless of the words gate.
+		$blog = self::factory()->post->create( array( 'post_type' => 'page', 'post_status' => 'publish', 'post_content' => 'Latest posts from the blog appear below in the loop.' ) );
+		update_option( 'page_for_posts', (int) $blog );
+		wp_set_current_user( self::factory()->user->create( array( 'role' => 'administrator' ) ) );
+		delete_transient( Cache::OPTIMIZE );
+
+		$r = ( new Score( new Settings() ) )->report();
+		update_option( 'page_for_posts', 0 );
+
+		$urls = '';
+		foreach ( $r['content'] as $issue ) {
+			foreach ( $issue['pages'] as $p ) {
+				$urls .= ' ' . $p['url'];
+			}
+		}
+		$this->assertStringNotContainsString( 'post=' . $empty . '&', $urls, 'empty pages must not be graded (false "thin content")' );
+		$this->assertStringNotContainsString( 'post=' . $blog . '&', $urls, 'the Posts-page container must not be graded' );
+	}
+
 	public function test_adversarial_post_markup_never_crashes_the_report() {
 		// Unclosed tags, nested lists, a script and a bare img — the DOM parse must
 		// tolerate it, and the whole report must still return rather than fatal.

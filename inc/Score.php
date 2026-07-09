@@ -317,6 +317,37 @@ final class Score {
 		return array_values( (array) apply_filters( 'agentimus_citability_post_types', $types ) );
 	}
 
+	/**
+	 * Whether a sampled post is a real article whose content can be graded for citability.
+	 * Excludes the structural and empty pages that would otherwise read as false positives:
+	 *
+	 *  - The blog-index container ("Posts page"): WordPress renders the loop, so it has no
+	 *    authored content of its own — grading it "thin" is always wrong.
+	 *  - Any page with no extractable text: a front page the theme renders, a page-builder
+	 *    or form page, a placeholder. There's nothing to expand, or the content lives where
+	 *    neither the plugin nor an agent can read it — either way "thin content" is a false
+	 *    positive, not an article to improve.
+	 *
+	 * @param \WP_Post $post The sampled post.
+	 * @return bool
+	 */
+	private function is_gradeable( \WP_Post $post ) {
+		if ( (int) $post->ID === (int) get_option( 'page_for_posts' ) ) {
+			return false;
+		}
+		if ( str_word_count( wp_strip_all_tags( (string) Content::markdown_source( $post ) ) ) < 1 ) {
+			return false;
+		}
+		/**
+		 * Exclude a specific page/post from content-citability grading (the Optimize
+		 * pillar) — e.g. a utility page an owner or adapter doesn't want graded as an article.
+		 *
+		 * @param bool     $gradeable Default true.
+		 * @param \WP_Post $post      The post being considered.
+		 */
+		return (bool) apply_filters( 'agentimus_gradeable_post', true, $post );
+	}
+
 	private function compute_optimize() {
 		$types = $this->citability_post_types();
 		if ( empty( $types ) ) {
@@ -344,7 +375,7 @@ final class Score {
 		$issues = array();
 		foreach ( (array) $ids as $id ) {
 			$post = get_post( (int) $id );
-			if ( ! $post ) {
+			if ( ! $post || ! $this->is_gradeable( $post ) ) {
 				continue;
 			}
 			$rows  = PageCheck::analyze( $post );
