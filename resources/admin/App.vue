@@ -5,6 +5,7 @@ import SettingsForm from './components/SettingsForm.vue';
 import ReadinessPanel from './components/ReadinessPanel.vue';
 import DiscoveryHub from './components/DiscoveryHub.vue';
 import ActivityPanel from './components/ActivityPanel.vue';
+import RequestLog from './components/RequestLog.vue';
 import ReviewMenu from './components/ReviewMenu.vue';
 import OnboardingWizard from './components/OnboardingWizard.vue';
 import AboutPanel from './components/AboutPanel.vue';
@@ -26,7 +27,7 @@ const ACTIVITY_EVENTS = ['mousemove', 'keydown', 'wheel', 'pointerdown', 'touchs
 
 export default {
   name: 'AgentimusApp',
-  components: { SettingsForm, ReadinessPanel, DiscoveryHub, ActivityPanel, ReviewMenu, OnboardingWizard, AboutPanel, ConfirmDialog, VisibilityPanel },
+  components: { SettingsForm, ReadinessPanel, DiscoveryHub, ActivityPanel, RequestLog, ReviewMenu, OnboardingWizard, AboutPanel, ConfirmDialog, VisibilityPanel },
   props: {
     boot: { type: Object, required: true },
   },
@@ -35,8 +36,12 @@ export default {
     // AI Visibility is opt-in: a #visibility hash falls back to the dashboard when the
     // feature is off (the tab isn't shown, so there'd be nowhere to navigate from).
     const visOn = !!(this.boot.settings && this.boot.settings.enable_visibility);
-    let startTab = ['dashboard', 'visibility', 'settings', 'readiness', 'discovery', 'about'].includes(fromHash) ? fromHash : 'dashboard';
+    // Same story for the Request log: with the activity log switched off there is nothing
+    // to page through, so the tab is hidden and a #log hash has nowhere to land.
+    const actOn = !!(this.boot.settings && this.boot.settings.enable_activity);
+    let startTab = ['dashboard', 'log', 'visibility', 'settings', 'readiness', 'discovery', 'about'].includes(fromHash) ? fromHash : 'dashboard';
     if ('visibility' === startTab && !visOn) startTab = 'dashboard';
+    if ('log' === startTab && !actOn) startTab = 'dashboard';
     return {
       api: createApi(this.boot),
       // Header lifts with a shadow once the page is scrolled; flush at the very top.
@@ -220,6 +225,8 @@ export default {
     tabs() {
       return [
         { id: 'dashboard', label: 'Dashboard' },
+        // The per-request log has nothing to show when recording is off.
+        ...(this.settings.enable_activity ? [{ id: 'log', label: 'Request log' }] : []),
         // AI Visibility is opt-in — the tab only appears when citation tracking is on.
         ...(this.settings.enable_visibility ? [{ id: 'visibility', label: 'AI Visibility' }] : []),
         { id: 'settings', label: 'Settings' },
@@ -244,6 +251,10 @@ export default {
           dashboard: {
             title: 'Dashboard',
             description: 'An overview of your agent-readiness — what you expose, and who is reading it.',
+          },
+          log: {
+            title: 'Request log',
+            description: 'Every request an agent made — filter by client and endpoint to see exactly what one bot fetched.',
           },
           visibility: {
             title: 'AI Visibility',
@@ -1095,6 +1106,13 @@ export default {
           @refresh="refreshActivity"
           @clear="clearActivity"
           @navigate="goTo"
+          @flash="flash"
+        />
+        <RequestLog
+          v-if="settings.enable_activity"
+          v-show="tab === 'log'"
+          :api="api"
+          :active="tab === 'log'"
           @flash="flash"
         />
         <VisibilityPanel

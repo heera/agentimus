@@ -2651,3 +2651,93 @@ a.ar-about-proto__v:hover { text-decoration: underline; }
   line-height: 1.55;
   letter-spacing: 0.09em;
 }
+
+/* ---- Request log ---------------------------------------------------------
+   The per-request view. Reuses .ar-act-table/.ar-act-reqs from the activity
+   feed so a row looks identical in both places; only the filter bar, the
+   pivot affordance and the pager are new. */
+
+/* A grid item's default min-width:auto is its CONTENT's minimum, so a wide table
+   of nowrap User-Agents blows the column open and slides under the rail. .ar__main
+   already sets min-width:0 on itself; each child has to opt in too (see .ar-act). */
+.ar-log { min-width: 0; }
+.ar-log .ar-card__head { margin-bottom: 18px; }
+
+/* The activity feed caps its table at 340px because it's one card among many. This is a
+   page whose whole job is the table: let it run its full height and scroll the page. */
+.ar-log .ar-act-reqs { max-height: none; }
+
+/* A full User-Agent is ~120 chars and pushes the table past the column, which shoves
+   "Seen" — the column you actually scan — off the right edge behind a horizontal
+   scrollbar. Truncate it; the full string stays in the title attribute. */
+.ar-log .ar-act-feed__ua {
+  display: inline-block; max-width: 46ch; vertical-align: middle;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.ar-log .ar-act-table { min-width: 0; }
+.ar-log .ar-act-table td:last-child, .ar-log .ar-act-table th:last-child { text-align: right; padding-right: 2px; }
+
+.ar-log__filters {
+  display: flex; flex-wrap: wrap; gap: 14px 18px; align-items: flex-end;
+  padding: 16px 18px; margin-bottom: 18px;
+  background: var(--ar-surface-2); border: 1px solid var(--ar-line); border-radius: var(--ar-radius);
+}
+.ar-log__field { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.ar-log__field > span {
+  font-family: var(--ar-mono); font-size: 10px; letter-spacing: 0.09em;
+  text-transform: uppercase; color: var(--ar-ink-faint);
+}
+.ar-log__field input, .ar-log__field select {
+  font-family: var(--ar-sans); font-size: 13px; color: var(--ar-ink);
+  padding: 7px 10px; min-width: 150px; max-width: 100%;
+  background: var(--ar-paper); border: 1px solid var(--ar-line); border-radius: 4px;
+}
+.ar-log__field input:focus, .ar-log__field select:focus {
+  outline: none; border-color: var(--ar-accent); box-shadow: 0 0 0 1px var(--ar-accent);
+}
+.ar-log__actions { display: flex; gap: 10px; margin-left: auto; }
+.ar-log__actions .ar-btn { padding: 9px 20px; }
+
+/* A cell that filters the log onto its own value. Styled as text, not a button —
+   the affordance is the underline on hover, so the table stays a table. */
+.ar-log__pivot {
+  appearance: none; background: none; border: 0; padding: 0; cursor: pointer;
+  font: inherit; color: inherit; text-align: left;
+  border-bottom: 1px solid transparent;
+}
+.ar-log__pivot:hover { border-bottom-color: var(--ar-accent); }
+.ar-log__pivot:focus-visible { outline: 2px solid var(--ar-accent); outline-offset: 2px; }
+
+.ar-log__verdict {
+  margin-left: 8px; padding: 1px 6px; border-radius: 3px;
+  font-family: var(--ar-mono); font-size: 10px; letter-spacing: 0.06em; text-transform: uppercase;
+}
+.ar-log__verdict.is-verified { color: var(--ar-good); border: 1px solid currentColor; }
+.ar-log__verdict.is-spoofed  { color: var(--ar-bad);  border: 1px solid currentColor; }
+.ar-act-table tr.is-spoofed td { background: color-mix(in srgb, var(--ar-bad) 5%, transparent); }
+
+.ar-log__seen { color: var(--ar-ink-faint); font-family: var(--ar-mono); font-size: 11px; }
+
+.ar-log__empty, .ar-log__error {
+  padding: 28px 0; color: var(--ar-ink-soft); font-size: 13px; text-align: center;
+}
+.ar-log__error { color: var(--ar-bad); text-align: left; }
+
+.ar-log__foot {
+  display: flex; align-items: center; justify-content: space-between; gap: 16px;
+  flex-wrap: wrap; margin-top: 16px;
+}
+.ar-log__count { margin: 0; font-size: 13px; color: var(--ar-ink-soft); }
+.ar-log__pager { display: flex; gap: 10px; }
+.ar-log__pager .ar-btn { padding: 9px 18px; }
+
+.ar-log__note {
+  margin: 14px 0 0; padding-top: 14px; border-top: 1px solid var(--ar-line);
+  font-size: 12px; line-height: 1.6; color: var(--ar-ink-faint); max-width: 90ch;
+}
+
+@media (max-width: 782px) {
+  .ar-log__actions { margin-left: 0; width: 100%; }
+  .ar-log__field input, .ar-log__field select { min-width: 0; width: 100%; }
+  .ar-log__field { flex: 1 1 160px; }
+}

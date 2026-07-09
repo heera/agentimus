@@ -52,6 +52,16 @@ export function createApi(boot) {
     getDiscoveryHub: () => request('/discovery/hub'),
     getActivity: () => request('/activity'),
     getActivityDay: (date) => request(`/activity/day?date=${encodeURIComponent(date)}`),
+    // Filtered, keyset-paged request log. Empty filters are omitted rather than sent
+    // blank — the server treats an absent param and an empty one alike, but a clean
+    // query string keeps the request readable in the browser's network panel.
+    getActivityLog: (params = {}) => {
+      const qs = Object.entries(params)
+        .filter(([, v]) => v !== '' && v !== null && v !== undefined)
+        .map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(v)}`)
+        .join('&');
+      return request(`/activity/log${qs ? `?${qs}` : ''}`);
+    },
     clearActivity: () => request('/activity', { method: 'DELETE' }),
     blockAgent: (payload) =>
       request('/activity/block', { method: 'POST', body: JSON.stringify(payload) }),
