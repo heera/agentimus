@@ -1386,7 +1386,7 @@ select.ar-input {
   /* Clear the fixed WordPress admin bar when the rail's next-step link jumps here. */
   scroll-margin-top: 40px;
 }
-.ar-check__text { flex: 1; display: flex; flex-direction: column; gap: 2px; }
+.ar-check__text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
 .ar-check__text strong { font-size: 14px; font-weight: 600; }
 .ar-check__text small { color: var(--ar-ink-soft); font-size: 12.5px; }
 .ar-check__fix {
