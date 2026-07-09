@@ -51,6 +51,9 @@ final class Repository {
 	const TOP_CLIENTS   = 8;
 	const TOP_ENDPOINTS = 12;
 
+	/** Max distinct values offered per filter dropdown {@see log_facets()}. */
+	const FACET_LIMIT = 200;
+
 	/** Hard ceiling on stored rows — a backstop to the daily age-based prune so an
 	 *  extreme-traffic day can't bank unbounded rows before the cron fires.
 	 *  Generous; filter `agentimus_activity_max_rows` (0 disables the cap). */
@@ -351,6 +354,44 @@ final class Repository {
 			'total'  => $total,
 			'rows'   => $out,
 			'capped' => $total > count( $out ),
+		);
+	}
+
+	/**
+	 * The distinct values the log's filters can offer, so the UI can present dropdowns
+	 * instead of asking an owner to type a crawler's exact name from memory.
+	 *
+	 * Every list is bounded by the retained window (a value that can't be matched isn't
+	 * worth offering) and ordered by how often it appears, so the clients you actually get
+	 * sit at the top. Each is capped: `agent` and `endpoint` are low-cardinality by design,
+	 * but `network` grows with the internet, and a select with 5,000 entries is not a
+	 * control — it's a wall.
+	 *
+	 * @return array{agents:string[],endpoints:string[],networks:string[]}
+	 */
+	public static function log_facets() {
+		global $wpdb;
+		$table = Table::name();
+		$since = gmdate( 'Y-m-d H:i:s', time() - self::retention_days() * DAY_IN_SECONDS );
+
+		$distinct = static function ( $column ) use ( $wpdb, $table, $since ) {
+			// $column is whitelisted by the caller below; SQL identifiers can't be bound.
+			// phpcs:disable WordPress.DB, PluginCheck.Security.DirectDB.UnescapedDBParameter -- $table/$column are ours, not user input; $since is bound via prepare().
+			$rows = $wpdb->get_col(
+				$wpdb->prepare(
+					"SELECT $column FROM $table WHERE hit_at >= %s AND $column <> '' GROUP BY $column ORDER BY COUNT(*) DESC LIMIT %d",
+					$since,
+					self::FACET_LIMIT
+				)
+			);
+			// phpcs:enable WordPress.DB, PluginCheck.Security.DirectDB.UnescapedDBParameter
+			return array_values( array_map( 'strval', (array) $rows ) );
+		};
+
+		return array(
+			'agents'    => $distinct( 'agent' ),
+			'endpoints' => $distinct( 'endpoint' ),
+			'networks'  => $distinct( 'network' ),
 		);
 	}
 

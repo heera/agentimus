@@ -62,6 +62,9 @@ export function createApi(boot) {
         .join('&');
       return request(`/activity/log${qs ? `?${qs}` : ''}`);
     },
+    // The distinct clients / endpoints / networks seen in the retained window, so the
+    // filters can be dropdowns rather than "type the crawler's exact name".
+    getActivityLogFacets: () => request('/activity/log/facets'),
     clearActivity: () => request('/activity', { method: 'DELETE' }),
     blockAgent: (payload) =>
       request('/activity/block', { method: 'POST', body: JSON.stringify(payload) }),

@@ -14,8 +14,11 @@
  * window exists, and a busy site's row cap may have discarded rows inside it. A log that
  * quietly stops short reads as "that's everything".
  */
+import SelectMenu from './SelectMenu.vue';
+
 export default {
   name: 'RequestLog',
+  components: { SelectMenu },
   props: {
     api: { type: Object, default: null },
     // Rendered with v-show, so it stays mounted across tab switches. Fetch on first reveal.
@@ -25,6 +28,8 @@ export default {
   data() {
     return {
       filters: { from: '', to: '', agent: '', endpoint: '', network: '', ua: '', verdict: '' },
+      // Distinct values seen in the retained window; fetched once, alongside the first page.
+      facets: { agents: [], endpoints: [], networks: [] },
       rows: [],
       total: 0,
       hasMore: false,
@@ -43,9 +48,31 @@ export default {
     hasFilters() {
       return Object.values(this.filters).some((v) => v !== '');
     },
-    // Only meaningful once "identify every bot" has attributed something.
+    // Only meaningful once "identify every bot" has attributed something. Read from the
+    // facets, not the current page — a filtered page can be all-blank while the site does
+    // have network data, and the column would vanish mid-session.
     hasNetwork() {
-      return this.rows.some((r) => r.network);
+      return this.facets.networks.length > 0;
+    },
+    // '' is a real option — it clears the filter — so it leads each list. Just "Any": the
+    // label above the control already says which field it is, and "Any endpoint" is wide
+    // enough to ellipsis inside a 109px trigger.
+    agentOptions() {
+      return [{ value: '', label: 'Any' }, ...this.facets.agents];
+    },
+    endpointOptions() {
+      return [{ value: '', label: 'Any' }, ...this.facets.endpoints];
+    },
+    networkOptions() {
+      return [{ value: '', label: 'Any' }, ...this.facets.networks];
+    },
+    verdictOptions() {
+      return [
+        { value: '', label: 'Any' },
+        { value: '1', label: 'Verified' },
+        { value: '2', label: 'Spoofed' },
+        { value: '0', label: 'Unchecked' },
+      ];
     },
     pageFrom() {
       return this.rows.length ? this.trail.length * this.perPage + 1 : 0;
@@ -63,8 +90,24 @@ export default {
     if (this.active) this.load();
   },
   methods: {
+    async loadFacets() {
+      if (!this.api) return;
+      try {
+        const f = await this.api.getActivityLogFacets();
+        this.facets = {
+          agents: f.agents || [],
+          endpoints: f.endpoints || [],
+          networks: f.networks || [],
+        };
+      } catch (e) {
+        // Non-fatal: the log still lists and pages. The dropdowns just have nothing to
+        // offer, so don't surface an error over a working table.
+        this.facets = { agents: [], endpoints: [], networks: [] };
+      }
+    },
     async load(before = 0) {
       if (!this.api) return;
+      if (!this.loaded) this.loadFacets();
       this.loading = true;
       this.error = '';
       try {
@@ -145,43 +188,42 @@ export default {
       </button>
     </div>
 
+    <!-- Client, endpoint and network are closed sets drawn from the log itself, so they're
+         dropdowns: nobody should have to type "Bytespider (ByteDance)" exactly. Only the
+         User-Agent is free text, because it's an unbounded string and the match is a prefix. -->
     <div class="ar-log__filters">
-      <label class="ar-log__field">
-        <span>Client</span>
-        <input v-model.trim="filters.agent" type="text" placeholder="GPTBot" @keyup.enter="apply" />
-      </label>
-      <label class="ar-log__field">
-        <span>Endpoint</span>
-        <input v-model.trim="filters.endpoint" type="text" placeholder="discovery.json" @keyup.enter="apply" />
-      </label>
-      <label class="ar-log__field">
-        <span>User-Agent starts with</span>
-        <input v-model.trim="filters.ua" type="text" placeholder="Mozilla/5.0" @keyup.enter="apply" />
-      </label>
-      <label v-if="hasNetwork" class="ar-log__field">
-        <span>Network</span>
-        <input v-model.trim="filters.network" type="text" placeholder="amazonaws.com" @keyup.enter="apply" />
-      </label>
-      <label class="ar-log__field">
-        <span>Verification</span>
-        <select v-model="filters.verdict">
-          <option value="">Any</option>
-          <option value="1">Verified</option>
-          <option value="2">Spoofed</option>
-          <option value="0">Unchecked</option>
-        </select>
-      </label>
-      <label class="ar-log__field">
-        <span>From</span>
-        <input v-model="filters.from" type="date" />
-      </label>
-      <label class="ar-log__field">
-        <span>To</span>
-        <input v-model="filters.to" type="date" />
-      </label>
+      <div class="ar-log__row">
+        <div class="ar-log__field">
+          <span class="ar-log__label">Client</span>
+          <SelectMenu v-model="filters.agent" :options="agentOptions" aria-label="Filter by client" />
+        </div>
+        <div class="ar-log__field">
+          <span class="ar-log__label">Endpoint</span>
+          <SelectMenu v-model="filters.endpoint" :options="endpointOptions" mono aria-label="Filter by endpoint" />
+        </div>
+        <div v-if="hasNetwork" class="ar-log__field">
+          <span class="ar-log__label">Network</span>
+          <SelectMenu v-model="filters.network" :options="networkOptions" mono aria-label="Filter by network" />
+        </div>
+        <div class="ar-log__field">
+          <span class="ar-log__label">Verification</span>
+          <SelectMenu v-model="filters.verdict" :options="verdictOptions" aria-label="Filter by verification" />
+        </div>
+        <div class="ar-log__field ar-log__field--ua">
+          <span class="ar-log__label">User-Agent starts with</span>
+          <input v-model.trim="filters.ua" class="ar-input" type="text" placeholder="Mozilla/5.0" @keyup.enter="apply" />
+        </div>
+        <div class="ar-log__field ar-log__field--date">
+          <span class="ar-log__label">From</span>
+          <input v-model="filters.from" class="ar-input" type="date" aria-label="From date" />
+        </div>
+        <div class="ar-log__field ar-log__field--date">
+          <span class="ar-log__label">To</span>
+          <input v-model="filters.to" class="ar-input" type="date" aria-label="To date" />
+        </div>
+      </div>
 
       <div class="ar-log__actions">
-        <button type="button" class="ar-btn" :disabled="loading" @click="apply">Filter</button>
         <button
           v-if="hasFilters"
           type="button"
@@ -189,6 +231,7 @@ export default {
           :disabled="loading"
           @click="reset"
         >Clear</button>
+        <button type="button" class="ar-btn" :disabled="loading" @click="apply">Filter</button>
       </div>
     </div>
 

@@ -256,6 +256,40 @@ final class RepositoryDbTest extends DbTestCase {
 		$this->assertSame( 30, $asked['retentionDays'], 'the payload must tell the UI what it cannot show' );
 	}
 
+	/* -- Filter facets (what the dropdowns can offer) --------------------- */
+
+	/** Facets are ordered by how often each value appears, so the common clients lead. */
+	public function test_facets_are_ordered_by_frequency() {
+		$this->hit( 'discovery.json', 'Rare', 'a' );
+		for ( $i = 0; $i < 3; $i++ ) {
+			$this->hit( 'llms.txt', 'Common', 'b' . $i );
+		}
+
+		$facets = Repository::log_facets();
+
+		$this->assertSame( array( 'Common', 'Rare' ), $facets['agents'] );
+		$this->assertSame( array( 'llms.txt', 'discovery.json' ), $facets['endpoints'] );
+	}
+
+	/** An empty column is not an option — "" would render as a blank row in the dropdown. */
+	public function test_facets_skip_empty_values() {
+		// network is '' unless "identify every bot" attributed it.
+		$this->hit( 'discovery.json', 'GPTBot', 'a' );
+
+		$this->assertSame( array(), Repository::log_facets()['networks'] );
+	}
+
+	/** Offering a value that can never match would be a dead option: bound by retention. */
+	public function test_facets_ignore_values_outside_the_retained_window() {
+		$this->hit( 'discovery.json', 'Ancient', 'old', gmdate( 'Y-m-d H:i:s', time() - 45 * DAY_IN_SECONDS ) );
+		$this->hit( 'discovery.json', 'Current', 'new' );
+
+		$agents = Repository::log_facets()['agents'];
+
+		$this->assertContains( 'Current', $agents );
+		$this->assertNotContains( 'Ancient', $agents, 'a client no longer in the log cannot be filtered for' );
+	}
+
 	/* -- Configurable breakdown limits ----------------------------------- */
 
 	public function test_breakdown_row_limits_are_filterable() {

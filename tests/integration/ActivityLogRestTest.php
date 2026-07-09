@@ -101,6 +101,24 @@ final class ActivityLogRestTest extends RestTestCase {
 		$this->assertSame( 1, $this->get( array( 'per_page' => 0 ) )->get_data()['perPage'] );
 	}
 
+	/** The facets endpoint feeds the filter dropdowns; it must be admin-only and well-shaped. */
+	public function test_facets_endpoint_returns_the_three_lists() {
+		$this->hit( 'GPTBot', 'GPTBot/1.0' );
+		$this->hit( 'Googlebot', 'Googlebot/2.1' );
+
+		$request = new \WP_REST_Request( 'GET', '/agentimus/v1/activity/log/facets' );
+		$resp    = rest_get_server()->dispatch( $request );
+
+		$this->assertSame( 200, $resp->get_status() );
+		$data = (array) $resp->get_data();
+		foreach ( array( 'agents', 'endpoints', 'networks' ) as $key ) {
+			$this->assertArrayHasKey( $key, $data );
+			$this->assertIsArray( $data[ $key ] );
+		}
+		$this->assertContains( 'GPTBot', $data['agents'] );
+		$this->assertContains( 'discovery.json', $data['endpoints'] );
+	}
+
 	/** The cursor walks backwards and the endpoint reports when it has run out. */
 	public function test_cursor_paging_over_http() {
 		for ( $i = 0; $i < 3; $i++ ) {

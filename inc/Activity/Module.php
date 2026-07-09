@@ -166,6 +166,18 @@ final class Module {
 
 		register_rest_route(
 			'agentimus/v1',
+			'/activity/log/facets',
+			array(
+				'methods'             => 'GET',
+				'permission_callback' => array( $this, 'can_manage' ),
+				'callback'            => function () {
+					return rest_ensure_response( Repository::log_facets() );
+				},
+			)
+		);
+
+		register_rest_route(
+			'agentimus/v1',
 			'/activity/block',
 			array(
 				'methods'             => 'POST',

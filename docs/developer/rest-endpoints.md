@@ -229,6 +229,10 @@ The filtered, paged request log — the per-request view the dashboard's rollups
 Returns `{ rows, total, perPage, cursor, hasMore, retentionDays }`. `total` is the size of the whole filtered set, not the page. `cursor` is `null` on the last page. `retentionDays` is included so a UI can state what it *cannot* show: nothing older than the retained window exists, and on a busy site `agentimus_activity_max_rows` may have discarded rows inside it.
 
 Paging is keyset, not offset: an offset walk costs more on every page and can skip or repeat a row when a crawler inserts mid-walk.
+
+### `GET /activity/log/facets`
+
+Returns `{ agents, endpoints, networks }` — the distinct values present in the retained window, ordered by how often each appears, capped at 200 per list. It exists so the log's filters can be dropdowns: nobody should have to type `Bytespider (ByteDance)` exactly. Values outside retention are omitted, because filtering for one could only ever return nothing.
 - **AI Visibility** (`inc/Visibility/Rest.php`, the opt-in monitoring add-on): `GET`/`POST /visibility/config`, `GET /visibility/dashboard`, `POST /visibility/run`, `POST /visibility/test`, `POST /visibility/reveal-key`, `POST /visibility/clear`.
 - **Optimize** (`inc/Rest.php`): `POST /optimize/ignore` — body `{ post: int, ignored: bool }` sets a page aside from (or restores it to) the Optimized rung's citability grading. Returns the recomputed `score` so the admin updates live.
 

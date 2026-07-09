@@ -2678,25 +2678,42 @@ a.ar-about-proto__v:hover { text-decoration: underline; }
 .ar-log .ar-act-table td:last-child, .ar-log .ar-act-table th:last-child { text-align: right; padding-right: 2px; }
 
 .ar-log__filters {
-  display: flex; flex-wrap: wrap; gap: 14px 18px; align-items: flex-end;
-  padding: 16px 18px; margin-bottom: 18px;
+  padding: 14px 16px; margin-bottom: 18px;
   background: var(--ar-surface-2); border: 1px solid var(--ar-line); border-radius: var(--ar-radius);
 }
-.ar-log__field { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
-.ar-log__field > span {
-  font-family: var(--ar-mono); font-size: 10px; letter-spacing: 0.09em;
-  text-transform: uppercase; color: var(--ar-ink-faint);
+/* One line of controls. Every field is flex:1 with min-width:0 so they compress together
+   rather than the last one wrapping alone; the User-Agent box takes the slack because it
+   holds the longest value, and the two dates size to their own picker. */
+.ar-log__row { display: flex; flex-wrap: nowrap; gap: 10px; align-items: flex-end; }
+.ar-log__field { display: flex; flex-direction: column; gap: 5px; flex: 1 1 0; min-width: 0; }
+.ar-log__field--ua { flex: 1.5 1 0; }
+/* `0 1 138px` not `0 0 auto`: a rigid basis leaves sub-pixel flex remainders nowhere to go
+   and the row overflows its container by a pixel. */
+.ar-log__field--date { flex: 0 1 138px; }
+.ar-log__label {
+  font-family: var(--ar-mono); font-size: 9px; letter-spacing: 0.09em;
+  text-transform: uppercase; color: var(--ar-ink-faint); white-space: nowrap;
+  overflow: hidden; text-overflow: ellipsis;
 }
-.ar-log__field input, .ar-log__field select {
-  font-family: var(--ar-sans); font-size: 13px; color: var(--ar-ink);
-  padding: 7px 10px; min-width: 150px; max-width: 100%;
-  background: var(--ar-paper); border: 1px solid var(--ar-line); border-radius: 4px;
+/* A SelectMenu trigger is a button (it grows for its caret); the others are inputs. Pin one
+   height so the row's bottoms — and therefore its labels — line up. */
+/* WP admin's forms.css pins `min-height: 40px` on inputs, which outranks any height we set
+   on them — so the SelectMenu's <button> trigger was 38px and the inputs 40px, and the
+   labels above drifted 2px out of line. Adopt core's 40 rather than fight it. */
+.ar-log__field .ar-input { box-sizing: border-box; height: 40px; padding: 0 10px; font-size: 13px; }
+.ar-log__field--date .ar-input { font-family: var(--ar-mono); font-size: 12px; }
+
+/* A dropdown's trigger is as wide as its longest option ("Bytespider (ByteDance)") because
+   the value is nowrap. In a flex row that intrinsic minimum props every other control open
+   and the line overflows. Let the trigger shrink and ellipsis its own label instead. */
+.ar-log__field .ar-select, .ar-log__field .ar-select__btn { min-width: 0; }
+.ar-log__field .ar-select__value {
+  display: block; min-width: 0;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
-.ar-log__field input:focus, .ar-log__field select:focus {
-  outline: none; border-color: var(--ar-accent); box-shadow: 0 0 0 1px var(--ar-accent);
-}
-.ar-log__actions { display: flex; gap: 10px; margin-left: auto; }
-.ar-log__actions .ar-btn { padding: 9px 20px; }
+
+.ar-log__actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 14px; }
+.ar-log__actions .ar-btn { padding: 9px 22px; }
 
 /* A cell that filters the log onto its own value. Styled as text, not a button —
    the affordance is the underline on hover, so the table stays a table. */
@@ -2736,8 +2753,15 @@ a.ar-about-proto__v:hover { text-decoration: underline; }
   font-size: 12px; line-height: 1.6; color: var(--ar-ink-faint); max-width: 90ch;
 }
 
+/* Seven controls stop being readable well before the phone breakpoint — let them wrap
+   into rows as soon as each would be squeezed under ~120px. */
+@media (max-width: 1200px) {
+  .ar-log__row { flex-wrap: wrap; gap: 12px 14px; }
+  .ar-log__field { flex: 1 1 150px; }
+  .ar-log__field--ua { flex: 1 1 220px; }
+}
 @media (max-width: 782px) {
-  .ar-log__actions { margin-left: 0; width: 100%; }
-  .ar-log__field input, .ar-log__field select { min-width: 0; width: 100%; }
-  .ar-log__field { flex: 1 1 160px; }
+  .ar-log__field, .ar-log__field--ua { flex: 1 1 100%; }
+  .ar-log__field--date { width: 100%; }
+  .ar-log__actions .ar-btn { flex: 1 1 auto; }
 }
