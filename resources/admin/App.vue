@@ -32,12 +32,17 @@ export default {
   },
   data() {
     const fromHash = (window.location.hash || '').replace(/^#/, '');
+    // AI Visibility is opt-in: a #visibility hash falls back to the dashboard when the
+    // feature is off (the tab isn't shown, so there'd be nowhere to navigate from).
+    const visOn = !!(this.boot.settings && this.boot.settings.enable_visibility);
+    let startTab = ['dashboard', 'visibility', 'settings', 'readiness', 'discovery', 'about'].includes(fromHash) ? fromHash : 'dashboard';
+    if ('visibility' === startTab && !visOn) startTab = 'dashboard';
     return {
       api: createApi(this.boot),
       // Header lifts with a shadow once the page is scrolled; flush at the very top.
       scrolled: false,
       // Restore the tab from the URL hash so a refresh keeps the same page.
-      tab: ['dashboard', 'visibility', 'settings', 'readiness', 'discovery', 'about'].includes(fromHash) ? fromHash : 'dashboard',
+      tab: startTab,
       settings: JSON.parse(JSON.stringify(this.boot.settings || {})),
       defaults: this.boot.defaults || {},
       readiness: this.boot.readiness || [],
@@ -215,7 +220,8 @@ export default {
     tabs() {
       return [
         { id: 'dashboard', label: 'Dashboard' },
-        { id: 'visibility', label: 'AI Visibility' },
+        // AI Visibility is opt-in — the tab only appears when citation tracking is on.
+        ...(this.settings.enable_visibility ? [{ id: 'visibility', label: 'AI Visibility' }] : []),
         { id: 'settings', label: 'Settings' },
         { id: 'readiness', label: 'Readiness' },
         { id: 'discovery', label: 'Discovery' },
@@ -281,6 +287,10 @@ export default {
     },
   },
   watch: {
+    // Turning citation tracking off while viewing AI Visibility → leave the now-hidden tab.
+    'settings.enable_visibility'(on) {
+      if (!on && this.tab === 'visibility') this.goTo('dashboard');
+    },
     tab(val) {
       // Reflect the active tab in the URL hash, PUSHING a history entry so the
       // browser Back/Forward buttons step through the tabs. The guard skips the
@@ -1073,6 +1083,7 @@ export default {
           @flash="flash"
         />
         <VisibilityPanel
+          v-if="settings.enable_visibility"
           v-show="tab === 'visibility'"
           :api="api"
           @flash="flash"

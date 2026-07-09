@@ -77,7 +77,11 @@ final class Score {
 	public function report( $readiness = null ) {
 		$readiness = is_array( $readiness ) ? $readiness : ( new Readiness( $this->settings ) )->report();
 		$optimize  = $this->optimize();
-		$measure   = $this->measure();
+		// AI Visibility (citation tracking) is opt-in. When off, the Cited rung is dropped
+		// entirely — no measurement, no rung — and its weight is redistributed across the
+		// rest, so the score is a clean four-rung ladder.
+		$track   = (bool) $this->settings->get( 'enable_visibility', false );
+		$measure = $track ? $this->measure() : array( 'score' => null, 'note' => '', 'off' => true );
 
 		$scores = array(
 			'findable'  => self::rows_score( $readiness, self::FINDABLE_IDS ),
@@ -96,19 +100,23 @@ final class Score {
 		// all pass (a warn or fail on any keeps the score below 100 there).
 		$ready = ! $blocked && 100 === (int) $scores['findable'] && 100 === (int) $scores['readable'] && 100 === (int) $scores['trusted'];
 
+		$rungs = array(
+			$this->check_rung( 'findable', __( 'Findable', 'agentimus' ), $scores['findable'], $readiness, self::FINDABLE_IDS, __( 'An agent can reach and crawl your site.', 'agentimus' ) ),
+			$this->check_rung( 'readable', __( 'Readable', 'agentimus' ), $scores['readable'], $readiness, self::READABLE_IDS, __( 'What it crawls comes back clean and structured.', 'agentimus' ) ),
+			$this->check_rung( 'trusted', __( 'Trusted', 'agentimus' ), $scores['trusted'], $readiness, self::TRUSTED_IDS, __( 'It can identify you and trust the source.', 'agentimus' ) ),
+			$this->signal_rung( 'optimized', __( 'Optimized', 'agentimus' ), $scores['optimized'], $this->optimize_note( $optimize ), '' ),
+		);
+		if ( $track ) {
+			$rungs[] = $this->signal_rung( 'cited', __( 'Cited', 'agentimus' ), $scores['cited'], $measure['note'], 'visibility' );
+		}
+
 		return array(
 			'score'    => $score,
 			'band'     => self::band( $blocked ? 0 : $score ),
 			'blocked'  => $blocked,
 			'ready'    => $ready,
-			'measured' => null !== $measure['score'],
-			'rungs'    => array(
-				$this->check_rung( 'findable', __( 'Findable', 'agentimus' ), $scores['findable'], $readiness, self::FINDABLE_IDS, __( 'An agent can reach and crawl your site.', 'agentimus' ) ),
-				$this->check_rung( 'readable', __( 'Readable', 'agentimus' ), $scores['readable'], $readiness, self::READABLE_IDS, __( 'What it crawls comes back clean and structured.', 'agentimus' ) ),
-				$this->check_rung( 'trusted', __( 'Trusted', 'agentimus' ), $scores['trusted'], $readiness, self::TRUSTED_IDS, __( 'It can identify you and trust the source.', 'agentimus' ) ),
-				$this->signal_rung( 'optimized', __( 'Optimized', 'agentimus' ), $scores['optimized'], $this->optimize_note( $optimize ), '' ),
-				$this->signal_rung( 'cited', __( 'Cited', 'agentimus' ), $scores['cited'], $measure['note'], 'visibility' ),
-			),
+			'measured' => $track && null !== $measure['score'],
+			'rungs'    => $rungs,
 			'actions'  => $this->actions( $readiness, $optimize, $measure ),
 			'content'  => $this->content_worklist( $optimize ),
 			'graded'   => (int) $optimize['posts'],
@@ -654,8 +662,9 @@ final class Score {
 			);
 		}
 
-		// Measure gap — invite setting up AI Visibility, once (low priority).
-		if ( null === $measure['score'] ) {
+		// Measure gap — invite setting up AI Visibility, once (low priority). Skipped when
+		// citation tracking is off entirely (the feature is opted out, its tab hidden).
+		if ( empty( $measure['off'] ) && null === $measure['score'] ) {
 			$out[] = array(
 				'id'       => 'measure_setup',
 				'pillar'   => 'cited',

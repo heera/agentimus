@@ -32,7 +32,16 @@ final class ScoreDbTest extends DbTestCase {
 		);
 	}
 
+	/** Turn on citation tracking so the Cited rung is part of the report. */
+	private function enable_visibility() {
+		$s   = new Settings();
+		$all = $s->all();
+		$all['enable_visibility'] = true;
+		$s->update( $all );
+	}
+
 	public function test_report_has_the_five_rung_shape_over_real_posts() {
+		$this->enable_visibility(); // The full five-rung ladder needs citation tracking on.
 		// A substantial, citable post (figures + a cited source) and a thin one.
 		$this->post( str_repeat( 'A concrete point backed by a real figure: 42% in 2024. ', 30 ) . '<a href="https://example.org/study">source</a>' );
 		$this->post( 'Too short to cite.' );
@@ -169,6 +178,7 @@ final class ScoreDbTest extends DbTestCase {
 	}
 
 	public function test_cited_is_not_measured_once_ai_visibility_is_disabled() {
+		$this->enable_visibility(); // Tracking is on; it's the provider key that's gone.
 		// "Set up, ran, then removed the key": a completed run with a mention sits in the
 		// store (so it WOULD score), but no provider is configured now.
 		Table::install();
@@ -206,6 +216,7 @@ final class ScoreDbTest extends DbTestCase {
 	}
 
 	public function test_cited_drops_a_run_older_than_the_staleness_cutoff() {
+		$this->enable_visibility();
 		// An active provider (a plaintext key passes through Crypto) + a completed run
 		// well past the 90-day cutoff — recent enough to score would be wrong.
 		update_option(
@@ -248,6 +259,34 @@ final class ScoreDbTest extends DbTestCase {
 		// The stale note (not the "add a key" note) — proves we reached the cutoff, i.e.
 		// the provider was active and the run was simply too old.
 		$this->assertStringContainsStringIgnoringCase( 'run a check', (string) $cited['note'] );
+	}
+
+	public function test_cited_rung_appears_only_when_tracking_is_on() {
+		// Explicitly assert the off-state (option state can carry over between tests via
+		// the options cache, so don't rely on the schema default here).
+		$reset = new Settings();
+		$all   = $reset->all();
+		$all['enable_visibility'] = false;
+		$reset->update( $all );
+
+		$keys = static function ( $r ) {
+			return array_map(
+				static function ( $g ) {
+					return $g['key'];
+				},
+				$r['rungs']
+			);
+		};
+
+		// Default (off): a clean four-rung ladder, no Cited.
+		$off = ( new Score( new Settings() ) )->report();
+		$this->assertNotContains( 'cited', $keys( $off ), 'Cited is hidden until tracking is turned on' );
+		$this->assertCount( 4, $off['rungs'] );
+
+		// On: Cited joins the ladder.
+		$this->enable_visibility();
+		$on = ( new Score( new Settings() ) )->report();
+		$this->assertContains( 'cited', $keys( $on ), 'Cited appears once tracking is on' );
 	}
 
 	public function test_adversarial_post_markup_never_crashes_the_report() {

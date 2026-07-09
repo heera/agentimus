@@ -73,6 +73,10 @@ final class SettingsDefaultsTest extends TestCase {
 		$this->assertSame( array(), ( new Settings() )->defaults()['evergreen_categories'] );
 	}
 
+	public function test_visibility_tracking_is_off_by_default() {
+		$this->assertFalse( ( new Settings() )->defaults()['enable_visibility'] );
+	}
+
 	public function test_sanitize_optimize_ignored_to_positive_ints() {
 		$clean = ( new Settings() )->sanitize(
 			array( 'optimize_ignored' => array( '210', 210, 0, -1, 'x', 3 ) )
