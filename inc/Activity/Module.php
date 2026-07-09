@@ -143,6 +143,29 @@ final class Module {
 
 		register_rest_route(
 			'agentimus/v1',
+			'/activity/log',
+			array(
+				'methods'             => 'GET',
+				'permission_callback' => array( $this, 'can_manage' ),
+				'callback'            => array( $this, 'log' ),
+				'args'                => array(
+					'from'     => array( 'type' => 'string' ),
+					'to'       => array( 'type' => 'string' ),
+					'agent'    => array( 'type' => 'string' ),
+					'endpoint' => array( 'type' => 'string' ),
+					'network'  => array( 'type' => 'string' ),
+					// 0 = unchecked/inconclusive, 1 = verified, 2 = spoofed.
+					'verdict'  => array( 'type' => 'integer' ),
+					// Prefix match only — see Repository::log().
+					'ua'       => array( 'type' => 'string' ),
+					'before'   => array( 'type' => 'integer' ),
+					'per_page' => array( 'type' => 'integer' ),
+				),
+			)
+		);
+
+		register_rest_route(
+			'agentimus/v1',
 			'/activity/block',
 			array(
 				'methods'             => 'POST',
@@ -526,6 +549,74 @@ final class Module {
 			'activity' => Repository::stats( $this->settings ),
 			'settings' => $this->settings->all(),
 		);
+	}
+
+	/**
+	 * GET /activity/log — the filtered, keyset-paged request log.
+	 *
+	 * Dates are validated with the same strict pattern /activity/day uses; a malformed one
+	 * is a 400 rather than a silently-ignored filter, so a typo can't quietly return the
+	 * whole window and read as "no matches for that day".
+	 *
+	 * @param \WP_REST_Request $request Request.
+	 * @return \WP_REST_Response|\WP_Error
+	 */
+	public function log( \WP_REST_Request $request ) {
+		$args = array();
+
+		foreach ( array( 'from', 'to' ) as $key ) {
+			$date = (string) $request->get_param( $key );
+			if ( '' === $date ) {
+				continue;
+			}
+			if ( ! preg_match( '/^\d{4}-\d{2}-\d{2}$/', $date ) ) {
+				return new \WP_Error(
+					'agentimus_bad_date',
+					__( 'Dates must look like YYYY-MM-DD.', 'agentimus' ),
+					array( 'status' => 400 )
+				);
+			}
+			$args[ $key ] = $date;
+		}
+
+		if ( isset( $args['from'], $args['to'] ) && $args['from'] > $args['to'] ) {
+			return new \WP_Error(
+				'agentimus_bad_range',
+				__( 'The start date must not be after the end date.', 'agentimus' ),
+				array( 'status' => 400 )
+			);
+		}
+
+		foreach ( array( 'agent', 'endpoint', 'network', 'ua' ) as $key ) {
+			$value = sanitize_text_field( (string) $request->get_param( $key ) );
+			if ( '' !== $value ) {
+				// The columns are varchar(64)/(128)/(255); a longer needle can never match,
+				// so clamp rather than hand the database a pointless comparison.
+				$args[ $key ] = substr( $value, 0, 255 );
+			}
+		}
+
+		$verdict = $request->get_param( 'verdict' );
+		if ( null !== $verdict && '' !== $verdict ) {
+			$verdict = (int) $verdict;
+			if ( $verdict < 0 || $verdict > 2 ) {
+				return new \WP_Error(
+					'agentimus_bad_verdict',
+					__( 'Verdict must be 0 (unchecked), 1 (verified) or 2 (spoofed).', 'agentimus' ),
+					array( 'status' => 400 )
+				);
+			}
+			$args['verdict'] = $verdict;
+		}
+
+		foreach ( array( 'before', 'per_page' ) as $key ) {
+			$value = $request->get_param( $key );
+			if ( null !== $value && '' !== $value ) {
+				$args[ $key ] = (int) $value; // Repository clamps both.
+			}
+		}
+
+		return rest_ensure_response( Repository::log( $args ) );
 	}
 
 	/**

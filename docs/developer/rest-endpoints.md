@@ -211,7 +211,24 @@ Registered separately in `inc/Discovery/Module.php`, still under `agentimus/v1`:
 
 Further groups register under `agentimus/v1`; all require `manage_options` and the REST nonce. They are outside the scope of this page but listed for completeness:
 
-- **Activity** (`inc/Activity/Module.php`): `GET`/`DELETE /activity`, `GET /activity/day` (requires a `date` param, `YYYY-MM-DD`), `POST /activity/block`, `POST /activity/allow`.
+- **Activity** (`inc/Activity/Module.php`): `GET`/`DELETE /activity`, `GET /activity/day` (requires a `date` param, `YYYY-MM-DD`), `GET /activity/log`, `POST /activity/block`, `POST /activity/allow`.
+
+### `GET /activity/log`
+
+The filtered, paged request log — the per-request view the dashboard's rollups can't give you (for example: *which endpoints did GPTBot actually fetch?*). All params optional; with none, it returns the newest page of the whole retained window.
+
+| Param | Type | Notes |
+|---|---|---|
+| `from`, `to` | `YYYY-MM-DD` | Inclusive of both days. A malformed date is a `400`, never a silently-ignored filter. `from` is clamped to the retention floor. |
+| `agent`, `endpoint`, `network` | string | Exact match. Combine freely — they AND together. |
+| `verdict` | `0`\|`1`\|`2` | unchecked / verified / spoofed. Anything else is a `400`. |
+| `ua` | string | **Prefix** match. `KEY ua(191)` can serve `LIKE 'x%'` but never `LIKE '%x%'`, so a contains-search isn't offered rather than offered slowly. Wildcards in the needle are escaped to literals. |
+| `before` | int | Keyset cursor — pass the previous response's `cursor`. |
+| `per_page` | int | Clamped to 1–200. Default 50. |
+
+Returns `{ rows, total, perPage, cursor, hasMore, retentionDays }`. `total` is the size of the whole filtered set, not the page. `cursor` is `null` on the last page. `retentionDays` is included so a UI can state what it *cannot* show: nothing older than the retained window exists, and on a busy site `agentimus_activity_max_rows` may have discarded rows inside it.
+
+Paging is keyset, not offset: an offset walk costs more on every page and can skip or repeat a row when a crawler inserts mid-walk.
 - **AI Visibility** (`inc/Visibility/Rest.php`, the opt-in monitoring add-on): `GET`/`POST /visibility/config`, `GET /visibility/dashboard`, `POST /visibility/run`, `POST /visibility/test`, `POST /visibility/reveal-key`, `POST /visibility/clear`.
 - **Optimize** (`inc/Rest.php`): `POST /optimize/ignore` — body `{ post: int, ignored: bool }` sets a page aside from (or restores it to) the Optimized rung's citability grading. Returns the recomputed `score` so the admin updates live.
 

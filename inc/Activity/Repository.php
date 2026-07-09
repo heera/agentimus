@@ -314,19 +314,7 @@ final class Repository {
 			ARRAY_A
 		);
 		// phpcs:enable WordPress.DB, PluginCheck.Security.DirectDB.UnescapedDBParameter
-		return array_map(
-			static function ( $r ) {
-				return array(
-					'endpoint' => (string) $r['endpoint'],
-					'agent'    => (string) $r['agent'],
-					'ua'       => (string) $r['ua'],
-					'network'  => (string) $r['network'], // '' unless "identify every bot" is on.
-					'verdict'  => (int) $r['verdict'],     // 1 = forward-confirmed; a network with verdict != 1 is self-declared (PTR only).
-					'at'       => gmdate( 'c', strtotime( $r['hit_at'] . ' UTC' ) ), // ISO-8601 for client-side relative time.
-				);
-			},
-			(array) $rows
-		);
+		return array_map( array( self::class, 'hit_row' ), (array) $rows );
 	}
 
 	/**
@@ -356,25 +344,133 @@ final class Repository {
 		);
 		// phpcs:enable WordPress.DB, PluginCheck.Security.DirectDB.UnescapedDBParameter
 
-		$out = array_map(
-			static function ( $r ) {
-				return array(
-					'endpoint' => (string) $r['endpoint'],
-					'agent'    => (string) $r['agent'],
-					'ua'       => (string) $r['ua'],
-					'network'  => (string) $r['network'], // '' unless "identify every bot" is on.
-					'verdict'  => (int) $r['verdict'],     // 1 = forward-confirmed; a network with verdict != 1 is self-declared (PTR only).
-					'at'       => gmdate( 'c', strtotime( $r['hit_at'] . ' UTC' ) ),
-				);
-			},
-			(array) $rows
-		);
+		$out = array_map( array( self::class, 'hit_row' ), (array) $rows );
 
 		return array(
 			'date'   => (string) $date,
 			'total'  => $total,
 			'rows'   => $out,
 			'capped' => $total > count( $out ),
+		);
+	}
+
+	/**
+	 * Shape one raw hit row for the client. The single place that decides what a request
+	 * row looks like — {@see recent()}, {@see day_requests()} and {@see log()} all use it.
+	 *
+	 * @param array $r Raw row (endpoint, agent, ua, network, verdict, hit_at).
+	 * @return array{endpoint:string,agent:string,ua:string,network:string,verdict:int,at:string}
+	 */
+	private static function hit_row( array $r ) {
+		return array(
+			'endpoint' => (string) $r['endpoint'],
+			'agent'    => (string) $r['agent'],
+			'ua'       => (string) $r['ua'],
+			'network'  => (string) $r['network'], // '' unless "identify every bot" is on.
+			'verdict'  => (int) $r['verdict'],     // 1 = forward-confirmed; a network with verdict != 1 is self-declared (PTR only).
+			'at'       => gmdate( 'c', strtotime( $r['hit_at'] . ' UTC' ) ),
+		);
+	}
+
+	/**
+	 * The filtered, paged request log — the "what did this agent actually do" view the
+	 * dashboard's rollups can't answer. Every argument is optional; with none, it returns
+	 * the newest page of the whole retained window.
+	 *
+	 * Paging is KEYSET (`id < $before`), not OFFSET. Walking back through tens of thousands
+	 * of rows with OFFSET costs more on every page, and a crawler inserting mid-walk shifts
+	 * the window so a row can be skipped or repeated. An id cursor is stable and flat-cost.
+	 *
+	 * Rows are bounded on `hit_at`, NOT translated into an id range. `id` happens to be
+	 * monotonic with `hit_at` in production (Recorder always stamps "now"), but nothing
+	 * enforces it — a backfill or a test fixture can insert an old hit with a fresh id, and
+	 * an id-range filter would silently drop it. The ordering key stays `id` (stable, unique);
+	 * only the range predicate is time.
+	 *
+	 * `ua` is a PREFIX match: `KEY ua(191)` can serve `LIKE 'x%'` but never `LIKE '%x%'`.
+	 *
+	 * @param array $args from, to (Y-m-d), agent, endpoint, network, verdict, ua, before, per_page.
+	 * @return array{rows:array,total:int,perPage:int,cursor:?int,hasMore:bool,retentionDays:int}
+	 */
+	public static function log( array $args = array() ) {
+		global $wpdb;
+		$table    = Table::name();
+		$per_page = self::clamp_limit( isset( $args['per_page'] ) ? $args['per_page'] : 50 );
+		$before   = isset( $args['before'] ) ? max( 0, (int) $args['before'] ) : 0;
+		$days     = self::retention_days();
+
+		// Nothing older than the retained window exists; asking for it would only scan.
+		$floor = gmdate( 'Y-m-d H:i:s', time() - $days * DAY_IN_SECONDS );
+		$start = ! empty( $args['from'] ) ? $args['from'] . ' 00:00:00' : $floor;
+		if ( $start < $floor ) {
+			$start = $floor;
+		}
+		// Half-open upper bound, matching day_requests(): [start, end).
+		$end = ! empty( $args['to'] )
+			? gmdate( 'Y-m-d 00:00:00', strtotime( $args['to'] . ' UTC' ) + DAY_IN_SECONDS )
+			: gmdate( 'Y-m-d H:i:s', time() + DAY_IN_SECONDS );
+
+		$where  = array( 'hit_at >= %s', 'hit_at < %s' );
+		$params = array( $start, $end );
+
+		foreach ( array( 'agent', 'endpoint', 'network' ) as $col ) {
+			if ( isset( $args[ $col ] ) && '' !== $args[ $col ] ) {
+				$where[]  = "$col = %s";
+				$params[] = (string) $args[ $col ];
+			}
+		}
+		if ( isset( $args['verdict'] ) && '' !== $args['verdict'] && null !== $args['verdict'] ) {
+			$where[]  = 'verdict = %d';
+			$params[] = (int) $args['verdict'];
+		}
+		if ( ! empty( $args['ua'] ) ) {
+			// esc_like, or a needle of "%x" silently becomes a full-table contains-search.
+			$where[]  = 'ua LIKE %s';
+			$params[] = $wpdb->esc_like( (string) $args['ua'] ) . '%';
+		}
+
+		$filter_sql    = implode( ' AND ', $where );
+		$filter_params = $params;
+
+		// The cursor narrows the page, never the total — "showing 50 of 3,412" must count
+		// the whole filtered set, not what's left below the cursor.
+		if ( $before > 0 ) {
+			$where[]  = 'id < %d';
+			$params[] = $before;
+		}
+		$page_sql = implode( ' AND ', $where );
+
+		// phpcs:disable WordPress.DB, PluginCheck.Security.DirectDB.UnescapedDBParameter -- $table is our own prefix-derived name; every value is bound via prepare().
+		$total = (int) $wpdb->get_var(
+			$wpdb->prepare( "SELECT COUNT(*) FROM $table WHERE $filter_sql", $filter_params )
+		);
+
+		// Fetch one extra row to learn whether another page exists, without a second query.
+		$rows = $wpdb->get_results(
+			$wpdb->prepare(
+				"SELECT id, endpoint, agent, ua, network, verdict, hit_at FROM $table WHERE $page_sql ORDER BY id DESC LIMIT %d",
+				array_merge( $params, array( $per_page + 1 ) )
+			),
+			ARRAY_A
+		);
+		// phpcs:enable WordPress.DB, PluginCheck.Security.DirectDB.UnescapedDBParameter
+
+		$rows     = (array) $rows;
+		$has_more = count( $rows ) > $per_page;
+		if ( $has_more ) {
+			array_pop( $rows );
+		}
+
+		$last = end( $rows );
+
+		return array(
+			'rows'          => array_map( array( self::class, 'hit_row' ), $rows ),
+			'total'         => $total,
+			'perPage'       => $per_page,
+			'cursor'        => $has_more && $last ? (int) $last['id'] : null,
+			'hasMore'       => $has_more,
+			// So the UI can say what it cannot show: nothing older than this exists.
+			'retentionDays' => $days,
 		);
 	}
 

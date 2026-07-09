@@ -110,6 +110,152 @@ final class RepositoryDbTest extends DbTestCase {
 		);
 	}
 
+	/* -- The filtered, keyset-paged request log --------------------------- */
+
+	/** Walk every page and collect the UA of each row, in order. */
+	private function walk_log( array $args ) {
+		$seen   = array();
+		$before = 0;
+		$pages  = 0;
+		do {
+			$page = Repository::log( $before ? $args + array( 'before' => $before ) : $args );
+			foreach ( $page['rows'] as $r ) {
+				$seen[] = $r['ua'];
+			}
+			$before = $page['cursor'];
+			++$pages;
+			$this->assertLessThan( 20, $pages, 'paging failed to terminate' );
+		} while ( $page['hasMore'] );
+
+		return $seen;
+	}
+
+	/** Keyset paging must yield every row exactly once, newest first, across page borders. */
+	public function test_log_pages_every_row_exactly_once() {
+		for ( $i = 1; $i <= 5; $i++ ) {
+			$this->hit( 'discovery.json', 'GPTBot', 'UA-' . $i );
+		}
+
+		$seen = $this->walk_log( array( 'per_page' => 2 ) );
+
+		$this->assertSame( array( 'UA-5', 'UA-4', 'UA-3', 'UA-2', 'UA-1' ), $seen );
+		$this->assertSame( 5, count( array_unique( $seen ) ), 'no row may repeat across pages' );
+	}
+
+	/** `total` counts the whole filtered set; the cursor narrows only the page. */
+	public function test_log_total_is_the_filtered_set_not_the_page() {
+		for ( $i = 1; $i <= 5; $i++ ) {
+			$this->hit( 'discovery.json', 'GPTBot', 'UA-' . $i );
+		}
+
+		$first = Repository::log( array( 'per_page' => 2 ) );
+		$this->assertCount( 2, $first['rows'] );
+		$this->assertSame( 5, $first['total'] );
+		$this->assertTrue( $first['hasMore'] );
+
+		$second = Repository::log( array( 'per_page' => 2, 'before' => $first['cursor'] ) );
+		$this->assertSame( 5, $second['total'], 'total must not shrink as you page' );
+	}
+
+	/** The last page reports no cursor and no more rows. */
+	public function test_log_last_page_terminates() {
+		$this->hit( 'discovery.json', 'GPTBot', 'only' );
+
+		$page = Repository::log( array( 'per_page' => 10 ) );
+
+		$this->assertCount( 1, $page['rows'] );
+		$this->assertFalse( $page['hasMore'] );
+		$this->assertNull( $page['cursor'] );
+	}
+
+	public function test_log_filters_by_agent_and_endpoint() {
+		$this->hit( 'discovery.json', 'GPTBot', 'a' );
+		$this->hit( 'llms.txt', 'GPTBot', 'b' );
+		$this->hit( 'discovery.json', 'Googlebot', 'c' );
+
+		$this->assertSame( 2, Repository::log( array( 'agent' => 'GPTBot' ) )['total'] );
+		$this->assertSame( 2, Repository::log( array( 'endpoint' => 'discovery.json' ) )['total'] );
+		$this->assertSame(
+			1,
+			Repository::log( array( 'agent' => 'GPTBot', 'endpoint' => 'discovery.json' ) )['total'],
+			'filters must combine with AND — this is the cross-tab the rollups cannot answer'
+		);
+	}
+
+	/** ua is a PREFIX match: KEY ua(191) can serve LIKE 'x%' but never LIKE '%x%'. */
+	public function test_log_ua_matches_by_prefix_only() {
+		$this->hit( 'discovery.json', 'GPTBot', 'GPTBot/1.0' );
+		$this->hit( 'discovery.json', 'Other', 'MyGPTBot/2.0' );
+
+		$hit = Repository::log( array( 'ua' => 'GPTBot' ) );
+		$this->assertSame( 1, $hit['total'] );
+		$this->assertSame( 'GPTBot/1.0', $hit['rows'][0]['ua'], 'a mid-string match must NOT be returned' );
+	}
+
+	/**
+	 * A wildcard in the needle is a literal, not a pattern — esc_like() must escape it.
+	 *
+	 * The needle deliberately LEADS with '%'. Escaped, it's the literal prefix "%alpha",
+	 * which nothing here starts with, so the answer is zero. Unescaped it would become
+	 * LIKE '%alpha%' — a contains-search matching both rows, and a way for a caller to
+	 * turn an indexed prefix scan into a full table scan.
+	 */
+	public function test_log_ua_wildcards_are_literal_not_patterns() {
+		$this->hit( 'discovery.json', 'Odd', 'alpha' );
+		$this->hit( 'discovery.json', 'Odd', 'zzzalpha' );
+
+		$this->assertSame(
+			0,
+			Repository::log( array( 'ua' => '%alpha' ) )['total'],
+			"a leading '%' must match itself, not turn the search into LIKE '%alpha%'"
+		);
+
+		// And '_' must not act as a single-character wildcard either.
+		$this->assertSame(
+			0,
+			Repository::log( array( 'ua' => 'alph_' ) )['total'],
+			"'_' must match itself, not any character"
+		);
+	}
+
+	public function test_log_filters_by_verdict() {
+		global $wpdb;
+		$this->hit( 'discovery.json', 'Googlebot', 'real' );
+		$this->hit( 'discovery.json', 'Googlebot', 'fake' );
+		$wpdb->query( $wpdb->prepare( 'UPDATE ' . Table::name() . ' SET verdict = %d WHERE ua = %s', 2, 'fake' ) );
+
+		$this->assertSame( 1, Repository::log( array( 'verdict' => 2 ) )['total'] );
+		$this->assertSame( 'fake', Repository::log( array( 'verdict' => 2 ) )['rows'][0]['ua'] );
+	}
+
+	/** The date window is half-open [from, to+1day), so `to` includes its own day. */
+	public function test_log_date_range_includes_the_end_day() {
+		$today     = gmdate( 'Y-m-d' );
+		$five_back = gmdate( 'Y-m-d', time() - 5 * DAY_IN_SECONDS );
+		$this->hit( 'discovery.json', 'GPTBot', 'old', gmdate( 'Y-m-d H:i:s', time() - 5 * DAY_IN_SECONDS ) );
+		$this->hit( 'discovery.json', 'GPTBot', 'new' );
+
+		$this->assertSame( 1, Repository::log( array( 'from' => $today ) )['total'] );
+		$this->assertSame( 2, Repository::log( array( 'from' => $five_back ) )['total'] );
+		$this->assertSame(
+			1,
+			Repository::log( array( 'to' => $five_back ) )['total'],
+			'a `to` date must include hits recorded on that day'
+		);
+	}
+
+	/** Nothing older than the retained window is reachable, whatever `from` says. */
+	public function test_log_cannot_reach_past_the_retention_floor() {
+		$this->hit( 'discovery.json', 'GPTBot', 'ancient', gmdate( 'Y-m-d H:i:s', time() - 45 * DAY_IN_SECONDS ) );
+		$this->hit( 'discovery.json', 'GPTBot', 'recent' );
+
+		$asked = Repository::log( array( 'from' => gmdate( 'Y-m-d', time() - 90 * DAY_IN_SECONDS ) ) );
+
+		$this->assertSame( 1, $asked['total'], 'the retention floor clamps an over-wide `from`' );
+		$this->assertSame( 'recent', $asked['rows'][0]['ua'] );
+		$this->assertSame( 30, $asked['retentionDays'], 'the payload must tell the UI what it cannot show' );
+	}
+
 	/* -- Configurable breakdown limits ----------------------------------- */
 
 	public function test_breakdown_row_limits_are_filterable() {
