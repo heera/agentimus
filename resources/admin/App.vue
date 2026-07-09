@@ -190,6 +190,10 @@ export default {
     aeoNext() {
       return this.aeo && this.aeo.actions && this.aeo.actions.length ? this.aeo.actions[0] : null;
     },
+    // The per-page content worklist behind the Optimized rung (issue → affected pages).
+    optimizeWork() {
+      return (this.aeo && this.aeo.content) || [];
+    },
     host() {
       const url = this.endpoints.robots || this.endpoints.llms || '';
       try {
@@ -1026,6 +1030,7 @@ export default {
         <ReadinessPanel
           v-show="tab === 'readiness'"
           :checks="readiness"
+          :optimize="optimizeWork"
           :refreshing="refreshingReadiness"
           :live-config="liveConfig"
           :is-local="isLocal"
@@ -1113,6 +1118,19 @@ export default {
                 class="ar-rung__btn"
                 :title="rungTitle(r)"
                 @click="goTo(rungTarget(r))"
+              >
+                <span class="ar-rung__tick" aria-hidden="true"></span>
+                <span class="ar-rung__name">{{ r.label }}</span>
+                <span class="ar-rung__count">{{ rungCount(r) }}</span>
+              </button>
+              <!-- Optimized routes like the other rungs — to its section on the
+                   Readiness tab (the per-page worklist), when there's work to do. -->
+              <button
+                v-else-if="r.key === 'optimized' && optimizeWork.length"
+                type="button"
+                class="ar-rung__btn"
+                title="See which pages to optimize"
+                @click="goTo({ tab: 'readiness', anchor: 'ar-group-optimized' })"
               >
                 <span class="ar-rung__tick" aria-hidden="true"></span>
                 <span class="ar-rung__name">{{ r.label }}</span>

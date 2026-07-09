@@ -8,6 +8,7 @@ export default {
   components: { SchemaPreview },
   props: {
     checks: { type: Array, default: () => [] },
+    optimize: { type: Array, default: () => [] }, // Content worklist behind the Optimized rung.
     refreshing: { type: Boolean, default: false },
     liveConfig: { type: Object, default: () => ({}) },
     isLocal: { type: Boolean, default: false },
@@ -21,6 +22,10 @@ export default {
     // The same checks, grouped under the Findable → Readable → Trusted rungs.
     groups() {
       return groupChecks(this.checks);
+    },
+    // Total page-fixes across the content worklist (a page with two issues is two fixes).
+    optimizeTotal() {
+      return this.optimize.reduce((n, i) => n + Number(i.count || 0), 0);
     },
     livePass() {
       return this.live ? this.live.filter((r) => r.ok).length : 0;
@@ -201,6 +206,41 @@ export default {
             >{{ c.action.label }} →</button>
           </div>
           <span class="ar-check__tag" :class="`is-${c.status}`">{{ tagLabel(c.status) }}</span>
+        </li>
+      </ul>
+    </div>
+
+    <!-- The Optimized rung's section: per-page content citability. Unlike the config
+         rungs above, these are fixed in each post's editor, so every issue lists the
+         pages that trip it as edit links. Matches the rung → tab-section model. -->
+    <div v-if="optimize.length" id="ar-group-optimized" class="ar-checkgroup is-warn">
+      <div class="ar-checkgroup__head">
+        <span class="ar-checkgroup__rung" aria-hidden="true"></span>
+        <div class="ar-checkgroup__text">
+          <h3 class="ar-checkgroup__name">Optimize your content</h3>
+          <p class="ar-checkgroup__blurb">
+            Pages an answer engine would find harder to read or quote. Open one to fix it in the editor — its AI Readability panel shows that page’s specifics.
+          </p>
+        </div>
+        <span class="ar-checkgroup__count">{{ optimizeTotal }}</span>
+      </div>
+
+      <ul class="ar-checks">
+        <li v-for="issue in optimize" :id="`ar-opt-${issue.id}`" :key="issue.id" class="ar-check is-warn">
+          <span class="ar-check__rule" aria-hidden="true"></span>
+          <div class="ar-check__text">
+            <strong>{{ issue.label }} <span class="ar-optcheck__n">· {{ issue.count }} {{ issue.count === 1 ? 'page' : 'pages' }}</span></strong>
+            <small>{{ issue.why }}</small>
+            <ul class="ar-optcheck__pages">
+              <li v-for="p in issue.pages" :key="p.url">
+                <a :href="p.url" target="_blank" rel="noopener" class="ar-optcheck__page">{{ p.title }} ↗</a>
+              </li>
+            </ul>
+            <p v-if="issue.pages.length < issue.count" class="ar-optcheck__more">
+              Showing {{ issue.pages.length }} of {{ issue.count }}.
+            </p>
+          </div>
+          <span class="ar-check__tag is-warn">To improve</span>
         </li>
       </ul>
     </div>

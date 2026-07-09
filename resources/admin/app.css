@@ -1878,6 +1878,15 @@ select.ar-input {
 /* The modal lists every hit individually (ungrouped), each with its exact time.
    Reuses the feed cell styles (agent/endpoint/UA) in its own 4-column grid; the
    modal body owns the scroll. */
+/* "Optimize your content" — the fourth section on the Readiness tab (the Optimized
+   rung's destination). Reuses .ar-checkgroup / .ar-check; each issue lists the pages
+   that trip it as edit links, matching the rung → tab-section model of the others. */
+.ar-optcheck__n { font-family: var(--ar-mono); font-size: 11px; font-weight: 400; color: var(--ar-warn); }
+.ar-optcheck__pages { display: flex; flex-direction: column; gap: 3px; margin: 8px 0 0; }
+.ar-optcheck__page { font-size: 13px; color: var(--ar-accent); text-decoration: none; }
+.ar-optcheck__page:hover, .ar-optcheck__page:focus-visible { text-decoration: underline; }
+.ar-optcheck__more { margin: 7px 0 0; font-family: var(--ar-mono); font-size: 11px; color: var(--ar-ink-faint); }
+
 /* Day-report modal: a wider panel; header with prev/next + a day dropdown. */
 .ar-modal__panel--day { max-width: 640px; }
 .ar-day-head { display: flex; align-items: center; justify-content: space-between; gap: 10px 12px; margin-bottom: 8px; flex-wrap: wrap; }

@@ -91,6 +91,25 @@ final class ScoreDbTest extends DbTestCase {
 		$this->assertNotContains( 'product', $captured, 'commerce products must be excluded from citability grading' );
 	}
 
+	public function test_content_worklist_lists_issues_with_editor_links() {
+		// A thin post trips the "thin content" check. The worklist links to editors, so
+		// it only populates for a user who can edit — mirror the admin-boot context.
+		$this->post( 'Too short.' );
+		wp_set_current_user( self::factory()->user->create( array( 'role' => 'administrator' ) ) );
+		delete_transient( Cache::OPTIMIZE );
+
+		$r = ( new Score( new Settings() ) )->report();
+
+		$this->assertNotEmpty( $r['content'], 'a thin post should surface a content worklist entry' );
+		$issue = $r['content'][0];
+		$this->assertArrayHasKey( 'label', $issue );
+		$this->assertNotSame( '', $issue['why'], 'each issue carries a plain what-to-do' );
+		$this->assertGreaterThanOrEqual( 1, $issue['count'] );
+		$this->assertNotEmpty( $issue['pages'] );
+		$this->assertArrayHasKey( 'title', $issue['pages'][0] );
+		$this->assertStringContainsString( 'post.php', (string) $issue['pages'][0]['url'] );
+	}
+
 	public function test_adversarial_post_markup_never_crashes_the_report() {
 		// Unclosed tags, nested lists, a script and a bare img — the DOM parse must
 		// tolerate it, and the whole report must still return rather than fatal.

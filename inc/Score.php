@@ -48,6 +48,9 @@ final class Score {
 	/** How many recent posts the Optimize pillar samples (each is parsed). */
 	const OPTIMIZE_SAMPLE = 25;
 
+	/** Cap on affected pages listed per issue in the content worklist. */
+	const WORKLIST_POSTS_PER_ISSUE = 6;
+
 	/** Cap on the number of ranked actions returned. */
 	const MAX_ACTIONS = 8;
 
@@ -104,6 +107,7 @@ final class Score {
 				$this->signal_rung( 'cited', __( 'Cited', 'agentimus' ), $scores['cited'], $measure['note'], 'visibility' ),
 			),
 			'actions'  => $this->actions( $readiness, $optimize, $measure ),
+			'content'  => $this->content_worklist( $optimize ),
 		);
 	}
 
@@ -352,11 +356,14 @@ final class Score {
 				if ( 'pass' !== $r['status'] ) {
 					$key = (string) $r['id'];
 					if ( ! isset( $issues[ $key ] ) ) {
-						// Remember the first post that trips this check, so the action can
-						// link straight to its editor (where the fix guidance lives).
-						$issues[ $key ] = array( 'count' => 0, 'label' => (string) $r['label'], 'example' => (int) $id );
+						$issues[ $key ] = array( 'count' => 0, 'label' => (string) $r['label'], 'posts' => array() );
 					}
 					++$issues[ $key ]['count'];
+					// Collect the affected posts (capped) so the worklist — and the
+					// action's fix link — can point straight at each post's editor.
+					if ( count( $issues[ $key ]['posts'] ) < self::WORKLIST_POSTS_PER_ISSUE ) {
+						$issues[ $key ]['posts'][] = (int) $id;
+					}
 				}
 			}
 			if ( $count > 0 ) {
@@ -381,6 +388,74 @@ final class Score {
 			_n( 'Citability across your %d most recent post.', 'Citability across your %d most recent posts.', (int) $optimize['posts'], 'agentimus' ),
 			(int) $optimize['posts']
 		);
+	}
+
+	/**
+	 * The per-page content worklist behind the Optimized rung: each citability issue
+	 * across the sampled posts, with a short "what to do" and the affected pages linking
+	 * to their editors. Built at request time (not inside the cached optimize sample) so
+	 * titles and edit links stay fresh and reflect the current user's capabilities.
+	 *
+	 * @param array $optimize Optimize result (score, posts, issues).
+	 * @return array<int,array<string,mixed>>
+	 */
+	private function content_worklist( array $optimize ) {
+		$issues = isset( $optimize['issues'] ) ? $optimize['issues'] : array();
+		uasort(
+			$issues,
+			static function ( $a, $b ) {
+				return (int) $b['count'] - (int) $a['count'];
+			}
+		);
+
+		$out = array();
+		foreach ( $issues as $id => $issue ) {
+			$pages = array();
+			foreach ( (array) $issue['posts'] as $pid ) {
+				$edit = (string) get_edit_post_link( (int) $pid, 'raw' );
+				if ( '' === $edit ) {
+					continue; // No edit access → nowhere useful to send them.
+				}
+				$title   = html_entity_decode( wp_strip_all_tags( get_the_title( (int) $pid ) ), ENT_QUOTES, 'UTF-8' );
+				$pages[] = array(
+					'title' => '' !== $title ? $title : __( '(untitled)', 'agentimus' ),
+					'url'   => $edit,
+				);
+			}
+			if ( empty( $pages ) ) {
+				continue;
+			}
+			$out[] = array(
+				'id'    => (string) $id,
+				'label' => (string) $issue['label'],
+				'why'   => self::content_guidance( (string) $id ),
+				'count' => (int) $issue['count'],
+				'pages' => $pages,
+			);
+		}
+		return $out;
+	}
+
+	/**
+	 * A short, plain imperative for a content check — what to do about it, at the group
+	 * level (the per-post specifics live in each post's AI Readability panel). Pure.
+	 *
+	 * @param string $id PageCheck check id.
+	 * @return string
+	 */
+	private static function content_guidance( $id ) {
+		$map = array(
+			'words'         => __( 'Expand it — an agent has little to read or cite.', 'agentimus' ),
+			'summary'       => __( 'Open with a line that states what the page is about.', 'agentimus' ),
+			'evidence'      => __( 'Add a figure, a statistic, or a cited source.', 'agentimus' ),
+			'headings'      => __( 'Add H2/H3 headings so an agent can section it.', 'agentimus' ),
+			'heading_order' => __( 'Fix the heading levels so they don’t skip.', 'agentimus' ),
+			'passages'      => __( 'Break the long block into shorter, quotable paragraphs.', 'agentimus' ),
+			'link_density'  => __( 'Add prose or trim link lists — it reads as navigation.', 'agentimus' ),
+			'alt_text'      => __( 'Describe images with alt text.', 'agentimus' ),
+			'freshness'     => __( 'Refresh it — engines favour current pages.', 'agentimus' ),
+		);
+		return isset( $map[ $id ] ) ? $map[ $id ] : __( 'Improve this page’s citability in the editor.', 'agentimus' );
 	}
 
 	/* ---------------------------------------------------------------------- *
@@ -458,7 +533,8 @@ final class Score {
 				break;
 			}
 			++$shown;
-			$edit = empty( $issue['example'] ) ? '' : (string) get_edit_post_link( (int) $issue['example'], 'raw' );
+			$example = empty( $issue['posts'] ) ? 0 : (int) $issue['posts'][0];
+			$edit    = $example ? (string) get_edit_post_link( $example, 'raw' ) : '';
 			$out[] = array(
 				'id'       => 'content_' . $id,
 				'pillar'   => 'optimized',
