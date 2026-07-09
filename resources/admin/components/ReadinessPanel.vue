@@ -264,7 +264,6 @@ export default {
                   type="button"
                   class="ar-optcheck__aside"
                   :disabled="busyIgnore === p.id"
-                  title="Not content you want cited — leave it out of the score"
                   @click="setAside(p, true)"
                 >Not cited content</button>
               </li>

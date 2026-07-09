@@ -1882,22 +1882,22 @@ select.ar-input {
    rung's destination). Reuses .ar-checkgroup / .ar-check; each issue lists the pages
    that trip it as edit links, matching the rung → tab-section model of the others. */
 .ar-optcheck__n { font-family: var(--ar-mono); font-size: 11px; font-weight: 400; color: var(--ar-warn); }
-.ar-optcheck__pages { display: flex; flex-direction: column; gap: 4px; margin: 8px 0 0; }
-.ar-optcheck__row { display: flex; align-items: center; gap: 10px; }
-.ar-optcheck__page { flex: 1; min-width: 0; font-size: 13px; color: var(--ar-accent); text-decoration: none; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ar-optcheck__pages { display: flex; flex-direction: column; gap: 5px; margin: 8px 0 0; }
+.ar-optcheck__row { display: flex; align-items: center; gap: 12px; }
+.ar-optcheck__page { flex: 1 1 auto; min-width: 0; font-size: 13px; color: var(--ar-accent); text-decoration: none; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .ar-optcheck__page:hover, .ar-optcheck__page:focus-visible { text-decoration: underline; }
 .ar-optcheck__page--muted { color: var(--ar-ink-soft); }
 .ar-optcheck__more { margin: 7px 0 0; font-family: var(--ar-mono); font-size: 11px; color: var(--ar-ink-faint); }
-/* The set-aside / restore actions — quiet by default, revealed on row hover. */
+/* Set-aside / restore actions — always visible, pinned to the right of the row. */
 .ar-optcheck__aside, .ar-optcheck__restore {
-  flex: 0 0 auto; appearance: none; border: 0; background: none; cursor: pointer; padding: 2px 4px;
-  font-family: var(--ar-mono); font-size: 11px; color: var(--ar-ink-faint);
-  opacity: 0; transition: opacity 0.15s ease, color 0.15s ease;
+  flex: 0 0 auto; margin-left: auto; appearance: none; background: none; cursor: pointer;
+  padding: 3px 9px; font-family: var(--ar-mono); font-size: 11px; white-space: nowrap;
+  border-radius: 6px; transition: color 0.15s ease, border-color 0.15s ease;
 }
-.ar-optcheck__row:hover .ar-optcheck__aside, .ar-optcheck__row:hover .ar-optcheck__restore,
-.ar-optcheck__aside:focus-visible, .ar-optcheck__restore:focus-visible { opacity: 1; }
-.ar-optcheck__aside:hover { color: var(--ar-ink); }
-.ar-optcheck__restore { opacity: 0.8; color: var(--ar-accent); }
+.ar-optcheck__aside { border: 1px solid var(--ar-line); color: var(--ar-ink-soft); }
+.ar-optcheck__aside:hover, .ar-optcheck__aside:focus-visible { border-color: var(--ar-ink-faint); color: var(--ar-ink); }
+.ar-optcheck__restore { border: 0; color: var(--ar-accent); padding: 3px 4px; }
+.ar-optcheck__restore:hover, .ar-optcheck__restore:focus-visible { text-decoration: underline; }
 .ar-optcheck__aside:disabled, .ar-optcheck__restore:disabled { opacity: 0.4; cursor: default; }
 .ar-optcheck__clear { margin: 4px 0 0; font-size: 13px; color: var(--ar-ink-soft); }
 /* Set-aside block: a quiet, dashed-off list under the issues so it reads as "parked". */
