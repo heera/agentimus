@@ -709,6 +709,11 @@ export default {
           </div>
 
           <p class="ar-log-note">
+            <!-- The cap outranks the period: a busy site can hit the ceiling long before a record
+                 is old enough to expire, and the oldest go anyway. Saying "keep for 90 days" without
+                 this reads as a promise the cap can break. -->
+            The size cap wins over the period: on a busy site the log can reach it before records are
+            old enough to expire, and the oldest are removed anyway.
             The Dashboard always reports on the last <strong>{{ Math.min(30, settings.activity_retention_days || 30) }} days</strong>.
             <template v-if="(settings.activity_retention_days || 30) > 30">
               Keeping {{ settings.activity_retention_days }} days gives the <em>Request log</em> a deeper history to page

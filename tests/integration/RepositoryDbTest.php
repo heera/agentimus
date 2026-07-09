@@ -344,6 +344,48 @@ final class RepositoryDbTest extends DbTestCase {
 		$this->assertSame( 2, $this->row_count(), 'age-based pruning is off — nothing expires' );
 	}
 
+	/**
+	 * The cap OUTRANKS the retention. Six rows, all minutes old, a retention of a full year,
+	 * and a cap of three: the three oldest go anyway. "Keep records for 1 year" is a ceiling
+	 * on age, never a promise that a row survives that long — the size limit is absolute.
+	 */
+	public function test_the_cap_deletes_rows_that_are_younger_than_the_retention() {
+		$this->settings( array( 'activity_auto_prune' => true, 'activity_retention_days' => 365, 'activity_max_rows' => 3 ) );
+		for ( $i = 0; $i < 6; $i++ ) {
+			$this->hit( 'discovery.json', 'Bot', 'UA-' . $i ); // all "now"
+		}
+
+		Repository::trim_to_cap();
+
+		$this->assertSame( 3, $this->row_count() );
+		$this->assertSame(
+			array( 'UA-5', 'UA-4', 'UA-3' ),
+			array_column( Repository::log( array( 'per_page' => 10 ) )['rows'], 'ua' ),
+			'the newest survive; age never enters into it'
+		);
+	}
+
+	/**
+	 * The nightly cron must GUARANTEE the cap, not leave it to the sampled insert path.
+	 *
+	 * Recorder runs trim_to_cap() on roughly 1 insert in 200. That is fine while traffic
+	 * flows, but it means lowering the cap on a quiet site does nothing for days, and with
+	 * auto-delete off — where the cap is the only thing that collects — a table that stops
+	 * receiving hits stays over its ceiling forever. Referrals::prune() already guarantees
+	 * its own cap daily; this one didn't.
+	 */
+	public function test_the_daily_prune_enforces_the_cap_without_any_inserts() {
+		$this->settings( array( 'activity_auto_prune' => false, 'activity_max_rows' => 2 ) );
+		for ( $i = 0; $i < 5; $i++ ) {
+			$this->hit( 'discovery.json', 'Bot', 'UA-' . $i );
+		}
+		$this->assertSame( 5, $this->row_count(), 'sanity: the sampled trim did not fire' );
+
+		Repository::prune(); // the cron's only entry point — no inserts follow
+
+		$this->assertSame( 2, $this->row_count(), 'prune() must apply the cap even when nothing expires by age' );
+	}
+
 	/** …but the cap still collects, so "off" can never grow the table without bound. */
 	public function test_the_row_cap_trims_even_with_auto_prune_off() {
 		$this->settings( array( 'activity_auto_prune' => false, 'activity_max_rows' => 3 ) );

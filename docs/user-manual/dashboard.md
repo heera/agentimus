@@ -247,6 +247,8 @@ Most owners never need this section — the controls under **Settings → Visit 
 - **Keep records for** — 7 days to 1 year. Default 30.
 - **Size cap** — 10,000 to 250,000 rows, with the disk cost of each shown beside it. Default 50,000, roughly 14–33 MB.
 
+**The size cap outranks the period.** If a busy site reaches the cap before records are old enough to expire, the oldest are removed anyway. "Keep records for 90 days" is a ceiling on age, not a guarantee that a row survives 90 days — the size limit is absolute, because filling a shared host's disk is worse than losing old crawler hits. The cap is applied whenever hits arrive, and once a night regardless.
+
 **The Dashboard always reports on at most the last 30 days**, whatever you keep. Keeping 90 days gives the [Request log](#the-request-log) a deeper history to page through; it does not stretch the Dashboard's cards. Keeping *fewer* than 30 days shortens the Dashboard to match, rather than drawing empty days for records that were deleted.
 
 Flagged crawler IPs are **not** governed by this. They're the only personal data the plugin stores and they're removed on their own, shorter schedule.

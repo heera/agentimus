@@ -1163,6 +1163,13 @@ final class Repository {
 			$cutoff = gmdate( 'Y-m-d H:i:s', time() - self::retention_days() * DAY_IN_SECONDS );
 			$wpdb->query( $wpdb->prepare( "DELETE FROM $table WHERE hit_at < %s", $cutoff ) ); // phpcs:ignore WordPress.DB, PluginCheck.Security.DirectDB.UnescapedDBParameter -- $table is our own prefix-derived table name; the value is bound via prepare().
 		}
+		// Guarantee the row cap at least daily, independent of the sampled insert path
+		// (Recorder trims on ~1 insert in CAP_CHECK_ODDS). Without this, lowering the cap on a
+		// quiet site does nothing until traffic returns, and with auto-delete off — where the
+		// cap is the ONLY thing that collects — a table that stops receiving hits stays over
+		// its ceiling indefinitely. Referrals::prune() has always done this; this one hadn't.
+		self::trim_to_cap();
+
 		// These two are bounded option maps, not the log: they expire on their own schedule
 		// and must be tidied whether or not age-based pruning is on.
 		self::prune_dismissed();
