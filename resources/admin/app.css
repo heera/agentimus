@@ -1429,7 +1429,7 @@ select.ar-input {
    "open a view/test" buttons so it's never mistaken for a live check. Reuses ar-spin. */
 .ar-card__titlewrap { display: flex; align-items: center; gap: 8px; min-width: 0; }
 .ar-card__titlewrap .ar-card__title { margin-bottom: 0; }
-.ar-readiness__refresh {
+.ar-readiness__refresh, .ar-log__refresh {
   flex: 0 0 auto;
   display: inline-flex; align-items: center; justify-content: center;
   width: 30px; height: 30px; padding: 0;
@@ -1437,12 +1437,12 @@ select.ar-input {
   background: transparent; color: var(--ar-ink-soft);
   cursor: pointer;
 }
-.ar-readiness__refresh:hover:not(:disabled) { background: var(--ar-surface-2); color: var(--ar-ink); }
-.ar-readiness__refresh:focus-visible { outline: 2px solid var(--ar-accent); outline-offset: 2px; }
-.ar-readiness__refresh:disabled { cursor: default; opacity: 0.65; }
-.ar-readiness__refresh.is-busy svg { animation: ar-spin 0.8s linear infinite; }
+.ar-readiness__refresh:hover:not(:disabled), .ar-log__refresh:hover:not(:disabled) { background: var(--ar-surface-2); color: var(--ar-ink); }
+.ar-readiness__refresh:focus-visible, .ar-log__refresh:focus-visible { outline: 2px solid var(--ar-accent); outline-offset: 2px; }
+.ar-readiness__refresh:disabled, .ar-log__refresh:disabled { cursor: default; opacity: 0.65; }
+.ar-readiness__refresh.is-busy svg, .ar-log__refresh.is-busy svg { animation: ar-spin 0.8s linear infinite; }
 @media (prefers-reduced-motion: reduce) {
-  .ar-readiness__refresh.is-busy svg { animation: none; }
+  .ar-readiness__refresh.is-busy svg, .ar-log__refresh.is-busy svg { animation: none; }
 }
 
 /* Live self-check results — "what agents actually receive". */

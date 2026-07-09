@@ -182,10 +182,22 @@ export default {
     <!-- The page header already carries the title and the one-line explanation; repeating
          them here would just be the same sentence twice on one screen. -->
     <div class="ar-card__head ar-card__head--inline">
-      <h2 class="ar-card__title">Requests</h2>
-      <button type="button" class="ar-btn ar-btn--ghost" :disabled="loading" @click="load(before)">
-        Refresh
-      </button>
+      <div class="ar-card__titlewrap">
+        <h2 class="ar-card__title">Requests</h2>
+        <!-- Refreshes THIS page of results, keeping the filters and the cursor — the same
+             "update this card" affordance the readiness report uses beside its own title. -->
+        <button
+          type="button"
+          class="ar-log__refresh"
+          :class="{ 'is-busy': loading }"
+          :disabled="loading"
+          :aria-label="loading ? 'Reloading the requests…' : 'Reload these requests'"
+          :title="loading ? 'Reloading…' : 'Reload these requests'"
+          @click="load(before)"
+        >
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="23 4 23 10 17 10" /><polyline points="1 20 1 14 7 14" /><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" /></svg>
+        </button>
+      </div>
     </div>
 
     <!-- Client, endpoint and network are closed sets drawn from the log itself, so they're
