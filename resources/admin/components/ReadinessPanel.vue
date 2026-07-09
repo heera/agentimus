@@ -1,6 +1,7 @@
 <script>
 import { groupChecks } from '../tiers.js';
 import { runAll, runExposureScan } from '../livecheck.js';
+import { confirm } from '../confirm.js';
 import SchemaPreview from './SchemaPreview.vue';
 
 export default {
@@ -105,6 +106,18 @@ export default {
     // the counts, and the rung all update without a reload.
     async setAside(page, ignored) {
       if (this.busyIgnore || !page || !page.id) return;
+      // Reassure at the moment of the click: setting aside is non-destructive and
+      // reversible. (Restoring is safe and obvious, so it needs no prompt.)
+      if (ignored) {
+        const ok = await confirm({
+          title: `Set “${page.title}” aside?`,
+          message: 'Nothing is deleted or changed — the page stays published exactly as it is. It’s just left out of your content-optimization score. You can restore it here anytime.',
+          confirmLabel: 'Set aside',
+          cancelLabel: 'Cancel',
+          tone: 'default',
+        });
+        if (!ok) return;
+      }
       this.busyIgnore = page.id;
       try {
         const res = await this.api.ignoreOptimize(page.id, ignored);
