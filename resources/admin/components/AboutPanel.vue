@@ -15,6 +15,16 @@ export default {
       // state; the live on/off for each lives on the Settings tab.
       featureGroups: [
         {
+          title: 'AEO/GEO score & optimization',
+          lead: 'Your dashboard turns everything below into one score — and the single next thing to improve.',
+          items: [
+            { name: 'AEO/GEO score', where: 'Dashboard', desc: 'One 0–100 score across five rungs — Findable, Readable, Trusted, Optimized and Cited — with a plain-language next step. Each rung links to where you fix it.', tag: 'On' },
+            { name: 'Optimize your content', where: 'Readiness → Optimize', desc: 'Per-page citability checks (enough substance, something concrete to quote, quotable passages, freshness) with a worklist of the pages to improve. Articles only — commerce products and structural pages are left out. Set aside anything not meant to be cited.', tag: 'On' },
+            { name: 'AI readability tips', where: 'post editor', desc: 'The same per-page citability tips in an editor panel while you write. Editor-only — nothing is shown to visitors.', tag: 'On' },
+            { name: 'Evergreen content', where: 'Settings', desc: 'Mark categories whose posts are timeless (references, tutorials, legal) so they’re exempt from the freshness check.', tag: 'Opt-in' },
+          ],
+        },
+        {
           title: 'Discovery documents',
           lead: 'The core job — standard files that let an agent find and understand your site.',
           items: [
@@ -71,14 +81,15 @@ export default {
         },
         {
           title: 'AI Visibility monitoring',
-          lead: 'Optional — check how AI assistants actually describe you. The one feature that reaches out, using API keys you provide (stored encrypted at rest).',
+          lead: 'Optional — check how AI assistants actually describe you, and add the “Cited” rung to your score. The one feature that reaches out, using API keys you provide (stored encrypted at rest).',
           items: [
-            { name: 'AI Visibility checks', where: 'AI Visibility tab · admin or on a schedule', desc: 'Asks ChatGPT, Perplexity, Gemini and Claude the questions you set, then tracks whether each brand or product you track gets mentioned, linked and ranked against its rivals. Results are stored locally; your API keys are encrypted at rest.', tag: 'Opt-in' },
+            { name: 'AI Visibility checks', where: 'Settings → Track AI citations', desc: 'Off by default. Turn it on and Agentimus asks ChatGPT, Perplexity, Gemini and Claude the questions you set — with your own keys — tracking whether each brand or product gets mentioned, linked and ranked against its rivals, and feeds the “Cited” rung of your score. Results and keys stay on your server (keys encrypted at rest).', tag: 'Opt-in' },
           ],
         },
       ],
       faqs: [
         { q: 'Do I need to configure anything?', a: 'No. Agentimus works the moment it’s activated, with safe defaults. Open Settings only if you want to add your identity details or change a default.' },
+        { q: 'What is the AEO/GEO score?', a: 'One number (0–100) on your dashboard that blends five rungs — Findable, Readable, Trusted, Optimized and Cited — into a single measure of how ready your site is for AI answer engines, with the single most useful next step. Cited only counts when you turn on citation tracking; otherwise its weight is redistributed, so you’re never penalised for a feature you don’t use.' },
         { q: 'Can I see exactly what agents receive?', a: 'Yes. Open Readiness → Agent preview to see the exact JSON-LD and Markdown for your whole site or any page or post, and copy it — no need to view page source. A matching read-only preview also sits in the post editor. It even shows what would ship when a feature is off or an SEO plugin owns your schema.' },
         { q: 'Is my private or password-protected content exposed?', a: 'No. Drafts, private and password-protected posts are excluded from every output — llms.txt, Markdown, JSON-LD and the sitemap. Only published, publicly-visible content is ever described.' },
         { q: 'Will this block Google or real search engines?', a: 'No. Blocking is opt-in and aimed at AI training crawlers and spoofed bots. Real search engines are recognised and never blocked by default.' },
@@ -124,7 +135,8 @@ export default {
       <p class="ar-card__lead">
         Agentimus makes your site legible to AI agents — it publishes the documents they look for, offers
         your content in machine-readable formats, and adds trust signals so agents can find, read and
-        verify your site. Everything here is on by default unless marked otherwise; see the live documents
+        verify your site — then rolls it all into one AEO/GEO score with the next thing to improve.
+        Everything here is on by default unless marked otherwise; see the live documents
         on the
         <button type="button" class="ar-linkbtn" @click="$emit('navigate', { tab: 'discovery' })">Discovery</button>
         tab and change any default under

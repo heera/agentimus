@@ -6,8 +6,8 @@
 [![License: GPL-2.0-or-later](https://img.shields.io/badge/license-GPL--2.0--or--later-blue)](LICENSE)
 
 Make any WordPress site legible to AI agents and crawlers — `llms.txt`, a full-text
-edition, markdown delivery, JSON-LD, and content-signal robots rules. Lightweight,
-no SEO bloat, no framework.
+edition, markdown delivery, JSON-LD, and content-signal robots rules — then score how
+AEO/GEO-ready it is and what to fix next. Lightweight, no SEO bloat, no framework.
 
 **Live on WordPress.org:** <https://wordpress.org/plugins/agentimus/>
 
@@ -36,9 +36,11 @@ no SEO bloat, no framework.
 
 ## In the admin
 
+- **AEO/GEO score** — one 0–100 score on the dashboard across five rungs (Findable / Readable / Trusted / Optimized / Cited), with the single most useful next step; each rung deep-links to where you act on it. Cited is opt-in (see AI Visibility) and its weight redistributes across the others when off.
+- **Optimize your content** — per-page citability checks (thin content, something concrete to quote, quotable passages, freshness) over your **articles**, with a worklist of which pages to improve and a matching read-only panel in the editor. Commerce products and structural pages (Posts page, empty/builder pages) are excluded; **set aside** any page not meant to be cited (it stays published, just leaves the score); mark categories **evergreen** to exempt timeless content from the freshness check.
 - **Readiness report** — pass/warn/fail checks, each with a plain-English suggestion and a deep link to the fix (including a "sitemap advertised in robots.txt" check).
 - **Agent preview** — a modal (from Readiness) showing the exact **JSON-LD** and **Markdown** an agent receives for the site or any page/post, with a grouped site/page/post picker, copy, and validator links. It renders what *would* ship even when schema is disabled or an SEO plugin owns it; password-protected posts stay hidden, and an unpublished draft is shown as a preview of what it will emit once published. A read-only twin also sits in the post editor.
-- **AI Visibility** (opt-in, bring-your-own-key) — track each brand, product or person you choose across ChatGPT, Perplexity, Gemini and Claude. For every one it asks the questions your audience types and reports whether it's **mentioned, linked, and how it ranks against its own rivals**, over time. Each item has its own website, competitors, questions and scoreboard; pause any single one or the whole schedule. Results are stored locally; it's the only feature that makes outbound calls — using API keys you provide (stored **encrypted at rest**), off by default.
+- **AI Visibility** (opt-in, bring-your-own-key — the **Track AI citations** switch in Settings; adds the **Cited** rung to your score, and a reading expires after 90 days so a stale one never counts) — track each brand, product or person you choose across ChatGPT, Perplexity, Gemini and Claude. For every one it asks the questions your audience types and reports whether it's **mentioned, linked, and how it ranks against its own rivals**, over time. Each item has its own website, competitors, questions and scoreboard; pause any single one or the whole schedule. Results are stored locally; it's the only feature that makes outbound calls — using API keys you provide (stored **encrypted at rest**), off by default.
 - **Agent activity log** — a local-only dashboard (no IP logged by default; an optional setting stores IPs for flagged crawlers only) of which AI agents and crawlers fetch your endpoints; repeat hits are grouped with a count, newest first.
 - **Traffic from AI** — a private, first-party count of which AI assistants send *visitors* to you (per-day tallies of assistant → landing page; no IP, no per-visitor data). An opt-in **CDN mode** counts these in the browser so the numbers survive a full-page cache.
 - **Activity to review** — a nav-bar review queue flags new, unusually high-volume, spoofed/scanner, or **impersonating** clients (one that claims to be a verifiable search engine — Googlebot, Bingbot, Applebot, DuckDuckBot, Yandex — but fails a reverse-DNS check), each with a plain "Check this bot" panel and one-click **Block** / **Allow** / **Ignore**. Pairs with the opt-in *Block scanners & scrapers* enforcement; an optional *Store IP addresses for flagged clients* setting shows the exact address to block.
