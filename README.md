@@ -28,6 +28,7 @@ AEO/GEO-ready it is and what to fix next. Lightweight, no SEO bloat, no framewor
 | Markdown delivery | `/<slug>.md` or `Accept: text/markdown` |
 | Structured data | JSON-LD `WebSite` + `Person`/`Organization` + `BlogPosting` + `BreadcrumbList` (defers to SEO plugins) |
 | Topics for AI | Per-page topics → JSON-LD `keywords` + `about` DefinedTerm entities (with optional Wikidata `sameAs` via the `agentimus_topic_links` filter) + a `Topics:` line in `/<slug>.md`; static (editor) or derived from tags & categories |
+| AI description | Per-page one-line summary → JSON-LD `description` + the `/<slug>.md` lead + an authoritative `<meta name="description">` (replaces the theme's, defers to an SEO plugin); editor-set, falling back to the excerpt or a ~30-word content summary. A settings sub-toggle can limit it to the JSON-LD + `.md` surfaces only |
 | XML sitemap | `/agentimus-sitemap.xml` — opt-in fallback, generated **only** when neither WordPress core nor an SEO plugin already provides one (sitemap index + paginated sub-sitemaps) |
 | Crawler policy | `robots.txt` content-signal + training-crawler blocklist |
 | Discovery layer | `/.well-known/discovery.json` (+ `agent-card.json`, `mcp.json`) |
@@ -172,6 +173,8 @@ Supported output-shaping filters; signatures may evolve between releases.
 | `agentimus_yield_surface` | filter | `( bool $yield, string $surface ): bool` | Cede a surface (`llms_txt`, `robots`, …) to your own producer. |
 | `agentimus_defer_schema` | filter | `( bool $active ): bool` | Whether to emit the front-end JSON-LD (stand down for an SEO plugin). |
 | `agentimus_schema_for_post` | filter | `( array $node, WP_Post $post ): array` | Replace a post's JSON-LD node (e.g. a `Product`). |
+| `agentimus_post_description` | filter | `( string $desc, WP_Post $post ): string` | The last word on a post's AI description (editor value → excerpt/summary fallback). Feeds the JSON-LD `description`, the `.md` lead and the meta tag; re-cleaned (tags stripped, capped) after. |
+| `agentimus_emit_meta_description` | filter | `( bool $emit, WP_Post $post ): bool` | Whether Agentimus manages the page `<meta name="description">` on this request. Return `false` to leave the `<head>` to your theme. (Already stands down for a dedicated SEO plugin.) |
 | `agentimus_schema_graph` | filter | `( array $graph ): array` | Last-chance edit of the entire JSON-LD `@graph`. |
 | `agentimus_faq_pairs` | filter | `( array $pairs, WP_Post $post ): array` | Contribute extra FAQPage question/answer pairs. |
 | `agentimus_sitemap` | filter | `( array $sitemap ): array` | Declare a sitemap Agentimus can't auto-detect. |

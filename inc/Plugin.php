@@ -86,6 +86,7 @@ final class Plugin {
 		( new Schema( $this->settings ) )->register();
 		( new EditorPanel( $this->settings ) )->register(); // One "Agentimus" editor box: JSON-LD + AI Readability as tabs.
 		( new Topics( $this->settings ) )->register();
+		( new Description( $this->settings ) )->register();
 		( new Rest( $this->settings ) )->register();
 		( new Admin( $this->settings ) )->register();
 		( new Discovery\Module( $this->settings ) )->register();

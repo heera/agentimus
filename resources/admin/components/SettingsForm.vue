@@ -698,6 +698,37 @@ export default {
         </div>
       </section>
 
+      <!-- AI description — master toggle + whether it owns the meta tag -- -->
+      <section id="ar-sec-ai-description" class="ar-card">
+        <h2 class="ar-card__title">AI description</h2>
+        <p class="ar-card__lead">
+          Adds a one-line summary to your content’s AI data — the structured data (JSON-LD
+          <code>description</code>) and the plain-text (<code>.md</code>) version — so assistants
+          summarise and cite it correctly. You write it in the editor; blank pages fall back to the
+          excerpt. Stands aside for a dedicated SEO plugin, like the rest of Agentimus.
+        </p>
+
+        <label id="ar-feat-enable_ai_description" class="ar-toggle">
+          <input v-model="settings.enable_ai_description" type="checkbox" />
+          <span class="ar-toggle__track" aria-hidden="true"></span>
+          <span class="ar-toggle__text">
+            <strong>Add a description to your content’s AI data</strong>
+            <small>Shows an “AI description” box in the editor.</small>
+          </span>
+        </label>
+
+        <div v-show="settings.enable_ai_description" class="ar-webmcp-tools">
+          <label id="ar-feat-ai_description_meta_tag" class="ar-toggle">
+            <input v-model="settings.ai_description_meta_tag" type="checkbox" />
+            <span class="ar-toggle__track" aria-hidden="true"></span>
+            <span class="ar-toggle__text">
+              <strong>Set the page meta description too</strong>
+              <small>Uses your description as the page’s meta description tag — replacing your theme’s — unless a dedicated SEO plugin manages it. Turn off to enrich only the AI data and leave your <code>&lt;head&gt;</code> alone.</small>
+            </span>
+          </label>
+        </div>
+      </section>
+
       <!-- Browser tools (WebMCP) — master toggle + per-tool expose/hide - -->
       <section id="ar-sec-webmcp" class="ar-card">
         <h2 class="ar-card__title">Browser tools <span class="ar-card__tag">experimental</span></h2>

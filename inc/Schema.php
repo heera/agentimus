@@ -37,23 +37,33 @@ final class Schema {
 	}
 
 	/**
+	 * Whether a schema/SEO plugin that manages structured data + descriptions is active.
+	 * The raw detection, with NO Agentimus filter applied — so other features (e.g. the
+	 * {@see Description} meta-tag fallback) can reuse the exact same "is an SEO plugin
+	 * present?" signal and layer their own defer filter on top.
+	 *
+	 * @return bool
+	 */
+	public static function seo_plugin_present() {
+		return defined( 'WPSEO_VERSION' )                    // Yoast.
+			|| class_exists( 'RankMath' )                    // Rank Math.
+			|| defined( 'SEOPRESS_VERSION' )                 // SEOPress.
+			|| class_exists( '\\The_SEO_Framework\\Load' )   // The SEO Framework.
+			|| defined( 'AIOSEO_VERSION' );                  // All in One SEO.
+	}
+
+	/**
 	 * Whether another plugin is already emitting schema we'd duplicate.
 	 *
 	 * @return bool
 	 */
 	public function seo_plugin_active() {
-		$active = defined( 'WPSEO_VERSION' )                 // Yoast.
-			|| class_exists( 'RankMath' )                    // Rank Math.
-			|| defined( 'SEOPRESS_VERSION' )                 // SEOPress.
-			|| class_exists( '\\The_SEO_Framework\\Load' )   // The SEO Framework.
-			|| defined( 'AIOSEO_VERSION' );                  // All in One SEO.
-
 		/**
 		 * Filter whether Agentimus should stand down on schema.
 		 *
 		 * @param bool $active Whether to defer.
 		 */
-		return (bool) apply_filters( 'agentimus_defer_schema', $active );
+		return (bool) apply_filters( 'agentimus_defer_schema', self::seo_plugin_present() );
 	}
 
 	/**
@@ -472,6 +482,14 @@ final class Schema {
 			if ( ! empty( $about ) ) {
 				$node['about'] = $about;
 			}
+		}
+
+		// A one-line AI description → schema.org `description`. The single source of truth
+		// ({@see Description::for_post()}) resolves the editor's value or the excerpt
+		// fallback; emitted only when non-empty, and self-gated on the feature toggle.
+		$desc = Description::for_post( $post );
+		if ( '' !== $desc ) {
+			$node['description'] = $this->clean( $desc );
 		}
 
 		return $node;

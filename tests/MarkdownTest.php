@@ -88,8 +88,11 @@ final class MarkdownTest extends TestCase {
 		$md = Markdown::post( 4 ); // Must not throw.
 
 		$this->assertStringContainsString( '# Public Page', $md );
-		$this->assertStringNotContainsString( 'Readable body.', $md );
-		$this->assertStringNotContainsString( 'boom', $md );
+		// The body render (the_content) threw and was skipped. The AI-description lead is
+		// derived from the RAW content (never the_content), so a safe one-line summary still
+		// appears — the point of this test is that the throw DEGRADES instead of fataling.
+		$this->assertStringContainsString( '> Readable body.', $md );
+		$this->assertStringNotContainsString( 'boom', $md ); // the exception message never leaks
 		$this->assertStringEndsWith( "\n", $md );
 	}
 

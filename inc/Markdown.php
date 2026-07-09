@@ -49,6 +49,20 @@ final class Markdown {
 		$meta[] = '<' . $url . '>';
 		$out   .= '*' . implode( ' · ', $meta ) . "*\n\n";
 
+		// Per-page AI description as a lead blockquote — a one-line summary so an agent
+		// fetching this .md knows what the page is before reading the body, even when the
+		// JSON-LD stands down for an SEO plugin. Same defensive contract as the topics/body
+		// below: this serves UNAUTHENTICATED endpoints, so a filter that throws must degrade
+		// to the rest of the document, never fatal the request.
+		try {
+			$summary = Description::for_post( $post );
+		} catch ( \Throwable $e ) {
+			$summary = '';
+		}
+		if ( '' !== $summary ) {
+			$out .= '> ' . self::text( $summary ) . "\n\n";
+		}
+
 		// Per-page AI topics as a front-matter line — an agent fetching this .md gets
 		// what the page is about even when the JSON-LD stands down for an SEO plugin.
 		// Topics::for_post() runs the `agentimus_topics` filter (third-party code), and

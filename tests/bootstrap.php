@@ -160,6 +160,12 @@ namespace {
 	// The taxonomies that "exist" for object types; a test can add a vendor one (e.g. product_cat).
 	$GLOBALS['_af_taxonomies'] = array( 'category', 'post_tag' );
 	if ( ! function_exists( 'is_object_in_taxonomy' ) ) { function is_object_in_taxonomy( $type, $tax ) { return in_array( $tax, (array) $GLOBALS['_af_taxonomies'], true ); } }
+	// Content-summary surface for the Description excerpt fallback: strip shortcodes and
+	// trim to a word count. Deliberately simple — the resolver's logic (not WP's exact
+	// trimming) is under test. excerpt_remove_blocks() is left unstubbed so the resolver's
+	// function_exists() guard is exercised on the no-blocks path.
+	if ( ! function_exists( 'strip_shortcodes' ) )      { function strip_shortcodes( $content ) { return preg_replace( '/\[[^\]]*\]/', '', (string) $content ); } }
+	if ( ! function_exists( 'wp_trim_words' ) )         { function wp_trim_words( $text, $num_words = 55, $more = null ) { $words = preg_split( '/\s+/', trim( (string) $text ), -1, PREG_SPLIT_NO_EMPTY ); if ( count( $words ) > $num_words ) { $words = array_slice( $words, 0, $num_words ); $text = implode( ' ', $words ) . ( null === $more ? '…' : $more ); } else { $text = implode( ' ', $words ); } return $text; } }
 	function _af_reset_options() { $GLOBALS['_af_options'] = array(); $GLOBALS['_af_filters'] = array(); $GLOBALS['_af_did_actions'] = array(); $GLOBALS['_af_posts'] = array(); $GLOBALS['_af_postmeta'] = array(); $GLOBALS['_af_terms'] = array(); $GLOBALS['_af_taxonomies'] = array( 'category', 'post_tag' ); $GLOBALS['_af_is_admin'] = false; $GLOBALS['_af_flush_count'] = 0; $GLOBALS['_af_cache'] = array(); $GLOBALS['_af_transients'] = array(); unset( $GLOBALS['_af_transients_on'] ); $GLOBALS['_af_http_queue'] = array(); $GLOBALS['_af_http_last'] = null; unset( $GLOBALS['_af_available_post_types'], $GLOBALS['_af_current_post_id'], $GLOBALS['_af_is_singular'], $GLOBALS['_af_is_front_page'], $GLOBALS['_af_categories'] ); }
 	// Transient stubs. Default: always-miss, so cached endpoint bodies (e.g. security.txt)
 	// recompute deterministically in tests. A test that needs to exercise real transient
