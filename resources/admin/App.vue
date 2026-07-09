@@ -368,7 +368,7 @@ export default {
     // Every rung shows its 0–100 score on one consistent scale (they roll up to the
     // composite in the gauge). The per-check tally lives on the Readiness tab.
     rungCount(r) {
-      return null === r.score ? '—' : String(r.score);
+      return null === r.score ? '—' : `${r.score}%`;
     },
     rungTarget(r) {
       return 'visibility' === r.to ? { tab: 'visibility' } : { tab: 'readiness', anchor: `ar-group-${r.key}` };
@@ -1110,7 +1110,7 @@ export default {
                   :stroke-dashoffset="aeoDashOffset"
                 />
               </svg>
-              <span class="ar-rail-gauge__num">{{ aeo.blocked ? '—' : aeo.score }}</span>
+              <span class="ar-rail-gauge__num">{{ aeo.blocked ? '—' : aeo.score }}<small v-if="!aeo.blocked">%</small></span>
             </div>
             <div class="ar-rail-tier" :data-state="aeo.blocked ? 'floor' : (aeo.ready ? 'top' : 'climb')">
               <strong class="ar-rail-tier__name">{{ aeo.blocked ? 'Not reachable' : aeo.band }}</strong>
