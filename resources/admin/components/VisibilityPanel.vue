@@ -114,6 +114,11 @@ export default {
     this.flushTargets(); // best-effort: persist a pending chip edit before teardown.
   },
   methods: {
+    // Open a specific sub-view (Results / Settings) — used when the score card's Cited
+    // rung deep-links here based on whether the check setup is complete.
+    openView(view) {
+      if ('results' === view || 'settings' === view) this.view = view;
+    },
     async load() {
       try {
         const [c, d] = await Promise.all([this.api.getVisibilityConfig(), this.api.getVisibilityDashboard()]);

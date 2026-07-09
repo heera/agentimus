@@ -381,7 +381,9 @@ export default {
       return null === r.score ? '—' : `${r.score}%`;
     },
     rungTarget(r) {
-      return 'visibility' === r.to ? { tab: 'visibility' } : { tab: 'readiness', anchor: `ar-group-${r.key}` };
+      // Cited opens AI Visibility on the sub-view the score chose: Settings when setup
+      // isn't complete enough to run a check, otherwise Results.
+      return 'visibility' === r.to ? { tab: 'visibility', view: r.view || 'results' } : { tab: 'readiness', anchor: `ar-group-${r.key}` };
     },
     rungTitle(r) {
       return 'visibility' === r.to ? 'Open AI Visibility' : `View ${r.label} checks in the readiness report`;
@@ -400,10 +402,18 @@ export default {
       this.goTo(a);
     },
     goTo(target) {
-      const { tab, anchor } = typeof target === 'string' ? { tab: target } : target || {};
+      const { tab, anchor, view } = typeof target === 'string' ? { tab: target } : target || {};
       // Tell the tab watcher not to snap to the top: we're aiming at a section below.
       this._jumpAnchor = anchor || null;
       if (tab) this.tab = tab;
+      // Deep-link into the AI Visibility panel's Settings/Results sub-view when asked.
+      if ('visibility' === tab && view) {
+        this.$nextTick(() => {
+          if (this.$refs.visibilityPanel && this.$refs.visibilityPanel.openView) {
+            this.$refs.visibilityPanel.openView(view);
+          }
+        });
+      }
       if (!anchor) return;
       // The Settings form is now split into groups shown one at a time; a target
       // may live in a group that isn't active (and is therefore display:none, so
@@ -1090,6 +1100,7 @@ export default {
         <VisibilityPanel
           v-if="settings.enable_visibility"
           v-show="tab === 'visibility'"
+          ref="visibilityPanel"
           :api="api"
           @flash="flash"
         />

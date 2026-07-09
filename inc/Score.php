@@ -107,7 +107,11 @@ final class Score {
 			$this->signal_rung( 'optimized', __( 'Optimized', 'agentimus' ), $scores['optimized'], $this->optimize_note( $optimize ), '' ),
 		);
 		if ( $track ) {
-			$rungs[] = $this->signal_rung( 'cited', __( 'Cited', 'agentimus' ), $scores['cited'], $measure['note'], 'visibility' );
+			// Route the Cited rung to the right AI Visibility sub-view: Settings when the
+			// setup isn't complete enough to run a check (no engine key / no questions),
+			// otherwise Results.
+			$ready_to_run = '' === ( new Visibility\Runner( new Visibility\Settings() ) )->blocking_reason();
+			$rungs[]      = $this->signal_rung( 'cited', __( 'Cited', 'agentimus' ), $scores['cited'], $measure['note'], 'visibility', $ready_to_run ? 'results' : 'settings' );
 		}
 
 		return array(
@@ -230,7 +234,7 @@ final class Score {
 	 * An AEO/GEO rung (optimized/cited) — a measured signal, not a pass/total of checks.
 	 * `to` is the tab that improves it ('' for optimized, which is per-post).
 	 */
-	private function signal_rung( $key, $label, $score, $note, $to ) {
+	private function signal_rung( $key, $label, $score, $note, $to, $view = '' ) {
 		return array(
 			'key'    => $key,
 			'label'  => $label,
@@ -241,6 +245,7 @@ final class Score {
 			'total'  => null,
 			'note'   => $note,
 			'to'     => $to,
+			'view'   => $view, // For a 'visibility' rung: which sub-view to open ('settings' | 'results').
 		);
 	}
 

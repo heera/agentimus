@@ -289,6 +289,20 @@ final class ScoreDbTest extends DbTestCase {
 		$this->assertContains( 'cited', $keys( $on ), 'Cited appears once tracking is on' );
 	}
 
+	public function test_cited_rung_routes_to_settings_when_setup_incomplete() {
+		$this->enable_visibility();
+		// Fresh: no engine key and no questions → a check can't run yet → the Cited rung
+		// deep-links to the AI Visibility *Settings* sub-view so the owner can finish setup.
+		$r     = ( new Score( new Settings() ) )->report();
+		$cited = null;
+		foreach ( $r['rungs'] as $g ) {
+			if ( 'cited' === $g['key'] ) {
+				$cited = $g;
+			}
+		}
+		$this->assertSame( 'settings', $cited['view'] );
+	}
+
 	public function test_adversarial_post_markup_never_crashes_the_report() {
 		// Unclosed tags, nested lists, a script and a bare img — the DOM parse must
 		// tolerate it, and the whole report must still return rather than fatal.
