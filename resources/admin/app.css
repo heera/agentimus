@@ -2748,10 +2748,13 @@ a.ar-about-proto__v:hover { text-decoration: underline; }
 .ar-log__pager { display: flex; gap: 10px; }
 .ar-log__pager .ar-btn { padding: 9px 18px; }
 
+/* The rule spans the card; only the prose is measured. `max-width` on the <p> itself would
+   shorten the border with it, leaving it stopping short of the right edge. */
 .ar-log__note {
   margin: 14px 0 0; padding-top: 14px; border-top: 1px solid var(--ar-line);
-  font-size: 12px; line-height: 1.6; color: var(--ar-ink-faint); max-width: 90ch;
+  font-size: 12px; line-height: 1.6; color: var(--ar-ink-faint);
 }
+.ar-log__note > span { display: block; max-width: 90ch; }
 
 /* Seven controls stop being readable well before the phone breakpoint — let them wrap
    into rows as soon as each would be squeezed under ~120px. */

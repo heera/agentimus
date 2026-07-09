@@ -2,8 +2,11 @@
 import { confirm } from '../confirm.js';
 import SelectMenu from './SelectMenu.vue';
 
+import { uaTip } from '../uaTip.js';
+
 export default {
   name: 'ActivityPanel',
+  mixins: [uaTip],
   components: { SelectMenu },
   props: {
     data: { type: Object, default: () => ({}) },
@@ -37,7 +40,6 @@ export default {
       // Styled hover tooltip for long inline values (a full User-Agent). position:fixed
       // so the scrolling request feed / day modal never clips it — replaces the native
       // title="…" bubble with the same dark look as the chart tooltip.
-      uaTip: { show: false, text: '', x: 0, y: 0, caret: 16, below: false },
       // Same styled bubble, for the unverified-network hint ({@see netTip}) — a custom
       // tooltip rather than a native title="…", so it matches the UA/chart tooltips.
       netHint: { show: false, x: 0, y: 0, caret: 16, below: false },
@@ -272,71 +274,6 @@ export default {
     },
     hideTip() {
       this.tip.show = false;
-    },
-    // Show/hide the styled tooltip for a long value (User-Agent). Positioned in the
-    // fixed viewport off the hovered cell's rect, so it escapes the feed's scroll clip.
-    showUaTip(ev, text) {
-      if (!text) return;
-      const rect = ev.currentTarget.getBoundingClientRect();
-      const below = rect.top < 96; // not enough room above → drop below.
-      const anchor = rect.left + 16; // viewport x the caret points at — the cell's top-left, so the box hangs left-aligned like before.
-      this.uaTip = {
-        show: true,
-        text,
-        x: Math.max(rect.left, 12),
-        y: below ? rect.bottom + 8 : rect.top - 8,
-        caret: 16,
-        below,
-      };
-      // Measure the rendered box so a right-edge cell doesn't overflow the viewport, and
-      // keep the caret over the cell even after the box is clamped inward (mirrors the
-      // chart tooltip's positionTip — a fixed caret would drift off on narrow screens).
-      this.$nextTick(() => {
-        const el = this.$refs.uaTipEl;
-        if (!el) return;
-        const w = el.offsetWidth;
-        const x = Math.max(12, Math.min(this.uaTip.x, window.innerWidth - w - 12));
-        this.uaTip.x = x;
-        this.uaTip.caret = Math.max(12, Math.min(anchor - x, w - 16));
-      });
-    },
-    hideUaTip() {
-      this.uaTip.show = false;
-    },
-    // Click a truncated value (the User-Agent) to copy the WHOLE string — the cell only
-    // shows an ellipsis, so this is the way to grab the full text. Clipboard API where
-    // available, with the legacy textarea fallback for plain-HTTP (non-secure) sites.
-    async copyUa(text) {
-      return this.copyVal(text, 'User-Agent');
-    },
-    async copyVal(text, label) {
-      if (!text) return;
-      let ok = false;
-      try {
-        if (navigator.clipboard && navigator.clipboard.writeText) {
-          await navigator.clipboard.writeText(text);
-          ok = true;
-        }
-      } catch (e) { /* fall through to the legacy path */ }
-      if (!ok) ok = this.legacyCopy(text);
-      this.$emit('flash', ok ? 'success' : 'error', ok ? `${label} copied.` : 'Could not copy — select the text and copy manually.');
-    },
-    legacyCopy(text) {
-      try {
-        const ta = document.createElement('textarea');
-        ta.value = text;
-        ta.setAttribute('readonly', '');
-        ta.style.position = 'fixed';
-        ta.style.top = '-1000px';
-        ta.style.opacity = '0';
-        document.body.appendChild(ta);
-        ta.select();
-        const ok = document.execCommand('copy');
-        document.body.removeChild(ta);
-        return ok;
-      } catch (e) {
-        return false;
-      }
     },
     positionTip(bar) {
       const wrap = this.$refs.sparkWrap;
@@ -923,7 +860,7 @@ export default {
           :style="{ left: uaTip.x + 'px', top: uaTip.y + 'px' }"
           role="tooltip"
           aria-hidden="true"
-        ><span class="ar-act-uatip__ua">{{ uaTip.text }}</span><span class="ar-act-uatip__hint">Click to copy</span><span class="ar-act-uatip__caret" :style="{ left: uaTip.caret + 'px' }"></span></div>
+        ><span class="ar-act-uatip__ua">{{ uaTip.text }}</span><span v-if="uaTip.hint" class="ar-act-uatip__hint">{{ uaTip.hint }}</span><span class="ar-act-uatip__caret" :style="{ left: uaTip.caret + 'px' }"></span></div>
       </transition>
     </Teleport>
 

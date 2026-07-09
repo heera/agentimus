@@ -15,10 +15,12 @@
  * quietly stops short reads as "that's everything".
  */
 import SelectMenu from './SelectMenu.vue';
+import { uaTip } from '../uaTip.js';
 
 export default {
   name: 'RequestLog',
   components: { SelectMenu },
+  mixins: [uaTip],
   props: {
     api: { type: Object, default: null },
     // Rendered with v-show, so it stays mounted across tab switches. Fetch on first reveal.
@@ -192,7 +194,8 @@ export default {
           :class="{ 'is-busy': loading }"
           :disabled="loading"
           :aria-label="loading ? 'Reloading the requests…' : 'Reload these requests'"
-          :title="loading ? 'Reloading…' : 'Reload these requests'"
+          @mouseenter="showUaTip($event, loading ? 'Reloading…' : 'Reload these requests', '')"
+          @mouseleave="hideUaTip"
           @click="load(before)"
         >
           <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="23 4 23 10 17 10" /><polyline points="1 20 1 14 7 14" /><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" /></svg>
@@ -271,24 +274,43 @@ export default {
           <tbody>
             <tr v-for="(r, i) in rows" :key="i" :class="{ 'is-spoofed': r.verdict === 2 }">
               <td class="ar-act-table__agent">
-                <button type="button" class="ar-log__pivot" title="Show only this client" @click="pivot('agent', r.agent)">
-                  {{ r.agent }}
-                </button>
+                <button
+                  type="button"
+                  class="ar-log__pivot"
+                  :aria-label="`Show only ${r.agent}`"
+                  @mouseenter="showUaTip($event, 'Show only this client', '')"
+                  @mouseleave="hideUaTip"
+                  @click="pivot('agent', r.agent)"
+                >{{ r.agent }}</button>
                 <span v-if="verdictLabel(r.verdict)" class="ar-log__verdict" :class="`is-${verdictLabel(r.verdict)}`">
                   {{ verdictLabel(r.verdict) }}
                 </span>
               </td>
               <td>
-                <button type="button" class="ar-log__pivot" title="Show only this endpoint" @click="pivot('endpoint', r.endpoint)">
-                  <code class="ar-act-feed__ep">{{ r.endpoint }}</code>
-                </button>
+                <button
+                  type="button"
+                  class="ar-log__pivot"
+                  :aria-label="`Show only ${r.endpoint}`"
+                  @mouseenter="showUaTip($event, 'Show only this endpoint', '')"
+                  @mouseleave="hideUaTip"
+                  @click="pivot('endpoint', r.endpoint)"
+                ><code class="ar-act-feed__ep">{{ r.endpoint }}</code></button>
               </td>
               <td v-if="hasNetwork">
                 <span v-if="r.network" class="ar-act-feed__net">{{ r.network }}</span>
                 <span v-else class="ar-act-table__dash" aria-label="not identified">—</span>
               </td>
               <td>
-                <code v-if="r.ua" class="ar-act-feed__ua" :title="r.ua">{{ r.ua }}</code>
+                <!-- Truncated in the cell, so the bubble carries the whole string and a
+                     click copies it — the same contract as the dashboard's activity feed. -->
+                <code
+                  v-if="r.ua"
+                  class="ar-act-feed__ua is-copyable"
+                  :aria-label="r.ua"
+                  @mouseenter="showUaTip($event, r.ua)"
+                  @mouseleave="hideUaTip"
+                  @click.stop="copyUa(r.ua)"
+                >{{ r.ua }}</code>
                 <span v-else class="ar-act-table__dash">—</span>
               </td>
               <td class="ar-log__seen">{{ ago(r.at) }}</td>
@@ -312,10 +334,30 @@ export default {
       </div>
     </div>
 
+    <!-- The rule sits on the <p>, which spans the card; the prose inside is measured for
+         readability. Putting max-width on the <p> itself cropped the rule short of the card. -->
     <p v-if="loaded" class="ar-log__note">
-      The log keeps the last {{ retentionDays }} days — older requests are deleted, not hidden. On a
-      very busy site the oldest rows inside that window may also have been trimmed, so read a full
-      page as a floor, not a total.
+      <span>
+        The log keeps the last {{ retentionDays }} days — older requests are deleted, not hidden. On a
+        very busy site the oldest rows inside that window may also have been trimmed, so read a full
+        page as a floor, not a total.
+      </span>
     </p>
+
+    <!-- Rendered at body level, like the activity feed's: anchored inside the card it would
+         be clipped by the table's scroll box. -->
+    <Teleport to="body">
+      <transition name="ar-tip">
+        <div
+          v-if="uaTip.show"
+          ref="uaTipEl"
+          class="ar-act-uatip"
+          :class="{ 'is-below': uaTip.below }"
+          :style="{ left: uaTip.x + 'px', top: uaTip.y + 'px' }"
+          role="tooltip"
+          aria-hidden="true"
+        ><span class="ar-act-uatip__ua">{{ uaTip.text }}</span><span v-if="uaTip.hint" class="ar-act-uatip__hint">{{ uaTip.hint }}</span><span class="ar-act-uatip__caret" :style="{ left: uaTip.caret + 'px' }"></span></div>
+      </transition>
+    </Teleport>
   </section>
 </template>
