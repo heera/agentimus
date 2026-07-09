@@ -272,7 +272,6 @@ export default {
               Showing {{ issue.pages.length }} of {{ issue.count }}.
             </p>
           </div>
-          <span class="ar-check__tag is-warn">To improve</span>
         </li>
       </ul>
       <p v-else class="ar-optcheck__clear">Every graded page reads as citable. Anything set aside is listed below.</p>
