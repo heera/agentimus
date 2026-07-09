@@ -412,6 +412,10 @@ final class Admin {
 			'discovery'   => Discovery\Hub::data( $this->settings, Discovery\Registry::instance() ),
 			'restNamespacesDetected' => Discovery\Adapters\RestApi::detected(),
 			'entityTypes'   => $this->settings->entity_types(),
+			// The retention/cap dropdowns render from these, and Settings::sanitize() snaps to
+			// the same constants — so the form can never offer a value the sanitiser rejects.
+			'retentionChoices' => Settings::RETENTION_CHOICES,
+			'maxRowsChoices'   => Settings::MAX_ROWS_CHOICES,
 			'postTypes'     => $this->available_post_types(),
 			'categories'    => $this->category_options(),
 			'knownTrainers' => Settings::known_trainers(),

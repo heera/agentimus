@@ -68,6 +68,10 @@ export default {
       reverifyingNow: null,
       reverifyResult: null, // { ua, status, verdict } — shown inline on the row, not as a toast.
       entityTypes: this.boot.entityTypes || ['Person', 'Organization'],
+      // Retention + row-cap choices come from PHP (Settings::RETENTION_CHOICES /
+      // MAX_ROWS_CHOICES), so the dropdowns can never offer a value sanitize() rejects.
+      retentionChoices: this.boot.retentionChoices || [7, 14, 30, 60, 90, 180, 365],
+      maxRowsChoices: this.boot.maxRowsChoices || [10000, 25000, 50000, 100000, 250000],
       categories: this.boot.categories || [],
       postTypes: this.boot.postTypes || [],
       knownTrainers: this.boot.knownTrainers || [],
@@ -1163,6 +1167,8 @@ export default {
           :api="api"
           v-model:settings="settings"
           :entity-types="entityTypes"
+          :retention-choices="retentionChoices"
+          :max-rows-choices="maxRowsChoices"
           :post-types="postTypes"
           :categories="categories"
           :known-trainers="knownTrainers"

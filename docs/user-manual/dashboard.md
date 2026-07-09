@@ -241,15 +241,17 @@ Turning it off doesn't delete what's already there — use the log's **Clear** a
 
 ## For developers: adjusting the defaults (optional)
 
-If you manage the site's code, a few filters let you tune this feature. Site owners can safely ignore this section.
+Most owners never need this section — the controls under **Settings → Visit log** cover it:
 
-> **Keeping more than 30 days? Raise the row cap too.** Retention is only one of the two
-> limits on the log. Independently of age, the plugin trims the table back to
-> `agentimus_activity_max_rows` (50,000) so a traffic spike can't grow it without bound. On
-> a busy site, asking for 90 days while leaving the cap at its default means the oldest rows
-> are still discarded — you'd get fewer days than you asked for, and nothing would say so.
-> Raise both filters together, and keep an eye on the size of the `agentimus_activity`
-> table: rows are small, but 90 days of a heavily-crawled site is a lot of them.
+- **Delete old records automatically** — on by default. Each night, anything older than the period below is removed. Switch it off and records are kept until the log reaches its size cap, then the oldest are dropped. Either way the log cannot grow without limit.
+- **Keep records for** — 7 days to 1 year. Default 30.
+- **Size cap** — 10,000 to 250,000 rows, with the disk cost of each shown beside it. Default 50,000, roughly 14–33 MB.
+
+**The Dashboard always reports on at most the last 30 days**, whatever you keep. Keeping 90 days gives the [Request log](#the-request-log) a deeper history to page through; it does not stretch the Dashboard's cards. Keeping *fewer* than 30 days shortens the Dashboard to match, rather than drawing empty days for records that were deleted.
+
+Flagged crawler IPs are **not** governed by this. They're the only personal data the plugin stores and they're removed on their own, shorter schedule.
+
+If you manage the site's code, a few filters let you tune this further. The filters **override the settings above**, so code always beats the UI.
 
 ```php
 // Change how long activity + referrals are kept and reported on (days). Default 30.

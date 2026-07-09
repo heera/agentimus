@@ -60,6 +60,16 @@ export default {
     },
   },
   computed: {
+    // The dashboard's own span (min(30, retention)) vs what the log still holds.
+    windowDays() {
+      return this.data.window || 30;
+    },
+    retention() {
+      return this.data.retention || this.windowDays;
+    },
+    maxRowsLabel() {
+      return (this.data.maxRows || 50000).toLocaleString();
+    },
     totals() {
       return this.data.totals || { today: 0, week: 0, month: 0, all: 0, agents: 0 };
     },
@@ -489,7 +499,20 @@ export default {
             </div>
             <p class="ar-card__lead">
               Who fetched your discovery &amp; llms endpoints — AI agents, crawlers and browsers.
-              Local-only, no IP logged. Records are kept for the last {{ data.window || 30 }} days, then removed.
+              Local-only, no IP logged.
+              <!-- `window` is what these cards cover; `retention` is what still exists. The two
+                   differ once an owner keeps more than 30 days, so this sentence — which is about
+                   what is KEPT — must never read `window`. -->
+              <template v-if="retention > windowDays">
+                These cards cover the last {{ windowDays }} days; records are kept for {{ retention }} days, and the
+                full history is readable in the Request log.
+              </template>
+              <template v-else-if="data.autoPrune === false">
+                Records are kept until the log reaches {{ maxRowsLabel }} rows, then the oldest are removed.
+              </template>
+              <template v-else>
+                Records are kept for the last {{ retention }} days, then removed.
+              </template>
             </p>
           </div>
           <div class="ar-act-controls">

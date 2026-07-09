@@ -60,21 +60,79 @@ final class Repository {
 	const MAX_ROWS = 50000;
 
 	/**
-	 * Days of activity kept — and therefore reported on. Filterable; defaults to
-	 * {@see WINDOW_DAYS}. The daily chart, the aggregate window and the prune cutoff
-	 * all derive from this, so "what you see" always equals "what's retained".
+	 * One stored setting, without needing a Settings instance — prune() runs on cron with
+	 * nothing to hand it one.
+	 *
+	 * @param string $key     Setting key.
+	 * @param mixed  $default Value when unset (an upgrading site has no such key yet).
+	 * @return mixed
+	 */
+	private static function setting( $key, $default ) {
+		$all = get_option( Settings::OPTION, array() );
+		return ( is_array( $all ) && array_key_exists( $key, $all ) ) ? $all[ $key ] : $default;
+	}
+
+	/**
+	 * Days of activity KEPT. Governs the prune cutoff, the request log's floor and its filter
+	 * dropdowns — everything that answers "what still exists".
+	 *
+	 * Owners set this in Settings → Visit log; the filter still wins, so code beats UI.
+	 * An upgrading site has no such key and gets {@see WINDOW_DAYS}, exactly as before.
 	 *
 	 * @return int
 	 */
-	private static function retention_days() {
+	public static function retention_days() {
 		/**
-		 * Filter the activity-log retention, in days. Governs the daily chart span,
-		 * the aggregate reporting window, and the prune cutoff.
+		 * Filter the activity-log retention, in days. Governs the prune cutoff and how far
+		 * back the request log can page.
 		 *
-		 * @param int $days Default 30.
+		 * @param int $days The stored setting, default 30.
 		 */
-		$days = (int) apply_filters( 'agentimus_activity_retention_days', self::WINDOW_DAYS );
+		$days = (int) apply_filters( 'agentimus_activity_retention_days', (int) self::setting( 'activity_retention_days', self::WINDOW_DAYS ) );
 		return max( 1, $days );
+	}
+
+	/**
+	 * Days of activity REPORTED ON — the dashboard's totals, chart, breakdowns, per-row
+	 * trends and review queue.
+	 *
+	 * Capped at {@see WINDOW_DAYS}: keeping 90 days shouldn't stretch the summary cards, and
+	 * the Request log is where a deeper history is meant to be read. Never EXCEEDS retention
+	 * either — a 30-day chart on a 7-day retention would draw 23 days of zeros, which reads
+	 * as "no crawlers came" rather than "we deleted it". So: min(30, retention).
+	 *
+	 * @return int
+	 */
+	public static function report_days() {
+		return min( self::WINDOW_DAYS, self::retention_days() );
+	}
+
+	/**
+	 * Whether the daily cron deletes records once they age past the retention.
+	 *
+	 * OFF is not "keep forever": {@see trim_to_cap()} still drops the oldest rows once the
+	 * table passes {@see max_rows()}. The setting chooses WHICH rule collects, never whether
+	 * one does.
+	 *
+	 * @return bool
+	 */
+	public static function auto_prune() {
+		return (bool) self::setting( 'activity_auto_prune', true );
+	}
+
+	/**
+	 * Hard ceiling on stored rows. A cap of 0 disables the trim — reachable only through the
+	 * filter, never the UI, because an unbounded table is how a shared host runs out of disk.
+	 *
+	 * @return int
+	 */
+	public static function max_rows() {
+		/**
+		 * Filter the hard row cap on the activity table. 0 disables it.
+		 *
+		 * @param int $max The stored setting, default 50000.
+		 */
+		return (int) apply_filters( 'agentimus_activity_max_rows', (int) self::setting( 'activity_max_rows', self::MAX_ROWS ) );
 	}
 
 	/**
@@ -87,14 +145,21 @@ final class Repository {
 		global $wpdb;
 		$table = Table::name();
 
-		$window = self::retention_days();
+		// The dashboard reports on the retained span, capped at 30 days.
+		$window = self::report_days();
 		$today  = gmdate( 'Y-m-d 00:00:00' );
 		$week   = gmdate( 'Y-m-d H:i:s', time() - 7 * DAY_IN_SECONDS );
 		$month  = gmdate( 'Y-m-d H:i:s', time() - $window * DAY_IN_SECONDS );
 
 		return array(
 			'enabled'    => (bool) $settings->enabled( 'enable_activity' ),
+			// Two different numbers once an owner keeps more than the dashboard shows: `window`
+			// is what these cards cover, `retention` is what still exists (and what the Request
+			// log can page through). The UI must not use one where it means the other.
 			'window'     => $window,
+			'retention'  => self::retention_days(),
+			'autoPrune'  => self::auto_prune(),
+			'maxRows'    => self::max_rows(),
 			'totals'     => array(
 				'today'  => self::count_since( $today ),
 				'week'   => self::count_since( $week ),
@@ -143,7 +208,7 @@ final class Repository {
 
 		// The calendar-day window the sparkline series spans — matched to {@see daily()}
 		// so the two charts line up.
-		$days  = self::retention_days();
+		$days  = self::report_days();
 		$start = gmdate( 'Y-m-d 00:00:00', time() - ( $days - 1 ) * DAY_IN_SECONDS );
 
 		// phpcs:disable WordPress.DB, PluginCheck.Security.DirectDB.UnescapedDBParameter -- $table is our own prefix-derived table and $column is whitelisted just above; SQL identifiers can't be bound via prepare(), only the values ($since/$start/$limit), which are.
@@ -237,7 +302,7 @@ final class Repository {
 	private static function daily() {
 		global $wpdb;
 		$table = Table::name();
-		$days  = self::retention_days();
+		$days  = self::report_days();
 		$since = gmdate( 'Y-m-d 00:00:00', time() - ( $days - 1 ) * DAY_IN_SECONDS );
 
 		// phpcs:disable WordPress.DB, PluginCheck.Security.DirectDB.UnescapedDBParameter -- $table is our own prefix-derived table name; the value ($since) is bound via prepare().
@@ -358,6 +423,22 @@ final class Repository {
 	}
 
 	/**
+	 * The oldest moment a record can still exist, or '' when there is no such moment.
+	 *
+	 * The floor exists ONLY because the nightly prune deletes below it. With auto-delete off,
+	 * rows age indefinitely (until the cap trims them), so clamping to a retention "floor"
+	 * would hide surviving records that the log is supposed to show.
+	 *
+	 * @return string GMT datetime, or '' for no lower bound.
+	 */
+	private static function history_floor() {
+		if ( ! self::auto_prune() ) {
+			return '';
+		}
+		return gmdate( 'Y-m-d H:i:s', time() - self::retention_days() * DAY_IN_SECONDS );
+	}
+
+	/**
 	 * The distinct values the log's filters can offer, so the UI can present dropdowns
 	 * instead of asking an owner to type a crawler's exact name from memory.
 	 *
@@ -372,7 +453,9 @@ final class Repository {
 	public static function log_facets() {
 		global $wpdb;
 		$table = Table::name();
-		$since = gmdate( 'Y-m-d H:i:s', time() - self::retention_days() * DAY_IN_SECONDS );
+		// '' (auto-delete off) means every stored row is fair game; 1970 is an inert bound.
+		$since = self::history_floor();
+		$since = ( '' === $since ) ? '1970-01-01 00:00:00' : $since;
 
 		$distinct = static function ( $column ) use ( $wpdb, $table, $since ) {
 			// $column is whitelisted by the caller below; SQL identifiers can't be bound.
@@ -440,10 +523,14 @@ final class Repository {
 		$before   = isset( $args['before'] ) ? max( 0, (int) $args['before'] ) : 0;
 		$days     = self::retention_days();
 
-		// Nothing older than the retained window exists; asking for it would only scan.
-		$floor = gmdate( 'Y-m-d H:i:s', time() - $days * DAY_IN_SECONDS );
+		// Nothing older than the floor exists, so asking for it would only scan. With
+		// auto-delete off there is no floor: older rows survive until the cap trims them, and
+		// the log must still page back to them.
+		$floor = self::history_floor();
 		$start = ! empty( $args['from'] ) ? $args['from'] . ' 00:00:00' : $floor;
-		if ( $start < $floor ) {
+		if ( '' === $start ) {
+			$start = '1970-01-01 00:00:00';
+		} elseif ( '' !== $floor && $start < $floor ) {
 			$start = $floor;
 		}
 		// Half-open upper bound, matching day_requests(): [start, end).
@@ -510,8 +597,11 @@ final class Repository {
 			'perPage'       => $per_page,
 			'cursor'        => $has_more && $last ? (int) $last['id'] : null,
 			'hasMore'       => $has_more,
-			// So the UI can say what it cannot show: nothing older than this exists.
+			// So the UI can say what it cannot show. `autoPrune` decides whether
+			// `retentionDays` is a deletion horizon at all, or merely the setting's value.
 			'retentionDays' => $days,
+			'autoPrune'     => self::auto_prune(),
+			'maxRows'       => self::max_rows(),
 		);
 	}
 
@@ -529,13 +619,13 @@ final class Repository {
 		global $wpdb;
 		$table = Table::name();
 		$now   = time();
-		// The retained span, not the raw default: HEAVY_MIN_HITS is documented as a total
-		// "over the whole window", so this must be the same window the chart and the
-		// aggregates report on. Reading WINDOW_DAYS directly meant a site that filtered
-		// retention up to 90 days still had its sustained-heavy check counting only 30 —
-		// the dashboard would show a bot's 1,200 hits while the review queue saw 300 and
-		// stayed silent.
-		$since = gmdate( 'Y-m-d H:i:s', $now - self::retention_days() * DAY_IN_SECONDS );
+		// The REPORTED span, not the retained one. HEAVY_MIN_HITS is documented as a total
+		// "over the whole window", and the window a viewer sees is report_days() — so the
+		// queue counts exactly the hits the dashboard is showing. Reading WINDOW_DAYS raw was
+		// wrong for a shorter retention (queue looked back 30 days into data kept for 7);
+		// reading retention_days() would be wrong for a longer one (queue counts 90 days
+		// while every card on the dashboard shows 30).
+		$since = gmdate( 'Y-m-d H:i:s', $now - self::report_days() * DAY_IN_SECONDS );
 		$hour  = gmdate( 'Y-m-d H:i:s', $now - HOUR_IN_SECONDS );
 
 		// One row per distinct UA over the window. MAX(agent) is unambiguous: the
@@ -1065,10 +1155,16 @@ final class Repository {
 	 * Delete rows older than the (filterable) retention window. Scheduled daily.
 	 */
 	public static function prune() {
-		global $wpdb;
-		$table  = Table::name();
-		$cutoff = gmdate( 'Y-m-d H:i:s', time() - self::retention_days() * DAY_IN_SECONDS );
-		$wpdb->query( $wpdb->prepare( "DELETE FROM $table WHERE hit_at < %s", $cutoff ) ); // phpcs:ignore WordPress.DB, PluginCheck.Security.DirectDB.UnescapedDBParameter -- $table is our own prefix-derived table name; the value is bound via prepare().
+		// With auto-delete off, records age indefinitely — but only until trim_to_cap() drops
+		// the oldest at the row ceiling. Nothing here grows without bound.
+		if ( self::auto_prune() ) {
+			global $wpdb;
+			$table  = Table::name();
+			$cutoff = gmdate( 'Y-m-d H:i:s', time() - self::retention_days() * DAY_IN_SECONDS );
+			$wpdb->query( $wpdb->prepare( "DELETE FROM $table WHERE hit_at < %s", $cutoff ) ); // phpcs:ignore WordPress.DB, PluginCheck.Security.DirectDB.UnescapedDBParameter -- $table is our own prefix-derived table name; the value is bound via prepare().
+		}
+		// These two are bounded option maps, not the log: they expire on their own schedule
+		// and must be tidied whether or not age-based pruning is on.
 		self::prune_dismissed();
 		self::prune_reverified();
 	}
@@ -1081,9 +1177,9 @@ final class Repository {
 	 * disables it.
 	 */
 	public static function trim_to_cap() {
-		$max = (int) apply_filters( 'agentimus_activity_max_rows', self::MAX_ROWS );
+		$max = self::max_rows();
 		if ( $max < 1 ) {
-			return; // Cap disabled.
+			return; // Cap disabled (filter-only; the UI never offers it).
 		}
 		global $wpdb;
 		$table = Table::name();

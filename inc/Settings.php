@@ -15,6 +15,14 @@ final class Settings {
 	const OPTION = 'agentimus_settings';
 
 	/**
+	 * The retention periods and row caps the UI offers, in the order it offers them. The
+	 * sanitiser snaps to these, and the settings form renders from them, so the two can
+	 * never drift apart.
+	 */
+	const RETENTION_CHOICES = array( 7, 14, 30, 60, 90, 180, 365 );
+	const MAX_ROWS_CHOICES  = array( 10000, 25000, 50000, 100000, 250000 );
+
+	/**
 	 * Default settings. Identity defaults stay deliberately empty so the admin
 	 * is nudged to fill in a real author/organisation profile rather than ship
 	 * a generic one.
@@ -34,6 +42,20 @@ final class Settings {
 			'topics_derive_default' => true, // Default for new posts: also derive topics from the page's tags & categories (a manual list still wins).
 			'topics_max'       => 12,    // Hard cap on emitted topics per page, to keep the machine surfaces lean.
 			'enable_activity'  => true,
+			// How long agent hits + AI-referral counts are KEPT. The dashboard reports on at
+			// most 30 days of that (Repository::report_days), so keeping more gives the
+			// Request log a deeper history without stretching the summary cards. Flagged IPs
+			// are NOT governed by this — they are the only PII stored and keep their own
+			// shorter retention (FlaggedIps::RETENTION_DAYS).
+			'activity_retention_days' => 30,
+			// Age-based pruning. OFF does not mean "keep forever": the row cap below still
+			// trims oldest-first, so records are kept until the log reaches that size. There
+			// is deliberately no "no limit" option — an unbounded table is how a shared host
+			// runs out of disk. See Repository::prune() / trim_to_cap().
+			'activity_auto_prune' => true,
+			// Hard ceiling on stored rows, whatever the retention. ~300–700 bytes/row all-in,
+			// so 50,000 rows is roughly 13–33 MB.
+			'activity_max_rows' => 50000,
 			'enable_referral_beacon' => false, // Opt-in "CDN mode": count AI referrals via a tiny front-end beacon instead of server-side, so the count survives a full-page CDN/edge cache (which hides server-side hits). OFF by default — a normal site adds NO front-end script and counts server-side. When ON, the server-side recorder stands down (the two can't be deduped: no per-visit id). See Activity\Referrals::beacon_enabled().
 			'enable_page_checks' => true, // Editor-only "AI Readability" panel: per-page pass/warn checks (headings, summary, thin content, link density, image alt). No front-end output — an authoring aid — so it's safe on by default.
 			'enable_visibility' => false, // Opt-in "AI Visibility" (citation tracking): show the AI Visibility tab AND the Cited rung in the score. OFF by default — it's BYOK (spends the owner's AI credit) and most sites won't use it, so citation only enters the UI + the composite when explicitly turned on. When off the score is a clean 4-rung ladder (Cited excluded, weight redistributed).
@@ -466,6 +488,16 @@ final class Settings {
 
 		$posts                    = isset( $input['llms_full_posts'] ) ? (int) $input['llms_full_posts'] : $defaults['llms_full_posts'];
 		$clean['llms_full_posts'] = max( 1, min( 500, $posts ) );
+
+		// Activity retention + row cap: snap to the offered choices rather than clamping to a
+		// range. A value the UI never offers (say 37 days) is a sign of a tampered payload, and
+		// silently accepting it would make the dropdown lie about what's stored. `auto_prune` is
+		// a bool, so the loop above already handled it.
+		$retention                        = isset( $input['activity_retention_days'] ) ? (int) $input['activity_retention_days'] : $defaults['activity_retention_days'];
+		$clean['activity_retention_days'] = in_array( $retention, self::RETENTION_CHOICES, true ) ? $retention : $defaults['activity_retention_days'];
+
+		$max_rows                    = isset( $input['activity_max_rows'] ) ? (int) $input['activity_max_rows'] : $defaults['activity_max_rows'];
+		$clean['activity_max_rows'] = in_array( $max_rows, self::MAX_ROWS_CHOICES, true ) ? $max_rows : $defaults['activity_max_rows'];
 
 		$kb                        = isset( $input['llms_full_max_kb'] ) ? (int) $input['llms_full_max_kb'] : $defaults['llms_full_max_kb'];
 		$clean['llms_full_max_kb'] = max( 64, min( 20480, $kb ) );

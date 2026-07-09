@@ -2837,3 +2837,17 @@ a.ar-about-proto__v:hover { text-decoration: underline; }
   font-weight: 400; font-size: 11px;
   color: var(--ar-ink-faint);
 }
+
+/* The Visit-log retention note: says what the Dashboard shows vs what the log keeps, and
+   which data this setting deliberately does NOT govern (flagged IPs). */
+.ar-log-note {
+  margin: 18px 0 0; padding-top: 14px; border-top: 1px solid var(--ar-line);
+  font-size: 12px; line-height: 1.65; color: var(--ar-ink-soft); max-width: 78ch;
+}
+.ar-log-note strong { color: var(--ar-ink); font-weight: 600; }
+/* The two dropdowns sit in .ar-field--inline rows; give the control a sane width so the
+   "50,000 rows · ≈ 14–33 MB" label isn't crushed. */
+.ar-field--inline .ar-select { flex: 0 1 320px; min-width: 0; }
+/* "Keep records for" is twice the width of "Size cap", so without a reserved label column
+   the two dropdowns start at different x. Fixed basis, no shrink: one column, aligned. */
+.ar-field--log > label { flex: 0 0 132px; }

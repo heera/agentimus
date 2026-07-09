@@ -223,7 +223,7 @@ Advanced site-owner tuning — not a third-party integration surface.
 | `agentimus_known_trainers` | filter | `( string[] $known ): string[]` | AI-trainer user-agents offered for robots.txt blocking. |
 | `agentimus_ai_referral_sources` | filter | `( array $map ): array` | Referrer host → friendly name for "Traffic from AI". |
 | `agentimus_activity_skip_self` | filter | `( bool $skip ): bool` | Whether to skip recording hits from logged-in admins. |
-| `agentimus_activity_retention_days` | filter | `( int $days ): int` | How long agent hits are retained. Raise `agentimus_activity_max_rows` alongside it, or the row cap discards the extra days anyway. |
+| `agentimus_activity_retention_days` | filter | `( int $days ): int` | How long agent hits are kept. Overrides the Settings → Visit log value. The Dashboard still reports on at most 30 days. Raise `agentimus_activity_max_rows` alongside it, or the row cap discards the extra days anyway. |
 | `agentimus_new_agent_seconds` | filter | `( int $seconds ): int` | The "new agent" window for the activity-to-review panel. |
 | `agentimus_burst_min_hits` | filter | `( int $hits ): int` | Minimum hits to flag a burst. |
 | `agentimus_heavy_min_hits` | filter | `( int $hits ): int` | Minimum hits to flag heavy usage. |

@@ -76,38 +76,61 @@ final class RepositoryDbTest extends DbTestCase {
 	}
 
 	/**
-	 * The review queue must look back over the RETAINED span, not a hardcoded 30 days.
-	 * HEAVY_MIN_HITS counts hits "over the whole window", so a site that extends retention
-	 * would otherwise see the dashboard report a client's full history while the queue
-	 * silently judged it on the last 30 days only.
+	 * The review queue must look back over exactly the span the DASHBOARD reports on —
+	 * report_days(), i.e. min(30, retention) — never a hardcoded 30 and never the raw
+	 * retention.
+	 *
+	 * HEAVY_MIN_HITS counts hits "over the whole window". If the queue and the cards
+	 * disagreed, the dashboard could show a bot's 1,200 hits while the queue judged it on
+	 * 300 and stayed silent (retention > 30), or the queue could count 30 days of data that
+	 * a 7-day retention has already deleted.
 	 */
-	public function test_threats_window_follows_the_retention_filter() {
+	private function threat_uas() {
+		return array_map(
+			static function ( $s ) { return $s['ua']; },
+			Repository::threats( new Settings() )['sources']
+		);
+	}
+
+	/** Keeping MORE than 30 days must not stretch the queue past the 30 days the cards show. */
+	public function test_threats_window_never_exceeds_the_reported_window() {
 		$old = gmdate( 'Y-m-d H:i:s', time() - 45 * DAY_IN_SECONDS );
 		for ( $i = 0; $i < 5; $i++ ) {
 			$this->hit( 'discovery.json', 'Likely spoof/scanner', self::NOKIA, $old );
 		}
 
-		$uas = static function ( $t ) {
-			return array_map( static function ( $s ) { return $s['ua']; }, $t['sources'] );
-		};
+		$this->assertNotContains( self::NOKIA, $this->threat_uas(), 'sanity: 45 days is outside the default 30' );
 
-		// Default retention (30 days): a 45-day-old client is outside the window.
-		$this->assertNotContains(
-			self::NOKIA,
-			$uas( Repository::threats( new Settings() ) ),
-			'a client older than the retained window must not surface'
-		);
-
-		// Retain 90 days and the same client is inside the window the dashboard reports on.
 		add_filter( 'agentimus_activity_retention_days', static fn() => 90 );
-		$widened = $uas( Repository::threats( new Settings() ) );
+		$widened = $this->threat_uas();
+		$report  = Repository::report_days();
 		remove_all_filters( 'agentimus_activity_retention_days' );
 
-		$this->assertContains(
+		$this->assertSame( 30, $report, 'report window stays capped at 30 when retention is 90' );
+		$this->assertNotContains(
 			self::NOKIA,
 			$widened,
-			'threats() must span the filtered retention, not the raw WINDOW_DAYS default'
+			'a 45-day-old client is retained but NOT reported on — the queue must agree with the cards'
 		);
+	}
+
+	/** Keeping LESS than 30 days must shrink the queue to match, not look into deleted days. */
+	public function test_threats_window_shrinks_with_a_short_retention() {
+		// 10 days old: inside a 30-day window, outside a 7-day one.
+		$old = gmdate( 'Y-m-d H:i:s', time() - 10 * DAY_IN_SECONDS );
+		for ( $i = 0; $i < 5; $i++ ) {
+			$this->hit( 'discovery.json', 'Likely spoof/scanner', self::NOKIA, $old );
+		}
+
+		$this->assertContains( self::NOKIA, $this->threat_uas(), 'sanity: 10 days is inside the default 30' );
+
+		add_filter( 'agentimus_activity_retention_days', static fn() => 7 );
+		$narrowed = $this->threat_uas();
+		$report   = Repository::report_days();
+		remove_all_filters( 'agentimus_activity_retention_days' );
+
+		$this->assertSame( 7, $report, 'report window follows a retention shorter than 30' );
+		$this->assertNotContains( self::NOKIA, $narrowed, 'the queue must not count days the prune has deleted' );
 	}
 
 	/* -- The filtered, keyset-paged request log --------------------------- */
@@ -254,6 +277,117 @@ final class RepositoryDbTest extends DbTestCase {
 		$this->assertSame( 1, $asked['total'], 'the retention floor clamps an over-wide `from`' );
 		$this->assertSame( 'recent', $asked['rows'][0]['ua'] );
 		$this->assertSame( 30, $asked['retentionDays'], 'the payload must tell the UI what it cannot show' );
+	}
+
+	/* -- Retention: what is KEPT vs what is REPORTED ----------------------- */
+
+	/** Set the stored settings the Repository reads (it has no Settings instance on cron). */
+	private function settings( array $patch ) {
+		$all = get_option( \Agentimus\Settings::OPTION, array() );
+		update_option( \Agentimus\Settings::OPTION, array_merge( is_array( $all ) ? $all : array(), $patch ) );
+	}
+
+	public function test_report_window_is_capped_at_thirty_days() {
+		$this->settings( array( 'activity_retention_days' => 90 ) );
+
+		$this->assertSame( 90, Repository::retention_days(), 'the log keeps 90 days' );
+		$this->assertSame( 30, Repository::report_days(), 'the dashboard still reports on 30' );
+	}
+
+	/** A 30-day chart over a 7-day retention would draw 23 days of zeros. */
+	public function test_report_window_never_exceeds_retention() {
+		$this->settings( array( 'activity_retention_days' => 7 ) );
+
+		$this->assertSame( 7, Repository::retention_days() );
+		$this->assertSame( 7, Repository::report_days() );
+	}
+
+	/** The stored setting is the DEFAULT the filter receives — code still beats UI. */
+	public function test_the_filter_overrides_the_stored_setting() {
+		$this->settings( array( 'activity_retention_days' => 90 ) );
+		add_filter( 'agentimus_activity_retention_days', static fn( $d ) => 14 );
+		$days = Repository::retention_days();
+		remove_all_filters( 'agentimus_activity_retention_days' );
+
+		$this->assertSame( 14, $days );
+	}
+
+	/** An upgrading site has no keys at all and must behave exactly as it did before. */
+	public function test_absent_settings_fall_back_to_todays_behaviour() {
+		delete_option( \Agentimus\Settings::OPTION );
+
+		$this->assertSame( 30, Repository::retention_days() );
+		$this->assertSame( 30, Repository::report_days() );
+		$this->assertTrue( Repository::auto_prune() );
+		$this->assertSame( 50000, Repository::max_rows() );
+	}
+
+	/* -- Auto-delete: off means "kept until the cap", not "kept forever" --- */
+
+	public function test_prune_deletes_aged_rows_when_auto_prune_is_on() {
+		$this->settings( array( 'activity_auto_prune' => true, 'activity_retention_days' => 7 ) );
+		$this->hit( 'discovery.json', 'Old', 'old', gmdate( 'Y-m-d H:i:s', time() - 10 * DAY_IN_SECONDS ) );
+		$this->hit( 'discovery.json', 'New', 'new' );
+
+		Repository::prune();
+
+		$this->assertSame( 1, $this->row_count(), 'the 10-day-old row is past a 7-day retention' );
+	}
+
+	public function test_prune_keeps_aged_rows_when_auto_prune_is_off() {
+		$this->settings( array( 'activity_auto_prune' => false, 'activity_retention_days' => 7 ) );
+		$this->hit( 'discovery.json', 'Old', 'old', gmdate( 'Y-m-d H:i:s', time() - 10 * DAY_IN_SECONDS ) );
+		$this->hit( 'discovery.json', 'New', 'new' );
+
+		Repository::prune();
+
+		$this->assertSame( 2, $this->row_count(), 'age-based pruning is off — nothing expires' );
+	}
+
+	/** …but the cap still collects, so "off" can never grow the table without bound. */
+	public function test_the_row_cap_trims_even_with_auto_prune_off() {
+		$this->settings( array( 'activity_auto_prune' => false, 'activity_max_rows' => 3 ) );
+		for ( $i = 0; $i < 6; $i++ ) {
+			$this->hit( 'discovery.json', 'Bot', 'UA-' . $i );
+		}
+
+		Repository::trim_to_cap();
+
+		$this->assertSame( 3, $this->row_count(), 'the cap drops the oldest rows regardless of age' );
+		$rows = Repository::log( array( 'per_page' => 10 ) )['rows'];
+		$this->assertSame( array( 'UA-5', 'UA-4', 'UA-3' ), array_column( $rows, 'ua' ), 'the NEWEST rows survive' );
+	}
+
+	/**
+	 * The log's lower bound exists only because the prune deletes below it. With auto-delete
+	 * off, rows older than the retention SURVIVE — and clamping the query to a retention
+	 * "floor" would hide records the log is the one place you can read.
+	 */
+	public function test_the_log_reaches_rows_older_than_retention_when_auto_prune_is_off() {
+		$this->settings( array( 'activity_auto_prune' => false, 'activity_retention_days' => 7 ) );
+		$this->hit( 'discovery.json', 'Ancient', 'ancient', gmdate( 'Y-m-d H:i:s', time() - 45 * DAY_IN_SECONDS ) );
+		$this->hit( 'discovery.json', 'Recent', 'recent' );
+
+		$page = Repository::log();
+
+		$this->assertSame( 2, $page['total'], 'a surviving 45-day-old row must be listed' );
+		$this->assertFalse( $page['autoPrune'], 'the payload tells the UI nothing expires by age' );
+		$this->assertContains( 'ancient', array_column( $page['rows'], 'ua' ) );
+		$this->assertContains( 'Ancient', Repository::log_facets()['agents'], 'and its client is offered as a filter' );
+	}
+
+	/** With auto-delete ON, the floor stands: nothing older than the retention can exist. */
+	public function test_the_log_clamps_to_the_retention_floor_when_auto_prune_is_on() {
+		$this->settings( array( 'activity_auto_prune' => true, 'activity_retention_days' => 7 ) );
+		// A row the prune hasn't collected yet — the query must still refuse to show it.
+		$this->hit( 'discovery.json', 'Ancient', 'ancient', gmdate( 'Y-m-d H:i:s', time() - 45 * DAY_IN_SECONDS ) );
+		$this->hit( 'discovery.json', 'Recent', 'recent' );
+
+		$page = Repository::log();
+
+		$this->assertSame( 1, $page['total'] );
+		$this->assertTrue( $page['autoPrune'] );
+		$this->assertSame( array( 'recent' ), array_column( $page['rows'], 'ua' ) );
 	}
 
 	/* -- Filter facets (what the dropdowns can offer) --------------------- */

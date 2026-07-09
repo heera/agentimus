@@ -435,13 +435,18 @@ final class Referrals {
 	 * prune cron as the agent-hit log.
 	 */
 	public static function prune() {
-		global $wpdb;
-		$table  = self::name();
-		$days   = max( 1, (int) apply_filters( 'agentimus_activity_retention_days', Repository::WINDOW_DAYS ) );
-		$cutoff = gmdate( 'Y-m-d', time() - $days * DAY_IN_SECONDS );
-		$wpdb->query( $wpdb->prepare( "DELETE FROM $table WHERE day < %s", $cutoff ) ); // phpcs:ignore WordPress.DB, PluginCheck.Security.DirectDB.UnescapedDBParameter -- $table is our own prefix-derived name; the value is bound via prepare().
+		// Referral counts age on the same clock as the hit log, and stop aging on the same
+		// switch. Go through Repository rather than re-applying the filter against the raw
+		// constant here — that copy ignored the owner's retention setting entirely.
+		if ( Repository::auto_prune() ) {
+			global $wpdb;
+			$table  = self::name();
+			$cutoff = gmdate( 'Y-m-d', time() - Repository::retention_days() * DAY_IN_SECONDS );
+			$wpdb->query( $wpdb->prepare( "DELETE FROM $table WHERE day < %s", $cutoff ) ); // phpcs:ignore WordPress.DB, PluginCheck.Security.DirectDB.UnescapedDBParameter -- $table is our own prefix-derived name; the value is bound via prepare().
+		}
 
-		// Guarantee the row cap at least daily, independent of the sampled upsert path.
+		// The cap is not optional: guarantee it at least daily, independent of the sampled
+		// upsert path and of whether age-based pruning ran.
 		self::trim_to_cap();
 	}
 

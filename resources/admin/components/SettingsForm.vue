@@ -1,12 +1,15 @@
 <script>
 import TagInput from './TagInput.vue';
+import SelectMenu from './SelectMenu.vue';
 import IpChecker from './IpChecker.vue';
 
 export default {
   name: 'SettingsForm',
-  components: { TagInput, IpChecker },
+  components: { TagInput, IpChecker, SelectMenu },
   props: {
     settings: { type: Object, required: true },
+    retentionChoices: { type: Array, default: () => [7, 14, 30, 60, 90, 180, 365] },
+    maxRowsChoices: { type: Array, default: () => [10000, 25000, 50000, 100000, 250000] },
     busy: { type: Boolean, default: false },
     api: { type: Object, default: null },
     entityTypes: { type: Array, default: () => ['Person', 'Organization', 'LocalBusiness', 'Store'] },
@@ -57,6 +60,26 @@ export default {
     window.removeEventListener('resize', this.updateScrollHint);
   },
   computed: {
+    retentionOptions() {
+      return this.retentionChoices.map((d) => ({
+        value: d,
+        label: d === 365 ? '1 year' : d % 30 === 0 && d >= 60 ? `${d / 30} months` : `${d} days`,
+      }));
+    },
+    /**
+     * Each cap carries what it actually costs on disk. Measured on a real table: ~124 bytes of
+     * payload per row (the User-Agent averages 83 chars) plus ~143 bytes across the four
+     * secondary indexes — call it 300–700 B/row once InnoDB's page fill is accounted for. The
+     * range is honest; a single number here would be a guess dressed as a fact.
+     */
+    maxRowsOptions() {
+      const mb = (rows, bytes) => (rows * bytes) / 1048576;
+      const fmt = (n) => (n < 10 ? n.toFixed(1) : Math.round(n));
+      return this.maxRowsChoices.map((rows) => ({
+        value: rows,
+        label: `${rows.toLocaleString()} rows · ≈ ${fmt(mb(rows, 300))}–${fmt(mb(rows, 700))} MB`,
+      }));
+    },
     // The settings page is split into a few labelled groups, shown one at a time
     // via the sub-nav. Order runs broad → specific: what you publish, who you
     // are, what bots may do, then the rarely-touched developer/maintenance bits.
@@ -655,6 +678,49 @@ export default {
               <small>Turn on only if your site sits behind a full-page cache/CDN (e.g. Cloudflare “Cache Everything”). It counts “Traffic from AI” in the visitor’s browser so the number survives the cache. Adds a tiny counting script to your pages. A few visitors — those using an ad-blocker or a privacy-focused browser that blocks scripts like this — won’t be counted, so read the total as a minimum, never an over-count.</small>
             </span>
           </label>
+
+          <!-- How long records live, and the ceiling that applies either way. -->
+          <label id="ar-feat-activity_auto_prune" class="ar-toggle">
+            <input v-model="settings.activity_auto_prune" type="checkbox" />
+            <span class="ar-toggle__track" aria-hidden="true"></span>
+            <span class="ar-toggle__text">
+              <strong>Delete old records automatically</strong>
+              <small>Each night, anything older than the period below is removed. Turn this off and records are kept until the log reaches its size cap — then the oldest are dropped to make room. Either way the log can’t grow without limit.</small>
+            </span>
+          </label>
+
+          <div v-show="settings.activity_auto_prune" class="ar-field ar-field--inline ar-field--log">
+            <label id="ar-lbl-retention">Keep records for</label>
+            <SelectMenu
+              v-model="settings.activity_retention_days"
+              :options="retentionOptions"
+              aria-label="How long to keep activity records"
+            />
+          </div>
+
+          <div class="ar-field ar-field--inline ar-field--log">
+            <label id="ar-lbl-maxrows">Size cap</label>
+            <SelectMenu
+              v-model="settings.activity_max_rows"
+              :options="maxRowsOptions"
+              mono
+              aria-label="Maximum rows kept in the activity log"
+            />
+          </div>
+
+          <p class="ar-log-note">
+            The Dashboard always reports on the last <strong>{{ Math.min(30, settings.activity_retention_days || 30) }} days</strong>.
+            <template v-if="(settings.activity_retention_days || 30) > 30">
+              Keeping {{ settings.activity_retention_days }} days gives the <em>Request log</em> a deeper history to page
+              through — it doesn’t stretch the Dashboard’s cards.
+            </template>
+            <template v-else-if="settings.activity_auto_prune && (settings.activity_retention_days || 30) < 30">
+              Keeping fewer than 30 days shortens the Dashboard to match, rather than drawing empty days for records
+              that were deleted.
+            </template>
+            Flagged crawler IPs are not covered by this — they’re the only personal data stored, and they’re
+            removed on their own, shorter schedule.
+          </p>
         </div>
       </section>
 

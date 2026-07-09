@@ -37,6 +37,8 @@ export default {
       hasMore: false,
       cursor: null,
       retentionDays: 30,
+      autoPrune: true,
+      maxRows: 50000,
       perPage: 50,
       // Cursor of the page we're on, plus the trail behind it, so "Newer" can reverse.
       before: 0,
@@ -123,6 +125,8 @@ export default {
         this.hasMore = !!res.hasMore;
         this.cursor = res.cursor || null;
         this.retentionDays = res.retentionDays || 30;
+        this.autoPrune = res.autoPrune !== false;
+        this.maxRows = res.maxRows || 50000;
         this.before = before;
         this.loaded = true;
       } catch (e) {
@@ -337,10 +341,17 @@ export default {
     <!-- The rule sits on the <p>, which spans the card; the prose inside is measured for
          readability. Putting max-width on the <p> itself cropped the rule short of the card. -->
     <p v-if="loaded" class="ar-log__note">
-      <span>
+      <!-- "older requests are deleted" is only true when auto-delete is on. With it off,
+           nothing expires by age and the row cap is the only thing that removes anything. -->
+      <span v-if="autoPrune">
         The log keeps the last {{ retentionDays }} days — older requests are deleted, not hidden. On a
-        very busy site the oldest rows inside that window may also have been trimmed, so read a full
-        page as a floor, not a total.
+        very busy site the oldest rows inside that window may also have been trimmed to stay under the
+        {{ maxRows.toLocaleString() }}-row cap, so read a full page as a floor, not a total.
+      </span>
+      <span v-else>
+        Old requests are never deleted by age. The log keeps growing until it reaches
+        {{ maxRows.toLocaleString() }} rows, after which the oldest are removed to make room — so read a
+        full page as a floor, not a total.
       </span>
     </p>
 
