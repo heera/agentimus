@@ -119,7 +119,9 @@ final class PageCheck {
 					}
 				} elseif ( 'img' === $tag ) {
 					++$images;
-					if ( '' === trim( (string) $node->getAttribute( 'alt' ) ) ) {
+					// A missing `alt` attribute is a real gap; alt="" is the standards-correct
+					// marker for a decorative image (WAI) — intentional, so don't flag it.
+					if ( ! $node->hasAttribute( 'alt' ) ) {
 						++$images_no_alt;
 					}
 				}

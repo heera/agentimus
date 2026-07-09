@@ -37,6 +37,14 @@ final class PageCheckTest extends TestCase {
 		$this->assertSame( 7, $s['words'] );                 // A B one two three go now
 	}
 
+	public function test_stats_treats_empty_alt_as_intentional_decorative() {
+		// alt="" is the WAI marker for a decorative image — not a missing-alt gap. Only a
+		// truly absent alt attribute counts.
+		$s = PageCheck::stats( '<img src="deco.jpg" alt=""><img src="hero.jpg" alt="A chart"><img src="x.jpg">', false );
+		$this->assertSame( 3, $s['images'] );
+		$this->assertSame( 1, $s['images_no_alt'] );         // only the third img (no alt attr)
+	}
+
 	public function test_stats_tolerates_empty_and_plain() {
 		$this->assertSame( 0, PageCheck::stats( '', false )['words'] );
 		$this->assertSame( array(), PageCheck::stats( '', false )['headings'] );
