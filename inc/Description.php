@@ -330,7 +330,15 @@ final class Description {
 	 * so non-candidate pages carry no buffering overhead.
 	 */
 	public function buffer_start() {
-		if ( $this->should_emit() ) {
+		// should_emit() runs the `agentimus_emit_meta_description` filter (third-party code)
+		// on a human-facing page. A throw here would fatal before the buffer even opens, so
+		// degrade to "don't buffer, don't emit" and leave the theme's head alone.
+		try {
+			$emit = $this->should_emit();
+		} catch ( \Throwable $e ) {
+			return;
+		}
+		if ( $emit ) {
 			$this->buffering = true;
 			ob_start();
 		}
@@ -345,7 +353,20 @@ final class Description {
 			return;
 		}
 		$this->buffering = false;
-		echo $this->filter_head( (string) ob_get_clean() ); // phpcs:ignore WordPress.Security.EscapeOutput -- buffered head (core/other-hook output) plus our own esc_attr'd tag.
+
+		// Take the head out of the buffer FIRST, then transform it. filter_head() calls
+		// for_post(), which runs the `agentimus_post_description` filter (third-party code).
+		// Holding the string means a throw costs us only our own <meta> tag — without this,
+		// ob_get_clean() has already emptied the buffer and the entire <head> would be lost
+		// along with the request. Never let a description filter blank a page's head.
+		$head = (string) ob_get_clean();
+		try {
+			$head = $this->filter_head( $head );
+		} catch ( \Throwable $e ) {
+			// $head keeps the theme's original markup — emit it untransformed.
+		}
+
+		echo $head; // phpcs:ignore WordPress.Security.EscapeOutput -- buffered head (core/other-hook output) plus our own esc_attr'd tag.
 	}
 
 	/**

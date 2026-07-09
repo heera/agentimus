@@ -92,8 +92,20 @@ final class Schema {
 		$json = ( '' !== $key ) ? Cache::get( $key ) : false;
 
 		if ( ! is_string( $json ) ) {
-			$doc  = $this->build_document( $post, $front );
-			$json = ( null === $doc ) ? '' : (string) wp_json_encode( $doc, JSON_UNESCAPED_UNICODE );
+			// This runs on wp_head for every human-facing page, and the document build calls
+			// do_blocks(), a DOMDocument parse (Faq::extract) and four third-party filters
+			// (agentimus_schema_for_post/_graph, agentimus_faq_pairs, agentimus_topic_links).
+			// A throwing block callback or filter must cost the page its JSON-LD, never 500
+			// it — the same contract Markdown::post() honours on the agent-facing side.
+			// Worse here: Description::buffer_start() holds the <head> in an output buffer
+			// around this call, so an uncaught Throwable would discard the whole head too.
+			try {
+				$doc  = $this->build_document( $post, $front );
+				$json = ( null === $doc ) ? '' : (string) wp_json_encode( $doc, JSON_UNESCAPED_UNICODE );
+			} catch ( \Throwable $e ) {
+				return; // Print nothing. Deliberately NOT cached — a transient filter error
+						// must not memoize an empty graph for the life of the cache entry.
+			}
 			if ( '' !== $key ) {
 				Cache::set( $key, $json, 12 * HOUR_IN_SECONDS );
 			}
