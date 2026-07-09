@@ -1379,7 +1379,9 @@ select.ar-input {
 .ar-checkgroup.is-fail .ar-checkgroup__count { color: var(--ar-bad); }
 .ar-checkgroup .ar-checks { margin-top: 0; border-top: 0; }
 
-.ar-checks { margin: 14px 0 0; padding: 0; list-style: none; display: grid; gap: 0; border-top: 1px solid var(--ar-line); }
+/* minmax(0,1fr): let the single column shrink below its content's min-content, so a
+   nowrap child (e.g. an Optimize page link) truncates instead of overflowing the panel. */
+.ar-checks { margin: 14px 0 0; padding: 0; list-style: none; display: grid; grid-template-columns: minmax(0, 1fr); gap: 0; border-top: 1px solid var(--ar-line); }
 .ar-check {
   display: flex; align-items: flex-start; gap: 16px;
   padding: 15px 4px; border-bottom: 1px solid var(--ar-line);
