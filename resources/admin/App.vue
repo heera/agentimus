@@ -234,7 +234,7 @@ export default {
         { id: 'discovery', label: 'Discovery' },
       ];
     },
-    // The occasional ones, behind "More…".
+    // The occasional ones, behind "More".
     //
     // AI Visibility is always LISTED, even when citation tracking is off — showing it greyed
     // out tells an owner the feature exists and where to turn it on, where hiding it just
@@ -253,7 +253,7 @@ export default {
         { id: 'about', label: 'About', divided: true },
       ];
     },
-    // True when the screen you're on lives inside the menu, so "More…" can carry the active
+    // True when the screen you're on lives inside the menu, so "More" can carry the active
     // underline — otherwise nothing in the bar would show where you are.
     moreActive() {
       return this.moreTabs.some((t) => t.id === this.tab && !t.disabled);
@@ -1072,7 +1072,7 @@ export default {
           aria-label="More screens"
           @click="moreOpen = !moreOpen"
         >
-          More…
+          More
           <span class="ar__more-caret" aria-hidden="true">
             <svg viewBox="0 0 12 12" width="9" height="9" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="2.5 4.5 6 8 9.5 4.5" /></svg>
           </span>
