@@ -26,6 +26,11 @@ export default {
     api: { type: Object, default: null },
     // Load when the screen is first opened, not on every dashboard visit.
     active: { type: Boolean, default: false },
+    // The "Find missed AI sources" setting (log_unknown_referrers). It lives on the Settings
+    // screen, so it flips while THIS panel is hidden — the report then carries a stale
+    // `unknown` block (its enabled state and the diagnostic lists). Watched so the report
+    // reloads on the next open, instead of only after a full page refresh.
+    logUnknown: { type: Boolean, default: false },
   },
   // `flash` is required by the uaTip mixin: copying a path reports its result there.
   emits: ['navigate', 'flash'],
@@ -43,6 +48,9 @@ export default {
       // date -> { loading, error, rows, rowCount, full, capped }. Fetched the first time a
       // day is opened and dropped whenever the report reloads under it.
       dayCache: {},
+      // Set when a setting the report depends on changed while we were hidden; consumed on
+      // the next activation to force a reload of an otherwise-cached report.
+      stale: false,
     };
   },
   computed: {
@@ -108,7 +116,15 @@ export default {
   },
   watch: {
     active(on) {
-      if (on && !this.report) this.load();
+      if (on && (!this.report || this.stale)) this.load();
+    },
+    logUnknown() {
+      // Never loaded yet → the first open fetches fresh anyway. Otherwise the loaded
+      // report's `unknown` block is now stale: reload right away if we're showing, else
+      // defer to the next open (the toggle lives on Settings, so this is the usual path).
+      if (!this.report) return;
+      this.stale = true;
+      if (this.active) this.load();
     },
   },
   mounted() {
@@ -119,6 +135,7 @@ export default {
       if (!this.api) return;
       this.loading = true;
       this.error = '';
+      this.stale = false;
       // A reloaded report may cover a different range or filter; any day rows cached under
       // it are answers to a question nobody is asking any more.
       this.dayCache = {};
@@ -324,7 +341,6 @@ export default {
                   type="button"
                   class="ar-aiday__row"
                   :aria-expanded="refDayOpen(d.date)"
-                  :title="refDayOpen(d.date) ? 'Hide this day' : 'Show which source landed on which page'"
                   @click="toggleRefDay(d.date)"
                 >
                   <span class="ar-aiday__date">{{ dateLabel(d.date) }}</span>
@@ -402,8 +418,8 @@ export default {
         </div>
         <div class="ar-ai__col">
           <h3 class="ar-ai__sub">
-            utm_source tags
-            <span class="ar-ai__subnote">seen even when the referrer was stripped</span>
+            Link source tags
+            <span class="ar-ai__subnote">where a link says it came from — its <code>utm_source</code> tag — seen even when the referrer was stripped</span>
           </h3>
           <ul v-if="unknownUtm.length" class="ar-act-rank">
             <li v-for="u in unknownUtm" :key="u.token">

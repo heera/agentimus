@@ -1423,6 +1423,7 @@ export default {
           v-show="tab === 'ai-traffic'"
           :api="api"
           :active="tab === 'ai-traffic'"
+          :log-unknown="!!settings.log_unknown_referrers"
           @navigate="goTo"
           @flash="flash"
         />
