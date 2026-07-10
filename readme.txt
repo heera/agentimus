@@ -8,13 +8,13 @@ Stable tag: 1.17.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
-Help AI assistants like ChatGPT and Claude understand and cite your site correctly — and see which ones are reading it. No tech setup needed.
+Make your site agent-ready: help AI assistants like ChatGPT and Claude understand and cite it, and see which ones are reading it. No setup needed.
 
 == Description ==
 
-Agentimus helps AI assistants like ChatGPT, Claude and Perplexity find your site, read it correctly, and cite it in your own words — and shows you which AI bots are actually visiting. **You don't need to understand AI or web standards to use it:** a setup wizard walks you through everything in about a minute on your first visit, then it runs on its own.
+Agentimus makes your site agent-ready: it helps AI assistants like ChatGPT, Claude and Perplexity find it, read it correctly, and cite it in your own words — and shows you which AI bots are actually visiting. **You don't need to understand AI or web standards to use it:** a setup wizard walks you through everything in about a minute on your first visit, then it runs on its own.
 
-Want more control? You also get a first-party log of every AI crawler that fetches your content, one-click blocking for the bots you don't want, and a dashboard that scores how AI-ready your site is — one AEO/GEO score across five simple rungs, per-page tips on making your content easier for AI to quote, and always the next thing to improve.
+Want more control? You also get a first-party log of every AI crawler that fetches your content, one-click blocking for the bots you don't want, and a dashboard that scores your site's agent readiness — one AEO/GEO score across five simple rungs, per-page tips on making your content easier for AI to quote, and always the next thing to improve.
 
 By default it makes no outbound requests, collects no analytics, and logs no IP addresses — everything runs on your own site. Two optional, off-by-default features change that only when you turn them on: **AI Visibility** queries an AI provider you choose (with your own key) to check whether AIs cite you; and **Store IP addresses for flagged clients** records IPs, but only for crawlers flagged as impersonators or spoofs so you can block them (see *External services*).
 
