@@ -15,6 +15,8 @@ A cache's whole job is to answer requests *without* bothering WordPress. That's 
 1. **Your Activity log under-counts.** A crawler or assistant fetches `/your-page.md`, the cache hands back a saved copy, WordPress never runs, and the hit is **never recorded**. Your "Top clients" and endpoint numbers become a *floor*, not a true total.
 2. **Freshness-sensitive endpoints go stale.** The **change feed** (`/agentimus-changes.json`) is meant to always be current so an assistant can fetch just what changed. If it's cached for hours, agents get an old delta. Your page `.md` twins can also lag behind edits.
 
+> **Freshness is largely handled for you.** Whenever your content changes, Agentimus asks every page cache it can detect to drop these files — including the edited post's own `.md` twin (*Settings → Caching & CDN → "Refresh AI files when content changes,"* on by default). So a cached `llms.txt` or change feed refreshes as soon as you publish. That leaves the **under-count** (problem 1) as the thing the fixes below address — because a cache still answers a *fetch* without WordPress ever seeing it, even when the copy it hands back is fresh.
+
 By default these endpoints are **edge-cacheable** (`Cache-Control: public, max-age`) — bots fetch them a lot, so a little caching spares your origin. When a cache in front of you gets in the way, there are two ways to fix it: a single switch inside Agentimus (the easiest), or a rule at the cache itself (needed only for a cache told to *ignore* origin headers, most commonly **Cloudflare's "Cache Everything"**). Both are below.
 
 ## How to tell if it's happening
@@ -25,7 +27,7 @@ Open **Agentimus → Readiness** and click **Verify live**. This fetches your re
 
 ## The easiest fix: the built-in switch
 
-**Settings → Visit log → "Keep AI endpoints out of your cache."** Turn it on and Agentimus makes those endpoints send `Cache-Control: no-store` — asking every cache not to store them, so each fetch reaches WordPress (counted and current). No CDN dashboard, no server access.
+**Settings → Caching & CDN → "Keep AI endpoints out of your cache."** Turn it on and Agentimus makes those endpoints send `Cache-Control: no-store` — asking every cache not to store them, so each fetch reaches WordPress (counted and current). No CDN dashboard, no server access.
 
 It works with any cache that **respects `Cache-Control`** — most do, including a default Nginx FastCGI cache (the plugin's own `.md` twins already rely on this). It does **not** beat a cache told to ignore origin headers or "cache everything" (most often **Cloudflare's "Cache Everything"** rule) — for those, set a rule at the cache itself, below. When the readiness report detects a cache in front of you, its warning links straight to this switch.
 
@@ -76,7 +78,7 @@ Bypassing the cache (above) is the clean, complete fix. But if you'd rather leav
 
 When a full-page cache serves your pages, a reader who clicks through from ChatGPT or Perplexity gets a stored copy — WordPress never runs, so that AI-referral visit is never counted (the same physics as the under-counted Activity log above). CDN mode moves the counting into the **visitor's browser**: it adds one tiny script that reports the referral after the page loads, so the count survives the cache.
 
-Find it under **Settings → Visit log → "CDN mode — count AI visits in the browser."** It's **off by default** — only turn it on if a full-page cache/CDN actually fronts your site. Three things to know:
+Find it under **Settings → Caching & CDN → "CDN mode — count AI visits in the browser."** It's **off by default** — only turn it on if a full-page cache/CDN actually fronts your site. Three things to know:
 
 - **Still no IP.** It stores only a per-day *(assistant → page)* tally — no IP address, no User-Agent, no query string, exactly like the server-side count. The server (not the browser) decides which assistant a visit came from, so a page can't fake its way into your numbers.
 - **Read the total as a floor.** Visitors using an ad-blocker, or a script-blocking privacy browser, won't be counted — so the number is a minimum, never an over-count.

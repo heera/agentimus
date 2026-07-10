@@ -227,7 +227,8 @@ There is no minified-only code. The admin interface is built from Vue 3 source i
 == Changelog ==
 
 = 1.18.0 =
-* New — **Keep AI endpoints out of your cache.** If a cache or CDN sits in front of your site, it can serve stored copies of your AI files (llms.txt, the `.well-known` docs, the change feed) — so those agent fetches never reach WordPress, the activity log under-counts them, and the change feed can go stale. A new opt-in switch (Settings → Visit log, off by default) asks caches not to store those files, so each fetch reaches WordPress and is counted and current. It works with any cache that respects the standard `no-store` header; the readiness report links straight to the switch whenever it detects a cache sitting in front of your endpoints.
+* New — **Keep AI endpoints out of your cache.** If a cache or CDN sits in front of your site, it can serve stored copies of your AI files (llms.txt, the `.well-known` docs, the change feed) — so those agent fetches never reach WordPress, the activity log under-counts them, and the change feed can go stale. A new opt-in switch (Settings → Caching & CDN, off by default) asks caches not to store those files, so each fetch reaches WordPress and is counted and current. It works with any cache that respects the standard `no-store` header; the readiness report links straight to the switch whenever it detects a cache sitting in front of your endpoints.
+* New — **Automatic cache refresh for your AI files.** When you publish or edit a post, your page cache refreshes that page — but not your AI files, so a cache can keep serving a stale `llms.txt`, change feed or `.md` twin until its own timer runs out. Agentimus now asks every page cache it can detect — WP Rocket, Nginx Helper, W3 Total Cache, LiteSpeed, WP Super Cache, Cache Enabler (or any `agentimus_purge_url` listener) — to drop those files on each content change, including the edited post's own `.md` twin, which a cache plugin otherwise never knows to refresh. On by default, and a no-op when no page cache is installed. (This keeps files fresh; the switch above is what makes agent fetches count in your activity log.)
 
 = 1.17.0 =
 * New — **The request log.** Every recorded request, one row each, under *More → Request log*. Filter by client, endpoint, network, user-agent and date to answer the question the dashboard's summaries structurally can't: exactly what did this one bot fetch, and when?
@@ -299,7 +300,7 @@ Older releases (1.12.4 and earlier) are in the full changelog: https://github.co
 == Upgrade Notice ==
 
 = 1.18.0 =
-New: an opt-in switch (Settings → Visit log) that keeps your AI endpoints out of a CDN/proxy cache, so agent fetches are counted in your activity log and freshness-sensitive endpoints stay current. Off by default; no breaking changes.
+New: an opt-in switch (Settings → Caching & CDN) that keeps your AI endpoints out of a CDN/proxy cache, so agent fetches are counted in your activity log and freshness-sensitive endpoints stay current. Off by default; no breaking changes.
 
 = 1.17.0 =
 A filterable request log, a full day-by-day report on the readers AI sends you, and control over how long the log is kept. Also fixes three counting bugs in "Traffic from AI" — a 30-day window that spanned 31 days, your own visits being counted behind a CDN, and hits on pages that don't exist. All new features are opt-in; no breaking changes.

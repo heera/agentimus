@@ -90,6 +90,11 @@ final class SettingsDefaultsTest extends TestCase {
 		$this->assertFalse( $off['bypass_shared_cache'] );
 	}
 
+	public function test_purge_cache_on_change_is_on_by_default() {
+		// Refreshing the agent files on a content change is safe and desirable, so it ships on.
+		$this->assertTrue( ( new Settings() )->defaults()['purge_cache_on_change'] );
+	}
+
 	public function test_sanitize_optimize_ignored_to_positive_ints() {
 		$clean = ( new Settings() )->sanitize(
 			array( 'optimize_ignored' => array( '210', 210, 0, -1, 'x', 3 ) )

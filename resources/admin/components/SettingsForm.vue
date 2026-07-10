@@ -671,30 +671,12 @@ export default {
         </label>
 
         <div v-show="settings.enable_activity" class="ar-webmcp-tools">
-          <label id="ar-feat-enable_referral_beacon" class="ar-toggle">
-            <input v-model="settings.enable_referral_beacon" type="checkbox" />
-            <span class="ar-toggle__track" aria-hidden="true"></span>
-            <span class="ar-toggle__text">
-              <strong>CDN mode — count AI visits in the browser</strong>
-              <small>Turn on only if your site sits behind a full-page cache/CDN (e.g. Cloudflare “Cache Everything”). It counts “Traffic from AI” in the visitor’s browser so the number survives the cache. Adds a tiny counting script to your pages. A few visitors — those using an ad-blocker or a privacy-focused browser that blocks scripts like this — won’t be counted, so read the total as a minimum, never an over-count.</small>
-            </span>
-          </label>
-
           <label id="ar-feat-log_unknown_referrers" class="ar-toggle">
             <input v-model="settings.log_unknown_referrers" type="checkbox" />
             <span class="ar-toggle__track" aria-hidden="true"></span>
             <span class="ar-toggle__text">
               <strong>Find missed AI sources (diagnostic)</strong>
               <small>“Traffic from AI” only counts assistants it recognises, and a miss leaves no trace. Turn this on and Agentimus also lists the referrers it <em>couldn’t</em> name — so you can see whether an assistant is being overlooked. Records the site name and <code>utm_source</code> tag only: still no IPs, nothing sent anywhere. It writes a row for every visit referred from another site, so switch it on for a week, read the list under More → AI traffic, then switch it off.</small>
-            </span>
-          </label>
-
-          <label id="ar-feat-bypass_shared_cache" class="ar-toggle">
-            <input v-model="settings.bypass_shared_cache" type="checkbox" />
-            <span class="ar-toggle__track" aria-hidden="true"></span>
-            <span class="ar-toggle__text">
-              <strong>Keep AI endpoints out of your cache</strong>
-              <small>If a cache or CDN sits in front of your site, it can serve stored copies of your AI files (<code>llms.txt</code>, the <code>.well-known</code> docs, the change feed) — so those agent fetches never reach WordPress, the log under-counts them, and the change feed can go stale. Turn this on and Agentimus asks caches not to store those files (a <code>no-store</code> header), so each fetch reaches WordPress and is counted and current. It works with any cache that respects that header; a cache told to “cache everything” or ignore origin headers still needs a rule set there. If nothing sits in front of your site, leave it off — it trades a little edge-caching on those endpoints.</small>
             </span>
           </label>
 
@@ -746,6 +728,46 @@ export default {
             removed on their own, shorter schedule.
           </p>
         </div>
+      </section>
+
+      <!-- Caching & CDN — how Agentimus copes when a page cache/CDN fronts the site: it can
+           hide agent fetches from the log and serve stale AI files. -->
+      <section id="ar-sec-caching" class="ar-card">
+        <h2 class="ar-card__title">Caching &amp; CDN</h2>
+        <p class="ar-card__lead">
+          A full-page cache or CDN in front of your site (Cloudflare, an Nginx or Varnish cache, a caching
+          plugin) speeds up your pages — but it can get between AI and Agentimus two ways: it can serve stored
+          copies of your AI files (so agent fetches aren’t logged and the files go stale), and it can hide the
+          visitors AI sends you (so “Traffic from AI” under-counts). These settings handle both. None of them
+          matter if nothing caches your site.
+        </p>
+
+        <label v-show="settings.enable_activity" id="ar-feat-enable_referral_beacon" class="ar-toggle">
+          <input v-model="settings.enable_referral_beacon" type="checkbox" />
+          <span class="ar-toggle__track" aria-hidden="true"></span>
+          <span class="ar-toggle__text">
+            <strong>CDN mode — count AI visits in the browser</strong>
+            <small>Turn on only if your site sits behind a full-page cache/CDN (e.g. Cloudflare “Cache Everything”). It counts “Traffic from AI” in the visitor’s browser so the number survives the cache. Adds a tiny counting script to your pages. A few visitors — those using an ad-blocker or a privacy-focused browser that blocks scripts like this — won’t be counted, so read the total as a minimum, never an over-count.</small>
+          </span>
+        </label>
+
+        <label id="ar-feat-bypass_shared_cache" class="ar-toggle">
+          <input v-model="settings.bypass_shared_cache" type="checkbox" />
+          <span class="ar-toggle__track" aria-hidden="true"></span>
+          <span class="ar-toggle__text">
+            <strong>Keep AI endpoints out of your cache</strong>
+            <small>If a cache or CDN sits in front of your site, it can serve stored copies of your AI files (<code>llms.txt</code>, the <code>.well-known</code> docs, the change feed) — so those agent fetches never reach WordPress, the log under-counts them, and the change feed can go stale. Turn this on and Agentimus asks caches not to store those files (a <code>no-store</code> header), so each fetch reaches WordPress and is counted and current. It works with any cache that respects that header; a cache told to “cache everything” or ignore origin headers still needs a rule set there. If nothing sits in front of your site, leave it off — it trades a little edge-caching on those endpoints.</small>
+          </span>
+        </label>
+
+        <label id="ar-feat-purge_cache_on_change" class="ar-toggle">
+          <input v-model="settings.purge_cache_on_change" type="checkbox" />
+          <span class="ar-toggle__track" aria-hidden="true"></span>
+          <span class="ar-toggle__text">
+            <strong>Refresh AI files when content changes</strong>
+            <small>When you publish or edit a post, your page cache refreshes that page — but not your AI files, so a cache can keep serving a stale <code>llms.txt</code>, change feed or <code>.md</code> twin until its own timer runs out. Turn this on and Agentimus asks every cache it can find (WP Rocket, Nginx Helper, W3 Total Cache, LiteSpeed, WP Super Cache, Cache Enabler…) to drop those files on each content change, so agents never get a stale copy after an edit. On by default; it does nothing if no page cache is installed. This keeps files <em>fresh</em> — it doesn’t change the log count (for that, use the switch above).</small>
+          </span>
+        </label>
       </section>
 
       <!-- Topics for AI — master toggle + how topics are chosen -------- -->

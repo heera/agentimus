@@ -79,6 +79,7 @@ final class Plugin {
 		}
 
 		Cache::register_flush_hooks();
+		CachePurge::boot();
 		MarkdownCache::register();
 
 		( new Endpoints( $this->settings ) )->register();
