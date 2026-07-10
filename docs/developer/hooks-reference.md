@@ -302,6 +302,17 @@ The opt-in AI-visibility monitor polls AI providers on a schedule to see whether
 | --- | --- | --- | --- |
 | `agentimus_visibility_max_checks_per_run` | filter | `( int $max ): int` | Hard ceiling on `(tracked prompt × active provider)` checks in one monitoring run — a spend backstop above the structural product/prompt/provider caps. Default `1000`; lower it to cap monitoring spend more tightly. |
 
+## Caching
+
+When a page cache or CDN sits in front of your site, these tune how Agentimus keeps its agent files reachable and fresh (see the **Caching & CDNs** guide).
+
+| Hook | Type | Signature | Purpose |
+| --- | --- | --- | --- |
+| `agentimus_bypass_shared_cache` | filter | `( bool $on ): bool` | Force the AI endpoints uncacheable (send `Cache-Control: no-store` + `CDN-Cache-Control: no-store`) so a shared cache/CDN can't serve stored copies that hide agent fetches from the activity log. Overrides the *Settings → Caching & CDN* switch; only affects a cache that respects the header. |
+| `agentimus_purge_on_change` | filter | `( bool $on ): bool` | Turn the automatic purge of the AI files (on a content change) on/off. Overrides the *Settings → Caching & CDN* switch. |
+| `agentimus_purge_urls` | filter | `( string[] $urls ): string[]` | The exact absolute URLs Agentimus asks the page cache to drop on a content change — add your own, or trim the set. |
+| `agentimus_purge_url` | action | `( string $url )` | Fires once per URL during a purge — hook it to support a page cache Agentimus doesn't detect natively. (`agentimus_purged` fires once with the whole list.) |
+
 ## Settings & lifecycle
 
 Stable extension points for companions and Pro add-ons, plus the settings pipeline.
