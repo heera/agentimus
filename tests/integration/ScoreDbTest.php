@@ -261,6 +261,148 @@ final class ScoreDbTest extends DbTestCase {
 		$this->assertStringContainsStringIgnoringCase( 'run a check', (string) $cited['note'] );
 	}
 
+	public function test_cited_all_error_run_reads_as_failing_not_never_run() {
+		$this->enable_visibility();
+		// Set up and run, but the key was expired/rate-limited: a completed run where EVERY
+		// check errored. The bug: this used to read as "never run" — a null score AND an
+		// "info: set up AI Visibility" action, telling the owner to set up what they already
+		// pay for. It must instead read as a failure and be flagged at warn.
+		update_option(
+			VisibilitySettings::OPTION,
+			array( 'providers' => array( 'openai' => array( 'key' => 'sk-plaintext-test', 'enabled' => true, 'model' => 'gpt-4o-mini', 'web_search' => false ) ) )
+		);
+		Table::install();
+		global $wpdb;
+		$wpdb->query( 'TRUNCATE TABLE ' . Table::name() );
+		$run = time() - DAY_IN_SECONDS; // Recent — well within the freshness window.
+		foreach ( array( 'best acme tools', 'acme reviews' ) as $prompt ) {
+			Store::insert(
+				array(
+					'run_id'      => $run,
+					'brand'       => 'Acme',
+					'provider'    => 'openai',
+					'model'       => 'gpt-4o-mini',
+					'prompt'      => $prompt,
+					'mentioned'   => false,
+					'cited'       => false,
+					'position'    => 0,
+					'competitors' => array(),
+					'answer'      => '',
+					'sources'     => array(),
+					'error'       => 'HTTP 401 Unauthorized',
+				)
+			);
+		}
+		update_option( Runner::LAST_RUN_OPTION, $run );
+
+		// Pass a clean (all-pass) readiness so this test isolates the citation path: a bare
+		// install's many readiness fails would otherwise fill the 8-action cap and hide the
+		// (correctly lower-ranked) warn. On the real, well-configured site this bug targets —
+		// AI Visibility set up, key later expired — readiness is clean and the warn surfaces.
+		$clean = array( array( 'id' => 'public', 'status' => 'pass', 'label' => 'Public', 'fix' => '', 'detail' => '' ) );
+		$r     = ( new Score( new Settings() ) )->report( $clean );
+		delete_option( Runner::LAST_RUN_OPTION );
+		delete_option( VisibilitySettings::OPTION );
+
+		// The Cited rung stays null (an all-error run measured nothing to score)...
+		$cited = null;
+		foreach ( $r['rungs'] as $g ) {
+			if ( 'cited' === $g['key'] ) {
+				$cited = $g;
+			}
+		}
+		$this->assertNull( $cited['score'], 'an all-error run has no successful check to score' );
+		$this->assertFalse( $r['measured'], 'a failed run is not a measurement' );
+		// ...and the note names the provider key rather than reading as "never run".
+		$this->assertStringContainsStringIgnoringCase( 'key', (string) $cited['note'] );
+		$this->assertStringNotContainsStringIgnoringCase( 'run a check to measure', (string) $cited['note'] );
+
+		// The action plan flags the failure at warn — and the old wrong "set up" invite
+		// (info) is gone, since the feature IS set up.
+		$failing = null;
+		$ids     = array();
+		foreach ( $r['actions'] as $a ) {
+			$ids[] = $a['id'];
+			if ( 'visibility_failing' === $a['id'] ) {
+				$failing = $a;
+			}
+		}
+		$this->assertNotNull( $failing, 'an all-error run must surface a "checks are failing" action' );
+		$this->assertSame( 'warn', $failing['severity'], 'a broken paid integration outranks content nits' );
+		$this->assertNotContains( 'measure_setup', $ids, 'a set-up-and-failing site must not be told to set up' );
+	}
+
+	public function test_cited_partial_run_keeps_its_score_and_flags_what_failed() {
+		$this->enable_visibility();
+		// A run where one check succeeded and one errored. Nulling this would redistribute
+		// Cited's weight and hide the problem — the very bug. Keep the (smaller-sample)
+		// score, but say a check didn't finish.
+		update_option(
+			VisibilitySettings::OPTION,
+			array( 'providers' => array( 'openai' => array( 'key' => 'sk-plaintext-test', 'enabled' => true, 'model' => 'gpt-4o-mini', 'web_search' => false ) ) )
+		);
+		Table::install();
+		global $wpdb;
+		$wpdb->query( 'TRUNCATE TABLE ' . Table::name() );
+		$run = time() - DAY_IN_SECONDS;
+		Store::insert(
+			array(
+				'run_id'      => $run,
+				'brand'       => 'Acme',
+				'provider'    => 'openai',
+				'model'       => 'gpt-4o-mini',
+				'prompt'      => 'best acme tools',
+				'mentioned'   => true,
+				'cited'       => false,
+				'position'    => 1,
+				'competitors' => array(),
+				'answer'      => 'Acme is great.',
+				'sources'     => array(),
+				'error'       => '',
+			)
+		);
+		Store::insert(
+			array(
+				'run_id'      => $run,
+				'brand'       => 'Acme',
+				'provider'    => 'openai',
+				'model'       => 'gpt-4o-mini',
+				'prompt'      => 'acme reviews',
+				'mentioned'   => false,
+				'cited'       => false,
+				'position'    => 0,
+				'competitors' => array(),
+				'answer'      => '',
+				'sources'     => array(),
+				'error'       => 'HTTP 429 Too Many Requests',
+			)
+		);
+		update_option( Runner::LAST_RUN_OPTION, $run );
+
+		$r = ( new Score( new Settings() ) )->report();
+		delete_option( Runner::LAST_RUN_OPTION );
+		delete_option( VisibilitySettings::OPTION );
+
+		$cited = null;
+		foreach ( $r['rungs'] as $g ) {
+			if ( 'cited' === $g['key'] ) {
+				$cited = $g;
+			}
+		}
+		// The successful check measured 100% (1 of 1 mentioned) — a real, kept score.
+		$this->assertSame( 100, $cited['score'], 'a partial run keeps its smaller-sample score' );
+		$this->assertTrue( $r['measured'], 'a partial run is still a measurement' );
+		$this->assertStringContainsStringIgnoringCase( 'didn', (string) $cited['note'], 'the note must say a check did not finish' );
+
+		// A partial (still-measured) run is neither a failure nor a set-up gap → no
+		// cited action at all; the rung note carries the "1 check didn't finish" signal.
+		$ids = array_map( static function ( $a ) {
+			return $a['id'];
+		}, $r['actions'] );
+		$this->assertNotContains( 'visibility_failing', $ids );
+		$this->assertNotContains( 'measure_setup', $ids );
+	}
+
 	public function test_cited_rung_appears_only_when_tracking_is_on() {
 		// Explicitly assert the off-state (option state can carry over between tests via
 		// the options cache, so don't rely on the schema default here).

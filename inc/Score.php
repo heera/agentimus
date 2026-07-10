@@ -81,7 +81,7 @@ final class Score {
 		// entirely — no measurement, no rung — and its weight is redistributed across the
 		// rest, so the score is a clean four-rung ladder.
 		$track   = (bool) $this->settings->get( 'enable_visibility', false );
-		$measure = $track ? $this->measure() : array( 'score' => null, 'note' => '', 'off' => true );
+		$measure = $track ? $this->measure() : array( 'score' => null, 'note' => '', 'state' => 'off', 'off' => true );
 
 		$scores = array(
 			'findable'  => self::rows_score( $readiness, self::FINDABLE_IDS ),
@@ -551,62 +551,119 @@ final class Score {
 	 * ---------------------------------------------------------------------- */
 
 	/**
-	 * The measured citation signal: the AI-Visibility "seen in answers" rate from the
-	 * latest completed run. Null (excluded) when AI Visibility hasn't been set up or
-	 * run — measuring citation costs the owner's own AI credit, so most sites won't
-	 * have it, and an absent outcome must never drag the score down.
+	 * The state of the Cited (AI-Visibility) pillar in one word, decided purely from the
+	 * facts that drive it. This is the single branch point behind the score, the rung note
+	 * AND the action — extracted and made pure (like {@see self::blend()}) so all three
+	 * agree and every case is unit-tested:
 	 *
-	 * @return array{score:int|null,note:string}
+	 *   'unset'  — no AI provider is active (never set up, or the key was removed). An old
+	 *              run's number is stale and won't update → excluded, never frozen-current.
+	 *   'never'  — a provider is set up, but no run has produced a check yet (or an empty run).
+	 *   'failed' — a run happened and every check errored (usually an expired/rate-limited
+	 *              key). A real failure, not an absence — and pointedly NOT "never run".
+	 *   'stale'  — a successful run, but older than the freshness cutoff.
+	 *   'ok'     — a fresh run with at least one successful check (some may have errored; a
+	 *              partial run still measured a smaller, real sample worth reporting).
+	 *
+	 * @param bool $has_provider Whether any AI provider is active right now.
+	 * @param int  $run          Last run id (a unix timestamp), or 0 if never run.
+	 * @param int  $checks       Successful checks in that run.
+	 * @param int  $errors       Errored checks in that run.
+	 * @param bool $stale        Whether that run is past the freshness cutoff.
+	 * @return string One of unset|never|failed|stale|ok.
+	 */
+	public static function cited_state( $has_provider, $run, $checks, $errors, $stale ) {
+		if ( ! $has_provider ) {
+			return 'unset';
+		}
+		if ( (int) $run <= 0 ) {
+			return 'never';
+		}
+		if ( (int) $checks < 1 ) {
+			// A run with no successful checks: 'failed' if something errored (a broken key),
+			// otherwise an empty run that never really measured → 'never' (run a check).
+			return (int) $errors > 0 ? 'failed' : 'never';
+		}
+		return $stale ? 'stale' : 'ok';
+	}
+
+	/**
+	 * The measured citation signal: the AI-Visibility "seen in answers" rate from the
+	 * latest completed run, plus the state that classifies it. Null score (excluded from
+	 * the blend) unless a fresh run actually measured something — measuring citation costs
+	 * the owner's own AI credit, so most sites won't have it, and an absent OR failed
+	 * outcome must never drag the score down or, worse, read as "never run".
+	 *
+	 * @return array{score:int|null,note:string,state:string}
 	 */
 	private function measure() {
-		// A live citation signal needs AI Visibility to be configured right now. If it was
-		// never set up — or was set up and run, then the provider key was removed/disabled
-		// — an old run's score is stale: it no longer reflects reality and won't update.
-		// Treat that as not-measured (null → excluded from the blend, its weight
-		// redistributed), never a frozen number masquerading as current.
-		if ( empty( ( new Visibility\Settings() )->active_providers() ) ) {
-			return array(
-				'score' => null,
-				'note'  => __( 'Not measured — add an AI provider key under AI Visibility to track whether engines cite you.', 'agentimus' ),
-			);
+		$has_provider = ! empty( ( new Visibility\Settings() )->active_providers() );
+		$run          = (int) get_option( Visibility\Runner::LAST_RUN_OPTION, 0 );
+
+		$checks   = 0;
+		$errors   = 0;
+		$mentions = 0;
+		$vscore   = 0;
+		$ago      = '';
+		$stale    = false;
+		if ( $has_provider && $run > 0 ) {
+			$summary  = Visibility\Store::summarize( Visibility\Store::rows_for_run( $run ) );
+			$checks   = (int) $summary['checks'];
+			$errors   = (int) $summary['errors'];
+			$mentions = (int) $summary['mentions'];
+			$vscore   = (int) $summary['visibilityScore'];
+			$ago      = human_time_diff( $run, time() );
+			// A citation reading goes stale with time. Past the cutoff it no longer
+			// represents today, so it's kept only as a dated reference (the AI Visibility
+			// tab still shows the figure + "Last run" date) and dropped from the composite.
+			$stale_after = (int) apply_filters( 'agentimus_cited_stale_days', self::CITED_STALE_DAYS );
+			$stale       = $stale_after > 0 && ( time() - $run ) > $stale_after * DAY_IN_SECONDS;
 		}
-		$run = (int) get_option( Visibility\Runner::LAST_RUN_OPTION, 0 );
-		if ( $run > 0 ) {
-			$summary = Visibility\Store::summarize( Visibility\Store::rows_for_run( $run ) );
-			if ( (int) $summary['checks'] > 0 ) {
-				$score = (int) $summary['visibilityScore'];
-				$ago   = human_time_diff( $run, time() );
-				// A citation reading goes stale with time. Past the cutoff it no longer
-				// represents today, so it's shown only as a dated reference (the AI
-				// Visibility tab keeps the figure + "Last run" date) and dropped from the
-				// composite — never a months-old number silently driving the score.
-				$stale_after = (int) apply_filters( 'agentimus_cited_stale_days', self::CITED_STALE_DAYS );
-				if ( $stale_after > 0 && ( time() - $run ) > $stale_after * DAY_IN_SECONDS ) {
-					return array(
-						'score' => null,
-						'note'  => sprintf(
-							/* translators: 1: last score, 2: human-readable time difference. */
-							__( 'Last measured %1$d%% %2$s ago — run a check to refresh.', 'agentimus' ),
-							$score,
-							$ago
-						),
+
+		$state = self::cited_state( $has_provider, $run, $checks, $errors, $stale );
+
+		switch ( $state ) {
+			case 'unset':
+				$note = __( 'Not measured — add an AI provider key under AI Visibility to track whether engines cite you.', 'agentimus' );
+				break;
+			case 'failed':
+				$note = __( 'Every check failed on the last run — check your AI provider key.', 'agentimus' );
+				break;
+			case 'stale':
+				$note = sprintf(
+					/* translators: 1: last score, 2: human-readable time difference. */
+					__( 'Last measured %1$d%% %2$s ago — run a check to refresh.', 'agentimus' ),
+					$vscore,
+					$ago
+				);
+				break;
+			case 'ok':
+				$note = sprintf(
+					/* translators: 1: mentions, 2: checks, 3: human-readable time difference. */
+					__( 'AI named you in %1$d of %2$d answers · checked %3$s ago.', 'agentimus' ),
+					$mentions,
+					$checks,
+					$ago
+				);
+				// A partial run still measured a real, smaller sample — KEEP that score, but
+				// say what's missing so the drop isn't silent (the bug this feature fixes).
+				if ( $errors > 0 ) {
+					$note .= ' ' . sprintf(
+						/* translators: %d: number of checks that errored on the last run. */
+						_n( '%d check didn’t finish.', '%d checks didn’t finish.', $errors, 'agentimus' ),
+						$errors
 					);
 				}
-				return array(
-					'score' => $score,
-					'note'  => sprintf(
-						/* translators: 1: mentions, 2: checks, 3: human-readable time difference. */
-						__( 'AI named you in %1$d of %2$d answers · checked %3$s ago.', 'agentimus' ),
-						(int) $summary['mentions'],
-						(int) $summary['checks'],
-						$ago
-					),
-				);
-			}
+				break;
+			default: // 'never'.
+				$note = __( 'AI Visibility is set up — run a check to measure whether engines cite you.', 'agentimus' );
+				break;
 		}
+
 		return array(
-			'score' => null,
-			'note'  => __( 'AI Visibility is set up — run a check to measure whether engines cite you.', 'agentimus' ),
+			'score' => 'ok' === $state ? $vscore : null,
+			'note'  => $note,
+			'state' => $state,
 		);
 	}
 
@@ -667,17 +724,31 @@ final class Score {
 			);
 		}
 
-		// Measure gap — invite setting up AI Visibility, once (low priority). Skipped when
-		// citation tracking is off entirely (the feature is opted out, its tab hidden).
-		if ( empty( $measure['off'] ) && null === $measure['score'] ) {
-			$out[] = array(
-				'id'       => 'measure_setup',
-				'pillar'   => 'cited',
-				'title'    => __( 'Measure whether AI cites you', 'agentimus' ),
-				'why'      => __( 'Set up AI Visibility (your own AI keys) to track whether engines mention and link to you over time.', 'agentimus' ),
-				'severity' => 'info',
-				'action'   => array( 'label' => __( 'Open AI Visibility', 'agentimus' ), 'tab' => 'visibility' ),
-			);
+		// Measure gap. Two different situations, ranked apart: a set-up-and-failing
+		// integration is a real problem (warn — an expired key needs fixing, and it
+		// outranks a missing alt attribute), while a not-set-up one is only an invite
+		// (info). Skipped entirely when citation tracking is off (the tab is hidden).
+		if ( empty( $measure['off'] ) ) {
+			$state = isset( $measure['state'] ) ? (string) $measure['state'] : '';
+			if ( 'failed' === $state ) {
+				$out[] = array(
+					'id'       => 'visibility_failing',
+					'pillar'   => 'cited',
+					'title'    => __( 'AI Visibility checks are failing', 'agentimus' ),
+					'why'      => __( 'Every check failed on the last run — usually an expired or rate-limited provider key. Open AI Visibility to check the key and re-run.', 'agentimus' ),
+					'severity' => 'warn',
+					'action'   => array( 'label' => __( 'Open AI Visibility', 'agentimus' ), 'tab' => 'visibility' ),
+				);
+			} elseif ( in_array( $state, array( 'unset', 'never' ), true ) ) {
+				$out[] = array(
+					'id'       => 'measure_setup',
+					'pillar'   => 'cited',
+					'title'    => __( 'Measure whether AI cites you', 'agentimus' ),
+					'why'      => __( 'Set up AI Visibility (your own AI keys) to track whether engines mention and link to you over time.', 'agentimus' ),
+					'severity' => 'info',
+					'action'   => array( 'label' => __( 'Open AI Visibility', 'agentimus' ), 'tab' => 'visibility' ),
+				);
+			}
 		}
 
 		return array_slice( self::rank( $out ), 0, self::MAX_ACTIONS );

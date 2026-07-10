@@ -59,6 +59,37 @@ final class ScoreTest extends TestCase {
 		$this->assertSame( 'Needs work', Score::band( 49 ) );
 	}
 
+	/* -- cited_state ------------------------------------------------------ */
+
+	public function test_cited_state_is_unset_without_an_active_provider() {
+		// No provider trumps everything — even a completed, successful run reads as unset,
+		// because the number is stale and can no longer update.
+		$this->assertSame( 'unset', Score::cited_state( false, 0, 0, 0, false ) );
+		$this->assertSame( 'unset', Score::cited_state( false, 5000, 3, 0, false ) );
+	}
+
+	public function test_cited_state_is_never_before_a_run_or_on_an_empty_run() {
+		// Set up but not yet run...
+		$this->assertSame( 'never', Score::cited_state( true, 0, 0, 0, false ) );
+		// ...and a run that produced no rows at all (no successes, no errors) never measured.
+		$this->assertSame( 'never', Score::cited_state( true, 5000, 0, 0, false ) );
+	}
+
+	public function test_cited_state_is_failed_when_every_check_errored() {
+		// A run happened, zero successes, something errored → a real failure, NOT "never".
+		$this->assertSame( 'failed', Score::cited_state( true, 5000, 0, 3, false ) );
+		// Failure outranks staleness — a broken key is the actionable fact regardless of age.
+		$this->assertSame( 'failed', Score::cited_state( true, 5000, 0, 3, true ) );
+	}
+
+	public function test_cited_state_is_stale_or_ok_for_a_measured_run() {
+		$this->assertSame( 'ok', Score::cited_state( true, 5000, 3, 0, false ) );
+		$this->assertSame( 'stale', Score::cited_state( true, 5000, 3, 0, true ) );
+		// A partial run (some checks errored) still counts as measured — 'ok', not 'failed'.
+		$this->assertSame( 'ok', Score::cited_state( true, 5000, 2, 1, false ) );
+		$this->assertSame( 'stale', Score::cited_state( true, 5000, 2, 1, true ) );
+	}
+
 	/* -- rank ------------------------------------------------------------- */
 
 	public function test_rank_orders_by_severity_then_weight_then_stable() {
