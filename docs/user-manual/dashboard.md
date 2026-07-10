@@ -23,25 +23,34 @@ The whole Dashboard is powered by a single setting, **Agent activity log**, whic
 
 The **Traffic from AI** card is the "giving back" side of the story: it shows whether AI tools are actually sending human readers to your pages, and where those readers land.
 
-It reports three things over a rolling window (30 days by default):
+The card is a summary, over a rolling window (30 days by default):
 
-- **Totals** — visits today, and visits across the whole window.
-- **Top sources** — which assistants sent the most readers (up to eight).
-- **Top landing pages** — which of your pages AI readers arrived on most (up to eight).
+- **Totals** — visits today, visits across the whole window, and how many distinct assistants sent them.
+- **A per-day sparkline** — the shape of AI referrals across the window, zero-filled so a quiet day reads as a gap rather than being skipped.
+- **Top sources** — which assistants sent the most readers (up to five).
+- **Top landing pages** — which of your pages AI readers arrived on most (up to five).
 
-Below those is the **by-day breakdown**, which is where the detail lives.
+For the day-by-day detail — and for the sources it *couldn't* name — a **See the full report** link opens the dedicated **AI traffic** screen, described next.
 
-### The by-day breakdown
+### The AI traffic report (More → AI traffic)
 
-For each day in the window, the card shows **which assistant sent a reader to which page**. Each day carries:
+The dashboard card is the summary; the full report lives on its own screen, opened from **More → AI traffic**. It answers the cross-question the card can't — *which pages does Perplexity send readers to?* — and reaches deeper history: the card only ever covers the last 30 days, while this screen can page over everything the visit log still retains.
 
-- the **date**,
-- the **total** AI-referred visits that day, and
-- a list of **source → page** rows — for example, *ChatGPT → /pricing* with a count.
+Three filters narrow it, and no more — the store keeps only a day, a source, a path and a count, so anything finer would imply a per-visit record it doesn't hold:
 
-To keep a busy day from ballooning the card, each day keeps its **12 busiest** source-and-page pairings and rolls the rest into a **"+N more"** note. Days are listed newest-first, and within a day the busiest pairing comes first.
+- a **date range**,
+- a **source** (assistant), and
+- a **landing-path prefix**.
 
-There is no clock time anywhere in this breakdown — **the day is the finest level of "when" the plugin stores**. That is deliberate: a per-visit timestamp starts to look like a trail back to an individual, and this card is built so that no stored row can ever represent a person.
+Above the day list it repeats the summary for the current filter — totals, top sources, top landing pages — then breaks the visits down **by day**. Expand a day to see **which assistant sent a reader to which page**: a list of **source → page** rows — for example, *Perplexity → /pricing* — each with a count, busiest first, with a **"Show all N"** control when a day holds more rows than it shows at once. Days are listed newest-first.
+
+There is no clock time anywhere in this report — **the day is the finest level of "when" the plugin stores**. That is deliberate: a per-visit timestamp starts to look like a trail back to an individual, and the whole feature is built so that no stored row can ever represent a person.
+
+### Find missed AI sources (the diagnostic)
+
+"Traffic from AI" only counts assistants it *recognises*, and a miss leaves no trace — so a brand-new assistant could be sending you readers without ever showing up. The **Unrecognised referrers** diagnostic on the AI traffic screen closes that blind spot: it lists the referrer hosts and `utm_source` tags that arrived but matched no known assistant, so you can spot one that ought to be counted and add it (with the `agentimus_ai_referral_sources` filter).
+
+It's **opt-in and off by default** — turn on **Find missed AI sources** under **Settings → Visit log**. Unlike the referral counter, it writes a row for *every* externally-referred pageview, so it's meant to be switched on for a week and then off again. It records only the referring site's name and the link's `utm_source` tag — still no IP addresses, still nothing sent anywhere. While it's off, the screen says so and links you straight to the setting.
 
 ### How AI referrals are detected
 
@@ -64,11 +73,19 @@ If your site sits behind a full-page cache or CDN, these referrals can be served
 | **Perplexity** | `perplexity.ai` |
 | **Gemini** | `gemini.google.com`, `bard.google.com` |
 | **Copilot** | `copilot.microsoft.com` |
-| **Claude** | `claude.ai` |
+| **Claude** | `claude.ai`, `claude.com` |
+| **Grok** | `grok.com` |
+| **DeepSeek** | `deepseek.com` (incl. `chat.deepseek.com`) |
+| **Meta AI** | `meta.ai` |
+| **Mistral (Le Chat)** | `chat.mistral.ai` |
+| **DuckDuckGo AI** | `duck.ai` |
+| **Phind** | `phind.com` |
 | **You.com** | `you.com` |
 | **Poe** | `poe.com` |
 
-**Google "AI Overviews" is intentionally left out.** Those visits arrive with a plain `google.com` referrer that is indistinguishable from an ordinary Google search, so counting them would be guesswork — and Agentimus would rather show you nothing than show you a number it can't stand behind.
+Several assistants also tag their outbound links with a bare `utm_source` (like `utm_source=perplexity`) rather than a full domain; those are matched too, so a referral still counts when the browser strips the referrer away.
+
+**Search engines that also answer with AI are intentionally left out** — **Google** (AI Overviews / AI Mode), **Bing** (Copilot in search), **DuckDuckGo**, **Kagi**, and **x.com** (Grok). A visit from any of them arrives with a plain search-engine referrer that can't be told apart from an ordinary search click, so counting it would be guesswork — and Agentimus would rather show you nothing than a number it can't stand behind. Their *dedicated* assistant addresses, where one exists (`gemini.google.com`, `copilot.microsoft.com`, `duck.ai`), **are** counted.
 
 ### What gets counted, and what doesn't
 
@@ -163,7 +180,7 @@ To keep one abusive burst from drowning out the traffic you care about, the log 
 
 ## The Request log
 
-Open it from **More → Request log** in the nav bar. (The occasional screens — Request log, AI Visibility, About — live behind that one menu, so the bar stays readable on a narrow admin.)
+Open it from **More → Request log** in the nav bar. (The occasional screens — AI Visibility, AI traffic, Request log and About — live behind that one menu, so the bar stays readable on a narrow admin.)
 
 The Dashboard answers *who* visited and *how much*. The Request log answers **what a particular bot actually fetched** — the question the summary cards can't, because they show clients and endpoints as two separate lists.
 
