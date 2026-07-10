@@ -23,5 +23,6 @@
 /composer.lock
 /package-lock.json
 /README.md
+/CHANGELOG.md
 /RELEASING.md
 /.preview.html
