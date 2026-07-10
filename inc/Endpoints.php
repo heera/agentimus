@@ -224,7 +224,7 @@ final class Endpoints {
 			}
 			header( 'Content-Type: text/plain; charset=UTF-8' );
 			header( 'X-Content-Type-Options: nosniff' );
-			header( 'Cache-Control: public, max-age=' . HOUR_IN_SECONDS );
+			CacheHeaders::send( HOUR_IN_SECONDS );
 		}
 		$is_head = isset( $_SERVER['REQUEST_METHOD'] ) && 'HEAD' === strtoupper( sanitize_text_field( wp_unslash( $_SERVER['REQUEST_METHOD'] ) ) );
 		if ( ! $is_head ) {
@@ -277,7 +277,9 @@ final class Endpoints {
 			} else {
 				// Stable URLs (llms.txt, the sitemap) are safe to cache; the change
 				// feed passes a shorter max-age since freshness is its whole point.
-				header( 'Cache-Control: public, max-age=' . max( 0, (int) $max_age ) );
+				// CacheHeaders sends `no-store` instead when the owner opts to keep the
+				// AI endpoints out of a shared cache (Settings → Visit log).
+				CacheHeaders::send( $max_age );
 			}
 		}
 

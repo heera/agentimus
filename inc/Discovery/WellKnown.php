@@ -385,7 +385,7 @@ final class WellKnown {
 			header( 'Content-Type: ' . $content_type . '; charset=UTF-8' );
 			header( 'X-Content-Type-Options: nosniff' );
 			header( 'Access-Control-Allow-Origin: *' ); // Discovery docs are public by design.
-			header( 'Cache-Control: public, max-age=3600' );
+			\Agentimus\CacheHeaders::send( 3600 );
 
 			// Web Bot Auth: sign the low-volume discovery JSON docs when enabled.
 			if ( in_array( $label, $this->signed_surfaces(), true ) && $this->signer->enabled() ) {
@@ -450,7 +450,7 @@ final class WellKnown {
 			header( 'Content-Type: ' . $content_type . '; charset=UTF-8' );
 			header( 'X-Content-Type-Options: nosniff' );
 			header( 'Access-Control-Allow-Origin: *' ); // Public docs — match send() so on-disk files are cross-origin fetchable too.
-			header( 'Cache-Control: public, max-age=3600' );
+			\Agentimus\CacheHeaders::send( 3600 );
 		}
 		if ( ! $this->is_head() ) {
 			readfile( $file ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_readfile -- streaming a discovery doc.

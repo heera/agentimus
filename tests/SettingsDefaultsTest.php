@@ -77,6 +77,19 @@ final class SettingsDefaultsTest extends TestCase {
 		$this->assertFalse( ( new Settings() )->defaults()['enable_visibility'] );
 	}
 
+	public function test_bypass_shared_cache_is_off_by_default() {
+		// The AI endpoints stay edge-cacheable unless the owner opts to keep them out.
+		$this->assertFalse( ( new Settings() )->defaults()['bypass_shared_cache'] );
+	}
+
+	public function test_sanitize_persists_bypass_shared_cache_as_a_bool() {
+		$on = ( new Settings() )->sanitize( array( 'bypass_shared_cache' => '1' ) );
+		$this->assertTrue( $on['bypass_shared_cache'] );
+		// An omitted checkbox is a deliberate "off", not "leave as-is".
+		$off = ( new Settings() )->sanitize( array() );
+		$this->assertFalse( $off['bypass_shared_cache'] );
+	}
+
 	public function test_sanitize_optimize_ignored_to_positive_ints() {
 		$clean = ( new Settings() )->sanitize(
 			array( 'optimize_ignored' => array( '210', 210, 0, -1, 'x', 3 ) )

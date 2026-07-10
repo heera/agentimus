@@ -689,6 +689,15 @@ export default {
             </span>
           </label>
 
+          <label id="ar-feat-bypass_shared_cache" class="ar-toggle">
+            <input v-model="settings.bypass_shared_cache" type="checkbox" />
+            <span class="ar-toggle__track" aria-hidden="true"></span>
+            <span class="ar-toggle__text">
+              <strong>Keep AI endpoints out of your cache</strong>
+              <small>If a cache or CDN sits in front of your site, it can serve stored copies of your AI files (<code>llms.txt</code>, the <code>.well-known</code> docs, the change feed) — so those agent fetches never reach WordPress, the log under-counts them, and the change feed can go stale. Turn this on and Agentimus asks caches not to store those files (a <code>no-store</code> header), so each fetch reaches WordPress and is counted and current. It works with any cache that respects that header; a cache told to “cache everything” or ignore origin headers still needs a rule set there. If nothing sits in front of your site, leave it off — it trades a little edge-caching on those endpoints.</small>
+            </span>
+          </label>
+
           <!-- How long records live, and the ceiling that applies either way. -->
           <label id="ar-feat-activity_auto_prune" class="ar-toggle">
             <input v-model="settings.activity_auto_prune" type="checkbox" />
