@@ -657,7 +657,8 @@ export default {
         <p class="ar-card__lead">
           Records which AI assistants fetch your AI files, and counts the visitors AI sends you
           (“Traffic from AI”). Everything is stored on your own site — no IP addresses by default (one optional
-          setting stores IPs for flagged crawlers only), nothing sent anywhere. You read it all on the Activity tab.
+          setting stores IPs for flagged crawlers only), nothing sent anywhere. You read the summary on the
+          Dashboard, and the full reports under More → AI traffic and More → Request log.
         </p>
 
         <label id="ar-feat-enable_activity" class="ar-toggle">
@@ -665,7 +666,7 @@ export default {
           <span class="ar-toggle__track" aria-hidden="true"></span>
           <span class="ar-toggle__text">
             <strong>Record AI activity &amp; referrals</strong>
-            <small>Powers the Activity tab: which assistants fetch your files, and who AI sends your way.</small>
+            <small>Powers the Dashboard and both reports: which assistants fetch your files, and who AI sends your way.</small>
           </span>
         </label>
 
@@ -676,6 +677,15 @@ export default {
             <span class="ar-toggle__text">
               <strong>CDN mode — count AI visits in the browser</strong>
               <small>Turn on only if your site sits behind a full-page cache/CDN (e.g. Cloudflare “Cache Everything”). It counts “Traffic from AI” in the visitor’s browser so the number survives the cache. Adds a tiny counting script to your pages. A few visitors — those using an ad-blocker or a privacy-focused browser that blocks scripts like this — won’t be counted, so read the total as a minimum, never an over-count.</small>
+            </span>
+          </label>
+
+          <label id="ar-feat-log_unknown_referrers" class="ar-toggle">
+            <input v-model="settings.log_unknown_referrers" type="checkbox" />
+            <span class="ar-toggle__track" aria-hidden="true"></span>
+            <span class="ar-toggle__text">
+              <strong>Find missed AI sources (diagnostic)</strong>
+              <small>“Traffic from AI” only counts assistants it recognises, and a miss leaves no trace. Turn this on and Agentimus also lists the referrers it <em>couldn’t</em> name — so you can see whether an assistant is being overlooked. Records the site name and <code>utm_source</code> tag only: still no IPs, nothing sent anywhere. It writes a row for every visit referred from another site, so switch it on for a week, read the list under More → AI traffic, then switch it off.</small>
             </span>
           </label>
 

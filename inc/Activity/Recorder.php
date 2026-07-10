@@ -63,15 +63,10 @@ final class Recorder {
 			return;
 		}
 
-		/**
-		 * Skip logging the site owner inspecting their own endpoints — a logged-in
-		 * administrator opening discovery.json in a browser is not agent traffic and
-		 * would otherwise bury the log in "Browser" self-noise. Filter to false to
-		 * log every request regardless.
-		 *
-		 * @param bool $skip Whether to skip this request. Default true for admins.
-		 */
-		if ( apply_filters( 'agentimus_activity_skip_self', is_user_logged_in() && current_user_can( 'manage_options' ) ) ) {
+		// Skip the site owner inspecting their own endpoints. {@see Owner::skip()} — which
+		// also carries the `agentimus_activity_skip_self` filter — because a REST-served
+		// endpoint sees no current user unless the cookie came with a nonce.
+		if ( Owner::skip() ) {
 			return;
 		}
 

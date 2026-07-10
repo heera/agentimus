@@ -2019,6 +2019,55 @@ button.ar-act-more:hover { color: var(--ar-ink); }
 }
 .ar-ai__byday { margin-top: 24px; padding-top: 20px; border-top: 1px solid var(--ar-line); }
 
+/* Dashboard summary: a read-only sparkline of AI-referred visits per day. Deliberately
+   NOT the interactive .ar-act-spark (whose bars are buttons that open a day report) —
+   this one only shows the shape of the month, and the drill-down lives on its own screen. */
+.ar-refspark { display: flex; align-items: flex-end; gap: 3px; height: 52px; margin: 20px 0 6px; }
+.ar-refspark__bar {
+  flex: 1 1 0; min-height: 2px; border-radius: 2px 2px 0 0; background: var(--ar-accent);
+  transition: height 0.4s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.ar-refspark__bar.is-zero { background: var(--ar-line); height: 2px !important; }
+
+/* The link at the foot of a dashboard summary card, through to the screen that holds the
+   same data in full. Shared by "Traffic from AI" → AI traffic and "Recent requests" →
+   Request log: one pattern, because it is one relationship. */
+.ar-card__more {
+  display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap;
+  margin: 22px 0 0; padding-top: 16px; border-top: 1px solid var(--ar-line);
+}
+.ar-card__more .ar-linkbtn { display: inline-flex; align-items: center; gap: 4px; font-weight: 600; }
+.ar-card__more .ar-linkbtn svg { transition: transform 0.18s ease; }
+.ar-card__more .ar-linkbtn:hover svg { transform: translateX(2px); }
+@media (prefers-reduced-motion: reduce) { .ar-card__more .ar-linkbtn svg { transition: none; } }
+.ar-card__morenote { font-size: 12px; color: var(--ar-ink-faint); }
+
+/* AI traffic screen: the cards stack, and the report card's title carries a refresh. */
+.ar-aitraffic { display: grid; gap: 20px; }
+/* The filters sit inside the card, not above it, so they read as narrowing THIS report. */
+.ar-aitraffic .ar-log__filters { margin: 18px 0 4px; }
+/* This row has four controls, not the request log's seven, so it wraps to two lines rather
+   than three or four — and a wrapped line holding only "To" would let that date field grow
+   to the full card width. The shared wrap rule zeroes the date basis along with everything
+   else; here it must not. A date input has one right size, whatever room is going spare. */
+/* Between the wrap breakpoint and the phone one, the shared bases are cut for seven fields
+   and a full User-Agent. Four fields and a short path prefix fit one line at bases this
+   size, so the row stays a row until the card is genuinely too narrow for it. */
+@media (max-width: 1200px) and (min-width: 783px) {
+  .ar-aitraffic .ar-log__field { flex: 1 1 130px; }
+  .ar-aitraffic .ar-log__field--ua { flex: 1 1 170px; }
+}
+/* AFTER the rules above, and matching their specificity, so it wins on source order: a date
+   input has one right size, whatever room is going spare. Otherwise a wrapped line holding
+   only "To" lets it grow to the full card width. */
+.ar-aitraffic .ar-log__field--date { flex: 0 1 150px; }
+/* Says out loud what the numbers below are a slice of — a filtered card that looks exactly
+   like an unfiltered one is how a reader mistakes a subset for the whole. */
+.ar-ai__filternote {
+  margin: 14px 0 0; font-size: 12.5px; color: var(--ar-ink-soft);
+}
+.ar-ai__filternote strong { color: var(--ar-ink); }
+
 /* ---- Traffic from AI: per-day drill-down -------------------------------- */
 .ar-aiday { margin: 0; padding: 0; list-style: none; display: grid; gap: 4px; }
 .ar-aiday__row {
@@ -2032,14 +2081,20 @@ button.ar-act-more:hover { color: var(--ar-ink); }
 .ar-aiday__chev { color: var(--ar-ink-faint); opacity: 0.7; transition: transform 0.2s ease, opacity 0.15s ease; }
 .ar-aiday__row:hover .ar-aiday__chev { opacity: 1; color: var(--ar-ink-soft); }
 .ar-aiday__chev.is-open { transform: rotate(180deg); }
+/* min-width:0 at BOTH list levels. A grid item's default is min-width:auto — its
+   min-content width — and here that is the un-wrappable <code> path, so the row simply
+   refused to shrink: on a narrow card the path ran past the edge and pushed the hit count
+   clean out of view. The path's own ellipsis can only bite once its ancestors may shrink. */
+.ar-aiday__item { min-width: 0; }
 .ar-aiday__detail {
   margin: 0 0 8px 2px; padding: 6px 0 2px 12px; list-style: none; display: grid; gap: 7px;
   border-left: 2px solid var(--ar-line);
+  min-width: 0;
 }
 /* Flex (not grid): a grid item defaults to justify-self:stretch, which made the
    <code> path fill its column — and wp-admin's global code background then painted
    a full-width bar. Flex items size to content, so the path stays a small chip. */
-.ar-aivis { display: flex; align-items: center; gap: 8px; font-size: 12.5px; padding: 1px 0; }
+.ar-aivis { display: flex; align-items: center; gap: 8px; font-size: 12.5px; padding: 1px 0; min-width: 0; }
 .ar-aivis__src { flex: 0 0 auto; font-weight: 600; color: var(--ar-ink); white-space: nowrap; }
 .ar-aivis__arr { flex: 0 0 auto; color: var(--ar-ink-faint); }
 .ar-aivis__path {
@@ -2047,6 +2102,10 @@ button.ar-act-more:hover { color: var(--ar-ink); }
   background: var(--ar-surface-2); border: 1px solid var(--ar-line); padding: 1px 6px; border-radius: 3px;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
+/* The loading / error line inside an opened day, before its rows arrive. */
+.ar-aivis--muted { color: var(--ar-ink-faint); font-size: 12px; gap: 10px; }
+.ar-aivis__path.is-copyable { cursor: pointer; transition: background-color 0.12s ease; }
+.ar-aivis__path.is-copyable:hover { background: #e6e4dd; }
 .ar-aivis__n { margin-left: auto; flex: 0 0 auto; font-family: var(--ar-mono); font-size: 12px; color: var(--ar-ink-soft); }
 @media (prefers-reduced-motion: reduce) { .ar-aiday__chev { transition: opacity 0.15s ease; } }
 
@@ -2792,37 +2851,70 @@ a.ar-about-proto__v:hover { text-decoration: underline; }
 .ar__more-caret { display: inline-flex; align-items: center; transition: transform 0.15s; }
 .ar__more.is-open .ar__more-caret { transform: rotate(180deg); }
 
+/* The panel floats ABOVE the bar, so it sits on --ar-surface (the lightest paper), not on
+   --ar-paper — which is the page background and made the menu read as a sunken box rather
+   than a sheet lifted off the page. Two shadows: a tight contact edge, and a long soft cast. */
 .ar__more-menu {
-  position: absolute; top: calc(100% - 1px); left: 0; z-index: 30;
-  min-width: 190px; padding: 6px;
+  /* `left` is set inline by positionMore(), which slides the panel inward when the trigger
+     sits near the window edge. The value here is only the pre-measurement default. */
+  position: absolute; top: calc(100% + 5px); left: -6px; z-index: 30;
+  min-width: 208px; max-width: calc(100vw - 24px); padding: 5px;
   display: flex; flex-direction: column;
-  background: var(--ar-paper);
-  border: 1px solid var(--ar-line-strong); border-radius: var(--ar-radius);
-  box-shadow: 0 14px 34px -18px rgba(27, 25, 19, 0.55);
+  background: var(--ar-surface);
+  border: 1px solid var(--ar-line-strong);
+  /* One step up from --ar-radius (4px): a lifted sheet is softer than a flush card. */
+  border-radius: 7px;
+  box-shadow: 0 1px 2px rgba(27, 25, 19, 0.05), 0 18px 36px -20px rgba(27, 25, 19, 0.5);
+  animation: ar-more-in 0.13s cubic-bezier(0.22, 1, 0.36, 1);
+  transform-origin: top left;
 }
+@keyframes ar-more-in {
+  from { opacity: 0; transform: translateY(-4px); }
+  to   { opacity: 1; transform: none; }
+}
+@media (prefers-reduced-motion: reduce) { .ar__more-menu { animation: none; } }
+
+/* Sentence-case SANS, not the bar's mono eyebrow. Uppercase mono gives every row the same
+   rectangular silhouette, so a stacked column of them has no word-shape to scan and reads
+   as a pile of tags. In this design system sans is what a human reads; mono-uppercase is
+   metadata. A destination name is the former. */
 .ar__more-item {
   appearance: none; background: none; border: 0; cursor: pointer;
+  display: grid; grid-template-columns: 16px minmax(0, 1fr); align-items: center;
+  column-gap: 10px; width: 100%;
   text-align: left; white-space: nowrap;
-  padding: 9px 12px; border-radius: 6px;
-  font-family: var(--ar-mono); font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase;
+  padding: 8px 10px; border-radius: var(--ar-radius);
+  font-family: var(--ar-sans); font-size: 13.5px; font-weight: 500; letter-spacing: 0;
+  text-transform: none; line-height: 1.25;
   color: var(--ar-ink-soft);
+  transition: background-color 0.12s ease, color 0.12s ease;
 }
+@media (prefers-reduced-motion: reduce) { .ar__more-item { transition: none; } }
+.ar__more-icon { grid-column: 1; color: var(--ar-ink-faint); transition: color 0.12s ease; }
+.ar__more-item-label { grid-column: 2; }
+
 .ar__more-item:hover:not(:disabled) { background: var(--ar-surface-2); color: var(--ar-ink); }
+.ar__more-item:hover:not(:disabled) .ar__more-icon { color: var(--ar-ink-soft); }
 .ar__more-item:focus-visible { outline: 2px solid var(--ar-accent); outline-offset: -2px; }
-.ar__more-item.is-active { color: var(--ar-ink); box-shadow: inset 2px 0 0 var(--ar-accent); }
+
+/* The screen you're on. A wash of the accent at 8% plus an accent icon — no inset rail,
+   which is the tab bar's idiom and the very thing that made this feel like tabs. */
+.ar__more-item.is-active { background: rgba(20, 107, 100, 0.08); color: var(--ar-ink); }
+.ar__more-item.is-active .ar__more-icon { color: var(--ar-accent); }
 
 /* Listed but unreachable: the feature exists, it's just switched off. Greying it out
    teaches where the feature lives; hiding it leaves a hole nobody discovers. */
 .ar__more-item.is-disabled { cursor: default; color: var(--ar-ink-faint); }
-.ar__more-item-label { display: block; }
+.ar__more-item.is-disabled .ar__more-icon { opacity: 0.55; }
 .ar__more-item-note {
-  display: block; margin-top: 3px;
-  font-size: 9px; letter-spacing: 0.06em; text-transform: none;
-  color: var(--ar-ink-faint); opacity: 0.85;
+  grid-column: 2; margin-top: 2px;
+  font-family: var(--ar-sans); font-size: 11px; font-weight: 400; letter-spacing: 0;
+  color: var(--ar-ink-faint);
 }
 
-/* About is reference material, not a working screen. */
-.ar__more-sep { height: 1px; margin: 6px 4px; background: var(--ar-line); }
+/* About is reference material, not a working screen. Full-bleed through the panel padding:
+   an inset rule reads as decoration, a rule that touches both walls reads as a division. */
+.ar__more-sep { height: 1px; margin: 5px -5px; background: var(--ar-line); }
 
 /* On a narrow admin the bar gets tight: shrink the gap before anything scrolls. */
 @media (max-width: 960px) {

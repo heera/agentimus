@@ -44,8 +44,10 @@ function agentimus_uninstall_site() {
 	$wpdb->query( "DROP TABLE IF EXISTS {$wpdb->prefix}agentimus_agent_hits" ); // phpcs:ignore WordPress.DB
 	$wpdb->query( "DROP TABLE IF EXISTS {$wpdb->prefix}agentimus_ai_referrals" ); // phpcs:ignore WordPress.DB
 	$wpdb->query( "DROP TABLE IF EXISTS {$wpdb->prefix}agentimus_flagged_ips" ); // phpcs:ignore WordPress.DB
+	$wpdb->query( "DROP TABLE IF EXISTS {$wpdb->prefix}agentimus_unknown_sources" ); // phpcs:ignore WordPress.DB
 	delete_option( 'agentimus_activity_db_version' );
 	delete_option( 'agentimus_referrals_db_version' );
+	delete_option( 'agentimus_unknown_sources_db_version' );
 	delete_option( 'agentimus_flagged_ips_db_version' );
 	delete_option( 'agentimus_review_dismissed' );
 	delete_option( 'agentimus_review_reverified' );

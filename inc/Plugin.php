@@ -166,6 +166,7 @@ final class Plugin {
 		( new Settings() )->ensure_defaults();
 		Activity\Table::install();
 		Activity\Referrals::install();
+		Activity\UnknownSources::install();
 		Activity\Module::schedule();
 		Visibility\Table::install();
 		Visibility\Module::schedule();

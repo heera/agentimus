@@ -35,6 +35,21 @@ final class Referrals {
 	 *  roll into a "+N more" so a busy day never balloons the card. */
 	const DAY_TOP = 12;
 
+	/** Rows in the dashboard's "Top sources" leaderboard. The `sourceCount` KPI still reports
+	 *  the true distinct total, so a 9th source is counted even though it isn't listed. */
+	const TOP_SOURCES = 8;
+
+	/** Rows in the "Top landing pages" leaderboard. Paths are unbounded, so this one is a
+	 *  real SQL LIMIT rather than a slice. */
+	const TOP_PAGES = 8;
+
+	/** Assistants offered in the report's source filter. A closed vocabulary — the cap is a
+	 *  guard against a filter returning something silly, never a real ceiling. */
+	const FACET_LIMIT = 50;
+
+	/** Ceiling on a single day's drill-down when the panel asks to see past DAY_TOP. */
+	const DAY_MAX = 200;
+
 	/** Hard ceiling on stored (day, source, path) rows — a backstop to the daily
 	 *  age-based prune, so a spoofed-referrer flood of many distinct one-hit paths
 	 *  can't bank unbounded rows before the cron fires. The trim keeps the BUSIEST
@@ -65,14 +80,26 @@ final class Referrals {
 	 * Known AI-assistant sources: a referrer host OR a utm_source value (lowercased,
 	 * www-stripped) maps to a canonical label. Filterable so a site can add its own.
 	 *
-	 * Google "AI Overviews" is intentionally absent — it arrives with a plain
-	 * google.com referrer, indistinguishable from normal search, so counting it
-	 * would be guesswork.
+	 * Two shapes of needle, matched by {@see source_for()}:
+	 *
+	 *  - HOSTS, which match the referrer host and any subdomain of it, and also match a
+	 *    utm_source that carries the host verbatim (ChatGPT stamps `utm_source=chatgpt.com`).
+	 *  - BARE TOKENS, which contain no dot and so can never equal a host — they exist only
+	 *    to catch an assistant that stamps `utm_source=perplexity` rather than a hostname.
+	 *    Cheap to carry, and the alternative is silently losing every referrer-stripped
+	 *    arrival from that source.
+	 *
+	 * DELIBERATELY ABSENT: any host that also serves ordinary search — google.com (AI
+	 * Overviews / AI Mode), bing.com (Copilot in search), duckduckgo.com, kagi.com, x.com
+	 * (Grok). Their referrer is indistinguishable from a plain search click, so counting
+	 * them would be guesswork dressed up as data. Their dedicated assistant hosts, where
+	 * one exists (gemini.google.com, copilot.microsoft.com, duck.ai), ARE counted.
 	 *
 	 * @return array<string,string> needle => label.
 	 */
 	public static function sources() {
 		$map = array(
+			// Dedicated assistant hosts.
 			'chatgpt.com'           => 'ChatGPT',
 			'chat.openai.com'       => 'ChatGPT',
 			'perplexity.ai'         => 'Perplexity',
@@ -80,8 +107,25 @@ final class Referrals {
 			'bard.google.com'       => 'Gemini',
 			'copilot.microsoft.com' => 'Copilot',
 			'claude.ai'             => 'Claude',
+			'claude.com'            => 'Claude',
+			'grok.com'              => 'Grok',
+			'deepseek.com'          => 'DeepSeek', // Subdomain rule covers chat.deepseek.com.
+			'meta.ai'               => 'Meta AI',
+			'chat.mistral.ai'       => 'Mistral',
+			'duck.ai'               => 'DuckDuckGo AI',
+			'phind.com'             => 'Phind',
 			'you.com'               => 'You.com',
 			'poe.com'               => 'Poe',
+
+			// utm_source tokens that are not hostnames.
+			'chatgpt'               => 'ChatGPT',
+			'openai'                => 'ChatGPT',
+			'perplexity'            => 'Perplexity',
+			'gemini'                => 'Gemini',
+			'copilot'               => 'Copilot',
+			'claude'                => 'Claude',
+			'grok'                  => 'Grok',
+			'deepseek'              => 'DeepSeek',
 		);
 
 		/**
@@ -128,12 +172,14 @@ final class Referrals {
 
 	/**
 	 * Whether $host is a subdomain of $domain (e.g. x.chatgpt.com of chatgpt.com).
+	 * Public because {@see UnknownSources} needs the same rule to tell an external
+	 * referrer from the site's own pages, and two copies would drift.
 	 *
 	 * @param string $host   Lowercased host.
 	 * @param string $domain Lowercased domain.
 	 * @return bool
 	 */
-	private static function is_subdomain_of( $host, $domain ) {
+	public static function is_subdomain_of( $host, $domain ) {
 		$suffix = '.' . $domain;
 		return strlen( $host ) > strlen( $suffix ) && substr( $host, -strlen( $suffix ) ) === $suffix;
 	}
@@ -212,18 +258,25 @@ final class Referrals {
 	 * @return bool Whether a hit was counted.
 	 */
 	private static function count_hit( $referer, $utm, $uri ) {
-		// Skip the owner browsing their own site (shares Recorder's filter).
-		if ( apply_filters( 'agentimus_activity_skip_self', is_user_logged_in() && current_user_can( 'manage_options' ) ) ) {
+		// Skip the owner browsing their own site (shares the hit log's rule). Reads the
+		// cookie rather than the current user: the beacon posts to a nonce-less REST route,
+		// where WordPress has already reset the owner to "logged out". {@see Owner::skip()}.
+		if ( Owner::skip() ) {
+			return false;
+		}
+		// Count only human browsers — a bot arriving with a referrer isn't a "visitor AI
+		// sent". (A real reader clicking from an AI answer uses a browser.) Tested BEFORE
+		// attribution so the diagnostic below never records a crawler's referrer either.
+		$ua = isset( $_SERVER['HTTP_USER_AGENT'] ) ? sanitize_text_field( wp_unslash( $_SERVER['HTTP_USER_AGENT'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only classification, no state change.
+		if ( 'Browser' !== Classifier::classify( $ua ) ) {
 			return false;
 		}
 		$source = self::source_for( $referer, $utm );
 		if ( '' === $source ) {
-			return false; // A referrer/utm, but not from a known AI assistant.
-		}
-		// Count only human browsers — a bot arriving with a referrer isn't a "visitor AI
-		// sent". (A real reader clicking from an AI answer uses a browser.)
-		$ua = isset( $_SERVER['HTTP_USER_AGENT'] ) ? sanitize_text_field( wp_unslash( $_SERVER['HTTP_USER_AGENT'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only classification, no state change.
-		if ( 'Browser' !== Classifier::classify( $ua ) ) {
+			// A real reader from somewhere we can't name. Recognition is a finite list, so
+			// this is the ONLY record that the miss happened — see UnknownSources, which is
+			// off unless the owner turns the diagnostic on.
+			UnknownSources::note( $referer, $utm );
 			return false;
 		}
 		self::increment( $source, self::clean_path( $uri ) );
@@ -347,36 +400,249 @@ final class Referrals {
 	 * Dashboard payload: totals (today / window), top sources, and top landing
 	 * pages over the reporting window.
 	 *
-	 * @param int $window Reporting window in days (matches the activity log).
-	 * @return array{enabled:bool,totals:array{today:int,window:int},bySource:array,topPages:array}
+	 * @param int $window Reporting window in days, counting today (matches the activity log).
+	 * @return array{enabled:bool,sourceCount:int,totals:array{today:int,window:int},bySource:array,topPages:array}
 	 */
 	public static function summary( $window ) {
-		global $wpdb;
-		$table  = self::name();
 		$window = max( 1, (int) $window );
-		$since  = gmdate( 'Y-m-d', time() - $window * DAY_IN_SECONDS );
-		$today  = gmdate( 'Y-m-d' );
+		// The window is INCLUSIVE of today, and `day` is a whole calendar day: a 30-day
+		// report runs from today back through today-29. Subtracting a full $window would
+		// sweep in a 31st day and inflate every total against the label above the card.
+		$since = gmdate( 'Y-m-d', time() - ( $window - 1 ) * DAY_IN_SECONDS );
+		$today = gmdate( 'Y-m-d' );
 
-		// phpcs:disable WordPress.DB, PluginCheck.Security.DirectDB.UnescapedDBParameter -- $table is our own prefix-derived name; all values are bound via prepare().
-		$today_count  = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COALESCE(SUM(hits),0) FROM $table WHERE day = %s", $today ) );
-		$window_count = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COALESCE(SUM(hits),0) FROM $table WHERE day >= %s", $since ) );
+		$agg = self::aggregate( $since, $today, '', '' );
 
-		$by_source = $wpdb->get_results( $wpdb->prepare( "SELECT source AS label, SUM(hits) AS hits FROM $table WHERE day >= %s GROUP BY source ORDER BY hits DESC LIMIT 8", $since ), ARRAY_A );
-		$top_pages = $wpdb->get_results( $wpdb->prepare( "SELECT path, SUM(hits) AS hits FROM $table WHERE day >= %s GROUP BY path ORDER BY hits DESC LIMIT 8", $since ), ARRAY_A );
+		$today_count = 0;
+		foreach ( $agg['daily'] as $d ) {
+			if ( $today === (string) $d['date'] ) {
+				$today_count = (int) $d['hits'];
+			}
+		}
 
-		// Per-day drill-down: which source landed on which page, by day. Newest day
-		// first; within a day, busiest pairing first. The store has no clock time —
-		// the day is the finest "when" there is — and nothing here identifies a person.
-		$detail = $wpdb->get_results( $wpdb->prepare( "SELECT day, source, path, SUM(hits) AS hits FROM $table WHERE day >= %s GROUP BY day, source, path ORDER BY day DESC, hits DESC", $since ), ARRAY_A );
-		// phpcs:enable WordPress.DB, PluginCheck.Security.DirectDB.UnescapedDBParameter
+		$by_source = $agg['bySource'];
+		$top_pages = $agg['topPages'];
+		$daily     = $agg['daily'];
+
+		// The distinct total, not the length of the top-8 slice below: a site hearing from
+		// more sources than the leaderboard shows would otherwise under-report the KPI.
+		$source_count = count( $by_source );
 
 		return array(
-			'enabled'  => true,
-			'beacon'   => self::beacon_enabled(),
-			'totals'   => array(
+			'enabled'     => true,
+			'beacon'      => self::beacon_enabled(),
+			'sourceCount' => $source_count,
+			'totals'      => array(
 				'today'  => $today_count,
-				'window' => $window_count,
+				'window' => $agg['total'],
 			),
+			// The dashboard's leaderboard stays at 8; `sourceCount` above is what says how many
+			// there really were. Sliced here, not in SQL, so the count stays exact.
+			'bySource'    => array_slice( $by_source, 0, self::TOP_SOURCES ),
+			'topPages'    => $top_pages,
+			'daily'       => $daily,
+		);
+	}
+
+	/* ---------------------------------------------------------------------- *
+	 *  The filtered report (AI traffic screen)
+	 * ---------------------------------------------------------------------- */
+
+	/**
+	 * The AI-traffic screen's report, over an arbitrary day range and optionally narrowed to
+	 * one assistant and/or a landing-path prefix.
+	 *
+	 * Why filters here at all, when the dashboard card has none: the store answers questions
+	 * the summary structurally cannot. "Which pages does Perplexity send readers to" is a
+	 * source × page cross-tab — the leaderboards sum across every source, and a day's
+	 * drill-down only shows its busiest {@see DAY_TOP} pairings. And the dashboard is capped
+	 * at {@see Repository::report_days()} while the table keeps {@see Repository::retention_days()},
+	 * so on a site that keeps 90 days, 60 of them were stored and unreachable.
+	 *
+	 * DELIBERATELY only three filters. The store has five columns — day, source, path, hits,
+	 * id — and nothing else. A "network" or "user-agent" filter here would imply a per-visit
+	 * record this table does not keep, and never will.
+	 *
+	 * @param array $args from, to (Y-m-d), source (exact label), path (prefix).
+	 * @return array
+	 */
+	public static function report( array $args = array() ) {
+		$range  = self::clamp_range( $args );
+		$source = isset( $args['source'] ) ? substr( sanitize_text_field( (string) $args['source'] ), 0, 40 ) : '';
+		$path   = isset( $args['path'] ) ? substr( (string) $args['path'], 0, 190 ) : '';
+		$path   = '' === $path ? '' : self::clean_path( '/' === substr( $path, 0, 1 ) ? $path : '/' . $path );
+
+		$agg = self::aggregate( $range['from'], $range['to'], $source, $path );
+
+		return array(
+			'enabled'     => true,
+			'beacon'      => self::beacon_enabled(),
+			'range'       => $range,
+			'filters'     => array( 'source' => $source, 'path' => $path ),
+			'sourceCount' => count( $agg['bySource'] ),
+			'total'       => $agg['total'],
+			// Days that actually saw a visit — not the length of the range, which would count
+			// the quiet ones and read as coverage the site never had.
+			'activeDays'  => count( $agg['daily'] ),
+			// The full leaderboards here, not the dashboard's top five: this IS the report.
+			'bySource'    => $agg['bySource'],
+			'topPages'    => $agg['topPages'],
+			'daily'       => $agg['daily'],
+			'unknown'     => UnknownSources::report( $range['from'], $range['to'] ),
+		);
+	}
+
+	/**
+	 * The assistants this site has actually heard from, over everything still retained —
+	 * NOT over the current range, or narrowing the range would quietly delete the option you
+	 * need to widen it again. Ordered by volume, so the ones you get sit at the top.
+	 *
+	 * @return array<int,array{value:string,label:string}>
+	 */
+	public static function facets() {
+		global $wpdb;
+		$table = self::name();
+		$since = self::retention_floor();
+
+		$rows = $wpdb->get_results( // phpcs:ignore WordPress.DB, PluginCheck.Security.DirectDB.UnescapedDBParameter -- $table is our own prefix-derived name; values are bound via prepare().
+			$wpdb->prepare( "SELECT source, SUM(hits) AS hits FROM $table WHERE day >= %s GROUP BY source ORDER BY hits DESC LIMIT %d", $since, self::FACET_LIMIT ),
+			ARRAY_A
+		);
+		return array_map(
+			static function ( $r ) {
+				return array( 'value' => (string) $r['source'], 'label' => (string) $r['source'] );
+			},
+			(array) $rows
+		);
+	}
+
+	/**
+	 * The oldest day the store can still be holding. With auto-delete off, nothing ages out
+	 * on a clock — only the row cap collects — so there is no floor to enforce.
+	 *
+	 * @return string Y-m-d.
+	 */
+	private static function retention_floor() {
+		if ( ! Repository::auto_prune() ) {
+			return '1970-01-01';
+		}
+		return gmdate( 'Y-m-d', time() - Repository::retention_days() * DAY_IN_SECONDS );
+	}
+
+	/**
+	 * Resolve and clamp a requested day range. Defaults to the dashboard's window; never
+	 * reaches past what retention could still be holding (a range that can't match a row is
+	 * not a report, it's a row of zeros); never inverted.
+	 *
+	 * @param array $args from, to.
+	 * @return array{from:string,to:string,floor:string,isDefault:bool}
+	 */
+	private static function clamp_range( array $args ) {
+		$today = gmdate( 'Y-m-d' );
+		$floor = self::retention_floor();
+
+		$valid = static function ( $v ) {
+			return is_string( $v ) && preg_match( '/^\d{4}-\d{2}-\d{2}$/', $v );
+		};
+
+		// The dashboard's window, and the range this screen opens on.
+		$default_from = gmdate( 'Y-m-d', time() - ( Repository::report_days() - 1 ) * DAY_IN_SECONDS );
+		if ( $default_from < $floor ) {
+			$default_from = $floor;
+		}
+
+		$to   = ( isset( $args['to'] ) && $valid( $args['to'] ) ) ? $args['to'] : $today;
+		$from = ( isset( $args['from'] ) && $valid( $args['from'] ) ) ? $args['from'] : $default_from;
+
+		if ( $to > $today ) {
+			$to = $today;
+		}
+		if ( $from < $floor ) {
+			$from = $floor;
+		}
+		if ( $from > $to ) {
+			$from = $to;
+		}
+
+		return array(
+			'from'  => $from,
+			'to'    => $to,
+			'floor' => $floor,
+			// The panel pre-fills its date inputs from this range, so it re-sends them on every
+			// Filter press. Without this the screen could not tell "the last 30 days" from "a
+			// range the owner chose that happens to be the last 30 days" — and would offer to
+			// Clear a filter nobody set.
+			'isDefault' => ( $from === $default_from && $to === $today ),
+		);
+	}
+
+	/**
+	 * The three window-scanning queries every view of this table is built from: per-day
+	 * totals, the source leaderboard, the page leaderboard. One place, so a filter can never
+	 * apply to one of them and not the others.
+	 *
+	 * @param string $from   Inclusive day.
+	 * @param string $to     Inclusive day.
+	 * @param string $source Exact source label, or ''.
+	 * @param string $path   Landing-path prefix, or ''.
+	 * @return array{daily:array,bySource:array,topPages:array,total:int}
+	 */
+	private static function aggregate( $from, $to, $source, $path ) {
+		global $wpdb;
+		$table = self::name();
+
+		$where  = 'day >= %s AND day <= %s';
+		$params = array( $from, $to );
+		if ( '' !== $source ) {
+			$where   .= ' AND source = %s';
+			$params[] = $source;
+		}
+		if ( '' !== $path ) {
+			// A PREFIX match, like the request log's User-Agent filter: `LIKE 'x%'` can use
+			// the index, `'%x%'` cannot, and a landing path is read left-to-right anyway.
+			$where   .= ' AND path LIKE %s';
+			$params[] = $wpdb->esc_like( $path ) . '%';
+		}
+
+		// phpcs:disable WordPress.DB, PluginCheck.Security.DirectDB.UnescapedDBParameter -- $table is our own prefix-derived name; $where is built from literals; every value is bound via prepare().
+
+		// Per-day TOTALS only — never the per-day rows. At most one row per day in the range,
+		// however large the table grows; a day's drill-down is fetched on demand by
+		// {@see day_rows()} when the owner actually opens it. This used to select every
+		// (day, source, path) row in the window and fold them in PHP: on a table near its
+		// 50,000-row cap that read ~45,000 rows, discarded ~99% of them, and still shipped a
+		// 40 KB blob on every dashboard load.
+		$daily = $wpdb->get_results( $wpdb->prepare( "SELECT day, SUM(hits) AS hits, COUNT(*) AS rowCount FROM $table WHERE $where GROUP BY day ORDER BY day DESC", $params ), ARRAY_A );
+
+		// `source` is a canonical label from a fixed, filterable map — a handful of values,
+		// never one per visitor — so grouping without a LIMIT is bounded by design. The
+		// generous cap is a guard against a filter that returns something silly, and it is
+		// far above any real source list, so the distinct count is the true total.
+		$by_source = $wpdb->get_results( $wpdb->prepare( "SELECT source AS label, SUM(hits) AS hits FROM $table WHERE $where GROUP BY source ORDER BY hits DESC LIMIT 100", $params ), ARRAY_A );
+
+		// Paths, by contrast, are unbounded (one per URL), so this one must LIMIT in SQL.
+		$top_pages = $wpdb->get_results( $wpdb->prepare( "SELECT path, SUM(hits) AS hits FROM $table WHERE $where GROUP BY path ORDER BY hits DESC LIMIT %d", array_merge( $params, array( self::TOP_PAGES ) ) ), ARRAY_A );
+		// phpcs:enable WordPress.DB, PluginCheck.Security.DirectDB.UnescapedDBParameter
+
+		// The range total is exactly the day buckets, summed — same rows, same filters. A
+		// separate SUM query would scan the range again to reach the same answer.
+		$total = 0;
+		$days  = array();
+		foreach ( (array) $daily as $d ) {
+			$total  += (int) $d['hits'];
+			$days[]  = array(
+				'date'     => (string) $d['day'],
+				'hits'     => (int) $d['hits'],
+				// Distinct (source → page) pairings that day, under the same filters. Drives
+				// the "+N more" note once the drill-down is loaded, and lets the panel skip
+				// the request entirely for a day with nothing to show.
+				'rowCount' => (int) $d['rowCount'],
+			);
+		}
+
+		return array(
+			'daily'    => $days,
+			'total'    => $total,
 			'bySource' => array_map(
 				static function ( $r ) {
 					return array( 'label' => (string) $r['label'], 'hits' => (int) $r['hits'] );
@@ -389,41 +655,80 @@ final class Referrals {
 				},
 				(array) $top_pages
 			),
-			'daily'    => self::bucket_days( (array) $detail ),
 		);
 	}
 
 	/**
-	 * Fold the count-ordered {day, source, path, hits} rows into a per-day list:
-	 * { date, hits (day total), rows: first DAY_TOP (source → page) pairings,
-	 * rowCount: distinct pairings that day }. Input is ordered day DESC, hits DESC,
-	 * so days come out newest-first and each day's kept rows are its busiest while
-	 * `rowCount` still reflects the full distinct total (drives a "+N more").
+	 * One day's drill-down: its busiest {@see DAY_TOP} (source → page) pairings, newest-
+	 * heaviest first, plus how many distinct pairings that day actually had (so the panel
+	 * can say "+N more" honestly rather than implying it showed everything).
 	 *
-	 * @param array $rows Ordered detail rows.
-	 * @return array<int,array{date:string,hits:int,rows:array,rowCount:int}>
+	 * Fetched only when the owner opens a day. The LIMIT is in SQL, not in PHP: a busy day
+	 * can hold thousands of pairings, and reading them all to keep twelve is exactly the
+	 * cost this endpoint exists to avoid.
+	 *
+	 * Honours the report's filters, so an opened day shows the same slice as the cards above
+	 * it. `full` lifts the cap to {@see DAY_MAX}: without it, the pairings past DAY_TOP were
+	 * counted in "+N more" but reachable from nowhere in the UI.
+	 *
+	 * @param string $date Calendar day, Y-m-d (UTC), already validated by the caller.
+	 * @param array  $args source (exact label), path (prefix), full (bool).
+	 * @return array{date:string,hits:int,rowCount:int,rows:array<int,array{source:string,path:string,hits:int}>,capped:bool}
 	 */
-	private static function bucket_days( $rows ) {
-		$days  = array();
-		$index = array();
-		foreach ( $rows as $r ) {
-			$date = (string) $r['day'];
-			if ( ! isset( $index[ $date ] ) ) {
-				$index[ $date ] = count( $days );
-				$days[]         = array( 'date' => $date, 'hits' => 0, 'rows' => array(), 'rowCount' => 0 );
-			}
-			$i                      = $index[ $date ];
-			$days[ $i ]['hits']    += (int) $r['hits'];
-			$days[ $i ]['rowCount'] += 1;
-			if ( count( $days[ $i ]['rows'] ) < self::DAY_TOP ) {
-				$days[ $i ]['rows'][] = array(
+	public static function day_rows( $date, array $args = array() ) {
+		global $wpdb;
+		$table = self::name();
+
+		$source = isset( $args['source'] ) ? substr( sanitize_text_field( (string) $args['source'] ), 0, 40 ) : '';
+		$path   = isset( $args['path'] ) ? substr( (string) $args['path'], 0, 190 ) : '';
+		$limit  = empty( $args['full'] ) ? self::DAY_TOP : self::DAY_MAX;
+
+		$where  = 'day = %s';
+		$params = array( $date );
+		if ( '' !== $source ) {
+			$where   .= ' AND source = %s';
+			$params[] = $source;
+		}
+		if ( '' !== $path ) {
+			$where   .= ' AND path LIKE %s';
+			$params[] = $wpdb->esc_like( $path ) . '%';
+		}
+
+		// phpcs:disable WordPress.DB, PluginCheck.Security.DirectDB.UnescapedDBParameter -- $table is our own prefix-derived name; $where is built from literals; all values are bound via prepare().
+		// `id` breaks the tie so two pairings with equal hits keep a stable order between
+		// loads — otherwise a refresh could silently reshuffle the list.
+		$rows = $wpdb->get_results(
+			$wpdb->prepare( "SELECT source, path, hits FROM $table WHERE $where ORDER BY hits DESC, id ASC LIMIT %d", array_merge( $params, array( $limit ) ) ),
+			ARRAY_A
+		);
+		$totals = $wpdb->get_row(
+			$wpdb->prepare( "SELECT COALESCE(SUM(hits),0) AS hits, COUNT(*) AS rowCount FROM $table WHERE $where", $params ),
+			ARRAY_A
+		);
+		// phpcs:enable WordPress.DB, PluginCheck.Security.DirectDB.UnescapedDBParameter
+
+		$out = array_map(
+			static function ( $r ) {
+				return array(
 					'source' => (string) $r['source'],
 					'path'   => (string) $r['path'],
 					'hits'   => (int) $r['hits'],
 				);
-			}
-		}
-		return $days;
+			},
+			(array) $rows
+		);
+
+		$row_count = (int) ( $totals['rowCount'] ?? 0 );
+
+		return array(
+			'date'     => (string) $date,
+			'hits'     => (int) ( $totals['hits'] ?? 0 ),
+			'rowCount' => $row_count,
+			'rows'     => $out,
+			// True when even "show all" couldn't reach the tail. Said out loud rather than
+			// letting the list imply it showed everything.
+			'capped'   => count( $out ) < $row_count && count( $out ) >= self::DAY_MAX,
+		);
 	}
 
 	/* ---------------------------------------------------------------------- *

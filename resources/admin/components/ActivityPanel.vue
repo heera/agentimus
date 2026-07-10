@@ -43,8 +43,6 @@ export default {
       // Same styled bubble, for the unverified-network hint ({@see netTip}) — a custom
       // tooltip rather than a native title="…", so it matches the UA/chart tooltips.
       netHint: { show: false, x: 0, y: 0, caret: 16, below: false },
-      // Which "AI visits by day" rows are expanded to show their source → page rows.
-      refOpenDays: [],
     };
   },
   mounted() {
@@ -97,12 +95,53 @@ export default {
       return (this.referrals && this.referrals.topPages) || [];
     },
     // Per-day AI-referral breakdown (newest first), each day carrying its
-    // source → page rows. The day is the finest "when" the store keeps.
+    // source → page rows. The day is the finest "when" the store keeps. The full,
+    // expandable list lives on the AI traffic screen; here it only feeds the sparkline.
     refDaily() {
       return (this.referrals && this.referrals.daily) || [];
     },
-    refDailyMax() {
-      return Math.max(1, ...this.refDaily.map((d) => d.hits));
+    // The five that fit a summary card. The rest are one click away.
+    refTopSources() {
+      return this.refSources.slice(0, 5);
+    },
+    refTopPages() {
+      return this.refPages.slice(0, 5);
+    },
+    /**
+     * A continuous day series for the sparkline, oldest → newest. The store returns ONLY
+     * days that had a visit, so a quiet week would otherwise draw as a solid wall of bars
+     * with the gaps closed up — the shape of the month would be a lie. Zero-fill it.
+     * Days are UTC calendar days, so the walk is done in UTC.
+     */
+    refSpark() {
+      const byDate = new Map(this.refDaily.map((d) => [d.date, d.hits]));
+      const days = this.data.window || 30;
+      const today = new Date();
+      const out = [];
+      for (let i = days - 1; i >= 0; i--) {
+        const dt = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate() - i));
+        const date = dt.toISOString().slice(0, 10);
+        out.push({ date, hits: byDate.get(date) || 0 });
+      }
+      return out;
+    },
+    refSparkMax() {
+      return Math.max(1, ...this.refSpark.map((d) => d.hits));
+    },
+    refSparkAria() {
+      return `AI-referred visits per day over the last ${this.refSpark.length} days, ${this.refTotals.window} in total`;
+    },
+    // Counted server-side over the whole window. refSources is the leaderboard, capped
+    // at 8, so its length would under-report a site that hears from more sources.
+    refSourceCount() {
+      return this.referrals && typeof this.referrals.sourceCount === 'number'
+        ? this.referrals.sourceCount
+        : this.refSources.length;
+    },
+    // Only used to word the link through to the full report — the diagnostic itself
+    // lives on the AI traffic screen now.
+    unknownOn() {
+      return !!(this.data.unknownSources && this.data.unknownSources.enabled);
     },
     recent() {
       return this.data.recent || [];
@@ -402,15 +441,6 @@ export default {
       });
       if (ok) this.$emit('clear');
     },
-    // ---- AI visits by day ------------------------------------------------------
-    toggleRefDay(date) {
-      const i = this.refOpenDays.indexOf(date);
-      if (i === -1) this.refOpenDays.push(date);
-      else this.refOpenDays.splice(i, 1);
-    },
-    refDayOpen(date) {
-      return this.refOpenDays.includes(date);
-    },
     onFeedScroll() {
       this.updateFeedHint();
     },
@@ -600,85 +630,74 @@ export default {
            which page, by day). All from the same aggregate-by-day store. -->
       <section v-if="referrals" class="ar-card ar-ai">
         <h2 class="ar-card__title">Traffic from AI <span class="ar-card__tag">Last {{ data.window || 30 }} days</span></h2>
+        <!-- The floor caveat earns its space on a summary card; the longer CDN-mode
+             explanation belongs with the full report, which is where it lives. -->
         <p class="ar-card__lead">
           Real visitors who arrived from an AI assistant (ChatGPT, Perplexity, Gemini…). Counted on your
           own site — no IP, nothing sent anywhere. Some AI visits can’t be detected, so read this as a
           floor: at least this many.
         </p>
-        <p v-if="referrals.beacon" class="ar-card__lead">
-          <strong>CDN mode is on</strong> — these are counted in your visitors’ browsers so the number
-          survives a full-page cache. Still first-party (no IP, nothing sent to third parties). A few
-          visitors whose ad-blocker or privacy browser blocks the counting script won’t be included, so
-          this stays a minimum — never an over-count.
-        </p>
 
         <div class="ar-wd-stats ar-act-stats ar-act-stats--3">
           <div class="ar-wd-stat"><strong>{{ refTotals.today }}</strong><span>today</span></div>
           <div class="ar-wd-stat"><strong>{{ refTotals.window }}</strong><span>{{ data.window || 30 }} days</span></div>
-          <div class="ar-wd-stat"><strong>{{ refSources.length }}</strong><span>sources</span></div>
+          <div class="ar-wd-stat"><strong>{{ refSourceCount }}</strong><span>sources</span></div>
         </div>
 
         <template v-if="refTotals.window">
-          <!-- Composition: who sent traffic, and where it landed. -->
+          <!-- Shape of the month. A read-only sparkline, not the 30-row list that used to
+               live here: anything whose height grows with the window belongs on the AI
+               traffic screen, not on a summary card. -->
+          <div class="ar-refspark" role="img" :aria-label="refSparkAria">
+            <span
+              v-for="(d, i) in refSpark"
+              :key="i"
+              class="ar-refspark__bar"
+              :class="{ 'is-zero': !d.hits }"
+              :title="`${dateLabel(d.date)} · ${d.hits} ${d.hits === 1 ? 'visit' : 'visits'}`"
+              :style="{ height: pct(d.hits, refSparkMax) }"
+            ></span>
+          </div>
+          <p class="ar-act-sparkcap">Visits per day · last {{ refSpark.length }} days</p>
+
+          <!-- Composition: who sent traffic, and where it landed. Top 5 of each; the full
+               leaderboards, the per-day drill-down and the diagnostic are one click away. -->
           <div class="ar-ai__cols">
             <div class="ar-ai__col">
               <h3 class="ar-ai__sub">Top sources</h3>
               <ul class="ar-act-rank">
-                <li v-for="s in refSources" :key="s.label">
+                <li v-for="s in refTopSources" :key="s.label">
                   <span class="ar-act-rank__label">{{ s.label }}</span>
-                  <span class="ar-act-rank__track"><span class="ar-act-rank__bar" :style="{ width: pct(s.hits, listMax(refSources)) }"></span></span>
+                  <span class="ar-act-rank__track"><span class="ar-act-rank__bar" :style="{ width: pct(s.hits, listMax(refTopSources)) }"></span></span>
                   <span class="ar-act-rank__n">{{ s.hits }}</span>
                 </li>
               </ul>
             </div>
             <div class="ar-ai__col">
               <h3 class="ar-ai__sub">Top landing pages</h3>
-              <ul v-if="refPages.length" class="ar-act-rank">
-                <li v-for="p in refPages" :key="p.path">
+              <ul v-if="refTopPages.length" class="ar-act-rank">
+                <li v-for="p in refTopPages" :key="p.path">
                   <span class="ar-act-rank__label"><code>{{ p.path }}</code></span>
-                  <span class="ar-act-rank__track"><span class="ar-act-rank__bar" :style="{ width: pct(p.hits, listMax(refPages)) }"></span></span>
+                  <span class="ar-act-rank__track"><span class="ar-act-rank__bar" :style="{ width: pct(p.hits, listMax(refTopPages)) }"></span></span>
                   <span class="ar-act-rank__n">{{ p.hits }}</span>
                 </li>
               </ul>
               <p v-else class="ar-wd-empty">No pages yet.</p>
             </div>
           </div>
-
-          <!-- Timeline: the same visits by day. Expand a day to see which source
-               landed on which page — the day is the finest "when" stored. -->
-          <div v-if="refDaily.length" class="ar-ai__byday">
-            <h3 class="ar-ai__sub">By day <span class="ar-ai__subnote">click a day — which source → which page, no times stored</span></h3>
-            <ul class="ar-aiday">
-              <li v-for="d in refDaily" :key="d.date" class="ar-aiday__item">
-                <button
-                  type="button"
-                  class="ar-aiday__row"
-                  :aria-expanded="refDayOpen(d.date)"
-                  :title="refDayOpen(d.date) ? 'Hide this day' : 'Show which source landed on which page'"
-                  @click="toggleRefDay(d.date)"
-                >
-                  <span class="ar-aiday__date">{{ dateLabel(d.date) }}</span>
-                  <span class="ar-act-rank__track"><span class="ar-act-rank__bar" :style="{ width: pct(d.hits, refDailyMax) }"></span></span>
-                  <span class="ar-aiday__n">{{ d.hits }}</span>
-                  <svg class="ar-aiday__chev" :class="{ 'is-open': refDayOpen(d.date) }" viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6l4 4 4-4" /></svg>
-                </button>
-                <ul v-show="refDayOpen(d.date)" class="ar-aiday__detail">
-                  <li v-for="(r, i) in d.rows" :key="i" class="ar-aivis">
-                    <span class="ar-aivis__src">{{ r.source }}</span>
-                    <span class="ar-aivis__arr" aria-hidden="true">→</span>
-                    <code class="ar-aivis__path">{{ r.path }}</code>
-                    <span class="ar-aivis__n">{{ r.hits }}</span>
-                  </li>
-                  <li v-if="d.rowCount > d.rows.length" class="ar-act-more">+{{ d.rowCount - d.rows.length }} more</li>
-                </ul>
-              </li>
-            </ul>
-          </div>
         </template>
 
         <p v-else class="ar-wd-empty">
           No AI-referred visits recorded yet. When someone arrives from ChatGPT, Perplexity and the like,
           it’ll show here.
+        </p>
+
+        <p class="ar-card__more">
+          <button type="button" class="ar-linkbtn" @click="$emit('navigate', { tab: 'ai-traffic' })">
+            See the full report
+            <svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 4l4 4-4 4" /></svg>
+          </button>
+          <span class="ar-card__morenote">day-by-day visits, every source and landing page{{ unknownOn ? ', and what we couldn’t attribute' : '' }}</span>
         </p>
       </section>
 
@@ -743,6 +762,18 @@ export default {
         </div>
         <p v-else class="ar-wd-empty">
           No requests recorded yet. Agents that fetch your discovery/llms endpoints will appear here.
+        </p>
+
+        <!-- The same relationship the card above has to the AI traffic screen: this is a
+             capped, unfiltered slice of what the Request log holds in full. Naming the
+             destination rather than reusing "See the full report" — two links to two
+             different screens must not read as the same link. -->
+        <p class="ar-card__more">
+          <button type="button" class="ar-linkbtn" @click="$emit('navigate', { tab: 'log' })">
+            Open the request log
+            <svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 4l4 4-4 4" /></svg>
+          </button>
+          <span class="ar-card__morenote">every request, filterable by client, endpoint, network and date</span>
         </p>
       </section>
     </template>

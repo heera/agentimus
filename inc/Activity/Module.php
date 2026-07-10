@@ -45,6 +45,9 @@ final class Module {
 	public function register() {
 		Table::maybe_install();
 		Referrals::maybe_install();
+		// The unrecognised-referrer diagnostic installs regardless of its setting (so it's
+		// ready the moment the owner switches it on); it simply stays empty until then.
+		UnknownSources::maybe_install();
 		// The opt-in flagged-IP table installs regardless of the setting (so it's ready the
 		// moment the owner turns capture on); it simply stays empty until then.
 		FlaggedIps::maybe_install();
@@ -65,6 +68,7 @@ final class Module {
 		add_action( 'rest_api_init', array( $this, 'routes' ) );
 		add_action( self::CRON, array( Repository::class, 'prune' ) );
 		add_action( self::CRON, array( Referrals::class, 'prune' ) );
+		add_action( self::CRON, array( UnknownSources::class, 'prune' ) );
 		add_action( self::CRON, array( FlaggedIps::class, 'prune' ) );
 		// Opting back out of IP storage purges what was kept (Settings::update fires this).
 		add_action( 'agentimus_flagged_ips_purge', array( FlaggedIps::class, 'clear' ) );
@@ -131,6 +135,83 @@ final class Module {
 						);
 					}
 					return rest_ensure_response( Repository::day_requests( $date ) );
+				},
+				'args'                => array(
+					'date' => array(
+						'type'     => 'string',
+						'required' => true,
+					),
+				),
+			)
+		);
+
+		// The AI-traffic screen's own report: an arbitrary day range (bounded by retention,
+		// not by the dashboard's 30-day window) optionally narrowed to one assistant and/or a
+		// landing-path prefix. Separate from /activity because the dashboard live-polls that
+		// one and must not carry a filtered view of somebody else's screen.
+		register_rest_route(
+			'agentimus/v1',
+			'/activity/ai-traffic',
+			array(
+				'methods'             => 'GET',
+				'permission_callback' => array( $this, 'can_manage' ),
+				'callback'            => function ( \WP_REST_Request $request ) {
+					return rest_ensure_response(
+						Referrals::report(
+							array(
+								'from'   => (string) $request->get_param( 'from' ),
+								'to'     => (string) $request->get_param( 'to' ),
+								'source' => (string) $request->get_param( 'source' ),
+								'path'   => (string) $request->get_param( 'path' ),
+							)
+						)
+					);
+				},
+			)
+		);
+
+		// The assistants worth offering in that filter — a dropdown, so nobody has to type
+		// "DuckDuckGo AI" exactly.
+		register_rest_route(
+			'agentimus/v1',
+			'/activity/ai-traffic/facets',
+			array(
+				'methods'             => 'GET',
+				'permission_callback' => array( $this, 'can_manage' ),
+				'callback'            => function () {
+					return rest_ensure_response( array( 'sources' => Referrals::facets() ) );
+				},
+			)
+		);
+
+		// The per-day drill-down, fetched when a day is opened. The day TOTALS ride along with
+		// the report; these rows do not, because a busy day can hold thousands of
+		// (source → page) pairings and only twelve are shown until you ask for the rest.
+		register_rest_route(
+			'agentimus/v1',
+			'/activity/ai-day',
+			array(
+				'methods'             => 'GET',
+				'permission_callback' => array( $this, 'can_manage' ),
+				'callback'            => function ( \WP_REST_Request $request ) {
+					$date = (string) $request->get_param( 'date' );
+					if ( ! preg_match( '/^\d{4}-\d{2}-\d{2}$/', $date ) ) {
+						return new \WP_Error(
+							'agentimus_bad_date',
+							__( 'A valid date (YYYY-MM-DD) is required.', 'agentimus' ),
+							array( 'status' => 400 )
+						);
+					}
+					return rest_ensure_response(
+						Referrals::day_rows(
+							$date,
+							array(
+								'source' => (string) $request->get_param( 'source' ),
+								'path'   => (string) $request->get_param( 'path' ),
+								'full'   => (bool) $request->get_param( 'full' ),
+							)
+						)
+					);
 				},
 				'args'                => array(
 					'date' => array(
@@ -331,7 +412,12 @@ final class Module {
 	 * URL. Only wired when CDN mode is on, so a default install adds no front-end script.
 	 */
 	public function enqueue_beacon() {
-		if ( is_admin() ) {
+		// The same "this isn't a content view" guards the server-side recorder applies, so
+		// the two modes count the same arrivals. Deciding it HERE (per render) rather than
+		// in the endpoint is what keeps it cache-correct: a cached 404 carries no beacon,
+		// while a cached article carries its own. Without this, CDN mode logged AI-referred
+		// hits on dead URLs as "top landing pages" and server-side mode did not.
+		if ( is_admin() || is_404() || is_feed() || is_trackback() || is_robots() ) {
 			return;
 		}
 		wp_enqueue_script(

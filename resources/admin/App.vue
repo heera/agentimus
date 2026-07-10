@@ -5,6 +5,7 @@ import SettingsForm from './components/SettingsForm.vue';
 import ReadinessPanel from './components/ReadinessPanel.vue';
 import DiscoveryHub from './components/DiscoveryHub.vue';
 import ActivityPanel from './components/ActivityPanel.vue';
+import AiTrafficPanel from './components/AiTrafficPanel.vue';
 import RequestLog from './components/RequestLog.vue';
 import ReviewMenu from './components/ReviewMenu.vue';
 import OnboardingWizard from './components/OnboardingWizard.vue';
@@ -24,10 +25,15 @@ const LIVE_PREF_KEY = 'agentimus:liveUpdates';
 const ACTIVITY_IDLE_MS = 5 * 60 * 1000;
 // Cheap "is the human still here" signals. Kept in one place so add/remove agree.
 const ACTIVITY_EVENTS = ['mousemove', 'keydown', 'wheel', 'pointerdown', 'touchstart'];
+// The More menu's resting offset from its trigger: a slight tuck left, so the panel's
+// padding lines its labels up under the trigger's text rather than its box.
+const MORE_TUCK = -6;
+// ...and the breathing room it keeps from the window edge when it has to shift inward.
+const MORE_EDGE_GAP = 12;
 
 export default {
   name: 'AgentimusApp',
-  components: { SettingsForm, ReadinessPanel, DiscoveryHub, ActivityPanel, RequestLog, ReviewMenu, OnboardingWizard, AboutPanel, ConfirmDialog, VisibilityPanel },
+  components: { SettingsForm, ReadinessPanel, DiscoveryHub, ActivityPanel, AiTrafficPanel, RequestLog, ReviewMenu, OnboardingWizard, AboutPanel, ConfirmDialog, VisibilityPanel },
   props: {
     boot: { type: Object, required: true },
   },
@@ -36,12 +42,15 @@ export default {
     // AI Visibility is opt-in: a #visibility hash falls back to the dashboard when the
     // feature is off (the tab isn't shown, so there'd be nowhere to navigate from).
     const visOn = !!(this.boot.settings && this.boot.settings.enable_visibility);
-    // Same story for the Request log: with the activity log switched off there is nothing
-    // to page through, so the tab is hidden and a #log hash has nowhere to land.
+    // Same story for the Request log and AI traffic: with the activity log switched off
+    // there is nothing to read, so both tabs are hidden and their hashes have nowhere to
+    // land. This list is what a COLD load validates against — `tabs()` only governs a
+    // hashchange — so a screen missing from it silently boots on the dashboard instead.
     const actOn = !!(this.boot.settings && this.boot.settings.enable_activity);
-    let startTab = ['dashboard', 'log', 'visibility', 'settings', 'readiness', 'discovery', 'about'].includes(fromHash) ? fromHash : 'dashboard';
+    const activityTabs = ['log', 'ai-traffic'];
+    let startTab = ['dashboard', ...activityTabs, 'visibility', 'settings', 'readiness', 'discovery', 'about'].includes(fromHash) ? fromHash : 'dashboard';
     if ('visibility' === startTab && !visOn) startTab = 'dashboard';
-    if ('log' === startTab && !actOn) startTab = 'dashboard';
+    if (activityTabs.includes(startTab) && !actOn) startTab = 'dashboard';
     return {
       api: createApi(this.boot),
       // Header lifts with a shadow once the page is scrolled; flush at the very top.
@@ -95,6 +104,10 @@ export default {
       onboarded: !!this.boot.onboarded,
       // The "More" nav menu (Request log / AI Visibility / About).
       moreOpen: false,
+      // Horizontal offset of the menu from its trigger, in px. Normally a slight tuck to
+      // the left (MORE_TUCK); clamped by positionMore() when the trigger sits close enough
+      // to the right edge that a left-anchored panel would run off it.
+      moreShift: MORE_TUCK,
       showWizard: false,
       wizardCelebrate: false,
       onboarding: false,
@@ -252,7 +265,13 @@ export default {
           disabled: !this.settings.enable_visibility,
           note: 'Turn on in Settings',
         },
-        ...(this.settings.enable_activity ? [{ id: 'log', label: 'Request log' }] : []),
+        // Two screens, one switch — but they are NOT the same view of the same thing.
+        // The request log is the bot side (one row per fetch, with a clock time); AI
+        // traffic is the human side (day totals, no clock time). Keeping them apart is
+        // what keeps "agents taking" and "AI giving back" legible in the nav.
+        ...(this.settings.enable_activity
+          ? [{ id: 'ai-traffic', label: 'AI traffic' }, { id: 'log', label: 'Request log' }]
+          : []),
         // About is reference material, not a working screen — the rule sets it apart.
         { id: 'about', label: 'About', divided: true },
       ];
@@ -283,6 +302,10 @@ export default {
           dashboard: {
             title: 'Dashboard',
             description: 'An overview of your agent-readiness — what you expose, and who is reading it.',
+          },
+          'ai-traffic': {
+            title: 'AI traffic',
+            description: 'Readers an AI assistant sent you — day by day, by source and landing page.',
           },
           log: {
             title: 'Request log',
@@ -334,10 +357,30 @@ export default {
     'settings.enable_visibility'(on) {
       if (!on && this.tab === 'visibility') this.goTo('dashboard');
     },
-    // Same for the request log: its panel is v-if'd on this setting, so switching recording
-    // off while viewing it would unmount the panel and leave the screen blank.
+    // Same for the request log and AI traffic: both panels are v-if'd on this setting, so
+    // switching recording off while viewing one would unmount it and leave the screen blank.
     'settings.enable_activity'(on) {
-      if (!on && this.tab === 'log') this.goTo('dashboard');
+      if (!on && (this.tab === 'log' || this.tab === 'ai-traffic')) this.goTo('dashboard');
+    },
+    // Opening by click or keyboard should put you inside the menu: on the screen you're
+    // already on, or the first one you can reach. Escape hands focus back to the trigger
+    // (see onMoreKey). Opening by HOVER must not touch focus at all.
+    moreOpen(open) {
+      if (!open) {
+        this._moreFocus = false;
+        return;
+      }
+      // Measured after the panel exists but before the browser paints it, so it never
+      // appears at the wrong offset and jumps.
+      this.$nextTick(() => {
+        this.positionMore();
+        if (!this._moreFocus) return;
+        const menu = this.$refs.moreMenu;
+        if (!menu) return;
+        const here = menu.querySelector('.ar__more-item.is-active:not(:disabled)');
+        const first = menu.querySelector('.ar__more-item:not(:disabled)');
+        if (here || first) (here || first).focus();
+      });
     },
     tab(val) {
       // Never leave the More menu hanging open over a screen you've already left — this
@@ -381,6 +424,8 @@ export default {
       window.history.replaceState(null, '', `#${this.tab}`);
     }
     window.addEventListener('hashchange', this.syncTabFromHash);
+    // A window resized while the menu is open has to re-clamp, or it clips again.
+    window.addEventListener('resize', this.onMoreResize);
     // Record the exact switch/card the user just changed so the save lock can scope
     // to it. We read it from the change event's target (capture phase) rather than
     // document.activeElement: a card's hidden checkbox doesn't reliably become the
@@ -414,6 +459,9 @@ export default {
   beforeUnmount() {
     document.removeEventListener('mousedown', this.onMoreDocDown);
     document.removeEventListener('keydown', this.onMoreKey);
+    clearTimeout(this._moreOpenTimer);
+    clearTimeout(this._moreCloseTimer);
+    window.removeEventListener('resize', this.onMoreResize);
     window.removeEventListener('hashchange', this.syncTabFromHash);
     document.removeEventListener('change', this._onControlChange, true);
     window.removeEventListener('scroll', this._onScroll);
@@ -462,8 +510,130 @@ export default {
       // `disabled` already blocks the click, but a keyboard "Enter" on an aria-disabled
       // element still fires in some browsers — refuse it here too.
       if (t.disabled) return;
-      // The tab watcher closes the menu; setting it here too would be redundant.
+      // The tab watcher closes the menu; setting it here too would be redundant. Suppress
+      // hover until the pointer leaves, or the menu we just navigated away from springs
+      // straight back open under the cursor.
+      this._moreSuppress = true;
       this.tab = t.id;
+    },
+
+    /* ---- The More menu: opens on hover, on click, and on Enter ------------------ */
+
+    /**
+     * Hover-to-open is for a mouse only. On a touch screen the first tap would both open
+     * the menu and count as hovering, so the menu would fight the tap that dismisses it;
+     * there, click alone opens it.
+     */
+    canHoverOpen() {
+      return !!(window.matchMedia && window.matchMedia('(hover: hover) and (pointer: fine)').matches);
+    },
+    openMore(withFocus) {
+      // Only a click or a keypress moves focus into the menu. A hover that stole focus
+      // would yank the caret out of whatever the user was doing, just for passing by.
+      this._moreFocus = withFocus;
+      this.moreOpen = true;
+    },
+    /**
+     * Keep the panel inside the window. It hangs off the LEFT of its trigger, and on a
+     * narrow admin that trigger sits near the right edge — so the panel ran off the side,
+     * where wp-admin's `overflow-x: hidden` on <body> cut it off rather than letting it
+     * scroll into view. Slide it inward by as much as it takes, and no more, so it stays
+     * under its trigger whenever there is room.
+     *
+     * Measured against documentElement.clientWidth, NEVER window.innerWidth. The panel
+     * mounts at its default offset, and if that overflows, the document grows — and a
+     * mobile browser widens the visual viewport to match, so `innerWidth` reports the
+     * width the panel just created and we would clamp to the damage instead of preventing
+     * it. On a 430px phone that read back as 508px and the menu stayed off-screen.
+     * clientWidth is the layout viewport: overflow can't move it (and it excludes the
+     * desktop scrollbar, which innerWidth wrongly counts as usable space).
+     */
+    positionMore() {
+      const menu = this.$refs.moreMenu;
+      const wrap = this.$refs.moreWrap;
+      if (!menu || !wrap) return;
+      const viewport = document.documentElement.clientWidth || window.innerWidth;
+      const anchor = wrap.getBoundingClientRect().left;
+      const room = viewport - MORE_EDGE_GAP - menu.offsetWidth;
+      // Offsets are relative to the trigger, so convert both bounds into its coordinates.
+      const rightmost = room - anchor;
+      const leftmost = MORE_EDGE_GAP - anchor;
+      // min() before max(): on a window too narrow for the panel at all, hugging the LEFT
+      // edge keeps the labels readable, where hugging the right would hide them.
+      this.moreShift = Math.round(Math.max(leftmost, Math.min(MORE_TUCK, rightmost)));
+    },
+    onMoreResize() {
+      if (this.moreOpen) this.positionMore();
+    },
+    toggleMore() {
+      clearTimeout(this._moreOpenTimer);
+      clearTimeout(this._moreCloseTimer);
+      if (this.moreOpen) {
+        this.moreOpen = false;
+        // The pointer is still on the trigger, and mouseenter won't fire again — but
+        // without this a stray re-enter would reopen what the click just closed.
+        this._moreSuppress = true;
+      } else {
+        this.openMore(true);
+      }
+    },
+    onMoreEnter() {
+      if (!this.canHoverOpen()) return;
+      clearTimeout(this._moreCloseTimer);
+      if (this.moreOpen || this._moreSuppress) return;
+      // A short intent delay: brushing past "More" on the way to Discovery shouldn't
+      // fling a menu open.
+      this._moreOpenTimer = setTimeout(() => this.openMore(false), 90);
+    },
+    onMoreLeave() {
+      clearTimeout(this._moreOpenTimer);
+      this._moreSuppress = false;
+      if (!this.moreOpen || !this.canHoverOpen()) return;
+      // Forgive the corner-cut: leaving the panel diagonally, or overshooting it, gets a
+      // grace period before it closes. A menu that vanishes mid-reach is worse than one
+      // that lingers. A menu opened by click or keyboard stays until Escape or a click out.
+      if (this._moreFocus) return;
+      this._moreCloseTimer = setTimeout(() => {
+        // Someone tabbed into the menu while the pointer wandered off. Don't close a menu
+        // the keyboard is standing in.
+        const menu = this.$refs.moreMenu;
+        if (menu && menu.contains(document.activeElement)) return;
+        this.moreOpen = false;
+      }, 220);
+    },
+    /**
+     * The 16px line-icon for a menu entry, drawn in the same stroke weight as the chevrons
+     * and arrows used everywhere else. Each one says what the screen is ABOUT, not what it
+     * looks like: an eye for "are you being seen", a rising line for arriving readers,
+     * stacked rules for a log of requests.
+     */
+    moreIcon(id) {
+      return {
+        visibility: ['M1.6 8S4 3.9 8 3.9 14.4 8 14.4 8 12 12.1 8 12.1 1.6 8 1.6 8Z', 'M8 9.7a1.7 1.7 0 1 0 0-3.4 1.7 1.7 0 0 0 0 3.4Z'],
+        'ai-traffic': ['M2 12.2 6.1 7.9l2.6 2.2 4.6-5.4', 'M10.1 4.4h3.5v3.4'],
+        log: ['M3 4.2h10', 'M3 8h10', 'M3 11.8h6'],
+        about: ['M8 14.2A6.2 6.2 0 1 0 8 1.8a6.2 6.2 0 0 0 0 12.4Z', 'M8 7.4v3.4', 'M8 5.2h.01'],
+      }[id] || [];
+    },
+    /**
+     * Arrow-key roving focus, which `role="menu"` promises and a bare list of buttons does
+     * not deliver. Only enabled items take focus — a greyed-out entry is a signpost, not a
+     * stop on the way down.
+     */
+    onMoreNav(e) {
+      const keys = ['ArrowDown', 'ArrowUp', 'Home', 'End'];
+      if (!keys.includes(e.key)) return;
+      e.preventDefault();
+      const items = [...this.$refs.moreMenu.querySelectorAll('.ar__more-item:not(:disabled)')];
+      if (!items.length) return;
+      const at = items.indexOf(document.activeElement);
+      const next = {
+        ArrowDown: at < 0 ? 0 : (at + 1) % items.length,
+        ArrowUp: at < 0 ? items.length - 1 : (at - 1 + items.length) % items.length,
+        Home: 0,
+        End: items.length - 1,
+      }[e.key];
+      items[next].focus();
     },
     // Scoped to the menu's own wrapper, not $el — $el is the whole app, so a click on any
     // tab would count as "inside" and the menu would never close.
@@ -1067,14 +1237,21 @@ export default {
            (so the tabs can scroll on a narrow admin) and an absolutely-positioned menu inside
            it would be clipped by that scroll box. .ar__review solves the same problem the
            same way. It also keeps role="tablist" honest — a menu button is not a tab. -->
-      <div ref="moreWrap" class="ar__more" :class="{ 'is-open': moreOpen }">
+      <div
+        ref="moreWrap"
+        class="ar__more"
+        :class="{ 'is-open': moreOpen }"
+        @mouseenter="onMoreEnter"
+        @mouseleave="onMoreLeave"
+      >
         <button
+          ref="moreBtn"
           class="ar__tab ar__more-btn"
           :class="{ 'is-active': moreActive }"
-          aria-haspopup="true"
+          aria-haspopup="menu"
           :aria-expanded="moreOpen ? 'true' : 'false'"
           aria-label="More screens"
-          @click="moreOpen = !moreOpen"
+          @click="toggleMore"
         >
           More
           <span class="ar__more-caret" aria-hidden="true">
@@ -1082,7 +1259,17 @@ export default {
           </span>
         </button>
 
-        <div v-if="moreOpen" class="ar__more-menu" role="menu">
+        <!-- The trigger is a TAB; this is a MENU. Hence sentence-case sans labels rather
+             than the bar's mono eyebrows: a destination has a name you read, not a metadata
+             label you scan. The icon column is what a stacked row of tabs could never have. -->
+        <div
+          v-if="moreOpen"
+          ref="moreMenu"
+          class="ar__more-menu"
+          role="menu"
+          :style="{ left: moreShift + 'px' }"
+          @keydown="onMoreNav"
+        >
           <template v-for="t in moreTabs" :key="t.id">
             <div v-if="t.divided" class="ar__more-sep" role="separator"></div>
             <button
@@ -1094,6 +1281,9 @@ export default {
               :aria-current="tab === t.id ? 'page' : null"
               @click="pickMore(t)"
             >
+              <svg class="ar__more-icon" viewBox="0 0 16 16" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path v-for="(d, i) in moreIcon(t.id)" :key="i" :d="d" />
+              </svg>
               <span class="ar__more-item-label">{{ t.label }}</span>
               <!-- Say why it's unreachable, rather than leaving a dead entry to puzzle over. -->
               <span v-if="t.disabled && t.note" class="ar__more-item-note">{{ t.note }}</span>
@@ -1225,6 +1415,14 @@ export default {
           :api="api"
           @refresh="refreshActivity"
           @clear="clearActivity"
+          @navigate="goTo"
+          @flash="flash"
+        />
+        <AiTrafficPanel
+          v-if="settings.enable_activity"
+          v-show="tab === 'ai-traffic'"
+          :api="api"
+          :active="tab === 'ai-traffic'"
           @navigate="goTo"
           @flash="flash"
         />

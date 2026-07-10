@@ -52,6 +52,14 @@ export function createApi(boot) {
     getDiscoveryHub: () => request('/discovery/hub'),
     getActivity: () => request('/activity'),
     getActivityDay: (date) => request(`/activity/day?date=${encodeURIComponent(date)}`),
+    // The AI-traffic screen's own report: a day range (bounded by retention, not the
+    // dashboard's 30-day window), optionally narrowed to one assistant and/or a path prefix.
+    getAiTraffic: (params = {}) => request(`/activity/ai-traffic?${new URLSearchParams(params)}`),
+    getAiTrafficFacets: () => request('/activity/ai-traffic/facets'),
+    // One day of AI-referral drill-down (source → page). Fetched on expand, never bundled
+    // into the main /activity payload — a busy day holds far more pairings than are shown.
+    getAiTrafficDay: (date, params = {}) =>
+      request(`/activity/ai-day?${new URLSearchParams({ date, ...params })}`),
     // Filtered, keyset-paged request log. Empty filters are omitted rather than sent
     // blank — the server treats an absent param and an empty one alike, but a clean
     // query string keeps the request readable in the browser's network panel.

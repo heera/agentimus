@@ -175,6 +175,9 @@ final class Repository {
 			'recent'       => self::recent( 50 ),
 			'threats'      => self::threats( $settings ),
 			'referrals'    => Referrals::summary( $window ),
+			// What the referral map could NOT name. An empty, disabled shell unless the
+			// owner turned the diagnostic on, so it costs no query on a normal dashboard.
+			'unknownSources' => UnknownSources::summary( $window ),
 		);
 	}
 
