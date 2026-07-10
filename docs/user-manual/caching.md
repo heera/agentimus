@@ -15,7 +15,7 @@ A cache's whole job is to answer requests *without* bothering WordPress. That's 
 1. **Your Activity log under-counts.** A crawler or assistant fetches `/your-page.md`, the cache hands back a saved copy, WordPress never runs, and the hit is **never recorded**. Your "Top clients" and endpoint numbers become a *floor*, not a true total.
 2. **Freshness-sensitive endpoints go stale.** The **change feed** (`/agentimus-changes.json`) is meant to always be current so an assistant can fetch just what changed. If it's cached for hours, agents get an old delta. Your page `.md` twins can also lag behind edits.
 
-Agentimus already tells caches *not* to store these responses (it sends `Cache-Control: no-store`). But an aggressive CDN setting — most commonly **Cloudflare's "Cache Everything"** — overrides that and caches them anyway. That override can only be undone at the cache itself.
+By default these endpoints are **edge-cacheable** (`Cache-Control: public, max-age`) — bots fetch them a lot, so a little caching spares your origin. When a cache in front of you gets in the way, there are two ways to fix it: a single switch inside Agentimus (the easiest), or a rule at the cache itself (needed only for a cache told to *ignore* origin headers, most commonly **Cloudflare's "Cache Everything"**). Both are below.
 
 ## How to tell if it's happening
 
@@ -23,9 +23,15 @@ Open **Agentimus → Readiness** and click **Verify live**. This fetches your re
 
 *(Prefer the command line? `curl -I https://your-site.com/llms.txt` and look for `cf-cache-status: HIT` or an `age:` header — both mean a cache answered, not WordPress.)*
 
-## The fix: bypass the cache for your AI endpoints
+## The easiest fix: the built-in switch
 
-Tell your cache to **never store** these paths so every fetch reaches WordPress (and stays fresh):
+**Settings → Visit log → "Keep AI endpoints out of your cache."** Turn it on and Agentimus makes those endpoints send `Cache-Control: no-store` — asking every cache not to store them, so each fetch reaches WordPress (counted and current). No CDN dashboard, no server access.
+
+It works with any cache that **respects `Cache-Control`** — most do, including a default Nginx FastCGI cache (the plugin's own `.md` twins already rely on this). It does **not** beat a cache told to ignore origin headers or "cache everything" (most often **Cloudflare's "Cache Everything"** rule) — for those, set a rule at the cache itself, below. When the readiness report detects a cache in front of you, its warning links straight to this switch.
+
+## The complete fix: a rule at your cache
+
+If your cache ignores `Cache-Control` (or you'd rather be explicit at the edge), tell it to **never store** these paths so every fetch reaches WordPress (and stays fresh):
 
 | Path | What it is |
 |---|---|

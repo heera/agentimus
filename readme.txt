@@ -4,7 +4,7 @@ Tags: ai-agents, ai-crawlers, agent-readiness, llms-txt, ai-seo
 Requires at least: 6.0
 Tested up to: 7.0
 Requires PHP: 7.4
-Stable tag: 1.17.0
+Stable tag: 1.18.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -226,6 +226,9 @@ There is no minified-only code. The admin interface is built from Vue 3 source i
 
 == Changelog ==
 
+= 1.18.0 =
+* New — **Keep AI endpoints out of your cache.** If a cache or CDN sits in front of your site, it can serve stored copies of your AI files (llms.txt, the `.well-known` docs, the change feed) — so those agent fetches never reach WordPress, the activity log under-counts them, and the change feed can go stale. A new opt-in switch (Settings → Visit log, off by default) asks caches not to store those files, so each fetch reaches WordPress and is counted and current. It works with any cache that respects the standard `no-store` header; the readiness report links straight to the switch whenever it detects a cache sitting in front of your endpoints.
+
 = 1.17.0 =
 * New — **The request log.** Every recorded request, one row each, under *More → Request log*. Filter by client, endpoint, network, user-agent and date to answer the question the dashboard's summaries structurally can't: exactly what did this one bot fetch, and when?
 * New — **A full report on the readers AI sends you.** *More → AI traffic* takes "Traffic from AI" apart day by day — open a day to see which assistant landed on which page. The dashboard keeps the summary (today, the month, your top assistants and landing pages) and links through.
@@ -294,6 +297,9 @@ There is no minified-only code. The admin interface is built from Vue 3 source i
 Older releases (1.12.4 and earlier) are in the full changelog: https://github.com/heera/agentimus/blob/main/CHANGELOG.md
 
 == Upgrade Notice ==
+
+= 1.18.0 =
+New: an opt-in switch (Settings → Visit log) that keeps your AI endpoints out of a CDN/proxy cache, so agent fetches are counted in your activity log and freshness-sensitive endpoints stay current. Off by default; no breaking changes.
 
 = 1.17.0 =
 A filterable request log, a full day-by-day report on the readers AI sends you, and control over how long the log is kept. Also fixes three counting bugs in "Traffic from AI" — a 30-day window that spanned 31 days, your own visits being counted behind a CDN, and hits on pages that don't exist. All new features are opt-in; no breaking changes.
