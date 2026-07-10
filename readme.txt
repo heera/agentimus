@@ -33,6 +33,9 @@ By default it makes no outbound requests, collects no analytics, and logs no IP 
 
 * **Agent activity log** — a dashboard of which AI crawlers and agents actually fetch your content and endpoints (GPTBot, Claude, Perplexity, Googlebot, …), recorded first-party in your own database, with no IP logging by default (an optional setting stores IPs for flagged crawlers only).
 * **Activity to review** — a nav-bar queue surfaces the clients worth a second look — new, unusually high-volume, or spoofing what they are — names a recognised crawler where it can, and offers one-click **Block** or **Allow** (trust). Nothing is blocked unless you choose to.
+* **Request log** — every recorded request, one row each, under *More → Request log*. Filter by client, endpoint, network, user-agent and date to see exactly what a single bot fetched.
+* **Traffic from AI** — the mirror of the crawler log: the real visitors an AI assistant sent you. *More → AI traffic* reports them day by day, by assistant (ChatGPT, Perplexity, Gemini, Claude, Copilot, Grok, DeepSeek and more) and by landing page. Stored as daily aggregate counts — never a row that stands for one person, no IP, no query strings. An opt-in **CDN mode** counts them in the visitor's browser so the number survives a full-page cache, and an opt-in **Find missed AI sources** diagnostic lists the referrers Agentimus couldn't name, so a new assistant never goes uncounted without you knowing.
+* **You decide how long it's kept** — a retention period, nightly auto-delete, and a hard size cap that always applies (Settings → Visit log), so the log can never grow without limit on your host.
 * **AI Visibility (opt-in)** — track **each brand, product or person you choose** across ChatGPT, Perplexity, Gemini and Claude. For every one, Agentimus asks the questions your audience actually types and reports whether it gets **mentioned, linked, and how it ranks against its own rivals** — over time. Each thing you track has its own website, competitors, questions and scoreboard; pause any single one, or the whole schedule, whenever you like. Off by default; **you bring your own API key** for each engine, and this is the one feature that makes an outbound request (see *External services*).
 
 **Content — clean, machine-readable output**
@@ -221,6 +224,19 @@ There is no minified-only code. The admin interface is built from Vue 3 source i
 
 == Changelog ==
 
+= 1.17.0 =
+* New — **The request log.** Every recorded request, one row each, under *More → Request log*. Filter by client, endpoint, network, user-agent and date to answer the question the dashboard's summaries structurally can't: exactly what did this one bot fetch, and when?
+* New — **A full report on the readers AI sends you.** *More → AI traffic* takes "Traffic from AI" apart day by day — open a day to see which assistant landed on which page. The dashboard keeps the summary (today, the month, your top assistants and landing pages) and links through.
+* New — **A "More" menu.** The nav bar is now Dashboard · Settings · Readiness · Discovery · More, with the occasional screens — AI Visibility, AI traffic, Request log and About — tucked behind it.
+* New — **You decide how long records are kept.** Choose a retention period, whether old records are deleted each night, and a hard size cap (Settings → Visit log). The cap always applies, so the log can never grow without limit on your host — and the settings say plainly which rule collects first.
+* New — **Find missed AI sources (optional, off by default).** "Traffic from AI" only counts assistants it recognises, and a miss leaves no trace. Switch this on for a week and Agentimus lists the referrers it *couldn't* name, so you can see whether a new assistant is going uncounted. It records the referring site's name and the link's `utm_source` tag only — still no IPs, still nothing sent anywhere.
+* Improved — **"Traffic from AI" recognises more assistants**: Grok, DeepSeek, Meta AI, Mistral's Le Chat, DuckDuckGo's duck.ai, Phind, and Claude's newer address. It also catches an assistant that tags its links without passing a referrer, which some now do. Search engines that also answer with AI — Google, Bing, DuckDuckGo, Kagi — stay uncounted on purpose: their referrer can't be told apart from an ordinary search click, and a guess dressed up as data is worse than a blind spot you know about.
+* Fixed — **"Last 30 days" counted thirty-one.** The AI-traffic window included one extra day, so every total on the card read slightly high against its own label.
+* Fixed — **your own visits were counted.** With CDN mode on, an administrator arriving from an AI assistant was recorded as a visitor. Your visits are skipped in both counting modes now, as they always were meant to be.
+* Fixed — **AI-referred visits to pages that don't exist** were counted as landing pages in CDN mode, but not on the server. Neither counts them now.
+* Fixed — **a busy site's dashboard is much faster.** The activity data no longer carries every day's breakdown on every load; a day's detail is fetched when you open it. On a large log this cut the work behind the dashboard by more than half.
+* Improved — admin polish: the More menu opens on hover and reads as a menu rather than a stack of tabs; deep links to a screen survive a page reload; and the AI-traffic drill-down, the menu and the day rows no longer overflow on a small screen.
+
 = 1.16.0 =
 * New — **Your AI-readiness, as one score.** The dashboard now rolls everything up into a single AEO/GEO score (0–100) across five plain rungs — Findable, Readable, Trusted, Optimized and Cited — and always shows the one most useful next step. Each rung links straight to where you act on it.
 * New — **Optimize your content for citation.** A per-page check of how easy each article is for an AI to read and quote — enough substance, a concrete fact or source to quote, quotable passages, and freshness — with a worklist of exactly which pages to improve, plus the same tips in an "AI Readability" panel in the editor while you write. It grades articles only (commerce products and structural pages like your Posts and blog-index pages are left out), you can **set aside** any page that isn't meant to be cited (it stays published — it just leaves the score), and you can mark whole categories **evergreen** to exempt timeless content from the freshness check.
@@ -392,6 +408,9 @@ There is no minified-only code. The admin interface is built from Vue 3 source i
 * Admin Discovery Hub for inspecting what agents can see, with per-item publish/suppress control.
 
 == Upgrade Notice ==
+
+= 1.17.0 =
+A filterable request log, a full day-by-day report on the readers AI sends you, and control over how long the log is kept. Also fixes three counting bugs in "Traffic from AI" — a 30-day window that spanned 31 days, your own visits being counted behind a CDN, and hits on pages that don't exist. All new features are opt-in; no breaking changes.
 
 = 1.16.0 =
 Your AI-readiness as one AEO/GEO score, with per-page tips on making content easier for AI to quote, a per-page AI description, a managed robots.txt, and an opt-in "Cited" check. Also fixes a bug where another plugin or theme misbehaving could stop a page loading. All new features are opt-in; no breaking changes.

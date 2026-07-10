@@ -72,12 +72,23 @@ export default {
           ],
         },
         {
-          title: 'Protection & insight',
-          lead: 'See and shape who reaches your endpoints — all on your server.',
+          title: 'Protection',
+          lead: 'Shape who reaches your endpoints — all on your server.',
           items: [
             { name: 'Agent guard', where: 'your generated endpoints', desc: 'Blocks (403) denylisted or spoofed agents at the documents above.', tag: 'Opt-in' },
             { name: 'Verified search engines', where: 'reverse-DNS check', desc: 'Optionally confirm a visitor claiming to be Googlebot, Bingbot, Applebot, DuckDuckBot or Yandex really is — by forward-confirmed reverse DNS — before trusting it, so a scanner can’t pass by copying a crawler’s name.', tag: 'Opt-in' },
-            { name: 'Activity & AI referrals', where: 'stored locally', desc: 'A local log of which agents hit your endpoints, and human visits referred by AI assistants.', tag: 'On' },
+          ],
+        },
+        {
+          title: 'Who’s reading you',
+          lead: 'The two directions of AI traffic: agents taking your content, and readers AI sends back. All counted on your own site — no IP addresses by default, nothing sent anywhere.',
+          items: [
+            { name: 'Agent activity', where: 'Dashboard', desc: 'Which AI crawlers fetched which of your files, how often, and when — with a review queue for clients worth a second look.', tag: 'On' },
+            { name: 'Request log', where: 'More → Request log', desc: 'Every recorded request, one row each. Filter by client, endpoint, network, user-agent and date to see exactly what a single bot fetched.', tag: 'On' },
+            { name: 'Traffic from AI', where: 'More → AI traffic', desc: 'Real visitors who arrived from ChatGPT, Perplexity, Gemini, Claude, Copilot, Grok, DeepSeek and more — day by day, by source and landing page. Some AI visits can’t be detected, so read it as a floor.', tag: 'On' },
+            { name: 'Find missed AI sources', where: 'Settings → Visit log', desc: 'A diagnostic for the blind spot above: lists the referrers Agentimus could not name, so you can see whether an assistant is being overlooked and add it. Records the site name and utm tag only.', tag: 'Opt-in' },
+            { name: 'CDN mode', where: 'Settings → Visit log', desc: 'Counts AI-referred visits in the visitor’s browser instead of on the server, so the number survives a full-page cache. For sites behind Cloudflare “Cache Everything” and the like.', tag: 'Opt-in' },
+            { name: 'How long records live', where: 'Settings → Visit log', desc: 'Choose a retention period, whether old records are deleted nightly, and a hard size cap. The cap always applies — the log can never grow without limit.', tag: 'On' },
           ],
         },
         {
@@ -96,7 +107,8 @@ export default {
         { q: 'Will this block Google or real search engines?', a: 'No. Blocking is opt-in and aimed at AI training crawlers and spoofed bots. Real search engines are recognised and never blocked by default.' },
         { q: 'What does “Verified responses” (signing) do?', a: 'It signs your discovery documents (RFC 9421) so an agent can confirm they really came from your server and weren’t altered in transit. The key is generated on your server and never leaves it.' },
         { q: 'Does it slow my site down?', a: 'Barely. Generated documents are cached, JSON-LD is tiny, and the plugin makes no external calls on the front end — nothing is fetched from another server while your pages load. (The optional AI Visibility checks run only in the admin or on a schedule, never during a page view.)' },
-        { q: 'Does it collect personal data?', a: 'By default, no — the activity log stores no IP addresses, no identities and no query strings, and logged-in admins are skipped. One optional setting, “Store IP addresses for flagged clients” (off by default), can record IPs, but only for crawlers flagged as impersonators or spoofs so you can block them. See “Privacy & data” above.' },
+        { q: 'Does it collect personal data?', a: 'By default, no — the activity log stores no IP addresses, no identities and no query strings, and logged-in admins are skipped. Two optional settings, both off by default, add to that: “Store IP addresses for flagged clients” can record IPs, but only for crawlers flagged as impersonators or spoofs so you can block them; and “Find missed AI sources” records the referring site’s name and the link’s utm_source tag for visits it couldn’t attribute, as a daily count rather than against any visit. See “Privacy & data” above.' },
+        { q: 'Where do I see what AI is doing on my site?', a: 'Three places, all on your own server. The Dashboard summarises both directions — which AI crawlers fetched your files, and how many readers AI sent you. More → AI traffic is the full report on those readers: day by day, by assistant and landing page. More → Request log is the full report on the crawlers: one row per request, filterable by client, endpoint, network and date.' },
         { q: 'What happens to AI training of my content?', a: 'By default Agentimus signals “do not train” (via tdmrep.json, the tdm-reservation header and robots Content-Signal) while still letting search engines and AI assistants read it. You control all of this in Settings.' },
       ],
       // Open standards the discovery output speaks — shown as plain chips.
@@ -221,8 +233,10 @@ export default {
           <h3>What’s stored on your site</h3>
           <p>
             An optional, local-only activity log: which endpoint was hit, the agent type, a truncated
-            user-agent, and the time. Plus daily, aggregate counts of human visits referred by AI assistants.
-            Kept 30 days, pruned daily.
+            user-agent, and the time. Plus <em>daily aggregate counts</em> of human visits referred by AI
+            assistants — a total per day, source and landing page, never a row that stands for one person.
+            Kept for a period you choose (30 days by default), pruned nightly, under a size cap that always
+            applies.
           </p>
           <ul class="ar-about-not">
             <li>No IP addresses in the log</li>
@@ -230,11 +244,15 @@ export default {
             <li>No emails</li>
             <li>No query strings or full URLs</li>
           </ul>
-          <p class="ar-about-priv__foot">No PII and no GDPR footprint by default. One optional setting —
-            <strong>Store IP addresses for flagged clients</strong> (off by default) — can record IPs, but only for
-            crawlers flagged as impersonators or spoofs, kept briefly on your own server and deleted when you switch it
-            off; enable it and you take on that data (disclose it in your privacy policy). Your signing key is stored
-            un-autoloaded and never leaves the server. Uninstalling removes the tables, settings and key.</p>
+          <p class="ar-about-priv__foot">No PII and no GDPR footprint by default. Two optional settings add to
+            that, both off unless you switch them on.
+            <strong>Store IP addresses for flagged clients</strong> can record IPs, but only for crawlers flagged as
+            impersonators or spoofs, kept briefly on your own server and deleted when you switch it off.
+            <strong>Find missed AI sources</strong> records, for visits it could not attribute to a known assistant,
+            the name of the site the reader came from and the <code>utm_source</code> tag on the link — that tag is
+            the single piece of a query string Agentimus ever stores, and it is kept as a daily count, never against a
+            visit. Enable either and you take on that data (disclose it in your privacy policy). Your signing key is
+            stored un-autoloaded and never leaves the server. Uninstalling removes the tables, settings and key.</p>
         </div>
       </div>
     </section>

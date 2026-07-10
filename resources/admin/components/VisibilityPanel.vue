@@ -1,6 +1,6 @@
 <script>
 /**
- * AI Visibility tab — track whether AI assistants (ChatGPT, Perplexity, Gemini,
+ * AI Visibility (More → AI Visibility) — track whether AI assistants (ChatGPT, Perplexity, Gemini,
  * Claude) mention and cite this site. Two sub-views: Results (the scored latest
  * run) and Settings (brand, competitors, prompts, per-engine keys, schedule).
  *
