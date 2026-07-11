@@ -160,4 +160,61 @@ final class WellKnownDocsTest extends TestCase {
 		$published = array_column( $this->envelope()->published_resources(), 'id' );
 		$this->assertNotContains( 'abilities-secret', $published );
 	}
+
+	/* -- Gated abilities are not advertised to anonymous callers ------------ */
+
+	/**
+	 * A Resource nobody anonymous can use must not appear in ANY served document. Advertising it
+	 * gives the agent nothing it can call, while handing anyone who asks a map of the site's
+	 * tooling — every tool's description and full input/output schemas.
+	 */
+	public function test_a_non_public_resource_reaches_no_served_surface() {
+		Registry::instance()->register(
+			array(
+				'id'     => 'abilities-locked',
+				'title'  => 'Locked',
+				'type'   => 'agent',
+				'public' => false,
+				'tools'  => array(
+					array(
+						'name'        => 'locked/scan-exposed-files',
+						'title'       => 'Scan',
+						'description' => 'Which sensitive paths this site probes for.',
+						'inputSchema' => array( 'type' => 'object' ),
+					),
+				),
+			)
+		);
+
+		$envelope = $this->envelope();
+
+		$ids = array_column( $envelope->build()['resources'], 'id' );
+		$this->assertNotContains( 'abilities-locked', $ids, 'discovery.json must not advertise it.' );
+
+		$mcp = $envelope->mcp_json();
+		$this->assertStringNotContainsString( 'locked/scan-exposed-files', $mcp, 'mcp.json must not advertise it.' );
+		$this->assertStringNotContainsString( 'sensitive paths', $mcp, 'Nor may its schemas/descriptions leak there.' );
+	}
+
+	public function test_the_owner_still_sees_a_non_public_resource_in_the_admin() {
+		// It is held back from agents, not hidden from the owner — they must be able to see what
+		// their own site exposes, and the UI flags it rather than listing it as if it were live.
+		Registry::instance()->register(
+			array( 'id' => 'abilities-locked', 'title' => 'Locked', 'type' => 'agent', 'public' => false )
+		);
+
+		$ids = array_column( $this->envelope()->all_resources(), 'id' );
+		$this->assertContains( 'abilities-locked', $ids );
+	}
+
+	public function test_public_defaults_to_true_so_existing_providers_are_unaffected() {
+		// A provider that says nothing keeps publishing exactly as before. This flag must never
+		// silently un-advertise somebody else's resource.
+		Registry::instance()->register(
+			array( 'id' => 'shop', 'title' => 'Shop', 'type' => 'commerce' )
+		);
+
+		$ids = array_column( $this->envelope()->build()['resources'], 'id' );
+		$this->assertContains( 'shop', $ids );
+	}
 }

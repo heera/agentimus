@@ -208,18 +208,22 @@ final class Envelope {
 		$resources = array_values( $this->registry->resources() );
 
 		$suppressed = $this->suppressed_ids();
-		if ( ! empty( $suppressed ) ) {
-			$resources = array_values(
-				array_filter(
-					$resources,
-					static function ( $r ) use ( $suppressed ) {
-						return ! in_array( $r['id'], $suppressed, true );
-					}
-				)
-			);
-		}
 
-		return $resources;
+		return array_values(
+			array_filter(
+				$resources,
+				static function ( $r ) use ( $suppressed ) {
+					// The OWNER's decision.
+					if ( in_array( $r['id'], $suppressed, true ) ) {
+						return false;
+					}
+					// The PROVIDER's decision: a resource nobody anonymous could ever use. See
+					// Resource::from()'s `public` field, and AbilitiesApi, which sets it false for
+					// abilities that all require sign-in.
+					return ! isset( $r['public'] ) || (bool) $r['public'];
+				}
+			)
+		);
 	}
 
 	/**

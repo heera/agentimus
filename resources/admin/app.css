@@ -3089,3 +3089,19 @@ a.ar-about-proto__v:hover { text-decoration: underline; }
 /* Newer / Older — same cursor walk as the request log's pager, so the two log screens read as
    one control rather than two inventions. */
 .ar-aa__pager { display: flex; gap: 8px; flex: 0 0 auto; }
+
+/* "Not published" on a Discovery Hub row. The row is listed either way — the owner must be able
+   to see (and reverse) what their site holds back — but listing it without a caveat would read
+   as "this is live". */
+.ar-wd-held {
+  font-family: var(--ar-mono); font-size: 10px; font-weight: 600; letter-spacing: 0.04em;
+  padding: 2px 7px; border-radius: 999px;
+  background: var(--ar-surface-2); border: 1px solid var(--ar-line-strong);
+  color: var(--ar-ink-faint); white-space: nowrap;
+}
+.ar-wd-prov__held {
+  margin: 6px 0 0; padding: 8px 10px;
+  border-left: 2px solid var(--ar-line-strong); border-radius: 0 var(--ar-radius) var(--ar-radius) 0;
+  background: var(--ar-surface-2);
+  font-size: 12px; line-height: 1.6; color: var(--ar-ink-faint);
+}

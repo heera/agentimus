@@ -128,10 +128,35 @@ final class AbilitiesApi {
 			$skills[] = array( 'id' => sanitize_key( $short ), 'description' => '' !== $desc ? $desc : (string) self::read( $ability, 'get_label' ) );
 		}
 
+		/**
+		 * Whether to publish abilities that NOBODY anonymous can call.
+		 *
+		 * Default FALSE, and this is the deliberate position. Every ability here is gated behind a
+		 * capability check, so an anonymous agent can never invoke one — publishing them to the
+		 * anonymous discovery document gives that agent nothing it can use, while handing anyone who
+		 * asks a complete map of the site's tooling: each tool's name, its LLM-facing description
+		 * and its full input/output schemas. `agentimus/scan-exposed-files`, for instance, described
+		 * in public exactly which sensitive paths the site probes for.
+		 *
+		 * It also contradicted our own {@see \Agentimus\Abilities\Registrar}, which sets
+		 * `mcp.public => false` on every ability precisely to keep them off a public surface.
+		 *
+		 * Nothing is lost: the owner still sees them on the Discovery screen, and an agent holding
+		 * real credentials discovers them the proper way — core's own authenticated
+		 * `wp-abilities/v1/abilities` listing, which returns exactly what that caller may run.
+		 *
+		 * @param bool   $publish   Whether to advertise gated abilities anonymously.
+		 * @param string $namespace The ability namespace.
+		 */
+		$publish_gated = (bool) apply_filters( 'agentimus_publish_gated_abilities', false, $namespace );
+
 		return array(
 			'id'           => 'abilities-' . sanitize_key( $namespace ),
 			'title'        => ucfirst( $namespace ) . ' abilities',
 			'type'         => 'agent',
+			// Registered either way, so the Discovery screen can still show the owner what their
+			// site exposes — but kept out of every SERVED surface when it is all sign-in-only.
+			'public'       => $publish_gated || ! $needs_auth,
 			/* translators: 1: count, 2: namespace. */
 			'description'  => sprintf( _n( '%1$d ability from the "%2$s" namespace.', '%1$d abilities from the "%2$s" namespace.', count( $items ), 'agentimus' ), count( $items ), $namespace ),
 			'abilities'    => $abilities,
