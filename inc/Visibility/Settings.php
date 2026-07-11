@@ -87,8 +87,13 @@ final class Settings {
 			),
 			'gemini'     => array(
 				'label'    => 'Gemini (Google)',
-				'model'    => 'gemini-2.0-flash',
-				'models'   => array( 'gemini-2.0-flash', 'gemini-2.0-flash-lite', 'gemini-1.5-pro' ),
+				// Default to Google's rolling "-latest" alias, which auto-tracks the current
+				// Flash model — pinned versions go stale fast (2.0 was deprecated Mar 2026, and
+				// 2.5 became unavailable to new keys), so a hard-coded ID like "gemini-2.0-flash"
+				// returns "limit: 0" / "no longer available". The alias sidesteps that; a pinned
+				// version is offered for anyone who wants to lock it. Field also accepts a custom ID.
+				'model'    => 'gemini-flash-latest',
+				'models'   => array( 'gemini-flash-latest', 'gemini-flash-lite-latest', 'gemini-3.5-flash' ),
 				'key_hint' => 'AIza…',
 				'help_url' => 'https://aistudio.google.com/app/apikey',
 				'grounded' => false,
