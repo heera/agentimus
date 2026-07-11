@@ -78,6 +78,7 @@ add_filter( 'agentimus_documents', function ( $docs, $registry ) {
 | --- | --- | --- | --- |
 | `agentimus_mcp` | filter | `( array $mcp, array $resources ): array` | Annotate the advertised MCP descriptor served at `/.well-known/mcp.json`. |
 | `agentimus_mcp_card_server` | filter | `( string $id, array $servers ): string` | Pin which server the MCP server card describes (`''` = auto-pick the server with the most tools). |
+| `agentimus_mcp_server_abilities` | filter | `( string[] $names ): string[]` | The abilities Agentimus exposes over its own scoped MCP server (`/wp-json/agentimus/v1/mcp`) to external agents. Default: its nine read-only `agentimus/read-*` (and per-post) abilities. Trim to narrow what leaves the site. |
 | `agentimus_agent_skills` | filter | `( array $skills, array $resources ): array` | Append entries to the Agent Skills index at `/.well-known/agent-skills/index.json`. |
 | `agentimus_webmcp_tools` | filter | `( array $tools, Settings $settings ): array` | The WebMCP tools registered with in-browser agents. Each entry needs `name`, `description`, `inputSchema`, `endpoint`, `method`. Expose read-only tools only — `execute()` runs in the visitor's browser session. |
 
@@ -184,6 +185,16 @@ Each post's one-line description — the editor's **AI description** value, or a
 | --- | --- | --- | --- |
 | `agentimus_post_description` | filter | `( string $desc, WP_Post $post ): string` | The last word on a post's resolved AI description (editor value → excerpt/summary fallback). Feeds the JSON-LD `description`, the `.md` lead and the meta tag; the return is re-cleaned (tags stripped, whitespace collapsed, capped to 300 chars). The hook for supplying your own auto-summary logic. |
 | `agentimus_emit_meta_description` | filter | `( bool $emit, WP_Post $post ): bool` | Whether Agentimus manages the page `<meta name="description">` on this request. Return `false` to leave the `<head>` to your theme. (It already stands down for a dedicated SEO plugin and when the `ai_description_meta_tag` sub-toggle is off.) |
+
+### AI writing assist
+
+The editor's **"Draft with AI"** (description/topics) and **"Fix with AI"** (readability) buttons route a prompt through WordPress's AI Client (`wp_ai_client_prompt()`, WordPress 7.0+) — Agentimus never handles the provider key. The buttons appear only when a text-capable provider is configured under **Settings → Connectors**.
+
+| Hook | Type | Signature | Purpose |
+| --- | --- | --- | --- |
+| `agentimus_ai_assist_enabled` | filter | `( bool $enabled ): bool` | Whether the assist is offered at all. Defaults to on when a provider is configured; return `false` to hide the buttons regardless. |
+
+The routes behind the buttons (`POST /suggest`, `POST /suggest-fix`) are documented in the [REST endpoints]({% link developer/rest-endpoints.md %}) reference.
 
 ## Crawl & security
 

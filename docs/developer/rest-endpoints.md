@@ -195,6 +195,25 @@ The query is limited to `Content::post_types()`, statuses `publish, private, dra
 }
 ```
 
+### AI writing assist (`/suggest`, `/suggest-fix`)
+
+Registered in `inc/Assist.php` under `agentimus/v1`. They back the editor's "Draft with AI" / "Fix with AI" buttons by routing a prompt through WordPress's AI Client (`wp_ai_client_prompt()`, WordPress 7.0+) — the plugin never handles the provider key. Both are `POST`, gated per post by `current_user_can( 'edit_post', $post )`, and return `503` when no AI provider is configured.
+
+| Route          | Method | Body                                          | Returns                                                                 |
+|----------------|--------|-----------------------------------------------|-------------------------------------------------------------------------|
+| `/suggest`     | POST   | `{ post:int, field:"description"\|"topics" }`  | `{ field, text }` (description) or `{ field, topics:string[] }` (topics) |
+| `/suggest-fix` | POST   | `{ post:int, check:string }`                  | `{ check, suggestion, apply }` — `apply` is `{ type:"prependParagraph", content }` for the opening-summary fix, otherwise `null` (copy-only) |
+
+`check` is a per-page readability check id; the AI-fixable set is `summary`, `headings`, `passages`, `evidence`, `words`. `field`/`check` are validated in the callback (not as a REST `enum`) so a subscriber is denied by the permission gate before validation. The `agentimus_ai_assist_enabled` filter forces the whole feature off. See the [Write with AI]({% link user-manual/write-with-ai.md %}) guide.
+
+### Abilities & the WordPress admin AI
+
+On WordPress 6.9+ (Abilities API) Agentimus registers nine **read-only abilities** via `wp_register_ability` (in `inc/Abilities/Registrar.php`), so WordPress's built-in AI — and, with the [MCP adapter](https://github.com/wordpress/mcp-adapter) installed, external agents — can read your data. Each carries the same capability check as the screen it comes from (`manage_options`, or `edit_post` for the per-post ones) and is annotated read-only:
+
+`agentimus/read-readiness`, `read-ai-visibility`, `read-ai-traffic`, `read-request-log`, `identify-bot`, `check-page`, `preview-schema`, `preview-markdown`, `scan-exposed-files`.
+
+They're reachable over the core Abilities REST API (`/wp-json/wp-abilities/v1/abilities/{name}/run` — GET for read-only abilities), and Agentimus registers a scoped MCP server at `/wp-json/agentimus/v1/mcp` that exposes them when the MCP adapter is present. Trim that set with the `agentimus_mcp_server_abilities` filter.
+
 ### Discovery read & validation routes
 
 Registered separately in `inc/Discovery/Module.php`, still under `agentimus/v1`:

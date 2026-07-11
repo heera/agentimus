@@ -29,6 +29,8 @@ AEO/GEO-ready it is and what to fix next. Lightweight, no SEO bloat, no framewor
 | Structured data | JSON-LD `WebSite` + `Person`/`Organization` + `BlogPosting` + `BreadcrumbList` (defers to SEO plugins) |
 | Topics for AI | Per-page topics → JSON-LD `keywords` + `about` DefinedTerm entities (with optional Wikidata `sameAs` via the `agentimus_topic_links` filter) + a `Topics:` line in `/<slug>.md`; static (editor) or derived from tags & categories |
 | AI description | Per-page one-line summary → JSON-LD `description` + the `/<slug>.md` lead + an authoritative `<meta name="description">` (replaces the theme's, defers to an SEO plugin); editor-set, falling back to the excerpt or a ~30-word content summary. A settings sub-toggle can limit it to the JSON-LD + `.md` surfaces only |
+| Write with AI (opt-in) | Editor **"Draft with AI"** fills the AI description / Topics from the page; **"Fix with AI"** drafts a fix per AI-Readability warning (opening summary inserts in one click, the rest copy-only). Routes through the WordPress 7.0 AI Client — your own provider key, never handled by the plugin; hidden until a provider is configured under Settings → Connectors |
+| AI abilities | Registers read-only abilities (`agentimus/read-readiness`, `read-ai-visibility`, `read-ai-traffic`, `read-request-log`, `identify-bot`, `check-page`, `preview-schema`/`-markdown`, `scan-exposed-files`) via `wp_register_ability` for the WordPress admin AI + the MCP adapter, each permission-gated like its source screen |
 | XML sitemap | `/agentimus-sitemap.xml` — opt-in fallback, generated **only** when neither WordPress core nor an SEO plugin already provides one (sitemap index + paginated sub-sitemaps) |
 | Crawler policy | `robots.txt` content-signal + training-crawler blocklist |
 | Discovery layer | `/.well-known/discovery.json` (+ `agent-card.json`, `mcp.json`) |
@@ -159,12 +161,14 @@ Supported output-shaping filters; signatures may evolve between releases.
 | `agentimus_signed_surfaces` | filter | `( string[] $surfaces ): string[]` | Which discovery documents your companion signer signs. |
 | `agentimus_mcp` | filter | `( array $mcp, array $resources ): array` | The advertised MCP descriptor at `/.well-known/mcp.json`. |
 | `agentimus_mcp_card_server` | filter | `( string $id, array $servers ): string` | Pin which server the MCP server card describes (`''` = auto). |
+| `agentimus_mcp_server_abilities` | filter | `( string[] $names ): string[]` | The abilities Agentimus exposes over its own MCP server to external agents (default: its nine read-only abilities). Trim to narrow what leaves the site. |
 | `agentimus_agent_skills` | filter | `( array $skills, array $resources ): array` | Entries in the Agent Skills index. |
 | `agentimus_post_types` | filter | `( string[] $types, string[] $available ): string[]` | Which post types are agent-visible (each gets an llms.txt section). |
 | `agentimus_post_type_source` | filter | `( string $source, string $post_type ): string` | Attribute a post type's llms.txt section (and the Agent preview picker) to your plugin. |
 | `agentimus_changes_max` | filter | `( int $max ): int` | Size of the change-feed window — newest items it can hold (default 200, max 2000). |
 | `agentimus_tombstone_retain_days` | filter | `( int $days ): int` | How long a deletion stays in the change feed before it's pruned (default 90). |
 | `agentimus_page_checks` | filter | `( array $checks, array $stats, WP_Post $post ): array` | Add, retune or drop the per-page "AI Readability" checks shown in the editor. |
+| `agentimus_ai_assist_enabled` | filter | `( bool $enabled ): bool` | Whether the editor "Draft with AI" / "Fix with AI" assist is offered (default: on when a text-capable AI provider is configured in WordPress). |
 | `agentimus_markdown_source` | filter | `( ?string $html, WP_Post $post ): ?string` | Supply rendered HTML for page-builder content (`null` = render normally). |
 | `agentimus_topic_exclude` | filter | `( string[] $slugs ): string[]` | Topic/category slugs to omit from the llms.txt Topics list and per-page derived topics. |
 | `agentimus_derive_taxonomies` | filter | `( string[] $taxonomies, WP_Post $post ): string[]` | Which taxonomies auto-fill a post's Topics for AI (default `category`, `post_tag`). A vendor adds e.g. `product_cat`; terms flow through the derive toggle, exclude list and cap. |
