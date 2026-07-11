@@ -102,4 +102,62 @@ final class WellKnownDocsTest extends TestCase {
 		update_option( Settings::OPTION, array( 'suppressed_resources' => array( 'abilities-core' ) ) );
 		$this->assertSame( '', $this->envelope()->agent_skills_index_json() );
 	}
+
+	/* -- Owner suppression must reach EVERY served surface, not just some ---- */
+
+	/**
+	 * THE REGRESSION. McpSurface::mcp_surface() collected straight from the registry — "so callers
+	 * don't round-trip through the full envelope" — which silently bypassed owner suppression. A
+	 * Resource the owner had suppressed was still published at the PUBLIC /.well-known/mcp.json,
+	 * with every tool's description and full input/output schemas.
+	 *
+	 * Envelope::build()'s own comment claimed the filter kept suppressed Resources out of "every
+	 * served surface". mcp.json is a served surface. It did not. There was a test for the skills
+	 * index and none for mcp.json, which is exactly why it survived.
+	 *
+	 * A provider proposes, the owner disposes — on every surface, or the rule is decoration.
+	 */
+	public function test_mcp_json_respects_owner_suppression() {
+		Registry::instance()->register(
+			array(
+				'id'    => 'abilities-secret',
+				'title' => 'Secret',
+				'type'  => 'agent',
+				'tools' => array(
+					array(
+						'name'        => 'secret/do-thing',
+						'title'       => 'Do the thing',
+						'description' => 'Sensitive internals an owner asked us not to publish.',
+						'inputSchema' => array( 'type' => 'object' ),
+					),
+				),
+			)
+		);
+
+		// Unsuppressed: published, as expected.
+		$this->assertStringContainsString( 'secret/do-thing', $this->envelope()->mcp_json() );
+
+		// The owner says no. It must vanish from mcp.json too — not just discovery.json.
+		update_option( Settings::OPTION, array( 'suppressed_resources' => array( 'abilities-secret' ) ) );
+		$json = $this->envelope()->mcp_json();
+
+		$this->assertStringNotContainsString( 'secret/do-thing', $json, 'A suppressed Resource must not be published to mcp.json.' );
+		$this->assertStringNotContainsString( 'Sensitive internals', $json, 'Nor may its tool schemas leak there.' );
+	}
+
+	public function test_the_admin_still_sees_a_suppressed_resource_so_it_can_be_re_enabled() {
+		Registry::instance()->register(
+			array( 'id' => 'abilities-secret', 'title' => 'Secret', 'type' => 'agent' )
+		);
+		update_option( Settings::OPTION, array( 'suppressed_resources' => array( 'abilities-secret' ) ) );
+
+		// all_resources() is the admin's view: suppressed Resources are FLAGGED, never dropped, or
+		// the owner could never turn one back on.
+		$ids = array_column( $this->envelope()->all_resources(), 'id' );
+		$this->assertContains( 'abilities-secret', $ids );
+
+		// ...while the published view drops it.
+		$published = array_column( $this->envelope()->published_resources(), 'id' );
+		$this->assertNotContains( 'abilities-secret', $published );
+	}
 }

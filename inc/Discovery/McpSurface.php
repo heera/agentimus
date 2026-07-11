@@ -41,14 +41,20 @@ final class McpSurface {
 	/**
 	 * The MCP/tools surface — served at /.well-known/mcp.json and shown on the admin
 	 * Discovery screen, but intentionally NOT part of the frozen discovery.json core
-	 * (MCP discovery is still an unsettled proposal). Computed straight from the
-	 * collected registry so callers don't round-trip through the full envelope.
+	 * (MCP discovery is still an unsettled proposal).
+	 *
+	 * Reads {@see Envelope::published_resources()}, NOT the raw registry. It used to collect
+	 * straight from the registry "so callers don't round-trip through the full envelope" — which
+	 * quietly bypassed owner suppression. An owner who suppressed a Resource still had it published
+	 * here, with every tool's description and input/output schemas, at a PUBLIC endpoint. The
+	 * envelope's own comment claimed suppression covered "every served surface"; mcp.json is a
+	 * served surface, and it did not. A provider proposes, the owner disposes — on every surface,
+	 * or the rule is decoration.
 	 *
 	 * @return array{tools:array[],mcp:array}
 	 */
 	public function mcp_surface() {
-		$this->registry->collect();
-		$resources = array_values( $this->registry->resources() );
+		$resources = $this->envelope->published_resources();
 		return array(
 			'tools' => $this->tools( $resources ),
 			'mcp'   => $this->mcp( $resources ),
