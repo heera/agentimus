@@ -581,6 +581,13 @@ final class Topics {
   if (checkbox) { checkbox.addEventListener('change', function(){ showAuto = checkbox.checked; commit(); }); }
   commit();
 
+  // Accept topics drafted by the AI assist (see Assist): it dispatches this event with a
+  // list of names, which merge into the manual chips exactly like typed ones.
+  root.addEventListener('agentimus-topics:add', function(e){
+    var names = e && e.detail && e.detail.topics;
+    if (Array.isArray(names) && names.length) { manual = normalize(manual.concat(names)); commit(); }
+  });
+
   // Live-sync the tag/category "auto" chips with the block editor as you add or remove
   // terms — no save/refresh. Block editor only (needs wp.data); the classic editor keeps
   // the on-load snapshot, and a non-core derive taxonomy still refreshes on save. Mirrors
