@@ -84,7 +84,7 @@ final class Store {
 	public static function latest_run_id() {
 		global $wpdb;
 		$table = Table::name();
-		return (int) $wpdb->get_var( "SELECT MAX(run_id) FROM $table" ); // phpcs:ignore WordPress.DB
+		return (int) $wpdb->get_var( "SELECT MAX(run_id) FROM $table" ); // phpcs:ignore WordPress.DB, PluginCheck.Security.DirectDB.UnescapedDBParameter -- $table is our own prefix-derived name; every value is bound via prepare().
 	}
 
 	/**
@@ -96,7 +96,7 @@ final class Store {
 	public static function recent_run_ids( $limit = 12 ) {
 		global $wpdb;
 		$table = Table::name();
-		$ids   = $wpdb->get_col( $wpdb->prepare( "SELECT DISTINCT run_id FROM $table ORDER BY run_id DESC LIMIT %d", (int) $limit ) ); // phpcs:ignore WordPress.DB
+		$ids   = $wpdb->get_col( $wpdb->prepare( "SELECT DISTINCT run_id FROM $table ORDER BY run_id DESC LIMIT %d", (int) $limit ) ); // phpcs:ignore WordPress.DB, PluginCheck.Security.DirectDB.UnescapedDBParameter -- $table is our own prefix-derived name; every value is bound via prepare().
 		return array_map( 'intval', (array) $ids );
 	}
 
@@ -109,7 +109,7 @@ final class Store {
 	public static function rows_for_run( $run_id ) {
 		global $wpdb;
 		$table = Table::name();
-		$rows  = $wpdb->get_results( $wpdb->prepare( "SELECT * FROM $table WHERE run_id = %d ORDER BY id ASC", (int) $run_id ), ARRAY_A ); // phpcs:ignore WordPress.DB
+		$rows  = $wpdb->get_results( $wpdb->prepare( "SELECT * FROM $table WHERE run_id = %d ORDER BY id ASC", (int) $run_id ), ARRAY_A ); // phpcs:ignore WordPress.DB, PluginCheck.Security.DirectDB.UnescapedDBParameter -- $table is our own prefix-derived name; every value is bound via prepare().
 		return is_array( $rows ) ? $rows : array();
 	}
 
@@ -124,7 +124,7 @@ final class Store {
 		$days = max( 1, (int) $days );
 		$table = Table::name();
 		$cutoff = gmdate( 'Y-m-d H:i:s', time() - ( $days * DAY_IN_SECONDS ) );
-		return (int) $wpdb->query( $wpdb->prepare( "DELETE FROM $table WHERE checked_at < %s", $cutoff ) ); // phpcs:ignore WordPress.DB
+		return (int) $wpdb->query( $wpdb->prepare( "DELETE FROM $table WHERE checked_at < %s", $cutoff ) ); // phpcs:ignore WordPress.DB, PluginCheck.Security.DirectDB.UnescapedDBParameter -- $table is our own prefix-derived name; every value is bound via prepare().
 	}
 
 	/**
@@ -135,7 +135,7 @@ final class Store {
 	public static function clear() {
 		global $wpdb;
 		$table = Table::name();
-		$wpdb->query( "DELETE FROM $table" ); // phpcs:ignore WordPress.DB
+		$wpdb->query( "DELETE FROM $table" ); // phpcs:ignore WordPress.DB, PluginCheck.Security.DirectDB.UnescapedDBParameter -- $table is our own prefix-derived name; every value is bound via prepare().
 	}
 
 	/**

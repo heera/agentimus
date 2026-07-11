@@ -193,12 +193,14 @@ final class Registry {
 	 */
 	private function fire( $hook ) {
 		try {
-			do_action( $hook, $this );
+			// The sniff cannot resolve a variable hook name; every value $hook can hold is one of
+			// our own `agentimus_*` / `wp_discovery_*` registration hooks (see the callers).
+			do_action( $hook, $this ); // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.DynamicHooknameFound -- $hook is always one of our own registration hooks.
 		} catch ( \Throwable $e ) {
 			$this->notices[] = array(
 				'level'   => 'error',
-				/* translators: 1: registration hook name, 2: PHP error message. */
 				'message' => sprintf(
+					/* translators: 1: registration hook name, 2: PHP error message. */
 					__( 'A discovery provider errored on "%1$s" and was skipped: %2$s', 'agentimus' ),
 					$hook,
 					$e->getMessage()

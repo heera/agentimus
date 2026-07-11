@@ -90,7 +90,7 @@ final class Runner {
 		// A run makes many sequential HTTP calls; give it room rather than risking
 		// a mid-run timeout on hosts that allow lifting the limit.
 		if ( function_exists( 'set_time_limit' ) ) {
-			@set_time_limit( 0 ); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged
+			@set_time_limit( 0 ); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged, Squiz.PHP.DiscouragedFunctions.Discouraged -- a run makes many sequential HTTP calls; a mid-run timeout would lose the whole run.
 		}
 
 		$run_id     = time();

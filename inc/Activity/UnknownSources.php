@@ -150,7 +150,8 @@ final class UnknownSources {
 	private static function increment( $kind, $token ) {
 		global $wpdb;
 		$table = self::name();
-		$wpdb->query( // phpcs:ignore WordPress.DB, PluginCheck.Security.DirectDB.UnescapedDBParameter -- $table is our own prefix-derived name; values are bound via prepare().
+		// phpcs:disable WordPress.DB, PluginCheck.Security.DirectDB.UnescapedDBParameter -- $table is our own prefix-derived name; values are bound via prepare().
+		$wpdb->query(
 			$wpdb->prepare(
 				"INSERT INTO $table (day, kind, token, hits) VALUES (%s, %s, %s, 1) ON DUPLICATE KEY UPDATE hits = hits + 1",
 				gmdate( 'Y-m-d' ),
@@ -158,6 +159,7 @@ final class UnknownSources {
 				$token
 			)
 		);
+		// phpcs:enable WordPress.DB, PluginCheck.Security.DirectDB.UnescapedDBParameter
 
 		if ( 1 === wp_rand( 1, self::CAP_CHECK_ODDS ) ) {
 			self::trim_to_cap();
@@ -241,7 +243,8 @@ final class UnknownSources {
 	 */
 	private static function top( $table, $kind, $from, $to ) {
 		global $wpdb;
-		$rows = $wpdb->get_results( // phpcs:ignore WordPress.DB, PluginCheck.Security.DirectDB.UnescapedDBParameter -- $table is our own prefix-derived name; all values are bound via prepare().
+		// phpcs:disable WordPress.DB, PluginCheck.Security.DirectDB.UnescapedDBParameter -- $table is our own prefix-derived name; all values are bound via prepare().
+		$rows = $wpdb->get_results(
 			$wpdb->prepare(
 				"SELECT token, SUM(hits) AS hits FROM $table WHERE kind = %s AND day >= %s AND day <= %s GROUP BY token ORDER BY hits DESC LIMIT %d",
 				$kind,
@@ -251,6 +254,7 @@ final class UnknownSources {
 			),
 			ARRAY_A
 		);
+		// phpcs:enable WordPress.DB, PluginCheck.Security.DirectDB.UnescapedDBParameter
 		return array_map(
 			static function ( $r ) {
 				return array( 'token' => (string) $r['token'], 'hits' => (int) $r['hits'] );

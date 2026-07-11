@@ -184,8 +184,10 @@ final class CachePurge {
 			if ( is_callable( array( 'Cache_Enabler', 'clear_page_cache_by_url' ) ) ) {
 				\Cache_Enabler::clear_page_cache_by_url( $url );
 			}
-			// LiteSpeed Cache, and any other cache / custom integration.
-			do_action( 'litespeed_purge_url', $url );
+			// LiteSpeed Cache, and any other cache / custom integration. The hook name is
+			// LiteSpeed's, not ours — prefixing it with `agentimus_` (as the naming sniff wants)
+			// would mean LiteSpeed never hears it, which is the entire point of firing it.
+			do_action( 'litespeed_purge_url', $url ); // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound -- third-party hook we deliberately fire.
 			/**
 			 * Purge a single agent-file URL from a cache Agentimus doesn't natively support.
 			 *

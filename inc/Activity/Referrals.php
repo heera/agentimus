@@ -308,7 +308,8 @@ final class Referrals {
 	private static function increment( $source, $path ) {
 		global $wpdb;
 		$table = self::name();
-		$wpdb->query( // phpcs:ignore WordPress.DB, PluginCheck.Security.DirectDB.UnescapedDBParameter -- $table is our own prefix-derived name; values are bound via prepare().
+		// phpcs:disable WordPress.DB, PluginCheck.Security.DirectDB.UnescapedDBParameter -- $table is our own prefix-derived name; values are bound via prepare().
+		$wpdb->query(
 			$wpdb->prepare(
 				"INSERT INTO $table (day, source, path, hits) VALUES (%s, %s, %s, 1) ON DUPLICATE KEY UPDATE hits = hits + 1",
 				gmdate( 'Y-m-d' ),
@@ -316,6 +317,7 @@ final class Referrals {
 				$path
 			)
 		);
+		// phpcs:enable WordPress.DB, PluginCheck.Security.DirectDB.UnescapedDBParameter
 
 		// Opportunistic backstop: most upserts pay only a cheap rand(); roughly one in
 		// CAP_CHECK_ODDS runs a single bounded trim, so a flood of distinct landing
@@ -504,10 +506,12 @@ final class Referrals {
 		$table = self::name();
 		$since = self::retention_floor();
 
-		$rows = $wpdb->get_results( // phpcs:ignore WordPress.DB, PluginCheck.Security.DirectDB.UnescapedDBParameter -- $table is our own prefix-derived name; values are bound via prepare().
+		// phpcs:disable WordPress.DB, PluginCheck.Security.DirectDB.UnescapedDBParameter -- $table is our own prefix-derived name; values are bound via prepare().
+		$rows = $wpdb->get_results(
 			$wpdb->prepare( "SELECT source, SUM(hits) AS hits FROM $table WHERE day >= %s GROUP BY source ORDER BY hits DESC LIMIT %d", $since, self::FACET_LIMIT ),
 			ARRAY_A
 		);
+		// phpcs:enable WordPress.DB, PluginCheck.Security.DirectDB.UnescapedDBParameter
 		return array_map(
 			static function ( $r ) {
 				return array( 'value' => (string) $r['source'], 'label' => (string) $r['source'] );

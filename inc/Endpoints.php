@@ -546,7 +546,7 @@ final class Endpoints {
 			return;
 		}
 
-		$uri  = isset( $_SERVER['REQUEST_URI'] ) ? (string) wp_unslash( $_SERVER['REQUEST_URI'] ) : '/';
+		$uri  = isset( $_SERVER['REQUEST_URI'] ) ? sanitize_text_field( wp_unslash( $_SERVER['REQUEST_URI'] ) ) : '/';
 		$path = strtolower( (string) wp_parse_url( $uri, PHP_URL_PATH ) );
 		if ( '/llms.txt' === $path || '/llms-full.txt' === $path || '/robots.txt' === $path
 			|| '.md' === substr( $path, -3 ) || 0 === strpos( $path, '/.well-known/' )

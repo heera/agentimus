@@ -327,10 +327,10 @@ New: Write with AI — draft a page's AI description, Topics, or a fix for an AI
 New: an opt-in switch (Settings → Caching & CDN) that keeps your AI endpoints out of a CDN/proxy cache, so agent fetches are counted in your activity log and freshness-sensitive endpoints stay current. Off by default; no breaking changes.
 
 = 1.17.0 =
-A filterable request log, a full day-by-day report on the readers AI sends you, and control over how long the log is kept. Also fixes three counting bugs in "Traffic from AI" — a 30-day window that spanned 31 days, your own visits being counted behind a CDN, and hits on pages that don't exist. All new features are opt-in; no breaking changes.
+A filterable request log, a day-by-day report on the readers AI sends you, and control over how long the log is kept. Also fixes three counting bugs in Traffic from AI: a 30-day window that spanned 31 days, your own visits counted behind a CDN, and hits on missing pages. No breaking changes.
 
 = 1.16.0 =
-Your AI-readiness as one AEO/GEO score, with per-page tips on making content easier for AI to quote, a per-page AI description, a managed robots.txt, and an opt-in "Cited" check. Also fixes a bug where another plugin or theme misbehaving could stop a page loading. All new features are opt-in; no breaking changes.
+Your AI-readiness as one AEO/GEO score, with per-page tips on making content easier for AI to quote, a per-page AI description, a managed robots.txt, and an opt-in Cited check. Also fixes a bug where a misbehaving plugin or theme could stop a page loading. No breaking changes.
 
 = 1.15.0 =
 Spot impostor crawlers, scan your site for exposed files (backups, .env, debug.log), and count AI visits even behind a CDN — plus faster Markdown, a friendlier setup, and a sticky admin header. All new features are opt-in; no breaking changes.
@@ -339,10 +339,10 @@ Spot impostor crawlers, scan your site for exposed files (backups, .env, debug.l
 Small admin-UI polish: the footer shows both the Agentimus and WordPress versions, and the About tab documents the reverse-DNS verification and encrypted keys. No functional changes.
 
 = 1.14.0 =
-Encrypts your AI Visibility API keys at rest, adds optional reverse-DNS verification of search engines and one-click copying of a visitor's User-Agent, plus a lot of behind-the-scenes hardening — resilience under heavy crawler load, safer AI-check spending, and a flood-resistant activity log. Also fixes a bug where a settings switch could silently fail to save. No breaking changes.
+Encrypts your AI Visibility API keys at rest, adds optional reverse-DNS verification of search engines and one-click copying of a visitor's User-Agent, plus hardening: resilience under heavy crawler load, safer AI-check spending, and a flood-resistant activity log. No breaking changes.
 
 = 1.13.0 =
-Adds a change feed (`/agentimus-changes.json`) so agents fetch only what changed, per-page "AI Readability" tips in the editor, an in-admin Agent preview, Topics for AI, and plugin attribution for third-party content types. On-by-default additions are read-only and safe — no breaking changes.
+Adds a change feed (`/agentimus-changes.json`) so agents fetch only what changed, per-page AI Readability tips in the editor, an in-admin Agent preview, Topics for AI, and plugin attribution for third-party content types. New additions are read-only. No breaking changes.
 
 = 1.12.4 =
 Fixes live web-search checks timing out on slower questions, and shows check errors inline. No breaking changes.
@@ -366,7 +366,7 @@ Adds AI Visibility monitoring — an opt-in, bring-your-own-key tool that tracks
 Fixes the Exposure tab not saving (the new toggles weren't wired into auto-save). Recommended for anyone on 1.10.0. No breaking changes.
 
 = 1.10.0 =
-Adds a new "Exposure" tab — opt-in, off-by-default controls that limit what anonymous crawlers can read about your site (username enumeration, author archives, WP version, head-link clutter, XML-RPC). Also makes the "Always allowed" trusted-agents list easier to use, with one-click chips for well-known AI assistants and a read-only view of the search engines trusted automatically. Everything new ships off/unchanged by default; no breaking changes.
+Adds an Exposure tab: opt-in, off-by-default controls limiting what anonymous crawlers can read about your site (username enumeration, author archives, WP version, head-link clutter, XML-RPC). Also makes the Always-allowed agents list easier to use. No breaking changes.
 
 = 1.9.0 =
 Adds an optional, off-by-default experimental WebMCP bridge (browser tools for AI agents), mirrors the key discovery links into the HTML head, answers CORS preflights on the discovery docs, and an honest note on what a discovery layer can and can't do. No breaking changes.
@@ -378,13 +378,13 @@ Friendlier, plainer wording for non-technical owners; Readiness checks now jump 
 Clearer "Traffic from AI" card with a per-day breakdown, a tidier clickable Readiness summary, styled confirm dialogs, and major hardening so a buggy third-party plugin can never blank the admin or corrupt your published discovery/schema documents.
 
 = 1.6.0 =
-Companion plugins that register discovery resources or serve their own /.well-known documents now self-heal Agentimus's rewrite rules — no re-activation or manual flush needed, and front-end-safe + rate-limited so there's no performance cost. Adds a complete, tier-grouped developer hook reference.
+Companion plugins that register discovery resources or serve their own /.well-known documents now self-heal Agentimus's rewrite rules — no re-activation or manual flush needed, and front-end-safe plus rate-limited. Adds a tier-grouped developer hook reference.
 
 = 1.5.0 =
-Adds an About tab (capabilities, a code-grounded privacy account, and the WP_Discovery Protocol it implements). Response signing (RFC 9421) is now ON by default — the key is generated on your server, never autoloaded, and never leaves the site; it's feature-detected and still toggleable. Also fixes a privacy leak (password-protected content no longer appears in JSON-LD schema or the sitemap) and closes a User-Agent blocking bypass.
+Adds an About tab (capabilities, privacy, the WP_Discovery Protocol). Response signing (RFC 9421) is now ON by default — the key is generated on your server and never leaves it. Also fixes a privacy leak (password-protected content no longer appears in JSON-LD or the sitemap).
 
 = 1.4.3 =
-The MCP server card now describes a real MCP server and its actual tools instead of the site-wide ability list. Sites running several MCP servers get one card each at /.well-known/mcp/{server}/server-card.json, and mcp.json now links to every server's card. No change for sites without an MCP server.
+The MCP server card now describes a real MCP server and its actual tools instead of the site-wide ability list. Sites running several MCP servers get one card each at /.well-known/mcp/{server}/server-card.json, and mcp.json links to every card. No change without an MCP server.
 
 = 1.4.2 =
 Corrects the read-only hint on discovered MCP tools — it now follows the ability's declared annotation and type (resources are read-only) instead of guessing from the name, so a read-only resource isn't mislabeled and a mutating tool is never marked "safe". No other changes.
@@ -396,7 +396,7 @@ Compatibility fix: minimum WordPress lowered from 6.9 to 6.0, so the plugin upda
 Three new machine-readable surfaces: an OpenAPI 3.1 description of your existing REST at /.well-known/openapi.json, automatic FAQPage schema on pages that are clearly FAQs, and an opt-in Services list that publishes Schema.org Service. Plus a readiness check that flags a too-thin llms.txt.
 
 = 1.3.0 =
-The readiness report is now a Findable → Readable → Trusted ladder with a one-click "Verify live" self-check (runs in your browser; the server still makes no outbound request). Agent endpoints now allow cross-origin reads and advertise each page's markdown twin, and two optional Identity fields ("What you're not", "Audience") sharpen how agents represent you.
+The readiness report is now a Findable → Readable → Trusted ladder with a one-click Verify live self-check (runs in your browser; the server still makes no outbound request). Agent endpoints now allow cross-origin reads and advertise each page's markdown twin.
 
 = 1.2.0 =
 Your "Allow AI training" choice now reaches crawlers that ignore robots.txt, via the standard tdm-reservation header and /.well-known/tdmrep.json (both opt-out-only, on by default). Adds a "Traffic from AI" dashboard card and a one-click admin-bar shortcut.
