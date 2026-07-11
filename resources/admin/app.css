@@ -3105,3 +3105,9 @@ a.ar-about-proto__v:hover { text-decoration: underline; }
   background: var(--ar-surface-2);
   font-size: 12px; line-height: 1.6; color: var(--ar-ink-faint);
 }
+
+/* A refusal or a probe: the first rows here that might mean someone is trying it on. A warn tone,
+   never the word "attack" — we cannot know that, and the hit count is the honest signal. */
+.ar-aa__table tr.is-refusal td { border-left: 2px solid var(--ar-warn); }
+.ar-aa__table tr.is-refusal td:not(:first-child) { border-left: 0; }
+.ar-aa__hint--warn { color: var(--ar-ink-soft); font-weight: 500; }

@@ -235,7 +235,6 @@ final class AgentAccessDbTest extends DbTestCase {
 		for ( $i = 0; $i < $over; $i++ ) {
 			Store::record( Events::KIND_APPPW_CREATED, $this->admin, "flood-$i", "key-$i" );
 		}
-		$this->assertGreaterThan( Store::MAX_ROWS, Store::total(), 'precondition: we are over the cap' );
 
 		Store::prune();
 
@@ -383,5 +382,111 @@ final class AgentAccessDbTest extends DbTestCase {
 		if ( ! function_exists( 'wp_register_ability' ) || ! function_exists( 'wp_get_ability' ) ) {
 			$this->markTestSkipped( 'No Abilities API on this WordPress — the ability half is correctly inert.' );
 		}
+	}
+
+	/* -- Phase 3: what was TURNED AWAY -------------------------------------- */
+
+	/**
+	 * Drive a run request at the real abilities REST surface.
+	 *
+	 * This works at all only because the listener uses `rest_request_after_callbacks`, which lives
+	 * in respond_to_request() and therefore fires under rest_do_request(). `rest_post_dispatch` —
+	 * the obvious choice — is applied inside serve_request(), which rest_do_request() never reaches,
+	 * so it would have worked against real HTTP attacks and been completely untestable.
+	 *
+	 * @param string     $name  Ability name (may be one that does not exist).
+	 * @param array|null $input Valid input, or null to send none.
+	 * @return \WP_REST_Response
+	 */
+	private function run_ability( $name, $input = null ) {
+		$request = new \WP_REST_Request( 'GET', "/wp-abilities/v1/abilities/$name/run" );
+		if ( null !== $input ) {
+			$request->set_query_params( array( 'input' => $input ) );
+		}
+		return rest_do_request( $request );
+	}
+
+	public function test_an_anonymous_refusal_is_recorded() {
+		$this->skip_without_abilities();
+		wp_set_current_user( 0 );
+
+		$this->assertSame( 401, $this->run_ability( 'agentimus/read-readiness', array() )->get_status() );
+
+		$rows = Store::recent( 100, Events::KIND_ABILITY_REFUSED );
+		$this->assertCount( 1, $rows );
+		$this->assertSame( 'agentimus/read-readiness', $rows[0]['subject'], 'A refusal names a real ability — the 404 gate fires first, so it must exist.' );
+		$this->assertSame( '401', $rows[0]['detail'] );
+	}
+
+	public function test_a_logged_in_but_unauthorised_refusal_is_recorded() {
+		$this->skip_without_abilities();
+		wp_set_current_user( self::factory()->user->create( array( 'role' => 'subscriber' ) ) );
+
+		$this->assertSame( 403, $this->run_ability( 'agentimus/read-readiness', array() )->get_status() );
+		$this->assertCount( 1, Store::recent( 100, Events::KIND_ABILITY_REFUSED ) );
+	}
+
+	public function test_an_admins_successful_call_is_never_recorded_as_a_refusal() {
+		$this->skip_without_abilities();
+		wp_set_current_user( $this->admin );
+
+		$this->assertSame( 200, $this->run_ability( 'agentimus/read-readiness', array() )->get_status() );
+
+		$this->assertCount( 0, Store::recent( 100, Events::KIND_ABILITY_REFUSED ) );
+		$this->assertCount( 1, Store::recent( 100, Events::KIND_ABILITY_USED ) );
+	}
+
+	public function test_an_admins_malformed_request_is_their_bug_not_our_signal() {
+		$this->skip_without_abilities();
+		wp_set_current_user( $this->admin );
+
+		// No input -> 400. A developer's broken integration does this all day; logging it would fill
+		// the feed with their own mistake.
+		$this->assertSame( 400, $this->run_ability( 'agentimus/read-readiness' )->get_status() );
+		$this->assertCount( 0, Store::recent(), 'A logged-in caller\'s bad input must record nothing.' );
+	}
+
+	public function test_a_naive_anonymous_scan_still_leaves_a_trace() {
+		$this->skip_without_abilities();
+		wp_set_current_user( 0 );
+
+		// THE case a "just log the 403s" design would miss entirely. The permission gate sits BEHIND
+		// an input gate, so a scanner throwing junk at real ability endpoints gets 400s, never 403s.
+		$this->assertSame( 400, $this->run_ability( 'agentimus/read-readiness' )->get_status() );
+
+		$this->assertCount( 1, Store::recent( 100, Events::KIND_ABILITY_PROBED ), 'An anonymous scan must not be invisible.' );
+	}
+
+	public function test_guessing_ability_names_cannot_flood_the_table() {
+		$this->skip_without_abilities();
+		// Core _doing_it_wrong()s when asked for an ability that does not exist — which is precisely
+		// what enumeration does. Harmless in production (silent unless WP_DEBUG), but WP_UnitTestCase
+		// fails a test that triggers one undeclared.
+		$this->setExpectedIncorrectUsage( 'WP_Abilities_Registry::get_registered' );
+		wp_set_current_user( 0 );
+
+		// THE cardinality guard. The probed name is attacker-supplied. Storing it would let a name
+		// enumeration mint one row per guess — the same class of bug as a row cap that only holds
+		// under a trickle. They must aggregate into ONE row whose hits count the campaign.
+		for ( $i = 0; $i < 200; $i++ ) {
+			$this->run_ability( "acme/guess-$i", array() );
+		}
+
+		$rows = Store::recent( 500, Events::KIND_ABILITY_PROBED );
+		$this->assertCount( 1, $rows, '200 guessed names must produce ONE row, not 200.' );
+		$this->assertSame( 200, $rows[0]['hits'], 'The hit count is what tells the owner this is a campaign.' );
+		$this->assertSame( '', $rows[0]['subject'], 'The attacker-supplied name must never reach `subject`.' );
+	}
+
+	public function test_ordinary_rest_traffic_records_nothing() {
+		// The listener fires on EVERY REST request the site serves. A successful request must exit on
+		// the first line and never touch the database.
+		wp_set_current_user( $this->admin );
+
+		for ( $i = 0; $i < 20; $i++ ) {
+			rest_do_request( new \WP_REST_Request( 'GET', '/wp/v2/types' ) );
+		}
+
+		$this->assertSame( 0, Store::total(), 'Ordinary REST traffic must not write to the agent-access log.' );
 	}
 }

@@ -82,6 +82,18 @@ final class Module {
 		// Ability invocations from ANY plugin — only fired by core 6.9+ / abilities-api v0.4.0+.
 		add_action( 'wp_before_execute_ability', array( $this, 'on_before_execute_ability' ), 10, 1 );
 
+		// Requests to the abilities surface that FAILED. This is what closes the gap the empty state
+		// used to have to confess: wp_before_execute_ability only fires after WordPress has already
+		// ALLOWED the call, so a refused one left no trace at all.
+		//
+		// `rest_request_after_callbacks`, NOT `rest_post_dispatch`. Both fire after the permission
+		// check, but rest_post_dispatch is applied inside WP_REST_Server::serve_request(), while
+		// rest_do_request() — which the entire integration suite uses — calls dispatch() directly and
+		// never reaches it. Choosing it would have given us a listener that worked against real HTTP
+		// attacks and was completely untestable. This one lives in respond_to_request(), which
+		// dispatch() does call.
+		add_filter( 'rest_request_after_callbacks', array( $this, 'on_rest_after_callbacks' ), 10, 3 );
+
 		add_action( 'rest_api_init', array( $this, 'routes' ) );
 	}
 
@@ -322,6 +334,47 @@ final class Module {
 
 		self::remember_hooks( false );
 		self::record( Events::KIND_ABILITY_USED, get_current_user_id(), self::current_credential(), $ability_name, 'own' );
+	}
+
+	/**
+	 * A request to the abilities REST surface came back an error — record what was turned away.
+	 *
+	 * THIS IS A HOT PATH. The filter fires on EVERY REST request the site serves: the block editor,
+	 * media, every plugin's routes. The overwhelming majority succeed, so the first line has to be
+	 * the exit. Do not add work above it.
+	 *
+	 * @param \WP_REST_Response|\WP_Error $response The response (or error) being returned.
+	 * @param array                       $handler  The matched route handler.
+	 * @param \WP_REST_Request            $request  The request.
+	 * @return \WP_REST_Response|\WP_Error Unchanged — we only observe.
+	 */
+	public function on_rest_after_callbacks( $response, $handler, $request ) {
+		// ~Every request stops here.
+		if ( ! is_wp_error( $response ) ) {
+			return $response;
+		}
+		if ( ! $request instanceof \WP_REST_Request || 0 !== strpos( (string) $request->get_route(), '/wp-abilities/' ) ) {
+			return $response;
+		}
+
+		$data    = $response->get_error_data();
+		$status  = ( is_array( $data ) && isset( $data['status'] ) ) ? (int) $data['status'] : 0;
+		$user_id = get_current_user_id();
+		$kind    = Events::classify( $status, $user_id );
+
+		if ( null === $kind ) {
+			return $response; // A logged-in caller's malformed input: their bug, not our signal.
+		}
+
+		// CARDINALITY. A refusal names a real ability — the 404 gate fires first, so it must exist,
+		// and the set is bounded. A probe's name is attacker-supplied, so it is deliberately NOT
+		// stored: ten thousand guesses would otherwise mint ten thousand rows. They aggregate into
+		// one row whose `hits` counts the campaign.
+		$subject = Events::names_a_real_ability( $kind ) ? (string) $request->get_param( 'name' ) : '';
+
+		self::record( $kind, $user_id, self::current_credential(), $subject, (string) $status );
+
+		return $response;
 	}
 
 	/**

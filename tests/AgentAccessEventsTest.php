@@ -152,4 +152,55 @@ final class AgentAccessEventsTest extends TestCase {
 			array_keys( $out )
 		);
 	}
+
+	/* -- classify(): what a FAILED abilities request means -------------------- */
+
+	/**
+	 * Verified against WP 7.0.1. The gate order inside check_ability_permissions() is
+	 * not-found -> method -> INPUT -> permissions, so the permission gate is LAST.
+	 */
+	public function test_a_refused_request_is_the_sharp_signal() {
+		// Anonymous, well-formed request for a real ability.
+		$this->assertSame( Events::KIND_ABILITY_REFUSED, Events::classify( 401, 0 ) );
+		// Logged in, not permitted.
+		$this->assertSame( Events::KIND_ABILITY_REFUSED, Events::classify( 403, 231 ) );
+	}
+
+	public function test_guessing_ability_names_is_a_probe() {
+		$this->assertSame( Events::KIND_ABILITY_PROBED, Events::classify( 404, 0 ) );
+		$this->assertSame( Events::KIND_ABILITY_PROBED, Events::classify( 404, 231 ) );
+	}
+
+	public function test_an_anonymous_malformed_request_is_the_scanner_signature() {
+		// THIS is the case that would be missed by a naive "log the 403s" design. The permission
+		// gate is behind an INPUT gate, so a scanner throwing junk at ability endpoints produces
+		// 400s and 404s and never a 403. Drop these and a naive scan leaves no trace at all, while
+		// the screen goes on reporting an all-clear.
+		$this->assertSame( Events::KIND_ABILITY_PROBED, Events::classify( 400, 0 ) );
+		$this->assertSame( Events::KIND_ABILITY_PROBED, Events::classify( 405, 0 ) );
+	}
+
+	public function test_a_logged_in_callers_malformed_request_is_their_bug_not_our_signal() {
+		// A developer's broken integration sends bad input all day. Recording it would fill the feed
+		// with their own mistake — the alert fatigue the rollup exists to prevent.
+		$this->assertNull( Events::classify( 400, 231 ) );
+		$this->assertNull( Events::classify( 405, 231 ) );
+	}
+
+	public function test_a_successful_request_is_never_a_refusal() {
+		$this->assertNull( Events::classify( 200, 1 ) );
+		$this->assertNull( Events::classify( 0, 1 ) );
+	}
+
+	/* -- The cardinality guard ---------------------------------------------- */
+
+	public function test_only_a_real_ability_may_be_named_in_subject() {
+		// A refusal implies the ability EXISTS (the 404 gate fires first), so the name is one of a
+		// bounded set. A probe's name is ATTACKER-SUPPLIED — storing it would let ten thousand
+		// guessed names mint ten thousand rows. Bound the cardinality at the point of insert; never
+		// hope the row cap catches it later.
+		$this->assertTrue( Events::names_a_real_ability( Events::KIND_ABILITY_REFUSED ) );
+		$this->assertTrue( Events::names_a_real_ability( Events::KIND_ABILITY_USED ) );
+		$this->assertFalse( Events::names_a_real_ability( Events::KIND_ABILITY_PROBED ) );
+	}
 }

@@ -38,6 +38,12 @@ final class Events {
 	/** An ability was executed. Rolls up: we alert on the FIRST use, then count. */
 	const KIND_ABILITY_USED = 'ability_used';
 
+	/** A real ability, a well-formed request — and WordPress said no. The sharp one. */
+	const KIND_ABILITY_REFUSED = 'ability_refused';
+
+	/** Someone poking at the ability surface: guessing names, or malformed anonymous requests. */
+	const KIND_ABILITY_PROBED = 'ability_probed';
+
 	/* -- Ability-coverage states (see ability_coverage) --------------------- */
 
 	/** Every ability is observable — ours and other plugins'. */
@@ -82,6 +88,8 @@ final class Events {
 			self::KIND_APPPW_DELETED,
 			self::KIND_APPPW_RENAMED,
 			self::KIND_ABILITY_USED,
+			self::KIND_ABILITY_REFUSED,
+			self::KIND_ABILITY_PROBED,
 		);
 	}
 
@@ -135,6 +143,76 @@ final class Events {
 			return self::COVERAGE_OWN_ONLY;
 		}
 		return self::COVERAGE_PENDING;
+	}
+
+	/**
+	 * Classify a FAILED request to the abilities REST surface.
+	 *
+	 * The gate order inside WP_REST_Abilities_V1_Run_Controller::check_ability_permissions() is the
+	 * whole reason this function is shaped the way it is. Verified against WP 7.0.1:
+	 *
+	 *   1. ability exists + show_in_rest  -> 404 rest_ability_not_found
+	 *   2. validate_request_method()      -> 405 rest_ability_invalid_method
+	 *   3. validate_input()               -> 400 ability_invalid_input
+	 *   4. check_permissions()            -> 401 (anon) / 403 (logged in) rest_ability_cannot_execute
+	 *
+	 * The permission gate is LAST. So a naive scanner throwing junk at ability endpoints produces
+	 * 400s and 404s and NEVER a 403 — watching only for "permission denied" would miss the most
+	 * common probe entirely and go on reporting an all-clear. A 403 means someone who read the
+	 * schema, or who is holding a credential they should not have.
+	 *
+	 * We do NOT classify intent. We cannot tell an attacker from a curious agent, and any label
+	 * claiming otherwise would be the fabricated certainty this whole feature refuses to trade in.
+	 * `hits` is a fact and it does the talking: refused twice is an agent that looked; refused
+	 * twelve thousand times is a hammer. The owner draws the conclusion.
+	 *
+	 * @param int $status  HTTP status of the WP_Error response.
+	 * @param int $user_id The authenticated user, or 0 when anonymous.
+	 * @return string|null A KIND_* constant, or NULL when this is not worth recording.
+	 */
+	public static function classify( $status, $user_id ) {
+		$status  = (int) $status;
+		$user_id = (int) $user_id;
+
+		// A real ability, a well-formed request, and WordPress refused it. The sharp one — and when
+		// it carries one of the owner's own credentials, the only unambiguous signal this feature
+		// will ever produce.
+		if ( 401 === $status || 403 === $status ) {
+			return self::KIND_ABILITY_REFUSED;
+		}
+
+		// An ability name that does not exist. Nobody advertised it, so somebody is guessing.
+		if ( 404 === $status ) {
+			return self::KIND_ABILITY_PROBED;
+		}
+
+		// Malformed. From a LOGGED-IN caller this is almost always a broken integration, not an
+		// attack, and recording it would fill the log with a developer's own bug — the alert fatigue
+		// the rollup exists to prevent. Anonymous is a different matter: legitimate agents
+		// authenticate, so an anonymous malformed request to an ability endpoint is itself the
+		// signal. It is also the ONLY trace a naive scanner leaves (see the gate order above).
+		if ( ( 400 === $status || 405 === $status ) && 0 === $user_id ) {
+			return self::KIND_ABILITY_PROBED;
+		}
+
+		return null;
+	}
+
+	/**
+	 * Whether an event kind names a specific, registered ability in `subject`.
+	 *
+	 * This is a CARDINALITY guard, not a formatting detail. For a refusal the ability must exist
+	 * (a 404 is caught by an earlier gate), so the name is one of a bounded set and is safe to
+	 * store. For a probe the name is ATTACKER-SUPPLIED — ten thousand guessed names would mint ten
+	 * thousand rows and flood the table. Those aggregate into a single row instead, whose `hits`
+	 * counts the campaign. The guessed names are not interesting; the fact that someone is guessing
+	 * is. Bound the cardinality at the point of insert, never hope the row cap catches it later.
+	 *
+	 * @param string $kind A KIND_* constant.
+	 * @return bool
+	 */
+	public static function names_a_real_ability( $kind ) {
+		return in_array( (string) $kind, array( self::KIND_ABILITY_USED, self::KIND_ABILITY_REFUSED ), true );
 	}
 
 	/**

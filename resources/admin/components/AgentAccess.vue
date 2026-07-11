@@ -10,9 +10,13 @@
  *
  *   1. What it can see here (the five coverage states — a site without the Abilities API has
  *      nothing to watch, and an old Abilities API plugin never announces an invocation at all).
- *   2. What it structurally CANNOT see: WordPress only tells us an ability ran AFTER it allowed
- *      it, so a rejected probe is invisible. "Nothing succeeded" is not "nobody tried".
- *   3. That it records no IP and no location, so it can name the key but never the person.
+ *   2. That it records no IP and no location, so it can name the key but never the person.
+ *
+ * It also records what was TURNED AWAY, not only what succeeded — refusals and probes for
+ * abilities that don't exist. That is what lets the empty state say "nothing has run, and nothing
+ * has been turned away either" instead of the confession it used to have to make. But it still
+ * never labels intent: we cannot tell an attacker from a curious agent, and `hits` is the honest
+ * signal — refused twice is someone looking, refused twelve thousand times is a hammer.
  *
  * And it never claims to protect anything. It is a camera, not a lock: nothing here blocks.
  */
@@ -240,6 +244,10 @@ export default {
           return `Application password revoked: “${name}”`;
         case 'ability_used':
           return `Ability used: ${name}`;
+        case 'ability_refused':
+          return `Ability refused: ${name}`;
+        case 'ability_probed':
+          return 'Someone probed for abilities that don\u2019t exist';
         default:
           return name;
       }
@@ -250,6 +258,20 @@ export default {
     // sentence is the reason the feature exists.
     isNewKey(e) {
       return e.kind === 'apppw_created';
+    },
+    // A refusal or a probe is qualitatively different from "your Zapier key was used": it is the
+    // first thing here that might mean someone is actually trying it on. It gets a warn tone — but
+    // never the word "attack", because we cannot know that and will not pretend to.
+    isRefusal(e) {
+      return e.kind === 'ability_refused' || e.kind === 'ability_probed';
+    },
+    // THE payload of Phase 3, and the only unambiguous signal this feature will ever produce: a key
+    // the OWNER issued asked for something it is not allowed to do. It is misconfigured or stolen,
+    // and either way the action is the same. Anonymous refusals get no such line — we have no IP, so
+    // there is nothing honest to tell them to do, and inventing advice would be the fake certainty
+    // this screen refuses to trade in.
+    revokeAdvice(e) {
+      return e.kind === 'ability_refused' && !!e.cred;
     },
     // Unread per the server, OR unread at any point during this visit. The second half is what
     // stops a row losing its pill just because a later event arrived and triggered a refresh.
@@ -327,7 +349,7 @@ export default {
         </tr>
       </thead>
       <tbody>
-        <tr v-for="e in events" :key="e.id" :class="{ 'is-unseen': isHighlighted(e) }">
+        <tr v-for="e in events" :key="e.id" :class="{ 'is-unseen': isHighlighted(e), 'is-refusal': isRefusal(e) }">
           <td>
             <span class="ar-aa__what">
               {{ label(e) }}
@@ -342,6 +364,17 @@ export default {
               Didn't create this? Revoke it. An application password keeps working even after
               you change your password.
             </span>
+            <!-- The sharpest thing this feature ever says, and the only unambiguous one: a key the
+                 OWNER issued asked for something it isn't allowed to do. -->
+            <span v-if="revokeAdvice(e)" class="ar-aa__hint ar-aa__hint--warn">
+              A key you issued tried to run something it isn't allowed to. If you don't recognise
+              this, revoke that application password.
+            </span>
+            <!-- No IP, so no honest advice to give. Say what we saw and let the count speak. -->
+            <span v-else-if="e.kind === 'ability_probed'" class="ar-aa__hint">
+              Nobody advertises these names, so someone is guessing them. One or two is noise; a
+              large count is not.
+            </span>
           </td>
           <td>{{ e.hits > 1 ? `${e.hits} times` : 'once' }}</td>
           <td>{{ when(e.firstSeen) }}</td>
@@ -350,15 +383,15 @@ export default {
       </tbody>
     </table>
 
-    <!-- THE most important string on this screen. A quiet table is not a safe site, and the
-         difference is not a nuance we get to skip: WordPress only tells us an ability ran after
-         it has already ALLOWED it, so a rejected probe leaves no trace here at all. -->
+    <!-- Phase 3 EARNED this sentence. It used to have to confess that WordPress only tells us an
+         ability ran after it has already ALLOWED it, so a refused probe left no trace — meaning a
+         quiet screen could not honestly be read as "all clear". We now watch the refusals too, so
+         the quiet screen finally means what owners always assumed it meant. -->
     <div v-else-if="loaded && hasAbilities" class="ar-aa__empty">
       <h3>Nothing yet.</h3>
       <p>
-        That means nothing has <em>succeeded</em> — not that nobody has tried. We only see an
-        ability after WordPress has already allowed it, so someone poking at abilities they don't
-        have permission for won't show up here.
+        Nothing has run — and nothing has been turned away either. Requests that were refused, and
+        anyone poking at abilities that don't exist, would show up here too.
       </p>
     </div>
 
