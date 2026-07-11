@@ -10,6 +10,18 @@
  * On success `error` is '' and `text` holds the model's answer; on failure `text`
  * is '' and `error` explains why.
  *
+ * Why these talk to the vendor APIs directly instead of routing through WordPress 7.0's
+ * AI Client the way {@see \Agentimus\Assist} does: the AI Client can enable web search,
+ * but it cannot give back the SOURCES the engine cited, and `citations` above is the
+ * signal a visibility check grades. Its typed result models only text/file/function-call
+ * parts, and its one escape hatch (`getAdditionalData()`) receives just the leftover
+ * TOP-LEVEL keys of the vendor response — while every engine buries its sources inside
+ * the structure that gets stripped (Gemini in `candidates[].groundingMetadata`, OpenAI in
+ * `choices[].message.annotations`, Anthropic on the content blocks). Perplexity — whose
+ * `citations` are top-level and would survive — has no core connector at all. So until the
+ * AI Client models citations, reading them means speaking each vendor's own wire format,
+ * which is why this screen keeps its own keys. Revisit if core grows a citation DTO.
+ *
  * @package Agentimus
  */
 

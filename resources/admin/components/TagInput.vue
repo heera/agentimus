@@ -4,6 +4,11 @@ export default {
   props: {
     modelValue: { type: Array, default: () => [] },
     placeholder: { type: String, default: 'Add and press Enter' },
+    // Render the chips BELOW the field's hint line rather than directly under the input.
+    // Opt-in, because it works by flex `order` on the surrounding .ar-field — which would
+    // also push the chips past any OTHER block a field appends after its hint (e.g. the
+    // built-in allow-list), stranding them away from their own input.
+    afterHint: { type: Boolean, default: false },
   },
   emits: ['update:modelValue'],
   data() {
@@ -66,23 +71,29 @@ export default {
 };
 </script>
 
+<!--
+  The text box is an ordinary `.ar-input` and the chips sit BELOW it, so the field lines
+  up with the plain inputs beside it in a grid at any chip count. (It used to be a
+  bordered box wrapping the chips with the input on its own row inside — which made the
+  control ~2.3x the height of a normal input and broke the grid's alignment.)
+-->
 <template>
   <div class="ar-tags">
-    <ul class="ar-tags__list">
-      <li v-for="tag in visibleTags" :key="tag" class="ar-tags__chip">
-        <button type="button" class="ar-tags__edit" :title="`Edit “${tag}”`" @click="edit(tag)">{{ tag }}</button>
-        <button type="button" class="ar-tags__x" :aria-label="`Remove ${tag}`" @click="remove(tag)">×</button>
-      </li>
-    </ul>
     <input
       ref="input"
       v-model="draft"
       type="text"
-      class="ar-tags__input"
+      class="ar-input ar-tags__input"
       :placeholder="placeholder"
       @keydown.enter.prevent="commit"
       @keydown="onKeydown"
       @blur="commit"
     />
+    <ul v-if="visibleTags.length" class="ar-tags__list" :class="{ 'ar-tags__list--after-hint': afterHint }">
+      <li v-for="tag in visibleTags" :key="tag" class="ar-tags__chip">
+        <button type="button" class="ar-tags__edit" :title="`Edit “${tag}”`" @click="edit(tag)">{{ tag }}</button>
+        <button type="button" class="ar-tags__x" :aria-label="`Remove ${tag}`" @click="remove(tag)">×</button>
+      </li>
+    </ul>
   </div>
 </template>

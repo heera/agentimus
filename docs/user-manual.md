@@ -19,11 +19,13 @@ New here? Read them roughly in order:
 6. **Structured data** — the Schema.org (JSON-LD) your pages emit, plus the one-line AI description behind each page's summary.
 7. **Identity** — tell AI who you are and what you do.
 8. **Topics for AI** — say what each page is about.
-9. **Agent preview** — see exactly what an agent receives.
-10. **AI access & crawlers** — who may crawl, and how.
-11. **Exposure & hardening** — optional privacy tightening.
-12. **AI Visibility** — track whether AI engines cite you.
-13. **Privacy & data** — what leaves your server (almost nothing).
-14. **FAQ** — quick answers to common questions.
+9. **Write with AI** — let your configured AI draft the descriptions, topics and fixes.
+10. **Agent preview** — see exactly what an agent receives.
+11. **AI access & crawlers** — who may crawl, and how.
+12. **Exposure & hardening** — optional privacy tightening.
+13. **AI Visibility** — track whether AI engines cite you.
+14. **Caching & CDNs** — keeping a page cache out of the way of the AI files.
+15. **Privacy & data** — what leaves your server (almost nothing).
+16. **FAQ** — quick answers to common questions.
 
 Use the sidebar to jump to any page.

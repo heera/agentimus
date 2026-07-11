@@ -1,7 +1,7 @@
 ---
 title: AI Visibility
 parent: User Manual
-nav_order: 12
+nav_order: 13
 ---
 
 AI Visibility monitoring is the one part of Agentimus that talks to the outside world. Everything else in the plugin runs quietly on your own site. This feature, when you switch it on and add your own AI keys, actually asks the big AI assistants questions and reports back whether they mention you, link to you, and how you stack up against your rivals — tracked over time so you can see the picture change.
@@ -14,7 +14,7 @@ You tell Agentimus a few things:
 
 - **What you want to watch** — your brand, a product, or a person (for example, yourself).
 - **The questions real people would type** — like "what's the best llms.txt plugin for WordPress?"
-- **Which AI engines should answer** — ChatGPT, Perplexity, Gemini, and/or Claude.
+- **Which AI engines should answer** — ChatGPT, Gemini, Claude, and/or Perplexity.
 
 Agentimus then asks each engine each of your questions and reads the answers. For every answer it records three things:
 
@@ -49,15 +49,31 @@ In **Settings**, the first card is **What you're tracking**. Agentimus starts yo
 | Field | Required? | What it's for |
 |---|---|---|
 | **What is it called?** | Yes | The exact name you want AI to say (for example, `Agentimus`). Used to detect a mention. |
+| **What kind of thing is it?** | Optional, but worth filling in | The category a buyer would shop in — "WordPress SEO plugin", "accountancy firm in Leeds". This is *not* what your site writes about; it's the market you compete in. It's what the suggested questions (below) are built from. |
 | **Its website** | Optional | So Agentimus can tell when an AI links to *you* specifically. Leave blank if it has no site. |
 | **Who are its rivals?** | Optional | The competing names. Agentimus shows who AI picks instead of you. |
 | **What should we ask AI?** | Yes to get results | Real questions a person would type. Press Enter after each one. These are the answers that get graded. |
 
-Everything here **saves as you type** — there's no separate save button for this card. You'll see a small "Saving…" then "Saved ✓" next to each item, and a plain warning if an item still needs a name or a question before it can be checked.
+**The whole screen saves as you type.** There is no Save button anywhere on it — your tracked items, your engines and your schedule are all stored the moment you change them. You'll see a small "Saving…" then "Saved ✓" next to each item, and a plain warning if an item still needs a name or a question before it can be checked.
 
 You can track several different things (up to ten), and each one keeps its own website, rivals, questions, and its own scoreboard. Add more with **+ Add another**. Each item also has an **Active / Paused** switch — pause one to leave it out of checks without deleting its setup, and turn it back on later.
 
 Rivals and questions are added as chips: type and press Enter to add one, and click a chip to edit it. You can track up to 25 questions and up to 20 rivals per item.
+
+### Stuck for questions? Let Agentimus suggest some
+
+Next to the questions field are up to two buttons, and they do different things:
+
+- **Suggest questions** builds candidates from a set of built-in templates. It's instant, free, and makes no network request of any kind — no AI is involved. It's always available.
+- **✦ Suggest with AI** asks the AI provider you configured in WordPress (under **Settings → AI**) to write the questions instead. It only appears when a provider is actually set up, and it spends one AI call from your own quota. If the model comes back with nothing usable, Agentimus quietly falls back to the template questions rather than showing you an empty list.
+
+Either way you get a row of suggestions; click one to add it as a question, and ignore the rest. Nothing is added for you.
+
+**Both work from the category, and the AI button stays disabled until you fill it in.** That's a deliberate guardrail, not fussiness. A suggestion you accept doesn't just sit there — it becomes a question that is **graded on every single run**, forever. When suggestions were built from what a site *blogs about* rather than the market it *sells into*, they came out as things like "What is the best JavaScript?" — a question that can never legitimately name you, so it scored a permanent zero and quietly reported that "AI never mentions you". Better to ask for one short phrase than to hand you a question that is guaranteed to fail.
+
+If you leave the category blank, Agentimus won't invent a market for you. It offers only questions built from your own name — "What is *X*?", "*X* vs *Y*" — which are honest, if less revealing.
+
+One thing you'll notice about the AI's suggestions: they never contain your own name. That's on purpose. A question with your name already in it is guaranteed to get your name back in the answer, so it measures nothing.
 
 ## Step 2 — Turn on AI engines and add your keys
 
@@ -66,15 +82,23 @@ The second card is **AI engines**. Each row is one assistant. Flip the toggle to
 | Engine | Where you get a key | Answers from |
 |---|---|---|
 | **ChatGPT (OpenAI)** | platform.openai.com | What it already knows, unless you turn on live web |
-| **Perplexity** | perplexity.ai settings | Always a live web search |
 | **Gemini (Google)** | aistudio.google.com | What it already knows, unless you turn on live web |
 | **Claude (Anthropic)** | console.anthropic.com | What it already knows, unless you turn on live web |
+| **Perplexity** | perplexity.ai settings | Always a live web search |
 
 Each engine also lets you pick a **model**. Agentimus defaults to a fast, low-cost model for each provider so recurring checks stay cheap, and you can choose a different one from the list or type a custom model ID.
 
+As with the tracked items, this card **saves as you type** — flipping an engine on, pasting a key or changing a model is stored straight away.
+
 **Test before you rely on it.** Each row has a **Test** button that does one tiny round-trip to confirm the key works. A green "✓ Working" means you're set; a failure opens a readable message (often with a link to fix it, such as "add billing").
 
-A saved key shows as dots and is kept safe on your server. Leaving the dots untouched keeps the stored key. Clearing the field and saving deliberately removes the key. There's an eye icon to reveal a key if you need to copy or check it.
+A saved key shows as dots and is kept safe on your server. Leaving the dots untouched keeps the stored key; clearing the field deliberately removes it. There's an eye icon to reveal a key if you need to copy or check it.
+
+### "But I already gave WordPress an API key"
+
+If you're on WordPress 7.0 and have already connected an AI provider under **Settings → AI** — the one that powers [Write with AI](write-with-ai.html) — it's fair to ask why AI Visibility makes you paste a key again. The reason is what a visibility check actually grades.
+
+A check is graded on the **sources each engine cited**: which pages it leaned on, and whether any of them were yours. WordPress's shared connectors hand back the **answer text only** — the list of cited sources is dropped before Agentimus can read it. Getting at those sources means talking to each engine through its own API, which needs that engine's own key. So AI Visibility keeps its keys separate. They stay on your server and are used only to run your checks.
 
 ## Step 3 — Live web search (optional but recommended)
 
@@ -83,7 +107,7 @@ By default, most engines answer from their training — that is, what they alrea
 Turning on **Live web** for an engine makes it actually search the live web before answering and cite the pages it used. This matters because a **live** answer's "linked your site" score reflects what AI can find about you *right now* — not just what it memorised months ago.
 
 - **ChatGPT, Gemini, and Claude** each have a **Live web on/off** toggle. (ChatGPT's live search needs a search-capable model, such as `gpt-4.1`.)
-- **Perplexity** always searches the live web — there's nothing to switch on, so it's simply marked **Always live web**.
+- **Perplexity** always searches the live web — there's nothing to switch on, so it's simply marked **Live web is always on**.
 
 Live checks take longer and can cost a little more per question, because the engine runs a real search behind the scenes. Agentimus gives those checks extra time so they don't cut off early.
 
@@ -136,7 +160,7 @@ Running by hand is fine, but the real value comes from tracking change over time
 - Flip **Run checks automatically** on.
 - Choose **Daily** or **Weekly**.
 
-From then on, Agentimus runs your checks on that cadence in the background, with no clicks needed. You can still hit **Run check now** whenever you like.
+These save on their own too — like the rest of the screen, there's no Save button to press afterwards. From then on, Agentimus runs your checks on that cadence in the background, with no clicks needed. You can still hit **Run check now** whenever you like.
 
 A few sensible guardrails apply:
 
@@ -177,12 +201,16 @@ Where Agentimus genuinely helps is making sure that when an AI *does* look at yo
 |---|---|---|
 | Show the feature | Settings → Features → **Track AI citations** | Off by default; the tab + the Cited rung appear when on |
 | Run checks | Enable an engine + add a key | Bring your own key; each check spends your own credit |
-| What to track | Settings → What you're tracking | Up to 10 items, each with its own name, site, rivals, questions |
+| What to track | Settings → What you're tracking | Up to 10 items, each with its own name, category, site, rivals, questions |
+| The category | "What kind of thing is it?" per item | The market you sell into, not what you blog about; the suggestions are built from it |
 | Questions per item | Chips in each item | Up to 25 |
 | Rivals per item | Chips in each item | Up to 20 |
-| Engines | Settings → AI engines | ChatGPT, Perplexity, Gemini, Claude |
+| Suggest questions | Button under the questions field | Built-in templates: instant, free, no AI call |
+| ✦ Suggest with AI | Button under the questions field | Uses the provider from Settings → AI; needs the category; spends one AI call |
+| Engines | Settings → AI engines | ChatGPT, Gemini, Claude, Perplexity |
 | Live web search | Per-engine toggle | Perplexity always live; others optional |
 | Test a key | Test button per engine | One tiny call to confirm it works |
+| Saving | Anywhere on the Settings view | Everything saves as you type — there is no Save button |
 | Run now | Results → Run check now | Runs in the background |
 | Automatic checks | Settings → Schedule | Daily or weekly; off until you switch it on |
 | Keep history | Settings → Schedule | 7–730 days (default 180) |

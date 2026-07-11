@@ -41,7 +41,7 @@ final class PageCheckMetaBox {
 	 * @param \WP_Post $post Post being edited.
 	 */
 	public function render_meta_box( $post ) {
-		echo self::rows_html( $post ); // phpcs:ignore WordPress.Security.EscapingOutput.OutputNotEscaped -- every field is escaped inside rows_html().
+		echo self::rows_html( $post ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- every field is escaped inside rows_html().
 	}
 
 	/**
@@ -96,7 +96,8 @@ final class PageCheckMetaBox {
 				esc_html( $mark ),
 				esc_html( $r['label'] ),
 				'' !== $r['detail'] ? '<span class="agentimus-pc__detail">' . esc_html( $r['detail'] ) . '</span>' : '',
-				$fix // Static markup + esc_attr'd data-check.
+				// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- built above from static markup, esc_attr'd data-check and esc_html'd label.
+				$fix
 			);
 		}
 		echo '</ul>';

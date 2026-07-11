@@ -243,6 +243,16 @@ At the top, a gauge shows the blended score and a plain band — **Needs work**,
 
 The full checks behind Findable / Readable / Trusted, and the per-page work behind Optimized, live on the **Readiness** tab — see the **[Readiness & agent preview](readiness.html)** page.
 
+### When the score updates
+
+Most of what the score measures is your **content**, and content is edited in the post editor — usually in another browser tab. So the score keeps itself current rather than waiting for a page load. It re-reads itself:
+
+- when you **switch back to the Agentimus tab** (so fixing a page in the editor, then returning here, shows the result);
+- when you press **Refresh** on the Dashboard;
+- when you re-run **Readiness**, or save a setting.
+
+If you've just fixed the page the **"Next:"** line was nagging you about, expect it to move on to the next one — you shouldn't have to reload the page to see that.
+
 ---
 
 ## Turning the Dashboard on or off

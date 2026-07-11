@@ -4,7 +4,7 @@ Tags: ai-agents, ai-crawlers, agent-readiness, llms-txt, ai-seo
 Requires at least: 6.0
 Tested up to: 7.0
 Requires PHP: 7.4
-Stable tag: 1.18.0
+Stable tag: 1.19.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -36,7 +36,7 @@ By default it makes no outbound requests, collects no analytics, and logs no IP 
 * **Request log** — every recorded request, one row each, under *More → Request log*. Filter by client, endpoint, network, user-agent and date to see exactly what a single bot fetched.
 * **Traffic from AI** — the mirror of the crawler log: the real visitors an AI assistant sent you. *More → AI traffic* reports them day by day, by assistant (ChatGPT, Perplexity, Gemini, Claude, Copilot, Grok, DeepSeek and more) and by landing page. Stored as daily aggregate counts — never a row that stands for one person, no IP, no query strings. An opt-in **CDN mode** counts them in the visitor's browser so the number survives a full-page cache, and an opt-in **Find missed AI sources** diagnostic lists the referrers Agentimus couldn't name, so a new assistant never goes uncounted without you knowing.
 * **You decide how long it's kept** — a retention period, nightly auto-delete, and a hard size cap that always applies (Settings → Visit log), so the log can never grow without limit on your host.
-* **AI Visibility (opt-in)** — track **each brand, product or person you choose** across ChatGPT, Perplexity, Gemini and Claude. For every one, Agentimus asks the questions your audience actually types and reports whether it gets **mentioned, linked, and how it ranks against its own rivals** — over time. Each thing you track has its own website, competitors, questions and scoreboard; pause any single one, or the whole schedule, whenever you like. Off by default; **you bring your own API key** for each engine, and this is the one feature that makes an outbound request (see *External services*).
+* **AI Visibility (opt-in)** — track **each brand, product or person you choose** across ChatGPT, Perplexity, Gemini and Claude. For every one, Agentimus asks the questions your audience actually types and reports whether it gets **mentioned, linked, and how it ranks against its own rivals** — over time. Tell it what each thing *is* (*"a WordPress SEO plugin"*) and it will **suggest the questions a buyer really types** — or, if you've set up an AI provider in WordPress, ask that AI for a spread of them. Each thing you track has its own website, category, competitors, questions and scoreboard; pause any single one, or the whole schedule, whenever you like. Off by default; **you bring your own API key** for each engine, and this is the one feature that makes an outbound request (see *External services*).
 
 **Content — clean, machine-readable output**
 
@@ -162,6 +162,14 @@ No. The text endpoints are cached and CDN-friendly; there is no front-end JavaSc
 
 No. Agentimus only describes what your site already makes public; it grants no new access. Removing or suppressing an item changes what is *advertised*, not what is reachable — the underlying endpoints behave exactly as before, behind their own authentication.
 
+= Can AI help me write the description, topics and fixes? =
+
+Yes, if you're on WordPress 7.0 and have set up an AI provider under Settings → AI. Then **Draft with AI** appears on the AI description field, **Suggest with AI** on the Topics field, and **Fix with AI** on any AI Readability row that needs work. Agentimus asks *your* AI through WordPress's shared connectors — it never sees or stores your API key, and nothing is sent anywhere if you haven't set a provider up (the buttons simply don't appear). Every suggestion arrives as ordinary editable text in the field: you read it, change it, and save the post yourself. Nothing is written for you.
+
+= Does AI Visibility use the AI provider I set up in WordPress? =
+
+No — it needs its own API keys, and that's on purpose. A visibility check is graded on the **sources each engine cited**, and WordPress's shared connectors hand back only the answer text; the list of cited sources is dropped before Agentimus could read it. Reading those sources means talking to each engine's own API, so AI Visibility keeps its own keys (Settings → AI Visibility). They stay on your server and are used for nothing else.
+
 = How do I make my plugin appear in the discovery document? =
 
 Add a single optional action — no dependency, no library. If Agentimus isn't installed the hook simply never fires:
@@ -197,12 +205,13 @@ Yes. The discovery document implements the **WP_Discovery Protocol**, an openly-
 7. About — a plain-English account of every feature and what it publishes, a privacy & data section (no outbound calls, no IP/PII by default, signing key stays on your server), the open WP_Discovery Protocol it implements, and an FAQ.
 8. Exposure controls — opt-in, off-by-default switches that limit what anonymous crawlers can read about your site: username enumeration, author archives, the WordPress version, auto-generated head links, and XML-RPC.
 9. AI Visibility — an opt-in, bring-your-own-key scoreboard showing whether ChatGPT, Perplexity, Gemini and Claude mention and link each brand, product or person you track: seen-in-answers and linked-your-site rates, rank against each item's own rivals, and question-by-question results with the sources each engine cited. Off by default; you bring your own API key and nothing runs until you enable it.
-10. In the post editor — the "Topics for AI" panel: say in plain words what a page is about, one chip at a time, or leave it blank and let Agentimus fill them in from the post's tags and categories (those arrive marked *auto*); either way the topics flow into the page's JSON-LD keywords and its .md edition. Nothing shows to visitors.
-11. In the post editor — the "Agentimus" box, AI Readability tab: a per-page pass/warn check of what makes the page hard for an assistant to read and cite — enough substance, an opening summary, section headings, heading order, prose vs links, and image alt text.
+10. In the post editor — the "Topics for AI" panel: say in plain words what a page is about, one chip at a time, or leave it blank and let Agentimus fill them in from the post's tags and categories (those arrive marked *auto*); either way the topics flow into the page's JSON-LD keywords and its .md edition. Where you've set up an AI provider in WordPress, "Suggest with AI" drafts them from the page itself. Nothing shows to visitors.
+11. In the post editor — the "Agentimus" box, AI Readability tab: a per-page pass/warn check of what makes the page hard for an assistant to read and cite — enough substance, an opening summary, section headings, heading order, prose vs links, and image alt text. Each row that needs work offers "Fix with AI", which drafts a concrete fix using the AI provider you set up in WordPress (nothing is saved for you, and without a provider the button simply isn't there).
 12. In the post editor — the "Agentimus" box, JSON-LD tab: the exact structured data the page emits in its `<head>`, with a copy button and Google Rich Results / Schema.org validator links.
-13. In the post editor — the "AI description" panel: a one-line summary of the page for AI assistants. It feeds the page's structured data and its .md edition, and becomes the page's meta description unless a dedicated SEO plugin manages that. Leave it blank and Agentimus falls back to the excerpt.
+13. In the post editor — the "AI description" panel: a one-line summary of the page for AI assistants. It feeds the page's structured data and its .md edition, and becomes the page's meta description unless a dedicated SEO plugin manages that. Leave it blank and Agentimus falls back to the excerpt — or click "Draft with AI" to have your own AI provider write it from the page.
 14. Request log — every request an agent made, in one filterable table: narrow by client, endpoint, network, verification verdict, User-Agent or date to see exactly what a single bot fetched. Repeat hits are grouped, and your own logged-in visits are never recorded. Records are kept for the last 30 days (or until the size cap), then trimmed — so read a full page as a floor, not a total.
 15. The More menu — the occasional screens (AI Visibility, AI traffic, the request log and About) fold behind one control, so the main navigation stays short. AI Visibility appears disabled with "Turn on in Settings" rather than hidden, so you always know it's there to enable.
+16. AI Visibility settings — each thing you track gets a name, a category ("what kind of thing is it?"), its website, its rivals and the questions to ask. Tell Agentimus the category and it suggests the questions a buyer really types — or, where you've set up an AI provider in WordPress, "Suggest with AI" asks it for a wider spread. Suggestions are only ever offered; you pick which to keep, and every setting on the screen saves as you change it.
 
 == External services ==
 
@@ -226,6 +235,17 @@ The example URLs in `examples/integrate-your-plugin.php` (on `example.com`) are 
 There is no minified-only code. The admin interface is built from Vue 3 source in `resources/` with Vite; the source and `vite.config.js` ship in this package and also live in the public repository at https://github.com/heera/agentimus . Run `npm install && npm run build` to regenerate `assets/admin/` from source.
 
 == Changelog ==
+
+= 1.19.0 =
+* New — **Write with AI.** Agentimus can now draft the fields it adds to the editor, using the AI you set up in WordPress itself (Settings → AI, new in WordPress 7.0). *Draft with AI* writes a page's **AI description**, *Suggest with AI* fills its **Topics**, and *Fix with AI* offers a concrete fix for any **AI Readability** row that came back warn or fail. Every suggestion lands in the field as ordinary editable text and is never saved for you. Agentimus goes through WordPress's shared AI connectors, so it never sees or stores your API key — and if no AI provider is configured, the buttons simply don't appear.
+* New — **WordPress's own AI can ask Agentimus about your site.** Agentimus registers nine read-only abilities (WordPress 7.0's Abilities API), so the admin assistant — and any MCP client you connect — can ask questions like *"is my site agent-ready?"*, *"which pages are hard for an AI to cite?"* or *"which AI crawlers visited this week?"* and get real answers from your data. Read-only by design: nothing about your site can be changed through them.
+* New — **Say what each tracked thing actually is, and get questions worth asking.** AI Visibility's tracked items gain a **"What kind of thing is it?"** field — the category a buyer would shop in, like *WordPress SEO plugin*. Agentimus builds its suggested questions from that, so you get the questions a buyer really types (*"What is the best WordPress SEO plugin?"*, *"How do I choose the right one?"*) instead of questions drawn from what you happen to blog about.
+* New — **Suggest with AI (optional).** If you've set up an AI provider in WordPress, AI Visibility can ask it for a spread of real buyer questions in your category. They're deliberately unbranded — the point is to find out whether an assistant reaches for you when the buyer never said your name. No AI configured? The button isn't shown, and the built-in suggestions work as always.
+* Improved — **AI Visibility settings save themselves.** The engine switches, live-web toggles, models, keys and the schedule now save the moment you change them, exactly like the tracked items above them. The *Save settings* button is gone — it sat under the Schedule section and looked as though it only applied there.
+* Improved — Perplexity now sits at the end of the engine list (it's the one engine with no live-web switch, because it always searches), and its badge reads *Live web is always on*. The engines section also explains, in plain words, why AI Visibility needs its own API keys even when WordPress's shared connectors are already set up.
+* Fixed — **the score card could burst out of its column.** When the "Next:" line was long — *"AI Visibility checks are failing"*, say — the dark score card grew wider than the sidebar it lives in and spilled across the page. The label was always meant to be trimmed with an ellipsis; it now is, however long it gets.
+* Fixed — **your score went stale the moment you improved something.** The score card was only ever built when the admin page loaded, or when you saved a setting — but the thing it mostly measures is your *content*, and content is edited in the post editor, in another tab. So you could fix the very page it was nagging you about, come back, and still be told to fix it, with no way out but a full page reload. The score now re-reads itself when you return to the tab, when you press Refresh on the dashboard, and when you re-run Readiness.
+* Fixed — **suggested questions were sometimes nonsense.** They were built from the site's own topics, tags and categories — editorial subjects, not things anyone shops for — which produced questions like *"What is the best JavaScript?"* or *"What is the best Miscellaneous?"*. Because a suggestion you accept becomes a question that's graded on every run, an unanswerable one scored a permanent zero and reported as *"AI never mentions you"*. Suggestions now come from the category you give each item, and when you haven't given one, Agentimus offers only what it can honestly ask.
 
 = 1.18.0 =
 * New — **Keep AI endpoints out of your cache.** If a cache or CDN sits in front of your site, it can serve stored copies of your AI files (llms.txt, the `.well-known` docs, the change feed) — so those agent fetches never reach WordPress, the activity log under-counts them, and the change feed can go stale. A new opt-in switch (Settings → Caching & CDN, off by default) asks caches not to store those files, so each fetch reaches WordPress and is counted and current. It works with any cache that respects the standard `no-store` header; the readiness report links straight to the switch whenever it detects a cache sitting in front of your endpoints.
@@ -299,6 +319,9 @@ There is no minified-only code. The admin interface is built from Vue 3 source i
 Older releases (1.12.4 and earlier) are in the full changelog: https://github.com/heera/agentimus/blob/main/CHANGELOG.md
 
 == Upgrade Notice ==
+
+= 1.19.0 =
+New: Write with AI — draft a page's AI description, Topics, or a fix for an AI Readability warning, using the AI provider you set up in WordPress 7.0. AI Visibility suggests better questions. No breaking changes.
 
 = 1.18.0 =
 New: an opt-in switch (Settings → Caching & CDN) that keeps your AI endpoints out of a CDN/proxy cache, so agent fetches are counted in your activity log and freshness-sensitive endpoints stay current. Off by default; no breaking changes.

@@ -29,18 +29,22 @@ export default {
       loaded: false,
       error: '',
       busy: false,
-      autoSaved: false, // brief "Saved ✓" pulse after an auto-save.
+      // Which sections just saved ('targets' | 'engines' | 'schedule'), so the "Saved ✓"
+      // pulse appears next to the heading you actually changed. A single pill on one
+      // heading is useless: flip an engine switch and the confirmation flashes off-screen.
+      savedSections: [],
       cardStatus: {},   // per-card index → 'saving' | 'saved', for inline feedback.
       lastRunAt: '',
       pollTimer: null, // setTimeout id while polling a background run.
       dashboard: null,
       providersMeta: {},
       tests: {},
-      sugg: {}, // Per-product prompt suggestions, keyed by card index: { loading, items }.
+      sugg: {}, // Per-product prompt suggestions, keyed by card index: { loading, aiLoading, items }.
+      aiAvailable: false, // Site has an AI provider configured (WP 7.0 connectors) — gates "Suggest with AI".
       errorDialog: null, // { id, label, msg, helpUrl } when a Test failure dialog is open.
       form: {
         // One card per product. Competitors and questions are chip lists (arrays).
-        targets: [{ name: '', domain: '', active: true, competitors: [], prompts: [] }],
+        targets: [{ name: '', category: '', domain: '', active: true, competitors: [], prompts: [] }],
         scheduleActive: true, // master switch for automatic checks.
         frequency: 'weekly',
         retentionDays: 180,
@@ -123,6 +127,7 @@ export default {
       try {
         const [c, d] = await Promise.all([this.api.getVisibilityConfig(), this.api.getVisibilityDashboard()]);
         this.applyConfig(c.config);
+        this.aiAvailable = !!c.aiAvailable;
         this.lastRunAt = c.lastRunAt || '';
         this.dashboard = d.dashboard;
         this.loaded = true;
@@ -142,6 +147,7 @@ export default {
       // Keep at least one card; competitors/prompts are chip arrays.
       this.form.targets = targets.map((t) => ({
         name: t.name || '',
+        category: t.category || '', // Rows saved before this field existed read as ''.
         domain: t.domain || '',
         active: t.active !== false, // default on.
         competitors: (t.competitors || []).slice(),
@@ -174,7 +180,7 @@ export default {
       return seen;
     },
     addTarget() {
-      this.form.targets.push({ name: '', domain: '', active: true, competitors: [], prompts: [] });
+      this.form.targets.push({ name: '', category: '', domain: '', active: true, competitors: [], prompts: [] });
       // Focus the new card's name field so the user can keep typing.
       this.$nextTick(() => {
         const els = this.$refs.targetName;
@@ -233,11 +239,13 @@ export default {
     // text field (keeping the current value so it can be edited into a custom ID).
     onModelPick(id, value) {
       if (value === '__custom__') {
+        // Only reveals the free-text box — nothing to persist until they type an ID.
         this.form.providers[id].modelCustom = true;
-      } else {
-        this.form.providers[id].model = value;
-        this.form.providers[id].modelCustom = false;
+        return;
       }
+      this.form.providers[id].model = value;
+      this.form.providers[id].modelCustom = false;
+      this.autoSaveProviders();
     },
     // A saved-but-untouched field holds the masked placeholder (shown as dots).
     // Select it on focus so the dots stay visible, but a keystroke replaces the
@@ -282,6 +290,7 @@ export default {
       return this.form.targets
         .map((t) => ({
           name: (t.name || '').trim(),
+          category: (t.category || '').trim(),
           domain: (t.domain || '').trim(),
           active: t.active !== false,
           competitors: (t.competitors || []).slice(),
@@ -289,45 +298,111 @@ export default {
         }))
         .filter((t) => t.name);
     },
-    async save() {
-      this.busy = true;
-      this.notify(null);
-      // This full save already includes the latest targets — cancel any pending
-      // partial save so it can't fire a redundant follow-up request.
-      clearTimeout(this._targetsTimer);
-      this._targetsTimer = null;
-      const payload = {
-        targets: this.buildTargets(),
+    // ---- Saving -----------------------------------------------------------
+    // There is no Save button on this screen: every control commits itself the moment you
+    // change it. Everything funnels through ONE debounced writer, and that is deliberate.
+    // The server's update() is a read-modify-write of a single option — it loads the whole
+    // record, overwrites the keys you sent, and writes it back — so two requests in flight
+    // at once means the slower one writes a stale copy of whatever the other just changed.
+    // (Toggle an engine, then click a suggested question within the same breath, and the
+    // targets write would silently revert the engine.) One timer, one merged payload, one
+    // request: the race cannot happen.
+    //
+    // `targets: true` is a marker, not data — the product list is rebuilt at flush time so
+    // the newest keystroke always wins, however long the payload sat in the queue.
+    queueSave(patch) {
+      this._patch = { ...(this._patch || {}), ...patch };
+      clearTimeout(this._saveTimer);
+      this._saveTimer = setTimeout(() => { this.flushSave(); }, 500);
+    },
+    async flushSave() {
+      clearTimeout(this._saveTimer);
+      this._saveTimer = null;
+      const patch = this._patch;
+      this._patch = null;
+      if (!patch) return;
+
+      const cards = this._pending ? Array.from(this._pending) : [];
+      this._pending = new Set();
+
+      const payload = { ...patch };
+      if (payload.targets === true) payload.targets = this.buildTargets();
+
+      try {
+        const r = await this.api.saveVisibilityConfig(payload);
+        this.pulseSaved(this.sectionsIn(patch));
+        if (cards.length) this.reflectSave(cards);
+        this.syncSchedule(patch, r && r.config);
+      } catch (e) {
+        if (cards.length) this.reflectSave(cards, true);
+        this.notify('error', `Couldn’t save: ${e.message}`);
+      }
+    },
+    // The server clamps "keep history" to 7–730 days. Nothing re-hydrates the form after an
+    // auto-save (that would steal focus mid-edit), so without this the field would go on
+    // showing a number the server refused — type 3, it stores 7, you'd still read 3. Only
+    // the schedule fields we just sent are synced back.
+    syncSchedule(patch, config) {
+      if (!config || !('retentionDays' in patch)) return;
+      if (typeof config.retentionDays === 'number') this.form.retentionDays = config.retentionDays;
+      if (typeof config.frequency === 'string') this.form.frequency = config.frequency;
+      if (typeof config.scheduleActive === 'boolean') this.form.scheduleActive = config.scheduleActive;
+    },
+    autoSaveProviders() {
+      this.queueSave({ providers: this.form.providers });
+    },
+    autoSaveSchedule() {
+      this.queueSave({
         scheduleActive: this.form.scheduleActive,
         frequency: this.form.frequency,
         retentionDays: parseInt(this.form.retentionDays, 10) || 180,
-        providers: this.form.providers,
-      };
-      try {
-        const r = await this.api.saveVisibilityConfig(payload);
-        this.applyConfig(r.config);
-        this.notify('success', 'Settings saved.');
-      } catch (e) {
-        this.notify('error', `Save failed: ${e.message}`);
-      } finally {
-        this.busy = false;
-      }
+      });
     },
     // Persist just the products (a partial save that leaves API keys / schedule
     // untouched), debounced so a burst of chip edits makes one request. No form
     // re-hydrate, so it never steals focus or resets a field you're editing.
-    // Fetch candidate questions for a product from its (unsaved) fields + the site's
-    // topics. Suggestions are per-card, ephemeral, and offered — never auto-added.
-    async suggestQuestions(i) {
+    // The product's (possibly unsaved) fields, as both suggest routes want them.
+    suggestPayload(i) {
       const t = this.form.targets[i];
+      return {
+        name: t.name,
+        category: t.category,
+        domain: t.domain,
+        competitors: t.competitors,
+        prompts: t.prompts,
+      };
+    },
+    // Either suggest button in flight — they share one chip list, so only one runs at a time.
+    suggBusy(i) {
+      return !!(this.sugg[i] && (this.sugg[i].loading || this.sugg[i].aiLoading));
+    },
+    // Fetch candidate questions for a product from its (unsaved) fields. Template-built:
+    // instant, free, no network beyond our own REST. Suggestions are per-card, ephemeral,
+    // and offered — never auto-added.
+    async suggestQuestions(i) {
       const prev = (this.sugg[i] && this.sugg[i].items) || [];
       this.sugg[i] = { loading: true, items: prev };
       try {
-        const r = await this.api.suggestVisibility({ name: t.name, competitors: t.competitors, prompts: t.prompts });
+        const r = await this.api.suggestVisibility(this.suggestPayload(i));
         this.sugg[i] = { loading: false, items: (r && r.questions) || [] };
       } catch (e) {
         this.sugg[i] = { loading: false, items: [] };
         this.notify('warn', 'Couldn’t fetch suggestions just now.');
+      }
+    },
+    // Same, but asks the site's own configured AI for unbranded buyer-intent questions.
+    // Costs a call, so it's a deliberate click; any failure falls back to the templates
+    // rather than leaving the owner with nothing.
+    async suggestQuestionsAi(i) {
+      const prev = (this.sugg[i] && this.sugg[i].items) || [];
+      this.sugg[i] = { aiLoading: true, items: prev };
+      try {
+        const r = await this.api.suggestVisibilityAi(this.suggestPayload(i));
+        this.sugg[i] = { aiLoading: false, items: (r && r.questions) || [] };
+      } catch (e) {
+        this.sugg[i] = { aiLoading: false, items: prev };
+        this.notify('warn', (e && e.message) || 'Your AI couldn’t write questions just now.');
+        await this.suggestQuestions(i);
       }
     },
     // Add one suggested question to the product's tracked list (deduped, capped) and
@@ -347,6 +422,9 @@ export default {
         this.sugg[i] = { loading: false, items: this.sugg[i].items.filter((x) => x !== q) };
       }
     },
+    // The products (a chip, a name, the Active switch) ride the same single writer as the
+    // engines and the schedule — see queueSave(). No form re-hydrate on the way back, so a
+    // save never steals focus or resets a field you're still typing in.
     autoSaveTargets(i) {
       // Mark the card being edited as "Saving…" right away for instant feedback.
       if (typeof i === 'number') {
@@ -354,37 +432,13 @@ export default {
         this._pending.add(i);
         this.cardStatus = { ...this.cardStatus, [i]: 'saving' };
       }
-      clearTimeout(this._targetsTimer);
-      this._targetsTimer = setTimeout(async () => {
-        this._targetsTimer = null; // no longer pending — lets flushTargets() no-op.
-        const pending = this._pending ? Array.from(this._pending) : [];
-        this._pending = new Set();
-        try {
-          await this.api.saveVisibilityConfig({ targets: this.buildTargets() });
-          this.pulseSaved();
-          this.reflectSave(pending);
-        } catch (e) {
-          this.reflectSave(pending, true);
-          this.notify('error', `Couldn’t save: ${e.message}`);
-        }
-      }, 500);
+      this.queueSave({ targets: true });
     },
-    // Immediately persist a pending (debounced) products save, if one is queued.
-    // Called before anything that reads or re-hydrates settings (a run, leaving the
-    // panel) so an in-flight chip edit is never lost or overwritten by stale config.
+    // Immediately persist any pending (debounced) save — products, engines or schedule.
+    // Called before anything that reads or re-hydrates settings (a run, leaving the panel)
+    // so an in-flight edit is never lost or overwritten by stale config.
     async flushTargets() {
-      if (!this._targetsTimer) return;
-      clearTimeout(this._targetsTimer);
-      this._targetsTimer = null;
-      const pending = this._pending ? Array.from(this._pending) : [];
-      this._pending = new Set();
-      try {
-        await this.api.saveVisibilityConfig({ targets: this.buildTargets() });
-        this.reflectSave(pending);
-      } catch (e) {
-        this.reflectSave(pending, true);
-        this.notify('error', `Couldn’t save: ${e.message}`);
-      }
+      await this.flushSave();
     },
     // Whether a card has anything worth keeping besides its (missing) name.
     hasContent(t) {
@@ -425,10 +479,22 @@ export default {
         }, 1800);
       }
     },
-    pulseSaved() {
-      this.autoSaved = true;
+    // Which sections a saved payload touched, so the confirmation lands where the user
+    // was actually looking. One merged request can carry more than one.
+    sectionsIn(patch) {
+      const out = [];
+      if ('targets' in patch) out.push('targets');
+      if ('providers' in patch) out.push('engines');
+      if ('scheduleActive' in patch || 'frequency' in patch || 'retentionDays' in patch) out.push('schedule');
+      return out;
+    },
+    savedIn(section) {
+      return this.savedSections.includes(section);
+    },
+    pulseSaved(sections) {
+      this.savedSections = Array.isArray(sections) && sections.length ? sections : ['targets'];
       clearTimeout(this._pulseTimer);
-      this._pulseTimer = setTimeout(() => { this.autoSaved = false; }, 1800);
+      this._pulseTimer = setTimeout(() => { this.savedSections = []; }, 1800);
     },
     async testKey(id) {
       this.tests = { ...this.tests, [id]: { state: 'testing' } };
@@ -740,11 +806,13 @@ export default {
         </div>
 
         <!-- SETTINGS ------------------------------------------------------- -->
-        <form v-show="view === 'settings'" class="agv-form" @submit.prevent="save">
+        <!-- No Save button anywhere on this screen: every control persists itself. Enter
+             inside a field would otherwise submit and reload the admin page, so swallow it. -->
+        <form v-show="view === 'settings'" class="agv-form" @submit.prevent>
           <section class="ar-card">
             <h2 class="ar-card__title">
               What you're tracking
-              <transition name="agv-fade"><span v-if="autoSaved" class="agv-saved-pill">Saved ✓</span></transition>
+              <transition name="agv-fade"><span v-if="savedIn('targets')" class="agv-saved-pill">Saved ✓</span></transition>
             </h2>
             <p class="ar-card__lead">
               Add each thing you want to watch — you, your brand, a product. For each one we
@@ -780,29 +848,56 @@ export default {
                     <small class="ar-field__hint">The exact name you want AI to say. Needed to save this product.</small>
                   </div>
                   <div class="ar-field">
+                    <label>What kind of thing is it?</label>
+                    <input type="text" class="ar-input" v-model="t.category" spellcheck="false"
+                      maxlength="80"
+                      placeholder="e.g. WordPress SEO plugin" @change="autoSaveTargets(i)" />
+                    <small class="ar-field__hint">The category a buyer would shop in — not what you write about. This is what we use to suggest questions.</small>
+                  </div>
+                </div>
+                <div class="ar-grid">
+                  <div class="ar-field">
                     <label>Its website <span class="ar-field__note">optional</span></label>
                     <input type="text" class="ar-input" v-model="t.domain" spellcheck="false"
                       placeholder="e.g. agentimus.com" @change="autoSaveTargets(i)" />
                     <small class="ar-field__hint">So we can tell if AI links to it. Leave blank if it doesn’t have one.</small>
                   </div>
+                  <div class="ar-field">
+                    <label>Who are its rivals?</label>
+                    <TagInput v-model="t.competitors" after-hint placeholder="Add a rival, press Enter" @update:modelValue="autoSaveTargets(i)" />
+                    <small class="ar-field__hint">The other names it competes with. We’ll show who AI picks instead.</small>
+                  </div>
                 </div>
                 <div class="ar-grid">
                   <div class="ar-field">
-                    <label>Who are its rivals?</label>
-                    <TagInput v-model="t.competitors" placeholder="Add a rival, press Enter" @update:modelValue="autoSaveTargets(i)" />
-                    <small class="ar-field__hint">The other names it competes with. We’ll show who AI picks instead.</small>
-                  </div>
-                  <div class="ar-field">
                     <label>What should we ask AI?</label>
-                    <TagInput v-model="t.prompts" placeholder="Type a question, press Enter" @update:modelValue="autoSaveTargets(i)" />
-                    <small class="ar-field__hint">Real questions a person would type. Press Enter after each. These are the answers we grade.</small>
+                    <TagInput v-model="t.prompts" after-hint placeholder="Type a question, press Enter" @update:modelValue="autoSaveTargets(i)" />
+                    <!-- Hint left, the two generators right-aligned on the SAME line. -->
+                    <div class="agv-suggest__head">
+                      <small class="ar-field__hint">Real questions a person would type. Press Enter after each. These are the answers we grade.</small>
+                      <div class="agv-suggest__actions">
+                        <button
+                          type="button"
+                          class="agv-linkbtn agv-suggest__trigger"
+                          :disabled="suggBusy(i)"
+                          @click="suggestQuestions(i)"
+                        >{{ sugg[i] && sugg[i].loading ? 'Finding ideas…' : 'Suggest questions' }}</button>
+                        <!-- Needs a category for the same reason the templates do: without one
+                             the model would invent a market. Disabled rather than hidden, so
+                             the reason is visible instead of mysterious. -->
+                        <button
+                          v-if="aiAvailable"
+                          type="button"
+                          class="agv-linkbtn agv-suggest__trigger"
+                          :disabled="suggBusy(i) || !(t.category || '').trim()"
+                          :title="(t.category || '').trim()
+                            ? 'Ask the AI you set up under Settings → AI to write questions a buyer would type'
+                            : 'First say what kind of thing this is, above — otherwise the AI has no market to ask about.'"
+                          @click="suggestQuestionsAi(i)"
+                        >{{ sugg[i] && sugg[i].aiLoading ? 'Asking your AI…' : '✦ Suggest with AI' }}</button>
+                      </div>
+                    </div>
                     <div class="agv-suggest">
-                      <button
-                        type="button"
-                        class="agv-linkbtn agv-suggest__trigger"
-                        :disabled="sugg[i] && sugg[i].loading"
-                        @click="suggestQuestions(i)"
-                      >{{ sugg[i] && sugg[i].loading ? 'Finding ideas…' : 'Suggest questions from your topics' }}</button>
                       <div v-if="sugg[i] && sugg[i].items && sugg[i].items.length" class="agv-suggest__chips">
                         <button
                           v-for="q in sugg[i].items"
@@ -812,8 +907,10 @@ export default {
                           @click="addSuggestion(i, q)"
                         ><span aria-hidden="true">+</span> {{ q }}</button>
                       </div>
-                      <p v-else-if="sugg[i] && !sugg[i].loading && sugg[i].items" class="agv-muted agv-suggest__empty">
-                        No new ideas right now — add a few topics under Topics for AI, or just type your own above.
+                      <p v-else-if="sugg[i] && !suggBusy(i) && sugg[i].items" class="agv-muted agv-suggest__empty">
+                        {{ (t.category || '').trim()
+                          ? 'No new ideas right now — you already track the ones we’d suggest. Type your own above.'
+                          : 'Fill in “What kind of thing is it?” above and we can suggest the questions a buyer would ask.' }}
                       </p>
                     </div>
                   </div>
@@ -828,8 +925,11 @@ export default {
           </section>
 
           <section class="ar-card">
-            <h2 class="ar-card__title">AI engines</h2>
-            <p class="ar-card__lead">Turn on the AI engines you want and paste each one’s API key (you get these from the engine’s own site). Keys stay on your server and are only used to run your checks. Perplexity always answers using a live web search; the others answer from what they already know, unless you switch on their web search.</p>
+            <h2 class="ar-card__title">
+              AI engines
+              <transition name="agv-fade"><span v-if="savedIn('engines')" class="agv-saved-pill">Saved ✓</span></transition>
+            </h2>
+            <p class="ar-card__lead">Turn on the AI engines you want and paste each one’s API key (you get these from the engine’s own site). Keys stay on your server and are only used to run your checks. Perplexity always answers using a live web search; the others answer from what they already know, unless you switch on their web search. Changes here save on their own.</p>
             <div class="agv-engines">
               <div class="agv-engine agv-engine--head">
                 <span>Engine</span><span>API key</span><span>Model</span><span></span><span></span>
@@ -837,24 +937,27 @@ export default {
               <div v-for="id in providerIds" :key="id" class="agv-engine">
                 <div class="agv-engine__id">
                   <label class="ar-toggle agv-sw">
-                    <input type="checkbox" :id="'agv-eng-' + id" v-model="form.providers[id].enabled" />
+                    <input type="checkbox" :id="'agv-eng-' + id" v-model="form.providers[id].enabled" @change="autoSaveProviders" />
                     <span class="ar-toggle__track" aria-hidden="true"></span>
                   </label>
                   <span class="agv-engine__name">
                     <label :for="'agv-eng-' + id" class="agv-engine__toglabel">{{ providersMeta[id].label }}</label>
-                    <span v-if="providersMeta[id].grounded" class="agv-engine__tag" :class="{ 'is-off': !form.providers[id].enabled }" title="Perplexity always answers from a live web search — there's nothing to switch on.">Always live web</span>
+                    <span v-if="providersMeta[id].grounded" class="agv-engine__tag" :class="{ 'is-off': !form.providers[id].enabled }" title="Perplexity always answers from a live web search — there's nothing to switch on.">Live web is always on</span>
                     <label v-else-if="providersMeta[id].webSearchCapable" class="agv-wspill"
                       :class="{ 'is-on': form.providers[id].web_search, 'is-off': !form.providers[id].enabled }"
                       :title="webSearchTitle(id)">
-                      <input type="checkbox" v-model="form.providers[id].web_search" :disabled="!form.providers[id].enabled" />
+                      <input type="checkbox" v-model="form.providers[id].web_search" :disabled="!form.providers[id].enabled" @change="autoSaveProviders" />
                       Live web {{ form.providers[id].web_search ? 'on' : 'off' }}
                     </label>
                   </span>
                 </div>
                 <div class="agv-engine__keywrap">
+                  <!-- @change fires only when the value actually changed, so merely focusing
+                       (which selects the masked dots) never commits anything. -->
                   <input :type="form.providers[id].reveal ? 'text' : 'password'" class="ar-input agv-engine__key" v-model="form.providers[id].key" autocomplete="off"
                     @focus="onKeyFocus(id, $event)"
-                    :placeholder="providersMeta[id].hasKey ? 'Cleared — saving removes this key' : providersMeta[id].keyHint" />
+                    @change="autoSaveProviders"
+                    :placeholder="providersMeta[id].hasKey ? 'Cleared — this removes the key' : providersMeta[id].keyHint" />
                   <button v-if="providersMeta[id].hasKey || form.providers[id].key" type="button" class="agv-engine__eye"
                     :title="form.providers[id].reveal ? 'Hide key' : 'Show key'"
                     :aria-label="form.providers[id].reveal ? 'Hide key' : 'Show key'"
@@ -871,7 +974,8 @@ export default {
                     :aria-label="`Model for ${providersMeta[id].label}`"
                     @update:model-value="(v) => onModelPick(id, v)" />
                   <input v-if="form.providers[id].modelCustom" type="text" class="ar-input agv-engine__model"
-                    v-model="form.providers[id].model" spellcheck="false" placeholder="Type a model ID" />
+                    v-model="form.providers[id].model" spellcheck="false" placeholder="Type a model ID"
+                    @change="autoSaveProviders" />
                 </div>
                 <button type="button" class="ar-btn ar-btn--ghost agv-btn-sm" @click="testKey(id)">Test</button>
                 <span class="agv-engine__status" :data-state="tests[id] ? tests[id].state : ''">
@@ -887,16 +991,27 @@ export default {
                 </span>
               </div>
             </div>
+
+            <p class="ar-card__note">
+              <strong>Already added a key under Settings → AI?</strong> You still need one here. WordPress’s shared
+              connectors hand back the answer text only — they drop the list of sources an engine cited, and those
+              sources are what a visibility check grades. Reading them needs each engine’s own API, so these keys are
+              kept separate. They stay on your server and are only used to run your checks.
+            </p>
           </section>
 
           <section class="ar-card">
-            <h2 class="ar-card__title">Schedule</h2>
+            <h2 class="ar-card__title">
+              Schedule
+              <transition name="agv-fade"><span v-if="savedIn('schedule')" class="agv-saved-pill">Saved ✓</span></transition>
+            </h2>
+            <p class="ar-card__lead">Changes here save on their own.</p>
 
             <!-- Master switch — just the toggle + On/Off under the section heading. -->
             <div class="ar-field agv-runfield">
               <div class="agv-switch">
                 <label class="ar-toggle agv-sw" title="Run checks automatically">
-                  <input type="checkbox" id="agv-schedule" v-model="form.scheduleActive" aria-label="Run checks automatically" />
+                  <input type="checkbox" id="agv-schedule" v-model="form.scheduleActive" aria-label="Run checks automatically" @change="autoSaveSchedule" />
                   <span class="ar-toggle__track" aria-hidden="true"></span>
                 </label>
                 <label class="agv-switch__state" for="agv-schedule">{{ form.scheduleActive ? 'On' : 'Off' }}</label>
@@ -908,7 +1023,7 @@ export default {
             <div class="ar-grid agv-sched">
               <div class="ar-field" :class="{ 'agv-dim': !form.scheduleActive }">
                 <label>How often</label>
-                <select class="ar-input" v-model="form.frequency" :disabled="!form.scheduleActive">
+                <select class="ar-input" v-model="form.frequency" :disabled="!form.scheduleActive" @change="autoSaveSchedule">
                   <option value="daily">Daily</option>
                   <option value="weekly">Weekly</option>
                 </select>
@@ -916,12 +1031,9 @@ export default {
               </div>
               <div class="ar-field">
                 <label>Keep history (days)</label>
-                <input type="number" class="ar-input" v-model="form.retentionDays" min="7" max="730" />
+                <input type="number" class="ar-input" v-model="form.retentionDays" min="7" max="730" @change="autoSaveSchedule" />
                 <small class="ar-field__hint">Applies to every check, including manual runs.</small>
               </div>
-            </div>
-            <div class="agv-save">
-              <button type="submit" class="ar-btn" :disabled="busy">{{ busy ? 'Saving…' : 'Save settings' }}</button>
             </div>
           </section>
         </form>
@@ -1099,8 +1211,17 @@ export default {
 .agv-linkbtn:disabled { color: var(--ar-ink-faint); cursor: default; text-decoration: none; }
 
 /* Prompt suggestions — a quiet trigger under the questions field, then add-able chips. */
-.agv-suggest { margin-top: 9px; }
-.agv-suggest__trigger { font-size: 12.5px; }
+/* The offered suggestions sit AFTER the questions you already track (the TagInput's chip
+   list, which orders itself to 1), so the card reads: field → hint+actions → yours → ours. */
+.agv-suggest { order: 2; margin-top: 9px; }
+/* Hint on the left, the generators right-aligned on the same line; they wrap under it
+   only when the column gets too narrow to hold both. */
+.agv-suggest__head { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 2px 16px; }
+.agv-suggest__head .ar-field__hint { flex: 1 1 260px; margin-top: 0; }
+/* The two generators sit side by side — templates first (free, instant), AI second. */
+.agv-suggest__actions { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 16px; margin-left: auto; }
+.agv-suggest__trigger { font-size: 12.5px; white-space: nowrap; }
+.agv-suggest__trigger:disabled { opacity: 0.55; cursor: default; }
 .agv-suggest__chips { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 9px; }
 .agv-suggest__chip {
   max-width: 100%; text-align: left; cursor: pointer;
@@ -1242,5 +1363,4 @@ export default {
   .agv-engine__status { white-space: normal; }
 }
 
-.agv-save { margin-top: 22px; text-align: right; }
 </style>

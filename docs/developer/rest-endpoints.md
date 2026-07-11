@@ -93,6 +93,20 @@ Returns the readiness report (`Agentimus\Readiness::report()`) — the same arra
 
 The set of checks is filterable via `agentimus_readiness_checks` (a Pro add-on can append its own rows), so integrators should treat the list as open-ended and key off `id`.
 
+### GET `/score`
+
+Returns the composite AEO/GEO score (`Agentimus\Score::report()`), recomputed on request:
+
+```json
+{ "score": { "score": 92, "rungs": [ … ], "next": { … }, "actions": [ … ] } }
+```
+
+Requires `manage_options`. This is the same object the admin page embeds in its bootstrap and returns from a settings save — the route exists so the score can be re-read **without a page load**.
+
+That matters more than it sounds. The score is computed partly from your *content*, and content is edited in the post editor — usually another browser tab. Before this route, an open admin screen had no way to hear about it: the score card kept showing a stale figure and a "next step" naming a page the owner had already fixed, and only a full page reload cured it. The admin now re-reads it when the tab regains focus (throttled), when Refresh is pressed on the dashboard, and when Readiness is re-run.
+
+The per-page sample behind the *Optimized* rung is cached (`Cache::OPTIMIZE`) and busted on content change, so calling this route repeatedly is cheap — a request after a content edit pays for one recompute, the rest are served from cache.
+
 ### GET `/preview/schema`
 
 Returns the exact JSON-LD `@graph` the front end would emit for the site, or for a chosen post — regardless of whether schema output is currently active. This is a preview tool: it shows what **would** ship even when schema is disabled or ceded to an SEO plugin.
@@ -252,8 +266,42 @@ Paging is keyset, not offset: an offset walk costs more on every page and can sk
 ### `GET /activity/log/facets`
 
 Returns `{ agents, endpoints, networks }` — the distinct values present in the retained window, ordered by how often each appears, capped at 200 per list. It exists so the log's filters can be dropdowns: nobody should have to type `Bytespider (ByteDance)` exactly. Values outside retention are omitted, because filtering for one could only ever return nothing.
-- **AI Visibility** (`inc/Visibility/Rest.php`, the opt-in monitoring add-on): `GET`/`POST /visibility/config`, `GET /visibility/dashboard`, `POST /visibility/run`, `POST /visibility/test`, `POST /visibility/reveal-key`, `POST /visibility/clear`.
+- **AI Visibility** (`inc/Visibility/Rest.php`, the opt-in monitoring add-on): `GET`/`POST /visibility/config`, `GET /visibility/dashboard`, `POST /visibility/run`, `POST /visibility/test`, `POST /visibility/suggest`, `POST /visibility/suggest-ai`, `POST /visibility/reveal-key`, `POST /visibility/clear`.
 - **Optimize** (`inc/Rest.php`): `POST /optimize/ignore` — body `{ post: int, ignored: bool }` sets a page aside from (or restores it to) the Optimized rung's citability grading. Returns the recomputed `score` so the admin updates live.
+
+### Suggesting tracking questions (`/visibility/suggest`, `/visibility/suggest-ai`)
+
+Two routes back the **Suggest questions** / **✦ Suggest with AI** buttons under a tracked item's question list. Both are `POST`, both require `manage_options`, and both take the *unsaved* product row in the body — the owner is still typing, so the row rides in the request rather than being looked up by index. The work is done by `Agentimus\Visibility\Suggest`.
+
+**Body** (both routes):
+
+```json
+{
+  "name":        "Agentimus",
+  "category":    "WordPress SEO plugin",
+  "domain":      "agentimus.com",
+  "competitors": [ "Yoast", "Rank Math" ],
+  "prompts":     [ "best llms.txt plugin for WordPress" ]
+}
+```
+
+`prompts` is the questions already tracked, sent so the suggestions can be de-duplicated against them. **Response** (both routes): `{ "questions": [ "…", "…" ] }`.
+
+| Route                    | Source                                                      | Cost                          |
+|--------------------------|-------------------------------------------------------------|-------------------------------|
+| `/visibility/suggest`    | Built-in templates. Pure, no network call, no AI.           | None.                         |
+| `/visibility/suggest-ai` | The site's configured AI, via WordPress's AI Client.        | One prompt against the owner's own provider quota. |
+
+`/visibility/suggest-ai` is a separate route rather than a silent upgrade of `/suggest` precisely because it spends AI budget — the caller must ask for it. Its errors:
+
+| Status | Code                       | When                                                                 |
+|--------|----------------------------|----------------------------------------------------------------------|
+| `400`  | `agentimus_ai_no_category` | No `category` was given. Buyer-intent questions are built *from* the category, so without one the model would invent a market. |
+| `503`  | `agentimus_ai_unavailable` | No AI provider is configured (or the prompt failed).                 |
+
+The AI is asked for **unbranded** questions, and any that name the brand are filtered out before the response: a question containing the product's own name is guaranteed to get that name back in the answer, so it measures nothing. If filtering leaves nothing usable, the route **falls back to the template questions** rather than returning an empty list.
+
+`GET /visibility/config` carries a top-level **`aiAvailable`** (bool) so the admin knows whether to render the "✦ Suggest with AI" button at all. It is `Agentimus\Assist::ai_available()` — true when a text-capable AI provider is configured for WordPress's AI Client.
 
 ## Public discovery endpoints (`/.well-known/*`)
 

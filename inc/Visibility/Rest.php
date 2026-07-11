@@ -110,6 +110,16 @@ final class Rest {
 
 		register_rest_route(
 			self::NS,
+			'/visibility/suggest-ai',
+			array(
+				'methods'             => \WP_REST_Server::EDITABLE, // POST — spends AI budget, and the product's (possibly unsaved) fields ride in the body.
+				'callback'            => array( $this, 'suggest_ai' ),
+				'permission_callback' => array( $this, 'can_manage' ),
+			)
+		);
+
+		register_rest_route(
+			self::NS,
 			'/visibility/clear',
 			array(
 				'methods'             => \WP_REST_Server::EDITABLE,
@@ -160,24 +170,56 @@ final class Rest {
 	}
 
 	/**
-	 * POST /suggest — candidate tracking questions for a product, derived from its
-	 * (possibly unsaved) name/competitors/prompts plus the site's own topics. Read-only:
-	 * it computes suggestions, changing nothing.
+	 * POST /suggest — candidate tracking questions for a product, from its (possibly
+	 * unsaved) name/category/competitors. Templates only: instant, free, no network.
+	 * Read-only — it computes suggestions, changing nothing.
 	 *
 	 * @param \WP_REST_Request $request Request.
 	 * @return \WP_REST_Response
 	 */
 	public function suggest( \WP_REST_Request $request ) {
+		return rest_ensure_response(
+			array( 'questions' => Suggest::for_product( $this->product_from( $request ) ) )
+		);
+	}
+
+	/**
+	 * POST /suggest-ai — the same, but asks the site's own configured AI for unbranded
+	 * buyer-intent questions. Spends AI budget, so it is a deliberate second button rather
+	 * than a silent upgrade of /suggest; 503s cleanly when no provider is set up, and the
+	 * UI falls back to the templates.
+	 *
+	 * @param \WP_REST_Request $request Request.
+	 * @return \WP_REST_Response|\WP_Error
+	 */
+	public function suggest_ai( \WP_REST_Request $request ) {
+		$questions = Suggest::ai_questions( $this->product_from( $request ) );
+		if ( is_wp_error( $questions ) ) {
+			return $questions;
+		}
+		return rest_ensure_response( array( 'questions' => $questions ) );
+	}
+
+	/**
+	 * The product fields both suggest routes read out of the request body. The row may be
+	 * unsaved (the owner is still typing), which is why it rides in the body rather than
+	 * being looked up by index.
+	 *
+	 * @param \WP_REST_Request $request Request.
+	 * @return array
+	 */
+	private function product_from( \WP_REST_Request $request ) {
 		$input = $request->get_json_params();
 		if ( ! is_array( $input ) ) {
 			$input = (array) $request->get_params();
 		}
-		$product = array(
+		return array(
 			'name'        => isset( $input['name'] ) ? (string) $input['name'] : '',
+			'category'    => isset( $input['category'] ) ? (string) $input['category'] : '',
+			'domain'      => isset( $input['domain'] ) ? (string) $input['domain'] : '',
 			'competitors' => isset( $input['competitors'] ) ? (array) $input['competitors'] : array(),
 			'prompts'     => isset( $input['prompts'] ) ? (array) $input['prompts'] : array(),
 		);
-		return rest_ensure_response( array( 'questions' => Suggest::for_product( $product ) ) );
 	}
 
 	/**
@@ -278,6 +320,9 @@ final class Rest {
 			'lastRunAt'      => $this->last_run_at(),
 			'activeProviders' => count( $this->settings->active_providers() ),
 			'promptCount'    => $prompt_count,
+			// Whether the site's own AI (WP 7.0 connectors) can draft questions. Drives the
+			// optional "Suggest with AI" button; the template suggestions never need this.
+			'aiAvailable'    => \Agentimus\Assist::ai_available(),
 		);
 	}
 

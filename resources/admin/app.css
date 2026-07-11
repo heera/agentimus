@@ -376,6 +376,9 @@
 .ar-rail-next {
   display: block; width: 100%; text-align: center;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  /* Belt and braces with `.ar__rail > * { min-width: 0 }`: a button won't shrink past its
+     own content unless told to, however roomy the box around it. */
+  min-width: 0; max-width: 100%;
 }
 /* A per-post content gap has no in-app page to jump to, so the next-step reads as a
    plain informational line (no arrow, no link) rather than a click that goes nowhere. */
@@ -464,6 +467,13 @@
    or scrollbar) — the main column is always taller, so the whole rail stays reachable
    as you scroll. */
 .ar__rail { position: sticky; top: calc(var(--ar-adminbar) + 2 * var(--ar-bar-h)); display: grid; gap: 11px; align-content: start; padding-bottom: 6px; }
+/* A grid item's min-width defaults to `auto`, so it refuses to shrink below its content's
+   min-content width — and a <button> ignores its own `overflow: hidden` when contributing
+   to that minimum. So one long next-step label ("Next: AI Visibility checks are failing")
+   made the readiness card WIDER than the rail column it lives in, and the dark card bled
+   out over the page. The ellipsis on .ar-rail-next never got a chance to do its job.
+   Letting the cards shrink to their column is what lets the label clip as intended. */
+.ar__rail > * { min-width: 0; }
 .ar-rail-card {
   background: var(--ar-surface);
   border: 1px solid var(--ar-line);
@@ -1145,12 +1155,26 @@ select.ar-input {
 }
 
 /* ---- Tag input ---------------------------------------------------------- */
-.ar-tags {
+/* The field itself is a plain .ar-input and the chips flow BELOW it, so a chip list can
+   never change the input's height — it stays row-aligned with the plain inputs next to it
+   in a grid, however many chips there are.
+   `display: contents` drops the component's own wrapper out of the layout so the input and
+   the chip list become items of the surrounding .ar-field flex column. That is what lets
+   `order: 1` push the chips PAST the hint text — the hint is a sibling of this component,
+   not a child, so it can't be reordered from inside. Net effect: label → field → hint sit
+   at exactly the same heights as a plain text field, and the chips hang below all of it.
+   Where the parent isn't a flex column, `order` is inert and the chips simply follow the
+   input — still correct, just not past the hint. */
+.ar-tags { display: contents; }
+.ar-tags__list {
   display: flex; flex-wrap: wrap; gap: 6px; align-items: center;
-  padding: 7px; border: 1px solid var(--ar-line-strong); border-radius: var(--ar-radius); background: #fffefb;
+  margin: 8px 0 0; padding: 0; list-style: none;
 }
-.ar-tags:focus-within { border-color: var(--ar-accent); box-shadow: 0 0 0 3px rgba(20, 107, 100, 0.13); }
-.ar-tags__list { display: contents; margin: 0; padding: 0; list-style: none; }
+/* Opt-in (`after-hint`): drop the chips below the hint line too. The hint is a SIBLING of
+   this component, so it can only be jumped by flex `order` — which is exactly why this is
+   opt-in and not the default: a field that appends anything else after its hint would have
+   its chips pushed past that as well. */
+.ar-tags__list--after-hint { order: 1; margin-top: 2px; }
 .ar-tags__chip {
   display: inline-flex; align-items: center; gap: 7px;
   padding: 4px 6px 4px 9px;
@@ -1168,8 +1192,6 @@ select.ar-input {
   color: rgba(243, 240, 231, 0.6); font-size: 15px; line-height: 1; padding: 0;
 }
 .ar-tags__x:hover { color: var(--ar-paper); }
-/* Always sits on its own full-width row beneath the chips. */
-.ar-tags__input { flex: 1 0 100%; border: 0; outline: none; padding: 6px; font-size: 14px; background: none; }
 
 /* ---- Live endpoints ----------------------------------------------------- */
 .ar-links { margin: 0; padding: 0; list-style: none; display: grid; gap: 8px; }

@@ -157,6 +157,8 @@ The two options involved are `agentimus_rewrite_version` (the signature) and `ag
 | `Admin` | The top-level admin menu that mounts the Vue app, the asset enqueue, and the bootstrap-data payload (`AgentimusData`). |
 | `Rest` | REST controller backing the Vue admin — read/save settings, reset, onboarding, readiness, and the schema/markdown previews. All routes require `manage_options` and the standard REST nonce. |
 | `Readiness` | The pass/warn/fail check list the admin Readiness panel renders. Each check is cheap and side-effect-free. |
+| `Assist` | The outbound AI helper behind "Draft with AI" (the AI description and Topics fields) and "Fix with AI" (an AI Readability row). Routes every prompt through WordPress's AI Client (`wp_ai_client_prompt()`, WP 7.0+), so the plugin never touches a raw provider key, and reports cleanly when no provider is configured. |
+| `Abilities\Registrar` | Registers nine read-only `agentimus/*` abilities on the WordPress Abilities API, so WordPress's own admin AI — and external agents via the MCP adapter — can read the plugin's data. Each ability carries the capability check of the screen it comes from. |
 
 ### The `Discovery\` subsystem (`/.well-known` + the registry)
 
@@ -201,7 +203,8 @@ This is the monetizable monitoring layer. It is BYOK (bring-your-own-key), off u
 | `Visibility\Analyzer` | Turns one provider answer into the stored signals: brand mention, citation, ranking against competitors, and which competitors appeared. |
 | `Visibility\Store` | Read/write of the results table plus the aggregation into dashboard numbers (visibility score, citation rate, share-of-voice, trend). |
 | `Visibility\Table` | The results table — one row per (prompt × provider) check within a run. |
-| `Visibility\Rest` | The Pro admin REST controller (config, run-now, dashboard, key test). Requires `manage_options`. |
+| `Visibility\Suggest` | Builds the candidate questions offered under a tracked item — templates derived from the product *category* (pure, instant, no network), plus an optional AI path through the WordPress AI Client. Deliberately unbranded: a question naming the brand is guaranteed to get the brand back, so it measures nothing. |
+| `Visibility\Rest` | The Pro admin REST controller (config, run-now, dashboard, key test, question suggestions). Requires `manage_options`. |
 | `Visibility\Network` | The multisite Network-Admin dashboard rolling every site's latest numbers into one table. |
 | `Visibility\Providers\Provider` | Base class handling the HTTP round-trip through `wp_remote_post`. |
 | `Visibility\Providers\{OpenAI,Anthropic,Gemini,Perplexity}` | Per-engine providers, each knowing its own endpoint, auth header, and response shape. |

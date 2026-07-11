@@ -416,6 +416,7 @@ export default {
     // handler had already closed the menu, and it would reopen on every second press.
     document.addEventListener('mousedown', this.onMoreDocDown);
     document.addEventListener('keydown', this.onMoreKey);
+    document.addEventListener('visibilitychange', this.onTabVisible);
     window.requestAnimationFrame(() => {
       this.ringReady = true;
     });
@@ -459,6 +460,7 @@ export default {
   beforeUnmount() {
     document.removeEventListener('mousedown', this.onMoreDocDown);
     document.removeEventListener('keydown', this.onMoreKey);
+    document.removeEventListener('visibilitychange', this.onTabVisible);
     clearTimeout(this._moreOpenTimer);
     clearTimeout(this._moreCloseTimer);
     window.removeEventListener('resize', this.onMoreResize);
@@ -948,12 +950,31 @@ export default {
       this.refreshingReadiness = true;
       try {
         this.readiness = await this.api.getReadiness();
+        await this.refreshScore(); // the rail is computed from content too — keep it in step.
         this.flash('success', `Readiness re-run — ${this.score.pass}/${this.score.total} checks pass.`);
       } catch (e) {
         this.flash('error', e.message);
       } finally {
         this.refreshingReadiness = false;
       }
+    },
+    // Re-read the AEO/GEO rail. Quiet by design: it has no spinner and swallows its errors,
+    // because it runs on tab focus and must never interrupt what the owner is doing.
+    async refreshScore() {
+      try {
+        const r = await this.api.getScore();
+        if (r && r.score) this.aeo = r.score;
+        this._scoreAt = Date.now();
+      } catch (e) { /* leave the last known score in place */ }
+    },
+    // Content is edited in the POST EDITOR — i.e. in another tab — so by the time the owner
+    // looks back at this one, the score they're reading can be several edits old, still
+    // naming a page they already fixed. Re-read it when the tab comes back to the front,
+    // throttled so flicking between windows doesn't hammer the endpoint.
+    onTabVisible() {
+      if (document.visibilityState !== 'visible') return;
+      if (this._scoreAt && Date.now() - this._scoreAt < 10000) return;
+      this.refreshScore();
     },
     async refreshDiscovery() {
       this.refreshingDiscovery = true;
@@ -966,12 +987,17 @@ export default {
         this.refreshingDiscovery = false;
       }
     },
+    // Refresh is the dashboard's only refresh control, and the score card sits on the same
+    // screen — so it refreshes that too. Scoping it strictly to the activity log was
+    // technically defensible and practically wrong: people press it expecting the screen to
+    // be current, and were left reading a score that named a page they'd already fixed.
     async refreshActivity() {
       this.refreshingActivity = true;
       try {
         this.activity = await this.api.getActivity();
         this.activityLoaded = true;
         this._activityBlockKey = this.blockingKeyOf(this.settings);
+        await this.refreshScore();
       } catch (e) {
         this.flash('error', e.message);
       } finally {

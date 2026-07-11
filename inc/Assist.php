@@ -43,8 +43,14 @@ final class Assist {
 	 * bounded elsewhere anyway — Description::clean() clips to 300 chars, and topics are
 	 * capped/deduped by Topics::sanitize_manual() — so headroom costs a little latency,
 	 * never a runaway response.
+	 *
+	 * 800 was still too tight and it showed: a "Fix with AI" on the `evidence` check —
+	 * which asks for a LIST of two or three specifics — came back cut off mid-word
+	 * ("…from a reputable research firm ("). A truncated list is worse than a short one,
+	 * because the author can't tell the model stopped early. The fix bodies are the
+	 * longest thing this class asks for, so the budget is sized for them.
 	 */
-	const OUTPUT_TOKENS = 800;
+	const OUTPUT_TOKENS = 1600;
 
 	/** @var Settings */
 	private $settings;
@@ -478,8 +484,9 @@ final class Assist {
 				'error'     => __( 'Couldn’t draft — check your AI provider under Settings → AI.', 'agentimus' ),
 				'apply'     => __( 'Apply', 'agentimus' ),
 				'applied'   => __( 'Applied ✓', 'agentimus' ),
-				'copy'      => __( 'Copy', 'agentimus' ),
-				'copied'    => __( 'Copied ✓', 'agentimus' ),
+				'copy'       => __( 'Copy', 'agentimus' ),
+				'copied'     => __( 'Copied ✓', 'agentimus' ),
+				'copyFailed' => __( 'Press ⌘/Ctrl+C to copy', 'agentimus' ),
 			),
 		);
 
@@ -611,6 +618,33 @@ final class Assist {
     b.addEventListener('click', onClick);
     return b;
   }
+  /**
+   * navigator.clipboard only exists in a SECURE context (HTTPS or localhost). On a
+   * plain-HTTP site it is undefined, so guarding on it and doing nothing else — which is
+   * what this used to do — left the Copy button silently dead. Fall back to the legacy
+   * textarea + execCommand path, exactly like the rest of the admin (see uaTip.js), and
+   * always report the outcome rather than failing in silence.
+   */
+  function copyText(text){
+    if (!text) { return Promise.resolve(false); }
+    var legacy = function(){
+      try {
+        var ta = document.createElement('textarea');
+        ta.value = text;
+        ta.setAttribute('readonly', '');
+        ta.style.position = 'fixed'; ta.style.top = '-1000px'; ta.style.opacity = '0';
+        document.body.appendChild(ta);
+        ta.select();
+        var ok = document.execCommand('copy');
+        document.body.removeChild(ta);
+        return ok;
+      } catch (e) { return false; }
+    };
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      return navigator.clipboard.writeText(text).then(function(){ return true; }, function(){ return legacy(); });
+    }
+    return Promise.resolve(legacy());
+  }
   function renderFix(out, body){
     out.innerHTML = ''; out.className = 'agentimus-pc__fixout'; out.hidden = false;
     var text = (body && typeof body.suggestion === 'string') ? body.suggestion : '';
@@ -624,7 +658,9 @@ final class Assist {
       actions.appendChild(applyBtn);
     }
     var copyBtn = mkBtn(CFG.i18n.copy, function(){
-      if (navigator.clipboard) { navigator.clipboard.writeText(text).then(function(){ copyBtn.textContent = CFG.i18n.copied; }, function(){}); }
+      copyText(text).then(function(ok){
+        copyBtn.textContent = ok ? CFG.i18n.copied : CFG.i18n.copyFailed;
+      });
     });
     actions.appendChild(copyBtn);
     out.appendChild(actions);

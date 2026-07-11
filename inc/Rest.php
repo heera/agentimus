@@ -90,6 +90,16 @@ final class Rest {
 			)
 		);
 
+		register_rest_route(
+			self::NAMESPACE,
+			'/score',
+			array(
+				'methods'             => \WP_REST_Server::READABLE,
+				'callback'            => array( $this, 'get_score' ),
+				'permission_callback' => array( $this, 'can_manage' ),
+			)
+		);
+
 		// JSON-LD preview: the exact @graph the front end would emit for the site
 		// or a chosen post, so an owner can inspect and validate it without viewing
 		// page source. `post` = 0/absent → the site-wide identity graph.
@@ -327,6 +337,22 @@ final class Rest {
 	 */
 	public function get_readiness() {
 		return rest_ensure_response( ( new Readiness( $this->settings ) )->report() );
+	}
+
+	/**
+	 * GET /score — the composite AEO/GEO score, recomputed.
+	 *
+	 * The score card used to arrive only two ways: with the page's initial bootstrap, or in
+	 * the reply to a settings save. So an edit made anywhere else — publishing a post in
+	 * another tab, which is the normal case — left an open dashboard showing a stale score
+	 * and a "next step" pointing at a page the owner had already fixed, with no way back but
+	 * a full page reload. This route gives the admin a way to ask for the current score.
+	 *
+	 * @return \WP_REST_Response
+	 */
+	public function get_score() {
+		$readiness = ( new Readiness( $this->settings ) )->report();
+		return rest_ensure_response( array( 'score' => $this->score_report( $readiness ) ) );
 	}
 
 	/**

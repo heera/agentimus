@@ -38,6 +38,7 @@ export function createApi(boot) {
       request('/optimize/ignore', { method: 'POST', body: JSON.stringify({ post, ignored }) }),
     completeOnboarding: () => request('/onboarding', { method: 'POST' }),
     getReadiness: () => request('/readiness'),
+    getScore: () => request('/score'),
     // JSON-LD preview: the site graph (post omitted / 0) or a chosen post's graph.
     getSchemaPreview: (post = 0) => request(`/preview/schema?post=${encodeURIComponent(post || 0)}`),
     // Markdown preview: the .md twin of a page/post (per-page; site has none).
@@ -102,5 +103,7 @@ export function createApi(boot) {
     clearVisibilityData: () => request('/visibility/clear', { method: 'POST' }),
     suggestVisibility: (payload) =>
       request('/visibility/suggest', { method: 'POST', body: JSON.stringify(payload) }),
+    suggestVisibilityAi: (payload) =>
+      request('/visibility/suggest-ai', { method: 'POST', body: JSON.stringify(payload) }),
   };
 }

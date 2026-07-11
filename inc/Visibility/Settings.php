@@ -35,6 +35,9 @@ final class Settings {
 	/** @var int Hard cap on tracked products — each has its own name, site, rivals and questions. */
 	const MAX_TARGETS = 10;
 
+	/** @var int Longest product category ("WordPress SEO plugin") — a short noun phrase, not a pitch. */
+	const MAX_CATEGORY = 80;
+
 	/**
 	 * The free-core plugin instance, when available, used only to seed sensible
 	 * defaults (brand, domain) from the site's own identity.
@@ -77,14 +80,6 @@ final class Settings {
 				'web_search_capable' => true,
 				'web_search_model'   => 'gpt-4.1',
 			),
-			'perplexity' => array(
-				'label'    => 'Perplexity',
-				'model'    => 'sonar',
-				'models'   => array( 'sonar', 'sonar-pro', 'sonar-reasoning' ),
-				'key_hint' => 'pplx-…',
-				'help_url' => 'https://www.perplexity.ai/settings/api',
-				'grounded' => true, // Answers from live web results with citations.
-			),
 			'gemini'     => array(
 				'label'    => 'Gemini (Google)',
 				// Default to Google's rolling "-latest" alias, which auto-tracks the current
@@ -110,6 +105,16 @@ final class Settings {
 				// Can optionally ground answers on Claude's built-in web search tool,
 				// which cites its sources. See Providers\Anthropic.
 				'web_search_capable' => true,
+			),
+			// Last on purpose: it's the odd one out — always grounded, so it has no live-web
+			// switch to set. Keeping the three switchable engines together reads better.
+			'perplexity' => array(
+				'label'    => 'Perplexity',
+				'model'    => 'sonar',
+				'models'   => array( 'sonar', 'sonar-pro', 'sonar-reasoning' ),
+				'key_hint' => 'pplx-…',
+				'help_url' => 'https://www.perplexity.ai/settings/api',
+				'grounded' => true, // Answers from live web results with citations.
 			),
 		);
 	}
@@ -164,6 +169,7 @@ final class Settings {
 		return array(
 			array(
 				'name'        => $name,
+				'category'    => '',
 				'domain'      => $domain,
 				'active'      => true,
 				'competitors' => array(),
@@ -263,8 +269,9 @@ final class Settings {
 	}
 
 	/**
-	 * Ensure every stored product has the full shape (name, domain, competitors,
-	 * prompts) with clean lists — tolerant of partial/older rows.
+	 * Ensure every stored product has the full shape (name, category, domain, competitors,
+	 * prompts) with clean lists — tolerant of partial/older rows, which predate `category`
+	 * and simply read as ''.
 	 *
 	 * @param mixed $targets Raw stored products.
 	 * @return array[]
@@ -277,6 +284,7 @@ final class Settings {
 			}
 			$out[] = array(
 				'name'        => isset( $t['name'] ) ? trim( (string) $t['name'] ) : '',
+				'category'    => isset( $t['category'] ) ? trim( (string) $t['category'] ) : '',
 				'domain'      => isset( $t['domain'] ) ? trim( (string) $t['domain'] ) : '',
 				'active'      => isset( $t['active'] ) ? (bool) $t['active'] : true,
 				'competitors' => $this->clean_names( isset( $t['competitors'] ) ? (array) $t['competitors'] : array() ),
@@ -312,6 +320,7 @@ final class Settings {
 		foreach ( $names as $n ) {
 			$out[] = array(
 				'name'        => $n,
+				'category'    => '', // Predates the field; the owner fills it in.
 				'domain'      => $domain,
 				'active'      => true,
 				'competitors' => $competitors,
@@ -405,6 +414,7 @@ final class Settings {
 		foreach ( (array) $all['targets'] as $t ) {
 			$targets[] = array(
 				'name'        => (string) ( $t['name'] ?? '' ),
+				'category'    => (string) ( $t['category'] ?? '' ),
 				'domain'      => (string) ( $t['domain'] ?? '' ),
 				'active'      => isset( $t['active'] ) ? (bool) $t['active'] : true,
 				'competitors' => array_values( (array) ( $t['competitors'] ?? array() ) ),
@@ -572,8 +582,16 @@ final class Settings {
 			if ( strlen( $name ) > 120 ) {
 				$name = substr( $name, 0, 120 );
 			}
+			// Cap in CHARACTERS, not bytes: the field's maxlength counts characters, so a
+			// byte cut would land mid-character on a non-Latin category and store a broken
+			// string. (mb_substr is always available — WordPress polyfills it.)
+			$category = trim( sanitize_text_field( (string) ( $t['category'] ?? '' ) ) );
+			if ( mb_strlen( $category ) > self::MAX_CATEGORY ) {
+				$category = trim( mb_substr( $category, 0, self::MAX_CATEGORY ) );
+			}
 			$out[] = array(
 				'name'        => $name,
+				'category'    => $category,
 				'domain'      => $this->sanitize_domain( (string) ( $t['domain'] ?? '' ) ),
 				'active'      => array_key_exists( 'active', $t ) ? (bool) $t['active'] : true,
 				'competitors' => $this->sanitize_list( $t['competitors'] ?? array(), self::MAX_COMPETITORS ),

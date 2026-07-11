@@ -179,7 +179,11 @@ final class EditorPanel {
 		$first = true;
 		foreach ( $sections as $key => $section ) {
 			$active = ( ! $tabbed || $first ) ? ' is-active' : '';
-			printf( '<div class="agentimus-panel__pane%1$s" data-pane="%2$s">', $active, esc_attr( $key ) );
+			printf(
+				'<div class="%1$s" data-pane="%2$s">',
+				esc_attr( 'agentimus-panel__pane' . $active ),
+				esc_attr( $key )
+			);
 			call_user_func( $section['render'], $post );
 			echo '</div>';
 			$first = false;

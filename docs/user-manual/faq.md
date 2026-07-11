@@ -1,7 +1,7 @@
 ---
 title: FAQ
 parent: User Manual
-nav_order: 14
+nav_order: 16
 ---
 
 Short, honest answers to the questions site owners ask most. If you are weighing up whether Agentimus is safe to run on a live site, this is the page to read. The recurring theme: Agentimus adds a machine-readable layer *for AI tools* without touching what your visitors see, without phoning home, and without taking over jobs your other plugins already do.
@@ -54,6 +54,22 @@ Everything runs on your own site. There are two things worth knowing so the pict
 - **The "Verify live" self-check runs in your browser, not on your server.** The Readiness report has a button that fetches your own public URLs to show you exactly what an AI tool would receive. That fetch happens from *your* browser, hitting *your* own pages — the server itself still makes no outbound request.
 
 One common point of confusion: the discovery document contains a `$schema` value. That is a *label* that names the document's format (the same way a `schema.org` link names a vocabulary). It is text in the file; nothing fetches it.
+
+## Can AI help me write the description, topics and fixes?
+
+Yes, if you're on **WordPress 7.0** and have connected an AI provider under **Settings → AI**. Agentimus then adds three helpers to the post editor:
+
+- **Draft with AI** on the **AI description** field — writes the one-sentence summary of the page.
+- **Draft with AI** on the **Topics for AI** field — suggests the page's key topics as chips.
+- **Fix with AI** on any **AI Readability** row that is warning or failing — drafts a concrete fix for that specific issue.
+
+Everything goes through WordPress's own shared connectors, so **Agentimus never sees or stores your API key** — the key stays in WordPress. If you haven't set up a provider, the buttons simply don't appear; nothing breaks and nothing nags you. And every suggestion arrives as ordinary editable text: you read it, change it if you want, and save it yourself. Nothing is written to your site on your behalf. See the **Write with AI** page for the details.
+
+## Does AI Visibility use the AI provider I set up in WordPress?
+
+No — AI Visibility needs its **own** keys, even if you've already connected a provider under Settings → AI. It isn't an oversight, it's what the feature measures.
+
+A visibility check is graded on the **sources each engine cited** — which pages an answer leaned on, and whether any of them were yours. WordPress's shared connectors return only the **answer text**; the cited sources are dropped before Agentimus can read them. Reading those sources means going to each engine's own API with that engine's own key. So the two features keep separate keys, and both sets stay on your server.
 
 ## Is my data private? Can agents change my site through Agentimus?
 
