@@ -88,12 +88,14 @@ final class Plugin {
 		( new EditorPanel( $this->settings ) )->register(); // One "Agentimus" editor box: JSON-LD + AI Readability as tabs.
 		( new Topics( $this->settings ) )->register();
 		( new Description( $this->settings ) )->register();
+		( new Assist( $this->settings ) )->register(); // "Draft with AI" for the description + topics fields (no-ops without a configured AI provider).
 		( new Rest( $this->settings ) )->register();
 		( new Admin( $this->settings ) )->register();
 		( new Discovery\Module( $this->settings ) )->register();
 		( new Activity\Module( $this->settings ) )->register();
 		( new WebMcp( $this->settings ) )->register();
 		( new Exposure( $this->settings ) )->register();
+		( new Abilities\Registrar( $this->settings ) )->register(); // Exposes our own read capabilities to the WP admin AI + MCP (no-ops pre-6.9).
 
 		// AI Visibility monitoring (opt-in, BYOK). Its config, keys and results live
 		// in their own option/table, independent of the core settings above.

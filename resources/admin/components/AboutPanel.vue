@@ -25,6 +25,15 @@ export default {
           ],
         },
         {
+          title: 'Write with AI',
+          lead: 'Optional — use the AI provider you’ve connected in WordPress (Settings → Connectors, with your own key) to draft and fix the AEO/GEO fields as you write. Everything routes through WordPress’s built-in AI Client, so Agentimus never handles your key; every suggestion is editable and nothing is saved for you. The buttons stay hidden until a provider is set up.',
+          items: [
+            { name: 'Draft with AI', where: 'post editor', desc: 'One click drafts the AI description or the topics for a page from its content, dropping the result into the field as editable text to accept or change.', tag: 'Opt-in' },
+            { name: 'Fix with AI', where: 'post editor', desc: 'On each AI-readability warning, drafts a concrete fix — an opening summary you can insert with one click, or a heading outline / shorter quotable passages to copy in. Advisory items that add facts stay copy-only, so nothing unverified is inserted for you.', tag: 'Opt-in' },
+            { name: 'Agentimus abilities', where: 'WordPress admin AI · MCP', desc: 'Exposes read-only abilities — your readiness score, AI traffic, request log, bot checks, and page / JSON-LD / Markdown previews — to WordPress’s built-in AI and, with the MCP adapter, to external AI agents. Each is permission-gated exactly like the screen it comes from.', tag: 'Auto' },
+          ],
+        },
+        {
           title: 'Discovery documents',
           lead: 'The core job — standard files that let an agent find and understand your site.',
           items: [
@@ -103,6 +112,7 @@ export default {
       ],
       faqs: [
         { q: 'Do I need to configure anything?', a: 'No. Agentimus works the moment it’s activated, with safe defaults. Open Settings only if you want to add your identity details or change a default.' },
+        { q: 'Can AI help me write the description, topics and fixes?', a: 'Yes, if you’ve connected an AI provider in WordPress (Settings → Connectors, with your own key). “Draft with AI” fills the AI description and topics for a page, and “Fix with AI” drafts a concrete fix for each readability warning — always as editable text you review, never saved for you. Agentimus routes everything through WordPress’s AI Client, so it never sees your API key, and the buttons stay hidden until a provider is set up.' },
         { q: 'What is the AEO/GEO score?', a: 'One number (0–100) on your dashboard that blends five rungs — Findable, Readable, Trusted, Optimized and Cited — into a single measure of how ready your site is for AI answer engines, with the single most useful next step. Cited only counts when you turn on citation tracking; otherwise its weight is redistributed, so you’re never penalised for a feature you don’t use.' },
         { q: 'Can I see exactly what agents receive?', a: 'Yes. Open Readiness → Agent preview to see the exact JSON-LD and Markdown for your whole site or any page or post, and copy it — no need to view page source. A matching read-only preview also sits in the post editor. It even shows what would ship when a feature is off or an SEO plugin owns your schema.' },
         { q: 'Is my private or password-protected content exposed?', a: 'No. Drafts, private and password-protected posts are excluded from every output — llms.txt, Markdown, JSON-LD and the sitemap. Only published, publicly-visible content is ever described.' },

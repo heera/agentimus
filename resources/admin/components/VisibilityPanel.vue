@@ -837,11 +837,11 @@ export default {
               <div v-for="id in providerIds" :key="id" class="agv-engine">
                 <div class="agv-engine__id">
                   <label class="ar-toggle agv-sw">
-                    <input type="checkbox" v-model="form.providers[id].enabled" />
+                    <input type="checkbox" :id="'agv-eng-' + id" v-model="form.providers[id].enabled" />
                     <span class="ar-toggle__track" aria-hidden="true"></span>
                   </label>
                   <span class="agv-engine__name">
-                    {{ providersMeta[id].label }}
+                    <label :for="'agv-eng-' + id" class="agv-engine__toglabel">{{ providersMeta[id].label }}</label>
                     <span v-if="providersMeta[id].grounded" class="agv-engine__tag" :class="{ 'is-off': !form.providers[id].enabled }" title="Perplexity always answers from a live web search — there's nothing to switch on.">Always live web</span>
                     <label v-else-if="providersMeta[id].webSearchCapable" class="agv-wspill"
                       :class="{ 'is-on': form.providers[id].web_search, 'is-off': !form.providers[id].enabled }"
@@ -896,10 +896,10 @@ export default {
             <div class="ar-field agv-runfield">
               <div class="agv-switch">
                 <label class="ar-toggle agv-sw" title="Run checks automatically">
-                  <input type="checkbox" v-model="form.scheduleActive" aria-label="Run checks automatically" />
+                  <input type="checkbox" id="agv-schedule" v-model="form.scheduleActive" aria-label="Run checks automatically" />
                   <span class="ar-toggle__track" aria-hidden="true"></span>
                 </label>
-                <span class="agv-switch__state">{{ form.scheduleActive ? 'On' : 'Off' }}</span>
+                <label class="agv-switch__state" for="agv-schedule">{{ form.scheduleActive ? 'On' : 'Off' }}</label>
               </div>
             </div>
 
@@ -1064,7 +1064,7 @@ export default {
 /* Schedule master switch — a plain field (no tinted banner), matching the two
    settings below it. The switch and its On/Off word sit on one line. */
 .agv-switch { display: inline-flex; align-items: center; gap: 10px; }
-.agv-switch__state { font-family: var(--ar-mono); font-size: 11px; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase; color: var(--ar-ink-soft); }
+.agv-switch__state { font-family: var(--ar-mono); font-size: 11px; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase; color: var(--ar-ink-soft); cursor: pointer; }
 /* The two side-by-side settings; hints align tidily under each. */
 .agv-sched .ar-field { align-content: start; }
 .agv-sched .ar-field__hint { margin-top: 6px; }
@@ -1181,6 +1181,9 @@ export default {
 /* Reuse the plugin's toggle switch, stripped of its list-row chrome. */
 .agv-sw.ar-toggle { padding: 0; border-top: 0; align-items: center; gap: 0; flex: 0 0 auto; }
 .agv-engine__name { display: inline-flex; align-items: center; gap: 9px; flex-wrap: wrap; font-size: 13.5px; font-weight: 600; color: var(--ar-ink); min-width: 0; }
+/* The engine name is a <label> for its enable checkbox, so clicking it toggles the engine
+   (matches the Features toggles). It inherits the name's weight/size; just flag it clickable. */
+.agv-engine__toglabel { cursor: pointer; }
 /* Toggleable "web search" pill on the same line — same family as the static
  * LIVE WEB tag, with an on/off dot. Dimmed + disabled until the engine is on. */
 /* Optional per-engine "live web" search — a compact toggle pill, on the engine's own

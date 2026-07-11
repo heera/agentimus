@@ -56,8 +56,12 @@ final class PageCheckMetaBox {
 		$rows = PageCheck::analyze( $post );
 		$sum  = PageCheck::summary( $rows );
 
+		// Offer the "Fix with AI" affordance only when a provider is actually configured.
+		// Resolved once here, not per row.
+		$ai = Assist::ai_available();
+
 		ob_start();
-		echo '<div class="agentimus-pc">';
+		printf( '<div class="agentimus-pc" data-post="%d">', (int) $post->ID );
 
 		$head = ( $sum['warn'] + $sum['fail'] ) > 0
 			? sprintf(
@@ -74,12 +78,25 @@ final class PageCheckMetaBox {
 		foreach ( $rows as $r ) {
 			$status = in_array( $r['status'], array( 'pass', 'warn', 'fail' ), true ) ? $r['status'] : 'warn';
 			$mark   = 'pass' === $status ? '✓' : '!';
+
+			// A "Fix with AI" button on the checks AI can draft (warn/fail only). The result
+			// is rendered into the sibling .agentimus-pc__fixout by the delegated handler in
+			// Assist's editor script.
+			$fix = '';
+			if ( $ai && in_array( $status, array( 'warn', 'fail' ), true ) && Assist::fixable( $r['id'] ) ) {
+				$fix = '<button type="button" class="agentimus-pc__fix" data-check="' . esc_attr( $r['id'] ) . '">'
+					. '<svg class="agentimus-assist__icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M12 3l1.9 4.7L18.6 9l-4.7 1.9L12 15.6 10.1 10.9 5.4 9l4.7-1.3z"/></svg>'
+					. esc_html__( 'Fix with AI', 'agentimus' )
+					. '</button><div class="agentimus-pc__fixout" hidden></div>';
+			}
+
 			printf(
-				'<li class="agentimus-pc__row is-%1$s"><span class="agentimus-pc__mark" aria-hidden="true">%2$s</span><span class="agentimus-pc__text"><strong>%3$s</strong>%4$s</span></li>',
+				'<li class="agentimus-pc__row is-%1$s"><span class="agentimus-pc__mark" aria-hidden="true">%2$s</span><span class="agentimus-pc__text"><strong>%3$s</strong>%4$s%5$s</span></li>',
 				esc_attr( $status ),
 				esc_html( $mark ),
 				esc_html( $r['label'] ),
-				'' !== $r['detail'] ? '<span class="agentimus-pc__detail">' . esc_html( $r['detail'] ) . '</span>' : ''
+				'' !== $r['detail'] ? '<span class="agentimus-pc__detail">' . esc_html( $r['detail'] ) . '</span>' : '',
+				$fix // Static markup + esc_attr'd data-check.
 			);
 		}
 		echo '</ul>';
