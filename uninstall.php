@@ -36,7 +36,10 @@ function agentimus_uninstall_site() {
 			foreach ( (array) glob( $agentimus_md_dir . '/*.md' ) as $agentimus_md_file ) {
 				@unlink( $agentimus_md_file ); // phpcs:ignore WordPress.WP.AlternativeFunctions.unlink_unlink, WordPress.PHP.NoSilencedErrors -- our own cache files.
 			}
-			@rmdir( $agentimus_md_dir ); // phpcs:ignore WordPress.WP.AlternativeFunctions.directory_rmdir, WordPress.PHP.NoSilencedErrors -- our own now-empty cache dir.
+			// Direct rmdir, not WP_Filesystem: uninstall runs with no admin context, so requesting
+		// filesystem credentials could prompt (or fail) and leave the directory behind. This is
+		// our own now-empty cache dir under uploads.
+		@rmdir( $agentimus_md_dir ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_rmdir, WordPress.WP.AlternativeFunctions.directory_rmdir, WordPress.PHP.NoSilencedErrors -- our own now-empty cache dir.
 		}
 	}
 
@@ -54,6 +57,12 @@ function agentimus_uninstall_site() {
 	wp_clear_scheduled_hook( 'agentimus_prune_activity' );
 	wp_clear_scheduled_hook( 'agentimus_warm_llms_full' );
 
+	// Agent Access: the credential/ability event log, its schema flag and the proven
+	// execute-hook verdict.
+	$wpdb->query( "DROP TABLE IF EXISTS {$wpdb->prefix}agentimus_agent_events" ); // phpcs:ignore WordPress.DB
+	delete_option( 'agentimus_agent_access_db_version' );
+	delete_option( 'agentimus_agent_access_hooks' );
+
 	// AI Visibility monitoring: results table, options and scheduled run.
 	$wpdb->query( "DROP TABLE IF EXISTS {$wpdb->prefix}agentimus_visibility" ); // phpcs:ignore WordPress.DB
 	delete_option( 'agentimus_visibility' );
@@ -66,9 +75,11 @@ function agentimus_uninstall_site() {
 }
 
 if ( is_multisite() ) {
-	$site_ids = get_sites( array( 'fields' => 'ids', 'number' => 1000 ) );
-	foreach ( (array) $site_ids as $site_id ) {
-		switch_to_blog( (int) $site_id );
+	// Prefixed like every other variable in this file: uninstall.php runs at global scope, so an
+	// unprefixed $site_ids really is a global and could collide with another plugin's uninstaller.
+	$agentimus_site_ids = get_sites( array( 'fields' => 'ids', 'number' => 1000 ) );
+	foreach ( (array) $agentimus_site_ids as $agentimus_site_id ) {
+		switch_to_blog( (int) $agentimus_site_id );
 		agentimus_uninstall_site();
 		restore_current_blog();
 	}

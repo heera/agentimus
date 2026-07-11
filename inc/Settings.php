@@ -132,6 +132,13 @@ final class Settings {
 			'tidy_head_links'         => false, // Strip rarely-used auto-generated discovery links (shortlink, oEmbed discovery, RSD/WLW) from the page head + Link header — trims the scrapeable footprint. Keeps the REST api.w.org link (intentional discovery).
 			'disable_xmlrpc'          => false, // Disable legacy XML-RPC (xmlrpc.php) — the pingback / system.multicall brute-force-amplification + DDoS surface. Modern clients use the REST API.
 			'exposed_extra_paths'     => array(), // Owner-added paths for the "exposed files" self-check (Settings → Exposure), on top of the built-in list. Scan runs browser-side from Readiness; see Exposure::sensitive_paths().
+			// Agent access — record who authenticates to, and acts on, the machine surface this
+			// plugin creates: application passwords being minted/used/revoked, and abilities being
+			// invoked. ON by default, unlike the opt-in controls above, because it is the rare
+			// one with nothing to trade off: it stores no personal data (no IP, no location — see
+			// AgentAccess\Table), makes no outbound request, and its hot path is an object-cache
+			// read. It observes and reports; it never blocks anything.
+			'agent_access_events'     => true,
 		);
 
 		/**

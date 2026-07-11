@@ -1533,6 +1533,36 @@ export default {
           </small>
         </div>
       </section>
+
+      <!-- Agent access ---------------------------------------------------
+           Its own card rather than another row in the list above, for one reason: that
+           card's lead promises "every control here is off by default", and this one is ON.
+           Folding it in would quietly make that sentence untrue. -->
+      <section id="ar-sec-agent-access" class="ar-card">
+        <h2 class="ar-card__title">Agent access</h2>
+        <p class="ar-card__lead">
+          The other side of Exposure: not what your site reveals, but who reaches in. An
+          application password lets a program act as you through WordPress’s API — and it keeps
+          working even after you change your password, which is exactly why one appearing
+          unannounced is worth knowing about.
+        </p>
+
+        <label id="ar-aa-events" class="ar-toggle">
+          <input v-model="settings.agent_access_events" type="checkbox" />
+          <span class="ar-toggle__track" aria-hidden="true"></span>
+          <span class="ar-toggle__text">
+            <strong>Record agent access</strong>
+            <small>
+              Keep a record of application passwords being created or used, and abilities being
+              run. Stores no IP addresses and no personal data. It records — it never blocks.
+            </small>
+          </span>
+        </label>
+
+        <p class="ar-card__note">
+          Read it under <strong>More → Agent access</strong>.
+        </p>
+      </section>
     </div>
 
     <!-- ============================================================ -->

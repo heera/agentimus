@@ -7,6 +7,7 @@ import DiscoveryHub from './components/DiscoveryHub.vue';
 import ActivityPanel from './components/ActivityPanel.vue';
 import AiTrafficPanel from './components/AiTrafficPanel.vue';
 import RequestLog from './components/RequestLog.vue';
+import AgentAccess from './components/AgentAccess.vue';
 import ReviewMenu from './components/ReviewMenu.vue';
 import OnboardingWizard from './components/OnboardingWizard.vue';
 import AboutPanel from './components/AboutPanel.vue';
@@ -33,7 +34,7 @@ const MORE_EDGE_GAP = 12;
 
 export default {
   name: 'AgentimusApp',
-  components: { SettingsForm, ReadinessPanel, DiscoveryHub, ActivityPanel, AiTrafficPanel, RequestLog, ReviewMenu, OnboardingWizard, AboutPanel, ConfirmDialog, VisibilityPanel },
+  components: { SettingsForm, ReadinessPanel, DiscoveryHub, ActivityPanel, AiTrafficPanel, RequestLog, AgentAccess, ReviewMenu, OnboardingWizard, AboutPanel, ConfirmDialog, VisibilityPanel },
   props: {
     boot: { type: Object, required: true },
   },
@@ -48,7 +49,9 @@ export default {
     // hashchange — so a screen missing from it silently boots on the dashboard instead.
     const actOn = !!(this.boot.settings && this.boot.settings.enable_activity);
     const activityTabs = ['log', 'ai-traffic'];
-    let startTab = ['dashboard', ...activityTabs, 'visibility', 'settings', 'readiness', 'discovery', 'about'].includes(fromHash) ? fromHash : 'dashboard';
+    // 'agent-access' is unconditional here, unlike the activity/visibility tabs above: it has
+    // no setting to hide it, and it is always mounted, so its hash always has somewhere to land.
+    let startTab = ['dashboard', ...activityTabs, 'agent-access', 'visibility', 'settings', 'readiness', 'discovery', 'about'].includes(fromHash) ? fromHash : 'dashboard';
     if ('visibility' === startTab && !visOn) startTab = 'dashboard';
     if (activityTabs.includes(startTab) && !actOn) startTab = 'dashboard';
     return {
@@ -67,6 +70,9 @@ export default {
       activity: {},
       activityLoaded: false,
       refreshingActivity: false,
+      // Unread agent-access events, for the nav badge. Owned here rather than in the panel
+      // because the badge must be right on every screen, including before the panel is opened.
+      agentAccessUnseen: 0,
       // Opt-in live updates (off by default). Remembered per browser.
       live: (() => {
         try { return window.localStorage.getItem(LIVE_PREF_KEY) === '1'; } catch (e) { return false; }
@@ -272,6 +278,15 @@ export default {
         ...(this.settings.enable_activity
           ? [{ id: 'ai-traffic', label: 'AI traffic' }, { id: 'log', label: 'Request log' }]
           : []),
+        // Agent access is the ACT side of the same story the two screens above tell about
+        // READS, so it sits with them. Always listed (never hidden behind its own setting):
+        // the screen's whole job is to be honest about what it can and cannot see, and a
+        // missing nav item is the one thing it could never explain.
+        {
+          id: 'agent-access',
+          label: 'Agent access',
+          badge: this.agentAccessUnseen,
+        },
         // About is reference material, not a working screen — the rule sets it apart.
         { id: 'about', label: 'About', divided: true },
       ];
@@ -449,6 +464,9 @@ export default {
     this._onScroll();
     // Load activity eagerly (not only on the Dashboard): the nav "to review"
     // badge needs the threat data on every tab.
+    // refreshActivity() now also carries the Agent access unread count (see syncAgentAccessBadge),
+    // so a newly minted application password announces itself in the nav wherever the owner
+    // happens to be — on first load, and then live on every poll tick.
     this.refreshActivity();
     // Resume live updates if this admin left them on.
     if (this.live) this.startActivityPolling();
@@ -614,6 +632,8 @@ export default {
         visibility: ['M1.6 8S4 3.9 8 3.9 14.4 8 14.4 8 12 12.1 8 12.1 1.6 8 1.6 8Z', 'M8 9.7a1.7 1.7 0 1 0 0-3.4 1.7 1.7 0 0 0 0 3.4Z'],
         'ai-traffic': ['M2 12.2 6.1 7.9l2.6 2.2 4.6-5.4', 'M10.1 4.4h3.5v3.4'],
         log: ['M3 4.2h10', 'M3 8h10', 'M3 11.8h6'],
+        // A key: this screen is about the credentials that reach the machine surface.
+        'agent-access': ['M9.9 6.1a2.6 2.6 0 1 0 3.7 3.7 2.6 2.6 0 0 0-3.7-3.7Z', 'M9.9 9.8 4 15.7', 'M6.4 13.2l1.6 1.6'],
         about: ['M8 14.2A6.2 6.2 0 1 0 8 1.8a6.2 6.2 0 0 0 0 12.4Z', 'M8 7.4v3.4', 'M8 5.2h.01'],
       }[id] || [];
     },
@@ -995,6 +1015,7 @@ export default {
       this.refreshingActivity = true;
       try {
         this.activity = await this.api.getActivity();
+        this.syncAgentAccessBadge(this.activity);
         this.activityLoaded = true;
         this._activityBlockKey = this.blockingKeyOf(this.settings);
         await this.refreshScore();
@@ -1002,6 +1023,19 @@ export default {
         this.flash('error', e.message);
       } finally {
         this.refreshingActivity = false;
+      }
+    },
+    // The unread count rides the /activity payload, which the review bell already polls — so the
+    // Agent access badge goes live on exactly the same tick as the bell, at the cost of one COUNT
+    // query on a request that was happening anyway. Polling /agent-access instead would mean a
+    // second round-trip every 15s that also dragged back up to 100 event rows to render a number.
+    //
+    // Guarded on `undefined` rather than falsy: a genuine 0 must be able to CLEAR the badge (the
+    // owner revoked the key elsewhere, or read the feed in another tab), while an older payload
+    // that lacks the field entirely must leave the count alone rather than silently zero it.
+    syncAgentAccessBadge(payload) {
+      if (payload && payload.agentAccessUnseen !== undefined) {
+        this.agentAccessUnseen = payload.agentAccessUnseen || 0;
       }
     },
     // Opt-in live updates. Toggled from the "Activity to review" bell menu; we own
@@ -1085,6 +1119,9 @@ export default {
       // review" signal, and the stat tiles update in place. A popup here would be
       // a redundant, interruptive third notice for the same event.
       this.activity = fresh;
+      // Live, on the same tick as the review bell: a key minted right now lights the nav up
+      // without the owner having to reload the page to find out.
+      this.syncAgentAccessBadge(fresh);
       this.activityLoaded = true;
       this._activityBlockKey = this.blockingKeyOf(this.settings);
     },
@@ -1276,10 +1313,16 @@ export default {
           :class="{ 'is-active': moreActive }"
           aria-haspopup="menu"
           :aria-expanded="moreOpen ? 'true' : 'false'"
-          aria-label="More screens"
+          :aria-label="agentAccessUnseen
+            ? `More screens — ${agentAccessUnseen} unread agent access ${agentAccessUnseen === 1 ? 'event' : 'events'}`
+            : 'More screens'"
           @click="toggleMore"
         >
           More
+          <!-- A dot, not a number: the count lives on the item inside. All this has to do is
+               tell someone there is something in here they haven't read — and it has to do it
+               from whichever screen they happen to be on. -->
+          <span v-if="agentAccessUnseen" class="ar__more-dot" aria-hidden="true"></span>
           <span class="ar__more-caret" aria-hidden="true">
             <svg viewBox="0 0 12 12" width="9" height="9" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="2.5 4.5 6 8 9.5 4.5" /></svg>
           </span>
@@ -1311,6 +1354,9 @@ export default {
                 <path v-for="(d, i) in moreIcon(t.id)" :key="i" :d="d" />
               </svg>
               <span class="ar__more-item-label">{{ t.label }}</span>
+              <!-- Unread agent-access events. A new application password is the one thing here
+                   worth pulling someone's eye across the screen for. -->
+              <span v-if="t.badge" class="ar__more-item-badge">{{ t.badge }}</span>
               <!-- Say why it's unreachable, rather than leaving a dead entry to puzzle over. -->
               <span v-if="t.disabled && t.note" class="ar__more-item-note">{{ t.note }}</span>
             </button>
@@ -1458,6 +1504,17 @@ export default {
           v-show="tab === 'log'"
           :api="api"
           :active="tab === 'log'"
+          @flash="flash"
+        />
+        <!-- No v-if: this screen is mounted on every site, however old. Its entire job is to
+             say honestly what it can and cannot see here, and it cannot do that if it isn't
+             there. `seen` clears the nav badge the moment the owner reads the feed. -->
+        <AgentAccess
+          v-show="tab === 'agent-access'"
+          :api="api"
+          :active="tab === 'agent-access'"
+          :unread="agentAccessUnseen"
+          @seen="agentAccessUnseen = 0"
           @flash="flash"
         />
         <VisibilityPanel

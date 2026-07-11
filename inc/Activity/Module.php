@@ -105,7 +105,14 @@ final class Module {
 					'methods'             => 'GET',
 					'permission_callback' => array( $this, 'can_manage' ),
 					'callback'            => function () {
-						return rest_ensure_response( Repository::stats( $this->settings ) );
+						$stats = Repository::stats( $this->settings );
+						// The Agent Access nav badge rides THIS payload — the one the dashboard
+						// already polls for the review bell — rather than polling its own endpoint
+						// every tick. One COUNT query on a request that was happening anyway, versus
+						// a second HTTP round-trip that would also drag back up to 100 event rows
+						// just to render a number.
+						$stats['agentAccessUnseen'] = \Agentimus\AgentAccess\Store::unseen_count();
+						return rest_ensure_response( $stats );
 					},
 				),
 				array(

@@ -95,6 +95,10 @@ final class Plugin {
 		( new Activity\Module( $this->settings ) )->register();
 		( new WebMcp( $this->settings ) )->register();
 		( new Exposure( $this->settings ) )->register();
+		// Agent Access must boot BEFORE the Registrar: the Registrar wraps each ability's execute
+		// callback with AgentAccess's observer at registration time, and the ability listener has
+		// to be hooked before any ability can run.
+		( new AgentAccess\Module( $this->settings ) )->register(); // Records app-password lifecycle + ability invocations. Inert where neither exists.
 		( new Abilities\Registrar( $this->settings ) )->register(); // Exposes our own read capabilities to the WP admin AI + MCP (no-ops pre-6.9).
 
 		// AI Visibility monitoring (opt-in, BYOK). Its config, keys and results live
@@ -170,6 +174,7 @@ final class Plugin {
 		Activity\Table::install();
 		Activity\Referrals::install();
 		Activity\UnknownSources::install();
+		AgentAccess\Table::install();
 		Activity\Module::schedule();
 		Visibility\Table::install();
 		Visibility\Module::schedule();

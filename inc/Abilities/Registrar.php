@@ -38,6 +38,7 @@ use Agentimus\Exposure;
 use Agentimus\BotVerifier;
 use Agentimus\Activity\Referrals;
 use Agentimus\Activity\Repository;
+use Agentimus\AgentAccess\Module as AgentAccess;
 use Agentimus\Visibility\Store as VisibilityStore;
 use Agentimus\Visibility\Settings as VisibilitySettings;
 
@@ -572,15 +573,29 @@ final class Registrar {
 	 * @param callable $permission   Permission callback; receives the input.
 	 */
 	private function add( $slug, $label, $description, array $input_schema, array $output_schema, callable $execute, callable $permission ) {
+		$name = self::CATEGORY . '/' . $slug;
+
+		// Every ability we register funnels through here, which makes this the one place that can
+		// observe our own abilities being run — WITHOUT depending on the Abilities API's global
+		// execute hooks. That matters: those hooks only exist in core 6.9+ and in abilities-api
+		// v0.4.0+, so on an older feature-plugin install they never fire. Wrapping the callback
+		// here means "we always monitor what we exposed" holds on every install, and it is also
+		// half of the capability probe that tells the UI whether THIRD-PARTY abilities are visible
+		// too (see AgentAccess\Module::observe_own_ability).
+		$observed = static function ( $input = null ) use ( $execute, $name ) {
+			AgentAccess::observe_own_ability( $name );
+			return $execute( $input );
+		};
+
 		wp_register_ability(
-			self::CATEGORY . '/' . $slug,
+			$name,
 			array(
 				'label'               => $label,
 				'description'         => $description,
 				'category'            => self::CATEGORY,
 				'input_schema'        => $input_schema,
 				'output_schema'       => $output_schema,
-				'execute_callback'    => $execute,
+				'execute_callback'    => $observed,
 				'permission_callback' => $permission,
 				'meta'                => array(
 					'show_in_rest' => true,
