@@ -374,10 +374,15 @@ final class Module {
 	}
 
 	/**
-	 * Whether a beacon POST originated from this very site — the beacon only ever fires
-	 * from our own pages, so a cross-site (or origin-less) request is not a real arrival.
-	 * Prefers the Origin header, falling back to Referer for the browsers that omit Origin
-	 * on a same-origin beacon.
+	 * A best-effort NOISE FILTER, not a security boundary. The beacon fires from our own pages, so
+	 * a matching Origin/Referer is what a genuine arrival looks like — but both headers are
+	 * client-supplied and trivially forgeable, so this cannot AUTHENTICATE a request. It is not
+	 * meant to: the counts it feeds are a public, client-side analytics signal (like any
+	 * page-view beacon), inherently spoofable, and CDN mode makes that unavoidable — the page is
+	 * edge-cached, so the server never sees the real request and any token we embedded would be
+	 * baked into the cached HTML for everyone. The AI-traffic screen says as much ("indicative, not
+	 * exact"). This check keeps out casual cross-site noise and origin-less requests; the rate cap
+	 * and row cap bound the rest. Do NOT rely on it to prove a request is genuine.
 	 *
 	 * @param \WP_REST_Request $request Request.
 	 * @return bool
