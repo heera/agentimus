@@ -133,7 +133,7 @@ final class Envelope {
 			'well_known'   => $this->well_known_index(),
 			'apis'         => $this->apis( $resources ),
 			'agents'       => $this->agents( $resources ),
-			'resources'    => array_map( array( $this, 'absolutize_resource' ), $resources ),
+			'resources'    => array_map( array( $this, 'wire_resource' ), $resources ),
 			'capabilities' => $this->capabilities( $resources ),
 			// Cast to object so an empty trust block encodes as {}, not [].
 			'trust'        => (object) $this->trust(),
@@ -218,7 +218,7 @@ final class Envelope {
 						return false;
 					}
 					// The PROVIDER's decision: a resource nobody anonymous could ever use. See
-					// Resource::from()'s `public` field, and AbilitiesApi, which sets it false for
+					// Resource::normalize()'s `public` field, and AbilitiesApi, which sets it false for
 					// abilities that all require sign-in.
 					return ! isset( $r['public'] ) || (bool) $r['public'];
 				}
@@ -658,6 +658,24 @@ final class Envelope {
 		$resource['docs']       = $this->absolute( $resource['docs'] );
 		$resource['auth']['oidc'] = $this->absolute( $resource['auth']['oidc'] );
 		$resource['auth']['docs'] = $this->absolute( $resource['auth']['docs'] );
+		return $resource;
+	}
+
+	/**
+	 * A resource shaped for the SERVED document: absolutized, with internal-only fields removed.
+	 *
+	 * `public` is a publication-boundary flag consumed by {@see published_resources()}, not part of
+	 * the wire contract. discovery.json ships a canonical JSON Schema, so an extra key would make a
+	 * strict (`additionalProperties:false`) consumer reject the document. The admin path
+	 * ({@see all_resources()}) deliberately keeps `public` — the Discovery screen needs it to flag
+	 * held-back resources — so it is stripped HERE, on the served path, not in absolutize_resource().
+	 *
+	 * @param array $resource A published resource.
+	 * @return array
+	 */
+	private function wire_resource( $resource ) {
+		$resource = $this->absolutize_resource( $resource );
+		unset( $resource['public'] );
 		return $resource;
 	}
 

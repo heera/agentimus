@@ -103,6 +103,46 @@ final class WellKnownDocsTest extends TestCase {
 		$this->assertSame( '', $this->envelope()->agent_skills_index_json() );
 	}
 
+	/**
+	 * THE REGRESSION. The skills index was the ONE served surface that sourced from the raw
+	 * registry instead of published_resources(), so it filtered owner-suppression but not the
+	 * provider's `public` flag — and leaked every gated ability's id, name and full description
+	 * (scan-exposed-files among them) to anonymous callers, even after they were correctly removed
+	 * from discovery.json, mcp.json and agent-card. A red-team pass caught it; this pins it.
+	 */
+	public function test_agent_skills_index_omits_non_public_abilities() {
+		Registry::instance()->register(
+			array(
+				'id'     => 'abilities-agentimus',
+				'title'  => 'Agentimus',
+				'type'   => 'agent',
+				'public' => false, // gated — nobody anonymous can run it
+				'agent'  => array(
+					'name'   => 'Agentimus',
+					'skills' => array(
+						array( 'id' => 'scan-exposed-files', 'description' => 'which sensitive paths this site probes for' ),
+					),
+				),
+			)
+		);
+		// A genuinely public third-party skill, to prove we suppress the gated one WITHOUT nuking
+		// the whole surface.
+		Registry::instance()->register(
+			array(
+				'id'    => 'acme-bookings',
+				'title' => 'Bookings',
+				'type'  => 'agent',
+				'agent' => array( 'name' => 'Bookings', 'skills' => array( array( 'id' => 'book-slot' ) ) ),
+			)
+		);
+
+		$json = $this->envelope()->agent_skills_index_json();
+
+		$this->assertStringNotContainsString( 'scan-exposed-files', $json, 'A gated ability must not appear in the anonymous skills index.' );
+		$this->assertStringNotContainsString( 'sensitive paths', $json, 'Nor may its description leak there.' );
+		$this->assertStringContainsString( 'book-slot', $json, 'A public third-party skill must still be advertised.' );
+	}
+
 	/* -- Owner suppression must reach EVERY served surface, not just some ---- */
 
 	/**
@@ -216,5 +256,22 @@ final class WellKnownDocsTest extends TestCase {
 
 		$ids = array_column( $this->envelope()->build()['resources'], 'id' );
 		$this->assertContains( 'shop', $ids );
+	}
+
+	/**
+	 * discovery.json ships a canonical JSON Schema, so an extra key on a resource item would make a
+	 * strict (additionalProperties:false) consumer reject the whole document. `public` is an
+	 * internal publication-boundary flag and must be stripped from the served output — while the
+	 * admin path (all_resources) keeps it to flag held-back resources.
+	 */
+	public function test_served_resources_do_not_leak_the_internal_public_flag() {
+		Registry::instance()->register(
+			array( 'id' => 'shop', 'title' => 'Shop', 'type' => 'commerce' )
+		);
+		$resources = $this->envelope()->build()['resources'];
+		$this->assertNotEmpty( $resources );
+		foreach ( $resources as $r ) {
+			$this->assertArrayNotHasKey( 'public', $r, 'The internal publication flag must not reach the wire.' );
+		}
 	}
 }

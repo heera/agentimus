@@ -158,7 +158,7 @@ final class Hub {
 			// True when the owner has suppressed this Resource from served output.
 			'suppressed'   => in_array( $resource['id'], $suppressed, true ),
 			// True when the PROVIDER kept it out of the served documents because nobody anonymous
-			// could use it anyway (see Resource::from()'s `public`, and AbilitiesApi). Distinct from
+			// could use it anyway (see Resource::normalize()'s `public`, and AbilitiesApi). Distinct from
 			// `suppressed`, which is the owner's own choice and is theirs to reverse.
 			//
 			// This flag is not decoration. Without it the admin lists a Resource with no indication
