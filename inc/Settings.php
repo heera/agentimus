@@ -453,40 +453,74 @@ final class Settings {
 		}
 	}
 
-	/** Bump when a new default-nudge is added to {@see maybe_migrate_defaults()}. */
-	const DEFAULTS_MIGRATION        = 1;
+	/** Bump when a new step is added to {@see maybe_migrate_defaults()}. */
+	const DEFAULTS_MIGRATION        = 2;
 	const DEFAULTS_MIGRATED_OPTION  = 'agentimus_defaults_migrated';
 
 	/**
-	 * One-shot correction of UN-customised defaults whose value we've since lowered — for installs
-	 * that persisted the old default and would otherwise never receive the new one (ensure_defaults
-	 * only seeds a wholly-absent option, and existing keys are kept on update).
+	 * One-shot, step-versioned migrations for installs upgrading from an older release. Each step
+	 * runs at most once (gated on the stored step number), so a later bump never re-runs an earlier
+	 * step — which is what lets a step that nudges a default coexist with the owner later re-choosing
+	 * the old value without being fought.
 	 *
-	 * Deliberately narrow: it only touches a stored value that still EQUALS the old default, which
-	 * can only be an un-customised default — a value the owner actually chose is left alone. Guarded
-	 * by a version flag so a deliberate re-choice of the old number is not fought on every boot.
+	 *   Step 1 — lower the un-customised llms-full budget from the old 1024 KB (which sat exactly at
+	 *            the common 1 MB object-cache item ceiling, so /llms-full.txt silently failed to
+	 *            cache) to 900. Only touches a value still EQUAL to the old default; a value the
+	 *            owner chose is left alone.
+	 *   Step 2 — force-autoload the tiny flags that are read on EVERY boot (the six *_db_version
+	 *            stamps + this migration flag). update_option() does not flip an existing row's
+	 *            autoload, so an install upgraded from a release that wrote them autoload=off would
+	 *            keep paying one indexed query per read on a site with no persistent object cache.
 	 *
 	 * @return void
 	 */
 	public function maybe_migrate_defaults() {
-		if ( (int) get_option( self::DEFAULTS_MIGRATED_OPTION, 0 ) >= self::DEFAULTS_MIGRATION ) {
+		$done = (int) get_option( self::DEFAULTS_MIGRATED_OPTION, 0 );
+		if ( $done >= self::DEFAULTS_MIGRATION ) {
 			return;
 		}
 
-		$saved = get_option( self::OPTION );
-		if ( is_array( $saved ) ) {
-			// llms_full_max_kb: the old default of 1024 KB sits exactly at the common 1 MB object-
-			// cache item ceiling, so the generated /llms-full.txt silently fails to cache and every
-			// request re-runs the full build. Nudge the un-customised old default to the safe one.
-			if ( isset( $saved['llms_full_max_kb'] ) && 1024 === (int) $saved['llms_full_max_kb'] ) {
+		// Step 1 — the llms-full default nudge. Runs only if this install has never done it, so a
+		// later step bump can't re-nudge a value the owner deliberately re-chose after step 1.
+		if ( $done < 1 ) {
+			$saved = get_option( self::OPTION );
+			if ( is_array( $saved ) && isset( $saved['llms_full_max_kb'] ) && 1024 === (int) $saved['llms_full_max_kb'] ) {
 				$saved['llms_full_max_kb'] = 900;
 				update_option( self::OPTION, $saved );
 			}
 		}
 
-		// Autoloaded (default): it's read on every boot by the guard above, so it belongs in the
-		// single alloptions load, not a separate per-request query.
+		// Step 2 — flip the per-boot flags to autoloaded in place. wp_set_option_autoload() is WP
+		// 6.4+; below that (our 6.0 floor) the install keeps the old per-request read — a tiny,
+		// shrinking population, and a perf nuance, not a defect.
+		if ( $done < 2 && function_exists( 'wp_set_option_autoload' ) ) {
+			foreach ( self::per_boot_flag_options() as $flag ) {
+				if ( false !== get_option( $flag, false ) ) {
+					wp_set_option_autoload( $flag, true );
+				}
+			}
+		}
+
 		update_option( self::DEFAULTS_MIGRATED_OPTION, self::DEFAULTS_MIGRATION );
+	}
+
+	/**
+	 * The small flags read on every boot (schema-version stamps + the migration flag). They belong
+	 * in the single autoloaded alloptions load rather than a per-request query each. Fresh writes
+	 * already default to autoloaded; {@see maybe_migrate_defaults()} step 2 flips existing rows.
+	 *
+	 * @return string[]
+	 */
+	private static function per_boot_flag_options() {
+		return array(
+			self::DEFAULTS_MIGRATED_OPTION,
+			'agentimus_activity_db_version',
+			'agentimus_referrals_db_version',
+			'agentimus_unknown_sources_db_version',
+			'agentimus_flagged_ips_db_version',
+			'agentimus_agent_access_db_version',
+			'agentimus_visibility_db_version',
+		);
 	}
 
 	/**
