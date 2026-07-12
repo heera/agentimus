@@ -699,6 +699,12 @@ final class Registrar {
 			'type'                 => 'object',
 			'properties'           => new \stdClass(),
 			'additionalProperties' => false,
+			// A read-only ability runs over REST as a GET, whose input comes from an `?input` query
+			// param — and a query string cannot express an empty object. With no param the value is
+			// null, which WP_Ability::normalize_input() only rescues when the schema declares a
+			// `default`. Without this, the three no-input abilities (readiness, AI-visibility,
+			// exposed-files) 400 at the input gate and are uncallable by any external MCP/REST agent.
+			'default'              => new \stdClass(),
 		);
 	}
 

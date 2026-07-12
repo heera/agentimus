@@ -4,7 +4,7 @@ Tags: ai-agents, ai-crawlers, agent-readiness, llms-txt, ai-seo
 Requires at least: 6.0
 Tested up to: 7.0
 Requires PHP: 7.4
-Stable tag: 1.20.0
+Stable tag: 1.20.1
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -238,6 +238,9 @@ There is no minified-only code. The admin interface is built from Vue 3 source i
 
 == Changelog ==
 
+= 1.20.1 =
+* Fixed — **Three read-only abilities can now be run by an outside AI agent, not just listed.** Agentimus's readiness score, AI Visibility results and exposed-files check take no arguments — and a no-argument call through WordPress's abilities REST endpoint was rejected before it ran, so an assistant could *see* these abilities but never actually *use* them. They now run as intended. Your own admin screens were never affected; this only touched external agents calling in.
+
 = 1.20.0 =
 * New — **Agent access.** A new screen (More → Agent access) records who authenticates to, and *acts* on, the machine surface Agentimus creates — the other half of the activity log, which shows who *reads* it. It notes when an application password (the key a program uses to reach WordPress as you) is created, first used, renamed or revoked; when one of WordPress's abilities is run; and when a request is refused, or probes for abilities that don't exist. It's a record, not a guard — it never blocks anything — and it keeps Agentimus's no-personal-data promise: no IP addresses, so it names the key that was used, not the person, and it sees machine logins only (a normal password sign-in never appears). A brand-new application password is the one worth a second look — it keeps working even after you change your password. On by default; nothing to configure.
 * Security — **The discovery documents now tell agents the truth about your abilities.** The nine read-only abilities Agentimus registers require a signed-in administrator, yet the public discovery file described them as needing no authentication and published their full descriptions and input/output schemas to anyone who asked. Sign-in-only abilities are no longer advertised to anonymous callers (an agent holding real credentials still discovers them the proper way), every document now reports the correct authentication, and turning a resource off now removes it from *every* served file, including mcp.json.
@@ -330,6 +333,9 @@ There is no minified-only code. The admin interface is built from Vue 3 source i
 Older releases (1.12.4 and earlier) are in the full changelog: https://github.com/heera/agentimus/blob/main/CHANGELOG.md
 
 == Upgrade Notice ==
+
+= 1.20.1 =
+Fixes three read-only abilities (readiness, AI Visibility, exposed-files check) that an external AI agent could list but not run. No breaking changes.
 
 = 1.20.0 =
 New: Agent access — a log of who authenticates to and acts on your site's machine surface (application passwords, abilities, refused probes). Plus security hardening in the discovery documents, the activity log, and the AI-draft buttons. No breaking changes.
