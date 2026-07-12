@@ -14,6 +14,15 @@ final class Settings {
 
 	const OPTION = 'agentimus_settings';
 
+	/** Decision dates for the block/trust lists: { allow: { token → unix }, block: { … } }.
+	 *  A side option (autoload off), written by {@see update()} whenever a token enters or
+	 *  leaves blocked_agents / allowed_agents — so BOTH the review queue's one-click
+	 *  Allow/Block and a manual chip edit get dated through the one seam they share.
+	 *  Purely informational (the client manager shows "blocked on …"); the lists
+	 *  themselves stay the plain string arrays they have always been, so nothing
+	 *  existing changes shape. Entries predating this option simply have no date. */
+	const DECISIONS_OPTION = 'agentimus_client_decisions';
+
 	/**
 	 * The retention periods and row caps the UI offers, in the order it offers them. The
 	 * sanitiser snaps to these, and the settings form renders from them, so the two can
@@ -346,6 +355,7 @@ final class Settings {
 		$prev  = get_option( self::OPTION, array() );
 		$clean = $this->sanitize( $input );
 		update_option( self::OPTION, $clean );
+		$this->record_decisions( is_array( $prev ) ? $prev : array(), $clean );
 		Cache::flush();
 		// Opted back OUT of flagged-IP storage → purge what was kept, so the plugin never
 		// holds personal data the owner just declined. A listener (Activity\Module) clears
@@ -401,6 +411,59 @@ final class Settings {
 	}
 
 	/**
+	 * Record when a token entered the block/trust lists, and forget the date when it
+	 * leaves. Compares the two settings snapshots case-insensitively (the lists dedupe
+	 * that way) and only writes when something actually changed. Times are unix GMT.
+	 *
+	 * @param array $prev  Stored settings before this update (may be empty).
+	 * @param array $clean Sanitized settings just written.
+	 */
+	private function record_decisions( array $prev, array $clean ) {
+		$map     = get_option( self::DECISIONS_OPTION, array() );
+		$map     = is_array( $map ) ? $map : array();
+		$changed = false;
+
+		foreach ( array(
+			'allow' => 'allowed_agents',
+			'block' => 'blocked_agents',
+		) as $kind => $list_key ) {
+			$old = array_map( 'strtolower', array_map( 'strval', (array) ( $prev[ $list_key ] ?? array() ) ) );
+			$new = array_map( 'strtolower', array_map( 'strval', (array) ( $clean[ $list_key ] ?? array() ) ) );
+			if ( ! isset( $map[ $kind ] ) || ! is_array( $map[ $kind ] ) ) {
+				$map[ $kind ] = array();
+			}
+			foreach ( array_diff( $new, $old ) as $token ) {
+				$map[ $kind ][ $token ] = time();
+				$changed                = true;
+			}
+			foreach ( array_diff( $old, $new ) as $token ) {
+				if ( isset( $map[ $kind ][ $token ] ) ) {
+					unset( $map[ $kind ][ $token ] );
+					$changed = true;
+				}
+			}
+		}
+
+		if ( $changed ) {
+			update_option( self::DECISIONS_OPTION, $map, false );
+		}
+	}
+
+	/**
+	 * The decision-date map: { allow: { lowercased token → unix }, block: { … } }.
+	 *
+	 * @return array{allow:array<string,int>,block:array<string,int>}
+	 */
+	public static function decisions() {
+		$map = get_option( self::DECISIONS_OPTION, array() );
+		$map = is_array( $map ) ? $map : array();
+		return array(
+			'allow' => isset( $map['allow'] ) && is_array( $map['allow'] ) ? $map['allow'] : array(),
+			'block' => isset( $map['block'] ) && is_array( $map['block'] ) ? $map['block'] : array(),
+		);
+	}
+
+	/**
 	 * Add one user-agent token to the owner's trust-list — the "Allow" action on a
 	 * flagged row. An allowed agent is treated like a protected search engine: never
 	 * blocked (even by a broad rule) and never flagged for review again. Full
@@ -424,6 +487,34 @@ final class Settings {
 	}
 
 	/**
+	 * Remove one token from a client list — the client manager's "Unblock" /
+	 * "Un-trust". The inverse of {@see block_agent()} / {@see allow_agent()}:
+	 * same full read-modify-write, same case-insensitive match. Removing a
+	 * blocked token deliberately does NOT touch the block_agents master switch —
+	 * un-listing one client is not a decision about enforcement as a whole.
+	 *
+	 * @param string $token Token to remove (case-insensitive).
+	 * @param string $list_key 'allowed_agents' or 'blocked_agents'.
+	 * @return array The stored settings.
+	 */
+	public function remove_agent_token( $token, $list_key ) {
+		$list_key = 'blocked_agents' === $list_key ? 'blocked_agents' : 'allowed_agents';
+		$needle   = strtolower( trim( (string) $token ) );
+		$all      = $this->all();
+		if ( '' !== $needle ) {
+			$all[ $list_key ] = array_values(
+				array_filter(
+					(array) $all[ $list_key ],
+					static function ( $t ) use ( $needle ) {
+						return strtolower( (string) $t ) !== $needle;
+					}
+				)
+			);
+		}
+		return $this->update( $all );
+	}
+
+	/**
 	 * Restore every setting to its factory default, wiping the stored option and
 	 * any generated caches. Identity text, crawler policy and feature toggles all
 	 * revert. Returns the resolved (default) settings.
@@ -432,6 +523,7 @@ final class Settings {
 	 */
 	public function reset() {
 		delete_option( self::OPTION );
+		delete_option( self::DECISIONS_OPTION ); // The lists are gone; their dates go too.
 		add_option( self::OPTION, $this->defaults() );
 		Cache::flush();
 

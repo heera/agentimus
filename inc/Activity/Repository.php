@@ -1031,6 +1031,55 @@ final class Repository {
 	}
 
 	/**
+	 * The dismissals as display rows for the client manager, newest first.
+	 * Backward compatible with entries written before `label` existed: a token
+	 * key ("tok:semrushbot") still names itself; a hash key yields '' and the
+	 * UI shows a neutral "Unnamed client".
+	 *
+	 * @return array<int,array{key:string,label:string,at:int,hits:int}>
+	 */
+	public static function dismissals() {
+		$out = array();
+		foreach ( self::dismissed_map() as $key => $row ) {
+			$label = isset( $row['label'] ) ? (string) $row['label'] : '';
+			if ( '' === $label && 0 === strpos( (string) $key, 'tok:' ) ) {
+				$label = substr( (string) $key, 4 );
+			}
+			$out[] = array(
+				'key'   => (string) $key,
+				'label' => $label,
+				'at'    => isset( $row['at'] ) ? (int) $row['at'] : 0,
+				'hits'  => isset( $row['hits'] ) ? (int) $row['hits'] : 0,
+			);
+		}
+		usort(
+			$out,
+			static function ( $a, $b ) {
+				return $b['at'] <=> $a['at'];
+			}
+		);
+		return $out;
+	}
+
+	/**
+	 * Forget one dismissal — the client manager's "Un-ignore". The client
+	 * reappears in the review queue on its next build if it is still visiting.
+	 *
+	 * @param string $key Review key ("tok:…" / "ua:…") as listed by dismissals().
+	 * @return bool Whether the key existed.
+	 */
+	public static function undismiss( $key ) {
+		$key = (string) $key;
+		$map = self::dismissed_map();
+		if ( ! isset( $map[ $key ] ) ) {
+			return false;
+		}
+		unset( $map[ $key ] );
+		update_option( self::DISMISS_OPTION, $map, false );
+		return true;
+	}
+
+	/**
 	 * The admin "Re-check" overlay (review-key => { verdict:int, at:string }), with entries
 	 * past {@see REVERIFY_TTL} filtered out AT READ time — a re-check is a point-in-time fact,
 	 * so a stale one must never keep overriding a client's live ingest verdict, even before the
@@ -1117,6 +1166,10 @@ final class Repository {
 		$map[ self::dismiss_key( $ua ) ] = array(
 			'at'   => time(),
 			'hits' => max( 0, (int) $hits ),
+			// Display name for the client manager, resolved the same way the
+			// activity feed names clients. Entries written before this field
+			// existed simply have none (the manager falls back to the key).
+			'label' => Classifier::classify( (string) $ua ),
 		);
 		if ( count( $map ) > self::DISMISS_MAX ) {
 			uasort(

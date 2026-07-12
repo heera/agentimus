@@ -89,6 +89,14 @@ export function createApi(boot) {
     // Returns { ip, host, engine, verdict, slow }.
     checkIp: (ip) =>
       request('/activity/check-ip', { method: 'POST', body: JSON.stringify({ ip }) }),
+    // The client manager (Settings → AI access): every standing decision in one payload
+    // — { blocked: [{token, at, known}], allowed: [...], ignored: [{key, label, at, hits}] }.
+    // The two mutators return the same refreshed payload.
+    getClients: () => request('/activity/clients'),
+    undismissClient: (key) =>
+      request('/activity/undismiss', { method: 'POST', body: JSON.stringify({ key }) }),
+    removeClientToken: (token, list) =>
+      request('/activity/client-remove', { method: 'POST', body: JSON.stringify({ token, list }) }),
 
     // Agent access: who authenticated to, and acted on, the machine surface. The payload
     // carries its own coverage verdict (see AgentAccess\Events::ability_coverage) because

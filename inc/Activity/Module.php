@@ -303,6 +303,59 @@ final class Module {
 			)
 		);
 
+		// The client manager (Settings → AI access): every standing decision about a
+		// client — blocked, trusted, ignored — in one payload, with dates and the
+		// recognition catalog's identity where a token is a known crawler.
+		register_rest_route(
+			'agentimus/v1',
+			'/activity/clients',
+			array(
+				'methods'             => 'GET',
+				'permission_callback' => array( $this, 'can_manage' ),
+				'callback'            => array( $this, 'clients' ),
+			)
+		);
+
+		register_rest_route(
+			'agentimus/v1',
+			'/activity/undismiss',
+			array(
+				'methods'             => 'POST',
+				'permission_callback' => array( $this, 'can_manage' ),
+				'callback'            => array( $this, 'undismiss' ),
+				'args'                => array(
+					'key' => array(
+						'type'     => 'string',
+						'required' => true,
+					),
+				),
+			)
+		);
+
+		register_rest_route(
+			'agentimus/v1',
+			'/activity/client-remove',
+			array(
+				'methods'             => 'POST',
+				'permission_callback' => array( $this, 'can_manage' ),
+				'callback'            => array( $this, 'client_remove' ),
+				// No enum on `list`: WP validates args BEFORE the permission callback,
+				// so an unauthenticated probe with a junk value would get 400 where the
+				// gate must answer 401/403 first (the RestPermissionTest sweep enforces
+				// this). Settings::remove_agent_token() constrains the value instead.
+				'args'                => array(
+					'token' => array(
+						'type'     => 'string',
+						'required' => true,
+					),
+					'list'  => array(
+						'type'     => 'string',
+						'required' => true,
+					),
+				),
+			)
+		);
+
 		register_rest_route(
 			'agentimus/v1',
 			'/activity/reverify',
@@ -513,6 +566,76 @@ final class Module {
 			(int) $request->get_param( 'hits' )
 		);
 		return rest_ensure_response( Repository::stats( $this->settings ) );
+	}
+
+	/**
+	 * REST: GET /activity/clients — the client manager's payload: the block and
+	 * trust lists (token, decision date where recorded, catalog identity where
+	 * recognised) plus every review-queue dismissal.
+	 *
+	 * @return \WP_REST_Response
+	 */
+	public function clients() {
+		$decisions = Settings::decisions();
+		$describe  = static function ( $tokens, $dates ) {
+			$rows = array();
+			foreach ( (array) $tokens as $token ) {
+				$token = (string) $token;
+				$known = Catalog::identify( $token );
+				$rows[] = array(
+					'token' => $token,
+					'at'    => isset( $dates[ strtolower( $token ) ] ) ? (int) $dates[ strtolower( $token ) ] : 0,
+					'known' => $known,
+				);
+			}
+			return $rows;
+		};
+
+		return rest_ensure_response(
+			array(
+				'blocked'  => $describe( $this->settings->get( 'blocked_agents', array() ), $decisions['block'] ),
+				'allowed'  => $describe( $this->settings->get( 'allowed_agents', array() ), $decisions['allow'] ),
+				'ignored'  => Repository::dismissals(),
+				// Settings-shaped mirror of the two lists, so the app can hand it to
+				// the same syncBlockSettings() the review queue's Allow/Block use —
+				// keeping the open Settings form and its saved snapshot in step
+				// (else a later Save would resurrect a token removed here).
+				'settings' => array(
+					'blocked_agents' => (array) $this->settings->get( 'blocked_agents', array() ),
+					'allowed_agents' => (array) $this->settings->get( 'allowed_agents', array() ),
+					'block_agents'   => (bool) $this->settings->enabled( 'block_agents' ),
+					'block_spoofed'  => (bool) $this->settings->enabled( 'block_spoofed' ),
+				),
+			)
+		);
+	}
+
+	/**
+	 * REST: POST /activity/undismiss — the client manager's "Un-ignore". Returns
+	 * the refreshed manager payload so the dialog re-renders from one truth.
+	 *
+	 * @param \WP_REST_Request $request Request with `key`.
+	 * @return \WP_REST_Response
+	 */
+	public function undismiss( \WP_REST_Request $request ) {
+		Repository::undismiss( (string) $request->get_param( 'key' ) );
+		return $this->clients();
+	}
+
+	/**
+	 * REST: POST /activity/client-remove — take one token off the block or trust
+	 * list (the manager's "Unblock" / "Un-trust"). Writes through Settings, so
+	 * the removal also drops the token's decision date.
+	 *
+	 * @param \WP_REST_Request $request Request with `token` and `list`.
+	 * @return \WP_REST_Response
+	 */
+	public function client_remove( \WP_REST_Request $request ) {
+		$this->settings->remove_agent_token(
+			(string) $request->get_param( 'token' ),
+			(string) $request->get_param( 'list' )
+		);
+		return $this->clients();
 	}
 
 	/**

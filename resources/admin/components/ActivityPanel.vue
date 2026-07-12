@@ -32,11 +32,17 @@ export default {
       // The per-day report modal. The page itself never reflows; clicking a bar
       // opens this focused overlay with the day's breakdown + full request log.
       dayModal: { open: false, loading: false, error: '', date: '', total: 0, rows: [], capped: false },
+      // The Traffic-from-AI twin of dayModal — same dialog conventions, fed by
+      // /activity/ai-day (source → landing-page pairings; days are the finest
+      // "when" stored, so there are no per-visit times).
+      aiDay: { open: false, loading: false, error: '', date: '', hits: 0, rows: [], rowCount: 0, capped: false },
+      aiDayScrollMore: false,
       dayScrollMore: false,
       // Whether each breakdown column is unfolded past its top-N summary (per day).
       dayExpand: { clients: false, endpoints: false },
       // Styled hover tooltip above the bars.
       tip: { show: false, day: null, x: 0, caret: 0 },
+      refTip: { show: false, day: null, x: 0, caret: 0 },
       // Styled hover tooltip for long inline values (a full User-Agent). position:fixed
       // so the scrolling request feed / day modal never clips it — replaces the native
       // title="…" bubble with the same dark look as the chart tooltip.
@@ -51,6 +57,8 @@ export default {
   },
   beforeUnmount() {
     window.removeEventListener('resize', this.updateFeedHint);
+    document.removeEventListener('keydown', this.onDayModalKeydown);
+    document.removeEventListener('keydown', this.onAiDayKeydown);
   },
   watch: {
     recentGrouped() {
@@ -222,6 +230,28 @@ export default {
         label: `${this.dateLabel(d.date)} · ${d.hits} ${d.hits === 1 ? 'hit' : 'hits'}`,
       }));
     },
+    // ---- AI-traffic day modal (the endpoint-activity modal's twin) ----------
+    aiHitDays() {
+      return this.refSpark.filter((d) => d.hits > 0);
+    },
+    aiDayIndex() {
+      return this.aiHitDays.findIndex((d) => d.date === this.aiDay.date);
+    },
+    aiDayHasPrev() {
+      return this.aiDayIndex > 0;
+    },
+    aiDayHasNext() {
+      return this.aiDayIndex >= 0 && this.aiDayIndex < this.aiHitDays.length - 1;
+    },
+    aiDayOptions() {
+      return this.aiHitDays
+        .slice()
+        .reverse()
+        .map((d) => ({
+          value: d.date,
+          label: `${this.dateLabel(d.date)} · ${d.hits} ${d.hits === 1 ? 'visit' : 'visits'}`,
+        }));
+    },
   },
   methods: {
     barHeight(hits) {
@@ -243,10 +273,17 @@ export default {
     },
     openDay(date) {
       this.loadDay(date);
+      // Esc is caught at the document, not just the panel: with backdrop-click
+      // close removed, a stray outside click parks focus off the dialog and a
+      // panel-scoped keydown would never hear the key.
+      document.addEventListener('keydown', this.onDayModalKeydown);
       this.$nextTick(() => {
         const el = this.$refs.dayDialog;
         if (el) el.focus();
       });
+    },
+    onDayModalKeydown(e) {
+      if ('Escape' === e.key) this.closeDayModal();
     },
     // Tally the loaded day-log rows by a field into busiest-first {label, hits}.
     tallyDay(field) {
@@ -262,6 +299,14 @@ export default {
       this.dayModal = { open: true, loading: true, error: '', date, total: 0, rows: [], capped: false };
       this.dayScrollMore = false;
       this.dayExpand = { clients: false, endpoints: false };
+      // Back to the top NOW, not after the fetch: the breakdown swaps to the new
+      // day instantly (chart data), and the busy state lives up there — a reader
+      // parked deep in the old day's request list would otherwise see nothing
+      // happen until the rows arrive.
+      this.$nextTick(() => {
+        const el = this.$refs.dayScroll;
+        if (el) el.scrollTop = 0;
+      });
       if (!this.api || !this.api.getActivityDay) {
         this.dayModal.loading = false;
         this.dayModal.error = 'Unable to load requests in this context.';
@@ -279,21 +324,79 @@ export default {
         }
       } finally {
         if (this.dayModal.open && this.dayModal.date === date) this.dayModal.loading = false;
-        this.$nextTick(() => {
-          const el = this.$refs.dayScroll;
-          if (el) el.scrollTop = 0;
-          this.updateDayScrollHint();
-        });
+        this.$nextTick(() => this.updateDayScrollHint());
       }
     },
     closeDayModal() {
       this.dayModal.open = false;
+      document.removeEventListener('keydown', this.onDayModalKeydown);
     },
     stepDay(delta) {
       const i = this.dayNavIndex;
       if (i < 0) return;
       const next = this.hitDays[i + delta];
       if (next) this.loadDay(next.date);
+    },
+    // ---- AI-traffic day modal (same conventions as the endpoint one) ----------
+    openAiDay(d) {
+      if (!d.hits) return;
+      this.loadAiDay(d.date);
+      document.addEventListener('keydown', this.onAiDayKeydown);
+      this.$nextTick(() => {
+        const el = this.$refs.aiDayDialog;
+        if (el) el.focus();
+      });
+    },
+    async loadAiDay(date) {
+      this.aiDay = { open: true, loading: true, error: '', date, hits: 0, rows: [], rowCount: 0, capped: false };
+      if (!this.api || !this.api.getAiTrafficDay) {
+        this.aiDay.loading = false;
+        this.aiDay.error = 'Unable to load visits in this context.';
+        return;
+      }
+      try {
+        // Always the full day (bounded at 200 server-side): the dialog scrolls,
+        // so a "Show all" click between the reader and the tail is pure friction.
+        const res = await this.api.getAiTrafficDay(date, { full: 1 });
+        if (!this.aiDay.open || this.aiDay.date !== date) return;
+        this.aiDay.hits = res.hits || 0;
+        this.aiDay.rows = res.rows || [];
+        this.aiDay.rowCount = res.rowCount || 0;
+        this.aiDay.capped = !!res.capped;
+      } catch (e) {
+        if (this.aiDay.open && this.aiDay.date === date) {
+          this.aiDay.error = (e && e.message) || 'Failed to load visits.';
+        }
+      } finally {
+        if (this.aiDay.open && this.aiDay.date === date) this.aiDay.loading = false;
+        this.$nextTick(() => this.updateAiDayScrollHint());
+      }
+    },
+    onAiDayScroll() {
+      this.updateAiDayScrollHint();
+    },
+    updateAiDayScrollHint() {
+      const el = this.$refs.aiDayScroll;
+      this.aiDayScrollMore = !!el && el.scrollHeight - el.scrollTop - el.clientHeight > 4;
+    },
+    scrollAiDayBody() {
+      const el = this.$refs.aiDayScroll;
+      if (!el) return;
+      const reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      el.scrollBy({ top: Math.round(el.clientHeight * 0.8), behavior: reduce ? 'auto' : 'smooth' });
+    },
+    closeAiDay() {
+      this.aiDay.open = false;
+      document.removeEventListener('keydown', this.onAiDayKeydown);
+    },
+    onAiDayKeydown(e) {
+      if ('Escape' === e.key) this.closeAiDay();
+    },
+    stepAiDay(delta) {
+      const i = this.aiDayIndex;
+      if (i < 0) return;
+      const next = this.aiHitDays[i + delta];
+      if (next) this.loadAiDay(next.date);
     },
     onDayScroll() {
       this.updateDayScrollHint();
@@ -323,6 +426,36 @@ export default {
     },
     hideTip() {
       this.tip.show = false;
+    },
+    // The AI-traffic sparkline's styled tooltip — same mechanics as showTip/
+    // positionTip, its own wrap/element/state because the two charts live in
+    // different cards and can in principle be hovered in quick succession.
+    showRefTip(d, ev) {
+      const bar = ev.currentTarget;
+      this.refTip.day = d;
+      this.refTip.show = true;
+      const wrap = this.$refs.refSparkWrap;
+      if (wrap && bar) {
+        const w = wrap.getBoundingClientRect();
+        const b = bar.getBoundingClientRect();
+        this.refTip.x = b.left + b.width / 2 - w.left;
+      }
+      this.$nextTick(() => {
+        const tipEl = this.$refs.refTipEl;
+        if (!wrap || !tipEl || !bar) return;
+        const w = wrap.getBoundingClientRect();
+        const b = bar.getBoundingClientRect();
+        const tw = tipEl.offsetWidth;
+        const pad = 6;
+        const center = b.left + b.width / 2 - w.left;
+        const half = tw / 2;
+        const x = Math.max(half + pad, Math.min(center, w.width - half - pad));
+        this.refTip.x = x;
+        this.refTip.caret = Math.max(10, Math.min(center - (x - half), tw - 10));
+      });
+    },
+    hideRefTip() {
+      this.refTip.show = false;
     },
     positionTip(bar) {
       const wrap = this.$refs.sparkWrap;
@@ -648,17 +781,38 @@ export default {
           <!-- Shape of the month. A read-only sparkline, not the 30-row list that used to
                live here: anything whose height grows with the window belongs on the AI
                traffic screen, not on a summary card. -->
-          <div class="ar-refspark" role="img" :aria-label="refSparkAria">
-            <span
-              v-for="(d, i) in refSpark"
-              :key="i"
-              class="ar-refspark__bar"
-              :class="{ 'is-zero': !d.hits }"
-              :title="`${dateLabel(d.date)} · ${d.hits} ${d.hits === 1 ? 'visit' : 'visits'}`"
-              :style="{ height: pct(d.hits, refSparkMax) }"
-            ></span>
+          <div ref="refSparkWrap" class="ar-act-sparkwrap ar-act-sparkwrap--ref">
+            <div class="ar-refspark" role="group" :aria-label="refSparkAria" @mouseleave="hideRefTip">
+              <button
+                v-for="(d, i) in refSpark"
+                :key="i"
+                type="button"
+                class="ar-refspark__bar"
+                :class="{ 'is-zero': !d.hits, 'is-active': aiDay.open && aiDay.date === d.date }"
+                :aria-label="`${dateLabel(d.date)}, ${d.hits} ${d.hits === 1 ? 'visit' : 'visits'}${d.hits ? ' — open this day' : ''}`"
+                :style="{ height: pct(d.hits, refSparkMax) }"
+                @click="openAiDay(d)"
+                @mouseenter="showRefTip(d, $event)"
+                @focus="showRefTip(d, $event)"
+                @blur="hideRefTip"
+              ></button>
+            </div>
+            <transition name="ar-tip">
+              <div
+                v-if="refTip.show && refTip.day"
+                ref="refTipEl"
+                class="ar-act-tip"
+                :style="{ transform: 'translateX(calc(' + refTip.x + 'px - 50%))' }"
+                role="tooltip"
+                aria-hidden="true"
+              >
+                <span class="ar-act-tip__date">{{ refTip.day.date }}</span>
+                <span class="ar-act-tip__hits">{{ refTip.day.hits }} {{ refTip.day.hits === 1 ? 'visit' : 'visits' }}</span>
+                <span class="ar-act-tip__caret" :style="{ left: refTip.caret + 'px' }"></span>
+              </div>
+            </transition>
           </div>
-          <p class="ar-act-sparkcap">Visits per day · last {{ refSpark.length }} days</p>
+          <p class="ar-act-sparkcap">Visits per day · last {{ refSpark.length }} days · click a bar for that day’s report</p>
 
           <!-- Composition: who sent traffic, and where it landed. Top 5 of each; the full
                leaderboards, the per-day drill-down and the diagnostic are one click away. -->
@@ -781,7 +935,10 @@ export default {
     <!-- Day report: a focused overlay; the page behind never reflows. -->
     <Teleport to="body">
       <transition name="ar-modal">
-        <div v-if="dayModal.open" class="ar-modal" @click.self="closeDayModal">
+        <!-- No backdrop-click close (Heera, 2026-07-13): a stray click while
+             scanning a day's rows would silently drop the report. Esc and the
+             Close button remain the two deliberate ways out. -->
+        <div v-if="dayModal.open" class="ar-modal">
           <div
             ref="dayDialog"
             class="ar-modal__panel ar-modal__panel--day"
@@ -818,9 +975,12 @@ export default {
             </div>
 
             <div class="ar-modal__body">
-              <div ref="dayScroll" class="ar-modal__scroll" @scroll="onDayScroll">
-                <!-- Breakdown (instant, from the chart data) -->
-                <div v-if="modalDetail" class="ar-daybreak">
+              <div ref="dayScroll" class="ar-modal__scroll" :class="{ 'is-loading': dayModal.loading }" @scroll="onDayScroll">
+                <!-- Breakdown (instant, from the chart data) — but deliberately held
+                     back until the request rows land too: half the report appearing
+                     ahead of the other half read as inconsistent (Heera, 2026-07-13).
+                     One loading state, then the whole day at once. -->
+                <div v-if="modalDetail && !dayModal.loading" class="ar-daybreak">
                   <div class="ar-daybreak__col">
                     <h3 class="ar-daybreak__h">By client <span class="ar-daybreak__n">{{ modalDetail.clientCount }}</span></h3>
                     <ul class="ar-act-rank">
@@ -853,16 +1013,15 @@ export default {
                   </div>
                 </div>
 
-                <!-- Full request log -->
-                <div class="ar-daylog">
+                <!-- Full request log (hidden with the breakdown while loading) -->
+                <div v-if="!dayModal.loading" class="ar-daylog">
                   <h3 class="ar-daybreak__h">
                     Requests
-                    <span v-if="!dayModal.loading && !dayModal.error" class="ar-daybreak__n">
+                    <span v-if="!dayModal.error" class="ar-daybreak__n">
                       {{ dayModal.total }}<template v-if="dayModal.capped"> · recent {{ dayModal.rows.length }}</template>
                     </span>
                   </h3>
-                  <p v-if="dayModal.loading" class="ar-act-log__state">Loading…</p>
-                  <p v-else-if="dayModal.error" class="ar-act-log__state is-error">{{ dayModal.error }}</p>
+                  <p v-if="dayModal.error" class="ar-act-log__state is-error">{{ dayModal.error }}</p>
                   <ul v-else-if="dayModal.rows.length" class="ar-act-log">
                     <li v-for="(r, i) in dayModal.rows" :key="i">
                       <span class="ar-act-feed__agent">{{ r.agent }}</span>
@@ -884,6 +1043,13 @@ export default {
                   <p v-else class="ar-act-log__state">No requests recorded on this day.</p>
                 </div>
               </div>
+              <!-- Day-switch feedback that cannot be missed: a centered spinner over
+                   the dimmed body. (A quiet header chip was tried first and went
+                   unnoticed — the state has to live where the user is looking.) -->
+              <div v-if="dayModal.loading" class="ar-day-loadover" role="status">
+                <span class="ar-spinner" aria-hidden="true"></span>
+                <span class="ar-day-loadover__label">Loading…</span>
+              </div>
               <div class="ar-modal__fade" :class="{ 'is-visible': dayScrollMore }">
                 <button type="button" class="ar-modal__fade-btn" :disabled="!dayScrollMore" aria-label="Scroll down for more" @click="scrollDayBody">
                   <svg viewBox="0 0 16 16" class="ar-modal__chev" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6l4 4 4-4" /></svg>
@@ -893,6 +1059,92 @@ export default {
 
             <div class="ar-modal__actions">
               <button type="button" class="ar-btn ar-btn--ghost" @click="closeDayModal">Close</button>
+            </div>
+          </div>
+        </div>
+      </transition>
+
+      <!-- The Traffic-from-AI day report — dayModal's twin, same conventions:
+           fixed size, spinner-until-loaded, Esc/Close only (no backdrop close). -->
+      <transition name="ar-modal">
+        <div v-if="aiDay.open" class="ar-modal">
+          <div
+            ref="aiDayDialog"
+            class="ar-modal__panel ar-modal__panel--day"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="ar-aiday-title"
+            tabindex="-1"
+            @keydown.esc="closeAiDay"
+            @keydown.left="stepAiDay(-1)"
+            @keydown.right="stepAiDay(1)"
+          >
+            <div class="ar-modal__head">
+              <div class="ar-day-head">
+                <h2 id="ar-aiday-title" class="ar-modal__title">{{ dateLabel(aiDay.date) }}</h2>
+                <div class="ar-day-nav" role="group" aria-label="Switch day">
+                  <button type="button" class="ar-day-nav__btn" :disabled="!aiDayHasPrev || aiDay.loading" aria-label="Previous day with AI visits" @click="stepAiDay(-1)">
+                    <svg viewBox="0 0 16 16" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 4l-4 4 4 4" /></svg>
+                  </button>
+                  <SelectMenu
+                    class="ar-day-picker"
+                    :model-value="aiDay.date"
+                    :options="aiDayOptions"
+                    aria-label="Jump to a day with AI visits"
+                    @update:model-value="loadAiDay"
+                  />
+                  <button type="button" class="ar-day-nav__btn" :disabled="!aiDayHasNext || aiDay.loading" aria-label="Next day with AI visits" @click="stepAiDay(1)">
+                    <svg viewBox="0 0 16 16" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 4l4 4-4 4" /></svg>
+                  </button>
+                </div>
+              </div>
+              <p class="ar-modal__lead">
+                AI-referred visits on this day — which assistant sent them, and which page they landed on.
+                The day is the finest “when” stored, so there are no times.
+              </p>
+            </div>
+
+            <div class="ar-modal__body">
+              <div ref="aiDayScroll" class="ar-modal__scroll" :class="{ 'is-loading': aiDay.loading }" @scroll="onAiDayScroll">
+                <div v-if="!aiDay.loading" class="ar-daylog ar-daylog--solo">
+                  <h3 class="ar-daybreak__h">
+                    Visits
+                    <span v-if="!aiDay.error" class="ar-daybreak__n">{{ aiDay.hits }}</span>
+                  </h3>
+                  <p v-if="aiDay.error" class="ar-act-log__state is-error">{{ aiDay.error }}</p>
+                  <ul v-else-if="aiDay.rows.length" class="ar-aiday__detail ar-aiday__detail--modal">
+                    <li v-for="(r, i) in aiDay.rows" :key="i" class="ar-aivis">
+                      <span class="ar-aivis__src">{{ r.source }}</span>
+                      <span class="ar-aivis__arr" aria-hidden="true">→</span>
+                      <code
+                        class="ar-aivis__path is-copyable"
+                        :aria-label="r.path"
+                        @mouseenter="showUaTip($event, r.path)"
+                        @mouseleave="hideUaTip"
+                        @click.stop="copyVal(r.path, 'Path')"
+                      >{{ r.path }}</code>
+                      <span class="ar-aivis__n">{{ r.hits }}</span>
+                    </li>
+                    <li v-if="aiDay.capped" class="ar-aivis ar-aivis--muted">
+                      Showing the {{ aiDay.rows.length }} busiest of {{ aiDay.rowCount }} pairings.
+                    </li>
+                  </ul>
+                  <p v-else class="ar-act-log__state">No AI-referred visits recorded on this day.</p>
+                </div>
+              </div>
+              <div v-if="aiDay.loading" class="ar-day-loadover" role="status">
+                <span class="ar-spinner" aria-hidden="true"></span>
+                <span class="ar-day-loadover__label">Loading…</span>
+              </div>
+              <div class="ar-modal__fade" :class="{ 'is-visible': aiDayScrollMore }">
+                <button type="button" class="ar-modal__fade-btn" :disabled="!aiDayScrollMore" aria-label="Scroll down for more" @click="scrollAiDayBody">
+                  <svg viewBox="0 0 16 16" class="ar-modal__chev" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6l4 4 4-4" /></svg>
+                </button>
+              </div>
+            </div>
+
+            <div class="ar-modal__actions">
+              <button type="button" class="ar-btn ar-btn--ghost" @click="closeAiDay">Close</button>
             </div>
           </div>
         </div>

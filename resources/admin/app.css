@@ -87,8 +87,8 @@
 /* A jumped-to target (a readiness "fix" link, a rail rung, a dashboard tile)
    briefly rings so the eye lands on the exact control to change. */
 @keyframes ar-jump-flash {
-  from { box-shadow: 0 0 0 2px var(--ar-accent), 0 0 0 7px rgba(20, 107, 100, 0.16); }
-  to   { box-shadow: 0 0 0 2px rgba(20, 107, 100, 0), 0 0 0 7px rgba(20, 107, 100, 0); }
+  from { box-shadow: 0 0 0 2px var(--ar-accent), 0 0 0 7px color-mix(in srgb, var(--ar-accent) 16%, transparent); }
+  to   { box-shadow: 0 0 0 2px color-mix(in srgb, var(--ar-accent) 0%, transparent), 0 0 0 7px color-mix(in srgb, var(--ar-accent) 0%, transparent); }
 }
 #agentimus-app .ar-jump-flash { animation: ar-jump-flash 1.5s ease-out forwards; }
 @media (prefers-reduced-motion: reduce) {
@@ -385,7 +385,10 @@
 .ar-rail-next--info { margin: 11px 0 0; font-family: var(--ar-mono); font-size: 12px; color: rgba(243, 240, 231, 0.5); }
 
 /* Dark variant of the Readiness rail card. Double class so it outranks the base
-   .ar-rail-card background regardless of source order. */
+   .ar-rail-card background regardless of source order. Scheme-aware: on a
+   non-default admin colour scheme PHP (Admin::scheme_css) re-declares --ar-ink
+   on this card, the buttons and the editable chips — those dark surfaces take
+   the scheme's flavour while the rest of the app keeps the designed palette. */
 .ar-rail-card.ar-rail-card--readiness { background: var(--ar-ink); border-color: var(--ar-ink); }
 .ar-rail-card--readiness .ar-rail-card__label { color: rgba(243, 240, 231, 0.5); }
 .ar-rail-card--readiness .ar-rail-gauge__track { stroke: rgba(243, 240, 231, 0.15); }
@@ -946,7 +949,8 @@
 .ar-field:first-child { margin-top: 0; }
 /* Grid fields sit side by side — keep their tops aligned, not stair-stepped. */
 .ar-grid .ar-field { margin-top: 0; }
-.ar-field > label {
+.ar-field > label,
+.ar-field .ar-field__head > label {
   font-family: var(--ar-mono);
   font-size: 11px;
   letter-spacing: 0.08em;
@@ -968,7 +972,7 @@
 }
 .ar-input:focus {
   outline: none; border-color: var(--ar-accent);
-  box-shadow: 0 0 0 3px rgba(20, 107, 100, 0.13);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--ar-accent) 13%, transparent);
 }
 .ar-input--sm { width: 96px; font-family: var(--ar-mono); }
 textarea.ar-input { resize: vertical; line-height: 1.55; }
@@ -1055,7 +1059,7 @@ select.ar-input {
   border: 1px dashed var(--ar-line-strong);
   transition: border-color 0.15s, color 0.15s, background 0.15s;
 }
-.ar-suggest__chip:hover { border-style: solid; border-color: var(--ar-accent); color: var(--ar-accent); background: #eef5f3; }
+.ar-suggest__chip:hover { border-style: solid; border-color: var(--ar-accent); color: var(--ar-accent); background: color-mix(in srgb, var(--ar-accent) 7%, var(--ar-surface)); }
 
 /* Read-only enumeration of the built-in always-allowed search engines: present
    in the trust set but not editable, so they render as static muted chips —
@@ -1587,7 +1591,7 @@ select.ar-input {
   color: var(--ar-ink-faint); font-size: 15px; text-decoration: none;
   transition: color 0.15s, background 0.15s;
 }
-.ar-wd-canonical__ext:hover { color: var(--ar-accent); background: rgba(20, 107, 100, 0.08); }
+.ar-wd-canonical__ext:hover { color: var(--ar-accent); background: color-mix(in srgb, var(--ar-accent) 8%, transparent); }
 .ar-wd-canonical__ext:focus-visible { outline: 2px solid var(--ar-accent); outline-offset: 1px; }
 .ar-wd-altlinks { margin-bottom: 18px; }
 
@@ -1699,7 +1703,7 @@ select.ar-input {
 .ar-wd-prov__head strong { font-size: 14.5px; font-weight: 600; }
 .ar-wd-type {
   font-family: var(--ar-mono); font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase;
-  color: var(--ar-accent); border: 1px solid #bcd9d4; background: #eef5f3; padding: 2px 7px; border-radius: 3px;
+  color: var(--ar-accent); border: 1px solid color-mix(in srgb, var(--ar-accent) 28%, var(--ar-surface)); background: color-mix(in srgb, var(--ar-accent) 7%, var(--ar-surface)); padding: 2px 7px; border-radius: 3px;
 }
 .ar-wd-type--agent { color: var(--ar-warn); border-color: #e6d5a8; background: #f7f1df; }
 .ar-wd-ver { font-family: var(--ar-mono); font-size: 11px; color: var(--ar-ink-faint); }
@@ -1756,7 +1760,7 @@ select.ar-input {
   font-family: var(--ar-mono); font-size: 9.5px; letter-spacing: 0.06em; color: var(--ar-ink-soft);
   border: 1px solid var(--ar-line-strong); padding: 2px 7px; border-radius: 3px;
 }
-.ar-wd-badge--schema { color: var(--ar-accent); border-color: #bcd9d4; background: #eef5f3; }
+.ar-wd-badge--schema { color: var(--ar-accent); border-color: color-mix(in srgb, var(--ar-accent) 28%, var(--ar-surface)); background: color-mix(in srgb, var(--ar-accent) 7%, var(--ar-surface)); }
 
 .ar-wd-wk { margin: 14px 0 0; padding: 0; list-style: none; display: grid; gap: 10px; }
 .ar-wd-wk li { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
@@ -1768,7 +1772,7 @@ select.ar-input {
   padding: 2px 7px; border-radius: 3px; border: 1px solid var(--ar-line-strong); color: var(--ar-ink-faint);
 }
 .ar-wd-src.is-file { color: var(--ar-good); border-color: #bcdcc6; background: #eef5f0; }
-.ar-wd-src.is-managed { color: var(--ar-accent); border-color: #bcd9d4; background: #eef5f3; }
+.ar-wd-src.is-managed { color: var(--ar-accent); border-color: color-mix(in srgb, var(--ar-accent) 28%, var(--ar-surface)); background: color-mix(in srgb, var(--ar-accent) 7%, var(--ar-surface)); }
 
 .ar-wd-notices { margin: 14px 0 0; padding: 0; list-style: none; display: grid; gap: 9px; }
 .ar-wd-notice { display: flex; align-items: flex-start; gap: 10px; font-size: 12.5px; line-height: 1.45; }
@@ -1944,8 +1948,24 @@ select.ar-input {
 .ar-setaside__note { text-transform: none; letter-spacing: 0; margin-left: 6px; }
 
 /* Day-report modal: a wider panel; header with prev/next + a day dropdown. */
-.ar-modal__panel--day { max-width: 640px; }
+/* Fixed height, not content-sized: the day report renders in two beats (spinner,
+   then the full day) and days vary from 3 rows to hundreds — content sizing made
+   the dialog visibly grow on load and jump between days. One constant size. */
+.ar-modal__panel--day { max-width: 640px; height: min(calc(100vh - 40px), 600px); }
 .ar-day-head { display: flex; align-items: center; justify-content: space-between; gap: 10px 12px; margin-bottom: 8px; flex-wrap: wrap; }
+/* Day-switch loading: the body content is fully withheld while the day loads
+   (a breakdown appearing ahead of the request rows read as inconsistent), so
+   the centered ring spinner is the only thing shown. The panel's fixed height
+   (see .ar-modal__panel--day) keeps the dialog the same size in both beats. */
+.ar-modal__scroll.is-loading { pointer-events: none; }
+.ar-day-loadover {
+  position: absolute; inset: 0; z-index: 3;
+  display: flex; align-items: center; justify-content: center; gap: 12px;
+}
+.ar-day-loadover__label {
+  font-family: var(--ar-mono); font-size: 12px; letter-spacing: 0.09em;
+  text-transform: uppercase; color: var(--ar-ink-soft);
+}
 .ar-day-head .ar-modal__title { margin: 0; }
 .ar-day-nav { display: flex; align-items: center; gap: 6px; flex: 0 0 auto; }
 /* The day picker is the custom SelectMenu; size its trigger to sit compactly between
@@ -1971,6 +1991,49 @@ select.ar-input {
 }
 .ar-daybreak__n { font-size: 11px; color: var(--ar-ink-soft); letter-spacing: 0; text-transform: none; font-weight: 400; }
 .ar-daylog { margin-top: 18px; padding-top: 14px; border-top: 1px solid var(--ar-line); }
+/* The top divider separates this section FROM THE BREAKDOWN ABOVE it in the
+   endpoint-activity dialog. When the log is the dialog's only section (the AI
+   day report), that rule would float under the header as a stray double line. */
+.ar-daylog--solo { margin-top: 0; padding-top: 0; border-top: 0; }
+
+/* ---- Client manager (Settings → AI access → "Manage client decisions") ----
+   Three sections of decision rows: who (token/name + catalog identity),
+   when (decision date, where recorded), and an instant undo per row. */
+/* The "Manage clients" launcher sits on the right of each list's label row —
+   the same dialog from both, since it manages all decisions at once. The head
+   row flexes so the label keeps its place and the launcher hugs the right edge
+   (Heera's placement call, 2026-07-13). */
+.ar-field__head { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
+.ar-field__head label { margin-bottom: 0; }
+.ar-field__manage { font-size: 12px; flex: 0 0 auto; }
+.ar-cm__section { padding-top: 6px; }
+.ar-cm__list { list-style: none; margin: 10px 0 0; padding: 0; display: grid; gap: 9px; }
+.ar-cm__row { display: flex; align-items: baseline; gap: 10px; min-width: 0; font-size: 13px; }
+.ar-cm__who { display: flex; align-items: baseline; gap: 8px; min-width: 0; flex: 0 1 auto; }
+.ar-cm__token {
+  font-family: var(--ar-mono); font-size: 12.5px; padding: 1px 6px; border-radius: 3px;
+  background: var(--ar-surface-2); border: 1px solid var(--ar-line);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 220px;
+}
+.ar-cm__known { color: var(--ar-ink-soft); font-size: 12px; white-space: nowrap; }
+.ar-cm__name { font-weight: 600; }
+.ar-cm__name--anon { color: var(--ar-ink-soft); font-style: italic; font-weight: 400; }
+.ar-cm__meta { margin-left: auto; flex: 0 0 auto; font-family: var(--ar-mono); font-size: 11.5px; color: var(--ar-ink-faint); }
+.ar-cm__undo {
+  appearance: none; cursor: pointer; flex: 0 0 auto;
+  font-family: var(--ar-mono); font-size: 11px; letter-spacing: 0.05em; text-transform: uppercase;
+  padding: 3px 9px; border-radius: 3px; background: transparent;
+  color: var(--ar-ink-soft); border: 1px solid var(--ar-line-strong);
+  transition: color 0.12s, border-color 0.12s;
+}
+.ar-cm__undo:hover:not(:disabled) { color: var(--ar-bad); border-color: var(--ar-bad); }
+.ar-cm__undo:disabled { opacity: 0.55; cursor: default; }
+.ar-cm__none { margin: 8px 0 0; color: var(--ar-ink-faint); font-size: 12.5px; }
+.ar-cm__note { margin: 10px 0 0; color: var(--ar-ink-faint); font-size: 12px; line-height: 1.5; }
+@media (max-width: 600px) {
+  .ar-cm__row { flex-wrap: wrap; }
+  .ar-cm__meta { margin-left: 0; width: 100%; order: 3; }
+}
 @media (max-width: 600px) {
   .ar-daybreak { grid-template-columns: 1fr; gap: 14px; }
 }
@@ -2045,11 +2108,20 @@ button.ar-act-more:hover { color: var(--ar-ink); }
    NOT the interactive .ar-act-spark (whose bars are buttons that open a day report) —
    this one only shows the shape of the month, and the drill-down lives on its own screen. */
 .ar-refspark { display: flex; align-items: flex-end; gap: 3px; height: 52px; margin: 20px 0 6px; }
+/* When the AI sparkline sits in the positioned tooltip wrapper, the wrapper owns
+   the outer margin so the two charts' tooltip geometry matches. */
+.ar-act-sparkwrap--ref { margin: 20px 0 6px; }
+.ar-act-sparkwrap--ref .ar-refspark { margin: 0; }
+/* Each bar is a real <button> — click opens that day's report, same as the
+   endpoint-activity chart. Zero-days are disabled but keep their title. */
 .ar-refspark__bar {
+  appearance: none; border: 0; padding: 0; cursor: pointer;
   flex: 1 1 0; min-height: 2px; border-radius: 2px 2px 0 0; background: var(--ar-accent);
-  transition: height 0.4s cubic-bezier(0.22, 1, 0.36, 1);
+  transition: height 0.4s cubic-bezier(0.22, 1, 0.36, 1), filter 0.12s ease;
 }
-.ar-refspark__bar.is-zero { background: var(--ar-line); height: 2px !important; }
+.ar-refspark__bar:hover:not(:disabled), .ar-refspark__bar.is-active { filter: brightness(0.72); }
+.ar-refspark__bar:focus-visible { outline: 2px solid var(--ar-accent); outline-offset: 2px; }
+.ar-refspark__bar.is-zero { background: var(--ar-line); height: 2px !important; cursor: default; }
 
 /* The link at the foot of a dashboard summary card, through to the screen that holds the
    same data in full. Shared by "Traffic from AI" → AI traffic and "Recent requests" →
@@ -2117,6 +2189,9 @@ button.ar-act-more:hover { color: var(--ar-ink); }
   border-left: 2px solid var(--ar-line);
   min-width: 0;
 }
+/* The same pairing rows inside the day-report dialog: the indent + left border
+   belong to the inline expand-under-a-row layout, not to a modal body. */
+.ar-aiday__detail--modal { margin: 0; padding: 2px 0 0; border-left: 0; gap: 9px; }
 /* Flex (not grid): a grid item defaults to justify-self:stretch, which made the
    <code> path fill its column — and wp-admin's global code background then painted
    a full-width bar. Flex items size to content, so the path stays a small chip. */
@@ -2196,7 +2271,7 @@ button.ar-act-more:hover { color: var(--ar-ink); }
 .ar-act-feed__net {
   flex: 0 1 auto; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   font-family: var(--ar-mono); font-size: 11px; color: var(--ar-accent);
-  background: rgba(20, 107, 100, 0.08); padding: 2px 7px; border-radius: 3px;
+  background: color-mix(in srgb, var(--ar-accent) 8%, transparent); padding: 2px 7px; border-radius: 3px;
 }
 .ar-act-feed__net-lbl { color: var(--ar-ink-faint); }
 /* An unverified network is the visitor IP's self-declared reverse-DNS (PTR) name — not
@@ -2305,7 +2380,7 @@ button.ar-act-more:hover { color: var(--ar-ink); }
   padding: 2px 6px; border-radius: 3px; border: 1px solid; white-space: nowrap;
   color: var(--ar-ink-soft); background: var(--ar-surface-2); border-color: var(--ar-line);
 }
-.ar-susp-kind.is-ai { color: var(--ar-accent); background: #eef5f3; border-color: #bcd9d3; }
+.ar-susp-kind.is-ai { color: var(--ar-accent); background: color-mix(in srgb, var(--ar-accent) 7%, var(--ar-surface)); border-color: color-mix(in srgb, var(--ar-accent) 28%, var(--ar-surface)); }
 .ar-susp-kind.is-danger { color: var(--ar-bad); background: #f8ebe8; border-color: #e6c1b9; }
 .ar-susp-row__by { font-size: 11.5px; color: var(--ar-ink-soft); }
 .ar-susp-row__learn { font-size: 11px; color: var(--ar-accent); text-decoration: none; white-space: nowrap; }
@@ -2461,7 +2536,7 @@ button.ar-act-more:hover { color: var(--ar-ink); }
   padding: 2px 6px; border-radius: 4px; white-space: nowrap;
   color: var(--ar-ink-soft); background: var(--ar-surface-2); border: 1px solid var(--ar-line);
 }
-.ar-rev-tag.is-new { color: var(--ar-accent); background: #eef5f3; border-color: #c8e0da; }
+.ar-rev-tag.is-new { color: var(--ar-accent); background: color-mix(in srgb, var(--ar-accent) 7%, var(--ar-surface)); border-color: color-mix(in srgb, var(--ar-accent) 28%, var(--ar-surface)); }
 .ar-rev-tag.is-heavy { color: var(--ar-warn); background: #f7efdd; border-color: #e6d6ad; }
 
 /* The hero: verification / identity state. */
@@ -2541,7 +2616,7 @@ button.ar-act-more:hover { color: var(--ar-ink); }
   padding: 4px 9px; border-radius: 6px; border: 1px solid var(--ar-line-strong); background: var(--ar-surface);
   transition: background 0.12s ease, border-color 0.12s ease, color 0.12s ease;
 }
-.ar-rev-recheck__btn:hover:not(:disabled) { border-color: var(--ar-accent); background: #eef5f3; }
+.ar-rev-recheck__btn:hover:not(:disabled) { border-color: var(--ar-accent); background: color-mix(in srgb, var(--ar-accent) 7%, var(--ar-surface)); }
 .ar-rev-recheck__btn:focus-visible { outline: 2px solid var(--ar-accent); outline-offset: 1px; }
 .ar-rev-recheck__btn:disabled { opacity: 0.55; cursor: default; }
 .ar-rev-recheck__ago { font-size: 11px; color: var(--ar-ink-faint); }
@@ -2927,7 +3002,7 @@ a.ar-about-proto__v:hover { text-decoration: underline; }
 
 /* The screen you're on. A wash of the accent at 8% plus an accent icon — no inset rail,
    which is the tab bar's idiom and the very thing that made this feel like tabs. */
-.ar__more-item.is-active { background: rgba(20, 107, 100, 0.08); color: var(--ar-ink); }
+.ar__more-item.is-active { background: color-mix(in srgb, var(--ar-accent) 8%, transparent); color: var(--ar-ink); }
 .ar__more-item.is-active .ar__more-icon { color: var(--ar-accent); }
 
 /* Listed but unreachable: the feature exists, it's just switched off. Greying it out
@@ -3038,7 +3113,7 @@ a.ar-about-proto__v:hover { text-decoration: underline; }
   padding: 10px; font-size: 13px; color: var(--ar-ink-soft);
   border-bottom: 1px solid var(--ar-line); vertical-align: top;
 }
-.ar-aa__table tr.is-unseen td { background: rgba(20, 107, 100, 0.045); }
+.ar-aa__table tr.is-unseen td { background: color-mix(in srgb, var(--ar-accent) 4.5%, transparent); }
 .ar-aa__what { display: block; font-weight: 600; color: var(--ar-ink); }
 
 /* The sentence the whole feature exists to deliver: an application password keeps working

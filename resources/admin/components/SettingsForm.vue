@@ -2,10 +2,11 @@
 import TagInput from './TagInput.vue';
 import SelectMenu from './SelectMenu.vue';
 import IpChecker from './IpChecker.vue';
+import ClientManager from './ClientManager.vue';
 
 export default {
   name: 'SettingsForm',
-  components: { TagInput, IpChecker, SelectMenu },
+  components: { TagInput, IpChecker, SelectMenu, ClientManager },
   props: {
     settings: { type: Object, required: true },
     retentionChoices: { type: Array, default: () => [7, 14, 30, 60, 90, 180, 365] },
@@ -34,13 +35,14 @@ export default {
     defaults: { type: Object, default: () => ({}) },
     llmsFullEstimate: { type: Object, default: () => ({}) },
   },
-  emits: ['save-profile', 'save-services', 'reset', 'reopen-wizard'],
+  emits: ['save-profile', 'save-services', 'reset', 'reopen-wizard', 'clients-changed'],
   data() {
     return {
       // Which settings group the sub-nav is showing. One group is visible at a
       // time so the page reads as a few focused screens, not one long scroll.
       // Identity leads — the highest-signal section, and where a new owner starts.
       group: 'identity',
+      clientManagerOpen: false,
       typeQuery: '',
       catQuery: '',
       nsQuery: '',
@@ -1351,7 +1353,10 @@ export default {
           </label>
 
           <div class="ar-field">
-            <label>Blocked user-agents <span class="ar-field__tag">optional</span></label>
+            <div class="ar-field__head">
+              <label>Blocked user-agents <span class="ar-field__tag">optional</span></label>
+              <button v-if="api" type="button" class="ar-linkbtn ar-field__manage" @click="clientManagerOpen = true">Manage clients</button>
+            </div>
             <TagInput v-model="settings.blocked_agents" placeholder="Add a user-agent to deny" />
             <div v-if="scannerSuggestions.length" class="ar-suggest">
               <span class="ar-suggest__label">Add a known scanner</span>
@@ -1457,7 +1462,10 @@ export default {
         <IpChecker v-if="api" :api="api" />
 
         <div class="ar-field ar-field--allow">
-          <label>Always allowed <span class="ar-field__tag">trusted</span></label>
+          <div class="ar-field__head">
+            <label>Always allowed <span class="ar-field__tag">trusted</span></label>
+            <button v-if="api" type="button" class="ar-linkbtn ar-field__manage" @click="clientManagerOpen = true">Manage clients</button>
+          </div>
           <TagInput v-model="settings.allowed_agents" placeholder="Add a user-agent to trust" />
           <small v-if="(settings.allowed_agents || []).length" class="ar-field__hint">
             Clients you marked <strong>Allow</strong> in the review list land here — never blocked and never
@@ -1486,9 +1494,19 @@ export default {
               Recognised by signature and trusted automatically — you don't need to add them.
             </small>
           </div>
+
         </div>
       </section>
     </div>
+
+    <Teleport to="body">
+      <ClientManager
+        v-if="clientManagerOpen"
+        :api="api"
+        @close="clientManagerOpen = false"
+        @changed="$emit('clients-changed', $event)"
+      />
+    </Teleport>
 
     <!-- ============================================================ -->
     <!-- EXPOSURE — limit what anonymous bots & scanners can read     -->

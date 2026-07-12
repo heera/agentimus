@@ -1455,6 +1455,7 @@ export default {
           @save-services="saveServices"
           @reset="resetSettings"
           @reopen-wizard="reopenWizard"
+          @clients-changed="syncBlockSettings"
         />
         <ReadinessPanel
           v-show="tab === 'readiness'"
