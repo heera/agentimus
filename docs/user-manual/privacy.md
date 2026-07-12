@@ -1,7 +1,7 @@
 ---
 title: Privacy & data
 parent: User Manual
-nav_order: 15
+nav_order: 16
 ---
 
 Agentimus was built to be quiet. It helps AI assistants and crawlers understand your site, but it does that by publishing files and signals on *your own* server — not by sending your data anywhere else. This page explains, in plain language, exactly what stays on your site, the one feature that is the exception, and why a couple of things that *look* like outside connections aren't.

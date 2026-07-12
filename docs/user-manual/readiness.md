@@ -1,7 +1,7 @@
 ---
 title: Readiness
 parent: User Manual
-nav_order: 4
+nav_order: 5
 ---
 
 The **Readiness report** is Agentimus's checklist for one simple question: *if an AI agent visited your site right now, could it find you, read you, and trust you enough to cite you?* It runs a set of quick checks against your settings and content, grades each one, and — crucially — puts a button next to anything that needs attention that jumps you straight to the exact setting that fixes it.

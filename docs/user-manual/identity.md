@@ -1,7 +1,7 @@
 ---
 title: Identity
 parent: User Manual
-nav_order: 7
+nav_order: 8
 ---
 
 The Identity section is where you tell AI assistants *who* is behind your site. It is the single highest-signal thing you can fill in. When ChatGPT, Claude, Perplexity, Google's AI overviews or any other assistant reads your site, this is the information they use to decide who you are, what you know, and whether they can trust and cite you.
