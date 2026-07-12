@@ -4,7 +4,7 @@ Tags: ai-agents, ai-crawlers, agent-readiness, llms-txt, ai-seo
 Requires at least: 6.0
 Tested up to: 7.0
 Requires PHP: 7.4
-Stable tag: 1.19.0
+Stable tag: 1.20.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -34,6 +34,7 @@ By default it makes no outbound requests, collects no analytics, and logs no IP 
 * **Agent activity log** — a dashboard of which AI crawlers and agents actually fetch your content and endpoints (GPTBot, Claude, Perplexity, Googlebot, …), recorded first-party in your own database, with no IP logging by default (an optional setting stores IPs for flagged crawlers only).
 * **Activity to review** — a nav-bar queue surfaces the clients worth a second look — new, unusually high-volume, or spoofing what they are — names a recognised crawler where it can, and offers one-click **Block** or **Allow** (trust). Nothing is blocked unless you choose to.
 * **Request log** — every recorded request, one row each, under *More → Request log*. Filter by client, endpoint, network, user-agent and date to see exactly what a single bot fetched.
+* **Agent access** — the other side of the log: who *authenticates to and acts on* the machine surface Agentimus creates, under *More → Agent access*. It records application passwords being created, first used, renamed or revoked; WordPress abilities being run; and requests that were refused, or that probed for abilities that don't exist. A record, not a guard — it never blocks — with no IP logging, so it names the key that was used, not the person. A brand-new application password is worth a look: it keeps working even after you change your password.
 * **Traffic from AI** — the mirror of the crawler log: the real visitors an AI assistant sent you. *More → AI traffic* reports them day by day, by assistant (ChatGPT, Perplexity, Gemini, Claude, Copilot, Grok, DeepSeek and more) and by landing page. Stored as daily aggregate counts — never a row that stands for one person, no IP, no query strings. An opt-in **CDN mode** counts them in the visitor's browser so the number survives a full-page cache, and an opt-in **Find missed AI sources** diagnostic lists the referrers Agentimus couldn't name, so a new assistant never goes uncounted without you knowing.
 * **You decide how long it's kept** — a retention period, nightly auto-delete, and a hard size cap that always applies (Settings → Visit log), so the log can never grow without limit on your host.
 * **AI Visibility (opt-in)** — track **each brand, product or person you choose** across ChatGPT, Perplexity, Gemini and Claude. For every one, Agentimus asks the questions your audience actually types and reports whether it gets **mentioned, linked, and how it ranks against its own rivals** — over time. Tell it what each thing *is* (*"a WordPress SEO plugin"*) and it will **suggest the questions a buyer really types** — or, if you've set up an AI provider in WordPress, ask that AI for a spread of them. Each thing you track has its own website, category, competitors, questions and scoreboard; pause any single one, or the whole schedule, whenever you like. Off by default; **you bring your own API key** for each engine, and this is the one feature that makes an outbound request (see *External services*).
@@ -212,6 +213,7 @@ Yes. The discovery document implements the **WP_Discovery Protocol**, an openly-
 14. Request log — every request an agent made, in one filterable table: narrow by client, endpoint, network, verification verdict, User-Agent or date to see exactly what a single bot fetched. Repeat hits are grouped, and your own logged-in visits are never recorded. Records are kept for the last 30 days (or until the size cap), then trimmed — so read a full page as a floor, not a total.
 15. The More menu — the occasional screens (AI Visibility, AI traffic, the request log and About) fold behind one control, so the main navigation stays short. AI Visibility appears disabled with "Turn on in Settings" rather than hidden, so you always know it's there to enable.
 16. AI Visibility settings — each thing you track gets a name, a category ("what kind of thing is it?"), its website, its rivals and the questions to ask. Tell Agentimus the category and it suggests the questions a buyer really types — or, where you've set up an AI provider in WordPress, "Suggest with AI" asks it for a wider spread. Suggestions are only ever offered; you pick which to keep, and every setting on the screen saves as you change it.
+17. Agent access — the other side of the log: who authenticates to, and *acts* on, the machine surface Agentimus creates. Application passwords being created (a brand-new one is worth a second look — it keeps working even after you change your password), first used, renamed or revoked; WordPress abilities being run; and requests that were refused, or that probed for abilities that don't exist. A record, not a guard — it never blocks — and with no IP logging, it names the key that was used, not the person.
 
 == External services ==
 
@@ -235,6 +237,15 @@ The example URLs in `examples/integrate-your-plugin.php` (on `example.com`) are 
 There is no minified-only code. The admin interface is built from Vue 3 source in `resources/` with Vite; the source and `vite.config.js` ship in this package and also live in the public repository at https://github.com/heera/agentimus . Run `npm install && npm run build` to regenerate `assets/admin/` from source.
 
 == Changelog ==
+
+= 1.20.0 =
+* New — **Agent access.** A new screen (More → Agent access) records who authenticates to, and *acts* on, the machine surface Agentimus creates — the other half of the activity log, which shows who *reads* it. It notes when an application password (the key a program uses to reach WordPress as you) is created, first used, renamed or revoked; when one of WordPress's abilities is run; and when a request is refused, or probes for abilities that don't exist. It's a record, not a guard — it never blocks anything — and it keeps Agentimus's no-personal-data promise: no IP addresses, so it names the key that was used, not the person, and it sees machine logins only (a normal password sign-in never appears). A brand-new application password is the one worth a second look — it keeps working even after you change your password. On by default; nothing to configure.
+* Security — **The discovery documents now tell agents the truth about your abilities.** The nine read-only abilities Agentimus registers require a signed-in administrator, yet the public discovery file described them as needing no authentication and published their full descriptions and input/output schemas to anyone who asked. Sign-in-only abilities are no longer advertised to anonymous callers (an agent holding real credentials still discovers them the proper way), every document now reports the correct authentication, and turning a resource off now removes it from *every* served file, including mcp.json.
+* Security — **A firmer cap on what a spoofed crawler can log.** A flood pretending to be a known crawler — a forgeable name — could write far more to the activity log than intended, and on sites without a persistent object cache, a database write on every request. Recognised crawlers now share one generous budget instead of a budget per name, so faking names no longer multiplies it, and the write pressure is bounded.
+* Security — **"Draft with AI" and "Fix with AI" are now rate-limited per user.** These buttons make a paid AI call, so a per-minute cap stops a runaway script (or a compromised account) from running up your AI bill. A person clicking the buttons never notices it.
+* Fixed — **Machine-readable output stays clean.** A line break in a page title could forge a stray entry in llms.txt; titles and other values are now kept to a single line. The full-text file (llms-full.txt) had a size budget sitting exactly on the common object-cache limit, so on some hosts it silently never cached and was rebuilt on every request — the budget now leaves headroom.
+* Improved — **Multisite reliability.** On a network install, activating no longer risks writing one site's page-address rules into another (which could 404 a sub-site's posts); deleting a sub-site now removes Agentimus's tables with it; and uninstalling cleans up every site, not just the first thousand.
+* Fixed — a malformed `?author[]=` request no longer triggers a PHP notice, and several small internal flags are now loaded more efficiently on every request.
 
 = 1.19.0 =
 * New — **Write with AI.** Agentimus can now draft the fields it adds to the editor, using the AI you set up in WordPress itself (Settings → AI, new in WordPress 7.0). *Draft with AI* writes a page's **AI description**, *Suggest with AI* fills its **Topics**, and *Fix with AI* offers a concrete fix for any **AI Readability** row that came back warn or fail. Every suggestion lands in the field as ordinary editable text and is never saved for you. Agentimus goes through WordPress's shared AI connectors, so it never sees or stores your API key — and if no AI provider is configured, the buttons simply don't appear.
@@ -319,6 +330,9 @@ There is no minified-only code. The admin interface is built from Vue 3 source i
 Older releases (1.12.4 and earlier) are in the full changelog: https://github.com/heera/agentimus/blob/main/CHANGELOG.md
 
 == Upgrade Notice ==
+
+= 1.20.0 =
+New: Agent access — a log of who authenticates to and acts on your site's machine surface (application passwords, abilities, refused probes). Plus security hardening in the discovery documents, the activity log, and the AI-draft buttons. No breaking changes.
 
 = 1.19.0 =
 New: Write with AI — draft a page's AI description, Topics, or a fix for an AI Readability warning, using the AI provider you set up in WordPress 7.0. AI Visibility suggests better questions. No breaking changes.
