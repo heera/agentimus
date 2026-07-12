@@ -84,3 +84,20 @@ add_action(
 	},
 	100
 );
+
+// Multisite: when a SUB-SITE is deleted, core drops only its stock tables. Add ours so they don't
+// survive forever as orphans (uninstall can't reach a site that no longer exists). Keep this list
+// in sync with the DROP TABLE calls in uninstall.php.
+add_filter(
+	'wpmu_drop_tables',
+	static function ( $tables, $blog_id ) {
+		global $wpdb;
+		$prefix = $wpdb->get_blog_prefix( (int) $blog_id );
+		foreach ( array( 'agentimus_agent_hits', 'agentimus_ai_referrals', 'agentimus_flagged_ips', 'agentimus_unknown_sources', 'agentimus_agent_events', 'agentimus_visibility' ) as $agentimus_table ) {
+			$tables[] = $prefix . $agentimus_table;
+		}
+		return $tables;
+	},
+	10,
+	2
+);

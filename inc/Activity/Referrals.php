@@ -793,7 +793,7 @@ final class Referrals {
 ) $collate;";
 
 		dbDelta( $sql );
-		update_option( self::VERSION_OPTION, self::VERSION, false );
+		update_option( self::VERSION_OPTION, self::VERSION ); // Autoloaded: read on every boot by maybe_install(), so it belongs in the single alloptions load.
 	}
 
 	/**

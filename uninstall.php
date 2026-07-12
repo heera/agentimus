@@ -73,17 +73,26 @@ function agentimus_uninstall_site() {
 	delete_option( 'agentimus_visibility_db_version' );
 	delete_option( 'agentimus_visibility_demo' );
 	wp_clear_scheduled_hook( 'agentimus_visibility_run' );
+	wp_clear_scheduled_hook( 'agentimus_visibility_run_now' ); // the one-off "run now" event.
 }
 
 if ( is_multisite() ) {
-	// Prefixed like every other variable in this file: uninstall.php runs at global scope, so an
-	// unprefixed $site_ids really is a global and could collide with another plugin's uninstaller.
-	$agentimus_site_ids = get_sites( array( 'fields' => 'ids', 'number' => 1000 ) );
-	foreach ( (array) $agentimus_site_ids as $agentimus_site_id ) {
-		switch_to_blog( (int) $agentimus_site_id );
-		agentimus_uninstall_site();
-		restore_current_blog();
-	}
+	// Page through EVERY site in bounded batches rather than a single capped query — uninstall's
+	// contract is that nothing is left orphaned, and a fixed cap silently stranded tables/options
+	// on sites beyond it. Teardown is light (drop tables, delete options, clear cron), so paging
+	// is safe where a full activation loop would risk a timeout. Prefixed vars: uninstall.php runs
+	// at global scope, so an unprefixed name could collide with another plugin's uninstaller.
+	$agentimus_batch  = 500;
+	$agentimus_offset = 0;
+	do {
+		$agentimus_site_ids = get_sites( array( 'fields' => 'ids', 'number' => $agentimus_batch, 'offset' => $agentimus_offset ) );
+		foreach ( (array) $agentimus_site_ids as $agentimus_site_id ) {
+			switch_to_blog( (int) $agentimus_site_id );
+			agentimus_uninstall_site();
+			restore_current_blog();
+		}
+		$agentimus_offset += $agentimus_batch;
+	} while ( count( (array) $agentimus_site_ids ) === $agentimus_batch );
 } else {
 	agentimus_uninstall_site();
 }

@@ -65,8 +65,9 @@ final class Plugin {
 		$this->settings = new Settings();
 
 		// One-shot correction of un-customised defaults we've since lowered (currently the
-		// llms-full byte budget, which used to sit exactly at the 1 MB object-cache ceiling).
-		// Cheap: a single autoloaded option read once the flag is set.
+		// llms-full byte budget, which used to sit exactly at the 1 MB object-cache ceiling). Cheap
+		// once the flag is set: the flag is autoloaded, so the guard short-circuits with no extra
+		// query before it touches the settings option.
 		$this->settings->maybe_migrate_defaults();
 
 		// Record which plugin registered each post type at runtime (a one-time
@@ -184,7 +185,7 @@ final class Plugin {
 		Visibility\Table::install();
 		Visibility\Module::schedule();
 		Discovery\WellKnown::add_rules();
-		flush_rewrite_rules();
+		self::flush_rewrites_in_context();
 		// Record the signature we just flushed for, so maybe_flush_rewrites() no-ops on
 		// the next request rather than flushing again. We intentionally do NOT seed the
 		// last-flush timestamp here: that belongs to the auto-flush path, so the first
@@ -318,6 +319,29 @@ final class Plugin {
 		Activity\Module::unschedule();
 		Visibility\Module::unschedule();
 		wp_clear_scheduled_hook( 'agentimus_warm_llms_full' );
+		wp_clear_scheduled_hook( Visibility\Module::HOOK_ONCE ); // the one-off "run now" event, if queued.
+		self::flush_rewrites_in_context();
+	}
+
+	/**
+	 * Flush rewrite rules correctly whether or not we're inside switch_to_blog().
+	 *
+	 * flush_rewrite_rules() regenerates from the GLOBAL $wp_rewrite, whose permalink_structure is
+	 * cached for the ORIGINATING site and is NOT re-initialised by switch_to_blog(). Called while
+	 * switched to a sub-site — the network activation/deactivation loops, and wp_initialize_site for
+	 * a new sub-site — it would write the MAIN site's rules (and only the currently-loaded plugins'
+	 * rules) into that sub-site, 404ing its post URLs. In a switched context we instead DROP the
+	 * cached rules: the sub-site regenerates correct ones (its own permalink structure + its own
+	 * active plugins, including our add_rules() at init) on its next request. The real, immediate
+	 * flush is right only in the non-switched, single-site path.
+	 *
+	 * @return void
+	 */
+	private static function flush_rewrites_in_context() {
+		if ( function_exists( 'ms_is_switched' ) && ms_is_switched() ) {
+			delete_option( 'rewrite_rules' );
+			return;
+		}
 		flush_rewrite_rules();
 	}
 

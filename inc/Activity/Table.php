@@ -81,7 +81,7 @@ final class Table {
 		self::ensure_column( 'verdict', 'tinyint(1) NOT NULL DEFAULT 0' );
 		self::ensure_column( 'network', "varchar(128) NOT NULL DEFAULT ''" );
 
-		update_option( self::VERSION_OPTION, self::VERSION, false );
+		update_option( self::VERSION_OPTION, self::VERSION ); // Autoloaded: read on every boot by maybe_install(), so it belongs in the single alloptions load.
 	}
 
 	/**

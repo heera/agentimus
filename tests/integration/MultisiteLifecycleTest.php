@@ -51,4 +51,20 @@ final class MultisiteLifecycleTest extends DbTestCase {
 			$this->assertTrue( $found, "a newly-created sub-site is given its own $table" );
 		}
 	}
+
+	public function test_wpmu_drop_tables_lists_every_agentimus_table() {
+		// When a sub-site is DELETED, core drops only its stock tables unless a plugin adds its own
+		// via wpmu_drop_tables. Without this our six per-site tables survive forever as orphans that
+		// uninstall can no longer reach. This pins the list in sync with uninstall.php's DROP TABLEs.
+		global $wpdb;
+		$blog_id = self::factory()->blog->create();
+		$prefix  = $wpdb->get_blog_prefix( (int) $blog_id );
+
+		$tables = apply_filters( 'wpmu_drop_tables', array(), $blog_id );
+
+		$expected = array( 'agent_hits', 'ai_referrals', 'flagged_ips', 'unknown_sources', 'agent_events', 'visibility' );
+		foreach ( $expected as $base ) {
+			$this->assertContains( $prefix . 'agentimus_' . $base, $tables, "wpmu_drop_tables must include the $base table so a deleted sub-site is not orphaned." );
+		}
+	}
 }

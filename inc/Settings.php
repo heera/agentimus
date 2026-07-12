@@ -484,7 +484,9 @@ final class Settings {
 			}
 		}
 
-		update_option( self::DEFAULTS_MIGRATED_OPTION, self::DEFAULTS_MIGRATION, false );
+		// Autoloaded (default): it's read on every boot by the guard above, so it belongs in the
+		// single alloptions load, not a separate per-request query.
+		update_option( self::DEFAULTS_MIGRATED_OPTION, self::DEFAULTS_MIGRATION );
 	}
 
 	/**

@@ -90,7 +90,7 @@ final class Table {
 		self::ensure_column( 'detail', "varchar(191) NOT NULL DEFAULT ''" );
 		self::ensure_column( 'seen', 'tinyint(1) NOT NULL DEFAULT 0' );
 
-		update_option( self::VERSION_OPTION, self::VERSION, false );
+		update_option( self::VERSION_OPTION, self::VERSION ); // Autoloaded: read on every boot by maybe_install(), so it belongs in the single alloptions load.
 	}
 
 	/**
