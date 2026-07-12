@@ -13,6 +13,18 @@ function originOf(url) {
   }
 }
 
+// The header that keeps these self-tests out of the site's own visit log: a
+// server-minted, short-lived token (see Owner::mint_self_check_token). The checks
+// stay anonymous (credentials omitted), so this is the only way the recorder can
+// tell owner-run verification from a real agent. Same-origin only — on a
+// split-origin setup a custom header would force a CORS preflight the public
+// endpoints don't answer, failing the whole check; there, the fetches simply go
+// untagged (and may be logged) rather than broken.
+function selfcheckHeaders(token, url) {
+  if (!token || originOf(url) !== window.location.origin) return undefined;
+  return { 'X-Agentimus-Selfcheck': token };
+}
+
 // Detect a shared/edge cache (CDN or reverse proxy) that served a STORED copy of this
 // response — meaning the request never reached WordPress, so the agent-activity log never
 // saw it and a freshness-sensitive endpoint (the change feed, a page's .md) may be stale.
@@ -68,11 +80,11 @@ export function buildChecks(cfg) {
 
 // Fetch one check and grade it. Resolves (never rejects) to a result row; a
 // network/CORS failure becomes an "unreachable" fail rather than throwing.
-export async function runCheck(c) {
+export async function runCheck(c, token) {
   try {
     // credentials omitted → the anonymous view an agent gets, not the logged-in
     // admin's. Same-origin, so every response header is readable.
-    const res = await fetch(c.url, { method: 'GET', credentials: 'omit', cache: 'no-store', redirect: 'follow' });
+    const res = await fetch(c.url, { method: 'GET', credentials: 'omit', cache: 'no-store', redirect: 'follow', headers: selfcheckHeaders(token, c.url) });
     const ct = (res.headers.get('content-type') || '').toLowerCase();
     const problems = [];
 
@@ -109,7 +121,8 @@ export async function runCheck(c) {
 
 // Run every check concurrently; resolves to the array of result rows.
 export function runAll(cfg) {
-  return Promise.all(buildChecks(cfg).map(runCheck));
+  const token = (cfg && cfg.selfcheckToken) || '';
+  return Promise.all(buildChecks(cfg).map((c) => runCheck(c, token)));
 }
 
 // ── Exposed-files self-check ───────────────────────────────────────────────
@@ -135,9 +148,9 @@ function normalizePath(p) {
 // response SIZE is used (to tell a real file from a "not found" page) — never its
 // contents. Prefer the Content-Length header so a large LEAKED file isn't downloaded;
 // fall back to reading the body (small, in practice) only when the header is absent.
-async function probePath(url) {
+async function probePath(url, token) {
   try {
-    const res = await fetch(url, { method: 'GET', credentials: 'omit', cache: 'no-store', redirect: 'follow' });
+    const res = await fetch(url, { method: 'GET', credentials: 'omit', cache: 'no-store', redirect: 'follow', headers: selfcheckHeaders(token, url) });
     // A redirect (→ homepage / login / canonical) or an HTML content type means the
     // server is HANDLING a missing-or-blocked path, not serving the raw file — capture
     // both so gradePath can reject them (a catch-all "/uploads/* → homepage" redirect
@@ -204,7 +217,8 @@ export async function runExposureScan(cfg) {
   const paths = ((cfg && cfg.exposedPaths) || []).map(normalizePath).filter(Boolean);
   if (!origin || !paths.length) return { baseline: null, results: [] };
 
-  const baseline = await probePath(`${origin}/agentimus-not-a-real-path-${scanToken()}`);
-  const results = await Promise.all(paths.map(async (p) => gradePath(p, await probePath(origin + p), baseline)));
+  const token = (cfg && cfg.selfcheckToken) || '';
+  const baseline = await probePath(`${origin}/agentimus-not-a-real-path-${scanToken()}`, token);
+  const results = await Promise.all(paths.map(async (p) => gradePath(p, await probePath(origin + p, token), baseline)));
   return { baseline, results };
 }

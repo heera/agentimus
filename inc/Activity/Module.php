@@ -303,6 +303,26 @@ final class Module {
 			)
 		);
 
+		// A short-lived token for the readiness screen's own live checks: those fetches
+		// are deliberately anonymous (they grade what an agent receives), so they carry
+		// this token in a header to keep the owner's self-tests out of the visit log.
+		register_rest_route(
+			'agentimus/v1',
+			'/activity/selfcheck-token',
+			array(
+				'methods'             => 'POST',
+				'permission_callback' => array( $this, 'can_manage' ),
+				'callback'            => static function () {
+					return rest_ensure_response(
+						array(
+							'token' => Owner::mint_self_check_token(),
+							'ttl'   => Owner::SELFCHECK_TTL,
+						)
+					);
+				},
+			)
+		);
+
 		// The client manager (Settings → AI access): every standing decision about a
 		// client — blocked, trusted, ignored — in one payload, with dates and the
 		// recognition catalog's identity where a token is a known crawler.

@@ -89,6 +89,9 @@ export function createApi(boot) {
     // Returns { ip, host, engine, verdict, slow }.
     checkIp: (ip) =>
       request('/activity/check-ip', { method: 'POST', body: JSON.stringify({ ip }) }),
+    // Short-lived token the readiness live checks carry (X-Agentimus-Selfcheck) so the
+    // owner's own anonymous verification fetches stay out of the visit log.
+    mintSelfcheckToken: () => request('/activity/selfcheck-token', { method: 'POST' }),
     // The client manager (Settings → AI access): every standing decision in one payload
     // — { blocked: [{token, at, known}], allowed: [...], ignored: [{key, label, at, hits}] }.
     // The two mutators return the same refreshed payload.
