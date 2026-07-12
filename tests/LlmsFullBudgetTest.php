@@ -30,9 +30,13 @@ final class LlmsFullBudgetTest extends TestCase {
 
 	/* -- The byte-budget clamp (Settings::sanitize) ----------------------- */
 
-	public function test_max_kb_defaults_to_one_megabyte() {
+	public function test_max_kb_defaults_under_the_object_cache_item_ceiling() {
+		// Deliberately UNDER 1024, not at it: a ~1 MB body sits exactly at the common memcached item
+		// ceiling, so with key + serialization overhead the object cache silently rejects it and
+		// every request re-runs the full build. The default must leave headroom so the doc caches.
 		$clean = ( new Settings() )->sanitize( array() );
-		$this->assertSame( 1024, $clean['llms_full_max_kb'] );
+		$this->assertSame( 900, $clean['llms_full_max_kb'] );
+		$this->assertLessThan( 1024, $clean['llms_full_max_kb'], 'The default budget must stay under the 1 MB object-cache item limit.' );
 	}
 
 	public function test_max_kb_clamps_to_floor_and_ceiling() {
@@ -71,5 +75,30 @@ final class LlmsFullBudgetTest extends TestCase {
 			'typical 30s -> 15s'        => array( 30, 15.0 ),
 			'large 120s ceils at 20s'   => array( 120, 20.0 ),
 		);
+	}
+
+	/* -- The one-shot default migration ------------------------------------ */
+
+	public function test_migration_nudges_the_uncustomised_old_default() {
+		// An existing install persisted the old 1024 default; ensure_defaults() never overwrites it.
+		update_option( Settings::OPTION, array( 'llms_full_max_kb' => 1024 ) );
+		( new Settings() )->maybe_migrate_defaults();
+		$this->assertSame( 900, ( new Settings() )->get( 'llms_full_max_kb' ), 'The un-customised old default must be lowered under the object-cache ceiling.' );
+	}
+
+	public function test_migration_leaves_a_user_chosen_value_alone() {
+		update_option( Settings::OPTION, array( 'llms_full_max_kb' => 2048 ) );
+		( new Settings() )->maybe_migrate_defaults();
+		$this->assertSame( 2048, ( new Settings() )->get( 'llms_full_max_kb' ), 'A value the owner chose must never be migrated.' );
+	}
+
+	public function test_migration_does_not_fight_a_deliberate_re_choice() {
+		// Once the flag is set, re-choosing the old number must stick — we do not re-nudge on boot.
+		$s = new Settings();
+		update_option( Settings::OPTION, array( 'llms_full_max_kb' => 1024 ) );
+		$s->maybe_migrate_defaults();                 // 1024 -> 900, flag set
+		update_option( Settings::OPTION, array( 'llms_full_max_kb' => 1024 ) ); // owner re-chooses 1024
+		$s->maybe_migrate_defaults();                 // must NOT touch it again
+		$this->assertSame( 1024, ( new Settings() )->get( 'llms_full_max_kb' ), 'A deliberate re-choice of the old value must be respected.' );
 	}
 }

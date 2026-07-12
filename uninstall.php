@@ -17,6 +17,7 @@ function agentimus_uninstall_site() {
 
 	delete_option( 'agentimus_settings' );
 	delete_option( 'agentimus_onboarded' );
+	delete_option( 'agentimus_defaults_migrated' );
 	delete_option( 'agentimus_signing_keys' );
 	delete_option( 'agentimus_rewrite_version' );
 	delete_option( 'agentimus_rewrite_flushed_at' );

@@ -64,6 +64,11 @@ final class Plugin {
 
 		$this->settings = new Settings();
 
+		// One-shot correction of un-customised defaults we've since lowered (currently the
+		// llms-full byte budget, which used to sit exactly at the 1 MB object-cache ceiling).
+		// Cheap: a single autoloaded option read once the flag is set.
+		$this->settings->maybe_migrate_defaults();
+
 		// Record which plugin registered each post type at runtime (a one-time
 		// backtrace, no hardcoded plugin list) so Content::source() can name a CPT's
 		// vendor — e.g. a generic "Products" type attributed to FluentCart vs

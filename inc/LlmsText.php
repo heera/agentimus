@@ -152,7 +152,7 @@ final class LlmsText {
 		// per-item cap, and a wall-clock deadline. When any trips we stop at an
 		// item boundary (never mid-markdown, so the document stays valid), append a
 		// note pointing back to the index, and cache what we produced.
-		$budget   = max( 64, (int) $this->settings->get( 'llms_full_max_kb', 1024 ) ) * 1024;
+		$budget   = max( 64, (int) $this->settings->get( 'llms_full_max_kb', 900 ) ) * 1024;
 		$item_cap = (int) apply_filters( 'agentimus_llms_full_item_max_bytes', min( 256 * 1024, max( 32 * 1024, intdiv( $budget, 4 ) ) ) );
 		$deadline = $this->generation_deadline();
 		$start    = microtime( true );

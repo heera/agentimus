@@ -69,7 +69,7 @@ final class Settings {
 			'enable_webmcp'    => false,    // Experimental, opt-in: register the site's READ-ONLY tools with in-browser AI agents via the WebMCP browser API (navigator.modelContext). Off by default — it's an emerging, Chrome-experimental standard and it adds a small front-end script, so it ships only when the owner asks. The script is inert in browsers without the API.
 			'webmcp_hidden_tools' => array(), // Owner opt-OUT: names of WebMCP tools to hide from browser agents (deny-list; empty = expose every registered tool). Lets the owner curate per-tool which to expose.
 			'llms_full_posts'  => 50,
-			'llms_full_max_kb' => 1024, // Hard byte budget for /llms-full.txt (KB): generation stops cleanly here and links the index. Keeps the file ingestible and under common 1 MB object-cache row limits.
+			'llms_full_max_kb' => 900, // Hard byte budget for /llms-full.txt (KB): generation stops cleanly here and links the index. Deliberately UNDER 1024, not at it: a ~1 MB body sits exactly at the common memcached item ceiling, so with the key + serialization overhead the object cache silently REJECTS it — then every request re-runs the full build. 900 KB leaves headroom so the document actually caches. Filterable higher for sites whose cache (or lack of one) can take it.
 			'post_types'       => self::default_post_types(),
 			'evergreen_categories' => array(), // Category term IDs whose posts are exempt from the content "freshness" check — timeless content (references, tutorials, legal) that doesn't go stale with age. Empty = every post is age-checked.
 			'optimize_ignored'     => array(), // Post IDs the owner marked "not cited content" from the Optimize worklist — pages that aren't meant to be quoted (landing/utility/index). Left out of citability grading entirely; always shown as a visible "set aside" count so the score stays honest.
@@ -451,6 +451,40 @@ final class Settings {
 		if ( false === get_option( self::OPTION, false ) ) {
 			add_option( self::OPTION, $this->defaults() );
 		}
+	}
+
+	/** Bump when a new default-nudge is added to {@see maybe_migrate_defaults()}. */
+	const DEFAULTS_MIGRATION        = 1;
+	const DEFAULTS_MIGRATED_OPTION  = 'agentimus_defaults_migrated';
+
+	/**
+	 * One-shot correction of UN-customised defaults whose value we've since lowered — for installs
+	 * that persisted the old default and would otherwise never receive the new one (ensure_defaults
+	 * only seeds a wholly-absent option, and existing keys are kept on update).
+	 *
+	 * Deliberately narrow: it only touches a stored value that still EQUALS the old default, which
+	 * can only be an un-customised default — a value the owner actually chose is left alone. Guarded
+	 * by a version flag so a deliberate re-choice of the old number is not fought on every boot.
+	 *
+	 * @return void
+	 */
+	public function maybe_migrate_defaults() {
+		if ( (int) get_option( self::DEFAULTS_MIGRATED_OPTION, 0 ) >= self::DEFAULTS_MIGRATION ) {
+			return;
+		}
+
+		$saved = get_option( self::OPTION );
+		if ( is_array( $saved ) ) {
+			// llms_full_max_kb: the old default of 1024 KB sits exactly at the common 1 MB object-
+			// cache item ceiling, so the generated /llms-full.txt silently fails to cache and every
+			// request re-runs the full build. Nudge the un-customised old default to the safe one.
+			if ( isset( $saved['llms_full_max_kb'] ) && 1024 === (int) $saved['llms_full_max_kb'] ) {
+				$saved['llms_full_max_kb'] = 900;
+				update_option( self::OPTION, $saved );
+			}
+		}
+
+		update_option( self::DEFAULTS_MIGRATED_OPTION, self::DEFAULTS_MIGRATION, false );
 	}
 
 	/**
