@@ -55,6 +55,7 @@ function agentimus_uninstall_site() {
 	delete_option( 'agentimus_flagged_ips_db_version' );
 	delete_option( 'agentimus_review_dismissed' );
 	delete_option( 'agentimus_review_reverified' );
+	delete_option( 'agentimus_client_decisions' );
 	wp_clear_scheduled_hook( 'agentimus_prune_activity' );
 	wp_clear_scheduled_hook( 'agentimus_warm_llms_full' );
 
