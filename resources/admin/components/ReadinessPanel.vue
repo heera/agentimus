@@ -1,5 +1,6 @@
 <script>
 import { groupChecks } from '../tiers.js';
+import { bindDocEsc } from '../docEsc.js';
 import { runAll, runExposureScan } from '../livecheck.js';
 import { confirm } from '../confirm.js';
 import SchemaPreview from './SchemaPreview.vue';
@@ -84,18 +85,28 @@ export default {
   },
   watch: {
     // Land focus on the dialog when it opens so Esc closes it and it reads as modal.
+    // Esc is ALSO bound at the document while open — the panel handler goes silent
+    // the moment a backdrop click parks focus outside the dialog.
     liveOpen(open) {
+      if (this._unEscLive) this._unEscLive();
+      this._unEscLive = open ? bindDocEsc(() => this.closeLive()) : null;
       if (!open) return;
       this.$nextTick(() => {
         if (this.$refs.liveDialog) this.$refs.liveDialog.focus();
       });
     },
     exposureOpen(open) {
+      if (this._unEscExposure) this._unEscExposure();
+      this._unEscExposure = open ? bindDocEsc(() => this.closeExposure()) : null;
       if (!open) return;
       this.$nextTick(() => {
         if (this.$refs.exposureDialog) this.$refs.exposureDialog.focus();
       });
     },
+  },
+  beforeUnmount() {
+    if (this._unEscLive) this._unEscLive();
+    if (this._unEscExposure) this._unEscExposure();
   },
   methods: {
     tagLabel(status) {
@@ -139,9 +150,20 @@ export default {
       if (this.liveRunning) return;
       this.liveRunning = true;
       try {
-        this.live = await runAll(this.liveConfig);
+        this.live = await runAll({ ...this.liveConfig, selfcheckToken: await this.selfcheckToken() });
       } finally {
         this.liveRunning = false;
+      }
+    },
+    // A short-lived token the checks carry so the site's own visit log skips them
+    // (the fetches are anonymous by design, so the cookie can't identify us). Best
+    // effort: with no token the checks still run — they just get logged.
+    async selfcheckToken() {
+      try {
+        const res = this.api && this.api.mintSelfcheckToken ? await this.api.mintSelfcheckToken() : null;
+        return (res && res.token) || '';
+      } catch (e) {
+        return '';
       }
     },
     // Dismiss the results. A no-op mid-run (the fetch finishes in ~1s) so a stray
@@ -156,7 +178,9 @@ export default {
       if (this.exposureRunning) return;
       this.exposureRunning = true;
       try {
-        this.exposure = await runExposureScan(this.liveConfig);
+        // Tagged with the same self-check token: probing for wp-config.bak from
+        // this screen must never read as a scanner in the site's own records.
+        this.exposure = await runExposureScan({ ...this.liveConfig, selfcheckToken: await this.selfcheckToken() });
       } finally {
         this.exposureRunning = false;
       }

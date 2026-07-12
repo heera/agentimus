@@ -14,6 +14,8 @@
  * Reuses the app's .ar-modal shell (the same one as the Verify-live dialog) and
  * ar-btn / ar-input chrome; only the picker, code block and banners are custom.
  */
+import { bindDocEsc } from '../docEsc.js';
+
 export default {
   name: 'SchemaPreview',
   props: {
@@ -139,6 +141,10 @@ export default {
   },
   watch: {
     open(on) {
+      // Esc must close the dialog even after focus leaves the panel (backdrop
+      // click) — bind at the document for exactly as long as it is open.
+      if (this._unEsc) this._unEsc();
+      this._unEsc = on ? bindDocEsc(() => this.close()) : null;
       if (!on) return;
       // Always open FRESH — a reopen must never inherit the last pick, format,
       // search or expanded groups. Reset the chrome, reload the list (groups
@@ -162,6 +168,7 @@ export default {
   },
   beforeUnmount() {
     this.teardownMedia();
+    if (this._unEsc) this._unEsc();
   },
   methods: {
     // Track the narrow breakpoint reactively so the layout follows a window resize

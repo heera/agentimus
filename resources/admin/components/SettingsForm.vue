@@ -3,6 +3,7 @@ import TagInput from './TagInput.vue';
 import SelectMenu from './SelectMenu.vue';
 import IpChecker from './IpChecker.vue';
 import ClientManager from './ClientManager.vue';
+import { bindDocEsc } from '../docEsc.js';
 
 export default {
   name: 'SettingsForm',
@@ -60,6 +61,15 @@ export default {
   },
   beforeUnmount() {
     window.removeEventListener('resize', this.updateScrollHint);
+    if (this._unEscReset) this._unEscReset();
+  },
+  watch: {
+    // Document-level Esc while the reset dialog is open — the panel-scoped
+    // handler dies as soon as focus leaves the panel (e.g. a backdrop click).
+    showReset(open) {
+      if (this._unEscReset) this._unEscReset();
+      this._unEscReset = open ? bindDocEsc(() => this.closeReset()) : null;
+    },
   },
   computed: {
     retentionOptions() {

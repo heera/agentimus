@@ -14,6 +14,7 @@
 import TagInput from './TagInput.vue';
 import SelectMenu from './SelectMenu.vue';
 import { confirm } from '../confirm.js';
+import { bindDocEsc } from '../docEsc.js';
 
 export default {
   name: 'VisibilityPanel',
@@ -116,6 +117,15 @@ export default {
   beforeUnmount() {
     this.clearPoll();
     this.flushTargets(); // best-effort: persist a pending chip edit before teardown.
+    if (this._unEscError) this._unEscError();
+  },
+  watch: {
+    // Document-level Esc while the test-failure dialog is open — the panel-scoped
+    // handler dies as soon as focus leaves the panel (e.g. a backdrop click).
+    errorDialog(open) {
+      if (this._unEscError) this._unEscError();
+      this._unEscError = open ? bindDocEsc(() => this.closeError()) : null;
+    },
   },
   methods: {
     // Open a specific sub-view (Results / Settings) — used when the score card's Cited

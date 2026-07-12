@@ -4,6 +4,8 @@ import { confirmState, resolveConfirm } from '../confirm.js';
 // The single styled confirmation dialog. Mount it ONCE at the app root; it renders
 // whatever confirm() has queued in the shared store. Reuses the .ar-modal shell so
 // it matches the day-report and reset dialogs exactly.
+import { bindDocEsc } from '../docEsc.js';
+
 export default {
   name: 'ConfirmDialog',
   data() {
@@ -11,6 +13,8 @@ export default {
   },
   watch: {
     'state.open'(open) {
+      if (this._unEsc) this._unEsc();
+      this._unEsc = open ? bindDocEsc(() => this.cancel()) : null;
       if (!open) return;
       // For a destructive prompt, land focus on Cancel so a reflexive Enter is safe;
       // otherwise land on Confirm so Enter accepts (preserving window.confirm muscle
