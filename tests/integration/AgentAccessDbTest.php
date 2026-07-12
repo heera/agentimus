@@ -436,13 +436,27 @@ final class AgentAccessDbTest extends DbTestCase {
 		$this->assertCount( 1, Store::recent( 100, Events::KIND_ABILITY_USED ) );
 	}
 
+	public function test_a_no_input_ability_runs_over_rest_without_an_explicit_object() {
+		$this->skip_without_abilities();
+		wp_set_current_user( $this->admin );
+
+		// REGRESSION (1.20.1): a read-only ability runs over REST as a GET, whose input comes from an
+		// `?input` query param — which cannot express an empty object. With no param the value is null,
+		// and before no_input() declared a `default` that null failed the input gate with 400, leaving
+		// readiness/AI-visibility/exposed-files uncallable by any external MCP or REST agent. A no-arg
+		// GET must now run, and record as a genuine use — not die at the input gate.
+		$this->assertSame( 200, $this->run_ability( 'agentimus/read-readiness' )->get_status(), 'A no-input ability must run with no `input` at all.' );
+		$this->assertCount( 1, Store::recent( 100, Events::KIND_ABILITY_USED ) );
+	}
+
 	public function test_an_admins_malformed_request_is_their_bug_not_our_signal() {
 		$this->skip_without_abilities();
 		wp_set_current_user( $this->admin );
 
-		// No input -> 400. A developer's broken integration does this all day; logging it would fill
-		// the feed with their own mistake.
-		$this->assertSame( 400, $this->run_ability( 'agentimus/read-readiness' )->get_status() );
+		// A required field is missing -> 400 at the input gate. A developer's broken integration does
+		// this all day; logging it would fill the feed with their own mistake. (identify-bot requires
+		// `ip`, so an empty object fails validation before permission is ever checked.)
+		$this->assertSame( 400, $this->run_ability( 'agentimus/identify-bot', array() )->get_status() );
 		$this->assertCount( 0, Store::recent(), 'A logged-in caller\'s bad input must record nothing.' );
 	}
 
@@ -451,8 +465,10 @@ final class AgentAccessDbTest extends DbTestCase {
 		wp_set_current_user( 0 );
 
 		// THE case a "just log the 403s" design would miss entirely. The permission gate sits BEHIND
-		// an input gate, so a scanner throwing junk at real ability endpoints gets 400s, never 403s.
-		$this->assertSame( 400, $this->run_ability( 'agentimus/read-readiness' )->get_status() );
+		// an input gate, so a scanner throwing junk at a real ability that TAKES input gets 400s, never
+		// 403s. (A no-input ability now defaults to {} and reaches the permission gate, so use one that
+		// requires input — identify-bot — to exercise the input-gate-before-permission path.)
+		$this->assertSame( 400, $this->run_ability( 'agentimus/identify-bot' )->get_status() );
 
 		$this->assertCount( 1, Store::recent( 100, Events::KIND_ABILITY_PROBED ), 'An anonymous scan must not be invisible.' );
 	}
