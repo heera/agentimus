@@ -104,4 +104,49 @@ final class AssistRestTest extends RestTestCase {
 
 		remove_filter( 'wp_supports_ai', '__return_false' );
 	}
+
+	/* -- Spend backstop: per-user rate cap on the paid AI call --------------- */
+
+	public function test_generate_is_rate_limited_per_user() {
+		// Both Assist routes gate only on edit_post, so any Contributor+ could otherwise script
+		// unbounded paid AI calls — a financial DoS on the owner's bill. generate() enforces a
+		// per-user, per-window budget immediately before the one paid call it makes. Exercised via
+		// the private helper so no real (paid) provider call is needed.
+		wp_set_current_user( self::factory()->user->create( array( 'role' => 'administrator' ) ) );
+
+		$rate = new \ReflectionMethod( \Agentimus\Assist::class, 'rate_limited' );
+		$rate->setAccessible( true );
+
+		$key = 'agentimus_assist_rate_' . get_current_user_id() . '_' . (int) floor( time() / \Agentimus\Assist::ASSIST_RATE_WINDOW );
+		delete_transient( $key );
+
+		$blocked_at = null;
+		for ( $i = 1; $i <= \Agentimus\Assist::ASSIST_RATE_MAX + 5; $i++ ) {
+			if ( $rate->invoke( null ) ) {
+				$blocked_at = $i;
+				break;
+			}
+		}
+
+		$this->assertSame( \Agentimus\Assist::ASSIST_RATE_MAX + 1, $blocked_at, 'The (MAX+1)th call in a window must be refused.' );
+		delete_transient( $key );
+	}
+
+	public function test_the_rate_cap_is_filterable_off() {
+		wp_set_current_user( self::factory()->user->create( array( 'role' => 'administrator' ) ) );
+		add_filter( 'agentimus_assist_rate_max', '__return_zero' );
+
+		$rate = new \ReflectionMethod( \Agentimus\Assist::class, 'rate_limited' );
+		$rate->setAccessible( true );
+
+		$blocked = false;
+		for ( $i = 0; $i < 50; $i++ ) {
+			if ( $rate->invoke( null ) ) {
+				$blocked = true;
+				break;
+			}
+		}
+		remove_filter( 'agentimus_assist_rate_max', '__return_zero' );
+		$this->assertFalse( $blocked, 'A filter returning 0 must disable the cap.' );
+	}
 }
