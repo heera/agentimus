@@ -47,6 +47,17 @@ final class Module {
 	 */
 	private static $hooked = array();
 
+	/**
+	 * Whether recording is live this request. observe_own_ability() is called from a wrapper that
+	 * Abilities\Registrar installs UNCONDITIONALLY (it wraps every ability's execute callback at
+	 * registration time, before this module's own enabled() gate runs), so without this flag a
+	 * disabled feature would still write an `ability_used` row — and corrupt the hook verdict — the
+	 * moment an admin or an authenticated MCP client ran one of our abilities. register() sets it.
+	 *
+	 * @var bool
+	 */
+	private static $active = false;
+
 	/** @var Settings */
 	private $settings;
 
@@ -68,7 +79,11 @@ final class Module {
 
 		add_action( self::cron_hook(), array( Store::class, 'prune' ) );
 
-		if ( ! self::enabled( $this->settings ) ) {
+		// Gates observe_own_ability(), which the Registrar calls whether or not this ran the rest of
+		// register(). Set before the early return so a disabled feature records nothing.
+		self::$active = self::enabled( $this->settings );
+
+		if ( ! self::$active ) {
 			return;
 		}
 
@@ -324,6 +339,13 @@ final class Module {
 	 * @return void
 	 */
 	public static function observe_own_ability( $ability_name ) {
+		// The Registrar wraps every ability's execute callback with this, unconditionally, so a
+		// disabled feature reaches here too. Record nothing — and, crucially, do NOT fall through to
+		// remember_hooks() below, which would corrupt the coverage verdict while the feature is off.
+		if ( ! self::$active ) {
+			return;
+		}
+
 		$ability_name = (string) $ability_name;
 
 		if ( isset( self::$hooked[ $ability_name ] ) ) {
@@ -353,7 +375,19 @@ final class Module {
 		if ( ! is_wp_error( $response ) ) {
 			return $response;
 		}
-		if ( ! $request instanceof \WP_REST_Request || 0 !== strpos( (string) $request->get_route(), '/wp-abilities/' ) ) {
+		if ( ! $request instanceof \WP_REST_Request ) {
+			return $response;
+		}
+
+		// ONLY the /run sub-route. classify() depends on the run controller's gate order —
+		// existence (404) is checked BEFORE permission (401/403) — so on /run a 401/403 implies a
+		// real, registered ability and a 404 implies a guess. The sibling routes (GET .../abilities
+		// [list], GET .../abilities/<name> [item], GET .../categories) gate on a plain
+		// current_user_can('read') permission_callback, which core runs BEFORE the callback, so an
+		// anonymous request returns 401 for ANY `name` — including a free-form query param. Matching
+		// the whole /wp-abilities/ namespace let an unauthenticated attacker write unbounded rows
+		// with an attacker-controlled `subject`, defeating the aggregation this feature is built on.
+		if ( ! preg_match( '#^/wp-abilities/v\d+/abilities/.+/run$#', (string) $request->get_route() ) ) {
 			return $response;
 		}
 
@@ -366,11 +400,20 @@ final class Module {
 			return $response; // A logged-in caller's malformed input: their bug, not our signal.
 		}
 
-		// CARDINALITY. A refusal names a real ability — the 404 gate fires first, so it must exist,
-		// and the set is bounded. A probe's name is attacker-supplied, so it is deliberately NOT
-		// stored: ten thousand guesses would otherwise mint ten thousand rows. They aggregate into
-		// one row whose `hits` counts the campaign.
-		$subject = Events::names_a_real_ability( $kind ) ? (string) $request->get_param( 'name' ) : '';
+		// CARDINALITY. A probe's name is attacker-supplied and must NEVER reach `subject` — ten
+		// thousand guesses would mint ten thousand rows; they aggregate into one row whose `hits`
+		// counts the campaign. A refusal names a real ability (the 404 gate fired first), so the set
+		// is bounded — but we still confirm the ability is genuinely registered before storing its
+		// name, rather than trusting the gate order alone. Belt and suspenders: assuming a gate
+		// order is exactly what let the bug above through, so a REFUSED that somehow names nothing
+		// real degrades to an aggregated probe rather than a free write.
+		$subject = '';
+		if ( Events::names_a_real_ability( $kind ) ) {
+			$name = (string) $request->get_param( 'name' );
+			if ( function_exists( 'wp_get_ability' ) && wp_get_ability( $name ) ) {
+				$subject = $name;
+			}
+		}
 
 		self::record( $kind, $user_id, self::current_credential(), $subject, (string) $status );
 

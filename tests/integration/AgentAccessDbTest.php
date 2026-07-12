@@ -489,4 +489,48 @@ final class AgentAccessDbTest extends DbTestCase {
 
 		$this->assertSame( 0, Store::total(), 'Ordinary REST traffic must not write to the agent-access log.' );
 	}
+
+	/* -- Phase 3 hardening: the flood vector, and the kill switch ----------- */
+
+	public function test_the_non_run_abilities_routes_cannot_flood_with_attacker_subjects() {
+		$this->skip_without_abilities();
+		wp_set_current_user( 0 );
+
+		// THE fix for a HIGH found in the pre-release red-team. classify() assumes the /run
+		// controller's gate order (existence checked before permission). The sibling routes — GET
+		// .../abilities [list], GET .../abilities/<name> [item], GET .../categories — gate on a plain
+		// current_user_can('read') that core runs BEFORE the callback, so an anonymous request
+		// returns 401 for ANY `name`, including a free-form query param. Matching the whole namespace
+		// let an unauthenticated attacker write unbounded rows with an attacker-controlled subject.
+		// Only /run may be observed; these must record nothing.
+		foreach ( array( 'evil-alpha', 'evil-bravo', 'evil-charlie' ) as $name ) {
+			$request = new \WP_REST_Request( 'GET', '/wp-abilities/v1/abilities' );
+			$request->set_query_params( array( 'name' => $name ) );
+			rest_do_request( $request );
+		}
+
+		$this->assertSame( 0, Store::total(), 'The list/item/categories routes must never write an event.' );
+	}
+
+	public function test_recording_off_records_nothing_even_when_one_of_our_abilities_runs() {
+		// Abilities\Registrar wraps EVERY ability's execute callback with observe_own_ability(),
+		// unconditionally — before this module's own enabled() gate runs. Without the $active guard a
+		// disabled feature still wrote an ability_used row (and corrupted the hook verdict) the moment
+		// an admin or an authenticated MCP client ran one of our abilities. Calling observe_own_ability
+		// directly isolates that path from the live global-hook listener.
+		$settings = new \Agentimus\Settings();
+		$settings->update( array_merge( $settings->all(), array( 'agent_access_events' => false ) ) );
+		( new Module( $settings ) )->register(); // sets $active = false
+		Store::clear();
+		delete_option( Module::HOOKS_OPTION );
+
+		Module::observe_own_ability( 'agentimus/read-readiness' );
+
+		$this->assertSame( 0, Store::total(), 'A disabled feature must record nothing.' );
+		$this->assertFalse( get_option( Module::HOOKS_OPTION, false ), 'A disabled feature must not write the hook verdict.' );
+
+		// Restore the enabled state for the rest of the suite.
+		$settings->update( array_merge( $settings->all(), array( 'agent_access_events' => true ) ) );
+		( new Module( $settings ) )->register();
+	}
 }
