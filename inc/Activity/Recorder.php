@@ -35,7 +35,9 @@ final class Recorder {
 	/** Recognised-crawler hits allowed per window before sampling engages — generous,
 	 *  so a real bot's normal burst on the (low-frequency) discovery endpoints is kept
 	 *  in full, while a flood spoofing a known bot's NAME is still capped. Recognition
-	 *  is a forgeable UA string, so recognised traffic gets a budget, not a blank pass. */
+	 *  is a forgeable UA string, so recognised traffic gets a budget, not a blank pass.
+	 *  This budget is SHARED across all recognised traffic (see record()), not per-name —
+	 *  a single window-wide ceiling regardless of how many known bot names appear. */
 	const RECOGNISED_THRESHOLD = 300;
 
 	/** Once a window is flooding, keep roughly one unrecognised hit in this many. */
@@ -74,17 +76,24 @@ final class Recorder {
 
 		$agent = Classifier::classify( $ua );
 
-		// Per-source write budget. Recognition is only a forgeable UA-string match, so a
-		// recognised crawler (GPTBot, Googlebot, ClaudeBot…) is NOT given a blank pass —
-		// it gets a GENEROUS budget (a real bot's burst on these low-frequency endpoints
-		// is the signal we want, kept in full), while every other client gets a tight
-		// one. Each source is counted against its own (identity, window) bucket and
-		// sampled to ~1-in-FLOOD_SAMPLE once over budget, so NO single client — not even
-		// a flood that pastes a known bot's name into a forged UA — can drive unbounded
-		// INSERTs into the bounded log. The row cap (trim_to_cap) is the hard backstop.
+		// Write budget. Recognition is only a forgeable UA-string match, so a recognised crawler
+		// (GPTBot, Googlebot, ClaudeBot…) is NOT given a blank pass — it gets a GENEROUS budget (a
+		// real bot's burst on these low-frequency endpoints is the signal we want, kept in full),
+		// while every other client gets a tight one. Over budget, a hit is sampled to
+		// ~1-in-FLOOD_SAMPLE, so no single source drives unbounded INSERTs; the row cap
+		// (trim_to_cap) is the hard backstop.
+		//
+		// TWO buckets only — 'a' for ALL recognised traffic, 'u' for all unrecognised — deliberately
+		// NOT one per bot name. A per-name bucket handed each of the ~22 forgeable known-bot strings
+		// its own 300-budget, so an attacker rotating names multiplied the budget to thousands of
+		// guaranteed INSERTs/min. Sharing one recognised budget removes that multiplier entirely:
+		// rotating names now buys nothing. A single real crawler is unaffected (it was one name =
+		// one bucket before, and it is the whole 'a' bucket now); only many DISTINCT names in one
+		// window — an attack, or the rare simultaneous multi-crawler burst — share the budget, and
+		// over it they are sampled (not dropped), preserving proportions.
 		$recognised = Classifier::is_recognised_agent( $ua );
 		$threshold  = $recognised ? self::RECOGNISED_THRESHOLD : self::FLOOD_THRESHOLD;
-		$count      = self::note_hit( $recognised ? 'a:' . $agent : 'u' );
+		$count      = self::note_hit( $recognised ? 'a' : 'u', $threshold );
 		if ( ! self::survives_flood( $count, $threshold, wp_rand( 1, self::FLOOD_SAMPLE ) ) ) {
 			return;
 		}
@@ -147,16 +156,23 @@ final class Recorder {
 	 * the row cap (trim_to_cap) is the hard backstop. Honours an external object cache
 	 * automatically (it is just the Transients API).
 	 *
-	 * @param string $bucket Source key — a recognised crawler's own identity, or a
-	 *                       shared bucket for all unrecognised traffic.
+	 * @param string $bucket    Source key — 'a' (all recognised) or 'u' (all unrecognised).
+	 * @param int    $threshold This bucket's budget, used to stop counting once sampling has begun.
 	 * @return int Hits so far this window for this bucket.
 	 */
-	private static function note_hit( $bucket ) {
+	private static function note_hit( $bucket, $threshold ) {
 		$key   = self::RATE_PREFIX . md5( (string) $bucket ) . '_' . (int) floor( time() / self::FLOOD_WINDOW );
 		$count = (int) get_transient( $key ) + 1;
-		// Outlive the window so a flood straddling the bucket boundary still reads as
-		// elevated; the next window simply starts counting from zero again.
-		set_transient( $key, $count, self::FLOOD_WINDOW * 2 );
+		// FREEZE the stored counter one past the threshold. Beyond it every hit is already sampled,
+		// so the exact number changes no decision — and on a site with NO persistent object cache
+		// each set_transient is a wp_options write, so a sustained flood otherwise wrote an
+		// ever-larger integer on every single request. Freezing caps that write pressure at
+		// ~threshold writes per bucket per window (two buckets total). The read stays — it is cheap —
+		// only the per-hit write is bounded. Outlives the window so a flood straddling the boundary
+		// still reads as elevated; the next window starts from zero.
+		if ( $count <= (int) $threshold + 1 ) {
+			set_transient( $key, $count, self::FLOOD_WINDOW * 2 );
+		}
 		return $count;
 	}
 
