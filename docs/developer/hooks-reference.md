@@ -305,6 +305,16 @@ Tuning knobs for the activity log, its retention, AI-referral tracking and the "
 | `agentimus_heavy_min_hits` | filter | `( int $hits ): int` | Minimum hits to flag heavy usage. |
 | `agentimus_threats_limit` | filter | `( int $limit ): int` | Maximum rows in the "activity to review" panel. |
 
+### Agent access
+
+Filters for the **Agent access** log (More → Agent access) — application-password lifecycle, ability invocations, and refused/probed requests. No IP, no personal data.
+
+| Hook | Type | Signature | Purpose |
+| --- | --- | --- | --- |
+| `agentimus_agent_access_enabled` | filter | `( bool $on ): bool` | Whether Agent access records at all. Mirrors the `agent_access_events` setting (default on). |
+| `agentimus_agent_access_event` | filter | `( array $event ): array` | Each event just before it is stored (`kind`, `user_id`, `cred`, `subject`, `detail`). Return an empty value to drop it. `cred` is the application-password UUID, never the password. |
+| `agentimus_agent_access_retention_days` | filter | `( int $days ): int` | How long an Agent access event is kept, in days. Default `90`. |
+
 ### AI-visibility monitor
 
 The opt-in AI-visibility monitor polls AI providers on a schedule to see whether they mention and cite you; it keeps its own settings and tables, separate from the activity log above. This knob bounds a single run.

@@ -1,7 +1,7 @@
 ---
 title: Write with AI
 parent: User Manual
-nav_order: 9
+nav_order: 10
 ---
 
 # Write with AI

@@ -14,18 +14,19 @@ New here? Read them roughly in order:
 1. **Overview** — what Agentimus does and why it helps.
 2. **Installation** — get set up in a couple of minutes.
 3. **Dashboard & activity** — your AEO/GEO score, AI traffic, and what agents are doing.
-4. **Readiness** — the checks behind your score, plus the per-page Optimize worklist, with one-click fixes.
-5. **Machine-readable outputs** — llms.txt, Markdown, discovery docs, sitemap.
-6. **Structured data** — the Schema.org (JSON-LD) your pages emit, plus the one-line AI description behind each page's summary.
-7. **Identity** — tell AI who you are and what you do.
-8. **Topics for AI** — say what each page is about.
-9. **Write with AI** — let your configured AI draft the descriptions, topics and fixes.
-10. **Agent preview** — see exactly what an agent receives.
-11. **AI access & crawlers** — who may crawl, and how.
-12. **Exposure & hardening** — optional privacy tightening.
-13. **AI Visibility** — track whether AI engines cite you.
-14. **Caching & CDNs** — keeping a page cache out of the way of the AI files.
-15. **Privacy & data** — what leaves your server (almost nothing).
-16. **FAQ** — quick answers to common questions.
+4. **Agent access** — who authenticates to and *acts on* your machine surface (application passwords, abilities), and what was refused.
+5. **Readiness** — the checks behind your score, plus the per-page Optimize worklist, with one-click fixes.
+6. **Machine-readable outputs** — llms.txt, Markdown, discovery docs, sitemap.
+7. **Structured data** — the Schema.org (JSON-LD) your pages emit, plus the one-line AI description behind each page's summary.
+8. **Identity** — tell AI who you are and what you do.
+9. **Topics for AI** — say what each page is about.
+10. **Write with AI** — let your configured AI draft the descriptions, topics and fixes.
+11. **Agent preview** — see exactly what an agent receives.
+12. **AI access & crawlers** — who may crawl, and how.
+13. **Exposure & hardening** — optional privacy tightening.
+14. **AI Visibility** — track whether AI engines cite you.
+15. **Caching & CDNs** — keeping a page cache out of the way of the AI files.
+16. **Privacy & data** — what leaves your server (almost nothing).
+17. **FAQ** — quick answers to common questions.
 
 Use the sidebar to jump to any page.

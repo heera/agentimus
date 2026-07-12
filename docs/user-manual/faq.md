@@ -1,7 +1,7 @@
 ---
 title: FAQ
 parent: User Manual
-nav_order: 16
+nav_order: 17
 ---
 
 Short, honest answers to the questions site owners ask most. If you are weighing up whether Agentimus is safe to run on a live site, this is the page to read. The recurring theme: Agentimus adds a machine-readable layer *for AI tools* without touching what your visitors see, without phoning home, and without taking over jobs your other plugins already do.
