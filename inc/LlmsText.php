@@ -365,6 +365,14 @@ final class LlmsText {
 	private function text( $html ) {
 		$text = wp_strip_all_tags( (string) $html );
 		$text = html_entity_decode( $text, ENT_QUOTES | ENT_HTML5, 'UTF-8' );
+		// Collapse ALL whitespace (newlines, tabs, runs) to single spaces. Every caller emits a
+		// SINGLE-LINE value — a "- [Title](url)" list entry, an identity line — so a newline in a
+		// post title, category name, or an identity field would forge a fake list entry or break
+		// the document's line structure. Reachable via a settings textarea (newline-preserving), a
+		// content import, or a direct DB write, so strip it here at the single choke point. Decode
+		// runs first, so an entity-encoded newline (&#10;) is caught too. `\s` matches only ASCII
+		// whitespace bytes, never a UTF-8 continuation byte, so this is multibyte-safe without /u.
+		$text = (string) preg_replace( '/\s+/', ' ', $text );
 		return trim( $text );
 	}
 }
