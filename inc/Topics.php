@@ -413,7 +413,10 @@ final class Topics {
 				'cap'       => self::cap(),
 				'maxLen'    => self::MAX_LEN,
 				'deriveTax' => array_values( self::derive_taxonomies( $post ) ),
-				'exclude'   => array_values( (array) apply_filters( 'agentimus_topic_exclude', array( 'uncategorized' ) ) ),
+				// FALSE POSITIVE, not a suppressed query: the VIP sniff matches the key name
+				// `exclude` and assumes a get_posts() call. This is a JSON config payload for the
+				// topic editor's Vue component — no query runs here.
+				'exclude'   => array_values( (array) apply_filters( 'agentimus_topic_exclude', array( 'uncategorized' ) ) ), // phpcs:ignore WordPressVIPMinimum.Performance.WPQueryParams.PostNotIn_exclude
 			)
 		);
 
@@ -857,7 +860,11 @@ JS;
 		if ( ! empty( $types ) && isset( $wpdb ) && is_object( $wpdb ) ) {
 			$placeholders = implode( ', ', array_fill( 0, count( $types ), '%s' ) );
 			$args         = array_merge( array( self::META_TOPICS, 'a:0:{}' ), $types );
-			// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+			// ReplacementsWrongNumber is a FALSE POSITIVE here, not a suppressed bug: the sniff
+			// counts the literal placeholders it can see and cannot evaluate $placeholders, which
+			// array_fill() builds to match $types exactly. $args is passed as prepare()'s single
+			// array argument, which WPDB explicitly supports, so the counts do line up at runtime.
+			// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQLPlaceholders.ReplacementsWrongNumber
 			$with = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(DISTINCT p.ID) FROM {$wpdb->posts} p INNER JOIN {$wpdb->postmeta} m ON m.post_id = p.ID WHERE m.meta_key = %s AND m.meta_value <> '' AND m.meta_value <> %s AND p.post_status = 'publish' AND p.post_type IN ($placeholders)", $args ) );
 		}
 

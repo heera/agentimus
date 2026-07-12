@@ -113,7 +113,11 @@ final class Exposure {
 		if ( is_user_logged_in() ) {
 			return;
 		}
-		$author = isset( $_GET['author'] ) ? wp_unslash( $_GET['author'] ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only public request gate, no state change.
+		// sanitize_text_field() is what makes this safe for `?author[]=1`: core's
+		// _sanitize_text_fields() returns '' outright for an array, where the old raw value went
+		// on to be cast to string and raised an "Array to string conversion" warning — on an
+		// anonymous front-end request, the one place a stray PHP notice must never surface.
+		$author = isset( $_GET['author'] ) ? sanitize_text_field( wp_unslash( $_GET['author'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only public request gate, no state change.
 		if ( self::is_author_enumeration( $author ) || 'users' === get_query_var( 'sitemap' ) ) {
 			$this->send_404();
 		}
@@ -219,10 +223,16 @@ final class Exposure {
 	 * numeric id (the `?author=1` → /author/<slug>/ trick). A non-numeric author
 	 * query (a real author archive by slug) is left alone.
 	 *
-	 * @param string $author The raw author query value.
+	 * @param mixed $author The raw author query value — anything a query string can carry,
+	 *                      including an array (`?author[]=1`), which must not blow up.
 	 * @return bool
 	 */
 	public static function is_author_enumeration( $author ) {
+		// A total function: casting a non-scalar to string raises "Array to string conversion",
+		// and this is reached straight off an anonymous request. Not an enumeration probe anyway.
+		if ( ! is_scalar( $author ) ) {
+			return false;
+		}
 		$author = (string) $author;
 		return '' !== $author && ctype_digit( $author );
 	}

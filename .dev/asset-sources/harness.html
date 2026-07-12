@@ -15,11 +15,29 @@
 <script>
   // The admin app fetches a few REST endpoints at runtime; serve canned data so a
   // static render looks alive (only /activity is hit on initial load — Dashboard).
+  // Canned Agent access feed for the #agent-access shot: a spread that shows the feature's range —
+  // a brand-new application password (NEW pill + revoke line), a rolled-up ability, a first use, a
+  // credentialed refusal (the "a key you issued tried something it isn't allowed to" line), and an
+  // older key. coverage:'full' draws the green WATCHING box; passwords:true hides the HTTPS notice.
+  window.__AGENT_ACCESS__ = {
+    events: [
+      { id: 5, kind: 'apppw_created', userId: 1, cred: '43a19c82-ebef-44dd-afb2-cd77c246d052', subject: 'Zapier', detail: '', hits: 1, firstSeen: '2026-07-12T09:41:00+00:00', lastSeen: '2026-07-12T09:41:00+00:00', seen: false },
+      { id: 4, kind: 'ability_used', userId: 1, cred: '', subject: 'agentimus/read-readiness', detail: 'hook', hits: 3, firstSeen: '2026-07-12T08:10:00+00:00', lastSeen: '2026-07-12T09:05:00+00:00', seen: true },
+      { id: 3, kind: 'apppw_used', userId: 1, cred: '9f0c-…-2a1b', subject: 'n8n workflow', detail: '', hits: 1, firstSeen: '2026-07-11T16:22:00+00:00', lastSeen: '2026-07-11T16:22:00+00:00', seen: true },
+      { id: 2, kind: 'ability_refused', userId: 1, cred: 'c3d4-…-88fe', subject: 'agentimus/scan-exposed-files', detail: '403', hits: 1, firstSeen: '2026-07-11T14:03:00+00:00', lastSeen: '2026-07-11T14:03:00+00:00', seen: true },
+      { id: 1, kind: 'apppw_created', userId: 1, cred: 'old-laptop-uuid', subject: 'Old laptop', detail: '', hits: 1, firstSeen: '2026-07-09T11:47:00+00:00', lastSeen: '2026-07-09T11:47:00+00:00', seen: true },
+    ],
+    unseen: 1, total: 5, hasMore: false, cursor: null, perPage: 100,
+    coverage: 'full', hasAbilities: true, thirdParty: true, passwords: true, wpVersion: '7.0.1',
+    retention: 90, maxRows: 5000,
+  };
+
   (function () {
     window.fetch = function (u) {
       u = String(u);
       var body = '{}';
-      if (u.indexOf('/activity') > -1) body = JSON.stringify(window.__ACTIVITY__ || {});
+      if (u.indexOf('/agent-access') > -1) body = JSON.stringify(window.__AGENT_ACCESS__ || {});
+      else if (u.indexOf('/activity') > -1) body = JSON.stringify(window.__ACTIVITY__ || {});
       return Promise.resolve(new Response(body, { status: 200, headers: { 'Content-Type': 'application/json' } }));
     };
   })();

@@ -3,7 +3,7 @@
  * Plugin Name:       Agentimus
  * Plugin URI:        https://github.com/heera/agentimus
  * Description:       An AI-discovery layer for your site: a /.well-known discovery document, machine-readable pages (llms.txt, markdown, JSON-LD), AI-crawl controls, and a first-party agent-activity log. Lightweight, no SEO bloat.
- * Version:           1.19.0
+ * Version:           1.20.0
  * Requires at least: 6.0
  * Requires PHP:      7.4
  * Author:            Sheikh Heera
@@ -19,7 +19,7 @@ namespace Agentimus;
 
 defined( 'ABSPATH' ) || exit;
 
-define( 'AGENTIMUS_VERSION', '1.19.0' );
+define( 'AGENTIMUS_VERSION', '1.20.0' );
 define( 'AGENTIMUS_FILE', __FILE__ );
 define( 'AGENTIMUS_DIR', plugin_dir_path( __FILE__ ) );
 define( 'AGENTIMUS_URL', plugin_dir_url( __FILE__ ) );
@@ -83,4 +83,21 @@ add_action(
 		restore_current_blog();
 	},
 	100
+);
+
+// Multisite: when a SUB-SITE is deleted, core drops only its stock tables. Add ours so they don't
+// survive forever as orphans (uninstall can't reach a site that no longer exists). Keep this list
+// in sync with the DROP TABLE calls in uninstall.php.
+add_filter(
+	'wpmu_drop_tables',
+	static function ( $tables, $blog_id ) {
+		global $wpdb;
+		$prefix = $wpdb->get_blog_prefix( (int) $blog_id );
+		foreach ( array( 'agentimus_agent_hits', 'agentimus_ai_referrals', 'agentimus_flagged_ips', 'agentimus_unknown_sources', 'agentimus_agent_events', 'agentimus_visibility' ) as $agentimus_table ) {
+			$tables[] = $prefix . $agentimus_table;
+		}
+		return $tables;
+	},
+	10,
+	2
 );

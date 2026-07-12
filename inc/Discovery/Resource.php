@@ -79,6 +79,16 @@ final class Resource {
 			'id'           => $id,
 			'title'        => $title,
 			'type'         => $type,
+			// `public`: may this Resource be PUBLISHED to anonymous callers? Default true — a
+			// provider describing a public surface says nothing and nothing changes.
+			//
+			// A provider sets it FALSE when the thing it describes is structurally unusable by an
+			// anonymous agent, so advertising it serves that agent nothing and merely hands anyone
+			// who asks a map of the site's internals. Distinct from owner suppression (which is the
+			// OWNER's decision, and which the admin screen surfaces so it can be reversed): this is
+			// the PROVIDER stating a fact about its own resource. Both are honoured by
+			// {@see Envelope::published_resources()}; neither hides it from the admin.
+			'public'       => ! isset( $raw['public'] ) || (bool) $raw['public'],
 			'description'  => isset( $raw['description'] ) ? sanitize_text_field( (string) $raw['description'] ) : '',
 			'version'      => isset( $raw['version'] ) ? sanitize_text_field( (string) $raw['version'] ) : '',
 			'capabilities' => self::string_list( isset( $raw['capabilities'] ) ? $raw['capabilities'] : array() ),

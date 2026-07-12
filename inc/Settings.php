@@ -69,7 +69,7 @@ final class Settings {
 			'enable_webmcp'    => false,    // Experimental, opt-in: register the site's READ-ONLY tools with in-browser AI agents via the WebMCP browser API (navigator.modelContext). Off by default — it's an emerging, Chrome-experimental standard and it adds a small front-end script, so it ships only when the owner asks. The script is inert in browsers without the API.
 			'webmcp_hidden_tools' => array(), // Owner opt-OUT: names of WebMCP tools to hide from browser agents (deny-list; empty = expose every registered tool). Lets the owner curate per-tool which to expose.
 			'llms_full_posts'  => 50,
-			'llms_full_max_kb' => 1024, // Hard byte budget for /llms-full.txt (KB): generation stops cleanly here and links the index. Keeps the file ingestible and under common 1 MB object-cache row limits.
+			'llms_full_max_kb' => 900, // Hard byte budget for /llms-full.txt (KB): generation stops cleanly here and links the index. Deliberately UNDER 1024, not at it: a ~1 MB body sits exactly at the common memcached item ceiling, so with the key + serialization overhead the object cache silently REJECTS it — then every request re-runs the full build. 900 KB leaves headroom so the document actually caches. Filterable higher for sites whose cache (or lack of one) can take it.
 			'post_types'       => self::default_post_types(),
 			'evergreen_categories' => array(), // Category term IDs whose posts are exempt from the content "freshness" check — timeless content (references, tutorials, legal) that doesn't go stale with age. Empty = every post is age-checked.
 			'optimize_ignored'     => array(), // Post IDs the owner marked "not cited content" from the Optimize worklist — pages that aren't meant to be quoted (landing/utility/index). Left out of citability grading entirely; always shown as a visible "set aside" count so the score stays honest.
@@ -132,6 +132,13 @@ final class Settings {
 			'tidy_head_links'         => false, // Strip rarely-used auto-generated discovery links (shortlink, oEmbed discovery, RSD/WLW) from the page head + Link header — trims the scrapeable footprint. Keeps the REST api.w.org link (intentional discovery).
 			'disable_xmlrpc'          => false, // Disable legacy XML-RPC (xmlrpc.php) — the pingback / system.multicall brute-force-amplification + DDoS surface. Modern clients use the REST API.
 			'exposed_extra_paths'     => array(), // Owner-added paths for the "exposed files" self-check (Settings → Exposure), on top of the built-in list. Scan runs browser-side from Readiness; see Exposure::sensitive_paths().
+			// Agent access — record who authenticates to, and acts on, the machine surface this
+			// plugin creates: application passwords being minted/used/revoked, and abilities being
+			// invoked. ON by default, unlike the opt-in controls above, because it is the rare
+			// one with nothing to trade off: it stores no personal data (no IP, no location — see
+			// AgentAccess\Table), makes no outbound request, and its hot path is an object-cache
+			// read. It observes and reports; it never blocks anything.
+			'agent_access_events'     => true,
 		);
 
 		/**
@@ -444,6 +451,76 @@ final class Settings {
 		if ( false === get_option( self::OPTION, false ) ) {
 			add_option( self::OPTION, $this->defaults() );
 		}
+	}
+
+	/** Bump when a new step is added to {@see maybe_migrate_defaults()}. */
+	const DEFAULTS_MIGRATION        = 2;
+	const DEFAULTS_MIGRATED_OPTION  = 'agentimus_defaults_migrated';
+
+	/**
+	 * One-shot, step-versioned migrations for installs upgrading from an older release. Each step
+	 * runs at most once (gated on the stored step number), so a later bump never re-runs an earlier
+	 * step — which is what lets a step that nudges a default coexist with the owner later re-choosing
+	 * the old value without being fought.
+	 *
+	 *   Step 1 — lower the un-customised llms-full budget from the old 1024 KB (which sat exactly at
+	 *            the common 1 MB object-cache item ceiling, so /llms-full.txt silently failed to
+	 *            cache) to 900. Only touches a value still EQUAL to the old default; a value the
+	 *            owner chose is left alone.
+	 *   Step 2 — force-autoload the tiny flags that are read on EVERY boot (the six *_db_version
+	 *            stamps + this migration flag). update_option() does not flip an existing row's
+	 *            autoload, so an install upgraded from a release that wrote them autoload=off would
+	 *            keep paying one indexed query per read on a site with no persistent object cache.
+	 *
+	 * @return void
+	 */
+	public function maybe_migrate_defaults() {
+		$done = (int) get_option( self::DEFAULTS_MIGRATED_OPTION, 0 );
+		if ( $done >= self::DEFAULTS_MIGRATION ) {
+			return;
+		}
+
+		// Step 1 — the llms-full default nudge. Runs only if this install has never done it, so a
+		// later step bump can't re-nudge a value the owner deliberately re-chose after step 1.
+		if ( $done < 1 ) {
+			$saved = get_option( self::OPTION );
+			if ( is_array( $saved ) && isset( $saved['llms_full_max_kb'] ) && 1024 === (int) $saved['llms_full_max_kb'] ) {
+				$saved['llms_full_max_kb'] = 900;
+				update_option( self::OPTION, $saved );
+			}
+		}
+
+		// Step 2 — flip the per-boot flags to autoloaded in place. wp_set_option_autoload() is WP
+		// 6.4+; below that (our 6.0 floor) the install keeps the old per-request read — a tiny,
+		// shrinking population, and a perf nuance, not a defect.
+		if ( $done < 2 && function_exists( 'wp_set_option_autoload' ) ) {
+			foreach ( self::per_boot_flag_options() as $flag ) {
+				if ( false !== get_option( $flag, false ) ) {
+					wp_set_option_autoload( $flag, true );
+				}
+			}
+		}
+
+		update_option( self::DEFAULTS_MIGRATED_OPTION, self::DEFAULTS_MIGRATION );
+	}
+
+	/**
+	 * The small flags read on every boot (schema-version stamps + the migration flag). They belong
+	 * in the single autoloaded alloptions load rather than a per-request query each. Fresh writes
+	 * already default to autoloaded; {@see maybe_migrate_defaults()} step 2 flips existing rows.
+	 *
+	 * @return string[]
+	 */
+	private static function per_boot_flag_options() {
+		return array(
+			self::DEFAULTS_MIGRATED_OPTION,
+			'agentimus_activity_db_version',
+			'agentimus_referrals_db_version',
+			'agentimus_unknown_sources_db_version',
+			'agentimus_flagged_ips_db_version',
+			'agentimus_agent_access_db_version',
+			'agentimus_visibility_db_version',
+		);
 	}
 
 	/**

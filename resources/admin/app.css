@@ -2906,7 +2906,9 @@ a.ar-about-proto__v:hover { text-decoration: underline; }
    metadata. A destination name is the former. */
 .ar__more-item {
   appearance: none; background: none; border: 0; cursor: pointer;
-  display: grid; grid-template-columns: 16px minmax(0, 1fr); align-items: center;
+  /* Third column carries the unread badge. `auto` collapses to nothing on the items that
+     don't have one, so the existing rows are untouched. */
+  display: grid; grid-template-columns: 16px minmax(0, 1fr) auto; align-items: center;
   column-gap: 10px; width: 100%;
   text-align: left; white-space: nowrap;
   padding: 8px 10px; border-radius: var(--ar-radius);
@@ -2969,3 +2971,143 @@ a.ar-about-proto__v:hover { text-decoration: underline; }
 /* "Keep records for" is twice the width of "Size cap", so without a reserved label column
    the two dropdowns start at different x. Fixed basis, no shrink: one column, aligned. */
 .ar-field--log > label { flex: 0 0 132px; }
+
+/* ---------------------------------------------------------------------------
+   Agent access — who authenticated to, and ACTED on, the machine surface.
+
+   The screen's design problem is the opposite of most: its resting state is EMPTY,
+   and an empty table quietly reads as "all clear". So the state box and the limits
+   footer are not decoration around the data — on most sites they ARE the content,
+   and they are styled to be read, not skimmed past.
+   --------------------------------------------------------------------------- */
+
+/* Unread count, on the More menu's Agent access row. Matches the review bell's badge. */
+.ar__more-item-badge {
+  grid-column: 3;
+  font-family: var(--ar-mono); font-size: 10px; font-weight: 700; line-height: 1;
+  min-width: 16px; height: 16px; padding: 0 4px; border-radius: 999px;
+  display: inline-flex; align-items: center; justify-content: center;
+  background: var(--ar-bad); color: var(--ar-paper);
+}
+
+/* A dot on the "More" trigger itself: enough to say "something in here is unread"
+   from any screen, without putting a number on a button that aggregates several. */
+.ar__more-dot {
+  width: 6px; height: 6px; border-radius: 999px;
+  background: var(--ar-bad);
+  display: inline-block; margin-left: 5px; vertical-align: middle;
+}
+
+.ar-aa__error { color: var(--ar-bad); font-size: 13px; margin: 0 0 12px; }
+
+/* The coverage box: what we can and cannot see on THIS site. */
+.ar-aa__state {
+  display: flex; gap: 12px; align-items: flex-start;
+  padding: 14px 16px; margin: 0 0 16px;
+  border: 1px solid var(--ar-line); border-left-width: 3px;
+  border-radius: var(--ar-radius);
+  background: var(--ar-surface-2);
+}
+.ar-aa__state--ok   { border-left-color: var(--ar-good); }
+.ar-aa__state--warn { border-left-color: var(--ar-warn); }
+.ar-aa__state--info { border-left-color: var(--ar-info); }
+
+.ar-aa__badge {
+  flex: 0 0 auto;
+  font-family: var(--ar-mono); font-size: 10px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: 0.06em;
+  padding: 3px 7px; border-radius: 999px;
+  background: var(--ar-surface); border: 1px solid var(--ar-line-strong);
+  color: var(--ar-ink-soft); white-space: nowrap;
+}
+.ar-aa__statebody { min-width: 0; }
+.ar-aa__statebody p { margin: 4px 0 0; font-size: 13px; line-height: 1.55; color: var(--ar-ink-soft); }
+.ar-aa__statetitle { margin: 0; font-family: var(--ar-sans); font-size: 14px; font-weight: 600; color: var(--ar-ink); }
+/* The actionable line — the point of showing an unavailable state at all. */
+.ar-aa__action { font-weight: 600; color: var(--ar-ink) !important; }
+
+.ar-aa__table { width: 100%; border-collapse: collapse; margin: 0 0 16px; }
+.ar-aa__table th {
+  text-align: left; padding: 8px 10px;
+  font-family: var(--ar-mono); font-size: 10px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: 0.06em;
+  color: var(--ar-ink-faint); border-bottom: 1px solid var(--ar-line-strong);
+  white-space: nowrap;
+}
+.ar-aa__table td {
+  padding: 10px; font-size: 13px; color: var(--ar-ink-soft);
+  border-bottom: 1px solid var(--ar-line); vertical-align: top;
+}
+.ar-aa__table tr.is-unseen td { background: rgba(20, 107, 100, 0.045); }
+.ar-aa__what { display: block; font-weight: 600; color: var(--ar-ink); }
+
+/* The sentence the whole feature exists to deliver: an application password keeps working
+   after a password change, so an unrecognised one has to be revoked, not just noted. */
+.ar-aa__hint {
+  display: block; margin-top: 4px;
+  font-size: 12px; line-height: 1.5; color: var(--ar-ink-faint);
+}
+
+/* "Nothing yet" — deliberately NOT a cheerful all-clear. */
+.ar-aa__empty {
+  padding: 22px 18px; margin: 0 0 16px;
+  border: 1px dashed var(--ar-line-strong); border-radius: var(--ar-radius);
+  text-align: center;
+}
+.ar-aa__empty h3 { margin: 0 0 6px; font-family: var(--ar-sans); font-size: 15px; font-weight: 600; color: var(--ar-ink); }
+.ar-aa__empty p { margin: 0 auto; max-width: 62ch; font-size: 13px; line-height: 1.6; color: var(--ar-ink-soft); }
+
+/* Standing blind spots, always on screen. Same job as the request log's footer note. */
+.ar-aa__limits {
+  margin: 0; padding-top: 14px; border-top: 1px solid var(--ar-line);
+  font-size: 12px; line-height: 1.6; color: var(--ar-ink-faint);
+}
+.ar-aa__limits strong { color: var(--ar-ink-soft); }
+
+/* "New" on a row the owner has not read. The nav badge sends them here asking "which one?" —
+   a faint row tint alone is too easy to lose on a long list, so the answer is spelled out. */
+.ar-aa__new {
+  display: inline-block; margin-left: 6px; vertical-align: 1px;
+  font-family: var(--ar-mono); font-size: 9px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: 0.06em;
+  padding: 2px 5px; border-radius: 999px;
+  background: var(--ar-bad); color: var(--ar-paper);
+}
+
+/* What the VIEW is holding back — distinct from the standing blind spots in .ar-aa__limits.
+   A list that stops at 100 without saying so reads as "that's everything". */
+.ar-aa__more {
+  display: flex; align-items: center; justify-content: space-between; gap: 16px;
+  flex-wrap: wrap; margin: 0 0 16px;
+}
+.ar-aa__count {
+  margin: 0; flex: 1 1 auto; min-width: 0;
+  font-size: 12px; line-height: 1.6; color: var(--ar-ink-faint);
+}
+.ar-aa__count strong { color: var(--ar-ink-soft); font-weight: 600; }
+
+/* Newer / Older — same cursor walk as the request log's pager, so the two log screens read as
+   one control rather than two inventions. */
+.ar-aa__pager { display: flex; gap: 8px; flex: 0 0 auto; }
+
+/* "Not published" on a Discovery Hub row. The row is listed either way — the owner must be able
+   to see (and reverse) what their site holds back — but listing it without a caveat would read
+   as "this is live". */
+.ar-wd-held {
+  font-family: var(--ar-mono); font-size: 10px; font-weight: 600; letter-spacing: 0.04em;
+  padding: 2px 7px; border-radius: 999px;
+  background: var(--ar-surface-2); border: 1px solid var(--ar-line-strong);
+  color: var(--ar-ink-faint); white-space: nowrap;
+}
+.ar-wd-prov__held {
+  margin: 6px 0 0; padding: 8px 10px;
+  border-left: 2px solid var(--ar-line-strong); border-radius: 0 var(--ar-radius) var(--ar-radius) 0;
+  background: var(--ar-surface-2);
+  font-size: 12px; line-height: 1.6; color: var(--ar-ink-faint);
+}
+
+/* A refusal or a probe: the first rows here that might mean someone is trying it on. A warn tone,
+   never the word "attack" — we cannot know that, and the hit count is the honest signal. */
+.ar-aa__table tr.is-refusal td { border-left: 2px solid var(--ar-warn); }
+.ar-aa__table tr.is-refusal td:not(:first-child) { border-left: 0; }
+.ar-aa__hint--warn { color: var(--ar-ink-soft); font-weight: 500; }

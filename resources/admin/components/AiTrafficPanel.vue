@@ -259,8 +259,9 @@ export default {
       </p>
       <p v-if="beacon" class="ar-card__lead">
         <strong>CDN mode is on</strong> — these are counted in your visitors’ browsers so the number
-        survives a full-page cache. A few visitors whose ad-blocker or privacy browser blocks the
-        counting script won’t be included, so this stays a minimum — never an over-count.
+        survives a full-page cache. Treat it as indicative, not exact: a visitor whose ad-blocker
+        blocks the counting script is missed, and because the count comes from the browser it can
+        also be inflated by automated traffic. It’s a useful trend, not an audited figure.
       </p>
 
       <!-- The assistant is a closed set drawn from the log itself, so it's a dropdown. The

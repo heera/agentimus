@@ -90,6 +90,16 @@ export function createApi(boot) {
     checkIp: (ip) =>
       request('/activity/check-ip', { method: 'POST', body: JSON.stringify({ ip }) }),
 
+    // Agent access: who authenticated to, and acted on, the machine surface. The payload
+    // carries its own coverage verdict (see AgentAccess\Events::ability_coverage) because
+    // what this screen can HONESTLY see differs per site — an empty feed is not the same
+    // fact as "we cannot see anything here", and the UI must never conflate them.
+    // Cursor walk, same shape as the request log: `before` is the id of the last row on the page
+    // you're leaving. Page numbers would be a lie on a log that grows under you.
+    getAgentAccess: (before = 0) => request(`/agent-access${before ? `?before=${before | 0}` : ''}`),
+    markAgentAccessSeen: () => request('/agent-access/seen', { method: 'POST' }),
+    clearAgentAccess: () => request('/agent-access', { method: 'DELETE' }),
+
     // AI Visibility monitoring.
     getVisibilityConfig: () => request('/visibility/config'),
     saveVisibilityConfig: (config) =>

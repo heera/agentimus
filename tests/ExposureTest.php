@@ -171,7 +171,33 @@ final class ExposureTest extends TestCase {
 			'slug archive' => array( 'jane-doe', false ),
 			'empty'        => array( '', false ),
 			'mixed'        => array( '1x', false ),
+			// `?author[]=1` hands us an array. Casting one to string raises an "Array to string
+			// conversion" warning — on an anonymous front-end request, which is the last place a
+			// stray PHP notice should ever surface. Must answer false, quietly.
+			'array probe'  => array( array( '1' ), false ),
+			'null'         => array( null, false ),
 		);
+	}
+
+	/**
+	 * The array case must not merely return false — it must do so WITHOUT emitting a PHP
+	 * warning. PHPUnit converts warnings to exceptions, so a regression fails here rather
+	 * than silently polluting a public page's output.
+	 */
+	public function test_array_author_raises_no_php_warning() {
+		$this->assertFalse( @Exposure::is_author_enumeration( array( '1' ) ) ); // phpcs:ignore WordPress.PHP.NoSilencedErrors -- proving the call is silent; @ would hide a warning that the assertion below still catches.
+
+		$raised = false;
+		set_error_handler(
+			static function () use ( &$raised ) {
+				$raised = true;
+				return true;
+			}
+		);
+		Exposure::is_author_enumeration( array( '1' ) );
+		restore_error_handler();
+
+		$this->assertFalse( $raised, 'is_author_enumeration() must not raise a PHP warning for an array.' );
 	}
 
 	/* -- XML-RPC --------------------------------------------------------- */

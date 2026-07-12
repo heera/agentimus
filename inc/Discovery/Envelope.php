@@ -109,24 +109,7 @@ final class Envelope {
 	 * @return array
 	 */
 	public function build() {
-		$this->registry->collect();
-		$resources = array_values( $this->registry->resources() );
-
-		// Owner authority / the publication boundary (spec §04, M14): drop any
-		// Resource the owner suppressed. A provider proposes; the owner disposes.
-		// Filtering here, before any derivation, keeps suppressed Resources out of
-		// apis[], agents[], capabilities AND resources[] — every served surface.
-		$suppressed = $this->suppressed_ids();
-		if ( ! empty( $suppressed ) ) {
-			$resources = array_values(
-				array_filter(
-					$resources,
-					static function ( $r ) use ( $suppressed ) {
-						return ! in_array( $r['id'], $suppressed, true );
-					}
-				)
-			);
-		}
+		$resources = $this->published_resources();
 
 		// The frozen wire-format core: exactly the eleven top-level keys the spec
 		// (§02 / M2) defines, in order. Experimental surfaces — the MCP descriptor
@@ -150,7 +133,7 @@ final class Envelope {
 			'well_known'   => $this->well_known_index(),
 			'apis'         => $this->apis( $resources ),
 			'agents'       => $this->agents( $resources ),
-			'resources'    => array_map( array( $this, 'absolutize_resource' ), $resources ),
+			'resources'    => array_map( array( $this, 'wire_resource' ), $resources ),
 			'capabilities' => $this->capabilities( $resources ),
 			// Cast to object so an empty trust block encodes as {}, not [].
 			'trust'        => (object) $this->trust(),
@@ -199,6 +182,48 @@ final class Envelope {
 	public function all_resources() {
 		$this->registry->collect();
 		return array_map( array( $this, 'absolutize_resource' ), array_values( $this->registry->resources() ) );
+	}
+
+	/**
+	 * Every Resource that may actually be PUBLISHED — the single source of truth for what any
+	 * served surface is allowed to say.
+	 *
+	 * Owner authority / the publication boundary (spec §04, M14): a provider proposes, the owner
+	 * disposes. Filtering before any derivation keeps suppressed Resources out of apis[], agents[],
+	 * capabilities AND resources[].
+	 *
+	 * This USED to live inline in build(), and the comment there claimed it covered "every served
+	 * surface". It did not. {@see McpSurface} collected straight from the registry, so an owner who
+	 * suppressed a Resource still had it published — with full tool schemas — at the public
+	 * /.well-known/mcp.json. The rule is only real if every served surface reads it from one place,
+	 * so this is that place. build() and McpSurface both go through here.
+	 *
+	 * NOT for the admin (see {@see all_resources()}): the Discovery screen shows suppressed
+	 * Resources, flagged, so the owner can re-enable them.
+	 *
+	 * @return array[]
+	 */
+	public function published_resources() {
+		$this->registry->collect();
+		$resources = array_values( $this->registry->resources() );
+
+		$suppressed = $this->suppressed_ids();
+
+		return array_values(
+			array_filter(
+				$resources,
+				static function ( $r ) use ( $suppressed ) {
+					// The OWNER's decision.
+					if ( in_array( $r['id'], $suppressed, true ) ) {
+						return false;
+					}
+					// The PROVIDER's decision: a resource nobody anonymous could ever use. See
+					// Resource::normalize()'s `public` field, and AbilitiesApi, which sets it false for
+					// abilities that all require sign-in.
+					return ! isset( $r['public'] ) || (bool) $r['public'];
+				}
+			)
+		);
 	}
 
 	/**
@@ -633,6 +658,24 @@ final class Envelope {
 		$resource['docs']       = $this->absolute( $resource['docs'] );
 		$resource['auth']['oidc'] = $this->absolute( $resource['auth']['oidc'] );
 		$resource['auth']['docs'] = $this->absolute( $resource['auth']['docs'] );
+		return $resource;
+	}
+
+	/**
+	 * A resource shaped for the SERVED document: absolutized, with internal-only fields removed.
+	 *
+	 * `public` is a publication-boundary flag consumed by {@see published_resources()}, not part of
+	 * the wire contract. discovery.json ships a canonical JSON Schema, so an extra key would make a
+	 * strict (`additionalProperties:false`) consumer reject the document. The admin path
+	 * ({@see all_resources()}) deliberately keeps `public` — the Discovery screen needs it to flag
+	 * held-back resources — so it is stripped HERE, on the served path, not in absolutize_resource().
+	 *
+	 * @param array $resource A published resource.
+	 * @return array
+	 */
+	private function wire_resource( $resource ) {
+		$resource = $this->absolutize_resource( $resource );
+		unset( $resource['public'] );
 		return $resource;
 	}
 

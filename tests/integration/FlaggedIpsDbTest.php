@@ -83,4 +83,30 @@ final class FlaggedIpsDbTest extends DbTestCase {
 		FlaggedIps::clear();
 		$this->assertEmpty( FlaggedIps::for_keys( array( 'ua:new' ) ), 'clear empties the store' );
 	}
+
+	public function test_the_per_client_cap_survives_ips_recorded_in_the_same_second() {
+		// The cap was enforced with `DELETE ... WHERE last_at < cutoff`, and last_at has one-second
+		// granularity — so a client presenting more than PER_CLIENT_MAX addresses inside a single
+		// second had every row tie with the cutoff, matched nothing, and blew straight past the cap.
+		// A distributed scan hitting from many IPs at once is exactly the traffic that gets flagged,
+		// so the cap failed precisely when it mattered. Writing these in one loop guarantees the
+		// shared timestamp that reproduces it.
+		$ckey = 'ua:' . md5( 'flood-scanner' );
+		$over = FlaggedIps::PER_CLIENT_MAX + 15;
+		for ( $i = 0; $i < $over; $i++ ) {
+			FlaggedIps::record( $ckey, '203.0.113.' . $i );
+		}
+
+		// cap_client() is private and normally fires opportunistically (~1 in 8 inserts), which would
+		// make this test flaky. Reflection calls it deterministically rather than adding a
+		// test-only seam to production code.
+		$cap = new \ReflectionMethod( FlaggedIps::class, 'cap_client' );
+		$cap->setAccessible( true );
+		$cap->invoke( null, $ckey );
+
+		global $wpdb;
+		$table = FlaggedIps::name();
+		$kept  = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM `$table` WHERE ckey = %s", $ckey ) ); // phpcs:ignore WordPress.DB
+		$this->assertSame( FlaggedIps::PER_CLIENT_MAX, $kept, 'The per-client IP cap must hold even when every row shares one timestamp.' );
+	}
 }

@@ -19,8 +19,21 @@ export default {
         <!-- Only flag the agent card when the type isn't already "agent" — avoids a redundant double badge. -->
         <span v-if="r.hasAgent && r.type !== 'agent'" class="ar-wd-type ar-wd-type--agent">agent card</span>
         <span v-if="r.version" class="ar-wd-ver">v{{ r.version }}</span>
+        <!-- A row listed with no caveat reads as "this is live". These two say otherwise, and they
+             are different things: `suppressed` is the OWNER's own choice, `notPublic` is the
+             provider stating that nobody anonymous could use it anyway. -->
+        <span v-if="r.suppressed" class="ar-wd-held">Not published · you turned it off</span>
+        <span v-else-if="r.notPublic" class="ar-wd-held">Not published · sign-in required</span>
       </div>
       <p v-if="r.description" class="ar-wd-prov__desc">{{ r.description }}</p>
+      <!-- Say WHY, not just that. An owner seeing "not published" with no reason will assume
+           something is broken. -->
+      <p v-if="!r.suppressed && r.notPublic" class="ar-wd-prov__held">
+        Every tool here needs an authenticated WordPress user, so an anonymous agent could never
+        run one. Advertising them in the public discovery documents would hand out a map of your
+        tooling — the full descriptions and input/output schemas — without letting any agent
+        actually use it. Agents that hold real credentials still find them the proper way.
+      </p>
       <p class="ar-wd-prov__provider">
         <span v-if="r.auto">Found automatically · via the {{ r.engine }}</span>
         <span v-else>Provided by <code>{{ r.provider }}</code></span>

@@ -81,7 +81,7 @@ final class FlaggedIps {
 ) $collate;";
 
 		dbDelta( $sql );
-		update_option( self::VERSION_OPTION, self::VERSION, false );
+		update_option( self::VERSION_OPTION, self::VERSION ); // Autoloaded: read on every boot by maybe_install(), so it belongs in the single alloptions load.
 	}
 
 	/**
@@ -138,13 +138,24 @@ final class FlaggedIps {
 	private static function cap_client( $ckey ) {
 		global $wpdb;
 		$table = self::name();
+		// Delete by ID against an explicit keep-list, NOT `last_at < cutoff`.
+		//
+		// `last_at` has one-second granularity, so when a client presents more than PER_CLIENT_MAX
+		// addresses inside a single second every row ties with the cutoff, `< cutoff` matches
+		// nothing, and the cap silently no-ops. That is not a corner case here: a distributed scan
+		// hitting from many IPs at once is precisely the traffic that gets flagged, so the cap
+		// failed exactly when it was needed. `id` is auto-increment and cannot tie.
 		// phpcs:disable WordPress.DB, PluginCheck.Security.DirectDB.UnescapedDBParameter -- $table is our own prefix-derived name; values are bound via prepare().
-		$cutoff = $wpdb->get_var(
-			$wpdb->prepare( "SELECT last_at FROM $table WHERE ckey = %s ORDER BY last_at DESC LIMIT 1 OFFSET %d", $ckey, self::PER_CLIENT_MAX )
+		$wpdb->query(
+			$wpdb->prepare(
+				"DELETE FROM $table WHERE ckey = %s AND id NOT IN (
+					SELECT id FROM ( SELECT id FROM $table WHERE ckey = %s ORDER BY last_at DESC, id DESC LIMIT %d ) AS keep
+				)",
+				$ckey,
+				$ckey,
+				self::PER_CLIENT_MAX
+			)
 		);
-		if ( $cutoff ) {
-			$wpdb->query( $wpdb->prepare( "DELETE FROM $table WHERE ckey = %s AND last_at < %s", $ckey, $cutoff ) );
-		}
 		// phpcs:enable WordPress.DB, PluginCheck.Security.DirectDB.UnescapedDBParameter
 	}
 

@@ -347,7 +347,7 @@ final class PageCheck {
 		if ( '' === $home_host || ! preg_match( '#^https?://#i', $href ) ) {
 			return false;
 		}
-		$host = parse_url( $href, PHP_URL_HOST ); // native: always available in the stats() unit path; href is already known-absolute.
+		$host = wp_parse_url( $href, PHP_URL_HOST ); // href is already known-absolute; wp_parse_url is stubbed for the stats() unit path.
 		return is_string( $host ) && strtolower( $host ) !== $home_host;
 	}
 

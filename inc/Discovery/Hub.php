@@ -99,7 +99,21 @@ final class Hub {
 				),
 				'capabilities' => count( $envelope['capabilities'] ),
 				'apis'         => count( $envelope['apis'] ),
-				'tools'        => count( $surface['tools'] ),
+				// `tools` counts what the site HAS, not what it anonymously publishes — this card is
+				// the owner's inventory of their own site, and an AUTHORISED agent really can run all
+				// of them. Counting only published tools would read 0 the moment abilities stopped
+				// being advertised anonymously, which looks like they vanished. `toolsPublished` keeps
+				// the published number available, and the Discovery screen flags which rows are held
+				// back and why.
+				'tools'        => array_sum(
+					array_map(
+						static function ( $r ) {
+							return isset( $r['tools'] ) ? count( (array) $r['tools'] ) : 0;
+						},
+						$builder->all_resources()
+					)
+				),
+				'toolsPublished' => count( $surface['tools'] ),
 				'errors'       => count(
 					array_filter(
 						$registry->notices(),
@@ -143,6 +157,13 @@ final class Hub {
 			'engine'       => $engine,
 			// True when the owner has suppressed this Resource from served output.
 			'suppressed'   => in_array( $resource['id'], $suppressed, true ),
+			// True when the PROVIDER kept it out of the served documents because nobody anonymous
+			// could use it anyway (see Resource::normalize()'s `public`, and AbilitiesApi). Distinct from
+			// `suppressed`, which is the owner's own choice and is theirs to reverse.
+			//
+			// This flag is not decoration. Without it the admin lists a Resource with no indication
+			// that no agent can see it — and a row shown without a caveat reads as "this is live".
+			'notPublic'    => isset( $resource['public'] ) && ! $resource['public'],
 			'capabilities' => $resource['capabilities'],
 			'endpoints'    => array_map(
 				static function ( $endpoint ) {

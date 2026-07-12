@@ -135,14 +135,18 @@ final class WellKnownDocs {
 	 * @return string JSON, or '' when no skills are exposed.
 	 */
 	public function agent_skills_index_json() {
-		$this->registry->collect();
-		$resources  = array_values( $this->registry->resources() );
-		$suppressed = $this->envelope->suppressed_ids();
+		// published_resources(), NOT the raw registry. This is a SERVED, anonymous surface, so it
+		// must apply the full publication boundary — owner suppression AND the provider's `public`
+		// flag. Reading the registry directly filtered suppression alone and leaked every gated
+		// ability's id, name and full description here (scan-exposed-files among them) even after
+		// they were correctly removed from discovery.json, mcp.json and agent-card. Every other
+		// served surface already sources from this one gate; this method was the sole exception.
+		$resources = $this->envelope->published_resources();
 
 		$skills = array();
 		foreach ( $resources as $resource ) {
 			$agent = ( isset( $resource['agent'] ) && is_array( $resource['agent'] ) ) ? $resource['agent'] : array();
-			if ( in_array( $resource['id'], $suppressed, true ) || empty( $agent['skills'] ) || ! is_array( $agent['skills'] ) ) {
+			if ( empty( $agent['skills'] ) || ! is_array( $agent['skills'] ) ) {
 				continue;
 			}
 			foreach ( $agent['skills'] as $skill ) {

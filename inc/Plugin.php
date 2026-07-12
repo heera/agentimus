@@ -64,6 +64,12 @@ final class Plugin {
 
 		$this->settings = new Settings();
 
+		// One-shot correction of un-customised defaults we've since lowered (currently the
+		// llms-full byte budget, which used to sit exactly at the 1 MB object-cache ceiling). Cheap
+		// once the flag is set: the flag is autoloaded, so the guard short-circuits with no extra
+		// query before it touches the settings option.
+		$this->settings->maybe_migrate_defaults();
+
 		// Record which plugin registered each post type at runtime (a one-time
 		// backtrace, no hardcoded plugin list) so Content::source() can name a CPT's
 		// vendor — e.g. a generic "Products" type attributed to FluentCart vs
@@ -95,6 +101,10 @@ final class Plugin {
 		( new Activity\Module( $this->settings ) )->register();
 		( new WebMcp( $this->settings ) )->register();
 		( new Exposure( $this->settings ) )->register();
+		// Agent Access must boot BEFORE the Registrar: the Registrar wraps each ability's execute
+		// callback with AgentAccess's observer at registration time, and the ability listener has
+		// to be hooked before any ability can run.
+		( new AgentAccess\Module( $this->settings ) )->register(); // Records app-password lifecycle + ability invocations. Inert where neither exists.
 		( new Abilities\Registrar( $this->settings ) )->register(); // Exposes our own read capabilities to the WP admin AI + MCP (no-ops pre-6.9).
 
 		// AI Visibility monitoring (opt-in, BYOK). Its config, keys and results live
@@ -170,11 +180,12 @@ final class Plugin {
 		Activity\Table::install();
 		Activity\Referrals::install();
 		Activity\UnknownSources::install();
+		AgentAccess\Table::install();
 		Activity\Module::schedule();
 		Visibility\Table::install();
 		Visibility\Module::schedule();
 		Discovery\WellKnown::add_rules();
-		flush_rewrite_rules();
+		self::flush_rewrites_in_context();
 		// Record the signature we just flushed for, so maybe_flush_rewrites() no-ops on
 		// the next request rather than flushing again. We intentionally do NOT seed the
 		// last-flush timestamp here: that belongs to the auto-flush path, so the first
@@ -308,6 +319,29 @@ final class Plugin {
 		Activity\Module::unschedule();
 		Visibility\Module::unschedule();
 		wp_clear_scheduled_hook( 'agentimus_warm_llms_full' );
+		wp_clear_scheduled_hook( Visibility\Module::HOOK_ONCE ); // the one-off "run now" event, if queued.
+		self::flush_rewrites_in_context();
+	}
+
+	/**
+	 * Flush rewrite rules correctly whether or not we're inside switch_to_blog().
+	 *
+	 * flush_rewrite_rules() regenerates from the GLOBAL $wp_rewrite, whose permalink_structure is
+	 * cached for the ORIGINATING site and is NOT re-initialised by switch_to_blog(). Called while
+	 * switched to a sub-site — the network activation/deactivation loops, and wp_initialize_site for
+	 * a new sub-site — it would write the MAIN site's rules (and only the currently-loaded plugins'
+	 * rules) into that sub-site, 404ing its post URLs. In a switched context we instead DROP the
+	 * cached rules: the sub-site regenerates correct ones (its own permalink structure + its own
+	 * active plugins, including our add_rules() at init) on its next request. The real, immediate
+	 * flush is right only in the non-switched, single-site path.
+	 *
+	 * @return void
+	 */
+	private static function flush_rewrites_in_context() {
+		if ( function_exists( 'ms_is_switched' ) && ms_is_switched() ) {
+			delete_option( 'rewrite_rules' );
+			return;
+		}
 		flush_rewrite_rules();
 	}
 

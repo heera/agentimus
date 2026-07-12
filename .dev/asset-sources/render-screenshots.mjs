@@ -64,6 +64,7 @@ async function fullTab(hash, name) {
 await fullTab('#dashboard', 'screenshot-1');
 await fullTab('#readiness', 'screenshot-3');
 await fullTab('#discovery', 'screenshot-4');
+await fullTab('#agent-access', 'screenshot-17'); // Agent access — the credential/ability event feed.
 
 // The Settings page is now a tabbed panel; pick a group by clicking its sub-nav tab.
 async function settingsGroup(page, label) {

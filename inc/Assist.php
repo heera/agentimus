@@ -52,6 +52,11 @@ final class Assist {
 	 */
 	const OUTPUT_TOKENS = 1600;
 
+	/** Paid AI calls one user may fire per {@see ASSIST_RATE_WINDOW}. Generous for a human clicking
+	 *  "Draft"/"Fix" across a post's fields; a hard ceiling on a scripted burst. Filterable. */
+	const ASSIST_RATE_MAX    = 20;
+	const ASSIST_RATE_WINDOW = 60;
+
 	/** @var Settings */
 	private $settings;
 
@@ -421,6 +426,21 @@ final class Assist {
 			return new \WP_Error( 'agentimus_ai_unavailable', __( 'No AI text model is configured. Add or enable one under Settings → AI.', 'agentimus' ), array( 'status' => 503 ) );
 		}
 
+		// Spend backstop, checked immediately BEFORE the one paid call this method makes. Both
+		// Assist routes gate only on edit_post, so any Contributor+ (or a compromised such account)
+		// holds a valid nonce and could otherwise script unbounded — and parallel — POSTs, each
+		// firing a real model call: a financial DoS on the owner's AI bill. A human clicking
+		// "Draft"/"Fix" never approaches the cap; a script is bounded to a drip the owner can notice.
+		// The Visibility Runner already carries an equivalent backstop (single-flight + a call
+		// ceiling); this brings the edit-time path up to the same footing.
+		if ( self::rate_limited() ) {
+			return new \WP_Error(
+				'agentimus_ai_rate_limited',
+				__( 'Too many AI requests in a short time. Please wait a moment and try again.', 'agentimus' ),
+				array( 'status' => 429 )
+			);
+		}
+
 		$text = $builder->generate_text();
 		if ( is_wp_error( $text ) ) {
 			return $text; // Already a WP_Error with an HTTP status from the AI Client.
@@ -430,6 +450,40 @@ final class Assist {
 			return new \WP_Error( 'agentimus_ai_empty', __( 'The AI returned an empty response — please try again.', 'agentimus' ), array( 'status' => 502 ) );
 		}
 		return $text;
+	}
+
+	/**
+	 * Whether the current user has spent this window's Assist call budget. A coarse per-user,
+	 * per-window transient counter — the same shape as the activity flood cap. Approximate under
+	 * heavy parallelism (transients are not atomic), which is fine: it converts an UNBOUNDED
+	 * parallel burst into a small bounded multiple, which is the whole point. Counts only calls that
+	 * reach here — i.e. that are about to fire a paid request.
+	 *
+	 * @return bool True when over budget (the caller returns 429).
+	 */
+	private static function rate_limited() {
+		$user = get_current_user_id();
+		if ( $user <= 0 ) {
+			return false; // No anonymous path — the routes require edit_post — but fail open if so.
+		}
+
+		/**
+		 * Filter the per-user Assist call budget (paid AI calls per minute). 0 disables the cap.
+		 *
+		 * @param int $max Calls allowed per window.
+		 */
+		$max = (int) apply_filters( 'agentimus_assist_rate_max', self::ASSIST_RATE_MAX );
+		if ( $max < 1 ) {
+			return false;
+		}
+
+		$key   = 'agentimus_assist_rate_' . $user . '_' . (int) floor( time() / self::ASSIST_RATE_WINDOW );
+		$count = (int) get_transient( $key );
+		if ( $count >= $max ) {
+			return true;
+		}
+		set_transient( $key, $count + 1, self::ASSIST_RATE_WINDOW * 2 );
+		return false;
 	}
 
 	/* ---------------------------------------------------------------------- *
