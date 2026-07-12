@@ -126,8 +126,9 @@ final class Catalog {
 	 *
 	 *  - `name`   : the bot's product token parsed from the UA (e.g. "SomeNewBot"),
 	 *               a better row title than the generic classifier label.
-	 *  - `url`    : the "+https://…" the crawler declares in its OWN User-Agent, if
-	 *               any. This is the client's CLAIM, not verified (a spoofer can put
+	 *  - `url`    : the home page the crawler declares in its OWN User-Agent, if
+	 *               any — "+https://…" by convention, but a bare "https://…" counts
+	 *               too. This is the client's CLAIM, not verified (a spoofer can put
 	 *               anything here) — the UI labels it so and shows the host. Only
 	 *               http(s) is accepted and the value is sanitised before output.
 	 *  - `host`   : that URL's host (sans www), so the UI can show where it leads.
@@ -143,9 +144,11 @@ final class Catalog {
 			return $out;
 		}
 
-		// The "+https://…" many well-behaved crawlers include. Attacker-controlled,
-		// so require an http(s) scheme and sanitise before it can become a link.
-		if ( preg_match( '~\+\s*(https?://[^\s)\]};,"\']+)~i', $ua, $m ) ) {
+		// The home page many well-behaved crawlers include — usually "+https://…",
+		// but some omit the "+" ("ethicrawl/0.1 (…; http://ethicrawl.ai/crawler; …)").
+		// Attacker-controlled either way, so require an http(s) scheme and sanitise
+		// before it can become a link.
+		if ( preg_match( '~(https?://[^\s)\]};,"\']+)~i', $ua, $m ) ) {
 			$url = esc_url_raw( rtrim( $m[1], '.,;:)' ) );
 			if ( '' !== $url && preg_match( '~^https?://~i', $url ) ) {
 				$out['url']  = $url;

@@ -52,8 +52,16 @@ final class ClassifierTest extends TestCase {
 		$this->assertSame( 'Unrecognized', Classifier::classify( 'opaque-client-no-version' ) );
 	}
 
-	public function test_self_declared_unknown_bot_is_other_bot() {
-		$this->assertSame( 'Other bot', Classifier::classify( 'WhateverBot/1.0 (+http://example.com)' ) );
+	public function test_self_declared_unknown_bot_is_named_from_its_token() {
+		// Regression: a UA whose token trips the bot-word bucket ("ethicrawl" contains
+		// "crawl") used to read "Other bot" in the feed while the review queue titled
+		// it by its own product token — the bucket now prefers that token too.
+		$this->assertSame( 'WhateverBot', Classifier::classify( 'WhateverBot/1.0 (+http://example.com)' ) );
+		$this->assertSame( 'ethicrawl', Classifier::classify( 'ethicrawl/0.1 (Ethical crawler respecting robots and AI directives; http://ethicrawl.ai/crawler; contact@ethicrawl.ai)' ) );
+	}
+
+	public function test_bot_ua_with_no_product_token_stays_other_bot() {
+		$this->assertSame( 'Other bot', Classifier::classify( 'some unnamed crawler' ) );
 	}
 
 	public function test_a_catalogued_crawler_is_named_from_the_catalog() {

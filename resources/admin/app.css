@@ -23,9 +23,9 @@
 #wpbody-content { padding-bottom: 16px; }
 
 /* A narrower-breakpoint core rule drops the admin footer's side padding to 20px, which
-   pulls its text left of our content. Hold it at 40px so the footer lines up with the
-   full-bleed app. */
-#wpfooter { padding-left: 40px; padding-right: 40px; color: #a7a7a7; }
+   pulls its text left of our content. Hold it at 34px — the app's content gutter
+   (.ar__body's side padding) — so both footer lines land flush with the card edges. */
+#wpfooter { padding-left: 34px; padding-right: 34px; color: #a7a7a7; }
 
 /* Design tokens — defined globally rather than only on #agentimus-app. Custom
    properties are inert (they paint nothing until a property references them),

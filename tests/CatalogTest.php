@@ -82,6 +82,16 @@ final class CatalogTest extends TestCase {
 		$this->assertStringContainsString( 'FancyCrawler', urldecode( $g['lookup'] ) );
 	}
 
+	public function test_self_declared_extracts_a_bare_url_without_the_plus() {
+		// Regression: ethicrawl writes its home page WITHOUT the "+" convention, so
+		// the review panel said "declares no home page of its own" while the UA
+		// shown right above it plainly contained one.
+		$g = Catalog::self_declared( 'ethicrawl/0.1 (Ethical crawler respecting robots and AI directives; http://ethicrawl.ai/crawler; contact@ethicrawl.ai)' );
+		$this->assertSame( 'http://ethicrawl.ai/crawler', $g['url'] );
+		$this->assertSame( 'ethicrawl.ai', $g['host'] );
+		$this->assertSame( 'ethicrawl', $g['name'] );
+	}
+
 	public function test_self_declared_only_surfaces_http_links() {
 		$g = Catalog::self_declared( 'EvilBot/1.0 (+javascript:alert(1))' );
 		$this->assertSame( '', $g['url'], 'Non-http(s) self-declared schemes are never surfaced.' );

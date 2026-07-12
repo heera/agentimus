@@ -1388,6 +1388,13 @@ export default {
             This only affects the AI files this plugin makes (like <code>llms.txt</code> and <code>discovery.json</code>).
             Your normal pages, your real files on disk, and anything your SSL certificate needs keep working as usual.
           </p>
+
+          <p v-if="!settings.verify_bots" class="ar-card__note ar-warn">
+            ⚠ <strong>One costume beats this list.</strong> Blocking matches names, and real search engines are
+            always let through — so a blocked bot can dodge every rule here just by calling itself
+            <code>Googlebot</code>. Turn on <strong>Verify search engines by reverse DNS</strong> (below) and a
+            proven fake loses that free pass.
+          </p>
         </div>
 
         <!-- Verification is not gated by blocking: on its own it flags impersonators in

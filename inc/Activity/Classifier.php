@@ -87,8 +87,16 @@ final class Classifier {
 		if ( self::is_spoof( $ua ) ) {
 			return 'Likely spoof/scanner';
 		}
-		// A self-declared crawler we don't have a friendly name for.
+		// A self-declared crawler we don't have a friendly name for: prefer the
+		// product token it declares for itself ("ethicrawl/0.1 …" → "ethicrawl"),
+		// so the activity feed and the review queue (which already titles the row
+		// by that token) agree on who a client is. Only when the UA carries no
+		// parseable token does it fall back to the generic bucket.
 		if ( preg_match( '/bot|crawler|spider|crawl/', $ua ) ) {
+			$declared = Catalog::self_declared( $raw );
+			if ( '' !== $declared['name'] ) {
+				return $declared['name'];
+			}
 			return 'Other bot';
 		}
 		// HTTP client libraries / command-line tools — scripts, not agents
