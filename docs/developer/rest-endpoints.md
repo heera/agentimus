@@ -244,7 +244,9 @@ Registered separately in `inc/Discovery/Module.php`, still under `agentimus/v1`:
 
 Further groups register under `agentimus/v1`; all require `manage_options` and the REST nonce. They are outside the scope of this page but listed for completeness:
 
-- **Activity** (`inc/Activity/Module.php`): `GET`/`DELETE /activity`, `GET /activity/day` (requires a `date` param, `YYYY-MM-DD`), `GET /activity/log`, `POST /activity/block`, `POST /activity/allow`.
+- **Activity** (`inc/Activity/Module.php`): `GET`/`DELETE /activity`, `GET /activity/day` (requires a `date` param, `YYYY-MM-DD`), `GET /activity/ai-day` (same, returning the AI-referral `source → landing page` rows behind the Traffic-from-AI day report), `GET /activity/log`, `POST /activity/block`, `POST /activity/allow`, `POST /activity/dismiss`.
+- **Client decisions** (same module, 1.21.0): `GET /activity/clients` returns every standing decision in one payload — `{ blocked: [{token, at, known}], allowed: [...], ignored: [{key, label, at, hits}], settings: {…} }`, where `at` is a unix time (`0` when the decision predates date tracking) and `known` is the recognition catalog's identity for that token. `POST /activity/undismiss` (`key`) forgets one review-queue dismissal; `POST /activity/client-remove` (`token`, `list`: `blocked_agents` or `allowed_agents`) takes a token off a list. Both mutators return the same refreshed payload, so a single response re-renders the whole view.
+- **Self-check token** (same module, 1.21.0): `POST /activity/selfcheck-token` mints the short-lived token the readiness screen's own live checks carry in an `X-Agentimus-Selfcheck` header. Those checks fetch the public endpoints with `credentials: 'omit'` — they must grade what an *agent* receives — so the owner-skip can't recognise them by cookie; the token does it instead. Only its SHA-256 hash is stored (a transient, two-minute TTL) and `Activity\Owner::skip()` compares in constant time, so an outsider can neither mint nor replay one to keep itself out of the visit log.
 
 ### `GET /activity/log`
 

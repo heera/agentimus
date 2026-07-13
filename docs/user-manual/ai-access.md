@@ -203,6 +203,18 @@ This is on by the setting default, but like the denylist it has *no effect* unti
 
 If you keep the optional activity log on, each recorded agent has one-click **Block this client** and **Allow** buttons. "Block" adds a safe, specific user-agent token to your denylist *and* arms enforcement for you, so the "see it → block it" loop actually bites. It's careful about what it proposes: it will never offer to block a protected search engine, a generic browser, or a plain scripting tool like `curl` — only the crawler's own product name. "Allow" adds the agent to your trusted list.
 
+### Managing your decisions ("Manage clients")
+
+Every one of those choices — blocked, trusted, or ignored from the review queue — is a standing decision, and they're all managed in one place. Next to both the **Blocked user-agents** and **Always allowed** lists sits a **Manage clients** link; it opens a dialog with three tabs:
+
+- **Blocked** — every denylist token, with the crawler's identity where it's a known one (*SemrushBot · Semrush*) and an **Unblock** button.
+- **Allowed** — your trusted list, same treatment, with **Un-trust**.
+- **Ignored** — the clients you dismissed from the review bell. This is the only place they can be seen or reversed: **Un-ignore** lets a client back into the review queue if it's still visiting.
+
+Each row shows *when* you decided. Dates are recorded from 1.21.0 on; decisions made before that simply show none, rather than an invented one. Undoing applies immediately — there is no separate save step — and the settings lists on the screen behind update in step.
+
+Two details worth knowing about **Ignore**: it's a "not now", not a "never" — an ignored client returns to the review bell on its own if its traffic materially grows (its volume must both double *and* grow by a burst's worth since you waved it off). And it's stored without personal data: a name token where the client declares one, otherwise a one-way hash of its user-agent string.
+
 ### What can never be blocked
 
 To make enforcement safe to leave on, several things are *never* denied, whatever your rules say:

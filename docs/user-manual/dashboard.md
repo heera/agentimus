@@ -26,7 +26,7 @@ The **Traffic from AI** card is the "giving back" side of the story: it shows wh
 The card is a summary, over a rolling window (30 days by default):
 
 - **Totals** — visits today, visits across the whole window, and how many distinct assistants sent them.
-- **A per-day sparkline** — the shape of AI referrals across the window, zero-filled so a quiet day reads as a gap rather than being skipped.
+- **A per-day sparkline** — the shape of AI referrals across the window, zero-filled so a quiet day reads as a gap rather than being skipped. **Click any bar** for that day's report — which assistant sent readers to which page — the same detail the full report shows, without leaving the dashboard.
 - **Top sources** — which assistants sent the most readers (up to five).
 - **Top landing pages** — which of your pages AI readers arrived on most (up to five).
 
@@ -128,6 +128,8 @@ That's it — the log row itself records **no IP address**. By default the plugi
 
 As with the traffic card, **you are skipped**: a logged-in administrator opening `discovery.json` in a browser to check it isn't agent traffic, so it doesn't clutter the log.
 
+The plugin's own self-tests are skipped too. **Verify live** and the **exposed-files scan** (both on the Readiness screen) fetch your public endpoints *anonymously* on purpose — they have to grade exactly what an agent receives, so they send no cookies, which means the "skip the owner" rule above can't recognise them by sign-in. Instead they carry a short-lived token, minted by your site and valid for a couple of minutes, that tells the log "this is the site testing itself." An outside crawler can't mint one or reuse a captured one to hide from the log.
+
 ### How agents are identified
 
 Raw User-Agent strings are noisy, so Agentimus translates each one into a **plain-English label**. Recognised crawlers get their real name — for example **GPTBot (OpenAI)**, **ClaudeBot (Anthropic)**, **PerplexityBot**, **Googlebot**, **Bingbot**, **Bytespider (ByteDance)**, **CCBot (Common Crawl)**. A client that isn't in that catalog but which **declares its own product name** — for example `TheWebReport/1.0` — is shown by that name (**TheWebReport**), the very name the review queue uses, so the two never disagree. Only when there's no name to show at all does a client fall into a clear generic bucket:
@@ -145,7 +147,7 @@ These same labels feed the review queue, so the naming never disagrees with itse
 
 The log includes a **per-day chart** spanning the retention window, with every day present even if it saw no traffic. Each day also carries a compact breakdown of **who** hit you (its top clients) and **what** they fetched (its top endpoints), capped at five of each with a distinct-count so a day with fifty different endpoints still shows five rows and a "+50" — the card never grows with your traffic.
 
-Click into a day and the **"View requests"** view shows every hit recorded on that date, newest first (capped at a generous per-day limit), so you can inspect a spike in detail.
+**Click any bar** and that day's full report opens: the who/what breakdown above, then every individual request recorded on that date with its exact time (UTC), newest first, capped at a generous per-day limit — so you can inspect a spike in detail. Arrows (or the ← → keys) step between days that saw traffic, and a picker jumps straight to one. The report closes with **Esc** or its **Close** button; a stray click outside it won't drop what you were reading.
 
 ### Top clients and endpoints — and whether they're trending
 
@@ -170,7 +172,7 @@ So a brand-new site — or one with only a few recent days of traffic — will s
 
 Sitting alongside the log is a small **review queue** that flags clients worth a second look — ones that are **new**, **unusually high-volume**, **spoofed/scanner** by the definition above, or an **impersonator**. An impersonator is a client claiming to be a *verifiable* search engine — Googlebot, Bingbot, Applebot, DuckDuckBot or Yandex — whose network address **fails a reverse-DNS check**: a forgery, not the real engine. (Impersonators are caught only when **Verify search engines by reverse DNS** is on, an opt-in setting covered on the **Settings** page.) Each flagged client comes with a one-click **Block** (or **Allow**/trust) action. This pairs with the optional *Block scanners & scrapers* enforcement covered on the **Settings** page — the review queue and the blocking feature share one definition of who is who, so a decision you make in one is honoured by the other.
 
-Every flagged row's **Details** also gives a plain, honest verdict on that one client. For an impersonator it reads like *"claims to be Googlebot, but its address failed reverse-DNS verification when it visited — a forgery, not the real Googlebot."* Because blocking the *name* would also block the genuine engine, the guidance is to **block the IP** at your host or CDN instead. To see the exact address, turn on the opt-in **Store IP addresses for flagged clients** setting (off by default) — it records forward-only, so it shows the IP of future flagged visits — or find it now in your server's access log by matching the User-Agent shown in the panel. Beside Block and Allow sits an **Ignore** action, which dismisses a row you've judged harmless; it quietly re-surfaces if that client keeps hammering you.
+Every flagged row's **Details** also gives a plain, honest verdict on that one client. For an impersonator it reads like *"claims to be Googlebot, but its address failed reverse-DNS verification when it visited — a forgery, not the real Googlebot."* Because blocking the *name* would also block the genuine engine, the guidance is to **block the IP** at your host or CDN instead. To see the exact address, turn on the opt-in **Store IP addresses for flagged clients** setting (off by default) — it records forward-only, so it shows the IP of future flagged visits — or find it now in your server's access log by matching the User-Agent shown in the panel. Beside Block and Allow sits an **Ignore** action, which dismisses a row you've judged harmless; it quietly re-surfaces if that client keeps hammering you. Every decision you make here — blocked, allowed or ignored — is listed afterwards under **Settings → AI access → Manage clients**, with the date you decided and a one-click undo. That dialog is the only place an *ignored* client can be seen and brought back.
 
 ### Flood protection
 

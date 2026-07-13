@@ -284,13 +284,19 @@ The exposed-files self-check (Readiness → **Scan for exposed files**) and the 
 | `agentimus_is_local_env` | filter | `( bool $local, string $host ): bool` | Override whether this counts as a local/development environment — consulted **only** when `WP_ENVIRONMENT_TYPE` isn't explicitly declared. `$host` is the site's canonical `home_url()` host. |
 | `agentimus_local_host_suffixes` | filter | `( string[] $suffixes ): string[]` | Host suffixes treated as LOCAL (each begins with a dot; defaults include `.test`, `.localhost`, `.local`, `.ddev.site`, `.lndo.site`). Add only suffixes a public production site can never use, or the debug warning may be wrongly silenced. |
 
+## Admin UI
+
+| Hook | Type | Signature | Purpose |
+| --- | --- | --- | --- |
+| `agentimus_match_admin_scheme` | filter | `( bool $match ): bool` | Whether the plugin's dark surfaces (the AEO/GEO score card, buttons and editable chips) adopt the user's WordPress admin colour scheme. Default `true`. Return `false` to keep the designed palette on every scheme. Core schemes use a hand-tuned ink per scheme (`Admin::SCHEME_INKS`); a third-party scheme's registered base colour is derived down to card depth instead. |
+
 ## Activity & analytics
 
 Tuning knobs for the activity log, its retention, AI-referral tracking and the "activity to review" panel.
 
 | Hook | Type | Signature | Purpose |
 | --- | --- | --- | --- |
-| `agentimus_activity_skip_self` | filter | `( bool $skip ): bool` | Whether to skip recording hits from logged-in admins. Default: `is_user_logged_in() && current_user_can( 'manage_options' )`. |
+| `agentimus_activity_skip_self` | filter | `( bool $skip ): bool` | Whether to skip recording this hit as owner traffic. Default: the request carries an admin's cookie **or** a valid self-check token (the `X-Agentimus-Selfcheck` header the readiness screen's own anonymous live checks send — see `Activity\Owner`). Return `false` to log every request regardless. |
 | `agentimus_activity_retention_days` | filter | `( int $days ): int` | How long agent hits + AI-referral counts are **kept**, in days. Receives the stored setting (Settings → Visit log, default `30`) and overrides it. Governs the prune cutoff and how far back the Request log can page. It does **not** govern what the Dashboard reports on — that is `min(30, retention)` (`Repository::report_days()`). Raising it without also raising `agentimus_activity_max_rows` will not give you more days: the row cap trims oldest-first regardless of age. |
 | `agentimus_flagged_ip_retention_days` | filter | `( int $days ): int` | Retention, in days, for the opt-in flagged-IP store (the only PII the plugin ever keeps, and only when the owner turns IP capture on for flagged clients). Default `14`. |
 | `agentimus_activity_max_rows` | filter | `( int $max ): int` | Hard cap on rows in the activity table. Receives the stored setting (default `50000`) and overrides it. Not merely a backstop: with **Delete old records automatically** switched off it is the *only* thing that removes anything. A cap of `0` disables it entirely — reachable from code only, never from the settings form, because an unbounded table is how a shared host fills its disk. |

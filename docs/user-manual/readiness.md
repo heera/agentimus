@@ -145,7 +145,9 @@ The Readiness checks reason from your *settings*. The **Verify live** button (al
 
 This catches things settings alone can't see, such as a CDN or caching layer sitting in front of your site and altering a response. It runs only when you click it, entirely in your browser (the server makes no outbound request), and shows a tally like `9/9 OK` with a line per endpoint. Think of the Readiness report as "is it configured right?" and Verify live as "is it truly being served right?"
 
-A companion **Agent preview** button lets you see the exact JSON-LD and Markdown Agentimus emits for your site or any single post — handy for confirming the structured data behind the Readable and Trusted rungs.
+Because it has to grade what an *agent* sees, Verify live fetches **anonymously** — no cookies — so from the server's side it looks like any outside visitor. Those fetches carry a short-lived token that keeps them out of your own visit log, so checking your site never inflates your agent-traffic numbers. The exposed-files scan carries it too: probing your own site for a stray `wp-config.bak` should never read as a scanner in your own records.
+
+A companion **Agent preview** button lets you see the exact JSON-LD and Markdown Agentimus emits for your site or any single post — handy for confirming the structured data behind the Readable and Trusted rungs. It reads that data straight from WordPress, so unlike Verify live it fetches nothing and never appears in your log.
 
 ## Per-page AI Readability (in the editor)
 
