@@ -234,6 +234,14 @@ final class Plugin {
 		}
 
 		flush_rewrite_rules();
+		// The signature carries the plugin version, so this fires once after an update —
+		// which is exactly when a generated document can be stale in a way that MATTERS.
+		// (1.21.2: llms.txt used to tell agents they could fetch any page with
+		// `Accept: text/markdown`; that route is now off by default, so a cached copy
+		// would keep advertising a dead end — and invite the very request that poisons a
+		// CDN cache.) Rebuilding the documents on update is cheap and they are rebuilt
+		// lazily anyway.
+		Cache::flush();
 		update_option( self::REWRITE_FLUSHED_AT_OPTION, $now );
 		update_option( self::REWRITE_SIGNATURE_OPTION, $signature );
 	}

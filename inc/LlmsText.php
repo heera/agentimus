@@ -43,9 +43,14 @@ final class LlmsText {
 		if ( '' !== $tagline ) {
 			$out .= '> ' . $tagline . "\n\n";
 		}
+		// Only promise the Accept route when it is actually on (it is off by default —
+		// see Endpoints::negotiates_markdown). Advertising it otherwise would send agents
+		// to a page URL asking for markdown, which is both a dead end and, on a CDN that
+		// force-caches page URLs, the request that poisons the cache for human readers.
 		$out .= sprintf(
-			"%s. Plain-text and markdown versions of any page are available by appending `.md` to its URL, or by requesting it with `Accept: text/markdown`.\n",
-			'' !== $tagline ? $tagline : 'A WordPress site'
+			"%s. Plain-text and markdown versions of any page are available by appending `.md` to its URL%s.\n",
+			'' !== $tagline ? $tagline : 'A WordPress site',
+			Endpoints::negotiates_markdown() ? ', or by requesting it with `Accept: text/markdown`' : ''
 		);
 
 		// Bridge agents that enter via llms.txt to the structured manifest. The
@@ -246,7 +251,7 @@ final class LlmsText {
 	private function truncation_note() {
 		return "\n---\n\n> Note: this full-text edition was truncated to stay within a size limit, so not every page is included above. "
 			. 'For the complete list of pages see the index at ' . esc_url_raw( home_url( '/llms.txt' ) )
-			. ', and append `.md` to any page URL (or send `Accept: text/markdown`) to fetch that page in full.' . "\n";
+			. ', and append `.md` to any page URL' . ( Endpoints::negotiates_markdown() ? ' (or send `Accept: text/markdown`)' : '' ) . ' to fetch that page in full.' . "\n";
 	}
 
 	/**

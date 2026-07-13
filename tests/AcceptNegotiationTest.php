@@ -82,4 +82,26 @@ final class AcceptNegotiationTest extends TestCase {
 		// An old-style browser Accept that ranks XHTML top and markdown below it.
 		$this->assertFalse( Endpoints::prefers_markdown( 'application/xhtml+xml;q=0.9, text/markdown;q=0.5' ) );
 	}
+
+	/* -- The default: page URLs do NOT negotiate (1.21.2) -------------------- */
+
+	public function test_page_url_negotiation_is_off_by_default() {
+		// A page URL answering with two different bodies cannot be made safe from the
+		// origin: a CDN that force-caches page URLs (Cloudflare "Cache Everything" +
+		// Edge TTL) ignores every no-store directive AND `Vary: Accept`, so an agent's
+		// markdown answer gets served to human readers. The .md twin — a distinct URL —
+		// is the safe route, and it stays advertised. So this convenience is opt-in.
+		$GLOBALS['_af_filters'] = array();
+		$this->assertFalse( Endpoints::negotiates_markdown() );
+	}
+
+	public function test_it_can_be_turned_back_on_where_the_caching_is_sound() {
+		$GLOBALS['_af_filters']['agentimus_negotiate_markdown'] = array(
+			static function () {
+				return true;
+			},
+		);
+		$this->assertTrue( Endpoints::negotiates_markdown() );
+		$GLOBALS['_af_filters'] = array();
+	}
 }

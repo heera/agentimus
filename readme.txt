@@ -4,7 +4,7 @@ Tags: ai-agents, ai-crawlers, agent-readiness, llms-txt, ai-seo
 Requires at least: 6.0
 Tested up to: 7.0
 Requires PHP: 7.4
-Stable tag: 1.21.1
+Stable tag: 1.21.2
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -41,7 +41,7 @@ By default it makes no outbound requests, collects no analytics, and logs no IP 
 
 **Content — clean, machine-readable output**
 
-* **Markdown delivery** — request any page as clean markdown by appending `.md` to its URL (or, where your server allows it, with an `Accept: text/markdown` header).
+* **Markdown delivery** — request any page as clean markdown by appending `.md` to its URL. (Answering the page's own URL with markdown via an `Accept: text/markdown` header is also supported, but off by default: one URL with two possible bodies is unsafe behind a CDN that force-caches pages, and readers are the ones who find out. Enable it with a one-line filter where your caching is sound.)
 * **/llms.txt** & **/llms-full.txt** — an [llmstxt.org](https://llmstxt.org) index of your pages, topics and recent posts, plus a full-text edition an agent can ingest in a single request.
 * **JSON-LD** — WebSite + Person/Organization, plus BlogPosting and BreadcrumbList on posts. Automatically **defers to Yoast, Rank Math, SEOPress, AIOSEO and The SEO Framework** so you never ship duplicate schema.
 * **Topics for AI** — say what each post is about in plain words, right in the editor; those topics become the JSON-LD `keywords` and a line in the page's `.md`, so assistants understand each page's subject. Type your own, or let Agentimus fill them in from the post's own tags and categories. Nothing shows on the visible page.
@@ -240,6 +240,9 @@ There is no minified-only code. The admin interface is built from Vue 3 source i
 
 == Changelog ==
 
+= 1.21.2 =
+* Changed — **Answering a page's own URL with Markdown is now off by default.** Agentimus could hand back the Markdown edition of a page from the page's own address when a client asked for it (`Accept: text/markdown`). One address with two possible answers is only safe if every cache in front of your site respects "never store this" — and a common CDN setup (Cloudflare "Cache Everything" with an Edge TTL) overrides that instruction, stores the Markdown under the page's address, and then serves it to **human visitors**. It hit this plugin's own author: an AI crawler found a post seconds after publication, asked for Markdown, and readers got raw Markdown until the cache expired. No header an origin can send prevents that, and the person who finds out is your reader — so the convenience is now opt-in. **Nothing is lost:** every page still has its Markdown twin at `/its-slug.md`, a separate address a cache can never confuse with your article, and agents are still pointed to it from the page's `Link` header, from llms.txt and from the discovery documents. If your caching is sound (no CDN, or one that honours `no-store`), turn it back on with one line: `add_filter( 'agentimus_negotiate_markdown', '__return_true' );`
+
 = 1.21.1 =
 * Fixed — **A CDN could serve the Markdown copy of a page to human visitors.** Agentimus can answer a page's own URL with its Markdown twin when a client asks for it (`Accept: text/markdown`), and marks that answer "never cache me". A CDN configured to override origin cache headers (Cloudflare "Cache Everything" with an Edge TTL, and the equivalent elsewhere) ignored that, stored the Markdown under the page's URL, and served it to everyone — so a freshly published post, fetched first by an AI crawler, could render as raw Markdown for readers until the cache expired. The no-store instruction is now sent in the CDN-specific headers an edge honours in preference to `Cache-Control`, so the Markdown answer can't be stored. **If your CDN caches it anyway**, the new `agentimus_negotiate_markdown` filter turns page-URL negotiation off entirely; the `.md` address of every page keeps working, and agents find it exactly as before (it's advertised in the page's `Link` header, in llms.txt and in the discovery documents).
 * Fixed — **Markdown is no longer served to clients that prefer HTML.** The `Accept` header was matched with a plain substring test, so a request saying "HTML first, Markdown if you must" (`text/html;q=0.9, text/markdown;q=0.8`) was answered with Markdown. Quality values are now honoured as the standard requires: Markdown is served only when the client actually ranks it above HTML, and a tie goes to HTML. No browser sends `text/markdown` at all, so no browser can be answered with it.
@@ -270,6 +273,9 @@ There is no minified-only code. The admin interface is built from Vue 3 source i
 The full changelog for every release lives in the plugin repository: https://github.com/heera/agentimus/blob/main/CHANGELOG.md
 
 == Upgrade Notice ==
+
+= 1.21.2 =
+Important if your site is behind a CDN: answering a page's own URL with its Markdown edition is now off by default, because a common Cloudflare setup could cache that Markdown and serve it to your readers. Every page keeps its Markdown twin at /its-slug.md, and agents are still pointed to it. Recommended for everyone.
 
 = 1.21.1 =
 Fixes a bug where a CDN could serve a page's Markdown copy to human visitors (most likely on a freshly published post), and stops Markdown being sent to clients that prefer HTML. Recommended for every site behind a CDN.

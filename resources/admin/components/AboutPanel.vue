@@ -49,7 +49,7 @@ export default {
           items: [
             { name: 'llms.txt', where: '/llms.txt', desc: 'A plain-text index of your site and recent content.', tag: 'On' },
             { name: 'llms-full.txt', where: '/llms-full.txt', desc: 'A full-text bundle of your pages and posts, within a size budget.', tag: 'On' },
-            { name: 'Markdown', where: '/{slug}.md', desc: 'Clean Markdown of any page, plus Accept: text/markdown negotiation.', tag: 'On' },
+            { name: 'Markdown', where: '/{slug}.md', desc: 'Clean Markdown of any page, at its own address — a separate URL, so a cache can never confuse it with the page a reader sees. (Answering the page URL itself with Markdown via an Accept header is opt-in; see the docs.)', tag: 'On' },
           ],
         },
         {

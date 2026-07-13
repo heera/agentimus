@@ -160,26 +160,9 @@ final class Endpoints {
 			return; // Unknown / out-of-scope .md path: let WordPress 404 normally.
 		}
 
-		// Content negotiation on the resolved view: the SAME URL answers with markdown
-		// when the client asks for it. Two guards, because a page URL shared between two
-		// bodies is the one thing a shared cache can get catastrophically wrong:
-		//
-		//  1. The client must PREFER markdown (see prefers_markdown) — a browser never
-		//     asks for it at all, so a browser can never be answered with it.
-		//  2. The response is marked no-store for every cache layer (see send()).
-		//
-		// A cache that ignores BOTH `Vary: Accept` and every no-store directive can still
-		// store an agent's markdown under the page's URL and hand it to human visitors.
-		// That is a broken cache configuration, not a negotiation we can make safe — so
-		// this filter turns negotiation off entirely for such a site. The `.md` twin keeps
-		// working (a distinct URL is cache-safe by construction) and is advertised in the
-		// Link header, llms.txt and the discovery documents, so agents lose nothing.
-		/**
-		 * Whether a page URL may answer with markdown for a client that asks for it.
-		 *
-		 * @param bool $enabled Default true.
-		 */
-		if ( ! apply_filters( 'agentimus_negotiate_markdown', true ) ) {
+		// Content negotiation on the resolved view — OFF by default; see
+		// {@see negotiates_markdown()} for why.
+		if ( ! self::negotiates_markdown() ) {
 			return;
 		}
 		$accept = isset( $_SERVER['HTTP_ACCEPT'] ) ? sanitize_text_field( wp_unslash( $_SERVER['HTTP_ACCEPT'] ) ) : '';
@@ -275,6 +258,46 @@ final class Endpoints {
 	 * @param int    $max_age      Cache-Control max-age (seconds) for cacheable
 	 *                             (non-markdown) bodies. Defaults to one hour.
 	 */
+	/**
+	 * Whether a PAGE URL may answer with its markdown twin for a client that asks
+	 * for it (`Accept: text/markdown`). **Off by default since 1.21.2.**
+	 *
+	 * One URL answering with two different bodies is safe only if every cache in
+	 * front of the site honours the "never store this" instruction the markdown
+	 * answer carries — `Cache-Control`, `CDN-Cache-Control` and Cloudflare's own
+	 * vendor header, all set to `no-store` (see {@see send()}).
+	 *
+	 * Real CDNs don't. A Cloudflare "Cache Everything" rule with an Edge TTL
+	 * overrides *every* cache directive an origin can send, and no mainstream CDN
+	 * varies its cache key on `Vary: Accept`. The failure this caused in the wild:
+	 * an AI crawler — which finds a new post through the change feed within seconds
+	 * of publication, so it is often the FIRST client to fetch it — asked a fresh
+	 * post for markdown, the edge stored that answer under the post's own URL, and
+	 * every human visitor was served raw markdown until the cache expired.
+	 *
+	 * There is no header that fixes that from the origin, and the site owner is not
+	 * the one who finds out — their readers are. So the convenience is off unless
+	 * asked for, and the safe route is the default: the `.md` twin is a DISTINCT URL,
+	 * cache-safe by construction, advertised in the page's `Link` header, in llms.txt
+	 * and in the discovery documents. Agents lose nothing.
+	 *
+	 * Turn it back on where you know the caching is sound (no CDN, or one that
+	 * honours `no-store`):
+	 *
+	 *     add_filter( 'agentimus_negotiate_markdown', '__return_true' );
+	 *
+	 * @return bool
+	 */
+	public static function negotiates_markdown() {
+		/**
+		 * Whether a page URL may answer with markdown for a client that asks for it.
+		 *
+		 * @param bool $enabled Default false — see the method docblock for the CDN
+		 *                      cache-poisoning failure this default prevents.
+		 */
+		return (bool) apply_filters( 'agentimus_negotiate_markdown', false );
+	}
+
 	/**
 	 * Whether an Accept header asks for markdown IN PREFERENCE TO HTML.
 	 *
