@@ -4,7 +4,7 @@ Tags: ai-agents, ai-crawlers, agent-readiness, llms-txt, ai-seo
 Requires at least: 6.0
 Tested up to: 7.0
 Requires PHP: 7.4
-Stable tag: 1.21.0
+Stable tag: 1.21.1
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -240,6 +240,10 @@ There is no minified-only code. The admin interface is built from Vue 3 source i
 
 == Changelog ==
 
+= 1.21.1 =
+* Fixed — **A CDN could serve the Markdown copy of a page to human visitors.** Agentimus can answer a page's own URL with its Markdown twin when a client asks for it (`Accept: text/markdown`), and marks that answer "never cache me". A CDN configured to override origin cache headers (Cloudflare "Cache Everything" with an Edge TTL, and the equivalent elsewhere) ignored that, stored the Markdown under the page's URL, and served it to everyone — so a freshly published post, fetched first by an AI crawler, could render as raw Markdown for readers until the cache expired. The no-store instruction is now sent in the CDN-specific headers an edge honours in preference to `Cache-Control`, so the Markdown answer can't be stored. **If your CDN caches it anyway**, the new `agentimus_negotiate_markdown` filter turns page-URL negotiation off entirely; the `.md` address of every page keeps working, and agents find it exactly as before (it's advertised in the page's `Link` header, in llms.txt and in the discovery documents).
+* Fixed — **Markdown is no longer served to clients that prefer HTML.** The `Accept` header was matched with a plain substring test, so a request saying "HTML first, Markdown if you must" (`text/html;q=0.9, text/markdown;q=0.8`) was answered with Markdown. Quality values are now honoured as the standard requires: Markdown is served only when the client actually ranks it above HTML, and a tie goes to HTML. No browser sends `text/markdown` at all, so no browser can be answered with it.
+
 = 1.21.0 =
 * New — **Manage every client decision in one place.** Settings → AI access gains a "Manage clients" dialog: three tabs — Blocked, Allowed, Ignored — showing each client's identity (for known crawlers), when you decided, and a one-click undo (Unblock, Un-trust, Un-ignore). It's also the first UI over the review queue's "Ignore", which previously could not be seen or reversed anywhere. Decisions made from this release on carry their date; older entries simply show none rather than an invented one.
 * New — **Click any day's bar for that day's report.** Both dashboard charts now open a day report. Endpoint activity had one already — it gains a fixed size (no growing mid-load), a clear loading state, and day-to-day arrows. Traffic from AI gets a brand-new one: click a day and see which assistant sent visitors to which page, with the same styled tooltips and navigation. Dialogs close on Esc or the Close button only, so a stray click can't silently drop the report you were reading.
@@ -266,6 +270,9 @@ There is no minified-only code. The admin interface is built from Vue 3 source i
 The full changelog for every release lives in the plugin repository: https://github.com/heera/agentimus/blob/main/CHANGELOG.md
 
 == Upgrade Notice ==
+
+= 1.21.1 =
+Fixes a bug where a CDN could serve a page's Markdown copy to human visitors (most likely on a freshly published post), and stops Markdown being sent to clients that prefer HTML. Recommended for every site behind a CDN.
 
 = 1.21.0 =
 New: manage every client decision (blocked, allowed, ignored) in one dialog with dates and one-click undo; click any day on both dashboard charts for that day's report; the admin matches your colour scheme. Fixes: your own "Verify live" clicks no longer count as agent traffic, and Esc reliably closes every dialog. No breaking changes.

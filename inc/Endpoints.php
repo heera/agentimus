@@ -160,9 +160,30 @@ final class Endpoints {
 			return; // Unknown / out-of-scope .md path: let WordPress 404 normally.
 		}
 
-		// Content negotiation on the resolved view.
+		// Content negotiation on the resolved view: the SAME URL answers with markdown
+		// when the client asks for it. Two guards, because a page URL shared between two
+		// bodies is the one thing a shared cache can get catastrophically wrong:
+		//
+		//  1. The client must PREFER markdown (see prefers_markdown) — a browser never
+		//     asks for it at all, so a browser can never be answered with it.
+		//  2. The response is marked no-store for every cache layer (see send()).
+		//
+		// A cache that ignores BOTH `Vary: Accept` and every no-store directive can still
+		// store an agent's markdown under the page's URL and hand it to human visitors.
+		// That is a broken cache configuration, not a negotiation we can make safe — so
+		// this filter turns negotiation off entirely for such a site. The `.md` twin keeps
+		// working (a distinct URL is cache-safe by construction) and is advertised in the
+		// Link header, llms.txt and the discovery documents, so agents lose nothing.
+		/**
+		 * Whether a page URL may answer with markdown for a client that asks for it.
+		 *
+		 * @param bool $enabled Default true.
+		 */
+		if ( ! apply_filters( 'agentimus_negotiate_markdown', true ) ) {
+			return;
+		}
 		$accept = isset( $_SERVER['HTTP_ACCEPT'] ) ? sanitize_text_field( wp_unslash( $_SERVER['HTTP_ACCEPT'] ) ) : '';
-		if ( false === stripos( $accept, 'text/markdown' ) ) {
+		if ( ! self::prefers_markdown( $accept ) ) {
 			return;
 		}
 		if ( is_singular() ) {
@@ -254,6 +275,60 @@ final class Endpoints {
 	 * @param int    $max_age      Cache-Control max-age (seconds) for cacheable
 	 *                             (non-markdown) bodies. Defaults to one hour.
 	 */
+	/**
+	 * Whether an Accept header asks for markdown IN PREFERENCE TO HTML.
+	 *
+	 * The old test was `stripos( $accept, 'text/markdown' )`, which ignored quality
+	 * values entirely: `Accept: text/html;q=0.9, text/markdown;q=0.8` — a client that
+	 * plainly prefers HTML — was answered with markdown. RFC 9110 §12.5.1 says the
+	 * client's preference IS the q value, so honour it: markdown must be listed, and
+	 * must outrank HTML strictly. A tie goes to HTML, because the page URL's own
+	 * media type is HTML and a caller that wants markdown badly enough can say so
+	 * (or fetch the `.md` twin).
+	 *
+	 * A wildcard (`*\/*`) never grants markdown — it says "anything", not "markdown" —
+	 * so curl's default Accept, and every browser's, leave the page as HTML. That
+	 * matters beyond correctness: the fewer clients that can be answered with markdown
+	 * at a page URL, the fewer that can poison a shared cache with it.
+	 *
+	 * @param string $accept Raw Accept header.
+	 * @return bool
+	 */
+	public static function prefers_markdown( $accept ) {
+		$accept = strtolower( trim( (string) $accept ) );
+		if ( '' === $accept || false === strpos( $accept, 'text/markdown' ) ) {
+			return false;
+		}
+
+		$q = array();
+		foreach ( explode( ',', $accept ) as $part ) {
+			$bits = explode( ';', trim( $part ) );
+			$type = trim( array_shift( $bits ) );
+			if ( '' === $type ) {
+				continue;
+			}
+			$weight = 1.0;
+			foreach ( $bits as $param ) {
+				$param = trim( $param );
+				if ( 0 === strpos( $param, 'q=' ) ) {
+					$weight = (float) substr( $param, 2 );
+				}
+			}
+			// A repeated type keeps its highest weight.
+			if ( ! isset( $q[ $type ] ) || $weight > $q[ $type ] ) {
+				$q[ $type ] = $weight;
+			}
+		}
+
+		$markdown = isset( $q['text/markdown'] ) ? $q['text/markdown'] : 0.0;
+		$html     = max(
+			isset( $q['text/html'] ) ? $q['text/html'] : 0.0,
+			isset( $q['application/xhtml+xml'] ) ? $q['application/xhtml+xml'] : 0.0
+		);
+
+		return $markdown > 0.0 && $markdown > $html;
+	}
+
 	private function send( $body, $content_type, $label = '', $max_age = 3600 ) {
 		// Optional hard enforcement (opt-in): deny denylisted/spoofed agents before
 		// we serve — and before we record a hit, so a blocked request never appears
@@ -272,8 +347,17 @@ final class Endpoints {
 			header( 'Vary: Accept', false );
 
 			if ( 'text/markdown' === $content_type ) {
-				// Negotiated markdown shares a URL with HTML; never let it be cached.
+				// Markdown can share a URL with the HTML page (content negotiation), so a
+				// shared cache that stored it would hand the raw markdown to human
+				// visitors. Say "don't store this" in every dialect a CDN reads, because
+				// `Cache-Control` alone is not enough: a CDN configured to override origin
+				// headers (Cloudflare "Cache Everything" with an Edge TTL, and the
+				// equivalent on other edges) rewrites it and caches the body anyway. The
+				// CDN-targeted headers below take precedence over `Cache-Control` at the
+				// edge, and Cloudflare's own vendor header outranks both.
 				header( 'Cache-Control: no-store, max-age=0' );
+				header( 'CDN-Cache-Control: no-store' );
+				header( 'Cloudflare-CDN-Cache-Control: no-store' );
 			} else {
 				// Stable URLs (llms.txt, the sitemap) are safe to cache; the change
 				// feed passes a shorter max-age since freshness is its whole point.

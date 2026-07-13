@@ -92,6 +92,7 @@ add_filter( 'agentimus_documents', function ( $docs, $registry ) {
 | `agentimus_markdown_cache` | filter | `( bool $on ): bool` | Turn the tiered per-post `.md` body cache (object cache → file → regenerate) on or off. Default `true`; return `false` to force fresh rendering. It is self-invalidating on any content/settings change, so you rarely need this. |
 | `agentimus_llms_full_item_max_bytes` | filter | `( int $bytes ): int` | Per-item byte cap for the llms-full.txt full-text edition. Default is derived from the budget: `min(256KB, max(32KB, budget/4))`. |
 | `agentimus_llms_full_avg_item_bytes` | filter | `( int $bytes ): int` | Average item size (default `4096`) used only to **estimate** the full-text edition size in the admin. |
+| `agentimus_negotiate_markdown` | filter | `( bool $enabled ): bool` | Whether a **page URL** may answer with markdown for a client that asks for it (`Accept: text/markdown`). Default `true`. That answer is sent `no-store` in `Cache-Control`, `CDN-Cache-Control` and `Cloudflare-CDN-Cache-Control` — but a CDN that ignores all of them can still store the markdown under the page's URL and serve it to human visitors. Return `false` on such a site: the `.md` twin is a distinct URL, cache-safe by construction, and stays advertised in the `Link` header, llms.txt and the discovery documents. |
 | `agentimus_yield_surface` | filter | `( bool $yield, string $surface ): bool` | Cede a surface to your own producer so Agentimus stops emitting it. Surface keys: `llms_txt`, `llms_full`, `markdown`, `link_headers`, `robots`. |
 
 ```php

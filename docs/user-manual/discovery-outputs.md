@@ -77,7 +77,9 @@ You control how much goes in with **Posts in /llms-full.txt** on the **Discovery
 For any single page or post you've included, Agentimus can hand an assistant a clean, text-only Markdown version — just the words, with none of your theme's menus, sidebars or widgets. There are two ways to reach the exact same content:
 
 1. **Add `.md` to the page's address.** A page at `https://example.com/about/` is also available at `https://example.com/about.md`. This works in any browser.
-2. **Send the `Accept: text/markdown` header** to the normal page URL. An agent that prefers Markdown gets the Markdown edition back from the same address a human would get the HTML page from (see the `curl` example above).
+2. **Send the `Accept: text/markdown` header** to the normal page URL. An agent that prefers Markdown gets the Markdown edition back from the same address a human would get the HTML page from (see the `curl` example above). "Prefers" is literal: the header's quality values decide it, so a client asking for HTML first is always given HTML — and no browser asks for Markdown at all.
+
+> **Behind a CDN?** The second route answers one URL with two different bodies, which is only safe if every cache in front of your site honours the "don't store this" instruction Agentimus sends with the Markdown (it goes out as `Cache-Control`, `CDN-Cache-Control` and `Cloudflare-CDN-Cache-Control`, all set to `no-store`). A CDN configured to *override* origin cache headers — Cloudflare's "Cache Everything" with an Edge TTL, for instance — can ignore all of that, store the Markdown under the page's address and then serve it to human visitors. If you ever see a page render as raw Markdown, that's this. Fix the cache rule so it respects `no-store`, or switch the negotiation off with the `agentimus_negotiate_markdown` filter — the `.md` address keeps working either way, and it's a separate URL, so a cache can never confuse the two.
 
 The home page and archives have a Markdown twin too: `https://example.com/index.md` (or the Accept header on your front page) returns the same site map as `/llms.txt`.
 
