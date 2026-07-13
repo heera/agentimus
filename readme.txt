@@ -4,7 +4,7 @@ Tags: ai-agents, ai-crawlers, agent-readiness, llms-txt, ai-seo
 Requires at least: 6.0
 Tested up to: 7.0
 Requires PHP: 7.4
-Stable tag: 1.20.1
+Stable tag: 1.21.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -197,11 +197,11 @@ Yes. The discovery document implements the **WP_Discovery Protocol**, an openly-
 
 == Screenshots ==
 
-1. Dashboard — your AEO/GEO score across five plain rungs (Findable, Readable, Trusted, Optimized, Cited) with the one next step worth taking, alongside a first-party log of which AI agents and crawlers fetched your endpoints (no IP logging) and whether each client's volume is trending up or down.
+1. Dashboard — your AEO/GEO score across five plain rungs (Findable, Readable, Trusted, Optimized, Cited) with the one next step worth taking, alongside a first-party log of which AI agents and crawlers fetched your endpoints (no IP logging) and whether each client's volume is trending up or down. Every day bar on both charts opens that day's full report.
 2. Settings — a tidy, tabbed control panel; the Discovery section gives you a toggle for each agent-readiness signal, cards for Topics for AI and the per-page AI description, plus experimental browser tools (WebMCP) that let an in-browser AI agent call your site search.
 3. Readiness report — a plain-English pass/warn checklist of what's enabled and what's still missing, and beneath it the Optimize worklist: exactly which pages an answer engine would struggle to quote, and why. Set aside anything that isn't meant to be cited.
 4. Discovery Hub — every plugin's capabilities aggregated into one document, with per-item publish/suppress control.
-5. Crawler policy & scanner blocking — declare your content-usage signals, block AI-training crawlers by name, turn away spoofed or scanner traffic, and keep an always-allowed list of trusted agents — with one-click suggestions for well-known AI assistants and the search engines trusted automatically.
+5. Crawler policy & scanner blocking — declare your content-usage signals, block AI-training crawlers by name, turn away spoofed or scanner traffic, and keep an always-allowed list of trusted agents — with one-click suggestions for well-known AI assistants, the search engines trusted automatically, and a "Manage clients" dialog that holds every standing decision with its date and a one-click undo.
 6. Activity to review — a nav-bar alert surfaces new, high-volume or spoofed clients from any screen. Genuine ones you Allow or Block by name in one click; a crawler that failed reverse-DNS verification (an impersonator) can't be trusted by name, so you see its verdict and how to block it at your host or CDN — or Ignore to dismiss. No IP logging by default; an optional setting can store IPs for flagged crawlers only.
 7. About — a plain-English account of every feature and what it publishes, a privacy & data section (no outbound calls, no IP/PII by default, signing key stays on your server), the open WP_Discovery Protocol it implements, and an FAQ.
 8. Exposure controls — opt-in, off-by-default switches that limit what anonymous crawlers can read about your site: username enumeration, author archives, the WordPress version, auto-generated head links, and XML-RPC.
@@ -214,6 +214,8 @@ Yes. The discovery document implements the **WP_Discovery Protocol**, an openly-
 15. The More menu — the occasional screens (AI Visibility, AI traffic, the request log, Agent access and About) fold behind one control, so the main navigation stays short. AI Visibility appears disabled with "Turn on in Settings" rather than hidden, so you always know it's there to enable.
 16. AI Visibility settings — each thing you track gets a name, a category ("what kind of thing is it?"), its website, its rivals and the questions to ask. Tell Agentimus the category and it suggests the questions a buyer really types — or, where you've set up an AI provider in WordPress, "Suggest with AI" asks it for a wider spread. Suggestions are only ever offered; you pick which to keep, and every setting on the screen saves as you change it.
 17. Agent access — the other side of the log: who authenticates to, and *acts* on, the machine surface Agentimus creates. Application passwords being created (a brand-new one is worth a second look — it keeps working even after you change your password), first used, renamed or revoked; WordPress abilities being run; and requests that were refused, or that probed for abilities that don't exist. A record, not a guard — it never blocks — and with no IP logging, it names the key that was used, not the person.
+18. Client decisions — everything you've decided about visiting bots and agents in one dialog: Blocked, Allowed and Ignored tabs, each row with the crawler's identity, the date you decided, and an instant undo. The only place to see (and reverse) clients you ignored from the review queue.
+19. A day in your AI traffic — click any bar on the dashboard's Traffic-from-AI chart and see exactly which assistant sent visitors to which page that day. Days are the finest "when" stored, so there are no per-visit times — by design.
 
 == External services ==
 
@@ -237,6 +239,16 @@ The example URLs in `examples/integrate-your-plugin.php` (on `example.com`) are 
 There is no minified-only code. The admin interface is built from Vue 3 source in `resources/` with Vite; the source and `vite.config.js` ship in this package and also live in the public repository at https://github.com/heera/agentimus . Run `npm install && npm run build` to regenerate `assets/admin/` from source.
 
 == Changelog ==
+
+= 1.21.0 =
+* New — **Manage every client decision in one place.** Settings → AI access gains a "Manage clients" dialog: three tabs — Blocked, Allowed, Ignored — showing each client's identity (for known crawlers), when you decided, and a one-click undo (Unblock, Un-trust, Un-ignore). It's also the first UI over the review queue's "Ignore", which previously could not be seen or reversed anywhere. Decisions made from this release on carry their date; older entries simply show none rather than an invented one.
+* New — **Click any day's bar for that day's report.** Both dashboard charts now open a day report. Endpoint activity had one already — it gains a fixed size (no growing mid-load), a clear loading state, and day-to-day arrows. Traffic from AI gets a brand-new one: click a day and see which assistant sent visitors to which page, with the same styled tooltips and navigation. Dialogs close on Esc or the Close button only, so a stray click can't silently drop the report you were reading.
+* New — **The admin dresses to match your colour scheme.** If your WordPress admin runs Coffee, Ectoplasm, Midnight or any other colour scheme, Agentimus's score card, buttons and chips now wear that scheme's colour — hand-tuned per scheme so the text always stays readable. The default scheme keeps the design you know; a filter (`agentimus_match_admin_scheme`) turns matching off.
+* Fixed — **Your own verification clicks no longer count as agent traffic.** "Verify live" and the exposed-files scan fetch your public endpoints anonymously on purpose — they grade what an agent receives — so each run used to log a handful of "Browser" hits against your own site. Those fetches now carry a short-lived, server-minted token that keeps them out of the visit log; a crawler can't mint or reuse one to hide itself.
+* Improved — **Unknown crawlers are named more honestly.** A client that declares its own name ("ethicrawl/0.1 …") now appears in the activity feed under that name instead of a vague "Other bot", and a home-page URL declared in its User-Agent is recognised whether or not it uses the "+https://" convention — so the review queue can show you where a new crawler leads instead of claiming it declares nothing.
+* Improved — **A heads-up when blocking is on but verification is off.** Blocking matches names, and real search engines are always let through — so a blocked bot could dodge every rule by calling itself "Googlebot". The blocking section now says so, and points at the reverse-DNS verification toggle that closes the loophole.
+* Fixed — **Esc now closes every dialog, every time.** Clicking outside a dialog used to leave Escape unresponsive in six of them (Agent preview among others); all dialogs now listen for Esc for as long as they're open.
+* Fixed — the admin footer's version line now aligns exactly with the content edges, and the plugin's uninstall cleans up the new decision-dates option along with everything else.
 
 = 1.20.1 =
 * Fixed — **Three read-only abilities can now be run by an outside AI agent, not just listed.** Agentimus's readiness score, AI Visibility results and exposed-files check take no arguments — and a no-argument call through WordPress's abilities REST endpoint was rejected before it ran, so an assistant could *see* these abilities but never actually *use* them. They now run as intended. Your own admin screens were never affected; this only touched external agents calling in.
