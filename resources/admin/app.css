@@ -3121,6 +3121,9 @@ a.ar-about-proto__v:hover { text-decoration: underline; }
 .ar-aa__table tr.is-unseen td { background: color-mix(in srgb, var(--ar-accent) 4.5%, transparent); }
 .ar-aa__what { display: block; font-weight: 600; color: var(--ar-ink); }
 
+/* WHO did it — quieter than the hint sentences, but always present when known. */
+.ar-aa__who { display: block; margin-top: 2px; font-size: 12px; color: var(--ar-ink-soft); }
+
 /* The sentence the whole feature exists to deliver: an application password keeps working
    after a password change, so an unrecognised one has to be revoked, not just noted. */
 .ar-aa__hint {

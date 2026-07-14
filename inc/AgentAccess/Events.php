@@ -259,11 +259,19 @@ final class Events {
 	 * @return array
 	 */
 	public static function shape( array $row ) {
+		$user_id = isset( $row['user_id'] ) ? (int) $row['user_id'] : 0;
+		$cred    = isset( $row['cred'] ) ? (string) $row['cred'] : '';
 		return array(
 			'id'        => isset( $row['id'] ) ? (int) $row['id'] : 0,
 			'kind'      => isset( $row['kind'] ) ? (string) $row['kind'] : '',
-			'userId'    => isset( $row['user_id'] ) ? (int) $row['user_id'] : 0,
-			'cred'      => isset( $row['cred'] ) ? (string) $row['cred'] : '',
+			'userId'    => $user_id,
+			'cred'      => $cred,
+			// WHO, in words. Resolved LIVE at render time from data the site already
+			// holds (the owner's own user + the owner's own password label) — never
+			// stored, so the no-personal-data guarantee of this table is untouched
+			// and a renamed password shows its current name, a deleted one shows ''.
+			'user'      => self::user_login( $user_id ),
+			'credName'  => self::credential_name( $user_id, $cred ),
 			'subject'   => isset( $row['subject'] ) ? (string) $row['subject'] : '',
 			'detail'    => isset( $row['detail'] ) ? (string) $row['detail'] : '',
 			'hits'      => isset( $row['hits'] ) ? (int) $row['hits'] : 0,
@@ -271,6 +279,36 @@ final class Events {
 			'lastSeen'  => self::iso( isset( $row['last_at'] ) ? $row['last_at'] : '' ),
 			'seen'      => ! empty( $row['seen'] ),
 		);
+	}
+
+	/**
+	 * A user id as its login name, '' when the user is gone (or the row is anonymous).
+	 *
+	 * @param int $user_id User id from the stored row.
+	 * @return string
+	 */
+	private static function user_login( $user_id ) {
+		if ( $user_id <= 0 || ! function_exists( 'get_user_by' ) ) {
+			return '';
+		}
+		$user = get_user_by( 'id', $user_id );
+		return ( $user && ! empty( $user->user_login ) ) ? (string) $user->user_login : '';
+	}
+
+	/**
+	 * An application-password UUID as its human label, '' when it no longer exists —
+	 * the UI words that case honestly ("since revoked") instead of hiding the row.
+	 *
+	 * @param int    $user_id User the credential belongs to.
+	 * @param string $uuid    Stored credential UUID ('' for a cookie session).
+	 * @return string
+	 */
+	private static function credential_name( $user_id, $uuid ) {
+		if ( '' === $uuid || $user_id <= 0 || ! class_exists( 'WP_Application_Passwords' ) ) {
+			return '';
+		}
+		$item = \WP_Application_Passwords::get_user_application_password( $user_id, $uuid );
+		return ( is_array( $item ) && ! empty( $item['name'] ) ) ? (string) $item['name'] : '';
 	}
 
 	/**

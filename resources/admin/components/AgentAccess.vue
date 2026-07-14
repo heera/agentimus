@@ -252,6 +252,23 @@ export default {
           return name;
       }
     },
+    // The WHO line under a row. Everything here is the owner's own data (their user, their
+    // password label) resolved live by the server — still no IP, no location, no guessing.
+    // A credential that no longer resolves is said plainly rather than hidden: the row
+    // happened, the key is gone, both facts stand.
+    who(e) {
+      if (!e.userId) return '';
+      const user = e.user || `user #${e.userId}`;
+      if (e.kind && e.kind.indexOf('apppw_') === 0) {
+        return `by ${user}`;
+      }
+      if (e.cred) {
+        return e.credName
+          ? `by ${user} · app password “${e.credName}”`
+          : `by ${user} · app password (since revoked)`;
+      }
+      return `by ${user} · logged-in session`;
+    },
     // Shown on a created password and nowhere else. Deliberately unconditional: we have no
     // honest basis for deciding WHICH new password is suspicious (no IP, no location), so we
     // would rather mildly nag on every one than imply a certainty we do not have. This one
@@ -358,6 +375,8 @@ export default {
                    arrived with. -->
               <span v-if="isHighlighted(e)" class="ar-aa__new">New</span>
             </span>
+            <!-- WHO did it — the question the row exists to answer. -->
+            <span v-if="who(e)" class="ar-aa__who">{{ who(e) }}</span>
             <!-- The payload sentence. An application password survives a password change, so
                  this is the one thing an owner must know about a key they don't recognise. -->
             <span v-if="isNewKey(e)" class="ar-aa__hint">

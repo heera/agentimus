@@ -549,4 +549,40 @@ final class AgentAccessDbTest extends DbTestCase {
 		$settings->update( array_merge( $settings->all(), array( 'agent_access_events' => true ) ) );
 		( new Module( $settings ) )->register();
 	}
+
+	public function test_shape_resolves_who_from_live_wordpress_data() {
+		// "This tells nothing about the visitor" — the WHO fields. They resolve LIVE from
+		// the owner's own data: the user's login and the app password's current label.
+		$user_id = self::factory()->user->create(
+			array(
+				'role'       => 'administrator',
+				'user_login' => 'aa_who_admin',
+			)
+		);
+		$created = \WP_Application_Passwords::create_new_application_password( $user_id, array( 'name' => 'claude-code-mcp' ) );
+		$this->assertNotWPError( $created );
+		$uuid = $created[1]['uuid'];
+
+		$row = array(
+			'kind'    => Events::KIND_ABILITY_USED,
+			'user_id' => $user_id,
+			'cred'    => $uuid,
+			'subject' => 'agentimus/read-readiness',
+		);
+
+		$shaped = Events::shape( $row );
+		$this->assertSame( 'aa_who_admin', $shaped['user'] );
+		$this->assertSame( 'claude-code-mcp', $shaped['credName'] );
+
+		// Live means live: a rename shows the NEW label on old rows…
+		\WP_Application_Passwords::update_application_password( $user_id, $uuid, array( 'name' => 'renamed-key' ) );
+		$this->assertSame( 'renamed-key', Events::shape( $row )['credName'] );
+
+		// …and a revoked credential resolves to '' (the UI words it as "since revoked"),
+		// while the row itself — the fact that it happened — stands untouched.
+		\WP_Application_Passwords::delete_application_password( $user_id, $uuid );
+		$after = Events::shape( $row );
+		$this->assertSame( '', $after['credName'] );
+		$this->assertSame( 'aa_who_admin', $after['user'] );
+	}
 }

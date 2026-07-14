@@ -139,6 +139,10 @@ final class AgentAccessEventsTest extends TestCase {
 		// noisy false positive a feature like this produces comes from location-newness). Pinning
 		// the exact key set means adding an IP, a hostname or a location field fails loudly here
 		// rather than quietly shipping.
+		//
+		// `user` and `credName` were added deliberately (2026-07-14, "this tells nothing about
+		// the visitor"): both are the OWNER's own data — their user login and their password
+		// label — resolved live at render time and never stored, so the guarantee above stands.
 		$out = Events::shape(
 			array(
 				'id'      => 1,
@@ -148,9 +152,24 @@ final class AgentAccessEventsTest extends TestCase {
 		);
 
 		$this->assertSame(
-			array( 'id', 'kind', 'userId', 'cred', 'subject', 'detail', 'hits', 'firstSeen', 'lastSeen', 'seen' ),
+			array( 'id', 'kind', 'userId', 'cred', 'user', 'credName', 'subject', 'detail', 'hits', 'firstSeen', 'lastSeen', 'seen' ),
 			array_keys( $out )
 		);
+	}
+
+	public function test_shape_who_fields_degrade_to_empty_when_unresolvable() {
+		// The unit env has no get_user_by / WP_Application_Passwords — exactly the shape of a
+		// row whose user or credential no longer exists. The fields must be '' (the UI words
+		// that case), never a fatal, never an invented value.
+		$out = Events::shape(
+			array(
+				'kind'    => Events::KIND_ABILITY_USED,
+				'user_id' => 42,
+				'cred'    => 'dead-beef-uuid',
+			)
+		);
+		$this->assertSame( '', $out['user'] );
+		$this->assertSame( '', $out['credName'] );
 	}
 
 	/* -- classify(): what a FAILED abilities request means -------------------- */
