@@ -23,7 +23,7 @@ The whole Dashboard is powered by a single setting, **Agent activity log**, whic
 
 The **Traffic from AI** card is the "giving back" side of the story: it shows whether AI tools are actually sending human readers to your pages, and where those readers land.
 
-The card is a summary, over a rolling window (30 days by default):
+The card is a summary over the reporting window (30 days by default), counted in **whole calendar days (UTC)** — the same clock as every other number on this screen:
 
 - **Totals** — visits today, visits across the whole window, and how many distinct assistants sent them.
 - **A per-day sparkline** — the shape of AI referrals across the window, zero-filled so a quiet day reads as a gap rather than being skipped. **Click any bar** for that day's report — which assistant sent readers to which page — the same detail the full report shows, without leaving the dashboard.
@@ -151,7 +151,7 @@ The log includes a **per-day chart** spanning the retention window, with every d
 
 ### Top clients and endpoints — and whether they're trending
 
-Two summary cards rank the whole window (30 days by default):
+Two summary cards rank the whole window (30 days by default). Every window on this screen — today, 7 days, 30 days — is counted in **whole calendar days (UTC)**: today plus the full days before it. Numbers only move when a hit arrives or at midnight UTC, so a counter never appears to *lose* hits while you watch. (Before 1.22.0 the 7- and 30-day tiles were rolling windows ending at the current second — they could genuinely tick down as old hits aged past the edge, which looked like data loss under auto-refresh. It wasn't; but a number that needs that explanation is the wrong number, so the clocks are now aligned.)
 
 - **Top clients** — which agents hit you most (up to eight), and
 - **By endpoint** — which of your machine-readable files got fetched most.

@@ -4,7 +4,7 @@ Tags: ai-agents, ai-crawlers, agent-readiness, llms-txt, ai-seo
 Requires at least: 6.0
 Tested up to: 7.0
 Requires PHP: 7.4
-Stable tag: 1.21.2
+Stable tag: 1.22.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -244,6 +244,12 @@ There is no minified-only code. The admin interface is built from Vue 3 source i
 
 == Changelog ==
 
+= 1.22.0 =
+* New — **An MCP server, one switch, nothing extra to install.** Turn on Settings → Discovery → MCP server and AI tools you already use — Claude Code, Cursor, ChatGPT connectors — can talk to your site over the Model Context Protocol and run Agentimus's nine read-only tools: readiness, AI traffic, request log, bot identification, and the page/JSON-LD/Markdown previews. The WordPress MCP Adapter library now ships inside the plugin and is loaded only when you opt in — with the switch off, nothing is loaded and no endpoint exists. Nothing becomes public: every call must sign in with a WordPress login (an application password works), every tool keeps the same permission checks as the admin screen it comes from, every call is recorded under More → Agent access — and switching it off disconnects connected tools immediately. To keep the surface exactly what you opted into, Agentimus also keeps the library's generic "run any ability" server switched off. Needs WordPress 6.9+ (the Abilities API); off by default. Full transparency: the settings card also tells you what an application password really is — a login for your whole REST API, not just this server — and recommends one password per tool, on a user with only the permissions it needs.
+* Fixed — **The MCP wiring had quietly gone stale — in two places.** The adapter library renamed its transport class some versions ago; Agentimus still asked for the old name, so even a site that had installed the adapter by hand got no server at all, silently. And the mcp.json manifest read each server's tool list with equally outdated accessors, so a running server was advertised as having "0 tools" and its per-server card refused to serve. Both fixed: the manifest now lists every server's real tools and links a card for each.
+* New — **Agent access now says who.** Every row carries the user and the named application password behind it — "by anna · app password "zapier"" — resolved live from your own users and keys, so a renamed key shows its current name, a revoked one says "since revoked", and a deleted user's row says that too instead of a bare number. Password-lifecycle rows say "on anna's account", because that's what is actually recorded — the key's owner, not necessarily who clicked. Nothing new is stored: no IP addresses, no identities; the names are looked up at view time.
+* Changed — **The dashboard's 7- and 30-day numbers are whole calendar days now.** They used to be rolling windows ending at the current second, which meant they could visibly shrink between midnights as week-old hits aged out — watched live under auto-refresh, that read as data loss. Every window is now counted in whole calendar days (UTC), the same clock as the Today tile and the daily chart beneath them; numbers move only when a hit arrives or at midnight UTC. The tiles may read slightly higher after updating — the window now includes its first day's early hours, which rolling had already dropped.
+
 = 1.21.2 =
 * Changed — **Answering a page's own URL with Markdown is now off by default.** Agentimus could hand back the Markdown edition of a page from the page's own address when a client asked for it (`Accept: text/markdown`). One address with two possible answers is only safe if every cache in front of your site respects "never store this" — and a common CDN setup (Cloudflare "Cache Everything" with an Edge TTL) overrides that instruction, stores the Markdown under the page's address, and then serves it to **human visitors**. It hit this plugin's own author: an AI crawler found a post seconds after publication, asked for Markdown, and readers got raw Markdown until the cache expired. No header an origin can send prevents that, and the person who finds out is your reader — so the convenience is now opt-in. **Nothing is lost:** every page still has its Markdown twin at `/its-slug.md`, a separate address a cache can never confuse with your article, and agents are still pointed to it from the page's `Link` header, from llms.txt and from the discovery documents. If your caching is sound (no CDN, or one that honours `no-store`), turn it back on with one line: `add_filter( 'agentimus_negotiate_markdown', '__return_true' );`
 
@@ -277,6 +283,9 @@ There is no minified-only code. The admin interface is built from Vue 3 source i
 The full changelog for every release lives in the plugin repository: https://github.com/heera/agentimus/blob/main/CHANGELOG.md
 
 == Upgrade Notice ==
+
+= 1.22.0 =
+One switch now runs an MCP server on your own site — AI tools like Claude Code can use Agentimus's read-only tools, authenticated, permission-checked and fully audited. Off by default. Also: Agent access rows now name the user and key behind every event, and the dashboard's 7/30-day counters count whole calendar days, so they no longer appear to lose hits.
 
 = 1.21.2 =
 Important if your site is behind a CDN: answering a page's own URL with its Markdown edition is now off by default, because a common Cloudflare setup could cache that Markdown and serve it to your readers. Every page keeps its Markdown twin at /its-slug.md, and agents are still pointed to it. Recommended for everyone.

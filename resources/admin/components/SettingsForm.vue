@@ -967,6 +967,12 @@ export default {
             with that login. Every call an AI tool makes shows up under
             <strong>More → Agent access</strong>, attributed to the user it signed in as.
           </p>
+          <p class="ar-field__hint">
+            Worth knowing: an application password isn’t scoped to this server — it signs in as
+            that user across your site’s whole REST API. Give each AI tool its own password
+            (revoke one without touching the others), and consider a dedicated user with only
+            the permissions the tool needs.
+          </p>
         </div>
       </section>
 

@@ -1,7 +1,7 @@
 ---
 title: FAQ
 parent: User Manual
-nav_order: 17
+nav_order: 18
 ---
 
 Short, honest answers to the questions site owners ask most. If you are weighing up whether Agentimus is safe to run on a live site, this is the page to read. The recurring theme: Agentimus adds a machine-readable layer *for AI tools* without touching what your visitors see, without phoning home, and without taking over jobs your other plugins already do.
@@ -80,6 +80,14 @@ Yes to privacy, and no to any new access.
 - The activity log is first-party and aggregate: it records that a bot fetched your content, without storing IP addresses or per-visitor records by default. (One optional setting, off by default, can store the IP of a *flagged* impersonating or spoofed crawler — never an ordinary visitor — so you can block it; see *Does Agentimus store IP addresses?* below.)
 
 Agentimus grants agents **no** ability to write to, edit, or control your site. It is a read-and-describe layer, not an access layer.
+
+## Does Agentimus run an MCP server?
+
+Yes — as an opt-in, on WordPress 6.9 or newer. Turn on **Settings → Discovery → MCP server** and AI tools you already use (Claude Code, Cursor, ChatGPT connectors) can talk to your site over the Model Context Protocol and run the same nine **read-only** tools your admin AI gets — readiness, AI traffic, the request log, bot checks and previews. Everything needed ships with the plugin.
+
+Nothing becomes public: every request must sign in with a WordPress login (an application password works), each tool keeps the same permission checks as the admin screen it comes from, every call is recorded under **More → Agent access**, and turning the switch off disconnects connected tools immediately. With the switch off — the default — the server doesn't exist at all.
+
+Worth knowing: an application password isn't scoped to this server — it signs in as that user across your whole REST API. Give each AI tool its own password, on a user with only the permissions it needs. The full story, including how this relates to other plugins' MCP servers, is on the **MCP server** page.
 
 ## Does Agentimus store IP addresses?
 

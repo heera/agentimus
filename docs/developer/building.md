@@ -21,9 +21,14 @@ needs to **build and test** it.
 | WordPress | 6.0 or newer (tested up to 7.0) | `Requires at least: 6.0` in `agentimus.php` and `readme.txt` |
 | PHP | 7.4 or newer | `Requires PHP: 7.4` in `agentimus.php`; `"php": ">=7.4"` in `composer.json` |
 
-The plugin has **no PHP runtime dependencies** — `composer.json` declares only a dev
-requirement (PHPUnit). Everything under `inc/` is vanilla PHP, PSR-4 autoloaded by a
-hand-rolled loader in `agentimus.php`, so no Composer `install` is needed to run the plugin.
+The plugin has **one PHP runtime dependency, loaded only on demand**: since 1.22.0,
+`composer.json` requires `wordpress/mcp-adapter` (plus `automattic/jetpack-autoloader`, the
+ecosystem's version arbiter when several plugins bundle the same library). It powers the
+opt-in MCP server and is `require`d **only when the owner turns that switch on** — everything
+else under `inc/` is vanilla PHP, PSR-4 autoloaded by a hand-rolled loader in `agentimus.php`.
+A checkout without `composer install` still runs fine: the MCP switch simply no-ops (the
+settings card says why), and nothing else notices. The release ZIP ships a production
+`vendor/` tree built in CI with `composer install --no-dev`.
 
 ### Build & test toolchain (what a contributor needs)
 
@@ -61,7 +66,7 @@ agentimus/
 ├── package.json           # npm scripts + Vue/Vite deps (ships)
 ├── tests/                 # PHPUnit suite + bootstrap.php (dev-only)
 ├── phpunit.xml.dist       # PHPUnit config (dev-only)
-├── composer.json          # Dev dependency (PHPUnit) + `test` script (dev-only)
+├── composer.json          # Runtime dep (MCP adapter) + dev deps (PHPUnit) + `test` script
 ├── examples/              # Copy-paste hook/integration reference files
 ├── readme.txt             # WordPress.org readme (ships)
 ├── README.md              # GitHub readme (dev-only)
@@ -81,8 +86,10 @@ as the Git repository. `.distignore` is the authoritative manifest. In short:
   `package.json`. The source and build config ship on purpose — see the
   [no minified-only code policy](#the-no-minified-only-code-policy).
 - **Excluded from the `.zip`** (via `.distignore`): `.git`, `.github`, `.wordpress-org`,
-  `node_modules`, `vendor`, `tests`, `phpunit.xml.dist`, `composer.json`, `composer.lock`,
-  `package-lock.json`, `README.md`, and `RELEASING.md`.
+  `node_modules`, `tests`, `phpunit.xml.dist`, `composer.json`, `composer.lock`,
+  `package-lock.json`, `README.md`, and `RELEASING.md`. Since 1.22.0, `vendor/` **ships** —
+  built fresh in CI with `composer install --no-dev` so only production packages land — minus
+  targeted trims (the adapter's standalone plugin-entry file, executables, package manifests).
 
 ## Building the Vue admin
 
@@ -143,7 +150,7 @@ defines the minimal WordPress function/constant surface the tested classes touch
 the `Agentimus\` classes straight from `inc/`.
 
 ```bash
-composer install   # installs PHPUnit ^9 into vendor/ (git-ignored)
+composer install   # installs the MCP adapter (runtime) + PHPUnit ^9 (dev) into vendor/ (git-ignored)
 composer test      # runs phpunit against phpunit.xml.dist
 ```
 

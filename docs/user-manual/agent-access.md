@@ -47,6 +47,12 @@ The sharpest signal of all is a **refused** request that came in on one of your 
 
 New rows are flagged until you've seen them, and the count appears on the **More** menu so you notice one arriving from any screen.
 
+## Who did it
+
+Every row carries a quiet second line naming who was behind it — *"by anna · app password “zapier”"* for an ability run over a key, *"by anna · logged-in session"* for one run from the admin. The names are looked up live from your own users and keys at the moment you view the screen, so they can never go stale: rename a key and old rows show its current name; revoke it and they say *"app password (since revoked)"*; delete the user and the row says that too, instead of a bare number. Nothing extra is stored to make this work — still no IP addresses, no identities.
+
+One wording is deliberate: password-lifecycle rows (created, renamed, revoked) say *"on anna's account"* rather than *"by anna"*. Those rows record whose account the key lives on — and an administrator can create or revoke a key on someone else's profile — so the screen claims only what it actually knows.
+
 ---
 
 ## "What can I see here?" — the honesty box
