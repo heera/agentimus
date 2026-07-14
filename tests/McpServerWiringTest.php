@@ -14,7 +14,13 @@
 namespace WP\MCP\Core {
 	// Minimal stand-in for the official mcp-adapter library, so the detection path
 	// (McpAdapter::instance()->get_servers()) runs without the real dependency.
-	if ( ! class_exists( 'WP\\MCP\\Core\\McpAdapter' ) ) {
+	// The second class_exists arg (autoload: FALSE) is load-bearing: the REAL
+	// adapter now lives in vendor/ (bundled since 1.22), so an autoloading probe
+	// would pull it in, skip this stub, and the `$servers` static below would
+	// fatal against the real class. PHPUnit includes every test file before
+	// running, so the stub claims the name first and the real class never loads
+	// in the unit suite.
+	if ( ! class_exists( 'WP\\MCP\\Core\\McpAdapter', false ) ) {
 		class McpAdapter {
 			/** @var object[] */
 			public static $servers = array();
@@ -45,6 +51,17 @@ namespace Agentimus\Tests {
 		public function get_tools() { return array( 'search', 'book' ); }
 	}
 
+	/** A 0.5-era tool DTO: camelCase accessors (php-mcp-schema), nullable description. */
+	class FakeDtoTool {
+		public function getName() { return 'acme-lookup'; }
+		public function getDescription() { return null; }
+	}
+
+	/** A server whose get_tools() returns 0.5-shaped DTOs instead of strings. */
+	class FakeDtoMcpServer extends FakeMcpServer {
+		public function get_tools() { return array( new FakeDtoTool() ); }
+	}
+
 	final class McpServerWiringTest extends TestCase {
 
 		protected function setUp(): void {
@@ -70,6 +87,18 @@ namespace Agentimus\Tests {
 			$this->assertSame( 'wordpress-mcp', $mcp['source'] );
 			$this->assertSame( 2, $mcp['tools'] );
 			$this->assertStringContainsString( '/wp-json/acme-mcp/v1/mcp', $mcp['endpoint'] );
+		}
+
+		public function test_dto_shaped_tools_are_read_not_dropped() {
+			// Adapter 0.5 returns php-mcp-schema DTOs (getName/getDescription) from
+			// get_tools(); the projection must read them, or every server reads as
+			// tool-less — tools:0 in mcp.json and a 404 on its per-id server card.
+			\WP\MCP\Core\McpAdapter::$servers = array( new FakeDtoMcpServer() );
+			$mcp = $this->mcp();
+			$this->assertSame( 1, $mcp['tools'] );
+			$this->assertSame( 'acme-lookup', $mcp['servers'][0]['tool_list'][0]['name'] );
+			$this->assertSame( '', $mcp['servers'][0]['tool_list'][0]['description'], 'null description reads as empty string' );
+			$this->assertArrayHasKey( 'card', $mcp['servers'][0], 'a tool-bearing server links its per-id card' );
 		}
 
 		public function test_auth_defaults_to_application_password_without_oauth() {

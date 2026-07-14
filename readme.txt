@@ -163,6 +163,10 @@ No. The text endpoints are cached and CDN-friendly; there is no front-end JavaSc
 
 No. Agentimus only describes what your site already makes public; it grants no new access. Removing or suppressing an item changes what is *advertised*, not what is reachable — the underlying endpoints behave exactly as before, behind their own authentication.
 
+= Does Agentimus run an MCP server? =
+
+Yes — as an opt-in, on WordPress 6.9 or newer. Turn on **Settings → Discovery → MCP server** and AI tools you already use (Claude Code, Cursor, ChatGPT connectors) can talk to your site over the Model Context Protocol and run the same read-only, permission-checked tools your admin AI gets: readiness, AI traffic, bot identification, per-page readability and previews. Nothing becomes public — every request has to sign in with a WordPress login (an application password works), each tool keeps the same permission checks as the admin screens, and every call is recorded under **More → Agent access**. Off by default, and everything needed ships with the plugin.
+
 = Can AI help me write the description, topics and fixes? =
 
 Yes, if you're on WordPress 7.0 and have set up an AI provider under Settings → AI. Then **Draft with AI** appears on the AI description field, **Suggest with AI** on the Topics field, and **Fix with AI** on any AI Readability row that needs work. Agentimus asks *your* AI through WordPress's shared connectors — it never sees or stores your API key, and nothing is sent anywhere if you haven't set a provider up (the buttons simply don't appear). Every suggestion arrives as ordinary editable text in the field: you read it, change it, and save the post yourself. Nothing is written for you.

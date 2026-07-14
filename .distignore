@@ -1,7 +1,10 @@
 # Files & folders excluded from the distributed plugin ZIP / SVN.
 # What SHIPS: agentimus.php, uninstall.php, readme.txt, LICENSE, inc/,
 # assets/ (built), resources/ (Vue source) + vite.config.js + package.json
-# (so the build is reproducible and the source is human-readable).
+# (so the build is reproducible and the source is human-readable),
+# vendor/ (PRODUCTION deps only — the bundled MCP Adapter + Jetpack autoloader,
+# built fresh by deploy.yml with `composer install --no-dev`; dev tooling never
+# reaches the runner's vendor tree).
 
 /.git
 /.github
@@ -14,13 +17,24 @@
 /dev
 /docs
 /node_modules
-/vendor
 /tests
 /bin
 /phpunit.xml.dist
 /phpunit-integration.xml.dist
 /composer.json
 /composer.lock
+
+# Trim the shipped vendor tree: no executables, and no second plugin header
+# (mcp-adapter.php is the library's STANDALONE-plugin entry file — never loaded
+# through the autoloader, and a zip containing two plugin headers upsets
+# plugin-check), no package manifests. LICENSE.md stays (GPL notice).
+/vendor/bin
+/vendor/wordpress/mcp-adapter/mcp-adapter.php
+/vendor/wordpress/mcp-adapter/composer.json
+/vendor/wordpress/mcp-adapter/composer.lock
+/vendor/wordpress/mcp-adapter/package.json
+/vendor/wordpress/mcp-adapter/package-lock.json
+/vendor/wordpress/mcp-adapter/README.md
 /package-lock.json
 /README.md
 /CHANGELOG.md

@@ -628,6 +628,17 @@ final class Admin {
 				'specUrl'   => 'https://github.com/heera/wp-discovery-protocol',
 				'schemaUrl' => Discovery\Envelope::schema_url(),
 			),
+			// The MCP-server card's facts. NOTE: never read did_action('mcp_adapter_init')
+			// here — the adapter only initialises on rest_api_init, so it is always false
+			// during an admin page load and would render a lying "not running" badge.
+			'mcpServer'   => array(
+				'endpoint'           => esc_url_raw( rest_url( 'agentimus/v1/mcp' ) ),
+				// false → the card explains "needs WP 6.9+ (Abilities API)".
+				'abilitiesAvailable' => function_exists( 'wp_register_ability' ),
+				// false → a git checkout without `composer install`; the toggle would no-op.
+				'adapterAvailable'   => class_exists( '\WP\MCP\Core\McpAdapter' )
+					|| file_exists( AGENTIMUS_DIR . 'vendor/autoload_packages.php' ),
+			),
 			// Every registered WebMCP tool (baseline + provider-added), so the
 			// Settings panel can list them with a per-tool expose/hide toggle.
 			'webmcpTools' => array_map(

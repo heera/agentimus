@@ -518,9 +518,10 @@ final class Registrar {
 
 	/**
 	 * Register a scoped MCP server carrying our read tools, when the WordPress MCP
-	 * Adapter is installed. Requests are authenticated by the adapter (application
-	 * password / OAuth) and then gated by each ability's own permission_callback — so
-	 * "the AI can read" always means "an authenticated user who could read it anyway".
+	 * Adapter is running AND the owner opted in. Requests are authenticated by the
+	 * adapter (application password / OAuth) and then gated by each ability's own
+	 * permission_callback — so "the AI can read" always means "an authenticated user
+	 * who could read it anyway".
 	 *
 	 * The adapter's class names are namespaced under WP\MCP\*; they can drift between
 	 * adapter versions, so everything is guarded by class_exists and this method simply
@@ -529,13 +530,27 @@ final class Registrar {
 	 * @param object $adapter The McpAdapter instance passed by the mcp_adapter_init action.
 	 */
 	public function register_mcp_server( $adapter ) {
+		// The server is opt-in — and the gate lives HERE, not around the hook, so
+		// "MCP server: off" stays true even when another plugin booted the adapter
+		// and fired mcp_adapter_init for its own reasons.
+		if ( ! $this->settings->enabled( 'enable_mcp_server' ) ) {
+			return;
+		}
 		if ( ! is_object( $adapter ) || ! method_exists( $adapter, 'create_server' ) ) {
 			return;
 		}
-		$transport     = '\WP\MCP\Transport\Http\RestTransport';
+		// Adapter 0.2 shipped Transport\Http\RestTransport; 0.3+ renamed it to
+		// Transport\HttpTransport. Prefer the current name, accept a legacy sideload.
+		$transport = null;
+		foreach ( array( '\WP\MCP\Transport\HttpTransport', '\WP\MCP\Transport\Http\RestTransport' ) as $candidate ) {
+			if ( class_exists( $candidate ) ) {
+				$transport = $candidate;
+				break;
+			}
+		}
 		$error_handler = '\WP\MCP\Infrastructure\ErrorHandling\ErrorLogMcpErrorHandler';
 		$observability = '\WP\MCP\Infrastructure\Observability\NullMcpObservabilityHandler';
-		if ( ! class_exists( $transport ) || ! class_exists( $error_handler ) ) {
+		if ( null === $transport || ! class_exists( $error_handler ) ) {
 			return; // Adapter shape we don't recognise — advertise nothing rather than fatal.
 		}
 

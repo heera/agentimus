@@ -22,6 +22,7 @@ export default {
     knownAllowed: { type: Array, default: () => [] },
     defaultAllowed: { type: Array, default: () => [] },
     webmcpTools: { type: Array, default: () => [] },
+    mcpServer: { type: Object, default: () => ({}) }, // {endpoint, abilitiesAvailable, adapterAvailable} for the MCP-server card.
     debug: { type: Object, default: () => ({}) },
     endpoints: { type: Object, default: () => ({}) },
     restNamespacesDetected: { type: Array, default: () => [] },
@@ -54,6 +55,7 @@ export default {
       showAdvanced: !!(this.settings && (this.settings.oauth_auth_server || '').trim()),
       oauthChecking: false,
       oauthCheck: null,
+      mcpCopied: false,
     };
   },
   mounted() {
@@ -436,6 +438,35 @@ export default {
       const i = arr.indexOf(name);
       if (i === -1) arr.push(name);
       else arr.splice(i, 1);
+    },
+    async copyMcpEndpoint() {
+      const text = (this.mcpServer && this.mcpServer.endpoint) || '';
+      if (!text) return;
+      let ok = false;
+      // navigator.clipboard needs a secure context (HTTPS or localhost); on plain
+      // HTTP it's absent or throws, so fall back to the legacy execCommand path.
+      try {
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          await navigator.clipboard.writeText(text);
+          ok = true;
+        }
+      } catch (e) { /* fall through */ }
+      if (!ok) {
+        const ta = document.createElement('textarea');
+        ta.value = text;
+        ta.setAttribute('readonly', '');
+        ta.style.position = 'fixed';
+        ta.style.opacity = '0';
+        document.body.appendChild(ta);
+        ta.select();
+        try { ok = document.execCommand('copy'); } catch (e) { ok = false; }
+        document.body.removeChild(ta);
+      }
+      if (ok) {
+        this.mcpCopied = true;
+        clearTimeout(this._mcpCopyTimer);
+        this._mcpCopyTimer = setTimeout(() => { this.mcpCopied = false; }, 2000);
+      }
     },
     // The same-origin RFC 9728 doc the plugin publishes from this setting. We
     // check OUR OWN site (not the third-party auth server) on purpose: it's
@@ -890,6 +921,52 @@ export default {
               </span>
             </label>
           </template>
+        </div>
+      </section>
+
+      <!-- MCP server — master toggle + connection details --------------- -->
+      <section id="ar-sec-mcp" class="ar-card">
+        <h2 class="ar-card__title">MCP server <span class="ar-card__tag">experimental</span></h2>
+        <p class="ar-card__lead">
+          Lets AI tools you already use — Claude Code, Cursor, ChatGPT connectors — talk to this
+          site over the <strong>Model Context Protocol</strong> and run the same read-only,
+          permission-checked tools your admin AI gets. Nothing becomes public: every request has
+          to sign in with a WordPress login first.
+        </p>
+
+        <p v-if="mcpServer.abilitiesAvailable === false" class="ar-field__hint">
+          Needs WordPress 6.9 or newer (the Abilities API). The switch below won’t do anything on
+          this site yet.
+        </p>
+        <p v-else-if="mcpServer.adapterAvailable === false" class="ar-field__hint">
+          Development checkout — the bundled MCP library is missing. Run <code>composer install</code>
+          in the plugin folder.
+        </p>
+
+        <label id="ar-feat-enable_mcp_server" class="ar-toggle">
+          <input v-model="settings.enable_mcp_server" type="checkbox" />
+          <span class="ar-toggle__track" aria-hidden="true"></span>
+          <span class="ar-toggle__text">
+            <strong>Run the Agentimus MCP server</strong>
+            <small>Read-only tools only. Every call needs a WordPress login (an application password works) and the same permissions as these admin screens.</small>
+          </span>
+        </label>
+
+        <div v-show="settings.enable_mcp_server" class="ar-mcp-connect">
+          <p class="ar-webmcp-tools__head">Where an AI tool connects (after you save):</p>
+          <p class="ar-mcp-connect__endpoint">
+            <code>{{ mcpServer.endpoint }}</code>
+            <button type="button" class="button button-small" @click="copyMcpEndpoint">
+              {{ mcpCopied ? 'Copied' : 'Copy' }}
+            </button>
+          </p>
+          <p class="ar-field__hint">
+            Create an application password under <strong>Users → Profile</strong>, then connect —
+            for example in Claude Code:
+            <code>claude mcp add --transport http agentimus {{ mcpServer.endpoint }}</code>
+            with that login. Every call an AI tool makes shows up under
+            <strong>More → Agent access</strong>, attributed to the user it signed in as.
+          </p>
         </div>
       </section>
 

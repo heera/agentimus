@@ -309,6 +309,11 @@ final class McpSurface {
 			if ( is_object( $tool ) && method_exists( $tool, 'get_name' ) ) {
 				$name = (string) $tool->get_name();
 				$desc = method_exists( $tool, 'get_description' ) ? (string) $tool->get_description() : '';
+			} elseif ( is_object( $tool ) && method_exists( $tool, 'getName' ) ) {
+				// Adapter 0.5+: get_tools() returns php-mcp-schema DTOs, whose
+				// accessors are camelCase (getName/getDescription, nullable).
+				$name = (string) $tool->getName();
+				$desc = method_exists( $tool, 'getDescription' ) ? (string) $tool->getDescription() : '';
 			} elseif ( is_string( $tool ) ) {
 				$name = $tool;
 				$desc = '';

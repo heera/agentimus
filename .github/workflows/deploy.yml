@@ -6,10 +6,12 @@ name: Deploy to WordPress.org
 # (e.g. `git tag 1.0.0 && git push origin 1.0.0`). The tag name becomes the
 # SVN tag directory, so it MUST equal the `Stable tag` in readme.txt.
 #
-# Build step is mandatory here: assets/admin/ (the compiled Vue app) is
-# gitignored, so a bare checkout has no admin UI. We rebuild it into the
-# workspace, then the 10up action rsyncs the tree honoring .distignore — the
-# fresh build ships, node_modules/vendor/tests do not.
+# Build steps are mandatory here: assets/admin/ (the compiled Vue app) AND
+# vendor/ (the bundled MCP Adapter + Jetpack autoloader) are gitignored, so a
+# bare checkout has neither. We rebuild both into the workspace — vendor via
+# `composer install --no-dev`, so ONLY production deps land — then the 10up
+# action rsyncs the tree honoring .distignore: the fresh build and the trimmed
+# vendor ship, node_modules/tests/dev-tooling do not.
 
 on:
   push:
@@ -40,6 +42,22 @@ jobs:
 
       - name: Fail if the build produced nothing
         run: test -s assets/admin/app.js && test -s assets/admin/app.css
+
+      - name: Set up PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          # 7.4 = the plugin's floor; also honors composer.json's platform pin.
+          php-version: '7.4'
+          tools: composer
+
+      - name: Install runtime PHP dependencies (vendor/ ships in the zip)
+        run: composer install --no-dev --prefer-dist --no-progress --optimize-autoloader
+
+      - name: Fail if the MCP adapter vendor tree is incomplete
+        run: |
+          test -f vendor/autoload_packages.php
+          test -f vendor/composer/jetpack_autoload_classmap.php
+          test -d vendor/wordpress/mcp-adapter/includes
 
       - name: Deploy to WordPress.org
         uses: 10up/action-wordpress-plugin-deploy@stable

@@ -94,6 +94,7 @@ export default {
       knownAllowed: this.boot.knownAllowed || [],
       defaultAllowed: this.boot.defaultAllowed || [],
       webmcpTools: this.boot.webmcpTools || [],
+      mcpServer: this.boot.mcpServer || {},
       debug: this.boot.debug || {},
       isLocal: !!this.boot.isLocal,
       restNamespacesDetected: this.boot.restNamespacesDetected || [],
@@ -1438,6 +1439,7 @@ export default {
           :known-allowed="knownAllowed"
           :default-allowed="defaultAllowed"
           :webmcp-tools="webmcpTools"
+          :mcp-server="mcpServer"
           :debug="debug"
           :endpoints="endpoints"
           :rest-namespaces-detected="restNamespacesDetected"
