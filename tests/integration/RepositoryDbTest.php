@@ -63,6 +63,28 @@ final class RepositoryDbTest extends DbTestCase {
 		$this->assertSame( 2, $endpoints['discovery.json'] );
 	}
 
+	public function test_week_and_month_windows_are_calendar_days_not_rolling() {
+		// The tile windows are CALENDAR days (UTC), the same clock as "today" and the
+		// daily chart. They used to be rolling (now - N*86400), which made the numbers
+		// visibly SHRINK between midnights as old hits aged out — an owner watching
+		// auto-refresh read that as data loss. These two rows pin the boundary:
+		$window_start = gmdate( 'Y-m-d 00:00:00', time() - 6 * DAY_IN_SECONDS );
+
+		// 1s BEFORE the 7-calendar-day window opens. A rolling 168h window would ALWAYS
+		// count this row (it is at most 6d23h59m59s + 1s old); the calendar window never.
+		$this->hit( 'llms.txt', 'GPTBot', 'GPTBot/1.0', gmdate( 'Y-m-d H:i:s', strtotime( $window_start . ' UTC' ) - 1 ) );
+		// Exactly AT the boundary (>= cutoff): the oldest instant that still counts.
+		$this->hit( 'llms.txt', 'GPTBot', 'GPTBot/1.0', $window_start );
+		// And one from right now.
+		$this->hit( 'discovery.json', 'GPTBot', 'GPTBot/1.0' );
+
+		$totals = Repository::stats( new Settings() )['totals'];
+		$this->assertSame( 2, $totals['week'], '7 days = today plus the 6 full days before it, nothing older' );
+		$this->assertSame( 3, $totals['all'] );
+		$this->assertSame( 3, $totals['month'], 'the 30-day window still holds what the week aged out' );
+		$this->assertSame( 1, $totals['today'] );
+	}
+
 	/** The ua-indexed threats GROUP BY, plus is_spoof flagging, end-to-end. */
 	public function test_threats_surface_a_spoofed_legacy_device() {
 		for ( $i = 0; $i < 5; $i++ ) {

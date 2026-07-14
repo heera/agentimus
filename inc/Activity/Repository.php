@@ -146,10 +146,18 @@ final class Repository {
 		$table = Table::name();
 
 		// The dashboard reports on the retained span, capped at 30 days.
+		//
+		// Every cutoff is a CALENDAR-day boundary (UTC midnight), the same clock as the
+		// "today" tile, the daily chart and the referral counters. The 7/30-day windows
+		// used to be rolling (`now - N*86400`), which made those tiles legitimately
+		// SHRINK between midnights as old hits aged out second by second — an owner
+		// watching auto-refresh read that as data loss (2026-07-14, live sighting).
+		// One clock everywhere: numbers only move at UTC midnight, matching the chart
+		// they sit above. "7 days" = today plus the 6 full days before it.
 		$window = self::report_days();
 		$today  = gmdate( 'Y-m-d 00:00:00' );
-		$week   = gmdate( 'Y-m-d H:i:s', time() - 7 * DAY_IN_SECONDS );
-		$month  = gmdate( 'Y-m-d H:i:s', time() - $window * DAY_IN_SECONDS );
+		$week   = gmdate( 'Y-m-d 00:00:00', time() - 6 * DAY_IN_SECONDS );
+		$month  = gmdate( 'Y-m-d 00:00:00', time() - ( $window - 1 ) * DAY_IN_SECONDS );
 
 		return array(
 			'enabled'    => (bool) $settings->enabled( 'enable_activity' ),
@@ -627,8 +635,9 @@ final class Repository {
 		// queue counts exactly the hits the dashboard is showing. Reading WINDOW_DAYS raw was
 		// wrong for a shorter retention (queue looked back 30 days into data kept for 7);
 		// reading retention_days() would be wrong for a longer one (queue counts 90 days
-		// while every card on the dashboard shows 30).
-		$since = gmdate( 'Y-m-d H:i:s', $now - self::report_days() * DAY_IN_SECONDS );
+		// while every card on the dashboard shows 30). Calendar-day boundary for the same
+		// reason as stats(): "what the dashboard is showing" is now a calendar window.
+		$since = gmdate( 'Y-m-d 00:00:00', $now - ( self::report_days() - 1 ) * DAY_IN_SECONDS );
 		$hour  = gmdate( 'Y-m-d H:i:s', $now - HOUR_IN_SECONDS );
 
 		// One row per distinct UA over the window. MAX(agent) is unambiguous: the
