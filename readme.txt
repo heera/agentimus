@@ -4,7 +4,7 @@ Tags: ai-agents, ai-crawlers, agent-readiness, llms-txt, ai-seo
 Requires at least: 6.0
 Tested up to: 7.0
 Requires PHP: 7.4
-Stable tag: 1.22.0
+Stable tag: 1.22.1
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -249,6 +249,13 @@ There is no minified-only code. The admin interface is built from Vue 3 source i
 
 == Changelog ==
 
+= 1.22.1 =
+* New — **Connected AI tools can write now — each step behind its own switch.** The MCP server card grows a trust ladder. A second switch (off by default) gives connected agents five write tools: draft a new post or page, edit an existing one, set a page's AI description and its Topics for AI, and apply a Readiness fix — where "fix" means exactly what the readiness check itself recommends, and only ever *enabling* a plugin feature; a fix that needs your judgement or a server change refuses honestly and names the manual step instead. A third switch decides publishing: while it's off, an agent can only leave drafts and pending posts for your review. Every write runs as the WordPress user behind the key — an author's key can't do editor things, a new category still needs the category permission, exactly as in wp-admin — and every write is recorded under More → Agent access, attributed to the key that made it. With the writes switch off the tools aren't just refused, they don't exist on any surface — MCP, the abilities endpoint, discovery — so "read-only" stays literally true; and switching the MCP server off switches writes (and publishing) off with it, so the ladder can never disagree with itself.
+* New — **An agent can dress a post completely.** Creating and editing now also carry categories and tags (by name, with wp-admin's exact permission rules: any author can create a tag, only category managers can create a category) and the featured image — an attachment you already have, or an image URL the plugin imports into your media library, alt text included, gated on the user's upload permission and your site's file-type and size rules. Draft it, dress it, leave it for review: no wp-admin visit required.
+* New — **The MCP card connects your AI tool for you.** Pick the tool you use — Claude Desktop, ChatGPT/Codex, Claude Code — and the card mints a named application password in one click (or takes one you saved), hands you a finished setup with the endpoint and login already woven in, and proves the connection with a built-in test.
+* Improved — **The score card says how much, not just what's next.** Each rung now carries a quiet "n to fix" count, an unmeasured Cited rung says "not measured yet" instead of a dash that read as broken, and the "Next:" line explains *why* in a tooltip. Grading also stops nagging about pages nobody authored — a shop's cart and checkout pages, and container pages whose only content is a plugin's shortcode — so the Optimize rung measures your writing, not your plugins'.
+* Fixed — **WebMCP follows the browser's move.** Chrome relocated the WebMCP entry point (navigator.modelContext → document.modelContext); the search tool now registers on the current name and still recognises the old one, so it keeps working as browsers retire the alias.
+
 = 1.22.0 =
 * New — **An MCP server, one switch, nothing extra to install.** Turn on Settings → Discovery → MCP server and AI tools you already use — Claude Code, Claude Desktop, Cursor, Codex — can talk to your site over the Model Context Protocol and run Agentimus's nine read-only tools: readiness, AI traffic, request log, bot identification, and the page/JSON-LD/Markdown previews. The WordPress MCP Adapter library now ships inside the plugin and is loaded only when you opt in — with the switch off, nothing is loaded and no endpoint exists. Nothing becomes public: every call must sign in with a WordPress login (an application password works), every tool keeps the same permission checks as the admin screen it comes from, every call is recorded under More → Agent access — and switching it off disconnects connected tools immediately. To keep the surface exactly what you opted into, Agentimus also keeps the library's generic "run any ability" server switched off. Needs WordPress 6.9+ (the Abilities API); off by default. Full transparency: the settings card also tells you what an application password really is — a login for your whole REST API, not just this server — and recommends one password per tool, on a user with only the permissions it needs.
 * Fixed — **The MCP wiring had quietly gone stale — in two places.** The adapter library renamed its transport class some versions ago; Agentimus still asked for the old name, so even a site that had installed the adapter by hand got no server at all, silently. And the mcp.json manifest read each server's tool list with equally outdated accessors, so a running server was advertised as having "0 tools" and its per-server card refused to serve. Both fixed: the manifest now lists every server's real tools and links a card for each.
@@ -288,6 +295,9 @@ There is no minified-only code. The admin interface is built from Vue 3 source i
 The full changelog for every release lives in the plugin repository: https://github.com/heera/agentimus/blob/main/CHANGELOG.md
 
 == Upgrade Notice ==
+
+= 1.22.1 =
+New opt-in write tier: connected AI tools can draft, edit and fully dress posts — categories, tags, featured image — and, behind a separate third switch, publish. Off by default, permission-checked per key, every write audited. Plus: the MCP card now connects your AI tool for you, and the score card counts what's left to fix.
 
 = 1.22.0 =
 One switch now runs an MCP server on your own site — AI tools like Claude Code can use Agentimus's read-only tools, authenticated, permission-checked and fully audited. Off by default. Also: Agent access rows now name the user and key behind every event, and the dashboard's 7/30-day counters count whole calendar days, so they no longer appear to lose hits.
