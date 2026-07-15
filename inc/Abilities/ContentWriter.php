@@ -52,6 +52,12 @@ final class ContentWriter {
 	/** @var Settings */
 	private $settings;
 
+	/** @var int Attachment ID imported by THIS call's resolve_featured_image(), 0 if none.
+	 *           Re-parenting in apply_featured_image() is scoped to exactly this ID: a
+	 *           pre-existing attachment passed by ID may belong to someone else, and the
+	 *           connected user holds no capability over it. */
+	private $imported_attachment = 0;
+
 	/**
 	 * @param Settings $settings Settings store.
 	 */
@@ -125,7 +131,10 @@ final class ContentWriter {
 			$postarr['post_name'] = sanitize_title( (string) $input['slug'] );
 		}
 
-		$post_id = wp_insert_post( $postarr, true );
+		// wp_slash: core's write path unslashes its input (it expects slashed data,
+		// as core's own REST controller provides) — raw agent input would lose one
+		// level of literal backslashes in code snippets, regexes, Windows paths.
+		$post_id = wp_insert_post( wp_slash( $postarr ), true );
 		if ( is_wp_error( $post_id ) ) {
 			return $post_id;
 		}
@@ -194,7 +203,8 @@ final class ContentWriter {
 		// Meta-only calls skip wp_update_post entirely (it would bump post_modified
 		// for a no-op); the meta writes below carry their own cache-flush hooks.
 		if ( count( $postarr ) > 1 ) {
-			$updated = wp_update_post( $postarr, true );
+			// wp_slash for the same reason as create(): the write path unslashes.
+			$updated = wp_update_post( wp_slash( $postarr ), true );
 			if ( is_wp_error( $updated ) ) {
 				return $updated;
 			}
@@ -420,6 +430,7 @@ final class ContentWriter {
 		if ( is_wp_error( $id ) ) {
 			return $id;
 		}
+		$this->imported_attachment = (int) $id;
 		if ( isset( $input['featured_image_alt'] ) && '' !== trim( (string) $input['featured_image_alt'] ) ) {
 			update_post_meta( (int) $id, '_wp_attachment_image_alt', sanitize_text_field( (string) $input['featured_image_alt'] ) );
 		}
@@ -442,15 +453,20 @@ final class ContentWriter {
 			return;
 		}
 		set_post_thumbnail( $post_id, (int) $featured );
-		// An image imported for this post should belong to it in the library.
-		$attachment = get_post( (int) $featured );
-		if ( $attachment && 0 === (int) $attachment->post_parent ) {
-			wp_update_post(
-				array(
-					'ID'          => (int) $featured,
-					'post_parent' => $post_id,
-				)
-			);
+		// An image imported BY THIS CALL should belong to its post in the library.
+		// Only that one: a pre-existing attachment passed by ID may be another
+		// user's upload, and edit_post on our post grants nothing over it — an
+		// unscoped re-parent would let any author claim any orphaned image.
+		if ( (int) $featured === $this->imported_attachment && $this->imported_attachment > 0 ) {
+			$attachment = get_post( (int) $featured );
+			if ( $attachment && 0 === (int) $attachment->post_parent ) {
+				wp_update_post(
+					array(
+						'ID'          => (int) $featured,
+						'post_parent' => $post_id,
+					)
+				);
+			}
 		}
 	}
 
@@ -468,7 +484,8 @@ final class ContentWriter {
 			if ( '' === $description ) {
 				delete_post_meta( $post_id, Description::META ); // Blank = fall back to the excerpt.
 			} else {
-				update_post_meta( $post_id, Description::META, $description );
+				// wp_slash: the meta API unslashes too, same as the post write path.
+				update_post_meta( $post_id, Description::META, wp_slash( $description ) );
 			}
 		}
 		if ( isset( $input['topics'] ) ) {
@@ -476,7 +493,7 @@ final class ContentWriter {
 			if ( empty( $topics ) ) {
 				delete_post_meta( $post_id, Topics::META_TOPICS );
 			} else {
-				update_post_meta( $post_id, Topics::META_TOPICS, $topics );
+				update_post_meta( $post_id, Topics::META_TOPICS, wp_slash( $topics ) );
 			}
 		}
 		if ( isset( $input['topics_derive'] ) ) {

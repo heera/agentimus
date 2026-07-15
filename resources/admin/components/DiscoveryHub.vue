@@ -20,7 +20,7 @@ export default {
       return this.data.endpoints || {};
     },
     counts() {
-      return this.data.counts || { resources: 0, capabilities: 0, apis: 0, errors: 0 };
+      return this.data.counts || { resources: 0, capabilities: 0, tools: 0, apis: 0, errors: 0 };
     },
     resources() {
       return this.data.resources || [];
@@ -232,6 +232,15 @@ export default {
           </div>
         </li>
       </ul>
+      <!-- Two different empty states: tools can exist but be deliberately withheld
+           from anonymous discovery (all sign-in-only since 1.20.0) — saying "none
+           yet" while the count above reads 14 would be a lie. -->
+      <p v-else-if="counts.tools > 0" class="ar-wd-empty">
+        Nothing is listed here because all {{ counts.tools }} of this site's agent tools require sign-in,
+        and sign-in-only tools are deliberately not advertised in the public documents — an anonymous
+        reader gets no map of your tooling. An agent holding real credentials still discovers and runs
+        them the proper way.
+      </p>
       <p v-else class="ar-wd-empty">
         No agent tools yet. They come from the WordPress Abilities API (in core from 6.9, or the Abilities
         API plugin on older versions) or an MCP-aware plugin — once abilities are registered, they appear here.
