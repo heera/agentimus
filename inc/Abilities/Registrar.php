@@ -526,11 +526,12 @@ final class Registrar {
 		$this->add(
 			'create-content',
 			__( 'Create a post or page', 'agentimus' ),
-			'Creates a post or page as the connected user — a DRAFT unless told otherwise — and can set '
-				. 'its AI description and Topics for AI in the same call. status=publish needs the site’s '
-				. '"agents may publish" switch on top of the user’s own publish permission; when it is off, '
-				. 'create a draft (or pending) for the owner to review. Returns the new id — run check-page '
-				. 'on it next to grade the draft’s AI readability.',
+			'Creates a post or page as the connected user — a DRAFT unless told otherwise — fully dressed '
+				. 'in one call: content, categories, tags, featured image (an existing attachment ID or an '
+				. 'image URL to import), plus its AI description and Topics for AI. status=publish needs the '
+				. 'site’s "agents may publish" switch on top of the user’s own publish permission; when it is '
+				. 'off, create a draft (or pending) for the owner to review. Returns the new id — run '
+				. 'check-page on it next to grade the draft’s AI readability.',
 			self::obj(
 				array(
 					'type'          => array(
@@ -543,6 +544,10 @@ final class Registrar {
 					'excerpt'       => self::s( 'Optional manual excerpt.' ),
 					'slug'          => self::s( 'Optional URL slug; derived from the title when omitted.' ),
 					'status'        => self::status_input_schema(),
+					'categories'    => self::terms_input_schema( 'categories' ),
+					'tags'          => self::terms_input_schema( 'tags' ),
+					'featured_image' => self::featured_image_input_schema(),
+					'featured_image_alt' => self::s( 'Alt text for an imported featured image.' ),
 					'description'   => self::s( 'The page’s AI description — one plain sentence (≤300 chars). Feeds the JSON-LD description, the .md lead and (when enabled) the meta-description tag.' ),
 					'topics'        => self::topics_input_schema(),
 					'topics_derive' => array(
@@ -566,9 +571,11 @@ final class Registrar {
 			'Updates a post or page as the connected user — only the fields you pass change; everything '
 				. 'else behaves as a normal editor save. Moving something TO publish needs the site’s '
 				. '"agents may publish" switch; editing an already-published post follows the user’s normal '
-				. 'edit permission. Can set the AI description / Topics for AI alongside the content, or on '
-				. 'their own. CAUTION: passing content replaces the current body — posts and pages keep a '
-				. 'revision of the old one, but a content type without revision support does not.',
+				. 'edit permission. Can set the AI description / Topics for AI, categories, tags and the '
+				. 'featured image alongside the content, or on their own. CAUTION: fields REPLACE — passing '
+				. 'content replaces the current body (posts and pages keep a revision of the old one, but a '
+				. 'content type without revision support does not), and a categories/tags list replaces the '
+				. 'current list ([] clears it).',
 			self::obj(
 				array(
 					'post_id'       => self::i( 'The post/page ID to update.' ),
@@ -577,6 +584,10 @@ final class Registrar {
 					'excerpt'       => self::s( 'New manual excerpt.' ),
 					'slug'          => self::s( 'New URL slug.' ),
 					'status'        => self::status_input_schema(),
+					'categories'    => self::terms_input_schema( 'categories' ),
+					'tags'          => self::terms_input_schema( 'tags' ),
+					'featured_image' => self::featured_image_input_schema(),
+					'featured_image_alt' => self::s( 'Alt text for an imported featured image.' ),
 					'description'   => self::s( 'The page’s AI description — one plain sentence (≤300 chars). Pass an empty string to clear it (the excerpt then takes over).' ),
 					'topics'        => self::topics_input_schema(),
 					'topics_derive' => array(
@@ -1038,20 +1049,56 @@ final class Registrar {
 		);
 	}
 
+	/**
+	 * The categories/tags input shared by create-content and update-content.
+	 *
+	 * @param string $field 'categories' or 'tags' (for the description).
+	 */
+	private static function terms_input_schema( $field ) {
+		return array(
+			'type'        => 'array',
+			'items'       => self::s(),
+			'description' => sprintf(
+				'%s, by name — REPLACES the post’s current %s ([] clears them). Existing names are matched; a new name is created only when the connected user may manage %s (same rule as wp-admin).',
+				'categories' === $field ? 'Categories' : 'Tags',
+				$field,
+				$field
+			),
+		);
+	}
+
+	/** The featured_image input shared by create-content and update-content. */
+	private static function featured_image_input_schema() {
+		return self::s( 'The featured image: an existing attachment ID (e.g. "123"), or an http(s) image URL to import into the media library (needs the user’s upload permission; the site’s file-type and size rules apply). Empty string removes the featured image.' );
+	}
+
 	/** What every write ability returns: the written post as it now stands (see ContentWriter::summarize()). */
 	private static function written_post_schema() {
 		return self::obj(
 			array(
-				'id'          => self::i(),
-				'type'        => self::s(),
-				'status'      => self::s(),
-				'title'       => self::s(),
-				'url'         => self::s(),
-				'editUrl'     => self::s(),
-				'description' => self::s(),
-				'topics'      => array(
+				'id'            => self::i(),
+				'type'          => self::s(),
+				'status'        => self::s(),
+				'title'         => self::s(),
+				'url'           => self::s(),
+				'editUrl'       => self::s(),
+				'description'   => self::s(),
+				'topics'        => array(
 					'type'  => 'array',
 					'items' => self::s(),
+				),
+				'categories'    => array(
+					'type'  => 'array',
+					'items' => self::s(),
+				),
+				'tags'          => array(
+					'type'  => 'array',
+					'items' => self::s(),
+				),
+				'featuredImage' => array(
+					'type'                 => array( 'object', 'null' ),
+					'description'          => '{ id, url } of the featured image, or null when none is set.',
+					'additionalProperties' => true,
 				),
 			)
 		);
