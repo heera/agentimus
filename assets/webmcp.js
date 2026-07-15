@@ -2,7 +2,7 @@
  * Agentimus — WebMCP bridge (experimental, opt-in).
  *
  * Registers the site's read-only tools with an in-browser AI agent via the
- * WebMCP browser API (navigator.modelContext). Inert in any browser without
+ * WebMCP browser API (document.modelContext). Inert in any browser without
  * the API — which is nearly all of them today — so it adds no behaviour for
  * human visitors. Enqueued only when the owner opts in and tools exist.
  *
@@ -12,7 +12,14 @@
 ( function () {
 	'use strict';
 
-	var mc = ( typeof navigator !== 'undefined' ) ? navigator.modelContext : null;
+	// The API surface moved while the spec is incubating: Chrome first shipped it
+	// as navigator.modelContext, then moved to document.modelContext and left the
+	// navigator name as a DEPRECATED alias (reading it logs a console warning on
+	// every page view, and it will eventually be removed). Prefer the current
+	// home; keep the old one only as a fallback for the earliest preview builds.
+	var mc = ( typeof document !== 'undefined' && document.modelContext )
+		? document.modelContext
+		: ( ( typeof navigator !== 'undefined' ) ? navigator.modelContext : null );
 	if ( ! mc || typeof mc.registerTool !== 'function' ) {
 		return; // No WebMCP in this browser — do nothing at all.
 	}
