@@ -1282,9 +1282,10 @@ export default {
           Lets AI tools you already use — Claude Desktop, the ChatGPT app (through its Codex
           side), Claude Code, the Codex CLI — talk to this site over the
           <strong>Model Context Protocol</strong>. A connected tool acts as your WordPress
-          user: it signs in first, and it can only read what that user could see on these
-          screens — nothing becomes public. (ChatGPT’s own connector screen can’t connect —
-          it’s OAuth-only; its Codex side is the way in.)
+          user: it signs in first, and it can only do what that user could on these
+          screens — reading only, unless you also allow writing below. Nothing becomes
+          public. (ChatGPT’s own connector screen can’t connect — it’s OAuth-only; its
+          Codex side is the way in.)
         </p>
 
         <p v-if="mcpServer.abilitiesAvailable === false" class="ar-field__hint">
@@ -1301,9 +1302,33 @@ export default {
           <span class="ar-toggle__track" aria-hidden="true"></span>
           <span class="ar-toggle__text">
             <strong>Run the Agentimus MCP server</strong>
-            <small>Read-only tools only. Every call needs a WordPress login (an application password works) and the same permissions as these admin screens.</small>
+            <small>Every call needs a WordPress login (an application password works) and the same permissions as these admin screens. Read-only tools, unless you allow writing below.</small>
           </span>
         </label>
+
+        <!-- The write tier: a second deliberate switch, plus a third for going live.
+             Off = the write tools don't exist on any surface, so "read-only" above
+             stays literally true until the owner says otherwise. -->
+        <div v-show="settings.enable_mcp_server" class="ar-webmcp-tools">
+          <label id="ar-feat-enable_agent_writes" class="ar-toggle">
+            <input v-model="settings.enable_agent_writes" type="checkbox" />
+            <span class="ar-toggle__track" aria-hidden="true"></span>
+            <span class="ar-toggle__text">
+              <strong>Let connected agents write</strong>
+              <small>Adds write tools: draft and edit posts and pages, set their AI topics and descriptions, and apply Readiness fixes (a fixed list of safe switches — it can only turn documented features on, never loosen a protection). An agent still acts as the signed-in user and can never do more than that user could in the editor. Every write lands under <a href="#agent-access">Agent access</a>.</small>
+            </span>
+          </label>
+          <div v-show="settings.enable_agent_writes" class="ar-webmcp-tools">
+            <label id="ar-feat-agent_writes_publish" class="ar-toggle">
+              <input v-model="settings.agent_writes_publish" type="checkbox" />
+              <span class="ar-toggle__track" aria-hidden="true"></span>
+              <span class="ar-toggle__text">
+                <strong>…including publishing, without your review</strong>
+                <small>Lets an agent put content live (and it still needs a user allowed to publish). Off — the safe default — means agents only create drafts and pending posts for you to review; editing something already published follows that user’s normal edit permission either way.</small>
+              </span>
+            </label>
+          </div>
+        </div>
 
         <div v-show="settings.enable_mcp_server" class="ar-mcp-connect">
           <!-- Status: is the server actually answering, and has anything used it?

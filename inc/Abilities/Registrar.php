@@ -13,12 +13,22 @@
  *   • the REST API (`meta.show_in_rest`),
  *   • external AI agents, via the MCP Adapter (see {@see register_mcp_server()}).
  *
- * Every ability here is READ-ONLY: it wraps a service method that already returns a
- * structured array (see {@see Score}, {@see Readiness}, {@see Activity\Referrals},
- * {@see Activity\Repository}, {@see BotVerifier}, {@see PageCheck}, {@see Schema},
- * {@see Markdown}, {@see Exposure}) and mutates nothing. Write abilities (set a page's
- * AI description/topics, purge caches, run a visibility check) are intentionally NOT
- * here — they carry cost or data loss and belong behind a deliberate, separate opt-in.
+ * TWO TIERS, two switches:
+ *
+ *   READ (always registered on a capable core): each ability wraps a service method
+ *   that already returns a structured array (see {@see Score}, {@see Readiness},
+ *   {@see Activity\Referrals}, {@see Activity\Repository}, {@see BotVerifier},
+ *   {@see PageCheck}, {@see Schema}, {@see Markdown}, {@see Exposure}) and mutates
+ *   nothing. External MCP exposure is gated by `enable_mcp_server`.
+ *
+ *   WRITE (registered ONLY when the owner flips `enable_agent_writes`): create/update
+ *   posts and pages, set a page's AI description/topics, and apply a readiness fix
+ *   (see {@see ContentWriter}, {@see Fixer}). Off means the write abilities do not
+ *   exist on ANY surface — not the MCP server, not the abilities REST API, not the
+ *   in-admin assistant — so "read-only" stays literally true until the owner says
+ *   otherwise. Going live (status=publish) sits behind a third switch on top
+ *   (`agent_writes_publish`). Abilities that spend money (run a visibility check)
+ *   remain deliberately unregistered.
  *
  * The whole class no-ops on cores without the Abilities API, so the plugin's 6.3+
  * baseline is unaffected.
@@ -31,6 +41,7 @@ namespace Agentimus\Abilities;
 use Agentimus\Settings;
 use Agentimus\Readiness;
 use Agentimus\Score;
+use Agentimus\Content;
 use Agentimus\PageCheck;
 use Agentimus\Schema;
 use Agentimus\Markdown;
@@ -81,7 +92,7 @@ final class Registrar {
 			self::CATEGORY,
 			array(
 				'label'       => __( 'Agentimus — AI visibility', 'agentimus' ),
-				'description' => __( 'Read this site’s AI/agent readiness, traffic, bot activity, per-page readability and discovery output.', 'agentimus' ),
+				'description' => __( 'Read — and, when the owner allows writes, improve — this site’s AI/agent readiness, traffic, bot activity, per-page readability and discovery output.', 'agentimus' ),
 			)
 		);
 	}
@@ -482,6 +493,190 @@ final class Registrar {
 			},
 			$manage
 		);
+
+		// The write tier exists only when the owner deliberately turned it on. The gate
+		// sits at REGISTRATION (this hook re-runs per request, reading live settings),
+		// so flipping the switch off removes the abilities from every surface at once.
+		if ( $this->settings->enabled( 'enable_agent_writes' ) ) {
+			$this->register_write_abilities( $manage );
+		}
+	}
+
+	/**
+	 * Register the write abilities — the opt-in tier (see the class doc).
+	 *
+	 * @param callable $manage The site-admin permission callback.
+	 */
+	private function register_write_abilities( $manage ) {
+		$summary = self::written_post_schema();
+
+		$this->add(
+			'create-content',
+			__( 'Create a post or page', 'agentimus' ),
+			'Creates a post or page as the connected user — a DRAFT unless told otherwise — and can set '
+				. 'its AI description and Topics for AI in the same call. status=publish needs the site’s '
+				. '"agents may publish" switch on top of the user’s own publish permission; when it is off, '
+				. 'create a draft (or pending) for the owner to review. Returns the new id — run check-page '
+				. 'on it next to grade the draft’s AI readability.',
+			self::obj(
+				array(
+					'type'          => array(
+						'type'        => 'string',
+						'enum'        => Content::post_types(),
+						'description' => 'Content type. Defaults to "post".',
+					),
+					'title'         => self::s( 'The title. Required.' ),
+					'content'       => self::s( 'The body, as HTML (Gutenberg block markup welcome). WordPress sanitises it according to the connected user’s capabilities.' ),
+					'excerpt'       => self::s( 'Optional manual excerpt.' ),
+					'slug'          => self::s( 'Optional URL slug; derived from the title when omitted.' ),
+					'status'        => self::status_input_schema(),
+					'description'   => self::s( 'The page’s AI description — one plain sentence (≤300 chars). Feeds the JSON-LD description, the .md lead and (when enabled) the meta-description tag.' ),
+					'topics'        => self::topics_input_schema(),
+					'topics_derive' => array(
+						'type'        => 'boolean',
+						'description' => 'Whether this page should ALSO derive topics from its tags & categories (omit to follow the site default).',
+					),
+				),
+				array( 'title' )
+			),
+			$summary,
+			function ( $input ) {
+				return ( new ContentWriter( $this->settings ) )->create( is_array( $input ) ? $input : array() );
+			},
+			array( $this, 'can_create_content' ),
+			false
+		);
+
+		$this->add(
+			'update-content',
+			__( 'Update a post or page', 'agentimus' ),
+			'Updates a post or page as the connected user — only the fields you pass change; everything '
+				. 'else (including revisions) behaves as a normal editor save. Moving something TO publish '
+				. 'needs the site’s "agents may publish" switch; editing an already-published post follows '
+				. 'the user’s normal edit permission. Can set the AI description / Topics for AI alongside '
+				. 'the content, or on their own.',
+			self::obj(
+				array(
+					'post_id'       => self::i( 'The post/page ID to update.' ),
+					'title'         => self::s( 'New title.' ),
+					'content'       => self::s( 'New body, as HTML. Replaces the current body (a revision keeps the old one).' ),
+					'excerpt'       => self::s( 'New manual excerpt.' ),
+					'slug'          => self::s( 'New URL slug.' ),
+					'status'        => self::status_input_schema(),
+					'description'   => self::s( 'The page’s AI description — one plain sentence (≤300 chars). Pass an empty string to clear it (the excerpt then takes over).' ),
+					'topics'        => self::topics_input_schema(),
+					'topics_derive' => array(
+						'type'        => 'boolean',
+						'description' => 'Whether this page should ALSO derive topics from its tags & categories.',
+					),
+				),
+				array( 'post_id' )
+			),
+			$summary,
+			function ( $input ) {
+				return ( new ContentWriter( $this->settings ) )->update( is_array( $input ) ? $input : array() );
+			},
+			array( $this, 'can_edit_post' ),
+			false
+		);
+
+		$this->add(
+			'write-description',
+			__( 'Set a page’s AI description', 'agentimus' ),
+			'Sets ONE post/page’s AI description — the single plain sentence (≤300 chars) that feeds its '
+				. 'JSON-LD description, its .md lead, and (when the owner enabled it) the meta-description '
+				. 'tag. Pass an empty string to clear it, falling back to the excerpt. A focused fix after '
+				. 'check-page flags a weak opening — no need to resend the content.',
+			self::obj(
+				array(
+					'post_id'     => self::i( 'The post/page ID.' ),
+					'description' => self::s( 'The description sentence; empty string clears it.' ),
+				),
+				array( 'post_id', 'description' )
+			),
+			$summary,
+			function ( $input ) {
+				$input = is_array( $input ) ? $input : array();
+				return ( new ContentWriter( $this->settings ) )->update(
+					array(
+						'post_id'     => isset( $input['post_id'] ) ? (int) $input['post_id'] : 0,
+						'description' => isset( $input['description'] ) ? (string) $input['description'] : '',
+					)
+				);
+			},
+			array( $this, 'can_edit_post' ),
+			false
+		);
+
+		$this->add(
+			'write-topics',
+			__( 'Set a page’s Topics for AI', 'agentimus' ),
+			'Sets ONE post/page’s manual Topics for AI — the short keyword list that becomes its JSON-LD '
+				. 'keywords and a line in its .md twin. The list replaces the current manual topics (pass an '
+				. 'empty list to clear them); it is deduped, trimmed and capped by the site’s topic settings. '
+				. 'Derived tags & categories still merge in when derivation is on.',
+			self::obj(
+				array(
+					'post_id' => self::i( 'The post/page ID.' ),
+					'topics'  => self::topics_input_schema(),
+					'derive'  => array(
+						'type'        => 'boolean',
+						'description' => 'Whether this page should ALSO derive topics from its tags & categories (omit to leave the current choice).',
+					),
+				),
+				array( 'post_id', 'topics' )
+			),
+			$summary,
+			function ( $input ) {
+				$input = is_array( $input ) ? $input : array();
+				$args  = array(
+					'post_id' => isset( $input['post_id'] ) ? (int) $input['post_id'] : 0,
+					'topics'  => isset( $input['topics'] ) ? $input['topics'] : array(),
+				);
+				if ( isset( $input['derive'] ) ) {
+					$args['topics_derive'] = $input['derive'];
+				}
+				return ( new ContentWriter( $this->settings ) )->update( $args );
+			},
+			array( $this, 'can_edit_post' ),
+			false
+		);
+
+		$this->add(
+			'apply-fix',
+			__( 'Apply a readiness fix', 'agentimus' ),
+			'Enacts ONE readiness check’s own remediation, by the check id read-readiness returned — a '
+				. 'closed set of known-safe switches (it can only ENABLE documented features, never loosen a '
+				. 'protection). Fixes that need content, judgement or server access come back applied=false '
+				. 'with the honest next step. Returns the check’s state after applying, so re-run '
+				. 'read-readiness only when you want the refreshed overall score.',
+			self::obj(
+				array(
+					'check_id' => self::s( 'A check id from read-readiness (checks[].id or score.actions[].id), e.g. "llms", "schema", "sitemap".' ),
+				),
+				array( 'check_id' )
+			),
+			self::obj(
+				array(
+					'applied' => self::b(),
+					'changed' => array(
+						'type'  => 'array',
+						'items' => self::s(),
+					),
+					'message' => self::s(),
+					'check'   => array(
+						'type'                 => array( 'object', 'null' ),
+						'description'          => 'The check’s row after applying (id, label, status, detail, fix, action), or null for an id with no readiness row.',
+						'additionalProperties' => true,
+					),
+				)
+			),
+			function ( $input ) {
+				return ( new Fixer( $this->settings ) )->apply( isset( $input['check_id'] ) ? (string) $input['check_id'] : '' );
+			},
+			$manage,
+			false
+		);
 	}
 
 	/* ---------------------------------------------------------------------- *
@@ -490,8 +685,9 @@ final class Registrar {
 
 	/**
 	 * Every ability this class registers, fully-qualified. The MCP server exposes
-	 * exactly this set (all read-only, all permission-gated), filterable so an owner
-	 * can trim what leaves the admin boundary.
+	 * exactly this set (all permission-gated; the write names appear only when the
+	 * owner turned the write tier on), filterable so an owner can trim what leaves
+	 * the admin boundary.
 	 *
 	 * @return string[]
 	 */
@@ -507,6 +703,13 @@ final class Registrar {
 			self::CATEGORY . '/preview-markdown',
 			self::CATEGORY . '/scan-exposed-files',
 		);
+		if ( $this->settings->enabled( 'enable_agent_writes' ) ) {
+			$names[] = self::CATEGORY . '/create-content';
+			$names[] = self::CATEGORY . '/update-content';
+			$names[] = self::CATEGORY . '/write-description';
+			$names[] = self::CATEGORY . '/write-topics';
+			$names[] = self::CATEGORY . '/apply-fix';
+		}
 		/**
 		 * The abilities Agentimus exposes over its MCP server to external AI agents.
 		 * Trim this to narrow what leaves the site (each is still permission-gated).
@@ -559,7 +762,10 @@ final class Registrar {
 			'agentimus/v1',            // REST namespace  → /wp-json/agentimus/v1/mcp
 			'mcp',                     // REST route.
 			__( 'Agentimus — AI visibility', 'agentimus' ),
-			__( 'Read this site’s AI/agent readiness, referral traffic, bot activity, per-page readability and discovery output.', 'agentimus' ),
+			// The description an MCP client shows its user — honest about which tier is on.
+			$this->settings->enabled( 'enable_agent_writes' )
+				? __( 'Read and improve this site’s AI visibility: readiness, AI traffic, bot activity and per-page readability — plus draft/edit content, set AI topics & descriptions, and apply readiness fixes.', 'agentimus' )
+				: __( 'Read this site’s AI/agent readiness, referral traffic, bot activity, per-page readability and discovery output.', 'agentimus' ),
 			'v' . AGENTIMUS_VERSION,
 			array( $transport ),
 			$error_handler,
@@ -575,9 +781,10 @@ final class Registrar {
 	 * ---------------------------------------------------------------------- */
 
 	/**
-	 * Register one read ability under our namespace + category, with the read-only
-	 * annotations both our own {@see Discovery\Adapters\AbilitiesApi} adapter
-	 * (`meta.annotations.readonly`) and the MCP Adapter understand.
+	 * Register one ability under our namespace + category, with the readonly
+	 * annotation both our own {@see Discovery\Adapters\AbilitiesApi} adapter
+	 * (`meta.annotations.readonly`) and the MCP Adapter understand — declared
+	 * explicitly either way, so no downstream name-heuristic ever has to guess.
 	 *
 	 * @param string   $slug         Short name (becomes "agentimus/<slug>").
 	 * @param string   $label        Human label.
@@ -586,8 +793,9 @@ final class Registrar {
 	 * @param array    $output_schema JSON Schema for the return value.
 	 * @param callable $execute      Executes the ability; receives the validated input.
 	 * @param callable $permission   Permission callback; receives the input.
+	 * @param bool     $readonly     Whether the ability mutates nothing (default true; the write tier passes false).
 	 */
-	private function add( $slug, $label, $description, array $input_schema, array $output_schema, callable $execute, callable $permission ) {
+	private function add( $slug, $label, $description, array $input_schema, array $output_schema, callable $execute, callable $permission, $readonly = true ) {
 		$name = self::CATEGORY . '/' . $slug;
 
 		// Every ability we register funnels through here, which makes this the one place that can
@@ -615,7 +823,9 @@ final class Registrar {
 				'meta'                => array(
 					'show_in_rest' => true,
 					'annotations'  => array(
-						'readonly'    => true,
+						'readonly'    => (bool) $readonly,
+						// Nothing in either tier deletes: the writes create, update
+						// (revisions keep the old body) or enable — never destroy.
 						'destructive' => false,
 					),
 					// Do NOT auto-join the default public MCP server; the scoped server in
@@ -645,6 +855,26 @@ final class Registrar {
 	public function can_edit_post( $input ) {
 		$post_id = (int) ( is_array( $input ) && isset( $input['post_id'] ) ? $input['post_id'] : 0 );
 		return $post_id > 0 && current_user_can( 'edit_post', $post_id );
+	}
+
+	/**
+	 * Gate for create-content: the requested type must be agent-visible AND the
+	 * connected user must hold that type's own create capability — so a key minted
+	 * for a low-caps user can never create what that user couldn't in wp-admin.
+	 *
+	 * @param mixed $input The ability input.
+	 * @return bool
+	 */
+	public function can_create_content( $input ) {
+		$type = is_array( $input ) && ! empty( $input['type'] ) ? (string) $input['type'] : 'post';
+		if ( ! in_array( $type, Content::post_types(), true ) ) {
+			return false;
+		}
+		$pto = get_post_type_object( $type );
+		if ( ! $pto || empty( $pto->cap->edit_posts ) ) {
+			return false;
+		}
+		return current_user_can( $pto->cap->edit_posts );
 	}
 
 	/* ---------------------------------------------------------------------- *
@@ -764,6 +994,43 @@ final class Registrar {
 			$props['action'] = array( 'type' => array( 'object', 'null' ), 'additionalProperties' => true );
 		}
 		return self::arr( $props );
+	}
+
+	/** The status input shared by create-content and update-content. */
+	private static function status_input_schema() {
+		return array(
+			'type'        => 'string',
+			'enum'        => ContentWriter::STATUSES,
+			'description' => 'draft (default), pending, or publish. publish needs the site’s "agents may publish" switch plus the user’s publish permission.',
+		);
+	}
+
+	/** The topics-list input shared by the writing abilities. */
+	private static function topics_input_schema() {
+		return array(
+			'type'        => 'array',
+			'items'       => self::s(),
+			'description' => 'Manual Topics for AI — short, specific keywords (deduped, trimmed and capped by the site’s topic settings).',
+		);
+	}
+
+	/** What every write ability returns: the written post as it now stands (see ContentWriter::summarize()). */
+	private static function written_post_schema() {
+		return self::obj(
+			array(
+				'id'          => self::i(),
+				'type'        => self::s(),
+				'status'      => self::s(),
+				'title'       => self::s(),
+				'url'         => self::s(),
+				'editUrl'     => self::s(),
+				'description' => self::s(),
+				'topics'      => array(
+					'type'  => 'array',
+					'items' => self::s(),
+				),
+			)
+		);
 	}
 
 	/** The AEO/GEO score object returned by {@see Score::report()}. */
