@@ -18,8 +18,8 @@ export default {
           title: 'AEO/GEO score & optimization',
           lead: 'Your dashboard turns everything below into one score — and the single next thing to improve.',
           items: [
-            { name: 'AEO/GEO score', where: 'Dashboard', desc: 'One 0–100 score across five rungs — Findable, Readable, Trusted, Optimized and Cited — with a plain-language next step. Each rung links to where you fix it.', tag: 'On' },
-            { name: 'Optimize your content', where: 'Readiness → Optimize', desc: 'Per-page citability checks (enough substance, something concrete to quote, quotable passages, freshness) with a worklist of the pages to improve. Articles only — commerce products and structural pages are left out. Set aside anything not meant to be cited.', tag: 'On' },
+            { name: 'AEO/GEO score', where: 'Dashboard', desc: 'One 0–100 score across five rungs — Findable, Readable, Trusted, Optimized and Cited — with a plain-language next step and an honest per-rung “n to fix” count. Each rung links to where you act on it.', tag: 'On' },
+            { name: 'Optimize your content', where: 'Readiness → Optimize', desc: 'Per-page citability checks (enough substance, something concrete to quote, quotable passages, freshness) with a worklist of the pages to improve. Articles only — commerce products, commerce plugins’ own pages (cart, checkout, account) and container pages that are just a shortcode or plugin block with no authored prose are left out. Set aside anything not meant to be cited.', tag: 'On' },
             { name: 'AI readability tips', where: 'post editor', desc: 'The same per-page citability tips in an editor panel while you write. Editor-only — nothing is shown to visitors.', tag: 'On' },
             { name: 'Evergreen content', where: 'Settings', desc: 'Mark categories whose posts are timeless (references, tutorials, legal) so they’re exempt from the freshness check.', tag: 'Opt-in' },
           ],

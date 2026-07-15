@@ -525,9 +525,10 @@ export default {
     // Every rung shows its 0–100 score on one consistent scale (they roll up to the
     // composite in the gauge). The per-check tally lives on the Readiness tab.
     rungCount(r) {
-      // An unmeasured Cited explains itself in words (see the template) — a dash
-      // NEXT to those words would just re-mumble it.
-      if (null === r.score) return 'cited' === r.key ? '' : '—';
+      // An unmeasured Cited explains itself in words, in the value slot itself
+      // (right-aligned like every value) — a bare dash read as "broken", when
+      // the truth is just "no reading yet".
+      if (null === r.score) return 'cited' === r.key ? 'not measured yet' : '—';
       return `${r.score}%`;
     },
     rungTarget(r) {
@@ -1638,11 +1639,8 @@ export default {
                 <span class="ar-rung__tick" aria-hidden="true"></span>
                 <span class="ar-rung__name">{{ r.label }}</span>
                 <!-- Check-backed rungs count their non-passing checks; Cited is a
-                     measurement, not a checklist, so it never wears the chip — but
-                     an unmeasured Cited says so in words: a bare dash read as
-                     "broken", when the truth is just "no reading yet". -->
+                     measurement, not a checklist, so it never wears the chip. -->
                 <em v-if="rungTodo(r)" class="ar-rung__todo">{{ rungTodo(r) }} to fix</em>
-                <em v-else-if="'cited' === r.key && null === r.score" class="ar-rung__todo">not measured yet</em>
                 <span class="ar-rung__count">{{ rungCount(r) }}</span>
               </button>
               <!-- Optimized routes like the other rungs — to its section on the
