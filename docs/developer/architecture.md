@@ -148,7 +148,7 @@ The two options involved are `agentimus_rewrite_version` (the signature) and `ag
 |:------|:---------------|
 | `Guard` | Optional hard enforcement: a 403 at the agent endpoints for denylisted or spoofed/legacy-device User-Agents. Off by default. `denies()` is pure and tested; `maybe_block()` is the thin emit-and-exit wrapper. Real on-disk `/.well-known` files are never guarded. |
 | `Exposure` | Opt-in hardening for anonymous visitors: user-enumeration blocking, author-archive suppression, hiding the WP version, tidying auto-generated head links, disabling XML-RPC. Every control is off by default and only registers its hooks when enabled. |
-| `WebMcp` | Experimental, opt-in bridge that registers the site's read-only tools with in-browser agents via `navigator.modelContext` (WebMCP). Inert in browsers without the API; anonymous visitors get read-only tools only. |
+| `WebMcp` | Experimental, opt-in bridge that registers the site's read-only tools with in-browser agents via `document.modelContext` (WebMCP; the earlier `navigator.modelContext` name is accepted as a fallback). Inert in browsers without the API; anonymous visitors get read-only tools only. |
 
 ### Admin and REST
 
@@ -158,7 +158,7 @@ The two options involved are `agentimus_rewrite_version` (the signature) and `ag
 | `Rest` | REST controller backing the Vue admin — read/save settings, reset, onboarding, readiness, and the schema/markdown previews. All routes require `manage_options` and the standard REST nonce. |
 | `Readiness` | The pass/warn/fail check list the admin Readiness panel renders. Each check is cheap and side-effect-free. |
 | `Assist` | The outbound AI helper behind "Draft with AI" (the AI description and Topics fields) and "Fix with AI" (an AI Readability row). Routes every prompt through WordPress's AI Client (`wp_ai_client_prompt()`, WP 7.0+), so the plugin never touches a raw provider key, and reports cleanly when no provider is configured. |
-| `Abilities\Registrar` | Registers nine read-only `agentimus/*` abilities on the WordPress Abilities API, so WordPress's own admin AI — and external agents via the MCP adapter — can read the plugin's data. Each ability carries the capability check of the screen it comes from. |
+| `Abilities\Registrar` | Registers the `agentimus/*` abilities on the WordPress Abilities API, so WordPress's own admin AI — and external agents via the MCP adapter — can use them. Two tiers: nine read-only abilities (always), plus five write abilities (`create-content`, `update-content`, `write-description`, `write-topics`, `apply-fix`) registered only while the owner's `enable_agent_writes` switch is on. Each ability carries the capability check of the screen or action it maps to; publishing needs the further `agent_writes_publish` switch. Execution lives in `Abilities\ContentWriter` (posts/pages, terms, featured image) and `Abilities\Fixer` (readiness remediations, closed vocabulary). |
 
 ### The `Discovery\` subsystem (`/.well-known` + the registry)
 

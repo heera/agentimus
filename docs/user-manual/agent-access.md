@@ -11,7 +11,7 @@ The [activity log]({% link user-manual/dashboard.md %}) answers *who **read** yo
 It records three kinds of thing:
 
 - **Application passwords** — the keys a program (an automation, an AI agent, a mobile app) uses to reach WordPress *as you*, over the REST API. Agent access notes when one is **created, first used, renamed or revoked**.
-- **Abilities** — the actions WordPress 7.0's **Abilities API** lets an AI assistant run on your site. Agent access notes when one is **run** — Agentimus's own read-only abilities and, where your site supports it, any other plugin's.
+- **Abilities** — the actions WordPress 7.0's **Abilities API** lets an AI assistant run on your site. Agent access notes when one is **run** — Agentimus's own abilities (the read-only reports, and the write tools if you've enabled those) and, where your site supports it, any other plugin's.
 - **Refused or probed requests** — a request for an ability that was **turned away**, or a probe for abilities that **don't exist** (someone guessing at names).
 
 Like the activity log, it is **first-party and local-only**, and it **stores no IP addresses and no personal data**. That has a consequence worth stating plainly: it can name the *key* that was used, but never the *person* using it. It also sees **machine logins only** — someone signing in with your normal username and password never appears here. Records are kept for 90 days and hard-capped, so the log can never grow without bound.

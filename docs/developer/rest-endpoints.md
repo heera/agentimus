@@ -222,9 +222,17 @@ Registered in `inc/Assist.php` under `agentimus/v1`. They back the editor's "Dra
 
 ### Abilities & the WordPress admin AI
 
-On WordPress 6.9+ (Abilities API) Agentimus registers nine **read-only abilities** via `wp_register_ability` (in `inc/Abilities/Registrar.php`), so WordPress's built-in AI — and, with the [MCP adapter](https://github.com/wordpress/mcp-adapter) installed, external agents — can read your data. Each carries the same capability check as the screen it comes from (`manage_options`, or `edit_post` for the per-post ones) and is annotated read-only:
+On WordPress 6.9+ (Abilities API) Agentimus registers its abilities via `wp_register_ability` (in `inc/Abilities/Registrar.php`), so WordPress's built-in AI — and, with the [MCP adapter](https://github.com/wordpress/mcp-adapter) installed, external agents — can use them. There are two tiers:
+
+**Read (always registered), annotated read-only.** Each carries the same capability check as the screen it comes from (`manage_options`, or `edit_post` for the per-post ones):
 
 `agentimus/read-readiness`, `read-ai-visibility`, `read-ai-traffic`, `read-request-log`, `identify-bot`, `check-page`, `preview-schema`, `preview-markdown`, `scan-exposed-files`.
+
+**Write (registered only while BOTH `enable_mcp_server` and `enable_agent_writes` are on — off by default; off means the abilities don't exist on any surface):**
+
+`agentimus/create-content`, `update-content`, `write-description`, `write-topics`, `apply-fix`.
+
+The write tools run as the authenticated user through core's own write paths — `create-content` gates on the post type's `create_posts` capability, the per-post tools on `edit_post`, `apply-fix` on `manage_options`; categories/tags follow the taxonomy's `assign_terms`/`edit_terms` caps (free-form tags creatable with assign, new categories need manage — wp-admin's own distinction) and a featured-image URL import needs `upload_files`. `status=publish` additionally requires the `agent_writes_publish` setting plus the user's own publish cap; otherwise writes are draft-first. `update-content` is annotated destructive (a body replacement on a post type without revision support is unrecoverable); `apply-fix` enacts a readiness check's own remediation from a closed vocabulary that can only enable documented features — it will never flip `blog_public` or loosen a protection.
 
 They're reachable over the core Abilities REST API (`/wp-json/wp-abilities/v1/abilities/{name}/run` — GET for read-only abilities), and Agentimus registers a scoped MCP server at `/wp-json/agentimus/v1/mcp` that exposes them when the MCP adapter is present. Trim that set with the `agentimus_mcp_server_abilities` filter.
 

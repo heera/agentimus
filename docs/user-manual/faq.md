@@ -79,15 +79,21 @@ Yes to privacy, and no to any new access.
 - Removing or hiding an item in Agentimus changes what is *advertised* to AI tools — not what is reachable. The underlying pages and endpoints behave exactly as they did before, still behind their own authentication.
 - The activity log is first-party and aggregate: it records that a bot fetched your content, without storing IP addresses or per-visitor records by default. (One optional setting, off by default, can store the IP of a *flagged* impersonating or spoofed crawler — never an ordinary visitor — so you can block it; see *Does Agentimus store IP addresses?* below.)
 
-Agentimus grants agents **no** ability to write to, edit, or control your site. It is a read-and-describe layer, not an access layer.
+Out of the box, Agentimus grants agents **no** ability to write to, edit, or control your site — it is a read-and-describe layer. The one exception is explicit and yours to grant: an off-by-default switch on the MCP server card can let *signed-in* agents write (drafts, edits, categories, tags, featured images), with publishing behind a further switch of its own — see *Can an AI agent write to my site?* below. Anonymous visitors and crawlers can never write, switch or no switch.
 
 ## Does Agentimus run an MCP server?
 
-Yes — as an opt-in, on WordPress 6.9 or newer. Turn on **Settings → Discovery → MCP server** and AI tools you already use (Claude Code, Claude Desktop, Codex) can talk to your site over the Model Context Protocol and run the same nine **read-only** tools your admin AI gets — readiness, AI traffic, the request log, bot checks and previews. Everything needed ships with the plugin, and the switch card writes the exact setup for your tool — pick it, mint a key with one click, copy the result — then a Test button proves the connection with the same calls the tool will make. (ChatGPT itself is the one that can't connect — its connectors only support OAuth sign-ins — though Codex inside the ChatGPT desktop app connects fine via the Codex setup.)
+Yes — as an opt-in, on WordPress 6.9 or newer. Turn on **Settings → Discovery → MCP server** and AI tools you already use (Claude Code, Claude Desktop, Codex) can talk to your site over the Model Context Protocol and run the same permission-checked tools your admin AI gets — nine **read-only** ones (readiness, AI traffic, the request log, bot checks and previews), plus the write tools if you separately allow those (next question). Everything needed ships with the plugin, and the switch card writes the exact setup for your tool — pick it, mint a key with one click, copy the result — then a Test button proves the connection with the same calls the tool will make. (ChatGPT itself is the one that can't connect — its connectors only support OAuth sign-ins — though Codex inside the ChatGPT desktop app connects fine via the Codex setup.)
 
 Nothing becomes public: every request must sign in with a WordPress login (an application password works), each tool keeps the same permission checks as the admin screen it comes from, every call is recorded under **More → Agent access**, and turning the switch off disconnects connected tools immediately. With the switch off — the default — the server doesn't exist at all.
 
 Worth knowing: an application password isn't scoped to this server — it signs in as that user across your whole REST API. Give each AI tool its own password, on a user with only the permissions it needs. The full story, including how this relates to other plugins' MCP servers, is on the **MCP server** page.
+
+## Can an AI agent write to my site?
+
+Only if you say so, twice. The MCP server starts read-only; a second switch — **Let connected agents write** — adds the write tools: draft and edit posts and pages complete with categories, tags and a featured image (from your media library, or imported from a URL), set their AI topics and descriptions, and apply Readiness fixes (a fixed list of safe switches that can only turn documented features on, never loosen a protection). Even then, agents can't publish: they leave drafts and pending posts for your review, unless you flip a third switch that allows going live.
+
+Every write runs as the signed-in user — an agent can never do more than that user could in the editor; filing under existing categories, creating new ones, and uploading images each follow that user's own permissions — and every call is recorded under **More → Agent access**, attributed to the key that made it. The details, including how edits to already-published posts behave, are on the **MCP server** page.
 
 ## Does Agentimus store IP addresses?
 

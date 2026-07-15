@@ -10,13 +10,15 @@ AI tools that live on your computer — Claude Desktop, the ChatGPT app (through
 
 Turn on **Settings → Discovery → MCP server**, and an AI tool you connect can *ask your site questions* and get live answers: "How AI-ready is this site?", "Which AI crawlers visited this week?", "Is this bot really Googlebot?", "How readable is this page for AI?". The same nine read-only reports you see in the Agentimus admin — readiness, AI traffic, the request log, bot identification, and the page/schema/Markdown previews — become questions an AI assistant can ask on your behalf.
 
+And if you choose to — with a second switch that starts off — the same connection can *act* for you too: draft and edit posts, file them under categories and tags, set a featured image, and apply Readiness fixes. That's covered in [Letting agents write](#letting-agents-write-optional) below.
+
 Everything needed ships with the plugin. There is nothing else to install, no account to create, and no third-party service in the middle — the AI tool talks directly to your own site.
 
 ## What it can and cannot do
 
-**Can:** read the nine Agentimus reports listed above. That's the whole list.
+**Can:** read the nine Agentimus reports listed above. With the write switch on (below), also the five write tools — and nothing else.
 
-**Cannot:** write, change, delete or publish anything. It can't edit settings, touch posts, or act on your site in any way — every tool it gets is read-only. It also can't be used anonymously: nothing about this is public.
+**Cannot:** act anonymously — nothing about this is public. And until you flip the write switch, it cannot write, change, delete or publish anything: every tool it gets is read-only, and the write tools don't merely refuse — they don't exist.
 
 Three locks stand between the internet and those reports:
 
@@ -25,6 +27,24 @@ Three locks stand between the internet and those reports:
 3. **Permissions, per question.** Each tool checks the signed-in user's permissions exactly like the admin screen it comes from. A subscriber-level login can connect, but every report politely refuses it — only users who could see the screen can ask the question.
 
 And one camera: every call an AI tool makes is recorded under **More → Agent access**, with the user and the named application password that made it.
+
+## Letting agents write (optional)
+
+Below the server switch sits a second one: **Let connected agents write**. It starts off, and while it's off the write tools don't exist on any surface. Turn it on and five more tools appear:
+
+- **Create a post or page** — a complete draft in one call: title, body, categories, tags, a featured image (from your media library, or imported from an image URL), plus its AI description and Topics for AI.
+- **Update a post or page** — only the fields the agent passes change; everything else is left alone. Body edits keep a normal revision on posts and pages.
+- **Set a page's AI description** and **Set a page's Topics for AI** — small, targeted follow-ups to the readability report, no need to resend the content.
+- **Apply a readiness fix** — enacts a Readiness check's own remediation, from a fixed list of safe switches. It can only turn documented features *on*; it will never loosen a protection, make a hidden site public, or touch anything the fix text doesn't name. Fixes that need your words or your judgement come back honestly as "that's the owner's call".
+
+The rules that travel with every write:
+
+- **Drafts first.** A new post arrives as a draft (or pending). Publishing needs a *third* switch — **…including publishing, without your review** — and even then the signed-in user's own publish permission. Until you flip it, agents can prepare; only you can go live.
+- **Edits to already-published posts go live on save** — same as you editing in wp-admin, and deliberately so: "fix the weak opening on my published article" is the whole point. The agent needs edit permission on that exact post, and body changes keep a revision to roll back to.
+- **The agent is never more powerful than its user.** Filing under existing categories, inventing new ones, and importing images each follow the signed-in user's own WordPress permissions — an author-level key can't do what an author can't.
+- **Everything is on the record.** Every write lands under **More → Agent access**, attributed to the user and the named key that made it.
+
+A practical tip that follows from all this: mint the agent's key on a user whose role matches the trust you're extending — an editor-level user for content work, your admin user only if you also want it applying Readiness fixes (those change plugin settings, so they require an administrator).
 
 ## Connecting an AI tool
 
