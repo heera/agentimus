@@ -110,7 +110,7 @@ Agentimus samples your recent **articles** and checks each for what makes conten
 
 Issues are grouped, and each lists the exact pages affected as links straight to their editors — so fixing them is one click away. The same checks appear per-page in the editor's **AI Readability** panel while you write.
 
-**Articles only.** Optimize grades the content that's *meant* to be cited — posts, pages and doc-like content. It deliberately leaves out **commerce products** (a product page is short by design) and **structural pages** with no real text of their own — your Posts page, a theme-rendered front page, a form or page-builder page — so they're never wrongly flagged as "thin".
+**Articles only.** Optimize grades the content that's *meant* to be cited — posts, pages and doc-like content. It deliberately leaves out **commerce products** (a product page is short by design), **commerce plugins' own pages** — the cart, checkout and account pages a shop plugin designates and renders — and **structural pages** with no real text of their own: your Posts page, a theme-rendered front page, a form or page-builder page, or any page that is just a shortcode or plugin block with next to no authored prose. None of those are articles, so they're never wrongly flagged as "thin".
 
 ### Set aside pages that aren't meant to be cited
 
