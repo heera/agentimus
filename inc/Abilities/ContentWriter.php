@@ -262,6 +262,10 @@ final class ContentWriter {
 	private function summarize( $post_id ) {
 		$post = get_post( $post_id );
 
+		// Absent topics meta reads back as '' (the meta has no registered default),
+		// and (array) '' would be [""] — a phantom blank topic in every response.
+		$topics = get_post_meta( $post_id, Topics::META_TOPICS, true );
+
 		return array(
 			'id'          => (int) $post_id,
 			'type'        => $post ? (string) $post->post_type : '',
@@ -270,7 +274,7 @@ final class ContentWriter {
 			'url'         => (string) get_permalink( $post_id ),
 			'editUrl'     => (string) get_edit_post_link( $post_id, 'raw' ),
 			'description' => Description::explicit( $post_id ),
-			'topics'      => array_values( (array) get_post_meta( $post_id, Topics::META_TOPICS, true ) ),
+			'topics'      => is_array( $topics ) ? array_values( $topics ) : array(),
 		);
 	}
 }

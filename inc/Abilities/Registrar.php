@@ -60,6 +60,15 @@ final class Registrar {
 	/** The ability category all of Agentimus's abilities live under. */
 	const CATEGORY = 'agentimus';
 
+	/**
+	 * The write tier's ability slugs — the ONE list both registration
+	 * ({@see register_write_abilities()}) and MCP exposure ({@see mcp_abilities()})
+	 * must agree on. AgentWritesGateTest re-declares these as literals on purpose,
+	 * so renaming one here still fails a test instead of silently changing the
+	 * public tool name.
+	 */
+	const WRITE_SLUGS = array( 'create-content', 'update-content', 'write-description', 'write-topics', 'apply-fix' );
+
 	/** @var Settings */
 	private $settings;
 
@@ -494,10 +503,14 @@ final class Registrar {
 			$manage
 		);
 
-		// The write tier exists only when the owner deliberately turned it on. The gate
-		// sits at REGISTRATION (this hook re-runs per request, reading live settings),
-		// so flipping the switch off removes the abilities from every surface at once.
-		if ( $this->settings->enabled( 'enable_agent_writes' ) ) {
+		// The write tier exists only when the owner deliberately turned it on — AND the
+		// MCP server itself is on, because that is where the switch lives in the UI: a
+		// sub-toggle the owner can't see (MCP card collapsed) must never still be armed
+		// on another surface. The gate sits at REGISTRATION (this hook re-runs per
+		// request, reading live settings), so flipping either switch off removes the
+		// abilities from every surface at once. Settings::sanitize() additionally
+		// cascades the stored flags off, so the state can't outlive its visibility.
+		if ( $this->settings->enabled( 'enable_mcp_server' ) && $this->settings->enabled( 'enable_agent_writes' ) ) {
 			$this->register_write_abilities( $manage );
 		}
 	}
@@ -551,15 +564,16 @@ final class Registrar {
 			'update-content',
 			__( 'Update a post or page', 'agentimus' ),
 			'Updates a post or page as the connected user — only the fields you pass change; everything '
-				. 'else (including revisions) behaves as a normal editor save. Moving something TO publish '
-				. 'needs the site’s "agents may publish" switch; editing an already-published post follows '
-				. 'the user’s normal edit permission. Can set the AI description / Topics for AI alongside '
-				. 'the content, or on their own.',
+				. 'else behaves as a normal editor save. Moving something TO publish needs the site’s '
+				. '"agents may publish" switch; editing an already-published post follows the user’s normal '
+				. 'edit permission. Can set the AI description / Topics for AI alongside the content, or on '
+				. 'their own. CAUTION: passing content replaces the current body — posts and pages keep a '
+				. 'revision of the old one, but a content type without revision support does not.',
 			self::obj(
 				array(
 					'post_id'       => self::i( 'The post/page ID to update.' ),
 					'title'         => self::s( 'New title.' ),
-					'content'       => self::s( 'New body, as HTML. Replaces the current body (a revision keeps the old one).' ),
+					'content'       => self::s( 'New body, as HTML. Replaces the current body — a revision keeps the old one only on content types that support revisions (posts and pages do).' ),
 					'excerpt'       => self::s( 'New manual excerpt.' ),
 					'slug'          => self::s( 'New URL slug.' ),
 					'status'        => self::status_input_schema(),
@@ -577,7 +591,8 @@ final class Registrar {
 				return ( new ContentWriter( $this->settings ) )->update( is_array( $input ) ? $input : array() );
 			},
 			array( $this, 'can_edit_post' ),
-			false
+			false,
+			true // A body replacement is unrecoverable on a type without revisions.
 		);
 
 		$this->add(
@@ -704,11 +719,9 @@ final class Registrar {
 			self::CATEGORY . '/scan-exposed-files',
 		);
 		if ( $this->settings->enabled( 'enable_agent_writes' ) ) {
-			$names[] = self::CATEGORY . '/create-content';
-			$names[] = self::CATEGORY . '/update-content';
-			$names[] = self::CATEGORY . '/write-description';
-			$names[] = self::CATEGORY . '/write-topics';
-			$names[] = self::CATEGORY . '/apply-fix';
+			foreach ( self::WRITE_SLUGS as $slug ) {
+				$names[] = self::CATEGORY . '/' . $slug;
+			}
 		}
 		/**
 		 * The abilities Agentimus exposes over its MCP server to external AI agents.
@@ -794,8 +807,10 @@ final class Registrar {
 	 * @param callable $execute      Executes the ability; receives the validated input.
 	 * @param callable $permission   Permission callback; receives the input.
 	 * @param bool     $readonly     Whether the ability mutates nothing (default true; the write tier passes false).
+	 * @param bool     $destructive  Whether a call can lose data that nothing keeps a copy of (update-content: a
+	 *                               body replacement on a post type without revision support is unrecoverable).
 	 */
-	private function add( $slug, $label, $description, array $input_schema, array $output_schema, callable $execute, callable $permission, $readonly = true ) {
+	private function add( $slug, $label, $description, array $input_schema, array $output_schema, callable $execute, callable $permission, $readonly = true, $destructive = false ) {
 		$name = self::CATEGORY . '/' . $slug;
 
 		// Every ability we register funnels through here, which makes this the one place that can
@@ -824,9 +839,11 @@ final class Registrar {
 					'show_in_rest' => true,
 					'annotations'  => array(
 						'readonly'    => (bool) $readonly,
-						// Nothing in either tier deletes: the writes create, update
-						// (revisions keep the old body) or enable — never destroy.
-						'destructive' => false,
+						// Declared per ability. Nothing here deletes, but update-content
+						// replaces a body — and on an agent-visible post type WITHOUT
+						// revision support nothing keeps the old one, so it declares
+						// itself destructive rather than promising safety it can't keep.
+						'destructive' => (bool) $destructive,
 					),
 					// Do NOT auto-join the default public MCP server; the scoped server in
 					// register_mcp_server() is the single, deliberate external surface.
@@ -859,8 +876,14 @@ final class Registrar {
 
 	/**
 	 * Gate for create-content: the requested type must be agent-visible AND the
-	 * connected user must hold that type's own create capability — so a key minted
-	 * for a low-caps user can never create what that user couldn't in wp-admin.
+	 * connected user must hold that type's own CREATE capability — the same cap
+	 * core's REST controller and wp-admin's "Add New" check (`cap->create_posts`,
+	 * which a locked-down CPT maps to something stricter than its edit cap) — so a
+	 * key minted for a low-caps user can never create what that user couldn't in
+	 * wp-admin. A type outside the agent-visible set fails closed here as a bare
+	 * "Permission denied" — deliberate: the tool's input schema already enumerates
+	 * the allowed types, so the agent has the list without us confirming what
+	 * other types exist.
 	 *
 	 * @param mixed $input The ability input.
 	 * @return bool
@@ -871,10 +894,11 @@ final class Registrar {
 			return false;
 		}
 		$pto = get_post_type_object( $type );
-		if ( ! $pto || empty( $pto->cap->edit_posts ) ) {
+		if ( ! $pto ) {
 			return false;
 		}
-		return current_user_can( $pto->cap->edit_posts );
+		$cap = ! empty( $pto->cap->create_posts ) ? $pto->cap->create_posts : ( ! empty( $pto->cap->edit_posts ) ? $pto->cap->edit_posts : '' );
+		return '' !== $cap && current_user_can( $cap );
 	}
 
 	/* ---------------------------------------------------------------------- *

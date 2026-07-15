@@ -49,11 +49,20 @@ final class FixerPlanTest extends TestCase {
 		}
 	}
 
-	public function test_public_check_fixes_the_core_reading_option() {
+	/** Going public reverses a privacy choice — never the agent's call. */
+	public function test_public_check_is_never_automated() {
 		$plan = $this->fixer()->plan( 'public' );
-		$this->assertTrue( $plan['automatable'] );
-		$this->assertSame( 'blog_public', $plan['option']['key'] );
-		$this->assertSame( '1', $plan['option']['value'] );
+		$this->assertFalse( $plan['automatable'] );
+		$this->assertStringContainsString( 'owner’s decision', $plan['reason'] );
+	}
+
+	/** No plan may write anything but Agentimus's own feature switches. */
+	public function test_no_plan_ever_touches_a_core_option() {
+		$fixer = $this->fixer();
+		foreach ( array( 'public', 'llms', 'llms_full', 'schema', 'sitemap', 'ai_usage', 'topics', 'security_txt', 'permalinks', 'robots' ) as $check_id ) {
+			$plan = $fixer->plan( $check_id );
+			$this->assertArrayNotHasKey( 'option', $plan, "$check_id must not plan a core-option write" );
+		}
 	}
 
 	/** topics: three branches — feature off, derive-default off, nothing left to flip. */
@@ -78,12 +87,12 @@ final class FixerPlanTest extends TestCase {
 		$this->assertFalse( $needs_contact['automatable'], 'a contact is a human decision' );
 	}
 
-	/** robots_sitemap, downstream of "Search engine visibility": fix THAT switch. */
-	public function test_robots_sitemap_defers_to_blog_public_when_the_site_is_hidden() {
+	/** robots_sitemap, downstream of "Search engine visibility": that's the owner's call too. */
+	public function test_robots_sitemap_defers_to_the_owner_when_the_site_is_hidden() {
 		update_option( 'blog_public', 0 );
 		$plan = $this->fixer()->plan( 'robots_sitemap' );
-		$this->assertTrue( $plan['automatable'] );
-		$this->assertSame( 'blog_public', $plan['option']['key'] );
+		$this->assertFalse( $plan['automatable'] );
+		$this->assertStringContainsString( 'Search engine visibility', $plan['reason'] );
 	}
 
 	/** Content, judgement and server fixes refuse — with a reason, not silence. */

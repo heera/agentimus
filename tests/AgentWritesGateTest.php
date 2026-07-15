@@ -108,6 +108,40 @@ namespace Agentimus\Tests {
 			$this->assertFalse( $defaults['agent_writes_publish'] );
 		}
 
+		/** A sub-toggle whose parent is off must not stay armed invisibly. */
+		public function test_write_switches_cascade_off_with_their_parent() {
+			$s = new Settings();
+
+			$mcp_off = $s->sanitize(
+				array(
+					'enable_mcp_server'    => 0,
+					'enable_agent_writes'  => 1,
+					'agent_writes_publish' => 1,
+				)
+			);
+			$this->assertFalse( $mcp_off['enable_agent_writes'], 'MCP off ⇒ writes off, even when sent on' );
+			$this->assertFalse( $mcp_off['agent_writes_publish'] );
+
+			$writes_off = $s->sanitize(
+				array(
+					'enable_mcp_server'    => 1,
+					'enable_agent_writes'  => 0,
+					'agent_writes_publish' => 1,
+				)
+			);
+			$this->assertFalse( $writes_off['agent_writes_publish'], 'writes off ⇒ publish off, even when sent on' );
+
+			$all_on = $s->sanitize(
+				array(
+					'enable_mcp_server'    => 1,
+					'enable_agent_writes'  => 1,
+					'agent_writes_publish' => 1,
+				)
+			);
+			$this->assertTrue( $all_on['enable_agent_writes'], 'the full ladder still saves when every rung is chosen' );
+			$this->assertTrue( $all_on['agent_writes_publish'] );
+		}
+
 		/* ---- the publish gate (ContentWriter::validate_status) ---------------- */
 
 		private function validate( array $settings, string $status, bool $already_published = false ) {

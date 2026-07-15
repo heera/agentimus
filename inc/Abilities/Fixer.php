@@ -48,22 +48,20 @@ final class Fixer {
 	 *
 	 * @param string $check_id A readiness check id (also the id of a readiness-sourced score action).
 	 * @return array One of:
-	 *   { automatable: true,  flips: array<string,bool> }               — Agentimus settings to switch on;
-	 *   { automatable: true,  option: array{key:string,value:mixed} }   — a core option write (blog_public);
-	 *   { automatable: false, reason: string }                          — the honest manual next step.
+	 *   { automatable: true,  flips: array<string,bool> }  — Agentimus settings to switch on;
+	 *   { automatable: false, reason: string }             — the honest manual next step.
 	 */
 	public function plan( $check_id ) {
 		$check_id = (string) $check_id;
 
 		switch ( $check_id ) {
 			case 'public':
-				return array(
-					'automatable' => true,
-					'option'      => array(
-						'key'   => 'blog_public',
-						'value' => '1',
-					),
-				);
+				// Never automated, even though it is a single core option: "Discourage
+				// search engines" may be a deliberate privacy choice (a staging or
+				// members-only site), and reversing it makes the whole site crawler-
+				// visible. Turning a site public is the owner's call, full stop —
+				// this is exactly the "never loosen a protection" line in action.
+				return $this->manual( __( 'Making the site visible to search engines reverses a deliberate privacy choice (“Discourage search engines”, Settings → Reading) — going public stays the owner’s decision, never an agent’s.', 'agentimus' ) );
 
 			case 'llms':
 				return $this->flip( 'enable_llms_txt' );
@@ -100,23 +98,21 @@ final class Fixer {
 				return $this->manual( __( 'security.txt is already on but has no contact, and a contact is a human decision — the owner adds one under Settings → Security.txt (or a public contact email under Identity).', 'agentimus' ) );
 
 			case 'robots_sitemap':
-				// Mirror the check's own branches (see Readiness::check_robots_sitemap).
-				if ( file_exists( Paths::site_root() . 'robots.txt' ) ) {
-					return $this->manual( __( 'A static robots.txt file at the site root overrides the managed one. Only the owner can edit or delete that file; the Sitemap: line must be added there by hand.', 'agentimus' ) );
+				// Mirror the check's own branches IN ITS ORDER (see
+				// Readiness::check_robots_sitemap) so the plan always answers the same
+				// warning the row is currently showing — a plan keyed to a different
+				// branch would apply a remediation the check never asked for.
+				$static = file_exists( Paths::site_root() . 'robots.txt' );
+				if ( ! (bool) get_option( 'blog_public', 1 ) && ! $static ) {
+					// Downstream of "Search engine visibility" — and going public is the
+					// owner's privacy decision, same as the 'public' check above.
+					return $this->manual( __( 'This follows from “Search engine visibility” being off, and making the site public is the owner’s decision (Settings → Reading) — once it is on, the Sitemap: line is emitted automatically.', 'agentimus' ) );
 				}
-				if ( ! (bool) get_option( 'blog_public', 1 ) ) {
-					// Downstream of "Search engine visibility" — the real fix is that switch.
-					return array(
-						'automatable' => true,
-						'option'      => array(
-							'key'   => 'blog_public',
-							'value' => '1',
-						),
-					);
-				}
-				$detected = Sitemap::detect();
-				if ( '' === (string) $detected['url'] ) {
+				if ( '' === (string) Sitemap::detect()['url'] ) {
 					return $this->flip( 'enable_sitemap' );
+				}
+				if ( $static ) {
+					return $this->manual( __( 'A sitemap exists but the static robots.txt file at the site root overrides the managed one. Only the owner can edit that file; the Sitemap: line must be added there by hand.', 'agentimus' ) );
 				}
 				return $this->flip( 'enable_robots' );
 
@@ -208,21 +204,35 @@ final class Fixer {
 			);
 		}
 
-		$changed = array();
+		// Base the read-modify-write on the STORED option merged with defaults — NOT on
+		// Settings::all(), whose result passes through the `agentimus_settings` read
+		// filter: writing that back would permanently bake a site's runtime filter
+		// overrides (an environment forcing a flag off, say) into the saved option.
+		$stored = get_option( Settings::OPTION, array() );
+		$all    = wp_parse_args( is_array( $stored ) ? $stored : array(), $this->settings->defaults() );
 
-		if ( ! empty( $plan['flips'] ) ) {
-			$all = $this->settings->all();
-			foreach ( $plan['flips'] as $key => $value ) {
+		// Only count a flip that actually flips. A remediation whose switch is already
+		// on cannot be what this warning needs (another plugin's filter, say, is
+		// overriding the output) — reporting "applied" there would send an agent into
+		// a retry loop against a fix that can never bite.
+		$changed = array();
+		foreach ( $plan['flips'] as $key => $value ) {
+			if ( (bool) ( isset( $all[ $key ] ) ? $all[ $key ] : false ) !== (bool) $value ) {
 				$all[ $key ] = $value;
 				$changed[]   = $key;
 			}
-			$this->settings->update( $all ); // Full read-modify-write, like every one-click settings action.
 		}
 
-		if ( ! empty( $plan['option'] ) ) {
-			update_option( $plan['option']['key'], $plan['option']['value'] );
-			$changed[] = (string) $plan['option']['key'];
+		if ( empty( $changed ) ) {
+			return array(
+				'applied' => false,
+				'changed' => array(),
+				'message' => __( 'The switch this fix flips is already on, so the warning has a different cause — see the check’s detail and fix text for what is actually in the way.', 'agentimus' ),
+				'check'   => $before,
+			);
 		}
+
+		$this->settings->update( $all ); // Full read-modify-write, like every one-click settings action.
 
 		$after = $this->find_check( $check_id );
 

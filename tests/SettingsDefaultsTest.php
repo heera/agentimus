@@ -173,10 +173,24 @@ final class SettingsDefaultsTest extends TestCase {
 	/* -- No switch may ever silently fail to save ------------------------- */
 
 	/**
+	 * The few flags that are SUB-TOGGLES of another flag: sanitize() cascades them
+	 * off when a parent is off (a switch hidden by its collapsed parent card must
+	 * never stay armed), so round-tripping them to true requires their parents on.
+	 * Anything not listed here must save entirely on its own — keep this list to
+	 * genuine UI-nesting dependencies, or the round-trip guarantee erodes.
+	 */
+	private const PARENT_FLAGS = array(
+		'enable_agent_writes'  => array( 'enable_mcp_server' ),
+		'agent_writes_publish' => array( 'enable_mcp_server', 'enable_agent_writes' ),
+	);
+
+	/**
 	 * Every boolean setting in the schema must round-trip through sanitize(). This is
 	 * the guard against the old trap where a new switch had to be hand-added to a list
 	 * or it would silently never save: submit the OPPOSITE of each flag's default and
 	 * assert it persists. A flag that isn't handled fails HERE, loudly, not in the wild.
+	 * (A declared sub-toggle rides with its parents on — see PARENT_FLAGS — which keeps
+	 * the guarantee meaningful: it saves whenever its preconditions are met.)
 	 */
 	public function test_every_boolean_setting_round_trips_so_none_can_silently_fail() {
 		$settings = new Settings();
@@ -188,7 +202,13 @@ final class SettingsDefaultsTest extends TestCase {
 				continue;
 			}
 			$flipped = ! $default;
-			$clean   = $settings->sanitize( array( $key => $flipped ) );
+			$input   = array( $key => $flipped );
+			if ( $flipped && isset( self::PARENT_FLAGS[ $key ] ) ) {
+				foreach ( self::PARENT_FLAGS[ $key ] as $parent ) {
+					$input[ $parent ] = true;
+				}
+			}
+			$clean = $settings->sanitize( $input );
 			$this->assertArrayHasKey( $key, $clean, "boolean setting '$key' is dropped by sanitize()" );
 			$this->assertSame( $flipped, $clean[ $key ], "boolean setting '$key' did not save (add it to the schema's defaults)" );
 			$checked++;
