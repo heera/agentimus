@@ -6,7 +6,7 @@ nav_order: 12
 
 ## What this is, in plain words
 
-AI tools that live on your computer — Claude Code, Cursor, ChatGPT's connectors and others — can act as little assistants for your site. The **MCP server** is how they talk to it. MCP (Model Context Protocol) is simply the common language these tools speak.
+AI tools that live on your computer — Claude Desktop, the ChatGPT app (through its Codex side), Claude Code, the Codex CLI and others — can act as little assistants for your site. The **MCP server** is how they talk to it. MCP (Model Context Protocol) is simply the common language these tools speak.
 
 Turn on **Settings → Discovery → MCP server**, and an AI tool you connect can *ask your site questions* and get live answers: "How AI-ready is this site?", "Which AI crawlers visited this week?", "Is this bot really Googlebot?", "How readable is this page for AI?". The same nine read-only reports you see in the Agentimus admin — readiness, AI traffic, the request log, bot identification, and the page/schema/Markdown previews — become questions an AI assistant can ask on your behalf.
 
@@ -28,18 +28,88 @@ And one camera: every call an AI tool makes is recorded under **More → Agent a
 
 ## Connecting an AI tool
 
-1. Turn on **Settings → Discovery → MCP server** and save. The card shows your site's MCP address (something like `https://your-site.com/wp-json/agentimus/v1/mcp`) with a copy button.
-2. Create an **application password**: Users → Profile → Application Passwords. Name it after the tool — "claude-code", "cursor" — one password per tool, so you can revoke one later without touching the others.
-3. Tell your AI tool about it. In Claude Code, for example:
+The short version: **the settings card does this for you.** Turn the server on, pick your tool on the card — Claude Desktop, ChatGPT / Codex, Claude Code — click **Create key**, and copy the finished setup it writes: your address, your username and the encoded login are all filled in. Then press **Test the connection**: the card makes the very calls your AI tool will make — sign-in, the MCP handshake, listing the tools — and shows a verdict for each, so "server problem" and "wrong key" stop looking identical. The card also keeps a status line: whether the server is answering right now, and when an AI tool last called (drawn from Agent access).
 
-   ```
-   claude mcp add --transport http agentimus https://your-site.com/wp-json/agentimus/v1/mcp \
-     --header "Authorization: Basic $(printf 'YOUR-USERNAME:APP-PASSWORD' | base64)"
-   ```
+Everything below is the same information for anyone who'd rather wire it by hand, or is reading this away from the admin.
 
-4. Ask it something: *"What's my site's AI readiness score, and what should I fix first?"*
+Every tool needs the same three facts:
 
-Then open **More → Agent access** and watch the calls appear, attributed to that password.
+- **Address:** `https://your-site.com/wp-json/agentimus/v1/mcp` (the card shows yours, with a copy button)
+- **Transport:** Streamable HTTP — MCP's plain web-request flavour
+- **Login:** HTTP Basic — your WordPress username plus an **application password** (Users → Profile → Application Passwords), sent as a header: `Authorization: Basic <encoded-login>`, where `<encoded-login>` is base64 of `username:app-password`. The settings card computes it for you; in a terminal, `printf '%s' 'USERNAME:APP-PASSWORD' | base64` does the same. (Paste the app password with or without its spaces — WordPress ignores them either way.)
+
+Name each key after the tool it's for — "Claude Code", "Cursor" — one key per tool, so you can revoke one later without touching the others.
+
+### Claude Code
+
+```
+claude mcp add --transport http agentimus https://your-site.com/wp-json/agentimus/v1/mcp \
+  --header "Authorization: Basic $(printf '%s' 'YOUR-USERNAME:APP-PASSWORD' | base64)"
+```
+
+Works as-is on macOS and Linux — the `$(printf …)` computes the encoded login inline. On Windows, let the settings card compute it and paste the finished command. Add `--scope user` to connect the server in every folder, not just the current one.
+
+### Claude Desktop
+
+Claude Desktop's connector screen only accepts OAuth sign-ins, so the login header rides a small bridge, `mcp-remote` (needs Node.js installed). Add this to `claude_desktop_config.json` — open it via Settings → Developer → Edit Config; the file lives at `~/Library/Application Support/Claude/` on macOS, `%APPDATA%\Claude\` on Windows — then restart the app:
+
+```json
+{
+  "mcpServers": {
+    "agentimus": {
+      "command": "npx",
+      "args": [
+        "-y", "mcp-remote",
+        "https://your-site.com/wp-json/agentimus/v1/mcp",
+        "--header", "Authorization:${AGENTIMUS_AUTH}"
+      ],
+      "env": { "AGENTIMUS_AUTH": "Basic <encoded-login>" }
+    }
+  }
+}
+```
+
+The odd shape — no space after `Authorization:`, the value tucked into `env` — is deliberate: Claude Desktop on Windows mangles spaces inside `args`, and this form works on every platform. If the file already lists other servers, merge the `"agentimus"` block into the existing `"mcpServers"` object.
+
+### Cursor
+
+Save as `.cursor/mcp.json` in your project — or `~/.cursor/mcp.json` for all projects — then enable the server under Cursor Settings → MCP:
+
+```json
+{
+  "mcpServers": {
+    "agentimus": {
+      "url": "https://your-site.com/wp-json/agentimus/v1/mcp",
+      "headers": { "Authorization": "Basic <encoded-login>" }
+    }
+  }
+}
+```
+
+### Codex — the CLI, the IDE extension, and the ChatGPT desktop app
+
+These three share one Codex configuration, so a single file covers them all — including Codex inside the ChatGPT desktop app, which is where the former standalone Codex app now lives. Add this to `~/.codex/config.toml` (recent Codex versions speak HTTP natively — no bridge needed; inside a session, `/mcp` shows whether it connected):
+
+```toml
+[mcp_servers.agentimus]
+url = "https://your-site.com/wp-json/agentimus/v1/mcp"
+http_headers = { "Authorization" = "Basic <encoded-login>" }
+```
+
+### ChatGPT
+
+ChatGPT's own connector screen — on the web and in the app — can't connect: it accepts only OAuth sign-ins (or none), with no way to send a login header, and a WordPress login isn't an OAuth flow. The way in is the app's **Codex** side, which connects fine — use the Codex setup above. (ChatGPT on the web has no equivalent; if that changes, this page will too.)
+
+### Anything else
+
+Any MCP client that speaks Streamable HTTP and can send a header connects with the three facts above. A tool that only launches local (stdio) servers can use the same bridge Claude Desktop does:
+
+```
+npx -y mcp-remote https://your-site.com/wp-json/agentimus/v1/mcp \
+  --header "Authorization: Basic <encoded-login>"
+```
+
+Once connected, ask the tool something: *"What's my site's AI readiness score, and what should I fix first?"* Then open **More → Agent access** and watch the calls appear, attributed to that key.
 
 **Worth knowing:** an application password isn't scoped to this server — it signs in as that user across your site's whole REST API. That's how WordPress works, not something Agentimus can change. So: one password per tool, and for an extra margin, a dedicated user with only the permissions the tool needs.
 
@@ -58,6 +128,8 @@ Some plugins (WooCommerce, for example) can run MCP servers of their own, with t
 
 ## If connecting fails
 
+- **Start with the card's "Test the connection" button.** It runs the same calls your AI tool makes and tells you which step failed — the server not answering, the sign-in refused, or the handshake itself — which is most of the diagnosis done in one click.
 - **401 even though the password is right?** Check the *username* first — it must be the WordPress login name of the user the password belongs to. WordPress silently ignores a sign-in for a username that doesn't exist, which looks identical to a server problem.
+- **A browser window pops open asking you to sign in** (Claude Desktop / the `mcp-remote` bridge)? That's the bridge falling back to an OAuth attempt after your site said 401 — which means the username or password in the header is wrong, not that you need to sign in there. Fix the header and the popup stops.
 - **The switch does nothing?** The MCP server needs WordPress 6.9 or newer (it's built on the WordPress Abilities API). The settings card tells you if that's the issue.
 - **Behind a very aggressive proxy or firewall**, the `Authorization` header can occasionally be stripped before reaching WordPress. Test with a wrong password for a *known-good* username: if you get an "incorrect password" error, the header arrives fine and the problem is elsewhere.

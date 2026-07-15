@@ -83,7 +83,7 @@ Agentimus grants agents **no** ability to write to, edit, or control your site. 
 
 ## Does Agentimus run an MCP server?
 
-Yes — as an opt-in, on WordPress 6.9 or newer. Turn on **Settings → Discovery → MCP server** and AI tools you already use (Claude Code, Cursor, ChatGPT connectors) can talk to your site over the Model Context Protocol and run the same nine **read-only** tools your admin AI gets — readiness, AI traffic, the request log, bot checks and previews. Everything needed ships with the plugin.
+Yes — as an opt-in, on WordPress 6.9 or newer. Turn on **Settings → Discovery → MCP server** and AI tools you already use (Claude Code, Claude Desktop, Codex) can talk to your site over the Model Context Protocol and run the same nine **read-only** tools your admin AI gets — readiness, AI traffic, the request log, bot checks and previews. Everything needed ships with the plugin, and the switch card writes the exact setup for your tool — pick it, mint a key with one click, copy the result — then a Test button proves the connection with the same calls the tool will make. (ChatGPT itself is the one that can't connect — its connectors only support OAuth sign-ins — though Codex inside the ChatGPT desktop app connects fine via the Codex setup.)
 
 Nothing becomes public: every request must sign in with a WordPress login (an application password works), each tool keeps the same permission checks as the admin screen it comes from, every call is recorded under **More → Agent access**, and turning the switch off disconnects connected tools immediately. With the switch off — the default — the server doesn't exist at all.
 

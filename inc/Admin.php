@@ -638,6 +638,28 @@ final class Admin {
 				// false → a git checkout without `composer install`; the toggle would no-op.
 				'adapterAvailable'   => class_exists( '\WP\MCP\Core\McpAdapter' )
 					|| file_exists( AGENTIMUS_DIR . 'vendor/autoload_packages.php' ),
+				// The connect helper builds ready-to-paste client configs from these.
+				// The username is the signed-in owner's login name — Basic auth needs
+				// exactly that, and a wrong username is the #1 connection failure
+				// (WordPress silently ignores a login for a name that doesn't exist,
+				// which reads as a server problem).
+				'username'           => wp_get_current_user()->user_login,
+				'appPasswords'       => array(
+					// false → the site can't mint application passwords (usually: no
+					// HTTPS on a non-local host, or a security plugin turned them off);
+					// the helper explains instead of offering a button that would fail.
+					'available'  => function_exists( 'wp_is_application_passwords_available_for_user' )
+						&& wp_is_application_passwords_available_for_user( wp_get_current_user() ),
+					// Core's own endpoint for minting a key for THIS user. It lives in
+					// wp/v2, not our namespace — the wp_rest nonce the app already
+					// carries authenticates it; no plugin proxy route needed.
+					'endpoint'   => esc_url_raw( rest_url( 'wp/v2/users/me/application-passwords' ) ),
+					'profileUrl' => esc_url_raw( admin_url( 'profile.php#application-passwords-section' ) ),
+				),
+				// The card's "last AI activity" line. `known:false` means Agent access
+				// can't see ability runs on this site (module off / no Abilities API
+				// hooks) — the card must then say nothing rather than claim "never".
+				'lastToolCall'       => $this->last_agent_tool_call(),
 			),
 			// Every registered WebMCP tool (baseline + provider-added), so the
 			// Settings panel can list them with a per-tool expose/hide toggle.
@@ -690,6 +712,47 @@ final class Admin {
 			'suppress_filters' => false,
 		) );
 		return empty( $posts ) ? '' : (string) get_permalink( $posts[0] );
+	}
+
+	/**
+	 * The MCP card's "last AI activity" fact: the most recent ability run that was
+	 * authenticated with an application password — i.e. an external client, not
+	 * someone clicking around wp-admin (cookie sessions carry no credential).
+	 *
+	 * Why ability_used and not apppw_used: the sign-in event only records a key's
+	 * FIRST use (a deliberate hot-path guard), and core throttles its own
+	 * last_used to day granularity — ability_used is the only per-call timestamp.
+	 *
+	 * @return array{known:bool,call:?array{at:string,key:string,user:string,ability:string}}
+	 */
+	private function last_agent_tool_call() {
+		try {
+			$coverage = AgentAccess\Module::coverage();
+			if ( ! AgentAccess\Events::has_abilities( $coverage ) ) {
+				return array( 'known' => false, 'call' => null );
+			}
+			// A short recent window is enough: credentialed runs and admin-AI runs
+			// interleave, and we only need the newest credentialed one.
+			foreach ( AgentAccess\Store::recent( 20, AgentAccess\Events::KIND_ABILITY_USED ) as $e ) {
+				if ( empty( $e['cred'] ) ) {
+					continue;
+				}
+				return array(
+					'known' => true,
+					'call'  => array(
+						'at'      => isset( $e['lastSeen'] ) ? (string) $e['lastSeen'] : '',
+						// Resolves live and goes '' once the key is revoked — the UI
+						// words that as "a since-revoked key" rather than inventing one.
+						'key'     => ! empty( $e['credName'] ) ? (string) $e['credName'] : '',
+						'user'    => isset( $e['user'] ) ? (string) $e['user'] : '',
+						'ability' => isset( $e['subject'] ) ? (string) $e['subject'] : '',
+					),
+				);
+			}
+			return array( 'known' => true, 'call' => null );
+		} catch ( \Throwable $e ) {
+			return array( 'known' => false, 'call' => null );
+		}
 	}
 
 	/**

@@ -56,14 +56,42 @@ export default {
       oauthChecking: false,
       oauthCheck: null,
       mcpCopied: false,
+      // The MCP connect helper. The pasted/minted application password lives ONLY
+      // in this component's state — never saved, never sent anywhere except into
+      // the config text the user copies. Navigating away forgets it.
+      mcpClient: 'claude-desktop',
+      mcpKeyName: 'Claude Desktop', // follows the picker until the user edits it
+      mcpKeyNameTouched: false,
+      mcpPassword: '',
+      mcpKeyCreating: false,
+      mcpKeyError: '',
+      mcpKeyWarn: '', // the duplicate-name case — a warning with a way out, not a failure
+      mcpKeyWarnOpen: false, // the "?" dialog carrying that warning's full story
+      mcpScopeOpen: false, // the "?" dialog behind the key-scope fact in the step head
+      mcpKeyCreated: '', // name of the key just minted — powers the "shown once" note
+      mcpKeyCopied: false,
+      mcpSnippetCopied: false,
+      mcpSnippetOpen: false, // the raw config, collapsed by default — most people just copy
+      // The live status probe. 'checking' until the browser has asked the endpoint;
+      // the saved-state snapshot is what separates "off until you save" from "down".
+      mcpProbe: 'checking',
+      mcpSavedEnabled: false,
+      mcpTestRunning: false,
+      mcpTestChecks: [],
     };
   },
   mounted() {
     window.addEventListener('resize', this.updateScrollHint);
+    // Status probe for the MCP card — only meaningful for the SAVED state; a
+    // freshly flipped toggle shows "turns on when you save" instead.
+    this.mcpSavedEnabled = !!(this.settings && this.settings.enable_mcp_server);
+    if (this.mcpSavedEnabled) this.probeMcpStatus();
   },
   beforeUnmount() {
     window.removeEventListener('resize', this.updateScrollHint);
     if (this._unEscReset) this._unEscReset();
+    if (this._unEscTaken) this._unEscTaken();
+    if (this._unEscScope) this._unEscScope();
   },
   watch: {
     // Document-level Esc while the reset dialog is open — the panel-scoped
@@ -71,6 +99,28 @@ export default {
     showReset(open) {
       if (this._unEscReset) this._unEscReset();
       this._unEscReset = open ? bindDocEsc(() => this.closeReset()) : null;
+    },
+    // A finished save is the moment the MCP switch actually takes effect — refresh
+    // the saved-state snapshot and re-probe, so the status line follows reality.
+    busy(now, was) {
+      if (was && !now) {
+        this.mcpSavedEnabled = !!(this.settings && this.settings.enable_mcp_server);
+        if (this.mcpSavedEnabled) this.probeMcpStatus();
+      }
+    },
+    // A different key invalidates any test verdict on screen.
+    mcpPassword() {
+      this.mcpTestChecks = [];
+    },
+    // Doc-level Esc for the duplicate-name explainer, same convention as every
+    // dialog here — a panel-scoped handler dies as soon as focus leaves it.
+    mcpKeyWarnOpen(open) {
+      if (this._unEscTaken) this._unEscTaken();
+      this._unEscTaken = open ? bindDocEsc(() => { this.mcpKeyWarnOpen = false; }) : null;
+    },
+    mcpScopeOpen(open) {
+      if (this._unEscScope) this._unEscScope();
+      this._unEscScope = open ? bindDocEsc(() => { this.mcpScopeOpen = false; }) : null;
     },
   },
   computed: {
@@ -94,6 +144,139 @@ export default {
         label: `${rows.toLocaleString()} rows · ≈ ${fmt(mb(rows, 300))}–${fmt(mb(rows, 700))} MB`,
       }));
     },
+    // ---- MCP connect helper -------------------------------------------------
+    // Every client below gets a config the user can paste WITHOUT editing —
+    // endpoint, username and the encoded login are all filled in here, in the
+    // browser. Hand-computing base64 was the step users actually failed on
+    // (and the shell trick for it doesn't exist on Windows).
+    mcpClients() {
+      // Desktop-app agents lead (most Agentimus owners aren't coders), the
+      // developer CLIs follow. Code editors (Cursor, VS Code, Windsurf) are
+      // deliberately not featured — their users are served by "Other tools",
+      // and the manual keeps per-editor recipes. keyName is the suggested
+      // application-password name where the tab label is too compound for one.
+      return [
+        { key: 'claude-desktop', label: 'Claude Desktop' },
+        { key: 'codex', label: 'ChatGPT / Codex', keyName: 'Codex' },
+        { key: 'claude-code', label: 'Claude Code' },
+        { key: 'other', label: 'Other tools' },
+      ];
+    },
+    mcpAppPw() {
+      return (this.mcpServer && this.mcpServer.appPasswords) || {};
+    },
+    mcpUsername() {
+      return (this.mcpServer && this.mcpServer.username) || 'YOUR-USERNAME';
+    },
+    // WordPress shows application passwords as "xxxx xxxx xxxx …" and ignores the
+    // spaces when checking them — strip them so the header is canonical.
+    mcpPasswordClean() {
+      return (this.mcpPassword || '').replace(/\s+/g, '');
+    },
+    // "Basic <this>" — base64 of user:password, computed locally. btoa() rejects
+    // characters above U+00FF (a non-ASCII username), so fall back through a
+    // UTF-8 byte encoding, which is what the server decodes anyway.
+    mcpAuthB64() {
+      if (!this.mcpPasswordClean) return '';
+      const raw = `${this.mcpUsername}:${this.mcpPasswordClean}`;
+      try {
+        return btoa(raw);
+      } catch (e) {
+        return btoa(unescape(encodeURIComponent(raw)));
+      }
+    },
+    // The placeholder keeps an uncredentialed snippet honest: it's visibly not a
+    // value, and the nudge under the box says how to fill it.
+    mcpAuthShown() {
+      return this.mcpAuthB64 || '<KEY>';
+    },
+    mcpSnippet() {
+      const url = (this.mcpServer && this.mcpServer.endpoint) || '';
+      const auth = this.mcpAuthShown;
+      switch (this.mcpClient) {
+        case 'claude-code':
+          return `claude mcp add --transport http agentimus ${url} \\\n  --header "Authorization: Basic ${auth}"`;
+        case 'claude-desktop':
+          // Desktop's connector UI can't send a login header (OAuth only), so this
+          // rides the mcp-remote bridge. The header value goes through env with NO
+          // space after the colon in args — Claude Desktop on Windows mangles
+          // spaces inside args (documented mcp-remote workaround); env is safe.
+          return [
+            '{',
+            '  "mcpServers": {',
+            '    "agentimus": {',
+            '      "command": "npx",',
+            '      "args": [',
+            '        "-y", "mcp-remote",',
+            `        "${url}",`,
+            '        "--header", "Authorization:${AGENTIMUS_AUTH}"',
+            '      ],',
+            `      "env": { "AGENTIMUS_AUTH": "Basic ${auth}" }`,
+            '    }',
+            '  }',
+            '}',
+          ].join('\n');
+        case 'codex':
+          return `[mcp_servers.agentimus]\nurl = "${url}"\nhttp_headers = { "Authorization" = "Basic ${auth}" }`;
+        default:
+          return [
+            'Transport   Streamable HTTP (MCP)',
+            `URL         ${url}`,
+            'Auth        HTTP Basic — WordPress username + application password',
+            `Header      Authorization: Basic ${auth}`,
+            '',
+            'Tool only speaks stdio? Bridge it:',
+            `  npx -y mcp-remote ${url} --header "Authorization: Basic ${auth}"`,
+          ].join('\n');
+      }
+    },
+    mcpClientLabel() {
+      const c = this.mcpClients.find((x) => x.key === this.mcpClient);
+      return c ? c.label : 'AI tool';
+    },
+    // Plain-HTTP endpoints trip two different wires — most MCP clients refuse
+    // insecure remote hosts, and WordPress won't issue application passwords
+    // without TLS off a local machine — so say it once, up front.
+    mcpEndpointInsecure() {
+      return /^http:\/\//i.test((this.mcpServer && this.mcpServer.endpoint) || '');
+    },
+    // Generic on purpose: the active tab already names the tool, and the step
+    // head says "Copy the setup" — repeating the client name here was noise.
+    mcpCopyLabel() {
+      return this.mcpClient === 'other' ? 'Copy the connection facts' : 'Copy the setup';
+    },
+    // What the status strip shows. 'unsaved' wins over the probe: the switch only
+    // takes effect on save, and claiming "running"/"down" before that would lie
+    // in one direction or the other.
+    mcpStatus() {
+      if (this.settings && this.settings.enable_mcp_server && !this.mcpSavedEnabled) return 'unsaved';
+      return this.mcpProbe;
+    },
+    // "Last AI tool call: 2 hours ago — key “Claude Code” (admin)." — from Agent
+    // access, external clients only (credentialed runs). Silent when the site
+    // can't know (no Abilities API hooks): absence of a claim, not a claim of absence.
+    mcpLastCallText() {
+      const l = this.mcpServer && this.mcpServer.lastToolCall;
+      if (!l || !l.known) return '';
+      if (!l.call) return 'No AI client has called a tool yet.';
+      const key = l.call.key ? `key “${l.call.key}”` : 'a since-revoked key';
+      const user = l.call.user ? ` (${l.call.user})` : '';
+      return `Last AI tool call: ${this.relTime(l.call.at)} — ${key}${user}.`;
+    },
+    // Where the config goes and what to do next — the part each tool does differently.
+    mcpSnippetHint() {
+      switch (this.mcpClient) {
+        case 'claude-code':
+          return 'Run this in a terminal. Add --scope user to connect it in every folder, not just the current one.';
+        case 'claude-desktop':
+          return 'Add this to claude_desktop_config.json (Claude Desktop → Settings → Developer → Edit Config), merge into "mcpServers" if the file already has servers, and restart the app. Needs Node.js — Desktop can’t send a login header itself, so the small mcp-remote bridge carries it.';
+        case 'codex':
+          return 'Add this to ~/.codex/config.toml — the one file covers the Codex CLI, the IDE extension, and Codex in the ChatGPT desktop app (needs a recent Codex; older versions had no HTTP server support). Inside a session, /mcp shows whether it connected.';
+        default:
+          return 'Any MCP client that speaks Streamable HTTP and can send a header connects with these facts; the bridge line covers tools that only launch local (stdio) servers.';
+      }
+    },
+    // ------------------------------------------------------------------------
     // The settings page is split into a few labelled groups, shown one at a time
     // via the sub-nav. Order runs broad → specific: what you publish, who you
     // are, what bots may do, then the rarely-touched developer/maintenance bits.
@@ -439,9 +622,8 @@ export default {
       if (i === -1) arr.push(name);
       else arr.splice(i, 1);
     },
-    async copyMcpEndpoint() {
-      const text = (this.mcpServer && this.mcpServer.endpoint) || '';
-      if (!text) return;
+    async copyPlainText(text) {
+      if (!text) return false;
       let ok = false;
       // navigator.clipboard needs a secure context (HTTPS or localhost); on plain
       // HTTP it's absent or throws, so fall back to the legacy execCommand path.
@@ -462,10 +644,179 @@ export default {
         try { ok = document.execCommand('copy'); } catch (e) { ok = false; }
         document.body.removeChild(ta);
       }
-      if (ok) {
-        this.mcpCopied = true;
-        clearTimeout(this._mcpCopyTimer);
-        this._mcpCopyTimer = setTimeout(() => { this.mcpCopied = false; }, 2000);
+      return ok;
+    },
+    async copyMcpEndpoint() {
+      if (!(await this.copyPlainText((this.mcpServer && this.mcpServer.endpoint) || ''))) return;
+      this.mcpCopied = true;
+      clearTimeout(this._mcpCopyTimer);
+      this._mcpCopyTimer = setTimeout(() => { this.mcpCopied = false; }, 2000);
+    },
+    async copyMcpSnippet() {
+      if (!(await this.copyPlainText(this.mcpSnippet))) return;
+      this.mcpSnippetCopied = true;
+      clearTimeout(this._mcpSnippetCopyTimer);
+      this._mcpSnippetCopyTimer = setTimeout(() => { this.mcpSnippetCopied = false; }, 2000);
+    },
+    // Copies the key exactly as the field shows it (spaces and all) — that's the
+    // form WordPress displays, and it signs in either way.
+    async copyMcpKey() {
+      if (!(await this.copyPlainText(this.mcpPassword))) return;
+      this.mcpKeyCopied = true;
+      clearTimeout(this._mcpKeyCopyTimer);
+      this._mcpKeyCopyTimer = setTimeout(() => { this.mcpKeyCopied = false; }, 2000);
+    },
+    onMcpKeyNameInput() {
+      this.mcpKeyNameTouched = true;
+      // The warning names a specific name; typing moved on from it.
+      this.mcpKeyWarn = '';
+      this.mcpKeyWarnOpen = false;
+    },
+    pickMcpClient(key) {
+      this.mcpClient = key;
+      // The key-name suggestion follows the picker (one key per tool, named after
+      // it, so revoking one later is unambiguous) — but never over a user's edit.
+      if (!this.mcpKeyNameTouched) {
+        const c = this.mcpClients.find((x) => x.key === key);
+        this.mcpKeyName = c && key !== 'other' ? (c.keyName || c.label) : 'AI tool';
+        this.mcpKeyWarn = ''; // the warning names a specific name; it moved on
+        this.mcpKeyWarnOpen = false;
+      }
+    },
+    // "2 hours ago" for the status strip — coarse on purpose; the precise
+    // timestamp lives one click away in Agent access.
+    relTime(iso) {
+      const t = Date.parse(iso || '');
+      if (!t) return 'recently';
+      const s = Math.max(0, (Date.now() - t) / 1000);
+      if (s < 90) return 'just now';
+      if (s < 3600) return `${Math.round(s / 60)} minutes ago`;
+      if (s < 172800) { const h = Math.round(s / 3600); return h === 1 ? '1 hour ago' : `${h} hours ago`; }
+      const d = Math.round(s / 86400);
+      return d < 30 ? `${d} days ago` : new Date(t).toLocaleDateString();
+    },
+    // Is the server actually answering? Asked from the browser because the
+    // adapter's state can't be known during an admin page load. GET is enough:
+    // a live server answers 405/401 (route exists), a disabled one a clean 404.
+    async probeMcpStatus() {
+      this.mcpProbe = 'checking';
+      try {
+        const res = await fetch(this.mcpServer.endpoint, {
+          method: 'GET', credentials: 'omit', headers: { Accept: 'application/json' },
+        });
+        this.mcpProbe = res.status === 404 ? 'unreachable' : 'running';
+      } catch (e) {
+        this.mcpProbe = 'unreachable';
+      }
+    },
+    // The proof step: the exact calls an AI client makes — initialize, then
+    // tools/list on the returned session — with the key from step 2 and no
+    // cookies, so a pass means the server AND the credential both work.
+    async runMcpTest() {
+      if (this.mcpTestRunning || !this.mcpAuthB64) return;
+      this.mcpTestRunning = true;
+      const checks = [];
+      this.mcpTestChecks = checks;
+      const url = (this.mcpServer && this.mcpServer.endpoint) || '';
+      const headers = {
+        'Content-Type': 'application/json',
+        Accept: 'application/json, text/event-stream',
+        Authorization: `Basic ${this.mcpAuthB64}`,
+      };
+      const rpc = (id, method, params) => JSON.stringify({ jsonrpc: '2.0', id, method, params });
+      try {
+        let res = null;
+        try {
+          res = await fetch(url, {
+            method: 'POST', credentials: 'omit', headers,
+            body: rpc(1, 'initialize', {
+              protocolVersion: '2025-03-26',
+              capabilities: {},
+              clientInfo: { name: 'agentimus-settings-test', version: '1' },
+            }),
+          });
+        } catch (e) {
+          checks.push({ state: 'fail', label: 'Server reachable', note: 'the request never got an answer — is the site reachable from this browser?' });
+          return;
+        }
+        if (res.status === 404) {
+          checks.push({ state: 'fail', label: 'Server reachable', note: 'the address returned “not found” — save the settings with the switch on, then retry' });
+          return;
+        }
+        checks.push({ state: 'ok', label: 'Server reachable' });
+        if (res.status === 401 || res.status === 403) {
+          checks.push({ state: 'fail', label: 'Sign-in accepted', note: `the site refused this key — check the username (${this.mcpUsername}) and the key itself; a wrong username fails exactly like a wrong password` });
+          return;
+        }
+        checks.push({ state: 'ok', label: 'Sign-in accepted', note: `as ${this.mcpUsername}` });
+        let init = null;
+        try { init = await res.json(); } catch (e) { /* judged below */ }
+        if (!res.ok || !init || !init.result) {
+          checks.push({ state: 'fail', label: 'MCP handshake (initialize)', note: `unexpected answer (HTTP ${res.status})` });
+          return;
+        }
+        const server = init.result.serverInfo || {};
+        checks.push({ state: 'ok', label: 'MCP handshake (initialize)', note: [server.name, server.version].filter(Boolean).join(' ') });
+        let list = null;
+        try {
+          list = await fetch(url, {
+            method: 'POST', credentials: 'omit',
+            headers: {
+              ...headers,
+              'Mcp-Session-Id': res.headers.get('Mcp-Session-Id') || '',
+              'MCP-Protocol-Version': init.result.protocolVersion || '2025-03-26',
+            },
+            body: rpc(2, 'tools/list', {}),
+          });
+        } catch (e) { /* judged below */ }
+        let tools = null;
+        if (list && list.ok) {
+          try { tools = (await list.json()).result.tools; } catch (e) { /* judged below */ }
+        }
+        if (Array.isArray(tools)) {
+          checks.push({ state: 'ok', label: `Tools listed — ${tools.length} available to this user` });
+        } else {
+          checks.push({ state: 'fail', label: 'Tools listed', note: list ? `unexpected answer (HTTP ${list.status})` : 'the request never got an answer' });
+        }
+      } finally {
+        this.mcpTestRunning = false;
+      }
+    },
+    // Mint an application password for the signed-in user via core's own REST
+    // endpoint. Core returns the plaintext exactly once — it flows straight into
+    // the config below and nowhere else.
+    async createMcpKey() {
+      if (this.mcpKeyCreating || !this.api) return;
+      const name = (this.mcpKeyName || '').trim() || 'AI tool';
+      this.mcpKeyCreating = true;
+      this.mcpKeyError = '';
+      this.mcpKeyWarn = '';
+      try {
+        // Core's REST endpoint accepts duplicate names without complaint, so a
+        // double-click would silently mint two identical-looking keys — and the
+        // first one lives on, orphaned but valid. Check by name first and say
+        // what to do instead.
+        const existing = await this.api.listAppPasswords(this.mcpAppPw.endpoint).catch(() => null);
+        if (Array.isArray(existing)
+          && existing.some((k) => (k.name || '').toLowerCase() === name.toLowerCase())) {
+          this.mcpKeyWarn = `A key named “${name}” already exists (see Users → Profile → Application Passwords). Pick a different name, or revoke the old one first — creating a second key with the same name would leave the old one live and the two indistinguishable.`;
+          return;
+        }
+        const res = await this.api.createAppPassword(this.mcpAppPw.endpoint, name);
+        this.mcpPassword = (res && res.password) || '';
+        this.mcpKeyCreated = (res && res.name) || name;
+        if (!this.mcpPassword) {
+          // A 2xx without the one-time password would leave a key the user can
+          // never use — name that plainly instead of showing an empty config.
+          this.mcpKeyCreated = '';
+          this.mcpKeyError = 'The key was created but WordPress didn’t return it — revoke it under Users → Profile and try again there.';
+        }
+      } catch (e) {
+        // Core's own message is the honest one here — e.g. a permissions refusal,
+        // or application passwords having been switched off since page load.
+        this.mcpKeyError = e && e.message ? e.message : 'Could not create the key.';
+      } finally {
+        this.mcpKeyCreating = false;
       }
     },
     // The same-origin RFC 9728 doc the plugin publishes from this setting. We
@@ -928,10 +1279,12 @@ export default {
       <section id="ar-sec-mcp" class="ar-card">
         <h2 class="ar-card__title">MCP server <span class="ar-card__tag">experimental</span></h2>
         <p class="ar-card__lead">
-          Lets AI tools you already use — Claude Code, Cursor, ChatGPT connectors — talk to this
-          site over the <strong>Model Context Protocol</strong> and run the same read-only,
-          permission-checked tools your admin AI gets. Nothing becomes public: every request has
-          to sign in with a WordPress login first.
+          Lets AI tools you already use — Claude Desktop, the ChatGPT app (through its Codex
+          side), Claude Code, the Codex CLI — talk to this site over the
+          <strong>Model Context Protocol</strong>. A connected tool acts as your WordPress
+          user: it signs in first, and it can only read what that user could see on these
+          screens — nothing becomes public. (ChatGPT’s own connector screen can’t connect —
+          it’s OAuth-only; its Codex side is the way in.)
         </p>
 
         <p v-if="mcpServer.abilitiesAvailable === false" class="ar-field__hint">
@@ -953,26 +1306,227 @@ export default {
         </label>
 
         <div v-show="settings.enable_mcp_server" class="ar-mcp-connect">
-          <p class="ar-webmcp-tools__head">Where an AI tool connects (after you save):</p>
-          <p class="ar-mcp-connect__endpoint">
-            <code>{{ mcpServer.endpoint }}</code>
-            <button type="button" class="button button-small" @click="copyMcpEndpoint">
-              {{ mcpCopied ? 'Copied' : 'Copy' }}
-            </button>
+          <!-- Status: is the server actually answering, and has anything used it?
+               The probe runs in the browser because the adapter's state genuinely
+               cannot be known during an admin page load (it boots on rest_api_init). -->
+          <div class="ar-mcp-status">
+            <p class="ar-mcp-status__state" :data-state="mcpStatus">
+              <span class="ar-mcp-status__dot" aria-hidden="true"></span>
+              <template v-if="mcpStatus === 'running'">Running — the address answers and asks callers to sign in.</template>
+              <template v-else-if="mcpStatus === 'unsaved'">Turns on when you save.</template>
+              <template v-else-if="mcpStatus === 'unreachable'">Not answering — the address returned “not found”. Re-save the settings; if it persists, something in front of the site may be caching REST responses.</template>
+              <template v-else>Checking the server…</template>
+            </p>
+            <p v-if="mcpLastCallText" class="ar-mcp-status__last">
+              {{ mcpLastCallText }} <a href="#agent-access">Agent access →</a>
+            </p>
+          </div>
+          <p v-if="mcpEndpointInsecure" class="ar-field__hint">
+            The address is plain <code>http://</code> — many AI clients refuse insecure
+            connections to anything but a local machine. Fine for local development; a live
+            site needs HTTPS (WordPress won’t issue application passwords without it anyway).
           </p>
-          <p class="ar-field__hint">
-            Create an application password under <strong>Users → Profile</strong>, then connect —
-            for example in Claude Code:
-            <code>claude mcp add --transport http agentimus {{ mcpServer.endpoint }}</code>
-            with that login. Every call an AI tool makes shows up under
-            <strong>More → Agent access</strong>, attributed to the user it signed in as.
-          </p>
-          <p class="ar-field__hint">
-            Worth knowing: an application password isn’t scoped to this server — it signs in as
-            that user across your site’s whole REST API. Give each AI tool its own password
-            (revoke one without touching the others), and consider a dedicated user with only
-            the permissions the tool needs.
-          </p>
+
+          <!-- ① the tool -->
+          <div class="ar-mcp-step">
+            <p class="ar-mcp-step__head"><span class="ar-mcp-step__n" aria-hidden="true">1</span>Pick your AI tool</p>
+            <div class="ar-rev-tabs ar-mcp-tabs" role="tablist" aria-label="AI tool">
+              <button
+                v-for="c in mcpClients"
+                :key="c.key"
+                type="button"
+                class="ar-rev-tab"
+                :class="{ 'is-active': mcpClient === c.key }"
+                role="tab"
+                :aria-selected="mcpClient === c.key"
+                @click="pickMcpClient(c.key)"
+              >{{ c.label }}</button>
+            </div>
+          </div>
+
+          <!-- ② the key. One click mints an application password for the signed-in
+               user via core's own endpoint; pasting an existing one works too. -->
+          <div class="ar-mcp-step">
+            <p class="ar-mcp-step__head">
+              <span class="ar-mcp-step__n" aria-hidden="true">2</span>Give it a key
+              <span v-if="mcpAppPw.available" class="ar-mcp-scope">
+                — signs in as <strong>{{ mcpUsername }}</strong>, whole REST API
+                <button
+                  type="button"
+                  class="ar-mcp-key__whybtn ar-mcp-key__whybtn--info"
+                  aria-label="What that means, and how to stay safe"
+                  title="What that means, and how to stay safe"
+                  @click="mcpScopeOpen = true"
+                >?</button>
+              </span>
+            </p>
+            <div v-if="mcpAppPw.available" class="ar-mcp-key">
+              <div class="ar-mcp-key__paths">
+                <!-- The normal path: mint a fresh key. The name is REQUIRED and
+                     belongs to WordPress's password record — it's how Agent
+                     access attributes calls and how you revoke just this tool. -->
+                <div class="ar-mcp-key__path">
+                  <p class="ar-mcp-key__pathlabel">
+                    Create a fresh key
+                    <span v-if="mcpKeyWarn" class="ar-mcp-key__taken" role="alert">
+                      That name is taken.
+                      <button
+                        type="button"
+                        class="ar-mcp-key__whybtn"
+                        aria-label="Why, and what to do"
+                        title="Why, and what to do"
+                        @click="mcpKeyWarnOpen = true"
+                      >?</button>
+                    </span>
+                  </p>
+                  <div class="ar-mcp-key__row">
+                    <input
+                      v-model="mcpKeyName"
+                      type="text"
+                      class="ar-input ar-mcp-key__name"
+                      aria-label="Name for the new key (required)"
+                      placeholder="Name, e.g. Claude Code"
+                      @input="onMcpKeyNameInput"
+                    />
+                    <button
+                      type="button"
+                      class="ar-btn ar-mcp-key__create"
+                      :disabled="mcpKeyCreating || !mcpKeyName.trim()"
+                      :title="mcpKeyName.trim() ? '' : 'Give the key a name first'"
+                      @click="createMcpKey"
+                    >{{ mcpKeyCreating ? 'Creating…' : 'Create key' }}</button>
+                  </div>
+                  <p class="ar-field__hint">
+                    Makes a new application password with this name — the name is how you’ll
+                    spot the tool in <strong>Agent access</strong>, and revoke it alone later.
+                  </p>
+                </div>
+                <!-- The rare path: a password saved at creation time (WordPress
+                     never shows one again). The name field doesn't apply here. -->
+                <div class="ar-mcp-key__path">
+                  <p class="ar-mcp-key__pathlabel">Or paste one you saved</p>
+                  <div class="ar-mcp-key__row">
+                    <span class="ar-mcp-key__pastewrap">
+                      <input
+                        v-model="mcpPassword"
+                        type="text"
+                        class="ar-input ar-mcp-key__paste"
+                        placeholder="xxxx xxxx xxxx xxxx xxxx xxxx"
+                        autocomplete="off"
+                        spellcheck="false"
+                        aria-label="Existing application password"
+                      />
+                      <button
+                        v-if="mcpPassword"
+                        type="button"
+                        class="ar-mcp-key__copy"
+                        :class="{ 'is-copied': mcpKeyCopied }"
+                        :aria-label="mcpKeyCopied ? 'Copied' : 'Copy the key'"
+                        :title="mcpKeyCopied ? 'Copied' : 'Copy the key'"
+                        @click="copyMcpKey"
+                      >
+                        <svg v-if="!mcpKeyCopied" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="11" height="11" rx="2" /><path d="M6 15H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v1" /></svg>
+                        <svg v-else viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12.5 9.5 18 20 6.5" /></svg>
+                      </button>
+                    </span>
+                  </div>
+                  <p class="ar-field__hint">
+                    WordPress shows a password only at the moment it’s created — if you kept one
+                    (a password manager, usually), paste it and the setup below completes
+                    instantly. It keeps the name it was created under; the name field on the
+                    left doesn’t apply to it.
+                  </p>
+                </div>
+              </div>
+              <p v-if="mcpKeyError" class="ar-field__hint ar-mcp-key__err" role="alert">{{ mcpKeyError }}</p>
+              <p v-else-if="mcpKeyCreated" class="ar-field__hint" role="status">
+                Key “{{ mcpKeyCreated }}” created for <strong>{{ mcpUsername }}</strong> and filled
+                into the setup below — copy it now, this is the only time your site shows it.
+                Nothing is stored in this page or the plugin.
+              </p>
+            </div>
+            <p v-else class="ar-field__hint">
+              This site can’t issue <strong>application passwords</strong> (WordPress turns them off
+              without HTTPS, and some security plugins disable them) — and without them AI tools
+              have no way to sign in here, so connecting won’t work until that changes.
+            </p>
+          </div>
+
+          <!-- ③ the setup, one button. The raw config stays a click away rather
+               than dominating the card — most people just paste it on. -->
+          <div class="ar-mcp-step">
+            <p class="ar-mcp-step__head"><span class="ar-mcp-step__n" aria-hidden="true">3</span>Copy the setup</p>
+            <div class="ar-mcp-copyrow">
+              <button
+                type="button"
+                class="ar-btn ar-mcp-copybtn"
+                :disabled="!mcpAuthB64"
+                :title="mcpAuthB64 ? '' : 'Create or paste a key in step 2 first'"
+                @click="copyMcpSnippet"
+              >
+                {{ mcpSnippetCopied ? 'Copied ✓' : mcpCopyLabel }}
+              </button>
+              <button type="button" class="ar-linkbtn" @click="mcpSnippetOpen = !mcpSnippetOpen">
+                {{ mcpSnippetOpen ? 'Hide the configuration ▴' : 'Show what this copies ▾' }}
+              </button>
+            </div>
+            <p v-if="!mcpAuthB64 && mcpAppPw.available" class="ar-field__hint">
+              Unlocks when step 2 has a key — everything else is already written with your
+              site’s real values. (The preview shows a <code>&lt;KEY&gt;</code> placeholder
+              where the key will go.)
+            </p>
+            <p v-else class="ar-field__hint">{{ mcpSnippetHint }}</p>
+            <div v-show="mcpSnippetOpen" class="ar-mcp-snippet">
+              <pre class="ar-about-snippet ar-mcp-snippet__code"><code>{{ mcpSnippet }}</code></pre>
+              <button type="button" class="button button-small ar-mcp-snippet__copy" @click="copyMcpSnippet">
+                {{ mcpSnippetCopied ? 'Copied' : 'Copy' }}
+              </button>
+            </div>
+          </div>
+
+          <!-- ④ proof. The same call the AI tool will make, from this browser,
+               cookie-free — so a pass means the server and the key both work. -->
+          <div class="ar-mcp-step">
+            <p class="ar-mcp-step__head"><span class="ar-mcp-step__n" aria-hidden="true">4</span>Check it works</p>
+            <div class="ar-mcp-test">
+              <button
+                type="button"
+                class="ar-btn ar-btn--ghost"
+                :disabled="mcpTestRunning || !mcpAuthB64"
+                :title="mcpAuthB64 ? '' : 'Create or paste a key in step 2 first'"
+                @click="runMcpTest"
+              >{{ mcpTestRunning ? 'Testing…' : 'Test the connection' }}</button>
+            </div>
+            <ul v-if="mcpTestChecks.length" class="ar-mcp-test__list" role="status">
+              <li v-for="(c, i) in mcpTestChecks" :key="i" :data-state="c.state">
+                <span class="ar-mcp-test__mark" aria-hidden="true">{{ c.state === 'ok' ? '✓' : '✕' }}</span>
+                {{ c.label }}<template v-if="c.note"> — {{ c.note }}</template>
+              </li>
+            </ul>
+            <p v-if="mcpTestChecks.length && !mcpTestRunning" class="ar-field__hint">
+              This tests the server and the key from your browser — the same call your AI tool
+              makes. What it can’t see is the tool’s own side: the config file and a restart.
+              Every real call lands under <a href="#agent-access">Agent access</a>, attributed to
+              the user and key it signed in with.
+            </p>
+          </div>
+
+          <!-- The raw facts, for the 1% who need them. -->
+          <details class="ar-mcp-adv">
+            <summary>Advanced — address &amp; transport</summary>
+            <p class="ar-mcp-connect__endpoint">
+              <code>{{ mcpServer.endpoint }}</code>
+              <button type="button" class="button button-small" @click="copyMcpEndpoint">
+                {{ mcpCopied ? 'Copied' : 'Copy' }}
+              </button>
+            </p>
+            <p class="ar-field__hint">
+              Transport: <strong>Streamable HTTP</strong> (MCP). Sign-in: <strong>HTTP Basic</strong> —
+              WordPress username + application password, as an <code>Authorization: Basic …</code>
+              header. The full facts, including a bridge for stdio-only tools, are under
+              “Other tools” in step 1.
+            </p>
+          </details>
         </div>
       </section>
 
@@ -1842,6 +2396,64 @@ export default {
     </div>
       </div>
     </div>
+
+    <!-- The key-scope explainer — the step-2 head states the fact, this carries
+         what it means and how to stay safe. -->
+    <Teleport to="body">
+      <transition name="ar-modal">
+        <div v-if="mcpScopeOpen" class="ar-modal" @click.self="mcpScopeOpen = false">
+          <div
+            class="ar-modal__panel ar-modal__panel--confirm"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="ar-mcp-scope-title"
+            tabindex="-1"
+          >
+            <div class="ar-modal__head">
+              <h2 id="ar-mcp-scope-title" class="ar-modal__title">One key, the whole REST API</h2>
+              <p class="ar-modal__lead">
+                An application password signs in as <strong>{{ mcpUsername }}</strong> everywhere
+                WordPress’s REST API goes — it isn’t scoped to this server. That’s how WordPress
+                works, not something Agentimus can change.
+              </p>
+              <p class="ar-modal__lead">
+                So: give each AI tool its own key, named after it — then you can revoke one tool
+                without touching the others, under <strong>Users → Profile → Application
+                Passwords</strong>. For extra margin, create a dedicated user with only the
+                permissions the tool needs, and mint the tool’s key signed in as that user.
+              </p>
+            </div>
+            <div class="ar-modal__actions">
+              <button type="button" class="ar-btn ar-btn--ghost" @click="mcpScopeOpen = false">Close</button>
+            </div>
+          </div>
+        </div>
+      </transition>
+    </Teleport>
+
+    <!-- The duplicate-key-name explainer — the inline flag says what, this says why
+         and what to do. Small confirm-size shell, doc-level Esc like every dialog. -->
+    <Teleport to="body">
+      <transition name="ar-modal">
+        <div v-if="mcpKeyWarnOpen" class="ar-modal" @click.self="mcpKeyWarnOpen = false">
+          <div
+            class="ar-modal__panel ar-modal__panel--confirm"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="ar-mcp-taken-title"
+            tabindex="-1"
+          >
+            <div class="ar-modal__head">
+              <h2 id="ar-mcp-taken-title" class="ar-modal__title">That name is taken</h2>
+              <p class="ar-modal__lead">{{ mcpKeyWarn }}</p>
+            </div>
+            <div class="ar-modal__actions">
+              <button type="button" class="ar-btn ar-btn--ghost" @click="mcpKeyWarnOpen = false">Close</button>
+            </div>
+          </div>
+        </div>
+      </transition>
+    </Teleport>
 
     <Teleport to="body">
       <transition name="ar-modal">

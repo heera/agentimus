@@ -8,8 +8,8 @@ export function createApi(boot) {
     'X-WP-Nonce': boot.nonce || '',
   };
 
-  async function request(path, options = {}) {
-    const res = await fetch(`${base}${path}`, {
+  async function requestUrl(url, options = {}) {
+    const res = await fetch(url, {
       credentials: 'same-origin',
       headers,
       ...options,
@@ -26,6 +26,8 @@ export function createApi(boot) {
     }
     return res.json();
   }
+
+  const request = (path, options = {}) => requestUrl(`${base}${path}`, options);
 
   return {
     getSettings: () => request('/settings'),
@@ -110,6 +112,16 @@ export function createApi(boot) {
     getAgentAccess: (before = 0) => request(`/agent-access${before ? `?before=${before | 0}` : ''}`),
     markAgentAccessSeen: () => request('/agent-access/seen', { method: 'POST' }),
     clearAgentAccess: () => request('/agent-access', { method: 'DELETE' }),
+
+    // The signed-in user's existing application passwords (names and metadata
+    // only — core never returns the secrets). Powers the duplicate-name guard.
+    listAppPasswords: (endpoint) => requestUrl(endpoint),
+    // Mint an application password for the signed-in user via core's own
+    // endpoint (absolute URL — it lives in wp/v2, not our namespace; the same
+    // wp_rest nonce authenticates it). Core returns the plaintext `password`
+    // exactly once, in this response — it is never retrievable again.
+    createAppPassword: (endpoint, name) =>
+      requestUrl(endpoint, { method: 'POST', body: JSON.stringify({ name }) }),
 
     // AI Visibility monitoring.
     getVisibilityConfig: () => request('/visibility/config'),
