@@ -1,6 +1,7 @@
 <script>
 import { createApi } from './api.js';
 import { summarize } from './tiers.js';
+import { uaTip } from './uaTip.js';
 import SettingsForm from './components/SettingsForm.vue';
 import ReadinessPanel from './components/ReadinessPanel.vue';
 import DiscoveryHub from './components/DiscoveryHub.vue';
@@ -35,6 +36,9 @@ const MORE_EDGE_GAP = 12;
 export default {
   name: 'AgentimusApp',
   components: { SettingsForm, ReadinessPanel, DiscoveryHub, ActivityPanel, AiTrafficPanel, RequestLog, AgentAccess, ReviewMenu, OnboardingWizard, AboutPanel, ConfirmDialog, VisibilityPanel },
+  // The styled hover bubble (shared with the activity tables) — the score rail's
+  // rung and next-step hints use it instead of slow, unthemeable native titles.
+  mixins: [uaTip],
   props: {
     boot: { type: Object, required: true },
   },
@@ -227,9 +231,26 @@ export default {
     aeoNext() {
       return this.aeo && this.aeo.actions && this.aeo.actions.length ? this.aeo.actions[0] : null;
     },
+    // Its hover hint: WHY this is the next thing — the complaint in plain words
+    // (the action's own `why`), with the click destination as the second line.
+    aeoNextTip() {
+      return this.aeoNext ? (this.aeoNext.why || this.aeoNext.title || '') : '';
+    },
+    aeoNextTipHint() {
+      const a = this.aeoNext && this.aeoNext.action;
+      if (!a) return '';
+      // href actions open a new tab (see openNext) — say so; in-app jumps keep
+      // the action's own label ("Open AI Visibility").
+      return a.href ? 'Open in a new tab →' : (a.label ? `${a.label} →` : '');
+    },
     // The per-page content worklist behind the Optimized rung (issue → affected pages).
     optimizeWork() {
       return (this.aeo && this.aeo.content) || [];
+    },
+    // Total page-fixes across it (a page with two issues is two fixes) — the
+    // rung row's "N to fix" chip, since the Next line only names the top issue.
+    optimizeTotal() {
+      return this.optimizeWork.reduce((n, i) => n + Number(i.count || 0), 0);
     },
     // Pages the owner set aside as "not cited content" (excluded from grading).
     optimizeIgnored() {
@@ -504,7 +525,10 @@ export default {
     // Every rung shows its 0–100 score on one consistent scale (they roll up to the
     // composite in the gauge). The per-check tally lives on the Readiness tab.
     rungCount(r) {
-      return null === r.score ? '—' : `${r.score}%`;
+      // An unmeasured Cited explains itself in words (see the template) — a dash
+      // NEXT to those words would just re-mumble it.
+      if (null === r.score) return 'cited' === r.key ? '' : '—';
+      return `${r.score}%`;
     },
     rungTarget(r) {
       // Cited opens AI Visibility on the sub-view the score chose: Settings when setup
@@ -514,6 +538,10 @@ export default {
     rungTitle(r) {
       return 'visibility' === r.to ? 'Open AI Visibility' : `View ${r.label} checks in the readiness report`;
     },
+    // "N to fix" for a check-backed rung: its non-passing (warn or fail) checks.
+    rungTodo(r) {
+      return r && 'check' === r.kind ? Math.max(0, (r.total || 0) - (r.pass || 0)) : 0;
+    },
     // The next-step line: follow the top action's own jump/link, or fall back to the
     // full report. An external-link action opens in a new tab.
     openNext() {
@@ -521,6 +549,7 @@ export default {
       // content gaps are per-post and render as a non-clickable info line instead.
       const a = this.aeoNext && this.aeoNext.action;
       if (!a) return;
+      this.hideUaTip(); // the href path never reaches goTo's own hide
       if (a.href) {
         window.open(a.href, '_blank', 'noopener');
         return;
@@ -672,7 +701,30 @@ export default {
         if (btn) btn.focus();
       }
     },
+    // The rail's tooltips position against the CARD, not the viewport: width
+    // capped to the card's inside, and the BODY centred on it purely in CSS
+    // (translateX(-50%) on the --rail variant) — no width measurement, so no
+    // race with Vue's re-render can ever misplace it. The caret sits at the
+    // bubble's centre, which is also the centre of these full-width rows.
+    showRailTip(ev, text, hint = '') {
+      if (!text) return;
+      const rect = ev.currentTarget.getBoundingClientRect();
+      const card = (ev.currentTarget.closest && ev.currentTarget.closest('.ar-rail-card')) || ev.currentTarget.parentElement;
+      const c = card.getBoundingClientRect();
+      const below = rect.top < 96;
+      // The width cap rides the reactive state: an imperative tip.style.maxWidth
+      // would be wiped the moment Vue re-patches the bubble's :style binding.
+      const maxW = `${Math.max(160, Math.round(c.width - 24))}px`;
+      this.uaTip = {
+        show: true, text, hint, below, maxW,
+        x: Math.round(c.left + c.width / 2),
+        y: below ? rect.bottom + 8 : rect.top - 8,
+        caret: 0, // unused by the --rail variant: its caret is CSS-centred
+      };
+    },
     goTo(target) {
+      // Navigation unmounts whatever the pointer was over — never strand its tooltip.
+      this.hideUaTip();
       const { tab, anchor, view } = typeof target === 'string' ? { tab: target } : target || {};
       // Tell the tab watcher not to snap to the top: we're aiming at a section below.
       this._jumpAnchor = anchor || null;
@@ -1544,7 +1596,7 @@ export default {
           <button
             type="button"
             class="ar-rail-readiness ar-rail-readiness--link"
-            title="Open the full readiness report"
+            aria-label="Open the full readiness report"
             @click="goTo('readiness')"
           >
             <div class="ar-rail-gauge" role="img" :aria-label="`AEO/GEO score ${aeo.score} of 100`">
@@ -1580,11 +1632,17 @@ export default {
                 v-if="r.to"
                 type="button"
                 class="ar-rung__btn"
-                :title="rungTitle(r)"
+                :aria-label="rungTitle(r)"
                 @click="goTo(rungTarget(r))"
               >
                 <span class="ar-rung__tick" aria-hidden="true"></span>
                 <span class="ar-rung__name">{{ r.label }}</span>
+                <!-- Check-backed rungs count their non-passing checks; Cited is a
+                     measurement, not a checklist, so it never wears the chip — but
+                     an unmeasured Cited says so in words: a bare dash read as
+                     "broken", when the truth is just "no reading yet". -->
+                <em v-if="rungTodo(r)" class="ar-rung__todo">{{ rungTodo(r) }} to fix</em>
+                <em v-else-if="'cited' === r.key && null === r.score" class="ar-rung__todo">not measured yet</em>
                 <span class="ar-rung__count">{{ rungCount(r) }}</span>
               </button>
               <!-- Optimized routes like the other rungs — to its section on the
@@ -1593,11 +1651,14 @@ export default {
                 v-else-if="r.key === 'optimized' && optimizeActionable"
                 type="button"
                 class="ar-rung__btn"
-                title="See which pages to optimize"
+                aria-label="See which pages to optimize"
                 @click="goTo({ tab: 'readiness', anchor: 'ar-group-optimized' })"
               >
                 <span class="ar-rung__tick" aria-hidden="true"></span>
                 <span class="ar-rung__name">{{ r.label }}</span>
+                <!-- The WHOLE worklist's size — the Next line below only ever
+                     names the top issue, so this is where the total lives. -->
+                <em v-if="optimizeTotal" class="ar-rung__todo">{{ optimizeTotal }} to fix</em>
                 <span class="ar-rung__count">{{ rungCount(r) }}</span>
               </button>
               <div v-else class="ar-rung__btn ar-rung__btn--static">
@@ -1612,9 +1673,18 @@ export default {
             v-if="aeoNext && aeoNext.action"
             type="button"
             class="ar-rail-link ar-rail-next"
+            @mouseenter="showRailTip($event, aeoNextTip, aeoNextTipHint)"
+            @mouseleave="hideUaTip"
+            @focus="showRailTip($event, aeoNextTip, aeoNextTipHint)"
+            @blur="hideUaTip"
             @click="openNext"
           >Next: {{ aeoNext.title }} →</button>
-          <p v-else-if="aeoNext" class="ar-rail-next ar-rail-next--info">Next: {{ aeoNext.title }}</p>
+          <p
+            v-else-if="aeoNext"
+            class="ar-rail-next ar-rail-next--info"
+            @mouseenter="showRailTip($event, aeoNextTip)"
+            @mouseleave="hideUaTip"
+          >Next: {{ aeoNext.title }}</p>
           <p v-else class="ar-rail-allgood">All rungs complete.</p>
         </div>
 
@@ -1653,5 +1723,21 @@ export default {
         <p class="ar-rail-foot" aria-label="Made with love by Sheikh Heera"><span class="ar-rail-foot__text">Made with <span class="ar-rail-foot__heart" aria-hidden="true">♥</span> by <a class="ar-rail-foot__link" href="https://heera.it" target="_blank" rel="noopener">Sheikh Heera</a></span></p>
       </aside>
     </main>
+
+    <!-- The styled hover bubble for the score rail's rung + next-step hints —
+         the shared uaTip state, in its prose (--info) variant. -->
+    <Teleport to="body">
+      <transition name="ar-tip">
+        <div
+          v-if="uaTip.show"
+          ref="uaTipEl"
+          class="ar-act-uatip ar-act-uatip--info ar-act-uatip--rail"
+          :class="{ 'is-below': uaTip.below }"
+          :style="{ left: uaTip.x + 'px', top: uaTip.y + 'px', maxWidth: uaTip.maxW || null }"
+          role="tooltip"
+          aria-hidden="true"
+        ><span class="ar-act-uatip__ua">{{ uaTip.text }}</span><span v-if="uaTip.hint" class="ar-act-uatip__hint">{{ uaTip.hint }}</span><span class="ar-act-uatip__caret"></span></div>
+      </transition>
+    </Teleport>
   </div>
 </template>

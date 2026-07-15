@@ -353,6 +353,19 @@ final class Score {
 		if ( (int) $post->ID === (int) get_option( 'page_for_posts' ) ) {
 			return false;
 		}
+		// Commerce plugins' designated pages (cart, checkout, account, shop…) are
+		// structural in exactly the Posts-page way: a shortcode/block container
+		// the plugin renders. Grading one "thin" tells the owner to fatten their
+		// cart page — advice nobody should follow.
+		if ( in_array( (int) $post->ID, $this->commerce_page_ids(), true ) ) {
+			return false;
+		}
+		// The plugin-agnostic version of the same fact: authored content that is
+		// only a container (shortcodes / namespaced plugin blocks, no prose of the
+		// author's own) — whatever plugin it belongs to, known here or not.
+		if ( self::is_container_content( (string) $post->post_content ) ) {
+			return false;
+		}
 		// Owner set-aside: pages marked "not cited content" from the worklist — content
 		// that isn't meant to be quoted (a landing/utility/index page). Always surfaced
 		// as a visible "set aside" count, so this never silently inflates the score.
@@ -370,6 +383,84 @@ final class Score {
 		 * @param \WP_Post $post      The post being considered.
 		 */
 		return (bool) apply_filters( 'agentimus_gradeable_post', true, $post );
+	}
+
+	/**
+	 * Pages a commerce plugin has designated as its structural surfaces (cart,
+	 * checkout, account, shop…). Never gradable as articles — they're containers
+	 * the plugin fills at render time.
+	 *
+	 * The WooCommerce options are read directly rather than through
+	 * wc_get_page_id(), which only exists while Woo is active — the designation
+	 * itself is the signal, and compat layers set the same options without Woo
+	 * loaded (FluentCart sites carry them, proven live). FluentCart's own store
+	 * settings are scanned for any `*_page_id` entry. Anything else can use the
+	 * `agentimus_gradeable_post` filter above.
+	 *
+	 * @return int[]
+	 */
+	private function commerce_page_ids() {
+		$ids = array();
+		foreach ( array( 'cart', 'checkout', 'myaccount', 'shop', 'terms' ) as $key ) {
+			$ids[] = (int) get_option( 'woocommerce_' . $key . '_page_id', 0 );
+		}
+		$ids = array_merge( $ids, self::page_id_entries( get_option( 'fluent_cart_store_settings' ) ) );
+		return array_values( array_filter( array_unique( array_map( 'intval', $ids ) ) ) );
+	}
+
+	/**
+	 * Whether authored content is only a CONTAINER: shortcodes and/or namespaced
+	 * plugin blocks with (next to) no prose of the author's own. The rendered
+	 * page may well have words — a cart says "your cart is empty" — but they
+	 * belong to the rendering plugin, so "thin content" advice is unactionable:
+	 * there is nothing in the editor to expand.
+	 *
+	 * The markers are structural, not plugin names: a shortcode token, or a block
+	 * with a namespace (`wp:woocommerce/cart`, `wp:someplugin/thing`) — core
+	 * blocks (`wp:paragraph`) carry no namespace, so authored block content never
+	 * trips this. Measured on wpftest: Woo's cart/checkout/account pages strip to
+	 * 0–14 skeleton words; a real article keeps its full count.
+	 *
+	 * @param string $raw Raw post_content.
+	 * @return bool
+	 */
+	private static function is_container_content( $raw ) {
+		$raw = (string) $raw;
+		if ( '' === trim( $raw ) ) {
+			return false; // The empty-page gate below owns this case.
+		}
+		$has_marker = preg_match( '#<!--\s*wp:[a-z][\w-]*/#i', $raw ) // namespaced (plugin) block
+			|| preg_match( '#\[[a-zA-Z][\w-]*[^\]]*\]#', $raw );      // shortcode token
+		if ( ! $has_marker ) {
+			return false;
+		}
+		$prose = preg_replace( '#<!--\s*/?wp:[^>]*-->#', ' ', $raw );
+		$prose = preg_replace( '#\[/?[a-zA-Z][\w-]*[^\]]*\]#', ' ', $prose );
+		$prose = trim( wp_strip_all_tags( (string) $prose ) );
+		// Under 20 words around a plugin widget isn't an article — it's a caption.
+		return str_word_count( $prose ) < 20;
+	}
+
+	/**
+	 * Collect the integer values of keys ending in `_page_id`, anywhere in a
+	 * settings tree — the shape both FluentCart's flat and nested settings use.
+	 *
+	 * @param mixed $tree An option value: an array of settings, or anything else.
+	 * @return int[]
+	 */
+	private static function page_id_entries( $tree ) {
+		if ( ! is_array( $tree ) ) {
+			return array();
+		}
+		$out = array();
+		foreach ( $tree as $key => $value ) {
+			if ( is_array( $value ) ) {
+				$out = array_merge( $out, self::page_id_entries( $value ) );
+			} elseif ( is_string( $key ) && '_page_id' === substr( $key, -8 ) && (int) $value > 0 ) {
+				$out[] = (int) $value;
+			}
+		}
+		return $out;
 	}
 
 	private function compute_optimize() {
@@ -736,7 +827,7 @@ final class Score {
 				$out[] = array(
 					'id'       => 'visibility_failing',
 					'pillar'   => 'cited',
-					'title'    => __( 'AI Visibility checks are failing', 'agentimus' ),
+					'title'    => __( 'AI Visibility is failing', 'agentimus' ),
 					'why'      => __( 'Every check failed on the last run — usually an expired or rate-limited provider key. Open AI Visibility to check the key and re-run.', 'agentimus' ),
 					'severity' => 'warn',
 					'action'   => array( 'label' => __( 'Open AI Visibility', 'agentimus' ), 'tab' => 'visibility' ),
@@ -745,7 +836,7 @@ final class Score {
 				$out[] = array(
 					'id'       => 'measure_setup',
 					'pillar'   => 'cited',
-					'title'    => __( 'Measure whether AI cites you', 'agentimus' ),
+					'title'    => __( 'Measure AI citations', 'agentimus' ),
 					'why'      => __( 'Set up AI Visibility (your own AI keys) to track whether engines mention and link to you over time.', 'agentimus' ),
 					'severity' => 'info',
 					'action'   => array( 'label' => __( 'Open AI Visibility', 'agentimus' ), 'tab' => 'visibility' ),

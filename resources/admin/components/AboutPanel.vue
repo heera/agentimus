@@ -42,6 +42,7 @@ export default {
             { name: 'API description', where: '/.well-known/openapi.json · /api-catalog', desc: 'OpenAPI 3.1 spec and a catalog of your public REST API.', tag: 'On' },
             { name: 'MCP manifest', where: '/.well-known/mcp.json', desc: 'Advertises Model Context Protocol servers running on your site — Agentimus’s own, or another plugin’s — with their tools and per-server cards.', tag: 'Auto' },
             { name: 'MCP server', where: '/wp-json/agentimus/v1/mcp', desc: 'Off by default. One switch (Settings → Discovery) runs a Model Context Protocol server on your own site — everything needed ships with the plugin — so AI tools you already use (Claude Code, Claude Desktop, Codex) can run the nine read-only Agentimus tools above; the switch card writes the exact setup for each. Nothing is public: every call signs in with a WordPress login, each tool keeps the same permission checks as its admin screen, every call is recorded under Agent access, and turning the switch off disconnects connected tools immediately.', tag: 'Opt-in' },
+            { name: 'Browser tools (WebMCP)', where: 'your public pages', desc: 'Off by default. Lets an AI agent working inside a visitor’s browser call your site’s read-only tools (like site search) directly, via the emerging WebMCP browser standard. It adds one tiny, self-hosted script that stays inert in browsers without support, and each tool can be shown or hidden individually in Settings.', tag: 'Opt-in' },
           ],
         },
         {
@@ -51,6 +52,7 @@ export default {
             { name: 'llms.txt', where: '/llms.txt', desc: 'A plain-text index of your site and recent content.', tag: 'On' },
             { name: 'llms-full.txt', where: '/llms-full.txt', desc: 'A full-text bundle of your pages and posts, within a size budget.', tag: 'On' },
             { name: 'Markdown', where: '/{slug}.md', desc: 'Clean Markdown of any page, at its own address — a separate URL, so a cache can never confuse it with the page a reader sees. (Answering the page URL itself with Markdown via an Accept header is opt-in; see the docs.)', tag: 'On' },
+            { name: 'Change feed', where: '/agentimus-changes.json?since=', desc: 'What changed lately — added, updated and removed content as JSON, with a ?since= filter so an agent re-checks only the delta instead of recrawling the site. Removals are announced honestly (tombstones), it’s one bounded, cached query, and it’s advertised in discovery.json so agents find it on their own.', tag: 'On' },
           ],
         },
         {

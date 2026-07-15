@@ -605,7 +605,10 @@ final class Readiness {
 				__( 'robots.txt control', 'agentimus' ),
 				'warn',
 				__( 'A static robots.txt exists at the web root and overrides this plugin. Remove it to let Agentimus manage robots rules, or edit it by hand.', 'agentimus' ),
-				__( 'Delete robots.txt from your site root to let Agentimus serve a managed virtual one — or, if you maintain it by hand, add your crawler and Sitemap directives there yourself.', 'agentimus' )
+				__( 'Delete robots.txt from your site root to let Agentimus serve a managed virtual one — or, if you maintain it by hand, add your crawler and Sitemap directives there yourself.', 'agentimus' ),
+				// The fix lives on the server, not in wp-admin — the honest link is
+				// the file itself, so the owner sees exactly what's overriding us.
+				$this->link( __( 'View robots.txt', 'agentimus' ), home_url( '/robots.txt' ) )
 			)
 			: $this->row( 'robots', __( 'robots.txt control', 'agentimus' ), 'pass', __( 'WordPress serves a virtual robots.txt that this plugin manages.', 'agentimus' ) );
 	}
@@ -733,7 +736,10 @@ final class Readiness {
 				__( 'Sitemap in robots.txt', 'agentimus' ),
 				'warn',
 				__( 'robots.txt currently blocks all crawlers, so it advertises no sitemap.', 'agentimus' ),
-				__( 'This follows from “Search engine visibility” being off — fix that check first and the Sitemap: line is emitted automatically.', 'agentimus' )
+				__( 'This follows from “Search engine visibility” being off — fix that check first and the Sitemap: line is emitted automatically.', 'agentimus' ),
+				// The same destination the "Search engine visibility" check points to:
+				// this row is downstream of that switch.
+				$this->link( __( 'Open Reading settings', 'agentimus' ), admin_url( 'options-reading.php' ) )
 			);
 		}
 
@@ -758,7 +764,9 @@ final class Readiness {
 				/* translators: %s: sitemap URL. */
 				sprintf( __( 'A sitemap exists (%s) but your static robots.txt doesn’t link it, so crawlers may miss it.', 'agentimus' ), $sitemap['url'] ),
 				/* translators: %s: sitemap URL. */
-				sprintf( __( 'Add this line to the robots.txt file at your site root: “Sitemap: %s”. A static file overrides the one Agentimus manages, so the link has to be added by hand.', 'agentimus' ), $sitemap['url'] )
+				sprintf( __( 'Add this line to the robots.txt file at your site root: “Sitemap: %s”. A static file overrides the one Agentimus manages, so the link has to be added by hand.', 'agentimus' ), $sitemap['url'] ),
+				// Hand-edit fix → show the hand-maintained file it goes into.
+				$this->link( __( 'View robots.txt', 'agentimus' ), home_url( '/robots.txt' ) )
 			);
 		}
 

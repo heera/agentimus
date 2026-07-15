@@ -615,8 +615,9 @@ export default {
       </button>
     </div>
 
-    <!-- Quiet privacy framing so the dashboard reads as informational, not surveillance. -->
-    <p class="ar-dash-note">
+    <!-- Quiet privacy framing so the dashboard reads as informational, not
+         surveillance. The shield-check is the privacy-fact mark (.ar-privnote). -->
+    <p class="ar-dash-note ar-privnote">
       Informational only — which AI assistants read your site, in aggregate. No IP addresses by default,
       nothing sent anywhere.
     </p>

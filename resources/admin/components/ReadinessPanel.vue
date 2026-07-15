@@ -20,7 +20,12 @@ export default {
   },
   emits: ['refresh', 'navigate', 'flash', 'score-updated'],
   data() {
-    return { live: null, liveRunning: false, exposure: null, exposureRunning: false, schemaOpen: false, busyIgnore: 0 };
+    return {
+      live: null, liveRunning: false, exposure: null, exposureRunning: false,
+      schemaOpen: false, busyIgnore: 0,
+      // The scroll-affordance state for each dialog: true while more is below.
+      liveMore: false, exposureMore: false,
+    };
   },
   computed: {
     // The same checks, grouped under the Findable → Readable → Trusted rungs.
@@ -93,6 +98,7 @@ export default {
       if (!open) return;
       this.$nextTick(() => {
         if (this.$refs.liveDialog) this.$refs.liveDialog.focus();
+        this.updateLiveHint();
       });
     },
     exposureOpen(open) {
@@ -101,7 +107,18 @@ export default {
       if (!open) return;
       this.$nextTick(() => {
         if (this.$refs.exposureDialog) this.$refs.exposureDialog.focus();
+        this.updateExposureHint();
       });
+    },
+    // Results stream in while the dialog is open, growing the list under the
+    // reader — re-measure the scroll hint whenever the content changes.
+    live: {
+      deep: true,
+      handler() { this.$nextTick(this.updateLiveHint); },
+    },
+    exposure: {
+      deep: true,
+      handler() { this.$nextTick(this.updateExposureHint); },
     },
   },
   beforeUnmount() {
@@ -171,6 +188,28 @@ export default {
     closeLive() {
       if (this.liveRunning) return;
       this.live = null;
+    },
+    // Show each dialog's bottom fade + chevron only while there's more content
+    // below (the reset dialog's pattern), so the list reads as scrollable.
+    updateLiveHint() {
+      const el = this.$refs.liveBody;
+      this.liveMore = !!el && el.scrollHeight - el.scrollTop - el.clientHeight > 4;
+    },
+    scrollLiveBody() {
+      const el = this.$refs.liveBody;
+      if (!el) return;
+      const reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      el.scrollBy({ top: Math.round(el.clientHeight * 0.8), behavior: reduce ? 'auto' : 'smooth' });
+    },
+    updateExposureHint() {
+      const el = this.$refs.exposureBody;
+      this.exposureMore = !!el && el.scrollHeight - el.scrollTop - el.clientHeight > 4;
+    },
+    scrollExposureBody() {
+      const el = this.$refs.exposureBody;
+      if (!el) return;
+      const reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      el.scrollBy({ top: Math.round(el.clientHeight * 0.8), behavior: reduce ? 'auto' : 'smooth' });
     },
     // Scan the site's own URL for publicly-readable sensitive files. Browser-side,
     // same-origin, on click only — the server makes no request (see livecheck.js).
@@ -362,7 +401,7 @@ export default {
             </div>
 
             <div class="ar-modal__body">
-              <div class="ar-modal__scroll">
+              <div ref="liveBody" class="ar-modal__scroll" @scroll="updateLiveHint">
                 <!-- A shared cache served stored copies → those fetches skip WordPress,
                      so the activity log under-counts and discovery can go stale. -->
                 <div v-if="cachedChecks.length" class="ar-live-cache" role="alert">
@@ -384,6 +423,11 @@ export default {
                   <span class="ar-spinner" aria-hidden="true"></span>
                   <span class="ar-live__loading-label">Fetching your endpoints…</span>
                 </div>
+              </div>
+              <div class="ar-modal__fade" :class="{ 'is-visible': liveMore }">
+                <button type="button" class="ar-modal__fade-btn" :disabled="!liveMore" aria-label="Scroll down for more" @click="scrollLiveBody">
+                  <svg viewBox="0 0 16 16" class="ar-modal__chev" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6l4 4 4-4" /></svg>
+                </button>
               </div>
             </div>
 
@@ -425,7 +469,7 @@ export default {
             </div>
 
             <div class="ar-modal__body">
-              <div class="ar-modal__scroll">
+              <div ref="exposureBody" class="ar-modal__scroll" @scroll="updateExposureHint">
                 <div v-if="exposedLeaking.length" class="ar-live-cache" :class="{ 'ar-live-cache--bad': !isLocal }" role="alert">
                   <strong v-if="isLocal" class="ar-live-cache__title">{{ exposedLeaking.length }} file{{ exposedLeaking.length > 1 ? 's' : '' }} would be exposed once this is live</strong>
                   <strong v-else class="ar-live-cache__title ar-live-cache__title--bad">{{ exposedLeaking.length }} file{{ exposedLeaking.length > 1 ? 's are' : ' is' }} publicly downloadable</strong>
@@ -467,6 +511,11 @@ export default {
                 <p v-if="exposure" class="ar-live__foot">
                   Want to check your own files too? Add paths under <strong>Settings → Exposure → “Also scan these paths.”</strong>
                 </p>
+              </div>
+              <div class="ar-modal__fade" :class="{ 'is-visible': exposureMore }">
+                <button type="button" class="ar-modal__fade-btn" :disabled="!exposureMore" aria-label="Scroll down for more" @click="scrollExposureBody">
+                  <svg viewBox="0 0 16 16" class="ar-modal__chev" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6l4 4 4-4" /></svg>
+                </button>
               </div>
             </div>
 

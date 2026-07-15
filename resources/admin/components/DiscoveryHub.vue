@@ -186,13 +186,14 @@ export default {
       <p class="ar-card__lead">
         The executable side of the WordPress Abilities API — the same source as the
         <strong>Core abilities</strong> resource above, projected into MCP tool shape and published at
-        <code>/.well-known/mcp.json</code>. This plugin advertises tools — it doesn't run an MCP server.
+        <code>/.well-known/mcp.json</code>. This card is the advertisement; running Agentimus’s own
+        MCP server is its own switch (Settings → Discovery, off by default).
       </p>
 
       <div class="ar-wd-mcp">
         <div class="ar-wd-mcp__cell">
           <span>MCP server</span>
-          <strong :class="mcp.available ? 'is-on' : 'is-off'">{{ mcp.available ? 'detected' : 'none' }}</strong>
+          <strong :class="mcp.available ? 'is-on' : 'is-off'">{{ mcp.available ? 'Detected' : 'None' }}</strong>
         </div>
         <div class="ar-wd-mcp__cell">
           <span>source</span><strong>{{ mcp.source || '—' }}</strong>

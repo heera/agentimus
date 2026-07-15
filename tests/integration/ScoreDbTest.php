@@ -147,6 +147,64 @@ final class ScoreDbTest extends DbTestCase {
 		$this->assertStringNotContainsString( 'post=' . $blog . '&', $urls, 'the Posts-page container must not be graded' );
 	}
 
+	public function test_commerce_structural_pages_are_excluded_from_grading() {
+		// Each carries a few real words, so WITHOUT the exclusion they'd pass the
+		// empty-page gate and grade as "thin content". The designation OPTIONS are
+		// the signal, deliberately readable without the commerce plugin loaded.
+		$cart = self::factory()->post->create( array( 'post_type' => 'page', 'post_status' => 'publish', 'post_title' => 'Cart', 'post_content' => 'Your cart is currently empty.' ) );
+		update_option( 'woocommerce_cart_page_id', (int) $cart );
+		// FluentCart designates pages inside its store settings — nested, with a
+		// string id, so this also exercises the recursive `*_page_id` scan.
+		$account = self::factory()->post->create( array( 'post_type' => 'page', 'post_status' => 'publish', 'post_title' => 'My account', 'post_content' => 'Sign in to see your orders.' ) );
+		update_option( 'fluent_cart_store_settings', array( 'checkout_settings' => array( 'registration_page_id' => (string) $account ) ) );
+		// Control: an ordinary thin page must still be graded — proving the test
+		// would catch an exclusion that fires too broadly.
+		$thin = self::factory()->post->create( array( 'post_type' => 'page', 'post_status' => 'publish', 'post_title' => 'Ordinary thin page', 'post_content' => 'A very short page indeed.' ) );
+		wp_set_current_user( self::factory()->user->create( array( 'role' => 'administrator' ) ) );
+		delete_transient( Cache::OPTIMIZE );
+
+		$r = ( new Score( new Settings() ) )->report();
+		delete_option( 'woocommerce_cart_page_id' );
+		delete_option( 'fluent_cart_store_settings' );
+
+		$urls = '';
+		foreach ( $r['content'] as $issue ) {
+			foreach ( $issue['pages'] as $p ) {
+				$urls .= ' ' . $p['url'];
+			}
+		}
+		$this->assertStringNotContainsString( 'post=' . $cart . '&', $urls, 'a WooCommerce-designated page must not be graded as an article' );
+		$this->assertStringNotContainsString( 'post=' . $account . '&', $urls, 'a FluentCart-designated page must not be graded as an article' );
+		$this->assertStringContainsString( 'post=' . $thin . '&', $urls, 'an ordinary thin page must still be graded' );
+	}
+
+	public function test_container_pages_of_unknown_plugins_are_excluded_from_grading() {
+		// No designation option anywhere — an unknown plugin's page, detected purely
+		// by SHAPE: a shortcode container with no authored prose. (Unregistered
+		// shortcodes render as literal text, so without the structural gate this
+		// would pass the words check and grade as "thin content".)
+		$shortcode = self::factory()->post->create( array( 'post_type' => 'page', 'post_status' => 'publish', 'post_title' => 'Bookings', 'post_content' => '[acme_bookings_calendar view="month"]' ) );
+		// Same fact in block form: a NAMESPACED plugin block wrapping skeleton markup.
+		$block = self::factory()->post->create( array( 'post_type' => 'page', 'post_status' => 'publish', 'post_title' => 'Members', 'post_content' => '<!-- wp:acme/members-area --><div class="acme-members is-loading">Sign in below.</div><!-- /wp:acme/members-area -->' ) );
+		// Control: a shortcode page WITH real authored prose is still an article —
+		// the gate must key on missing prose, not on the mere presence of a widget.
+		$mixed = self::factory()->post->create( array( 'post_type' => 'page', 'post_status' => 'publish', 'post_title' => 'About our bookings', 'post_content' => '[acme_bookings_calendar] We take bookings all year round for the workshop, the studio and the annexe. Slots open thirty days ahead and close two days before each event, so plan ahead if you need a weekend.' ) );
+		wp_set_current_user( self::factory()->user->create( array( 'role' => 'administrator' ) ) );
+		delete_transient( Cache::OPTIMIZE );
+
+		$r = ( new Score( new Settings() ) )->report();
+
+		$urls = '';
+		foreach ( $r['content'] as $issue ) {
+			foreach ( $issue['pages'] as $p ) {
+				$urls .= ' ' . $p['url'];
+			}
+		}
+		$this->assertStringNotContainsString( 'post=' . $shortcode . '&', $urls, 'a shortcode-only container page must not be graded' );
+		$this->assertStringNotContainsString( 'post=' . $block . '&', $urls, 'a namespaced-block container page must not be graded' );
+		$this->assertStringContainsString( 'post=' . $mixed . '&', $urls, 'a widget page with real authored prose must still be graded' );
+	}
+
 	public function test_set_aside_post_is_excluded_and_listed() {
 		// A thin post that would be graded and flagged...
 		$id = $this->post( 'Too short.' );

@@ -99,6 +99,17 @@
 /* No own margins — the parent .ar-act grid's 22px gap spaces it equally above and below
    (grid gaps DON'T collapse with margins, they add, so any margin here desyncs the two). */
 .ar-dash-note { margin: 0; font-size: 12.5px; line-height: 1.5; color: var(--ar-ink-faint); }
+/* Privacy-fact mark: a small shield-check opens an honesty footnote. One meaning
+   — "this data stays here" — and never interactive (small circles that LOOK
+   clickable are the ? explainer buttons; this is a mark, not a control).
+   Compose with the note's own class; the icon inherits its colour. */
+.ar-privnote::before {
+  content: ""; display: inline-block; width: 14px; height: 14px;
+  margin-right: 7px; vertical-align: -2.5px;
+  background: currentColor;
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M12 3l7 2.8v5.4c0 4.3-2.9 7.9-7 9.3-4.1-1.4-7-5-7-9.3V5.8z'/%3E%3Cpath d='M9 11.6l2.1 2.1 3.9-4.3'/%3E%3C/svg%3E") center / contain no-repeat;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M12 3l7 2.8v5.4c0 4.3-2.9 7.9-7 9.3-4.1-1.4-7-5-7-9.3V5.8z'/%3E%3Cpath d='M9 11.6l2.1 2.1 3.9-4.3'/%3E%3C/svg%3E") center / contain no-repeat;
+}
 
 /* ---- Header bar (brand · tabs · gauge in one slim row) ------------------ */
 /* The nav bar + page-head travel together and STAY at the top on scroll — wrapped in one
@@ -363,7 +374,9 @@
   border-radius: 50%; border: 1.5px solid currentColor;
 }
 .ar-rung__name { flex: 1; min-width: 0; }
-.ar-rung__count { font-size: 11px; opacity: 0.85; }
+/* A fixed right-aligned slot ("100%" wide), so the percentages hold a perfect
+   column and the todo chips right-align against it without wobbling it. */
+.ar-rung__count { font-size: 11px; opacity: 0.85; flex: 0 0 auto; min-width: 4ch; text-align: right; }
 .ar-rung[data-state="done"] { color: #5cc08a; }
 .ar-rung[data-state="done"] .ar-rung__tick { background: currentColor; }
 .ar-rung[data-state="current"] { color: #e0b24c; }
@@ -472,7 +485,7 @@
 .ar__rail { position: sticky; top: calc(var(--ar-adminbar) + 2 * var(--ar-bar-h)); display: grid; gap: 11px; align-content: start; padding-bottom: 6px; }
 /* A grid item's min-width defaults to `auto`, so it refuses to shrink below its content's
    min-content width — and a <button> ignores its own `overflow: hidden` when contributing
-   to that minimum. So one long next-step label ("Next: AI Visibility checks are failing")
+   to that minimum. So one long next-step label ("Next: AI Visibility is failing")
    made the readiness card WIDER than the rail column it lives in, and the dark card bled
    out over the page. The ellipsis on .ar-rail-next never got a chance to do its job.
    Letting the cards shrink to their column is what lets the label clip as intended. */
@@ -2024,7 +2037,11 @@ html { scrollbar-gutter: stable; }
   position: fixed; z-index: 100002; pointer-events: none; /* teleported to <body>, above the modal (100001) */
   max-width: 360px; padding: 8px 11px;
   background: var(--ar-ink); color: var(--ar-surface);
-  border-radius: 7px; box-shadow: 0 10px 24px -10px rgba(27, 25, 19, 0.55);
+  /* The hairline light ring is for DARK surfaces (the score rail card) — an
+     ink bubble over an ink card would otherwise have no visible edge. On light
+     tables it reads as part of the shadow. */
+  border-radius: 7px;
+  box-shadow: 0 0 0 1px rgba(255, 253, 247, 0.22), 0 10px 24px -10px rgba(27, 25, 19, 0.55);
   font-family: var(--ar-mono); font-size: 11.5px; line-height: 1.5;
   white-space: normal; word-break: break-word;
   transform: translateY(-100%); /* anchored ABOVE: the box's bottom sits at top:y */
@@ -2050,6 +2067,45 @@ html { scrollbar-gutter: stable; }
 .ar-act-uatip__hint {
   display: block; margin-top: 5px;
   font-size: 9.5px; letter-spacing: 0.06em; text-transform: uppercase; opacity: 0.55;
+}
+/* Rail variant, hovering the DARK score card: an amber-paper bubble (the ink one
+   would melt into the card), CSS-centred — `left` receives the CARD's centre and
+   translateX(-50%) does the rest, so width never enters the JS and a re-render
+   can't misplace it. The caret sits at the bubble's centre (the rows it
+   annotates span the card). */
+.ar-act-uatip--rail {
+  transform: translate(-50%, -100%);
+  /* width: max-content, because a fixed box's shrink-to-fit width is capped by
+     the space from its `left` to the viewport edge — and `left` here is the
+     card's centre, so the bubble was squeezed to half the room it had. The
+     transform centres AFTER layout; max-content + max-width restores the cap
+     we actually meant. */
+  width: max-content;
+  /* The rail cards' own surface — the bubble reads as one of them, floating;
+     the amber lives in the ring and the hint line, not the fill. */
+  background: var(--ar-surface); color: var(--ar-ink);
+  box-shadow: 0 0 0 1px #e6d5a8, 0 10px 24px -10px rgba(27, 25, 19, 0.45);
+  /* border-box so the card-width cap means the box's FULL width — with the
+     default content-box, max-width excluded the padding and the clamp overshot. */
+  box-sizing: border-box;
+}
+.ar-act-uatip--rail.is-below { transform: translateX(-50%); }
+.ar-act-uatip--rail .ar-act-uatip__caret { left: 50%; margin-left: -6px; border-top-color: var(--ar-surface); }
+.ar-act-uatip--rail.is-below .ar-act-uatip__caret { border-top-color: transparent; border-bottom-color: var(--ar-surface); }
+.ar-act-uatip--rail .ar-act-uatip__hint { color: var(--ar-warn); opacity: 0.9; }
+
+/* The Optimized rung's worklist total — the Next line only names the top issue;
+   this is the honest "how much altogether", amber like every nudge. */
+/* Rides the right edge, tucked against the %: the spec-sheet grammar is label
+   left, values right — and the chip is metadata about the value ("80%, and 2
+   things to do about it"). Deliberately MUTED, not amber: the row's state
+   already carries the color, and a gold chip beside a gold name and a gold %
+   turned every warn row into one solid band. This is the card's own
+   secondary-text tone (what "AEO / GEO" wears), warm where #848484 is cold. */
+.ar-rung__todo {
+  font-style: normal; font-family: var(--ar-mono);
+  font-size: 10px; letter-spacing: 0.05em;
+  color: rgba(243, 240, 231, 0.55); white-space: nowrap;
 }
 /* The User-Agent cell copies its full value on click (it's shown truncated). */
 .ar-act-feed__ua.is-copyable { cursor: pointer; transition: background-color 0.12s ease; }
