@@ -309,6 +309,25 @@ export default {
       const slugs = this.postTypes.map((p) => p.slug);
       return sel.filter((s) => slugs.includes(s)).length;
     },
+    // The read capabilities the CURRENT selection advertises — computed exactly like
+    // the discovery adapter does (type REST bases first, then the union of their
+    // public taxonomies' bases, deduped), so this preview and the Discovery hub can
+    // never disagree. Types the payload marks non-advertising (no restBase) add nothing.
+    advertisedCapabilities() {
+      const sel = Array.isArray(this.settings.post_types) ? this.settings.post_types : [];
+      const bases = [];
+      const taxes = [];
+      this.postTypes.forEach((pt) => {
+        if (!sel.includes(pt.slug) || !pt.restBase) return;
+        bases.push(pt.restBase);
+        (pt.taxonomies || []).forEach((t) => taxes.push(t));
+      });
+      const seen = {};
+      return bases
+        .concat(taxes)
+        .map((b) => 'content.' + b + '.read')
+        .filter((c) => (seen[c] ? false : (seen[c] = true)));
+    },
     filteredCategories() {
       const q = this.catQuery.trim().toLowerCase();
       if (!q) return this.categories;
@@ -1557,7 +1576,7 @@ export default {
 
       <!-- Content types ------------------------------------------------ -->
       <section v-if="postTypes.length" class="ar-card">
-        <h2 class="ar-card__title">Content types</h2>
+        <h2 class="ar-card__title" id="ar-content-types">Content types</h2>
         <p class="ar-card__lead">
           Pick which kinds of content AI assistants can read. Posts and pages are usually enough;
           add products or other types if you want them included.
@@ -1597,7 +1616,23 @@ export default {
             <p v-if="!filteredPostTypes.length" class="ar-types-empty">No types match “{{ typeQuery }}”.</p>
           </div>
         </div>
-        <p class="ar-card__note">
+        <!-- Teach the taxonomy expansion (why N types → more than N tokens) WITHOUT
+             claiming to equal the dashboard's capabilities total: on a site where a
+             commerce plugin owns wp/v2, Agentimus's core-content provider stands down
+             and these tokens are superseded, so "= the 4 on the dashboard" would be a
+             lie there. The mapping itself is always true. -->
+        <p v-if="advertisedCapabilities.length" class="ar-card__note ar-card__note--wide">
+          <strong>Each ticked type is advertised with its public taxonomies</strong> — a post carries
+          categories and tags, so {{ selectedTypeCount }}
+          {{ selectedTypeCount === 1 ? 'type' : 'types' }} here map to
+          {{ advertisedCapabilities.length }} read
+          {{ advertisedCapabilities.length === 1 ? 'capability' : 'capabilities' }} in llms.txt,
+          schema and discovery:
+          <template v-for="(cap, i) in advertisedCapabilities" :key="cap">
+            <code>{{ cap }}</code><span v-if="i < advertisedCapabilities.length - 1"> · </span>
+          </template>
+        </p>
+        <p class="ar-card__note ar-card__note--wide">
           <strong>Curates what's advertised — not an access control.</strong>
           Unticking a type removes it from llms.txt, schema and discovery, but your
           WordPress REST API stays public: <code>/wp-json/wp/v2</code> remains reachable regardless.

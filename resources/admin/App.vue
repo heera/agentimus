@@ -325,12 +325,17 @@ export default {
     },
     dashSummary() {
       const c = (this.discovery && this.discovery.counts) || {};
+      // Same reconciliation as the Discovery hub's tiles: the big number is the
+      // registered inventory (matching the provider list the tile links to), and
+      // the public/sign-in split rides along for the subline.
       return {
         readiness: this.score,
         tone: this.tone,
-        providers: c.resources || 0,
+        providers: typeof c.resourcesRegistered === 'number' ? c.resourcesRegistered : c.resources || 0,
+        providersPublic: typeof c.resourcesRegistered === 'number' ? c.resources || 0 : null,
         capabilities: c.capabilities || 0,
         tools: c.tools || 0,
+        toolsPublic: typeof c.toolsPublished === 'number' ? c.toolsPublished : null,
       };
     },
     pageMeta() {
@@ -1532,6 +1537,7 @@ export default {
           :data="discovery"
           :refreshing="refreshingDiscovery"
           @refresh="refreshDiscovery"
+          @navigate="goTo"
         />
         <ActivityPanel
           v-show="tab === 'dashboard'"

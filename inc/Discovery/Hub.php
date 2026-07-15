@@ -85,10 +85,18 @@ final class Hub {
 			'wellKnown'    => $envelope['well_known'],
 			'tools'        => $surface['tools'],
 			'mcp'          => $surface['mcp'],
+			// The Abilities API's own REST listing — the OTHER door a signed-in agent can
+			// call (every registered ability, not just the MCP-scoped ones). '' when the
+			// Abilities API isn't available on this install.
+			'abilitiesEndpoint' => self::abilities_endpoint(),
 			'adapters'     => self::adapters(),
 			'notices'      => $registry->notices(),
 			'counts'       => array(
 				'resources'    => count( $envelope['resources'] ),
+				// The admin tile shows the REGISTERED number (matching the provider list
+				// below it) with the published number as its qualifier — the owner was
+				// reading "1 provider" against a 3-row list and rightly asking which lied.
+				'resourcesRegistered' => count( $rows ),
 				'suppressed'   => count(
 					array_filter(
 						$rows,
@@ -179,6 +187,21 @@ final class Hub {
 			'tools'        => count( $resource['tools'] ),
 			'abilities'    => $resource['abilities'],
 		);
+	}
+
+	/**
+	 * The Abilities API's REST listing URL — '' when the API isn't on this install,
+	 * so the admin never renders a dead endpoint.
+	 *
+	 * @return string
+	 */
+	private static function abilities_endpoint() {
+		foreach ( self::adapters() as $adapter ) {
+			if ( isset( $adapter['id'] ) && 'wp-abilities' === $adapter['id'] && ! empty( $adapter['available'] ) ) {
+				return esc_url_raw( rest_url( 'wp-abilities/v1/abilities' ) );
+			}
+		}
+		return '';
 	}
 
 	/**

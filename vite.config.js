@@ -8,6 +8,10 @@ import { fileURLToPath, URL } from 'node:url';
  */
 export default defineConfig({
   plugins: [vue()],
+  // Emit ASCII-only output: any non-ASCII (a ✓ in CSS `content`, a · separator)
+  // becomes a \XXXX escape, so the bundle can't mojibake if a host ever serves
+  // app.css as latin-1 instead of UTF-8. Applies to the CSS minify pass too.
+  esbuild: { charset: 'ascii' },
   build: {
     outDir: 'assets/admin',
     emptyOutDir: true,

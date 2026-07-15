@@ -66,6 +66,19 @@ export default {
     },
   },
   computed: {
+    // Public/sign-in split for the summary tiles — mirrors the Discovery hub's
+    // reconciliation, so the two screens can never show different providers
+    // numbers without saying why. Zero when the payload lacks the split fields.
+    dashProvidersHeld() {
+      const s = this.summary || {};
+      if (typeof s.providersPublic !== 'number') return 0;
+      return Math.max(0, (s.providers || 0) - s.providersPublic);
+    },
+    dashToolsHeld() {
+      const s = this.summary || {};
+      if (typeof s.toolsPublic !== 'number') return 0;
+      return Math.max(0, (s.tools || 0) - s.toolsPublic);
+    },
     // The dashboard's own span (min(30, retention)) vs what the log still holds.
     windowDays() {
       return this.data.window || 30;
@@ -601,9 +614,10 @@ export default {
       <button type="button" class="ar-dash-tile" @click="$emit('navigate', { tab: 'discovery', anchor: 'ar-wd-providers' })">
         <span class="ar-dash-tile__k">Providers</span>
         <strong class="ar-dash-tile__v">{{ summary.providers }}</strong>
-        <span class="ar-dash-tile__sub">sources describing your site</span>
+        <span v-if="dashProvidersHeld > 0" class="ar-dash-tile__sub">{{ summary.providersPublic }} public · {{ dashProvidersHeld }} sign-in only</span>
+        <span v-else class="ar-dash-tile__sub">sources describing your site</span>
       </button>
-      <button type="button" class="ar-dash-tile" @click="$emit('navigate', { tab: 'discovery', anchor: 'ar-wd-providers' })">
+      <button type="button" class="ar-dash-tile" @click="$emit('navigate', { tab: 'discovery', anchor: 'ar-wd-capabilities' })">
         <span class="ar-dash-tile__k">Capabilities</span>
         <strong class="ar-dash-tile__v">{{ summary.capabilities }}</strong>
         <span class="ar-dash-tile__sub">what agents can do or read</span>
@@ -611,7 +625,8 @@ export default {
       <button type="button" class="ar-dash-tile" @click="$emit('navigate', { tab: 'discovery', anchor: 'ar-wd-tools' })">
         <span class="ar-dash-tile__k">Tools</span>
         <strong class="ar-dash-tile__v">{{ summary.tools }}</strong>
-        <span class="ar-dash-tile__sub">actions agents can run</span>
+        <span v-if="dashToolsHeld > 0" class="ar-dash-tile__sub">{{ summary.toolsPublic }} public · {{ dashToolsHeld }} sign-in only</span>
+        <span v-else class="ar-dash-tile__sub">actions agents can run</span>
       </button>
     </div>
 

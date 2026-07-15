@@ -698,6 +698,10 @@
 }
 .ar-card__note strong { color: var(--ar-ink-soft); font-weight: 600; }
 .ar-card__note code { font-size: 11px; }
+/* A note whose payload is a chip list needs the full card width, not the 88ch
+   reading measure — chips wrap far better across the whole row. */
+.ar-card__note--wide { max-width: none; }
+.ar-card__note--wide code { white-space: nowrap; }
 /* Grouped panel for the AI opt-out channels published beyond robots.txt:
    a quiet inset card so the eyebrow + explainer + channel toggles read as one
    intentional unit rather than loose lines on the card. */
@@ -1273,7 +1277,7 @@ select.ar-input {
    accent border + tint (above) plus a small corner tick. */
 .ar-type__check { display: none; }
 .ar-type.is-on::after {
-  content: "✓"; position: absolute; top: 8px; right: 11px;
+  content: "\2713"; position: absolute; top: 8px; right: 11px; /* \2713 (not a literal ✓): encoding-proof if the CSS is ever served as latin-1. */
   font-size: 11px; line-height: 1; font-weight: 700; color: var(--ar-accent);
 }
 /* The real <input> is visually hidden, so ring the whole card on KEYBOARD focus
@@ -1744,6 +1748,13 @@ html { scrollbar-gutter: stable; }
 }
 .ar-wd-canonical__ext:hover { color: var(--ar-accent); background: color-mix(in srgb, var(--ar-accent) 8%, transparent); }
 .ar-wd-canonical__ext:focus-visible { outline: 2px solid var(--ar-accent); outline-offset: 1px; }
+/* Copy affordance for auth-gated agent addresses (opening them in a browser can
+   only ever produce a 401 — copying into an agent's config is the real intent). */
+.ar-wd-copy {
+  width: auto; padding: 0 8px; border: 0; background: none; cursor: pointer;
+  font-family: var(--ar-mono); font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase;
+}
+.ar-wd-copy.is-copied { color: var(--ar-good); }
 .ar-wd-altlinks { margin-bottom: 18px; }
 
 /* Stat tiles */
@@ -1756,6 +1767,11 @@ html { scrollbar-gutter: stable; }
 .ar-wd-stat span { font-family: var(--ar-mono); font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--ar-ink-faint); }
 .ar-wd-stat small { margin-top: 2px; font-size: 11px; line-height: 1.3; color: var(--ar-ink-soft); }
 .ar-wd-stat.is-bad strong { color: var(--ar-bad); }
+/* A clickable stat: reset the button chrome, add a quiet hover so it reads as a
+   jump link to its own section. */
+button.ar-wd-stat { border: 0; font: inherit; cursor: pointer; transition: background 0.12s; }
+button.ar-wd-stat:hover { background: color-mix(in srgb, var(--ar-accent) 7%, var(--ar-surface)); }
+button.ar-wd-stat:focus-visible { outline: 2px solid var(--ar-accent); outline-offset: -2px; }
 /* A stat count that doesn't divide evenly into a fixed grid (the Discovery hub's
    five totals) flex-fills instead, so the last row stretches to the full width
    rather than leaving an empty bordered cell. */
@@ -1912,6 +1928,11 @@ html { scrollbar-gutter: stable; }
   border: 1px solid var(--ar-line-strong); padding: 2px 7px; border-radius: 3px;
 }
 .ar-wd-badge--schema { color: var(--ar-accent); border-color: color-mix(in srgb, var(--ar-accent) 28%, var(--ar-surface)); background: color-mix(in srgb, var(--ar-accent) 7%, var(--ar-surface)); }
+.ar-wd-cap-src { font-size: 12px; color: var(--ar-ink-soft); }
+.ar-card__count {
+  font-family: var(--ar-mono); font-size: 12px; font-weight: 600; color: var(--ar-ink-soft);
+  border: 1px solid var(--ar-line-strong); border-radius: 999px; padding: 1px 9px; margin-left: 6px; vertical-align: middle;
+}
 
 .ar-wd-wk { margin: 14px 0 0; padding: 0; list-style: none; display: grid; gap: 10px; }
 .ar-wd-wk li { display: flex; align-items: center; justify-content: space-between; gap: 10px; }

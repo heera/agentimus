@@ -763,10 +763,26 @@ final class Admin {
 	private function available_post_types() {
 		$out = array();
 		foreach ( Content::available() as $slug ) {
+			$obj = get_post_type_object( $slug );
+			// Mirror RestApi::content_capabilities(): only a public, REST-enabled type
+			// advertises a read capability, and its public REST-enabled taxonomies ride
+			// along — so the settings screen can preview EXACTLY what ticking a type
+			// adds to the advertised capabilities the Discovery hub counts.
+			$advertises = $obj && ! empty( $obj->public ) && ! empty( $obj->show_in_rest );
+			$taxes      = array();
+			if ( $advertises ) {
+				foreach ( (array) get_object_taxonomies( $slug, 'objects' ) as $tax ) {
+					if ( $tax && ! empty( $tax->public ) && ! empty( $tax->show_in_rest ) ) {
+						$taxes[] = sanitize_key( (string) ( ! empty( $tax->rest_base ) ? $tax->rest_base : $tax->name ) );
+					}
+				}
+			}
 			$out[] = array(
-				'slug'   => $slug,
-				'label'  => Content::label( $slug ),
-				'source' => Content::source( $slug ),
+				'slug'       => $slug,
+				'label'      => Content::label( $slug ),
+				'source'     => Content::source( $slug ),
+				'restBase'   => $advertises ? sanitize_key( (string) ( ! empty( $obj->rest_base ) ? $obj->rest_base : $obj->name ) ) : '',
+				'taxonomies' => array_values( array_unique( $taxes ) ),
 			);
 		}
 		return $out;

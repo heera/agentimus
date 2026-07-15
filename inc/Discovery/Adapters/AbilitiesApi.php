@@ -82,6 +82,17 @@ final class AbilitiesApi {
 				continue;
 			}
 
+			// An ability registered with `show_in_rest => false` has NO REST route at all —
+			// it is not in the wp-abilities listing and cannot be run remotely by ANY agent
+			// (it is an in-process PHP helper, e.g. core/get-user-info). Counting it as an
+			// agent tool overcounted every surface at once: the namespace card, the tiles'
+			// site-wide total and the Abilities API row all promised one more tool than the
+			// endpoint they point at can ever serve.
+			$meta = (array) self::read( $ability, 'get_meta', array() );
+			if ( isset( $meta['show_in_rest'] ) && false === $meta['show_in_rest'] ) {
+				continue;
+			}
+
 			$namespace = strpos( $name, '/' ) ? substr( $name, 0, strpos( $name, '/' ) ) : 'misc';
 			$by_namespace[ $namespace ][] = array( 'name' => $name, 'ability' => $ability );
 		}

@@ -13,7 +13,7 @@ export default {
     // Expand the auto-discovered group by default ONLY when there is nothing
     // declared — otherwise it stays collapsed, since it's predictable baseline.
     const resources = (this.data && this.data.resources) || [];
-    return { showAuto: !resources.some((r) => !r.auto) };
+    return { showAuto: !resources.some((r) => !r.auto), copiedDoor: '' };
   },
   computed: {
     endpoints() {
@@ -21,6 +21,116 @@ export default {
     },
     counts() {
       return this.data.counts || { resources: 0, capabilities: 0, tools: 0, apis: 0, errors: 0 };
+    },
+    // The providers tile shows the REGISTERED number so it matches the provider
+    // list below; "N public · M sign-in only" reconciles it with what anonymous
+    // agents actually see. Same pattern for tools (whose big number is already
+    // the full inventory). Older payloads without the split fields degrade to
+    // the plain captions.
+    providersRegistered() {
+      const c = this.counts;
+      return typeof c.resourcesRegistered === 'number' ? c.resourcesRegistered : c.resources;
+    },
+    providersHeld() {
+      return Math.max(0, this.providersRegistered - (this.counts.resources || 0));
+    },
+    toolsHeld() {
+      const c = this.counts;
+      if (typeof c.toolsPublished !== 'number') return 0;
+      return Math.max(0, (c.tools || 0) - c.toolsPublished);
+    },
+    // One row per capability token, built from the published union (so the row count
+    // is exactly counts.capabilities) with the declaring provider named. token → the
+    // full dotted name; verb → its last segment (read / create); provider → who declares
+    // it (the first published resource that lists it).
+    capabilityRows() {
+      const norm = (c) => (typeof c === 'string' ? c : (c && c.id) || '');
+      const union = this.capabilities.map(norm).filter(Boolean);
+      return union.map((token) => {
+        const owner = this.resources.find(
+          (r) => Array.isArray(r.capabilities) && r.capabilities.map(norm).indexOf(token) !== -1
+        );
+        const parts = token.split('.');
+        return {
+          token,
+          verb: parts[parts.length - 1] || 'read',
+          provider: owner ? owner.title : '—',
+        };
+      });
+    },
+    // One row per API — matched to its provider by endpoint URL so the count
+    // (counts.apis) has a countable home, the way capabilities do. base → the URL;
+    // provider → whichever registered provider exposes that endpoint.
+    apiRows() {
+      return (this.data.apis || []).map((a) => {
+        const url = a.base || '';
+        const owner = this.resources.find(
+          (r) => Array.isArray(r.endpoints) && r.endpoints.some((e) => e.url === url)
+        );
+        const authType = a.auth && a.auth.type ? a.auth.type : 'none';
+        return {
+          url,
+          type: String(a.type || 'rest').toUpperCase(),
+          auth: authType === 'none' ? 'public' : authType,
+          provider: owner ? owner.title : '',
+        };
+      });
+    },
+    // The subset of capabilities that come from the site's OWN content (the auto-
+    // discovered WordPress Core provider) — the ones the owner steers from Content
+    // types. Plugin-declared capabilities (scheduling.*, crm.*) are the plugin's business.
+    ownContentCapabilities() {
+      const core = this.resources.find((r) => r.id === 'wordpress-core');
+      if (!core || !Array.isArray(core.capabilities)) return [];
+      return core.capabilities.map((c) => (typeof c === 'string' ? c : c.id)).filter(Boolean);
+    },
+    mcpAuthLabel() {
+      return this.mcp.auth === 'oauth' ? 'OAuth' : 'sign-in';
+    },
+    // The summary strip's server cell: the one place server identity lives.
+    mcpServerLabel() {
+      const servers = this.mcp.servers || [];
+      if (servers.length > 1) return servers.length + ' detected';
+      if (servers.length === 1) return servers[0].name || 'Detected';
+      return this.mcp.available ? 'Detected' : 'None';
+    },
+    // The PARTITION: one group per tool-bearing provider (same titles as the
+    // "Registered providers" list above), each naming the doors that serve it.
+    // Group counts add up to the summary total — the only arithmetic on the card.
+    toolGroups() {
+      const servers = this.mcp.servers || [];
+      return this.resources
+        .filter((r) => (r.tools || 0) > 0)
+        .map((r) => {
+          // The adapter flattens ability names (ns/tool → ns-tool) when it serves
+          // them over MCP, so a namespace prefix match tells us whether a detected
+          // server carries this group's tools.
+          const ns = String(r.id || '').replace(/^abilities-/, '');
+          const doors = [];
+          servers.forEach((s) => {
+            const list = s.tool_list || [];
+            if (ns && list.some((t) => String(t.name || '').indexOf(ns + '-') === 0)) {
+              doors.push(s.name || 'the MCP server');
+            }
+          });
+          doors.push('the Abilities API');
+          return { key: r.id, title: r.title, tools: r.tools, doors };
+        });
+    },
+    // The doors' addresses — connection info only, deliberately without counts.
+    doorRows() {
+      const out = [];
+      (this.mcp.servers || []).forEach((s) => {
+        if (s.endpoint) out.push({ badge: 'MCP', url: s.endpoint, label: s.name || 'MCP server' });
+      });
+      if (!out.length && this.mcp.available && this.mcp.endpoint) {
+        out.push({ badge: 'MCP', url: this.mcp.endpoint, label: 'MCP server' });
+      }
+      const abilities = (this.data && this.data.abilitiesEndpoint) || '';
+      if (abilities && (this.counts.tools || 0) > 0) {
+        out.push({ badge: 'REST', url: abilities, label: 'the Abilities API' });
+      }
+      return out;
     },
     resources() {
       return this.data.resources || [];
@@ -72,6 +182,41 @@ export default {
     sourceLabel(source) {
       return { file: 'ON DISK', managed: 'MANAGED', generated: 'GENERATED' }[source] || String(source || 'SOURCE').toUpperCase();
     },
+    // A summary stat → its section. We're already on the discovery tab, so route
+    // through the app's own goTo (via 'navigate') for the shared smooth-scroll +
+    // flash, rather than a bespoke scroll here.
+    jumpTo(anchor) {
+      this.$emit('navigate', { tab: 'discovery', anchor });
+    },
+    // Same clipboard approach as the settings card: navigator.clipboard needs a
+    // secure context (HTTPS or localhost); on plain HTTP it's absent or throws,
+    // so fall back to the legacy execCommand path.
+    async copyDoor(d) {
+      const text = (d && d.url) || '';
+      if (!text) return;
+      let ok = false;
+      try {
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          await navigator.clipboard.writeText(text);
+          ok = true;
+        }
+      } catch (e) { /* fall through */ }
+      if (!ok) {
+        const ta = document.createElement('textarea');
+        ta.value = text;
+        ta.setAttribute('readonly', '');
+        ta.style.position = 'fixed';
+        ta.style.opacity = '0';
+        document.body.appendChild(ta);
+        ta.select();
+        try { ok = document.execCommand('copy'); } catch (e) { ok = false; }
+        document.body.removeChild(ta);
+      }
+      if (!ok) return;
+      this.copiedDoor = text;
+      clearTimeout(this._doorCopyTimer);
+      this._doorCopyTimer = setTimeout(() => { this.copiedDoor = ''; }, 2000);
+    },
   },
 };
 </script>
@@ -99,36 +244,53 @@ export default {
         <li><a :href="endpoints.rest" target="_blank" rel="noopener">REST: /agentimus/v1/discovery</a></li>
       </ul>
 
+      <!-- Each stat jumps (and flashes) to the section where its number is countable —
+           so a total is never a dead end. Errors is a link only when there ARE errors
+           (the "Registration status" card that would receive the jump renders only then);
+           at zero it's a plain, calm cell. -->
       <div class="ar-wd-stats ar-wd-stats--fill">
-        <div class="ar-wd-stat">
-          <strong>{{ counts.resources }}</strong>
+        <button type="button" class="ar-wd-stat is-link" @click="jumpTo('ar-wd-providers')">
+          <strong>{{ providersRegistered }}</strong>
           <span>providers</span>
-          <small>Sources describing your site</small>
-        </div>
-        <div class="ar-wd-stat">
+          <small v-if="providersHeld > 0">{{ counts.resources }} public · {{ providersHeld }} sign-in only</small>
+          <small v-else>Sources describing your site</small>
+        </button>
+        <button type="button" class="ar-wd-stat is-link" @click="jumpTo('ar-wd-capabilities')">
           <strong>{{ counts.capabilities }}</strong>
           <span>capabilities</span>
           <small>What agents can do or read</small>
-        </div>
-        <div class="ar-wd-stat">
+        </button>
+        <button type="button" class="ar-wd-stat is-link" @click="jumpTo('ar-wd-tools')">
           <strong>{{ counts.tools }}</strong>
           <span>tools</span>
-          <small>Actions agents can run</small>
-        </div>
-        <div class="ar-wd-stat">
+          <small v-if="toolsHeld > 0">{{ counts.toolsPublished }} public · {{ toolsHeld }} sign-in only</small>
+          <small v-else>Actions agents can run</small>
+        </button>
+        <button type="button" class="ar-wd-stat is-link" @click="jumpTo('ar-wd-apis')">
           <strong>{{ counts.apis }}</strong>
           <span>APIs</span>
           <small>Endpoints agents can read</small>
-        </div>
-        <div class="ar-wd-stat" :class="{ 'is-bad': counts.errors > 0 }">
+        </button>
+        <button
+          v-if="counts.errors > 0"
+          type="button"
+          class="ar-wd-stat is-link is-bad"
+          @click="jumpTo('ar-wd-validation')"
+        >
           <strong>{{ counts.errors }}</strong>
           <span>errors</span>
-          <small>Problems to fix</small>
+          <small>Problems to fix — open</small>
+        </button>
+        <div v-else class="ar-wd-stat">
+          <strong>{{ counts.errors }}</strong>
+          <span>errors</span>
+          <small>None — all clear</small>
         </div>
       </div>
     </section>
 
-    <!-- Registered providers -->
+    <!-- Registered providers — the SOURCES. Capabilities (below) are declared by
+         these, so providers read first, then what they expose. -->
     <section id="ar-wd-providers" class="ar-card">
       <h2 class="ar-card__title">Registered providers</h2>
       <p class="ar-card__lead">
@@ -180,42 +342,110 @@ export default {
       </template>
     </section>
 
+    <!-- Capabilities — WHAT the providers above expose, aggregated into one countable
+         list (one row per token). Sits right after the providers that declare it, and
+         is where the dashboard's "Capabilities" tile lands, so its number connects to
+         rows you can count — the way Providers lands on the provider cards. -->
+    <section v-if="capabilityRows.length" id="ar-wd-capabilities" class="ar-card">
+      <h2 class="ar-card__title">Capabilities <span class="ar-card__count">{{ capabilityRows.length }}</span></h2>
+      <p class="ar-card__lead">
+        The specific things agents may read or do, gathered from the providers above — one row each,
+        so this list is exactly the <strong>{{ capabilityRows.length }}</strong> your dashboard counts.
+        Each is declared by the provider named beside it.
+      </p>
+      <ul class="ar-wd-tools">
+        <li v-for="c in capabilityRows" :key="c.token" class="ar-wd-tool">
+          <div class="ar-wd-tool__id">
+            <code>{{ c.token }}</code>
+          </div>
+          <div class="ar-wd-tool__meta">
+            <span class="ar-wd-badge">{{ c.verb }}</span>
+            <span class="ar-wd-cap-src">{{ c.provider }}</span>
+          </div>
+        </li>
+      </ul>
+      <p v-if="ownContentCapabilities.length" class="ar-card__note ar-card__note--wide">
+        <strong>Your own site's content</strong> ({{ ownContentCapabilities.join(', ') }}) is steered by
+        <button type="button" class="ar-linkbtn" @click="$emit('navigate', { tab: 'settings', anchor: 'ar-content-types' })">Settings → Content types</button>
+        — each ticked type brings its public taxonomies too. The rest are declared by the plugins that own them.
+      </p>
+    </section>
+
+    <!-- APIs — the ENDPOINTS agents call, one countable row each (the APIs stat lands
+         here). Same endpoints listed on the provider cards, gathered so the number has
+         its own home instead of sharing the providers section. -->
+    <section v-if="apiRows.length" id="ar-wd-apis" class="ar-card">
+      <h2 class="ar-card__title">APIs <span class="ar-card__count">{{ apiRows.length }}</span></h2>
+      <p class="ar-card__lead">
+        The endpoints agents can call directly — one row each, so this list is exactly the
+        <strong>{{ apiRows.length }}</strong> your dashboard counts. Each belongs to the provider named beside it.
+      </p>
+      <div v-for="a in apiRows" :key="a.url" class="ar-wd-canonical ar-wd-mcp-endpoint">
+        <span class="ar-wd-canonical__method">{{ a.type }}</span>
+        <span class="ar-wd-canonical__path">{{ a.url }}</span>
+        <span v-if="a.provider" class="ar-wd-cap-src">{{ a.provider }}</span>
+        <span class="ar-wd-auth" :class="a.auth === 'public' ? 'is-open' : 'is-locked'">{{ a.auth }}</span>
+      </div>
+    </section>
+
     <!-- MCP & tools -->
     <section id="ar-wd-tools" class="ar-card">
       <h2 class="ar-card__title">MCP &amp; tools</h2>
       <p class="ar-card__lead">
-        The executable side of the WordPress Abilities API — the same source as the
-        <strong>Core abilities</strong> resource above, projected into MCP tool shape and published at
-        <code>/.well-known/mcp.json</code>. This card is the advertisement; running Agentimus’s own
-        MCP server is its own switch (Settings → Discovery, off by default).
+        The tools a signed-in agent can run on this site, grouped by what provides them — the
+        groups add up to the total. Each group names the doors that serve it, and the endpoints
+        beneath are those doors' addresses. Anonymous agents are a separate story: only tools you
+        publish appear in <code>/.well-known/mcp.json</code>, listed at the bottom. Running
+        Agentimus’s own MCP server is its own switch (Settings → Discovery, off by default).
       </p>
 
+      <!-- ONE total, stated once; the groups below PARTITION it (they visibly add up).
+           Doors carry no counts anywhere — counts on overlapping doors invited
+           "14 + 16 = 30". -->
       <div class="ar-wd-mcp">
         <div class="ar-wd-mcp__cell">
+          <span>agent tools</span>
+          <strong :class="counts.tools > 0 ? 'is-on' : 'is-off'">{{ counts.tools }}</strong>
+        </div>
+        <div class="ar-wd-mcp__cell">
+          <span>public</span><strong>{{ typeof counts.toolsPublished === 'number' ? counts.toolsPublished : '—' }}</strong>
+        </div>
+        <div class="ar-wd-mcp__cell">
+          <span>auth</span><strong>{{ counts.tools > 0 ? mcpAuthLabel : '—' }}</strong>
+        </div>
+        <div class="ar-wd-mcp__cell">
           <span>MCP server</span>
-          <strong :class="mcp.available ? 'is-on' : 'is-off'">{{ mcp.available ? 'Detected' : 'None' }}</strong>
-        </div>
-        <div class="ar-wd-mcp__cell">
-          <span>source</span><strong>{{ mcp.source || '—' }}</strong>
-        </div>
-        <div class="ar-wd-mcp__cell">
-          <span>transport</span><strong>{{ mcp.transport || '—' }}</strong>
-        </div>
-        <div class="ar-wd-mcp__cell">
-          <span>tools</span><strong>{{ mcp.tools }}</strong>
+          <strong :class="mcp.available ? 'is-on' : 'is-off'">{{ mcpServerLabel }}</strong>
         </div>
       </div>
 
-      <div v-if="mcp.available && mcp.endpoint" class="ar-wd-canonical ar-wd-mcp-endpoint">
-        <span class="ar-wd-canonical__method">MCP</span>
-        <span class="ar-wd-canonical__path">{{ mcp.endpoint }}</span>
-        <a class="ar-wd-canonical__ext" :href="mcp.endpoint" target="_blank" rel="noopener" aria-label="Open mcp.json in a new tab">↗</a>
-      </div>
+      <!-- The partition: provider groups, same names as "Registered providers" above. -->
+      <ul v-if="toolGroups.length" class="ar-wd-tools">
+        <li v-for="g in toolGroups" :key="g.key" class="ar-wd-tool">
+          <div class="ar-wd-tool__id">
+            <code>{{ g.title }}</code>
+            <span class="ar-wd-tool__title">via {{ g.doors.join(' · ') }}</span>
+          </div>
+          <div class="ar-wd-tool__meta">
+            <span class="ar-wd-badge">{{ g.tools }} {{ g.tools === 1 ? 'tool' : 'tools' }}</span>
+          </div>
+        </li>
+      </ul>
 
-      <p v-if="!mcp.available && mcp.source === 'abilities'" class="ar-wd-note">
-        Tools are registered via the Abilities API, but no MCP server is installed. Add an MCP adapter
-        to make them callable; agents can still read the signatures here.
-      </p>
+      <!-- The doors' addresses — connection info only, no numbers. COPY, not open:
+           both doors require a signed-in agent, so a browser click can only ever
+           answer 401 — the real user intent is pasting the address into a tool. -->
+      <div v-for="d in doorRows" :key="d.url" class="ar-wd-canonical ar-wd-mcp-endpoint">
+        <span class="ar-wd-canonical__method">{{ d.badge }}</span>
+        <span class="ar-wd-canonical__path">{{ d.url }}</span>
+        <button
+          type="button"
+          class="ar-wd-canonical__ext ar-wd-copy"
+          :class="{ 'is-copied': copiedDoor === d.url }"
+          :aria-label="'Copy the ' + d.label + ' address'"
+          @click="copyDoor(d)"
+        >{{ copiedDoor === d.url ? '✓ copied' : 'copy' }}</button>
+      </div>
 
       <ul v-if="tools.length" class="ar-wd-tools">
         <li v-for="t in tools" :key="t.name" class="ar-wd-tool">
@@ -235,11 +465,14 @@ export default {
       <!-- Two different empty states: tools can exist but be deliberately withheld
            from anonymous discovery (all sign-in-only since 1.20.0) — saying "none
            yet" while the count above reads 14 would be a lie. -->
+      <!-- No count in this sentence: the mini-table above says 14 (this MCP
+           server's tools) while the site-wide inventory is 17 (core's abilities
+           aren't on Agentimus's scoped server) — citing either here would sit
+           beside the other and read as a contradiction. -->
       <p v-else-if="counts.tools > 0" class="ar-wd-empty">
-        Nothing is listed here because all {{ counts.tools }} of this site's agent tools require sign-in,
-        and sign-in-only tools are deliberately not advertised in the public documents — an anonymous
-        reader gets no map of your tooling. An agent holding real credentials still discovers and runs
-        them the proper way.
+        Nothing is listed here because every agent tool on this site requires sign-in, and sign-in-only
+        tools are deliberately not advertised in the public documents — an anonymous reader gets no map
+        of your tooling. An agent holding real credentials still discovers and runs them the proper way.
       </p>
       <p v-else class="ar-wd-empty">
         No agent tools yet. They come from the WordPress Abilities API (in core from 6.9, or the Abilities
