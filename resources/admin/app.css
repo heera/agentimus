@@ -487,6 +487,17 @@
    any leaf that still can't shrink — it clips instead of panning the page (clip, unlike
    hidden, creates no scroll container, so sticky children keep working). */
 .ar__main { display: grid; grid-template-columns: minmax(0, 1fr); gap: 22px; min-width: 0; overflow-x: clip; }
+/* The same trap one level down: every single-column card stack re-declares its own
+   grid, and each implied auto track would again size to its widest item — the About
+   pre snippet proved one rigid leaf widens (then clips) EVERY sibling card on a
+   phone. Pin them all. */
+.ar-form, .ar-group, .ar-about, .ar-wd, .ar-act, .ar-aitraffic, .ar-preview, .ar-preview__group {
+  grid-template-columns: minmax(0, 1fr);
+}
+/* And keep a <pre>'s intrinsic width out of ancestor sizing entirely: it can never
+   wrap, so it must take its container's width and scroll inside it (the snippets all
+   set overflow-x:auto). contain:inline-size zeroes its min-content contribution. */
+#agentimus-app pre { min-width: 0; contain: inline-size; }
 /* On wide screens the rail owns the endpoints list (the form's copy hides). */
 .ar__body.is-railed .ar-card--endpoints { display: none; }
 
