@@ -1416,17 +1416,25 @@ html { scrollbar-gutter: stable; }
   position: fixed; inset: 0; z-index: 100001;
   display: flex; align-items: center; justify-content: center;
   padding: 20px;
+  /* Worst-case escape hatch: should a panel ever end up taller than the screen
+     anyway, the overlay itself scrolls (with margin:auto on the panel keeping both
+     edges reachable) instead of clipping the Close button away. Inert otherwise. */
+  overflow-y: auto;
   background: rgba(27, 25, 19, 0.42);
   -webkit-backdrop-filter: blur(3px); backdrop-filter: blur(3px);
 }
 .ar-modal__panel {
   display: flex; flex-direction: column;
-  /* Height caps at 100% of the overlay's padded box, NOT a vh unit: on iOS, 100vh is
-     the LARGE viewport (it extends under the collapsed URL/tool bars), so a vh-sized
-     panel centered in the overlay clipped equally top and bottom — with the Close
-     button in the hidden part. A percentage resolves against the overlay's real
-     height everywhere; its 20px padding supplies the breathing room. */
-  width: 100%; max-width: 560px; max-height: min(100%, 600px); overflow: hidden;
+  margin: auto;
+  /* Every height cap here is a vh/svh PAIR: on iOS, 100vh is the LARGE viewport (it
+     extends under the browser's collapsed URL/tool bars), so a vh-sized panel clips
+     top and bottom — with Close in the hidden part. 100svh is the small viewport
+     (bars shown), which always fits; older browsers ignore it and keep the vh line.
+     NOTE the small-screen media override further down — it MUST keep the same pair,
+     it deliberately wins the cascade on phones (where this bug actually bit). */
+  width: 100%; max-width: 560px; overflow: hidden;
+  max-height: min(calc(100vh - 40px), 600px);
+  max-height: min(calc(100svh - 40px), 600px);
   background: var(--ar-surface); border: 1px solid var(--ar-line-strong);
   border-radius: 10px;
   box-shadow: 0 24px 60px -20px rgba(27, 25, 19, 0.5);
@@ -1505,7 +1513,9 @@ html { scrollbar-gutter: stable; }
    Placed after the base rules so it wins the cascade. */
 @media (max-width: 600px), (max-height: 560px) {
   .ar-modal { padding: 10px; }
-  .ar-modal__panel { max-height: calc(100vh - 20px); }
+  /* Same vh/svh pair as the base rule — a bare 100vh here is what originally trapped
+     phone users: on iOS it overshoots the visible screen and hides the Close button. */
+  .ar-modal__panel { max-height: calc(100vh - 20px); max-height: calc(100svh - 20px); }
 }
 
 /* ---- Confirm dialog (reusable styled replacement for window.confirm) ---- */
@@ -2200,7 +2210,7 @@ button.ar-wd-stat:focus-visible { outline: 2px solid var(--ar-accent); outline-o
 /* Fixed height, not content-sized: the day report renders in two beats (spinner,
    then the full day) and days vary from 3 rows to hundreds — content sizing made
    the dialog visibly grow on load and jump between days. One constant size. */
-.ar-modal__panel--day { max-width: 640px; height: min(calc(100vh - 40px), 600px); }
+.ar-modal__panel--day { max-width: 640px; height: min(calc(100vh - 40px), 600px); height: min(calc(100svh - 40px), 600px); }
 .ar-day-head { display: flex; align-items: center; justify-content: space-between; gap: 10px 12px; margin-bottom: 8px; flex-wrap: wrap; }
 /* Day-switch loading: the body content is fully withheld while the day loads
    (a breakdown appearing ahead of the request rows read as inconsistent), so
