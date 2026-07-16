@@ -714,16 +714,17 @@ export default {
       const d = Math.round(s / 86400);
       return d < 30 ? `${d} days ago` : new Date(t).toLocaleDateString();
     },
-    // Is the server actually answering? Asked from the browser because the
-    // adapter's state can't be known during an admin page load. GET is enough:
-    // a live server answers 405/401 (route exists), a disabled one a clean 404.
+    // Is the server actually answering? Asked over an AUTHENTICATED admin route
+    // (agentimus/v1/mcp-status) rather than an unauthenticated GET to the MCP endpoint
+    // itself: the endpoint correctly answers 401 to a credential-less request, which
+    // the browser logs as a red console error on every admin load. The status route
+    // reports the same liveness (is our MCP route registered?) server-side, with a
+    // clean 200 via the nonce — so the console stays quiet.
     async probeMcpStatus() {
       this.mcpProbe = 'checking';
       try {
-        const res = await fetch(this.mcpServer.endpoint, {
-          method: 'GET', credentials: 'omit', headers: { Accept: 'application/json' },
-        });
-        this.mcpProbe = res.status === 404 ? 'unreachable' : 'running';
+        const res = await this.api.getMcpStatus();
+        this.mcpProbe = res && res.running ? 'running' : 'unreachable';
       } catch (e) {
         this.mcpProbe = 'unreachable';
       }

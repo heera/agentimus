@@ -125,5 +125,23 @@ final class Module {
 				},
 			)
 		);
+
+		// The MCP-server liveness status for the settings card. Authenticated (nonce →
+		// clean 200), so the admin no longer probes the auth-gated MCP endpoint with an
+		// unauthenticated GET that logged a red 401 in the browser console on every admin
+		// load. Answers the same question server-side: is our MCP route registered?
+		register_rest_route(
+			'agentimus/v1',
+			'/mcp-status',
+			array(
+				'methods'             => 'GET',
+				'permission_callback' => function () {
+					return current_user_can( 'manage_options' );
+				},
+				'callback'            => function () {
+					return rest_ensure_response( array( 'running' => McpSurface::agentimus_server_live() ) );
+				},
+			)
+		);
 	}
 }

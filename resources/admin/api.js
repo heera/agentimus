@@ -53,6 +53,9 @@ export function createApi(boot) {
         + `&type=${encodeURIComponent(type || '')}&offset=${Math.max(0, offset | 0)}`,
       ),
     getDiscoveryHub: () => request('/discovery/hub'),
+    // MCP-server liveness for the settings card — authenticated, so no unauthenticated
+    // probe of the auth-gated MCP endpoint (which logged a console 401). Returns { running }.
+    getMcpStatus: () => request('/mcp-status'),
     getActivity: () => request('/activity'),
     getActivityDay: (date) => request(`/activity/day?date=${encodeURIComponent(date)}`),
     // The AI-traffic screen's own report: a day range (bounded by retention, not the

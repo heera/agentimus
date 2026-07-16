@@ -39,6 +39,24 @@ final class McpSurface {
 	}
 
 	/**
+	 * Whether Agentimus's own MCP endpoint is registered and answering right now.
+	 * A cheap, envelope-free check for the settings-card status probe — asks the REST
+	 * server whether our route exists, exactly the liveness question the old browser
+	 * ping asked (a live server 401s, a disabled one 404s), but from the server so the
+	 * admin never has to fire an unauthenticated request that logs a console 401. Only
+	 * meaningful inside a REST request, where the MCP adapter has registered its route.
+	 *
+	 * @return bool
+	 */
+	public static function agentimus_server_live() {
+		if ( ! function_exists( 'rest_get_server' ) ) {
+			return false;
+		}
+		$routes = rest_get_server()->get_routes();
+		return isset( $routes['/agentimus/v1/mcp'] );
+	}
+
+	/**
 	 * The MCP/tools surface — served at /.well-known/mcp.json and shown on the admin
 	 * Discovery screen, but intentionally NOT part of the frozen discovery.json core
 	 * (MCP discovery is still an unsettled proposal).
