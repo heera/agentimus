@@ -492,9 +492,9 @@ final class Module {
 					'permission_callback' => array( $this, 'can_manage' ),
 					'args'                => array(
 						'before' => array(
-							'type'              => 'integer',
-							'default'           => 0,
-							'sanitize_callback' => 'absint',
+							'type'              => 'string',
+							'default'           => '',
+							'sanitize_callback' => 'sanitize_text_field',
 						),
 					),
 				),
@@ -525,7 +525,7 @@ final class Module {
 	 */
 	public function read( $request = null ) {
 		$coverage = self::coverage();
-		$before   = ( $request instanceof \WP_REST_Request ) ? (int) $request->get_param( 'before' ) : 0;
+		$before   = ( $request instanceof \WP_REST_Request ) ? (string) $request->get_param( 'before' ) : '';
 
 		// A cursor walk, the same shape the request log uses — so every row is reachable, however
 		// many there are. A "show more" that stops at 500 would leave the rest of a 5,000-row table

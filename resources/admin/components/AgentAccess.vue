@@ -44,7 +44,7 @@ export default {
       // log that grows under you.
       hasMore: false,
       cursor: null,
-      before: 0,
+      before: '',
       trail: [],
       perPage: 100,
       retention: 90,
@@ -154,7 +154,7 @@ export default {
     if (this.active) this.load();
   },
   methods: {
-    async load(before = 0) {
+    async load(before = '') {
       if (!this.api) return;
       this.loading = true;
       this.error = '';
@@ -219,7 +219,7 @@ export default {
         this.total = 0;
         this.hasMore = false;
         this.cursor = null;
-        this.before = 0;
+        this.before = '';
         this.trail = [];
         this.unseen = 0;
         this.$emit('seen');

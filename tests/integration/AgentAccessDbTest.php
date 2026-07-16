@@ -160,23 +160,25 @@ final class AgentAccessDbTest extends DbTestCase {
 
 	/* -- The rollup + alert contract --------------------------------------- */
 
-	public function test_a_repeat_event_rolls_up_and_does_not_re_alert() {
-		// The alert contract: the FIRST occurrence is news, the rest are a receipt. If a repeat
-		// re-alerted, a busy agent would bury the owner and they would mute the feature — which
-		// is precisely how a security feature ends up never being read.
+	public function test_a_repeat_event_rolls_up_and_re_alerts() {
+		// The alert contract, as the owner set it: EVERY access re-lights the pill, without exception.
+		// A repeat still rolls up into one row (not a second insert) and still reports as NOT-new from
+		// record() — the "new" return is a caller convenience — but it resets `seen`, so the unread
+		// count climbs again and the owner sees every access, however routine.
 		$first = Store::record( Events::KIND_ABILITY_USED, $this->admin, 'cred-1', 'agentimus/read-readiness' );
 		$this->assertTrue( $first, 'The first occurrence must report as new.' );
 
 		Store::mark_seen();
+		$this->assertSame( 0, Store::unseen_count(), 'Reading the feed clears the count.' );
 
 		$second = Store::record( Events::KIND_ABILITY_USED, $this->admin, 'cred-1', 'agentimus/read-readiness' );
-		$this->assertFalse( $second, 'A repeat must NOT report as new.' );
+		$this->assertFalse( $second, 'A repeat must still report as NOT-new (that return is unchanged).' );
 
 		$events = Store::recent();
 		$this->assertCount( 1, $events, 'A repeat must roll up, not insert a second row.' );
 		$this->assertSame( 2, $events[0]['hits'] );
-		$this->assertTrue( $events[0]['seen'], 'A rolled-up repeat must not reset the seen flag (no re-alert).' );
-		$this->assertSame( 0, Store::unseen_count() );
+		$this->assertFalse( $events[0]['seen'], 'A rolled-up repeat must reset the seen flag — every access re-alerts.' );
+		$this->assertSame( 1, Store::unseen_count(), 'The pill must re-light on any repeat access.' );
 	}
 
 	public function test_a_different_credential_using_the_same_ability_is_a_separate_event() {
@@ -197,16 +199,17 @@ final class AgentAccessDbTest extends DbTestCase {
 		// a large table permanently unreachable — on a flood, precisely when the owner most needs to
 		// read it. Walking must therefore be exhaustive AND non-repeating.
 		//
-		// Ordering is by `id`, not `last_at`, for exactly this reason: this is a rollup table, so
-		// last_at MOVES when a row's hits increment, and a row that hops between pages mid-walk is
-		// how you miss one or count it twice.
+		// Ordering is by `last_at DESC, id DESC` (newest activity on top, the owner's rule), which on a
+		// rollup table is a MOVING key — so the cursor is composite, "last_at~id", and `id` breaks the
+		// (frequent) one-second ties. That composite keyset is exactly what keeps a row from hopping
+		// pages mid-walk, so the walk stays exhaustive and non-repeating even though the sort key moves.
 		$rows = 250;
 		for ( $i = 0; $i < $rows; $i++ ) {
 			Store::record( Events::KIND_ABILITY_USED, $this->admin, 'cred-' . ( $i % 5 ), "agentimus/ability-$i" );
 		}
 
 		$seen   = array();
-		$before = 0;
+		$before = '';
 		$pages  = 0;
 		do {
 			$page = Store::page( 40, null, $before );
@@ -220,6 +223,31 @@ final class AgentAccessDbTest extends DbTestCase {
 
 		$this->assertCount( $rows, $seen, 'The cursor walk must reach every row in the table.' );
 		$this->assertSame( Store::total(), count( $seen ) );
+	}
+
+	public function test_the_most_recently_active_row_floats_to_the_top() {
+		// The owner's rule: the newest activity is always on top. On a rollup table "newest" is
+		// last_at, NOT the insertion id — a row inserted early but touched again just now must
+		// out-rank a row inserted later that has been quiet since.
+		Store::record( Events::KIND_ABILITY_USED, $this->admin, 'cred-1', 'agentimus/ability-early' );
+		Store::record( Events::KIND_ABILITY_USED, $this->admin, 'cred-1', 'agentimus/ability-late' );
+
+		// current_time() has one-second granularity, so all of the above can share a timestamp and the
+		// tiebreak would (correctly) fall to id — putting 'late' on top. To prove the SORT keys on
+		// last_at rather than id, push both rows into the past, then touch 'early' so its last_at is
+		// strictly newer despite its lower id.
+		global $wpdb;
+		$table = Table::name();
+		$past  = gmdate( 'Y-m-d H:i:s', time() - HOUR_IN_SECONDS );
+		$wpdb->query( $wpdb->prepare( "UPDATE $table SET last_at = %s", $past ) ); // phpcs:ignore WordPress.DB
+
+		Store::record( Events::KIND_ABILITY_USED, $this->admin, 'cred-1', 'agentimus/ability-early' );
+
+		$events = Store::recent();
+		$this->assertCount( 2, $events, 'Two distinct abilities, two rows.' );
+		$this->assertSame( 'agentimus/ability-early', $events[0]['subject'], 'The most recently ACTIVE row must sort to the top, even with the lower id.' );
+		$this->assertSame( 2, $events[0]['hits'], 'The floated row is the one that was touched again.' );
+		$this->assertSame( 'agentimus/ability-late', $events[1]['subject'] );
 	}
 
 	public function test_the_row_cap_survives_a_flood_written_in_the_same_second() {

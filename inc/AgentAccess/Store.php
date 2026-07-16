@@ -2,10 +2,10 @@
 /**
  * Store — reads and writes the Agent Access event rollup.
  *
- * The only subtle part is {@see record()}: it must tell the caller whether an event is NEW,
- * because "new" is what we alert on. A credential using an ability for the hundredth time is
- * a receipt, not news, and re-alerting on it is exactly the alert fatigue that makes owners
- * mute a security feature and then miss the one notification that mattered.
+ * The owner's rule for this feature is deliberately loud: they want to SEE every agent access,
+ * without exception, so the nav pill re-lights on any hit — routine or not (see {@see record()},
+ * which resets `seen` on every upsert). {@see record()} still returns whether an event was seen
+ * for the FIRST time, but that "new" signal is a caller convenience now, not what drives the pill.
  *
  * @package Agentimus
  */
@@ -54,9 +54,12 @@ final class Store {
 		// phpcs:disable WordPress.DB, PluginCheck.Security.DirectDB.UnescapedDBParameter -- $table is our own prefix-derived name; every value is bound via prepare().
 		$affected = $wpdb->query(
 			$wpdb->prepare(
+				// seen = 0 on the update path too: the owner asked to be alerted to EVERY access,
+				// not only the first of a kind. So a repeat re-marks the row unread — the nav pill
+				// lights again for any agent activity, however routine.
 				"INSERT INTO $table (kind, user_id, cred, subject, detail, hits, first_at, last_at, seen)
 				 VALUES (%s, %d, %s, %s, %s, 1, %s, %s, 0)
-				 ON DUPLICATE KEY UPDATE hits = hits + 1, last_at = VALUES(last_at)",
+				 ON DUPLICATE KEY UPDATE hits = hits + 1, last_at = VALUES(last_at), seen = 0",
 				$kind,
 				$user_id,
 				$cred,
@@ -69,9 +72,10 @@ final class Store {
 		// phpcs:enable WordPress.DB, PluginCheck.Security.DirectDB.UnescapedDBParameter
 
 		// MySQL reports 1 affected row for a genuine INSERT and 2 for an ON DUPLICATE KEY UPDATE
-		// that changed something. That difference is the whole point: 1 means "first time", which
-		// is what the bell reacts to. Note the update path deliberately leaves `seen` alone, so a
-		// row that merely accrues hits never re-alerts.
+		// that changed something. That difference still tells the caller "first time of this kind",
+		// which is what {@see record()}'s return documents. The nav pill, though, is driven by the
+		// `seen` column (see unseen_count()), and the upsert now resets `seen` on every hit — so a
+		// repeat still returns FALSE here while correctly re-lighting the pill.
 		$is_new = ( 1 === (int) $affected );
 
 		if ( $is_new && 1 === wp_rand( 1, 20 ) ) {
@@ -82,25 +86,26 @@ final class Store {
 	}
 
 	/**
-	 * One page of events, newest first — a CURSOR walk, matching the request log.
+	 * One page of events, most-recently-active first — a CURSOR walk, matching the request log.
 	 *
-	 * Ordered by `id`, not `last_at`. This is a rollup table, so `last_at` MOVES when a row's hit
-	 * count increments — order by it and a row can hop between pages while the owner is walking
-	 * them, which is how you miss a row or see it twice. `id` is immutable, so the walk is stable.
-	 * It is also the truer order for this screen: a row only ever becomes UNREAD on insert, never
-	 * on a rollup, so the alerting is already insertion-ordered. (`last_at` is still shown in its
-	 * own column — nothing is hidden, it just doesn't drive the sort.)
+	 * Ordered by `last_at DESC, id DESC`. The owner asked that the newest activity always sit at the
+	 * TOP, and on a rollup table "newest activity" is `last_at` (which moves when a row's hit count
+	 * increments), not the insertion `id`. Because `last_at` moves, an `id`-only cursor would let a
+	 * row hop pages mid-walk, so the cursor is COMPOSITE — a "last_at~id" pair — and the keyset
+	 * predicate `(last_at < X OR (last_at = X AND id < Y))` walks that exact (last_at, id) ordering
+	 * with no gaps or repeats. `id` breaks ties (many rows can share a one-second `last_at`) and is
+	 * immutable, so the tiebreak is stable.
 	 *
 	 * @param int         $limit  Rows per page.
 	 * @param string|null $kind   Optional kind filter.
-	 * @param int         $before Cursor: return rows with an id BELOW this (0 = first page).
-	 * @return array{events:array[],hasMore:bool,cursor:int|null}
+	 * @param string|int  $before Cursor: a "last_at~id" pair; return rows ordered strictly BELOW it
+	 *                            ('' or 0 = first page).
+	 * @return array{events:array[],hasMore:bool,cursor:string|null}
 	 */
 	public static function page( $limit = self::DEFAULT_LIMIT, $kind = null, $before = 0 ) {
 		global $wpdb;
 		$table  = self::name();
 		$limit  = max( 1, min( 500, (int) $limit ) );
-		$before = max( 0, (int) $before );
 
 		$where  = array();
 		$params = array();
@@ -108,9 +113,12 @@ final class Store {
 			$where[]  = 'kind = %s';
 			$params[] = (string) $kind;
 		}
-		if ( $before > 0 ) {
-			$where[]  = 'id < %d';
-			$params[] = $before;
+		$cursor = self::parse_cursor( $before );
+		if ( null !== $cursor ) {
+			$where[]  = '(last_at < %s OR (last_at = %s AND id < %d))';
+			$params[] = $cursor['at'];
+			$params[] = $cursor['at'];
+			$params[] = $cursor['id'];
 		}
 		$sql = "SELECT * FROM $table";
 		if ( $where ) {
@@ -118,7 +126,7 @@ final class Store {
 		}
 		// Fetch one MORE than asked: its presence is how we know another page exists, without a
 		// second COUNT query.
-		$sql     .= ' ORDER BY id DESC LIMIT %d';
+		$sql     .= ' ORDER BY last_at DESC, id DESC LIMIT %d';
 		$params[] = $limit + 1;
 
 		// phpcs:disable WordPress.DB, PluginCheck.Security.DirectDB.UnescapedDBParameter -- $table is our own prefix-derived name; every value is bound via prepare().
@@ -132,12 +140,42 @@ final class Store {
 		}
 
 		$events = array_map( array( Events::class, 'shape' ), $rows );
-		$last   = end( $events );
+		$last   = end( $rows );
+
+		$cursor_out = null;
+		if ( $last && isset( $last['last_at'], $last['id'] ) ) {
+			$cursor_out = $last['last_at'] . '~' . (int) $last['id'];
+		}
 
 		return array(
 			'events'  => $events,
 			'hasMore' => $has_more,
-			'cursor'  => ( $last && ! empty( $last['id'] ) ) ? (int) $last['id'] : null,
+			'cursor'  => $cursor_out,
+		);
+	}
+
+	/**
+	 * Parse a "last_at~id" cursor string into its two halves, or NULL for a first-page request.
+	 *
+	 * Tolerant by design: a legacy bare-integer cursor (an old `id`) or any malformed value simply
+	 * yields NULL — a harmless fall back to the first page rather than a fatal or a bad query.
+	 *
+	 * @param string|int $before Raw cursor from the request.
+	 * @return array{at:string,id:int}|null
+	 */
+	private static function parse_cursor( $before ) {
+		$before = trim( (string) $before );
+		if ( '' === $before || false === strpos( $before, '~' ) ) {
+			return null;
+		}
+		list( $at, $id ) = explode( '~', $before, 2 );
+		$at = substr( trim( $at ), 0, 32 );
+		if ( '' === $at ) {
+			return null;
+		}
+		return array(
+			'at' => $at,
+			'id' => max( 0, (int) $id ),
 		);
 	}
 
