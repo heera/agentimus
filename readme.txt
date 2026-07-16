@@ -2,9 +2,9 @@
 Contributors: heera
 Tags: ai-agents, ai-crawlers, agent-readiness, llms-txt, ai-seo
 Requires at least: 6.0
-Tested up to: 7.0
+Tested up to: 7.1
 Requires PHP: 7.4
-Stable tag: 1.22.2
+Stable tag: 1.23.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -260,6 +260,12 @@ URL-like strings in the plugin's output are labels, not requests — the discove
 
 == Changelog ==
 
+= 1.23.0 =
+* New — **Agent access alerts on every visit.** The nav pill now re-lights whenever an agent authenticates or acts — not only the first time ever — and the log lists the newest activity first. The screen also gained its proper page header.
+* New — **Your voice, everywhere AI writes.** If your WordPress defines Content Guidelines (the experimental brand-voice and copy-rules feature), Agentimus honors them automatically: Draft, Suggest and Fix with AI follow them, and AI agents connected over MCP see them right on the draft/edit tools — so agents write in your voice too. Nothing to configure; your guidelines never appear on any public endpoint.
+* Improved — **Markdown twins ready for WordPress 7.1.** The new Tabs block converts with each tab clearly labelled, Playlists become a readable track list, tables come out as real Markdown tables instead of run-together text, and preformatted blocks keep their line breaks — diagrams built in the visual editor no longer flatten to one line.
+* Fixed — **Full description on WordPress.org.** The plugin directory folds extra readme sections into the description before applying its word limit, so the listing was still truncated; two sections moved into the FAQ and everything shows again.
+
 = 1.22.2 =
 * Fixed — **Clicking a summary tile now lands the section in view.** On the Discovery screen, jumping to Providers, Capabilities, APIs or Tools scrolled the section's heading up under the pinned header; it now lands just below it, so you see the heading you asked for.
 * Fixed — **No more "401" in the browser console.** The MCP server settings card checked whether the server was answering by pinging its sign-in-only endpoint without credentials — a harmless 401 that the browser nonetheless logged as a red error on every admin page. It now asks over an authenticated route instead: same "Running" status, quiet console.
@@ -313,6 +319,9 @@ URL-like strings in the plugin's output are labels, not requests — the discove
 The full changelog for every release lives in the plugin repository: https://github.com/heera/agentimus/blob/main/CHANGELOG.md
 
 == Upgrade Notice ==
+
+= 1.23.0 =
+Agent-access alerts now fire on every visit, Markdown output is ready for WordPress 7.1's new blocks, and your Content Guidelines steer every AI draft — in the editor and over MCP. No breaking changes.
 
 = 1.22.2 =
 Polish and fixes: clicking a Discovery tile now lands the section in view, the MCP settings card no longer logs a 401 in the browser console, the Discovery layout is tidier, and AI Visibility explains why it uses its own keys. No breaking changes.
