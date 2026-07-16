@@ -322,7 +322,7 @@ export default {
   <section class="ar-card ar-aa">
     <div class="ar-card__head ar-card__head--inline">
       <div class="ar-card__titlewrap">
-        <h2 class="ar-card__title">Agent access</h2>
+        <h2 class="ar-card__title">Events</h2>
       </div>
       <div class="ar-card__actions" v-if="hasEvents">
         <button type="button" class="ar-btn ar-btn--ghost" :disabled="loading" @click="load">
@@ -333,11 +333,6 @@ export default {
         </button>
       </div>
     </div>
-
-    <p class="ar-card__lead">
-      What agents did on your site — keys created, keys used, abilities run.
-      <strong>This is a record, not a guard: nothing here blocks anything.</strong>
-    </p>
 
     <p v-if="error" class="ar-aa__error">{{ error }}</p>
 

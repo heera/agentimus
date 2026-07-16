@@ -645,7 +645,11 @@
      looming over them. */
   .ar__review-btn { padding: 4px 7px; gap: 5px; }
   .ar__review-btn > svg:first-child { width: 13px; height: 13px; }
-  .ar__pagehead { padding-left: 16px; padding-right: 16px; }
+  /* Small screens: the nav above already wraps taller here, so the desktop
+     height-lock pairing is moot — let the strip grow and show the whole
+     tagline instead of ellipsis-truncating it. */
+  .ar__pagehead { padding: 12px 16px; height: auto; min-height: var(--ar-bar-h); }
+  .ar__pagehead-desc { white-space: normal; overflow: visible; text-overflow: clip; }
   .ar__body { padding: 20px 16px; }
 }
 
@@ -3288,6 +3292,9 @@ a.ar-about-proto__v:hover { text-decoration: underline; }
   display: inline-block; margin-left: 5px; vertical-align: middle;
 }
 
+/* The head sits directly above the coverage box / table now that the lead moved
+   to the page header — give it the same 16px rhythm the state box carries below. */
+.ar-aa .ar-card__head { margin-bottom: 16px; }
 .ar-aa__error { color: var(--ar-bad); font-size: 13px; margin: 0 0 12px; }
 
 /* The coverage box: what we can and cannot see on THIS site. */

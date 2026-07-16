@@ -353,6 +353,10 @@ export default {
             title: 'Request log',
             description: 'Every request an agent made — filter by client and endpoint to see exactly what one bot fetched.',
           },
+          'agent-access': {
+            title: 'Agent access',
+            description: 'What agents did on your site — keys created and used, abilities run. A record, not a guard.',
+          },
           visibility: {
             title: 'AI Visibility',
             description: 'Track whether ChatGPT, Perplexity, Gemini and Claude mention and cite your site — over time.',
