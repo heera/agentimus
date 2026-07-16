@@ -415,6 +415,13 @@ final class Assist {
 			return new \WP_Error( 'agentimus_ai_unavailable', __( 'AI is not available in this environment.', 'agentimus' ), array( 'status' => 503 ) );
 		}
 
+		// The site's Content Guidelines (WP's experimental editorial-rules feature),
+		// when present, ride every generation so drafts land in the site's own voice.
+		$guidelines = Guidelines::digest();
+		if ( '' !== $guidelines ) {
+			$system = "Site content guidelines — follow these where relevant:\n" . $guidelines . "\n\n" . $system;
+		}
+
 		$builder = wp_ai_client_prompt( $prompt )
 			->using_system_instruction( $system )
 			->using_max_tokens( (int) $max_tokens )

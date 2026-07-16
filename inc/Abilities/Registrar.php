@@ -39,6 +39,7 @@
 namespace Agentimus\Abilities;
 
 use Agentimus\Settings;
+use Agentimus\Guidelines;
 use Agentimus\Readiness;
 use Agentimus\Score;
 use Agentimus\Content;
@@ -526,12 +527,14 @@ final class Registrar {
 		$this->add(
 			'create-content',
 			__( 'Create a post or page', 'agentimus' ),
-			'Creates a post or page as the connected user — a DRAFT unless told otherwise — fully dressed '
+			self::guided(
+				'Creates a post or page as the connected user — a DRAFT unless told otherwise — fully dressed '
 				. 'in one call: content, categories, tags, featured image (an existing attachment ID or an '
 				. 'image URL to import), plus its AI description and Topics for AI. status=publish needs the '
 				. 'site’s "agents may publish" switch on top of the user’s own publish permission; when it is '
 				. 'off, create a draft (or pending) for the owner to review. Returns the new id — run '
-				. 'check-page on it next to grade the draft’s AI readability.',
+				. 'check-page on it next to grade the draft’s AI readability.'
+			),
 			self::obj(
 				array(
 					'type'          => array(
@@ -568,14 +571,16 @@ final class Registrar {
 		$this->add(
 			'update-content',
 			__( 'Update a post or page', 'agentimus' ),
-			'Updates a post or page as the connected user — only the fields you pass change; everything '
+			self::guided(
+				'Updates a post or page as the connected user — only the fields you pass change; everything '
 				. 'else behaves as a normal editor save. Moving something TO publish needs the site’s '
 				. '"agents may publish" switch; editing an already-published post follows the user’s normal '
 				. 'edit permission. Can set the AI description / Topics for AI, categories, tags and the '
 				. 'featured image alongside the content, or on their own. CAUTION: fields REPLACE — passing '
 				. 'content replaces the current body (posts and pages keep a revision of the old one, but a '
 				. 'content type without revision support does not), and a categories/tags list replaces the '
-				. 'current list ([] clears it).',
+				. 'current list ([] clears it).'
+			),
 			self::obj(
 				array(
 					'post_id'       => self::i( 'The post/page ID to update.' ),
@@ -910,6 +915,23 @@ final class Registrar {
 		}
 		$cap = ! empty( $pto->cap->create_posts ) ? $pto->cap->create_posts : ( ! empty( $pto->cap->edit_posts ) ? $pto->cap->edit_posts : '' );
 		return '' !== $cap && current_user_can( $cap );
+	}
+
+	/**
+	 * Append the site's Content Guidelines digest to a write-tool description, so a
+	 * connected agent sees the site's voice/tone/image rules at the exact moment it
+	 * drafts — no extra call, and no unauthenticated surface (descriptions rebuild
+	 * per request, only for the authenticated tool list). No-op without guidelines.
+	 *
+	 * @param string $description The tool description.
+	 * @return string
+	 */
+	private static function guided( $description ) {
+		$g = Guidelines::brief();
+		if ( '' === $g ) {
+			return $description;
+		}
+		return $description . "\n\nThis site declares content guidelines — align anything you draft or edit with them:\n" . $g;
 	}
 
 	/* ---------------------------------------------------------------------- *
