@@ -5,9 +5,13 @@
 [![Tested up to](https://img.shields.io/wordpress/plugin/tested/agentimus)](https://wordpress.org/plugins/agentimus/)
 [![License: GPL-2.0-or-later](https://img.shields.io/badge/license-GPL--2.0--or--later-blue)](LICENSE)
 
-Make any WordPress site legible to AI agents and crawlers — `llms.txt`, a full-text
-edition, markdown delivery, JSON-LD, and content-signal robots rules — then score how
-AEO/GEO-ready it is and what to fix next. Lightweight, no SEO bloat, no framework.
+Two things for the age of AI agents. **(1)** Make any WordPress site legible and citable —
+`llms.txt`, a full-text edition, markdown delivery, JSON-LD, content-signal robots rules —
+then score how AEO/GEO-ready it is and what to fix next. **(2)** Let the AI tools you already
+use **operate the site over MCP**: a Model Context Protocol server ships inside the plugin, so
+Claude Code, Claude Desktop, Cursor or Codex can read your readiness/traffic/bot data and —
+behind two more opt-in switches — draft, edit and publish posts and pages, each write running
+as the signed-in user, permission-checked and audited. Lightweight, no SEO bloat, no framework.
 
 **Live on WordPress.org:** <https://wordpress.org/plugins/agentimus/>
 

@@ -8,17 +8,28 @@ Stable tag: 1.22.1
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
-Make your site agent-ready: help AI assistants like ChatGPT and Claude understand and cite it, and see which ones are reading it. No setup needed.
+Make your site agent-ready: help AI assistants find, read and cite it, see which AIs visit — and let your AI agent draft, edit and publish posts over MCP.
 
 == Description ==
 
-Agentimus makes your site agent-ready: it helps AI assistants like ChatGPT, Claude and Perplexity find it, read it correctly, and cite it in your own words — and shows you which AI bots are actually visiting. **You don't need to understand AI or web standards to use it:** a setup wizard walks you through everything in about a minute on your first visit, then it runs on its own.
+Agentimus does two things for the age of AI agents.
+
+**It makes your site legible and citable.** It helps AI assistants like ChatGPT, Claude and Perplexity find your site, read it correctly, and cite it in your own words — and shows you which AI bots are actually visiting. **You don't need to understand AI or web standards to use it:** a setup wizard walks you through everything in about a minute on your first visit, then it runs on its own.
+
+**And it lets the AI tools you already use operate your site.** Flip on the built-in Model Context Protocol (MCP) server — everything needed ships with the plugin — and Claude Code, Claude Desktop, Cursor or Codex can read your readiness, AI-traffic and bot data over MCP. Turn on a separate switch and the same agent can **draft and edit posts and pages** — categories, tags, featured image, AI topics and descriptions and all — and, behind a third switch, **publish** them. Every write runs as the signed-in WordPress user, keeps that user's exact permissions, and is recorded under Agent access — so you can get a post written and out from your AI assistant without ever opening wp-admin. All three switches are off by default; read-only until you say otherwise.
 
 Want more control? You also get a first-party log of every AI crawler that fetches your content, one-click blocking for the bots you don't want, and a dashboard that scores your site's agent readiness — one AEO/GEO score across five simple rungs, per-page tips on making your content easier for AI to quote, and always the next thing to improve.
 
 By default it makes no outbound requests, collects no analytics, and logs no IP addresses — everything runs on your own site. Two optional, off-by-default features change that only when you turn them on: **AI Visibility** queries an AI provider you choose (with your own key) to check whether AIs cite you; and **Store IP addresses for flagged clients** records IPs, but only for crawlers flagged as impersonators or spoofs so you can block them (see *External services*).
 
 **📖 Full documentation** — a plain-English user manual and a developer reference, with step-by-step guides for every feature: https://heera.github.io/agentimus/
+
+**Operate your site from your AI agent (MCP) — opt-in**
+
+* **A Model Context Protocol server on your own site** — one switch (Settings → Discovery) runs an MCP server at `/wp-json/agentimus/v1/mcp`; the whole library ships with the plugin, nothing extra to install. The AI tools you already use — **Claude Code, Claude Desktop, Cursor, Codex** — connect to it, and the card writes the exact setup for your tool: pick it, mint a key in one click, copy the finished config, then a Test button proves the connection.
+* **Read your site's data** — connected agents can run the read-only tools (readiness/AEO-GEO score, AI traffic, request log, bot identification, and page / JSON-LD / Markdown previews) — the same ones WordPress's built-in AI gets.
+* **Draft, edit and publish posts — behind two more switches** — turn on **Let connected agents write** and the agent can create and edit posts and pages fully dressed (categories, tags, featured image from your library or a URL, AI topics and descriptions) and apply Readiness fixes; turn on a third switch and it may publish, otherwise it leaves drafts for your review. So you can ask your AI assistant to write and post an article without opening wp-admin.
+* **Safe by construction** — every write runs as the signed-in WordPress user and can never exceed that user's own permissions; nothing is public (each call signs in, each tool keeps its screen's permission check); every action is recorded under **More → Agent access**, attributed to the key; and with the write switch off the write tools don't exist on any surface. All three switches are off by default.
 
 **Control — who may use your content**
 
@@ -208,7 +219,7 @@ Yes. The discovery document implements the **WP_Discovery Protocol**, an openly-
 1. Dashboard — your AEO/GEO score across five plain rungs (Findable, Readable, Trusted, Optimized, Cited) with the one next step worth taking, alongside a first-party log of which AI agents and crawlers fetched your endpoints (no IP logging) and whether each client's volume is trending up or down. Every day bar on both charts opens that day's full report.
 2. Settings — a tidy, tabbed control panel; the Discovery section gives you a toggle for each agent-readiness signal, cards for Topics for AI and the per-page AI description, plus experimental browser tools (WebMCP) that let an in-browser AI agent call your site search.
 3. Readiness report — a plain-English pass/warn checklist of what's enabled and what's still missing, and beneath it the Optimize worklist: exactly which pages an answer engine would struggle to quote, and why. Set aside anything that isn't meant to be cited.
-4. Discovery Hub — every plugin's capabilities aggregated into one document, with per-item publish/suppress control.
+4. Discovery Hub — everything your site tells AI agents, in one place: the providers describing it, the read capabilities they expose, the public APIs, and the MCP & tools surface — your own Model Context Protocol server (when you've turned it on) alongside the WordPress Abilities API, with the tools each carries. Each summary tile jumps to its own countable list, and any registration problem is listed with a plain-English fix.
 5. Crawler policy & scanner blocking — declare your content-usage signals, block AI-training crawlers by name, turn away spoofed or scanner traffic, and keep an always-allowed list of trusted agents — with one-click suggestions for well-known AI assistants, the search engines trusted automatically, and a "Manage clients" dialog that holds every standing decision with its date and a one-click undo.
 6. Activity to review — a nav-bar alert surfaces new, high-volume or spoofed clients from any screen. Genuine ones you Allow or Block by name in one click; a crawler that failed reverse-DNS verification (an impersonator) can't be trusted by name, so you see its verdict and how to block it at your host or CDN — or Ignore to dismiss. No IP logging by default; an optional setting can store IPs for flagged crawlers only.
 7. About — a plain-English account of every feature and what it publishes, a privacy & data section (no outbound calls, no IP/PII by default, signing key stays on your server), the open WP_Discovery Protocol it implements, and an FAQ.

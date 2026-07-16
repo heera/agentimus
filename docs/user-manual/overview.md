@@ -14,6 +14,8 @@ You do not need to understand AI, web standards, or any of the file formats invo
 
 And it doesn't just publish — it **scores** how ready you are. The dashboard rolls everything into one **AEO/GEO score** (0–100) across five plain rungs — Findable, Readable, Trusted, Optimized and Cited — and always names the single next thing to improve, so you're never guessing where you stand. (AEO is Answer Engine Optimization; GEO is Generative Engine Optimization — the practice of being found, read and cited by AI answer engines.)
 
+There's a second half to Agentimus, pointing the other way. The same AI tools you already use — Claude Code, Claude Desktop, Cursor, Codex — can **connect to your site and operate it**, through an opt-in **MCP server** that ships inside the plugin. Once connected they can read your reports on request; and behind two further opt-in switches they can draft, edit and publish posts and pages, and apply Readiness fixes, for you. Every write runs as the signed-in WordPress user, within that user's own permissions, and is recorded under Agent access — and all three switches are off by default, so nothing here happens until you turn it on. The [MCP server]({% link user-manual/mcp-server.md %}) page covers it in full.
+
 ## The problem it solves
 
 For twenty years, "getting found" online meant getting found by a search engine, which sent a person to your page. That is changing. People increasingly ask an AI assistant a question and read the answer it composes — an answer stitched together from many sites, often without the person ever clicking through.
@@ -102,7 +104,7 @@ Think of it this way: Agentimus makes sure that when your authority *does* bring
 A few other things Agentimus is deliberately not:
 
 - **It is not a security suite.** The optional Exposure controls tidy up what stock WordPress reveals to anonymous crawlers, but Agentimus stays a discovery layer, not a firewall. It describes what your site already makes public; it grants no new access and exposes nothing private.
-- **It does not let agents change your site.** Agentimus advertises tools and capabilities; it does not execute them. Suppressing or removing an item changes what is *advertised*, not what is reachable — your underlying endpoints behave exactly as before, behind their own authentication.
+- **It doesn't let agents change your site until you decide otherwise.** The discovery documents Agentimus publishes only *advertise* your tools and capabilities — advertising executes nothing, and suppressing or removing an item changes what is *advertised*, not what is reachable. Writing is a separate, opt-in tier: the built-in MCP server ships off, and only after you turn it on — then flip two further switches — can a connected agent draft, edit or publish for you, always as the signed-in WordPress user, within that user's own permissions, and recorded under Agent access. See [MCP server]({% link user-manual/mcp-server.md %}).
 - **It is not a magic switch for AI rankings.** The content signals it publishes (JSON-LD, robots, llms.txt, Markdown) are read by AI tools today; the discovery document is forward-looking and prepares you for agents as they adopt these conventions. The plugin works fully whether or not any given agent consumes that document yet.
 
 ## Where to go next
@@ -114,5 +116,6 @@ Now that you know what Agentimus is for, the rest of this manual walks through u
 - **The readiness report** — reading your score and the plain-English checklist of what's still worth improving.
 - **Crawler policy and AI access** — declaring your content-usage signals and deciding which bots are welcome.
 - **The activity log** — seeing which AI crawlers and agents actually fetch your content.
+- **The MCP server** — connecting Claude Code, Claude Desktop, Cursor or Codex to read your reports and, if you opt in, draft, edit and publish for you.
 
 If you take just one action after reading this page, run the setup wizard and add a sentence about who you are — that single line is the most valuable thing an AI assistant reads about your site.

@@ -9,6 +9,8 @@ permalink: /user-manual.html
 
 Everything you need to run Agentimus as a site owner — no code required. These pages walk you from installing the plugin to getting every feature working, in plain language.
 
+Agentimus does two things: it makes your site **legible and citable to AI**, and it lets the **AI tools you already use operate your site** over an opt-in MCP server. Both sides are covered below.
+
 New here? Read them roughly in order:
 
 1. **Overview** — what Agentimus does and why it helps.
@@ -22,11 +24,12 @@ New here? Read them roughly in order:
 9. **Topics for AI** — say what each page is about.
 10. **Write with AI** — let your configured AI draft the descriptions, topics and fixes.
 11. **Agent preview** — see exactly what an agent receives.
-12. **AI access & crawlers** — who may crawl, and how.
-13. **Exposure & hardening** — optional privacy tightening.
-14. **AI Visibility** — track whether AI engines cite you.
-15. **Caching & CDNs** — keeping a page cache out of the way of the AI files.
-16. **Privacy & data** — what leaves your server (almost nothing).
-17. **FAQ** — quick answers to common questions.
+12. **MCP server** — connect Claude Code, Claude Desktop, Cursor or Codex to your site: let them read your reports, and (opt-in) draft, edit and publish content and apply fixes.
+13. **AI access & crawlers** — who may crawl, and how.
+14. **Exposure & hardening** — optional privacy tightening.
+15. **AI Visibility** — track whether AI engines cite you.
+16. **Caching & CDNs** — keeping a page cache out of the way of the AI files.
+17. **Privacy & data** — what leaves your server (almost nothing).
+18. **FAQ** — quick answers to common questions.
 
 Use the sidebar to jump to any page.

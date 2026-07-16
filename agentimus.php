@@ -2,7 +2,7 @@
 /**
  * Plugin Name:       Agentimus
  * Plugin URI:        https://github.com/heera/agentimus
- * Description:       An AI-discovery layer for your site: a /.well-known discovery document, machine-readable pages (llms.txt, markdown, JSON-LD), AI-crawl controls, and a first-party agent-activity log. Lightweight, no SEO bloat.
+ * Description:       Make your site agent-ready (llms.txt, markdown, JSON-LD, a /.well-known discovery document, AI-crawl controls, agent-activity log) AND let the AI tools you use operate it over MCP — read your data and, opt-in, draft/edit/publish posts. Lightweight, no SEO bloat.
  * Version:           1.22.1
  * Requires at least: 6.0
  * Requires PHP:      7.4

@@ -168,11 +168,19 @@ export default {
     <section class="ar-card">
       <h2 class="ar-card__title">What it does</h2>
       <p class="ar-card__lead">
-        Agentimus makes your site legible to AI agents — it publishes the documents they look for, offers
-        your content in machine-readable formats, and adds trust signals so agents can find, read and
-        verify your site — then rolls it all into one AEO/GEO score with the next thing to improve.
-        Everything here is on by default unless marked otherwise; see the live documents
-        on the
+        Agentimus does two things for the age of AI agents. <strong>First, it makes your site legible and
+        citable</strong> — it publishes the documents agents look for, offers your content in machine-readable
+        formats, and adds trust signals, then rolls it all into one AEO/GEO score with the next thing to improve.
+        <strong>Second, it lets the AI tools you already use operate your site over MCP</strong> — flip on the
+        built-in Model Context Protocol server and Claude, Cursor or Codex can read your readiness, traffic and
+        bot data; allow writes with a separate switch and the same agent can draft and edit posts and pages —
+        categories, tags, featured image, AI topics and descriptions and all — and, behind a third switch,
+        publish them. Every write runs as the signed-in user, permission-checked and audited, so nobody opens
+        wp-admin to get a post out.
+      </p>
+      <p class="ar-card__lead">
+        Everything here is on by default unless marked otherwise (the write and MCP features are off until you
+        turn them on); see the live documents on the
         <button type="button" class="ar-linkbtn" @click="$emit('navigate', { tab: 'discovery' })">Discovery</button>
         tab and change any default under
         <button type="button" class="ar-linkbtn" @click="$emit('navigate', { tab: 'settings' })">Settings</button>.

@@ -10,6 +10,9 @@ nav_order: 10
 
 It's off until you connect an AI provider, so on a site without AI set up you won't see any of it.
 
+{: .note }
+> This is the **in-editor** helper: WordPress's own AI drafts these fields while *you* work in the post editor, and nothing saves until you save the post. Letting an external agent — Claude Code, Cursor, Codex — draft, edit or publish whole posts over a connection is a *different*, separately opt-in feature; see the [MCP server]({% link user-manual/mcp-server.md %}) page, under *Letting agents write*.
+
 ## What you need first
 
 Write with AI uses **WordPress's own AI Client** (WordPress 7.0 and later). You connect a provider once, under **Settings → Connectors** (also called AI Credentials), with your own API key:
@@ -52,6 +55,7 @@ Only the **opening summary** applies in one click, because inserting a short lea
 
 ## Related
 
+- [MCP server]({% link user-manual/mcp-server.md %}) — the *other* way AI writes here: an external agent creating and editing whole posts over a connection (opt-in, off by default).
 - [Structured data]({% link user-manual/structured-data.md %}) — where the AI description feeds.
 - [Topics for AI]({% link user-manual/topics-for-ai.md %}) — the topics the assist drafts.
 - [Readiness]({% link user-manual/readiness.md %}) — the AI Readability checks the "Fix with AI" buttons act on.
