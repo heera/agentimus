@@ -4,11 +4,11 @@ Tags: ai-agents, ai-crawlers, agent-readiness, llms-txt, ai-seo
 Requires at least: 6.0
 Tested up to: 7.0
 Requires PHP: 7.4
-Stable tag: 1.22.1
+Stable tag: 1.22.2
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
-Make your site agent-ready: help AI assistants find, read and cite it, see which AIs visit — and let your AI agent draft, edit and publish posts over MCP.
+Make your site agent-ready for AI assistants — be found, read & cited, see who visits, and let your AI agent draft, edit & publish posts via MCP.
 
 == Description ==
 
@@ -16,7 +16,7 @@ Agentimus does two things for the age of AI agents.
 
 **It makes your site legible and citable.** It helps AI assistants like ChatGPT, Claude and Perplexity find your site, read it correctly, and cite it in your own words — and shows you which AI bots are actually visiting. **You don't need to understand AI or web standards to use it:** a setup wizard walks you through everything in about a minute on your first visit, then it runs on its own.
 
-**And it lets the AI tools you already use operate your site.** Flip on the built-in Model Context Protocol (MCP) server — everything needed ships with the plugin — and Claude Code, Claude Desktop, Cursor or Codex can read your readiness, AI-traffic and bot data over MCP. Turn on a separate switch and the same agent can **draft and edit posts and pages** — categories, tags, featured image, AI topics and descriptions and all — and, behind a third switch, **publish** them. Every write runs as the signed-in WordPress user, keeps that user's exact permissions, and is recorded under Agent access — so you can get a post written and out from your AI assistant without ever opening wp-admin. All three switches are off by default; read-only until you say otherwise.
+**And it lets the AI tools you already use operate your site.** Turn on the built-in Model Context Protocol (MCP) server and the AI tools you use — Claude Code, Claude Desktop, Cursor, Codex — can read your reports and, behind two more opt-in switches, **draft, edit and publish posts and pages** for you. Every write runs as the signed-in WordPress user, permission-checked and audited; all three switches are off by default. (Full details in "Operate your site from your AI agent" below.)
 
 Want more control? You also get a first-party log of every AI crawler that fetches your content, one-click blocking for the bots you don't want, and a dashboard that scores your site's agent readiness — one AEO/GEO score across five simple rungs, per-page tips on making your content easier for AI to quote, and always the next thing to improve.
 
@@ -48,7 +48,7 @@ By default it makes no outbound requests, collects no analytics, and logs no IP 
 * **Agent access** — the other side of the log: who *authenticates to and acts on* the machine surface Agentimus creates, under *More → Agent access*. It records application passwords being created, first used, renamed or revoked; WordPress abilities being run; and requests that were refused, or that probed for abilities that don't exist. A record, not a guard — it never blocks — with no IP logging, so it names the key that was used, not the person. A brand-new application password is worth a look: it keeps working even after you change your password.
 * **Traffic from AI** — the mirror of the crawler log: the real visitors an AI assistant sent you. *More → AI traffic* reports them day by day, by assistant (ChatGPT, Perplexity, Gemini, Claude, Copilot, Grok, DeepSeek and more) and by landing page. Stored as daily aggregate counts — never a row that stands for one person, no IP, no query strings. An opt-in **CDN mode** counts them in the visitor's browser so the number survives a full-page cache, and an opt-in **Find missed AI sources** diagnostic lists the referrers Agentimus couldn't name, so a new assistant never goes uncounted without you knowing.
 * **You decide how long it's kept** — a retention period, nightly auto-delete, and a hard size cap that always applies (Settings → Visit log), so the log can never grow without limit on your host.
-* **AI Visibility (opt-in)** — track **each brand, product or person you choose** across ChatGPT, Perplexity, Gemini and Claude. For every one, Agentimus asks the questions your audience actually types and reports whether it gets **mentioned, linked, and how it ranks against its own rivals** — over time. Tell it what each thing *is* (*"a WordPress SEO plugin"*) and it will **suggest the questions a buyer really types** — or, if you've set up an AI provider in WordPress, ask that AI for a spread of them. Each thing you track has its own website, category, competitors, questions and scoreboard; pause any single one, or the whole schedule, whenever you like. Off by default; **you bring your own API key** for each engine, and this is the one feature that makes an outbound request (see *External services*).
+* **AI Visibility (opt-in)** — track **each brand, product or person you choose** across ChatGPT, Perplexity, Gemini and Claude. For every one, Agentimus asks the questions your audience actually types and reports whether it gets **mentioned, linked, and how it ranks against its own rivals** — over time. Tell it what each thing *is* (*"a WordPress SEO plugin"*) and it suggests the questions a buyer really types. Each thing you track has its own website, category, competitors, questions and scoreboard. Off by default; **you bring your own API key** for each engine, and this is the one feature that makes an outbound request (see *External services*).
 
 **Content — clean, machine-readable output**
 
@@ -79,7 +79,7 @@ Agentimus also publishes a single, normalized discovery document, built to the c
 * **/.well-known/discovery.json** — an owner-curated document describing the site's identity, capabilities, APIs and agent cards. Other plugins can declare themselves through a single optional hook, so what an agent needs is aggregated in one place.
 * **/.well-known/agent-card.json** and **/.well-known/mcp.json** — an A2A agent card and an MCP manifest, generated automatically.
 * **Standards-aligned `.well-known` endpoints** — an RFC 9727 `api-catalog`, plus — *only when the capability actually exists* — an MCP server card and an Agent Skills index. Optional **response signing** (Web Bot Auth / HTTP Message Signatures, RFC 9421): sign the discovery documents with an Ed25519 key published at `/.well-known/http-message-signatures-directory`, so agents can verify they came from you. On by default; the private key stays on your server.
-* **WordPress Abilities API** — Agentimus registers its own **read-only abilities** (your readiness/AEO-GEO score, AI traffic, request log, bot checks, and page / JSON-LD / Markdown previews), so WordPress's built-in AI — and, with the MCP adapter, external AI agents — can read them, each gated by the same capability as the screen it comes from. A **separate, off-by-default switch adds write abilities** — draft and edit posts and pages complete with categories, tags and a featured image, set their AI topics and descriptions, and apply Readiness fixes — with publishing behind a third switch of its own, so agents leave drafts for your review until you decide otherwise. It also projects *any* plugin's registered abilities into MCP-shaped tool descriptors and links a running MCP server when one is installed.
+* **WordPress Abilities API** — Agentimus registers its own **read-only abilities** (your readiness/AEO-GEO score, AI traffic, request log, bot checks, and page / JSON-LD / Markdown previews), so WordPress's built-in AI — and, with the MCP adapter, external AI agents — can read them, each gated by the same capability as the screen it comes from. A separate, off-by-default switch adds the write abilities described above. It also projects *any* plugin's registered abilities into MCP-shaped tool descriptors and links a running MCP server when one is installed.
 * **Zero-config auto-discovery** — reads your registered REST API namespaces, public post types and the WordPress Abilities API, so a site is described even when no plugin declares itself. A **Discovery Hub** admin screen shows what an agent can see, and you decide what is published.
 
 **What's read today vs. what it readies you for**
@@ -260,6 +260,12 @@ There is no minified-only code. The admin interface is built from Vue 3 source i
 
 == Changelog ==
 
+= 1.22.2 =
+* Fixed — **Clicking a summary tile now lands the section in view.** On the Discovery screen, jumping to Providers, Capabilities, APIs or Tools scrolled the section's heading up under the pinned header; it now lands just below it, so you see the heading you asked for.
+* Fixed — **No more "401" in the browser console.** The MCP server settings card checked whether the server was answering by pinging its sign-in-only endpoint without credentials — a harmless 401 that the browser nonetheless logged as a red error on every admin page. It now asks over an authenticated route instead: same "Running" status, quiet console.
+* Improved — **A tidier Discovery screen.** The discovery documents were listed in three places at once; the endpoint card no longer repeats them. The always-visible rail keeps its quick links, and the "Well-known documents" section keeps the full inventory with each file's generated/managed status — each with its own job.
+* Improved — **AI Visibility explains its own keys.** The settings now say, in place, why AI Visibility connects to each engine directly instead of using WordPress's shared AI connector: a visibility check is graded on the sources each engine *cited* and compares several engines at once — neither of which the shared connector can provide.
+
 = 1.22.1 =
 * New — **Connected AI tools can write now — each step behind its own switch.** The MCP server card grows a trust ladder. A second switch (off by default) gives connected agents five write tools: draft a new post or page, edit an existing one, set a page's AI description and its Topics for AI, and apply a Readiness fix — where "fix" means exactly what the readiness check itself recommends, and only ever *enabling* a plugin feature; a fix that needs your judgement or a server change refuses honestly and names the manual step instead. A third switch decides publishing: while it's off, an agent can only leave drafts and pending posts for your review. Every write runs as the WordPress user behind the key — an author's key can't do editor things, a new category still needs the category permission, exactly as in wp-admin — and every write is recorded under More → Agent access, attributed to the key that made it. With the writes switch off the tools aren't just refused, they don't exist on any surface — MCP, the abilities endpoint, discovery — so "read-only" stays literally true; and switching the MCP server off switches writes (and publishing) off with it, so the ladder can never disagree with itself.
 * New — **An agent can dress a post completely.** Creating and editing now also carry categories and tags (by name, with wp-admin's exact permission rules: any author can create a tag, only category managers can create a category) and the featured image — an attachment you already have, or an image URL the plugin imports into your media library, alt text included, gated on the user's upload permission and your site's file-type and size rules. Draft it, dress it, leave it for review: no wp-admin visit required.
@@ -307,6 +313,9 @@ There is no minified-only code. The admin interface is built from Vue 3 source i
 The full changelog for every release lives in the plugin repository: https://github.com/heera/agentimus/blob/main/CHANGELOG.md
 
 == Upgrade Notice ==
+
+= 1.22.2 =
+Polish and fixes: clicking a Discovery tile now lands the section in view, the MCP settings card no longer logs a 401 in the browser console, the Discovery layout is tidier, and AI Visibility explains why it uses its own keys. No breaking changes.
 
 = 1.22.1 =
 New opt-in write tier: connected AI tools can draft, edit and fully dress posts — categories, tags, featured image — and, behind a separate third switch, publish. Off by default, permission-checked per key, every write audited. Plus: the MCP card now connects your AI tool for you, and the score card counts what's left to fix.
