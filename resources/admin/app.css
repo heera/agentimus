@@ -78,11 +78,19 @@
   font-size: 14px;
   line-height: 1.5;
   background: transparent;
+  /* iOS WebKit inflates text inside long-prose blocks ("font boosting") unless told
+     not to; the inflated nowrap/mono runs then exceed the phone's viewport and the
+     whole page pans sideways. Pin the size — the layout is already responsive. */
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
 }
 #agentimus-app * { box-sizing: border-box; }
 /* Breathing room when a tile or readiness link scrolls a target to the top. */
 #agentimus-app [id^="ar-"] { scroll-margin-top: 16px; }
-#agentimus-app code { font-family: var(--ar-mono); font-size: 0.86em; }
+/* overflow-wrap only bites when a token can't fit its line at all, so desktop is
+   untouched — but on a phone a long unbroken path (/.well-known/…, agentimus/…) wraps
+   instead of widening its row past the viewport. */
+#agentimus-app code { font-family: var(--ar-mono); font-size: 0.86em; overflow-wrap: anywhere; }
 
 /* A jumped-to target (a readiness "fix" link, a rail rung, a dashboard tile)
    briefly rings so the eye lands on the exact control to change. */
@@ -472,7 +480,13 @@
   gap: 26px;
   align-items: start;
 }
-.ar__main { display: grid; gap: 22px; min-width: 0; }
+/* The column must be minmax(0,1fr), NOT the implied auto: an auto track sizes to its
+   widest item's min-content, so ONE rigid leaf (a pre snippet, a nowrap row, a table)
+   silently widens the track past a phone's viewport and the whole page pans sideways.
+   minmax(0,1fr) pins the track to the container; overflow-x:clip is the backstop for
+   any leaf that still can't shrink — it clips instead of panning the page (clip, unlike
+   hidden, creates no scroll container, so sticky children keep working). */
+.ar__main { display: grid; grid-template-columns: minmax(0, 1fr); gap: 22px; min-width: 0; overflow-x: clip; }
 /* On wide screens the rail owns the endpoints list (the form's copy hides). */
 .ar__body.is-railed .ar-card--endpoints { display: none; }
 
@@ -1396,7 +1410,12 @@ html { scrollbar-gutter: stable; }
 }
 .ar-modal__panel {
   display: flex; flex-direction: column;
-  width: 100%; max-width: 560px; max-height: min(calc(100vh - 40px), 600px); overflow: hidden;
+  /* Height caps at 100% of the overlay's padded box, NOT a vh unit: on iOS, 100vh is
+     the LARGE viewport (it extends under the collapsed URL/tool bars), so a vh-sized
+     panel centered in the overlay clipped equally top and bottom — with the Close
+     button in the hidden part. A percentage resolves against the overlay's real
+     height everywhere; its 20px padding supplies the breathing room. */
+  width: 100%; max-width: 560px; max-height: min(100%, 600px); overflow: hidden;
   background: var(--ar-surface); border: 1px solid var(--ar-line-strong);
   border-radius: 10px;
   box-shadow: 0 24px 60px -20px rgba(27, 25, 19, 0.5);
@@ -1743,7 +1762,7 @@ html { scrollbar-gutter: stable; }
   font-family: var(--ar-mono); font-size: 10px; font-weight: 600; letter-spacing: 0.12em;
   color: #fff; background: var(--ar-accent); padding: 3px 7px; border-radius: 3px;
 }
-.ar-wd-canonical__path { flex: 1; font-family: var(--ar-mono); font-size: 13.5px; color: var(--ar-ink); }
+.ar-wd-canonical__path { flex: 1; min-width: 0; font-family: var(--ar-mono); font-size: 13.5px; color: var(--ar-ink); overflow-wrap: anywhere; }
 .ar-wd-canonical__ext {
   display: inline-flex; align-items: center; justify-content: center;
   width: 26px; height: 26px; margin: -4px -4px -4px 0; border-radius: 4px;
@@ -3323,7 +3342,10 @@ a.ar-about-proto__v:hover { text-decoration: underline; }
 /* The actionable line — the point of showing an unavailable state at all. */
 .ar-aa__action { font-weight: 600; color: var(--ar-ink) !important; }
 
-.ar-aa__table { width: 100%; border-collapse: collapse; margin: 0 0 16px; }
+/* On a phone the four columns exceed the card: scroll the table inside its own box
+   rather than letting it widen (or get clipped by) the page — columns stay reachable. */
+.ar-aa__tablewrap { overflow-x: auto; margin: 0 0 16px; }
+.ar-aa__table { width: 100%; border-collapse: collapse; margin: 0; }
 .ar-aa__table th {
   text-align: left; padding: 8px 10px;
   font-family: var(--ar-mono); font-size: 10px; font-weight: 700;

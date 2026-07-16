@@ -362,7 +362,10 @@ export default {
       </div>
     </div>
 
-    <table v-if="hasEvents" class="ar-aa__table">
+    <!-- The wrapper scrolls the table sideways on narrow screens; the table itself
+         never widens the page. -->
+    <div v-if="hasEvents" class="ar-aa__tablewrap">
+    <table class="ar-aa__table">
       <thead>
         <tr>
           <th scope="col">What happened</th>
@@ -407,6 +410,7 @@ export default {
         </tr>
       </tbody>
     </table>
+    </div>
 
     <!-- Phase 3 EARNED this sentence. It used to have to confess that WordPress only tells us an
          ability ran after it has already ALLOWED it, so a refused probe left no trace — meaning a
