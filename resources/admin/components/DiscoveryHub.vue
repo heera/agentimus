@@ -237,12 +237,10 @@ export default {
           {{ refreshing ? 'Scanning…' : 'Re-scan' }}
         </button>
       </div>
-
-      <ul class="ar-links ar-wd-altlinks">
-        <li><a :href="endpoints.agentCard" target="_blank" rel="noopener">agent-card.json</a></li>
-        <li><a :href="endpoints.agentJson" target="_blank" rel="noopener">agent.json (alias)</a></li>
-        <li><a :href="endpoints.rest" target="_blank" rel="noopener">REST: /agentimus/v1/discovery</a></li>
-      </ul>
+      <!-- No alt-doc link list here: the always-visible rail already lists the discovery
+           docs (a global shortcut), and the "Well-known documents" section below is the
+           full inventory WITH its generated/managed status. Repeating the links here made
+           agent-card.json / discovery.json appear three times on one screen. -->
 
       <!-- Each stat jumps (and flashes) to the section where its number is countable —
            so a total is never a dead end. Errors is a link only when there ARE errors
