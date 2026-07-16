@@ -98,7 +98,14 @@ A saved key shows as dots and is kept safe on your server. Leaving the dots unto
 
 If you're on WordPress 7.0 and have already connected an AI provider under **Settings → AI** — the one that powers [Write with AI](write-with-ai.html) — it's fair to ask why AI Visibility makes you paste a key again. The reason is what a visibility check actually grades.
 
-A check is graded on the **sources each engine cited**: which pages it leaned on, and whether any of them were yours. WordPress's shared connectors hand back the **answer text only** — the list of cited sources is dropped before Agentimus can read it. Getting at those sources means talking to each engine through its own API, which needs that engine's own key. So AI Visibility keeps its keys separate. They stay on your server and are used only to run your checks.
+Two things a visibility check needs, and neither is something WordPress's shared connector can give it:
+
+- **The cited sources.** A check is graded on which pages each engine *cited* in its answer — and whether any of them were yours. WordPress's connector hands back the **answer text only**; the list of cited sources is dropped before Agentimus can read it.
+- **Every engine at once.** The whole point is to compare — are you mentioned in ChatGPT *and* Perplexity *and* Gemini *and* Claude? The shared connector points at the single provider you configured, not all of them.
+
+Both mean talking to each engine directly, through its own API and its own key. So AI Visibility keeps its keys separate; they stay on your server, encrypted, and are used only to run your checks.
+
+This is intrinsic to the feature, not a WordPress-version thing — even on the newest WordPress, AI Visibility would still connect directly, because the connector can't return citations. (A useful side effect: because it's self-contained, AI Visibility also works on WordPress **older than 7.0**, where the shared connector doesn't exist at all.)
 
 ## Step 3 — Live web search (optional but recommended)
 

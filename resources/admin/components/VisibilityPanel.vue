@@ -940,6 +940,17 @@ export default {
               <transition name="agv-fade"><span v-if="savedIn('engines')" class="agv-saved-pill">Saved ✓</span></transition>
             </h2>
             <p class="ar-card__lead">Turn on the AI engines you want and paste each one’s API key (you get these from the engine’s own site). Keys stay on your server and are only used to run your checks. Perplexity always answers using a live web search; the others answer from what they already know, unless you switch on their web search. Changes here save on their own.</p>
+            <!-- Pre-empts the fair "why not use WordPress's AI connector?" question a
+                 user or developer will ask on seeing separate keys here. The reason is
+                 intrinsic to the feature, not a WordPress-version thing. -->
+            <p class="ar-card__note ar-card__note--wide">
+              <strong>Why its own keys, and not your WordPress AI connector?</strong> A visibility check is
+              graded on the <strong>sources each engine cited</strong> in its answer, and it compares
+              <strong>several engines side by side</strong>. WordPress’s shared AI connector hands back the
+              answer text only — the cited sources are dropped — and points at a single provider, so it can’t
+              run this check. Talking to each engine directly is the only way to see who it cited. (This is
+              also why AI Visibility works on WordPress older than 7.0, where that connector doesn’t exist.)
+            </p>
             <div class="agv-engines">
               <div class="agv-engine agv-engine--head">
                 <span>Engine</span><span>API key</span><span>Model</span><span></span><span></span>
