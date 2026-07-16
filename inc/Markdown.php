@@ -151,8 +151,41 @@ final class Markdown {
 			return '';
 		}
 
-		$tag   = strtolower( $node->nodeName );
+		$tag  = strtolower( $node->nodeName );
+		$role = strtolower( trim( (string) $node->getAttribute( 'role' ) ) );
+
+		// Tabbed UIs (core/tabs in WP 7.1, and any ARIA-correct page-builder tabs):
+		// the tab strip duplicates each panel's label as a row of buttons that would
+		// render as one run-on word blob — skip the strip, and re-attach each label
+		// to its own panel below via aria-labelledby.
+		if ( 'tablist' === $role ) {
+			return '';
+		}
+
+		if ( 'table' === $tag ) {
+			$t = self::table_node( $node );
+			return '' === $t ? '' : "\n\n" . $t . "\n\n";
+		}
+
+		// core/playlist (WP 7.1) tracks: the title/artist/length spans inside the
+		// track button would otherwise run together ("Opening TrackArtist One3:21").
+		if ( 'button' === $tag && self::has_class( $node, 'wp-block-playlist-track__button' ) ) {
+			$line = self::playlist_track( $node );
+			if ( '' !== $line ) {
+				return $line;
+			}
+		}
+
 		$inner = self::children( $node );
+
+		if ( 'tabpanel' === $role ) {
+			$t = trim( $inner );
+			if ( '' === $t ) {
+				return '';
+			}
+			$label = self::labelled_by( $node );
+			return "\n\n" . ( '' === $label ? '' : '**' . $label . "**\n\n" ) . $t . "\n\n";
+		}
 
 		switch ( $tag ) {
 			case 'h1':
@@ -192,7 +225,10 @@ final class Markdown {
 				return '`' . trim( $node->textContent ) . '`';
 
 			case 'pre':
-				return "\n\n```\n" . rtrim( $node->textContent ) . "\n```\n\n";
+				// Not textContent: wpautop renders line breaks inside core/preformatted
+				// and core/verse as <br>, which textContent silently drops — flattening
+				// multi-line diagrams and poetry to one line.
+				return "\n\n```\n" . rtrim( self::pre_text( $node ) ) . "\n```\n\n";
 
 			case 'a':
 				$href = trim( (string) $node->getAttribute( 'href' ) );
@@ -226,6 +262,8 @@ final class Markdown {
 			case 'header':
 			case 'footer':
 			case 'main':
+			case 'nav':
+			case 'aside':
 				$t = trim( $inner );
 				return '' === $t ? '' : "\n\n" . $t . "\n\n";
 
@@ -254,6 +292,194 @@ final class Markdown {
 			$lines[] = $marker . ' ' . $content;
 		}
 		return implode( "\n", $lines );
+	}
+
+	/**
+	 * The verbatim text of a <pre> subtree, with <br> elements rendered as
+	 * newlines (textContent drops them, flattening multi-line content).
+	 *
+	 * @param \DOMNode $node Node.
+	 * @return string
+	 */
+	private static function pre_text( $node ) {
+		$out = '';
+		foreach ( $node->childNodes as $child ) {
+			if ( XML_TEXT_NODE === $child->nodeType ) {
+				$out .= $child->nodeValue;
+			} elseif ( XML_ELEMENT_NODE === $child->nodeType ) {
+				$out .= 'br' === strtolower( $child->nodeName ) ? "\n" : self::pre_text( $child );
+			}
+		}
+		return $out;
+	}
+
+	/**
+	 * Render a <table> as a GitHub-flavored markdown pipe table. The first row
+	 * (thead's, or simply the first <tr>) becomes the header row.
+	 *
+	 * @param \DOMNode $node Table node.
+	 * @return string '' when the table has no rows.
+	 */
+	private static function table_node( $node ) {
+		$rows = array();
+		foreach ( $node->childNodes as $child ) {
+			if ( XML_ELEMENT_NODE !== $child->nodeType ) {
+				continue;
+			}
+			$t = strtolower( $child->nodeName );
+			if ( 'tr' === $t ) {
+				$rows[] = $child;
+			} elseif ( in_array( $t, array( 'thead', 'tbody', 'tfoot' ), true ) ) {
+				foreach ( $child->childNodes as $tr ) {
+					if ( XML_ELEMENT_NODE === $tr->nodeType && 'tr' === strtolower( $tr->nodeName ) ) {
+						$rows[] = $tr;
+					}
+				}
+			}
+		}
+
+		$grid = array();
+		foreach ( $rows as $tr ) {
+			$cells = array();
+			foreach ( $tr->childNodes as $cell ) {
+				if ( XML_ELEMENT_NODE !== $cell->nodeType ) {
+					continue;
+				}
+				$ct = strtolower( $cell->nodeName );
+				if ( 'td' !== $ct && 'th' !== $ct ) {
+					continue;
+				}
+				// Cell content is inline in a pipe table: collapse block spacing to a
+				// space and escape literal pipes so they can't break the row.
+				$text    = trim( preg_replace( '/\s+/', ' ', self::children( $cell ) ) );
+				$cells[] = str_replace( '|', '\\|', $text );
+			}
+			if ( ! empty( $cells ) ) {
+				$grid[] = $cells;
+			}
+		}
+		if ( empty( $grid ) ) {
+			return '';
+		}
+
+		$cols = 0;
+		foreach ( $grid as $r ) {
+			$cols = max( $cols, count( $r ) );
+		}
+		$lines = array();
+		foreach ( $grid as $i => $r ) {
+			$lines[] = '| ' . implode( ' | ', array_pad( $r, $cols, '' ) ) . ' |';
+			if ( 0 === $i ) {
+				$lines[] = '|' . str_repeat( ' --- |', $cols );
+			}
+		}
+		return implode( "\n", $lines );
+	}
+
+	/**
+	 * One playlist track as a readable line: **Title** — Artist (3:21).
+	 *
+	 * @param \DOMNode $button Track button node.
+	 * @return string '' when the expected title span is missing (caller falls back).
+	 */
+	private static function playlist_track( $button ) {
+		$title = self::normal_text( self::find_by_class( $button, 'wp-block-playlist-track__title' ) );
+		if ( '' === $title ) {
+			return '';
+		}
+		$artist = self::normal_text( self::find_by_class( $button, 'wp-block-playlist-track__artist' ) );
+		// Own text nodes only: the length span nests a screen-reader "Duration: "
+		// prefix that would read doubly ("(Duration: 3:21)").
+		$length = self::own_text( self::find_by_class( $button, 'wp-block-playlist-track__length' ) );
+
+		$line = '**' . $title . '**';
+		if ( '' !== $artist ) {
+			$line .= ' — ' . $artist;
+		}
+		if ( '' !== $length ) {
+			$line .= ' (' . $length . ')';
+		}
+		return $line;
+	}
+
+	/**
+	 * The text of the element an aria-labelledby points at (first ID), '' if unresolvable.
+	 *
+	 * @param \DOMNode $node Labelled node.
+	 * @return string
+	 */
+	private static function labelled_by( $node ) {
+		$ids = preg_split( '/\s+/', trim( (string) $node->getAttribute( 'aria-labelledby' ) ), -1, PREG_SPLIT_NO_EMPTY );
+		if ( empty( $ids ) || ! $node->ownerDocument ) {
+			return '';
+		}
+		$ref = $node->ownerDocument->getElementById( $ids[0] );
+		return $ref ? self::normal_text( $ref ) : '';
+	}
+
+	/**
+	 * Whether an element carries a class (exact token match).
+	 *
+	 * @param \DOMNode $node  Element.
+	 * @param string   $class Class name.
+	 * @return bool
+	 */
+	private static function has_class( $node, $class ) {
+		$classes = preg_split( '/\s+/', (string) $node->getAttribute( 'class' ), -1, PREG_SPLIT_NO_EMPTY );
+		return in_array( $class, $classes, true );
+	}
+
+	/**
+	 * First descendant element with a class, or null.
+	 *
+	 * @param \DOMNode $node  Subtree root.
+	 * @param string   $class Class name.
+	 * @return \DOMNode|null
+	 */
+	private static function find_by_class( $node, $class ) {
+		foreach ( $node->childNodes as $child ) {
+			if ( XML_ELEMENT_NODE !== $child->nodeType ) {
+				continue;
+			}
+			if ( self::has_class( $child, $class ) ) {
+				return $child;
+			}
+			$hit = self::find_by_class( $child, $class );
+			if ( $hit ) {
+				return $hit;
+			}
+		}
+		return null;
+	}
+
+	/**
+	 * Whitespace-normalized textContent of an element ('' for null).
+	 *
+	 * @param \DOMNode|null $node Element or null.
+	 * @return string
+	 */
+	private static function normal_text( $node ) {
+		return $node ? trim( preg_replace( '/\s+/', ' ', $node->textContent ) ) : '';
+	}
+
+	/**
+	 * Whitespace-normalized text of an element's DIRECT text-node children only
+	 * ('' for null) — skips nested elements like screen-reader spans.
+	 *
+	 * @param \DOMNode|null $node Element or null.
+	 * @return string
+	 */
+	private static function own_text( $node ) {
+		if ( ! $node ) {
+			return '';
+		}
+		$out = '';
+		foreach ( $node->childNodes as $child ) {
+			if ( XML_TEXT_NODE === $child->nodeType ) {
+				$out .= $child->nodeValue;
+			}
+		}
+		return trim( preg_replace( '/\s+/', ' ', $out ) );
 	}
 
 	/**
