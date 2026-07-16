@@ -47,6 +47,20 @@ jobs:
           npm ci
           npm run build
 
+      # Same parity reason as the admin build above: trunk already contains the
+      # production vendor/ tree (committed by the tagged deploy), but vendor/ is
+      # gitignored, so a bare checkout looks like it DELETES vendor/composer and
+      # the 10up action dies reverting it ("Can't create directory .../vendor/composer").
+      # Rebuild the same --no-dev tree so only the genuine readme/asset diff remains.
+      - name: Set up PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '7.4'
+          tools: composer
+
+      - name: Install runtime PHP deps (restore vendor/ parity with trunk)
+        run: composer install --no-dev --prefer-dist --no-progress --optimize-autoloader
+
       - name: Update assets on WordPress.org
         uses: 10up/action-wordpress-plugin-asset-update@stable
         env:
