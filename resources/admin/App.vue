@@ -761,7 +761,16 @@ export default {
         for (let d = el.closest('details'); d; d = d.parentElement && d.parentElement.closest('details')) {
           d.open = true;
         }
-        el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        // Land the target JUST BELOW the sticky header, not at the raw viewport top —
+        // otherwise scrollIntoView({block:'start'}) tucks the section's own heading
+        // under the pinned header (admin bar + the two header strips). Measure the
+        // header's rendered bottom so it's right on desktop AND mobile (where the nav
+        // wraps taller). The header sits at the page top whether stuck or not, so its
+        // bottom is a stable offset.
+        const sticky = document.querySelector('.ar__sticky');
+        const gap = (sticky ? sticky.getBoundingClientRect().bottom : 0) + 12;
+        const y = el.getBoundingClientRect().top + window.pageYOffset - gap;
+        window.scrollTo({ top: Math.max(0, y), behavior: 'smooth' });
         this.flashTarget(el);
       });
     },
