@@ -395,9 +395,9 @@ export default {
     </button>
 
     <div v-if="open" ref="pop" class="ar__review-pop" role="dialog" aria-label="Review queue" @click.stop>
-      <!-- Everything except the footer scrolls in here; the footer is a sibling flex
-           child below, so it's genuinely fixed — not sticky-pinned over the list. -->
-      <div class="ar-rev-scroll">
+      <!-- Fixed header block — mirror of the footer: a flex sibling above the scroll
+           region, so the title, auto-refresh switch and filter tabs never scroll away. -->
+      <div class="ar-rev-top">
       <!-- Header: title + a plain count, with the auto-refresh switch to the right. -->
       <div class="ar-rev-head">
         <div class="ar-rev-head__titles">
@@ -428,7 +428,11 @@ export default {
           Flagged <span class="ar-rev-tab__n">{{ attention.length }}</span>
         </button>
       </div>
+      </div>
 
+      <!-- The list region — the only part that scrolls, between the fixed header and footer.
+           The blocking-off banner scrolls with it: contextual, not chrome. -->
+      <div class="ar-rev-scroll">
       <p v-if="!threats.blockingOn && pending.length" class="ar-rev-banner">
         Blocking is off — flagged clients are still served. Use <strong>Block</strong>, or turn it on in
         <button type="button" class="ar-linkbtn" @click="$emit('navigate', { tab: 'settings' }); close()">Settings</button>.
