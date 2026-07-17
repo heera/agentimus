@@ -223,7 +223,7 @@ export default {
         this.trail = [];
         this.unseen = 0;
         this.$emit('seen');
-        this.$emit('flash', 'Agent access log cleared.');
+        this.$emit('flash', 'Agent Access log cleared.');
       } catch (e) {
         this.$emit('flash', e.message || 'Could not clear the log.');
       }

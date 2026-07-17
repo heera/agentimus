@@ -298,7 +298,7 @@ export default {
         // traffic is the human side (day totals, no clock time). Keeping them apart is
         // what keeps "agents taking" and "AI giving back" legible in the nav.
         ...(this.settings.enable_activity
-          ? [{ id: 'ai-traffic', label: 'AI traffic' }, { id: 'log', label: 'Request log' }]
+          ? [{ id: 'ai-traffic', label: 'AI Traffic' }, { id: 'log', label: 'Request Log' }]
           : []),
         // Agent access is the ACT side of the same story the two screens above tell about
         // READS, so it sits with them. Always listed (never hidden behind its own setting):
@@ -306,11 +306,11 @@ export default {
         // missing nav item is the one thing it could never explain.
         {
           id: 'agent-access',
-          label: 'Agent access',
+          label: 'Agent Access',
           badge: this.agentAccessUnseen,
         },
         // About is reference material, not a working screen — the rule sets it apart.
-        { id: 'about', label: 'About', divided: true },
+        { id: 'about', label: 'About Agentimus', divided: true },
       ];
     },
     // True when the screen you're on lives inside the menu, so "More" can carry the active
@@ -346,15 +346,15 @@ export default {
             description: 'An overview of your agent-readiness — what you expose, and who is reading it.',
           },
           'ai-traffic': {
-            title: 'AI traffic',
+            title: 'AI Traffic',
             description: 'Readers an AI assistant sent you — day by day, by source and landing page.',
           },
           log: {
-            title: 'Request log',
+            title: 'Request Log',
             description: 'Every request an agent made — filter by client and endpoint to see exactly what one bot fetched.',
           },
           'agent-access': {
-            title: 'Agent access',
+            title: 'Agent Access',
             description: 'What agents did on your site — keys created and used, abilities run. A record, not a guard.',
           },
           visibility: {
@@ -374,7 +374,7 @@ export default {
             description: 'The single document agents read to understand this site — every registered plugin aggregated into one place.',
           },
           about: {
-            title: 'About',
+            title: 'About Agentimus',
             description: 'Everything Agentimus does, what each feature publishes, and exactly what it touches — a plain-English, honest account.',
           },
         }[this.tab] || { title: '', description: '' }

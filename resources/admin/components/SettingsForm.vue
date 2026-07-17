@@ -1072,7 +1072,7 @@ export default {
           Records which AI assistants fetch your AI files, and counts the visitors AI sends you
           (“Traffic from AI”). Everything is stored on your own site — no IP addresses by default (one optional
           setting stores IPs for flagged crawlers only), nothing sent anywhere. You read the summary on the
-          Dashboard, and the full reports under More → AI traffic and More → Request log.
+          Dashboard, and the full reports under More → AI Traffic and More → Request Log.
         </p>
 
         <label id="ar-feat-enable_activity" class="ar-toggle">
@@ -1090,7 +1090,7 @@ export default {
             <span class="ar-toggle__track" aria-hidden="true"></span>
             <span class="ar-toggle__text">
               <strong>Find missed AI sources (diagnostic)</strong>
-              <small>“Traffic from AI” only counts assistants it recognises, and a miss leaves no trace. Turn this on and Agentimus also lists the referrers it <em>couldn’t</em> name — so you can see whether an assistant is being overlooked. Records the site name and <code>utm_source</code> tag only: still no IPs, nothing sent anywhere. It writes a row for every visit referred from another site, so switch it on for a week, read the list under More → AI traffic, then switch it off.</small>
+              <small>“Traffic from AI” only counts assistants it recognises, and a miss leaves no trace. Turn this on and Agentimus also lists the referrers it <em>couldn’t</em> name — so you can see whether an assistant is being overlooked. Records the site name and <code>utm_source</code> tag only: still no IPs, nothing sent anywhere. It writes a row for every visit referred from another site, so switch it on for a week, read the list under More → AI Traffic, then switch it off.</small>
             </span>
           </label>
 
@@ -1131,7 +1131,7 @@ export default {
             old enough to expire, and the oldest are removed anyway.
             The Dashboard always reports on the last <strong>{{ Math.min(30, settings.activity_retention_days || 30) }} days</strong>.
             <template v-if="(settings.activity_retention_days || 30) > 30">
-              Keeping {{ settings.activity_retention_days }} days gives the <em>Request log</em> a deeper history to page
+              Keeping {{ settings.activity_retention_days }} days gives the <em>Request Log</em> a deeper history to page
               through — it doesn’t stretch the Dashboard’s cards.
             </template>
             <template v-else-if="settings.activity_auto_prune && (settings.activity_retention_days || 30) < 30">
@@ -1335,7 +1335,7 @@ export default {
             <span class="ar-toggle__track" aria-hidden="true"></span>
             <span class="ar-toggle__text">
               <strong>Let connected agents write</strong>
-              <small>Adds write tools: draft and edit posts and pages — including categories, tags and the featured image — set their AI topics and descriptions, and apply Readiness fixes (a fixed list of safe switches — it can only turn documented features on, never loosen a protection). An agent still acts as the signed-in user and can never do more than that user could in the editor. Every write lands under <a href="#agent-access">Agent access</a>.</small>
+              <small>Adds write tools: draft and edit posts and pages — including categories, tags and the featured image — set their AI topics and descriptions, and apply Readiness fixes (a fixed list of safe switches — it can only turn documented features on, never loosen a protection). An agent still acts as the signed-in user and can never do more than that user could in the editor. Every write lands under <a href="#agent-access">Agent Access</a>.</small>
             </span>
           </label>
           <div v-show="settings.enable_agent_writes" class="ar-webmcp-tools">
@@ -1363,7 +1363,7 @@ export default {
               <template v-else>Checking the server…</template>
             </p>
             <p v-if="mcpLastCallText" class="ar-mcp-status__last">
-              {{ mcpLastCallText }} <a href="#agent-access">Agent access →</a>
+              {{ mcpLastCallText }} <a href="#agent-access">Agent Access →</a>
             </p>
           </div>
           <p v-if="mcpEndpointInsecure" class="ar-field__hint">
@@ -1443,7 +1443,7 @@ export default {
                   </div>
                   <p class="ar-field__hint">
                     Makes a new application password with this name — the name is how you’ll
-                    spot the tool in <strong>Agent access</strong>, and revoke it alone later.
+                    spot the tool in <strong>Agent Access</strong>, and revoke it alone later.
                   </p>
                 </div>
                 <!-- The rare path: a password saved at creation time (WordPress
@@ -1551,7 +1551,7 @@ export default {
             <p v-if="mcpTestChecks.length && !mcpTestRunning" class="ar-field__hint">
               This tests the server and the key from your browser — the same call your AI tool
               makes. What it can’t see is the tool’s own side: the config file and a restart.
-              Every real call lands under <a href="#agent-access">Agent access</a>, attributed to
+              Every real call lands under <a href="#agent-access">Agent Access</a>, attributed to
               the user and key it signed in with.
             </p>
           </div>
@@ -2272,7 +2272,7 @@ export default {
            card's lead promises "every control here is off by default", and this one is ON.
            Folding it in would quietly make that sentence untrue. -->
       <section id="ar-sec-agent-access" class="ar-card">
-        <h2 class="ar-card__title">Agent access</h2>
+        <h2 class="ar-card__title">Agent Access</h2>
         <p class="ar-card__lead">
           The other side of Exposure: not what your site reveals, but who reaches in. An
           application password lets a program act as you through WordPress’s API — and it keeps
@@ -2293,7 +2293,7 @@ export default {
         </label>
 
         <p class="ar-card__note">
-          Read it under <strong>More → Agent access</strong>.
+          Read it under <strong>More → Agent Access</strong>.
         </p>
       </section>
     </div>

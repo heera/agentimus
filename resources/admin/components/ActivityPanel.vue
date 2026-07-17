@@ -684,7 +684,7 @@ export default {
                    what is KEPT — must never read `window`. -->
               <template v-if="retention > windowDays">
                 These cards cover the last {{ windowDays }} days; records are kept for {{ retention }} days, and the
-                full history is readable in the Request log.
+                full history is readable in the Request Log.
               </template>
               <template v-else-if="data.autoPrune === false">
                 Records are kept until the log reaches {{ maxRowsLabel }} rows, then the oldest are removed.
@@ -940,7 +940,7 @@ export default {
              different screens must not read as the same link. -->
         <p class="ar-card__more">
           <button type="button" class="ar-linkbtn" @click="$emit('navigate', { tab: 'log' })">
-            Open the request log
+            Open the Request Log
             <svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 4l4 4-4 4" /></svg>
           </button>
           <span class="ar-card__morenote">every request, filterable by client, endpoint, network and date</span>
