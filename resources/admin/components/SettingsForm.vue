@@ -609,6 +609,14 @@ export default {
       this.clientManagerOpen = true;
     },
     // ---- Verified-bots registry manager ---------------------------------------
+    toggleVerAdd() {
+      this.verAddOpen = !this.verAddOpen;
+      if (this.verAddOpen) {
+        this.$nextTick(() => {
+          if (this.$refs.verAddName) this.$refs.verAddName.focus();
+        });
+      }
+    },
     toggleVerifier(row) {
       if (!row.builtin) return;
       const disabled = (this.settings.verifier_disabled || []).slice();
@@ -633,6 +641,12 @@ export default {
       this.settings.verifier_custom = (this.settings.verifier_custom || []).concat([entry]);
       this.verAdd = { label: '', ua: '', domains: '', url: '' };
       this.verAddOpen = false;
+      // Custom rows list last (mirroring the server's order) — on a long list the new
+      // row would land off-screen, so bring it into view as the visible confirmation.
+      this.$nextTick(() => {
+        const rows = this.$el.querySelectorAll('.ar-verreg__row');
+        if (rows.length) rows[rows.length - 1].scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+      });
     },
     isUrl(value) {
       return /^https?:\/\//i.test(value);
@@ -2200,9 +2214,29 @@ export default {
         <div class="ar-field ar-verreg">
           <div class="ar-field__head">
             <label>Verified bots <span class="ar-field__tag">registry</span></label>
-            <button type="button" class="ar-linkbtn ar-field__manage" @click="verAddOpen = !verAddOpen">
+            <button type="button" class="ar-linkbtn ar-field__manage" @click="toggleVerAdd">
               {{ verAddOpen ? 'Close' : 'Add a bot' }}
             </button>
+          </div>
+
+          <!-- Add form ABOVE the list, right under the button that opens it — on a long
+               list or a phone, a bottom-of-list form would open off-screen (Heera's
+               catch). First field is focused on open, so it's type-ready immediately. -->
+          <div v-if="verAddOpen" class="ar-verreg__add">
+            <div class="ar-verreg__grid">
+              <input ref="verAddName" v-model="verAdd.label" type="text" placeholder="Name — e.g. NewBot" maxlength="40" />
+              <input v-model="verAdd.ua" type="text" placeholder="User-Agent contains — e.g. newbot" maxlength="64" />
+              <input v-model="verAdd.domains" type="text" placeholder="Reverse-DNS domains, comma-separated (optional)" />
+              <input v-model="verAdd.url" type="url" placeholder="Published IP-ranges URL, https (optional)" />
+            </div>
+            <div class="ar-verreg__addrow">
+              <button type="button" class="ar-btn ar-verreg__addbtn" :disabled="!verAddReady" @click="addVerifier">Add bot</button>
+              <small class="ar-field__hint">
+                Use the bot's exact name from its User-Agent (3+ characters — a short generic word would
+                mis-claim other bots), plus at least one source from the operator's own docs: the domain its
+                reverse DNS must land in, and/or its published IP-ranges file. Saved with the settings.
+              </small>
+            </div>
           </div>
 
           <ul class="ar-verreg__list">
@@ -2223,23 +2257,6 @@ export default {
               <button v-if="!row.builtin" type="button" class="ar-linkbtn ar-verreg__remove" @click="removeVerifier(row)">Remove</button>
             </li>
           </ul>
-
-          <div v-if="verAddOpen" class="ar-verreg__add">
-            <div class="ar-verreg__grid">
-              <input v-model="verAdd.label" type="text" placeholder="Name — e.g. NewBot" maxlength="40" />
-              <input v-model="verAdd.ua" type="text" placeholder="User-Agent contains — e.g. newbot" maxlength="64" />
-              <input v-model="verAdd.domains" type="text" placeholder="Reverse-DNS domains, comma-separated (optional)" />
-              <input v-model="verAdd.url" type="url" placeholder="Published IP-ranges URL, https (optional)" />
-            </div>
-            <div class="ar-verreg__addrow">
-              <button type="button" class="ar-btn ar-verreg__addbtn" :disabled="!verAddReady" @click="addVerifier">Add bot</button>
-              <small class="ar-field__hint">
-                Use the bot's exact name from its User-Agent (3+ characters — a short generic word would
-                mis-claim other bots), plus at least one source from the operator's own docs: the domain its
-                reverse DNS must land in, and/or its published IP-ranges file. Saved with the settings.
-              </small>
-            </div>
-          </div>
 
           <small class="ar-field__hint">
             Verification is only ever a check against what an operator <em>publishes</em>. Turning a bot off
