@@ -39,7 +39,7 @@ export default {
     live: { type: Boolean, default: false },
     liveInterval: { type: Number, default: 15 },
   },
-  emits: ['block', 'allow', 'dismiss', 'reverify', 'navigate', 'set-live', 'flash'],
+  emits: ['block', 'allow', 'dismiss', 'reverify', 'navigate', 'set-live', 'flash', 'manage'],
   data() {
     // `tab` is the active filter (all | attention | new). `openRow` holds the identity key
     // of the one row whose Details panel is expanded (keyed, not indexed, so a live refresh
@@ -96,10 +96,6 @@ export default {
     newWindowLabel() {
       const h = Math.max(1, Math.round(this.newSecs / 3600));
       return `${h} hour${1 === h ? '' : 's'}`;
-    },
-    // Whether any visible row is here on novelty — gates the footer note.
-    anyNew() {
-      return this.shown.some((s) => s.flags && s.flags.new);
     },
   },
   mounted() {
@@ -399,6 +395,9 @@ export default {
     </button>
 
     <div v-if="open" ref="pop" class="ar__review-pop" role="dialog" aria-label="Review queue" @click.stop>
+      <!-- Everything except the footer scrolls in here; the footer is a sibling flex
+           child below, so it's genuinely fixed — not sticky-pinned over the list. -->
+      <div class="ar-rev-scroll">
       <!-- Header: title + a plain count, with the auto-refresh switch to the right. -->
       <div class="ar-rev-head">
         <div class="ar-rev-head__titles">
@@ -587,13 +586,19 @@ export default {
       </ul>
       <p v-else-if="count" class="ar-rev-empty">Nothing in this view.</p>
       <p v-else class="ar-rev-empty">Nothing needs a look right now.</p>
+      </div>
 
-      <!-- Why "New" rows disappear without a click — the queue's one silent exit, said
-           out loud so it never reads as a bug or a lost record. -->
-      <p v-if="anyNew" class="ar-rev-note">
-        New clients stay here for {{ newWindowLabel }} after their first visit — they leave on
-        their own unless they turn high-volume or suspicious. Their requests stay in the log.
-      </p>
+      <!-- Fixed footer — outside the scroll region, so it never moves. Always shown:
+           it explains the queue's one silent exit (the "New" window) AND says flagged rows
+           don't share it, plus offers the client manager, where past decisions live. -->
+      <div class="ar-rev-foot">
+        <p class="ar-rev-foot__note">
+          New clients stay here for {{ newWindowLabel }} after their first visit, then leave on
+          their own — their requests stay in the log. Flagged clients don't leave on a timer:
+          they stay until you Allow, Block or Ignore them.
+        </p>
+        <button type="button" class="ar-linkbtn ar-rev-foot__manage" @click="$emit('manage'); close()">Manage clients</button>
+      </div>
     </div>
 
     <!-- Styled UA tooltip — teleported to <body> so the scrolling dropdown never clips it. -->

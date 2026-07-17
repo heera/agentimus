@@ -732,6 +732,11 @@ export default {
         caret: 0, // unused by the --rail variant: its caret is CSS-centred
       };
     },
+    // The review queue's footer link. The dialog teleports to <body>, so it opens
+    // over whatever tab is active — no need to switch to Settings first.
+    openClientManager() {
+      if (this.$refs.settingsForm) this.$refs.settingsForm.openClientManager();
+    },
     goTo(target) {
       // Navigation unmounts whatever the pointer was over — never strand its tooltip.
       this.hideUaTip();
@@ -1454,6 +1459,7 @@ export default {
         @set-live="setLive"
         @navigate="goTo"
         @flash="flash"
+        @manage="openClientManager"
       />
     </header>
 

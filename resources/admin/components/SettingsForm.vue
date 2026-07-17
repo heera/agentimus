@@ -579,6 +579,11 @@ export default {
     },
   },
   methods: {
+    // Called from outside too (App, for the review queue's footer link) — the dialog
+    // teleports to <body>, so it opens over whatever tab is active.
+    openClientManager() {
+      this.clientManagerOpen = true;
+    },
     isUrl(value) {
       return /^https?:\/\//i.test(value);
     },

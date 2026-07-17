@@ -259,11 +259,13 @@
 .ar__review-pop {
   position: absolute; top: calc(100% + 8px); right: 0; z-index: 60;
   width: 400px; max-width: calc(100cqw - 32px);
-  max-height: 72vh; overflow-y: auto;
+  /* Flex column: the list region (.ar-rev-scroll) scrolls, the footer is a fixed
+     sibling below it — never sticky-pinned over content, so nothing shows through. */
+  max-height: 72vh; display: flex; flex-direction: column; overflow: hidden;
   background: var(--ar-surface); border: 1px solid var(--ar-line-strong); border-radius: var(--ar-radius);
   box-shadow: 0 14px 36px -12px rgba(27, 25, 19, 0.45);
-  padding: 16px 18px;
 }
+.ar-rev-scroll { flex: 1 1 auto; min-height: 0; overflow-y: auto; padding: 16px 18px; }
 .ar__review-pop-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
 .ar__review-title { font-family: var(--ar-serif); font-size: 16px; font-weight: 600; color: var(--ar-ink); }
 .ar__review-lead { margin: 6px 0 12px; font-size: 12px; line-height: 1.5; color: var(--ar-ink-soft); }
@@ -2900,12 +2902,24 @@ button.ar-act-more:hover { color: var(--ar-ink); }
 
 .ar-rev-empty { margin: 14px 0 4px; font-size: 13px; color: var(--ar-ink-soft); text-align: center; }
 
-/* Footer note under the list: names the 48h "New" window so a novelty row's silent
-   exit is predicted, not discovered. Quiet by design — guidance, not an alert. */
-.ar-rev-note {
-  margin: 11px 2px 2px; padding: 8px 0 0; border-top: 1px dashed var(--ar-line);
+/* Pinned footer: sticky at the pop's bottom edge, so the "why New rows leave" note and
+   the client-manager link never scroll away with the list. Full-bleed over the pop's
+   16px/18px padding (the negative margins mirror it; the -16px bottom swallows the
+   pop's own padding so rest and stuck positions are both flush — no jump), with an
+   opaque surface so list items slide under it, not through it. */
+.ar-rev-foot {
+  flex: 0 0 auto; padding: 9px 18px 12px;
+  background: var(--ar-surface); border-top: 1px solid var(--ar-line-strong);
+  /* Lift it off the rows scrolling past above — the border alone gets lost against
+     a card edge stopping right at it. */
+  box-shadow: 0 -8px 14px -10px rgba(27, 25, 19, 0.28);
+  display: flex; flex-direction: column; gap: 4px; align-items: flex-end;
+}
+.ar-rev-foot__note {
+  margin: 0; align-self: stretch;
   font-size: 11px; line-height: 1.55; color: var(--ar-ink-faint);
 }
+.ar-rev-foot__manage { font-size: 11.5px; }
 
 /* ---- Loading skeleton (activity first load) ---------------------------- */
 .ar-skel { display: grid; gap: 14px; margin-top: 16px; }
