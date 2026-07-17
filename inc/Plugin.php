@@ -87,6 +87,7 @@ final class Plugin {
 		Cache::register_flush_hooks();
 		CachePurge::boot();
 		MarkdownCache::register();
+		BotRanges::boot(); // Daily refresh of published bot-IP-range files (self-heals its schedule).
 
 		( new Endpoints( $this->settings ) )->register();
 		( new Tombstones() )->register(); // Records removals for the change feed (self-gates on enable_changes).
@@ -327,6 +328,7 @@ final class Plugin {
 		Cache::flush();
 		Activity\Module::unschedule();
 		Visibility\Module::unschedule();
+		BotRanges::clear_schedule();
 		wp_clear_scheduled_hook( 'agentimus_warm_llms_full' );
 		wp_clear_scheduled_hook( Visibility\Module::HOOK_ONCE ); // the one-off "run now" event, if queued.
 		self::flush_rewrites_in_context();

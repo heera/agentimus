@@ -179,8 +179,11 @@ final class BotVerifierTest extends TestCase {
 		$this->assertFalse( BotVerifier::reverify_engine( self::GOOGLEBOT, self::GOOGLE_IP ), 'a re-check ignores the stale cached verdict' );
 	}
 
-	public function test_reverify_of_a_non_verifiable_ua_is_false_and_of_a_missing_ip_is_null() {
-		$this->assertFalse( BotVerifier::reverify_engine( 'mozilla/5.0 chrome/120 safari/537', self::GOOGLE_IP ) );
+	public function test_reverify_of_a_non_verifiable_ua_and_of_a_missing_ip_are_both_null() {
+		// A UA that claims nothing in the (owner-editable) registry is INDETERMINATE, not
+		// "conclusively fake" — an owner removing an engine must make it unverifiable,
+		// never strip the real crawler's protection or mint a spoofed verdict.
+		$this->assertNull( BotVerifier::reverify_engine( 'mozilla/5.0 chrome/120 safari/537', self::GOOGLE_IP ) );
 		$this->assertNull( BotVerifier::reverify_engine( self::GOOGLEBOT, '' ) );
 	}
 

@@ -134,6 +134,8 @@ final class Settings {
 				'identify_bots'    => false, // Opt-in: reverse-DNS EVERY recorded bot hit (not just claimed search engines) and store the owning NETWORK (e.g. amazonaws.com, googlebot.com) — the "who is accessing me" attribution — WITHOUT the IP (the resolved network is org-level, not personal). Verifiable engines additionally get their verified/impostor verdict from the same lookup. OFF by default because it makes outbound DNS (bounded by the same budget/breaker as verify_bots). See BotVerifier::attribute_ip.
 			'blocked_agents'   => array(), // Owner's custom user-agent substrings to deny (case-insensitive). Empty = none.
 			'allowed_agents'   => array(), // Owner's trust-list (via the activity panel's "Allow"): never blocked, never flagged for review. Empty = none.
+				'verifier_disabled' => array(), // Tokens of BUILT-IN verified-bot registry entries the owner switched off. A disabled entry's bot simply becomes unverifiable (verdicts stay 0) — nothing is ever flagged by an absence. See VerifierRegistry.
+				'verifier_custom'   => array(), // Owner-ADDED verified-bot entries: { token, label, ua, domains[], url }. For operators that publish verification data (rDNS suffixes and/or an IP-range file) after this release — the owner shouldn't wait for a plugin update to trust them. Sanitised hard in sanitize(); bounded count.
 			// Exposure controls — reduce what an ANONYMOUS visitor (crawler / bot /
 			// scanner) can read about the site. All opt-in / OFF by default: each one
 			// changes a stock WordPress behaviour, so it ships only when the owner asks,
@@ -806,6 +808,23 @@ final class Settings {
 		$allowed                 = isset( $input['allowed_agents'] ) ? $input['allowed_agents'] : array();
 		$clean['allowed_agents'] = $this->sanitize_list( $allowed, 'sanitize_text_field' );
 
+		// Verified-bots registry edits. Disabled built-ins: known tokens only, so a stray
+		// value can't accumulate. Custom entries: each needs a UA needle of 3+ chars (a
+		// 1-2 char needle would claim-match half the internet) and at least one actual
+		// verification source — rDNS suffixes and/or an https range-file URL. Entries
+		// keep their token across saves (it keys the range cache); new ones get one
+		// derived from the label. Bounded count.
+		$disabled_in                = isset( $input['verifier_disabled'] ) ? (array) $input['verifier_disabled'] : array();
+		$clean['verifier_disabled'] = array_values(
+			array_intersect(
+				array_unique( array_map( 'sanitize_key', $disabled_in ) ),
+				array_keys( VerifierRegistry::builtins() )
+			)
+		);
+		$clean['verifier_custom']   = $this->sanitize_verifier_custom(
+			isset( $input['verifier_custom'] ) ? (array) $input['verifier_custom'] : array()
+		);
+
 		// Owner-added paths/filenames for the exposed-files self-check. Keep only path-safe
 		// characters, AS ENTERED — a leading slash is NOT forced, because a bare filename (no
 		// slash) is meaningful: Exposure::sensitive_paths() expands it to the common locations,
@@ -882,6 +901,78 @@ final class Settings {
 			}
 		}
 		return array_values( $out );
+	}
+
+	/**
+	 * Sanitise owner-added verified-bot registry entries. Each survives only with a UA
+	 * needle of 3+ chars AND at least one verification source: rDNS domain suffixes
+	 * (normalised to leading-dot lowercase hostnames) and/or an https range-file URL.
+	 * A pre-existing custom token (c_*) is kept so the entry's identity — and its
+	 * cached range file — survives a re-save; new entries get one from the label.
+	 *
+	 * @param array $value Raw entries.
+	 * @return array
+	 */
+	private function sanitize_verifier_custom( array $value ) {
+		$out     = array();
+		$seen    = array_keys( VerifierRegistry::builtins() );
+		$needles = array();
+		foreach ( VerifierRegistry::builtins() as $b ) {
+			$needles[] = (string) $b['ua'];
+		}
+		foreach ( $value as $e ) {
+			if ( ! is_array( $e ) ) {
+				continue;
+			}
+			$label = sanitize_text_field( isset( $e['label'] ) ? (string) $e['label'] : '' );
+			$label = substr( $label, 0, 40 );
+			$ua    = strtolower( sanitize_text_field( isset( $e['ua'] ) ? (string) $e['ua'] : '' ) );
+			$ua    = substr( trim( $ua ), 0, 64 );
+
+			$domains = array();
+			foreach ( array_slice( (array) ( isset( $e['domains'] ) ? $e['domains'] : array() ), 0, 10 ) as $d ) {
+				// Accept "googlebot.com", ".googlebot.com" or a pasted URL; store ".host".
+				$d = strtolower( trim( (string) $d ) );
+				$d = preg_replace( '#^https?://#', '', $d );
+				$d = trim( preg_replace( '#[^a-z0-9.\-]#', '', $d ), '.' );
+				if ( '' !== $d && false !== strpos( $d, '.' ) ) {
+					$domains[] = '.' . $d;
+				}
+			}
+
+			$url = isset( $e['url'] ) ? esc_url_raw( trim( (string) $e['url'] ), array( 'https' ) ) : '';
+			if ( 0 !== strpos( $url, 'https://' ) ) {
+				$url = ''; // https only, enforced here too — the fetcher refuses anything else anyway.
+			}
+
+			if ( '' === $label || strlen( $ua ) < 3 || ( empty( $domains ) && '' === $url ) ) {
+				continue;
+			}
+			if ( in_array( $ua, $needles, true ) ) {
+				continue; // One claim, one entry: a needle another entry already owns is rejected.
+			}
+
+			$token = isset( $e['token'] ) && preg_match( '/^c_[a-z0-9_\-]{1,40}$/', (string) $e['token'] )
+				? (string) $e['token']
+				: 'c_' . substr( sanitize_key( str_replace( ' ', '_', $label ) ), 0, 40 );
+			if ( in_array( $token, $seen, true ) ) {
+				continue; // No shadowing a built-in and no duplicate customs.
+			}
+			$seen[]    = $token;
+			$needles[] = $ua;
+
+			$out[] = array(
+				'token'   => $token,
+				'label'   => $label,
+				'ua'      => $ua,
+				'domains' => array_values( array_unique( $domains ) ),
+				'url'     => $url,
+			);
+			if ( count( $out ) >= VerifierRegistry::MAX_CUSTOM ) {
+				break;
+			}
+		}
+		return $out;
 	}
 
 	/**

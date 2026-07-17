@@ -2276,6 +2276,44 @@ button.ar-wd-stat:focus-visible { outline: 2px solid var(--ar-accent); outline-o
 .ar-field__head { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
 .ar-field__head label { margin-bottom: 0; }
 .ar-field__manage { font-size: 12px; flex: 0 0 auto; }
+/* Verified-bots registry manager (Settings → Bots): one compact row per entry —
+   name + UA needle + method chips — built-ins toggle, customs remove. */
+.ar-verreg__list { list-style: none; margin: 10px 0 0; padding: 0; display: grid; gap: 7px; }
+.ar-verreg__row {
+  display: flex; align-items: center; gap: 9px; min-width: 0; flex-wrap: wrap;
+  padding: 7px 10px; border: 1px solid var(--ar-line); border-radius: 8px; background: var(--ar-surface);
+}
+.ar-verreg__row.is-off { opacity: 0.55; }
+.ar-verreg__check { display: flex; align-items: center; gap: 7px; min-width: 0; cursor: pointer; }
+.ar-verreg__check input { margin: 0; }
+.ar-verreg__name { font-size: 13px; font-weight: 600; color: var(--ar-ink); white-space: nowrap; }
+.ar-verreg__custom {
+  font-family: var(--ar-mono); font-size: 9px; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase;
+  padding: 1px 5px; border-radius: 4px; color: var(--ar-accent);
+  background: color-mix(in srgb, var(--ar-accent) 7%, var(--ar-surface));
+  border: 1px solid color-mix(in srgb, var(--ar-accent) 28%, var(--ar-surface));
+}
+.ar-verreg__ua {
+  font-family: var(--ar-mono); font-size: 11.5px; color: var(--ar-ink-soft);
+  padding: 1px 6px; border-radius: 3px; background: var(--ar-surface-2); border: 1px solid var(--ar-line);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 180px;
+}
+.ar-verreg__methods { display: flex; gap: 5px; margin-left: auto; }
+.ar-verreg__chip {
+  font-size: 10.5px; padding: 1px 7px; border-radius: 999px; white-space: nowrap;
+  color: var(--ar-ink-soft); background: var(--ar-surface-2); border: 1px solid var(--ar-line);
+}
+.ar-verreg__remove { font-size: 11.5px; flex: 0 0 auto; }
+.ar-verreg__add { margin-top: 10px; padding: 11px; border: 1px dashed var(--ar-line-strong); border-radius: 9px; }
+.ar-verreg__grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.ar-verreg__grid input { width: 100%; }
+.ar-verreg__addrow { display: flex; align-items: flex-start; gap: 12px; margin-top: 9px; }
+.ar-verreg__addbtn { flex: 0 0 auto; font-size: 12.5px; padding: 6px 14px; }
+@media (max-width: 640px) {
+  .ar-verreg__grid { grid-template-columns: 1fr; }
+  .ar-verreg__methods { margin-left: 0; }
+}
+
 .ar-cm__section { padding-top: 6px; }
 .ar-cm__list { list-style: none; margin: 10px 0 0; padding: 0; display: grid; gap: 9px; }
 .ar-cm__row { display: flex; align-items: baseline; gap: 10px; min-width: 0; font-size: 13px; }

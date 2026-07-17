@@ -21,6 +21,7 @@ export default {
     knownScanners: { type: Array, default: () => [] },
     knownAllowed: { type: Array, default: () => [] },
     defaultAllowed: { type: Array, default: () => [] },
+    verifierBuiltins: { type: Array, default: () => [] }, // Built-in verified-bot registry entries.
     webmcpTools: { type: Array, default: () => [] },
     mcpServer: { type: Object, default: () => ({}) }, // {endpoint, abilitiesAvailable, adapterAvailable} for the MCP-server card.
     debug: { type: Object, default: () => ({}) },
@@ -45,6 +46,9 @@ export default {
       // Identity leads — the highest-signal section, and where a new owner starts.
       group: 'identity',
       clientManagerOpen: false,
+      // The "add a verified bot" mini-form (Verified-bots registry manager).
+      verAdd: { label: '', ua: '', domains: '', url: '' },
+      verAddOpen: false,
       typeQuery: '',
       catQuery: '',
       nsQuery: '',
@@ -124,6 +128,26 @@ export default {
     },
   },
   computed: {
+    // The Verified-bots registry as one list: built-ins (toggleable) then the owner's
+    // custom entries (removable). Mirrors VerifierRegistry::entries() server-side.
+    verifierRows() {
+      const disabled = this.settings.verifier_disabled || [];
+      const builtins = this.verifierBuiltins.map((e) => ({ ...e, disabled: disabled.includes(e.token) }));
+      // _ci = index into settings.verifier_custom: a just-added entry has no token
+      // until the server assigns one on save, so removal keys on position.
+      const customs = (this.settings.verifier_custom || []).map((e, i) => ({ ...e, builtin: false, disabled: false, _ci: i }));
+      return builtins.concat(customs);
+    },
+    // The add-form is submittable only when it would survive the server's sanitiser:
+    // a name, a UA needle of 3+ chars, and at least one verification source (https URL
+    // and/or a domain suffix).
+    verAddReady() {
+      const a = this.verAdd;
+      const hasDomains = a.domains.trim() !== '';
+      const url = a.url.trim();
+      const hasUrl = /^https:\/\/.+/.test(url);
+      return a.label.trim() !== '' && a.ua.trim().length >= 3 && (hasDomains || hasUrl) && (url === '' || hasUrl);
+    },
     retentionOptions() {
       return this.retentionChoices.map((d) => ({
         value: d,
@@ -583,6 +607,32 @@ export default {
     // teleports to <body>, so it opens over whatever tab is active.
     openClientManager() {
       this.clientManagerOpen = true;
+    },
+    // ---- Verified-bots registry manager ---------------------------------------
+    toggleVerifier(row) {
+      if (!row.builtin) return;
+      const disabled = (this.settings.verifier_disabled || []).slice();
+      const i = disabled.indexOf(row.token);
+      if (i === -1) disabled.push(row.token);
+      else disabled.splice(i, 1);
+      this.settings.verifier_disabled = disabled;
+    },
+    removeVerifier(row) {
+      if (row.builtin) return;
+      this.settings.verifier_custom = (this.settings.verifier_custom || []).filter((e, i) => i !== row._ci);
+    },
+    addVerifier() {
+      if (!this.verAddReady) return;
+      const a = this.verAdd;
+      const entry = {
+        label: a.label.trim(),
+        ua: a.ua.trim().toLowerCase(),
+        domains: a.domains.split(',').map((d) => d.trim()).filter(Boolean),
+        url: a.url.trim(),
+      };
+      this.settings.verifier_custom = (this.settings.verifier_custom || []).concat([entry]);
+      this.verAdd = { label: '', ua: '', domains: '', url: '' };
+      this.verAddOpen = false;
     },
     isUrl(value) {
       return /^https?:\/\//i.test(value);
@@ -2110,7 +2160,7 @@ export default {
           <p v-if="!settings.verify_bots" class="ar-card__note ar-warn">
             ⚠ <strong>One costume beats this list.</strong> Blocking matches names, and real search engines are
             always let through — so a blocked bot can dodge every rule here just by calling itself
-            <code>Googlebot</code>. Turn on <strong>Verify search engines by reverse DNS</strong> (below) and a
+            <code>Googlebot</code>. Turn on <strong>Verify bot identities</strong> (below) and a
             proven fake loses that free pass.
           </p>
         </div>
@@ -2121,20 +2171,76 @@ export default {
           <input v-model="settings.verify_bots" type="checkbox" />
           <span class="ar-toggle__track" aria-hidden="true"></span>
           <span class="ar-toggle__text">
-            <strong>Verify search engines by reverse DNS</strong>
+            <strong>Verify bot identities</strong>
             <small>
-              When a visitor <em>says</em> it's Googlebot, Bingbot, Applebot, DuckDuckBot or Yandex, confirm its
-              network address really belongs to that engine — the one check that catches a scanner copying a
-              crawler's name. A confirmed impersonator is flagged for review as an <strong>Impersonator</strong>,
-              and opening its <strong>Details</strong> shows the verdict. Works whether or not blocking is on; if blocking
-              <em>is</em> on, a proven fake also loses its free pass. This is the one feature that makes a small
-              outbound DNS lookup (cached per visitor).
+              When a visitor <em>says</em> it's a bot in the <strong>Verified bots</strong> list below, confirm its
+              network address really belongs to that operator — the one check that catches a scanner copying a
+              crawler's name. Two methods, depending on what the operator publishes: <strong>reverse DNS</strong>
+              (Googlebot, Bingbot…) checked live per visitor, and <strong>published IP ranges</strong> (GPTBot,
+              PerplexityBot…) checked against a list refreshed daily in the background — never while serving a page,
+              so an unreachable publisher costs nothing. A confirmed impersonator is flagged for review as an
+              <strong>Impersonator</strong>, and opening its <strong>Details</strong> shows the verdict. Works whether
+              or not blocking is on; if blocking <em>is</em> on, a proven fake also loses its free pass.
               <strong>Behind a proxy or CDN?</strong> On Cloudflare it works automatically — Agentimus reads the real
               visitor IP. Another proxy may need the true client IP passed through; either way, a slow or failed
               lookup never drops a real crawler.
             </small>
           </span>
         </label>
+
+        <!-- The Verified-bots registry: which bots this site can verify, and how. Owner-
+             editable because verifiability is a property of the OPERATOR (they publish
+             rDNS domains or an IP-range file) — a new operator may publish tomorrow, and
+             the owner shouldn't wait for a plugin release to trust it. -->
+        <div class="ar-field ar-verreg">
+          <div class="ar-field__head">
+            <label>Verified bots <span class="ar-field__tag">registry</span></label>
+            <button type="button" class="ar-linkbtn ar-field__manage" @click="verAddOpen = !verAddOpen">
+              {{ verAddOpen ? 'Close' : 'Add a bot' }}
+            </button>
+          </div>
+
+          <ul class="ar-verreg__list">
+            <li v-for="row in verifierRows" :key="row.builtin ? row.token : 'c' + row._ci" class="ar-verreg__row" :class="{ 'is-off': row.disabled }">
+              <label v-if="row.builtin" class="ar-verreg__check" :title="row.disabled ? 'Off — this bot is not verified' : 'On — this bot is verified when it visits'">
+                <input type="checkbox" :checked="!row.disabled" @change="toggleVerifier(row)" />
+                <span class="ar-verreg__name">{{ row.label }}</span>
+              </label>
+              <span v-else class="ar-verreg__check">
+                <span class="ar-verreg__name">{{ row.label }}</span>
+                <span class="ar-verreg__custom">custom</span>
+              </span>
+              <code class="ar-verreg__ua" :title="'Claimed when the User-Agent contains “' + row.ua + '”'">{{ row.ua }}</code>
+              <span class="ar-verreg__methods">
+                <span v-if="row.domains && row.domains.length" class="ar-verreg__chip" :title="'Reverse DNS must land in: ' + row.domains.join(', ')">reverse DNS</span>
+                <span v-if="row.url" class="ar-verreg__chip" :title="'Published ranges: ' + row.url">IP ranges</span>
+              </span>
+              <button v-if="!row.builtin" type="button" class="ar-linkbtn ar-verreg__remove" @click="removeVerifier(row)">Remove</button>
+            </li>
+          </ul>
+
+          <div v-if="verAddOpen" class="ar-verreg__add">
+            <div class="ar-verreg__grid">
+              <input v-model="verAdd.label" type="text" placeholder="Name — e.g. NewBot" maxlength="40" />
+              <input v-model="verAdd.ua" type="text" placeholder="User-Agent contains — e.g. newbot" maxlength="64" />
+              <input v-model="verAdd.domains" type="text" placeholder="Reverse-DNS domains, comma-separated (optional)" />
+              <input v-model="verAdd.url" type="url" placeholder="Published IP-ranges URL, https (optional)" />
+            </div>
+            <div class="ar-verreg__addrow">
+              <button type="button" class="ar-btn ar-verreg__addbtn" :disabled="!verAddReady" @click="addVerifier">Add bot</button>
+              <small class="ar-field__hint">
+                Use the bot's exact name from its User-Agent (3+ characters — a short generic word would
+                mis-claim other bots), plus at least one source from the operator's own docs: the domain its
+                reverse DNS must land in, and/or its published IP-ranges file. Saved with the settings.
+              </small>
+            </div>
+          </div>
+
+          <small class="ar-field__hint">
+            Verification is only ever a check against what an operator <em>publishes</em>. Turning a bot off
+            here just makes it unverifiable again — nothing gets flagged by its absence.
+          </small>
+        </div>
 
         <label class="ar-toggle ar-toggle--standalone">
           <input v-model="settings.store_flagged_ips" type="checkbox" />
@@ -2147,7 +2253,7 @@ export default {
               legacy-device <strong>scanner</strong> — never ordinary traffic — so the review card can show you the
               exact addresses to block at your host or CDN. <strong>This is personal data:</strong> it's kept for a
               short time, cleared when you clear the log, and deleted if you switch this back off. Nothing is ever sent
-              off your server. <em>(Needs “Verify search engines” on to catch impersonators.)</em>
+              off your server. <em>(Needs “Verify bot identities” on to catch impersonators.)</em>
             </small>
           </span>
         </label>
@@ -2158,7 +2264,7 @@ export default {
           <span class="ar-toggle__text">
             <strong>Identify every bot by reverse DNS</strong>
             <small>
-              Verification only covers the five search engines that publish reverse DNS. Turn this on to
+              Verification only covers the bots in the Verified-bots list. Turn this on to
               reverse-resolve <strong>every</strong> recorded bot and show the <strong>network it belongs to</strong>
               — <code>amazonaws.com</code>, <code>openai.com</code>, <code>googlebot.com</code> — so you can see
               <em>what</em> is really accessing your site, not just its self-declared name. Agentimus stores the

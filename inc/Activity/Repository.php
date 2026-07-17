@@ -12,6 +12,7 @@ namespace Agentimus\Activity;
 use Agentimus\Settings;
 use Agentimus\Guard;
 use Agentimus\BotVerifier;
+use Agentimus\VerifierRegistry;
 
 defined( 'ABSPATH' ) || exit;
 
@@ -804,6 +805,16 @@ final class Repository {
 				continue;
 			}
 
+			// The verifier-registry entry this UA claims (if any): its label and which
+			// checks exist for it, so the panel words verification honestly per method.
+			$claim_token = VerifierRegistry::claimed( strtolower( $ua ) );
+			$claim_entry = '' !== $claim_token ? VerifierRegistry::entry( $claim_token ) : null;
+			$claim       = $claim_entry ? array(
+				'label'  => (string) $claim_entry['label'],
+				'rdns'   => ! empty( $claim_entry['domains'] ),
+				'ranges' => '' !== (string) $claim_entry['url'],
+			) : null;
+
 			$known   = Catalog::identify( $ua );
 			$out[] = array(
 				'ua'        => substr( $ua, 0, 255 ),
@@ -830,11 +841,14 @@ final class Repository {
 				// caught impersonating the engine it claims, 'verified' = forward-confirmed,
 				// '' = unchecked (verification off, or not an engine we can check).
 				'verdict'   => 2 === $verdict ? 'spoofed' : ( 1 === $verdict ? 'verified' : '' ),
-				// Whether this client CLAIMS one of the reverse-DNS-verifiable engines
-				// (Googlebot/Bingbot/DuckDuckBot/Applebot/Yandex). Disambiguates an empty
-				// verdict: false here means "not an engine Verify can check" (e.g.
+				// Whether this client CLAIMS an entry in the (owner-editable) verifier
+				// registry — rDNS engine or published-range operator. Disambiguates an
+				// empty verdict: false here means "not a bot Verify can check" (e.g.
 				// Bytespider) — so the UI won't offer the dead-end "turn on Verify" nudge.
-				'verifiable' => '' !== BotVerifier::claimed_engine( strtolower( $ua ) ),
+				'verifiable' => '' !== $claim_token,
+				// The claimed registry entry, for method-aware panel copy: which bot it
+				// claims and which checks exist for it. Null when it claims none.
+				'claim'      => $claim,
 				// When the owner last ran an admin "Re-check" for this client (ISO-8601), so
 				// the panel can show "re-checked 2m ago". '' when never re-checked.
 				'reverifiedAt' => $reverified_at,
@@ -968,13 +982,15 @@ final class Repository {
 		if ( '' === $keep['network'] && '' !== $add['network'] ) {
 			$keep['network'] = $add['network'];
 		}
-		// The latest-seen variant becomes the row's face (UA + identity card).
+		// The latest-seen variant becomes the row's face (UA + identity card + claim —
+		// the claim is derived from the UA, so it travels with it).
 		if ( $add['lastSeen'] > $keep['lastSeen'] ) {
 			$keep['lastSeen'] = $add['lastSeen'];
 			$keep['ua']       = $add['ua'];
 			$keep['agent']    = $add['agent'];
 			$keep['known']    = $add['known'];
 			$keep['guide']    = $add['guide'];
+			$keep['claim']    = $add['claim'];
 		}
 		++$keep['variants'];
 		if ( count( $keep['variantUas'] ) < 6 ) {

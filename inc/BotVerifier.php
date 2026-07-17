@@ -64,19 +64,15 @@ final class BotVerifier {
 
 	/**
 	 * Verifiable engines: the token as it appears in the UA => the reverse-DNS domain
-	 * suffixes an IP claiming it must resolve into. Filterable, so a site can add its
-	 * CDN's own verified crawler or tighten the set.
+	 * suffixes an IP claiming it must resolve into. Sourced from the owner-editable
+	 * {@see VerifierRegistry} (its rDNS half), so disabling a built-in or adding a
+	 * custom entry changes every consumer of this map at once. Filterable, so a site
+	 * can still add its CDN's own verified crawler or tighten the set in code.
 	 *
 	 * @return array<string,string[]>
 	 */
 	public static function engine_domains() {
-		$map = array(
-			'googlebot'   => array( '.googlebot.com', '.google.com' ),
-			'bingbot'     => array( '.search.msn.com' ),
-			'duckduckbot' => array( '.duckduckgo.com' ),
-			'applebot'    => array( '.applebot.apple.com', '.apple.com' ),
-			'yandex'      => array( '.yandex.com', '.yandex.net', '.yandex.ru' ),
-		);
+		$map = VerifierRegistry::rdns_map();
 
 		/**
 		 * Filter the verifiable-engine map (UA token => rDNS domain suffixes).
@@ -94,12 +90,14 @@ final class BotVerifier {
 	 * @return string Engine token, or ''.
 	 */
 	public static function claimed_engine( $ua_lc ) {
-		foreach ( self::engine_domains() as $token => $domains ) {
-			if ( false !== strpos( (string) $ua_lc, (string) $token ) ) {
-				return (string) $token;
-			}
+		// Resolve through the registry's UA needles, not the map's tokens: for built-ins
+		// they're identical, but a custom entry's token (c_*) never appears in a UA.
+		$token = VerifierRegistry::claimed( (string) $ua_lc );
+		if ( '' === $token ) {
+			return '';
 		}
-		return '';
+		$all = self::engine_domains();
+		return isset( $all[ $token ] ) ? $token : ''; // rDNS-verifiable entries only.
 	}
 
 	/**
@@ -113,7 +111,11 @@ final class BotVerifier {
 	public static function verify_engine( $ua_lc, $ip ) {
 		$engine = self::claimed_engine( $ua_lc );
 		if ( '' === $engine ) {
-			return false; // Not a claim we verify (the Guard gates on is_real_engine).
+			// Not a claim this map can verify → INDETERMINATE, never "conclusively fake".
+			// The map is owner-editable now: removing Googlebot from the registry must
+			// make it unverifiable, not strip the real crawler's always-allow (the Guard
+			// only acts on a conclusive false).
+			return null;
 		}
 		if ( '' === (string) $ip ) {
 			return null; // No IP to check → cannot determine → keep the crawler protected.
@@ -205,7 +207,7 @@ final class BotVerifier {
 	public static function reverify_engine( $ua_lc, $ip ) {
 		$engine = self::claimed_engine( $ua_lc );
 		if ( '' === $engine ) {
-			return false;
+			return null; // No rDNS claim in the (editable) registry — indeterminate, as above.
 		}
 		if ( '' === (string) $ip ) {
 			return null;

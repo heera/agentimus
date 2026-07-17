@@ -613,6 +613,9 @@ final class Admin {
 			'knownScanners' => Settings::known_scanners(),
 			'knownAllowed'  => Settings::known_allowed(),
 			'defaultAllowed' => Guard::default_allowed(),
+			// Built-in verified-bot registry entries, for the Settings manager. The
+			// owner's edits (disabled built-ins + custom entries) live in settings.
+			'verifierBuiltins' => array_values( VerifierRegistry::builtins() ),
 			'endpoints'   => array(
 				'llms'     => home_url( '/llms.txt' ),
 				'llmsFull' => home_url( '/llms-full.txt' ),

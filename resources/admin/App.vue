@@ -97,6 +97,7 @@ export default {
       knownScanners: this.boot.knownScanners || [],
       knownAllowed: this.boot.knownAllowed || [],
       defaultAllowed: this.boot.defaultAllowed || [],
+      verifierBuiltins: this.boot.verifierBuiltins || [],
       webmcpTools: this.boot.webmcpTools || [],
       mcpServer: this.boot.mcpServer || {},
       debug: this.boot.debug || {},
@@ -1514,6 +1515,7 @@ export default {
           :known-trainers="knownTrainers"
           :known-scanners="knownScanners"
           :known-allowed="knownAllowed"
+          :verifier-builtins="verifierBuiltins"
           :default-allowed="defaultAllowed"
           :webmcp-tools="webmcpTools"
           :mcp-server="mcpServer"

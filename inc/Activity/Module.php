@@ -12,6 +12,8 @@ namespace Agentimus\Activity;
 use Agentimus\Settings;
 use Agentimus\Guard;
 use Agentimus\BotVerifier;
+use Agentimus\BotRanges;
+use Agentimus\VerifierRegistry;
 
 defined( 'ABSPATH' ) || exit;
 
@@ -689,10 +691,11 @@ final class Module {
 
 		$ua    = (string) $request->get_param( 'ua' );
 		$ua_lc = strtolower( $ua );
-		if ( '' === BotVerifier::claimed_engine( $ua_lc ) ) {
+		$token = VerifierRegistry::claimed( $ua_lc );
+		if ( '' === $token ) {
 			return new \WP_Error(
 				'agentimus_not_verifiable',
-				__( 'This client doesn’t claim a search engine we can reverse-DNS verify, so there’s nothing to re-check.', 'agentimus' ),
+				__( 'This client doesn’t claim a bot in the verified-bots list, so there’s nothing to re-check.', 'agentimus' ),
 				array( 'status' => 422 )
 			);
 		}
@@ -715,13 +718,17 @@ final class Module {
 			);
 		}
 
-		// Fresh FCrDNS for each address; fold to the WORST (spoofed > verified > undetermined),
-		// mirroring how the ingest verdict is aggregated across a client's hits.
+		// Fresh FCrDNS for each address, with the published-IP-range check as fallback when
+		// rDNS is inapplicable (a range-only operator like GPTBot) or inconclusive. Fold to
+		// the WORST (spoofed > verified > undetermined), mirroring the ingest aggregation.
 		$verdict = 0;
 		$per_ip  = array();
 		foreach ( $ips as $ip ) {
 			$r = BotVerifier::reverify_engine( $ua_lc, $ip ); // true | false | null
 			$v = ( true === $r ) ? 1 : ( ( false === $r ) ? 2 : 0 );
+			if ( 0 === $v ) {
+				$v = BotRanges::recheck( $token, $ip ); // 0 | 1 | 2 — 0 when no range file.
+			}
 			if ( $v > $verdict ) {
 				$verdict = $v;
 			}

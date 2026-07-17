@@ -14,19 +14,26 @@
 
 /**
  * @param {Object}   opts
- * @param {string}   opts.name       Engine the client claims to be, e.g. "Yandex".
+ * @param {string}   opts.name       Bot the client claims to be, e.g. "Yandex" or "GPTBot (OpenAI)".
  * @param {number}  [opts.ipCount]   How many IPs are stored for this client (0 = none).
  * @param {boolean} [opts.storeIps]  Whether "Store IP addresses for flagged clients" is ON.
+ * @param {string}  [opts.method]    Which check condemned it: 'rdns' | 'ranges' | 'both'.
  * @returns {string}
  */
-export function impostorDetail({ name, ipCount = 0, storeIps = false }) {
+export function impostorDetail({ name, ipCount = 0, storeIps = false, method = 'rdns' }) {
   const findIt = 'find it in your server’s access log or CDN/firewall dashboard by searching for the User-Agent above, then block it there';
+  // How it was caught, in the operator's own terms: a failed reverse-DNS check, an
+  // address outside the operator's published IP ranges, or (both methods registered)
+  // the generic phrasing — the stored verdict doesn't say which check fired.
+  const failed = 'ranges' === method
+    ? `arrived from outside ${name}’s published IP ranges`
+    : ('rdns' === method ? 'failed reverse-DNS verification when it visited' : 'failed identity verification when it visited');
 
   if (ipCount > 0) {
-    return `It claims to be ${name}, but its address failed reverse-DNS verification when it visited — a forgery, not the real ${name}. Blocking the name would also block the genuine ${name}, so block the IP address${1 === ipCount ? '' : 'es'} above at your host or CDN/firewall.`;
+    return `It claims to be ${name}, but its address ${failed} — a forgery, not the real ${name}. Blocking the name would also block the genuine ${name}, so block the IP address${1 === ipCount ? '' : 'es'} above at your host or CDN/firewall.`;
   }
 
-  const lead = `It claims to be ${name}, but its network address failed reverse-DNS verification when it visited — a forgery, not the real ${name}. Blocking the name would also block the genuine ${name}, so block the impostor’s IP instead.`;
+  const lead = `It claims to be ${name}, but its network address ${failed} — a forgery, not the real ${name}. Blocking the name would also block the genuine ${name}, so block the impostor’s IP instead.`;
 
   if (storeIps) {
     // Setting is ON yet no IP is stored → this visit happened before storage was enabled.

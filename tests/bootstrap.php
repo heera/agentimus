@@ -176,6 +176,9 @@ namespace {
 	if ( ! function_exists( 'get_transient' ) )         { function get_transient( $k ) { return ! empty( $GLOBALS['_af_transients_on'] ) && array_key_exists( $k, $GLOBALS['_af_transients'] ) ? $GLOBALS['_af_transients'][ $k ] : false; } }
 	if ( ! function_exists( 'set_transient' ) )         { function set_transient( $k, $v, $t = 0 ) { if ( ! empty( $GLOBALS['_af_transients_on'] ) ) { $GLOBALS['_af_transients'][ $k ] = $v; } return true; } }
 	if ( ! function_exists( 'delete_transient' ) )      { function delete_transient( $k ) { unset( $GLOBALS['_af_transients'][ $k ] ); return true; } }
+	// Cron stubs (BotRanges' catch-up scheduling): nothing is ever scheduled in tests.
+	if ( ! function_exists( 'wp_next_scheduled' ) )     { function wp_next_scheduled( $h ) { return false; } }
+	if ( ! function_exists( 'wp_schedule_single_event' ) ) { function wp_schedule_single_event( $t, $h ) { return true; } }
 	// Site-wide term query (used by Topics::suggestions() / LlmsText::topics()); empty
 	// unless a test seeds $GLOBALS['_af_get_terms'].
 	if ( ! function_exists( 'get_terms' ) )             { function get_terms( $args = array() ) { return isset( $GLOBALS['_af_get_terms'] ) ? $GLOBALS['_af_get_terms'] : array(); } }

@@ -155,9 +155,9 @@ export default {
       const r = this.reverifyResult;
       if (!r || r.ua !== s.ua || this.isReverifying(s)) return null;
       if ('checked' === r.status) {
-        if (2 === r.verdict) return { tone: 'danger', text: 'Confirmed impostor — failed reverse-DNS.' };
-        if (1 === r.verdict) return { tone: 'ok', text: 'Verified — forward-confirmed as genuine.' };
-        return { tone: 'muted', text: 'Couldn’t determine — the resolver gave no usable answer.' };
+        if (2 === r.verdict) return { tone: 'danger', text: 'Confirmed impostor — failed the identity check.' };
+        if (1 === r.verdict) return { tone: 'ok', text: 'Verified — confirmed as genuine.' };
+        return { tone: 'muted', text: 'Couldn’t determine — the check gave no usable answer.' };
       }
       if ('no-ip' === r.status) return { tone: 'muted', text: 'No address on record to check.' };
       return null;
@@ -175,13 +175,18 @@ export default {
     },
     // ---- The compact row view-model — one calm, honest summary per client ------
     card(s) {
-      // Caught impersonating a verifiable search engine (the one hard signal).
+      // Caught impersonating a verifiable bot (the one hard signal).
       if ('spoofed' === s.verdict) {
+        const label = this.claimLabel(s);
+        const m = this.claimMethod(s);
+        const failed = 'ranges' === m
+          ? `its address isn’t in ${label}’s published IP ranges`
+          : ('rdns' === m ? 'it failed reverse-DNS verification when it visited' : 'its address failed verification when it visited');
         return {
           tone: 'danger',
           icon: 'x',
           state: 'Failed verification',
-          why: `Claims to be ${this.engineName(s)}, but failed reverse-DNS verification when it visited.`,
+          why: `Claims to be ${label}, but ${failed}.`,
           recommend: (s.ips && s.ips.length)
             ? `Can’t be blocked by name — block its ${s.ips.length} IP${1 === s.ips.length ? '' : 's'} (shown in Details) at your host or CDN.`
             : `Can’t be blocked by name — block its IP at your host or CDN (Details shows how to find it).`,
@@ -216,9 +221,28 @@ export default {
       return (s.known && s.known.operator) || '';
     },
     // ---- Details panel (collapsed by default — no UA/verdict noise in the row) --
+    // Which verification method applies to this row's claim: 'rdns', 'ranges', 'both',
+    // or '' when it claims nothing verifiable. From the server's registry data — the
+    // stored verdict doesn't record which check fired, so 'both' words generically.
+    claimMethod(s) {
+      const c = s.claim || null;
+      if (!c) return '';
+      if (c.rdns && c.ranges) return 'both';
+      return c.ranges ? 'ranges' : 'rdns';
+    },
+    claimLabel(s) {
+      return (s.claim && s.claim.label) || this.engineName(s);
+    },
     verifyLine(s) {
-      if ('spoofed' === s.verdict) return { text: 'Failed — reverse-DNS mismatch', tone: 'danger' };
-      if ('verified' === s.verdict) return { text: 'Passed — forward-confirmed', tone: 'ok' };
+      const m = this.claimMethod(s);
+      if ('spoofed' === s.verdict) {
+        const how = 'ranges' === m ? 'outside the published IP ranges' : ('rdns' === m ? 'reverse-DNS mismatch' : 'identity check failed');
+        return { text: `Failed — ${how}`, tone: 'danger' };
+      }
+      if ('verified' === s.verdict) {
+        const how = 'ranges' === m ? 'inside the published IP ranges' : ('rdns' === m ? 'forward-confirmed' : 'identity confirmed');
+        return { text: `Passed — ${how}`, tone: 'ok' };
+      }
       return { text: 'Not checked', tone: 'muted' };
     },
     // How to read the attributed network — kept terse so the line never wraps. The red
@@ -232,9 +256,10 @@ export default {
     detailSentence(s) {
       if ('spoofed' === s.verdict) {
         return impostorDetail({
-          name: this.engineName(s),
+          name: this.claimLabel(s),
           ipCount: (s.ips && s.ips.length) || 0,
           storeIps: this.storeIps,
+          method: this.claimMethod(s) || 'rdns',
         });
       }
       if (s.known) {
@@ -535,7 +560,7 @@ export default {
                 <span v-if="s.reverifiedAt" class="ar-rev-recheck__ago">Re-checked {{ ago(s.reverifiedAt) }}</span>
               </div>
               <p v-if="reverifyResultFor(s)" class="ar-rev-recheck__result" :class="'is-' + reverifyResultFor(s).tone">{{ reverifyResultFor(s).text }}</p>
-              <p v-else class="ar-rev-recheck__hint">Re-runs reverse-DNS live on the captured address{{ 1 === s.ips.length ? '' : 'es' }} — no “Verify search engines” needed.</p>
+              <p v-else class="ar-rev-recheck__hint">Re-runs the identity check live on the captured address{{ 1 === s.ips.length ? '' : 'es' }} — no “Verify bot identities” needed.</p>
             </div>
 
             <div class="ar-rev-kv">
@@ -582,7 +607,7 @@ export default {
 
             <p v-if="showVerifyNote(s)" class="ar-rev-details__note">
               This client wasn’t auto-verified when it visited, and no address was captured to
-              re-check. Turn on <button type="button" class="ar-linkbtn" @click="$emit('navigate', { tab: 'settings' }); close()">Verify search engines</button>
+              re-check. Turn on <button type="button" class="ar-linkbtn" @click="$emit('navigate', { tab: 'settings' }); close()">Verify bot identities</button>
               to confirm crawlers automatically, as they arrive.
             </p>
           </div>

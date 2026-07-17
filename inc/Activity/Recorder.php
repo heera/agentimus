@@ -16,6 +16,8 @@ namespace Agentimus\Activity;
 use Agentimus\Settings;
 use Agentimus\Guard;
 use Agentimus\BotVerifier;
+use Agentimus\BotRanges;
+use Agentimus\VerifierRegistry;
 
 defined( 'ABSPATH' ) || exit;
 
@@ -111,7 +113,7 @@ final class Recorder {
 			// an engine from an IP that isn't that engine is still caught as an impostor. Runs even
 			// when verify_bots is off: turning identify on implies confirming a claimed engine too.
 			$network = (string) BotVerifier::attribute_ip( $ip )['network'];
-			$verdict = self::engine_verdict( $ua, $ip );
+			$verdict = self::client_verdict( $ua, $ip );
 		} else {
 			$verdict = self::verdict( $ua );
 		}
@@ -196,7 +198,31 @@ final class Recorder {
 		if ( ! Guard::verification_on() ) {
 			return 0;
 		}
-		return self::engine_verdict( $ua, Guard::client_ip() );
+		return self::client_verdict( $ua, Guard::client_ip() );
+	}
+
+	/**
+	 * The full claim-based verdict: reverse-DNS first (the per-request check), then the
+	 * published-IP-range fallback for a claim the registry can range-verify — either a
+	 * range-only operator (GPTBot…) or an rDNS engine whose lookup was inconclusive
+	 * (resolver down, budget spent). The range side reads a cron-fetched cache and
+	 * NEVER fetches on this path ({@see BotRanges::verdict}), so it adds no latency
+	 * and no new failure mode; with the publisher unreachable it just answers 0.
+	 *
+	 * @param string $ua Raw User-Agent.
+	 * @param string $ip Source IP.
+	 * @return int 0 = unchecked/inconclusive, 1 = verified, 2 = spoofed.
+	 */
+	public static function client_verdict( $ua, $ip ) {
+		$verdict = self::engine_verdict( $ua, $ip );
+		if ( 0 !== $verdict ) {
+			return $verdict;
+		}
+		$token = VerifierRegistry::claimed( strtolower( (string) $ua ) );
+		if ( '' === $token ) {
+			return 0;
+		}
+		return BotRanges::verdict( $token, (string) $ip );
 	}
 
 	/**
