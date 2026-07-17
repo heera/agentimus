@@ -2111,7 +2111,11 @@ export default {
             <span class="ar-toggle__track" aria-hidden="true"></span>
             <span class="ar-toggle__text">
               <strong>Auto-deny spoofed / legacy-device agents</strong>
-              <small>Turn away bots that disguise themselves as ancient phones (old Nokia/BlackBerry handsets) — a classic scanner trick. These show up as “Likely spoof/scanner” in your activity log.</small>
+              <small>Turn away bots caught lying about who they are. Two kinds: bots disguised as ancient phones
+              (old Nokia/BlackBerry handsets — a classic scanner trick, shown as “Likely spoof/scanner” in your
+              activity log), and — with <strong>Verify bot identities</strong> on — <strong>proven impostors</strong>:
+              clients claiming a verified bot (Googlebot, GPTBot…) whose address conclusively fails that operator's
+              own published check. Fail-open: an unclear result never denies anyone.</small>
             </span>
           </label>
 
@@ -2180,7 +2184,8 @@ export default {
               PerplexityBot…) checked against a list refreshed daily in the background — never while serving a page,
               so an unreachable publisher costs nothing. A confirmed impersonator is flagged for review as an
               <strong>Impersonator</strong>, and opening its <strong>Details</strong> shows the verdict. Works whether
-              or not blocking is on; if blocking <em>is</em> on, a proven fake also loses its free pass.
+              or not blocking is on; if blocking <em>is</em> on (with the spoofed-agents block), a proven fake is
+              refused at the AI endpoints outright.
               <strong>Behind a proxy or CDN?</strong> On Cloudflare it works automatically — Agentimus reads the real
               visitor IP. Another proxy may need the true client IP passed through; either way, a slow or failed
               lookup never drops a real crawler.

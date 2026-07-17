@@ -672,8 +672,9 @@ final class Repository {
 			$recent,
 			$now,
 			array(
-				'blockingOn' => (bool) $settings->enabled( 'block_agents' ),
-				'newSecs'    => (int) apply_filters( 'agentimus_new_agent_seconds', self::NEW_AGENT_HOURS * HOUR_IN_SECONDS ),
+				'blockingOn'   => (bool) $settings->enabled( 'block_agents' ),
+				'blockSpoofed' => (bool) $settings->enabled( 'block_spoofed' ),
+				'newSecs'      => (int) apply_filters( 'agentimus_new_agent_seconds', self::NEW_AGENT_HOURS * HOUR_IN_SECONDS ),
 				'burstMin'   => (int) apply_filters( 'agentimus_burst_min_hits', self::BURST_MIN_HITS ),
 				'heavyMin'   => (int) apply_filters( 'agentimus_heavy_min_hits', self::HEAVY_MIN_HITS ),
 				'limit'      => (int) apply_filters( 'agentimus_threats_limit', self::THREATS_LIMIT ),
@@ -909,6 +910,10 @@ final class Repository {
 			'sources'    => array_slice( $out, 0, max( 1, $limit ) ),
 			'counts'     => $counts,
 			'blockingOn' => ! empty( $opts['blockingOn'] ),
+			// Whether the spoofed/impostor class-block is armed — with blockingOn, it
+			// means a PROVEN impostor is refused at the AI endpoints automatically, and
+			// the panel's advice can say so instead of implying the owner must act.
+			'blockSpoofed' => ! empty( $opts['blockSpoofed'] ),
 			// How long the "new" flag lasts. The queue is rebuilt from the log on every
 			// read, so a novelty-only row leaves ON ITS OWN when this window lapses —
 			// the UI needs the number to say so up front ("leaves in 31h") instead of

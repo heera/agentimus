@@ -277,6 +277,100 @@ final class GuardTest extends TestCase {
 		$this->assertTrue( Guard::denies( self::NOKIA ) );
 	}
 
+	/* -- Range-verdict enforcement (proven impostors) --------------------- */
+
+	const GPTBOT = 'Mozilla/5.0 AppleWebKit/537.36 (compatible; GPTBot/1.0; +https://openai.com/gptbot)';
+
+	/** Seed the range cache the way the daily cron would. */
+	private function seedRanges( string $token, array $prefixes, int $age = 0 ): void {
+		$entry = \Agentimus\VerifierRegistry::entry( $token );
+		update_option(
+			\Agentimus\BotRanges::OPTION,
+			array(
+				$token => array(
+					'url'        => $entry ? $entry['url'] : '',
+					'fetched_at' => time() - $age,
+					'prefixes'   => $prefixes,
+				),
+			)
+		);
+	}
+
+	public function test_a_proven_fake_gptbot_is_denied_when_blocking_and_verification_are_on() {
+		add_filter( 'agentimus_client_ip', static function () { return '203.0.113.9'; } );
+		$this->seedRanges( 'gptbot', array( '192.0.2.0/24' ) ); // Fresh, and 203.0.113.9 is outside.
+		$this->configure( array( 'block_agents' => true, 'verify_bots' => true ) ); // block_spoofed defaults true.
+
+		$this->assertTrue( Guard::denies( self::GPTBOT ), 'Outside the operator’s fresh published ranges = a proven impostor.' );
+	}
+
+	public function test_a_gptbot_inside_the_published_ranges_is_served() {
+		add_filter( 'agentimus_client_ip', static function () { return '192.0.2.9'; } );
+		$this->seedRanges( 'gptbot', array( '192.0.2.0/24' ) );
+		$this->configure( array( 'block_agents' => true, 'verify_bots' => true ) );
+
+		$this->assertFalse( Guard::denies( self::GPTBOT ) );
+	}
+
+	public function test_a_stale_range_file_fails_open_and_never_denies() {
+		add_filter( 'agentimus_client_ip', static function () { return '203.0.113.9'; } );
+		$this->seedRanges( 'gptbot', array( '192.0.2.0/24' ), \Agentimus\BotRanges::FRESH_TTL + HOUR_IN_SECONDS );
+		$this->configure( array( 'block_agents' => true, 'verify_bots' => true ) );
+
+		$this->assertFalse( Guard::denies( self::GPTBOT ), 'A stale list may predate new addresses — publisher down must never block a real bot.' );
+	}
+
+	public function test_an_unfetched_range_file_fails_open_too() {
+		add_filter( 'agentimus_client_ip', static function () { return '203.0.113.9'; } );
+		$this->configure( array( 'block_agents' => true, 'verify_bots' => true ) ); // No cache seeded at all.
+
+		$this->assertFalse( Guard::denies( self::GPTBOT ) );
+	}
+
+	public function test_impostor_enforcement_needs_both_switches() {
+		add_filter( 'agentimus_client_ip', static function () { return '203.0.113.9'; } );
+		$this->seedRanges( 'gptbot', array( '192.0.2.0/24' ) );
+
+		$this->configure( array( 'block_agents' => true, 'verify_bots' => true, 'block_spoofed' => false ) );
+		$this->assertFalse( Guard::denies( self::GPTBOT ), 'The impostor class rides the block_spoofed switch.' );
+
+		$this->configure( array( 'block_agents' => true, 'verify_bots' => false ) );
+		$this->assertFalse( Guard::denies( self::GPTBOT ), 'No verification, no verdict, no denial.' );
+
+		$this->configure( array( 'block_agents' => false, 'verify_bots' => true ) );
+		$this->assertFalse( Guard::denies( self::GPTBOT ), 'Blocking off serves everyone, impostors included.' );
+	}
+
+	public function test_owner_allow_outranks_a_proven_forgery() {
+		add_filter( 'agentimus_client_ip', static function () { return '203.0.113.9'; } );
+		$this->seedRanges( 'gptbot', array( '192.0.2.0/24' ) );
+		$this->configure( array( 'block_agents' => true, 'verify_bots' => true, 'allowed_agents' => array( 'gptbot' ) ) );
+
+		$this->assertFalse( Guard::denies( self::GPTBOT ), 'The owner’s explicit allow is a deliberate choice — it protects unconditionally.' );
+	}
+
+	public function test_a_verified_bot_the_owner_blocks_stays_blocked() {
+		// Verification must never overrule an explicit owner rule: opting out of AI
+		// training (denylisting gptbot) applies to the GENUINE crawler too.
+		add_filter( 'agentimus_client_ip', static function () { return '192.0.2.9'; } );
+		$this->seedRanges( 'gptbot', array( '192.0.2.0/24' ) ); // Genuinely inside the ranges…
+		$this->configure( array( 'block_agents' => true, 'verify_bots' => true, 'blocked_agents' => array( 'gptbot' ) ) );
+
+		$this->assertTrue( Guard::denies( self::GPTBOT ), '…but the owner said no, and the owner wins.' );
+	}
+
+	public function test_an_engine_is_denied_via_fresh_ranges_when_rdns_is_unavailable() {
+		// The resolver answers nothing usable (inconclusive rDNS), but Google's FRESH
+		// published range file excludes the address — equally conclusive, same denial.
+		add_filter( 'agentimus_verify_bots', static function () { return true; } );
+		add_filter( 'agentimus_client_ip', static function () { return '203.0.113.9'; } );
+		add_filter( 'agentimus_reverse_dns', static function () { return ''; }, 10, 2 ); // No PTR.
+		$this->seedRanges( 'googlebot', array( '66.249.64.0/19' ) );
+		$this->configure( array( 'block_agents' => true ) );
+
+		$this->assertTrue( Guard::denies( self::GOOGLEBOT ), 'A fresh range exclusion condemns even when DNS cannot.' );
+	}
+
 	/* -- Trust-list (the "Allow" action) --------------------------------- */
 
 	public function test_allow_agent_makes_a_client_never_blocked() {

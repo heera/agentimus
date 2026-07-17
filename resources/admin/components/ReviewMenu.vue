@@ -182,14 +182,21 @@ export default {
         const failed = 'ranges' === m
           ? `its address isn’t in ${label}’s published IP ranges`
           : ('rdns' === m ? 'it failed reverse-DNS verification when it visited' : 'its address failed verification when it visited');
+        // With blocking + the spoofed-class block both on, the Guard already refuses
+        // this proven impostor at the AI endpoints — say so, and scope the remaining
+        // advice honestly: an IP block at the host/CDN is what stops it SITE-WIDE.
+        const enforced = this.threats.blockingOn && this.threats.blockSpoofed;
+        const ipAdvice = (s.ips && s.ips.length)
+          ? `block its ${s.ips.length} IP${1 === s.ips.length ? '' : 's'} (shown in Details) at your host or CDN`
+          : `block its IP at your host or CDN (Details shows how to find it)`;
         return {
           tone: 'danger',
           icon: 'x',
           state: 'Failed verification',
           why: `Claims to be ${label}, but ${failed}.`,
-          recommend: (s.ips && s.ips.length)
-            ? `Can’t be blocked by name — block its ${s.ips.length} IP${1 === s.ips.length ? '' : 's'} (shown in Details) at your host or CDN.`
-            : `Can’t be blocked by name — block its IP at your host or CDN (Details shows how to find it).`,
+          recommend: enforced
+            ? `Already refused at this site’s AI endpoints. To stop it site-wide, ${ipAdvice} — it can’t be blocked by name.`
+            : `Can’t be blocked by name — ${ipAdvice}.`,
         };
       }
       // Forward-confirmed — a genuine crawler (rare here; a verified engine is trusted and

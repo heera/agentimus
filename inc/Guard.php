@@ -50,16 +50,17 @@ final class Guard {
 
 		$protected = self::is_protected( $ua_lc );
 
-		// Optional forward-confirmed reverse DNS. When verification is on, a UA that
-		// CLAIMS a real search engine keeps its always-allow status unless the source IP
-		// is CONCLUSIVELY not that engine — the resolver answered promptly and the IP
-		// belongs to someone else (verdict false). It is FAIL-OPEN: if DNS is slow,
-		// unreachable, budgeted-out, or otherwise inconclusive (verdict null), the crawler
-		// STAYS protected, because a DNS hiccup must never lose a real crawler. Only a
-		// definite spoof drops it to the block rules. The owner's explicit allow-list is a
-		// deliberate choice, not a spoofable identity, so it protects unconditionally.
+		// Optional identity verification. When it's on, a UA that CLAIMS a real search
+		// engine keeps its always-allow status unless the claim CONCLUSIVELY failed —
+		// by forward-confirmed reverse DNS, or (when rDNS couldn't answer) by the
+		// operator's FRESH published IP-range file ({@see conclusively_forged}). It is
+		// FAIL-OPEN: a slow resolver, a spent budget, a stale or unfetched range file —
+		// anything inconclusive — keeps the crawler protected, because a hiccup must
+		// never lose a real crawler. Only definite operator-sourced evidence drops it
+		// to the block rules. The owner's explicit allow-list is a deliberate choice,
+		// not a spoofable identity, so it protects unconditionally.
 		if ( $protected && '' !== $ua_lc && self::verification_on() && self::is_real_engine( $ua_lc )
-			&& false === BotVerifier::verify_engine( $ua_lc, self::client_ip() ) && ! self::owner_allows( $ua_lc ) ) {
+			&& ! self::owner_allows( $ua_lc ) && self::conclusively_forged( $ua_lc ) ) {
 			$protected = false;
 		}
 
@@ -82,6 +83,21 @@ final class Guard {
 			// activity log labels "Likely spoof/scanner", so blocking and reporting
 			// can never drift apart.
 			if ( ! $deny && $settings->enabled( 'block_spoofed' ) && Classifier::is_spoof( $ua_lc ) ) {
+				$deny = true;
+			}
+
+			// 3. A PROVEN impostor: the client claims a bot in the verifier registry and
+			// the claim conclusively failed (reverse DNS, or a fresh published-range
+			// file). Same switch as the spoof class — an identity forgery is the same
+			// kind of deception, just proven instead of inferred. This is what refuses
+			// a fake "GPTBot" outright: it isn't protected (only engines are), so the
+			// strip above never touched it, and its name is rarely on a denylist.
+			// Fail-open like everything here: inconclusive evidence never denies. Note
+			// the ORDER — the owner's denylist ran first, so a VERIFIED bot the owner
+			// explicitly blocks stays blocked (verification never overrides an owner
+			// rule); and a protected/owner-allowed UA never reaches this branch at all.
+			if ( ! $deny && $settings->enabled( 'block_spoofed' ) && self::verification_on()
+				&& self::conclusively_forged( $ua_lc ) ) {
 				$deny = true;
 			}
 		}
@@ -159,6 +175,40 @@ final class Guard {
 		}
 		$regex = '#' . str_replace( '#', '\#', $body ) . '#i';
 		return false === @preg_match( $regex, '' ) ? null : $regex; // phpcs:ignore WordPress.PHP.NoSilencedErrors -- compile-probe; invalid pattern returns false.
+	}
+
+	/**
+	 * Whether this request's claimed bot identity CONCLUSIVELY failed verification —
+	 * the one predicate that may cost a claimed bot its protection or (under
+	 * block_spoofed) the request. Two operator-sourced proofs, tried in order:
+	 *   • forward-confirmed reverse DNS answered a definite NO (verdict false); or
+	 *   • rDNS was inapplicable/inconclusive (null) AND the claimed operator's
+	 *     published IP-range file is FRESH and excludes this address
+	 *     ({@see BotRanges::verdict} — its staleness asymmetry means a stale or
+	 *     unfetched file can only ever answer "unchecked" here, never "forged").
+	 * A UA claiming nothing in the registry is never "forged" (there's no claim to
+	 * fail), and a POSITIVE rDNS verdict short-circuits — a verified crawler is not
+	 * re-tried against ranges. Cheap on the serve path: the rDNS verdict is cached
+	 * per IP, and the range check is an in-memory compare against the cron-fetched
+	 * cache — no lookup, no fetch, ever.
+	 *
+	 * @param string $ua_lc Lowercased User-Agent.
+	 * @return bool
+	 */
+	private static function conclusively_forged( $ua_lc ) {
+		$ip = self::client_ip();
+		if ( '' === $ip ) {
+			return false; // Nothing to check against → inconclusive → fail open.
+		}
+		$verdict = BotVerifier::verify_engine( $ua_lc, $ip ); // true | false | null.
+		if ( false === $verdict ) {
+			return true;
+		}
+		if ( null !== $verdict ) {
+			return false; // Forward-confirmed genuine.
+		}
+		$token = VerifierRegistry::claimed( $ua_lc );
+		return '' !== $token && 2 === BotRanges::verdict( $token, $ip );
 	}
 
 	/**
