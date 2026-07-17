@@ -422,6 +422,16 @@ final class ThreatsTest extends TestCase {
 		$this->assertCount( 0, Repository::reverified_map(), 'A stale overlay is filtered at read.' );
 	}
 
+	/* -- Payload metadata -------------------------------------------------- */
+
+	public function test_the_payload_names_the_new_window_so_the_ui_can_predict_a_row_s_exit() {
+		// A novelty-only row leaves the queue by itself when the "new" window lapses;
+		// the panel says so up front ("leaves in 31h"), which needs the resolved window
+		// — including a filtered one — in the payload, not a UI-side constant.
+		$this->assertSame( 48 * HOUR_IN_SECONDS, $this->analyze( array() )['newSecs'] );
+		$this->assertSame( 3600, $this->analyze( array(), array(), array( 'newSecs' => 3600 ) )['newSecs'] );
+	}
+
 	public function test_prune_reverified_purges_stale_entries_from_storage() {
 		$fresh = gmdate( 'Y-m-d H:i:s', time() - HOUR_IN_SECONDS );
 		$stale = gmdate( 'Y-m-d H:i:s', time() - Repository::REVERIFY_TTL - DAY_IN_SECONDS );

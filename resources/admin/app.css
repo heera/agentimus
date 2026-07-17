@@ -2900,6 +2900,13 @@ button.ar-act-more:hover { color: var(--ar-ink); }
 
 .ar-rev-empty { margin: 14px 0 4px; font-size: 13px; color: var(--ar-ink-soft); text-align: center; }
 
+/* Footer note under the list: names the 48h "New" window so a novelty row's silent
+   exit is predicted, not discovered. Quiet by design — guidance, not an alert. */
+.ar-rev-note {
+  margin: 11px 2px 2px; padding: 8px 0 0; border-top: 1px dashed var(--ar-line);
+  font-size: 11px; line-height: 1.55; color: var(--ar-ink-faint);
+}
+
 /* ---- Loading skeleton (activity first load) ---------------------------- */
 .ar-skel { display: grid; gap: 14px; margin-top: 16px; }
 .ar-skel__tiles { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }

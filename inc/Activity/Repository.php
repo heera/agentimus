@@ -895,6 +895,12 @@ final class Repository {
 			'sources'    => array_slice( $out, 0, max( 1, $limit ) ),
 			'counts'     => $counts,
 			'blockingOn' => ! empty( $opts['blockingOn'] ),
+			// How long the "new" flag lasts. The queue is rebuilt from the log on every
+			// read, so a novelty-only row leaves ON ITS OWN when this window lapses —
+			// the UI needs the number to say so up front ("leaves in 31h") instead of
+			// letting the owner discover a silent disappearance. From the resolved
+			// option, so a filtered `agentimus_new_agent_seconds` shows its real value.
+			'newSecs'    => $new_secs,
 		);
 	}
 

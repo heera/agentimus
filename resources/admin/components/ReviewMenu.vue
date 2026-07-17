@@ -87,6 +87,20 @@ export default {
     shownCards() {
       return this.shown.map((s) => ({ s, c: this.card(s) }));
     },
+    // How long a client keeps its "new" flag, from the server — so a site that
+    // filters `agentimus_new_agent_seconds` shows its real window, not our default.
+    newSecs() {
+      return this.threats.newSecs || 48 * 3600;
+    },
+    // The window as plain copy ("48 hours") for the footer note.
+    newWindowLabel() {
+      const h = Math.max(1, Math.round(this.newSecs / 3600));
+      return `${h} hour${1 === h ? '' : 's'}`;
+    },
+    // Whether any visible row is here on novelty — gates the footer note.
+    anyNew() {
+      return this.shown.some((s) => s.flags && s.flags.new);
+    },
   },
   mounted() {
     document.addEventListener('click', this.onDocClick);
@@ -335,6 +349,21 @@ export default {
     rowTitle(s) {
       return (s.known && s.known.name) || (s.guide && s.guide.name) || s.agent;
     },
+    // The "New" chip label, with a countdown ONLY when novelty is this row's sole
+    // claim to the queue — such a row leaves by itself when its window lapses, and
+    // predicting that beats letting the owner discover a silent disappearance. A row
+    // that's also heavy / a spoof / a caught impostor stays past the window, so a
+    // countdown there would promise an exit that isn't coming.
+    newChip(s) {
+      const sticky = 'spoofed' === s.verdict || (s.flags && (s.flags.heavy || s.flags.spoof));
+      const first = new Date(s.firstSeen).getTime();
+      if (sticky || !first) return 'New';
+      const left = first + this.newSecs * 1000 - Date.now();
+      if (left <= 0) return 'New · leaves soon';
+      const m = Math.round(left / 60000);
+      if (m < 60) return `New · leaves in ${Math.max(1, m)}m`;
+      return `New · leaves in ${Math.round(m / 60)}h`;
+    },
     kindLabel(kind) {
       return { ai: 'AI crawler', seo: 'SEO crawler', search: 'Search engine', social: 'Social preview' }[kind] || 'Crawler';
     },
@@ -423,7 +452,7 @@ export default {
               <div class="ar-rev-nameline">
                 <span class="ar-rev-name">{{ rowTitle(s) }}</span>
                 <span v-if="s.flags.heavy" class="ar-rev-tag is-heavy">High volume</span>
-                <span v-if="s.flags.new" class="ar-rev-tag is-new">New</span>
+                <span v-if="s.flags.new" class="ar-rev-tag is-new" :title="s.firstSeen ? `First seen ${ago(s.firstSeen)}` : null">{{ newChip(s) }}</span>
               </div>
 
               <!-- The hero: verification / identity state, coloured by severity. -->
@@ -558,6 +587,13 @@ export default {
       </ul>
       <p v-else-if="count" class="ar-rev-empty">Nothing in this view.</p>
       <p v-else class="ar-rev-empty">Nothing needs a look right now.</p>
+
+      <!-- Why "New" rows disappear without a click — the queue's one silent exit, said
+           out loud so it never reads as a bug or a lost record. -->
+      <p v-if="anyNew" class="ar-rev-note">
+        New clients stay here for {{ newWindowLabel }} after their first visit — they leave on
+        their own unless they turn high-volume or suspicious. Their requests stay in the log.
+      </p>
     </div>
 
     <!-- Styled UA tooltip — teleported to <body> so the scrolling dropdown never clips it. -->
