@@ -16,7 +16,7 @@ New here? Read them roughly in order:
 1. **Overview** — what Agentimus does and why it helps.
 2. **Installation** — get set up in a couple of minutes.
 3. **Dashboard & activity** — your AEO/GEO score, AI traffic, and what agents are doing.
-4. **Agent access** — who authenticates to and *acts on* your machine surface (application passwords, abilities), and what was refused.
+4. **Agent Access** — who authenticates to and *acts on* your machine surface (application passwords, abilities), and what was refused.
 5. **Readiness** — the checks behind your score, plus the per-page Optimize worklist, with one-click fixes.
 6. **Machine-readable outputs** — llms.txt, Markdown, discovery docs, sitemap.
 7. **Structured data** — the Schema.org (JSON-LD) your pages emit, plus the one-line AI description behind each page's summary.

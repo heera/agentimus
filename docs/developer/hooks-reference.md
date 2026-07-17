@@ -299,7 +299,7 @@ Tuning knobs for the activity log, its retention, AI-referral tracking and the "
 | Hook | Type | Signature | Purpose |
 | --- | --- | --- | --- |
 | `agentimus_activity_skip_self` | filter | `( bool $skip ): bool` | Whether to skip recording this hit as owner traffic. Default: the request carries an admin's cookie **or** a valid self-check token (the `X-Agentimus-Selfcheck` header the readiness screen's own anonymous live checks send — see `Activity\Owner`). Return `false` to log every request regardless. |
-| `agentimus_activity_retention_days` | filter | `( int $days ): int` | How long agent hits + AI-referral counts are **kept**, in days. Receives the stored setting (Settings → Visit log, default `30`) and overrides it. Governs the prune cutoff and how far back the Request log can page. It does **not** govern what the Dashboard reports on — that is `min(30, retention)` (`Repository::report_days()`). Raising it without also raising `agentimus_activity_max_rows` will not give you more days: the row cap trims oldest-first regardless of age. |
+| `agentimus_activity_retention_days` | filter | `( int $days ): int` | How long agent hits + AI-referral counts are **kept**, in days. Receives the stored setting (Settings → Visit log, default `30`) and overrides it. Governs the prune cutoff and how far back the Request Log can page. It does **not** govern what the Dashboard reports on — that is `min(30, retention)` (`Repository::report_days()`). Raising it without also raising `agentimus_activity_max_rows` will not give you more days: the row cap trims oldest-first regardless of age. |
 | `agentimus_flagged_ip_retention_days` | filter | `( int $days ): int` | Retention, in days, for the opt-in flagged-IP store (the only PII the plugin ever keeps, and only when the owner turns IP capture on for flagged clients). Default `14`. |
 | `agentimus_activity_max_rows` | filter | `( int $max ): int` | Hard cap on rows in the activity table. Receives the stored setting (default `50000`) and overrides it. Not merely a backstop: with **Delete old records automatically** switched off it is the *only* thing that removes anything. A cap of `0` disables it entirely — reachable from code only, never from the settings form, because an unbounded table is how a shared host fills its disk. |
 | `agentimus_activity_clients_limit` | filter | `( int $limit ): int` | Number of rows in the dashboard's "top clients" (by-agent) breakdown. Default `8`, clamped to `1–200`. |
@@ -313,15 +313,15 @@ Tuning knobs for the activity log, its retention, AI-referral tracking and the "
 | `agentimus_heavy_min_hits` | filter | `( int $hits ): int` | Minimum hits to flag heavy usage. |
 | `agentimus_threats_limit` | filter | `( int $limit ): int` | Maximum rows in the "activity to review" panel. |
 
-### Agent access
+### Agent Access
 
-Filters for the **Agent access** log (More → Agent access) — application-password lifecycle, ability invocations, and refused/probed requests. No IP, no personal data.
+Filters for the **Agent Access** log (More → Agent Access) — application-password lifecycle, ability invocations, and refused/probed requests. No IP, no personal data.
 
 | Hook | Type | Signature | Purpose |
 | --- | --- | --- | --- |
-| `agentimus_agent_access_enabled` | filter | `( bool $on ): bool` | Whether Agent access records at all. Mirrors the `agent_access_events` setting (default on). |
+| `agentimus_agent_access_enabled` | filter | `( bool $on ): bool` | Whether Agent Access records at all. Mirrors the `agent_access_events` setting (default on). |
 | `agentimus_agent_access_event` | filter | `( array $event ): array` | Each event just before it is stored (`kind`, `user_id`, `cred`, `subject`, `detail`). Return an empty value to drop it. `cred` is the application-password UUID, never the password. |
-| `agentimus_agent_access_retention_days` | filter | `( int $days ): int` | How long an Agent access event is kept, in days. Default `90`. |
+| `agentimus_agent_access_retention_days` | filter | `( int $days ): int` | How long an Agent Access event is kept, in days. Default `90`. |
 
 ### AI-visibility monitor
 

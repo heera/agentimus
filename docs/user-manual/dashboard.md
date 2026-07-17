@@ -30,11 +30,11 @@ The card is a summary over the reporting window (30 days by default), counted in
 - **Top sources** — which assistants sent the most readers (up to five).
 - **Top landing pages** — which of your pages AI readers arrived on most (up to five).
 
-For the day-by-day detail — and for the sources it *couldn't* name — a **See the full report** link opens the dedicated **AI traffic** screen, described next.
+For the day-by-day detail — and for the sources it *couldn't* name — a **See the full report** link opens the dedicated **AI Traffic** screen, described next.
 
-### The AI traffic report (More → AI traffic)
+### The AI Traffic report (More → AI Traffic)
 
-The dashboard card is the summary; the full report lives on its own screen, opened from **More → AI traffic**. It answers the cross-question the card can't — *which pages does Perplexity send readers to?* — and reaches deeper history: the card only ever covers the last 30 days, while this screen can page over everything the visit log still retains.
+The dashboard card is the summary; the full report lives on its own screen, opened from **More → AI Traffic**. It answers the cross-question the card can't — *which pages does Perplexity send readers to?* — and reaches deeper history: the card only ever covers the last 30 days, while this screen can page over everything the visit log still retains.
 
 Three filters narrow it, and no more — the store keeps only a day, a source, a path and a count, so anything finer would imply a per-visit record it doesn't hold:
 
@@ -48,7 +48,7 @@ There is no clock time anywhere in this report — **the day is the finest level
 
 ### Find missed AI sources (the diagnostic)
 
-"Traffic from AI" only counts assistants it *recognises*, and a miss leaves no trace — so a brand-new assistant could be sending you readers without ever showing up. The **Unrecognised referrers** diagnostic on the AI traffic screen closes that blind spot: it lists the referrer hosts and `utm_source` tags that arrived but matched no known assistant, so you can spot one that ought to be counted and add it (with the `agentimus_ai_referral_sources` filter).
+"Traffic from AI" only counts assistants it *recognises*, and a miss leaves no trace — so a brand-new assistant could be sending you readers without ever showing up. The **Unrecognised referrers** diagnostic on the AI Traffic screen closes that blind spot: it lists the referrer hosts and `utm_source` tags that arrived but matched no known assistant, so you can spot one that ought to be counted and add it (with the `agentimus_ai_referral_sources` filter).
 
 It's **opt-in and off by default** — turn on **Find missed AI sources** under **Settings → Visit log**. Unlike the referral counter, it writes a row for *every* externally-referred pageview, so it's meant to be switched on for a week and then off again. It records only the referring site's name and the link's `utm_source` tag — still no IP addresses, still nothing sent anywhere. While it's off, the screen says so and links you straight to the setting.
 
@@ -180,11 +180,11 @@ To keep one abusive burst from drowning out the traffic you care about, the log 
 
 ---
 
-## The Request log
+## The Request Log
 
-Open it from **More → Request log** in the nav bar. (The occasional screens — AI Visibility, AI traffic, Request log and About — live behind that one menu, so the bar stays readable on a narrow admin.)
+Open it from **More → Request Log** in the nav bar. (The occasional screens — AI Visibility, AI Traffic, Request Log and About Agentimus — live behind that one menu, so the bar stays readable on a narrow admin.)
 
-The Dashboard answers *who* visited and *how much*. The Request log answers **what a particular bot actually fetched** — the question the summary cards can't, because they show clients and endpoints as two separate lists.
+The Dashboard answers *who* visited and *how much*. The Request Log answers **what a particular bot actually fetched** — the question the summary cards can't, because they show clients and endpoints as two separate lists.
 
 Filter by **Client** and **Endpoint** together and you get the intersection: every page GPTBot asked for, or every bot that pulled `llms-full.txt`. You can also filter by **User-Agent** (matches from the *start* of the string), by **Network** once bot identification is on, by **Verification** (verified / spoofed / unchecked), and by a date range.
 
@@ -278,7 +278,7 @@ Most owners never need this section — the controls under **Settings → Visit 
 
 **The size cap outranks the period.** If a busy site reaches the cap before records are old enough to expire, the oldest are removed anyway. "Keep records for 90 days" is a ceiling on age, not a guarantee that a row survives 90 days — the size limit is absolute, because filling a shared host's disk is worse than losing old crawler hits. The cap is applied whenever hits arrive, and once a night regardless.
 
-**The Dashboard always reports on at most the last 30 days**, whatever you keep. Keeping 90 days gives the [Request log](#the-request-log) a deeper history to page through; it does not stretch the Dashboard's cards. Keeping *fewer* than 30 days shortens the Dashboard to match, rather than drawing empty days for records that were deleted.
+**The Dashboard always reports on at most the last 30 days**, whatever you keep. Keeping 90 days gives the [Request Log](#the-request-log) a deeper history to page through; it does not stretch the Dashboard's cards. Keeping *fewer* than 30 days shortens the Dashboard to match, rather than drawing empty days for records that were deleted.
 
 Flagged crawler IPs are **not** governed by this. They're the only personal data the plugin stores and they're removed on their own, shorter schedule.
 

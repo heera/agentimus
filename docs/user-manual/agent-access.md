@@ -1,28 +1,28 @@
 ---
-title: Agent access
+title: Agent Access
 parent: User Manual
 nav_order: 4
 ---
 
-## What Agent access shows
+## What Agent Access shows
 
-The [activity log]({% link user-manual/dashboard.md %}) answers *who **read** your machine-readable files*. **Agent access** answers the other half: *who **authenticated to**, and **acted on**, the machine surface Agentimus creates.* You'll find it under **More → Agent access**.
+The [activity log]({% link user-manual/dashboard.md %}) answers *who **read** your machine-readable files*. **Agent Access** answers the other half: *who **authenticated to**, and **acted on**, the machine surface Agentimus creates.* You'll find it under **More → Agent Access**.
 
 It records three kinds of thing:
 
-- **Application passwords** — the keys a program (an automation, an AI agent, a mobile app) uses to reach WordPress *as you*, over the REST API. Agent access notes when one is **created, first used, renamed or revoked**.
-- **Abilities** — the actions WordPress 7.0's **Abilities API** lets an AI assistant run on your site. Agent access notes when one is **run** — Agentimus's own abilities (the read-only reports, and the write tools if you've enabled those) and, where your site supports it, any other plugin's.
+- **Application passwords** — the keys a program (an automation, an AI agent, a mobile app) uses to reach WordPress *as you*, over the REST API. Agent Access notes when one is **created, first used, renamed or revoked**.
+- **Abilities** — the actions WordPress 7.0's **Abilities API** lets an AI assistant run on your site. Agent Access notes when one is **run** — Agentimus's own abilities (the read-only reports, and the write tools if you've enabled those) and, where your site supports it, any other plugin's.
 - **Refused or probed requests** — a request for an ability that was **turned away**, or a probe for abilities that **don't exist** (someone guessing at names).
 
 Like the activity log, it is **first-party and local-only**, and it **stores no IP addresses and no personal data**. That has a consequence worth stating plainly: it can name the *key* that was used, but never the *person* using it. It also sees **machine logins only** — someone signing in with your normal username and password never appears here. Records are kept for 90 days and hard-capped, so the log can never grow without bound.
 
-> **It is a record, not a guard.** Agent access never *blocks* anything. It shows you what happened; it does not stand in the way of it. If you want to actually turn agents away, that's the opt-in [crawler blocking]({% link user-manual/ai-access.md %}), a separate feature.
+> **It is a record, not a guard.** Agent Access never *blocks* anything. It shows you what happened; it does not stand in the way of it. If you want to actually turn agents away, that's the opt-in [crawler blocking]({% link user-manual/ai-access.md %}), a separate feature.
 
 ---
 
 ## The one line worth reading
 
-Of everything Agent access records, one event is worth a second look: **a new application password you don't recognise.**
+Of everything Agent Access records, one event is worth a second look: **a new application password you don't recognise.**
 
 An application password keeps working **even after you change your WordPress password.** That's what makes it convenient for an app — and it's exactly why a stray one matters: it's the classic way an intruder keeps a foothold after you've locked them out. So every "new application password" row carries a plain reminder:
 
@@ -71,6 +71,6 @@ There's one thing it's honest about not seeing: WordPress only tells Agentimus a
 
 ## Turning it on or off
 
-Agent access is **on by default**. It's the rare setting with nothing to trade off: it stores no personal data, makes no outbound request, and never blocks — so there's nothing to weigh. If you'd still rather not keep the record, turn off **Record agent access** under **Settings → Exposure**.
+Agent Access is **on by default**. It's the rare setting with nothing to trade off: it stores no personal data, makes no outbound request, and never blocks — so there's nothing to weigh. If you'd still rather not keep the record, turn off **Record agent access** under **Settings → Exposure**.
 
 For developers: the events, the retention window and each recorded event are all filterable — see the [developer reference]({% link developer.md %}).

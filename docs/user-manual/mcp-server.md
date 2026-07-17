@@ -26,7 +26,7 @@ Three locks stand between the internet and those reports:
 2. **A login.** Every request must sign in as one of your WordPress users — usually with an *application password* (a per-app key you create under **Users → Profile**). No login, no answer.
 3. **Permissions, per question.** Each tool checks the signed-in user's permissions exactly like the admin screen it comes from. A subscriber-level login can connect, but every report politely refuses it — only users who could see the screen can ask the question.
 
-And one camera: every call an AI tool makes is recorded under **More → Agent access**, with the user and the named application password that made it.
+And one camera: every call an AI tool makes is recorded under **More → Agent Access**, with the user and the named application password that made it.
 
 ## Letting agents write (optional)
 
@@ -42,13 +42,13 @@ The rules that travel with every write:
 - **Drafts first.** A new post arrives as a draft (or pending). Publishing needs a *third* switch — **…including publishing, without your review** — and even then the signed-in user's own publish permission. Until you flip it, agents can prepare; only you can go live.
 - **Edits to already-published posts go live on save** — same as you editing in wp-admin, and deliberately so: "fix the weak opening on my published article" is the whole point. The agent needs edit permission on that exact post, and body changes keep a revision to roll back to.
 - **The agent is never more powerful than its user.** Filing under existing categories, inventing new ones, and importing images each follow the signed-in user's own WordPress permissions — an author-level key can't do what an author can't.
-- **Everything is on the record.** Every write lands under **More → Agent access**, attributed to the user and the named key that made it.
+- **Everything is on the record.** Every write lands under **More → Agent Access**, attributed to the user and the named key that made it.
 
 A practical tip that follows from all this: mint the agent's key on a user whose role matches the trust you're extending — an editor-level user for content work, your admin user only if you also want it applying Readiness fixes (those change plugin settings, so they require an administrator).
 
 ## Connecting an AI tool
 
-The short version: **the settings card does this for you.** Turn the server on, pick your tool on the card — Claude Desktop, ChatGPT / Codex, Claude Code — click **Create key**, and copy the finished setup it writes: your address, your username and the encoded login are all filled in. Then press **Test the connection**: the card makes the very calls your AI tool will make — sign-in, the MCP handshake, listing the tools — and shows a verdict for each, so "server problem" and "wrong key" stop looking identical. The card also keeps a status line: whether the server is answering right now, and when an AI tool last called (drawn from Agent access).
+The short version: **the settings card does this for you.** Turn the server on, pick your tool on the card — Claude Desktop, ChatGPT / Codex, Claude Code — click **Create key**, and copy the finished setup it writes: your address, your username and the encoded login are all filled in. Then press **Test the connection**: the card makes the very calls your AI tool will make — sign-in, the MCP handshake, listing the tools — and shows a verdict for each, so "server problem" and "wrong key" stop looking identical. The card also keeps a status line: whether the server is answering right now, and when an AI tool last called (drawn from Agent Access).
 
 Everything below is the same information for anyone who'd rather wire it by hand, or is reading this away from the admin.
 
@@ -129,7 +129,7 @@ npx -y mcp-remote https://your-site.com/wp-json/agentimus/v1/mcp \
   --header "Authorization: Basic <encoded-login>"
 ```
 
-Once connected, ask the tool something: *"What's my site's AI readiness score, and what should I fix first?"* Then open **More → Agent access** and watch the calls appear, attributed to that key.
+Once connected, ask the tool something: *"What's my site's AI readiness score, and what should I fix first?"* Then open **More → Agent Access** and watch the calls appear, attributed to that key.
 
 **Worth knowing:** an application password isn't scoped to this server — it signs in as that user across your site's whole REST API. That's how WordPress works, not something Agentimus can change. So: one password per tool, and for an extra margin, a dedicated user with only the permissions the tool needs.
 
