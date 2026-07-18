@@ -126,6 +126,13 @@ export function createApi(boot) {
     // …and the explicit materialise step (drafts/pending only, never publish).
     assistantCreate: (payload) =>
       request('/assistant/create', { method: 'POST', body: JSON.stringify(payload) }),
+    // Edit-existing: search the owner's posts (each with an honest can-edit
+    // verdict), fetch one as an editable document, and the explicit update —
+    // which NEVER carries a status: the assistant edits content, not visibility.
+    assistantPosts: (q) => request('/assistant/posts?q=' + encodeURIComponent(q || '')),
+    assistantPost: (id) => request('/assistant/post/' + id),
+    assistantUpdate: (payload) =>
+      request('/assistant/update', { method: 'POST', body: JSON.stringify(payload) }),
     // The full changelog for the in-admin dialog — parsed from the bundled readme,
     // no outbound call.
     getChangelog: () => request('/changelog'),

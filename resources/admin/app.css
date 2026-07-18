@@ -430,6 +430,26 @@
 .ar-assist__resetlink { color: var(--ar-ink-faint); }
 .ar-assist__resetlink:hover { color: var(--ar-bad); }
 
+/* Edit-existing: the second door on the brief screen, the post picker, and
+ * the editing banner + status note on the preview. */
+.ar-assist__editentry {
+  margin-top: 16px; padding-top: 12px; border-top: 1px dashed var(--ar-line);
+  font-size: 11.5px; color: var(--ar-ink-faint); text-align: right;
+}
+.ar-assist__postlist { display: grid; gap: 8px; margin-top: 12px; }
+.ar-assist__postitem {
+  appearance: none; text-align: left; cursor: pointer;
+  display: grid; gap: 4px; padding: 10px 12px;
+  border: 1px solid var(--ar-line); border-radius: 9px; background: var(--ar-surface);
+}
+.ar-assist__postitem:hover:not(:disabled) { border-color: var(--ar-accent); }
+.ar-assist__postitem.is-blocked { cursor: default; opacity: 0.65; background: var(--ar-surface-2); }
+.ar-assist__posttitle { font-size: 13px; font-weight: 600; color: var(--ar-ink); }
+.ar-assist__postmeta { display: flex; align-items: center; gap: 8px; font-size: 11px; color: var(--ar-ink-faint); }
+.ar-assist__postreason { font-size: 11px; color: var(--ar-warn, #a15c00); }
+.ar-assist__editingbar { margin: 0 0 12px; }
+.ar-assist__statusnote { font-family: var(--ar-mono); font-size: 10.5px; letter-spacing: 0.04em; text-transform: uppercase; color: var(--ar-ink-faint); }
+
 /* Start over: the one way out, tucked under a rule at the drawer's foot. */
 .ar-assist__reset {
   display: flex; justify-content: flex-end; align-items: center; gap: 12px; flex-wrap: wrap;

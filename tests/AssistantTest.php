@@ -362,6 +362,111 @@ final class AssistantTest extends TestCase {
 		);
 	}
 
+	/* -- Edit-existing: the gate and the mirror ------------------------------- */
+
+	public function test_edit_gate_names_the_blocks_it_cannot_rewrite() {
+		$table = "<!-- wp:table -->\n<figure class=\"wp-block-table\"><table><tbody><tr><td>x</td></tr></tbody></table></figure>\n<!-- /wp:table -->";
+		$this->assertStringContainsString( 'table', Assistant::edit_gate_reason( $table ) );
+
+		$safe = Assistant::blockify( '<h2>A</h2><p>Fine.</p><ul><li>x</li></ul><blockquote><p>q</p></blockquote>' );
+		$this->assertSame( '', Assistant::edit_gate_reason( $safe ), 'The assistant’s own vocabulary always passes.' );
+		$this->assertSame( '', Assistant::edit_gate_reason( '<h2>Classic</h2><p>No block comments at all.</p>' ) );
+	}
+
+	public function test_edit_gate_bounds_images_and_length() {
+		$figures = str_repeat( Assistant::figure_html( 'https://x.test/i.jpg', 'Some alt text', 7 ), 5 );
+		$this->assertStringContainsString( 'more images', Assistant::edit_gate_reason( '<p>Hi.</p>' . $figures ) );
+
+		$long = '<p>' . implode( ' ', array_fill( 0, 4200, 'word' ) ) . '</p>';
+		$this->assertStringContainsString( 'longer than', Assistant::edit_gate_reason( $long ) );
+	}
+
+	public function test_content_to_doc_mirrors_create_lifting_figures_into_anchored_slots() {
+		// Build a post the way create() builds one: figures injected, then blockified.
+		$original = Assistant::blockify(
+			Assistant::inject_images(
+				'<p>Intro.</p><h2>Alpha</h2><p>Body A.</p><h2>Beta</h2><p>Body B.</p>',
+				array(
+					array(
+						'html'          => Assistant::figure_html( 'https://x.test/sun.jpg', 'The Sun in extreme ultraviolet.', 42 ),
+						'after_heading' => 'Alpha',
+					),
+				)
+			)
+		);
+
+		$doc = Assistant::content_to_doc( $original );
+		$this->assertStringNotContainsString( '<!-- wp:', $doc['content'], 'Block comments are stripped for the model.' );
+		$this->assertStringNotContainsString( '<figure', $doc['content'], 'Figures never ride through the model.' );
+		$this->assertStringContainsString( '<p>Body A.</p>', $doc['content'] );
+
+		$this->assertCount( 1, $doc['images'] );
+		$this->assertSame( 42, $doc['images'][0]['attachment_id'] );
+		$this->assertSame( 'Alpha', $doc['images'][0]['after_heading'], 'The nearest preceding heading anchors the slot.' );
+		$this->assertSame( 'The Sun in extreme ultraviolet.', $doc['images'][0]['alt'] );
+	}
+
+	public function test_content_to_doc_round_trips_back_through_inject_and_blockify() {
+		$doc     = Assistant::content_to_doc(
+			Assistant::blockify(
+				Assistant::inject_images(
+					'<h2>Alpha</h2><p>Text.</p>',
+					array(
+						array(
+							'html'          => Assistant::figure_html( 'https://x.test/i.jpg', 'A described image.', 42 ),
+							'after_heading' => 'Alpha',
+						),
+					)
+				)
+			)
+		);
+		$rebuilt = Assistant::blockify(
+			Assistant::inject_images(
+				$doc['content'],
+				array(
+					array(
+						'html'          => Assistant::figure_html( 'https://x.test/i.jpg', $doc['images'][0]['alt'], $doc['images'][0]['attachment_id'] ),
+						'after_heading' => $doc['images'][0]['after_heading'],
+					),
+				)
+			)
+		);
+		$this->assertStringContainsString( '<!-- wp:image {"id":42', $rebuilt );
+		$this->assertTrue(
+			strpos( $rebuilt, 'wp:heading' ) < strpos( $rebuilt, 'wp:image' ),
+			'The figure returns to its place after the heading.'
+		);
+	}
+
+	public function test_content_to_doc_never_loses_an_image_and_classic_posts_work() {
+		// A classic (no block comments) post with a figure whose alt is unusable.
+		$classic = '<h2>Head</h2>' . Assistant::figure_html( 'https://x.test/i.jpg', 'x', 9 ) . '<p>Text.</p>';
+		$doc     = Assistant::content_to_doc( $classic );
+		$this->assertCount( 1, $doc['images'], 'A short-alt figure gains a placeholder alt instead of being dropped.' );
+		$this->assertSame( 9, $doc['images'][0]['attachment_id'] );
+		$this->assertGreaterThanOrEqual( 5, mb_strlen( $doc['images'][0]['alt'] ) );
+	}
+
+	public function test_stacked_figures_under_one_heading_keep_their_order() {
+		$content = Assistant::inject_images(
+			'<h2>Gallery</h2><p>Text.</p>',
+			array(
+				array(
+					'html'          => Assistant::figure_html( 'https://x.test/1.jpg', 'First image here.', 1 ),
+					'after_heading' => 'Gallery',
+				),
+				array(
+					'html'          => Assistant::figure_html( 'https://x.test/2.jpg', 'Second image here.', 2 ),
+					'after_heading' => 'Gallery',
+				),
+			)
+		);
+		$this->assertTrue(
+			strpos( $content, 'wp-image-1' ) < strpos( $content, 'wp-image-2' ),
+			'Later injections slot in AFTER earlier ones, not before.'
+		);
+	}
+
 	/* -- Friendly AI errors --------------------------------------------------- */
 
 	public function test_a_provider_quota_wall_becomes_one_actionable_sentence() {

@@ -70,6 +70,19 @@ final class Assistant {
 	/** Ceiling on an outline's section list. */
 	const MAX_OUTLINE_SECTIONS = 10;
 
+	/** Blocks (bare names, core/ implied) the edit-existing flow can round-trip
+	 *  through the model without loss — exactly the vocabulary the assistant
+	 *  itself writes. Anything else refuses the post LOUDLY instead of quietly
+	 *  destroying a table or an embed. */
+	const EDIT_SAFE_BLOCKS = array( 'paragraph', 'heading', 'list', 'list-item', 'quote', 'image', 'html' );
+
+	/** Word ceiling for a whole-document rewrite — the same COMPOSE_TOKENS
+	 *  budget bounds the revised article on the way back. */
+	const MAX_EDIT_WORDS = 4000;
+
+	/** One image figure, as both the editor and figure_html() write it. */
+	const FIGURE_RX = '#<figure class="wp-block-image[^"]*"[^>]*>.*?</figure>#is';
+
 	/** @var Settings */
 	private $settings;
 
@@ -169,6 +182,33 @@ final class Assistant {
 				'permission_callback' => array( $this, 'can_create' ),
 			)
 		);
+		register_rest_route(
+			self::NS,
+			'/assistant/posts',
+			array(
+				'methods'             => \WP_REST_Server::READABLE,
+				'callback'            => array( $this, 'posts' ),
+				'permission_callback' => array( $this, 'can_compose' ),
+			)
+		);
+		register_rest_route(
+			self::NS,
+			'/assistant/post/(?P<id>\d+)',
+			array(
+				'methods'             => \WP_REST_Server::READABLE,
+				'callback'            => array( $this, 'fetch_post' ),
+				'permission_callback' => array( $this, 'can_edit_target' ),
+			)
+		);
+		register_rest_route(
+			self::NS,
+			'/assistant/update',
+			array(
+				'methods'             => \WP_REST_Server::EDITABLE,
+				'callback'            => array( $this, 'update' ),
+				'permission_callback' => array( $this, 'can_edit_target' ),
+			)
+		);
 	}
 
 	/**
@@ -219,6 +259,26 @@ final class Assistant {
 			return $can;
 		}
 		return current_user_can( 'upload_files' );
+	}
+
+	/**
+	 * Editing an EXISTING post needs edit_post on that specific post — the same
+	 * bar the editor itself applies — on top of the owner's write switch. The
+	 * target must also be an agent-visible type.
+	 *
+	 * @param \WP_REST_Request $request Request.
+	 * @return bool|\WP_Error
+	 */
+	public function can_edit_target( \WP_REST_Request $request ) {
+		$enabled = $this->writes_enabled();
+		if ( true !== $enabled ) {
+			return $enabled;
+		}
+		$post = get_post( absint( $request->get_param( 'id' ) ) );
+		if ( ! $post instanceof \WP_Post || ! in_array( $post->post_type, Content::post_types(), true ) ) {
+			return false;
+		}
+		return current_user_can( 'edit_post', $post->ID );
 	}
 
 	/**
@@ -799,6 +859,306 @@ final class Assistant {
 	}
 
 	/**
+	 * GET /assistant/posts — the edit-existing picker's search: the owner's own
+	 * editable posts, each carrying an honest verdict on whether the assistant
+	 * can rewrite it safely (and why not, when it can't).
+	 *
+	 * @param \WP_REST_Request $request Request.
+	 * @return \WP_REST_Response
+	 */
+	public function posts( \WP_REST_Request $request ) {
+		$q     = trim( sanitize_text_field( (string) $request->get_param( 'q' ) ) );
+		$query = new \WP_Query(
+			array(
+				'post_type'      => Content::post_types(),
+				'post_status'    => array( 'publish', 'draft', 'pending', 'private', 'future' ),
+				's'              => $q,
+				'posts_per_page' => 10,
+				'orderby'        => '' === $q ? 'modified' : 'relevance',
+				'order'          => 'DESC',
+				'no_found_rows'  => true,
+			)
+		);
+
+		$rows = array();
+		foreach ( $query->posts as $post ) {
+			if ( ! current_user_can( 'edit_post', $post->ID ) ) {
+				continue;
+			}
+			$reason = self::edit_gate_reason( $post->post_content );
+			$rows[] = array(
+				'id'          => $post->ID,
+				'title'       => '' !== $post->post_title ? $post->post_title : __( '(no title)', 'agentimus' ),
+				'status'      => $post->post_status,
+				'statusLabel' => self::status_label( $post->post_status ),
+				'date'        => get_the_modified_date( '', $post ),
+				'compatible'  => '' === $reason,
+				'reason'      => $reason,
+			);
+		}
+		return rest_ensure_response( array( 'posts' => $rows ) );
+	}
+
+	/**
+	 * GET /assistant/post/{id} — one post as an editable DOCUMENT: the same
+	 * draft shape compose produces, so the whole preview/refine/undo machinery
+	 * works on it unchanged. Content comes back as clean image-free HTML; the
+	 * post's figures become slots (attachment kept, heading anchor recovered).
+	 *
+	 * @param \WP_REST_Request $request Request.
+	 * @return \WP_REST_Response|\WP_Error
+	 */
+	public function fetch_post( \WP_REST_Request $request ) {
+		$post   = get_post( absint( $request->get_param( 'id' ) ) );
+		$reason = self::edit_gate_reason( $post->post_content );
+		if ( '' !== $reason ) {
+			return new \WP_Error(
+				'agentimus_post_uneditable',
+				sprintf(
+					/* translators: %s: the reason this post can't be rewritten. */
+					__( 'This post %s — pick another, or edit it in the editor.', 'agentimus' ),
+					$reason
+				),
+				array( 'status' => 409 )
+			);
+		}
+		return rest_ensure_response( array( 'post' => self::post_to_doc( $post ) ) );
+	}
+
+	/**
+	 * POST /assistant/update — materialise a revised document back onto its
+	 * post through the governed write path. The ONE rule that has no exceptions:
+	 * no status ever rides this call — the assistant edits content, never
+	 * visibility. A draft stays a draft, a published post stays published, and
+	 * WordPress keeps the previous version in Revisions.
+	 *
+	 * @param \WP_REST_Request $request Request.
+	 * @return \WP_REST_Response|\WP_Error
+	 */
+	public function update( \WP_REST_Request $request ) {
+		$input = array(
+			'post_id' => (string) absint( $request->get_param( 'id' ) ),
+			'title'   => sanitize_text_field( (string) $request->get_param( 'title' ) ),
+			'content' => wp_kses_post( (string) $request->get_param( 'content' ) ),
+			'excerpt' => sanitize_text_field( (string) $request->get_param( 'excerpt' ) ),
+		);
+		$description = sanitize_text_field( (string) $request->get_param( 'description' ) );
+		if ( '' !== $description ) {
+			$input['description'] = $description;
+		}
+		foreach ( array( 'topics', 'tags', 'categories' ) as $list ) {
+			$values = self::clean_list( $request->get_param( $list ), 'topics' === $list ? self::MAX_TOPICS : ( 'tags' === $list ? self::MAX_TAGS : self::MAX_CATEGORIES ) );
+			if ( $values ) {
+				$input[ $list ] = $values;
+			}
+		}
+		$featured = absint( $request->get_param( 'featured_image' ) );
+		if ( $featured > 0 ) {
+			$input['featured_image'] = (string) $featured;
+		}
+
+		$figures = array();
+		foreach ( array_slice( (array) $request->get_param( 'images' ), 0, self::MAX_IMAGE_SLOTS ) as $img ) {
+			if ( ! is_array( $img ) ) {
+				continue;
+			}
+			$aid = absint( $img['attachment_id'] ?? 0 );
+			if ( $aid <= 0 || ! wp_attachment_is_image( $aid ) ) {
+				continue;
+			}
+			$url = wp_get_attachment_image_url( $aid, 'large' );
+			if ( ! $url ) {
+				$url = wp_get_attachment_url( $aid );
+			}
+			if ( ! $url ) {
+				continue;
+			}
+			$figures[] = array(
+				'html'          => self::figure_html( (string) $url, sanitize_text_field( (string) ( $img['alt'] ?? '' ) ), $aid ),
+				'after_heading' => sanitize_text_field( (string) ( $img['after_heading'] ?? '' ) ),
+			);
+		}
+		if ( $figures ) {
+			$input['content'] = self::inject_images( $input['content'], $figures );
+		}
+		$input['content'] = self::blockify( $input['content'] );
+
+		$result = ( new ContentWriter( $this->settings ) )->update( $input );
+		if ( is_wp_error( $result ) ) {
+			return $result;
+		}
+		return rest_ensure_response( array( 'post' => $result ) );
+	}
+
+	/**
+	 * PURE: why a post can't be rewritten by the assistant, or '' when it can.
+	 * Three honest gates: block vocabulary (anything outside what the assistant
+	 * itself writes would be destroyed by the round-trip), image count (more
+	 * figures than slots exist to carry them), and length (a whole-document
+	 * rewrite must fit the output budget). Phrases complete the sentence
+	 * "This post …".
+	 *
+	 * @param string $content Raw post_content (block markup or classic HTML).
+	 * @return string Empty when editable; otherwise the reason.
+	 */
+	public static function edit_gate_reason( $content ) {
+		$content = (string) $content;
+
+		if ( preg_match_all( '/<!--\s*wp:([a-z][\w\/-]*)/i', $content, $m ) ) {
+			$offenders = array();
+			foreach ( array_unique( $m[1] ) as $name ) {
+				$bare = strtolower( 0 === strpos( $name, 'core/' ) ? substr( $name, 5 ) : $name );
+				if ( ! in_array( $bare, self::EDIT_SAFE_BLOCKS, true ) ) {
+					$offenders[] = $bare;
+				}
+			}
+			if ( $offenders ) {
+				return sprintf(
+					/* translators: %s: comma-separated block names. */
+					__( 'uses blocks the assistant can’t rewrite safely yet (%s)', 'agentimus' ),
+					implode( ', ', array_slice( $offenders, 0, 4 ) )
+				);
+			}
+		}
+
+		if ( preg_match_all( self::FIGURE_RX, $content, $unused ) > self::MAX_IMAGE_SLOTS ) {
+			return sprintf(
+				/* translators: %d: the image-slot ceiling. */
+				__( 'has more images than the assistant can carry (%d)', 'agentimus' ),
+				self::MAX_IMAGE_SLOTS
+			);
+		}
+
+		$words = str_word_count( wp_strip_all_tags( $content ) );
+		if ( $words > self::MAX_EDIT_WORDS ) {
+			return sprintf(
+				/* translators: %d: the post's word count. */
+				__( 'is longer than a one-pass rewrite can hold (~%d words)', 'agentimus' ),
+				$words
+			);
+		}
+		return '';
+	}
+
+	/**
+	 * PURE: post_content (block markup or classic HTML) → the document parts the
+	 * drawer works on — the exact MIRROR of create()'s inject_images+blockify:
+	 * block comments stripped, figures lifted OUT into slots (attachment kept,
+	 * nearest preceding h2/h3 recovered as the anchor), so images never ride
+	 * through the model. A figure with unusable alt gets an honest placeholder
+	 * instead of being dropped — an existing image must never be lost.
+	 *
+	 * @param string $content Raw post_content.
+	 * @return array{content:string,images:array}
+	 */
+	public static function content_to_doc( $content ) {
+		$content = (string) $content;
+		$content = (string) preg_replace( '/<!--\s*\/?wp:[^>]*-->\s*/', '', $content );
+
+		$slots = array();
+		if ( preg_match_all( self::FIGURE_RX, $content, $m, PREG_OFFSET_CAPTURE ) ) {
+			foreach ( $m[0] as $hit ) {
+				list( $figure, $offset ) = $hit;
+				$slot = array(
+					'alt'           => '',
+					'after_heading' => '',
+				);
+				if ( preg_match( '/\balt="([^"]*)"/i', $figure, $a ) ) {
+					$slot['alt'] = html_entity_decode( $a[1], ENT_QUOTES );
+				}
+				if ( mb_strlen( trim( $slot['alt'] ) ) < 5 ) {
+					$slot['alt'] = __( 'Image kept from the original post', 'agentimus' );
+				}
+				if ( preg_match( '/wp-image-(\d+)/', $figure, $i ) ) {
+					$slot['attachment_id'] = (int) $i[1];
+				}
+				if ( preg_match_all( '#<h([23])\b[^>]*>(.*?)</h\1>#is', substr( $content, 0, $offset ), $h ) ) {
+					$slot['after_heading'] = trim( wp_strip_all_tags( end( $h[2] ) ) );
+				}
+				$slots[] = $slot;
+			}
+			$content = (string) preg_replace( self::FIGURE_RX, '', $content );
+		}
+
+		return array(
+			'content' => trim( $content ),
+			'images'  => self::clean_image_slots( $slots ),
+		);
+	}
+
+	/**
+	 * One post as the drawer's editable document. Slots gain display URLs for
+	 * the preview thumbnails; an attachment that no longer resolves to a real
+	 * image is dropped from its slot (the suggestion survives, the dead id
+	 * doesn't).
+	 *
+	 * @param \WP_Post $post The post.
+	 * @return array
+	 */
+	private static function post_to_doc( \WP_Post $post ) {
+		$parts = self::content_to_doc( $post->post_content );
+		foreach ( $parts['images'] as &$slot ) {
+			if ( empty( $slot['attachment_id'] ) ) {
+				continue;
+			}
+			if ( ! wp_attachment_is_image( $slot['attachment_id'] ) ) {
+				unset( $slot['attachment_id'] );
+				continue;
+			}
+			$url = wp_get_attachment_image_url( $slot['attachment_id'], 'medium' );
+			if ( ! $url ) {
+				$url = wp_get_attachment_url( $slot['attachment_id'] );
+			}
+			if ( $url ) {
+				$slot['url'] = (string) $url;
+			}
+		}
+		unset( $slot );
+
+		$featured = null;
+		$thumb    = (int) get_post_thumbnail_id( $post );
+		if ( $thumb > 0 ) {
+			$furl     = wp_get_attachment_image_url( $thumb, 'medium' );
+			$featured = array(
+				'id'  => $thumb,
+				'url' => (string) ( $furl ? $furl : wp_get_attachment_url( $thumb ) ),
+			);
+		}
+
+		return array(
+			'id'            => $post->ID,
+			'status'        => $post->post_status,
+			'statusLabel'   => self::status_label( $post->post_status ),
+			'title'         => (string) $post->post_title,
+			'excerpt'       => (string) $post->post_excerpt,
+			'content'       => wp_kses_post( $parts['content'] ),
+			'description'   => (string) get_post_meta( $post->ID, Description::META, true ),
+			'topics'        => array_values( array_filter( (array) get_post_meta( $post->ID, Topics::META_TOPICS, true ), 'is_string' ) ),
+			'tags'          => wp_get_post_tags( $post->ID, array( 'fields' => 'names' ) ),
+			'categories'    => wp_get_post_categories( $post->ID, array( 'fields' => 'names' ) ),
+			'images'        => $parts['images'],
+			'featuredImage' => $featured,
+		);
+	}
+
+	/**
+	 * A post status as the short human label the drawer shows.
+	 *
+	 * @param string $status Status slug.
+	 * @return string
+	 */
+	private static function status_label( $status ) {
+		$labels = array(
+			'publish' => __( 'Published', 'agentimus' ),
+			'draft'   => __( 'Draft', 'agentimus' ),
+			'pending' => __( 'Pending review', 'agentimus' ),
+			'private' => __( 'Private', 'agentimus' ),
+			'future'  => __( 'Scheduled', 'agentimus' ),
+		);
+		return isset( $labels[ $status ] ) ? $labels[ $status ] : $status;
+	}
+
+	/**
 	 * The compose system instruction: one JSON document, keys fixed, body as clean
 	 * post HTML. Kept strict so parsing is boring; the site's Content Guidelines
 	 * are layered on top by {@see Assist::generate()}, not here.
@@ -969,7 +1329,7 @@ final class Assistant {
 				foreach ( $m[0] as $i => $match ) {
 					$text = strtolower( trim( wp_strip_all_tags( $m[2][ $i ][0] ) ) );
 					if ( $text === $anchor ) {
-						$pos     = $match[1] + strlen( $match[0] );
+						$pos     = self::skip_past_figures( $content, $match[1] + strlen( $match[0] ) );
 						$content = substr( $content, 0, $pos ) . $html . substr( $content, $pos );
 						$done    = true;
 						break;
@@ -981,7 +1341,7 @@ final class Assistant {
 				// content has none.
 				$pos = stripos( $content, '</p>' );
 				if ( false !== $pos ) {
-					$pos     = $pos + 4;
+					$pos     = self::skip_past_figures( $content, $pos + 4 );
 					$content = substr( $content, 0, $pos ) . $html . substr( $content, $pos );
 				} else {
 					$content .= $html;
@@ -1119,6 +1479,22 @@ final class Assistant {
 			$html .= $node->ownerDocument->saveHTML( $child );
 		}
 		return $html;
+	}
+
+	/**
+	 * PURE: advance an insertion point past any figures already sitting there,
+	 * so figures injected one by one under the same anchor keep their order
+	 * instead of leap-frogging each other.
+	 *
+	 * @param string $content The content being injected into.
+	 * @param int    $pos     Candidate insertion offset.
+	 * @return int The adjusted offset.
+	 */
+	private static function skip_past_figures( $content, $pos ) {
+		while ( preg_match( '#\A\s*<figure class="wp-block-image[^"]*"[^>]*>.*?</figure>#is', substr( $content, $pos ), $m ) ) {
+			$pos += strlen( $m[0] );
+		}
+		return $pos;
 	}
 
 	/**
