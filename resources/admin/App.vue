@@ -6,6 +6,7 @@ import SettingsForm from './components/SettingsForm.vue';
 import ReadinessPanel from './components/ReadinessPanel.vue';
 import DiscoveryHub from './components/DiscoveryHub.vue';
 import ActivityPanel from './components/ActivityPanel.vue';
+import WhatsNew from './components/WhatsNew.vue';
 import AiTrafficPanel from './components/AiTrafficPanel.vue';
 import RequestLog from './components/RequestLog.vue';
 import AgentAccess from './components/AgentAccess.vue';
@@ -35,7 +36,7 @@ const MORE_EDGE_GAP = 12;
 
 export default {
   name: 'AgentimusApp',
-  components: { SettingsForm, ReadinessPanel, DiscoveryHub, ActivityPanel, AiTrafficPanel, RequestLog, AgentAccess, ReviewMenu, OnboardingWizard, AboutPanel, ConfirmDialog, VisibilityPanel },
+  components: { SettingsForm, ReadinessPanel, DiscoveryHub, ActivityPanel, WhatsNew, AiTrafficPanel, RequestLog, AgentAccess, ReviewMenu, OnboardingWizard, AboutPanel, ConfirmDialog, VisibilityPanel },
   // The styled hover bubble (shared with the activity tables) — the score rail's
   // rung and next-step hints use it instead of slow, unthemeable native titles.
   mixins: [uaTip],
@@ -98,6 +99,7 @@ export default {
       knownAllowed: this.boot.knownAllowed || [],
       defaultAllowed: this.boot.defaultAllowed || [],
       verifierBuiltins: this.boot.verifierBuiltins || [],
+      whatsNew: this.boot.whatsNew || { show: false, version: '', items: [] },
       webmcpTools: this.boot.webmcpTools || [],
       mcpServer: this.boot.mcpServer || {},
       debug: this.boot.debug || {},
@@ -1560,6 +1562,13 @@ export default {
           :refreshing="refreshingDiscovery"
           @refresh="refreshDiscovery"
           @navigate="goTo"
+        />
+        <!-- Once-per-release highlights, dashboard only — never a site-wide notice. -->
+        <WhatsNew
+          v-if="whatsNew.show && tab === 'dashboard'"
+          :data="whatsNew"
+          :api="api"
+          @dismiss="whatsNew.show = false"
         />
         <ActivityPanel
           v-show="tab === 'dashboard'"

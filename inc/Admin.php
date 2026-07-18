@@ -592,6 +592,44 @@ final class Admin {
 		}
 	}
 
+	/**
+	 * The "What's new" card payload: this release's curated highlights, and whether to
+	 * show them. Highlights are hand-written per release — 3–4 plain-English items, the
+	 * changelog's headlines, not its whole text. Shown once: dismiss stores the version
+	 * in `agentimus_whatsnew_seen`. A site that has never completed onboarding is a
+	 * fresh install — it gets the wizard, not release notes.
+	 *
+	 * @return array{version:string,show:bool,items:array<int,array{title:string,text:string}>}
+	 */
+	private function whats_new() {
+		$seen = (string) get_option( 'agentimus_whatsnew_seen', '' );
+		$show = false !== get_option( 'agentimus_onboarded', false )
+			&& 0 !== version_compare( $seen, AGENTIMUS_VERSION );
+
+		return array(
+			'version' => AGENTIMUS_VERSION,
+			'show'    => $show,
+			'items'   => array(
+				array(
+					'title' => 'Verify more bots — and edit the list',
+					'text'  => 'GPTBot, OAI-SearchBot and PerplexityBot can now be verified against the IP ranges their operators publish, alongside the reverse-DNS engines. The Verified bots list is yours: switch any bot off, or add a new operator yourself.',
+				),
+				array(
+					'title' => 'Proven impostors are refused',
+					'text'  => 'With blocking on, a client caught faking a verified bot is turned away at the AI endpoints. Anything unclear is served, and your Allow and Block lists always outrank the checks.',
+				),
+				array(
+					'title' => 'The review queue explains itself',
+					'text'  => 'New clients show a countdown and leave on their own after 48 hours; flagged clients stay until you decide. The queue’s header and footer stay put while you scroll.',
+				),
+				array(
+					'title' => 'Better on your phone',
+					'text'  => 'No more sideways panning on narrow screens, and dialogs always fit the visible area.',
+				),
+			),
+		);
+	}
+
 	private function bootstrap_data() {
 		return array(
 			'restUrl'     => esc_url_raw( rest_url( Rest::NAMESPACE ) ),
@@ -622,6 +660,12 @@ final class Admin {
 				'robots'   => home_url( '/robots.txt' ),
 			),
 			'version'     => AGENTIMUS_VERSION,
+			// The once-per-version "What's new" card (plugin Dashboard only — never a
+			// site-wide notice, never a redirect). Shown when this version's notes
+			// haven't been dismissed AND the site isn't a fresh install (a first-run
+			// site gets the wizard; release notes would be noise about a past it
+			// never had). Dismiss stores the version — see Rest::whatsnew_seen().
+			'whatsNew'    => $this->whats_new(),
 			// Surfaced on the About tab so the protocol facts mirror the code,
 			// not hand-copied strings that can drift.
 			'protocol'    => array(

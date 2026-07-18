@@ -85,6 +85,13 @@ One sentence telling people why they'd want this update.
 
 Keep it simple and honest — real people read this.
 
+**One more copy step:** the in-admin "What's new" card (the one users see on the
+plugin Dashboard right after updating) shows 3–4 hand-written highlights per
+release. They live in `inc/Admin.php`, in the `whats_new()` method — rewrite the
+`items` array for the new version (the changelog's headlines in plain words, not
+its whole text). If you skip this, users see the *previous* release's highlights
+under the new version number — worse than no card at all.
+
 ---
 
 ## Step 4 — New screenshots? (skip if the admin screens look the same)

@@ -717,6 +717,53 @@
   padding: 24px 26px;
 }
 .ar-card--muted { background: var(--ar-surface-2); }
+
+/* Once-per-release "What's new" card (plugin Dashboard only). A calm accent-tinted
+   card, not an alert: the left accent bar + spark mark say "new", the grid keeps the
+   highlights scannable, and the single Got-it dismiss makes it leave for good. */
+.ar-whatsnew {
+  margin-bottom: 18px; border-left: 3px solid var(--ar-accent);
+  background: color-mix(in srgb, var(--ar-accent) 3%, var(--ar-surface));
+}
+.ar-whatsnew__head { display: flex; align-items: center; gap: 10px; }
+.ar-whatsnew__spark {
+  width: 30px; height: 30px; border-radius: 9px; display: grid; place-items: center; flex: 0 0 auto;
+  color: var(--ar-accent); background: color-mix(in srgb, var(--ar-accent) 9%, var(--ar-surface));
+  border: 1px solid color-mix(in srgb, var(--ar-accent) 26%, var(--ar-surface));
+}
+.ar-whatsnew__title { margin: 0; font-family: var(--ar-serif); font-size: 18px; font-weight: 600; color: var(--ar-ink); }
+.ar-whatsnew__tag {
+  font-family: var(--ar-mono); font-size: 9px; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase;
+  padding: 2px 7px; border-radius: 999px; color: var(--ar-accent);
+  background: color-mix(in srgb, var(--ar-accent) 8%, var(--ar-surface));
+  border: 1px solid color-mix(in srgb, var(--ar-accent) 28%, var(--ar-surface));
+}
+.ar-whatsnew__grid {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 14px 26px; margin-top: 16px;
+}
+.ar-whatsnew__itemtitle { display: block; font-size: 13.5px; color: var(--ar-ink); margin-bottom: 3px; }
+.ar-whatsnew__itemtext { margin: 0; font-size: 12.5px; line-height: 1.55; color: var(--ar-ink-soft); }
+.ar-whatsnew__foot { display: flex; align-items: center; justify-content: flex-end; gap: 16px; margin-top: 16px; }
+.ar-whatsnew__gotit { font-size: 12.5px; padding: 7px 18px; }
+@media (max-width: 720px) {
+  .ar-whatsnew__grid { grid-template-columns: 1fr; }
+}
+
+/* The in-admin changelog dialog body: one section per release, quiet version
+   headings, readable note bullets. Rendered notes carry only server-made
+   <strong>/<code>/<a> — escaped before formatting. */
+.ar-chlog__entry { padding: 14px 0 4px; border-top: 1px solid var(--ar-line); }
+.ar-chlog__entry:first-child { border-top: 0; padding-top: 4px; }
+.ar-chlog__ver { margin: 0 0 8px; font-family: var(--ar-mono); font-size: 13px; font-weight: 700; color: var(--ar-ink); }
+.ar-chlog__list { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.ar-chlog__note { font-size: 12.5px; line-height: 1.6; color: var(--ar-ink-soft); padding-left: 14px; position: relative; }
+.ar-chlog__note::before { content: ''; position: absolute; left: 0; top: 0.62em; width: 5px; height: 5px; border-radius: 50%; background: var(--ar-accent); }
+.ar-chlog__note strong { color: var(--ar-ink); }
+.ar-chlog__note code {
+  font-family: var(--ar-mono); font-size: 11.5px; padding: 0 4px; border-radius: 3px;
+  background: var(--ar-surface-2); border: 1px solid var(--ar-line);
+}
+
 .ar-card__head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 /* When the title + a row of buttons can't share a line, let the button group drop to
    its own row (labels stay on one line) rather than squeezing + wrapping mid-button. */

@@ -82,6 +82,26 @@ final class Rest {
 
 		register_rest_route(
 			self::NAMESPACE,
+			'/changelog',
+			array(
+				'methods'             => \WP_REST_Server::READABLE,
+				'callback'            => array( $this, 'changelog' ),
+				'permission_callback' => array( $this, 'can_manage' ),
+			)
+		);
+
+		register_rest_route(
+			self::NAMESPACE,
+			'/whatsnew-seen',
+			array(
+				'methods'             => \WP_REST_Server::EDITABLE,
+				'callback'            => array( $this, 'whatsnew_seen' ),
+				'permission_callback' => array( $this, 'can_manage' ),
+			)
+		);
+
+		register_rest_route(
+			self::NAMESPACE,
 			'/verifier/probe-ranges',
 			array(
 				'methods'             => \WP_REST_Server::EDITABLE,
@@ -338,6 +358,79 @@ final class Rest {
 	public function complete_onboarding() {
 		update_option( 'agentimus_onboarded', AGENTIMUS_VERSION );
 		return rest_ensure_response( array( 'onboarded' => true ) );
+	}
+
+	/**
+	 * GET /changelog — the full changelog for the in-admin dialog, parsed from the
+	 * BUNDLED readme.txt. Deliberately not fetched from WordPress.org: the changelog
+	 * wp.org displays IS this file, so a remote fetch would add an outbound call (and
+	 * a failure mode, and a disclosure) to receive what's already on disk — and the
+	 * local copy always matches the installed version exactly. Notes are escaped
+	 * first, then given minimal formatting (bold/code/links), so the payload is safe
+	 * to render as HTML.
+	 *
+	 * @return \WP_REST_Response
+	 */
+	public function changelog() {
+		$readme = (string) file_get_contents( AGENTIMUS_DIR . 'readme.txt' ); // phpcs:ignore WordPress.WP.AlternativeFunctions -- our own bundled file.
+
+		$entries = array();
+		if ( preg_match( '/^== Changelog ==\s*$(.*?)(?=^== |\z)/ms', $readme, $m ) ) {
+			// Split into "= 1.24.0 =" blocks; [0] is pre-block junk (blank), then
+			// alternating heading / body pairs.
+			$parts = preg_split( '/^= (.+?) =\s*$/m', trim( $m[1] ), -1, PREG_SPLIT_DELIM_CAPTURE );
+			$count = count( $parts );
+			for ( $i = 1; $i < $count; $i += 2 ) {
+				$notes = array();
+				foreach ( preg_split( '/\R/u', trim( isset( $parts[ $i + 1 ] ) ? $parts[ $i + 1 ] : '' ) ) as $line ) {
+					$line = trim( $line );
+					if ( '' === $line ) {
+						continue;
+					}
+					$notes[] = $this->format_note( preg_replace( '/^\*\s*/', '', $line ) );
+				}
+				if ( $notes ) {
+					$entries[] = array(
+						'version' => sanitize_text_field( $parts[ $i ] ),
+						'notes'   => $notes,
+					);
+				}
+			}
+		}
+		return rest_ensure_response( array( 'entries' => $entries ) );
+	}
+
+	/**
+	 * Escape one changelog line, then apply the readme's minimal formatting:
+	 * **bold**, `code`, and bare https URLs become links. Escapes FIRST, so the
+	 * result is safe for v-html.
+	 *
+	 * @param string $line Raw readme line.
+	 * @return string Safe HTML.
+	 */
+	private function format_note( $line ) {
+		$out = esc_html( $line );
+		$out = preg_replace( '/\*\*(.+?)\*\*/s', '<strong>$1</strong>', $out );
+		// Single-asterisk emphasis (readme *word*) — after ** so bold never half-matches.
+		$out = preg_replace( '/\*([^*\s][^*]*)\*/', '<em>$1</em>', $out );
+		$out = preg_replace( '/`([^`]+)`/', '<code>$1</code>', $out );
+		$out = preg_replace(
+			'#(https://[^\s<]+[^\s<.,)])#',
+			'<a href="$1" target="_blank" rel="noopener noreferrer">$1</a>',
+			$out
+		);
+		return $out;
+	}
+
+	/**
+	 * POST /whatsnew-seen — dismiss the current release's "What's new" card. Stores
+	 * the version, so the card returns exactly once per release, never per session.
+	 *
+	 * @return \WP_REST_Response
+	 */
+	public function whatsnew_seen() {
+		update_option( 'agentimus_whatsnew_seen', AGENTIMUS_VERSION );
+		return rest_ensure_response( array( 'seen' => AGENTIMUS_VERSION ) );
 	}
 
 	/**

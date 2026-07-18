@@ -98,6 +98,11 @@ export function createApi(boot) {
     // confirm it parses as a real range file before the entry is accepted.
     probeRanges: (url) =>
       request('/verifier/probe-ranges', { method: 'POST', body: JSON.stringify({ url }) }),
+    // Dismiss the once-per-release "What's new" card.
+    markWhatsNewSeen: () => request('/whatsnew-seen', { method: 'POST' }),
+    // The full changelog for the in-admin dialog — parsed from the bundled readme,
+    // no outbound call.
+    getChangelog: () => request('/changelog'),
     // Short-lived token the readiness live checks carry (X-Agentimus-Selfcheck) so the
     // owner's own anonymous verification fetches stay out of the visit log.
     mintSelfcheckToken: () => request('/activity/selfcheck-token', { method: 'POST' }),
