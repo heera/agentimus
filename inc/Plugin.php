@@ -96,6 +96,7 @@ final class Plugin {
 		( new Topics( $this->settings ) )->register();
 		( new Description( $this->settings ) )->register();
 		( new Assist( $this->settings ) )->register(); // "Draft with AI" for the description + topics fields (no-ops without a configured AI provider).
+		( new Assistant( $this->settings ) )->register(); // The in-admin writing assistant (nav-bar quill → drawer); gated on enable_agent_writes + a provider.
 		( new Rest( $this->settings ) )->register();
 		( new Admin( $this->settings ) )->register();
 		( new Discovery\Module( $this->settings ) )->register();

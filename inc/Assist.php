@@ -410,7 +410,11 @@ final class Assist {
 	 * @param int    $max_tokens Output cap.
 	 * @return string|\WP_Error
 	 */
-	private function generate( $system, $prompt, $max_tokens ) {
+	public function generate( $system, $prompt, $max_tokens ) {
+		// Public since the in-admin Assistant: this is the ONE choke point every
+		// Agentimus generation goes through — it carries the per-user rate limit and
+		// the site's Content Guidelines, so a new caller gets both for free and a
+		// bypassed budget can't exist.
 		if ( ! function_exists( 'wp_ai_client_prompt' ) ) {
 			return new \WP_Error( 'agentimus_ai_unavailable', __( 'AI is not available in this environment.', 'agentimus' ), array( 'status' => 503 ) );
 		}

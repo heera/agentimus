@@ -660,6 +660,9 @@ final class Admin {
 				'robots'   => home_url( '/robots.txt' ),
 			),
 			'version'     => AGENTIMUS_VERSION,
+			// The nav-bar quill's state: live when both prerequisites hold, dimmed with
+			// guidance otherwise (the guidance popover names the missing one).
+			'assistant'   => ( new Assistant( $this->settings ) )->state(),
 			// The once-per-version "What's new" card (plugin Dashboard only — never a
 			// site-wide notice, never a redirect). Shown when this version's notes
 			// haven't been dismissed AND the site isn't a fresh install (a first-run

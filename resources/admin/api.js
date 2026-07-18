@@ -28,6 +28,8 @@ export function createApi(boot) {
   }
 
   const request = (path, options = {}) => requestUrl(`${base}${path}`, options);
+  // Core REST root (wp/v2), derived from ours — for the media-library search.
+  const coreBase = base.replace(/\/agentimus\/v1$/, '/wp/v2');
 
   return {
     getSettings: () => request('/settings'),
@@ -100,6 +102,22 @@ export function createApi(boot) {
       request('/verifier/probe-ranges', { method: 'POST', body: JSON.stringify({ url }) }),
     // Dismiss the once-per-release "What's new" card.
     markWhatsNewSeen: () => request('/whatsnew-seen', { method: 'POST' }),
+    // The writing assistant: one structured generation (writes nothing)…
+    assistantCompose: (prompt) =>
+      request('/assistant/compose', { method: 'POST', body: JSON.stringify({ prompt }) }),
+    // …one image for one slot, on one explicit click (scene-describe → render →
+    // media-library import)…
+    assistantGenerateImage: (alt, title) =>
+      request('/assistant/generate-image', { method: 'POST', body: JSON.stringify({ alt, title }) }),
+    // …search the owner's own media library for a slot…
+    searchMedia: (q) =>
+      requestUrl(`${coreBase}/media?media_type=image&per_page=12&_fields=id,source_url,alt_text,media_details&search=${encodeURIComponent(q || '')}`),
+    // …a targeted revision of the held draft ("add a section on caching")…
+    assistantRefine: (draft, instruction) =>
+      request('/assistant/refine', { method: 'POST', body: JSON.stringify({ draft, instruction }) }),
+    // …and the explicit materialise step (drafts/pending only, never publish).
+    assistantCreate: (payload) =>
+      request('/assistant/create', { method: 'POST', body: JSON.stringify(payload) }),
     // The full changelog for the in-admin dialog — parsed from the bundled readme,
     // no outbound call.
     getChangelog: () => request('/changelog'),

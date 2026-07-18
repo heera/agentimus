@@ -7,6 +7,8 @@ import ReadinessPanel from './components/ReadinessPanel.vue';
 import DiscoveryHub from './components/DiscoveryHub.vue';
 import ActivityPanel from './components/ActivityPanel.vue';
 import WhatsNew from './components/WhatsNew.vue';
+import AssistantLauncher from './components/AssistantLauncher.vue';
+import AssistantDrawer from './components/AssistantDrawer.vue';
 import AiTrafficPanel from './components/AiTrafficPanel.vue';
 import RequestLog from './components/RequestLog.vue';
 import AgentAccess from './components/AgentAccess.vue';
@@ -36,7 +38,7 @@ const MORE_EDGE_GAP = 12;
 
 export default {
   name: 'AgentimusApp',
-  components: { SettingsForm, ReadinessPanel, DiscoveryHub, ActivityPanel, WhatsNew, AiTrafficPanel, RequestLog, AgentAccess, ReviewMenu, OnboardingWizard, AboutPanel, ConfirmDialog, VisibilityPanel },
+  components: { SettingsForm, ReadinessPanel, DiscoveryHub, ActivityPanel, WhatsNew, AssistantLauncher, AssistantDrawer, AiTrafficPanel, RequestLog, AgentAccess, ReviewMenu, OnboardingWizard, AboutPanel, ConfirmDialog, VisibilityPanel },
   // The styled hover bubble (shared with the activity tables) — the score rail's
   // rung and next-step hints use it instead of slow, unthemeable native titles.
   mixins: [uaTip],
@@ -100,6 +102,8 @@ export default {
       defaultAllowed: this.boot.defaultAllowed || [],
       verifierBuiltins: this.boot.verifierBuiltins || [],
       whatsNew: this.boot.whatsNew || { show: false, version: '', items: [] },
+      assistant: this.boot.assistant || { writesOn: false, providerReady: false },
+      assistantOpen: false,
       webmcpTools: this.boot.webmcpTools || [],
       mcpServer: this.boot.mcpServer || {},
       debug: this.boot.debug || {},
@@ -1444,6 +1448,9 @@ export default {
         </div>
       </div>
 
+      <!-- The writing assistant's quill — the bell's sibling; dimmed with guidance
+           until the writes switch is on and a provider is connected. -->
+      <AssistantLauncher :state="assistant" @open="assistantOpen = true" @navigate="goTo" />
       <ReviewMenu
         :threats="(activity && activity.threats) || {}"
         :enabled="!!(activity && activity.enabled)"
@@ -1486,6 +1493,9 @@ export default {
 
     <!-- One app-wide styled confirmation prompt (replaces window.confirm). -->
     <ConfirmDialog />
+
+    <!-- Always mounted (v-show inside), so a composed preview survives Esc/close. -->
+    <AssistantDrawer :open="assistantOpen" :api="api" :caps="assistant" @close="assistantOpen = false" @flash="flash" />
 
     <OnboardingWizard
       :open="showWizard"

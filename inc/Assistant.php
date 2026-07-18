@@ -1,0 +1,784 @@
+<?php
+/**
+ * Assistant — the in-admin writing assistant behind the nav-bar quill: "write me a
+ * post about X" without an external MCP client. The second door to operating the
+ * site with AI; the first (MCP) serves external tools, this one serves the owner
+ * standing in wp-admin.
+ *
+ * Deliberately thin, because the hard parts already exist and are REUSED, not
+ * duplicated:
+ *  - the BRAIN is {@see Assist::generate()} — the one choke point every Agentimus
+ *    generation goes through, so the per-user rate limit and the site's Content
+ *    Guidelines ride along for free;
+ *  - the HANDS are {@see Abilities\ContentWriter::create()} — the same governed
+ *    write path MCP agents use: capability-checked terms, meta, statuses.
+ *
+ * v1 safety shape (the confirm button IS the safety flow):
+ *  - compose NEVER writes: it returns a structured draft for the owner to read;
+ *  - create NEVER publishes: status is clamped to draft/pending regardless of the
+ *    agent_writes_publish rung — going live stays a human editor action in v1;
+ *  - no model-side tool calling: one prompt in, one JSON document out.
+ *
+ * Gating mirrors the launcher: both routes require the `enable_agent_writes`
+ * switch (the owner's "AI may write here" consent) and real user capabilities —
+ * compose needs edit_posts, create needs the post type's create_posts, exactly
+ * as wp-admin's "Add New" would.
+ *
+ * @package Agentimus
+ */
+
+namespace Agentimus;
+
+use Agentimus\Abilities\ContentWriter;
+
+defined( 'ABSPATH' ) || exit;
+
+final class Assistant {
+
+	const NS = 'agentimus/v1';
+
+	/** Prompt bounds: enough for a real brief, small enough to stay a brief. */
+	const PROMPT_MIN = 8;
+	const PROMPT_MAX = 2000;
+
+	/** Output budget for a full compose/revision. The whole-document contract means
+	 *  a REVISION re-emits the entire article, so this bounds the largest revisable
+	 *  post: ~8k tokens ≈ 4–5k English words (less in denser scripts — Bengali runs
+	 *  2–3× heavier). Kept generous also because reasoning models spend "thinking"
+	 *  tokens from the same budget before emitting a character of answer. 8192 is
+	 *  within every current provider's output ceiling. Filterable for sites on a
+	 *  model that allows more. */
+	const COMPOSE_TOKENS = 8192;
+
+	/** Bounds on the dressing lists the model may propose. */
+	const MAX_TOPICS     = 8;
+	const MAX_TAGS       = 6;
+	const MAX_CATEGORIES = 3;
+
+	/** Image SLOTS per article: the text model proposes where a picture helps and
+	 *  what it should show (free); each actual image is an explicit, per-slot act. */
+	const MAX_IMAGE_SLOTS = 4;
+
+	/** Output budget for the scene-describer (one vivid paragraph). */
+	const SCENE_TOKENS = 400;
+
+	/** @var Settings */
+	private $settings;
+
+	/**
+	 * @param Settings $settings Settings store.
+	 */
+	public function __construct( Settings $settings ) {
+		$this->settings = $settings;
+	}
+
+	/**
+	 * Hook the REST routes.
+	 */
+	public function register() {
+		add_action( 'rest_api_init', array( $this, 'routes' ) );
+	}
+
+	/**
+	 * Launcher state for the admin bootstrap: what the quill needs to know to be
+	 * live, dimmed-with-guidance, and honest about which prerequisite is missing.
+	 *
+	 * @return array{writesOn:bool,providerReady:bool}
+	 */
+	public function state() {
+		return array(
+			'writesOn'      => (bool) $this->settings->enabled( 'enable_agent_writes' ),
+			'providerReady' => Assist::ai_available(),
+			'imageReady'    => self::image_ready(),
+			'canUpload'     => current_user_can( 'upload_files' ),
+		);
+	}
+
+	/**
+	 * Whether the connected AI provider can generate images — drives the per-slot
+	 * "Generate" buttons (feature-detected, never a dead-end button; the library
+	 * picker works regardless).
+	 *
+	 * @return bool
+	 */
+	public static function image_ready() {
+		if ( ! function_exists( 'wp_ai_client_prompt' ) ) {
+			return false;
+		}
+		try {
+			return (bool) wp_ai_client_prompt( 'capability probe' )->is_supported_for_image_generation();
+		} catch ( \Throwable $e ) {
+			return false;
+		}
+	}
+
+	/**
+	 * Define the routes.
+	 */
+	public function routes() {
+		register_rest_route(
+			self::NS,
+			'/assistant/compose',
+			array(
+				'methods'             => \WP_REST_Server::EDITABLE,
+				'callback'            => array( $this, 'compose' ),
+				'permission_callback' => array( $this, 'can_compose' ),
+			)
+		);
+		register_rest_route(
+			self::NS,
+			'/assistant/refine',
+			array(
+				'methods'             => \WP_REST_Server::EDITABLE,
+				'callback'            => array( $this, 'refine' ),
+				'permission_callback' => array( $this, 'can_compose' ),
+			)
+		);
+		register_rest_route(
+			self::NS,
+			'/assistant/generate-image',
+			array(
+				'methods'             => \WP_REST_Server::EDITABLE,
+				'callback'            => array( $this, 'generate_image' ),
+				'permission_callback' => array( $this, 'can_generate_image' ),
+			)
+		);
+		register_rest_route(
+			self::NS,
+			'/assistant/create',
+			array(
+				'methods'             => \WP_REST_Server::EDITABLE,
+				'callback'            => array( $this, 'create' ),
+				'permission_callback' => array( $this, 'can_create' ),
+			)
+		);
+	}
+
+	/**
+	 * Compose may run for anyone who could edit posts — the same bar as the editor's
+	 * Draft-with-AI buttons — but only while the owner's write switch is on.
+	 *
+	 * @return bool|\WP_Error
+	 */
+	public function can_compose() {
+		if ( ! current_user_can( 'edit_posts' ) ) {
+			return false;
+		}
+		return $this->writes_enabled();
+	}
+
+	/**
+	 * Create additionally needs the REQUESTED type's create capability — checked here
+	 * against the raw param so a refusal is a clean 403 before any work, and checked
+	 * with the same cap wp-admin's "Add New" uses.
+	 *
+	 * @param \WP_REST_Request $request Request.
+	 * @return bool|\WP_Error
+	 */
+	public function can_create( \WP_REST_Request $request ) {
+		$enabled = $this->writes_enabled();
+		if ( true !== $enabled ) {
+			return $enabled;
+		}
+		$type = sanitize_key( (string) ( $request->get_param( 'type' ) ? $request->get_param( 'type' ) : 'post' ) );
+		$pto  = get_post_type_object( $type );
+		if ( ! $pto ) {
+			return false;
+		}
+		$cap = ! empty( $pto->cap->create_posts ) ? $pto->cap->create_posts : ( ! empty( $pto->cap->edit_posts ) ? $pto->cap->edit_posts : '' );
+		return '' !== $cap && current_user_can( $cap );
+	}
+
+	/**
+	 * Generating an image also imports it into the media library, so it needs the
+	 * upload capability on top of the compose bar — the same rule wp-admin applies
+	 * to the media uploader itself.
+	 *
+	 * @return bool|\WP_Error
+	 */
+	public function can_generate_image() {
+		$can = $this->can_compose();
+		if ( true !== $can ) {
+			return $can;
+		}
+		return current_user_can( 'upload_files' );
+	}
+
+	/**
+	 * The owner's write-consent gate, shared by both routes. A WP_Error (not false)
+	 * when the switch is off, so the UI can say WHICH prerequisite is missing
+	 * instead of a bare 403.
+	 *
+	 * @return true|\WP_Error
+	 */
+	private function writes_enabled() {
+		if ( $this->settings->enabled( 'enable_agent_writes' ) ) {
+			return true;
+		}
+		return new \WP_Error(
+			'agentimus_writes_off',
+			__( 'AI writing is switched off on this site. Turn on “Let connected agents write” in Settings → Discovery → MCP server.', 'agentimus' ),
+			array( 'status' => 403 )
+		);
+	}
+
+	/**
+	 * POST /assistant/compose — one structured generation from the owner's brief.
+	 * Returns a draft DOCUMENT (title, body, excerpt, description, topics, tags,
+	 * categories) for the preview card. Writes nothing.
+	 *
+	 * @param \WP_REST_Request $request Request.
+	 * @return \WP_REST_Response|\WP_Error
+	 */
+	public function compose( \WP_REST_Request $request ) {
+		$prompt = trim( sanitize_textarea_field( (string) $request->get_param( 'prompt' ) ) );
+		if ( strlen( $prompt ) < self::PROMPT_MIN ) {
+			return new \WP_Error(
+				'agentimus_prompt_short',
+				__( 'Describe the post in a sentence or two first.', 'agentimus' ),
+				array( 'status' => 400 )
+			);
+		}
+		if ( strlen( $prompt ) > self::PROMPT_MAX ) {
+			$prompt = substr( $prompt, 0, self::PROMPT_MAX );
+		}
+
+		if ( ! Assist::ai_available() ) {
+			return new \WP_Error(
+				'agentimus_ai_unavailable',
+				__( 'No AI text model is configured. Add or enable one under Settings → AI, then try again.', 'agentimus' ),
+				array( 'status' => 503 )
+			);
+		}
+
+		$text = ( new Assist( $this->settings ) )->generate( self::system_prompt(), $prompt, self::COMPOSE_TOKENS );
+		if ( is_wp_error( $text ) ) {
+			return $text;
+		}
+
+		$draft = self::parse_draft( $text );
+		if ( is_wp_error( $draft ) ) {
+			return $draft;
+		}
+
+		return rest_ensure_response( array( 'draft' => $draft ) );
+	}
+
+	/**
+	 * POST /assistant/refine — revise the HELD draft with a targeted instruction
+	 * ("add a section on caching", "drop the checklist", "shorten the intro"):
+	 * one AI call, the complete revised document back, still writing nothing.
+	 * The current draft is re-sanitised BEFORE it rides in the prompt, so the
+	 * model only ever sees what the preview showed.
+	 *
+	 * @param \WP_REST_Request $request Request.
+	 * @return \WP_REST_Response|\WP_Error
+	 */
+	public function refine( \WP_REST_Request $request ) {
+		$instruction = trim( sanitize_textarea_field( (string) $request->get_param( 'instruction' ) ) );
+		if ( strlen( $instruction ) < 4 ) {
+			return new \WP_Error(
+				'agentimus_instruction_short',
+				__( 'Say what to change first — e.g. “add a short section on caching”.', 'agentimus' ),
+				array( 'status' => 400 )
+			);
+		}
+		if ( strlen( $instruction ) > 500 ) {
+			$instruction = substr( $instruction, 0, 500 );
+		}
+
+		$draft = self::sanitize_draft( $request->get_param( 'draft' ) );
+		if ( is_wp_error( $draft ) ) {
+			return $draft;
+		}
+
+		if ( ! Assist::ai_available() ) {
+			return new \WP_Error(
+				'agentimus_ai_unavailable',
+				__( 'No AI text model is configured. Add or enable one under Settings → AI, then try again.', 'agentimus' ),
+				array( 'status' => 503 )
+			);
+		}
+
+		$text = ( new Assist( $this->settings ) )->generate(
+			self::system_prompt(),
+			self::revision_prompt( $draft, $instruction ),
+			self::COMPOSE_TOKENS
+		);
+		if ( is_wp_error( $text ) ) {
+			return $text;
+		}
+
+		$revised = self::parse_draft( $text );
+		if ( is_wp_error( $revised ) ) {
+			return $revised;
+		}
+		return rest_ensure_response( array( 'draft' => $revised ) );
+	}
+
+	/**
+	 * PURE: the revision user-prompt — the current draft as JSON plus the owner's
+	 * instruction, with preserve-everything-else stated explicitly so a one-line
+	 * request can't silently rewrite the whole post.
+	 *
+	 * @param array  $draft       The sanitised current draft.
+	 * @param string $instruction The owner's change request.
+	 * @return string
+	 */
+	public static function revision_prompt( array $draft, $instruction ) {
+		return "Here is the current draft, as JSON:\n"
+			. wp_json_encode( $draft, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE )
+			. "\n\nRevision request: " . $instruction
+			. "\n\nReturn the COMPLETE revised draft as the same single JSON object with all the same keys. "
+			. 'Apply only the requested change; preserve everything else — the title, structure, wording, '
+			. 'tags, topics and categories — unless the request itself asks for them to change.';
+	}
+
+	/**
+	 * POST /assistant/generate-image — one image for one slot, on one explicit
+	 * click. Two-step prompt chain (the good idea from the owner's earlier
+	 * aiwriter plugin): the slot's alt text is a SEED, first rewritten by the text
+	 * model into a vivid scene prompt, then rendered by the image model. The
+	 * result lands in the media library with the ORIGINAL alt (that's the honest
+	 * accessibility text — the scene prompt is generator jargon), EXIF-free by
+	 * WordPress's own import pipeline. Never called in bulk: one slot, one click,
+	 * one image — image generation is priced differently from text and the click
+	 * is the consent.
+	 *
+	 * @param \WP_REST_Request $request Request.
+	 * @return \WP_REST_Response|\WP_Error
+	 */
+	public function generate_image( \WP_REST_Request $request ) {
+		$alt = trim( sanitize_text_field( (string) $request->get_param( 'alt' ) ) );
+		if ( mb_strlen( $alt ) < 5 ) {
+			return new \WP_Error(
+				'agentimus_alt_short',
+				__( 'Describe the image in a sentence first.', 'agentimus' ),
+				array( 'status' => 400 )
+			);
+		}
+		$title = trim( sanitize_text_field( (string) $request->get_param( 'title' ) ) );
+
+		if ( ! self::image_ready() ) {
+			return new \WP_Error(
+				'agentimus_image_unavailable',
+				__( 'Your connected AI provider can’t generate images. Pick one from the media library instead, or connect an image-capable provider under Settings → AI.', 'agentimus' ),
+				array( 'status' => 503 )
+			);
+		}
+
+		// Step 1 — scene description (a TEXT call: rides the same rate limit as
+		// every other generation, which also bounds the paired image call below).
+		$scene = ( new Assist( $this->settings ) )->generate(
+			self::scene_system_prompt(),
+			( '' !== $title ? 'Article: ' . $title . "\n" : '' ) . 'Image description: ' . $alt,
+			self::SCENE_TOKENS
+		);
+		if ( is_wp_error( $scene ) ) {
+			return $scene;
+		}
+
+		// Step 2 — the one image call.
+		try {
+			$file = wp_ai_client_prompt( $scene )->generate_image();
+		} catch ( \Throwable $e ) {
+			$file = new \WP_Error( 'agentimus_image_failed', $e->getMessage(), array( 'status' => 502 ) );
+		}
+		if ( is_wp_error( $file ) ) {
+			// Providers answer quota refusals with pages of API jargon; say the one
+			// thing the owner can act on. (Capability detection can't see QUOTA — a
+			// provider can "support" image generation on a plan that includes none.)
+			$raw = (string) $file->get_error_message();
+			if ( false !== stripos( $raw, 'quota' ) || false !== stripos( $raw, 'exceeded' ) ) {
+				return new \WP_Error(
+					'agentimus_image_quota',
+					__( 'Your AI provider declined the image: the current plan’s image quota is used up (or the plan doesn’t include image generation). Pick an image from the library instead, or check the provider’s plan.', 'agentimus' ),
+					array( 'status' => 502 )
+				);
+			}
+			return new \WP_Error(
+				'agentimus_image_failed',
+				mb_substr( preg_replace( '/\s+/', ' ', $raw ), 0, 240 ),
+				array( 'status' => 502 )
+			);
+		}
+
+		$attachment_id = self::import_image_file( $file, $alt );
+		if ( is_wp_error( $attachment_id ) ) {
+			return $attachment_id;
+		}
+
+		return rest_ensure_response(
+			array(
+				'id'      => $attachment_id,
+				'url'     => (string) ( wp_get_attachment_image_url( $attachment_id, 'medium' ) ?: wp_get_attachment_url( $attachment_id ) ),
+				'fullUrl' => (string) wp_get_attachment_url( $attachment_id ),
+				'alt'     => $alt,
+			)
+		);
+	}
+
+	/**
+	 * The scene-describer instruction: turn a slot's alt seed into one concrete
+	 * image prompt. Blog-appropriate styles only; text-in-image banned (models
+	 * mangle it, and the article already carries the words).
+	 *
+	 * @return string
+	 */
+	public static function scene_system_prompt() {
+		return 'You turn a short description of a blog-article image into ONE vivid, concrete image-generation prompt. '
+			. 'Describe subject, setting, composition, lighting and style in a single plain-text paragraph. '
+			. 'Prefer clean editorial illustration or natural photography suited to a professional blog. '
+			. 'No text, lettering, watermarks, logos or UI screenshots in the image. Return ONLY the prompt paragraph.';
+	}
+
+	/**
+	 * Import a generated image (inline base64 or remote URL) through WordPress's
+	 * own sideload pipeline — validation, size variants, clean metadata — and
+	 * stamp the slot's alt on it. Temp files are cleaned on every path.
+	 *
+	 * @param object $file The AI client's File DTO.
+	 * @param string $alt  The slot's alt text.
+	 * @return int|\WP_Error Attachment ID.
+	 */
+	private static function import_image_file( $file, $alt ) {
+		require_once ABSPATH . 'wp-admin/includes/file.php';
+		require_once ABSPATH . 'wp-admin/includes/media.php';
+		require_once ABSPATH . 'wp-admin/includes/image.php';
+
+		$mime = method_exists( $file, 'getMimeType' ) ? (string) $file->getMimeType() : 'image/png';
+		$exts = array(
+			'image/png'  => 'png',
+			'image/jpeg' => 'jpg',
+			'image/webp' => 'webp',
+			'image/gif'  => 'gif',
+		);
+		$ext  = isset( $exts[ $mime ] ) ? $exts[ $mime ] : 'png';
+
+		if ( method_exists( $file, 'isInline' ) && $file->isInline() ) {
+			$data = base64_decode( (string) $file->getBase64Data(), true );
+			if ( false === $data || '' === $data ) {
+				return new \WP_Error( 'agentimus_image_failed', __( 'The generated image came back unreadable — please try again.', 'agentimus' ), array( 'status' => 502 ) );
+			}
+			$tmp = wp_tempnam( 'agentimus-image.' . $ext );
+			if ( ! $tmp || false === file_put_contents( $tmp, $data ) ) { // phpcs:ignore WordPress.WP.AlternativeFunctions -- controlled temp file.
+				return new \WP_Error( 'agentimus_image_failed', __( 'Couldn’t stage the image for import.', 'agentimus' ), array( 'status' => 500 ) );
+			}
+		} else {
+			$tmp = download_url( (string) $file->getUrl() );
+			if ( is_wp_error( $tmp ) ) {
+				return $tmp;
+			}
+		}
+
+		$name       = sanitize_file_name( 'assistant-' . sanitize_title( mb_substr( $alt, 0, 48 ) ) . '.' . $ext );
+		$attachment = media_handle_sideload(
+			array(
+				'name'     => $name,
+				'tmp_name' => $tmp,
+			),
+			0,
+			mb_substr( $alt, 0, 120 ) // Attachment title = the human description.
+		);
+		if ( is_wp_error( $attachment ) ) {
+			@unlink( $tmp ); // phpcs:ignore WordPress.PHP.NoSilencedErrors, WordPress.WP.AlternativeFunctions -- best-effort temp cleanup.
+			return $attachment;
+		}
+		update_post_meta( (int) $attachment, '_wp_attachment_image_alt', $alt );
+		return (int) $attachment;
+	}
+
+	/**
+	 * POST /assistant/create — materialise a previewed draft through the governed
+	 * write path. The owner clicked the button; this is the ONLY place the
+	 * assistant writes, and it can only ever produce a draft or a pending post.
+	 *
+	 * @param \WP_REST_Request $request Request.
+	 * @return \WP_REST_Response|\WP_Error
+	 */
+	public function create( \WP_REST_Request $request ) {
+		// v1 never publishes — clamp BEFORE ContentWriter even sees the status, so
+		// the assistant can't go live even on a site whose publish rung is on.
+		$status = 'pending' === (string) $request->get_param( 'status' ) ? 'pending' : 'draft';
+
+		$input = array(
+			'type'    => sanitize_key( (string) ( $request->get_param( 'type' ) ? $request->get_param( 'type' ) : 'post' ) ),
+			'title'   => sanitize_text_field( (string) $request->get_param( 'title' ) ),
+			'content' => wp_kses_post( (string) $request->get_param( 'content' ) ),
+			'status'  => $status,
+		);
+		$excerpt = sanitize_text_field( (string) $request->get_param( 'excerpt' ) );
+		if ( '' !== $excerpt ) {
+			$input['excerpt'] = $excerpt;
+		}
+		$description = sanitize_text_field( (string) $request->get_param( 'description' ) );
+		if ( '' !== $description ) {
+			$input['description'] = $description;
+		}
+		foreach ( array( 'topics', 'tags', 'categories' ) as $list ) {
+			$values = self::clean_list( $request->get_param( $list ), 'topics' === $list ? self::MAX_TOPICS : ( 'tags' === $list ? self::MAX_TAGS : self::MAX_CATEGORIES ) );
+			if ( $values ) {
+				$input[ $list ] = $values;
+			}
+		}
+
+		// Featured image: an attachment the owner chose or generated in the preview.
+		// ContentWriter re-validates it (is it an image, does the type support one).
+		$featured = absint( $request->get_param( 'featured_image' ) );
+		if ( $featured > 0 ) {
+			$input['featured_image'] = (string) $featured;
+		}
+
+		// Filled image slots become <figure>s injected after their anchor headings —
+		// only slots with a REAL image attachment; empty slots simply don't exist in
+		// the published content (a skipped suggestion leaves no placeholder behind).
+		$figures = array();
+		foreach ( array_slice( (array) $request->get_param( 'images' ), 0, self::MAX_IMAGE_SLOTS ) as $img ) {
+			if ( ! is_array( $img ) ) {
+				continue;
+			}
+			$aid = absint( $img['attachment_id'] ?? 0 );
+			if ( $aid <= 0 || ! wp_attachment_is_image( $aid ) ) {
+				continue;
+			}
+			$url = wp_get_attachment_image_url( $aid, 'large' );
+			if ( ! $url ) {
+				$url = wp_get_attachment_url( $aid );
+			}
+			if ( ! $url ) {
+				continue;
+			}
+			$figures[] = array(
+				'html'          => self::figure_html( (string) $url, sanitize_text_field( (string) ( $img['alt'] ?? '' ) ), $aid ),
+				'after_heading' => sanitize_text_field( (string) ( $img['after_heading'] ?? '' ) ),
+			);
+		}
+		if ( $figures ) {
+			$input['content'] = self::inject_images( $input['content'], $figures );
+		}
+
+		$result = ( new ContentWriter( $this->settings ) )->create( $input );
+		if ( is_wp_error( $result ) ) {
+			return $result;
+		}
+		return rest_ensure_response( array( 'post' => $result ) );
+	}
+
+	/**
+	 * The compose system instruction: one JSON document, keys fixed, body as clean
+	 * post HTML. Kept strict so parsing is boring; the site's Content Guidelines
+	 * are layered on top by {@see Assist::generate()}, not here.
+	 *
+	 * @return string
+	 */
+	public static function system_prompt() {
+		return 'You are the writing assistant inside a WordPress site\'s admin, drafting a post from the owner\'s brief. '
+			. 'Respond with ONLY a single JSON object — no markdown fences, no commentary before or after — with exactly these keys: '
+			. '"title" (string), '
+			. '"excerpt" (string, 1–2 plain sentences), '
+			. '"content" (string: the full post body as clean HTML using only <h2>, <h3>, <p>, <ul>, <ol>, <li>, <strong>, <em>, <a>, <blockquote> — no <h1>, no images, no scripts or styles), '
+			. '"description" (string: one sentence under 160 characters saying what the page is about, for AI assistants), '
+			. '"topics" (array of 3–6 short topic phrases), '
+			. '"tags" (array of 2–5 tag names), '
+			. '"categories" (array of 0–2 category names, only if clearly implied by the brief), '
+			. '"images" (array of 0–4 image SUGGESTIONS, only where a picture would genuinely help the reader: '
+			. 'each {"alt": a rich, self-contained visual description an image generator could paint from — subject, setting, mood, '
+			. '"after_heading": the exact text of the h2/h3 the image should follow, or "" for right after the introduction}; '
+			. 'never put <img> tags in "content"). '
+			. 'Write concretely in the brief\'s language; no filler, no invented facts or statistics. '
+			. 'Voice: follow the site content guidelines above when they declare one (their author, '
+			. 'their person, their tone are real — use them); never INVENT credentials, employers or '
+			. 'anecdotes the guidelines don\'t provide; and when the brief itself specifies a voice, '
+			. 'the brief wins. With no guidance from either, write in a neutral site voice. '
+			. 'If the brief asks for length, honour it; otherwise write a complete, useful post of natural length.';
+	}
+
+	/**
+	 * PURE: turn the model's text into a sanitised draft document, or a clear error.
+	 * Tolerates the two classic wrappers (code fences, prose around the object) by
+	 * cutting from the first "{" to the last "}"; everything inside is then held to
+	 * the schema and WordPress-sanitised — the preview renders what create() would
+	 * save, never raw model output.
+	 *
+	 * @param string $text Raw model output.
+	 * @return array|\WP_Error
+	 */
+	public static function parse_draft( $text ) {
+		$text  = trim( (string) $text );
+		$start = strpos( $text, '{' );
+		$end   = strrpos( $text, '}' );
+		$data  = ( false !== $start && false !== $end && $end > $start )
+			? json_decode( substr( $text, $start, $end - $start + 1 ), true )
+			: null;
+
+		if ( ! is_array( $data ) ) {
+			return new \WP_Error(
+				'agentimus_ai_bad_output',
+				__( 'The AI didn’t return a usable draft — please try again.', 'agentimus' ),
+				array( 'status' => 502 )
+			);
+		}
+		return self::sanitize_draft( $data );
+	}
+
+	/**
+	 * PURE: hold a draft-shaped array to the schema and WordPress-sanitise every
+	 * field — the shared gate for BOTH directions: model output on its way to the
+	 * preview (parse_draft) and a held draft on its way back into a revision
+	 * prompt (refine). Same rules either way, so nothing un-sanitised ever rides
+	 * in a prompt or a preview.
+	 *
+	 * @param mixed $data Draft-shaped input.
+	 * @return array|\WP_Error
+	 */
+	public static function sanitize_draft( $data ) {
+		if ( ! is_array( $data ) ) {
+			return new \WP_Error(
+				'agentimus_ai_bad_output',
+				__( 'The AI didn’t return a usable draft — please try again.', 'agentimus' ),
+				array( 'status' => 502 )
+			);
+		}
+
+		$title   = sanitize_text_field( (string) ( $data['title'] ?? '' ) );
+		$content = wp_kses_post( (string) ( $data['content'] ?? '' ) );
+		if ( '' === $title || '' === trim( wp_strip_all_tags( $content ) ) ) {
+			return new \WP_Error(
+				'agentimus_ai_bad_output',
+				__( 'The AI’s draft was missing a title or body — please try again.', 'agentimus' ),
+				array( 'status' => 502 )
+			);
+		}
+
+		return array(
+			'title'       => $title,
+			'excerpt'     => sanitize_text_field( (string) ( $data['excerpt'] ?? '' ) ),
+			'content'     => $content,
+			'description' => mb_substr( sanitize_text_field( (string) ( $data['description'] ?? '' ) ), 0, 200 ),
+			'topics'      => self::clean_list( $data['topics'] ?? array(), self::MAX_TOPICS ),
+			'tags'        => self::clean_list( $data['tags'] ?? array(), self::MAX_TAGS ),
+			'categories'  => self::clean_list( $data['categories'] ?? array(), self::MAX_CATEGORIES ),
+			'images'      => self::clean_image_slots( $data['images'] ?? array() ),
+		);
+	}
+
+	/**
+	 * PURE: sanitise the image SLOTS — placement suggestions, not images. A slot
+	 * needs a real description (its alt is both the accessibility text and the
+	 * generation seed); an `attachment_id` a slot may carry (a chosen/generated
+	 * image) survives the round-trip, so a revision never orphans a paid image.
+	 *
+	 * @param mixed $value Raw slots.
+	 * @return array
+	 */
+	public static function clean_image_slots( $value ) {
+		$out = array();
+		foreach ( array_slice( (array) $value, 0, self::MAX_IMAGE_SLOTS ) as $slot ) {
+			if ( ! is_array( $slot ) ) {
+				continue;
+			}
+			$alt = trim( sanitize_text_field( (string) ( $slot['alt'] ?? '' ) ) );
+			if ( mb_strlen( $alt ) < 5 ) {
+				continue;
+			}
+			$clean = array(
+				'alt'           => mb_substr( $alt, 0, 300 ),
+				'after_heading' => mb_substr( trim( sanitize_text_field( (string) ( $slot['after_heading'] ?? '' ) ) ), 0, 200 ),
+			);
+			$aid   = absint( $slot['attachment_id'] ?? 0 );
+			if ( $aid > 0 ) {
+				$clean['attachment_id'] = $aid;
+			}
+			$out[] = $clean;
+		}
+		return $out;
+	}
+
+	/**
+	 * PURE: one image as article HTML — the same figure markup the block editor
+	 * produces for an image, so the editor adopts it cleanly.
+	 *
+	 * @param string $url Image URL.
+	 * @param string $alt Alt text.
+	 * @param int    $id  Attachment ID.
+	 * @return string
+	 */
+	public static function figure_html( $url, $alt, $id ) {
+		return '<figure class="wp-block-image size-large">'
+			. '<img src="' . esc_url( $url ) . '" alt="' . esc_attr( $alt ) . '" class="wp-image-' . (int) $id . '"/>'
+			. '</figure>';
+	}
+
+	/**
+	 * PURE: place each figure after its anchor heading. Anchoring is by the
+	 * heading's TEXT (normalised, case-insensitive) because both sides of the
+	 * match come from the same generation — and every miss degrades gracefully
+	 * instead of guessing: "" anchors after the first paragraph (the intro), a
+	 * heading that no longer exists (e.g. renamed by a revision) falls back to
+	 * the intro position, and a content with no paragraphs at all appends. An
+	 * image never vanishes because its anchor moved — the aiwriter lesson about
+	 * fragile ordinal anchors, answered with fallbacks instead of faith.
+	 *
+	 * @param string $content Article HTML.
+	 * @param array  $figures [{html, after_heading}].
+	 * @return string
+	 */
+	public static function inject_images( $content, array $figures ) {
+		$content = (string) $content;
+
+		foreach ( $figures as $figure ) {
+			$html   = (string) $figure['html'];
+			$anchor = strtolower( trim( (string) $figure['after_heading'] ) );
+			$done   = false;
+
+			if ( '' !== $anchor && preg_match_all( '#<h([23])\b[^>]*>(.*?)</h\1>#is', $content, $m, PREG_OFFSET_CAPTURE ) ) {
+				foreach ( $m[0] as $i => $match ) {
+					$text = strtolower( trim( wp_strip_all_tags( $m[2][ $i ][0] ) ) );
+					if ( $text === $anchor ) {
+						$pos     = $match[1] + strlen( $match[0] );
+						$content = substr( $content, 0, $pos ) . $html . substr( $content, $pos );
+						$done    = true;
+						break;
+					}
+				}
+			}
+			if ( ! $done ) {
+				// Intro position: after the first closing paragraph; append when the
+				// content has none.
+				$pos = stripos( $content, '</p>' );
+				if ( false !== $pos ) {
+					$pos     = $pos + 4;
+					$content = substr( $content, 0, $pos ) . $html . substr( $content, $pos );
+				} else {
+					$content .= $html;
+				}
+			}
+		}
+		return $content;
+	}
+
+	/**
+	 * PURE: a bounded, deduped list of short plain strings from arbitrary input.
+	 *
+	 * @param mixed $value Raw list.
+	 * @param int   $max   Ceiling.
+	 * @return string[]
+	 */
+	public static function clean_list( $value, $max ) {
+		$out = array();
+		foreach ( (array) $value as $item ) {
+			if ( ! is_scalar( $item ) ) {
+				continue;
+			}
+			$item = trim( sanitize_text_field( (string) $item ) );
+			if ( '' === $item || mb_strlen( $item ) > 60 || in_array( $item, $out, true ) ) {
+				continue;
+			}
+			$out[] = $item;
+			if ( count( $out ) >= $max ) {
+				break;
+			}
+		}
+		return $out;
+	}
+}
