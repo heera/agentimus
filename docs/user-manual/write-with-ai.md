@@ -11,7 +11,7 @@ nav_order: 10
 It's off until you connect an AI provider, so on a site without AI set up you won't see any of it.
 
 {: .note }
-> This is the **in-editor** helper: WordPress's own AI drafts these fields while *you* work in the post editor, and nothing saves until you save the post. Letting an external agent — Claude Code, Cursor, Codex — draft, edit or publish whole posts over a connection is a *different*, separately opt-in feature; see the [MCP server]({% link user-manual/mcp-server.md %}) page, under *Letting agents write*.
+> This is the **in-editor** helper: WordPress's own AI drafts these fields while *you* work in the post editor, and nothing saves until you save the post. Want AI to write or revise a *whole post* from inside wp-admin? That's the [writing assistant]({% link user-manual/writing-assistant.md %}). Letting an external agent — Claude Code, Cursor, Codex — operate your site over a connection is a third, separately opt-in feature; see the [MCP server]({% link user-manual/mcp-server.md %}) page, under *Letting agents write*.
 
 ## What you need first
 

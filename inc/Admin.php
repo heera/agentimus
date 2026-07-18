@@ -630,20 +630,20 @@ final class Admin {
 			'show'    => $show,
 			'items'   => array(
 				array(
-					'title' => 'Verify more bots — and edit the list',
-					'text'  => 'GPTBot, OAI-SearchBot and PerplexityBot can now be verified against the IP ranges their operators publish, alongside the reverse-DNS engines. The Verified bots list is yours: switch any bot off, or add a new operator yourself.',
+					'title' => 'Write posts with AI, right here',
+					'text'  => 'The quill button opens the new writing assistant: describe a post, edit the outline it proposes, preview the complete draft, and create it as a draft in the editor. Nothing is saved until you say so, and it never publishes. Needs agent writes on plus an AI provider under Settings → AI.',
 				),
 				array(
-					'title' => 'Proven impostors are refused',
-					'text'  => 'With blocking on, a client caught faking a verified bot is turned away at the AI endpoints. Anything unclear is served, and your Allow and Block lists always outrank the checks.',
+					'title' => 'It revises existing posts too',
+					'text'  => 'Pick a post, describe the change, review the revision before applying it. Content changes; a post’s status never does — and WordPress revisions keep every prior version.',
 				),
 				array(
-					'title' => 'The review queue explains itself',
-					'text'  => 'New clients show a countdown and leave on their own after 48 hours; flagged clients stay until you decide. The queue’s header and footer stay put while you scroll.',
+					'title' => 'Images where you write',
+					'text'  => 'Drafts arrive with alt-filled image placeholders: Generate turns the alt text into an image on any image block, a Featured image (AI) panel drafts the hero, and Ask AI rewrites or extends any text block.',
 				),
 				array(
-					'title' => 'Better on your phone',
-					'text'  => 'No more sideways panning on narrow screens, and dialogs always fit the visible area.',
+					'title' => 'AI errors now speak plainly',
+					'text'  => 'A quota wall names the fix, a provider error without details still becomes a human sentence, and the Cited rung updates the moment a visibility check finishes.',
 				),
 			),
 		);

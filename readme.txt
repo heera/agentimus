@@ -8,7 +8,7 @@ Stable tag: 1.24.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
-Make your site agent-ready for AI assistants — be found, read & cited, see who visits, and let your AI agent draft, edit & publish posts via MCP.
+Make your site agent-ready for AI assistants — be found, read & cited, see who visits, and write, edit & publish with AI — in wp-admin or via MCP.
 
 == Description ==
 
@@ -16,20 +16,27 @@ Agentimus does two things for the age of AI agents.
 
 **It makes your site legible and citable.** It helps AI assistants like ChatGPT, Claude and Perplexity find your site, read it correctly, and cite it in your own words — and shows you which AI bots are actually visiting. **You don't need to understand AI or web standards to use it:** a setup wizard walks you through everything in about a minute on your first visit, then it runs on its own.
 
-**And it lets the AI tools you already use operate your site.** Turn on the built-in Model Context Protocol (MCP) server and the AI tools you use — Claude Code, Claude Desktop, Cursor, Codex — can read your reports and, behind two more opt-in switches, **draft, edit and publish posts and pages** for you. Every write runs as the signed-in WordPress user, permission-checked and audited; all three switches are off by default. (Full details in "Operate your site from your AI agent" below.)
+**And it lets the AI tools you already use operate your site.** Turn on the built-in Model Context Protocol (MCP) server and the AI tools you use — Claude Code, Claude Desktop, Cursor, Codex — can read your reports and, behind two more opt-in switches, **draft, edit and publish posts and pages** for you. Every write runs as the signed-in WordPress user, permission-checked and audited; all three switches are off by default. And when you'd rather stay in wp-admin, a built-in **writing assistant** drafts and revises posts for you — no external tool needed. (Full details below.)
 
-Want more control? You also get a first-party log of every AI crawler that fetches your content, one-click blocking for bots you don't want, and a dashboard that scores your agent readiness — one AEO/GEO score across five rungs, with per-page tips and always the next thing to improve.
+You also get a first-party log of every AI crawler that fetches your content, one-click blocking for bots you don't want, and a dashboard that scores your agent readiness — one AEO/GEO score across five rungs, with per-page tips and always the next thing to improve.
 
-By default it makes no outbound requests, collects no analytics, and logs no IP addresses — everything runs on your own site. A few optional, off-by-default features change that only when you enable them: **AI Visibility** queries an AI provider you choose (your own key), **Verify bot identities** makes DNS lookups and fetches operators' published crawler-IP lists, and **Store IP addresses for flagged clients** records IPs for flagged crawlers only (see *External services*).
+By default it makes no outbound requests, collects no analytics, and logs no IP addresses — everything runs on your own site. Optional, off-by-default features change that only when enabled: **AI Visibility** queries an AI provider you choose (your own key), **Verify bot identities** makes DNS lookups and fetches operators' published crawler-IP lists, and **Store IP addresses** records IPs for flagged crawlers only (see *External services*).
 
 **📖 Full documentation** — a plain-English user manual and a developer reference, with step-by-step guides for every feature: https://heera.github.io/agentimus/
 
 **Operate your site from your AI agent (MCP) — opt-in**
 
-* **A Model Context Protocol server on your own site** — one switch (Settings → Discovery) runs an MCP server at `/wp-json/agentimus/v1/mcp`; the whole library ships with the plugin, nothing extra to install. The AI tools you already use — **Claude Code, Claude Desktop, Cursor, Codex** — connect to it, and the card writes the exact setup for your tool: pick it, mint a key in one click, copy the finished config, then a Test button proves the connection.
+* **A Model Context Protocol server on your own site** — one switch (Settings → Discovery) runs an MCP server at `/wp-json/agentimus/v1/mcp`; the whole library ships with the plugin, nothing extra to install. The AI tools you already use — **Claude Code, Claude Desktop, Cursor, Codex** — connect to it, and the card writes the exact setup for your tool: pick it, mint a key, copy the config, and a Test button proves the connection.
 * **Read your site's data** — connected agents can run the read-only tools (readiness/AEO-GEO score, AI traffic, request log, bot identification, and page / JSON-LD / Markdown previews) — the same ones WordPress's built-in AI gets.
-* **Draft, edit and publish posts — behind two more switches** — turn on **Let connected agents write** and the agent can create and edit posts and pages fully dressed (categories, tags, featured image from your library or a URL, AI topics and descriptions) and apply Readiness fixes; turn on a third switch and it may publish, otherwise it leaves drafts for your review. So you can ask your AI assistant to write and post an article without opening wp-admin.
+* **Draft, edit and publish posts — behind two more switches** — turn on **Let connected agents write** and the agent can create and edit posts and pages fully dressed (categories, tags, featured image, AI topics and descriptions) and apply Readiness fixes; turn on a third switch and it may publish, otherwise it leaves drafts for your review.
 * **Safe by construction** — every write runs as the signed-in WordPress user, never exceeding their permissions, and is recorded under **More → Agent Access**, attributed to the key. Nothing is public (each call signs in and keeps its screen's permission check), and with the write switch off the write tools don't exist on any surface. All three switches are off by default.
+
+**Write with AI in wp-admin — the built-in assistant (opt-in)**
+
+* **Idea → draft without leaving wp-admin** — a quill button opens the writing assistant: describe the post, edit the outline it proposes, and preview the complete draft — real editor blocks, AI description, topics, categories, tags. Nothing is saved until you click **Create draft**, and it never publishes.
+* **Edit existing posts** — describe the change and it revises the content; a post's status never changes, and WordPress revisions keep every prior version.
+* **Images where you write** — drafts arrive with alt-filled image placeholders; every image block gains **Generate image from the alt text**, the sidebar a **Featured image (AI)** panel — or pick from your library.
+* **Ask AI on any block** — rewrite, shorten or extend a paragraph, heading, list or quote with one instruction; normal undo brings anything back. Everything runs on WordPress's built-in AI Client (7.0+, Settings → AI — Agentimus never sees your key), the same connection behind **Draft with AI** and **Fix with AI**, and every AI button hides until a provider is set up.
 
 **Control — who may use your content**
 
@@ -38,15 +45,15 @@ By default it makes no outbound requests, collects no analytics, and logs no IP 
 
 **Reduce exposure — what your site reveals to bots**
 
-* **Exposure controls (opt-in, all OFF by default)** — switches that quietly close what stock WordPress reveals to anonymous crawlers: username enumeration, author archives, the WordPress version, the auto-generated `<head>` discovery links, and XML-RPC. Nothing changes until you turn one on, and signed-in admins and the block editor are never affected. It's exposure hygiene, not a firewall — a discovery layer, not a security suite.
+* **Exposure controls (opt-in, all OFF by default)** — switches that quietly close what stock WordPress reveals to anonymous crawlers: username enumeration, author archives, the WordPress version, the auto-generated `<head>` discovery links, and XML-RPC. Nothing changes until you turn one on, and signed-in admins and the block editor are never affected. Exposure hygiene, not a firewall.
 
 **Visibility — who is reading you**
 
 * **Agent activity log** — a dashboard of which AI crawlers and agents actually fetch your content and endpoints (GPTBot, Claude, Perplexity, Googlebot, …), recorded first-party in your own database, with no IP logging by default (an optional setting stores IPs for flagged crawlers only).
 * **Activity to review** — a nav-bar queue surfaces the clients worth a second look — new, unusually high-volume, or spoofing what they are — names a recognised crawler where it can, and offers one-click **Block** or **Allow** (trust). Nothing is blocked unless you choose to.
 * **Request Log** — every recorded request, one row each, under *More → Request Log*. Filter by client, endpoint, network, user-agent and date to see exactly what a single bot fetched.
-* **Agent Access** — the other side of the log: who *authenticates to and acts on* the machine surface Agentimus creates, under *More → Agent Access*. It records application passwords being created, used, renamed or revoked; WordPress abilities being run; and requests refused or probing for abilities that don't exist. A record, not a guard — it never blocks — with no IP logging, so it names the key used, not the person. A brand-new application password is worth a look: it keeps working even after you change your password.
-* **Traffic from AI** — the mirror of the crawler log: the real visitors an AI assistant sent you. *More → AI Traffic* reports them day by day, by assistant (ChatGPT, Perplexity, Gemini, Claude and more) and by landing page — daily aggregate counts, never a row for one person, no IP. An opt-in **CDN mode** keeps the count accurate behind a full-page cache, and a **Find missed AI sources** diagnostic surfaces referrers Agentimus couldn't name, so a new assistant never goes uncounted.
+* **Agent Access** — the other side of the log: who *authenticates to and acts on* the machine surface Agentimus creates (*More → Agent Access*): application passwords created, used, renamed or revoked; abilities run; requests refused. A record, not a guard — no IP logging, it names the key used, not the person. A brand-new application password is worth a look: it keeps working even after you change your password.
+* **Traffic from AI** — the mirror of the crawler log: the real visitors an AI assistant sent you, day by day, by assistant and by landing page (*More → AI Traffic*) — daily aggregate counts, never a row for one person, no IP. An opt-in **CDN mode** keeps counts accurate behind a full-page cache, and a **Find missed AI sources** diagnostic surfaces referrers Agentimus couldn't name.
 * **You decide how long it's kept** — a retention period, nightly auto-delete, and a hard size cap that always applies (Settings → Visit log), so the log can never grow without limit on your host.
 * **AI Visibility (opt-in)** — track **each brand, product or person you choose** across ChatGPT, Perplexity, Gemini and Claude. For every one, Agentimus asks the questions your audience actually types and reports whether it gets **mentioned, linked, and how it ranks against its rivals** — over time. Tell it what each thing *is* (*"a WordPress SEO plugin"*) and it suggests the questions a buyer really types. Off by default; **you bring your own API key**, and this is the one feature that makes an outbound request (see *External services*).
 
@@ -70,7 +77,6 @@ By default it makes no outbound requests, collects no analytics, and logs no IP 
 * A one-screen score of how machine-readable your site is, with a plain-English checklist of what's enabled and what's still missing.
 * **Agent preview** — open it from the Readiness tab to see the exact JSON-LD *and* Markdown an AI agent receives for the whole site or any page, then copy it. It shows what would ship even when the feature is off or an SEO plugin owns your schema, and a matching read-only preview sits in the post editor — so you never view page source to check what agents read.
 * **AI Readability tips** — as you write, an "AI Readability" panel flags what makes a page hard for an assistant to read and cite: thin content, missing headings, no opening summary, a nav-heavy page, or images without alt text. It sits in the same "Agentimus" box as the per-page Agent preview, so you check what an agent receives *and* how readable it is in one place. Editor-only — nothing shows to visitors.
-* **Write with AI (optional)** — connect an AI provider in WordPress (Settings → Connectors, your own key) and **"Draft with AI"** fills a page's AI description or Topics from its content, while **"Fix with AI"** drafts a fix for each readability warning. Everything routes through WordPress's built-in AI Client (7.0+), so Agentimus never sees your key; every suggestion is editable, nothing is saved for you, and the buttons stay hidden until a provider is set up.
 
 **Machine discovery (forward-looking)**
 
@@ -84,11 +90,11 @@ Agentimus also publishes a single, normalized discovery document, built to the c
 
 **What's read today vs. what it readies you for**
 
-Honest framing: the content signals above (JSON-LD, robots, llms.txt, markdown) are read by search engines and AI tools **today**. The discovery document is **forward-looking and standards-aligned** — it prepares your site for AI agents as they adopt these conventions, rather than claiming every agent already reads it. It's an open, openly-licensed convention with a public reference, and the plugin works fully whether or not anything consumes it.
+The content signals above (JSON-LD, robots, llms.txt, markdown) are read by search engines and AI tools **today**; the discovery document is **forward-looking and standards-aligned**, preparing your site for agents as they adopt these conventions. It's an open convention with a public reference, and the plugin works fully whether or not anything consumes it.
 
 **Why it's useful**
 
-Most tools cover one slice — an llms.txt file, an AI-bot blocker, or structured data. Agentimus brings content control, agent-traffic visibility, clean machine-readable output and a forward-looking discovery document together in one coherent, lightweight package — and tells you what's still missing.
+Most tools cover one slice — an llms.txt file, a bot blocker, or structured data. Agentimus brings content control, agent-traffic visibility, machine-readable output, in-admin AI writing and a forward-looking discovery document together in one lightweight package — and tells you what's still missing.
 
 *AI readiness is also called AI SEO, GEO (Generative Engine Optimization) and AEO (Answer Engine Optimization) — publishing the machine-readable signals AI systems need to find, read and correctly represent your site.*
 
@@ -186,6 +192,10 @@ Only if you say so, twice. The MCP server starts read-only; a second switch — 
 
 Yes, if you're on WordPress 7.0 and have set up an AI provider under Settings → AI. Then **Draft with AI** appears on the AI description field, **Suggest with AI** on the Topics field, and **Fix with AI** on any AI Readability row that needs work. Agentimus asks *your* AI through WordPress's shared connectors — it never sees or stores your API key, and nothing is sent anywhere if you haven't set a provider up (the buttons simply don't appear). Every suggestion arrives as ordinary editable text in the field: you read it, change it, and save the post yourself. Nothing is written for you.
 
+= Can AI write a whole post for me? =
+
+Yes — the writing assistant (the quill button on Agentimus's own screens) turns a described idea into a complete draft. It proposes an outline you can edit first, then writes the title, body, AI description and topics with suggested categories and tags, and shows you everything before a single thing is saved. **Create draft** opens the post in the editor, where image placeholders arrive with their alt text ready — fill them from your library, or generate them with AI. It can also revise an existing post you pick, without ever changing its status. It needs the **Let connected agents write** switch on and an AI provider under Settings → AI, and it never publishes: drafts and pending review only.
+
 = Does AI Visibility use the AI provider I set up in WordPress? =
 
 No — it needs its own API keys, and that's on purpose. A visibility check is graded on the **sources each engine cited**, and WordPress's shared connectors hand back only the answer text; the list of cited sources is dropped before Agentimus could read it. Reading those sources means talking to each engine's own API, so AI Visibility keeps its own keys (Settings → AI Visibility). They stay on your server and are used for nothing else.
@@ -244,10 +254,12 @@ Yes — there is no minified-only code. The admin interface is built from Vue 3 
 18. Client decisions — everything you've decided about visiting bots and agents in one dialog: Blocked, Allowed and Ignored tabs, each row with the crawler's identity, the date you decided, and an instant undo. The only place to see (and reverse) clients you ignored from the review queue.
 19. A day in your AI traffic — click any bar on the dashboard's Traffic-from-AI chart and see exactly which assistant sent visitors to which page that day. Days are the finest "when" stored, so there are no per-visit times — by design.
 20. MCP server — one switch runs a Model Context Protocol server on your own site, and the card connects the AI tool you already use: pick it, mint a key in one click, copy the finished setup, then prove the connection with the built-in test. Below it, the trust ladder: a second switch lets connected agents write (drafts, edits, categories, tags, featured images, AI topics and descriptions, Readiness fixes), and a third decides whether they may publish or only leave drafts for your review.
+21. The writing assistant — a quill button on every Agentimus screen opens the drawer: describe the post you want, edit the outline it proposes, preview the fully dressed draft, then create it as a draft and land straight in the editor. Nothing is saved until you say so, and it never publishes.
+22. AI in the editor — drafts arrive with alt-filled image placeholders and a one-click "Generate image from the alt text" button on every image block; "Ask AI" rewrites, shortens or extends any text block; and a "Featured image (AI)" panel drafts the hero from the title.
 
 == External services ==
 
-By default, Agentimus makes no outbound requests and sends no data anywhere: no remote scripts, fonts or analytics, and the agent-activity log stays in your own database with no IP addresses. (IP storage is optional and off by default — see the FAQ.)
+Agentimus makes no outbound requests by default: no remote scripts, fonts or analytics, and the agent-activity log stays in your own database with no IP addresses. (IP storage is optional, off by default — see the FAQ.)
 
 **Two opt-in features go outbound; both are off by default.**
 
@@ -263,6 +275,15 @@ By default, Agentimus makes no outbound requests and sends no data anywhere: no 
 URL-like strings in the plugin's output are labels, not requests — the discovery documents' `$schema` value names the format (never fetched), and the `example.com` URLs in `examples/` are documentation placeholders.
 
 == Changelog ==
+
+= 1.25.0 =
+* New — **A writing assistant inside wp-admin.** A quill button opens a drawer on every Agentimus screen: describe the post you want, edit the outline it proposes, and preview the complete draft — real editor blocks, AI description, topics, suggested categories and tags — before anything is saved. Create draft opens the post in the editor; the assistant never publishes. It needs the agent-writes switch and a WordPress AI provider (7.0+), and your Content Guidelines steer its voice automatically.
+* New — **It edits existing posts too.** Pick a post, describe the change, and review the revision before applying it. A post's status is never touched — published stays published — WordPress revisions keep every prior version, and unusual block layouts are declined honestly instead of mangled.
+* New — **Images live where you write.** Drafts arrive with alt-filled image placeholders; every image block gets **Generate image from the alt text**, and a **Featured image (AI)** sidebar panel drafts a hero from the title — or pick from your library as always.
+* New — **Ask AI on any block.** Select a paragraph, heading, list or quote and say what to change — rewrite, shorten, or "add a conclusion after this". Unchanged text is preserved word for word, and normal undo brings anything back.
+* Improved — **One Agentimus box in the editor.** The AI description and Topics panels merged into the branded Agentimus box, and AI Readability gained two checks: cited sources and reading ease.
+* Improved — **AI errors in plain language.** A quota wall now names the fix (pick from the library, or check the provider's plan), a provider error that arrives without details still becomes a human sentence, and no AI failure returns a bare 502 — a status some CDNs replace with their own error page.
+* Improved — **The Cited rung updates itself.** The AEO/GEO score rail refreshes the moment an AI Visibility check finishes or its results are cleared — no more waiting for the next visit to notice.
 
 = 1.24.0 =
 * New — **Verify more bots — and edit the list yourself.** Verification used to cover the five search engines that publish reverse DNS. Agentimus now also checks a bot against the IP ranges its operator officially publishes, which adds GPTBot, OAI-SearchBot and PerplexityBot — and the whole list is yours: Settings shows every verified bot with how it's checked, any built-in can be switched off, and when a new operator starts publishing verification data you can add it yourself instead of waiting for a plugin update. The range lists refresh once a day in the background, never while serving a visitor. An unreachable publisher just means "not checked": a match can verify against an older copy, but only a fresh copy may ever call a bot fake.
@@ -330,6 +351,9 @@ URL-like strings in the plugin's output are labels, not requests — the discove
 The full changelog for every release lives in the plugin repository: https://github.com/heera/agentimus/blob/main/CHANGELOG.md
 
 == Upgrade Notice ==
+
+= 1.25.0 =
+Write with AI without leaving wp-admin: a built-in assistant drafts new posts (outline first, preview always, never publishes), revises existing ones without touching their status, and generates images right in the editor. Plus plain-language AI errors and a self-updating Cited rung. No breaking changes.
 
 = 1.24.0 =
 Bot verification grows: bots are also checked against their operator's published IP ranges (GPTBot, PerplexityBot, …), the verified list is now yours to edit, and with blocking on a proven impostor is refused — not just flagged. Plus a clearer review queue and a phone-friendly admin. No breaking changes.
