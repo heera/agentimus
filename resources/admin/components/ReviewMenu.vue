@@ -366,7 +366,7 @@ export default {
         { label: 'DuckDuckGo', url: (s.guide && s.guide.lookup) || `https://duckduckgo.com/?q=${encodeURIComponent(q + ' crawler bot')}` },
       ];
     },
-    // The "turn on Verify search engines" nudge. Shown ONLY when the client claims one of
+    // The "turn on Verify bot identities" nudge. Shown ONLY when the client claims one of
     // the reverse-DNS-verifiable engines but hasn't been checked (verification off) — the
     // one case where enabling Verify actually does something. A crawler that claims no
     // verifiable engine (e.g. Bytespider) can never be verified by that feature, so the
@@ -552,7 +552,7 @@ export default {
             <!-- Admin "Re-check": re-run reverse-DNS live now on this client's captured IP(s).
                  Shown only when there's an address to check (a verifiable engine flagged while
                  IP capture was on). Ad-hoc IP checks live in the global IP tool. Runs regardless
-                 of the always-on "Verify search engines" setting. -->
+                 of the always-on "Verify bot identities" setting. -->
             <div v-if="s.verifiable && s.ips && s.ips.length" class="ar-rev-recheck">
               <div class="ar-rev-recheck__row">
                 <button
