@@ -20,7 +20,7 @@ Agentimus does two things for the age of AI agents.
 
 Want more control? You also get a first-party log of every AI crawler that fetches your content, one-click blocking for bots you don't want, and a dashboard that scores your agent readiness — one AEO/GEO score across five rungs, with per-page tips and always the next thing to improve.
 
-By default it makes no outbound requests, collects no analytics, and logs no IP addresses — everything runs on your own site. Two optional, off-by-default features change that only when you enable them: **AI Visibility** queries an AI provider you choose (your own key) to check whether AIs cite you, and **Store IP addresses for flagged clients** records IPs only for crawlers flagged as impersonators or spoofs (see *External services*).
+By default it makes no outbound requests, collects no analytics, and logs no IP addresses — everything runs on your own site. A few optional, off-by-default features change that only when you enable them: **AI Visibility** queries an AI provider you choose (your own key), **Verify bot identities** makes DNS lookups and fetches operators' published crawler-IP lists, and **Store IP addresses for flagged clients** records IPs for flagged crawlers only (see *External services*).
 
 **📖 Full documentation** — a plain-English user manual and a developer reference, with step-by-step guides for every feature: https://heera.github.io/agentimus/
 
@@ -124,7 +124,7 @@ Whatever your case, the Readiness report always tells you the single next thing 
 
 = Does Agentimus make external requests or send my data anywhere? =
 
-By default, no — Agentimus makes no outbound HTTP requests out of the box, sends nothing to any external service, collects no analytics or telemetry, and stores the agent-activity log in your own database with no IP addresses. (One opt-in setting, *Store IP addresses for flagged clients*, can store IPs locally for flagged crawlers only — off by default; see *External services*.) **The one external-service exception is the optional AI Visibility feature:** if you enable it and add your own API key, Agentimus queries the AI provider(s) you chose (OpenAI, Perplexity, Gemini and/or Anthropic) to check whether they mention and cite you — only for the engines you turn on, and only when a check runs (on demand or on your schedule). Your keys stay on your server and nothing else is sent anywhere. See *External services* for the full disclosure. The discovery document includes a `$schema` value that *identifies* the document format (the same way a schema.org URL identifies a vocabulary); it is a label in the output, never fetched. The one place a request is made is the optional "Verify live" self-check on the readiness report — and that runs in *your browser*, fetching your own public URLs only when you click it; the server itself still makes no request.
+By default, no — Agentimus makes no outbound HTTP requests out of the box, sends nothing to any external service, collects no analytics or telemetry, and stores the agent-activity log in your own database with no IP addresses. (One opt-in setting, *Store IP addresses for flagged clients*, can store IPs locally for flagged crawlers only — off by default; see *External services*.) Two opt-in features go outbound. **Verify bot identities** makes DNS lookups and downloads, once a day, the crawler-IP lists that bot operators publish (Google, OpenAI, Perplexity, …) so impostors can be caught — only those public files are fetched, and nothing about your site is sent. **The other is the optional AI Visibility feature:** if you enable it and add your own API key, Agentimus queries the AI provider(s) you chose (OpenAI, Perplexity, Gemini and/or Anthropic) to check whether they mention and cite you — only for the engines you turn on, and only when a check runs (on demand or on your schedule). Your keys stay on your server and nothing else is sent anywhere. See *External services* for the full disclosure. The discovery document includes a `$schema` value that *identifies* the document format (the same way a schema.org URL identifies a vocabulary); it is a label in the output, never fetched. The one place a request is made is the optional "Verify live" self-check on the readiness report — and that runs in *your browser*, fetching your own public URLs only when you click it; the server itself still makes no request.
 
 = Does this conflict with my SEO plugin? =
 
@@ -249,7 +249,11 @@ Yes — there is no minified-only code. The admin interface is built from Vue 3 
 
 By default, Agentimus makes no outbound requests and sends no data anywhere: no remote scripts, fonts or analytics, and the agent-activity log stays in your own database with no IP addresses. (IP storage is optional and off by default — see the FAQ.)
 
-**AI Visibility is the only feature that calls an external service, and it is off by default.** When you enable it and add your own API key for a provider, Agentimus sends the prompts you configured to that provider to check whether it mentions and cites your site — only for the engines you turn on, and only when a check runs. Your keys are stored on your own site and used solely for these calls. The providers, with their terms and privacy policies:
+**Two opt-in features go outbound; both are off by default.**
+
+**Verify bot identities** makes DNS lookups and, once a day, downloads the IP-range files bot operators publish to verify their crawlers (Google, Microsoft, DuckDuckGo, Apple, OpenAI, Perplexity — or a URL you add yourself). Only those files are fetched; nothing about your site is sent.
+
+**AI Visibility:** when you enable it and add your own API key for a provider, Agentimus sends the prompts you configured to that provider to check whether it mentions and cites your site — only for the engines you turn on, and only when a check runs. Your keys are stored on your own site and used solely for these calls. The providers, with their terms and privacy policies:
 
 * **OpenAI (ChatGPT)** — https://openai.com/policies/terms-of-use · https://openai.com/policies/privacy-policy
 * **Perplexity** — https://www.perplexity.ai/hub/legal/terms-of-service · https://www.perplexity.ai/hub/legal/privacy-policy
@@ -259,6 +263,13 @@ By default, Agentimus makes no outbound requests and sends no data anywhere: no 
 URL-like strings in the plugin's output are labels, not requests — the discovery documents' `$schema` value names the format (never fetched), and the `example.com` URLs in `examples/` are documentation placeholders.
 
 == Changelog ==
+
+= 1.24.0 =
+* New — **Verify more bots — and edit the list yourself.** Verification used to cover the five search engines that publish reverse DNS. Agentimus now also checks a bot against the IP ranges its operator officially publishes, which adds GPTBot, OAI-SearchBot and PerplexityBot — and the whole list is yours: Settings shows every verified bot with how it's checked, any built-in can be switched off, and when a new operator starts publishing verification data you can add it yourself instead of waiting for a plugin update. The range lists refresh once a day in the background, never while serving a visitor. An unreachable publisher just means "not checked": a match can verify against an older copy, but only a fresh copy may ever call a bot fake.
+* New — **A proven impostor is refused, not just flagged.** With blocking and verification both on, a client caught lying about who it is — a fake "GPTBot", a forged "Googlebot" — is turned away from the AI endpoints with a 403, as part of the auto-deny-spoofed switch (an identity forgery is the same kind of deception, just proven). Your rules still outrank everything: an agent on your Allow list is never denied, a bot on your Block list stays blocked even when it verifies as genuine, and anything unclear — slow DNS, a stale range list — is served, never guessed at.
+* Improved — **The review queue explains its own housekeeping.** A client that's merely new leaves the queue by itself 48 hours after its first visit; that always happened silently, and looked like a bug. Its chip now counts down ("New · leaves in 31h"), and a fixed footer says who leaves on their own, that flagged clients stay until you act, and that every request stays in the log — with a Manage clients link right there. The queue's title and filter tabs stay put while the list scrolls, and an impostor's card now says exactly how it was caught ("its address isn't in GPTBot's published IP ranges") and notes when it's already being refused.
+* Fixed — **The admin fits your phone.** No more sideways panning on narrow screens, dialogs size themselves to the real visible area (the Close button can no longer land beyond the screen's edge), and the About page no longer clips its text.
+* Changed — screen names are consistently title-cased: AI Traffic, Request Log, Agent Access, About Agentimus.
 
 = 1.23.0 =
 * New — **Agent access alerts on every visit.** The nav pill now re-lights whenever an agent authenticates or acts — not only the first time ever — and the log lists the newest activity first. The screen also gained its proper page header.
@@ -319,6 +330,9 @@ URL-like strings in the plugin's output are labels, not requests — the discove
 The full changelog for every release lives in the plugin repository: https://github.com/heera/agentimus/blob/main/CHANGELOG.md
 
 == Upgrade Notice ==
+
+= 1.24.0 =
+Bot verification grows: bots are also checked against their operator's published IP ranges (GPTBot, PerplexityBot, …), the verified list is now yours to edit, and with blocking on a proven impostor is refused — not just flagged. Plus a clearer review queue and a phone-friendly admin. No breaking changes.
 
 = 1.23.0 =
 Agent-access alerts now fire on every visit, Markdown output is ready for WordPress 7.1's new blocks, and your Content Guidelines steer every AI draft — in the editor and over MCP. No breaking changes.

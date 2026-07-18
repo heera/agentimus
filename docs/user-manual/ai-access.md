@@ -132,17 +132,26 @@ The major search engines — **Googlebot, Bingbot, DuckDuckBot, Applebot, and Ya
 
 Crucially, they're matched by *signature*, not by a loose text search. Agentimus checks for the real product token in its genuine form (like `Googlebot/2.1`), so a scanner that simply pastes the word "googlebot" into its user-agent to sneak past earns nothing. A user-agent can always be forged, so this can't *prove* identity — but it does remove the trivial "append the magic word" bypass, and it works the same on any host without needing a network lookup.
 
-#### Verify search engines by reverse DNS (optional)
+#### Verify bot identities (optional)
 
-Signature-matching removes the *easy* spoof, but a determined scanner can still copy a crawler's full user-agent word for word. For the cases where that matters, there's an optional next step under **Settings → Block scanners & scrapers**: **Verify search engines by reverse DNS**.
+Signature-matching removes the *easy* spoof, but a determined scanner can still copy a crawler's full user-agent word for word. For the cases where that matters, there's an optional next step under **Settings → Block scanners & scrapers**: **Verify bot identities**.
 
-When it's on, a visitor claiming to be Googlebot, Bingbot, Applebot, DuckDuckBot, or Yandex is only trusted after a *forward-confirmed reverse-DNS* check — the same method Google itself recommends:
+Verification is only ever a comparison against something the bot's *operator* publishes — a claim can't vouch for itself. Operators publish two kinds of proof, and Agentimus checks whichever one exists for the bot a visitor claims to be:
 
-1. Look up the name of the visitor's IP address (a reverse, or "PTR", lookup).
-2. Check that name ends in the crawler's official domain (for example `googlebot.com`).
-3. Look that name back up to an IP address and confirm it matches the visitor.
+- **Reverse DNS** (Googlebot, Bingbot, Applebot, DuckDuckBot, Yandex) — the method Google itself recommends, checked live per visitor:
+  1. Look up the name of the visitor's IP address (a reverse, or "PTR", lookup).
+  2. Check that name ends in the crawler's official domain (for example `googlebot.com`).
+  3. Look that name back up to an IP address and confirm it matches the visitor.
+- **Published IP ranges** (GPTBot, OAI-SearchBot, PerplexityBot — and the search engines too, as a backup when DNS can't answer) — the operator publishes the exact address ranges its crawler uses (OpenAI's `gptbot.json`, for example), and the visitor's address either falls inside them or it doesn't. Agentimus refreshes these lists **once a day in the background — never while serving a visitor** — so an unreachable publisher costs your site nothing. The lists age honestly, too: a *match* verifies against an older copy, but only a **fresh** copy may ever call a bot fake — "not in a stale list" might just mean the operator added addresses we haven't fetched yet.
 
-Only a request that passes all three is treated as the real crawler; anything else is handled like any other unknown client. Results are cached briefly, so a busy crawler isn't looked up on every hit.
+Only a claim that conclusively passes is treated as the real crawler, and only one that conclusively *fails* is treated as an impostor; everything in between stays simply "not checked." Reverse-DNS results are cached briefly, so a busy crawler isn't looked up on every hit.
+
+##### The Verified bots list is yours to edit
+
+Below the toggle, the **Verified bots** list shows every bot Agentimus can verify and *how* (reverse DNS, IP ranges, or both). It's a registry, not a constant:
+
+- **Switch any built-in off** — its bot simply becomes unverifiable again. Nothing is ever flagged by an absence.
+- **Add a bot yourself** with **Add a bot** — when a new operator starts publishing verification data (a reverse-DNS domain, an IP-ranges file in the common `prefixes` JSON format), you can trust it the same day, without waiting for a plugin update. You give it a name, the exact token from its user-agent, and at least one source from the operator's own docs.
 
 **It's off by default, on purpose** — the check makes a small outbound DNS lookup, and this plugin makes none unless you ask it to. It does need your visitor's *real* IP address to work, but since 1.15.0 that's handled for you in the common cases:
 
@@ -193,9 +202,14 @@ These are only *suggestions* — nothing is denied until you add it **and** enfo
 
 Two built-in guards keep a slip from doing harm: an all-wildcard entry (just `*`) matches nothing rather than blocking everyone, and a regex that doesn't compile quietly falls back to a plain-text match so a typo can never break the endpoint. If a rule you enter would be broad enough to also catch real browsers or AI crawlers you want, the admin warns you and suggests something more specific.
 
-### Auto-denying spoofed / legacy-device agents
+### Auto-denying spoofed / legacy-device agents — and proven impostors
 
-Separately, the **Auto-deny spoofed / legacy-device agents** toggle turns away bots that disguise themselves as ancient phones — old Nokia, BlackBerry, Symbian, Java ME, Windows CE or Palm handsets. No real visitor fetches a machine endpoint from a 2004 feature phone, so these are almost always scanners hiding behind a "harmless" user-agent. They show up as **"Likely spoof/scanner"** in your activity log, and this toggle refuses exactly what the log names — one definition, so blocking and reporting never disagree.
+Separately, the **Auto-deny spoofed / legacy-device agents** toggle turns away bots caught lying about who they are. It covers two kinds of deception:
+
+- **Legacy-device spoofs** — bots disguised as ancient phones: old Nokia, BlackBerry, Symbian, Java ME, Windows CE or Palm handsets. No real visitor fetches a machine endpoint from a 2004 feature phone, so these are almost always scanners hiding behind a "harmless" user-agent. They show up as **"Likely spoof/scanner"** in your activity log, and this toggle refuses exactly what the log names — one definition, so blocking and reporting never disagree.
+- **Proven impostors** *(needs **Verify bot identities** on)* — a client claiming a bot from the Verified bots list whose address **conclusively failed** that operator's own published check: a fake "GPTBot" arriving from outside OpenAI's published ranges, a forged "Googlebot" whose address reverse-resolves to someone else entirely. A legacy-device spoof is *inferred*; an impostor is *proven* — same kind of deception, stronger evidence, same switch.
+
+Impostor denial is as careful as verification itself: anything inconclusive — slow DNS, a stale or unfetched range list, no address to check — is served, never guessed at. And your own rules always outrank it: an agent on your **Always allowed** list is never denied, and a bot on your denylist stays blocked even when it verifies as genuine (verification never quietly undoes a choice you made).
 
 This is on by the setting default, but like the denylist it has *no effect* until the master **Deny blocked agents** switch is on. It's careful, too: any user-agent that mentions "android" is treated as a modern device and never caught, so a current Nokia Android phone is never mistaken for a spoof.
 

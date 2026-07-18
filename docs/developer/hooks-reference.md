@@ -211,7 +211,7 @@ These are the Guard (opt-in UA blocking), the activity Classifier (labelling, no
 | `agentimus_default_allowed` | filter | `( string[] $engines ): string[]` | The built-in always-allowed engine **display names** shown in the admin. Default: `Googlebot`, `Bingbot`, `DuckDuckBot`, `Applebot`, `Yandex`. Display-only — the actual matcher is `engine_signatures()`, so keep the two in step. |
 | `agentimus_engine_signatures` | filter | `( array $signatures ): array` | Structured signatures used to match real crawlers at a token boundary. |
 | `agentimus_generic_ua_tokens` | filter | `( string[] $tokens ): string[]` | Generic user-agent tokens treated as low-signal. |
-| `agentimus_verify_bots` | filter | `( bool $on ): bool` | Force forward-confirmed reverse-DNS verification of search-engine crawlers on or off, overriding the **Verify search engines by reverse DNS** setting. |
+| `agentimus_verify_bots` | filter | `( bool $on ): bool` | Force bot-identity verification (reverse DNS + published IP ranges) on or off, overriding the **Verify bot identities** setting. |
 | `agentimus_reverse_dns` | filter | `( ?string $host, string $ip ): ?string` | Override the reverse (PTR) lookup used by the verifier — return a hostname string (`''` for none) to inject a resolver or cache, or `null` to fall through to the built-in lookup. |
 | `agentimus_forward_dns` | filter | `( ?array $ips, string $host ): ?array` | Override the forward (A/AAAA) lookup used by the verifier — return an array of IP strings, or `null` to fall through to the built-in lookup. |
 
@@ -221,7 +221,8 @@ The reverse-DNS crawler verifier (whose on/off and lookup hooks — `agentimus_v
 
 | Hook | Type | Signature | Purpose |
 | --- | --- | --- | --- |
-| `agentimus_verified_bot_domains` | filter | `( array $map ): array` | The verifiable-engine map: UA token → the reverse-DNS domain suffixes an IP claiming it must resolve into (e.g. `googlebot` → `.googlebot.com`, `.google.com`). Add your CDN's own verified crawler, or tighten the set. |
+| `agentimus_verified_bot_domains` | filter | `( array $map ): array` | The verifiable-bot rDNS map: registry token → the reverse-DNS domain suffixes an IP claiming it must resolve into (e.g. `googlebot` → `.googlebot.com`, `.google.com`). Sourced from the owner-editable Verified-bots registry (built-ins minus disabled, plus custom entries); this filter still runs last, so code can add a CDN's own verified crawler or tighten the set. |
+| `agentimus_verifier_registry` | filter | `( array $entries ): array` | The effective Verified-bots registry (token → `{ token, label, ua, domains[], url, builtin }`) after the owner's edits are applied — the source for both verification methods. Add or adjust entries in code; an entry's `url` is its operator's published IP-ranges file. |
 | `agentimus_verify_slow_ms` | filter | `( int $ms ): int` | Milliseconds beyond which a single DNS lookup counts as "slow" — one circuit-breaker strike, and a fail-open (null) verdict for that request. Default `900`. |
 | `agentimus_verify_trip_strikes` | filter | `( int $strikes ): int` | How many slow-lookup strikes (within the strike window) open the verifier's circuit breaker, after which DNS is skipped entirely for a cooldown. Default `2`. |
 | `agentimus_verify_lookup_budget` | filter | `( int $max ): int` | Maximum reverse-DNS lookups per rolling 60-second window; once spent, verification stands down (fail-open) until the window rolls. Default `30`. |
