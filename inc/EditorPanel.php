@@ -140,7 +140,7 @@ final class EditorPanel {
 		foreach ( Content::post_types() as $type ) {
 			add_meta_box(
 				'agentimus-panel',
-				__( 'Agentimus', 'agentimus' ),
+				Admin::brand_title( __( 'Agentimus', 'agentimus' ) ),
 				array( $this, 'render_meta_box' ),
 				$type,
 				'normal',
@@ -255,6 +255,44 @@ final class EditorPanel {
 		was=saving;
 	});
 })();
+(function(){
+	/* The collapsed "Meta Boxes" drawer hides real warnings — so a tiny branded
+	   badge on core's toggle says when AI-readability checks need attention.
+	   Counts come from the panel's own rendered rows (always in sync, including
+	   after the post-save refresh above); shows nothing when everything passes. */
+	var root=document.getElementById('agentimus-panel');
+	if(!root){return;}
+	var TILE='<svg width="13" height="13" viewBox="0 0 24 24" fill="none" aria-hidden="true" focusable="false" style="flex:none"><rect x="1.2" y="1.2" width="21.6" height="21.6" rx="6" fill="#1b1913" stroke="#146b64" stroke-width="1.5"/><path d="M7.35 17.3 12 6.7 16.65 17.3" stroke="#f3f0e7" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M9.5 13H14.5" stroke="#ad7b18" stroke-width="1.9" stroke-linecap="round"/></svg>';
+	function host(){return document.querySelector('.edit-post-meta-boxes-main__presenter > button');}
+	function warns(){return document.querySelectorAll('#agentimus-panel .agentimus-pc__row.is-warn, #agentimus-panel .agentimus-pc__row.is-fail').length;}
+	function update(){
+		var h=host();
+		if(!h){return;}
+		var n=warns();
+		var b=h.querySelector('.agentimus-mbbadge');
+		if(!n){if(b){b.remove();}return;}
+		if(b&&b.getAttribute('data-n')===String(n)){return;}
+		if(!b){
+			b=document.createElement('span');
+			b.className='agentimus-mbbadge';
+			var chevron=h.querySelector(':scope > svg');
+			h.insertBefore(b,chevron||null);
+		}
+		b.setAttribute('data-n',String(n));
+		b.innerHTML=TILE+'<span>'+(1===n?'1 check needs attention':n+' checks need attention')+'</span>';
+	}
+	var tries=0;
+	(function boot(){if(host()){update();}else if(tries++<40){setTimeout(boot,500);}})();
+	if(window.MutationObserver){
+		var t=null,sched=function(){clearTimeout(t);t=setTimeout(update,250);};
+		new MutationObserver(sched).observe(root,{childList:true,subtree:true});
+		// The editor may re-render the toggle (wiping the badge) — watch and re-add.
+		var wait=setInterval(function(){
+			var m=document.querySelector('.edit-post-meta-boxes-main__presenter');
+			if(m){clearInterval(wait);new MutationObserver(sched).observe(m,{childList:true,attributes:true});}
+		},700);
+	}
+})();
 JS;
 	}
 
@@ -264,7 +302,8 @@ JS;
 	 * @return string
 	 */
 	private static function css() {
-		return '.agentimus-panel__tabs{display:flex;gap:16px;border-bottom:1px solid #dcdcde;margin:0 0 14px;padding:0}'
+		return '.agentimus-mbbadge{display:inline-flex;align-items:center;gap:5px;margin-left:12px;margin-right:auto;font-size:11px;font-weight:400;color:#996a00;line-height:1;vertical-align:middle}'
+			. '.agentimus-panel__tabs{display:flex;gap:16px;border-bottom:1px solid #dcdcde;margin:0 0 14px;padding:0}'
 			. '.agentimus-panel__tab{appearance:none;background:none;border:0;border-bottom:2px solid transparent;padding:6px 2px;margin-bottom:-1px;cursor:pointer;font-size:13px;color:#646970}'
 			. '.agentimus-panel__tab:hover{color:#1d2327}'
 			. '.agentimus-panel__tab.is-active{color:#1d2327;border-bottom-color:#2271b1;font-weight:600}'

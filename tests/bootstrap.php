@@ -85,6 +85,7 @@ namespace {
 	if ( ! function_exists( 'is_email' ) )              { function is_email( $e ) { return filter_var( $e, FILTER_VALIDATE_EMAIL ) ? $e : false; } }
 	if ( ! function_exists( 'wp_normalize_path' ) )     { function wp_normalize_path( $p ) { return str_replace( '\\', '/', (string) $p ); } }
 	if ( ! function_exists( 'wp_strip_all_tags' ) )     { function wp_strip_all_tags( $s ) { return trim( strip_tags( (string) $s ) ); } }
+	if ( ! function_exists( 'get_locale' ) )            { function get_locale() { return 'en_US'; } }
 	// Post-body sanitiser stub: keeps the tags the Assistant's preview allows, drops
 	// script/style etc. — close enough to assert "dangerous input doesn't survive".
 	if ( ! function_exists( 'wp_kses_post' ) )          { function wp_kses_post( $s ) { $s = preg_replace( '#<(script|style)\b[^>]*>.*?</\1>#is', '', (string) $s ); return strip_tags( $s, '<h2><h3><p><ul><ol><li><strong><em><a><blockquote><code><pre>' ); } }

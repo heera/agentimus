@@ -143,6 +143,25 @@ final class Admin {
 	}
 
 	/**
+	 * A meta-box title wearing the brand tile — the plugin header's own mark
+	 * (dark rounded square, paper "A", amber crossbar, teal ring) — so every
+	 * Agentimus box is recognisable at a glance. The ONE copy of this SVG:
+	 * every meta box title routes through here. WordPress echoes meta-box
+	 * titles as raw HTML; the icon is decorative (aria-hidden), the text still
+	 * labels the box.
+	 *
+	 * @param string $text The plain-text title (already translated).
+	 * @return string
+	 */
+	public static function brand_title( $text ) {
+		$icon = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true" focusable="false" style="flex:none">'
+			. '<rect x="1.2" y="1.2" width="21.6" height="21.6" rx="6" fill="#1b1913" stroke="#146b64" stroke-width="1.5"/>'
+			. '<path d="M7.35 17.3 12 6.7 16.65 17.3" stroke="#f3f0e7" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>'
+			. '<path d="M9.5 13H14.5" stroke="#ad7b18" stroke-width="1.9" stroke-linecap="round"/></svg>';
+		return '<span style="display:inline-flex;align-items:center;gap:5px;white-space:nowrap">' . $icon . esc_html( $text ) . '</span>';
+	}
+
+	/**
 	 * Recolour the SVG menu icon to match a native dashicon: masked by the "A", filled
 	 * with the menu's per-state icon colour (idle grey, white when hovered/current),
 	 * so it adapts across admin colour schemes instead of being a fixed-colour image.

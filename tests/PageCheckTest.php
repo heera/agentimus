@@ -22,6 +22,65 @@ final class PageCheckTest extends TestCase {
 		return (array) $m->invoke( null, $stats );
 	}
 
+	/* -- Cited sources ------------------------------------------------------ */
+
+	public function test_sources_wants_an_outbound_link_on_substantive_pages() {
+		$short = $this->check( 'check_sources', array( 'words' => 100, 'outbound_links' => 0 ) );
+		$this->assertSame( 'pass', $short['status'], 'Short pages need no references.' );
+
+		$cited = $this->check( 'check_sources', array( 'words' => 800, 'outbound_links' => 2 ) );
+		$this->assertSame( 'pass', $cited['status'] );
+
+		$bare = $this->check( 'check_sources', array( 'words' => 800, 'outbound_links' => 0 ) );
+		$this->assertSame( 'warn', $bare['status'] );
+		$this->assertStringContainsString( 'sources', $bare['detail'] );
+
+		// Sharper than evidence: figures alone satisfy evidence but NOT sources.
+		$figures_only = array( 'words' => 800, 'figures' => 9, 'outbound_links' => 0 );
+		$this->assertSame( 'pass', $this->check( 'check_evidence', $figures_only )['status'] );
+		$this->assertSame( 'warn', $this->check( 'check_sources', $figures_only )['status'] );
+	}
+
+	/* -- Reading ease -------------------------------------------------------- */
+
+	public function test_reading_ease_score_orders_plain_before_dense_prose() {
+		$plain = PageCheck::stats( '<p>' . str_repeat( 'The cat sat on the mat. We like it here. ', 30 ) . '</p>', false );
+		$dense = PageCheck::stats( '<p>' . str_repeat( 'Notwithstanding institutional considerations, epistemological ramifications predominantly characterise infrastructural interoperability initiatives. ', 30 ) . '</p>', false );
+		$this->assertGreaterThan( 80, PageCheck::reading_ease( $plain ), 'Simple sentences grade easy.' );
+		$this->assertLessThan( 30, PageCheck::reading_ease( $dense ), 'Polysyllabic run-ons grade hard.' );
+	}
+
+	public function test_reading_ease_check_bands_and_honest_skips() {
+		$easy = array( 'english' => true, 'words' => 300, 'sentences' => 40, 'syllables' => 390 );
+		$this->assertSame( 'pass', $this->check( 'check_reading_ease', $easy )['status'] );
+
+		$hard = array( 'english' => true, 'words' => 300, 'sentences' => 10, 'syllables' => 660 );
+		$row  = $this->check( 'check_reading_ease', $hard );
+		$this->assertSame( 'warn', $row['status'] );
+		$this->assertStringContainsString( 'plainer words', $row['detail'] );
+
+		$bengali = $this->check( 'check_reading_ease', array( 'english' => false, 'words' => 900, 'sentences' => 5, 'syllables' => 5000 ) );
+		$this->assertSame( 'pass', $bengali['status'], 'Non-English content is skipped, never mis-graded.' );
+		$this->assertStringContainsString( 'only fits English', $bengali['detail'] );
+
+		$short = $this->check( 'check_reading_ease', array( 'english' => true, 'words' => 40, 'sentences' => 2, 'syllables' => 60 ) );
+		$this->assertSame( 'pass', $short['status'], 'Too short to grade.' );
+	}
+
+	public function test_syllable_estimator_is_sane() {
+		$syl = function ( string $w ): int {
+			$m = new \ReflectionMethod( PageCheck::class, 'syllables' );
+			$m->setAccessible( true );
+			return (int) $m->invoke( null, $w );
+		};
+		$this->assertSame( 1, $syl( 'cat' ) );
+		$this->assertSame( 1, $syl( 'make' ), 'Silent e drops.' );
+		$this->assertSame( 2, $syl( 'table' ), '-le keeps its syllable.' );
+		$this->assertSame( 3, $syl( 'excellent' ) );
+		$this->assertSame( 0, $syl( '2024' ), 'Numbers don’t skew the grade.' );
+		$this->assertSame( 0, $syl( 'তারা' ), 'Non-Latin tokens count zero.' );
+	}
+
 	/* -- stats() parser --------------------------------------------------- */
 
 	public function test_stats_parses_structure() {

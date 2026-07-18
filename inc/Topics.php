@@ -354,13 +354,27 @@ final class Topics {
 	 * entirely when the feature is off.
 	 */
 	public function add_meta_box() {
-		if ( ! self::enabled() ) {
+		// One SHARED box for both AI-dressing features — description on top,
+		// topics below — instead of two stacked boxes fighting for sidebar
+		// space. Registered under the long-standing 'agentimus-topics' id so
+		// any saved metabox order (and muscle memory) carries over. The title
+		// tells the truth about which halves are on.
+		$topics      = self::enabled();
+		$description = Description::enabled();
+		if ( ! $topics && ! $description ) {
 			return;
+		}
+		if ( $topics && $description ) {
+			$title = __( 'AI description & topics', 'agentimus' );
+		} elseif ( $topics ) {
+			$title = __( 'Topics for AI', 'agentimus' );
+		} else {
+			$title = __( 'AI description', 'agentimus' );
 		}
 		foreach ( Content::post_types() as $type ) {
 			add_meta_box(
 				'agentimus-topics',
-				self::meta_box_title( __( 'Topics for AI', 'agentimus' ) ),
+				self::meta_box_title( $title ),
 				array( $this, 'render_meta_box' ),
 				$type,
 				'side',
@@ -381,11 +395,7 @@ final class Topics {
 	 * @return string
 	 */
 	private static function meta_box_title( $text ) {
-		$icon = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#146b64" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false" style="flex:none">'
-			. '<rect x="2.6" y="2.6" width="18.8" height="18.8" rx="5.4"/><path d="M8.4 16.6 12 8 15.6 16.6"/><path d="M9.9 13.6H14.1"/></svg>';
-		// Glue the mark + text into ONE inline-flex unit so the header's flex layout
-		// can't spread them apart, and so they read as a single left-aligned label.
-		return '<span style="display:inline-flex;align-items:center;gap:5px;white-space:nowrap">' . $icon . esc_html( $text ) . '</span>';
+		return Admin::brand_title( $text ); // The one shared brand tile.
 	}
 
 	/**
@@ -397,6 +407,18 @@ final class Topics {
 	 * @param \WP_Post $post Post being edited.
 	 */
 	public function render_meta_box( $post ) {
+		// The shared box's top half: the AI description, when that feature is on.
+		// Its own save/assets hooks are untouched — only the container is shared.
+		if ( Description::enabled() ) {
+			( new Description( $this->settings ) )->render_meta_box( $post );
+			if ( self::enabled() ) {
+				echo '<hr style="margin:14px 0 12px;border:0;border-top:1px solid #dcdcde" />';
+			}
+		}
+		if ( ! self::enabled() ) {
+			return;
+		}
+
 		wp_nonce_field( self::NONCE, self::NONCE );
 
 		$manual   = self::manual( $post->ID );

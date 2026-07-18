@@ -42,6 +42,15 @@ final class PageCheck {
 	/** Past this age (days) a substantive page reads as stale — engines favour current sources. */
 	const STALE_DAYS = 730;
 
+	/** Below this a page is too short to expect outbound references. */
+	const SOURCES_MIN_WORDS = 300;
+
+	/** Flesch Reading Ease bands: at/above OK reads general-audience; below HARD
+	 *  is university-level prose. (English-only — the formula fits no other
+	 *  language, and the check says so instead of mis-grading.) */
+	const READING_EASE_OK   = 50;
+	const READING_EASE_HARD = 30;
+
 	/**
 	 * Run the checks for a post.
 	 *
@@ -54,14 +63,19 @@ final class PageCheck {
 		// Recency is a post fact, not a content fact — fold it in after the pure parse.
 		$stats['age_days']  = self::age_days( $post );
 		$stats['evergreen'] = self::is_evergreen( $post );
+		// The site language is a runtime fact too: the reading-ease formula only
+		// fits English, and the check skips honestly elsewhere.
+		$stats['english'] = 0 === stripos( (string) get_locale(), 'en' );
 
 		$checks = array(
 			self::check_words( $stats ),
 			self::check_summary( $stats ),
 			self::check_evidence( $stats ),
+			self::check_sources( $stats ),
 			self::check_headings( $stats ),
 			self::check_heading_order( $stats ),
 			self::check_passages( $stats ),
+			self::check_reading_ease( $stats ),
 			self::check_link_density( $stats ),
 			self::check_alt_text( $stats ),
 			self::check_freshness( $stats ),
@@ -129,6 +143,14 @@ final class PageCheck {
 			}
 		}
 
+		// Sentence and syllable counts feed the reading-ease grade. Rough by
+		// design — Flesch is a heuristic, not a measurement.
+		$sentences = (int) preg_match_all( '/[.!?]+(?:\s|$)/u', $text );
+		$syllables = 0;
+		foreach ( explode( ' ', trim( (string) preg_replace( '/\s+/', ' ', $text ) ) ) as $token ) {
+			$syllables += self::syllables( $token );
+		}
+
 		return array(
 			'words'          => $words,
 			'figures'        => $figures,
@@ -140,6 +162,8 @@ final class PageCheck {
 			'images'         => $images,
 			'images_no_alt'  => $images_no_alt,
 			'has_excerpt'    => (bool) $has_excerpt,
+			'sentences'      => $sentences,
+			'syllables'      => $syllables,
 		);
 	}
 
@@ -166,13 +190,13 @@ final class PageCheck {
 		}
 		$lead = ! empty( $s['paragraphs'] ) ? (int) $s['paragraphs'][0] : 0;
 		if ( ! empty( $s['has_excerpt'] ) || $lead >= self::SUMMARY_MIN_WORDS ) {
-			return self::row( 'summary', __( 'Opening summary', 'agentimus' ), 'pass', __( 'Has an excerpt or a substantive opening paragraph an agent can lift as the gist.', 'agentimus' ) );
+			return self::row( 'summary', __( 'Opening summary', 'agentimus' ), 'pass', __( 'Has an excerpt or a solid first paragraph an agent can use as the summary.', 'agentimus' ) );
 		}
 		return self::row(
 			'summary',
 			__( 'No opening summary', 'agentimus' ),
 			'warn',
-			__( 'The page opens without a clear lead. Add an excerpt or a first paragraph that states what it’s about, so an agent can grab the gist.', 'agentimus' )
+			__( 'The page does not start with a clear summary. Add an excerpt, or a first paragraph that says what the page is about.', 'agentimus' )
 		);
 	}
 
@@ -194,6 +218,25 @@ final class PageCheck {
 		);
 	}
 
+	private static function check_sources( array $s ) {
+		// Sharper than the evidence check: figures can make a page QUOTABLE, but
+		// only outbound references make it read VERIFIABLE — engines favour pages
+		// that show where their facts come from.
+		if ( (int) $s['words'] < self::SOURCES_MIN_WORDS ) {
+			return self::row( 'sources', __( 'Cited sources', 'agentimus' ), 'pass', __( 'Short enough not to need references.', 'agentimus' ) );
+		}
+		$outbound = (int) ( isset( $s['outbound_links'] ) ? $s['outbound_links'] : 0 );
+		if ( $outbound >= 1 ) {
+			return self::row( 'sources', __( 'Cited sources', 'agentimus' ), 'pass', sprintf( /* translators: %d: outbound link count. */ __( '%d outbound link(s) — the page shows where its facts come from.', 'agentimus' ), $outbound ) );
+		}
+		return self::row(
+			'sources',
+			__( 'No outbound sources', 'agentimus' ),
+			'warn',
+			__( 'A long page with no links to outside sources gives readers no way to check its facts. Answer engines prefer pages that show their sources — link the material you build on.', 'agentimus' )
+		);
+	}
+
 	private static function check_headings( array $s ) {
 		if ( (int) $s['words'] < self::HEADINGS_MIN_WORDS || ! empty( $s['headings'] ) ) {
 			return self::row( 'headings', __( 'Section headings', 'agentimus' ), 'pass', empty( $s['headings'] ) ? __( 'Short enough to read without headings.', 'agentimus' ) : sprintf( /* translators: %d: heading count. */ __( '%d heading(s) give the page navigable structure.', 'agentimus' ), count( $s['headings'] ) ) );
@@ -202,7 +245,7 @@ final class PageCheck {
 			'headings',
 			__( 'No headings', 'agentimus' ),
 			'warn',
-			__( 'A long page with no headings is one undifferentiated block. Add H2/H3 headings so an agent can section and quote it.', 'agentimus' )
+			__( 'A long page with no headings is one big block of text. Add H2/H3 headings so an agent can find and quote each part.', 'agentimus' )
 		);
 	}
 
@@ -214,7 +257,7 @@ final class PageCheck {
 					'heading_order',
 					__( 'Heading order', 'agentimus' ),
 					'warn',
-					sprintf( /* translators: 1: from level, 2: to level. */ __( 'Heading levels jump (H%1$d → H%2$d). Don’t skip levels — it garbles the outline an agent builds.', 'agentimus' ), (int) $prev, (int) $level )
+					sprintf( /* translators: 1: from level, 2: to level. */ __( 'Heading levels jump (H%1$d → H%2$d). Don’t skip levels — it breaks the outline an agent builds from the page.', 'agentimus' ), (int) $prev, (int) $level )
 				);
 			}
 			$prev = (int) $level;
@@ -236,6 +279,44 @@ final class PageCheck {
 			);
 		}
 		return self::row( 'passages', __( 'Quotable passages', 'agentimus' ), 'pass', __( 'Paragraphs are a quotable length — easy to lift a clean passage from.', 'agentimus' ) );
+	}
+
+	private static function check_reading_ease( array $s ) {
+		// Flesch Reading Ease — an ENGLISH formula; on other languages it grades
+		// noise, so the check skips honestly rather than mis-scoring.
+		if ( array_key_exists( 'english', $s ) && empty( $s['english'] ) ) {
+			return self::row( 'reading_ease', __( 'Reading ease', 'agentimus' ), 'pass', __( 'The reading-ease formula only fits English — skipped for this site’s language.', 'agentimus' ) );
+		}
+		if ( (int) $s['words'] < self::MIN_WORDS ) {
+			return self::row( 'reading_ease', __( 'Reading ease', 'agentimus' ), 'pass', __( 'Too short to grade.', 'agentimus' ) );
+		}
+		$score = self::reading_ease( $s );
+		if ( $score >= self::READING_EASE_OK ) {
+			return self::row( 'reading_ease', __( 'Reading ease', 'agentimus' ), 'pass', sprintf( /* translators: %d: Flesch score. */ __( 'Score %d — plain enough for a general audience, the kind of writing answer engines quote most.', 'agentimus' ), (int) round( $score ) ) );
+		}
+		$band = $score < self::READING_EASE_HARD
+			? __( 'university-level prose', 'agentimus' )
+			: __( 'college-level prose', 'agentimus' );
+		return self::row(
+			'reading_ease',
+			__( 'Hard to read', 'agentimus' ),
+			'warn',
+			sprintf( /* translators: 1: Flesch score, 2: difficulty band. */ __( 'Reading-ease score %1$d — %2$s. Shorter sentences and plainer words make passages easier for engines to lift and for readers to trust.', 'agentimus' ), (int) round( $score ), $band )
+		);
+	}
+
+	/**
+	 * PURE: the Flesch Reading Ease score from the parsed counts.
+	 * 206.835 − 1.015 × (words/sentences) − 84.6 × (syllables/words).
+	 *
+	 * @param array $s Stats with words/sentences/syllables.
+	 * @return float
+	 */
+	public static function reading_ease( array $s ) {
+		$words     = max( 1, (int) $s['words'] );
+		$sentences = max( 1, (int) ( isset( $s['sentences'] ) ? $s['sentences'] : 0 ) );
+		$syllables = max( 1, (int) ( isset( $s['syllables'] ) ? $s['syllables'] : 0 ) );
+		return 206.835 - 1.015 * ( $words / $sentences ) - 84.6 * ( $syllables / $words );
 	}
 
 	private static function check_link_density( array $s ) {
@@ -411,6 +492,28 @@ final class PageCheck {
 	private static function word_count( $text ) {
 		$text = trim( preg_replace( '/\s+/', ' ', (string) $text ) );
 		return '' === $text ? 0 : count( explode( ' ', $text ) );
+	}
+
+	/**
+	 * PURE: estimate an English word's syllables — vowel groups, minus the usual
+	 * silent-e, floor of one. A heuristic feeding a heuristic (Flesch); tokens
+	 * without ASCII letters (numbers, other scripts) count zero so they don't
+	 * skew the grade.
+	 *
+	 * @param string $word One whitespace-delimited token.
+	 * @return int
+	 */
+	private static function syllables( $word ) {
+		$word = strtolower( (string) preg_replace( '/[^a-zA-Z]/', '', (string) $word ) );
+		if ( '' === $word ) {
+			return 0;
+		}
+		if ( strlen( $word ) <= 3 ) {
+			return 1;
+		}
+		$word  = (string) preg_replace( '/(?<=[^aeiouyl])e$/', '', $word ); // silent e ("make"), keeping "-le" ("table").
+		$count = (int) preg_match_all( '/[aeiouy]{1,2}/', $word );
+		return max( 1, $count );
 	}
 
 	/**

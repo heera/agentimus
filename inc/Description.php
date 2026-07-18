@@ -90,7 +90,9 @@ final class Description {
 		add_action( 'wp_head', array( $this, 'buffer_end' ), self::HEAD_BUFFER_CLOSE );
 
 		if ( is_admin() ) {
-			add_action( 'add_meta_boxes', array( $this, 'add_meta_box' ) );
+			// No meta box of its own: the description renders as the top section of
+			// the shared "AI description & topics" box — {@see Topics::add_meta_box()}
+			// registers it and calls {@see render_meta_box()} for this half.
 			add_action( 'save_post', array( $this, 'save' ), 10, 2 );
 			add_action( 'admin_enqueue_scripts', array( $this, 'assets' ) );
 		}
@@ -421,40 +423,6 @@ final class Description {
 	}
 
 	/**
-	 * Add the "AI description" meta box to every agent-visible post type. Skipped when
-	 * the feature is off.
-	 */
-	public function add_meta_box() {
-		if ( ! self::enabled() ) {
-			return;
-		}
-		foreach ( Content::post_types() as $type ) {
-			add_meta_box(
-				'agentimus-description',
-				self::meta_box_title( __( 'AI description', 'agentimus' ) ),
-				array( $this, 'render_meta_box' ),
-				$type,
-				'side',
-				'default'
-			);
-		}
-	}
-
-	/**
-	 * A meta-box title prefixed with the Agentimus "A" mark (same mark as {@see Topics}),
-	 * so an owner sees at a glance which plugin owns the box. WordPress echoes meta-box
-	 * titles as raw HTML, so the inline SVG renders in the handle; it's decorative.
-	 *
-	 * @param string $text The plain-text title (already translated).
-	 * @return string
-	 */
-	private static function meta_box_title( $text ) {
-		$icon = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#146b64" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false" style="flex:none">'
-			. '<rect x="2.6" y="2.6" width="18.8" height="18.8" rx="5.4"/><path d="M8.4 16.6 12 8 15.6 16.6"/><path d="M9.9 13.6H14.1"/></svg>';
-		return '<span style="display:inline-flex;align-items:center;gap:5px;white-space:nowrap">' . $icon . esc_html( $text ) . '</span>';
-	}
-
-	/**
 	 * Render the meta box: a one-line description field, a live character count, and a
 	 * preview of what agents will actually get — the typed value, or (when blank) the
 	 * excerpt fallback, so the author can see there is never a truly empty description.
@@ -483,9 +451,9 @@ final class Description {
 		// Mention the meta-description role only when the sub-option is actually on, so the
 		// box never promises something the settings have turned off.
 		/* translators: %s: the content type in lowercase, e.g. "post", "page", "product". */
-		$with_meta = __( 'A one-line summary of this %s for AI assistants — feeds its structured data and plain-text version, and becomes the page meta description unless a dedicated SEO plugin manages it.', 'agentimus' );
+		$with_meta = __( 'One short sentence saying what this %s is about. AI assistants read it, and it becomes the page’s meta description unless an SEO plugin handles that.', 'agentimus' );
 		/* translators: %s: the content type in lowercase, e.g. "post", "page", "product". */
-		$ai_only   = __( 'A one-line summary of this %s for AI assistants — feeds its structured data and plain-text version.', 'agentimus' );
+		$ai_only   = __( 'One short sentence saying what this %s is about, written for AI assistants.', 'agentimus' );
 
 		echo '<p><label for="agentimus-description-input">'
 			. esc_html( sprintf( self::meta_tag_enabled() ? $with_meta : $ai_only, $noun ) )
@@ -574,8 +542,9 @@ JS;
 	 * @return string
 	 */
 	private static function inline_css() {
-		return '#agentimus-description .hndle{white-space:nowrap}'
-			. '.agentimus-desc__count{margin:4px 0 0;color:#646970;font-size:12px}'
+		// (No own-box .hndle rule anymore — the shared box's handle styling
+		// lives with Topics, which registers the container.)
+		return '.agentimus-desc__count{margin:4px 0 0;color:#646970;font-size:12px}'
 			. '.agentimus-desc__count.is-over{color:#bd8600}'
 			. '.agentimus-desc__fallback{margin:8px 0 0;padding:6px 8px;background:#f0f6fc;border-left:3px solid #72aee6;border-radius:2px;font-size:12px;color:#2c3338;line-height:1.5}'
 			. '.agentimus-desc__fallback-label{font-weight:600;color:#1d2327}';
