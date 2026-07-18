@@ -28,9 +28,6 @@ export function createApi(boot) {
   }
 
   const request = (path, options = {}) => requestUrl(`${base}${path}`, options);
-  // Core REST root (wp/v2), derived from ours — for the media-library search.
-  const coreBase = base.replace(/\/agentimus\/v1$/, '/wp/v2');
-
   return {
     getSettings: () => request('/settings'),
     saveSettings: (settings) =>
@@ -117,9 +114,6 @@ export function createApi(boot) {
     // media-library import)…
     assistantGenerateImage: (alt, title) =>
       request('/assistant/generate-image', { method: 'POST', body: JSON.stringify({ alt, title }) }),
-    // …search the owner's own media library for a slot…
-    searchMedia: (q) =>
-      requestUrl(`${coreBase}/media?media_type=image&per_page=12&_fields=id,source_url,alt_text,media_details&search=${encodeURIComponent(q || '')}`),
     // …a targeted revision of the held draft ("add a section on caching")…
     assistantRefine: (draft, instruction) =>
       request('/assistant/refine', { method: 'POST', body: JSON.stringify({ draft, instruction }) }),

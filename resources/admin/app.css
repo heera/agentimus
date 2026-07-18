@@ -485,25 +485,10 @@
   color: var(--ar-ink-soft); background: var(--ar-surface-2); border: 1px solid var(--ar-line);
 }
 
-/* Images: featured + writer-proposed slots, each an explicit act. */
-.ar-assist__images { display: grid; gap: 9px; margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--ar-line); }
-.ar-assist__imgslot { display: flex; align-items: center; gap: 9px; flex-wrap: wrap; min-width: 0; }
-.ar-assist__imgslot--stack { flex-direction: column; align-items: flex-start; gap: 3px; }
-.ar-assist__imgalt { font-size: 12px; color: var(--ar-ink-soft); }
-.ar-assist__imganchor { font-family: var(--ar-mono); font-size: 10px; color: var(--ar-ink-faint); }
-.ar-assist__imgacts { display: flex; align-items: center; gap: 9px; }
-.ar-assist__imgnote { font-size: 11px; color: var(--ar-ink-faint); }
-.ar-assist__thumb {
-  width: 56px; height: 42px; object-fit: cover; border-radius: 6px;
-  border: 1px solid var(--ar-line-strong); background: var(--ar-surface-2);
-}
-.ar-assist__lib { border: 1px dashed var(--ar-line-strong); border-radius: 9px; padding: 10px; }
+/* Images have no drawer UI — just the one-line note about what the editor
+   will hold. (The image workshop lives in the block editor now.) */
+.ar-assist__imagesnote { margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--ar-line); }
 .ar-assist__librow { display: flex; gap: 8px; align-items: center; }
-.ar-assist__libgrid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 6px; margin-top: 9px; }
-.ar-assist__libitem { appearance: none; padding: 0; border: 1px solid var(--ar-line); border-radius: 6px; overflow: hidden; cursor: pointer; background: var(--ar-surface-2); }
-.ar-assist__libitem img { width: 100%; height: 52px; object-fit: cover; display: block; }
-.ar-assist__libitem:hover { border-color: var(--ar-accent); }
-@media (max-width: 640px) { .ar-assist__libgrid { grid-template-columns: repeat(3, 1fr); } }
 
 /* Refine: revise-in-place bar under the preview. */
 .ar-assist__refine { display: flex; gap: 8px; margin-top: 12px; }

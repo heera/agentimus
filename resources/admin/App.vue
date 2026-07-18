@@ -1495,7 +1495,7 @@ export default {
     <ConfirmDialog />
 
     <!-- Always mounted (v-show inside), so a composed preview survives Esc/close. -->
-    <AssistantDrawer :open="assistantOpen" :api="api" :caps="assistant" @close="assistantOpen = false" @flash="flash" />
+    <AssistantDrawer :open="assistantOpen" :api="api" @close="assistantOpen = false" @flash="flash" />
 
     <OnboardingWizard
       :open="showWizard"

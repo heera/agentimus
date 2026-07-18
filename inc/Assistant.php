@@ -62,6 +62,15 @@ final class Assistant {
 	/** Output budget for the scene-describer (one vivid paragraph). */
 	const SCENE_TOKENS = 400;
 
+	/** Output budget for a single-section revision (the editor's per-block
+	 *  "Revise with AI"): one section back, never the whole document. */
+	const SECTION_TOKENS = 2048;
+
+	/** Context ceiling for section revisions — the full post rides along as
+	 *  plain text so the model keeps the surrounding voice and facts, capped so
+	 *  a huge post can't blow the prompt. */
+	const SECTION_CONTEXT_CHARS = 8000;
+
 	/** Output budget for the outline skeleton — small on purpose (retrying an
 	 *  outline should cost pennies next to a full draft), but with headroom for
 	 *  reasoning models that spend thinking tokens from the same budget. */
@@ -161,6 +170,15 @@ final class Assistant {
 			array(
 				'methods'             => \WP_REST_Server::EDITABLE,
 				'callback'            => array( $this, 'refine' ),
+				'permission_callback' => array( $this, 'can_compose' ),
+			)
+		);
+		register_rest_route(
+			self::NS,
+			'/assistant/revise-block',
+			array(
+				'methods'             => \WP_REST_Server::EDITABLE,
+				'callback'            => array( $this, 'revise_block' ),
 				'permission_callback' => array( $this, 'can_compose' ),
 			)
 		);
@@ -625,6 +643,133 @@ final class Assistant {
 	}
 
 	/**
+	 * POST /assistant/revise-block — the editor's per-section act: the user
+	 * selected a block, typed an instruction, and the full post rides along as
+	 * context. The instruction may REWRITE the section or ADD new blocks around
+	 * it ("add a conclusion after this") — the model returns the section's
+	 * final form as one-or-more blocks, and the editor swaps them in where the
+	 * selection was. Writes nothing; the editor's own undo covers regret.
+	 *
+	 * @param \WP_REST_Request $request Request.
+	 * @return \WP_REST_Response|\WP_Error
+	 */
+	public function revise_block( \WP_REST_Request $request ) {
+		$instruction = trim( sanitize_textarea_field( (string) $request->get_param( 'instruction' ) ) );
+		if ( strlen( $instruction ) < 4 ) {
+			return new \WP_Error(
+				'agentimus_instruction_short',
+				__( 'Say what to change first — e.g. “make this shorter” or “add a conclusion after this”.', 'agentimus' ),
+				array( 'status' => 400 )
+			);
+		}
+		if ( strlen( $instruction ) > 500 ) {
+			$instruction = substr( $instruction, 0, 500 );
+		}
+
+		// The selected section arrives as serialized block markup; the model
+		// works on clean HTML (comments stripped), same as everywhere else.
+		$section = wp_kses_post( (string) preg_replace( '/<!--\s*\/?wp:[^>]*-->\s*/', '', (string) $request->get_param( 'block' ) ) );
+		if ( '' === trim( wp_strip_all_tags( $section ) ) ) {
+			return new \WP_Error(
+				'agentimus_block_empty',
+				__( 'Select a section with some text first.', 'agentimus' ),
+				array( 'status' => 400 )
+			);
+		}
+
+		$context = trim( (string) wp_strip_all_tags( (string) preg_replace( '/<!--.*?-->/s', ' ', (string) $request->get_param( 'context' ) ) ) );
+		$context = mb_substr( (string) preg_replace( '/\s+/', ' ', $context ), 0, self::SECTION_CONTEXT_CHARS );
+		$title   = sanitize_text_field( (string) $request->get_param( 'title' ) );
+
+		if ( ! Assist::ai_available() ) {
+			return new \WP_Error(
+				'agentimus_ai_unavailable',
+				__( 'No AI text model is configured. Add or enable one under Settings → AI, then try again.', 'agentimus' ),
+				array( 'status' => 503 )
+			);
+		}
+
+		$text = ( new Assist( $this->settings ) )->generate(
+			self::section_system_prompt(),
+			self::revise_block_prompt( $title, $context, $section, $instruction ),
+			self::SECTION_TOKENS
+		);
+		if ( is_wp_error( $text ) ) {
+			return self::friendly_ai_error( $text );
+		}
+
+		$html = self::clean_section_html( $text );
+		if ( is_wp_error( $html ) ) {
+			return $html;
+		}
+		// Native block markup back — the editor parses and swaps it straight in.
+		return rest_ensure_response( array( 'content' => self::blockify( $html ) ) );
+	}
+
+	/**
+	 * The section-revision instruction: rewrite/extend ONE selected section,
+	 * return its final form only — unchanged parts verbatim, additions allowed
+	 * where the instruction puts them.
+	 *
+	 * @return string
+	 */
+	public static function section_system_prompt() {
+		return 'You revise ONE section of a WordPress post. The user selected that section; their instruction may ask you to '
+			. 'rewrite it, split it, or ADD new content before or after it. Respond with ONLY the section\'s final form — '
+			. 'the selected content plus any requested additions, in final order — as clean HTML using only '
+			. '<h2>, <h3>, <p>, <ul>, <ol>, <li>, <strong>, <em>, <a>, <blockquote>. '
+			. 'Keep everything the instruction does not ask to change EXACTLY as it is, word for word. '
+			. 'No commentary, no markdown fences, no <img>, no document wrapper. Write in the post\'s language and voice.';
+	}
+
+	/**
+	 * PURE: the section-revision user prompt — title and capped plain-text
+	 * context for grounding, the selected section, and the instruction.
+	 *
+	 * @param string $title       Post title.
+	 * @param string $context     The full post as plain text (capped).
+	 * @param string $section     The selected section's clean HTML.
+	 * @param string $instruction The owner's change request.
+	 * @return string
+	 */
+	public static function revise_block_prompt( $title, $context, $section, $instruction ) {
+		$parts = array();
+		if ( '' !== $title ) {
+			$parts[] = 'Post title: ' . $title;
+		}
+		if ( '' !== $context ) {
+			$parts[] = "The full post, for context only — do NOT return it:\n" . $context;
+		}
+		$parts[] = "The selected section (HTML):\n" . $section;
+		$parts[] = 'Instruction: ' . $instruction;
+		$parts[] = 'Return only the final version of this section, with any requested additions in place.';
+		return implode( "\n\n", $parts );
+	}
+
+	/**
+	 * PURE: model text → clean section HTML, or a clear error. Cuts the classic
+	 * markdown fences, then holds the rest to post-safe HTML.
+	 *
+	 * @param string $text Raw model output.
+	 * @return string|\WP_Error
+	 */
+	public static function clean_section_html( $text ) {
+		$text = trim( (string) $text );
+		if ( preg_match( '/^```[a-z]*\s*(.*?)\s*```$/is', $text, $m ) ) {
+			$text = $m[1];
+		}
+		$html = wp_kses_post( $text );
+		if ( '' === trim( wp_strip_all_tags( $html ) ) ) {
+			return new \WP_Error(
+				'agentimus_ai_bad_output',
+				__( 'The AI didn’t return a usable section — please try again.', 'agentimus' ),
+				array( 'status' => 502 )
+			);
+		}
+		return $html;
+	}
+
+	/**
 	 * POST /assistant/generate-image — one image for one slot, on one explicit
 	 * click. Two-step prompt chain (the good idea from the owner's earlier
 	 * aiwriter plugin): the slot's alt text is a SEED, first rewritten by the text
@@ -668,9 +813,19 @@ final class Assistant {
 			return self::friendly_ai_error( $scene );
 		}
 
-		// Step 2 — the one image call.
+		// Step 2 — the one image call. A model PREFERENCE (not a pin) rides
+		// along: the AI Client's default pick is the newest image model, which
+		// free tiers often have zero quota for, while an older stable sibling
+		// works — preferred models are tried in order and unknown ids fall
+		// back to the client's own choice, so a non-Google provider is never
+		// broken by this. Filterable for sites that know better.
 		try {
-			$file = wp_ai_client_prompt( $scene )->generate_image();
+			$preferred = apply_filters( 'agentimus_assistant_image_models', array( 'gemini-2.5-flash-image' ) );
+			$builder   = wp_ai_client_prompt( $scene );
+			if ( is_array( $preferred ) && $preferred ) {
+				$builder = $builder->using_model_preference( ...array_values( $preferred ) );
+			}
+			$file = $builder->generate_image();
 		} catch ( \Throwable $e ) {
 			$file = new \WP_Error( 'agentimus_image_failed', $e->getMessage(), array( 'status' => 502 ) );
 		}
@@ -819,30 +974,10 @@ final class Assistant {
 			$input['featured_image'] = (string) $featured;
 		}
 
-		// Filled image slots become <figure>s injected after their anchor headings —
-		// only slots with a REAL image attachment; empty slots simply don't exist in
-		// the published content (a skipped suggestion leaves no placeholder behind).
-		$figures = array();
-		foreach ( array_slice( (array) $request->get_param( 'images' ), 0, self::MAX_IMAGE_SLOTS ) as $img ) {
-			if ( ! is_array( $img ) ) {
-				continue;
-			}
-			$aid = absint( $img['attachment_id'] ?? 0 );
-			if ( $aid <= 0 || ! wp_attachment_is_image( $aid ) ) {
-				continue;
-			}
-			$url = wp_get_attachment_image_url( $aid, 'large' );
-			if ( ! $url ) {
-				$url = wp_get_attachment_url( $aid );
-			}
-			if ( ! $url ) {
-				continue;
-			}
-			$figures[] = array(
-				'html'          => self::figure_html( (string) $url, sanitize_text_field( (string) ( $img['alt'] ?? '' ) ), $aid ),
-				'after_heading' => sanitize_text_field( (string) ( $img['after_heading'] ?? '' ) ),
-			);
-		}
+		// Every proposed image lands in the article: a filled slot as its real
+		// figure, a bare suggestion as an alt-only PLACEHOLDER block — the
+		// editor is the image workshop (fill, generate, or delete it there).
+		$figures = self::figures_from_slots( $request->get_param( 'images' ) );
 		if ( $figures ) {
 			$input['content'] = self::inject_images( $input['content'], $figures );
 		}
@@ -957,27 +1092,9 @@ final class Assistant {
 			$input['featured_image'] = (string) $featured;
 		}
 
-		$figures = array();
-		foreach ( array_slice( (array) $request->get_param( 'images' ), 0, self::MAX_IMAGE_SLOTS ) as $img ) {
-			if ( ! is_array( $img ) ) {
-				continue;
-			}
-			$aid = absint( $img['attachment_id'] ?? 0 );
-			if ( $aid <= 0 || ! wp_attachment_is_image( $aid ) ) {
-				continue;
-			}
-			$url = wp_get_attachment_image_url( $aid, 'large' );
-			if ( ! $url ) {
-				$url = wp_get_attachment_url( $aid );
-			}
-			if ( ! $url ) {
-				continue;
-			}
-			$figures[] = array(
-				'html'          => self::figure_html( (string) $url, sanitize_text_field( (string) ( $img['alt'] ?? '' ) ), $aid ),
-				'after_heading' => sanitize_text_field( (string) ( $img['after_heading'] ?? '' ) ),
-			);
-		}
+		// Same mapping as create(): kept images return as real figures,
+		// unfilled suggestions survive as placeholders — never silently lost.
+		$figures = self::figures_from_slots( $request->get_param( 'images' ) );
 		if ( $figures ) {
 			$input['content'] = self::inject_images( $input['content'], $figures );
 		}
@@ -1301,6 +1418,62 @@ final class Assistant {
 		return '<figure class="wp-block-image size-large">'
 			. '<img src="' . esc_url( $url ) . '" alt="' . esc_attr( $alt ) . '" class="wp-image-' . (int) $id . '"/>'
 			. '</figure>';
+	}
+
+	/**
+	 * PURE: an EMPTY image placeholder — a url-less figure whose alt is the
+	 * writer's description. In the editor this renders as the Image block's
+	 * own upload/library card with the alt already in the sidebar, ready for
+	 * the per-block "Generate image" button (or a native pick, or deletion —
+	 * skipping an image is just removing a block there).
+	 *
+	 * @param string $alt The proposed image's description.
+	 * @return string
+	 */
+	public static function placeholder_figure_html( $alt ) {
+		return '<figure class="wp-block-image"><img alt="' . esc_attr( $alt ) . '"/></figure>';
+	}
+
+	/**
+	 * Slots → injectable figures: a slot carrying a real attachment becomes a
+	 * full figure (edit round-trips keep their images); a bare suggestion
+	 * becomes an alt-only PLACEHOLDER block for the editor. Shared by create()
+	 * and update() so the two write paths can never drift.
+	 *
+	 * @param mixed $raw The request's images param.
+	 * @return array [{html, after_heading}]
+	 */
+	private static function figures_from_slots( $raw ) {
+		$figures = array();
+		foreach ( array_slice( (array) $raw, 0, self::MAX_IMAGE_SLOTS ) as $img ) {
+			if ( ! is_array( $img ) ) {
+				continue;
+			}
+			$alt    = sanitize_text_field( (string) ( $img['alt'] ?? '' ) );
+			$anchor = sanitize_text_field( (string) ( $img['after_heading'] ?? '' ) );
+			$aid    = absint( $img['attachment_id'] ?? 0 );
+
+			if ( $aid > 0 && wp_attachment_is_image( $aid ) ) {
+				$url = wp_get_attachment_image_url( $aid, 'large' );
+				if ( ! $url ) {
+					$url = wp_get_attachment_url( $aid );
+				}
+				if ( $url ) {
+					$figures[] = array(
+						'html'          => self::figure_html( (string) $url, $alt, $aid ),
+						'after_heading' => $anchor,
+					);
+					continue;
+				}
+			}
+			if ( mb_strlen( trim( $alt ) ) >= 5 ) {
+				$figures[] = array(
+					'html'          => self::placeholder_figure_html( $alt ),
+					'after_heading' => $anchor,
+				);
+			}
+		}
+		return $figures;
 	}
 
 	/**

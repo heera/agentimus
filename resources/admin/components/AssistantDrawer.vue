@@ -28,8 +28,6 @@ export default {
   props: {
     open: { type: Boolean, default: false },
     api: { type: Object, default: null },
-    // { imageReady, canUpload } — drives the per-slot Generate/Library buttons.
-    caps: { type: Object, default: () => ({ imageReady: false, canUpload: false }) },
   },
   emits: ['close', 'flash'],
   data() {
@@ -57,13 +55,9 @@ export default {
       refineText: '',
       refining: false,
       prevDraft: null, // One undo step: a revision overwrites a paid artifact.
-      // Images: the FEATURED choice, per-slot busy flags, the attachment-id → url
-      // display cache (slots carry only attachment_id — the server shape), and the
-      // inline media-library picker's state.
-      featuredImage: null,
-      imgBusy: {},
-      imageCache: {},
-      lib: { open: null, q: '', results: [], busy: false, error: '' },
+      // Images deliberately have NO drawer UI anymore: proposed slots ride the
+      // draft invisibly and land in the editor as alt-filled placeholder
+      // blocks — the editor is the image workshop (generate, pick or delete).
     };
   },
   watch: {
@@ -103,6 +97,17 @@ export default {
     onFootedScreen() {
       return this.onOutlineScreen || 'preview' === this.step || 'creating' === this.step;
     },
+    // One honest sentence about what the editor will hold: images kept from
+    // an edited post, and placeholders arriving for the writer's suggestions.
+    imagesNote() {
+      const slots = (this.draft && this.draft.images) || [];
+      const filled = slots.filter((s) => s.attachment_id).length;
+      const empty = slots.length - filled;
+      const parts = [];
+      if (filled) parts.push(`${filled} ${1 === filled ? 'image travels' : 'images travel'} with the post`);
+      if (empty) parts.push(`${empty} ${1 === empty ? 'placeholder arrives' : 'placeholders arrive'} with alt text ready — generate, fill or delete ${1 === empty ? 'it' : 'them'} in the editor`);
+      return parts.join('; ') + '.';
+    },
   },
   created() {
     this.restoreHeld();
@@ -127,8 +132,6 @@ export default {
           usedOutline: this.usedOutline,
           mode: this.mode,
           editing: this.editing,
-          featuredImage: this.featuredImage,
-          imageCache: this.imageCache,
         }));
       } catch (e) { /* private mode / quota — the in-memory copy still stands */ }
     },
@@ -175,8 +178,6 @@ export default {
         if (draft) {
           ['topics', 'tags', 'categories', 'images'].forEach((k) => { if (!Array.isArray(draft[k])) draft[k] = []; });
           this.draft = draft;
-          this.featuredImage = held.featuredImage && held.featuredImage.id ? held.featuredImage : null;
-          this.imageCache = held.imageCache && 'object' === typeof held.imageCache ? held.imageCache : {};
           this.step = 'preview'; // Reopen exactly where they left off.
         } else {
           this.step = 'outline'; // Mid-outline when the tab closed — pick it back up.
@@ -291,78 +292,6 @@ export default {
       this.error = '';
       this.persistHeld();
     },
-    // ---- Images: one slot, one explicit act ------------------------------------
-    slotUrl(slot) {
-      const c = slot.attachment_id && this.imageCache[slot.attachment_id];
-      return c ? c.url : '';
-    },
-    async genImage(key) {
-      if (this.imgBusy[key] || !this.draft) return;
-      const isFeatured = 'featured' === key;
-      const alt = isFeatured ? `A featured image for the post “${this.draft.title}”` : this.draft.images[key].alt;
-      this.imgBusy = { ...this.imgBusy, [key]: true };
-      this.error = '';
-      try {
-        const r = await this.api.assistantGenerateImage(alt, this.draft.title);
-        this.imageCache = { ...this.imageCache, [r.id]: { url: r.url } };
-        if (isFeatured) {
-          this.featuredImage = { id: r.id, url: r.url };
-        } else {
-          this.draft.images[key] = { ...this.draft.images[key], attachment_id: r.id };
-        }
-        this.persistHeld();
-        this.$emit('flash', 'success', 'Image generated and saved to your media library.');
-      } catch (e) {
-        this.error = (e && e.message) || 'The image didn’t come back — please try again.';
-      } finally {
-        this.imgBusy = { ...this.imgBusy, [key]: false };
-      }
-    },
-    clearImage(key) {
-      if ('featured' === key) {
-        this.featuredImage = null;
-      } else if (this.draft && this.draft.images[key]) {
-        const slot = { ...this.draft.images[key] };
-        delete slot.attachment_id;
-        this.draft.images[key] = slot;
-      }
-      this.persistHeld();
-    },
-    // ---- The inline media-library picker ---------------------------------------
-    openLib(key) {
-      this.lib = { open: key, q: '', results: [], busy: false, error: '' };
-      this.searchLib();
-    },
-    closeLib() {
-      this.lib.open = null;
-    },
-    async searchLib() {
-      this.lib.busy = true;
-      this.lib.error = '';
-      try {
-        this.lib.results = await this.api.searchMedia(this.lib.q);
-      } catch (e) {
-        this.lib.error = (e && e.message) || 'Couldn’t search the library.';
-        this.lib.results = [];
-      } finally {
-        this.lib.busy = false;
-      }
-    },
-    libThumb(item) {
-      const s = item.media_details && item.media_details.sizes;
-      return (s && s.thumbnail && s.thumbnail.source_url) || item.source_url;
-    },
-    pickLib(item) {
-      const key = this.lib.open;
-      this.imageCache = { ...this.imageCache, [item.id]: { url: this.libThumb(item) } };
-      if ('featured' === key) {
-        this.featuredImage = { id: item.id, url: this.libThumb(item) };
-      } else if (this.draft && this.draft.images[key]) {
-        this.draft.images[key] = { ...this.draft.images[key], attachment_id: item.id };
-      }
-      this.closeLib();
-      this.persistHeld();
-    },
     // ---- Edit-existing: pick a post, work on it with the same machinery --------
     openPicker() {
       this.step = 'pick';
@@ -393,7 +322,8 @@ export default {
         this.mode = 'edit';
         this.editing = { id: doc.id, status: doc.status, statusLabel: doc.statusLabel, title: doc.title };
         // The fetched document IS a draft — the preview/refine/undo machinery
-        // takes it from here unchanged. Slot URLs seed the thumbnail cache.
+        // takes it from here unchanged. Images ride the slots invisibly and
+        // return to the post on update; the editor is where they're worked on.
         this.draft = {
           title: doc.title,
           excerpt: doc.excerpt,
@@ -404,11 +334,6 @@ export default {
           categories: doc.categories || [],
           images: (doc.images || []).map(({ url, ...slot }) => slot),
         };
-        const cache = { ...this.imageCache };
-        (doc.images || []).forEach((s) => { if (s.attachment_id && s.url) cache[s.attachment_id] = { url: s.url }; });
-        if (doc.featuredImage) cache[doc.featuredImage.id] = { url: doc.featuredImage.url };
-        this.imageCache = cache;
-        this.featuredImage = doc.featuredImage || null;
         this.prevDraft = null;
         this.refineText = '';
         this.outline = null;
@@ -438,9 +363,9 @@ export default {
           topics: this.draft.topics,
           tags: this.draft.tags,
           categories: this.draft.categories,
-          featured_image: this.featuredImage ? this.featuredImage.id : 0,
+          // ALL slots travel: filled ones return as real figures, bare ones
+          // as alt-only placeholders — nothing is silently dropped.
           images: (this.draft.images || [])
-            .filter((s) => s.attachment_id)
             .map((s) => ({ attachment_id: s.attachment_id, after_heading: s.after_heading, alt: s.alt })),
         });
         this.post = r.post;
@@ -468,16 +393,16 @@ export default {
           topics: this.draft.topics,
           tags: this.draft.tags,
           categories: this.draft.categories,
-          featured_image: this.featuredImage ? this.featuredImage.id : 0,
-          // Only FILLED slots ship; a skipped suggestion leaves no trace in the post.
+          // ALL slots travel: the writer's image suggestions land in the post
+          // as alt-filled placeholder blocks, ready for the editor's
+          // per-block Generate (or a native pick, or deletion).
           images: (this.draft.images || [])
-            .filter((s) => s.attachment_id)
             .map((s) => ({ attachment_id: s.attachment_id, after_heading: s.after_heading, alt: s.alt })),
         });
-        this.post = r.post;
-        this.step = 'done';
-        this.clearHeld(); // It's a real post now — the stash's job is done.
-        this.$emit('flash', 'success', 'pending' === this.post.status ? 'Pending post created — waiting for review.' : 'Draft created — waiting in your drafts.');
+        // The draft is real — nothing left to do here. Straight to the editor,
+        // where the images (and everything else) are worked on.
+        this.clearHeld();
+        window.location.assign(r.post.editUrl);
       } catch (e) {
         this.error = (e && e.message) || 'Couldn’t create the draft — please try again.';
         this.step = 'preview'; // The composed draft is still good; only the write failed.
@@ -505,9 +430,6 @@ export default {
       this.mode = 'write';
       this.editing = null;
       this.pick = { q: '', results: [], busy: false, error: '' };
-      this.featuredImage = null;
-      this.imgBusy = {};
-      this.lib.open = null;
       this.clearHeld();
       this.$nextTick(() => {
         if (this.$refs.promptEl) this.$refs.promptEl.focus();
@@ -777,65 +699,12 @@ export default {
                 </div>
               </div>
 
-              <!-- Images: the writer proposed WHERE a picture helps and WHAT it shows
-                   (free); each actual image is one explicit act per slot — Generate
-                   (feature-detected) or pick from the owner's own library. Skipped
-                   slots leave no trace in the post. -->
-              <div v-if="caps.canUpload && ((draft.images && draft.images.length) || caps.imageReady)" class="ar-assist__images">
+              <!-- Images have no drawer UI on purpose: the editor is the image
+                   workshop. This line just says what will be waiting there. -->
+              <div v-if="draft.images && draft.images.length" class="ar-assist__meta ar-assist__imagesnote">
                 <div class="ar-assist__metarow">
-                  <span class="ar-assist__metakey">Featured image</span>
-                  <span class="ar-assist__imgslot">
-                    <template v-if="featuredImage">
-                      <img class="ar-assist__thumb" :src="featuredImage.url" alt="" />
-                      <!-- Editing a real post can REPLACE its featured image but not
-                           unset it (the write path only sets) — so no false Remove. -->
-                      <button v-if="'edit' === mode" type="button" class="ar-linkbtn" @click="openLib('featured')">Replace</button>
-                      <button v-else type="button" class="ar-linkbtn" @click="clearImage('featured')">Remove</button>
-                    </template>
-                    <template v-else>
-                      <button v-if="caps.imageReady" type="button" class="ar-linkbtn" :disabled="!!imgBusy.featured" @click="genImage('featured')">
-                        {{ imgBusy.featured ? 'Generating…' : 'Generate' }}
-                      </button>
-                      <button type="button" class="ar-linkbtn" @click="openLib('featured')">Library</button>
-                    </template>
-                  </span>
-                </div>
-
-                <div v-for="(slot, i) in draft.images" :key="'slot' + i" class="ar-assist__metarow ar-assist__metarow--slot">
-                  <span class="ar-assist__metakey">Image {{ i + 1 }}</span>
-                  <span class="ar-assist__imgslot ar-assist__imgslot--stack">
-                    <span class="ar-assist__imgalt">{{ slot.alt }}</span>
-                    <span class="ar-assist__imganchor">{{ slot.after_heading ? 'after “' + slot.after_heading + '”' : 'after the introduction' }}</span>
-                    <span class="ar-assist__imgacts">
-                      <template v-if="slot.attachment_id">
-                        <img v-if="slotUrl(slot)" class="ar-assist__thumb" :src="slotUrl(slot)" alt="" />
-                        <button type="button" class="ar-linkbtn" @click="clearImage(i)">Remove</button>
-                      </template>
-                      <template v-else>
-                        <button v-if="caps.imageReady" type="button" class="ar-linkbtn" :disabled="!!imgBusy[i]" @click="genImage(i)">
-                          {{ imgBusy[i] ? 'Generating…' : 'Generate' }}
-                        </button>
-                        <button type="button" class="ar-linkbtn" @click="openLib(i)">Library</button>
-                        <span class="ar-assist__imgnote">or skip it</span>
-                      </template>
-                    </span>
-                  </span>
-                </div>
-
-                <!-- Inline library picker for the open slot. -->
-                <div v-if="null !== lib.open" class="ar-assist__lib">
-                  <div class="ar-assist__librow">
-                    <input v-model="lib.q" type="text" class="ar-assist__refineinput" placeholder="Search your media library" aria-label="Search your media library" @keydown.enter="searchLib" />
-                    <button type="button" class="ar-btn ar-assist__refinebtn" :disabled="lib.busy" @click="searchLib">{{ lib.busy ? 'Searching…' : 'Search' }}</button>
-                    <button type="button" class="ar-linkbtn" @click="closeLib">Close</button>
-                  </div>
-                  <p v-if="lib.error" class="ar-assist__error">{{ lib.error }}</p>
-                  <div v-else-if="lib.results.length" class="ar-assist__libgrid">
-                    <button v-for="item in lib.results" :key="item.id" type="button" class="ar-assist__libitem" :title="item.alt_text || ''" @click="pickLib(item)">
-                      <img :src="libThumb(item)" alt="" />
-                    </button>
-                  </div>
-                  <p v-else-if="!lib.busy" class="ar-assist__imgnote">Nothing matched — try another word.</p>
+                  <span class="ar-assist__metakey">Images</span>
+                  <span class="ar-assist__metaval">{{ imagesNote }}</span>
                 </div>
               </div>
 

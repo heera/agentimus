@@ -447,6 +447,29 @@ final class AssistantTest extends TestCase {
 		$this->assertGreaterThanOrEqual( 5, mb_strlen( $doc['images'][0]['alt'] ) );
 	}
 
+	public function test_placeholder_figures_become_empty_image_blocks_with_alt() {
+		$content = Assistant::inject_images(
+			'<h2>Alpha</h2><p>Text.</p>',
+			array(
+				array(
+					'html'          => Assistant::placeholder_figure_html( 'The Sun in extreme ultraviolet.' ),
+					'after_heading' => 'Alpha',
+				),
+			)
+		);
+		$out = Assistant::blockify( $content );
+		$this->assertStringContainsString( "<!-- wp:image -->", $out, 'A url-less figure becomes a bare image block (no id attrs).' );
+		$this->assertStringNotContainsString( '"id":', $out );
+		$this->assertStringContainsString( 'alt="The Sun in extreme ultraviolet."', $out, 'The alt rides into the editor — it is the Generate prompt there.' );
+		$this->assertTrue( strpos( $out, 'wp:heading' ) < strpos( $out, 'wp:image' ), 'Placeholder sits after its anchor heading.' );
+
+		// And the mirror: an edit round-trip lifts the placeholder back into a slot.
+		$doc = Assistant::content_to_doc( $out );
+		$this->assertCount( 1, $doc['images'] );
+		$this->assertArrayNotHasKey( 'attachment_id', $doc['images'][0] );
+		$this->assertSame( 'Alpha', $doc['images'][0]['after_heading'] );
+	}
+
 	public function test_stacked_figures_under_one_heading_keep_their_order() {
 		$content = Assistant::inject_images(
 			'<h2>Gallery</h2><p>Text.</p>',
@@ -465,6 +488,29 @@ final class AssistantTest extends TestCase {
 			strpos( $content, 'wp-image-1' ) < strpos( $content, 'wp-image-2' ),
 			'Later injections slot in AFTER earlier ones, not before.'
 		);
+	}
+
+	/* -- Per-section revise (the editor's Revise with AI) --------------------- */
+
+	public function test_section_contract_allows_additions_but_pins_the_rest() {
+		$sys = Assistant::section_system_prompt();
+		$this->assertStringContainsString( 'ADD new content before or after', $sys );
+		$this->assertStringContainsString( 'EXACTLY as it is', $sys );
+		$this->assertStringContainsString( 'no markdown fences', $sys );
+		$this->assertStringContainsString( 'no <img>', $sys );
+
+		$prompt = Assistant::revise_block_prompt( 'My Post', 'Full text here.', '<p>The section.</p>', 'add a conclusion after this' );
+		$this->assertStringContainsString( 'for context only', $prompt, 'The full post rides along but must not come back.' );
+		$this->assertStringContainsString( '<p>The section.</p>', $prompt );
+		$this->assertStringContainsString( 'add a conclusion after this', $prompt );
+	}
+
+	public function test_clean_section_html_cuts_fences_and_refuses_empty() {
+		$fenced = "```html\n<p>Revised.</p><p>Added.</p>\n```";
+		$this->assertSame( '<p>Revised.</p><p>Added.</p>', Assistant::clean_section_html( $fenced ) );
+		$this->assertStringNotContainsString( '<script', Assistant::clean_section_html( '<p>ok</p><script>x()</script>' ) );
+		$this->assertWPError( Assistant::clean_section_html( '' ) );
+		$this->assertWPError( Assistant::clean_section_html( '<script>only()</script>' ) );
 	}
 
 	/* -- Friendly AI errors --------------------------------------------------- */
