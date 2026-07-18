@@ -41,6 +41,8 @@ use Agentimus\Settings;
 use Agentimus\Content;
 use Agentimus\Topics;
 use Agentimus\Description;
+use Agentimus\Cache;
+use Agentimus\CachePurge;
 
 defined( 'ABSPATH' ) || exit;
 
@@ -201,12 +203,22 @@ final class ContentWriter {
 		}
 
 		// Meta-only calls skip wp_update_post entirely (it would bump post_modified
-		// for a no-op); the meta writes below carry their own cache-flush hooks.
+		// for a no-op) — which also skips save_post, the hook every cache layer
+		// hangs off: Cache::flush() (llms.txt/full-text/schema transients, the
+		// MarkdownCache epoch — its other key half is the UNBUMPED modified time —
+		// and, via agentimus_cache_flushed, the external site-file purges). Fire
+		// the seam ourselves, plus the post's own URLs, or an agent's
+		// description/topics edit keeps serving the stale .md and llms.txt.
 		if ( count( $postarr ) > 1 ) {
 			// wp_slash for the same reason as create(): the write path unslashes.
 			$updated = wp_update_post( wp_slash( $postarr ), true );
 			if ( is_wp_error( $updated ) ) {
 				return $updated;
+			}
+		} else {
+			Cache::flush();
+			if ( CachePurge::enabled() ) {
+				CachePurge::queue_post( $post->ID );
 			}
 		}
 
