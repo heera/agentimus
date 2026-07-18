@@ -422,6 +422,39 @@ final class ThreatsTest extends TestCase {
 		$this->assertCount( 0, Repository::reverified_map(), 'A stale overlay is filtered at read.' );
 	}
 
+	/** REGRESSION (heera.it, 2026-07-18): a flagged impostor row must stay VISIBLE in
+	 *  the queue when blocking + verification are on. The panel's per-row Guard::denies()
+	 *  call runs in the admin's request, where the client IP is the admin's browser —
+	 *  identity-checked against it, the impostor read as "blocked" and the pending
+	 *  filter hid the one row the owner most needed to see. */
+	public function test_a_flagged_impostor_stays_visible_while_enforcement_is_on() {
+		update_option(
+			Settings::OPTION,
+			array( 'block_agents' => true, 'block_spoofed' => true, 'verify_bots' => true )
+		);
+		add_filter( 'agentimus_client_ip', static function () { return '203.0.113.50'; } ); // The admin's own IP.
+		update_option(
+			\Agentimus\BotRanges::OPTION,
+			array(
+				'gptbot' => array(
+					'url'        => 'https://openai.com/gptbot.json',
+					'fetched_at' => time(),
+					'prefixes'   => array( '192.0.2.0/24' ), // Fresh; the admin IP is outside.
+				),
+			)
+		);
+		$ua = 'Mozilla/5.0 (compatible; GPTBot/9.9; +https://openai.com/gptbot)';
+		// Ingest verdict 2 (spoofed) — as recorded when the impostor actually visited.
+		$r = $this->analyze(
+			array( array_merge( $this->source( $ua, 'GPTBot (OpenAI)', 9, 3 * 3600 ), array( 'verdict' => 2 ) ) ),
+			array(),
+			array( 'blockingOn' => true, 'blockSpoofed' => true )
+		);
+		$this->assertCount( 1, $r['sources'] );
+		$this->assertFalse( $r['sources'][0]['blocked'], 'A display call must not identity-check the admin’s IP — the row stays actionable.' );
+		$this->assertSame( 'spoofed', $r['sources'][0]['verdict'] );
+	}
+
 	/* -- Payload metadata -------------------------------------------------- */
 
 	public function test_the_payload_names_the_new_window_so_the_ui_can_predict_a_row_s_exit() {

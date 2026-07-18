@@ -78,7 +78,7 @@ final class GuardTest extends TestCase {
 	 *  the UA string alone — the historical behaviour, unchanged. */
 	public function test_verification_is_off_by_default_and_the_ua_bypass_stands() {
 		$this->configure( array( 'block_agents' => true, 'block_spoofed' => false, 'blocked_agents' => array( 'scanner' ) ) );
-		$this->assertFalse( Guard::denies( 'scanner masquerading as Googlebot/2.1' ) );
+		$this->assertFalse( Guard::denies( 'scanner masquerading as Googlebot/2.1', true ) );
 	}
 
 	/** With verification ON, a forged Googlebot whose IP does NOT forward-confirm loses
@@ -89,7 +89,7 @@ final class GuardTest extends TestCase {
 		add_filter( 'agentimus_reverse_dns', static function () { return 'host.scanner-farm.example'; }, 10, 2 );
 		$this->configure( array( 'block_agents' => true, 'block_spoofed' => false, 'blocked_agents' => array( 'scanner' ) ) );
 
-		$this->assertTrue( Guard::denies( 'scanner masquerading as Googlebot/2.1' ) );
+		$this->assertTrue( Guard::denies( 'scanner masquerading as Googlebot/2.1', true ) );
 	}
 
 	/** With verification ON, a genuine Googlebot (forward-confirmed) keeps its
@@ -102,7 +102,7 @@ final class GuardTest extends TestCase {
 		add_filter( 'agentimus_forward_dns', static function () { return array( '66.249.66.1' ); }, 10, 2 );
 		$this->configure( array( 'block_agents' => true, 'block_spoofed' => false, 'blocked_agents' => array( 'googlebot' ) ) );
 
-		$this->assertFalse( Guard::denies( self::GOOGLEBOT ) );
+		$this->assertFalse( Guard::denies( self::GOOGLEBOT, true ) );
 	}
 
 	/** The admin toggle (the persisted verify_bots setting) drives verification too —
@@ -112,7 +112,7 @@ final class GuardTest extends TestCase {
 		add_filter( 'agentimus_reverse_dns', static function () { return 'host.scanner-farm.example'; }, 10, 2 );
 		$this->configure( array( 'block_agents' => true, 'block_spoofed' => false, 'verify_bots' => true, 'blocked_agents' => array( 'scanner' ) ) );
 
-		$this->assertTrue( Guard::denies( 'scanner masquerading as Googlebot/2.1' ) );
+		$this->assertTrue( Guard::denies( 'scanner masquerading as Googlebot/2.1', true ) );
 	}
 
 	/** FAIL-OPEN: when the resolver is slow (a DNS hiccup, not a spoof), a genuine
@@ -125,7 +125,7 @@ final class GuardTest extends TestCase {
 		add_filter( 'agentimus_reverse_dns', static function () { usleep( 20000 ); return 'crawl-66-249-66-1.googlebot.com'; }, 10, 2 );
 		$this->configure( array( 'block_agents' => true, 'block_spoofed' => false, 'blocked_agents' => array( 'googlebot' ) ) );
 
-		$this->assertFalse( Guard::denies( self::GOOGLEBOT ), 'A slow DNS lookup must not de-index a real crawler.' );
+		$this->assertFalse( Guard::denies( self::GOOGLEBOT, true ), 'A slow DNS lookup must not de-index a real crawler.' );
 	}
 
 	/* -- Never block a missing UA (too blunt, trivially spoofed) ---------- */
@@ -301,7 +301,7 @@ final class GuardTest extends TestCase {
 		$this->seedRanges( 'gptbot', array( '192.0.2.0/24' ) ); // Fresh, and 203.0.113.9 is outside.
 		$this->configure( array( 'block_agents' => true, 'verify_bots' => true ) ); // block_spoofed defaults true.
 
-		$this->assertTrue( Guard::denies( self::GPTBOT ), 'Outside the operator’s fresh published ranges = a proven impostor.' );
+		$this->assertTrue( Guard::denies( self::GPTBOT, true ), 'Outside the operator’s fresh published ranges = a proven impostor.' );
 	}
 
 	public function test_a_gptbot_inside_the_published_ranges_is_served() {
@@ -309,7 +309,7 @@ final class GuardTest extends TestCase {
 		$this->seedRanges( 'gptbot', array( '192.0.2.0/24' ) );
 		$this->configure( array( 'block_agents' => true, 'verify_bots' => true ) );
 
-		$this->assertFalse( Guard::denies( self::GPTBOT ) );
+		$this->assertFalse( Guard::denies( self::GPTBOT, true ) );
 	}
 
 	public function test_a_stale_range_file_fails_open_and_never_denies() {
@@ -317,14 +317,14 @@ final class GuardTest extends TestCase {
 		$this->seedRanges( 'gptbot', array( '192.0.2.0/24' ), \Agentimus\BotRanges::FRESH_TTL + HOUR_IN_SECONDS );
 		$this->configure( array( 'block_agents' => true, 'verify_bots' => true ) );
 
-		$this->assertFalse( Guard::denies( self::GPTBOT ), 'A stale list may predate new addresses — publisher down must never block a real bot.' );
+		$this->assertFalse( Guard::denies( self::GPTBOT, true ), 'A stale list may predate new addresses — publisher down must never block a real bot.' );
 	}
 
 	public function test_an_unfetched_range_file_fails_open_too() {
 		add_filter( 'agentimus_client_ip', static function () { return '203.0.113.9'; } );
 		$this->configure( array( 'block_agents' => true, 'verify_bots' => true ) ); // No cache seeded at all.
 
-		$this->assertFalse( Guard::denies( self::GPTBOT ) );
+		$this->assertFalse( Guard::denies( self::GPTBOT, true ) );
 	}
 
 	public function test_impostor_enforcement_needs_both_switches() {
@@ -332,13 +332,13 @@ final class GuardTest extends TestCase {
 		$this->seedRanges( 'gptbot', array( '192.0.2.0/24' ) );
 
 		$this->configure( array( 'block_agents' => true, 'verify_bots' => true, 'block_spoofed' => false ) );
-		$this->assertFalse( Guard::denies( self::GPTBOT ), 'The impostor class rides the block_spoofed switch.' );
+		$this->assertFalse( Guard::denies( self::GPTBOT, true ), 'The impostor class rides the block_spoofed switch.' );
 
 		$this->configure( array( 'block_agents' => true, 'verify_bots' => false ) );
-		$this->assertFalse( Guard::denies( self::GPTBOT ), 'No verification, no verdict, no denial.' );
+		$this->assertFalse( Guard::denies( self::GPTBOT, true ), 'No verification, no verdict, no denial.' );
 
 		$this->configure( array( 'block_agents' => false, 'verify_bots' => true ) );
-		$this->assertFalse( Guard::denies( self::GPTBOT ), 'Blocking off serves everyone, impostors included.' );
+		$this->assertFalse( Guard::denies( self::GPTBOT, true ), 'Blocking off serves everyone, impostors included.' );
 	}
 
 	public function test_owner_allow_outranks_a_proven_forgery() {
@@ -346,7 +346,7 @@ final class GuardTest extends TestCase {
 		$this->seedRanges( 'gptbot', array( '192.0.2.0/24' ) );
 		$this->configure( array( 'block_agents' => true, 'verify_bots' => true, 'allowed_agents' => array( 'gptbot' ) ) );
 
-		$this->assertFalse( Guard::denies( self::GPTBOT ), 'The owner’s explicit allow is a deliberate choice — it protects unconditionally.' );
+		$this->assertFalse( Guard::denies( self::GPTBOT, true ), 'The owner’s explicit allow is a deliberate choice — it protects unconditionally.' );
 	}
 
 	public function test_a_verified_bot_the_owner_blocks_stays_blocked() {
@@ -356,7 +356,7 @@ final class GuardTest extends TestCase {
 		$this->seedRanges( 'gptbot', array( '192.0.2.0/24' ) ); // Genuinely inside the ranges…
 		$this->configure( array( 'block_agents' => true, 'verify_bots' => true, 'blocked_agents' => array( 'gptbot' ) ) );
 
-		$this->assertTrue( Guard::denies( self::GPTBOT ), '…but the owner said no, and the owner wins.' );
+		$this->assertTrue( Guard::denies( self::GPTBOT, true ), '…but the owner said no, and the owner wins.' );
 	}
 
 	public function test_an_engine_is_denied_via_fresh_ranges_when_rdns_is_unavailable() {
@@ -368,7 +368,21 @@ final class GuardTest extends TestCase {
 		$this->seedRanges( 'googlebot', array( '66.249.64.0/19' ) );
 		$this->configure( array( 'block_agents' => true ) );
 
-		$this->assertTrue( Guard::denies( self::GOOGLEBOT ), 'A fresh range exclusion condemns even when DNS cannot.' );
+		$this->assertTrue( Guard::denies( self::GOOGLEBOT, true ), 'A fresh range exclusion condemns even when DNS cannot.' );
+	}
+
+	/** REGRESSION (heera.it, 2026-07-18): identity checks must NOT run for an explicit
+	 *  UA — that's a display call (the review panel's "already blocked" badge), where
+	 *  the current IP is the ADMIN's own browser. Judged against that IP, every bot
+	 *  claim "conclusively fails", every impostor row read as blocked, and the queue
+	 *  hid a genuinely flagged client as already-handled. */
+	public function test_display_calls_never_run_identity_checks() {
+		add_filter( 'agentimus_client_ip', static function () { return '203.0.113.50'; } ); // The admin's browser.
+		$this->seedRanges( 'gptbot', array( '192.0.2.0/24' ) ); // Fresh, admin IP outside.
+		$this->configure( array( 'block_agents' => true, 'verify_bots' => true ) );
+
+		$this->assertFalse( Guard::denies( self::GPTBOT ), 'An explicit-UA (display) call judges standing rules only.' );
+		$this->assertTrue( Guard::denies( self::GPTBOT, true ), 'The same UA on the live request path is still refused.' );
 	}
 
 	/* -- Trust-list (the "Allow" action) --------------------------------- */

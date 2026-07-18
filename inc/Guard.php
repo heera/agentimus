@@ -35,10 +35,25 @@ final class Guard {
 	 * Whether a request from this User-Agent should be denied, given the current
 	 * settings. Pure: no output, no exit — safe to call and test in isolation.
 	 *
-	 * @param string|null $ua Raw User-Agent. Read from the request when null.
+	 * Identity checks (the verification strip and the proven-impostor rule) compare
+	 * the CLIENT IP against the UA's claim — meaningful only when that IP belongs to
+	 * the request that carried this UA, i.e. the LIVE request. A caller passing a UA
+	 * string (the review panel computing a row's "already blocked" badge) is asking
+	 * about standing rules in the abstract: there the current IP is the admin's own
+	 * browser, which would conclusively "fail" any bot's identity check and hide
+	 * every impostor row as already-handled. So identity checks default to ON for
+	 * the live request and OFF for an explicit UA; tests that pin an IP via the
+	 * `agentimus_client_ip` filter pass true.
+	 *
+	 * @param string|null $ua             Raw User-Agent. Read from the request when null.
+	 * @param bool|null   $check_identity Run the IP-based identity checks. Null = auto
+	 *                                    (true only when $ua is read from the request).
 	 * @return bool
 	 */
-	public static function denies( $ua = null ) {
+	public static function denies( $ua = null, $check_identity = null ) {
+		if ( null === $check_identity ) {
+			$check_identity = null === $ua;
+		}
 		if ( null === $ua ) {
 			$ua = isset( $_SERVER['HTTP_USER_AGENT'] ) ? sanitize_text_field( wp_unslash( $_SERVER['HTTP_USER_AGENT'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification -- read-only UA check on a public endpoint.
 		}
@@ -59,7 +74,7 @@ final class Guard {
 		// never lose a real crawler. Only definite operator-sourced evidence drops it
 		// to the block rules. The owner's explicit allow-list is a deliberate choice,
 		// not a spoofable identity, so it protects unconditionally.
-		if ( $protected && '' !== $ua_lc && self::verification_on() && self::is_real_engine( $ua_lc )
+		if ( $check_identity && $protected && '' !== $ua_lc && self::verification_on() && self::is_real_engine( $ua_lc )
 			&& ! self::owner_allows( $ua_lc ) && self::conclusively_forged( $ua_lc ) ) {
 			$protected = false;
 		}
@@ -96,7 +111,7 @@ final class Guard {
 			// the ORDER — the owner's denylist ran first, so a VERIFIED bot the owner
 			// explicitly blocks stays blocked (verification never overrides an owner
 			// rule); and a protected/owner-allowed UA never reaches this branch at all.
-			if ( ! $deny && $settings->enabled( 'block_spoofed' ) && self::verification_on()
+			if ( $check_identity && ! $deny && $settings->enabled( 'block_spoofed' ) && self::verification_on()
 				&& self::conclusively_forged( $ua_lc ) ) {
 				$deny = true;
 			}
