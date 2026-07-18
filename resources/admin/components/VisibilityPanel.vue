@@ -22,7 +22,7 @@ export default {
   props: {
     api: { type: Object, required: true },
   },
-  emits: ['flash'],
+  emits: ['flash', 'measured'],
   data() {
     return {
       view: 'results',
@@ -617,6 +617,9 @@ export default {
             this.lastRunAt = d.lastRunAt || this.lastRunAt;
             this.busy = false;
             this.notify('success', 'Check complete — results updated.');
+            // No payload: the run's dashboard doesn't carry the composite score —
+            // the rail refetches it quietly so the Cited rung updates in step.
+            this.$emit('measured');
             return;
           }
         } catch (e) {
@@ -644,6 +647,7 @@ export default {
         this.dashboard = r.dashboard;
         this.lastRunAt = r.lastRunAt || '';
         this.notify('success', 'Results cleared.');
+        this.$emit('measured'); // Clearing moves the Cited rung too — back to "run a check".
       } catch (e) {
         this.notify('error', `Clear failed: ${e.message}`);
       } finally {

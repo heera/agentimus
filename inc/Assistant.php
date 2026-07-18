@@ -441,7 +441,38 @@ final class Assistant {
 		if ( '' === $msg ) {
 			$msg = __( 'The AI call failed — please try again.', 'agentimus' );
 		}
-		return new \WP_Error( 'agentimus_ai_failed', $msg, array( 'status' => 502 ) );
+		return new \WP_Error( 'agentimus_ai_failed', $msg, array( 'status' => 500 ) );
+	}
+
+	/**
+	 * PURE: friendly_ai_error()'s twin for the image call. Same discipline —
+	 * a quota wall becomes the one actionable sentence (capability detection
+	 * can't see QUOTA: a provider can "support" image generation on a plan
+	 * that includes none), other provider spew is clipped to a single line —
+	 * plus one case the image path taught us: WP 7.0's AI Client throws with
+	 * NO message at all (even for quota walls), and an empty error must still
+	 * reach the editor as a human sentence.
+	 *
+	 * @param \WP_Error $error The failed image generation's error.
+	 * @return \WP_Error
+	 */
+	public static function friendly_image_error( \WP_Error $error ) {
+		$raw = (string) $error->get_error_message();
+		if ( false !== stripos( $raw, 'quota' ) || false !== stripos( $raw, 'exceeded' ) ) {
+			return new \WP_Error(
+				'agentimus_image_quota',
+				__( 'Your AI provider declined the image: the current plan’s image quota is used up (or the plan doesn’t include image generation). Pick an image from the library instead, or check the provider’s plan.', 'agentimus' ),
+				array( 'status' => 429 )
+			);
+		}
+		$msg = trim( (string) preg_replace( '/\s+/', ' ', $raw ) );
+		if ( mb_strlen( $msg ) > 160 ) {
+			$msg = mb_substr( $msg, 0, 159 ) . '…';
+		}
+		if ( '' === $msg ) {
+			$msg = __( 'The AI provider turned the image down without saying why. Try again in a moment — if it keeps happening, check the provider’s plan, or pick an image from the library.', 'agentimus' );
+		}
+		return new \WP_Error( 'agentimus_image_failed', $msg, array( 'status' => 500 ) );
 	}
 
 	/**
@@ -827,25 +858,10 @@ final class Assistant {
 			}
 			$file = $builder->generate_image();
 		} catch ( \Throwable $e ) {
-			$file = new \WP_Error( 'agentimus_image_failed', $e->getMessage(), array( 'status' => 502 ) );
+			$file = new \WP_Error( 'agentimus_image_failed', $e->getMessage() );
 		}
 		if ( is_wp_error( $file ) ) {
-			// Providers answer quota refusals with pages of API jargon; say the one
-			// thing the owner can act on. (Capability detection can't see QUOTA — a
-			// provider can "support" image generation on a plan that includes none.)
-			$raw = (string) $file->get_error_message();
-			if ( false !== stripos( $raw, 'quota' ) || false !== stripos( $raw, 'exceeded' ) ) {
-				return new \WP_Error(
-					'agentimus_image_quota',
-					__( 'Your AI provider declined the image: the current plan’s image quota is used up (or the plan doesn’t include image generation). Pick an image from the library instead, or check the provider’s plan.', 'agentimus' ),
-					array( 'status' => 502 )
-				);
-			}
-			return new \WP_Error(
-				'agentimus_image_failed',
-				mb_substr( preg_replace( '/\s+/', ' ', $raw ), 0, 240 ),
-				array( 'status' => 502 )
-			);
+			return self::friendly_image_error( $file );
 		}
 
 		$attachment_id = self::import_image_file( $file, $alt );

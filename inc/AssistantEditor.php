@@ -181,16 +181,15 @@ final class AssistantEditor {
 	var el = wp.element.createElement;
 	var Fragment = wp.element.Fragment;
 	var useState = wp.element.useState;
-	var quill = el('svg', { viewBox: '0 0 24 24', width: 20, height: 20, fill: 'none', stroke: 'currentColor', strokeWidth: 1.6, strokeLinecap: 'round', strokeLinejoin: 'round' },
-		el('path', { d: 'M20.5 3.5c-4-.5-8.3 1-11.2 3.9-2 2-3.3 4.6-3.8 7.2L3 17.1l3.9 3.9 2.5-2.5c2.6-.5 5.2-1.8 7.2-3.8 2.9-2.9 4.4-7.2 3.9-11.2z' }),
-		el('path', { d: 'M14.5 9.5L4.5 19.5' })
-	);
 	/* The brand tile — the same mark every Agentimus meta box header wears. */
-	var tile = el('svg', { width: 16, height: 16, viewBox: '0 0 24 24', fill: 'none', 'aria-hidden': 'true', style: { flex: 'none' } },
-		el('rect', { x: 1.2, y: 1.2, width: 21.6, height: 21.6, rx: 6, fill: '#1b1913', stroke: '#146b64', strokeWidth: 1.5 }),
-		el('path', { d: 'M7.35 17.3 12 6.7 16.65 17.3', stroke: '#f3f0e7', strokeWidth: 2, strokeLinecap: 'round', strokeLinejoin: 'round' }),
-		el('path', { d: 'M9.5 13H14.5', stroke: '#ad7b18', strokeWidth: 1.9, strokeLinecap: 'round' })
-	);
+	var tileIcon = function (size) {
+		return el('svg', { width: size, height: size, viewBox: '0 0 24 24', fill: 'none', 'aria-hidden': 'true', style: { flex: 'none' } },
+			el('rect', { x: 1.2, y: 1.2, width: 21.6, height: 21.6, rx: 6, fill: '#1b1913', stroke: '#146b64', strokeWidth: 1.5 }),
+			el('path', { d: 'M7.35 17.3 12 6.7 16.65 17.3', stroke: '#f3f0e7', strokeWidth: 2, strokeLinecap: 'round', strokeLinejoin: 'round' }),
+			el('path', { d: 'M9.5 13H14.5', stroke: '#ad7b18', strokeWidth: 1.9, strokeLinecap: 'round' })
+		);
+	};
+	var tile = tileIcon(16);
 	function notice(kind, msg) {
 		wp.data.dispatch('core/notices')[('ok' === kind) ? 'createSuccessNotice' : 'createErrorNotice'](msg, { type: 'snackbar' });
 	}
@@ -231,7 +230,7 @@ final class AssistantEditor {
 						el(BlockEdit, props),
 						el(wp.blockEditor.BlockControls, { group: 'other' },
 							el(wp.components.ToolbarButton, {
-								icon: quill,
+								icon: tileIcon(20),
 								label: busy ? 'Generating…' : 'Generate image from the alt text',
 								isBusy: busy,
 								disabled: busy,

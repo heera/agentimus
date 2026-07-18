@@ -548,6 +548,32 @@ final class AssistantTest extends TestCase {
 		$this->assertLessThanOrEqual( 160, mb_strlen( $nice->get_error_message() ) );
 	}
 
+	public function test_an_image_quota_wall_names_the_library_alternative() {
+		$spew = new \WP_Error( 'ai_client_error', 'Quota exceeded for metric: generativelanguage.googleapis.com/generate_images_free_tier, limit: 0' );
+		$nice = Assistant::friendly_image_error( $spew );
+		$this->assertSame( 'agentimus_image_quota', $nice->get_error_code() );
+		$this->assertStringContainsString( 'library', $nice->get_error_message(), 'The owner is pointed at the working alternative.' );
+		$this->assertSame( 429, $nice->get_error_data()['status'] );
+	}
+
+	public function test_an_empty_image_error_still_reaches_the_editor_as_a_sentence() {
+		// WP 7.0's AI Client throws without a message — seen live on heera.it.
+		$blank = new \WP_Error( 'ai_client_error', '' );
+		$nice  = Assistant::friendly_image_error( $blank );
+		$this->assertSame( 'agentimus_image_failed', $nice->get_error_code() );
+		$this->assertNotSame( '', $nice->get_error_message(), 'Never an empty message.' );
+		$this->assertStringContainsString( 'library', $nice->get_error_message() );
+	}
+
+	public function test_image_provider_noise_is_clipped_and_never_a_gateway_status() {
+		$noise = new \WP_Error( 'ai_client_error', "Upstream\nimage   failure " . str_repeat( 'y', 400 ) );
+		$nice  = Assistant::friendly_image_error( $noise );
+		$this->assertSame( 'agentimus_image_failed', $nice->get_error_code() );
+		$this->assertStringNotContainsString( "\n", $nice->get_error_message(), 'Whitespace collapses to one line.' );
+		$this->assertLessThanOrEqual( 160, mb_strlen( $nice->get_error_message() ) );
+		$this->assertSame( 500, $nice->get_error_data()['status'], 'A provider failure is our 500 — never a 502 a CDN can intercept.' );
+	}
+
 	/** Local assertWPError (PHPUnit's WP-specific one isn't in this harness). */
 	private function assertWPError( $value, string $message = '' ) {
 		$this->assertInstanceOf( \WP_Error::class, $value, $message );

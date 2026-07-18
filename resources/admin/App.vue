@@ -1626,6 +1626,7 @@ export default {
           ref="visibilityPanel"
           :api="api"
           @flash="flash"
+          @measured="refreshScore"
         />
         <AboutPanel
           v-show="tab === 'about'"
