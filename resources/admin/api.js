@@ -102,9 +102,17 @@ export function createApi(boot) {
       request('/verifier/probe-ranges', { method: 'POST', body: JSON.stringify({ url }) }),
     // Dismiss the once-per-release "What's new" card.
     markWhatsNewSeen: () => request('/whatsnew-seen', { method: 'POST' }),
-    // The writing assistant: one structured generation (writes nothing)…
-    assistantCompose: (prompt) =>
-      request('/assistant/compose', { method: 'POST', body: JSON.stringify({ prompt }) }),
+    // The writing assistant: first the cheap skeleton (title + sections) the
+    // owner can shape before any real writing happens…
+    assistantOutline: (prompt) =>
+      request('/assistant/outline', { method: 'POST', body: JSON.stringify({ prompt }) }),
+    // …then one structured generation, optionally gated by that approved
+    // outline as a contract (writes nothing either way)…
+    assistantCompose: (prompt, outline) =>
+      request('/assistant/compose', {
+        method: 'POST',
+        body: JSON.stringify(outline ? { prompt, outline } : { prompt }),
+      }),
     // …one image for one slot, on one explicit click (scene-describe → render →
     // media-library import)…
     assistantGenerateImage: (alt, title) =>

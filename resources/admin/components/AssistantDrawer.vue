@@ -34,12 +34,19 @@ export default {
   emits: ['close', 'flash'],
   data() {
     return {
-      step: 'idle', // idle | composing | preview | creating | done
+      step: 'idle', // idle | outline | composing | preview | creating | done
       prompt: '',
       draft: null,
       statusChoice: 'draft',
       post: null,
       error: '',
+      // The outline gate: a cheap skeleton (title + sections) the owner shapes
+      // BEFORE the expensive generation. Rerolling a skeleton costs pennies.
+      outline: null, // { title, sections: [{ heading, note }] }
+      outlining: false,
+      usedOutline: false, // Whether the held draft was written under the outline contract.
+      composeOrigin: 'idle', // Where composing started — errors and spinners return there.
+      confirmReset: false, // "Start over" arms an inline confirm — it discards paid work.
       // Targeted revision of the held draft.
       refineText: '',
       refining: false,
@@ -55,12 +62,40 @@ export default {
   },
   watch: {
     open(now) {
+      // The page behind the drawer is context, not content — freeze its scroll
+      // while the drawer is up, or wheel events chain through the scrim and the
+      // admin page wanders underneath. html carries `scrollbar-gutter: stable`,
+      // so hiding the document scrollbar can't shift the layout sideways.
+      document.documentElement.style.overflow = now ? 'hidden' : '';
       if (now) {
         this.$nextTick(() => {
           const el = 'idle' === this.step ? this.$refs.promptEl : this.$refs.panel;
           if (el) el.focus();
         });
       }
+    },
+    // Navigating anywhere disarms a half-clicked "Start over".
+    step() {
+      this.confirmReset = false;
+    },
+  },
+  computed: {
+    // One flag for "an AI call is in flight" — outline and compose alike.
+    busy() {
+      return 'composing' === this.step || this.outlining;
+    },
+    // The gate opens once at least one section has a real heading.
+    outlineReady() {
+      return !!(this.outline && this.outline.sections.some((s) => s.heading && s.heading.trim().length > 1));
+    },
+    // The outline screen — including while its "Write the article" call runs.
+    onOutlineScreen() {
+      return 'outline' === this.step || ('composing' === this.step && 'outline' === this.composeOrigin);
+    },
+    // Screens that carry the pinned foot: outline and preview alike — the body
+    // sheds its bottom padding and the foot anchors/pins to the drawer's edge.
+    onFootedScreen() {
+      return this.onOutlineScreen || 'preview' === this.step || 'creating' === this.step;
     },
   },
   created() {
@@ -71,6 +106,7 @@ export default {
   },
   beforeUnmount() {
     document.removeEventListener('keydown', this.onKey);
+    document.documentElement.style.overflow = ''; // Never leave the page frozen.
   },
   methods: {
     // ---- Held-draft persistence (all best-effort: storage may be full/blocked) --
@@ -81,6 +117,8 @@ export default {
           savedAt: Date.now(),
           prompt: this.prompt,
           draft: this.draft,
+          outline: this.outline,
+          usedOutline: this.usedOutline,
           featuredImage: this.featuredImage,
           imageCache: this.imageCache,
         }));
@@ -96,18 +134,34 @@ export default {
         const raw = localStorage.getItem(HELD_KEY);
         if (!raw) return;
         const held = JSON.parse(raw);
-        const draft = held && 1 === held.v ? held.draft : null;
-        const fresh = held && Date.now() - (held.savedAt || 0) < HELD_TTL_MS;
-        if (!fresh || !draft || 'string' !== typeof draft.title || 'string' !== typeof draft.content) {
+        const fresh = held && 1 === held.v && Date.now() - (held.savedAt || 0) < HELD_TTL_MS;
+        const draft = fresh && held.draft && 'string' === typeof held.draft.title && 'string' === typeof held.draft.content
+          ? held.draft : null;
+        const o = fresh && held.outline && 'string' === typeof held.outline.title && Array.isArray(held.outline.sections)
+          ? held.outline : null;
+        if (!draft && !o) {
           this.clearHeld();
           return;
         }
-        ['topics', 'tags', 'categories', 'images'].forEach((k) => { if (!Array.isArray(draft[k])) draft[k] = []; });
         this.prompt = 'string' === typeof held.prompt ? held.prompt : '';
-        this.draft = draft;
-        this.featuredImage = held.featuredImage && held.featuredImage.id ? held.featuredImage : null;
-        this.imageCache = held.imageCache && 'object' === typeof held.imageCache ? held.imageCache : {};
-        this.step = 'preview'; // Reopen exactly where they left off.
+        if (o) {
+          this.outline = {
+            title: o.title,
+            sections: o.sections
+              .filter((s) => s && 'string' === typeof s.heading)
+              .map((s) => ({ heading: s.heading, note: 'string' === typeof s.note ? s.note : '' })),
+          };
+          this.usedOutline = !!held.usedOutline;
+        }
+        if (draft) {
+          ['topics', 'tags', 'categories', 'images'].forEach((k) => { if (!Array.isArray(draft[k])) draft[k] = []; });
+          this.draft = draft;
+          this.featuredImage = held.featuredImage && held.featuredImage.id ? held.featuredImage : null;
+          this.imageCache = held.imageCache && 'object' === typeof held.imageCache ? held.imageCache : {};
+          this.step = 'preview'; // Reopen exactly where they left off.
+        } else {
+          this.step = 'outline'; // Mid-outline when the tab closed — pick it back up.
+        }
       } catch (e) {
         this.clearHeld(); // A corrupt stash must never brick the drawer.
       }
@@ -115,21 +169,64 @@ export default {
     onKey(e) {
       if ('Escape' === e.key && this.open) this.$emit('close');
     },
-    // ---- Compose --------------------------------------------------------------
-    async compose() {
+    // ---- Outline: the cheap skeleton before the expensive draft ----------------
+    async makeOutline() {
       const brief = this.prompt.trim();
-      if (brief.length < 8 || 'composing' === this.step) return;
+      if (brief.length < 8 || this.busy) return;
+      this.outlining = true;
+      this.error = '';
+      try {
+        const r = await this.api.assistantOutline(brief);
+        this.outline = r.outline;
+        this.usedOutline = false;
+        this.step = 'outline';
+        this.persistHeld();
+        this.$nextTick(() => {
+          if (this.$refs.outlineTitleEl) this.$refs.outlineTitleEl.focus();
+        });
+      } catch (e) {
+        this.error = (e && e.message) || 'The outline didn’t come back — please try again.';
+      } finally {
+        this.outlining = false;
+      }
+    },
+    addSection() {
+      if (!this.outline) return;
+      this.outline.sections.push({ heading: '', note: '' });
+      this.persistHeld();
+    },
+    removeSection(i) {
+      if (!this.outline) return;
+      this.outline.sections.splice(i, 1);
+      this.persistHeld();
+    },
+    // The outline as the server contract: trimmed, heading-less rows dropped.
+    cleanOutline() {
+      if (!this.outline) return null;
+      const sections = this.outline.sections
+        .map((s) => ({ heading: (s.heading || '').trim(), note: (s.note || '').trim() }))
+        .filter((s) => s.heading);
+      return sections.length ? { title: (this.outline.title || '').trim(), sections } : null;
+    },
+    // ---- Compose --------------------------------------------------------------
+    async compose(useOutline) {
+      const brief = this.prompt.trim();
+      if (brief.length < 8 || this.busy) return;
+      const outline = useOutline ? this.cleanOutline() : null;
+      if (useOutline && !outline) return;
+      this.composeOrigin = 'outline' === this.step ? 'outline' : 'idle';
       this.step = 'composing';
       this.error = '';
       try {
-        const r = await this.api.assistantCompose(brief);
+        const r = await this.api.assistantCompose(brief, outline);
         this.prevDraft = this.draft || null; // "Draft again" overwrites too — same one-step undo.
         this.draft = r.draft;
+        this.usedOutline = !!outline;
         this.step = 'preview';
         this.persistHeld(); // A paid artifact — survives reloads until created or replaced.
       } catch (e) {
         this.error = (e && e.message) || 'The draft didn’t come back — please try again.';
-        this.step = 'idle';
+        this.step = this.composeOrigin; // Fail back to wherever the click came from.
       }
     },
     // Back to the brief, keeping its text — "edit the brief", not "start over".
@@ -275,6 +372,13 @@ export default {
       }
     },
     // ---- After ----------------------------------------------------------------
+    // "Start over" mid-flow: the same full reset the done screen's "Write
+    // another" runs, behind the inline confirm — it discards a paid draft
+    // and a shaped outline in one act, so one stray click must not do it.
+    confirmStartOver() {
+      this.confirmReset = false;
+      this.writeAnother();
+    },
     writeAnother() {
       this.step = 'idle';
       this.prompt = '';
@@ -283,6 +387,9 @@ export default {
       this.error = '';
       this.refineText = '';
       this.prevDraft = null;
+      this.outline = null;
+      this.usedOutline = false;
+      this.composeOrigin = 'idle';
       this.featuredImage = null;
       this.imgBusy = {};
       this.lib.open = null;
@@ -330,9 +437,9 @@ export default {
             </button>
           </div>
 
-          <div class="ar-drawer__body">
+          <div class="ar-drawer__body" :class="{ 'ar-drawer__body--footed': onFootedScreen }">
             <!-- ============ Brief ============ -->
-            <template v-if="'idle' === step || 'composing' === step">
+            <template v-if="'idle' === step || ('composing' === step && 'outline' !== composeOrigin)">
               <label class="ar-assist__label" for="ar-assist-prompt">What should it write?</label>
               <textarea
                 id="ar-assist-prompt"
@@ -340,34 +447,124 @@ export default {
                 v-model="prompt"
                 class="ar-assist__prompt"
                 rows="6"
-                :disabled="'composing' === step"
+                :disabled="busy"
                 placeholder="e.g. A practical post on choosing a WordPress backup plugin — what actually matters, common mistakes, and a short checklist. Friendly, ~800 words."
-                @keydown.meta.enter="compose"
-                @keydown.ctrl.enter="compose"
+                @keydown.meta.enter="compose(false)"
+                @keydown.ctrl.enter="compose(false)"
               ></textarea>
               <p class="ar-assist__hint">
                 Be as specific as you like — audience, angle, length, language. Your site’s Content
-                Guidelines are applied automatically. One AI call per draft.
+                Guidelines are applied automatically. “Outline first” lets you shape the sections
+                before the full draft is written — rerolling an outline costs far less than a draft.
               </p>
               <p v-if="error" class="ar-assist__error" role="alert">{{ error }}</p>
 
               <!-- A composed draft is a PAID artifact: while one is held, say so and
                    keep the way back one click away — editing the brief must never
                    cost the generation. Drafting again is what replaces it. -->
-              <div v-if="draft && 'composing' !== step" class="ar-assist__held">
+              <div v-if="draft && !busy" class="ar-assist__held">
                 <span class="ar-assist__heldtext">Your drafted post is still here — nothing was lost.</span>
                 <button type="button" class="ar-linkbtn" @click="restorePreview">Back to the preview</button>
               </div>
+              <!-- Same promise for a shaped outline when no draft holds the spotlight. -->
+              <div v-else-if="outline && !busy" class="ar-assist__held">
+                <span class="ar-assist__heldtext">Your outline is still here — nothing was lost.</span>
+                <button type="button" class="ar-linkbtn" @click="step = 'outline'">Back to the outline</button>
+              </div>
 
               <div class="ar-assist__actions">
-                <button type="button" class="ar-btn ar-assist__go" :disabled="prompt.trim().length < 8 || 'composing' === step" @click="compose">
+                <span class="ar-assist__spacer"></span>
+                <button type="button" class="ar-btn ar-btn--ghost" :disabled="prompt.trim().length < 8 || busy" @click="compose(false)">
                   <span v-if="'composing' === step" class="ar-spinner ar-assist__spin" aria-hidden="true"></span>
-                  {{ 'composing' === step ? 'Drafting…' : (draft ? 'Draft again' : 'Draft it') }}
+                  {{ 'composing' === step ? 'Drafting…' : (draft ? 'Draft again' : 'Draft it now') }}
+                </button>
+                <button type="button" class="ar-btn ar-assist__go" :disabled="prompt.trim().length < 8 || busy" @click="makeOutline">
+                  <span v-if="outlining" class="ar-spinner ar-assist__spin" aria-hidden="true"></span>
+                  {{ outlining ? 'Outlining…' : 'Outline first' }}
                 </button>
               </div>
-              <p v-if="draft && 'composing' !== step" class="ar-assist__hint ar-assist__replacenote">
+              <p v-if="draft && !busy" class="ar-assist__hint ar-assist__replacenote">
                 “Draft again” writes a new draft from the brief above and replaces the held one.
               </p>
+            </template>
+
+            <!-- ============ Outline ============ -->
+            <!-- The skeleton, before any real writing: reword, remove or add
+                 sections — the article will follow this shape exactly. -->
+            <template v-else-if="onOutlineScreen">
+              <label class="ar-assist__label" for="ar-outline-title">Working title</label>
+              <input
+                id="ar-outline-title"
+                ref="outlineTitleEl"
+                v-model="outline.title"
+                type="text"
+                class="ar-assist__refineinput ar-assist__otitle"
+                :disabled="busy"
+                aria-label="Working title"
+                @change="persistHeld"
+              />
+
+              <label class="ar-assist__label">Sections</label>
+              <div class="ar-assist__osections">
+                <div v-for="(s, i) in outline.sections" :key="'os' + i" class="ar-assist__osection">
+                  <div class="ar-assist__osecrow">
+                    <span class="ar-assist__onum" aria-hidden="true">{{ i + 1 }}</span>
+                    <input
+                      v-model="s.heading"
+                      type="text"
+                      class="ar-assist__refineinput"
+                      placeholder="Section heading"
+                      :aria-label="'Heading of section ' + (i + 1)"
+                      :disabled="busy"
+                      @change="persistHeld"
+                    />
+                    <button type="button" class="ar-assist__oremove" :aria-label="'Remove section ' + (i + 1)" :disabled="busy" @click="removeSection(i)">
+                      <svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" aria-hidden="true"><path d="M4 4l8 8M12 4l-8 8" /></svg>
+                    </button>
+                  </div>
+                  <textarea
+                    v-model="s.note"
+                    rows="2"
+                    class="ar-assist__refineinput ar-assist__onote"
+                    placeholder="What this section covers"
+                    :aria-label="'What section ' + (i + 1) + ' covers'"
+                    :disabled="busy"
+                    @change="persistHeld"
+                  ></textarea>
+                </div>
+              </div>
+              <button type="button" class="ar-linkbtn" :disabled="busy" @click="addSection">+ Add a section</button>
+
+              <p class="ar-assist__hint">
+                The article will follow this outline exactly — one section per row, in this order,
+                these headings. Shape it first; a fresh outline costs far less than a full draft.
+              </p>
+
+              <div v-if="draft && !busy" class="ar-assist__held">
+                <span class="ar-assist__heldtext">Your drafted post is still here — “Write the article” replaces it.</span>
+                <button type="button" class="ar-linkbtn" @click="restorePreview">Back to the preview</button>
+              </div>
+
+              <!-- Pinned foot: the section list scrolls, the way out never does. -->
+              <div class="ar-assist__foot">
+                <p v-if="error" class="ar-assist__error ar-assist__footerror" role="alert">{{ error }}</p>
+                <div v-if="!confirmReset" class="ar-assist__footrow">
+                  <button type="button" class="ar-linkbtn ar-assist__resetlink" :disabled="busy" @click="confirmReset = true">Start over</button>
+                  <span class="ar-assist__spacer"></span>
+                  <button type="button" class="ar-linkbtn" :disabled="busy" @click="editBrief">Edit the brief</button>
+                  <button type="button" class="ar-linkbtn" :disabled="busy" @click="makeOutline">{{ outlining ? 'Outlining…' : 'New outline' }}</button>
+                  <button type="button" class="ar-btn ar-assist__go" :disabled="!outlineReady || busy" @click="compose(true)">
+                    <span v-if="'composing' === step" class="ar-spinner ar-assist__spin" aria-hidden="true"></span>
+                    {{ 'composing' === step ? 'Writing…' : 'Write the article' }}
+                  </button>
+                </div>
+                <div v-else class="ar-assist__footrow">
+                  <span class="ar-assist__resettext">Clear everything here and start fresh? Nothing on your site is affected.</span>
+                  <span class="ar-assist__spacer"></span>
+                  <button type="button" class="ar-linkbtn ar-assist__resetdanger" @click="confirmStartOver">Yes, clear it</button>
+                  <button type="button" class="ar-linkbtn" @click="confirmReset = false">Keep it</button>
+                </div>
+              </div>
             </template>
 
             <!-- ============ Preview ============ -->
@@ -481,20 +678,37 @@ export default {
                 <button type="button" class="ar-linkbtn" @click="undoRefine">Undo — bring it back</button>
               </p>
 
-              <p v-if="error" class="ar-assist__error" role="alert">{{ error }}</p>
-
-              <div class="ar-assist__actions ar-assist__actions--preview">
-                <button type="button" class="ar-linkbtn" :disabled="'creating' === step" @click="editBrief">Edit the brief</button>
-                <button type="button" class="ar-linkbtn" :disabled="'creating' === step" @click="compose">Try again</button>
-                <span class="ar-assist__spacer"></span>
-                <select v-model="statusChoice" class="ar-assist__status" :disabled="'creating' === step" aria-label="Save as">
-                  <option value="draft">as a draft</option>
-                  <option value="pending">as pending review</option>
-                </select>
-                <button type="button" class="ar-btn ar-assist__go" :disabled="'creating' === step" @click="create">
-                  <span v-if="'creating' === step" class="ar-spinner ar-assist__spin" aria-hidden="true"></span>
-                  {{ 'creating' === step ? 'Creating…' : 'Create draft' }}
-                </button>
+              <!-- Pinned foot, same as the outline screen: the article scrolls,
+                   the way out never does. Two deliberate rows — navigation
+                   links, then the commit act — so nothing wraps unpredictably. -->
+              <div class="ar-assist__foot">
+                <p v-if="error" class="ar-assist__error ar-assist__footerror" role="alert">{{ error }}</p>
+                <template v-if="!confirmReset">
+                  <div class="ar-assist__footrow">
+                    <button type="button" class="ar-linkbtn ar-assist__resetlink" :disabled="'creating' === step" @click="confirmReset = true">Start over</button>
+                    <span class="ar-assist__spacer"></span>
+                    <button type="button" class="ar-linkbtn" :disabled="'creating' === step" @click="editBrief">Edit the brief</button>
+                    <button v-if="outline" type="button" class="ar-linkbtn" :disabled="'creating' === step" @click="step = 'outline'">Edit the outline</button>
+                    <button type="button" class="ar-linkbtn" :disabled="'creating' === step" @click="compose(usedOutline)">Try again</button>
+                  </div>
+                  <div class="ar-assist__footrow ar-assist__footrow--commit">
+                    <span class="ar-assist__spacer"></span>
+                    <select v-model="statusChoice" class="ar-assist__status" :disabled="'creating' === step" aria-label="Save as">
+                      <option value="draft">as a draft</option>
+                      <option value="pending">as pending review</option>
+                    </select>
+                    <button type="button" class="ar-btn ar-assist__go" :disabled="'creating' === step" @click="create">
+                      <span v-if="'creating' === step" class="ar-spinner ar-assist__spin" aria-hidden="true"></span>
+                      {{ 'creating' === step ? 'Creating…' : 'Create draft' }}
+                    </button>
+                  </div>
+                </template>
+                <div v-else class="ar-assist__footrow">
+                  <span class="ar-assist__resettext">Clear everything here and start fresh? Nothing on your site is affected.</span>
+                  <span class="ar-assist__spacer"></span>
+                  <button type="button" class="ar-linkbtn ar-assist__resetdanger" @click="confirmStartOver">Yes, clear it</button>
+                  <button type="button" class="ar-linkbtn" @click="confirmReset = false">Keep it</button>
+                </div>
               </div>
             </template>
 
@@ -519,6 +733,25 @@ export default {
                 </p>
               </div>
             </template>
+
+            <!-- ============ Start over ============ -->
+            <!-- The brief screen's copy of the way out (the outline and preview
+                 screens carry theirs inside their pinned foot): clear the brief,
+                 outline and held draft in one act, behind the inline confirm —
+                 it discards paid work. Never shown mid-call or after creation. -->
+            <div
+              v-if="'idle' === step && !busy && (draft || outline || prompt.trim())"
+              class="ar-assist__reset"
+            >
+              <template v-if="!confirmReset">
+                <button type="button" class="ar-linkbtn" @click="confirmReset = true">Start over</button>
+              </template>
+              <template v-else>
+                <span class="ar-assist__resettext">Clear everything here and start fresh? Nothing on your site is affected.</span>
+                <button type="button" class="ar-linkbtn ar-assist__resetdanger" @click="confirmStartOver">Yes, clear it</button>
+                <button type="button" class="ar-linkbtn" @click="confirmReset = false">Keep it</button>
+              </template>
+            </div>
           </div>
         </div>
       </div>

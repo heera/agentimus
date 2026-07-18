@@ -325,6 +325,23 @@
 }
 .ar-drawer__close:hover { border-color: var(--ar-line-strong); color: var(--ar-ink); }
 .ar-drawer__body { flex: 1 1 auto; min-height: 0; overflow-y: auto; padding: 18px 20px; }
+/* Screens with a pinned foot own their bottom spacing — the foot must sit
+   flush. Flex column so a SHORT outline's foot still anchors to the drawer's
+   bottom edge (margin-top:auto) instead of floating mid-panel; when content
+   overflows, sticky takes over and pins it exactly the same. */
+.ar-drawer__body--footed { padding-bottom: 0; display: flex; flex-direction: column; }
+.ar-drawer__body--footed > * { flex: 0 0 auto; }
+.ar-drawer__body--footed .ar-assist__foot { margin-top: auto; padding-top: 13px; }
+/* A quiet, thin scrollbar with a permanently reserved gutter: on systems with
+   classic (space-taking) scrollbars, content appearing/disappearing can't
+   nudge the layout sideways when the bar pops in. overscroll-behavior keeps a
+   wheel that reaches the list's end from chaining into the page behind. */
+.ar-drawer__body {
+  scrollbar-gutter: stable;
+  scrollbar-width: thin;
+  scrollbar-color: var(--ar-line-strong) transparent;
+  overscroll-behavior: contain;
+}
 
 /* Brief */
 .ar-assist__label { display: block; font-size: 12.5px; font-weight: 600; color: var(--ar-ink); margin-bottom: 7px; }
@@ -334,14 +351,19 @@
   background: var(--ar-surface); border: 1px solid var(--ar-line-strong); border-radius: 9px;
   padding: 10px 12px;
 }
-.ar-assist__prompt:focus { outline: 2px solid var(--ar-accent); outline-offset: 1px; border-color: var(--ar-accent); }
+.ar-assist__prompt:focus { outline: none; border-color: var(--ar-accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--ar-accent) 15%, transparent); }
 .ar-assist__hint { margin: 8px 0 0; font-size: 11.5px; line-height: 1.55; color: var(--ar-ink-faint); }
-.ar-assist__error { margin: 10px 0 0; font-size: 12px; font-weight: 600; color: var(--ar-bad); }
+.ar-assist__error { margin: 10px 0 0; font-size: 11.5px; font-weight: 500; line-height: 1.55; color: var(--ar-bad); }
 .ar-assist__actions { display: flex; align-items: center; gap: 10px; margin-top: 14px; }
 .ar-assist__actions .ar-assist__go { margin-left: auto; display: inline-flex; align-items: center; gap: 7px; }
 .ar-assist__actions--preview { flex-wrap: wrap; }
 .ar-assist__spacer { flex: 1; }
-.ar-assist__spin { width: 12px; height: 12px; border-width: 2px; }
+/* Compound selector on purpose: the base .ar-spinner (26px) is declared LATER
+   in this file and would win the tie — this must outrank it, or every button
+   spinner inflates to 26px and bumps the button height mid-call. border-box,
+   because without it the borders render OUTSIDE the 12px (16px total — taller
+   than the button's text line, which is the height bump all over again). */
+.ar-spinner.ar-assist__spin { box-sizing: border-box; width: 12px; height: 12px; border-width: 2px; flex: 0 0 auto; }
 .ar-assist__status {
   font-size: 12px; padding: 6px 8px; border-radius: 8px;
   border: 1px solid var(--ar-line-strong); background: var(--ar-surface); color: var(--ar-ink);
@@ -356,6 +378,65 @@
 }
 .ar-assist__heldtext { font-size: 12px; color: var(--ar-ink-soft); }
 .ar-assist__replacenote { margin-top: 8px; text-align: right; }
+
+/* The outline gate: the skeleton the owner shapes before the expensive draft. */
+.ar-assist__otitle { display: block; width: 100%; margin-bottom: 14px; font-family: var(--ar-serif); font-size: 14.5px; font-weight: 600; }
+.ar-assist__osections { display: grid; gap: 9px; margin-bottom: 9px; }
+.ar-assist__osection {
+  position: relative; /* Anchors the corner remove button. */
+  display: grid; gap: 6px; padding: 10px 38px 10px 10px; border-radius: 9px;
+  border: 1px solid var(--ar-line); background: var(--ar-surface-2);
+}
+.ar-assist__osecrow { display: flex; align-items: center; gap: 8px; }
+.ar-assist__onum {
+  flex: 0 0 auto; font-family: var(--ar-mono); font-size: 10px; color: var(--ar-ink-faint);
+  width: 16px; text-align: right;
+}
+.ar-assist__osecrow .ar-assist__refineinput { font-weight: 600; }
+/* The note is a textarea so a full sentence stays fully visible — it grows to
+   its content where the browser supports field-sizing, and falls back to two
+   comfortable rows elsewhere. Never a horizontal one-line peephole. The left
+   inset mirrors the number gutter, so heading and note share the exact same
+   width — the remove button lives in the card's right gutter, not the row. */
+.ar-drawer textarea.ar-assist__onote,
+.ar-assist__onote {
+  display: block; margin-left: 24px; width: calc(100% - 24px);
+  font-size: 12.5px; line-height: 1.5; color: var(--ar-ink-soft);
+  resize: none; field-sizing: content; min-height: 30px;
+}
+.ar-assist__oremove {
+  position: absolute; top: 15px; right: 7px;
+  display: grid; place-items: center; width: 24px; height: 24px;
+  appearance: none; border: 0; border-radius: 7px; cursor: pointer;
+  color: var(--ar-ink-faint); background: transparent;
+}
+.ar-assist__oremove:hover { color: var(--ar-bad); background: color-mix(in srgb, var(--ar-bad) 8%, transparent); }
+.ar-assist__oremove:disabled { opacity: 0.5; cursor: default; }
+
+/* The outline screen's pinned foot: the section list scrolls, the actions
+ * never leave the viewport. Bleeds over the body's padding so content slides
+ * beneath it edge-to-edge (same idea as the review queue's pinned footer). */
+.ar-assist__foot {
+  position: sticky; bottom: 0; z-index: 4;
+  margin: 16px -20px 0; padding: 11px 20px 15px;
+  background: var(--ar-surface);
+  border-top: 1px solid var(--ar-line-strong);
+  box-shadow: 0 -12px 22px -16px rgba(27, 25, 19, 0.4);
+}
+.ar-assist__footrow { display: flex; align-items: center; gap: 13px; flex-wrap: wrap; }
+.ar-assist__footrow--commit { margin-top: 10px; }
+.ar-assist__footrow .ar-assist__go { display: inline-flex; align-items: center; gap: 7px; }
+.ar-assist__footerror { margin: 0 0 9px; }
+.ar-assist__resetlink { color: var(--ar-ink-faint); }
+.ar-assist__resetlink:hover { color: var(--ar-bad); }
+
+/* Start over: the one way out, tucked under a rule at the drawer's foot. */
+.ar-assist__reset {
+  display: flex; justify-content: flex-end; align-items: center; gap: 12px; flex-wrap: wrap;
+  margin-top: 16px; padding-top: 10px; border-top: 1px dashed var(--ar-line);
+}
+.ar-assist__resettext { font-size: 11.5px; color: var(--ar-ink-faint); }
+.ar-assist__resetdanger { color: var(--ar-bad); }
 
 /* Preview */
 .ar-assist__preview {
@@ -406,12 +487,30 @@
 
 /* Refine: revise-in-place bar under the preview. */
 .ar-assist__refine { display: flex; gap: 8px; margin-top: 12px; }
+/* Qualified selectors on purpose: wp-admin's forms.css styles bare
+   `input[type=text]` (background, border, blue focus ring) at higher
+   specificity than a lone class — without these, an <input> field and a
+   <textarea> field wearing the SAME class render visibly different. */
+.ar-drawer input.ar-assist__refineinput,
+.ar-drawer textarea.ar-assist__refineinput,
 .ar-assist__refineinput {
-  flex: 1; min-width: 0; font-size: 12.5px; color: var(--ar-ink);
+  box-sizing: border-box; margin: 0; /* wp-admin gives inputs `margin: 0 1px` —
+  the phantom pixel that made an input and a textarea measure differently */
+  flex: 1; min-width: 0; font-size: 12.5px; line-height: 1.5; color: var(--ar-ink);
   background: var(--ar-surface); border: 1px solid var(--ar-line-strong); border-radius: 9px;
-  padding: 8px 11px;
+  padding: 8px 11px; box-shadow: none;
 }
-.ar-assist__refineinput:focus { outline: 2px solid var(--ar-accent); outline-offset: 1px; border-color: var(--ar-accent); }
+/* Re-asserted AFTER the unified rule (same specificity — order decides):
+   the note keeps its number-gutter indent, and the title must NOT flex-grow —
+   it's a direct child of the footed body's flex column, and the unified rule's
+   `flex: 1` would otherwise stretch it to fill the drawer. */
+.ar-drawer textarea.ar-assist__onote { margin-left: 24px; }
+.ar-drawer input.ar-assist__otitle { flex: 0 0 auto; }
+/* Focus is a tinted border + a soft halo — visible without the chunky
+   double-ring the 2px offset outline drew around rounded fields. */
+.ar-drawer input.ar-assist__refineinput:focus,
+.ar-drawer textarea.ar-assist__refineinput:focus,
+.ar-assist__refineinput:focus { outline: none; border-color: var(--ar-accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--ar-accent) 15%, transparent); }
 .ar-assist__refinebtn { flex: 0 0 auto; display: inline-flex; align-items: center; gap: 7px; font-size: 12.5px; padding: 7px 14px; }
 .ar-assist__undoline { margin: 8px 0 0; font-size: 11.5px; color: var(--ar-ink-faint); }
 
@@ -1493,6 +1592,9 @@ select.ar-input {
   font: inherit; color: var(--ar-accent); text-decoration: underline;
 }
 .ar-linkbtn:hover { color: var(--ar-ink); }
+/* Disabled must LOOK disabled — a full-color underlined link that silently
+   ignores clicks reads as broken, not busy. */
+.ar-linkbtn:disabled, .ar-linkbtn:disabled:hover { color: var(--ar-ink-faint); text-decoration: none; cursor: default; opacity: 0.7; }
 
 /* Content types — compact, scalable selectable cards */
 /* Same grid as the cards below, so the search lines up to the columns. */

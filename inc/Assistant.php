@@ -62,6 +62,14 @@ final class Assistant {
 	/** Output budget for the scene-describer (one vivid paragraph). */
 	const SCENE_TOKENS = 400;
 
+	/** Output budget for the outline skeleton — small on purpose (retrying an
+	 *  outline should cost pennies next to a full draft), but with headroom for
+	 *  reasoning models that spend thinking tokens from the same budget. */
+	const OUTLINE_TOKENS = 2048;
+
+	/** Ceiling on an outline's section list. */
+	const MAX_OUTLINE_SECTIONS = 10;
+
 	/** @var Settings */
 	private $settings;
 
@@ -122,6 +130,15 @@ final class Assistant {
 			array(
 				'methods'             => \WP_REST_Server::EDITABLE,
 				'callback'            => array( $this, 'compose' ),
+				'permission_callback' => array( $this, 'can_compose' ),
+			)
+		);
+		register_rest_route(
+			self::NS,
+			'/assistant/outline',
+			array(
+				'methods'             => \WP_REST_Server::EDITABLE,
+				'callback'            => array( $this, 'outline' ),
 				'permission_callback' => array( $this, 'can_compose' ),
 			)
 		);
@@ -231,16 +248,25 @@ final class Assistant {
 	 * @return \WP_REST_Response|\WP_Error
 	 */
 	public function compose( \WP_REST_Request $request ) {
-		$prompt = trim( sanitize_textarea_field( (string) $request->get_param( 'prompt' ) ) );
-		if ( strlen( $prompt ) < self::PROMPT_MIN ) {
-			return new \WP_Error(
-				'agentimus_prompt_short',
-				__( 'Describe the post in a sentence or two first.', 'agentimus' ),
-				array( 'status' => 400 )
-			);
+		$prompt = self::read_brief( $request );
+		if ( is_wp_error( $prompt ) ) {
+			return $prompt;
 		}
-		if ( strlen( $prompt ) > self::PROMPT_MAX ) {
-			$prompt = substr( $prompt, 0, self::PROMPT_MAX );
+
+		// An approved outline (the outline-first gate) rides along as a contract.
+		// It came from our own /outline response, but it's re-held to the schema
+		// anyway — the same both-directions rule the draft round-trip follows.
+		$outline = $request->get_param( 'outline' );
+		if ( ! empty( $outline ) ) {
+			$outline = self::sanitize_outline( $outline );
+			if ( is_wp_error( $outline ) ) {
+				return new \WP_Error(
+					'agentimus_outline_invalid',
+					__( 'The outline looks empty — give it a title and at least one section, or draft without it.', 'agentimus' ),
+					array( 'status' => 400 )
+				);
+			}
+			$prompt = self::outline_prompt( $prompt, $outline );
 		}
 
 		if ( ! Assist::ai_available() ) {
@@ -253,7 +279,7 @@ final class Assistant {
 
 		$text = ( new Assist( $this->settings ) )->generate( self::system_prompt(), $prompt, self::COMPOSE_TOKENS );
 		if ( is_wp_error( $text ) ) {
-			return $text;
+			return self::friendly_ai_error( $text );
 		}
 
 		$draft = self::parse_draft( $text );
@@ -262,6 +288,210 @@ final class Assistant {
 		}
 
 		return rest_ensure_response( array( 'draft' => $draft ) );
+	}
+
+	/**
+	 * POST /assistant/outline — the cheap step before the expensive one: a
+	 * skeleton (working title + sections) from the same brief, for the owner to
+	 * shape BEFORE the full generation runs. Rerolling a skeleton costs pennies;
+	 * rerolling a whole article doesn't — that's the entire point of the gate.
+	 * Writes nothing.
+	 *
+	 * @param \WP_REST_Request $request Request.
+	 * @return \WP_REST_Response|\WP_Error
+	 */
+	public function outline( \WP_REST_Request $request ) {
+		$prompt = self::read_brief( $request );
+		if ( is_wp_error( $prompt ) ) {
+			return $prompt;
+		}
+
+		if ( ! Assist::ai_available() ) {
+			return new \WP_Error(
+				'agentimus_ai_unavailable',
+				__( 'No AI text model is configured. Add or enable one under Settings → AI, then try again.', 'agentimus' ),
+				array( 'status' => 503 )
+			);
+		}
+
+		$text = ( new Assist( $this->settings ) )->generate( self::outline_system_prompt(), $prompt, self::OUTLINE_TOKENS );
+		if ( is_wp_error( $text ) ) {
+			return self::friendly_ai_error( $text );
+		}
+
+		$outline = self::parse_outline( $text );
+		if ( is_wp_error( $outline ) ) {
+			return $outline;
+		}
+		return rest_ensure_response( array( 'outline' => $outline ) );
+	}
+
+	/**
+	 * PURE: providers answer failures with walls of API jargon — status lines,
+	 * metric names, retry timers, documentation URLs. Our own errors
+	 * (agentimus_* codes) are already written for humans and pass through
+	 * untouched; a recognisable quota/rate wall becomes ONE actionable
+	 * sentence; anything else is clipped to a single clean line. The drawer
+	 * shows errors inside its pinned foot — it gets a sentence, never a
+	 * paragraph of provider spew.
+	 *
+	 * @param \WP_Error $error The failed generation's error.
+	 * @return \WP_Error
+	 */
+	public static function friendly_ai_error( \WP_Error $error ) {
+		$code = (string) $error->get_error_code();
+		if ( 0 === strpos( $code, 'agentimus_' ) ) {
+			return $error;
+		}
+
+		$raw = (string) $error->get_error_message();
+		$lc  = strtolower( $raw );
+		foreach ( array( 'quota', 'too many requests', 'rate limit', 'resource_exhausted', '429' ) as $needle ) {
+			if ( false !== strpos( $lc, $needle ) ) {
+				return new \WP_Error(
+					'agentimus_ai_provider_limited',
+					__( 'Your AI provider is out of requests for now — free tiers allow only a handful per day. Wait a little and try again, or check the provider’s plan.', 'agentimus' ),
+					array( 'status' => 429 )
+				);
+			}
+		}
+
+		$msg = trim( (string) preg_replace( '/\s+/', ' ', $raw ) );
+		if ( mb_strlen( $msg ) > 160 ) {
+			$msg = mb_substr( $msg, 0, 159 ) . '…';
+		}
+		if ( '' === $msg ) {
+			$msg = __( 'The AI call failed — please try again.', 'agentimus' );
+		}
+		return new \WP_Error( 'agentimus_ai_failed', $msg, array( 'status' => 502 ) );
+	}
+
+	/**
+	 * The brief, validated the same way for outline and compose: bounded,
+	 * sanitised, or a clear 400 saying what's missing.
+	 *
+	 * @param \WP_REST_Request $request Request.
+	 * @return string|\WP_Error
+	 */
+	private static function read_brief( \WP_REST_Request $request ) {
+		$prompt = trim( sanitize_textarea_field( (string) $request->get_param( 'prompt' ) ) );
+		if ( strlen( $prompt ) < self::PROMPT_MIN ) {
+			return new \WP_Error(
+				'agentimus_prompt_short',
+				__( 'Describe the post in a sentence or two first.', 'agentimus' ),
+				array( 'status' => 400 )
+			);
+		}
+		if ( strlen( $prompt ) > self::PROMPT_MAX ) {
+			$prompt = substr( $prompt, 0, self::PROMPT_MAX );
+		}
+		return $prompt;
+	}
+
+	/**
+	 * The outline instruction: a skeleton only — title plus h2 sections with a
+	 * one-line note each. Intro and conclusion are deliberately excluded here;
+	 * {@see outline_prompt()} welcomes them back AROUND the sections at write
+	 * time, so the two prompts describe the same article shape.
+	 *
+	 * @return string
+	 */
+	public static function outline_system_prompt() {
+		return 'You are the writing assistant inside a WordPress site\'s admin, planning a post from the owner\'s brief. '
+			. 'Respond with ONLY a single JSON object — no markdown fences, no commentary before or after — with exactly these keys: '
+			. '"title" (string: a working title for the post), '
+			. '"sections" (array of 3–8 objects, each {"heading": the exact h2 text the section will use, '
+			. '"note": one plain sentence on what the section covers}). '
+			. 'Plan concretely in the brief\'s language; order the sections so the post reads naturally. '
+			. 'Do not include the introduction or a conclusion as sections — those are written around the outline later.';
+	}
+
+	/**
+	 * PURE: the compose user-prompt when an approved outline gates the generation
+	 * — the brief plus the outline as a CONTRACT: these sections, this order,
+	 * these headings, verbatim. A kept contract has a free bonus: image-slot
+	 * anchors match h2 text, so every proposed slot stays anchorable.
+	 *
+	 * @param string $brief   The owner's brief.
+	 * @param array  $outline The sanitised outline.
+	 * @return string
+	 */
+	public static function outline_prompt( $brief, array $outline ) {
+		return $brief . "\n\nThe owner approved this outline, as JSON:\n"
+			. wp_json_encode( $outline, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE )
+			. "\n\nFollow it exactly: use the outline's title unless the brief itself demands another, and write one <h2> section per outline entry, in the given order, with the given heading text verbatim. "
+			. 'Cover what each section\'s note describes. Do not add, remove, merge or reorder sections. '
+			. 'An introduction before the first section and a short closing after the last are welcome, without headings of their own.';
+	}
+
+	/**
+	 * PURE: turn the model's text into a sanitised outline, or a clear error —
+	 * the same fence/prose-tolerant cut {@see parse_draft()} uses.
+	 *
+	 * @param string $text Raw model output.
+	 * @return array|\WP_Error
+	 */
+	public static function parse_outline( $text ) {
+		$text  = trim( (string) $text );
+		$start = strpos( $text, '{' );
+		$end   = strrpos( $text, '}' );
+		$data  = ( false !== $start && false !== $end && $end > $start )
+			? json_decode( substr( $text, $start, $end - $start + 1 ), true )
+			: null;
+
+		if ( ! is_array( $data ) ) {
+			return new \WP_Error(
+				'agentimus_ai_bad_output',
+				__( 'The AI didn’t return a usable outline — please try again.', 'agentimus' ),
+				array( 'status' => 502 )
+			);
+		}
+		return self::sanitize_outline( $data );
+	}
+
+	/**
+	 * PURE: hold an outline-shaped array to the schema — the shared gate for both
+	 * directions, exactly like {@see sanitize_draft()}: model output on its way
+	 * to the editor, and an owner-edited outline on its way back into the compose
+	 * contract. A section needs a real heading; a heading-less row is dropped,
+	 * and an outline needs a title and at least one surviving section to count.
+	 *
+	 * @param mixed $data Outline-shaped input.
+	 * @return array|\WP_Error
+	 */
+	public static function sanitize_outline( $data ) {
+		$bad = new \WP_Error(
+			'agentimus_ai_bad_output',
+			__( 'The AI didn’t return a usable outline — please try again.', 'agentimus' ),
+			array( 'status' => 502 )
+		);
+		if ( ! is_array( $data ) ) {
+			return $bad;
+		}
+
+		$title    = mb_substr( trim( sanitize_text_field( (string) ( $data['title'] ?? '' ) ) ), 0, 160 );
+		$sections = array();
+		foreach ( array_slice( (array) ( $data['sections'] ?? array() ), 0, self::MAX_OUTLINE_SECTIONS ) as $section ) {
+			if ( ! is_array( $section ) ) {
+				continue;
+			}
+			$heading = trim( sanitize_text_field( (string) ( $section['heading'] ?? '' ) ) );
+			if ( '' === $heading ) {
+				continue;
+			}
+			$sections[] = array(
+				'heading' => mb_substr( $heading, 0, 120 ),
+				'note'    => mb_substr( trim( sanitize_text_field( (string) ( $section['note'] ?? '' ) ) ), 0, 240 ),
+			);
+		}
+
+		if ( '' === $title || ! $sections ) {
+			return $bad;
+		}
+		return array(
+			'title'    => $title,
+			'sections' => $sections,
+		);
 	}
 
 	/**
@@ -306,7 +536,7 @@ final class Assistant {
 			self::COMPOSE_TOKENS
 		);
 		if ( is_wp_error( $text ) ) {
-			return $text;
+			return self::friendly_ai_error( $text );
 		}
 
 		$revised = self::parse_draft( $text );
@@ -375,7 +605,7 @@ final class Assistant {
 			self::SCENE_TOKENS
 		);
 		if ( is_wp_error( $scene ) ) {
-			return $scene;
+			return self::friendly_ai_error( $scene );
 		}
 
 		// Step 2 — the one image call.

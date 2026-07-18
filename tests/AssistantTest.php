@@ -198,8 +198,142 @@ final class AssistantTest extends TestCase {
 		$this->assertWPError( Assistant::sanitize_draft( array( 'title' => 'No body' ) ) );
 	}
 
+	/* -- The outline gate ----------------------------------------------------- */
+
+	private function valid_outline_json(): string {
+		return wp_json_encode(
+			array(
+				'title'    => 'Choosing a Backup Plugin',
+				'sections' => array(
+					array(
+						'heading' => 'What actually matters',
+						'note'    => 'The three properties that separate real backups from checkbox features.',
+					),
+					array(
+						'heading' => 'Common mistakes',
+						'note'    => 'Where restores fail in practice.',
+					),
+				),
+			)
+		);
+	}
+
+	public function test_a_clean_fenced_or_prose_wrapped_outline_parses() {
+		$clean = Assistant::parse_outline( $this->valid_outline_json() );
+		$this->assertSame( 'Choosing a Backup Plugin', $clean['title'] );
+		$this->assertCount( 2, $clean['sections'] );
+		$this->assertSame( 'What actually matters', $clean['sections'][0]['heading'] );
+
+		$fenced = "```json\n" . $this->valid_outline_json() . "\n```";
+		$this->assertSame( 'Common mistakes', Assistant::parse_outline( $fenced )['sections'][1]['heading'] );
+
+		$prose = "Here is your outline:\n" . $this->valid_outline_json() . "\nShape it as you like.";
+		$this->assertCount( 2, Assistant::parse_outline( $prose )['sections'] );
+	}
+
+	public function test_an_outline_needs_a_title_and_at_least_one_real_section() {
+		$this->assertWPError( Assistant::parse_outline( 'no json here at all' ) );
+		$this->assertWPError( Assistant::sanitize_outline( 'not-an-array' ) );
+		$this->assertWPError( Assistant::sanitize_outline( array( 'title' => 'No sections' ) ) );
+		$this->assertWPError(
+			Assistant::sanitize_outline(
+				array(
+					'title'    => '',
+					'sections' => array( array( 'heading' => 'Orphan' ) ),
+				)
+			),
+			'A missing title is not an outline.'
+		);
+		$this->assertWPError(
+			Assistant::sanitize_outline(
+				array(
+					'title'    => 'All rows heading-less',
+					'sections' => array( array( 'note' => 'no heading' ), array( 'heading' => '   ' ), 'scalar-row' ),
+				)
+			),
+			'Heading-less rows are dropped; none surviving means no outline.'
+		);
+	}
+
+	public function test_sanitize_outline_gates_an_owner_edited_outline_the_same_as_model_output() {
+		// The compose route re-holds the client's outline to the schema — same
+		// both-directions rule as the draft round-trip.
+		$edited = array(
+			'title'    => "  Backup <script>alert(1)</script> Guide  ",
+			'sections' => array_merge(
+				array(
+					array(
+						'heading' => '  Kept and trimmed  ',
+						'note'    => str_repeat( 'n', 999 ),
+					),
+					array( 'heading' => '' ), // The owner emptied this row — dropped.
+				),
+				array_fill( 0, 15, array( 'heading' => 'Filler section' ) ) // Overshoot.
+			),
+		);
+		$clean  = Assistant::sanitize_outline( $edited );
+		$this->assertStringNotContainsString( '<script', $clean['title'] );
+		$this->assertSame( 'Kept and trimmed', $clean['sections'][0]['heading'] );
+		$this->assertSame( 240, mb_strlen( $clean['sections'][0]['note'] ), 'Notes are bounded.' );
+		$this->assertLessThanOrEqual( Assistant::MAX_OUTLINE_SECTIONS, count( $clean['sections'] ), 'The section list is capped.' );
+	}
+
+	public function test_outline_prompt_carries_the_brief_and_the_follow_exactly_contract() {
+		$outline = Assistant::parse_outline( $this->valid_outline_json() );
+		$prompt  = Assistant::outline_prompt( 'A practical post on backup plugins.', $outline );
+		$this->assertStringContainsString( 'A practical post on backup plugins.', $prompt, 'The brief still leads.' );
+		$this->assertStringContainsString( 'What actually matters', $prompt, 'The outline rides as JSON.' );
+		$this->assertStringContainsString( 'Follow it exactly', $prompt );
+		$this->assertStringContainsString( 'Do not add, remove, merge or reorder sections', $prompt );
+		$this->assertStringContainsString( 'verbatim', $prompt, 'Verbatim headings keep image-slot anchors matchable.' );
+	}
+
+	public function test_the_outline_system_prompt_pins_the_json_contract_parse_outline_expects() {
+		$prompt = Assistant::outline_system_prompt();
+		$this->assertStringContainsString( 'ONLY a single JSON object', $prompt );
+		foreach ( array( '"title"', '"sections"', '"heading"', '"note"' ) as $key ) {
+			$this->assertStringContainsString( $key, $prompt );
+		}
+		$this->assertStringContainsString( 'introduction', $prompt, 'Intro/conclusion stay out of the skeleton — compose writes them around it.' );
+	}
+
+	/* -- Friendly AI errors --------------------------------------------------- */
+
+	public function test_a_provider_quota_wall_becomes_one_actionable_sentence() {
+		// The literal shape Gemini's free tier answers with.
+		$spew = new \WP_Error(
+			'ai_client_error',
+			'Too Many Requests (429) - You exceeded your current quota, please check your plan and billing details. '
+			. 'For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits. '
+			. '* Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_requests, '
+			. 'limit: 20, model: gemini-3.5-flash Please retry in 14.662791842s.'
+		);
+		$nice = Assistant::friendly_ai_error( $spew );
+		$this->assertSame( 'agentimus_ai_provider_limited', $nice->get_error_code() );
+		$this->assertStringNotContainsString( 'googleapis', $nice->get_error_message(), 'No metric names.' );
+		$this->assertStringNotContainsString( 'http', $nice->get_error_message(), 'No documentation URLs.' );
+		$this->assertLessThan( 200, mb_strlen( $nice->get_error_message() ) );
+	}
+
+	public function test_our_own_errors_pass_through_untouched() {
+		$ours = new \WP_Error(
+			'agentimus_ai_rate_limited',
+			'Too many AI requests in a short time. Please wait a moment and try again.',
+			array( 'status' => 429 )
+		);
+		$this->assertSame( $ours, Assistant::friendly_ai_error( $ours ), 'agentimus_* errors are already human — never rewritten, even when they mention rate limits.' );
+	}
+
+	public function test_unrecognised_provider_noise_is_clipped_to_one_clean_line() {
+		$noise = new \WP_Error( 'ai_client_error', "Internal   failure\nwith\nnewlines " . str_repeat( 'x', 400 ) );
+		$nice  = Assistant::friendly_ai_error( $noise );
+		$this->assertSame( 'agentimus_ai_failed', $nice->get_error_code() );
+		$this->assertStringNotContainsString( "\n", $nice->get_error_message(), 'Whitespace collapses to one line.' );
+		$this->assertLessThanOrEqual( 160, mb_strlen( $nice->get_error_message() ) );
+	}
+
 	/** Local assertWPError (PHPUnit's WP-specific one isn't in this harness). */
-	private function assertWPError( $value ) {
-		$this->assertInstanceOf( \WP_Error::class, $value );
+	private function assertWPError( $value, string $message = '' ) {
+		$this->assertInstanceOf( \WP_Error::class, $value, $message );
 	}
 }
