@@ -152,6 +152,37 @@ final class VerifierRegistryTest extends TestCase {
 		$this->assertSame( 2, BotRanges::verdict_from_row( $row, '2001:dead::1', self::NOW ) );
 	}
 
+	/* -- The add-form's URL probe ------------------------------------------- */
+
+	public function test_probe_accepts_a_real_range_file_and_reports_the_count() {
+		$GLOBALS['_af_http_queue'][] = array(
+			'response' => array( 'code' => 200 ),
+			'body'     => '{"prefixes":[{"ipv4Prefix":"192.0.2.0/24"},{"ipv6Prefix":"2001:db8::/32"}]}',
+			'headers'  => array(),
+		);
+		$this->assertSame( array( 'ok' => true, 'prefixes' => 2 ), BotRanges::probe( 'https://example.com/bot.json' ) );
+	}
+
+	public function test_probe_names_each_failure_honestly() {
+		// A URL that could never verify anyone must be refused at the form, with the
+		// reason distinguished: wrong scheme ≠ dead URL ≠ wrong content.
+		$this->assertSame( 'not-https', BotRanges::probe( 'http://example.com/bot.json' )['reason'] );
+
+		$GLOBALS['_af_http_queue'][] = array(
+			'response' => array( 'code' => 200 ),
+			'body'     => '<!doctype html><html><body>a homepage, not a range file</body></html>',
+			'headers'  => array(),
+		);
+		$this->assertSame( 'not-a-range-file', BotRanges::probe( 'https://heera.example' )['reason'] );
+
+		$GLOBALS['_af_http_queue'][] = array(
+			'response' => array( 'code' => 404 ),
+			'body'     => '',
+			'headers'  => array(),
+		);
+		$this->assertSame( 'unreachable', BotRanges::probe( 'https://example.com/missing.json' )['reason'] );
+	}
+
 	/* -- Serve-path verdict reads the cache only ---------------------------- */
 
 	public function test_serve_path_verdict_uses_the_cached_file_and_never_fetches() {

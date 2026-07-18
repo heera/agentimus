@@ -157,6 +157,21 @@ final class GuardTest extends TestCase {
 		$this->assertSame( array( 'AhrefsBot', 'DotBot' ), $clean['blocked_agents'] );
 	}
 
+	public function test_sanitize_refuses_denylist_entries_under_three_chars() {
+		// A 1–2 char entry matched as a substring would deny half the internet at the
+		// AI endpoints — same 3+ floor as the Verified-bots UA needle.
+		$clean = ( new Settings() )->sanitize(
+			array( 'blocked_agents' => array( 'a', 'ab', 'abc', 'SemrushBot' ) )
+		);
+		$this->assertSame( array( 'abc', 'SemrushBot' ), $clean['blocked_agents'] );
+	}
+
+	public function test_suggest_token_never_proposes_a_sub_three_char_token() {
+		// The sanitiser would silently drop it, so proposing one would make the queue's
+		// one-click Block a no-op. The UA's product token here is 'go' (2 chars).
+		$this->assertSame( '', Guard::suggest_token( 'go/1.13 (linux)' ) );
+	}
+
 	public function test_sanitize_keeps_spoof_default_true_when_key_is_absent() {
 		// A partial update that omits block_spoofed must not silently disarm it.
 		$clean = ( new Settings() )->sanitize( array( 'block_agents' => true ) );

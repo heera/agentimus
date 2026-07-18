@@ -449,16 +449,19 @@ final class Guard {
 			return '';
 		}
 		// Every `name/version` pair in the UA, in order. The first one that isn't a
-		// generic engine/browser token is the client's real product name.
+		// generic engine/browser token is the client's real product name. Tokens under
+		// 3 chars are never proposed — the denylist sanitiser refuses them (as a
+		// substring they'd over-match), so proposing one would be a silent no-op Block.
 		if ( preg_match_all( '#([a-z][a-z0-9._+-]{1,40})/[0-9]#', $ua_lc, $matches ) ) {
 			foreach ( $matches[1] as $candidate ) {
-				if ( ! self::is_generic_token( $candidate ) ) {
+				if ( strlen( $candidate ) >= 3 && ! self::is_generic_token( $candidate ) ) {
 					return $candidate;
 				}
 			}
 		}
 		// Fallback: a "compatible; Name" comment with no version (some crawlers).
-		if ( preg_match( '#compatible;\s*([a-z][a-z0-9._+-]{1,40})#', $ua_lc, $m ) && ! self::is_generic_token( $m[1] ) ) {
+		if ( preg_match( '#compatible;\s*([a-z][a-z0-9._+-]{1,40})#', $ua_lc, $m )
+			&& strlen( $m[1] ) >= 3 && ! self::is_generic_token( $m[1] ) ) {
 			return $m[1];
 		}
 		return '';

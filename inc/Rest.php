@@ -82,6 +82,16 @@ final class Rest {
 
 		register_rest_route(
 			self::NAMESPACE,
+			'/verifier/probe-ranges',
+			array(
+				'methods'             => \WP_REST_Server::EDITABLE,
+				'callback'            => array( $this, 'probe_ranges' ),
+				'permission_callback' => array( $this, 'can_manage' ),
+			)
+		);
+
+		register_rest_route(
+			self::NAMESPACE,
 			'/readiness',
 			array(
 				'methods'             => \WP_REST_Server::READABLE,
@@ -328,6 +338,40 @@ final class Rest {
 	public function complete_onboarding() {
 		update_option( 'agentimus_onboarded', AGENTIMUS_VERSION );
 		return rest_ensure_response( array( 'onboarded' => true ) );
+	}
+
+	/**
+	 * POST /verifier/probe-ranges — the settings form's "Add bot" check: fetch the
+	 * candidate IP-ranges URL once (same bounded rules as the daily refresh) and
+	 * confirm it actually parses as a range file, so an owner can't save a URL that
+	 * could never verify anyone. Admin-clicked and capability-gated; the fetch is
+	 * bounded (5s, size-capped, no private hosts) so there's nothing to amplify.
+	 *
+	 * @param \WP_REST_Request $request Request.
+	 * @return \WP_REST_Response
+	 */
+	public function probe_ranges( \WP_REST_Request $request ) {
+		$result = BotRanges::probe( (string) $request->get_param( 'url' ) );
+		if ( ! empty( $result['ok'] ) ) {
+			return rest_ensure_response(
+				array(
+					'ok'       => true,
+					'prefixes' => (int) $result['prefixes'],
+				)
+			);
+		}
+		$messages = array(
+			'not-https'        => __( 'The ranges URL must start with https://.', 'agentimus' ),
+			'unreachable'      => __( 'That URL didn’t answer — check it’s correct and publicly reachable.', 'agentimus' ),
+			'not-a-range-file' => __( 'That URL doesn’t serve a range file — expected the operator’s prefixes JSON (like googlebot.json) or a plain JSON list of ranges.', 'agentimus' ),
+		);
+		$reason   = isset( $result['reason'] ) ? (string) $result['reason'] : 'not-a-range-file';
+		return rest_ensure_response(
+			array(
+				'ok'      => false,
+				'message' => isset( $messages[ $reason ] ) ? $messages[ $reason ] : $messages['not-a-range-file'],
+			)
+		);
 	}
 
 	/**

@@ -804,7 +804,16 @@ final class Settings {
 		// verify_bots) are handled by the boolean loop above — the isset-guard keeps
 		// block_spoofed's safe default on a partial update. Here we sanitise its lists.
 		$agents                  = isset( $input['blocked_agents'] ) ? $input['blocked_agents'] : array();
-		$clean['blocked_agents'] = $this->sanitize_list( $agents, 'sanitize_text_field' );
+		$clean['blocked_agents'] = $this->sanitize_list(
+			$agents,
+			static function ( $t ) {
+				$t = trim( sanitize_text_field( (string) $t ) );
+				// A 1–2 char entry is never a real bot name — matched as a substring it
+				// would deny half the internet at the AI endpoints. Same 3+ floor as the
+				// Verified-bots UA needle, so the two rules can't drift.
+				return strlen( $t ) < 3 ? '' : $t;
+			}
+		);
 		$allowed                 = isset( $input['allowed_agents'] ) ? $input['allowed_agents'] : array();
 		$clean['allowed_agents'] = $this->sanitize_list( $allowed, 'sanitize_text_field' );
 

@@ -265,6 +265,43 @@ final class BotRanges {
 	}
 
 	/**
+	 * Admin probe of a candidate range-file URL — the settings form's "Add bot" check,
+	 * so an owner can't save a URL that could never verify anyone (any https address
+	 * would otherwise pass, including a homepage). One bounded fetch + parse, with the
+	 * failure named honestly: unreachable is not the same problem as wrong format.
+	 *
+	 * @param string $url Candidate URL.
+	 * @return array{ok:bool,prefixes?:int,reason?:string} reason: 'not-https' | 'unreachable' | 'not-a-range-file'.
+	 */
+	public static function probe( $url ) {
+		$url = trim( (string) $url );
+		if ( 0 !== strpos( $url, 'https://' ) ) {
+			return array(
+				'ok'     => false,
+				'reason' => 'not-https',
+			);
+		}
+		$body = self::get_body( $url );
+		if ( null === $body ) {
+			return array(
+				'ok'     => false,
+				'reason' => 'unreachable',
+			);
+		}
+		$prefixes = self::parse_prefixes( $body );
+		if ( null === $prefixes ) {
+			return array(
+				'ok'     => false,
+				'reason' => 'not-a-range-file',
+			);
+		}
+		return array(
+			'ok'       => true,
+			'prefixes' => count( $prefixes ),
+		);
+	}
+
+	/**
 	 * One bounded https fetch → validated prefix list, or null on any failure.
 	 *
 	 * @param string $url Range-file URL.
@@ -274,6 +311,18 @@ final class BotRanges {
 		if ( 0 !== strpos( $url, 'https://' ) ) {
 			return null;
 		}
+		$body = self::get_body( $url );
+		return null === $body ? null : self::parse_prefixes( $body );
+	}
+
+	/**
+	 * The shared bounded GET: https only, WP's unsafe-URL rejection (no private hosts),
+	 * capped size. Null unless the server answered 200.
+	 *
+	 * @param string $url URL to fetch.
+	 * @return string|null Response body, or null.
+	 */
+	private static function get_body( $url ) {
 		$response = wp_remote_get(
 			$url,
 			array(
@@ -286,7 +335,7 @@ final class BotRanges {
 		if ( is_wp_error( $response ) || 200 !== (int) wp_remote_retrieve_response_code( $response ) ) {
 			return null;
 		}
-		return self::parse_prefixes( (string) wp_remote_retrieve_body( $response ) );
+		return (string) wp_remote_retrieve_body( $response );
 	}
 
 	/**

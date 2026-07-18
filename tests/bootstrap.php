@@ -115,6 +115,7 @@ namespace {
 	// records the last request in $_af_http_last and returns the next queued response
 	// from $_af_http_queue (a WP_Error or a { response:{code}, body, headers } array).
 	if ( ! function_exists( 'wp_remote_post' ) )        { function wp_remote_post( $url, $args = array() ) { $GLOBALS['_af_http_last'] = array( 'url' => $url, 'args' => $args ); $q = &$GLOBALS['_af_http_queue']; return ! empty( $q ) ? array_shift( $q ) : array( 'response' => array( 'code' => 200 ), 'body' => '{}', 'headers' => array() ); } }
+	if ( ! function_exists( 'wp_remote_get' ) )         { function wp_remote_get( $url, $args = array() ) { $GLOBALS['_af_http_last'] = array( 'url' => $url, 'args' => $args ); $q = &$GLOBALS['_af_http_queue']; return ! empty( $q ) ? array_shift( $q ) : array( 'response' => array( 'code' => 200 ), 'body' => '{}', 'headers' => array() ); } }
 	if ( ! function_exists( 'wp_remote_retrieve_response_code' ) ) { function wp_remote_retrieve_response_code( $r ) { return is_array( $r ) && isset( $r['response']['code'] ) ? (int) $r['response']['code'] : 0; } }
 	if ( ! function_exists( 'wp_remote_retrieve_body' ) )          { function wp_remote_retrieve_body( $r ) { return is_array( $r ) && isset( $r['body'] ) ? (string) $r['body'] : ''; } }
 	if ( ! function_exists( 'wp_remote_retrieve_header' ) )        { function wp_remote_retrieve_header( $r, $h ) { return is_array( $r ) && isset( $r['headers'][ $h ] ) ? $r['headers'][ $h ] : ''; } }
