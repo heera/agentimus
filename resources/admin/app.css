@@ -2325,11 +2325,19 @@ button.ar-wd-stat:focus-visible { outline: 2px solid var(--ar-accent); outline-o
   font-size: 10.5px; padding: 1px 7px; border-radius: 999px; white-space: nowrap;
   color: var(--ar-ink-soft); background: var(--ar-surface-2); border: 1px solid var(--ar-line);
 }
+/* The IP-ranges chip is a real <button> (click copies the ranges URL) — reset the
+   browser button chrome so both chip flavors render identically, and show a hand. */
+button.ar-verreg__chip { appearance: none; font-family: inherit; line-height: inherit; cursor: pointer; }
+.ar-verreg__chip.is-copyable:hover { border-color: var(--ar-accent); color: var(--ar-ink); }
+.ar-verreg__chip.is-copyable:focus-visible { outline: 2px solid var(--ar-accent); outline-offset: 1px; }
 .ar-verreg__remove { font-size: 11.5px; flex: 0 0 auto; }
 .ar-verreg__add { margin-top: 10px; padding: 11px; border: 1px dashed var(--ar-line-strong); border-radius: 9px; }
 .ar-verreg__grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 .ar-verreg__grid input { width: 100%; }
-.ar-verreg__addrow { display: flex; align-items: flex-start; gap: 12px; margin-top: 9px; }
+.ar-verreg__intro { display: block; margin: 0 0 10px; }
+.ar-verreg__addrow { display: flex; align-items: center; gap: 12px; margin-top: 9px; }
+.ar-verreg__missing { color: var(--ar-warn); font-weight: 600; }
+.ar-verreg__addbtn { margin-left: auto; } /* Button hugs the right edge, message (if any) reads on the left. */
 .ar-verreg__addbtn { flex: 0 0 auto; font-size: 12.5px; padding: 6px 14px; }
 @media (max-width: 640px) {
   .ar-verreg__grid { grid-template-columns: 1fr; }

@@ -22,15 +22,22 @@ export const uaTip = {
      * Position the bubble in the fixed viewport off the hovered element's rect, so it
      * escapes any scroll clipping on the table around it.
      *
-     * @param {MouseEvent} ev   The hover event.
-     * @param {string}     text The full value to show.
-     * @param {string}     hint Optional second line; '' for a non-copyable value.
+     * @param {MouseEvent} ev    The hover event.
+     * @param {string}     text  The full value to show.
+     * @param {string}     hint  Optional second line; '' for a non-copyable value.
+     * @param {string}     align 'left' (default) grows the bubble rightward from the
+     *                           element; 'right' pins its right edge to the element's,
+     *                           growing LEFTWARD — for right-edge elements whose bubble
+     *                           would otherwise spill over whatever sits beside them.
      */
-    showUaTip(ev, text, hint = 'Click to copy') {
+    showUaTip(ev, text, hint = 'Click to copy', align = 'left') {
       if (!text) return;
       const rect = ev.currentTarget.getBoundingClientRect();
       const below = rect.top < 96; // not enough room above → drop below.
-      const anchor = rect.left + 16; // viewport x the caret points at — the element's top-left.
+      const right = 'right' === align;
+      // Viewport x the caret points at: near the element's leading edge for a
+      // left-aligned bubble, near its trailing edge for a right-aligned one.
+      const anchor = right ? rect.right - 16 : rect.left + 16;
       this.uaTip = {
         show: true,
         text,
@@ -40,14 +47,14 @@ export const uaTip = {
         caret: 16,
         below,
       };
-      // Measure the rendered box so a right-edge cell doesn't overflow the viewport, and
-      // keep the caret over the cell even after the box is clamped inward (a fixed caret
-      // would drift off on narrow screens).
+      // Measure the rendered box so it never overflows the viewport (and, for 'right',
+      // actually pin the right edge — width is only known once rendered), keeping the
+      // caret over the element even after the box is clamped inward.
       this.$nextTick(() => {
         const el = this.$refs.uaTipEl;
         if (!el) return;
         const w = el.offsetWidth;
-        const x = Math.max(12, Math.min(this.uaTip.x, window.innerWidth - w - 12));
+        const x = Math.max(12, Math.min(right ? rect.right - w : this.uaTip.x, window.innerWidth - w - 12));
         this.uaTip.x = x;
         this.uaTip.caret = Math.max(12, Math.min(anchor - x, w - 16));
       });

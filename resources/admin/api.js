@@ -94,6 +94,10 @@ export function createApi(boot) {
     // Returns { ip, host, engine, verdict, slow }.
     checkIp: (ip) =>
       request('/activity/check-ip', { method: 'POST', body: JSON.stringify({ ip }) }),
+    // The Verified-bots add form: fetch a candidate IP-ranges URL server-side and
+    // confirm it parses as a real range file before the entry is accepted.
+    probeRanges: (url) =>
+      request('/verifier/probe-ranges', { method: 'POST', body: JSON.stringify({ url }) }),
     // Short-lived token the readiness live checks carry (X-Agentimus-Selfcheck) so the
     // owner's own anonymous verification fetches stay out of the visit log.
     mintSelfcheckToken: () => request('/activity/selfcheck-token', { method: 'POST' }),

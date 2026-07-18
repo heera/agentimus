@@ -1537,6 +1537,7 @@ export default {
           @reset="resetSettings"
           @reopen-wizard="reopenWizard"
           @clients-changed="syncBlockSettings"
+          @flash="flash"
         />
         <ReadinessPanel
           v-show="tab === 'readiness'"

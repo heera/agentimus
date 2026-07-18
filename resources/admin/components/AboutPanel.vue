@@ -88,8 +88,8 @@ export default {
           title: 'Protection',
           lead: 'Shape who reaches your endpoints — all on your server.',
           items: [
-            { name: 'Agent guard', where: 'your generated endpoints', desc: 'Blocks (403) denylisted or spoofed agents at the documents above.', tag: 'Opt-in' },
-            { name: 'Verified search engines', where: 'reverse-DNS check', desc: 'Optionally confirm a visitor claiming to be Googlebot, Bingbot, Applebot, DuckDuckBot or Yandex really is — by forward-confirmed reverse DNS — before trusting it, so a scanner can’t pass by copying a crawler’s name.', tag: 'Opt-in' },
+            { name: 'Agent guard', where: 'your generated endpoints', desc: 'Blocks (403) denylisted or spoofed agents at the documents above — and, with verification on, proven impostors: clients claiming a verified bot whose address conclusively fails that operator’s own published check. Anything unclear is served, never guessed at, and your Allow and Block lists always outrank the machinery.', tag: 'Opt-in' },
+            { name: 'Verified bots', where: 'Settings → AI access', desc: 'Optionally confirm a visitor claiming a known bot really is that bot, using what its operator publishes: forward-confirmed reverse DNS (Googlebot, Bingbot, Applebot, DuckDuckBot, Yandex) and published IP-range files (GPTBot, OAI-SearchBot, PerplexityBot — refreshed once a day in the background, never while serving a visitor). The list is yours to edit: switch any bot off, or add a new operator yourself the day it starts publishing verification data.', tag: 'Opt-in' },
           ],
         },
         {
@@ -123,7 +123,7 @@ export default {
         { q: 'What is the AEO/GEO score?', a: 'One number (0–100) on your dashboard that blends five rungs — Findable, Readable, Trusted, Optimized and Cited — into a single measure of how ready your site is for AI answer engines, with the single most useful next step. Cited only counts when you turn on citation tracking; otherwise its weight is redistributed, so you’re never penalised for a feature you don’t use.' },
         { q: 'Can I see exactly what agents receive?', a: 'Yes. Open Readiness → Agent preview to see the exact JSON-LD and Markdown for your whole site or any page or post, and copy it — no need to view page source. A matching read-only preview also sits in the post editor. It even shows what would ship when a feature is off or an SEO plugin owns your schema.' },
         { q: 'Is my private or password-protected content exposed?', a: 'No. Drafts, private and password-protected posts are excluded from every output — llms.txt, Markdown, JSON-LD and the sitemap. Only published, publicly-visible content is ever described.' },
-        { q: 'Will this block Google or real search engines?', a: 'No. Blocking is opt-in and aimed at AI training crawlers and spoofed bots. Real search engines are recognised and never blocked by default.' },
+        { q: 'Will this block Google or real search engines?', a: 'No. Blocking is opt-in and aimed at AI training crawlers and spoofed bots. Real search engines are recognised and never blocked by default — and with “Verify bot identities” on, a scanner merely wearing a crawler’s name is told apart from the real one by the operator’s own published checks, so the genuine crawler stays welcome while the fake loses the disguise. Anything the checks can’t settle is served, never guessed at.' },
         { q: 'Where do I manage the clients I’ve blocked, allowed or ignored?', a: 'Settings → AI access → Manage clients. One dialog with three tabs — Blocked, Allowed, Ignored — showing each client’s identity (for known crawlers), when you decided, and an instant undo: Unblock, Un-trust or Un-ignore. Decisions made from now on carry their date; older entries simply show none rather than an invented one. An ignored client also returns to the review bell on its own if its traffic materially grows — un-ignoring just brings it back sooner.' },
         { q: 'What does “Verified responses” (signing) do?', a: 'It signs your discovery documents (RFC 9421) so an agent can confirm they really came from your server and weren’t altered in transit. The key is generated on your server and never leaves it.' },
         { q: 'Does it slow my site down?', a: 'Barely. Generated documents are cached, JSON-LD is tiny, and the plugin makes no external calls on the front end — nothing is fetched from another server while your pages load. (The optional AI Visibility checks run only in the admin or on a schedule, never during a page view.)' },
@@ -240,12 +240,15 @@ export default {
           <div>
             <h3>What leaves your server: nothing by default</h3>
             <p>
-              No phone-home, no telemetry, no remote config. The only outbound calls come from the optional
-              <strong>AI Visibility</strong> feature — off unless you switch it on and add your own AI API
-              key, at which point it queries the engines you chose (OpenAI, Perplexity, Gemini, Claude) to
-              check whether they cite you. Your keys stay on your server — masked in the admin, and shown
-              back only to you, only when you click “reveal” on your own key. The “Verify live” readiness
-              check also runs in <em>your browser</em> against your own URLs.
+              No phone-home, no telemetry, no remote config. Outbound calls come only from two opt-in
+              features, both off by default. <strong>AI Visibility</strong>: switch it on, add your own AI
+              API key, and it queries the engines you chose (OpenAI, Perplexity, Gemini, Claude) to check
+              whether they cite you — your keys stay on your server, masked in the admin, shown back only
+              to you when you click “reveal”. <strong>Verify bot identities</strong>: makes small DNS
+              lookups and, once a day, downloads the public crawler-IP lists bot operators publish
+              (Google’s googlebot.json, OpenAI’s gptbot.json, …) so impostors can be caught — only those
+              public files are fetched, and nothing about your site or your visitors is ever sent. The
+              “Verify live” readiness check still runs in <em>your browser</em> against your own URLs.
             </p>
           </div>
         </div>

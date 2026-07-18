@@ -4,10 +4,14 @@ import SelectMenu from './SelectMenu.vue';
 import IpChecker from './IpChecker.vue';
 import ClientManager from './ClientManager.vue';
 import { bindDocEsc } from '../docEsc.js';
+import { uaTip } from '../uaTip.js';
 
 export default {
   name: 'SettingsForm',
   components: { TagInput, IpChecker, SelectMenu, ClientManager },
+  // The styled hover bubble (the admin's ONLY tooltip — native title="…" is banned:
+  // it can't be themed, appears late, and truncates). Used by the Verified-bots chips.
+  mixins: [uaTip],
   props: {
     settings: { type: Object, required: true },
     retentionChoices: { type: Array, default: () => [7, 14, 30, 60, 90, 180, 365] },
@@ -38,7 +42,7 @@ export default {
     defaults: { type: Object, default: () => ({}) },
     llmsFullEstimate: { type: Object, default: () => ({}) },
   },
-  emits: ['save-profile', 'save-services', 'reset', 'reopen-wizard', 'clients-changed'],
+  emits: ['save-profile', 'save-services', 'reset', 'reopen-wizard', 'clients-changed', 'flash'],
   data() {
     return {
       // Which settings group the sub-nav is showing. One group is visible at a
@@ -49,6 +53,8 @@ export default {
       // The "add a verified bot" mini-form (Verified-bots registry manager).
       verAdd: { label: '', ua: '', domains: '', url: '' },
       verAddOpen: false,
+      verAddBusy: false, // Probing the ranges URL server-side before accepting it.
+      verAddError: '', // The probe's verdict when the URL didn't check out.
       typeQuery: '',
       catQuery: '',
       nsQuery: '',
@@ -141,12 +147,35 @@ export default {
     // The add-form is submittable only when it would survive the server's sanitiser:
     // a name, a UA needle of 3+ chars, and at least one verification source (https URL
     // and/or a domain suffix).
+    // The comma-split domain pieces, scheme-stripped — shared by readiness + the
+    // missing-piece message so the two can never disagree.
+    verAddDomainPieces() {
+      return this.verAdd.domains.split(',').map((d) => d.trim().replace(/^https?:\/\//, '')).filter(Boolean);
+    },
     verAddReady() {
       const a = this.verAdd;
-      const hasDomains = a.domains.trim() !== '';
+      const pieces = this.verAddDomainPieces;
+      // Mirror the server's sanitiser: a "domain" without a dot is dropped there, so it
+      // must not count as a source here — or the entry would silently lose it on save.
+      const hasDomains = pieces.length > 0 && pieces.every((d) => d.includes('.'));
       const url = a.url.trim();
       const hasUrl = /^https:\/\/.+/.test(url);
-      return a.label.trim() !== '' && a.ua.trim().length >= 3 && (hasDomains || hasUrl) && (url === '' || hasUrl);
+      return a.label.trim() !== '' && a.ua.trim().length >= 3 && (hasDomains || hasUrl) && (url === '' || hasUrl) && (pieces.length === 0 || hasDomains);
+    },
+    // Why the Add button is disabled, named specifically — a dead button with the
+    // reason buried mid-paragraph is a dead end. '' while the form is untouched
+    // (no nagging an empty form) or complete.
+    verAddMissing() {
+      const a = this.verAdd;
+      const url = a.url.trim();
+      if (!a.label.trim() && !a.ua.trim() && !a.domains.trim() && !url) return '';
+      if (!a.label.trim()) return 'Give it a name.';
+      if (a.ua.trim().length < 3) return 'Enter its User-Agent token — at least 3 characters.';
+      if (url && !/^https:\/\/.+/.test(url)) return 'The ranges URL must start with https://.';
+      const pieces = this.verAddDomainPieces;
+      if (pieces.length && pieces.some((d) => !d.includes('.'))) return 'A reverse-DNS domain needs a dot — e.g. crawl.newbot.example.';
+      if (!pieces.length && !url) return 'Add at least one source — a reverse-DNS domain and/or a published IP-ranges URL.';
+      return '';
     },
     retentionOptions() {
       return this.retentionChoices.map((d) => ({
@@ -615,6 +644,11 @@ export default {
         this.$nextTick(() => {
           if (this.$refs.verAddName) this.$refs.verAddName.focus();
         });
+      } else {
+        // Close means discard: a reopened form starts clean instead of resurrecting a
+        // half-typed entry and a stale probe verdict.
+        this.verAdd = { label: '', ua: '', domains: '', url: '' };
+        this.verAddError = '';
       }
     },
     toggleVerifier(row) {
@@ -629,14 +663,35 @@ export default {
       if (row.builtin) return;
       this.settings.verifier_custom = (this.settings.verifier_custom || []).filter((e, i) => i !== row._ci);
     },
-    addVerifier() {
-      if (!this.verAddReady) return;
+    async addVerifier() {
+      if (!this.verAddReady || this.verAddBusy) return;
       const a = this.verAdd;
+      const url = a.url.trim();
+      this.verAddError = '';
+      // A ranges URL must PROVE itself before it's accepted: the server fetches it once
+      // (same bounded rules as the daily refresh) and checks it parses as a range file —
+      // otherwise any https address would pass, including a homepage.
+      if (url && this.api) {
+        this.verAddBusy = true;
+        try {
+          const r = await this.api.probeRanges(url);
+          if (!r.ok) {
+            this.verAddError = r.message || 'That URL didn’t serve a range file.';
+            return;
+          }
+          this.$emit('flash', 'success', `Range file looks good — ${r.prefixes} range${1 === r.prefixes ? '' : 's'}.`);
+        } catch (e) {
+          this.verAddError = 'Couldn’t check the URL — ' + ((e && e.message) || 'the request failed') + '.';
+          return;
+        } finally {
+          this.verAddBusy = false;
+        }
+      }
       const entry = {
         label: a.label.trim(),
         ua: a.ua.trim().toLowerCase(),
         domains: a.domains.split(',').map((d) => d.trim()).filter(Boolean),
-        url: a.url.trim(),
+        url,
       };
       this.settings.verifier_custom = (this.settings.verifier_custom || []).concat([entry]);
       this.verAdd = { label: '', ua: '', domains: '', url: '' };
@@ -2138,7 +2193,7 @@ export default {
               <label>Blocked user-agents <span class="ar-field__tag">optional</span></label>
               <button v-if="api" type="button" class="ar-linkbtn ar-field__manage" @click="clientManagerOpen = true">Manage clients</button>
             </div>
-            <TagInput v-model="settings.blocked_agents" placeholder="Add a user-agent to deny" />
+            <TagInput v-model="settings.blocked_agents" placeholder="Add a user-agent to deny — 3+ characters" />
             <div v-if="scannerSuggestions.length" class="ar-suggest">
               <span class="ar-suggest__label">Add a known scanner</span>
               <button
@@ -2223,25 +2278,37 @@ export default {
                list or a phone, a bottom-of-list form would open off-screen (Heera's
                catch). First field is focused on open, so it's type-ready immediately. -->
           <div v-if="verAddOpen" class="ar-verreg__add">
-            <div class="ar-verreg__grid">
+            <!-- Instructions FIRST (read before typing, not after), then the fields,
+                 then the action row: the live "what's still missing" line on the left
+                 and the button on the right. -->
+            <small class="ar-field__hint ar-verreg__intro">
+              Use the bot's exact name from its User-Agent (3+ characters — a short generic word would
+              mis-claim other bots), plus at least one source from the operator's own docs: the domain its
+              reverse DNS must land in, and/or its published IP-ranges file (fetched once to confirm it's
+              real when you add). Saved with the settings.
+            </small>
+            <!-- "one of the two" belongs to the PAIR, so neither field may claim to be
+                 individually "(optional)" — that read as "you can skip both". -->
+            <div class="ar-verreg__grid" @input="verAddError = ''">
               <input ref="verAddName" v-model="verAdd.label" type="text" placeholder="Name — e.g. NewBot" maxlength="40" />
               <input v-model="verAdd.ua" type="text" placeholder="User-Agent contains — e.g. newbot" maxlength="64" />
-              <input v-model="verAdd.domains" type="text" placeholder="Reverse-DNS domains, comma-separated (optional)" />
-              <input v-model="verAdd.url" type="url" placeholder="Published IP-ranges URL, https (optional)" />
+              <input v-model="verAdd.domains" type="text" placeholder="Reverse-DNS domains, comma-separated — this and/or the URL" />
+              <input v-model="verAdd.url" type="url" placeholder="Published IP-ranges URL (https) — checked when you add" />
             </div>
             <div class="ar-verreg__addrow">
-              <button type="button" class="ar-btn ar-verreg__addbtn" :disabled="!verAddReady" @click="addVerifier">Add bot</button>
-              <small class="ar-field__hint">
-                Use the bot's exact name from its User-Agent (3+ characters — a short generic word would
-                mis-claim other bots), plus at least one source from the operator's own docs: the domain its
-                reverse DNS must land in, and/or its published IP-ranges file. Saved with the settings.
-              </small>
+              <!-- One line, one truth: the probe's verdict when a URL failed its check,
+                   else the ONE thing still missing — a disabled button must always say why. -->
+              <small v-if="verAddError" class="ar-field__hint ar-verreg__missing">{{ verAddError }}</small>
+              <small v-else-if="verAddMissing" class="ar-field__hint ar-verreg__missing">{{ verAddMissing }}</small>
+              <button type="button" class="ar-btn ar-verreg__addbtn" :disabled="!verAddReady || verAddBusy" @click="addVerifier">
+                {{ verAddBusy ? 'Checking…' : 'Add bot' }}
+              </button>
             </div>
           </div>
 
           <ul class="ar-verreg__list">
             <li v-for="row in verifierRows" :key="row.builtin ? row.token : 'c' + row._ci" class="ar-verreg__row" :class="{ 'is-off': row.disabled }">
-              <label v-if="row.builtin" class="ar-verreg__check" :title="row.disabled ? 'Off — this bot is not verified' : 'On — this bot is verified when it visits'">
+              <label v-if="row.builtin" class="ar-verreg__check">
                 <input type="checkbox" :checked="!row.disabled" @change="toggleVerifier(row)" />
                 <span class="ar-verreg__name">{{ row.label }}</span>
               </label>
@@ -2249,10 +2316,19 @@ export default {
                 <span class="ar-verreg__name">{{ row.label }}</span>
                 <span class="ar-verreg__custom">custom</span>
               </span>
-              <code class="ar-verreg__ua" :title="'Claimed when the User-Agent contains “' + row.ua + '”'">{{ row.ua }}</code>
+              <code class="ar-verreg__ua" @mouseenter="showUaTip($event, 'Claimed when the User-Agent contains “' + row.ua + '”', '')" @mouseleave="hideUaTip">{{ row.ua }}</code>
               <span class="ar-verreg__methods">
-                <span v-if="row.domains && row.domains.length" class="ar-verreg__chip" :title="'Reverse DNS must land in: ' + row.domains.join(', ')">reverse DNS</span>
-                <span v-if="row.url" class="ar-verreg__chip" :title="'Published ranges: ' + row.url">IP ranges</span>
+                <!-- These chips hug the row's right edge: right-align the bubble so it
+                     grows leftward over our own card, not over the rail beside it. -->
+                <span v-if="row.domains && row.domains.length" class="ar-verreg__chip" @mouseenter="showUaTip($event, 'Reverse DNS must land in: ' + row.domains.join(', '), '', 'right')" @mouseleave="hideUaTip">reverse DNS</span>
+                <button
+                  v-if="row.url"
+                  type="button"
+                  class="ar-verreg__chip is-copyable"
+                  @mouseenter="showUaTip($event, 'Published ranges: ' + row.url, 'Click to copy', 'right')"
+                  @mouseleave="hideUaTip"
+                  @click.stop="copyVal(row.url, 'Ranges URL')"
+                >IP ranges</button>
               </span>
               <button v-if="!row.builtin" type="button" class="ar-linkbtn ar-verreg__remove" @click="removeVerifier(row)">Remove</button>
             </li>
@@ -2347,6 +2423,22 @@ export default {
         @close="clientManagerOpen = false"
         @changed="$emit('clients-changed', $event)"
       />
+    </Teleport>
+
+    <!-- The styled hover bubble (shared uaTip mixin) — body-level like the activity
+         tables', so no card or scroll box can clip it. -->
+    <Teleport to="body">
+      <transition name="ar-tip">
+        <div
+          v-if="uaTip.show"
+          ref="uaTipEl"
+          class="ar-act-uatip"
+          :class="{ 'is-below': uaTip.below }"
+          :style="{ left: uaTip.x + 'px', top: uaTip.y + 'px' }"
+          role="tooltip"
+          aria-hidden="true"
+        ><span class="ar-act-uatip__ua">{{ uaTip.text }}</span><span v-if="uaTip.hint" class="ar-act-uatip__hint">{{ uaTip.hint }}</span><span class="ar-act-uatip__caret" :style="{ left: uaTip.caret + 'px' }"></span></div>
+      </transition>
     </Teleport>
 
     <!-- ============================================================ -->
