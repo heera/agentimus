@@ -297,6 +297,71 @@ final class AssistantTest extends TestCase {
 		$this->assertStringContainsString( 'introduction', $prompt, 'Intro/conclusion stay out of the skeleton — compose writes them around it.' );
 	}
 
+	/* -- Blockify: HTML → native block markup --------------------------------- */
+
+	public function test_blockify_wraps_the_contract_vocabulary_in_native_blocks() {
+		$html = '<p>Intro with <strong>bold</strong> and <a href="https://example.com/">a link</a>.</p>'
+			. '<h2>First section</h2><p>Body.</p><h3>Sub point</h3>'
+			. '<ul><li>One</li><li>Two</li></ul>';
+		$out  = Assistant::blockify( $html );
+
+		$this->assertStringContainsString( "<!-- wp:paragraph -->\n<p>Intro with <strong>bold</strong>", $out );
+		$this->assertStringContainsString( 'href="https://example.com/"', $out, 'Inline markup survives untouched.' );
+		$this->assertStringContainsString( '<h2 class="wp-block-heading">First section</h2>', $out );
+		$this->assertStringContainsString( '<!-- wp:heading {"level":3} -->', $out );
+		$this->assertStringContainsString( '<ul class="wp-block-list">', $out );
+		$this->assertSame( 2, substr_count( $out, '<!-- wp:list-item -->' ), 'One list-item block per li.' );
+	}
+
+	public function test_blockify_quotes_ordered_lists_and_bare_text() {
+		$out = Assistant::blockify( '<blockquote><p>Quoted line.</p></blockquote><ol><li>A</li></ol>Loose text.' );
+		$this->assertStringContainsString( '<!-- wp:quote -->', $out );
+		$this->assertStringContainsString( '<blockquote class="wp-block-quote"><!-- wp:paragraph -->', $out, 'Quote nests paragraph blocks.' );
+		$this->assertStringContainsString( '<!-- wp:list {"ordered":true} -->', $out );
+		$this->assertStringContainsString( '<ol class="wp-block-list">', $out );
+		$this->assertStringContainsString( '<p>Loose text.</p>', $out, 'Stray top-level text becomes a paragraph, never disappears.' );
+
+		$bare = Assistant::blockify( '<blockquote>No paragraph wrapper.</blockquote>' );
+		$this->assertStringContainsString( '<p>No paragraph wrapper.</p>', $bare, 'A bare-text quote gains its paragraph.' );
+	}
+
+	public function test_blockify_turns_injected_figures_into_image_blocks_in_place() {
+		$content = Assistant::inject_images(
+			'<h2>Anchor</h2><p>After.</p>',
+			array(
+				array(
+					'html'          => Assistant::figure_html( 'https://x.test/i.jpg', 'Alt text', 42 ),
+					'after_heading' => 'Anchor',
+				),
+			)
+		);
+		$out = Assistant::blockify( $content );
+		$this->assertStringContainsString( '<!-- wp:image {"id":42,"sizeSlug":"large","linkDestination":"none"} -->', $out );
+		$this->assertStringContainsString( 'wp-image-42', $out );
+		$heading = strpos( $out, 'wp:heading' );
+		$image   = strpos( $out, 'wp:image' );
+		$para    = strpos( $out, '<p>After.</p>' );
+		$this->assertTrue( $heading < $image && $image < $para, 'Image block sits between its heading and the next paragraph.' );
+	}
+
+	public function test_blockify_falls_back_honestly_instead_of_breaking() {
+		$this->assertStringContainsString(
+			"<!-- wp:html -->\n<h4>Odd heading</h4>",
+			Assistant::blockify( '<h4>Odd heading</h4>' ),
+			'Vocabulary strays ride the custom-HTML block, rendered verbatim.'
+		);
+
+		$already = "<!-- wp:paragraph -->\n<p>Done.</p>\n<!-- /wp:paragraph -->";
+		$this->assertSame( $already, Assistant::blockify( $already ), 'Existing block markup is never double-wrapped.' );
+
+		$utf8 = Assistant::blockify( '<p>Curly ’quotes’, −180°C and em—dash.</p>' );
+		$this->assertStringContainsString(
+			'Curly ’quotes’, −180°C and em—dash.',
+			html_entity_decode( $utf8, ENT_QUOTES, 'UTF-8' ),
+			'Multibyte text survives the DOM round-trip.'
+		);
+	}
+
 	/* -- Friendly AI errors --------------------------------------------------- */
 
 	public function test_a_provider_quota_wall_becomes_one_actionable_sentence() {

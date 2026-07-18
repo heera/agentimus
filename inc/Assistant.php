@@ -787,6 +787,10 @@ final class Assistant {
 			$input['content'] = self::inject_images( $input['content'], $figures );
 		}
 
+		// The editor should open REAL blocks, not a Classic block with a
+		// "Convert to blocks" chore — figures included, so this runs last.
+		$input['content'] = self::blockify( $input['content'] );
+
 		$result = ( new ContentWriter( $this->settings ) )->create( $input );
 		if ( is_wp_error( $result ) ) {
 			return $result;
@@ -985,6 +989,136 @@ final class Assistant {
 			}
 		}
 		return $content;
+	}
+
+	/**
+	 * PURE: wrap the assistant's bounded HTML in NATIVE block markup, so the
+	 * editor opens real Heading/Paragraph/List/Quote/Image blocks instead of
+	 * one Classic block with a "Convert to blocks" chore. Possible only
+	 * because the compose contract keeps the vocabulary tiny — each element
+	 * maps to exactly one core block, serialised the way the editor itself
+	 * serialises it. Anything outside the vocabulary rides in a custom-HTML
+	 * block (renders identically); on any parse trouble the original HTML is
+	 * returned unchanged and the Classic block remains the safety net.
+	 *
+	 * @param string $content Clean post HTML (kses'd, figures already injected).
+	 * @return string Block markup, or the original content when conversion can't run.
+	 */
+	public static function blockify( $content ) {
+		$content = trim( (string) $content );
+		if ( '' === $content || false !== strpos( $content, '<!-- wp:' ) || ! class_exists( \DOMDocument::class ) ) {
+			return $content; // Empty, already blocks, or no DOM extension.
+		}
+
+		$dom = new \DOMDocument();
+		libxml_use_internal_errors( true );
+		$ok = $dom->loadHTML(
+			'<?xml encoding="utf-8" ?><div>' . $content . '</div>',
+			LIBXML_HTML_NOIMPLIED | LIBXML_HTML_NODEFDTD | LIBXML_NONET
+		);
+		libxml_clear_errors();
+		if ( ! $ok || ! $dom->documentElement ) {
+			return $content;
+		}
+
+		$blocks = array();
+		foreach ( $dom->documentElement->childNodes as $node ) {
+			$block = self::node_to_block( $node );
+			if ( '' !== $block ) {
+				$blocks[] = $block;
+			}
+		}
+		return $blocks ? implode( "\n\n", $blocks ) : $content;
+	}
+
+	/**
+	 * One top-level DOM node → one serialised core block.
+	 *
+	 * @param \DOMNode $node A child of the parsed content root.
+	 * @return string Block markup, or '' for ignorable nodes.
+	 */
+	private static function node_to_block( \DOMNode $node ) {
+		if ( XML_TEXT_NODE === $node->nodeType ) {
+			$text = trim( $node->textContent );
+			return '' === $text ? '' : "<!-- wp:paragraph -->\n<p>" . esc_html( $text ) . "</p>\n<!-- /wp:paragraph -->";
+		}
+		if ( XML_ELEMENT_NODE !== $node->nodeType ) {
+			return '';
+		}
+
+		$tag = strtolower( $node->nodeName );
+		switch ( $tag ) {
+			case 'p':
+				return "<!-- wp:paragraph -->\n<p>" . self::dom_inner_html( $node ) . "</p>\n<!-- /wp:paragraph -->";
+
+			case 'h2':
+				return "<!-- wp:heading -->\n<h2 class=\"wp-block-heading\">" . self::dom_inner_html( $node ) . "</h2>\n<!-- /wp:heading -->";
+
+			case 'h3':
+				return "<!-- wp:heading {\"level\":3} -->\n<h3 class=\"wp-block-heading\">" . self::dom_inner_html( $node ) . "</h3>\n<!-- /wp:heading -->";
+
+			case 'ul':
+			case 'ol':
+				$items = '';
+				foreach ( $node->childNodes as $child ) {
+					if ( XML_ELEMENT_NODE === $child->nodeType && 'li' === strtolower( $child->nodeName ) ) {
+						$items .= "<!-- wp:list-item -->\n<li>" . self::dom_inner_html( $child ) . "</li>\n<!-- /wp:list-item -->\n";
+					}
+				}
+				$attrs = 'ol' === $tag ? ' {"ordered":true}' : '';
+				return '<!-- wp:list' . $attrs . " -->\n<" . $tag . " class=\"wp-block-list\">\n" . $items . '</' . $tag . ">\n<!-- /wp:list -->";
+
+			case 'blockquote':
+				// The quote block nests paragraph blocks; loose inline content
+				// (a bare-text quote) collects into one.
+				$inner = '';
+				$loose = '';
+				foreach ( $node->childNodes as $child ) {
+					if ( XML_ELEMENT_NODE === $child->nodeType && 'p' === strtolower( $child->nodeName ) ) {
+						if ( '' !== trim( $loose ) ) {
+							$inner .= "<!-- wp:paragraph -->\n<p>" . trim( $loose ) . "</p>\n<!-- /wp:paragraph -->";
+							$loose  = '';
+						}
+						$inner .= "<!-- wp:paragraph -->\n<p>" . self::dom_inner_html( $child ) . "</p>\n<!-- /wp:paragraph -->";
+					} else {
+						$loose .= $node->ownerDocument->saveHTML( $child );
+					}
+				}
+				if ( '' !== trim( $loose ) ) {
+					$inner .= "<!-- wp:paragraph -->\n<p>" . trim( $loose ) . "</p>\n<!-- /wp:paragraph -->";
+				}
+				return "<!-- wp:quote -->\n<blockquote class=\"wp-block-quote\">" . $inner . "</blockquote>\n<!-- /wp:quote -->";
+
+			case 'figure':
+				// Our injected image figure — recover the attachment id from the
+				// wp-image-N class the editor itself uses.
+				$img = $node->getElementsByTagName( 'img' )->item( 0 );
+				$id  = 0;
+				if ( $img && preg_match( '/wp-image-(\d+)/', (string) $img->getAttribute( 'class' ), $m ) ) {
+					$id = (int) $m[1];
+				}
+				$attrs = $id > 0 ? sprintf( ' {"id":%d,"sizeSlug":"large","linkDestination":"none"}', $id ) : '';
+				return '<!-- wp:image' . $attrs . " -->\n" . $node->ownerDocument->saveHTML( $node ) . "\n<!-- /wp:image -->";
+
+			default:
+				// Outside the contract's vocabulary: render verbatim through the
+				// custom-HTML block — displays identically, still valid blocks.
+				return "<!-- wp:html -->\n" . $node->ownerDocument->saveHTML( $node ) . "\n<!-- /wp:html -->";
+		}
+	}
+
+	/**
+	 * The inner HTML of a DOM node, serialised by its own document.
+	 *
+	 * @param \DOMNode $node Node.
+	 * @return string
+	 */
+	private static function dom_inner_html( \DOMNode $node ) {
+		$html = '';
+		foreach ( $node->childNodes as $child ) {
+			$html .= $node->ownerDocument->saveHTML( $child );
+		}
+		return $html;
 	}
 
 	/**
