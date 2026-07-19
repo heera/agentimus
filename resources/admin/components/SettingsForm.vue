@@ -6,6 +6,8 @@ import ClientManager from './ClientManager.vue';
 import { bindDocEsc } from '../docEsc.js';
 import { uaTip } from '../uaTip.js';
 
+import { groupIcon } from '../groupIcons.js';
+
 export default {
   name: 'SettingsForm',
   components: { TagInput, IpChecker, SelectMenu, ClientManager },
@@ -738,6 +740,7 @@ export default {
       if (last < hint.length) parts.push({ text: hint.slice(last) });
       return parts;
     },
+    groupIcon,
     // A deep-link (from Readiness / Dashboard) may target a field that lives in a
     // group other than the one on screen. That group is display:none, so the
     // parent's scrollIntoView would no-op — switch to the group that contains the
@@ -1150,7 +1153,7 @@ export default {
           :aria-current="group === g.key ? 'page' : null"
           :title="g.hint"
           @click="group = g.key"
-        >{{ g.label }}</button>
+        ><span class="ar-subnav__icon" aria-hidden="true" v-html="groupIcon(g.key)"></span>{{ g.label }}</button>
       </nav>
       <p class="ar-tabpanel__caption">{{ activeGroupHint }}</p>
 
@@ -1162,29 +1165,39 @@ export default {
       <!-- Features ----------------------------------------------------- -->
       <section id="ar-sec-features" class="ar-card">
         <h2 class="ar-card__title">Features</h2>
-        <p class="ar-card__lead">Toggle each agent-readiness signal.</p>
+        <p class="ar-card__lead">
+          The files and signals your site publishes for AI, so assistants can find, read and cite
+          your content properly. Each switch adds or removes exactly one of them — what it publishes
+          is named right under it — and the everyday defaults are already on.
+        </p>
 
-        <label v-for="f in features" :id="'ar-feat-' + f.key" :key="f.key" class="ar-toggle">
-          <input v-model="settings[f.key]" type="checkbox" />
-          <span class="ar-toggle__track" aria-hidden="true"></span>
-          <span class="ar-toggle__text">
-            <strong>{{ f.label }}<span v-if="f.sub" class="ar-toggle__sub">{{ f.sub }}</span></strong>
-            <small><template v-for="(p, i) in specHintParts(f.hint)" :key="i"><a v-if="p.href" :href="p.href" class="ar-spec-link" target="_blank" rel="noopener noreferrer">{{ p.term }}</a><template v-else>{{ p.text }}</template></template></small>
-          </span>
-        </label>
+        <template v-for="f in features" :key="f.key">
+          <label :id="'ar-feat-' + f.key" class="ar-toggle">
+            <input v-model="settings[f.key]" type="checkbox" />
+            <span class="ar-toggle__track" aria-hidden="true"></span>
+            <span class="ar-toggle__text">
+              <strong>{{ f.label }}<span v-if="f.sub" class="ar-toggle__sub">{{ f.sub }}</span></strong>
+              <small><template v-for="(p, i) in specHintParts(f.hint)" :key="i"><a v-if="p.href" :href="p.href" class="ar-spec-link" target="_blank" rel="noopener noreferrer">{{ p.term }}</a><template v-else>{{ p.text }}</template></template></small>
+            </span>
+          </label>
 
-        <div class="ar-field ar-field--inline">
-          <label for="ar-full-count">Posts in /llms-full.txt</label>
-          <input
-            id="ar-full-count"
-            v-model.number="settings.llms_full_posts"
-            type="number"
-            min="1"
-            max="500"
-            class="ar-input ar-input--sm"
-          />
-        </div>
-        <small v-if="fullSizeNote" class="ar-field__hint" :class="{ 'ar-warn': fullSizeNote.warn }">{{ fullSizeNote.text }}</small>
+          <!-- The post count is a setting OF "Full text for AI", so it lives right under
+               that toggle as its indented child — not stranded at the card's end. -->
+          <div v-if="f.key === 'enable_llms_full'" :inert="!settings.enable_llms_full" class="ar-webmcp-tools">
+            <div class="ar-field ar-field--inline ar-field--estimate">
+              <label for="ar-full-count">Posts in /llms-full.txt</label>
+              <input
+                id="ar-full-count"
+                v-model.number="settings.llms_full_posts"
+                type="number"
+                min="1"
+                max="500"
+                class="ar-input ar-input--sm"
+              />
+              <small v-if="fullSizeNote" class="ar-field__hint" :class="{ 'ar-warn': fullSizeNote.warn }">{{ fullSizeNote.text }}</small>
+            </div>
+          </div>
+        </template>
       </section>
 
       <!-- Visit log — master toggle + CDN-mode sub-option. A feature with a situational
@@ -1208,8 +1221,8 @@ export default {
           </span>
         </label>
 
-        <div v-show="settings.enable_activity" class="ar-webmcp-tools">
-          <label id="ar-feat-log_unknown_referrers" class="ar-toggle">
+        <div :inert="!settings.enable_activity" class="ar-webmcp-tools">
+          <label id="ar-feat-log_unknown_referrers" class="ar-toggle ar-toggle--nested">
             <input v-model="settings.log_unknown_referrers" type="checkbox" />
             <span class="ar-toggle__track" aria-hidden="true"></span>
             <span class="ar-toggle__text">
@@ -1219,7 +1232,7 @@ export default {
           </label>
 
           <!-- How long records live, and the ceiling that applies either way. -->
-          <label id="ar-feat-activity_auto_prune" class="ar-toggle">
+          <label id="ar-feat-activity_auto_prune" class="ar-toggle ar-toggle--nested">
             <input v-model="settings.activity_auto_prune" type="checkbox" />
             <span class="ar-toggle__track" aria-hidden="true"></span>
             <span class="ar-toggle__text">
@@ -1228,7 +1241,7 @@ export default {
             </span>
           </label>
 
-          <div v-show="settings.activity_auto_prune" class="ar-field ar-field--inline ar-field--log">
+          <div :inert="!settings.activity_auto_prune" class="ar-field ar-field--inline ar-field--log ar-field--divided">
             <label id="ar-lbl-retention">Keep records for</label>
             <SelectMenu
               v-model="settings.activity_retention_days"
@@ -1237,35 +1250,48 @@ export default {
             />
           </div>
 
-          <div class="ar-field ar-field--inline ar-field--log">
-            <label id="ar-lbl-maxrows">Size cap</label>
-            <SelectMenu
-              v-model="settings.activity_max_rows"
-              :options="maxRowsOptions"
-              mono
-              aria-label="Maximum rows kept in the activity log"
-            />
-          </div>
-
-          <p class="ar-log-note">
-            <!-- The cap outranks the period: a busy site can hit the ceiling long before a record
-                 is old enough to expire, and the oldest go anyway. Saying "keep for 90 days" without
-                 this reads as a promise the cap can break. -->
-            The size cap wins over the period: on a busy site the log can reach it before records are
-            old enough to expire, and the oldest are removed anyway.
-            The Dashboard always reports on the last <strong>{{ Math.min(30, settings.activity_retention_days || 30) }} days</strong>.
-            <template v-if="(settings.activity_retention_days || 30) > 30">
-              Keeping {{ settings.activity_retention_days }} days gives the <em>Request Log</em> a deeper history to page
-              through — it doesn’t stretch the Dashboard’s cards.
-            </template>
-            <template v-else-if="settings.activity_auto_prune && (settings.activity_retention_days || 30) < 30">
-              Keeping fewer than 30 days shortens the Dashboard to match, rather than drawing empty days for records
-              that were deleted.
-            </template>
-            Flagged crawler IPs are not covered by this — they’re the only personal data stored, and they’re
-            removed on their own, shorter schedule.
-          </p>
         </div>
+      </section>
+
+      <!-- Size cap — its own numbered section, NOT a child of "Delete old records
+           automatically": the ceiling applies whether or not auto-delete is on. It hides
+           with the Visit log's master switch (nothing to cap), and the card counter
+           skips hidden cards, so the spec-sheet numbering stays compact. -->
+      <section :inert="!settings.enable_activity" id="ar-sec-sizecap" class="ar-card">
+        <h2 class="ar-card__title">Size cap</h2>
+        <p class="ar-card__lead">
+          The visit log’s hard ceiling. It applies even with automatic deletion off — the log can
+          never grow without limit.
+        </p>
+
+        <div class="ar-field ar-field--inline ar-field--log">
+          <label id="ar-lbl-maxrows">Keep at most</label>
+          <SelectMenu
+            v-model="settings.activity_max_rows"
+            :options="maxRowsOptions"
+            mono
+            aria-label="Maximum rows kept in the activity log"
+          />
+        </div>
+
+        <p class="ar-log-note">
+          <!-- The cap outranks the period: a busy site can hit the ceiling long before a record
+               is old enough to expire, and the oldest go anyway. Saying "keep for 90 days" without
+               this reads as a promise the cap can break. -->
+          The size cap wins over the period: on a busy site the log can reach it before records are
+          old enough to expire, and the oldest are removed anyway.
+          The Dashboard always reports on the last <strong>{{ Math.min(30, settings.activity_retention_days || 30) }} days</strong>.
+          <template v-if="(settings.activity_retention_days || 30) > 30">
+            Keeping {{ settings.activity_retention_days }} days gives the <em>Request Log</em> a deeper history to page
+            through — it doesn’t stretch the Dashboard’s cards.
+          </template>
+          <template v-else-if="settings.activity_auto_prune && (settings.activity_retention_days || 30) < 30">
+            Keeping fewer than 30 days shortens the Dashboard to match, rather than drawing empty days for records
+            that were deleted.
+          </template>
+          Flagged crawler IPs are not covered by this — they’re the only personal data stored, and they’re
+          removed on their own, shorter schedule.
+        </p>
       </section>
 
       <!-- Caching & CDN — how Agentimus copes when a page cache/CDN fronts the site: it can
@@ -1280,7 +1306,7 @@ export default {
           matter if nothing caches your site.
         </p>
 
-        <label v-show="settings.enable_activity" id="ar-feat-enable_referral_beacon" class="ar-toggle">
+        <label :inert="!settings.enable_activity" id="ar-feat-enable_referral_beacon" class="ar-toggle">
           <input v-model="settings.enable_referral_beacon" type="checkbox" />
           <span class="ar-toggle__track" aria-hidden="true"></span>
           <span class="ar-toggle__text">
@@ -1327,8 +1353,8 @@ export default {
           </span>
         </label>
 
-        <div v-show="settings.enable_topics" class="ar-webmcp-tools">
-          <label id="ar-feat-topics_derive_default" class="ar-toggle">
+        <div :inert="!settings.enable_topics" class="ar-webmcp-tools">
+          <label id="ar-feat-topics_derive_default" class="ar-toggle ar-toggle--nested">
             <input v-model="settings.topics_derive_default" type="checkbox" />
             <span class="ar-toggle__track" aria-hidden="true"></span>
             <span class="ar-toggle__text">
@@ -1337,7 +1363,10 @@ export default {
             </span>
           </label>
 
-          <div class="ar-field ar-field--inline">
+          <!-- Divided, not attached: the cap clamps every topics list — typed, derived,
+               or AI-suggested (Topics::cap()) — so it's a PEER of the derive toggle
+               under the master, and the hairline above says exactly that. -->
+          <div class="ar-field ar-field--inline ar-field--divided">
             <label for="ar-topics-max">Most topics per item</label>
             <input
               id="ar-topics-max"
@@ -1370,8 +1399,8 @@ export default {
           </span>
         </label>
 
-        <div v-show="settings.enable_ai_description" class="ar-webmcp-tools">
-          <label id="ar-feat-ai_description_meta_tag" class="ar-toggle">
+        <div :inert="!settings.enable_ai_description" class="ar-webmcp-tools">
+          <label id="ar-feat-ai_description_meta_tag" class="ar-toggle ar-toggle--nested">
             <input v-model="settings.ai_description_meta_tag" type="checkbox" />
             <span class="ar-toggle__track" aria-hidden="true"></span>
             <span class="ar-toggle__text">
@@ -1401,13 +1430,13 @@ export default {
           </span>
         </label>
 
-        <div v-show="settings.enable_webmcp" class="ar-webmcp-tools">
+        <div :inert="!settings.enable_webmcp" class="ar-webmcp-tools">
           <p v-if="!webmcpTools.length" class="ar-field__hint">No browser tools are registered yet.</p>
           <template v-else>
             <p class="ar-webmcp-tools__head">
               Tools offered to agents — turn one off to hide it (it won’t be registered with the browser at all).
             </p>
-            <label v-for="t in webmcpTools" :key="t.name" class="ar-toggle">
+            <label v-for="t in webmcpTools" :key="t.name" class="ar-toggle ar-toggle--nested">
               <input type="checkbox" :checked="isToolExposed(t.name)" @change="toggleToolHidden(t.name)" />
               <span class="ar-toggle__track" aria-hidden="true"></span>
               <span class="ar-toggle__text">
@@ -1453,8 +1482,8 @@ export default {
         <!-- The write tier: a second deliberate switch, plus a third for going live.
              Off = the write tools don't exist on any surface, so "read-only" above
              stays literally true until the owner says otherwise. -->
-        <div v-show="settings.enable_mcp_server" class="ar-webmcp-tools">
-          <label id="ar-feat-enable_agent_writes" class="ar-toggle">
+        <div :inert="!settings.enable_mcp_server" class="ar-webmcp-tools">
+          <label id="ar-feat-enable_agent_writes" class="ar-toggle ar-toggle--nested">
             <input v-model="settings.enable_agent_writes" type="checkbox" />
             <span class="ar-toggle__track" aria-hidden="true"></span>
             <span class="ar-toggle__text">
@@ -1462,12 +1491,12 @@ export default {
               <small>Adds write tools: draft and edit posts and pages — including categories, tags and the featured image — set their AI topics and descriptions, and apply Readiness fixes (a fixed list of safe switches — it can only turn documented features on, never loosen a protection). An agent still acts as the signed-in user and can never do more than that user could in the editor. Every write lands under <a href="#agent-access">Agent Access</a>.</small>
             </span>
           </label>
-          <div v-show="settings.enable_agent_writes" class="ar-webmcp-tools">
-            <label id="ar-feat-agent_writes_publish" class="ar-toggle">
+          <div :inert="!settings.enable_agent_writes" class="ar-webmcp-tools">
+            <label id="ar-feat-agent_writes_publish" class="ar-toggle ar-toggle--nested">
               <input v-model="settings.agent_writes_publish" type="checkbox" />
               <span class="ar-toggle__track" aria-hidden="true"></span>
               <span class="ar-toggle__text">
-                <strong>…including publishing, without your review</strong>
+                <strong>Let agents publish without your review</strong>
                 <small>Lets an agent put content live (and it still needs a user allowed to publish). Off — the safe default — means agents only create drafts and pending posts for you to review; editing something already published follows that user’s normal edit permission either way.</small>
               </span>
             </label>
@@ -2174,8 +2203,8 @@ export default {
           </span>
         </label>
 
-        <div v-show="settings.block_agents" class="ar-enforce-body">
-          <label class="ar-toggle">
+        <div :inert="!settings.block_agents" class="ar-enforce-body">
+          <label class="ar-toggle ar-toggle--nested">
             <input v-model="settings.block_spoofed" type="checkbox" />
             <span class="ar-toggle__track" aria-hidden="true"></span>
             <span class="ar-toggle__text">
@@ -2546,7 +2575,7 @@ export default {
           </span>
         </label>
 
-        <div v-show="settings.enable_security_txt">
+        <div :inert="!settings.enable_security_txt">
           <p v-if="!hasSecurityContact" class="ar-card__note ar-warn">
             Add at least one contact below (or a public contact email under Identity) —
             the standard requires one, so until then nothing is served.

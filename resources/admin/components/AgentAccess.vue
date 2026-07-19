@@ -365,7 +365,7 @@ export default {
     <!-- The wrapper scrolls the table sideways on narrow screens; the table itself
          never widens the page. -->
     <div v-if="hasEvents" class="ar-aa__tablewrap">
-    <table class="ar-aa__table">
+    <table class="ar-act-table ar-aa__table">
       <thead>
         <tr>
           <th scope="col">What happened</th>

@@ -15,6 +15,7 @@ import TagInput from './TagInput.vue';
 import SelectMenu from './SelectMenu.vue';
 import { confirm } from '../confirm.js';
 import { bindDocEsc } from '../docEsc.js';
+import { groupIcon } from '../groupIcons.js';
 
 export default {
   name: 'VisibilityPanel',
@@ -128,6 +129,7 @@ export default {
     },
   },
   methods: {
+    groupIcon,
     // Open a specific sub-view (Results / Settings) — used when the score card's Cited
     // rung deep-links here based on whether the check setup is complete.
     openView(view) {
@@ -686,14 +688,16 @@ export default {
 
     <div v-else class="ar-tabpanel">
       <nav class="ar-tabpanel__tabs" aria-label="AI Visibility views">
-        <button type="button" class="ar-subnav__item" :class="{ 'is-active': view === 'results' }" @click="view = 'results'">Results</button>
-        <button type="button" class="ar-subnav__item" :class="{ 'is-active': view === 'settings' }" @click="view = 'settings'">Settings</button>
+        <button type="button" class="ar-subnav__item" :class="{ 'is-active': view === 'results' }" @click="view = 'results'"><span class="ar-subnav__icon" aria-hidden="true" v-html="groupIcon('results')"></span>Results</button>
+        <button type="button" class="ar-subnav__item" :class="{ 'is-active': view === 'settings' }" @click="view = 'settings'"><span class="ar-subnav__icon" aria-hidden="true" v-html="groupIcon('settings')"></span>Settings</button>
       </nav>
       <p class="ar-tabpanel__caption">{{ caption }}</p>
 
       <div class="ar-tabpanel__body">
         <!-- RESULTS -------------------------------------------------------- -->
         <div v-show="view === 'results'" class="agv-results">
+          <!-- The run summary is one sheet; each tracked product below is its own card. -->
+          <div class="agv-sheet">
           <div class="agv-runbar">
             <span class="agv-runbar__meta">Last run · {{ fmtDate(lastRunAt) }}</span>
             <div class="agv-runbar__actions">
@@ -757,8 +761,11 @@ export default {
               <span class="agv-chip" data-state="mention">mentioned</span><small>named it</small>
               <span class="agv-chip" data-state="absent">absent</span><small>didn’t name it</small>
             </div>
+          </template>
+          </div>
 
-            <!-- One self-contained section per product. -->
+          <!-- One self-contained card per product, a peer of the summary sheet. -->
+          <template v-if="hasData">
             <section v-for="p in products" :key="p.name" class="agv-panel agv-product">
               <div class="agv-product__head">
                 <h3 class="agv-product__name">{{ p.name || 'Your site' }}</h3>
@@ -1017,7 +1024,7 @@ export default {
               </div>
             </div>
 
-            <p class="ar-card__note">
+            <p class="ar-card__note ar-card__note--wide">
               <strong>Already added a key under Settings → AI?</strong> You still need one here. WordPress’s shared
               connectors hand back the answer text only — they drop the list of sources an engine cited, and those
               sources are what a visibility check grades. Reading them needs each engine’s own API, so these keys are
@@ -1111,7 +1118,17 @@ export default {
 .agv-note--bad, .agv-note--error { border-left-color: var(--ar-bad); }
 .agv-note__x { background: none; border: 0; font-size: 17px; line-height: 1; cursor: pointer; color: var(--ar-ink-faint); }
 
-.agv-results { padding: 22px 26px; }
+/* Results is a transparent stack on wp-admin's background: the run summary is one
+   sheet, then every tracked product is its own full-width card — the same free-
+   standing-card grammar as the Settings page. */
+.agv-results { display: grid; gap: 18px; }
+.agv-sheet {
+  padding: 22px 26px;
+  background: var(--ar-surface); border: 1px solid var(--ar-line);
+  border-radius: var(--ar-radius);
+}
+.agv-product { padding: 22px 26px; margin-bottom: 0; }
+.agv-form { display: grid; gap: 18px; }
 .agv-muted { color: var(--ar-ink-soft); font-size: 13px; }
 .agv-headline { font-family: var(--ar-serif); font-size: 16.5px; line-height: 1.5; color: var(--ar-ink); margin: 0 0 20px; max-width: 70ch; text-wrap: pretty; }
 /* Auto-save confirmation pill next to the section title. */

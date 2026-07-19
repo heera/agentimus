@@ -203,10 +203,10 @@ export default {
               <div class="ar-about-item__top">
                 <span class="ar-about-item__name">{{ it.name }}</span>
                 <code class="ar-about-item__where">{{ it.where }}</code>
+                <span class="ar-about-tag" :class="`is-${it.tag === 'On' ? 'on' : 'opt'}`">{{ it.tag }}</span>
               </div>
               <p class="ar-about-item__desc">{{ it.desc }}</p>
             </div>
-            <span class="ar-about-tag" :class="`is-${it.tag === 'On' ? 'on' : 'opt'}`">{{ it.tag }}</span>
           </li>
         </ul>
       </div>

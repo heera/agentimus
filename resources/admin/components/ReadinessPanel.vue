@@ -233,8 +233,10 @@ export default {
 </script>
 
 <template>
-  <section class="ar-card">
-    <div class="ar-card__head ar-card__head--inline ar-card__head--stack-sm">
+  <!-- A stack of free-standing cards on the admin background: the report header, then
+       one card per rung group — the same section-card grammar as the Settings page. -->
+  <section class="ar-readiness-stack">
+    <div class="ar-card ar-card__head ar-card__head--inline ar-card__head--stack-sm">
       <div class="ar-card__titlewrap">
         <h2 class="ar-card__title">Readiness report</h2>
         <!-- Refresh THIS report (recompute the checklist below). Kept beside the title
@@ -269,7 +271,7 @@ export default {
       v-for="g in groups"
       :id="`ar-group-${g.key}`"
       :key="g.key"
-      class="ar-checkgroup"
+      class="ar-card ar-checkgroup"
       :class="`is-${g.status}`"
     >
       <div class="ar-checkgroup__head">
@@ -312,7 +314,7 @@ export default {
          pages that trip it as edit links. Each can be set aside as "not cited content"
          — kept in a visible list, and always shown as a "set aside" count so the score
          stays honest. Matches the rung → tab-section model. -->
-    <div v-if="hasOptimizeSection" id="ar-group-optimized" class="ar-checkgroup is-warn">
+    <div v-if="hasOptimizeSection" id="ar-group-optimized" class="ar-card ar-checkgroup is-warn">
       <div class="ar-checkgroup__head">
         <span class="ar-checkgroup__rung" aria-hidden="true"></span>
         <div class="ar-checkgroup__text">

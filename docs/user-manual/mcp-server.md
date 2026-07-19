@@ -39,7 +39,7 @@ Below the server switch sits a second one: **Let connected agents write**. It st
 
 The rules that travel with every write:
 
-- **Drafts first.** A new post arrives as a draft (or pending). Publishing needs a *third* switch — **…including publishing, without your review** — and even then the signed-in user's own publish permission. Until you flip it, agents can prepare; only you can go live.
+- **Drafts first.** A new post arrives as a draft (or pending). Publishing needs a *third* switch — **Let agents publish without your review** — and even then the signed-in user's own publish permission. Until you flip it, agents can prepare; only you can go live.
 - **Edits to already-published posts go live on save** — same as you editing in wp-admin, and deliberately so: "fix the weak opening on my published article" is the whole point. The agent needs edit permission on that exact post, and body changes keep a revision to roll back to.
 - **The agent is never more powerful than its user.** Filing under existing categories, inventing new ones, and importing images each follow the signed-in user's own WordPress permissions — an author-level key can't do what an author can't.
 - **Everything is on the record.** Every write lands under **More → Agent Access**, attributed to the user and the named key that made it.

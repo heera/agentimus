@@ -1056,7 +1056,19 @@
   letter-spacing: -0.01em;
   color: var(--ar-ink);
 }
-.ar-card__lead { margin: 0 0 18px; color: var(--ar-ink-soft); font-size: 13px; max-width: 95ch; }
+/* The standfirst: a section's lead runs full width in the serif voice — visibly the
+   section's own introduction (same family as its header), never mistakable for one
+   more settings hint in the sans body. The masthead rule beneath it (a step stronger
+   than the row hairlines) closes the header zone before the settings begin. */
+.ar-card__lead {
+  margin: 0 0 20px; padding-bottom: 14px; max-width: none;
+  border-bottom: 1px solid var(--ar-line-strong);
+  font-family: var(--ar-serif); font-size: 15px; line-height: 1.6;
+  color: var(--ar-ink-soft);
+}
+/* (A full-width tinted band behind the header zone was tried and reverted: the tab strip
+   already uses the secondary surface, so the panel opened as three stacked tinted strips,
+   and the band's edge swallowed the masthead rule's contrast. Flat surface + rule wins.) */
 /* Quiet aside that clarifies a control's scope (e.g. "advertises, not enforces"). */
 .ar-card__note {
   margin: 14px 0 0; padding: 9px 12px; max-width: 88ch;
@@ -1102,9 +1114,9 @@
    with a top accent rule; its bottom edge drops over the tab-row border so the
    body merges seamlessly into it. */
 .ar-tabpanel {
-  background: var(--ar-surface);
-  border: 1px solid var(--ar-line);
-  border-radius: var(--ar-radius);
+  /* Transparent shell: the masthead (tabs + headline) and each section card carry
+     their own sheets, and wp-admin's real background shows in the gaps between them. */
+  background: transparent;
   /* As a grid item of .ar__main, the default min-width:auto would refuse to
      shrink below the tab strip's intrinsic width — so once the tabs no longer
      fit (5+ tabs on a phone) the whole panel overflowed the viewport instead of
@@ -1112,45 +1124,55 @@
      own overflow-x:auto then scrolls, and the form body wraps to width. */
   min-width: 0;
 }
+/* Deliberately NOT a scroll container: overflow-x:auto here made the strip scrollable
+   on BOTH axes (a trackpad swipe panned the tabs sideways, and the active tab's 1px
+   overhang even let them shift vertically). The tabs share the row equally and
+   compress to fit instead — the strip itself can never move. */
 .ar-tabpanel__tabs {
   display: flex; gap: 0;
-  background: var(--ar-surface-2);
-  border-bottom: 1px solid var(--ar-line);
+  background: var(--ar-surface); /* one tone with the active tab — selection reads from the accent bar and ink alone */
+  border: 1px solid var(--ar-line);
+  border-bottom: 1px solid var(--ar-line-strong); /* the strip's base rule must actually read */
   border-radius: var(--ar-radius) var(--ar-radius) 0 0;
-  overflow-x: auto; scrollbar-width: none; -ms-overflow-style: none;
 }
-.ar-tabpanel__tabs::-webkit-scrollbar { display: none; }
 .ar-subnav__item {
   appearance: none; cursor: pointer; background: transparent; border: 0;
-  flex: 1 1 0; min-width: max-content; white-space: nowrap; text-align: center;
-  padding: 14px 20px;
+  flex: 1 1 0; min-width: 0; white-space: nowrap; text-align: center;
+  overflow: hidden; text-overflow: ellipsis; /* the label yields; the row never does */
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  padding: 14px 10px;
   font-family: var(--ar-mono); font-size: 11px; font-weight: 600;
   letter-spacing: 0.12em; text-transform: uppercase; color: var(--ar-ink-faint);
   transition: color 0.15s ease, background 0.15s ease;
 }
+/* Each tab's mark, bare before its label — inherits the label's ink, wakes to teal
+   with the active tab. */
+.ar-subnav__icon { display: inline-flex; flex: 0 0 auto; }
+.ar-subnav__icon svg { width: 15px; height: 15px; display: block; }
+.ar-subnav__item.is-active .ar-subnav__icon { color: var(--ar-accent); }
 .ar-subnav__item + .ar-subnav__item { box-shadow: inset 1px 0 0 var(--ar-line); }
 .ar-subnav__item:hover { color: var(--ar-ink-soft); }
 .ar-subnav__item.is-active {
   color: var(--ar-ink); background: var(--ar-surface);
-  margin-bottom: -1px;                                   /* cover the tab-row rule… */
-  border-bottom: 1px solid var(--ar-surface);            /* …so the body merges in */
   box-shadow: inset 0 2px 0 0 var(--ar-accent);          /* top accent indicator */
+  /* No merge trick: the strip's bottom rule runs unbroken under the active tab too —
+     Heera's call (2026-07-19); the white fill + top accent already mark selection. */
 }
 .ar-subnav__item:focus-visible { outline: 2px solid var(--ar-accent); outline-offset: -2px; }
-/* On a phone, clamp the tabs so all five fit one row instead of scrolling off
-   the edge: smaller type, tighter tracking, slimmer padding. Their total
-   max-content then fits a typical (≥360px) viewport; the strip keeps
-   overflow-x:auto as a graceful fallback for anything narrower. */
+/* On a phone, clamp the tabs further so all five labels stay whole on one row:
+   smaller type, tighter tracking, slimmer padding. Anything narrower still and
+   the longest labels ellipsize (see overflow above) — the row never scrolls. */
 @media (max-width: 600px) {
   .ar-tabpanel__tabs .ar-subnav__item {
     padding: 12px 6px;
     font-size: 10px;
     letter-spacing: 0.02em;
   }
+  .ar-tabpanel__tabs .ar-subnav__icon { display: none; } /* five labels must fit one row */
 }
 
-/* Slim section description, a band under the tabs. */
-.ar-tabpanel__body { min-width: 0; }
+/* Transparent: wp-admin's real background shows between the masthead and the cards. */
+.ar-tabpanel__body { min-width: 0; padding: 16px 0 0; }
 /* Per-control save lock: only the switch/card the user just changed carries
    [data-busy] while ITS save is in flight — it dims and ignores further clicks,
    exactly like a button mid-action, while every other control stays live. We
@@ -1171,25 +1193,49 @@
   pointer-events: none;
   transition: opacity 0.12s ease;
 }
+/* Master-off lock: a child block whose master switch is off stays on screen — the page
+   keeps its shape and the parent→child relationship stays visible — but it's `inert`
+   (no mouse, no keyboard focus) and clearly asleep. Deeper dim than the busy-lock so
+   "saving" and "disabled" never read as the same state. */
+#agentimus-app [inert] { opacity: 0.45; }
+/* A sleeping child switch also RENDERS off — teal in a disabled block reads as "this is
+   still happening", and it isn't while the master is off. Presentation only: the saved
+   value is untouched and shows again the moment the master turns back on. */
+[inert] .ar-toggle input:checked + .ar-toggle__track,
+.ar-toggle[inert] input:checked + .ar-toggle__track { background: #d8d2c2; }
+[inert] .ar-toggle input:checked + .ar-toggle__track::after,
+.ar-toggle[inert] input:checked + .ar-toggle__track::after { transform: none; }
+#agentimus-app .ar-webmcp-tools,
+#agentimus-app .ar-enforce-body,
+#agentimus-app .ar-card { transition: opacity 0.18s ease; }
+/* The group's own headline — "Who owns this site" describes everything under the active
+   tab, so it speaks in the serif voice with real ink: above the card titles in rank,
+   never mistakable for one more hint. */
 .ar-tabpanel__caption {
-  margin: 0; padding: 11px 26px; font-size: 12.5px; color: var(--ar-ink-soft);
-  border-bottom: 1px solid var(--ar-line);
+  margin: 0; padding: 13px 26px;
+  /* Fluid: 18px on a desktop app column, easing to 15px on a phone (cqi = 1% of the
+     app container's width, so the wp-admin sidebar is accounted for, unlike vw). */
+  font-size: clamp(15px, 8px + 1.6cqi, 18px);
+  font-family: var(--ar-serif); color: var(--ar-ink);
+  /* Bottom half of the masthead sheet (the strip above completes the frame). */
+  background: var(--ar-surface);
+  border: 1px solid var(--ar-line); border-top: 0;
+  border-radius: 0 0 var(--ar-radius) var(--ar-radius);
 }
 
 /* Inside the panel the cards drop their own frame and become segments of the one
    surface, divided by a hairline — so the whole thing reads as a single panel.
    Each group restarts the spec-sheet numbering (hidden groups are display:none,
    so they neither lay out nor count). */
-.ar-group { display: grid; gap: 0; counter-reset: arcard; }
-.ar-tabpanel .ar-card {
-  border: 0; border-radius: 0; background: transparent;
-  border-top: 1px solid var(--ar-line);
-}
-.ar-tabpanel .ar-group > .ar-card:first-child { border-top: 0; }
+.ar-group { display: grid; gap: 18px; counter-reset: arcard; }
+/* Each section: its own complete card on wp-admin's gray — the base .ar-card look
+   (surface, hairline frame, rounded corners) with real background showing in the
+   gaps. (Hairlines, double rules, letterpress and slab variants were each tried on
+   the way here; free-standing cards on the admin background won.) */
 .ar-tabpanel .ar-card--muted { background: var(--ar-surface-2); }
 
 /* WebMCP per-tool list, revealed under the Browser-tools master toggle. */
-.ar-webmcp-tools { margin-top: 4px; padding-top: 2px; border-top: 1px solid var(--ar-line); }
+.ar-webmcp-tools { margin-top: 4px; margin-left: 22px; padding-top: 2px; border-top: 1px solid var(--ar-line); }
 .ar-webmcp-tools__head { margin: 13px 0 0; font-size: 12px; color: var(--ar-ink-faint); }
 
 /* MCP-server connection details, revealed under the MCP master toggle. */
@@ -1370,6 +1416,14 @@
   align-self: flex-start; /* don't stretch the hit area across the row's full width. */
 }
 .ar-toggle__text small { color: var(--ar-ink-soft); font-size: 12px; }
+/* A child switch that only exists because the switch above it is on. The indent comes
+   from the wrapper (.ar-webmcp-tools / .ar-enforce-body), so depth compounds for a
+   grandchild; this modifier shrinks the switch itself so the subordination reads at
+   a glance. */
+.ar-toggle--nested .ar-toggle__track { width: 34px; height: 19px; }
+.ar-toggle--nested .ar-toggle__track::after { width: 15px; height: 15px; }
+.ar-toggle--nested input:checked + .ar-toggle__track::after { transform: translateX(15px); }
+.ar-toggle--nested .ar-toggle__text strong { font-size: 13px; }
 
 /* "Check an IP" tool (AI Access) — a quiet inset utility below the verification toggles. */
 .ar-ipcheck { margin: 4px 0 2px; padding: 14px 15px; border-radius: 9px; background: var(--ar-surface-2); border: 1px solid var(--ar-line); }
@@ -1440,7 +1494,7 @@
 .ar-signal-state.is-block { color: var(--ar-bad); border-color: #e6c1b9; background: #f8ebe8; }
 
 /* Crawler hard-block editor body (shown when training is Allowed, or on Customize). */
-.ar-enforce-body { margin-top: 10px; }
+.ar-enforce-body { margin-top: 10px; margin-left: 22px; }
 
 /* Small inline tag in a field label, e.g. "Content-Signal" / "optional". */
 .ar-field__tag {
@@ -1471,6 +1525,12 @@
   font-family: var(--ar-mono); font-size: 11px; letter-spacing: 0.08em;
   text-transform: uppercase; color: var(--ar-ink-soft);
 }
+/* Post-count row: the live size estimate sits beside the input as one aligned line —
+   not a stray paragraph beneath — and wraps under the input on narrow screens. */
+/* Compound selector on purpose: this row leads its wrapper, and the `.ar-field:first-child`
+   margin reset above (0,1,1) would zero a single-class top margin — two classes out-rank it. */
+.ar-field--inline.ar-field--estimate { flex-wrap: wrap; margin: 14px 0 16px; }
+.ar-field--estimate .ar-field__hint { margin: 0; flex: 1 1 240px; min-width: 0; }
 
 .ar-input {
   width: 100%; padding: 9px 11px; font-size: 14px; font-family: var(--ar-sans);
@@ -1482,7 +1542,16 @@
   outline: none; border-color: var(--ar-accent);
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--ar-accent) 13%, transparent);
 }
-.ar-input--sm { width: 96px; font-family: var(--ar-mono); }
+/* Compact numeric inputs (counts and caps): a two-digit number doesn't need a full-height
+   box. Scoped under the app id because wp-admin forms.css targets input[type=number] at
+   (0,1,1) — a bare class loses that fight and the box stays at admin height. */
+#agentimus-app .ar-input--sm {
+  width: 96px; min-height: 0; padding: 3px 10px;
+  font-size: 13px; line-height: 1.6; font-family: var(--ar-mono);
+}
+/* A field row that is a PEER of the toggle above it (not its sub-setting): the same
+   hairline the toggle rows use marks it as its own entry. */
+.ar-field--divided { border-top: 1px solid var(--ar-line); margin-top: 16px; padding-top: 16px; }
 textarea.ar-input { resize: vertical; line-height: 1.55; }
 /* Custom chevron so the select matches the text inputs' height exactly. */
 select.ar-input {
@@ -1934,8 +2003,10 @@ html { scrollbar-gutter: stable; }
 
 /* ---- Readiness ---------------------------------------------------------- */
 /* Each rung is a titled group of checks, with its own pass tally. */
-.ar-checkgroup { margin-top: 26px; }
-.ar-checkgroup:first-of-type { margin-top: 16px; }
+/* The report is a stack of cards (header card + one card per rung group); the grid
+   gap replaces the old in-card margins between groups. */
+.ar-readiness-stack { display: grid; gap: 18px; }
+.ar-checkgroup { margin-top: 0; }
 .ar-checkgroup__head {
   position: relative;
   display: flex; align-items: center; gap: 11px;
@@ -2818,7 +2889,7 @@ button.ar-act-more:hover { color: var(--ar-ink); }
 /* AI traffic screen: the cards stack, and the report card's title carries a refresh. */
 .ar-aitraffic { display: grid; gap: 20px; }
 /* The filters sit inside the card, not above it, so they read as narrowing THIS report. */
-.ar-aitraffic .ar-log__filters { margin: 18px 0 4px; }
+.ar-aitraffic .ar-log__filters { margin: 18px 0 22px; }
 /* This row has four controls, not the request log's seven, so it wraps to two lines rather
    than three or four — and a wrapped line holding only "To" would let that date field grow
    to the full card width. The shared wrap rule zeroes the date basis along with everything
@@ -3003,17 +3074,19 @@ button.ar-act-more:hover { color: var(--ar-ink); }
    inside its box on narrow screens — the table's min-width forces a real scroll rather than
    crushing columns to an ellipsis. The header sticks while the body scrolls vertically. */
 .ar-act-table { width: 100%; min-width: 620px; border-collapse: collapse; }
-.ar-act-table th, .ar-act-table td { padding: 7px 14px 7px 0; text-align: left; vertical-align: middle; white-space: nowrap; }
-.ar-act-table th:first-child, .ar-act-table td:first-child { padding-left: 2px; }
+.ar-act-table th, .ar-act-table td { padding: 9px 14px 9px 0; text-align: left; vertical-align: middle; white-space: nowrap; }
+/* Real first/last-column insets: row washes (spoofed rows) made the old 2px edges
+   visible — text sat pressed against the tint's edge. */
+.ar-act-table th:first-child, .ar-act-table td:first-child { padding-left: 10px; }
 .ar-act-table thead th {
   position: sticky; top: 0; z-index: 1; background: var(--ar-surface);
-  font-family: var(--ar-sans); font-size: 10px; font-weight: 700; letter-spacing: 0.07em;
+  font-family: var(--ar-sans); font-size: 11.5px; font-weight: 700; letter-spacing: 0.07em;
   text-transform: uppercase; color: var(--ar-ink-faint);
-  padding-top: 2px; padding-bottom: 9px; border-bottom: 1px solid var(--ar-line-strong);
+  padding-top: 9px; padding-bottom: 9px; border-bottom: 1px solid var(--ar-line-strong);
 }
 .ar-act-table tbody td { border-bottom: 1px solid var(--ar-line); }
 .ar-act-table tbody tr:last-child td { border-bottom: 0; }
-.ar-act-table__agent { font-size: 13px; font-weight: 600; color: var(--ar-ink); }
+.ar-act-table__agent { font-size: 13px; font-weight: 500; color: var(--ar-ink); }
 .ar-act-table__at { font-family: var(--ar-mono); font-size: 11px; color: var(--ar-ink-faint); }
 .ar-act-table__dash { color: var(--ar-ink-faint); }
 /* User-Agent column takes the slack and truncates; the custom tooltip (hover) reveals it in full. */
@@ -3412,8 +3485,9 @@ button.ar-act-more:hover { color: var(--ar-ink); }
 }
 .ar-about-feat__lead { margin: 3px 0 0; font-size: 12.5px; color: var(--ar-ink-faint); }
 .ar-about-list { margin: 0; padding: 0; list-style: none; border-top: 1px solid var(--ar-line); }
+/* The tag pill lives in the title cluster (name · where · tag), not exiled to the row's
+   far edge — space-between left it orphaned across a wide dead middle. */
 .ar-about-item {
-  display: flex; align-items: flex-start; justify-content: space-between; gap: 14px;
   padding: 12px 2px; border-bottom: 1px solid var(--ar-line);
 }
 .ar-about-item__main { min-width: 0; }
@@ -3498,8 +3572,6 @@ a.ar-about-proto__v:hover { text-decoration: underline; }
 @media (prefers-reduced-motion: reduce) { .ar-about-faq__caret { transition: none; } }
 @media (max-width: 600px) {
   .ar-about-proto__meta { grid-template-columns: 1fr; }
-  .ar-about-item { flex-direction: column; }
-  .ar-about-tag { align-self: flex-start; }
 }
 
 /* Letterpress (debossed) | separator in the admin-footer version line
@@ -3547,11 +3619,13 @@ a.ar-about-proto__v:hover { text-decoration: underline; }
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 .ar-log .ar-act-table { min-width: 0; }
-.ar-log .ar-act-table td:last-child, .ar-log .ar-act-table th:last-child { text-align: right; padding-right: 2px; }
+.ar-log .ar-act-table td:last-child, .ar-log .ar-act-table th:last-child { text-align: right; padding-right: 10px; }
 
 .ar-log__filters {
   padding: 14px 16px; margin-bottom: 18px;
-  background: var(--ar-surface-2); border: 1px solid var(--ar-line); border-radius: var(--ar-radius);
+  /* A half-step tint: full surface-2 read too heavy as a band across the card. */
+  background: color-mix(in srgb, var(--ar-surface-2) 45%, var(--ar-surface));
+  border: 1px solid var(--ar-line); border-radius: var(--ar-radius);
 }
 /* One line of controls. Every field is flex:1 with min-width:0 so they compress together
    rather than the last one wrapping alone; the User-Agent box takes the slack because it
@@ -3601,8 +3675,10 @@ a.ar-about-proto__v:hover { text-decoration: underline; }
   margin-left: 8px; padding: 1px 6px; border-radius: 3px;
   font-family: var(--ar-mono); font-size: 10px; letter-spacing: 0.06em; text-transform: uppercase;
 }
-.ar-log__verdict.is-verified { color: var(--ar-good); border: 1px solid currentColor; }
-.ar-log__verdict.is-spoofed  { color: var(--ar-bad);  border: 1px solid currentColor; }
+/* Quiet chips: full-strength colored borders shouted from every row — the tone still
+   reads, but mixed toward the hairline color so the table stays calm. */
+.ar-log__verdict.is-verified { color: color-mix(in srgb, var(--ar-good) 80%, var(--ar-ink-soft)); border: 1px solid color-mix(in srgb, var(--ar-good) 38%, var(--ar-line)); }
+.ar-log__verdict.is-spoofed  { color: color-mix(in srgb, var(--ar-bad) 85%, var(--ar-ink-soft));  border: 1px solid color-mix(in srgb, var(--ar-bad) 38%, var(--ar-line)); }
 .ar-act-table tr.is-spoofed td { background: color-mix(in srgb, var(--ar-bad) 5%, transparent); }
 
 .ar-log__seen { color: var(--ar-ink-faint); font-family: var(--ar-mono); font-size: 11px; }
@@ -3732,10 +3808,15 @@ a.ar-about-proto__v:hover { text-decoration: underline; }
 }
 
 /* The Visit-log retention note: says what the Dashboard shows vs what the log keeps, and
-   which data this setting deliberately does NOT govern (flagged IPs). */
+   which data this setting deliberately does NOT govern (flagged IPs). Full-width and
+   lightly tinted — it states the rule that outranks the controls above it, so it gets
+   a touch more presence than a plain footnote. */
 .ar-log-note {
-  margin: 18px 0 0; padding-top: 14px; border-top: 1px solid var(--ar-line);
-  font-size: 12px; line-height: 1.65; color: var(--ar-ink-soft); max-width: 78ch;
+  margin: 18px 0 0; padding: 12px 16px;
+  background: color-mix(in srgb, var(--ar-accent) 6%, var(--ar-surface));
+  border-left: 3px solid var(--ar-accent);
+  border-radius: 0 var(--ar-radius) var(--ar-radius) 0;
+  font-size: 12px; line-height: 1.65; color: var(--ar-ink-soft);
 }
 .ar-log-note strong { color: var(--ar-ink); font-weight: 600; }
 /* The two dropdowns sit in .ar-field--inline rows; give the control a sane width so the
@@ -3805,18 +3886,18 @@ a.ar-about-proto__v:hover { text-decoration: underline; }
 /* On a phone the four columns exceed the card: scroll the table inside its own box
    rather than letting it widen (or get clipped by) the page — columns stay reachable. */
 .ar-aa__tablewrap { overflow-x: auto; margin: 0 0 16px; }
+/* The access log wears the Request Log's table dress (.ar-act-table on the same
+   element), so the two logs read and behave as one family — same header band, same
+   cell rhythm, same sideways scroll on narrow screens instead of crushed columns.
+   Only the honest differences live below: the "What happened" column wraps its
+   sentences (with a floor so the wrapper scrolls rather than the column collapsing),
+   and multi-line rows align to the top. */
 .ar-aa__table { width: 100%; border-collapse: collapse; margin: 0; }
-.ar-aa__table th {
-  text-align: left; padding: 8px 10px;
-  font-family: var(--ar-mono); font-size: 10px; font-weight: 700;
-  text-transform: uppercase; letter-spacing: 0.06em;
-  color: var(--ar-ink-faint); border-bottom: 1px solid var(--ar-line-strong);
-  white-space: nowrap;
-}
-.ar-aa__table td {
-  padding: 10px; font-size: 13px; color: var(--ar-ink-soft);
-  border-bottom: 1px solid var(--ar-line); vertical-align: top;
-}
+.ar-aa__table td { font-size: 13px; color: var(--ar-ink-soft); border-bottom: 1px solid var(--ar-line); vertical-align: top; }
+.ar-aa__table td:first-child { white-space: normal; min-width: 340px; }
+/* Unlike the Request Log, a footer sentence follows this table — keep the last row's
+   rule so the table visibly ends before it. */
+.ar-aa__table tbody tr:last-child td { border-bottom: 1px solid var(--ar-line); }
 .ar-aa__table tr.is-unseen td { background: color-mix(in srgb, var(--ar-accent) 4.5%, transparent); }
 .ar-aa__what { display: block; font-weight: 600; color: var(--ar-ink); }
 
@@ -3840,8 +3921,13 @@ a.ar-about-proto__v:hover { text-decoration: underline; }
 .ar-aa__empty p { margin: 0 auto; max-width: 62ch; font-size: 13px; line-height: 1.6; color: var(--ar-ink-soft); }
 
 /* Standing blind spots, always on screen. Same job as the request log's footer note. */
+/* Styled as the app's quiet aside (left bar + tint), NOT as a hairline-topped block —
+   a gray paragraph opening with a hairline reads as one more table row. */
 .ar-aa__limits {
-  margin: 0; padding-top: 14px; border-top: 1px solid var(--ar-line);
+  margin: 4px 0 0; padding: 10px 14px;
+  border-left: 2px solid var(--ar-line-strong);
+  border-radius: 0 var(--ar-radius) var(--ar-radius) 0;
+  background: #faf8f2;
   font-size: 12px; line-height: 1.6; color: var(--ar-ink-faint);
 }
 .ar-aa__limits strong { color: var(--ar-ink-soft); }
