@@ -43,8 +43,9 @@ Open the **Agentimus → AI Readability** panel in the editor. Every check that'
 | One long block | The long paragraph rewritten as shorter ones | **Copy** and replace the block |
 | Nothing concrete to quote | Specifics you could add (a statistic, an example, a source) | **Copy** — then find and verify a real figure before you publish |
 | Thin content | A short outline of what's missing | **Copy** — write the sections in your own words |
+| No featured image | A featured image generated from the post's title | **Generate with AI** creates it and sets it as featured — needs an image-capable provider plan |
 
-Only the **opening summary** applies in one click, because inserting a short lead paragraph is safe and additive. The rest are **copy-only on purpose**: rewriting your prose or adding a factual claim is your call, and Agentimus won't insert an unverified statistic or restructure your page for you. After you apply a fix and save, the matching warning clears on the next check.
+Only the **opening summary** and the **featured image** act in one click — one inserts a safe, additive lead paragraph, the other sets an image you can replace at any time. The rest are **copy-only on purpose**: rewriting your prose or adding a factual claim is your call, and Agentimus won't insert an unverified statistic or restructure your page for you. After you apply a fix and save, the matching warning clears on the next check.
 
 ## Good to know
 

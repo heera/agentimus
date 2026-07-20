@@ -645,6 +645,10 @@ final class Admin {
 					'title' => 'AI errors now speak plainly',
 					'text'  => 'A quota wall names the fix, a provider error without details still becomes a human sentence, and the Cited rung updates the moment a visibility check finishes.',
 				),
+				array(
+					'title' => 'Every dashboard number is a door',
+					'text'  => 'Click an endpoint, client, source or landing page to open its report pre-filtered to it; hover a row for the numbers behind its trend arrow. And AI Readability now checks featured images — with Generate with AI one click away, right on the warning.',
+				),
 			),
 		);
 	}

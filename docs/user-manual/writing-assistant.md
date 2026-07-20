@@ -40,6 +40,7 @@ The assistant plans images but doesn't paste them into your text sight-unseen. A
 
 - **Generate image from the alt text** — a button in every image block's toolbar turns its alt text into a generated image, saved to your media library with the alt text kept. Rewrite the alt, generate again.
 - **Featured image (AI)** — a panel in the document sidebar drafts a hero image from the post's title.
+- **The check that closes the loop** — the AI Readability panel's *No featured image* warning carries its own **Generate with AI** button, so the gap and its fix live on the same row.
 - **Or use the library** — every placeholder is a normal image block; pick from your media library as always.
 
 {: .warning }

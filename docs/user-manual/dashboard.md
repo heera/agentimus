@@ -156,6 +156,8 @@ Two summary cards rank the whole window (30 days by default). Every window on th
 - **Top clients** — which agents hit you most (up to eight), and
 - **By endpoint** — which of your machine-readable files got fetched most.
 
+Every row is a door: click an endpoint or client to open the **Request Log** pre-filtered to it, and on the Traffic-from-AI card a source or landing page opens the **AI Traffic** report the same way. Hover a row for the numbers behind it — a trend arrow shows the two half-window counts it compares, a referral row its share of the window's visits.
+
 Each row shows the name, a bar for its share, and its total count. Beside the bar is a small **trend** — a green ▲ or a red ▼ with a percentage — telling you whether that client or file is getting **more or less** AI attention across the window. It's the at-a-glance answer to "is GPTBot crawling me more this month?" or "is attention on `llms.txt` slipping?"
 
 Because Agentimus only keeps the last 30 days (see pruning below), there's no earlier month to compare against — so the trend is measured **inside** the window: the **recent half** of the period against the **earlier half**. No outside data, no guesswork.
