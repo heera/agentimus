@@ -630,24 +630,24 @@ final class Admin {
 			'show'    => $show,
 			'items'   => array(
 				array(
-					'title' => 'Write posts with AI, right here',
-					'text'  => 'The quill button opens the new writing assistant: describe a post, edit the outline it proposes, and the article writes every section in parallel — watch the outline fill in, with long posts uncapped and a failed section retrying alone. Preview the complete draft, then create it in the editor. Nothing is saved until you say so, and it never publishes. Needs agent writes on plus an AI provider under Settings → AI.',
+					'title' => 'Reading ease got fair',
+					'text'  => 'The "Hard to read" check stopped over-charging honest writing. Bullet lists no longer count as one enormous sentence, your topic’s own vocabulary — "security" on a security article — reads as familiar instead of costing five syllables every use, and code samples aren’t graded as prose at all (identifiers were being scored as twelve-syllable words). Genuinely dense prose still warns; technical writing about a technical subject no longer does.',
 				),
 				array(
-					'title' => 'It revises existing posts too',
-					'text'  => 'Pick a post, describe the change, review the revision before applying it. Content changes; a post’s status never does — and WordPress revisions keep every prior version.',
+					'title' => 'Checks that show their work',
+					'text'  => 'No more bare scores to puzzle over: a pass tells you which recurring terms it read as familiar, and a warn ends with "Heaviest words here: …" — the exact words weighing the page down, so you know what to simplify before you open the editor.',
 				),
 				array(
-					'title' => 'Images where you write',
-					'text'  => 'Drafts arrive with alt-filled image placeholders: Generate turns the alt text into an image on any image block, a Featured image (AI) panel drafts the hero, and Ask AI rewrites or extends any text block.',
+					'title' => 'AI drafts to your rules',
+					'text'  => 'Everything that writes content now sees your readability bars up front — the in-admin assistant always did, and now agents connected over MCP get the same rules in the write tools themselves. Every agent create or update also comes back graded, so a sloppy draft is caught in the same breath it was written.',
 				),
 				array(
-					'title' => 'AI errors now speak plainly',
-					'text'  => 'A quota wall names the fix, a provider error without details still becomes a human sentence, and the Cited rung updates the moment a visibility check finishes.',
+					'title' => 'The worklist says what it means',
+					'text'  => 'Counts name your real content — "3 Posts, 1 Page" instead of calling everything a page — every readability check has its own plain advice line, and a warning can no longer display a passing score.',
 				),
 				array(
-					'title' => 'Every dashboard number is a door',
-					'text'  => 'Click an endpoint, client, source or landing page to open its report pre-filtered to it; hover a row for the numbers behind its trend arrow. And AI Readability now checks featured images — with Generate with AI one click away, right on the warning.',
+					'title' => 'Coming from 1.24 or earlier?',
+					'text'  => 'Then 1.25 is new to you too: an in-admin writing assistant that drafts whole posts from a brief and revises existing ones, Ask AI on any block, AI featured images, plain-language AI errors and dashboard drill-downs. The full changelog on this card tells that story.',
 				),
 			),
 		);

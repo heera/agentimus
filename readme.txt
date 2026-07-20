@@ -4,7 +4,7 @@ Tags: ai-agents, ai-crawlers, agent-readiness, llms-txt, ai-seo
 Requires at least: 6.0
 Tested up to: 7.1
 Requires PHP: 7.4
-Stable tag: 1.25.0
+Stable tag: 1.26.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -186,7 +186,7 @@ Yes — as an opt-in, on WordPress 6.9 or newer. Turn on **Settings → Discover
 
 = Can an AI agent write to my site? =
 
-Only if you say so, twice. The MCP server starts read-only; a second switch — **Let connected agents write** — adds the write tools: draft and edit posts and pages complete with categories, tags and a featured image (from your media library, or imported from a URL), set their AI topics and descriptions, and apply Readiness fixes (a fixed list of safe switches that can only turn documented features on, never loosen a protection). Even then, agents can't publish: they leave drafts and pending posts for your review, unless you flip a third switch that allows going live. Every write runs as the signed-in user — an agent can never do more than that user could in the editor: filing under existing categories, creating new ones, and uploading images each follow that user's own permissions — and every call is recorded under **More → Agent Access**, attributed to the key that made it.
+Only if you say so, twice. The MCP server starts read-only; a second switch — **Let connected agents write** — adds the write tools: draft and edit posts and pages complete with categories, tags and a featured image (from your media library, or imported from a URL), set their AI topics and descriptions, and apply Readiness fixes (a fixed list of safe switches that can only turn documented features on, never loosen a protection). Even then, agents can't publish: they leave drafts and pending posts for your review, unless you flip a third switch that allows going live. Writes are held to the site’s own quality bar too: the write tools show agents the same readability rules the in-admin assistant drafts to, and every create or update returns the post’s AI-readability grade. Every write runs as the signed-in user — an agent can never do more than that user could in the editor: filing under existing categories, creating new ones, and uploading images each follow that user's own permissions — and every call is recorded under **More → Agent Access**, attributed to the key that made it.
 
 = Can AI help me write the description, topics and fixes? =
 
@@ -236,7 +236,7 @@ Yes — there is no minified-only code. The admin interface is built from Vue 3 
 
 1. Dashboard — your AEO/GEO score across five plain rungs (Findable, Readable, Trusted, Optimized, Cited) with the one next step worth taking, alongside a first-party log of which AI agents and crawlers fetched your endpoints (no IP logging) and whether each client's volume is trending up or down. Every day bar on both charts opens that day's full report.
 2. Settings — a tidy, tabbed control panel; the Discovery section gives you a toggle for each agent-readiness signal, cards for Topics for AI and the per-page AI description, plus experimental browser tools (WebMCP) that let an in-browser AI agent call your site search.
-3. Readiness report — a plain-English pass/warn checklist of what's enabled and what's still missing, and beneath it the Optimize worklist: exactly which pages an answer engine would struggle to quote, and why. Set aside anything that isn't meant to be cited.
+3. Readiness report — a plain-English pass/warn checklist of what's enabled and what's still missing, and beneath it the Optimize worklist: exactly which posts and pages an answer engine would struggle to quote, and why. Set aside anything that isn't meant to be cited.
 4. Discovery Hub — everything your site tells AI agents, in one place: the providers describing it, the read capabilities they expose, the public APIs, and the MCP & tools surface — your own Model Context Protocol server (when you've turned it on) alongside the WordPress Abilities API, with the tools each carries. Each summary tile jumps to its own countable list, and any registration problem is listed with a plain-English fix.
 5. Crawler policy & scanner blocking — declare your content-usage signals, block AI-training crawlers by name, turn away spoofed traffic and proven impostors, and verify bot identities against what each operator publishes: reverse DNS for the search engines, published IP-range lists for GPTBot, OAI-SearchBot and PerplexityBot. The Verified bots registry is yours to edit — switch any bot off, or add a new operator yourself — and a "Manage clients" dialog holds every standing decision with its date and a one-click undo.
 6. Activity to review — a nav-bar alert surfaces new, high-volume or spoofed clients from any screen. Genuine ones you Allow or Block by name in one click; a client that conclusively failed its operator's own published check (an impersonator) can't be trusted by name, so its card says exactly how it was caught — and, with blocking on, that it's already refused at the AI endpoints. New clients leave the queue by themselves after 48 hours; flagged ones stay until you decide. No IP logging by default; an optional setting can store IPs for flagged crawlers only.
@@ -275,6 +275,11 @@ Agentimus makes no outbound requests by default: no remote scripts, fonts or ana
 URL-like strings in the plugin's output are labels, not requests — the discovery documents' `$schema` value names the format (never fetched), and the `example.com` URLs in `examples/` are documentation placeholders.
 
 == Changelog ==
+
+= 1.26.0 =
+* Improved — Reading ease now measures honestly: sentences end at block boundaries (bullet lists stop grading as run-ons), a page’s own recurring subject terms count as familiar words instead of being charged every use, and code samples are excluded from prose grading (a mostly-code page skips the grade rather than mis-scoring). A pass names the terms it forgave; a warn names the page’s heaviest words.
+* New — Agent writes follow the readability rules: the MCP write tools show connected agents the same drafting bars the in-admin assistant writes to, and every create/update answers with the post’s readability grade so the agent can fix its own draft.
+* Fixed — The Optimize worklist names real content types (“3 Posts, 1 Page” — not everything a “page”), and every readability check has its own plain guidance line.
 
 = 1.25.0 =
 * New — **A writing assistant inside wp-admin.** A quill button opens a drawer on every Agentimus screen: describe the post you want, edit the outline it proposes, and preview the complete draft — real editor blocks, AI description, topics, suggested categories and tags — before anything is saved. Create draft opens the post in the editor; the assistant never publishes. It needs the agent-writes switch and a WordPress AI provider (7.0+), and your Content Guidelines steer its voice automatically. It also writes to the same bar the AI Readability panel grades — a liftable opening summary, quotable paragraph lengths, plain sentences, cited sources — so fresh drafts arrive with their checks green.
@@ -325,39 +330,10 @@ URL-like strings in the plugin's output are labels, not requests — the discove
 * New — **Agent access now says who.** Every row carries the user and the named application password behind it — "by anna · app password "zapier"" — resolved live from your own users and keys, so a renamed key shows its current name, a revoked one says "since revoked", and a deleted user's row says that too instead of a bare number. Password-lifecycle rows say "on anna's account", because that's what is actually recorded — the key's owner, not necessarily who clicked. Nothing new is stored: no IP addresses, no identities; the names are looked up at view time.
 * Changed — **The dashboard's 7- and 30-day numbers are whole calendar days now.** They used to be rolling windows ending at the current second, which meant they could visibly shrink between midnights as week-old hits aged out — watched live under auto-refresh, that read as data loss. Every window is now counted in whole calendar days (UTC), the same clock as the Today tile and the daily chart beneath them; numbers move only when a hit arrives or at midnight UTC. The tiles may read slightly higher after updating — the window now includes its first day's early hours, which rolling had already dropped.
 
-= 1.21.2 =
-* Changed — **Answering a page's own URL with Markdown is now off by default.** Agentimus could hand back the Markdown edition of a page from the page's own address when a client asked for it (`Accept: text/markdown`). One address with two possible answers is only safe if every cache in front of your site respects "never store this" — and a common CDN setup (Cloudflare "Cache Everything" with an Edge TTL) overrides that instruction, stores the Markdown under the page's address, and then serves it to **human visitors**. It hit this plugin's own author: an AI crawler found a post seconds after publication, asked for Markdown, and readers got raw Markdown until the cache expired. No header an origin can send prevents that, and the person who finds out is your reader — so the convenience is now opt-in. **Nothing is lost:** every page still has its Markdown twin at `/its-slug.md`, a separate address a cache can never confuse with your article, and agents are still pointed to it from the page's `Link` header, from llms.txt and from the discovery documents. If your caching is sound (no CDN, or one that honours `no-store`), turn it back on with one line: `add_filter( 'agentimus_negotiate_markdown', '__return_true' );`
-
-= 1.21.1 =
-* Fixed — **A CDN could serve the Markdown copy of a page to human visitors.** Agentimus can answer a page's own URL with its Markdown twin when a client asks for it (`Accept: text/markdown`), and marks that answer "never cache me". A CDN configured to override origin cache headers (Cloudflare "Cache Everything" with an Edge TTL, and the equivalent elsewhere) ignored that, stored the Markdown under the page's URL, and served it to everyone — so a freshly published post, fetched first by an AI crawler, could render as raw Markdown for readers until the cache expired. The no-store instruction is now sent in the CDN-specific headers an edge honours in preference to `Cache-Control`, so the Markdown answer can't be stored. **If your CDN caches it anyway**, the new `agentimus_negotiate_markdown` filter turns page-URL negotiation off entirely; the `.md` address of every page keeps working, and agents find it exactly as before (it's advertised in the page's `Link` header, in llms.txt and in the discovery documents).
-* Fixed — **Markdown is no longer served to clients that prefer HTML.** The `Accept` header was matched with a plain substring test, so a request saying "HTML first, Markdown if you must" (`text/html;q=0.9, text/markdown;q=0.8`) was answered with Markdown. Quality values are now honoured as the standard requires: Markdown is served only when the client actually ranks it above HTML, and a tie goes to HTML. No browser sends `text/markdown` at all, so no browser can be answered with it.
-
-= 1.21.0 =
-* New — **Manage every client decision in one place.** Settings → AI access gains a "Manage clients" dialog: three tabs — Blocked, Allowed, Ignored — showing each client's identity (for known crawlers), when you decided, and a one-click undo (Unblock, Un-trust, Un-ignore). It's also the first UI over the review queue's "Ignore", which previously could not be seen or reversed anywhere. Decisions made from this release on carry their date; older entries simply show none rather than an invented one.
-* New — **Click any day's bar for that day's report.** Both dashboard charts now open a day report. Endpoint activity had one already — it gains a fixed size (no growing mid-load), a clear loading state, and day-to-day arrows. Traffic from AI gets a brand-new one: click a day and see which assistant sent visitors to which page, with the same styled tooltips and navigation. Dialogs close on Esc or the Close button only, so a stray click can't silently drop the report you were reading.
-* New — **The admin dresses to match your colour scheme.** If your WordPress admin runs Coffee, Ectoplasm, Midnight or any other colour scheme, Agentimus's score card, buttons and chips now wear that scheme's colour — hand-tuned per scheme so the text always stays readable. The default scheme keeps the design you know; a filter (`agentimus_match_admin_scheme`) turns matching off.
-* Fixed — **Your own verification clicks no longer count as agent traffic.** "Verify live" and the exposed-files scan fetch your public endpoints anonymously on purpose — they grade what an agent receives — so each run used to log a handful of "Browser" hits against your own site. Those fetches now carry a short-lived, server-minted token that keeps them out of the visit log; a crawler can't mint or reuse one to hide itself.
-* Improved — **Unknown crawlers are named more honestly.** A client that declares its own name ("ethicrawl/0.1 …") now appears in the activity feed under that name instead of a vague "Other bot", and a home-page URL declared in its User-Agent is recognised whether or not it uses the "+https://" convention — so the review queue can show you where a new crawler leads instead of claiming it declares nothing.
-* Improved — **A heads-up when blocking is on but verification is off.** Blocking matches names, and real search engines are always let through — so a blocked bot could dodge every rule by calling itself "Googlebot". The blocking section now says so, and points at the reverse-DNS verification toggle that closes the loophole.
-* Fixed — **Esc now closes every dialog, every time.** Clicking outside a dialog used to leave Escape unresponsive in six of them (Agent preview among others); all dialogs now listen for Esc for as long as they're open.
-* Fixed — the admin footer's version line now aligns exactly with the content edges, and the plugin's uninstall cleans up the new decision-dates option along with everything else.
-
-= 1.20.1 =
-* Fixed — **Three read-only abilities can now be run by an outside AI agent, not just listed.** Agentimus's readiness score, AI Visibility results and exposed-files check take no arguments — and a no-argument call through WordPress's abilities REST endpoint was rejected before it ran, so an assistant could *see* these abilities but never actually *use* them. They now run as intended. Your own admin screens were never affected; this only touched external agents calling in.
-
-= 1.20.0 =
-* New — **Agent access.** A new screen (More → Agent access) records who authenticates to, and *acts* on, the machine surface Agentimus creates — the other half of the activity log, which shows who *reads* it. It notes when an application password (the key a program uses to reach WordPress as you) is created, first used, renamed or revoked; when one of WordPress's abilities is run; and when a request is refused, or probes for abilities that don't exist. It's a record, not a guard — it never blocks anything — and it keeps Agentimus's no-personal-data promise: no IP addresses, so it names the key that was used, not the person, and it sees machine logins only (a normal password sign-in never appears). A brand-new application password is the one worth a second look — it keeps working even after you change your password. On by default; nothing to configure.
-* Security — **The discovery documents now tell agents the truth about your abilities.** The nine read-only abilities Agentimus registers require a signed-in administrator, yet the public discovery file described them as needing no authentication and published their full descriptions and input/output schemas to anyone who asked. Sign-in-only abilities are no longer advertised to anonymous callers (an agent holding real credentials still discovers them the proper way), every document now reports the correct authentication, and turning a resource off now removes it from *every* served file, including mcp.json.
-* Security — **A firmer cap on what a spoofed crawler can log.** A flood pretending to be a known crawler — a forgeable name — could write far more to the activity log than intended, and on sites without a persistent object cache, a database write on every request. Recognised crawlers now share one generous budget instead of a budget per name, so faking names no longer multiplies it, and the write pressure is bounded.
-* Security — **"Draft with AI" and "Fix with AI" are now rate-limited per user.** These buttons make a paid AI call, so a per-minute cap stops a runaway script (or a compromised account) from running up your AI bill. A person clicking the buttons never notices it.
-* Fixed — **Machine-readable output stays clean.** A line break in a page title could forge a stray entry in llms.txt; titles and other values are now kept to a single line. The full-text file (llms-full.txt) had a size budget sitting exactly on the common object-cache limit, so on some hosts it silently never cached and was rebuilt on every request — the budget now leaves headroom.
-* Improved — **Multisite reliability.** On a network install, activating no longer risks writing one site's page-address rules into another (which could 404 a sub-site's posts); deleting a sub-site now removes Agentimus's tables with it; and uninstalling cleans up every site, not just the first thousand.
-* Fixed — a malformed `?author[]=` request no longer triggers a PHP notice, and several small internal flags are now loaded more efficiently on every request.
-
-= Earlier versions =
-The full changelog for every release lives in the plugin repository: https://github.com/heera/agentimus/blob/main/CHANGELOG.md
-
 == Upgrade Notice ==
+
+= 1.26.0 =
+Fairer AI-readability grading — no more penalty for your topic’s vocabulary or your code samples — and AI agents now draft to your readability rules, graded on every write.
 
 = 1.25.0 =
 Write with AI without leaving wp-admin: a built-in assistant drafts new posts (outline first, preview always, never publishes), revises existing ones without touching their status, and generates images right in the editor. Plus plain-language AI errors and a self-updating Cited rung. No breaking changes.
@@ -376,19 +352,4 @@ New opt-in write tier: connected AI tools can draft, edit and fully dress posts 
 
 = 1.22.0 =
 One switch now runs an MCP server on your own site — AI tools like Claude Code can use Agentimus's read-only tools, authenticated, permission-checked and fully audited. Off by default. Also: Agent access rows now name the user and key behind every event, and the dashboard's 7/30-day counters count whole calendar days, so they no longer appear to lose hits.
-
-= 1.21.2 =
-Important if your site is behind a CDN: answering a page's own URL with its Markdown edition is now off by default, because a common Cloudflare setup could cache that Markdown and serve it to your readers. Every page keeps its Markdown twin at /its-slug.md, and agents are still pointed to it. Recommended for everyone.
-
-= 1.21.1 =
-Fixes a bug where a CDN could serve a page's Markdown copy to human visitors (most likely on a freshly published post), and stops Markdown being sent to clients that prefer HTML. Recommended for every site behind a CDN.
-
-= 1.21.0 =
-New: manage every client decision (blocked, allowed, ignored) in one dialog with dates and one-click undo; click any day on both dashboard charts for that day's report; the admin matches your colour scheme. Fixes: your own "Verify live" clicks no longer count as agent traffic, and Esc reliably closes every dialog. No breaking changes.
-
-= 1.20.1 =
-Fixes three read-only abilities (readiness, AI Visibility, exposed-files check) that an external AI agent could list but not run. No breaking changes.
-
-= 1.20.0 =
-New: Agent access — a log of who authenticates to and acts on your site's machine surface (application passwords, abilities, refused probes). Plus security hardening in the discovery documents, the activity log, and the AI-draft buttons. No breaking changes.
 

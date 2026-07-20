@@ -108,7 +108,7 @@ Agentimus samples your recent **articles** and checks each for what makes conten
 - **Quotable passages** — an over-long paragraph an engine can't cleanly lift; break it up.
 - **Freshness** — a substantial page untouched for a couple of years reads as stale.
 
-Issues are grouped, and each lists the exact pages affected as links straight to their editors — so fixing them is one click away. The same checks appear per-page in the editor's **AI Readability** panel while you write.
+Issues are grouped, and each lists the exact posts and pages affected as links straight to their editors — so fixing them is one click away. The same checks appear per-page in the editor's **AI Readability** panel while you write.
 
 **Articles only.** Optimize grades the content that's *meant* to be cited — posts, pages and doc-like content. It deliberately leaves out **commerce products** (a product page is short by design), **commerce plugins' own pages** — the cart, checkout and account pages a shop plugin designates and renders — and **structural pages** with no real text of their own: your Posts page, a theme-rendered front page, a form or page-builder page, or any page that is just a shortcode or plugin block with next to no authored prose. None of those are articles, so they're never wrongly flagged as "thin".
 
@@ -152,3 +152,5 @@ A companion **Agent preview** button lets you see the exact JSON-LD and Markdown
 ## Per-page AI Readability (in the editor)
 
 The Readiness report grades the whole *site*. Its per-page companion lives in the post editor: an **AI Readability** panel (in the "Agentimus" box, alongside the JSON-LD preview) that grades the page you're writing. It flags what makes a single page hard for an agent to read and cite — thin content, missing headings, no opening summary, a nav-heavy page, or images without alt text — each as a plain pass or "to improve". It's editor-only (nothing shows to visitors) and can be turned off under Settings → **Discovery** → *AI readability tips*.
+
+The reading-ease grade is deliberately fair to real writing. Sentences end at block boundaries, so a bullet list is never scored as one enormous sentence. A page's own recurring subject terms are read as *familiar* words — "security" on a security article isn't charged five syllables every use — while a page dense with many *different* heavy words still grades hard. And code samples are never graded as prose: code still counts toward substance, but identifiers aren't scored as words, and a page that is mostly code skips the grade honestly rather than mis-scoring its few prose lines. The verdicts explain themselves, too: a pass names the terms it treated as familiar, and a warn ends by naming the page's heaviest words — so you know exactly what to simplify.

@@ -10,6 +10,8 @@ The **writing assistant** turns a described idea into a complete, fully dressed 
 
 It drafts and revises; **it never publishes**. Nothing is saved to WordPress until you click **Create draft**, and going live remains a button only you press.
 
+It also drafts to your site's own quality bar: the writing prompts embed the same AI-readability rules the editor panel grades against — quotable paragraph lengths, plain wording, concrete specifics, real inline sources — so a fresh draft aims to pass the checks it will be measured by.
+
 {: .note }
 > This is the third of Agentimus's three AI writing surfaces, and the most complete: the in-editor helpers ([Write with AI]({% link user-manual/write-with-ai.md %})) draft *fields* while you write; external agents over the [MCP server]({% link user-manual/mcp-server.md %}) operate your site from *outside*; the writing assistant writes *whole posts* from inside wp-admin.
 

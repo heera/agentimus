@@ -255,7 +255,7 @@ These power the one-click "add a known …" chips in the admin. They are suggest
 | `agentimus_security_txt` | filter | `( string $body ): string` | Edit the final `security.txt` body. |
 | `agentimus_security_txt_expires_days` | filter | `( int $days ): int` | The `security.txt` `Expires` window, in days. |
 | `agentimus_readiness_checks` | filter | `( array $checks, Settings $settings ): array` | Add or adjust the admin Discovery Hub readiness checks. |
-| `agentimus_page_checks` | filter | `( array $checks, array $stats, WP_Post $post ): array` | Add, retune or drop the per-page "AI Readability" checks shown in the editor — the per-post sibling of `agentimus_readiness_checks`. `$stats` carries the parsed page (words, headings, links, images, …). |
+| `agentimus_page_checks` | filter | `( array $checks, array $stats, WP_Post $post ): array` | Add, retune or drop the per-page "AI Readability" checks shown in the editor — the per-post sibling of `agentimus_readiness_checks`. `$stats` carries the parsed page (words and code-free `prose_words`, headings, links, images, sentence/syllable counts plus the familiarity-adjusted `familiar_syllables`, and the page's `familiar_terms` / `heavy_words`). |
 | `agentimus_signed_surfaces` | filter | `( string[] $surfaces ): string[]` | Which discovery documents a companion signer signs (also listed under Discovery & output). |
 | `agentimus_signing_secret_key` | filter | `( string $key ): string` | Supply the Ed25519 signing secret key from a constant or vault instead of the database (default `''`). |
 

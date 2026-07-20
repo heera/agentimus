@@ -43,6 +43,7 @@ The rules that travel with every write:
 - **Edits to already-published posts go live on save** — same as you editing in wp-admin, and deliberately so: "fix the weak opening on my published article" is the whole point. The agent needs edit permission on that exact post, and body changes keep a revision to roll back to.
 - **The agent is never more powerful than its user.** Filing under existing categories, inventing new ones, and importing images each follow the signed-in user's own WordPress permissions — an author-level key can't do what an author can't.
 - **Everything is on the record.** Every write lands under **More → Agent Access**, attributed to the user and the named key that made it.
+- **Writes draft to the site's own quality bar.** The create/update tools show the agent the same readability rules the in-admin assistant writes to — paragraph length, plain wording, real inline sources — and every write's response includes the post's AI-readability grade (the pass/warn tally plus the rows needing attention), so the agent can fix its draft without a second call.
 
 A practical tip that follows from all this: mint the agent's key on a user whose role matches the trust you're extending — an editor-level user for content work, your admin user only if you also want it applying Readiness fixes (those change plugin settings, so they require an administrator).
 
