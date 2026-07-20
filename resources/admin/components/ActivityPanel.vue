@@ -1,5 +1,6 @@
 <script>
 import { confirm } from '../confirm.js';
+import { tileIcon } from '../groupIcons.js';
 import SelectMenu from './SelectMenu.vue';
 
 import { uaTip } from '../uaTip.js';
@@ -267,6 +268,7 @@ export default {
     },
   },
   methods: {
+    tileIcon,
     barHeight(hits) {
       const h = Math.round((hits / this.maxDaily) * 100);
       return `${hits > 0 ? Math.max(8, h) : 2}%`;
@@ -612,21 +614,46 @@ export default {
          numbers. These three describe the agent SURFACE instead. -->
     <div v-if="summary" class="ar-dash-sum">
       <button type="button" class="ar-dash-tile" @click="$emit('navigate', { tab: 'discovery', anchor: 'ar-wd-providers' })">
-        <span class="ar-dash-tile__k">Providers</span>
-        <strong class="ar-dash-tile__v">{{ summary.providers }}</strong>
-        <span v-if="dashProvidersHeld > 0" class="ar-dash-tile__sub">{{ summary.providersPublic }} public · {{ dashProvidersHeld }} sign-in only</span>
-        <span v-else class="ar-dash-tile__sub">sources describing your site</span>
+        <span class="ar-dash-tile__ic" aria-hidden="true" v-html="tileIcon('providers')"></span>
+        <span class="ar-dash-tile__body">
+          <span class="ar-dash-tile__row">
+            <strong class="ar-dash-tile__v">{{ summary.providers }}</strong>
+            <span class="ar-dash-tile__k">Providers</span>
+          </span>
+          <span v-if="dashProvidersHeld > 0" class="ar-dash-tile__sub">{{ summary.providersPublic }} public · {{ dashProvidersHeld }} sign-in only</span>
+          <span v-else class="ar-dash-tile__sub">sources describing your site</span>
+        </span>
       </button>
       <button type="button" class="ar-dash-tile" @click="$emit('navigate', { tab: 'discovery', anchor: 'ar-wd-capabilities' })">
-        <span class="ar-dash-tile__k">Capabilities</span>
-        <strong class="ar-dash-tile__v">{{ summary.capabilities }}</strong>
-        <span class="ar-dash-tile__sub">what agents can do or read</span>
+        <span class="ar-dash-tile__ic" aria-hidden="true" v-html="tileIcon('capabilities')"></span>
+        <span class="ar-dash-tile__body">
+          <span class="ar-dash-tile__row">
+            <strong class="ar-dash-tile__v">{{ summary.capabilities }}</strong>
+            <span class="ar-dash-tile__k">Capabilities</span>
+          </span>
+          <span class="ar-dash-tile__sub">what agents can do or read</span>
+        </span>
+      </button>
+      <button type="button" class="ar-dash-tile" @click="$emit('navigate', { tab: 'discovery', anchor: 'ar-wd-apis' })">
+        <span class="ar-dash-tile__ic" aria-hidden="true" v-html="tileIcon('apis')"></span>
+        <span class="ar-dash-tile__body">
+          <span class="ar-dash-tile__row">
+            <strong class="ar-dash-tile__v">{{ summary.apis }}</strong>
+            <span class="ar-dash-tile__k">APIs</span>
+          </span>
+          <span class="ar-dash-tile__sub">interfaces agents can call</span>
+        </span>
       </button>
       <button type="button" class="ar-dash-tile" @click="$emit('navigate', { tab: 'discovery', anchor: 'ar-wd-tools' })">
-        <span class="ar-dash-tile__k">Tools</span>
-        <strong class="ar-dash-tile__v">{{ summary.tools }}</strong>
-        <span v-if="dashToolsHeld > 0" class="ar-dash-tile__sub">{{ summary.toolsPublic }} public · {{ dashToolsHeld }} sign-in only</span>
-        <span v-else class="ar-dash-tile__sub">actions agents can run</span>
+        <span class="ar-dash-tile__ic" aria-hidden="true" v-html="tileIcon('tools')"></span>
+        <span class="ar-dash-tile__body">
+          <span class="ar-dash-tile__row">
+            <strong class="ar-dash-tile__v">{{ summary.tools }}</strong>
+            <span class="ar-dash-tile__k">Tools</span>
+          </span>
+          <span v-if="dashToolsHeld > 0" class="ar-dash-tile__sub">{{ summary.toolsPublic }} public · {{ dashToolsHeld }} sign-in only</span>
+          <span v-else class="ar-dash-tile__sub">actions agents can run</span>
+        </span>
       </button>
     </div>
 
@@ -668,7 +695,11 @@ export default {
     <template v-else>
       <!-- Overview: totals + chart -->
       <section class="ar-card">
-        <div class="ar-card__head">
+        <!-- Ruled head: the lead keeps its tight old spot under the title, the
+             buttons sit centered at the right, and the masthead rule lives on
+             the HEAD's own bottom edge — full card width, always below the
+             buttons, never stopping short at the text column. -->
+        <div class="ar-card__head ar-card__head--ruled">
           <div>
             <div class="ar-act-titlerow">
               <h2 class="ar-card__title">Endpoint activity</h2>
@@ -695,8 +726,10 @@ export default {
             </p>
           </div>
           <div class="ar-act-controls">
-            <button type="button" class="ar-btn ar-btn--ghost" :disabled="refreshing" @click="$emit('refresh')">
-              {{ refreshing ? 'Refreshing…' : 'Refresh' }}
+            <!-- data-reserve holds the busy label's width from the start, so the
+                 Refresh → Refreshing… swap never rewraps the lead beside it. -->
+            <button type="button" class="ar-btn ar-btn--ghost ar-btn--reserve" data-reserve="Refreshing…" :disabled="refreshing" @click="$emit('refresh')">
+              <span>{{ refreshing ? 'Refreshing…' : 'Refresh' }}</span>
             </button>
             <button type="button" class="ar-btn ar-btn--danger" @click="confirmClear">Clear log</button>
           </div>
@@ -710,6 +743,10 @@ export default {
         </div>
 
         <div class="ar-act-sparkwrap" ref="sparkWrap">
+          <!-- On phones the chart keeps its bars touch-wide and scrolls sideways
+               (opening at the newest days) instead of squeezing 30 targets into
+               one screen; wider screens fit as before. -->
+          <div class="ar-act-sparkscroll">
           <div class="ar-act-spark" role="group" aria-label="Hits per day — select a day to open its report" @mouseleave="hideTip">
             <button
               v-for="(d, i) in daily"
@@ -725,6 +762,7 @@ export default {
             >
               <span class="ar-act-bar__fill" :class="{ 'is-zero': d.hits === 0 }" :style="{ height: barHeight(d.hits) }"></span>
             </button>
+          </div>
           </div>
           <transition name="ar-tip">
             <div
@@ -745,34 +783,42 @@ export default {
         <p class="ar-act-sparkcap">Hits per day · last {{ daily.length }} days · click a bar for that day's report</p>
       </section>
 
-      <!-- Overall breakdown (whole window — static) -->
-      <div class="ar-wd-cols">
-        <section class="ar-card">
-          <h2 class="ar-card__title">Top clients <span class="ar-card__tag">Last {{ data.window || 30 }} days</span></h2>
-          <ul v-if="byAgent.length" class="ar-act-rank ar-act-rank--trend">
-            <li v-for="a in byAgent" :key="a.label">
-              <span class="ar-act-rank__label">{{ a.label }}</span>
-              <span class="ar-act-delta" :class="'is-' + a.delta.dir">{{ a.delta.label }}</span>
-              <span class="ar-act-rank__track"><span class="ar-act-rank__bar" :style="{ width: pct(a.hits, maxAgent) }"></span></span>
-              <span class="ar-act-rank__n">{{ a.hits }}</span>
-            </li>
-          </ul>
-          <p v-else class="ar-wd-empty">No hits yet.</p>
-        </section>
+      <!-- Overall breakdown (whole window — static). Two free-standing cards,
+           direct children of the .ar-act grid so its gap separates them;
+           endpoints first (what was fetched says more than who fetched it). -->
+      <section class="ar-card">
+        <h2 class="ar-card__title">By endpoint <span class="ar-card__tag">Last {{ data.window || 30 }} days</span></h2>
+        <p class="ar-card__lead">
+          What gets read — hits for each of your agent-facing endpoints, busiest first. The arrow
+          compares the last {{ data.window || 30 }} days with the {{ data.window || 30 }} days before.
+        </p>
+        <ul v-if="byEndpoint.length" class="ar-act-rank ar-act-rank--trend">
+          <li v-for="e in byEndpoint" :key="e.label">
+            <span class="ar-act-rank__label"><code>{{ e.label }}</code></span>
+            <span class="ar-act-delta" :class="'is-' + e.delta.dir">{{ e.delta.label }}</span>
+            <span class="ar-act-rank__track"><span class="ar-act-rank__bar" :style="{ width: pct(e.hits, maxEndpoint) }"></span></span>
+            <span class="ar-act-rank__n">{{ e.hits }}</span>
+          </li>
+        </ul>
+        <p v-else class="ar-wd-empty">No hits yet.</p>
+      </section>
 
-        <section class="ar-card">
-          <h2 class="ar-card__title">By endpoint <span class="ar-card__tag">Last {{ data.window || 30 }} days</span></h2>
-          <ul v-if="byEndpoint.length" class="ar-act-rank ar-act-rank--trend">
-            <li v-for="e in byEndpoint" :key="e.label">
-              <span class="ar-act-rank__label"><code>{{ e.label }}</code></span>
-              <span class="ar-act-delta" :class="'is-' + e.delta.dir">{{ e.delta.label }}</span>
-              <span class="ar-act-rank__track"><span class="ar-act-rank__bar" :style="{ width: pct(e.hits, maxEndpoint) }"></span></span>
-              <span class="ar-act-rank__n">{{ e.hits }}</span>
-            </li>
-          </ul>
-          <p v-else class="ar-wd-empty">No hits yet.</p>
-        </section>
-      </div>
+      <section class="ar-card">
+        <h2 class="ar-card__title">Top clients <span class="ar-card__tag">Last {{ data.window || 30 }} days</span></h2>
+        <p class="ar-card__lead">
+          Who does the reading — the clients behind those hits: AI agents, crawlers and browsers,
+          busiest first. Names are what each client declares about itself.
+        </p>
+        <ul v-if="byAgent.length" class="ar-act-rank ar-act-rank--trend">
+          <li v-for="a in byAgent" :key="a.label">
+            <span class="ar-act-rank__label">{{ a.label }}</span>
+            <span class="ar-act-delta" :class="'is-' + a.delta.dir">{{ a.delta.label }}</span>
+            <span class="ar-act-rank__track"><span class="ar-act-rank__bar" :style="{ width: pct(a.hits, maxAgent) }"></span></span>
+            <span class="ar-act-rank__n">{{ a.hits }}</span>
+          </li>
+        </ul>
+        <p v-else class="ar-wd-empty">No hits yet.</p>
+      </section>
 
       <!-- Traffic from AI — one report card: magnitude (KPIs), composition
            (top sources + pages), and the timeline drill-down (which source →
@@ -798,6 +844,9 @@ export default {
                live here: anything whose height grows with the window belongs on the AI
                traffic screen, not on a summary card. -->
           <div ref="refSparkWrap" class="ar-act-sparkwrap ar-act-sparkwrap--ref">
+            <!-- Same phone treatment as the endpoint chart: touch-wide bars in a
+                 sideways scroller anchored at the newest days. -->
+            <div class="ar-act-sparkscroll">
             <div class="ar-refspark" role="group" :aria-label="refSparkAria" @mouseleave="hideRefTip">
               <button
                 v-for="(d, i) in refSpark"
@@ -812,6 +861,7 @@ export default {
                 @focus="showRefTip(d, $event)"
                 @blur="hideRefTip"
               ></button>
+            </div>
             </div>
             <transition name="ar-tip">
               <div

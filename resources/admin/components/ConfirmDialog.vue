@@ -9,13 +9,28 @@ import { bindDocEsc } from '../docEsc.js';
 export default {
   name: 'ConfirmDialog',
   data() {
-    return { state: confirmState };
+    return { state: confirmState, boxStyle: null };
   },
   watch: {
     'state.open'(open) {
       if (this._unEsc) this._unEsc();
       this._unEsc = open ? bindDocEsc(() => this.cancel()) : null;
       if (!open) return;
+      // `within` pins the overlay to that element's box (e.g. the assistant
+      // drawer), so the dialog centers inside IT, not the whole viewport — and
+      // rises above it (the drawer's own z-index outranks the modal's default).
+      this.boxStyle = null;
+      if (this.state.within) {
+        const host = document.querySelector(this.state.within);
+        if (host) {
+          const r = host.getBoundingClientRect();
+          this.boxStyle = {
+            left: r.left + 'px', top: r.top + 'px',
+            width: r.width + 'px', height: r.height + 'px',
+            right: 'auto', bottom: 'auto', zIndex: 100070,
+          };
+        }
+      }
       // For a destructive prompt, land focus on Cancel so a reflexive Enter is safe;
       // otherwise land on Confirm so Enter accepts (preserving window.confirm muscle
       // memory). Esc always cancels.
@@ -39,7 +54,7 @@ export default {
 <template>
   <Teleport to="body">
     <transition name="ar-modal">
-      <div v-if="state.open" class="ar-modal" @click.self="cancel">
+      <div v-if="state.open" class="ar-modal" :style="boxStyle" @click.self="cancel">
         <div
           class="ar-modal__panel ar-modal__panel--confirm"
           role="alertdialog"

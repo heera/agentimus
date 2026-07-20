@@ -189,27 +189,10 @@
   -moz-text-align-last: justify;
 }
 
-/* Brand / nav separator — a small right-pointing arrow whose tip is a gold gem:
-   two angled bars meet at a framed gold node that points toward the menu. The gold
-   echoes the version line + logo crossbar, the ring echoes the logo's framed mark.
-   Sets the masthead apart from the menu; no motion, no layout shift. */
-.ar__sep {
-  flex: 0 0 auto;
-  align-self: center;
-  display: inline-flex;
-  /* The bar uses a uniform 26px gap; pull the arrow in toward the brand so it sits
-     closer to the logo/wordmark, leaving the arrow → menu spacing untouched. */
-  margin-left: -10px;
-}
-.ar__sep svg { display: block; }
-.ar__sep-chev {
-  stroke: var(--ar-line-strong);
-  stroke-width: 1.4;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-}
-.ar__sep-ring { stroke: rgba(173, 123, 24, 0.45); stroke-width: 1; }
-.ar__sep-node { fill: var(--ar-warn); filter: drop-shadow(0 0 2px rgba(173, 123, 24, 0.45)); }
+/* Brand / nav break — invisible on wide screens (the gold-gem arrow it used to
+   draw retired when the tabs gained their own icons); on narrow screens the
+   media block below turns it into a full-width flex line break. */
+.ar__sep { display: none; }
 
 /* Tabs — inline in the bar, active item underlined at the bar's base. The strip
    takes the space left of the brand and scrolls horizontally when it can't fit,
@@ -234,6 +217,10 @@
 }
 .ar__tab:hover { color: var(--ar-ink-soft); }
 .ar__tab.is-active { color: var(--ar-ink); border-bottom-color: var(--ar-accent); }
+/* Each tab's mark — inherits the label's ink so it dims, wakes and activates
+   with the text as one unit. */
+.ar__tab-ic { display: inline-flex; margin-right: 7px; }
+.ar__tab-ic svg { width: 13px; height: 13px; display: block; }
 
 /* ---- Nav "Activity to review" badge + dropdown ------------------------- */
 .ar__review { flex: 0 0 auto; align-self: center; position: relative; margin-left: auto; }
@@ -291,7 +278,7 @@
 .ar-drawer__scrim { position: absolute; inset: 0; background: rgba(27, 25, 19, 0.38); }
 .ar-drawer__panel {
   position: absolute; top: 0; right: 0; bottom: 0;
-  width: 540px; max-width: 100vw;
+  width: 600px; max-width: 100vw;
   display: flex; flex-direction: column;
   background: var(--ar-surface);
   border-left: 1px solid var(--ar-line-strong);
@@ -319,6 +306,12 @@
 .ar-drawer__titles { min-width: 0; flex: 1; }
 .ar-drawer__title { margin: 0; font-family: var(--ar-serif); font-size: 17px; font-weight: 600; color: var(--ar-ink); line-height: 1.2; }
 .ar-drawer__sub { margin: 3px 0 0; font-size: 12px; color: var(--ar-ink-faint); }
+/* Sits beside the close: same 30px row, so the pair reads as one corner unit. */
+.ar-drawer__back {
+  flex: 0 0 auto; align-self: flex-start; height: 30px;
+  display: inline-flex; align-items: center;
+  margin-right: 10px; white-space: nowrap;
+}
 .ar-drawer__close {
   flex: 0 0 auto; width: 30px; height: 30px; border-radius: 8px; display: grid; place-items: center;
   background: transparent; border: 1px solid var(--ar-line); color: var(--ar-ink-soft); cursor: pointer;
@@ -332,6 +325,9 @@
 .ar-drawer__body--footed { padding-bottom: 0; display: flex; flex-direction: column; }
 .ar-drawer__body--footed > * { flex: 0 0 auto; }
 .ar-drawer__body--footed .ar-assist__foot { margin-top: auto; padding-top: 13px; }
+/* Whatever ends the scrolled content gets daylight before the pinned foot —
+   flush against the foot's rule + shadow it read as clipped even fully scrolled. */
+.ar-drawer__body--footed > :nth-last-child(2) { margin-bottom: 14px; }
 /* A quiet, thin scrollbar with a permanently reserved gutter: on systems with
    classic (space-taking) scrollbars, content appearing/disappearing can't
    nudge the layout sideways when the bar pops in. overscroll-behavior keeps a
@@ -377,7 +373,6 @@
   background: color-mix(in srgb, var(--ar-accent) 5%, var(--ar-surface));
 }
 .ar-assist__heldtext { font-size: 12px; color: var(--ar-ink-soft); }
-.ar-assist__replacenote { margin-top: 8px; text-align: right; }
 
 /* The outline gate: the skeleton the owner shapes before the expensive draft. */
 .ar-assist__otitle { display: block; width: 100%; margin-bottom: 14px; font-family: var(--ar-serif); font-size: 14.5px; font-weight: 600; }
@@ -436,6 +431,13 @@
   margin-top: 16px; padding-top: 12px; border-top: 1px dashed var(--ar-line);
   font-size: 11.5px; color: var(--ar-ink-faint); text-align: right;
 }
+/* Beside the brief's title the second door needs no divider of its own. */
+.ar-assist__labelrow {
+  display: flex; align-items: baseline; justify-content: space-between;
+  gap: 6px 12px; flex-wrap: wrap; margin-bottom: 7px;
+}
+.ar-assist__labelrow .ar-assist__label { margin-bottom: 0; }
+.ar-assist__editentry--top { margin: 0; padding: 0; border-top: 0; }
 .ar-assist__postlist { display: grid; gap: 8px; margin-top: 12px; }
 .ar-assist__postitem {
   appearance: none; text-align: left; cursor: pointer;
@@ -492,6 +494,20 @@
 
 /* Refine: revise-in-place bar under the preview. */
 .ar-assist__refine { display: flex; gap: 8px; margin-top: 12px; }
+/* Inside the pinned foot the bar owns the top slot; the rows follow below. */
+.ar-assist__foot .ar-assist__refine { margin: 0 0 11px; }
+.ar-assist__foot .ar-assist__undoline { margin: -4px 0 10px; }
+/* The foot's two right-edge buttons (Revise above, Update/Create below) share
+   one width, so the stack reads as a single aligned column — and both wear a
+   trimmer cut here than the full-size ar-btn: the foot is a toolbar, not a
+   hero, and the input deserves the room. */
+.ar-assist__foot .ar-assist__refinebtn,
+.ar-assist__foot .ar-assist__go {
+  min-width: 132px; height: 40px; padding: 0 16px; font-size: 11px;
+  display: inline-flex; align-items: center; justify-content: center; gap: 7px;
+}
+/* The input matches the buttons' height exactly — one 40px line, no seams. */
+.ar-assist__foot .ar-assist__refine .ar-assist__refineinput { height: 40px; }
 /* Qualified selectors on purpose: wp-admin's forms.css styles bare
    `input[type=text]` (background, border, blue focus ring) at higher
    specificity than a lone class — without these, an <input> field and a
@@ -852,7 +868,11 @@
   font-family: var(--ar-mono); font-size: 12.5px; color: var(--ar-ink); text-decoration: none;
 }
 .ar-rail-links a::before { content: "↳"; color: var(--ar-accent); }
+/* Every link here opens in a new tab — the ↗ answers the ↳ and says so up
+   front. \FE0E pins the text glyph so no platform swaps in an emoji. */
+.ar-rail-links a::after { content: "\2197\FE0E"; font-size: 10.5px; color: var(--ar-ink-faint); transition: color 0.15s; }
 .ar-rail-links a:hover { color: var(--ar-accent); }
+.ar-rail-links a:hover::after { color: var(--ar-accent); }
 
 /* Validation chip — compact at-a-glance status. The all-clear state lives here
    so it stops eating a half-empty card in the Discovery column; real issues get
@@ -926,11 +946,14 @@
     padding: 11px 16px;
     min-height: 0;
   }
-  /* Repurpose the brand→nav arrow as an invisible full-width line break: it bumps
-     the tabs + bell onto the row below while leaving the brand its own top row —
-     without turning the brand button itself into a full-width tap target. */
+  /* The brand→nav break becomes a full-width line break: it bumps the tabs +
+     bell onto the row below while leaving the brand its own top row — without
+     turning the brand button itself into a full-width tap target. */
   .ar__sep { display: block; flex-basis: 100%; height: 0; margin: 0; }
-  .ar__sep svg { display: none; }
+  /* The quill→bell pull-in assumes the desktop bar's 26px gap (26−16 = 10px
+     between the pills); this row's gap is 16px, where −16 left them TOUCHING.
+     Ease it so the pair keeps the same 10px daylight here. */
+  .ar__assist + .ar__review { margin-left: -6px; }
   /* Condense the masthead: drop the version line, shrink the mark + wordmark. */
   .ar__ver { display: none; }
   .ar__mark { width: 26px; height: 26px; }
@@ -977,6 +1000,8 @@
   .ar__bar { padding: 11px 12px; }
   .ar__tabs { gap: 8px; }
   .ar__tab { letter-spacing: 0.04em; }
+  /* The icons would cost ~80px the all-five-tabs-on-one-row fit can't spare. */
+  .ar__tab-ic { display: none; }
 }
 
 /* Mainstream small phones (~360–412): the readable size above would push ABOUT
@@ -997,6 +1022,12 @@
   padding: 24px 26px;
 }
 .ar-card--muted { background: var(--ar-surface-2); }
+
+/* The Advanced tab's closing zone (developer & maintenance): its cards wear the
+   normal surface — this labeled hairline on the canvas marks the boundary. */
+.ar-zonebreak { display: flex; align-items: center; gap: 12px; margin: 0; }
+.ar-zonebreak span { font-family: var(--ar-mono); font-size: 9.5px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--ar-ink-soft); white-space: nowrap; }
+.ar-zonebreak::after { content: ""; flex: 1; border-top: 1px solid var(--ar-line); }
 
 /* Once-per-release "What's new" card (plugin Dashboard only). A calm accent-tinted
    card, not an alert: the left accent bar + spark mark say "new", the grid keeps the
@@ -1066,6 +1097,11 @@
   font-family: var(--ar-serif); font-size: 15px; line-height: 1.6;
   color: var(--ar-ink-soft);
 }
+/* Ruled head: when buttons share the header, the masthead rule moves from the
+   lead to the head's OWN bottom edge — full card width, always below the
+   buttons — and the lead keeps its tight old gap under the title. */
+.ar-card__head--ruled { border-bottom: 1px solid var(--ar-line-strong); padding-bottom: 14px; margin-bottom: 20px; }
+.ar-card__head--ruled .ar-card__lead { border-bottom: 0; padding-bottom: 0; margin: 0; }
 /* (A full-width tinted band behind the header zone was tried and reverted: the tab strip
    already uses the secondary surface, so the panel opened as three stacked tinted strips,
    and the band's edge swallowed the masthead rule's contrast. Flat surface + rule wins.) */
@@ -1783,6 +1819,9 @@ select.ar-input {
 .ar-links li::before { content: "↳"; position: absolute; left: 0; color: var(--ar-accent); }
 .ar-links a { font-family: var(--ar-mono); font-size: 12.5px; color: var(--ar-ink); text-decoration: none; border-bottom: 1px solid var(--ar-line-strong); }
 .ar-links a:hover { color: var(--ar-accent); border-bottom-color: var(--ar-accent); }
+/* Same new-tab cue as the rail's endpoint links — one list, one language. */
+.ar-links a::after { content: "\2197\FE0E"; margin-left: 5px; font-size: 10px; color: var(--ar-ink-faint); }
+.ar-links a:hover::after { color: var(--ar-accent); }
 
 /* ---- Actions ------------------------------------------------------------ */
 .ar-actions { display: flex; justify-content: flex-end; }
@@ -1795,6 +1834,13 @@ select.ar-input {
 }
 .ar-btn:hover:not(:disabled) { background: #000; box-shadow: 0 6px 18px -8px rgba(27, 25, 19, 0.7); }
 .ar-btn:active:not(:disabled) { transform: translateY(1px); }
+/* A label that swaps to a longer busy form ("Refresh" → "Refreshing…") reserves
+   the longer form's width up front via an invisible twin (data-reserve), so the
+   swap can never shift the layout around it. The twin inherits the button's own
+   type, so the reserved width is always exactly right. */
+.ar-btn--reserve { display: inline-grid; justify-items: center; align-items: center; }
+.ar-btn--reserve > span { grid-area: 1 / 1; }
+.ar-btn--reserve::after { content: attr(data-reserve); grid-area: 1 / 1; visibility: hidden; }
 .ar-btn:disabled { opacity: 0.5; cursor: default; }
 /* .ar-btn worn by an ANCHOR (the drawer's "Open in editor"): wp-admin styles bare
    links globally, and its a:hover / a:visited / a:focus pseudo-classes outrank a
@@ -2428,13 +2474,25 @@ button.ar-wd-stat:focus-visible { outline: 2px solid var(--ar-accent); outline-o
 /* Clickable at-a-glance summary row. Fixed 4-up (not auto-fit) so the four
    tiles always span the full width as one row; auto-fit would orphan the 4th
    tile on its own line at in-between widths. Collapses to a tidy 2×2 below. */
-.ar-dash-sum { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+.ar-dash-sum { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
 .ar-dash-tile {
   appearance: none; cursor: pointer; text-align: left;
-  display: flex; flex-direction: column; gap: 4px;
-  padding: 15px 18px; border: 1px solid var(--ar-line); border-radius: var(--ar-radius);
+  display: flex; align-items: center; gap: 12px;
+  padding: 14px 16px; border: 1px solid var(--ar-line); border-radius: var(--ar-radius);
   background: var(--ar-surface); transition: border-color 0.15s, box-shadow 0.15s, transform 0.12s;
 }
+/* The tile's mark: an accent-tinted chip, quiet enough not to shout four times
+   in a row; the number stays the loudest thing on the tile. */
+.ar-dash-tile__ic {
+  flex: 0 0 auto; width: 38px; height: 38px; border-radius: 10px;
+  display: grid; place-items: center; color: var(--ar-accent);
+  background: color-mix(in srgb, var(--ar-accent) 8%, var(--ar-surface));
+  border: 1px solid color-mix(in srgb, var(--ar-accent) 22%, var(--ar-line));
+}
+.ar-dash-tile__ic svg { width: 19px; height: 19px; }
+.ar-dash-tile__body { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+/* "6 PROVIDERS" — the number leads and the label rides its baseline. */
+.ar-dash-tile__row { display: inline-flex; align-items: baseline; gap: 7px; }
 .ar-dash-tile:hover { border-color: var(--ar-line-strong); box-shadow: 0 5px 16px -9px rgba(27, 25, 19, 0.4); }
 .ar-dash-tile:active { transform: translateY(1px); }
 .ar-dash-tile:focus-visible { outline: 2px solid var(--ar-accent); outline-offset: 2px; }
@@ -2487,6 +2545,22 @@ button.ar-wd-stat:focus-visible { outline: 2px solid var(--ar-accent); outline-o
 /* The selected day's bar is highlighted (darker, richer) so it stands out —
    the other bars keep their normal colour rather than washing out. */
 .ar-act-bar.is-active .ar-act-bar__fill { filter: brightness(0.7); }
+
+/* Phones: 30 columns squeeze below a usable tap size, so the charts keep their
+   bars touch-wide and scroll sideways instead. The scroller is rtl so it OPENS
+   at the newest days (and a data refresh never yanks the scroll position); the
+   inner chart restores ltr so time still runs left → right. Tablets and up fit
+   the full month as before and never scroll. */
+@media (max-width: 600px) {
+  .ar-act-sparkscroll { overflow-x: auto; direction: rtl; scrollbar-width: thin; padding-bottom: 4px; }
+  .ar-act-sparkscroll > * { direction: ltr; min-width: 100%; width: max-content; }
+  .ar-act-spark, .ar-refspark { gap: 4px; }
+  .ar-act-bar, .ar-refspark__bar { min-width: 16px; }
+  /* The AI chart's buttons ARE the bars, so a quiet day is a 2px-tall target —
+     an invisible full-column extension makes every day tappable to the top. */
+  .ar-refspark__bar { position: relative; }
+  .ar-refspark__bar:not(.is-zero)::after { content: ""; position: absolute; left: -2px; right: -2px; bottom: 0; height: 52px; }
+}
 
 /* Styled hover tooltip, floating above the bars with a downward caret. JS sets
    `left` (clamped centre) on the body and `left` on the caret (so it keeps

@@ -2262,10 +2262,60 @@ export default {
           <p v-if="!settings.verify_bots" class="ar-card__note ar-warn">
             ⚠ <strong>One costume beats this list.</strong> Blocking matches names, and real search engines are
             always let through — so a blocked bot can dodge every rule here just by calling itself
-            <code>Googlebot</code>. Turn on <strong>Verify bot identities</strong> (below) and a
+            <code>Googlebot</code>. Turn on <strong>Verify bot identities</strong> (in the next card) and a
             proven fake loses that free pass.
           </p>
         </div>
+
+        <!-- The trust list lives with the deny list — the two name-based rules the
+             owner writes, side by side. Not inside the inert body: trusting a client
+             also stops flagging, which works whether or not blocking is on. -->
+        <div class="ar-field ar-field--allow">
+          <div class="ar-field__head">
+            <label>Always allowed <span class="ar-field__tag">trusted</span></label>
+            <button v-if="api" type="button" class="ar-linkbtn ar-field__manage" @click="clientManagerOpen = true">Manage clients</button>
+          </div>
+          <TagInput v-model="settings.allowed_agents" placeholder="Add a user-agent to trust" />
+          <small v-if="(settings.allowed_agents || []).length" class="ar-field__hint">
+            Clients you marked <strong>Allow</strong> in the review list land here — never blocked and never
+            flagged again (the same treatment as Googlebot). Remove one to start flagging it again.
+          </small>
+          <small v-else class="ar-field__hint">
+            Add a user-agent here to always trust it — never blocked and never flagged, the same treatment
+            as Googlebot. Clients you mark <strong>Allow</strong> in the review list also land here.
+          </small>
+
+          <div v-if="allowSuggestions.length" class="ar-suggest">
+            <span class="ar-suggest__label">Add a trusted AI agent</span>
+            <button
+              v-for="a in allowSuggestions"
+              :key="a"
+              type="button"
+              class="ar-suggest__chip"
+              @click="addAllow(a)"
+            >+ {{ a }}</button>
+          </div>
+
+          <div v-if="defaultAllowed.length" class="ar-builtin">
+            <span class="ar-builtin__label">Built in · always allowed</span>
+            <span v-for="d in defaultAllowed" :key="d" class="ar-builtin__chip">{{ d }}</span>
+            <small class="ar-builtin__note">
+              Recognised by signature and trusted automatically — you don't need to add them.
+            </small>
+          </div>
+
+        </div>
+      </section>
+
+      <!-- Bot identity -------------------------------------------------- -->
+      <section id="ar-sec-verify" class="ar-card">
+        <h2 class="ar-card__title">Bot identity <span class="ar-field__tag">optional</span></h2>
+        <p class="ar-card__lead">
+          A User-Agent name is just a claim — anyone can call themselves Googlebot. The checks here look
+          past the name: verify the bots whose operators publish a way to check, see the network every
+          other bot really belongs to, and look up any single address. Fail-open by design — an unclear
+          answer never punishes anyone.
+        </p>
 
         <!-- Verification is not gated by blocking: on its own it flags impersonators in
              the review queue and powers the row's Details verdict, whether or not you deny anyone. -->
@@ -2406,42 +2456,6 @@ export default {
         <!-- Ad-hoc identity lookup: paste any IP, see which engine it really is. Self-contained
              (its own REST call); rendered only when the API handle is available. -->
         <IpChecker v-if="api" :api="api" />
-
-        <div class="ar-field ar-field--allow">
-          <div class="ar-field__head">
-            <label>Always allowed <span class="ar-field__tag">trusted</span></label>
-            <button v-if="api" type="button" class="ar-linkbtn ar-field__manage" @click="clientManagerOpen = true">Manage clients</button>
-          </div>
-          <TagInput v-model="settings.allowed_agents" placeholder="Add a user-agent to trust" />
-          <small v-if="(settings.allowed_agents || []).length" class="ar-field__hint">
-            Clients you marked <strong>Allow</strong> in the review list land here — never blocked and never
-            flagged again (the same treatment as Googlebot). Remove one to start flagging it again.
-          </small>
-          <small v-else class="ar-field__hint">
-            Add a user-agent here to always trust it — never blocked and never flagged, the same treatment
-            as Googlebot. Clients you mark <strong>Allow</strong> in the review list also land here.
-          </small>
-
-          <div v-if="allowSuggestions.length" class="ar-suggest">
-            <span class="ar-suggest__label">Add a trusted AI agent</span>
-            <button
-              v-for="a in allowSuggestions"
-              :key="a"
-              type="button"
-              class="ar-suggest__chip"
-              @click="addAllow(a)"
-            >+ {{ a }}</button>
-          </div>
-
-          <div v-if="defaultAllowed.length" class="ar-builtin">
-            <span class="ar-builtin__label">Built in · always allowed</span>
-            <span v-for="d in defaultAllowed" :key="d" class="ar-builtin__chip">{{ d }}</span>
-            <small class="ar-builtin__note">
-              Recognised by signature and trusted automatically — you don't need to add them.
-            </small>
-          </div>
-
-        </div>
       </section>
     </div>
 
@@ -2634,8 +2648,25 @@ export default {
         </div>
       </section>
 
+      <!-- Endpoints (hidden when the rail shows them; returns on narrow screens) —
+           kept ABOVE the zone break so the developer & maintenance zone stays a
+           coherent pair on phones. -->
+      <section class="ar-card ar-card--muted ar-card--endpoints">
+        <h2 class="ar-card__title">Live endpoints</h2>
+        <ul class="ar-links">
+          <li><a :href="endpoints.llms" target="_blank" rel="noopener">{{ endpoints.llms }}</a></li>
+          <li><a :href="endpoints.llmsFull" target="_blank" rel="noopener">{{ endpoints.llmsFull }}</a></li>
+          <li><a :href="endpoints.robots" target="_blank" rel="noopener">{{ endpoints.robots }}</a></li>
+        </ul>
+      </section>
+
+      <!-- The tab's closing zone — developer & maintenance. The cards wear the
+           normal surface like every other; the labeled hairline on the canvas is
+           what marks where the everyday settings end. -->
+      <div class="ar-zonebreak"><span>Developer &amp; maintenance</span></div>
+
       <!-- Advanced / Developer (collapsed; Authenticated API lives here) -->
-      <section class="ar-card ar-card--muted ar-adv">
+      <section class="ar-card ar-adv">
         <button
           type="button"
           class="ar-adv__toggle ar-reset"
@@ -2674,20 +2705,10 @@ export default {
         </div>
       </section>
 
-      <!-- Endpoints (hidden when the rail shows them; returns on narrow screens) -->
-      <section class="ar-card ar-card--muted ar-card--endpoints">
-        <h2 class="ar-card__title">Live endpoints</h2>
-        <ul class="ar-links">
-          <li><a :href="endpoints.llms" target="_blank" rel="noopener">{{ endpoints.llms }}</a></li>
-          <li><a :href="endpoints.llmsFull" target="_blank" rel="noopener">{{ endpoints.llmsFull }}</a></li>
-          <li><a :href="endpoints.robots" target="_blank" rel="noopener">{{ endpoints.robots }}</a></li>
-        </ul>
-      </section>
-
       <!-- Manage setup: a guided (non-destructive) review and a destructive
-           reset, grouped in ONE block so they read as related lifecycle actions
-           (and share one background). The red button carries the danger cue. -->
-      <section class="ar-card ar-card--muted ar-manage">
+           reset, grouped in ONE block so they read as related lifecycle actions.
+           The red button carries the danger cue. -->
+      <section class="ar-card ar-manage">
         <div class="ar-reset">
           <div class="ar-reset__text">
             <strong>Setup guide</strong>

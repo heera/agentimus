@@ -20,6 +20,8 @@
  * from another month never ambushes anyone. Deliberately NOT auto-created as a
  * WP draft: "nothing is saved until you say so" stays literally true.
  */
+import { confirm } from '../confirm.js';
+
 const HELD_KEY = 'agentimus:assistant:held';
 const HELD_TTL_MS = 7 * 24 * 3600 * 1000;
 
@@ -236,6 +238,20 @@ export default {
       if (brief.length < 8 || this.busy) return;
       const outline = useOutline ? this.cleanOutline() : null;
       if (useOutline && !outline) return;
+      // Composing over held work replaces it — the consequence lives in the
+      // confirm, not in a floating caption. A first draft asks nothing.
+      if (this.draft) {
+        const editHeld = 'edit' === this.mode && this.editing;
+        const ok = await confirm({
+          title: 'Write a new draft?',
+          message: editHeld
+            ? `The new draft replaces the edit of “${this.editing.title}” you're holding — the post itself on your site is untouched.`
+            : `The new draft replaces the one you're holding.`,
+          confirmLabel: 'Write it',
+          within: '.ar-drawer__panel',
+        });
+        if (!ok) return;
+      }
       this.composeOrigin = 'outline' === this.step ? 'outline' : 'idle';
       this.step = 'composing';
       this.error = '';
@@ -271,6 +287,15 @@ export default {
     async refine() {
       const instruction = this.refineText.trim();
       if (instruction.length < 4 || this.refining || !this.draft) return;
+      // Each act states its consequence before it runs; the dialog centers
+      // inside the drawer, where the act lives.
+      const ok = await confirm({
+        title: 'Revise this draft?',
+        message: 'The revision replaces the current version — one-step Undo brings it back. Nothing is saved to your site yet.',
+        confirmLabel: 'Revise',
+        within: '.ar-drawer__panel',
+      });
+      if (!ok) return;
       this.refining = true;
       this.error = '';
       try {
@@ -351,6 +376,17 @@ export default {
     // version in Revisions on top of the drawer's own one-step Undo.
     async update() {
       if (!this.draft || !this.editing || 'creating' === this.step) return;
+      const published = 'publish' === this.editing.status;
+      const isDraft = 'draft' === this.editing.status;
+      const ok = await confirm({
+        title: published ? 'Update the published post?' : (isDraft ? 'Update the draft?' : 'Update the post?'),
+        message: published
+          ? 'The changes go live on your site immediately. The previous version is kept in Revisions.'
+          : `The post is updated and stays ${this.editing.statusLabel.toLowerCase()}. The previous version is kept in Revisions.`,
+        confirmLabel: published ? 'Update — it goes live' : 'Update',
+        within: '.ar-drawer__panel',
+      });
+      if (!ok) return;
       this.step = 'creating';
       this.error = '';
       try {
@@ -380,6 +416,16 @@ export default {
     // ---- Create ---------------------------------------------------------------
     async create() {
       if (!this.draft || 'creating' === this.step) return;
+      const pending = 'pending' === this.statusChoice;
+      const ok = await confirm({
+        title: pending ? 'Submit for review?' : 'Create the draft?',
+        message: pending
+          ? 'A new post is created as pending review — nothing goes live until an editor publishes it.'
+          : 'A new draft post is created with this content — nothing goes live.',
+        confirmLabel: pending ? 'Create as pending' : 'Create draft',
+        within: '.ar-drawer__panel',
+      });
+      if (!ok) return;
       this.step = 'creating';
       this.error = '';
       try {
@@ -469,6 +515,16 @@ export default {
               <h2 id="ar-assist-title" class="ar-drawer__title">Writing assistant</h2>
               <p class="ar-drawer__sub">Describe the post — nothing is saved until you say so.</p>
             </div>
+            <!-- When a screen has a way back, it sits with the close — the two
+                 leave-this-screen acts share the corner. From the picker it
+                 returns to the brief; from an edit it returns to the picker. -->
+            <button
+              v-if="'pick' === step || ('edit' === mode && ('preview' === step || 'creating' === step))"
+              type="button"
+              class="ar-linkbtn ar-drawer__back"
+              :disabled="'creating' === step"
+              @click="'pick' === step ? (step = 'idle') : openPicker()"
+            >← Back</button>
             <button type="button" class="ar-drawer__close" aria-label="Close the assistant" @click="$emit('close')">
               <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" aria-hidden="true"><path d="M4 4l8 8M12 4l-8 8" /></svg>
             </button>
@@ -477,7 +533,14 @@ export default {
           <div class="ar-drawer__body" :class="{ 'ar-drawer__body--footed': onFootedScreen }">
             <!-- ============ Brief ============ -->
             <template v-if="'idle' === step || ('composing' === step && 'outline' !== composeOrigin)">
-              <label class="ar-assist__label" for="ar-assist-prompt">What should it write?</label>
+              <!-- Both doors visible before anyone types: write on the left,
+                   the second door (revise something that exists) on the right. -->
+              <div class="ar-assist__labelrow">
+                <label class="ar-assist__label" for="ar-assist-prompt">What should it write?</label>
+                <p class="ar-assist__editentry ar-assist__editentry--top">
+                  <button type="button" class="ar-linkbtn" :disabled="busy" @click="openPicker">Edit an existing post</button>
+                </p>
+              </div>
               <textarea
                 id="ar-assist-prompt"
                 ref="promptEl"
@@ -498,10 +561,13 @@ export default {
 
               <!-- A composed draft is a PAID artifact: while one is held, say so and
                    keep the way back one click away — editing the brief must never
-                   cost the generation. Drafting again is what replaces it. -->
+                   cost the generation. Drafting again is what replaces it. A held
+                   EDIT of a real post says WHICH post — "your drafted post" would
+                   misdescribe it. -->
               <div v-if="draft && !busy" class="ar-assist__held">
-                <span class="ar-assist__heldtext">Your drafted post is still here — nothing was lost.</span>
-                <button type="button" class="ar-linkbtn" @click="restorePreview">Back to the preview</button>
+                <span v-if="'edit' === mode && editing" class="ar-assist__heldtext">Still editing “{{ editing.title }}” — nothing was lost.</span>
+                <span v-else class="ar-assist__heldtext">Your drafted post is still here — nothing was lost.</span>
+                <button type="button" class="ar-linkbtn" @click="restorePreview">{{ 'edit' === mode && editing ? 'Back to the post' : 'Back to the preview' }}</button>
               </div>
               <!-- Same promise for a shaped outline when no draft holds the spotlight. -->
               <div v-else-if="outline && !busy" class="ar-assist__held">
@@ -520,19 +586,12 @@ export default {
                   {{ outlining ? 'Outlining…' : 'Outline first' }}
                 </button>
               </div>
-              <p v-if="draft && !busy" class="ar-assist__hint ar-assist__replacenote">
-                “Draft again” writes a new draft from the brief above and replaces the held one.
-              </p>
 
-              <!-- The second door: revise something that already exists. -->
-              <p class="ar-assist__editentry">
-                Working on something that already exists?
-                <button type="button" class="ar-linkbtn" :disabled="busy" @click="openPicker">Edit an existing post</button>
-              </p>
             </template>
 
             <!-- ============ Pick a post ============ -->
             <template v-else-if="'pick' === step">
+              <!-- The way back lives in the drawer header, beside the close. -->
               <label class="ar-assist__label" for="ar-pick-q">Edit an existing post</label>
               <div class="ar-assist__librow">
                 <input
@@ -548,6 +607,12 @@ export default {
                   {{ pick.busy ? 'Searching…' : 'Search' }}
                 </button>
               </div>
+
+              <!-- The unsearched list explains itself; once a query is typed the
+                   results are matches, so the line steps aside. -->
+              <p v-if="!pick.q.trim()" class="ar-assist__hint">
+                Your ten most recently edited posts — search finds any post on your site.
+              </p>
 
               <p v-if="pick.error" class="ar-assist__error" role="alert">{{ pick.error }}</p>
               <div v-else-if="pick.results.length" class="ar-assist__postlist">
@@ -576,10 +641,6 @@ export default {
                 the previous version in Revisions.
               </p>
 
-              <div class="ar-assist__actions">
-                <button type="button" class="ar-linkbtn" @click="step = 'idle'">← Back</button>
-                <span class="ar-assist__spacer"></span>
-              </div>
             </template>
 
             <!-- ============ Outline ============ -->
@@ -665,6 +726,7 @@ export default {
             <template v-else-if="'preview' === step || 'creating' === step">
               <!-- Editing a real post: say WHICH one, and that visibility is
                    untouchable here — the one rule of the edit flow. -->
+              <!-- The way back lives in the drawer header's ← Back, beside the close. -->
               <div v-if="'edit' === mode && editing" class="ar-assist__held ar-assist__editingbar">
                 <span class="ar-assist__heldtext">
                   Editing “{{ editing.title }}” — it stays {{ editing.statusLabel.toLowerCase() }};
@@ -708,46 +770,47 @@ export default {
                 </div>
               </div>
 
-              <!-- Targeted revision: one instruction, one AI call, the draft revised in
-                   place — with a one-step Undo, because a revision overwrites a paid
-                   generation. "Try again" stays the full reroll. -->
-              <div class="ar-assist__refine">
-                <input
-                  v-model="refineText"
-                  type="text"
-                  class="ar-assist__refineinput"
-                  :disabled="refining || 'creating' === step"
-                  placeholder="Ask for a change — e.g. add a section on caching, shorten the intro"
-                  aria-label="Ask for a change to this draft"
-                  @keydown.enter="refine"
-                />
-                <button type="button" class="ar-btn ar-assist__refinebtn" :disabled="refineText.trim().length < 4 || refining || 'creating' === step" @click="refine">
-                  <span v-if="refining" class="ar-spinner ar-assist__spin" aria-hidden="true"></span>
-                  {{ refining ? 'Revising…' : 'Revise' }}
-                </button>
-              </div>
-              <p v-if="prevDraft && !refining" class="ar-assist__undoline">
-                Replaced the previous version.
-                <button type="button" class="ar-linkbtn" @click="undoRefine">Undo — bring it back</button>
-              </p>
-
               <!-- Pinned foot, same as the outline screen: the article scrolls,
-                   the way out never does. Two deliberate rows — navigation
-                   links, then the commit act — so nothing wraps unpredictably. -->
+                   the way out never does. The revise bar lives INSIDE it — it's
+                   the screen's primary act, and in-flow above the sticky foot it
+                   opened hidden beneath the fold on any long post. Then the two
+                   deliberate rows — navigation links, then the commit act. -->
               <div class="ar-assist__foot">
                 <p v-if="error" class="ar-assist__error ar-assist__footerror" role="alert">{{ error }}</p>
+                <!-- Targeted revision: one instruction, one AI call, the draft revised in
+                     place — with a one-step Undo, because a revision overwrites a paid
+                     generation. "Try again" stays the full reroll. -->
+                <div class="ar-assist__refine">
+                  <input
+                    v-model="refineText"
+                    type="text"
+                    class="ar-assist__refineinput"
+                    :disabled="refining || 'creating' === step"
+                    placeholder="Ask for a change — e.g. shorten the intro"
+                    aria-label="Ask for a change to this draft"
+                    @keydown.enter="refine"
+                  />
+                  <button type="button" class="ar-btn ar-assist__refinebtn" :disabled="refineText.trim().length < 4 || refining || 'creating' === step" @click="refine">
+                    <span v-if="refining" class="ar-spinner ar-assist__spin" aria-hidden="true"></span>
+                    {{ refining ? 'Revising…' : 'Revise' }}
+                  </button>
+                </div>
+                <p v-if="prevDraft && !refining" class="ar-assist__undoline">
+                  Replaced the previous version.
+                  <button type="button" class="ar-linkbtn" @click="undoRefine">Undo — bring it back</button>
+                </p>
                 <template v-if="!confirmReset">
-                  <div class="ar-assist__footrow">
+                  <!-- Edit mode has no sibling links, so Start over joins the
+                       commit row instead of sitting stranded on its own line. -->
+                  <div v-if="'write' === mode" class="ar-assist__footrow">
                     <button type="button" class="ar-linkbtn ar-assist__resetlink" :disabled="'creating' === step" @click="confirmReset = true">Start over</button>
                     <span class="ar-assist__spacer"></span>
-                    <template v-if="'write' === mode">
-                      <button type="button" class="ar-linkbtn" :disabled="'creating' === step" @click="editBrief">Edit the brief</button>
-                      <button v-if="outline" type="button" class="ar-linkbtn" :disabled="'creating' === step" @click="step = 'outline'">Edit the outline</button>
-                      <button type="button" class="ar-linkbtn" :disabled="'creating' === step" @click="compose(usedOutline)">Try again</button>
-                    </template>
-                    <button v-else type="button" class="ar-linkbtn" :disabled="'creating' === step" @click="openPicker">Pick another post</button>
+                    <button type="button" class="ar-linkbtn" :disabled="'creating' === step" @click="editBrief">Edit the brief</button>
+                    <button v-if="outline" type="button" class="ar-linkbtn" :disabled="'creating' === step" @click="step = 'outline'">Edit the outline</button>
+                    <button type="button" class="ar-linkbtn" :disabled="'creating' === step" @click="compose(usedOutline)">Try again</button>
                   </div>
                   <div class="ar-assist__footrow ar-assist__footrow--commit">
+                    <button v-if="'edit' === mode" type="button" class="ar-linkbtn ar-assist__resetlink" :disabled="'creating' === step" @click="confirmReset = true">Start over</button>
                     <span class="ar-assist__spacer"></span>
                     <template v-if="'write' === mode">
                       <select v-model="statusChoice" class="ar-assist__status" :disabled="'creating' === step" aria-label="Save as">
@@ -760,10 +823,14 @@ export default {
                       </button>
                     </template>
                     <template v-else>
-                      <span class="ar-assist__statusnote">stays {{ editing ? editing.statusLabel.toLowerCase() : '' }}</span>
+                      <!-- Editing a draft: "Update draft" says it all, no note
+                           needed. Any other status keeps the generic button and
+                           the "stays …" note — on a published post that note is
+                           the warning that the change goes live on update. -->
+                      <span v-if="editing && 'draft' !== editing.status" class="ar-assist__statusnote">stays {{ editing.statusLabel.toLowerCase() }}</span>
                       <button type="button" class="ar-btn ar-assist__go" :disabled="'creating' === step" @click="update">
                         <span v-if="'creating' === step" class="ar-spinner ar-assist__spin" aria-hidden="true"></span>
-                        {{ 'creating' === step ? 'Updating…' : 'Update post' }}
+                        {{ 'creating' === step ? 'Updating…' : (editing && 'draft' === editing.status ? 'Update draft' : 'Update post') }}
                       </button>
                     </template>
                   </div>

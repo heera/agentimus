@@ -11,6 +11,7 @@ export const confirmState = reactive({
   confirmLabel: 'Confirm',
   cancelLabel: 'Cancel',
   tone: 'default', // 'default' | 'danger'
+  within: null, // optional CSS selector — center the dialog inside that element
   _resolve: null,
 });
 
@@ -30,6 +31,7 @@ export function confirm(options = {}) {
   confirmState.confirmLabel = options.confirmLabel || 'Confirm';
   confirmState.cancelLabel = options.cancelLabel || 'Cancel';
   confirmState.tone = options.tone || 'default';
+  confirmState.within = options.within || null;
   confirmState.open = true;
   return new Promise((resolve) => {
     confirmState._resolve = resolve;

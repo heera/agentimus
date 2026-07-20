@@ -1,5 +1,6 @@
 <script>
 import { createApi } from './api.js';
+import { navIcon } from './groupIcons.js';
 import { summarize } from './tiers.js';
 import { uaTip } from './uaTip.js';
 import SettingsForm from './components/SettingsForm.vue';
@@ -341,6 +342,7 @@ export default {
         providers: typeof c.resourcesRegistered === 'number' ? c.resourcesRegistered : c.resources || 0,
         providersPublic: typeof c.resourcesRegistered === 'number' ? c.resources || 0 : null,
         capabilities: c.capabilities || 0,
+        apis: c.apis || 0,
         tools: c.tools || 0,
         toolsPublic: typeof c.toolsPublished === 'number' ? c.toolsPublished : null,
       };
@@ -527,6 +529,7 @@ export default {
     this.stopActivityPolling();
   },
   methods: {
+    navIcon,
     // Dashboard tiles emit { tab, anchor? }. Switch tab, then (once the now-shown
     // tab has laid out) scroll the target section into view so a click lands on
     // the relevant content, not just the top of the page.
@@ -1340,7 +1343,7 @@ export default {
   <div class="ar">
     <div class="ar__sticky" :class="{ 'is-stuck': scrolled }">
     <header class="ar__bar">
-      <button type="button" class="ar__brand" aria-label="Agentimus — reload" @click="reloadPlugin">
+      <button type="button" class="ar__brand" aria-label="Agentimus — go to Dashboard" @click="tab = 'dashboard'">
         <span class="ar__mark" aria-hidden="true">
           <svg class="ar__logo" viewBox="0 0 24 24" fill="none" stroke-linecap="round" stroke-linejoin="round">
             <path class="ar__logo-line" d="M4.5 20.5 L12 3.5 L19.5 20.5" />
@@ -1353,13 +1356,10 @@ export default {
         </span>
       </button>
 
-      <span class="ar__sep" aria-hidden="true">
-        <svg viewBox="0 0 14 44" width="14" height="44" fill="none">
-          <path class="ar__sep-chev" d="M3 11 L9 22 L3 33" />
-          <circle class="ar__sep-ring" cx="9" cy="22" r="4.2" />
-          <circle class="ar__sep-node" cx="9" cy="22" r="2.4" />
-        </svg>
-      </span>
+      <!-- Invisible on wide screens (the tab icons carry the bar's ornament now);
+           on narrow screens it turns into the full-width flex break that bumps
+           the tabs onto their own row below the brand. -->
+      <span class="ar__sep" aria-hidden="true"></span>
 
       <nav class="ar__tabs" role="tablist">
         <button
@@ -1371,6 +1371,7 @@ export default {
           :aria-selected="tab === t.id"
           @click="tab = t.id"
         >
+          <span class="ar__tab-ic" aria-hidden="true" v-html="navIcon(t.id)"></span>
           {{ t.label }}
         </button>
       </nav>
@@ -1402,6 +1403,7 @@ export default {
             : 'More screens'"
           @click="toggleMore"
         >
+          <span class="ar__tab-ic" aria-hidden="true" v-html="navIcon('more')"></span>
           More
           <!-- A dot, not a number: the count lives on the item inside. All this has to do is
                tell someone there is something in here they haven't read — and it has to do it

@@ -16,6 +16,35 @@ const GROUP_ICONS = {
   settings: OPEN + '<path d="M4.2 7.5h8M17.8 7.5h2M4.2 16.5h2M11.8 16.5h8"/><circle cx="14.8" cy="7.5" r="2.3"/><circle cx="8.2" cy="16.5" r="2.3"/></svg>',
 };
 
+// The dashboard's summary tiles — same 24px grid and stroke voice, one mark per
+// count: layers (providers/sources), a bolt (capabilities), code brackets (APIs),
+// a wrench (tools).
+const TILE_ICONS = {
+  providers: OPEN + '<path d="M12 3.6l8 4-8 4-8-4z"/><path d="M4 12l8 4 8-4"/><path d="M4 16.4l8 4 8-4"/></svg>',
+  capabilities: OPEN + '<path d="M12.9 3.4L6 13h4.4l-1.3 7.6L16 11h-4.4z"/></svg>',
+  apis: OPEN + '<path d="M8.3 7.5L3.8 12l4.5 4.5M15.7 7.5l4.5 4.5-4.5 4.5"/></svg>',
+  tools: OPEN + '<path d="M19.9 6.8a4.6 4.6 0 0 1-6 4.5l-6.6 6.6a2.1 2.1 0 0 1-3-3l6.6-6.6a4.6 4.6 0 0 1 6-6l-2.8 2.8 2.5 2.5z"/></svg>',
+};
+
+// The top bar's screens — one compact mark per tab, same grid and stroke. The
+// sliders and compass are deliberately the SAME marks as their Settings-group
+// cousins: one concept, one symbol, wherever it appears.
+const NAV_ICONS = {
+  dashboard: OPEN + '<rect x="4" y="4" width="6.8" height="6.8" rx="1.6"/><rect x="13.2" y="4" width="6.8" height="6.8" rx="1.6"/><rect x="4" y="13.2" width="6.8" height="6.8" rx="1.6"/><rect x="13.2" y="13.2" width="6.8" height="6.8" rx="1.6"/></svg>',
+  settings: GROUP_ICONS.settings,
+  readiness: OPEN + '<circle cx="12" cy="12" r="8.6"/><path d="M8.4 12.5l2.4 2.4 4.8-5.2"/></svg>',
+  discovery: GROUP_ICONS.discovery,
+  more: OPEN + '<circle cx="5.2" cy="12" r="1.7"/><circle cx="12" cy="12" r="1.7"/><circle cx="18.8" cy="12" r="1.7"/></svg>',
+};
+
 export function groupIcon(key) {
   return GROUP_ICONS[key] || '';
+}
+
+export function navIcon(key) {
+  return NAV_ICONS[key] || '';
+}
+
+export function tileIcon(key) {
+  return TILE_ICONS[key] || '';
 }
