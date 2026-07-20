@@ -51,6 +51,19 @@ final class PageCheck {
 	const READING_EASE_OK   = 50;
 	const READING_EASE_HARD = 30;
 
+	/** Repetition reads as familiarity: a word of FAMILIAR_MIN_SYLLABLES+
+	 *  estimated syllables that the page uses FAMILIAR_MIN_OCCURRENCES+ times is
+	 *  its own subject vocabulary ("security" on a security page), and the
+	 *  adjusted score prices each use at FAMILIAR_COUNTED_SYLLABLES — an
+	 *  ordinary word. Flesch alone has no notion of familiarity and double-
+	 *  charges a page for naming its topic; word-list formulas (Dale–Chall,
+	 *  Gunning Fog) grade familiar words gently for the same reason. One-off
+	 *  long words keep full weight — variety, not repetition, is what actually
+	 *  reads hard, so thesaurus-prose still grades honestly. */
+	const FAMILIAR_MIN_SYLLABLES     = 4;
+	const FAMILIAR_MIN_OCCURRENCES   = 3;
+	const FAMILIAR_COUNTED_SYLLABLES = 2;
+
 	/**
 	 * Run the checks for a post.
 	 *
@@ -152,9 +165,37 @@ final class PageCheck {
 		// design — Flesch is a heuristic, not a measurement.
 		$sentences = self::sentence_count( $html );
 		$syllables = 0;
+		$long      = array(); // long-word frequencies: word => [count, syllables]
 		foreach ( explode( ' ', trim( (string) preg_replace( '/\s+/', ' ', $text ) ) ) as $token ) {
-			$syllables += self::syllables( $token );
+			$n          = self::syllables( $token );
+			$syllables += $n;
+			if ( $n >= self::FAMILIAR_MIN_SYLLABLES ) {
+				// Keep internal hyphens so terms stay readable when a check names
+				// them ("ai-generated", not "aigenerated"); case and punctuation
+				// variants still merge.
+				$word = trim( (string) preg_replace( '/[^a-z-]+/', '', strtolower( $token ) ), '-' );
+				if ( ! isset( $long[ $word ] ) ) {
+					$long[ $word ] = array( 0, $n );
+				}
+				++$long[ $word ][0];
+			}
 		}
+		// Split the long words into the page's own recurring terms (priced as
+		// familiar in the adjusted syllable count) and one-off heavy words (full
+		// weight, surfaced so the author knows where the weight sits).
+		$familiar_syllables = $syllables;
+		$familiar_terms     = array();
+		$heavy_words        = array();
+		foreach ( $long as $word => $wf ) {
+			if ( $wf[0] >= self::FAMILIAR_MIN_OCCURRENCES ) {
+				$familiar_terms[ $word ] = $wf[0];
+				$familiar_syllables    -= ( $wf[1] - self::FAMILIAR_COUNTED_SYLLABLES ) * $wf[0];
+			} else {
+				$heavy_words[ $word ] = $wf[0];
+			}
+		}
+		arsort( $familiar_terms );
+		arsort( $heavy_words );
 
 		return array(
 			'words'          => $words,
@@ -169,6 +210,9 @@ final class PageCheck {
 			'has_excerpt'    => (bool) $has_excerpt,
 			'sentences'      => $sentences,
 			'syllables'      => $syllables,
+			'familiar_syllables' => $familiar_syllables,
+			'familiar_terms'     => array_slice( $familiar_terms, 0, 5, true ),
+			'heavy_words'        => array_slice( $heavy_words, 0, 5, true ),
 		);
 	}
 
@@ -299,15 +343,39 @@ final class PageCheck {
 		if ( $score >= self::READING_EASE_OK ) {
 			return self::row( 'reading_ease', __( 'Reading ease', 'agentimus' ), 'pass', sprintf( /* translators: %d: Flesch score. */ __( 'Score %d — plain enough for a general audience, the kind of writing answer engines quote most.', 'agentimus' ), (int) round( $score ) ) );
 		}
-		$band = $score < self::READING_EASE_HARD
+		// A technical subject is not hard prose: rescore with the page's own
+		// recurring terms priced as familiar. Clearing the bar HERE means the
+		// writing around the vocabulary is plain — the raw formula was charging
+		// the page for naming its own topic.
+		$familiar = self::reading_ease_familiar( $s );
+		$terms    = isset( $s['familiar_terms'] ) ? array_slice( array_keys( (array) $s['familiar_terms'] ), 0, 3 ) : array();
+		if ( $familiar >= self::READING_EASE_OK && $terms ) {
+			return self::row(
+				'reading_ease',
+				__( 'Reading ease', 'agentimus' ),
+				'pass',
+				sprintf(
+					/* translators: 1: raw Flesch score, 2: adjusted score, 3: the page's recurring terms. */
+					__( 'Score %1$d — %2$d with the page’s own recurring terms (%3$s) read as familiar. Plain prose about a technical subject.', 'agentimus' ),
+					(int) round( $score ),
+					(int) round( $familiar ),
+					implode( ', ', $terms )
+				)
+			);
+		}
+		$band = $familiar < self::READING_EASE_HARD
 			? __( 'university-level prose', 'agentimus' )
 			: __( 'college-level prose', 'agentimus' );
-		return self::row(
-			'reading_ease',
-			__( 'Hard to read', 'agentimus' ),
-			'warn',
-			sprintf( /* translators: 1: Flesch score, 2: difficulty band. */ __( 'Reading-ease score %1$d — %2$s. Shorter sentences and plainer words make passages easier for engines to lift and for readers to trust.', 'agentimus' ), (int) round( $score ), $band )
-		);
+		$detail = sprintf( /* translators: 1: Flesch score, 2: difficulty band. */ __( 'Reading-ease score %1$d — %2$s. Shorter sentences and plainer words make passages easier for engines to lift and for readers to trust.', 'agentimus' ), (int) round( $familiar ), $band );
+		$heavy  = isset( $s['heavy_words'] ) ? array_slice( array_keys( (array) $s['heavy_words'] ), 0, 3 ) : array();
+		if ( $heavy ) {
+			$detail .= ' ' . sprintf(
+				/* translators: %s: the page's heaviest words. */
+				__( 'Heaviest words here: %s.', 'agentimus' ),
+				implode( ', ', $heavy )
+			);
+		}
+		return self::row( 'reading_ease', __( 'Hard to read', 'agentimus' ), 'warn', $detail );
 	}
 
 	/**
@@ -322,6 +390,22 @@ final class PageCheck {
 		$sentences = max( 1, (int) ( isset( $s['sentences'] ) ? $s['sentences'] : 0 ) );
 		$syllables = max( 1, (int) ( isset( $s['syllables'] ) ? $s['syllables'] : 0 ) );
 		return 206.835 - 1.015 * ( $words / $sentences ) - 84.6 * ( $syllables / $words );
+	}
+
+	/**
+	 * PURE: the reading-ease score with the page's recurring long words priced
+	 * as familiar (see the FAMILIAR_* constants) — how the prose reads to
+	 * someone who accepts the page's subject vocabulary. Falls back to the raw
+	 * score when the parse carries no adjusted count.
+	 *
+	 * @param array $s Stats with words/sentences and familiar_syllables.
+	 * @return float
+	 */
+	public static function reading_ease_familiar( array $s ) {
+		if ( isset( $s['familiar_syllables'] ) ) {
+			$s['syllables'] = $s['familiar_syllables'];
+		}
+		return self::reading_ease( $s );
 	}
 
 	private static function check_link_density( array $s ) {

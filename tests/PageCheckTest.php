@@ -67,6 +67,54 @@ final class PageCheckTest extends TestCase {
 		$this->assertSame( 'pass', $short['status'], 'Too short to grade.' );
 	}
 
+	public function test_reading_ease_forgives_repeated_subject_terms_not_thesaurus_prose() {
+		// "vulnerability" ×40 in otherwise plain sentences: the raw formula grades
+		// hard, but the word is the page's own subject — familiar by repetition.
+		$topic = PageCheck::stats( '<p>' . str_repeat( 'The vulnerability hurts users. ', 40 ) . '</p>', false );
+		$this->assertLessThan( 30, PageCheck::reading_ease( $topic ), 'Raw Flesch charges the topic term every time.' );
+		$this->assertGreaterThan( 50, PageCheck::reading_ease_familiar( $topic ), 'Familiar pricing frees the plain prose around it.' );
+		$this->assertSame( array( 'vulnerability' => 40 ), $topic['familiar_terms'] );
+		$this->assertSame( array(), $topic['heavy_words'] );
+
+		$row = $this->check( 'check_reading_ease', $topic + array( 'english' => true ) );
+		$this->assertSame( 'pass', $row['status'] );
+		$this->assertStringContainsString( 'vulnerability', $row['detail'], 'The pass names the terms it forgave.' );
+	}
+
+	public function test_stats_prices_recurring_long_words_as_familiar() {
+		// Three uses make a subject term (discounted); one use stays a heavy word.
+		$s = PageCheck::stats( '<p>vulnerability vulnerability vulnerability epistemology</p>', false );
+		$this->assertSame( array( 'vulnerability' => 3 ), $s['familiar_terms'] );
+		$this->assertSame( array( 'epistemology' => 1 ), $s['heavy_words'] );
+		// Each familiar occurrence is repriced from its 6 estimated syllables to 2.
+		$this->assertSame( $s['syllables'] - ( 6 - 2 ) * 3, $s['familiar_syllables'] );
+
+		// Hyphenated terms keep their hyphen for display; case variants merge.
+		$h = PageCheck::stats( '<p>AI-generated code. Ai-generated code. AI-generated code.</p>', false );
+		$this->assertSame( array( 'ai-generated' => 3 ), $h['familiar_terms'] );
+	}
+
+	public function test_reading_ease_check_scores_with_the_familiar_adjustment() {
+		// Topic-heavy but plainly written: raw fails the bar, adjusted clears it.
+		$topic = array( 'english' => true, 'words' => 300, 'sentences' => 40, 'syllables' => 700, 'familiar_syllables' => 500, 'familiar_terms' => array( 'security' => 14, 'ecosystem' => 7 ), 'heavy_words' => array() );
+		$row   = $this->check( 'check_reading_ease', $topic );
+		$this->assertSame( 'pass', $row['status'] );
+		$this->assertStringContainsString( 'security', $row['detail'] );
+
+		// Verbose prose with no recurring subject gets no discount — and the warn
+		// names the heaviest words so the author knows where the weight sits.
+		$verbose = array( 'english' => true, 'words' => 300, 'sentences' => 40, 'syllables' => 700, 'familiar_syllables' => 700, 'familiar_terms' => array(), 'heavy_words' => array( 'notwithstanding' => 2, 'epistemological' => 1 ) );
+		$row     = $this->check( 'check_reading_ease', $verbose );
+		$this->assertSame( 'warn', $row['status'] );
+		$this->assertStringContainsString( 'notwithstanding', $row['detail'] );
+
+		// The difficulty band reads from the adjusted score — the fair number.
+		$midway = array( 'english' => true, 'words' => 300, 'sentences' => 40, 'syllables' => 800, 'familiar_syllables' => 560, 'familiar_terms' => array( 'vulnerability' => 8 ), 'heavy_words' => array() );
+		$row    = $this->check( 'check_reading_ease', $midway );
+		$this->assertSame( 'warn', $row['status'] );
+		$this->assertStringContainsString( 'college', $row['detail'], 'Raw −26 is university band; adjusted 41 is college.' );
+	}
+
 	public function test_sentences_end_at_block_boundaries() {
 		// Bullets and headings rarely carry a full stop — each block is still its
 		// own sentence, not a run-on glued to its neighbours.
