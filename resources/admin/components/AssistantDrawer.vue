@@ -45,6 +45,14 @@ export default {
       outline: null, // { title, sections: [{ heading, note }] }
       outlining: false,
       usedOutline: false, // Whether the held draft was written under the outline contract.
+      // The staged pipeline: "Write the article" fires every PART in parallel —
+      // intro, one call per outline section, closing, plus one dressing call —
+      // and assembles them in outline order. Progress lives on the outline
+      // screen; a failed part retries alone instead of rerolling the article.
+      // { outline: <the clean outline the parts were written against>,
+      //   parts: { intro|conclusion|meta|s0..sN: { status, result, error } } }
+      staging: null,
+      stagingActive: false, // Requests in flight (staging itself survives failures).
       composeOrigin: 'idle', // Where composing started — errors and spinners return there.
       confirmReset: false, // "Start over" arms an inline confirm — it discards paid work.
       // Edit-existing: 'write' composes a new post, 'edit' revises a real one.
@@ -82,9 +90,34 @@ export default {
     },
   },
   computed: {
-    // One flag for "an AI call is in flight" — outline and compose alike.
+    // One flag for "an AI call is in flight" — outline, compose and the staged
+    // parts alike.
     busy() {
-      return 'composing' === this.step || this.outlining;
+      return 'composing' === this.step || this.outlining || this.stagingActive;
+    },
+    // Staged progress, counted over every part (sections + intro + closing +
+    // the dressing call).
+    stagedTotal() {
+      return this.staging ? Object.keys(this.staging.parts).length : 0;
+    },
+    stagedDone() {
+      return this.staging
+        ? Object.values(this.staging.parts).filter((p) => 'done' === p.status).length
+        : 0;
+    },
+    stagedFailed() {
+      return !!this.staging
+        && !this.stagingActive
+        && Object.values(this.staging.parts).some((p) => 'error' === p.status);
+    },
+    // The outline foot's primary act, staged-aware: writing shows live progress,
+    // a failure round offers the targeted retry, a restored half-written article
+    // offers to continue — and with no staging it stays "Write the article".
+    writeLabel() {
+      if (this.stagingActive) return `Writing… ${this.stagedDone}/${this.stagedTotal}`;
+      if (this.stagedFailed) return 'Retry the failed parts';
+      if (this.staging) return 'Continue writing';
+      return 'Write the article';
     },
     // The gate opens once at least one section has a real heading.
     outlineReady() {
@@ -134,6 +167,16 @@ export default {
           usedOutline: this.usedOutline,
           mode: this.mode,
           editing: this.editing,
+          // Additive on purpose (still v:1): an older build reading this stash
+          // simply ignores the key and restores the outline — degraded, never
+          // broken. Finished parts are paid work; in-flight ones restart.
+          staging: this.staging ? {
+            outline: this.staging.outline,
+            parts: Object.fromEntries(Object.entries(this.staging.parts).map(([k, p]) => [
+              k,
+              'done' === p.status ? { status: 'done', result: p.result } : { status: 'pending' },
+            ])),
+          } : null,
         }));
       } catch (e) { /* private mode / quota — the in-memory copy still stands */ }
     },
@@ -184,6 +227,21 @@ export default {
         } else {
           this.step = 'outline'; // Mid-outline when the tab closed — pick it back up.
         }
+        // A half-written staged article: finished parts restore as done (paid
+        // work), everything else as pending — "Continue writing" fires only
+        // what's missing. Held to shape the same way the rest of the stash is.
+        const st = held.staging;
+        if (o && st && st.outline && Array.isArray(st.outline.sections) && st.parts && 'object' === typeof st.parts) {
+          const parts = {};
+          ['intro', 'conclusion', 'meta'].concat(st.outline.sections.map((s, i) => 's' + i)).forEach((k) => {
+            const p = st.parts[k];
+            const doneShape = p && 'done' === p.status
+              && ('meta' === k ? (p.result && 'string' === typeof p.result.title) : 'string' === typeof p.result);
+            parts[k] = doneShape ? { status: 'done', result: p.result, error: '' } : { status: 'pending', result: null, error: '' };
+          });
+          this.staging = { outline: st.outline, parts };
+          this.step = 'outline'; // Mid-write when the tab closed — the progress screen.
+        }
       } catch (e) {
         this.clearHeld(); // A corrupt stash must never brick the drawer.
       }
@@ -203,6 +261,7 @@ export default {
         const r = await this.api.assistantOutline(brief);
         this.outline = r.outline;
         this.usedOutline = false;
+        this.staging = null; // A new outline is a new plan — no old part fits it.
         this.step = 'outline';
         this.persistHeld();
         this.$nextTick(() => {
@@ -217,57 +276,180 @@ export default {
     addSection() {
       if (!this.outline) return;
       this.outline.sections.push({ heading: '', note: '' });
-      this.persistHeld();
+      this.outlineEdited();
     },
     removeSection(i) {
       if (!this.outline) return;
       this.outline.sections.splice(i, 1);
+      this.outlineEdited();
+    },
+    // Any edit to the plan retires the parts written against it: every part's
+    // prompt carries the WHOLE outline (that's where consistency comes from),
+    // so no cached part survives a change to any of it. The progress marks
+    // disappear with the staging — the screen never shows a stale ✓.
+    outlineEdited() {
+      if (this.staging && !this.stagingActive) this.staging = null;
       this.persistHeld();
     },
-    // The outline as the server contract: trimmed, heading-less rows dropped.
+    // The outline as the server contract: trimmed, heading-less rows dropped,
+    // and capped at the server's own section ceiling so a staged part index
+    // can never point past what the server keeps.
     cleanOutline() {
       if (!this.outline) return null;
       const sections = this.outline.sections
         .map((s) => ({ heading: (s.heading || '').trim(), note: (s.note || '').trim() }))
-        .filter((s) => s.heading);
+        .filter((s) => s.heading)
+        .slice(0, 10);
       return sections.length ? { title: (this.outline.title || '').trim(), sections } : null;
     },
     // ---- Compose --------------------------------------------------------------
+    // An outlined article writes STAGED (one call per part, in parallel); only
+    // the outline-less quick draft still writes as one whole document.
     async compose(useOutline) {
+      if (useOutline) return this.composeStaged();
       const brief = this.prompt.trim();
       if (brief.length < 8 || this.busy) return;
-      const outline = useOutline ? this.cleanOutline() : null;
-      if (useOutline && !outline) return;
-      // Composing over held work replaces it — the consequence lives in the
-      // confirm, not in a floating caption. A first draft asks nothing.
-      if (this.draft) {
-        const editHeld = 'edit' === this.mode && this.editing;
-        const ok = await confirm({
-          title: 'Write a new draft?',
-          message: editHeld
-            ? `The new draft replaces the edit of “${this.editing.title}” you're holding — the post itself on your site is untouched.`
-            : `The new draft replaces the one you're holding.`,
-          confirmLabel: 'Write it',
-          within: '.ar-drawer__panel',
-        });
-        if (!ok) return;
-      }
+      if (!(await this.confirmReplaceHeld())) return;
       this.composeOrigin = 'outline' === this.step ? 'outline' : 'idle';
       this.step = 'composing';
       this.error = '';
       this.mode = 'write'; // Composing writes a NEW post, whatever came before.
       this.editing = null;
       try {
-        const r = await this.api.assistantCompose(brief, outline);
+        const r = await this.api.assistantCompose(brief, null);
         this.prevDraft = this.draft || null; // "Draft again" overwrites too — same one-step undo.
         this.draft = r.draft;
-        this.usedOutline = !!outline;
+        this.usedOutline = false;
+        this.staging = null; // A whole-document draft supersedes any half-staged one.
         this.step = 'preview';
         this.persistHeld(); // A paid artifact — survives reloads until created or replaced.
       } catch (e) {
         this.error = (e && e.message) || 'The draft didn’t come back — please try again.';
         this.step = this.composeOrigin; // Fail back to wherever the click came from.
       }
+    },
+    // Composing over held work replaces it — the consequence lives in the
+    // confirm, not in a floating caption. A first draft asks nothing.
+    async confirmReplaceHeld() {
+      if (!this.draft) return true;
+      const editHeld = 'edit' === this.mode && this.editing;
+      return confirm({
+        title: 'Write a new draft?',
+        message: editHeld
+          ? `The new draft replaces the edit of “${this.editing.title}” you're holding — the post itself on your site is untouched.`
+          : `The new draft replaces the one you're holding.`,
+        confirmLabel: 'Write it',
+        within: '.ar-drawer__panel',
+      });
+    },
+    // ---- The staged pipeline: one part per call, all parts at once -------------
+    async composeStaged() {
+      const brief = this.prompt.trim();
+      const outline = this.cleanOutline();
+      if (brief.length < 8 || !outline || this.busy) return;
+
+      // The parts were written against ONE exact outline; if what's on screen
+      // no longer matches it (an edit slipped past, an old stash), start clean.
+      if (this.staging && JSON.stringify(this.staging.outline) !== JSON.stringify(outline)) {
+        this.staging = null;
+      }
+
+      if (!this.staging) {
+        if (!(await this.confirmReplaceHeld())) return;
+        const parts = {};
+        ['intro', 'conclusion', 'meta'].concat(outline.sections.map((s, i) => 's' + i))
+          .forEach((k) => { parts[k] = { status: 'pending', result: null, error: '' }; });
+        this.staging = { outline, parts };
+      }
+
+      const st = this.staging;
+      this.step = 'outline'; // Progress lives where the plan lives.
+      this.error = '';
+      this.mode = 'write';
+      this.editing = null;
+      this.stagingActive = true;
+
+      // The browser IS the parallelism: every unfinished part flies now. Each
+      // landing persists — a mid-write reload resumes instead of re-paying.
+      const fire = (key, call, pick) => {
+        const p = st.parts[key];
+        if ('done' === p.status) return null;
+        p.status = 'busy';
+        p.error = '';
+        return call()
+          .then((r) => {
+            p.result = pick(r);
+            p.status = 'done';
+            if (this.staging === st) this.persistHeld();
+          })
+          .catch((e) => {
+            p.status = 'error';
+            p.error = (e && e.message) || 'This part didn’t come back — retry it below.';
+          });
+      };
+      const calls = [
+        fire('meta', () => this.api.assistantComposeMeta(brief, outline), (r) => r.meta),
+        fire('intro', () => this.api.assistantComposeSection(brief, outline, 'intro'), (r) => r.html),
+        fire('conclusion', () => this.api.assistantComposeSection(brief, outline, 'conclusion'), (r) => r.html),
+      ].concat(outline.sections.map((s, i) =>
+        fire('s' + i, () => this.api.assistantComposeSection(brief, outline, 'section', i), (r) => r.html)));
+
+      await Promise.all(calls.filter(Boolean));
+      if (this.staging !== st) return; // Cleared mid-flight (Start over) — nothing to land.
+      this.stagingActive = false;
+      this.persistHeld();
+      this.assembleStaged();
+    },
+    // Every part in hand → the same draft document a whole-document compose
+    // returns, assembled in outline order; the preview machinery takes over
+    // unchanged. With parts still missing this quietly stands by for a retry.
+    assembleStaged() {
+      const st = this.staging;
+      if (!st || Object.values(st.parts).some((p) => 'done' !== p.status)) return;
+      const meta = st.parts.meta.result || {};
+      const content = [st.parts.intro.result]
+        .concat(st.outline.sections.map((s, i) => st.parts['s' + i].result))
+        .concat([st.parts.conclusion.result])
+        .join('\n');
+      this.prevDraft = this.draft || null; // Same one-step undo as "Draft again".
+      this.draft = {
+        title: meta.title || st.outline.title,
+        excerpt: meta.excerpt || '',
+        content,
+        description: meta.description || '',
+        topics: meta.topics || [],
+        tags: meta.tags || [],
+        categories: meta.categories || [],
+        images: meta.images || [],
+      };
+      this.usedOutline = true;
+      this.staging = null;
+      this.step = 'preview';
+      this.persistHeld();
+    },
+    // The outline screen's progress marks: '' (no staging) | pending | busy |
+    // done | error, for section rows and the three synthetic rows alike.
+    partState(key) {
+      const p = this.staging && this.staging.parts[key];
+      return p ? p.status : '';
+    },
+    partError(key) {
+      const p = this.staging && this.staging.parts[key];
+      return p && 'error' === p.status ? p.error : '';
+    },
+    // A display row's staged part key. The two lists can disagree: the staged
+    // outline dropped heading-less rows and capped the list, so the mark for
+    // display row i belongs to the CLEANED index — and a row that didn't make
+    // the cut ('' here) simply wears no mark.
+    stagedKeyFor(i) {
+      if (!this.staging || !this.outline) return '';
+      const rows = this.outline.sections;
+      if (!rows[i] || !(rows[i].heading || '').trim()) return '';
+      let k = -1;
+      for (let j = 0; j <= i; j += 1) {
+        if (rows[j] && (rows[j].heading || '').trim()) k += 1;
+      }
+      return k < this.staging.outline.sections.length ? 's' + k : '';
     },
     // Back to the brief, keeping its text — "edit the brief", not "start over".
     // The composed draft is deliberately KEPT: the held-bar offers the way back.
@@ -363,6 +545,7 @@ export default {
         this.refineText = '';
         this.outline = null;
         this.usedOutline = false;
+        this.staging = null; // An edit session writes nothing staged.
         this.step = 'preview';
         this.persistHeld();
       } catch (e) {
@@ -472,6 +655,8 @@ export default {
       this.prevDraft = null;
       this.outline = null;
       this.usedOutline = false;
+      this.staging = null; // In-flight parts land into the detached object and die with it.
+      this.stagingActive = false;
       this.composeOrigin = 'idle';
       this.mode = 'write';
       this.editing = null;
@@ -656,10 +841,17 @@ export default {
                 class="ar-assist__refineinput ar-assist__otitle"
                 :disabled="busy"
                 aria-label="Working title"
-                @change="persistHeld"
+                @change="outlineEdited"
               />
 
               <label class="ar-assist__label">Sections</label>
+              <!-- Staged write: the bookends appear as progress rows AROUND the
+                   sections — the outline screen becomes the article filling in. -->
+              <div v-if="staging" class="ar-assist__opart ar-assist__opart--lead">
+                <span class="ar-assist__opartlabel">Introduction</span>
+                <span class="ar-assist__omark" :class="'is-' + partState('intro')" aria-hidden="true"></span>
+                <p v-if="partError('intro')" class="ar-assist__oparterror" role="alert">{{ partError('intro') }}</p>
+              </div>
               <div class="ar-assist__osections">
                 <div v-for="(s, i) in outline.sections" :key="'os' + i" class="ar-assist__osection">
                   <div class="ar-assist__osecrow">
@@ -671,8 +863,9 @@ export default {
                       placeholder="Section heading"
                       :aria-label="'Heading of section ' + (i + 1)"
                       :disabled="busy"
-                      @change="persistHeld"
+                      @change="outlineEdited"
                     />
+                    <span v-if="stagedKeyFor(i)" class="ar-assist__omark" :class="'is-' + partState(stagedKeyFor(i))" aria-hidden="true"></span>
                     <button type="button" class="ar-assist__oremove" :aria-label="'Remove section ' + (i + 1)" :disabled="busy" @click="removeSection(i)">
                       <svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" aria-hidden="true"><path d="M4 4l8 8M12 4l-8 8" /></svg>
                     </button>
@@ -684,19 +877,37 @@ export default {
                     placeholder="What this section covers"
                     :aria-label="'What section ' + (i + 1) + ' covers'"
                     :disabled="busy"
-                    @change="persistHeld"
+                    @change="outlineEdited"
                   ></textarea>
+                  <p v-if="partError(stagedKeyFor(i))" class="ar-assist__oparterror ar-assist__oparterror--insec" role="alert">{{ partError(stagedKeyFor(i)) }}</p>
                 </div>
               </div>
-              <button type="button" class="ar-linkbtn" :disabled="busy" @click="addSection">+ Add a section</button>
+              <template v-if="staging">
+                <div class="ar-assist__opart">
+                  <span class="ar-assist__opartlabel">Closing</span>
+                  <span class="ar-assist__omark" :class="'is-' + partState('conclusion')" aria-hidden="true"></span>
+                  <p v-if="partError('conclusion')" class="ar-assist__oparterror" role="alert">{{ partError('conclusion') }}</p>
+                </div>
+                <div class="ar-assist__opart">
+                  <span class="ar-assist__opartlabel">Title, description &amp; tags</span>
+                  <span class="ar-assist__omark" :class="'is-' + partState('meta')" aria-hidden="true"></span>
+                  <p v-if="partError('meta')" class="ar-assist__oparterror" role="alert">{{ partError('meta') }}</p>
+                </div>
+              </template>
+              <button v-else type="button" class="ar-linkbtn" :disabled="busy" @click="addSection">+ Add a section</button>
 
-              <p class="ar-assist__hint">
+              <p v-if="staging" class="ar-assist__hint">
+                Every part is written at once — the introduction, each section, the closing and the
+                title details — and assembled in this order. A part that fails retries alone.
+                Editing the outline now starts the article over.
+              </p>
+              <p v-else class="ar-assist__hint">
                 The article will follow this outline exactly — one section per row, in this order,
                 these headings. Shape it first; a fresh outline costs far less than a full draft.
               </p>
 
               <div v-if="draft && !busy" class="ar-assist__held">
-                <span class="ar-assist__heldtext">Your drafted post is still here — “Write the article” replaces it.</span>
+                <span class="ar-assist__heldtext">{{ staging ? 'Your earlier draft is still here — finishing this article replaces it.' : 'Your drafted post is still here — “Write the article” replaces it.' }}</span>
                 <button type="button" class="ar-linkbtn" @click="restorePreview">Back to the preview</button>
               </div>
 
@@ -709,8 +920,8 @@ export default {
                   <button type="button" class="ar-linkbtn" :disabled="busy" @click="editBrief">Edit the brief</button>
                   <button type="button" class="ar-linkbtn" :disabled="busy" @click="makeOutline">{{ outlining ? 'Outlining…' : 'New outline' }}</button>
                   <button type="button" class="ar-btn ar-assist__go" :disabled="!outlineReady || busy" @click="compose(true)">
-                    <span v-if="'composing' === step" class="ar-spinner ar-assist__spin" aria-hidden="true"></span>
-                    {{ 'composing' === step ? 'Writing…' : 'Write the article' }}
+                    <span v-if="stagingActive" class="ar-spinner ar-assist__spin" aria-hidden="true"></span>
+                    {{ writeLabel }}
                   </button>
                 </div>
                 <div v-else class="ar-assist__footrow">

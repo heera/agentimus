@@ -17,7 +17,9 @@
  *  - compose NEVER writes: it returns a structured draft for the owner to read;
  *  - create NEVER publishes: status is clamped to draft/pending regardless of the
  *    agent_writes_publish rung — going live stays a human editor action in v1;
- *  - no model-side tool calling: one prompt in, one JSON document out.
+ *  - no model-side tool calling: one prompt in, one structured answer out —
+ *    whether that's the whole document (quick draft) or one part of a staged
+ *    article the client assembles in outline order (compose-section/meta).
  *
  * Gating mirrors the launcher: both routes require the `enable_agent_writes`
  * switch (the owner's "AI may write here" consent) and real user capabilities —
@@ -76,6 +78,15 @@ final class Assistant {
 	 *  reasoning models that spend thinking tokens from the same budget. */
 	const OUTLINE_TOKENS = 2048;
 
+	/** Output budget for ONE PART of a staged article (a section, the intro or
+	 *  the closing). Per-part budgets are what lift the whole-document ceiling:
+	 *  ten sections at 3k each write an article no single 8k call could. */
+	const STAGED_PART_TOKENS = 3072;
+
+	/** Output budget for the staged dressing call — a small JSON object, with
+	 *  the usual headroom for reasoning models' thinking tokens. */
+	const STAGED_META_TOKENS = 2048;
+
 	/** Ceiling on an outline's section list. */
 	const MAX_OUTLINE_SECTIONS = 10;
 
@@ -91,6 +102,11 @@ final class Assistant {
 
 	/** One image figure, as both the editor and figure_html() write it. */
 	const FIGURE_RX = '#<figure class="wp-block-image[^"]*"[^>]*>.*?</figure>#is';
+
+	/** Inline elements that belong INSIDE a paragraph. A model sometimes closes
+	 *  a paragraph, drops one of these bare between blocks, and opens a new
+	 *  paragraph — one sentence in three pieces. {@see heal_loose_inlines()}. */
+	const INLINE_TAGS = array( 'a', 'strong', 'em', 'b', 'i', 'code', 'u', 's', 'sub', 'sup', 'mark', 'small', 'abbr', 'kbd', 'br' );
 
 	/** @var Settings */
 	private $settings;
@@ -161,6 +177,24 @@ final class Assistant {
 			array(
 				'methods'             => \WP_REST_Server::EDITABLE,
 				'callback'            => array( $this, 'outline' ),
+				'permission_callback' => array( $this, 'can_compose' ),
+			)
+		);
+		register_rest_route(
+			self::NS,
+			'/assistant/compose-section',
+			array(
+				'methods'             => \WP_REST_Server::EDITABLE,
+				'callback'            => array( $this, 'compose_section' ),
+				'permission_callback' => array( $this, 'can_compose' ),
+			)
+		);
+		register_rest_route(
+			self::NS,
+			'/assistant/compose-meta',
+			array(
+				'methods'             => \WP_REST_Server::EDITABLE,
+				'callback'            => array( $this, 'compose_meta' ),
 				'permission_callback' => array( $this, 'can_compose' ),
 			)
 		);
@@ -402,6 +436,330 @@ final class Assistant {
 			return $outline;
 		}
 		return rest_ensure_response( array( 'outline' => $outline ) );
+	}
+
+	/**
+	 * POST /assistant/compose-section — ONE PART of a staged article: a numbered
+	 * outline section, the introduction, or the closing. The client is the
+	 * parallelism (PHP stays one call per request): it fires every part at once,
+	 * assembles them in outline order, and the whole-document ceiling disappears
+	 * because no single call ever writes the whole document. Consistency comes
+	 * from the SPINE every part carries — the brief plus the complete outline —
+	 * and from the site's Content Guidelines riding the choke point as always.
+	 * Writes nothing.
+	 *
+	 * @param \WP_REST_Request $request Request.
+	 * @return \WP_REST_Response|\WP_Error
+	 */
+	public function compose_section( \WP_REST_Request $request ) {
+		$prompt = self::read_brief( $request );
+		if ( is_wp_error( $prompt ) ) {
+			return $prompt;
+		}
+		$outline = self::sanitize_outline( $request->get_param( 'outline' ) );
+		if ( is_wp_error( $outline ) ) {
+			return new \WP_Error(
+				'agentimus_outline_invalid',
+				__( 'The outline looks empty — give it a title and at least one section first.', 'agentimus' ),
+				array( 'status' => 400 )
+			);
+		}
+
+		$part  = (string) $request->get_param( 'part' );
+		$index = -1;
+		if ( 'section' === $part ) {
+			$index = (int) $request->get_param( 'index' );
+			if ( $index < 0 || $index >= count( $outline['sections'] ) ) {
+				$part = ''; // An index outside the outline is the same refusal as a bad part.
+			}
+		}
+		if ( ! in_array( $part, array( 'intro', 'section', 'conclusion' ), true ) ) {
+			return new \WP_Error(
+				'agentimus_part_invalid',
+				__( 'That isn’t a part of this article.', 'agentimus' ),
+				array( 'status' => 400 )
+			);
+		}
+
+		if ( ! Assist::ai_available() ) {
+			return new \WP_Error(
+				'agentimus_ai_unavailable',
+				__( 'No AI text model is configured. Add or enable one under Settings → AI, then try again.', 'agentimus' ),
+				array( 'status' => 503 )
+			);
+		}
+
+		$text = ( new Assist( $this->settings ) )->generate(
+			self::staged_part_system_prompt(),
+			self::staged_part_prompt( $prompt, $outline, $part, $index ),
+			self::STAGED_PART_TOKENS
+		);
+		if ( is_wp_error( $text ) ) {
+			return self::friendly_ai_error( $text );
+		}
+
+		$html = self::clean_section_html( $text );
+		if ( is_wp_error( $html ) ) {
+			return $html;
+		}
+
+		// The heading is OURS, not the model's: a section always opens with the
+		// outline's h2 verbatim (image-slot anchors depend on it), and the intro
+		// and closing never carry one — whatever the model decided.
+		$html = 'section' === $part
+			? self::enforce_section_heading( $html, $outline['sections'][ $index ]['heading'] )
+			: self::strip_leading_heading( $html );
+		if ( is_wp_error( $html ) ) {
+			return $html;
+		}
+
+		return rest_ensure_response(
+			array(
+				'part'  => $part,
+				'index' => $index,
+				'html'  => $html,
+			)
+		);
+	}
+
+	/**
+	 * POST /assistant/compose-meta — the staged article's DRESSING in one small
+	 * parallel call: title, excerpt, AI description, topics, tags, categories
+	 * and the image slots. Document-level facts belong to the one call that
+	 * reads the whole outline — sections never guess them. Writes nothing.
+	 *
+	 * @param \WP_REST_Request $request Request.
+	 * @return \WP_REST_Response|\WP_Error
+	 */
+	public function compose_meta( \WP_REST_Request $request ) {
+		$prompt = self::read_brief( $request );
+		if ( is_wp_error( $prompt ) ) {
+			return $prompt;
+		}
+		$outline = self::sanitize_outline( $request->get_param( 'outline' ) );
+		if ( is_wp_error( $outline ) ) {
+			return new \WP_Error(
+				'agentimus_outline_invalid',
+				__( 'The outline looks empty — give it a title and at least one section first.', 'agentimus' ),
+				array( 'status' => 400 )
+			);
+		}
+
+		if ( ! Assist::ai_available() ) {
+			return new \WP_Error(
+				'agentimus_ai_unavailable',
+				__( 'No AI text model is configured. Add or enable one under Settings → AI, then try again.', 'agentimus' ),
+				array( 'status' => 503 )
+			);
+		}
+
+		$text = ( new Assist( $this->settings ) )->generate(
+			self::staged_meta_system_prompt(),
+			self::staged_meta_prompt( $prompt, $outline ),
+			self::STAGED_META_TOKENS
+		);
+		if ( is_wp_error( $text ) ) {
+			return self::friendly_ai_error( $text );
+		}
+
+		$meta = self::parse_meta( $text );
+		if ( is_wp_error( $meta ) ) {
+			return $meta;
+		}
+		return rest_ensure_response( array( 'meta' => $meta ) );
+	}
+
+	/**
+	 * The staged-part instruction: write ONE part of an article that other calls
+	 * are writing the rest of. The continuity rules stand in for the shared
+	 * state parallel calls can't have.
+	 *
+	 * @return string
+	 */
+	public static function staged_part_system_prompt() {
+		return 'You write ONE PART of a WordPress post. The post is being written part by part from an owner-approved '
+			. 'outline — the other parts are written by separate calls, so write ONLY the part you are asked for: '
+			. 'no post title, no other sections, no meta commentary. '
+			. 'Respond with ONLY the part\'s content as clean HTML using only <h2>, <h3>, <p>, <ul>, <ol>, <li>, '
+			. '<strong>, <em>, <a>, <blockquote> — no <h1>, no images, no markdown fences, no document wrapper. '
+			. 'The parts are assembled in outline order, so write prose that flows: assume the reader has just read '
+			. 'the previous part, don\'t re-introduce the article, and don\'t cover ground the outline assigns elsewhere. '
+			. 'Write concretely in the brief\'s language; no filler, no invented facts or statistics. '
+			. 'Voice: follow the site content guidelines above when they declare one (their author, their person, '
+			. 'their tone are real — use them); never invent credentials, employers or anecdotes the guidelines '
+			. 'don\'t provide; and when the brief itself specifies a voice, the brief wins. '
+			. 'With no guidance from either, write in a neutral site voice.';
+	}
+
+	/**
+	 * PURE: the staged-part user prompt — the SPINE (brief + complete outline)
+	 * plus this part's own assignment: which part, its neighbours, its note,
+	 * and its share of any requested length.
+	 *
+	 * @param string $brief   The owner's brief.
+	 * @param array  $outline The sanitised outline.
+	 * @param string $part    intro|section|conclusion.
+	 * @param int    $index   Section index for part=section.
+	 * @return string
+	 */
+	public static function staged_part_prompt( $brief, array $outline, $part, $index = -1 ) {
+		$sections = $outline['sections'];
+		$count    = count( $sections );
+		$spine    = "The owner's brief:\n" . $brief
+			. "\n\nThe approved outline for the whole article, as JSON:\n"
+			. wp_json_encode( $outline, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE );
+
+		if ( 'intro' === $part ) {
+			return $spine . "\n\nWrite the article's INTRODUCTION: one to three paragraphs that set up the piece "
+				. 'the outline describes and lead into the first section, "' . $sections[0]['heading'] . '". '
+				. 'No heading of its own — paragraphs only. Don\'t cover the sections\' ground; they follow.';
+		}
+
+		if ( 'conclusion' === $part ) {
+			return $spine . "\n\nWrite the article's CLOSING: a short ending that lands the piece after its last "
+				. 'section, "' . $sections[ $count - 1 ]['heading'] . '" — one or two paragraphs. '
+				. 'No heading of its own. Don\'t open new ground and don\'t mechanically summarise every section.';
+		}
+
+		$section   = $sections[ $index ];
+		$neighbors = 0 === $index
+			? 'It is the first section — the introduction leads straight into it.'
+			: 'The section before it is "' . $sections[ $index - 1 ]['heading'] . '".';
+		if ( $index === $count - 1 ) {
+			$neighbors .= ' It is the last section — a short closing follows it.';
+		} else {
+			$neighbors .= ' The section after it is "' . $sections[ $index + 1 ]['heading'] . '".';
+		}
+
+		return $spine . "\n\nWrite section " . ( $index + 1 ) . ' of ' . $count . ': "' . $section['heading'] . '".'
+			. ( '' !== $section['note'] ? "\nWhat it covers: " . $section['note'] : '' )
+			. "\n" . $neighbors
+			. "\nBegin with exactly <h2>" . $section['heading'] . '</h2> — that heading text verbatim — then the '
+			. 'section\'s body; <h3> subheadings inside it are welcome. '
+			. 'Write it at natural, complete length for one section of this article; if the brief asks for an '
+			. 'overall length, aim for this section\'s share of it.';
+	}
+
+	/**
+	 * The staged dressing instruction: everything about the post EXCEPT its body
+	 * — same fields and bounds as the whole-document contract, minus "content",
+	 * with image anchors tied to the outline's own headings.
+	 *
+	 * @return string
+	 */
+	public static function staged_meta_system_prompt() {
+		return 'You prepare the DRESSING for a WordPress post that is being written section by section from an '
+			. 'owner-approved outline — everything about the post except its body text. '
+			. 'Respond with ONLY a single JSON object — no markdown fences, no commentary before or after — with exactly these keys: '
+			. '"title" (string: the post title — use the outline\'s title unless the brief itself demands another), '
+			. '"excerpt" (string, 1–2 plain sentences), '
+			. '"description" (string: one sentence under 160 characters saying what the page is about, for AI assistants), '
+			. '"topics" (array of 3–6 short topic phrases), '
+			. '"tags" (array of 2–5 tag names), '
+			. '"categories" (array of 0–2 category names, only if clearly implied by the brief), '
+			. '"images" (array of 0–4 image SUGGESTIONS, only where a picture would genuinely help the reader: '
+			. 'each {"alt": a rich, self-contained visual description an image generator could paint from — subject, setting, mood, '
+			. '"after_heading": the exact text of one of the outline\'s section headings, verbatim, that the image should follow, '
+			. 'or "" for right after the introduction}). '
+			. 'Ground everything in the brief and the outline; write in the brief\'s language; no invented facts.';
+	}
+
+	/**
+	 * PURE: the staged dressing user prompt — the same spine the parts carry.
+	 *
+	 * @param string $brief   The owner's brief.
+	 * @param array  $outline The sanitised outline.
+	 * @return string
+	 */
+	public static function staged_meta_prompt( $brief, array $outline ) {
+		return "The owner's brief:\n" . $brief
+			. "\n\nThe approved outline for the whole article, as JSON:\n"
+			. wp_json_encode( $outline, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE )
+			. "\n\nReturn the dressing JSON for this article.";
+	}
+
+	/**
+	 * PURE: turn the model's text into the sanitised dressing, or a clear error
+	 * — the same fence/prose-tolerant cut every JSON contract uses.
+	 *
+	 * @param string $text Raw model output.
+	 * @return array|\WP_Error
+	 */
+	public static function parse_meta( $text ) {
+		$text  = trim( (string) $text );
+		$start = strpos( $text, '{' );
+		$end   = strrpos( $text, '}' );
+		$data  = ( false !== $start && false !== $end && $end > $start )
+			? json_decode( substr( $text, $start, $end - $start + 1 ), true )
+			: null;
+		return self::sanitize_meta( $data );
+	}
+
+	/**
+	 * PURE: hold a dressing-shaped array to the schema — sanitize_draft() minus
+	 * the body, with the same field rules, so the assembled staged draft is
+	 * indistinguishable from a whole-document one.
+	 *
+	 * @param mixed $data Dressing-shaped input.
+	 * @return array|\WP_Error
+	 */
+	public static function sanitize_meta( $data ) {
+		$title = is_array( $data ) ? sanitize_text_field( (string) ( $data['title'] ?? '' ) ) : '';
+		if ( '' === $title ) {
+			return new \WP_Error(
+				'agentimus_ai_bad_output',
+				__( 'The AI didn’t return usable details for the post — please try again.', 'agentimus' ),
+				array( 'status' => 502 )
+			);
+		}
+		return array(
+			'title'       => $title,
+			'excerpt'     => sanitize_text_field( (string) ( $data['excerpt'] ?? '' ) ),
+			'description' => mb_substr( sanitize_text_field( (string) ( $data['description'] ?? '' ) ), 0, 200 ),
+			'topics'      => self::clean_list( $data['topics'] ?? array(), self::MAX_TOPICS ),
+			'tags'        => self::clean_list( $data['tags'] ?? array(), self::MAX_TAGS ),
+			'categories'  => self::clean_list( $data['categories'] ?? array(), self::MAX_CATEGORIES ),
+			'images'      => self::clean_image_slots( $data['images'] ?? array() ),
+		);
+	}
+
+	/**
+	 * PURE: a staged section opens with its outline heading VERBATIM — the
+	 * anchor image slots and the approved outline both point at. Whatever
+	 * heading the model wrote (right, paraphrased, or none) is replaced with
+	 * ours; a section that was ONLY a heading is refused as empty.
+	 *
+	 * @param string $html    The part's clean HTML.
+	 * @param string $heading The outline's heading for this section.
+	 * @return string|\WP_Error
+	 */
+	public static function enforce_section_heading( $html, $heading ) {
+		$body = self::strip_leading_heading( $html );
+		if ( is_wp_error( $body ) ) {
+			return $body;
+		}
+		return '<h2>' . esc_html( $heading ) . '</h2>' . $body;
+	}
+
+	/**
+	 * PURE: cut ONE leading h2/h3 — the intro and closing never carry a heading
+	 * of their own (the whole-document shape), and a section's model-written
+	 * heading gives way to the verbatim outline heading. Refuses a part that
+	 * was nothing but its heading.
+	 *
+	 * @param string $html The part's clean HTML.
+	 * @return string|\WP_Error
+	 */
+	public static function strip_leading_heading( $html ) {
+		$html = (string) preg_replace( '#\A\s*<h([23])\b[^>]*>.*?</h\1>\s*#is', '', (string) $html );
+		if ( '' === trim( wp_strip_all_tags( $html ) ) ) {
+			return new \WP_Error(
+				'agentimus_ai_bad_output',
+				__( 'The AI didn’t return a usable section — please try again.', 'agentimus' ),
+				array( 'status' => 502 )
+			);
+		}
+		return $html;
 	}
 
 	/**
@@ -1546,9 +1904,11 @@ final class Assistant {
 	 * one Classic block with a "Convert to blocks" chore. Possible only
 	 * because the compose contract keeps the vocabulary tiny — each element
 	 * maps to exactly one core block, serialised the way the editor itself
-	 * serialises it. Anything outside the vocabulary rides in a custom-HTML
-	 * block (renders identically); on any parse trouble the original HTML is
-	 * returned unchanged and the Classic block remains the safety net.
+	 * serialises it. Loose inline strays are first healed back into paragraphs
+	 * ({@see heal_loose_inlines()}); anything block-level outside the
+	 * vocabulary rides in a custom-HTML block (renders identically); on any
+	 * parse trouble the original HTML is returned unchanged and the Classic
+	 * block remains the safety net.
 	 *
 	 * @param string $content Clean post HTML (kses'd, figures already injected).
 	 * @return string Block markup, or the original content when conversion can't run.
@@ -1570,6 +1930,8 @@ final class Assistant {
 			return $content;
 		}
 
+		self::heal_loose_inlines( $dom->documentElement );
+
 		$blocks = array();
 		foreach ( $dom->documentElement->childNodes as $node ) {
 			$block = self::node_to_block( $node );
@@ -1578,6 +1940,86 @@ final class Assistant {
 			}
 		}
 		return $blocks ? implode( "\n\n", $blocks ) : $content;
+	}
+
+	/**
+	 * Re-home LOOSE inline nodes — a bare link/emphasis/text sitting between
+	 * block elements. The model sometimes writes
+	 * `<p>…hook into WordPress at the</p> <a>plugins_loaded</a> <p>action…</p>`,
+	 * which renders as one sentence broken across three lines (and, before this,
+	 * shipped the bare tag through the custom-HTML fallback). The repair follows
+	 * the sentence: a loose run continues the previous paragraph when that
+	 * paragraph is plainly unfinished (no terminal punctuation), and pulls the
+	 * following paragraph in when IT plainly continues the sentence (starts
+	 * lowercase). A run that is NOT mid-sentence just gains its own paragraph —
+	 * the same rendering the browser's anonymous block gave it, but as a real,
+	 * editable block. Mutates the parsed DOM in place, before block mapping.
+	 *
+	 * @param \DOMElement $root The parsed content's wrapping element.
+	 */
+	private static function heal_loose_inlines( \DOMElement $root ) {
+		$doc   = $root->ownerDocument;
+		$nodes = array();
+		foreach ( $root->childNodes as $node ) {
+			$nodes[] = $node; // Snapshot: the loop moves nodes around.
+		}
+
+		$open = null; // The paragraph currently absorbing a mid-sentence run.
+		$last = null; // The previous significant top-level node.
+		foreach ( $nodes as $node ) {
+			if ( XML_TEXT_NODE === $node->nodeType && '' === trim( $node->textContent ) ) {
+				continue; // Formatting whitespace between blocks.
+			}
+			$tag   = XML_ELEMENT_NODE === $node->nodeType ? strtolower( $node->nodeName ) : '';
+			$loose = XML_TEXT_NODE === $node->nodeType || in_array( $tag, self::INLINE_TAGS, true );
+
+			if ( $loose ) {
+				if ( ! $open ) {
+					if ( $last instanceof \DOMElement && 'p' === strtolower( $last->nodeName ) && self::sentence_open( $last->textContent ) ) {
+						$open = $last; // The run continues the unfinished sentence.
+					} else {
+						$open = $doc->createElement( 'p' ); // Standalone run: its own paragraph.
+						$root->insertBefore( $open, $node );
+						$last = $open;
+					}
+				}
+				if ( $open->hasChildNodes() ) {
+					$open->appendChild( $doc->createTextNode( ' ' ) ); // The seam the source line break stood for.
+				}
+				$open->appendChild( $node );
+				continue;
+			}
+
+			if ( $open && 'p' === $tag
+				&& self::sentence_open( $open->textContent )
+				&& preg_match( '/^\p{Ll}/u', trim( $node->textContent ) ) ) {
+				// The sentence runs on into this paragraph — fold it in.
+				$open->appendChild( $doc->createTextNode( ' ' ) );
+				while ( $node->firstChild ) {
+					$open->appendChild( $node->firstChild );
+				}
+				$root->removeChild( $node );
+				$open = null;
+				continue;
+			}
+
+			$open = null;
+			$last = $node;
+		}
+	}
+
+	/**
+	 * PURE: whether a paragraph's text ends mid-sentence — no terminal
+	 * punctuation (closing quotes/brackets may trail it). Colons and
+	 * semicolons count as terminal: "the following:" introduces a block,
+	 * it doesn't continue into one.
+	 *
+	 * @param string $text The paragraph's plain text.
+	 * @return bool
+	 */
+	private static function sentence_open( $text ) {
+		$text = trim( (string) $text );
+		return '' !== $text && ! preg_match( '/[.!?…:;]["\'\x{201D}\x{2019})\]]*$/u', $text );
 	}
 
 	/**

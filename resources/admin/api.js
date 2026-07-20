@@ -110,6 +110,16 @@ export function createApi(boot) {
         method: 'POST',
         body: JSON.stringify(outline ? { prompt, outline } : { prompt }),
       }),
+    // …or the staged pipeline: the CLIENT is the parallelism — it fires one
+    // request per part (intro, each outline section, closing) plus one small
+    // dressing call, all at once, and assembles them in outline order…
+    assistantComposeSection: (prompt, outline, part, index = -1) =>
+      request('/assistant/compose-section', {
+        method: 'POST',
+        body: JSON.stringify({ prompt, outline, part, index }),
+      }),
+    assistantComposeMeta: (prompt, outline) =>
+      request('/assistant/compose-meta', { method: 'POST', body: JSON.stringify({ prompt, outline }) }),
     // …one image for one slot, on one explicit click (scene-describe → render →
     // media-library import)…
     assistantGenerateImage: (alt, title) =>

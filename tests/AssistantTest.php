@@ -297,6 +297,116 @@ final class AssistantTest extends TestCase {
 		$this->assertStringContainsString( 'introduction', $prompt, 'Intro/conclusion stay out of the skeleton — compose writes them around it.' );
 	}
 
+	/* -- Staged compose: one part per call, the client assembles --------------- */
+
+	public function test_staged_part_prompt_carries_the_spine_and_this_sections_assignment() {
+		$outline = Assistant::parse_outline( $this->valid_outline_json() );
+		$prompt  = Assistant::staged_part_prompt( 'A practical post on backup plugins.', $outline, 'section', 1 );
+		$this->assertStringContainsString( 'A practical post on backup plugins.', $prompt, 'The brief is the spine.' );
+		$this->assertStringContainsString( 'What actually matters', $prompt, 'The COMPLETE outline rides along — every part sees the whole plan.' );
+		$this->assertStringContainsString( 'section 2 of 2', $prompt );
+		$this->assertStringContainsString( '<h2>Common mistakes</h2>', $prompt, 'The verbatim-heading instruction names the exact markup.' );
+		$this->assertStringContainsString( 'Where restores fail in practice.', $prompt, 'The section\'s own note is its assignment.' );
+		$this->assertStringContainsString( 'The section before it is "What actually matters"', $prompt, 'Neighbours stand in for the shared state parallel calls can\'t have.' );
+		$this->assertStringContainsString( 'last section', $prompt );
+	}
+
+	public function test_staged_intro_and_conclusion_are_headingless_bookends() {
+		$outline = Assistant::parse_outline( $this->valid_outline_json() );
+
+		$intro = Assistant::staged_part_prompt( 'Brief here.', $outline, 'intro' );
+		$this->assertStringContainsString( 'INTRODUCTION', $intro );
+		$this->assertStringContainsString( '"What actually matters"', $intro, 'The intro leads into the FIRST section.' );
+		$this->assertStringContainsString( 'No heading of its own', $intro );
+
+		$conclusion = Assistant::staged_part_prompt( 'Brief here.', $outline, 'conclusion' );
+		$this->assertStringContainsString( 'CLOSING', $conclusion );
+		$this->assertStringContainsString( '"Common mistakes"', $conclusion, 'The closing lands after the LAST section.' );
+		$this->assertStringContainsString( 'No heading of its own', $conclusion );
+	}
+
+	public function test_the_staged_part_system_prompt_pins_the_html_contract() {
+		$prompt = Assistant::staged_part_system_prompt();
+		$this->assertStringContainsString( 'ONE PART', $prompt );
+		$this->assertStringContainsString( 'no images', $prompt, 'Images belong to the meta call\'s slots, never inline.' );
+		$this->assertStringContainsString( 'no post title', $prompt );
+		$this->assertStringContainsString( 'assembled in outline order', $prompt, 'Continuity rules stand in for shared state.' );
+		$this->assertStringContainsString( 'the brief wins', $prompt, 'Same voice hierarchy as the whole-document contract.' );
+	}
+
+	public function test_enforce_section_heading_makes_the_outline_heading_win() {
+		// The model paraphrased its heading — ours replaces it, verbatim.
+		$html = Assistant::enforce_section_heading( '<h2>Mistakes People Make</h2><p>Body text.</p>', 'Common mistakes' );
+		$this->assertStringStartsWith( '<h2>Common mistakes</h2>', $html );
+		$this->assertStringContainsString( '<p>Body text.</p>', $html );
+		$this->assertStringNotContainsString( 'Mistakes People Make', $html );
+
+		// No heading at all — ours is prepended.
+		$this->assertStringStartsWith(
+			'<h2>Common mistakes</h2><p>Straight to it.</p>',
+			Assistant::enforce_section_heading( '<p>Straight to it.</p>', 'Common mistakes' )
+		);
+
+		// A section that was ONLY its heading is refused, not padded.
+		$this->assertWPError( Assistant::enforce_section_heading( '<h2>All hat</h2>', 'Common mistakes' ) );
+
+		// Special characters survive the verbatim promise, escaped.
+		$html = Assistant::enforce_section_heading( '<p>x</p>', 'Cache & the "ghost" of a 404' );
+		$this->assertStringContainsString( 'Cache &amp; the &quot;ghost&quot; of a 404', $html );
+	}
+
+	public function test_strip_leading_heading_cuts_one_bookend_heading_only() {
+		// The intro/closing lose a heading the model added anyway…
+		$this->assertSame( '<p>Welcome.</p>', Assistant::strip_leading_heading( '<h2>Introduction</h2><p>Welcome.</p>' ) );
+		$this->assertSame( '<p>Bye.</p>', Assistant::strip_leading_heading( "<h3>Wrapping up</h3>\n<p>Bye.</p>" ) );
+		// …but only the LEADING one: later subheads are content.
+		$this->assertSame(
+			'<p>Lead.</p><h3>Detail</h3><p>More.</p>',
+			Assistant::strip_leading_heading( '<p>Lead.</p><h3>Detail</h3><p>More.</p>' )
+		);
+		$this->assertWPError( Assistant::strip_leading_heading( '<h2>Nothing else</h2>' ), 'A heading with no body is not a part.' );
+	}
+
+	public function test_parse_meta_parses_the_dressing_and_bounds_it_like_a_draft() {
+		$json = wp_json_encode(
+			array(
+				'title'       => 'Choosing a Backup Plugin',
+				'excerpt'     => 'What actually matters when you pick one.',
+				'description' => str_repeat( 'd', 300 ),
+				'topics'      => array_fill( 0, 20, 'topic' ),
+				'tags'        => array( 'backups', 'plugins' ),
+				'categories'  => array( 'Guides' ),
+				'images'      => array(
+					array(
+						'alt'           => 'A dusty server room with one glowing restore light',
+						'after_heading' => 'Common mistakes',
+					),
+					array( 'alt' => 'x' ), // Too thin to be a slot.
+				),
+			)
+		);
+		$meta = Assistant::parse_meta( "```json\n" . $json . "\n```" );
+		$this->assertSame( 'Choosing a Backup Plugin', $meta['title'] );
+		$this->assertSame( 200, mb_strlen( $meta['description'] ), 'Description is bounded.' );
+		$this->assertLessThanOrEqual( Assistant::MAX_TOPICS, count( $meta['topics'] ) );
+		$this->assertCount( 1, $meta['images'], 'Slots are held to the same rules as compose\'s.' );
+		$this->assertSame( 'Common mistakes', $meta['images'][0]['after_heading'], 'Slots anchor to outline headings.' );
+		$this->assertArrayNotHasKey( 'content', $meta, 'The dressing never carries a body.' );
+
+		$this->assertWPError( Assistant::parse_meta( 'no json at all' ) );
+		$this->assertWPError( Assistant::parse_meta( '{"excerpt":"but no title"}' ), 'A title-less dressing is a clear error.' );
+	}
+
+	public function test_the_staged_meta_system_prompt_pins_its_json_contract() {
+		$prompt = Assistant::staged_meta_system_prompt();
+		$this->assertStringContainsString( 'ONLY a single JSON object', $prompt );
+		foreach ( array( '"title"', '"excerpt"', '"description"', '"topics"', '"tags"', '"categories"', '"images"', '"after_heading"' ) as $key ) {
+			$this->assertStringContainsString( $key, $prompt );
+		}
+		$this->assertStringNotContainsString( '"content"', $prompt, 'The body belongs to the parts, never the dressing.' );
+		$this->assertStringContainsString( 'outline', $prompt, 'Image anchors tie to the outline\'s own headings.' );
+	}
+
 	/* -- Blockify: HTML → native block markup --------------------------------- */
 
 	public function test_blockify_wraps_the_contract_vocabulary_in_native_blocks() {
@@ -342,6 +452,46 @@ final class AssistantTest extends TestCase {
 		$image   = strpos( $out, 'wp:image' );
 		$para    = strpos( $out, '<p>After.</p>' );
 		$this->assertTrue( $heading < $image && $image < $para, 'Image block sits between its heading and the next paragraph.' );
+	}
+
+	public function test_blockify_heals_a_sentence_split_around_a_loose_link() {
+		// The real shape from a staged draft: the model closed the paragraph,
+		// dropped the link bare, and opened a new paragraph mid-sentence.
+		$out = Assistant::blockify(
+			'<p>We refactored our plugin to hook into WordPress at the</p>'
+			. '<a href="https://developer.wordpress.org/reference/hooks/plugins_loaded/">plugins_loaded</a>'
+			. '<p>action, running at priority 0.</p>'
+		);
+		$this->assertSame( 1, substr_count( $out, '<!-- wp:paragraph -->' ), 'One sentence, one paragraph block.' );
+		$this->assertStringNotContainsString( 'wp:html', $out, 'The bare link never reaches the custom-HTML fallback.' );
+		$this->assertStringContainsString(
+			'at the <a href="https://developer.wordpress.org/reference/hooks/plugins_loaded/">plugins_loaded</a> action',
+			$out,
+			'The link sits inline, spaced, where the sentence wants it.'
+		);
+	}
+
+	public function test_blockify_leaves_deliberate_boundaries_alone() {
+		// A finished sentence before the link, a capitalised one after: nothing
+		// here is mid-sentence, so nothing merges — the link just gets a real
+		// paragraph instead of the custom-HTML fallback.
+		$out = Assistant::blockify(
+			'<p>Read the docs.</p><a href="https://example.com/">Reference</a><p>Next topic starts here.</p>'
+		);
+		$this->assertSame( 3, substr_count( $out, '<!-- wp:paragraph -->' ) );
+		$this->assertStringContainsString( "<p><a href=\"https://example.com/\">Reference</a></p>", $out );
+		$this->assertStringNotContainsString( 'wp:html', $out );
+
+		// An unfinished paragraph absorbs the run, but an Uppercase follower
+		// stays its own paragraph — merging is only for plain continuations.
+		$half = Assistant::blockify( '<p>It hooks into</p><em>plugins_loaded</em><p>Priorities matter.</p>' );
+		$this->assertSame( 2, substr_count( $half, '<!-- wp:paragraph -->' ) );
+		$this->assertStringContainsString( '<p>It hooks into <em>plugins_loaded</em></p>', $half );
+
+		// A colon is a terminal boundary: "the following:" introduces, it does
+		// not continue — the loose run stands alone.
+		$colon = Assistant::blockify( '<p>Consider the following:</p><code>wp_cache_set</code><p>and its friends.</p>' );
+		$this->assertStringContainsString( '<p><code>wp_cache_set</code> and its friends.</p>', $colon, 'The standalone run still pulls a lowercase continuation in.' );
 	}
 
 	public function test_blockify_falls_back_honestly_instead_of_breaking() {
