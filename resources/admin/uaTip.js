@@ -9,6 +9,8 @@
  *
  * The consumer must declare `flash` in its `emits`, since copying reports its result there.
  */
+import { tipGuard } from './tipGuard.js';
+
 export const uaTip = {
   data() {
     return {
@@ -16,6 +18,14 @@ export const uaTip = {
       // isn't copyable, so a plain hint bubble doesn't promise an interaction it lacks.
       uaTip: { show: false, text: '', hint: '', x: 0, y: 0, caret: 16, below: false },
     };
+  },
+  mounted() {
+    // Any scroll hides the bubble — position:fixed, it would otherwise hang where
+    // its row used to be (and scroll-induced mouseenters must not raise a new one).
+    this._uaTipUnguard = tipGuard.register(() => this.hideUaTip());
+  },
+  beforeUnmount() {
+    if (this._uaTipUnguard) this._uaTipUnguard();
   },
   methods: {
     /**
@@ -35,10 +45,14 @@ export const uaTip = {
      */
     showUaTip(ev, text, hint = 'Click to copy', align = 'left') {
       if (!text) return;
-      const rect = ev.currentTarget.getBoundingClientRect();
+      const el = ev.currentTarget;
+      // A scroll-induced mouseenter isn't a hover — hold the bubble until the mouse
+      // truly moves (the guard re-runs this if the pointer settles on the element).
+      if (tipGuard.suppress(ev, el, (mv) => this.showUaTip({ currentTarget: el, clientX: mv.clientX, type: 'retry' }, text, hint, align))) return;
+      const rect = el.getBoundingClientRect();
       // The card the hovered element lives in: a cursor-anchored bubble clamps
       // inside it, so it never drifts over whatever sits beside the card.
-      const host = ev.currentTarget.closest ? ev.currentTarget.closest('.ar-card') : null;
+      const host = el.closest ? el.closest('.ar-card') : null;
       const hostRect = host ? host.getBoundingClientRect() : null;
       const below = rect.top < 96; // not enough room above → drop below.
       const right = 'right' === align;

@@ -4,6 +4,8 @@ import { tileIcon } from '../groupIcons.js';
 import SelectMenu from './SelectMenu.vue';
 
 import { uaTip } from '../uaTip.js';
+import { tipGuard } from '../tipGuard.js';
+import { formatDate, formatTime, formatStamp } from '../wpDate.js';
 
 export default {
   name: 'ActivityPanel',
@@ -55,11 +57,18 @@ export default {
   mounted() {
     window.addEventListener('resize', this.updateFeedHint);
     this.$nextTick(this.updateFeedHint);
+    // Scrolling drops the chart and network bubbles like it drops the UA one.
+    this._tipUnguards = [
+      tipGuard.register(this.hideTip),
+      tipGuard.register(this.hideRefTip),
+      tipGuard.register(this.hideNetHint),
+    ];
   },
   beforeUnmount() {
     window.removeEventListener('resize', this.updateFeedHint);
     document.removeEventListener('keydown', this.onDayModalKeydown);
     document.removeEventListener('keydown', this.onAiDayKeydown);
+    (this._tipUnguards || []).forEach((off) => off());
   },
   watch: {
     recentGrouped() {
@@ -283,8 +292,8 @@ export default {
     barAria(d) {
       const noun = d.hits === 1 ? 'hit' : 'hits';
       return d.hits
-        ? `${d.date}: ${d.hits} ${noun}. Select to open this day's report.`
-        : `${d.date}: no hits.`;
+        ? `${this.dateLabel(d.date)}: ${d.hits} ${noun}. Select to open this day's report.`
+        : `${this.dateLabel(d.date)}: no hits.`;
     },
     // ---- Day-report modal (the only thing a bar click changes) -----------------
     selectDay(d) {
@@ -433,6 +442,8 @@ export default {
     // ---- Styled hover tooltip --------------------------------------------------
     showTip(d, ev) {
       const bar = ev.currentTarget;
+      // Scroll-induced mouseenters wait for a real mouse move (see tipGuard).
+      if (tipGuard.suppress(ev, bar, () => this.showTip(d, { currentTarget: bar, type: 'retry' }))) return;
       this.tip.day = d;
       this.tip.show = true;
       const wrap = this.$refs.sparkWrap;
@@ -451,6 +462,7 @@ export default {
     // different cards and can in principle be hovered in quick succession.
     showRefTip(d, ev) {
       const bar = ev.currentTarget;
+      if (tipGuard.suppress(ev, bar, () => this.showRefTip(d, { currentTarget: bar, type: 'retry' }))) return;
       this.refTip.day = d;
       this.refTip.show = true;
       const wrap = this.$refs.refSparkWrap;
@@ -501,7 +513,9 @@ export default {
     // hovered chip's rect (fixed viewport), same measure-and-clamp as showUaTip so the box
     // never overflows and the caret keeps pointing at the chip. Content is the static netTip.
     showNetHint(ev) {
-      const rect = ev.currentTarget.getBoundingClientRect();
+      const el = ev.currentTarget;
+      if (tipGuard.suppress(ev, el, () => this.showNetHint({ currentTarget: el, type: 'retry' }))) return;
+      const rect = el.getBoundingClientRect();
       const below = rect.top < 96; // not enough room above → drop below.
       const anchor = rect.left + 16;
       this.netHint = {
@@ -564,27 +578,23 @@ export default {
     pct(hits, max) {
       return `${Math.max(2, Math.round((hits / max) * 100))}%`;
     },
+    // The site's own display formats (Settings → General), read on the UTC clock
+    // face — stored days are UTC calendar days, and a local-time read would label
+    // every westward evening one day early.
     dateLabel(date) {
       const dt = new Date(`${date}T00:00:00Z`);
       if (Number.isNaN(dt.getTime())) return date;
-      return dt.toLocaleDateString(undefined, {
-        timeZone: 'UTC', weekday: 'short', day: 'numeric', month: 'short', year: 'numeric',
-      });
+      return formatDate(dt, true);
     },
     exactTime(iso) {
       const dt = new Date(iso);
       if (Number.isNaN(dt.getTime())) return '';
-      return dt.toLocaleTimeString('en-GB', {
-        timeZone: 'UTC', hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit',
-      });
+      return formatTime(dt, true);
     },
     exactStamp(iso) {
       const dt = new Date(iso);
       if (Number.isNaN(dt.getTime())) return iso;
-      return `${dt.toLocaleString('en-GB', {
-        timeZone: 'UTC', hour12: false, year: 'numeric', month: 'short', day: '2-digit',
-        hour: '2-digit', minute: '2-digit', second: '2-digit',
-      })} UTC`;
+      return `${formatStamp(dt, true)} UTC`;
     },
     ago(iso) {
       const then = new Date(iso).getTime();
@@ -792,7 +802,7 @@ export default {
               role="tooltip"
               aria-hidden="true"
             >
-              <span class="ar-act-tip__date">{{ tip.day.date }}</span>
+              <span class="ar-act-tip__date">{{ dateLabel(tip.day.date) }}</span>
               <span class="ar-act-tip__hits">{{ tip.day.hits }} {{ tip.day.hits === 1 ? 'hit' : 'hits' }}</span>
               <span v-if="tip.day.hits" class="ar-act-tip__top">{{ topClientsText(tip.day) }}</span>
               <span class="ar-act-tip__caret" :style="{ left: tip.caret + 'px' }"></span>
@@ -916,7 +926,7 @@ export default {
                 role="tooltip"
                 aria-hidden="true"
               >
-                <span class="ar-act-tip__date">{{ refTip.day.date }}</span>
+                <span class="ar-act-tip__date">{{ dateLabel(refTip.day.date) }}</span>
                 <span class="ar-act-tip__hits">{{ refTip.day.hits }} {{ refTip.day.hits === 1 ? 'visit' : 'visits' }}</span>
                 <span class="ar-act-tip__caret" :style="{ left: refTip.caret + 'px' }"></span>
               </div>

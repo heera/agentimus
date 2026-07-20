@@ -20,6 +20,8 @@
  *
  * And it never claims to protect anything. It is a camera, not a lock: nothing here blocks.
  */
+import { formatStamp } from '../wpDate.js';
+
 export default {
   name: 'AgentAccess',
   props: {
@@ -308,11 +310,8 @@ export default {
     },
     when(iso) {
       if (!iso) return '';
-      try {
-        return new Date(iso).toLocaleString();
-      } catch (e) {
-        return iso;
-      }
+      const d = new Date(iso);
+      return Number.isNaN(d.getTime()) ? iso : formatStamp(d);
     },
   },
 };

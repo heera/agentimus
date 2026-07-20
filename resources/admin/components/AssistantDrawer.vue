@@ -480,14 +480,19 @@ export default {
       if (!ok) return;
       this.refining = true;
       this.error = '';
+      // The version being revised. If the held draft is gone or different when the
+      // call returns (Start over, Try again — anything that moved it), the result
+      // has nothing to land on and is dropped — compose's staging guard, for refine.
+      const held = this.draft;
       try {
-        const r = await this.api.assistantRefine(this.draft, instruction);
-        this.prevDraft = this.draft; // Keep the version being replaced — one-step undo.
+        const r = await this.api.assistantRefine(held, instruction);
+        if (this.draft !== held) return;
+        this.prevDraft = held; // Keep the version being replaced — one-step undo.
         this.draft = r.draft;
         this.refineText = '';
         this.persistHeld();
       } catch (e) {
-        this.error = (e && e.message) || 'The revision didn’t come back — please try again.';
+        if (this.draft === held) this.error = (e && e.message) || 'The revision didn’t come back — please try again.';
       } finally {
         this.refining = false;
       }
@@ -558,7 +563,7 @@ export default {
     // assistant edits content, not visibility. WordPress keeps the previous
     // version in Revisions on top of the drawer's own one-step Undo.
     async update() {
-      if (!this.draft || !this.editing || 'creating' === this.step) return;
+      if (!this.draft || !this.editing || 'creating' === this.step || this.refining) return;
       const published = 'publish' === this.editing.status;
       const isDraft = 'draft' === this.editing.status;
       const ok = await confirm({
@@ -598,7 +603,7 @@ export default {
     },
     // ---- Create ---------------------------------------------------------------
     async create() {
-      if (!this.draft || 'creating' === this.step) return;
+      if (!this.draft || 'creating' === this.step || this.refining) return;
       const pending = 'pending' === this.statusChoice;
       const ok = await confirm({
         title: pending ? 'Submit for review?' : 'Create the draft?',
@@ -707,7 +712,7 @@ export default {
               v-if="'pick' === step || ('edit' === mode && ('preview' === step || 'creating' === step))"
               type="button"
               class="ar-linkbtn ar-drawer__back"
-              :disabled="'creating' === step"
+              :disabled="refining || 'creating' === step"
               @click="'pick' === step ? (step = 'idle') : openPicker()"
             >← Back</button>
             <button type="button" class="ar-drawer__close" aria-label="Close the assistant" @click="$emit('close')">
@@ -1014,21 +1019,21 @@ export default {
                   <!-- Edit mode has no sibling links, so Start over joins the
                        commit row instead of sitting stranded on its own line. -->
                   <div v-if="'write' === mode" class="ar-assist__footrow">
-                    <button type="button" class="ar-linkbtn ar-assist__resetlink" :disabled="'creating' === step" @click="confirmReset = true">Start over</button>
+                    <button type="button" class="ar-linkbtn ar-assist__resetlink" :disabled="refining || 'creating' === step" @click="confirmReset = true">Start over</button>
                     <span class="ar-assist__spacer"></span>
-                    <button type="button" class="ar-linkbtn" :disabled="'creating' === step" @click="editBrief">Edit the brief</button>
-                    <button v-if="outline" type="button" class="ar-linkbtn" :disabled="'creating' === step" @click="step = 'outline'">Edit the outline</button>
-                    <button type="button" class="ar-linkbtn" :disabled="'creating' === step" @click="compose(usedOutline)">Try again</button>
+                    <button type="button" class="ar-linkbtn" :disabled="refining || 'creating' === step" @click="editBrief">Edit the brief</button>
+                    <button v-if="outline" type="button" class="ar-linkbtn" :disabled="refining || 'creating' === step" @click="step = 'outline'">Edit the outline</button>
+                    <button type="button" class="ar-linkbtn" :disabled="refining || 'creating' === step" @click="compose(usedOutline)">Try again</button>
                   </div>
                   <div class="ar-assist__footrow ar-assist__footrow--commit">
-                    <button v-if="'edit' === mode" type="button" class="ar-linkbtn ar-assist__resetlink" :disabled="'creating' === step" @click="confirmReset = true">Start over</button>
+                    <button v-if="'edit' === mode" type="button" class="ar-linkbtn ar-assist__resetlink" :disabled="refining || 'creating' === step" @click="confirmReset = true">Start over</button>
                     <span class="ar-assist__spacer"></span>
                     <template v-if="'write' === mode">
-                      <select v-model="statusChoice" class="ar-assist__status" :disabled="'creating' === step" aria-label="Save as">
+                      <select v-model="statusChoice" class="ar-assist__status" :disabled="refining || 'creating' === step" aria-label="Save as">
                         <option value="draft">as a draft</option>
                         <option value="pending">as pending review</option>
                       </select>
-                      <button type="button" class="ar-btn ar-assist__go" :disabled="'creating' === step" @click="create">
+                      <button type="button" class="ar-btn ar-assist__go" :disabled="refining || 'creating' === step" @click="create">
                         <span v-if="'creating' === step" class="ar-spinner ar-assist__spin" aria-hidden="true"></span>
                         {{ 'creating' === step ? 'Creating…' : 'Create draft' }}
                       </button>
@@ -1039,7 +1044,7 @@ export default {
                            the "stays …" note — on a published post that note is
                            the warning that the change goes live on update. -->
                       <span v-if="editing && 'draft' !== editing.status" class="ar-assist__statusnote">stays {{ editing.statusLabel.toLowerCase() }}</span>
-                      <button type="button" class="ar-btn ar-assist__go" :disabled="'creating' === step" @click="update">
+                      <button type="button" class="ar-btn ar-assist__go" :disabled="refining || 'creating' === step" @click="update">
                         <span v-if="'creating' === step" class="ar-spinner ar-assist__spin" aria-hidden="true"></span>
                         {{ 'creating' === step ? 'Updating…' : (editing && 'draft' === editing.status ? 'Update draft' : 'Update post') }}
                       </button>

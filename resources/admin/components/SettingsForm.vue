@@ -5,6 +5,7 @@ import IpChecker from './IpChecker.vue';
 import ClientManager from './ClientManager.vue';
 import { bindDocEsc } from '../docEsc.js';
 import { uaTip } from '../uaTip.js';
+import { formatDate } from '../wpDate.js';
 
 import { groupIcon } from '../groupIcons.js';
 
@@ -839,7 +840,7 @@ export default {
       if (s < 3600) return `${Math.round(s / 60)} minutes ago`;
       if (s < 172800) { const h = Math.round(s / 3600); return h === 1 ? '1 hour ago' : `${h} hours ago`; }
       const d = Math.round(s / 86400);
-      return d < 30 ? `${d} days ago` : new Date(t).toLocaleDateString();
+      return d < 30 ? `${d} days ago` : formatDate(new Date(t));
     },
     // Is the server actually answering? Asked over an AUTHENTICATED admin route
     // (agentimus/v1/mcp-status) rather than an unauthenticated GET to the MCP endpoint

@@ -14,6 +14,7 @@
  * score.
  */
 import { impostorDetail, scannerDetail } from '../reviewCopy.js';
+import { tipGuard } from '../tipGuard.js';
 
 export default {
   name: 'ReviewMenu',
@@ -101,10 +102,12 @@ export default {
   mounted() {
     document.addEventListener('click', this.onDocClick);
     document.addEventListener('keydown', this.onKey);
+    this._uaTipUnguard = tipGuard.register(this.hideUaTip);
   },
   beforeUnmount() {
     document.removeEventListener('click', this.onDocClick);
     document.removeEventListener('keydown', this.onKey);
+    if (this._uaTipUnguard) this._uaTipUnguard();
   },
   methods: {
     toggle() {
@@ -284,7 +287,10 @@ export default {
     // ---- Styled UA tooltip + click-to-copy (mirrors ActivityPanel) -------------
     showUaTip(ev, text) {
       if (!text) return;
-      const cell = ev.currentTarget.getBoundingClientRect();
+      const el = ev.currentTarget;
+      // Scroll-induced mouseenters wait for a real mouse move (see tipGuard).
+      if (tipGuard.suppress(ev, el, () => this.showUaTip({ currentTarget: el, type: 'retry' }, text))) return;
+      const cell = el.getBoundingClientRect();
       const pop = this.$refs.pop ? this.$refs.pop.getBoundingClientRect() : null;
       const gap = 16;
       const below = cell.top < 130; // near the top → drop below the cell instead of above.

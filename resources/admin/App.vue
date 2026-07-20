@@ -3,6 +3,7 @@ import { createApi } from './api.js';
 import { navIcon } from './groupIcons.js';
 import { summarize } from './tiers.js';
 import { uaTip } from './uaTip.js';
+import { tipGuard } from './tipGuard.js';
 import SettingsForm from './components/SettingsForm.vue';
 import ReadinessPanel from './components/ReadinessPanel.vue';
 import DiscoveryHub from './components/DiscoveryHub.vue';
@@ -652,8 +653,10 @@ export default {
         this.openMore(true);
       }
     },
-    onMoreEnter() {
+    onMoreEnter(ev) {
       if (!this.canHoverOpen()) return;
+      // Scrolling can park the pointer on "More" — that's not intent to open a menu.
+      if (tipGuard.suppress(ev)) return;
       clearTimeout(this._moreCloseTimer);
       if (this.moreOpen || this._moreSuppress) return;
       // A short intent delay: brushing past "More" on the way to Discovery shouldn't
@@ -733,8 +736,11 @@ export default {
     // bubble's centre, which is also the centre of these full-width rows.
     showRailTip(ev, text, hint = '') {
       if (!text) return;
-      const rect = ev.currentTarget.getBoundingClientRect();
-      const card = (ev.currentTarget.closest && ev.currentTarget.closest('.ar-rail-card')) || ev.currentTarget.parentElement;
+      const el = ev.currentTarget;
+      // Scroll-induced mouseenters wait for a real mouse move (see tipGuard).
+      if (tipGuard.suppress(ev, el, () => this.showRailTip({ currentTarget: el, type: 'retry' }, text, hint))) return;
+      const rect = el.getBoundingClientRect();
+      const card = (el.closest && el.closest('.ar-rail-card')) || el.parentElement;
       const c = card.getBoundingClientRect();
       const below = rect.top < 96;
       // The width cap rides the reactive state: an imperative tip.style.maxWidth

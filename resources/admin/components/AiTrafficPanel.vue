@@ -17,6 +17,7 @@
  */
 import SelectMenu from './SelectMenu.vue';
 import { uaTip } from '../uaTip.js';
+import { formatDate } from '../wpDate.js';
 
 export default {
   name: 'AiTrafficPanel',
@@ -230,13 +231,11 @@ export default {
       return `${Math.max(2, Math.round((hits / max) * 100))}%`;
     },
     // Stored days are UTC calendar days; parse and format as UTC or a westward timezone
-    // renders every label one day early.
+    // renders every label one day early. The pattern is the site's own date format.
     dateLabel(date) {
       const dt = new Date(`${date}T00:00:00Z`);
       if (Number.isNaN(dt.getTime())) return date;
-      return dt.toLocaleDateString(undefined, {
-        timeZone: 'UTC', weekday: 'short', day: 'numeric', month: 'short', year: 'numeric',
-      });
+      return formatDate(dt, true);
     },
   },
 };

@@ -16,6 +16,7 @@ import SelectMenu from './SelectMenu.vue';
 import { confirm } from '../confirm.js';
 import { bindDocEsc } from '../docEsc.js';
 import { groupIcon } from '../groupIcons.js';
+import { formatStamp } from '../wpDate.js';
 
 export default {
   name: 'VisibilityPanel',
@@ -287,7 +288,7 @@ export default {
     fmtDate(iso) {
       if (!iso) return '—';
       const d = new Date(iso);
-      return isNaN(d.getTime()) ? '—' : d.toLocaleString();
+      return isNaN(d.getTime()) ? '—' : formatStamp(d);
     },
     scoreTone(n) {
       return n >= 60 ? 'good' : n >= 25 ? 'warn' : 'bad';

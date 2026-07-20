@@ -16,6 +16,8 @@
  * Dialog conventions match the day reports: fixed size, Esc or Close only —
  * no backdrop-click close — and a centered spinner while loading.
  */
+import { formatDate } from '../wpDate.js';
+
 export default {
   name: 'ClientManager',
   props: {
@@ -98,7 +100,7 @@ export default {
     },
     dateLabel(at) {
       if (!at) return '';
-      return new Date(at * 1000).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' });
+      return formatDate(new Date(at * 1000));
     },
     identity(row) {
       return row.known ? `${row.known.name} · ${row.known.operator}` : '';

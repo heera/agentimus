@@ -662,6 +662,10 @@ final class Admin {
 			'pageUrl'     => esc_url_raw( admin_url( 'admin.php?page=' . self::SLUG ) ),
 			'settings'    => $this->settings->all(),
 			'defaults'    => $this->settings->defaults(), // Powers the reset-preview.
+			// The owner's Settings → General display formats, so every date the app
+			// prints reads like the rest of this admin (see wpDate.js for the renderer).
+			'dateFormat'  => get_option( 'date_format' ) ? get_option( 'date_format' ) : 'F j, Y',
+			'timeFormat'  => get_option( 'time_format' ) ? get_option( 'time_format' ) : 'g:i a',
 			'readiness'   => $readiness = ( new Readiness( $this->settings ) )->report(),
 			'score'       => $this->aeo_score( $readiness ), // AEO/GEO score + action plan, from the same readiness run.
 			'discovery'   => Discovery\Hub::data( $this->settings, Discovery\Registry::instance() ),
