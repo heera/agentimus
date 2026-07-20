@@ -102,6 +102,10 @@ export default {
     byEndpoint() {
       return this.decorateRank(this.data.byEndpoint);
     },
+    // The half-window length the trend arrows compare (and their tooltips cite).
+    trendHalfDays() {
+      return Math.floor((this.data.window || 30) / 2);
+    },
     // Traffic AI sent you (humans arriving from ChatGPT/Perplexity/… — the mirror
     // of the bot log above).
     referrals() {
@@ -528,6 +532,21 @@ export default {
     // the claim honestly. Anything else — too few hits, no earlier baseline to compare
     // against, or movement within the dead-band — reads as a quiet "–" (no trend claimed),
     // so half-vs-half jitter on sparse/spiky bot traffic isn't dressed up as a swing.
+    // The referral rows' bubble: the row's share of the window's AI visits —
+    // the one number the leaderboard doesn't already show.
+    refShareTip(hits) {
+      const total = (this.refTotals && this.refTotals.window) || 0;
+      if (!total) return `${hits} ${1 === hits ? 'visit' : 'visits'}`;
+      return `${hits} of ${total} AI visits · ${Math.round((hits / total) * 100)}%`;
+    },
+    // The styled bubble behind a trend row: the two half-window sums the arrow
+    // was computed from — real numbers, not a bare percentage to guess at.
+    trendTip(r) {
+      if (!r.delta || 'flat' === r.delta.dir) {
+        return 'No trend claimed — steady, or too few hits to say.';
+      }
+      return `Recent ${this.trendHalfDays} days: ${r.recent} · the ${this.trendHalfDays} before: ${r.earlier}`;
+    },
     trendView(r) {
       const MIN_HITS = 20; // below this, too little volume to call a trend.
       const BAND = 10;     // |change| within this reads as steady, not movement.
@@ -788,16 +807,30 @@ export default {
            endpoints first (what was fetched says more than who fetched it). -->
       <section class="ar-card">
         <h2 class="ar-card__title">By endpoint <span class="ar-card__tag">Last {{ data.window || 30 }} days</span></h2>
+        <!-- The arrow claim must match what trend_pct actually computes: the
+             two HALVES of this window, not this window vs the one before. -->
         <p class="ar-card__lead">
           What gets read — hits for each of your agent-facing endpoints, busiest first. The arrow
-          compares the last {{ data.window || 30 }} days with the {{ data.window || 30 }} days before.
+          compares the recent {{ trendHalfDays }} days with the {{ trendHalfDays }} before; hover a
+          row for the numbers behind it.
         </p>
+        <!-- Each row drills into the Request Log, pre-filtered to its endpoint —
+             every hit behind the number, with client and verdict. -->
         <ul v-if="byEndpoint.length" class="ar-act-rank ar-act-rank--trend">
           <li v-for="e in byEndpoint" :key="e.label">
-            <span class="ar-act-rank__label"><code>{{ e.label }}</code></span>
-            <span class="ar-act-delta" :class="'is-' + e.delta.dir">{{ e.delta.label }}</span>
-            <span class="ar-act-rank__track"><span class="ar-act-rank__bar" :style="{ width: pct(e.hits, maxEndpoint) }"></span></span>
-            <span class="ar-act-rank__n">{{ e.hits }}</span>
+            <button
+              type="button"
+              class="ar-act-rank__btn"
+              :aria-label="`Open the Request Log filtered to ${e.label}`"
+              @click="$emit('navigate', { tab: 'log', log: { endpoint: e.label } })"
+              @mouseenter="showUaTip($event, trendTip(e), 'Click for every request', 'cursor')"
+              @mouseleave="hideUaTip"
+            >
+              <span class="ar-act-rank__label"><code>{{ e.label }}</code></span>
+              <span class="ar-act-delta" :class="'is-' + e.delta.dir">{{ e.delta.label }}</span>
+              <span class="ar-act-rank__track"><span class="ar-act-rank__bar" :style="{ width: pct(e.hits, maxEndpoint) }"></span></span>
+              <span class="ar-act-rank__n">{{ e.hits }}</span>
+            </button>
           </li>
         </ul>
         <p v-else class="ar-wd-empty">No hits yet.</p>
@@ -809,12 +842,23 @@ export default {
           Who does the reading — the clients behind those hits: AI agents, crawlers and browsers,
           busiest first. Names are what each client declares about itself.
         </p>
+        <!-- Same drill-down: the Request Log filtered to this client — what one
+             bot actually fetches, the intersection that screen was built for. -->
         <ul v-if="byAgent.length" class="ar-act-rank ar-act-rank--trend">
           <li v-for="a in byAgent" :key="a.label">
-            <span class="ar-act-rank__label">{{ a.label }}</span>
-            <span class="ar-act-delta" :class="'is-' + a.delta.dir">{{ a.delta.label }}</span>
-            <span class="ar-act-rank__track"><span class="ar-act-rank__bar" :style="{ width: pct(a.hits, maxAgent) }"></span></span>
-            <span class="ar-act-rank__n">{{ a.hits }}</span>
+            <button
+              type="button"
+              class="ar-act-rank__btn"
+              :aria-label="`Open the Request Log filtered to ${a.label}`"
+              @click="$emit('navigate', { tab: 'log', log: { agent: a.label } })"
+              @mouseenter="showUaTip($event, trendTip(a), 'Click for every request', 'cursor')"
+              @mouseleave="hideUaTip"
+            >
+              <span class="ar-act-rank__label">{{ a.label }}</span>
+              <span class="ar-act-delta" :class="'is-' + a.delta.dir">{{ a.delta.label }}</span>
+              <span class="ar-act-rank__track"><span class="ar-act-rank__bar" :style="{ width: pct(a.hits, maxAgent) }"></span></span>
+              <span class="ar-act-rank__n">{{ a.hits }}</span>
+            </button>
           </li>
         </ul>
         <p v-else class="ar-wd-empty">No hits yet.</p>
@@ -880,16 +924,25 @@ export default {
           </div>
           <p class="ar-act-sparkcap">Visits per day · last {{ refSpark.length }} days · click a bar for that day’s report</p>
 
-          <!-- Composition: who sent traffic, and where it landed. Top 5 of each; the full
-               leaderboards, the per-day drill-down and the diagnostic are one click away. -->
+          <!-- Composition: who sent traffic, and where it landed. Top 5 of each;
+               each row drills into the full report pre-filtered to itself. -->
           <div class="ar-ai__cols">
             <div class="ar-ai__col">
               <h3 class="ar-ai__sub">Top sources</h3>
               <ul class="ar-act-rank">
                 <li v-for="s in refTopSources" :key="s.label">
-                  <span class="ar-act-rank__label">{{ s.label }}</span>
-                  <span class="ar-act-rank__track"><span class="ar-act-rank__bar" :style="{ width: pct(s.hits, listMax(refTopSources)) }"></span></span>
-                  <span class="ar-act-rank__n">{{ s.hits }}</span>
+                  <button
+                    type="button"
+                    class="ar-act-rank__btn"
+                    :aria-label="`Open the AI traffic report filtered to ${s.label}`"
+                    @click="$emit('navigate', { tab: 'ai-traffic', ai: { source: s.label } })"
+                    @mouseenter="showUaTip($event, refShareTip(s.hits), 'Click for the full report', 'cursor')"
+                    @mouseleave="hideUaTip"
+                  >
+                    <span class="ar-act-rank__label">{{ s.label }}</span>
+                    <span class="ar-act-rank__track"><span class="ar-act-rank__bar" :style="{ width: pct(s.hits, listMax(refTopSources)) }"></span></span>
+                    <span class="ar-act-rank__n">{{ s.hits }}</span>
+                  </button>
                 </li>
               </ul>
             </div>
@@ -897,9 +950,18 @@ export default {
               <h3 class="ar-ai__sub">Top landing pages</h3>
               <ul v-if="refTopPages.length" class="ar-act-rank">
                 <li v-for="p in refTopPages" :key="p.path">
-                  <span class="ar-act-rank__label"><code>{{ p.path }}</code></span>
-                  <span class="ar-act-rank__track"><span class="ar-act-rank__bar" :style="{ width: pct(p.hits, listMax(refTopPages)) }"></span></span>
-                  <span class="ar-act-rank__n">{{ p.hits }}</span>
+                  <button
+                    type="button"
+                    class="ar-act-rank__btn"
+                    :aria-label="`Open the AI traffic report filtered to ${p.path}`"
+                    @click="$emit('navigate', { tab: 'ai-traffic', ai: { path: p.path } })"
+                    @mouseenter="showUaTip($event, refShareTip(p.hits), 'Click for the full report', 'cursor')"
+                    @mouseleave="hideUaTip"
+                  >
+                    <span class="ar-act-rank__label"><code>{{ p.path }}</code></span>
+                    <span class="ar-act-rank__track"><span class="ar-act-rank__bar" :style="{ width: pct(p.hits, listMax(refTopPages)) }"></span></span>
+                    <span class="ar-act-rank__n">{{ p.hits }}</span>
+                  </button>
                 </li>
               </ul>
               <p v-else class="ar-wd-empty">No pages yet.</p>

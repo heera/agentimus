@@ -25,6 +25,9 @@ export default {
     api: { type: Object, default: null },
     // Rendered with v-show, so it stays mounted across tab switches. Fetch on first reveal.
     active: { type: Boolean, default: false },
+    // A drill-down from a dashboard row: filter keys to apply on arrival
+    // (plus a seq stamp so repeat clicks on the same row still re-apply).
+    preset: { type: Object, default: null },
   },
   emits: ['flash'],
   data() {
@@ -88,6 +91,15 @@ export default {
   watch: {
     active(on) {
       if (on && !this.loaded) this.load();
+    },
+    // A dashboard row's drill-down: start from clean filters, apply the preset
+    // keys, and refetch if the log has already loaded once (first reveal picks
+    // the filters up by itself).
+    preset(p) {
+      if (!p) return;
+      const { seq, ...keys } = p;
+      this.filters = { from: '', to: '', agent: '', endpoint: '', network: '', ua: '', verdict: '', ...keys };
+      if (this.loaded) this.apply();
     },
   },
   mounted() {

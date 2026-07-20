@@ -28,21 +28,30 @@ export const uaTip = {
      * @param {string}     align 'left' (default) grows the bubble rightward from the
      *                           element; 'right' pins its right edge to the element's,
      *                           growing LEFTWARD — for right-edge elements whose bubble
-     *                           would otherwise spill over whatever sits beside them.
+     *                           would otherwise spill over whatever sits beside them;
+     *                           'cursor' centers it on the pointer — for FULL-WIDTH
+     *                           rows, where the element's left edge can be half a
+     *                           screen away from where the mouse actually is.
      */
     showUaTip(ev, text, hint = 'Click to copy', align = 'left') {
       if (!text) return;
       const rect = ev.currentTarget.getBoundingClientRect();
+      // The card the hovered element lives in: a cursor-anchored bubble clamps
+      // inside it, so it never drifts over whatever sits beside the card.
+      const host = ev.currentTarget.closest ? ev.currentTarget.closest('.ar-card') : null;
+      const hostRect = host ? host.getBoundingClientRect() : null;
       const below = rect.top < 96; // not enough room above → drop below.
       const right = 'right' === align;
+      const cursor = 'cursor' === align;
       // Viewport x the caret points at: near the element's leading edge for a
-      // left-aligned bubble, near its trailing edge for a right-aligned one.
-      const anchor = right ? rect.right - 16 : rect.left + 16;
+      // left-aligned bubble, its trailing edge for a right-aligned one, or the
+      // pointer itself for a cursor-anchored one.
+      const anchor = right ? rect.right - 16 : cursor ? ev.clientX : rect.left + 16;
       this.uaTip = {
         show: true,
         text,
         hint,
-        x: Math.max(rect.left, 12),
+        x: Math.max(cursor ? ev.clientX - 24 : rect.left, 12),
         y: below ? rect.bottom + 8 : rect.top - 8,
         caret: 16,
         below,
@@ -54,7 +63,14 @@ export const uaTip = {
         const el = this.$refs.uaTipEl;
         if (!el) return;
         const w = el.offsetWidth;
-        const x = Math.max(12, Math.min(right ? rect.right - w : this.uaTip.x, window.innerWidth - w - 12));
+        let min = 12;
+        let max = window.innerWidth - w - 12;
+        if (cursor && hostRect) {
+          min = Math.max(min, hostRect.left + 8);
+          max = Math.min(max, hostRect.right - w - 8);
+          if (max < min) max = min; // card narrower than the bubble — hug its left edge.
+        }
+        const x = Math.max(min, Math.min(right ? rect.right - w : this.uaTip.x, max));
         this.uaTip.x = x;
         this.uaTip.caret = Math.max(12, Math.min(anchor - x, w - 16));
       });

@@ -2921,6 +2921,20 @@ button.ar-verreg__chip { appearance: none; font-family: inherit; line-height: in
    real movers get a colored arrow + %; everything else is a quiet "–". The plain
    .ar-act-rank (referral lists) keeps its 3-column layout. */
 .ar-act-rank--trend li { grid-template-columns: minmax(0, 1fr) 62px 90px auto; }
+/* A rank row that drills somewhere: the button IS the row (it takes over the
+   li's grid), styled invisibly — the hover tint on the label is the only cue,
+   matching how the day-bars and summary tiles advertise themselves. */
+.ar-act-rank li:has(.ar-act-rank__btn) { display: block; }
+.ar-act-rank__btn {
+  appearance: none; background: none; border: 0; margin: 0; padding: 0;
+  font: inherit; color: inherit; text-align: left; cursor: pointer; width: 100%;
+  display: grid; grid-template-columns: minmax(0, 1fr) 90px auto; align-items: center; gap: 12px;
+  border-radius: 6px;
+}
+.ar-act-rank--trend .ar-act-rank__btn { grid-template-columns: minmax(0, 1fr) 62px 90px auto; }
+.ar-act-rank__btn:hover .ar-act-rank__label,
+.ar-act-rank__btn:hover .ar-act-rank__label code { color: var(--ar-accent); }
+.ar-act-rank__btn:focus-visible { outline: 2px solid var(--ar-accent); outline-offset: 3px; }
 .ar-act-delta { font-family: var(--ar-mono); font-size: 11px; white-space: nowrap; text-align: right; }
 .ar-act-delta.is-up { color: var(--ar-good); }
 .ar-act-delta.is-down { color: var(--ar-bad); }

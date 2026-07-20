@@ -105,6 +105,11 @@ export default {
       whatsNew: this.boot.whatsNew || { show: false, version: '', items: [] },
       assistant: this.boot.assistant || { writesOn: false, providerReady: false },
       assistantOpen: false,
+      // The Request Log / AI-traffic filter a dashboard row asked for
+      // (endpoint/client/source/page drill-downs); seq-stamped so repeat
+      // clicks re-apply.
+      logPreset: null,
+      aiPreset: null,
       webmcpTools: this.boot.webmcpTools || [],
       mcpServer: this.boot.mcpServer || {},
       debug: this.boot.debug || {},
@@ -750,9 +755,18 @@ export default {
     goTo(target) {
       // Navigation unmounts whatever the pointer was over — never strand its tooltip.
       this.hideUaTip();
-      const { tab, anchor, view } = typeof target === 'string' ? { tab: target } : target || {};
+      const { tab, anchor, view, log, ai } = typeof target === 'string' ? { tab: target } : target || {};
       // Tell the tab watcher not to snap to the top: we're aiming at a section below.
       this._jumpAnchor = anchor || null;
+      // A dashboard row drilling into a report screen carries its filter along.
+      if (log) {
+        this._logSeq = (this._logSeq || 0) + 1;
+        this.logPreset = { ...log, seq: this._logSeq };
+      }
+      if (ai) {
+        this._logSeq = (this._logSeq || 0) + 1;
+        this.aiPreset = { ...ai, seq: this._logSeq };
+      }
       if (tab) this.tab = tab;
       // Deep-link into the AI Visibility panel's Settings/Results sub-view when asked.
       if ('visibility' === tab && view) {
@@ -1608,6 +1622,7 @@ export default {
           :api="api"
           :active="tab === 'ai-traffic'"
           :log-unknown="!!settings.log_unknown_referrers"
+          :preset="aiPreset"
           @navigate="goTo"
           @flash="flash"
         />
@@ -1616,6 +1631,7 @@ export default {
           v-show="tab === 'log'"
           :api="api"
           :active="tab === 'log'"
+          :preset="logPreset"
           @flash="flash"
         />
         <!-- No v-if: this screen is mounted on every site, however old. Its entire job is to

@@ -253,10 +253,17 @@ final class Repository {
 				foreach ( $dates as $d ) {
 					$series[] = isset( $counts[ $d ] ) ? (int) $counts[ $d ] : 0;
 				}
+				// The two half-window sums the trend is computed FROM ride along,
+				// so the admin's tooltip can explain the arrow with real numbers
+				// instead of leaving a bare percentage to be guessed at.
+				$n    = count( $series );
+				$half = intdiv( $n, 2 );
 				return array(
-					'label' => $label,
-					'hits'  => (int) $r['hits'],
-					'trend' => self::trend_pct( $series ),
+					'label'   => $label,
+					'hits'    => (int) $r['hits'],
+					'trend'   => self::trend_pct( $series ),
+					'earlier' => array_sum( array_slice( $series, 0, $half ) ),
+					'recent'  => array_sum( array_slice( $series, $n - $half ) ),
 				);
 			},
 			(array) $rows

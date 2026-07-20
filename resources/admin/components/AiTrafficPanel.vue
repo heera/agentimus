@@ -31,6 +31,9 @@ export default {
     // `unknown` block (its enabled state and the diagnostic lists). Watched so the report
     // reloads on the next open, instead of only after a full page refresh.
     logUnknown: { type: Boolean, default: false },
+    // A drill-down from a dashboard row: filter keys to apply on arrival
+    // (plus a seq stamp so repeat clicks on the same row still re-apply).
+    preset: { type: Object, default: null },
   },
   // `flash` is required by the uaTip mixin: copying a path reports its result there.
   emits: ['navigate', 'flash'],
@@ -117,6 +120,14 @@ export default {
   watch: {
     active(on) {
       if (on && (!this.report || this.stale)) this.load();
+    },
+    // A dashboard row's drill-down: start from clean filters, apply the preset
+    // keys, and fetch the filtered report.
+    preset(p) {
+      if (!p) return;
+      const { seq, ...keys } = p;
+      this.filters = { from: '', to: '', source: '', path: '', ...keys };
+      this.apply();
     },
     logUnknown() {
       // Never loaded yet → the first open fetches fresh anyway. Otherwise the loaded
