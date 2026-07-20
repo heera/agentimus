@@ -30,7 +30,13 @@ final class RestPermissionTest extends RestTestCase {
 					if ( 'OPTIONS' === $method ) {
 						continue; // CORS preflight is public by design.
 					}
-					$request = new \WP_REST_Request( $method, $route );
+					// A route with a URL path param (e.g. /assistant/post/(?P<id>\d+))
+					// is registered as a regex; dispatching that pattern verbatim
+					// matches NO route and 404s before any permission gate runs.
+					// Substitute a concrete value for each path param so the request
+					// actually reaches — and must be denied by — the gate.
+					$path    = preg_replace( '#\(\?P<[^>]+>[^)]+\)#', '1', $route );
+					$request = new \WP_REST_Request( $method, $path );
 					// WP validates REQUIRED params before the permission callback, so a
 					// missing one would 400 before the 403. Supply a dummy value for each
 					// required arg, so the request actually reaches — and is denied by —
