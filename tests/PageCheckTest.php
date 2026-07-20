@@ -67,6 +67,23 @@ final class PageCheckTest extends TestCase {
 		$this->assertSame( 'pass', $short['status'], 'Too short to grade.' );
 	}
 
+	public function test_sentences_end_at_block_boundaries() {
+		// Bullets and headings rarely carry a full stop — each block is still its
+		// own sentence, not a run-on glued to its neighbours.
+		$list = PageCheck::stats( '<p>Valuable skills:</p><ul><li>systems thinking</li><li>debugging skill</li></ul>', false );
+		$this->assertSame( 3, $list['sentences'], 'Intro + two bullets, not one glued run-on.' );
+
+		$heading = PageCheck::stats( '<h2>Why It Matters</h2><p>Because it does.</p>', false );
+		$this->assertSame( 2, $heading['sentences'], 'A heading is its own sentence.' );
+
+		// Punctuated blocks keep their count — the boundary never double-counts.
+		$this->assertSame( 2, PageCheck::stats( '<p>Done.</p><p>Also done.</p>', false )['sentences'] );
+		$this->assertSame( 3, PageCheck::stats( '<p>One. Two. Three.</p>', false )['sentences'] );
+
+		// Empty blocks and bare dividers are not sentences.
+		$this->assertSame( 1, PageCheck::stats( '<p></p><ul><li> — </li></ul><p>Real.</p>', false )['sentences'] );
+	}
+
 	public function test_syllable_estimator_is_sane() {
 		$syl = function ( string $w ): int {
 			$m = new \ReflectionMethod( PageCheck::class, 'syllables' );

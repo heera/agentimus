@@ -150,7 +150,7 @@ final class PageCheck {
 
 		// Sentence and syllable counts feed the reading-ease grade. Rough by
 		// design — Flesch is a heuristic, not a measurement.
-		$sentences = (int) preg_match_all( '/[.!?]+(?:\s|$)/u', $text );
+		$sentences = self::sentence_count( $html );
 		$syllables = 0;
 		foreach ( explode( ' ', trim( (string) preg_replace( '/\s+/', ' ', $text ) ) ) as $token ) {
 			$syllables += self::syllables( $token );
@@ -514,6 +514,34 @@ final class PageCheck {
 	private static function word_count( $text ) {
 		$text = trim( preg_replace( '/\s+/', ' ', (string) $text ) );
 		return '' === $text ? 0 : count( explode( ' ', $text ) );
+	}
+
+	/**
+	 * PURE: sentence count for the reading-ease grade. Punctuation ends a
+	 * sentence — and so does a block boundary (a paragraph, list item, heading,
+	 * cell), because bullets and headings rarely carry a full stop, and gluing
+	 * them into their neighbours grades list-heavy pages as one enormous
+	 * "sentence".
+	 *
+	 * @param string $html Rendered content HTML.
+	 * @return int
+	 */
+	private static function sentence_count( $html ) {
+		// Closing block tags become hard boundaries before the tag-strip — a
+		// marker survives text_of() where a bare space would glue neighbours.
+		$html  = (string) preg_replace( '@</(?:p|li|h[1-6]|blockquote|figcaption|caption|dt|dd|td|th|pre)\s*>@i', "\x1E", (string) $html );
+		$count = 0;
+		foreach ( explode( "\x1E", self::text_of( $html ) ) as $block ) {
+			$block = trim( (string) preg_replace( '/\s+/', ' ', $block ) );
+			if ( ! preg_match( '/[\p{L}\p{N}]/u', $block ) ) {
+				continue; // No words, no sentence — an empty cell or bare divider.
+			}
+			$count += (int) preg_match_all( '/[.!?]+(?:\s|$)/u', $block );
+			if ( ! preg_match( '/[.!?]$/u', $block ) ) {
+				++$count; // The block's tail is a sentence even without a full stop.
+			}
+		}
+		return $count;
 	}
 
 	/**
