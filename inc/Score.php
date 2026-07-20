@@ -504,9 +504,13 @@ final class Score {
 				if ( 'pass' !== $r['status'] ) {
 					$key = (string) $r['id'];
 					if ( ! isset( $issues[ $key ] ) ) {
-						$issues[ $key ] = array( 'count' => 0, 'label' => (string) $r['label'], 'posts' => array() );
+						$issues[ $key ] = array( 'count' => 0, 'label' => (string) $r['label'], 'posts' => array(), 'types' => array() );
 					}
 					++$issues[ $key ]['count'];
+					// Per-type tally, so the worklist can say "3 Posts, 1 Page"
+					// instead of calling every flagged item a "page".
+					$type = (string) $post->post_type;
+					$issues[ $key ]['types'][ $type ] = 1 + ( isset( $issues[ $key ]['types'][ $type ] ) ? (int) $issues[ $key ]['types'][ $type ] : 0 );
 					// Collect the affected posts (capped) so the worklist — and the
 					// action's fix link — can point straight at each post's editor.
 					if ( count( $issues[ $key ]['posts'] ) < self::WORKLIST_POSTS_PER_ISSUE ) {
@@ -532,8 +536,8 @@ final class Score {
 			return __( 'No published posts to grade yet.', 'agentimus' );
 		}
 		return sprintf(
-			/* translators: %d: number of posts sampled. */
-			_n( 'Citability across your %d most recent post.', 'Citability across your %d most recent posts.', (int) $optimize['posts'], 'agentimus' ),
+			/* translators: %d: number of posts/pages sampled. */
+			_n( 'Citability across your %d most recently edited post or page.', 'Citability across your %d most recently edited posts and pages.', (int) $optimize['posts'], 'agentimus' ),
 			(int) $optimize['posts']
 		);
 	}
@@ -575,11 +579,12 @@ final class Score {
 				continue;
 			}
 			$out[] = array(
-				'id'    => (string) $id,
-				'label' => (string) $issue['label'],
-				'why'   => self::content_guidance( (string) $id ),
-				'count' => (int) $issue['count'],
-				'pages' => $pages,
+				'id'         => (string) $id,
+				'label'      => (string) $issue['label'],
+				'why'        => self::content_guidance( (string) $id ),
+				'count'      => (int) $issue['count'],
+				'countLabel' => self::kind_count_label( isset( $issue['types'] ) ? (array) $issue['types'] : array(), (int) $issue['count'] ),
+				'pages'      => $pages,
 			);
 		}
 		return $out;
@@ -594,17 +599,52 @@ final class Score {
 	 */
 	private static function content_guidance( $id ) {
 		$map = array(
-			'words'         => __( 'Expand it — an agent has little to read or cite.', 'agentimus' ),
-			'summary'       => __( 'Open with a line that states what the page is about.', 'agentimus' ),
-			'evidence'      => __( 'Add a figure, a statistic, or a cited source.', 'agentimus' ),
-			'headings'      => __( 'Add H2/H3 headings so an agent can section it.', 'agentimus' ),
-			'heading_order' => __( 'Fix the heading levels so they don’t skip.', 'agentimus' ),
-			'passages'      => __( 'Break the long block into shorter, quotable paragraphs.', 'agentimus' ),
-			'link_density'  => __( 'Add prose or trim link lists — it reads as navigation.', 'agentimus' ),
-			'alt_text'      => __( 'Describe images with alt text.', 'agentimus' ),
-			'freshness'     => __( 'Refresh it — engines favour current pages.', 'agentimus' ),
+			'words'          => __( 'Expand it — an agent has little to read or cite.', 'agentimus' ),
+			'summary'        => __( 'Open with a line that states what the page is about.', 'agentimus' ),
+			'evidence'       => __( 'Add a figure, a statistic, or a cited source.', 'agentimus' ),
+			'sources'        => __( 'Cite a source — link where its facts come from.', 'agentimus' ),
+			'headings'       => __( 'Add H2/H3 headings so an agent can section it.', 'agentimus' ),
+			'heading_order'  => __( 'Fix the heading levels so they don’t skip.', 'agentimus' ),
+			'passages'       => __( 'Break the long block into shorter, quotable paragraphs.', 'agentimus' ),
+			'reading_ease'   => __( 'Simplify the prose — shorter sentences, plainer words.', 'agentimus' ),
+			'link_density'   => __( 'Add prose or trim link lists — it reads as navigation.', 'agentimus' ),
+			'alt_text'       => __( 'Describe images with alt text.', 'agentimus' ),
+			'featured_image' => __( 'Set a featured image so link previews have a picture.', 'agentimus' ),
+			'freshness'      => __( 'Refresh it — engines favour current pages.', 'agentimus' ),
 		);
-		return isset( $map[ $id ] ) ? $map[ $id ] : __( 'Improve this page’s citability in the editor.', 'agentimus' );
+		return isset( $map[ $id ] ) ? $map[ $id ] : __( 'Improve its citability in the editor.', 'agentimus' );
+	}
+
+	/**
+	 * "6 Posts" / "3 Posts, 1 Page" / "2 Products" — the human count for one
+	 * worklist issue, named from the real content types behind it (the graded
+	 * set is posts AND pages, plus any article-like public type). Falls back to
+	 * "N items" when the type map is missing (a cached pre-upgrade sample) or a
+	 * type has no label to speak with.
+	 *
+	 * @param array $types Post-type slug → flagged count.
+	 * @param int   $count Total flagged, for the fallback.
+	 * @return string
+	 */
+	private static function kind_count_label( array $types, $count ) {
+		$parts = array();
+		foreach ( $types as $slug => $n ) {
+			$obj  = get_post_type_object( (string) $slug );
+			$name = '';
+			if ( $obj && isset( $obj->labels ) ) {
+				$name = 1 === (int) $n ? (string) $obj->labels->singular_name : (string) $obj->labels->name;
+			}
+			if ( '' === $name ) {
+				$parts = array();
+				break;
+			}
+			$parts[] = sprintf( '%1$s %2$s', number_format_i18n( (int) $n ), $name );
+		}
+		if ( empty( $parts ) ) {
+			/* translators: %d: how many posts/pages flag this check. */
+			return sprintf( _n( '%d item', '%d items', max( 1, (int) $count ), 'agentimus' ), (int) $count );
+		}
+		return implode( ', ', $parts );
 	}
 
 	/** Post IDs the owner set aside as "not cited content". */
@@ -812,13 +852,13 @@ final class Score {
 				// image is about link previews, not citability). Quoting the check's
 				// own label stays accurate for every check, present and future.
 				'why'      => sprintf(
-					/* translators: 1: number of posts, 2: the check's warning label. */
-					_n( '%1$d post flags “%2$s” — open it to fix in the editor (its AI Readability panel).', '%1$d posts flag “%2$s” — open one to fix in the editor (its AI Readability panel).', (int) $issue['count'], 'agentimus' ),
+					/* translators: 1: number of flagged posts/pages, 2: the check's warning label. */
+					_n( '%1$d item flags “%2$s” — open it to fix in the editor (its AI Readability panel).', '%1$d items flag “%2$s” — open one to fix in the editor (its AI Readability panel).', (int) $issue['count'], 'agentimus' ),
 					(int) $issue['count'],
 					(string) $issue['label']
 				),
 				'severity' => 'content',
-				'action'   => '' !== $edit ? array( 'label' => __( 'Open the post', 'agentimus' ), 'href' => $edit ) : null,
+				'action'   => '' !== $edit ? array( 'label' => __( 'Open in the editor', 'agentimus' ), 'href' => $edit ) : null,
 			);
 		}
 

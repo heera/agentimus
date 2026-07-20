@@ -139,7 +139,7 @@ export default {
       if (ignored) {
         const ok = await confirm({
           title: `Set “${page.title}” aside?`,
-          message: 'Nothing is deleted or changed — the page stays published exactly as it is. It’s just left out of your content-optimization score. You can restore it here anytime.',
+          message: 'Nothing is deleted or changed — it stays published exactly as it is. It’s just left out of your content-optimization score. You can restore it here anytime.',
           confirmLabel: 'Set aside',
           cancelLabel: 'Cancel',
           tone: 'default',
@@ -333,7 +333,9 @@ export default {
         <li v-for="issue in optimize" :id="`ar-opt-${issue.id}`" :key="issue.id" class="ar-check is-warn">
           <span class="ar-check__rule" aria-hidden="true"></span>
           <div class="ar-check__text">
-            <strong>{{ issue.label }} <span class="ar-optcheck__n">· {{ issue.count }} {{ issue.count === 1 ? 'page' : 'pages' }}</span></strong>
+            <!-- The server names the real content types behind the count ("3 Posts, 1 Page");
+                 the items fallback covers a stale pre-upgrade payload without one. -->
+            <strong>{{ issue.label }} <span class="ar-optcheck__n">· {{ issue.countLabel || `${issue.count} ${issue.count === 1 ? 'item' : 'items'}` }}</span></strong>
             <small>{{ issue.why }}</small>
             <ul class="ar-optcheck__pages">
               <li v-for="p in issue.pages" :key="p.id" class="ar-optcheck__row">
@@ -352,7 +354,7 @@ export default {
           </div>
         </li>
       </ul>
-      <p v-else class="ar-optcheck__clear">Every graded page reads as citable. Anything set aside is listed below.</p>
+      <p v-else class="ar-optcheck__clear">Every graded post and page reads as citable. Anything set aside is listed below.</p>
 
       <!-- Set aside — always visible, one-click restore, so nothing is silently hidden. -->
       <div v-if="optimizeIgnored.length" class="ar-setaside">
