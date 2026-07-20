@@ -807,10 +807,15 @@ final class Score {
 				'id'       => 'content_' . $id,
 				'pillar'   => 'optimized',
 				'title'    => $issue['label'],
+				// Named, not generic: the old "could be more citable" framing fit the
+				// text-quality checks but misdescribed others (a missing featured
+				// image is about link previews, not citability). Quoting the check's
+				// own label stays accurate for every check, present and future.
 				'why'      => sprintf(
-					/* translators: %d: number of posts. */
-					_n( '%d post could be more citable — open it to fix in the editor (its AI Readability panel).', '%d posts could be more citable — open one to fix in the editor (its AI Readability panel).', (int) $issue['count'], 'agentimus' ),
-					(int) $issue['count']
+					/* translators: 1: number of posts, 2: the check's warning label. */
+					_n( '%1$d post flags “%2$s” — open it to fix in the editor (its AI Readability panel).', '%1$d posts flag “%2$s” — open one to fix in the editor (its AI Readability panel).', (int) $issue['count'], 'agentimus' ),
+					(int) $issue['count'],
+					(string) $issue['label']
 				),
 				'severity' => 'content',
 				'action'   => '' !== $edit ? array( 'label' => __( 'Open the post', 'agentimus' ), 'href' => $edit ) : null,

@@ -201,6 +201,17 @@ final class PageCheckTest extends TestCase {
 		$this->assertSame( 'pass', $this->check( 'check_freshness', array( 'words' => 50, 'age_days' => 900 ) )['status'] );
 	}
 
+	public function test_featured_image_expected_only_where_supported() {
+		// Type/theme without featured-image support → honest skip → pass.
+		$this->assertSame( 'pass', $this->check( 'check_featured_image', array( 'featured_expected' => false, 'featured' => false ) )['status'] );
+		// Supported and set → pass.
+		$this->assertSame( 'pass', $this->check( 'check_featured_image', array( 'featured_expected' => true, 'featured' => true ) )['status'] );
+		// Supported and missing → warn, and the detail says what's lost.
+		$row = $this->check( 'check_featured_image', array( 'featured_expected' => true, 'featured' => false ) );
+		$this->assertSame( 'warn', $row['status'] );
+		$this->assertStringContainsString( 'link previews', $row['detail'] );
+	}
+
 	public function test_freshness_exempts_evergreen_content() {
 		// Old + substantial would warn, but an evergreen-marked post is timeless → pass.
 		$stale = array( 'words' => 400, 'age_days' => 800 );

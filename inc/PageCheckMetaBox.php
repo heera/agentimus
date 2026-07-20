@@ -60,6 +60,10 @@ final class PageCheckMetaBox {
 		// Resolved once here, not per row.
 		$ai = Assist::ai_available();
 
+		// The featured-image row's one-click Generate needs a longer chain — block
+		// editor, writes switch, image-capable provider, upload rights. Also once.
+		$genfeat = AssistantEditor::featured_one_click();
+
 		ob_start();
 		printf( '<div class="agentimus-pc" data-post="%d">', (int) $post->ID );
 
@@ -88,6 +92,17 @@ final class PageCheckMetaBox {
 					. '<svg class="agentimus-assist__icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M12 3l1.9 4.7L18.6 9l-4.7 1.9L12 15.6 10.1 10.9 5.4 9l4.7-1.3z"/></svg>'
 					. esc_html__( 'Fix with AI', 'agentimus' )
 					. '</button><div class="agentimus-pc__fixout" hidden></div>';
+			}
+
+			// The featured-image row gets a one-click of its own — not a text
+			// suggestion but the assistant's generate-and-set-featured (bound by
+			// delegation in AssistantEditor's editor script). Its class is NOT
+			// agentimus-pc__fix, so the Fix-with-AI handler never catches it.
+			if ( $genfeat && 'featured_image' === $r['id'] && 'pass' !== $status ) {
+				$fix = '<button type="button" class="agentimus-pc__genfeat">'
+					. '<svg class="agentimus-assist__icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M12 3l1.9 4.7L18.6 9l-4.7 1.9L12 15.6 10.1 10.9 5.4 9l4.7-1.3z"/></svg>'
+					. esc_html__( 'Generate with AI', 'agentimus' )
+					. '</button>';
 			}
 
 			printf(
@@ -123,6 +138,12 @@ final class PageCheckMetaBox {
 			. '.agentimus-pc__row.is-fail .agentimus-pc__mark{background:#d63638}'
 			. '.agentimus-pc__text{display:block}'
 			. '.agentimus-pc__detail{display:block;color:#646970;margin-top:2px}'
-			. '.agentimus-pc__reflect{color:#646970;font-size:12px;margin:10px 0 0}';
+			. '.agentimus-pc__reflect{color:#646970;font-size:12px;margin:10px 0 0}'
+			// The featured row's one-click, dressed like the Fix-with-AI button but
+			// styled here (its own class keeps it out of that handler's reach).
+			. '.agentimus-pc__genfeat{display:inline-flex;align-items:center;gap:4px;margin-top:6px;background:none;border:1px solid #c3c4c7;border-radius:3px;padding:2px 8px;font-size:12px;color:#2271b1;cursor:pointer}'
+			. '.agentimus-pc__genfeat:hover{border-color:#2271b1;background:#f6f7f7}'
+			. '.agentimus-pc__genfeat[disabled]{opacity:.7;cursor:progress}'
+			. '.agentimus-pc__genfeat .agentimus-assist__icon{color:#8073a6}';
 	}
 }

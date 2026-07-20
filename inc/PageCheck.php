@@ -66,6 +66,10 @@ final class PageCheck {
 		// The site language is a runtime fact too: the reading-ease formula only
 		// fits English, and the check skips honestly elsewhere.
 		$stats['english'] = 0 === stripos( (string) get_locale(), 'en' );
+		// So is the featured image — and it's only expected where the content
+		// type and theme actually offer one.
+		$stats['featured']          = has_post_thumbnail( $post );
+		$stats['featured_expected'] = post_type_supports( $post->post_type, 'thumbnail' ) && current_theme_supports( 'post-thumbnails' );
 
 		$checks = array(
 			self::check_words( $stats ),
@@ -78,6 +82,7 @@ final class PageCheck {
 			self::check_reading_ease( $stats ),
 			self::check_link_density( $stats ),
 			self::check_alt_text( $stats ),
+			self::check_featured_image( $stats ),
 			self::check_freshness( $stats ),
 		);
 
@@ -346,6 +351,23 @@ final class PageCheck {
 		}
 		$detail = (int) $s['images'] > 0 ? __( 'Every image has alt text.', 'agentimus' ) : __( 'No images to describe.', 'agentimus' );
 		return self::row( 'alt_text', __( 'Image alt text', 'agentimus' ), 'pass', $detail );
+	}
+
+	private static function check_featured_image( array $s ) {
+		// Only expected where the content type and theme actually offer one —
+		// skip honestly instead of nagging about a box that isn't there.
+		if ( empty( $s['featured_expected'] ) ) {
+			return self::row( 'featured_image', __( 'Featured image', 'agentimus' ), 'pass', __( 'This content type doesn’t use featured images — nothing to check.', 'agentimus' ) );
+		}
+		if ( ! empty( $s['featured'] ) ) {
+			return self::row( 'featured_image', __( 'Featured image', 'agentimus' ), 'pass', __( 'Set — link previews and embeds have a picture to show for this page.', 'agentimus' ) );
+		}
+		return self::row(
+			'featured_image',
+			__( 'No featured image', 'agentimus' ),
+			'warn',
+			__( 'Without a featured image, link previews and embeds have no picture to show for this page. Choose an image that stands for it.', 'agentimus' )
+		);
 	}
 
 	private static function check_freshness( array $s ) {

@@ -11,7 +11,10 @@
  *    behind (alt filled, media empty) are one click from real images, and a
  *    filled block regenerates the same way;
  *  - a "Featured image (AI)" document-sidebar panel — one click, seeded from
- *    the post title, set as featured on success.
+ *    the post title, set as featured on success;
+ *  - the same one click again on the AI-Readability panel's "No featured
+ *    image" row (rendered by PageCheckMetaBox when featured_one_click() says
+ *    the whole chain could deliver, bound here by delegation).
  *
  * Enqueued only where it can actually work: block editor on agent-visible
  * types, writes switch on, an image-capable provider connected, and a user
@@ -79,6 +82,32 @@ final class AssistantEditor {
 	 */
 	private function images_ready() {
 		return current_user_can( 'upload_files' ) && Assistant::image_ready();
+	}
+
+	/**
+	 * Whether the AI-Readability "No featured image" row may offer its one-click
+	 * Generate — true only where the whole chain could deliver: a block-editor
+	 * context (the panel's REST refresh counts — only the block editor calls it),
+	 * the writes switch on, a user who may edit and upload, and a provider that
+	 * can actually paint. Static because the row renderer
+	 * ({@see PageCheckMetaBox::rows_html()}) has no AssistantEditor instance.
+	 *
+	 * @return bool
+	 */
+	public static function featured_one_click() {
+		if ( ! ( defined( 'REST_REQUEST' ) && REST_REQUEST ) ) {
+			$screen = function_exists( 'get_current_screen' ) ? get_current_screen() : null;
+			if ( ! $screen || ! method_exists( $screen, 'is_block_editor' ) || ! $screen->is_block_editor() ) {
+				return false;
+			}
+		}
+		if ( ! ( new Settings() )->enabled( 'enable_agent_writes' ) ) {
+			return false;
+		}
+		if ( ! current_user_can( 'edit_posts' ) || ! current_user_can( 'upload_files' ) ) {
+			return false;
+		}
+		return Assistant::image_ready();
 	}
 
 	/**
@@ -317,35 +346,43 @@ final class AssistantEditor {
 		}, 'withAgentimusAssistant')
 	);
 
-	/* 2 — "Featured image (AI)": the side meta box's full-width button. The
-	   box markup is server-rendered (so it can sit above the description &
-	   topics box); this only gives the button its behaviour. */
+	/* 2 — featured-image generation, shared by its two buttons: the side meta
+	   box's (server-rendered once, bound directly) and the AI-Readability
+	   "No featured image" row's one-click (that panel re-renders its rows after
+	   every save, so the click is delegated on the document — the Fix-with-AI
+	   pattern). Both seed from the post title and set the result as featured. */
+	function setFeaturedFromTitle(btn) {
+		if (btn.disabled) { return; }
+		var title = '';
+		try { title = (wp.data.select('core/editor').getEditedPostAttribute('title') || '').trim(); } catch (e) {}
+		if (!title) {
+			notice('err', 'Give the post a title first — the featured image is generated from it.');
+			return;
+		}
+		var idle = btn.innerHTML;
+		btn.disabled = true;
+		btn.textContent = 'Generating…';
+		generate('A featured image for the post “' + title + '”', function (r) {
+			wp.data.dispatch('core/editor').editPost({ featured_media: r.id });
+		}, function () {
+			btn.disabled = false;
+			btn.innerHTML = idle;
+		});
+	}
 	function bindFeatured() {
 		var btn = document.getElementById('agentimus-generate-featured');
-		if (!btn) { return; }
-		var label = btn.textContent;
-		btn.addEventListener('click', function () {
-			if (btn.disabled) { return; }
-			var title = '';
-			try { title = (wp.data.select('core/editor').getEditedPostAttribute('title') || '').trim(); } catch (e) {}
-			if (!title) {
-				notice('err', 'Give the post a title first — the featured image is generated from it.');
-				return;
-			}
-			btn.disabled = true;
-			btn.textContent = 'Generating…';
-			generate('A featured image for the post “' + title + '”', function (r) {
-				wp.data.dispatch('core/editor').editPost({ featured_media: r.id });
-			}, function () {
-				btn.disabled = false;
-				btn.textContent = label;
-			});
-		});
+		if (btn) { btn.addEventListener('click', function () { setFeaturedFromTitle(btn); }); }
 	}
 	if ('loading' === document.readyState) {
 		document.addEventListener('DOMContentLoaded', bindFeatured);
 	} else {
 		bindFeatured();
+	}
+	if (imagesReady) {
+		document.addEventListener('click', function (e) {
+			var btn = e.target && e.target.closest ? e.target.closest('.agentimus-pc__genfeat') : null;
+			if (btn) { setFeaturedFromTitle(btn); }
+		});
 	}
 })();
 JS;

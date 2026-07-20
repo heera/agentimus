@@ -155,6 +155,11 @@ namespace {
 	if ( ! function_exists( 'do_blocks' ) )             { function do_blocks( $content ) { return (string) $content; } }
 	if ( ! function_exists( 'get_the_date' ) )          { function get_the_date( $format = '', $p = null ) { return '2026-01-01T00:00:00+00:00'; } }
 	if ( ! function_exists( 'get_the_modified_date' ) ) { function get_the_modified_date( $format = '', $p = null ) { return '2026-01-02T00:00:00+00:00'; } }
+	// Featured-image surface for the PageCheck featured row (toggle via the globals;
+	// defaults mimic a standard site: posts/pages support thumbnails, none set).
+	if ( ! function_exists( 'has_post_thumbnail' ) )    { function has_post_thumbnail( $post = null ) { $id = is_object( $post ) ? (int) $post->ID : (int) $post; return ! empty( $GLOBALS['_af_thumbnails'][ $id ] ); } }
+	if ( ! function_exists( 'post_type_supports' ) )    { function post_type_supports( $type, $feature ) { $k = $type . ':' . $feature; if ( isset( $GLOBALS['_af_type_supports'][ $k ] ) ) { return (bool) $GLOBALS['_af_type_supports'][ $k ]; } return 'thumbnail' === $feature && in_array( (string) $type, array( 'post', 'page' ), true ); } }
+	if ( ! function_exists( 'current_theme_supports' ) ) { function current_theme_supports( $feature ) { return isset( $GLOBALS['_af_theme_supports'][ $feature ] ) ? (bool) $GLOBALS['_af_theme_supports'][ $feature ] : true; } }
 	if ( ! function_exists( 'get_the_category' ) )      { function get_the_category( $id = false ) { return isset( $GLOBALS['_af_categories'] ) ? (array) $GLOBALS['_af_categories'] : array(); } }
 	if ( ! function_exists( 'get_category_link' ) )     { function get_category_link( $cat ) { return 'https://example.com/cat/'; } }
 	// Post-meta + taxonomy surface for the Topics tests. Meta is a stateful id→[key→value]

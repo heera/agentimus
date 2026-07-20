@@ -41,6 +41,27 @@ final class PageCheckMetaBoxTest extends TestCase {
 		$this->assertStringContainsString( 'is-warn', $html );
 	}
 
+	public function test_rows_html_featured_row_warns_without_one_click_outside_the_editor() {
+		unset( $GLOBALS['_af_thumbnails'] );
+		$post = new \WP_Post( array( 'ID' => 4, 'post_content' => '<p>' . str_repeat( 'word ', 150 ) . '</p>' ) );
+		$html = PageCheckMetaBox::rows_html( $post );
+
+		// The post-fact check rides along: no thumbnail → warn row…
+		$this->assertStringContainsString( 'No featured image', $html );
+		// …but its one-click Generate renders only in a block-editor context.
+		$this->assertStringNotContainsString( 'agentimus-pc__genfeat', $html );
+	}
+
+	public function test_rows_html_featured_row_passes_when_set() {
+		$GLOBALS['_af_thumbnails'] = array( 5 => true );
+		$post = new \WP_Post( array( 'ID' => 5, 'post_content' => '<p>' . str_repeat( 'word ', 150 ) . '</p>' ) );
+		$html = PageCheckMetaBox::rows_html( $post );
+		unset( $GLOBALS['_af_thumbnails'] );
+
+		$this->assertStringNotContainsString( 'No featured image', $html );
+		$this->assertStringContainsString( 'Featured image', $html );
+	}
+
 	public function test_rows_html_output_is_html_escaped() {
 		// A row label/detail is escaped, so nothing a check emits can break the markup.
 		$post = new \WP_Post( array( 'ID' => 3, 'post_content' => '<p>' . str_repeat( 'word ', 150 ) . '</p>' ) );
