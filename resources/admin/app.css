@@ -149,9 +149,15 @@
   display: flex; align-items: center; gap: 11px; align-self: center;
   appearance: none; background: none; border: 0; margin: 0; padding: 0;
   font: inherit; color: inherit; text-align: left; cursor: pointer;
+  text-decoration: none; /* it's a real <a> now — no underline on the masthead */
   transition: opacity 0.15s;
 }
 .ar__brand:hover { opacity: 0.82; }
+/* As a real <a> the masthead inherits wp-admin's global a:focus blue ring (it
+   fires on right-click too); silence that and keep OUR ring for keyboard focus.
+   A logo-link isn't prose either — no text selection on click. */
+.ar__brand { user-select: none; -webkit-user-select: none; }
+.ar__brand:focus { outline: 0; box-shadow: none; }
 .ar__brand:focus-visible { outline: 2px solid var(--ar-accent); outline-offset: 4px; border-radius: 6px; }
 .ar__mark {
   display: inline-flex; align-items: center; justify-content: center;
@@ -189,9 +195,23 @@
   -moz-text-align-last: justify;
 }
 
-/* Brand / nav break — invisible on wide screens (the gold-gem arrow it used to
-   draw retired when the tabs gained their own icons); on narrow screens the
-   media block below turns it into a full-width flex line break. */
+/* The gold-gem arrow — part of the BRAND BUTTON now, so the whole masthead
+   including it is one clickable unit. Two angled bars meet at a framed gold
+   node pointing toward the menu; the gold echoes the version line + logo
+   crossbar, the ring echoes the logo's framed mark. */
+.ar__brandarrow { display: inline-flex; margin-left: 5px; }
+.ar__brandarrow svg { display: block; }
+.ar__sep-chev {
+  stroke: var(--ar-line-strong);
+  stroke-width: 1.4;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.ar__sep-ring { stroke: rgba(173, 123, 24, 0.45); stroke-width: 1; }
+.ar__sep-node { fill: var(--ar-warn); filter: drop-shadow(0 0 2px rgba(173, 123, 24, 0.45)); }
+
+/* Brand / nav break — invisible on wide screens; on narrow screens the media
+   block below turns it into a full-width flex line break. */
 .ar__sep { display: none; }
 
 /* Tabs — inline in the bar, active item underlined at the bar's base. The strip
@@ -954,8 +974,10 @@
      between the pills); this row's gap is 16px, where −16 left them TOUCHING.
      Ease it so the pair keeps the same 10px daylight here. */
   .ar__assist + .ar__review { margin-left: -6px; }
-  /* Condense the masthead: drop the version line, shrink the mark + wordmark. */
+  /* Condense the masthead: drop the version line and the arrow, shrink the
+     mark + wordmark. */
   .ar__ver { display: none; }
+  .ar__brandarrow { display: none; }
   .ar__mark { width: 26px; height: 26px; }
   .ar__logo { width: 16px; }
   .ar__name { font-size: 15px; }

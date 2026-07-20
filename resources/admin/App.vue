@@ -809,11 +809,6 @@ export default {
         try { field.focus({ preventScroll: true }); } catch (e) { field.focus(); }
       }
     },
-    reloadPlugin() {
-      // Drop any #tab and do a full reload, landing on the default page.
-      window.history.replaceState(null, '', window.location.pathname + window.location.search);
-      window.location.reload();
-    },
     syncTabFromHash() {
       const h = window.location.hash.replace(/^#/, '');
       if (!h || h === this.tab) return;
@@ -1343,7 +1338,12 @@ export default {
   <div class="ar">
     <div class="ar__sticky" :class="{ 'is-stuck': scrolled }">
     <header class="ar__bar">
-      <button type="button" class="ar__brand" aria-label="Agentimus — go to Dashboard" @click="tab = 'dashboard'">
+      <!-- The whole masthead — mark, wordmark AND the gold-gem arrow — is one
+           REAL hyperlink to the plugin page (href travels from PHP via the
+           boot payload, built from the menu SLUG): a full page load like the
+           wp-admin sidebar entry, and middle-click / copy-link behave like any
+           other link. -->
+      <a class="ar__brand" :href="boot.pageUrl" aria-label="Agentimus — plugin page">
         <span class="ar__mark" aria-hidden="true">
           <svg class="ar__logo" viewBox="0 0 24 24" fill="none" stroke-linecap="round" stroke-linejoin="round">
             <path class="ar__logo-line" d="M4.5 20.5 L12 3.5 L19.5 20.5" />
@@ -1354,7 +1354,14 @@ export default {
           <span class="ar__name">Agentimus</span>
           <span v-if="version" class="ar__ver">Version - {{ version }}</span>
         </span>
-      </button>
+        <span class="ar__brandarrow" aria-hidden="true">
+          <svg viewBox="0 0 14 44" width="14" height="44" fill="none">
+            <path class="ar__sep-chev" d="M3 11 L9 22 L3 33" />
+            <circle class="ar__sep-ring" cx="9" cy="22" r="4.2" />
+            <circle class="ar__sep-node" cx="9" cy="22" r="2.4" />
+          </svg>
+        </span>
+      </a>
 
       <!-- Invisible on wide screens (the tab icons carry the bar's ornament now);
            on narrow screens it turns into the full-width flex break that bumps

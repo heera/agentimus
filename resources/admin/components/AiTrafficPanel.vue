@@ -307,36 +307,59 @@ export default {
 
         <p v-if="filterSummary" class="ar-ai__filternote">Showing <strong>{{ filterSummary }}</strong> only.</p>
 
-        <template v-if="total">
-          <div class="ar-ai__cols">
-            <div class="ar-ai__col">
-              <h3 class="ar-ai__sub">Top sources</h3>
-              <ul class="ar-act-rank">
-                <li v-for="s in bySource" :key="s.label">
-                  <span class="ar-act-rank__label">{{ s.label }}</span>
-                  <span class="ar-act-rank__track"><span class="ar-act-rank__bar" :style="{ width: pct(s.hits, listMax(bySource)) }"></span></span>
-                  <span class="ar-act-rank__n">{{ s.hits }}</span>
-                </li>
-              </ul>
-            </div>
-            <div class="ar-ai__col">
-              <h3 class="ar-ai__sub">Top landing pages</h3>
-              <ul v-if="topPages.length" class="ar-act-rank">
-                <li v-for="p in topPages" :key="p.path">
-                  <span class="ar-act-rank__label"><code>{{ p.path }}</code></span>
-                  <span class="ar-act-rank__track"><span class="ar-act-rank__bar" :style="{ width: pct(p.hits, listMax(topPages)) }"></span></span>
-                  <span class="ar-act-rank__n">{{ p.hits }}</span>
-                </li>
-              </ul>
-              <p v-else class="ar-wd-empty">No pages yet.</p>
-            </div>
-          </div>
+        <p v-if="!total && hasFilters" class="ar-wd-empty">Nothing matched those filters.</p>
 
-          <!-- Timeline: the same visits by day. Expand a day to see which source landed on
-               which page — the day is the finest "when" stored. -->
-          <div v-if="daily.length" class="ar-ai__byday">
-            <h3 class="ar-ai__sub">By day <span class="ar-ai__subnote">click a day — which source → which page, no times stored</span></h3>
-            <ul class="ar-aiday">
+        <p v-else-if="!total" class="ar-wd-empty">
+          No AI-referred visits recorded yet. When someone arrives from ChatGPT, Perplexity and the like,
+          it’ll show here.
+        </p>
+      </template>
+    </section>
+
+    <!-- Composition — its own card, like the dashboard's By-endpoint /
+         Top-clients pair: where the visits came from, and where they landed.
+         Honors the same filters and range as the overview above. -->
+    <section v-if="!error && report && total" class="ar-card ar-ai">
+      <h2 class="ar-card__title">Top sources &amp; landing pages <span v-if="rangeLabel" class="ar-card__tag">{{ rangeLabel }}</span></h2>
+      <p class="ar-card__lead">
+        Where the visits came from, and where they landed — busiest first.
+      </p>
+      <div class="ar-ai__cols">
+        <div class="ar-ai__col">
+          <h3 class="ar-ai__sub">Top sources</h3>
+          <ul class="ar-act-rank">
+            <li v-for="s in bySource" :key="s.label">
+              <span class="ar-act-rank__label">{{ s.label }}</span>
+              <span class="ar-act-rank__track"><span class="ar-act-rank__bar" :style="{ width: pct(s.hits, listMax(bySource)) }"></span></span>
+              <span class="ar-act-rank__n">{{ s.hits }}</span>
+            </li>
+          </ul>
+        </div>
+        <div class="ar-ai__col">
+          <h3 class="ar-ai__sub">Top landing pages</h3>
+          <ul v-if="topPages.length" class="ar-act-rank">
+            <li v-for="p in topPages" :key="p.path">
+              <span class="ar-act-rank__label"><code>{{ p.path }}</code></span>
+              <span class="ar-act-rank__track"><span class="ar-act-rank__bar" :style="{ width: pct(p.hits, listMax(topPages)) }"></span></span>
+              <span class="ar-act-rank__n">{{ p.hits }}</span>
+            </li>
+          </ul>
+          <p v-else class="ar-wd-empty">No pages yet.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- Timeline — its OWN card: the overview above answers "how much and
+         where", this answers "when". Expand a day to see which source landed
+         on which page (the day is the finest "when" stored). Honors the same
+         filters and range as the overview. -->
+    <section v-if="!error && report && total && daily.length" class="ar-card ar-ai">
+      <h2 class="ar-card__title">By day <span v-if="rangeLabel" class="ar-card__tag">{{ rangeLabel }}</span></h2>
+      <p class="ar-card__lead">
+        Click a day to see which source landed on which page. The day is the finest “when”
+        stored — no times, nothing that could stand for a person.
+      </p>
+      <ul class="ar-aiday">
               <li v-for="d in daily" :key="d.date" class="ar-aiday__item">
                 <button
                   type="button"
@@ -381,17 +404,7 @@ export default {
                   </template>
                 </ul>
               </li>
-            </ul>
-          </div>
-        </template>
-
-        <p v-else-if="hasFilters" class="ar-wd-empty">Nothing matched those filters.</p>
-
-        <p v-else class="ar-wd-empty">
-          No AI-referred visits recorded yet. When someone arrives from ChatGPT, Perplexity and the like,
-          it’ll show here.
-        </p>
-      </template>
+      </ul>
     </section>
 
     <!-- Unrecognised referrers — the opt-in diagnostic, over the SAME range as the cards

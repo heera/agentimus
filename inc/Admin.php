@@ -653,6 +653,9 @@ final class Admin {
 		return array(
 			'restUrl'     => esc_url_raw( rest_url( Rest::NAMESPACE ) ),
 			'nonce'       => wp_create_nonce( 'wp_rest' ),
+			// The plugin's own admin page, built from the menu SLUG here so the
+			// app's brand button can hard-navigate to it without hardcoding it.
+			'pageUrl'     => esc_url_raw( admin_url( 'admin.php?page=' . self::SLUG ) ),
 			'settings'    => $this->settings->all(),
 			'defaults'    => $this->settings->defaults(), // Powers the reset-preview.
 			'readiness'   => $readiness = ( new Readiness( $this->settings ) )->report(),
