@@ -631,7 +631,7 @@ final class Admin {
 			'items'   => array(
 				array(
 					'title' => 'Write posts with AI, right here',
-					'text'  => 'The quill button opens the new writing assistant: describe a post, edit the outline it proposes, preview the complete draft, and create it as a draft in the editor. Nothing is saved until you say so, and it never publishes. Needs agent writes on plus an AI provider under Settings → AI.',
+					'text'  => 'The quill button opens the new writing assistant: describe a post, edit the outline it proposes, and the article writes every section in parallel — watch the outline fill in, with long posts uncapped and a failed section retrying alone. Preview the complete draft, then create it in the editor. Nothing is saved until you say so, and it never publishes. Needs agent writes on plus an AI provider under Settings → AI.',
 				),
 				array(
 					'title' => 'It revises existing posts too',

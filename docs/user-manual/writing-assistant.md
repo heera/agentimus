@@ -26,8 +26,9 @@ Until then the button appears dimmed, and clicking it tells you exactly which of
 
 1. **Describe the post.** Write a brief in your own words — subject, angle, anything that matters ("write a post about X, practical tone, mention Y"). The more real detail you give it, the less it invents.
 2. **Edit the outline.** The assistant proposes a working title and sections first. Retitle them, rewrite the per-section notes, add or remove sections — or start over. Nothing composes until the outline looks right: the outline *is* the contract for the draft.
-3. **Preview everything.** The full draft arrives as a preview: title, body, AI description, topics, suggested categories and tags, and the draft/pending choice. Not satisfied? **Edit the brief** (your generation is kept), refine with an instruction ("shorter intro, add a FAQ"), or draft again — every overwrite has a one-step Undo.
-4. **Create draft.** Only now does anything touch WordPress. The post is created as a draft (or pending review) and the editor opens on it — real blocks, not a blob.
+3. **Write the article — every part at once.** The article is written in parallel: the introduction, each outline section, the closing and the title details each get their own call, and the outline screen shows every part filling in as it lands. Because each section has its own budget, long articles aren't capped by what fits in one response. A part that fails — a rate limit, a network hiccup — shows why on its row, and **Retry the failed parts** re-runs only those; even reloading the page mid-write resumes with the finished parts kept. (Editing the outline mid-way starts the article over: every part is written against the whole plan, so a changed plan means a fresh article.)
+4. **Preview everything.** The full draft arrives as a preview: title, body, AI description, topics, suggested categories and tags, and the draft/pending choice. Not satisfied? **Edit the brief** (your generation is kept), refine with an instruction ("shorter intro, add a FAQ"), or draft again — every overwrite has a one-step Undo.
+5. **Create draft.** Only now does anything touch WordPress. The post is created as a draft (or pending review) and the editor opens on it — real blocks, not a blob.
 
 Your brief and preview survive a page reload or an accidental Esc — they're held in your browser for up to a week — but nothing lands in WordPress until you say so.
 
@@ -60,6 +61,6 @@ The assistant's second door: pick a post, describe the change, and review the re
 
 ## Boundaries worth knowing
 
-- It writes drafts up to roughly long-article length in one pass; book-chapter material is better composed in sections.
+- **Draft it now** (skipping the outline) writes the whole post in one pass, which caps it at roughly long-article length. Outlined articles write section by section and don't share that cap — but the drawer's *revise* bar still rewrites the whole document, so on a very long article prefer the editor's per-block **Ask AI** for changes.
 - It never publishes, regardless of the MCP publish switch — that switch governs external agents only.
 - Every write runs as *you*, through the same permission-checked, audited path as everything else in Agentimus.
