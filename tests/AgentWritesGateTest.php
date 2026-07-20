@@ -102,6 +102,44 @@ namespace Agentimus\Tests {
 			$this->assertStringContainsString( 'draft/edit content', $args[4], 'the description must own up to the write tier' );
 		}
 
+		public function test_write_tool_descriptions_carry_the_same_readability_rules_the_assistant_writes_to() {
+			// One set of drafting bars, two surfaces: the MCP write tools must show
+			// external agents the EXACT rules the in-admin assistant's prompts embed,
+			// so "generated content follows the readability checks" holds everywhere.
+			$m = new \ReflectionMethod( Registrar::class, 'guided' );
+			$m->setAccessible( true );
+			$out = (string) $m->invoke( null, 'Creates a post.' );
+
+			$rules = \Agentimus\Assistant::readability_rules();
+			$this->assertStringContainsString( $rules, $out );
+			$this->assertStringContainsString( 'Creates a post.', $out, 'The original description survives.' );
+			$this->assertStringContainsString( $rules, \Agentimus\Assistant::system_prompt(), 'Quick-draft prompt embeds the same bars.' );
+			$this->assertStringContainsString( $rules, \Agentimus\Assistant::staged_part_system_prompt(), 'Staged long-form prompt embeds the same bars.' );
+		}
+
+		public function test_readability_summary_compacts_rows_for_the_write_response() {
+			$rows = array(
+				array( 'id' => 'words', 'label' => 'Enough substance', 'status' => 'pass', 'detail' => 'plenty' ),
+				array( 'id' => 'reading_ease', 'label' => 'Hard to read', 'status' => 'warn', 'detail' => 'Score 33' ),
+				array( 'id' => 'alt_text', 'label' => 'Image alt text', 'status' => 'fail', 'detail' => '2 images missing alt' ),
+				array( 'id' => 'mystery', 'label' => 'From a filter', 'status' => 'meh', 'detail' => 'unknown status' ),
+			);
+			$sum = ContentWriter::readability_summary( $rows );
+
+			$this->assertSame( 1, $sum['pass'] );
+			$this->assertSame( 1, $sum['warn'] );
+			$this->assertSame( 1, $sum['fail'] );
+			$this->assertCount( 2, $sum['attention'], 'Only warn/fail rows need attention; unknown statuses are dropped.' );
+			$this->assertSame( 'reading_ease', $sum['attention'][0]['id'] );
+			$this->assertSame( 'Score 33', $sum['attention'][0]['detail'] );
+
+			$this->assertSame(
+				array( 'pass' => 0, 'warn' => 0, 'fail' => 0, 'attention' => array() ),
+				ContentWriter::readability_summary( array() ),
+				'No rows (missing post) still answers with a well-formed empty grade.'
+			);
+		}
+
 		public function test_both_write_switches_default_off() {
 			$defaults = ( new Settings() )->defaults();
 			$this->assertFalse( $defaults['enable_agent_writes'] );

@@ -40,6 +40,7 @@ namespace Agentimus\Abilities;
 
 use Agentimus\Settings;
 use Agentimus\Guidelines;
+use Agentimus\Assistant;
 use Agentimus\Readiness;
 use Agentimus\Score;
 use Agentimus\Content;
@@ -532,8 +533,9 @@ final class Registrar {
 				. 'in one call: content, categories, tags, featured image (an existing attachment ID or an '
 				. 'image URL to import), plus its AI description and Topics for AI. status=publish needs the '
 				. 'site’s "agents may publish" switch on top of the user’s own publish permission; when it is '
-				. 'off, create a draft (or pending) for the owner to review. Returns the new id — run '
-				. 'check-page on it next to grade the draft’s AI readability.'
+				. 'off, create a draft (or pending) for the owner to review. Returns the new id and the saved '
+				. 'draft’s AI-readability grade — fix anything under `attention`; check-page has the full '
+				. 'per-check detail.'
 			),
 			self::obj(
 				array(
@@ -579,7 +581,7 @@ final class Registrar {
 				. 'featured image alongside the content, or on their own. CAUTION: fields REPLACE — passing '
 				. 'content replaces the current body (posts and pages keep a revision of the old one, but a '
 				. 'content type without revision support does not), and a categories/tags list replaces the '
-				. 'current list ([] clears it).'
+				. 'current list ([] clears it). The response includes the post’s AI-readability grade after the save.'
 			),
 			self::obj(
 				array(
@@ -927,6 +929,11 @@ final class Registrar {
 	 * @return string
 	 */
 	private static function guided( $description ) {
+		// The readability bars come first and unconditionally: the SAME drafting
+		// rules the in-admin assistant writes to (derived live from PageCheck's
+		// thresholds), so an external agent sees them at draft time — not only
+		// after a check-page call.
+		$description .= "\n\n" . Assistant::readability_rules();
 		$g = Guidelines::brief();
 		if ( '' === $g ) {
 			return $description;
@@ -1105,6 +1112,24 @@ final class Registrar {
 				'url'           => self::s(),
 				'editUrl'       => self::s(),
 				'description'   => self::s(),
+				'readability'   => self::obj(
+					array(
+						'pass'      => self::i(),
+						'warn'      => self::i(),
+						'fail'      => self::i(),
+						'attention' => array(
+							'type'  => 'array',
+							'items' => self::obj(
+								array(
+									'id'     => self::s(),
+									'status' => self::s(),
+									'label'  => self::s(),
+									'detail' => self::s(),
+								)
+							),
+						),
+					)
+				),
 				'topics'        => array(
 					'type'  => 'array',
 					'items' => self::s(),

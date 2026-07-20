@@ -43,6 +43,7 @@ use Agentimus\Topics;
 use Agentimus\Description;
 use Agentimus\Cache;
 use Agentimus\CachePurge;
+use Agentimus\PageCheck;
 
 defined( 'ABSPATH' ) || exit;
 
@@ -538,6 +539,12 @@ final class ContentWriter {
 			'url'           => (string) get_permalink( $post_id ),
 			'editUrl'       => (string) get_edit_post_link( $post_id, 'raw' ),
 			'description'   => Description::explicit( $post_id ),
+			// The write answers with its own grade: the agent that just drafted
+			// sees what to fix without a second call (check-page has the full
+			// row-by-row detail).
+			'readability'   => self::readability_summary(
+				$post instanceof \WP_Post ? PageCheck::analyze( $post ) : array()
+			),
 			'topics'        => is_array( $topics ) ? array_values( $topics ) : array(),
 			'categories'    => self::term_names( $post_id, 'category' ),
 			'tags'          => self::term_names( $post_id, 'post_tag' ),
@@ -548,6 +555,39 @@ final class ContentWriter {
 				)
 				: null,
 		);
+	}
+
+	/**
+	 * PURE: compact a PageCheck row set for a write response — the tally plus
+	 * only the rows needing attention, so an agent can fix its own draft
+	 * without a second call.
+	 *
+	 * @param array $rows PageCheck::analyze() rows.
+	 * @return array{pass:int,warn:int,fail:int,attention:array}
+	 */
+	public static function readability_summary( array $rows ) {
+		$out = array(
+			'pass'      => 0,
+			'warn'      => 0,
+			'fail'      => 0,
+			'attention' => array(),
+		);
+		foreach ( $rows as $r ) {
+			$status = isset( $r['status'] ) ? (string) $r['status'] : '';
+			if ( ! isset( $out[ $status ] ) || ! is_int( $out[ $status ] ) ) {
+				continue; // Unknown status from a filtered-in check — don't guess.
+			}
+			++$out[ $status ];
+			if ( 'pass' !== $status ) {
+				$out['attention'][] = array(
+					'id'     => isset( $r['id'] ) ? (string) $r['id'] : '',
+					'status' => $status,
+					'label'  => isset( $r['label'] ) ? (string) $r['label'] : '',
+					'detail' => isset( $r['detail'] ) ? (string) $r['detail'] : '',
+				);
+			}
+		}
+		return $out;
 	}
 
 	/**
