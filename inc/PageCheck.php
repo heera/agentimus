@@ -377,7 +377,9 @@ final class PageCheck {
 		$band = $familiar < self::READING_EASE_HARD
 			? __( 'university-level prose', 'agentimus' )
 			: __( 'college-level prose', 'agentimus' );
-		$detail = sprintf( /* translators: 1: Flesch score, 2: difficulty band. */ __( 'Reading-ease score %1$d — %2$s. Shorter sentences and plainer words make passages easier for engines to lift and for readers to trust.', 'agentimus' ), (int) round( $familiar ), $band );
+		// floor, not round: a 49.5 must never display as "score 50" on a warn row
+		// — the number shown should stay below the pass bar the row failed.
+		$detail = sprintf( /* translators: 1: Flesch score, 2: difficulty band. */ __( 'Reading-ease score %1$d — %2$s. Shorter sentences and plainer words make passages easier for engines to lift and for readers to trust.', 'agentimus' ), (int) floor( $familiar ), $band );
 		$heavy  = isset( $s['heavy_words'] ) ? array_slice( array_keys( (array) $s['heavy_words'] ), 0, 3 ) : array();
 		if ( $heavy ) {
 			$detail .= ' ' . sprintf(

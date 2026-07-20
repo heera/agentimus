@@ -113,6 +113,12 @@ final class PageCheckTest extends TestCase {
 		$row    = $this->check( 'check_reading_ease', $midway );
 		$this->assertSame( 'warn', $row['status'] );
 		$this->assertStringContainsString( 'college', $row['detail'], 'Raw −26 is university band; adjusted 41 is college.' );
+
+		// A 49.5 floors to 49 on a warn row — never "score 50" on a failed check.
+		$edge = array( 'english' => true, 'words' => 300, 'sentences' => 40, 'syllables' => 531, 'familiar_syllables' => 531, 'familiar_terms' => array(), 'heavy_words' => array() );
+		$row  = $this->check( 'check_reading_ease', $edge );
+		$this->assertSame( 'warn', $row['status'] );
+		$this->assertStringContainsString( 'score 49', $row['detail'] );
 	}
 
 	public function test_reading_ease_grades_prose_not_code() {
