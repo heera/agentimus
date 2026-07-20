@@ -325,6 +325,30 @@ final class AssistantTest extends TestCase {
 		$this->assertStringContainsString( 'No heading of its own', $conclusion );
 	}
 
+	public function test_the_writing_prompts_carry_the_readability_contract_in_sync_with_the_checks() {
+		// The rules the AI Readability box grades ride every article-writing
+		// prompt — and the paragraph cap derives from PageCheck's own
+		// threshold, so instruction and check can never drift apart.
+		$rules = Assistant::readability_rules();
+		$this->assertStringContainsString( (string) ( \Agentimus\PageCheck::LONG_PARAGRAPH_WORDS - 10 ), $rules, 'The hard cap sits under the check\'s warn threshold.' );
+		$this->assertStringContainsString( 'short sentences and plain words', $rules, 'Reading ease.' );
+		$this->assertStringContainsString( 'never invented', $rules, 'Specifics stay grounded.' );
+		$this->assertStringContainsString( 'never a guessed URL', $rules, 'Cited sources without hallucinated links.' );
+		$this->assertStringContainsString( 'not a link list', $rules, 'Prose-vs-links.' );
+
+		foreach ( array( Assistant::system_prompt(), Assistant::staged_part_system_prompt() ) as $prompt ) {
+			$this->assertStringContainsString( $rules, $prompt, 'Both article writers carry the same contract.' );
+		}
+		$this->assertStringContainsString( 'summarises the whole piece', Assistant::system_prompt(), 'Whole-document compose opens with the liftable summary.' );
+
+		$outline = Assistant::parse_outline( $this->valid_outline_json() );
+		$this->assertStringContainsString(
+			'summary of the whole article',
+			Assistant::staged_part_prompt( 'Brief here.', $outline, 'intro' ),
+			'In the staged pipeline the summary rule belongs to the intro part.'
+		);
+	}
+
 	public function test_the_staged_part_system_prompt_pins_the_html_contract() {
 		$prompt = Assistant::staged_part_system_prompt();
 		$this->assertStringContainsString( 'ONE PART', $prompt );

@@ -585,6 +585,7 @@ final class Assistant {
 			. 'The parts are assembled in outline order, so write prose that flows: assume the reader has just read '
 			. 'the previous part, don\'t re-introduce the article, and don\'t cover ground the outline assigns elsewhere. '
 			. 'Write concretely in the brief\'s language; no filler, no invented facts or statistics. '
+			. self::readability_rules() . ' '
 			. 'Voice: follow the site content guidelines above when they declare one (their author, their person, '
 			. 'their tone are real — use them); never invent credentials, employers or anecdotes the guidelines '
 			. 'don\'t provide; and when the brief itself specifies a voice, the brief wins. '
@@ -612,6 +613,8 @@ final class Assistant {
 		if ( 'intro' === $part ) {
 			return $spine . "\n\nWrite the article's INTRODUCTION: one to three paragraphs that set up the piece "
 				. 'the outline describes and lead into the first section, "' . $sections[0]['heading'] . '". '
+				. 'Its FIRST paragraph must be a self-contained two-or-three-sentence summary of the whole '
+				. 'article — answer engines lift it as the summary. '
 				. 'No heading of its own — paragraphs only. Don\'t cover the sections\' ground; they follow.';
 		}
 
@@ -1650,6 +1653,29 @@ final class Assistant {
 	}
 
 	/**
+	 * PURE: the writing rules behind the AI Readability checks ({@see PageCheck}),
+	 * as one instruction paragraph every article-writing prompt carries — so a
+	 * fresh draft opens with its meta-box checks green instead of flagging what
+	 * the writer could have done right the first time. Only the rules a WRITER
+	 * can honour ride here (paragraph length, plain sentences, specifics,
+	 * sources); featured image, freshness and friends are editor-time facts.
+	 * The paragraph cap derives from PageCheck's own threshold, so the prompt
+	 * and the check can never drift apart.
+	 *
+	 * @return string
+	 */
+	public static function readability_rules() {
+		return 'Write to pass the site\'s AI-readability checks: keep every paragraph under about '
+			. ( PageCheck::LONG_PARAGRAPH_WORDS - 40 ) . ' words — never longer than '
+			. ( PageCheck::LONG_PARAGRAPH_WORDS - 10 ) . ' — so an engine can lift a clean, self-contained passage; '
+			. 'prefer short sentences and plain words over long, clause-heavy ones; '
+			. 'ground claims in concrete specifics — figures, names, versions — that the brief or well-established '
+			. 'knowledge provides, never invented ones; and where a claim leans on official documentation or a '
+			. 'well-known source, link it inline with <a> — only addresses you are certain exist, never a guessed '
+			. 'URL, and only a few: the article must stay prose, not a link list.';
+	}
+
+	/**
 	 * The compose system instruction: one JSON document, keys fixed, body as clean
 	 * post HTML. Kept strict so parsing is boring; the site's Content Guidelines
 	 * are layered on top by {@see Assist::generate()}, not here.
@@ -1671,6 +1697,9 @@ final class Assistant {
 			. '"after_heading": the exact text of the h2/h3 the image should follow, or "" for right after the introduction}; '
 			. 'never put <img> tags in "content"). '
 			. 'Write concretely in the brief\'s language; no filler, no invented facts or statistics. '
+			. 'Open the article with a self-contained first paragraph that summarises the whole piece in two or '
+			. 'three sentences — answer engines lift it as the summary. '
+			. self::readability_rules() . ' '
 			. 'Voice: follow the site content guidelines above when they declare one (their author, '
 			. 'their person, their tone are real — use them); never INVENT credentials, employers or '
 			. 'anecdotes the guidelines don\'t provide; and when the brief itself specifies a voice, '

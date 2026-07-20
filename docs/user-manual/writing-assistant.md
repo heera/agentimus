@@ -35,6 +35,9 @@ Your brief and preview survive a page reload or an accidental Esc — they're he
 {: .note }
 > If your WordPress defines **Content Guidelines**, the assistant follows them automatically — your brief outranks them, and they outrank the neutral default. Same rule as every other AI surface in Agentimus.
 
+{: .note }
+> The assistant also writes against the same bar the editor's **AI Readability** panel grades: a liftable opening summary, quotable paragraph lengths, plain sentences, and real cited sources. A fresh draft should open with those checks green — anything the panel still flags (a missing featured image, say) has its usual one-click fix right on the warning.
+
 ## Images: placeholders, then one click each
 
 The assistant plans images but doesn't paste them into your text sight-unseen. A draft arrives with **alt-filled image placeholders** — empty image blocks, each already describing what belongs there — placed after the sections they illustrate:
