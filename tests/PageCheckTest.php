@@ -115,6 +115,27 @@ final class PageCheckTest extends TestCase {
 		$this->assertStringContainsString( 'college', $row['detail'], 'Raw −26 is university band; adjusted 41 is college.' );
 	}
 
+	public function test_reading_ease_grades_prose_not_code() {
+		// A tutorial: plain prose around a snippet full of identifier soup. The
+		// snippet counts as substance (words) but never as prose (reading ease).
+		$html = '<p>' . str_repeat( 'Now we add the route. It maps the url. ', 15 ) . '</p>'
+			. '<pre>App\Http\Middleware\InputValidator::registerApplicationConfiguration($environmentRepository);</pre>'
+			. '<p>Call <code>wp_insert_post()</code> to save it.</p>';
+		$s = PageCheck::stats( $html, false );
+
+		$this->assertGreaterThan( $s['prose_words'], $s['words'], 'Code still counts toward substance.' );
+		$this->assertSame( array(), $s['heavy_words'], 'Identifiers are not heavy words.' );
+		$this->assertSame( array(), $s['familiar_terms'] );
+		$this->assertGreaterThan( 80, PageCheck::reading_ease( $s ), 'Simple tutorial prose grades easy despite the snippet.' );
+
+		// A page that is nearly all code has too little prose to grade at all.
+		$codeonly = PageCheck::stats( '<p>The full example.</p><pre>' . str_repeat( 'configureMiddlewareValidationPipeline($container); ', 120 ) . '</pre>', false );
+		$this->assertGreaterThan( 100, $codeonly['words'] );
+		$row = $this->check( 'check_reading_ease', $codeonly + array( 'english' => true ) );
+		$this->assertSame( 'pass', $row['status'] );
+		$this->assertStringContainsString( 'Too short', $row['detail'] );
+	}
+
 	public function test_sentences_end_at_block_boundaries() {
 		// Bullets and headings rarely carry a full stop — each block is still its
 		// own sentence, not a run-on glued to its neighbours.

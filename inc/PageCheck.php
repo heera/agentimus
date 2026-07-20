@@ -162,11 +162,18 @@ final class PageCheck {
 		}
 
 		// Sentence and syllable counts feed the reading-ease grade. Rough by
-		// design — Flesch is a heuristic, not a measurement.
-		$sentences = self::sentence_count( $html );
+		// design — Flesch is a heuristic, not a measurement. It grades PROSE:
+		// code samples aren't sentences and an identifier like
+		// App\Http\Middleware\InputValidator is not a twelve-syllable word, so
+		// code containers are stripped before this pass. (`words` above stays
+		// whole-content — code IS substance on a tutorial page.)
+		$prose_html  = (string) preg_replace( '@<(pre|code|kbd|samp)\b[^>]*>.*?</\1>@si', ' ', $html );
+		$prose_text  = self::text_of( $prose_html );
+		$prose_words = self::word_count( $prose_text );
+		$sentences   = self::sentence_count( $prose_html );
 		$syllables = 0;
 		$long      = array(); // long-word frequencies: word => [count, syllables]
-		foreach ( explode( ' ', trim( (string) preg_replace( '/\s+/', ' ', $text ) ) ) as $token ) {
+		foreach ( explode( ' ', trim( (string) preg_replace( '/\s+/', ' ', $prose_text ) ) ) as $token ) {
 			$n          = self::syllables( $token );
 			$syllables += $n;
 			if ( $n >= self::FAMILIAR_MIN_SYLLABLES ) {
@@ -209,6 +216,7 @@ final class PageCheck {
 			'images_no_alt'  => $images_no_alt,
 			'has_excerpt'    => (bool) $has_excerpt,
 			'sentences'      => $sentences,
+			'prose_words'    => $prose_words,
 			'syllables'      => $syllables,
 			'familiar_syllables' => $familiar_syllables,
 			'familiar_terms'     => array_slice( $familiar_terms, 0, 5, true ),
@@ -336,7 +344,10 @@ final class PageCheck {
 		if ( array_key_exists( 'english', $s ) && empty( $s['english'] ) ) {
 			return self::row( 'reading_ease', __( 'Reading ease', 'agentimus' ), 'pass', __( 'The reading-ease formula only fits English — skipped for this site’s language.', 'agentimus' ) );
 		}
-		if ( (int) $s['words'] < self::MIN_WORDS ) {
+		// A page that is mostly code may carry too little PROSE to grade, however
+		// substantial it is — skip honestly rather than score a handful of lines.
+		$gradable = (int) ( isset( $s['prose_words'] ) ? $s['prose_words'] : $s['words'] );
+		if ( $gradable < self::MIN_WORDS ) {
 			return self::row( 'reading_ease', __( 'Reading ease', 'agentimus' ), 'pass', __( 'Too short to grade.', 'agentimus' ) );
 		}
 		$score = self::reading_ease( $s );
@@ -386,7 +397,9 @@ final class PageCheck {
 	 * @return float
 	 */
 	public static function reading_ease( array $s ) {
-		$words     = max( 1, (int) $s['words'] );
+		// prose_words matches the code-stripped text the sentence and syllable
+		// counts came from; plain `words` is the whole-content fallback.
+		$words     = max( 1, (int) ( isset( $s['prose_words'] ) ? $s['prose_words'] : $s['words'] ) );
 		$sentences = max( 1, (int) ( isset( $s['sentences'] ) ? $s['sentences'] : 0 ) );
 		$syllables = max( 1, (int) ( isset( $s['syllables'] ) ? $s['syllables'] : 0 ) );
 		return 206.835 - 1.015 * ( $words / $sentences ) - 84.6 * ( $syllables / $words );
