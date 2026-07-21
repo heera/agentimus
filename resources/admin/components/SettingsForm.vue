@@ -77,6 +77,9 @@ export default {
       // img/iframe re-fetch at that same moment.
       savedScorecardPath: null,
       scorecardPreviewNonce: 0,
+      // Turning the public page OFF breaks every link already shared to it —
+      // that deserves a confirm before the setting moves.
+      pageOffConfirmOpen: false,
       // The share preview dialog: pick the link before any network opens.
       shareDialogOpen: false,
       shareNetwork: '',
@@ -139,6 +142,10 @@ export default {
     shareDialogOpen(open) {
       if (this._unEscShare) this._unEscShare();
       this._unEscShare = open ? bindDocEsc(() => { this.shareDialogOpen = false; }) : null;
+    },
+    pageOffConfirmOpen(open) {
+      if (this._unEscPageOff) this._unEscPageOff();
+      this._unEscPageOff = open ? bindDocEsc(() => { this.pageOffConfirmOpen = false; }) : null;
     },
     // A finished save is the moment the MCP switch actually takes effect — refresh
     // the saved-state snapshot and re-probe, so the status line follows reality.
@@ -955,6 +962,21 @@ export default {
       const el = this.$refs.pagePrev;
       if (!el || !el.clientHeight) return;
       this.pagePrevBox = { w: el.clientWidth, h: el.clientHeight };
+    },
+    // Turning ON is free; turning OFF opens the consequence confirm. The
+    // checkbox is bound with :checked (not v-model) so the SETTING only moves
+    // after the choice — no save fires for a dialog the owner may cancel.
+    onPageToggle(e) {
+      if (e.target.checked) {
+        this.settings.scorecard_page_enabled = true;
+        return;
+      }
+      e.target.checked = true; // keep the visual until the owner confirms
+      this.pageOffConfirmOpen = true;
+    },
+    confirmPageOff() {
+      this.settings.scorecard_page_enabled = false;
+      this.pageOffConfirmOpen = false;
     },
     // The share preview: the link defaults to the public page, or the home
     // page while the page is off — and the owner may set any public link.
@@ -2263,7 +2285,7 @@ export default {
             </div>
           </div>
           <label class="ar-toggle ar-toggle--nested ar-scorecard-nametoggle ar-sd-ptog">
-            <input v-model="settings.scorecard_page_enabled" type="checkbox" />
+            <input type="checkbox" :checked="settings.scorecard_page_enabled" @change="onPageToggle" />
             <span class="ar-toggle__track" aria-hidden="true"></span>
             <span class="ar-toggle__text">
               <strong>Public page</strong>
@@ -3198,6 +3220,23 @@ export default {
 
     <Teleport to="body">
       <transition name="ar-modal">
+        <div v-if="pageOffConfirmOpen" class="ar-modal" @click.self="pageOffConfirmOpen = false">
+          <div class="ar-modal__panel ar-modal__panel--confirm" role="dialog" aria-modal="true" aria-labelledby="ar-pageoff-title" tabindex="-1" @keydown.esc="pageOffConfirmOpen = false">
+            <div class="ar-modal__head">
+              <h2 id="ar-pageoff-title" class="ar-modal__title">Turn the public page off?</h2>
+              <p class="ar-modal__lead">
+                If you've shared this page anywhere — a post, a badge that links to it,
+                a message — those links will return a 404 the moment it's off. The badge
+                image and the share card keep working; only the page goes away.
+              </p>
+            </div>
+            <div class="ar-modal__actions">
+              <button type="button" class="ar-btn ar-btn--ghost" @click="pageOffConfirmOpen = false">Keep it on</button>
+              <button type="button" class="ar-btn ar-btn--danger" @click="confirmPageOff">Turn it off</button>
+            </div>
+          </div>
+        </div>
+
         <div v-if="shareDialogOpen" class="ar-modal" @click.self="shareDialogOpen = false">
           <div class="ar-modal__panel ar-share-modal" role="dialog" aria-modal="true" aria-labelledby="ar-share-title" tabindex="-1" @keydown.esc="shareDialogOpen = false">
             <div class="ar-modal__head">
