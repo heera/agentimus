@@ -114,14 +114,19 @@ final class Scorecard {
 		$style   = (string) $this->settings->get( 'scorecard_style', 'auto' );
 		$accent  = $this->accent();
 
+		// Short cache windows on purpose (the shields.io convention): these
+		// surfaces change when the owner flips a display mode or the score
+		// moves, and an embedded badge that shows yesterday's choice for an
+		// hour reads as broken. Five minutes still absorbs any hotlink storm —
+		// the bodies are transient-backed and cheap.
 		if ( $base . '/badge.svg' === $path ) {
-			$this->send( self::badge_svg( $this->snapshot(), $display, $style, $accent ), 'image/svg+xml', 3600 );
+			$this->send( self::badge_svg( $this->snapshot(), $display, $style, $accent ), 'image/svg+xml', 300 );
 		}
 
 		if ( $base . '/card.png' === $path ) {
 			$png = $this->og_png( $this->snapshot(), $display, $style, $accent );
 			if ( '' !== $png ) {
-				$this->send( $png, 'image/png', 3600 );
+				$this->send( $png, 'image/png', 300 );
 			}
 			return; // No GD / no font: let it 404 rather than serve a broken image.
 		}
@@ -132,7 +137,7 @@ final class Scorecard {
 			if ( url_to_postid( home_url( trailingslashit( $base ) ) ) || url_to_postid( home_url( $base ) ) ) {
 				return;
 			}
-			$this->send( self::page_html( $this->snapshot(), $this->page_context( $base ), $display, $style, $accent ), 'text/html', 300 );
+			$this->send( self::page_html( $this->snapshot(), $this->page_context( $base ), $display, $style, $accent ), 'text/html', 60 );
 		}
 	}
 
