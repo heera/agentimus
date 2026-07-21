@@ -77,6 +77,10 @@ export default {
       // img/iframe re-fetch at that same moment.
       savedScorecardPath: null,
       scorecardPreviewNonce: 0,
+      // The share preview dialog: pick the link before any network opens.
+      shareDialogOpen: false,
+      shareNetwork: '',
+      shareUrl: '',
       // Measured by measurePagePrev(); null keeps the iframe hidden until known.
       pagePrevBox: null,
       // The MCP connect helper. The pasted/minted application password lives ONLY
@@ -131,6 +135,10 @@ export default {
     showReset(open) {
       if (this._unEscReset) this._unEscReset();
       this._unEscReset = open ? bindDocEsc(() => this.closeReset()) : null;
+    },
+    shareDialogOpen(open) {
+      if (this._unEscShare) this._unEscShare();
+      this._unEscShare = open ? bindDocEsc(() => { this.shareDialogOpen = false; }) : null;
     },
     // A finished save is the moment the MCP switch actually takes effect — refresh
     // the saved-state snapshot and re-probe, so the status line follows reality.
@@ -307,14 +315,8 @@ export default {
         ? `My site scores ${this.aeoScore}/100 for AI readiness.`
         : 'Here’s my site’s live AI-readiness scorecard.';
     },
-    shareLinks() {
-      const url = encodeURIComponent(this.scorecardUrl || '');
-      const text = encodeURIComponent(this.shareText);
-      return {
-        x: `https://twitter.com/intent/tweet?text=${text}&url=${url}`,
-        linkedin: `https://www.linkedin.com/sharing/share-offsite/?url=${url}`,
-        facebook: `https://www.facebook.com/sharer/sharer.php?u=${url}`,
-      };
+    shareNetworkLabel() {
+      return { x: 'X', linkedin: 'LinkedIn', facebook: 'Facebook' }[this.shareNetwork] || '';
     },
     /**
      * Each cap carries what it actually costs on disk. Measured on a real table: ~124 bytes of
@@ -953,6 +955,26 @@ export default {
       const el = this.$refs.pagePrev;
       if (!el || !el.clientHeight) return;
       this.pagePrevBox = { w: el.clientWidth, h: el.clientHeight };
+    },
+    // The share preview: the link defaults to the public page, or the home
+    // page while the page is off — and the owner may set any public link.
+    openShareDialog(network) {
+      this.shareNetwork = network;
+      this.shareUrl = this.settings.scorecard_page_enabled !== false
+        ? this.scorecardUrl
+        : ((this.scorecard && this.scorecard.home) || '');
+      this.shareDialogOpen = true;
+    },
+    doShare() {
+      const url = encodeURIComponent(this.shareUrl || '');
+      const text = encodeURIComponent(this.shareText);
+      const intents = {
+        x: `https://twitter.com/intent/tweet?text=${text}&url=${url}`,
+        linkedin: `https://www.linkedin.com/sharing/share-offsite/?url=${url}`,
+        facebook: `https://www.facebook.com/sharer/sharer.php?u=${url}`,
+      };
+      if (intents[this.shareNetwork]) window.open(intents[this.shareNetwork], '_blank', 'noopener');
+      this.shareDialogOpen = false;
     },
     // Client-side twin of Settings::sanitize()'s path rule, so the previews
     // predict the exact address the server just stored.
@@ -2249,18 +2271,18 @@ export default {
             <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12m0 0 5-5m-5 5-5-5" /><path d="M4 21h16" /></svg>
             Download
           </a>
-          <a v-if="settings.scorecard_page_enabled" class="button ar-share-btn" :href="shareLinks.x" target="_blank" rel="noopener">
+          <button type="button" class="button ar-share-btn" @click="openShareDialog('x')">
             <svg viewBox="0 0 24 24" width="13" height="13" fill="currentColor" aria-hidden="true"><path d="M18.9 2H22l-6.8 7.8L23.2 22h-6.3l-4.9-6.4L6.4 22H3.3l7.3-8.3L1.6 2h6.4l4.4 5.9L18.9 2Zm-1.1 18h1.7L7.1 3.9H5.3L17.8 20Z" /></svg>
             Post on X
-          </a>
-          <a v-if="settings.scorecard_page_enabled" class="button ar-share-btn" :href="shareLinks.linkedin" target="_blank" rel="noopener">
+          </button>
+          <button type="button" class="button ar-share-btn" @click="openShareDialog('linkedin')">
             <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor" aria-hidden="true"><path d="M4.98 3.5a2.5 2.5 0 1 1 0 5 2.5 2.5 0 0 1 0-5ZM3 9h4v12H3V9Zm7 0h3.8v1.7h.1c.5-1 1.8-2 3.7-2 4 0 4.7 2.6 4.7 6V21h-4v-5.5c0-1.3 0-3-1.9-3s-2.1 1.4-2.1 2.9V21h-4V9Z" /></svg>
             LinkedIn
-          </a>
-          <a v-if="settings.scorecard_page_enabled" class="button ar-share-btn" :href="shareLinks.facebook" target="_blank" rel="noopener">
+          </button>
+          <button type="button" class="button ar-share-btn" @click="openShareDialog('facebook')">
             <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor" aria-hidden="true"><path d="M13.5 21v-8h2.7l.4-3.1h-3.1V7.9c0-.9.3-1.5 1.6-1.5h1.6V3.6c-.3 0-1.2-.1-2.3-.1-2.3 0-3.9 1.4-3.9 4v2.4H7.8V13h2.7v8h3Z" /></svg>
             Facebook
-          </a>
+          </button>
           </div>
           <a v-if="settings.scorecard_page_enabled" class="button ar-share-btn ar-scorecard-openbtn ar-sd-open" :href="scorecardUrl" target="_blank" rel="noopener">
             Open your public scorecard ↗
@@ -2268,13 +2290,9 @@ export default {
           <p v-if="settings.scorecard_page_enabled" class="ar-field__hint ar-sd-pnote">
             The page every share opens — always live, always your current score.
           </p>
-          <p v-if="settings.scorecard_page_enabled" class="ar-field__hint ar-scorecard-note ar-sd-note">
-            Each button opens the network's own compose window with your scorecard link —
-            nothing is ever posted for you. The card above is the preview people see when your link is shared.
-          </p>
-          <p v-else class="ar-field__hint ar-scorecard-note ar-sd-note">
-            Download the card and post it anywhere. Turn the public page on to get
-            one-click share links and a live destination for the badge.
+          <p class="ar-field__hint ar-scorecard-note ar-sd-note">
+            Each button opens a preview first — you check the link (and can change it)
+            before the network's own compose window opens. Nothing is ever posted for you.
           </p>
           <p v-if="scorecard && scorecard.og === false" class="ar-field__hint ar-sd-note2">
             The share-preview image needs the server's GD graphics library and a font file,
@@ -3162,6 +3180,34 @@ export default {
 
     <Teleport to="body">
       <transition name="ar-modal">
+        <div v-if="shareDialogOpen" class="ar-modal" @click.self="shareDialogOpen = false">
+          <div class="ar-modal__panel ar-share-modal" role="dialog" aria-modal="true" aria-labelledby="ar-share-title" tabindex="-1" @keydown.esc="shareDialogOpen = false">
+            <div class="ar-modal__head">
+              <h2 id="ar-share-title" class="ar-modal__title">Share on {{ shareNetworkLabel }}</h2>
+              <p class="ar-modal__lead">Check what goes out. Nothing is posted until you write the post yourself on {{ shareNetworkLabel }}.</p>
+            </div>
+            <div class="ar-share-modal__body">
+              <p v-if="scorecard.og !== false && cardSrc" class="ar-share-modal__card"><img :src="cardSrc" alt="The preview card for this share" /></p>
+              <label class="ar-field">
+                <span class="ar-field__label">Link to share</span>
+                <input v-model="shareUrl" type="url" class="ar-input" spellcheck="false" />
+              </label>
+              <p v-if="settings.scorecard_page_enabled === false" class="ar-field__hint">
+                Your public page is off, so this defaults to your home page — set any public
+                link you like. The preview image above only appears on networks when the
+                shared link is a page that carries it.
+              </p>
+              <p v-else class="ar-field__hint">
+                Defaults to your public scorecard page — set any public link you like.
+              </p>
+            </div>
+            <div class="ar-modal__actions">
+              <button type="button" class="ar-btn ar-btn--ghost" @click="shareDialogOpen = false">Cancel</button>
+              <button type="button" class="ar-btn" :disabled="!shareUrl" @click="doShare">Continue to {{ shareNetworkLabel }} →</button>
+            </div>
+          </div>
+        </div>
+
         <div v-if="showReset" class="ar-modal" @click.self="closeReset">
           <div
             ref="resetDialog"
