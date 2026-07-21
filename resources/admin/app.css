@@ -4017,6 +4017,17 @@ a.ar-about-proto__v:hover { text-decoration: underline; }
 /* The buttons' explainer holds the image's width, wrapping to two lines. */
 .ar-scorecard-note { max-width: 520px; }
 
+/* Small screens, at core's own 782px breakpoint (where wp-admin enlarges every
+   .button for touch): the share rows stack — label above a full-width control —
+   and the snippet's Copy drops out of its corner overlay into the flow below
+   the code, because the enlarged button outgrows the box it floated on. */
+@media (max-width: 782px) {
+	.ar-field--inline.ar-field--share { flex-wrap: wrap; }
+	.ar-field--share > label { flex: 1 1 100%; }
+	.ar-field--share .ar-select { flex: 1 1 auto; max-width: 100%; }
+	.ar-mcp-snippet__copy.button { position: static; margin-top: 8px; }
+}
+
 /* Share-the-result: the social card at readable size, share intents in a row.
    Each button wears its network's mark; Download is the primary act. */
 .ar-scorecard-card img { display: block; width: 100%; max-width: 520px; border: 1px solid #d8d2c2; border-radius: 6px; }
