@@ -4057,7 +4057,9 @@ a.ar-about-proto__v:hover { text-decoration: underline; }
 .ar-scorecard-pageprev iframe { border: 0; pointer-events: none; }
 /* Page off: the window stays (the grid row keeps its shape) and says why
    it's empty instead of leaving a silent void. */
-.ar-scorecard-pageoff { display: grid; place-items: center; height: 100%; margin: 0; padding: 0 28px; text-align: center; color: var(--ar-ink-soft); font-size: 13px; line-height: 1.6; }
+/* Wears the card image's own dark background so the off state still reads
+   as the second panel of the pair, not a hole in the layout. */
+.ar-scorecard-pageoff { display: grid; place-items: center; height: 100%; margin: 0; padding: 0 28px; text-align: center; background: #191712; color: #8a8374; font-size: 13px; line-height: 1.6; }
 
 /* The share buttons fill the image's width, one row, equal widths — compact
    type so all four fit; the icons carry the "share" meaning, so the network
