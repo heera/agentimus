@@ -2051,7 +2051,7 @@ export default {
                   :value="settings.scorecard_badge_bg || scorecard.accent || '#146b64'"
                   @input="settings.scorecard_badge_bg = $event.target.value"
                 />
-                <span>Background</span>
+                <span>Background color</span>
               </label>
               <label class="ar-badge-color">
                 <input
@@ -2059,14 +2059,14 @@ export default {
                   :value="settings.scorecard_badge_fg || '#ffffff'"
                   @input="settings.scorecard_badge_fg = $event.target.value"
                 />
-                <span>Text</span>
+                <span>Text color</span>
               </label>
               <button
                 v-if="settings.scorecard_badge_bg || settings.scorecard_badge_fg"
                 type="button"
                 class="button button-small"
                 @click="settings.scorecard_badge_bg = ''; settings.scorecard_badge_fg = ''"
-              >Back to automatic</button>
+              >Default</button>
             </div>
           </div>
           <p class="ar-field__hint">
