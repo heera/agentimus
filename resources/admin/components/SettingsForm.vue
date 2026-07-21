@@ -289,10 +289,11 @@ export default {
     badgeSnippet() {
       if (!this.scorecardBase) return '';
       const img = `<img src="${this.scorecardBase}/badge.svg" alt="AI readiness" height="28">`;
-      // The badge only links somewhere real: page off = a plain image.
-      return this.settings.scorecard_page_enabled === false
-        ? img
-        : `<a href="${this.scorecardUrl}">${img}</a>`;
+      // The badge only links somewhere real, and only if the owner wants it
+      // to: page on + link switch on = wrapped; otherwise a plain image.
+      const linked = this.settings.scorecard_page_enabled !== false
+        && this.settings.scorecard_badge_link !== false;
+      return linked ? `<a href="${this.scorecardUrl}">${img}</a>` : img;
     },
     // The prefilled post. Tier mode never names the number — that's the whole
     // point of tier mode — and below the bar it stays an honest question.
@@ -2182,6 +2183,14 @@ export default {
               Paste this anywhere HTML works — a footer, an About page, a README. It always
               shows the current score and links to your scorecard page.
             </p>
+            <label class="ar-toggle ar-toggle--nested ar-scorecard-nametoggle" :inert="!settings.scorecard_page_enabled">
+              <input v-model="settings.scorecard_badge_link" type="checkbox" />
+              <span class="ar-toggle__track" aria-hidden="true"></span>
+              <span class="ar-toggle__text">
+                <strong>Link the badge to your page</strong>
+                <small>The embed code wraps the badge in a link to your public scorecard page.</small>
+              </span>
+            </label>
             <div class="ar-mcp-snippet ar-scorecard-badgebox">
               <pre class="ar-about-snippet ar-mcp-snippet__code"><code>{{ badgeSnippet }}</code></pre>
               <button type="button" class="button button-small ar-mcp-snippet__copy" @click="copyBadgeSnippet">
@@ -2219,7 +2228,7 @@ export default {
                 <span class="ar-toggle__track" aria-hidden="true"></span>
                 <span class="ar-toggle__text">
                   <strong>Public page</strong>
-                  <small>Serve the scorecard page at your address. Off — only the badge and card exist, and the badge stops linking.</small>
+                  <small>Serve the scorecard page at your address. Off, the address returns a normal 404.</small>
                 </span>
               </label>
               <div class="ar-scorecard-share ar-sd-btns">

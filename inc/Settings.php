@@ -184,6 +184,10 @@ final class Settings {
 			// badge embed stops linking anywhere. Both ON by default.
 			'scorecard_show_name'    => true,
 			'scorecard_page_enabled' => true,
+			// Whether the badge EMBED wraps the image in a link to the public
+			// page. Only meaningful while the page is enabled — with the page
+			// off the embed is a plain image regardless.
+			'scorecard_badge_link'   => true,
 			// The public page's address (badge.svg and card.png live beneath it).
 			// Owner-configurable so a site that already uses /ai-readiness for
 			// real content can move the scorecard instead of losing it to the
