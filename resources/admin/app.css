@@ -4022,7 +4022,6 @@ a.ar-about-proto__v:hover { text-decoration: underline; }
 .ar-scorecard-card { margin: 0; }
 .ar-scorecard-card img { display: block; width: 100%; border: 1px solid #d8d2c2; border-radius: 6px; }
 .ar-scorecard-pagewrap { display: flex; flex-direction: column; }
-.ar-scorecard-pageurl { display: none; }
 /* The iframe is ABSOLUTE on purpose: transform:scale shrinks the pixels, not
    the layout box, so an in-flow 980px iframe inflates the column with a void.
    Out of the flow, the window's height is simply the scaled page: 980×0.45. */
@@ -4062,11 +4061,12 @@ a.ar-about-proto__v:hover { text-decoration: underline; }
 		padding: 0 10px !important; min-height: 26px !important; height: 26px !important;
 		line-height: 24px !important; font-size: 12px !important;
 	}
-	/* The two columns stack; the page window widens to full width with the
-	   page's URL captioned on top. */
+	/* The two columns stack. The page window spans full width, but the page
+	   inside keeps a fixed 622px viewport — scaled-to-width would render the
+	   page at a huge desktop viewport and drown the little card in dark — so
+	   the miniature centres in the window instead. */
 	.ar-scorecard-duo { grid-template-columns: 1fr; gap: 16px; }
-	.ar-scorecard-pageurl { display: block; font-size: 12px; margin: 0 0 6px; word-break: break-all; }
-	.ar-scorecard-pageprev { min-height: 300px; }
+	.ar-scorecard-pageprev iframe { width: 622px; left: calc(50% - 140px); }
 	.ar-scorecard-share { flex-wrap: wrap; }
 	.ar-share-btn { flex: 1 1 40%; }
 }

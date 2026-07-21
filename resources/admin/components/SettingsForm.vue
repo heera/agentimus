@@ -2205,7 +2205,6 @@ export default {
                    is the way in; on small screens the URL captions it on top. -->
               <div class="ar-scorecard-col ar-scorecard-pagewrap">
                 <p class="ar-scorecard-collabel">The live page</p>
-                <a class="ar-scorecard-pageurl" :href="scorecardUrl" target="_blank" rel="noopener">{{ scorecardUrl }}</a>
                 <div class="ar-scorecard-pageprev" aria-hidden="true">
                   <iframe :src="pageSrc" tabindex="-1" title="Scorecard page preview"></iframe>
                 </div>
