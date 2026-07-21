@@ -4031,12 +4031,16 @@ a.ar-about-proto__v:hover { text-decoration: underline; }
 	/* The hint wraps; the open-link takes the last line, left — and the Copy
 	   text button is pulled UP onto that same line, right: one shared row
 	   above the code box. */
-	.ar-scorecard-hintrow { flex-wrap: wrap; margin-bottom: 0; }
+	/* The maths of the shared row: the link's line is ~20px tall and the hint
+	   keeps a 10px gap below it; pulling the snippet up by exactly 20+10 puts
+	   the 20px Copy line ON the link's line, and Copy's own 10px bottom margin
+	   re-creates the gap between that row and the code box. */
+	.ar-scorecard-hintrow { flex-wrap: wrap; margin-bottom: 10px; }
 	.ar-scorecard-hintrow > a { flex: 1 1 100%; }
-	.ar-mcp-snippet { display: flex; flex-direction: column; margin-top: -26px; }
+	.ar-mcp-snippet { display: flex; flex-direction: column; margin-top: -30px; }
 	.ar-mcp-snippet__copy.button {
 		position: static; order: -1; align-self: flex-end;
-		margin: 0 0 8px; padding: 0 !important; min-height: 0 !important;
+		margin: 0 0 10px; padding: 0 !important; min-height: 0 !important;
 		font-size: 13px !important; line-height: 20px !important;
 		background: transparent; border: none; box-shadow: none;
 		color: #2271b1;
