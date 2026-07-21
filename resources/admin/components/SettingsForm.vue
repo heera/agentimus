@@ -2187,17 +2187,18 @@ export default {
 
           <div class="ar-mcp-step">
             <p class="ar-mcp-step__head">Share the result on the web</p>
-            <!-- Right above the two previews it changes — a control belongs
-                 next to its effect. -->
-            <label class="ar-toggle ar-toggle--nested ar-scorecard-nametoggle">
-              <input v-model="settings.scorecard_show_name" type="checkbox" />
-              <span class="ar-toggle__track" aria-hidden="true"></span>
-              <span class="ar-toggle__text">
-                <strong>Show your site's name</strong>
-                <small>On the public page and the share card. Off shows your domain instead — for a site whose name is a person, or a brand you'd rather not print. The domain always shows; it's public by definition.</small>
-              </span>
-            </label>
             <div class="ar-scorecard-duo">
+              <!-- Right above the two previews it changes — a control belongs
+                   next to its effect; in the grid so its text wraps at the
+                   image column's exact boundary. -->
+              <label class="ar-toggle ar-toggle--nested ar-scorecard-nametoggle ar-sd-ntog">
+                <input v-model="settings.scorecard_show_name" type="checkbox" />
+                <span class="ar-toggle__track" aria-hidden="true"></span>
+                <span class="ar-toggle__text">
+                  <strong>Show your site's name</strong>
+                  <small>On the public page and the share card. Off shows your domain instead — for a site whose name is a person, or a brand you'd rather not print. The domain always shows; it's public by definition.</small>
+                </span>
+              </label>
               <p class="ar-scorecard-collabel ar-sd-clabel">The share card</p>
               <p class="ar-scorecard-collabel ar-sd-plabel">The live page</p>
               <p v-if="scorecard.og !== false && cardSrc" class="ar-scorecard-card ar-sd-img">
