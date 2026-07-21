@@ -4016,15 +4016,18 @@ a.ar-about-proto__v:hover { text-decoration: underline; }
    label. The page window scales the real page at 0.45; the iframe viewport is
    width/0.45, so the miniature stays true at any column width. Pointer-events
    off — the Open button below it is the way in. */
-.ar-scorecard-duo { display: grid; grid-template-columns: minmax(0, 1fr) minmax(260px, 360px); gap: 24px; align-items: stretch; }
+.ar-scorecard-duo { display: grid; grid-template-columns: minmax(0, 1fr) minmax(260px, 360px); gap: 24px; align-items: start; }
 .ar-scorecard-col { min-width: 0; }
 .ar-scorecard-collabel { margin: 0 0 8px; font-weight: 600; font-size: 13px; }
 .ar-scorecard-card { margin: 0; }
 .ar-scorecard-card img { display: block; width: 100%; border: 1px solid #d8d2c2; border-radius: 6px; }
 .ar-scorecard-pagewrap { display: flex; flex-direction: column; }
 .ar-scorecard-pageurl { display: none; }
-.ar-scorecard-pageprev { flex: 1 1 auto; min-height: 340px; overflow: hidden; border: 1px solid #d8d2c2; border-radius: 6px; }
-.ar-scorecard-pageprev iframe { width: 222.23%; height: 980px; transform: scale(0.45); transform-origin: 0 0; border: 0; pointer-events: none; }
+/* The iframe is ABSOLUTE on purpose: transform:scale shrinks the pixels, not
+   the layout box, so an in-flow 980px iframe inflates the column with a void.
+   Out of the flow, the window's height is simply the scaled page: 980×0.45. */
+.ar-scorecard-pageprev { position: relative; height: 441px; overflow: hidden; border: 1px solid #d8d2c2; border-radius: 6px; }
+.ar-scorecard-pageprev iframe { position: absolute; top: 0; left: 0; width: 222.23%; height: 980px; transform: scale(0.45); transform-origin: 0 0; border: 0; pointer-events: none; }
 .ar-scorecard-openbtn { margin-top: 10px; }
 
 /* The share buttons fill the image's width, one row, equal widths — compact
