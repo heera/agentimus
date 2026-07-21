@@ -3972,6 +3972,11 @@ a.ar-about-proto__v:hover { text-decoration: underline; }
 /* "Keep records for" is twice the width of "Size cap", so without a reserved label column
    the two dropdowns start at different x. Fixed basis, no shrink: one column, aligned. */
 .ar-field--log > label { flex: 0 0 132px; }
+/* The scorecard's two rows, same treatment: a reserved label column sized for "What the
+   public sees", and an equal fixed basis on both dropdowns — one aligned block, not two
+   controls that each picked their own width. */
+.ar-field--share > label { flex: 0 0 190px; }
+.ar-field--share .ar-select { flex: 0 0 380px; max-width: 100%; min-width: 0; }
 
 /* ---------------------------------------------------------------------------
    Agent access — who authenticated to, and ACTED on, the machine surface.

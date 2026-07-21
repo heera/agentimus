@@ -112,7 +112,26 @@ final class Scorecard {
 
 		$display = (string) $this->settings->get( 'scorecard_display', 'score' );
 		$style   = (string) $this->settings->get( 'scorecard_style', 'auto' );
-		$accent  = $this->accent();
+
+		// Admin-only preview overrides (?d=&s=): the settings screen re-fetches
+		// the badge the instant a choice changes — before the autosave lands —
+		// so rendering from SAVED values would always show one change behind.
+		// Strictly signed-in-owner: honoring these publicly would let anyone
+		// un-hide a tier-mode site's number with ?d=score.
+		if ( current_user_can( 'manage_options' ) ) {
+			// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only preview parameters, no state change.
+			$d = isset( $_GET['d'] ) ? sanitize_key( wp_unslash( $_GET['d'] ) ) : '';
+			// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only preview parameters, no state change.
+			$s = isset( $_GET['s'] ) ? sanitize_key( wp_unslash( $_GET['s'] ) ) : '';
+			if ( in_array( $d, Settings::SCORECARD_DISPLAYS, true ) ) {
+				$display = $d;
+			}
+			if ( in_array( $s, Settings::SCORECARD_STYLES, true ) ) {
+				$style = $s;
+			}
+		}
+
+		$accent = $this->accent();
 
 		// Short cache windows on purpose (the shields.io convention): these
 		// surfaces change when the owner flips a display mode or the score

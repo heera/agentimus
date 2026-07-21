@@ -1975,7 +1975,7 @@ export default {
         </label>
 
         <div :inert="!settings.share_scorecard" class="ar-webmcp-tools">
-          <div class="ar-field ar-field--inline">
+          <div class="ar-field ar-field--inline ar-field--share">
             <label id="ar-lbl-scorecard-display">What the public sees</label>
             <SelectMenu
               v-model="settings.scorecard_display"
@@ -1988,19 +1988,18 @@ export default {
             site, so the mark means something. Below 90 the public page honestly says
             “working toward AI-Ready”, and no number is shown anywhere.
           </p>
-          <div class="ar-field ar-field--inline">
-            <label id="ar-lbl-scorecard-style">Style</label>
+          <div class="ar-field ar-field--inline ar-field--share">
+            <label id="ar-lbl-scorecard-style">How it looks</label>
             <SelectMenu
               v-model="settings.scorecard_style"
               :options="scorecardStyleOptions"
-              aria-label="Scorecard style"
+              aria-label="How the scorecard looks"
             />
           </div>
           <p class="ar-field__hint">
-            The page and preview card use your theme's accent color automatically — unless
-            the theme's accent reads as an alarm (reds, warning ambers), in which case the
-            house teal steps in; a score should never wear the color of a failure. The badge
-            keeps one recognisable shape everywhere and adapts its colors only.
+            The colors come from your theme's own palette — skipping any tone that reads as
+            an alarm (reds, warning ambers) — with the house teal as the fallback. The badge
+            keeps one recognisable shape everywhere; only its colors adapt.
           </p>
         </div>
 
