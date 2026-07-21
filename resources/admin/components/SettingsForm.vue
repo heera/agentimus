@@ -2091,7 +2091,7 @@ export default {
           <span class="ar-toggle__track" aria-hidden="true"></span>
           <span class="ar-toggle__text">
             <strong>Publish your scorecard</strong>
-            <small>Adds a public page at the address below with your score and the five rungs, plus the badge and the preview image. Off — the default — means none of these URLs exist. If a real page of yours already lives at that address, it wins and the scorecard stands down.</small>
+            <small>Adds a public page at the address below with your score and the five rungs, plus the badge and the preview image. Off — the default — means none of these URLs exist. If a real page of yours already uses that address, your page is served instead.</small>
           </span>
         </label>
 
@@ -3119,7 +3119,7 @@ export default {
                 So: give each AI tool its own key, named after it — then you can revoke one tool
                 without touching the others, under <strong>Users → Profile → Application
                 Passwords</strong>. For extra margin, create a dedicated user with only the
-                permissions the tool needs, and mint the tool’s key signed in as that user.
+                permissions the tool needs, and create the tool’s key signed in as that user.
               </p>
             </div>
             <div class="ar-modal__actions">

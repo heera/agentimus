@@ -1349,7 +1349,7 @@ export default {
       }, duration);
     },
     titleFor(type) {
-      return { success: 'Success', error: 'Error', warning: 'Warning', info: 'Heads up' }[type] || 'Notice';
+      return { success: 'Success', error: 'Error', warning: 'Warning', info: 'Note' }[type] || 'Notice';
     },
   },
 };
