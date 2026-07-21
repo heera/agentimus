@@ -1456,6 +1456,19 @@
 .ar-mcp-snippet { position: relative; margin-top: 10px; }
 .ar-mcp-snippet__code { margin: 0; }
 .ar-mcp-snippet__copy { position: absolute; top: 8px; right: 8px; }
+/* The button floats on the snippet's dark box, where the stock admin blue drowns —
+   ghost style in wp-admin's bright blue instead (Heera's pick), for every snippet box. */
+.ar-mcp-snippet__copy.button {
+  background: transparent;
+  color: #72aee6;
+  border-color: #72aee6;
+}
+.ar-mcp-snippet__copy.button:hover,
+.ar-mcp-snippet__copy.button:focus {
+  background: rgba(114, 174, 230, 0.14);
+  color: #9ec9f0;
+  border-color: #9ec9f0;
+}
 
 /* Numbered sections inside the settings form, spec-sheet style. */
 .ar-form { counter-reset: arcard; display: grid; gap: 22px; }
