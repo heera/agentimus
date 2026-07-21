@@ -3984,15 +3984,17 @@ a.ar-about-proto__v:hover { text-decoration: underline; }
 /* The share card's snippet row: the code box hugs its one line of HTML with the Copy
    button and the open-link riding beside it — a full-width slab for a short snippet
    read as a wall. Wraps politely on narrow screens. */
-.ar-scorecard-row { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; margin-top: 10px; }
-/* Sizing rules, learned the hard way: grow to the snippet's own content at most
-   (max-content), shrink with the pre's inner scrollbar down to 260px — never
-   `max-width:100%` on the pre, which resolves circularly inside a content-sized
-   flex parent and collapsed the whole box to two characters. */
-.ar-scorecard-row .ar-mcp-snippet { display: flex; align-items: center; gap: 10px; margin-top: 0; flex: 1 1 auto; max-width: max-content; min-width: 260px; }
+.ar-scorecard-row { display: flex; align-items: center; gap: 16px; margin-top: 10px; }
+/* One line, full width: the code box takes every pixel Copy and the link leave over,
+   scrolling internally when the snippet outgrows it. min-width:0 (never a percentage
+   max-width — that resolves circularly in a content-sized flex parent) is what lets
+   the pre shrink with a scrollbar instead of forcing the row apart. */
+.ar-scorecard-row .ar-mcp-snippet { display: flex; align-items: center; gap: 10px; margin-top: 0; flex: 1 1 auto; min-width: 0; }
 .ar-scorecard-row .ar-mcp-snippet__code { flex: 1 1 auto; min-width: 0; overflow-x: auto; }
 .ar-scorecard-row .ar-mcp-snippet__copy { position: static; flex: 0 0 auto; }
-.ar-scorecard-row > a { white-space: nowrap; }
+.ar-scorecard-row > a { white-space: nowrap; flex: 0 0 auto; }
+/* Phones keep the no-sideways-panning promise: below 700px the link may wrap under. */
+@media (max-width: 700px) { .ar-scorecard-row { flex-wrap: wrap; } }
 
 /* ---------------------------------------------------------------------------
    Agent access — who authenticated to, and ACTED on, the machine surface.
