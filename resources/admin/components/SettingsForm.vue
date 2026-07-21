@@ -2130,11 +2130,11 @@ export default {
               </a>
               <a class="button ar-share-btn" :href="shareLinks.linkedin" target="_blank" rel="noopener">
                 <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor" aria-hidden="true"><path d="M4.98 3.5a2.5 2.5 0 1 1 0 5 2.5 2.5 0 0 1 0-5ZM3 9h4v12H3V9Zm7 0h3.8v1.7h.1c.5-1 1.8-2 3.7-2 4 0 4.7 2.6 4.7 6V21h-4v-5.5c0-1.3 0-3-1.9-3s-2.1 1.4-2.1 2.9V21h-4V9Z" /></svg>
-                Share on LinkedIn
+                LinkedIn
               </a>
               <a class="button ar-share-btn" :href="shareLinks.facebook" target="_blank" rel="noopener">
                 <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor" aria-hidden="true"><path d="M13.5 21v-8h2.7l.4-3.1h-3.1V7.9c0-.9.3-1.5 1.6-1.5h1.6V3.6c-.3 0-1.2-.1-2.3-.1-2.3 0-3.9 1.4-3.9 4v2.4H7.8V13h2.7v8h3Z" /></svg>
-                Share on Facebook
+                Facebook
               </a>
             </div>
             <p class="ar-field__hint">
