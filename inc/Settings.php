@@ -205,7 +205,7 @@ final class Settings {
 			// lives in scorecard_badge_bg/fg (legacy names; they colour EVERY
 			// share surface, not just the badge).
 			'scorecard_warn_color'  => '',
-			// The public page's address (badge.svg and card.png live beneath it).
+			// The public page's address (the badge and card live beneath it).
 			// Owner-configurable so a site that already uses /ai-readiness for
 			// real content can move the scorecard instead of losing it to the
 			// stand-down rule (owner content always wins a collision).

@@ -701,8 +701,8 @@ final class Admin {
 					return array(
 						'home'   => esc_url_raw( home_url( '/' ) ),
 						'url'    => esc_url_raw( home_url( $base . '/' ) ),
-						'badge'  => esc_url_raw( home_url( $base . '/badge.svg' ) ),
-						'card'   => esc_url_raw( home_url( $base . '/card.png' ) ),
+						'badge'  => esc_url_raw( home_url( $base . '/badge' ) ),
+						'card'   => esc_url_raw( home_url( $base . '/card' ) ),
 						'og'     => Scorecard::og_ready(),
 						// The resolved automatic accent, so the colour pickers'
 						// default swatch shows the real current colour.

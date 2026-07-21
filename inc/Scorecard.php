@@ -4,8 +4,14 @@
  *
  * Opt-in (off by default): one switch publishes the score the dashboard
  * already computes as (1) a human-readable page at /ai-readiness, (2) an
- * embeddable SVG badge at /ai-readiness/badge.svg, and (3) a social-preview
- * PNG at /ai-readiness/card.png so a shared link unfurls as a score card.
+ * embeddable SVG badge at /agentimus-ai-readiness/badge, and (3) a social-
+ * preview PNG at /agentimus-ai-readiness/card so a shared link shows a score
+ * card. The asset addresses are EXTENSION-LESS on purpose: the common nginx
+ * static-assets location serves *.svg/*.png straight from disk and 404s a
+ * miss before WordPress runs (found live on heera.it — the page worked, the
+ * images never reached PHP). Extension-less paths always fall through to
+ * index.php. The .svg/.png twins still answer where servers allow, so
+ * already-pasted embeds keep working.
  * Everything is generated and served by this site — no outbound request,
  * no external image service, nothing sent anywhere.
  *
@@ -218,11 +224,11 @@ final class Scorecard {
 		// moves, and an embedded badge that shows yesterday's choice for an
 		// hour reads as broken. Five minutes still absorbs any hotlink storm —
 		// the bodies are transient-backed and cheap.
-		if ( $base . '/badge.svg' === $path ) {
+		if ( $base . '/badge' === $path || $base . '/badge.svg' === $path ) {
 			$this->send( self::badge_svg( $this->snapshot(), $display, $style, $accent, $opts ), 'image/svg+xml', 300 );
 		}
 
-		if ( $base . '/card.png' === $path ) {
+		if ( $base . '/card' === $path || $base . '/card.png' === $path ) {
 			$png = $this->og_png( $this->snapshot(), $display, $style, $accent, $opts );
 			if ( '' !== $png ) {
 				$this->send( $png, 'image/png', 300 );
@@ -544,8 +550,8 @@ final class Scorecard {
 			'home'    => home_url( '/' ),
 			'url'     => home_url( $base . '/' ),
 			'icon'    => function_exists( 'get_site_icon_url' ) ? (string) get_site_icon_url( 64 ) : '',
-			'badge'   => home_url( $base . '/badge.svg' ),
-			'og'      => self::og_ready() ? home_url( $base . '/card.png' ) : '',
+			'badge'   => home_url( $base . '/badge' ),
+			'og'      => self::og_ready() ? home_url( $base . '/card' ) : '',
 			'updated' => function_exists( 'date_i18n' )
 				? date_i18n( (string) get_option( 'date_format', 'F j, Y' ), $generated )
 				: gmdate( 'F j, Y', $generated ),

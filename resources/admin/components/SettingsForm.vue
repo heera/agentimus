@@ -373,17 +373,17 @@ export default {
       };
     },
     badgeSrc() {
-      return this.scorecardBase ? `${this.scorecardBase}/badge.svg?${this.previewQuery}` : '';
+      return this.scorecardBase ? `${this.scorecardBase}/badge?${this.previewQuery}` : '';
     },
     cardSrc() {
-      return this.scorecardBase ? `${this.scorecardBase}/card.png?${this.previewQuery}` : '';
+      return this.scorecardBase ? `${this.scorecardBase}/card?${this.previewQuery}` : '';
     },
     pageSrc() {
       return this.scorecardUrl ? `${this.scorecardUrl}?${this.previewQuery}` : '';
     },
     badgeSnippet() {
       if (!this.scorecardBase) return '';
-      const img = `<img src="${this.scorecardBase}/badge.svg" alt="AI readiness" height="${this.badgeHeight}">`;
+      const img = `<img src="${this.scorecardBase}/badge" alt="AI readiness" height="${this.badgeHeight}">`;
       // The badge only links somewhere real, and only if the owner wants it
       // to: page on + link switch on = wrapped; otherwise a plain image.
       const linked = this.settings.scorecard_page_enabled !== false

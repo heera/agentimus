@@ -46,7 +46,7 @@ final class ScorecardTest extends TestCase {
 			'home'    => 'https://example.test/',
 			'url'     => 'https://example.test/ai-readiness/',
 			'icon'    => '',
-			'badge'   => 'https://example.test/ai-readiness/badge.svg',
+			'badge'   => 'https://example.test/ai-readiness/badge',
 			'og'      => $og,
 			'updated' => 'July 21, 2026',
 			'plugin'  => 'https://wordpress.org/plugins/agentimus/',
