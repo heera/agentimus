@@ -679,17 +679,23 @@ final class Scorecard {
 		// public by definition).
 		$host      = (string) wp_parse_url( home_url( '/' ), PHP_URL_HOST );
 		$show_name = ! isset( $opts['name'] ) || false !== $opts['name'];
+		// The name in ink, the domain as a quiet outlined chip beneath it —
+		// "site: example.com" (Gemini's suggestion, Heera's pick). With the
+		// name hidden, the chip alone carries the identity.
+		$chip_text = sprintf( /* translators: %s: the site's domain. */ __( 'site: %s', 'agentimus' ), $host );
+		$chip_y    = 254;
 		if ( $show_name ) {
-			// One line: the name in ink, the domain dimmed beside it on the
-			// same baseline — "Brand Name — site.com".
 			$name = (string) get_bloginfo( 'name' );
 			$name = mb_strlen( $name ) > 26 ? mb_substr( $name, 0, 25 ) . '…' : $name;
-			$nb   = imagettfbbox( 36, 0, $font, $name );
-			self::og_bold( $img, 36, 80, 238, $c_ink, $font, $name );
-			imagettftext( $img, 17, 0, 80 + ( $nb[2] - $nb[0] ) + 20, 238, $c_mut, $font, '— ' . $host );
+			self::og_bold( $img, 36, 80, 230, $c_ink, $font, $name );
 		} else {
-			self::og_bold( $img, 30, 80, 238, $c_ink, $font, $host );
+			$chip_y = 216;
 		}
+		$cb = imagettfbbox( 15, 0, $font, $chip_text );
+		$cw = ( $cb[2] - $cb[0] ) + 40;
+		self::og_rrect( $img, 80, $chip_y, 80 + $cw, $chip_y + 38, 19, $c_track );
+		self::og_rrect( $img, 82, $chip_y + 2, 78 + $cw, $chip_y + 36, 17, $c_bg );
+		imagettftext( $img, 15, 0, 100, $chip_y + 25, $c_mut, $font, $chip_text );
 
 		$score  = (int) $snap['score'];
 		$earned = self::tier_earned( $score );
@@ -724,7 +730,7 @@ final class Scorecard {
 		// accent to a lighter cousin of itself — always derived from the
 		// CONFIGURED colour, never a hardcoded second palette.
 		$cx        = 940;
-		$cy        = 335;
+		$cy        = 330;
 		$acc_rgb   = self::hex_rgb( $accent );
 		$acc_rgb   = null === $acc_rgb ? self::hex_rgb( self::ACCENT ) : $acc_rgb;
 		$acc_light = array(
@@ -732,22 +738,20 @@ final class Scorecard {
 			(int) round( $acc_rgb[1] + ( 255 - $acc_rgb[1] ) * 0.30 ),
 			(int) round( $acc_rgb[2] + ( 255 - $acc_rgb[2] ) * 0.30 ),
 		);
-		$label     = strtoupper( __( 'AI readiness score', 'agentimus' ) );
 		if ( $tier ) {
-			self::og_ring( $img, $cx, $cy, 170, 134, $c_track, $earned ? $acc_rgb : null, $acc_light, $earned ? 100 : 0, $c_bg );
-			self::og_center( $img, 13, $cx, $cy - 84, $c_mut, $font, $label );
+			self::og_ring( $img, $cx, $cy, 160, 126, $c_track, $earned ? $acc_rgb : null, $acc_light, $earned ? 100 : 0, $c_bg );
 			if ( $earned ) {
-				self::og_center( $img, 42, $cx, $cy + 16, $c_acc, $font, __( 'AI-Ready', 'agentimus' ), true );
+				self::og_center( $img, 40, $cx, $cy + 14, $c_acc, $font, __( 'AI-Ready', 'agentimus' ), true );
 			} else {
-				self::og_center( $img, 23, $cx, $cy - 2, $c_mut, $font, __( 'Working toward', 'agentimus' ) );
-				self::og_center( $img, 23, $cx, $cy + 36, $c_mut, $font, __( 'AI-Ready', 'agentimus' ) );
+				self::og_center( $img, 22, $cx, $cy - 4, $c_mut, $font, __( 'Working toward', 'agentimus' ) );
+				self::og_center( $img, 22, $cx, $cy + 32, $c_mut, $font, __( 'AI-Ready', 'agentimus' ) );
 			}
 		} else {
-			self::og_ring( $img, $cx, $cy, 170, 134, $c_track, $acc_rgb, $acc_light, max( 0, min( 100, $score ) ), $c_bg );
-			self::og_center( $img, 13, $cx, $cy - 84, $c_mut, $font, $label );
-			self::og_center( $img, 100, $cx, $cy + 34, $c_acc, $font, (string) $score, true );
-			self::og_center( $img, 20, $cx, $cy + 72, $c_mut, $font, '/ 100' );
-			self::og_center( $img, 17, $cx, $cy + 106, $c_mut, $font, (string) $snap['band'] );
+			self::og_ring( $img, $cx, $cy, 160, 126, $c_track, $acc_rgb, $acc_light, max( 0, min( 100, $score ) ), $c_bg );
+			self::og_center( $img, 96, $cx, $cy + 30, $c_acc, $font, (string) $score, true );
+			self::og_center( $img, 22, $cx, $cy + 74, $c_mut, $font, '/ 100' );
+			// The band sits below the ring, in the accent — the verdict line.
+			self::og_center( $img, 23, $cx, $cy + 160 + 38, $c_acc, $font, (string) $snap['band'], true );
 		}
 
 		// ── Footer: one line — the question in ink, then the credit smaller
