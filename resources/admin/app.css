@@ -4036,7 +4036,7 @@ a.ar-about-proto__v:hover { text-decoration: underline; }
 .ar-sd-img { grid-area: img; }
 .ar-sd-page { grid-area: page; }
 .ar-sd-btns { grid-area: btns; }
-.ar-sd-open { grid-area: open; margin-top: 12px; }
+.ar-sd-open { grid-area: open; margin-top: 12px; align-self: start; }
 .ar-sd-note { grid-area: note; }
 .ar-sd-note2 { grid-column: 1 / -1; }
 .ar-scorecard-collabel { margin: 0 0 8px; font-weight: 600; font-size: 13px; }
@@ -4054,7 +4054,10 @@ a.ar-about-proto__v:hover { text-decoration: underline; }
    type so all four fit; the icons carry the "share" meaning, so the network
    buttons need only their names. Phones may wrap two-up. */
 .ar-scorecard-share { display: flex; align-items: center; gap: 8px; flex-wrap: nowrap; margin-top: 12px; }
-.ar-share-btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; flex: 1 1 0; min-width: 0; font-size: 12px; padding: 0 8px; white-space: nowrap; }
+/* .wp-core-ui prefixed on purpose: core styles .button with a two-class
+   selector that outranks a bare class — without the tie, display/justify
+   silently lose and the buttons render as core inline-blocks (left text). */
+.wp-core-ui .ar-share-btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; flex: 1 1 0; min-width: 0; font-size: 12px; padding: 0 8px; white-space: nowrap; }
 .ar-share-btn svg { flex: none; }
 
 /* Small screens, at core's own 782px breakpoint (where wp-admin enlarges every
@@ -4093,7 +4096,7 @@ a.ar-about-proto__v:hover { text-decoration: underline; }
 	.ar-sd-plabel { margin-top: 18px; }
 	.ar-scorecard-pageprev { height: 420px; }
 	.ar-scorecard-share { flex-wrap: wrap; }
-	.ar-share-btn { flex: 1 1 40%; }
+	.wp-core-ui .ar-share-btn { flex: 1 1 40%; }
 }
 
 /* ---------------------------------------------------------------------------
