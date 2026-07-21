@@ -178,10 +178,12 @@ final class Settings {
 			'scorecard_badge_shape' => 'rectangle',
 			'scorecard_badge_bg'    => '',
 			'scorecard_badge_fg'    => '',
-			// Whether the public page + share card print the site's NAME. A site
-			// name is often a person; the owner may prefer the domain, which the
-			// surfaces fall back to (a URL is public by definition). ON by default.
-			'scorecard_show_name'   => true,
+			// Whether the share CARD and the public PAGE print the site's NAME —
+			// two switches, because a name that's fine on a page you control may
+			// be one you'd rather keep off an image that gets reposted. Off shows
+			// the domain, which is public by definition. Both ON by default.
+			'scorecard_card_show_name' => true,
+			'scorecard_page_show_name' => true,
 			// The public page's address (badge.svg and card.png live beneath it).
 			// Owner-configurable so a site that already uses /ai-readiness for
 			// real content can move the scorecard instead of losing it to the

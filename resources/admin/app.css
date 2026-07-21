@@ -4026,13 +4026,14 @@ a.ar-about-proto__v:hover { text-decoration: underline; }
 	grid-template-areas:
 		"clabel plabel"
 		"img    page"
+		"ntog   ptog"
 		"btns   open"
-		"note   pnote"
-		"ntog   .";
+		"note   pnote";
 	gap: 0 24px;
 	align-items: stretch;
 }
 .ar-sd-ntog { grid-area: ntog; }
+.ar-sd-ptog { grid-area: ptog; }
 .ar-sd-clabel { grid-area: clabel; }
 .ar-sd-plabel { grid-area: plabel; }
 .ar-sd-img { grid-area: img; }
@@ -4095,7 +4096,7 @@ a.ar-about-proto__v:hover { text-decoration: underline; }
 	   inherit from in a single column). */
 	.ar-scorecard-duo {
 		grid-template-columns: 1fr;
-		grid-template-areas: "clabel" "img" "btns" "note" "ntog" "plabel" "page" "open" "pnote";
+		grid-template-areas: "clabel" "img" "ntog" "btns" "note" "plabel" "page" "ptog" "open" "pnote";
 		gap: 0;
 	}
 	.ar-sd-plabel { margin-top: 18px; }

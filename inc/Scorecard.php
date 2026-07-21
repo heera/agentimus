@@ -126,13 +126,14 @@ final class Scorecard {
 		$path = '/' . ltrim( (string) wp_parse_url( $uri, PHP_URL_PATH ), '/' );
 		$base = $this->path();
 
-		$display = (string) $this->settings->get( 'scorecard_display', 'score' );
-		$style   = (string) $this->settings->get( 'scorecard_style', 'auto' );
+		$display   = (string) $this->settings->get( 'scorecard_display', 'score' );
+		$style     = (string) $this->settings->get( 'scorecard_style', 'auto' );
+		$page_name = (bool) $this->settings->get( 'scorecard_page_show_name', true );
 		$opts    = array(
 			'shape' => (string) $this->settings->get( 'scorecard_badge_shape', 'rectangle' ),
 			'bg'    => (string) $this->settings->get( 'scorecard_badge_bg', '' ),
 			'fg'    => (string) $this->settings->get( 'scorecard_badge_fg', '' ),
-			'name'  => (bool) $this->settings->get( 'scorecard_show_name', true ),
+			'name'  => (bool) $this->settings->get( 'scorecard_card_show_name', true ),
 		);
 
 		// Admin-only preview overrides (?d=&s=&sh=&bg=&fg=): the settings screen
@@ -167,6 +168,10 @@ final class Scorecard {
 			}
 			if ( '0' === $nm || '1' === $nm ) {
 				$opts['name'] = '1' === $nm;
+			}
+			$pn = isset( $_GET['pn'] ) ? sanitize_key( wp_unslash( $_GET['pn'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only preview parameter.
+			if ( '0' === $pn || '1' === $pn ) {
+				$page_name = '1' === $pn;
 			}
 		}
 
@@ -203,7 +208,7 @@ final class Scorecard {
 				return;
 			}
 			$ctx              = $this->page_context( $base );
-			$ctx['show_name'] = ! isset( $opts['name'] ) || false !== $opts['name'];
+			$ctx['show_name'] = $page_name;
 			$this->send( self::page_html( $this->snapshot(), $ctx, $display, $style, $accent ), 'text/html', 60 );
 		}
 	}

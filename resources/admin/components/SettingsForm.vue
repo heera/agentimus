@@ -254,8 +254,9 @@ export default {
     previewParams() {
       const bg = (this.settings.scorecard_badge_bg || '').replace('#', '');
       const fg = (this.settings.scorecard_badge_fg || '').replace('#', '');
-      const nm = this.settings.scorecard_show_name === false ? 0 : 1;
-      return `d=${this.settings.scorecard_display}&s=${this.settings.scorecard_style}&sh=${this.settings.scorecard_badge_shape || 'rectangle'}&bg=${bg}&fg=${fg}&nm=${nm}&v=${this.scorecardPreviewNonce}`;
+      const nm = this.settings.scorecard_card_show_name === false ? 0 : 1;
+      const pn = this.settings.scorecard_page_show_name === false ? 0 : 1;
+      return `d=${this.settings.scorecard_display}&s=${this.settings.scorecard_style}&sh=${this.settings.scorecard_badge_shape || 'rectangle'}&bg=${bg}&fg=${fg}&nm=${nm}&pn=${pn}&v=${this.scorecardPreviewNonce}`;
     },
     // The measured transform that fills the window EDGE TO EDGE: the height
     // fixes the scale (full 980px page always visible), and the iframe's
@@ -2188,15 +2189,14 @@ export default {
           <div class="ar-mcp-step">
             <p class="ar-mcp-step__head">Share the result on the web</p>
             <div class="ar-scorecard-duo">
-              <!-- Right above the two previews it changes — a control belongs
-                   next to its effect; in the grid so its text wraps at the
-                   image column's exact boundary. -->
+              <!-- Each surface gets its own name switch, sitting directly
+                   under the preview it changes. -->
               <label class="ar-toggle ar-toggle--nested ar-scorecard-nametoggle ar-sd-ntog">
-                <input v-model="settings.scorecard_show_name" type="checkbox" />
+                <input v-model="settings.scorecard_card_show_name" type="checkbox" />
                 <span class="ar-toggle__track" aria-hidden="true"></span>
                 <span class="ar-toggle__text">
                   <strong>Show your site's name</strong>
-                  <small>On the public page and the share card. Off shows your domain instead — for a site whose name is a person, or a brand you'd rather not print. The domain always shows; it's public by definition.</small>
+                  <small>Off puts your domain on the card instead.</small>
                 </span>
               </label>
               <p class="ar-scorecard-collabel ar-sd-clabel">The share card</p>
@@ -2210,6 +2210,14 @@ export default {
               <div ref="pagePrev" class="ar-scorecard-pageprev ar-sd-page" aria-hidden="true">
                 <iframe :src="pageSrc" :style="pagePrevStyle" tabindex="-1" title="Scorecard page preview"></iframe>
               </div>
+              <label class="ar-toggle ar-toggle--nested ar-scorecard-nametoggle ar-sd-ptog">
+                <input v-model="settings.scorecard_page_show_name" type="checkbox" />
+                <span class="ar-toggle__track" aria-hidden="true"></span>
+                <span class="ar-toggle__text">
+                  <strong>Show your site's name</strong>
+                  <small>Off puts your domain on the page instead.</small>
+                </span>
+              </label>
               <div class="ar-scorecard-share ar-sd-btns">
               <a
                 v-if="scorecard.og !== false && cardSrc"
