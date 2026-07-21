@@ -734,14 +734,22 @@ final class Scorecard {
 			self::og_ring( $img, $cx, $cy, 160, 126, $c_track, $acc_rgb, $acc_light, max( 0, min( 100, $score ) ), $c_bg );
 			// One composite on one baseline — "91/100", the badge's own reading:
 			// the number big in the accent, the scale small and muted beside it.
+			// Three pieces with EQUAL gaps — "91 / 100". A space baked into the
+			// suffix string lies: font side-bearings make the two sides uneven.
 			$num = (string) $score;
+			$gap = 12;
 			$nb  = imagettfbbox( 84, 0, $font, $num );
-			$sb  = imagettfbbox( 26, 0, $font, '/ 100' );
-			$nw  = $nb[2] - $nb[0];
-			$tw  = $nw + 16 + ( $sb[2] - $sb[0] );
+			$slb = imagettfbbox( 26, 0, $font, '/' );
+			$hb  = imagettfbbox( 26, 0, $font, '100' );
+			// The faux-bold second pass widens the number by its offset — count
+			// it, or the slash sits closer to the number than to the 100.
+			$nw  = ( $nb[2] - $nb[0] ) + max( 1, (int) round( 84 / 30 ) );
+			$slw = $slb[2] - $slb[0];
+			$tw  = $nw + $gap + $slw + $gap + ( $hb[2] - $hb[0] );
 			$x0  = (int) ( $cx - $tw / 2 );
 			self::og_bold( $img, 84, $x0, $cy + 30, $c_acc, $font, $num );
-			imagettftext( $img, 26, 0, $x0 + $nw + 16, $cy + 30, $c_mut, $font, '/ 100' );
+			imagettftext( $img, 26, 0, $x0 + $nw + $gap, $cy + 30, $c_mut, $font, '/' );
+			imagettftext( $img, 26, 0, $x0 + $nw + $gap + $slw + $gap, $cy + 30, $c_mut, $font, '100' );
 			// The band sits below the ring, in the accent — the verdict line.
 			self::og_center( $img, 23, $cx, $cy + 160 + 38, $c_acc, $font, (string) $snap['band'], true );
 		}
