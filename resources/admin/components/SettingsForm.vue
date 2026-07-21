@@ -313,6 +313,18 @@ export default {
       const d = this.defaults || {};
       return this.scorecardColorKeys.every((k) => (this.settings[k] || '') === (d[k] || ''));
     },
+    // What an EMPTY background/text dial actually renders as, so the swatches
+    // never show light paper while the badge draws its dark scheme. Mirrors
+    // Scorecard.php: 'auto' renders light; a custom background picks its own
+    // readable ink (house ink on light, paper on dark).
+    scorecardAutoBg() {
+      return this.settings.scorecard_style === 'dark' ? '#1b1913' : '#f3f0e7';
+    },
+    scorecardAutoInk() {
+      const bgc = this.settings.scorecard_bg_color || '';
+      if (bgc) return this.inkOn(bgc);
+      return this.settings.scorecard_style === 'dark' ? '#f3f0e7' : '#1b1913';
+    },
     scorecardBase() {
       const home = ((this.scorecard && this.scorecard.home) || '').replace(/\/+$/, '');
       if (!home) return '';
@@ -1065,6 +1077,18 @@ export default {
       };
       if (intents[this.shareNetwork]) window.open(intents[this.shareNetwork], '_blank', 'noopener');
       this.shareDialogOpen = false;
+    },
+    // JS twin of Scorecard::ink_on()/lum_hex() — WCAG relative luminance,
+    // same 0.5 threshold, same two inks, so the swatch predicts the render.
+    inkOn(hex) {
+      const h = String(hex || '').replace('#', '');
+      if (!/^[0-9a-f]{6}$/i.test(h)) return '#1b1913';
+      const lin = [0, 2, 4].map((i) => {
+        const c = parseInt(h.slice(i, i + 2), 16) / 255;
+        return c <= 0.04045 ? c / 12.92 : (((c + 0.055) / 1.055) ** 2.4);
+      });
+      const lum = 0.2126 * lin[0] + 0.7152 * lin[1] + 0.0722 * lin[2];
+      return lum > 0.5 ? '#1b1913' : '#f3f0e7';
     },
     // Put every colour dial back to the shipped defaults — the values shown in
     // the pickers included, not just the stored keys. Save then applies it.
@@ -2292,7 +2316,7 @@ export default {
               <label class="ar-badge-color">
                 <input
                   type="color"
-                  :value="settings.scorecard_badge_fg || '#ffffff'"
+                  :value="settings.scorecard_badge_fg || scorecardAutoInk"
                   @input="settings.scorecard_badge_fg = $event.target.value"
                 />
                 <span>Badge text color</span>
@@ -2316,7 +2340,7 @@ export default {
               <label class="ar-badge-color">
                 <input
                   type="color"
-                  :value="settings.scorecard_bg_color || '#f3f0e7'"
+                  :value="settings.scorecard_bg_color || scorecardAutoBg"
                   @input="settings.scorecard_bg_color = $event.target.value"
                 />
                 <span>Background color</span>
