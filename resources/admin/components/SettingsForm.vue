@@ -2187,8 +2187,8 @@ export default {
               <input v-model="settings.scorecard_badge_link" type="checkbox" />
               <span class="ar-toggle__track" aria-hidden="true"></span>
               <span class="ar-toggle__text">
-                <strong>Link the badge to your page</strong>
-                <small>The embed code wraps the badge in a link to your public scorecard page.</small>
+                <strong>Link the badge to your public page</strong>
+                <small>The embed code wraps the badge in a link to your public scorecard page if the public page is turned on.</small>
               </span>
             </label>
             <div class="ar-mcp-snippet ar-scorecard-badgebox">
