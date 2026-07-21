@@ -703,11 +703,13 @@ final class Scorecard {
 			// page — so the card is one palette; warn/bad keep their semantic
 			// tones (a warning must never dress in the celebration colour).
 			$tone = null === $val ? $c_mut : ( $val >= 80 ? $c_acc : ( $val >= 50 ? $c_warn : $c_bad ) );
+			// The bar is centred on the label's optical middle (≈2px above the
+			// row's midline for mixed-case text), not on the baseline row.
 			imagettftext( $img, 17, 0, 80, $y + 6, $c_ink, $font, (string) $r['label'] );
-			self::og_rrect( $img, 270, $y - 6, 640, $y + 6, 6, $c_track );
+			self::og_rrect( $img, 270, $y - 8, 640, $y + 4, 6, $c_track );
 			$pct = null === $val ? 0 : ( $tier ? 100 : $val );
 			if ( $pct > 0 ) {
-				self::og_rrect( $img, 270, $y - 6, 270 + (int) round( 3.70 * $pct ), $y + 6, 6, $tone );
+				self::og_rrect( $img, 270, $y - 8, 270 + (int) round( 3.70 * $pct ), $y + 4, 6, $tone );
 			}
 			if ( ! $tier && null !== $val ) {
 				imagettftext( $img, 15, 0, 662, $y + 5, $c_mut, $font, (string) $val );
