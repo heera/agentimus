@@ -637,8 +637,6 @@ final class Scorecard {
 		if ( isset( $opts['bg'] ) && preg_match( '/^#[0-9a-fA-F]{6}$/', (string) $opts['bg'] ) ) {
 			$accent = strtolower( $opts['bg'] );
 		}
-		$on_accent = isset( $opts['fg'] ) && preg_match( '/^#[0-9a-fA-F]{6}$/', (string) $opts['fg'] )
-			? strtolower( $opts['fg'] ) : '#ffffff';
 
 		$img = imagecreatetruecolor( 1200, 630 );
 		$rgb = static function ( $hex ) use ( $img ) {
@@ -648,13 +646,10 @@ final class Scorecard {
 		};
 
 		$c_bg    = $rgb( $light ? '#f3f0e7' : '#191712' );
-		$c_panel = $rgb( $light ? '#e7e1d2' : '#242019' );
 		$c_track = $rgb( $light ? '#ddd7c6' : '#2b2720' );
 		$c_ink   = $rgb( $light ? '#1b1913' : '#f3f0e7' );
 		$c_mut   = $rgb( '#8a8374' );
 		$c_acc   = $rgb( $accent );
-		$c_onacc = $rgb( $on_accent );
-		$c_gem   = $rgb( '#ad7b18' );
 		$c_good  = $rgb( $light ? '#2f7a4c' : '#57b47f' );
 		$c_warn  = $rgb( $light ? '#ad7b18' : '#d09a2f' );
 		$c_bad   = $rgb( $light ? '#b93c2b' : '#d9604e' );
@@ -677,33 +672,27 @@ final class Scorecard {
 		self::og_bold( $img, 27, 162, 92, $c_ink, $font, 'Agentimus' );
 		imagettftext( $img, 14, 0, 162, 122, $c_mut, $font, strtoupper( __( 'AI-readiness report', 'agentimus' ) ) );
 
-		// ── The site: label, then name + domain — or just the domain when the
-		// owner keeps the name private (a site name is often a person; the
-		// domain is public by definition).
+		// ── The site: name + domain — or just the domain when the owner keeps
+		// the name private (a site name is often a person; the domain is
+		// public by definition).
 		$host      = (string) wp_parse_url( home_url( '/' ), PHP_URL_HOST );
 		$show_name = ! isset( $opts['name'] ) || false !== $opts['name'];
-		imagettftext( $img, 16, 0, 80, 200, $c_mut, $font, strtoupper( __( 'Your site', 'agentimus' ) ) );
 		if ( $show_name ) {
 			$name = (string) get_bloginfo( 'name' );
 			$name = mb_strlen( $name ) > 26 ? mb_substr( $name, 0, 25 ) . '…' : $name;
-			self::og_bold( $img, 36, 80, 250, $c_ink, $font, $name );
-			imagettftext( $img, 17, 0, 80, 288, $c_mut, $font, $host );
+			self::og_bold( $img, 36, 80, 260, $c_ink, $font, $name );
+			imagettftext( $img, 17, 0, 80, 298, $c_mut, $font, $host );
 		} else {
-			self::og_bold( $img, 30, 80, 250, $c_ink, $font, $host );
+			self::og_bold( $img, 30, 80, 260, $c_ink, $font, $host );
 		}
 
 		$score  = (int) $snap['score'];
 		$earned = self::tier_earned( $score );
 		$tier   = 'tier' === $display;
-		$status = $tier
-			? strtoupper( $earned ? __( 'AI-Ready', 'agentimus' ) : __( 'In progress', 'agentimus' ) )
-			: strtoupper( (string) $snap['band'] );
-		$next_x = self::og_chip( $img, $font, 80, 308, 'WORDPRESS', $c_panel, $c_mut );
-		self::og_chip( $img, $font, $next_x + 14, 308, $status, $c_panel, ( $tier && ! $earned ) ? $c_mut : $c_acc );
 
 		// ── Left column: the rungs as labelled bars (tier mode: full tone
 		// bars, no numbers — bar lengths are numbers too).
-		$y = 380;
+		$y = 372;
 		foreach ( $snap['rungs'] as $r ) {
 			$val  = isset( $r['score'] ) && null !== $r['score'] ? (int) $r['score'] : null;
 			$tone = null === $val ? $c_mut : ( $val >= 80 ? $c_good : ( $val >= 50 ? $c_warn : $c_bad ) );
@@ -737,14 +726,11 @@ final class Scorecard {
 			self::og_center( $img, 22, $cx, $cy + 182, $c_ink, $font, (string) $snap['band'] );
 		}
 
-		// ── Footer: the question + credit left, the site's domain in a pill.
+		// ── Footer: the question + the credit. No domain pill — the domain
+		// already sits under the site name, and saying it twice is noise.
 		imageline( $img, 80, 548, 1120, 548, $c_track );
 		self::og_bold( $img, 20, 80, 590, $c_ink, $font, __( 'Is your site AI-ready?', 'agentimus' ) );
 		imagettftext( $img, 14, 0, 80, 616, $c_mut, $font, __( 'Measured by Agentimus — free on WordPress.org', 'agentimus' ) );
-		$hb = imagettfbbox( 16, 0, $font, $host );
-		$hw   = $hb[2] - $hb[0];
-		self::og_rrect( $img, 1120 - $hw - 44, 568, 1120, 612, 22, $c_acc );
-		imagettftext( $img, 16, 0, 1120 - $hw - 22, 597, $c_onacc, $font, $host );
 
 		ob_start();
 		imagepng( $img );
@@ -809,15 +795,6 @@ final class Scorecard {
 		imagefilledellipse( $img, $x2 - $r, $y1 + $r, 2 * $r, 2 * $r, $color );
 		imagefilledellipse( $img, $x1 + $r, $y2 - $r, 2 * $r, 2 * $r, $color );
 		imagefilledellipse( $img, $x2 - $r, $y2 - $r, 2 * $r, 2 * $r, $color );
-	}
-
-	/** A filled, fully-rounded chip; returns the x where the next chip starts. */
-	private static function og_chip( $img, $font, $x, $y, $text, $fill, $ink ) {
-		$b = imagettfbbox( 13, 0, $font, $text );
-		$w = ( $b[2] - $b[0] ) + 36;
-		self::og_rrect( $img, $x, $y, $x + $w, $y + 38, 19, $fill );
-		imagettftext( $img, 13, 0, $x + 18, $y + 25, $ink, $font, $text );
-		return $x + $w;
 	}
 
 	/**
