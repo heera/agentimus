@@ -2350,7 +2350,7 @@ export default {
                 class="button button-small"
                 :disabled="scorecardColorsAtDefault"
                 @click="resetScorecardColors"
-              >Default</button>
+              >Reset</button>
             </div>
           </div>
           <p class="ar-field__hint">
