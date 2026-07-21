@@ -695,8 +695,9 @@ final class Scorecard {
 	}
 
 	/**
-	 * A TTF to draw the card with: filter → a bundled font (future) → a font
-	 * a bundled default theme ships (Inter / DM Sans). '' when none exists.
+	 * A TTF to draw the card with: filter → the bundled DM Sans (OFL, ships
+	 * at assets/fonts/scorecard.ttf with its license — no host can lose it) →
+	 * a font a bundled default theme ships. '' only when even that fails.
 	 */
 	public static function find_font() {
 		if ( null !== self::$font ) {
