@@ -252,6 +252,28 @@ final class Scorecard {
 		return (int) $score >= self::TIER_MIN;
 	}
 
+	/**
+	 * The accent currently in effect, for the admin preview swatches — so the
+	 * colour pickers' "automatic" state shows the real resolved colour, not a
+	 * hardcoded guess.
+	 */
+	public function current_accent() {
+		return $this->accent();
+	}
+
+	/**
+	 * The accent the public surfaces wear: the filter gets the first word,
+	 * else the Agentimus green. (A custom badge background overrides this in
+	 * the route for every surface.)
+	 */
+	private function accent() {
+		$accent = apply_filters( 'agentimus_scorecard_accent', '' );
+		if ( is_string( $accent ) && preg_match( '/^#[0-9a-fA-F]{6}$/', $accent ) ) {
+			return strtolower( $accent );
+		}
+		return self::ACCENT;
+	}
+
 	/** '#abc'/'#aabbcc' → [r,g,b], or null when it isn't one. Pure. */
 	private static function hex_rgb( $hex ) {
 		if ( ! preg_match( '/^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/', $hex, $m ) ) {
