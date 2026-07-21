@@ -2154,9 +2154,9 @@ export default {
                 <span>Text color</span>
               </label>
               <button
-                v-if="settings.scorecard_badge_bg || settings.scorecard_badge_fg"
                 type="button"
                 class="button button-small"
+                :disabled="!settings.scorecard_badge_bg && !settings.scorecard_badge_fg"
                 @click="settings.scorecard_badge_bg = ''; settings.scorecard_badge_fg = ''"
               >Default</button>
             </div>
