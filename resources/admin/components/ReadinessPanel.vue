@@ -468,7 +468,7 @@ export default {
               </div>
               <p class="ar-modal__lead">
                 Requested each risky path from your browser through the public URL — the same view an
-                outside scanner gets. It reads only whether a file is reachable, never its contents.<template v-if="isLocal"> This is a local site, so nothing’s public yet — read any finding as a heads-up for when you deploy.</template>
+                outside scanner gets. It reads only whether a file is reachable, never its contents.<template v-if="isLocal"> This is a local site, so nothing’s public yet — read any finding as an early warning for when you deploy.</template>
               </p>
             </div>
 

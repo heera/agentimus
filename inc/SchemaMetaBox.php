@@ -59,7 +59,7 @@ final class SchemaMetaBox {
 		// Status: what the live page is actually doing right now.
 		if ( $seo ) {
 			echo '<p class="agentimus-schema-box__status is-info">'
-				. esc_html__( 'An SEO plugin currently owns your site’s schema, so Agentimus stands down on the live page. This is what Agentimus would emit instead.', 'agentimus' )
+				. esc_html__( 'An SEO plugin currently provides your site’s schema, so Agentimus doesn’t add its own on the live page. This is what Agentimus would emit instead.', 'agentimus' )
 				. '</p>';
 		} else {
 			echo '<p class="agentimus-schema-box__status is-good">'

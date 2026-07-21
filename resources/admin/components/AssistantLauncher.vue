@@ -92,7 +92,7 @@ export default {
           </span>
         </li>
       </ul>
-      <p class="ar__assist-guide__foot">Once both are set, this quill lights up — nothing is ever written without your explicit “Create draft”.</p>
+      <p class="ar__assist-guide__foot">Once both are set, this pen button lights up — nothing is ever written without your explicit “Create draft”.</p>
     </div>
   </div>
 </template>

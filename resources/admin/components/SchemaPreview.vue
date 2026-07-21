@@ -86,7 +86,7 @@ export default {
       if (this.res.reason === 'seo_plugin') {
         return {
           tone: 'info',
-          text: 'An SEO plugin currently owns your schema, so Agentimus stands down to avoid duplicates. This is what Agentimus would emit instead.',
+          text: 'An SEO plugin currently provides your schema, so Agentimus doesn’t add its own — that would duplicate it. This is what Agentimus would emit instead.',
         };
       }
       // The reassuring "served/live" banner only fits a target actually emitting

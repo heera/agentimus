@@ -31,6 +31,8 @@ export default {
     verifierBuiltins: { type: Array, default: () => [] }, // Built-in verified-bot registry entries.
     webmcpTools: { type: Array, default: () => [] },
     mcpServer: { type: Object, default: () => ({}) }, // {endpoint, abilitiesAvailable, adapterAvailable} for the MCP-server card.
+    scorecard: { type: Object, default: () => ({}) }, // {url, badge, card, og, accent} for the share-your-score card.
+    aeoScore: { type: Number, default: null }, // The live score, for the prefilled share text (never used in tier mode).
     debug: { type: Object, default: () => ({}) },
     endpoints: { type: Object, default: () => ({}) },
     restNamespacesDetected: { type: Array, default: () => [] },
@@ -41,11 +43,14 @@ export default {
     servicesDirty: { type: Boolean, default: false },
     servicesSaving: { type: Boolean, default: false },
     servicesSaved: { type: Boolean, default: false },
+    scorecardDirty: { type: Boolean, default: false },
+    scorecardSaving: { type: Boolean, default: false },
+    scorecardSaved: { type: Boolean, default: false },
     resetting: { type: Boolean, default: false },
     defaults: { type: Object, default: () => ({}) },
     llmsFullEstimate: { type: Object, default: () => ({}) },
   },
-  emits: ['save-profile', 'save-services', 'reset', 'reopen-wizard', 'clients-changed', 'flash'],
+  emits: ['save-profile', 'save-services', 'save-scorecard', 'reset', 'reopen-wizard', 'clients-changed', 'flash'],
   data() {
     return {
       // Which settings group the sub-nav is showing. One group is visible at a
@@ -69,6 +74,26 @@ export default {
       oauthChecking: false,
       oauthCheck: null,
       mcpCopied: false,
+      badgeCopied: false,
+      // The scorecard previews render from the SAVED address (null = boot's),
+      // re-pointed when the Share tab's OWN save lands (scorecardSaving watcher);
+      // the nonce forces the img/iframe re-fetch at that same moment.
+      savedScorecardPath: null,
+      scorecardPreviewNonce: 0,
+      // The previews' DEBOUNCED query string. The draft feeds them through
+      // admin-only overrides, but a colour drag emits dozens of input events a
+      // second and card.png is a full server render — one reload per pause is
+      // indistinguishable to the eye and cuts the request storm to nothing.
+      previewQuery: '',
+      // Turning the public page OFF breaks every link already shared to it —
+      // that deserves a confirm before the setting moves.
+      pageOffConfirmOpen: false,
+      // The share preview dialog: pick the link before any network opens.
+      shareDialogOpen: false,
+      shareNetwork: '',
+      shareUrl: '',
+      // Measured by measurePagePrev(); null keeps the iframe hidden until known.
+      pagePrevBox: null,
       // The MCP connect helper. The pasted/minted application password lives ONLY
       // in this component's state — never saved, never sent anywhere except into
       // the config text the user copies. Navigating away forgets it.
@@ -99,9 +124,18 @@ export default {
     // freshly flipped toggle shows "turns on when you save" instead.
     this.mcpSavedEnabled = !!(this.settings && this.settings.enable_mcp_server);
     if (this.mcpSavedEnabled) this.probeMcpStatus();
+    // The page preview's scale is MEASURED, never guessed: whatever height the
+    // grid row hands the window, the whole page (a fixed virtual viewport)
+    // scales to fit it exactly. Fires again on every resize and when the
+    // Share group first becomes visible.
+    if (window.ResizeObserver && this.$refs.pagePrev) {
+      this._pagePrevRo = new ResizeObserver(() => this.measurePagePrev());
+      this._pagePrevRo.observe(this.$refs.pagePrev);
+    }
   },
   beforeUnmount() {
     window.removeEventListener('resize', this.updateScrollHint);
+    if (this._pagePrevRo) this._pagePrevRo.disconnect();
     if (this._unEscReset) this._unEscReset();
     if (this._unEscTaken) this._unEscTaken();
     if (this._unEscScope) this._unEscScope();
@@ -113,13 +147,53 @@ export default {
       if (this._unEscReset) this._unEscReset();
       this._unEscReset = open ? bindDocEsc(() => this.closeReset()) : null;
     },
+    shareDialogOpen(open) {
+      if (this._unEscShare) this._unEscShare();
+      this._unEscShare = open ? bindDocEsc(() => { this.shareDialogOpen = false; }) : null;
+    },
+    pageOffConfirmOpen(open) {
+      if (this._unEscPageOff) this._unEscPageOff();
+      this._unEscPageOff = open ? bindDocEsc(() => { this.pageOffConfirmOpen = false; }) : null;
+    },
     // A finished save is the moment the MCP switch actually takes effect — refresh
     // the saved-state snapshot and re-probe, so the status line follows reality.
+    // A toggle save can also change what the scorecard endpoints serve (the
+    // publish switch above all), so the previews force-reload — but the ADDRESS
+    // only moves on the Share tab's own save, below.
     busy(now, was) {
       if (was && !now) {
         this.mcpSavedEnabled = !!(this.settings && this.settings.enable_mcp_server);
         if (this.mcpSavedEnabled) this.probeMcpStatus();
+        this.scorecardPreviewNonce++;
       }
+    },
+    // The previews re-point only when the Share tab's save LANDS — the server
+    // only answers on the SAVED address, so re-pointing per keystroke (or on a
+    // failed save) would just paint 404s. scorecardSaved is only true on
+    // success, and it's already set by the time the saving flag drops.
+    scorecardSaving(now, was) {
+      if (was && !now && this.scorecardSaved) {
+        this.savedScorecardPath = this.cleanScorecardPath(this.settings.scorecard_path);
+        this.scorecardPreviewNonce++;
+      }
+    },
+    // A factory reset replaces the address too — follow it, or the previews
+    // keep pointing at the old one.
+    resetting(now, was) {
+      if (was && !now) {
+        this.savedScorecardPath = this.cleanScorecardPath(this.settings.scorecard_path);
+        this.scorecardPreviewNonce++;
+      }
+    },
+    // Debounce the draft → preview pipe (see previewQuery in data). The first
+    // value paints immediately; edits after that wait for a quarter-second lull.
+    previewParamsLive: {
+      immediate: true,
+      handler(v) {
+        if (!this.previewQuery) { this.previewQuery = v; return; }
+        clearTimeout(this._previewTimer);
+        this._previewTimer = setTimeout(() => { this.previewQuery = v; }, 250);
+      },
     },
     // A different key invalidates any test verdict on screen.
     mcpPassword() {
@@ -185,6 +259,151 @@ export default {
         value: d,
         label: d === 365 ? '1 year' : d % 30 === 0 && d >= 60 ? `${d / 30} months` : `${d} days`,
       }));
+    },
+    scorecardDisplayOptions() {
+      return [
+        { value: 'score', label: 'The number — e.g. “93/100”' },
+        { value: 'tier', label: 'The mark only — “AI-Ready”, no number' },
+      ];
+    },
+    scorecardStyleOptions() {
+      return [
+        { value: 'auto', label: 'Auto — follows the reader’s light/dark' },
+        { value: 'light', label: 'Light' },
+        { value: 'dark', label: 'Dark' },
+      ];
+    },
+    badgeShapeOptions() {
+      return [
+        { value: 'rectangle', label: 'Rectangle — square corners' },
+        { value: 'rounded', label: 'Rounded corners' },
+        { value: 'pill', label: 'Pill — fully round ends' },
+        { value: 'circle', label: 'Circle — the score in a ring' },
+      ];
+    },
+    badgeSizeOptions() {
+      return [
+        { value: 'small', label: 'Small' },
+        { value: 'medium', label: 'Medium' },
+        { value: 'large', label: 'Large' },
+        { value: 'custom', label: 'Custom height' },
+      ];
+    },
+    // The preview and the embed share this: presets per shape family (the
+    // circle needs more room than a bar), custom = the owner's px.
+    badgeHeight() {
+      const map = this.settings.scorecard_badge_shape === 'circle'
+        ? { small: 44, medium: 64, large: 88 }
+        : { small: 22, medium: 28, large: 36 };
+      if (this.settings.scorecard_badge_size === 'custom') {
+        const h = parseInt(this.settings.scorecard_badge_height, 10) || 20;
+        return Math.max(14, Math.min(112, h));
+      }
+      return map[this.settings.scorecard_badge_size] || map.medium;
+    },
+    // The public URLs, anchored to the SAVED address — the server answers
+    // nowhere else, so following keystrokes would only paint 404s. The busy
+    // watcher re-points this the moment a save lands.
+    // The five colour dials against the PLUGIN defaults (the server's
+    // authoritative list — the border ships green, the rest automatic).
+    scorecardColorKeys() {
+      return ['scorecard_badge_bg', 'scorecard_badge_fg', 'scorecard_warn_color', 'scorecard_badge_border', 'scorecard_bg_color'];
+    },
+    scorecardColorsAtDefault() {
+      const d = this.defaults || {};
+      return this.scorecardColorKeys.every((k) => (this.settings[k] || '') === (d[k] || ''));
+    },
+    // What an EMPTY background/text dial actually renders as, so the swatches
+    // never show light paper while the badge draws its dark scheme. Mirrors
+    // Scorecard.php: 'auto' renders light; a custom background picks its own
+    // readable ink (house ink on light, paper on dark).
+    scorecardAutoBg() {
+      return this.settings.scorecard_style === 'dark' ? '#1b1913' : '#f3f0e7';
+    },
+    scorecardAutoInk() {
+      const bgc = this.settings.scorecard_bg_color || '';
+      if (bgc) return this.inkOn(bgc);
+      return this.settings.scorecard_style === 'dark' ? '#f3f0e7' : '#1b1913';
+    },
+    scorecardBase() {
+      const home = ((this.scorecard && this.scorecard.home) || '').replace(/\/+$/, '');
+      if (!home) return '';
+      let slug = this.savedScorecardPath;
+      if (slug === null) {
+        const bootUrl = ((this.scorecard && this.scorecard.url) || '').replace(/\/+$/, '');
+        slug = bootUrl.indexOf(`${home}/`) === 0
+          ? bootUrl.slice(home.length + 1)
+          : this.cleanScorecardPath(this.settings.scorecard_path);
+      }
+      return `${home}/${slug}`;
+    },
+    scorecardUrl() {
+      return this.scorecardBase ? `${this.scorecardBase}/` : '';
+    },
+    // For the signed-in owner the server honors these as live preview
+    // overrides, so every preview tracks unsaved choices; for everyone else
+    // they're inert and the surfaces render from the SAVED settings.
+    previewParamsLive() {
+      const bg = (this.settings.scorecard_badge_bg || '').replace('#', '');
+      const fg = (this.settings.scorecard_badge_fg || '').replace('#', '');
+      const wc = (this.settings.scorecard_warn_color || '').replace('#', '');
+      const bd = (this.settings.scorecard_badge_border || '').replace('#', '');
+      const bc = (this.settings.scorecard_bg_color || '').replace('#', '');
+      const nm = this.settings.scorecard_show_name === false ? 0 : 1;
+      const pe = this.settings.scorecard_page_enabled === false ? 0 : 1;
+      return `d=${this.settings.scorecard_display}&s=${this.settings.scorecard_style}&sh=${this.settings.scorecard_badge_shape || 'rectangle'}&bg=${bg}&fg=${fg}&wc=${wc}&bd=${bd}&bc=${bc}&nm=${nm}&pe=${pe}&v=${this.scorecardPreviewNonce}`;
+    },
+    // The measured transform that fills the window EDGE TO EDGE: the height
+    // fixes the scale (full 980px page always visible), and the iframe's
+    // viewport width is derived so the scaled width equals the window's —
+    // the page paints every pixel, no letterboxing at any box shape.
+    // visibility guards the first unmeasured paint.
+    pagePrevStyle() {
+      const b = this.pagePrevBox;
+      if (!b || !b.h) return { visibility: 'hidden' };
+      const scale = b.h / 980;
+      return {
+        width: `${Math.ceil(b.w / scale)}px`,
+        height: '980px',
+        transform: `scale(${scale})`,
+        transformOrigin: '0 0',
+        position: 'absolute',
+        top: '0',
+        left: '0',
+      };
+    },
+    badgeSrc() {
+      return this.scorecardBase ? `${this.scorecardBase}/badge?${this.previewQuery}` : '';
+    },
+    cardSrc() {
+      return this.scorecardBase ? `${this.scorecardBase}/card?${this.previewQuery}` : '';
+    },
+    pageSrc() {
+      return this.scorecardUrl ? `${this.scorecardUrl}?${this.previewQuery}` : '';
+    },
+    badgeSnippet() {
+      if (!this.scorecardBase) return '';
+      const img = `<img src="${this.scorecardBase}/badge" alt="AI readiness" height="${this.badgeHeight}">`;
+      // The badge only links somewhere real, and only if the owner wants it
+      // to: page on + link switch on = wrapped; otherwise a plain image.
+      const linked = this.settings.scorecard_page_enabled !== false
+        && this.settings.scorecard_badge_link !== false;
+      return linked ? `<a href="${this.scorecardUrl}">${img}</a>` : img;
+    },
+    // The prefilled post. Tier mode never names the number — that's the whole
+    // point of tier mode — and below the bar it stays an honest question.
+    shareText() {
+      if (this.settings.scorecard_display === 'tier') {
+        return this.aeoScore !== null && this.aeoScore >= 90
+          ? 'My site is AI-Ready — here’s its live scorecard.'
+          : 'How ready is my site for AI assistants? Here’s its live scorecard.';
+      }
+      return this.aeoScore !== null
+        ? `My site scores ${this.aeoScore}/100 for AI readiness.`
+        : 'Here’s my site’s live AI-readiness scorecard.';
+    },
+    shareNetworkLabel() {
+      return { x: 'X', linkedin: 'LinkedIn', facebook: 'Facebook' }[this.shareNetwork] || '';
     },
     /**
      * Each cap carries what it actually costs on disk. Measured on a real table: ~124 bytes of
@@ -342,6 +561,10 @@ export default {
         { key: 'discovery', label: 'Discovery', hint: 'Files & data AI can read' },
         { key: 'access', label: 'AI access', hint: 'What bots may do — and who to block' },
         { key: 'exposure', label: 'Exposure', hint: 'Limit what your site reveals to bots & scanners' },
+        // Near the end on purpose — a nice-to-have, not core configuration.
+        // One short word like its siblings — three words overflowed the tab
+        // row on phones. The hint and the card title carry the full name.
+        { key: 'share', label: 'Share', hint: 'Your score in public — page, badge & preview card' },
         { key: 'advanced', label: 'Advanced', hint: 'Trust, developer & maintenance' },
       ];
     },
@@ -812,6 +1035,82 @@ export default {
       this.mcpKeyCopied = true;
       clearTimeout(this._mcpKeyCopyTimer);
       this._mcpKeyCopyTimer = setTimeout(() => { this.mcpKeyCopied = false; }, 2000);
+    },
+    // Fit the whole page (a 622×980 virtual viewport) inside whatever box the
+    // grid row hands the preview window — exact scale from real measurements.
+    measurePagePrev() {
+      const el = this.$refs.pagePrev;
+      if (!el || !el.clientHeight) return;
+      this.pagePrevBox = { w: el.clientWidth, h: el.clientHeight };
+    },
+    // Turning ON is free; turning OFF opens the consequence confirm. The
+    // checkbox is bound with :checked (not v-model) so the SETTING only moves
+    // after the choice — no save fires for a dialog the owner may cancel.
+    onPageToggle(e) {
+      if (e.target.checked) {
+        this.settings.scorecard_page_enabled = true;
+        return;
+      }
+      e.target.checked = true; // keep the visual until the owner confirms
+      this.pageOffConfirmOpen = true;
+    },
+    confirmPageOff() {
+      this.settings.scorecard_page_enabled = false;
+      this.pageOffConfirmOpen = false;
+    },
+    // The share preview: the link defaults to the public page, or the home
+    // page while the page is off — and the owner may set any public link.
+    openShareDialog(network) {
+      this.shareNetwork = network;
+      this.shareUrl = this.settings.scorecard_page_enabled !== false
+        ? this.scorecardUrl
+        : ((this.scorecard && this.scorecard.home) || '');
+      this.shareDialogOpen = true;
+    },
+    doShare() {
+      const url = encodeURIComponent(this.shareUrl || '');
+      const text = encodeURIComponent(this.shareText);
+      const intents = {
+        x: `https://twitter.com/intent/tweet?text=${text}&url=${url}`,
+        linkedin: `https://www.linkedin.com/sharing/share-offsite/?url=${url}`,
+        facebook: `https://www.facebook.com/sharer/sharer.php?u=${url}`,
+      };
+      if (intents[this.shareNetwork]) window.open(intents[this.shareNetwork], '_blank', 'noopener');
+      this.shareDialogOpen = false;
+    },
+    // JS twin of Scorecard::ink_on()/lum_hex() — WCAG relative luminance,
+    // same 0.5 threshold, same two inks, so the swatch predicts the render.
+    inkOn(hex) {
+      const h = String(hex || '').replace('#', '');
+      if (!/^[0-9a-f]{6}$/i.test(h)) return '#1b1913';
+      const lin = [0, 2, 4].map((i) => {
+        const c = parseInt(h.slice(i, i + 2), 16) / 255;
+        return c <= 0.04045 ? c / 12.92 : (((c + 0.055) / 1.055) ** 2.4);
+      });
+      const lum = 0.2126 * lin[0] + 0.7152 * lin[1] + 0.0722 * lin[2];
+      return lum > 0.5 ? '#1b1913' : '#f3f0e7';
+    },
+    // Put every colour dial back to the shipped defaults — the values shown in
+    // the pickers included, not just the stored keys. Save then applies it.
+    resetScorecardColors() {
+      const d = this.defaults || {};
+      this.scorecardColorKeys.forEach((k) => { this.settings[k] = d[k] || ''; });
+    },
+    // Client-side twin of Settings::sanitize()'s path rule, so the previews
+    // predict the exact address the server just stored.
+    cleanScorecardPath(v) {
+      const s = String(v || '')
+        .toLowerCase()
+        .replace(/[^a-z0-9/_-]/g, '')
+        .replace(/\/+/g, '/')
+        .replace(/^\/+|\/+$/g, '');
+      return s || 'agentimus-ai-readiness';
+    },
+    async copyBadgeSnippet() {
+      if (!(await this.copyPlainText(this.badgeSnippet))) return;
+      this.badgeCopied = true;
+      clearTimeout(this._badgeCopyTimer);
+      this._badgeCopyTimer = setTimeout(() => { this.badgeCopied = false; }, 2000);
     },
     onMcpKeyNameInput() {
       this.mcpKeyNameTouched = true;
@@ -1917,6 +2216,285 @@ export default {
     <!-- ============================================================ -->
     <!-- IDENTITY — who owns this site                                -->
     <!-- ============================================================ -->
+    <div v-show="group === 'share'" class="ar-group" data-group="share">
+      <!-- Share your score — the opt-in PUBLIC scorecard. Its own group: it
+           isn't a discovery file for agents, it's the owner's public face. -->
+      <section id="ar-sec-scorecard" class="ar-card">
+        <h2 class="ar-card__title">Share your score</h2>
+        <p class="ar-card__lead">
+          Give your AI-readiness score a public face: a page anyone can open, a badge you
+          can embed anywhere, and a preview image that shows your score when the link is
+          shared. Everything is generated by your own site — nothing is sent
+          anywhere — and what's shown is always the live, honest score.
+        </p>
+
+        <label id="ar-feat-share_scorecard" class="ar-toggle">
+          <input v-model="settings.share_scorecard" type="checkbox" />
+          <span class="ar-toggle__track" aria-hidden="true"></span>
+          <span class="ar-toggle__text">
+            <strong>Publish your scorecard</strong>
+            <small>Adds a public page at the address below with your score and the five rungs, plus the badge and the preview image. Off — the default — means none of these URLs exist. If a real page of yours already uses that address, your page is served instead.</small>
+          </span>
+        </label>
+
+        <div :inert="!settings.share_scorecard" class="ar-webmcp-tools">
+          <div class="ar-field ar-field--inline ar-field--share">
+            <label id="ar-lbl-scorecard-path">Public page address</label>
+            <input
+              v-model="settings.scorecard_path"
+              type="text"
+              class="ar-input ar-scorecard-path"
+              spellcheck="false"
+              aria-describedby="ar-hint-scorecard-path"
+            />
+          </div>
+          <p id="ar-hint-scorecard-path" class="ar-field__hint">
+            The page lives at <code>/{{ (settings.scorecard_path || 'agentimus-ai-readiness').replace(/^\/+|\/+$/g, '') }}</code>,
+            with the badge and preview card underneath it. Letters, numbers, dashes; pick an
+            address none of your real pages use — your own content always wins a collision.
+          </p>
+          <div class="ar-field ar-field--inline ar-field--share">
+            <label id="ar-lbl-scorecard-display">What the public sees</label>
+            <SelectMenu
+              v-model="settings.scorecard_display"
+              :options="scorecardDisplayOptions"
+              aria-label="What the public scorecard shows"
+            />
+          </div>
+          <p v-if="settings.scorecard_display === 'tier'" class="ar-field__hint">
+            The “AI-Ready” mark appears at a score of 90 or above — the same bar on every
+            site, so the mark means something. Below 90 the public page honestly says
+            “working toward AI-Ready”, and no number is shown anywhere.
+          </p>
+          <div class="ar-field ar-field--inline ar-field--share">
+            <label id="ar-lbl-scorecard-style">How it looks</label>
+            <SelectMenu
+              v-model="settings.scorecard_style"
+              :options="scorecardStyleOptions"
+              aria-label="How the scorecard looks"
+            />
+          </div>
+          <div class="ar-field ar-field--inline ar-field--share">
+            <label id="ar-lbl-scorecard-shape">Badge shape</label>
+            <SelectMenu
+              v-model="settings.scorecard_badge_shape"
+              :options="badgeShapeOptions"
+              aria-label="Badge shape"
+            />
+          </div>
+          <div class="ar-field ar-field--inline ar-field--share">
+            <label id="ar-lbl-scorecard-size">Badge size</label>
+            <SelectMenu
+              v-model="settings.scorecard_badge_size"
+              :options="badgeSizeOptions"
+              aria-label="Badge size"
+            />
+          </div>
+          <div v-if="settings.scorecard_badge_size === 'custom'" class="ar-field ar-field--inline ar-field--share">
+            <label id="ar-lbl-scorecard-height">Custom height</label>
+            <input
+              v-model.number="settings.scorecard_badge_height"
+              type="number" min="14" max="112" step="1"
+              class="ar-input ar-scorecard-height"
+              aria-describedby="ar-hint-scorecard-height"
+            />
+          </div>
+          <p v-if="settings.scorecard_badge_size === 'custom'" id="ar-hint-scorecard-height" class="ar-field__hint">
+            Height in pixels, 14–112. The badge is a vector, so any size stays crisp.
+          </p>
+          <div class="ar-field ar-field--inline ar-field--share">
+            <label id="ar-lbl-scorecard-colors">Colors</label>
+            <div class="ar-badge-colors">
+              <label class="ar-badge-color">
+                <input
+                  type="color"
+                  :value="settings.scorecard_badge_bg || scorecard.accent || '#2f7a4c'"
+                  @input="settings.scorecard_badge_bg = $event.target.value"
+                />
+                <span>Accent color</span>
+              </label>
+              <label class="ar-badge-color">
+                <input
+                  type="color"
+                  :value="settings.scorecard_badge_fg || scorecardAutoInk"
+                  @input="settings.scorecard_badge_fg = $event.target.value"
+                />
+                <span>Badge text color</span>
+              </label>
+              <label class="ar-badge-color">
+                <input
+                  type="color"
+                  :value="settings.scorecard_warn_color || '#ad7b18'"
+                  @input="settings.scorecard_warn_color = $event.target.value"
+                />
+                <span>Needs-work color</span>
+              </label>
+              <label class="ar-badge-color">
+                <input
+                  type="color"
+                  :value="settings.scorecard_badge_border || '#2f7a4c'"
+                  @input="settings.scorecard_badge_border = $event.target.value"
+                />
+                <span>Border color</span>
+              </label>
+              <label class="ar-badge-color">
+                <input
+                  type="color"
+                  :value="settings.scorecard_bg_color || scorecardAutoBg"
+                  @input="settings.scorecard_bg_color = $event.target.value"
+                />
+                <span>Background color</span>
+              </label>
+              <button
+                type="button"
+                class="button button-small"
+                :disabled="scorecardColorsAtDefault"
+                @click="resetScorecardColors"
+              >Reset</button>
+            </div>
+          </div>
+          <p class="ar-field__hint">
+            The accent colors everything healthy — the badge's value, the ring and bars on
+            the share card and the public page; the needs-work color marks rungs below par.
+            The border keeps the badge visible on a site the same color as it, and the
+            background paints the badge's label, the card's canvas and the page — each with
+            readable text picked automatically. Empty swatches mean the built-in scheme.
+            While the badge reads “in progress”, it stays neutral either way.
+          </p>
+          <div class="ar-scorecard-foot">
+            <span v-if="scorecardSaving" class="ar-id-foot__status">Saving…</span>
+            <span v-else-if="scorecardDirty" class="ar-id-foot__status is-dirty">Unsaved changes</span>
+            <span v-else-if="scorecardSaved" class="ar-id-foot__status is-saved">Saved ✓</span>
+            <button type="button" class="ar-btn" :disabled="scorecardSaving || !scorecardDirty" @click="$emit('save-scorecard')">
+              {{ scorecardSaving ? 'Saving…' : 'Save settings' }}
+            </button>
+          </div>
+        </div>
+
+      </section>
+
+      <!-- Badge and web-share each get their own card, like every other
+           screen — three jobs, three cards. Hidden (not greyed) while the
+           feature is off: their previews would only 404. -->
+      <section v-show="settings.share_scorecard" id="ar-sec-scorecard-badge" class="ar-card">
+        <h2 class="ar-card__title">Put the badge on your site</h2>
+        <p class="ar-scorecard-preview"><img :src="badgeSrc" alt="AI readiness badge preview" :height="badgeHeight" /></p>
+        <p class="ar-field__hint">
+          Paste this anywhere HTML works — a footer, an About page, a README. It always
+          shows the current score and links to your scorecard page.
+        </p>
+        <label class="ar-toggle ar-toggle--nested ar-scorecard-nametoggle" :inert="!settings.scorecard_page_enabled">
+          <input v-model="settings.scorecard_badge_link" type="checkbox" />
+          <span class="ar-toggle__track" aria-hidden="true"></span>
+          <span class="ar-toggle__text">
+            <strong>Link the badge to your public page</strong>
+            <small>The embed code wraps the badge in a link to your public scorecard page if the public page is turned on (<code>/{{ (settings.scorecard_path || 'agentimus-ai-readiness').replace(/^\/+|\/+$/g, '') }}</code>).</small>
+          </span>
+        </label>
+        <div class="ar-mcp-snippet ar-scorecard-badgebox">
+          <pre class="ar-about-snippet ar-mcp-snippet__code"><code>{{ badgeSnippet }}</code></pre>
+          <button type="button" class="button button-small ar-mcp-snippet__copy" @click="copyBadgeSnippet">
+            {{ badgeCopied ? 'Copied' : 'Copy' }}
+          </button>
+        </div>
+        <p class="ar-scorecard-caution">
+          <strong>Careful with old copies:</strong> this code is fixed the moment you paste
+          it somewhere. If it carries a link and you later turn the public page off — or
+          change its address — clicking those already-pasted badges lands on a 404. After
+          such a change, copy the code again and replace the old ones.
+        </p>
+      </section>
+
+      <section v-show="settings.share_scorecard" id="ar-sec-scorecard-share" class="ar-card">
+        <h2 class="ar-card__title">Share the result on the web</h2>
+        <div class="ar-scorecard-duo">
+          <!-- Each surface gets its own name switch, sitting directly
+               under the preview it changes. -->
+          <label class="ar-toggle ar-toggle--nested ar-scorecard-nametoggle ar-sd-ntog">
+            <input v-model="settings.scorecard_show_name" type="checkbox" />
+            <span class="ar-toggle__track" aria-hidden="true"></span>
+            <span class="ar-toggle__text">
+              <strong>Show your site's name</strong>
+              <small>Prints your site's name on the share card and the public page. Off puts your domain there instead — useful when the site is named after a person, or carries a brand you'd rather keep off shared images. The domain always shows either way; it's public by definition.</small>
+            </span>
+          </label>
+          <p class="ar-scorecard-collabel ar-sd-clabel">The share card</p>
+          <p class="ar-scorecard-collabel ar-sd-plabel">The public page</p>
+          <p v-if="scorecard.og !== false && cardSrc" class="ar-scorecard-card ar-sd-img">
+            <img :src="cardSrc" alt="The preview card people see when your link is shared" />
+          </p>
+          <!-- The live page, sharing the image's grid row so the two
+               previews stand at EXACTLY the same height; the miniature
+               fills the window's height (viewport = height/0.45). -->
+          <div ref="pagePrev" class="ar-scorecard-pageprev ar-sd-page" aria-hidden="true">
+            <iframe v-if="settings.scorecard_page_enabled" :src="pageSrc" :style="pagePrevStyle" tabindex="-1" title="Scorecard page preview"></iframe>
+            <div v-else class="ar-scorecard-pageoff">
+              <p class="ar-scorecard-pageoff__code">404</p>
+              <p class="ar-scorecard-pageoff__text">
+                The public page is turned off — its address returns a normal 404.
+                Turn it on below to see it here.
+              </p>
+            </div>
+          </div>
+          <label class="ar-toggle ar-toggle--nested ar-scorecard-nametoggle ar-sd-ptog">
+            <input type="checkbox" :checked="settings.scorecard_page_enabled" @change="onPageToggle" />
+            <span class="ar-toggle__track" aria-hidden="true"></span>
+            <span class="ar-toggle__text">
+              <strong>Public page</strong>
+              <small>Serve the scorecard page at your address. Off, the address returns a normal 404.</small>
+            </span>
+          </label>
+          <div class="ar-scorecard-share ar-sd-btns">
+          <a
+            v-if="scorecard.og !== false && cardSrc"
+            class="button button-primary ar-share-btn"
+            :href="cardSrc"
+            download="ai-readiness.png"
+          >
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12m0 0 5-5m-5 5-5-5" /><path d="M4 21h16" /></svg>
+            Download
+          </a>
+          <button type="button" class="button ar-share-btn" @click="openShareDialog('x')">
+            <svg viewBox="0 0 24 24" width="13" height="13" fill="currentColor" aria-hidden="true"><path d="M18.9 2H22l-6.8 7.8L23.2 22h-6.3l-4.9-6.4L6.4 22H3.3l7.3-8.3L1.6 2h6.4l4.4 5.9L18.9 2Zm-1.1 18h1.7L7.1 3.9H5.3L17.8 20Z" /></svg>
+            Post on X
+          </button>
+          <button type="button" class="button ar-share-btn" @click="openShareDialog('linkedin')">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor" aria-hidden="true"><path d="M4.98 3.5a2.5 2.5 0 1 1 0 5 2.5 2.5 0 0 1 0-5ZM3 9h4v12H3V9Zm7 0h3.8v1.7h.1c.5-1 1.8-2 3.7-2 4 0 4.7 2.6 4.7 6V21h-4v-5.5c0-1.3 0-3-1.9-3s-2.1 1.4-2.1 2.9V21h-4V9Z" /></svg>
+            LinkedIn
+          </button>
+          <button type="button" class="button ar-share-btn" @click="openShareDialog('facebook')">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor" aria-hidden="true"><path d="M13.5 21v-8h2.7l.4-3.1h-3.1V7.9c0-.9.3-1.5 1.6-1.5h1.6V3.6c-.3 0-1.2-.1-2.3-.1-2.3 0-3.9 1.4-3.9 4v2.4H7.8V13h2.7v8h3Z" /></svg>
+            Facebook
+          </button>
+          </div>
+          <a
+            class="button ar-share-btn ar-scorecard-openbtn ar-sd-open"
+            :class="{ 'is-disabled': !settings.scorecard_page_enabled }"
+            :href="settings.scorecard_page_enabled ? scorecardUrl : null"
+            :aria-disabled="!settings.scorecard_page_enabled ? 'true' : null"
+            :tabindex="settings.scorecard_page_enabled ? null : -1"
+            target="_blank"
+            rel="noopener"
+            @click="!settings.scorecard_page_enabled && $event.preventDefault()"
+          >
+            Open your public scorecard ↗
+          </a>
+          <p v-if="settings.scorecard_page_enabled" class="ar-field__hint ar-sd-pnote">
+            The page every share opens — always live, always your current score.
+          </p>
+          <p class="ar-field__hint ar-scorecard-note ar-sd-note">
+            Each button opens a preview first — you check the link (and can change it)
+            before the network's own compose window opens. Nothing is ever posted for you.
+          </p>
+          <p v-if="scorecard && scorecard.og === false" class="ar-field__hint ar-sd-note2">
+            The share-preview image needs the server's GD graphics library and a font file,
+            and this server has neither — so a shared link will show plain text only. The
+            page and the badge are unaffected.
+          </p>
+        </div>
+      </section>
+    </div>
+
     <div v-show="group === 'identity'" class="ar-group" data-group="identity">
       <!-- Identity ----------------------------------------------------- -->
       <section id="ar-sec-identity" class="ar-card">
@@ -2757,7 +3335,7 @@ export default {
                 So: give each AI tool its own key, named after it — then you can revoke one tool
                 without touching the others, under <strong>Users → Profile → Application
                 Passwords</strong>. For extra margin, create a dedicated user with only the
-                permissions the tool needs, and mint the tool’s key signed in as that user.
+                permissions the tool needs, and create the tool’s key signed in as that user.
               </p>
             </div>
             <div class="ar-modal__actions">
@@ -2794,6 +3372,51 @@ export default {
 
     <Teleport to="body">
       <transition name="ar-modal">
+        <div v-if="pageOffConfirmOpen" class="ar-modal" @click.self="pageOffConfirmOpen = false">
+          <div class="ar-modal__panel ar-modal__panel--confirm" role="dialog" aria-modal="true" aria-labelledby="ar-pageoff-title" tabindex="-1" @keydown.esc="pageOffConfirmOpen = false">
+            <div class="ar-modal__head">
+              <h2 id="ar-pageoff-title" class="ar-modal__title">Turn the public page off?</h2>
+              <p class="ar-modal__lead">
+                If you've shared this page anywhere — a post, a badge that links to it,
+                a message — those links will return a 404 the moment it's off. The badge
+                image and the share card keep working; only the page goes away.
+              </p>
+            </div>
+            <div class="ar-modal__actions">
+              <button type="button" class="ar-btn ar-btn--ghost" @click="pageOffConfirmOpen = false">Keep it on</button>
+              <button type="button" class="ar-btn ar-btn--danger" @click="confirmPageOff">Turn it off</button>
+            </div>
+          </div>
+        </div>
+
+        <div v-if="shareDialogOpen" class="ar-modal" @click.self="shareDialogOpen = false">
+          <div class="ar-modal__panel ar-share-modal" role="dialog" aria-modal="true" aria-labelledby="ar-share-title" tabindex="-1" @keydown.esc="shareDialogOpen = false">
+            <div class="ar-modal__head">
+              <h2 id="ar-share-title" class="ar-modal__title">Share on {{ shareNetworkLabel }}</h2>
+              <p class="ar-modal__lead">Check what goes out. Nothing is posted until you write the post yourself on {{ shareNetworkLabel }}.</p>
+            </div>
+            <div class="ar-share-modal__body">
+              <p v-if="scorecard.og !== false && cardSrc" class="ar-share-modal__card"><img :src="cardSrc" alt="The preview card for this share" /></p>
+              <label class="ar-field">
+                <span class="ar-field__label">Link to share</span>
+                <input v-model="shareUrl" type="url" class="ar-input" spellcheck="false" />
+              </label>
+              <p v-if="settings.scorecard_page_enabled === false" class="ar-field__hint">
+                Your public page is off, so this defaults to your home page — set any public
+                link you like. The preview image above only appears on networks when the
+                shared link is a page that carries it.
+              </p>
+              <p v-else class="ar-field__hint">
+                Defaults to your public scorecard page — set any public link you like.
+              </p>
+            </div>
+            <div class="ar-modal__actions">
+              <button type="button" class="ar-btn ar-btn--ghost" @click="shareDialogOpen = false">Cancel</button>
+              <button type="button" class="ar-btn" :disabled="!shareUrl" @click="doShare">Continue to {{ shareNetworkLabel }} →</button>
+            </div>
+          </div>
+        </div>
+
         <div v-if="showReset" class="ar-modal" @click.self="closeReset">
           <div
             ref="resetDialog"

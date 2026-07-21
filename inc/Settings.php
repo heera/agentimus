@@ -31,6 +31,13 @@ final class Settings {
 	const RETENTION_CHOICES = array( 7, 14, 30, 60, 90, 180, 365 );
 	const MAX_ROWS_CHOICES  = array( 10000, 25000, 50000, 100000, 250000 );
 
+	// The public scorecard's two enums (see Scorecard). Declared here so the UI
+	// dropdowns and sanitize() snap to the same lists and can never disagree.
+	const SCORECARD_DISPLAYS = array( 'score', 'tier' );
+	const SCORECARD_STYLES   = array( 'auto', 'light', 'dark' );
+	const SCORECARD_SHAPES   = array( 'rectangle', 'rounded', 'pill', 'circle' );
+	const SCORECARD_SIZES    = array( 'small', 'medium', 'large', 'custom' );
+
 	/**
 	 * Default settings. Identity defaults stay deliberately empty so the admin
 	 * is nudged to fill in a real author/organisation profile rather than ship
@@ -153,6 +160,56 @@ final class Settings {
 			// AgentAccess\Table), makes no outbound request, and its hot path is an object-cache
 			// read. It observes and reports; it never blocks anything.
 			'agent_access_events'     => true,
+			// The shareable scorecard — a PUBLIC page (+ badge + social-preview card)
+			// wearing the same AI-readiness score as the dashboard. OFF by default:
+			// publishing your grade is a deliberate act. Display 'score' shows the
+			// number ("93/100"); 'tier' shows only the earned "AI-Ready" mark
+			// (Scorecard::TIER_MIN — a fixed bar, so the mark means the same thing on
+			// every site) and honestly reads "in progress" below it. Style 'auto'
+			// follows the reader's light/dark preference and borrows the theme
+			// palette's accent; 'light'/'dark' pin it. See Scorecard.
+			'share_scorecard'   => false,
+			'scorecard_display' => 'tier',
+			'scorecard_style'   => 'dark',
+			// The badge's value segment, owner-tunable: corner shape, and custom
+			// background/text colours ('' = automatic — the theme-derived accent on
+			// white). Custom colours are the owner's brand call, so they skip the
+			// accent picker's contrast gate; the "in progress" state stays neutral
+			// grey regardless (the not-earned state must stay visually distinct).
+			'scorecard_badge_shape' => 'rounded',
+			'scorecard_badge_bg'    => '',
+			'scorecard_badge_fg'    => '',
+			// Whether the card + page print the site's NAME (off = the domain,
+			// which is public by definition) — and whether the public PAGE exists
+			// at all. Page off means only the badge and card are served, and the
+			// badge embed stops linking anywhere. Both ON by default.
+			'scorecard_show_name'    => true,
+			'scorecard_page_enabled' => true,
+			// Whether the badge EMBED wraps the image in a link to the public
+			// page. Only meaningful while the page is enabled — with the page
+			// off the embed is a plain image regardless.
+			'scorecard_badge_link'   => true,
+			// Badge size: three presets, or 'custom' + the height below (px,
+			// clamped 14–112; the badge is SVG, so any size stays crisp).
+			'scorecard_badge_size'   => 'custom',
+			'scorecard_badge_height' => 20,
+			// Border around the badge — ships in the house green so a dark badge
+			// never merges into a dark site ('' = no border beyond the light
+			// style's hairline).
+			'scorecard_badge_border' => '#2f7a4c',
+			// Optional surface background ('' = each style's own): the badge's
+			// label side, the share card's canvas and the public page's canvas.
+			'scorecard_bg_color'     => '',
+			// The needs-work colour — what below-par rungs wear on the card and
+			// the page ('' = the house amber). The accent/text pair above it
+			// lives in scorecard_badge_bg/fg (legacy names; they colour EVERY
+			// share surface, not just the badge).
+			'scorecard_warn_color'  => '',
+			// The public page's address (the badge and card live beneath it).
+			// Owner-configurable so a site that already uses /ai-readiness for
+			// real content can move the scorecard instead of losing it to the
+			// stand-down rule (owner content always wins a collision).
+			'scorecard_path'        => 'agentimus-ai-readiness',
 		);
 
 		/**
@@ -688,6 +745,37 @@ final class Settings {
 
 		$max_rows                    = isset( $input['activity_max_rows'] ) ? (int) $input['activity_max_rows'] : $defaults['activity_max_rows'];
 		$clean['activity_max_rows'] = in_array( $max_rows, self::MAX_ROWS_CHOICES, true ) ? $max_rows : $defaults['activity_max_rows'];
+
+		// The scorecard enums snap to their offered choices, same rule as above: a
+		// value the UI never offers is a tampered payload, not a preference.
+		$display                    = isset( $input['scorecard_display'] ) ? (string) $input['scorecard_display'] : $defaults['scorecard_display'];
+		$clean['scorecard_display'] = in_array( $display, self::SCORECARD_DISPLAYS, true ) ? $display : $defaults['scorecard_display'];
+
+		$style                    = isset( $input['scorecard_style'] ) ? (string) $input['scorecard_style'] : $defaults['scorecard_style'];
+		$clean['scorecard_style'] = in_array( $style, self::SCORECARD_STYLES, true ) ? $style : $defaults['scorecard_style'];
+
+		$shape                          = isset( $input['scorecard_badge_shape'] ) ? (string) $input['scorecard_badge_shape'] : $defaults['scorecard_badge_shape'];
+		$clean['scorecard_badge_shape'] = in_array( $shape, self::SCORECARD_SHAPES, true ) ? $shape : $defaults['scorecard_badge_shape'];
+
+		$size                          = isset( $input['scorecard_badge_size'] ) ? (string) $input['scorecard_badge_size'] : $defaults['scorecard_badge_size'];
+		$clean['scorecard_badge_size'] = in_array( $size, self::SCORECARD_SIZES, true ) ? $size : $defaults['scorecard_badge_size'];
+
+		$bh                              = isset( $input['scorecard_badge_height'] ) ? (int) $input['scorecard_badge_height'] : (int) $defaults['scorecard_badge_height'];
+		$clean['scorecard_badge_height'] = max( 14, min( 112, $bh ) );
+
+		// Badge colours: a full hex or nothing — anything else means "automatic".
+		foreach ( array( 'scorecard_badge_bg', 'scorecard_badge_fg', 'scorecard_warn_color', 'scorecard_badge_border', 'scorecard_bg_color' ) as $colour_key ) {
+			$val                  = isset( $input[ $colour_key ] ) ? strtolower( trim( (string) $input[ $colour_key ] ) ) : (string) $defaults[ $colour_key ];
+			$clean[ $colour_key ] = preg_match( '/^#[0-9a-f]{6}$/', $val ) ? $val : '';
+		}
+
+		// The scorecard's address: url-safe characters only (nested segments
+		// allowed), collapsed slashes, and empty falls back to the default —
+		// a public URL must never be empty or surprising.
+		$path = isset( $input['scorecard_path'] ) ? (string) $input['scorecard_path'] : (string) $defaults['scorecard_path'];
+		$path = preg_replace( '/[^a-z0-9\/_\-]/', '', strtolower( trim( $path ) ) );
+		$path = trim( preg_replace( '#/+#', '/', (string) $path ), '/' );
+		$clean['scorecard_path'] = '' === $path ? (string) $defaults['scorecard_path'] : $path;
 
 		$kb                        = isset( $input['llms_full_max_kb'] ) ? (int) $input['llms_full_max_kb'] : $defaults['llms_full_max_kb'];
 		$clean['llms_full_max_kb'] = max( 64, min( 20480, $kb ) );
