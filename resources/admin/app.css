@@ -4007,6 +4007,9 @@ a.ar-about-proto__v:hover { text-decoration: underline; }
    inside it (the base .ar-mcp-snippet__copy overlay); the padding keeps long
    snippets from running underneath the button. */
 .ar-scorecard-badgebox .ar-mcp-snippet__code { overflow-x: auto; padding-right: 84px; }
+/* The frozen-copy caution: pasted HTML doesn't follow later setting changes. */
+.ar-scorecard-caution { margin: 12px 0 0; padding: 10px 14px; border-left: 3px solid var(--ar-warn); background: rgba(173, 123, 24, 0.08); border-radius: 0 4px 4px 0; font-size: 12px; line-height: 1.6; color: var(--ar-ink-soft); }
+.ar-scorecard-caution strong { color: var(--ar-warn); }
 
 /* The address input matches the dropdowns' lane. */
 .ar-field--share .ar-scorecard-path { flex: 0 0 380px; max-width: 100%; min-width: 0; }

@@ -2223,6 +2223,12 @@ export default {
             {{ badgeCopied ? 'Copied' : 'Copy' }}
           </button>
         </div>
+        <p class="ar-scorecard-caution">
+          <strong>Careful with old copies:</strong> this code is fixed the moment you paste
+          it somewhere. If it carries a link and you later turn the public page off — or
+          change its address — clicking those already-pasted badges lands on a 404. After
+          such a change, copy the code again and replace the old ones.
+        </p>
       </section>
 
       <section v-show="settings.share_scorecard" id="ar-sec-scorecard-share" class="ar-card">
