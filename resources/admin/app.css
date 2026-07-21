@@ -4059,7 +4059,11 @@ a.ar-about-proto__v:hover { text-decoration: underline; }
    it's empty instead of leaving a silent void. */
 /* Wears the card image's own dark background so the off state still reads
    as the second panel of the pair, not a hole in the layout. */
-.ar-scorecard-pageoff { display: grid; place-items: center; height: 100%; margin: 0; padding: 0 28px; text-align: center; background: #191712; color: #8a8374; font-size: 13px; line-height: 1.6; }
+.ar-scorecard-pageoff { display: grid; align-content: center; justify-items: center; gap: 10px; height: 100%; margin: 0; padding: 0 28px; text-align: center; background: #191712; color: #8a8374; font-size: 13px; line-height: 1.6; }
+.ar-scorecard-pageoff__code { margin: 0; font-size: 46px; font-weight: 700; line-height: 1; color: #f3f0e7; }
+.ar-scorecard-pageoff__text { margin: 0; }
+/* Anchors can't be disabled — this makes one honest about it. */
+.ar-scorecard-openbtn.is-disabled { opacity: 0.5; pointer-events: none; }
 
 /* The share preview dialog: card thumbnail, the editable link, plain actions. */
 .ar-share-modal { max-width: 480px; }

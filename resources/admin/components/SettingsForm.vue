@@ -2248,10 +2248,13 @@ export default {
                fills the window's height (viewport = height/0.45). -->
           <div ref="pagePrev" class="ar-scorecard-pageprev ar-sd-page" aria-hidden="true">
             <iframe v-if="settings.scorecard_page_enabled" :src="pageSrc" :style="pagePrevStyle" tabindex="-1" title="Scorecard page preview"></iframe>
-            <p v-else class="ar-scorecard-pageoff">
-              The public page is turned off — its address returns a normal 404.
-              Turn it on below to see it here.
-            </p>
+            <div v-else class="ar-scorecard-pageoff">
+              <p class="ar-scorecard-pageoff__code">404</p>
+              <p class="ar-scorecard-pageoff__text">
+                The public page is turned off — its address returns a normal 404.
+                Turn it on below to see it here.
+              </p>
+            </div>
           </div>
           <label class="ar-toggle ar-toggle--nested ar-scorecard-nametoggle ar-sd-ptog">
             <input v-model="settings.scorecard_page_enabled" type="checkbox" />
@@ -2284,7 +2287,16 @@ export default {
             Facebook
           </button>
           </div>
-          <a v-if="settings.scorecard_page_enabled" class="button ar-share-btn ar-scorecard-openbtn ar-sd-open" :href="scorecardUrl" target="_blank" rel="noopener">
+          <a
+            class="button ar-share-btn ar-scorecard-openbtn ar-sd-open"
+            :class="{ 'is-disabled': !settings.scorecard_page_enabled }"
+            :href="settings.scorecard_page_enabled ? scorecardUrl : null"
+            :aria-disabled="!settings.scorecard_page_enabled ? 'true' : null"
+            :tabindex="settings.scorecard_page_enabled ? null : -1"
+            target="_blank"
+            rel="noopener"
+            @click="!settings.scorecard_page_enabled && $event.preventDefault()"
+          >
             Open your public scorecard ↗
           </a>
           <p v-if="settings.scorecard_page_enabled" class="ar-field__hint ar-sd-pnote">
