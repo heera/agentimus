@@ -4022,8 +4022,10 @@ a.ar-about-proto__v:hover { text-decoration: underline; }
 /* Share-the-result: the social card at readable size, share intents in a row.
    Each button wears its network's mark; Download is the primary act. */
 .ar-scorecard-card img { display: block; width: 100%; max-width: 520px; border: 1px solid #d8d2c2; border-radius: 6px; }
-.ar-scorecard-share { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: 12px; }
-.ar-share-btn { display: inline-flex; align-items: center; gap: 7px; }
+/* The buttons row is capped to the SAME width as the card image and the buttons
+   grow to fill it — one aligned block, not a row trailing off past the picture. */
+.ar-scorecard-share { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: 12px; max-width: 520px; }
+.ar-share-btn { display: inline-flex; align-items: center; justify-content: center; gap: 7px; flex: 1 1 auto; }
 .ar-share-btn svg { flex: none; }
 
 /* ---------------------------------------------------------------------------

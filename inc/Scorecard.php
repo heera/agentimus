@@ -756,8 +756,16 @@ final class Scorecard {
 			}
 		} else {
 			self::og_ring( $img, $cx, $cy, 160, 126, $c_track, $acc_rgb, $acc_light, max( 0, min( 100, $score ) ), $c_bg );
-			self::og_center( $img, 96, $cx, $cy + 30, $c_acc, $font, (string) $score, true );
-			self::og_center( $img, 22, $cx, $cy + 74, $c_mut, $font, '/ 100' );
+			// One composite on one baseline — "91/100", the badge's own reading:
+			// the number big in the accent, the scale small and muted beside it.
+			$num = (string) $score;
+			$nb  = imagettfbbox( 84, 0, $font, $num );
+			$sb  = imagettfbbox( 26, 0, $font, '/100' );
+			$nw  = $nb[2] - $nb[0];
+			$tw  = $nw + 10 + ( $sb[2] - $sb[0] );
+			$x0  = (int) ( $cx - $tw / 2 );
+			self::og_bold( $img, 84, $x0, $cy + 30, $c_acc, $font, $num );
+			imagettftext( $img, 26, 0, $x0 + $nw + 10, $cy + 30, $c_mut, $font, '/100' );
 			// The band sits below the ring, in the accent — the verdict line.
 			self::og_center( $img, 23, $cx, $cy + 160 + 38, $c_acc, $font, (string) $snap['band'], true );
 		}
