@@ -689,6 +689,15 @@ final class Admin {
 				'llmsFull' => home_url( '/llms-full.txt' ),
 				'robots'   => home_url( '/robots.txt' ),
 			),
+			// The share-scorecard card's facts: the public URLs the feature would
+			// publish, and whether the social-preview image can render on this
+			// server (GD with FreeType + a usable TTF) — false makes the card say
+			// so instead of advertising an unfurl that won't happen.
+			'scorecard'   => array(
+				'url'   => esc_url_raw( home_url( Scorecard::path() . '/' ) ),
+				'badge' => esc_url_raw( home_url( Scorecard::path() . '/badge.svg' ) ),
+				'og'    => Scorecard::og_ready(),
+			),
 			'version'     => AGENTIMUS_VERSION,
 			// The nav-bar quill's state: live when both prerequisites hold, dimmed with
 			// guidance otherwise (the guidance popover names the missing one).

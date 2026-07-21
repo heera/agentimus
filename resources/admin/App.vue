@@ -113,6 +113,7 @@ export default {
       aiPreset: null,
       webmcpTools: this.boot.webmcpTools || [],
       mcpServer: this.boot.mcpServer || {},
+      scorecard: this.boot.scorecard || {},
       debug: this.boot.debug || {},
       isLocal: !!this.boot.isLocal,
       restNamespacesDetected: this.boot.restNamespacesDetected || [],
@@ -1560,6 +1561,7 @@ export default {
           :default-allowed="defaultAllowed"
           :webmcp-tools="webmcpTools"
           :mcp-server="mcpServer"
+          :scorecard="scorecard"
           :debug="debug"
           :endpoints="endpoints"
           :rest-namespaces-detected="restNamespacesDetected"
@@ -1763,6 +1765,16 @@ export default {
             @mouseleave="hideUaTip"
           >Next: {{ aeoNext.title }}</p>
           <p v-else class="ar-rail-allgood">All rungs complete.</p>
+
+          <!-- The public face, once the owner opted in (Settings → Discovery →
+               Share your score). A link, not a button: it opens the real page. -->
+          <a
+            v-if="settings.share_scorecard && scorecard.url"
+            class="ar-rail-link"
+            :href="scorecard.url"
+            target="_blank"
+            rel="noopener"
+          >Your public scorecard ↗</a>
         </div>
 
         <div class="ar-rail-card">

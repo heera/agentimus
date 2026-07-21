@@ -31,6 +31,11 @@ final class Settings {
 	const RETENTION_CHOICES = array( 7, 14, 30, 60, 90, 180, 365 );
 	const MAX_ROWS_CHOICES  = array( 10000, 25000, 50000, 100000, 250000 );
 
+	// The public scorecard's two enums (see Scorecard). Declared here so the UI
+	// dropdowns and sanitize() snap to the same lists and can never disagree.
+	const SCORECARD_DISPLAYS = array( 'score', 'tier' );
+	const SCORECARD_STYLES   = array( 'auto', 'light', 'dark' );
+
 	/**
 	 * Default settings. Identity defaults stay deliberately empty so the admin
 	 * is nudged to fill in a real author/organisation profile rather than ship
@@ -153,6 +158,17 @@ final class Settings {
 			// AgentAccess\Table), makes no outbound request, and its hot path is an object-cache
 			// read. It observes and reports; it never blocks anything.
 			'agent_access_events'     => true,
+			// The shareable scorecard — a PUBLIC page (+ badge + social-preview card)
+			// wearing the same AI-readiness score as the dashboard. OFF by default:
+			// publishing your grade is a deliberate act. Display 'score' shows the
+			// number ("93/100"); 'tier' shows only the earned "AI-Ready" mark
+			// (Scorecard::TIER_MIN — a fixed bar, so the mark means the same thing on
+			// every site) and honestly reads "in progress" below it. Style 'auto'
+			// follows the reader's light/dark preference and borrows the theme
+			// palette's accent; 'light'/'dark' pin it. See Scorecard.
+			'share_scorecard'   => false,
+			'scorecard_display' => 'score',
+			'scorecard_style'   => 'auto',
 		);
 
 		/**
@@ -688,6 +704,14 @@ final class Settings {
 
 		$max_rows                    = isset( $input['activity_max_rows'] ) ? (int) $input['activity_max_rows'] : $defaults['activity_max_rows'];
 		$clean['activity_max_rows'] = in_array( $max_rows, self::MAX_ROWS_CHOICES, true ) ? $max_rows : $defaults['activity_max_rows'];
+
+		// The scorecard enums snap to their offered choices, same rule as above: a
+		// value the UI never offers is a tampered payload, not a preference.
+		$display                    = isset( $input['scorecard_display'] ) ? (string) $input['scorecard_display'] : $defaults['scorecard_display'];
+		$clean['scorecard_display'] = in_array( $display, self::SCORECARD_DISPLAYS, true ) ? $display : $defaults['scorecard_display'];
+
+		$style                    = isset( $input['scorecard_style'] ) ? (string) $input['scorecard_style'] : $defaults['scorecard_style'];
+		$clean['scorecard_style'] = in_array( $style, self::SCORECARD_STYLES, true ) ? $style : $defaults['scorecard_style'];
 
 		$kb                        = isset( $input['llms_full_max_kb'] ) ? (int) $input['llms_full_max_kb'] : $defaults['llms_full_max_kb'];
 		$clean['llms_full_max_kb'] = max( 64, min( 20480, $kb ) );
