@@ -666,10 +666,12 @@ final class Scorecard {
 			}
 		}
 
-		// ── Header: the real brand tile, product, report label.
+		// ── Header: the real brand tile, product, report label. The text block
+		// is pinned to the tile's height: the title's cap tops align with the
+		// tile's top edge, the label's baseline with its bottom edge.
 		self::og_logo( $img, 80, 56, 60 );
-		self::og_bold( $img, 27, 162, 92, $c_ink, $font, 'Agentimus' );
-		imagettftext( $img, 14, 0, 162, 122, $c_mut, $font, strtoupper( __( 'AI-readiness scorecard', 'agentimus' ) ) );
+		self::og_bold( $img, 27, 162, 84, $c_ink, $font, 'Agentimus' );
+		imagettftext( $img, 14, 0, 162, 116, $c_mut, $font, strtoupper( __( 'AI-readiness scorecard', 'agentimus' ) ) );
 
 		// ── The site: name + domain — or just the domain when the owner keeps
 		// the name private (a site name is often a person; the domain is
@@ -677,12 +679,15 @@ final class Scorecard {
 		$host      = (string) wp_parse_url( home_url( '/' ), PHP_URL_HOST );
 		$show_name = ! isset( $opts['name'] ) || false !== $opts['name'];
 		if ( $show_name ) {
+			// One line: the name in ink, the domain dimmed beside it on the
+			// same baseline — "Brand Name — site.com".
 			$name = (string) get_bloginfo( 'name' );
 			$name = mb_strlen( $name ) > 26 ? mb_substr( $name, 0, 25 ) . '…' : $name;
-			self::og_bold( $img, 36, 80, 260, $c_ink, $font, $name );
-			imagettftext( $img, 17, 0, 80, 298, $c_mut, $font, $host );
+			$nb   = imagettfbbox( 36, 0, $font, $name );
+			self::og_bold( $img, 36, 80, 262, $c_ink, $font, $name );
+			imagettftext( $img, 17, 0, 80 + ( $nb[2] - $nb[0] ) + 20, 262, $c_mut, $font, '— ' . $host );
 		} else {
-			self::og_bold( $img, 30, 80, 260, $c_ink, $font, $host );
+			self::og_bold( $img, 30, 80, 262, $c_ink, $font, $host );
 		}
 
 		$score  = (int) $snap['score'];
