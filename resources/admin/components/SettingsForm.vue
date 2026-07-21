@@ -77,8 +77,8 @@ export default {
       // img/iframe re-fetch at that same moment.
       savedScorecardPath: null,
       scorecardPreviewNonce: 0,
-      // Measured by measurePagePrev(); 0 keeps the iframe hidden until known.
-      pagePrevScale: 0,
+      // Measured by measurePagePrev(); null keeps the iframe hidden until known.
+      pagePrevBox: null,
       // The MCP connect helper. The pasted/minted application password lives ONLY
       // in this component's state — never saved, never sent anywhere except into
       // the config text the user copies. Navigating away forgets it.
@@ -257,20 +257,23 @@ export default {
       const nm = this.settings.scorecard_show_name === false ? 0 : 1;
       return `d=${this.settings.scorecard_display}&s=${this.settings.scorecard_style}&sh=${this.settings.scorecard_badge_shape || 'rectangle'}&bg=${bg}&fg=${fg}&nm=${nm}&v=${this.scorecardPreviewNonce}`;
     },
-    // The measured transform that fits the full 622×980 page into the window,
-    // centred horizontally. visibility guards the first unmeasured paint.
+    // The measured transform that fills the window EDGE TO EDGE: the height
+    // fixes the scale (full 980px page always visible), and the iframe's
+    // viewport width is derived so the scaled width equals the window's —
+    // the page paints every pixel, no letterboxing at any box shape.
+    // visibility guards the first unmeasured paint.
     pagePrevStyle() {
-      const s = this.pagePrevScale;
-      if (!s) return { visibility: 'hidden' };
+      const b = this.pagePrevBox;
+      if (!b || !b.h) return { visibility: 'hidden' };
+      const scale = b.h / 980;
       return {
-        width: '622px',
+        width: `${Math.ceil(b.w / scale)}px`,
         height: '980px',
-        transform: `scale(${s})`,
+        transform: `scale(${scale})`,
         transformOrigin: '0 0',
         position: 'absolute',
         top: '0',
-        left: '50%',
-        marginLeft: `-${Math.round(311 * s)}px`,
+        left: '0',
       };
     },
     badgeSrc() {
@@ -943,7 +946,7 @@ export default {
     measurePagePrev() {
       const el = this.$refs.pagePrev;
       if (!el || !el.clientHeight) return;
-      this.pagePrevScale = Math.min(el.clientHeight / 980, el.clientWidth / 622);
+      this.pagePrevBox = { w: el.clientWidth, h: el.clientHeight };
     },
     // Client-side twin of Settings::sanitize()'s path rule, so the previews
     // predict the exact address the server just stored.
