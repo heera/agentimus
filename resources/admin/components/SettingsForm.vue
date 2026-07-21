@@ -77,6 +77,8 @@ export default {
       // img/iframe re-fetch at that same moment.
       savedScorecardPath: null,
       scorecardPreviewNonce: 0,
+      // Measured by measurePagePrev(); 0 keeps the iframe hidden until known.
+      pagePrevScale: 0,
       // The MCP connect helper. The pasted/minted application password lives ONLY
       // in this component's state — never saved, never sent anywhere except into
       // the config text the user copies. Navigating away forgets it.
@@ -107,9 +109,18 @@ export default {
     // freshly flipped toggle shows "turns on when you save" instead.
     this.mcpSavedEnabled = !!(this.settings && this.settings.enable_mcp_server);
     if (this.mcpSavedEnabled) this.probeMcpStatus();
+    // The page preview's scale is MEASURED, never guessed: whatever height the
+    // grid row hands the window, the whole page (a fixed virtual viewport)
+    // scales to fit it exactly. Fires again on every resize and when the
+    // Share group first becomes visible.
+    if (window.ResizeObserver && this.$refs.pagePrev) {
+      this._pagePrevRo = new ResizeObserver(() => this.measurePagePrev());
+      this._pagePrevRo.observe(this.$refs.pagePrev);
+    }
   },
   beforeUnmount() {
     window.removeEventListener('resize', this.updateScrollHint);
+    if (this._pagePrevRo) this._pagePrevRo.disconnect();
     if (this._unEscReset) this._unEscReset();
     if (this._unEscTaken) this._unEscTaken();
     if (this._unEscScope) this._unEscScope();
@@ -245,6 +256,22 @@ export default {
       const fg = (this.settings.scorecard_badge_fg || '').replace('#', '');
       const nm = this.settings.scorecard_show_name === false ? 0 : 1;
       return `d=${this.settings.scorecard_display}&s=${this.settings.scorecard_style}&sh=${this.settings.scorecard_badge_shape || 'rectangle'}&bg=${bg}&fg=${fg}&nm=${nm}&v=${this.scorecardPreviewNonce}`;
+    },
+    // The measured transform that fits the full 622×980 page into the window,
+    // centred horizontally. visibility guards the first unmeasured paint.
+    pagePrevStyle() {
+      const s = this.pagePrevScale;
+      if (!s) return { visibility: 'hidden' };
+      return {
+        width: '622px',
+        height: '980px',
+        transform: `scale(${s})`,
+        transformOrigin: '0 0',
+        position: 'absolute',
+        top: '0',
+        left: '50%',
+        marginLeft: `-${Math.round(311 * s)}px`,
+      };
     },
     badgeSrc() {
       return this.scorecardBase ? `${this.scorecardBase}/badge.svg?${this.previewParams}` : '';
@@ -910,6 +937,13 @@ export default {
       this.mcpKeyCopied = true;
       clearTimeout(this._mcpKeyCopyTimer);
       this._mcpKeyCopyTimer = setTimeout(() => { this.mcpKeyCopied = false; }, 2000);
+    },
+    // Fit the whole page (a 622×980 virtual viewport) inside whatever box the
+    // grid row hands the preview window — exact scale from real measurements.
+    measurePagePrev() {
+      const el = this.$refs.pagePrev;
+      if (!el || !el.clientHeight) return;
+      this.pagePrevScale = Math.min(el.clientHeight / 980, el.clientWidth / 622);
     },
     // Client-side twin of Settings::sanitize()'s path rule, so the previews
     // predict the exact address the server just stored.
@@ -2169,8 +2203,8 @@ export default {
               <!-- The live page, sharing the image's grid row so the two
                    previews stand at EXACTLY the same height; the miniature
                    fills the window's height (viewport = height/0.45). -->
-              <div class="ar-scorecard-pageprev ar-sd-page" aria-hidden="true">
-                <iframe :src="pageSrc" tabindex="-1" title="Scorecard page preview"></iframe>
+              <div ref="pagePrev" class="ar-scorecard-pageprev ar-sd-page" aria-hidden="true">
+                <iframe :src="pageSrc" :style="pagePrevStyle" tabindex="-1" title="Scorecard page preview"></iframe>
               </div>
               <div class="ar-scorecard-share ar-sd-btns">
               <a
