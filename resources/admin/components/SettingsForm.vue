@@ -2146,14 +2146,11 @@ export default {
           <div class="ar-mcp-step">
             <p class="ar-mcp-step__head">Your badge</p>
             <p class="ar-scorecard-preview"><img :src="badgeSrc" alt="AI readiness badge preview" height="28" /></p>
-            <p class="ar-field__hint ar-scorecard-hintrow">
-              <span>
-                Paste this anywhere HTML works — a footer, an About page, a README. It always
-                shows the current score and links to your scorecard page.
-              </span>
-              <a :href="scorecardUrl" target="_blank" rel="noopener">Open your public scorecard ↗</a>
+            <p class="ar-field__hint">
+              Paste this anywhere HTML works — a footer, an About page, a README. It always
+              shows the current score and links to your scorecard page.
             </p>
-            <div class="ar-mcp-snippet">
+            <div class="ar-mcp-snippet ar-scorecard-badgebox">
               <pre class="ar-about-snippet ar-mcp-snippet__code"><code>{{ badgeSnippet }}</code></pre>
               <button type="button" class="button button-small ar-mcp-snippet__copy" @click="copyBadgeSnippet">
                 {{ badgeCopied ? 'Copied' : 'Copy' }}
@@ -2164,20 +2161,12 @@ export default {
           <div class="ar-mcp-step">
             <p class="ar-mcp-step__head">Share the result</p>
             <div class="ar-scorecard-duo">
-              <p v-if="scorecard.og !== false && cardSrc" class="ar-scorecard-card">
-                <img :src="cardSrc" alt="The social card your shared link unfurls into" />
-              </p>
-              <!-- The live page beside the card — a scaled window onto the
-                   real thing, previews included via the same override params.
-                   On small screens the URL captions it. -->
-              <div class="ar-scorecard-pagewrap">
-                <a class="ar-scorecard-pageurl" :href="scorecardUrl" target="_blank" rel="noopener">{{ scorecardUrl }}</a>
-                <div class="ar-scorecard-pageprev" aria-hidden="true">
-                  <iframe :src="pageSrc" tabindex="-1" title="Scorecard page preview"></iframe>
-                </div>
-              </div>
-            </div>
-            <div class="ar-scorecard-share">
+              <div class="ar-scorecard-col">
+                <p class="ar-scorecard-collabel">The share card</p>
+                <p v-if="scorecard.og !== false && cardSrc" class="ar-scorecard-card">
+                  <img :src="cardSrc" alt="The social card your shared link unfurls into" />
+                </p>
+                <div class="ar-scorecard-share">
               <a
                 v-if="scorecard.og !== false && cardSrc"
                 class="button button-primary ar-share-btn"
@@ -2200,15 +2189,31 @@ export default {
                 Facebook
               </a>
             </div>
-            <p class="ar-field__hint ar-scorecard-note">
-              Each button opens the network's own compose window with your scorecard link —
-              nothing is ever posted for you. The card above is what the link unfurls into.
-            </p>
-            <p v-if="scorecard && scorecard.og === false" class="ar-field__hint">
-              The share-preview image needs the server's GD graphics library and a font file,
-              and this server has neither — so a shared link will unfurl as plain text. The
-              page and the badge are unaffected.
-            </p>
+                <p class="ar-field__hint ar-scorecard-note">
+                  Each button opens the network's own compose window with your scorecard link —
+                  nothing is ever posted for you. The card above is what the link unfurls into.
+                </p>
+                <p v-if="scorecard && scorecard.og === false" class="ar-field__hint">
+                  The share-preview image needs the server's GD graphics library and a font file,
+                  and this server has neither — so a shared link will unfurl as plain text. The
+                  page and the badge are unaffected.
+                </p>
+              </div>
+
+              <!-- The live page, a scaled window onto the real thing — previews
+                   included via the same override params. The Open button below
+                   is the way in; on small screens the URL captions it on top. -->
+              <div class="ar-scorecard-col ar-scorecard-pagewrap">
+                <p class="ar-scorecard-collabel">The live page</p>
+                <a class="ar-scorecard-pageurl" :href="scorecardUrl" target="_blank" rel="noopener">{{ scorecardUrl }}</a>
+                <div class="ar-scorecard-pageprev" aria-hidden="true">
+                  <iframe :src="pageSrc" tabindex="-1" title="Scorecard page preview"></iframe>
+                </div>
+                <a class="button ar-share-btn ar-scorecard-openbtn" :href="scorecardUrl" target="_blank" rel="noopener">
+                  Open your public scorecard ↗
+                </a>
+              </div>
+            </div>
           </div>
         </div>
       </section>

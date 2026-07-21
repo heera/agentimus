@@ -4003,68 +4003,50 @@ a.ar-about-proto__v:hover { text-decoration: underline; }
   background: var(--ar-surface); cursor: pointer;
 }
 
-/* The share card's snippet row: the code box hugs its one line of HTML with the Copy
-   button and the open-link riding beside it — a full-width slab for a short snippet
-   read as a wall. Wraps politely on narrow screens. */
-/* The badge block: the hint line carries the open-link pinned to its right edge,
-   the code box runs full width beneath with Copy riding inside it (the base
-   .ar-mcp-snippet__copy overlay); the padding keeps long snippets from running
-   underneath the button. */
-.ar-scorecard-hintrow { display: flex; justify-content: space-between; align-items: baseline; gap: 16px; }
-.ar-scorecard-hintrow > a { white-space: nowrap; flex: 0 0 auto; }
-.ar-scorecard-hintrow + .ar-mcp-snippet .ar-mcp-snippet__code { overflow-x: auto; padding-right: 84px; }
-/* The buttons' explainer holds the image's width, wrapping to two lines. */
-.ar-scorecard-note { max-width: 760px; }
+/* The badge block: hint above, the code box full width beneath with Copy riding
+   inside it (the base .ar-mcp-snippet__copy overlay); the padding keeps long
+   snippets from running underneath the button. */
+.ar-scorecard-badgebox .ar-mcp-snippet__code { overflow-x: auto; padding-right: 84px; }
 
 /* The address input matches the dropdowns' lane. */
 .ar-field--share .ar-scorecard-path { flex: 0 0 380px; max-width: 100%; min-width: 0; }
-@media (max-width: 782px) { .ar-field--share .ar-scorecard-path { flex: 1 1 auto; } }
 
-/* Card + live page, side by side at EQUAL heights: the image at 760px wide is
-   ~400px tall, and the page window matches — scaled at 0.45 so the WHOLE page,
-   footer included, fits inside it (622×887 viewport → 280×399 window).
-   Pointer-events off — it's a preview; the open-link above is the way in. */
-.ar-scorecard-duo { display: flex; gap: 16px; align-items: flex-start; flex-wrap: wrap; }
-.ar-scorecard-duo .ar-scorecard-card { margin: 0; flex: 0 1 760px; min-width: 0; }
-.ar-scorecard-pagewrap { flex: none; }
+/* Share the result: TWO columns filling the card's full width — the share card
+   (image + share buttons + note) left, the live page right, each under its own
+   label. The page window scales the real page at 0.45; the iframe viewport is
+   width/0.45, so the miniature stays true at any column width. Pointer-events
+   off — the Open button below it is the way in. */
+.ar-scorecard-duo { display: grid; grid-template-columns: minmax(0, 1fr) minmax(260px, 360px); gap: 24px; align-items: stretch; }
+.ar-scorecard-col { min-width: 0; }
+.ar-scorecard-collabel { margin: 0 0 8px; font-weight: 600; font-size: 13px; }
+.ar-scorecard-card { margin: 0; }
+.ar-scorecard-card img { display: block; width: 100%; border: 1px solid #d8d2c2; border-radius: 6px; }
+.ar-scorecard-pagewrap { display: flex; flex-direction: column; }
 .ar-scorecard-pageurl { display: none; }
-.ar-scorecard-pageprev { width: 280px; height: 399px; overflow: hidden; border: 1px solid #d8d2c2; border-radius: 6px; }
-.ar-scorecard-pageprev iframe { width: 622px; height: 887px; transform: scale(0.45); transform-origin: 0 0; border: 0; pointer-events: none; }
-/* Stacked under the image on small screens: the preview widens to the image's
-   own width (the iframe viewport is width/0.45, so the scale holds), and the
-   page's URL captions it on top. */
-@media (max-width: 782px) {
-	.ar-scorecard-pagewrap { width: 100%; max-width: 760px; }
-	.ar-scorecard-pageurl { display: block; font-size: 12px; margin: 0 0 6px; word-break: break-all; }
-	.ar-scorecard-pageprev { width: 100%; }
-	.ar-scorecard-pageprev iframe { width: 222.23%; }
-}
+.ar-scorecard-pageprev { flex: 1 1 auto; min-height: 340px; overflow: hidden; border: 1px solid #d8d2c2; border-radius: 6px; }
+.ar-scorecard-pageprev iframe { width: 222.23%; height: 980px; transform: scale(0.45); transform-origin: 0 0; border: 0; pointer-events: none; }
+.ar-scorecard-openbtn { margin-top: 10px; }
+
+/* The share buttons fill the image's width, one row, equal widths — compact
+   type so all four fit; the icons carry the "share" meaning, so the network
+   buttons need only their names. Phones may wrap two-up. */
+.ar-scorecard-share { display: flex; align-items: center; gap: 8px; flex-wrap: nowrap; margin-top: 12px; }
+.ar-share-btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; flex: 1 1 0; min-width: 0; font-size: 12px; padding: 0 8px; white-space: nowrap; }
+.ar-share-btn svg { flex: none; }
 
 /* Small screens, at core's own 782px breakpoint (where wp-admin enlarges every
-   .button for touch): the share rows stack — label above a full-width control —
-   and the snippet's Copy drops out of its corner overlay into the flow below
-   the code, because the enlarged button outgrows the box it floated on. */
+   .button for touch). */
 @media (max-width: 782px) {
+	.ar-field--share .ar-scorecard-path { flex: 1 1 auto; }
 	.ar-field--inline.ar-field--share { flex-wrap: wrap; }
 	.ar-field--share > label { flex: 1 1 100%; }
 	.ar-field--share .ar-select { flex: 1 1 auto; max-width: 100%; }
-	/* Core's touch-size .button is too heavy for these small acts — both go
-	   quiet text buttons. Copy rises ABOVE the code box, on the right; it sits
-	   on the cream card up here, so it wears admin link blue, not the ghost
-	   blue that needs the dark box behind it. */
-	/* The hint wraps; the open-link takes the last line, left — and the Copy
-	   text button is pulled UP onto that same line, right: one shared row
-	   above the code box. */
-	/* The maths of the shared row: the link's line is ~20px tall and the hint
-	   keeps a 10px gap below it; pulling the snippet up by exactly 20+10 puts
-	   the 20px Copy line ON the link's line, and Copy's own 10px bottom margin
-	   re-creates the gap between that row and the code box. */
-	.ar-scorecard-hintrow { flex-wrap: wrap; margin-bottom: 10px; }
-	.ar-scorecard-hintrow > a { flex: 1 1 100%; }
-	.ar-mcp-snippet { display: flex; flex-direction: column; margin-top: -30px; }
+	/* Copy goes quiet text, above the box on the right — core's touch-size
+	   button is too heavy for the corner overlay it floats on. */
+	.ar-mcp-snippet { display: flex; flex-direction: column; margin-top: 4px; }
 	.ar-mcp-snippet__copy.button {
 		position: static; order: -1; align-self: flex-end;
-		margin: 0 0 10px; padding: 0 !important; min-height: 0 !important;
+		margin: 0 0 6px; padding: 0 !important; min-height: 0 !important;
 		font-size: 13px !important; line-height: 20px !important;
 		background: transparent; border: none; box-shadow: none;
 		color: #2271b1;
@@ -4072,24 +4054,19 @@ a.ar-about-proto__v:hover { text-decoration: underline; }
 	.ar-mcp-snippet__copy.button:hover,
 	.ar-mcp-snippet__copy.button:focus { background: transparent; color: #135e96; border: none; }
 	/* Default keeps its button chrome at DESKTOP's small size — core inflates
-	   every .button for touch below 782px with rules that outrank ours, hence
-	   the heavy hand. */
+	   every .button for touch with rules that outrank ours, hence the heavy hand. */
 	.ar-badge-colors .button.button-small {
 		padding: 0 10px !important; min-height: 26px !important; height: 26px !important;
 		line-height: 24px !important; font-size: 12px !important;
 	}
+	/* The two columns stack; the page window widens to full width with the
+	   page's URL captioned on top. */
+	.ar-scorecard-duo { grid-template-columns: 1fr; gap: 16px; }
+	.ar-scorecard-pageurl { display: block; font-size: 12px; margin: 0 0 6px; word-break: break-all; }
+	.ar-scorecard-pageprev { min-height: 300px; }
+	.ar-scorecard-share { flex-wrap: wrap; }
+	.ar-share-btn { flex: 1 1 40%; }
 }
-
-/* Share-the-result: the social card at readable size, share intents in a row.
-   Each button wears its network's mark; Download is the primary act. */
-.ar-scorecard-card img { display: block; width: 100%; max-width: 760px; border: 1px solid #d8d2c2; border-radius: 6px; }
-/* The buttons row is capped to the SAME width as the card image, one row, equal
-   widths — compact type so all four fit; the icons carry the "share" meaning, so
-   the network buttons need only their names. Phones may wrap. */
-.ar-scorecard-share { display: flex; align-items: center; gap: 8px; flex-wrap: nowrap; margin-top: 12px; max-width: 760px; }
-.ar-share-btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; flex: 1 1 0; min-width: 0; font-size: 12px; padding: 0 8px; white-space: nowrap; }
-.ar-share-btn svg { flex: none; }
-@media (max-width: 700px) { .ar-scorecard-share { flex-wrap: wrap; } .ar-share-btn { flex: 1 1 40%; } }
 
 /* ---------------------------------------------------------------------------
    Agent access — who authenticated to, and ACTED on, the machine surface.
