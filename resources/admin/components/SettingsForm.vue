@@ -2217,7 +2217,7 @@ export default {
                 class="button button-small"
                 :disabled="!settings.scorecard_badge_bg && !settings.scorecard_badge_fg && !settings.scorecard_warn_color"
                 @click="settings.scorecard_badge_bg = ''; settings.scorecard_badge_fg = ''; settings.scorecard_warn_color = ''"
-              >Default</button>
+              >Reset to Default</button>
             </div>
           </div>
           <p class="ar-field__hint">
