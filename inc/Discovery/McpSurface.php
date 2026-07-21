@@ -424,7 +424,23 @@ final class McpSurface {
 			'tools'         => self::card_tools( $server ),
 		);
 		if ( ! empty( $mcp['auth'] ) ) {
-			$card['auth'] = array( 'type' => $mcp['auth'] );
+			// The card speaks standard vocabulary, not WordPress-isms: an
+			// application password IS HTTP Basic (RFC 7617), and "oauth2" is the
+			// scheme name every client toolchain recognises. A client that has
+			// never heard of WordPress can read `http` + `basic` and know exactly
+			// how to sign in. The mcp.json descriptor keeps its own established
+			// `auth` strings — this translation is card-only.
+			if ( 'application-password' === $mcp['auth'] ) {
+				$card['auth'] = array(
+					'type'        => 'http',
+					'scheme'      => 'basic',
+					'description' => 'WordPress application password',
+				);
+			} elseif ( 'oauth' === $mcp['auth'] ) {
+				$card['auth'] = array( 'type' => 'oauth2' );
+			} else {
+				$card['auth'] = array( 'type' => $mcp['auth'] );
+			}
 			if ( ! empty( $mcp['auth_metadata'] ) ) {
 				$card['auth']['metadata'] = $mcp['auth_metadata'];
 			}

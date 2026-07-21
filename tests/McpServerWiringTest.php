@@ -113,13 +113,24 @@ namespace Agentimus\Tests {
 			$this->assertSame( 'https://example.test/.well-known/oauth-protected-resource', $mcp['auth_metadata'] );
 		}
 
+		public function test_server_card_translates_application_password_to_http_basic() {
+			// The card must be readable by clients that never heard of WordPress:
+			// an application password is HTTP Basic (RFC 7617), so that is what
+			// the card says — with the WordPress name kept as the description.
+			$card = json_decode( ( new Envelope( new Settings(), Registry::instance() ) )->mcp_server_card_json(), true );
+			$this->assertSame( 'http', $card['auth']['type'] );
+			$this->assertSame( 'basic', $card['auth']['scheme'] );
+			$this->assertSame( 'WordPress application password', $card['auth']['description'] );
+		}
+
 		public function test_server_card_reflects_oauth_end_to_end() {
 			update_option( Settings::OPTION, array( 'oauth_auth_server' => 'https://auth.example.com' ) );
 			$card = json_decode( ( new Envelope( new Settings(), Registry::instance() ) )->mcp_server_card_json(), true );
 
 			$this->assertSame( '2.0.0', $card['serverInfo']['version'] ); // version read from the real server
 			$this->assertNotEmpty( $card['transport']['url'] );
-			$this->assertSame( 'oauth', $card['auth']['type'] );
+			// The descriptor says 'oauth'; the card translates to the standard name.
+			$this->assertSame( 'oauth2', $card['auth']['type'] );
 			$this->assertSame( 'https://example.test/.well-known/oauth-protected-resource', $card['auth']['metadata'] );
 		}
 	}
