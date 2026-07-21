@@ -4042,13 +4042,13 @@ a.ar-about-proto__v:hover { text-decoration: underline; }
 .ar-scorecard-collabel { margin: 0 0 8px; font-weight: 600; font-size: 13px; }
 .ar-scorecard-card { margin: 0; }
 .ar-scorecard-card img { display: block; width: 100%; border: 1px solid #d8d2c2; border-radius: 6px; }
-/* The iframe is ABSOLUTE on purpose: transform:scale shrinks the pixels, not
-   the layout box, so an in-flow iframe would inflate the row with a void. Its
-   viewport is fixed at 622px wide, the miniature centres horizontally, and its
-   HEIGHT is the window's own height /0.45 — the page fills the window exactly,
-   whatever height the image row hands it. */
+/* No scaling trickery — it fought back all night (transform shrinks pixels,
+   not layout boxes; fixed factors fight fluid columns). The window is simply a
+   real viewport: the iframe fills it 1:1 and the page, which is responsive,
+   lays itself out for that width like it would on any small screen. Absolute
+   so its size follows the grid row, never dictates it. */
 .ar-scorecard-pageprev { position: relative; min-height: 320px; overflow: hidden; border: 1px solid #d8d2c2; border-radius: 6px; }
-.ar-scorecard-pageprev iframe { position: absolute; top: 0; left: calc(50% - 140px); width: 622px; height: calc(100% / 0.45); transform: scale(0.45); transform-origin: 0 0; border: 0; pointer-events: none; }
+.ar-scorecard-pageprev iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; pointer-events: none; }
 
 /* The share buttons fill the image's width, one row, equal widths — compact
    type so all four fit; the icons carry the "share" meaning, so the network
