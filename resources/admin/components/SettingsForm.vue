@@ -2224,8 +2224,12 @@ export default {
           <!-- The live page, sharing the image's grid row so the two
                previews stand at EXACTLY the same height; the miniature
                fills the window's height (viewport = height/0.45). -->
-          <div v-if="settings.scorecard_page_enabled" ref="pagePrev" class="ar-scorecard-pageprev ar-sd-page" aria-hidden="true">
-            <iframe :src="pageSrc" :style="pagePrevStyle" tabindex="-1" title="Scorecard page preview"></iframe>
+          <div ref="pagePrev" class="ar-scorecard-pageprev ar-sd-page" aria-hidden="true">
+            <iframe v-if="settings.scorecard_page_enabled" :src="pageSrc" :style="pagePrevStyle" tabindex="-1" title="Scorecard page preview"></iframe>
+            <p v-else class="ar-scorecard-pageoff">
+              The public page is turned off — its address returns a normal 404.
+              Turn it on below to see it here.
+            </p>
           </div>
           <label class="ar-toggle ar-toggle--nested ar-scorecard-nametoggle ar-sd-ptog">
             <input v-model="settings.scorecard_page_enabled" type="checkbox" />
