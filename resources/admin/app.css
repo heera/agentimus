@@ -4025,7 +4025,24 @@ a.ar-about-proto__v:hover { text-decoration: underline; }
 	.ar-field--inline.ar-field--share { flex-wrap: wrap; }
 	.ar-field--share > label { flex: 1 1 100%; }
 	.ar-field--share .ar-select { flex: 1 1 auto; max-width: 100%; }
-	.ar-mcp-snippet__copy.button { position: static; margin-top: 8px; }
+	/* Core's touch-size .button is too heavy for these small acts — both go
+	   quiet text buttons. Copy rises ABOVE the code box, on the right; it sits
+	   on the cream card up here, so it wears admin link blue, not the ghost
+	   blue that needs the dark box behind it. */
+	.ar-mcp-snippet { display: flex; flex-direction: column; }
+	.ar-mcp-snippet__copy.button {
+		position: static; order: -1; align-self: flex-end;
+		margin: 0 0 6px; padding: 0; min-height: 0;
+		background: transparent; border: none; box-shadow: none;
+		color: #2271b1;
+	}
+	.ar-mcp-snippet__copy.button:hover,
+	.ar-mcp-snippet__copy.button:focus { background: transparent; color: #135e96; border: none; }
+	.ar-badge-colors .button {
+		padding: 0; min-height: 0; height: auto;
+		background: transparent; border: none; box-shadow: none;
+		color: #2271b1;
+	}
 }
 
 /* Share-the-result: the social card at readable size, share intents in a row.
