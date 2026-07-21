@@ -192,7 +192,7 @@ final class Settings {
 			// Badge size: three presets, or 'custom' + the height below (px,
 			// clamped 14–112; the badge is SVG, so any size stays crisp).
 			'scorecard_badge_size'   => 'custom',
-			'scorecard_badge_height' => 25,
+			'scorecard_badge_height' => 20,
 			// Border around the badge — ships in the house green so a dark badge
 			// never merges into a dark site ('' = no border beyond the light
 			// style's hairline).

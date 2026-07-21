@@ -296,7 +296,7 @@ export default {
         ? { small: 44, medium: 64, large: 88 }
         : { small: 22, medium: 28, large: 36 };
       if (this.settings.scorecard_badge_size === 'custom') {
-        const h = parseInt(this.settings.scorecard_badge_height, 10) || 28;
+        const h = parseInt(this.settings.scorecard_badge_height, 10) || 20;
         return Math.max(14, Math.min(112, h));
       }
       return map[this.settings.scorecard_badge_size] || map.medium;
