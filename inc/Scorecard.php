@@ -130,6 +130,13 @@ final class Scorecard {
 
 		$uri  = isset( $_SERVER['REQUEST_URI'] ) ? sanitize_text_field( wp_unslash( $_SERVER['REQUEST_URI'] ) ) : '/';
 		$path = '/' . ltrim( (string) wp_parse_url( $uri, PHP_URL_PATH ), '/' );
+		// A subdirectory install carries its home path on every request
+		// (/blog/agentimus-ai-readiness/badge) while the configured address
+		// is site-relative — strip the prefix so both installs compare alike.
+		$home = rtrim( (string) wp_parse_url( home_url( '/' ), PHP_URL_PATH ), '/' );
+		if ( '' !== $home && 0 === strpos( $path, $home . '/' ) ) {
+			$path = substr( $path, strlen( $home ) );
+		}
 		$base = $this->path();
 
 		$display = (string) $this->settings->get( 'scorecard_display', 'score' );
