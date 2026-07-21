@@ -726,11 +726,14 @@ final class Scorecard {
 			self::og_center( $img, 22, $cx, $cy + 182, $c_ink, $font, (string) $snap['band'] );
 		}
 
-		// ── Footer: the question + the credit. No domain pill — the domain
-		// already sits under the site name, and saying it twice is noise.
+		// ── Footer: one line — the question in ink, then the credit smaller
+		// and dimmed on the same baseline. No domain pill — the domain already
+		// sits under the site name, and saying it twice is noise.
 		imageline( $img, 80, 548, 1120, 548, $c_track );
-		self::og_bold( $img, 20, 80, 590, $c_ink, $font, __( 'Is your site agent-ready?', 'agentimus' ) );
-		imagettftext( $img, 14, 0, 80, 616, $c_mut, $font, __( 'Measured by Agentimus — free on WordPress.org', 'agentimus' ) );
+		$question = __( 'Is your site agent-ready?', 'agentimus' );
+		$qb       = imagettfbbox( 19, 0, $font, $question );
+		self::og_bold( $img, 19, 80, 597, $c_ink, $font, $question );
+		imagettftext( $img, 14, 0, 80 + ( $qb[2] - $qb[0] ) + 18, 597, $c_mut, $font, __( 'Measured by Agentimus — free on WordPress.org', 'agentimus' ) );
 
 		ob_start();
 		imagepng( $img );
