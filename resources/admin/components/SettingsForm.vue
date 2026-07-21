@@ -409,11 +409,12 @@ export default {
       return [
         { key: 'identity', label: 'Identity', hint: 'Who owns this site' },
         { key: 'discovery', label: 'Discovery', hint: 'Files & data AI can read' },
+        { key: 'access', label: 'AI access', hint: 'What bots may do — and who to block' },
+        { key: 'exposure', label: 'Exposure', hint: 'Limit what your site reveals to bots & scanners' },
+        // Near the end on purpose — a nice-to-have, not core configuration.
         // One short word like its siblings — three words overflowed the tab
         // row on phones. The hint and the card title carry the full name.
         { key: 'share', label: 'Share', hint: 'Your score in public — page, badge & preview card' },
-        { key: 'access', label: 'AI access', hint: 'What bots may do — and who to block' },
-        { key: 'exposure', label: 'Exposure', hint: 'Limit what your site reveals to bots & scanners' },
         { key: 'advanced', label: 'Advanced', hint: 'Trust, developer & maintenance' },
       ];
     },
