@@ -4036,7 +4036,8 @@ a.ar-about-proto__v:hover { text-decoration: underline; }
 .ar-sd-img { grid-area: img; }
 .ar-sd-page { grid-area: page; }
 .ar-sd-btns { grid-area: btns; }
-.ar-sd-open { grid-area: open; margin-top: 12px; align-self: start; }
+/* .wp-core-ui tie again — core's .button also zeroes margins. */
+.wp-core-ui .ar-sd-open { grid-area: open; margin-top: 12px; align-self: start; }
 .ar-sd-note { grid-area: note; }
 .ar-sd-note2 { grid-column: 1 / -1; }
 .ar-scorecard-collabel { margin: 0 0 8px; font-weight: 600; font-size: 13px; }
