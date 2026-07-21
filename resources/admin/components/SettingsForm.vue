@@ -2117,13 +2117,25 @@ export default {
             <div class="ar-scorecard-share">
               <a
                 v-if="scorecard.og !== false && scorecard.card"
-                class="button"
+                class="button button-primary ar-share-btn"
                 :href="scorecard.card"
                 download="ai-readiness.png"
-              >Download PNG</a>
-              <a class="button" :href="shareLinks.x" target="_blank" rel="noopener">Post on X</a>
-              <a class="button" :href="shareLinks.linkedin" target="_blank" rel="noopener">Share on LinkedIn</a>
-              <a class="button" :href="shareLinks.facebook" target="_blank" rel="noopener">Share on Facebook</a>
+              >
+                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12m0 0 5-5m-5 5-5-5" /><path d="M4 21h16" /></svg>
+                Download
+              </a>
+              <a class="button ar-share-btn" :href="shareLinks.x" target="_blank" rel="noopener">
+                <svg viewBox="0 0 24 24" width="13" height="13" fill="currentColor" aria-hidden="true"><path d="M18.9 2H22l-6.8 7.8L23.2 22h-6.3l-4.9-6.4L6.4 22H3.3l7.3-8.3L1.6 2h6.4l4.4 5.9L18.9 2Zm-1.1 18h1.7L7.1 3.9H5.3L17.8 20Z" /></svg>
+                Post on X
+              </a>
+              <a class="button ar-share-btn" :href="shareLinks.linkedin" target="_blank" rel="noopener">
+                <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor" aria-hidden="true"><path d="M4.98 3.5a2.5 2.5 0 1 1 0 5 2.5 2.5 0 0 1 0-5ZM3 9h4v12H3V9Zm7 0h3.8v1.7h.1c.5-1 1.8-2 3.7-2 4 0 4.7 2.6 4.7 6V21h-4v-5.5c0-1.3 0-3-1.9-3s-2.1 1.4-2.1 2.9V21h-4V9Z" /></svg>
+                Share on LinkedIn
+              </a>
+              <a class="button ar-share-btn" :href="shareLinks.facebook" target="_blank" rel="noopener">
+                <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor" aria-hidden="true"><path d="M13.5 21v-8h2.7l.4-3.1h-3.1V7.9c0-.9.3-1.5 1.6-1.5h1.6V3.6c-.3 0-1.2-.1-2.3-.1-2.3 0-3.9 1.4-3.9 4v2.4H7.8V13h2.7v8h3Z" /></svg>
+                Share on Facebook
+              </a>
             </div>
             <p class="ar-field__hint">
               Each button opens the network's own compose window with your scorecard link —
