@@ -488,7 +488,7 @@ final class Scorecard {
 				. '<circle class="fill" cx="58" cy="58" r="52" stroke-dasharray="' . esc_attr( (string) round( $circ, 2 ) ) . '" stroke-dashoffset="' . esc_attr( (string) round( $offset, 2 ) ) . '"/></svg>'
 				// One inner span = one grid item, so the number and its /100
 				// share a baseline instead of stacking as two centred rows.
-				. '<span class="n"><span>' . esc_html( (string) $score ) . '<small>/100</small></span></span></div>'
+				. '<span class="n"><span>' . esc_html( (string) $score ) . '<small>/ 100</small></span></span></div>'
 				. '<p class="band">' . esc_html( $band ) . '</p>';
 		}
 
@@ -512,7 +512,7 @@ final class Scorecard {
 			. '.site{display:flex;align-items:center;justify-content:center;gap:10px;margin-bottom:26px}.site a{color:inherit;text-decoration:none;font-weight:600}.icon{border-radius:6px}'
 			. '.what{font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);margin-bottom:18px}'
 			. '.gauge{position:relative;width:150px;margin:0 auto}.gauge svg{width:100%;transform:rotate(-90deg)}.gauge circle{fill:none;stroke-width:9}.gauge .track{stroke:var(--line)}.gauge .fill{stroke:var(--accent);stroke-linecap:round}'
-			. '.gauge .n{position:absolute;inset:0;display:grid;place-items:center;font-size:40px;font-weight:700}.gauge .n small{font-size:15px;font-weight:400;color:var(--muted);margin-left:2px}'
+			. '.gauge .n{position:absolute;inset:0;display:grid;place-items:center;font-size:40px;font-weight:700}.gauge .n small{font-size:15px;font-weight:400;color:var(--muted);margin-left:6px}'
 			. '.band{margin-top:10px;font-weight:600}'
 			. '.tier{font-size:30px;font-weight:700;margin:26px 0}.tier[data-earned="1"]{color:var(--accent)}.tier[data-earned="0"]{color:var(--muted);font-size:22px}'
 			. 'ol{list-style:none;padding:0;margin:30px 0 0;text-align:left}li{display:grid;grid-template-columns:88px 1fr auto;gap:10px;align-items:center;padding:7px 0;font-size:14px}'
@@ -736,12 +736,12 @@ final class Scorecard {
 			// the number big in the accent, the scale small and muted beside it.
 			$num = (string) $score;
 			$nb  = imagettfbbox( 84, 0, $font, $num );
-			$sb  = imagettfbbox( 26, 0, $font, '/100' );
+			$sb  = imagettfbbox( 26, 0, $font, '/ 100' );
 			$nw  = $nb[2] - $nb[0];
-			$tw  = $nw + 10 + ( $sb[2] - $sb[0] );
+			$tw  = $nw + 16 + ( $sb[2] - $sb[0] );
 			$x0  = (int) ( $cx - $tw / 2 );
 			self::og_bold( $img, 84, $x0, $cy + 30, $c_acc, $font, $num );
-			imagettftext( $img, 26, 0, $x0 + $nw + 10, $cy + 30, $c_mut, $font, '/100' );
+			imagettftext( $img, 26, 0, $x0 + $nw + 16, $cy + 30, $c_mut, $font, '/ 100' );
 			// The band sits below the ring, in the accent — the verdict line.
 			self::og_center( $img, 23, $cx, $cy + 160 + 38, $c_acc, $font, (string) $snap['band'], true );
 		}
