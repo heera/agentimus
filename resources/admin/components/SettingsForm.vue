@@ -227,8 +227,11 @@ export default {
     cardSrc() {
       const base = (this.scorecard && this.scorecard.card) || '';
       if (!base) return '';
-      // Same admin-only live-preview overrides as the badge.
-      return `${base}?d=${this.settings.scorecard_display}&s=${this.settings.scorecard_style}`;
+      // Same admin-only live-preview overrides as the badge — the card wears
+      // the badge's colour configuration too.
+      const bg = (this.settings.scorecard_badge_bg || '').replace('#', '');
+      const fg = (this.settings.scorecard_badge_fg || '').replace('#', '');
+      return `${base}?d=${this.settings.scorecard_display}&s=${this.settings.scorecard_style}&bg=${bg}&fg=${fg}`;
     },
     // The prefilled post. Tier mode never names the number — that's the whole
     // point of tier mode — and below the bar it stays an honest question.
