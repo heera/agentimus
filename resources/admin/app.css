@@ -3977,6 +3977,18 @@ a.ar-about-proto__v:hover { text-decoration: underline; }
    controls that each picked their own width. */
 .ar-field--share > label { flex: 0 0 190px; }
 .ar-field--share .ar-select { flex: 0 0 380px; max-width: 100%; min-width: 0; }
+/* Two classes on purpose: the .ar-field:first-child margin reset would zero a
+   single-class top margin, leaving the first row glued to the divider above it. */
+.ar-field--inline.ar-field--share { margin-top: 22px; }
+
+/* The share card's snippet row: the code box hugs its one line of HTML with the Copy
+   button and the open-link riding beside it — a full-width slab for a short snippet
+   read as a wall. Wraps politely on narrow screens. */
+.ar-scorecard-row { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; margin-top: 10px; }
+.ar-scorecard-row .ar-mcp-snippet { display: flex; align-items: center; gap: 10px; margin-top: 0; min-width: 0; }
+.ar-scorecard-row .ar-mcp-snippet__code { width: auto; max-width: 100%; overflow-x: auto; }
+.ar-scorecard-row .ar-mcp-snippet__copy { position: static; flex: 0 0 auto; }
+.ar-scorecard-row > a { white-space: nowrap; }
 
 /* ---------------------------------------------------------------------------
    Agent access — who authenticated to, and ACTED on, the machine surface.

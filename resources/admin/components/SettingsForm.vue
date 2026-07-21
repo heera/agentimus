@@ -2011,17 +2011,15 @@ export default {
               Paste this anywhere HTML works — a footer, an About page, a README. It always
               shows the current score and links to your scorecard page.
             </p>
-            <div class="ar-mcp-snippet">
-              <pre class="ar-about-snippet ar-mcp-snippet__code"><code>{{ badgeSnippet }}</code></pre>
-              <button type="button" class="button button-small ar-mcp-snippet__copy" @click="copyBadgeSnippet">
-                {{ badgeCopied ? 'Copied' : 'Copy' }}
-              </button>
+            <div class="ar-scorecard-row">
+              <div class="ar-mcp-snippet">
+                <pre class="ar-about-snippet ar-mcp-snippet__code"><code>{{ badgeSnippet }}</code></pre>
+                <button type="button" class="button button-small ar-mcp-snippet__copy" @click="copyBadgeSnippet">
+                  {{ badgeCopied ? 'Copied' : 'Copy' }}
+                </button>
+              </div>
+              <a :href="scorecard.url" target="_blank" rel="noopener">Open your public scorecard ↗</a>
             </div>
-          </div>
-
-          <div class="ar-mcp-step">
-            <p class="ar-mcp-step__head">See it live</p>
-            <p><a :href="scorecard.url" target="_blank" rel="noopener">Open your public scorecard ↗</a></p>
             <p v-if="scorecard && scorecard.og === false" class="ar-field__hint">
               The share-preview image needs the server's GD graphics library and a font file,
               and this server has neither — so a shared link will unfurl as plain text. The
