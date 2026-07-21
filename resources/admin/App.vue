@@ -1562,6 +1562,7 @@ export default {
           :webmcp-tools="webmcpTools"
           :mcp-server="mcpServer"
           :scorecard="scorecard"
+          :aeo-score="aeo ? aeo.score : null"
           :debug="debug"
           :endpoints="endpoints"
           :rest-namespaces-detected="restNamespacesDetected"

@@ -31,7 +31,8 @@ export default {
     verifierBuiltins: { type: Array, default: () => [] }, // Built-in verified-bot registry entries.
     webmcpTools: { type: Array, default: () => [] },
     mcpServer: { type: Object, default: () => ({}) }, // {endpoint, abilitiesAvailable, adapterAvailable} for the MCP-server card.
-    scorecard: { type: Object, default: () => ({}) }, // {url, badge, og} for the share-your-score card.
+    scorecard: { type: Object, default: () => ({}) }, // {url, badge, card, og, accent} for the share-your-score card.
+    aeoScore: { type: Number, default: null }, // The live score, for the prefilled share text (never used in tier mode).
     debug: { type: Object, default: () => ({}) },
     endpoints: { type: Object, default: () => ({}) },
     restNamespacesDetected: { type: Array, default: () => [] },
@@ -222,6 +223,33 @@ export default {
       const url = (this.scorecard && this.scorecard.url) || '';
       const badge = (this.scorecard && this.scorecard.badge) || '';
       return `<a href="${url}"><img src="${badge}" alt="AI readiness" height="28"></a>`;
+    },
+    cardSrc() {
+      const base = (this.scorecard && this.scorecard.card) || '';
+      if (!base) return '';
+      // Same admin-only live-preview overrides as the badge.
+      return `${base}?d=${this.settings.scorecard_display}&s=${this.settings.scorecard_style}`;
+    },
+    // The prefilled post. Tier mode never names the number — that's the whole
+    // point of tier mode — and below the bar it stays an honest question.
+    shareText() {
+      if (this.settings.scorecard_display === 'tier') {
+        return this.aeoScore !== null && this.aeoScore >= 90
+          ? 'My site is AI-Ready — here’s its live scorecard.'
+          : 'How ready is my site for AI assistants? Here’s its live scorecard.';
+      }
+      return this.aeoScore !== null
+        ? `My site scores ${this.aeoScore}/100 for AI readiness.`
+        : 'Here’s my site’s live AI-readiness scorecard.';
+    },
+    shareLinks() {
+      const url = encodeURIComponent((this.scorecard && this.scorecard.url) || '');
+      const text = encodeURIComponent(this.shareText);
+      return {
+        x: `https://twitter.com/intent/tweet?text=${text}&url=${url}`,
+        linkedin: `https://www.linkedin.com/sharing/share-offsite/?url=${url}`,
+        facebook: `https://www.facebook.com/sharer/sharer.php?u=${url}`,
+      };
     },
     /**
      * Each cap carries what it actually costs on disk. Measured on a real table: ~124 bytes of
@@ -2066,6 +2094,28 @@ export default {
               </div>
               <a :href="scorecard.url" target="_blank" rel="noopener">Open your public scorecard ↗</a>
             </div>
+          </div>
+
+          <div class="ar-mcp-step">
+            <p class="ar-mcp-step__head">Share the result</p>
+            <p v-if="scorecard.og !== false && cardSrc" class="ar-scorecard-card">
+              <img :src="cardSrc" alt="The social card your shared link unfurls into" />
+            </p>
+            <div class="ar-scorecard-share">
+              <a
+                v-if="scorecard.og !== false && scorecard.card"
+                class="button"
+                :href="scorecard.card"
+                download="ai-readiness.png"
+              >Download PNG</a>
+              <a class="button" :href="shareLinks.x" target="_blank" rel="noopener">Post on X</a>
+              <a class="button" :href="shareLinks.linkedin" target="_blank" rel="noopener">Share on LinkedIn</a>
+              <a class="button" :href="shareLinks.facebook" target="_blank" rel="noopener">Share on Facebook</a>
+            </div>
+            <p class="ar-field__hint">
+              Each button opens the network's own compose window with your scorecard link —
+              nothing is ever posted for you. The card above is what the link unfurls into.
+            </p>
             <p v-if="scorecard && scorecard.og === false" class="ar-field__hint">
               The share-preview image needs the server's GD graphics library and a font file,
               and this server has neither — so a shared link will unfurl as plain text. The

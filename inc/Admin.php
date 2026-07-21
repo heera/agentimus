@@ -696,6 +696,7 @@ final class Admin {
 			'scorecard'   => array(
 				'url'    => esc_url_raw( home_url( Scorecard::path() . '/' ) ),
 				'badge'  => esc_url_raw( home_url( Scorecard::path() . '/badge.svg' ) ),
+				'card'   => esc_url_raw( home_url( Scorecard::path() . '/card.png' ) ),
 				'og'     => Scorecard::og_ready(),
 				// The resolved automatic accent, so the colour pickers' default
 				// swatch shows the colour the badge is actually wearing.
