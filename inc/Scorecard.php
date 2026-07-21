@@ -463,7 +463,9 @@ final class Scorecard {
 			$hero = '<div class="gauge" role="img" aria-label="' . esc_attr( $og_title ) . '">'
 				. '<svg viewBox="0 0 116 116"><circle class="track" cx="58" cy="58" r="52"/>'
 				. '<circle class="fill" cx="58" cy="58" r="52" stroke-dasharray="' . esc_attr( (string) round( $circ, 2 ) ) . '" stroke-dashoffset="' . esc_attr( (string) round( $offset, 2 ) ) . '"/></svg>'
-				. '<span class="n">' . esc_html( (string) $score ) . '<small>/100</small></span></div>'
+				// One inner span = one grid item, so the number and its /100
+				// share a baseline instead of stacking as two centred rows.
+				. '<span class="n"><span>' . esc_html( (string) $score ) . '<small>/100</small></span></span></div>'
 				. '<p class="band">' . esc_html( $band ) . '</p>';
 		}
 
@@ -487,7 +489,7 @@ final class Scorecard {
 			. '.site{display:flex;align-items:center;justify-content:center;gap:10px;margin-bottom:26px}.site a{color:inherit;text-decoration:none;font-weight:600}.icon{border-radius:6px}'
 			. '.what{font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);margin-bottom:18px}'
 			. '.gauge{position:relative;width:150px;margin:0 auto}.gauge svg{width:100%;transform:rotate(-90deg)}.gauge circle{fill:none;stroke-width:9}.gauge .track{stroke:var(--line)}.gauge .fill{stroke:var(--accent);stroke-linecap:round}'
-			. '.gauge .n{position:absolute;inset:0;display:grid;place-items:center;font-size:40px;font-weight:700}.gauge .n small{font-size:15px;font-weight:400;color:var(--muted)}'
+			. '.gauge .n{position:absolute;inset:0;display:grid;place-items:center;font-size:40px;font-weight:700}.gauge .n small{font-size:15px;font-weight:400;color:var(--muted);margin-left:2px}'
 			. '.band{margin-top:10px;font-weight:600}'
 			. '.tier{font-size:30px;font-weight:700;margin:26px 0}.tier[data-earned="1"]{color:var(--accent)}.tier[data-earned="0"]{color:var(--muted);font-size:22px}'
 			. 'ol{list-style:none;padding:0;margin:30px 0 0;text-align:left}li{display:grid;grid-template-columns:88px 1fr auto;gap:10px;align-items:center;padding:7px 0;font-size:14px}'
