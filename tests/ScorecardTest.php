@@ -127,6 +127,12 @@ final class ScorecardTest extends TestCase {
 		$this->assertSame( '#d09a2f', $clean['scorecard_warn_color'] );
 		$clean = $settings->sanitize( array( 'scorecard_warn_color' => 'amberish' ) );
 		$this->assertSame( '', $clean['scorecard_warn_color'] );
+		// The border ships green (a dark badge must not merge into a dark site):
+		// absent falls back to that default; an explicit bad value means "none".
+		$clean = $settings->sanitize( array() );
+		$this->assertSame( '#2f7a4c', $clean['scorecard_badge_border'] );
+		$clean = $settings->sanitize( array( 'scorecard_badge_border' => 'greenish' ) );
+		$this->assertSame( '', $clean['scorecard_badge_border'] );
 	}
 
 	public function test_circle_badge_sweeps_the_score_and_keeps_tier_honest() {

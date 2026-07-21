@@ -193,9 +193,10 @@ final class Settings {
 			// clamped 14–112; the badge is SVG, so any size stays crisp).
 			'scorecard_badge_size'   => 'custom',
 			'scorecard_badge_height' => 25,
-			// Optional border around the badge ('' = the light style's hairline
-			// only) — a dark badge on a dark site otherwise merges into it.
-			'scorecard_badge_border' => '',
+			// Border around the badge — ships in the house green so a dark badge
+			// never merges into a dark site ('' = no border beyond the light
+			// style's hairline).
+			'scorecard_badge_border' => '#2f7a4c',
 			// Optional surface background ('' = each style's own): the badge's
 			// label side, the share card's canvas and the public page's canvas.
 			'scorecard_bg_color'     => '',

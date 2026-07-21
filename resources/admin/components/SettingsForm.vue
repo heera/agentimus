@@ -43,11 +43,14 @@ export default {
     servicesDirty: { type: Boolean, default: false },
     servicesSaving: { type: Boolean, default: false },
     servicesSaved: { type: Boolean, default: false },
+    scorecardDirty: { type: Boolean, default: false },
+    scorecardSaving: { type: Boolean, default: false },
+    scorecardSaved: { type: Boolean, default: false },
     resetting: { type: Boolean, default: false },
     defaults: { type: Object, default: () => ({}) },
     llmsFullEstimate: { type: Object, default: () => ({}) },
   },
-  emits: ['save-profile', 'save-services', 'reset', 'reopen-wizard', 'clients-changed', 'flash'],
+  emits: ['save-profile', 'save-services', 'save-scorecard', 'reset', 'reopen-wizard', 'clients-changed', 'flash'],
   data() {
     return {
       // Which settings group the sub-nav is showing. One group is visible at a
@@ -73,10 +76,15 @@ export default {
       mcpCopied: false,
       badgeCopied: false,
       // The scorecard previews render from the SAVED address (null = boot's),
-      // re-pointed by the busy watcher when a save lands; the nonce forces the
-      // img/iframe re-fetch at that same moment.
+      // re-pointed when the Share tab's OWN save lands (scorecardSaving watcher);
+      // the nonce forces the img/iframe re-fetch at that same moment.
       savedScorecardPath: null,
       scorecardPreviewNonce: 0,
+      // The previews' DEBOUNCED query string. The draft feeds them through
+      // admin-only overrides, but a colour drag emits dozens of input events a
+      // second and card.png is a full server render — one reload per pause is
+      // indistinguishable to the eye and cuts the request storm to nothing.
+      previewQuery: '',
       // Turning the public page OFF breaks every link already shared to it —
       // that deserves a confirm before the setting moves.
       pageOffConfirmOpen: false,
@@ -149,16 +157,43 @@ export default {
     },
     // A finished save is the moment the MCP switch actually takes effect — refresh
     // the saved-state snapshot and re-probe, so the status line follows reality.
-    // Same moment for the scorecard's address: the server only answers on the
-    // SAVED path, so the previews re-point and force-reload only now — never
-    // per keystroke, which would just paint 404s.
+    // A toggle save can also change what the scorecard endpoints serve (the
+    // publish switch above all), so the previews force-reload — but the ADDRESS
+    // only moves on the Share tab's own save, below.
     busy(now, was) {
       if (was && !now) {
         this.mcpSavedEnabled = !!(this.settings && this.settings.enable_mcp_server);
         if (this.mcpSavedEnabled) this.probeMcpStatus();
+        this.scorecardPreviewNonce++;
+      }
+    },
+    // The previews re-point only when the Share tab's save LANDS — the server
+    // only answers on the SAVED address, so re-pointing per keystroke (or on a
+    // failed save) would just paint 404s. scorecardSaved is only true on
+    // success, and it's already set by the time the saving flag drops.
+    scorecardSaving(now, was) {
+      if (was && !now && this.scorecardSaved) {
         this.savedScorecardPath = this.cleanScorecardPath(this.settings.scorecard_path);
         this.scorecardPreviewNonce++;
       }
+    },
+    // A factory reset replaces the address too — follow it, or the previews
+    // keep pointing at the old one.
+    resetting(now, was) {
+      if (was && !now) {
+        this.savedScorecardPath = this.cleanScorecardPath(this.settings.scorecard_path);
+        this.scorecardPreviewNonce++;
+      }
+    },
+    // Debounce the draft → preview pipe (see previewQuery in data). The first
+    // value paints immediately; edits after that wait for a quarter-second lull.
+    previewParamsLive: {
+      immediate: true,
+      handler(v) {
+        if (!this.previewQuery) { this.previewQuery = v; return; }
+        clearTimeout(this._previewTimer);
+        this._previewTimer = setTimeout(() => { this.previewQuery = v; }, 250);
+      },
     },
     // A different key invalidates any test verdict on screen.
     mcpPassword() {
@@ -269,6 +304,15 @@ export default {
     // The public URLs, anchored to the SAVED address — the server answers
     // nowhere else, so following keystrokes would only paint 404s. The busy
     // watcher re-points this the moment a save lands.
+    // The five colour dials against the PLUGIN defaults (the server's
+    // authoritative list — the border ships green, the rest automatic).
+    scorecardColorKeys() {
+      return ['scorecard_badge_bg', 'scorecard_badge_fg', 'scorecard_warn_color', 'scorecard_badge_border', 'scorecard_bg_color'];
+    },
+    scorecardColorsAtDefault() {
+      const d = this.defaults || {};
+      return this.scorecardColorKeys.every((k) => (this.settings[k] || '') === (d[k] || ''));
+    },
     scorecardBase() {
       const home = ((this.scorecard && this.scorecard.home) || '').replace(/\/+$/, '');
       if (!home) return '';
@@ -287,7 +331,7 @@ export default {
     // For the signed-in owner the server honors these as live preview
     // overrides, so every preview tracks unsaved choices; for everyone else
     // they're inert and the surfaces render from the SAVED settings.
-    previewParams() {
+    previewParamsLive() {
       const bg = (this.settings.scorecard_badge_bg || '').replace('#', '');
       const fg = (this.settings.scorecard_badge_fg || '').replace('#', '');
       const wc = (this.settings.scorecard_warn_color || '').replace('#', '');
@@ -317,13 +361,13 @@ export default {
       };
     },
     badgeSrc() {
-      return this.scorecardBase ? `${this.scorecardBase}/badge.svg?${this.previewParams}` : '';
+      return this.scorecardBase ? `${this.scorecardBase}/badge.svg?${this.previewQuery}` : '';
     },
     cardSrc() {
-      return this.scorecardBase ? `${this.scorecardBase}/card.png?${this.previewParams}` : '';
+      return this.scorecardBase ? `${this.scorecardBase}/card.png?${this.previewQuery}` : '';
     },
     pageSrc() {
-      return this.scorecardUrl ? `${this.scorecardUrl}?${this.previewParams}` : '';
+      return this.scorecardUrl ? `${this.scorecardUrl}?${this.previewQuery}` : '';
     },
     badgeSnippet() {
       if (!this.scorecardBase) return '';
@@ -1021,6 +1065,12 @@ export default {
       };
       if (intents[this.shareNetwork]) window.open(intents[this.shareNetwork], '_blank', 'noopener');
       this.shareDialogOpen = false;
+    },
+    // Put every colour dial back to the shipped defaults — the values shown in
+    // the pickers included, not just the stored keys. Save then applies it.
+    resetScorecardColors() {
+      const d = this.defaults || {};
+      this.scorecardColorKeys.forEach((k) => { this.settings[k] = d[k] || ''; });
     },
     // Client-side twin of Settings::sanitize()'s path rule, so the previews
     // predict the exact address the server just stored.
@@ -2258,7 +2308,7 @@ export default {
               <label class="ar-badge-color">
                 <input
                   type="color"
-                  :value="settings.scorecard_badge_border || '#d8d2c2'"
+                  :value="settings.scorecard_badge_border || '#2f7a4c'"
                   @input="settings.scorecard_badge_border = $event.target.value"
                 />
                 <span>Border color</span>
@@ -2274,8 +2324,8 @@ export default {
               <button
                 type="button"
                 class="button button-small"
-                :disabled="!settings.scorecard_badge_bg && !settings.scorecard_badge_fg && !settings.scorecard_warn_color && !settings.scorecard_badge_border && !settings.scorecard_bg_color"
-                @click="settings.scorecard_badge_bg = ''; settings.scorecard_badge_fg = ''; settings.scorecard_warn_color = ''; settings.scorecard_badge_border = ''; settings.scorecard_bg_color = ''"
+                :disabled="scorecardColorsAtDefault"
+                @click="resetScorecardColors"
               >Reset to Default</button>
             </div>
           </div>
@@ -2287,6 +2337,14 @@ export default {
             readable text picked automatically. Empty swatches mean the built-in scheme.
             While the badge reads “in progress”, it stays neutral either way.
           </p>
+          <div class="ar-scorecard-foot">
+            <span v-if="scorecardSaving" class="ar-id-foot__status">Saving…</span>
+            <span v-else-if="scorecardDirty" class="ar-id-foot__status is-dirty">Unsaved changes</span>
+            <span v-else-if="scorecardSaved" class="ar-id-foot__status is-saved">Saved ✓</span>
+            <button type="button" class="ar-btn" :disabled="scorecardSaving || !scorecardDirty" @click="$emit('save-scorecard')">
+              {{ scorecardSaving ? 'Saving…' : 'Save settings' }}
+            </button>
+          </div>
         </div>
 
       </section>

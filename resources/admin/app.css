@@ -1809,6 +1809,9 @@ select.ar-input {
 .ar-id-foot__status { font-family: var(--ar-mono); font-size: 11px; color: var(--ar-ink-faint); margin-right: auto; }
 .ar-id-foot__status.is-dirty { color: var(--ar-accent); }
 .ar-id-foot__status.is-saved { color: #2f9e5e; }
+/* The Share tab's Save row — the identity footer's anatomy, sized to .ar-card's
+   26px gutters so the rule reaches the card's edges. */
+.ar-scorecard-foot { display: flex; align-items: center; gap: 14px; border-top: 1px solid var(--ar-line); margin: 18px -26px 0; padding: 14px 26px 0; }
 
 .ar-type {
   position: relative;

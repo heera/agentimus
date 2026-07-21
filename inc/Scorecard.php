@@ -135,7 +135,7 @@ final class Scorecard {
 			'fg'    => (string) $this->settings->get( 'scorecard_badge_fg', '' ),
 			'name'  => (bool) $this->settings->get( 'scorecard_show_name', true ),
 			'warn'  => (string) $this->settings->get( 'scorecard_warn_color', '' ),
-			'border' => (string) $this->settings->get( 'scorecard_badge_border', '' ),
+			'border' => (string) $this->settings->get( 'scorecard_badge_border', '#2f7a4c' ),
 			'bgc'    => (string) $this->settings->get( 'scorecard_bg_color', '' ),
 		);
 
