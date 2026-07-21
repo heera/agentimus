@@ -650,7 +650,6 @@ final class Scorecard {
 		$c_ink   = $rgb( $light ? '#1b1913' : '#f3f0e7' );
 		$c_mut   = $rgb( '#8a8374' );
 		$c_acc   = $rgb( $accent );
-		$c_good  = $rgb( $light ? '#2f7a4c' : '#57b47f' );
 		$c_warn  = $rgb( $light ? '#ad7b18' : '#d09a2f' );
 		$c_bad   = $rgb( $light ? '#b93c2b' : '#d9604e' );
 
@@ -670,7 +669,7 @@ final class Scorecard {
 		// ── Header: the real brand tile, product, report label.
 		self::og_logo( $img, 80, 56, 60 );
 		self::og_bold( $img, 27, 162, 92, $c_ink, $font, 'Agentimus' );
-		imagettftext( $img, 14, 0, 162, 122, $c_mut, $font, strtoupper( __( 'AI-readiness report', 'agentimus' ) ) );
+		imagettftext( $img, 14, 0, 162, 122, $c_mut, $font, strtoupper( __( 'AI-readiness scorecard', 'agentimus' ) ) );
 
 		// ── The site: name + domain — or just the domain when the owner keeps
 		// the name private (a site name is often a person; the domain is
@@ -695,7 +694,10 @@ final class Scorecard {
 		$y = 372;
 		foreach ( $snap['rungs'] as $r ) {
 			$val  = isset( $r['score'] ) && null !== $r['score'] ? (int) $r['score'] : null;
-			$tone = null === $val ? $c_mut : ( $val >= 80 ? $c_good : ( $val >= 50 ? $c_warn : $c_bad ) );
+			// Healthy bars wear the configured accent — same rule as the public
+			// page — so the card is one palette; warn/bad keep their semantic
+			// tones (a warning must never dress in the celebration colour).
+			$tone = null === $val ? $c_mut : ( $val >= 80 ? $c_acc : ( $val >= 50 ? $c_warn : $c_bad ) );
 			imagettftext( $img, 17, 0, 80, $y + 6, $c_ink, $font, (string) $r['label'] );
 			self::og_rrect( $img, 270, $y - 6, 640, $y + 6, 6, $c_track );
 			$pct = null === $val ? 0 : ( $tier ? 100 : $val );
@@ -730,7 +732,7 @@ final class Scorecard {
 		// and dimmed on the same baseline. No domain pill — the domain already
 		// sits under the site name, and saying it twice is noise.
 		imageline( $img, 80, 548, 1120, 548, $c_track );
-		$question = __( 'Is your site agent-ready?', 'agentimus' );
+		$question = __( 'What does your site score?', 'agentimus' );
 		$qb       = imagettfbbox( 19, 0, $font, $question );
 		self::og_bold( $img, 19, 80, 597, $c_ink, $font, $question );
 		imagettftext( $img, 14, 0, 80 + ( $qb[2] - $qb[0] ) + 18, 597, $c_mut, $font, __( 'Measured by Agentimus — free on WordPress.org', 'agentimus' ) );
