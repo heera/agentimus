@@ -4026,8 +4026,19 @@ a.ar-about-proto__v:hover { text-decoration: underline; }
    Pointer-events off — it's a preview; the open-link above is the way in. */
 .ar-scorecard-duo { display: flex; gap: 16px; align-items: flex-start; flex-wrap: wrap; }
 .ar-scorecard-duo .ar-scorecard-card { margin: 0; flex: 0 1 760px; min-width: 0; }
-.ar-scorecard-pageprev { width: 280px; height: 399px; overflow: hidden; border: 1px solid #d8d2c2; border-radius: 6px; flex: none; }
+.ar-scorecard-pagewrap { flex: none; }
+.ar-scorecard-pageurl { display: none; }
+.ar-scorecard-pageprev { width: 280px; height: 399px; overflow: hidden; border: 1px solid #d8d2c2; border-radius: 6px; }
 .ar-scorecard-pageprev iframe { width: 622px; height: 887px; transform: scale(0.45); transform-origin: 0 0; border: 0; pointer-events: none; }
+/* Stacked under the image on small screens: the preview widens to the image's
+   own width (the iframe viewport is width/0.45, so the scale holds), and the
+   page's URL captions it on top. */
+@media (max-width: 782px) {
+	.ar-scorecard-pagewrap { width: 100%; max-width: 760px; }
+	.ar-scorecard-pageurl { display: block; font-size: 12px; margin: 0 0 6px; word-break: break-all; }
+	.ar-scorecard-pageprev { width: 100%; }
+	.ar-scorecard-pageprev iframe { width: 222.23%; }
+}
 
 /* Small screens, at core's own 782px breakpoint (where wp-admin enlarges every
    .button for touch): the share rows stack — label above a full-width control —

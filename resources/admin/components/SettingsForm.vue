@@ -72,6 +72,11 @@ export default {
       oauthCheck: null,
       mcpCopied: false,
       badgeCopied: false,
+      // The scorecard previews render from the SAVED address (null = boot's),
+      // re-pointed by the busy watcher when a save lands; the nonce forces the
+      // img/iframe re-fetch at that same moment.
+      savedScorecardPath: null,
+      scorecardPreviewNonce: 0,
       // The MCP connect helper. The pasted/minted application password lives ONLY
       // in this component's state — never saved, never sent anywhere except into
       // the config text the user copies. Navigating away forgets it.
@@ -118,10 +123,15 @@ export default {
     },
     // A finished save is the moment the MCP switch actually takes effect — refresh
     // the saved-state snapshot and re-probe, so the status line follows reality.
+    // Same moment for the scorecard's address: the server only answers on the
+    // SAVED path, so the previews re-point and force-reload only now — never
+    // per keystroke, which would just paint 404s.
     busy(now, was) {
       if (was && !now) {
         this.mcpSavedEnabled = !!(this.settings && this.settings.enable_mcp_server);
         if (this.mcpSavedEnabled) this.probeMcpStatus();
+        this.savedScorecardPath = this.cleanScorecardPath(this.settings.scorecard_path);
+        this.scorecardPreviewNonce++;
       }
     },
     // A different key invalidates any test verdict on screen.
@@ -209,14 +219,19 @@ export default {
         { value: 'pill', label: 'Pill — fully round ends' },
       ];
     },
-    // The public URLs, rebuilt LIVE from the editable address — the boot's
-    // stored URLs would lag while the owner types a new one. The previews
-    // 404 for the moment between typing and the autosave landing, because
-    // the server only answers on the SAVED path.
+    // The public URLs, anchored to the SAVED address — the server answers
+    // nowhere else, so following keystrokes would only paint 404s. The busy
+    // watcher re-points this the moment a save lands.
     scorecardBase() {
       const home = ((this.scorecard && this.scorecard.home) || '').replace(/\/+$/, '');
       if (!home) return '';
-      const slug = (this.settings.scorecard_path || 'ai-readiness').replace(/^\/+|\/+$/g, '');
+      let slug = this.savedScorecardPath;
+      if (slug === null) {
+        const bootUrl = ((this.scorecard && this.scorecard.url) || '').replace(/\/+$/, '');
+        slug = bootUrl.indexOf(`${home}/`) === 0
+          ? bootUrl.slice(home.length + 1)
+          : this.cleanScorecardPath(this.settings.scorecard_path);
+      }
       return `${home}/${slug}`;
     },
     scorecardUrl() {
@@ -229,7 +244,7 @@ export default {
       const bg = (this.settings.scorecard_badge_bg || '').replace('#', '');
       const fg = (this.settings.scorecard_badge_fg || '').replace('#', '');
       const nm = this.settings.scorecard_show_name === false ? 0 : 1;
-      return `d=${this.settings.scorecard_display}&s=${this.settings.scorecard_style}&sh=${this.settings.scorecard_badge_shape || 'rectangle'}&bg=${bg}&fg=${fg}&nm=${nm}`;
+      return `d=${this.settings.scorecard_display}&s=${this.settings.scorecard_style}&sh=${this.settings.scorecard_badge_shape || 'rectangle'}&bg=${bg}&fg=${fg}&nm=${nm}&v=${this.scorecardPreviewNonce}`;
     },
     badgeSrc() {
       return this.scorecardBase ? `${this.scorecardBase}/badge.svg?${this.previewParams}` : '';
@@ -895,6 +910,16 @@ export default {
       this.mcpKeyCopied = true;
       clearTimeout(this._mcpKeyCopyTimer);
       this._mcpKeyCopyTimer = setTimeout(() => { this.mcpKeyCopied = false; }, 2000);
+    },
+    // Client-side twin of Settings::sanitize()'s path rule, so the previews
+    // predict the exact address the server just stored.
+    cleanScorecardPath(v) {
+      const s = String(v || '')
+        .toLowerCase()
+        .replace(/[^a-z0-9/_-]/g, '')
+        .replace(/\/+/g, '/')
+        .replace(/^\/+|\/+$/g, '');
+      return s || 'ai-readiness';
     },
     async copyBadgeSnippet() {
       if (!(await this.copyPlainText(this.badgeSnippet))) return;
@@ -2142,10 +2167,14 @@ export default {
               <p v-if="scorecard.og !== false && cardSrc" class="ar-scorecard-card">
                 <img :src="cardSrc" alt="The social card your shared link unfurls into" />
               </p>
-              <!-- The live page beside the card — a half-scale window onto the
-                   real thing, previews included via the same override params. -->
-              <div class="ar-scorecard-pageprev" aria-hidden="true">
-                <iframe :src="pageSrc" tabindex="-1" title="Scorecard page preview"></iframe>
+              <!-- The live page beside the card — a scaled window onto the
+                   real thing, previews included via the same override params.
+                   On small screens the URL captions it. -->
+              <div class="ar-scorecard-pagewrap">
+                <a class="ar-scorecard-pageurl" :href="scorecardUrl" target="_blank" rel="noopener">{{ scorecardUrl }}</a>
+                <div class="ar-scorecard-pageprev" aria-hidden="true">
+                  <iframe :src="pageSrc" tabindex="-1" title="Scorecard page preview"></iframe>
+                </div>
               </div>
             </div>
             <div class="ar-scorecard-share">
