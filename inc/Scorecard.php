@@ -190,6 +190,17 @@ final class Scorecard {
 			}
 		}
 
+		// The badge's INTRINSIC size follows the size setting, so embeds
+		// without an explicit height render at the configured size — size is
+		// a property of the badge, like its colours, not of each paste.
+		$size_map  = 'circle' === $opts['shape']
+			? array( 'small' => 44, 'medium' => 64, 'large' => 88 )
+			: array( 'small' => 22, 'medium' => 28, 'large' => 36 );
+		$size_key  = (string) $this->settings->get( 'scorecard_badge_size', 'medium' );
+		$opts['h'] = 'custom' === $size_key
+			? max( 14, min( 112, (int) $this->settings->get( 'scorecard_badge_height', 28 ) ) )
+			: ( isset( $size_map[ $size_key ] ) ? $size_map[ $size_key ] : $size_map['medium'] );
+
 		$accent = $this->accent();
 		// The owner's custom background is the ONE colour scheme — every public
 		// surface follows it: badge value, card accent, and the page's ring and
@@ -310,7 +321,7 @@ final class Scorecard {
 	 * mode sweeps the accent by the score; tier mode is all-or-track (no sweep
 	 * angle to reverse-engineer, no number anywhere). Pure.
 	 */
-	private static function badge_circle_svg( array $snap, $display, $style, $accent, $bgc, $border, $fg = '' ) {
+	private static function badge_circle_svg( array $snap, $display, $style, $accent, $bgc, $border, $fg = '', $out = 64 ) {
 		$score  = isset( $snap['score'] ) ? (int) $snap['score'] : 0;
 		$light  = 'dark' !== $style;
 		$track  = $light ? '#e7e1d2' : '#3a352b';
@@ -331,7 +342,8 @@ final class Scorecard {
 		}
 
 		$parts   = array();
-		$parts[] = '<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64" role="img" aria-label="' . esc_attr( $title ) . '">';
+		$out     = max( 14, min( 112, (int) $out ) );
+		$parts[] = '<svg xmlns="http://www.w3.org/2000/svg" width="' . $out . '" height="' . $out . '" viewBox="0 0 64 64" role="img" aria-label="' . esc_attr( $title ) . '">';
 		$parts[] = '<title>' . esc_html( $title ) . '</title>';
 		if ( '' !== $bgc ) {
 			$parts[] = '<circle cx="32" cy="32" r="31" fill="' . esc_attr( $bgc ) . '"/>';
@@ -426,8 +438,10 @@ final class Scorecard {
 		// The circle is its own animal — a ring gauge, no label lane. Its
 		// centre stays TRANSPARENT unless a background is chosen, so it adopts
 		// whatever the host site puts behind it: the most adaptable shape.
+		$out_h = isset( $opts['h'] ) ? max( 14, min( 112, (int) $opts['h'] ) ) : 0;
+
 		if ( 'circle' === $shape ) {
-			return self::badge_circle_svg( $snap, $display, $style, $accent, $bgc, $border, $fg );
+			return self::badge_circle_svg( $snap, $display, $style, $accent, $bgc, $border, $fg, $out_h ? $out_h : 64 );
 		}
 
 		$rx = 'pill' === $shape ? 14 : ( 'rounded' === $shape ? 9 : 4 );
@@ -494,7 +508,10 @@ final class Scorecard {
 			. '<path d="M9.5 13H14.5" stroke="#ad7b18" stroke-width="1.9" stroke-linecap="round"/>'
 			. '</g>';
 
-		return '<svg xmlns="http://www.w3.org/2000/svg" width="' . $total . '" height="28" role="img" aria-label="' . esc_attr( $title ) . '">'
+		$out_h = $out_h ? $out_h : 28;
+		$out_w = (int) round( $total * $out_h / 28 );
+
+		return '<svg xmlns="http://www.w3.org/2000/svg" width="' . $out_w . '" height="' . $out_h . '" viewBox="0 0 ' . $total . ' 28" role="img" aria-label="' . esc_attr( $title ) . '">'
 			. '<title>' . esc_html( $title ) . '</title>'
 			. '<clipPath id="r"><rect width="' . $total . '" height="28" rx="' . $rx . '"/></clipPath>'
 			. '<g clip-path="url(#r)">'
