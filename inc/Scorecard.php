@@ -187,7 +187,11 @@ final class Scorecard {
 
 	/**
 	 * Pick a usable accent from a theme palette: the first colour with real
-	 * saturation in the readable mid-range (white text must sit on it). Pure.
+	 * saturation in the readable mid-range (white text must sit on it) whose
+	 * hue isn't an alarm. Red and warning-amber hues are skipped no matter how
+	 * on-brand they are — in badge grammar red means FAILING, and a score
+	 * wearing it reads as "something is wrong" (shields.io red, error toasts).
+	 * A theme whose only saturated tones are alarms gets the house teal. Pure.
 	 *
 	 * @param array<int,string> $colors Hex strings ('#abc' or '#aabbcc').
 	 * @return string Normalised '#rrggbb', or '' when nothing qualifies.
@@ -201,10 +205,42 @@ final class Scorecard {
 			$max = max( $rgb ) / 255;
 			$min = min( $rgb ) / 255;
 			$sat = $max - $min;
-			$lum = ( $max + $min ) / 2;
-			if ( $sat >= 0.25 && $lum >= 0.15 && $lum <= 0.62 ) {
-				return sprintf( '#%02x%02x%02x', $rgb[0], $rgb[1], $rgb[2] );
+			if ( $sat < 0.25 ) {
+				continue;
 			}
+			// Readability gate: WCAG relative luminance, not HSL lightness —
+			// HSL calls a vivid green "medium" while the eye reads it as
+			// bright, and white badge text drowns on it. ≤ 0.1833 guarantees
+			// white text ≥ 4.5:1; ≥ 0.02 keeps near-blacks out.
+			$lin = array();
+			foreach ( $rgb as $ch ) {
+				$c     = $ch / 255;
+				$lin[] = $c <= 0.04045 ? $c / 12.92 : pow( ( $c + 0.055 ) / 1.055, 2.4 );
+			}
+			$rel = 0.2126 * $lin[0] + 0.7152 * $lin[1] + 0.0722 * $lin[2];
+			if ( $rel < 0.02 || $rel > 0.1833 ) {
+				continue;
+			}
+			// Hue (0–360): reject the alarm zone — reds through warning ambers
+			// (< 70°) and the wrap back into red (> 335°).
+			$r = $rgb[0] / 255;
+			$g = $rgb[1] / 255;
+			$b = $rgb[2] / 255;
+			if ( $max === $r ) {
+				$hue = fmod( ( $g - $b ) / $sat, 6.0 );
+			} elseif ( $max === $g ) {
+				$hue = ( $b - $r ) / $sat + 2.0;
+			} else {
+				$hue = ( $r - $g ) / $sat + 4.0;
+			}
+			$hue = $hue * 60.0;
+			if ( $hue < 0 ) {
+				$hue += 360.0;
+			}
+			if ( $hue < 70.0 || $hue > 335.0 ) {
+				continue;
+			}
+			return sprintf( '#%02x%02x%02x', $rgb[0], $rgb[1], $rgb[2] );
 		}
 		return '';
 	}
