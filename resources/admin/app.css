@@ -4061,6 +4061,12 @@ a.ar-about-proto__v:hover { text-decoration: underline; }
    as the second panel of the pair, not a hole in the layout. */
 .ar-scorecard-pageoff { display: grid; place-items: center; height: 100%; margin: 0; padding: 0 28px; text-align: center; background: #191712; color: #8a8374; font-size: 13px; line-height: 1.6; }
 
+/* The share preview dialog: card thumbnail, the editable link, plain actions. */
+.ar-share-modal { max-width: 480px; }
+.ar-share-modal__body { display: grid; gap: 14px; padding: 4px 0 8px; }
+.ar-share-modal__card { margin: 0; }
+.ar-share-modal__card img { display: block; width: 100%; border: 1px solid #d8d2c2; border-radius: 6px; }
+
 /* The share buttons fill the image's width, one row, equal widths — compact
    type so all four fit; the icons carry the "share" meaning, so the network
    buttons need only their names. Phones may wrap two-up. */
