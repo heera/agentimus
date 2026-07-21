@@ -170,13 +170,13 @@ final class Settings {
 			// palette's accent; 'light'/'dark' pin it. See Scorecard.
 			'share_scorecard'   => false,
 			'scorecard_display' => 'score',
-			'scorecard_style'   => 'auto',
+			'scorecard_style'   => 'dark',
 			// The badge's value segment, owner-tunable: corner shape, and custom
 			// background/text colours ('' = automatic — the theme-derived accent on
 			// white). Custom colours are the owner's brand call, so they skip the
 			// accent picker's contrast gate; the "in progress" state stays neutral
 			// grey regardless (the not-earned state must stay visually distinct).
-			'scorecard_badge_shape' => 'rectangle',
+			'scorecard_badge_shape' => 'rounded',
 			'scorecard_badge_bg'    => '',
 			'scorecard_badge_fg'    => '',
 			// Whether the card + page print the site's NAME (off = the domain,
@@ -208,7 +208,7 @@ final class Settings {
 			// Owner-configurable so a site that already uses /ai-readiness for
 			// real content can move the scorecard instead of losing it to the
 			// stand-down rule (owner content always wins a collision).
-			'scorecard_path'        => 'ai-readiness',
+			'scorecard_path'        => 'agentimus-ai-readiness',
 		);
 
 		/**

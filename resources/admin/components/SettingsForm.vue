@@ -1030,7 +1030,7 @@ export default {
         .replace(/[^a-z0-9/_-]/g, '')
         .replace(/\/+/g, '/')
         .replace(/^\/+|\/+$/g, '');
-      return s || 'ai-readiness';
+      return s || 'agentimus-ai-readiness';
     },
     async copyBadgeSnippet() {
       if (!(await this.copyPlainText(this.badgeSnippet))) return;
@@ -2175,7 +2175,7 @@ export default {
             />
           </div>
           <p id="ar-hint-scorecard-path" class="ar-field__hint">
-            The page lives at <code>/{{ (settings.scorecard_path || 'ai-readiness').replace(/^\/+|\/+$/g, '') }}</code>,
+            The page lives at <code>/{{ (settings.scorecard_path || 'agentimus-ai-readiness').replace(/^\/+|\/+$/g, '') }}</code>,
             with the badge and preview card underneath it. Letters, numbers, dashes; pick an
             address none of your real pages use — your own content always wins a collision.
           </p>
@@ -2306,7 +2306,7 @@ export default {
           <span class="ar-toggle__track" aria-hidden="true"></span>
           <span class="ar-toggle__text">
             <strong>Link the badge to your public page</strong>
-            <small>The embed code wraps the badge in a link to your public scorecard page if the public page is turned on (<code>/{{ (settings.scorecard_path || 'ai-readiness').replace(/^\/+|\/+$/g, '') }}</code>).</small>
+            <small>The embed code wraps the badge in a link to your public scorecard page if the public page is turned on (<code>/{{ (settings.scorecard_path || 'agentimus-ai-readiness').replace(/^\/+|\/+$/g, '') }}</code>).</small>
           </span>
         </label>
         <div class="ar-mcp-snippet ar-scorecard-badgebox">

@@ -32,7 +32,7 @@ namespace Agentimus;
 final class Scorecard {
 
 	/** Default public path; filterable via `agentimus_scorecard_path`. */
-	const PATH = '/ai-readiness';
+	const PATH = '/agentimus-ai-readiness';
 
 	/**
 	 * The score at which the 'tier' display earns its "AI-Ready" mark. A
@@ -82,7 +82,7 @@ final class Scorecard {
 	 * @return string
 	 */
 	public function path() {
-		$slug = trim( (string) $this->settings->get( 'scorecard_path', 'ai-readiness' ), '/' );
+		$slug = trim( (string) $this->settings->get( 'scorecard_path', 'agentimus-ai-readiness' ), '/' );
 		$path = '' === $slug ? self::PATH : '/' . $slug;
 
 		/**

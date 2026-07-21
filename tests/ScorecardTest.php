@@ -121,7 +121,7 @@ final class ScorecardTest extends TestCase {
 		$this->assertSame( '', $clean['scorecard_badge_fg'] );
 
 		$clean = $settings->sanitize( array( 'scorecard_badge_shape' => 'blob' ) );
-		$this->assertSame( 'rectangle', $clean['scorecard_badge_shape'] );
+		$this->assertSame( 'rounded', $clean['scorecard_badge_shape'] );
 
 		$clean = $settings->sanitize( array( 'scorecard_warn_color' => '#D09A2F' ) );
 		$this->assertSame( '#d09a2f', $clean['scorecard_warn_color'] );
@@ -223,7 +223,7 @@ final class ScorecardTest extends TestCase {
 
 		$clean = $settings->sanitize( array( 'scorecard_display' => 'braggy', 'scorecard_style' => 'neon' ) );
 		$this->assertSame( 'score', $clean['scorecard_display'] );
-		$this->assertSame( 'auto', $clean['scorecard_style'] );
+		$this->assertSame( 'dark', $clean['scorecard_style'] );
 	}
 
 	public function test_share_scorecard_defaults_off() {
@@ -236,7 +236,7 @@ final class ScorecardTest extends TestCase {
 		$this->assertSame( '/my-score', ( new Scorecard( new Settings() ) )->path() );
 
 		_af_reset_options();
-		$this->assertSame( '/ai-readiness', ( new Scorecard( new Settings() ) )->path() );
+		$this->assertSame( '/agentimus-ai-readiness', ( new Scorecard( new Settings() ) )->path() );
 	}
 
 	public function test_path_sanitises_to_url_safe_or_falls_back() {
@@ -250,6 +250,6 @@ final class ScorecardTest extends TestCase {
 
 		// A public URL must never be empty: garbage collapses to the default.
 		$clean = $settings->sanitize( array( 'scorecard_path' => '///' ) );
-		$this->assertSame( 'ai-readiness', $clean['scorecard_path'] );
+		$this->assertSame( 'agentimus-ai-readiness', $clean['scorecard_path'] );
 	}
 }
