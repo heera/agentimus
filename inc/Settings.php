@@ -35,6 +35,7 @@ final class Settings {
 	// dropdowns and sanitize() snap to the same lists and can never disagree.
 	const SCORECARD_DISPLAYS = array( 'score', 'tier' );
 	const SCORECARD_STYLES   = array( 'auto', 'light', 'dark' );
+	const SCORECARD_SHAPES   = array( 'rectangle', 'rounded', 'pill' );
 
 	/**
 	 * Default settings. Identity defaults stay deliberately empty so the admin
@@ -169,6 +170,14 @@ final class Settings {
 			'share_scorecard'   => false,
 			'scorecard_display' => 'score',
 			'scorecard_style'   => 'auto',
+			// The badge's value segment, owner-tunable: corner shape, and custom
+			// background/text colours ('' = automatic — the theme-derived accent on
+			// white). Custom colours are the owner's brand call, so they skip the
+			// accent picker's contrast gate; the "in progress" state stays neutral
+			// grey regardless (the not-earned state must stay visually distinct).
+			'scorecard_badge_shape' => 'rectangle',
+			'scorecard_badge_bg'    => '',
+			'scorecard_badge_fg'    => '',
 		);
 
 		/**
@@ -712,6 +721,15 @@ final class Settings {
 
 		$style                    = isset( $input['scorecard_style'] ) ? (string) $input['scorecard_style'] : $defaults['scorecard_style'];
 		$clean['scorecard_style'] = in_array( $style, self::SCORECARD_STYLES, true ) ? $style : $defaults['scorecard_style'];
+
+		$shape                          = isset( $input['scorecard_badge_shape'] ) ? (string) $input['scorecard_badge_shape'] : $defaults['scorecard_badge_shape'];
+		$clean['scorecard_badge_shape'] = in_array( $shape, self::SCORECARD_SHAPES, true ) ? $shape : $defaults['scorecard_badge_shape'];
+
+		// Badge colours: a full hex or nothing — anything else means "automatic".
+		foreach ( array( 'scorecard_badge_bg', 'scorecard_badge_fg' ) as $colour_key ) {
+			$val                  = isset( $input[ $colour_key ] ) ? strtolower( trim( (string) $input[ $colour_key ] ) ) : (string) $defaults[ $colour_key ];
+			$clean[ $colour_key ] = preg_match( '/^#[0-9a-f]{6}$/', $val ) ? $val : '';
+		}
 
 		$kb                        = isset( $input['llms_full_max_kb'] ) ? (int) $input['llms_full_max_kb'] : $defaults['llms_full_max_kb'];
 		$clean['llms_full_max_kb'] = max( 64, min( 20480, $kb ) );

@@ -83,6 +83,44 @@ final class ScorecardTest extends TestCase {
 		$this->assertStringNotContainsString( '#146b64', $svg );
 	}
 
+	public function test_badge_shape_option_rounds_the_corners() {
+		$rect = Scorecard::badge_svg( $this->snap(), 'score', 'light', '#146b64' );
+		$this->assertStringContainsString( 'rx="4"', $rect );
+
+		$pill = Scorecard::badge_svg( $this->snap(), 'score', 'light', '#146b64', array( 'shape' => 'pill' ) );
+		$this->assertStringContainsString( 'rx="14"', $pill );
+		$this->assertStringNotContainsString( 'rx="4"', $pill );
+	}
+
+	public function test_badge_custom_colours_apply_except_while_in_progress() {
+		$svg = Scorecard::badge_svg( $this->snap( 93 ), 'score', 'light', '#146b64', array( 'bg' => '#123456', 'fg' => '#fedcba' ) );
+		$this->assertStringContainsString( '#123456', $svg );
+		$this->assertStringContainsString( '#fedcba', $svg );
+		$this->assertStringNotContainsString( '#146b64', $svg );
+
+		// The not-earned state must stay visually distinct — never the owner's
+		// celebration colour.
+		$prog = Scorecard::badge_svg( $this->snap( 87 ), 'tier', 'light', '#146b64', array( 'bg' => '#123456' ) );
+		$this->assertStringContainsString( '#6b6558', $prog );
+		$this->assertStringNotContainsString( '#123456', $prog );
+	}
+
+	public function test_badge_appearance_settings_sanitize() {
+		$settings = new Settings();
+
+		$clean = $settings->sanitize( array(
+			'scorecard_badge_shape' => 'pill',
+			'scorecard_badge_bg'    => '#ABCDEF',
+			'scorecard_badge_fg'    => 'red',
+		) );
+		$this->assertSame( 'pill', $clean['scorecard_badge_shape'] );
+		$this->assertSame( '#abcdef', $clean['scorecard_badge_bg'] );
+		$this->assertSame( '', $clean['scorecard_badge_fg'] );
+
+		$clean = $settings->sanitize( array( 'scorecard_badge_shape' => 'blob' ) );
+		$this->assertSame( 'rectangle', $clean['scorecard_badge_shape'] );
+	}
+
 	public function test_badge_rejects_a_malformed_accent() {
 		$svg = Scorecard::badge_svg( $this->snap(), 'score', 'light', 'javascript:alert(1)' );
 		$this->assertStringNotContainsString( 'javascript:', $svg );

@@ -201,12 +201,22 @@ export default {
         { value: 'dark', label: 'Dark' },
       ];
     },
+    badgeShapeOptions() {
+      return [
+        { value: 'rectangle', label: 'Rectangle — square corners' },
+        { value: 'rounded', label: 'Rounded corners' },
+        { value: 'pill', label: 'Pill — fully round ends' },
+      ];
+    },
     badgeSrc() {
       const base = (this.scorecard && this.scorecard.badge) || '';
       if (!base) return '';
-      // The query string only busts the browser cache when a choice changes —
-      // the server always renders from the SAVED settings.
-      return `${base}?d=${this.settings.scorecard_display}&s=${this.settings.scorecard_style}`;
+      // For the signed-in owner the server honors these as live preview
+      // overrides, so the preview tracks unsaved choices; for everyone else
+      // they're inert and the badge renders from the SAVED settings.
+      const bg = (this.settings.scorecard_badge_bg || '').replace('#', '');
+      const fg = (this.settings.scorecard_badge_fg || '').replace('#', '');
+      return `${base}?d=${this.settings.scorecard_display}&s=${this.settings.scorecard_style}&sh=${this.settings.scorecard_badge_shape || 'rectangle'}&bg=${bg}&fg=${fg}`;
     },
     badgeSnippet() {
       const url = (this.scorecard && this.scorecard.url) || '';
@@ -1996,10 +2006,46 @@ export default {
               aria-label="How the scorecard looks"
             />
           </div>
+          <div class="ar-field ar-field--inline ar-field--share">
+            <label id="ar-lbl-scorecard-shape">Badge shape</label>
+            <SelectMenu
+              v-model="settings.scorecard_badge_shape"
+              :options="badgeShapeOptions"
+              aria-label="Badge shape"
+            />
+          </div>
+          <div class="ar-field ar-field--inline ar-field--share">
+            <label id="ar-lbl-scorecard-colors">Badge colors</label>
+            <div class="ar-badge-colors">
+              <label class="ar-badge-color">
+                <input
+                  type="color"
+                  :value="settings.scorecard_badge_bg || scorecard.accent || '#146b64'"
+                  @input="settings.scorecard_badge_bg = $event.target.value"
+                />
+                <span>Background</span>
+              </label>
+              <label class="ar-badge-color">
+                <input
+                  type="color"
+                  :value="settings.scorecard_badge_fg || '#ffffff'"
+                  @input="settings.scorecard_badge_fg = $event.target.value"
+                />
+                <span>Text</span>
+              </label>
+              <button
+                v-if="settings.scorecard_badge_bg || settings.scorecard_badge_fg"
+                type="button"
+                class="button button-small"
+                @click="settings.scorecard_badge_bg = ''; settings.scorecard_badge_fg = ''"
+              >Back to automatic</button>
+            </div>
+          </div>
           <p class="ar-field__hint">
-            The colors come from your theme's own palette — skipping any tone that reads as
-            an alarm (reds, warning ambers) — with the house teal as the fallback. The badge
-            keeps one recognisable shape everywhere; only its colors adapt.
+            Colors apply to the badge's value segment. Automatic means your theme's own
+            palette — skipping any tone that reads as an alarm (reds, warning ambers) —
+            with the house teal as the fallback. Custom colors are yours to keep readable;
+            and while the badge reads “in progress”, it stays neutral either way.
           </p>
         </div>
 

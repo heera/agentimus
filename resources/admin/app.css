@@ -3993,6 +3993,15 @@ a.ar-about-proto__v:hover { text-decoration: underline; }
 /* Two classes on purpose: the .ar-field:first-child margin reset would zero a
    single-class top margin, leaving the first row glued to the divider above it. */
 .ar-field--inline.ar-field--share { margin-top: 22px; }
+/* The badge colour pickers: two labelled swatches and, once either is custom, the
+   way back to automatic. */
+.ar-badge-colors { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
+.ar-badge-color { display: inline-flex; align-items: center; gap: 7px; font-size: 12px; color: var(--ar-ink-soft); }
+.ar-badge-color input[type="color"] {
+  width: 34px; height: 26px; padding: 1px;
+  border: 1px solid #d8d2c2; border-radius: var(--ar-radius);
+  background: var(--ar-surface); cursor: pointer;
+}
 
 /* The share card's snippet row: the code box hugs its one line of HTML with the Copy
    button and the open-link riding beside it — a full-width slab for a short snippet

@@ -112,22 +112,40 @@ final class Scorecard {
 
 		$display = (string) $this->settings->get( 'scorecard_display', 'score' );
 		$style   = (string) $this->settings->get( 'scorecard_style', 'auto' );
+		$opts    = array(
+			'shape' => (string) $this->settings->get( 'scorecard_badge_shape', 'rectangle' ),
+			'bg'    => (string) $this->settings->get( 'scorecard_badge_bg', '' ),
+			'fg'    => (string) $this->settings->get( 'scorecard_badge_fg', '' ),
+		);
 
-		// Admin-only preview overrides (?d=&s=): the settings screen re-fetches
-		// the badge the instant a choice changes — before the autosave lands —
-		// so rendering from SAVED values would always show one change behind.
-		// Strictly signed-in-owner: honoring these publicly would let anyone
-		// un-hide a tier-mode site's number with ?d=score.
+		// Admin-only preview overrides (?d=&s=&sh=&bg=&fg=): the settings screen
+		// re-fetches the badge the instant a choice changes — before the autosave
+		// lands — so rendering from SAVED values would always show one change
+		// behind. Strictly signed-in-owner: honoring these publicly would let
+		// anyone un-hide a tier-mode site's number with ?d=score.
 		if ( current_user_can( 'manage_options' ) ) {
-			// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only preview parameters, no state change.
-			$d = isset( $_GET['d'] ) ? sanitize_key( wp_unslash( $_GET['d'] ) ) : '';
-			// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only preview parameters, no state change.
-			$s = isset( $_GET['s'] ) ? sanitize_key( wp_unslash( $_GET['s'] ) ) : '';
+			// phpcs:disable WordPress.Security.NonceVerification.Recommended -- read-only preview parameters, no state change.
+			$d  = isset( $_GET['d'] ) ? sanitize_key( wp_unslash( $_GET['d'] ) ) : '';
+			$s  = isset( $_GET['s'] ) ? sanitize_key( wp_unslash( $_GET['s'] ) ) : '';
+			$sh = isset( $_GET['sh'] ) ? sanitize_key( wp_unslash( $_GET['sh'] ) ) : '';
+			// Colours travel as bare 6-hex (no #) to dodge URL-encoding noise.
+			$bg = isset( $_GET['bg'] ) ? sanitize_key( wp_unslash( $_GET['bg'] ) ) : '';
+			$fg = isset( $_GET['fg'] ) ? sanitize_key( wp_unslash( $_GET['fg'] ) ) : '';
+			// phpcs:enable WordPress.Security.NonceVerification.Recommended
 			if ( in_array( $d, Settings::SCORECARD_DISPLAYS, true ) ) {
 				$display = $d;
 			}
 			if ( in_array( $s, Settings::SCORECARD_STYLES, true ) ) {
 				$style = $s;
+			}
+			if ( in_array( $sh, Settings::SCORECARD_SHAPES, true ) ) {
+				$opts['shape'] = $sh;
+			}
+			if ( preg_match( '/^[0-9a-f]{6}$/', $bg ) ) {
+				$opts['bg'] = '#' . $bg;
+			}
+			if ( preg_match( '/^[0-9a-f]{6}$/', $fg ) ) {
+				$opts['fg'] = '#' . $fg;
 			}
 		}
 
@@ -139,7 +157,7 @@ final class Scorecard {
 		// hour reads as broken. Five minutes still absorbs any hotlink storm —
 		// the bodies are transient-backed and cheap.
 		if ( $base . '/badge.svg' === $path ) {
-			$this->send( self::badge_svg( $this->snapshot(), $display, $style, $accent ), 'image/svg+xml', 300 );
+			$this->send( self::badge_svg( $this->snapshot(), $display, $style, $accent, $opts ), 'image/svg+xml', 300 );
 		}
 
 		if ( $base . '/card.png' === $path ) {
@@ -265,6 +283,15 @@ final class Scorecard {
 	}
 
 	/**
+	 * The accent currently in effect, for the admin preview swatches — so the
+	 * colour pickers' "automatic" state shows the real resolved colour, not a
+	 * hardcoded guess.
+	 */
+	public function current_accent() {
+		return $this->accent();
+	}
+
+	/**
 	 * The accent the public surfaces wear: filter → theme palette (block
 	 * themes publish theirs in theme.json) → the house teal.
 	 */
@@ -319,23 +346,35 @@ final class Scorecard {
 	 * @param string $style   'auto' | 'light' | 'dark' — 'auto' renders light:
 	 *                        an <img> can't reliably follow the page's theme.
 	 * @param string $accent  '#rrggbb'.
+	 * @param array  $opts    Optional owner tuning: 'shape' rectangle|rounded|pill,
+	 *                        'bg'/'fg' custom value-segment colours ('' = automatic).
+	 *                        Custom colours are the owner's explicit brand call, so
+	 *                        they bypass the accent picker's gates — but never the
+	 *                        neutral "in progress" state, which must stay visually
+	 *                        distinct from the earned mark.
 	 * @return string SVG document.
 	 */
-	public static function badge_svg( array $snap, $display, $style, $accent ) {
+	public static function badge_svg( array $snap, $display, $style, $accent, array $opts = array() ) {
 		$score  = isset( $snap['score'] ) ? (int) $snap['score'] : 0;
 		$accent = preg_match( '/^#[0-9a-fA-F]{6}$/', (string) $accent ) ? $accent : self::ACCENT;
+
+		$shape = isset( $opts['shape'] ) ? (string) $opts['shape'] : 'rectangle';
+		$rx    = 'pill' === $shape ? 14 : ( 'rounded' === $shape ? 9 : 4 );
+
+		$custom_bg = isset( $opts['bg'] ) && preg_match( '/^#[0-9a-fA-F]{6}$/', (string) $opts['bg'] ) ? strtolower( $opts['bg'] ) : '';
+		$value_fg  = isset( $opts['fg'] ) && preg_match( '/^#[0-9a-fA-F]{6}$/', (string) $opts['fg'] ) ? strtolower( $opts['fg'] ) : '#ffffff';
 
 		$label = __( 'AI READINESS', 'agentimus' );
 		if ( 'tier' === $display ) {
 			$earned   = self::tier_earned( $score );
 			$value    = $earned ? __( 'READY ✓', 'agentimus' ) : __( 'IN PROGRESS', 'agentimus' );
-			$value_bg = $earned ? $accent : '#6b6558';
+			$value_bg = $earned ? ( '' !== $custom_bg ? $custom_bg : $accent ) : '#6b6558';
 			$title    = $earned
 				? __( 'AI readiness: AI-Ready', 'agentimus' )
 				: __( 'AI readiness: in progress', 'agentimus' );
 		} else {
 			$value    = $score . '/100';
-			$value_bg = $accent;
+			$value_bg = '' !== $custom_bg ? $custom_bg : $accent;
 			/* translators: %d: the score out of 100. */
 			$title = sprintf( __( 'AI readiness: %d out of 100', 'agentimus' ), $score );
 		}
@@ -347,31 +386,37 @@ final class Scorecard {
 		} else {
 			$left_bg   = '#f3f0e7';
 			$left_text = '#1b1913';
-			$stroke    = '<rect x="0.5" y="0.5" width="%TOTAL_LESS%" height="27" rx="4" fill="none" stroke="#d8d2c2"/>';
+			$stroke    = '<rect x="0.5" y="0.5" width="%TOTAL_LESS%" height="27" rx="' . $rx . '" fill="none" stroke="#d8d2c2"/>';
 		}
 
 		// Verdana metrics at 11px are ~6.9px/char for caps+digits; textLength
 		// pins the rendered width so the estimate can't drift per platform.
+		// The pill's fully-round ends eat into the text lanes, so it carries
+		// wider end padding to keep the first and last glyphs off the curve.
+		$end_pad  = 'pill' === $shape ? 10 : 0;
 		$label_tw = (int) round( mb_strlen( $label ) * 6.9 );
 		$value_tw = (int) round( mb_strlen( $value ) * 6.9 );
-		$left_w   = 24 + $label_tw + 8;  // gem + label + padding.
-		$value_w  = $value_tw + 18;
+		$left_w   = 24 + $label_tw + 8 + $end_pad;  // gem + label + padding.
+		$value_w  = $value_tw + 18 + $end_pad;
 		$total    = $left_w + $value_w;
 
 		$stroke = str_replace( '%TOTAL_LESS%', (string) ( $total - 1 ), $stroke );
 
+		$gem_x  = 9 + $end_pad;
+		$text_x = 24 + $end_pad;
+
 		return '<svg xmlns="http://www.w3.org/2000/svg" width="' . $total . '" height="28" role="img" aria-label="' . esc_attr( $title ) . '">'
 			. '<title>' . esc_html( $title ) . '</title>'
-			. '<clipPath id="r"><rect width="' . $total . '" height="28" rx="4"/></clipPath>'
+			. '<clipPath id="r"><rect width="' . $total . '" height="28" rx="' . $rx . '"/></clipPath>'
 			. '<g clip-path="url(#r)">'
 			. '<rect width="' . $left_w . '" height="28" fill="' . esc_attr( $left_bg ) . '"/>'
 			. '<rect x="' . $left_w . '" width="' . $value_w . '" height="28" fill="' . esc_attr( $value_bg ) . '"/>'
 			. '</g>'
 			. $stroke
-			. '<rect x="9" y="10.5" width="7" height="7" rx="1" transform="rotate(45 12.5 14)" fill="#ad7b18"/>'
+			. '<rect x="' . $gem_x . '" y="10.5" width="7" height="7" rx="1" transform="rotate(45 ' . ( $gem_x + 3.5 ) . ' 14)" fill="#ad7b18"/>'
 			. '<g font-family="Verdana,Geneva,DejaVu Sans,sans-serif" font-size="11">'
-			. '<text x="24" y="18.5" fill="' . esc_attr( $left_text ) . '" textLength="' . $label_tw . '">' . esc_html( $label ) . '</text>'
-			. '<text x="' . ( $left_w + 9 ) . '" y="18.5" fill="#ffffff" font-weight="bold" textLength="' . $value_tw . '">' . esc_html( $value ) . '</text>'
+			. '<text x="' . $text_x . '" y="18.5" fill="' . esc_attr( $left_text ) . '" textLength="' . $label_tw . '">' . esc_html( $label ) . '</text>'
+			. '<text x="' . ( $left_w + 9 ) . '" y="18.5" fill="' . esc_attr( $value_fg ) . '" font-weight="bold" textLength="' . $value_tw . '">' . esc_html( $value ) . '</text>'
 			. '</g>'
 			. '</svg>';
 	}
