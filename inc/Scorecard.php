@@ -696,23 +696,25 @@ final class Scorecard {
 		// public by definition).
 		$host      = (string) wp_parse_url( home_url( '/' ), PHP_URL_HOST );
 		$show_name = ! isset( $opts['name'] ) || false !== $opts['name'];
-		// The name in ink, the domain as a quiet outlined chip beneath it —
+		// The name in ink with the domain as a quiet outlined chip beneath it —
 		// "site: example.com" (Gemini's suggestion, Heera's pick). With the
-		// name hidden, the chip alone carries the identity.
-		$chip_text = sprintf( /* translators: %s: the site's domain. */ __( 'site: %s', 'agentimus' ), $host );
-		$chip_y    = 254;
+		// name hidden the domain IS the identity, so it takes the name's own
+		// slot at full size and the chip (which would just repeat it) goes.
 		if ( $show_name ) {
 			$name = (string) get_bloginfo( 'name' );
 			$name = mb_strlen( $name ) > 26 ? mb_substr( $name, 0, 25 ) . '…' : $name;
 			self::og_bold( $img, 36, 80, 230, $c_ink, $font, $name );
+
+			$chip_text = sprintf( /* translators: %s: the site's domain. */ __( 'site: %s', 'agentimus' ), $host );
+			$chip_y    = 254;
+			$cb        = imagettfbbox( 15, 0, $font, $chip_text );
+			$cw        = ( $cb[2] - $cb[0] ) + 40;
+			self::og_rrect( $img, 80, $chip_y, 80 + $cw, $chip_y + 38, 19, $c_track );
+			self::og_rrect( $img, 82, $chip_y + 2, 78 + $cw, $chip_y + 36, 17, $c_bg );
+			imagettftext( $img, 15, 0, 100, $chip_y + 25, $c_mut, $font, $chip_text );
 		} else {
-			$chip_y = 216;
+			self::og_bold( $img, 36, 80, 262, $c_ink, $font, $host );
 		}
-		$cb = imagettfbbox( 15, 0, $font, $chip_text );
-		$cw = ( $cb[2] - $cb[0] ) + 40;
-		self::og_rrect( $img, 80, $chip_y, 80 + $cw, $chip_y + 38, 19, $c_track );
-		self::og_rrect( $img, 82, $chip_y + 2, 78 + $cw, $chip_y + 36, 17, $c_bg );
-		imagettftext( $img, 15, 0, 100, $chip_y + 25, $c_mut, $font, $chip_text );
 
 		$score  = (int) $snap['score'];
 		$earned = self::tier_earned( $score );
