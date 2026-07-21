@@ -1765,16 +1765,6 @@ export default {
             @mouseleave="hideUaTip"
           >Next: {{ aeoNext.title }}</p>
           <p v-else class="ar-rail-allgood">All rungs complete.</p>
-
-          <!-- The public face, once the owner opted in (Settings → Discovery →
-               Share your score). A link, not a button: it opens the real page. -->
-          <a
-            v-if="settings.share_scorecard && scorecard.url"
-            class="ar-rail-link"
-            :href="scorecard.url"
-            target="_blank"
-            rel="noopener"
-          >Your public scorecard ↗</a>
         </div>
 
         <div class="ar-rail-card">
@@ -1783,6 +1773,10 @@ export default {
             <li><a :href="endpoints.llms" target="_blank" rel="noopener">llms.txt</a></li>
             <li><a :href="endpoints.llmsFull" target="_blank" rel="noopener">llms-full.txt</a></li>
             <li><a :href="endpoints.robots" target="_blank" rel="noopener">robots.txt</a></li>
+            <!-- The public scorecard, once the owner opted in (Settings →
+                 Discovery → Share your score) — a live endpoint like its
+                 siblings, so it lists with them. -->
+            <li v-if="settings.share_scorecard && scorecard.url"><a :href="scorecard.url" target="_blank" rel="noopener">ai-readiness</a></li>
           </ul>
         </div>
 
