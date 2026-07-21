@@ -705,20 +705,29 @@ final class Scorecard {
 			$name = mb_strlen( $name ) > 26 ? mb_substr( $name, 0, 25 ) . '…' : $name;
 			self::og_bold( $img, 36, 80, 230, $c_ink, $font, $name );
 
-			// The favicon (when the site has one) rides just before the URL,
-			// at the chip's own height.
+			// The domain chip, with the favicon riding INSIDE its border —
+			// a circular crop, so any square icon sits naturally in the pill.
 			$chip_y = 254;
-			$chip_x = self::og_favicon( $img, 80, $chip_y, 38 ) ? 128 : 80;
-
-			$chip_text = sprintf( /* translators: %s: the site's domain. */ __( 'site: %s', 'agentimus' ), $host );
-			$cb        = imagettfbbox( 15, 0, $font, $chip_text );
-			$cw        = ( $cb[2] - $cb[0] ) + 40;
-			self::og_rrect( $img, $chip_x, $chip_y, $chip_x + $cw, $chip_y + 38, 19, $c_track );
-			self::og_rrect( $img, $chip_x + 2, $chip_y + 2, $chip_x - 2 + $cw, $chip_y + 36, 17, $c_bg );
-			imagettftext( $img, 15, 0, $chip_x + 20, $chip_y + 25, $c_mut, $font, $chip_text );
+			$fav    = self::og_favicon_img( 26 );
+			$pad_l  = null !== $fav ? 42 : 20;
+			$cb     = imagettfbbox( 15, 0, $font, $host );
+			$cw     = ( $cb[2] - $cb[0] ) + $pad_l + 18;
+			self::og_rrect( $img, 80, $chip_y, 80 + $cw, $chip_y + 38, 19, $c_track );
+			self::og_rrect( $img, 82, $chip_y + 2, 78 + $cw, $chip_y + 36, 17, $c_bg );
+			if ( null !== $fav ) {
+				imagecopy( $img, $fav, 88, $chip_y + 6, 0, 0, 26, 26 );
+				imagedestroy( $fav );
+			}
+			imagettftext( $img, 15, 0, 80 + $pad_l, $chip_y + 25, $c_mut, $font, $host );
 		} else {
 			// The domain is the primary identity — the favicon matches its size.
-			$hx = self::og_favicon( $img, 80, 224, 44 ) ? 138 : 80;
+			$fav = self::og_favicon_img( 44 );
+			$hx  = 80;
+			if ( null !== $fav ) {
+				imagecopy( $img, $fav, 80, 224, 0, 0, 44, 44 );
+				imagedestroy( $fav );
+				$hx = 138;
+			}
 			self::og_bold( $img, 36, $hx, 262, $c_ink, $font, $host );
 		}
 
@@ -851,37 +860,70 @@ final class Scorecard {
 	}
 
 	/**
-	 * Draw the site icon (favicon) onto the card, resampled to $size. Reads
-	 * the attachment file from DISK — never an HTTP fetch — and degrades to
-	 * false (draw nothing) for missing icons or formats GD can't decode
-	 * (SVG, ICO): the caller keeps its no-icon layout.
+	 * The site icon (favicon) as a CIRCLE with a hairline ring, on a
+	 * transparent canvas ready to imagecopy anywhere. Built at 4× and
+	 * downsampled so the circular edge is smooth. Reads the attachment file
+	 * from DISK — never an HTTP fetch — and returns null for missing icons or
+	 * formats GD can't decode (SVG, ICO): the caller keeps its no-icon layout.
 	 *
-	 * @param resource|\GdImage $img  Destination image.
-	 * @param int               $x    Left.
-	 * @param int               $y    Top.
-	 * @param int               $size Edge in destination pixels.
-	 * @return bool Whether an icon was drawn.
+	 * @param int $size Edge in destination pixels.
+	 * @return resource|\GdImage|null
 	 */
-	private static function og_favicon( $img, $x, $y, $size ) {
+	private static function og_favicon_img( $size ) {
 		$id = (int) get_option( 'site_icon' );
 		if ( $id <= 0 || ! function_exists( 'get_attached_file' ) ) {
-			return false;
+			return null;
 		}
 		$path = (string) get_attached_file( $id );
 		if ( '' === $path || ! is_readable( $path ) ) {
-			return false;
+			return null;
 		}
 		$data = file_get_contents( $path ); // phpcs:ignore WordPressVIPMinimum.Performance.FetchingRemoteData.FileGetContentsUnknown -- local attachment path, never a URL.
 		if ( false === $data ) {
-			return false;
+			return null;
 		}
 		$src = @imagecreatefromstring( $data ); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged -- undecodable icon formats must degrade silently.
 		if ( ! $src ) {
-			return false;
+			return null;
 		}
-		imagecopyresampled( $img, $src, $x, $y, 0, 0, $size, $size, imagesx( $src ), imagesy( $src ) );
+
+		$d = $size * 4;
+		$r = $d / 2;
+		$t = imagecreatetruecolor( $d, $d );
+		imagesavealpha( $t, true );
+		imagealphablending( $t, false );
+		$trans = imagecolorallocatealpha( $t, 0, 0, 0, 127 );
+		imagefill( $t, 0, 0, $trans );
+		imagealphablending( $t, true );
+		imagecopyresampled( $t, $src, 0, 0, 0, 0, $d, $d, imagesx( $src ), imagesy( $src ) );
 		imagedestroy( $src );
-		return true;
+
+		// Circular mask: everything outside the circle goes transparent.
+		imagealphablending( $t, false );
+		$rr = $r * $r;
+		for ( $yy = 0; $yy < $d; $yy++ ) {
+			for ( $xx = 0; $xx < $d; $xx++ ) {
+				$dx = $xx - $r + 0.5;
+				$dy = $yy - $r + 0.5;
+				if ( $dx * $dx + $dy * $dy > $rr ) {
+					imagesetpixel( $t, $xx, $yy, $trans );
+				}
+			}
+		}
+		imagealphablending( $t, true );
+
+		// The hairline ring that frames it.
+		imagesetthickness( $t, 6 );
+		imageellipse( $t, (int) $r, (int) $r, $d - 6, $d - 6, imagecolorallocate( $t, 138, 131, 116 ) );
+		imagesetthickness( $t, 1 );
+
+		$f = imagecreatetruecolor( $size, $size );
+		imagesavealpha( $f, true );
+		imagealphablending( $f, false );
+		imagefill( $f, 0, 0, imagecolorallocatealpha( $f, 0, 0, 0, 127 ) );
+		imagecopyresampled( $f, $t, 0, 0, 0, 0, $size, $size, $d, $d );
+		imagedestroy( $t );
+		return $f;
 	}
 
 	/** Filled rounded rectangle — GD ships none: a cross of rects + corner discs. */
