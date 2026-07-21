@@ -3985,8 +3985,12 @@ a.ar-about-proto__v:hover { text-decoration: underline; }
    button and the open-link riding beside it — a full-width slab for a short snippet
    read as a wall. Wraps politely on narrow screens. */
 .ar-scorecard-row { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; margin-top: 10px; }
-.ar-scorecard-row .ar-mcp-snippet { display: flex; align-items: center; gap: 10px; margin-top: 0; min-width: 0; }
-.ar-scorecard-row .ar-mcp-snippet__code { width: auto; max-width: 100%; overflow-x: auto; }
+/* Sizing rules, learned the hard way: grow to the snippet's own content at most
+   (max-content), shrink with the pre's inner scrollbar down to 260px — never
+   `max-width:100%` on the pre, which resolves circularly inside a content-sized
+   flex parent and collapsed the whole box to two characters. */
+.ar-scorecard-row .ar-mcp-snippet { display: flex; align-items: center; gap: 10px; margin-top: 0; flex: 1 1 auto; max-width: max-content; min-width: 260px; }
+.ar-scorecard-row .ar-mcp-snippet__code { flex: 1 1 auto; min-width: 0; overflow-x: auto; }
 .ar-scorecard-row .ar-mcp-snippet__copy { position: static; flex: 0 0 auto; }
 .ar-scorecard-row > a { white-space: nowrap; }
 
