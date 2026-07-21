@@ -2175,106 +2175,108 @@ export default {
           </p>
         </div>
 
-        <div v-show="settings.share_scorecard" class="ar-mcp-connect">
-          <div class="ar-mcp-step">
-            <p class="ar-mcp-step__head">Put the badge on your site</p>
-            <p class="ar-scorecard-preview"><img :src="badgeSrc" alt="AI readiness badge preview" height="28" /></p>
-            <p class="ar-field__hint">
-              Paste this anywhere HTML works — a footer, an About page, a README. It always
-              shows the current score and links to your scorecard page.
-            </p>
-            <label class="ar-toggle ar-toggle--nested ar-scorecard-nametoggle" :inert="!settings.scorecard_page_enabled">
-              <input v-model="settings.scorecard_badge_link" type="checkbox" />
-              <span class="ar-toggle__track" aria-hidden="true"></span>
-              <span class="ar-toggle__text">
-                <strong>Link the badge to your public page</strong>
-                <small>The embed code wraps the badge in a link to your public scorecard page if the public page is turned on (<code>/{{ (settings.scorecard_path || 'ai-readiness').replace(/^\/+|\/+$/g, '') }}</code>).</small>
-              </span>
-            </label>
-            <div class="ar-mcp-snippet ar-scorecard-badgebox">
-              <pre class="ar-about-snippet ar-mcp-snippet__code"><code>{{ badgeSnippet }}</code></pre>
-              <button type="button" class="button button-small ar-mcp-snippet__copy" @click="copyBadgeSnippet">
-                {{ badgeCopied ? 'Copied' : 'Copy' }}
-              </button>
-            </div>
-          </div>
+      </section>
 
-          <div class="ar-mcp-step">
-            <p class="ar-mcp-step__head">Share the result on the web</p>
-            <div class="ar-scorecard-duo">
-              <!-- Each surface gets its own name switch, sitting directly
-                   under the preview it changes. -->
-              <label class="ar-toggle ar-toggle--nested ar-scorecard-nametoggle ar-sd-ntog">
-                <input v-model="settings.scorecard_show_name" type="checkbox" />
-                <span class="ar-toggle__track" aria-hidden="true"></span>
-                <span class="ar-toggle__text">
-                  <strong>Show your site's name</strong>
-                  <small>Prints your site's name on the share card and the public page. Off puts your domain there instead — useful when the site is named after a person, or carries a brand you'd rather keep off shared images. The domain always shows either way; it's public by definition.</small>
-                </span>
-              </label>
-              <p class="ar-scorecard-collabel ar-sd-clabel">The share card</p>
-              <p class="ar-scorecard-collabel ar-sd-plabel">The public page</p>
-              <p v-if="scorecard.og !== false && cardSrc" class="ar-scorecard-card ar-sd-img">
-                <img :src="cardSrc" alt="The preview card people see when your link is shared" />
-              </p>
-              <!-- The live page, sharing the image's grid row so the two
-                   previews stand at EXACTLY the same height; the miniature
-                   fills the window's height (viewport = height/0.45). -->
-              <div v-if="settings.scorecard_page_enabled" ref="pagePrev" class="ar-scorecard-pageprev ar-sd-page" aria-hidden="true">
-                <iframe :src="pageSrc" :style="pagePrevStyle" tabindex="-1" title="Scorecard page preview"></iframe>
-              </div>
-              <label class="ar-toggle ar-toggle--nested ar-scorecard-nametoggle ar-sd-ptog">
-                <input v-model="settings.scorecard_page_enabled" type="checkbox" />
-                <span class="ar-toggle__track" aria-hidden="true"></span>
-                <span class="ar-toggle__text">
-                  <strong>Public page</strong>
-                  <small>Serve the scorecard page at your address. Off, the address returns a normal 404.</small>
-                </span>
-              </label>
-              <div class="ar-scorecard-share ar-sd-btns">
-              <a
-                v-if="scorecard.og !== false && cardSrc"
-                class="button button-primary ar-share-btn"
-                :href="cardSrc"
-                download="ai-readiness.png"
-              >
-                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12m0 0 5-5m-5 5-5-5" /><path d="M4 21h16" /></svg>
-                Download
-              </a>
-              <a v-if="settings.scorecard_page_enabled" class="button ar-share-btn" :href="shareLinks.x" target="_blank" rel="noopener">
-                <svg viewBox="0 0 24 24" width="13" height="13" fill="currentColor" aria-hidden="true"><path d="M18.9 2H22l-6.8 7.8L23.2 22h-6.3l-4.9-6.4L6.4 22H3.3l7.3-8.3L1.6 2h6.4l4.4 5.9L18.9 2Zm-1.1 18h1.7L7.1 3.9H5.3L17.8 20Z" /></svg>
-                Post on X
-              </a>
-              <a v-if="settings.scorecard_page_enabled" class="button ar-share-btn" :href="shareLinks.linkedin" target="_blank" rel="noopener">
-                <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor" aria-hidden="true"><path d="M4.98 3.5a2.5 2.5 0 1 1 0 5 2.5 2.5 0 0 1 0-5ZM3 9h4v12H3V9Zm7 0h3.8v1.7h.1c.5-1 1.8-2 3.7-2 4 0 4.7 2.6 4.7 6V21h-4v-5.5c0-1.3 0-3-1.9-3s-2.1 1.4-2.1 2.9V21h-4V9Z" /></svg>
-                LinkedIn
-              </a>
-              <a v-if="settings.scorecard_page_enabled" class="button ar-share-btn" :href="shareLinks.facebook" target="_blank" rel="noopener">
-                <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor" aria-hidden="true"><path d="M13.5 21v-8h2.7l.4-3.1h-3.1V7.9c0-.9.3-1.5 1.6-1.5h1.6V3.6c-.3 0-1.2-.1-2.3-.1-2.3 0-3.9 1.4-3.9 4v2.4H7.8V13h2.7v8h3Z" /></svg>
-                Facebook
-              </a>
-              </div>
-              <a v-if="settings.scorecard_page_enabled" class="button ar-share-btn ar-scorecard-openbtn ar-sd-open" :href="scorecardUrl" target="_blank" rel="noopener">
-                Open your public scorecard ↗
-              </a>
-              <p v-if="settings.scorecard_page_enabled" class="ar-field__hint ar-sd-pnote">
-                The page every share opens — always live, always your current score.
-              </p>
-              <p v-if="settings.scorecard_page_enabled" class="ar-field__hint ar-scorecard-note ar-sd-note">
-                Each button opens the network's own compose window with your scorecard link —
-                nothing is ever posted for you. The card above is the preview people see when your link is shared.
-              </p>
-              <p v-else class="ar-field__hint ar-scorecard-note ar-sd-note">
-                Download the card and post it anywhere. Turn the public page on to get
-                one-click share links and a live destination for the badge.
-              </p>
-              <p v-if="scorecard && scorecard.og === false" class="ar-field__hint ar-sd-note2">
-                The share-preview image needs the server's GD graphics library and a font file,
-                and this server has neither — so a shared link will show plain text only. The
-                page and the badge are unaffected.
-              </p>
-            </div>
+      <!-- Badge and web-share each get their own card, like every other
+           screen — three jobs, three cards. Hidden (not greyed) while the
+           feature is off: their previews would only 404. -->
+      <section v-show="settings.share_scorecard" id="ar-sec-scorecard-badge" class="ar-card">
+        <h2 class="ar-card__title">Put the badge on your site</h2>
+        <p class="ar-scorecard-preview"><img :src="badgeSrc" alt="AI readiness badge preview" height="28" /></p>
+        <p class="ar-field__hint">
+          Paste this anywhere HTML works — a footer, an About page, a README. It always
+          shows the current score and links to your scorecard page.
+        </p>
+        <label class="ar-toggle ar-toggle--nested ar-scorecard-nametoggle" :inert="!settings.scorecard_page_enabled">
+          <input v-model="settings.scorecard_badge_link" type="checkbox" />
+          <span class="ar-toggle__track" aria-hidden="true"></span>
+          <span class="ar-toggle__text">
+            <strong>Link the badge to your public page</strong>
+            <small>The embed code wraps the badge in a link to your public scorecard page if the public page is turned on (<code>/{{ (settings.scorecard_path || 'ai-readiness').replace(/^\/+|\/+$/g, '') }}</code>).</small>
+          </span>
+        </label>
+        <div class="ar-mcp-snippet ar-scorecard-badgebox">
+          <pre class="ar-about-snippet ar-mcp-snippet__code"><code>{{ badgeSnippet }}</code></pre>
+          <button type="button" class="button button-small ar-mcp-snippet__copy" @click="copyBadgeSnippet">
+            {{ badgeCopied ? 'Copied' : 'Copy' }}
+          </button>
+        </div>
+      </section>
+
+      <section v-show="settings.share_scorecard" id="ar-sec-scorecard-share" class="ar-card">
+        <h2 class="ar-card__title">Share the result on the web</h2>
+        <div class="ar-scorecard-duo">
+          <!-- Each surface gets its own name switch, sitting directly
+               under the preview it changes. -->
+          <label class="ar-toggle ar-toggle--nested ar-scorecard-nametoggle ar-sd-ntog">
+            <input v-model="settings.scorecard_show_name" type="checkbox" />
+            <span class="ar-toggle__track" aria-hidden="true"></span>
+            <span class="ar-toggle__text">
+              <strong>Show your site's name</strong>
+              <small>Prints your site's name on the share card and the public page. Off puts your domain there instead — useful when the site is named after a person, or carries a brand you'd rather keep off shared images. The domain always shows either way; it's public by definition.</small>
+            </span>
+          </label>
+          <p class="ar-scorecard-collabel ar-sd-clabel">The share card</p>
+          <p class="ar-scorecard-collabel ar-sd-plabel">The public page</p>
+          <p v-if="scorecard.og !== false && cardSrc" class="ar-scorecard-card ar-sd-img">
+            <img :src="cardSrc" alt="The preview card people see when your link is shared" />
+          </p>
+          <!-- The live page, sharing the image's grid row so the two
+               previews stand at EXACTLY the same height; the miniature
+               fills the window's height (viewport = height/0.45). -->
+          <div v-if="settings.scorecard_page_enabled" ref="pagePrev" class="ar-scorecard-pageprev ar-sd-page" aria-hidden="true">
+            <iframe :src="pageSrc" :style="pagePrevStyle" tabindex="-1" title="Scorecard page preview"></iframe>
           </div>
+          <label class="ar-toggle ar-toggle--nested ar-scorecard-nametoggle ar-sd-ptog">
+            <input v-model="settings.scorecard_page_enabled" type="checkbox" />
+            <span class="ar-toggle__track" aria-hidden="true"></span>
+            <span class="ar-toggle__text">
+              <strong>Public page</strong>
+              <small>Serve the scorecard page at your address. Off, the address returns a normal 404.</small>
+            </span>
+          </label>
+          <div class="ar-scorecard-share ar-sd-btns">
+          <a
+            v-if="scorecard.og !== false && cardSrc"
+            class="button button-primary ar-share-btn"
+            :href="cardSrc"
+            download="ai-readiness.png"
+          >
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12m0 0 5-5m-5 5-5-5" /><path d="M4 21h16" /></svg>
+            Download
+          </a>
+          <a v-if="settings.scorecard_page_enabled" class="button ar-share-btn" :href="shareLinks.x" target="_blank" rel="noopener">
+            <svg viewBox="0 0 24 24" width="13" height="13" fill="currentColor" aria-hidden="true"><path d="M18.9 2H22l-6.8 7.8L23.2 22h-6.3l-4.9-6.4L6.4 22H3.3l7.3-8.3L1.6 2h6.4l4.4 5.9L18.9 2Zm-1.1 18h1.7L7.1 3.9H5.3L17.8 20Z" /></svg>
+            Post on X
+          </a>
+          <a v-if="settings.scorecard_page_enabled" class="button ar-share-btn" :href="shareLinks.linkedin" target="_blank" rel="noopener">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor" aria-hidden="true"><path d="M4.98 3.5a2.5 2.5 0 1 1 0 5 2.5 2.5 0 0 1 0-5ZM3 9h4v12H3V9Zm7 0h3.8v1.7h.1c.5-1 1.8-2 3.7-2 4 0 4.7 2.6 4.7 6V21h-4v-5.5c0-1.3 0-3-1.9-3s-2.1 1.4-2.1 2.9V21h-4V9Z" /></svg>
+            LinkedIn
+          </a>
+          <a v-if="settings.scorecard_page_enabled" class="button ar-share-btn" :href="shareLinks.facebook" target="_blank" rel="noopener">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor" aria-hidden="true"><path d="M13.5 21v-8h2.7l.4-3.1h-3.1V7.9c0-.9.3-1.5 1.6-1.5h1.6V3.6c-.3 0-1.2-.1-2.3-.1-2.3 0-3.9 1.4-3.9 4v2.4H7.8V13h2.7v8h3Z" /></svg>
+            Facebook
+          </a>
+          </div>
+          <a v-if="settings.scorecard_page_enabled" class="button ar-share-btn ar-scorecard-openbtn ar-sd-open" :href="scorecardUrl" target="_blank" rel="noopener">
+            Open your public scorecard ↗
+          </a>
+          <p v-if="settings.scorecard_page_enabled" class="ar-field__hint ar-sd-pnote">
+            The page every share opens — always live, always your current score.
+          </p>
+          <p v-if="settings.scorecard_page_enabled" class="ar-field__hint ar-scorecard-note ar-sd-note">
+            Each button opens the network's own compose window with your scorecard link —
+            nothing is ever posted for you. The card above is the preview people see when your link is shared.
+          </p>
+          <p v-else class="ar-field__hint ar-scorecard-note ar-sd-note">
+            Download the card and post it anywhere. Turn the public page on to get
+            one-click share links and a live destination for the badge.
+          </p>
+          <p v-if="scorecard && scorecard.og === false" class="ar-field__hint ar-sd-note2">
+            The share-preview image needs the server's GD graphics library and a font file,
+            and this server has neither — so a shared link will show plain text only. The
+            page and the badge are unaffected.
+          </p>
         </div>
       </section>
     </div>
