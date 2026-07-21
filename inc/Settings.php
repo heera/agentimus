@@ -169,7 +169,7 @@ final class Settings {
 			// follows the reader's light/dark preference and borrows the theme
 			// palette's accent; 'light'/'dark' pin it. See Scorecard.
 			'share_scorecard'   => false,
-			'scorecard_display' => 'score',
+			'scorecard_display' => 'tier',
 			'scorecard_style'   => 'dark',
 			// The badge's value segment, owner-tunable: corner shape, and custom
 			// background/text colours ('' = automatic — the theme-derived accent on
@@ -191,8 +191,8 @@ final class Settings {
 			'scorecard_badge_link'   => true,
 			// Badge size: three presets, or 'custom' + the height below (px,
 			// clamped 14–112; the badge is SVG, so any size stays crisp).
-			'scorecard_badge_size'   => 'medium',
-			'scorecard_badge_height' => 28,
+			'scorecard_badge_size'   => 'custom',
+			'scorecard_badge_height' => 25,
 			// Optional border around the badge ('' = the light style's hairline
 			// only) — a dark badge on a dark site otherwise merges into it.
 			'scorecard_badge_border' => '',

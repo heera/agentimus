@@ -157,7 +157,7 @@ final class ScorecardTest extends TestCase {
 	public function test_badge_size_settings_sanitize() {
 		$settings = new Settings();
 		$clean    = $settings->sanitize( array( 'scorecard_badge_size' => 'huge', 'scorecard_badge_height' => 9000 ) );
-		$this->assertSame( 'medium', $clean['scorecard_badge_size'] );
+		$this->assertSame( 'custom', $clean['scorecard_badge_size'] );
 		$this->assertSame( 112, $clean['scorecard_badge_height'] );
 		$clean = $settings->sanitize( array( 'scorecard_badge_size' => 'large', 'scorecard_badge_height' => 3 ) );
 		$this->assertSame( 'large', $clean['scorecard_badge_size'] );
@@ -222,7 +222,7 @@ final class ScorecardTest extends TestCase {
 		$this->assertSame( 'dark', $clean['scorecard_style'] );
 
 		$clean = $settings->sanitize( array( 'scorecard_display' => 'braggy', 'scorecard_style' => 'neon' ) );
-		$this->assertSame( 'score', $clean['scorecard_display'] );
+		$this->assertSame( 'tier', $clean['scorecard_display'] );
 		$this->assertSame( 'dark', $clean['scorecard_style'] );
 	}
 
