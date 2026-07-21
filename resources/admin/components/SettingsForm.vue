@@ -2140,7 +2140,7 @@ export default {
               <label class="ar-badge-color">
                 <input
                   type="color"
-                  :value="settings.scorecard_badge_bg || scorecard.accent || '#146b64'"
+                  :value="settings.scorecard_badge_bg || scorecard.accent || '#0fac0c'"
                   @input="settings.scorecard_badge_bg = $event.target.value"
                 />
                 <span>Background color</span>
@@ -2163,11 +2163,9 @@ export default {
           </div>
           <p class="ar-field__hint">
             Colors apply everywhere the score shows: the badge's value segment, the share
-            card's accent, and the public page's ring and bars.
-            Automatic means your theme's own palette — skipping any tone that reads as
-            an alarm (reds, warning ambers) — with the house teal as the fallback. Custom
-            colors are yours to keep readable; and while the badge reads “in progress”,
-            it stays neutral either way.
+            card's accent, and the public page's ring and bars. Automatic is the Agentimus
+            green; pick your own to match your brand. Custom colors are yours to keep
+            readable; and while the badge reads “in progress”, it stays neutral either way.
           </p>
           <label class="ar-toggle ar-toggle--nested">
             <input v-model="settings.scorecard_show_name" type="checkbox" />

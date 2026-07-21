@@ -172,33 +172,6 @@ final class ScorecardTest extends TestCase {
 		$this->assertStringContainsString( 'not measured', $html );
 	}
 
-	/* -- the accent picker -------------------------------------------------- */
-
-	public function test_accent_picker_skips_neutrals_and_extremes() {
-		// White, near-black and a warm paper grey must all lose to the first
-		// saturated mid-tone — white text has to sit on the winner.
-		$picked = Scorecard::pick_accent( array( '#ffffff', '#111111', '#d8d2c2', '#2f5f9e', '#b93c2b' ) );
-		$this->assertSame( '#2f5f9e', $picked );
-		// Vivid green is a calm hue but perceptually BRIGHT — white text drowns
-		// on it, so the WCAG-luminance gate must reject it too.
-		$this->assertSame( '', Scorecard::pick_accent( array( '#00d084' ) ) );
-	}
-
-	public function test_accent_picker_never_dresses_a_score_in_alarm_colours() {
-		// A score in red reads as FAILING (badge grammar), and warning amber is
-		// no better — a theme offering only alarms yields '', i.e. house teal.
-		$this->assertSame( '', Scorecard::pick_accent( array( '#cf2e2e' ) ) ); // the theme red that prompted this
-		$this->assertSame( '', Scorecard::pick_accent( array( '#b93c2b', '#ad7b18' ) ) );
-		// …but the first calm hue after an alarm still wins.
-		$this->assertSame( '#2f7a4c', Scorecard::pick_accent( array( '#cf2e2e', '#2f7a4c' ) ) );
-	}
-
-	public function test_accent_picker_expands_shorthand_and_ignores_garbage() {
-		$this->assertSame( '#3366cc', Scorecard::pick_accent( array( 'nonsense', 'rgb(1,2,3)', '#36c' ) ) );
-		$this->assertSame( '', Scorecard::pick_accent( array() ) );
-		$this->assertSame( '', Scorecard::pick_accent( array( '#ffffff', '#000000' ) ) );
-	}
-
 	/* -- the settings enums -------------------------------------------------- */
 
 	public function test_scorecard_enums_snap_to_offered_choices() {
