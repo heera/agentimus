@@ -134,6 +134,7 @@ final class Scorecard {
 			'bg'    => (string) $this->settings->get( 'scorecard_badge_bg', '' ),
 			'fg'    => (string) $this->settings->get( 'scorecard_badge_fg', '' ),
 			'name'  => (bool) $this->settings->get( 'scorecard_show_name', true ),
+			'warn'  => (string) $this->settings->get( 'scorecard_warn_color', '' ),
 		);
 
 		// Admin-only preview overrides (?d=&s=&sh=&bg=&fg=): the settings screen
@@ -165,6 +166,10 @@ final class Scorecard {
 			}
 			if ( preg_match( '/^[0-9a-f]{6}$/', $fg ) ) {
 				$opts['fg'] = '#' . $fg;
+			}
+			$wc = isset( $_GET['wc'] ) ? sanitize_key( wp_unslash( $_GET['wc'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only preview parameter.
+			if ( preg_match( '/^[0-9a-f]{6}$/', $wc ) ) {
+				$opts['warn'] = '#' . $wc;
 			}
 			if ( '0' === $nm || '1' === $nm ) {
 				$opts['name'] = '1' === $nm;
@@ -214,6 +219,9 @@ final class Scorecard {
 			}
 			$ctx              = $this->page_context( $base );
 			$ctx['show_name'] = ! isset( $opts['name'] ) || false !== $opts['name'];
+			if ( isset( $opts['warn'] ) && preg_match( '/^#[0-9a-fA-F]{6}$/', (string) $opts['warn'] ) ) {
+				$ctx['warn'] = strtolower( (string) $opts['warn'] );
+			}
 			$this->send( self::page_html( $this->snapshot(), $ctx, $display, $style, $accent ), 'text/html', 60 );
 		}
 	}
@@ -504,7 +512,7 @@ final class Scorecard {
 			. '<meta property="og:type" content="website">'
 			. $meta_og
 			. '<style>'
-			. ':root{--accent:' . $accent . ';--paper:#f3f0e7;--ink:#1b1913;--muted:#6b6558;--line:#d8d2c2;--good:#2f7a4c;--warn:#ad7b18;--bad:#b93c2b;--na:#9a938a}'
+			. ':root{--accent:' . $accent . ';--paper:#f3f0e7;--ink:#1b1913;--muted:#6b6558;--line:#d8d2c2;--good:#2f7a4c;--warn:' . ( isset( $ctx['warn'] ) && preg_match( '/^#[0-9a-f]{6}$/', (string) $ctx['warn'] ) ? $ctx['warn'] : '#ad7b18' ) . ';--bad:#b93c2b;--na:#9a938a}'
 			. ( 'dark' === $style ? ':root{--paper:#191712;--ink:#f3f0e7;--muted:#9a938a;--line:#39352b}' : '' )
 			. ( 'auto' === $style ? '@media(prefers-color-scheme:dark){:root{--paper:#191712;--ink:#f3f0e7;--muted:#9a938a;--line:#39352b}}' : '' )
 			. '*{box-sizing:border-box;margin:0}body{background:var(--paper);color:var(--ink);font:16px/1.5 system-ui,-apple-system,"Segoe UI",sans-serif;display:grid;min-height:100vh;place-items:center;padding:24px}'
@@ -617,7 +625,10 @@ final class Scorecard {
 		$c_ink   = $rgb( $light ? '#1b1913' : '#f3f0e7' );
 		$c_mut   = $rgb( '#8a8374' );
 		$c_acc   = $rgb( $accent );
-		$c_warn  = $rgb( $light ? '#ad7b18' : '#d09a2f' );
+		$warn    = isset( $opts['warn'] ) && preg_match( '/^#[0-9a-fA-F]{6}$/', (string) $opts['warn'] )
+			? strtolower( (string) $opts['warn'] )
+			: ( $light ? '#ad7b18' : '#d09a2f' );
+		$c_warn  = $rgb( $warn );
 		$c_bad   = $rgb( $light ? '#b93c2b' : '#d9604e' );
 
 		imagefilledrectangle( $img, 0, 0, 1200, 630, $c_bg );

@@ -122,6 +122,11 @@ final class ScorecardTest extends TestCase {
 
 		$clean = $settings->sanitize( array( 'scorecard_badge_shape' => 'blob' ) );
 		$this->assertSame( 'rectangle', $clean['scorecard_badge_shape'] );
+
+		$clean = $settings->sanitize( array( 'scorecard_warn_color' => '#D09A2F' ) );
+		$this->assertSame( '#d09a2f', $clean['scorecard_warn_color'] );
+		$clean = $settings->sanitize( array( 'scorecard_warn_color' => 'amberish' ) );
+		$this->assertSame( '', $clean['scorecard_warn_color'] );
 	}
 
 	public function test_badge_rejects_a_malformed_accent() {

@@ -269,9 +269,10 @@ export default {
     previewParams() {
       const bg = (this.settings.scorecard_badge_bg || '').replace('#', '');
       const fg = (this.settings.scorecard_badge_fg || '').replace('#', '');
+      const wc = (this.settings.scorecard_warn_color || '').replace('#', '');
       const nm = this.settings.scorecard_show_name === false ? 0 : 1;
       const pe = this.settings.scorecard_page_enabled === false ? 0 : 1;
-      return `d=${this.settings.scorecard_display}&s=${this.settings.scorecard_style}&sh=${this.settings.scorecard_badge_shape || 'rectangle'}&bg=${bg}&fg=${fg}&nm=${nm}&pe=${pe}&v=${this.scorecardPreviewNonce}`;
+      return `d=${this.settings.scorecard_display}&s=${this.settings.scorecard_style}&sh=${this.settings.scorecard_badge_shape || 'rectangle'}&bg=${bg}&fg=${fg}&wc=${wc}&nm=${nm}&pe=${pe}&v=${this.scorecardPreviewNonce}`;
     },
     // The measured transform that fills the window EDGE TO EDGE: the height
     // fixes the scale (full 980px page always visible), and the iframe's
@@ -2185,7 +2186,7 @@ export default {
             />
           </div>
           <div class="ar-field ar-field--inline ar-field--share">
-            <label id="ar-lbl-scorecard-colors">Badge colors</label>
+            <label id="ar-lbl-scorecard-colors">Colors</label>
             <div class="ar-badge-colors">
               <label class="ar-badge-color">
                 <input
@@ -2193,7 +2194,7 @@ export default {
                   :value="settings.scorecard_badge_bg || scorecard.accent || '#2f7a4c'"
                   @input="settings.scorecard_badge_bg = $event.target.value"
                 />
-                <span>Background color</span>
+                <span>Accent color</span>
               </label>
               <label class="ar-badge-color">
                 <input
@@ -2201,21 +2202,30 @@ export default {
                   :value="settings.scorecard_badge_fg || '#ffffff'"
                   @input="settings.scorecard_badge_fg = $event.target.value"
                 />
-                <span>Text color</span>
+                <span>Badge text color</span>
+              </label>
+              <label class="ar-badge-color">
+                <input
+                  type="color"
+                  :value="settings.scorecard_warn_color || '#ad7b18'"
+                  @input="settings.scorecard_warn_color = $event.target.value"
+                />
+                <span>Needs-work color</span>
               </label>
               <button
                 type="button"
                 class="button button-small"
-                :disabled="!settings.scorecard_badge_bg && !settings.scorecard_badge_fg"
-                @click="settings.scorecard_badge_bg = ''; settings.scorecard_badge_fg = ''"
+                :disabled="!settings.scorecard_badge_bg && !settings.scorecard_badge_fg && !settings.scorecard_warn_color"
+                @click="settings.scorecard_badge_bg = ''; settings.scorecard_badge_fg = ''; settings.scorecard_warn_color = ''"
               >Default</button>
             </div>
           </div>
           <p class="ar-field__hint">
-            Colors apply everywhere the score shows: the badge's value segment, the share
-            card's accent, and the public page's ring and bars. Automatic is the Agentimus
-            green; pick your own to match your brand. Custom colors are yours to keep
-            readable; and while the badge reads “in progress”, it stays neutral either way.
+            The accent colors everything healthy — the badge's value, the ring and bars on
+            the share card and the public page; the needs-work color marks rungs below par.
+            Automatic is the Agentimus green with a warm amber; pick your own to match your
+            brand. Custom colors are yours to keep readable; and while the badge reads
+            “in progress”, it stays neutral either way.
           </p>
         </div>
 

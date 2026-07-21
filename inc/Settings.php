@@ -188,6 +188,11 @@ final class Settings {
 			// page. Only meaningful while the page is enabled — with the page
 			// off the embed is a plain image regardless.
 			'scorecard_badge_link'   => true,
+			// The needs-work colour — what below-par rungs wear on the card and
+			// the page ('' = the house amber). The accent/text pair above it
+			// lives in scorecard_badge_bg/fg (legacy names; they colour EVERY
+			// share surface, not just the badge).
+			'scorecard_warn_color'  => '',
 			// The public page's address (badge.svg and card.png live beneath it).
 			// Owner-configurable so a site that already uses /ai-readiness for
 			// real content can move the scorecard instead of losing it to the
@@ -741,7 +746,7 @@ final class Settings {
 		$clean['scorecard_badge_shape'] = in_array( $shape, self::SCORECARD_SHAPES, true ) ? $shape : $defaults['scorecard_badge_shape'];
 
 		// Badge colours: a full hex or nothing — anything else means "automatic".
-		foreach ( array( 'scorecard_badge_bg', 'scorecard_badge_fg' ) as $colour_key ) {
+		foreach ( array( 'scorecard_badge_bg', 'scorecard_badge_fg', 'scorecard_warn_color' ) as $colour_key ) {
 			$val                  = isset( $input[ $colour_key ] ) ? strtolower( trim( (string) $input[ $colour_key ] ) ) : (string) $defaults[ $colour_key ];
 			$clean[ $colour_key ] = preg_match( '/^#[0-9a-f]{6}$/', $val ) ? $val : '';
 		}
