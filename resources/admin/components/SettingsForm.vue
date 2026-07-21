@@ -2095,18 +2095,18 @@ export default {
           <div class="ar-mcp-step">
             <p class="ar-mcp-step__head">Your badge</p>
             <p class="ar-scorecard-preview"><img :src="badgeSrc" alt="AI readiness badge preview" height="28" /></p>
-            <p class="ar-field__hint">
-              Paste this anywhere HTML works — a footer, an About page, a README. It always
-              shows the current score and links to your scorecard page.
-            </p>
-            <div class="ar-scorecard-row">
-              <div class="ar-mcp-snippet">
-                <pre class="ar-about-snippet ar-mcp-snippet__code"><code>{{ badgeSnippet }}</code></pre>
-                <button type="button" class="button button-small ar-mcp-snippet__copy" @click="copyBadgeSnippet">
-                  {{ badgeCopied ? 'Copied' : 'Copy' }}
-                </button>
-              </div>
+            <p class="ar-field__hint ar-scorecard-hintrow">
+              <span>
+                Paste this anywhere HTML works — a footer, an About page, a README. It always
+                shows the current score and links to your scorecard page.
+              </span>
               <a :href="scorecard.url" target="_blank" rel="noopener">Open your public scorecard ↗</a>
+            </p>
+            <div class="ar-mcp-snippet">
+              <pre class="ar-about-snippet ar-mcp-snippet__code"><code>{{ badgeSnippet }}</code></pre>
+              <button type="button" class="button button-small ar-mcp-snippet__copy" @click="copyBadgeSnippet">
+                {{ badgeCopied ? 'Copied' : 'Copy' }}
+              </button>
             </div>
           </div>
 
@@ -2138,7 +2138,7 @@ export default {
                 Facebook
               </a>
             </div>
-            <p class="ar-field__hint">
+            <p class="ar-field__hint ar-scorecard-note">
               Each button opens the network's own compose window with your scorecard link —
               nothing is ever posted for you. The card above is what the link unfurls into.
             </p>

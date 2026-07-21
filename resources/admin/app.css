@@ -4006,18 +4006,16 @@ a.ar-about-proto__v:hover { text-decoration: underline; }
 /* The share card's snippet row: the code box hugs its one line of HTML with the Copy
    button and the open-link riding beside it — a full-width slab for a short snippet
    read as a wall. Wraps politely on narrow screens. */
-.ar-scorecard-row { display: flex; align-items: center; gap: 16px; margin-top: 10px; }
-/* One line, full width: the code box takes every pixel the link leaves over, scrolling
-   internally when the snippet outgrows it. min-width:0 (never a percentage max-width —
-   that resolves circularly in a content-sized flex parent) is what lets the pre shrink
-   with a scrollbar instead of forcing the row apart. Copy rides INSIDE the box, top
-   right, via the base .ar-mcp-snippet__copy overlay; the padding keeps long snippets
-   from running underneath it. */
-.ar-scorecard-row .ar-mcp-snippet { flex: 1 1 auto; min-width: 0; margin-top: 0; }
-.ar-scorecard-row .ar-mcp-snippet__code { min-width: 0; overflow-x: auto; padding-right: 84px; }
-.ar-scorecard-row > a { white-space: nowrap; flex: 0 0 auto; }
-/* Phones keep the no-sideways-panning promise: below 700px the link may wrap under. */
-@media (max-width: 700px) { .ar-scorecard-row { flex-wrap: wrap; } }
+/* The badge block: the hint line carries the open-link pinned to its right edge,
+   the code box runs full width beneath with Copy riding inside it (the base
+   .ar-mcp-snippet__copy overlay); the padding keeps long snippets from running
+   underneath the button. */
+.ar-scorecard-hintrow { display: flex; justify-content: space-between; align-items: baseline; gap: 16px; }
+.ar-scorecard-hintrow > a { white-space: nowrap; flex: 0 0 auto; }
+.ar-scorecard-hintrow + .ar-mcp-snippet .ar-mcp-snippet__code { overflow-x: auto; padding-right: 84px; }
+@media (max-width: 700px) { .ar-scorecard-hintrow { flex-wrap: wrap; } }
+/* The buttons' explainer holds the image's width, wrapping to two lines. */
+.ar-scorecard-note { max-width: 520px; }
 
 /* Share-the-result: the social card at readable size, share intents in a row.
    Each button wears its network's mark; Download is the primary act. */
