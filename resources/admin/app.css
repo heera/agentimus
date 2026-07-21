@@ -4013,7 +4013,6 @@ a.ar-about-proto__v:hover { text-decoration: underline; }
 .ar-scorecard-hintrow { display: flex; justify-content: space-between; align-items: baseline; gap: 16px; }
 .ar-scorecard-hintrow > a { white-space: nowrap; flex: 0 0 auto; }
 .ar-scorecard-hintrow + .ar-mcp-snippet .ar-mcp-snippet__code { overflow-x: auto; padding-right: 84px; }
-@media (max-width: 700px) { .ar-scorecard-hintrow { flex-wrap: wrap; } }
 /* The buttons' explainer holds the image's width, wrapping to two lines. */
 .ar-scorecard-note { max-width: 520px; }
 
@@ -4029,21 +4028,27 @@ a.ar-about-proto__v:hover { text-decoration: underline; }
 	   quiet text buttons. Copy rises ABOVE the code box, on the right; it sits
 	   on the cream card up here, so it wears admin link blue, not the ghost
 	   blue that needs the dark box behind it. */
-	.ar-mcp-snippet { display: flex; flex-direction: column; margin-top: 4px; }
+	/* The hint wraps; the open-link takes the last line, left — and the Copy
+	   text button is pulled UP onto that same line, right: one shared row
+	   above the code box. */
+	.ar-scorecard-hintrow { flex-wrap: wrap; margin-bottom: 0; }
+	.ar-scorecard-hintrow > a { flex: 1 1 100%; }
+	.ar-mcp-snippet { display: flex; flex-direction: column; margin-top: -26px; }
 	.ar-mcp-snippet__copy.button {
 		position: static; order: -1; align-self: flex-end;
-		margin: 0 0 4px; padding: 0; min-height: 0;
-		font-size: 13px; line-height: 1.5;
+		margin: 0 0 8px; padding: 0 !important; min-height: 0 !important;
+		font-size: 13px !important; line-height: 20px !important;
 		background: transparent; border: none; box-shadow: none;
 		color: #2271b1;
 	}
 	.ar-mcp-snippet__copy.button:hover,
 	.ar-mcp-snippet__copy.button:focus { background: transparent; color: #135e96; border: none; }
-	/* Default keeps its button chrome — just at desktop's small size instead
-	   of core's touch inflation. */
-	.ar-badge-colors .button {
-		padding: 0 10px; min-height: 26px; height: 26px;
-		line-height: 24px; font-size: 12px;
+	/* Default keeps its button chrome at DESKTOP's small size — core inflates
+	   every .button for touch below 782px with rules that outrank ours, hence
+	   the heavy hand. */
+	.ar-badge-colors .button.button-small {
+		padding: 0 10px !important; min-height: 26px !important; height: 26px !important;
+		line-height: 24px !important; font-size: 12px !important;
 	}
 }
 
