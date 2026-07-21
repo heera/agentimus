@@ -2142,7 +2142,7 @@ export default {
 
         <div :inert="!settings.share_scorecard" class="ar-webmcp-tools">
           <div class="ar-field ar-field--inline ar-field--share">
-            <label id="ar-lbl-scorecard-path">Address</label>
+            <label id="ar-lbl-scorecard-path">Public page address</label>
             <input
               v-model="settings.scorecard_path"
               type="text"
