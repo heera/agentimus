@@ -153,6 +153,15 @@ final class ScorecardTest extends TestCase {
 		$this->assertStringNotContainsString( '75%', $html );
 	}
 
+	public function test_page_can_hide_the_site_name_behind_the_domain() {
+		$ctx              = $this->ctx();
+		$ctx['host']      = 'example.test';
+		$ctx['show_name'] = false;
+		$html             = Scorecard::page_html( $this->snap(), $ctx, 'score', 'auto', '#146b64' );
+		$this->assertStringNotContainsString( 'Example &amp; Sons', $html );
+		$this->assertStringContainsString( 'example.test', $html );
+	}
+
 	public function test_page_score_mode_shows_score_and_rung_numbers() {
 		$html = Scorecard::page_html( $this->snap( 93 ), $this->ctx(), 'score', 'auto', '#146b64' );
 		$this->assertStringContainsString( '>93<', $html );

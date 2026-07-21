@@ -178,6 +178,10 @@ final class Settings {
 			'scorecard_badge_shape' => 'rectangle',
 			'scorecard_badge_bg'    => '',
 			'scorecard_badge_fg'    => '',
+			// Whether the public page + share card print the site's NAME. A site
+			// name is often a person; the owner may prefer the domain, which the
+			// surfaces fall back to (a URL is public by definition). ON by default.
+			'scorecard_show_name'   => true,
 		);
 
 		/**

@@ -116,6 +116,7 @@ final class Scorecard {
 			'shape' => (string) $this->settings->get( 'scorecard_badge_shape', 'rectangle' ),
 			'bg'    => (string) $this->settings->get( 'scorecard_badge_bg', '' ),
 			'fg'    => (string) $this->settings->get( 'scorecard_badge_fg', '' ),
+			'name'  => (bool) $this->settings->get( 'scorecard_show_name', true ),
 		);
 
 		// Admin-only preview overrides (?d=&s=&sh=&bg=&fg=): the settings screen
@@ -131,6 +132,7 @@ final class Scorecard {
 			// Colours travel as bare 6-hex (no #) to dodge URL-encoding noise.
 			$bg = isset( $_GET['bg'] ) ? sanitize_key( wp_unslash( $_GET['bg'] ) ) : '';
 			$fg = isset( $_GET['fg'] ) ? sanitize_key( wp_unslash( $_GET['fg'] ) ) : '';
+			$nm = isset( $_GET['nm'] ) ? sanitize_key( wp_unslash( $_GET['nm'] ) ) : '';
 			// phpcs:enable WordPress.Security.NonceVerification.Recommended
 			if ( in_array( $d, Settings::SCORECARD_DISPLAYS, true ) ) {
 				$display = $d;
@@ -146,6 +148,9 @@ final class Scorecard {
 			}
 			if ( preg_match( '/^[0-9a-f]{6}$/', $fg ) ) {
 				$opts['fg'] = '#' . $fg;
+			}
+			if ( '0' === $nm || '1' === $nm ) {
+				$opts['name'] = '1' === $nm;
 			}
 		}
 
@@ -174,7 +179,9 @@ final class Scorecard {
 			if ( url_to_postid( home_url( trailingslashit( $base ) ) ) || url_to_postid( home_url( $base ) ) ) {
 				return;
 			}
-			$this->send( self::page_html( $this->snapshot(), $this->page_context( $base ), $display, $style, $accent ), 'text/html', 60 );
+			$ctx              = $this->page_context( $base );
+			$ctx['show_name'] = ! isset( $opts['name'] ) || false !== $opts['name'];
+			$this->send( self::page_html( $this->snapshot(), $ctx, $display, $style, $accent ), 'text/html', 60 );
 		}
 	}
 
@@ -431,6 +438,7 @@ final class Scorecard {
 		$generated = isset( $snap['generated'] ) ? (int) $snap['generated'] : time();
 		return array(
 			'site'    => (string) get_bloginfo( 'name' ),
+			'host'    => (string) wp_parse_url( home_url( '/' ), PHP_URL_HOST ),
 			'home'    => home_url( '/' ),
 			'url'     => home_url( $base . '/' ),
 			'icon'    => function_exists( 'get_site_icon_url' ) ? (string) get_site_icon_url( 64 ) : '',
@@ -463,14 +471,19 @@ final class Scorecard {
 		$earned = self::tier_earned( $score );
 		$accent = preg_match( '/^#[0-9a-fA-F]{6}$/', (string) $accent ) ? $accent : self::ACCENT;
 
+		// The owner may keep the site's NAME off the public surfaces (a site
+		// name is often a person); the domain stands in — public by definition.
+		$show_name = ! isset( $ctx['show_name'] ) || $ctx['show_name'];
+		$who       = $show_name ? $ctx['site'] : ( isset( $ctx['host'] ) && '' !== $ctx['host'] ? $ctx['host'] : $ctx['site'] );
+
 		if ( $tier ) {
 			$headline = $earned ? __( 'AI-Ready', 'agentimus' ) : __( 'Working toward AI-Ready', 'agentimus' );
-			$og_title = $ctx['site'] . ' — ' . $headline;
+			$og_title = $who . ' — ' . $headline;
 		} else {
 			/* translators: %d: the score out of 100. */
 			$headline = sprintf( __( '%d/100', 'agentimus' ), $score );
-			/* translators: 1: site name, 2: score. */
-			$og_title = sprintf( __( '%1$s — AI readiness %2$d/100', 'agentimus' ), $ctx['site'], $score );
+			/* translators: 1: site name (or domain), 2: score. */
+			$og_title = sprintf( __( '%1$s — AI readiness %2$d/100', 'agentimus' ), $who, $score );
 		}
 		$og_desc = __( 'How ready this site is for AI assistants — findable, readable, trusted, optimized and cited.', 'agentimus' );
 
@@ -522,7 +535,7 @@ final class Scorecard {
 			. '<meta property="og:title" content="' . esc_attr( $og_title ) . '">'
 			. '<meta property="og:description" content="' . esc_attr( $og_desc ) . '">'
 			. '<meta property="og:url" content="' . esc_url( $ctx['url'] ) . '">'
-			. '<meta property="og:site_name" content="' . esc_attr( $ctx['site'] ) . '">'
+			. '<meta property="og:site_name" content="' . esc_attr( $who ) . '">'
 			. '<meta property="og:type" content="website">'
 			. $meta_og
 			. '<style>'
@@ -544,7 +557,7 @@ final class Scorecard {
 			. 'footer{margin-top:30px;padding-top:16px;border-top:1px solid var(--line);font-size:12px;color:var(--muted)}footer a{color:inherit}'
 			. '</style></head><body>'
 			. '<main class="card">'
-			. '<p class="site">' . $icon . '<a href="' . esc_url( $ctx['home'] ) . '">' . esc_html( $ctx['site'] ) . '</a></p>'
+			. '<p class="site">' . $icon . '<a href="' . esc_url( $ctx['home'] ) . '">' . esc_html( $who ) . '</a></p>'
 			. '<p class="what">' . esc_html__( 'AI readiness', 'agentimus' ) . '</p>'
 			. $hero
 			. '<ol>' . $rows . '</ol>'
@@ -659,17 +672,25 @@ final class Scorecard {
 			}
 		}
 
-		// ── Header: gem tile, product, report label.
-		self::og_rrect( $img, 80, 56, 140, 116, 14, $c_panel );
-		imagefilledpolygon( $img, array( 110, 70, 126, 86, 110, 102, 94, 86 ), 4, $c_gem );
+		// ── Header: the real brand tile, product, report label.
+		self::og_logo( $img, 80, 56, 60 );
 		self::og_bold( $img, 27, 162, 92, $c_ink, $font, 'Agentimus' );
 		imagettftext( $img, 14, 0, 162, 122, $c_mut, $font, strtoupper( __( 'AI-readiness report', 'agentimus' ) ) );
 
-		// ── The site: label, name, chips.
-		$name = (string) get_bloginfo( 'name' );
-		$name = mb_strlen( $name ) > 26 ? mb_substr( $name, 0, 25 ) . '…' : $name;
-		imagettftext( $img, 16, 0, 80, 208, $c_mut, $font, strtoupper( __( 'Your site', 'agentimus' ) ) );
-		self::og_bold( $img, 38, 80, 262, $c_ink, $font, $name );
+		// ── The site: label, then name + domain — or just the domain when the
+		// owner keeps the name private (a site name is often a person; the
+		// domain is public by definition).
+		$host      = (string) wp_parse_url( home_url( '/' ), PHP_URL_HOST );
+		$show_name = ! isset( $opts['name'] ) || false !== $opts['name'];
+		imagettftext( $img, 16, 0, 80, 200, $c_mut, $font, strtoupper( __( 'Your site', 'agentimus' ) ) );
+		if ( $show_name ) {
+			$name = (string) get_bloginfo( 'name' );
+			$name = mb_strlen( $name ) > 26 ? mb_substr( $name, 0, 25 ) . '…' : $name;
+			self::og_bold( $img, 36, 80, 250, $c_ink, $font, $name );
+			imagettftext( $img, 17, 0, 80, 288, $c_mut, $font, $host );
+		} else {
+			self::og_bold( $img, 30, 80, 250, $c_ink, $font, $host );
+		}
 
 		$score  = (int) $snap['score'];
 		$earned = self::tier_earned( $score );
@@ -677,8 +698,8 @@ final class Scorecard {
 		$status = $tier
 			? strtoupper( $earned ? __( 'AI-Ready', 'agentimus' ) : __( 'In progress', 'agentimus' ) )
 			: strtoupper( (string) $snap['band'] );
-		$next_x = self::og_chip( $img, $font, 80, 292, 'WORDPRESS', $c_panel, $c_mut );
-		self::og_chip( $img, $font, $next_x + 14, 292, $status, $c_panel, ( $tier && ! $earned ) ? $c_mut : $c_acc );
+		$next_x = self::og_chip( $img, $font, 80, 308, 'WORDPRESS', $c_panel, $c_mut );
+		self::og_chip( $img, $font, $next_x + 14, 308, $status, $c_panel, ( $tier && ! $earned ) ? $c_mut : $c_acc );
 
 		// ── Left column: the rungs as labelled bars (tier mode: full tone
 		// bars, no numbers — bar lengths are numbers too).
@@ -720,8 +741,7 @@ final class Scorecard {
 		imageline( $img, 80, 548, 1120, 548, $c_track );
 		self::og_bold( $img, 20, 80, 590, $c_ink, $font, __( 'Is your site AI-ready?', 'agentimus' ) );
 		imagettftext( $img, 14, 0, 80, 616, $c_mut, $font, __( 'Measured by Agentimus — free on WordPress.org', 'agentimus' ) );
-		$host = (string) wp_parse_url( home_url( '/' ), PHP_URL_HOST );
-		$hb   = imagettfbbox( 16, 0, $font, $host );
+		$hb = imagettfbbox( 16, 0, $font, $host );
 		$hw   = $hb[2] - $hb[0];
 		self::og_rrect( $img, 1120 - $hw - 44, 568, 1120, 612, 22, $c_acc );
 		imagettftext( $img, 16, 0, 1120 - $hw - 22, 597, $c_onacc, $font, $host );
@@ -730,6 +750,54 @@ final class Scorecard {
 		imagepng( $img );
 		imagedestroy( $img );
 		return (string) ob_get_clean();
+	}
+
+	/**
+	 * The brand tile — the same mark as the menu icon and the meta-box title
+	 * (dark rounded square, teal ring, paper "A", amber crossbar) — drawn on a
+	 * 4× off-screen canvas and resampled down, because GD's thick lines are
+	 * jagged at target size and the supersample smooths them.
+	 *
+	 * @param resource|\GdImage $img  Destination image.
+	 * @param int               $x    Left.
+	 * @param int               $y    Top.
+	 * @param int               $size Tile edge in destination pixels.
+	 */
+	private static function og_logo( $img, $x, $y, $size ) {
+		$dim = $size * 4;
+		$u   = $dim / 24; // The mark is drawn on the icon's own 24-unit grid.
+		$t   = imagecreatetruecolor( $dim, $dim );
+		imagealphablending( $t, false );
+		imagesavealpha( $t, true );
+		imagefill( $t, 0, 0, imagecolorallocatealpha( $t, 0, 0, 0, 127 ) );
+		imagealphablending( $t, true );
+
+		$ink   = imagecolorallocate( $t, 27, 25, 19 );
+		$teal  = imagecolorallocate( $t, 20, 107, 100 );
+		$paper = imagecolorallocate( $t, 243, 240, 231 );
+		$amber = imagecolorallocate( $t, 173, 123, 24 );
+
+		self::og_rrect( $t, 0, 0, $dim - 1, $dim - 1, (int) round( 6 * $u ), $teal );
+		$in = (int) round( 1.6 * $u );
+		self::og_rrect( $t, $in, $in, $dim - 1 - $in, $dim - 1 - $in, (int) round( 5 * $u ), $ink );
+
+		// The "A": two legs in paper, the crossbar in amber, round caps.
+		$legs = array(
+			array( 7.35, 17.3, 12.0, 6.7, $paper, 2.0 ),
+			array( 12.0, 6.7, 16.65, 17.3, $paper, 2.0 ),
+			array( 9.5, 13.0, 14.5, 13.0, $amber, 1.9 ),
+		);
+		foreach ( $legs as $l ) {
+			$w = max( 1, (int) round( $l[5] * $u ) );
+			imagesetthickness( $t, $w );
+			imageline( $t, (int) round( $l[0] * $u ), (int) round( $l[1] * $u ), (int) round( $l[2] * $u ), (int) round( $l[3] * $u ), $l[4] );
+			imagefilledellipse( $t, (int) round( $l[0] * $u ), (int) round( $l[1] * $u ), $w, $w, $l[4] );
+			imagefilledellipse( $t, (int) round( $l[2] * $u ), (int) round( $l[3] * $u ), $w, $w, $l[4] );
+		}
+		imagesetthickness( $t, 1 );
+
+		imagecopyresampled( $img, $t, $x, $y, 0, 0, $size, $size, $dim, $dim );
+		imagedestroy( $t );
 	}
 
 	/** Filled rounded rectangle — GD ships none: a cross of rects + corner discs. */

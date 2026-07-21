@@ -231,7 +231,8 @@ export default {
       // the badge's colour configuration too.
       const bg = (this.settings.scorecard_badge_bg || '').replace('#', '');
       const fg = (this.settings.scorecard_badge_fg || '').replace('#', '');
-      return `${base}?d=${this.settings.scorecard_display}&s=${this.settings.scorecard_style}&bg=${bg}&fg=${fg}`;
+      const nm = this.settings.scorecard_show_name === false ? 0 : 1;
+      return `${base}?d=${this.settings.scorecard_display}&s=${this.settings.scorecard_style}&bg=${bg}&fg=${fg}&nm=${nm}`;
     },
     // The prefilled post. Tier mode never names the number — that's the whole
     // point of tier mode — and below the bar it stays an honest question.
@@ -2073,11 +2074,20 @@ export default {
             </div>
           </div>
           <p class="ar-field__hint">
-            Colors apply to the badge's value segment. Automatic means your theme's own
-            palette — skipping any tone that reads as an alarm (reds, warning ambers) —
-            with the house teal as the fallback. Custom colors are yours to keep readable;
-            and while the badge reads “in progress”, it stays neutral either way.
+            Colors apply to the badge's value segment and the share card's accent.
+            Automatic means your theme's own palette — skipping any tone that reads as
+            an alarm (reds, warning ambers) — with the house teal as the fallback. Custom
+            colors are yours to keep readable; and while the badge reads “in progress”,
+            it stays neutral either way.
           </p>
+          <label class="ar-toggle ar-toggle--nested">
+            <input v-model="settings.scorecard_show_name" type="checkbox" />
+            <span class="ar-toggle__track" aria-hidden="true"></span>
+            <span class="ar-toggle__text">
+              <strong>Show your site's name</strong>
+              <small>On the public page and the share card. Off shows your domain instead — for a site whose name is a person, or a brand you'd rather not print. The domain always shows; it's public by definition.</small>
+            </span>
+          </label>
         </div>
 
         <div v-show="settings.share_scorecard" class="ar-mcp-connect">
