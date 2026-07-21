@@ -2074,7 +2074,8 @@ export default {
             </div>
           </div>
           <p class="ar-field__hint">
-            Colors apply to the badge's value segment and the share card's accent.
+            Colors apply everywhere the score shows: the badge's value segment, the share
+            card's accent, and the public page's ring and bars.
             Automatic means your theme's own palette — skipping any tone that reads as
             an alarm (reds, warning ambers) — with the house teal as the fallback. Custom
             colors are yours to keep readable; and while the badge reads “in progress”,

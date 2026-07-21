@@ -155,6 +155,13 @@ final class Scorecard {
 		}
 
 		$accent = $this->accent();
+		// The owner's custom background is the ONE colour scheme — every public
+		// surface follows it: badge value, card accent, and the page's ring and
+		// healthy bars alike. (Includes a live admin preview override, so the
+		// three previews always agree.)
+		if ( isset( $opts['bg'] ) && preg_match( '/^#[0-9a-fA-F]{6}$/', (string) $opts['bg'] ) ) {
+			$accent = strtolower( (string) $opts['bg'] );
+		}
 
 		// Short cache windows on purpose (the shields.io convention): these
 		// surfaces change when the owner flips a display mode or the score
@@ -560,7 +567,9 @@ final class Scorecard {
 			. '.tier{font-size:30px;font-weight:700;margin:26px 0}.tier[data-earned="1"]{color:var(--accent)}.tier[data-earned="0"]{color:var(--muted);font-size:22px}'
 			. 'ol{list-style:none;padding:0;margin:30px 0 0;text-align:left}li{display:grid;grid-template-columns:88px 1fr auto;gap:10px;align-items:center;padding:7px 0;font-size:14px}'
 			. '.bar{height:6px;border-radius:3px;background:var(--line);overflow:hidden}.bar span{display:block;height:100%;border-radius:3px;background:var(--accent)}'
-			. 'li[data-tone="warn"] .bar span{background:var(--warn)}li[data-tone="bad"] .bar span{background:var(--bad)}li[data-tone="good"] .bar span{background:var(--good)}'
+			// Healthy bars wear the accent (the default span colour), same rule
+			// as the share card — warn/bad keep their semantic tones.
+			. 'li[data-tone="warn"] .bar span{background:var(--warn)}li[data-tone="bad"] .bar span{background:var(--bad)}'
 			. '.num{color:var(--muted);font-size:12px;font-variant-numeric:tabular-nums}'
 			. 'footer{margin-top:30px;padding-top:16px;border-top:1px solid var(--line);font-size:12px;color:var(--muted)}footer a{color:inherit}'
 			. '</style></head><body>'
