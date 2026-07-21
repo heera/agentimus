@@ -2181,7 +2181,7 @@ export default {
 
         <div v-show="settings.share_scorecard" class="ar-mcp-connect">
           <div class="ar-mcp-step">
-            <p class="ar-mcp-step__head">Your badge</p>
+            <p class="ar-mcp-step__head">Put the badge on your site</p>
             <p class="ar-scorecard-preview"><img :src="badgeSrc" alt="AI readiness badge preview" height="28" /></p>
             <p class="ar-field__hint">
               Paste this anywhere HTML works — a footer, an About page, a README. It always
@@ -2196,7 +2196,7 @@ export default {
           </div>
 
           <div class="ar-mcp-step">
-            <p class="ar-mcp-step__head">Share the result</p>
+            <p class="ar-mcp-step__head">Share the result on the web</p>
             <div class="ar-scorecard-duo">
               <p class="ar-scorecard-collabel ar-sd-clabel">The share card</p>
               <p class="ar-scorecard-collabel ar-sd-plabel">The live page</p>

@@ -4040,7 +4040,8 @@ a.ar-about-proto__v:hover { text-decoration: underline; }
 .wp-core-ui .ar-sd-open { grid-area: open; margin-top: 12px; align-self: start; }
 .ar-sd-note { grid-area: note; }
 .ar-sd-note2 { grid-column: 1 / -1; }
-.ar-scorecard-collabel { margin: 0 0 8px; font-weight: 600; font-size: 13px; }
+/* Muted sub-labels under the step head — hierarchy: head speaks, labels whisper. */
+.ar-scorecard-collabel { margin: 0 0 8px; font-weight: 600; font-size: 14px; color: var(--ar-ink-soft); }
 .ar-scorecard-card { margin: 0; }
 .ar-scorecard-card img { display: block; width: 100%; border: 1px solid #d8d2c2; border-radius: 6px; }
 /* The window's height comes from the grid row (the image defines it); the
