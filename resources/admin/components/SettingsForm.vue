@@ -2235,6 +2235,9 @@ export default {
               <a class="button ar-share-btn ar-scorecard-openbtn ar-sd-open" :href="scorecardUrl" target="_blank" rel="noopener">
                 Open your public scorecard ↗
               </a>
+              <p class="ar-field__hint ar-sd-pnote">
+                The page every share opens — always live, always your current score.
+              </p>
               <p class="ar-field__hint ar-scorecard-note ar-sd-note">
                 Each button opens the network's own compose window with your scorecard link —
                 nothing is ever posted for you. The card above is what the link unfurls into.

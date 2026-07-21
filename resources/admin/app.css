@@ -4027,7 +4027,7 @@ a.ar-about-proto__v:hover { text-decoration: underline; }
 		"clabel plabel"
 		"img    page"
 		"btns   open"
-		"note   note";
+		"note   pnote";
 	gap: 0 24px;
 	align-items: stretch;
 }
@@ -4039,6 +4039,7 @@ a.ar-about-proto__v:hover { text-decoration: underline; }
 /* .wp-core-ui tie again — core's .button also zeroes margins. */
 .wp-core-ui .ar-sd-open { grid-area: open; margin-top: 12px; align-self: start; }
 .ar-sd-note { grid-area: note; }
+.ar-sd-pnote { grid-area: pnote; align-self: start; }
 .ar-sd-note2 { grid-column: 1 / -1; }
 /* Muted sub-labels under the step head — hierarchy: head speaks, labels whisper. */
 .ar-scorecard-collabel { margin: 0 0 8px; font-weight: 600; font-size: 14px; color: var(--ar-ink-soft); }
@@ -4091,7 +4092,7 @@ a.ar-about-proto__v:hover { text-decoration: underline; }
 	   inherit from in a single column). */
 	.ar-scorecard-duo {
 		grid-template-columns: 1fr;
-		grid-template-areas: "clabel" "img" "btns" "note" "plabel" "page" "open";
+		grid-template-areas: "clabel" "img" "btns" "note" "plabel" "page" "open" "pnote";
 		gap: 0;
 	}
 	.ar-sd-plabel { margin-top: 18px; }
