@@ -3989,7 +3989,8 @@ a.ar-about-proto__v:hover { text-decoration: underline; }
    public sees", and an equal fixed basis on both dropdowns — one aligned block, not two
    controls that each picked their own width. */
 .ar-field--share > label { flex: 0 0 190px; }
-.ar-field--share .ar-select { flex: 0 0 380px; max-width: 100%; min-width: 0; }
+/* Controls share the hints' 620px measure — one right edge for the whole lane. */
+.ar-field--share .ar-select { flex: 0 0 620px; max-width: 100%; min-width: 0; }
 /* Two classes on purpose: the .ar-field:first-child margin reset would zero a
    single-class top margin, leaving the first row glued to the divider above it. */
 .ar-field--inline.ar-field--share { margin-top: 22px; }
@@ -4012,7 +4013,7 @@ a.ar-about-proto__v:hover { text-decoration: underline; }
 .ar-scorecard-caution strong { color: var(--ar-warn); }
 
 /* The address input matches the dropdowns' lane. */
-.ar-field--share .ar-scorecard-path { flex: 0 0 380px; max-width: 100%; min-width: 0; }
+.ar-field--share .ar-scorecard-path { flex: 0 0 620px; max-width: 100%; min-width: 0; }
 /* A hint belongs under its control, not at the card's left edge: indent past
    the 190px label column (+ the 12px gap) and keep a readable measure. */
 .ar-field--inline.ar-field--share + .ar-field__hint { margin-left: 202px; max-width: 620px; }
