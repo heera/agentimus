@@ -2209,7 +2209,7 @@ export default {
                 <span class="ar-toggle__track" aria-hidden="true"></span>
                 <span class="ar-toggle__text">
                   <strong>Show your site's name</strong>
-                  <small>Off puts your domain on the card and page instead.</small>
+                  <small>Prints your site's name on the share card and the public page. Off puts your domain there instead — useful when the site is named after a person, or carries a brand you'd rather keep off shared images. The domain always shows either way; it's public by definition.</small>
                 </span>
               </label>
               <p class="ar-scorecard-collabel ar-sd-clabel">The share card</p>
