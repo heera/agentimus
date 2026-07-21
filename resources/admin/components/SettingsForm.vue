@@ -2161,12 +2161,18 @@ export default {
           <div class="ar-mcp-step">
             <p class="ar-mcp-step__head">Share the result</p>
             <div class="ar-scorecard-duo">
-              <div class="ar-scorecard-col">
-                <p class="ar-scorecard-collabel">The share card</p>
-                <p v-if="scorecard.og !== false && cardSrc" class="ar-scorecard-card">
-                  <img :src="cardSrc" alt="The social card your shared link unfurls into" />
-                </p>
-                <div class="ar-scorecard-share">
+              <p class="ar-scorecard-collabel ar-sd-clabel">The share card</p>
+              <p class="ar-scorecard-collabel ar-sd-plabel">The live page</p>
+              <p v-if="scorecard.og !== false && cardSrc" class="ar-scorecard-card ar-sd-img">
+                <img :src="cardSrc" alt="The social card your shared link unfurls into" />
+              </p>
+              <!-- The live page, sharing the image's grid row so the two
+                   previews stand at EXACTLY the same height; the miniature
+                   fills the window's height (viewport = height/0.45). -->
+              <div class="ar-scorecard-pageprev ar-sd-page" aria-hidden="true">
+                <iframe :src="pageSrc" tabindex="-1" title="Scorecard page preview"></iframe>
+              </div>
+              <div class="ar-scorecard-share ar-sd-btns">
               <a
                 v-if="scorecard.og !== false && cardSrc"
                 class="button button-primary ar-share-btn"
@@ -2188,30 +2194,19 @@ export default {
                 <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor" aria-hidden="true"><path d="M13.5 21v-8h2.7l.4-3.1h-3.1V7.9c0-.9.3-1.5 1.6-1.5h1.6V3.6c-.3 0-1.2-.1-2.3-.1-2.3 0-3.9 1.4-3.9 4v2.4H7.8V13h2.7v8h3Z" /></svg>
                 Facebook
               </a>
-            </div>
-                <p class="ar-field__hint ar-scorecard-note">
-                  Each button opens the network's own compose window with your scorecard link —
-                  nothing is ever posted for you. The card above is what the link unfurls into.
-                </p>
-                <p v-if="scorecard && scorecard.og === false" class="ar-field__hint">
-                  The share-preview image needs the server's GD graphics library and a font file,
-                  and this server has neither — so a shared link will unfurl as plain text. The
-                  page and the badge are unaffected.
-                </p>
               </div>
-
-              <!-- The live page, a scaled window onto the real thing — previews
-                   included via the same override params. The Open button below
-                   is the way in; on small screens the URL captions it on top. -->
-              <div class="ar-scorecard-col ar-scorecard-pagewrap">
-                <p class="ar-scorecard-collabel">The live page</p>
-                <div class="ar-scorecard-pageprev" aria-hidden="true">
-                  <iframe :src="pageSrc" tabindex="-1" title="Scorecard page preview"></iframe>
-                </div>
-                <a class="button ar-share-btn ar-scorecard-openbtn" :href="scorecardUrl" target="_blank" rel="noopener">
-                  Open your public scorecard ↗
-                </a>
-              </div>
+              <a class="button ar-share-btn ar-scorecard-openbtn ar-sd-open" :href="scorecardUrl" target="_blank" rel="noopener">
+                Open your public scorecard ↗
+              </a>
+              <p class="ar-field__hint ar-scorecard-note ar-sd-note">
+                Each button opens the network's own compose window with your scorecard link —
+                nothing is ever posted for you. The card above is what the link unfurls into.
+              </p>
+              <p v-if="scorecard && scorecard.og === false" class="ar-field__hint ar-sd-note2">
+                The share-preview image needs the server's GD graphics library and a font file,
+                and this server has neither — so a shared link will unfurl as plain text. The
+                page and the badge are unaffected.
+              </p>
             </div>
           </div>
         </div>
