@@ -668,10 +668,11 @@ final class Scorecard {
 
 		// ── Header: the real brand tile, product, report label. The text block
 		// is pinned to the tile's height: the title's cap tops align with the
-		// tile's top edge, the label's baseline with its bottom edge.
-		self::og_logo( $img, 80, 56, 60 );
-		self::og_bold( $img, 27, 162, 84, $c_ink, $font, 'Agentimus' );
-		imagettftext( $img, 14, 0, 162, 116, $c_mut, $font, strtoupper( __( 'AI-readiness scorecard', 'agentimus' ) ) );
+		// tile's top edge, the label's baseline with its bottom edge. Sized to
+		// support the report, not compete with the score — the score is the hero.
+		self::og_logo( $img, 80, 56, 52 );
+		self::og_bold( $img, 23, 150, 76, $c_ink, $font, 'Agentimus' );
+		imagettftext( $img, 13, 0, 150, 108, $c_mut, $font, strtoupper( __( 'AI-readiness scorecard', 'agentimus' ) ) );
 
 		// ── The site: name + domain — or just the domain when the owner keeps
 		// the name private (a site name is often a person; the domain is
@@ -684,10 +685,10 @@ final class Scorecard {
 			$name = (string) get_bloginfo( 'name' );
 			$name = mb_strlen( $name ) > 26 ? mb_substr( $name, 0, 25 ) . '…' : $name;
 			$nb   = imagettfbbox( 36, 0, $font, $name );
-			self::og_bold( $img, 36, 80, 262, $c_ink, $font, $name );
-			imagettftext( $img, 17, 0, 80 + ( $nb[2] - $nb[0] ) + 20, 262, $c_mut, $font, '— ' . $host );
+			self::og_bold( $img, 36, 80, 238, $c_ink, $font, $name );
+			imagettftext( $img, 17, 0, 80 + ( $nb[2] - $nb[0] ) + 20, 238, $c_mut, $font, '— ' . $host );
 		} else {
-			self::og_bold( $img, 30, 80, 262, $c_ink, $font, $host );
+			self::og_bold( $img, 30, 80, 238, $c_ink, $font, $host );
 		}
 
 		$score  = (int) $snap['score'];
@@ -696,7 +697,7 @@ final class Scorecard {
 
 		// ── Left column: the rungs as labelled bars (tier mode: full tone
 		// bars, no numbers — bar lengths are numbers too).
-		$y = 372;
+		$y = 360;
 		foreach ( $snap['rungs'] as $r ) {
 			$val  = isset( $r['score'] ) && null !== $r['score'] ? (int) $r['score'] : null;
 			// Healthy bars wear the configured accent — same rule as the public
@@ -717,22 +718,36 @@ final class Scorecard {
 			$y += 38;
 		}
 
-		// ── Right: the ring gauge.
-		$cx = 940;
-		$cy = 350;
+		// ── Right: the ring gauge — the card's hero. Everything lives inside
+		// the ring: the label, the big number, the scale, and the band demoted
+		// to small muted text. The sweep wears a subtle gradient from the
+		// accent to a lighter cousin of itself — always derived from the
+		// CONFIGURED colour, never a hardcoded second palette.
+		$cx        = 940;
+		$cy        = 335;
+		$acc_rgb   = self::hex_rgb( $accent );
+		$acc_rgb   = null === $acc_rgb ? self::hex_rgb( self::ACCENT ) : $acc_rgb;
+		$acc_light = array(
+			(int) round( $acc_rgb[0] + ( 255 - $acc_rgb[0] ) * 0.30 ),
+			(int) round( $acc_rgb[1] + ( 255 - $acc_rgb[1] ) * 0.30 ),
+			(int) round( $acc_rgb[2] + ( 255 - $acc_rgb[2] ) * 0.30 ),
+		);
+		$label     = strtoupper( __( 'AI readiness score', 'agentimus' ) );
 		if ( $tier ) {
-			self::og_ring( $img, $cx, $cy, 148, 118, $c_track, $earned ? $c_acc : null, $earned ? 100 : 0, $c_bg );
+			self::og_ring( $img, $cx, $cy, 170, 134, $c_track, $earned ? $acc_rgb : null, $acc_light, $earned ? 100 : 0, $c_bg );
+			self::og_center( $img, 13, $cx, $cy - 84, $c_mut, $font, $label );
 			if ( $earned ) {
-				self::og_center( $img, 40, $cx, $cy + 14, $c_acc, $font, __( 'AI-Ready', 'agentimus' ), true );
+				self::og_center( $img, 42, $cx, $cy + 16, $c_acc, $font, __( 'AI-Ready', 'agentimus' ), true );
 			} else {
-				self::og_center( $img, 24, $cx, $cy - 6, $c_mut, $font, __( 'Working toward', 'agentimus' ) );
-				self::og_center( $img, 24, $cx, $cy + 32, $c_mut, $font, __( 'AI-Ready', 'agentimus' ) );
+				self::og_center( $img, 23, $cx, $cy - 2, $c_mut, $font, __( 'Working toward', 'agentimus' ) );
+				self::og_center( $img, 23, $cx, $cy + 36, $c_mut, $font, __( 'AI-Ready', 'agentimus' ) );
 			}
 		} else {
-			self::og_ring( $img, $cx, $cy, 148, 118, $c_track, $c_acc, max( 0, min( 100, $score ) ), $c_bg );
-			self::og_center( $img, 88, $cx, $cy + 16, $c_acc, $font, (string) $score, true );
-			self::og_center( $img, 24, $cx, $cy + 66, $c_mut, $font, '/ 100' );
-			self::og_center( $img, 22, $cx, $cy + 182, $c_ink, $font, (string) $snap['band'] );
+			self::og_ring( $img, $cx, $cy, 170, 134, $c_track, $acc_rgb, $acc_light, max( 0, min( 100, $score ) ), $c_bg );
+			self::og_center( $img, 13, $cx, $cy - 84, $c_mut, $font, $label );
+			self::og_center( $img, 100, $cx, $cy + 34, $c_acc, $font, (string) $score, true );
+			self::og_center( $img, 20, $cx, $cy + 72, $c_mut, $font, '/ 100' );
+			self::og_center( $img, 17, $cx, $cy + 106, $c_mut, $font, (string) $snap['band'] );
 		}
 
 		// ── Footer: one line — the question in ink, then the credit smaller
@@ -810,16 +825,38 @@ final class Scorecard {
 	}
 
 	/**
-	 * A progress ring: full track, an accent sweep clockwise from 12 o'clock,
-	 * the middle punched back to the background.
+	 * A progress ring: full track, a sweep clockwise from 12 o'clock drawn in
+	 * short arc segments that interpolate from $from_rgb to $to_rgb (a subtle
+	 * gradient), the middle punched back to the background.
+	 *
+	 * @param resource|\GdImage $img      Image.
+	 * @param int               $cx       Centre x.
+	 * @param int               $cy       Centre y.
+	 * @param int               $ro       Outer radius.
+	 * @param int               $ri       Inner radius.
+	 * @param int               $track    Allocated track colour.
+	 * @param array|null        $from_rgb Sweep start [r,g,b]; null = track only.
+	 * @param array             $to_rgb   Sweep end [r,g,b].
+	 * @param int               $pct      0–100.
+	 * @param int               $bg       Allocated background colour (the punch).
 	 */
-	private static function og_ring( $img, $cx, $cy, $ro, $ri, $track, $fill, $pct, $bg ) {
+	private static function og_ring( $img, $cx, $cy, $ro, $ri, $track, $from_rgb, $to_rgb, $pct, $bg ) {
 		imagefilledellipse( $img, $cx, $cy, 2 * $ro, 2 * $ro, $track );
-		if ( null !== $fill && $pct > 0 ) {
-			if ( $pct >= 100 ) {
-				imagefilledellipse( $img, $cx, $cy, 2 * $ro, 2 * $ro, $fill );
-			} else {
-				imagefilledarc( $img, $cx, $cy, 2 * $ro, 2 * $ro, -90, (int) round( -90 + 3.6 * $pct ), $fill, IMG_ARC_PIE );
+		if ( null !== $from_rgb && $pct > 0 ) {
+			$sweep = 3.6 * min( 100, $pct );
+			$steps = max( 1, (int) ceil( $sweep / 6 ) );
+			for ( $i = 0; $i < $steps; $i++ ) {
+				$t = $steps > 1 ? $i / ( $steps - 1 ) : 1.0;
+				$c = imagecolorallocate(
+					$img,
+					(int) round( $from_rgb[0] + ( $to_rgb[0] - $from_rgb[0] ) * $t ),
+					(int) round( $from_rgb[1] + ( $to_rgb[1] - $from_rgb[1] ) * $t ),
+					(int) round( $from_rgb[2] + ( $to_rgb[2] - $from_rgb[2] ) * $t )
+				);
+				// Each segment overlaps the next by a degree to hide the seams.
+				$a1 = -90 + $sweep * $i / $steps;
+				$a2 = min( -90 + $sweep, $a1 + ( $sweep / $steps ) + 1.2 );
+				imagefilledarc( $img, $cx, $cy, 2 * $ro, 2 * $ro, (int) round( $a1 ), (int) round( $a2 ), $c, IMG_ARC_PIE );
 			}
 		}
 		imagefilledellipse( $img, $cx, $cy, 2 * $ri, 2 * $ri, $bg );
