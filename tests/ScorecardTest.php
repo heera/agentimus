@@ -80,7 +80,9 @@ final class ScorecardTest extends TestCase {
 		$this->assertStringContainsString( 'IN PROGRESS', $svg );
 		$this->assertStringNotContainsString( '87', $svg );
 		// The not-earned segment must not wear the celebratory accent either.
-		$this->assertStringNotContainsString( '#146b64', $svg );
+		// fill= specifically: the brand mark's teal RING carries the same hex
+		// as a stroke on every badge, and that is not a leak.
+		$this->assertStringNotContainsString( 'fill="#146b64"', $svg );
 	}
 
 	public function test_badge_shape_option_rounds_the_corners() {
@@ -96,7 +98,8 @@ final class ScorecardTest extends TestCase {
 		$svg = Scorecard::badge_svg( $this->snap( 93 ), 'score', 'light', '#146b64', array( 'bg' => '#123456', 'fg' => '#fedcba' ) );
 		$this->assertStringContainsString( '#123456', $svg );
 		$this->assertStringContainsString( '#fedcba', $svg );
-		$this->assertStringNotContainsString( '#146b64', $svg );
+		// fill= specifically — the brand mark's ring strokes this hex always.
+		$this->assertStringNotContainsString( 'fill="#146b64"', $svg );
 
 		// The not-earned state must stay visually distinct — never the owner's
 		// celebration colour.

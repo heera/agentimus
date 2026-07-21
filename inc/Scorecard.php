@@ -403,14 +403,22 @@ final class Scorecard {
 		$end_pad  = 'pill' === $shape ? 10 : 0;
 		$label_tw = (int) round( mb_strlen( $label ) * 6.9 );
 		$value_tw = (int) round( mb_strlen( $value ) * 6.9 );
-		$left_w   = 24 + $label_tw + 8 + $end_pad;  // gem + label + padding.
+		$icon_x   = 7 + $end_pad;
+		$text_x   = $icon_x + 24; // 18px brand tile + 6px gap.
+		$left_w   = $text_x + $label_tw + 8;
 		$value_w  = $value_tw + 18 + $end_pad;
 		$total    = $left_w + $value_w;
 
 		$stroke = str_replace( '%TOTAL_LESS%', (string) ( $total - 1 ), $stroke );
 
-		$gem_x  = 9 + $end_pad;
-		$text_x = 24 + $end_pad;
+		// The brand mark, 18px — the same tile as the admin menu and the card
+		// (dark rounded square, teal ring, paper A, amber crossbar), scaled
+		// from its own 24-unit grid.
+		$mark = '<g transform="translate(' . $icon_x . ',5) scale(0.75)">'
+			. '<rect x="1.2" y="1.2" width="21.6" height="21.6" rx="6" fill="#1b1913" stroke="#146b64" stroke-width="1.5"/>'
+			. '<path d="M7.35 17.3 12 6.7 16.65 17.3" stroke="#f3f0e7" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>'
+			. '<path d="M9.5 13H14.5" stroke="#ad7b18" stroke-width="1.9" stroke-linecap="round"/>'
+			. '</g>';
 
 		return '<svg xmlns="http://www.w3.org/2000/svg" width="' . $total . '" height="28" role="img" aria-label="' . esc_attr( $title ) . '">'
 			. '<title>' . esc_html( $title ) . '</title>'
@@ -420,7 +428,7 @@ final class Scorecard {
 			. '<rect x="' . $left_w . '" width="' . $value_w . '" height="28" fill="' . esc_attr( $value_bg ) . '"/>'
 			. '</g>'
 			. $stroke
-			. '<rect x="' . $gem_x . '" y="10.5" width="7" height="7" rx="1" transform="rotate(45 ' . ( $gem_x + 3.5 ) . ' 14)" fill="#ad7b18"/>'
+			. $mark
 			. '<g font-family="Verdana,Geneva,DejaVu Sans,sans-serif" font-size="11">'
 			. '<text x="' . $text_x . '" y="18.5" fill="' . esc_attr( $left_text ) . '" textLength="' . $label_tw . '">' . esc_html( $label ) . '</text>'
 			. '<text x="' . ( $left_w + 9 ) . '" y="18.5" fill="' . esc_attr( $value_fg ) . '" font-weight="bold" textLength="' . $value_tw . '">' . esc_html( $value ) . '</text>'
