@@ -2188,7 +2188,7 @@ export default {
               <span class="ar-toggle__track" aria-hidden="true"></span>
               <span class="ar-toggle__text">
                 <strong>Link the badge to your public page</strong>
-                <small>The embed code wraps the badge in a link to your public scorecard page if the public page is turned on.</small>
+                <small>The embed code wraps the badge in a link to your public scorecard page if the public page is turned on (<code>/{{ (settings.scorecard_path || 'ai-readiness').replace(/^\/+|\/+$/g, '') }}</code>).</small>
               </span>
             </label>
             <div class="ar-mcp-snippet ar-scorecard-badgebox">
@@ -2213,7 +2213,7 @@ export default {
                 </span>
               </label>
               <p class="ar-scorecard-collabel ar-sd-clabel">The share card</p>
-              <p class="ar-scorecard-collabel ar-sd-plabel">The live page</p>
+              <p class="ar-scorecard-collabel ar-sd-plabel">The public page</p>
               <p v-if="scorecard.og !== false && cardSrc" class="ar-scorecard-card ar-sd-img">
                 <img :src="cardSrc" alt="The social card your shared link unfurls into" />
               </p>
