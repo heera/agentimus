@@ -135,6 +135,8 @@ final class Scorecard {
 			'fg'    => (string) $this->settings->get( 'scorecard_badge_fg', '' ),
 			'name'  => (bool) $this->settings->get( 'scorecard_show_name', true ),
 			'warn'  => (string) $this->settings->get( 'scorecard_warn_color', '' ),
+			'border' => (string) $this->settings->get( 'scorecard_badge_border', '' ),
+			'bgc'    => (string) $this->settings->get( 'scorecard_bg_color', '' ),
 		);
 
 		// Admin-only preview overrides (?d=&s=&sh=&bg=&fg=): the settings screen
@@ -170,6 +172,14 @@ final class Scorecard {
 			$wc = isset( $_GET['wc'] ) ? sanitize_key( wp_unslash( $_GET['wc'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only preview parameter.
 			if ( preg_match( '/^[0-9a-f]{6}$/', $wc ) ) {
 				$opts['warn'] = '#' . $wc;
+			}
+			$bd = isset( $_GET['bd'] ) ? sanitize_key( wp_unslash( $_GET['bd'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only preview parameter.
+			if ( preg_match( '/^[0-9a-f]{6}$/', $bd ) ) {
+				$opts['border'] = '#' . $bd;
+			}
+			$bc = isset( $_GET['bc'] ) ? sanitize_key( wp_unslash( $_GET['bc'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only preview parameter.
+			if ( preg_match( '/^[0-9a-f]{6}$/', $bc ) ) {
+				$opts['bgc'] = '#' . $bc;
 			}
 			if ( '0' === $nm || '1' === $nm ) {
 				$opts['name'] = '1' === $nm;
@@ -221,6 +231,9 @@ final class Scorecard {
 			$ctx['show_name'] = ! isset( $opts['name'] ) || false !== $opts['name'];
 			if ( isset( $opts['warn'] ) && preg_match( '/^#[0-9a-fA-F]{6}$/', (string) $opts['warn'] ) ) {
 				$ctx['warn'] = strtolower( (string) $opts['warn'] );
+			}
+			if ( isset( $opts['bgc'] ) && preg_match( '/^#[0-9a-fA-F]{6}$/', (string) $opts['bgc'] ) ) {
+				$ctx['bgc'] = strtolower( (string) $opts['bgc'] );
 			}
 			$this->send( self::page_html( $this->snapshot(), $ctx, $display, $style, $accent ), 'text/html', 60 );
 		}
@@ -292,6 +305,79 @@ final class Scorecard {
 		return self::ACCENT;
 	}
 
+	/**
+	 * The circular badge — the card's ring gauge as an embeddable mark. Score
+	 * mode sweeps the accent by the score; tier mode is all-or-track (no sweep
+	 * angle to reverse-engineer, no number anywhere). Pure.
+	 */
+	private static function badge_circle_svg( array $snap, $display, $style, $accent, $bgc, $border ) {
+		$score  = isset( $snap['score'] ) ? (int) $snap['score'] : 0;
+		$light  = 'dark' !== $style;
+		$track  = $light ? '#e7e1d2' : '#3a352b';
+		$ink    = '' !== $bgc ? self::ink_on( $bgc ) : ( $light ? '#1b1913' : '#f3f0e7' );
+		$muted  = '#8a8374';
+		$tier   = 'tier' === $display;
+		$earned = self::tier_earned( $score );
+		$r      = 26;
+		$circ   = 2 * M_PI * $r;
+
+		if ( $tier ) {
+			$title = $earned ? __( 'AI readiness: AI-Ready', 'agentimus' ) : __( 'AI readiness: in progress', 'agentimus' );
+		} else {
+			/* translators: %d: the score out of 100. */
+			$title = sprintf( __( 'AI readiness: %d out of 100', 'agentimus' ), $score );
+		}
+
+		$parts   = array();
+		$parts[] = '<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64" role="img" aria-label="' . esc_attr( $title ) . '">';
+		$parts[] = '<title>' . esc_html( $title ) . '</title>';
+		if ( '' !== $bgc ) {
+			$parts[] = '<circle cx="32" cy="32" r="31" fill="' . esc_attr( $bgc ) . '"/>';
+		}
+		if ( '' !== $border ) {
+			$parts[] = '<circle cx="32" cy="32" r="30.5" fill="none" stroke="' . esc_attr( $border ) . '" stroke-width="1.5"/>';
+		}
+		$parts[] = '<circle cx="32" cy="32" r="' . $r . '" fill="none" stroke="' . esc_attr( $track ) . '" stroke-width="7"/>';
+
+		if ( $tier ) {
+			if ( $earned ) {
+				$parts[] = '<circle cx="32" cy="32" r="' . $r . '" fill="none" stroke="' . esc_attr( $accent ) . '" stroke-width="7"/>';
+				$parts[] = '<path d="M22 33 l7 7 l13 -14" fill="none" stroke="' . esc_attr( $accent ) . '" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>';
+			} else {
+				$parts[] = '<text x="32" y="38" text-anchor="middle" font-family="Verdana,Geneva,DejaVu Sans,sans-serif" font-size="16" fill="' . esc_attr( $muted ) . '">–</text>';
+			}
+		} else {
+			$sweep   = $circ * max( 0, min( 100, $score ) ) / 100;
+			$parts[] = '<circle cx="32" cy="32" r="' . $r . '" fill="none" stroke="' . esc_attr( $accent ) . '" stroke-width="7"'
+				. ' stroke-linecap="round" stroke-dasharray="' . round( $sweep, 2 ) . ' ' . round( $circ, 2 ) . '"'
+				. ' transform="rotate(-90 32 32)"/>';
+			$parts[] = '<text x="32" y="37" text-anchor="middle" font-family="Verdana,Geneva,DejaVu Sans,sans-serif" font-size="15" font-weight="bold" fill="' . esc_attr( $ink ) . '">'
+				. (int) $score
+				. '<tspan font-size="7" font-weight="normal" fill="' . esc_attr( $muted ) . '"> / 100</tspan></text>';
+		}
+		$parts[] = '</svg>';
+		return implode( '', $parts );
+	}
+
+	/** WCAG relative luminance of a hex colour (0–1); 0 for garbage. Pure. */
+	private static function lum_hex( $hex ) {
+		$rgb = self::hex_rgb( (string) $hex );
+		if ( null === $rgb ) {
+			return 0.0;
+		}
+		$lin = array();
+		foreach ( $rgb as $ch ) {
+			$c     = $ch / 255;
+			$lin[] = $c <= 0.04045 ? $c / 12.92 : pow( ( $c + 0.055 ) / 1.055, 2.4 );
+		}
+		return 0.2126 * $lin[0] + 0.7152 * $lin[1] + 0.0722 * $lin[2];
+	}
+
+	/** The readable ink for an arbitrary background: house ink or paper. Pure. */
+	private static function ink_on( $hex ) {
+		return self::lum_hex( $hex ) > 0.5 ? '#1b1913' : '#f3f0e7';
+	}
+
 	/** '#abc'/'#aabbcc' → [r,g,b], or null when it isn't one. Pure. */
 	private static function hex_rgb( $hex ) {
 		if ( ! preg_match( '/^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/', $hex, $m ) ) {
@@ -330,8 +416,18 @@ final class Scorecard {
 		$score  = isset( $snap['score'] ) ? (int) $snap['score'] : 0;
 		$accent = preg_match( '/^#[0-9a-fA-F]{6}$/', (string) $accent ) ? $accent : self::ACCENT;
 
-		$shape = isset( $opts['shape'] ) ? (string) $opts['shape'] : 'rectangle';
-		$rx    = 'pill' === $shape ? 14 : ( 'rounded' === $shape ? 9 : 4 );
+		$shape  = isset( $opts['shape'] ) ? (string) $opts['shape'] : 'rectangle';
+		$border = isset( $opts['border'] ) && preg_match( '/^#[0-9a-fA-F]{6}$/', (string) $opts['border'] ) ? strtolower( $opts['border'] ) : '';
+		$bgc    = isset( $opts['bgc'] ) && preg_match( '/^#[0-9a-fA-F]{6}$/', (string) $opts['bgc'] ) ? strtolower( $opts['bgc'] ) : '';
+
+		// The circle is its own animal — a ring gauge, no label lane. Its
+		// centre stays TRANSPARENT unless a background is chosen, so it adopts
+		// whatever the host site puts behind it: the most adaptable shape.
+		if ( 'circle' === $shape ) {
+			return self::badge_circle_svg( $snap, $display, $style, $accent, $bgc, $border );
+		}
+
+		$rx = 'pill' === $shape ? 14 : ( 'rounded' === $shape ? 9 : 4 );
 
 		$custom_bg = isset( $opts['bg'] ) && preg_match( '/^#[0-9a-fA-F]{6}$/', (string) $opts['bg'] ) ? strtolower( $opts['bg'] ) : '';
 		$value_fg  = isset( $opts['fg'] ) && preg_match( '/^#[0-9a-fA-F]{6}$/', (string) $opts['fg'] ) ? strtolower( $opts['fg'] ) : '#ffffff';
@@ -359,6 +455,16 @@ final class Scorecard {
 			$left_bg   = '#f3f0e7';
 			$left_text = '#1b1913';
 			$stroke    = '<rect x="0.5" y="0.5" width="%TOTAL_LESS%" height="27" rx="' . $rx . '" fill="none" stroke="#d8d2c2"/>';
+		}
+		// Owner overrides: a custom label background picks its own readable
+		// ink automatically, and a border colour draws on BOTH styles — a dark
+		// badge on a dark site otherwise merges into it.
+		if ( '' !== $bgc ) {
+			$left_bg   = $bgc;
+			$left_text = self::ink_on( $bgc );
+		}
+		if ( '' !== $border ) {
+			$stroke = '<rect x="0.5" y="0.5" width="%TOTAL_LESS%" height="27" rx="' . $rx . '" fill="none" stroke="' . esc_attr( $border ) . '"/>';
 		}
 
 		// Verdana metrics at 11px are ~6.9px/char for caps+digits; textLength

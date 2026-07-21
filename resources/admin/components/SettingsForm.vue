@@ -243,7 +243,28 @@ export default {
         { value: 'rectangle', label: 'Rectangle — square corners' },
         { value: 'rounded', label: 'Rounded corners' },
         { value: 'pill', label: 'Pill — fully round ends' },
+        { value: 'circle', label: 'Circle — the score in a ring' },
       ];
+    },
+    badgeSizeOptions() {
+      return [
+        { value: 'small', label: 'Small' },
+        { value: 'medium', label: 'Medium' },
+        { value: 'large', label: 'Large' },
+        { value: 'custom', label: 'Custom height' },
+      ];
+    },
+    // The preview and the embed share this: presets per shape family (the
+    // circle needs more room than a bar), custom = the owner's px.
+    badgeHeight() {
+      const map = this.settings.scorecard_badge_shape === 'circle'
+        ? { small: 44, medium: 64, large: 88 }
+        : { small: 22, medium: 28, large: 36 };
+      if (this.settings.scorecard_badge_size === 'custom') {
+        const h = parseInt(this.settings.scorecard_badge_height, 10) || 28;
+        return Math.max(14, Math.min(112, h));
+      }
+      return map[this.settings.scorecard_badge_size] || map.medium;
     },
     // The public URLs, anchored to the SAVED address — the server answers
     // nowhere else, so following keystrokes would only paint 404s. The busy
@@ -270,9 +291,11 @@ export default {
       const bg = (this.settings.scorecard_badge_bg || '').replace('#', '');
       const fg = (this.settings.scorecard_badge_fg || '').replace('#', '');
       const wc = (this.settings.scorecard_warn_color || '').replace('#', '');
+      const bd = (this.settings.scorecard_badge_border || '').replace('#', '');
+      const bc = (this.settings.scorecard_bg_color || '').replace('#', '');
       const nm = this.settings.scorecard_show_name === false ? 0 : 1;
       const pe = this.settings.scorecard_page_enabled === false ? 0 : 1;
-      return `d=${this.settings.scorecard_display}&s=${this.settings.scorecard_style}&sh=${this.settings.scorecard_badge_shape || 'rectangle'}&bg=${bg}&fg=${fg}&wc=${wc}&nm=${nm}&pe=${pe}&v=${this.scorecardPreviewNonce}`;
+      return `d=${this.settings.scorecard_display}&s=${this.settings.scorecard_style}&sh=${this.settings.scorecard_badge_shape || 'rectangle'}&bg=${bg}&fg=${fg}&wc=${wc}&bd=${bd}&bc=${bc}&nm=${nm}&pe=${pe}&v=${this.scorecardPreviewNonce}`;
     },
     // The measured transform that fills the window EDGE TO EDGE: the height
     // fixes the scale (full 980px page always visible), and the iframe's
@@ -304,7 +327,7 @@ export default {
     },
     badgeSnippet() {
       if (!this.scorecardBase) return '';
-      const img = `<img src="${this.scorecardBase}/badge.svg" alt="AI readiness" height="28">`;
+      const img = `<img src="${this.scorecardBase}/badge.svg" alt="AI readiness" height="${this.badgeHeight}">`;
       // The badge only links somewhere real, and only if the owner wants it
       // to: page on + link switch on = wrapped; otherwise a plain image.
       const linked = this.settings.scorecard_page_enabled !== false
@@ -2186,6 +2209,26 @@ export default {
             />
           </div>
           <div class="ar-field ar-field--inline ar-field--share">
+            <label id="ar-lbl-scorecard-size">Badge size</label>
+            <SelectMenu
+              v-model="settings.scorecard_badge_size"
+              :options="badgeSizeOptions"
+              aria-label="Badge size"
+            />
+          </div>
+          <div v-if="settings.scorecard_badge_size === 'custom'" class="ar-field ar-field--inline ar-field--share">
+            <label id="ar-lbl-scorecard-height">Custom height</label>
+            <input
+              v-model.number="settings.scorecard_badge_height"
+              type="number" min="14" max="112" step="1"
+              class="ar-input ar-scorecard-height"
+              aria-describedby="ar-hint-scorecard-height"
+            />
+          </div>
+          <p v-if="settings.scorecard_badge_size === 'custom'" id="ar-hint-scorecard-height" class="ar-field__hint">
+            Height in pixels, 14–112. The badge is a vector, so any size stays crisp.
+          </p>
+          <div class="ar-field ar-field--inline ar-field--share">
             <label id="ar-lbl-scorecard-colors">Colors</label>
             <div class="ar-badge-colors">
               <label class="ar-badge-color">
@@ -2212,20 +2255,37 @@ export default {
                 />
                 <span>Needs-work color</span>
               </label>
+              <label class="ar-badge-color">
+                <input
+                  type="color"
+                  :value="settings.scorecard_badge_border || '#d8d2c2'"
+                  @input="settings.scorecard_badge_border = $event.target.value"
+                />
+                <span>Border color</span>
+              </label>
+              <label class="ar-badge-color">
+                <input
+                  type="color"
+                  :value="settings.scorecard_bg_color || '#f3f0e7'"
+                  @input="settings.scorecard_bg_color = $event.target.value"
+                />
+                <span>Background color</span>
+              </label>
               <button
                 type="button"
                 class="button button-small"
-                :disabled="!settings.scorecard_badge_bg && !settings.scorecard_badge_fg && !settings.scorecard_warn_color"
-                @click="settings.scorecard_badge_bg = ''; settings.scorecard_badge_fg = ''; settings.scorecard_warn_color = ''"
+                :disabled="!settings.scorecard_badge_bg && !settings.scorecard_badge_fg && !settings.scorecard_warn_color && !settings.scorecard_badge_border && !settings.scorecard_bg_color"
+                @click="settings.scorecard_badge_bg = ''; settings.scorecard_badge_fg = ''; settings.scorecard_warn_color = ''; settings.scorecard_badge_border = ''; settings.scorecard_bg_color = ''"
               >Reset to Default</button>
             </div>
           </div>
           <p class="ar-field__hint">
             The accent colors everything healthy — the badge's value, the ring and bars on
             the share card and the public page; the needs-work color marks rungs below par.
-            Automatic is the Agentimus green with a warm amber; pick your own to match your
-            brand. Custom colors are yours to keep readable; and while the badge reads
-            “in progress”, it stays neutral either way.
+            The border keeps the badge visible on a site the same color as it, and the
+            background paints the badge's label, the card's canvas and the page — each with
+            readable text picked automatically. Empty swatches mean the built-in scheme.
+            While the badge reads “in progress”, it stays neutral either way.
           </p>
         </div>
 
@@ -2236,7 +2296,7 @@ export default {
            feature is off: their previews would only 404. -->
       <section v-show="settings.share_scorecard" id="ar-sec-scorecard-badge" class="ar-card">
         <h2 class="ar-card__title">Put the badge on your site</h2>
-        <p class="ar-scorecard-preview"><img :src="badgeSrc" alt="AI readiness badge preview" height="28" /></p>
+        <p class="ar-scorecard-preview"><img :src="badgeSrc" alt="AI readiness badge preview" :height="badgeHeight" /></p>
         <p class="ar-field__hint">
           Paste this anywhere HTML works — a footer, an About page, a README. It always
           shows the current score and links to your scorecard page.

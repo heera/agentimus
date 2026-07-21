@@ -4014,6 +4014,7 @@ a.ar-about-proto__v:hover { text-decoration: underline; }
 
 /* The address input matches the dropdowns' lane. */
 .ar-field--share .ar-scorecard-path { flex: 0 0 620px; max-width: 100%; min-width: 0; }
+.ar-field--share .ar-scorecard-height { flex: 0 0 120px; min-width: 0; }
 /* A hint belongs under its control, not at the card's left edge: indent past
    the 190px label column (+ the 12px gap) and keep a readable measure. */
 .ar-field--inline.ar-field--share + .ar-field__hint { margin-left: 202px; max-width: 620px; }

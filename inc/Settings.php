@@ -35,7 +35,8 @@ final class Settings {
 	// dropdowns and sanitize() snap to the same lists and can never disagree.
 	const SCORECARD_DISPLAYS = array( 'score', 'tier' );
 	const SCORECARD_STYLES   = array( 'auto', 'light', 'dark' );
-	const SCORECARD_SHAPES   = array( 'rectangle', 'rounded', 'pill' );
+	const SCORECARD_SHAPES   = array( 'rectangle', 'rounded', 'pill', 'circle' );
+	const SCORECARD_SIZES    = array( 'small', 'medium', 'large', 'custom' );
 
 	/**
 	 * Default settings. Identity defaults stay deliberately empty so the admin
@@ -188,6 +189,16 @@ final class Settings {
 			// page. Only meaningful while the page is enabled — with the page
 			// off the embed is a plain image regardless.
 			'scorecard_badge_link'   => true,
+			// Badge size: three presets, or 'custom' + the height below (px,
+			// clamped 14–112; the badge is SVG, so any size stays crisp).
+			'scorecard_badge_size'   => 'medium',
+			'scorecard_badge_height' => 28,
+			// Optional border around the badge ('' = the light style's hairline
+			// only) — a dark badge on a dark site otherwise merges into it.
+			'scorecard_badge_border' => '',
+			// Optional surface background ('' = each style's own): the badge's
+			// label side, the share card's canvas and the public page's canvas.
+			'scorecard_bg_color'     => '',
 			// The needs-work colour — what below-par rungs wear on the card and
 			// the page ('' = the house amber). The accent/text pair above it
 			// lives in scorecard_badge_bg/fg (legacy names; they colour EVERY
@@ -745,8 +756,14 @@ final class Settings {
 		$shape                          = isset( $input['scorecard_badge_shape'] ) ? (string) $input['scorecard_badge_shape'] : $defaults['scorecard_badge_shape'];
 		$clean['scorecard_badge_shape'] = in_array( $shape, self::SCORECARD_SHAPES, true ) ? $shape : $defaults['scorecard_badge_shape'];
 
+		$size                          = isset( $input['scorecard_badge_size'] ) ? (string) $input['scorecard_badge_size'] : $defaults['scorecard_badge_size'];
+		$clean['scorecard_badge_size'] = in_array( $size, self::SCORECARD_SIZES, true ) ? $size : $defaults['scorecard_badge_size'];
+
+		$bh                              = isset( $input['scorecard_badge_height'] ) ? (int) $input['scorecard_badge_height'] : (int) $defaults['scorecard_badge_height'];
+		$clean['scorecard_badge_height'] = max( 14, min( 112, $bh ) );
+
 		// Badge colours: a full hex or nothing — anything else means "automatic".
-		foreach ( array( 'scorecard_badge_bg', 'scorecard_badge_fg', 'scorecard_warn_color' ) as $colour_key ) {
+		foreach ( array( 'scorecard_badge_bg', 'scorecard_badge_fg', 'scorecard_warn_color', 'scorecard_badge_border', 'scorecard_bg_color' ) as $colour_key ) {
 			$val                  = isset( $input[ $colour_key ] ) ? strtolower( trim( (string) $input[ $colour_key ] ) ) : (string) $defaults[ $colour_key ];
 			$clean[ $colour_key ] = preg_match( '/^#[0-9a-f]{6}$/', $val ) ? $val : '';
 		}

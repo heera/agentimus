@@ -129,6 +129,37 @@ final class ScorecardTest extends TestCase {
 		$this->assertSame( '', $clean['scorecard_warn_color'] );
 	}
 
+	public function test_circle_badge_sweeps_the_score_and_keeps_tier_honest() {
+		$svg = Scorecard::badge_svg( $this->snap( 91 ), 'score', 'light', '#2f7a4c', array( 'shape' => 'circle' ) );
+		$this->assertStringContainsString( 'viewBox="0 0 64 64"', $svg );
+		$this->assertStringContainsString( '>91<', $svg );
+		$this->assertStringContainsString( 'stroke-dasharray', $svg );
+
+		// Tier below the bar: no number, no sweep angle to reverse-engineer.
+		$prog = Scorecard::badge_svg( $this->snap( 87 ), 'tier', 'light', '#2f7a4c', array( 'shape' => 'circle' ) );
+		$this->assertStringNotContainsString( '87', $prog );
+		$this->assertStringNotContainsString( 'stroke-dasharray', $prog );
+	}
+
+	public function test_badge_border_and_background_apply_with_readable_ink() {
+		$svg = Scorecard::badge_svg( $this->snap( 91 ), 'score', 'dark', '#2f7a4c', array( 'border' => '#123123', 'bgc' => '#f3f0e7' ) );
+		$this->assertStringContainsString( 'stroke="#123123"', $svg );
+		// A light custom label background flips the label ink dark, even on
+		// the dark style.
+		$this->assertStringContainsString( 'fill="#f3f0e7"', $svg );
+		$this->assertStringContainsString( '#1b1913', $svg );
+	}
+
+	public function test_badge_size_settings_sanitize() {
+		$settings = new Settings();
+		$clean    = $settings->sanitize( array( 'scorecard_badge_size' => 'huge', 'scorecard_badge_height' => 9000 ) );
+		$this->assertSame( 'medium', $clean['scorecard_badge_size'] );
+		$this->assertSame( 112, $clean['scorecard_badge_height'] );
+		$clean = $settings->sanitize( array( 'scorecard_badge_size' => 'large', 'scorecard_badge_height' => 3 ) );
+		$this->assertSame( 'large', $clean['scorecard_badge_size'] );
+		$this->assertSame( 14, $clean['scorecard_badge_height'] );
+	}
+
 	public function test_badge_rejects_a_malformed_accent() {
 		$svg = Scorecard::badge_svg( $this->snap(), 'score', 'light', 'javascript:alert(1)' );
 		$this->assertStringNotContainsString( 'javascript:', $svg );
