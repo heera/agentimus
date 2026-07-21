@@ -209,30 +209,40 @@ export default {
         { value: 'pill', label: 'Pill — fully round ends' },
       ];
     },
-    badgeSrc() {
-      const base = (this.scorecard && this.scorecard.badge) || '';
-      if (!base) return '';
-      // For the signed-in owner the server honors these as live preview
-      // overrides, so the preview tracks unsaved choices; for everyone else
-      // they're inert and the badge renders from the SAVED settings.
-      const bg = (this.settings.scorecard_badge_bg || '').replace('#', '');
-      const fg = (this.settings.scorecard_badge_fg || '').replace('#', '');
-      return `${base}?d=${this.settings.scorecard_display}&s=${this.settings.scorecard_style}&sh=${this.settings.scorecard_badge_shape || 'rectangle'}&bg=${bg}&fg=${fg}`;
+    // The public URLs, rebuilt LIVE from the editable address — the boot's
+    // stored URLs would lag while the owner types a new one. The previews
+    // 404 for the moment between typing and the autosave landing, because
+    // the server only answers on the SAVED path.
+    scorecardBase() {
+      const home = ((this.scorecard && this.scorecard.home) || '').replace(/\/+$/, '');
+      if (!home) return '';
+      const slug = (this.settings.scorecard_path || 'ai-readiness').replace(/^\/+|\/+$/g, '');
+      return `${home}/${slug}`;
     },
-    badgeSnippet() {
-      const url = (this.scorecard && this.scorecard.url) || '';
-      const badge = (this.scorecard && this.scorecard.badge) || '';
-      return `<a href="${url}"><img src="${badge}" alt="AI readiness" height="28"></a>`;
+    scorecardUrl() {
+      return this.scorecardBase ? `${this.scorecardBase}/` : '';
     },
-    cardSrc() {
-      const base = (this.scorecard && this.scorecard.card) || '';
-      if (!base) return '';
-      // Same admin-only live-preview overrides as the badge — the card wears
-      // the badge's colour configuration too.
+    // For the signed-in owner the server honors these as live preview
+    // overrides, so every preview tracks unsaved choices; for everyone else
+    // they're inert and the surfaces render from the SAVED settings.
+    previewParams() {
       const bg = (this.settings.scorecard_badge_bg || '').replace('#', '');
       const fg = (this.settings.scorecard_badge_fg || '').replace('#', '');
       const nm = this.settings.scorecard_show_name === false ? 0 : 1;
-      return `${base}?d=${this.settings.scorecard_display}&s=${this.settings.scorecard_style}&bg=${bg}&fg=${fg}&nm=${nm}`;
+      return `d=${this.settings.scorecard_display}&s=${this.settings.scorecard_style}&sh=${this.settings.scorecard_badge_shape || 'rectangle'}&bg=${bg}&fg=${fg}&nm=${nm}`;
+    },
+    badgeSrc() {
+      return this.scorecardBase ? `${this.scorecardBase}/badge.svg?${this.previewParams}` : '';
+    },
+    cardSrc() {
+      return this.scorecardBase ? `${this.scorecardBase}/card.png?${this.previewParams}` : '';
+    },
+    pageSrc() {
+      return this.scorecardUrl ? `${this.scorecardUrl}?${this.previewParams}` : '';
+    },
+    badgeSnippet() {
+      if (!this.scorecardBase) return '';
+      return `<a href="${this.scorecardUrl}"><img src="${this.scorecardBase}/badge.svg" alt="AI readiness" height="28"></a>`;
     },
     // The prefilled post. Tier mode never names the number — that's the whole
     // point of tier mode — and below the bar it stays an honest question.
@@ -247,7 +257,7 @@ export default {
         : 'Here’s my site’s live AI-readiness scorecard.';
     },
     shareLinks() {
-      const url = encodeURIComponent((this.scorecard && this.scorecard.url) || '');
+      const url = encodeURIComponent(this.scorecardUrl || '');
       const text = encodeURIComponent(this.shareText);
       return {
         x: `https://twitter.com/intent/tweet?text=${text}&url=${url}`,
@@ -2013,11 +2023,26 @@ export default {
           <span class="ar-toggle__track" aria-hidden="true"></span>
           <span class="ar-toggle__text">
             <strong>Publish your scorecard</strong>
-            <small>Adds a public page at <code>/ai-readiness</code> with your score and the five rungs, plus the badge and the preview image. Off — the default — means none of these URLs exist. If a real page of yours already lives at that address, it wins and the scorecard stands down.</small>
+            <small>Adds a public page at the address below with your score and the five rungs, plus the badge and the preview image. Off — the default — means none of these URLs exist. If a real page of yours already lives at that address, it wins and the scorecard stands down.</small>
           </span>
         </label>
 
         <div :inert="!settings.share_scorecard" class="ar-webmcp-tools">
+          <div class="ar-field ar-field--inline ar-field--share">
+            <label id="ar-lbl-scorecard-path">Address</label>
+            <input
+              v-model="settings.scorecard_path"
+              type="text"
+              class="ar-input ar-scorecard-path"
+              spellcheck="false"
+              aria-describedby="ar-hint-scorecard-path"
+            />
+          </div>
+          <p id="ar-hint-scorecard-path" class="ar-field__hint">
+            The page lives at <code>/{{ (settings.scorecard_path || 'ai-readiness').replace(/^\/+|\/+$/g, '') }}</code>,
+            with the badge and preview card underneath it. Letters, numbers, dashes; pick an
+            address none of your real pages use — your own content always wins a collision.
+          </p>
           <div class="ar-field ar-field--inline ar-field--share">
             <label id="ar-lbl-scorecard-display">What the public sees</label>
             <SelectMenu
@@ -2101,7 +2126,7 @@ export default {
                 Paste this anywhere HTML works — a footer, an About page, a README. It always
                 shows the current score and links to your scorecard page.
               </span>
-              <a :href="scorecard.url" target="_blank" rel="noopener">Open your public scorecard ↗</a>
+              <a :href="scorecardUrl" target="_blank" rel="noopener">Open your public scorecard ↗</a>
             </p>
             <div class="ar-mcp-snippet">
               <pre class="ar-about-snippet ar-mcp-snippet__code"><code>{{ badgeSnippet }}</code></pre>
@@ -2113,14 +2138,21 @@ export default {
 
           <div class="ar-mcp-step">
             <p class="ar-mcp-step__head">Share the result</p>
-            <p v-if="scorecard.og !== false && cardSrc" class="ar-scorecard-card">
-              <img :src="cardSrc" alt="The social card your shared link unfurls into" />
-            </p>
+            <div class="ar-scorecard-duo">
+              <p v-if="scorecard.og !== false && cardSrc" class="ar-scorecard-card">
+                <img :src="cardSrc" alt="The social card your shared link unfurls into" />
+              </p>
+              <!-- The live page beside the card — a half-scale window onto the
+                   real thing, previews included via the same override params. -->
+              <div class="ar-scorecard-pageprev" aria-hidden="true">
+                <iframe :src="pageSrc" tabindex="-1" title="Scorecard page preview"></iframe>
+              </div>
+            </div>
             <div class="ar-scorecard-share">
               <a
-                v-if="scorecard.og !== false && scorecard.card"
+                v-if="scorecard.og !== false && cardSrc"
                 class="button button-primary ar-share-btn"
-                :href="scorecard.card"
+                :href="cardSrc"
                 download="ai-readiness.png"
               >
                 <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12m0 0 5-5m-5 5-5-5" /><path d="M4 21h16" /></svg>

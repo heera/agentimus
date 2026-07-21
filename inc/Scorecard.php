@@ -69,12 +69,22 @@ final class Scorecard {
 	}
 
 	/**
-	 * The public base path ('/ai-readiness'), normalised, filterable.
+	 * The public base path — the owner's setting (Settings → Share → Address),
+	 * the default '/ai-readiness' when unset, and the filter gets the last
+	 * word. Normalised: leading slash, no trailing slash.
 	 *
-	 * @return string Leading slash, no trailing slash.
+	 * @return string
 	 */
-	public static function path() {
-		$path = apply_filters( 'agentimus_scorecard_path', self::PATH );
+	public function path() {
+		$slug = trim( (string) $this->settings->get( 'scorecard_path', 'ai-readiness' ), '/' );
+		$path = '' === $slug ? self::PATH : '/' . $slug;
+
+		/**
+		 * Filter the scorecard's public base path.
+		 *
+		 * @param string $path Leading-slash path, e.g. '/ai-readiness'.
+		 */
+		$path = apply_filters( 'agentimus_scorecard_path', $path );
 		$path = '/' . trim( (string) $path, '/' );
 		return '/' === $path ? self::PATH : $path;
 	}
@@ -108,7 +118,7 @@ final class Scorecard {
 
 		$uri  = isset( $_SERVER['REQUEST_URI'] ) ? sanitize_text_field( wp_unslash( $_SERVER['REQUEST_URI'] ) ) : '/';
 		$path = '/' . ltrim( (string) wp_parse_url( $uri, PHP_URL_PATH ), '/' );
-		$base = self::path();
+		$base = $this->path();
 
 		$display = (string) $this->settings->get( 'scorecard_display', 'score' );
 		$style   = (string) $this->settings->get( 'scorecard_style', 'auto' );

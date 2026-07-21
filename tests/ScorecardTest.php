@@ -217,4 +217,26 @@ final class ScorecardTest extends TestCase {
 		$defaults = ( new Settings() )->defaults();
 		$this->assertFalse( $defaults['share_scorecard'] );
 	}
+
+	public function test_path_is_owner_configurable() {
+		update_option( Settings::OPTION, array( 'scorecard_path' => 'my-score' ) );
+		$this->assertSame( '/my-score', ( new Scorecard( new Settings() ) )->path() );
+
+		_af_reset_options();
+		$this->assertSame( '/ai-readiness', ( new Scorecard( new Settings() ) )->path() );
+	}
+
+	public function test_path_sanitises_to_url_safe_or_falls_back() {
+		$settings = new Settings();
+
+		$clean = $settings->sanitize( array( 'scorecard_path' => '/My Score!!/' ) );
+		$this->assertSame( 'myscore', $clean['scorecard_path'] );
+
+		$clean = $settings->sanitize( array( 'scorecard_path' => 'reports//ai' ) );
+		$this->assertSame( 'reports/ai', $clean['scorecard_path'] );
+
+		// A public URL must never be empty: garbage collapses to the default.
+		$clean = $settings->sanitize( array( 'scorecard_path' => '///' ) );
+		$this->assertSame( 'ai-readiness', $clean['scorecard_path'] );
+	}
 }

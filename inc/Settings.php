@@ -182,6 +182,11 @@ final class Settings {
 			// name is often a person; the owner may prefer the domain, which the
 			// surfaces fall back to (a URL is public by definition). ON by default.
 			'scorecard_show_name'   => true,
+			// The public page's address (badge.svg and card.png live beneath it).
+			// Owner-configurable so a site that already uses /ai-readiness for
+			// real content can move the scorecard instead of losing it to the
+			// stand-down rule (owner content always wins a collision).
+			'scorecard_path'        => 'ai-readiness',
 		);
 
 		/**
@@ -734,6 +739,14 @@ final class Settings {
 			$val                  = isset( $input[ $colour_key ] ) ? strtolower( trim( (string) $input[ $colour_key ] ) ) : (string) $defaults[ $colour_key ];
 			$clean[ $colour_key ] = preg_match( '/^#[0-9a-f]{6}$/', $val ) ? $val : '';
 		}
+
+		// The scorecard's address: url-safe characters only (nested segments
+		// allowed), collapsed slashes, and empty falls back to the default —
+		// a public URL must never be empty or surprising.
+		$path = isset( $input['scorecard_path'] ) ? (string) $input['scorecard_path'] : (string) $defaults['scorecard_path'];
+		$path = preg_replace( '/[^a-z0-9\/_\-]/', '', strtolower( trim( $path ) ) );
+		$path = trim( preg_replace( '#/+#', '/', (string) $path ), '/' );
+		$clean['scorecard_path'] = '' === $path ? (string) $defaults['scorecard_path'] : $path;
 
 		$kb                        = isset( $input['llms_full_max_kb'] ) ? (int) $input['llms_full_max_kb'] : $defaults['llms_full_max_kb'];
 		$clean['llms_full_max_kb'] = max( 64, min( 20480, $kb ) );

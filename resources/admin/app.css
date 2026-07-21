@@ -4016,6 +4016,18 @@ a.ar-about-proto__v:hover { text-decoration: underline; }
 /* The buttons' explainer holds the image's width, wrapping to two lines. */
 .ar-scorecard-note { max-width: 520px; }
 
+/* The address input matches the dropdowns' lane. */
+.ar-field--share .ar-scorecard-path { flex: 0 0 380px; max-width: 100%; min-width: 0; }
+@media (max-width: 782px) { .ar-field--share .ar-scorecard-path { flex: 1 1 auto; } }
+
+/* Card + live page, side by side: the iframe is a half-scale window onto the
+   real page, matched to the card image's 273px height. Pointer-events off —
+   it's a preview; the open-link above is the way in. Wraps under on narrow. */
+.ar-scorecard-duo { display: flex; gap: 16px; align-items: flex-start; flex-wrap: wrap; }
+.ar-scorecard-duo .ar-scorecard-card { margin: 0; flex: 0 1 520px; min-width: 0; }
+.ar-scorecard-pageprev { width: 273px; height: 273px; overflow: hidden; border: 1px solid #d8d2c2; border-radius: 6px; flex: none; }
+.ar-scorecard-pageprev iframe { width: 546px; height: 546px; transform: scale(0.5); transform-origin: 0 0; border: 0; pointer-events: none; }
+
 /* Small screens, at core's own 782px breakpoint (where wp-admin enlarges every
    .button for touch): the share rows stack — label above a full-width control —
    and the snippet's Copy drops out of its corner overlay into the flow below

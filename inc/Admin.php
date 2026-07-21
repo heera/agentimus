@@ -692,15 +692,23 @@ final class Admin {
 			// The share-scorecard card's facts: the public URLs the feature would
 			// publish, and whether the social-preview image can render on this
 			// server (GD with FreeType + a usable TTF) — false makes the card say
-			// so instead of advertising an unfurl that won't happen.
-			'scorecard'   => array(
-				'url'    => esc_url_raw( home_url( Scorecard::path() . '/' ) ),
-				'badge'  => esc_url_raw( home_url( Scorecard::path() . '/badge.svg' ) ),
-				'card'   => esc_url_raw( home_url( Scorecard::path() . '/card.png' ) ),
-				'og'     => Scorecard::og_ready(),
-				// The resolved automatic accent, so the colour pickers' default
-				// swatch shows the colour the badge is actually wearing.
-				'accent' => ( new Scorecard( $this->settings ) )->current_accent(),
+			// so instead of advertising an unfurl that won't happen. `home` lets
+			// the SPA rebuild the URLs live while the owner edits the address.
+			'scorecard'   => call_user_func(
+				function () {
+					$scorecard = new Scorecard( $this->settings );
+					$base      = $scorecard->path();
+					return array(
+						'home'   => esc_url_raw( home_url( '/' ) ),
+						'url'    => esc_url_raw( home_url( $base . '/' ) ),
+						'badge'  => esc_url_raw( home_url( $base . '/badge.svg' ) ),
+						'card'   => esc_url_raw( home_url( $base . '/card.png' ) ),
+						'og'     => Scorecard::og_ready(),
+						// The resolved automatic accent, so the colour pickers'
+						// default swatch shows the real current colour.
+						'accent' => $scorecard->current_accent(),
+					);
+				}
 			),
 			'version'     => AGENTIMUS_VERSION,
 			// The nav-bar quill's state: live when both prerequisites hold, dimmed with
