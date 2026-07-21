@@ -2140,7 +2140,7 @@ export default {
               <label class="ar-badge-color">
                 <input
                   type="color"
-                  :value="settings.scorecard_badge_bg || scorecard.accent || '#0fac0c'"
+                  :value="settings.scorecard_badge_bg || scorecard.accent || '#2f7a4c'"
                   @input="settings.scorecard_badge_bg = $event.target.value"
                 />
                 <span>Background color</span>

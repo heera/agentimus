@@ -51,7 +51,7 @@ final class Scorecard {
 	 * as surprising more often than as thoughtful. Owners match their brand
 	 * with the colour settings instead.
 	 */
-	const ACCENT = '#0fac0c';
+	const ACCENT = '#2f7a4c';
 
 	/** @var Settings */
 	private $settings;
@@ -598,7 +598,7 @@ final class Scorecard {
 		$img = imagecreatetruecolor( 1200, 630 );
 		$rgb = static function ( $hex ) use ( $img ) {
 			$c = self::hex_rgb( $hex );
-			$c = null === $c ? array( 15, 172, 12 ) : $c;
+			$c = null === $c ? array( 47, 122, 76 ) : $c;
 			return imagecolorallocate( $img, $c[0], $c[1], $c[2] );
 		};
 
