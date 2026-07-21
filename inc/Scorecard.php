@@ -596,7 +596,17 @@ final class Scorecard {
 			$charset = 0 === strpos( $type, 'image/' ) ? '' : '; charset=UTF-8';
 			header( 'Content-Type: ' . $type . $charset );
 			header( 'X-Content-Type-Options: nosniff' );
-			header( 'Cache-Control: public, max-age=' . (int) $max_age );
+			// The signed-in owner is the person iterating on the settings — a
+			// display-mode flip they can't see without a hard reload reads as
+			// "broken". They get every response fresh; the anonymous public
+			// (and any edge in front of it) keeps the cache window. The body
+			// is identical either way, so a confused shared cache can mix the
+			// two up without ever serving anyone the wrong thing.
+			if ( is_user_logged_in() ) {
+				header( 'Cache-Control: no-store' );
+			} else {
+				header( 'Cache-Control: public, max-age=' . (int) $max_age );
+			}
 		}
 		$is_head = isset( $_SERVER['REQUEST_METHOD'] ) && 'HEAD' === strtoupper( sanitize_text_field( wp_unslash( $_SERVER['REQUEST_METHOD'] ) ) );
 		if ( ! $is_head ) {
