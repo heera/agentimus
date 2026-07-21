@@ -135,6 +135,10 @@ final class ScorecardTest extends TestCase {
 		$this->assertStringContainsString( '>91<', $svg );
 		$this->assertStringContainsString( 'stroke-dasharray', $svg );
 
+		// The badge text colour applies to the circle's number too.
+		$red = Scorecard::badge_svg( $this->snap( 91 ), 'score', 'dark', '#2f7a4c', array( 'shape' => 'circle', 'fg' => '#ec2727' ) );
+		$this->assertStringContainsString( 'fill="#ec2727">91', $red );
+
 		// Tier below the bar: no number, no sweep angle to reverse-engineer.
 		$prog = Scorecard::badge_svg( $this->snap( 87 ), 'tier', 'light', '#2f7a4c', array( 'shape' => 'circle' ) );
 		$this->assertStringNotContainsString( '87', $prog );

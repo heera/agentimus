@@ -310,11 +310,13 @@ final class Scorecard {
 	 * mode sweeps the accent by the score; tier mode is all-or-track (no sweep
 	 * angle to reverse-engineer, no number anywhere). Pure.
 	 */
-	private static function badge_circle_svg( array $snap, $display, $style, $accent, $bgc, $border ) {
+	private static function badge_circle_svg( array $snap, $display, $style, $accent, $bgc, $border, $fg = '' ) {
 		$score  = isset( $snap['score'] ) ? (int) $snap['score'] : 0;
 		$light  = 'dark' !== $style;
 		$track  = $light ? '#e7e1d2' : '#3a352b';
-		$ink    = '' !== $bgc ? self::ink_on( $bgc ) : ( $light ? '#1b1913' : '#f3f0e7' );
+		// The badge text colour wins when set; otherwise a readable ink is
+		// picked from the background (custom or the style's own).
+		$ink    = '' !== $fg ? $fg : ( '' !== $bgc ? self::ink_on( $bgc ) : ( $light ? '#1b1913' : '#f3f0e7' ) );
 		$muted  = '#8a8374';
 		$tier   = 'tier' === $display;
 		$earned = self::tier_earned( $score );
@@ -419,18 +421,19 @@ final class Scorecard {
 		$shape  = isset( $opts['shape'] ) ? (string) $opts['shape'] : 'rectangle';
 		$border = isset( $opts['border'] ) && preg_match( '/^#[0-9a-fA-F]{6}$/', (string) $opts['border'] ) ? strtolower( $opts['border'] ) : '';
 		$bgc    = isset( $opts['bgc'] ) && preg_match( '/^#[0-9a-fA-F]{6}$/', (string) $opts['bgc'] ) ? strtolower( $opts['bgc'] ) : '';
+		$fg     = isset( $opts['fg'] ) && preg_match( '/^#[0-9a-fA-F]{6}$/', (string) $opts['fg'] ) ? strtolower( $opts['fg'] ) : '';
 
 		// The circle is its own animal — a ring gauge, no label lane. Its
 		// centre stays TRANSPARENT unless a background is chosen, so it adopts
 		// whatever the host site puts behind it: the most adaptable shape.
 		if ( 'circle' === $shape ) {
-			return self::badge_circle_svg( $snap, $display, $style, $accent, $bgc, $border );
+			return self::badge_circle_svg( $snap, $display, $style, $accent, $bgc, $border, $fg );
 		}
 
 		$rx = 'pill' === $shape ? 14 : ( 'rounded' === $shape ? 9 : 4 );
 
 		$custom_bg = isset( $opts['bg'] ) && preg_match( '/^#[0-9a-fA-F]{6}$/', (string) $opts['bg'] ) ? strtolower( $opts['bg'] ) : '';
-		$value_fg  = isset( $opts['fg'] ) && preg_match( '/^#[0-9a-fA-F]{6}$/', (string) $opts['fg'] ) ? strtolower( $opts['fg'] ) : '#ffffff';
+		$value_fg  = '' !== $fg ? $fg : '#ffffff';
 
 		$label = __( 'AI READINESS', 'agentimus' );
 		if ( 'tier' === $display ) {
