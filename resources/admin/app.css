@@ -4055,6 +4055,9 @@ a.ar-about-proto__v:hover { text-decoration: underline; }
    factors for the layout to fight. */
 .ar-scorecard-pageprev { position: relative; min-height: 320px; overflow: hidden; border: 1px solid #d8d2c2; border-radius: 6px; }
 .ar-scorecard-pageprev iframe { border: 0; pointer-events: none; }
+/* Page off: the window stays (the grid row keeps its shape) and says why
+   it's empty instead of leaving a silent void. */
+.ar-scorecard-pageoff { display: grid; place-items: center; height: 100%; margin: 0; padding: 0 28px; text-align: center; color: var(--ar-ink-soft); font-size: 13px; line-height: 1.6; }
 
 /* The share buttons fill the image's width, one row, equal widths — compact
    type so all four fit; the icons carry the "share" meaning, so the network
