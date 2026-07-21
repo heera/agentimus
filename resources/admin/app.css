@@ -4067,7 +4067,7 @@ a.ar-about-proto__v:hover { text-decoration: underline; }
 
 /* The share preview dialog: card thumbnail, the editable link, plain actions. */
 .ar-share-modal { max-width: 480px; }
-.ar-share-modal__body { display: grid; gap: 14px; padding: 4px 0 8px; }
+.ar-share-modal__body { display: grid; gap: 14px; padding: 16px 28px 12px; } /* matches __head's 28px gutters */
 .ar-share-modal__card { margin: 0; }
 .ar-share-modal__card img { display: block; width: 100%; border: 1px solid #d8d2c2; border-radius: 6px; }
 
