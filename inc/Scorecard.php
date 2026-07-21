@@ -150,8 +150,11 @@ final class Scorecard {
 			$s  = isset( $_GET['s'] ) ? sanitize_key( wp_unslash( $_GET['s'] ) ) : '';
 			$sh = isset( $_GET['sh'] ) ? sanitize_key( wp_unslash( $_GET['sh'] ) ) : '';
 			// Colours travel as bare 6-hex (no #) to dodge URL-encoding noise.
-			$bg = isset( $_GET['bg'] ) ? sanitize_key( wp_unslash( $_GET['bg'] ) ) : '';
-			$fg = isset( $_GET['fg'] ) ? sanitize_key( wp_unslash( $_GET['fg'] ) ) : '';
+			// null = absent (keep the saved colour); '' = PRESENT BUT EMPTY —
+			// the dial was put back to automatic, and the preview must show
+			// that before Save makes it real (the Reset button's whole point).
+			$bg = isset( $_GET['bg'] ) ? sanitize_key( wp_unslash( $_GET['bg'] ) ) : null;
+			$fg = isset( $_GET['fg'] ) ? sanitize_key( wp_unslash( $_GET['fg'] ) ) : null;
 			$nm = isset( $_GET['nm'] ) ? sanitize_key( wp_unslash( $_GET['nm'] ) ) : '';
 			// phpcs:enable WordPress.Security.NonceVerification.Recommended
 			if ( in_array( $d, Settings::SCORECARD_DISPLAYS, true ) ) {
@@ -163,23 +166,23 @@ final class Scorecard {
 			if ( in_array( $sh, Settings::SCORECARD_SHAPES, true ) ) {
 				$opts['shape'] = $sh;
 			}
-			if ( preg_match( '/^[0-9a-f]{6}$/', $bg ) ) {
-				$opts['bg'] = '#' . $bg;
+			if ( null !== $bg ) {
+				$opts['bg'] = preg_match( '/^[0-9a-f]{6}$/', $bg ) ? '#' . $bg : '';
 			}
-			if ( preg_match( '/^[0-9a-f]{6}$/', $fg ) ) {
-				$opts['fg'] = '#' . $fg;
+			if ( null !== $fg ) {
+				$opts['fg'] = preg_match( '/^[0-9a-f]{6}$/', $fg ) ? '#' . $fg : '';
 			}
-			$wc = isset( $_GET['wc'] ) ? sanitize_key( wp_unslash( $_GET['wc'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only preview parameter.
-			if ( preg_match( '/^[0-9a-f]{6}$/', $wc ) ) {
-				$opts['warn'] = '#' . $wc;
+			$wc = isset( $_GET['wc'] ) ? sanitize_key( wp_unslash( $_GET['wc'] ) ) : null; // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only preview parameter.
+			if ( null !== $wc ) {
+				$opts['warn'] = preg_match( '/^[0-9a-f]{6}$/', $wc ) ? '#' . $wc : '';
 			}
-			$bd = isset( $_GET['bd'] ) ? sanitize_key( wp_unslash( $_GET['bd'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only preview parameter.
-			if ( preg_match( '/^[0-9a-f]{6}$/', $bd ) ) {
-				$opts['border'] = '#' . $bd;
+			$bd = isset( $_GET['bd'] ) ? sanitize_key( wp_unslash( $_GET['bd'] ) ) : null; // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only preview parameter.
+			if ( null !== $bd ) {
+				$opts['border'] = preg_match( '/^[0-9a-f]{6}$/', $bd ) ? '#' . $bd : '';
 			}
-			$bc = isset( $_GET['bc'] ) ? sanitize_key( wp_unslash( $_GET['bc'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only preview parameter.
-			if ( preg_match( '/^[0-9a-f]{6}$/', $bc ) ) {
-				$opts['bgc'] = '#' . $bc;
+			$bc = isset( $_GET['bc'] ) ? sanitize_key( wp_unslash( $_GET['bc'] ) ) : null; // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only preview parameter.
+			if ( null !== $bc ) {
+				$opts['bgc'] = preg_match( '/^[0-9a-f]{6}$/', $bc ) ? '#' . $bc : '';
 			}
 			if ( '0' === $nm || '1' === $nm ) {
 				$opts['name'] = '1' === $nm;
