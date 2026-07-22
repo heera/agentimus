@@ -86,7 +86,9 @@ Alongside choosing *which* content types to advertise, this step is also where y
 
 ### Step 3: Review and finish
 
-The last step is a plain-English summary: who your site represents, what assistants can read, and a short list of the strong protections that switched on **automatically** — such as being discoverable through machine-readable files, and (where your server supports it) signed responses agents can verify. When you've left training off, this list also confirms your content is **reserved from AI training**, reflecting the stance you set in Step 2. Click **Finish setup** and Agentimus saves everything in one go, with a brief celebration to confirm you're done. Then it's fully running.
+The last step is a plain-English summary: who your site represents, what assistants can read, and a short list of the strong protections that switched on **automatically** — such as being discoverable through machine-readable files, and (where your server supports it) signed responses agents can verify. When you've left training off, this list also confirms your content is **reserved from AI training**, reflecting the stance you set in Step 2. Click **Finish setup** and Agentimus saves everything in one go.
+
+The closing screen then shows what just went live on your site, as clickable addresses: your `llms.txt` guide and the machine-readable discovery document — open either in a new tab and you'll find the words you typed a moment earlier already inside — together with your site's **starting readiness score**, which jumps to the Readiness tab so you can see what raises it. From that moment Agentimus is fully running.
 
 ### Skipping or re-running the wizard
 
