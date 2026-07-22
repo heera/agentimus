@@ -1119,6 +1119,14 @@
   .ar-whatsnew__grid { grid-template-columns: 1fr; }
 }
 
+/* The review ask — What's-New family: one row of words, one row of answers. */
+.ar-reviewask { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 14px 24px; }
+.ar-reviewask__body { display: flex; align-items: flex-start; gap: 12px; flex: 1 1 380px; }
+.ar-reviewask__stars { color: #e0a32e; font-size: 15px; letter-spacing: 2px; line-height: 1.7; white-space: nowrap; }
+.ar-reviewask__title { margin: 0 0 4px; font-family: var(--ar-serif); font-size: 17px; font-weight: 600; color: var(--ar-ink); }
+.ar-reviewask__text { margin: 0; font-size: 12.5px; line-height: 1.55; color: var(--ar-ink-soft); max-width: 640px; }
+.ar-reviewask__actions { display: flex; align-items: center; gap: 16px; }
+
 /* The in-admin changelog dialog body: one section per release, quiet version
    headings, readable note bullets. Rendered notes carry only server-made
    <strong>/<code>/<a> — escaped before formatting. */
@@ -2085,14 +2093,15 @@ html { scrollbar-gutter: stable; }
   text-transform: uppercase; color: var(--ar-ink-faint); text-align: left;
 }
 .ar-wiz__explore { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
-.ar-wiz__explore button {
+.ar-wiz__explore button,
+.ar-wiz__explore a {
   appearance: none; cursor: pointer; width: 100%; text-align: left;
   display: flex; flex-direction: column; gap: 2px;
   padding: 11px 14px; background: var(--ar-surface); border: 1px solid var(--ar-line);
-  border-radius: var(--ar-radius); font: inherit; color: var(--ar-ink);
+  border-radius: var(--ar-radius); font: inherit; color: var(--ar-ink); text-decoration: none;
 }
-.ar-wiz__explore button:hover { border-color: var(--ar-line-strong); background: var(--ar-surface-2); }
-.ar-wiz__explore button:focus-visible { outline: 2px solid var(--ar-accent); outline-offset: 2px; }
+.ar-wiz__explore button:hover, .ar-wiz__explore a:hover { border-color: var(--ar-line-strong); background: var(--ar-surface-2); }
+.ar-wiz__explore button:focus-visible, .ar-wiz__explore a:focus-visible { outline: 2px solid var(--ar-accent); outline-offset: 2px; }
 .ar-wiz__explore-name { font-weight: 600; font-size: 13.5px; }
 .ar-wiz__explore-name::after { content: " ↗"; color: var(--ar-ink-faint); font-weight: 400; }
 .ar-wiz__explore-desc { font-size: 12px; color: var(--ar-ink-soft); line-height: 1.4; }

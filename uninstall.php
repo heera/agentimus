@@ -24,6 +24,7 @@ function agentimus_uninstall_site() {
 	delete_option( 'agentimus_tombstones' );
 	delete_option( 'agentimus_bot_ranges' );
 	delete_option( 'agentimus_whatsnew_seen' );
+	delete_option( 'agentimus_review_ask' );
 	delete_transient( 'agentimus_ranges_pending' );
 	delete_transient( 'agentimus_llms_txt' );
 	delete_transient( 'agentimus_llms_full' );

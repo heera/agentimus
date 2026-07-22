@@ -268,6 +268,14 @@ final class Admin {
 			return $text;
 		}
 
+		// Once the Dashboard's review ask has been answered for good, this line
+		// stops asking too — "never asks again" holds everywhere, and someone
+		// who already reviewed isn't asked on every screen forever. Core's
+		// default footer text stands in.
+		if ( Review::closed() ) {
+			return $text;
+		}
+
 		$name  = '<strong>' . esc_html__( 'Agentimus', 'agentimus' ) . '</strong>';
 		$stars = sprintf(
 			'<a href="%1$s" target="_blank" rel="noopener" aria-label="%2$s" class="agentimus-rating-link">&#9733;&#9733;&#9733;&#9733;&#9733;</a>',
@@ -408,6 +416,10 @@ final class Admin {
 		if ( 'toplevel_page_' . self::SLUG !== $hook ) {
 			return;
 		}
+
+		// One plugin-screen visit, for the review ask's "has it earned it yet"
+		// gates (a week present, 3+ visits, 1+ real action) — see Review::eligible().
+		Review::touch();
 
 		$js  = AGENTIMUS_DIR . 'assets/admin/app.js';
 		$css = AGENTIMUS_DIR . 'assets/admin/app.css';
@@ -630,24 +642,20 @@ final class Admin {
 			'show'    => $show,
 			'items'   => array(
 				array(
-					'title' => 'Reading ease got fair',
-					'text'  => 'The "Hard to read" check stopped over-charging honest writing. Bullet lists no longer count as one enormous sentence, your topic’s own vocabulary — "security" on a security article — reads as familiar instead of costing five syllables every use, and code samples aren’t graded as prose at all (identifiers were being scored as twelve-syllable words). Genuinely dense prose still warns; technical writing about a technical subject no longer does.',
+					'title' => 'It may ask for a review — once',
+					'text'  => 'After Agentimus has been on your site a week, actually been used, and your readiness score is healthy, one quiet card on this Dashboard asks whether it has earned a review on WordPress.org. Any answer puts it away — "Maybe later" for a month, the others for good — and once answered, the rating line in the footer below retires too. No pop-ups anywhere else, nothing sent anywhere.',
 				),
 				array(
-					'title' => 'Checks that show their work',
-					'text'  => 'No more bare scores to puzzle over: a pass tells you which recurring terms it read as familiar, and a warn ends with "Heaviest words here: …" — the exact words weighing the page down, so you know what to simplify before you open the editor.',
+					'title' => 'A better first minute',
+					'text'  => 'New installs now finish setup looking at proof instead of promises: the closing screen lists what just went live — llms.txt and the discovery document as clickable addresses, with the owner’s words already inside — plus the site’s starting readiness score. Empty dashboard cards also say what will appear in them, and roughly when, instead of a bare zero.',
 				),
 				array(
-					'title' => 'AI drafts to your rules',
-					'text'  => 'Everything that writes content now sees your readability bars up front — the in-admin assistant always did, and now agents connected over MCP get the same rules in the write tools themselves. Every agent create or update also comes back graded, so a sloppy draft is caught in the same breath it was written.',
+					'title' => 'The MCP card speaks standard vocabulary',
+					'text'  => 'The MCP server card now describes its authentication the way agent tooling does — http/basic and oauth2 — so what you read here matches what a connecting agent’s documentation says.',
 				),
 				array(
-					'title' => 'The worklist says what it means',
-					'text'  => 'Counts name your real content — "3 Posts, 1 Page" instead of calling everything a page — every readability check has its own plain advice line, and a warning can no longer display a passing score.',
-				),
-				array(
-					'title' => 'Coming from 1.24 or earlier?',
-					'text'  => 'Then 1.25 is new to you too: an in-admin writing assistant that drafts whole posts from a brief and revises existing ones, Ask AI on any block, AI featured images, plain-language AI errors and dashboard drill-downs. The full changelog on this card tells that story.',
+					'title' => 'Coming from 1.25 or earlier?',
+					'text'  => 'Then 1.26 is new to you too: honest reading-ease grading (bullet lists stop counting as run-on sentences, your topic’s vocabulary reads as familiar, code isn’t graded as prose), checks that name the exact words weighing a page down, and MCP writes that come back graded. The full changelog on this card tells that story.',
 				),
 			),
 		);
@@ -667,7 +675,7 @@ final class Admin {
 			'dateFormat'  => get_option( 'date_format' ) ? get_option( 'date_format' ) : 'F j, Y',
 			'timeFormat'  => get_option( 'time_format' ) ? get_option( 'time_format' ) : 'g:i a',
 			'readiness'   => $readiness = ( new Readiness( $this->settings ) )->report(),
-			'score'       => $this->aeo_score( $readiness ), // AEO/GEO score + action plan, from the same readiness run.
+			'score'       => $score = $this->aeo_score( $readiness ), // AEO/GEO score + action plan, from the same readiness run.
 			'discovery'   => Discovery\Hub::data( $this->settings, Discovery\Registry::instance() ),
 			'restNamespacesDetected' => Discovery\Adapters\RestApi::detected(),
 			'entityTypes'   => $this->settings->entity_types(),
@@ -699,6 +707,13 @@ final class Admin {
 			// site gets the wizard; release notes would be noise about a past it
 			// never had). Dismiss stores the version — see Rest::whatsnew_seen().
 			'whatsNew'    => $this->whats_new(),
+			// The review ask (Dashboard only, same family): shows once the plugin
+			// has earned it — see Review::eligible() for the gates. Answers land
+			// at Rest::review_ack(); a final answer also quiets the footer's line.
+			'reviewAsk'   => array(
+				'show' => Review::eligible( Review::state(), isset( $score['score'] ) ? $score['score'] : null, time() ),
+				'url'  => Review::URL,
+			),
 			// Surfaced on the About tab so the protocol facts mirror the code,
 			// not hand-copied strings that can drift.
 			'protocol'    => array(

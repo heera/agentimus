@@ -21,6 +21,8 @@ export default {
     saving: { type: Boolean, default: false },
     returning: { type: Boolean, default: false }, // "Review setup" entry, not first run
     celebrate: { type: Boolean, default: false },  // parent signals a first-run save succeeded
+    links: { type: Object, default: () => ({}) },  // { llms, discovery } — the done screen's live URLs
+    score: { type: Object, default: null },        // the save's fresh AEO score report, for the done screen
   },
   emits: ['finish', 'skip', 'done', 'navigate'],
   data() {
@@ -74,6 +76,10 @@ export default {
     finishLabel() {
       if (this.saving) return this.returning ? 'Saving…' : 'Finishing…';
       return this.returning ? 'Save changes' : 'Finish setup';
+    },
+    // The done screen's score line — only when the save's fresh report has a number.
+    doneScore() {
+      return this.score && typeof this.score.score === 'number' ? this.score.score : null;
     },
     baseTypes() {
       return this.postTypes.filter((p) => ['post', 'page'].includes(p.slug));
@@ -146,6 +152,11 @@ export default {
     },
     getStarted() {
       this.started = true;
+    },
+    // Live URLs display without their scheme — "yoursite.com/llms.txt" reads as
+    // an address on YOUR OWN site, which is what makes the moment land.
+    bare(url) {
+      return String(url || '').replace(/^https?:\/\//, '');
     },
     isTypeOn(slug) {
       return this.types.includes(slug);
@@ -406,26 +417,28 @@ export default {
                   Your site now speaks the language AI assistants understand — discoverable, signed and
                   verifiable, and on your terms.
                 </p>
-                <!-- Orient the new owner to the capabilities added since setup was first built —
-                     each jumps to the relevant tab and closes the wizard. -->
-                <p class="ar-wiz__explore-label">Now explore</p>
+                <!-- The wow: real addresses that began serving the owner's own
+                     words seconds ago — click one and see. The score row jumps
+                     to the Readiness tab (and closes the wizard); the external
+                     links open beside the modal so the moment isn't lost. -->
+                <p class="ar-wiz__explore-label">Live on your site right now</p>
                 <ul class="ar-wiz__explore">
-                  <li>
-                    <button type="button" @click="$emit('navigate', 'dashboard')">
-                      <span class="ar-wiz__explore-name">Dashboard</span>
-                      <span class="ar-wiz__explore-desc">See which AI assistants are actually reading you</span>
-                    </button>
+                  <li v-if="links.llms">
+                    <a :href="links.llms" target="_blank" rel="noopener">
+                      <span class="ar-wiz__explore-name">{{ bare(links.llms) }}</span>
+                      <span class="ar-wiz__explore-desc">The guide AI assistants read first — your name, your sentence and your topics are already in it</span>
+                    </a>
                   </li>
-                  <li>
+                  <li v-if="links.discovery">
+                    <a :href="links.discovery" target="_blank" rel="noopener">
+                      <span class="ar-wiz__explore-name">{{ bare(links.discovery) }}</span>
+                      <span class="ar-wiz__explore-desc">A machine-readable card telling AI agents what your site offers and your rules for using it</span>
+                    </a>
+                  </li>
+                  <li v-if="doneScore !== null">
                     <button type="button" @click="$emit('navigate', 'readiness')">
-                      <span class="ar-wiz__explore-name">Readiness</span>
-                      <span class="ar-wiz__explore-desc">Your AI-readiness score, plus Agent preview & the exposed-files scan</span>
-                    </button>
-                  </li>
-                  <li>
-                    <button type="button" @click="$emit('navigate', 'discovery')">
-                      <span class="ar-wiz__explore-name">Discovery</span>
-                      <span class="ar-wiz__explore-desc">Everything agents can find — endpoints, providers, capabilities</span>
+                      <span class="ar-wiz__explore-name">AI readiness: {{ doneScore }}/100</span>
+                      <span class="ar-wiz__explore-desc">Your starting score — the Readiness tab lists the moves that raise it</span>
                     </button>
                   </li>
                 </ul>

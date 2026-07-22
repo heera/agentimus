@@ -9,6 +9,7 @@ import ReadinessPanel from './components/ReadinessPanel.vue';
 import DiscoveryHub from './components/DiscoveryHub.vue';
 import ActivityPanel from './components/ActivityPanel.vue';
 import WhatsNew from './components/WhatsNew.vue';
+import ReviewAsk from './components/ReviewAsk.vue';
 import AssistantLauncher from './components/AssistantLauncher.vue';
 import AssistantDrawer from './components/AssistantDrawer.vue';
 import AiTrafficPanel from './components/AiTrafficPanel.vue';
@@ -40,7 +41,7 @@ const MORE_EDGE_GAP = 12;
 
 export default {
   name: 'AgentimusApp',
-  components: { SettingsForm, ReadinessPanel, DiscoveryHub, ActivityPanel, WhatsNew, AssistantLauncher, AssistantDrawer, AiTrafficPanel, RequestLog, AgentAccess, ReviewMenu, OnboardingWizard, AboutPanel, ConfirmDialog, VisibilityPanel },
+  components: { SettingsForm, ReadinessPanel, DiscoveryHub, ActivityPanel, WhatsNew, ReviewAsk, AssistantLauncher, AssistantDrawer, AiTrafficPanel, RequestLog, AgentAccess, ReviewMenu, OnboardingWizard, AboutPanel, ConfirmDialog, VisibilityPanel },
   // The styled hover bubble (shared with the activity tables) — the score rail's
   // rung and next-step hints use it instead of slow, unthemeable native titles.
   mixins: [uaTip],
@@ -104,6 +105,7 @@ export default {
       defaultAllowed: this.boot.defaultAllowed || [],
       verifierBuiltins: this.boot.verifierBuiltins || [],
       whatsNew: this.boot.whatsNew || { show: false, version: '', items: [] },
+      reviewAsk: this.boot.reviewAsk || { show: false, url: '' },
       assistant: this.boot.assistant || { writesOn: false, providerReady: false },
       assistantOpen: false,
       // The Request Log / AI-traffic filter a dashboard row asked for
@@ -1534,6 +1536,8 @@ export default {
       :saving="onboarding"
       :returning="onboarded"
       :celebrate="wizardCelebrate"
+      :links="{ llms: endpoints.llms || '', discovery: (discovery.endpoints || {}).discovery || '' }"
+      :score="aeo"
       @finish="finishWizard"
       @skip="skipWizard"
       @done="closeWizard"
@@ -1608,6 +1612,15 @@ export default {
           :data="whatsNew"
           :api="api"
           @dismiss="whatsNew.show = false"
+        />
+        <!-- The review ask — the server only sets show once the plugin has
+             earned it; every answer dismisses (later for a month, the rest
+             for good). -->
+        <ReviewAsk
+          v-if="reviewAsk.show && tab === 'dashboard'"
+          :data="reviewAsk"
+          :api="api"
+          @dismiss="reviewAsk.show = false"
         />
         <ActivityPanel
           v-show="tab === 'dashboard'"

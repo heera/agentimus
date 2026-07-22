@@ -843,7 +843,10 @@ export default {
             </button>
           </li>
         </ul>
-        <p v-else class="ar-wd-empty">No hits yet.</p>
+        <p v-else class="ar-wd-empty">
+          No hits yet. Your guide files are live and waiting — crawlers usually find them
+          within a day or two, and every endpoint they read counts up here. Worth a look tomorrow.
+        </p>
       </section>
 
       <section class="ar-card">
@@ -871,7 +874,10 @@ export default {
             </button>
           </li>
         </ul>
-        <p v-else class="ar-wd-empty">No hits yet.</p>
+        <p v-else class="ar-wd-empty">
+          No readers to name yet. The first crawler or assistant that reads your site will
+          appear here — GPTBot, ClaudeBot, PerplexityBot and the rest, each by name, busiest first.
+        </p>
       </section>
 
       <!-- Traffic from AI — one report card: magnitude (KPIs), composition

@@ -37,6 +37,28 @@ final class Rest {
 	 */
 	public function register() {
 		add_action( 'rest_api_init', array( $this, 'routes' ) );
+		// The review ask's "really used it" signal, from one seam instead of
+		// per-endpoint bookkeeping: any successful state-changing call to the
+		// plugin's namespace by a managing user counts — see Review::use_worthy().
+		add_filter( 'rest_request_after_callbacks', array( $this, 'count_use' ), 10, 3 );
+	}
+
+	/**
+	 * Count a successful plugin write as real use, for the review ask's gates.
+	 * Filter passthrough — the response is never altered.
+	 *
+	 * @param mixed            $response Result to send (response or error).
+	 * @param array            $handler  Route handler (unused).
+	 * @param \WP_REST_Request $request  The dispatched request.
+	 * @return mixed The response, untouched.
+	 */
+	public function count_use( $response, $handler, $request ) {
+		if ( ! is_wp_error( $response )
+			&& Review::use_worthy( $request->get_route(), $request->get_method() )
+			&& current_user_can( 'manage_options' ) ) {
+			Review::used();
+		}
+		return $response;
 	}
 
 	/**
@@ -97,6 +119,23 @@ final class Rest {
 				'methods'             => \WP_REST_Server::EDITABLE,
 				'callback'            => array( $this, 'whatsnew_seen' ),
 				'permission_callback' => array( $this, 'can_manage' ),
+			)
+		);
+
+		register_rest_route(
+			self::NAMESPACE,
+			'/review-ack',
+			array(
+				'methods'             => \WP_REST_Server::EDITABLE,
+				'callback'            => array( $this, 'review_ack' ),
+				'permission_callback' => array( $this, 'can_manage' ),
+				'args'                => array(
+					'answer' => array(
+						'type'     => 'string',
+						'required' => true,
+						'enum'     => array( 'review', 'done', 'later' ),
+					),
+				),
 			)
 		);
 
@@ -431,6 +470,18 @@ final class Rest {
 	public function whatsnew_seen() {
 		update_option( 'agentimus_whatsnew_seen', AGENTIMUS_VERSION );
 		return rest_ensure_response( array( 'seen' => AGENTIMUS_VERSION ) );
+	}
+
+	/**
+	 * POST /review-ack — record the owner's answer to the Dashboard's review
+	 * ask. 'later' snoozes it for a month; 'review' and 'done' close it for
+	 * good (and the admin footer's rating line goes quiet with it).
+	 *
+	 * @param \WP_REST_Request $request Request carrying the 'answer' param.
+	 * @return \WP_REST_Response
+	 */
+	public function review_ack( $request ) {
+		return rest_ensure_response( array( 'state' => Review::ack( (string) $request['answer'] ) ) );
 	}
 
 	/**

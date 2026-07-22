@@ -99,6 +99,8 @@ export function createApi(boot) {
       request('/verifier/probe-ranges', { method: 'POST', body: JSON.stringify({ url }) }),
     // Dismiss the once-per-release "What's new" card.
     markWhatsNewSeen: () => request('/whatsnew-seen', { method: 'POST' }),
+    // Answer the review ask: 'review' / 'done' close it for good, 'later' snoozes a month.
+    reviewAck: (answer) => request('/review-ack', { method: 'POST', body: JSON.stringify({ answer }) }),
     // The writing assistant: first the cheap skeleton (title + sections) the
     // owner can shape before any real writing happens…
     assistantOutline: (prompt) =>
