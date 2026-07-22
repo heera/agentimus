@@ -2,6 +2,9 @@
 
 All notable changes to Agentimus. The most recent releases also appear in the plugin's `readme.txt` and on the WordPress.org listing; the complete history lives here.
 
+## 1.27.1
+* Fixed — **The review-ask endpoint denies before it validates.** The route's `answer` enum ran in schema validation, which WordPress executes before the permission callback — so an unauthorised paramless probe got 400 where every other route says 401/403 (caught by the integration permission matrix). The enum moved into the callback, after the gate. No security impact: the capability check always guarded the action; only the order of the two refusals was wrong.
+
 ## 1.27.0
 * New — **The review ask.** One quiet Dashboard card (What's-New family — never a site-wide notice) asks for a WordPress.org review only after the plugin has earned it: present 7+ days, 3+ plugin-screen visits, at least one real action taken through the plugin, and a readiness score of 80+. "Real action" is counted at one seam — any successful state-changing REST call to the plugin's own namespace by a managing user — rather than per-feature bookkeeping. "Maybe later" snoozes 30 days; any other answer closes the ask terminally (a stale tab's click can never reopen it) and the admin footer's rating line retires with it. No incentives, nothing sent anywhere; all state lives in one option, removed on uninstall.
 * New — **First-run proof.** The setup wizard's finishing screen now shows "Live on your site right now": clickable llms.txt and discovery.json — the owner's just-typed words already inside — plus the starting readiness score computed fresh from the save. The dashboard's empty By-endpoint and Top-clients cards now say what will appear in them and roughly when, instead of a bare "No hits yet."

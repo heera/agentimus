@@ -4,7 +4,7 @@ Tags: ai-agents, mcp, agent-readiness, llms-txt, ai-seo
 Requires at least: 6.0
 Tested up to: 7.1
 Requires PHP: 7.4
-Stable tag: 1.27.0
+Stable tag: 1.27.1
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -274,6 +274,9 @@ URL-like strings in the plugin's output are labels, not requests — the discove
 
 == Changelog ==
 
+= 1.27.1 =
+* Fixed — The review-ask endpoint answers a permission denial before a validation complaint, like every other route. No security impact — the capability gate always held; only the order of the two refusals was wrong.
+
 = 1.27.0 =
 * New — **One honest review ask.** After Agentimus has been on your site a week, actually been used, and your readiness score is healthy, one quiet Dashboard card asks whether it has earned a WordPress.org review. Any answer puts it away — "Maybe later" for a month, the others for good — and once answered, the admin footer's rating line retires too. Never a site-wide notice, no incentives, nothing sent anywhere.
 * New — **Setup ends with proof.** A new install's finishing screen now shows what just went live — llms.txt and the discovery document as clickable addresses, already carrying the words you typed a moment earlier — plus the site's starting readiness score. Empty dashboard cards now say what will appear in them, and roughly when, instead of a bare zero.
@@ -334,6 +337,9 @@ URL-like strings in the plugin's output are labels, not requests — the discove
 * Changed — **The dashboard's 7- and 30-day numbers are whole calendar days now.** They used to be rolling windows ending at the current second, which meant they could visibly shrink between midnights as week-old hits aged out — watched live under auto-refresh, that read as data loss. Every window is now counted in whole calendar days (UTC), the same clock as the Today tile and the daily chart beneath them; numbers move only when a hit arrives or at midnight UTC. The tiles may read slightly higher after updating — the window now includes its first day's early hours, which rolling had already dropped.
 
 == Upgrade Notice ==
+
+= 1.27.1 =
+Small ordering fix on the new review-ask endpoint (deny before validate). No security impact, no breaking changes.
 
 = 1.27.0 =
 A quiet, one-time review ask that never nags (and retires the footer's rating line once answered), a first-run finish that shows what just went live, and standard auth vocabulary on the MCP server card. No breaking changes.

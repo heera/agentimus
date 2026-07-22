@@ -130,10 +130,13 @@ final class Rest {
 				'callback'            => array( $this, 'review_ack' ),
 				'permission_callback' => array( $this, 'can_manage' ),
 				'args'                => array(
+					// No enum here: schema validation runs BEFORE the permission
+					// callback, so an enum would answer 400 to an anonymous probe
+					// (and to the permission matrix's dummy value) before the gate
+					// gets to say 403. The value set is enforced in the callback.
 					'answer' => array(
 						'type'     => 'string',
 						'required' => true,
-						'enum'     => array( 'review', 'done', 'later' ),
 					),
 				),
 			)
@@ -481,7 +484,15 @@ final class Rest {
 	 * @return \WP_REST_Response
 	 */
 	public function review_ack( $request ) {
-		return rest_ensure_response( array( 'state' => Review::ack( (string) $request['answer'] ) ) );
+		$answer = (string) $request['answer'];
+		if ( ! in_array( $answer, array( 'review', 'done', 'later' ), true ) ) {
+			return new \WP_Error(
+				'rest_invalid_param',
+				__( 'answer must be one of: review, done, later.', 'agentimus' ),
+				array( 'status' => 400 )
+			);
+		}
+		return rest_ensure_response( array( 'state' => Review::ack( $answer ) ) );
 	}
 
 	/**
