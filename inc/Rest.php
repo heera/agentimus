@@ -144,6 +144,16 @@ final class Rest {
 
 		register_rest_route(
 			self::NAMESPACE,
+			'/digest/test',
+			array(
+				'methods'             => \WP_REST_Server::EDITABLE,
+				'callback'            => array( $this, 'digest_test' ),
+				'permission_callback' => array( $this, 'can_manage' ),
+			)
+		);
+
+		register_rest_route(
+			self::NAMESPACE,
 			'/verifier/probe-ranges',
 			array(
 				'methods'             => \WP_REST_Server::EDITABLE,
@@ -312,6 +322,10 @@ final class Rest {
 		$saved     = $this->settings->update( (array) $input );
 		$readiness = ( new Readiness( $this->settings ) )->report();
 
+		// The weekly-digest cron must agree with the (possibly just-flipped)
+		// digest_enabled switch without waiting for the next boot's self-heal.
+		( new Digest\Module( $this->settings ) )->sync_schedule();
+
 		return rest_ensure_response(
 			array(
 				'settings'     => $saved,
@@ -338,6 +352,26 @@ final class Rest {
 		} catch ( \Throwable $e ) {
 			return null;
 		}
+	}
+
+	/**
+	 * POST /digest/test — send one weekly-digest email right now, to whoever the
+	 * digest is configured to reach. Synchronous: a single wp_mail is fast, and
+	 * the button's whole point is an immediate yes-or-no. Uses the SAVED
+	 * settings — an unsaved recipient in the form does not exist yet.
+	 *
+	 * @return \WP_REST_Response|\WP_Error
+	 */
+	public function digest_test() {
+		$result = ( new Digest\Module( $this->settings ) )->send_test();
+		if ( empty( $result['sent'] ) ) {
+			return new \WP_Error(
+				'agentimus_mail_failed',
+				__( 'The email could not be sent. Your site’s mail setup may need attention — a plugin like WP Mail SMTP can help.', 'agentimus' ),
+				array( 'status' => 500 )
+			);
+		}
+		return rest_ensure_response( $result );
 	}
 
 	/**

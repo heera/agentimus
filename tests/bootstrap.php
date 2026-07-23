@@ -81,7 +81,7 @@ namespace {
 	if ( ! function_exists( 'wp_unslash' ) )            { function wp_unslash( $v ) { return is_string( $v ) ? stripslashes( $v ) : $v; } }
 	if ( ! function_exists( 'sanitize_textarea_field' ) ) { function sanitize_textarea_field( $s ) { return trim( strip_tags( (string) $s ) ); } }
 	if ( ! function_exists( 'sanitize_file_name' ) )    { function sanitize_file_name( $n ) { return preg_replace( '/[^A-Za-z0-9._\-]/', '', (string) $n ); } }
-	if ( ! function_exists( 'sanitize_email' ) )        { function sanitize_email( $e ) { return trim( (string) $e ); } }
+	if ( ! function_exists( 'sanitize_email' ) )        { function sanitize_email( $e ) { $e = trim( (string) $e ); return filter_var( $e, FILTER_VALIDATE_EMAIL ) ? $e : ''; } }
 	if ( ! function_exists( 'esc_url_raw' ) )           { function esc_url_raw( $u, $p = null ) { return trim( (string) $u ); } }
 	if ( ! function_exists( 'esc_url' ) )               { function esc_url( $u, $p = null ) { return trim( (string) $u ); } }
 	if ( ! function_exists( 'wp_parse_url' ) )          { function wp_parse_url( $u, $c = -1 ) { return parse_url( (string) $u, $c ); } }
@@ -123,6 +123,17 @@ namespace {
 	// from $_af_http_queue (a WP_Error or a { response:{code}, body, headers } array).
 	if ( ! function_exists( 'wp_remote_post' ) )        { function wp_remote_post( $url, $args = array() ) { $GLOBALS['_af_http_last'] = array( 'url' => $url, 'args' => $args ); $q = &$GLOBALS['_af_http_queue']; return ! empty( $q ) ? array_shift( $q ) : array( 'response' => array( 'code' => 200 ), 'body' => '{}', 'headers' => array() ); } }
 	if ( ! function_exists( 'wp_remote_get' ) )         { function wp_remote_get( $url, $args = array() ) { $GLOBALS['_af_http_last'] = array( 'url' => $url, 'args' => $args ); $q = &$GLOBALS['_af_http_queue']; return ! empty( $q ) ? array_shift( $q ) : array( 'response' => array( 'code' => 200 ), 'body' => '{}', 'headers' => array() ); } }
+	// Mail capture, mirroring the HTTP stubs above: wp_mail records every send into
+	// $GLOBALS['_af_mail'] (to/subject/message/headers) and returns the queued verdict
+	// from $_af_mail_ok (default true) — so the digest's send flow is testable without
+	// a mailer. Reset between tests via _af_reset_options().
+	if ( ! function_exists( 'wp_mail' ) )               { function wp_mail( $to, $subject, $message, $headers = array(), $attachments = array() ) { $GLOBALS['_af_mail'][] = array( 'to' => $to, 'subject' => $subject, 'message' => $message, 'headers' => $headers ); return ! isset( $GLOBALS['_af_mail_ok'] ) || (bool) $GLOBALS['_af_mail_ok']; } }
+	if ( ! function_exists( '_n' ) )                    { function _n( $single, $plural, $number, $d = null ) { return 1 === (int) $number ? $single : $plural; } }
+	if ( ! function_exists( 'date_i18n' ) )             { function date_i18n( $format, $ts = null ) { return gmdate( (string) $format, null === $ts ? time() : (int) $ts ); } }
+	if ( ! function_exists( 'wp_specialchars_decode' ) ) { function wp_specialchars_decode( $s, $q = ENT_NOQUOTES ) { return htmlspecialchars_decode( (string) $s, $q ); } }
+	if ( ! function_exists( 'wp_generate_password' ) )  { function wp_generate_password( $length = 12, $special = true, $extra = false ) { return substr( str_repeat( 'abcdef0123456789', 4 ), 0, (int) $length ); } }
+	if ( ! function_exists( 'add_query_arg' ) )         { function add_query_arg( $args, $url ) { return $url . ( false === strpos( $url, '?' ) ? '?' : '&' ) . http_build_query( (array) $args ); } }
+	if ( ! function_exists( 'wp_timezone' ) )           { function wp_timezone() { return new DateTimeZone( 'UTC' ); } }
 	if ( ! function_exists( 'wp_remote_retrieve_response_code' ) ) { function wp_remote_retrieve_response_code( $r ) { return is_array( $r ) && isset( $r['response']['code'] ) ? (int) $r['response']['code'] : 0; } }
 	if ( ! function_exists( 'wp_remote_retrieve_body' ) )          { function wp_remote_retrieve_body( $r ) { return is_array( $r ) && isset( $r['body'] ) ? (string) $r['body'] : ''; } }
 	if ( ! function_exists( 'wp_remote_retrieve_header' ) )        { function wp_remote_retrieve_header( $r, $h ) { return is_array( $r ) && isset( $r['headers'][ $h ] ) ? $r['headers'][ $h ] : ''; } }
@@ -181,7 +192,7 @@ namespace {
 	// function_exists() guard is exercised on the no-blocks path.
 	if ( ! function_exists( 'strip_shortcodes' ) )      { function strip_shortcodes( $content ) { return preg_replace( '/\[[^\]]*\]/', '', (string) $content ); } }
 	if ( ! function_exists( 'wp_trim_words' ) )         { function wp_trim_words( $text, $num_words = 55, $more = null ) { $words = preg_split( '/\s+/', trim( (string) $text ), -1, PREG_SPLIT_NO_EMPTY ); if ( count( $words ) > $num_words ) { $words = array_slice( $words, 0, $num_words ); $text = implode( ' ', $words ) . ( null === $more ? '…' : $more ); } else { $text = implode( ' ', $words ); } return $text; } }
-	function _af_reset_options() { $GLOBALS['_af_options'] = array(); $GLOBALS['_af_filters'] = array(); $GLOBALS['_af_did_actions'] = array(); $GLOBALS['_af_posts'] = array(); $GLOBALS['_af_postmeta'] = array(); $GLOBALS['_af_terms'] = array(); $GLOBALS['_af_taxonomies'] = array( 'category', 'post_tag' ); $GLOBALS['_af_is_admin'] = false; $GLOBALS['_af_flush_count'] = 0; $GLOBALS['_af_cache'] = array(); $GLOBALS['_af_transients'] = array(); unset( $GLOBALS['_af_transients_on'] ); $GLOBALS['_af_http_queue'] = array(); $GLOBALS['_af_http_last'] = null; unset( $GLOBALS['_af_available_post_types'], $GLOBALS['_af_current_post_id'], $GLOBALS['_af_is_singular'], $GLOBALS['_af_is_front_page'], $GLOBALS['_af_categories'], $GLOBALS['_af_post_types_exist'], $GLOBALS['_af_get_posts'] ); }
+	function _af_reset_options() { $GLOBALS['_af_options'] = array(); $GLOBALS['_af_filters'] = array(); $GLOBALS['_af_did_actions'] = array(); $GLOBALS['_af_posts'] = array(); $GLOBALS['_af_postmeta'] = array(); $GLOBALS['_af_terms'] = array(); $GLOBALS['_af_taxonomies'] = array( 'category', 'post_tag' ); $GLOBALS['_af_is_admin'] = false; $GLOBALS['_af_flush_count'] = 0; $GLOBALS['_af_cache'] = array(); $GLOBALS['_af_transients'] = array(); unset( $GLOBALS['_af_transients_on'] ); $GLOBALS['_af_http_queue'] = array(); $GLOBALS['_af_http_last'] = null; $GLOBALS['_af_mail'] = array(); unset( $GLOBALS['_af_mail_ok'] ); unset( $GLOBALS['_af_available_post_types'], $GLOBALS['_af_current_post_id'], $GLOBALS['_af_is_singular'], $GLOBALS['_af_is_front_page'], $GLOBALS['_af_categories'], $GLOBALS['_af_post_types_exist'], $GLOBALS['_af_get_posts'] ); }
 	// Transient stubs. Default: always-miss, so cached endpoint bodies (e.g. security.txt)
 	// recompute deterministically in tests. A test that needs to exercise real transient
 	// state (the bot-verifier budget/circuit-breaker counters) opts in by setting

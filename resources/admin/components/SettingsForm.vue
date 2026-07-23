@@ -58,6 +58,7 @@ export default {
       verAddOpen: false,
       verAddBusy: false, // Probing the ranges URL server-side before accepting it.
       verAddError: '', // The probe's verdict when the URL didn't check out.
+      digestTestSending: false, // The weekly-email "send a test" button's in-flight lock.
       typeQuery: '',
       catQuery: '',
       nsQuery: '',
@@ -665,6 +666,21 @@ export default {
     removeVerifier(row) {
       if (row.builtin) return;
       this.settings.verifier_custom = (this.settings.verifier_custom || []).filter((e, i) => i !== row._ci);
+    },
+    // One real digest, right now, to the SAVED recipient. Synchronous on the
+    // server (a single wp_mail), so the flash is a true verdict — a failure
+    // here means the site itself cannot send mail, and the message says so.
+    async sendTestDigest() {
+      if (this.digestTestSending || !this.api) return;
+      this.digestTestSending = true;
+      try {
+        const r = await this.api.sendTestDigest();
+        this.$emit('flash', 'success', `Test email sent to ${r.to}. If it doesn’t arrive, check the spam folder.`);
+      } catch (e) {
+        this.$emit('flash', 'error', (e && e.message) || 'The email could not be sent.');
+      } finally {
+        this.digestTestSending = false;
+      }
     },
     async addVerifier() {
       if (!this.verAddReady || this.verAddBusy) return;
@@ -1293,6 +1309,50 @@ export default {
           Flagged crawler IPs are not covered by this — they’re the only personal data stored, and they’re
           removed on their own, shorter schedule.
         </p>
+      </section>
+
+      <!-- Weekly email — the digest. One owner-facing email a week, built only from
+           local data; the stop link inside every email flips this same switch. -->
+      <section id="ar-sec-digest" class="ar-card">
+        <h2 class="ar-card__title">Weekly email</h2>
+        <p class="ar-card__lead">
+          Once a week, Agentimus emails you a short note about what AI did on your site: agent visits,
+          readers arriving from AI answers, impostors caught, and your readiness score. It is built only
+          from the data already stored on your site and sent with WordPress’s own mail — nothing else
+          leaves your server. A week with nothing to report sends nothing.
+        </p>
+
+        <label id="ar-feat-digest_enabled" class="ar-toggle">
+          <input v-model="settings.digest_enabled" type="checkbox" />
+          <span class="ar-toggle__track" aria-hidden="true"></span>
+          <span class="ar-toggle__text">
+            <strong>Send the weekly note</strong>
+            <small>Arrives Monday morning. Every email carries a one-click stop link, so turning it off never needs this screen.</small>
+          </span>
+        </label>
+
+        <div :inert="!settings.digest_enabled" class="ar-webmcp-tools">
+          <div class="ar-field">
+            <label for="ar-digest-recipient">Send it to</label>
+            <input
+              id="ar-digest-recipient"
+              v-model.trim="settings.digest_recipient"
+              type="email"
+              class="ar-input"
+              placeholder="The site admin email"
+              autocomplete="email"
+            />
+          </div>
+          <p class="ar-log-note">
+            Empty means the site admin email. The test button below uses the <em>saved</em> address —
+            save first if you just changed it.
+          </p>
+          <p>
+            <button type="button" class="ar-btn ar-btn--ghost" :disabled="digestTestSending" @click="sendTestDigest">
+              {{ digestTestSending ? 'Sending…' : 'Send a test email' }}
+            </button>
+          </p>
+        </div>
       </section>
 
       <!-- Caching & CDN — how Agentimus copes when a page cache/CDN fronts the site: it can

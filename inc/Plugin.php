@@ -108,6 +108,7 @@ final class Plugin {
 		// callback with AgentAccess's observer at registration time, and the ability listener has
 		// to be hooked before any ability can run.
 		( new AgentAccess\Module( $this->settings ) )->register(); // Records app-password lifecycle + ability invocations. Inert where neither exists.
+		( new Digest\Module( $this->settings ) )->register(); // Weekly email digest: the cron handler, the one-click stop endpoint, and a self-healing schedule.
 		( new Abilities\AdapterBootstrap( $this->settings ) )->register(); // Boots the bundled MCP Adapter when the owner opts in (inert otherwise).
 		( new Abilities\Registrar( $this->settings ) )->register(); // Exposes our own read capabilities to the WP admin AI + MCP (no-ops pre-6.9).
 
@@ -188,6 +189,7 @@ final class Plugin {
 		Activity\Module::schedule();
 		Visibility\Table::install();
 		Visibility\Module::schedule();
+		Digest\Module::schedule();
 		Discovery\WellKnown::add_rules();
 		self::flush_rewrites_in_context();
 		// Record the signature we just flushed for, so maybe_flush_rewrites() no-ops on
@@ -330,6 +332,7 @@ final class Plugin {
 		Cache::flush();
 		Activity\Module::unschedule();
 		Visibility\Module::unschedule();
+		Digest\Module::unschedule();
 		BotRanges::clear_schedule();
 		wp_clear_scheduled_hook( 'agentimus_warm_llms_full' );
 		wp_clear_scheduled_hook( Visibility\Module::HOOK_ONCE ); // the one-off "run now" event, if queued.

@@ -153,6 +153,16 @@ final class Settings {
 			// AgentAccess\Table), makes no outbound request, and its hot path is an object-cache
 			// read. It observes and reports; it never blocks anything.
 			'agent_access_events'     => true,
+			// Weekly email digest — once a week, a short note to the owner about the AI
+			// activity the plugin already records: agent reads, referral visits, impostors,
+			// score movement. Built ONLY from local data and sent with wp_mail to the site
+			// owner — nothing leaves the server except the email itself. ON by default
+			// because silent background work is invisible work; the very first email
+			// explains itself and every email carries a one-click stop link (a stored key,
+			// not a nonce — nonces expire in a day and digest links get clicked later).
+			// Quiet weeks (nothing to report) send nothing at all. See Digest\Module.
+			'digest_enabled'          => true,
+			'digest_recipient'        => '', // Optional override; empty = the site admin email.
 		);
 
 		/**
@@ -693,6 +703,9 @@ final class Settings {
 		$clean['llms_full_max_kb'] = max( 64, min( 20480, $kb ) );
 
 		$clean['oauth_auth_server'] = isset( $input['oauth_auth_server'] ) ? esc_url_raw( (string) $input['oauth_auth_server'] ) : '';
+
+		// An invalid address sanitises to '' — which means "the admin email", never a broken send.
+		$clean['digest_recipient'] = isset( $input['digest_recipient'] ) ? sanitize_email( (string) $input['digest_recipient'] ) : '';
 
 		$available           = Content::available();
 		$requested           = $this->sanitize_list( isset( $input['post_types'] ) ? $input['post_types'] : array(), 'sanitize_key' );
