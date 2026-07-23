@@ -1,0 +1,98 @@
+<?php
+/**
+ * Review-queue menu badge — the bubble markup, the count's cache and
+ * fail-quiet paths, and the Heartbeat handler's ask-first gating.
+ *
+ * The count's DB path (Repository::threats) is exercised by integration; here
+ * the transient cache is pre-seeded so every path stays database-free.
+ *
+ * @package Agentimus\Tests
+ */
+
+namespace Agentimus\Tests;
+
+use Agentimus\ReviewBadge;
+use Agentimus\Settings;
+use PHPUnit\Framework\TestCase;
+
+final class ReviewBadgeTest extends TestCase {
+
+	protected function setUp(): void {
+		\_af_reset_options();
+		$GLOBALS['_af_transients_on'] = true;
+	}
+
+	protected function tearDown(): void {
+		\_af_reset_options();
+	}
+
+	/* -- Bubble markup ------------------------------------------------------ */
+
+	public function test_bubble_uses_core_update_count_classes() {
+		$html = ReviewBadge::bubble( 3 );
+		$this->assertStringContainsString( 'class="update-plugins count-3"', $html );
+		$this->assertStringContainsString( '<span class="plugin-count" aria-hidden="false">3</span>', $html );
+	}
+
+	public function test_decorate_leaves_the_title_alone_at_zero() {
+		set_transient( ReviewBadge::TRANSIENT, 0, 60 );
+		$this->assertSame( 'Agentimus', ReviewBadge::decorate( 'Agentimus', new Settings() ) );
+	}
+
+	public function test_decorate_appends_the_bubble_when_something_awaits() {
+		set_transient( ReviewBadge::TRANSIENT, 2, 60 );
+		$title = ReviewBadge::decorate( 'Agentimus', new Settings() );
+		$this->assertStringStartsWith( 'Agentimus ', $title );
+		$this->assertStringContainsString( 'count-2', $title );
+	}
+
+	/* -- Count -------------------------------------------------------------- */
+
+	public function test_count_prefers_the_cache_over_recomputing() {
+		set_transient( ReviewBadge::TRANSIENT, 7, 60 );
+		// With a warm cache no DB is touched — this test would fatal otherwise
+		// (the unit bootstrap has no $wpdb).
+		$this->assertSame( 7, ReviewBadge::count( new Settings() ) );
+	}
+
+	public function test_count_is_zero_with_the_visit_log_off() {
+		// No cache seeded: with enable_activity off the DB path is skipped
+		// entirely and 0 is returned (and cached).
+		update_option( Settings::OPTION, array( 'enable_activity' => false ) );
+		$this->assertSame( 0, ReviewBadge::count( new Settings() ) );
+		$this->assertSame( 0, get_transient( ReviewBadge::TRANSIENT ) );
+	}
+
+	/* -- Heartbeat ---------------------------------------------------------- */
+
+	public function test_heartbeat_stays_silent_unless_asked() {
+		$badge    = new ReviewBadge( new Settings() );
+		$response = $badge->heartbeat( array( 'other' => 1 ), array() );
+		$this->assertArrayNotHasKey( 'agentimus_review', $response );
+		$this->assertSame( array( 'other' => 1 ), $response );
+	}
+
+	public function test_heartbeat_answers_with_the_count_when_asked() {
+		set_transient( ReviewBadge::TRANSIENT, 4, 60 );
+		$badge    = new ReviewBadge( new Settings() );
+		$response = $badge->heartbeat( array(), array( 'agentimus_review' => 1 ) );
+		$this->assertSame( array( 'count' => 4 ), $response['agentimus_review'] );
+	}
+
+	public function test_heartbeat_denies_a_user_without_manage_options() {
+		set_transient( ReviewBadge::TRANSIENT, 4, 60 );
+		$GLOBALS['_af_user_can'] = false;
+		$badge    = new ReviewBadge( new Settings() );
+		$response = $badge->heartbeat( array(), array( 'agentimus_review' => 1 ) );
+		$this->assertArrayNotHasKey( 'agentimus_review', $response );
+	}
+
+	/* -- Inline listener ----------------------------------------------------- */
+
+	public function test_listener_asks_and_targets_the_menu_node() {
+		$js = ReviewBadge::inline_js();
+		$this->assertStringContainsString( 'data.agentimus_review=1', $js );
+		$this->assertStringContainsString( 'toplevel_page_agentimus', $js );
+		$this->assertStringContainsString( 'update-plugins count-', $js );
+	}
+}

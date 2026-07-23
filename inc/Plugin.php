@@ -109,6 +109,7 @@ final class Plugin {
 		// to be hooked before any ability can run.
 		( new AgentAccess\Module( $this->settings ) )->register(); // Records app-password lifecycle + ability invocations. Inert where neither exists.
 		( new Digest\Module( $this->settings ) )->register(); // Weekly email digest: the cron handler, the one-click stop endpoint, and a self-healing schedule.
+		( new ReviewBadge( $this->settings ) )->register(); // Review-queue count on the admin menu + Heartbeat live updates (admin-only; no-ops on the front end).
 		( new Abilities\AdapterBootstrap( $this->settings ) )->register(); // Boots the bundled MCP Adapter when the owner opts in (inert otherwise).
 		( new Abilities\Registrar( $this->settings ) )->register(); // Exposes our own read capabilities to the WP admin AI + MCP (no-ops pre-6.9).
 

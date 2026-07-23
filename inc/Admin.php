@@ -120,7 +120,9 @@ final class Admin {
 	public function menu() {
 		add_menu_page(
 			__( 'Agentimus', 'agentimus' ),
-			__( 'Agentimus', 'agentimus' ),
+			// The menu title carries the review-queue count bubble, so the queue is
+			// visible from every admin screen — not only when inside Agentimus.
+			ReviewBadge::decorate( __( 'Agentimus', 'agentimus' ), $this->settings ),
 			'manage_options',
 			self::SLUG,
 			array( $this, 'render' ),
