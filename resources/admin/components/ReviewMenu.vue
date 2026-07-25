@@ -99,6 +99,16 @@ export default {
       return `${h} hour${1 === h ? '' : 's'}`;
     },
   },
+  watch: {
+    // Repaint the WP sidebar's menu badge the moment the queue changes HERE —
+    // the sidebar is server-rendered from a cached count, and waiting for the
+    // next Heartbeat tick would leave the two numbers disagreeing for up to a
+    // minute after a Block. The painter is published by ReviewBadge::inline_js();
+    // if it's absent the Heartbeat listener isn't on this page either — skip.
+    count(n) {
+      if (window.agentimusReviewBadge) window.agentimusReviewBadge(n);
+    },
+  },
   mounted() {
     document.addEventListener('click', this.onDocClick);
     document.addEventListener('keydown', this.onKey);
@@ -229,6 +239,16 @@ export default {
     },
     rowOperator(s) {
       return (s.known && s.known.operator) || '';
+    },
+    // Why a row has NO one-click Allow/Block — the server's `reason`, said out
+    // loud where the buttons would sit, so their absence reads as a decision
+    // (next to a sibling card that HAS them), not a rendering fault. '' hides it.
+    noActionNote(s) {
+      if (s.action || s.blocked) return '';
+      if ('fake-engine' === s.reason) return 'No Allow/Block — a real search engine’s name.';
+      if ('no-ua' === s.reason) return 'No Allow/Block — it sends no name.';
+      if ('no-token' === s.reason) return 'No Allow/Block — its name is too generic.';
+      return '';
     },
     // ---- Details panel (collapsed by default — no UA/verdict noise in the row) --
     // Which verification method applies to this row's claim: 'rdns', 'ranges', 'both',
@@ -529,6 +549,10 @@ export default {
                 <button v-else-if="'spoofed' === s.action" type="button" class="ar-rev-btn ar-rev-btn--block" :disabled="isBlocking(s)" @click="doBlock(s)">
                   {{ isBlocking(s) ? 'Blocking…' : 'Block scanners' }}
                 </button>
+                <span v-else-if="noActionNote(s)" class="ar-rev-noact">
+                  <svg class="ar-rev-noact__ic" viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" aria-hidden="true"><circle cx="8" cy="8" r="6.4" /><path d="M8 7.4v3.2" /><path d="M8 5.1v.1" /></svg>
+                  {{ noActionNote(s) }}
+                </span>
 
                 <button type="button" class="ar-rev-link ar-rev-link--details" :class="{ 'is-on': isOpen(s) }" :aria-expanded="isOpen(s)" @click="toggleDetails(s)">
                   {{ isOpen(s) ? 'Hide details' : 'Details' }}

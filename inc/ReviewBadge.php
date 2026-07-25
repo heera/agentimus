@@ -122,6 +122,17 @@ final class ReviewBadge {
 	}
 
 	/**
+	 * Drop the cached count, so the next read recomputes. Called by every
+	 * mutation that changes what the queue holds — a Block/Allow (any settings
+	 * write), an Ignore/Un-ignore, a Re-check, a log clear. The TTL only bounds
+	 * staleness from NEW TRAFFIC arriving; the owner's own action must never
+	 * read back stale — they just watched themselves act on it.
+	 */
+	public static function forget() {
+		delete_transient( self::TRANSIENT );
+	}
+
+	/**
 	 * Answer the Heartbeat pulse — only when OUR script asked (the key rides in
 	 * from the client), and only for someone who could see the menu anyway.
 	 *
@@ -151,24 +162,39 @@ final class ReviewBadge {
 	}
 
 	/**
-	 * The Heartbeat listener. jQuery because Heartbeat's events ARE jQuery
-	 * custom events — there is no vanilla subscription surface.
+	 * The Heartbeat listener — plus the bubble redraw itself, published as
+	 * window.agentimusReviewBadge(count) so the SPA can repaint the sidebar the
+	 * moment its own queue changes (an owner who just clicked Block must not
+	 * stare at the old number until the next Heartbeat tick). The redraw is
+	 * vanilla DOM; only the Heartbeat subscription needs jQuery, because
+	 * Heartbeat's events ARE jQuery custom events — there is no vanilla
+	 * subscription surface.
 	 *
 	 * @return string
 	 */
 	public static function inline_js() {
-		return '(function($){if(!$){return;}'
+		return '(function($){'
+			. 'window.agentimusReviewBadge=function(count){'
+			. 'var name=document.querySelector("#toplevel_page_agentimus .wp-menu-name");'
+			. 'if(!name){return;}'
+			. 'var bubble=name.querySelector(".update-plugins");'
+			. 'count=parseInt(count,10)||0;'
+			. 'if(count<1){if(bubble){bubble.remove();}return;}'
+			. 'if(!bubble){'
+			. 'bubble=document.createElement("span");'
+			. 'var inner=document.createElement("span");'
+			. 'inner.className="plugin-count";'
+			. 'inner.setAttribute("aria-hidden","false");'
+			. 'bubble.appendChild(inner);'
+			. 'name.appendChild(bubble);'
+			. '}'
+			. 'bubble.className="update-plugins count-"+count;'
+			. 'bubble.querySelector(".plugin-count").textContent=String(count);'
+			. '};'
+			. 'if(!$){return;}'
 			. '$(document).on("heartbeat-send",function(e,data){data.agentimus_review=1;});'
 			. '$(document).on("heartbeat-tick",function(e,data){'
-			. 'if(!data.agentimus_review){return;}'
-			. 'var count=parseInt(data.agentimus_review.count,10)||0;'
-			. 'var $name=$("#toplevel_page_agentimus .wp-menu-name");'
-			. 'if(!$name.length){return;}'
-			. 'var $bubble=$name.find(".update-plugins");'
-			. 'if(count<1){$bubble.remove();return;}'
-			. 'if(!$bubble.length){$bubble=$("<span><span class=\"plugin-count\" aria-hidden=\"false\"></span></span>").appendTo($name);}'
-			. '$bubble.attr("class","update-plugins count-"+count);'
-			. '$bubble.find(".plugin-count").text(String(count));'
+			. 'if(data.agentimus_review){window.agentimusReviewBadge(data.agentimus_review.count);}'
 			. '});})(window.jQuery);';
 	}
 }

@@ -2983,7 +2983,11 @@ button.ar-verreg__chip { appearance: none; font-family: inherit; line-height: in
 .ar-act-rank__btn:focus-visible { outline: 2px solid var(--ar-accent); outline-offset: 3px; }
 .ar-act-delta { font-family: var(--ar-mono); font-size: 11px; white-space: nowrap; text-align: right; }
 .ar-act-delta.is-up { color: var(--ar-good); }
-.ar-act-delta.is-down { color: var(--ar-bad); }
+/* Down is NOT red: red is this app's danger color (impostors, blocking, errors), and a
+   traffic dip is information, not a fault — owners read a red ▼ as "something broke".
+   Amber = "worth a glance": distinct from the up-green at a squint (plain ink wasn't —
+   both sit at the same darkness at 11px), without red's alarm. */
+.ar-act-delta.is-down { color: var(--ar-warn); }
 .ar-act-delta.is-flat { color: var(--ar-ink-faint); }
 .ar-act-more { margin: 11px 0 0; font-size: 11px; color: var(--ar-ink-faint); }
 /* As a button: expand/collapse the day breakdown. Caret signals it unfolds (no underline). */
@@ -3467,6 +3471,12 @@ button.ar-act-more:hover { color: var(--ar-ink); }
 
 /* Actions — real decisions as buttons, utilities as quiet links. */
 .ar-rev-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 12px; margin-top: 4px; }
+/* Why a card has NO Allow/Block: the server's reason said out loud in the button
+   row — missing buttons must read as a decision, not an oversight. Soft ink with
+   a leading info glyph for noticeability: it stands in for two buttons, so it
+   must be read, not skimmed past. */
+.ar-rev-noact { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; color: var(--ar-ink-soft); }
+.ar-rev-noact__ic { flex: none; }
 .ar-rev-btn {
   appearance: none; cursor: pointer; white-space: nowrap;
   font-family: var(--ar-sans); font-size: 12px; font-weight: 600;
@@ -3981,6 +3991,24 @@ a.ar-about-proto__v:hover { text-decoration: underline; }
 /* "Keep records for" is twice the width of "Size cap", so without a reserved label column
    the two dropdowns start at different x. Fixed basis, no shrink: one column, aligned. */
 .ar-field--log > label { flex: 0 0 132px; }
+/* The weekly email's day+hour row: two dropdowns joined by "at". Each label+dropdown
+   pair is one unbreakable flex unit (nowrap labels — "SEND IT EVERY" must never fold
+   mid-phrase), so a mid-width screen wraps BETWEEN the pairs; under the admin's 782px
+   mobile breakpoint each pair takes its own full line and the control stretches.
+   Two-class selector on purpose: the row leads .ar-webmcp-tools, and the
+   `.ar-field:first-child` margin reset would zero a single-class margin-top —
+   without it the wrapper's border-top sat flush against the controls. */
+.ar-field--inline.ar-field--digest { flex-wrap: wrap; margin-top: 16px; }
+.ar-digest-slot { display: inline-flex; align-items: center; gap: 12px; min-width: 0; }
+.ar-digest-slot > label { white-space: nowrap; }
+.ar-field--digest .ar-select { flex: 0 1 180px; min-width: 140px; }
+@media (max-width: 782px) {
+  .ar-digest-slot { flex: 1 1 100%; }
+  /* Reserved label column (the .ar-field--log trick): "SEND IT EVERY" and "AT"
+     occupy the same width, so the two dropdowns align and match exactly. */
+  .ar-digest-slot > label { flex: 0 0 108px; }
+  .ar-field--digest .ar-select { flex: 1 1 auto; }
+}
 
 /* ---------------------------------------------------------------------------
    Agent access — who authenticated to, and ACTED on, the machine surface.

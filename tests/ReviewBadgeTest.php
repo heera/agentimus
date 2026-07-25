@@ -63,6 +63,43 @@ final class ReviewBadgeTest extends TestCase {
 		$this->assertSame( 0, get_transient( ReviewBadge::TRANSIENT ) );
 	}
 
+	/* -- Invalidation -------------------------------------------------------- */
+
+	public function test_forget_drops_the_cached_count() {
+		set_transient( ReviewBadge::TRANSIENT, 7, 60 );
+		ReviewBadge::forget();
+		$this->assertFalse( get_transient( ReviewBadge::TRANSIENT ) );
+	}
+
+	public function test_any_settings_write_drops_the_cached_count() {
+		// The live-site bug this locks out: Block appended to blocked_agents but the
+		// badge's transient survived — the sidebar showed the OLD number for up to
+		// a minute, across full page reloads. Every settings write invalidates.
+		set_transient( ReviewBadge::TRANSIENT, 2, 60 );
+		( new Settings() )->block_agent( 'BadBot' );
+		$this->assertFalse( get_transient( ReviewBadge::TRANSIENT ) );
+	}
+
+	public function test_an_ignore_drops_the_cached_count() {
+		set_transient( ReviewBadge::TRANSIENT, 2, 60 );
+		\Agentimus\Activity\Repository::dismiss( 'SomeBot/1.0', 12 );
+		$this->assertFalse( get_transient( ReviewBadge::TRANSIENT ) );
+	}
+
+	public function test_an_unignore_drops_the_cached_count() {
+		\Agentimus\Activity\Repository::dismiss( 'SomeBot/1.0', 12 );
+		$keys = array_keys( \Agentimus\Activity\Repository::dismissed_map() );
+		set_transient( ReviewBadge::TRANSIENT, 1, 60 );
+		\Agentimus\Activity\Repository::undismiss( $keys[0] );
+		$this->assertFalse( get_transient( ReviewBadge::TRANSIENT ) );
+	}
+
+	public function test_a_recheck_drops_the_cached_count() {
+		set_transient( ReviewBadge::TRANSIENT, 2, 60 );
+		\Agentimus\Activity\Repository::record_reverify( 'SomeBot/1.0', 1 );
+		$this->assertFalse( get_transient( ReviewBadge::TRANSIENT ) );
+	}
+
 	/* -- Heartbeat ---------------------------------------------------------- */
 
 	public function test_heartbeat_stays_silent_unless_asked() {
@@ -94,5 +131,16 @@ final class ReviewBadgeTest extends TestCase {
 		$this->assertStringContainsString( 'data.agentimus_review=1', $js );
 		$this->assertStringContainsString( 'toplevel_page_agentimus', $js );
 		$this->assertStringContainsString( 'update-plugins count-', $js );
+	}
+
+	public function test_listener_publishes_the_painter_for_the_spa() {
+		// The SPA repaints the sidebar badge through this global the moment its
+		// queue changes — it must exist even if jQuery (Heartbeat's event bus)
+		// doesn't, so the definition sits before the jQuery bail-out.
+		$js = ReviewBadge::inline_js();
+		$this->assertStringContainsString( 'window.agentimusReviewBadge=function', $js );
+		$this->assertTrue(
+			strpos( $js, 'window.agentimusReviewBadge=function' ) < strpos( $js, 'if(!$){return;}' )
+		);
 	}
 }

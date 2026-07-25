@@ -12,6 +12,7 @@ namespace Agentimus\Activity;
 use Agentimus\Settings;
 use Agentimus\Guard;
 use Agentimus\BotVerifier;
+use Agentimus\ReviewBadge;
 use Agentimus\VerifierRegistry;
 
 defined( 'ABSPATH' ) || exit;
@@ -1119,6 +1120,7 @@ final class Repository {
 		}
 		unset( $map[ $key ] );
 		update_option( self::DISMISS_OPTION, $map, false );
+		ReviewBadge::forget(); // The client may re-enter the queue — the menu badge recounts.
 		return true;
 	}
 
@@ -1176,6 +1178,7 @@ final class Repository {
 			$map = array_slice( $map, 0, self::REVERIFY_MAX, true );
 		}
 		update_option( self::REVERIFY_OPTION, $map, false );
+		ReviewBadge::forget(); // A fresh verdict can unflag (or flag) the row — the menu badge recounts.
 	}
 
 	/**
@@ -1224,6 +1227,7 @@ final class Repository {
 			$map = array_slice( $map, 0, self::DISMISS_MAX, true );
 		}
 		update_option( self::DISMISS_OPTION, $map, false );
+		ReviewBadge::forget(); // The ignored client leaves the queue — the menu badge recounts.
 	}
 
 	/**
@@ -1310,5 +1314,6 @@ final class Repository {
 		delete_option( self::DISMISS_OPTION );
 		delete_option( self::REVERIFY_OPTION ); // Re-checks judge the same history — clear them with it.
 		FlaggedIps::clear(); // The captured IPs are judged against this history — clear them with it.
+		ReviewBadge::forget(); // An emptied log empties the queue — the menu badge recounts.
 	}
 }
