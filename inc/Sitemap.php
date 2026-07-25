@@ -5,7 +5,8 @@
  * it detects the existing one (WordPress core or a major SEO plugin) and links
  * it from robots.txt, llms.txt and the discovery document.
  *
- * Detection mirrors Schema::seo_plugin_active() so the two stay in lockstep.
+ * Suite detection is read from {@see SeoContext} — the same table Schema and the
+ * mode resolver use, so all three stay in lockstep by construction.
  *
  * @package Agentimus
  */
@@ -45,14 +46,13 @@ final class Sitemap {
 		}
 
 		// 2. A known SEO plugin owns the sitemap — link its real location.
-		foreach ( self::providers() as $p ) {
-			if ( $p['active'] ) {
-				return array(
-					'url'    => home_url( $p['path'] ),
-					'source' => $p['source'],
-					'label'  => $p['label'],
-				);
-			}
+		$suite = SeoContext::detected();
+		if ( null !== $suite ) {
+			return array(
+				'url'    => home_url( $suite['sitemap_path'] ),
+				'source' => $suite['id'],
+				'label'  => $suite['label'],
+			);
 		}
 
 		// 3. Agentimus's opt-in fallback — fills the gap when nobody else does.
@@ -368,45 +368,4 @@ final class Sitemap {
 		return isset( $detected['url'] ) ? (string) $detected['url'] : '';
 	}
 
-	/**
-	 * Known SEO sitemap providers in priority order, each with the path it
-	 * serves. Yoast/Rank Math expose `/sitemap_index.xml`; AIOSEO, SEOPress and
-	 * The SEO Framework expose `/sitemap.xml`.
-	 *
-	 * @return array<int,array{active:bool,source:string,label:string,path:string}>
-	 */
-	private static function providers() {
-		return array(
-			array(
-				'active' => defined( 'WPSEO_VERSION' ),
-				'source' => 'yoast',
-				'label'  => __( 'Yoast SEO', 'agentimus' ),
-				'path'   => '/sitemap_index.xml',
-			),
-			array(
-				'active' => class_exists( 'RankMath' ),
-				'source' => 'rankmath',
-				'label'  => __( 'Rank Math', 'agentimus' ),
-				'path'   => '/sitemap_index.xml',
-			),
-			array(
-				'active' => defined( 'AIOSEO_VERSION' ),
-				'source' => 'aioseo',
-				'label'  => __( 'All in One SEO', 'agentimus' ),
-				'path'   => '/sitemap.xml',
-			),
-			array(
-				'active' => defined( 'SEOPRESS_VERSION' ),
-				'source' => 'seopress',
-				'label'  => __( 'SEOPress', 'agentimus' ),
-				'path'   => '/sitemap.xml',
-			),
-			array(
-				'active' => class_exists( '\\The_SEO_Framework\\Load' ),
-				'source' => 'seoframework',
-				'label'  => __( 'The SEO Framework', 'agentimus' ),
-				'path'   => '/sitemap.xml',
-			),
-		);
-	}
 }
