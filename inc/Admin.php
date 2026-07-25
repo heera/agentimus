@@ -701,6 +701,10 @@ final class Admin {
 			// prints reads like the rest of this admin (see wpDate.js for the renderer).
 			'dateFormat'  => get_option( 'date_format' ) ? get_option( 'date_format' ) : 'F j, Y',
 			'timeFormat'  => get_option( 'time_format' ) ? get_option( 'time_format' ) : 'g:i a',
+			// Where the weekly email actually goes when its override is empty — shown
+			// as the recipient field's placeholder, so "the site admin email" is a real
+			// address on screen, not a riddle. Admin-only payload; it's the owner's own.
+			'adminEmail'  => sanitize_email( (string) get_option( 'admin_email', '' ) ),
 			// The solo/coexist verdict ({mode, plugin}) — the dashboard companion
 			// card and the wizard summary word themselves around it.
 			'seo'         => SeoContext::resolve(),

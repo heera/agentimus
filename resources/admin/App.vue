@@ -1564,6 +1564,7 @@ export default {
           :known-allowed="knownAllowed"
           :verifier-builtins="verifierBuiltins"
           :social-image-url="boot.socialDefaultImageUrl || ''"
+          :admin-email="boot.adminEmail || ''"
           :default-allowed="defaultAllowed"
           :webmcp-tools="webmcpTools"
           :mcp-server="mcpServer"

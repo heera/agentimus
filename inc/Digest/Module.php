@@ -31,9 +31,6 @@ final class Module {
 	/** admin-post action name for the stop link. */
 	const STOP_ACTION = 'agentimus_digest_stop';
 
-	/** Send hour, site time, on the digest's send day (Monday). */
-	const SEND_HOUR = 8;
-
 	/** @var Settings */
 	private $settings;
 
@@ -59,18 +56,42 @@ final class Module {
 	}
 
 	/**
-	 * Make the schedule agree with the setting. Cheap (one wp_next_scheduled
+	 * Make the schedule agree with the settings. Cheap (one wp_next_scheduled
 	 * lookup), so it runs on every boot — the same self-healing the activity
 	 * prune uses, but bidirectional because this one has an off switch.
+	 *
+	 * Beyond on/off, the scheduled event must sit on the CONFIGURED day and hour:
+	 * a slot the owner just changed reschedules on save (Rest calls this), and a
+	 * 'weekly' recurrence that drifted off the site-local hour across a DST
+	 * change (WP-cron repeats in UTC) heals on the next boot.
 	 */
 	public function sync_schedule() {
 		$enabled = $this->settings->enabled( 'digest_enabled' );
 		$next    = wp_next_scheduled( self::CRON );
-		if ( $enabled && ! $next ) {
-			wp_schedule_event( self::first_send_at(), 'weekly', self::CRON );
-		} elseif ( ! $enabled && $next ) {
-			self::unschedule();
+		if ( ! $enabled ) {
+			if ( $next ) {
+				self::unschedule();
+			}
+			return;
 		}
+		if ( $next && $this->on_slot( $next ) ) {
+			return;
+		}
+		self::unschedule();
+		wp_schedule_event( self::first_send_at(), 'weekly', self::CRON );
+	}
+
+	/**
+	 * Whether a timestamp falls on the configured send slot, site time.
+	 *
+	 * @param int $timestamp Unix timestamp (a scheduled event's).
+	 * @return bool
+	 */
+	private function on_slot( $timestamp ) {
+		$at = ( new \DateTimeImmutable( '@' . (int) $timestamp ) )->setTimezone( wp_timezone() );
+		return (int) $this->settings->get( 'digest_day', 1 ) === (int) $at->format( 'N' )
+			&& (int) $this->settings->get( 'digest_hour', 8 ) === (int) $at->format( 'G' )
+			&& 0 === (int) $at->format( 'i' );
 	}
 
 	/**
@@ -90,17 +111,34 @@ final class Module {
 	}
 
 	/**
-	 * The first send: next Monday at SEND_HOUR, site time. If it is Monday
-	 * before that hour right now, today qualifies. The weekly recurrence keeps
-	 * the cadence from there.
+	 * The first send: the next occurrence of the configured day and hour, site
+	 * time (defaults: Monday, 8). If that slot is still ahead today, today
+	 * qualifies. The weekly recurrence keeps the cadence from there.
 	 *
 	 * @return int Unix timestamp.
 	 */
 	public static function first_send_at() {
-		$now  = new \DateTimeImmutable( 'now', wp_timezone() );
-		$next = $now->setTime( self::SEND_HOUR, 0 );
-		while ( 1 !== (int) $next->format( 'N' ) || $next <= $now ) {
-			$next = $next->modify( '+1 day' )->setTime( self::SEND_HOUR, 0 );
+		$settings = new Settings();
+		return self::next_occurrence(
+			(int) $settings->get( 'digest_day', 1 ),
+			(int) $settings->get( 'digest_hour', 8 ),
+			new \DateTimeImmutable( 'now', wp_timezone() )
+		);
+	}
+
+	/**
+	 * The next strictly-future occurrence of an ISO day + hour, seen from $now.
+	 * Pure (no clock, no settings) so a test can pin "now" anywhere in the week.
+	 *
+	 * @param int                $day  ISO-8601 day: 1 = Monday … 7 = Sunday.
+	 * @param int                $hour Hour, 0–23, in $now's timezone.
+	 * @param \DateTimeImmutable $now  The reference moment.
+	 * @return int Unix timestamp.
+	 */
+	public static function next_occurrence( $day, $hour, \DateTimeImmutable $now ) {
+		$next = $now->setTime( $hour, 0 );
+		while ( $day !== (int) $next->format( 'N' ) || $next <= $now ) {
+			$next = $next->modify( '+1 day' )->setTime( $hour, 0 );
 		}
 		return $next->getTimestamp();
 	}

@@ -5,7 +5,7 @@ import IpChecker from './IpChecker.vue';
 import ClientManager from './ClientManager.vue';
 import { bindDocEsc } from '../docEsc.js';
 import { uaTip } from '../uaTip.js';
-import { formatDate } from '../wpDate.js';
+import { formatDate, formatTime } from '../wpDate.js';
 
 import { groupIcon } from '../groupIcons.js';
 
@@ -30,6 +30,7 @@ export default {
     defaultAllowed: { type: Array, default: () => [] },
     verifierBuiltins: { type: Array, default: () => [] }, // Built-in verified-bot registry entries.
     socialImageUrl: { type: String, default: '' }, // Thumbnail of the saved default share image (the setting holds only the ID).
+    adminEmail: { type: String, default: '' }, // The digest's fallback recipient, shown as the field's placeholder — never prefilled as a value (a saved copy would stop following admin-email changes).
     webmcpTools: { type: Array, default: () => [] },
     mcpServer: { type: Object, default: () => ({}) }, // {endpoint, abilitiesAvailable, adapterAvailable} for the MCP-server card.
     debug: { type: Object, default: () => ({}) },
@@ -190,6 +191,22 @@ export default {
       return this.retentionChoices.map((d) => ({
         value: d,
         label: d === 365 ? '1 year' : d % 30 === 0 && d >= 60 ? `${d / 30} months` : `${d} days`,
+      }));
+    },
+    // The weekly email's send slot. Day names are the app's English prose; the hour
+    // labels render through the site's own time format (wpDate), so "8:00" vs
+    // "8:00 am" follows Settings → General.
+    digestDayOptions() {
+      return ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'].map((label, i) => ({
+        value: i + 1,
+        label,
+      }));
+    },
+    digestHourOptions() {
+      // Any fixed date works: only the clock face is formatted, on the UTC dial.
+      return Array.from({ length: 24 }, (_, h) => ({
+        value: h,
+        label: formatTime(new Date(Date.UTC(2026, 0, 5, h, 0, 0)), true),
       }));
     },
     /**
@@ -1356,11 +1373,33 @@ export default {
           <span class="ar-toggle__track" aria-hidden="true"></span>
           <span class="ar-toggle__text">
             <strong>Send the weekly note</strong>
-            <small>Arrives Monday morning. Every email carries a one-click stop link, so turning it off never needs this screen.</small>
+            <small>Arrives once a week, on the day and time you pick below. Every email carries a one-click stop link, so turning it off never needs this screen.</small>
           </span>
         </label>
 
         <div :inert="!settings.digest_enabled" class="ar-webmcp-tools">
+          <div class="ar-field ar-field--inline ar-field--digest">
+            <span class="ar-digest-slot">
+              <label id="ar-lbl-digest-day">Send it every</label>
+              <SelectMenu
+                v-model="settings.digest_day"
+                :options="digestDayOptions"
+                aria-label="Which day of the week the email is sent"
+              />
+            </span>
+            <span class="ar-digest-slot">
+              <label id="ar-lbl-digest-hour">at</label>
+              <SelectMenu
+                v-model="settings.digest_hour"
+                :options="digestHourOptions"
+                aria-label="What time of day the email is sent"
+              />
+            </span>
+          </div>
+          <p class="ar-log-note">
+            That’s your site’s clock (Settings → General → Timezone). WordPress sends scheduled email on
+            the first visit after the chosen time, so on a quiet site it can arrive a little later.
+          </p>
           <div class="ar-field">
             <label for="ar-digest-recipient">Send it to</label>
             <input
@@ -1368,7 +1407,7 @@ export default {
               v-model.trim="settings.digest_recipient"
               type="email"
               class="ar-input"
-              placeholder="The site admin email"
+              :placeholder="adminEmail || 'The site admin email'"
               autocomplete="email"
             />
           </div>

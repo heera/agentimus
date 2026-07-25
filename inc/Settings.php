@@ -167,6 +167,8 @@ final class Settings {
 			// Quiet weeks (nothing to report) send nothing at all. See Digest\Module.
 			'digest_enabled'          => true,
 			'digest_recipient'        => '', // Optional override; empty = the site admin email.
+			'digest_day'              => 1, // Send day, ISO-8601: 1 = Monday … 7 = Sunday.
+			'digest_hour'             => 8, // Send hour (0–23), site time. WP-cron fires on the first visit after it.
 		);
 
 		/**
@@ -376,6 +378,10 @@ final class Settings {
 		update_option( self::OPTION, $clean );
 		$this->record_decisions( is_array( $prev ) ? $prev : array(), $clean );
 		Cache::flush();
+		// The review-queue badge counts against the block/trust lists and the activity
+		// toggle — any settings write may have changed its number, and its 60s cache
+		// must never outlive the owner's own action (Block, Allow, Unblock, …).
+		ReviewBadge::forget();
 		// Opted back OUT of flagged-IP storage → purge what was kept, so the plugin never
 		// holds personal data the owner just declined. A listener (Activity\Module) clears
 		// the store; firing an action keeps Settings decoupled from the table.
@@ -715,6 +721,16 @@ final class Settings {
 
 		// An invalid address sanitises to '' — which means "the admin email", never a broken send.
 		$clean['digest_recipient'] = isset( $input['digest_recipient'] ) ? sanitize_email( (string) $input['digest_recipient'] ) : '';
+
+		// The digest's send slot: an ISO day and a whole hour. Out-of-range values snap
+		// to the default rather than clamping — the dropdowns never offer them, so a 25
+		// or a 0-day is a tampered payload, not a preference (same reasoning as the
+		// retention choices above).
+		$day                 = isset( $input['digest_day'] ) ? (int) $input['digest_day'] : $defaults['digest_day'];
+		$clean['digest_day'] = ( $day >= 1 && $day <= 7 ) ? $day : $defaults['digest_day'];
+
+		$hour                 = isset( $input['digest_hour'] ) ? (int) $input['digest_hour'] : $defaults['digest_hour'];
+		$clean['digest_hour'] = ( $hour >= 0 && $hour <= 23 ) ? $hour : $defaults['digest_hour'];
 
 		$available           = Content::available();
 		$requested           = $this->sanitize_list( isset( $input['post_types'] ) ? $input['post_types'] : array(), 'sanitize_key' );
