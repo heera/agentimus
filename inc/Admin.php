@@ -644,20 +644,16 @@ final class Admin {
 			'show'    => $show,
 			'items'   => array(
 				array(
-					'title' => 'It may ask for a review — once',
-					'text'  => 'After Agentimus has been on your site a week, actually been used, and your readiness score is healthy, one quiet card on this Dashboard asks whether it has earned a review on WordPress.org. Any answer puts it away — "Maybe later" for a month, the others for good — and once answered, the rating line in the footer below retires too. No pop-ups anywhere else, nothing sent anywhere.',
+					'title' => 'A weekly note about your site’s AI week',
+					'text'  => 'Once a week, Agentimus emails you a short note: how often AI agents read your site, readers arriving from AI answers, impostors caught, your readiness score and its move, and one thing worth doing. Built only from data already on your site — no images, no tracking, nothing else leaves your server. Quiet weeks send nothing, and every email carries a one-click stop link, so turning it off never needs a settings screen. Settings → Weekly email holds the address and a test button.',
 				),
 				array(
-					'title' => 'A better first minute',
-					'text'  => 'New installs now finish setup looking at proof instead of promises: the closing screen lists what just went live — llms.txt and the discovery document as clickable addresses, with the owner’s words already inside — plus the site’s starting readiness score. Empty dashboard cards also say what will appear in them, and roughly when, instead of a bare zero.',
+					'title' => 'The review queue shows itself',
+					'text'  => 'The count of clients awaiting your review now rides the Agentimus entry in the admin menu — the same red bubble core uses — visible from every admin screen and kept current while you work. When the queue empties, it disappears.',
 				),
 				array(
-					'title' => 'The MCP card speaks standard vocabulary',
-					'text'  => 'The MCP server card now describes its authentication the way agent tooling does — http/basic and oauth2 — so what you read here matches what a connecting agent’s documentation says.',
-				),
-				array(
-					'title' => 'Coming from 1.25 or earlier?',
-					'text'  => 'Then 1.26 is new to you too: honest reading-ease grading (bullet lists stop counting as run-on sentences, your topic’s vocabulary reads as familiar, code isn’t graded as prose), checks that name the exact words weighing a page down, and MCP writes that come back graded. The full changelog on this card tells that story.',
+					'title' => 'Coming from 1.26 or earlier?',
+					'text'  => 'Then 1.27 is new to you too: a one-time, quiet review ask that never nags, and setup that ends with proof — the finishing screen lists what just went live, clickable addresses included. The full changelog on this card tells that story.',
 				),
 			),
 		);

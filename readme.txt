@@ -4,7 +4,7 @@ Tags: ai-agents, mcp, agent-readiness, llms-txt, ai-seo
 Requires at least: 6.0
 Tested up to: 7.1
 Requires PHP: 7.4
-Stable tag: 1.27.1
+Stable tag: 1.28.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -274,6 +274,10 @@ URL-like strings in the plugin's output are labels, not requests — the discove
 
 == Changelog ==
 
+= 1.28.0 =
+* New — **A weekly email about your site’s AI week.** Once a week, Agentimus emails the site owner a short note: how often AI agents read the site against the week before, readers arriving from AI answers, impostors caught, the readiness score and its move since the last note, and one thing worth doing. Built only from data already stored on your site and sent with WordPress’s own mail — no images, no tracking, nothing leaves your server except the email itself. A week with nothing to report sends nothing, and every email ends with a one-click stop link.
+* New — **The review queue shows itself.** The count of clients awaiting your review now rides the Agentimus entry in the admin menu — the same red bubble core uses — visible from every admin screen and kept current while you work. When the queue empties, it disappears.
+
 = 1.27.1 =
 * Fixed — The review-ask endpoint answers a permission denial before a validation complaint, like every other route. No security impact — the capability gate always held; only the order of the two refusals was wrong.
 
@@ -337,6 +341,9 @@ URL-like strings in the plugin's output are labels, not requests — the discove
 * Changed — **The dashboard's 7- and 30-day numbers are whole calendar days now.** They used to be rolling windows ending at the current second, which meant they could visibly shrink between midnights as week-old hits aged out — watched live under auto-refresh, that read as data loss. Every window is now counted in whole calendar days (UTC), the same clock as the Today tile and the daily chart beneath them; numbers move only when a hit arrives or at midnight UTC. The tiles may read slightly higher after updating — the window now includes its first day's early hours, which rolling had already dropped.
 
 == Upgrade Notice ==
+
+= 1.28.0 =
+A short weekly email about what AI did on your site — quiet weeks send nothing, one-click stop inside every email — and the review queue’s count now shows on the admin menu from every screen.
 
 = 1.27.1 =
 Small ordering fix on the new review-ask endpoint (deny before validate). No security impact, no breaking changes.
