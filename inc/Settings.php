@@ -49,6 +49,9 @@ final class Settings {
 			'enable_ai_description' => true, // Per-page AI description → JSON-LD `description` + the per-page markdown lead, plus (when ai_description_meta_tag is on) the HTML <meta name="description">. On by default; blank pages fall back to the excerpt. Each page sets its own value via the editor meta box.
 			'ai_description_meta_tag' => true, // Sub-option of enable_ai_description: also make the AI description the page's <meta name="description"> — replacing the theme's, still deferring wholesale to a real SEO plugin. Off = enrich only JSON-LD + .md and never touch the <head>. See Description::should_emit()/meta_tag_enabled().
 			'enable_seo_titles' => true, // Solo mode only (SeoContext): a per-page "SEO title" field that replaces the title part of the document title, site-name suffix kept. Gap-only in spirit — with no per-page value nothing changes, and with an SEO suite active the field hides and the filter stands down at request time, so it's safe on by default. See Seo.
+			'enable_social_cards' => true, // Solo mode only: Open Graph/X card tags on the front page + singular views, so shared links preview with a real title, description and image. GAP-ONLY like the description meta tag: the head is buffered and ours print only when no theme/plugin (Jetpack, a social plugin, the-alpha) already emitted og: tags. See Seo::buffer_end().
+			'enable_canonicals' => true, // Solo mode only: rel=canonical on the views core leaves bare — blog-as-front + main archive kinds. Gap-only via the same head buffer (a theme may fill these too); core already covers every singular view; paginated pages 2+ get NOTHING (self-referential paged canonicals are a later refinement, a page-1 pointer would be wrong). See Seo::output_canonical().
+			'social_default_image' => 0, // Attachment ID of a site-wide fallback card image, used when a shared page has no featured image (the Site Icon is the final fallback). 0 = none. No settings-screen picker yet — set via REST/agents or a filter for now.
 			'topics_derive_default' => true, // Default for new posts: also derive topics from the page's tags & categories (a manual list still wins).
 			'topics_max'       => 12,    // Hard cap on emitted topics per page, to keep the machine surfaces lean.
 			'enable_activity'  => true,
@@ -689,6 +692,11 @@ final class Settings {
 
 		$posts                    = isset( $input['llms_full_posts'] ) ? (int) $input['llms_full_posts'] : $defaults['llms_full_posts'];
 		$clean['llms_full_posts'] = max( 1, min( 500, $posts ) );
+
+		// Solo-mode card image: an attachment ID, clamped to a non-negative int (0 = none).
+		// Whether it IS an attachment is checked at emission (Seo::attachment_image) — a
+		// deleted attachment must degrade to the next image in the chain, not block saves.
+		$clean['social_default_image'] = isset( $input['social_default_image'] ) ? max( 0, (int) $input['social_default_image'] ) : $defaults['social_default_image'];
 
 		// Activity retention + row cap: snap to the offered choices rather than clamping to a
 		// range. A value the UI never offers (say 37 days) is a sign of a tampered payload, and

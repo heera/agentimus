@@ -1471,6 +1471,44 @@ export default {
         </div>
       </section>
 
+      <!-- Search basics — the solo-mode surfaces (SEO title / share cards / canonicals) -->
+      <section id="ar-sec-search-basics" class="ar-card">
+        <h2 class="ar-card__title">Search basics</h2>
+        <p class="ar-card__lead">
+          The search essentials most sites install an SEO plugin for — covered here, so you don’t
+          need one. Everything in this card applies only while no SEO plugin is installed: the
+          moment one activates, Agentimus steps aside automatically and these switches wait
+          quietly.
+        </p>
+
+        <label id="ar-feat-enable_seo_titles" class="ar-toggle">
+          <input v-model="settings.enable_seo_titles" type="checkbox" />
+          <span class="ar-toggle__track" aria-hidden="true"></span>
+          <span class="ar-toggle__text">
+            <strong>Per-page SEO title</strong>
+            <small>Adds an “SEO title” field in the editor. When filled in, it replaces that page’s title in search results and browser tabs — your site name stays appended.</small>
+          </span>
+        </label>
+
+        <label id="ar-feat-enable_social_cards" class="ar-toggle">
+          <input v-model="settings.enable_social_cards" type="checkbox" />
+          <span class="ar-toggle__track" aria-hidden="true"></span>
+          <span class="ar-toggle__text">
+            <strong>Social share cards</strong>
+            <small>Adds the tags (Open Graph) that give a shared link its preview in social and chat apps: title, description and image — the featured image, or your Site Icon when a page has none.</small>
+          </span>
+        </label>
+
+        <label id="ar-feat-enable_canonicals" class="ar-toggle">
+          <input v-model="settings.enable_canonicals" type="checkbox" />
+          <span class="ar-toggle__track" aria-hidden="true"></span>
+          <span class="ar-toggle__text">
+            <strong>Canonical links</strong>
+            <small>Marks your front page and archive pages with their one official URL, so search engines don’t treat variations of the same address as duplicates. WordPress already covers single posts and pages; this fills in the rest.</small>
+          </span>
+        </label>
+      </section>
+
       <!-- Browser tools (WebMCP) — master toggle + per-tool expose/hide - -->
       <section id="ar-sec-webmcp" class="ar-card">
         <h2 class="ar-card__title">Browser tools <span class="ar-card__tag">experimental</span></h2>
