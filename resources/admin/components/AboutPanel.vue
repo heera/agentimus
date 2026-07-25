@@ -64,8 +64,9 @@ export default {
             { name: 'JSON-LD schema', where: 'in your page <head>', desc: 'schema.org WebSite, Person/Organization, articles, breadcrumbs and FAQ.', tag: 'On' },
             { name: 'Topics for AI', where: 'per post', desc: 'Per-page topics → JSON-LD keywords and about entities (linkable to Wikidata/Wikipedia) plus a Markdown line, so assistants know exactly what each page is about.', tag: 'On' },
             { name: 'AI description', where: 'per post', desc: 'A one-line summary → the JSON-LD description, the Markdown lead, and your page’s meta description (replacing your theme’s, unless a dedicated SEO plugin owns it). Blank pages fall back to the excerpt, or a short summary of the page.', tag: 'On' },
+            { name: 'Search basics', where: 'Settings → Discovery', desc: 'With no SEO plugin installed, Agentimus covers the search essentials itself: a per-page “SEO title” field in the editor, Open Graph/X share cards (featured image → your chosen default → Site Icon), and canonical links on the views WordPress leaves bare. Install an SEO plugin and every one of these steps aside automatically — nothing is ever emitted twice — and a dashboard card names the division of labour.', tag: 'On' },
             { name: 'robots.txt', where: '/robots.txt', desc: 'Adds Content-Signal directives and advertises your sitemap.', tag: 'On' },
-            { name: 'XML sitemap', where: '/agentimus-sitemap.xml', desc: 'A fallback sitemap — stands down when core or an SEO plugin provides one.', tag: 'On' },
+            { name: 'XML sitemap', where: '/agentimus-sitemap.xml', desc: 'With no SEO plugin, Agentimus serves your sitemap — including the last-changed dates WordPress core’s own leaves out — and advertises it in robots.txt and llms.txt. With one installed, it stands down and links theirs instead.', tag: 'On' },
           ],
         },
         {

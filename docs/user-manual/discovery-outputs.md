@@ -19,7 +19,7 @@ None of these files change what your human visitors see. They are parallel, mach
 | Discovery document | `/.well-known/discovery.json` | Always on | (no toggle — served while the plugin is active) |
 | Agent card | `/.well-known/agent-card.json` | Always on | (no toggle) |
 | MCP / tools manifest | `/.well-known/mcp.json` | Always on | (no toggle) |
-| XML sitemap (fallback) | `/agentimus-sitemap.xml` | Only if nothing else provides one | Settings → **Discovery** → *Sitemap (backup)* |
+| XML sitemap | `/agentimus-sitemap.xml` | Whenever no SEO plugin owns the job (else only as fallback) | Settings → **Discovery** → *Sitemap* |
 
 The three `/.well-known/` documents have no on/off switch: they describe your site's identity and are safe and cheap to serve, so Agentimus always publishes them while it is active. The text files (`llms.txt`, `llms-full.txt`, Markdown) each have a toggle on the **Discovery** tab of the settings screen. The fallback sitemap is special — see its section below.
 
@@ -129,21 +129,17 @@ Nothing here is typed by hand — every field is generated from your settings an
 
 For completeness, Agentimus also serves `openapi.json` (a machine description of WordPress's public read-only REST API) and `api-catalog` (a standard index pointing agents at your API descriptions). Like the three above, these are served automatically while the plugin is active. A few more documents appear only when you opt into the feature that produces them — for example `security.txt` and `tdmrep.json` (covered on the crawler-policy page).
 
-## The XML sitemap — an opt-in fallback
+## The XML sitemap
 
-A sitemap lists your URLs for crawlers. Agentimus deliberately **does not compete** for this job. It checks, in order:
+A sitemap lists your URLs for crawlers. Who serves it depends on what your site runs:
 
-1. Does **WordPress core** provide a sitemap? (On by default since WordPress 5.5, at `/wp-sitemap.xml`.)
-2. Does a major **SEO plugin** provide one? (Yoast, Rank Math, All in One SEO, SEOPress or The SEO Framework.)
-3. Only if **neither** does, and you've left the *Sitemap (backup)* toggle on, Agentimus generates its own at `/agentimus-sitemap.xml`.
+**With no SEO plugin installed, Agentimus serves your sitemap.** It's a proper sitemap *index* at `/agentimus-sitemap.xml` with paginated sub-sitemaps — the same shape core and the SEO plugins use, so even large sites are covered — and every URL carries its **last-changed date**, which WordPress core's own sitemap leaves out (and which is exactly what tells a crawler whether a page is worth re-fetching). Core's duplicate at `/wp-sitemap.xml` is switched off so your site serves one sitemap, not two, and `robots.txt`, `llms.txt` and the discovery document all advertise the Agentimus address.
 
-This means Agentimus never produces a duplicate or conflicting sitemap. On most sites something else already owns the sitemap, so Agentimus simply *links* to that existing file from `llms.txt`, `robots.txt` and the discovery document rather than making its own. Its fallback only fills a genuine gap.
+**With an SEO plugin (Yoast, Rank Math, All in One SEO, SEOPress or The SEO Framework), Agentimus does not compete.** It links the plugin's own sitemap from `llms.txt` and the discovery document and serves nothing itself — its own generator stays as a quiet fallback only if neither core nor the plugin provides one.
 
-When Agentimus's own fallback is active, it's a proper sitemap *index* at `/agentimus-sitemap.xml` with paginated sub-sitemaps — the same shape core and the SEO plugins use, so even large sites are covered. Password-protected posts are excluded, matching how core's sitemap behaves.
+The switch is automatic in both directions: activate an SEO plugin and Agentimus steps aside on the next page load (its address stops responding); remove the plugin and Agentimus takes the job back. Password-protected posts are always excluded, matching how core behaves.
 
-**When it's served:** only when nothing else provides a sitemap *and* the toggle is on. If you activate an SEO plugin later, Agentimus automatically steps aside and its fallback address stops responding.
-
-**Turn it off:** Settings → **Discovery** → untick *Sitemap (backup)*.
+**Turn it off:** Settings → **Discovery** → untick *Sitemap*. With the toggle off, Agentimus never serves a sitemap of its own in either mode.
 
 ## A note on privacy and what's never exposed
 
