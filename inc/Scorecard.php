@@ -730,32 +730,45 @@ final class Scorecard {
 			. ( 'dark' === $style ? ':root{--paper:#191712;--ink:#f3f0e7;--muted:#9a938a;--line:#39352b}' : '' )
 			. ( 'auto' === $style ? '@media(prefers-color-scheme:dark){:root{--paper:#191712;--ink:#f3f0e7;--muted:#9a938a;--line:#39352b}}' : '' )
 			. '*{box-sizing:border-box;margin:0}body{background:var(--paper);color:var(--ink);font:16px/1.5 system-ui,-apple-system,"Segoe UI",sans-serif;display:grid;min-height:100vh;place-items:center;padding:24px}'
-			. '.card{width:min(460px,100%);border:1px solid var(--line);border-radius:10px;padding:36px 32px;text-align:center}'
-			. '.site{display:flex;align-items:center;justify-content:center;gap:10px;margin-bottom:26px}.site a{color:inherit;text-decoration:none;font-weight:600}.icon{border-radius:6px}'
-			. '.what{font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);margin-bottom:18px}'
+			// Wide enough for the receipts to read as a grid of front doors; the
+			// score block sits gauge-beside-rungs on desktop. Under 640px both
+			// collapse to one column and the padding tightens — same document,
+			// no separate mobile layout to drift.
+			. '.card{width:min(720px,100%);border:1px solid var(--line);border-radius:12px;padding:40px 44px;text-align:center}'
+			. '.site{display:flex;align-items:center;justify-content:center;gap:10px;margin-bottom:26px}.site a{color:inherit;text-decoration:none;font-weight:600;font-size:18px}.icon{border-radius:6px}'
+			. '.what{font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);margin-bottom:14px}'
 			. '.gauge{position:relative;width:150px;margin:0 auto}.gauge svg{width:100%;transform:rotate(-90deg)}.gauge circle{fill:none;stroke-width:9}.gauge .track{stroke:var(--line)}.gauge .fill{stroke:var(--accent);stroke-linecap:round}'
 			. '.gauge .n{position:absolute;inset:0;display:grid;place-items:center;font-size:40px;font-weight:700}.gauge .n small{font-size:15px;font-weight:400;color:var(--muted);margin-left:6px}'
 			. '.band{margin-top:10px;font-weight:600}'
-			. '.tier{font-size:30px;font-weight:700;margin:26px 0}.tier[data-earned="1"]{color:var(--accent)}.tier[data-earned="0"]{color:var(--muted);font-size:22px}'
-			. 'ol{list-style:none;padding:0;margin:30px 0 0;text-align:left}li{display:grid;grid-template-columns:88px 1fr auto;gap:10px;align-items:center;padding:7px 0;font-size:14px}'
+			. '.tier{font-size:30px;font-weight:700;margin:10px 0}.tier[data-earned="1"]{color:var(--accent)}.tier[data-earned="0"]{color:var(--muted);font-size:22px}'
+			. '.score{display:grid;grid-template-columns:200px 1fr;gap:10px 44px;align-items:center;margin-top:8px;text-align:left}'
+			. '.score .hero{text-align:center}'
+			// Rung rows scoped to .score — a bare li rule would leak align-items
+			// into the receipt tiles and shrink-wrap their links (it did).
+			. 'ol{list-style:none;padding:0;margin:0}.score li{display:grid;grid-template-columns:minmax(92px,130px) 1fr auto;gap:12px;align-items:center;padding:8px 0;font-size:14px}'
 			. '.bar{height:6px;border-radius:3px;background:var(--line);overflow:hidden}.bar span{display:block;height:100%;border-radius:3px;background:var(--accent)}'
 			// Healthy bars wear the accent (the default span colour), same rule
 			// as the share card — warn/bad keep their semantic tones.
-			. 'li[data-tone="warn"] .bar span{background:var(--warn)}li[data-tone="bad"] .bar span{background:var(--bad)}'
+			. '.score li[data-tone="warn"] .bar span{background:var(--warn)}.score li[data-tone="bad"] .bar span{background:var(--bad)}'
 			. '.num{color:var(--muted);font-size:12px;font-variant-numeric:tabular-nums}'
-			. '.lead{font-size:13px;color:var(--muted);text-align:left;margin:0 0 4px}'
-			. '.receipts{list-style:none;padding:0;margin:10px 0 34px;text-align:left}'
-			. '.receipts li{display:flex;flex-direction:column;gap:1px;padding:9px 0;border-bottom:1px solid var(--line)}.receipts li:last-child{border-bottom:0}'
+			. '.lead{font-size:14px;color:var(--muted);text-align:center;max-width:52ch;margin:0 auto 18px}'
+			// The receipts as a grid of tiles — each one a front door, not a list row.
+			. '.receipts{list-style:none;padding:0;margin:0 0 38px;display:grid;grid-template-columns:1fr 1fr;gap:10px;text-align:left}'
+			. '.receipts li{border:1px solid var(--line);border-radius:9px;padding:13px 15px;display:flex;flex-direction:column;gap:3px}'
+			. '.receipts li:hover{border-color:var(--accent)}'
 			. '.receipts a{color:var(--accent);font-weight:600;font-size:14px;text-decoration:none;font-variant-numeric:tabular-nums}.receipts a:hover{text-decoration:underline}'
-			. '.receipts .desc{font-size:12px;color:var(--muted)}'
-			. 'footer{margin-top:30px;padding-top:16px;border-top:1px solid var(--line);font-size:12px;color:var(--muted)}footer a{color:inherit}'
+			// The whole tile is honestly clickable via the link's stretched hit area.
+			. '.receipts li{position:relative}.receipts a::after{content:"";position:absolute;inset:0}'
+			. '.receipts .desc{font-size:12px;color:var(--muted);line-height:1.45}'
+			. 'footer{margin-top:34px;padding-top:16px;border-top:1px solid var(--line);font-size:12px;color:var(--muted)}footer a{color:inherit}'
+			. '@media(max-width:640px){.card{padding:28px 20px}.receipts{grid-template-columns:1fr}.score{grid-template-columns:1fr;gap:18px}.score li{grid-template-columns:92px 1fr auto}}'
 			. '</style></head><body>'
 			. '<main class="card">'
 			. '<p class="site">' . $icon . '<a href="' . esc_url( $ctx['home'] ) . '">' . esc_html( $who ) . '</a></p>'
 			. $receipts
 			. '<p class="what">' . esc_html__( 'AI readiness', 'agentimus' ) . '</p>'
-			. $hero
-			. '<ol>' . $rows . '</ol>'
+			. '<section class="score"><div class="hero">' . $hero . '</div>'
+			. '<ol>' . $rows . '</ol></section>'
 			. '<footer>' . sprintf(
 				/* translators: 1: link to the Agentimus plugin page, 2: date. */
 				esc_html__( 'Measured by %1$s · Updated %2$s', 'agentimus' ),
