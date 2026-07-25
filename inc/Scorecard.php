@@ -552,18 +552,75 @@ final class Scorecard {
 		$snap      = $this->snapshot();
 		$generated = isset( $snap['generated'] ) ? (int) $snap['generated'] : time();
 		return array(
-			'site'    => (string) get_bloginfo( 'name' ),
-			'host'    => (string) wp_parse_url( home_url( '/' ), PHP_URL_HOST ),
-			'home'    => home_url( '/' ),
-			'url'     => home_url( $base . '/' ),
-			'icon'    => function_exists( 'get_site_icon_url' ) ? (string) get_site_icon_url( 64 ) : '',
-			'badge'   => home_url( $base . '/badge' ),
-			'og'      => self::og_ready() ? home_url( $base . '/card' ) : '',
-			'updated' => function_exists( 'date_i18n' )
+			'site'     => (string) get_bloginfo( 'name' ),
+			'host'     => (string) wp_parse_url( home_url( '/' ), PHP_URL_HOST ),
+			'home'     => home_url( '/' ),
+			'url'      => home_url( $base . '/' ),
+			'icon'     => function_exists( 'get_site_icon_url' ) ? (string) get_site_icon_url( 64 ) : '',
+			'badge'    => home_url( $base . '/badge' ),
+			'og'       => self::og_ready() ? home_url( $base . '/card' ) : '',
+			'receipts' => $this->receipts(),
+			'updated'  => function_exists( 'date_i18n' )
 				? date_i18n( (string) get_option( 'date_format', 'F j, Y' ), $generated )
 				: gmdate( 'F j, Y', $generated ),
-			'plugin'  => 'https://wordpress.org/plugins/agentimus/',
+			'plugin'   => 'https://wordpress.org/plugins/agentimus/',
 		);
+	}
+
+	/**
+	 * The receipts — the page's whole point since the reframe: live, public,
+	 * clickable URLs a stranger can open to CHECK the claim, instead of being
+	 * asked to believe a self-graded number. Only what's actually enabled is
+	 * listed (an off feature is not a fact), and never the private worklist —
+	 * these are the site's own front doors, nothing else.
+	 *
+	 * @return array<int,array{label:string,desc:string,url:string}>
+	 */
+	private function receipts() {
+		$receipts = array(
+			array(
+				'label' => 'discovery.json',
+				'desc'  => __( 'A machine-readable index of everything this site offers AI agents.', 'agentimus' ),
+				'url'   => home_url( '/.well-known/discovery.json' ),
+			),
+		);
+		if ( $this->settings->enabled( 'enable_llms_txt' ) ) {
+			$receipts[] = array(
+				'label' => 'llms.txt',
+				'desc'  => __( 'The plain-language guide AI assistants read first — pages, topics, recent posts.', 'agentimus' ),
+				'url'   => home_url( '/llms.txt' ),
+			);
+		}
+		if ( $this->settings->enabled( 'enable_llms_full' ) ) {
+			$receipts[] = array(
+				'label' => 'llms-full.txt',
+				'desc'  => __( 'The full text of this site, bundled so an assistant can read it in one pass.', 'agentimus' ),
+				'url'   => home_url( '/llms-full.txt' ),
+			);
+		}
+		if ( $this->settings->enabled( 'enable_robots' ) ) {
+			$receipts[] = array(
+				'label' => 'robots.txt',
+				'desc'  => __( 'Crawler rules and AI-usage signals, stated where every crawler looks.', 'agentimus' ),
+				'url'   => home_url( '/robots.txt' ),
+			);
+		}
+		$sitemap = Sitemap::url();
+		if ( '' !== $sitemap ) {
+			$receipts[] = array(
+				'label' => __( 'sitemap', 'agentimus' ),
+				'desc'  => __( 'Every public page, one index.', 'agentimus' ),
+				'url'   => $sitemap,
+			);
+		}
+		if ( $this->settings->enabled( 'enable_changes' ) ) {
+			$receipts[] = array(
+				'label' => 'agentimus-changes.json',
+				'desc'  => __( 'What changed recently, so agents re-check only that.', 'agentimus' ),
+				'url'   => home_url( '/agentimus-changes.json' ),
+			);
+		}
+		return $receipts;
 	}
 
 	/**
@@ -627,6 +684,21 @@ final class Scorecard {
 		}
 		$icon = '' !== $ctx['icon'] ? '<img class="icon" src="' . esc_url( $ctx['icon'] ) . '" alt="" width="28" height="28">' : '';
 
+		// The receipts lead (the reframe, 2026-07-25): a stranger shouldn't be
+		// asked to believe a self-graded number — so the page opens with live,
+		// clickable facts anyone can check, and the score follows as the caption.
+		$receipts = '';
+		if ( ! empty( $ctx['receipts'] ) && is_array( $ctx['receipts'] ) ) {
+			$items = '';
+			foreach ( $ctx['receipts'] as $rc ) {
+				$items .= '<li><a href="' . esc_url( $rc['url'] ) . '" rel="noopener">' . esc_html( $rc['label'] ) . '</a>'
+					. '<span class="desc">' . esc_html( $rc['desc'] ) . '</span></li>';
+			}
+			$receipts = '<p class="what">' . esc_html__( 'Serving to AI, live right now', 'agentimus' ) . '</p>'
+				. '<p class="lead">' . esc_html__( 'Don’t take the score’s word for it — these are real addresses on this site. Open any of them.', 'agentimus' ) . '</p>'
+				. '<ul class="receipts">' . $items . '</ul>';
+		}
+
 		$scheme = 'auto' === $style ? 'light dark' : $style;
 
 		// In tier mode the big display is the mark, not the ring — no number leaks.
@@ -671,10 +743,16 @@ final class Scorecard {
 			// as the share card — warn/bad keep their semantic tones.
 			. 'li[data-tone="warn"] .bar span{background:var(--warn)}li[data-tone="bad"] .bar span{background:var(--bad)}'
 			. '.num{color:var(--muted);font-size:12px;font-variant-numeric:tabular-nums}'
+			. '.lead{font-size:13px;color:var(--muted);text-align:left;margin:0 0 4px}'
+			. '.receipts{list-style:none;padding:0;margin:10px 0 34px;text-align:left}'
+			. '.receipts li{display:flex;flex-direction:column;gap:1px;padding:9px 0;border-bottom:1px solid var(--line)}.receipts li:last-child{border-bottom:0}'
+			. '.receipts a{color:var(--accent);font-weight:600;font-size:14px;text-decoration:none;font-variant-numeric:tabular-nums}.receipts a:hover{text-decoration:underline}'
+			. '.receipts .desc{font-size:12px;color:var(--muted)}'
 			. 'footer{margin-top:30px;padding-top:16px;border-top:1px solid var(--line);font-size:12px;color:var(--muted)}footer a{color:inherit}'
 			. '</style></head><body>'
 			. '<main class="card">'
 			. '<p class="site">' . $icon . '<a href="' . esc_url( $ctx['home'] ) . '">' . esc_html( $who ) . '</a></p>'
+			. $receipts
 			. '<p class="what">' . esc_html__( 'AI readiness', 'agentimus' ) . '</p>'
 			. $hero
 			. '<ol>' . $rows . '</ol>'

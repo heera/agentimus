@@ -178,6 +178,35 @@ final class ScorecardTest extends TestCase {
 
 	/* -- the page ---------------------------------------------------------- */
 
+	/* -- the receipts (the reframe: verifiable facts first, score as caption) -- */
+
+	public function test_page_leads_with_the_receipts_before_the_score() {
+		$ctx             = $this->ctx();
+		$ctx['receipts'] = array(
+			array( 'label' => 'llms.txt', 'desc' => 'The guide assistants read first.', 'url' => 'https://example.test/llms.txt' ),
+			array( 'label' => 'robots.txt', 'desc' => 'Crawler rules.', 'url' => 'https://example.test/robots.txt' ),
+		);
+		$html = Scorecard::page_html( $this->snap(), $ctx, 'score', 'auto', '#146b64' );
+		$this->assertStringContainsString( 'https://example.test/llms.txt', $html );
+		$this->assertStringContainsString( 'https://example.test/robots.txt', $html );
+		// The inversion IS the feature: receipts render before the gauge.
+		$this->assertLessThan( strpos( $html, 'class="gauge"' ), strpos( $html, 'class="receipts"' ) );
+	}
+
+	public function test_page_without_receipts_omits_the_section() {
+		$html = Scorecard::page_html( $this->snap(), $this->ctx(), 'score', 'auto', '#146b64' );
+		$this->assertStringNotContainsString( 'class="receipts"', $html );
+	}
+
+	public function test_page_escapes_receipt_labels() {
+		$ctx             = $this->ctx();
+		$ctx['receipts'] = array(
+			array( 'label' => '<script>x</script>', 'desc' => 'a & b', 'url' => 'https://example.test/llms.txt' ),
+		);
+		$html = Scorecard::page_html( $this->snap(), $ctx, 'score', 'auto', '#146b64' );
+		$this->assertStringNotContainsString( '<script>x</script>', $html );
+	}
+
 	public function test_page_escapes_the_site_name() {
 		$html = Scorecard::page_html( $this->snap(), $this->ctx(), 'score', 'auto', '#146b64' );
 		$this->assertStringNotContainsString( 'Example & Sons <b>', $html );
