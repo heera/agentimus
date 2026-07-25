@@ -156,11 +156,17 @@ final class Admin {
 	 * @return string
 	 */
 	public static function brand_title( $text ) {
-		$icon = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true" focusable="false" style="flex:none">'
+		$icon = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true" focusable="false" style="flex:none;margin-top:2px">'
 			. '<rect x="1.2" y="1.2" width="21.6" height="21.6" rx="6" fill="#1b1913" stroke="#146b64" stroke-width="1.5"/>'
 			. '<path d="M7.35 17.3 12 6.7 16.65 17.3" stroke="#f3f0e7" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>'
 			. '<path d="M9.5 13H14.5" stroke="#ad7b18" stroke-width="1.9" stroke-linecap="round"/></svg>';
-		return '<span style="display:inline-flex;align-items:center;gap:5px;white-space:nowrap">' . $icon . esc_html( $text ) . '</span>';
+		// No white-space:nowrap here: the h2 shares its flex row with WP's own
+		// header controls (move/collapse, wider since 7.1 wrapped them in
+		// tooltips), and an unshrinkable title pushes those controls out past
+		// the box edge in the 280px sidebar. Long titles wrap to a second line
+		// instead; flex-start + the icon's top margin keep the mark aligned
+		// with the first line when they do.
+		return '<span style="display:inline-flex;align-items:flex-start;gap:5px">' . $icon . '<span>' . esc_html( $text ) . '</span></span>';
 	}
 
 	/**

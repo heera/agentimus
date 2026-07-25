@@ -191,8 +191,9 @@ final class AssistantEditor {
 		wp_enqueue_style( self::HANDLE );
 		wp_add_inline_style(
 			self::HANDLE,
-			'#agentimus-featured-ai .hndle{white-space:nowrap}'
-			. '.agentimus-feat__hint{margin:0 0 10px;color:#646970;font-size:12px;line-height:1.5}'
+			// No nowrap on the handle — see Admin::brand_title(): an unshrinkable
+			// title pushes WP's (7.1-widened) header controls past the box edge.
+			'.agentimus-feat__hint{margin:0 0 10px;color:#646970;font-size:12px;line-height:1.5}'
 			. '.agentimus-feat__btn{width:100%;text-align:center;justify-content:center}'
 			. '.agentimus-feat__btn[disabled]{cursor:default}'
 		);
