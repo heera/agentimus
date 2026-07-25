@@ -1168,7 +1168,6 @@ export default {
           class="ar-subnav__item"
           :class="{ 'is-active': group === g.key }"
           :aria-current="group === g.key ? 'page' : null"
-          :title="g.hint"
           @click="group = g.key"
         ><span class="ar-subnav__icon" aria-hidden="true" v-html="groupIcon(g.key)"></span>{{ g.label }}</button>
       </nav>
