@@ -220,6 +220,15 @@ final class SeoTest extends TestCase {
 		$this->assertSame( '', $this->cards() );
 	}
 
+	/** The default-image setting clamps to a non-negative int; 0 means none. */
+	public function test_social_default_image_setting_clamps() {
+		$s = new Settings();
+		$s->update( array_merge( $s->all(), array( 'social_default_image' => -5 ) ) );
+		$this->assertSame( 0, ( new Settings() )->get( 'social_default_image' ) );
+		$s->update( array_merge( $s->all(), array( 'social_default_image' => '44' ) ) );
+		$this->assertSame( 44, ( new Settings() )->get( 'social_default_image' ) );
+	}
+
 	/* ---- gap detection (the head buffer) ----------------------------------- */
 
 	/** Run a fake head through the buffer pair and return the final output. */

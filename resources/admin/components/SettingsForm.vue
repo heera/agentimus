@@ -29,6 +29,7 @@ export default {
     knownAllowed: { type: Array, default: () => [] },
     defaultAllowed: { type: Array, default: () => [] },
     verifierBuiltins: { type: Array, default: () => [] }, // Built-in verified-bot registry entries.
+    socialImageUrl: { type: String, default: '' }, // Thumbnail of the saved default share image (the setting holds only the ID).
     webmcpTools: { type: Array, default: () => [] },
     mcpServer: { type: Object, default: () => ({}) }, // {endpoint, abilitiesAvailable, adapterAvailable} for the MCP-server card.
     debug: { type: Object, default: () => ({}) },
@@ -53,6 +54,10 @@ export default {
       // Identity leads — the highest-signal section, and where a new owner starts.
       group: 'identity',
       clientManagerOpen: false,
+      // The default-share-image picker: the live thumbnail (seeded from the
+      // bootstrap, replaced on pick) and the wp.media frame, built lazily.
+      socialThumb: this.socialImageUrl,
+      socialFrame: null,
       // The "add a verified bot" mini-form (Verified-bots registry manager).
       verAdd: { label: '', ua: '', domains: '', url: '' },
       verAddOpen: false,
@@ -636,6 +641,31 @@ export default {
     },
   },
   methods: {
+    // Open the WordPress media modal for the default share image. The frame is
+    // built once and reused; selecting stores the attachment ID in settings
+    // (which autosaves like any other field) and updates the local thumbnail.
+    pickSocialImage() {
+      if (!window.wp || !window.wp.media) return; // Media scripts missing — the button did nothing visible anyway.
+      if (!this.socialFrame) {
+        this.socialFrame = window.wp.media({
+          title: 'Default share image',
+          library: { type: 'image' },
+          multiple: false,
+          button: { text: 'Use this image' },
+        });
+        this.socialFrame.on('select', () => {
+          const att = this.socialFrame.state().get('selection').first().toJSON();
+          this.settings.social_default_image = att.id;
+          const sizes = att.sizes || {};
+          this.socialThumb = (sizes.thumbnail || sizes.medium || { url: att.url }).url;
+        });
+      }
+      this.socialFrame.open();
+    },
+    clearSocialImage() {
+      this.settings.social_default_image = 0;
+      this.socialThumb = '';
+    },
     // Called from outside too (App, for the review queue's footer link) — the dialog
     // teleports to <body>, so it opens over whatever tab is active.
     openClientManager() {
@@ -1498,6 +1528,20 @@ export default {
             <small>Adds the tags (Open Graph) that give a shared link its preview in social and chat apps: title, description and image — the featured image, or your Site Icon when a page has none.</small>
           </span>
         </label>
+
+        <div :inert="!settings.enable_social_cards" class="ar-webmcp-tools">
+          <div class="ar-field">
+            <label for="ar-social-image-pick">Default share image <span class="ar-field__tag">optional</span></label>
+            <div class="ar-media-pick">
+              <img v-if="socialThumb" :src="socialThumb" alt="" class="ar-media-pick__thumb" />
+              <button id="ar-social-image-pick" type="button" class="ar-btn ar-btn--ghost" @click="pickSocialImage">
+                {{ settings.social_default_image ? 'Change image' : 'Choose image' }}
+              </button>
+              <button v-if="settings.social_default_image" type="button" class="ar-btn ar-btn--ghost" @click="clearSocialImage">Remove</button>
+            </div>
+            <small class="ar-field__hint">Used when a shared page has no featured image of its own. Leave empty and your Site Icon steps in.</small>
+          </div>
+        </div>
 
         <label id="ar-feat-enable_canonicals" class="ar-toggle">
           <input v-model="settings.enable_canonicals" type="checkbox" />

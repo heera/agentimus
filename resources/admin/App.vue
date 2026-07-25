@@ -1563,6 +1563,7 @@ export default {
           :known-scanners="knownScanners"
           :known-allowed="knownAllowed"
           :verifier-builtins="verifierBuiltins"
+          :social-image-url="boot.socialDefaultImageUrl || ''"
           :default-allowed="defaultAllowed"
           :webmcp-tools="webmcpTools"
           :mcp-server="mcpServer"

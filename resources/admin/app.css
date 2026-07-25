@@ -4135,3 +4135,8 @@ a.ar-about-proto__v:hover { text-decoration: underline; }
 .ar-aa__table tr.is-refusal td { border-left: 2px solid var(--ar-warn); }
 .ar-aa__table tr.is-refusal td:not(:first-child) { border-left: 0; }
 .ar-aa__hint--warn { color: var(--ar-ink-soft); font-weight: 500; }
+
+/* The default-share-image picker (Search basics): thumbnail beside its buttons.
+   The thumb is a fixed square so a portrait pick can't stretch the row. */
+.ar-media-pick { display: flex; align-items: center; gap: 10px; margin: 6px 0 4px; }
+.ar-media-pick__thumb { width: 48px; height: 48px; object-fit: cover; border-radius: 6px; border: 1px solid var(--ar-line); }

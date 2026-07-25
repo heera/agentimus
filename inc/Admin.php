@@ -429,6 +429,10 @@ final class Admin {
 		// gates (a week present, 3+ visits, 1+ real action) — see Review::eligible().
 		Review::touch();
 
+		// The media modal, for the "Default share image" picker in Search basics —
+		// our screen only (the gate above), so no other admin page pays for it.
+		wp_enqueue_media();
+
 		$js  = AGENTIMUS_DIR . 'assets/admin/app.js';
 		$css = AGENTIMUS_DIR . 'assets/admin/app.css';
 
@@ -669,6 +673,21 @@ final class Admin {
 		);
 	}
 
+	/**
+	 * Thumbnail URL of the saved default share image, '' when unset or the
+	 * attachment is gone (a stale ID must degrade to "none", same as emission).
+	 *
+	 * @return string
+	 */
+	private function social_default_image_url() {
+		$id = (int) $this->settings->get( 'social_default_image', 0 );
+		if ( $id < 1 || ! function_exists( 'wp_get_attachment_image_src' ) ) {
+			return '';
+		}
+		$src = wp_get_attachment_image_src( $id, 'thumbnail' );
+		return ( is_array( $src ) && ! empty( $src[0] ) ) ? (string) $src[0] : '';
+	}
+
 	private function bootstrap_data() {
 		return array(
 			'restUrl'     => esc_url_raw( rest_url( Rest::NAMESPACE ) ),
@@ -685,6 +704,9 @@ final class Admin {
 			// The solo/coexist verdict ({mode, plugin}) — the dashboard companion
 			// card and the wizard summary word themselves around it.
 			'seo'         => SeoContext::resolve(),
+			// Thumbnail of the saved default share image, so the picker previews
+			// on load without a REST round trip (the setting itself is only an ID).
+			'socialDefaultImageUrl' => $this->social_default_image_url(),
 			'readiness'   => $readiness = ( new Readiness( $this->settings ) )->report(),
 			'score'       => $score = $this->aeo_score( $readiness ), // AEO/GEO score + action plan, from the same readiness run.
 			'discovery'   => Discovery\Hub::data( $this->settings, Discovery\Registry::instance() ),
