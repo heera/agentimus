@@ -1,7 +1,7 @@
 ---
 title: Topics for AI
 parent: User Manual
-nav_order: 9
+nav_order: 10
 ---
 
 **Topics for AI** lets you say, in plain words, what each post or page is *about* — for example *llms.txt, AI visibility, structured data*. Those words are added to your content's machine-readable data so AI assistants understand the subject of the page and cite it correctly. Nothing appears on the visible page; this is purely for the AI and agent layer.

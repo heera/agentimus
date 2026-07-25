@@ -104,6 +104,7 @@ export default {
       knownAllowed: this.boot.knownAllowed || [],
       defaultAllowed: this.boot.defaultAllowed || [],
       verifierBuiltins: this.boot.verifierBuiltins || [],
+      seo: this.boot.seo || { mode: 'solo', plugin: null },
       whatsNew: this.boot.whatsNew || { show: false, version: '', items: [] },
       reviewAsk: this.boot.reviewAsk || { show: false, url: '' },
       assistant: this.boot.assistant || { writesOn: false, providerReady: false },
@@ -1531,6 +1532,7 @@ export default {
     <OnboardingWizard
       :open="showWizard"
       :settings="settings"
+      :seo="seo"
       :entity-types="entityTypes"
       :post-types="postTypes"
       :saving="onboarding"
@@ -1561,6 +1563,8 @@ export default {
           :known-scanners="knownScanners"
           :known-allowed="knownAllowed"
           :verifier-builtins="verifierBuiltins"
+          :social-image-url="boot.socialDefaultImageUrl || ''"
+          :admin-email="boot.adminEmail || ''"
           :default-allowed="defaultAllowed"
           :webmcp-tools="webmcpTools"
           :mcp-server="mcpServer"
@@ -1622,6 +1626,21 @@ export default {
           :api="api"
           @dismiss="reviewAsk.show = false"
         />
+        <!-- Coexist mode: one quiet line naming the division of labour, so the
+             owner of a Yoast/SEOPress/... site never wonders about overlap.
+             Informational, mode-driven, no dismissal — it goes away by itself
+             when the mode changes. -->
+        <section
+          v-if="seo.mode === 'coexist' && tab === 'dashboard'"
+          class="ar-card ar-card--muted"
+        >
+          <p class="ar-card__lead" style="margin:0">
+            <strong>{{ seo.plugin ? seo.plugin.label : 'Your SEO plugin' }}</strong> handles search
+            SEO on this site — titles, social cards, canonicals, schema. Agentimus stands aside
+            there and adds the AI-facing layer it doesn’t: the page guide and plain-text pages
+            assistants read, agent activity and verification, and your AI-usage signals.
+          </p>
+        </section>
         <ActivityPanel
           v-show="tab === 'dashboard'"
           :data="activity"

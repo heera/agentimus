@@ -122,7 +122,9 @@ final class AssistantEditor {
 		$screen = get_current_screen();
 		add_meta_box(
 			'agentimus-featured-ai',
-			self::meta_box_title( __( 'Generate Featured Image', 'agentimus' ) ),
+			// Short title, like core's own panel — the button below says what the
+			// box DOES, and the title stays one line in the 280px sidebar.
+			self::meta_box_title( __( 'Featured Image', 'agentimus' ) ),
 			array( $this, 'render_featured_box' ),
 			$screen->post_type,
 			'side',
@@ -191,7 +193,12 @@ final class AssistantEditor {
 		wp_enqueue_style( self::HANDLE );
 		wp_add_inline_style(
 			self::HANDLE,
-			'#agentimus-featured-ai .hndle{white-space:nowrap}'
+			// Header reads like a core sidebar panel (Categories/Tags): title +
+			// the collapse toggle only — Heera's call 2026-07-25. The classic
+			// move-up/down arrows add ~88px of chrome (wider still since 7.1
+			// wrapped them in tooltips) and forced the title onto two lines in
+			// the 280px sidebar; boxes stay drag-sortable by their headers.
+			'#agentimus-featured-ai .handle-order-higher,#agentimus-featured-ai .handle-order-lower{display:none}'
 			. '.agentimus-feat__hint{margin:0 0 10px;color:#646970;font-size:12px;line-height:1.5}'
 			. '.agentimus-feat__btn{width:100%;text-align:center;justify-content:center}'
 			. '.agentimus-feat__btn[disabled]{cursor:default}'

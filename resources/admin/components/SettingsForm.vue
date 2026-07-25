@@ -5,7 +5,7 @@ import IpChecker from './IpChecker.vue';
 import ClientManager from './ClientManager.vue';
 import { bindDocEsc } from '../docEsc.js';
 import { uaTip } from '../uaTip.js';
-import { formatDate } from '../wpDate.js';
+import { formatDate, formatTime } from '../wpDate.js';
 
 import { groupIcon } from '../groupIcons.js';
 
@@ -29,6 +29,8 @@ export default {
     knownAllowed: { type: Array, default: () => [] },
     defaultAllowed: { type: Array, default: () => [] },
     verifierBuiltins: { type: Array, default: () => [] }, // Built-in verified-bot registry entries.
+    socialImageUrl: { type: String, default: '' }, // Thumbnail of the saved default share image (the setting holds only the ID).
+    adminEmail: { type: String, default: '' }, // The digest's fallback recipient, shown as the field's placeholder — never prefilled as a value (a saved copy would stop following admin-email changes).
     webmcpTools: { type: Array, default: () => [] },
     mcpServer: { type: Object, default: () => ({}) }, // {endpoint, abilitiesAvailable, adapterAvailable} for the MCP-server card.
     debug: { type: Object, default: () => ({}) },
@@ -53,6 +55,10 @@ export default {
       // Identity leads — the highest-signal section, and where a new owner starts.
       group: 'identity',
       clientManagerOpen: false,
+      // The default-share-image picker: the live thumbnail (seeded from the
+      // bootstrap, replaced on pick) and the wp.media frame, built lazily.
+      socialThumb: this.socialImageUrl,
+      socialFrame: null,
       // The "add a verified bot" mini-form (Verified-bots registry manager).
       verAdd: { label: '', ua: '', domains: '', url: '' },
       verAddOpen: false,
@@ -185,6 +191,22 @@ export default {
       return this.retentionChoices.map((d) => ({
         value: d,
         label: d === 365 ? '1 year' : d % 30 === 0 && d >= 60 ? `${d / 30} months` : `${d} days`,
+      }));
+    },
+    // The weekly email's send slot. Day names are the app's English prose; the hour
+    // labels render through the site's own time format (wpDate), so "8:00" vs
+    // "8:00 am" follows Settings → General.
+    digestDayOptions() {
+      return ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'].map((label, i) => ({
+        value: i + 1,
+        label,
+      }));
+    },
+    digestHourOptions() {
+      // Any fixed date works: only the clock face is formatted, on the UTC dial.
+      return Array.from({ length: 24 }, (_, h) => ({
+        value: h,
+        label: formatTime(new Date(Date.UTC(2026, 0, 5, h, 0, 0)), true),
       }));
     },
     /**
@@ -460,7 +482,7 @@ export default {
         // "Track AI citations" describes the mechanism, "AI Visibility" is what you look for
         // in the nav. `sub` is optional; no other feature needs one yet.
         { key: 'enable_visibility', label: 'AI Visibility', sub: '(Track AI citations)', hint: 'Shows the AI Visibility screen and adds the “Cited” rung to your score — measures whether AI engines actually name your site in their answers. Off by default: it needs your own AI provider key and spends your credit to run checks.' },
-        { key: 'enable_sitemap', label: 'Sitemap (backup)', hint: 'Adds a sitemap only when WordPress core and your SEO plugin don’t already provide one — never duplicates.' },
+        { key: 'enable_sitemap', label: 'Sitemap', hint: 'With no SEO plugin installed, Agentimus serves your sitemap — including the last-changed dates WordPress core’s own leaves out. With an SEO plugin, it steps aside and only fills the gap when nothing else provides one.' },
         { key: 'enable_changes', label: 'Change feed', hint: 'A JSON feed of recently added or updated pages so assistants can re-check just what changed, instead of re-reading your whole site. (file: agentimus-changes.json)' },
         { key: 'enable_signing', label: 'Verified responses', hint: 'Digitally signs your AI files so assistants can confirm they really came from your site and weren’t tampered with on the way. On by default; no setup needed.' },
       ];
@@ -636,6 +658,31 @@ export default {
     },
   },
   methods: {
+    // Open the WordPress media modal for the default share image. The frame is
+    // built once and reused; selecting stores the attachment ID in settings
+    // (which autosaves like any other field) and updates the local thumbnail.
+    pickSocialImage() {
+      if (!window.wp || !window.wp.media) return; // Media scripts missing — the button did nothing visible anyway.
+      if (!this.socialFrame) {
+        this.socialFrame = window.wp.media({
+          title: 'Default share image',
+          library: { type: 'image' },
+          multiple: false,
+          button: { text: 'Use this image' },
+        });
+        this.socialFrame.on('select', () => {
+          const att = this.socialFrame.state().get('selection').first().toJSON();
+          this.settings.social_default_image = att.id;
+          const sizes = att.sizes || {};
+          this.socialThumb = (sizes.thumbnail || sizes.medium || { url: att.url }).url;
+        });
+      }
+      this.socialFrame.open();
+    },
+    clearSocialImage() {
+      this.settings.social_default_image = 0;
+      this.socialThumb = '';
+    },
     // Called from outside too (App, for the review queue's footer link) — the dialog
     // teleports to <body>, so it opens over whatever tab is active.
     openClientManager() {
@@ -1168,7 +1215,6 @@ export default {
           class="ar-subnav__item"
           :class="{ 'is-active': group === g.key }"
           :aria-current="group === g.key ? 'page' : null"
-          :title="g.hint"
           @click="group = g.key"
         ><span class="ar-subnav__icon" aria-hidden="true" v-html="groupIcon(g.key)"></span>{{ g.label }}</button>
       </nav>
@@ -1327,11 +1373,33 @@ export default {
           <span class="ar-toggle__track" aria-hidden="true"></span>
           <span class="ar-toggle__text">
             <strong>Send the weekly note</strong>
-            <small>Arrives Monday morning. Every email carries a one-click stop link, so turning it off never needs this screen.</small>
+            <small>Arrives once a week, on the day and time you pick below. Every email carries a one-click stop link, so turning it off never needs this screen.</small>
           </span>
         </label>
 
         <div :inert="!settings.digest_enabled" class="ar-webmcp-tools">
+          <div class="ar-field ar-field--inline ar-field--digest">
+            <span class="ar-digest-slot">
+              <label id="ar-lbl-digest-day">Send it every</label>
+              <SelectMenu
+                v-model="settings.digest_day"
+                :options="digestDayOptions"
+                aria-label="Which day of the week the email is sent"
+              />
+            </span>
+            <span class="ar-digest-slot">
+              <label id="ar-lbl-digest-hour">at</label>
+              <SelectMenu
+                v-model="settings.digest_hour"
+                :options="digestHourOptions"
+                aria-label="What time of day the email is sent"
+              />
+            </span>
+          </div>
+          <p class="ar-log-note">
+            That’s your site’s clock (Settings → General → Timezone). WordPress sends scheduled email on
+            the first visit after the chosen time, so on a quiet site it can arrive a little later.
+          </p>
           <div class="ar-field">
             <label for="ar-digest-recipient">Send it to</label>
             <input
@@ -1339,7 +1407,7 @@ export default {
               v-model.trim="settings.digest_recipient"
               type="email"
               class="ar-input"
-              placeholder="The site admin email"
+              :placeholder="adminEmail || 'The site admin email'"
               autocomplete="email"
             />
           </div>
@@ -1470,6 +1538,58 @@ export default {
             </span>
           </label>
         </div>
+      </section>
+
+      <!-- Search basics — the solo-mode surfaces (SEO title / share cards / canonicals) -->
+      <section id="ar-sec-search-basics" class="ar-card">
+        <h2 class="ar-card__title">Search basics</h2>
+        <p class="ar-card__lead">
+          The search essentials most sites install an SEO plugin for — covered here, so you don’t
+          need one. Everything in this card applies only while no SEO plugin is installed: the
+          moment one activates, Agentimus steps aside automatically and these switches wait
+          quietly.
+        </p>
+
+        <label id="ar-feat-enable_seo_titles" class="ar-toggle">
+          <input v-model="settings.enable_seo_titles" type="checkbox" />
+          <span class="ar-toggle__track" aria-hidden="true"></span>
+          <span class="ar-toggle__text">
+            <strong>Per-page SEO title</strong>
+            <small>Adds an “SEO title” field in the editor. When filled in, it replaces that page’s title in search results and browser tabs — your site name stays appended.</small>
+          </span>
+        </label>
+
+        <label id="ar-feat-enable_social_cards" class="ar-toggle">
+          <input v-model="settings.enable_social_cards" type="checkbox" />
+          <span class="ar-toggle__track" aria-hidden="true"></span>
+          <span class="ar-toggle__text">
+            <strong>Social share cards</strong>
+            <small>Adds the tags (Open Graph) that give a shared link its preview in social and chat apps: title, description and image — the featured image, or your Site Icon when a page has none.</small>
+          </span>
+        </label>
+
+        <div :inert="!settings.enable_social_cards" class="ar-webmcp-tools">
+          <div class="ar-field">
+            <label for="ar-social-image-pick">Default share image <span class="ar-field__tag">optional</span></label>
+            <div class="ar-media-pick">
+              <img v-if="socialThumb" :src="socialThumb" alt="" class="ar-media-pick__thumb" />
+              <button id="ar-social-image-pick" type="button" class="ar-btn ar-btn--ghost" @click="pickSocialImage">
+                {{ settings.social_default_image ? 'Change image' : 'Choose image' }}
+              </button>
+              <button v-if="settings.social_default_image" type="button" class="ar-btn ar-btn--ghost" @click="clearSocialImage">Remove</button>
+            </div>
+            <small class="ar-field__hint">Used when a shared page has no featured image of its own. Leave empty and your Site Icon steps in.</small>
+          </div>
+        </div>
+
+        <label id="ar-feat-enable_canonicals" class="ar-toggle">
+          <input v-model="settings.enable_canonicals" type="checkbox" />
+          <span class="ar-toggle__track" aria-hidden="true"></span>
+          <span class="ar-toggle__text">
+            <strong>Canonical links</strong>
+            <small>Marks your front page and archive pages with their one official URL, so search engines don’t treat variations of the same address as duplicates. WordPress already covers single posts and pages; this fills in the rest.</small>
+          </span>
+        </label>
       </section>
 
       <!-- Browser tools (WebMCP) — master toggle + per-tool expose/hide - -->

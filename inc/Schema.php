@@ -42,14 +42,13 @@ final class Schema {
 	 * {@see Description} meta-tag fallback) can reuse the exact same "is an SEO plugin
 	 * present?" signal and layer their own defer filter on top.
 	 *
+	 * The detection table itself lives in {@see SeoContext::suites()}; this method
+	 * stays as the public face existing callers (and third parties) already use.
+	 *
 	 * @return bool
 	 */
 	public static function seo_plugin_present() {
-		return defined( 'WPSEO_VERSION' )                    // Yoast.
-			|| class_exists( 'RankMath' )                    // Rank Math.
-			|| defined( 'SEOPRESS_VERSION' )                 // SEOPress.
-			|| class_exists( '\\The_SEO_Framework\\Load' )   // The SEO Framework.
-			|| defined( 'AIOSEO_VERSION' );                  // All in One SEO.
+		return SeoContext::plugin_present();
 	}
 
 	/**

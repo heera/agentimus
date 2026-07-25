@@ -85,6 +85,8 @@ final class Plugin {
 		}
 
 		Cache::register_flush_hooks();
+		SeoContext::watch(); // One cache flush per solo/coexist flip — cached surfaces bake the mode in.
+		Sitemap::register(); // Core's sitemap stands down while the solo-mode promotion is on.
 		CachePurge::boot();
 		MarkdownCache::register();
 		BotRanges::boot(); // Daily refresh of published bot-IP-range files (self-heals its schedule).
@@ -92,6 +94,7 @@ final class Plugin {
 		( new Endpoints( $this->settings ) )->register();
 		( new Tombstones() )->register(); // Records removals for the change feed (self-gates on enable_changes).
 		( new Schema( $this->settings ) )->register();
+		( new Seo( $this->settings ) )->register(); // Solo-mode head output (per-page SEO title; cards + canonical land here). Stands down at request time when an SEO suite is active.
 		( new EditorPanel( $this->settings ) )->register(); // One "Agentimus" editor box: JSON-LD + AI Readability as tabs.
 		( new Topics( $this->settings ) )->register();
 		( new Description( $this->settings ) )->register();

@@ -231,6 +231,8 @@ It stands down when any of these is active:
 
 You do not have to choose — this is automatic. If you run one of these plugins, that plugin owns your schema and Agentimus won't add a second, competing copy. The **Readiness** panel will show this as a passing check ("An SEO plugin owns schema; Agentimus is standing down to avoid duplicates"), so you can confirm at a glance that your site still has structured data, just from the other plugin.
 
+Schema is one of several surfaces that defer this way — SEO titles, share cards, canonical links and the sitemap follow the same rule, and the same detection covers them all. See [Search basics](search-basics.html) for the full picture of what Agentimus provides when no SEO plugin is installed.
+
 ## The privacy guard: drafts and password-protected content
 
 Structured data describes your public site, so Agentimus is careful never to leak content that isn't public:

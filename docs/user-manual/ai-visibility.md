@@ -1,7 +1,7 @@
 ---
 title: AI Visibility
 parent: User Manual
-nav_order: 16
+nav_order: 17
 ---
 
 AI Visibility monitoring is the one part of Agentimus that talks to the outside world. Everything else in the plugin runs quietly on your own site. This feature, when you switch it on and add your own AI keys, actually asks the big AI assistants questions and reports back whether they mention you, link to you, and how you stack up against your rivals — tracked over time so you can see the picture change.

@@ -65,7 +65,8 @@ Here is the machine-readable output Agentimus can generate. Some is on by defaul
 | AI description | JSON-LD `description`, the `.md` lead + the page's `<meta name="description">` | One editor-set line that summarises each post, kept the same everywhere |
 | Crawler policy | `robots.txt` | Declares your content-usage signals and can block named AI-training crawlers |
 | AI-training opt-out | `robots.txt`, a response header, and `/.well-known/tdmrep.json` | Publishes your "don't train on this" choice in three places at once |
-| XML sitemap | `/agentimus-sitemap.xml` | An opt-in fallback, generated only if nothing else already provides one |
+| Search basics | page `<head>` | With no SEO plugin: per-page SEO titles, Open Graph/X share cards and canonical links |
+| XML sitemap | `/agentimus-sitemap.xml` | Your sitemap when no SEO plugin is installed (with last-changed dates); a gap-only fallback beside one |
 | Discovery document | `/.well-known/discovery.json` | One predictable place describing your identity, capabilities and APIs |
 | Agent & tool cards | `/.well-known/agent-card.json`, `/.well-known/mcp.json` | Machine descriptions of what an agent can do with your site |
 | security.txt | `/.well-known/security.txt` | An optional, standard way for researchers and agents to report an issue |
@@ -83,13 +84,15 @@ What that means in practice:
 - **No framework.** The plugin is plain PHP with a small, hand-rolled loader — the codebase is intentionally lean so it can't become the heavy dependency it's meant to help you avoid.
 - **No phoning home.** Out of the box Agentimus makes no outbound requests, collects no analytics or telemetry, and by default logs no IP addresses. Everything runs on your own site. (One optional, off-by-default setting can store a flagged impersonating or spoofed crawler's IP — kept on your own server so you can block it, never sent anywhere. And the one feature that reaches an outside service is the optional AI Visibility monitor, which is off by default and only calls an AI provider you choose after you add your own API key.)
 
-## It defers to your SEO plugin
+## With an SEO plugin — or instead of one
 
-If you run Yoast, Rank Math, SEOPress, All in One SEO (AIOSEO) or The SEO Framework, you don't have to choose between them and Agentimus. Agentimus is built to **stand down** where your SEO plugin already does the job.
+Agentimus adapts to what your site already runs, automatically:
 
-Specifically, the JSON-LD structured data automatically switches off when one of those SEO plugins is active, so your site never ships duplicate or conflicting schema. Agentimus recognises that your SEO plugin owns that job and gets out of the way. The rest of what Agentimus produces — llms.txt, the full-text edition, Markdown delivery, the discovery document — doesn't overlap with SEO plugins at all, so those keep working regardless.
+**No SEO plugin? You don't need one.** Agentimus covers the search essentials itself: per-page SEO titles, Open Graph/X share cards, canonical links, meta descriptions, structured data, and an XML sitemap that carries the last-changed dates WordPress core's own leaves out. See the [Search basics](search-basics.html) page for each one.
 
-The result: Agentimus fills the gaps your SEO plugin doesn't cover (the AI/agent layer) without fighting it over the parts it already handles. Even when your SEO plugin owns the schema, the **Agent preview** in the admin still shows you exactly what an AI agent receives, so you can always check what's being published.
+**Already running Yoast, Rank Math, SEOPress, All in One SEO (AIOSEO) or The SEO Framework?** You don't have to choose. Agentimus detects the plugin and **stands down on every overlapping surface** — titles, share cards, canonicals, schema, descriptions and the sitemap — so your site never ships a duplicate tag. A card on the dashboard names the division of labour. The rest of what Agentimus produces — llms.txt, the full-text edition, Markdown delivery, the discovery document — doesn't overlap with SEO plugins at all, so those keep working the same either way.
+
+The switch between the two is automatic and instant, in both directions: activate an SEO plugin and Agentimus steps aside on the next page load; remove it and Agentimus takes the job back. Your per-page values are kept through the change. And whichever mode you're in, the **Agent preview** in the admin still shows you exactly what an AI agent receives.
 
 ## What Agentimus is NOT
 

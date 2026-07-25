@@ -260,12 +260,64 @@ final class DigestTest extends TestCase {
 		$this->assertNotEmpty( get_option( Module::STOP_KEY_OPTION ) );
 	}
 
+	/* -- The send slot ------------------------------------------------------ */
+
+	private function moment( string $stamp ): \DateTimeImmutable {
+		return new \DateTimeImmutable( $stamp, new \DateTimeZone( 'UTC' ) );
+	}
+
+	public function test_next_occurrence_lands_on_the_chosen_day_and_hour() {
+		// From Wednesday noon, "Friday at 8" is two days ahead.
+		$next = Module::next_occurrence( 5, 8, $this->moment( '2026-07-22 12:00:00' ) );
+		$this->assertSame( '2026-07-24 08:00:00', gmdate( 'Y-m-d H:i:s', $next ) );
+	}
+
+	public function test_a_slot_later_today_still_counts_as_today() {
+		$next = Module::next_occurrence( 3, 15, $this->moment( '2026-07-22 08:00:00' ) );
+		$this->assertSame( '2026-07-22 15:00:00', gmdate( 'Y-m-d H:i:s', $next ) );
+	}
+
+	public function test_a_slot_already_passed_waits_a_full_week() {
+		$next = Module::next_occurrence( 3, 8, $this->moment( '2026-07-22 09:30:00' ) );
+		$this->assertSame( '2026-07-29 08:00:00', gmdate( 'Y-m-d H:i:s', $next ) );
+	}
+
+	public function test_exactly_on_the_slot_schedules_next_week_not_now() {
+		// Strictly future: an event scheduled AT "now" would fire immediately and
+		// then again next week — one send too many.
+		$next = Module::next_occurrence( 3, 8, $this->moment( '2026-07-22 08:00:00' ) );
+		$this->assertSame( '2026-07-29 08:00:00', gmdate( 'Y-m-d H:i:s', $next ) );
+	}
+
+	public function test_sunday_is_day_seven() {
+		$next = Module::next_occurrence( 7, 20, $this->moment( '2026-07-22 12:00:00' ) );
+		$this->assertSame( '2026-07-26 20:00:00', gmdate( 'Y-m-d H:i:s', $next ) );
+	}
+
 	/* -- Settings ----------------------------------------------------------- */
 
 	public function test_digest_defaults_on_with_empty_recipient() {
 		$defaults = ( new Settings() )->defaults();
 		$this->assertTrue( $defaults['digest_enabled'] );
 		$this->assertSame( '', $defaults['digest_recipient'] );
+	}
+
+	public function test_digest_defaults_to_monday_morning() {
+		$defaults = ( new Settings() )->defaults();
+		$this->assertSame( 1, $defaults['digest_day'] );
+		$this->assertSame( 8, $defaults['digest_hour'] );
+	}
+
+	public function test_sanitize_keeps_a_chosen_slot() {
+		$clean = ( new Settings() )->sanitize( array( 'digest_day' => 5, 'digest_hour' => 18 ) );
+		$this->assertSame( 5, $clean['digest_day'] );
+		$this->assertSame( 18, $clean['digest_hour'] );
+	}
+
+	public function test_sanitize_snaps_an_impossible_slot_to_the_default() {
+		$clean = ( new Settings() )->sanitize( array( 'digest_day' => 0, 'digest_hour' => 24 ) );
+		$this->assertSame( 1, $clean['digest_day'] );
+		$this->assertSame( 8, $clean['digest_hour'] );
 	}
 
 	public function test_sanitize_keeps_a_real_recipient_and_drops_a_broken_one() {

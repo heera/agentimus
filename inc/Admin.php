@@ -156,11 +156,17 @@ final class Admin {
 	 * @return string
 	 */
 	public static function brand_title( $text ) {
-		$icon = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true" focusable="false" style="flex:none">'
+		$icon = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true" focusable="false" style="flex:none;margin-top:2px">'
 			. '<rect x="1.2" y="1.2" width="21.6" height="21.6" rx="6" fill="#1b1913" stroke="#146b64" stroke-width="1.5"/>'
 			. '<path d="M7.35 17.3 12 6.7 16.65 17.3" stroke="#f3f0e7" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>'
 			. '<path d="M9.5 13H14.5" stroke="#ad7b18" stroke-width="1.9" stroke-linecap="round"/></svg>';
-		return '<span style="display:inline-flex;align-items:center;gap:5px;white-space:nowrap">' . $icon . esc_html( $text ) . '</span>';
+		// No white-space:nowrap here: the h2 shares its flex row with WP's own
+		// header controls (move/collapse, wider since 7.1 wrapped them in
+		// tooltips), and an unshrinkable title pushes those controls out past
+		// the box edge in the 280px sidebar. Long titles wrap to a second line
+		// instead; flex-start + the icon's top margin keep the mark aligned
+		// with the first line when they do.
+		return '<span style="display:inline-flex;align-items:flex-start;gap:5px">' . $icon . '<span>' . esc_html( $text ) . '</span></span>';
 	}
 
 	/**
@@ -423,6 +429,10 @@ final class Admin {
 		// gates (a week present, 3+ visits, 1+ real action) — see Review::eligible().
 		Review::touch();
 
+		// The media modal, for the "Default share image" picker in Search basics —
+		// our screen only (the gate above), so no other admin page pays for it.
+		wp_enqueue_media();
+
 		$js  = AGENTIMUS_DIR . 'assets/admin/app.js';
 		$css = AGENTIMUS_DIR . 'assets/admin/app.css';
 
@@ -659,6 +669,21 @@ final class Admin {
 		);
 	}
 
+	/**
+	 * Thumbnail URL of the saved default share image, '' when unset or the
+	 * attachment is gone (a stale ID must degrade to "none", same as emission).
+	 *
+	 * @return string
+	 */
+	private function social_default_image_url() {
+		$id = (int) $this->settings->get( 'social_default_image', 0 );
+		if ( $id < 1 || ! function_exists( 'wp_get_attachment_image_src' ) ) {
+			return '';
+		}
+		$src = wp_get_attachment_image_src( $id, 'thumbnail' );
+		return ( is_array( $src ) && ! empty( $src[0] ) ) ? (string) $src[0] : '';
+	}
+
 	private function bootstrap_data() {
 		return array(
 			'restUrl'     => esc_url_raw( rest_url( Rest::NAMESPACE ) ),
@@ -672,6 +697,16 @@ final class Admin {
 			// prints reads like the rest of this admin (see wpDate.js for the renderer).
 			'dateFormat'  => get_option( 'date_format' ) ? get_option( 'date_format' ) : 'F j, Y',
 			'timeFormat'  => get_option( 'time_format' ) ? get_option( 'time_format' ) : 'g:i a',
+			// Where the weekly email actually goes when its override is empty — shown
+			// as the recipient field's placeholder, so "the site admin email" is a real
+			// address on screen, not a riddle. Admin-only payload; it's the owner's own.
+			'adminEmail'  => sanitize_email( (string) get_option( 'admin_email', '' ) ),
+			// The solo/coexist verdict ({mode, plugin}) — the dashboard companion
+			// card and the wizard summary word themselves around it.
+			'seo'         => SeoContext::resolve(),
+			// Thumbnail of the saved default share image, so the picker previews
+			// on load without a REST round trip (the setting itself is only an ID).
+			'socialDefaultImageUrl' => $this->social_default_image_url(),
 			'readiness'   => $readiness = ( new Readiness( $this->settings ) )->report(),
 			'score'       => $score = $this->aeo_score( $readiness ), // AEO/GEO score + action plan, from the same readiness run.
 			'discovery'   => Discovery\Hub::data( $this->settings, Discovery\Registry::instance() ),

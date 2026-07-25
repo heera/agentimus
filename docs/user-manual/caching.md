@@ -1,7 +1,7 @@
 ---
 title: Caching & CDNs
 parent: User Manual
-nav_order: 17
+nav_order: 18
 ---
 
 If your site sits behind a **full-page cache or a CDN** (Cloudflare, a caching plugin's page cache, Nginx FastCGI cache, Varnish, LiteSpeed…), it can quietly get in the way of two Agentimus features. The good news: it's a one-time fix, and Agentimus now *warns* you when it detects it.

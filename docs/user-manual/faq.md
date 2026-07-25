@@ -1,7 +1,7 @@
 ---
 title: FAQ
 parent: User Manual
-nav_order: 19
+nav_order: 20
 ---
 
 Short, honest answers to the questions site owners ask most. If you are weighing up whether Agentimus is safe to run on a live site, this is the page to read. The recurring theme: Agentimus adds a machine-readable layer *for AI tools* without touching what your visitors see, without phoning home, and without taking over jobs your other plugins already do.
@@ -29,12 +29,17 @@ No. Nothing on your visible pages changes — no new layout, no banner, no widge
 
 Your readers get exactly the same site they got before. The whole point of Agentimus is to add an *invisible* layer that helps machines understand your content correctly.
 
+## Do I need an SEO plugin alongside Agentimus?
+
+No. With no SEO plugin installed, Agentimus covers the search essentials itself: per-page SEO titles (an "SEO title" field in the editor), Open Graph/X share cards, canonical links, meta descriptions, structured data, and an XML sitemap with last-changed dates. Each has its own switch under Settings → **Discovery** → *Search basics* — see the [Search basics](search-basics.html) page. If you install an SEO plugin later, Agentimus notices on the next page load and steps aside on everything the plugin owns; your per-page values are kept, and everything returns if that plugin leaves.
+
 ## Does it conflict with my SEO plugin?
 
-No — and this is deliberate. Agentimus is designed to stand down gracefully next to the SEO plugins people already run.
+No — and this is deliberate. When it detects Yoast, Rank Math, SEOPress, All in One SEO, or The SEO Framework, Agentimus stands down on **every overlapping surface**:
 
-- **Structured data (JSON-LD)** automatically switches itself off when it detects Yoast, Rank Math, SEOPress, All in One SEO, or The SEO Framework. That way your page never carries two competing blocks of structured data. The Readiness report tells you when Agentimus has stepped aside for this reason.
-- **The sitemap** is gap-only: if WordPress core or your SEO plugin already publishes a sitemap, Agentimus does not add a second one.
+- **Structured data (JSON-LD)** switches itself off, so your page never carries two competing blocks. The Readiness report tells you when Agentimus has stepped aside for this reason.
+- **SEO titles, share cards, canonicals and meta descriptions** stand down the same way — the editor's SEO title field hides, and a dashboard card names which plugin owns search SEO.
+- **The sitemap** yields: Agentimus links your SEO plugin's sitemap instead of serving its own.
 - **The other outputs don't overlap.** `llms.txt`, the Markdown versions of your pages, and the discovery document are things SEO plugins don't produce, so there is nothing to collide with.
 
 In short, Agentimus fills the gaps your SEO plugin leaves and yields on the ground your SEO plugin already covers.

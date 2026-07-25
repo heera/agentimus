@@ -1,11 +1,19 @@
 <?php
 /**
  * Sitemap detection — the single source of truth for *which* XML sitemap this
- * site serves and *who* owns it. Agentimus never generates a competing sitemap;
- * it detects the existing one (WordPress core or a major SEO plugin) and links
- * it from robots.txt, llms.txt and the discovery document.
+ * site serves and *who* owns it, linked from robots.txt, llms.txt and the
+ * discovery document.
  *
- * Detection mirrors Schema::seo_plugin_active() so the two stay in lockstep.
+ * Two postures, decided by the mode ({@see SeoContext}):
+ *   - solo (no SEO suite): Agentimus's own sitemap is promoted to THE sitemap —
+ *     it carries per-URL lastmod dates, which core's wp-sitemap leaves out —
+ *     and core's duplicate is switched off ({@see register()}).
+ *   - coexist: Agentimus never competes. It detects the existing sitemap
+ *     (core's or the suite's) and links that; its own generator is only the
+ *     opt-in fallback when nobody else provides one.
+ *
+ * Suite detection is read from {@see SeoContext} — the same table Schema and the
+ * mode resolver use, so all three stay in lockstep by construction.
  *
  * @package Agentimus
  */
@@ -16,15 +24,47 @@ defined( 'ABSPATH' ) || exit;
 
 final class Sitemap {
 
-	/** Where the Agentimus-generated fallback sitemap is served. */
+	/** Where the Agentimus-generated sitemap is served. */
 	const PATH = '/agentimus-sitemap.xml';
 
 	/**
+	 * Register the runtime hook: while the solo-mode promotion is on, core's
+	 * sitemap is switched off so the site serves ONE sitemap, not a promoted one
+	 * plus core's lastmod-less duplicate. Runtime like every mode decision —
+	 * deactivating the last SEO suite promotes on the next request, activating
+	 * one un-promotes it, no setting saved either way.
+	 */
+	public static function register() {
+		add_filter( 'wp_sitemaps_enabled', array( __CLASS__, 'filter_core_sitemaps' ) );
+	}
+
+	/**
+	 * `wp_sitemaps_enabled` callback — never turns core ON, only off during promotion.
+	 *
+	 * @param bool $enabled Core's current verdict.
+	 * @return bool
+	 */
+	public static function filter_core_sitemaps( $enabled ) {
+		return (bool) $enabled && ! self::promoted();
+	}
+
+	/**
+	 * Whether the solo-mode promotion is on: the sitemap feature is enabled and
+	 * no SEO suite is installed ({@see SeoContext::solo()}, filter included).
+	 *
+	 * @return bool
+	 */
+	public static function promoted() {
+		return ( new Settings() )->enabled( 'enable_sitemap' ) && SeoContext::solo();
+	}
+
+	/**
 	 * Resolve the live sitemap, in priority order:
+	 *   0. The solo-mode promotion — Agentimus's own sitemap wins outright.
 	 *   1. WordPress core sitemaps (on by default since 5.5).
 	 *   2. A known SEO plugin (which would have disabled core).
-	 *   3. Agentimus's own generator — but ONLY if the owner opted in AND neither
-	 *      of the above provides one, so we never emit a duplicate.
+	 *   3. Agentimus's own generator as opt-in fallback — ONLY if neither of the
+	 *      above provides one, so coexist mode never emits a duplicate.
 	 *
 	 * When nothing provides one, `url` is an empty string — callers must treat
 	 * that as "no sitemap to advertise" rather than guessing a URL that may 404.
@@ -32,6 +72,16 @@ final class Sitemap {
 	 * @return array{url:string,source:string,label:string}
 	 */
 	public static function detect() {
+		// 0. Solo-mode promotion (the wp_sitemaps_enabled filter above keeps
+		// core's duplicate off for exactly the requests this branch wins on).
+		if ( self::promoted() ) {
+			return array(
+				'url'    => home_url( self::PATH ),
+				'source' => 'agentimus',
+				'label'  => __( 'Agentimus', 'agentimus' ),
+			);
+		}
+
 		// 1. WordPress core sitemaps.
 		if ( function_exists( 'wp_sitemaps_get_server' ) ) {
 			$server = wp_sitemaps_get_server();
@@ -45,14 +95,13 @@ final class Sitemap {
 		}
 
 		// 2. A known SEO plugin owns the sitemap — link its real location.
-		foreach ( self::providers() as $p ) {
-			if ( $p['active'] ) {
-				return array(
-					'url'    => home_url( $p['path'] ),
-					'source' => $p['source'],
-					'label'  => $p['label'],
-				);
-			}
+		$suite = SeoContext::detected();
+		if ( null !== $suite ) {
+			return array(
+				'url'    => home_url( $suite['sitemap_path'] ),
+				'source' => $suite['id'],
+				'label'  => $suite['label'],
+			);
 		}
 
 		// 3. Agentimus's opt-in fallback — fills the gap when nobody else does.
@@ -368,45 +417,4 @@ final class Sitemap {
 		return isset( $detected['url'] ) ? (string) $detected['url'] : '';
 	}
 
-	/**
-	 * Known SEO sitemap providers in priority order, each with the path it
-	 * serves. Yoast/Rank Math expose `/sitemap_index.xml`; AIOSEO, SEOPress and
-	 * The SEO Framework expose `/sitemap.xml`.
-	 *
-	 * @return array<int,array{active:bool,source:string,label:string,path:string}>
-	 */
-	private static function providers() {
-		return array(
-			array(
-				'active' => defined( 'WPSEO_VERSION' ),
-				'source' => 'yoast',
-				'label'  => __( 'Yoast SEO', 'agentimus' ),
-				'path'   => '/sitemap_index.xml',
-			),
-			array(
-				'active' => class_exists( 'RankMath' ),
-				'source' => 'rankmath',
-				'label'  => __( 'Rank Math', 'agentimus' ),
-				'path'   => '/sitemap_index.xml',
-			),
-			array(
-				'active' => defined( 'AIOSEO_VERSION' ),
-				'source' => 'aioseo',
-				'label'  => __( 'All in One SEO', 'agentimus' ),
-				'path'   => '/sitemap.xml',
-			),
-			array(
-				'active' => defined( 'SEOPRESS_VERSION' ),
-				'source' => 'seopress',
-				'label'  => __( 'SEOPress', 'agentimus' ),
-				'path'   => '/sitemap.xml',
-			),
-			array(
-				'active' => class_exists( '\\The_SEO_Framework\\Load' ),
-				'source' => 'seoframework',
-				'label'  => __( 'The SEO Framework', 'agentimus' ),
-				'path'   => '/sitemap.xml',
-			),
-		);
-	}
 }

@@ -50,6 +50,7 @@ final class Readiness {
 			$this->check_entity_role(),
 			$this->check_security_txt(),
 			$this->check_schema_conflict(),
+			$this->check_seo_coverage(),
 			$this->check_static_robots(),
 			$this->check_ai_usage_policy(),
 			$this->check_sitemap(),
@@ -595,6 +596,64 @@ final class Readiness {
 		return $schema->seo_plugin_active()
 			? $this->row( 'schema', __( 'JSON-LD structured data', 'agentimus' ), 'pass', __( 'An SEO plugin owns schema; Agentimus is standing down to avoid duplicates.', 'agentimus' ) )
 			: $this->row( 'schema', __( 'JSON-LD structured data', 'agentimus' ), 'pass', __( 'Agentimus is emitting WebSite + entity + article schema.', 'agentimus' ) );
+	}
+
+	/**
+	 * The mode surface ({@see SeoContext}): who covers search SEO on this site.
+	 * Coexist credits the named suite; solo states plainly that Agentimus has it
+	 * covered — or warns naming exactly which of the search basics are off.
+	 */
+	private function check_seo_coverage() {
+		$resolved = SeoContext::resolve();
+		$label    = __( 'Search SEO coverage', 'agentimus' );
+
+		if ( 'coexist' === $resolved['mode'] ) {
+			$plugin = $resolved['plugin'] ? $resolved['plugin']['label'] : __( 'Your SEO plugin', 'agentimus' );
+			return $this->row(
+				'seo_coverage',
+				$label,
+				'pass',
+				sprintf(
+					/* translators: %s: the active SEO plugin's name, e.g. "Yoast SEO". */
+					__( '%s handles search SEO — titles, social cards, canonicals. Agentimus stands aside there and adds only the AI-facing layer it doesn’t cover.', 'agentimus' ),
+					$plugin
+				)
+			);
+		}
+
+		$basics = array(
+			'enable_seo_titles'   => __( 'per-page SEO titles', 'agentimus' ),
+			'enable_social_cards' => __( 'social share cards', 'agentimus' ),
+			'enable_canonicals'   => __( 'canonical links', 'agentimus' ),
+		);
+		$off    = array();
+		foreach ( $basics as $flag => $name ) {
+			if ( ! $this->settings->enabled( $flag ) ) {
+				$off[] = $name;
+			}
+		}
+
+		if ( empty( $off ) ) {
+			return $this->row(
+				'seo_coverage',
+				$label,
+				'pass',
+				__( 'No SEO plugin installed — and none needed: Agentimus covers per-page SEO titles, social share cards and canonical links (your sitemap too, see below).', 'agentimus' )
+			);
+		}
+
+		return $this->row(
+			'seo_coverage',
+			$label,
+			'warn',
+			sprintf(
+				/* translators: %s: comma-separated list of the disabled features. */
+				__( 'No SEO plugin is installed, but some of the search basics are turned off: %s. Nothing else on this site provides them.', 'agentimus' ),
+				implode( ', ', $off )
+			),
+			__( 'Turn them on under Settings → Discovery → Search basics — or install an SEO plugin, and Agentimus will step aside automatically.', 'agentimus' ),
+			$this->nav( __( 'Open Search basics', 'agentimus' ), 'ar-sec-search-basics' )
+		);
 	}
 
 	private function check_static_robots() {

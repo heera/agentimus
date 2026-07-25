@@ -361,10 +361,15 @@ final class Topics {
 		// tells the truth about which halves are on.
 		$topics      = self::enabled();
 		$description = Description::enabled();
-		if ( ! $topics && ! $description ) {
+		$seo_title   = Seo::title_ui_enabled();
+		if ( ! $topics && ! $description && ! $seo_title ) {
 			return;
 		}
-		if ( $topics && $description ) {
+		if ( $seo_title ) {
+			// With the solo-mode SEO title in the box, enumerating every half in
+			// the title stops scaling — this covers the box's whole job.
+			$title = __( 'Search & AI', 'agentimus' );
+		} elseif ( $topics && $description ) {
 			$title = __( 'AI description & topics', 'agentimus' );
 		} elseif ( $topics ) {
 			$title = __( 'Topics for AI', 'agentimus' );
@@ -407,7 +412,15 @@ final class Topics {
 	 * @param \WP_Post $post Post being edited.
 	 */
 	public function render_meta_box( $post ) {
-		// The shared box's top half: the AI description, when that feature is on.
+		// The solo-mode SEO title sits on top — search snippet order: title, then
+		// description. Its own save hook is untouched; only the container is shared.
+		if ( Seo::title_ui_enabled() ) {
+			( new Seo( $this->settings ) )->render_title_field( $post );
+			if ( Description::enabled() || self::enabled() ) {
+				echo '<hr style="margin:14px 0 12px;border:0;border-top:1px solid #dcdcde" />';
+			}
+		}
+		// The AI description, when that feature is on.
 		// Its own save/assets hooks are untouched — only the container is shared.
 		if ( Description::enabled() ) {
 			( new Description( $this->settings ) )->render_meta_box( $post );
@@ -661,9 +674,13 @@ JS;
 	 * @return string
 	 */
 	private static function inline_css() {
-		// Keep the "A" mark + title on one line beside WP's own header controls
-		// (move up/down + collapse) in the narrow sidebar, instead of wrapping.
-		return '#agentimus-topics .hndle{white-space:nowrap}'
+		// Header reads like a core sidebar panel (Categories/Tags): title + the
+		// collapse toggle only — Heera's call 2026-07-25. The classic move-up/down
+		// arrows add ~88px of chrome (wider still since 7.1 wrapped them in
+		// tooltips) and forced long titles onto two lines in the 280px sidebar;
+		// the box stays drag-sortable by its header. Long titles can still wrap
+		// (no nowrap — see Admin::brand_title()) rather than overflow.
+		return '#agentimus-topics .handle-order-higher,#agentimus-topics .handle-order-lower{display:none}'
 			. '.agentimus-topics__chips{display:flex;flex-wrap:wrap;gap:5px;align-items:center;padding:5px;min-height:36px;border:1px solid #8c8f94;border-radius:4px;background:#fff;cursor:text}'
 			. '.agentimus-topics__chips:focus-within{border-color:#2271b1;box-shadow:0 0 0 1px #2271b1}'
 			. '.agentimus-topics__chip{display:inline-flex;align-items:center;gap:5px;background:#f0f0f1;border:1px solid #dcdcde;border-radius:3px;padding:2px 4px 2px 8px;font-size:12px;line-height:1.7;color:#2c3338}'
