@@ -579,9 +579,14 @@ final class Endpoints {
 			$output = rtrim( $output ) . "\n\n" . implode( "\n", $new ) . "\nDisallow: /\n";
 		}
 
-		// 3. Advertise a sitemap only if nobody else has.
+		// 3. Advertise a sitemap only if nobody else has — and never on an SEO
+		// suite's behalf: an active suite owns its own robots advertising (Yoast
+		// hooks this same filter at 99,999, far after us, so the stripos guard
+		// can't see its line yet — appending the suite's URL here would print it
+		// twice). With no suite, the detected sitemap is core's or our own, and
+		// neither advertises itself.
 		$sitemap = $this->sitemap_url();
-		if ( $sitemap && false === stripos( $output, 'sitemap:' ) ) {
+		if ( $sitemap && null === SeoContext::detected() && false === stripos( $output, 'sitemap:' ) ) {
 			$output = rtrim( $output ) . "\n\nSitemap: " . esc_url_raw( $sitemap ) . "\n";
 		}
 

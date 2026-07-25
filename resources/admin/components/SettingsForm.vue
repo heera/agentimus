@@ -460,7 +460,7 @@ export default {
         // "Track AI citations" describes the mechanism, "AI Visibility" is what you look for
         // in the nav. `sub` is optional; no other feature needs one yet.
         { key: 'enable_visibility', label: 'AI Visibility', sub: '(Track AI citations)', hint: 'Shows the AI Visibility screen and adds the “Cited” rung to your score — measures whether AI engines actually name your site in their answers. Off by default: it needs your own AI provider key and spends your credit to run checks.' },
-        { key: 'enable_sitemap', label: 'Sitemap (backup)', hint: 'Adds a sitemap only when WordPress core and your SEO plugin don’t already provide one — never duplicates.' },
+        { key: 'enable_sitemap', label: 'Sitemap', hint: 'With no SEO plugin installed, Agentimus serves your sitemap — including the last-changed dates WordPress core’s own leaves out. With an SEO plugin, it steps aside and only fills the gap when nothing else provides one.' },
         { key: 'enable_changes', label: 'Change feed', hint: 'A JSON feed of recently added or updated pages so assistants can re-check just what changed, instead of re-reading your whole site. (file: agentimus-changes.json)' },
         { key: 'enable_signing', label: 'Verified responses', hint: 'Digitally signs your AI files so assistants can confirm they really came from your site and weren’t tampered with on the way. On by default; no setup needed.' },
       ];

@@ -25,6 +25,36 @@ defined( 'ABSPATH' ) || exit;
 
 final class SeoContext {
 
+	/** @var string Option: the mode the cached surfaces were last built under. */
+	const MODE_OPTION = 'agentimus_seo_mode';
+
+	/**
+	 * Watch for the mode changing between requests. Detection itself is live,
+	 * but the mode is BAKED into cached surfaces — robots.txt/llms.txt advertise
+	 * the promoted sitemap, schema defers, cards stand down — and the cache
+	 * flush hooks deliberately ignore plugin (de)activations. Without this, a
+	 * suite coming or going leaves stale advertising (up to and including 404
+	 * sitemap links) until the next content edit.
+	 */
+	public static function watch() {
+		add_action( 'init', array( __CLASS__, 'sync_cached_mode' ) );
+	}
+
+	/**
+	 * Flush the content caches once per mode flip: compare the resolved mode to
+	 * the one the caches were built under, rebuild on mismatch. A deactivated
+	 * suite's constants are still loaded during its final request, so the flip
+	 * lands on the request AFTER — which is exactly when this runs.
+	 */
+	public static function sync_cached_mode() {
+		$mode = self::resolve()['mode'];
+		if ( get_option( self::MODE_OPTION, '' ) === $mode ) {
+			return;
+		}
+		update_option( self::MODE_OPTION, $mode, true );
+		Cache::flush();
+	}
+
 	/**
 	 * The known SEO suites, in priority order — when several are active (a
 	 * misconfiguration, but it happens mid-migration), the FIRST active entry

@@ -85,6 +85,8 @@ final class Plugin {
 		}
 
 		Cache::register_flush_hooks();
+		SeoContext::watch(); // One cache flush per solo/coexist flip — cached surfaces bake the mode in.
+		Sitemap::register(); // Core's sitemap stands down while the solo-mode promotion is on.
 		CachePurge::boot();
 		MarkdownCache::register();
 		BotRanges::boot(); // Daily refresh of published bot-IP-range files (self-heals its schedule).
