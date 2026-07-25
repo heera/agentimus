@@ -20,6 +20,7 @@ export default {
     postTypes: { type: Array, default: () => [] },
     saving: { type: Boolean, default: false },
     returning: { type: Boolean, default: false }, // "Review setup" entry, not first run
+    seo: { type: Object, default: () => ({ mode: 'solo', plugin: null }) }, // {mode, plugin} from SeoContext
     celebrate: { type: Boolean, default: false },  // parent signals a first-run save succeeded
     links: { type: Object, default: () => ({}) },  // { llms, discovery } — the done screen's live URLs
     score: { type: Object, default: null },        // the save's fresh AEO score report, for the done screen
@@ -95,6 +96,14 @@ export default {
     protections() {
       const s = this.settings || {};
       const list = ['Discoverable by AI assistants — page guide, plain-text pages and rich data'];
+      // The mode line ({mode, plugin} from SeoContext): solo sites hear the
+      // claim outright; suite-run sites hear the division of labour instead.
+      if (this.seo.mode === 'coexist') {
+        const plugin = this.seo.plugin ? this.seo.plugin.label : 'your SEO plugin';
+        list.push(`Working alongside ${plugin} — it keeps search SEO, Agentimus adds the AI layer`);
+      } else if (s.enable_seo_titles !== false || s.enable_social_cards !== false || s.enable_canonicals !== false) {
+        list.push('Search basics covered — SEO titles, share cards, canonical links and a sitemap, no SEO plugin needed');
+      }
       if (s.enable_signing !== false) list.push('Signed responses, so assistants can verify they’re really from you');
       // Reads the in-wizard stance (this.signal), not saved settings, so the summary
       // reflects the choice the owner just made in Step 2 before it's saved.

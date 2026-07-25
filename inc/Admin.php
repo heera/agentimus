@@ -682,6 +682,9 @@ final class Admin {
 			// prints reads like the rest of this admin (see wpDate.js for the renderer).
 			'dateFormat'  => get_option( 'date_format' ) ? get_option( 'date_format' ) : 'F j, Y',
 			'timeFormat'  => get_option( 'time_format' ) ? get_option( 'time_format' ) : 'g:i a',
+			// The solo/coexist verdict ({mode, plugin}) — the dashboard companion
+			// card and the wizard summary word themselves around it.
+			'seo'         => SeoContext::resolve(),
 			'readiness'   => $readiness = ( new Readiness( $this->settings ) )->report(),
 			'score'       => $score = $this->aeo_score( $readiness ), // AEO/GEO score + action plan, from the same readiness run.
 			'discovery'   => Discovery\Hub::data( $this->settings, Discovery\Registry::instance() ),
