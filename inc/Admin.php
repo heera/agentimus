@@ -654,16 +654,20 @@ final class Admin {
 			'show'    => $show,
 			'items'   => array(
 				array(
-					'title' => 'A weekly note about your site’s AI week',
-					'text'  => 'Once a week, Agentimus emails you a short note: how often AI agents read your site, readers arriving from AI answers, impostors caught, your readiness score and its move, and one thing worth doing. Built only from data already on your site — no images, no tracking, nothing else leaves your server. Quiet weeks send nothing, and every email carries a one-click stop link, so turning it off never needs a settings screen. Settings → Weekly email holds the address and a test button.',
+					'title' => 'With an SEO plugin — or instead of one',
+					'text'  => 'No SEO plugin? Agentimus now covers the search basics itself: per-page SEO titles, social share cards (with a default share image you pick in Settings), canonical links, and a sitemap that carries last-changed dates. Running Yoast, Rank Math, SEOPress, AIOSEO or The SEO Framework? Nothing changes — Agentimus detects it, steps aside on every overlapping surface, and the readiness report names who is doing what. The switch is automatic, both directions.',
 				),
 				array(
-					'title' => 'The review queue shows itself',
-					'text'  => 'The count of clients awaiting your review now rides the Agentimus entry in the admin menu — the same red bubble core uses — visible from every admin screen and kept current while you work. When the queue empties, it disappears.',
+					'title' => 'The weekly email arrives when you say',
+					'text'  => 'Settings → Weekly email gained a day-and-time picker — the note lands on the day and hour you choose, your site’s clock, instead of always Monday morning.',
 				),
 				array(
-					'title' => 'Coming from 1.26 or earlier?',
-					'text'  => 'Then 1.27 is new to you too: a one-time, quiet review ask that never nags, and setup that ends with proof — the finishing screen lists what just went live, clickable addresses included. The full changelog on this card tells that story.',
+					'title' => 'The review queue answers faster and explains itself',
+					'text'  => 'Blocking or allowing a client updates the menu’s count bubble the moment you click. Cards with no one-click Allow/Block now say why — a real search engine’s name can’t be safely blocked by name — and the dashboard’s downward trend arrows wear a calm amber instead of error-red.',
+				),
+				array(
+					'title' => 'Coming from 1.27 or earlier?',
+					'text'  => 'Then 1.28 is new to you too: a short weekly email about what AI did on your site — quiet weeks send nothing, one-click stop inside every email — and the review queue’s count on the admin menu from every screen. The full changelog on this card tells that story.',
 				),
 			),
 		);
