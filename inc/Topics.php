@@ -674,10 +674,14 @@ JS;
 	 * @return string
 	 */
 	private static function inline_css() {
-		// No nowrap on the handle: WP 7.1's tooltip-wrapped header controls got
-		// wider, and an unshrinkable title pushes them past the 280px box edge.
-		// Admin::brand_title() now lets long titles wrap beside the mark instead.
-		return '.agentimus-topics__chips{display:flex;flex-wrap:wrap;gap:5px;align-items:center;padding:5px;min-height:36px;border:1px solid #8c8f94;border-radius:4px;background:#fff;cursor:text}'
+		// Header reads like a core sidebar panel (Categories/Tags): title + the
+		// collapse toggle only — Heera's call 2026-07-25. The classic move-up/down
+		// arrows add ~88px of chrome (wider still since 7.1 wrapped them in
+		// tooltips) and forced long titles onto two lines in the 280px sidebar;
+		// the box stays drag-sortable by its header. Long titles can still wrap
+		// (no nowrap — see Admin::brand_title()) rather than overflow.
+		return '#agentimus-topics .handle-order-higher,#agentimus-topics .handle-order-lower{display:none}'
+			. '.agentimus-topics__chips{display:flex;flex-wrap:wrap;gap:5px;align-items:center;padding:5px;min-height:36px;border:1px solid #8c8f94;border-radius:4px;background:#fff;cursor:text}'
 			. '.agentimus-topics__chips:focus-within{border-color:#2271b1;box-shadow:0 0 0 1px #2271b1}'
 			. '.agentimus-topics__chip{display:inline-flex;align-items:center;gap:5px;background:#f0f0f1;border:1px solid #dcdcde;border-radius:3px;padding:2px 4px 2px 8px;font-size:12px;line-height:1.7;color:#2c3338}'
 			. '.agentimus-topics__chip.is-auto{background:#f4f1fa;border-color:#ddd4ee;border-style:dashed;color:#5b5170}'
