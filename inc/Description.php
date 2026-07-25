@@ -4,10 +4,12 @@
  * surfaces (JSON-LD `description`, the per-page markdown lead) and, as a gap-only
  * fallback, the HTML `<meta name="description">`.
  *
- * The description is an AEO/GEO signal, not an SEO field: it tells an answer engine
- * in one sentence what a page is so it can be summarised and cited correctly. It is
- * deliberately scoped to a single field — Agentimus is not an SEO plugin and does not
- * manage titles, canonicals, robots or Open Graph.
+ * The description is first an AEO/GEO signal: it tells an answer engine in one
+ * sentence what a page is so it can be summarised and cited correctly. It is no
+ * longer Agentimus's only search-facing field, though: in solo mode
+ * ({@see SeoContext}) the {@see Seo} class covers titles — with Open Graph/X
+ * cards and canonicals landing there too — while an installed SEO suite still
+ * owns all of that in coexist mode.
  *
  * This class is the SINGLE SOURCE OF TRUTH, exactly like {@see Topics}: Schema,
  * Markdown and the meta-tag emitter all call {@see for_post()} and emit whatever it

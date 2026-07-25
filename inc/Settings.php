@@ -48,6 +48,7 @@ final class Settings {
 			'enable_topics'    => true,  // Per-page AI topics → JSON-LD keywords + per-page markdown front matter. On by default; each page still controls its own topics via the editor meta box.
 			'enable_ai_description' => true, // Per-page AI description → JSON-LD `description` + the per-page markdown lead, plus (when ai_description_meta_tag is on) the HTML <meta name="description">. On by default; blank pages fall back to the excerpt. Each page sets its own value via the editor meta box.
 			'ai_description_meta_tag' => true, // Sub-option of enable_ai_description: also make the AI description the page's <meta name="description"> — replacing the theme's, still deferring wholesale to a real SEO plugin. Off = enrich only JSON-LD + .md and never touch the <head>. See Description::should_emit()/meta_tag_enabled().
+			'enable_seo_titles' => true, // Solo mode only (SeoContext): a per-page "SEO title" field that replaces the title part of the document title, site-name suffix kept. Gap-only in spirit — with no per-page value nothing changes, and with an SEO suite active the field hides and the filter stands down at request time, so it's safe on by default. See Seo.
 			'topics_derive_default' => true, // Default for new posts: also derive topics from the page's tags & categories (a manual list still wins).
 			'topics_max'       => 12,    // Hard cap on emitted topics per page, to keep the machine surfaces lean.
 			'enable_activity'  => true,

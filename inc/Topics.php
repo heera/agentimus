@@ -361,10 +361,15 @@ final class Topics {
 		// tells the truth about which halves are on.
 		$topics      = self::enabled();
 		$description = Description::enabled();
-		if ( ! $topics && ! $description ) {
+		$seo_title   = Seo::title_ui_enabled();
+		if ( ! $topics && ! $description && ! $seo_title ) {
 			return;
 		}
-		if ( $topics && $description ) {
+		if ( $seo_title ) {
+			// With the solo-mode SEO title in the box, enumerating every half in
+			// the title stops scaling — this covers the box's whole job.
+			$title = __( 'Search & AI', 'agentimus' );
+		} elseif ( $topics && $description ) {
 			$title = __( 'AI description & topics', 'agentimus' );
 		} elseif ( $topics ) {
 			$title = __( 'Topics for AI', 'agentimus' );
@@ -407,7 +412,15 @@ final class Topics {
 	 * @param \WP_Post $post Post being edited.
 	 */
 	public function render_meta_box( $post ) {
-		// The shared box's top half: the AI description, when that feature is on.
+		// The solo-mode SEO title sits on top — search snippet order: title, then
+		// description. Its own save hook is untouched; only the container is shared.
+		if ( Seo::title_ui_enabled() ) {
+			( new Seo( $this->settings ) )->render_title_field( $post );
+			if ( Description::enabled() || self::enabled() ) {
+				echo '<hr style="margin:14px 0 12px;border:0;border-top:1px solid #dcdcde" />';
+			}
+		}
+		// The AI description, when that feature is on.
 		// Its own save/assets hooks are untouched — only the container is shared.
 		if ( Description::enabled() ) {
 			( new Description( $this->settings ) )->render_meta_box( $post );
