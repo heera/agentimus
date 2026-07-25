@@ -107,6 +107,7 @@ final class Plugin {
 		( new Activity\Module( $this->settings ) )->register();
 		( new WebMcp( $this->settings ) )->register();
 		( new Exposure( $this->settings ) )->register();
+		( new Scorecard( $this->settings ) )->register(); // The opt-in PUBLIC scorecard page + badge + social card. Inert while share_scorecard is off.
 		// Agent Access must boot BEFORE the Registrar: the Registrar wraps each ability's execute
 		// callback with AgentAccess's observer at registration time, and the ability listener has
 		// to be hooked before any ability can run.

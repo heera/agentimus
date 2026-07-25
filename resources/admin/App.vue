@@ -21,6 +21,18 @@ import AboutPanel from './components/AboutPanel.vue';
 import ConfirmDialog from './components/ConfirmDialog.vue';
 import VisibilityPanel from './components/VisibilityPanel.vue';
 
+// The Share tab's appearance fields (address, display, style, shape, size and the
+// five colour dials) save on that tab's own button — a colour drag or a keystroke
+// would otherwise fire a request per tick. The on/off switches still autosave:
+// one click, one request. One list, used by instantState, both autosave payload
+// builders and the failure rollback, so they can never drift apart.
+const SCORECARD_DRAFT_KEYS = [
+  'scorecard_path', 'scorecard_display', 'scorecard_style',
+  'scorecard_badge_shape', 'scorecard_badge_size', 'scorecard_badge_height',
+  'scorecard_badge_bg', 'scorecard_badge_fg', 'scorecard_warn_color',
+  'scorecard_badge_border', 'scorecard_bg_color',
+];
+
 // Live updates: poll the same /activity endpoint the Refresh button uses, on a
 // gentle interval. Polling (not SSE/WebSockets) on purpose — it works on any
 // shared host without holding a PHP-FPM worker open per admin tab.
@@ -116,6 +128,7 @@ export default {
       aiPreset: null,
       webmcpTools: this.boot.webmcpTools || [],
       mcpServer: this.boot.mcpServer || {},
+      scorecard: this.boot.scorecard || {},
       debug: this.boot.debug || {},
       isLocal: !!this.boot.isLocal,
       restNamespacesDetected: this.boot.restNamespacesDetected || [],
@@ -143,6 +156,8 @@ export default {
       profileSaved: false,
       servicesSaving: false,
       servicesSaved: false,
+      scorecardSaving: false,
+      scorecardSaved: false,
       savingSettings: false,
       notices: [],
       ringReady: false,
@@ -205,6 +220,12 @@ export default {
       );
       return named(cur.services) !== named(saved.services);
     },
+    // The Share tab's appearance draft against the last save — powers its
+    // "Unsaved changes" status and its Save button.
+    scorecardDirty() {
+      const saved = JSON.parse(this.savedSnapshot);
+      return SCORECARD_DRAFT_KEYS.some((k) => JSON.stringify(this.settings[k]) !== JSON.stringify(saved[k]));
+    },
     // A signature of every AUTOSAVED field. When it changes we debounce-autosave.
     // Derived (the WHOLE settings object minus the fields that save via the Identity
     // card's own Save button — the profile text block and services) rather than an
@@ -220,6 +241,9 @@ export default {
         (k) => { delete id[k]; },
       );
       s.identity = id;
+      // The scorecard's appearance draft saves on the Share tab's own button
+      // (see SCORECARD_DRAFT_KEYS), so it must not trigger autosave either.
+      SCORECARD_DRAFT_KEYS.forEach((k) => { delete s[k]; });
       return JSON.stringify(s);
     },
     // Third-party DECLARED resources the owner can publish/suppress. Our own
@@ -854,7 +878,10 @@ export default {
       }
       this.profileSaving = true;
       try {
-        const res = await this.api.saveSettings(this.settings);
+        const payload = JSON.parse(JSON.stringify(this.settings));
+        const savedAll = JSON.parse(this.savedSnapshot);
+        SCORECARD_DRAFT_KEYS.forEach((k) => { if (k in savedAll) payload[k] = savedAll[k]; });
+        const res = await this.api.saveSettings(payload);
         const savedId = (res.settings && res.settings.identity) || {};
         ['entity_type', 'name', 'role', 'about', 'not_description', 'audience', 'contact_email'].forEach((k) => {
           if (this.settings.identity) this.settings.identity[k] = savedId[k];
@@ -880,11 +907,13 @@ export default {
       }
       this.servicesSaving = true;
       try {
-        const savedId = (JSON.parse(this.savedSnapshot).identity) || {};
+        const savedAll = JSON.parse(this.savedSnapshot);
+        const savedId = savedAll.identity || {};
         const payload = JSON.parse(JSON.stringify(this.settings));
         ['entity_type', 'name', 'role', 'about', 'not_description', 'audience', 'contact_email'].forEach((k) => {
           if (payload.identity) payload.identity[k] = savedId[k];
         });
+        SCORECARD_DRAFT_KEYS.forEach((k) => { if (k in savedAll) payload[k] = savedAll[k]; });
         const res = await this.api.saveSettings(payload);
         const storedServices = (res.settings && res.settings.identity && Array.isArray(res.settings.identity.services))
           ? res.settings.identity.services : [];
@@ -899,6 +928,38 @@ export default {
         this.flash('error', e.message);
       } finally {
         this.servicesSaving = false;
+      }
+    },
+    // Persist the Share tab's appearance draft on its own button. These fields
+    // change continuously while being edited (colour drags, typing), so they
+    // never autosave; the previews already follow the draft locally. Reflects
+    // the sanitized values back (path cleaning, height clamp, enum snap) so the
+    // form shows exactly what was stored.
+    async saveScorecard() {
+      if (this.scorecardSaving || !this.scorecardDirty) {
+        return;
+      }
+      this.scorecardSaving = true;
+      try {
+        const savedId = (JSON.parse(this.savedSnapshot).identity) || {};
+        const payload = JSON.parse(JSON.stringify(this.settings));
+        ['entity_type', 'name', 'role', 'about', 'not_description', 'audience', 'contact_email'].forEach((k) => {
+          if (payload.identity) payload.identity[k] = savedId[k];
+        });
+        const res = await this.api.saveSettings(payload);
+        SCORECARD_DRAFT_KEYS.forEach((k) => {
+          if (res.settings && k in res.settings) this.settings[k] = res.settings[k];
+        });
+        this.savedSnapshot = JSON.stringify(res.settings);
+        this.readiness = res.readiness || this.readiness;
+        if (res.score) this.aeo = res.score; // Keep the rail card live with the save.
+        this.scorecardSaved = true;
+        clearTimeout(this._scSavedTimer);
+        this._scSavedTimer = setTimeout(() => { this.scorecardSaved = false; }, 2500);
+      } catch (e) {
+        this.flash('error', e.message);
+      } finally {
+        this.scorecardSaving = false;
       }
     },
     // Restore factory defaults. Wipes the stored option server-side, then
@@ -1036,11 +1097,15 @@ export default {
     // state — keeping the identity draft — so a flipped switch returns to where it
     // was, and surfaces a proper error.
     async autosaveInstant() {
-      const savedId = (JSON.parse(this.savedSnapshot).identity) || {};
+      const savedAll = JSON.parse(this.savedSnapshot);
+      const savedId = savedAll.identity || {};
       const payload = JSON.parse(JSON.stringify(this.settings));
       ['entity_type', 'name', 'role', 'about', 'not_description', 'audience', 'contact_email'].forEach((k) => {
         if (payload.identity) payload.identity[k] = savedId[k];
       });
+      // The scorecard draft rides on its own Save — a flipped switch must not
+      // silently publish half-picked colours or a half-typed address.
+      SCORECARD_DRAFT_KEYS.forEach((k) => { if (k in savedAll) payload[k] = savedAll[k]; });
       this.beginBusy(); // lock for the round-trip (covers the text-field path too)
       try {
         const res = await this.api.saveSettings(payload);
@@ -1063,6 +1128,7 @@ export default {
         // button, not here) so the failure never discards unsaved typing.
         const reverted = JSON.parse(this.savedSnapshot);
         reverted.identity = this.settings.identity;
+        SCORECARD_DRAFT_KEYS.forEach((k) => { reverted[k] = this.settings[k]; });
         this._skipAutosave = true;
         this.settings = reverted;
         this.$nextTick(() => { this._skipAutosave = false; });
@@ -1351,7 +1417,7 @@ export default {
       }, duration);
     },
     titleFor(type) {
-      return { success: 'Success', error: 'Error', warning: 'Warning', info: 'Heads up' }[type] || 'Notice';
+      return { success: 'Success', error: 'Error', warning: 'Warning', info: 'Note' }[type] || 'Notice';
     },
   },
 };
@@ -1566,6 +1632,8 @@ export default {
           :default-allowed="defaultAllowed"
           :webmcp-tools="webmcpTools"
           :mcp-server="mcpServer"
+          :scorecard="scorecard"
+          :aeo-score="aeo ? aeo.score : null"
           :debug="debug"
           :endpoints="endpoints"
           :rest-namespaces-detected="restNamespacesDetected"
@@ -1576,11 +1644,15 @@ export default {
           :services-dirty="servicesDirty"
           :services-saving="servicesSaving"
           :services-saved="servicesSaved"
+          :scorecard-dirty="scorecardDirty"
+          :scorecard-saving="scorecardSaving"
+          :scorecard-saved="scorecardSaved"
           :resetting="resetting"
           :defaults="defaults"
           :llms-full-estimate="llmsFullEstimate"
           @save-profile="saveProfile"
           @save-services="saveServices"
+          @save-scorecard="saveScorecard"
           @reset="resetSettings"
           @reopen-wizard="reopenWizard"
           @clients-changed="syncBlockSettings"
@@ -1801,6 +1873,10 @@ export default {
             <li><a :href="endpoints.llms" target="_blank" rel="noopener">llms.txt</a></li>
             <li><a :href="endpoints.llmsFull" target="_blank" rel="noopener">llms-full.txt</a></li>
             <li><a :href="endpoints.robots" target="_blank" rel="noopener">robots.txt</a></li>
+            <!-- The public scorecard, once the owner opted in (Settings →
+                 Discovery → Share your score) — a live endpoint like its
+                 siblings, so it lists with them. -->
+            <li v-if="settings.share_scorecard && scorecard.url"><a :href="scorecard.url" target="_blank" rel="noopener">ai-readiness</a></li>
           </ul>
         </div>
 

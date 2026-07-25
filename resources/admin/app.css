@@ -1464,6 +1464,19 @@
 .ar-mcp-snippet { position: relative; margin-top: 10px; }
 .ar-mcp-snippet__code { margin: 0; }
 .ar-mcp-snippet__copy { position: absolute; top: 8px; right: 8px; }
+/* The button floats on the snippet's dark box, where the stock admin blue drowns —
+   ghost style in wp-admin's bright blue instead (Heera's pick), for every snippet box. */
+.ar-mcp-snippet__copy.button {
+  background: transparent;
+  color: #72aee6;
+  border-color: #72aee6;
+}
+.ar-mcp-snippet__copy.button:hover,
+.ar-mcp-snippet__copy.button:focus {
+  background: rgba(114, 174, 230, 0.14);
+  color: #9ec9f0;
+  border-color: #9ec9f0;
+}
 
 /* Numbered sections inside the settings form, spec-sheet style. */
 .ar-form { counter-reset: arcard; display: grid; gap: 22px; }
@@ -1804,6 +1817,9 @@ select.ar-input {
 .ar-id-foot__status { font-family: var(--ar-mono); font-size: 11px; color: var(--ar-ink-faint); margin-right: auto; }
 .ar-id-foot__status.is-dirty { color: var(--ar-accent); }
 .ar-id-foot__status.is-saved { color: #2f9e5e; }
+/* The Share tab's Save row — the identity footer's anatomy, sized to .ar-card's
+   26px gutters so the rule reaches the card's edges. */
+.ar-scorecard-foot { display: flex; align-items: center; justify-content: flex-end; gap: 14px; border-top: 1px solid var(--ar-line); margin: 18px -26px 0; padding: 14px 26px 0; }
 
 .ar-type {
   position: relative;
@@ -3981,6 +3997,155 @@ a.ar-about-proto__v:hover { text-decoration: underline; }
 /* "Keep records for" is twice the width of "Size cap", so without a reserved label column
    the two dropdowns start at different x. Fixed basis, no shrink: one column, aligned. */
 .ar-field--log > label { flex: 0 0 132px; }
+/* The scorecard's two rows, same treatment: a reserved label column sized for "What the
+   public sees", and an equal fixed basis on both dropdowns — one aligned block, not two
+   controls that each picked their own width. */
+.ar-field--share > label { flex: 0 0 190px; }
+/* The lane is fluid: controls and hints run to the card's content edge, the
+   same boundary the colour row occupies — one right edge for everything. */
+.ar-field--share .ar-select { flex: 1 1 auto; max-width: 100%; min-width: 0; }
+/* Two classes on purpose: the .ar-field:first-child margin reset would zero a
+   single-class top margin, leaving the first row glued to the divider above it. */
+.ar-field--inline.ar-field--share { margin-top: 22px; }
+/* The badge colour pickers: two labelled swatches and, once either is custom, the
+   way back to automatic. */
+.ar-badge-colors { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
+.ar-badge-color { display: inline-flex; align-items: center; gap: 7px; font-size: 12px; color: var(--ar-ink-soft); }
+.ar-badge-color input[type="color"] {
+  width: 34px; height: 26px; padding: 1px;
+  border: 1px solid #d8d2c2; border-radius: var(--ar-radius);
+  background: var(--ar-surface); cursor: pointer;
+}
+
+/* The badge block: hint above, the code box full width beneath with Copy riding
+   inside it (the base .ar-mcp-snippet__copy overlay); the padding keeps long
+   snippets from running underneath the button. */
+.ar-scorecard-badgebox .ar-mcp-snippet__code { overflow-x: auto; padding-right: 84px; }
+/* The frozen-copy caution: pasted HTML doesn't follow later setting changes. */
+.ar-scorecard-caution { margin: 12px 0 0; padding: 10px 14px; border-left: 3px solid var(--ar-warn); background: rgba(173, 123, 24, 0.08); border-radius: 0 4px 4px 0; font-size: 12px; line-height: 1.6; color: var(--ar-ink-soft); }
+.ar-scorecard-caution strong { color: var(--ar-warn); }
+
+/* The address input matches the dropdowns' lane. */
+.ar-field--share .ar-scorecard-path { flex: 1 1 auto; max-width: 100%; min-width: 0; }
+.ar-field--share .ar-scorecard-height { flex: 0 0 120px; min-width: 0; }
+/* A hint belongs under its control, not at the card's left edge: indent past
+   the 190px label column (+ the 12px gap) and keep a readable measure. */
+.ar-field--inline.ar-field--share + .ar-field__hint { margin-left: 202px; max-width: none; }
+@media (max-width: 782px) {
+	.ar-field--inline.ar-field--share + .ar-field__hint { margin-left: 0; max-width: none; }
+}
+
+/* Share the result: TWO columns filling the card's full width — the share card
+   (image + share buttons + note) left, the live page right, each under its own
+   label. The page window scales the real page at 0.45; the iframe viewport is
+   width/0.45, so the miniature stays true at any column width. Pointer-events
+   off — the Open button below it is the way in. */
+/* Named areas so the image and the page window share one grid ROW — the
+   image's natural height defines it and the window stretches to match, so the
+   two previews stand at EXACTLY the same height at any width. The buttons and
+   the Open button share the next row for the same reason. */
+.ar-scorecard-duo {
+	display: grid;
+	grid-template-columns: minmax(0, 1fr) minmax(260px, 340px);
+	grid-template-areas:
+		"clabel plabel"
+		"img    page"
+		"ntog   ptog"
+		"btns   open"
+		"note   pnote";
+	gap: 0 24px;
+	align-items: stretch;
+}
+.ar-sd-ntog { grid-area: ntog; }
+.ar-sd-ptog { grid-area: ptog; }
+.ar-sd-clabel { grid-area: clabel; }
+.ar-sd-plabel { grid-area: plabel; }
+.ar-sd-img { grid-area: img; }
+.ar-sd-page { grid-area: page; }
+.ar-sd-btns { grid-area: btns; }
+/* .wp-core-ui tie again — core's .button also zeroes margins. */
+.wp-core-ui .ar-sd-open { grid-area: open; margin-top: 12px; align-self: start; }
+.ar-sd-note { grid-area: note; }
+.ar-sd-pnote { grid-area: pnote; align-self: start; }
+.ar-sd-note2 { grid-column: 1 / -1; }
+/* Muted sub-labels under the step head — hierarchy: head speaks, labels whisper. */
+.ar-scorecard-nametoggle { margin-top: 10px; }
+.ar-scorecard-collabel { margin: 0 0 8px; font-weight: 600; font-size: 14px; color: var(--ar-ink-soft); }
+.ar-scorecard-card { margin: 0; }
+.ar-scorecard-card img { display: block; width: 100%; border: 1px solid #d8d2c2; border-radius: 6px; }
+/* The window's height comes from the grid row (the image defines it); the
+   iframe inside is sized and scaled BY MEASUREMENT in the SPA (see
+   measurePagePrev) so the whole page always fits it exactly — no guessed
+   factors for the layout to fight. */
+.ar-scorecard-pageprev { position: relative; min-height: 320px; overflow: hidden; border: 1px solid #d8d2c2; border-radius: 6px; }
+.ar-scorecard-pageprev iframe { border: 0; pointer-events: none; }
+/* Page off: the window stays (the grid row keeps its shape) and says why
+   it's empty instead of leaving a silent void. */
+/* Wears the card image's own dark background so the off state still reads
+   as the second panel of the pair, not a hole in the layout. */
+.ar-scorecard-pageoff { display: grid; align-content: center; justify-items: center; gap: 10px; height: 100%; margin: 0; padding: 0 28px; text-align: center; background: #191712; color: #8a8374; font-size: 13px; line-height: 1.6; }
+.ar-scorecard-pageoff__code { margin: 0; font-size: 46px; font-weight: 700; line-height: 1; color: #f3f0e7; }
+.ar-scorecard-pageoff__text { margin: 0; }
+/* Anchors can't be disabled — this makes one honest about it. */
+.ar-scorecard-openbtn.is-disabled { opacity: 0.5; pointer-events: none; }
+
+/* The share preview dialog: card thumbnail, the editable link, plain actions. */
+.ar-share-modal { max-width: 480px; }
+.ar-share-modal__body { display: grid; gap: 14px; padding: 16px 28px 12px; } /* matches __head's 28px gutters */
+.ar-share-modal__card { margin: 0; }
+.ar-share-modal__card img { display: block; width: 100%; border: 1px solid #d8d2c2; border-radius: 6px; }
+
+/* The share buttons fill the image's width, one row, equal widths — compact
+   type so all four fit; the icons carry the "share" meaning, so the network
+   buttons need only their names. Phones may wrap two-up. */
+.ar-scorecard-share { display: flex; align-items: center; gap: 8px; flex-wrap: nowrap; margin-top: 12px; }
+/* .wp-core-ui prefixed on purpose: core styles .button with a two-class
+   selector that outranks a bare class — without the tie, display/justify
+   silently lose and the buttons render as core inline-blocks (left text). */
+.wp-core-ui .ar-share-btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; flex: 1 1 0; min-width: 0; font-size: 12px; padding: 0 8px; white-space: nowrap; }
+.ar-share-btn svg { flex: none; }
+
+/* Small screens, at core's own 782px breakpoint (where wp-admin enlarges every
+   .button for touch). */
+@media (max-width: 782px) {
+	.ar-field--share .ar-scorecard-path { flex: 1 1 auto; }
+	.ar-field--inline.ar-field--share { flex-wrap: wrap; }
+	.ar-field--share > label { flex: 1 1 100%; }
+	.ar-field--share .ar-select { flex: 1 1 auto; max-width: 100%; }
+	/* The custom-height number input goes fluid like its siblings, at the
+	   same compact box — core's mobile input inflation made it taller. */
+	.ar-field--share .ar-scorecard-height { flex: 1 1 auto; width: 100%; min-height: 0; padding: 9px 11px; font-size: 16px; }
+	/* Copy goes quiet text, above the box on the right — core's touch-size
+	   button is too heavy for the corner overlay it floats on. */
+	.ar-mcp-snippet { display: flex; flex-direction: column; margin-top: 4px; }
+	.ar-mcp-snippet__copy.button {
+		position: static; order: -1; align-self: flex-end;
+		margin: 0 0 6px; padding: 0 !important; min-height: 0 !important;
+		font-size: 13px !important; line-height: 20px !important;
+		background: transparent; border: none; box-shadow: none;
+		color: #2271b1;
+	}
+	.ar-mcp-snippet__copy.button:hover,
+	.ar-mcp-snippet__copy.button:focus { background: transparent; color: #135e96; border: none; }
+	/* Default keeps its button chrome at DESKTOP's small size — core inflates
+	   every .button for touch with rules that outrank ours, hence the heavy hand. */
+	.ar-badge-colors .button.button-small {
+		padding: 0 10px !important; min-height: 26px !important; height: 26px !important;
+		line-height: 24px !important; font-size: 12px !important;
+	}
+	/* Stacked: one column, image section first, then the live page with its
+	   Open button. The window takes a fixed height here (no image row to
+	   inherit from in a single column). */
+	.ar-scorecard-duo {
+		grid-template-columns: 1fr;
+		grid-template-areas: "clabel" "img" "ntog" "btns" "note" "plabel" "page" "ptog" "open" "pnote";
+		gap: 0;
+	}
+	.ar-sd-plabel { margin-top: 18px; }
+	.ar-scorecard-pageprev { height: 420px; }
+	.ar-scorecard-share { flex-wrap: wrap; }
+	.wp-core-ui .ar-share-btn { flex: 1 1 40%; }
+}
 
 /* ---------------------------------------------------------------------------
    Agent access — who authenticated to, and ACTED on, the machine surface.
