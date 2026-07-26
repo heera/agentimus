@@ -52,7 +52,7 @@ export default {
       trail: [],
       perPage: 100,
       retention: 90,
-      headline: { abilities: 0, lastAt: '' },
+      headline: { abilities: 0, registered: 0, lastAt: '' },
       maxRows: 5000,
       coverage: '',
       hasAbilities: false,
@@ -177,7 +177,7 @@ export default {
         });
         this.unseen = data.unseen || 0;
         this.total = data.total || 0;
-        this.headline = data.headline || { abilities: 0, lastAt: '' };
+        this.headline = data.headline || { abilities: 0, registered: 0, lastAt: '' };
         this.retention = data.retention || this.retention;
         this.maxRows = data.maxRows || this.maxRows;
         this.coverage = data.coverage || '';
@@ -431,7 +431,8 @@ export default {
         <p v-if="loaded" class="ar-aa__facts">
           <template v-if="total > 0">
             <strong>{{ total.toLocaleString() }}</strong> {{ total === 1 ? 'event' : 'events' }} recorded ·
-            <strong>{{ headline.abilities }}</strong> {{ headline.abilities === 1 ? 'ability' : 'abilities' }} seen ·
+            <strong>{{ headline.abilities }}</strong><template v-if="headline.registered"> of {{ headline.registered }}</template>
+            {{ headline.abilities === 1 && !headline.registered ? 'ability' : 'abilities' }} used ·
             last activity <strong>{{ lastActivity() }}</strong>
           </template>
           <template v-else>Nothing has run yet — this list fills as agents act on your site.</template>

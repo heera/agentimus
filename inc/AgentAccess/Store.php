@@ -241,9 +241,19 @@ final class Store {
 		$last = (string) $wpdb->get_var( "SELECT MAX(last_at) FROM $table" );
 		// phpcs:enable WordPress.DB, PluginCheck.Security.DirectDB.UnescapedDBParameter
 
+		// How many are REGISTERED right now, so the used-count can be stated as a
+		// fraction. "8 abilities" alone reads as "this site has 8" when it may have
+		// 26 of which 8 have ever run — a half-truth on a screen whose whole job is
+		// not letting a partial view read as the whole one.
+		$registered = 0;
+		if ( function_exists( 'wp_get_abilities' ) ) {
+			$registered = count( (array) wp_get_abilities() );
+		}
+
 		return array(
-			'abilities' => $abilities,
-			'lastAt'    => '' !== $last ? gmdate( 'c', strtotime( $last . ' UTC' ) ) : '',
+			'abilities'  => $abilities,
+			'registered' => $registered,
+			'lastAt'     => '' !== $last ? gmdate( 'c', strtotime( $last . ' UTC' ) ) : '',
 		);
 	}
 
