@@ -423,9 +423,7 @@ export default {
     <table class="ar-act-table ar-aa__table">
       <thead>
         <tr>
-          <th scope="col" class="ar-aa__markcol">What</th>
-          <th scope="col">Which</th>
-          <th scope="col" class="ar-aa__whocol">Who</th>
+          <th scope="col">What happened</th>
           <th scope="col">Used</th>
           <th scope="col">First seen</th>
           <th scope="col">Last seen</th>
@@ -433,11 +431,9 @@ export default {
       </thead>
       <tbody>
         <tr v-for="e in events" :key="e.id" :class="{ 'is-unseen': isHighlighted(e), 'is-refusal': isRefusal(e) }">
-          <td class="ar-aa__markcol">
-            <span class="ar-log__mark" :class="kindMark(e).cls">{{ kindMark(e).text }}</span>
-          </td>
           <td>
             <span class="ar-aa__row">
+              <span class="ar-log__mark ar-aa__kind" :class="kindMark(e).cls">{{ kindMark(e).text }}</span>
               <span
                 class="ar-aa__what"
                 @mouseenter="showUaTip($event, label(e), '')"
@@ -457,13 +453,9 @@ export default {
               >i</button>
               <span v-if="isHighlighted(e)" class="ar-aa__new">New</span>
             </span>
-          </td>
-          <td class="ar-aa__whocol">
-            <span
-              class="ar-aa__who"
-              @mouseenter="who(e) && showUaTip($event, who(e), '')"
-              @mouseleave="hideUaTip"
-            >{{ who(e) || 'not recorded' }}</span>
+            <!-- WHO sits under the event, indented to the subject's own column so the
+                 two lines read as one block instead of two competing rows. -->
+            <span v-if="who(e)" class="ar-aa__who">{{ who(e) }}</span>
           </td>
           <td>{{ e.hits > 1 ? `${e.hits} times` : 'once' }}</td>
           <td
@@ -524,5 +516,21 @@ export default {
       can name the key that was used but not the person or machine using it. We also only see
       machine logins — someone signing in with your normal password won't appear here.
     </p>
+
+    <!-- The uaTip mixin positions THIS element; without it every hover in this
+         component was silently doing nothing (the info marker had no tooltip). -->
+    <Teleport to="body">
+      <transition name="ar-tip">
+        <div
+          v-if="uaTip.show"
+          ref="uaTipEl"
+          class="ar-act-uatip"
+          :class="{ 'is-below': uaTip.below }"
+          :style="{ left: uaTip.x + 'px', top: uaTip.y + 'px' }"
+          role="tooltip"
+          aria-hidden="true"
+        ><span class="ar-act-uatip__ua">{{ uaTip.text }}</span><span v-if="uaTip.hint" class="ar-act-uatip__hint">{{ uaTip.hint }}</span><span class="ar-act-uatip__caret" :style="{ left: uaTip.caret + 'px' }"></span></div>
+      </transition>
+    </Teleport>
   </section>
 </template>
