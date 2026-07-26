@@ -4139,11 +4139,16 @@ a.ar-about-proto__v:hover { text-decoration: underline; }
    column read boxy while adding height for nothing. The label line above already
    says whether it names an ability or a key. */
 .ar-aa__what {
-  display: block; margin-top: 2px;
+  display: flex; align-items: center; gap: 6px; margin-top: 2px;
   font-family: var(--ar-mono); font-size: 12.5px; letter-spacing: -0.01em;
   font-weight: 500; color: var(--ar-ink);
-  overflow-wrap: anywhere;
+  overflow-wrap: anywhere; cursor: help;
 }
+/* A key or a spark ahead of the name: the row's family is recognisable before a
+   word is read, and hovering says what the name IS and where to act on it —
+   "verify-tax" alone tells an admin nothing. */
+.ar-aa__whaticon { flex: 0 0 auto; color: var(--ar-ink-faint); }
+.ar-aa__what:hover .ar-aa__whaticon { color: var(--ar-accent); }
 
 /* WHO did it — quieter than the hint sentences, but always present when known. */
 /* WHO has its own column now, so the row is a single line. Never truncated —

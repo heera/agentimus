@@ -252,6 +252,23 @@ export default {
         default:               return 'Event';
       }
     },
+    // What the name in the subject line IS. "verify-tax" tells an admin nothing
+    // unless they happen to remember creating it, so say where it came from and
+    // where they can go act on it.
+    subjectHint(e) {
+      if (0 === String(e.kind).indexOf('apppw_')) {
+        return 'The name given to this application password when it was created. You’ll find it under Users → Profile → Application passwords, where it can also be revoked.';
+      }
+      if (0 === String(e.kind).indexOf('ability_')) {
+        return 'The name of the ability that was called — the machine-readable action an AI assistant asked your site to run.';
+      }
+      return '';
+    },
+    // A key for a password name, a spark for an ability: the row's family is
+    // recognisable before a word is read.
+    subjectIcon(e) {
+      return 0 === String(e.kind).indexOf('apppw_') ? 'key' : 'ability';
+    },
     // What it was about — the line that actually varies, so it carries the weight.
     eventSubject(e) {
       if (e.kind === 'ability_probed') return '';
@@ -422,7 +439,22 @@ export default {
             <span
               v-if="eventSubject(e)"
               class="ar-aa__what"
-            >{{ eventSubject(e) }}
+              @mouseenter="showUaTip($event, subjectHint(e), '')"
+              @mouseleave="hideUaTip"
+            >
+              <svg
+                v-if="subjectIcon(e) === 'key'"
+                class="ar-aa__whaticon" viewBox="0 0 16 16" width="12" height="12"
+                fill="none" stroke="currentColor" stroke-width="1.6"
+                stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"
+              ><circle cx="5.5" cy="10.5" r="2.6" /><path d="M7.4 8.6 13 3" /><path d="M11.2 4.8l1.5 1.5" /></svg>
+              <svg
+                v-else
+                class="ar-aa__whaticon" viewBox="0 0 16 16" width="12" height="12"
+                fill="none" stroke="currentColor" stroke-width="1.6"
+                stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"
+              ><path d="M8.6 1.8 3.4 9h3.4l-1.4 5.2L13 6.6H9.4z" /></svg>
+              {{ eventSubject(e) }}
               <!-- The row the nav badge sent them here to find. A tint alone is too easy to
                    miss on a long list, and "which one is new?" is the only question they
                    arrived with. -->
