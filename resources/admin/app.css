@@ -4096,7 +4096,7 @@ a.ar-about-proto__v:hover { text-decoration: underline; }
 
 /* On a phone the four columns exceed the card: scroll the table inside its own box
    rather than letting it widen (or get clipped by) the page — columns stay reachable. */
-.ar-aa__tablewrap { overflow-x: auto; margin: 0 0 16px; min-width: 0; }
+
 /* The access log wears the Request Log's table dress (.ar-act-table on the same
    element), so the two logs read and behave as one family — same header band, same
    cell rhythm, same sideways scroll on narrow screens instead of crushed columns.
@@ -4283,3 +4283,46 @@ a.ar-about-proto__v:hover { text-decoration: underline; }
 .ar-media-pick { display: flex; align-items: center; gap: 10px; margin: 6px 0 4px; }
 .ar-media-pick__thumb { width: 48px; height: 48px; object-fit: cover; border-radius: 6px; border: 1px solid var(--ar-line); }
 
+
+/* ---- Agent Access: the event feed ----------------------------------------
+   Cards, not table rows. These events are heterogeneous — an ability run, a key
+   created, a probe turned away — and each is read on its own rather than
+   compared down a column, which is the one job a table does better. Every fact
+   still holds a fixed position inside the card, so the eye lands in the same
+   place on every row. Same palette throughout: one beige, one ink, no new hues. */
+.ar-aa__feed { list-style: none; margin: 14px 0 16px; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.ar-aa__card {
+  display: grid; align-items: center; gap: 14px;
+  grid-template-columns: 40px minmax(190px, 1.3fr) minmax(190px, 1.1fr) 82px 23ch 23ch;
+  padding: 14px 16px; border: 1px solid var(--ar-line); border-radius: var(--ar-radius);
+  background: var(--ar-surface);
+}
+.ar-aa__card.is-unseen { background: color-mix(in srgb, var(--ar-accent) 4.5%, var(--ar-surface)); }
+.ar-aa__card.is-refusal { border-left: 2px solid var(--ar-warn); }
+/* The kind's glyph in a soft disc — recognisable before a word is read. */
+.ar-aa__mark {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 34px; height: 34px; border-radius: 50%;
+  background: var(--ar-surface-2); color: var(--ar-ink-soft);
+}
+.ar-aa__ev { min-width: 0; }
+.ar-aa__whoblk { min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.ar-aa__usesblk { display: flex; justify-content: flex-start; }
+/* The two stamps: a quiet label with the value beneath, fixed width so the pair
+   still lines up down the feed. */
+.ar-aa__seenblk { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.ar-aa__seenlab { font-size: 11px; color: var(--ar-ink-soft); }
+.ar-aa__seenval {
+  display: flex; align-items: center; gap: 6px;
+  font-family: var(--ar-mono); font-size: 11.5px; letter-spacing: -0.02em;
+  color: var(--ar-ink); font-variant-numeric: tabular-nums; white-space: nowrap;
+}
+.ar-aa__lineicon { flex: 0 0 auto; color: var(--ar-ink-faint); }
+/* Phones and narrow admin columns: the card stacks instead of scrolling
+   sideways — a card can reflow, which is exactly why it beats a table here. */
+@media (max-width: 1100px) {
+  .ar-aa__card { grid-template-columns: 40px minmax(0, 1fr) auto; }
+  .ar-aa__whoblk { grid-column: 2 / -1; }
+  .ar-aa__usesblk { grid-column: 2 / -1; }
+  .ar-aa__seenblk { grid-column: 2 / -1; flex-direction: row; align-items: baseline; gap: 8px; }
+}

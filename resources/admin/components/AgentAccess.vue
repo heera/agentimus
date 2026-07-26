@@ -426,79 +426,83 @@ export default {
 
     <!-- The wrapper scrolls the table sideways on narrow screens; the table itself
          never widens the page. -->
-    <div v-if="hasEvents" class="ar-aa__tablewrap">
-    <table class="ar-act-table ar-aa__table">
-      <thead>
-        <tr>
-          <th scope="col">What happened</th>
-          <th scope="col">Who</th>
-          <th scope="col">Used</th>
-          <th scope="col" class="ar-aa__seencol">First seen at</th>
-          <th scope="col" class="ar-aa__seencol">Last seen at</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr v-for="e in events" :key="e.id" :class="{ 'is-unseen': isHighlighted(e), 'is-refusal': isRefusal(e) }">
-          <td>
-            <span
-              v-if="eventSubject(e)"
-              class="ar-aa__what"
-              @mouseenter="showUaTip($event, subjectHint(e), '')"
+    <!-- A feed of event cards rather than a table: these rows are heterogeneous
+         (an ability run, a key created, a probe turned away), and each one is
+         read on its own rather than compared down a column. Every fact keeps a
+         fixed position inside the card, so the eye still lands in the same place
+         on every row. -->
+    <ul v-if="hasEvents" class="ar-aa__feed">
+      <li
+        v-for="e in events"
+        :key="e.id"
+        class="ar-aa__card"
+        :class="{ 'is-unseen': isHighlighted(e), 'is-refusal': isRefusal(e) }"
+      >
+        <span class="ar-aa__mark" :class="`is-${subjectIcon(e)}`" aria-hidden="true">
+          <svg
+            v-if="subjectIcon(e) === 'key'"
+            viewBox="0 0 16 16" width="15" height="15" fill="none" stroke="currentColor"
+            stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"
+          ><circle cx="5.5" cy="10.5" r="2.6" /><path d="M7.4 8.6 13 3" /><path d="M11.2 4.8l1.5 1.5" /></svg>
+          <svg
+            v-else
+            viewBox="0 0 16 16" width="15" height="15" fill="none" stroke="currentColor"
+            stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"
+          ><path d="M8.6 1.8 3.4 9h3.4l-1.4 5.2L13 6.6H9.4z" /></svg>
+        </span>
+
+        <div class="ar-aa__ev">
+          <span class="ar-aa__kindline">{{ eventKind(e) }}</span>
+          <span
+            class="ar-aa__what"
+            @mouseenter="showUaTip($event, subjectHint(e), '')"
+            @mouseleave="hideUaTip"
+          >{{ eventSubject(e) || eventKind(e) }}<span v-if="isHighlighted(e)" class="ar-aa__new">New</span></span>
+        </div>
+
+        <div class="ar-aa__whoblk">
+          <span class="ar-aa__who">
+            <svg class="ar-aa__lineicon" viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="8" cy="5.2" r="2.6" /><path d="M3.2 13.4a4.8 4.8 0 0 1 9.6 0" /></svg>
+            {{ whoPerson(e) || 'not recorded' }}
+            <button
+              v-if="note(e)"
+              type="button"
+              class="ar-aa__noteicon"
+              :class="{ 'is-warn': !!revokeAdvice(e) }"
+              :aria-label="note(e)"
+              @mouseenter="showUaTip($event, note(e), '')"
               @mouseleave="hideUaTip"
-            >
-              <svg
-                v-if="subjectIcon(e) === 'key'"
-                class="ar-aa__whaticon" viewBox="0 0 16 16" width="12" height="12"
-                fill="none" stroke="currentColor" stroke-width="1.6"
-                stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"
-              ><circle cx="5.5" cy="10.5" r="2.6" /><path d="M7.4 8.6 13 3" /><path d="M11.2 4.8l1.5 1.5" /></svg>
-              <svg
-                v-else
-                class="ar-aa__whaticon" viewBox="0 0 16 16" width="12" height="12"
-                fill="none" stroke="currentColor" stroke-width="1.6"
-                stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"
-              ><path d="M8.6 1.8 3.4 9h3.4l-1.4 5.2L13 6.6H9.4z" /></svg>
-              {{ eventSubject(e) }}
-              <!-- The row the nav badge sent them here to find. A tint alone is too easy to
-                   miss on a long list, and "which one is new?" is the only question they
-                   arrived with. -->
-              <span v-if="isHighlighted(e)" class="ar-aa__new">New</span>
-            </span>
-            <span class="ar-aa__kindline">{{ eventKind(e) }}</span>
-          </td>
-          <!-- WHO gets its own column, so every row is a single line. The advisory
-               that would otherwise be a third line rides here as a marker. -->
-          <td class="ar-aa__whocol">
-            <!-- Marker and person share one line: as a sibling of a block-level
-                 person line it was orphaned onto a row of its own. -->
-            <span class="ar-aa__whotop">
-              <button
-                v-if="note(e)"
-                type="button"
-                class="ar-aa__noteicon"
-                :class="{ 'is-warn': !!revokeAdvice(e) }"
-                :aria-label="note(e)"
-                @mouseenter="showUaTip($event, note(e), '')"
-                @mouseleave="hideUaTip"
-                @focus="showUaTip($event, note(e), '')"
-                @blur="hideUaTip"
-              >i</button>
-              <span v-if="whoPerson(e)" class="ar-aa__who">{{ whoPerson(e) }}</span>
-              <span v-else class="ar-aa__who ar-aa__who--none">not recorded</span>
-            </span>
-            <span v-if="whoCred(e)" class="ar-aa__cred">{{ whoCred(e) }}</span>
-          </td>
-          <td><span class="ar-aa__uses">{{ e.hits > 1 ? `${e.hits} uses` : 'once' }}</span></td>
-          <!-- Two columns, one line each. Merging them into one cell put a second
-               line on the rows that repeated and left the rest with one, which is
-               the uneven-row problem this table already had once. Even columns
-               scan; ragged ones don't. -->
-          <td class="ar-aa__seencol">{{ when(e.firstSeen) }}</td>
-          <td class="ar-aa__seencol">{{ when(e.lastSeen) }}</td>
-        </tr>
-      </tbody>
-    </table>
-    </div>
+              @focus="showUaTip($event, note(e), '')"
+              @blur="hideUaTip"
+            >i</button>
+          </span>
+          <span v-if="whoCred(e)" class="ar-aa__cred">
+            <svg v-if="e.cred" class="ar-aa__lineicon" viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="5.5" cy="10.5" r="2.6" /><path d="M7.4 8.6 13 3" /><path d="M11.2 4.8l1.5 1.5" /></svg>
+            <svg v-else class="ar-aa__lineicon" viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2.2" y="3" width="11.6" height="8" rx="1.2" /><path d="M6 13.4h4" /></svg>
+            {{ whoCred(e) }}
+          </span>
+        </div>
+
+        <div class="ar-aa__usesblk">
+          <span class="ar-aa__uses">{{ e.hits > 1 ? `${e.hits} uses` : '1 use' }}</span>
+        </div>
+
+        <div class="ar-aa__seenblk">
+          <span class="ar-aa__seenlab">First seen</span>
+          <span class="ar-aa__seenval">
+            <svg class="ar-aa__lineicon" viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2.4" y="3.2" width="11.2" height="10.4" rx="1.4" /><path d="M2.4 6.4h11.2M5.6 1.8v2.4M10.4 1.8v2.4" /></svg>
+            {{ when(e.firstSeen) }}
+          </span>
+        </div>
+        <div class="ar-aa__seenblk">
+          <span class="ar-aa__seenlab">Last seen</span>
+          <span class="ar-aa__seenval">
+            <svg class="ar-aa__lineicon" viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2.4" y="3.2" width="11.2" height="10.4" rx="1.4" /><path d="M2.4 6.4h11.2M5.6 1.8v2.4M10.4 1.8v2.4" /></svg>
+            {{ when(e.lastSeen) }}
+          </span>
+        </div>
+      </li>
+    </ul>
 
     <!-- Phase 3 EARNED this sentence. It used to have to confess that WordPress only tells us an
          ability ran after it has already ALLOWED it, so a refused probe left no trace — meaning a
