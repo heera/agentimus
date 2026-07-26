@@ -109,6 +109,7 @@ namespace {
 	if ( ! function_exists( 'add_action' ) )            { function add_action() { return true; } }
 	if ( ! function_exists( 'add_filter' ) )            { function add_filter( $tag, $cb, $priority = 10, $args = 1 ) { $GLOBALS['_af_filters'][ $tag ][] = $cb; return true; } }
 	if ( ! function_exists( 'remove_all_filters' ) )    { function remove_all_filters( $tag = false ) { if ( false === $tag ) { $GLOBALS['_af_filters'] = array(); } else { unset( $GLOBALS['_af_filters'][ $tag ] ); } return true; } }
+	if ( ! function_exists( 'remove_filter' ) )         { function remove_filter( $tag, $cb, $priority = 10 ) { if ( ! empty( $GLOBALS['_af_filters'][ $tag ] ) ) { foreach ( $GLOBALS['_af_filters'][ $tag ] as $i => $registered ) { if ( $registered === $cb ) { unset( $GLOBALS['_af_filters'][ $tag ][ $i ] ); } } } return true; } }
 	if ( ! function_exists( 'did_action' ) )            { function did_action( $tag ) { return ! empty( $GLOBALS['_af_did_actions'][ $tag ] ) ? 1 : 0; } }
 	// Minimal object-cache surface with faithful add-semantics, so the build-lock
 	// mutex (Cache::acquire_lock/release_lock) can be exercised: wp_cache_add writes
@@ -158,9 +159,27 @@ namespace {
 	if ( ! function_exists( 'current_time' ) )          { function current_time( $type, $gmt = 0 ) { return 'timestamp' === $type ? time() : gmdate( 'Y-m-d H:i:s' ); } }
 	if ( ! function_exists( 'get_post' ) )              { function get_post( $id = 0 ) { if ( is_object( $id ) ) { return $id; } $id = (int) $id; if ( ! $id ) { $id = (int) ( $GLOBALS['_af_current_post_id'] ?? 0 ); } return isset( $GLOBALS['_af_posts'][ $id ] ) ? $GLOBALS['_af_posts'][ $id ] : null; } }
 	if ( ! function_exists( 'post_type_exists' ) )      { function post_type_exists( $t ) { return in_array( (string) $t, (array) ( $GLOBALS['_af_post_types_exist'] ?? array() ), true ); } }
+	if ( ! function_exists( 'get_post_types' ) )        { function get_post_types( $args = array(), $output = 'names' ) { $types = (array) ( $GLOBALS['_af_available_post_types'] ?? array( 'post', 'page' ) ); return array_combine( $types, $types ); } }
+	if ( ! function_exists( 'esc_sql' ) )               { function esc_sql( $v ) { return addslashes( (string) $v ); } }
+	// Minimal $wpdb for the Bulk scanner: canned column/scalar results via globals,
+	// with every executed SQL recorded so a test can assert on the query's shape.
+	if ( ! class_exists( '_AF_Wpdb' ) ) {
+		class _AF_Wpdb {
+			public $posts    = 'wp_posts';
+			public $postmeta = 'wp_postmeta';
+			public $prefix   = 'wp_';
+			public $queries  = array();
+			public function prepare( $sql, ...$args ) { foreach ( $args as $a ) { $sql = preg_replace( '/%[ds]/', is_int( $a ) ? (string) $a : "'" . addslashes( (string) $a ) . "'", $sql, 1 ); } return $sql; }
+			public function get_col( $sql ) { $this->queries[] = $sql; return (array) ( $GLOBALS['_af_db_col'] ?? array() ); }
+			public function get_var( $sql ) { $this->queries[] = $sql; return $GLOBALS['_af_db_var'] ?? 0; }
+		}
+		$GLOBALS['wpdb'] = new _AF_Wpdb();
+	}
 	if ( ! function_exists( 'get_posts' ) )             { function get_posts( $args = array() ) { return (array) ( $GLOBALS['_af_get_posts'] ?? array() ); } }
 	if ( ! function_exists( 'get_the_title' ) )         { function get_the_title( $p = null ) { $p = is_object( $p ) ? $p : get_post( $p ); return $p ? (string) $p->post_title : ''; } }
 	if ( ! function_exists( 'get_permalink' ) )         { function get_permalink( $p = 0 ) { $p = is_object( $p ) ? $p : get_post( $p ); return 'https://example.com/?p=' . ( $p ? (int) $p->ID : 0 ); } }
+	if ( ! function_exists( 'get_edit_post_link' ) )    { function get_edit_post_link( $p = 0, $context = 'display' ) { $p = is_object( $p ) ? $p : get_post( $p ); return $p ? 'https://example.com/wp-admin/post.php?post=' . (int) $p->ID . '&action=edit' : null; } }
+	if ( ! function_exists( 'wp_get_attachment_image_url' ) ) { function wp_get_attachment_image_url( $id = 0, $size = 'thumbnail' ) { return isset( $GLOBALS['_af_attachment_urls'][ (int) $id ] ) ? $GLOBALS['_af_attachment_urls'][ (int) $id ] : false; } }
 	// Singular-view surface for the Schema privacy tests (toggle via the globals).
 	if ( ! function_exists( 'is_singular' ) )           { function is_singular( $types = '' ) { return ! empty( $GLOBALS['_af_is_singular'] ); } }
 	if ( ! function_exists( 'is_front_page' ) )         { function is_front_page() { return ! empty( $GLOBALS['_af_is_front_page'] ); } }
@@ -214,7 +233,7 @@ namespace {
 	// function_exists() guard is exercised on the no-blocks path.
 	if ( ! function_exists( 'strip_shortcodes' ) )      { function strip_shortcodes( $content ) { return preg_replace( '/\[[^\]]*\]/', '', (string) $content ); } }
 	if ( ! function_exists( 'wp_trim_words' ) )         { function wp_trim_words( $text, $num_words = 55, $more = null ) { $words = preg_split( '/\s+/', trim( (string) $text ), -1, PREG_SPLIT_NO_EMPTY ); if ( count( $words ) > $num_words ) { $words = array_slice( $words, 0, $num_words ); $text = implode( ' ', $words ) . ( null === $more ? '…' : $more ); } else { $text = implode( ' ', $words ); } return $text; } }
-	function _af_reset_options() { $GLOBALS['_af_options'] = array(); $GLOBALS['_af_filters'] = array(); $GLOBALS['_af_did_actions'] = array(); $GLOBALS['_af_posts'] = array(); $GLOBALS['_af_postmeta'] = array(); $GLOBALS['_af_terms'] = array(); $GLOBALS['_af_taxonomies'] = array( 'category', 'post_tag' ); $GLOBALS['_af_is_admin'] = false; $GLOBALS['_af_flush_count'] = 0; $GLOBALS['_af_cache'] = array(); $GLOBALS['_af_transients'] = array(); unset( $GLOBALS['_af_transients_on'] ); $GLOBALS['_af_http_queue'] = array(); $GLOBALS['_af_http_last'] = null; $GLOBALS['_af_mail'] = array(); unset( $GLOBALS['_af_mail_ok'] ); unset( $GLOBALS['_af_user_can'] ); unset( $GLOBALS['_af_available_post_types'], $GLOBALS['_af_current_post_id'], $GLOBALS['_af_is_singular'], $GLOBALS['_af_is_front_page'], $GLOBALS['_af_categories'], $GLOBALS['_af_post_types_exist'], $GLOBALS['_af_get_posts'] ); unset( $GLOBALS['_af_attachments'], $GLOBALS['_af_is_paged'], $GLOBALS['_af_is_category'], $GLOBALS['_af_is_tag'], $GLOBALS['_af_is_tax'], $GLOBALS['_af_is_post_type_archive'], $GLOBALS['_af_is_author'], $GLOBALS['_af_queried_object'], $GLOBALS['_af_queried_object_id'], $GLOBALS['_af_term_link'], $GLOBALS['_af_query_vars'], $GLOBALS['_af_core_sitemaps'] ); }
+	function _af_reset_options() { $GLOBALS['_af_options'] = array(); $GLOBALS['_af_filters'] = array(); $GLOBALS['_af_did_actions'] = array(); $GLOBALS['_af_posts'] = array(); $GLOBALS['_af_postmeta'] = array(); $GLOBALS['_af_terms'] = array(); $GLOBALS['_af_taxonomies'] = array( 'category', 'post_tag' ); $GLOBALS['_af_is_admin'] = false; $GLOBALS['_af_flush_count'] = 0; $GLOBALS['_af_cache'] = array(); $GLOBALS['_af_transients'] = array(); unset( $GLOBALS['_af_transients_on'] ); $GLOBALS['_af_http_queue'] = array(); $GLOBALS['_af_http_last'] = null; $GLOBALS['_af_mail'] = array(); unset( $GLOBALS['_af_mail_ok'] ); unset( $GLOBALS['_af_user_can'] ); unset( $GLOBALS['_af_available_post_types'], $GLOBALS['_af_current_post_id'], $GLOBALS['_af_is_singular'], $GLOBALS['_af_is_front_page'], $GLOBALS['_af_categories'], $GLOBALS['_af_post_types_exist'], $GLOBALS['_af_get_posts'] ); unset( $GLOBALS['_af_db_col'], $GLOBALS['_af_db_var'], $GLOBALS['_af_attachment_urls'] ); if ( isset( $GLOBALS['wpdb'] ) && $GLOBALS['wpdb'] instanceof _AF_Wpdb ) { $GLOBALS['wpdb']->queries = array(); } unset( $GLOBALS['_af_attachments'], $GLOBALS['_af_is_paged'], $GLOBALS['_af_is_category'], $GLOBALS['_af_is_tag'], $GLOBALS['_af_is_tax'], $GLOBALS['_af_is_post_type_archive'], $GLOBALS['_af_is_author'], $GLOBALS['_af_queried_object'], $GLOBALS['_af_queried_object_id'], $GLOBALS['_af_term_link'], $GLOBALS['_af_query_vars'], $GLOBALS['_af_core_sitemaps'] ); }
 	// Transient stubs. Default: always-miss, so cached endpoint bodies (e.g. security.txt)
 	// recompute deterministically in tests. A test that needs to exercise real transient
 	// state (the bot-verifier budget/circuit-breaker counters) opts in by setting

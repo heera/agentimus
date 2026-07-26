@@ -15,6 +15,7 @@ import AssistantDrawer from './components/AssistantDrawer.vue';
 import AiTrafficPanel from './components/AiTrafficPanel.vue';
 import RequestLog from './components/RequestLog.vue';
 import AgentAccess from './components/AgentAccess.vue';
+import BulkPanel from './components/BulkPanel.vue';
 import ReviewMenu from './components/ReviewMenu.vue';
 import OnboardingWizard from './components/OnboardingWizard.vue';
 import AboutPanel from './components/AboutPanel.vue';
@@ -41,7 +42,7 @@ const MORE_EDGE_GAP = 12;
 
 export default {
   name: 'AgentimusApp',
-  components: { SettingsForm, ReadinessPanel, DiscoveryHub, ActivityPanel, WhatsNew, ReviewAsk, AssistantLauncher, AssistantDrawer, AiTrafficPanel, RequestLog, AgentAccess, ReviewMenu, OnboardingWizard, AboutPanel, ConfirmDialog, VisibilityPanel },
+  components: { SettingsForm, ReadinessPanel, DiscoveryHub, ActivityPanel, WhatsNew, ReviewAsk, AssistantLauncher, AssistantDrawer, AiTrafficPanel, RequestLog, AgentAccess, BulkPanel, ReviewMenu, OnboardingWizard, AboutPanel, ConfirmDialog, VisibilityPanel },
   // The styled hover bubble (shared with the activity tables) — the score rail's
   // rung and next-step hints use it instead of slow, unthemeable native titles.
   mixins: [uaTip],
@@ -61,7 +62,7 @@ export default {
     const activityTabs = ['log', 'ai-traffic'];
     // 'agent-access' is unconditional here, unlike the activity/visibility tabs above: it has
     // no setting to hide it, and it is always mounted, so its hash always has somewhere to land.
-    let startTab = ['dashboard', ...activityTabs, 'agent-access', 'visibility', 'settings', 'readiness', 'discovery', 'about'].includes(fromHash) ? fromHash : 'dashboard';
+    let startTab = ['dashboard', ...activityTabs, 'agent-access', 'fill-gaps', 'visibility', 'settings', 'readiness', 'discovery', 'about'].includes(fromHash) ? fromHash : 'dashboard';
     if ('visibility' === startTab && !visOn) startTab = 'dashboard';
     if (activityTabs.includes(startTab) && !actOn) startTab = 'dashboard';
     return {
@@ -326,6 +327,10 @@ export default {
           label: 'Agent Access',
           badge: this.agentAccessUnseen,
         },
+        // Fill the gaps: the bulk draft-review-apply screen for the per-page AI
+        // fields. Always listed — with no AI provider it still shows the honest gap
+        // counts and says where to connect one.
+        { id: 'fill-gaps', label: 'Fill the gaps' },
         // About is reference material, not a working screen — the rule sets it apart.
         { id: 'about', label: 'About Agentimus', divided: true },
       ];
@@ -374,6 +379,10 @@ export default {
           'agent-access': {
             title: 'Agent Access',
             description: 'What agents did on your site — keys created and used, abilities run. A record, not a guard.',
+          },
+          'fill-gaps': {
+            title: 'Fill the gaps',
+            description: 'Find every page missing its AI description, topics or image alt text — draft them in bulk, then approve each one.',
           },
           visibility: {
             title: 'AI Visibility',
@@ -695,6 +704,8 @@ export default {
         log: ['M3 4.2h10', 'M3 8h10', 'M3 11.8h6'],
         // A key: this screen is about the credentials that reach the machine surface.
         'agent-access': ['M9.9 6.1a2.6 2.6 0 1 0 3.7 3.7 2.6 2.6 0 0 0-3.7-3.7Z', 'M9.9 9.8 4 15.7', 'M6.4 13.2l1.6 1.6'],
+        // A dashed square being completed by a plus: filling what's missing.
+        'fill-gaps': ['M6 2.8H4.3A1.5 1.5 0 0 0 2.8 4.3V6', 'M10 2.8h1.7a1.5 1.5 0 0 1 1.5 1.5V6', 'M2.8 10v1.7a1.5 1.5 0 0 0 1.5 1.5H6', 'M8 6.2v3.6', 'M6.2 8h3.6', 'M10 13.2h1.7a1.5 1.5 0 0 0 1.5-1.5V10'],
         about: ['M8 14.2A6.2 6.2 0 1 0 8 1.8a6.2 6.2 0 0 0 0 12.4Z', 'M8 7.4v3.4', 'M8 5.2h.01'],
       }[id] || [];
     },
@@ -1682,6 +1693,13 @@ export default {
           :unread="agentAccessUnseen"
           @seen="agentAccessUnseen = 0"
           @flash="flash"
+        />
+        <BulkPanel
+          v-show="tab === 'fill-gaps'"
+          :api="api"
+          :active="tab === 'fill-gaps'"
+          @flash="flash"
+          @changed="refreshScore"
         />
         <VisibilityPanel
           v-if="settings.enable_visibility"

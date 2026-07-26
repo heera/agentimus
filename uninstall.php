@@ -63,6 +63,11 @@ function agentimus_uninstall_site() {
 	wp_clear_scheduled_hook( 'agentimus_prune_activity' );
 	wp_clear_scheduled_hook( 'agentimus_warm_llms_full' );
 
+	// Fill the gaps: unapproved bulk-draft proposals are transient work-product, so
+	// they go. The APPLIED values (the real description/topics/alt metas) stay —
+	// they're the owner's approved content now, same rule as a hand-typed value.
+	$wpdb->query( "DELETE FROM {$wpdb->postmeta} WHERE meta_key IN ( '_agentimus_proposed_description', '_agentimus_proposed_topics', '_agentimus_proposed_alt' )" ); // phpcs:ignore WordPress.DB
+
 	// Agent Access: the credential/ability event log, its schema flag and the proven
 	// execute-hook verdict.
 	$wpdb->query( "DROP TABLE IF EXISTS {$wpdb->prefix}agentimus_agent_events" ); // phpcs:ignore WordPress.DB

@@ -99,6 +99,7 @@ final class Plugin {
 		( new Topics( $this->settings ) )->register();
 		( new Description( $this->settings ) )->register();
 		( new Assist( $this->settings ) )->register(); // "Draft with AI" for the description + topics fields (no-ops without a configured AI provider).
+		( new Bulk\Rest( $this->settings ) )->register(); // "Fill the gaps": site-wide draft-review-apply for the same fields (owner-only; proposals never go live unapproved).
 		( new Assistant( $this->settings ) )->register(); // The in-admin writing assistant (nav-bar quill → drawer); gated on enable_agent_writes + a provider.
 		( new AssistantEditor( $this->settings ) )->register(); // Its block-editor half: per-Image-block Generate + the featured-image panel.
 		( new Rest( $this->settings ) )->register();

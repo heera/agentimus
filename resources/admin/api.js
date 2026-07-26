@@ -178,6 +178,32 @@ export function createApi(boot) {
     createAppPassword: (endpoint, name) =>
       requestUrl(endpoint, { method: 'POST', body: JSON.stringify({ name }) }),
 
+    // Fill the gaps (bulk backfill): the census the screen opens with…
+    getBulkOverview: () => request('/bulk/overview'),
+    // …draft the next few missing items of one field (the client loops these up to
+    // the run cap; `exclude` carries the items that already failed this run so a
+    // failing item is never re-picked — and re-paid — by the next batch)…
+    bulkGenerate: (field, limit, exclude = []) =>
+      request('/bulk/generate', {
+        method: 'POST',
+        body: JSON.stringify(exclude.length ? { field, limit, exclude } : { field, limit }),
+      }),
+    // …one page of the review list…
+    getBulkProposals: (field, page = 1) =>
+      request(`/bulk/proposals?field=${encodeURIComponent(field)}&page=${Math.max(1, page | 0)}`),
+    // …and the owner's verdict. No ids = every proposal the field currently holds
+    // ("Use all" / "Dismiss all").
+    bulkApply: (field, ids = []) =>
+      request('/bulk/apply', {
+        method: 'POST',
+        body: JSON.stringify(ids.length ? { field, ids } : { field }),
+      }),
+    bulkReject: (field, ids = []) =>
+      request('/bulk/reject', {
+        method: 'POST',
+        body: JSON.stringify(ids.length ? { field, ids } : { field }),
+      }),
+
     // AI Visibility monitoring.
     getVisibilityConfig: () => request('/visibility/config'),
     saveVisibilityConfig: (config) =>

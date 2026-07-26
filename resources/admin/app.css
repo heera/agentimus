@@ -2216,6 +2216,7 @@ html { scrollbar-gutter: stable; }
 .ar-readiness__refresh:hover:not(:disabled), .ar-log__refresh:hover:not(:disabled) { background: var(--ar-surface-2); color: var(--ar-ink); }
 .ar-readiness__refresh:focus-visible, .ar-log__refresh:focus-visible { outline: 2px solid var(--ar-accent); outline-offset: 2px; }
 .ar-readiness__refresh:disabled, .ar-log__refresh:disabled { cursor: default; opacity: 0.65; }
+.ar-readiness__bulkhint { flex-basis: 100%; margin: 6px 0 0; font-size: 12px; color: var(--ar-ink-soft); }
 .ar-readiness__refresh.is-busy svg, .ar-log__refresh.is-busy svg { animation: ar-spin 0.8s linear infinite; }
 @media (prefers-reduced-motion: reduce) {
   .ar-readiness__refresh.is-busy svg, .ar-log__refresh.is-busy svg { animation: none; }
