@@ -409,4 +409,82 @@ final class GuardTest extends TestCase {
 		$this->assertContains( 'AhrefsBot', ( new Settings() )->get( 'allowed_agents', array() ) );
 		$this->assertFalse( Guard::denies( self::AHREFS ), 'A trusted agent is never blocked, even when on the denylist.' );
 	}
+
+	/* -- Web Bot Auth signatures feed the same deny doctrine -------------- */
+
+	const AGENT_UA = 'SomeAgent/1.0 (+https://agent.example)';
+
+	/** Plant a per-request signature verdict, run the assertion, always clear. */
+	private function with_signature( array $verdict, callable $assertions ): void {
+		\Agentimus\BotSignature::prime_memo( $verdict );
+		try {
+			$assertions();
+		} finally {
+			\Agentimus\BotSignature::prime_memo( null );
+		}
+	}
+
+	public function test_a_conclusively_failed_signature_is_refused_like_any_proven_forgery() {
+		$this->configure( array( 'block_agents' => true, 'verify_bots' => true ) ); // block_spoofed defaults true.
+		$this->with_signature(
+			array( 'state' => 'failed', 'signer' => 'https://evil.example', 'reason' => 'bad math' ),
+			function () {
+				$this->assertTrue( Guard::denies( self::AGENT_UA, true ), 'failed crypto = the same deception class as a spoofed engine' );
+			}
+		);
+	}
+
+	public function test_a_failed_signature_is_inert_while_verification_is_off() {
+		$this->configure( array( 'block_agents' => true ) ); // verify_bots defaults off.
+		$this->with_signature(
+			array( 'state' => 'failed', 'signer' => 'https://evil.example', 'reason' => 'bad math' ),
+			function () {
+				$this->assertFalse( Guard::denies( self::AGENT_UA, true ), 'the signature leg rides the verify_bots switch like every identity check' );
+			}
+		);
+	}
+
+	public function test_an_unsigned_request_is_never_denied_for_being_unsigned() {
+		$this->configure( array( 'block_agents' => true, 'verify_bots' => true ) );
+		$this->with_signature(
+			array( 'state' => 'unsigned', 'signer' => '', 'reason' => '' ),
+			function () {
+				$this->assertFalse( Guard::denies( self::AGENT_UA, true ), 'most crawlers do not sign yet — absence of a signature is never evidence' );
+			}
+		);
+	}
+
+	public function test_a_verified_known_signer_is_exempt_from_the_spoof_heuristic() {
+		// The legacy-device heuristic is an INFERENCE; a verified signature from a
+		// recognised operator is a PROOF. An inference must not outvote a proof.
+		$this->configure( array( 'block_agents' => true, 'verify_bots' => true ) );
+		$this->with_signature(
+			array( 'state' => 'verified', 'signer' => 'https://chatgpt.com', 'reason' => '' ),
+			function () {
+				$this->assertFalse( Guard::denies( self::NOKIA, true ), 'a proven operator is not a "legacy device spoof"' );
+			}
+		);
+	}
+
+	public function test_the_owner_denylist_still_beats_a_verified_signature() {
+		// The 1.24 doctrine, unchanged by cryptography: verification never
+		// overrides an owner rule.
+		$this->configure( array( 'block_agents' => true, 'verify_bots' => true, 'blocked_agents' => array( 'someagent' ) ) );
+		$this->with_signature(
+			array( 'state' => 'verified', 'signer' => 'https://chatgpt.com', 'reason' => '' ),
+			function () {
+				$this->assertTrue( Guard::denies( self::AGENT_UA, true ), 'the owner explicitly blocked this name — the signature does not overrule them' );
+			}
+		);
+	}
+
+	public function test_a_verified_but_unknown_signer_earns_no_standing() {
+		$this->configure( array( 'block_agents' => true, 'verify_bots' => true ) );
+		$this->with_signature(
+			array( 'state' => 'verified', 'signer' => 'https://nobody-knows.example', 'reason' => '' ),
+			function () {
+				$this->assertTrue( Guard::denies( self::NOKIA, true ), 'valid math from an unrecognised origin does not exempt the spoof heuristic' );
+			}
+		);
+	}
 }

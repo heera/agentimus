@@ -117,6 +117,15 @@ final class Recorder {
 		} else {
 			$verdict = self::verdict( $ua );
 		}
+		// A Web Bot Auth signature outranks both claim-based paths: verified math from
+		// a recognised operator is a stronger "1" than any DNS inference, and failed
+		// math is a stronger "2". Unsigned/unknown/indeterminate leaves the claim-based
+		// verdict exactly as it was — most crawlers don't sign yet, and never lose
+		// standing for it.
+		$sig_verdict = self::signature_verdict();
+		if ( 0 !== $sig_verdict ) {
+			$verdict = $sig_verdict;
+		}
 		$is_spoof = Classifier::is_spoof( $ua );
 
 		global $wpdb;
@@ -199,6 +208,25 @@ final class Recorder {
 			return 0;
 		}
 		return self::client_verdict( $ua, Guard::client_ip() );
+	}
+
+	/**
+	 * The current request's Web Bot Auth verdict in activity-table vocabulary:
+	 * 1 = the signature verifies AND the signer is a recognised operator;
+	 * 2 = the signature conclusively fails (a forged claim);
+	 * 0 = everything else — unsigned, unknown signer, or indeterminate — which
+	 * must never override the claim-based verdict either way.
+	 *
+	 * @return int
+	 */
+	private static function signature_verdict() {
+		if ( ! Guard::verification_on() ) {
+			return 0;
+		}
+		if ( \Agentimus\BotSignature::conclusively_failed() ) {
+			return 2;
+		}
+		return '' !== \Agentimus\BotSignature::verified_known_label() ? 1 : 0;
 	}
 
 	/**

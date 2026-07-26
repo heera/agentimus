@@ -96,8 +96,12 @@ final class Guard {
 
 			// 2. The spoofed/legacy-device heuristic — the SAME definition the
 			// activity log labels "Likely spoof/scanner", so blocking and reporting
-			// can never drift apart.
-			if ( ! $deny && $settings->enabled( 'block_spoofed' ) && Classifier::is_spoof( $ua_lc ) ) {
+			// can never drift apart. A request cryptographically proven to come from
+			// a recognised operator (Web Bot Auth) is exempt from this HEURISTIC —
+			// an inference must not outvote a proof — but not from the owner's
+			// explicit denylist above, which already ran.
+			if ( ! $deny && $settings->enabled( 'block_spoofed' ) && Classifier::is_spoof( $ua_lc )
+				&& ! ( self::verification_on() && '' !== BotSignature::verified_known_label() ) ) {
 				$deny = true;
 			}
 
@@ -211,6 +215,13 @@ final class Guard {
 	 * @return bool
 	 */
 	private static function conclusively_forged( $ua_lc ) {
+		// Cheapest and strongest first: a Web Bot Auth signature that conclusively
+		// fails the math is a forged claim in its own right — no IP needed, no
+		// lookup spent. An UNSIGNED request never reaches this branch's true.
+		if ( BotSignature::conclusively_failed() ) {
+			return true;
+		}
+
 		$ip = self::client_ip();
 		if ( '' === $ip ) {
 			return false; // Nothing to check against → inconclusive → fail open.
@@ -247,6 +258,13 @@ final class Guard {
 	 * @return bool
 	 */
 	private static function is_protected( $ua_lc ) {
+		// Deliberately NOT extended to Web Bot Auth verified signers: protection
+		// bypasses even the owner's denylist, and that accident-guard exists for
+		// search engines (an over-broad rule must not de-index the site). A signed
+		// AI agent the owner explicitly blocks stays blocked — verification never
+		// overrides an owner rule (the 1.24 doctrine). Verified signers are instead
+		// exempted from the spoof HEURISTIC in denies(), where a false positive is
+		// ours, not the owner's.
 		return self::is_real_engine( $ua_lc ) || self::owner_allows( $ua_lc );
 	}
 

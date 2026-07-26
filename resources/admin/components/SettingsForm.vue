@@ -2508,10 +2508,12 @@ export default {
             <small>
               When a visitor <em>says</em> it's a bot in the <strong>Verified bots</strong> list below, confirm its
               network address really belongs to that operator — the one check that catches a scanner copying a
-              crawler's name. Two methods, depending on what the operator publishes: <strong>reverse DNS</strong>
-              (Googlebot, Bingbot…) checked live per visitor, and <strong>published IP ranges</strong> (GPTBot,
+              crawler's name. Three methods, depending on what the operator publishes: <strong>reverse DNS</strong>
+              (Googlebot, Bingbot…) checked live per visitor, <strong>published IP ranges</strong> (GPTBot,
               PerplexityBot…) checked against a list refreshed daily in the background — never while serving a page,
-              so an unreachable publisher costs nothing. A confirmed impersonator is flagged for review as an
+              so an unreachable publisher costs nothing — and <strong>cryptographic signatures</strong> (Web Bot
+              Auth): agents that sign their requests, as Google's agent and OpenAI already do, are checked
+              mathematically right on your server, the strongest proof of the three. A confirmed impersonator is flagged for review as an
               <strong>Impersonator</strong>, and opening its <strong>Details</strong> shows the verdict. Works whether
               or not blocking is on; if blocking <em>is</em> on (with the spoofed-agents block), a proven fake is
               refused at the AI endpoints outright.

@@ -61,6 +61,59 @@ final class BotSignature {
 	/** Directory response size cap — a key set is small; megabytes is an attack. */
 	const DIR_MAX_BYTES = 65536;
 
+	/** @var array|null Per-request verdict memo — Guard and the Recorder share one inspection. */
+	private static $memo = null;
+
+	/**
+	 * The current request's verdict, computed once per request. Both consumers
+	 * (Guard on the deny path, the Recorder on the log path) ask; the crypto and
+	 * any directory fetch happen at most once.
+	 *
+	 * @return array{state:string,signer:string,reason:string}
+	 */
+	public static function current() {
+		if ( null === self::$memo ) {
+			self::$memo = self::inspect();
+		}
+		return self::$memo;
+	}
+
+	/**
+	 * Test seam: plant (or with null, clear) the per-request memo.
+	 *
+	 * @internal
+	 * @param array|null $verdict A verdict array, or null to reset.
+	 */
+	public static function prime_memo( $verdict ) {
+		self::$memo = $verdict;
+	}
+
+	/**
+	 * Whether the current request's signature CONCLUSIVELY failed — a forged
+	 * claim, the same deception class as a spoofed engine UA.
+	 *
+	 * @return bool
+	 */
+	public static function conclusively_failed() {
+		return 'failed' === self::current()['state'];
+	}
+
+	/**
+	 * The label of the KNOWN signer this request verifiably came from, or ''.
+	 * Verified-but-unknown origins return '' — the math proved who signed, but
+	 * an identity nobody recognises earns no standing from it.
+	 *
+	 * @return string
+	 */
+	public static function verified_known_label() {
+		$verdict = self::current();
+		if ( 'verified' !== $verdict['state'] ) {
+			return '';
+		}
+		$known = self::known_signers();
+		return isset( $known[ $verdict['signer'] ] ) ? $known[ $verdict['signer'] ] : '';
+	}
+
 	/**
 	 * Inspect the CURRENT request. Thin wrapper over {@see inspect_from()}, which
 	 * carries all the logic and is the test seam.
@@ -191,8 +244,12 @@ final class BotSignature {
 	 * @return array<string,string> origin (lowercase, no trailing slash) => label.
 	 */
 	public static function known_signers() {
+		// Both entries confirmed against LIVE production directories (2026-07-27):
+		// Google documents agent.bot.goog; OpenAI's directory at chatgpt.com even
+		// names itself in its own signature_agent member.
 		$known = array(
 			'https://agent.bot.goog' => 'Google Agent',
+			'https://chatgpt.com'    => 'OpenAI agent',
 		);
 
 		/**
