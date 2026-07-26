@@ -240,11 +240,11 @@ export default {
     // on every row and pushed the useful part off to the right.
     kindMark(e) {
       switch (e.kind) {
-        case 'apppw_created':  return { text: 'key added',   cls: 'is-aa-info' };
-        case 'apppw_used':     return { text: 'key first use', cls: 'is-aa-info' };
-        case 'apppw_renamed':  return { text: 'key renamed', cls: 'is-aa-info' };
-        case 'apppw_deleted':  return { text: 'key revoked', cls: 'is-aa-info' };
-        case 'ability_used':   return { text: 'ability ran', cls: 'is-aa-ok' };
+        case 'apppw_created':  return { text: 'key added',  cls: 'is-aa-info' };
+        case 'apppw_used':     return { text: 'first use',  cls: 'is-aa-info' };
+        case 'apppw_renamed':  return { text: 'renamed',    cls: 'is-aa-info' };
+        case 'apppw_deleted':  return { text: 'revoked',    cls: 'is-aa-info' };
+        case 'ability_used':   return { text: 'ran',        cls: 'is-aa-ok' };
         case 'ability_refused':return { text: 'refused',     cls: 'is-aa-refused' };
         case 'ability_probed': return { text: 'probed',      cls: 'is-aa-refused' };
         default:               return { text: 'event',       cls: 'is-aa-info' };
@@ -350,6 +350,25 @@ export default {
       const d = new Date(iso);
       return Number.isNaN(d.getTime()) ? iso : formatStamp(d);
     },
+    // Two full "July 15, 2026 9:39 pm" stamps per row ate the width that WHO
+    // needed, which is what forced the truncation. Compact here, exact on hover.
+    ago(iso) {
+      const t = Date.parse(iso);
+      if (!t) return '';
+      const mins = Math.round((Date.now() - t) / 60000);
+      if (mins < 1) return 'just now';
+      if (mins < 60) return `${mins}m ago`;
+      const hrs = Math.round(mins / 60);
+      if (hrs < 24) return `${hrs}h ago`;
+      const days = Math.round(hrs / 24);
+      return days < 8 ? `${days}d ago` : this.shortDate(iso);
+    },
+    shortDate(iso) {
+      const d = new Date(iso);
+      if (Number.isNaN(d.getTime())) return iso;
+      // Day + month only; the year lives in the hover with the exact time.
+      return `${d.getDate()} ${['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][d.getMonth()]}`;
+    },
   },
 };
 </script>
@@ -404,7 +423,8 @@ export default {
     <table class="ar-act-table ar-aa__table">
       <thead>
         <tr>
-          <th scope="col">What happened</th>
+          <th scope="col" class="ar-aa__markcol">What</th>
+          <th scope="col">Which</th>
           <th scope="col" class="ar-aa__whocol">Who</th>
           <th scope="col">Used</th>
           <th scope="col">First seen</th>
@@ -413,9 +433,11 @@ export default {
       </thead>
       <tbody>
         <tr v-for="e in events" :key="e.id" :class="{ 'is-unseen': isHighlighted(e), 'is-refusal': isRefusal(e) }">
+          <td class="ar-aa__markcol">
+            <span class="ar-log__mark" :class="kindMark(e).cls">{{ kindMark(e).text }}</span>
+          </td>
           <td>
             <span class="ar-aa__row">
-              <span class="ar-log__mark" :class="kindMark(e).cls">{{ kindMark(e).text }}</span>
               <span
                 class="ar-aa__what"
                 @mouseenter="showUaTip($event, label(e), '')"
@@ -444,8 +466,16 @@ export default {
             >{{ who(e) || 'not recorded' }}</span>
           </td>
           <td>{{ e.hits > 1 ? `${e.hits} times` : 'once' }}</td>
-          <td>{{ when(e.firstSeen) }}</td>
-          <td>{{ when(e.lastSeen) }}</td>
+          <td
+            class="ar-aa__when"
+            @mouseenter="showUaTip($event, when(e.firstSeen), '')"
+            @mouseleave="hideUaTip"
+          >{{ ago(e.firstSeen) }}</td>
+          <td
+            class="ar-aa__when"
+            @mouseenter="showUaTip($event, when(e.lastSeen), '')"
+            @mouseleave="hideUaTip"
+          >{{ ago(e.lastSeen) }}</td>
         </tr>
       </tbody>
     </table>

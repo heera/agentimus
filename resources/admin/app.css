@@ -4103,7 +4103,8 @@ a.ar-about-proto__v:hover { text-decoration: underline; }
    timestamps carry the rest. The event line still never wraps — it ellipsises,
    with the full text one tap away on the mark. */
 @media (max-width: 782px) {
-  .ar-aa__table thead th.ar-aa__whocol { display: none; }
+  .ar-aa__table thead th.ar-aa__whocol, .ar-aa__table thead th.ar-aa__markcol { display: none; }
+  .ar-aa__table td.ar-aa__markcol { width: auto; grid-column: 1 / 2; padding-bottom: 0; }
   .ar-aa__table td.ar-aa__whocol {
     display: block; max-width: none; padding-top: 0; padding-left: 0;
     border-bottom: 0;
@@ -4130,7 +4131,14 @@ a.ar-about-proto__v:hover { text-decoration: underline; }
    line. Rows were 2–3 lines tall and no two the same height. */
 .ar-aa__row { display: flex; align-items: center; gap: 8px; min-width: 0; }
 .ar-aa__row .ar-log__mark { flex: 0 0 auto; }
-.ar-aa__whocol { max-width: 260px; }
+/* The mark gets a fixed column, so every subject below starts at the same x —
+   a ragged left edge was the thing that made the last cut feel unfinished. */
+.ar-aa__markcol { width: 96px; }
+.ar-aa__markcol .ar-log__mark { display: block; width: max-content; }
+/* WHO is no longer squeezed: the two full date stamps used to take the width it
+   needed, so it truncated. With relative dates it fits, and nothing is hidden. */
+.ar-aa__whocol { white-space: nowrap; }
+.ar-aa__when { white-space: nowrap; cursor: help; }
 .ar-aa__noteicon {
   flex: 0 0 auto; width: 15px; height: 15px; padding: 0; border-radius: 50%;
   border: 1px solid var(--ar-line-strong); background: transparent; cursor: help;
@@ -4145,10 +4153,10 @@ a.ar-about-proto__v:hover { text-decoration: underline; }
    rule so the table visibly ends before it. */
 .ar-aa__table tbody tr:last-child td { border-bottom: 1px solid var(--ar-line); }
 .ar-aa__table tr.is-unseen td { background: color-mix(in srgb, var(--ar-accent) 4.5%, transparent); }
-.ar-aa__what { font-weight: 500; color: var(--ar-ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ar-aa__what { font-weight: 500; color: var(--ar-ink); white-space: nowrap; }
 
 /* WHO did it — quieter than the hint sentences, but always present when known. */
-.ar-aa__who { display: block; font-size: 12px; color: var(--ar-ink-soft); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ar-aa__who { display: block; font-size: 12px; color: var(--ar-ink-soft); white-space: nowrap; }
 
 /* The sentence the whole feature exists to deliver: an application password keeps working
    after a password change, so an unrecognised one has to be revoked, not just noted. */
