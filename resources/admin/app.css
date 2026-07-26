@@ -3785,7 +3785,7 @@ a.ar-about-proto__v:hover { text-decoration: underline; }
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 .ar-log .ar-act-table { min-width: 0; }
-.ar-log .ar-act-table td:last-child, .ar-log .ar-act-table th:last-child { text-align: right; padding-right: 10px; }
+.ar-log .ar-act-table td:last-child, .ar-log .ar-act-table th:last-child { text-align: right; padding-right: 10px; width: 24ch; min-width: 24ch; }
 
 .ar-log__filters {
   padding: 14px 16px; margin-bottom: 18px;
@@ -3874,7 +3874,7 @@ a.ar-about-proto__v:hover { text-decoration: underline; }
 .ar-act-table tr.is-refused td { opacity: 0.72; }
 .ar-act-table tr.is-spoofed td { background: color-mix(in srgb, var(--ar-bad) 5%, transparent); }
 
-.ar-log__seen { color: var(--ar-ink-faint); font-family: var(--ar-mono); font-size: 11px; letter-spacing: -0.02em; white-space: nowrap; cursor: help; }
+.ar-log__seen { color: var(--ar-ink-faint); font-family: var(--ar-mono); font-size: 11px; letter-spacing: -0.02em; white-space: nowrap; cursor: help; font-variant-numeric: tabular-nums; }
 
 .ar-log__empty, .ar-log__error {
   padding: 28px 0; color: var(--ar-ink-soft); font-size: 13px; text-align: center;
@@ -4137,7 +4137,14 @@ a.ar-about-proto__v:hover { text-decoration: underline; }
    nothing), exactly how the request log pins its own last column.
    Same mono face, size and tone as the log's "Requested at", so a timestamp
    looks the same wherever it appears. */
-.ar-act-table th.ar-aa__seencol, .ar-act-table td.ar-aa__seencol { text-align: right; white-space: nowrap; }
+/* Fixed width, in ch of the mono face, so both date columns are the SAME width
+   and neither reflows when "9:39 pm" becomes "10:33 pm". tabular-nums keeps the
+   digits themselves on a common grid, so the values line up down the column
+   rather than shimmering row to row. */
+.ar-act-table th.ar-aa__seencol, .ar-act-table td.ar-aa__seencol {
+  text-align: right; white-space: nowrap; width: 24ch; min-width: 24ch;
+  font-variant-numeric: tabular-nums;
+}
 .ar-act-table td.ar-aa__seencol { color: var(--ar-ink-faint); font-family: var(--ar-mono); font-size: 11px; letter-spacing: -0.02em; }
 .ar-act-table th.ar-aa__seencol:last-child, .ar-act-table td.ar-aa__seencol:last-child { padding-right: 10px; }
 
