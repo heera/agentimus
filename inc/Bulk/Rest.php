@@ -73,13 +73,11 @@ final class Rest {
 						'type'     => 'string',
 						'required' => true,
 					),
-					'limit'   => array(
-						'type'              => 'integer',
-						'sanitize_callback' => 'absint',
-					),
-					'exclude' => array(
-						'type'  => 'array',
-						'items' => array( 'type' => 'integer' ),
+					// The exact items to draft — the owner's picks, never a server guess.
+					'ids'   => array(
+						'type'     => 'array',
+						'required' => true,
+						'items'    => array( 'type' => 'integer' ),
 					),
 				),
 			)
@@ -87,10 +85,10 @@ final class Rest {
 
 		register_rest_route(
 			self::NS,
-			'/bulk/proposals',
+			'/bulk/items',
 			array(
 				'methods'             => \WP_REST_Server::READABLE,
-				'callback'            => array( $this, 'proposals' ),
+				'callback'            => array( $this, 'items' ),
 				'permission_callback' => $manage,
 				'args'                => array(
 					'field' => array(
@@ -157,14 +155,14 @@ final class Rest {
 			array(
 				'fields'    => ( new Scanner() )->counts(),
 				'ai'        => Assist::ai_available(),
-				'runCap'    => Scanner::run_cap(),
 				'batchSize' => Scanner::BATCH_SIZE,
+				'pageSize'  => self::PAGE_SIZE,
 			)
 		);
 	}
 
 	/**
-	 * POST /bulk/generate — draft the next few missing items of one field.
+	 * POST /bulk/generate — draft the exact items the owner picked.
 	 *
 	 * @param \WP_REST_Request $request Request.
 	 * @return \WP_REST_Response|\WP_Error
@@ -179,40 +177,41 @@ final class Rest {
 			return new \WP_Error( 'agentimus_ai_unavailable', __( 'No AI provider is configured. Add one under Settings → AI.', 'agentimus' ), array( 'status' => 503 ) );
 		}
 
-		$limit   = $request['limit'] ? (int) $request['limit'] : Scanner::BATCH_SIZE;
-		$exclude = is_array( $request['exclude'] ) ? array_map( 'absint', $request['exclude'] ) : array();
-		$runner  = new Runner( new Assist( $this->settings ), new Scanner() );
-		return rest_ensure_response( $runner->run( $field, $limit, $exclude ) );
+		$ids = is_array( $request['ids'] ) ? $request['ids'] : array();
+		if ( empty( $ids ) ) {
+			return new \WP_Error( 'rest_invalid_param', __( 'Pick at least one item to draft.', 'agentimus' ), array( 'status' => 400 ) );
+		}
+		$runner = new Runner( new Assist( $this->settings ), new Scanner() );
+		return rest_ensure_response( $runner->run( $field, $ids ) );
 	}
 
 	/**
-	 * GET /bulk/proposals — one page of the review list.
+	 * GET /bulk/items — one page of the transparent scan list: every item missing
+	 * this field, with its draft when one is parked.
 	 *
 	 * @param \WP_REST_Request $request Request.
 	 * @return \WP_REST_Response|\WP_Error
 	 */
-	public function proposals( \WP_REST_Request $request ) {
+	public function items( \WP_REST_Request $request ) {
 		$field = (string) $request['field'];
 		$check = $this->usable( $field );
 		if ( is_wp_error( $check ) ) {
 			return $check;
 		}
 
-		$page = max( 1, (int) $request['page'] );
-		$ids  = ( new Scanner() )->proposed_ids( $field );
-		$rows = array();
-		foreach ( array_slice( $ids, ( $page - 1 ) * self::PAGE_SIZE, self::PAGE_SIZE ) as $id ) {
-			$row = Proposals::row( $id, $field );
-			if ( null !== $row ) {
-				$rows[] = $row;
-			}
+		$scanner = new Scanner();
+		$page    = max( 1, (int) $request['page'] );
+		$total   = $scanner->missing_count( $field );
+		$rows    = array();
+		foreach ( $scanner->items_page( $field, $page, self::PAGE_SIZE ) as $id ) {
+			$rows[] = Proposals::item_row( $id, $field );
 		}
 
 		return rest_ensure_response(
 			array(
 				'rows'  => $rows,
-				'total' => count( $ids ),
-				'pages' => (int) ceil( count( $ids ) / self::PAGE_SIZE ),
+				'total' => $total,
+				'pages' => (int) ceil( $total / self::PAGE_SIZE ),
 			)
 		);
 	}

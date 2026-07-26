@@ -330,7 +330,7 @@ export default {
         // Fill the gaps: the bulk draft-review-apply screen for the per-page AI
         // fields. Always listed — with no AI provider it still shows the honest gap
         // counts and says where to connect one.
-        { id: 'fill-gaps', label: 'Fill the gaps' },
+        { id: 'fill-gaps', label: 'Fill The Gaps' },
         // About is reference material, not a working screen — the rule sets it apart.
         { id: 'about', label: 'About Agentimus', divided: true },
       ];
@@ -381,7 +381,7 @@ export default {
             description: 'What agents did on your site — keys created and used, abilities run. A record, not a guard.',
           },
           'fill-gaps': {
-            title: 'Fill the gaps',
+            title: 'Fill The Gaps',
             description: 'Find every page missing its AI description, topics or image alt text — draft them in bulk, then approve each one.',
           },
           visibility: {

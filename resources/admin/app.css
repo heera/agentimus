@@ -2846,7 +2846,8 @@ button.ar-wd-stat:focus-visible { outline: 2px solid var(--ar-accent); outline-o
    check glyph is a clip-path box painted in palette vars, so admin color schemes
    restyle it for free (no hardcoded-color SVG). The ::before overrides WP core's own
    checked-state dashicon; focus clears core's blue box-shadow for our outline. */
-.ar-verreg__check input {
+.ar-verreg__check input,
+.ar-fg__check input {
   appearance: none; -webkit-appearance: none;
   width: 16px; height: 16px; margin: 0; flex: 0 0 auto;
   border: 1px solid var(--ar-line-strong); border-radius: 5px;
@@ -2854,11 +2855,16 @@ button.ar-wd-stat:focus-visible { outline: 2px solid var(--ar-accent); outline-o
   display: inline-grid; place-items: center;
   transition: background 0.12s ease, border-color 0.12s ease;
 }
-.ar-verreg__check input:hover { border-color: var(--ar-accent); }
-.ar-verreg__check input:focus { box-shadow: none; }
-.ar-verreg__check input:focus-visible { outline: 2px solid var(--ar-accent); outline-offset: 1px; }
-.ar-verreg__check input:checked { background: var(--ar-accent); border-color: var(--ar-accent); }
-.ar-verreg__check input:checked::before {
+.ar-verreg__check input:hover,
+.ar-fg__check input:hover { border-color: var(--ar-accent); }
+.ar-verreg__check input:focus,
+.ar-fg__check input:focus { box-shadow: none; }
+.ar-verreg__check input:focus-visible,
+.ar-fg__check input:focus-visible { outline: 2px solid var(--ar-accent); outline-offset: 1px; }
+.ar-verreg__check input:checked,
+.ar-fg__check input:checked { background: var(--ar-accent); border-color: var(--ar-accent); }
+.ar-verreg__check input:checked::before,
+.ar-fg__check input:checked::before {
   content: ''; width: 10px; height: 10px; margin: 0;
   background: var(--ar-surface);
   clip-path: polygon(14% 46%, 0 62%, 38% 100%, 100% 18%, 84% 4%, 36% 68%);

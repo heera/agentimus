@@ -45,18 +45,26 @@ final class Runner {
 	}
 
 	/**
-	 * Draft proposals for the next batch of items missing a field.
+	 * Draft proposals for the EXACT items the owner picked — never a server-side
+	 * guess. Items that already hold a draft, or whose field the author filled
+	 * meanwhile, are skipped silently (nothing to pay for, nothing to overwrite).
 	 *
 	 * @param string        $field   Field id (validated by the caller).
-	 * @param int           $limit   Items this request (clamped to the batch size).
-	 * @param int[]         $exclude Items that already failed this run — never re-picked.
+	 * @param int[]         $ids     The picked post IDs (clamped to the batch size).
 	 * @param callable|null $drafter Test seam: fn( int $id ) → value|WP_Error. Defaults to the Assist draft.
 	 * @return array{generated:array,errors:array,remaining:int,vision:bool}
 	 */
-	public function run( $field, $limit, array $exclude = array(), $drafter = null ) {
-		$limit   = max( 1, min( (int) $limit, Scanner::BATCH_SIZE ) );
+	public function run( $field, array $ids, $drafter = null ) {
 		$drafter = $drafter ? $drafter : $this->drafter( $field );
-		$ids     = $this->scanner->missing_ids( $field, $limit, $exclude );
+		$ids     = array_slice( array_values( array_filter( array_map( 'absint', $ids ) ) ), 0, Scanner::BATCH_SIZE );
+		$ids     = array_values(
+			array_filter(
+				$ids,
+				static function ( $id ) use ( $field ) {
+					return null === Proposals::get( $id, $field ) && ! Proposals::filled( $id, $field );
+				}
+			)
+		);
 
 		// The owner asked for a batch — widen the per-minute spend ceiling for the
 		// duration of this request only, still through the one rate-limited seam.

@@ -150,31 +150,39 @@ final class Proposals {
 	}
 
 	/**
-	 * One review row: everything the screen needs to show a proposal honestly —
-	 * where it lands, what's there now, what's proposed.
+	 * One scan-list row: where it lands, what's there now, and the draft when one
+	 * is parked (`proposed` is null for a not-yet-drafted item — the screen shows
+	 * a Create Draft button there instead of Apply/Dismiss).
 	 *
 	 * @param int    $post_id Post ID.
 	 * @param string $field   Field id.
-	 * @return array|null Null when the proposal vanished (raced away).
+	 * @return array
 	 */
-	public static function row( $post_id, $field ) {
+	public static function item_row( $post_id, $field ) {
 		$post_id = (int) $post_id;
-		$value   = self::get( $post_id, $field );
-		if ( null === $value ) {
-			return null;
-		}
-
-		$row = array(
+		$row     = array(
 			'id'       => $post_id,
 			'title'    => (string) get_the_title( $post_id ),
 			'editLink' => (string) get_edit_post_link( $post_id, 'raw' ),
 			'current'  => self::current( $post_id, $field ),
-			'proposed' => $value,
+			'proposed' => self::get( $post_id, $field ),
 		);
 		if ( 'alt' === $field ) {
 			$thumb = wp_get_attachment_image_url( $post_id, 'thumbnail' );
 			$row['thumb'] = $thumb ? (string) $thumb : '';
 		}
 		return $row;
+	}
+
+	/**
+	 * One review row — an {@see item_row()} that must carry a draft.
+	 *
+	 * @param int    $post_id Post ID.
+	 * @param string $field   Field id.
+	 * @return array|null Null when no proposal is parked (raced away).
+	 */
+	public static function row( $post_id, $field ) {
+		$row = self::item_row( $post_id, $field );
+		return null === $row['proposed'] ? null : $row;
 	}
 }

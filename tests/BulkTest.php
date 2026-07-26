@@ -139,13 +139,11 @@ final class BulkTest extends TestCase {
 	public function test_run_parks_a_proposal_per_item_and_reports_remaining() {
 		$this->fixture( 5 );
 		$this->fixture( 7 );
-		$GLOBALS['_af_db_col'] = array( 5, 7 ); // The scanner's "next missing" pick.
-		$GLOBALS['_af_db_var'] = 12;            // The census after the run.
+		$GLOBALS['_af_db_var'] = 12; // The census after the run.
 
 		$result = $this->runner()->run(
 			'description',
-			2,
-			array(),
+			array( 5, 7 ),
 			static function ( $id ) {
 				return 'Draft for ' . $id;
 			}
@@ -162,12 +160,9 @@ final class BulkTest extends TestCase {
 	public function test_one_failing_item_is_an_error_entry_not_the_end_of_the_run() {
 		$this->fixture( 5 );
 		$this->fixture( 7 );
-		$GLOBALS['_af_db_col'] = array( 5, 7 );
-
 		$result = $this->runner()->run(
 			'description',
-			2,
-			array(),
+			array( 5, 7 ),
 			static function ( $id ) {
 				return 5 === $id
 					? new \WP_Error( 'agentimus_thin', 'Too little content.' )
@@ -185,13 +180,10 @@ final class BulkTest extends TestCase {
 	public function test_no_vision_stops_the_alt_run_after_the_first_miss() {
 		$this->fixture( 9, array( 'post_type' => 'attachment' ) );
 		$this->fixture( 11, array( 'post_type' => 'attachment' ) );
-		$GLOBALS['_af_db_col'] = array( 9, 11 );
-
 		$calls  = 0;
 		$result = $this->runner()->run(
 			'alt',
-			2,
-			array(),
+			array( 9, 11 ),
 			static function () use ( &$calls ) {
 				$calls++;
 				return new \WP_Error( 'agentimus_ai_no_vision', 'No vision model.' );
@@ -206,13 +198,10 @@ final class BulkTest extends TestCase {
 
 	public function test_run_widens_the_rate_budget_only_for_its_own_duration() {
 		$this->fixture( 5 );
-		$GLOBALS['_af_db_col'] = array( 5 );
-
 		$seen = null;
 		$this->runner()->run(
 			'description',
-			1,
-			array(),
+			array( 5 ),
 			static function () use ( &$seen ) {
 				$seen = apply_filters( 'agentimus_assist_rate_max', 20 );
 				return 'Draft.';
@@ -221,6 +210,50 @@ final class BulkTest extends TestCase {
 
 		$this->assertSame( Runner::BULK_RATE_MAX, $seen, 'inside the run, the bulk budget rides the Assist filter' );
 		$this->assertSame( 20, apply_filters( 'agentimus_assist_rate_max', 20 ), 'after the run, the button budget is back' );
+	}
+
+	public function test_run_never_redrafts_or_overwrites() {
+		$this->fixture( 5 );
+		$this->fixture( 7 );
+		$this->fixture( 8 );
+		Proposals::save( 5, 'description', 'Already drafted.' );          // holds a draft
+		update_post_meta( 7, Description::META, 'Author filled it.' );    // author beat us
+
+		$calls = array();
+		$this->runner()->run(
+			'description',
+			array( 5, 7, 8 ),
+			static function ( $id ) use ( &$calls ) {
+				$calls[] = $id;
+				return 'Draft for ' . $id;
+			}
+		);
+
+		// Only the genuinely undrafted, unfilled item cost a call.
+		$this->assertSame( array( 8 ), $calls );
+		$this->assertSame( 'Already drafted.', Proposals::get( 5, 'description' ) );
+	}
+
+	public function test_item_row_carries_null_proposed_before_drafting() {
+		$this->fixture( 5, array( 'post_title' => 'Bare page' ) );
+
+		$row = Proposals::item_row( 5, 'description' );
+		$this->assertSame( 'Bare page', $row['title'] );
+		$this->assertNull( $row['proposed'] );
+
+		Proposals::save( 5, 'description', 'Now drafted.' );
+		$this->assertSame( 'Now drafted.', Proposals::item_row( 5, 'description' )['proposed'] );
+	}
+
+	public function test_items_page_lists_drafted_and_undrafted_alike() {
+		$GLOBALS['_af_db_col'] = array();
+		( new Scanner() )->items_page( 'description', 2, 20 );
+
+		$sql = end( $GLOBALS['wpdb']->queries );
+		$this->assertStringContainsString( 'LIMIT 20 OFFSET 20', $sql );
+		$this->assertStringContainsString( 'ORDER BY p.post_modified DESC', $sql );
+		// The transparent scan list must NOT hide items that already hold a draft.
+		$this->assertStringNotContainsString( Proposals::meta_key( 'description' ), $sql );
 	}
 
 	/* ---------------------------------------------------------------- *

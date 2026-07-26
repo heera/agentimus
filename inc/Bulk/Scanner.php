@@ -139,6 +139,29 @@ final class Scanner {
 	}
 
 	/**
+	 * One page of EVERY item missing a field — drafted or not (a draft doesn't fill
+	 * the live field; only Apply does). This is the transparent scan list the screen
+	 * shows: the owner sees exactly which pages are missing what before a single AI
+	 * request exists. Most recently modified first, like the draft picks.
+	 *
+	 * @param string $field    Field id.
+	 * @param int    $page     1-based page.
+	 * @param int    $per_page Rows per page.
+	 * @return int[]
+	 */
+	public function items_page( $field, $page, $per_page ) {
+		global $wpdb;
+		$per_page = max( 1, (int) $per_page );
+		$offset   = ( max( 1, (int) $page ) - 1 ) * $per_page;
+
+		$sql = ( 'alt' === $field )
+			? $this->alt_sql( 'a.ID' ) . ' ORDER BY a.post_modified DESC LIMIT %d OFFSET %d'
+			: $this->post_sql( 'p.ID', $field ) . ' ORDER BY p.post_modified DESC LIMIT %d OFFSET %d';
+
+		return array_map( 'intval', (array) $wpdb->get_col( $wpdb->prepare( $sql, $per_page, $offset ) ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- built from literals + prepared IN list.
+	}
+
+	/**
 	 * How many items are missing a field, site-wide.
 	 *
 	 * @param string $field Field id.
