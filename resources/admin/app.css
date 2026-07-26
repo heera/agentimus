@@ -4097,6 +4097,16 @@ a.ar-about-proto__v:hover { text-decoration: underline; }
 /* On a phone the four columns exceed the card: scroll the table inside its own box
    rather than letting it widen (or get clipped by) the page — columns stay reachable. */
 .ar-aa__tablewrap { overflow-x: auto; margin: 0 0 16px; min-width: 0; }
+/* Phones: a five-column security record is unreadable sideways, so WHO folds
+   back under the event — the only place a second line is worth its height. */
+@media (max-width: 782px) {
+  .ar-aa__table thead th:nth-child(2) { display: none; }
+  .ar-aa__table td.ar-aa__whocol { display: block; padding-top: 0; padding-left: 0; border-bottom: 0; white-space: normal; }
+  .ar-aa__table td:first-child { padding-bottom: 2px; white-space: normal; }
+  .ar-aa__table tr { display: grid; grid-template-columns: 1fr auto auto; align-items: baseline; padding: 8px 0; border-bottom: 1px solid var(--ar-line); }
+  .ar-aa__table td { border-bottom: 0; }
+  .ar-aa__table td:first-child, .ar-aa__table td.ar-aa__whocol { grid-column: 1 / -1; }
+}
 /* The access log wears the Request Log's table dress (.ar-act-table on the same
    element), so the two logs read and behave as one family — same header band, same
    cell rhythm, same sideways scroll on narrow screens instead of crushed columns.
@@ -4105,7 +4115,7 @@ a.ar-about-proto__v:hover { text-decoration: underline; }
    and multi-line rows align to the top. */
 .ar-aa__table { width: 100%; border-collapse: collapse; margin: 0; }
 .ar-aa__table td { font-size: 13px; color: var(--ar-ink-soft); border-bottom: 1px solid var(--ar-line); vertical-align: top; }
-.ar-aa__table td:first-child { white-space: normal; min-width: 340px; }
+.ar-aa__table td:first-child { white-space: nowrap; min-width: 0; }
 /* The third line, folded into a marker on the who line: same words, one hover
    away, and every row is two lines tall whatever the event. */
 .ar-aa__noteicon {
@@ -4125,7 +4135,12 @@ a.ar-about-proto__v:hover { text-decoration: underline; }
 .ar-aa__what { display: block; font-weight: 500; color: var(--ar-ink); }
 
 /* WHO did it — quieter than the hint sentences, but always present when known. */
-.ar-aa__who { display: inline; margin-top: 2px; font-size: 12px; color: var(--ar-ink-soft); }
+/* WHO has its own column now, so the row is a single line. Never truncated —
+   hiding "app password (since revoked)" hides the part that matters; if a value
+   is genuinely long the table scrolls, which at least keeps it readable. */
+.ar-aa__who { font-size: 12px; color: var(--ar-ink-soft); }
+.ar-aa__who--none { opacity: 0.6; }
+.ar-aa__whocol { white-space: nowrap; }
 
 /* The sentence the whole feature exists to deliver: an application password keeps working
    after a password change, so an unrecognised one has to be revoked, not just noted. */

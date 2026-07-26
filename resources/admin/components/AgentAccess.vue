@@ -383,6 +383,7 @@ export default {
       <thead>
         <tr>
           <th scope="col">What happened</th>
+          <th scope="col">Who</th>
           <th scope="col">Used</th>
           <th scope="col">First seen at</th>
           <th scope="col">Last seen at</th>
@@ -398,11 +399,12 @@ export default {
                    arrived with. -->
               <span v-if="isHighlighted(e)" class="ar-aa__new">New</span>
             </span>
-            <!-- WHO did it — the question the row exists to answer. -->
+          </td>
+          <!-- WHO gets its own column, so every row is a single line. The advisory
+               that would otherwise be a third line rides here as a marker. -->
+          <td class="ar-aa__whocol">
             <span v-if="who(e)" class="ar-aa__who">{{ who(e) }}</span>
-            <!-- The advisories used to be a THIRD line, which made rows uneven and long.
-                 Same words, same place in the row, now behind a marker on the who line —
-                 two lines tall, whatever the event. -->
+            <span v-else class="ar-aa__who ar-aa__who--none">not recorded</span>
             <button
               v-if="note(e)"
               type="button"
