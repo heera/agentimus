@@ -366,10 +366,6 @@ export default {
     isHighlighted(e) {
       return !e.seen || this.highlighted.includes(e.id);
     },
-    // True when the event happened once, so the two stamps are the same moment.
-    sameSeen(e) {
-      return !e.firstSeen || !e.lastSeen || e.firstSeen === e.lastSeen;
-    },
     when(iso) {
       if (!iso) return '';
       const d = new Date(iso);
@@ -432,7 +428,8 @@ export default {
           <th scope="col">What happened</th>
           <th scope="col">Who</th>
           <th scope="col">Used</th>
-          <th scope="col" class="ar-aa__seencol">Seen at</th>
+          <th scope="col" class="ar-aa__seencol">First seen at</th>
+          <th scope="col" class="ar-aa__seencol">Last seen at</th>
         </tr>
       </thead>
       <tbody>
@@ -482,14 +479,12 @@ export default {
             <span v-else class="ar-aa__who ar-aa__who--none">not recorded</span>
           </td>
           <td>{{ e.hits > 1 ? `${e.hits} times` : 'once' }}</td>
-          <!-- One column: the moment it last happened, plus — only when the event
-               actually repeated — the moment it started. On a row that happened
-               once, first and last are the same date, and printing it twice tells
-               the reader nothing twice. -->
-          <td class="ar-aa__seencol">
-            {{ when(e.lastSeen) }}
-            <span v-if="!sameSeen(e)" class="ar-aa__firstseen">first: {{ when(e.firstSeen) }}</span>
-          </td>
+          <!-- Two columns, one line each. Merging them into one cell put a second
+               line on the rows that repeated and left the rest with one, which is
+               the uneven-row problem this table already had once. Even columns
+               scan; ragged ones don't. -->
+          <td class="ar-aa__seencol">{{ when(e.firstSeen) }}</td>
+          <td class="ar-aa__seencol">{{ when(e.lastSeen) }}</td>
         </tr>
       </tbody>
     </table>
