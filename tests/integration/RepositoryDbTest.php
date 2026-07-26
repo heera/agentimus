@@ -39,6 +39,87 @@ final class RepositoryDbTest extends DbTestCase {
 		return (int) $wpdb->get_var( 'SELECT COUNT(*) FROM ' . Table::name() );
 	}
 
+	/** A request that was turned away at the door — recorded, never served. */
+	private function refusal( $endpoint, $agent, $ua, $verdict = 2, $signer = 'chatgpt.com' ) {
+		global $wpdb;
+		$wpdb->insert(
+			Table::name(),
+			array(
+				'endpoint' => $endpoint,
+				'agent'    => $agent,
+				'ua'       => $ua,
+				'verdict'  => $verdict,
+				'signer'   => $signer,
+				'refused'  => 1,
+				'hit_at'   => gmdate( 'Y-m-d H:i:s' ),
+			),
+			array( '%s', '%s', '%s', '%d', '%s', '%d', '%s' )
+		);
+	}
+
+	/* -- Refusals are recorded but never counted as reads ------------------ */
+
+	public function test_a_refusal_never_inflates_any_read_total() {
+		$this->hit( 'llms.txt', 'GPTBot', 'GPTBot/1.0' );
+		$this->refusal( 'llms.txt', 'GPTBot', 'Mozilla/5.0 (compatible; GPTBot/1.1; +https://openai.com/gptbot)' );
+
+		$stats = Repository::stats( new Settings() );
+
+		// Two rows exist; exactly one of them was READ. Every surface that answers
+		// "what did agents fetch" must say one — the log's whole promise.
+		$this->assertSame( 2, $this->row_count(), 'the refusal is stored' );
+		$this->assertSame( 1, $stats['totals']['today'], 'today counts reads only' );
+
+		$endpoints = array();
+		foreach ( $stats['byEndpoint'] as $r ) {
+			$endpoints[ $r['label'] ] = $r['hits'];
+		}
+		$this->assertSame( 1, $endpoints['llms.txt'], 'by-endpoint counts reads only' );
+
+		$agents = array();
+		foreach ( $stats['byAgent'] as $r ) {
+			$agents[ $r['label'] ] = $r['hits'];
+		}
+		$this->assertSame( 1, $agents['GPTBot'], 'top clients count reads only' );
+	}
+
+	public function test_the_log_shows_a_refusal_and_marks_it() {
+		$this->refusal( 'llms.txt', 'GPTBot', 'Mozilla/5.0 (compatible; GPTBot/1.1; +https://openai.com/gptbot)' );
+
+		$log = Repository::log( array() );
+
+		$this->assertCount( 1, $log['rows'], 'a refused request is not erased from history' );
+		$this->assertTrue( $log['rows'][0]['refused'], 'and it is unmistakably marked' );
+		$this->assertSame( 'chatgpt.com', $log['rows'][0]['signer'] );
+	}
+
+	public function test_the_log_can_be_filtered_to_refusals_only() {
+		$this->hit( 'llms.txt', 'GPTBot', 'GPTBot/1.0' );
+		$this->refusal( 'llms.txt', 'GPTBot', 'Mozilla/5.0 (compatible; GPTBot/1.1; +https://openai.com/gptbot)' );
+
+		$only = Repository::log( array( 'verdict' => 'refused' ) );
+
+		$this->assertSame( 1, $only['total'] );
+		$this->assertTrue( $only['rows'][0]['refused'] );
+	}
+
+	public function test_a_refused_impostor_still_reaches_the_review_queue() {
+		// The whole point: enforcement must not swallow the owner's security signal.
+		$this->refusal( 'llms.txt', 'GPTBot', 'Mozilla/5.0 (compatible; GPTBot/1.1; +https://openai.com/gptbot)' );
+
+		$threats = Repository::threats( new Settings() );
+
+		$found = null;
+		foreach ( (array) $threats['sources'] as $s ) {
+			if ( false !== stripos( $s['ua'], 'gptbot' ) ) {
+				$found = $s;
+			}
+		}
+		$this->assertNotNull( $found, 'a refused impostor is still reported to the owner' );
+		$this->assertSame( 'spoofed', $found['verdict'] );
+		$this->assertTrue( $found['refused'], 'and the card can say it was turned away' );
+	}
+
 	/* -- Dashboard aggregates -------------------------------------------- */
 
 	public function test_stats_totals_and_group_counts() {

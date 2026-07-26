@@ -514,9 +514,24 @@ final class Guard {
 	 * emit with a single leading call. Mirrors the HEAD handling of the real
 	 * emitters (headers, no body).
 	 */
-	public static function maybe_block() {
+	public static function maybe_block( $endpoint = '' ) {
 		if ( ! self::denies() ) {
 			return;
+		}
+
+		// Keep the record of a PROVEN IMPOSTOR even though we're refusing it. The
+		// log stays honest — the row is marked refused and counts toward no read
+		// total — but the owner still learns that someone impersonated a crawler
+		// here and was turned away. Without this, turning enforcement ON made the
+		// site's own security signal disappear: the queue and the weekly digest
+		// could only ever report zero impostors, because a refused request was
+		// never written down. Scoped to identity proof only; an ordinary denylist
+		// block is a rule the owner wrote and doesn't need reporting back.
+		if ( '' !== $endpoint ) {
+			$ua_lc = isset( $_SERVER['HTTP_USER_AGENT'] ) ? strtolower( sanitize_text_field( wp_unslash( $_SERVER['HTTP_USER_AGENT'] ) ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification -- read-only UA check on a public endpoint.
+			if ( self::verification_on() && '' !== $ua_lc && self::conclusively_forged( $ua_lc ) ) {
+				\Agentimus\Activity\Recorder::record_refusal( $endpoint );
+			}
 		}
 		if ( ! headers_sent() ) {
 			status_header( 403 );

@@ -192,14 +192,13 @@ export default {
       // out. Strongest signal on this screen — no inference, no IP, no doubt — so
       // it gets its own card ahead of the address-based verdicts below.
       if ('spoofed' === s.verdict && s.signer) {
-        const enforced = this.threats.blockingOn && this.threats.blockSpoofed;
         return {
           tone: 'danger',
           icon: 'x',
-          state: 'Forged signature',
+          state: s.refused ? 'Forged signature — turned away' : 'Forged signature',
           why: `It signed its request as ${s.signer} — but the signature didn’t match ${s.signer}’s published key. Only the real operator can produce a valid one.`,
-          recommend: enforced
-            ? 'Already refused at this site’s AI endpoints. Nothing else to do — a forgery can’t be faked past this check.'
+          recommend: s.refused
+            ? 'It got nothing: every attempt was refused before your content was served. Listed here so you know it happened — no action needed.'
             : 'Turn on blocking (with the spoofed-agents rule) and this is refused automatically.',
         };
       }

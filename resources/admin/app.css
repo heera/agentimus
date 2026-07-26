@@ -3848,6 +3848,16 @@ a.ar-about-proto__v:hover { text-decoration: underline; }
 /* A signature-backed verdict earns a filled badge — proof reads stronger than
    inference at a glance, in both directions (proven agent / proven forgery). */
 .ar-log__verdict.is-signed { cursor: help; }
+/* "Refused" is an OUTCOME, not a verdict — a filled danger chip so it can never
+   be skim-read as one more verification state, plus a dimmed row so the eye
+   groups refusals apart from the reads around them. */
+.ar-log__refused {
+  display: inline-block; margin-left: 6px; padding: 1px 7px; border-radius: 999px;
+  font-family: var(--ar-mono); font-size: 10px; letter-spacing: 0.06em; text-transform: uppercase;
+  color: var(--ar-paper); background: color-mix(in srgb, var(--ar-bad) 82%, var(--ar-ink));
+  cursor: help; vertical-align: middle;
+}
+.ar-log__table tr.is-refused td { opacity: 0.72; }
 .ar-log__verdict.is-verified.is-signed { background: color-mix(in srgb, var(--ar-good) 12%, transparent); border-color: color-mix(in srgb, var(--ar-good) 55%, var(--ar-line)); }
 .ar-log__verdict.is-spoofed.is-signed  { background: color-mix(in srgb, var(--ar-bad) 12%, transparent);  border-color: color-mix(in srgb, var(--ar-bad) 55%, var(--ar-line)); }
 .ar-act-table tr.is-spoofed td { background: color-mix(in srgb, var(--ar-bad) 5%, transparent); }

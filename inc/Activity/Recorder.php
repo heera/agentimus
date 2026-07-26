@@ -62,7 +62,33 @@ final class Recorder {
 	 *
 	 * @param string $endpoint Short endpoint label (e.g. "discovery.json").
 	 */
-	public static function record( $endpoint ) {
+	/**
+	 * Record a request that was TURNED AWAY at the door, never served.
+	 *
+	 * The log's promise is "what agents fetched", so a refusal must never be
+	 * mistaken for a read: these rows carry `refused = 1` and are excluded from
+	 * every read total (hits per day, by endpoint, top clients). What they DO
+	 * feed is the record the owner actually wants — the review queue and the
+	 * weekly digest — because "someone impersonated OpenAI on your site and was
+	 * refused" is exactly the event enforcement used to swallow in silence.
+	 *
+	 * Deliberately narrow: only PROVEN-IDENTITY refusals (a forged signature, or
+	 * a claimed crawler whose operator's own check says it isn't). An ordinary
+	 * denylist block is a rule the owner already knows about, and logging a
+	 * blocked scanner's every retry would bury the signal in noise.
+	 *
+	 * @param string $endpoint Endpoint label the client tried to fetch.
+	 * @return void
+	 */
+	public static function record_refusal( $endpoint ) {
+		self::record( $endpoint, true );
+	}
+
+	/**
+	 * @param string $endpoint Endpoint label.
+	 * @param bool   $refused  True when the request was refused, not served.
+	 */
+	public static function record( $endpoint, $refused = false ) {
 		if ( ! self::enabled() ) {
 			return;
 		}
@@ -140,9 +166,10 @@ final class Recorder {
 				'verdict'  => $verdict,
 				'network'  => substr( $network, 0, 128 ),
 				'signer'   => substr( $signer, 0, 64 ),
+				'refused'  => $refused ? 1 : 0,
 				'hit_at'   => current_time( 'mysql', true ), // GMT.
 			),
-			array( '%s', '%s', '%s', '%d', '%s', '%s', '%s' )
+			array( '%s', '%s', '%s', '%d', '%s', '%s', '%d', '%s' )
 		);
 
 		// OPT-IN, minimised IP capture. Only when the owner turned it on, and only for a

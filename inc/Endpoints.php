@@ -356,7 +356,9 @@ final class Endpoints {
 		// Optional hard enforcement (opt-in): deny denylisted/spoofed agents before
 		// we serve — and before we record a hit, so a blocked request never appears
 		// in the log as though it were served.
-		Guard::maybe_block();
+		// The label rides along so a PROVEN-IMPOSTOR refusal can be recorded as
+		// refused (never as a read) — see Guard::maybe_block().
+		Guard::maybe_block( $label );
 		if ( '' !== $label ) {
 			\Agentimus\Activity\Recorder::record( $label );
 		}

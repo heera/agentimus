@@ -369,7 +369,7 @@ export default {
           },
           log: {
             title: 'Request Log',
-            description: 'Every request an agent made — filter by client and endpoint to see exactly what one bot fetched.',
+            description: 'Every request an agent made — filter by client and endpoint to see exactly what one bot fetched. Anything marked “refused” was turned away, not served.',
           },
           'agent-access': {
             title: 'Agent Access',

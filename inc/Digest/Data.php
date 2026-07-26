@@ -117,8 +117,12 @@ final class Data {
 		$table = Table::name();
 		// phpcs:disable WordPress.DB, PluginCheck.Security.DirectDB.UnescapedDBParameter -- $table is our own prefix-derived table name; every value is bound via prepare().
 		if ( null === $verdict ) {
-			return (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM $table WHERE hit_at >= %s AND hit_at < %s", $from, $to ) );
+			// Reads only — a refused request fetched nothing, so it must never inflate
+			// "agent visits" in the owner's weekly note.
+			return (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM $table WHERE refused = 0 AND hit_at >= %s AND hit_at < %s", $from, $to ) );
 		}
+		// Verdict counts (the impostor line) deliberately COUNT refusals too: a
+		// forgery turned away is exactly what that section is reporting.
 		return (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM $table WHERE hit_at >= %s AND hit_at < %s AND verdict = %d", $from, $to, $verdict ) );
 		// phpcs:enable WordPress.DB, PluginCheck.Security.DirectDB.UnescapedDBParameter
 	}
@@ -128,7 +132,7 @@ final class Data {
 		global $wpdb;
 		$table = Table::name();
 		$rows  = $wpdb->get_results( // phpcs:ignore WordPress.DB, PluginCheck.Security.DirectDB.UnescapedDBParameter -- $table is our own prefix-derived table name; every value is bound via prepare().
-			$wpdb->prepare( "SELECT agent AS label, COUNT(*) AS hits FROM $table WHERE hit_at >= %s AND hit_at < %s GROUP BY agent ORDER BY hits DESC LIMIT %d", $from, $to, $limit ),
+			$wpdb->prepare( "SELECT agent AS label, COUNT(*) AS hits FROM $table WHERE refused = 0 AND hit_at >= %s AND hit_at < %s GROUP BY agent ORDER BY hits DESC LIMIT %d", $from, $to, $limit ),
 			ARRAY_A
 		);
 		return array_map(

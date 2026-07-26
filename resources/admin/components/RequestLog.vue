@@ -79,6 +79,7 @@ export default {
         { value: '1', label: 'Verified' },
         { value: '2', label: 'Spoofed' },
         { value: '0', label: 'Unchecked' },
+        { value: 'refused', label: 'Refused (not served)' },
       ];
     },
     pageFrom() {
@@ -301,7 +302,7 @@ export default {
             </tr>
           </thead>
           <tbody>
-            <tr v-for="(r, i) in rows" :key="i" :class="{ 'is-spoofed': r.verdict === 2 }">
+            <tr v-for="(r, i) in rows" :key="i" :class="{ 'is-spoofed': r.verdict === 2, 'is-refused': r.refused }">
               <td class="ar-act-table__agent">
                 <button
                   type="button"
@@ -319,6 +320,15 @@ export default {
                   @mouseleave="hideUaTip"
                 >
                   {{ r.signer ? (r.verdict === 1 ? 'signed' : 'bad signature') : verdictLabel(r.verdict) }}
+                </span>
+                <!-- The one thing this row must never be mistaken for is a read. -->
+                <span
+                  v-if="r.refused"
+                  class="ar-log__refused"
+                  @mouseenter="showUaTip($event, 'Turned away — this request was refused, not served. It counts toward none of your read totals.', '')"
+                  @mouseleave="hideUaTip"
+                >
+                  refused
                 </span>
               </td>
               <td>

@@ -175,7 +175,7 @@ final class Repository {
 				'week'   => self::count_since( $week ),
 				'month'  => self::count_since( $month ),
 				'all'    => (int) $wpdb->get_var( "SELECT COUNT(*) FROM $table" ), // phpcs:ignore WordPress.DB, PluginCheck.Security.DirectDB.UnescapedDBParameter -- $table is our own prefix-derived table name (not user input); SQL identifiers can't be bound via prepare().
-				'agents' => (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(DISTINCT agent) FROM $table WHERE hit_at >= %s", $month ) ), // phpcs:ignore WordPress.DB, PluginCheck.Security.DirectDB.UnescapedDBParameter -- $table is our own prefix-derived table name; the value is bound via prepare().
+				'agents' => (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(DISTINCT agent) FROM $table WHERE refused = 0 AND hit_at >= %s", $month ) ), // phpcs:ignore WordPress.DB, PluginCheck.Security.DirectDB.UnescapedDBParameter -- $table is our own prefix-derived table name; the value is bound via prepare().
 			),
 			// Rows in each breakdown are filterable (a site may want more or fewer),
 			// clamped to a sane 1–200: agentimus_activity_{clients,endpoints}_limit.
@@ -200,7 +200,7 @@ final class Repository {
 	private static function count_since( $threshold ) {
 		global $wpdb;
 		$table = Table::name();
-		return (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM $table WHERE hit_at >= %s", $threshold ) ); // phpcs:ignore WordPress.DB, PluginCheck.Security.DirectDB.UnescapedDBParameter -- $table is our own prefix-derived table name; the value is bound via prepare().
+		return (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM $table WHERE refused = 0 AND hit_at >= %s", $threshold ) ); // phpcs:ignore WordPress.DB, PluginCheck.Security.DirectDB.UnescapedDBParameter -- $table is our own prefix-derived table name; the value is bound via prepare().
 	}
 
 	/**
@@ -226,13 +226,13 @@ final class Repository {
 
 		// phpcs:disable WordPress.DB, PluginCheck.Security.DirectDB.UnescapedDBParameter -- $table is our own prefix-derived table and $column is whitelisted just above; SQL identifiers can't be bound via prepare(), only the values ($since/$start/$limit), which are.
 		$rows        = $wpdb->get_results(
-			$wpdb->prepare( "SELECT $column AS label, COUNT(*) AS hits FROM $table WHERE hit_at >= %s GROUP BY $column ORDER BY hits DESC LIMIT %d", $since, $limit ),
+			$wpdb->prepare( "SELECT $column AS label, COUNT(*) AS hits FROM $table WHERE refused = 0 AND hit_at >= %s GROUP BY $column ORDER BY hits DESC LIMIT %d", $since, $limit ),
 			ARRAY_A
 		);
 		// One bounded pass (distinct labels x days) for every label's per-day counts; the
 		// top-N are picked out below, aligned to a gap-filled day list.
 		$series_rows = $wpdb->get_results(
-			$wpdb->prepare( "SELECT $column AS label, DATE(hit_at) AS d, COUNT(*) AS c FROM $table WHERE hit_at >= %s GROUP BY $column, DATE(hit_at)", $start ),
+			$wpdb->prepare( "SELECT $column AS label, DATE(hit_at) AS d, COUNT(*) AS c FROM $table WHERE refused = 0 AND hit_at >= %s GROUP BY $column, DATE(hit_at)", $start ),
 			ARRAY_A
 		);
 		// phpcs:enable WordPress.DB, PluginCheck.Security.DirectDB.UnescapedDBParameter
@@ -327,18 +327,18 @@ final class Repository {
 
 		// phpcs:disable WordPress.DB, PluginCheck.Security.DirectDB.UnescapedDBParameter -- $table is our own prefix-derived table name; the value ($since) is bound via prepare().
 		$rows = $wpdb->get_results(
-			$wpdb->prepare( "SELECT DATE(hit_at) AS d, COUNT(*) AS c FROM $table WHERE hit_at >= %s GROUP BY DATE(hit_at)", $since ),
+			$wpdb->prepare( "SELECT DATE(hit_at) AS d, COUNT(*) AS c FROM $table WHERE refused = 0 AND hit_at >= %s GROUP BY DATE(hit_at)", $since ),
 			OBJECT_K
 		);
 		// Per-day breakdowns, each ordered by count DESC across all days — so the
 		// first rows bucketed into a given day are that day's busiest (a global
 		// DESC sort preserves the order within each day's subgroup too).
 		$client_rows   = $wpdb->get_results(
-			$wpdb->prepare( "SELECT DATE(hit_at) AS d, agent AS label, COUNT(*) AS c FROM $table WHERE hit_at >= %s GROUP BY DATE(hit_at), agent ORDER BY c DESC", $since ),
+			$wpdb->prepare( "SELECT DATE(hit_at) AS d, agent AS label, COUNT(*) AS c FROM $table WHERE refused = 0 AND hit_at >= %s GROUP BY DATE(hit_at), agent ORDER BY c DESC", $since ),
 			ARRAY_A
 		);
 		$endpoint_rows = $wpdb->get_results(
-			$wpdb->prepare( "SELECT DATE(hit_at) AS d, endpoint AS label, COUNT(*) AS c FROM $table WHERE hit_at >= %s GROUP BY DATE(hit_at), endpoint ORDER BY c DESC", $since ),
+			$wpdb->prepare( "SELECT DATE(hit_at) AS d, endpoint AS label, COUNT(*) AS c FROM $table WHERE refused = 0 AND hit_at >= %s GROUP BY DATE(hit_at), endpoint ORDER BY c DESC", $since ),
 			ARRAY_A
 		);
 		// phpcs:enable WordPress.DB, PluginCheck.Security.DirectDB.UnescapedDBParameter
@@ -398,7 +398,7 @@ final class Repository {
 		$table = Table::name();
 		// phpcs:disable WordPress.DB, PluginCheck.Security.DirectDB.UnescapedDBParameter -- $table is our own prefix-derived table name; the value ($limit) is bound via prepare().
 		$rows  = $wpdb->get_results(
-			$wpdb->prepare( "SELECT endpoint, agent, ua, network, verdict, hit_at FROM $table ORDER BY id DESC LIMIT %d", $limit ),
+			$wpdb->prepare( "SELECT endpoint, agent, ua, network, verdict, hit_at FROM $table WHERE refused = 0 ORDER BY id DESC LIMIT %d", $limit ),
 			ARRAY_A
 		);
 		// phpcs:enable WordPress.DB, PluginCheck.Security.DirectDB.UnescapedDBParameter
@@ -424,10 +424,10 @@ final class Repository {
 
 		// phpcs:disable WordPress.DB, PluginCheck.Security.DirectDB.UnescapedDBParameter -- $table is our own prefix-derived table name; the values are bound via prepare().
 		$total = (int) $wpdb->get_var(
-			$wpdb->prepare( "SELECT COUNT(*) FROM $table WHERE hit_at >= %s AND hit_at < %s", $start, $end )
+			$wpdb->prepare( "SELECT COUNT(*) FROM $table WHERE refused = 0 AND hit_at >= %s AND hit_at < %s", $start, $end )
 		);
 		$rows = $wpdb->get_results(
-			$wpdb->prepare( "SELECT endpoint, agent, ua, network, verdict, hit_at FROM $table WHERE hit_at >= %s AND hit_at < %s ORDER BY id DESC LIMIT %d", $start, $end, $limit ),
+			$wpdb->prepare( "SELECT endpoint, agent, ua, network, verdict, hit_at FROM $table WHERE refused = 0 AND hit_at >= %s AND hit_at < %s ORDER BY id DESC LIMIT %d", $start, $end, $limit ),
 			ARRAY_A
 		);
 		// phpcs:enable WordPress.DB, PluginCheck.Security.DirectDB.UnescapedDBParameter
@@ -516,6 +516,9 @@ final class Repository {
 			// with verdict 2, WHO the failed signature claimed ("chatgpt.com"). '' = the
 			// verdict came from DNS/ranges (or nothing) — the pre-signature wording stands.
 			'signer'   => isset( $r['signer'] ) ? (string) $r['signer'] : '',
+			// TRUE = turned away at the door, never served. Counts toward no read total;
+			// the row exists so a proven impostor can't be refused in silence.
+			'refused'  => ! empty( $r['refused'] ),
 			'at'       => gmdate( 'c', strtotime( $r['hit_at'] . ' UTC' ) ),
 		);
 	}
@@ -572,8 +575,15 @@ final class Repository {
 			}
 		}
 		if ( isset( $args['verdict'] ) && '' !== $args['verdict'] && null !== $args['verdict'] ) {
-			$where[]  = 'verdict = %d';
-			$params[] = (int) $args['verdict'];
+			// 'refused' is an OUTCOME, not a verdict value — it shares this control
+			// because "was this client turned away?" is the same question the
+			// verification filter answers, asked one step further along.
+			if ( 'refused' === $args['verdict'] ) {
+				$where[] = 'refused = 1';
+			} else {
+				$where[]  = 'verdict = %d';
+				$params[] = (int) $args['verdict'];
+			}
 		}
 		if ( ! empty( $args['ua'] ) ) {
 			// esc_like, or a needle of "%x" silently becomes a full-table contains-search.
@@ -600,7 +610,7 @@ final class Repository {
 		// Fetch one extra row to learn whether another page exists, without a second query.
 		$rows = $wpdb->get_results(
 			$wpdb->prepare(
-				"SELECT id, endpoint, agent, ua, network, verdict, signer, hit_at FROM $table WHERE $page_sql ORDER BY id DESC LIMIT %d",
+				"SELECT id, endpoint, agent, ua, network, verdict, signer, refused, hit_at FROM $table WHERE $page_sql ORDER BY id DESC LIMIT %d",
 				array_merge( $params, array( $per_page + 1 ) )
 			),
 			ARRAY_A
@@ -663,7 +673,7 @@ final class Repository {
 		// failed verification, the client is an impersonator and must surface as one.
 		$sources = $wpdb->get_results(
 			$wpdb->prepare(
-				"SELECT ua, MAX(agent) AS agent, COUNT(*) AS hits, MAX(verdict) AS verdict, MAX(network) AS network, MAX(signer) AS signer, MIN(hit_at) AS first_seen, MAX(hit_at) AS last_seen FROM $table WHERE hit_at >= %s GROUP BY ua ORDER BY hits DESC LIMIT 200",
+				"SELECT ua, MAX(agent) AS agent, COUNT(*) AS hits, MAX(verdict) AS verdict, MAX(network) AS network, MAX(signer) AS signer, MAX(refused) AS refused, MIN(hit_at) AS first_seen, MAX(hit_at) AS last_seen FROM $table WHERE hit_at >= %s GROUP BY ua ORDER BY hits DESC LIMIT 200",
 				$since
 			),
 			ARRAY_A
@@ -872,6 +882,9 @@ final class Repository {
 				// proven ("OpenAI agent"); verdict 'spoofed' + signer = a signature that failed
 				// the math, naming the claimed origin ("chatgpt.com"). '' = DNS/range verdict.
 				'signer'     => isset( $s['signer'] ) ? (string) $s['signer'] : '',
+				// This client was turned away at the door — the card says so, so the
+				// owner never wonders whether it got through.
+				'refused'    => ! empty( $s['refused'] ),
 			);
 		}
 
