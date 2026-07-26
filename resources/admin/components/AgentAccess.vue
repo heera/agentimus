@@ -257,13 +257,6 @@ export default {
       if (e.kind === 'ability_probed') return '';
       return e.subject || '(unnamed)';
     },
-    // Ability names are identifiers (agentimus/check-page) and read better in the
-    // mono face, the same way endpoints do in the request log. Key names stay in
-    // the prose face — unquoted, because the label line above already says what
-    // kind of name it is, and the two faces carry the distinction on their own.
-    subjectIsIdent(e) {
-      return !!e.kind && 0 === e.kind.indexOf('ability_');
-    },
     label(e) {
       const name = e.subject || '(unnamed)';
       switch (e.kind) {
@@ -429,7 +422,6 @@ export default {
             <span
               v-if="eventSubject(e)"
               class="ar-aa__what"
-              :class="{ 'is-ident': subjectIsIdent(e) }"
             >{{ eventSubject(e) }}
               <!-- The row the nav badge sent them here to find. A tint alone is too easy to
                    miss on a long list, and "which one is new?" is the only question they

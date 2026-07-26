@@ -4132,10 +4132,17 @@ a.ar-about-proto__v:hover { text-decoration: underline; }
   letter-spacing: -0.02em; text-transform: uppercase;
   color: var(--ar-ink-faint); font-weight: 400;
 }
-.ar-aa__what { display: block; margin-top: 1px; font-weight: 500; color: var(--ar-ink); }
-/* Ability names are identifiers, so they wear the mono face the request log gives
-   endpoints; key names are human names and stay in the prose face, quoted. */
-.ar-aa__what.is-ident { font-family: var(--ar-mono); font-size: 12.5px; letter-spacing: -0.01em; }
+/* ONE treatment for both kinds of subject: the request log's endpoint chip. Two
+   faces at "the same" weight read as two different weights (mono looks lighter),
+   and a bare word like "author-tax" needs something saying "this is a name" —
+   the chip does both jobs, and matches how endpoints already look one screen over. */
+.ar-aa__what {
+  display: inline-block; margin-top: 3px;
+  font-family: var(--ar-mono); font-size: 11.5px; letter-spacing: -0.01em;
+  color: var(--ar-ink); background: var(--ar-surface-2);
+  padding: 2px 7px; border-radius: 3px;
+  max-width: 100%; overflow-wrap: anywhere;
+}
 
 /* WHO did it — quieter than the hint sentences, but always present when known. */
 /* WHO has its own column now, so the row is a single line. Never truncated —
