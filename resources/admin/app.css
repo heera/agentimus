@@ -4108,7 +4108,7 @@ a.ar-about-proto__v:hover { text-decoration: underline; }
   .ar-aa__table td:first-child, .ar-aa__table td.ar-aa__whocol { grid-column: 1 / -1; }
   /* On a phone the stamps sit in the row's right-hand cells; keep them tight to
      the edge so the two dates stay comparable. */
-  .ar-aa__table td.ar-aa__seencol { text-align: right; }
+  .ar-act-table td.ar-aa__seencol { text-align: right; }
 }
 /* The access log wears the Request Log's table dress (.ar-act-table on the same
    element), so the two logs read and behave as one family — same header band, same
@@ -4144,9 +4144,15 @@ a.ar-about-proto__v:hover { text-decoration: underline; }
 .ar-aa__who { font-size: 12px; color: var(--ar-ink-soft); }
 .ar-aa__who--none { opacity: 0.6; }
 .ar-aa__whocol { white-space: nowrap; }
-/* Timestamps right-align: a column of dates reads as a column when its edges
-   line up, and the eye compares "when" down the edge, not across ragged starts. */
-.ar-aa__seencol { text-align: right; white-space: nowrap; }
+/* Timestamps right-align, header included — a column of dates reads as a column
+   when its edges line up. Scoped through .ar-act-table so it out-specifies that
+   table's blanket `text-align: left` (the reason a bare .ar-aa__seencol rule did
+   nothing), exactly how the request log pins its own last column.
+   Same mono face, size and tone as the log's "Requested at", so a timestamp
+   looks the same wherever it appears. */
+.ar-act-table th.ar-aa__seencol, .ar-act-table td.ar-aa__seencol { text-align: right; white-space: nowrap; }
+.ar-act-table td.ar-aa__seencol { color: var(--ar-ink-faint); font-family: var(--ar-mono); font-size: 11px; }
+.ar-act-table th.ar-aa__seencol:last-child, .ar-act-table td.ar-aa__seencol:last-child { padding-right: 10px; }
 
 /* The sentence the whole feature exists to deliver: an application password keeps working
    after a password change, so an unrecognised one has to be revoked, not just noted. */
