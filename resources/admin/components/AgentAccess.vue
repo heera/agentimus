@@ -436,8 +436,6 @@ export default {
           <!-- WHO gets its own column, so every row is a single line. The advisory
                that would otherwise be a third line rides here as a marker. -->
           <td class="ar-aa__whocol">
-            <span v-if="who(e)" class="ar-aa__who">{{ who(e) }}</span>
-            <span v-else class="ar-aa__who ar-aa__who--none">not recorded</span>
             <button
               v-if="note(e)"
               type="button"
@@ -449,6 +447,8 @@ export default {
               @focus="showUaTip($event, note(e), '')"
               @blur="hideUaTip"
             >i</button>
+            <span v-if="who(e)" class="ar-aa__who">{{ who(e) }}</span>
+            <span v-else class="ar-aa__who ar-aa__who--none">not recorded</span>
           </td>
           <td>{{ e.hits > 1 ? `${e.hits} times` : 'once' }}</td>
           <td class="ar-aa__seencol">{{ when(e.firstSeen) }}</td>

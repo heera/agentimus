@@ -4110,7 +4110,7 @@ a.ar-about-proto__v:hover { text-decoration: underline; }
    away, and every row is two lines tall whatever the event. */
 .ar-aa__noteicon {
   display: inline-flex; align-items: center; justify-content: center;
-  width: 15px; height: 15px; margin-left: 6px; padding: 0; border-radius: 50%;
+  width: 15px; height: 15px; margin-right: 6px; padding: 0; border-radius: 50%;
   border: 1px solid var(--ar-line-strong); background: transparent; cursor: help;
   font-family: var(--ar-mono); font-size: 10px; line-height: 1; color: var(--ar-ink-soft);
   vertical-align: -2px;
