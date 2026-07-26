@@ -258,8 +258,8 @@ export default {
     },
     // The WHO line under a row. Everything here is the owner's own data (their user, their
     // password label) resolved live by the server — still no IP, no location, no guessing.
-    // Whatever no longer resolves is said plainly rather than hidden ("since revoked",
-    // "since deleted"): the row happened, the thing is gone, both facts stand.
+    // Whatever no longer resolves is said plainly rather than hidden ("(revoked)",
+    // "(deleted)"): the row happened, the thing is gone, both facts stand.
     //
     // Password-LIFECYCLE rows deliberately say "on X's account", not "by X": the stored
     // user is the key's OWNER, and an admin can create or revoke a key on someone else's
@@ -270,17 +270,21 @@ export default {
       if (e.kind && e.kind.indexOf('apppw_') === 0) {
         // The used-row label already quotes the key's name; repeating it here would be noise.
         if (e.kind === 'apppw_used') {
-          return gone ? `by a since-deleted user (#${e.userId})` : `by ${e.user}`;
+          return gone ? `by user #${e.userId} (deleted)` : `by ${e.user}`;
         }
         return gone
-          ? `on a since-deleted user’s account (#${e.userId})`
+          ? `on user #${e.userId}’s account (deleted)`
           : `on ${e.user}’s account`;
       }
-      const user = gone ? `a since-deleted user (#${e.userId})` : e.user;
+      // "a since-deleted user (#236) · app password (since revoked)" was a
+      // mouthful, and stacking two "since" clauses made it worse. Same two
+      // facts, said the way a person would: the account is gone, the key is
+      // revoked, and both are marked in the same simple way.
+      const user = gone ? `user #${e.userId} (deleted)` : e.user;
       if (e.cred) {
         return e.credName
           ? `by ${user} · app password “${e.credName}”`
-          : `by ${user} · app password (since revoked)`;
+          : `by ${user} · app password (revoked)`;
       }
       return `by ${user} · logged-in session`;
     },
