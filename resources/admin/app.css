@@ -4089,9 +4089,19 @@ a.ar-about-proto__v:hover { text-decoration: underline; }
   color: var(--ar-ink-soft); white-space: nowrap;
 }
 .ar-aa__statebody { min-width: 0; }
-/* The headline facts under the coverage sentence: quiet, mono, one line. */
-.ar-aa__facts { margin: 6px 0 0; font-family: var(--ar-mono); font-size: 11.5px; letter-spacing: -0.02em; color: var(--ar-ink-soft); }
+/* The headline facts under the coverage sentence: quiet, mono, one line where
+   there's room. The separator is drawn in CSS rather than typed between the
+   values, so a narrow screen can stack whole facts instead of wrapping one in
+   half — "last activity" and "3 days ago" must never land on separate lines. */
+.ar-aa__facts { margin: 6px 0 0; display: flex; flex-wrap: wrap; gap: 2px 8px; font-family: var(--ar-mono); font-size: 11.5px; letter-spacing: -0.02em; color: var(--ar-ink-soft); }
 .ar-aa__facts strong { color: var(--ar-ink); font-weight: 600; }
+.ar-aa__fact { white-space: nowrap; }
+.ar-aa__fact:not(:last-child)::after { content: '·'; margin-left: 8px; color: var(--ar-ink-faint); }
+@media (max-width: 782px) {
+  /* Stacked: one fact per line, no dangling separators. */
+  .ar-aa__facts { flex-direction: column; gap: 3px; }
+  .ar-aa__fact:not(:last-child)::after { content: none; }
+}
 .ar-aa__statebody p { margin: 4px 0 0; font-size: 13px; line-height: 1.55; color: var(--ar-ink-soft); }
 .ar-aa__statetitle { margin: 0; font-family: var(--ar-sans); font-size: 14px; font-weight: 600; color: var(--ar-ink); }
 /* The actionable line — the point of showing an unavailable state at all. */

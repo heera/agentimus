@@ -430,10 +430,15 @@ export default {
              prevent. Honest at zero: it says nothing has run yet. -->
         <p v-if="loaded" class="ar-aa__facts">
           <template v-if="total > 0">
-            <strong>{{ total.toLocaleString() }}</strong> {{ total === 1 ? 'event' : 'events' }} recorded ·
-            <strong>{{ headline.abilities }}</strong><template v-if="headline.registered"> of {{ headline.registered }}</template>
-            {{ headline.abilities === 1 && !headline.registered ? 'ability' : 'abilities' }} used ·
-            last activity <strong>{{ lastActivity() }}</strong>
+            <!-- Each fact is its own unit, with the separator drawn in CSS — so a
+                 narrow screen can stack them instead of breaking a phrase in half
+                 ("last activity" on one line, "3 days ago" on the next). -->
+            <span class="ar-aa__fact"><strong>{{ total.toLocaleString() }}</strong> {{ total === 1 ? 'event' : 'events' }} recorded</span>
+            <span class="ar-aa__fact">
+              <strong>{{ headline.abilities }}</strong><template v-if="headline.registered"> of {{ headline.registered }}</template>
+              {{ headline.abilities === 1 && !headline.registered ? 'ability' : 'abilities' }} used
+            </span>
+            <span class="ar-aa__fact">last activity <strong>{{ lastActivity() }}</strong></span>
           </template>
           <template v-else>Nothing has run yet — this list fills as agents act on your site.</template>
         </p>
