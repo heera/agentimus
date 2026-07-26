@@ -2894,7 +2894,7 @@ export default {
       <section class="ar-card ar-manage">
         <div class="ar-reset">
           <div class="ar-reset__text">
-            <strong>Setup guide</strong>
+            <strong>Setup Guide</strong>
             <small>Re-open the guided setup with your current answers filled in — review or fine-tune who you are and what AI assistants can read. <em>Nothing is reset.</em></small>
           </div>
           <button type="button" class="ar-btn ar-btn--ghost" @click="$emit('reopen-wizard')">Review setup</button>
@@ -2904,7 +2904,7 @@ export default {
 
         <div class="ar-reset">
           <div class="ar-reset__text">
-            <strong>Reset to defaults</strong>
+            <strong>Reset to Defaults</strong>
             <small>Wipe every setting back to the recommended factory defaults. This also <em>clears your identity profile</em> (name, about, links) and can’t be undone.</small>
           </div>
           <button type="button" class="ar-btn ar-btn--danger" :disabled="resetting" @click="openReset">
@@ -2987,7 +2987,7 @@ export default {
             @keydown.esc="closeReset"
           >
             <div class="ar-modal__head">
-              <h2 id="ar-reset-title" class="ar-modal__title">Reset to defaults?</h2>
+              <h2 id="ar-reset-title" class="ar-modal__title">Reset to Defaults?</h2>
               <p class="ar-modal__lead">
                 Every setting returns to the recommended factory defaults below. Your identity
                 profile — name, about, expertise and links — is cleared. This can’t be undone.

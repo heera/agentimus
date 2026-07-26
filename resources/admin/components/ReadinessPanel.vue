@@ -391,7 +391,7 @@ export default {
           >
             <div class="ar-modal__head">
               <div class="ar-live-head">
-                <h2 id="ar-live-title" class="ar-modal__title">What agents actually receive</h2>
+                <h2 id="ar-live-title" class="ar-modal__title">What Agents Actually Receive</h2>
                 <span
                   v-if="live"
                   class="ar-live__tally"
@@ -459,7 +459,7 @@ export default {
           >
             <div class="ar-modal__head">
               <div class="ar-live-head">
-                <h2 id="ar-exposure-title" class="ar-modal__title">Exposed-files check</h2>
+                <h2 id="ar-exposure-title" class="ar-modal__title">Exposed-Files Check</h2>
                 <span
                   v-if="exposure"
                   class="ar-live__tally"

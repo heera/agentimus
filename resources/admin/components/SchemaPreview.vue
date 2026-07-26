@@ -388,7 +388,7 @@ export default {
           </button>
 
           <div class="ar-modal__head">
-            <h2 id="ar-jsonld-title" class="ar-modal__title">Agent preview</h2>
+            <h2 id="ar-jsonld-title" class="ar-modal__title">Agent Preview</h2>
             <p class="ar-modal__lead">
               Exactly what an AI agent receives for a page — its JSON-LD structured data and its
               Markdown twin. Pick the whole site, or any page or post; it matches what ships.

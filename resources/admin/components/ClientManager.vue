@@ -144,7 +144,7 @@ export default {
         @keydown.esc="$emit('close')"
       >
         <div class="ar-modal__head">
-          <h2 id="ar-cm-title" class="ar-modal__title">Client decisions</h2>
+          <h2 id="ar-cm-title" class="ar-modal__title">Client Decisions</h2>
           <p class="ar-modal__lead">
             Everything you've decided about visiting bots and agents — blocked, trusted, or ignored —
             and when. Undoing here applies immediately.
