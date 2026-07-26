@@ -239,10 +239,11 @@ export default {
       // a dash makes the reader guess, and most rows land here.
       return { text: 'unchecked', cls: 'is-none', tip: this.nomarkTip };
     },
-    // The exact moment, in the site's own date/time format — the relative value
-    // answers "recent?", this answers "when exactly?".
+    // The exact moment, in the site's own date/time format. formatStamp takes a
+    // DATE, not an ISO string — handing it the string rendered an empty cell.
     stamp(iso) {
-      return formatStamp(iso);
+      const d = new Date(iso);
+      return Number.isNaN(d.getTime()) ? '' : formatStamp(d);
     },
     ago(iso) {
       const t = Date.parse(iso);
