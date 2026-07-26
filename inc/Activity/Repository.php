@@ -636,6 +636,9 @@ final class Repository {
 			'retentionDays' => $days,
 			'autoPrune'     => self::auto_prune(),
 			'maxRows'       => self::max_rows(),
+			// So the Status column can explain a dash HONESTLY: "nothing to check
+			// here" and "checking is switched off" are different facts.
+			'verifyOn'      => Guard::verification_on(),
 		);
 	}
 

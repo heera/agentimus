@@ -40,6 +40,7 @@ export default {
       hasMore: false,
       cursor: null,
       retentionDays: 30,
+      verifyOn: false,
       autoPrune: true,
       maxRows: 50000,
       perPage: 50,
@@ -81,6 +82,13 @@ export default {
         { value: '0', label: 'Unchecked' },
         { value: 'refused', label: 'Refused (not served)' },
       ];
+    },
+    // Why a row shows a dash. Two honest reasons, and the wording must not imply
+    // the client passed anything: most visitors simply have no identity to check.
+    nomarkTip() {
+      return this.verifyOn
+        ? 'No identity check — this client claims no crawler that can be verified (browsers and scripts never do). It was served normally.'
+        : 'No identity check — “Verify bot identities” is off, so no client’s claim was checked. Turn it on in Settings → AI access.';
     },
     pageFrom() {
       return this.rows.length ? this.trail.length * this.perPage + 1 : 0;
@@ -138,6 +146,7 @@ export default {
         this.hasMore = !!res.hasMore;
         this.cursor = res.cursor || null;
         this.retentionDays = res.retentionDays || 30;
+        this.verifyOn = !!res.verifyOn;
         this.autoPrune = res.autoPrune !== false;
         this.maxRows = res.maxRows || 50000;
         this.before = before;
@@ -347,7 +356,15 @@ export default {
                   @mouseenter="showUaTip($event, statusMark(r).tip, '')"
                   @mouseleave="hideUaTip"
                 >{{ statusMark(r).text }}</span>
-                <span v-else class="ar-log__nomark" aria-hidden="true">—</span>
+                <!-- A dash is not self-explanatory, so it carries its own answer:
+                     nothing here was checked, and why not. -->
+                <span
+                  v-else
+                  class="ar-log__nomark"
+                  aria-label="No identity check"
+                  @mouseenter="showUaTip($event, nomarkTip, '')"
+                  @mouseleave="hideUaTip"
+                >—</span>
               </td>
               <td>
                 <button
@@ -396,6 +413,16 @@ export default {
         </button>
       </div>
     </div>
+
+    <!-- What the Status column's words mean, in one line, so nobody has to hover to
+         find out — especially the dash, which says nothing on its own. -->
+    <p v-if="rows.length" class="ar-log__legend">
+      <strong>Status:</strong>
+      <span><em>verified</em>/<em>signed</em> — proved who it is</span> ·
+      <span><em>spoofed</em>/<em>forged</em> — claimed someone it isn’t</span> ·
+      <span><em>refused</em> — turned away, nothing served</span> ·
+      <span><em>—</em> {{ verifyOn ? 'nothing to check: this client claims no verifiable crawler name' : 'not checked: identity verification is off' }}</span>
+    </p>
 
     <!-- The rule sits on the <p>, which spans the card; the prose inside is measured for
          readability. Putting max-width on the <p> itself cropped the rule short of the card. -->
