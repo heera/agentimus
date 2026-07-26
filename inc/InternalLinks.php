@@ -54,7 +54,11 @@ final class InternalLinks {
 	public function register() {
 		add_action( 'rest_api_init', array( $this, 'register_rest' ) );
 		if ( is_admin() ) {
-			add_action( 'add_meta_boxes', array( $this, 'add_meta_box' ) );
+			// Priority 11: registered right AFTER the shared "Search & AI" box
+			// (Topics::add_meta_box at 10), so in the default sidebar order this
+			// box sits directly beneath it — the two Agentimus boxes read as one
+			// group. (A user's saved drag order still wins, as it should.)
+			add_action( 'add_meta_boxes', array( $this, 'add_meta_box' ), 11 );
 			add_action( 'admin_enqueue_scripts', array( $this, 'assets' ) );
 		}
 	}
@@ -633,7 +637,12 @@ JS;
 	 * @return string
 	 */
 	private static function inline_css() {
-		return '.agentimus-il__intro{color:#646970;font-size:12px;margin:0 0 8px}'
+		// Header reads like a core sidebar panel: title + collapse only, the
+		// move arrows hidden — the same treatment the Search & AI box got in
+		// 1.29 (WP 7.1's tooltip-wrapped arrows force long titles to wrap in
+		// the 280px sidebar). Drag-sort by the header keeps working.
+		return '#agentimus-internal-links .handle-order-higher,#agentimus-internal-links .handle-order-lower{display:none}'
+			. '.agentimus-il__intro{color:#646970;font-size:12px;margin:0 0 8px}'
 			. '.agentimus-il__suggest{width:100%;text-align:center}'
 			. '.agentimus-il__note{display:block;font-size:12px;color:#646970;margin-top:6px}'
 			. '.agentimus-il__item{border-top:1px solid #f0f0f1;padding:10px 0}'
