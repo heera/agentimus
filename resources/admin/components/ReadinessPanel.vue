@@ -265,15 +265,6 @@ export default {
           {{ exposureRunning ? 'Scanning…' : 'Scan for exposed files' }}
         </button>
       </div>
-      <!-- The per-PAGE gaps live on their own screen — this report is site-level. One
-           quiet signpost, because "my score is fine but my pages are bare" is the gap
-           an owner can't see from here. -->
-      <p class="ar-readiness__bulkhint">
-        Pages missing their AI description, topics or image alt text?
-        <button type="button" class="ar-linkbtn" @click="$emit('navigate', { tab: 'fill-gaps' })">
-          Fill the gaps in bulk →
-        </button>
-      </p>
     </div>
 
     <div

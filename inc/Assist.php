@@ -316,16 +316,14 @@ final class Assist {
 			return new \WP_Error( 'agentimus_ai_unavailable', __( 'No AI provider is configured. Add one under Settings → AI.', 'agentimus' ), array( 'status' => 503 ) );
 		}
 
-		$result = ( 'topics' === $field ) ? $this->draft_topics( $post ) : $this->draft_description( $post );
-		if ( is_wp_error( $result ) ) {
-			return $result;
+		$ctx = $this->context( $post );
+		if ( '' === $ctx['title'] && '' === $ctx['body'] ) {
+			return new \WP_Error( 'agentimus_thin', __( 'This page has too little content to draft from yet. Add some content and try again.', 'agentimus' ), array( 'status' => 422 ) );
 		}
 
-		return rest_ensure_response(
-			'topics' === $field
-				? array( 'field' => 'topics', 'topics' => array_values( (array) $result ) )
-				: array( 'field' => 'description', 'text' => $result )
-		);
+		return ( 'topics' === $field )
+			? $this->suggest_topics( $ctx )
+			: $this->suggest_description( $ctx );
 	}
 
 	/**
@@ -357,19 +355,12 @@ final class Assist {
 	}
 
 	/**
-	 * Draft the one-line AI description for a post. The ONE description prompt on the
-	 * site — the editor's "Draft with AI" button and the bulk "Fill the gaps" runner
-	 * both land here, so a single draft and a bulk draft can never drift apart.
+	 * Draft the one-line AI description.
 	 *
-	 * @param \WP_Post $post Post.
-	 * @return string|\WP_Error The cleaned description.
+	 * @param array{title:string,body:string} $ctx Page context.
+	 * @return \WP_REST_Response|\WP_Error
 	 */
-	public function draft_description( \WP_Post $post ) {
-		$ctx = $this->context( $post );
-		if ( '' === $ctx['title'] && '' === $ctx['body'] ) {
-			return new \WP_Error( 'agentimus_thin', __( 'This page has too little content to draft from yet. Add some content and try again.', 'agentimus' ), array( 'status' => 422 ) );
-		}
-
+	private function suggest_description( array $ctx ) {
 		$system = __( 'You write a single, plain-language sentence describing a web page so an AI answer engine can summarise and cite it correctly. Output ONE sentence only: no quotation marks, no markdown, no line breaks, and about 160 characters or fewer. State what the page is and who it is for — do not invent facts that are not in the content.', 'agentimus' );
 		$prompt = sprintf( "Title: %s\n\nContent:\n%s\n\nWrite the one-sentence description.", $ctx['title'], $ctx['body'] );
 
@@ -380,22 +371,17 @@ final class Assist {
 
 		// Strip any wrapping quotes the model added, then run the same cleaner the field's
 		// own save path uses (tags out, whitespace collapsed, capped).
-		return Description::clean( trim( $text, " \t\n\r\0\x0B\"'“”‘’" ) );
+		$text = Description::clean( trim( $text, " \t\n\r\0\x0B\"'“”‘’" ) );
+		return rest_ensure_response( array( 'field' => 'description', 'text' => $text ) );
 	}
 
 	/**
-	 * Draft the topic keyword list for a post — same single-prompt rule as
-	 * {@see draft_description()}.
+	 * Draft the topic keyword list.
 	 *
-	 * @param \WP_Post $post Post.
-	 * @return string[]|\WP_Error The sanitised topic list.
+	 * @param array{title:string,body:string} $ctx Page context.
+	 * @return \WP_REST_Response|\WP_Error
 	 */
-	public function draft_topics( \WP_Post $post ) {
-		$ctx = $this->context( $post );
-		if ( '' === $ctx['title'] && '' === $ctx['body'] ) {
-			return new \WP_Error( 'agentimus_thin', __( 'This page has too little content to draft from yet. Add some content and try again.', 'agentimus' ), array( 'status' => 422 ) );
-		}
-
+	private function suggest_topics( array $ctx ) {
 		$cap    = Topics::cap();
 		$system = sprintf(
 			/* translators: %d: the maximum number of topics. */
@@ -411,108 +397,20 @@ final class Assist {
 
 		// Parse + sanitise through the field's own sanitiser (splits on commas/newlines,
 		// trims, dedupes case-insensitively, caps each length and the count).
-		return Topics::sanitize_manual( $text );
-	}
-
-	/**
-	 * Draft alt text for an image attachment by SHOWING the image to the model (the
-	 * WP AI Client's file input). Sends a generated smaller size when one exists —
-	 * the model doesn't need the original's megabytes to say what the picture shows.
-	 * Returns `agentimus_ai_no_vision` when no configured model can read images, so
-	 * a bulk run can stop asking after the first miss instead of failing per item.
-	 *
-	 * @param int $attachment_id Image attachment ID.
-	 * @return string|\WP_Error The cleaned alt sentence.
-	 */
-	public function draft_alt( $attachment_id ) {
-		$attachment = get_post( (int) $attachment_id );
-		if ( ! $attachment || 'attachment' !== $attachment->post_type ) {
-			return new \WP_Error( 'agentimus_not_found', __( 'That image is not available.', 'agentimus' ), array( 'status' => 404 ) );
-		}
-		$file = self::alt_source_file( $attachment->ID );
-		if ( null === $file ) {
-			return new \WP_Error( 'agentimus_no_file', __( 'The image file for this attachment is missing.', 'agentimus' ), array( 'status' => 404 ) );
-		}
-
-		// Whatever words the site already has about this image ride along as context —
-		// the page it illustrates, the attachment title, the caption. The image itself
-		// is still the source of truth; the hint only helps the model name things right.
-		$parent = $attachment->post_parent ? get_post( $attachment->post_parent ) : null;
-		$hint   = implode(
-			' — ',
-			array_filter(
-				array(
-					$parent ? (string) get_the_title( $parent ) : '',
-					(string) get_the_title( $attachment ),
-					trim( (string) $attachment->post_excerpt ),
-				)
-			)
-		);
-
-		$system = __( 'You write alt text for a website image: ONE factual sentence, under 125 characters, describing what the image shows for someone who cannot see it. No "image of" or "photo of" preamble, no quotation marks, no markdown. If words are visible in the image, include the important ones. Plain text only.', 'agentimus' );
-		$prompt = ( '' !== $hint ? 'Context: ' . $hint . "\n\n" : '' ) . 'Describe this image as alt text.';
-
-		$text = $this->generate( $system, $prompt, self::OUTPUT_TOKENS, $file['path'], $file['mime'] );
-		if ( is_wp_error( $text ) ) {
-			return $text;
-		}
-
-		$text = sanitize_text_field( trim( $text, " \t\n\r\0\x0B\"'“”‘’" ) );
-		$text = function_exists( 'mb_substr' ) ? mb_substr( $text, 0, 300 ) : substr( $text, 0, 300 );
-		if ( '' === $text ) {
-			return new \WP_Error( 'agentimus_ai_empty', __( 'The AI returned an empty response — please try again.', 'agentimus' ), array( 'status' => 502 ) );
-		}
-		return $text;
-	}
-
-	/**
-	 * The file actually sent to the model for {@see draft_alt()}: a generated
-	 * intermediate size when available, the original otherwise; null when the
-	 * attachment isn't a readable image file.
-	 *
-	 * @param int $attachment_id Attachment ID.
-	 * @return array{path:string,mime:string}|null
-	 */
-	private static function alt_source_file( $attachment_id ) {
-		$path = (string) get_attached_file( $attachment_id );
-		$mime = (string) get_post_mime_type( $attachment_id );
-		if ( '' === $path || ! file_exists( $path ) || 0 !== strpos( $mime, 'image/' ) ) {
-			return null;
-		}
-
-		$meta = wp_get_attachment_metadata( $attachment_id );
-		if ( is_array( $meta ) && ! empty( $meta['sizes'] ) ) {
-			foreach ( array( 'large', 'medium_large', 'medium' ) as $size ) {
-				if ( empty( $meta['sizes'][ $size ]['file'] ) ) {
-					continue;
-				}
-				$candidate = trailingslashit( dirname( $path ) ) . $meta['sizes'][ $size ]['file'];
-				if ( file_exists( $candidate ) ) {
-					return array(
-						'path' => $candidate,
-						'mime' => ! empty( $meta['sizes'][ $size ]['mime-type'] ) ? (string) $meta['sizes'][ $size ]['mime-type'] : $mime,
-					);
-				}
-			}
-		}
-		return array(
-			'path' => $path,
-			'mime' => $mime,
-		);
+		$topics = Topics::sanitize_manual( $text );
+		return rest_ensure_response( array( 'field' => 'topics', 'topics' => array_values( (array) $topics ) ) );
 	}
 
 	/**
 	 * Run one text generation through the site's configured AI, returning the trimmed
 	 * string or a WP_Error (already carrying an HTTP status) for the editor to show.
 	 *
-	 * @param string      $system     System instruction.
-	 * @param string      $prompt     User prompt.
-	 * @param int         $max_tokens Output cap.
-	 * @param string|null $file       Optional local file path shown to the model (vision input).
-	 * @param string|null $mime       The file's MIME type (required when $file is set).
+	 * @param string $system     System instruction.
+	 * @param string $prompt     User prompt.
+	 * @param int    $max_tokens Output cap.
 	 * @return string|\WP_Error
 	 */
-	public function generate( $system, $prompt, $max_tokens, $file = null, $mime = null ) {
+	public function generate( $system, $prompt, $max_tokens ) {
 		// Public since the in-admin Assistant: this is the ONE choke point every
 		// Agentimus generation goes through — it carries the per-user rate limit and
 		// the site's Content Guidelines, so a new caller gets both for free and a
@@ -533,23 +431,10 @@ final class Assist {
 			->using_max_tokens( (int) $max_tokens )
 			->using_temperature( 0.4 );
 
-		if ( null !== $file ) {
-			try {
-				$builder = $builder->with_file( $file, $mime );
-			} catch ( \Throwable $e ) {
-				return new \WP_Error( 'agentimus_no_file', __( 'The image file could not be read.', 'agentimus' ), array( 'status' => 500 ) );
-			}
-		}
-
 		// Authoritative capability check: false when no configured model can do text
 		// generation — surface it as a clean 503 rather than letting generate_text() fail.
-		// With a file attached, the same check answers a sharper question — can any
-		// configured model LOOK at this image? — so it gets its own error code, which is
-		// how a bulk alt-text run knows to stop asking instead of failing per item.
 		if ( ! $builder->is_supported_for_text_generation() ) {
-			return null !== $file
-				? new \WP_Error( 'agentimus_ai_no_vision', __( 'Your AI provider can’t read images — connect a vision-capable model under Settings → AI to draft alt text.', 'agentimus' ), array( 'status' => 503 ) )
-				: new \WP_Error( 'agentimus_ai_unavailable', __( 'No AI text model is configured. Add or enable one under Settings → AI.', 'agentimus' ), array( 'status' => 503 ) );
+			return new \WP_Error( 'agentimus_ai_unavailable', __( 'No AI text model is configured. Add or enable one under Settings → AI.', 'agentimus' ), array( 'status' => 503 ) );
 		}
 
 		// Spend backstop, checked immediately BEFORE the one paid call this method makes. Both
