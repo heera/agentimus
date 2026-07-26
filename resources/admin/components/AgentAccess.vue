@@ -389,8 +389,8 @@ export default {
           <th scope="col">What happened</th>
           <th scope="col">Who</th>
           <th scope="col">Used</th>
-          <th scope="col">First seen at</th>
-          <th scope="col">Last seen at</th>
+          <th scope="col" class="ar-aa__seencol">First seen at</th>
+          <th scope="col" class="ar-aa__seencol">Last seen at</th>
         </tr>
       </thead>
       <tbody>
@@ -422,8 +422,8 @@ export default {
             >i</button>
           </td>
           <td>{{ e.hits > 1 ? `${e.hits} times` : 'once' }}</td>
-          <td>{{ when(e.firstSeen) }}</td>
-          <td>{{ when(e.lastSeen) }}</td>
+          <td class="ar-aa__seencol">{{ when(e.firstSeen) }}</td>
+          <td class="ar-aa__seencol">{{ when(e.lastSeen) }}</td>
         </tr>
       </tbody>
     </table>

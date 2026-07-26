@@ -4106,6 +4106,9 @@ a.ar-about-proto__v:hover { text-decoration: underline; }
   .ar-aa__table tr { display: grid; grid-template-columns: 1fr auto auto; align-items: baseline; padding: 8px 0; border-bottom: 1px solid var(--ar-line); }
   .ar-aa__table td { border-bottom: 0; }
   .ar-aa__table td:first-child, .ar-aa__table td.ar-aa__whocol { grid-column: 1 / -1; }
+  /* On a phone the stamps sit in the row's right-hand cells; keep them tight to
+     the edge so the two dates stay comparable. */
+  .ar-aa__table td.ar-aa__seencol { text-align: right; }
 }
 /* The access log wears the Request Log's table dress (.ar-act-table on the same
    element), so the two logs read and behave as one family — same header band, same
@@ -4141,6 +4144,9 @@ a.ar-about-proto__v:hover { text-decoration: underline; }
 .ar-aa__who { font-size: 12px; color: var(--ar-ink-soft); }
 .ar-aa__who--none { opacity: 0.6; }
 .ar-aa__whocol { white-space: nowrap; }
+/* Timestamps right-align: a column of dates reads as a column when its edges
+   line up, and the eye compares "when" down the edge, not across ragged starts. */
+.ar-aa__seencol { text-align: right; white-space: nowrap; }
 
 /* The sentence the whole feature exists to deliver: an application password keeps working
    after a password change, so an unrecognised one has to be revoked, not just noted. */
