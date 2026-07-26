@@ -235,6 +235,31 @@ export default {
     // One sentence per kind. The wording says what HAPPENED, not what it might mean — we have
     // no IP and no location, so we are in no position to judge intent, and pretending otherwise
     // would be the dishonesty this whole screen exists to avoid.
+    // The event's KIND — the quiet first line. It repeats down the table, so it
+    // reads as a label rather than as news.
+    eventKind(e) {
+      switch (e.kind) {
+        case 'apppw_created':  return 'New application password';
+        case 'apppw_used':     return 'Application password used for the first time';
+        case 'apppw_renamed':  return 'Application password renamed';
+        case 'apppw_deleted':  return 'Application password revoked';
+        case 'ability_used':   return 'Ability used';
+        case 'ability_refused':return 'Ability refused';
+        case 'ability_probed': return 'Probed for abilities that don’t exist';
+        default:               return 'Event';
+      }
+    },
+    // What it was about — the line that actually varies, so it carries the weight.
+    eventSubject(e) {
+      if (e.kind === 'ability_probed') return '';
+      return e.subject || '(unnamed)';
+    },
+    // Ability names are identifiers (agentimus/check-page) and read better in the
+    // mono face, the same way endpoints do in the request log. Key names are
+    // human names and stay in the prose face, quoted.
+    subjectIsIdent(e) {
+      return !!e.kind && 0 === e.kind.indexOf('ability_');
+    },
     label(e) {
       const name = e.subject || '(unnamed)';
       switch (e.kind) {
@@ -396,8 +421,12 @@ export default {
       <tbody>
         <tr v-for="e in events" :key="e.id" :class="{ 'is-unseen': isHighlighted(e), 'is-refusal': isRefusal(e) }">
           <td>
-            <span class="ar-aa__what">
-              {{ label(e) }}
+            <span class="ar-aa__kindline">{{ eventKind(e) }}</span>
+            <span
+              v-if="eventSubject(e)"
+              class="ar-aa__what"
+              :class="{ 'is-ident': subjectIsIdent(e) }"
+            >{{ subjectIsIdent(e) ? eventSubject(e) : `“${eventSubject(e)}”` }}
               <!-- The row the nav badge sent them here to find. A tint alone is too easy to
                    miss on a long list, and "which one is new?" is the only question they
                    arrived with. -->

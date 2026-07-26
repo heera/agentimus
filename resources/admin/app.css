@@ -4122,7 +4122,16 @@ a.ar-about-proto__v:hover { text-decoration: underline; }
    rule so the table visibly ends before it. */
 .ar-aa__table tbody tr:last-child td { border-bottom: 1px solid var(--ar-line); }
 .ar-aa__table tr.is-unseen td { background: color-mix(in srgb, var(--ar-accent) 4.5%, transparent); }
-.ar-aa__what { display: block; font-weight: 500; color: var(--ar-ink); }
+/* Two lines, two jobs: the kind is a quiet label that repeats down the table,
+   the subject is the part that varies and carries the weight. */
+.ar-aa__kindline {
+  display: block; font-size: 11px; letter-spacing: 0.04em; text-transform: uppercase;
+  color: var(--ar-ink-soft); font-weight: 600;
+}
+.ar-aa__what { display: block; margin-top: 1px; font-weight: 500; color: var(--ar-ink); }
+/* Ability names are identifiers, so they wear the mono face the request log gives
+   endpoints; key names are human names and stay in the prose face, quoted. */
+.ar-aa__what.is-ident { font-family: var(--ar-mono); font-size: 12.5px; letter-spacing: -0.01em; }
 
 /* WHO did it — quieter than the hint sentences, but always present when known. */
 /* WHO has its own column now, so the row is a single line. Never truncated —
