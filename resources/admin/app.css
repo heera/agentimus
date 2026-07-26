@@ -3847,7 +3847,9 @@ a.ar-about-proto__v:hover { text-decoration: underline; }
   font-family: var(--ar-mono); font-size: 9.5px; line-height: 16px; letter-spacing: 0.06em;
   text-transform: uppercase; cursor: help;
 }
-.ar-log__mark + .ar-log__mark { margin-top: 3px; }
+/* One mark per row by design; a row with nothing to say shows a dash, the
+   same way the Network column does, so the column never looks broken. */
+.ar-log__nomark { color: var(--ar-ink-soft); opacity: 0.5; }
 .ar-log__mark.is-verified { color: color-mix(in srgb, var(--ar-good) 80%, var(--ar-ink-soft)); border: 1px solid color-mix(in srgb, var(--ar-good) 38%, var(--ar-line)); }
 .ar-log__mark.is-spoofed  { color: color-mix(in srgb, var(--ar-bad) 85%, var(--ar-ink-soft));  border: 1px solid color-mix(in srgb, var(--ar-bad) 38%, var(--ar-line)); }
 /* Proof outranks inference, so a signature-backed mark gets a faint wash — still
@@ -4069,13 +4071,11 @@ a.ar-about-proto__v:hover { text-decoration: underline; }
 .ar-aa__state--warn { border-left-color: var(--ar-warn); }
 .ar-aa__state--info { border-left-color: var(--ar-info); }
 
-/* Same slim mark language as the Request Log's Status column — one short
-   uppercase word, hairline border, no pill. */
 .ar-aa__badge {
   flex: 0 0 auto;
-  font-family: var(--ar-mono); font-size: 9.5px; font-weight: 600;
+  font-family: var(--ar-mono); font-size: 10px; font-weight: 700;
   text-transform: uppercase; letter-spacing: 0.06em;
-  padding: 0 5px; line-height: 16px; border-radius: 3px;
+  padding: 3px 7px; border-radius: 999px;
   background: var(--ar-surface); border: 1px solid var(--ar-line-strong);
   color: var(--ar-ink-soft); white-space: nowrap;
 }
@@ -4187,9 +4187,3 @@ a.ar-about-proto__v:hover { text-decoration: underline; }
 .ar-media-pick { display: flex; align-items: center; gap: 10px; margin: 6px 0 4px; }
 .ar-media-pick__thumb { width: 48px; height: 48px; object-fit: cover; border-radius: 6px; border: 1px solid var(--ar-line); }
 
-/* Agent Access marks: the outcome vocabulary shared with the Request Log.
-   Only a refusal is solid — same rule on both screens, so "refused" always
-   looks like a refusal wherever the owner meets it. */
-.ar-log__mark.is-aa-ok      { color: color-mix(in srgb, var(--ar-good) 80%, var(--ar-ink-soft)); border: 1px solid color-mix(in srgb, var(--ar-good) 38%, var(--ar-line)); }
-.ar-log__mark.is-aa-info    { color: var(--ar-ink-soft); border: 1px solid var(--ar-line-strong); }
-.ar-log__mark.is-aa-refused { color: var(--ar-paper); background: color-mix(in srgb, var(--ar-bad) 82%, var(--ar-ink)); border: 1px solid transparent; }

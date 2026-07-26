@@ -295,16 +295,6 @@ export default {
     isRefusal(e) {
       return e.kind === 'ability_refused' || e.kind === 'ability_probed';
     },
-    // The row's one-word outcome, in its own aligned column — the same vocabulary
-    // the Request Log uses, so "refused" means the same thing on both screens.
-    mark(e) {
-      if (e.kind === 'ability_probed') return { text: 'unknown', tone: 'refused', tip: 'Someone asked for an ability that doesn’t exist here. Nothing ran.' };
-      if (e.kind === 'ability_refused') return { text: 'refused', tone: 'refused', tip: 'This key wasn’t allowed to run that ability. Nothing ran.' };
-      if (e.kind === 'apppw_created') return { text: 'new key', tone: 'info', tip: 'An application password was created.' };
-      if (e.kind === 'apppw_revoked') return { text: 'revoked', tone: 'info', tip: 'An application password was revoked.' };
-      if (e.kind === 'apppw_used') return { text: 'signed in', tone: 'ok', tip: 'A key authenticated successfully.' };
-      return { text: 'ran', tone: 'ok', tip: 'The ability ran and returned a result.' };
-    },
     // THE payload of Phase 3, and the only unambiguous signal this feature will ever produce: a key
     // the OWNER issued asked for something it is not allowed to do. It is misconfigured or stolen,
     // and either way the action is the same. Anonymous refusals get no such line — we have no IP, so
@@ -378,7 +368,6 @@ export default {
       <thead>
         <tr>
           <th scope="col">What happened</th>
-          <th scope="col" class="ar-log__statuscol">Status</th>
           <th scope="col">Used</th>
           <th scope="col">First seen</th>
           <th scope="col">Last seen</th>
@@ -413,9 +402,6 @@ export default {
               Nobody advertises these names, so someone is guessing them. One or two is noise; a
               large count is not.
             </span>
-          </td>
-          <td class="ar-log__statuscol">
-            <span class="ar-log__mark" :class="`is-aa-${mark(e).tone}`" :title="mark(e).tip">{{ mark(e).text }}</span>
           </td>
           <td>{{ e.hits > 1 ? `${e.hits} times` : 'once' }}</td>
           <td>{{ when(e.firstSeen) }}</td>

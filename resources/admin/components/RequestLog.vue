@@ -182,18 +182,41 @@ export default {
       if (v === 2) return 'spoofed';
       return '';
     },
-    // A row whose verdict came from a cryptographic signature says so, and names
-    // who: proven ("signed by OpenAI agent") or forged ("claimed chatgpt.com").
-    // Rows verified the older ways keep their existing wording untouched.
-    signedTip(r) {
-      if (!r.signer) {
-        return r.verdict === 1
-          ? 'Verified — the address really belongs to this operator.'
-          : (r.verdict === 2 ? 'Failed the identity check — an impostor.' : '');
+    // ONE mark per row — the row's outcome, not a pile of labels. A refusal
+    // outranks everything: whatever the identity story was, "it got nothing" is
+    // the fact that matters, and the hover carries the why. Ordinary rows show a
+    // dash rather than an empty cell, the same way the Network column already
+    // reads when there's nothing to say.
+    statusMark(r) {
+      if (r.refused) {
+        const why = r.signer
+          ? `Its signature claimed ${r.signer} and failed the maths.`
+          : 'It claimed a crawler its operator’s own check disproved.';
+        return {
+          text: 'refused',
+          cls: 'is-refused',
+          tip: `Turned away — refused before anything was served, so it counts toward none of your read totals. ${why}`,
+        };
       }
-      return r.verdict === 1
-        ? `Cryptographically verified — signed by ${r.signer}.`
-        : `Signature failed — it claimed ${r.signer} but the maths didn’t check out.`;
+      if (r.verdict === 2) {
+        return {
+          text: r.signer ? 'forged' : 'spoofed',
+          cls: 'is-spoofed' + (r.signer ? ' is-signed' : ''),
+          tip: r.signer
+            ? `Signature failed — it claimed ${r.signer} but the maths didn’t check out.`
+            : 'Failed the identity check — an impostor.',
+        };
+      }
+      if (r.verdict === 1) {
+        return {
+          text: r.signer ? 'signed' : 'verified',
+          cls: 'is-verified' + (r.signer ? ' is-signed' : ''),
+          tip: r.signer
+            ? `Cryptographically verified — signed by ${r.signer}.`
+            : 'Verified — the address really belongs to this operator.',
+        };
+      }
+      return null;
     },
     ago(iso) {
       const t = Date.parse(iso);
@@ -318,23 +341,13 @@ export default {
               </td>
               <td class="ar-log__statuscol">
                 <span
-                  v-if="verdictLabel(r.verdict)"
+                  v-if="statusMark(r)"
                   class="ar-log__mark"
-                  :class="[`is-${verdictLabel(r.verdict)}`, { 'is-signed': !!r.signer }]"
-                  @mouseenter="showUaTip($event, signedTip(r), '')"
+                  :class="statusMark(r).cls"
+                  @mouseenter="showUaTip($event, statusMark(r).tip, '')"
                   @mouseleave="hideUaTip"
-                >
-                  {{ r.signer ? (r.verdict === 1 ? 'signed' : 'forged') : verdictLabel(r.verdict) }}
-                </span>
-                <!-- The one thing this row must never be mistaken for is a read. -->
-                <span
-                  v-if="r.refused"
-                  class="ar-log__mark is-refused"
-                  @mouseenter="showUaTip($event, 'Turned away — this request was refused, not served. It counts toward none of your read totals.', '')"
-                  @mouseleave="hideUaTip"
-                >
-                  refused
-                </span>
+                >{{ statusMark(r).text }}</span>
+                <span v-else class="ar-log__nomark" aria-hidden="true">—</span>
               </td>
               <td>
                 <button
