@@ -4124,10 +4124,13 @@ a.ar-about-proto__v:hover { text-decoration: underline; }
 .ar-aa__table tr.is-unseen td { background: color-mix(in srgb, var(--ar-accent) 4.5%, transparent); }
 /* Two lines, two jobs: the kind is a quiet label that repeats down the table,
    the subject is the part that varies and carries the weight. */
+/* Typographically identical to the timestamp columns — same face, same 11px,
+   same -0.02em tracking, same faint tone and normal weight. Only the uppercase
+   remains, because that is what makes it read as a label rather than a value. */
 .ar-aa__kindline {
-  display: block; font-family: var(--ar-mono); font-size: 10.5px;
-  letter-spacing: 0.04em; text-transform: uppercase;
-  color: var(--ar-ink-soft); font-weight: 600;
+  display: block; font-family: var(--ar-mono); font-size: 11px;
+  letter-spacing: -0.02em; text-transform: uppercase;
+  color: var(--ar-ink-faint); font-weight: 400;
 }
 .ar-aa__what { display: block; margin-top: 1px; font-weight: 500; color: var(--ar-ink); }
 /* Ability names are identifiers, so they wear the mono face the request log gives
