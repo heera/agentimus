@@ -235,41 +235,6 @@ export default {
     // One sentence per kind. The wording says what HAPPENED, not what it might mean — we have
     // no IP and no location, so we are in no position to judge intent, and pretending otherwise
     // would be the dishonesty this whole screen exists to avoid.
-    // The row's KIND as one short word, in the same slim-mark language the Request
-    // Log uses. It replaces the sentence prefix ("Ability used: …"), which repeated
-    // on every row and pushed the useful part off to the right.
-    kindMark(e) {
-      switch (e.kind) {
-        case 'apppw_created':  return { text: 'key added',  cls: 'is-aa-info' };
-        case 'apppw_used':     return { text: 'first use',  cls: 'is-aa-info' };
-        case 'apppw_renamed':  return { text: 'renamed',    cls: 'is-aa-info' };
-        case 'apppw_deleted':  return { text: 'revoked',    cls: 'is-aa-info' };
-        case 'ability_used':   return { text: 'ran',        cls: 'is-aa-ok' };
-        case 'ability_refused':return { text: 'refused',     cls: 'is-aa-refused' };
-        case 'ability_probed': return { text: 'probed',      cls: 'is-aa-refused' };
-        default:               return { text: 'event',       cls: 'is-aa-info' };
-      }
-    },
-    // What the event was ABOUT, with no sentence around it: the ability name, or the
-    // key's name. The kind mark beside it supplies the verb.
-    subject(e) {
-      if (e.kind === 'ability_probed') return 'abilities that don’t exist here';
-      return e.subject || '(unnamed)';
-    },
-    // The advisory that used to occupy a third line on some rows. Same words, moved
-    // behind an info marker so every row is one line tall.
-    note(e) {
-      if (this.isNewKey(e)) {
-        return 'Didn’t create this? Revoke it — an application password keeps working even after you change your password.';
-      }
-      if (this.revokeAdvice(e)) {
-        return 'A key you issued tried to run something it isn’t allowed to. If you don’t recognise this, revoke that application password.';
-      }
-      if (e.kind === 'ability_probed') {
-        return 'Nobody advertises these names, so someone is guessing them. One or two is noise; a large count is not.';
-      }
-      return '';
-    },
     label(e) {
       const name = e.subject || '(unnamed)';
       switch (e.kind) {
@@ -329,6 +294,19 @@ export default {
     // A refusal or a probe is qualitatively different from "your Zapier key was used": it is the
     // first thing here that might mean someone is actually trying it on. It gets a warn tone — but
     // never the word "attack", because we cannot know that and will not pretend to.
+    // The advisory for this row, if any — the text that used to occupy a third line.
+    note(e) {
+      if (this.isNewKey(e)) {
+        return 'Didn’t create this? Revoke it. An application password keeps working even after you change your password.';
+      }
+      if (this.revokeAdvice(e)) {
+        return 'A key you issued tried to run something it isn’t allowed to. If you don’t recognise this, revoke that application password.';
+      }
+      if (e.kind === 'ability_probed') {
+        return 'Nobody advertises these names, so someone is guessing them. One or two is noise; a large count is not.';
+      }
+      return '';
+    },
     isRefusal(e) {
       return e.kind === 'ability_refused' || e.kind === 'ability_probed';
     },
@@ -349,25 +327,6 @@ export default {
       if (!iso) return '';
       const d = new Date(iso);
       return Number.isNaN(d.getTime()) ? iso : formatStamp(d);
-    },
-    // Two full "July 15, 2026 9:39 pm" stamps per row ate the width that WHO
-    // needed, which is what forced the truncation. Compact here, exact on hover.
-    ago(iso) {
-      const t = Date.parse(iso);
-      if (!t) return '';
-      const mins = Math.round((Date.now() - t) / 60000);
-      if (mins < 1) return 'just now';
-      if (mins < 60) return `${mins}m ago`;
-      const hrs = Math.round(mins / 60);
-      if (hrs < 24) return `${hrs}h ago`;
-      const days = Math.round(hrs / 24);
-      return days < 8 ? `${days}d ago` : this.shortDate(iso);
-    },
-    shortDate(iso) {
-      const d = new Date(iso);
-      if (Number.isNaN(d.getTime())) return iso;
-      // Day + month only; the year lives in the hover with the exact time.
-      return `${d.getDate()} ${['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][d.getMonth()]}`;
     },
   },
 };
@@ -425,49 +384,40 @@ export default {
         <tr>
           <th scope="col">What happened</th>
           <th scope="col">Used</th>
-          <th scope="col">First seen</th>
-          <th scope="col">Last seen</th>
+          <th scope="col">First seen at</th>
+          <th scope="col">Last seen at</th>
         </tr>
       </thead>
       <tbody>
         <tr v-for="e in events" :key="e.id" :class="{ 'is-unseen': isHighlighted(e), 'is-refusal': isRefusal(e) }">
           <td>
-            <span class="ar-aa__row">
-              <span class="ar-log__mark ar-aa__kind" :class="kindMark(e).cls">{{ kindMark(e).text }}</span>
-              <span
-                class="ar-aa__what"
-                @mouseenter="showUaTip($event, label(e), '')"
-                @mouseleave="hideUaTip"
-              >{{ subject(e) }}</span>
-              <!-- The advisory that used to be a third line. Still in the row, still
-                   one hover away, but no longer stretching it. -->
-              <button
-                v-if="note(e)"
-                type="button"
-                class="ar-aa__noteicon"
-                :aria-label="note(e)"
-                @mouseenter="showUaTip($event, note(e), '')"
-                @mouseleave="hideUaTip"
-                @focus="showUaTip($event, note(e), '')"
-                @blur="hideUaTip"
-              >i</button>
+            <span class="ar-aa__what">
+              {{ label(e) }}
+              <!-- The row the nav badge sent them here to find. A tint alone is too easy to
+                   miss on a long list, and "which one is new?" is the only question they
+                   arrived with. -->
               <span v-if="isHighlighted(e)" class="ar-aa__new">New</span>
             </span>
-            <!-- WHO sits under the event, indented to the subject's own column so the
-                 two lines read as one block instead of two competing rows. -->
+            <!-- WHO did it — the question the row exists to answer. -->
             <span v-if="who(e)" class="ar-aa__who">{{ who(e) }}</span>
+            <!-- The advisories used to be a THIRD line, which made rows uneven and long.
+                 Same words, same place in the row, now behind a marker on the who line —
+                 two lines tall, whatever the event. -->
+            <button
+              v-if="note(e)"
+              type="button"
+              class="ar-aa__noteicon"
+              :class="{ 'is-warn': !!revokeAdvice(e) }"
+              :aria-label="note(e)"
+              @mouseenter="showUaTip($event, note(e), '')"
+              @mouseleave="hideUaTip"
+              @focus="showUaTip($event, note(e), '')"
+              @blur="hideUaTip"
+            >i</button>
           </td>
           <td>{{ e.hits > 1 ? `${e.hits} times` : 'once' }}</td>
-          <td
-            class="ar-aa__when"
-            @mouseenter="showUaTip($event, when(e.firstSeen), '')"
-            @mouseleave="hideUaTip"
-          >{{ ago(e.firstSeen) }}</td>
-          <td
-            class="ar-aa__when"
-            @mouseenter="showUaTip($event, when(e.lastSeen), '')"
-            @mouseleave="hideUaTip"
-          >{{ ago(e.lastSeen) }}</td>
+          <td>{{ when(e.firstSeen) }}</td>
+          <td>{{ when(e.lastSeen) }}</td>
         </tr>
       </tbody>
     </table>
@@ -517,8 +467,7 @@ export default {
       machine logins — someone signing in with your normal password won't appear here.
     </p>
 
-    <!-- The uaTip mixin positions THIS element; without it every hover in this
-         component was silently doing nothing (the info marker had no tooltip). -->
+    <!-- The uaTip mixin positions THIS element; without it the marker's hover is a no-op. -->
     <Teleport to="body">
       <transition name="ar-tip">
         <div

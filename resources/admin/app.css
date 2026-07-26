@@ -4097,18 +4097,6 @@ a.ar-about-proto__v:hover { text-decoration: underline; }
 /* On a phone the four columns exceed the card: scroll the table inside its own box
    rather than letting it widen (or get clipped by) the page — columns stay reachable. */
 .ar-aa__tablewrap { overflow-x: auto; margin: 0 0 16px; min-width: 0; }
-/* Phones: five columns can't fit, and a sideways-scrolling table is a poor way
-   to read a security record. Drop WHO to a second line under the event (where
-   it lived before, but only where the room genuinely runs out), and let the
-   timestamps carry the rest. The event line still never wraps — it ellipsises,
-   with the full text one tap away on the mark. */
-@media (max-width: 782px) {
-  /* Phones: the who line stops hanging off the mark's width, and the event name
-     wraps instead of forcing a sideways scroll. */
-  .ar-aa__who { padding-left: 0; }
-  .ar-aa__what { white-space: normal; }
-  .ar-aa__kind { flex-basis: auto; }
-}
 /* The access log wears the Request Log's table dress (.ar-act-table on the same
    element), so the two logs read and behave as one family — same header band, same
    cell rhythm, same sideways scroll on narrow screens instead of crushed columns.
@@ -4117,22 +4105,19 @@ a.ar-about-proto__v:hover { text-decoration: underline; }
    and multi-line rows align to the top. */
 .ar-aa__table { width: 100%; border-collapse: collapse; margin: 0; }
 .ar-aa__table td { font-size: 13px; color: var(--ar-ink-soft); border-bottom: 1px solid var(--ar-line); vertical-align: top; }
-.ar-aa__table td:first-child { white-space: nowrap; min-width: 0; }
-/* One line per row: the kind mark supplies the verb, the subject carries the
-   name, and the advisory hides behind an info marker instead of adding a third
-   line. Rows were 2–3 lines tall and no two the same height. */
-.ar-aa__row { display: flex; align-items: center; gap: 8px; min-width: 0; }
-.ar-aa__row .ar-log__mark { flex: 0 0 auto; }
-/* The kind mark keeps a fixed width INSIDE the cell, so every event name starts
-   at the same x while the mark, name and who stay one block. */
-.ar-aa__kind { flex: 0 0 92px; text-align: center; }
-.ar-aa__when { white-space: nowrap; cursor: help; }
+.ar-aa__table td:first-child { white-space: normal; min-width: 340px; }
+/* The third line, folded into a marker on the who line: same words, one hover
+   away, and every row is two lines tall whatever the event. */
 .ar-aa__noteicon {
-  flex: 0 0 auto; width: 15px; height: 15px; padding: 0; border-radius: 50%;
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 15px; height: 15px; margin-left: 6px; padding: 0; border-radius: 50%;
   border: 1px solid var(--ar-line-strong); background: transparent; cursor: help;
-  font-family: var(--ar-mono); font-size: 10px; line-height: 13px; color: var(--ar-ink-soft);
+  font-family: var(--ar-mono); font-size: 10px; line-height: 1; color: var(--ar-ink-soft);
+  vertical-align: -2px;
 }
 .ar-aa__noteicon:hover, .ar-aa__noteicon:focus-visible { border-color: var(--ar-accent); color: var(--ar-accent); }
+/* The one advisory that is a warning, not a note, keeps its weight. */
+.ar-aa__noteicon.is-warn { border-color: color-mix(in srgb, var(--ar-warn) 55%, var(--ar-line)); color: var(--ar-warn); }
 /* Agent Access marks, same vocabulary as the log: only a refusal is solid. */
 .ar-log__mark.is-aa-ok      { color: color-mix(in srgb, var(--ar-good) 80%, var(--ar-ink-soft)); border: 1px solid color-mix(in srgb, var(--ar-good) 38%, var(--ar-line)); }
 .ar-log__mark.is-aa-info    { color: var(--ar-ink-soft); border: 1px solid var(--ar-line-strong); }
@@ -4141,12 +4126,10 @@ a.ar-about-proto__v:hover { text-decoration: underline; }
    rule so the table visibly ends before it. */
 .ar-aa__table tbody tr:last-child td { border-bottom: 1px solid var(--ar-line); }
 .ar-aa__table tr.is-unseen td { background: color-mix(in srgb, var(--ar-accent) 4.5%, transparent); }
-.ar-aa__what { font-weight: 500; color: var(--ar-ink); white-space: nowrap; }
+.ar-aa__what { display: block; font-weight: 500; color: var(--ar-ink); }
 
 /* WHO did it — quieter than the hint sentences, but always present when known. */
-/* Indented to line up under the event name, not under the mark — the eye reads
-   "this happened / by whom" as one thing. */
-.ar-aa__who { display: block; margin-top: 2px; padding-left: 100px; font-size: 12px; color: var(--ar-ink-soft); }
+.ar-aa__who { display: inline; margin-top: 2px; font-size: 12px; color: var(--ar-ink-soft); }
 
 /* The sentence the whole feature exists to deliver: an application password keeps working
    after a password change, so an unrecognised one has to be revoked, not just noted. */
