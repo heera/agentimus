@@ -240,7 +240,10 @@ export default {
     eventKind(e) {
       switch (e.kind) {
         case 'apppw_created':  return 'New application password';
-        case 'apppw_used':     return 'Application password used for the first time';
+        // "First used", not "used": the event fires ONCE, on a key's first
+        // authentication (Module::on_password_used bails when last_used is set),
+        // so plain "used" would imply a per-use log that deliberately doesn't exist.
+        case 'apppw_used':     return 'Application password first used';
         case 'apppw_renamed':  return 'Application password renamed';
         case 'apppw_deleted':  return 'Application password revoked';
         case 'ability_used':   return 'Ability used';
