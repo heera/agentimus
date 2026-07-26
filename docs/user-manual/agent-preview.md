@@ -1,7 +1,7 @@
 ---
 title: Agent preview
 parent: User Manual
-nav_order: 13
+nav_order: 14
 ---
 
 When an AI assistant or agent reads your site, it does not see your theme, your

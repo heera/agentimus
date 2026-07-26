@@ -1,7 +1,7 @@
 ---
 title: Exposure & hardening
 parent: User Manual
-nav_order: 16
+nav_order: 17
 ---
 
 Most of Agentimus is about *helping* AI agents and crawlers understand your site: publishing clean discovery files, describing your content, and telling assistants who you are. The **Exposure** tab is the mirror image of that. Instead of adding helpful signals, it quietly *removes* the stock WordPress details that an anonymous crawler, bot, or scanner can read but that you never chose to share — things like your list of usernames, your exact WordPress version, and a handful of legacy links most sites never use.

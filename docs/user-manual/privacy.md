@@ -1,7 +1,7 @@
 ---
 title: Privacy & data
 parent: User Manual
-nav_order: 19
+nav_order: 20
 ---
 
 Agentimus was built to be quiet. It helps AI assistants and crawlers understand your site, but it does that by publishing files and signals on *your own* server — not by sending your data anywhere else. This page explains, in plain language, exactly what stays on your site, the one feature that is the exception, and why a couple of things that *look* like outside connections aren't.
@@ -20,7 +20,9 @@ Everything below is checked against the plugin's actual source code, not marketi
 
 When you install and activate Agentimus and go about your day, the plugin does not open a single connection to the outside world. There is no built-in analytics, no usage tracking, no "call home" to the author, and no remote configuration.
 
-Your visitors don't get anything new either. A default install adds no front-end JavaScript or CSS to your pages, so there is nothing loading from a third-party CDN and nothing watching your visitors. (The only way to add a front-end script is to deliberately turn on the experimental WebMCP bridge, which is off by default and stays completely inert in browsers that don't support the feature.)
+The one thing it sends anywhere is the [weekly digest](weekly-digest.html) — an email to *your own inbox*, through your site's own mail system like any WordPress notification. It contains no images and no tracking, reports only data already stored on your site, and stops with the one-click link in any of the emails.
+
+Your visitors don't get anything new either. A default install adds no front-end JavaScript or CSS to your pages, so there is nothing loading from a third-party CDN and nothing watching your visitors. (Exactly two opt-in features add a script, both off by default: the experimental WebMCP bridge, which stays completely inert in browsers that don't support it, and the CDN-mode referral beacon — a tiny first-party counter that records no IP and nothing identifying, for sites whose edge cache hides arrivals from the server.)
 
 Everything Agentimus produces — your `llms.txt`, the full-text edition, the Markdown versions of your pages, your JSON-LD, your robots rules, and the discovery documents — is generated on your own server and served from your own domain.
 

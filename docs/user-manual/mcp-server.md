@@ -1,7 +1,7 @@
 ---
 title: MCP server
 parent: User Manual
-nav_order: 14
+nav_order: 15
 ---
 
 ## What this is, in plain words

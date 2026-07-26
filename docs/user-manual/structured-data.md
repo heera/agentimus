@@ -1,7 +1,7 @@
 ---
 title: Structured data
 parent: User Manual
-nav_order: 7
+nav_order: 8
 ---
 
 Structured data is a small, machine-readable summary of your page that Agentimus prints in the page's HTML head. Humans never see it, but search engines and AI assistants read it to understand *who you are*, *what a page is about*, and *how your pages relate to each other* — without having to guess from your layout or wording.

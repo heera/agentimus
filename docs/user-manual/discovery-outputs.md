@@ -1,7 +1,7 @@
 ---
 title: Machine-readable outputs
 parent: User Manual
-nav_order: 6
+nav_order: 7
 ---
 
 Everything Agentimus publishes for AI tools lives in a handful of plain files served straight off your own domain. This page lists every one of them, shows you how to open and read each in a browser, and explains when each is served and how to turn it on or off.

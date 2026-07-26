@@ -1,7 +1,7 @@
 ---
 title: Search basics
 parent: User Manual
-nav_order: 8
+nav_order: 9
 ---
 
 **Search basics** is the part of Agentimus that covers what most sites install an SEO plugin for: the page title search results show, the preview card a shared link gets, the canonical address of each page, and the sitemap. With these, a site that runs no SEO plugin isn't missing anything essential — and a site that runs one loses nothing, because Agentimus steps aside for it automatically.

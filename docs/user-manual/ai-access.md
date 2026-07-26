@@ -1,7 +1,7 @@
 ---
 title: AI access & crawlers
 parent: User Manual
-nav_order: 15
+nav_order: 16
 ---
 
 Agentimus gives you a clear, plain-language way to decide **who gets to read your site, and for what** — search engines, AI assistants, and the crawlers that harvest content to train AI models. It does this in two layers: a set of *polite requests* that well-behaved crawlers honour, and an *optional* hard stop for the ones that don't.

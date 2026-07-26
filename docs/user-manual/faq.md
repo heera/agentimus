@@ -1,7 +1,7 @@
 ---
 title: FAQ
 parent: User Manual
-nav_order: 20
+nav_order: 21
 ---
 
 Short, honest answers to the questions site owners ask most. If you are weighing up whether Agentimus is safe to run on a live site, this is the page to read. The recurring theme: Agentimus adds a machine-readable layer *for AI tools* without touching what your visitors see, without phoning home, and without taking over jobs your other plugins already do.
@@ -59,6 +59,10 @@ Everything runs on your own site. There are two things worth knowing so the pict
 - **The "Verify live" self-check runs in your browser, not on your server.** The Readiness report has a button that fetches your own public URLs to show you exactly what an AI tool would receive. That fetch happens from *your* browser, hitting *your* own pages — the server itself still makes no outbound request.
 
 One common point of confusion: the discovery document contains a `$schema` value. That is a *label* that names the document's format (the same way a `schema.org` link names a vocabulary). It is text in the file; nothing fetches it.
+
+## Why am I getting a weekly email from Agentimus?
+
+That's the [weekly digest](weekly-digest.html) — a short note about what AI did on your site: agent visits against the week before, readers arriving from AI answers, impostors caught, and your readiness score with its change since the last note. It's on by default because the plugin's work is otherwise invisible, and it's built only from data already stored on your site — the email to your own inbox is the only thing that leaves the server. A week with nothing to report sends nothing. Stop it with the one-click link inside any of the emails, or under **Settings → Weekly email**, where you can also pick the day and time it arrives, change the address, and send yourself a test.
 
 ## Can AI help me write the description, topics and fixes?
 
