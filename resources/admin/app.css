@@ -4118,10 +4118,6 @@ a.ar-about-proto__v:hover { text-decoration: underline; }
 .ar-aa__noteicon:hover, .ar-aa__noteicon:focus-visible { border-color: var(--ar-accent); color: var(--ar-accent); }
 /* The one advisory that is a warning, not a note, keeps its weight. */
 .ar-aa__noteicon.is-warn { border-color: color-mix(in srgb, var(--ar-warn) 55%, var(--ar-line)); color: var(--ar-warn); }
-/* Agent Access marks, same vocabulary as the log: only a refusal is solid. */
-.ar-log__mark.is-aa-ok      { color: color-mix(in srgb, var(--ar-good) 80%, var(--ar-ink-soft)); border: 1px solid color-mix(in srgb, var(--ar-good) 38%, var(--ar-line)); }
-.ar-log__mark.is-aa-info    { color: var(--ar-ink-soft); border: 1px solid var(--ar-line-strong); }
-.ar-log__mark.is-aa-refused { color: var(--ar-paper); background: color-mix(in srgb, var(--ar-bad) 82%, var(--ar-ink)); border: 1px solid transparent; }
 /* Unlike the Request Log, a footer sentence follows this table — keep the last row's
    rule so the table visibly ends before it. */
 .ar-aa__table tbody tr:last-child td { border-bottom: 1px solid var(--ar-line); }
