@@ -295,6 +295,9 @@ export default {
           <thead>
             <tr>
               <th scope="col">Client</th>
+              <!-- Identity/outcome marks get their OWN column so they line up down
+                   the table instead of drifting with each client name's length. -->
+              <th scope="col" class="ar-log__statuscol">Status</th>
               <th scope="col">Endpoint</th>
               <th v-if="hasNetwork" scope="col">Network</th>
               <th scope="col">User-Agent</th>
@@ -312,19 +315,21 @@ export default {
                   @mouseleave="hideUaTip"
                   @click="pivot('agent', r.agent)"
                 >{{ r.agent }}</button>
+              </td>
+              <td class="ar-log__statuscol">
                 <span
                   v-if="verdictLabel(r.verdict)"
-                  class="ar-log__verdict"
+                  class="ar-log__mark"
                   :class="[`is-${verdictLabel(r.verdict)}`, { 'is-signed': !!r.signer }]"
                   @mouseenter="showUaTip($event, signedTip(r), '')"
                   @mouseleave="hideUaTip"
                 >
-                  {{ r.signer ? (r.verdict === 1 ? 'signed' : 'bad signature') : verdictLabel(r.verdict) }}
+                  {{ r.signer ? (r.verdict === 1 ? 'signed' : 'forged') : verdictLabel(r.verdict) }}
                 </span>
                 <!-- The one thing this row must never be mistaken for is a read. -->
                 <span
                   v-if="r.refused"
-                  class="ar-log__refused"
+                  class="ar-log__mark is-refused"
                   @mouseenter="showUaTip($event, 'Turned away — this request was refused, not served. It counts toward none of your read totals.', '')"
                   @mouseleave="hideUaTip"
                 >
