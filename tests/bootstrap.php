@@ -230,6 +230,7 @@ namespace {
 	if ( ! function_exists( 'get_terms' ) )             { function get_terms( $args = array() ) { return isset( $GLOBALS['_af_get_terms'] ) ? $GLOBALS['_af_get_terms'] : array(); } }
 	if ( ! function_exists( 'wp_parse_args' ) )         { function wp_parse_args( $a, $d = array() ) { if ( is_object( $a ) ) { $a = get_object_vars( $a ); } elseif ( ! is_array( $a ) ) { $a = array(); } return array_merge( $d, $a ); } }
 	if ( ! function_exists( 'wp_json_encode' ) )        { function wp_json_encode( $d, $f = 0, $depth = 512 ) { return json_encode( $d, $f, $depth ); } }
+	if ( ! function_exists( 'untrailingslashit' ) )    { function untrailingslashit( $s ) { return rtrim( (string) $s, '/' ); } }
 	if ( ! function_exists( 'trailingslashit' ) )       { function trailingslashit( $s ) { return rtrim( (string) $s, '/\\' ) . '/'; } }
 	if ( ! function_exists( 'rest_url' ) )              { function rest_url( $p = '' ) { return 'https://example.test/wp-json/' . ltrim( (string) $p, '/' ); } }
 	if ( ! function_exists( 'absint' ) )                { function absint( $n ) { return abs( (int) $n ); } }
