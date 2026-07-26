@@ -234,7 +234,9 @@ export default {
             : 'Verified — the address really belongs to this operator.',
         };
       }
-      return null;
+      // No verdict is still an ANSWER, so it gets a word like every other row —
+      // a dash makes the reader guess, and most rows land here.
+      return { text: 'unchecked', cls: 'is-none', tip: this.nomarkTip };
     },
     ago(iso) {
       const t = Date.parse(iso);
@@ -359,21 +361,11 @@ export default {
               </td>
               <td class="ar-log__statuscol">
                 <span
-                  v-if="statusMark(r)"
                   class="ar-log__mark"
                   :class="statusMark(r).cls"
                   @mouseenter="showUaTip($event, statusMark(r).tip, '')"
                   @mouseleave="hideUaTip"
                 >{{ statusMark(r).text }}</span>
-                <!-- A dash is not self-explanatory, so it carries its own answer:
-                     nothing here was checked, and why not. -->
-                <span
-                  v-else
-                  class="ar-log__nomark"
-                  aria-label="No identity check"
-                  @mouseenter="showUaTip($event, nomarkTip, '')"
-                  @mouseleave="hideUaTip"
-                >—</span>
               </td>
               <td>
                 <button
@@ -387,14 +379,14 @@ export default {
               </td>
               <td v-if="hasNetwork">
                 <span v-if="r.network" class="ar-act-feed__net">{{ r.network }}</span>
-                <!-- Same rule as the Status dash: a dash must be able to say why. -->
+                <!-- A word, not a dash: the reader should never have to interpret
+                     punctuation to learn we simply don't know. -->
                 <span
                   v-else
-                  class="ar-act-table__dash ar-log__nomark"
-                  aria-label="Network not identified"
+                  class="ar-log__mark is-none"
                   @mouseenter="showUaTip($event, networkTip, '')"
                   @mouseleave="hideUaTip"
-                >—</span>
+                >unknown</span>
               </td>
               <td>
                 <!-- Truncated in the cell, so the bubble carries the whole string and a
@@ -429,20 +421,6 @@ export default {
         </button>
       </div>
     </div>
-
-    <!-- What the Status column's words mean, in one line, so nobody has to hover to
-         find out — especially the dash, which says nothing on its own. -->
-    <p v-if="rows.length" class="ar-log__legend">
-      <strong>Status:</strong>
-      <span><em>verified</em>/<em>signed</em> — proved who it is</span> ·
-      <span><em>spoofed</em>/<em>forged</em> — claimed someone it isn’t</span> ·
-      <span><em>refused</em> — turned away, nothing served</span> ·
-      <span><em>—</em> {{ verifyOn ? 'nothing to check: this client claims no verifiable crawler name' : 'not checked: identity verification is off' }}</span>
-      <br />
-      <strong>Network:</strong>
-      <span>the organisation a visitor’s address belongs to</span> ·
-      <span><em>—</em> {{ identifyOn ? 'not attributable (home broadband, small hosts, privacy proxies)' : '“Identify every bot” is off' }}</span>
-    </p>
 
     <!-- The rule sits on the <p>, which spans the card; the prose inside is measured for
          readability. Putting max-width on the <p> itself cropped the rule short of the card. -->

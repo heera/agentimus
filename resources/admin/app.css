@@ -3849,25 +3849,16 @@ a.ar-about-proto__v:hover { text-decoration: underline; }
 }
 /* One mark per row by design; a row with nothing to say shows a dash, the
    same way the Network column does, so the column never looks broken. */
-/* A dash must LOOK like it has something to say, or it reads as an empty cell
-   and nobody ever hovers it. A dotted underline is the web's oldest "there's an
-   explanation here" signal, and it costs no colour in a table already carrying
-   coloured marks. */
-.ar-log__nomark {
-  color: var(--ar-ink-soft); opacity: 0.75; cursor: help;
-  border-bottom: 1px dotted var(--ar-line-strong); line-height: 1.2;
+/* "unchecked" / "unknown" are answers too, so they get a word like every other
+   row — but the quietest one on the screen: no border, muted ink, and a dotted
+   underline that says "there's more if you want it" without competing with the
+   verdicts around it. */
+.ar-log__mark.is-none {
+  color: var(--ar-ink-soft); border: 1px solid transparent;
+  border-bottom: 1px dotted var(--ar-line-strong); border-radius: 0;
+  padding: 0; opacity: 0.85;
 }
-.ar-log__nomark:hover { opacity: 1; border-bottom-color: var(--ar-accent); }
-/* One quiet line that answers "what do these words mean?" — including the dash,
-   which is the only mark that can't explain itself by being read. */
-.ar-log__legend {
-  margin: 10px 0 0; font-size: 11.5px; line-height: 1.7; color: var(--ar-ink-soft);
-}
-.ar-log__legend strong { color: var(--ar-ink); font-weight: 600; }
-.ar-log__legend em {
-  font-family: var(--ar-mono); font-style: normal; font-size: 10px;
-  text-transform: uppercase; letter-spacing: 0.05em; color: var(--ar-ink);
-}
+.ar-log__mark.is-none:hover { opacity: 1; border-bottom-color: var(--ar-accent); }
 .ar-log__mark.is-verified { color: color-mix(in srgb, var(--ar-good) 80%, var(--ar-ink-soft)); border: 1px solid color-mix(in srgb, var(--ar-good) 38%, var(--ar-line)); }
 .ar-log__mark.is-spoofed  { color: color-mix(in srgb, var(--ar-bad) 85%, var(--ar-ink-soft));  border: 1px solid color-mix(in srgb, var(--ar-bad) 38%, var(--ar-line)); }
 /* Proof outranks inference, so a signature-backed mark gets a faint wash — still
