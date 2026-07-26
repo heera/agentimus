@@ -4104,7 +4104,17 @@ a.ar-about-proto__v:hover { text-decoration: underline; }
    sentences (with a floor so the wrapper scrolls rather than the column collapsing),
    and multi-line rows align to the top. */
 .ar-aa__table { width: 100%; border-collapse: collapse; margin: 0; }
-.ar-aa__table td { font-size: 13px; color: var(--ar-ink-soft); border-bottom: 1px solid var(--ar-line); vertical-align: top; }
+/* Rows breathe: a security record read once a week is not a spreadsheet, and
+   9px of vertical padding made five facts feel like one block. 16px each side —
+   the critique suggested 24, which on an 80-row log is a lot of scrolling for
+   air. */
+.ar-aa__table td { font-size: 13px; color: var(--ar-ink-soft); border-bottom: 1px solid var(--ar-line); vertical-align: top; padding-top: 16px; padding-bottom: 16px; }
+/* The count earns a shape rather than a sentence — same beige, no new colour. */
+.ar-aa__uses {
+  display: inline-block; font-family: var(--ar-mono); font-size: 11px;
+  letter-spacing: -0.02em; color: var(--ar-ink-soft);
+  background: var(--ar-surface-2); padding: 2px 8px; border-radius: 999px; white-space: nowrap;
+}
 .ar-aa__table td:first-child { white-space: normal; min-width: 260px; }
 /* The third line, folded into a marker on the who line: same words, one hover
    away, and every row is two lines tall whatever the event. */
@@ -4127,9 +4137,12 @@ a.ar-about-proto__v:hover { text-decoration: underline; }
 /* Typographically identical to the timestamp columns — same face, same 11px,
    same -0.02em tracking, same faint tone and normal weight. Only the uppercase
    remains, because that is what makes it read as a label rather than a value. */
+/* LEVEL 3 — the kind, now a subtitle under the name it describes. The name is
+   what varies and what you scan for; the kind repeats down the table, so it sits
+   below and quieter. */
 .ar-aa__kindline {
-  display: block; font-family: var(--ar-mono); font-size: 11px;
-  letter-spacing: -0.02em; text-transform: uppercase;
+  display: block; margin-top: 2px; font-family: var(--ar-mono); font-size: 10.5px;
+  letter-spacing: 0.02em; text-transform: uppercase;
   color: var(--ar-ink-faint); font-weight: 400;
 }
 /* ONE face for both kinds of subject — that is what fixes the mismatched
@@ -4138,10 +4151,11 @@ a.ar-about-proto__v:hover { text-decoration: underline; }
    secondary, but here the subject IS the row, and boxing every one makes the
    column read boxy while adding height for nothing. The label line above already
    says whether it names an ability or a key. */
+/* LEVEL 1 — the hero. The one thing on the row that is unique to it. */
 .ar-aa__what {
-  display: flex; align-items: center; gap: 6px; margin-top: 2px;
-  font-family: var(--ar-mono); font-size: 12.5px; letter-spacing: -0.01em;
-  font-weight: 500; color: var(--ar-ink);
+  display: flex; align-items: center; gap: 7px;
+  font-family: var(--ar-mono); font-size: 14px; letter-spacing: -0.01em;
+  font-weight: 600; color: var(--ar-ink);
   overflow-wrap: anywhere; cursor: help;
 }
 /* A key or a spark ahead of the name: the row's family is recognisable before a
@@ -4156,6 +4170,7 @@ a.ar-about-proto__v:hover { text-decoration: underline; }
    is genuinely long the table scrolls, which at least keeps it readable. */
 /* Marker and person on one line; the credential drops beneath. */
 .ar-aa__whotop { display: flex; align-items: center; gap: 0; }
+/* LEVEL 2 — metadata. */
 .ar-aa__who { font-size: 12.5px; color: var(--ar-ink-soft); }
 /* What the request came in WITH — the quieter half of "who", on its own line so
    the eye doesn't have to find a middot to know where the second fact starts.

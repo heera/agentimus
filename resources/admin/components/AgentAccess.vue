@@ -328,9 +328,9 @@ export default {
     whoCred(e) {
       if (!e.userId || (e.kind && 0 === e.kind.indexOf('apppw_'))) return '';
       if (e.cred) {
-        return e.credName ? `app password “${e.credName}”` : 'app password (revoked)';
+        return e.credName ? `via ${e.credName}` : 'via an app password (since revoked)';
       }
-      return 'logged-in session';
+      return 'via a logged-in session';
     },
     // Shown on a created password and nowhere else. Deliberately unconditional: we have no
     // honest basis for deciding WHICH new password is suspicious (no IP, no location), so we
@@ -440,7 +440,6 @@ export default {
       <tbody>
         <tr v-for="e in events" :key="e.id" :class="{ 'is-unseen': isHighlighted(e), 'is-refusal': isRefusal(e) }">
           <td>
-            <span class="ar-aa__kindline">{{ eventKind(e) }}</span>
             <span
               v-if="eventSubject(e)"
               class="ar-aa__what"
@@ -465,6 +464,7 @@ export default {
                    arrived with. -->
               <span v-if="isHighlighted(e)" class="ar-aa__new">New</span>
             </span>
+            <span class="ar-aa__kindline">{{ eventKind(e) }}</span>
           </td>
           <!-- WHO gets its own column, so every row is a single line. The advisory
                that would otherwise be a third line rides here as a marker. -->
@@ -488,7 +488,7 @@ export default {
             </span>
             <span v-if="whoCred(e)" class="ar-aa__cred">{{ whoCred(e) }}</span>
           </td>
-          <td>{{ e.hits > 1 ? `${e.hits} times` : 'once' }}</td>
+          <td><span class="ar-aa__uses">{{ e.hits > 1 ? `${e.hits} uses` : 'once' }}</span></td>
           <!-- Two columns, one line each. Merging them into one cell put a second
                line on the rows that repeated and left the rest with one, which is
                the uneven-row problem this table already had once. Even columns
