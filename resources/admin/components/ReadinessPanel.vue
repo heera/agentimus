@@ -318,7 +318,7 @@ export default {
       <div class="ar-checkgroup__head">
         <span class="ar-checkgroup__rung" aria-hidden="true"></span>
         <div class="ar-checkgroup__text">
-          <h3 class="ar-checkgroup__name">Optimize your content</h3>
+          <h3 class="ar-checkgroup__name">Optimize Your Content</h3>
           <p class="ar-checkgroup__blurb">
             Pages an answer engine would find harder to read or quote. Open one to fix it in the editor,
             or set aside anything that isn’t meant to be cited.

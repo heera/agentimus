@@ -67,7 +67,7 @@ export function groupChecks(checks) {
     const pass = extra.filter((c) => c.status === 'pass').length;
     groups.push({
       key: 'more',
-      label: 'More checks',
+      label: 'More Checks',
       blurb: '',
       items: extra,
       pass,
