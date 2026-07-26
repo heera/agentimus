@@ -3849,7 +3849,15 @@ a.ar-about-proto__v:hover { text-decoration: underline; }
 }
 /* One mark per row by design; a row with nothing to say shows a dash, the
    same way the Network column does, so the column never looks broken. */
-.ar-log__nomark { color: var(--ar-ink-soft); opacity: 0.5; cursor: help; }
+/* A dash must LOOK like it has something to say, or it reads as an empty cell
+   and nobody ever hovers it. A dotted underline is the web's oldest "there's an
+   explanation here" signal, and it costs no colour in a table already carrying
+   coloured marks. */
+.ar-log__nomark {
+  color: var(--ar-ink-soft); opacity: 0.75; cursor: help;
+  border-bottom: 1px dotted var(--ar-line-strong); line-height: 1.2;
+}
+.ar-log__nomark:hover { opacity: 1; border-bottom-color: var(--ar-accent); }
 /* One quiet line that answers "what do these words mean?" — including the dash,
    which is the only mark that can't explain itself by being read. */
 .ar-log__legend {

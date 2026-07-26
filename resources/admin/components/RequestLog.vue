@@ -41,6 +41,7 @@ export default {
       cursor: null,
       retentionDays: 30,
       verifyOn: false,
+      identifyOn: false,
       autoPrune: true,
       maxRows: 50000,
       perPage: 50,
@@ -89,6 +90,13 @@ export default {
       return this.verifyOn
         ? 'No identity check — this client claims no crawler that can be verified (browsers and scripts never do). It was served normally.'
         : 'No identity check — “Verify bot identities” is off, so no client’s claim was checked. Turn it on in Settings → AI access.';
+    },
+    // Why a row has no network. Two honest cases again: the lookup wasn't run at
+    // all, or it ran and couldn't attribute this address to an organisation.
+    networkTip() {
+      return this.identifyOn
+        ? 'No network — the lookup couldn’t attribute this visitor to an organisation. Common for home broadband, small hosts and anything behind a privacy proxy.'
+        : 'No network — “Identify every bot” is off, so visitors aren’t looked up. Turn it on in Settings → AI access to see which organisation each one belongs to.';
     },
     pageFrom() {
       return this.rows.length ? this.trail.length * this.perPage + 1 : 0;
@@ -147,6 +155,7 @@ export default {
         this.cursor = res.cursor || null;
         this.retentionDays = res.retentionDays || 30;
         this.verifyOn = !!res.verifyOn;
+        this.identifyOn = !!res.identifyOn;
         this.autoPrune = res.autoPrune !== false;
         this.maxRows = res.maxRows || 50000;
         this.before = before;
@@ -378,7 +387,14 @@ export default {
               </td>
               <td v-if="hasNetwork">
                 <span v-if="r.network" class="ar-act-feed__net">{{ r.network }}</span>
-                <span v-else class="ar-act-table__dash" aria-label="not identified">—</span>
+                <!-- Same rule as the Status dash: a dash must be able to say why. -->
+                <span
+                  v-else
+                  class="ar-act-table__dash ar-log__nomark"
+                  aria-label="Network not identified"
+                  @mouseenter="showUaTip($event, networkTip, '')"
+                  @mouseleave="hideUaTip"
+                >—</span>
               </td>
               <td>
                 <!-- Truncated in the cell, so the bubble carries the whole string and a
@@ -422,6 +438,10 @@ export default {
       <span><em>spoofed</em>/<em>forged</em> — claimed someone it isn’t</span> ·
       <span><em>refused</em> — turned away, nothing served</span> ·
       <span><em>—</em> {{ verifyOn ? 'nothing to check: this client claims no verifiable crawler name' : 'not checked: identity verification is off' }}</span>
+      <br />
+      <strong>Network:</strong>
+      <span>the organisation a visitor’s address belongs to</span> ·
+      <span><em>—</em> {{ identifyOn ? 'not attributable (home broadband, small hosts, privacy proxies)' : '“Identify every bot” is off' }}</span>
     </p>
 
     <!-- The rule sits on the <p>, which spans the card; the prose inside is measured for

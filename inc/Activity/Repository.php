@@ -639,6 +639,9 @@ final class Repository {
 			// So the Status column can explain a dash HONESTLY: "nothing to check
 			// here" and "checking is switched off" are different facts.
 			'verifyOn'      => Guard::verification_on(),
+			// Same reason: "not looked up" and "looked up, nothing to attribute" are
+			// different facts, and the dash must not blur them.
+			'identifyOn'    => (bool) ( new Settings() )->enabled( 'identify_bots' ),
 		);
 	}
 
