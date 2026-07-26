@@ -4169,8 +4169,12 @@ a.ar-about-proto__v:hover { text-decoration: underline; }
    rather than shimmering row to row. */
 .ar-act-table th.ar-aa__seencol, .ar-act-table td.ar-aa__seencol {
   text-align: right; white-space: nowrap; width: 24ch; min-width: 24ch;
-  font-variant-numeric: tabular-nums;
+  font-variant-numeric: tabular-nums; vertical-align: top;
 }
+/* The "it started here" line, shown only on events that repeated — quieter than
+   the last-seen stamp above it, because the recent one is what a reader is
+   scanning for. */
+.ar-aa__firstseen { display: block; margin-top: 2px; font-size: 10.5px; color: var(--ar-ink-faint); opacity: 0.85; }
 .ar-act-table td.ar-aa__seencol { color: var(--ar-ink-faint); font-family: var(--ar-mono); font-size: 11px; letter-spacing: -0.02em; }
 .ar-act-table th.ar-aa__seencol:last-child, .ar-act-table td.ar-aa__seencol:last-child { padding-right: 10px; }
 
