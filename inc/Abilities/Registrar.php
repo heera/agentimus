@@ -45,6 +45,7 @@ use Agentimus\Readiness;
 use Agentimus\Score;
 use Agentimus\Content;
 use Agentimus\PageCheck;
+use Agentimus\InternalLinks;
 use Agentimus\Schema;
 use Agentimus\Markdown;
 use Agentimus\Exposure;
@@ -399,6 +400,45 @@ final class Registrar {
 					'summary' => PageCheck::summary( $rows ),
 					'checks'  => $rows,
 				);
+			},
+			array( $this, 'can_edit_post' )
+		);
+
+		$this->add(
+			'suggest-internal-links',
+			__( 'Suggest internal links for a page', 'agentimus' ),
+			'Suggests which of the site’s OWN posts this post should link to, from local signals only '
+				. '(shared topics, categories/tags, and the candidate’s subject appearing in the text) — no AI '
+				. 'call is spent. Each suggestion carries the target post, the exact phrase in this post’s text '
+				. 'to link (empty when none exists — append a "See also" line instead), and a one-line reason. '
+				. 'READ-ONLY: it suggests; to actually insert a link, edit the post through the governed '
+				. 'update tool like any other content change.',
+			self::obj(
+				array(
+					'post_id' => self::i( 'The post/page ID to suggest links for.' ),
+				),
+				array( 'post_id' )
+			),
+			self::obj(
+				array(
+					'suggestions' => self::arr(
+						array(
+							'id'     => self::i(),
+							'title'  => self::s(),
+							'url'    => self::s(),
+							'phrase' => self::s(),
+							'why'    => self::s(),
+						)
+					),
+				)
+			),
+			function ( $input ) {
+				$post = get_post( (int) ( $input['post_id'] ?? 0 ) );
+				if ( ! $post instanceof \WP_Post ) {
+					return new \WP_Error( 'agentimus_not_found', __( 'Post not found.', 'agentimus' ), array( 'status' => 404 ) );
+				}
+				// Deterministic local path — an agent's read never spends the owner's AI budget.
+				return array( 'suggestions' => ( new InternalLinks( $this->settings ) )->suggest( $post, false ) );
 			},
 			array( $this, 'can_edit_post' )
 		);

@@ -399,7 +399,7 @@ final class Topics {
 	 * @param string $text The plain-text title (already translated).
 	 * @return string
 	 */
-	private static function meta_box_title( $text ) {
+	public static function meta_box_title( $text ) {
 		return Admin::brand_title( $text ); // The one shared brand tile.
 	}
 
