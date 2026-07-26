@@ -16,6 +16,7 @@
  */
 import SelectMenu from './SelectMenu.vue';
 import { uaTip } from '../uaTip.js';
+import { formatStamp } from '../wpDate.js';
 
 export default {
   name: 'RequestLog',
@@ -238,6 +239,11 @@ export default {
       // a dash makes the reader guess, and most rows land here.
       return { text: 'unchecked', cls: 'is-none', tip: this.nomarkTip };
     },
+    // The exact moment, in the site's own date/time format — the relative value
+    // answers "recent?", this answers "when exactly?".
+    stamp(iso) {
+      return formatStamp(iso);
+    },
     ago(iso) {
       const t = Date.parse(iso);
       if (!t) return '';
@@ -344,7 +350,9 @@ export default {
               <th scope="col">Endpoint</th>
               <th v-if="hasNetwork" scope="col">Network</th>
               <th scope="col">User-Agent</th>
-              <th scope="col">Seen</th>
+              <!-- "Requested at", not "Seen": a refused row was requested but never
+                   served, and the column must be true for both kinds of row. -->
+              <th scope="col">Requested at</th>
             </tr>
           </thead>
           <tbody>
@@ -401,7 +409,11 @@ export default {
                 >{{ r.ua }}</code>
                 <span v-else class="ar-act-table__dash">—</span>
               </td>
-              <td class="ar-log__seen">{{ ago(r.at) }}</td>
+              <td
+                class="ar-log__seen"
+                @mouseenter="showUaTip($event, stamp(r.at), '')"
+                @mouseleave="hideUaTip"
+              >{{ ago(r.at) }}</td>
             </tr>
           </tbody>
         </table>
