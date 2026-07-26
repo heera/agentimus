@@ -328,7 +328,10 @@ export default {
     whoCred(e) {
       if (!e.userId || (e.kind && 0 === e.kind.indexOf('apppw_'))) return '';
       if (e.cred) {
-        return e.credName ? `via ${e.credName}` : 'via an app password (since revoked)';
+        // "(revoked)", not "(since revoked)": every row here is a past event with
+        // its own timestamp, so "revoked" can only mean "by now" — and it matches
+        // how a deleted account is marked one line up.
+        return e.credName ? `via ${e.credName}` : 'via an app password (revoked)';
       }
       return 'via a logged-in session';
     },
