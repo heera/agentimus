@@ -219,6 +219,34 @@ final class Store {
 	 *
 	 * @return int
 	 */
+	/**
+	 * The screen's headline numbers, in one query each: how many distinct
+	 * abilities have actually run here, and when anything last happened.
+	 *
+	 * "Watching every ability on this site" is true but abstract — an owner
+	 * cannot tell from it whether the watching has ever seen anything. These
+	 * two facts answer that without scrolling the feed, and they are honest
+	 * about zero: a site where nothing has run says so.
+	 *
+	 * @return array{abilities:int,lastAt:string} lastAt is ISO-8601, '' when nothing has happened.
+	 */
+	public static function headline() {
+		global $wpdb;
+		$table = self::name();
+
+		// phpcs:disable WordPress.DB, PluginCheck.Security.DirectDB.UnescapedDBParameter -- $table is our own prefix-derived name; the kinds are our own literals.
+		$abilities = (int) $wpdb->get_var(
+			"SELECT COUNT(DISTINCT subject) FROM $table WHERE kind IN ( 'ability_used', 'ability_refused' ) AND subject <> ''"
+		);
+		$last = (string) $wpdb->get_var( "SELECT MAX(last_at) FROM $table" );
+		// phpcs:enable WordPress.DB, PluginCheck.Security.DirectDB.UnescapedDBParameter
+
+		return array(
+			'abilities' => $abilities,
+			'lastAt'    => '' !== $last ? gmdate( 'c', strtotime( $last . ' UTC' ) ) : '',
+		);
+	}
+
 	public static function total() {
 		global $wpdb;
 		$table = self::name();

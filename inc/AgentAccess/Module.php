@@ -544,6 +544,10 @@ final class Module {
 				// about its blind spots, that is the worst possible place to hide one. See
 				// RequestLog's footer, which makes the same promise.
 				'total'        => Store::total(),
+				// The headline facts: distinct abilities seen, and when anything last
+				// happened. "Watching every ability" is true but abstract; these say
+				// whether the watching has ever caught anything.
+				'headline'     => Store::headline(),
 				'retention'    => (int) apply_filters( 'agentimus_agent_access_retention_days', Store::RETENTION_DAYS ),
 				'maxRows'      => Store::MAX_ROWS,
 				// The four-state ladder. The UI renders a different, ACTIONABLE message for each —

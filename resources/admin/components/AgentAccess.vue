@@ -52,6 +52,7 @@ export default {
       trail: [],
       perPage: 100,
       retention: 90,
+      headline: { abilities: 0, lastAt: '' },
       maxRows: 5000,
       coverage: '',
       hasAbilities: false,
@@ -176,6 +177,7 @@ export default {
         });
         this.unseen = data.unseen || 0;
         this.total = data.total || 0;
+        this.headline = data.headline || { abilities: 0, lastAt: '' };
         this.retention = data.retention || this.retention;
         this.maxRows = data.maxRows || this.maxRows;
         this.coverage = data.coverage || '';
@@ -374,6 +376,19 @@ export default {
     isHighlighted(e) {
       return !e.seen || this.highlighted.includes(e.id);
     },
+    // "3 minutes ago" beats a timestamp for the one question this line answers:
+    // is anything happening? The exact moment is a hover away on every row below.
+    lastActivity() {
+      const t = Date.parse(this.headline.lastAt || '');
+      if (!t) return 'never';
+      const mins = Math.round((Date.now() - t) / 60000);
+      if (mins < 1) return 'just now';
+      if (mins < 60) return `${mins} minute${1 === mins ? '' : 's'} ago`;
+      const hrs = Math.round(mins / 60);
+      if (hrs < 24) return `${hrs} hour${1 === hrs ? '' : 's'} ago`;
+      const days = Math.round(hrs / 24);
+      return `${days} day${1 === days ? '' : 's'} ago`;
+    },
     when(iso) {
       if (!iso) return '';
       const d = new Date(iso);
@@ -409,6 +424,18 @@ export default {
         <h3 class="ar-aa__statetitle">{{ coverageCopy.title }}</h3>
         <p>{{ coverageCopy.body }}</p>
         <p v-if="coverageCopy.action" class="ar-aa__action">{{ coverageCopy.action }}</p>
+        <!-- What the watching has actually SEEN. The sentence above is true but
+             abstract; without these an owner cannot tell a quiet site from a
+             broken one, which is the exact confusion this screen exists to
+             prevent. Honest at zero: it says nothing has run yet. -->
+        <p v-if="loaded" class="ar-aa__facts">
+          <template v-if="total > 0">
+            <strong>{{ total.toLocaleString() }}</strong> {{ total === 1 ? 'event' : 'events' }} recorded ·
+            <strong>{{ headline.abilities }}</strong> {{ headline.abilities === 1 ? 'ability' : 'abilities' }} seen ·
+            last activity <strong>{{ lastActivity() }}</strong>
+          </template>
+          <template v-else>Nothing has run yet — this list fills as agents act on your site.</template>
+        </p>
       </div>
     </div>
 

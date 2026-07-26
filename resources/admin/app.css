@@ -4089,6 +4089,9 @@ a.ar-about-proto__v:hover { text-decoration: underline; }
   color: var(--ar-ink-soft); white-space: nowrap;
 }
 .ar-aa__statebody { min-width: 0; }
+/* The headline facts under the coverage sentence: quiet, mono, one line. */
+.ar-aa__facts { margin: 6px 0 0; font-family: var(--ar-mono); font-size: 11.5px; letter-spacing: -0.02em; color: var(--ar-ink-soft); }
+.ar-aa__facts strong { color: var(--ar-ink); font-weight: 600; }
 .ar-aa__statebody p { margin: 4px 0 0; font-size: 13px; line-height: 1.55; color: var(--ar-ink-soft); }
 .ar-aa__statetitle { margin: 0; font-family: var(--ar-sans); font-size: 14px; font-weight: 600; color: var(--ar-ink); }
 /* The actionable line — the point of showing an unavailable state at all. */
