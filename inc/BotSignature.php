@@ -115,6 +115,26 @@ final class BotSignature {
 	}
 
 	/**
+	 * The face a signature verdict shows in the UI: a short display name for WHO
+	 * the signature speaks for. A verified KNOWN agent shows its label ("OpenAI
+	 * agent"); a failed claim shows the host it claimed ("chatgpt.com") — naming
+	 * the victim of the impersonation, exactly what the review card needs.
+	 * '' for everything that earns no face (unsigned, unknown, indeterminate).
+	 *
+	 * @return string
+	 */
+	public static function face() {
+		$verdict = self::current();
+		if ( 'verified' === $verdict['state'] ) {
+			return self::verified_known_label();
+		}
+		if ( 'failed' === $verdict['state'] && '' !== $verdict['signer'] ) {
+			return (string) preg_replace( '#^https://#', '', $verdict['signer'] );
+		}
+		return '';
+	}
+
+	/**
 	 * Inspect the CURRENT request. Thin wrapper over {@see inspect_from()}, which
 	 * carries all the logic and is the test seam.
 	 *

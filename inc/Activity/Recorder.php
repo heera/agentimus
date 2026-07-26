@@ -123,8 +123,10 @@ final class Recorder {
 		// verdict exactly as it was — most crawlers don't sign yet, and never lose
 		// standing for it.
 		$sig_verdict = self::signature_verdict();
+		$signer      = '';
 		if ( 0 !== $sig_verdict ) {
 			$verdict = $sig_verdict;
+			$signer  = \Agentimus\BotSignature::face();
 		}
 		$is_spoof = Classifier::is_spoof( $ua );
 
@@ -137,9 +139,10 @@ final class Recorder {
 				'ua'       => substr( $ua, 0, 255 ),
 				'verdict'  => $verdict,
 				'network'  => substr( $network, 0, 128 ),
+				'signer'   => substr( $signer, 0, 64 ),
 				'hit_at'   => current_time( 'mysql', true ), // GMT.
 			),
-			array( '%s', '%s', '%s', '%d', '%s', '%s' )
+			array( '%s', '%s', '%s', '%d', '%s', '%s', '%s' )
 		);
 
 		// OPT-IN, minimised IP capture. Only when the owner turned it on, and only for a

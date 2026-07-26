@@ -15,7 +15,7 @@ defined( 'ABSPATH' ) || exit;
 final class Table {
 
 	/** Bump when the schema changes to trigger a dbDelta upgrade. */
-	const VERSION        = '4';
+	const VERSION        = '5';
 	const VERSION_OPTION = 'agentimus_activity_db_version';
 
 	/**
@@ -63,6 +63,7 @@ final class Table {
   ua varchar(255) NOT NULL DEFAULT '',
   verdict tinyint(1) NOT NULL DEFAULT 0,
   network varchar(128) NOT NULL DEFAULT '',
+  signer varchar(64) NOT NULL DEFAULT '',
   hit_at datetime NOT NULL,
   PRIMARY KEY  (id),
   KEY hit_at (hit_at),
@@ -80,6 +81,7 @@ final class Table {
 		// exist BEFORE recording the version.
 		self::ensure_column( 'verdict', 'tinyint(1) NOT NULL DEFAULT 0' );
 		self::ensure_column( 'network', "varchar(128) NOT NULL DEFAULT ''" );
+		self::ensure_column( 'signer', "varchar(64) NOT NULL DEFAULT ''" ); // Web Bot Auth: who signed (label for a verified known agent, host for a failed claim). '' = unsigned.
 
 		update_option( self::VERSION_OPTION, self::VERSION ); // Autoloaded: read on every boot by maybe_install(), so it belongs in the single alloptions load.
 	}

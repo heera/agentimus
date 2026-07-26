@@ -188,6 +188,31 @@ export default {
     },
     // ---- The compact row view-model — one calm, honest summary per client ------
     card(s) {
+      // Caught by CRYPTOGRAPHY: it signed its request and the maths didn't check
+      // out. Strongest signal on this screen — no inference, no IP, no doubt — so
+      // it gets its own card ahead of the address-based verdicts below.
+      if ('spoofed' === s.verdict && s.signer) {
+        const enforced = this.threats.blockingOn && this.threats.blockSpoofed;
+        return {
+          tone: 'danger',
+          icon: 'x',
+          state: 'Forged signature',
+          why: `It signed its request as ${s.signer} — but the signature didn’t match ${s.signer}’s published key. Only the real operator can produce a valid one.`,
+          recommend: enforced
+            ? 'Already refused at this site’s AI endpoints. Nothing else to do — a forgery can’t be faked past this check.'
+            : 'Turn on blocking (with the spoofed-agents rule) and this is refused automatically.',
+        };
+      }
+      // Proven genuine by signature — the other side of the same coin.
+      if ('verified' === s.verdict && s.signer) {
+        return {
+          tone: 'ok',
+          icon: 'check',
+          state: 'Cryptographically verified',
+          by: s.signer,
+          why: `Signed with ${s.signer}’s own key — proof of identity, not a guess.`,
+        };
+      }
       // Caught impersonating a verifiable bot (the one hard signal).
       if ('spoofed' === s.verdict) {
         const label = this.claimLabel(s);
@@ -265,6 +290,12 @@ export default {
     },
     verifyLine(s) {
       const m = this.claimMethod(s);
+      // A signature verdict names the method that actually decided it.
+      if (s.signer) {
+        return 'spoofed' === s.verdict
+          ? { text: `Failed — signature didn’t match ${s.signer}’s key`, tone: 'danger' }
+          : { text: `Passed — cryptographic signature (${s.signer})`, tone: 'ok' };
+      }
       if ('spoofed' === s.verdict) {
         const how = 'ranges' === m ? 'outside the published IP ranges' : ('rdns' === m ? 'reverse-DNS mismatch' : 'identity check failed');
         return { text: `Failed — ${how}`, tone: 'danger' };

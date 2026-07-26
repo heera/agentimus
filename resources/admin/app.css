@@ -3845,6 +3845,11 @@ a.ar-about-proto__v:hover { text-decoration: underline; }
    reads, but mixed toward the hairline color so the table stays calm. */
 .ar-log__verdict.is-verified { color: color-mix(in srgb, var(--ar-good) 80%, var(--ar-ink-soft)); border: 1px solid color-mix(in srgb, var(--ar-good) 38%, var(--ar-line)); }
 .ar-log__verdict.is-spoofed  { color: color-mix(in srgb, var(--ar-bad) 85%, var(--ar-ink-soft));  border: 1px solid color-mix(in srgb, var(--ar-bad) 38%, var(--ar-line)); }
+/* A signature-backed verdict earns a filled badge — proof reads stronger than
+   inference at a glance, in both directions (proven agent / proven forgery). */
+.ar-log__verdict.is-signed { cursor: help; }
+.ar-log__verdict.is-verified.is-signed { background: color-mix(in srgb, var(--ar-good) 12%, transparent); border-color: color-mix(in srgb, var(--ar-good) 55%, var(--ar-line)); }
+.ar-log__verdict.is-spoofed.is-signed  { background: color-mix(in srgb, var(--ar-bad) 12%, transparent);  border-color: color-mix(in srgb, var(--ar-bad) 55%, var(--ar-line)); }
 .ar-act-table tr.is-spoofed td { background: color-mix(in srgb, var(--ar-bad) 5%, transparent); }
 
 .ar-log__seen { color: var(--ar-ink-faint); font-family: var(--ar-mono); font-size: 11px; }

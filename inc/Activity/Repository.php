@@ -512,6 +512,10 @@ final class Repository {
 			'ua'       => (string) $r['ua'],
 			'network'  => (string) $r['network'], // '' unless "identify every bot" is on.
 			'verdict'  => (int) $r['verdict'],     // 1 = forward-confirmed; a network with verdict != 1 is self-declared (PTR only).
+			// Web Bot Auth face: with verdict 1, WHO the signature proves ("OpenAI agent");
+			// with verdict 2, WHO the failed signature claimed ("chatgpt.com"). '' = the
+			// verdict came from DNS/ranges (or nothing) — the pre-signature wording stands.
+			'signer'   => isset( $r['signer'] ) ? (string) $r['signer'] : '',
 			'at'       => gmdate( 'c', strtotime( $r['hit_at'] . ' UTC' ) ),
 		);
 	}
@@ -596,7 +600,7 @@ final class Repository {
 		// Fetch one extra row to learn whether another page exists, without a second query.
 		$rows = $wpdb->get_results(
 			$wpdb->prepare(
-				"SELECT id, endpoint, agent, ua, network, verdict, hit_at FROM $table WHERE $page_sql ORDER BY id DESC LIMIT %d",
+				"SELECT id, endpoint, agent, ua, network, verdict, signer, hit_at FROM $table WHERE $page_sql ORDER BY id DESC LIMIT %d",
 				array_merge( $params, array( $per_page + 1 ) )
 			),
 			ARRAY_A
@@ -659,7 +663,7 @@ final class Repository {
 		// failed verification, the client is an impersonator and must surface as one.
 		$sources = $wpdb->get_results(
 			$wpdb->prepare(
-				"SELECT ua, MAX(agent) AS agent, COUNT(*) AS hits, MAX(verdict) AS verdict, MAX(network) AS network, MIN(hit_at) AS first_seen, MAX(hit_at) AS last_seen FROM $table WHERE hit_at >= %s GROUP BY ua ORDER BY hits DESC LIMIT 200",
+				"SELECT ua, MAX(agent) AS agent, COUNT(*) AS hits, MAX(verdict) AS verdict, MAX(network) AS network, MAX(signer) AS signer, MIN(hit_at) AS first_seen, MAX(hit_at) AS last_seen FROM $table WHERE hit_at >= %s GROUP BY ua ORDER BY hits DESC LIMIT 200",
 				$since
 			),
 			ARRAY_A
@@ -864,6 +868,10 @@ final class Repository {
 				// The owning network (reverse-DNS attribution) when "identify every bot" is on;
 				// '' otherwise. Org-level (e.g. amazonaws.com), never the IP.
 				'network'    => isset( $s['network'] ) ? (string) $s['network'] : '',
+				// Web Bot Auth face for the card: verdict 'verified' + signer = cryptographically
+				// proven ("OpenAI agent"); verdict 'spoofed' + signer = a signature that failed
+				// the math, naming the claimed origin ("chatgpt.com"). '' = DNS/range verdict.
+				'signer'     => isset( $s['signer'] ) ? (string) $s['signer'] : '',
 			);
 		}
 
@@ -978,6 +986,11 @@ final class Repository {
 		// its claimed engine in ANY variant is an impersonator.
 		if ( 'spoofed' === $add['verdict'] || ( 'verified' === $add['verdict'] && '' === $keep['verdict'] ) ) {
 			$keep['verdict'] = $add['verdict'];
+		}
+		// The signature face travels with the verdict: any variant that carried one
+		// gives the folded row its name to show.
+		if ( '' === ( $keep['signer'] ?? '' ) && '' !== ( $add['signer'] ?? '' ) ) {
+			$keep['signer'] = $add['signer'];
 		}
 		foreach ( array( 'new', 'heavy', 'spoof' ) as $flag ) {
 			$keep['flags'][ $flag ] = $keep['flags'][ $flag ] || $add['flags'][ $flag ];

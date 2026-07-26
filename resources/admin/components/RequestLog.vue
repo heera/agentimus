@@ -181,6 +181,19 @@ export default {
       if (v === 2) return 'spoofed';
       return '';
     },
+    // A row whose verdict came from a cryptographic signature says so, and names
+    // who: proven ("signed by OpenAI agent") or forged ("claimed chatgpt.com").
+    // Rows verified the older ways keep their existing wording untouched.
+    signedTip(r) {
+      if (!r.signer) {
+        return r.verdict === 1
+          ? 'Verified — the address really belongs to this operator.'
+          : (r.verdict === 2 ? 'Failed the identity check — an impostor.' : '');
+      }
+      return r.verdict === 1
+        ? `Cryptographically verified — signed by ${r.signer}.`
+        : `Signature failed — it claimed ${r.signer} but the maths didn’t check out.`;
+    },
     ago(iso) {
       const t = Date.parse(iso);
       if (!t) return '';
@@ -298,8 +311,14 @@ export default {
                   @mouseleave="hideUaTip"
                   @click="pivot('agent', r.agent)"
                 >{{ r.agent }}</button>
-                <span v-if="verdictLabel(r.verdict)" class="ar-log__verdict" :class="`is-${verdictLabel(r.verdict)}`">
-                  {{ verdictLabel(r.verdict) }}
+                <span
+                  v-if="verdictLabel(r.verdict)"
+                  class="ar-log__verdict"
+                  :class="[`is-${verdictLabel(r.verdict)}`, { 'is-signed': !!r.signer }]"
+                  @mouseenter="showUaTip($event, signedTip(r), '')"
+                  @mouseleave="hideUaTip"
+                >
+                  {{ r.signer ? (r.verdict === 1 ? 'signed' : 'bad signature') : verdictLabel(r.verdict) }}
                 </span>
               </td>
               <td>
