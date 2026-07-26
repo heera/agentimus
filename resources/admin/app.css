@@ -3874,7 +3874,7 @@ a.ar-about-proto__v:hover { text-decoration: underline; }
 .ar-act-table tr.is-refused td { opacity: 0.72; }
 .ar-act-table tr.is-spoofed td { background: color-mix(in srgb, var(--ar-bad) 5%, transparent); }
 
-.ar-log__seen { color: var(--ar-ink-faint); font-family: var(--ar-mono); font-size: 11px; }
+.ar-log__seen { color: var(--ar-ink-faint); font-family: var(--ar-mono); font-size: 11px; white-space: nowrap; cursor: help; }
 
 .ar-log__empty, .ar-log__error {
   padding: 28px 0; color: var(--ar-ink-soft); font-size: 13px; text-align: center;

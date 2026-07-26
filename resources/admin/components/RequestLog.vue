@@ -409,11 +409,13 @@ export default {
                 >{{ r.ua }}</code>
                 <span v-else class="ar-act-table__dash">—</span>
               </td>
+              <!-- The column says "at", so it shows the actual moment, in the site's
+                   own Settings → General formats. "How recent?" moves to the hover. -->
               <td
                 class="ar-log__seen"
-                @mouseenter="showUaTip($event, stamp(r.at), '')"
+                @mouseenter="showUaTip($event, ago(r.at), '')"
                 @mouseleave="hideUaTip"
-              >{{ ago(r.at) }}</td>
+              >{{ stamp(r.at) }}</td>
             </tr>
           </tbody>
         </table>
