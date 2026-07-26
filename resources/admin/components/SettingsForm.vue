@@ -1267,7 +1267,7 @@ export default {
            nested setting, like Topics and Browser tools below; kept out of the Features
            list because it's monitoring, not an agent-readiness signal the site emits. -->
       <section id="ar-sec-activity" class="ar-card">
-        <h2 class="ar-card__title">Visit log</h2>
+        <h2 class="ar-card__title">Visit Log</h2>
         <p class="ar-card__lead">
           Records which AI assistants fetch your AI files, and counts the visitors AI sends you
           (“Traffic from AI”). Everything is stored on your own site — no IP addresses by default (one optional
@@ -1321,7 +1321,7 @@ export default {
            with the Visit log's master switch (nothing to cap), and the card counter
            skips hidden cards, so the spec-sheet numbering stays compact. -->
       <section :inert="!settings.enable_activity" id="ar-sec-sizecap" class="ar-card">
-        <h2 class="ar-card__title">Size cap</h2>
+        <h2 class="ar-card__title">Size Cap</h2>
         <p class="ar-card__lead">
           The visit log’s hard ceiling. It applies even with automatic deletion off — the log can
           never grow without limit.
@@ -1360,7 +1360,7 @@ export default {
       <!-- Weekly email — the digest. One owner-facing email a week, built only from
            local data; the stop link inside every email flips this same switch. -->
       <section id="ar-sec-digest" class="ar-card">
-        <h2 class="ar-card__title">Weekly email</h2>
+        <h2 class="ar-card__title">Weekly Email</h2>
         <p class="ar-card__lead">
           Once a week, Agentimus emails you a short note about what AI did on your site: agent visits,
           readers arriving from AI answers, impostors caught, and your readiness score. It is built only
@@ -1511,7 +1511,7 @@ export default {
 
       <!-- AI description — master toggle + whether it owns the meta tag -- -->
       <section id="ar-sec-ai-description" class="ar-card">
-        <h2 class="ar-card__title">AI description</h2>
+        <h2 class="ar-card__title">AI Description</h2>
         <p class="ar-card__lead">
           Adds a one-line summary to your content’s AI data — the structured data (JSON-LD
           <code>description</code>) and the plain-text (<code>.md</code>) version — so assistants
@@ -1542,7 +1542,7 @@ export default {
 
       <!-- Search basics — the solo-mode surfaces (SEO title / share cards / canonicals) -->
       <section id="ar-sec-search-basics" class="ar-card">
-        <h2 class="ar-card__title">Search basics</h2>
+        <h2 class="ar-card__title">Search Basics</h2>
         <p class="ar-card__lead">
           The search essentials most sites install an SEO plugin for — covered here, so you don’t
           need one. Everything in this card applies only while no SEO plugin is installed: the
@@ -1594,7 +1594,7 @@ export default {
 
       <!-- Browser tools (WebMCP) — master toggle + per-tool expose/hide - -->
       <section id="ar-sec-webmcp" class="ar-card">
-        <h2 class="ar-card__title">Browser tools <span class="ar-card__tag">experimental</span></h2>
+        <h2 class="ar-card__title">Browser Tools <span class="ar-card__tag">experimental</span></h2>
         <p class="ar-card__lead">
           Lets an AI agent working inside a browser call your site’s read-only tools (like site
           search) directly, via the emerging <strong>WebMCP</strong> browser standard. It adds a
@@ -1631,7 +1631,7 @@ export default {
 
       <!-- MCP server — master toggle + connection details --------------- -->
       <section id="ar-sec-mcp" class="ar-card">
-        <h2 class="ar-card__title">MCP server <span class="ar-card__tag">experimental</span></h2>
+        <h2 class="ar-card__title">MCP Server <span class="ar-card__tag">experimental</span></h2>
         <p class="ar-card__lead">
           Lets AI tools you already use — Claude Desktop, the ChatGPT app (through its Codex
           side), Claude Code, the Codex CLI — talk to this site over the
@@ -1911,7 +1911,7 @@ export default {
 
       <!-- Content types ------------------------------------------------ -->
       <section v-if="postTypes.length" class="ar-card">
-        <h2 class="ar-card__title" id="ar-content-types">Content types</h2>
+        <h2 class="ar-card__title" id="ar-content-types">Content Types</h2>
         <p class="ar-card__lead">
           Pick which kinds of content AI assistants can read. Posts and pages are usually enough;
           add products or other types if you want them included.
@@ -1976,7 +1976,7 @@ export default {
 
       <!-- Evergreen content --------------------------------------------- -->
       <section v-if="categories.length" class="ar-card">
-        <h2 class="ar-card__title">Evergreen content</h2>
+        <h2 class="ar-card__title">Evergreen Content</h2>
         <p class="ar-card__lead">
           Mark categories whose posts are timeless — references, tutorials, definitions, legal pages.
           Posts in them are left out of the “freshness” check, so they’re never flagged as stale just for being old.
@@ -2063,7 +2063,7 @@ export default {
 
       <!-- Provider integrations ---------------------------------------- -->
       <section v-if="providerResources.length" class="ar-card">
-        <h2 class="ar-card__title">Provider integrations</h2>
+        <h2 class="ar-card__title">Provider Integrations</h2>
         <p class="ar-card__lead">
           Resources that installed plugins declared for agents. Each is <strong>published by default</strong> —
           switch off any you'd rather not advertise. You decide whether it's listed; the plugin decides what it says.
@@ -2244,7 +2244,7 @@ export default {
     <div v-show="group === 'access'" class="ar-group" data-group="access">
       <!-- Crawler policy ----------------------------------------------- -->
       <section id="ar-sec-ai" class="ar-card">
-        <h2 class="ar-card__title">Crawler policy</h2>
+        <h2 class="ar-card__title">Crawler Policy</h2>
         <p class="ar-card__lead">
           Decide what AI assistants may do with your content. Search and citation stay on by default;
           you can refuse training.
@@ -2369,7 +2369,7 @@ export default {
 
       <!-- Block scanners & scrapers ------------------------------------ -->
       <section id="ar-sec-blocking" class="ar-card">
-        <h2 class="ar-card__title">Block scanners &amp; scrapers <span class="ar-field__tag">optional</span></h2>
+        <h2 class="ar-card__title">Block Scanners &amp; Scrapers <span class="ar-field__tag">optional</span></h2>
         <p class="ar-card__lead">
           The crawler rules above are a polite request — well-behaved bots honour them. This is the
           hard stop: the bots below are turned away from your AI files instead of being served. Off by default.
@@ -2490,7 +2490,7 @@ export default {
 
       <!-- Bot identity -------------------------------------------------- -->
       <section id="ar-sec-verify" class="ar-card">
-        <h2 class="ar-card__title">Bot identity <span class="ar-field__tag">optional</span></h2>
+        <h2 class="ar-card__title">Bot Identity <span class="ar-field__tag">optional</span></h2>
         <p class="ar-card__lead">
           A User-Agent name is just a claim — anyone can call themselves Googlebot. The checks here look
           past the name: verify the bots whose operators publish a way to check, see the network every
@@ -2755,7 +2755,7 @@ export default {
     <div v-show="group === 'advanced'" class="ar-group" data-group="advanced">
       <!-- Security.txt ------------------------------------------------- -->
       <section id="ar-sec-security" class="ar-card">
-        <h2 class="ar-card__title">Security contact</h2>
+        <h2 class="ar-card__title">Security Contact</h2>
         <p class="ar-card__lead">
           If someone spots a security problem on your site, this tells them where to report it —
           published at the standard place (<code>/.well-known/security.txt</code>) that researchers and
@@ -2835,7 +2835,7 @@ export default {
            kept ABOVE the zone break so the developer & maintenance zone stays a
            coherent pair on phones. -->
       <section class="ar-card ar-card--muted ar-card--endpoints">
-        <h2 class="ar-card__title">Live endpoints</h2>
+        <h2 class="ar-card__title">Live Endpoints</h2>
         <ul class="ar-links">
           <li><a :href="endpoints.llms" target="_blank" rel="noopener">{{ endpoints.llms }}</a></li>
           <li><a :href="endpoints.llmsFull" target="_blank" rel="noopener">{{ endpoints.llmsFull }}</a></li>

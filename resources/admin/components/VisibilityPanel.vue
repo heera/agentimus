@@ -833,7 +833,7 @@ export default {
         <form v-show="view === 'settings'" class="agv-form" @submit.prevent>
           <section class="ar-card">
             <h2 class="ar-card__title">
-              What you're tracking
+              What You're Tracking
               <transition name="agv-fade"><span v-if="savedIn('targets')" class="agv-saved-pill">Saved ✓</span></transition>
             </h2>
             <p class="ar-card__lead">
@@ -948,7 +948,7 @@ export default {
 
           <section class="ar-card">
             <h2 class="ar-card__title">
-              AI engines
+              AI Engines
               <transition name="agv-fade"><span v-if="savedIn('engines')" class="agv-saved-pill">Saved ✓</span></transition>
             </h2>
             <p class="ar-card__lead">Turn on the AI engines you want and paste each one’s API key (you get these from the engine’s own site). Keys stay on your server and are only used to run your checks. Perplexity always answers using a live web search; the others answer from what they already know, unless you switch on their web search. Changes here save on their own.</p>

@@ -696,7 +696,7 @@ export default {
     <!-- First load in flight: show a skeleton, not the empty state. -->
     <template v-if="!loaded">
       <section class="ar-card" aria-busy="true">
-        <h2 class="ar-card__title">Endpoint activity</h2>
+        <h2 class="ar-card__title">Endpoint Activity</h2>
         <p class="ar-card__lead">Loading recent endpoint activity…</p>
         <div class="ar-skel">
           <div class="ar-skel__tiles">
@@ -714,7 +714,7 @@ export default {
 
     <!-- Logging disabled -->
     <section v-else-if="data.enabled === false" class="ar-card">
-      <h2 class="ar-card__title">Endpoint activity</h2>
+      <h2 class="ar-card__title">Endpoint Activity</h2>
       <p class="ar-card__lead">
         Activity logging is off. Enable <strong>Agent activity log</strong> in
         Settings → Features to record who fetches your discovery and llms endpoints.
@@ -731,7 +731,7 @@ export default {
         <div class="ar-card__head ar-card__head--ruled">
           <div>
             <div class="ar-act-titlerow">
-              <h2 class="ar-card__title">Endpoint activity</h2>
+              <h2 class="ar-card__title">Endpoint Activity</h2>
               <span v-if="live" class="ar-act-live" title="Auto-refresh is on — these stats update on their own. Refresh forces an update now.">
                 <span class="ar-act-live__dot" aria-hidden="true"></span>Auto-refresh
               </span>
@@ -816,7 +816,7 @@ export default {
            direct children of the .ar-act grid so its gap separates them;
            endpoints first (what was fetched says more than who fetched it). -->
       <section class="ar-card">
-        <h2 class="ar-card__title">By endpoint <span class="ar-card__tag">Last {{ data.window || 30 }} days</span></h2>
+        <h2 class="ar-card__title">By Endpoint <span class="ar-card__tag">Last {{ data.window || 30 }} days</span></h2>
         <!-- The arrow claim must match what trend_pct actually computes: the
              two HALVES of this window, not this window vs the one before. -->
         <p class="ar-card__lead">
@@ -850,7 +850,7 @@ export default {
       </section>
 
       <section class="ar-card">
-        <h2 class="ar-card__title">Top clients <span class="ar-card__tag">Last {{ data.window || 30 }} days</span></h2>
+        <h2 class="ar-card__title">Top Clients <span class="ar-card__tag">Last {{ data.window || 30 }} days</span></h2>
         <p class="ar-card__lead">
           Who does the reading — the clients behind those hits: AI agents, crawlers and browsers,
           busiest first. Names are what each client declares about itself.
@@ -1002,7 +1002,7 @@ export default {
       <!-- Recent requests (latest, live — static) -->
       <section class="ar-card">
         <h2 class="ar-card__title">
-          Recent requests
+          Recent Requests
           <span v-if="recent.length" class="ar-card__tag">Latest {{ recent.length }}</span>
         </h2>
         <p class="ar-card__lead">

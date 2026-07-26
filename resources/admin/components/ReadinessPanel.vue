@@ -238,7 +238,7 @@ export default {
   <section class="ar-readiness-stack">
     <div class="ar-card ar-card__head ar-card__head--inline ar-card__head--stack-sm">
       <div class="ar-card__titlewrap">
-        <h2 class="ar-card__title">Readiness report</h2>
+        <h2 class="ar-card__title">Readiness Report</h2>
         <!-- Refresh THIS report (recompute the checklist below). Kept beside the title
              and apart from the tool buttons so it reads as "update this card", not as
              another live check like "Verify live". -->

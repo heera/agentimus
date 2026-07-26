@@ -225,7 +225,7 @@ export default {
   <div class="ar-wd">
     <!-- Canonical endpoint -->
     <section class="ar-card ar-wd-endpoint">
-      <h2 class="ar-card__title">Discovery endpoint</h2>
+      <h2 class="ar-card__title">Discovery Endpoint</h2>
 
       <div class="ar-wd-endpoint-row">
         <div class="ar-wd-canonical">
@@ -290,7 +290,7 @@ export default {
     <!-- Registered providers — the SOURCES. Capabilities (below) are declared by
          these, so providers read first, then what they expose. -->
     <section id="ar-wd-providers" class="ar-card">
-      <h2 class="ar-card__title">Registered providers</h2>
+      <h2 class="ar-card__title">Registered Providers</h2>
       <p class="ar-card__lead">
         Everything this site tells AI agents about itself. Two sources: things <strong>provided by your
         plugins</strong>, and things Agentimus <strong>found automatically</strong> by scanning the site.
@@ -388,7 +388,7 @@ export default {
 
     <!-- MCP & tools -->
     <section id="ar-wd-tools" class="ar-card">
-      <h2 class="ar-card__title">MCP &amp; tools</h2>
+      <h2 class="ar-card__title">MCP &amp; Tools</h2>
       <p class="ar-card__lead">
         The tools a signed-in agent can run on this site, grouped by what provides them — the
         groups add up to the total. Each group names the doors that serve it, and the endpoints
@@ -481,7 +481,7 @@ export default {
     <!-- Well-known documents — full width (validation status now lives as a
          compact chip in the right rail). -->
     <section class="ar-card">
-      <h2 class="ar-card__title">Well-known documents</h2>
+      <h2 class="ar-card__title">Well-Known Documents</h2>
       <ul class="ar-wd-wk">
         <li v-for="w in wellKnown" :key="w.name">
           <a :href="w.url" target="_blank" rel="noopener"><code>/.well-known/{{ w.name }}</code></a>
@@ -493,7 +493,7 @@ export default {
     <!-- Validation only takes main-column space when there is something to fix;
          the all-clear state is the green chip in the rail. -->
     <section v-if="notices.length" id="ar-wd-validation" class="ar-card">
-      <h2 class="ar-card__title">Registration status</h2>
+      <h2 class="ar-card__title">Registration Status</h2>
       <ul class="ar-wd-notices">
         <li v-for="(n, i) in notices" :key="i" class="ar-wd-notice" :class="`is-${n.level || 'info'}`">
           <span class="ar-wd-notice__tag">{{ String(n.level || 'info').toUpperCase() }}</span>

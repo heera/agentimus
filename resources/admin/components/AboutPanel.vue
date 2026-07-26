@@ -15,7 +15,7 @@ export default {
       // state; the live on/off for each lives on the Settings tab.
       featureGroups: [
         {
-          title: 'AEO/GEO score & optimization',
+          title: 'AEO/GEO Score & Optimization',
           lead: 'Your dashboard turns everything below into one score — and the single next thing to improve.',
           items: [
             { name: 'AEO/GEO score', where: 'Dashboard', desc: 'One 0–100 score across five rungs — Findable, Readable, Trusted, Optimized and Cited — with a plain-language next step and an honest per-rung “n to fix” count. Each rung links to where you act on it.', tag: 'On' },
@@ -26,7 +26,7 @@ export default {
           ],
         },
         {
-          title: 'Write with AI',
+          title: 'Write With AI',
           lead: 'Optional — use the AI provider you’ve connected in WordPress (Settings → Connectors, with your own key) to draft and fix the AEO/GEO fields as you write. Everything routes through WordPress’s built-in AI Client, so Agentimus never handles your key; every suggestion is editable and nothing is saved for you. The buttons stay hidden until a provider is set up.',
           items: [
             { name: 'Writing assistant', where: 'the quill button, every Agentimus screen', desc: 'Describe the post you want; the assistant proposes an outline you can edit, then writes every section of the article in parallel — the outline fills in as parts land, long posts aren’t capped by a single AI response, and a failed section retries alone. The assembled draft — real editor blocks, AI description, topics, suggested categories and tags — is shown to you before a single thing is saved. Create draft opens the post in the editor, where image placeholders arrive with their alt text filled in: a Generate button turns any image block’s alt text into an image, a Featured image (AI) panel drafts the hero from the title, and Ask AI rewrites, shortens or extends any text block. It also revises an existing post you pick — content changes, a post’s status never does, and WordPress revisions keep every prior version. Needs “Let connected agents write” plus an AI provider; it never publishes.', tag: 'Opt-in' },
@@ -37,7 +37,7 @@ export default {
           ],
         },
         {
-          title: 'Discovery documents',
+          title: 'Discovery Documents',
           lead: 'The core job — standard files that let an agent find and understand your site.',
           items: [
             { name: 'Discovery manifest', where: '/.well-known/discovery.json', desc: 'The master document describing your site, content and capabilities.', tag: 'On' },
@@ -49,7 +49,7 @@ export default {
           ],
         },
         {
-          title: 'Machine-readable content',
+          title: 'Machine-Readable Content',
           lead: 'Your existing content, offered in formats agents read cleanly.',
           items: [
             { name: 'llms.txt', where: '/llms.txt', desc: 'A plain-text index of your site and recent content.', tag: 'On' },
@@ -59,7 +59,7 @@ export default {
           ],
         },
         {
-          title: 'Structured data & crawl signals',
+          title: 'Structured Data & Crawl Signals',
           lead: 'Standards search engines and agents already understand.',
           items: [
             { name: 'JSON-LD schema', where: 'in your page <head>', desc: 'schema.org WebSite, Person/Organization, articles, breadcrumbs and FAQ.', tag: 'On' },
@@ -71,7 +71,7 @@ export default {
           ],
         },
         {
-          title: 'AI rights & opt-out',
+          title: 'AI Rights & Opt-Out',
           lead: 'Tell AI systems how your content may be used.',
           items: [
             { name: 'Do-not-train signals', where: '/.well-known/tdmrep.json · tdm-reservation header', desc: 'Signals “don’t train on this” while still allowing reading (W3C TDM).', tag: 'On' },
@@ -79,7 +79,7 @@ export default {
           ],
         },
         {
-          title: 'Trust & verification',
+          title: 'Trust & Verification',
           lead: 'Prove the documents really came from you.',
           items: [
             { name: 'Verified responses', where: '/.well-known/http-message-signatures-directory', desc: 'Signs discovery docs (RFC 9421) so agents can verify they’re from you and unaltered.', tag: 'On' },
@@ -97,7 +97,7 @@ export default {
           ],
         },
         {
-          title: 'Who’s reading you',
+          title: 'Who’s Reading You',
           lead: 'AI traffic in every direction: agents taking your content, readers AI sends back, and who authenticates to or acts on the machine surface Agentimus creates. All counted on your own site — no IP addresses by default, nothing sent anywhere.',
           items: [
             { name: 'Agent activity', where: 'Dashboard', desc: 'Which AI crawlers fetched which of your files, how often, and when — with a review queue for clients worth a second look. The queue’s count also rides the Agentimus entry in the admin menu as a red badge, visible from every admin screen and kept current while you work — a flagged crawler shows itself without you opening Agentimus. Every endpoint and client row opens the Request Log pre-filtered to it, and hovering a row shows the counts behind its trend arrow. Every standing decision from that queue (blocked, trusted, ignored) is managed in one place, with dates: Settings → AI access → Manage clients.', tag: 'On' },
@@ -113,7 +113,7 @@ export default {
           ],
         },
         {
-          title: 'AI Visibility monitoring',
+          title: 'AI Visibility Monitoring',
           lead: 'Optional — check how AI assistants actually describe you, and add the “Cited” rung to your score. The one feature that reaches out, using API keys you provide (stored encrypted at rest).',
           items: [
             { name: 'AI Visibility checks', where: 'Settings → AI Visibility', desc: 'Off by default. Turn it on and Agentimus asks ChatGPT, Perplexity, Gemini and Claude the questions you set — with your own keys — tracking whether each brand or product gets mentioned, linked and ranked against its rivals, and feeds the “Cited” rung of your score. Results and keys stay on your server (keys encrypted at rest). Everything on the screen saves as you change it; there is no Save button.', tag: 'Opt-in' },
@@ -174,7 +174,7 @@ export default {
   <div class="ar-about">
     <!-- Features -->
     <section class="ar-card">
-      <h2 class="ar-card__title">What it does</h2>
+      <h2 class="ar-card__title">What It Does</h2>
       <p class="ar-card__lead">
         Agentimus does two things for the age of AI agents. <strong>First, it makes your site legible and
         citable</strong> — it publishes the documents agents look for, offers your content in machine-readable
@@ -219,7 +219,7 @@ export default {
 
     <!-- Honest expectations -->
     <section class="ar-card">
-      <h2 class="ar-card__title">What it can’t do</h2>
+      <h2 class="ar-card__title">What It Can’t Do</h2>
       <p class="ar-card__lead">
         Agentimus makes your site <strong>discoverable and correctly understood</strong> — when an AI agent
         looks at your site, it finds your content, reads a clean version, and describes you accurately. That’s
@@ -233,7 +233,7 @@ export default {
 
     <!-- Privacy & data -->
     <section class="ar-card ar-about-priv">
-      <h2 class="ar-card__title">Privacy &amp; data</h2>
+      <h2 class="ar-card__title">Privacy &amp; Data</h2>
       <p class="ar-card__lead">
         A discovery plugin should be honest about itself. Here is exactly what leaves your server, what’s
         published, and what’s stored — verified against the source code.
@@ -342,7 +342,7 @@ export default {
 
     <!-- FAQ -->
     <section class="ar-card">
-      <h2 class="ar-card__title">Questions &amp; answers</h2>
+      <h2 class="ar-card__title">Questions &amp; Answers</h2>
       <ul class="ar-about-faq">
         <li v-for="(f, i) in faqs" :key="i" class="ar-about-faq__item" :class="{ 'is-open': openFaq === i }">
           <button
@@ -361,7 +361,7 @@ export default {
 
     <!-- Documentation & links -->
     <section class="ar-card">
-      <h2 class="ar-card__title">Documentation &amp; links</h2>
+      <h2 class="ar-card__title">Documentation &amp; Links</h2>
       <p class="ar-card__lead">
         Step-by-step guides for every feature, plus a developer reference — the full documentation lives
         online, and the source is on GitHub.

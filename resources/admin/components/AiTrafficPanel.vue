@@ -330,7 +330,7 @@ export default {
          Top-clients pair: where the visits came from, and where they landed.
          Honors the same filters and range as the overview above. -->
     <section v-if="!error && report && total" class="ar-card ar-ai">
-      <h2 class="ar-card__title">Top sources &amp; landing pages <span v-if="rangeLabel" class="ar-card__tag">{{ rangeLabel }}</span></h2>
+      <h2 class="ar-card__title">Top Sources &amp; Landing Pages <span v-if="rangeLabel" class="ar-card__tag">{{ rangeLabel }}</span></h2>
       <p class="ar-card__lead">
         Where the visits came from, and where they landed — busiest first.
       </p>
@@ -364,7 +364,7 @@ export default {
          on which page (the day is the finest "when" stored). Honors the same
          filters and range as the overview. -->
     <section v-if="!error && report && total && daily.length" class="ar-card ar-ai">
-      <h2 class="ar-card__title">By day <span v-if="rangeLabel" class="ar-card__tag">{{ rangeLabel }}</span></h2>
+      <h2 class="ar-card__title">By Day <span v-if="rangeLabel" class="ar-card__tag">{{ rangeLabel }}</span></h2>
       <p class="ar-card__lead">
         Click a day to see which source landed on which page. The day is the finest “when”
         stored — no times, nothing that could stand for a person.
@@ -420,7 +420,7 @@ export default {
     <!-- Unrecognised referrers — the opt-in diagnostic, over the SAME range as the cards
          above, so the two can never invite the wrong conclusion about the same days. -->
     <section v-if="unknownOn" class="ar-card ar-ai">
-      <h2 class="ar-card__title">Unrecognised referrers <span class="ar-card__tag">Diagnostic</span></h2>
+      <h2 class="ar-card__title">Unrecognised Referrers <span class="ar-card__tag">Diagnostic</span></h2>
       <p class="ar-card__lead">
         Readers arrived from these places and none matched a known AI assistant. Most will be ordinary
         sites, search engines and social apps — and some, like Google’s AI Overviews, can’t be told apart
@@ -465,7 +465,7 @@ export default {
     <!-- The diagnostic is where an owner learns what they're missing, so when it's OFF the
          screen says so once, here, rather than staying silent about its own blind spot. -->
     <section v-else-if="report" class="ar-card">
-      <h2 class="ar-card__title">Unrecognised referrers <span class="ar-card__tag">Off</span></h2>
+      <h2 class="ar-card__title">Unrecognised Referrers <span class="ar-card__tag">Off</span></h2>
       <p class="ar-card__lead">
         “Traffic from AI” only counts assistants it recognises, and a miss leaves no trace. Turn on
         <strong>Find missed AI sources</strong> in
