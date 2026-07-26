@@ -4110,7 +4110,7 @@ a.ar-about-proto__v:hover { text-decoration: underline; }
    away, and every row is two lines tall whatever the event. */
 .ar-aa__noteicon {
   display: inline-flex; align-items: center; justify-content: center;
-  width: 15px; height: 15px; margin-right: 6px; padding: 0; border-radius: 50%;
+  flex: 0 0 auto; width: 15px; height: 15px; margin-right: 6px; padding: 0; border-radius: 50%;
   border: 1px solid var(--ar-line-strong); background: transparent; cursor: help;
   font-family: var(--ar-mono); font-size: 10px; line-height: 1; color: var(--ar-ink-soft);
   vertical-align: -2px;
@@ -4154,7 +4154,9 @@ a.ar-about-proto__v:hover { text-decoration: underline; }
 /* WHO has its own column now, so the row is a single line. Never truncated —
    hiding "app password (since revoked)" hides the part that matters; if a value
    is genuinely long the table scrolls, which at least keeps it readable. */
-.ar-aa__who { display: block; font-size: 12.5px; color: var(--ar-ink-soft); }
+/* Marker and person on one line; the credential drops beneath. */
+.ar-aa__whotop { display: flex; align-items: center; gap: 0; }
+.ar-aa__who { font-size: 12.5px; color: var(--ar-ink-soft); }
 /* What the request came in WITH — the quieter half of "who", on its own line so
    the eye doesn't have to find a middot to know where the second fact starts.
    Mono, like every other machine-side value in these tables. */

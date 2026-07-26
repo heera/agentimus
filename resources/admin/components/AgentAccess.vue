@@ -469,19 +469,23 @@ export default {
           <!-- WHO gets its own column, so every row is a single line. The advisory
                that would otherwise be a third line rides here as a marker. -->
           <td class="ar-aa__whocol">
-            <button
-              v-if="note(e)"
-              type="button"
-              class="ar-aa__noteicon"
-              :class="{ 'is-warn': !!revokeAdvice(e) }"
-              :aria-label="note(e)"
-              @mouseenter="showUaTip($event, note(e), '')"
-              @mouseleave="hideUaTip"
-              @focus="showUaTip($event, note(e), '')"
-              @blur="hideUaTip"
-            >i</button>
-            <span v-if="whoPerson(e)" class="ar-aa__who">{{ whoPerson(e) }}</span>
-            <span v-else class="ar-aa__who ar-aa__who--none">not recorded</span>
+            <!-- Marker and person share one line: as a sibling of a block-level
+                 person line it was orphaned onto a row of its own. -->
+            <span class="ar-aa__whotop">
+              <button
+                v-if="note(e)"
+                type="button"
+                class="ar-aa__noteicon"
+                :class="{ 'is-warn': !!revokeAdvice(e) }"
+                :aria-label="note(e)"
+                @mouseenter="showUaTip($event, note(e), '')"
+                @mouseleave="hideUaTip"
+                @focus="showUaTip($event, note(e), '')"
+                @blur="hideUaTip"
+              >i</button>
+              <span v-if="whoPerson(e)" class="ar-aa__who">{{ whoPerson(e) }}</span>
+              <span v-else class="ar-aa__who ar-aa__who--none">not recorded</span>
+            </span>
             <span v-if="whoCred(e)" class="ar-aa__cred">{{ whoCred(e) }}</span>
           </td>
           <td>{{ e.hits > 1 ? `${e.hits} times` : 'once' }}</td>
