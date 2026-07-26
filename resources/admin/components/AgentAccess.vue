@@ -304,28 +304,33 @@ export default {
     // user is the key's OWNER, and an admin can create or revoke a key on someone else's
     // profile — "by" would claim an actor we didn't record.
     who(e) {
+      const person = this.whoPerson(e);
+      const cred = this.whoCred(e);
+      return cred ? `${person} · ${cred}` : person;
+    },
+    // WHO, split in two: the person on one line, what they came in WITH on the
+    // next. One sentence joined by a middot made the eye parse a punctuation
+    // mark to find where the second fact started.
+    whoPerson(e) {
       if (!e.userId) return '';
       const gone = !e.user;
-      if (e.kind && e.kind.indexOf('apppw_') === 0) {
-        // The used-row label already quotes the key's name; repeating it here would be noise.
-        if (e.kind === 'apppw_used') {
-          return gone ? `by user #${e.userId} (deleted)` : `by ${e.user}`;
-        }
-        return gone
-          ? `on user #${e.userId}’s account (deleted)`
-          : `on ${e.user}’s account`;
-      }
-      // "a since-deleted user (#236) · app password (since revoked)" was a
-      // mouthful, and stacking two "since" clauses made it worse. Same two
-      // facts, said the way a person would: the account is gone, the key is
-      // revoked, and both are marked in the same simple way.
       const user = gone ? `user #${e.userId} (deleted)` : e.user;
-      if (e.cred) {
-        return e.credName
-          ? `by ${user} · app password “${e.credName}”`
-          : `by ${user} · app password (revoked)`;
+      // A password's own lifecycle row names the account it happened ON: the
+      // stored user owns the key, and an admin can add or revoke one on someone
+      // else's profile, so "by" would claim an actor we never recorded.
+      if (e.kind && 0 === e.kind.indexOf('apppw_') && 'apppw_used' !== e.kind) {
+        return gone ? `on user #${e.userId}’s account (deleted)` : `on ${e.user}’s account`;
       }
-      return `by ${user} · logged-in session`;
+      return `by ${user}`;
+    },
+    // What the request came in with. Password lifecycle rows get none — the
+    // subject line above already names the key.
+    whoCred(e) {
+      if (!e.userId || (e.kind && 0 === e.kind.indexOf('apppw_'))) return '';
+      if (e.cred) {
+        return e.credName ? `app password “${e.credName}”` : 'app password (revoked)';
+      }
+      return 'logged-in session';
     },
     // Shown on a created password and nowhere else. Deliberately unconditional: we have no
     // honest basis for deciding WHICH new password is suspicious (no IP, no location), so we
@@ -475,8 +480,9 @@ export default {
               @focus="showUaTip($event, note(e), '')"
               @blur="hideUaTip"
             >i</button>
-            <span v-if="who(e)" class="ar-aa__who">{{ who(e) }}</span>
+            <span v-if="whoPerson(e)" class="ar-aa__who">{{ whoPerson(e) }}</span>
             <span v-else class="ar-aa__who ar-aa__who--none">not recorded</span>
+            <span v-if="whoCred(e)" class="ar-aa__cred">{{ whoCred(e) }}</span>
           </td>
           <td>{{ e.hits > 1 ? `${e.hits} times` : 'once' }}</td>
           <!-- Two columns, one line each. Merging them into one cell put a second
