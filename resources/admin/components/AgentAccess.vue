@@ -21,9 +21,11 @@
  * And it never claims to protect anything. It is a camera, not a lock: nothing here blocks.
  */
 import { formatStamp } from '../wpDate.js';
+import { uaTip } from '../uaTip.js';
 
 export default {
   name: 'AgentAccess',
+  mixins: [uaTip],
   props: {
     api: { type: Object, default: null },
     // Rendered with v-show, so it stays mounted across tab switches. Fetch on first reveal.
@@ -233,6 +235,41 @@ export default {
     // One sentence per kind. The wording says what HAPPENED, not what it might mean — we have
     // no IP and no location, so we are in no position to judge intent, and pretending otherwise
     // would be the dishonesty this whole screen exists to avoid.
+    // The row's KIND as one short word, in the same slim-mark language the Request
+    // Log uses. It replaces the sentence prefix ("Ability used: …"), which repeated
+    // on every row and pushed the useful part off to the right.
+    kindMark(e) {
+      switch (e.kind) {
+        case 'apppw_created':  return { text: 'key added',   cls: 'is-aa-info' };
+        case 'apppw_used':     return { text: 'key first use', cls: 'is-aa-info' };
+        case 'apppw_renamed':  return { text: 'key renamed', cls: 'is-aa-info' };
+        case 'apppw_deleted':  return { text: 'key revoked', cls: 'is-aa-info' };
+        case 'ability_used':   return { text: 'ability ran', cls: 'is-aa-ok' };
+        case 'ability_refused':return { text: 'refused',     cls: 'is-aa-refused' };
+        case 'ability_probed': return { text: 'probed',      cls: 'is-aa-refused' };
+        default:               return { text: 'event',       cls: 'is-aa-info' };
+      }
+    },
+    // What the event was ABOUT, with no sentence around it: the ability name, or the
+    // key's name. The kind mark beside it supplies the verb.
+    subject(e) {
+      if (e.kind === 'ability_probed') return 'abilities that don’t exist here';
+      return e.subject || '(unnamed)';
+    },
+    // The advisory that used to occupy a third line on some rows. Same words, moved
+    // behind an info marker so every row is one line tall.
+    note(e) {
+      if (this.isNewKey(e)) {
+        return 'Didn’t create this? Revoke it — an application password keeps working even after you change your password.';
+      }
+      if (this.revokeAdvice(e)) {
+        return 'A key you issued tried to run something it isn’t allowed to. If you don’t recognise this, revoke that application password.';
+      }
+      if (e.kind === 'ability_probed') {
+        return 'Nobody advertises these names, so someone is guessing them. One or two is noise; a large count is not.';
+      }
+      return '';
+    },
     label(e) {
       const name = e.subject || '(unnamed)';
       switch (e.kind) {
@@ -368,6 +405,7 @@ export default {
       <thead>
         <tr>
           <th scope="col">What happened</th>
+          <th scope="col" class="ar-aa__whocol">Who</th>
           <th scope="col">Used</th>
           <th scope="col">First seen</th>
           <th scope="col">Last seen</th>
@@ -376,32 +414,34 @@ export default {
       <tbody>
         <tr v-for="e in events" :key="e.id" :class="{ 'is-unseen': isHighlighted(e), 'is-refusal': isRefusal(e) }">
           <td>
-            <span class="ar-aa__what">
-              {{ label(e) }}
-              <!-- The row the nav badge sent them here to find. A tint alone is too easy to
-                   miss on a long list, and "which one is new?" is the only question they
-                   arrived with. -->
+            <span class="ar-aa__row">
+              <span class="ar-log__mark" :class="kindMark(e).cls">{{ kindMark(e).text }}</span>
+              <span
+                class="ar-aa__what"
+                @mouseenter="showUaTip($event, label(e), '')"
+                @mouseleave="hideUaTip"
+              >{{ subject(e) }}</span>
+              <!-- The advisory that used to be a third line. Still in the row, still
+                   one hover away, but no longer stretching it. -->
+              <button
+                v-if="note(e)"
+                type="button"
+                class="ar-aa__noteicon"
+                :aria-label="note(e)"
+                @mouseenter="showUaTip($event, note(e), '')"
+                @mouseleave="hideUaTip"
+                @focus="showUaTip($event, note(e), '')"
+                @blur="hideUaTip"
+              >i</button>
               <span v-if="isHighlighted(e)" class="ar-aa__new">New</span>
             </span>
-            <!-- WHO did it — the question the row exists to answer. -->
-            <span v-if="who(e)" class="ar-aa__who">{{ who(e) }}</span>
-            <!-- The payload sentence. An application password survives a password change, so
-                 this is the one thing an owner must know about a key they don't recognise. -->
-            <span v-if="isNewKey(e)" class="ar-aa__hint">
-              Didn't create this? Revoke it. An application password keeps working even after
-              you change your password.
-            </span>
-            <!-- The sharpest thing this feature ever says, and the only unambiguous one: a key the
-                 OWNER issued asked for something it isn't allowed to do. -->
-            <span v-if="revokeAdvice(e)" class="ar-aa__hint ar-aa__hint--warn">
-              A key you issued tried to run something it isn't allowed to. If you don't recognise
-              this, revoke that application password.
-            </span>
-            <!-- No IP, so no honest advice to give. Say what we saw and let the count speak. -->
-            <span v-else-if="e.kind === 'ability_probed'" class="ar-aa__hint">
-              Nobody advertises these names, so someone is guessing them. One or two is noise; a
-              large count is not.
-            </span>
+          </td>
+          <td class="ar-aa__whocol">
+            <span
+              class="ar-aa__who"
+              @mouseenter="who(e) && showUaTip($event, who(e), '')"
+              @mouseleave="hideUaTip"
+            >{{ who(e) || 'not recorded' }}</span>
           </td>
           <td>{{ e.hits > 1 ? `${e.hits} times` : 'once' }}</td>
           <td>{{ when(e.firstSeen) }}</td>

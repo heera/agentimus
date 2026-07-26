@@ -4096,7 +4096,26 @@ a.ar-about-proto__v:hover { text-decoration: underline; }
 
 /* On a phone the four columns exceed the card: scroll the table inside its own box
    rather than letting it widen (or get clipped by) the page — columns stay reachable. */
-.ar-aa__tablewrap { overflow-x: auto; margin: 0 0 16px; }
+.ar-aa__tablewrap { overflow-x: auto; margin: 0 0 16px; min-width: 0; }
+/* Phones: five columns can't fit, and a sideways-scrolling table is a poor way
+   to read a security record. Drop WHO to a second line under the event (where
+   it lived before, but only where the room genuinely runs out), and let the
+   timestamps carry the rest. The event line still never wraps — it ellipsises,
+   with the full text one tap away on the mark. */
+@media (max-width: 782px) {
+  .ar-aa__table thead th.ar-aa__whocol { display: none; }
+  .ar-aa__table td.ar-aa__whocol {
+    display: block; max-width: none; padding-top: 0; padding-left: 0;
+    border-bottom: 0;
+  }
+  .ar-aa__table td:first-child { padding-bottom: 2px; }
+  .ar-aa__table tr { display: grid; grid-template-columns: 1fr auto; align-items: baseline; }
+  .ar-aa__table td:first-child { grid-column: 1 / -1; }
+  .ar-aa__table td.ar-aa__whocol { grid-column: 1 / 2; }
+  .ar-aa__table thead { display: none; }
+  .ar-aa__table td { border-bottom: 0; }
+  .ar-aa__table tr { border-bottom: 1px solid var(--ar-line); padding: 8px 0; }
+}
 /* The access log wears the Request Log's table dress (.ar-act-table on the same
    element), so the two logs read and behave as one family — same header band, same
    cell rhythm, same sideways scroll on narrow screens instead of crushed columns.
@@ -4105,15 +4124,31 @@ a.ar-about-proto__v:hover { text-decoration: underline; }
    and multi-line rows align to the top. */
 .ar-aa__table { width: 100%; border-collapse: collapse; margin: 0; }
 .ar-aa__table td { font-size: 13px; color: var(--ar-ink-soft); border-bottom: 1px solid var(--ar-line); vertical-align: top; }
-.ar-aa__table td:first-child { white-space: normal; min-width: 340px; }
+.ar-aa__table td:first-child { white-space: nowrap; min-width: 0; }
+/* One line per row: the kind mark supplies the verb, the subject carries the
+   name, and the advisory hides behind an info marker instead of adding a third
+   line. Rows were 2–3 lines tall and no two the same height. */
+.ar-aa__row { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.ar-aa__row .ar-log__mark { flex: 0 0 auto; }
+.ar-aa__whocol { max-width: 260px; }
+.ar-aa__noteicon {
+  flex: 0 0 auto; width: 15px; height: 15px; padding: 0; border-radius: 50%;
+  border: 1px solid var(--ar-line-strong); background: transparent; cursor: help;
+  font-family: var(--ar-mono); font-size: 10px; line-height: 13px; color: var(--ar-ink-soft);
+}
+.ar-aa__noteicon:hover, .ar-aa__noteicon:focus-visible { border-color: var(--ar-accent); color: var(--ar-accent); }
+/* Agent Access marks, same vocabulary as the log: only a refusal is solid. */
+.ar-log__mark.is-aa-ok      { color: color-mix(in srgb, var(--ar-good) 80%, var(--ar-ink-soft)); border: 1px solid color-mix(in srgb, var(--ar-good) 38%, var(--ar-line)); }
+.ar-log__mark.is-aa-info    { color: var(--ar-ink-soft); border: 1px solid var(--ar-line-strong); }
+.ar-log__mark.is-aa-refused { color: var(--ar-paper); background: color-mix(in srgb, var(--ar-bad) 82%, var(--ar-ink)); border: 1px solid transparent; }
 /* Unlike the Request Log, a footer sentence follows this table — keep the last row's
    rule so the table visibly ends before it. */
 .ar-aa__table tbody tr:last-child td { border-bottom: 1px solid var(--ar-line); }
 .ar-aa__table tr.is-unseen td { background: color-mix(in srgb, var(--ar-accent) 4.5%, transparent); }
-.ar-aa__what { display: block; font-weight: 500; color: var(--ar-ink); }
+.ar-aa__what { font-weight: 500; color: var(--ar-ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 /* WHO did it — quieter than the hint sentences, but always present when known. */
-.ar-aa__who { display: block; margin-top: 2px; font-size: 12px; color: var(--ar-ink-soft); }
+.ar-aa__who { display: block; font-size: 12px; color: var(--ar-ink-soft); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 /* The sentence the whole feature exists to deliver: an application password keeps working
    after a password change, so an unrecognised one has to be revoked, not just noted. */
