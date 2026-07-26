@@ -4167,9 +4167,13 @@ a.ar-about-proto__v:hover { text-decoration: underline; }
    and neither reflows when "9:39 pm" becomes "10:33 pm". tabular-nums keeps the
    digits themselves on a common grid, so the values line up down the column
    rather than shimmering row to row. */
+/* 22ch is the width of a full "July 15, 2026 10:33 pm" in this face — wide
+   enough that the two columns stay identical and never reflow, tight enough
+   that right-aligning doesn't park a column of dead space between them (24ch
+   left ~3 characters of slack on each, which read as a gap). */
 .ar-act-table th.ar-aa__seencol, .ar-act-table td.ar-aa__seencol {
-  text-align: right; white-space: nowrap; width: 24ch; min-width: 24ch;
-  font-variant-numeric: tabular-nums;
+  text-align: right; white-space: nowrap; width: 22ch; min-width: 22ch;
+  padding-right: 8px; font-variant-numeric: tabular-nums;
 }
 .ar-act-table td.ar-aa__seencol { color: var(--ar-ink-faint); font-family: var(--ar-mono); font-size: 11px; letter-spacing: -0.02em; }
 .ar-act-table th.ar-aa__seencol:last-child, .ar-act-table td.ar-aa__seencol:last-child { padding-right: 10px; }
