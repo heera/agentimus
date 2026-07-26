@@ -255,8 +255,9 @@ export default {
       return e.subject || '(unnamed)';
     },
     // Ability names are identifiers (agentimus/check-page) and read better in the
-    // mono face, the same way endpoints do in the request log. Key names are
-    // human names and stay in the prose face, quoted.
+    // mono face, the same way endpoints do in the request log. Key names stay in
+    // the prose face — unquoted, because the label line above already says what
+    // kind of name it is, and the two faces carry the distinction on their own.
     subjectIsIdent(e) {
       return !!e.kind && 0 === e.kind.indexOf('ability_');
     },
@@ -426,7 +427,7 @@ export default {
               v-if="eventSubject(e)"
               class="ar-aa__what"
               :class="{ 'is-ident': subjectIsIdent(e) }"
-            >{{ subjectIsIdent(e) ? eventSubject(e) : `“${eventSubject(e)}”` }}
+            >{{ eventSubject(e) }}
               <!-- The row the nav badge sent them here to find. A tint alone is too easy to
                    miss on a long list, and "which one is new?" is the only question they
                    arrived with. -->
