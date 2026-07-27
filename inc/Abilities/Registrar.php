@@ -293,6 +293,8 @@ final class Registrar {
 							'ua'       => self::s(),
 							'network'  => self::s(),
 							'verdict'  => self::i(),
+							'signer'   => self::s( 'Web Bot Auth: who the signature proves (verdict 1) or claimed (verdict 2); empty when the verdict came from DNS/ranges or nothing.' ),
+							'refused'  => self::b( 'True = turned away at the door, never served.' ),
 							'at'       => self::s(),
 						)
 					),
@@ -303,6 +305,11 @@ final class Registrar {
 					'retentionDays' => self::i(),
 					'autoPrune'     => self::b(),
 					'maxRows'       => self::i(),
+					// The two switch states the Status column leans on — declared here so the
+					// ability's own output VALIDATES: the adapter rejects undeclared keys, and
+					// 1.30.0 shipped exactly that bug (verifyOn arrived, the schema never did).
+					'verifyOn'      => self::b( 'Whether Web Bot Auth signature verification is on.' ),
+					'identifyOn'    => self::b( 'Whether "identify every bot" (network attribution) is on.' ),
 				)
 			),
 			function ( $input ) {
@@ -995,9 +1002,9 @@ final class Registrar {
 		return '' === $description ? array( 'type' => 'integer' ) : array( 'type' => 'integer', 'description' => $description );
 	}
 
-	/** A boolean property. */
-	private static function b() {
-		return array( 'type' => 'boolean' );
+	/** A boolean property, optionally described. */
+	private static function b( $description = '' ) {
+		return '' === $description ? array( 'type' => 'boolean' ) : array( 'type' => 'boolean', 'description' => $description );
 	}
 
 	/** A date string property (YYYY-MM-DD). */

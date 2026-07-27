@@ -541,7 +541,7 @@ final class Repository {
 	 * `ua` is a PREFIX match: `KEY ua(191)` can serve `LIKE 'x%'` but never `LIKE '%x%'`.
 	 *
 	 * @param array $args from, to (Y-m-d), agent, endpoint, network, verdict, ua, before, per_page.
-	 * @return array{rows:array,total:int,perPage:int,cursor:?int,hasMore:bool,retentionDays:int}
+	 * @return array{rows:array,total:int,perPage:int,cursor:?int,hasMore:bool,retentionDays:int,autoPrune:bool,maxRows:int,verifyOn:bool,identifyOn:bool}
 	 */
 	public static function log( array $args = array() ) {
 		global $wpdb;
