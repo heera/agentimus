@@ -654,20 +654,20 @@ final class Admin {
 			'show'    => $show,
 			'items'   => array(
 				array(
-					'title' => 'With an SEO plugin — or instead of one',
-					'text'  => 'No SEO plugin? Agentimus now covers the search basics itself: per-page SEO titles, social share cards (with a default share image you pick in Settings), canonical links, and a sitemap that carries last-changed dates. Running Yoast, Rank Math, SEOPress, AIOSEO or The SEO Framework? Nothing changes — Agentimus detects it, steps aside on every overlapping surface, and the readiness report names who is doing what. The switch is automatic, both directions.',
+					'title' => 'Signed agents, verified mathematically',
+					'text'  => 'Some AI agents now cryptographically sign their requests — Google’s agent and OpenAI’s already do. With Verify bot identities on, Agentimus checks the signature right on your own server: genuine agents earn a “signed” mark in the Request Log, a forged signature is flagged for review — and, with blocking on, refused. Unsigned crawlers lose nothing: signing is extra proof, never a requirement.',
 				),
 				array(
-					'title' => 'The weekly email arrives when you say',
-					'text'  => 'Settings → Weekly email gained a day-and-time picker — the note lands on the day and hour you choose, your site’s clock, instead of always Monday morning.',
+					'title' => 'Link to your own posts',
+					'text'  => 'A new editor box suggests which of your own posts the one you’re writing should link to — found from your topics, categories and text, no AI needed — and inserts the link at a real phrase with one click, as an ordinary edit you can undo. Connected agents get the same suggestions through a read-only MCP tool.',
 				),
 				array(
-					'title' => 'The review queue answers faster and explains itself',
-					'text'  => 'Blocking or allowing a client updates the menu’s count bubble the moment you click. Cards with no one-click Allow/Block now say why — a real search engine’s name can’t be safely blocked by name — and the dashboard’s downward trend arrows wear a calm amber instead of error-red.',
+					'title' => 'A refusal is never silent',
+					'text'  => 'Requests turned away at your AI endpoints — proven impostors, forged signatures — are now recorded: a “refused” mark in the Request Log, counted toward the review queue and the weekly email’s impostors, and toward none of your read totals. A refusal is not a read.',
 				),
 				array(
-					'title' => 'Coming from 1.27 or earlier?',
-					'text'  => 'Then 1.28 is new to you too: a short weekly email about what AI did on your site — quiet weeks send nothing, one-click stop inside every email — and the review queue’s count on the admin menu from every screen. The full changelog on this card tells that story.',
+					'title' => 'Coming from 1.28 or earlier?',
+					'text'  => 'Then 1.29 is new to you too: with no SEO plugin active, Agentimus covers the search basics itself — titles, share cards, canonicals, a dated sitemap — and steps aside the moment one appears. Plus the weekly email’s day-and-time picker. The full changelog on this card tells that story.',
 				),
 			),
 		);
