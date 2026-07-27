@@ -326,10 +326,13 @@ final class Seo {
 	 * site-wide default (`social_default_image`) → the entity image (Site Icon or
 	 * the `agentimus_entity_image` override) that Schema already publishes.
 	 *
+	 * Public because it is the single answer to "what image will this page share?" —
+	 * the editor panel's Share tab shows it as the link preview.
+	 *
 	 * @param \WP_Post|null $post The post, when the view has one.
 	 * @return array{url:string,width:int,height:int,alt:string}|null
 	 */
-	private function social_image( $post ) {
+	public function social_image( $post ) {
 		if ( $post && function_exists( 'get_post_thumbnail_id' ) ) {
 			$image = self::attachment_image( (int) get_post_thumbnail_id( $post ) );
 			if ( null !== $image ) {

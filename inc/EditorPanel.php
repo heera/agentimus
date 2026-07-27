@@ -5,8 +5,9 @@
  * feature across the editor's generic "Meta Boxes" strip.
  *
  * Each tab is a self-contained section renderer ({@see PageCheckMetaBox} = AI
- * Readability, {@see SchemaMetaBox} = JSON-LD). Only the enabled sections appear;
- * with a single one enabled the tab bar is omitted. Server-rendered, admin-only.
+ * Readability, {@see SchemaMetaBox} = JSON-LD, {@see ShareCopy} = Share). Only
+ * the enabled sections appear; with a single one enabled the tab bar is
+ * omitted. Server-rendered, admin-only.
  *
  * @package Agentimus
  */
@@ -28,6 +29,9 @@ final class EditorPanel {
 	/** @var SchemaMetaBox */
 	private $schema;
 
+	/** @var ShareCopy */
+	private $share;
+
 	/**
 	 * @param Settings $settings Settings store.
 	 */
@@ -35,6 +39,7 @@ final class EditorPanel {
 		$this->settings    = $settings;
 		$this->readability = new PageCheckMetaBox( $settings );
 		$this->schema      = new SchemaMetaBox( $settings );
+		$this->share       = new ShareCopy( $settings );
 	}
 
 	/**
@@ -126,6 +131,12 @@ final class EditorPanel {
 				'render' => array( $this->schema, 'render_meta_box' ),
 			);
 		}
+		if ( $this->share->is_enabled() ) {
+			$sections['share'] = array(
+				'label'  => __( 'Share', 'agentimus' ),
+				'render' => array( $this->share, 'render_meta_box' ),
+			);
+		}
 		return $sections;
 	}
 
@@ -213,7 +224,7 @@ final class EditorPanel {
 
 		wp_register_style( self::HANDLE, false, array(), AGENTIMUS_VERSION );
 		wp_enqueue_style( self::HANDLE );
-		wp_add_inline_style( self::HANDLE, self::css() . PageCheckMetaBox::css() . SchemaMetaBox::css() );
+		wp_add_inline_style( self::HANDLE, self::css() . PageCheckMetaBox::css() . SchemaMetaBox::css() . ShareCopy::css() );
 
 		// In the block editor the panel refreshes itself over REST after a save (no
 		// page reload happens there); those two core scripts back that. The classic
@@ -222,7 +233,7 @@ final class EditorPanel {
 		$deps     = $is_block ? array( 'wp-data', 'wp-api-fetch' ) : array();
 		wp_register_script( self::HANDLE, false, $deps, AGENTIMUS_VERSION, true );
 		wp_enqueue_script( self::HANDLE );
-		wp_add_inline_script( self::HANDLE, self::js() . SchemaMetaBox::js() );
+		wp_add_inline_script( self::HANDLE, self::js() . SchemaMetaBox::js() . ShareCopy::js() );
 	}
 
 	/**
