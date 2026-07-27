@@ -22,7 +22,7 @@ export default {
   data() {
     return {
       live: null, liveRunning: false, exposure: null, exposureRunning: false,
-      schemaOpen: false, busyIgnore: 0,
+      schemaOpen: false, busyIgnore: 0, busyIssue: '', busyRestoreAll: false,
       // The scroll-affordance state for each dialog: true while more is below.
       liveMore: false, exposureMore: false,
     };
@@ -134,18 +134,8 @@ export default {
     // the counts, and the rung all update without a reload.
     async setAside(page, ignored) {
       if (this.busyIgnore || !page || !page.id) return;
-      // Reassure at the moment of the click: setting aside is non-destructive and
-      // reversible. (Restoring is safe and obvious, so it needs no prompt.)
-      if (ignored) {
-        const ok = await confirm({
-          title: `Set “${page.title}” aside?`,
-          message: 'Nothing is deleted or changed — it stays published exactly as it is. It’s just left out of your content-optimization score. You can restore it here anytime.',
-          confirmLabel: 'Set aside',
-          cancelLabel: 'Cancel',
-          tone: 'default',
-        });
-        if (!ok) return;
-      }
+      // No prompt in either direction: one page is a small, visible, one-click-undoable
+      // move (it lands in the Set Aside list right below). Only the bulk actions confirm.
       this.busyIgnore = page.id;
       try {
         const res = await this.api.ignoreOptimize(page.id, ignored);
@@ -154,6 +144,51 @@ export default {
         this.$emit('flash', { type: 'error', text: (e && e.message) || 'Could not update. Try again.' });
       } finally {
         this.busyIgnore = 0;
+      }
+    },
+    // Set aside EVERY page this check flags — the server walks the full sample, so
+    // the "Showing 6 of 8" tail is included, not just the rows on screen.
+    async setAllAside(issue) {
+      if (this.busyIssue || !issue || !issue.id) return;
+      const ok = await confirm({
+        title: `Set all ${issue.count} aside?`,
+        message: 'Nothing is deleted or changed — they stay published exactly as they are. Every page this check flags is left out of your content-optimization score (a page set aside is skipped by every check, not just this one). You can restore each one here anytime.',
+        confirmLabel: 'Ignore All',
+        cancelLabel: 'Cancel',
+        tone: 'default',
+      });
+      if (!ok) return;
+      this.busyIssue = issue.id;
+      try {
+        const res = await this.api.ignoreOptimizeIssue(issue.id);
+        if (res && res.score) this.$emit('score-updated', res.score);
+      } catch (e) {
+        this.$emit('flash', { type: 'error', text: (e && e.message) || 'Could not update. Try again.' });
+      } finally {
+        this.busyIssue = '';
+      }
+    },
+    // The mirror of Ignore All: empty the parked list. Confirmed, because one click
+    // returns every page to grading and refloods the worklist above.
+    async restoreAll() {
+      if (this.busyRestoreAll || !this.optimizeIgnored.length) return;
+      const n = this.optimizeIgnored.length;
+      const ok = await confirm({
+        title: `Restore all ${n} ${1 === n ? 'page' : 'pages'}?`,
+        message: `All ${n} return to content grading and count toward your score again. Anything still flagged reappears on the worklist above — your score may drop until those pages are fixed or set aside again. The pages themselves are not touched.`,
+        confirmLabel: 'Restore All',
+        cancelLabel: 'Cancel',
+        tone: 'default',
+      });
+      if (!ok) return;
+      this.busyRestoreAll = true;
+      try {
+        const res = await this.api.restoreAllOptimize();
+        if (res && res.score) this.$emit('score-updated', res.score);
+      } catch (e) {
+        this.$emit('flash', { type: 'error', text: (e && e.message) || 'Could not update. Try again.' });
+      } finally {
+        this.busyRestoreAll = false;
       }
     },
     cacheTitle(r) {
@@ -335,7 +370,19 @@ export default {
           <div class="ar-check__text">
             <!-- The server names the real content types behind the count ("3 Posts, 1 Page");
                  the items fallback covers a stale pre-upgrade payload without one. -->
-            <strong>{{ issue.label }} <span class="ar-optcheck__n">· {{ issue.countLabel || `${issue.count} ${issue.count === 1 ? 'item' : 'items'}` }}</span></strong>
+            <div class="ar-optcheck__head">
+              <strong>{{ issue.label }} <span class="ar-optcheck__n">· {{ issue.countLabel || `${issue.count} ${issue.count === 1 ? 'item' : 'items'}` }}</span></strong>
+              <!-- One click for the whole check — the server walks the full sample,
+                   so the "Showing 6 of 8" tail is included. Pointless on a single
+                   page, whose own Set aside is right below. -->
+              <button
+                v-if="issue.count > 1"
+                type="button"
+                class="ar-optcheck__aside ar-optcheck__aside--all"
+                :disabled="busyIssue === issue.id"
+                @click="setAllAside(issue)"
+              >{{ busyIssue === issue.id ? 'Ignoring…' : 'Ignore All' }}</button>
+            </div>
             <small>{{ issue.why }}</small>
             <ul class="ar-optcheck__pages">
               <li v-for="p in issue.pages" :key="p.id" class="ar-optcheck__row">
@@ -345,7 +392,7 @@ export default {
                   class="ar-optcheck__aside"
                   :disabled="busyIgnore === p.id"
                   @click="setAside(p, true)"
-                >Set aside</button>
+                >Ignore It</button>
               </li>
             </ul>
             <p v-if="issue.pages.length < issue.count" class="ar-optcheck__more">
@@ -358,13 +405,24 @@ export default {
 
       <!-- Set aside — always visible, one-click restore, so nothing is silently hidden. -->
       <div v-if="optimizeIgnored.length" class="ar-setaside">
-        <p class="ar-setaside__head">
-          Set aside · {{ optimizeIgnored.length }}
+        <div class="ar-setaside__head">
+          <strong class="ar-setaside__title">Set Aside <span class="ar-optcheck__n">· {{ optimizeIgnored.length }}</span></strong>
           <span class="ar-setaside__note">not cited content — left out of the score</span>
-        </p>
+          <button
+            type="button"
+            class="ar-optcheck__restore ar-setaside__restoreall"
+            :disabled="busyRestoreAll"
+            @click="restoreAll"
+          >{{ busyRestoreAll ? 'Restoring…' : 'Restore All' }}</button>
+        </div>
         <ul class="ar-optcheck__pages">
           <li v-for="p in optimizeIgnored" :key="p.id" class="ar-optcheck__row">
-            <a :href="p.url" target="_blank" rel="noopener" class="ar-optcheck__page ar-optcheck__page--muted">{{ p.title }} ↗</a>
+            <div class="ar-optcheck__asided">
+              <a :href="p.url" target="_blank" rel="noopener" class="ar-optcheck__page ar-optcheck__page--muted">{{ p.title }} ↗</a>
+              <!-- What it was flagged for, so the aside list keeps the "why" the
+                   worklist knew. No flags = nothing to say (it passes everything now). -->
+              <small v-if="p.flags && p.flags.length" class="ar-optcheck__flags">{{ p.flags.join(' · ') }}</small>
+            </div>
             <button
               type="button"
               class="ar-optcheck__restore"

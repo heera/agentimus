@@ -900,7 +900,7 @@
 /* No underline-on-hover — feedback is the colour shift (brightened on the dark
    readiness card), so the next-step line reads as an affordance, not a hyperlink. */
 .ar-rail-link:hover { color: var(--ar-ink-soft); }
-.ar-rail-allgood { margin: 9px 0 0; font-size: 12px; color: var(--ar-good); }
+.ar-rail-allgood { margin: 9px 0 0; font-size: 12px; color: var(--ar-good); text-align: center; }
 /* Registration status — its own compact one-line card, separate from the black card.
    Inherits .ar-rail-card (bg/border/radius) with tighter padding for a single row; the
    → is always visible. Green ✓ when valid, amber throughout when a registration breaks. */
@@ -2748,28 +2748,48 @@ button.ar-wd-stat:focus-visible { outline: 2px solid var(--ar-accent); outline-o
    rung's destination). Reuses .ar-checkgroup / .ar-check; each issue lists the pages
    that trip it as edit links, matching the rung → tab-section model of the others. */
 .ar-optcheck__n { font-family: var(--ar-mono); font-size: 11px; font-weight: 400; color: var(--ar-warn); }
+.ar-optcheck__head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+.ar-optcheck__asided { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; align-items: flex-start; gap: 2px; }
+.ar-optcheck__asided .ar-optcheck__page { flex: none; max-width: 100%; }
+.ar-optcheck__flags { font-family: var(--ar-mono); font-size: 11px; color: var(--ar-ink-faint); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .ar-optcheck__pages { display: flex; flex-direction: column; gap: 5px; margin: 8px 0 0; }
 .ar-optcheck__row { display: flex; align-items: center; gap: 12px; }
-.ar-optcheck__page { flex: 1 1 auto; min-width: 0; font-size: 13px; color: var(--ar-accent); text-decoration: none; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* flex 0-grow: the link hugs its own text, so only the words hover — not the empty
+   run of row beside them. shrink 1 + min-width 0 keep long titles truncating. */
+.ar-optcheck__page { flex: 0 1 auto; min-width: 0; font-size: 13px; color: var(--ar-accent); text-decoration: none; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .ar-optcheck__page:hover, .ar-optcheck__page:focus-visible { text-decoration: underline; }
 .ar-optcheck__page--muted { color: var(--ar-ink-soft); }
 .ar-optcheck__more { margin: 7px 0 0; font-family: var(--ar-mono); font-size: 11px; color: var(--ar-ink-faint); }
-/* Set-aside / restore actions — always visible, pinned to the right of the row. */
+/* Set-aside / set-all-aside / restore actions — one treatment for all three: a quiet
+   uppercase accent label, right-pinned, no chrome. Identical padding is what keeps every
+   right edge on the same vertical line, from the section header down through each row.
+   Hover darkens to ink rather than underlining — these are buttons, not links. */
 .ar-optcheck__aside, .ar-optcheck__restore {
   flex: 0 0 auto; margin-left: auto; appearance: none; background: none; cursor: pointer;
-  padding: 3px 9px; font-family: var(--ar-mono); font-size: 11px; white-space: nowrap;
-  border-radius: 6px; transition: color 0.15s ease, border-color 0.15s ease;
+  border: 0; padding: 3px 4px; font-family: var(--ar-mono); font-size: 10px;
+  letter-spacing: 0.08em; text-transform: uppercase; white-space: nowrap;
+  color: var(--ar-accent); transition: color 0.15s ease;
 }
-.ar-optcheck__aside { border: 1px solid var(--ar-line); color: var(--ar-ink-soft); }
-.ar-optcheck__aside:hover, .ar-optcheck__aside:focus-visible { border-color: var(--ar-ink-faint); color: var(--ar-ink); }
-.ar-optcheck__restore { border: 0; color: var(--ar-accent); padding: 3px 4px; }
-.ar-optcheck__restore:hover, .ar-optcheck__restore:focus-visible { text-decoration: underline; }
+.ar-optcheck__aside:hover, .ar-optcheck__aside:focus-visible,
+.ar-optcheck__restore:hover, .ar-optcheck__restore:focus-visible { color: var(--ar-ink); }
 .ar-optcheck__aside:disabled, .ar-optcheck__restore:disabled { opacity: 0.4; cursor: default; }
 .ar-optcheck__clear { margin: 4px 0 0; font-size: 13px; color: var(--ar-ink-soft); }
-/* Set-aside block: a quiet, dashed-off list under the issues so it reads as "parked". */
+/* Set-aside block: a quiet, dashed-off list under the issues so it reads as "parked".
+   Each parked page is its own small card — title + its flags inside one boundary, the
+   Restore pinned right — so the list reads as tidy rows, not interleaved lines. */
 .ar-setaside { margin: 16px 0 0; padding: 14px 0 0; border-top: 1px dashed var(--ar-line); }
-.ar-setaside__head { margin: 0 0 8px; font-family: var(--ar-mono); font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ar-ink-faint); }
-.ar-setaside__note { text-transform: none; letter-spacing: 0; margin-left: 6px; }
+/* The head reads like the issue headers above it — a dark title with a warn-mono count —
+   so the parked block registers as a section, not a footnote. */
+.ar-setaside__head { display: flex; align-items: baseline; gap: 8px; margin: 0 0 10px; }
+.ar-setaside__title { font-size: 14px; color: var(--ar-ink); }
+.ar-setaside__note { font-family: var(--ar-mono); font-size: 11px; color: var(--ar-ink-faint); }
+/* Restore All sits on the header line, on the same right edge as every row's RESTORE. */
+.ar-setaside__restoreall { margin-left: auto; }
+.ar-setaside .ar-optcheck__pages { gap: 8px; }
+.ar-setaside .ar-optcheck__row {
+  background: var(--ar-surface-2); border: 1px solid var(--ar-line); border-radius: 6px;
+  padding: 9px 12px;
+}
 
 /* Day-report modal: a wider panel; header with prev/next + a day dropdown. */
 /* Fixed height, not content-sized: the day report renders in two beats (spinner,

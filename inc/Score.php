@@ -464,26 +464,10 @@ final class Score {
 	}
 
 	private function compute_optimize() {
-		$types = $this->citability_post_types();
-		if ( empty( $types ) ) {
+		$ids = $this->sample_ids();
+		if ( empty( $ids ) ) {
 			// No article-like content to grade (e.g. a commerce-only site) → the Optimize
 			// pillar is N/A (null), so blend() redistributes its weight instead of scoring 0.
-			return array( 'score' => null, 'posts' => 0, 'issues' => array() );
-		}
-		$ids = get_posts(
-			array(
-				'post_type'        => $types,
-				'post_status'      => 'publish',
-				'numberposts'      => self::OPTIMIZE_SAMPLE,
-				'orderby'          => 'modified',
-				'order'            => 'DESC',
-				'fields'           => 'ids',
-				// `suppress_filters` is deliberately NOT set: get_posts() already defaults it to
-				// true (wp-includes/post.php), so naming it here changed nothing and only tripped
-				// the VIP rule that prohibits setting it explicitly.
-			)
-		);
-		if ( empty( $ids ) ) {
 			return array( 'score' => null, 'posts' => 0, 'issues' => array() );
 		}
 
@@ -647,6 +631,66 @@ final class Score {
 		return implode( ', ', $parts );
 	}
 
+	/**
+	 * The grading sample: the most recently modified article-like posts. One
+	 * definition, used by the score pass and by the set-a-whole-check-aside
+	 * action, so "all pages tripping this check" always means the same pages
+	 * the worklist counted.
+	 *
+	 * @return int[]
+	 */
+	private function sample_ids() {
+		$types = $this->citability_post_types();
+		if ( empty( $types ) ) {
+			return array();
+		}
+		return array_map(
+			'intval',
+			(array) get_posts(
+				array(
+					'post_type'   => $types,
+					'post_status' => 'publish',
+					'numberposts' => self::OPTIMIZE_SAMPLE,
+					'orderby'     => 'modified',
+					'order'       => 'DESC',
+					'fields'      => 'ids',
+					// `suppress_filters` is deliberately NOT set: get_posts() already defaults it to
+					// true (wp-includes/post.php), so naming it here changed nothing and only tripped
+					// the VIP rule that prohibits setting it explicitly.
+				)
+			)
+		);
+	}
+
+	/**
+	 * Every sampled page a given content check flags — the full set, not the
+	 * worklist's capped preview. Feeds the "set all aside" action, and runs at
+	 * click time only, so it takes no cache and adds no serve-path cost.
+	 *
+	 * @param string $issue_id PageCheck check id (e.g. 'featured_image').
+	 * @return int[]
+	 */
+	public function issue_post_ids( $issue_id ) {
+		$issue_id = (string) $issue_id;
+		if ( '' === $issue_id ) {
+			return array();
+		}
+		$out = array();
+		foreach ( $this->sample_ids() as $id ) {
+			$post = get_post( $id );
+			if ( ! $post || ! $this->is_gradeable( $post ) ) {
+				continue;
+			}
+			foreach ( PageCheck::analyze( $post ) as $r ) {
+				if ( $issue_id === (string) $r['id'] && 'pass' !== (string) $r['status'] ) {
+					$out[] = $id;
+					break;
+				}
+			}
+		}
+		return $out;
+	}
+
 	/** Post IDs the owner set aside as "not cited content". */
 	private function ignored_ids() {
 		return array_values( array_filter( array_map( 'intval', (array) $this->settings->get( 'optimize_ignored', array() ) ) ) );
@@ -660,7 +704,8 @@ final class Score {
 	 * @return array<int,array<string,mixed>>
 	 */
 	private function ignored_list() {
-		$out = array();
+		$out      = array();
+		$analyzed = 0;
 		foreach ( $this->ignored_ids() as $id ) {
 			$post = get_post( $id );
 			if ( ! $post || 'publish' !== $post->post_status ) {
@@ -670,10 +715,24 @@ final class Score {
 			if ( '' === $edit ) {
 				continue;
 			}
+			// What this page was flagged for at the moment it's listed — so "set
+			// aside" rows still say why they were on the worklist. Bounded to the
+			// sample's own size so a huge aside list stays cheap: rows past the
+			// bound simply list without flags rather than re-analyzing without limit.
+			$flags = array();
+			if ( $analyzed < self::OPTIMIZE_SAMPLE ) {
+				++$analyzed;
+				foreach ( PageCheck::analyze( $post ) as $r ) {
+					if ( 'pass' !== (string) $r['status'] ) {
+						$flags[] = (string) $r['label'];
+					}
+				}
+			}
 			$out[] = array(
 				'id'    => $id,
 				'title' => html_entity_decode( wp_strip_all_tags( get_the_title( $id ) ), ENT_QUOTES, 'UTF-8' ),
 				'url'   => $edit,
+				'flags' => $flags,
 			);
 		}
 		return $out;

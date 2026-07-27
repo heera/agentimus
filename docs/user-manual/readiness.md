@@ -116,6 +116,8 @@ Issues are grouped, and each lists the exact posts and pages affected as links s
 
 Some pages simply aren't articles you're optimising for citation — a landing page, a "Thank you" page, an index. Next to any page in the worklist is **Set aside**: mark it *not cited content* and it leaves the score, moving to a visible **"Set aside"** list you can **Restore** from at any time. Nothing is deleted or changed — the page stays published exactly as it is; it just stops counting toward your Optimized rung. The section header always shows how many pages are graded and how many you've set aside, so the number stays honest.
 
+Two conveniences keep the list workable. Each check's section carries an **Ignore All** action that sets aside *every* page that check flags in one confirmed click — including the pages past the "Showing 6 of 8" preview — useful when a whole category of content (say, photo posts with no prose) was never meant to be cited (the per-page button is **Ignore It**). And every entry in the Set-aside list shows **what it was flagged for** (*Thin content · No featured image*), so you can still judge, months later, whether a parked page deserves a second look or was rightly parked — with a **Restore All** on the list's header when you want everything back in one go. A page set aside is skipped by every check, not just the one you clicked from.
+
 ### Evergreen categories
 
 Timeless content — references, tutorials, legal pages — doesn't go stale with age, so the freshness check shouldn't nag it. Under **Settings**, mark the categories whose posts are evergreen and their posts are exempt from the freshness check (only that check; nothing else changes).

@@ -1794,7 +1794,7 @@ export default {
             @mouseenter="showRailTip($event, aeoNextTip)"
             @mouseleave="hideUaTip"
           >Next: {{ aeoNext.title }}</p>
-          <p v-else class="ar-rail-allgood">All rungs complete.</p>
+          <p v-else class="ar-rail-allgood"><span aria-hidden="true">✓</span> All good — nothing left to fix.</p>
         </div>
 
         <div class="ar-rail-card">

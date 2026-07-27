@@ -276,6 +276,37 @@ final class Rest {
 			)
 		);
 
+		// POST /optimize/restore-all — bring every set-aside page back into grading.
+		register_rest_route(
+			self::NAMESPACE,
+			'/optimize/restore-all',
+			array(
+				'methods'             => \WP_REST_Server::CREATABLE,
+				'callback'            => array( $this, 'optimize_restore_all' ),
+				'permission_callback' => array( $this, 'can_manage' ),
+			)
+		);
+
+		// POST /optimize/ignore-issue — set aside EVERY page a content check flags,
+		// in one action. The check id's validity is judged in the callback, after the
+		// permission gate (an args enum would answer 400 before the 401/403).
+		register_rest_route(
+			self::NAMESPACE,
+			'/optimize/ignore-issue',
+			array(
+				'methods'             => \WP_REST_Server::CREATABLE,
+				'callback'            => array( $this, 'optimize_ignore_issue' ),
+				'permission_callback' => array( $this, 'can_manage' ),
+				'args'                => array(
+					'issue' => array(
+						'type'              => 'string',
+						'required'          => true,
+						'sanitize_callback' => 'sanitize_key',
+					),
+				),
+			)
+		);
+
 	}
 
 	/**
@@ -402,6 +433,58 @@ final class Rest {
 			array(
 				'score' => ( new Score( new Settings() ) )->report(),
 				'saved' => true,
+			)
+		);
+	}
+
+	/**
+	 * POST /optimize/restore-all — empty the set-aside list, returning every parked
+	 * page to grading. The mirror of ignore-issue; same recomputed-score response.
+	 *
+	 * @return \WP_REST_Response
+	 */
+	public function optimize_restore_all() {
+		$all = $this->settings->all();
+		$all['optimize_ignored'] = array();
+		$this->settings->update( $all ); // Sanitises + busts the OPTIMIZE cache.
+
+		return rest_ensure_response(
+			array(
+				'score' => ( new Score( new Settings() ) )->report(),
+				'saved' => true,
+			)
+		);
+	}
+
+	/**
+	 * POST /optimize/ignore-issue — set aside every sampled page a content check
+	 * currently flags (the full set, not the worklist's capped preview). Returns the
+	 * recomputed score, like the per-page route, so the screen updates in place.
+	 *
+	 * @param \WP_REST_Request $request Request.
+	 * @return \WP_REST_Response|\WP_Error
+	 */
+	public function optimize_ignore_issue( \WP_REST_Request $request ) {
+		$issue = sanitize_key( (string) $request->get_param( 'issue' ) );
+		$ids   = ( new Score( $this->settings ) )->issue_post_ids( $issue );
+		if ( empty( $ids ) ) {
+			// Unknown check id, or nothing left to set aside — either way the
+			// worklist has moved on under this click.
+			return new \WP_Error( 'agentimus_no_pages', __( 'Nothing to set aside for that check.', 'agentimus' ), array( 'status' => 400 ) );
+		}
+
+		$all  = $this->settings->all();
+		$list = ( isset( $all['optimize_ignored'] ) && is_array( $all['optimize_ignored'] ) ) ? array_map( 'intval', $all['optimize_ignored'] ) : array();
+		$list = array_values( array_unique( array_merge( $list, $ids ) ) );
+
+		$all['optimize_ignored'] = $list;
+		$this->settings->update( $all ); // Sanitises + busts the OPTIMIZE cache.
+
+		return rest_ensure_response(
+			array(
+				'score' => ( new Score( new Settings() ) )->report(),
+				'saved' => true,
+				'count' => count( $ids ),
 			)
 		);
 	}

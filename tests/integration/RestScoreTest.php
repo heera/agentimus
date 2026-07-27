@@ -53,4 +53,55 @@ final class RestScoreTest extends RestTestCase {
 	public function test_a_subscriber_is_denied() {
 		$this->assertSame( 403, $this->get_score( $this->subscriber )->get_status() );
 	}
+
+	public function test_set_a_whole_check_aside_in_one_call() {
+		wp_set_current_user( $this->admin );
+		$ids = array();
+		for ( $i = 0; $i < 3; $i++ ) {
+			$ids[] = self::factory()->post->create(
+				array(
+					'post_status'  => 'publish',
+					'post_content' => 'Too short.',
+				)
+			);
+		}
+
+		$req = new \WP_REST_Request( 'POST', '/agentimus/v1/optimize/ignore-issue' );
+		$req->set_body_params( array( 'issue' => 'words' ) );
+		$res = rest_get_server()->dispatch( $req );
+
+		$this->assertSame( 200, $res->get_status() );
+		$data = $res->get_data();
+		$this->assertGreaterThanOrEqual( 3, (int) $data['count'], 'every page the check flags is set aside' );
+		$this->assertArrayHasKey( 'score', $data, 'the screen updates from the same response' );
+
+		$ignored = array_map( 'intval', (array) ( new \Agentimus\Settings() )->get( 'optimize_ignored', array() ) );
+		foreach ( $ids as $id ) {
+			$this->assertContains( (int) $id, $ignored, 'the setting carries the whole set — cap included' );
+		}
+	}
+
+	public function test_restore_all_empties_the_set_aside_list() {
+		wp_set_current_user( $this->admin );
+		$ids = array(
+			self::factory()->post->create( array( 'post_status' => 'publish', 'post_content' => 'Too short.' ) ),
+			self::factory()->post->create( array( 'post_status' => 'publish', 'post_content' => 'Also short.' ) ),
+		);
+		$s   = new \Agentimus\Settings();
+		$all = $s->all();
+		$all['optimize_ignored'] = $ids;
+		$s->update( $all );
+
+		$res = rest_get_server()->dispatch( new \WP_REST_Request( 'POST', '/agentimus/v1/optimize/restore-all' ) );
+		$this->assertSame( 200, $res->get_status() );
+		$this->assertArrayHasKey( 'score', $res->get_data(), 'the screen updates from the same response' );
+		$this->assertSame( array(), (array) ( new \Agentimus\Settings() )->get( 'optimize_ignored', array() ), 'every parked page returns to grading' );
+	}
+
+	public function test_an_unknown_check_id_is_refused() {
+		wp_set_current_user( $this->admin );
+		$req = new \WP_REST_Request( 'POST', '/agentimus/v1/optimize/ignore-issue' );
+		$req->set_body_params( array( 'issue' => 'nonsense' ) );
+		$this->assertSame( 400, rest_get_server()->dispatch( $req )->get_status() );
+	}
 }

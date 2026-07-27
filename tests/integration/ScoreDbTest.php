@@ -235,6 +235,57 @@ final class ScoreDbTest extends DbTestCase {
 		$this->assertContains( (int) $id, $ignoredIds, 'a set-aside post must show in the visible list' );
 	}
 
+	public function test_set_aside_rows_carry_their_flags() {
+		// A thin post keeps, in the aside list, the flags that put it on the worklist.
+		$id = $this->post( 'Too short.' );
+		wp_set_current_user( self::factory()->user->create( array( 'role' => 'administrator' ) ) );
+
+		$s   = new Settings();
+		$all = $s->all();
+		$all['optimize_ignored'] = array( $id );
+		$s->update( $all );
+
+		$row = null;
+		foreach ( ( new Score( new Settings() ) )->report()['ignored'] as $p ) {
+			if ( (int) $p['id'] === (int) $id ) {
+				$row = $p;
+			}
+		}
+		$this->assertNotNull( $row, 'the set-aside row must be listed' );
+		$this->assertArrayHasKey( 'flags', $row, 'an aside row says what it was flagged for' );
+		$this->assertNotEmpty( $row['flags'], 'a thin post trips at least one check' );
+		foreach ( $row['flags'] as $flag ) {
+			$this->assertIsString( $flag );
+			$this->assertNotSame( '', $flag );
+		}
+	}
+
+	public function test_issue_post_ids_reaches_past_the_worklist_cap() {
+		// Eight thin posts: two more than the worklist shows per issue.
+		wp_set_current_user( self::factory()->user->create( array( 'role' => 'administrator' ) ) );
+		$ids = array();
+		for ( $i = 0; $i < 8; $i++ ) {
+			$ids[] = $this->post( 'Too short.' );
+		}
+
+		$score = new Score( new Settings() );
+		$issue = null;
+		foreach ( $score->report()['content'] as $c ) {
+			if ( 'words' === (string) $c['id'] ) {
+				$issue = $c;
+			}
+		}
+		$this->assertNotNull( $issue, 'thin posts must flag the substance check' );
+		$this->assertGreaterThanOrEqual( 8, (int) $issue['count'] );
+		$this->assertLessThanOrEqual( 6, count( $issue['pages'] ), 'the on-screen preview stays capped' );
+
+		// The set-all action must see every flagged page, not the capped preview.
+		$uncapped = array_map( 'intval', $score->issue_post_ids( 'words' ) );
+		foreach ( $ids as $id ) {
+			$this->assertContains( (int) $id, $uncapped, 'the full set includes pages past the preview cap' );
+		}
+	}
+
 	public function test_cited_is_not_measured_once_ai_visibility_is_disabled() {
 		$this->enable_visibility(); // Tracking is on; it's the provider key that's gone.
 		// "Set up, ran, then removed the key": a completed run with a mention sits in the

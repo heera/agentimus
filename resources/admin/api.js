@@ -37,6 +37,12 @@ export function createApi(boot) {
     // Returns the recomputed score so the worklist, set-aside list, and counts refresh.
     ignoreOptimize: (post, ignored) =>
       request('/optimize/ignore', { method: 'POST', body: JSON.stringify({ post, ignored }) }),
+    // Set aside every page a content check flags — the full sampled set, not just
+    // the rows the worklist happens to show. Same recomputed-score response.
+    ignoreOptimizeIssue: (issue) =>
+      request('/optimize/ignore-issue', { method: 'POST', body: JSON.stringify({ issue }) }),
+    // Empty the set-aside list: every parked page returns to grading.
+    restoreAllOptimize: () => request('/optimize/restore-all', { method: 'POST' }),
     completeOnboarding: () => request('/onboarding', { method: 'POST' }),
     getReadiness: () => request('/readiness'),
     getScore: () => request('/score'),
