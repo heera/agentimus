@@ -4,7 +4,7 @@ Tags: ai-agents, mcp, agent-readiness, llms-txt, ai-seo
 Requires at least: 6.0
 Tested up to: 7.1
 Requires PHP: 7.4
-Stable tag: 1.30.0
+Stable tag: 1.31.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -263,6 +263,8 @@ Yes — there is no minified-only code. The admin interface is built from Vue 3 
 20. MCP server — one switch runs a Model Context Protocol server on your own site, and the card connects the AI tool you already use: pick it, mint a key in one click, copy the finished setup, then prove the connection with the built-in test. Below it, the trust ladder: a second switch lets connected agents write (drafts, edits, categories, tags, featured images, AI topics and descriptions, Readiness fixes), and a third decides whether they may publish or only leave drafts for your review.
 21. The writing assistant — a quill button on every Agentimus screen opens the drawer: describe the post you want, edit the outline it proposes, preview the fully dressed draft, then create it as a draft and land straight in the editor. Nothing is saved until you say so, and it never publishes.
 22. AI in the editor — drafts arrive with alt-filled image placeholders and a one-click "Generate image from the alt text" button on every image block; "Ask AI" rewrites, shortens or extends any text block; and a "Featured image (AI)" panel drafts the hero from the title.
+23. In the post editor — the "Agentimus" box, Share tab: announce this post without writing the announcements. Ready-to-post drafts for X (Twitter), Facebook, LinkedIn, WhatsApp, Telegram and Reddit, each written from the post's own title, description and topics — no AI involved — plus a per-card "Rewrite with AI" when a provider is set up, and the link preview networks will build from this URL. Nothing is ever posted for you: copy, or open the network's composer (where a network refuses prefilled text, Open copies your draft first and the card says so).
+24. Ask AI about this post — the reader-facing row after each post: one click opens ChatGPT, Claude, Perplexity, Google AI Mode or Grok with a question about this post pre-filled, and the assistant's answering visit shows up in your own Request Log. Plain links, no script, nothing sent until a reader clicks. The row also respects your own bot policy — a button is hidden when your blocklists forbid that assistant from reading the page (here Google, via the default Google-Extended training block, which Google also applies to AI-Mode reading).
 
 == External services ==
 
@@ -288,7 +290,11 @@ URL-like strings in the plugin's output are labels, not requests — the discove
 
 == Changelog ==
 
-= 1.30.0 =
+= 1.31.0 =
+* New — **Share drafts, written from the post.** The editor panel grows a **Share** tab: ready-to-post drafts for X, Facebook, LinkedIn, WhatsApp, Telegram and Reddit, each written locally from the post's own title, description and topics, with the link preview beside them. With an AI provider connected, a per-card polish rewrites any one draft on request. Nothing is ever posted for you — you copy, or click through to the network's own composer (and where a network refuses prefilled text, the card copies first and says so). Editor-only; switch it off under Settings.
+* New — **Ask AI about this post.** A small row after each post lets a reader open ChatGPT, Claude, Perplexity, Google AI Mode or Grok pre-filled with the post's address — one click turns a reader into an assistant visit your own Request Log can see. Plain links, no script, nothing sent anywhere until a reader clicks, and off in one switch under Settings. The row also respects your own bot policy: a button is hidden when your blocklists forbid that assistant from reading the page (notably Google, whose single Google-Extended token governs both AI training and AI-Mode reading), and the Settings toggle names any hidden button and why.
+* Improved — **Screens load like screens.** The Request Log, AI Traffic, AI Visibility and Agent Access screens show the same quiet loading placeholder the dashboard uses while their data is on its way, instead of a bare "Loading…" — or, on Agent Access, nothing at all.
+* Fixed — **The request-log tool answers MCP clients again.** Its response had outgrown its declared schema (the Status column's two switch states arrived in 1.30.0 without being declared), so the tool rejected its own output. The schema now declares everything the log returns, and a test holds the two ends together.
 * New — **Signed agents, verified mathematically.** Some AI agents now cryptographically sign their requests — Google's agent and OpenAI's already do. With **Verify bot identities** on, Agentimus checks the signature right on your own server (Web Bot Auth, the emerging open standard): a genuine agent earns a **signed** mark in the Request Log, and a forged signature — someone pretending to be a signer — is flagged for review and, with blocking on, refused. Unsigned crawlers lose nothing: signing is extra proof, never a requirement. The only outbound request is fetching the operator's public key file (see *External services*).
 * New — **Link to your own posts.** A new editor box suggests which of your own posts the one you're writing should link to — found from your topics, categories and text, instantly, no AI needed — and inserts the link at a real phrase in your prose with one click, as an ordinary edit you can undo. With an AI provider connected, one optional call picks nicer anchor phrases and explains each suggestion. Connected agents get the same suggestions through a read-only MCP tool that never spends your AI budget.
 * New — **A refusal is never silent.** Requests turned away at your AI endpoints — proven impostors, forged signatures — are now recorded: they show in the Request Log as **refused** and count toward the review queue and the weekly email's impostors, but toward none of your read totals, because a refusal is not a read.
@@ -369,6 +375,9 @@ URL-like strings in the plugin's output are labels, not requests — the discove
 * Changed — **The dashboard's 7- and 30-day numbers are whole calendar days now.** They used to be rolling windows ending at the current second, which meant they could visibly shrink between midnights as week-old hits aged out — watched live under auto-refresh, that read as data loss. Every window is now counted in whole calendar days (UTC), the same clock as the Today tile and the daily chart beneath them; numbers move only when a hit arrives or at midnight UTC. The tiles may read slightly higher after updating — the window now includes its first day's early hours, which rolling had already dropped.
 
 == Upgrade Notice ==
+
+= 1.31.0 =
+Share drafts written from the post (six networks, editor-only, nothing auto-posted) and an "Ask AI about this post" row whose assistant visits show in your own request log — both with an off switch. Plus consistent loading screens and an MCP request-log fix. No breaking changes.
 
 = 1.30.0 =
 Agents that cryptographically sign their requests (Google's agent, OpenAI) are now verified on your own server — forgeries flagged, unsigned crawlers never penalised. Plus internal-link suggestions in the editor, refused impostors on the record, and a clearer Request Log. No breaking changes.
