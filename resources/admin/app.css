@@ -900,7 +900,8 @@
 /* No underline-on-hover — feedback is the colour shift (brightened on the dark
    readiness card), so the next-step line reads as an affordance, not a hyperlink. */
 .ar-rail-link:hover { color: var(--ar-ink-soft); }
-.ar-rail-allgood { margin: 9px 0 0; font-size: 12px; color: var(--ar-good); text-align: center; }
+.ar-rail-allgood { display: flex; align-items: center; justify-content: center; gap: 6px; margin: 9px 0 0; font-size: 12px; color: var(--ar-good); }
+.ar-rail-allgood svg { flex: 0 0 auto; }
 /* Registration status — its own compact one-line card, separate from the black card.
    Inherits .ar-rail-card (bg/border/radius) with tighter padding for a single row; the
    → is always visible. Green ✓ when valid, amber throughout when a registration breaks. */

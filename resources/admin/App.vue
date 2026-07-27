@@ -1794,7 +1794,13 @@ export default {
             @mouseenter="showRailTip($event, aeoNextTip)"
             @mouseleave="hideUaTip"
           >Next: {{ aeoNext.title }}</p>
-          <p v-else class="ar-rail-allgood"><span aria-hidden="true">✓</span> All good — nothing left to fix.</p>
+          <p v-else class="ar-rail-allgood">
+            <svg viewBox="0 0 16 16" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <circle cx="8" cy="8" r="6.5" />
+              <path d="M5.2 8.3l2 2 3.6-4.2" />
+            </svg>
+            Everything looks good.
+          </p>
         </div>
 
         <div class="ar-rail-card">
