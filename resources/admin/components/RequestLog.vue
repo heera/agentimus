@@ -332,7 +332,14 @@ export default {
 
     <p v-if="error" class="ar-log__error" role="alert">{{ error }}</p>
 
-    <div v-else-if="loading && !rows.length" class="ar-log__empty">Loading…</div>
+    <!-- First load in flight: the shared skeleton, not a bare "Loading…" — same
+         treatment as Endpoint Activity and Agent Access. -->
+    <div v-else-if="loading && !rows.length" class="ar-skel" aria-busy="true">
+      <p class="ar-card__lead">Loading the request log&hellip;</p>
+      <span class="ar-skel__line" style="width: 88%"></span>
+      <span class="ar-skel__line" style="width: 72%"></span>
+      <span class="ar-skel__line" style="width: 80%"></span>
+    </div>
 
     <div v-else-if="!rows.length" class="ar-log__empty">
       <template v-if="hasFilters">Nothing matched those filters.</template>

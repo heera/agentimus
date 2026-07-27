@@ -416,6 +416,17 @@ export default {
 
     <p v-if="error" class="ar-aa__error">{{ error }}</p>
 
+    <!-- First load in flight: show a skeleton, not a bare card. Same pattern as Endpoint
+         Activity. Everything below waits on the fetch (the coverage box needs the server's
+         verdict, the feed needs rows), so without this the screen renders only its title and
+         its footer — and on a slow origin that blank sits long enough to read as broken. -->
+    <div v-if="!loaded && !error" class="ar-skel" aria-busy="true">
+      <p class="ar-card__lead">Loading agent access&hellip;</p>
+      <span class="ar-skel__line" style="width: 88%"></span>
+      <span class="ar-skel__line" style="width: 72%"></span>
+      <span class="ar-skel__line" style="width: 80%"></span>
+    </div>
+
     <!-- What we can see HERE. Rendered before the table, because on most of these rungs the
          table's emptiness is explained entirely by this box. -->
     <div v-if="coverageCopy" class="ar-aa__state" :class="`ar-aa__state--${coverageCopy.tone}`">

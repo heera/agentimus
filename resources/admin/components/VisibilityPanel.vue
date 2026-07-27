@@ -685,7 +685,14 @@ export default {
 <template>
   <div class="agv">
     <div v-if="error" class="agv-note agv-note--bad">Could not load AI Visibility: {{ error }}</div>
-    <p v-else-if="!loaded" class="agv-loading">Loading…</p>
+    <!-- First load in flight: the shared skeleton, not a bare "Loading…" — same
+         treatment as Endpoint Activity and Agent Access. -->
+    <div v-else-if="!loaded" class="ar-skel" aria-busy="true">
+      <p class="ar-card__lead">Loading AI visibility&hellip;</p>
+      <span class="ar-skel__line" style="width: 88%"></span>
+      <span class="ar-skel__line" style="width: 72%"></span>
+      <span class="ar-skel__line" style="width: 80%"></span>
+    </div>
 
     <div v-else class="ar-tabpanel">
       <nav class="ar-tabpanel__tabs" aria-label="AI Visibility views">
@@ -1110,7 +1117,6 @@ export default {
 </template>
 
 <style scoped>
-.agv-loading { color: var(--ar-ink-soft); padding: 22px 26px; }
 
 /* Notices */
 .agv-note { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 16px 26px 0; padding: 10px 14px; font-size: 13px; background: var(--ar-surface); border: 1px solid var(--ar-line); border-left: 3px solid var(--ar-ink-faint); border-radius: var(--ar-radius); }
