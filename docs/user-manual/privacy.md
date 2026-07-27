@@ -1,7 +1,7 @@
 ---
 title: Privacy & data
 parent: User Manual
-nav_order: 20
+nav_order: 22
 ---
 
 Agentimus was built to be quiet. It helps AI assistants and crawlers understand your site, but it does that by publishing files and signals on *your own* server — not by sending your data anywhere else. This page explains, in plain language, exactly what stays on your site, the one feature that is the exception, and why a couple of things that *look* like outside connections aren't.
@@ -12,7 +12,7 @@ Everything below is checked against the plugin's actual source code, not marketi
 
 - **Out of the box, Agentimus makes no outbound connections at all.** No phone-home, no telemetry, no analytics, no remote fonts or scripts, no "check for updates" pings of its own.
 - **By default it collects no IP addresses and no personal data.** The activity log lives in your own WordPress database and deliberately never stores a visitor's IP. There is a single opt-in exception — **Store IP addresses for flagged clients** (off by default) — which records an IP *only* for a crawler flagged as an impersonator or a spoof, never an ordinary visitor, and keeps it on your own server so you can block it (explained in full below).
-- **There are exactly two exceptions to that no-outbound rule, both opt-in.** The optional **AI Visibility** feature is off until you switch it on and paste in your own AI provider API key; only then does Agentimus call an outside service — the AI engines *you* chose — to check whether they mention and cite you. And the optional **Verify bot identities** / **Identify every bot** settings make DNS lookups and, once a day, download the public crawler-IP lists that bot operators publish (Google's `googlebot.json`, OpenAI's `gptbot.json`, …) so impostors can be caught. Only those public files are fetched — nothing about your site, your content or your visitors is ever sent with either feature.
+- **There are exactly two exceptions to that no-outbound rule, both opt-in.** The optional **AI Visibility** feature is off until you switch it on and paste in your own AI provider API key; only then does Agentimus call an outside service — the AI engines *you* chose — to check whether they mention and cite you. And the optional **Verify bot identities** / **Identify every bot** settings make DNS lookups and, once a day, download the public crawler-IP lists that bot operators publish (Google's `googlebot.json`, OpenAI's `gptbot.json`, …) so impostors can be caught; when a request arrives carrying a [Web Bot Auth signature](web-bot-auth.html), they also fetch that operator's public key file — from the operator's own domain, cached — so the signature can be checked on your own server. Only those public files are fetched — nothing about your site, your content or your visitors is ever sent with either feature.
 - **The signing key that proves your discovery documents are genuinely yours never leaves your server.**
 - Two things that might *look* like outside requests are not: the `$schema` label inside your discovery documents (it is never fetched), and the readiness report's **Verify live** button (it runs in your browser, against your own public URLs).
 
@@ -47,7 +47,7 @@ There is exactly one setting that can change the no-IP default, and it ships **o
 
 When it's on, Agentimus records an IP address in a **separate store** — never in the ordinary activity log — and only for a client it has already flagged as one of two things:
 
-- an **impersonating crawler**: one that claims a bot from the Verified-bots list (Googlebot, GPTBot, …) but conclusively fails that operator's own published check — reverse DNS, or its published IP ranges — or
+- an **impersonating crawler**: one that claims a bot from the Verified-bots list (Googlebot, GPTBot, …) but conclusively fails that operator's own published check — reverse DNS, its published IP ranges, or its [cryptographic signature](web-bot-auth.html) — or
 - a **legacy-device spoof / scanner**: a client hiding behind a long-dead phone or embedded-device user-agent.
 
 It never stores the IP of an ordinary visitor, and it never stores an IP for a client that isn't flagged.

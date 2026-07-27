@@ -1,7 +1,7 @@
 ---
 title: AI access & crawlers
 parent: User Manual
-nav_order: 16
+nav_order: 17
 ---
 
 Agentimus gives you a clear, plain-language way to decide **who gets to read your site, and for what** — search engines, AI assistants, and the crawlers that harvest content to train AI models. It does this in two layers: a set of *polite requests* that well-behaved crawlers honour, and an *optional* hard stop for the ones that don't.
@@ -136,13 +136,14 @@ Crucially, they're matched by *signature*, not by a loose text search. Agentimus
 
 Signature-matching removes the *easy* spoof, but a determined scanner can still copy a crawler's full user-agent word for word. For the cases where that matters, there's an optional next step under **Settings → Block scanners & scrapers**: **Verify bot identities**.
 
-Verification is only ever a comparison against something the bot's *operator* publishes — a claim can't vouch for itself. Operators publish two kinds of proof, and Agentimus checks whichever one exists for the bot a visitor claims to be:
+Verification is only ever a comparison against something the bot's *operator* publishes — a claim can't vouch for itself. Operators publish three kinds of proof, and Agentimus checks whichever one exists for the bot a visitor claims to be:
 
 - **Reverse DNS** (Googlebot, Bingbot, Applebot, DuckDuckBot, Yandex) — the method Google itself recommends, checked live per visitor:
   1. Look up the name of the visitor's IP address (a reverse, or "PTR", lookup).
   2. Check that name ends in the crawler's official domain (for example `googlebot.com`).
   3. Look that name back up to an IP address and confirm it matches the visitor.
 - **Published IP ranges** (GPTBot, OAI-SearchBot, PerplexityBot — and the search engines too, as a backup when DNS can't answer) — the operator publishes the exact address ranges its crawler uses (OpenAI's `gptbot.json`, for example), and the visitor's address either falls inside them or it doesn't. Agentimus refreshes these lists **once a day in the background — never while serving a visitor** — so an unreachable publisher costs your site nothing. The lists age honestly, too: a *match* verifies against an older copy, but only a **fresh** copy may ever call a bot fake — "not in a stale list" might just mean the operator added addresses we haven't fetched yet.
+- **Cryptographic signatures (Web Bot Auth)** — some agents (Google's agent and OpenAI's, so far) go further and *sign* each request outright, publishing their public key on their own domain. The signature is checked mathematically, right on your server — the strongest proof of the three, and the newest. It has [a page of its own](web-bot-auth.html).
 
 Only a claim that conclusively passes is treated as the real crawler, and only one that conclusively *fails* is treated as an impostor; everything in between stays simply "not checked." Reverse-DNS results are cached briefly, so a busy crawler isn't looked up on every hit.
 
@@ -207,7 +208,7 @@ Two built-in guards keep a slip from doing harm: an all-wildcard entry (just `*`
 Separately, the **Auto-deny spoofed / legacy-device agents** toggle turns away bots caught lying about who they are. It covers two kinds of deception:
 
 - **Legacy-device spoofs** — bots disguised as ancient phones: old Nokia, BlackBerry, Symbian, Java ME, Windows CE or Palm handsets. No real visitor fetches a machine endpoint from a 2004 feature phone, so these are almost always scanners hiding behind a "harmless" user-agent. They show up as **"Likely spoof/scanner"** in your activity log, and this toggle refuses exactly what the log names — one definition, so blocking and reporting never disagree.
-- **Proven impostors** *(needs **Verify bot identities** on)* — a client claiming a bot from the Verified bots list whose address **conclusively failed** that operator's own published check: a fake "GPTBot" arriving from outside OpenAI's published ranges, a forged "Googlebot" whose address reverse-resolves to someone else entirely. A legacy-device spoof is *inferred*; an impostor is *proven* — same kind of deception, stronger evidence, same switch.
+- **Proven impostors** *(needs **Verify bot identities** on)* — a client claiming a bot from the Verified bots list whose address **conclusively failed** that operator's own published check: a fake "GPTBot" arriving from outside OpenAI's published ranges, a forged "Googlebot" whose address reverse-resolves to someone else entirely, or a [Web Bot Auth signature](web-bot-auth.html) claiming a known signer that fails the math. A legacy-device spoof is *inferred*; an impostor is *proven* — same kind of deception, stronger evidence, same switch.
 
 Impostor denial is as careful as verification itself: anything inconclusive — slow DNS, a stale or unfetched range list, no address to check — is served, never guessed at. And your own rules always outrank it: an agent on your **Always allowed** list is never denied, and a bot on your denylist stays blocked even when it verifies as genuine (verification never quietly undoes a choice you made).
 

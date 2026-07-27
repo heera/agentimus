@@ -1,10 +1,10 @@
 ---
 title: Caching & CDNs
 parent: User Manual
-nav_order: 19
+nav_order: 21
 ---
 
-If your site sits behind a **full-page cache or a CDN** (Cloudflare, a caching plugin's page cache, Nginx FastCGI cache, Varnish, LiteSpeed…), it can quietly get in the way of two Agentimus features. The good news: it's a one-time fix, and Agentimus now *warns* you when it detects it.
+If your site sits behind a **full-page cache or a CDN** (Cloudflare, a caching plugin's page cache, Nginx FastCGI cache, Varnish, LiteSpeed…), it can quietly get in the way of three Agentimus features. The good news: it's a one-time fix, and Agentimus now *warns* you when it detects it.
 
 ## The problem, in one sentence
 
@@ -14,8 +14,9 @@ A cache's whole job is to answer requests *without* bothering WordPress. That's 
 
 1. **Your Activity log under-counts.** A crawler or assistant fetches `/your-page.md`, the cache hands back a saved copy, WordPress never runs, and the hit is **never recorded**. Your "Top clients" and endpoint numbers become a *floor*, not a true total.
 2. **Freshness-sensitive endpoints go stale.** The **change feed** (`/agentimus-changes.json`) is meant to always be current so an assistant can fetch just what changed. If it's cached for hours, agents get an old delta. Your page `.md` twins can also lag behind edits.
+3. **Your access rules don't run.** Blocking, impostor refusal and [signature verification](web-bot-auth.html) all happen inside WordPress — so when the cache answers, a client you've *blocked* is handed the stored copy anyway, and a signed request is never checked or logged. This isn't hypothetical: we watched a host's cache answer `llms.txt` with a stored copy (`x-cache: HIT`) for a client the blocking rules should have refused — the `403` only appeared once a cache-busting query string forced the request through to WordPress. If you use blocking at all, the exclusion rules below are what make it real.
 
-> **Freshness is largely handled for you.** Whenever your content changes, Agentimus asks every page cache it can detect to drop these files — including the edited post's own `.md` twin (*Settings → Caching & CDN → "Refresh AI files when content changes,"* on by default). So a cached `llms.txt` or change feed refreshes as soon as you publish. That leaves the **under-count** (problem 1) as the thing the fixes below address — because a cache still answers a *fetch* without WordPress ever seeing it, even when the copy it hands back is fresh.
+> **Freshness is largely handled for you.** Whenever your content changes, Agentimus asks every page cache it can detect to drop these files — including the edited post's own `.md` twin (*Settings → Caching & CDN → "Refresh AI files when content changes,"* on by default). So a cached `llms.txt` or change feed refreshes as soon as you publish. That leaves the **under-count** (problem 1) and the **unguarded door** (problem 3) as the things the fixes below address — because a cache still answers a *fetch* without WordPress ever seeing it, even when the copy it hands back is fresh.
 
 By default these endpoints are **edge-cacheable** (`Cache-Control: public, max-age`) — bots fetch them a lot, so a little caching spares your origin. When a cache in front of you gets in the way, there are two ways to fix it: a single switch inside Agentimus (the easiest), or a rule at the cache itself (needed only for a cache told to *ignore* origin headers, most commonly **Cloudflare's "Cache Everything"**). Both are below.
 
@@ -68,7 +69,7 @@ Add the same paths to the plugin's **"Never cache these URLs" / cache-exclusion*
 
 ## After you've done it
 
-Run **Verify live** again — the warning should be gone, and `curl -I` on those paths should show `cf-cache-status: DYNAMIC`/`BYPASS` (or no `age:` header). From then on, every real AI fetch reaches WordPress, so your Activity numbers are accurate and your change feed and `.md` twins are always current.
+Run **Verify live** again — the warning should be gone, and `curl -I` on those paths should show `cf-cache-status: DYNAMIC`/`BYPASS` (or no `age:` header). From then on, every real AI fetch reaches WordPress, so your Activity numbers are accurate, your change feed and `.md` twins are always current, and your blocking rules actually answer every fetch.
 
 > **Is bypassing the cache a performance problem?** No. These endpoints are fetched by bots at low volume, not by your human visitors — so excluding them from the page cache has a negligible effect on your site's speed, while making your AI tracking accurate and your discovery data fresh.
 
