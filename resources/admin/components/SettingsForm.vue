@@ -468,6 +468,28 @@ export default {
         return '';
       }
     },
+    // Which Ask-AI buttons the site's OWN policy hides, said right under the
+    // toggle — a switched-on feature must not silently show fewer buttons than
+    // the owner expects. Mirrors AskAi::permitted() (PHP stays the enforcer):
+    // per assistant, the token that does the READING; a block on it hides the
+    // button, an entry on the always-allow list un-hides it.
+    askAiPolicyNote() {
+      const tokens = {
+        ChatGPT: 'ChatGPT-User',
+        Claude: 'Claude-User',
+        Perplexity: 'Perplexity-User',
+        'Google AI Mode': 'Google-Extended',
+        Grok: 'Grok',
+      };
+      const blocked = [...(this.settings.blocked_trainers || []), ...(this.settings.blocked_agents || [])];
+      const allowed = this.settings.allowed_agents || [];
+      const hit = (token, list) => list.some((e) => e && token.toLowerCase().includes(String(e).toLowerCase()));
+      const hidden = Object.entries(tokens)
+        .filter(([, token]) => !hit(token, allowed) && hit(token, blocked))
+        .map(([name, token]) => `${name} (you block ${token})`);
+      if (!hidden.length) return '';
+      return ` Hidden by your own bot policy right now: ${hidden.join(', ')} — that agent does the reading, so its button would only ever fail. Unblock it, or add it to your always-allowed list, to show the button.`;
+    },
     features() {
       // Plain-language labels; the real filename/term stays in the hint so it's
       // always discoverable.
@@ -478,6 +500,8 @@ export default {
         { key: 'enable_robots', label: 'Crawler rules', hint: 'States your preferences to crawlers and blocks known AI-training bots by name. (file: robots.txt)' },
         { key: 'enable_schema', label: 'Rich data for search', hint: 'Adds structured data search engines and assistants understand (JSON-LD). Leave off if your SEO plugin already does this.' },
         { key: 'enable_page_checks', label: 'AI readability tips', hint: 'Adds an “AI Readability” panel in the post editor with per-page tips (headings, summary, thin content, image alt). Editor-only — nothing is shown to visitors.' },
+        { key: 'enable_share_copy', label: 'Share drafts', hint: 'Adds a “Share” tab in the post editor with ready-to-post drafts for X, Facebook, LinkedIn, WhatsApp, Telegram and Reddit — written from the post itself, polished with AI per card if a provider is set up. Editor-only; nothing is ever posted for you.' },
+        { key: 'enable_ask_ai', label: 'Ask-AI buttons', hint: 'A small “Ask AI about this post” row after each post: one click opens ChatGPT, Claude, Perplexity, Google AI Mode or Grok pre-filled with the post’s address — and the assistant’s visit shows up in your request log. Plain links, no script; nothing is sent until a reader clicks.' + this.askAiPolicyNote },
         // Named for the screen it unlocks, with what it literally does in a quieter aside —
         // "Track AI citations" describes the mechanism, "AI Visibility" is what you look for
         // in the nav. `sub` is optional; no other feature needs one yet.

@@ -31,12 +31,10 @@
  * author copies, or clicks through to the network's own composer, and posts
  * there.
  *
- * ── PROTOTYPE STATUS ─────────────────────────────────────────────────────────
- * Evaluation prototype, same round as {@see AskAi}: offered on every covered
- * post type by default (filterable below), not yet wired into Settings. A
- * release version gets a settings toggle, per-post-type control and a
- * pick-your-networks control.
- * ─────────────────────────────────────────────────────────────────────────────
+ * Gated by the `enable_share_copy` setting (on by default — an authoring aid
+ * with no front-end output, same posture as the AI Readability panel) plus the
+ * `agentimus_share_copy_enabled` filter as a code-level override. Off means
+ * off everywhere: the tab is not composed AND the REST route refuses.
  *
  * @package Agentimus
  */
@@ -72,7 +70,8 @@ final class ShareCopy {
 	}
 
 	/**
-	 * Whether the feature is offered (prototype gate — a real setting later).
+	 * Code-level override for the Share tab, layered ON TOP of the
+	 * enable_share_copy setting (see {@see is_enabled()}).
 	 *
 	 * @return bool
 	 */
@@ -91,7 +90,7 @@ final class ShareCopy {
 	 * @return bool
 	 */
 	public function is_enabled() {
-		return self::enabled();
+		return $this->settings->enabled( 'enable_share_copy' ) && self::enabled();
 	}
 
 	/* ---------------------------------------------------------------------- *
@@ -369,8 +368,10 @@ final class ShareCopy {
 			array(
 				'methods'             => \WP_REST_Server::CREATABLE,
 				'callback'            => array( $this, 'rest_generate' ),
-				'permission_callback' => static function ( $request ) {
-					return current_user_can( 'edit_post', absint( $request['post'] ) );
+				// Off means off everywhere: a disabled feature must not keep a live,
+				// invisible REST surface (the enable_agent_writes doctrine).
+				'permission_callback' => function ( $request ) {
+					return $this->is_enabled() && current_user_can( 'edit_post', absint( $request['post'] ) );
 				},
 				'args'                => array(
 					'post'    => array(

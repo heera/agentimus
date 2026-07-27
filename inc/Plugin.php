@@ -98,8 +98,8 @@ final class Plugin {
 		( new EditorPanel( $this->settings ) )->register(); // One "Agentimus" editor box: JSON-LD + AI Readability as tabs.
 		( new Topics( $this->settings ) )->register();
 		( new Description( $this->settings ) )->register();
-		( new AskAi( $this->settings ) )->register(); // PROTOTYPE under evaluation — "Ask AI about this post" buttons after singular post content. Not release-wired; see the class header.
-		( new ShareCopy( $this->settings ) )->register(); // PROTOTYPE under evaluation — REST for the panel's Share tab (per-network share drafts; the tab itself is composed by EditorPanel). Not release-wired; see the class header.
+		( new AskAi( $this->settings ) )->register(); // "Ask AI about this post" bar after singular post content (enable_ask_ai, on by default).
+		( new ShareCopy( $this->settings ) )->register(); // REST for the editor panel's Share tab — per-network share drafts; the tab itself is composed by EditorPanel.
 		( new Assist( $this->settings ) )->register(); // "Draft with AI" for the description + topics fields (no-ops without a configured AI provider).
 		( new InternalLinks( $this->settings ) )->register(); // "Link to your own posts": local-signal suggestions + one optional AI dressing call; Insert is a plain editor edit.
 		( new Assistant( $this->settings ) )->register(); // The in-admin writing assistant (nav-bar quill → drawer); gated on enable_agent_writes + a provider.
