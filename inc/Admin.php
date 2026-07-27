@@ -654,20 +654,20 @@ final class Admin {
 			'show'    => $show,
 			'items'   => array(
 				array(
-					'title' => 'Signed agents, verified mathematically',
-					'text'  => 'Some AI agents now cryptographically sign their requests — Google’s agent and OpenAI’s already do. With Verify bot identities on, Agentimus checks the signature right on your own server: genuine agents earn a “signed” mark in the Request Log, a forged signature is flagged for review — and, with blocking on, refused. Unsigned crawlers lose nothing: signing is extra proof, never a requirement.',
+					'title' => 'Share drafts, written from the post',
+					'text'  => 'The editor panel grows a “Share” tab: ready-to-post drafts for X, Facebook, LinkedIn, WhatsApp, Telegram and Reddit, each written from the post’s own title, description and topics. A per-card AI polish is there when a provider is set up — and nothing is ever posted for you: you copy, or click through to the network’s own composer.',
 				),
 				array(
-					'title' => 'Link to your own posts',
-					'text'  => 'A new editor box suggests which of your own posts the one you’re writing should link to — found from your topics, categories and text, no AI needed — and inserts the link at a real phrase with one click, as an ordinary edit you can undo. Connected agents get the same suggestions through a read-only MCP tool.',
+					'title' => 'Ask AI about this post',
+					'text'  => 'A small row after each post lets a reader open ChatGPT, Claude, Perplexity, Google AI Mode or Grok pre-filled with the post’s address — and the assistant’s visit shows up in your own Request Log. Plain links, no script, nothing sent until a reader clicks. It also respects your own bot policy: a button whose assistant your blocklists forbid from reading the page stays hidden, and Settings says why. Turn it all off in one switch if it’s not for your site.',
 				),
 				array(
-					'title' => 'A refusal is never silent',
-					'text'  => 'Requests turned away at your AI endpoints — proven impostors, forged signatures — are now recorded: a “refused” mark in the Request Log, counted toward the review queue and the weekly email’s impostors, and toward none of your read totals. A refusal is not a read.',
+					'title' => 'Screens that load like screens',
+					'text'  => 'The Request Log, AI Traffic, AI Visibility and Agent Access screens now show the same quiet loading placeholder the dashboard uses while their data is on its way — no more blank cards on a slow connection. And the request-log tool answers MCP clients correctly again (its response had outgrown its declared schema).',
 				),
 				array(
-					'title' => 'Coming from 1.28 or earlier?',
-					'text'  => 'Then 1.29 is new to you too: with no SEO plugin active, Agentimus covers the search basics itself — titles, share cards, canonicals, a dated sitemap — and steps aside the moment one appears. Plus the weekly email’s day-and-time picker. The full changelog on this card tells that story.',
+					'title' => 'Coming from 1.29?',
+					'text'  => 'Then 1.30 is new to you too: Web Bot Auth signature verification — genuine agents earn a “signed” mark, forgeries are refused and recorded — plus “Link to your own posts” internal-link suggestions in the editor. The full changelog on this card tells that story.',
 				),
 			),
 		);
