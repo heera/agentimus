@@ -93,6 +93,46 @@ final class Registrar {
 		add_action( 'wp_abilities_api_init', array( $this, 'register_abilities' ) );
 		// Expose the read set to external AI agents when the MCP Adapter is installed.
 		add_action( 'mcp_adapter_init', array( $this, 'register_mcp_server' ) );
+		// Hide write tools from a read-scoped caller. The server is registered before
+		// the request is authenticated, so the tool list can only be narrowed HERE,
+		// per request, once we know which key knocked.
+		add_filter( 'mcp_adapter_tools_list', array( $this, 'filter_tools_for_scope' ), 10, 1 );
+	}
+
+	/**
+	 * Narrow the advertised tool list to what THIS request may actually run.
+	 *
+	 * The permission gate already refuses a write from a read-only key, so this
+	 * changes no security boundary — it changes what the assistant is told. A
+	 * read-only Claude that can see "Create a post" will eventually try it and
+	 * collect a "Permission denied"; showing it nine honest tools instead of
+	 * fourteen half-open ones is the difference between a scope the owner chose
+	 * and a scope the assistant discovers by bumping into walls.
+	 *
+	 * @param array $tools Tool DTOs the adapter is about to return.
+	 * @return array
+	 */
+	public function filter_tools_for_scope( $tools ) {
+		if ( McpToken::request_allows_writes() && Oauth\Server::request_allows_writes() ) {
+			return $tools;
+		}
+		$write = array();
+		foreach ( self::WRITE_SLUGS as $slug ) {
+			// Tool names reach the wire with the category separator normalised.
+			$write[] = self::CATEGORY . '/' . $slug;
+			$write[] = self::CATEGORY . '-' . $slug;
+		}
+		return array_values(
+			array_filter(
+				(array) $tools,
+				static function ( $tool ) use ( $write ) {
+					if ( ! is_object( $tool ) || ! method_exists( $tool, 'getName' ) ) {
+						return true; // Unknown shape — never drop it on a guess.
+					}
+					return ! in_array( $tool->getName(), $write, true );
+				}
+			)
+		);
 	}
 
 	/**
