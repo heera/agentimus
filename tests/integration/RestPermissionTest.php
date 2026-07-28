@@ -13,9 +13,20 @@ namespace Agentimus\Tests\Integration;
 
 final class RestPermissionTest extends RestTestCase {
 
-	/** Deliberately public: the WP namespace index, the discovery document, and the
-	 *  front-end AI-referral beacon (same-origin + rate-limited, never admin data). */
-	private const PUBLIC_ROUTES = array( '/agentimus/v1', '/agentimus/v1/discovery', '/agentimus/v1/ai-hit' );
+	/** Deliberately public: the WP namespace index, the discovery document, the
+	 *  front-end AI-referral beacon (same-origin + rate-limited, never admin data),
+	 *  and the two OAuth front doors — registration is how an unknown client
+	 *  introduces itself (RFC 7591), and the token exchange authenticates with the
+	 *  code + PKCE verifier, not a WP session (RFC 6749). Exempting them here does
+	 *  not leave them untested: OauthRestTest pins what "public" actually means
+	 *  (404 while the MCP server is off, spec behaviour once it is on). */
+	private const PUBLIC_ROUTES = array(
+		'/agentimus/v1',
+		'/agentimus/v1/discovery',
+		'/agentimus/v1/ai-hit',
+		'/agentimus/v1/oauth/register',
+		'/agentimus/v1/oauth/token',
+	);
 
 	public function test_no_admin_route_is_reachable_by_a_subscriber() {
 		wp_set_current_user( $this->subscriber );
