@@ -256,6 +256,26 @@ Further groups register under `agentimus/v1`; all require `manage_options` and t
 - **Client decisions** (same module, 1.21.0): `GET /activity/clients` returns every standing decision in one payload — `{ blocked: [{token, at, known}], allowed: [...], ignored: [{key, label, at, hits}], settings: {…} }`, where `at` is a unix time (`0` when the decision predates date tracking) and `known` is the recognition catalog's identity for that token. `POST /activity/undismiss` (`key`) forgets one review-queue dismissal; `POST /activity/client-remove` (`token`, `list`: `blocked_agents` or `allowed_agents`) takes a token off a list. Both mutators return the same refreshed payload, so a single response re-renders the whole view.
 - **Self-check token** (same module, 1.21.0): `POST /activity/selfcheck-token` mints the short-lived token the readiness screen's own live checks carry in an `X-Agentimus-Selfcheck` header. Those checks fetch the public endpoints with `credentials: 'omit'` — they must grade what an *agent* receives — so the owner-skip can't recognise them by cookie; the token does it instead. Only its SHA-256 hash is stored (a transient, two-minute TTL) and `Activity\Owner::skip()` compares in constant time, so an outsider can neither mint nor replay one to keep itself out of the visit log.
 
+### Connecting an assistant (`/oauth/*`, `/mcp-token`)
+
+Added in 1.32.0. Two of these are **public by protocol** — an unknown client has to be able to introduce itself, and the token exchange authenticates with a code plus a PKCE verifier rather than a session. Both return `404` while the MCP server switch is off, exactly like every other MCP surface.
+
+| Route | Auth | What it does |
+|---|---|---|
+| `POST /oauth/register` | public (RFC 7591) | Registers a public client from its `client_name` + `redirect_uris`, returns a `client_id` (`agoc_…`) and no secret — PKCE is the proof of possession. A redirect URI must be `scheme://something`; executable schemes (`javascript:`, `data:`, `vbscript:`, `file:`, `blob:`) and anything carrying whitespace or control bytes are refused. Custom schemes (`claude://…`) and loopback callbacks are accepted, because desktop clients register those. |
+| `POST /oauth/token` | public (code + PKCE, or refresh) | `grant_type=authorization_code` verifies a single-use 60-second code against its client, redirect URI and S256 challenge, then mints an access token (`agoa_…`, 1 hour) and a refresh token (`agor_…`, 30 days). `grant_type=refresh_token` rotates: the old refresh token and its access token die as the new pair is issued. Errors use the RFC 6749 shape (`{"error": …}`), and the response is `Cache-Control: no-store`. |
+| `GET /oauth/grants` | `manage_options` | The Connected-assistants rows: `clientId`, `name`, `host`, `scope`, `approved`, `lastUsed`. Names and timestamps only — never a fingerprint. |
+| `DELETE /oauth/grants` | `manage_options` | Revokes ONE client (`clientId`): its registration, codes, access and refresh tokens. Every other connection is untouched. Returns the refreshed list. |
+| `GET /mcp-token` | `manage_options` | The shared token's metadata — scope, created, last used, last user agent. Never the secret. |
+| `POST /mcp-token` | `manage_options` | Creates or rotates the shared token; the plaintext (`agmcp_r_…` / `agmcp_w_…`) rides this one response and is never retrievable again. Requesting `scope=write` while `enable_agent_writes` is off returns `409` rather than minting a key that could not open anything. |
+| `DELETE /mcp-token` | `manage_options` | Revokes it. Every assistant holding it is disconnected at once. |
+
+The browser half is not a REST route: **`/agentimus/connect`** is a rewrite (`Oauth\Consent`), served outside the REST API so a plain cookie session works after the wp-login round-trip. It requires `manage_options`, re-validates the authorize request on POST rather than trusting its own form, and renders validation failures as a page — a request whose `redirect_uri` failed validation is never redirected to.
+
+**How a client finds all this.** An unauthenticated call to `/wp-json/agentimus/v1/mcp` returns `401` with `WWW-Authenticate: Bearer resource_metadata="…/.well-known/oauth-protected-resource/agentimus/mcp"`. That document names the issuer, whose RFC 8414 metadata carries the authorize, token and registration endpoints. The issuer is path-based (`{site}/agentimus/mcp`) so the well-known documents stay under a path this plugin owns and cannot collide with another plugin's OAuth server on the same site.
+
+**Scope is enforced twice.** `Registrar::filter_tools_for_scope()` narrows the advertised tool list per request (a read-only key is shown the ten read tools, never the five write ones), and each write ability's permission callback is wrapped by both `McpToken::gate_write_permission()` and `Oauth\Server::gate_write_permission()`. Hiding the tools is a courtesy; the gate is the boundary. Neither can exceed the site's own write settings.
+
 ### `GET /activity/log`
 
 The filtered, paged request log — the per-request view the dashboard's rollups can't give you (for example: *which endpoints did GPTBot actually fetch?*). All params optional; with none, it returns the newest page of the whole retained window.
@@ -354,6 +374,8 @@ All generated documents are served by `WellKnown::send()`, which sets:
 | `mcp/{id}/server-card.json`                     | `application/json`           | Per-server card for a tool-bearing server matching `{id}`; else 404. |
 | `agent-skills/index.json`                       | `application/json`           | Only when executable skills exist; otherwise 404.             |
 | `oauth-protected-resource`                      | `application/json`           | Only when an OAuth authorization server is configured (RFC 9728); else 404. |
+| `oauth-authorization-server/agentimus/mcp`      | `application/json`           | Only when the MCP server is on — RFC 8414 metadata for the plugin's OWN authorization server; else 404. |
+| `oauth-protected-resource/agentimus/mcp`        | `application/json`           | Only when the MCP server is on — RFC 9728 metadata naming that server as the MCP endpoint's authority; else 404. |
 | `tdmrep.json`                                   | `application/json`           | Only when `enable_tdmrep` is on **and** AI training is reserved; else 404. |
 | `http-message-signatures-directory`             | `application/json`           | Only when response signing is enabled (the Web Bot Auth key directory); else 404. |
 | `security.txt`                                  | `text/plain`                 | Only when opted in, a Contact is configured, and no real file exists (see below). |
@@ -393,7 +415,7 @@ An OpenAPI 3.1 document **describing** the site's existing public read API — W
 ### api-catalog, oauth-protected-resource, tdmrep.json
 
 - **`api-catalog`** (RFC 9727, `application/linkset+json`) — the document complement to the `rel="api-catalog"` Link header; points agents at the site's API descriptions.
-- **`oauth-protected-resource`** (RFC 9728) — served only when the owner has declared an auth server (`oauth_auth_server`); otherwise absent.
+- **`oauth-protected-resource`** (RFC 9728) — the flat path describes the site as a whole and is served only when the owner has declared an EXTERNAL auth server (`oauth_auth_server`); otherwise absent. It is distinct from the path-suffixed `oauth-protected-resource/agentimus/mcp`, which describes the MCP endpoint and points at the plugin's own built-in server.
 - **`tdmrep.json`** — the W3C TDM Reservation Protocol opt-out file (`inc/Tdmrep.php`). Served only when `enable_tdmrep` is on **and** the site reserves its content from AI training (`content_signal.ai_train` is off). An "allow" site serves no file — absence already means "not reserved".
 
 ### Response signing (Web Bot Auth)

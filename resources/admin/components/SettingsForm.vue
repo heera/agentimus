@@ -367,7 +367,7 @@ export default {
       }
       return rows;
     },
-    // "Running · 14 tools · last call 2 minutes ago" — the three status facts
+    // "Running · 15 tools · last call 2 minutes ago" — the three status facts
     // that used to be spread over a strip, a paragraph and a hint.
     mcpToolCount() {
       const n = this.mcpServer && this.mcpServer.toolCount;
