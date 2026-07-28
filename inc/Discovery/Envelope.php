@@ -616,6 +616,24 @@ final class Envelope {
 		return $this->docs_builder()->oauth_protected_resource_json();
 	}
 
+	/**
+	 * RFC 9728 metadata for the MCP endpoint under the built-in auth server.
+	 *
+	 * @return string JSON, or '' when the MCP server is off.
+	 */
+	public function oauth_mcp_protected_resource_json() {
+		return $this->docs_builder()->oauth_mcp_protected_resource_json();
+	}
+
+	/**
+	 * RFC 8414 metadata for the built-in auth server.
+	 *
+	 * @return string JSON, or '' when the MCP server is off.
+	 */
+	public function oauth_authorization_server_json() {
+		return $this->docs_builder()->oauth_authorization_server_json();
+	}
+
 	/** @return array Minimal trust surface (v2: jwks_uri, signed cards, DID). */
 	private function trust() {
 		// State authenticity explicitly. By default a 1.0 document is NOT signed, so

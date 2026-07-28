@@ -88,7 +88,15 @@ final class WellKnown {
 	 * @return string[]
 	 */
 	public static function nested_routes() {
-		$names = array( 'mcp/server-card.json', 'agent-skills/index.json' );
+		// The two oauth paths are RFC-mandated derivations of the built-in OAuth
+		// server's path-based issuer (…/agentimus/mcp) — path-suffixed exactly so
+		// they can never collide with another plugin's OAuth documents.
+		$names = array(
+			'mcp/server-card.json',
+			'agent-skills/index.json',
+			'oauth-authorization-server/agentimus/mcp',
+			'oauth-protected-resource/agentimus/mcp',
+		);
 
 		/**
 		 * Filter the nested /.well-known names routed to WordPress.
@@ -281,6 +289,18 @@ final class WellKnown {
 				$body = $this->envelope->agent_skills_index_json();
 				if ( '' !== $body ) {
 					$this->send( $body, 'application/json', 'agent-skills/index.json' );
+				}
+				break;
+			case 'oauth-authorization-server/agentimus/mcp':
+				$body = $this->envelope->oauth_authorization_server_json();
+				if ( '' !== $body ) {
+					$this->send( $body, 'application/json', 'oauth-authorization-server' );
+				}
+				break;
+			case 'oauth-protected-resource/agentimus/mcp':
+				$body = $this->envelope->oauth_mcp_protected_resource_json();
+				if ( '' !== $body ) {
+					$this->send( $body, 'application/json', 'oauth-protected-resource-mcp' );
 				}
 				break;
 		}

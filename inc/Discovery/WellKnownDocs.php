@@ -127,6 +127,38 @@ final class WellKnownDocs {
 	}
 
 	/**
+	 * RFC 9728 metadata for the MCP endpoint itself, protected by the BUILT-IN
+	 * authorization server. Path-suffixed under the issuer, so it never
+	 * collides with the flat site-wide document above (that one stays the
+	 * owner's declared EXTERNAL server) or with another plugin's OAuth. '' →
+	 * clean 404 while the MCP server is off.
+	 *
+	 * @return string JSON, or '' when the MCP server is disabled.
+	 */
+	public function oauth_mcp_protected_resource_json() {
+		if ( ! $this->settings->enabled( 'enable_mcp_server' ) ) {
+			return '';
+		}
+		$json = wp_json_encode( \Agentimus\Oauth\Server::protected_resource_metadata(), JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES );
+		return is_string( $json ) ? $json : '';
+	}
+
+	/**
+	 * RFC 8414 authorization-server metadata for the built-in OAuth server —
+	 * clients derive this path from the issuer identifier. '' → clean 404
+	 * while the MCP server is off.
+	 *
+	 * @return string JSON, or '' when the MCP server is disabled.
+	 */
+	public function oauth_authorization_server_json() {
+		if ( ! $this->settings->enabled( 'enable_mcp_server' ) ) {
+			return '';
+		}
+		$json = wp_json_encode( \Agentimus\Oauth\Server::authorization_server_metadata(), JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES );
+		return is_string( $json ) ? $json : '';
+	}
+
+	/**
 	 * The Agent Skills index at /.well-known/agent-skills/index.json — the executable
 	 * skills agents can invoke, projected from the per-namespace `agent.skills[]` the
 	 * Abilities adapter already builds (respecting owner suppression). Served ONLY

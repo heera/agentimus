@@ -776,6 +776,10 @@ final class Admin {
 				// (WordPress silently ignores a login for a name that doesn't exist,
 				// which reads as a server problem).
 				'username'           => wp_get_current_user()->user_login,
+					// How many tools an assistant would actually get — counted off the
+					// same list the server publishes, so the card can never advertise a
+					// number the server doesn't serve.
+					'toolCount'          => count( ( new Abilities\Registrar( $this->settings ) )->mcp_abilities() ),
 				'appPasswords'       => array(
 					// false → the site can't mint application passwords (usually: no
 					// HTTPS on a non-local host, or a security plugin turned them off);

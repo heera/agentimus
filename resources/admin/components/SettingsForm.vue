@@ -89,8 +89,15 @@ export default {
       mcpTokenBusy: false,
       mcpTokenError: '',
       mcpTokenCopied: false,
+      // Connected agents — the OAuth grants the owner approved on the consent
+      // page. Each carries its own scope and its own revoke.
+      oauthGrants: [],
+      oauthBusy: '',
+      oauthError: '',
+      // Which assistant's setup steps the help fold is showing.
+      mcpSetupPick: 'claude',
+      mcpRecipeCopied: false,
       mcpCardCopied: '',
-      mcpAppPwOpen: false, // the per-client application-password path, folded away
       // The MCP connect helper. The pasted/minted application password lives ONLY
       // in this component's state — never saved, never sent anywhere except into
       // the config text the user copies. Navigating away forgets it.
@@ -123,6 +130,7 @@ export default {
     if (this.mcpSavedEnabled) {
       this.probeMcpStatus();
       this.loadMcpToken();
+      this.loadOauthGrants();
     }
   },
   beforeUnmount() {
@@ -146,6 +154,7 @@ export default {
         if (this.mcpSavedEnabled) {
           this.probeMcpStatus();
           this.loadMcpToken();
+          this.loadOauthGrants();
         }
       }
     },
@@ -153,7 +162,9 @@ export default {
     // the token's metadata, so "Not used yet" / "Last used…" tells today's truth,
     // not the page-load's. (The plaintext is untouched — it only exists at creation.)
     active(on) {
-      if (on && this.mcpSavedEnabled) this.loadMcpToken();
+      if (!on || !this.mcpSavedEnabled) return;
+      this.loadMcpToken();
+      this.loadOauthGrants(); // A connect approved in another tab shows up on arrival.
     },
     // Turning the write tier off must not leave a "read and write" choice
     // selected — the walls moved, so the key's request follows them down.
@@ -320,6 +331,96 @@ export default {
         },
       ];
     },
+    // One line per assistant that can reach this site — OAuth grants first
+    // (each its own identity), then the shared token as one row. The card's
+    // whole point: every key that opens the door is listed in ONE place, with
+    // the same exit next to it.
+    mcpConnections() {
+      const rows = this.oauthGrants.map((g) => ({
+        kind: 'grant',
+        id: g.clientId,
+        name: g.name,
+        host: g.host,
+        when: this.grantWhen(g),
+        live: !!g.lastUsed,
+        scope: g.scope,
+        grant: g,
+      }));
+      if (this.mcpToken) {
+        rows.push({
+          kind: 'token',
+          id: 'shared-token',
+          name: 'Shared token',
+          host: 'any assistant holding it',
+          when: this.mcpTokenLastUsedText
+            ? `Created ${this.mcpTokenCreatedText} · ${this.mcpTokenLastUsedText.replace(/^Last used /, 'last used ')}`
+            : `Created ${this.mcpTokenCreatedText} · not used yet`,
+          live: !!(this.mcpToken && this.mcpToken.last_used_at),
+          scope: this.mcpToken.scope,
+        });
+      }
+      return rows;
+    },
+    // "Running · 14 tools · last call 2 minutes ago" — the three status facts
+    // that used to be spread over a strip, a paragraph and a hint.
+    mcpToolCount() {
+      const n = this.mcpServer && this.mcpServer.toolCount;
+      return Number.isFinite(n) && n > 0 ? n : 0;
+    },
+    // The setup recipe for the assistant picked in the help fold. Most entries
+    // are now "paste the address" — that is what OAuth bought us — so the
+    // token only appears where a client genuinely can't ask for approval.
+    mcpRecipe() {
+      const url = (this.mcpServer && this.mcpServer.endpoint) || '';
+      const tok = this.mcpTokenPlain;
+      const map = {
+        claude: {
+          title: 'Claude — web, desktop, mobile',
+          steps: [
+            'Settings → Connectors → Add custom connector.',
+            'Paste the address above. Claude opens a page on this site asking for your approval.',
+            'Approve, and Claude appears in Connected assistants.',
+          ],
+        },
+        'claude-code': {
+          title: 'Claude Code — terminal',
+          steps: ['Run this command.', 'Start Claude Code — it sends you here to approve.'],
+          copy: `claude mcp add --transport http agentimus ${url}`,
+        },
+        cursor: {
+          title: 'Cursor — editor',
+          steps: [
+            'Settings → MCP → add a server with the address above, no key.',
+            'Ask Cursor something about your site; it shows an Authenticate button.',
+            'Approve here, and Cursor is connected.',
+          ],
+          note: 'Needs a recent Cursor — old versions ignore MCP install links and show nothing.',
+        },
+        vscode: {
+          title: 'VS Code — editor',
+          steps: [
+            'Command Palette → MCP: Add Server → HTTP → paste the address above.',
+            'Confirm, then approve here when it asks.',
+          ],
+        },
+        chatgpt: {
+          title: 'ChatGPT — web',
+          steps: [
+            'Settings → Connectors → add a custom connector with the address above.',
+            'Approve here when the tab opens.',
+          ],
+        },
+        other: {
+          title: 'Any MCP client',
+          steps: [
+            'Give it the address above, over HTTP transport.',
+            'If it can ask for approval, it sends you here. If it cannot, create a shared token under “Other ways to connect” and send it as a Bearer header.',
+          ],
+          copy: tok ? `Authorization: Bearer ${tok}` : '',
+        },
+      };
+      return map[this.mcpSetupPick] || map.claude;
+    },
     // Cursor takes base64-encoded JSON; VS Code takes URL-encoded JSON. Both
     // carry the header so the client arrives already authenticated.
     mcpDeeplinkConfig() {
@@ -474,6 +575,15 @@ export default {
       const key = l.call.key ? `key “${l.call.key}”` : 'a since-revoked key';
       const user = l.call.user ? ` (${l.call.user})` : '';
       return `Last AI tool call: ${this.relTime(l.call.at)} — ${key}${user}.`;
+    },
+    // The same fact, shortened for the status rail: the rail is scanned, not
+    // read, so it carries when and who — the full sentence lives in the log.
+    mcpRailCallText() {
+      const l = this.mcpServer && this.mcpServer.lastToolCall;
+      if (!l || !l.known) return '';
+      if (!l.call) return 'no assistant has called yet';
+      const who = l.call.key ? ` by ${l.call.key}` : '';
+      return `last call ${this.relTime(l.call.at)}${who}`;
     },
     // Where the config goes and what to do next — the part each tool does differently.
     mcpSnippetHint() {
@@ -1019,6 +1129,48 @@ export default {
       clearTimeout(this._mcpCopyTimer);
       this._mcpCopyTimer = setTimeout(() => { this.mcpCopied = false; }, 2000);
     },
+    /* ---- connected agents (OAuth grants) -------------------------------- */
+    async loadOauthGrants() {
+      try {
+        const res = await this.api.getOauthGrants();
+        this.oauthGrants = (res && res.grants) || [];
+      } catch (e) {
+        this.oauthGrants = [];
+      }
+    },
+    // One assistant out, the others untouched — the reason per-agent grants
+    // exist at all. Same danger dialog as the token's kill switch.
+    async confirmRevokeGrant(grant) {
+      const ok = await confirm({
+        title: `Disconnect ${grant.name}?`,
+        message: `${grant.name} loses access right away. Every other connected assistant keeps working. It can connect again by asking for your approval.`,
+        confirmLabel: 'Disconnect',
+        cancelLabel: 'Cancel',
+        tone: 'danger',
+      });
+      if (ok) this.revokeOauthGrant(grant);
+    },
+    async revokeOauthGrant(grant) {
+      if (this.oauthBusy) return;
+      this.oauthBusy = grant.clientId;
+      this.oauthError = '';
+      try {
+        const res = await this.api.revokeOauthGrant(grant.clientId);
+        this.oauthGrants = (res && res.grants) || [];
+      } catch (e) {
+        this.oauthError = e.message || 'Could not disconnect that assistant.';
+      } finally {
+        this.oauthBusy = '';
+      }
+    },
+    // "Approved today · last used 2 minutes ago" — one line, two facts, and it
+    // says "not used yet" rather than inventing a time.
+    grantWhen(grant) {
+      const approved = `Approved ${formatDate(new Date(grant.approved * 1000))}`;
+      if (!grant.lastUsed) return `${approved} · not used yet`;
+      return `${approved} · last used ${this.relTime(new Date(grant.lastUsed * 1000).toISOString())}`;
+    },
+
     /* ---- connection token ---------------------------------------------- */
     async loadMcpToken() {
       try {
@@ -1089,6 +1241,12 @@ export default {
       this.mcpTokenCopied = true;
       clearTimeout(this._mcpTokenCopyTimer);
       this._mcpTokenCopyTimer = setTimeout(() => { this.mcpTokenCopied = false; }, 2000);
+    },
+    async copyMcpRecipe() {
+      if (!(await this.copyPlainText(this.mcpRecipe.copy || ''))) return;
+      this.mcpRecipeCopied = true;
+      clearTimeout(this._mcpRecipeTimer);
+      this._mcpRecipeTimer = setTimeout(() => { this.mcpRecipeCopied = false; }, 2000);
     },
     async copyMcpCard(card) {
       if (!card.copy || !(await this.copyPlainText(card.copy))) return;
@@ -1922,31 +2080,144 @@ export default {
           <!-- Status: is the server actually answering, and has anything used it?
                The probe runs in the browser because the adapter's state genuinely
                cannot be known during an admin page load (it boots on rest_api_init). -->
-          <div class="ar-mcp-status">
-            <p class="ar-mcp-status__state" :data-state="mcpStatus">
-              <span class="ar-mcp-status__dot" aria-hidden="true"></span>
-              <template v-if="mcpStatus === 'running'">Running — the address answers and asks callers to sign in.</template>
-              <template v-else-if="mcpStatus === 'unsaved'">Turns on when you save.</template>
-              <template v-else-if="mcpStatus === 'unreachable'">Not answering — the address returned “not found”. Re-save the settings; if it persists, something in front of the site may be caching REST responses.</template>
-              <template v-else>Checking the server…</template>
+          <div class="ar-mcp-rail" :data-state="mcpStatus">
+            <span class="ar-mcp-rail__dot" aria-hidden="true"></span>
+            <strong v-if="mcpStatus === 'running'">Running</strong>
+            <strong v-else-if="mcpStatus === 'unsaved'">Turns on when you save</strong>
+            <strong v-else-if="mcpStatus === 'unreachable'">Not answering</strong>
+            <strong v-else>Checking…</strong>
+            <template v-if="mcpStatus === 'running' && mcpToolCount">
+              <span class="ar-mcp-rail__sep" aria-hidden="true">·</span><span>{{ mcpToolCount }} tools</span>
+            </template>
+            <template v-if="mcpRailCallText">
+              <span class="ar-mcp-rail__sep" aria-hidden="true">·</span><span>{{ mcpRailCallText }}</span>
+            </template>
+            <a href="#agent-access">See every call in Agent Access →</a>
+          </div>
+          <p v-if="mcpStatus === 'unreachable'" class="ar-field__hint">
+            The address returned “not found”. Re-save the settings; if it persists, something in
+            front of the site may be caching REST responses.
+          </p>
+
+          <!-- The address is the setup now: an assistant that can ask for approval
+               needs nothing else from this screen. -->
+          <div class="ar-mcp-addr">
+            <p class="ar-mcp-eyebrow">Your server address</p>
+            <div class="ar-mcp-addr__row">
+              <code class="ar-mcp-addr__url">{{ mcpServer.endpoint }}</code>
+              <button type="button" class="ar-btn ar-btn--ghost ar-btn--small" @click="copyMcpEndpoint">
+                {{ mcpCopied ? 'Copied' : 'Copy' }}
+              </button>
+            </div>
+            <p class="ar-field__hint ar-mcp-addr__hint">
+              Give this to an assistant and it asks you for approval — nothing to paste back.
+              Assistants that can’t do that need a token instead; see <em>Setting up an assistant</em> below.
             </p>
-            <p v-if="mcpLastCallText" class="ar-mcp-status__last">
-              {{ mcpLastCallText }} <a href="#agent-access">Agent Access →</a>
+            <p v-if="mcpEndpointInsecure" class="ar-field__hint">
+              The address is plain <code>http://</code> — many AI clients refuse insecure
+              connections to anything but a local machine. Fine for local development; a live
+              site needs HTTPS.
             </p>
           </div>
-          <p v-if="mcpEndpointInsecure" class="ar-field__hint">
-            The address is plain <code>http://</code> — many AI clients refuse insecure
-            connections to anything but a local machine. Fine for local development; a live
-            site needs HTTPS (WordPress won’t issue application passwords without it anyway).
-          </p>
 
           <!-- The connection token: one revocable secret for every client.
                Created here, shown once, and capped by the write tier above. -->
-          <div class="ar-mcp-step ar-mcp-token">
-            <p class="ar-mcp-step__head">Connect an assistant</p>
+          <!-- The roster: every key that can reach this site, in one place, each
+               with the same exit beside it. The loudest block on the card. -->
+          <div class="ar-mcp-roster">
+            <p class="ar-mcp-roster__head">
+              Connected assistants
+              <span class="ar-mcp-roster__count" :class="{ 'is-zero': !mcpConnections.length }">{{ mcpConnections.length }}</span>
+            </p>
+            <p v-if="mcpConnections.length" class="ar-field__hint ar-mcp-roster__note">
+              Each has its own key. Disconnecting one leaves the others working.
+            </p>
+
+            <ul v-if="mcpConnections.length" class="ar-grants">
+              <li v-for="c in mcpConnections" :key="c.id" class="ar-grant">
+                <span class="ar-grant__dot" :class="{ 'is-idle': !c.live }" aria-hidden="true"></span>
+                <span class="ar-grant__who">
+                  <strong>{{ c.name }}</strong>
+                  <span v-if="c.host" class="ar-grant__host">{{ c.host }}</span>
+                  <small>{{ c.when }}</small>
+                </span>
+                <span
+                  class="ar-grant__scope"
+                  :class="{ 'is-write': c.scope === 'write', 'is-token': c.kind === 'token' }"
+                >{{ c.scope === 'write' ? 'Read · Write' : 'Read only' }}</span>
+                <button
+                  v-if="c.kind === 'grant'"
+                  type="button"
+                  class="ar-btn ar-btn--danger ar-btn--small"
+                  :disabled="oauthBusy === c.id"
+                  @click="confirmRevokeGrant(c.grant)"
+                >{{ oauthBusy === c.id ? 'Disconnecting…' : 'Disconnect' }}</button>
+                <button
+                  v-else
+                  type="button"
+                  class="ar-btn ar-btn--danger ar-btn--small"
+                  :disabled="mcpTokenBusy"
+                  @click="confirmRevokeMcpToken"
+                >Revoke</button>
+              </li>
+            </ul>
+
+            <p v-else class="ar-mcp-roster__empty">
+              <strong>No assistant is connected yet.</strong>
+              Give an assistant the address above — it will ask for your approval, and appear here.
+            </p>
+
+            <p v-if="oauthError" class="ar-field__hint ar-mcp-key__err" role="alert">{{ oauthError }}</p>
+            <p v-if="mcpToken" class="ar-field__hint ar-mcp-roster__note">
+              Rotating the shared token ends every connection using it at once —
+              that button lives under <em>Other ways to connect</em>.
+            </p>
+          </div>
+
+          <!-- Setup help: folded, and only ever shows the steps for the ONE
+               assistant you picked. The owner never learns our taxonomy. -->
+          <details class="ar-mcp-adv">
+            <summary>Setting up an assistant <span class="ar-mcp-adv__aside">— pick yours for exact steps</span></summary>
+            <div class="ar-mcp-picker" role="group" aria-label="Your assistant">
+              <button
+                v-for="p in [
+                  { key: 'claude', label: 'Claude', kind: 'web · desktop · mobile' },
+                  { key: 'claude-code', label: 'Claude Code', kind: 'terminal' },
+                  { key: 'cursor', label: 'Cursor', kind: 'editor' },
+                  { key: 'vscode', label: 'VS Code', kind: 'editor' },
+                  { key: 'chatgpt', label: 'ChatGPT', kind: 'web' },
+                  { key: 'other', label: 'Something else', kind: 'any MCP client' },
+                ]"
+                :key="p.key"
+                type="button"
+                class="ar-mcp-pick"
+                :class="{ 'is-on': mcpSetupPick === p.key }"
+                :aria-pressed="mcpSetupPick === p.key"
+                @click="mcpSetupPick = p.key"
+              >{{ p.label }}<small>{{ p.kind }}</small></button>
+            </div>
+            <div class="ar-mcp-recipe">
+              <p class="ar-mcp-eyebrow">{{ mcpRecipe.title }}</p>
+              <ol class="ar-mcp-recipe__steps">
+                <li v-for="(s, i) in mcpRecipe.steps" :key="i">{{ s }}</li>
+              </ol>
+              <div v-if="mcpRecipe.copy" class="ar-mcp-addr__row">
+                <code class="ar-mcp-addr__url">{{ mcpRecipe.copy }}</code>
+                <button type="button" class="ar-btn ar-btn--ghost ar-btn--small" @click="copyMcpRecipe">
+                  {{ mcpRecipeCopied ? 'Copied' : 'Copy' }}
+                </button>
+              </div>
+              <p v-if="mcpRecipe.note" class="ar-field__hint">{{ mcpRecipe.note }}</p>
+            </div>
+          </details>
+
+          <!-- Fallbacks for assistants that can't ask for approval themselves. -->
+          <details class="ar-mcp-adv">
+            <summary>Other ways to connect <span class="ar-mcp-adv__aside">— shared token, application passwords</span></summary>
+            <div class="ar-mcp-step ar-mcp-token">
             <p class="ar-field__hint ar-mcp-token__lead">
-              One connection token works for every assistant below. You can rotate it or end
-              every connection with one click.
+              A <strong>shared token</strong> is one secret any assistant can hold. Use it when an
+              assistant can’t ask for your approval itself.
             </p>
 
             <!-- No token yet: choose what it may do, then create it. -->
@@ -1992,60 +2263,37 @@ export default {
               </p>
             </div>
 
-            <!-- A token exists: state, last use, and the two dangerous buttons. -->
+            <!-- A token exists: it has its row in the roster above, so this is
+                 only the two dangerous buttons. -->
             <template v-if="mcpToken">
-              <p class="ar-mcp-token__state">
-                <span class="ar-mcp-token__dot" aria-hidden="true"></span>
-                <strong>Token active</strong>
-                <span>· created {{ mcpTokenCreatedText }} · {{ mcpToken.scope === 'write' ? 'Read and write' : 'Read only' }}</span>
+              <p class="ar-field__hint">
+                A shared token is active — see it in <strong>Connected assistants</strong> above.
+                Rotating gives you a fresh secret and ends every connection using the old one.
               </p>
-              <p v-if="mcpTokenLastUsedText" class="ar-mcp-token__used">
-                {{ mcpTokenLastUsedText }} — <a href="#agent-access">see it in Agent Access →</a>
-              </p>
-              <p v-else class="ar-field__hint">Not used yet. The moment an assistant calls, it shows up here and in Agent Access.</p>
               <div class="ar-mcp-token__actions">
                 <button type="button" class="ar-btn ar-btn--ghost" :disabled="mcpTokenBusy" @click="confirmRotateMcpToken">Rotate Token</button>
-                <button type="button" class="ar-btn ar-btn--danger" :disabled="mcpTokenBusy" @click="confirmRevokeMcpToken">Disconnect Everything</button>
+                <button type="button" class="ar-btn ar-btn--danger" :disabled="mcpTokenBusy" @click="confirmRevokeMcpToken">Revoke Token</button>
               </div>
             </template>
             <p v-if="mcpTokenError" class="ar-field__hint ar-mcp-key__err" role="alert">{{ mcpTokenError }}</p>
-
-            <!-- One card per client. Dimmed until a token exists, so the shape of
-                 the work is visible before you commit to anything. -->
-            <div class="ar-mcp-cards" :class="{ 'is-waiting': !mcpTokenPlain }">
-              <div v-for="card in mcpConnectCards" :key="card.key" class="ar-mcp-card" :class="{ 'is-soon': card.soon }">
-                <h4 class="ar-mcp-card__title">
-                  {{ card.label }} <span class="ar-mcp-card__kind">{{ card.kind }}</span>
-                </h4>
-                <p v-if="card.soon" class="ar-mcp-card__soon">{{ card.soon }}</p>
-                <template v-else>
-                  <ol class="ar-mcp-card__steps">
-                    <li v-for="(s, i) in card.steps" :key="i">{{ s }}</li>
-                  </ol>
-                  <div v-if="card.copy" class="ar-mcp-card__copyrow">
-                    <code class="ar-mcp-card__code">{{ mcpTokenPlain ? card.copy : 'Create a token first — your setup line appears here.' }}</code>
-                    <button type="button" class="button button-small" :disabled="!mcpTokenPlain" @click="copyMcpCard(card)">
-                      {{ mcpCardCopied === card.key ? 'Copied' : 'Copy' }}
-                    </button>
-                  </div>
-                  <div v-else-if="card.deeplink !== undefined" class="ar-mcp-card__copyrow">
-                    <a v-if="mcpTokenPlain" class="ar-btn ar-btn--ghost ar-mcp-card__deeplink" :href="card.deeplink">{{ card.deeplinkLabel }}</a>
-                    <span v-else class="ar-field__hint">Create a token first — the button appears here.</span>
-                  </div>
-                  <p v-if="card.note" class="ar-field__hint">{{ card.note }}</p>
-                </template>
+            <p v-if="mcpToken && !mcpTokenPlain" class="ar-field__hint">
+              Setup lines that need the secret itself can only show it at creation.
+              Rotate for a fresh one — every connection using the old token ends when you do.
+            </p>
+            <div v-if="mcpTokenPlain" class="ar-mcp-cards">
+              <div v-for="card in mcpConnectCards.filter((c) => c.deeplink)" :key="card.key" class="ar-mcp-card">
+                <h4 class="ar-mcp-card__title">{{ card.label }} <span class="ar-mcp-card__kind">one-click, with this token</span></h4>
+                <div class="ar-mcp-card__copyrow">
+                  <a class="ar-btn ar-btn--ghost ar-mcp-card__deeplink" :href="card.deeplink">{{ card.deeplinkLabel }}</a>
+                </div>
               </div>
             </div>
-            <p v-if="mcpToken && !mcpTokenPlain" class="ar-field__hint">
-              The setup lines need the token itself, and it was only shown when you created it.
-              Rotate to get a fresh one — every current connection ends when you do.
-            </p>
           </div>
 
-          <!-- The per-client path, folded away: one application password per tool,
-               for owners who want to revoke tools individually. -->
-          <details class="ar-mcp-adv" @toggle="mcpAppPwOpen = $event.target.open">
-            <summary>Prefer one key per assistant? Use application passwords</summary>
+          <!-- The per-client path: one application password per tool, for owners
+               who want to revoke tools individually. -->
+          <div class="ar-mcp-step ar-mcp-apppw">
+            <p class="ar-mcp-step__head">Application passwords</p>
             <p class="ar-field__hint">
               A separate WordPress application password per assistant. More to manage, but you can
               revoke one assistant without disturbing the others.
@@ -2231,22 +2479,18 @@ export default {
               the user and key it signed in with.
             </p>
           </div>
+          </div>
           </details>
 
           <!-- The raw facts, for the 1% who need them. -->
           <details class="ar-mcp-adv">
-            <summary>Advanced — address &amp; transport</summary>
-            <p class="ar-mcp-connect__endpoint">
-              <code>{{ mcpServer.endpoint }}</code>
-              <button type="button" class="button button-small" @click="copyMcpEndpoint">
-                {{ mcpCopied ? 'Copied' : 'Copy' }}
-              </button>
-            </p>
+            <summary>Advanced <span class="ar-mcp-adv__aside">— transport &amp; sign-in</span></summary>
             <p class="ar-field__hint">
-              Transport: <strong>Streamable HTTP</strong> (MCP). Sign-in: <strong>HTTP Basic</strong> —
-              WordPress username + application password, as an <code>Authorization: Basic …</code>
-              header. The full facts, including a bridge for stdio-only tools, are under
-              “Other tools” in step 1.
+              Transport: <strong>Streamable HTTP</strong> (MCP). Sign-in, in the order the server
+              tries them: an <strong>approved connection</strong> (OAuth 2.1 with PKCE), the
+              <strong>shared token</strong> as a Bearer header, or an
+              <strong>application password</strong> over HTTP Basic. A stdio-only tool needs a
+              bridge — see the setup steps for “Something else”.
             </p>
           </details>
         </div>

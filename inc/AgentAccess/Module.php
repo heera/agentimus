@@ -435,6 +435,11 @@ final class Module {
 		if ( McpToken::used_this_request() ) {
 			return McpToken::CRED;
 		}
+		// Same for an OAuth grant — its credential names the approved client.
+		$oauth = \Agentimus\Oauth\Server::request_credential();
+		if ( '' !== $oauth ) {
+			return $oauth;
+		}
 		if ( ! function_exists( 'rest_get_authenticated_app_password' ) ) {
 			return '';
 		}

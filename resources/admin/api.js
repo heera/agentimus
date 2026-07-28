@@ -67,6 +67,11 @@ export function createApi(boot) {
     createMcpToken: (scope) =>
       request('/mcp-token', { method: 'POST', body: JSON.stringify({ scope }) }),
     revokeMcpToken: () => request('/mcp-token', { method: 'DELETE' }),
+    // Connected agents: one row per OAuth grant the owner approved on the
+    // consent page. Revoking cuts off exactly one assistant.
+    getOauthGrants: () => request('/oauth/grants'),
+    revokeOauthGrant: (clientId) =>
+      request('/oauth/grants', { method: 'DELETE', body: JSON.stringify({ clientId }) }),
     getActivity: () => request('/activity'),
     getActivityDay: (date) => request(`/activity/day?date=${encodeURIComponent(date)}`),
     // The AI-traffic screen's own report: a day range (bounded by retention, not the

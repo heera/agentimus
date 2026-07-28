@@ -53,6 +53,39 @@ namespace {
 		}
 	}
 
+	if ( ! class_exists( 'WP_User' ) ) {
+		class WP_User {
+			public $ID = 1;
+			public $user_login = 'admin';
+		}
+	}
+
+	// Minimal REST request/response pair — just the surface the OAuth
+	// advertise filter and route callbacks touch (status, headers, route).
+	if ( ! class_exists( 'WP_REST_Response' ) ) {
+		class WP_REST_Response {
+			public $data;
+			private $status;
+			private $headers = array();
+			public function __construct( $data = null, $status = 200 ) { $this->data = $data; $this->status = (int) $status; }
+			public function get_status() { return $this->status; }
+			public function set_status( $s ) { $this->status = (int) $s; }
+			public function header( $key, $value ) { $this->headers[ $key ] = $value; }
+			public function get_headers() { return $this->headers; }
+		}
+	}
+	if ( ! class_exists( 'WP_REST_Request' ) ) {
+		class WP_REST_Request {
+			private $route;
+			private $params = array();
+			public function __construct( $method = '', $route = '' ) { $this->route = (string) $route; }
+			public function get_route() { return $this->route; }
+			public function set_param( $k, $v ) { $this->params[ $k ] = $v; }
+			public function get_param( $k ) { return isset( $this->params[ $k ] ) ? $this->params[ $k ] : null; }
+			public function get_params() { return $this->params; }
+		}
+	}
+
 	if ( ! class_exists( 'WP_Post' ) ) {
 		class WP_Post {
 			public $ID = 0;
@@ -98,6 +131,8 @@ namespace {
 	if ( ! function_exists( 'home_url' ) )              { function home_url( $path = '' ) { $b = 'https://example.test'; $path = (string) $path; return '' === $path ? $b . '/' : $b . ( '/' === $path[0] ? $path : '/' . $path ); } }
 	if ( ! function_exists( 'admin_url' ) )             { function admin_url( $path = '' ) { return 'https://example.test/wp-admin/' . ltrim( (string) $path, '/' ); } }
 	if ( ! function_exists( 'get_bloginfo' ) )          { function get_bloginfo( $k = '' ) { $m = array( 'name' => 'Test Site', 'description' => 'A test site.', 'language' => 'en-US' ); return isset( $m[ $k ] ) ? $m[ $k ] : ''; } }
+	if ( ! function_exists( 'wp_get_current_user' ) )   { function wp_get_current_user() { return new WP_User(); } }
+	if ( ! function_exists( 'wp_nonce_field' ) )        { function wp_nonce_field( $action = -1, $name = '_wpnonce', $referer = true, $display = true ) { $f = '<input type="hidden" name="' . $name . '" value="test-nonce-' . $action . '">'; if ( $display ) { echo $f; } return $f; } }
 	if ( ! function_exists( 'get_site_icon_url' ) )     { function get_site_icon_url() { return ''; } }
 	if ( ! function_exists( 'get_privacy_policy_url' ) ) { function get_privacy_policy_url() { return ''; } }
 	if ( ! function_exists( 'get_feed_link' ) )         { function get_feed_link( $feed = '' ) { return 'https://example.test/feed/'; } }

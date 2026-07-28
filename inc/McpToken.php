@@ -211,6 +211,19 @@ final class McpToken {
 	}
 
 	/**
+	 * The Bearer credential of this request when it wears the given prefix,
+	 * or ''. Shared with the OAuth server — the prefix says which door a
+	 * credential belongs to, so each authenticator only ever sees its own.
+	 *
+	 * @param string $prefix Expected secret prefix (agmcp_, agoa_, …).
+	 * @return string
+	 */
+	public static function bearer_for( $prefix ) {
+		$token = self::bearer();
+		return 0 === strpos( $token, (string) $prefix ) ? $token : '';
+	}
+
+	/**
 	 * The Bearer credential of this request, or ''. Reads the usual header and
 	 * the REDIRECT_ fallback some FastCGI setups leave it under.
 	 *
@@ -228,6 +241,17 @@ final class McpToken {
 			return '';
 		}
 		return trim( substr( $header, 7 ) );
+	}
+
+	/**
+	 * Whether this request targets the MCP route — pretty permalinks or the
+	 * ?rest_route= form. Public because the OAuth server honors its access
+	 * tokens on exactly the same route and nowhere else.
+	 *
+	 * @return bool
+	 */
+	public static function targets_mcp_route() {
+		return self::is_mcp_request();
 	}
 
 	/**

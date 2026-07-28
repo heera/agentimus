@@ -1395,6 +1395,100 @@
   font-family: var(--ar-mono); font-size: 12.5px; padding: 6px 10px; border-radius: var(--ar-radius);
   background: var(--ar-surface); border: 1px solid var(--ar-line-strong); word-break: break-all;
 }
+/* ---- MCP card: status rail, address hero, roster ---------------------- */
+.ar-btn--small { padding: 7px 14px; font-size: 11px; }
+.ar-mcp-eyebrow {
+  font-family: var(--ar-mono); font-size: 10px; letter-spacing: 0.13em; text-transform: uppercase;
+  color: var(--ar-ink-faint); margin: 0 0 8px;
+}
+
+/* One line of state: running · tools · last call · link to the log. */
+.ar-mcp-rail {
+  display: flex; align-items: center; gap: 9px; flex-wrap: wrap;
+  padding: 10px 14px; background: var(--ar-surface-2);
+  border: 1px solid var(--ar-line); border-radius: var(--ar-radius);
+  font-size: 12.5px; color: var(--ar-ink-soft);
+}
+.ar-mcp-rail__dot { width: 8px; height: 8px; border-radius: 50%; background: var(--ar-line-strong); flex: none; }
+.ar-mcp-rail[data-state="running"] .ar-mcp-rail__dot { background: var(--ar-good); }
+.ar-mcp-rail[data-state="unreachable"] .ar-mcp-rail__dot { background: var(--ar-bad); }
+.ar-mcp-rail[data-state="unsaved"] .ar-mcp-rail__dot { background: var(--ar-warn); }
+.ar-mcp-rail strong { color: var(--ar-ink); }
+.ar-mcp-rail__sep { color: var(--ar-line-strong); }
+.ar-mcp-rail a { margin-left: auto; color: var(--ar-accent); text-decoration: none; white-space: nowrap; }
+.ar-mcp-rail a:hover { text-decoration: underline; }
+
+/* The address: with one-click approval this IS the setup, so it leads. */
+.ar-mcp-addr { margin-top: 16px; }
+.ar-mcp-addr__row { display: flex; gap: 8px; align-items: center; min-width: 0; }
+.ar-mcp-addr__url {
+  font-family: var(--ar-mono); font-size: 12.5px; background: var(--ar-surface-2);
+  border: 1px solid var(--ar-line); border-radius: var(--ar-radius); padding: 10px 12px;
+  flex: 1; min-width: 0; overflow-x: auto; white-space: nowrap;
+}
+.ar-mcp-addr__hint { margin-top: 9px; }
+
+/* The roster — the loudest block: every key that opens the door. */
+.ar-mcp-roster { margin-top: 22px; }
+.ar-mcp-roster__head {
+  font-family: var(--ar-serif); font-size: 17px; margin: 0 0 3px;
+  display: flex; align-items: baseline; gap: 9px;
+}
+.ar-mcp-roster__count {
+  font-family: var(--ar-mono); font-size: 10.5px; background: var(--ar-accent);
+  color: var(--ar-paper); border-radius: 999px; padding: 1px 8px;
+}
+.ar-mcp-roster__count.is-zero { background: var(--ar-line-strong); color: var(--ar-ink-soft); }
+.ar-mcp-roster__note { margin: 0 0 10px; }
+.ar-mcp-roster__empty {
+  border: 1px dashed var(--ar-line-strong); border-radius: var(--ar-radius);
+  background: var(--ar-surface-2); padding: 16px; margin: 10px 0 0;
+  text-align: center; font-size: 12.5px; color: var(--ar-ink-soft);
+}
+.ar-mcp-roster__empty strong { display: block; color: var(--ar-ink); font-size: 13.5px; margin-bottom: 2px; }
+
+/* Setup help: one assistant at a time. */
+.ar-mcp-picker { display: grid; grid-template-columns: repeat(auto-fill, minmax(148px, 1fr)); gap: 8px; margin: 10px 0 14px; }
+.ar-mcp-pick {
+  border: 1px solid var(--ar-line-strong); background: var(--ar-surface); color: var(--ar-ink);
+  border-radius: var(--ar-radius); padding: 9px 11px; cursor: pointer; text-align: left;
+  font-family: var(--ar-sans); font-size: 12.5px;
+}
+.ar-mcp-pick.is-on { border-color: var(--ar-accent); box-shadow: inset 0 0 0 1px var(--ar-accent); }
+.ar-mcp-pick small { display: block; color: var(--ar-ink-faint); font-size: 11px; }
+.ar-mcp-recipe { border-left: 2px solid var(--ar-accent); padding: 2px 0 2px 14px; }
+.ar-mcp-recipe__steps { margin: 0 0 10px; padding-left: 18px; font-size: 13px; color: var(--ar-ink-soft); }
+.ar-mcp-recipe__steps li { margin-bottom: 4px; }
+.ar-mcp-adv__aside { color: var(--ar-ink-faint); font-size: 12px; }
+.ar-mcp-apppw { margin-top: 22px; }
+
+/* Connected agents — one row per approved OAuth grant. */
+.ar-grants { list-style: none; margin: 12px 0 0; padding: 0; border-top: 1px solid var(--ar-line); }
+.ar-grant {
+  display: flex; align-items: center; gap: 12px; min-width: 0;
+  padding: 12px 2px; border-bottom: 1px solid var(--ar-line);
+}
+.ar-grant__dot { width: 8px; height: 8px; border-radius: 50%; background: var(--ar-good); flex: none; }
+.ar-grant__dot.is-idle { background: var(--ar-line-strong); }
+.ar-grant__who { min-width: 0; }
+.ar-grant__who strong { font-size: 13.5px; }
+.ar-grant__who small { display: block; font-size: 12px; color: var(--ar-ink-faint); }
+.ar-grant__host { font-family: var(--ar-mono); font-size: 11px; color: var(--ar-ink-faint); margin-left: 8px; }
+.ar-grant__scope {
+  margin-left: auto; flex: none; font-family: var(--ar-mono); font-size: 10px; letter-spacing: 0.06em;
+  text-transform: uppercase; border: 1px solid var(--ar-line-strong); border-radius: 999px;
+  padding: 2px 9px; color: var(--ar-ink-faint); white-space: nowrap;
+}
+.ar-grant__scope.is-write { border-color: var(--ar-good); color: var(--ar-good); }
+/* The shared token wears a different colour from an approved connection: one
+   secret many assistants can hold is a different kind of thing. */
+.ar-grant__scope.is-token { border-color: var(--ar-warn); color: var(--ar-warn); }
+.ar-grants__note { margin-top: 12px; }
+@media screen and (max-width: 782px) {
+  .ar-grant { flex-wrap: wrap; }
+  .ar-grant__scope { margin-left: 20px; }
+}
+
 .ar-mcp-token__state { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin: 12px 0 2px; font-size: 12.5px; }
 .ar-mcp-token__state span:not(.ar-mcp-token__dot) { color: var(--ar-ink-soft); }
 .ar-mcp-token__dot { width: 8px; height: 8px; border-radius: 50%; background: var(--ar-good); flex: none; }

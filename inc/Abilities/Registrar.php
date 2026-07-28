@@ -54,6 +54,7 @@ use Agentimus\Activity\Referrals;
 use Agentimus\Activity\Repository;
 use Agentimus\AgentAccess\Module as AgentAccess;
 use Agentimus\McpToken;
+use Agentimus\Oauth;
 use Agentimus\Visibility\Store as VisibilityStore;
 use Agentimus\Visibility\Settings as VisibilitySettings;
 
@@ -770,9 +771,12 @@ final class Registrar {
 	 * owner turned the write tier on), filterable so an owner can trim what leaves
 	 * the admin boundary.
 	 *
+	 * Public so the settings card can state how many tools an assistant would
+	 * actually get — the same list, never a second hard-coded count.
+	 *
 	 * @return string[]
 	 */
-	private function mcp_abilities() {
+	public function mcp_abilities() {
 		$names = array(
 			self::CATEGORY . '/read-readiness',
 			self::CATEGORY . '/read-ai-visibility',
@@ -891,11 +895,13 @@ final class Registrar {
 			return $execute( $input );
 		};
 
-		// The token-scope cap: a read-only connection token cannot run ANY
-		// write ability, current or future — enforced here so no individual
-		// ability ever has to remember it. Non-token auth passes through.
+		// The scope caps: a read-only connection token or a read-only OAuth
+		// grant cannot run ANY write ability, current or future — enforced
+		// here so no individual ability ever has to remember it. The two
+		// gates compose; every other auth path passes through both untouched.
 		if ( ! $readonly ) {
 			$permission = McpToken::gate_write_permission( $permission );
+			$permission = Oauth\Server::gate_write_permission( $permission );
 		}
 
 		wp_register_ability(

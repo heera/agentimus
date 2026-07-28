@@ -310,6 +310,13 @@ final class Events {
 		if ( \Agentimus\McpToken::CRED === $uuid ) {
 			return 'connection token';
 		}
+		// An OAuth grant: "<name>'s connection" — identity the owner approved
+		// on the consent page, not a self-claimed header. '' once revoked; the
+		// UI words that case rather than inventing a name.
+		$oauth = \Agentimus\Oauth\Server::credential_label( $uuid );
+		if ( '' !== $oauth ) {
+			return $oauth;
+		}
 		if ( '' === $uuid || $user_id <= 0 || ! class_exists( 'WP_Application_Passwords' ) ) {
 			return '';
 		}

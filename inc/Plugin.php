@@ -92,8 +92,10 @@ final class Plugin {
 		BotRanges::boot(); // Daily refresh of published bot-IP-range files (self-heals its schedule).
 		RouteProbe::watch(); // Async self-check of /llms.txt and the home <head>; re-queued when the plugin/theme mix changes.
 		McpToken::watch(); // Bearer connection-token auth, honored only on the MCP route.
+		Oauth\Server::watch(); // OAuth access-token auth — same route, next seat in the inspector line.
 
 		( new Endpoints( $this->settings ) )->register();
+		( new Oauth\Consent( $this->settings ) )->register(); // The /agentimus/connect consent page.
 		( new Tombstones() )->register(); // Records removals for the change feed (self-gates on enable_changes).
 		( new Schema( $this->settings ) )->register();
 		( new Seo( $this->settings ) )->register(); // Solo-mode head output (per-page SEO title; cards + canonical land here). Stands down at request time when an SEO suite is active.
