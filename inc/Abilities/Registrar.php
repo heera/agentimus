@@ -827,6 +827,11 @@ final class Registrar {
 			self::CATEGORY . '/preview-schema',
 			self::CATEGORY . '/preview-markdown',
 			self::CATEGORY . '/scan-exposed-files',
+			// Promised to agents since 1.30.0 ("connected agents get the same
+			// suggestions through a read-only MCP tool") but never added to this
+			// list, so the tool the release notes described did not exist on the
+			// server. Read-only and permission-gated like the rest.
+			self::CATEGORY . '/suggest-internal-links',
 		);
 		if ( $this->settings->enabled( 'enable_agent_writes' ) ) {
 			foreach ( self::WRITE_SLUGS as $slug ) {

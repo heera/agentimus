@@ -382,7 +382,7 @@ The generated A2A agent card (`Envelope::agent_card_json()`, delegated to `WellK
 
 ### mcp.json and MCP server cards
 
-Agentimus does **not** run an MCP server — it discovers and advertises the ones a shared MCP adapter library has registered (`inc/Discovery/McpSurface.php`). `mcp.json` carries the site identity, the MCP descriptor (`available`, `source`, `endpoint`, `transport`, `auth`, `tools`, `servers`, `status: "experimental"`) and the deduped tool list.
+This surface does **not** run an MCP server — it discovers and advertises the ones a shared MCP adapter library has registered (`inc/Discovery/McpSurface.php`), Agentimus's own opt-in server at `/wp-json/agentimus/v1/mcp` included. `mcp.json` carries the site identity, the MCP descriptor (`available`, `source`, `endpoint`, `transport`, `auth`, `tools`, `servers`, `status: "experimental"`) and the deduped tool list.
 
 When a live server is detected, standard single-server cards are served at `mcp/server-card.json` (the richest server, pinnable via `agentimus_mcp_card_server`) and, per server, at `mcp/{id}/server-card.json`. With no server, both return an empty body → a clean 404. The MCP descriptor is filterable via `agentimus_mcp`.
 

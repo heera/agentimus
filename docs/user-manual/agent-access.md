@@ -10,7 +10,7 @@ The [activity log]({% link user-manual/dashboard.md %}) answers *who **read** yo
 
 It records three kinds of thing:
 
-- **Application passwords** — the keys a program (an automation, an AI agent, a mobile app) uses to reach WordPress *as you*, over the REST API. Agent Access notes when one is **created, first used, renamed or revoked**.
+- **Application passwords** — the keys a program (an automation, an AI agent, a mobile app) uses to reach WordPress *as you*, over the REST API. Agent Access notes when one is **created, first used, renamed or revoked**. These are one of the three doors an AI assistant can come through; the other two are covered under *Who did it* below.
 - **Abilities** — the actions WordPress 7.0's **Abilities API** lets an AI assistant run on your site. Agent Access notes when one is **run** — Agentimus's own abilities (the read-only reports, and the write tools if you've enabled those) and, where your site supports it, any other plugin's.
 - **Refused or probed requests** — a request for an ability that was **turned away**, or a probe for abilities that **don't exist** (someone guessing at names).
 
@@ -28,7 +28,7 @@ An application password keeps working **even after you change your WordPress pas
 
 > *Didn't create this? Revoke it.*
 
-You revoke one under **Users → Profile → Application Passwords**. If you *did* create it (you set up Zapier, a mobile app, an AI agent), you can ignore the note — it's there for the one time you didn't.
+You revoke one under **Users → Profile → Application Passwords**. If you *did* create it (you set up Zapier, a mobile app, an AI agent), you can ignore the note — it's there for the one time you didn't. The other two doors are revoked elsewhere: an approved assistant has its own **Disconnect** button, and the shared connection token its own **Revoke**, both on the [MCP server]({% link user-manual/mcp-server.md %}) card under **Connected assistants**.
 
 The sharpest signal of all is a **refused** request that came in on one of your own application passwords: *a key you issued tried to run something it isn't allowed to.* That's either a misconfigured integration or a stolen key — and either way, the fix is the same: if you don't recognise it, revoke it.
 
@@ -49,7 +49,16 @@ New rows are flagged until you've seen them, and the count appears on the **More
 
 ## Who did it
 
-Every row carries a quiet second line naming who was behind it — *"by anna · app password “zapier”"* for an ability run over a key, *"by anna · logged-in session"* for one run from the admin. The names are looked up live from your own users and keys at the moment you view the screen, so they can never go stale: rename a key and old rows show its current name; revoke it and they say *"app password (since revoked)"*; delete the user and the row says that too, instead of a bare number. Nothing extra is stored to make this work — still no IP addresses, no identities.
+Every row carries a quiet second line naming who was behind it, and **which door they came through**. There are four:
+
+| Second line | The door |
+|---|---|
+| *by anna · via Claude's connection* | An assistant you **approved** on the [MCP server]({% link user-manual/mcp-server.md %}) consent page. The name is the one you saw and approved — not a name the caller claimed for itself in a header. |
+| *by anna · via connection token* | The **shared connection token**, the one secret you create for assistants that can't ask for approval. |
+| *by anna · via “zapier”* | An **application password**, under the name it was created with. |
+| *by anna · via a logged-in session* | Run from the admin, in a normal browser session. |
+
+The names are looked up live from your own users and keys at the moment you view the screen, so they can never go stale: rename a key and old rows show its current name; revoke an application password and its rows say *"via an app password (revoked)"*; disconnect an approved assistant and its rows say the same; delete the user and the row says that too, instead of a bare number. Nothing extra is stored to make this work — still no IP addresses, no identities.
 
 One wording is deliberate: password-lifecycle rows (created, renamed, revoked) say *"on anna's account"* rather than *"by anna"*. Those rows record whose account the key lives on — and an administrator can create or revoke a key on someone else's profile — so the screen claims only what it actually knows.
 

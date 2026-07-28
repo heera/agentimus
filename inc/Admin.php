@@ -654,20 +654,20 @@ final class Admin {
 			'show'    => $show,
 			'items'   => array(
 				array(
-					'title' => 'Share drafts, written from the post',
-					'text'  => 'The editor panel grows a “Share” tab: ready-to-post drafts for X, Facebook, LinkedIn, WhatsApp, Telegram and Reddit, each written from the post’s own title, description and topics. A per-card AI polish is there when a provider is set up — and nothing is ever posted for you: you copy, or click through to the network’s own composer.',
+					'title' => 'Connect an assistant by approving it',
+					'text'  => 'Give an AI assistant your MCP address and it asks you for permission on a page on your own site. You choose Read only or Read and write — you can grant less than it asked for — and it gets its own key. Every approved assistant is listed under Connected assistants with its own Disconnect, so cutting one off leaves the others working. No keys to copy. Works today with Claude and Cursor.',
 				),
 				array(
-					'title' => 'Ask AI about this post',
-					'text'  => 'A small row after each post lets a reader open ChatGPT, Claude, Perplexity, Google AI Mode or Grok pre-filled with the post’s address — and the assistant’s visit shows up in your own Request Log. Plain links, no script, nothing sent until a reader clicks. It also respects your own bot policy: a button whose assistant your blocklists forbid from reading the page stays hidden, and Settings says why. Turn it all off in one switch if it’s not for your site.',
+					'title' => 'A shared token for the rest',
+					'text'  => 'Some assistants can’t ask for approval — ChatGPT and Codex among them. For those, one revocable token does the job: read-only or read-and-write, shown once, rotated or revoked whenever you like. And a read-only key now sees only the read tools, so an assistant is never offered a door it can’t open.',
 				),
 				array(
-					'title' => 'Screens that load like screens',
-					'text'  => 'The Request Log, AI Traffic, AI Visibility and Agent Access screens now show the same quiet loading placeholder the dashboard uses while their data is on its way — no more blank cards on a slow connection. And the request-log tool answers MCP clients correctly again (its response had outgrown its declared schema).',
+					'title' => 'The MCP card, rebuilt',
+					'text'  => 'Your server address leads, because with one-click approval that address is the whole setup. Under it: who is connected, then setup steps folded away that show only the assistant you pick. One status line replaces three scattered facts.',
 				),
 				array(
-					'title' => 'Coming from 1.29?',
-					'text'  => 'Then 1.30 is new to you too: Web Bot Auth signature verification — genuine agents earn a “signed” mark, forgeries are refused and recorded — plus “Link to your own posts” internal-link suggestions in the editor. The full changelog on this card tells that story.',
+					'title' => 'Honest about your own files',
+					'text'  => 'Readiness now checks your /llms.txt and home page the way an agent would, and says plainly when another plugin is serving them instead of taking the credit. It also names any plugin adding duplicate description or social-card tags, and tells you once — in plain words — when your robots.txt changes.',
 				),
 			),
 		);

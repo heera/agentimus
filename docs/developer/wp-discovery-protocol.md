@@ -263,7 +263,7 @@ The **Agent Skills** index at `/.well-known/agent-skills/index.json` lists the e
 
 ## mcp.json and the MCP surface
 
-Agentimus does **not** run an MCP server — it *discovers and advertises* MCP servers a shared adapter library has registered, and projects your registered `tools` into an experimental manifest. `/.well-known/mcp.json` (`McpSurface::mcp_json()`) looks like:
+The discovery engine does **not** run an MCP server of its own — it *discovers and advertises* the MCP servers a shared adapter library has registered (Agentimus's own opt-in server among them, when its switch is on), and projects your registered `tools` into an experimental manifest. `/.well-known/mcp.json` (`McpSurface::mcp_json()`) looks like:
 
 ```json
 {
