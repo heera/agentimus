@@ -410,11 +410,14 @@ export default {
           ],
         },
         chatgpt: {
-          title: 'ChatGPT — web',
+          title: 'ChatGPT — app, web, Codex',
           steps: [
-            'Settings → Connectors → add a custom connector with the address above.',
-            'Approve here when the tab opens.',
+            'Settings → Plugins → MCPs → Add server, and pick “Streamable HTTP”.',
+            'Paste the address above as the URL.',
+            'ChatGPT can’t ask you for approval, so give it a token: create one under “Other ways to connect”, then add this header.',
           ],
+          copy: tok ? `Authorization: Bearer ${tok}` : 'Authorization: Bearer <create a token below>',
+          note: 'Tested July 2026: ChatGPT reports “auth unsupported” for the one-click flow, and connects once the token header is set.',
         },
         other: {
           title: 'Any MCP client',
@@ -2044,13 +2047,12 @@ export default {
       <section id="ar-sec-mcp" class="ar-card">
         <h2 class="ar-card__title">MCP Server <span class="ar-card__tag">experimental</span></h2>
         <p class="ar-card__lead">
-          Lets AI tools you already use — Claude Desktop, the ChatGPT app (through its Codex
-          side), Claude Code, the Codex CLI — talk to this site over the
-          <strong>Model Context Protocol</strong>. A connected tool acts as your WordPress
-          user: it signs in first, and it can only do what that user could on these
-          screens — reading only, unless you also allow writing below. Nothing becomes
-          public. (ChatGPT’s own connector screen can’t connect — it’s OAuth-only; its
-          Codex side is the way in.)
+          Lets AI assistants you already use — Claude, Cursor, ChatGPT and others — use this
+          site’s tools over the <strong>Model Context Protocol</strong>. Most of them ask you
+          for approval and you say yes; the ones that can’t ask use a token instead. Either
+          way a connected assistant acts as your WordPress user: it can only do what that user
+          could on these screens — reading only, unless you allow writing below. Nothing
+          becomes public.
         </p>
 
         <p v-if="mcpServer.abilitiesAvailable === false" class="ar-field__hint">
@@ -2067,7 +2069,7 @@ export default {
           <span class="ar-toggle__track" aria-hidden="true"></span>
           <span class="ar-toggle__text">
             <strong>Run the Agentimus MCP server</strong>
-            <small>Every call needs a WordPress login (an application password works) and the same permissions as these admin screens. Read-only tools, unless you allow writing below.</small>
+            <small>Every call signs in first — by your approval, a token, or an application password — and gets the same permissions as these admin screens. Read-only tools, unless you allow writing below.</small>
           </span>
         </label>
 
