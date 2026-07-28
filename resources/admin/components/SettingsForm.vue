@@ -414,7 +414,7 @@ export default {
           steps: [
             'Settings → Plugins → MCPs → Add server, and pick “Streamable HTTP”.',
             'Paste the address above as the URL.',
-            'ChatGPT can’t ask you for approval, so give it a token: create one under “Other ways to connect”, then add this header.',
+            'ChatGPT can’t ask you for approval, so give it a token: create one under “Shared token” below, then add this header.',
           ],
           copy: tok ? `Authorization: Bearer ${tok}` : 'Authorization: Bearer <create a token below>',
           note: 'Tested July 2026: ChatGPT reports “auth unsupported” for the one-click flow, and connects once the token header is set.',
@@ -423,7 +423,7 @@ export default {
           title: 'Any MCP client',
           steps: [
             'Give it the address above, over HTTP transport.',
-            'If it can ask for approval, it sends you here. If it cannot, create a shared token under “Other ways to connect” and send it as a Bearer header.',
+            'If it can ask for approval, it sends you here. If it cannot, create one under “Shared token” below and send it as a Bearer header.',
           ],
           copy: tok ? `Authorization: Bearer ${tok}` : '',
         },
@@ -2191,7 +2191,7 @@ export default {
             <p v-if="oauthError" class="ar-field__hint ar-mcp-key__err" role="alert">{{ oauthError }}</p>
             <p v-if="mcpToken" class="ar-field__hint ar-mcp-roster__note">
               Rotating the shared token ends every connection using it at once —
-              that button lives under <em>Other ways to connect</em>.
+              that button lives under <em>Shared token</em>.
             </p>
           </div>
 
@@ -2234,7 +2234,7 @@ export default {
 
           <!-- Fallbacks for assistants that can't ask for approval themselves. -->
           <details class="ar-mcp-adv">
-            <summary>Other ways to connect <span class="ar-mcp-adv__aside">— shared token, application passwords</span></summary>
+            <summary>Shared token <span class="ar-mcp-adv__aside">— for assistants that can’t ask for approval</span></summary>
             <div class="ar-mcp-step ar-mcp-token">
             <p class="ar-field__hint ar-mcp-token__lead">
               A <strong>shared token</strong> is one secret any assistant can hold. Use it when an
@@ -2311,10 +2311,15 @@ export default {
             </div>
           </div>
 
+          </details>
+
           <!-- The per-client path: one application password per tool, for owners
-               who want to revoke tools individually. -->
+               who want to revoke tools individually. Its own fold — it carries a
+               four-step setup, and burying that under a shared summary made one
+               fold look like two features wearing the same coat. -->
+          <details class="ar-mcp-adv">
+            <summary>Application passwords <span class="ar-mcp-adv__aside">— one key per assistant</span></summary>
           <div class="ar-mcp-step ar-mcp-apppw">
-            <p class="ar-mcp-step__head">Application passwords</p>
             <p class="ar-field__hint">
               A separate WordPress application password per assistant. More to manage, but you can
               revoke one assistant without disturbing the others.
