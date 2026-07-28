@@ -137,12 +137,12 @@ final class Server {
 		$uris = array();
 		if ( isset( $body['redirect_uris'] ) && is_array( $body['redirect_uris'] ) ) {
 			foreach ( $body['redirect_uris'] as $uri ) {
-				$uri = trim( (string) $uri );
-				if ( '' !== $uri && preg_match( '#^[a-zA-Z][a-zA-Z0-9+.\-]*://\S+$#', $uri ) ) {
-					$uris[] = esc_url_raw( $uri );
+				$uri = self::clean_redirect_uri( $uri );
+				if ( '' !== $uri ) {
+					$uris[] = $uri;
 				}
 			}
-			$uris = array_values( array_filter( $uris ) );
+			$uris = array_values( array_unique( $uris ) );
 		}
 		if ( empty( $uris ) ) {
 			return new \WP_Error( 'invalid_client_metadata', 'At least one valid redirect_uri is required.', array( 'status' => 400 ) );
@@ -753,6 +753,39 @@ final class Server {
 		$parts = preg_split( '/\s+/u', $requested );
 		$parts = is_array( $parts ) ? $parts : array();
 		return in_array( 'write', $parts, true ) || in_array( 'mcp', $parts, true );
+	}
+
+	/**
+	 * Validate and clean one registered redirect URI, or '' if unusable.
+	 *
+	 * Deliberately NOT esc_url_raw(): that strips every scheme outside
+	 * WordPress's web allow-list, which silently killed the custom schemes
+	 * desktop MCP clients register (claude://…, cursor://…, vscode://…) —
+	 * registration then failed with "no valid redirect_uri" and the app just
+	 * said it couldn't sign in. Instead: require a syntactically real scheme,
+	 * refuse the ones that can execute (javascript:, data:, vbscript:, file:,
+	 * blob:), and refuse anything with whitespace or control characters, which
+	 * is how a header-splitting payload would arrive.
+	 *
+	 * @param mixed $uri Candidate redirect URI from the registration request.
+	 * @return string The URI, or '' when it must not be stored.
+	 */
+	private static function clean_redirect_uri( $uri ) {
+		$uri = is_string( $uri ) ? trim( $uri ) : '';
+		if ( '' === $uri || strlen( $uri ) > 512 ) {
+			return '';
+		}
+		if ( preg_match( '/[\x00-\x20\x7F]/', $uri ) ) {
+			return ''; // Whitespace or control bytes — never a real callback.
+		}
+		if ( ! preg_match( '#^([a-zA-Z][a-zA-Z0-9+.\-]*)://[^\s]+$#', $uri, $m ) ) {
+			return ''; // Must be scheme://something — an opaque URI is not a callback.
+		}
+		$scheme = strtolower( $m[1] );
+		if ( in_array( $scheme, array( 'javascript', 'data', 'vbscript', 'file', 'blob' ), true ) ) {
+			return '';
+		}
+		return $uri;
 	}
 
 	/**

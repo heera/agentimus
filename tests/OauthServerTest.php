@@ -105,6 +105,35 @@ final class OauthServerTest extends TestCase {
 		$this->assertInstanceOf( \WP_Error::class, $err );
 	}
 
+	/**
+	 * Desktop clients register custom-scheme callbacks. Regression: running
+	 * these through esc_url_raw() stripped every scheme outside WordPress's
+	 * web allow-list, so Claude Desktop's registration failed outright.
+	 */
+	public function test_custom_scheme_callbacks_are_accepted() {
+		$client = Server::register_client(
+			array(
+				'client_name'   => 'Claude Desktop',
+				'redirect_uris' => array( 'claude://oauth/callback', 'http://127.0.0.1:33418/callback' ),
+			)
+		);
+		$this->assertSame(
+			array( 'claude://oauth/callback', 'http://127.0.0.1:33418/callback' ),
+			$client['redirect_uris']
+		);
+	}
+
+	/** Executable and malformed schemes never become a redirect target. */
+	public function test_dangerous_redirect_uris_are_refused() {
+		foreach ( array( 'javascript:alert(1)', 'data:text/html,x', 'file:///etc/passwd', 'https://a b/cb', "https://x/cb\r\nX: y" ) as $bad ) {
+			$this->assertInstanceOf(
+				\WP_Error::class,
+				Server::register_client( array( 'redirect_uris' => array( $bad ) ) ),
+				$bad . ' must not register'
+			);
+		}
+	}
+
 	public function test_registration_mints_a_prefixed_public_client() {
 		$client = $this->register( '  Claude <b>x</b>  ' );
 		$this->assertMatchesRegularExpression( '/^agoc_[0-9a-f]{32}$/', $client['client_id'] );
