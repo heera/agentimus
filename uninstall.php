@@ -25,6 +25,9 @@ function agentimus_uninstall_site() {
 	delete_option( 'agentimus_bot_ranges' );
 	delete_option( 'agentimus_whatsnew_seen' );
 	delete_option( 'agentimus_review_ask' );
+	delete_option( 'agentimus_route_probe' );
+	delete_option( 'agentimus_robots_watch' );
+	delete_option( 'agentimus_mcp_token' );
 	delete_transient( 'agentimus_ranges_pending' );
 	delete_transient( 'agentimus_llms_txt' );
 	delete_transient( 'agentimus_llms_full' );

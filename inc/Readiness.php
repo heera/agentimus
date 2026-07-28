@@ -1,7 +1,9 @@
 <?php
 /**
  * Readiness report — a list of pass/warn/fail checks that the admin "Readiness"
- * panel renders. Each check is cheap and side-effect free.
+ * panel renders. Each check is cheap and never fetches; the rows that need the
+ * site's real served output read RouteProbe's stored summary, and report()
+ * queues that probe's async refresh when the summary is stale.
  *
  * @package Agentimus
  */
@@ -34,6 +36,7 @@ final class Readiness {
 	 * @return array<int,array<string,string>> List of { id, label, status, detail }.
 	 */
 	public function report() {
+		RouteProbe::maybe_schedule(); // Queue the async self-check when stale; rows read stored data only.
 		$checks = array(
 			$this->check_site_public(),
 			$this->check_permalinks(),
@@ -50,8 +53,10 @@ final class Readiness {
 			$this->check_entity_role(),
 			$this->check_security_txt(),
 			$this->check_schema_conflict(),
+			$this->check_head_conflict(),
 			$this->check_seo_coverage(),
 			$this->check_static_robots(),
+			$this->check_robots_change(),
 			$this->check_ai_usage_policy(),
 			$this->check_sitemap(),
 			$this->check_robots_sitemap(),
@@ -182,17 +187,130 @@ final class Readiness {
 			);
 	}
 
+	/**
+	 * The setting alone is not the truth: a static file at the web root, or
+	 * another plugin on the same route, can serve its own /llms.txt while this
+	 * one says "on". The static file is checked directly; the route itself is
+	 * judged from RouteProbe's stored self-check, and when that data is absent
+	 * the row stays a plain pass — never a failure built on a missing probe.
+	 */
 	private function check_llms_txt() {
-		return $this->settings->enabled( 'enable_llms_txt' )
-			? $this->row( 'llms', __( '/llms.txt index', 'agentimus' ), 'pass', sprintf( /* translators: %s: URL. */ __( 'Served at %s.', 'agentimus' ), home_url( '/llms.txt' ) ) )
-			: $this->row(
+		$label = __( '/llms.txt index', 'agentimus' );
+		if ( ! $this->settings->enabled( 'enable_llms_txt' ) ) {
+			return $this->row(
 				'llms',
-				__( '/llms.txt index', 'agentimus' ),
+				$label,
 				'warn',
 				__( 'Disabled. Enable it so agents can discover your content map.', 'agentimus' ),
 				__( 'Turn on “/llms.txt index” under Settings → Features. It publishes a single map of your site that crawlers and agents check first.', 'agentimus' ),
 				$this->nav( __( 'Enable in Features', 'agentimus' ), 'ar-feat-enable_llms_txt' )
 			);
+		}
+
+		if ( file_exists( Paths::site_root() . 'llms.txt' ) ) {
+			return $this->row(
+				'llms',
+				$label,
+				'warn',
+				__( 'A file named llms.txt exists in the site root folder. Visitors and agents get that file, not the index this plugin builds.', 'agentimus' ),
+				__( 'Delete that file to let Agentimus serve its generated index — or keep the file and turn this feature off here.', 'agentimus' ),
+				$this->link( __( 'View llms.txt', 'agentimus' ), home_url( '/llms.txt' ) )
+			);
+		}
+
+		$probe = RouteProbe::data();
+		$llms  = ( is_array( $probe ) && isset( $probe['llms'] ) && is_array( $probe['llms'] ) ) ? $probe['llms'] : null;
+
+		if ( null !== $llms && 200 !== (int) $llms['http'] ) {
+			return $this->row(
+				'llms',
+				$label,
+				'fail',
+				sprintf(
+					/* translators: %d: HTTP status code. */
+					__( 'The setting is on, but the last self-check could not load /llms.txt (HTTP %d).', 'agentimus' ),
+					(int) $llms['http']
+				),
+				__( 'Open /llms.txt in your browser. If it does not load, save Settings → Permalinks once and check again.', 'agentimus' ),
+				$this->link( __( 'View llms.txt', 'agentimus' ), home_url( '/llms.txt' ) )
+			);
+		}
+
+		if ( null !== $llms && empty( $llms['ours'] ) ) {
+			return $this->row(
+				'llms',
+				$label,
+				'fail',
+				__( 'The setting is on, but something else answers /llms.txt on this site. Agents get that file, not the index this plugin builds.', 'agentimus' ),
+				__( 'Another plugin probably has its own llms.txt feature. Turn it off there, or turn it off here, so the site serves one index.', 'agentimus' ),
+				$this->link( __( 'View llms.txt', 'agentimus' ), home_url( '/llms.txt' ) )
+			);
+		}
+
+		$detail = null !== $llms
+			? sprintf( /* translators: %s: URL. */ __( 'Served at %s. A self-check confirmed this plugin’s index is what visitors get.', 'agentimus' ), home_url( '/llms.txt' ) )
+			: sprintf( /* translators: %s: URL. */ __( 'Served at %s.', 'agentimus' ), home_url( '/llms.txt' ) );
+		return $this->row( 'llms', $label, 'pass', $detail );
+	}
+
+	/**
+	 * Duplicate head output — two meta descriptions or two social card blocks
+	 * on the home page mean two plugins (or a theme and a plugin) print the
+	 * same tags, and engines pick one on their own. Reads RouteProbe's stored
+	 * summary; before the first probe lands the row is simply absent (report()
+	 * drops the null), because a verdict without data would be a guess.
+	 */
+	private function check_head_conflict() {
+		$probe = RouteProbe::data();
+		$head  = ( is_array( $probe ) && isset( $probe['head'] ) && is_array( $probe['head'] ) ) ? $probe['head'] : null;
+		if ( null === $head ) {
+			return null;
+		}
+
+		$label        = __( 'Duplicate meta tags', 'agentimus' );
+		$descriptions = (int) $head['descriptions'];
+		$og_titles    = (int) $head['og_titles'];
+
+		if ( $descriptions <= 1 && $og_titles <= 1 ) {
+			return $this->row(
+				'head_dupes',
+				$label,
+				'pass',
+				__( 'The home page has one description tag and one set of social card tags.', 'agentimus' )
+			);
+		}
+
+		$repeated = array();
+		if ( $descriptions > 1 ) {
+			/* translators: %d: number of meta description tags (always 2 or more). */
+			$repeated[] = sprintf( __( '%d description tags', 'agentimus' ), $descriptions );
+		}
+		if ( $og_titles > 1 ) {
+			/* translators: %d: number of og:title tags (always 2 or more). */
+			$repeated[] = sprintf( __( '%d social card titles', 'agentimus' ), $og_titles );
+		}
+		$detail = sprintf(
+			/* translators: %s: the repeated tag kinds with counts, e.g. "2 description tags and 2 social card titles". */
+			__( 'The home page has %s. One of each is correct: when two plugins print the same tag, engines pick one on their own.', 'agentimus' ),
+			implode( __( ' and ', 'agentimus' ), $repeated )
+		);
+		$others = isset( $head['others'] ) ? array_filter( array_map( 'strval', (array) $head['others'] ) ) : array();
+		if ( ! empty( $others ) ) {
+			$detail .= ' ' . sprintf(
+				/* translators: %s: comma-separated list of other tools that mark the page, e.g. "ThinkRank 1.22.0". */
+				__( 'Also printing tags here: %s.', 'agentimus' ),
+				implode( ', ', $others )
+			);
+		}
+
+		return $this->row(
+			'head_dupes',
+			$label,
+			'warn',
+			$detail,
+			__( 'Keep one source for these tags. Turn off the duplicate output in the other plugin or in the theme. When Agentimus sees a known SEO plugin, it steps back by itself.', 'agentimus' ),
+			$this->link( __( 'View home page', 'agentimus' ), home_url( '/' ) )
+		);
 	}
 
 	/**
@@ -672,6 +790,51 @@ final class Readiness {
 			: $this->row( 'robots', __( 'robots.txt control', 'agentimus' ), 'pass', __( 'WordPress serves a virtual robots.txt that this plugin manages.', 'agentimus' ) );
 	}
 
+	/**
+	 * A recent robots.txt change — an observation, not an accusation: the
+	 * owner's own edits land here too, and the copy says so. The row exists
+	 * only while RobotsWatch holds an unexpired change event; report() drops
+	 * the null the rest of the time. Scoreless by design.
+	 */
+	private function check_robots_change() {
+		$change = RobotsWatch::change();
+		if ( null === $change ) {
+			return null;
+		}
+
+		$parts = array();
+		if ( ! empty( $change['added'] ) ) {
+			$parts[] = sprintf(
+				/* translators: 1: number of lines, 2: the lines, e.g. "user-agent: GPTBot; disallow: /". */
+				__( 'New: %2$s', 'agentimus' ),
+				count( $change['added'] ),
+				RobotsWatch::excerpt( $change['added'] )
+			);
+		}
+		if ( ! empty( $change['removed'] ) ) {
+			$parts[] = sprintf(
+				/* translators: 1: number of lines, 2: the lines, e.g. "content-signal: ai-train=no". */
+				__( 'Gone: %2$s', 'agentimus' ),
+				count( $change['removed'] ),
+				RobotsWatch::excerpt( $change['removed'] )
+			);
+		}
+
+		return $this->row(
+			'robots_change',
+			__( 'robots.txt changed', 'agentimus' ),
+			'warn',
+			sprintf(
+				/* translators: 1: date, 2: the changed lines summary. */
+				__( 'The crawler rules in robots.txt changed on %1$s. %2$s', 'agentimus' ),
+				wp_date( get_option( 'date_format', 'F j, Y' ), (int) $change['at'] ),
+				implode( ' ', $parts )
+			),
+			__( 'If you made this change, everything is fine — this note clears itself after two weeks. If you did not, another plugin probably rewrote your robots.txt: check the plugins you activated recently.', 'agentimus' ),
+			$this->link( __( 'View robots.txt', 'agentimus' ), home_url( '/robots.txt' ) )
+		);
+	}
+
 	private function check_ai_usage_policy() {
 		$signal   = (array) $this->settings->get( 'content_signal', array() );
 		$reserved = empty( $signal['ai_train'] );
@@ -851,23 +1014,6 @@ final class Readiness {
 	 * @return array{contents:string,static:bool}
 	 */
 	private function robots_txt_contents() {
-		$file = \Agentimus\Paths::site_root() . 'robots.txt';
-		if ( file_exists( $file ) ) {
-			return array(
-				'contents' => (string) file_get_contents( $file ), // phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents -- local read-only diagnostic.
-				'static'   => true,
-			);
-		}
-
-		$public   = get_option( 'blog_public' );
-		$contents = "User-agent: *\n";
-		$contents .= ( '0' === (string) $public )
-			? "Disallow: /\n"
-			: "Disallow: /wp-admin/\nAllow: /wp-admin/admin-ajax.php\n";
-
-		return array(
-			'contents' => (string) apply_filters( 'robots_txt', $contents, $public ), // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound -- invoking WordPress core's own robots_txt filter to reconstruct the served robots.txt (mirrors do_robots()), not declaring a new hook.
-			'static'   => false,
-		);
+		return RobotsWatch::served(); // One reconstruction, shared with the change watch.
 	}
 }

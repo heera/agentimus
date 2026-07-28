@@ -53,6 +53,7 @@ use Agentimus\BotVerifier;
 use Agentimus\Activity\Referrals;
 use Agentimus\Activity\Repository;
 use Agentimus\AgentAccess\Module as AgentAccess;
+use Agentimus\McpToken;
 use Agentimus\Visibility\Store as VisibilityStore;
 use Agentimus\Visibility\Settings as VisibilitySettings;
 
@@ -889,6 +890,13 @@ final class Registrar {
 			AgentAccess::observe_own_ability( $name );
 			return $execute( $input );
 		};
+
+		// The token-scope cap: a read-only connection token cannot run ANY
+		// write ability, current or future — enforced here so no individual
+		// ability ever has to remember it. Non-token auth passes through.
+		if ( ! $readonly ) {
+			$permission = McpToken::gate_write_permission( $permission );
+		}
 
 		wp_register_ability(
 			$name,

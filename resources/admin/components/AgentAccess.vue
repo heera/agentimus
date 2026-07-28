@@ -127,10 +127,15 @@ export default {
   },
   watch: {
     active(on) {
-      if (on && !this.loaded) this.load();
-      // Opening the screen IS reading it, so the badge clears. Only worth a round-trip when
-      // there is actually something unread.
-      else if (on && this.unseen > 0) this.markSeen();
+      // Every arrival re-fetches page one. The nav badge polls live, so a kept-alive
+      // table can be minutes older than the badge above it — the owner clicks a "1"
+      // and lands on a list that doesn't contain it. Fresh load() also re-runs
+      // markSeen() from the server's CURRENT unseen count, so the badge can never
+      // stay lit over a caught-up table.
+      if (on) {
+        this.trail = [];
+        this.load();
+      }
       // Left the screen — that is when a row stops being news, and it must not take a page reload
       // to say so. The server already recorded these as read the moment they landed in front of
       // the owner; catch the LOCAL rows up to that, or `!e.seen` stays true in memory forever and

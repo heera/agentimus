@@ -29,6 +29,7 @@
 
 namespace Agentimus\AgentAccess;
 
+use Agentimus\McpToken;
 use Agentimus\Settings;
 
 defined( 'ABSPATH' ) || exit;
@@ -428,6 +429,12 @@ final class Module {
 	 * @return string
 	 */
 	private static function current_credential() {
+		// The connection token first: it authenticates without an application
+		// password, and without this branch its runs would wear the misleading
+		// "logged-in session" fallback.
+		if ( McpToken::used_this_request() ) {
+			return McpToken::CRED;
+		}
 		if ( ! function_exists( 'rest_get_authenticated_app_password' ) ) {
 			return '';
 		}

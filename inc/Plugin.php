@@ -90,6 +90,8 @@ final class Plugin {
 		CachePurge::boot();
 		MarkdownCache::register();
 		BotRanges::boot(); // Daily refresh of published bot-IP-range files (self-heals its schedule).
+		RouteProbe::watch(); // Async self-check of /llms.txt and the home <head>; re-queued when the plugin/theme mix changes.
+		McpToken::watch(); // Bearer connection-token auth, honored only on the MCP route.
 
 		( new Endpoints( $this->settings ) )->register();
 		( new Tombstones() )->register(); // Records removals for the change feed (self-gates on enable_changes).
@@ -341,6 +343,7 @@ final class Plugin {
 		Visibility\Module::unschedule();
 		Digest\Module::unschedule();
 		BotRanges::clear_schedule();
+		RouteProbe::clear_schedule();
 		wp_clear_scheduled_hook( 'agentimus_warm_llms_full' );
 		wp_clear_scheduled_hook( Visibility\Module::HOOK_ONCE ); // the one-off "run now" event, if queued.
 		self::flush_rewrites_in_context();

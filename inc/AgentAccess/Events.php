@@ -304,6 +304,12 @@ final class Events {
 	 * @return string
 	 */
 	private static function credential_name( $user_id, $uuid ) {
+		// The shared MCP connection token. Named here, at the one resolver every
+		// consumer goes through, so the events screen and the digest word it the
+		// same — and it can never be mistaken for a revoked app password.
+		if ( \Agentimus\McpToken::CRED === $uuid ) {
+			return 'connection token';
+		}
 		if ( '' === $uuid || $user_id <= 0 || ! class_exists( 'WP_Application_Passwords' ) ) {
 			return '';
 		}

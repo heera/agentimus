@@ -1369,6 +1369,62 @@
 .ar-mcp-status__last a { color: var(--ar-accent); text-decoration: none; white-space: nowrap; }
 .ar-mcp-status__last a:hover { text-decoration: underline; }
 
+/* Connection token — the primary connect path: one revocable secret, then a
+   card per assistant. The cards stay visible (dimmed) before a token exists so
+   the shape of the work is legible before the owner commits to anything. */
+.ar-mcp-token__lead { margin: -4px 0 12px; }
+.ar-mcp-scopes { display: flex; flex-direction: column; gap: 8px; margin-bottom: 14px; }
+.ar-mcp-scope-opt {
+  display: flex; gap: 10px; align-items: flex-start; padding: 10px 12px;
+  border: 1px solid var(--ar-line); border-radius: var(--ar-radius);
+  background: var(--ar-surface-2); cursor: pointer;
+}
+.ar-mcp-scope-opt.is-sel { border-color: var(--ar-accent); box-shadow: 0 0 0 1px var(--ar-accent); }
+.ar-mcp-scope-opt.is-off { opacity: 0.6; cursor: default; }
+.ar-mcp-scope-opt input { margin: 3px 0 0; flex: none; accent-color: var(--ar-accent); }
+.ar-mcp-scope-opt__body { display: flex; flex-direction: column; gap: 2px; }
+.ar-mcp-scope-opt__body strong { font-size: 12.5px; }
+.ar-mcp-scope-opt__body small { font-size: 12px; color: var(--ar-ink-soft); }
+.ar-mcp-token__actions { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-top: 10px; }
+.ar-mcp-token__once {
+  margin: 12px 0; padding: 12px 14px; border-radius: var(--ar-radius);
+  border: 1px solid var(--ar-warn); background: color-mix(in srgb, var(--ar-warn) 8%, var(--ar-surface));
+}
+.ar-mcp-token__row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.ar-mcp-token__value {
+  font-family: var(--ar-mono); font-size: 12.5px; padding: 6px 10px; border-radius: var(--ar-radius);
+  background: var(--ar-surface); border: 1px solid var(--ar-line-strong); word-break: break-all;
+}
+.ar-mcp-token__state { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin: 12px 0 2px; font-size: 12.5px; }
+.ar-mcp-token__state span:not(.ar-mcp-token__dot) { color: var(--ar-ink-soft); }
+.ar-mcp-token__dot { width: 8px; height: 8px; border-radius: 50%; background: var(--ar-good); flex: none; }
+.ar-mcp-token__used { margin: 0; font-size: 12px; color: var(--ar-ink-faint); }
+.ar-mcp-token__used a { color: var(--ar-accent); text-decoration: none; white-space: nowrap; }
+.ar-mcp-token__used a:hover { text-decoration: underline; }
+
+.ar-mcp-cards { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 16px; }
+@media screen and (max-width: 782px) { .ar-mcp-cards { grid-template-columns: 1fr; } }
+.ar-mcp-cards.is-waiting .ar-mcp-card { opacity: 0.72; }
+.ar-mcp-card {
+  border: 1px solid var(--ar-line); border-radius: var(--ar-radius); background: var(--ar-surface-2);
+  padding: 12px 14px; display: flex; flex-direction: column; gap: 8px; min-width: 0;
+}
+.ar-mcp-card.is-soon { border-style: dashed; opacity: 0.66; }
+.ar-mcp-card__title { margin: 0; font-size: 13px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.ar-mcp-card__kind {
+  font-size: 10px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase;
+  color: var(--ar-ink-faint); border: 1px solid var(--ar-line-strong); padding: 1px 6px; border-radius: 999px;
+}
+.ar-mcp-card__soon { margin: 0; font-size: 12px; color: var(--ar-warn); font-weight: 600; }
+.ar-mcp-card__steps { margin: 0; padding-left: 18px; font-size: 12px; color: var(--ar-ink-soft); display: flex; flex-direction: column; gap: 3px; }
+.ar-mcp-card__copyrow { display: flex; gap: 8px; align-items: center; min-width: 0; margin-top: auto; }
+.ar-mcp-card__code {
+  font-family: var(--ar-mono); font-size: 11px; background: var(--ar-surface);
+  border: 1px solid var(--ar-line); padding: 5px 8px; border-radius: var(--ar-radius);
+  flex: 1; min-width: 0; overflow-x: auto; white-space: nowrap;
+}
+.ar-mcp-card__deeplink { text-decoration: none; }
+
 /* Numbered steps — small circled figures, distinct from the card counters. */
 .ar-mcp-step { margin-top: 18px; }
 .ar-mcp-step__head { display: flex; align-items: center; gap: 9px; flex-wrap: wrap; margin: 0 0 9px; font-size: 12.5px; font-weight: 600; color: var(--ar-ink); }

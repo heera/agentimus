@@ -73,6 +73,7 @@ final class Data {
 				'by_source' => (array) ( $referrals_now['bySource'] ?? array() ),
 			),
 			'impostors' => array( 'total' => self::count_between( $from, $to, 2 ) ),
+			'robots'    => array( 'change' => \Agentimus\RobotsWatch::change() ),
 			'access'    => array( 'events' => self::access_events( $from, $to ) ),
 			'score'     => array(
 				'now'  => null !== $report && isset( $report['score'] ) ? (int) $report['score'] : null,

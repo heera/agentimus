@@ -104,6 +104,28 @@ final class Rest {
 
 		register_rest_route(
 			self::NAMESPACE,
+			'/mcp-token',
+			array(
+				array(
+					'methods'             => \WP_REST_Server::READABLE,
+					'callback'            => array( $this, 'mcp_token_status' ),
+					'permission_callback' => array( $this, 'can_manage' ),
+				),
+				array(
+					'methods'             => \WP_REST_Server::CREATABLE,
+					'callback'            => array( $this, 'mcp_token_create' ),
+					'permission_callback' => array( $this, 'can_manage' ),
+				),
+				array(
+					'methods'             => \WP_REST_Server::DELETABLE,
+					'callback'            => array( $this, 'mcp_token_revoke' ),
+					'permission_callback' => array( $this, 'can_manage' ),
+				),
+			)
+		);
+
+		register_rest_route(
+			self::NAMESPACE,
 			'/changelog',
 			array(
 				'methods'             => \WP_REST_Server::READABLE,
@@ -505,6 +527,53 @@ final class Rest {
 				'reset'        => true,
 			)
 		);
+	}
+
+	/**
+	 * GET /mcp-token — the connection token's safe metadata: enough for the
+	 * screen, never the secret.
+	 *
+	 * @return \WP_REST_Response
+	 */
+	public function mcp_token_status() {
+		return rest_ensure_response( array( 'token' => McpToken::status() ) );
+	}
+
+	/**
+	 * POST /mcp-token — create (or rotate — same act) the connection token. The
+	 * plaintext rides this one response and is never available again.
+	 *
+	 * @param \WP_REST_Request $request { scope: 'read'|'write' }.
+	 * @return \WP_REST_Response|\WP_Error
+	 */
+	public function mcp_token_create( \WP_REST_Request $request ) {
+		$scope = 'write' === (string) $request->get_param( 'scope' ) ? 'write' : 'read';
+		// A "write" token makes no promise the walls don't back: refuse the
+		// mismatch loudly instead of minting a key that can't open anything.
+		if ( 'write' === $scope && ! $this->settings->enabled( 'enable_agent_writes' ) ) {
+			return new \WP_Error(
+				'agentimus_writes_off',
+				__( 'Turn on “Let connected agents write” first — a write token can’t do anything while writing is off.', 'agentimus' ),
+				array( 'status' => 409 )
+			);
+		}
+		$plaintext = McpToken::create( $scope, get_current_user_id() );
+		return rest_ensure_response(
+			array(
+				'plaintext' => $plaintext,
+				'token'     => McpToken::status(),
+			)
+		);
+	}
+
+	/**
+	 * DELETE /mcp-token — revoke: disconnect everything at once.
+	 *
+	 * @return \WP_REST_Response
+	 */
+	public function mcp_token_revoke() {
+		McpToken::revoke();
+		return rest_ensure_response( array( 'token' => null ) );
 	}
 
 	/**

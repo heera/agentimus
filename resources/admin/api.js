@@ -61,6 +61,12 @@ export function createApi(boot) {
     // MCP-server liveness for the settings card — authenticated, so no unauthenticated
     // probe of the auth-gated MCP endpoint (which logged a console 401). Returns { running }.
     getMcpStatus: () => request('/mcp-status'),
+    // The connection token: status is metadata only; create returns the plaintext
+    // exactly once (the server keeps a fingerprint), and delete disconnects every client.
+    getMcpToken: () => request('/mcp-token'),
+    createMcpToken: (scope) =>
+      request('/mcp-token', { method: 'POST', body: JSON.stringify({ scope }) }),
+    revokeMcpToken: () => request('/mcp-token', { method: 'DELETE' }),
     getActivity: () => request('/activity'),
     getActivityDay: (date) => request(`/activity/day?date=${encodeURIComponent(date)}`),
     // The AI-traffic screen's own report: a day range (bounded by retention, not the

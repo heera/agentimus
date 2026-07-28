@@ -1551,6 +1551,7 @@ export default {
         <SettingsForm
           v-show="tab === 'settings'"
           ref="settingsForm"
+          :active="tab === 'settings'"
           :busy="savingSettings"
           :api="api"
           v-model:settings="settings"

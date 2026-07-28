@@ -4,6 +4,7 @@ import SelectMenu from './SelectMenu.vue';
 import IpChecker from './IpChecker.vue';
 import ClientManager from './ClientManager.vue';
 import { bindDocEsc } from '../docEsc.js';
+import { confirm } from '../confirm.js';
 import { uaTip } from '../uaTip.js';
 import { formatDate, formatTime } from '../wpDate.js';
 
@@ -17,6 +18,9 @@ export default {
   mixins: [uaTip],
   props: {
     settings: { type: Object, required: true },
+    // Reveal signal (the form stays mounted behind v-show). Arriving re-fetches the
+    // token's last-used line, which otherwise sits frozen at its page-load state.
+    active: { type: Boolean, default: false },
     retentionChoices: { type: Array, default: () => [7, 14, 30, 60, 90, 180, 365] },
     maxRowsChoices: { type: Array, default: () => [10000, 25000, 50000, 100000, 250000] },
     busy: { type: Boolean, default: false },
@@ -76,6 +80,17 @@ export default {
       oauthChecking: false,
       oauthCheck: null,
       mcpCopied: false,
+      // The connection token (the primary connect path). `mcpTokenPlain` holds the
+      // plaintext for THIS page life only — the server keeps a fingerprint and can
+      // never show it again, so a reload legitimately loses it.
+      mcpToken: null,
+      mcpTokenPlain: '',
+      mcpTokenScope: 'read',
+      mcpTokenBusy: false,
+      mcpTokenError: '',
+      mcpTokenCopied: false,
+      mcpCardCopied: '',
+      mcpAppPwOpen: false, // the per-client application-password path, folded away
       // The MCP connect helper. The pasted/minted application password lives ONLY
       // in this component's state — never saved, never sent anywhere except into
       // the config text the user copies. Navigating away forgets it.
@@ -105,7 +120,10 @@ export default {
     // Status probe for the MCP card — only meaningful for the SAVED state; a
     // freshly flipped toggle shows "turns on when you save" instead.
     this.mcpSavedEnabled = !!(this.settings && this.settings.enable_mcp_server);
-    if (this.mcpSavedEnabled) this.probeMcpStatus();
+    if (this.mcpSavedEnabled) {
+      this.probeMcpStatus();
+      this.loadMcpToken();
+    }
   },
   beforeUnmount() {
     window.removeEventListener('resize', this.updateScrollHint);
@@ -125,8 +143,22 @@ export default {
     busy(now, was) {
       if (was && !now) {
         this.mcpSavedEnabled = !!(this.settings && this.settings.enable_mcp_server);
-        if (this.mcpSavedEnabled) this.probeMcpStatus();
+        if (this.mcpSavedEnabled) {
+          this.probeMcpStatus();
+          this.loadMcpToken();
+        }
       }
+    },
+    // Same catch-up rule as the Agent Access screen: arriving at Settings re-reads
+    // the token's metadata, so "Not used yet" / "Last used…" tells today's truth,
+    // not the page-load's. (The plaintext is untouched — it only exists at creation.)
+    active(on) {
+      if (on && this.mcpSavedEnabled) this.loadMcpToken();
+    },
+    // Turning the write tier off must not leave a "read and write" choice
+    // selected — the walls moved, so the key's request follows them down.
+    'settings.enable_agent_writes'(on) {
+      if (!on && 'write' === this.mcpTokenScope) this.mcpTokenScope = 'read';
     },
     // A different key invalidates any test verdict on screen.
     mcpPassword() {
@@ -228,6 +260,107 @@ export default {
     // endpoint, username and the encoded login are all filled in here, in the
     // browser. Hand-computing base64 was the step users actually failed on
     // (and the shell trick for it doesn't exist on Windows).
+    // The connection-token cards. Each says how one client is added; the ones
+    // needing OAuth (Wave 2) are listed as coming, not hidden — the owner should
+    // see the whole map. `cmd` cards copy a line; `deep` cards open the editor.
+    mcpConnectCards() {
+      const url = (this.mcpServer && this.mcpServer.endpoint) || '';
+      const tok = this.mcpTokenPlain;
+      const auth = tok ? `Authorization: Bearer ${tok}` : 'Authorization: Bearer <TOKEN>';
+      return [
+        {
+          key: 'claude-code',
+          label: 'Claude Code',
+          kind: 'Terminal',
+          steps: ['Copy the command.', 'Run it in your terminal. Done.'],
+          copy: `claude mcp add --transport http agentimus ${url} --header "${auth}"`,
+        },
+        {
+          key: 'claude-desktop',
+          label: 'Claude Desktop',
+          kind: 'App',
+          steps: ['Settings → Connectors → Add custom connector.', 'Paste the address, then add the token when asked.'],
+          copy: url,
+        },
+        {
+          key: 'cursor',
+          label: 'Cursor',
+          kind: 'Editor',
+          steps: ['Click the button — Cursor opens, already filled in.', 'Confirm the install inside Cursor.'],
+          deeplink: this.cursorDeeplink,
+          deeplinkLabel: 'Add to Cursor',
+          note: 'Needs a recent Cursor — old versions ignore the button and show nothing.',
+        },
+        {
+          key: 'vscode',
+          label: 'VS Code',
+          kind: 'Editor',
+          steps: ['Click the button — VS Code opens, already filled in.', 'Confirm the install inside VS Code.'],
+          deeplink: this.vscodeDeeplink,
+          deeplinkLabel: 'Add to VS Code',
+        },
+        {
+          key: 'claude-ai',
+          label: 'Claude on claude.ai',
+          kind: 'Web · Mobile',
+          soon: 'Coming next: connect with a one-time approval — no token to paste.',
+        },
+        {
+          key: 'chatgpt',
+          label: 'ChatGPT',
+          kind: 'Web',
+          soon: 'Coming next: connect with a one-time approval — no token to paste.',
+        },
+        {
+          key: 'other',
+          label: 'Any MCP client',
+          kind: 'Generic',
+          steps: ['Server address: the line below.', `Send the token as ${auth}`],
+          copy: url,
+        },
+      ];
+    },
+    // Cursor takes base64-encoded JSON; VS Code takes URL-encoded JSON. Both
+    // carry the header so the client arrives already authenticated.
+    mcpDeeplinkConfig() {
+      return {
+        type: 'http',
+        url: (this.mcpServer && this.mcpServer.endpoint) || '',
+        headers: { Authorization: `Bearer ${this.mcpTokenPlain}` },
+      };
+    },
+    cursorDeeplink() {
+      if (!this.mcpTokenPlain) return '';
+      const json = JSON.stringify(this.mcpDeeplinkConfig);
+      let b64;
+      try {
+        b64 = btoa(json);
+      } catch (e) {
+        b64 = btoa(unescape(encodeURIComponent(json)));
+      }
+      return `cursor://anysphere.cursor-deeplink/mcp/install?name=agentimus&config=${encodeURIComponent(b64)}`;
+    },
+    vscodeDeeplink() {
+      if (!this.mcpTokenPlain) return '';
+      const cfg = encodeURIComponent(JSON.stringify({ name: 'agentimus', ...this.mcpDeeplinkConfig }));
+      return `vscode:mcp/install?${cfg}`;
+    },
+    // "Read and write" can only be offered when the write tier is actually on —
+    // the token is a door key, the settings are the walls.
+    mcpWritesAvailable() {
+      return !!this.settings.enable_agent_writes;
+    },
+    mcpTokenCreatedText() {
+      if (!this.mcpToken) return '';
+      return formatDate(new Date(this.mcpToken.created_at * 1000));
+    },
+    // The line ThinkRank can't print: our own request log knows who called last.
+    mcpTokenLastUsedText() {
+      if (!this.mcpToken || !this.mcpToken.last_used_at) return '';
+      const who = (this.mcpToken.last_used_ua || '').trim();
+      const when = this.relTime(new Date(this.mcpToken.last_used_at * 1000).toISOString());
+      return who ? `Last used ${when} by ${who}` : `Last used ${when}`;
+    },
     mcpClients() {
       // Desktop-app agents lead (most Agentimus owners aren't coders), the
       // developer CLIs follow. Code editors (Cursor, VS Code, Windsurf) are
@@ -885,6 +1018,83 @@ export default {
       this.mcpCopied = true;
       clearTimeout(this._mcpCopyTimer);
       this._mcpCopyTimer = setTimeout(() => { this.mcpCopied = false; }, 2000);
+    },
+    /* ---- connection token ---------------------------------------------- */
+    async loadMcpToken() {
+      try {
+        const res = await this.api.getMcpToken();
+        this.mcpToken = (res && res.token) || null;
+        if (this.mcpToken) this.mcpTokenScope = this.mcpToken.scope;
+      } catch (e) {
+        this.mcpToken = null;
+      }
+    },
+    // Create or rotate — the same act. Rotating ends every current connection,
+    // so the button that calls this says so.
+    async createMcpToken() {
+      if (this.mcpTokenBusy) return;
+      this.mcpTokenBusy = true;
+      this.mcpTokenError = '';
+      try {
+        const res = await this.api.createMcpToken(this.mcpTokenScope);
+        this.mcpTokenPlain = (res && res.plaintext) || '';
+        this.mcpToken = (res && res.token) || null;
+      } catch (e) {
+        this.mcpTokenError = e.message || 'Could not create the token.';
+      } finally {
+        this.mcpTokenBusy = false;
+      }
+    },
+    // Rotation is as final as disconnection for every currently connected
+    // assistant, so it earns the same dialog — and the warning lives THERE,
+    // not in a hint line beside the button.
+    async confirmRotateMcpToken() {
+      const ok = await confirm({
+        title: 'Rotate the connection token?',
+        message: 'Rotating ends every current connection at once. Assistants can only reconnect with the new token.',
+        confirmLabel: 'Rotate Token',
+        cancelLabel: 'Cancel',
+        tone: 'danger',
+      });
+      if (ok) this.createMcpToken();
+    },
+    // The kill switch goes through the shared danger dialog — a quiet inline
+    // confirm proved missable in the very first review walk.
+    async confirmRevokeMcpToken() {
+      const ok = await confirm({
+        title: 'Disconnect every assistant?',
+        message: 'The connection token stops working right away. Every assistant using it loses access until you create a new token.',
+        confirmLabel: 'Disconnect Everything',
+        cancelLabel: 'Cancel',
+        tone: 'danger',
+      });
+      if (ok) this.revokeMcpToken();
+    },
+    async revokeMcpToken() {
+      if (this.mcpTokenBusy) return;
+      this.mcpTokenBusy = true;
+      this.mcpTokenError = '';
+      try {
+        await this.api.revokeMcpToken();
+        this.mcpToken = null;
+        this.mcpTokenPlain = '';
+      } catch (e) {
+        this.mcpTokenError = e.message || 'Could not disconnect.';
+      } finally {
+        this.mcpTokenBusy = false;
+      }
+    },
+    async copyMcpTokenPlain() {
+      if (!(await this.copyPlainText(this.mcpTokenPlain))) return;
+      this.mcpTokenCopied = true;
+      clearTimeout(this._mcpTokenCopyTimer);
+      this._mcpTokenCopyTimer = setTimeout(() => { this.mcpTokenCopied = false; }, 2000);
+    },
+    async copyMcpCard(card) {
+      if (!card.copy || !(await this.copyPlainText(card.copy))) return;
+      this.mcpCardCopied = card.key;
+      clearTimeout(this._mcpCardCopyTimer);
+      this._mcpCardCopyTimer = setTimeout(() => { this.mcpCardCopied = ''; }, 2000);
     },
     async copyMcpSnippet() {
       if (!(await this.copyPlainText(this.mcpSnippet))) return;
@@ -1730,25 +1940,133 @@ export default {
             site needs HTTPS (WordPress won’t issue application passwords without it anyway).
           </p>
 
-          <!-- ① the tool -->
-          <div class="ar-mcp-step">
-            <p class="ar-mcp-step__head"><span class="ar-mcp-step__n" aria-hidden="true">1</span>Pick your AI tool</p>
-            <div class="ar-rev-tabs ar-mcp-tabs" role="tablist" aria-label="AI tool">
-              <button
-                v-for="c in mcpClients"
-                :key="c.key"
-                type="button"
-                class="ar-rev-tab"
-                :class="{ 'is-active': mcpClient === c.key }"
-                role="tab"
-                :aria-selected="mcpClient === c.key"
-                @click="pickMcpClient(c.key)"
-              >{{ c.label }}</button>
+          <!-- The connection token: one revocable secret for every client.
+               Created here, shown once, and capped by the write tier above. -->
+          <div class="ar-mcp-step ar-mcp-token">
+            <p class="ar-mcp-step__head">Connect an assistant</p>
+            <p class="ar-field__hint ar-mcp-token__lead">
+              One connection token works for every assistant below. You can rotate it or end
+              every connection with one click.
+            </p>
+
+            <!-- No token yet: choose what it may do, then create it. -->
+            <template v-if="!mcpToken">
+              <div class="ar-mcp-scopes" role="radiogroup" aria-label="What the assistant may do">
+                <label class="ar-mcp-scope-opt" :class="{ 'is-sel': mcpTokenScope === 'read' }">
+                  <input v-model="mcpTokenScope" type="radio" value="read" name="ar-mcp-scope" />
+                  <span class="ar-mcp-scope-opt__body">
+                    <strong>Read only</strong>
+                    <small>The assistant can look things up. It can never change anything.</small>
+                  </span>
+                </label>
+                <label
+                  class="ar-mcp-scope-opt"
+                  :class="{ 'is-sel': mcpTokenScope === 'write', 'is-off': !mcpWritesAvailable }"
+                >
+                  <input v-model="mcpTokenScope" type="radio" value="write" name="ar-mcp-scope" :disabled="!mcpWritesAvailable" />
+                  <span class="ar-mcp-scope-opt__body">
+                    <strong>Read and write</strong>
+                    <small v-if="mcpWritesAvailable">Can also draft and edit — always within the write settings above.</small>
+                    <small v-else>Turn on “Let connected agents write” above to offer this.</small>
+                  </span>
+                </label>
+              </div>
+              <div class="ar-mcp-token__actions">
+                <button type="button" class="ar-btn" :disabled="mcpTokenBusy" @click="createMcpToken">
+                  {{ mcpTokenBusy ? 'Creating…' : 'Create connection token' }}
+                </button>
+              </div>
+            </template>
+
+            <!-- Just created: the one and only sighting of the secret. -->
+            <div v-if="mcpTokenPlain" class="ar-mcp-token__once">
+              <div class="ar-mcp-token__row">
+                <code class="ar-mcp-token__value">{{ mcpTokenPlain }}</code>
+                <button type="button" class="button button-small" @click="copyMcpTokenPlain">
+                  {{ mcpTokenCopied ? 'Copied' : 'Copy' }}
+                </button>
+              </div>
+              <p class="ar-field__hint">
+                <strong>Shown once.</strong> Copy it now — Agentimus keeps only a fingerprint, so it
+                cannot show it again. Lost it? Rotate and get a new one.
+              </p>
             </div>
+
+            <!-- A token exists: state, last use, and the two dangerous buttons. -->
+            <template v-if="mcpToken">
+              <p class="ar-mcp-token__state">
+                <span class="ar-mcp-token__dot" aria-hidden="true"></span>
+                <strong>Token active</strong>
+                <span>· created {{ mcpTokenCreatedText }} · {{ mcpToken.scope === 'write' ? 'Read and write' : 'Read only' }}</span>
+              </p>
+              <p v-if="mcpTokenLastUsedText" class="ar-mcp-token__used">
+                {{ mcpTokenLastUsedText }} — <a href="#agent-access">see it in Agent Access →</a>
+              </p>
+              <p v-else class="ar-field__hint">Not used yet. The moment an assistant calls, it shows up here and in Agent Access.</p>
+              <div class="ar-mcp-token__actions">
+                <button type="button" class="ar-btn ar-btn--ghost" :disabled="mcpTokenBusy" @click="confirmRotateMcpToken">Rotate Token</button>
+                <button type="button" class="ar-btn ar-btn--danger" :disabled="mcpTokenBusy" @click="confirmRevokeMcpToken">Disconnect Everything</button>
+              </div>
+            </template>
+            <p v-if="mcpTokenError" class="ar-field__hint ar-mcp-key__err" role="alert">{{ mcpTokenError }}</p>
+
+            <!-- One card per client. Dimmed until a token exists, so the shape of
+                 the work is visible before you commit to anything. -->
+            <div class="ar-mcp-cards" :class="{ 'is-waiting': !mcpTokenPlain }">
+              <div v-for="card in mcpConnectCards" :key="card.key" class="ar-mcp-card" :class="{ 'is-soon': card.soon }">
+                <h4 class="ar-mcp-card__title">
+                  {{ card.label }} <span class="ar-mcp-card__kind">{{ card.kind }}</span>
+                </h4>
+                <p v-if="card.soon" class="ar-mcp-card__soon">{{ card.soon }}</p>
+                <template v-else>
+                  <ol class="ar-mcp-card__steps">
+                    <li v-for="(s, i) in card.steps" :key="i">{{ s }}</li>
+                  </ol>
+                  <div v-if="card.copy" class="ar-mcp-card__copyrow">
+                    <code class="ar-mcp-card__code">{{ mcpTokenPlain ? card.copy : 'Create a token first — your setup line appears here.' }}</code>
+                    <button type="button" class="button button-small" :disabled="!mcpTokenPlain" @click="copyMcpCard(card)">
+                      {{ mcpCardCopied === card.key ? 'Copied' : 'Copy' }}
+                    </button>
+                  </div>
+                  <div v-else-if="card.deeplink !== undefined" class="ar-mcp-card__copyrow">
+                    <a v-if="mcpTokenPlain" class="ar-btn ar-btn--ghost ar-mcp-card__deeplink" :href="card.deeplink">{{ card.deeplinkLabel }}</a>
+                    <span v-else class="ar-field__hint">Create a token first — the button appears here.</span>
+                  </div>
+                  <p v-if="card.note" class="ar-field__hint">{{ card.note }}</p>
+                </template>
+              </div>
+            </div>
+            <p v-if="mcpToken && !mcpTokenPlain" class="ar-field__hint">
+              The setup lines need the token itself, and it was only shown when you created it.
+              Rotate to get a fresh one — every current connection ends when you do.
+            </p>
           </div>
 
-          <!-- ② the key. One click mints an application password for the signed-in
-               user via core's own endpoint; pasting an existing one works too. -->
+          <!-- The per-client path, folded away: one application password per tool,
+               for owners who want to revoke tools individually. -->
+          <details class="ar-mcp-adv" @toggle="mcpAppPwOpen = $event.target.open">
+            <summary>Prefer one key per assistant? Use application passwords</summary>
+            <p class="ar-field__hint">
+              A separate WordPress application password per assistant. More to manage, but you can
+              revoke one assistant without disturbing the others.
+            </p>
+
+            <div class="ar-mcp-step">
+              <p class="ar-mcp-step__head"><span class="ar-mcp-step__n" aria-hidden="true">1</span>Pick your AI tool</p>
+              <div class="ar-rev-tabs ar-mcp-tabs" role="tablist" aria-label="AI tool">
+                <button
+                  v-for="c in mcpClients"
+                  :key="c.key"
+                  type="button"
+                  class="ar-rev-tab"
+                  :class="{ 'is-active': mcpClient === c.key }"
+                  role="tab"
+                  :aria-selected="mcpClient === c.key"
+                  @click="pickMcpClient(c.key)"
+                >{{ c.label }}</button>
+              </div>
+            </div>
+
           <div class="ar-mcp-step">
             <p class="ar-mcp-step__head">
               <span class="ar-mcp-step__n" aria-hidden="true">2</span>Give it a key
@@ -1913,6 +2231,7 @@ export default {
               the user and key it signed in with.
             </p>
           </div>
+          </details>
 
           <!-- The raw facts, for the 1% who need them. -->
           <details class="ar-mcp-adv">

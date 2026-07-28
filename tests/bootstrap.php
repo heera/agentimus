@@ -93,6 +93,7 @@ namespace {
 	// script/style etc. — close enough to assert "dangerous input doesn't survive".
 	if ( ! function_exists( 'wp_kses_post' ) )          { function wp_kses_post( $s ) { $s = preg_replace( '#<(script|style)\b[^>]*>.*?</\1>#is', '', (string) $s ); return strip_tags( $s, '<h2><h3><p><ul><ol><li><strong><em><a><blockquote><code><pre>' ); } }
 	if ( ! function_exists( 'number_format_i18n' ) )    { function number_format_i18n( $n, $d = 0 ) { return number_format( (float) $n, (int) $d ); } }
+	if ( ! function_exists( 'wp_date' ) )               { function wp_date( $format, $timestamp = null ) { return gmdate( $format, null === $timestamp ? time() : (int) $timestamp ); } }
 	if ( ! function_exists( 'plugin_basename' ) )       { function plugin_basename( $f ) { return basename( dirname( $f ) ) . '/' . basename( $f ); } }
 	if ( ! function_exists( 'home_url' ) )              { function home_url( $path = '' ) { $b = 'https://example.test'; $path = (string) $path; return '' === $path ? $b . '/' : $b . ( '/' === $path[0] ? $path : '/' . $path ); } }
 	if ( ! function_exists( 'admin_url' ) )             { function admin_url( $path = '' ) { return 'https://example.test/wp-admin/' . ltrim( (string) $path, '/' ); } }
@@ -155,6 +156,8 @@ namespace {
 	if ( ! function_exists( 'flush_rewrite_rules' ) )   { function flush_rewrite_rules( $hard = true ) { $GLOBALS['_af_flush_count'] = (int) ( $GLOBALS['_af_flush_count'] ?? 0 ) + 1; return true; } }
 	if ( ! function_exists( 'add_option' ) )            { function add_option( $k, $v ) { $GLOBALS['_af_options'][ $k ] = $v; return true; } }
 	if ( ! function_exists( 'delete_option' ) )         { function delete_option( $k ) { unset( $GLOBALS['_af_options'][ $k ] ); return true; } }
+	// Users exist when listed in $_af_users (id => object|true); unknown ids resolve false like core.
+	if ( ! function_exists( 'get_userdata' ) )          { function get_userdata( $id ) { return isset( $GLOBALS['_af_users'][ (int) $id ] ) ? (object) array( 'ID' => (int) $id ) : false; } }
 	if ( ! function_exists( 'current_time' ) )          { function current_time( $type, $gmt = 0 ) { return 'timestamp' === $type ? time() : gmdate( 'Y-m-d H:i:s' ); } }
 	if ( ! function_exists( 'get_post' ) )              { function get_post( $id = 0 ) { if ( is_object( $id ) ) { return $id; } $id = (int) $id; if ( ! $id ) { $id = (int) ( $GLOBALS['_af_current_post_id'] ?? 0 ); } return isset( $GLOBALS['_af_posts'][ $id ] ) ? $GLOBALS['_af_posts'][ $id ] : null; } }
 	if ( ! function_exists( 'post_type_exists' ) )      { function post_type_exists( $t ) { return in_array( (string) $t, (array) ( $GLOBALS['_af_post_types_exist'] ?? array() ), true ); } }
@@ -194,6 +197,7 @@ namespace {
 	if ( ! function_exists( 'wp_sitemaps_get_server' ) )       { function wp_sitemaps_get_server() { return new class() { public function sitemaps_enabled() { return (bool) apply_filters( 'wp_sitemaps_enabled', ! empty( $GLOBALS['_af_core_sitemaps'] ) ); } }; } }
 	if ( ! function_exists( 'current_theme_supports' ) ) { function current_theme_supports( $feature ) { return isset( $GLOBALS['_af_theme_supports'][ $feature ] ) ? (bool) $GLOBALS['_af_theme_supports'][ $feature ] : true; } }
 	if ( ! function_exists( 'get_the_category' ) )      { function get_the_category( $id = false ) { return isset( $GLOBALS['_af_categories'] ) ? (array) $GLOBALS['_af_categories'] : array(); } }
+	if ( ! function_exists( 'get_categories' ) )        { function get_categories( $args = array() ) { return isset( $GLOBALS['_af_categories'] ) ? (array) $GLOBALS['_af_categories'] : array(); } }
 	if ( ! function_exists( 'get_category_link' ) )     { function get_category_link( $cat ) { return 'https://example.com/cat/'; } }
 	// Post-meta + taxonomy surface for the Topics tests. Meta is a stateful id→[key→value]
 	// store; terms are id→[taxonomy→names]; is_object_in_taxonomy() knows the two core taxonomies.
@@ -277,6 +281,11 @@ namespace Agentimus {
 			}
 			public static function post_types() { return self::available(); }
 			public static function source( $post_type ) { return ''; }
+			// The llms.txt index walks these three; empty sections keep the generated
+			// index to its header + about block, which is all the probe tests need.
+			public static function index_sections() { return self::post_types(); }
+			public static function query( $post_type, $limit = 50 ) { return array(); }
+			public static function label( $post_type ) { return ucfirst( (string) $post_type ); }
 			// Mirrors the real Content::markdown_source closely enough for the Markdown
 			// privacy tests: run the (mocked) the_content filter over the stored body,
 			// with the same blank-render fallback to the post's own blocks.

@@ -133,6 +133,24 @@ final class AgentAccessEventsTest extends TestCase {
 		$this->assertFalse( $out['seen'] );
 	}
 
+	/**
+	 * The MCP connection token's sentinel credential resolves to its human
+	 * label — never to the "revoked app password" fallback the UI would
+	 * otherwise word it as. Drift guard between McpToken::CRED and the one
+	 * resolver every consumer (events screen, digest) goes through.
+	 */
+	public function test_shape_names_the_connection_token_credential() {
+		$out = Events::shape(
+			array(
+				'kind'    => Events::KIND_ABILITY_USED,
+				'user_id' => '3',
+				'cred'    => \Agentimus\McpToken::CRED,
+				'subject' => 'agentimus/read-readiness',
+			)
+		);
+		$this->assertSame( 'connection token', $out['credName'] );
+	}
+
 	public function test_shape_exposes_exactly_the_agreed_fields_and_no_personal_data() {
 		// A standing guarantee, not a style point: this feature stores no personal data, which is
 		// what keeps it out of the privacy declaration and out of alert-fatigue territory (every

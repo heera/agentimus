@@ -63,6 +63,7 @@ final class SeoContextTest extends TestCase {
 			'aioseo'       => array( 'All in One SEO', '/sitemap.xml' ),
 			'seopress'     => array( 'SEOPress', '/sitemap.xml' ),
 			'seoframework' => array( 'The SEO Framework', '/sitemap.xml' ),
+			'thinkrank'    => array( 'ThinkRank', '/sitemap.xml' ),
 		);
 
 		foreach ( $expected as $id => $want ) {
@@ -73,10 +74,10 @@ final class SeoContextTest extends TestCase {
 		}
 	}
 
-	/** The table covers exactly the five known suites — a new entry must extend this suite. */
-	public function test_table_covers_the_five_known_suites() {
+	/** The table covers exactly the six known suites — a new entry must extend this suite. */
+	public function test_table_covers_the_six_known_suites() {
 		$this->assertSame(
-			array( 'yoast', 'rankmath', 'aioseo', 'seopress', 'seoframework' ),
+			array( 'yoast', 'rankmath', 'aioseo', 'seopress', 'seoframework', 'thinkrank' ),
 			array_column( SeoContext::suites(), 'id' )
 		);
 	}

@@ -39,7 +39,8 @@ final class Renderer {
 		$access    = (int) ( $data['access']['events'] ?? 0 );
 		$score     = isset( $data['score'] ) && is_array( $data['score'] ) ? $data['score'] : array();
 		$moved     = isset( $score['prev'], $score['now'] ) && null !== $score['prev'] && null !== $score['now'] && (int) $score['prev'] !== (int) $score['now'];
-		return $agents > 0 || $referrals > 0 || $access > 0 || $moved;
+		$robots    = ! empty( $data['robots']['change'] ); // A policy change is news even on a quiet week.
+		return $agents > 0 || $referrals > 0 || $access > 0 || $moved || $robots;
 	}
 
 	/**
@@ -81,6 +82,7 @@ final class Renderer {
 		$out .= self::section_agents( $data );
 		$out .= self::section_referrals( $data );
 		$out .= self::section_impostors( $data );
+		$out .= self::section_robots( $data );
 		$out .= self::section_access( $data );
 		$out .= self::section_score( $data );
 		$out .= self::section_nudge( $data );
@@ -183,6 +185,22 @@ final class Renderer {
 			number_format_i18n( $total )
 		);
 		return self::section( __( 'Impostors', 'agentimus' ), self::stat_row( $line, '' ) );
+	}
+
+	/** A robots.txt policy change this period — absent when nothing changed. */
+	private static function section_robots( array $data ) {
+		$change = isset( $data['robots']['change'] ) && is_array( $data['robots']['change'] ) ? $data['robots']['change'] : null;
+		if ( null === $change ) {
+			return '';
+		}
+		$line = sprintf(
+			/* translators: 1: date, 2: lines added, 3: lines removed. */
+			__( 'Your robots.txt crawler rules changed on %1$s (%2$d lines added, %3$d removed). If that was not you, check your recently activated plugins.', 'agentimus' ),
+			wp_date( get_option( 'date_format', 'F j, Y' ), (int) $change['at'] ),
+			count( (array) $change['added'] ),
+			count( (array) $change['removed'] )
+		);
+		return self::section( __( 'robots.txt changed', 'agentimus' ), self::stat_row( $line, '' ) );
 	}
 
 	/** Authenticated agent activity. The store is event-keyed, so say "events", never "calls". */

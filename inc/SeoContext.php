@@ -62,8 +62,8 @@ final class SeoContext {
 	 * it is the sitemap detector's historical order, kept so `source` values
 	 * in existing installs never change.
 	 *
-	 * Yoast and Rank Math serve `/sitemap_index.xml`; AIOSEO, SEOPress and
-	 * The SEO Framework serve `/sitemap.xml`.
+	 * Yoast and Rank Math serve `/sitemap_index.xml`; AIOSEO, SEOPress,
+	 * The SEO Framework and ThinkRank serve `/sitemap.xml`.
 	 *
 	 * @return array<int,array{active:bool,id:string,label:string,sitemap_path:string}>
 	 */
@@ -97,6 +97,12 @@ final class SeoContext {
 				'active'       => class_exists( '\\The_SEO_Framework\\Load' ),
 				'id'           => 'seoframework',
 				'label'        => __( 'The SEO Framework', 'agentimus' ),
+				'sitemap_path' => '/sitemap.xml',
+			),
+			array(
+				'active'       => defined( 'THINKRANK_VERSION' ),
+				'id'           => 'thinkrank',
+				'label'        => __( 'ThinkRank', 'agentimus' ),
 				'sitemap_path' => '/sitemap.xml',
 			),
 		);
