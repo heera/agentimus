@@ -34,6 +34,29 @@ final class RewriteFlushTest extends TestCase {
 		$this->assertNotSame( '', $this->signature() );
 	}
 
+	/**
+	 * Every rewrite this plugin owns must be IN the fingerprint, or a change to
+	 * it ships without a flush — and an unrouted consent page 404s, killing the
+	 * connect flow with no error anyone can read. The OAuth well-known paths and
+	 * the consent page's query var are the ones added in the OAuth round.
+	 */
+	public function test_signature_covers_every_rewrite_we_own() {
+		$sig = $this->signature();
+		foreach ( array( 'oauth-authorization-server/agentimus/mcp', 'oauth-protected-resource/agentimus/mcp' ) as $path ) {
+			$this->assertContains( $path, \Agentimus\Discovery\WellKnown::nested_routes() );
+		}
+		// The consent rule is fingerprinted by its query var: change it, and the
+		// hash must move so existing installs re-flush on their next admin load.
+		$m = new \ReflectionMethod( Plugin::class, 'rewrite_signature' );
+		$m->setAccessible( true );
+		$this->assertNotSame(
+			$sig,
+			md5( 'a-different-rule-set' ),
+			'the signature must be derived from the real rule set'
+		);
+		$this->assertStringContainsString( AGENTIMUS_VERSION, $sig );
+	}
+
 	public function test_no_flush_when_signature_unchanged() {
 		update_option( Plugin::REWRITE_SIGNATURE_OPTION, $this->signature() );
 		Plugin::maybe_flush_rewrites();

@@ -139,7 +139,16 @@ final class Module {
 					return current_user_can( 'manage_options' );
 				},
 				'callback'            => function () {
-					return rest_ensure_response( array( 'running' => McpSurface::agentimus_server_live() ) );
+					// Also the live "last call" fact. It used to ride the page-load
+					// payload alone, so approving a connection in another window left
+					// the card claiming yesterday's news until a manual reload — the
+					// screen has to be true without the owner forcing it.
+					return rest_ensure_response(
+						array(
+							'running'      => McpSurface::agentimus_server_live(),
+							'lastToolCall' => \Agentimus\Admin::last_tool_call(),
+						)
+					);
 				},
 			)
 		);

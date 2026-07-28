@@ -851,6 +851,16 @@ final class Admin {
 	}
 
 	/**
+	 * The same fact, for the /mcp-status poll — so a card left open on screen can
+	 * refresh what it says instead of freezing at the page-load value.
+	 *
+	 * @return array{known:bool,call:?array}
+	 */
+	public static function last_tool_call() {
+		return ( new self( new Settings() ) )->last_agent_tool_call();
+	}
+
+	/**
 	 * The MCP card's "last AI activity" fact: the most recent ability run that was
 	 * authenticated with an application password — i.e. an external client, not
 	 * someone clicking around wp-admin (cookie sessions carry no credential).

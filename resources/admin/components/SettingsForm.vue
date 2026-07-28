@@ -94,6 +94,8 @@ export default {
       oauthGrants: [],
       oauthBusy: '',
       oauthError: '',
+      // The live last-call fact from /mcp-status; overrides the page-load copy.
+      mcpLiveLastCall: null,
       // Which assistant's setup steps the help fold is showing.
       mcpSetupPick: 'claude',
       mcpRecipeCopied: false,
@@ -124,6 +126,8 @@ export default {
   },
   mounted() {
     window.addEventListener('resize', this.updateScrollHint);
+    window.addEventListener('focus', this.onWindowFocus);
+    document.addEventListener('visibilitychange', this.onWindowFocus);
     // Status probe for the MCP card — only meaningful for the SAVED state; a
     // freshly flipped toggle shows "turns on when you save" instead.
     this.mcpSavedEnabled = !!(this.settings && this.settings.enable_mcp_server);
@@ -135,6 +139,8 @@ export default {
   },
   beforeUnmount() {
     window.removeEventListener('resize', this.updateScrollHint);
+    window.removeEventListener('focus', this.onWindowFocus);
+    document.removeEventListener('visibilitychange', this.onWindowFocus);
     if (this._unEscReset) this._unEscReset();
     if (this._unEscTaken) this._unEscTaken();
     if (this._unEscScope) this._unEscScope();
@@ -569,7 +575,7 @@ export default {
     // access, external clients only (credentialed runs). Silent when the site
     // can't know (no Abilities API hooks): absence of a claim, not a claim of absence.
     mcpLastCallText() {
-      const l = this.mcpServer && this.mcpServer.lastToolCall;
+      const l = this.mcpLiveLastCall || (this.mcpServer && this.mcpServer.lastToolCall);
       if (!l || !l.known) return '';
       if (!l.call) return 'No AI client has called a tool yet.';
       const key = l.call.key ? `key “${l.call.key}”` : 'a since-revoked key';
@@ -579,7 +585,7 @@ export default {
     // The same fact, shortened for the status rail: the rail is scanned, not
     // read, so it carries when and who — the full sentence lives in the log.
     mcpRailCallText() {
-      const l = this.mcpServer && this.mcpServer.lastToolCall;
+      const l = this.mcpLiveLastCall || (this.mcpServer && this.mcpServer.lastToolCall);
       if (!l || !l.known) return '';
       if (!l.call) return 'no assistant has called yet';
       const who = l.call.key ? ` by ${l.call.key}` : '';
@@ -1303,11 +1309,24 @@ export default {
     // the browser logs as a red console error on every admin load. The status route
     // reports the same liveness (is our MCP route registered?) server-side, with a
     // clean 200 via the nonce — so the console stays quiet.
+    // Approving happens in ANOTHER window — the assistant's app, or a consent tab.
+    // So the moment this window gets focus back is exactly the moment the card is
+    // most likely to be lying. Cheaper and calmer than polling: no timers, no
+    // requests while the owner is elsewhere.
+    onWindowFocus() {
+      if (document.hidden || !this.active || !this.mcpSavedEnabled) return;
+      this.probeMcpStatus();
+      this.loadOauthGrants();
+      this.loadMcpToken();
+    },
     async probeMcpStatus() {
       this.mcpProbe = 'checking';
       try {
         const res = await this.api.getMcpStatus();
         this.mcpProbe = res && res.running ? 'running' : 'unreachable';
+        // The probe carries the live last-call fact too, so the status rail
+        // stops quoting whatever was true when the page loaded.
+        if (res && res.lastToolCall) this.mcpLiveLastCall = res.lastToolCall;
       } catch (e) {
         this.mcpProbe = 'unreachable';
       }

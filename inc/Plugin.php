@@ -279,7 +279,12 @@ final class Plugin {
 		$nested = Discovery\WellKnown::nested_routes();
 		sort( $routed );
 		sort( $nested );
-		return AGENTIMUS_VERSION . ':' . md5( implode( ',', $routed ) . '|' . implode( ',', $nested ) );
+		// The OAuth consent page is a rewrite too. Version alone would carry a
+		// release across, but a rule that isn't in the fingerprint is a rule
+		// that can change without healing — and a consent page that 404s is a
+		// connect flow that dies with no error to read.
+		$pages = array( Oauth\Consent::QUERY_VAR );
+		return AGENTIMUS_VERSION . ':' . md5( implode( ',', $routed ) . '|' . implode( ',', $nested ) . '|' . implode( ',', $pages ) );
 	}
 
 	/**
