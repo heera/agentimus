@@ -1343,7 +1343,7 @@
 .ar-webmcp-tools__head { margin: 13px 0 0; font-size: 12px; color: var(--ar-ink-faint); }
 
 /* MCP-server connection details, revealed under the MCP master toggle. */
-.ar-mcp-connect { margin-top: 4px; padding-top: 2px; border-top: 1px solid var(--ar-line); }
+.ar-mcp-connect { margin-top: 10px; padding-top: 18px; border-top: 1px solid var(--ar-line); }
 .ar-mcp-connect__endpoint { display: flex; align-items: center; gap: 8px; margin: 8px 0 0; flex-wrap: wrap; }
 .ar-mcp-connect__endpoint code { word-break: break-all; }
 
@@ -1459,7 +1459,7 @@
 .ar-mcp-recipe { border-left: 2px solid var(--ar-accent); padding: 2px 0 2px 14px; }
 .ar-mcp-recipe__steps { margin: 0 0 10px; padding-left: 18px; font-size: 13px; color: var(--ar-ink-soft); }
 .ar-mcp-recipe__steps li { margin-bottom: 4px; }
-.ar-mcp-adv__aside { color: var(--ar-ink-faint); font-size: 12px; }
+.ar-mcp-adv__aside { color: var(--ar-ink-faint); font-size: 12px; font-weight: 400; }
 .ar-mcp-apppw { margin-top: 22px; }
 
 /* Connected agents — one row per approved OAuth grant. */
@@ -1474,15 +1474,26 @@
 .ar-grant__who strong { font-size: 13.5px; }
 .ar-grant__who small { display: block; font-size: 12px; color: var(--ar-ink-faint); }
 .ar-grant__host { font-family: var(--ar-mono); font-size: 11px; color: var(--ar-ink-faint); margin-left: 8px; }
+/* How this key got in — the same three nouns the card's intro sentence uses:
+   approval, token, application password (that one in its own section). */
+.ar-grant__how {
+  font-family: var(--ar-mono); font-size: 10px; letter-spacing: 0.05em; text-transform: uppercase;
+  color: var(--ar-ink-faint); margin-left: 8px; border: 1px dotted var(--ar-line-strong);
+  border-radius: 999px; padding: 1px 7px; white-space: nowrap;
+}
+/* Pills and buttons are fixed-width columns — the widest label ("Read · Write",
+   "Disconnect") sets the size for every row, so both edges line up down the list. */
 .ar-grant__scope {
   margin-left: auto; flex: none; font-family: var(--ar-mono); font-size: 10px; letter-spacing: 0.06em;
   text-transform: uppercase; border: 1px solid var(--ar-line-strong); border-radius: 999px;
   padding: 2px 9px; color: var(--ar-ink-faint); white-space: nowrap;
+  min-width: 104px; text-align: center;
 }
 .ar-grant__scope.is-write { border-color: var(--ar-good); color: var(--ar-good); }
 /* The shared token wears a different colour from an approved connection: one
    secret many assistants can hold is a different kind of thing. */
 .ar-grant__scope.is-token { border-color: var(--ar-warn); color: var(--ar-warn); }
+.ar-grant .ar-btn--small { min-width: 140px; }
 .ar-grants__note { margin-top: 12px; }
 @media screen and (max-width: 782px) {
   .ar-grant { flex-wrap: wrap; }
@@ -1543,10 +1554,18 @@
 .ar-mcp-test__list li[data-state="ok"] .ar-mcp-test__mark { color: var(--ar-good); }
 .ar-mcp-test__list li[data-state="fail"] .ar-mcp-test__mark { color: var(--ar-bad); }
 
-/* The raw facts, folded. */
-.ar-mcp-adv { margin-top: 18px; padding-top: 12px; border-top: 1px solid var(--ar-line); }
-.ar-mcp-adv summary { cursor: pointer; font-size: 12.5px; color: var(--ar-ink-soft); }
-.ar-mcp-adv summary:hover { color: var(--ar-ink); }
+/* The raw facts, boxed — these folds hold real settings (setup recipes, the
+   shared token, application passwords), so they wear the weight of settings:
+   a bordered card each, not a footnote line. */
+.ar-mcp-adv {
+  margin-top: 12px; padding: 0 16px;
+  border: 1px solid var(--ar-line-strong); border-radius: var(--ar-radius);
+  background: var(--ar-surface-2);
+}
+.ar-mcp-adv[open] { background: var(--ar-surface); padding-bottom: 16px; }
+.ar-mcp-adv summary { cursor: pointer; padding: 13px 0; font-size: 13px; font-weight: 600; color: var(--ar-ink); }
+.ar-mcp-adv summary:hover { color: var(--ar-accent); }
+.ar-mcp-adv[open] > summary { border-bottom: 1px solid var(--ar-line); margin-bottom: 14px; }
 
 .ar-mcp-tabs { margin: 8px 0 0; }
 .ar-mcp-key { margin-top: 10px; }
@@ -4045,6 +4064,45 @@ a.ar-about-proto__v:hover { text-decoration: underline; }
 .ar-act-table tr.is-refused td { opacity: 0.72; }
 .ar-act-table tr.is-spoofed td { background: color-mix(in srgb, var(--ar-bad) 5%, transparent); }
 
+/* Small screens, everywhere a request table wears the --cards modifier (the
+   Request Log and the dashboard's Recent Requests): each row re-stacks as a
+   card in the Agent Access idiom — bordered, rounded, a quiet label in front
+   of every value — instead of scrolling sideways. */
+@media (max-width: 782px) {
+  .ar-log .ar-act-reqs, .ar-act-reqs:has(.ar-act-table--cards) { border-top: 0; padding-right: 0; max-height: 60vh; }
+  .ar-act-table.ar-act-table--cards { min-width: 0; display: block; }
+  .ar-act-table.ar-act-table--cards tbody tr, .ar-act-table.ar-act-table--cards tbody td { display: block; }
+  .ar-act-table.ar-act-table--cards thead { display: none; }
+  .ar-act-table.ar-act-table--cards tbody { display: flex; flex-direction: column; gap: 8px; }
+  .ar-act-table.ar-act-table--cards tbody tr {
+    padding: 12px 14px; border: 1px solid var(--ar-line); border-radius: var(--ar-radius);
+    background: var(--ar-surface);
+  }
+  .ar-act-table.ar-act-table--cards tbody td {
+    display: flex; align-items: baseline; gap: 10px;
+    padding: 0; margin-top: 7px; border: 0; white-space: normal; min-width: 0;
+  }
+  .ar-act-table.ar-act-table--cards tbody td:first-child { margin-top: 0; padding-left: 0; }
+  /* Pinned column widths and right alignment belong to the wide table — inside
+     a card they squeeze values into word-per-line wraps. Undo them here. */
+  .ar-act-table.ar-act-table--cards tbody td:last-child { width: auto; min-width: 0; text-align: left; padding-right: 0; }
+  .ar-act-table.ar-act-table--cards tbody td.ar-act-table__uacol { width: auto; max-width: none; overflow: visible; }
+  .ar-act-table.ar-act-table--cards tbody td::before {
+    content: attr(data-label); flex: 0 0 auto; width: 92px;
+    font-size: 11px; font-family: var(--ar-sans); letter-spacing: 0; text-transform: none;
+    color: var(--ar-ink-soft);
+  }
+  /* A one-hit row has nothing to say under "Hits" — drop the empty line. */
+  .ar-act-table.ar-act-table--cards tbody td.is-empty-cell { display: none; }
+  .ar-act-table.ar-act-table--cards tbody tr.is-spoofed td { background: none; }
+  .ar-act-table.ar-act-table--cards tbody tr.is-spoofed { background: color-mix(in srgb, var(--ar-bad) 5%, var(--ar-surface)); }
+  .ar-act-table.ar-act-table--cards tbody tr.is-refused { border-left: 2px solid var(--ar-warn); }
+  /* Long strings wrap inside the card instead of forcing it wide. */
+  .ar-act-table.ar-act-table--cards .ar-act-feed__ua { white-space: normal; word-break: break-all; }
+  .ar-act-table.ar-act-table--cards .ar-log__pivot { text-align: left; }
+  .ar-act-table.ar-act-table--cards .ar-act-feed__ep { white-space: normal; word-break: break-all; }
+}
+
 .ar-log__seen { color: var(--ar-ink-faint); font-family: var(--ar-mono); font-size: 11px; letter-spacing: -0.02em; white-space: nowrap; cursor: help; font-variant-numeric: tabular-nums; }
 
 .ar-log__empty, .ar-log__error {
@@ -4339,7 +4397,7 @@ a.ar-about-proto__v:hover { text-decoration: underline; }
 .ar-aa__what {
   display: flex; align-items: center; gap: 7px;
   font-family: var(--ar-mono); font-size: 14px; letter-spacing: -0.01em;
-  font-weight: 600; color: var(--ar-ink);
+  font-weight: 500; color: var(--ar-ink-soft);
   overflow-wrap: anywhere; cursor: help;
 }
 /* A key or a spark ahead of the name: the row's family is recognisable before a
@@ -4474,15 +4532,21 @@ a.ar-about-proto__v:hover { text-decoration: underline; }
    compared down a column, which is the one job a table does better. Every fact
    still holds a fixed position inside the card, so the eye lands in the same
    place on every row. Same palette throughout: one beige, one ink, no new hues. */
-.ar-aa__feed { list-style: none; margin: 14px 0 16px; padding: 0; display: flex; flex-direction: column; gap: 8px; }
-.ar-aa__card {
-  display: grid; align-items: center; gap: 14px;
-  grid-template-columns: 40px minmax(190px, 1.3fr) minmax(190px, 1.1fr) 82px 23ch 23ch;
-  padding: 14px 16px; border: 1px solid var(--ar-line); border-radius: var(--ar-radius);
-  background: var(--ar-surface);
+/* Wide screens: a real table — the thead names each column once, and every row
+   keeps the card's inner pieces (the disc, the eyebrow, the pill, the mono
+   stamps), so nothing of the design is lost, only the repetition. */
+.ar-aa__table { width: 100%; border-collapse: collapse; margin: 14px 0 16px; }
+.ar-aa__thead th {
+  text-align: left; font-family: var(--ar-mono); font-size: 10.5px; font-weight: 500;
+  letter-spacing: 0.08em; text-transform: uppercase; color: var(--ar-ink-soft);
+  padding: 0 14px 9px 0; border-bottom: 1px solid var(--ar-line-strong);
 }
-.ar-aa__card.is-unseen { background: color-mix(in srgb, var(--ar-accent) 4.5%, var(--ar-surface)); }
-.ar-aa__card.is-refusal { border-left: 2px solid var(--ar-warn); }
+.ar-aa__card > td { padding: 13px 14px 13px 0; border-bottom: 1px solid var(--ar-line); vertical-align: middle; }
+.ar-aa__card.is-unseen > td { background: color-mix(in srgb, var(--ar-accent) 4.5%, var(--ar-surface)); }
+.ar-aa__card.is-refusal > td:first-child { box-shadow: inset 2px 0 0 var(--ar-warn); }
+/* The disc and the two text lines travel together as one grid, so the 40px
+   icon column survives the move into a table cell — and, below, into a card. */
+.ar-aa__evwrap { display: grid; grid-template-columns: 40px minmax(0, 1fr); gap: 14px; align-items: center; }
 /* The kind's glyph in a soft disc — recognisable before a word is read. */
 .ar-aa__mark {
   display: inline-flex; align-items: center; justify-content: center;
@@ -4492,21 +4556,33 @@ a.ar-about-proto__v:hover { text-decoration: underline; }
 .ar-aa__ev { min-width: 0; }
 .ar-aa__whoblk { min-width: 0; display: flex; flex-direction: column; gap: 3px; }
 .ar-aa__usesblk { display: flex; justify-content: flex-start; }
-/* The two stamps: a quiet label with the value beneath, fixed width so the pair
-   still lines up down the feed. */
 .ar-aa__seenblk { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
-.ar-aa__seenlab { font-size: 11px; color: var(--ar-ink-soft); }
+/* On the wide table the thead already says "First seen" — the in-row label
+   only returns on small screens, where the thead is gone. */
+.ar-aa__seenlab { display: none; font-size: 11px; color: var(--ar-ink-soft); }
 .ar-aa__seenval {
   display: flex; align-items: center; gap: 6px;
   font-family: var(--ar-mono); font-size: 11.5px; letter-spacing: -0.02em;
   color: var(--ar-ink); font-variant-numeric: tabular-nums; white-space: nowrap;
 }
 .ar-aa__lineicon { flex: 0 0 auto; color: var(--ar-ink-faint); }
-/* Phones and narrow admin columns: the card stacks instead of scrolling
-   sideways — a card can reflow, which is exactly why it beats a table here. */
+/* Phones and narrow admin columns: the same rows re-stack as cards — a card
+   can reflow, which is exactly why it beats a table here. */
 @media (max-width: 1100px) {
-  .ar-aa__card { grid-template-columns: 40px minmax(0, 1fr) auto; }
-  .ar-aa__whoblk { grid-column: 2 / -1; }
-  .ar-aa__usesblk { grid-column: 2 / -1; }
-  .ar-aa__seenblk { grid-column: 2 / -1; flex-direction: row; align-items: baseline; gap: 8px; }
+  .ar-aa__table, .ar-aa__card, .ar-aa__card > td { display: block; }
+  .ar-aa__thead { display: none; }
+  .ar-aa__table tbody { display: flex; flex-direction: column; gap: 8px; }
+  .ar-aa__card {
+    padding: 14px 16px; border: 1px solid var(--ar-line); border-radius: var(--ar-radius);
+    background: var(--ar-surface);
+  }
+  .ar-aa__card > td { padding: 0; border: 0; background: none; }
+  .ar-aa__card.is-unseen { background: color-mix(in srgb, var(--ar-accent) 4.5%, var(--ar-surface)); }
+  .ar-aa__card.is-unseen > td { background: none; }
+  .ar-aa__card.is-refusal { border-left: 2px solid var(--ar-warn); }
+  .ar-aa__card.is-refusal > td:first-child { box-shadow: none; }
+  /* Everything under the title indents to the text column, like the old card. */
+  .ar-aa__cell--who, .ar-aa__cell--uses, .ar-aa__cell--seen { margin: 10px 0 0 54px; }
+  .ar-aa__seenlab { display: inline; }
+  .ar-aa__seenblk { flex-direction: row; align-items: baseline; gap: 8px; }
 }

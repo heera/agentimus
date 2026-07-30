@@ -348,7 +348,7 @@ export default {
 
     <div v-else class="ar-act-feedwrap">
       <div class="ar-act-reqs">
-        <table class="ar-act-table">
+        <table class="ar-act-table ar-act-table--cards">
           <thead>
             <tr>
               <th scope="col">Client</th>
@@ -365,7 +365,7 @@ export default {
           </thead>
           <tbody>
             <tr v-for="(r, i) in rows" :key="i" :class="{ 'is-spoofed': r.verdict === 2, 'is-refused': r.refused }">
-              <td class="ar-act-table__agent">
+              <td class="ar-act-table__agent" data-label="Client">
                 <button
                   type="button"
                   class="ar-log__pivot"
@@ -375,7 +375,7 @@ export default {
                   @click="pivot('agent', r.agent)"
                 >{{ r.agent }}</button>
               </td>
-              <td class="ar-log__statuscol">
+              <td class="ar-log__statuscol" data-label="Status">
                 <span
                   class="ar-log__mark"
                   :class="statusMark(r).cls"
@@ -383,7 +383,7 @@ export default {
                   @mouseleave="hideUaTip"
                 >{{ statusMark(r).text }}</span>
               </td>
-              <td>
+              <td data-label="Endpoint">
                 <button
                   type="button"
                   class="ar-log__pivot"
@@ -393,7 +393,7 @@ export default {
                   @click="pivot('endpoint', r.endpoint)"
                 ><code class="ar-act-feed__ep">{{ r.endpoint }}</code></button>
               </td>
-              <td v-if="hasNetwork">
+              <td v-if="hasNetwork" data-label="Network">
                 <span v-if="r.network" class="ar-act-feed__net">{{ r.network }}</span>
                 <!-- A word, not a dash: the reader should never have to interpret
                      punctuation to learn we simply don't know. -->
@@ -404,7 +404,7 @@ export default {
                   @mouseleave="hideUaTip"
                 >unknown</span>
               </td>
-              <td>
+              <td data-label="User-Agent">
                 <!-- Truncated in the cell, so the bubble carries the whole string and a
                      click copies it — the same contract as the dashboard's activity feed. -->
                 <code
@@ -421,6 +421,7 @@ export default {
                    own Settings → General formats. "How recent?" moves to the hover. -->
               <td
                 class="ar-log__seen"
+                data-label="Requested at"
                 @mouseenter="showUaTip($event, ago(r.at), '')"
                 @mouseleave="hideUaTip"
               >{{ stamp(r.at) }}</td>

@@ -1011,7 +1011,7 @@ export default {
         </p>
         <div v-if="recentGrouped.length" class="ar-act-feedwrap">
           <div ref="feedScroll" class="ar-act-reqs" @scroll="onFeedScroll">
-            <table class="ar-act-table">
+            <table class="ar-act-table ar-act-table--cards">
               <thead>
                 <tr>
                   <th scope="col">Agent</th>
@@ -1024,9 +1024,9 @@ export default {
               </thead>
               <tbody>
                 <tr v-for="(r, i) in recentGrouped" :key="i">
-                  <td class="ar-act-table__agent">{{ r.agent }}</td>
-                  <td><code class="ar-act-feed__ep">{{ r.endpoint }}</code></td>
-                  <td v-if="hasNetwork">
+                  <td class="ar-act-table__agent" data-label="Agent">{{ r.agent }}</td>
+                  <td data-label="Endpoint"><code class="ar-act-feed__ep">{{ r.endpoint }}</code></td>
+                  <td v-if="hasNetwork" data-label="Network">
                     <span
                       v-if="r.network"
                       class="ar-act-feed__net"
@@ -1036,12 +1036,12 @@ export default {
                     >{{ r.network }}<span v-if="netUnverified(r)" class="ar-act-feed__net-mark" aria-label="unverified">?</span></span>
                     <span v-else class="ar-act-table__dash" aria-label="not identified">—</span>
                   </td>
-                  <td class="ar-act-table__uacol">
+                  <td class="ar-act-table__uacol" data-label="User-Agent">
                     <code v-if="r.ua" class="ar-act-feed__ua is-copyable" :aria-label="r.ua" @mouseenter="showUaTip($event, r.ua)" @mouseleave="hideUaTip" @click.stop="copyUa(r.ua)">{{ r.ua }}</code>
                     <span v-else class="ar-act-feed__ua is-empty">no User-Agent</span>
                   </td>
-                  <td><span class="ar-act-feed__count" :title="r.count > 1 ? `${r.count} hits` : null">{{ r.count > 1 ? '×' + r.count : '' }}</span></td>
-                  <td class="ar-act-table__at">{{ ago(r.at) }}</td>
+                  <td data-label="Hits" :class="{ 'is-empty-cell': r.count <= 1 }"><span class="ar-act-feed__count" :title="r.count > 1 ? `${r.count} hits` : null">{{ r.count > 1 ? '×' + r.count : '' }}</span></td>
+                  <td class="ar-act-table__at" data-label="Seen">{{ ago(r.at) }}</td>
                 </tr>
               </tbody>
             </table>

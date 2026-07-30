@@ -483,13 +483,25 @@ export default {
          read on its own rather than compared down a column. Every fact keeps a
          fixed position inside the card, so the eye still lands in the same place
          on every row. -->
-    <ul v-if="hasEvents" class="ar-aa__feed">
-      <li
+    <table v-if="hasEvents" class="ar-aa__table">
+      <thead class="ar-aa__thead">
+        <tr>
+          <th scope="col">Event</th>
+          <th scope="col">Who</th>
+          <th scope="col">Uses</th>
+          <th scope="col">First seen</th>
+          <th scope="col">Last seen</th>
+        </tr>
+      </thead>
+      <tbody>
+      <tr
         v-for="e in events"
         :key="e.id"
         class="ar-aa__card"
         :class="{ 'is-unseen': isHighlighted(e), 'is-refusal': isRefusal(e) }"
       >
+        <td class="ar-aa__cell ar-aa__cell--ev">
+        <div class="ar-aa__evwrap">
         <span class="ar-aa__mark" :class="`is-${subjectIcon(e)}`" aria-hidden="true">
           <svg
             v-if="subjectIcon(e) === 'key'"
@@ -511,7 +523,10 @@ export default {
             @mouseleave="hideUaTip"
           >{{ eventSubject(e) || eventKind(e) }}<span v-if="isHighlighted(e)" class="ar-aa__new">New</span></span>
         </div>
+        </div>
+        </td>
 
+        <td class="ar-aa__cell ar-aa__cell--who">
         <div class="ar-aa__whoblk">
           <span class="ar-aa__who">
             <svg class="ar-aa__lineicon" viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="8" cy="5.2" r="2.6" /><path d="M3.2 13.4a4.8 4.8 0 0 1 9.6 0" /></svg>
@@ -534,11 +549,15 @@ export default {
             {{ whoCred(e) }}
           </span>
         </div>
+        </td>
 
+        <td class="ar-aa__cell ar-aa__cell--uses">
         <div class="ar-aa__usesblk">
           <span class="ar-aa__uses">{{ e.hits > 1 ? `${e.hits} uses` : '1 use' }}</span>
         </div>
+        </td>
 
+        <td class="ar-aa__cell ar-aa__cell--seen">
         <div class="ar-aa__seenblk">
           <span class="ar-aa__seenlab">First seen</span>
           <span class="ar-aa__seenval">
@@ -546,6 +565,8 @@ export default {
             {{ when(e.firstSeen) }}
           </span>
         </div>
+        </td>
+        <td class="ar-aa__cell ar-aa__cell--seen">
         <div class="ar-aa__seenblk">
           <span class="ar-aa__seenlab">Last seen</span>
           <span class="ar-aa__seenval">
@@ -553,8 +574,10 @@ export default {
             {{ when(e.lastSeen) }}
           </span>
         </div>
-      </li>
-    </ul>
+        </td>
+      </tr>
+      </tbody>
+    </table>
 
     <!-- Phase 3 EARNED this sentence. It used to have to confess that WordPress only tells us an
          ability ran after it has already ALLOWED it, so a refused probe left no trace — meaning a

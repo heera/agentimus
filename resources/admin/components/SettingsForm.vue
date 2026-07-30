@@ -410,14 +410,15 @@ export default {
           ],
         },
         chatgpt: {
-          title: 'ChatGPT — app, web, Codex',
+          title: 'ChatGPT — web, desktop & Codex',
           steps: [
-            'Settings → Plugins → MCPs → Add server, and pick “Streamable HTTP”.',
-            'Paste the address above as the URL.',
-            'ChatGPT can’t ask you for approval, so give it a token: create one under “Shared token” below, then add this header.',
+            'In ChatGPT: Settings → Security → turn on “Developer mode”. It unlocks custom connectors (ChatGPT pauses its memory feature while it is on).',
+            'Plugins → the “+” button → paste the address above, keep Authentication on “OAuth”, and Create.',
+            '“Sign in with Agentimus” opens a page on this site — approve, and ChatGPT appears in Connected assistants.',
+            'Codex can’t ask for approval: create a token under “Shared token” below and send it as this header.',
           ],
           copy: tok ? `Authorization: Bearer ${tok}` : 'Authorization: Bearer <create a token below>',
-          note: 'Tested July 2026: ChatGPT reports “auth unsupported” for the one-click flow, and connects once the token header is set.',
+          note: 'Site behind Cloudflare? Free-plan “Bot Fight Mode” blocks ChatGPT’s calls with a 403 — turn it off for this to work. Verified July 2026.',
         },
         other: {
           title: 'Any MCP client',
@@ -2006,43 +2007,6 @@ export default {
         </label>
       </section>
 
-      <!-- Browser tools (WebMCP) — master toggle + per-tool expose/hide - -->
-      <section id="ar-sec-webmcp" class="ar-card">
-        <h2 class="ar-card__title">Browser Tools <span class="ar-card__tag">experimental</span></h2>
-        <p class="ar-card__lead">
-          Lets an AI agent working inside a browser call your site’s read-only tools (like site
-          search) directly, via the emerging <strong>WebMCP</strong> browser standard. It adds a
-          tiny script that does nothing in browsers without support. Off by default — turn it on
-          only to be an early adopter.
-        </p>
-
-        <label id="ar-feat-enable_webmcp" class="ar-toggle">
-          <input v-model="settings.enable_webmcp" type="checkbox" />
-          <span class="ar-toggle__track" aria-hidden="true"></span>
-          <span class="ar-toggle__text">
-            <strong>Offer browser tools to AI agents</strong>
-            <small>Registers the read-only tools below with the browser, for agents that support WebMCP.</small>
-          </span>
-        </label>
-
-        <div :inert="!settings.enable_webmcp" class="ar-webmcp-tools">
-          <p v-if="!webmcpTools.length" class="ar-field__hint">No browser tools are registered yet.</p>
-          <template v-else>
-            <p class="ar-webmcp-tools__head">
-              Tools offered to agents — turn one off to hide it (it won’t be registered with the browser at all).
-            </p>
-            <label v-for="t in webmcpTools" :key="t.name" class="ar-toggle ar-toggle--nested">
-              <input type="checkbox" :checked="isToolExposed(t.name)" @change="toggleToolHidden(t.name)" />
-              <span class="ar-toggle__track" aria-hidden="true"></span>
-              <span class="ar-toggle__text">
-                <strong><code>{{ t.name }}</code></strong>
-                <small>{{ t.description }}</small>
-              </span>
-            </label>
-          </template>
-        </div>
-      </section>
-
       <!-- MCP server — master toggle + connection details --------------- -->
       <section id="ar-sec-mcp" class="ar-card">
         <h2 class="ar-card__title">MCP Server <span class="ar-card__tag">experimental</span></h2>
@@ -2151,7 +2115,8 @@ export default {
               <span class="ar-mcp-roster__count" :class="{ 'is-zero': !mcpConnections.length }">{{ mcpConnections.length }}</span>
             </p>
             <p v-if="mcpConnections.length" class="ar-field__hint ar-mcp-roster__note">
-              Each has its own key. Disconnecting one leaves the others working.
+              The assistants you approved, plus the shared token. Disconnecting one
+              leaves the others working. Application passwords have their own section below.
             </p>
 
             <ul v-if="mcpConnections.length" class="ar-grants">
@@ -2160,6 +2125,7 @@ export default {
                 <span class="ar-grant__who">
                   <strong>{{ c.name }}</strong>
                   <span v-if="c.host" class="ar-grant__host">{{ c.host }}</span>
+                  <span class="ar-grant__how">{{ c.kind === 'token' ? 'token' : 'approval' }}</span>
                   <small>{{ c.when }}</small>
                 </span>
                 <span
@@ -2190,8 +2156,8 @@ export default {
 
             <p v-if="oauthError" class="ar-field__hint ar-mcp-key__err" role="alert">{{ oauthError }}</p>
             <p v-if="mcpToken" class="ar-field__hint ar-mcp-roster__note">
-              Rotating the shared token ends every connection using it at once —
-              that button lives under <em>Shared token</em>.
+              <em>Revoke</em> ends every connection using the shared token at once. To swap
+              it for a fresh secret instead, rotate it in the <em>Shared token</em> section below.
             </p>
           </div>
 
@@ -2206,7 +2172,7 @@ export default {
                   { key: 'claude-code', label: 'Claude Code', kind: 'terminal' },
                   { key: 'cursor', label: 'Cursor', kind: 'editor' },
                   { key: 'vscode', label: 'VS Code', kind: 'editor' },
-                  { key: 'chatgpt', label: 'ChatGPT', kind: 'web' },
+                  { key: 'chatgpt', label: 'ChatGPT', kind: 'web · desktop · Codex' },
                   { key: 'other', label: 'Something else', kind: 'any MCP client' },
                 ]"
                 :key="p.key"
@@ -2519,6 +2485,43 @@ export default {
               bridge — see the setup steps for “Something else”.
             </p>
           </details>
+        </div>
+      </section>
+
+      <!-- Browser tools (WebMCP) — master toggle + per-tool expose/hide - -->
+      <section id="ar-sec-webmcp" class="ar-card">
+        <h2 class="ar-card__title">Browser Tools <span class="ar-card__tag">experimental</span></h2>
+        <p class="ar-card__lead">
+          Lets an AI agent working inside a browser call your site’s read-only tools (like site
+          search) directly, via the emerging <strong>WebMCP</strong> browser standard. It adds a
+          tiny script that does nothing in browsers without support. Off by default — turn it on
+          only to be an early adopter.
+        </p>
+
+        <label id="ar-feat-enable_webmcp" class="ar-toggle">
+          <input v-model="settings.enable_webmcp" type="checkbox" />
+          <span class="ar-toggle__track" aria-hidden="true"></span>
+          <span class="ar-toggle__text">
+            <strong>Offer browser tools to AI agents</strong>
+            <small>Registers the read-only tools below with the browser, for agents that support WebMCP.</small>
+          </span>
+        </label>
+
+        <div :inert="!settings.enable_webmcp" class="ar-webmcp-tools">
+          <p v-if="!webmcpTools.length" class="ar-field__hint">No browser tools are registered yet.</p>
+          <template v-else>
+            <p class="ar-webmcp-tools__head">
+              Tools offered to agents — turn one off to hide it (it won’t be registered with the browser at all).
+            </p>
+            <label v-for="t in webmcpTools" :key="t.name" class="ar-toggle ar-toggle--nested">
+              <input type="checkbox" :checked="isToolExposed(t.name)" @change="toggleToolHidden(t.name)" />
+              <span class="ar-toggle__track" aria-hidden="true"></span>
+              <span class="ar-toggle__text">
+                <strong><code>{{ t.name }}</code></strong>
+                <small>{{ t.description }}</small>
+              </span>
+            </label>
+          </template>
         </div>
       </section>
 
