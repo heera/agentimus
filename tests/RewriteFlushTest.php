@@ -42,7 +42,7 @@ final class RewriteFlushTest extends TestCase {
 	 */
 	public function test_signature_covers_every_rewrite_we_own() {
 		$sig = $this->signature();
-		foreach ( array( 'oauth-authorization-server/agentimus/mcp', 'oauth-protected-resource/agentimus/mcp' ) as $path ) {
+		foreach ( array( 'oauth-authorization-server/agentimus/mcp', 'oauth-protected-resource/agentimus/mcp', 'oauth-protected-resource/wp-json/agentimus/v1/mcp' ) as $path ) {
 			$this->assertContains( $path, \Agentimus\Discovery\WellKnown::nested_routes() );
 		}
 		// The consent rule is fingerprinted by its query var: change it, and the

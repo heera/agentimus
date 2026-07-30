@@ -143,6 +143,18 @@ final class OauthConsentTest extends TestCase {
 		$this->assertContains( 'oauth-protected-resource/agentimus/mcp', WellKnown::nested_routes() );
 	}
 
+	/**
+	 * RFC 9728 §3.1: a client derives the metadata URL by inserting
+	 * /.well-known/oauth-protected-resource between the host and the RESOURCE
+	 * path — for our MCP endpoint that is …/oauth-protected-resource/wp-json/
+	 * agentimus/v1/mcp. ChatGPT computes that form and never reads the
+	 * WWW-Authenticate hint; a 404 there reads as "does not implement OAuth".
+	 */
+	public function test_prm_is_also_routed_at_the_resource_derived_path() {
+		$this->assertSame( 'oauth-protected-resource/wp-json/agentimus/v1/mcp', WellKnown::mcp_resource_prm_route() );
+		$this->assertContains( 'oauth-protected-resource/wp-json/agentimus/v1/mcp', WellKnown::nested_routes() );
+	}
+
 	/* ---- the 401 breadcrumb ----------------------------------------------- */
 
 	public function test_mcp_401_carries_the_www_authenticate_pointer() {

@@ -98,12 +98,41 @@ final class WellKnown {
 			'oauth-protected-resource/agentimus/mcp',
 		);
 
+		// The SAME protected-resource document, at the location RFC 9728 §3.1
+		// derives from the MCP endpoint's own URL (…/oauth-protected-resource/
+		// wp-json/agentimus/v1/mcp). The 401's WWW-Authenticate hint points at
+		// the issuer-path form above and Claude follows it, but ChatGPT computes
+		// this form itself and reads a 404 as "does not implement OAuth".
+		$derived = self::mcp_resource_prm_route();
+		if ( '' !== $derived ) {
+			$names[] = $derived;
+		}
+
 		/**
 		 * Filter the nested /.well-known names routed to WordPress.
 		 *
 		 * @param string[] $names Nested doc paths (no leading slash).
 		 */
 		return array_values( array_unique( (array) apply_filters( 'agentimus_well_known_nested', $names ) ) );
+	}
+
+	/**
+	 * The RFC 9728 §3.1 path-insertion form for the MCP endpoint itself: a client
+	 * takes the resource URL ({site}/wp-json/agentimus/v1/mcp), inserts
+	 * /.well-known/oauth-protected-resource after the host, and expects the
+	 * metadata there. Serving it only at the issuer-path form is not enough —
+	 * a client that never reads the WWW-Authenticate resource_metadata hint
+	 * treats the 404 at this address as "no OAuth on this server".
+	 *
+	 * @return string Nested route name, or '' when the REST API has no path
+	 *                form (plain permalinks address it via ?rest_route=).
+	 */
+	public static function mcp_resource_prm_route() {
+		$prefix = trim( (string) rest_get_url_prefix(), '/' );
+		if ( '' === $prefix ) {
+			return '';
+		}
+		return 'oauth-protected-resource/' . $prefix . '/agentimus/v1/mcp';
 	}
 
 	/**
@@ -278,6 +307,16 @@ final class WellKnown {
 	 * @param string $name Nested doc path (already allow-list checked).
 	 */
 	private function route_nested( $name ) {
+		// The path-derived alias of the MCP protected-resource document (see
+		// mcp_resource_prm_route()) — same body as the issuer-path form below.
+		if ( self::mcp_resource_prm_route() === $name ) {
+			$body = $this->envelope->oauth_mcp_protected_resource_json();
+			if ( '' !== $body ) {
+				$this->send( $body, 'application/json', 'oauth-protected-resource-mcp' );
+			}
+			return;
+		}
+
 		switch ( $name ) {
 			case 'mcp/server-card.json':
 				$body = $this->envelope->mcp_server_card_json();
