@@ -655,15 +655,19 @@ final class Admin {
 			'items'   => array(
 				array(
 					'title' => 'Connect an assistant by approving it',
-					'text'  => 'Give an AI assistant your MCP address and it asks you for permission on a page on your own site. You choose Read only or Read and write — you can grant less than it asked for — and it gets its own key. Every approved assistant is listed under Connected assistants with its own Disconnect, so cutting one off leaves the others working. No keys to copy. Works today with Claude and Cursor.',
+					'text'  => 'Give an AI assistant your MCP address and it asks you for permission on a page on your own site. You choose Read only or Read and write — you can grant less than it asked for — and it gets its own key. Every approved assistant is listed under Connected assistants with its own Disconnect, so cutting one off leaves the others working. No keys to copy. Works today with Claude, ChatGPT and Cursor.',
 				),
 				array(
 					'title' => 'A shared token for the rest',
-					'text'  => 'Some assistants can’t ask for approval — ChatGPT and Codex among them. For those, one revocable token does the job: read-only or read-and-write, shown once, rotated or revoked whenever you like. And a read-only key now sees only the read tools, so an assistant is never offered a door it can’t open.',
+					'text'  => 'Some assistants can’t ask for approval — Codex among them. For those, one revocable token does the job: read-only or read-and-write, shown once, rotated or revoked whenever you like. And a read-only key now sees only the read tools, so an assistant is never offered a door it can’t open.',
 				),
 				array(
 					'title' => 'The MCP card, rebuilt',
-					'text'  => 'Your server address leads, because with one-click approval that address is the whole setup. Under it: who is connected, then setup steps folded away that show only the assistant you pick. One status line replaces three scattered facts.',
+					'text'  => 'Your server address leads, because with one-click approval that address is the whole setup. Under it: who is connected — each row saying how its key got in, by approval or by token — then setup steps folded away that show only the assistant you pick. One status line replaces three scattered facts.',
+				),
+				array(
+					'title' => 'Tables where they help, cards where they fit',
+					'text'  => 'Agent Access events now sit in a real table with column headings, so the labels aren’t repeated on every row. On phones the rows re-stack as the familiar cards — and the Request Log and the dashboard’s Recent Requests do the same, instead of scrolling sideways.',
 				),
 				array(
 					'title' => 'Honest about your own files',

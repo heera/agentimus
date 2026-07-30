@@ -62,7 +62,7 @@ The card shows yours with a **Copy** button, above a status line that says wheth
 There are three ways to do that. Try them in this order:
 
 1. **Approval.** You give the assistant the address and nothing else. It asks *you* for permission on a page on your own site, and you decide what it may do. Best for anything that supports it.
-2. **A shared connection token.** One secret you create and paste in. For assistants that cannot ask for approval — ChatGPT is one of them today.
+2. **A shared connection token.** One secret you create and paste in. For assistants that cannot ask for approval — Codex is one of them today.
 3. **An application password.** The original path, still fully supported. Best when you want one revocable key per tool, tied to a specific WordPress user.
 
 Whichever you use, the assistant appears under **Connected assistants** on the card, and every call it makes shows in **More → Agent Access**.
@@ -144,11 +144,15 @@ Needs a recent Cursor — older versions ignore MCP install links and show nothi
 
 ### ChatGPT and Codex
 
-ChatGPT cannot use the approval flow. Tested in July 2026, it reports "auth unsupported" and stops. Give it the shared connection token instead:
+ChatGPT — on the web and in the desktop app — uses the approval flow, behind one switch (verified July 2026):
 
-1. Settings → Plugins → MCPs → Add server, and pick **Streamable HTTP**.
-2. Paste your server address as the URL.
-3. Add the header `Authorization: Bearer agmcp_...`, using the token you created above.
+1. In ChatGPT: **Settings → Security → Developer mode**, on. This is what unlocks custom connectors; ChatGPT pauses its memory feature while it is on.
+2. **Plugins → the "+" button**: paste your server address, keep Authentication on **OAuth**, tick the acknowledgement, and **Create**.
+3. Press **Sign in with Agentimus** — ChatGPT sends you to the consent page on your own site. Approve, and it appears under Connected assistants.
+
+Two things to know. ChatGPT insists on the exact discovery address the standard derives from your server URL, which this plugin serves — but if your site sits behind **Cloudflare**, the free plan's *Bot Fight Mode* blocks ChatGPT's calls with a 403 before they reach your site, and it has to be off for the connection (and every later tool call) to work. Anthropic's fetchers are on Cloudflare's verified-bots list; OpenAI's are not.
+
+Codex cannot ask for approval. Give it the shared connection token instead:
 
 Codex — the CLI, the IDE extension, and Codex inside the ChatGPT desktop app — shares one configuration file, so a single entry covers all three. Add this to `~/.codex/config.toml`, then restart it (inside a session, `/mcp` shows whether it connected):
 
