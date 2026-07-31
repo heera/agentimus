@@ -1527,6 +1527,55 @@ td.ar-edge__n.is-bad { color: var(--ar-bad); font-weight: 600; }
 .ar-edge__op { color: var(--ar-ink-faint); font-size: 12px; }
 .ar-edge__hot { color: var(--ar-warn); }
 .ar-edge__subnote { margin: -6px 0 12px; }
+
+/* ── Found by AI Search (Bing) — same shrink discipline as .ar-edge ─────── */
+.ar-bing { display: grid; grid-template-columns: minmax(0, 1fr); gap: 22px; }
+.ar-bing > * { min-width: 0; }
+.ar-bing__offlead { margin: 0; padding: 0; border-bottom: 0; }
+.ar-bing__sub.ar-ai__sub { margin: 26px 0 14px; }
+.ar-bing__hot { color: var(--ar-warn); }
+.ar-bing .ar-mcp-rail { flex-wrap: wrap; gap: 5px 7px; }
+.ar-bing .ar-mcp-rail > * { flex: 0 0 auto; white-space: nowrap; }
+.ar-bing .ar-mcp-rail .ar-bing__site { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.ar-bing .ar-mcp-rail .ar-warn { flex: 1 1 100%; white-space: normal; }
+.ar-bing .ar-mcp-rail .ar-bing__sep-warn { display: none; }
+/* The index trend: min→max scaled bars (the base is big, the moves are small —
+   a zero-scaled chart would render as a flat wall). Newest bar full-ink. */
+.ar-bing__trend { display: flex; align-items: flex-end; gap: 3px; height: 56px; margin: 0 0 6px; }
+.ar-bing__bar {
+  flex: 1 1 0; align-self: flex-end; background: var(--ar-accent); opacity: 0.82;
+  border: 0; border-radius: 2px 2px 0 0; min-height: 2px; padding: 0;
+  appearance: none; -webkit-appearance: none; cursor: pointer; transition: filter 0.15s ease;
+}
+.ar-bing__bar:last-child { opacity: 1; }
+.ar-bing__bar:hover { filter: brightness(0.85); }
+.ar-bing__bar.is-active { filter: brightness(0.7); opacity: 1; }
+.ar-bing__bar:focus-visible { outline: 2px solid var(--ar-accent); outline-offset: 2px; }
+/* The day report's warn bars — errors and robots blocks read in the warn hue. */
+.ar-act-rank__bar.ar-bing__bar--warn { background: var(--ar-warn); }
+/* The Bing day report body: one full-width story. */
+.ar-bing__daybody { min-width: 0; }
+.ar-bing__daybody .ar-act-rank__label { flex: 0 0 200px; }
+.ar-bing__cap { display: flex; justify-content: space-between; gap: 12px; font-family: var(--ar-mono); font-size: 10px; letter-spacing: 0.06em; color: var(--ar-ink-faint); }
+/* Phones: 30 columns squeeze below a usable tap size, so the chart keeps its
+   bars touch-wide and scrolls sideways instead — rtl scroller so it OPENS at
+   the newest days, ltr inner so time still runs left → right (the dashboard
+   charts' exact recipe). */
+@media (max-width: 600px) {
+  .ar-bing__scrollwrap { overflow-x: auto; direction: rtl; scrollbar-width: thin; padding-bottom: 4px; }
+  .ar-bing__scrollwrap > * { direction: ltr; min-width: 100%; width: max-content; }
+  .ar-bing__trend { gap: 4px; }
+  .ar-bing__bar { min-width: 16px; }
+}
+/* Settings: the two setup steps breathe — the first eyebrow was hugging the
+   connection rail. */
+#ar-sec-bing .ar-mcp-eyebrow { margin-top: 24px; }
+/* Settings: the printed-tag confirmation box. */
+.ar-bing__code {
+  font-family: var(--ar-mono); font-size: 12px; color: var(--ar-ink-soft);
+  background: var(--ar-surface-2); border: 1px solid var(--ar-line); border-radius: 6px;
+  padding: 8px 11px; margin: 8px 0 0; overflow-x: auto; white-space: nowrap;
+}
 /* The Settings warnings ledger — every active conflict pin, readable, minus
    the Hide action. Sits under the Disconnect button; the top hairline is PART
    of the block, so it exists only when pins do. */

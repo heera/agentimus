@@ -23,11 +23,17 @@ export default {
   components: { TagInput, SelectMenu },
   props: {
     api: { type: Object, required: true },
+    // Whether the citation-checks FEATURE is on. The screen itself is always
+    // on; this only gates the checks tenant (its views, never the room).
+    checksOn: { type: Boolean, default: true },
   },
-  emits: ['flash', 'measured'],
+  emits: ['flash', 'measured', 'view-change', 'navigate', 'enable-checks'],
   data() {
     return {
-      view: 'results',
+      // The landing view matches the leading tab — the everyday glance.
+      view: 'aisearch',
+      // Inside Citations: its own workbench pair (Results / Settings).
+      citView: 'results',
       keyMask: '__stored__', // matches Settings::KEY_MASK — a stored key shows as this.
       loaded: false,
       error: '',
@@ -57,7 +63,15 @@ export default {
   },
   computed: {
     caption() {
-      return this.view === 'results'
+      if (this.view === 'aisearch') {
+        return "How much of your site sits in Bing's index — the index ChatGPT search and Copilot read today.";
+      }
+      // The checks tenant is off: don't promise "your latest run" above a card
+      // that explains there are no runs.
+      if (!this.checksOn) {
+        return 'Citation checks are switched off — the card below says what they would show.';
+      }
+      return this.citView === 'results'
         ? 'Whether AI assistants mention and link each thing you track — from your latest run.'
         : 'Add each thing you want to track, then an AI key for each engine that should check it.';
     },
@@ -114,7 +128,13 @@ export default {
     },
   },
   created() {
-    this.load();
+    if (this.checksOn) {
+      this.load();
+    } else {
+      // Nothing to fetch for a switched-off tenant: skip straight past the
+      // skeleton — the landing view is already the tenant that IS alive.
+      this.loaded = true;
+    }
   },
   beforeUnmount() {
     this.clearPoll();
@@ -128,13 +148,37 @@ export default {
       if (this._unEscError) this._unEscError();
       this._unEscError = open ? bindDocEsc(() => this.closeError()) : null;
     },
+    // The parent seats screen-mates by sub-view (Found by AI Search belongs to
+    // Results only), so the current view is announced upward.
+    view: {
+      handler(v) {
+        this.$emit('view-change', v);
+      },
+      immediate: true,
+    },
   },
   methods: {
     groupIcon,
-    // Open a specific sub-view (Results / Settings) — used when the score card's Cited
-    // rung deep-links here based on whether the check setup is complete.
+    // Open a specific sub-view — used when the score card's Cited rung
+    // deep-links here. 'results'/'settings' name the citations workbench pair,
+    // so they open the Citations tab on that inner view.
     openView(view) {
-      if ('results' === view || 'settings' === view) this.view = view;
+      if ('aisearch' === view) {
+        this.view = 'aisearch';
+      } else if ('results' === view || 'settings' === view) {
+        this.view = 'citations';
+        this.citView = view;
+      }
+    },
+    // The in-tab switch: the citations tenant's own key, thrown from inside its
+    // own room (the parent persists it through the normal settings autosave).
+    setChecks(on) {
+      this.$emit('enable-checks', !!on);
+      if (on) {
+        this.citView = 'results';
+        this.loaded = false; // fetch the config the OFF state never loaded.
+        this.load();
+      }
     },
     async load() {
       try {
@@ -696,14 +740,43 @@ export default {
 
     <div v-else class="ar-tabpanel">
       <nav class="ar-tabpanel__tabs" aria-label="AI Visibility views">
-        <button type="button" class="ar-subnav__item" :class="{ 'is-active': view === 'results' }" @click="view = 'results'"><span class="ar-subnav__icon" aria-hidden="true" v-html="groupIcon('results')"></span>Results</button>
-        <button type="button" class="ar-subnav__item" :class="{ 'is-active': view === 'settings' }" @click="view = 'settings'"><span class="ar-subnav__icon" aria-hidden="true" v-html="groupIcon('settings')"></span>Settings</button>
+        <!-- Two tenants, two tabs. AI Search leads: it is the everyday glance
+             (daily index numbers); citations are the scheduled deep-read, and
+             their Results/Settings pair nests INSIDE their own tab. -->
+        <button type="button" class="ar-subnav__item" :class="{ 'is-active': view === 'aisearch' }" @click="view = 'aisearch'"><span class="ar-subnav__icon" aria-hidden="true" v-html="groupIcon('sources')"></span>AI Search</button>
+        <button type="button" class="ar-subnav__item" :class="{ 'is-active': view === 'citations' }" @click="view = 'citations'"><span class="ar-subnav__icon" aria-hidden="true" v-html="groupIcon('results')"></span>Citations</button>
       </nav>
       <p class="ar-tabpanel__caption">{{ caption }}</p>
 
       <div class="ar-tabpanel__body">
         <!-- RESULTS -------------------------------------------------------- -->
-        <div v-show="view === 'results'" class="agv-results">
+        <!-- Checks off: the Citations tab holds its own key. One quiet card,
+             one real button — no trip to Settings, nothing to hunt for. -->
+        <section v-if="!checksOn && view === 'citations'" class="ar-card ar-card--muted">
+          <h2 class="ar-card__title">Citations <span class="ar-card__tag">Off</span></h2>
+          <p class="ar-card__lead" style="margin: 0 0 14px; padding: 0; border-bottom: 0;">
+            Ask ChatGPT, Perplexity, Gemini and Claude about your site on a schedule, and see
+            whether they name and link it — with a “Cited” rung on your readiness score.
+            Checks run on your own AI key and spend your credit; nothing runs until you set
+            up targets and a key.
+          </p>
+          <button type="button" class="ar-btn" @click="setChecks(true)">Turn on citation checks</button>
+        </section>
+
+        <!-- The citations workbench pair, nested inside its own tab. -->
+        <nav v-if="checksOn && view === 'citations'" class="agv-innernav" aria-label="Citations views">
+          <button type="button" :class="{ 'is-active': citView === 'results' }" @click="citView = 'results'">Results</button>
+          <button type="button" :class="{ 'is-active': citView === 'settings' }" @click="citView = 'settings'">Settings</button>
+        </nav>
+
+        <!-- The tenant's key hangs inside its own door: state named, off switch
+             beside it — the global Features list no longer carries this toggle. -->
+        <div v-if="checksOn && view === 'citations' && citView === 'settings'" class="agv-checkstate">
+          <span>Citation checks are <strong>on</strong> — scheduled runs, the “Cited” rung and the MCP read tool are active. Turning them off keeps your targets and history.</span>
+          <button type="button" class="ar-linkbtn agv-checkstate__off" @click="setChecks(false)">Turn off citation checks</button>
+        </div>
+
+        <div v-show="checksOn && view === 'citations' && citView === 'results'" class="agv-results">
           <!-- The run summary is one sheet; each tracked product below is its own card. -->
           <div class="agv-sheet">
           <div class="agv-runbar">
@@ -718,7 +791,7 @@ export default {
             <h2>No results yet</h2>
             <p>Head to Settings to add a product with a few questions and one AI key, then run your first check.</p>
             <div class="agv-empty__actions">
-              <button type="button" class="ar-btn" @click="view = 'settings'">Go to Settings</button>
+              <button type="button" class="ar-btn" @click="citView = 'settings'">Go to Settings</button>
               <button type="button" class="ar-btn ar-btn--ghost" :disabled="busy" @click="run">{{ busy ? 'Running…' : 'Run check now' }}</button>
             </div>
           </div>
@@ -827,9 +900,9 @@ export default {
                   </div>
                 </div>
               </template>
-              <p v-else-if="p.paused" class="agv-muted">Paused — this one isn’t being checked. <button type="button" class="agv-linkbtn" @click="view = 'settings'">Turn it back on</button>.</p>
+              <p v-else-if="p.paused" class="agv-muted">Paused — this one isn’t being checked. <button type="button" class="agv-linkbtn" @click="citView = 'settings'">Turn it back on</button>.</p>
               <p v-else-if="p.hasQuestions" class="agv-muted">No results for this one yet — <button type="button" class="agv-linkbtn" :disabled="busy" @click="run">run a check</button>.</p>
-              <p v-else class="agv-muted">No questions to ask yet, so there’s nothing to score. <button type="button" class="agv-linkbtn" @click="view = 'settings'">Add a question</button>.</p>
+              <p v-else class="agv-muted">No questions to ask yet, so there’s nothing to score. <button type="button" class="agv-linkbtn" @click="citView = 'settings'">Add a question</button>.</p>
             </section>
           </template>
         </div>
@@ -837,7 +910,7 @@ export default {
         <!-- SETTINGS ------------------------------------------------------- -->
         <!-- No Save button anywhere on this screen: every control persists itself. Enter
              inside a field would otherwise submit and reload the admin page, so swallow it. -->
-        <form v-show="view === 'settings'" class="agv-form" @submit.prevent>
+        <form v-show="checksOn && view === 'citations' && citView === 'settings'" class="agv-form" @submit.prevent>
           <section class="ar-card">
             <h2 class="ar-card__title">
               What You're Tracking
@@ -1128,6 +1201,24 @@ export default {
 /* Results is a transparent stack on wp-admin's background: the run summary is one
    sheet, then every tracked product is its own full-width card — the same free-
    standing-card grammar as the Settings page. */
+/* Nested workbench tabs inside the Citations tab — pill-segmented and quieter
+   than the screen's own subnav, so the hierarchy reads at a glance. */
+.agv-innernav { display: flex; gap: 8px; margin: 2px 0 18px; }
+.agv-innernav button {
+  font-family: var(--ar-mono); font-size: 10.5px; letter-spacing: 0.08em; text-transform: uppercase;
+  padding: 8px 16px; border: 1px solid var(--ar-line); border-radius: 999px;
+  background: var(--ar-surface); color: var(--ar-ink-soft); cursor: pointer;
+}
+.agv-innernav button.is-active { background: var(--ar-ink); border-color: var(--ar-ink); color: var(--ar-surface); }
+.agv-innernav button:focus-visible { outline: 2px solid var(--ar-accent); outline-offset: 2px; }
+/* The in-tab feature key: current state named, the off switch beside it. */
+.agv-checkstate {
+  display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 8px 16px;
+  margin: 0 0 16px; padding: 10px 14px; font-size: 12.5px; color: var(--ar-ink-soft);
+  background: var(--ar-surface-2); border: 1px solid var(--ar-line); border-radius: var(--ar-radius);
+}
+.agv-checkstate__off { color: var(--ar-bad); }
+
 .agv-results { display: grid; gap: 18px; }
 .agv-sheet {
   padding: 22px 26px;

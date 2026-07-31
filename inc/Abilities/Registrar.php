@@ -59,6 +59,8 @@ use Agentimus\Visibility\Store as VisibilityStore;
 use Agentimus\Visibility\Settings as VisibilitySettings;
 use Agentimus\Cloudflare\Settings as CloudflareSettings;
 use Agentimus\Cloudflare\Summary as CloudflareSummary;
+use Agentimus\Bing\Settings as BingSettings;
+use Agentimus\Bing\Summary as BingSummary;
 
 defined( 'ABSPATH' ) || exit;
 
@@ -453,6 +455,68 @@ final class Registrar {
 				$days = isset( $input['days'] ) ? (int) $input['days'] : 7;
 				$days = ( $days >= 1 && $days <= 30 ) ? $days : 7;
 				return CloudflareSummary::build( new CloudflareSettings(), $this->settings, $days );
+			},
+			$manage
+		);
+
+		$this->add(
+			'read-search-visibility',
+			__( 'Get AI-search visibility from Bing', 'agentimus' ),
+			'Returns how much of this site sits in Bing\'s index and how cleanly Bing\'s crawler '
+				. 'gets in, when the owner has connected Bing Webmaster Tools. Bing\'s index is what '
+				. 'ChatGPT search reads today (Microsoft Copilot too), so this is the closest measurable '
+				. 'answer to "can AI search find this site": pages in the index (daily trend), pages '
+				. 'crawled, crawl errors, robots.txt blocks as Bing sees them, plus conflicts between '
+				. 'Bing\'s view and the site\'s declared policy. Returns connected=false when no key is connected.',
+			self::obj(
+				array(
+					'days' => self::i( 'Window in days, 1-90. Default 30.' ),
+				)
+			),
+			self::obj(
+				array(
+					'connected'     => self::b( 'False = no Bing key is connected; the data fields are then absent.' ),
+					'siteUrl'       => self::s( 'The site as Bing Webmaster Tools stores it.' ),
+					'hasMsvalidate' => self::b( 'Whether the site prints the msvalidate verification tag.' ),
+					'connectedAt'   => self::i(),
+					'lastPollAt'    => self::i( 'Unix time of the newest numbers; 0 = never polled.' ),
+					'lastError'     => self::s( 'The most recent poll failure, empty after a clean poll.' ),
+					'days'          => self::i(),
+					'totals'        => self::obj(
+						array(
+							'inIndex'         => self::i( 'Pages in Bing\'s index on the most recent day.' ),
+							'crawledLatest'   => self::i( 'Pages Bing crawled on the most recent day.' ),
+							'crawlErrors'     => self::i( '4xx + 5xx answers Bing got over the window.' ),
+							'blockedByRobots' => self::i( 'Pages robots.txt closes to Bing, most recent day.' ),
+						)
+					),
+					'trend'         => self::arr(
+						array(
+							'date'            => self::s( 'Y-m-d.' ),
+							'inIndex'         => self::i(),
+							'crawled'         => self::i(),
+							'ok'              => self::i( '2xx answers.' ),
+							'redirects'       => self::i( '301 + 302 answers.' ),
+							'clientErrors'    => self::i( '4xx answers.' ),
+							'serverErrors'    => self::i( '5xx answers.' ),
+							'blockedByRobots' => self::i(),
+						)
+					),
+					'conflicts'     => self::arr(
+						array(
+							'id'    => self::s(),
+							'level' => self::s(),
+							'title' => self::s(),
+							'body'  => self::s(),
+							'url'   => self::s( 'Where the owner can act.' ),
+						)
+					),
+				)
+			),
+			function ( $input ) {
+				$days = isset( $input['days'] ) ? (int) $input['days'] : 30;
+				$days = ( $days >= 1 && $days <= 90 ) ? $days : 30;
+				return BingSummary::build( new BingSettings(), $this->settings, $days );
 			},
 			$manage
 		);
@@ -905,6 +969,7 @@ final class Registrar {
 			self::CATEGORY . '/read-ai-traffic',
 			self::CATEGORY . '/read-request-log',
 			self::CATEGORY . '/read-edge-traffic',
+			self::CATEGORY . '/read-search-visibility',
 			self::CATEGORY . '/identify-bot',
 			self::CATEGORY . '/check-page',
 			self::CATEGORY . '/preview-schema',

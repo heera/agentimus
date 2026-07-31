@@ -15,6 +15,7 @@ import AssistantDrawer from './components/AssistantDrawer.vue';
 import AiTrafficPanel from './components/AiTrafficPanel.vue';
 import RequestLog from './components/RequestLog.vue';
 import EdgePanel from './components/EdgePanel.vue';
+import BingPanel from './components/BingPanel.vue';
 import AgentAccess from './components/AgentAccess.vue';
 import ReviewMenu from './components/ReviewMenu.vue';
 import OnboardingWizard from './components/OnboardingWizard.vue';
@@ -42,7 +43,7 @@ const MORE_EDGE_GAP = 12;
 
 export default {
   name: 'AgentimusApp',
-  components: { SettingsForm, ReadinessPanel, DiscoveryHub, ActivityPanel, WhatsNew, ReviewAsk, AssistantLauncher, AssistantDrawer, AiTrafficPanel, RequestLog, EdgePanel, AgentAccess, ReviewMenu, OnboardingWizard, AboutPanel, ConfirmDialog, VisibilityPanel },
+  components: { SettingsForm, ReadinessPanel, DiscoveryHub, ActivityPanel, WhatsNew, ReviewAsk, AssistantLauncher, AssistantDrawer, AiTrafficPanel, RequestLog, EdgePanel, BingPanel, AgentAccess, ReviewMenu, OnboardingWizard, AboutPanel, ConfirmDialog, VisibilityPanel },
   // The styled hover bubble (shared with the activity tables) — the score rail's
   // rung and next-step hints use it instead of slow, unthemeable native titles.
   mixins: [uaTip],
@@ -51,19 +52,16 @@ export default {
   },
   data() {
     const fromHash = (window.location.hash || '').replace(/^#/, '');
-    // AI Visibility is opt-in: a #visibility hash falls back to the dashboard when the
-    // feature is off (the tab isn't shown, so there'd be nowhere to navigate from).
-    const visOn = !!(this.boot.settings && this.boot.settings.enable_visibility);
-    // Same story for the Request log and AI traffic: with the activity log switched off
-    // there is nothing to read, so both tabs are hidden and their hashes have nowhere to
-    // land. This list is what a COLD load validates against — `tabs()` only governs a
-    // hashchange — so a screen missing from it silently boots on the dashboard instead.
+    // With the activity log switched off there is nothing to read, so both activity
+    // tabs are hidden and their hashes have nowhere to land. This list is what a COLD
+    // load validates against — `tabs()` only governs a hashchange — so a screen missing
+    // from it silently boots on the dashboard instead.
     const actOn = !!(this.boot.settings && this.boot.settings.enable_activity);
     const activityTabs = ['log', 'ai-traffic'];
-    // 'agent-access' is unconditional here, unlike the activity/visibility tabs above: it has
-    // no setting to hide it, and it is always mounted, so its hash always has somewhere to land.
+    // 'agent-access' and 'visibility' are unconditional: always mounted, so their
+    // hashes always have somewhere to land. (Visibility hosts two tenants — the
+    // citation checks and AI Search — each gated by its OWN key inside the screen.)
     let startTab = ['dashboard', ...activityTabs, 'agent-access', 'visibility', 'settings', 'readiness', 'discovery', 'about'].includes(fromHash) ? fromHash : 'dashboard';
-    if ('visibility' === startTab && !visOn) startTab = 'dashboard';
     if (activityTabs.includes(startTab) && !actOn) startTab = 'dashboard';
     return {
       api: createApi(this.boot),
@@ -114,6 +112,10 @@ export default {
       // (endpoint/client/source/page drill-downs); seq-stamped so repeat
       // clicks re-apply.
       logPreset: null,
+      // The AI Visibility screen's current sub-view (Results / Settings) —
+      // announced by the panel, so screen-mates can seat themselves with the
+      // right one (Found by AI Search rides Results).
+      visView: 'results',
       // Edge conflicts (from EdgePanel's summary fetch), pinned ABOVE the request
       // log: a breakage must be the first thing on that screen, while the edge
       // cards themselves sit below the log they annotate.
@@ -309,12 +311,9 @@ export default {
     // and switching recording off is a deliberate act, so it simply goes.
     moreTabs() {
       return [
-        {
-          id: 'visibility',
-          label: 'AI Visibility',
-          disabled: !this.settings.enable_visibility,
-          note: 'Turn on in Settings',
-        },
+        // Always on: the screen hosts two tenants (citation checks + AI Search),
+        // each gated by its own key INSIDE the screen — never by the nav.
+        { id: 'visibility', label: 'AI Visibility' },
         // Two screens, one switch — but they are NOT the same view of the same thing.
         // The request log is the bot side (one row per fetch, with a clock time); AI
         // traffic is the human side (day totals, no clock time). Keeping them apart is
@@ -382,7 +381,7 @@ export default {
           },
           visibility: {
             title: 'AI Visibility',
-            description: 'Track whether ChatGPT, Perplexity, Gemini and Claude mention and cite your site — over time.',
+            description: 'Whether AI search can find you, and whether assistants cite you — Bing’s index and scheduled citation checks, side by side.',
           },
           settings: {
             title: 'Settings',
@@ -422,10 +421,6 @@ export default {
     },
   },
   watch: {
-    // Turning citation tracking off while viewing AI Visibility → leave the now-hidden tab.
-    'settings.enable_visibility'(on) {
-      if (!on && this.tab === 'visibility') this.goTo('dashboard');
-    },
     // Same for the request log and AI traffic: both panels are v-if'd on this setting, so
     // switching recording off while viewing one would unmount it and leave the screen blank.
     'settings.enable_activity'(on) {
@@ -1716,13 +1711,25 @@ export default {
           @seen="agentAccessUnseen = 0"
           @flash="flash"
         />
+        <!-- Always mounted: the screen is a room with two tenants. The checks
+             tenant is gated by its own toggle (checks-on), the AI Search tenant
+             by its connection — neither key opens or closes the room. -->
         <VisibilityPanel
-          v-if="settings.enable_visibility"
           v-show="tab === 'visibility'"
           ref="visibilityPanel"
           :api="api"
+          :checks-on="!!settings.enable_visibility"
           @flash="flash"
           @measured="refreshScore"
+          @view-change="visView = $event"
+          @navigate="goTo"
+          @enable-checks="settings.enable_visibility = $event"
+        />
+        <BingPanel
+          v-show="tab === 'visibility' && visView === 'aisearch'"
+          :api="api"
+          :active="tab === 'visibility' && visView === 'aisearch'"
+          @navigate="goTo"
         />
         <AboutPanel
           v-show="tab === 'about'"

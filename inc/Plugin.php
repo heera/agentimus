@@ -139,6 +139,13 @@ final class Plugin {
 		( new Cloudflare\Module( $cloudflare ) )->register();
 		( new Cloudflare\Rest( $cloudflare, $this->settings ) )->register();
 
+		// Bing search data source (opt-in, BYO key). One daily poll of Bing's own
+		// crawl statistics stored locally — the index ChatGPT search reads today.
+		// Also prints the msvalidate verification tag once the owner pastes a code.
+		$bing = new Bing\Settings();
+		( new Bing\Module( $bing ) )->register();
+		( new Bing\Rest( $bing, $this->settings ) )->register();
+
 		// Self-heal the /.well-known rewrite rules: flush ONCE whenever the routed-name
 		// set changes — an Agentimus update that adds a built-in name (e.g. tdmrep.json)
 		// OR a provider plugin that opts a name in via the `agentimus_well_known_routed`
@@ -209,6 +216,8 @@ final class Plugin {
 		Visibility\Module::schedule();
 		Cloudflare\Table::install();
 		Cloudflare\Module::schedule();
+		Bing\Table::install();
+		Bing\Module::schedule();
 		Digest\Module::schedule();
 		Discovery\WellKnown::add_rules();
 		self::flush_rewrites_in_context();
@@ -358,6 +367,7 @@ final class Plugin {
 		Activity\Module::unschedule();
 		Visibility\Module::unschedule();
 		Cloudflare\Module::unschedule();
+		Bing\Module::unschedule();
 		Digest\Module::unschedule();
 		BotRanges::clear_schedule();
 		RouteProbe::clear_schedule();

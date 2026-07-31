@@ -80,6 +80,13 @@ function agentimus_uninstall_site() {
 	delete_option( 'agentimus_edge_lock' );
 	wp_clear_scheduled_hook( 'agentimus_edge_poll' );
 
+	// Bing search source: daily-stats table, connection option, lock and poll.
+	$wpdb->query( "DROP TABLE IF EXISTS {$wpdb->prefix}agentimus_bing_daily" ); // phpcs:ignore WordPress.DB
+	delete_option( 'agentimus_bing' );
+	delete_option( 'agentimus_bing_db_version' );
+	delete_option( 'agentimus_bing_lock' );
+	wp_clear_scheduled_hook( 'agentimus_bing_poll' );
+
 	// AI Visibility monitoring: results table, options and scheduled run.
 	$wpdb->query( "DROP TABLE IF EXISTS {$wpdb->prefix}agentimus_visibility" ); // phpcs:ignore WordPress.DB
 	delete_option( 'agentimus_visibility' );

@@ -1,0 +1,361 @@
+<script>
+/**
+ * Found by AI Search — the Bing half of the AI Visibility screen.
+ *
+ * The visibility checks above ask assistants questions; this card reads the
+ * infrastructure underneath: how much of the site sits in Bing's index — the
+ * index ChatGPT search reads today, Copilot too — and how cleanly Bing's
+ * crawler gets in. Fetches /bing/summary on every reveal (a connect or an
+ * overnight poll must show without a page reload).
+ *
+ * Off state = one quiet pointer card at Settings → Data sources. No form
+ * here: the key has exactly one home.
+ */
+import { formatDate } from '../wpDate.js';
+import { uaTip } from '../uaTip.js';
+import SelectMenu from './SelectMenu.vue';
+
+export default {
+  name: 'BingPanel',
+  components: { SelectMenu },
+  // The trend bars use the house hover bubble — never a native title.
+  mixins: [uaTip],
+  props: {
+    api: { type: Object, default: null },
+    // Rendered with v-show, so it stays mounted across tab switches.
+    active: { type: Boolean, default: false },
+  },
+  emits: ['navigate', 'flash'],
+  data() {
+    return {
+      summary: null,
+      loading: false,
+      loaded: false,
+      fetching: false,
+      error: '',
+      // The clicked bar's index; -1 = no day report open. All data is already
+      // local (the trend rows carry the whole day), so there is no loading state.
+      selectedDay: -1,
+    };
+  },
+  computed: {
+    connected() {
+      return !!(this.summary && this.summary.connected);
+    },
+    totals() {
+      return (this.summary && this.summary.totals) || { inIndex: 0, crawledLatest: 0, crawlErrors: 0, blockedByRobots: 0 };
+    },
+    trend() {
+      return (this.summary && this.summary.trend) || [];
+    },
+    conflicts() {
+      return (this.summary && this.summary.conflicts) || [];
+    },
+    siteHost() {
+      const url = (this.summary && this.summary.siteUrl) || '';
+      return url.replace(/^https?:\/\//, '').replace(/\/$/, '');
+    },
+    // Bar heights: the index trend usually moves a little on a big base, so a
+    // 0-scaled chart would render as a flat wall. Scale min→max into 30→100%.
+    bars() {
+      const vals = this.trend.map((t) => t.inIndex);
+      if (!vals.length) return [];
+      const min = Math.min(...vals);
+      const max = Math.max(...vals);
+      return vals.map((v) => (max === min ? 65 : 30 + Math.round(((v - min) / (max - min)) * 70)));
+    },
+    trendFirst() {
+      return this.trend.length ? this.trend[0] : null;
+    },
+    trendLast() {
+      return this.trend.length ? this.trend[this.trend.length - 1] : null;
+    },
+    selected() {
+      return this.selectedDay >= 0 && this.selectedDay < this.trend.length ? this.trend[this.selectedDay] : null;
+    },
+    dayOptions() {
+      return this.trend.map((t, i) => ({
+        value: String(i),
+        label: `${this.day(t.date)} · ${this.n(t.inIndex)} pages`,
+      }));
+    },
+    // The crawl picture as rank rows, bars scaled to the day's crawled count.
+    dayRows() {
+      if (!this.selected) return [];
+      const s = this.selected;
+      return [
+        { label: 'Crawled', value: s.crawled, warn: false },
+        { label: 'OK (2xx)', value: s.ok, warn: false },
+        { label: 'Redirects', value: s.redirects, warn: false },
+        { label: 'Errors (4xx)', value: s.clientErrors, warn: s.clientErrors > 0 },
+        { label: 'Server errors (5xx)', value: s.serverErrors, warn: s.serverErrors > 0 },
+        { label: 'Blocked by robots.txt', value: s.blockedByRobots, warn: s.blockedByRobots > 0 },
+      ];
+    },
+    dayRowMax() {
+      return this.dayRows.reduce((m, r) => Math.max(m, r.value), 1);
+    },
+  },
+  watch: {
+    active(on) {
+      if (on && !this.loading) this.load();
+    },
+  },
+  mounted() {
+    if (this.active) this.load();
+  },
+  methods: {
+    async load() {
+      if (!this.api || this.loading) return;
+      this.loading = true;
+      this.error = '';
+      try {
+        this.summary = await this.api.getBingSummary(30);
+        this.loaded = true;
+        this.selectedDay = -1; // fresh data, stale selection.
+      } catch (e) {
+        this.error = e && e.message ? e.message : 'Could not load the Bing summary.';
+      } finally {
+        this.loading = false;
+      }
+    },
+    pickDay(i) {
+      this.selectedDay = i;
+      this.$nextTick(() => {
+        if (this.$refs.bingDayDialog) this.$refs.bingDayDialog.focus();
+      });
+    },
+    closeDay() {
+      this.selectedDay = -1;
+    },
+    stepDay(delta) {
+      const next = this.selectedDay + delta;
+      if (next >= 0 && next < this.trend.length) this.selectedDay = next;
+    },
+    barPct(v) {
+      return `${Math.round((v / this.dayRowMax) * 100)}%`;
+    },
+    async fetchNow() {
+      if (!this.api || this.fetching) return;
+      this.fetching = true;
+      try {
+        this.summary = await this.api.refreshBingSummary(30);
+      } catch (e) {
+        this.error = e && e.message ? e.message : 'Could not reach Bing.';
+      } finally {
+        this.fetching = false;
+      }
+    },
+    n(v) {
+      return Number(v || 0).toLocaleString();
+    },
+    day(iso) {
+      const d = new Date(`${iso}T00:00:00Z`);
+      return Number.isNaN(d.getTime()) ? iso : formatDate(d, true);
+    },
+    agoMin(ts) {
+      const t = Number(ts || 0) * 1000;
+      if (!t) return '';
+      const m = Math.round((Date.now() - t) / 60000);
+      if (m < 1) return 'just now';
+      if (m < 60) return `${m}m ago`;
+      const h = Math.round(m / 60);
+      if (h < 24) return `${h}h ago`;
+      return `${Math.round(h / 24)}d ago`;
+    },
+    goSettings() {
+      this.$emit('navigate', { tab: 'settings', anchor: 'ar-sec-bing' });
+    },
+  },
+};
+</script>
+
+<template>
+  <div class="ar-bing">
+    <!-- Off: one quiet pointer, no form, no nagging. -->
+    <section v-if="loaded && !connected" class="ar-card ar-card--muted">
+      <h2 class="ar-card__title">Found by AI Search <span class="ar-card__tag">Off</span></h2>
+      <p class="ar-card__lead ar-bing__offlead">
+        Bing is the index ChatGPT search reads today — Copilot too. Connect it and this card
+        shows how much of your site that index holds, and warns you when something keeps
+        Bing's crawler out.
+        <button type="button" class="ar-linkbtn" @click="goSettings">
+          Connect Bing in Settings → Data sources
+        </button>
+      </p>
+    </section>
+
+    <template v-else-if="connected">
+      <div v-if="conflicts.length" class="ar-edge-pins">
+        <div v-for="c in conflicts" :key="c.id" class="ar-edge-pin ar-edge-pin--warn">
+          <span class="ar-edge-pin__badge">Conflict</span>
+          <p class="ar-edge-pin__title">{{ c.title }}</p>
+          <p class="ar-edge-pin__body">{{ c.body }}</p>
+          <div class="ar-edge-pin__actions">
+            <a class="ar-linkbtn" :href="c.url" target="_blank" rel="noopener">Take a look →</a>
+          </div>
+        </div>
+      </div>
+
+      <section class="ar-card">
+        <h2 class="ar-card__title">Found by AI Search <span class="ar-card__tag">Bing · last {{ summary.days }} days</span></h2>
+        <p class="ar-card__lead">
+          How much of your site Bing's index holds, and how cleanly Bing's crawler gets in.
+          ChatGPT search and Microsoft Copilot find pages through this index today.
+        </p>
+
+        <div class="ar-mcp-rail" data-state="running">
+          <span class="ar-mcp-rail__dot" aria-hidden="true"></span>
+          <strong>Connected</strong>
+          <span class="ar-mcp-rail__sep" aria-hidden="true">·</span><span class="ar-bing__site">{{ siteHost }}</span>
+          <template v-if="summary.lastPollAt">
+            <span class="ar-mcp-rail__sep" aria-hidden="true">·</span>
+            <span>updated {{ agoMin(summary.lastPollAt) }}</span>
+          </template>
+          <span class="ar-mcp-rail__sep" aria-hidden="true">·</span>
+          <button type="button" class="ar-linkbtn" :disabled="fetching" @click="fetchNow">
+            {{ fetching ? 'Refreshing…' : 'Refresh' }}
+          </button>
+          <template v-if="summary.lastError">
+            <span class="ar-mcp-rail__sep ar-bing__sep-warn" aria-hidden="true">·</span>
+            <span class="ar-warn">Last poll failed: {{ summary.lastError }} — showing the last good numbers.</span>
+          </template>
+        </div>
+
+        <div v-if="!trend.length" class="ar-wd-empty">
+          No numbers from Bing yet. The first daily numbers usually appear within a day of
+          connecting — sooner after a Refresh.
+        </div>
+        <template v-else>
+          <div class="ar-wd-stats ar-act-stats ar-act-stats--4">
+            <div class="ar-wd-stat"><strong>{{ n(totals.inIndex) }}</strong><span>Pages in Bing's index</span></div>
+            <div class="ar-wd-stat"><strong>{{ n(totals.crawledLatest) }}</strong><span>Pages crawled, latest day</span></div>
+            <div class="ar-wd-stat"><strong :class="{ 'ar-bing__hot': totals.crawlErrors }">{{ n(totals.crawlErrors) }}</strong><span>Crawl errors, {{ summary.days }} days</span></div>
+            <div class="ar-wd-stat"><strong :class="{ 'ar-bing__hot': totals.blockedByRobots }">{{ n(totals.blockedByRobots) }}</strong><span>Blocked by robots.txt</span></div>
+          </div>
+
+          <p class="ar-ai__sub ar-bing__sub">Pages in the index — day by day</p>
+          <!-- Each bar is a button: hover says the day, a click opens the day
+               report — the same modal contract every chart in the app keeps.
+               On phones the scroller keeps bars touch-wide and opens at the
+               NEWEST days (rtl outside, ltr inside — the dashboard's recipe). -->
+          <div class="ar-bing__scrollwrap">
+          <div class="ar-bing__trend">
+            <button
+              v-for="(h, i) in bars"
+              :key="i"
+              type="button"
+              class="ar-bing__bar"
+              :class="{ 'is-active': selectedDay === i }"
+              :style="{ height: h + '%' }"
+              :aria-label="`${day(trend[i].date)} — ${n(trend[i].inIndex)} pages in Bing's index`"
+              @click="pickDay(i)"
+              @mouseenter="showUaTip($event, `${day(trend[i].date)} · ${n(trend[i].inIndex)} pages`, '', 'cursor')"
+              @mouseleave="hideUaTip"
+            ></button>
+          </div>
+          </div>
+          <div class="ar-bing__cap">
+            <span v-if="trendFirst">{{ day(trendFirst.date) }} · {{ n(trendFirst.inIndex) }}</span>
+            <span v-if="trendLast">{{ day(trendLast.date) }} · {{ n(trendLast.inIndex) }}</span>
+          </div>
+        </template>
+
+        <p class="ar-card__note ar-cf-note">
+          Numbers come from Bing Webmaster Tools, one poll a day, kept in your own database —
+          your history keeps growing where Bing's own window ends. “Today” matters: ChatGPT
+          search reads Bing's index today; if that ever changes, these numbers still tell you
+          how Bing and Copilot see you.
+        </p>
+      </section>
+    </template>
+
+    <p v-else-if="error" class="ar-log__error" role="alert">{{ error }}</p>
+
+    <!-- Day report: the dashboard day modal's twin, same conventions — fixed
+         focus, Esc/Close only (no backdrop close), arrow keys switch days. -->
+    <Teleport to="body">
+      <transition name="ar-modal">
+        <div v-if="selected" class="ar-modal">
+          <div
+            ref="bingDayDialog"
+            class="ar-modal__panel ar-modal__panel--day"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="ar-bing-day-title"
+            tabindex="-1"
+            @keydown.esc="closeDay"
+            @keydown.left="stepDay(-1)"
+            @keydown.right="stepDay(1)"
+          >
+            <div class="ar-modal__head">
+              <div class="ar-day-head">
+                <h2 id="ar-bing-day-title" class="ar-modal__title">{{ day(selected.date) }}</h2>
+                <div class="ar-day-nav" role="group" aria-label="Switch day">
+                  <button type="button" class="ar-day-nav__btn" :disabled="selectedDay <= 0" aria-label="Previous day" @click="stepDay(-1)">
+                    <svg viewBox="0 0 16 16" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 4l-4 4 4 4" /></svg>
+                  </button>
+                  <SelectMenu
+                    class="ar-day-picker"
+                    :model-value="String(selectedDay)"
+                    :options="dayOptions"
+                    aria-label="Jump to a day"
+                    @update:model-value="selectedDay = Number($event)"
+                  />
+                  <button type="button" class="ar-day-nav__btn" :disabled="selectedDay >= trend.length - 1" aria-label="Next day" @click="stepDay(1)">
+                    <svg viewBox="0 0 16 16" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 4l4 4-4 4" /></svg>
+                  </button>
+                </div>
+              </div>
+              <p class="ar-modal__lead">
+                Bing's crawl picture for this day — every answer your site gave its crawler,
+                and where the index stood.
+              </p>
+            </div>
+
+            <div class="ar-modal__body">
+              <div class="ar-modal__scroll">
+                <!-- One story, full width — .ar-daybreak is the two-column grid
+                     and a lone column in it packs everything left. -->
+                <div class="ar-bing__daybody">
+                  <h3 class="ar-daybreak__h">Pages in the index <span class="ar-daybreak__n">{{ n(selected.inIndex) }}</span></h3>
+                  <ul class="ar-act-rank">
+                    <li v-for="r in dayRows" :key="r.label">
+                      <span class="ar-act-rank__label">{{ r.label }}</span>
+                      <span class="ar-act-rank__track"><span class="ar-act-rank__bar" :class="{ 'ar-bing__bar--warn': r.warn }" :style="{ width: barPct(r.value) }"></span></span>
+                      <span class="ar-act-rank__n" :class="{ 'ar-warn': r.warn }">{{ n(r.value) }}</span>
+                    </li>
+                  </ul>
+                  <p class="ar-act-more-note">
+                    Answers are Bing's own daily counts — one row per day, so there are no
+                    per-request times here.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div class="ar-modal__actions">
+              <button type="button" class="ar-btn ar-btn--ghost" @click="closeDay">Close</button>
+            </div>
+          </div>
+        </div>
+      </transition>
+    </Teleport>
+
+    <!-- Rendered at body level like the activity feed's bubble — anchored inside
+         the card it could be clipped. -->
+    <Teleport to="body">
+      <transition name="ar-tip">
+        <div
+          v-if="uaTip.show"
+          ref="uaTipEl"
+          class="ar-act-uatip"
+          :class="{ 'is-below': uaTip.below }"
+          :style="{ left: uaTip.x + 'px', top: uaTip.y + 'px' }"
+          role="tooltip"
+          aria-hidden="true"
+        ><span class="ar-act-uatip__ua">{{ uaTip.text }}</span><span v-if="uaTip.hint" class="ar-act-uatip__hint">{{ uaTip.hint }}</span><span class="ar-act-uatip__caret" :style="{ left: uaTip.caret + 'px' }"></span></div>
+      </transition>
+    </Teleport>
+  </div>
+</template>

@@ -79,6 +79,15 @@ export default {
       cfJustConnected: false, // Shows the "first numbers are in" pointer right after a connect.
       cfChecked: false, // False until the first status read answers — the UI must not claim "Not connected" while still asking.
       cfConflicts: [], // EVERY active conflict, hidden-on-log or not — this ledger empties only when situations really end.
+      bing: null, // Bing connection status (never the key).
+      bingChecked: false, // Same three-state honesty as the Cloudflare rail.
+      bingCode: '', // The msvalidate paste field; cleared after save.
+      bingKey: '', // The API key paste field. Sent once on Connect, then cleared.
+      bingSavingCode: false,
+      bingConnecting: false,
+      bingDisconnecting: false,
+      bingError: '',
+      bingJustConnected: false,
       typeQuery: '',
       catQuery: '',
       nsQuery: '',
@@ -163,6 +172,7 @@ export default {
     // only changes when a situation starts or really ends.
     group(key) {
       if (key === 'sources' && !this.cf) this.loadCloudflare();
+      if (key === 'sources' && !this.bing) this.loadBing();
     },
     // Document-level Esc while the reset dialog is open — the panel-scoped
     // handler dies as soon as focus leaves the panel (e.g. a backdrop click).
@@ -774,10 +784,9 @@ export default {
         { key: 'enable_page_checks', label: 'AI readability tips', hint: 'Adds an “AI Readability” panel in the post editor with per-page tips (headings, summary, thin content, image alt). Editor-only — nothing is shown to visitors.' },
         { key: 'enable_share_copy', label: 'Share drafts', hint: 'Adds a “Share” tab in the post editor with ready-to-post drafts for X, Facebook, LinkedIn, WhatsApp, Telegram and Reddit — written from the post itself, polished with AI per card if a provider is set up. Editor-only; nothing is ever posted for you.' },
         { key: 'enable_ask_ai', label: 'Ask-AI buttons', hint: 'A small “Ask AI about this post” row after each post: one click opens ChatGPT, Claude, Perplexity, Google AI Mode or Grok pre-filled with the post’s address — and the assistant’s visit shows up in your request log. Plain links, no script; nothing is sent until a reader clicks.' + this.askAiPolicyNote },
-        // Named for the screen it unlocks, with what it literally does in a quieter aside —
-        // "Track AI citations" describes the mechanism, "AI Visibility" is what you look for
-        // in the nav. `sub` is optional; no other feature needs one yet.
-        { key: 'enable_visibility', label: 'AI Visibility', sub: '(Track AI citations)', hint: 'Shows the AI Visibility screen and adds the “Cited” rung to your score — measures whether AI engines actually name your site in their answers. Off by default: it needs your own AI provider key and spends your credit to run checks.' },
+        // Citation checks deliberately have NO row here: their key hangs inside
+        // their own door — the Citations tab on the always-on AI Visibility
+        // screen — exactly like the data sources activate by their own setup.
         { key: 'enable_sitemap', label: 'Sitemap', hint: 'With no SEO plugin installed, Agentimus serves your sitemap — including the last-changed dates WordPress core’s own leaves out. With an SEO plugin, it steps aside and only fills the gap when nothing else provides one.' },
         { key: 'enable_changes', label: 'Change feed', hint: 'A JSON feed of recently added or updated pages so assistants can re-check just what changed, instead of re-reading your whole site. (file: agentimus-changes.json)' },
         { key: 'enable_signing', label: 'Verified responses', hint: 'Digitally signs your AI files so assistants can confirm they really came from your site and weren’t tampered with on the way. On by default; no setup needed.' },
@@ -1202,6 +1211,76 @@ export default {
     cfPolledText() {
       if (!this.cf || !this.cf.lastPollAt) return '';
       const d = new Date(this.cf.lastPollAt * 1000);
+      return `${formatDate(d)} ${formatTime(d)}`;
+    },
+    // ── Bing data source ───────────────────────────────────────────────────
+    async loadBing() {
+      if (!this.api) return;
+      try {
+        this.bing = await this.api.getBingStatus();
+      } catch (e) {
+        // Leave bing null — a failed status read is not worth a banner.
+      } finally {
+        this.bingChecked = true;
+      }
+    },
+    async saveBingCode() {
+      const code = this.bingCode.trim();
+      if (!code || this.bingSavingCode || !this.api) return;
+      this.bingSavingCode = true;
+      this.bingError = '';
+      try {
+        this.bing = await this.api.saveBingCode(code);
+        this.bingCode = '';
+      } catch (e) {
+        this.bingError = (e && e.message) || 'Could not save the verification code.';
+      } finally {
+        this.bingSavingCode = false;
+      }
+    },
+    async connectBing() {
+      const key = this.bingKey.trim();
+      if (!key || this.bingConnecting || !this.api) return;
+      this.bingConnecting = true;
+      this.bingError = '';
+      try {
+        this.bing = await this.api.connectBing(key);
+        this.bingKey = '';
+        this.bingJustConnected = true;
+      } catch (e) {
+        this.bingError = (e && e.message) || 'Could not connect to Bing.';
+      } finally {
+        this.bingConnecting = false;
+      }
+    },
+    async disconnectBing() {
+      if (this.bingDisconnecting || !this.api) return;
+      const ok = await confirm({
+        title: 'Disconnect Bing?',
+        message: 'Agentimus forgets the key and stops polling right away. The Bing numbers already stored stay in your database, and the printed verification tag stays too — reconnecting is one paste.',
+        confirmLabel: 'Disconnect',
+        cancelLabel: 'Cancel',
+        tone: 'danger',
+      });
+      if (!ok) return;
+      this.bingDisconnecting = true;
+      this.bingError = '';
+      try {
+        this.bing = await this.api.disconnectBing();
+        this.bingJustConnected = false;
+      } catch (e) {
+        this.bingError = (e && e.message) || 'Could not disconnect.';
+      } finally {
+        this.bingDisconnecting = false;
+      }
+    },
+    bingHost() {
+      const url = (this.bing && this.bing.siteUrl) || '';
+      return url.replace(/^https?:\/\//, '').replace(/\/$/, '');
+    },
+    bingPolledText() {
+      if (!this.bing || !this.bing.lastPollAt) return '';
+      const d = new Date(this.bing.lastPollAt * 1000);
       return `${formatDate(d)} ${formatTime(d)}`;
     },
     async copyPlainText(text) {
@@ -3525,7 +3604,7 @@ export default {
           </p>
           <div class="ar-mcp-recipe">
             <ol class="ar-mcp-recipe__steps">
-              <li>In Cloudflare, open <code>My Profile → API Tokens → Create Token</code>.</li>
+              <li>In Cloudflare, open <a href="https://dash.cloudflare.com/profile/api-tokens" target="_blank" rel="noopener"><code>My Profile → API Tokens</code></a> → Create Token.</li>
               <li>Give it one permission: <code>Zone → Analytics → Read</code>, for this site’s zone only.</li>
               <li>Paste it here. Agentimus finds the zone by itself.</li>
             </ol>
@@ -3568,9 +3647,124 @@ export default {
           </div>
         </template>
 
+      </section>
+
+      <!-- Bing — the second data source: the index ChatGPT search reads today.
+           Setup is two pastes; the verification tag is printed by Agentimus
+           itself, so there is no file upload and no DNS. -->
+      <section id="ar-sec-bing" class="ar-card">
+        <h2 class="ar-card__title">Bing</h2>
+        <p class="ar-card__lead">
+          Bing is the index ChatGPT search reads today — Microsoft Copilot too. If Bing can
+          see your pages, AI search can find them. Connect it and the
+          <a href="#visibility">AI Visibility</a> screen shows how much of your site is in
+          that index, and warns you when something keeps Bing’s crawler out.
+        </p>
+
+        <div class="ar-mcp-rail" :data-state="bing && bing.connected ? 'running' : (bingChecked ? 'unsaved' : 'idle')">
+          <span class="ar-mcp-rail__dot" aria-hidden="true"></span>
+          <template v-if="bing && bing.connected">
+            <strong>Connected</strong>
+            <span class="ar-mcp-rail__sep" aria-hidden="true">·</span><span>{{ bingHost() }}</span>
+            <template v-if="bingPolledText()">
+              <span class="ar-mcp-rail__sep" aria-hidden="true">·</span><span>numbers as of {{ bingPolledText() }}</span>
+            </template>
+            <template v-if="bing.lastError">
+              <span class="ar-mcp-rail__sep" aria-hidden="true">·</span><span class="ar-warn">Last poll failed: {{ bing.lastError }}.</span>
+            </template>
+          </template>
+          <template v-else-if="bingChecked">
+            <strong>Not connected.</strong>
+            <span class="ar-mcp-rail__sep" aria-hidden="true">·</span>
+            <span>Read-only — Agentimus never changes your Bing settings.</span>
+          </template>
+          <template v-else>
+            <span>Checking the connection…</span>
+          </template>
+        </div>
+
+        <p v-if="bingError" class="ar-field__hint ar-warn">{{ bingError }}</p>
+
+        <template v-if="bingChecked && (!bing || !bing.connected)">
+          <p class="ar-mcp-eyebrow">Step 1 · Show Bing this site is yours</p>
+          <div class="ar-cf-row">
+            <input
+              v-model="bingCode"
+              class="ar-input"
+              type="text"
+              autocomplete="off"
+              spellcheck="false"
+              placeholder="Paste your verification code (msvalidate.01)"
+              aria-label="Bing verification code"
+              @keyup.enter="saveBingCode"
+            />
+            <button type="button" class="ar-btn" :disabled="bingSavingCode || !bingCode.trim()" @click="saveBingCode">
+              {{ bingSavingCode ? 'Saving…' : 'Save' }}
+            </button>
+          </div>
+          <p class="ar-field__hint">
+            Agentimus prints the verification tag on your pages for you — nothing to upload.
+            In Bing, pick the <strong>HTML Meta Tag</strong> verification option and paste
+            its code (or the whole tag) here. Already verified in Bing — for example through
+            a Google Search Console import? Skip this step.
+          </p>
+          <div v-if="bing && bing.hasMsvalidate" class="ar-bing__code">&lt;meta name="msvalidate.01" content="…" /&gt; — printed on your pages now</div>
+
+          <p class="ar-mcp-eyebrow">Step 2 · Paste your API key</p>
+          <div class="ar-cf-row">
+            <input
+              v-model="bingKey"
+              class="ar-input"
+              type="password"
+              autocomplete="off"
+              spellcheck="false"
+              placeholder="Paste your Bing Webmaster API key"
+              aria-label="Bing Webmaster API key"
+              @keyup.enter="connectBing"
+            />
+            <button type="button" class="ar-btn" :disabled="bingConnecting || !bingKey.trim()" @click="connectBing">
+              {{ bingConnecting ? 'Connecting…' : 'Connect' }}
+            </button>
+          </div>
+          <p class="ar-field__hint">
+            Stored like your other secrets — encrypted, never shown again, and sent nowhere
+            except Bing’s own API.
+          </p>
+          <div class="ar-mcp-recipe">
+            <ol class="ar-mcp-recipe__steps">
+              <li>Open <a href="https://www.bing.com/webmasters" target="_blank" rel="noopener"><code>bing.com/webmasters</code></a> — a Microsoft, Google or Facebook account works.</li>
+              <li>Add this site, or import your sites from Google Search Console in one click.</li>
+              <li>Open <code>Settings → API Access → Generate API Key</code> and paste the key here. Agentimus finds the site and asks Bing to verify it by itself.</li>
+            </ol>
+          </div>
+        </template>
+
+        <template v-else-if="bing && bing.connected">
+          <!-- Names the CARD, not the screen — the lead one paragraph up already
+               links "AI Visibility", and two identical links read as a glitch. -->
+          <p v-if="bingJustConnected" class="ar-field__hint">
+            <strong>First numbers are in.</strong> <a href="#visibility">Found by AI Search →</a>
+          </p>
+          <p class="ar-field__hint">
+            One key, read-only, one daily poll. Numbers are stored in your own database, so
+            your history keeps growing where Bing’s own window ends.
+          </p>
+          <!-- The setup steps fold away on connect; say so, or the missing code
+               field reads as LOST rather than folded (his catch). -->
+          <p class="ar-field__hint">
+            The setup steps are folded away while connected.
+            <template v-if="bing.hasMsvalidate">Your verification tag stays printed on your pages.</template>
+            <template v-else>Your site was already verified in Bing, so no verification tag was needed.</template>
+            Disconnecting brings the steps back.
+          </p>
+          <button type="button" class="ar-btn ar-btn--danger ar-btn--small" :disabled="bingDisconnecting" @click="disconnectBing">
+            {{ bingDisconnecting ? 'Disconnecting…' : 'Disconnect' }}
+          </button>
+        </template>
+
         <p class="ar-card__note ar-cf-note">
-          More sources will join here later — Google Search Console, Google Analytics — under
-          the same rules: optional, read-only, your database.
+          More sources will join here later — always under the same rules: optional,
+          read-only, your database.
         </p>
       </section>
     </div>

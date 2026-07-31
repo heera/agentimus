@@ -212,6 +212,16 @@ export function createApi(boot) {
     undismissCloudflareConflict: (id) =>
       request(`/cloudflare/dismiss?id=${encodeURIComponent(id)}`, { method: 'DELETE' }),
 
+    // Bing search data source.
+    getBingStatus: () => request('/bing'),
+    saveBingCode: (code) => request('/bing/code', { method: 'POST', body: JSON.stringify({ code }) }),
+    connectBing: (key) => request('/bing', { method: 'POST', body: JSON.stringify({ key }) }),
+    disconnectBing: () => request('/bing', { method: 'DELETE' }),
+    getBingSummary: (days = 30) => request(`/bing/summary?days=${Math.max(1, days | 0)}`),
+    // Refresh: one inline poll, then the fresh summary in the same response.
+    refreshBingSummary: (days = 30) =>
+      request(`/bing/refresh?days=${Math.max(1, days | 0)}`, { method: 'POST' }),
+
     // AI Visibility monitoring.
     getVisibilityConfig: () => request('/visibility/config'),
     saveVisibilityConfig: (config) =>
