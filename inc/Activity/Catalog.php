@@ -96,6 +96,18 @@ final class Catalog {
 	}
 
 	/**
+	 * The full recognition map — lowercase UA token => [ name, operator, kind,
+	 * url ], filters applied, ordered specific-first. For consumers that need
+	 * the stable TOKEN as a storage key; {@see identify()} returns only the
+	 * identity card, not the token it matched on.
+	 *
+	 * @return array<string,array{0:string,1:string,2:string,3:string}>
+	 */
+	public static function known() {
+		return self::catalog();
+	}
+
+	/**
 	 * Identify a User-Agent against the catalog.
 	 *
 	 * @param string $ua Raw User-Agent.

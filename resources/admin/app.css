@@ -1456,6 +1456,105 @@
 }
 .ar-mcp-pick.is-on { border-color: var(--ar-accent); box-shadow: inset 0 0 0 1px var(--ar-accent); }
 .ar-mcp-pick small { display: block; color: var(--ar-ink-faint); font-size: 11px; }
+/* ── The edge panel (Request Log screen) ──────────────────────────────────────
+   Conflicts pin ABOVE the log — same left-rule status-box grammar as the Agent
+   Access states — and only exist while something actually disagrees. The edge
+   cards themselves sit BELOW the log they annotate. */
+.ar-edge-pins { display: grid; gap: 12px; }
+.ar-edge-pin {
+  padding: 14px 16px; border: 1px solid var(--ar-line); border-left-width: 3px;
+  border-radius: 4px; background: var(--ar-surface-2);
+}
+.ar-edge-pin--warn { border-left-color: var(--ar-warn); }
+.ar-edge-pin--info { border-left-color: var(--ar-info); }
+.ar-edge-pin__badge {
+  display: inline-block; font-family: var(--ar-mono); font-size: 9px;
+  letter-spacing: 0.1em; text-transform: uppercase; padding: 2px 6px;
+  border-radius: 3px; margin: 0 0 6px;
+}
+.ar-edge-pin--warn .ar-edge-pin__badge { color: var(--ar-warn); border: 1px solid #e6d5a8; background: #f7f1df; }
+.ar-edge-pin--info .ar-edge-pin__badge { color: var(--ar-info); border: 1px solid #c3d2e6; background: #e9eff7; }
+.ar-edge-pin__title { margin: 0 0 4px; font-size: 14px; font-weight: 600; color: var(--ar-ink); }
+.ar-edge-pin__body { margin: 0 0 6px; font-size: 13px; line-height: 1.55; color: var(--ar-ink-soft); }
+.ar-edge-pin__actions { display: flex; flex-wrap: wrap; gap: 6px 18px; align-items: baseline; }
+/* The quiet exit: same link grammar as "Review", but faint — acting is the
+   primary path, hiding is the deliberate second choice. */
+.ar-edge-pin__hide { color: var(--ar-ink-faint); }
+.ar-edge-pin__hide:hover { color: var(--ar-ink); }
+
+/* One column that is ALLOWED to shrink. Left implicit ("auto"), the track sizes
+   to its content, so the crawler table's 620px floor became every edge card's
+   minimum width — and .ar__main's overflow-x:clip then cut the whole panel at
+   the viewport edge on phones: lead text chopped mid-sentence, no scrollbar.
+   minmax(0,1fr) pins the track to the screen, min-width:0 lets the cards obey
+   it, and the wide table scrolls inside its own .ar-edge__scroll wrapper. */
+.ar-edge { display: grid; grid-template-columns: minmax(0, 1fr); gap: 22px; }
+.ar-edge > * { min-width: 0; }
+.ar-edge__offlead { margin: 0; padding: 0; border-bottom: 0; }
+/* The stat strip above ends flush; the table's heading needs its own air.
+   Compound selector: .ar-ai__sub is defined LATER in this file, so a lone
+   class here would lose the cascade and the heading would stay cramped. */
+.ar-edge__sub.ar-ai__sub { margin: 26px 0 14px; }
+.ar-edge__scroll { overflow-x: auto; }
+/* The connected rail holds ONE line: fixed facts keep their width and never
+   wrap; the zone name and a failure note — the only pieces of unbounded
+   length — shrink behind an ellipsis instead of folding the rail. */
+.ar-edge .ar-mcp-rail { flex-wrap: wrap; gap: 5px 7px; }
+.ar-edge .ar-mcp-rail > * { flex: 0 0 auto; white-space: nowrap; }
+.ar-edge .ar-mcp-rail .ar-edge__zone {
+  flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis;
+}
+/* A failed poll is news, not a footnote: the warning always takes a full line
+   of its own under the info line, wrapping like a sentence — never inline,
+   never ellipsized. Its leading dot goes with it. */
+.ar-edge .ar-mcp-rail .ar-warn { flex: 1 1 100%; white-space: normal; }
+.ar-edge .ar-mcp-rail .ar-edge__sep-warn { display: none; }
+.ar-edge__railbreak { display: none; }
+/* Narrow containers can't hold every segment on one line — instead of letting
+   the shrinkables crush to "h…", fold deliberately: identity line, action
+   line, and the warning gets a full line of its own. 490 is the true limit:
+   above it the healthy rail fits one line whole. */
+@container (max-width: 490px) {
+  .ar-edge .ar-mcp-rail .ar-edge__railbreak { display: block; flex-basis: 100%; height: 0; }
+  .ar-edge .ar-mcp-rail .ar-edge__sep-upd { display: none; }
+}
+.ar-edge__n { text-align: right; padding-right: 26px !important; font-family: var(--ar-mono); font-size: 12.5px; font-variant-numeric: tabular-nums; }
+.ar-edge__ico { display: none; }
+/* Card-mode glyphs for the request tables — invisible in the wide tables. */
+.ar-cardico { display: none; }
+td.ar-edge__n { color: var(--ar-ink-soft); }
+td.ar-edge__n.is-bad { color: var(--ar-bad); font-weight: 600; }
+.ar-edge__op { color: var(--ar-ink-faint); font-size: 12px; }
+.ar-edge__hot { color: var(--ar-warn); }
+.ar-edge__subnote { margin: -6px 0 12px; }
+/* The Settings warnings ledger — every active conflict pin, readable, minus
+   the Hide action. Sits under the Disconnect button; the top hairline is PART
+   of the block, so it exists only when pins do. */
+.ar-cf-hiddenblk { margin: 18px 0 4px; padding-top: 16px; border-top: 1px solid var(--ar-line); }
+.ar-cf-hiddenblk .ar-edge-pins { margin-top: 12px; }
+.ar-cf-hiddenmark { font-size: 11.5px; color: var(--ar-ink-faint); }
+.ar-edge__conduct { list-style: none; margin: 0; padding: 0; }
+.ar-edge__conduct li {
+  display: flex; align-items: center; gap: 10px; padding: 7px 0;
+  border-bottom: 1px solid var(--ar-line); font-size: 13px;
+}
+.ar-edge__conduct li:last-child { border-bottom: 0; }
+.ar-edge__tag {
+  font-family: var(--ar-mono); font-size: 10px; letter-spacing: 0.1em;
+  text-transform: uppercase; padding: 3px 9px; border-radius: 3px;
+  min-width: 52px; text-align: center; flex: none;
+}
+.ar-edge__tag--pass { color: var(--ar-good); border: 1px solid #bcdcc6; background: #eef5f0; }
+.ar-edge__tag--warn { color: var(--ar-warn); border: 1px solid #e6d5a8; background: #f7f1df; }
+.ar-edge__who { color: var(--ar-ink); }
+.ar-edge__what { color: var(--ar-ink-soft); font-size: 12.5px; }
+
+/* The Cloudflare connect row (Data sources group): field + button on one line,
+   button shortened to the filter-bar height so the pair reads as one control. */
+.ar-cf-row { display: flex; gap: 8px; margin: 14px 0 8px; }
+.ar-cf-row .ar-input { flex: 1; }
+.ar-cf-row .ar-btn { padding: 9px 22px; }
+.ar-cf-note { margin-top: 18px; }
 .ar-mcp-recipe { border-left: 2px solid var(--ar-accent); padding: 2px 0 2px 14px; }
 .ar-mcp-recipe__steps { margin: 0 0 10px; padding-left: 18px; font-size: 13px; color: var(--ar-ink-soft); }
 .ar-mcp-recipe__steps li { margin-bottom: 4px; }
@@ -2288,8 +2387,12 @@ html { scrollbar-gutter: stable; }
 /* ---- Readiness ---------------------------------------------------------- */
 /* Each rung is a titled group of checks, with its own pass tally. */
 /* The report is a stack of cards (header card + one card per rung group); the grid
-   gap replaces the old in-card margins between groups. */
-.ar-readiness-stack { display: grid; gap: 18px; }
+   gap replaces the old in-card margins between groups. min-width:0 on the stack AND
+   its cards for the same reason .ar-tabpanel carries it: as grid items, the default
+   min-width:auto refuses to shrink below the content's intrinsic width, so on a
+   phone the whole report overflowed the viewport instead of wrapping. */
+.ar-readiness-stack { display: grid; gap: 18px; min-width: 0; }
+.ar-readiness-stack > * { min-width: 0; }
 .ar-checkgroup { margin-top: 0; }
 .ar-checkgroup__head {
   position: relative;
@@ -2375,6 +2478,21 @@ html { scrollbar-gutter: stable; }
    "open a view/test" buttons so it's never mistaken for a live check. Reuses ar-spin. */
 .ar-card__titlewrap { display: flex; align-items: center; gap: 8px; min-width: 0; }
 .ar-card__titlewrap .ar-card__title { margin-bottom: 0; }
+/* The report-wide total beside the title — the same dot-and-count signal each rung
+   card carries, summed, and coloured by the worst rung so it never over-reassures. */
+.ar-readiness__total {
+  display: inline-flex; align-items: center; gap: 7px;
+  font-family: var(--ar-mono); font-size: 13px; font-weight: 600; color: var(--ar-ink-soft);
+}
+.ar-readiness__total-dot {
+  width: 9px; height: 9px; border-radius: 50%; background: var(--ar-line-strong);
+}
+.ar-readiness__total.is-pass { color: var(--ar-good); }
+.ar-readiness__total.is-warn { color: var(--ar-warn); }
+.ar-readiness__total.is-fail { color: var(--ar-bad); }
+.ar-readiness__total.is-pass .ar-readiness__total-dot { background: var(--ar-good); }
+.ar-readiness__total.is-warn .ar-readiness__total-dot { background: var(--ar-warn); }
+.ar-readiness__total.is-fail .ar-readiness__total-dot { background: var(--ar-bad); }
 .ar-readiness__refresh, .ar-log__refresh {
   flex: 0 0 auto;
   display: inline-flex; align-items: center; justify-content: center;
@@ -2921,6 +3039,9 @@ button.ar-wd-stat:focus-visible { outline: 2px solid var(--ar-accent); outline-o
 .ar-optcheck__head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
 .ar-optcheck__asided { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; align-items: flex-start; gap: 2px; }
 .ar-optcheck__asided .ar-optcheck__page { flex: none; max-width: 100%; }
+/* Same guard as the page link above: in an align-items:flex-start column the item
+   shrink-wraps its content, so this nowrap line overflowed instead of ellipsizing. */
+.ar-optcheck__asided .ar-optcheck__flags { max-width: 100%; }
 .ar-optcheck__flags { font-family: var(--ar-mono); font-size: 11px; color: var(--ar-ink-faint); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .ar-optcheck__pages { display: flex; flex-direction: column; gap: 5px; margin: 8px 0 0; }
 .ar-optcheck__row { display: flex; align-items: center; gap: 12px; }
@@ -4074,33 +4195,217 @@ a.ar-about-proto__v:hover { text-decoration: underline; }
   .ar-act-table.ar-act-table--cards tbody tr, .ar-act-table.ar-act-table--cards tbody td { display: block; }
   .ar-act-table.ar-act-table--cards thead { display: none; }
   .ar-act-table.ar-act-table--cards tbody { display: flex; flex-direction: column; gap: 8px; }
+  /* Each row re-seats as the edge card's anatomy: identity + a right-corner
+     capsule on the header line, labeled facts below, the timestamp as a
+     ruled-off footer. Orders do the seating — the wide table keeps its DOM. */
   .ar-act-table.ar-act-table--cards tbody tr {
+    display: flex; flex-wrap: wrap; align-items: flex-start; gap: 10px 12px;
     padding: 12px 14px; border: 1px solid var(--ar-line); border-radius: var(--ar-radius);
     background: var(--ar-surface);
   }
   .ar-act-table.ar-act-table--cards tbody td {
-    display: flex; align-items: baseline; gap: 10px;
-    padding: 0; margin-top: 7px; border: 0; white-space: normal; min-width: 0;
+    display: flex; flex-direction: column; align-items: flex-start; gap: 3px;
+    padding: 0; margin: 0; border: 0; white-space: normal; min-width: 0;
   }
-  .ar-act-table.ar-act-table--cards tbody td:first-child { margin-top: 0; padding-left: 0; }
+  /* Header: the client leads and the moment sits in the right corner — no
+     footer row, the corner was already paid for (his mock B). The 1px
+     ::before item is both the line break after the header and the hairline
+     that rules it off. */
+  .ar-act-table.ar-act-table--cards tbody tr::before { content: ""; order: 3; width: 100%; height: 1px; background: var(--ar-line); }
+  /* Content-width, not greedy: the status word must land right beside the
+     name, and the date's auto margin claims whatever is left. */
+  .ar-act-table.ar-act-table--cards tbody td:first-child { order: 1; flex: 0 1 auto; min-width: 0; padding-left: 0; }
+  .ar-act-table.ar-act-table--cards tbody td.ar-log__seen,
+  .ar-act-table.ar-act-table--cards tbody td.ar-act-table__at {
+    order: 2; flex: 0 0 auto; flex-direction: row; align-items: center; gap: 6px;
+    font-family: var(--ar-mono); font-size: 11px; color: var(--ar-ink-faint);
+  }
+  .ar-act-table.ar-act-table--cards tbody td.ar-log__seen { margin-left: auto; }
+  .ar-act-table.ar-act-table--cards tbody td[data-label="Hits"] { order: 2; margin-left: auto; flex: 0 0 auto; }
+  .ar-act-table.ar-act-table--cards tbody tr:has(td[data-label="Hits"].is-empty-cell) td.ar-act-table__at { margin-left: auto; }
+  /* Facts: icon-anchored slots — glyph left, label over value right, a seam
+     before every slot after the first. The log leads with Status, the
+     dashboard feed with Network; Endpoint takes the remaining width. */
+  .ar-act-table.ar-act-table--cards tbody td[data-label="Endpoint"],
+  .ar-act-table.ar-act-table--cards tbody td[data-label="Network"] {
+    /* Fixed icon column + 1fr: excess width must pool AFTER the value —
+       "auto auto" tracks both stretch under normal alignment and float the
+       label away from its glyph. */
+    display: grid; grid-template-columns: 17px minmax(0, 1fr);
+    column-gap: 9px; row-gap: 4px; align-items: center; justify-items: start;
+    flex: 0 1 auto; margin-left: 0; text-align: left;
+  }
+  .ar-act-table.ar-act-table--cards tbody td[data-label="Network"] { order: 5; }
+  .ar-act-table.ar-act-table--cards tbody td[data-label="Endpoint"] { order: 6; flex: 1 1 auto; }
+  .ar-act-table.ar-act-table--cards tbody tr:has(td[data-label="Network"]) td[data-label="Endpoint"] {
+    border-left: 1px solid var(--ar-line); padding-left: 12px;
+  }
+  /* Status rides the header, right after the name: a plain verdict word in its
+     own color — no capsule, no icon, no slot (his call). The td's ::before
+     becomes the joining dash. */
+  .ar-act-table.ar-act-table--cards tbody td.ar-log__statuscol {
+    order: 1; display: flex; flex-direction: row; align-items: baseline; gap: 7px;
+    flex: 0 0 auto;
+  }
+  .ar-act-table.ar-act-table--cards tbody td.ar-log__statuscol::before {
+    content: "–"; display: block; color: var(--ar-ink-faint); font-size: 13px;
+  }
+  .ar-act-table.ar-act-table--cards td.ar-log__statuscol .ar-cardico { display: none; }
+  .ar-act-table.ar-act-table--cards td.ar-log__statuscol .ar-log__mark {
+    border: 0; background: none; padding: 0; font-size: 12px;
+    letter-spacing: 0.04em; text-transform: none; line-height: inherit; cursor: default;
+  }
+  .ar-act-table.ar-act-table--cards td.ar-log__statuscol .ar-log__mark.is-none { color: var(--ar-warn); opacity: 1; }
+  .ar-act-table.ar-act-table--cards td.ar-log__statuscol .ar-log__mark.is-refused { color: var(--ar-bad); }
+  .ar-act-table.ar-act-table--cards tbody td[data-label="Endpoint"]::before,
+  .ar-act-table.ar-act-table--cards tbody td[data-label="Network"]::before { grid-row: 1; grid-column: 2; }
+  .ar-act-table.ar-act-table--cards .ar-cardico {
+    display: block; grid-row: 1 / 3; grid-column: 1; width: 17px; height: 17px;
+    fill: none; stroke: currentColor; stroke-width: 1.6; color: var(--ar-ink-soft);
+    stroke-linecap: round; stroke-linejoin: round;
+  }
+  .ar-act-table.ar-act-table--cards td[data-label="Endpoint"] .ar-log__pivot,
+  .ar-act-table.ar-act-table--cards td[data-label="Endpoint"] > .ar-act-feed__ep,
+  .ar-act-table.ar-act-table--cards td[data-label="Network"] .ar-act-feed__net,
+  .ar-act-table.ar-act-table--cards td[data-label="Network"] .ar-log__mark {
+    grid-row: 2; grid-column: 2;
+  }
+  /* The network value wears the endpoint chip's dress — "unknown" included, as
+     a plain quiet word: a dotted hover-underline means nothing to a thumb. */
+  .ar-act-table.ar-act-table--cards td[data-label="Network"] .ar-act-feed__net,
+  .ar-act-table.ar-act-table--cards td[data-label="Network"] .ar-log__mark {
+    display: inline-block; font-family: var(--ar-mono); font-size: 11.5px;
+    line-height: 1.6; letter-spacing: 0; text-transform: none; color: var(--ar-ink-soft);
+    background: var(--ar-surface-2); padding: 2px 8px; border: 0; border-radius: 3px;
+    opacity: 1; cursor: default;
+  }
+  /* The UA cell IS the box: label inside at the top-left, the string below —
+     one object, label included. The code chip sheds its own dress for it. */
+  .ar-act-table.ar-act-table--cards tbody td[data-label="User-Agent"] {
+    order: 7; flex: 1 1 100%; gap: 4px; padding: 8px 10px;
+    background: var(--ar-surface-2); border: 1px solid var(--ar-line); border-radius: 8px;
+  }
+  /* Outranks the spoofed row's td-background reset — the box stays a box. */
+  .ar-act-table.ar-act-table--cards tbody tr.is-spoofed td[data-label="User-Agent"] { background: var(--ar-surface-2); }
   /* Pinned column widths and right alignment belong to the wide table — inside
      a card they squeeze values into word-per-line wraps. Undo them here. */
   .ar-act-table.ar-act-table--cards tbody td:last-child { width: auto; min-width: 0; text-align: left; padding-right: 0; }
   .ar-act-table.ar-act-table--cards tbody td.ar-act-table__uacol { width: auto; max-width: none; overflow: visible; }
-  .ar-act-table.ar-act-table--cards tbody td::before {
-    content: attr(data-label); flex: 0 0 auto; width: 92px;
-    font-size: 11px; font-family: var(--ar-sans); letter-spacing: 0; text-transform: none;
-    color: var(--ar-ink-soft);
+  /* The edge crawler cards: identity left; a dashed TOTAL badge (glyph beside
+     the big count) and the bytes pill share the top-right; a hairline rules
+     off the header; the three funnel facts sit centered in equal thirds below.
+     Flex + order does the seating — the bytes td renders after the facts in
+     DOM (the wide table's column order), order pulls it into the header line,
+     and the ::after hairline is a full-width item that forces the wrap. */
+  .ar-edge .ar-act-table--cards tbody tr {
+    display: flex; flex-wrap: wrap; align-items: center;
+    gap: 12px 10px; padding: 14px 16px;
   }
+  /* The generic card's header/facts line break sits at order 3 — here that
+     seat belongs to the bytes pill, and the ::after hairline breaks the line. */
+  .ar-edge .ar-act-table--cards tbody tr::before { content: none; }
+  .ar-edge .ar-act-table--cards tbody tr::after {
+    content: ""; order: 4; width: 100%; height: 1px; background: var(--ar-line);
+  }
+  .ar-edge .ar-act-table--cards tbody td { margin-top: 0; }
+  .ar-edge .ar-act-table--cards tbody td.ar-edge__crawler { order: 1; flex: 1 1 120px; min-width: 0; font-weight: 500; }
+  .ar-edge .ar-act-table--cards tbody td.ar-edge__crawler::before { display: none; }
+  /* Identity stacks: bold name, quiet operator beneath — the joining dash is a
+     wide-table word; a stack doesn't need it. */
+  .ar-edge .ar-act-table--cards .ar-edge__op { display: block; margin-top: 1px; }
+  .ar-edge .ar-act-table--cards .ar-edge__dash { display: none; }
+  /* Hairline between the bottom fact slots, echoing the summary strip's cell
+     seams. Total (header badge) neither wears nor causes one. */
+  .ar-edge .ar-act-table--cards tbody td.ar-edge__n:not([data-label="Total"]) + td.ar-edge__n:not([data-label="Data"]) {
+    border-left: 1px solid var(--ar-line);
+  }
+  .ar-edge .ar-act-table--cards tbody td.ar-edge__n {
+    order: 5; flex: 1 1 0; min-width: 0;
+    flex-direction: column; align-items: center; gap: 6px;
+    font-size: 18px; text-align: center; padding-right: 0 !important;
+  }
+  /* Slot order: chip, number, label — the label renders via ::before, so order
+     properties place it last. */
+  .ar-edge .ar-act-table--cards .ar-edge__ico {
+    display: block; order: 1; width: 30px; height: 30px; padding: 7px;
+    border: 1px solid var(--ar-line); border-radius: 9px;
+    background: var(--ar-surface-2); color: var(--ar-ink-soft);
+    fill: none; stroke: currentColor; stroke-width: 1.7;
+    stroke-linecap: round; stroke-linejoin: round;
+  }
+  .ar-edge .ar-act-table--cards .ar-edge__v { order: 2; }
+  .ar-edge .ar-act-table--cards tbody td.ar-edge__n::before {
+    order: 3; width: auto; font-family: var(--ar-mono); font-size: 9.5px;
+    font-weight: 400; letter-spacing: 0.08em; text-transform: uppercase;
+    color: var(--ar-ink-faint);
+  }
+  /* Blocked with a count: the chip and the number warm up together — the ONLY
+     color in the card row, so it stays an alarm. The label keeps quiet. */
+  .ar-edge .ar-act-table--cards tbody td.ar-edge__n.is-bad .ar-edge__ico {
+    color: var(--ar-bad);
+    border-color: color-mix(in srgb, var(--ar-bad) 28%, var(--ar-line));
+    background: color-mix(in srgb, var(--ar-bad) 6%, var(--ar-surface));
+  }
+  /* Total is the headline, not a funnel stage: a slim dashed capsule in the
+     header — glyph, count, quiet TOTAL label on one line. Slot order comes
+     free: glyph 1, value 2, ::before label 3. The bytes pill is its solid
+     twin — same height, same radius, so the pair reads as one family. */
+  .ar-edge .ar-act-table--cards tbody td[data-label="Total"] {
+    order: 2; margin-left: auto; flex: 0 0 auto;
+    flex-direction: row; align-items: center; gap: 7px;
+    height: 28px; padding: 0 12px; padding-right: 12px !important;
+    border: 1px dashed var(--ar-line-strong); border-radius: 999px;
+    font-size: 14px;
+  }
+  .ar-edge .ar-act-table--cards tbody td[data-label="Total"] .ar-edge__ico { display: none; }
+  /* Bytes: value only, wearing the card-tag pill dress beside the badge —
+     "20.5 MB" explains itself. */
+  .ar-edge .ar-act-table--cards tbody td[data-label="Data"] {
+    order: 3; flex: 0 0 auto;
+    flex-direction: row; align-items: center; font-size: 14px; color: var(--ar-ink-soft);
+    white-space: nowrap; height: 28px; padding: 0 11px; padding-right: 11px !important;
+    border: 1px solid var(--ar-line); border-radius: 999px;
+    background: var(--ar-surface-2);
+  }
+  .ar-edge .ar-act-table--cards tbody td[data-label="Data"]::before { display: none; }
+  .ar-act-table.ar-act-table--cards tbody td::before {
+    content: attr(data-label); flex: 0 0 auto;
+    font-family: var(--ar-mono); font-size: 9.5px; letter-spacing: 0.08em;
+    text-transform: uppercase; color: var(--ar-ink-faint);
+  }
+  /* Self-explanatory cells carry no label: the name IS the header, ×3 and a
+     date read alone. Status keeps its label — his mock names every fact. */
+  .ar-act-table.ar-act-table--cards tbody td:first-child::before,
+  .ar-act-table.ar-act-table--cards tbody td[data-label="Hits"]::before,
+  .ar-act-table.ar-act-table--cards tbody td.ar-log__seen::before,
+  .ar-act-table.ar-act-table--cards tbody td.ar-act-table__at::before { display: none; }
   /* A one-hit row has nothing to say under "Hits" — drop the empty line. */
   .ar-act-table.ar-act-table--cards tbody td.is-empty-cell { display: none; }
   .ar-act-table.ar-act-table--cards tbody tr.is-spoofed td { background: none; }
   .ar-act-table.ar-act-table--cards tbody tr.is-spoofed { background: color-mix(in srgb, var(--ar-bad) 5%, var(--ar-surface)); }
   .ar-act-table.ar-act-table--cards tbody tr.is-refused { border-left: 2px solid var(--ar-warn); }
   /* Long strings wrap inside the card instead of forcing it wide. */
-  .ar-act-table.ar-act-table--cards .ar-act-feed__ua { white-space: normal; word-break: break-all; }
+  /* The UA string wears a quiet code box — the card's one long string reads as
+     one object, and a click still copies it (the cell's existing contract). */
+  .ar-act-table.ar-act-table--cards .ar-act-feed__ua {
+    white-space: normal; word-break: break-all;
+    display: block; width: 100%; max-width: none; padding: 0;
+    background: none; border: 0; border-radius: 0;
+  }
+  /* Break at word seams first, mid-word only as a last resort. */
+  .ar-act-table.ar-act-table--cards .ar-act-feed__ep { white-space: normal; word-break: normal; overflow-wrap: anywhere; }
   .ar-act-table.ar-act-table--cards .ar-log__pivot { text-align: left; }
-  .ar-act-table.ar-act-table--cards .ar-act-feed__ep { white-space: normal; word-break: break-all; }
+}
+
+/* Phone-narrow containers: the fact slots can't share a line anyway, so they
+   stack as clean full-width rows — a wrapped slot dragging its seam border to
+   a line start read as a stray mark (iPhone-width finding). */
+@container (max-width: 430px) {
+  .ar-act-table.ar-act-table--cards tbody td[data-label="Endpoint"],
+  .ar-act-table.ar-act-table--cards tbody td[data-label="Network"] { flex: 1 1 100%; }
+  .ar-act-table.ar-act-table--cards tbody tr:has(td[data-label="Network"]) td[data-label="Endpoint"] {
+    border-left: 0; padding-left: 0;
+  }
 }
 
 .ar-log__seen { color: var(--ar-ink-faint); font-family: var(--ar-mono); font-size: 11px; letter-spacing: -0.02em; white-space: nowrap; cursor: help; font-variant-numeric: tabular-nums; }
@@ -4556,18 +4861,22 @@ a.ar-about-proto__v:hover { text-decoration: underline; }
 .ar-aa__ev { min-width: 0; }
 .ar-aa__whoblk { min-width: 0; display: flex; flex-direction: column; gap: 3px; }
 .ar-aa__usesblk { display: flex; justify-content: flex-start; }
+/* The kind line's card-mode count (" – 2 times") — wide table hides it. */
+.ar-aa__kinduses { display: none; }
 .ar-aa__seenblk { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
 /* On the wide table the thead already says "First seen" — the in-row label
    only returns on small screens, where the thead is gone. */
 .ar-aa__seenlab { display: none; font-size: 11px; color: var(--ar-ink-soft); }
 .ar-aa__seenval {
   display: flex; align-items: center; gap: 6px;
-  font-family: var(--ar-mono); font-size: 11.5px; letter-spacing: -0.02em;
+  font-family: var(--ar-mono); font-size: 11px; letter-spacing: -0.02em;
   color: var(--ar-ink); font-variant-numeric: tabular-nums; white-space: nowrap;
 }
 .ar-aa__lineicon { flex: 0 0 auto; color: var(--ar-ink-faint); }
-/* Phones and narrow admin columns: the same rows re-stack as cards — a card
-   can reflow, which is exactly why it beats a table here. */
+/* Phones and narrow admin columns: the rows re-stack as slim cards — the
+   original anatomy he preferred over the seamed-slots family: disc + kind line
+   (carrying the use count: "ABILITY USED – 2 TIMES") over the subject, the
+   who/via lines and the two aligned seen-rows indented to the text column. */
 @media (max-width: 1100px) {
   .ar-aa__table, .ar-aa__card, .ar-aa__card > td { display: block; }
   .ar-aa__thead { display: none; }
@@ -4576,13 +4885,25 @@ a.ar-about-proto__v:hover { text-decoration: underline; }
     padding: 14px 16px; border: 1px solid var(--ar-line); border-radius: var(--ar-radius);
     background: var(--ar-surface);
   }
-  .ar-aa__card > td { padding: 0; border: 0; background: none; }
+  .ar-aa__card > td { padding: 0; border: 0; background: none; min-width: 0; }
   .ar-aa__card.is-unseen { background: color-mix(in srgb, var(--ar-accent) 4.5%, var(--ar-surface)); }
-  .ar-aa__card.is-unseen > td { background: none; }
+  /* The card carries the unseen tint; the cells must not repeat it as patches —
+     match the table-scoped base selectors' weight to silence them. */
+  .ar-aa__card.is-unseen > td, .ar-aa__table tr.is-unseen td { background: none; }
+  .ar-aa__table tbody tr:last-child td { border-bottom: 0; }
   .ar-aa__card.is-refusal { border-left: 2px solid var(--ar-warn); }
   .ar-aa__card.is-refusal > td:first-child { box-shadow: none; }
-  /* Everything under the title indents to the text column, like the old card. */
-  .ar-aa__cell--who, .ar-aa__cell--uses, .ar-aa__cell--seen { margin: 10px 0 0 54px; }
-  .ar-aa__seenlab { display: inline; }
+  .ar-aa__card.is-refusal .ar-aa__kindline { color: var(--ar-warn); }
+  /* The count lives in the kind line up here; the Uses column is wide-table only. */
+  .ar-aa__card > td.ar-aa__cell--uses { display: none; }
+  .ar-aa__kinduses { display: inline; }
+  /* Everything under the title indents to the text column, in one even rhythm. */
+  .ar-aa__cell--who, .ar-aa__cell--seen { margin: 8px 0 0 54px; }
+  .ar-aa__cell--seen + .ar-aa__cell--seen { margin-top: 6px; }
+  /* The two seen-rows read as a pair: fixed-width labels land both dates on
+     one vertical line. The dates speak the family's date voice — small mono,
+     soft ink — instead of full-ink shouting. */
+  .ar-aa__seenlab { display: inline-block; flex: 0 0 auto; width: 60px; }
   .ar-aa__seenblk { flex-direction: row; align-items: baseline; gap: 8px; }
+  .ar-aa__seenval { color: var(--ar-ink-soft); }
 }

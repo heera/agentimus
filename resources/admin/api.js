@@ -195,6 +195,23 @@ export function createApi(boot) {
     createAppPassword: (endpoint, name) =>
       requestUrl(endpoint, { method: 'POST', body: JSON.stringify({ name }) }),
 
+    // Cloudflare edge data source. The token goes IN through connect and never
+    // comes back in any response; status/summary report metadata and numbers only.
+    getCloudflareStatus: () => request('/cloudflare'),
+    connectCloudflare: (token) =>
+      request('/cloudflare', { method: 'POST', body: JSON.stringify({ token }) }),
+    disconnectCloudflare: () => request('/cloudflare', { method: 'DELETE' }),
+    getCloudflareSummary: (days = 7) => request(`/cloudflare/summary?days=${Math.max(1, days | 0)}`),
+    // Fetch now: one inline poll, then the fresh summary in the same response.
+    refreshCloudflareSummary: (days = 7) =>
+      request(`/cloudflare/refresh?days=${Math.max(1, days | 0)}`, { method: 'POST' }),
+    // Hide one conflict pin; it returns only if the conflict ends and recurs.
+    dismissCloudflareConflict: (id) =>
+      request('/cloudflare/dismiss', { method: 'POST', body: JSON.stringify({ id }) }),
+    // Bring a hidden pin back — managed from Settings → Data sources.
+    undismissCloudflareConflict: (id) =>
+      request(`/cloudflare/dismiss?id=${encodeURIComponent(id)}`, { method: 'DELETE' }),
+
     // AI Visibility monitoring.
     getVisibilityConfig: () => request('/visibility/config'),
     saveVisibilityConfig: (config) =>

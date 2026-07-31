@@ -14,6 +14,7 @@ import AssistantLauncher from './components/AssistantLauncher.vue';
 import AssistantDrawer from './components/AssistantDrawer.vue';
 import AiTrafficPanel from './components/AiTrafficPanel.vue';
 import RequestLog from './components/RequestLog.vue';
+import EdgePanel from './components/EdgePanel.vue';
 import AgentAccess from './components/AgentAccess.vue';
 import ReviewMenu from './components/ReviewMenu.vue';
 import OnboardingWizard from './components/OnboardingWizard.vue';
@@ -41,7 +42,7 @@ const MORE_EDGE_GAP = 12;
 
 export default {
   name: 'AgentimusApp',
-  components: { SettingsForm, ReadinessPanel, DiscoveryHub, ActivityPanel, WhatsNew, ReviewAsk, AssistantLauncher, AssistantDrawer, AiTrafficPanel, RequestLog, AgentAccess, ReviewMenu, OnboardingWizard, AboutPanel, ConfirmDialog, VisibilityPanel },
+  components: { SettingsForm, ReadinessPanel, DiscoveryHub, ActivityPanel, WhatsNew, ReviewAsk, AssistantLauncher, AssistantDrawer, AiTrafficPanel, RequestLog, EdgePanel, AgentAccess, ReviewMenu, OnboardingWizard, AboutPanel, ConfirmDialog, VisibilityPanel },
   // The styled hover bubble (shared with the activity tables) — the score rail's
   // rung and next-step hints use it instead of slow, unthemeable native titles.
   mixins: [uaTip],
@@ -113,6 +114,10 @@ export default {
       // (endpoint/client/source/page drill-downs); seq-stamped so repeat
       // clicks re-apply.
       logPreset: null,
+      // Edge conflicts (from EdgePanel's summary fetch), pinned ABOVE the request
+      // log: a breakage must be the first thing on that screen, while the edge
+      // cards themselves sit below the log they annotate.
+      edgeConflicts: [],
       aiPreset: null,
       webmcpTools: this.boot.webmcpTools || [],
       mcpServer: this.boot.mcpServer || {},
@@ -760,6 +765,12 @@ export default {
     // over whatever tab is active — no need to switch to Settings first.
     openClientManager() {
       if (this.$refs.settingsForm) this.$refs.settingsForm.openClientManager();
+    },
+    // Hide one edge-conflict pin: optimistic removal here, the server records
+    // it. The pin returns only if that conflict ends and later starts again.
+    hideEdgeConflict(c) {
+      this.edgeConflicts = this.edgeConflicts.filter((x) => x.id !== c.id);
+      if (this.api) this.api.dismissCloudflareConflict(c.id).catch(() => {});
     },
     goTo(target) {
       // Navigation unmounts whatever the pointer was over — never strand its tooltip.
@@ -1665,6 +1676,19 @@ export default {
           @navigate="goTo"
           @flash="flash"
         />
+        <div v-if="settings.enable_activity && edgeConflicts.length" v-show="tab === 'log'" class="ar-edge-pins">
+          <div v-for="c in edgeConflicts" :key="c.id" class="ar-edge-pin" :class="`ar-edge-pin--${c.level}`">
+            <span class="ar-edge-pin__badge">{{ c.level === 'warn' ? 'Conflict' : 'Not enforced' }}</span>
+            <p class="ar-edge-pin__title">{{ c.title }}</p>
+            <p class="ar-edge-pin__body">{{ c.body }}</p>
+            <div class="ar-edge-pin__actions">
+              <a class="ar-linkbtn" :href="c.url" target="_blank" rel="noopener">Review in Cloudflare →</a>
+              <button type="button" class="ar-linkbtn ar-edge-pin__hide" @click="hideEdgeConflict(c)">
+                {{ c.level === 'warn' ? 'Hide this warning' : 'Hide this notice' }}
+              </button>
+            </div>
+          </div>
+        </div>
         <RequestLog
           v-if="settings.enable_activity"
           v-show="tab === 'log'"
@@ -1672,6 +1696,14 @@ export default {
           :active="tab === 'log'"
           :preset="logPreset"
           @flash="flash"
+        />
+        <EdgePanel
+          v-if="settings.enable_activity"
+          v-show="tab === 'log'"
+          :api="api"
+          :active="tab === 'log'"
+          @conflicts="edgeConflicts = $event"
+          @navigate="goTo"
         />
         <!-- No v-if: this screen is mounted on every site, however old. Its entire job is to
              say honestly what it can and cannot see here, and it cannot do that if it isn't

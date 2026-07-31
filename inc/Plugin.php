@@ -132,6 +132,13 @@ final class Plugin {
 			( new Visibility\Network() )->register();
 		}
 
+		// Cloudflare edge data source (opt-in, BYO token). Reads aggregate analytics
+		// only — one hourly GraphQL poll stored locally; it never writes to Cloudflare.
+		// Config and token live in their own option, the numbers in their own table.
+		$cloudflare = new Cloudflare\Settings();
+		( new Cloudflare\Module( $cloudflare ) )->register();
+		( new Cloudflare\Rest( $cloudflare, $this->settings ) )->register();
+
 		// Self-heal the /.well-known rewrite rules: flush ONCE whenever the routed-name
 		// set changes — an Agentimus update that adds a built-in name (e.g. tdmrep.json)
 		// OR a provider plugin that opts a name in via the `agentimus_well_known_routed`
@@ -200,6 +207,8 @@ final class Plugin {
 		Activity\Module::schedule();
 		Visibility\Table::install();
 		Visibility\Module::schedule();
+		Cloudflare\Table::install();
+		Cloudflare\Module::schedule();
 		Digest\Module::schedule();
 		Discovery\WellKnown::add_rules();
 		self::flush_rewrites_in_context();
@@ -348,6 +357,7 @@ final class Plugin {
 		Cache::flush();
 		Activity\Module::unschedule();
 		Visibility\Module::unschedule();
+		Cloudflare\Module::unschedule();
 		Digest\Module::unschedule();
 		BotRanges::clear_schedule();
 		RouteProbe::clear_schedule();

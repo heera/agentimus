@@ -69,6 +69,16 @@ export default {
       verAddBusy: false, // Probing the ranges URL server-side before accepting it.
       verAddError: '', // The probe's verdict when the URL didn't check out.
       digestTestSending: false, // The weekly-email "send a test" button's in-flight lock.
+      // The Cloudflare data source (Data sources group). Status is fetched lazily,
+      // the first time that group is opened — most visits never need it.
+      cf: null, // The /cloudflare status payload, or null before the first load.
+      cfToken: '', // The paste field. Sent once on Connect, then cleared — never stored client-side.
+      cfConnecting: false,
+      cfDisconnecting: false,
+      cfError: '', // The last connect/disconnect failure, shown above the field.
+      cfJustConnected: false, // Shows the "first numbers are in" pointer right after a connect.
+      cfChecked: false, // False until the first status read answers — the UI must not claim "Not connected" while still asking.
+      cfConflicts: [], // EVERY active conflict, hidden-on-log or not — this ledger empties only when situations really end.
       typeQuery: '',
       catQuery: '',
       nsQuery: '',
@@ -146,6 +156,14 @@ export default {
     if (this._unEscScope) this._unEscScope();
   },
   watch: {
+    // The Cloudflare status is only visible inside this group, so it loads on
+    // first arrival. No re-fetch-on-return tricks needed: the warnings list
+    // shows every ACTIVE conflict whether or not the owner hid its pin on the
+    // Request Log, so a hide over there cannot make this list stale — the set
+    // only changes when a situation starts or really ends.
+    group(key) {
+      if (key === 'sources' && !this.cf) this.loadCloudflare();
+    },
     // Document-level Esc while the reset dialog is open — the panel-scoped
     // handler dies as soon as focus leaves the panel (e.g. a backdrop click).
     showReset(open) {
@@ -618,6 +636,7 @@ export default {
         { key: 'discovery', label: 'Discovery', hint: 'Files & data AI can read' },
         { key: 'access', label: 'AI access', hint: 'What bots may do — and who to block' },
         { key: 'exposure', label: 'Exposure', hint: 'Limit what your site reveals to bots & scanners' },
+        { key: 'sources', label: 'Data sources', hint: 'Outside services Agentimus reads from — optional, read-only' },
         { key: 'advanced', label: 'Advanced', hint: 'Trust, developer & maintenance' },
       ];
     },
@@ -1108,6 +1127,82 @@ export default {
       const i = arr.indexOf(name);
       if (i === -1) arr.push(name);
       else arr.splice(i, 1);
+    },
+    // ── Cloudflare data source ─────────────────────────────────────────────
+    async loadCloudflare() {
+      if (!this.api) return;
+      try {
+        this.cf = await this.api.getCloudflareStatus();
+      } catch (e) {
+        // Leave cf null — the card renders its connect state; a failed status
+        // read is not worth a banner.
+      } finally {
+        this.cfChecked = true;
+      }
+      this.loadCfConflicts();
+    },
+    // The full ledger: visible AND hidden conflicts, warns first. Hiding a pin
+    // on the Request Log is a display choice over there — it never removes a
+    // conflict from here; only a really-ended situation does.
+    async loadCfConflicts() {
+      if (!this.api || !this.cf || !this.cf.connected) {
+        this.cfConflicts = [];
+        return;
+      }
+      try {
+        const s = await this.api.getCloudflareSummary(7);
+        const shown = (s.conflicts || []).map((c) => ({ ...c, hiddenOnLog: false }));
+        const hidden = (s.hiddenConflicts || []).map((c) => ({ ...c, hiddenOnLog: true }));
+        this.cfConflicts = [...shown, ...hidden].sort(
+          (a, b) => (a.level === 'warn' ? 0 : 1) - (b.level === 'warn' ? 0 : 1)
+        );
+      } catch (e) {
+        this.cfConflicts = [];
+      }
+    },
+    async connectCloudflare() {
+      const token = this.cfToken.trim();
+      if (!token || this.cfConnecting || !this.api) return;
+      this.cfConnecting = true;
+      this.cfError = '';
+      try {
+        // The server verifies the token, finds the zone, then runs a first poll
+        // inline — so success means there are already numbers to look at.
+        this.cf = await this.api.connectCloudflare(token);
+        this.cfToken = '';
+        this.cfJustConnected = true;
+      } catch (e) {
+        this.cfError = e && e.message ? e.message : 'Could not connect to Cloudflare.';
+      } finally {
+        this.cfConnecting = false;
+      }
+    },
+    async disconnectCloudflare() {
+      if (this.cfDisconnecting || !this.api) return;
+      const ok = await confirm({
+        title: 'Disconnect Cloudflare?',
+        message: 'Agentimus forgets the token and stops polling right away. The Cloudflare numbers already stored stay in your database, and reconnecting resumes where it left off.',
+        confirmLabel: 'Disconnect',
+        cancelLabel: 'Cancel',
+        tone: 'danger',
+      });
+      if (!ok) return;
+      this.cfDisconnecting = true;
+      this.cfError = '';
+      try {
+        this.cf = await this.api.disconnectCloudflare();
+        this.cfJustConnected = false;
+      } catch (e) {
+        this.cfError = e && e.message ? e.message : 'Could not disconnect.';
+      } finally {
+        this.cfDisconnecting = false;
+      }
+    },
+    // The last poll, in the site's own date/time format (never toLocale*).
+    cfPolledText() {
+      if (!this.cf || !this.cf.lastPollAt) return '';
+      const d = new Date(this.cf.lastPollAt * 1000);
+      return `${formatDate(d)} ${formatTime(d)}`;
     },
     async copyPlainText(text) {
       if (!text) return false;
@@ -3368,6 +3463,118 @@ export default {
     <!-- ============================================================ -->
     <!-- ADVANCED — trust, developer & maintenance                    -->
     <!-- ============================================================ -->
+    <div v-show="group === 'sources'" class="ar-group" data-group="sources">
+      <!-- Cloudflare — the first data source. Setup lives here; the numbers it
+           produces render on the Request Log screen, next to the log they explain.
+           Future sources (Search Console, Analytics) join this group as sections. -->
+      <section id="ar-sec-cloudflare" class="ar-card">
+        <h2 class="ar-card__title">Cloudflare</h2>
+        <p class="ar-card__lead">
+          Cloudflare stands in front of your site. It answers many AI requests from its cache
+          and blocks some — your server never sees those. Connect it and the
+          <a href="#log">Request Log</a> screen shows what Cloudflare saw, and warns you
+          when Cloudflare and your site policy disagree.
+        </p>
+
+        <!-- Three states, not two: "still asking" must not flash as "Not
+             connected" — an untrue word, even for 200ms, reads as a glitch. -->
+        <div class="ar-mcp-rail" :data-state="cf && cf.connected ? 'running' : (cfChecked ? 'unsaved' : 'idle')">
+          <span class="ar-mcp-rail__dot" aria-hidden="true"></span>
+          <template v-if="cf && cf.connected">
+            <strong>Connected</strong>
+            <span class="ar-mcp-rail__sep" aria-hidden="true">·</span><span>zone {{ cf.zoneName }}</span>
+            <template v-if="cfPolledText()">
+              <span class="ar-mcp-rail__sep" aria-hidden="true">·</span><span>numbers as of {{ cfPolledText() }}</span>
+            </template>
+            <template v-if="cf.lastError">
+              <span class="ar-mcp-rail__sep" aria-hidden="true">·</span><span class="ar-warn">Last poll failed: {{ cf.lastError }}.</span>
+            </template>
+          </template>
+          <template v-else-if="cfChecked">
+            <strong>Not connected.</strong>
+            <span class="ar-mcp-rail__sep" aria-hidden="true">·</span>
+            <span>Read-only — Agentimus never changes your Cloudflare settings.</span>
+          </template>
+          <template v-else>
+            <span>Checking the connection…</span>
+          </template>
+        </div>
+
+        <p v-if="cfError" class="ar-field__hint ar-warn">{{ cfError }}</p>
+
+        <template v-if="cfChecked && (!cf || !cf.connected)">
+          <p class="ar-mcp-eyebrow">Connect Cloudflare</p>
+          <div class="ar-cf-row">
+            <input
+              v-model="cfToken"
+              class="ar-input"
+              type="password"
+              autocomplete="off"
+              spellcheck="false"
+              placeholder="Paste your Cloudflare API token"
+              aria-label="Cloudflare API token"
+              @keyup.enter="connectCloudflare"
+            />
+            <button type="button" class="ar-btn" :disabled="cfConnecting || !cfToken.trim()" @click="connectCloudflare">
+              {{ cfConnecting ? 'Connecting…' : 'Connect' }}
+            </button>
+          </div>
+          <p class="ar-field__hint">
+            Stored like your other secrets — encrypted, never shown again, and sent nowhere
+            except Cloudflare’s own API.
+          </p>
+          <div class="ar-mcp-recipe">
+            <ol class="ar-mcp-recipe__steps">
+              <li>In Cloudflare, open <code>My Profile → API Tokens → Create Token</code>.</li>
+              <li>Give it one permission: <code>Zone → Analytics → Read</code>, for this site’s zone only.</li>
+              <li>Paste it here. Agentimus finds the zone by itself.</li>
+            </ol>
+          </div>
+        </template>
+
+        <template v-else-if="cf && cf.connected">
+          <p v-if="cfJustConnected" class="ar-field__hint">
+            <strong>First numbers are in.</strong> See them on the <a href="#log">Request Log</a> screen.
+          </p>
+          <p class="ar-field__hint">
+            One scoped token, analytics read-only, one hourly poll. Numbers are stored in your
+            own database, so your history outlives Cloudflare’s short Free-plan window.
+          </p>
+          <button type="button" class="ar-btn ar-btn--danger ar-btn--small" :disabled="cfDisconnecting" @click="disconnectCloudflare">
+            {{ cfDisconnecting ? 'Disconnecting…' : 'Disconnect' }}
+          </button>
+          <!-- The warnings ledger: EVERY active conflict, always — hiding a pin
+               on the Request Log hides it THERE only. A card leaves this list
+               when its situation really ends, never by hand.
+               Empty = no block, no separator. -->
+          <div v-if="cfConflicts.length" class="ar-cf-hiddenblk">
+            <p class="ar-mcp-eyebrow">Warnings</p>
+            <p class="ar-field__hint">
+              Everything Cloudflare and your site policy disagree about right now — including
+              warnings you hid on the Request Log screen. A card leaves this list only when
+              its situation is really fixed.
+            </p>
+            <div class="ar-edge-pins">
+              <div v-for="c in cfConflicts" :key="c.id" class="ar-edge-pin" :class="`ar-edge-pin--${c.level}`">
+                <span class="ar-edge-pin__badge">{{ c.level === 'warn' ? 'Conflict' : 'Not enforced' }}</span>
+                <p class="ar-edge-pin__title">{{ c.title }}</p>
+                <p class="ar-edge-pin__body">{{ c.body }}</p>
+                <div class="ar-edge-pin__actions">
+                  <a class="ar-linkbtn" :href="c.url" target="_blank" rel="noopener">Review in Cloudflare →</a>
+                  <span v-if="c.hiddenOnLog" class="ar-cf-hiddenmark">hidden on the Request Log</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </template>
+
+        <p class="ar-card__note ar-cf-note">
+          More sources will join here later — Google Search Console, Google Analytics — under
+          the same rules: optional, read-only, your database.
+        </p>
+      </section>
+    </div>
+
     <div v-show="group === 'advanced'" class="ar-group" data-group="advanced">
       <!-- Security.txt ------------------------------------------------- -->
       <section id="ar-sec-security" class="ar-card">

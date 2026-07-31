@@ -57,6 +57,8 @@ use Agentimus\McpToken;
 use Agentimus\Oauth;
 use Agentimus\Visibility\Store as VisibilityStore;
 use Agentimus\Visibility\Settings as VisibilitySettings;
+use Agentimus\Cloudflare\Settings as CloudflareSettings;
+use Agentimus\Cloudflare\Summary as CloudflareSummary;
 
 defined( 'ABSPATH' ) || exit;
 
@@ -371,6 +373,86 @@ final class Registrar {
 					$args['per_page'] = (int) $input['per_page'];
 				}
 				return Repository::log( $args );
+			},
+			$manage
+		);
+
+		$this->add(
+			'read-edge-traffic',
+			__( 'Get edge traffic from Cloudflare', 'agentimus' ),
+			'Returns what Cloudflare saw from AI crawlers BEFORE this server did, when the owner has '
+				. 'connected a Cloudflare zone: per-crawler totals (requests at the edge, served from cache, '
+				. 'reached the server, blocked at the edge, bytes out), per-company rollups, and any conflicts '
+				. 'between the edge\'s observed behaviour and the site\'s declared AI policy — e.g. the edge '
+				. 'blocking a crawler the policy welcomes. The request log only sees what reached the server; '
+				. 'this is the missing before-the-server half. Returns connected=false when no zone is connected.',
+			self::obj(
+				array(
+					'days' => self::i( 'Window in days, 1-30. Default 7.' ),
+				)
+			),
+			self::obj(
+				array(
+					'connected'   => self::b( 'False = no Cloudflare zone is connected; the data fields are then absent.' ),
+					'zoneName'    => self::s(),
+					'connectedAt' => self::i(),
+					'lastPollAt'  => self::i( 'Unix time of the newest numbers; 0 = never polled.' ),
+					'lastError'   => self::s( 'The most recent poll failure, empty after a clean poll.' ),
+					'days'        => self::i(),
+					'totals'      => self::obj(
+						array(
+							'requests' => self::i(),
+							'cached'   => self::i(),
+							'origin'   => self::i(),
+							'blocked'  => self::i(),
+							'bytes'    => self::i(),
+						)
+					),
+					'crawlers'    => self::arr(
+						array(
+							'ua'           => self::s( 'Stable crawler token — same vocabulary as the request log.' ),
+							'name'         => self::s(),
+							'operator'     => self::s( 'The company behind the crawler.' ),
+							'requests'     => self::i(),
+							'cached'       => self::i(),
+							'origin'       => self::i( 'Requests that reached this server.' ),
+							'blocked'      => self::i( 'Requests the edge turned away without contacting this server.' ),
+							'bytes'        => self::i(),
+							'blockedByYou' => self::b( 'Whether the owner deliberately blocks this crawler at the origin.' ),
+						)
+					),
+					'companies'   => self::arr(
+						array(
+							'operator' => self::s(),
+							'requests' => self::i(),
+							'bytes'    => self::i(),
+						)
+					),
+					'conflicts'   => self::arr(
+						array(
+							'id'    => self::s(),
+							'level' => self::s( 'warn = the edge contradicts the declared policy; info = a declared preference is not enforced.' ),
+							'title' => self::s(),
+							'body'  => self::s(),
+							'url'   => self::s( 'Cloudflare dashboard deep link where the owner can act.' ),
+						)
+					),
+					'hiddenConflicts' => self::arr(
+						array(
+							'id'    => self::s(),
+							'level' => self::s(),
+							'title' => self::s(),
+							'body'  => self::s(),
+							'url'   => self::s(),
+						)
+					),
+					'dashUrl'     => self::s(),
+				)
+			),
+			function ( $input ) {
+				$days = isset( $input['days'] ) ? (int) $input['days'] : 7;
+				$days = ( $days >= 1 && $days <= 30 ) ? $days : 7;
+				return CloudflareSummary::build( new CloudflareSettings(), $this->settings, $days );
 			},
 			$manage
 		);
@@ -822,6 +904,7 @@ final class Registrar {
 			self::CATEGORY . '/read-ai-visibility',
 			self::CATEGORY . '/read-ai-traffic',
 			self::CATEGORY . '/read-request-log',
+			self::CATEGORY . '/read-edge-traffic',
 			self::CATEGORY . '/identify-bot',
 			self::CATEGORY . '/check-page',
 			self::CATEGORY . '/preview-schema',

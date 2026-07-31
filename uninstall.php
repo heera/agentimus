@@ -73,6 +73,13 @@ function agentimus_uninstall_site() {
 	delete_option( 'agentimus_agent_access_db_version' );
 	delete_option( 'agentimus_agent_access_hooks' );
 
+	// Cloudflare edge source: aggregates table, connection option, lock and poll.
+	$wpdb->query( "DROP TABLE IF EXISTS {$wpdb->prefix}agentimus_edge_hourly" ); // phpcs:ignore WordPress.DB
+	delete_option( 'agentimus_cloudflare' );
+	delete_option( 'agentimus_edge_db_version' );
+	delete_option( 'agentimus_edge_lock' );
+	wp_clear_scheduled_hook( 'agentimus_edge_poll' );
+
 	// AI Visibility monitoring: results table, options and scheduled run.
 	$wpdb->query( "DROP TABLE IF EXISTS {$wpdb->prefix}agentimus_visibility" ); // phpcs:ignore WordPress.DB
 	delete_option( 'agentimus_visibility' );
