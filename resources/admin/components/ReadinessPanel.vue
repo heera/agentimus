@@ -32,6 +32,14 @@ export default {
     groups() {
       return groupChecks(this.checks);
     },
+    // The whole report in one figure: the rung counts below, summed, with the dot
+    // keyed to the worst rung — the header answers "overall?" before any scrolling.
+    overall() {
+      const pass = this.groups.reduce((n, g) => n + g.pass, 0);
+      const total = this.groups.reduce((n, g) => n + g.total, 0);
+      const status = ['fail', 'warn'].find((s) => this.groups.some((g) => g.status === s)) || 'pass';
+      return { pass, total, status };
+    },
     // Total page-fixes across the content worklist (a page with two issues is two fixes).
     optimizeTotal() {
       return this.optimize.reduce((n, i) => n + Number(i.count || 0), 0);
@@ -274,6 +282,15 @@ export default {
     <div class="ar-card ar-card__head ar-card__head--inline ar-card__head--stack-sm">
       <div class="ar-card__titlewrap">
         <h2 class="ar-card__title">Readiness Report</h2>
+        <!-- The report-wide total: the rung cards' dot-and-count grammar, summed. -->
+        <span
+          v-if="overall.total"
+          class="ar-readiness__total"
+          :class="`is-${overall.status}`"
+          :aria-label="`${overall.pass} of ${overall.total} checks pass overall`"
+        >
+          <span class="ar-readiness__total-dot" aria-hidden="true"></span>{{ overall.pass }}/{{ overall.total }}
+        </span>
         <!-- Refresh THIS report (recompute the checklist below). Kept beside the title
              and apart from the tool buttons so it reads as "update this card", not as
              another live check like "Verify live". -->
