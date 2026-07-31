@@ -45,7 +45,9 @@ export default {
       identifyOn: false,
       autoPrune: true,
       maxRows: 50000,
-      perPage: 50,
+      // 25, not 50: the edge cards live below this log now, and a 50-row page
+      // pushed them a full screen further away than they need to be.
+      perPage: 25,
       // Cursor of the page we're on, plus the trail behind it, so "Newer" can reverse.
       before: 0,
       trail: [],
@@ -376,6 +378,7 @@ export default {
                 >{{ r.agent }}</button>
               </td>
               <td class="ar-log__statuscol" data-label="Status">
+                <svg class="ar-cardico" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l7 3v5c0 4.5-3 7.6-7 9-4-1.4-7-4.5-7-9V6z" /></svg>
                 <span
                   class="ar-log__mark"
                   :class="statusMark(r).cls"
@@ -384,6 +387,7 @@ export default {
                 >{{ statusMark(r).text }}</span>
               </td>
               <td data-label="Endpoint">
+                <svg class="ar-cardico" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="7" rx="1.5" /><rect x="3" y="13" width="18" height="7" rx="1.5" /><line x1="7" y1="7.5" x2="7" y2="7.5" /><line x1="7" y1="16.5" x2="7" y2="16.5" /></svg>
                 <button
                   type="button"
                   class="ar-log__pivot"
@@ -394,6 +398,7 @@ export default {
                 ><code class="ar-act-feed__ep">{{ r.endpoint }}</code></button>
               </td>
               <td v-if="hasNetwork" data-label="Network">
+                <svg class="ar-cardico" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5" /><path d="M3.5 12h17" /><path d="M12 3.5c2.6 2.5 2.6 14.5 0 17-2.6-2.5-2.6-14.5 0-17z" /></svg>
                 <span v-if="r.network" class="ar-act-feed__net">{{ r.network }}</span>
                 <!-- A word, not a dash: the reader should never have to interpret
                      punctuation to learn we simply don't know. -->
@@ -424,7 +429,7 @@ export default {
                 data-label="Requested at"
                 @mouseenter="showUaTip($event, ago(r.at), '')"
                 @mouseleave="hideUaTip"
-              >{{ stamp(r.at) }}</td>
+              ><svg class="ar-cardico" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5" /><path d="M12 7.5V12l3 2" /></svg>{{ stamp(r.at) }}</td>
             </tr>
           </tbody>
         </table>

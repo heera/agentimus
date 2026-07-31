@@ -328,7 +328,22 @@ export default {
       if (e.kind && 0 === e.kind.indexOf('apppw_') && 'apppw_used' !== e.kind) {
         return gone ? `on user #${e.userId}’s account (deleted)` : `on ${e.user}’s account`;
       }
+      // Key-borne events: the person did not necessarily act — their key did,
+      // in their name. "acting as" says exactly that in a full phrase (a bare
+      // "as admin" read like a fragment). "by" would put the human at the
+      // keyboard, and "approved by" would invent an approval step app passwords
+      // don't have. Session-borne events keep "by": there the person WAS there.
+      if (e.cred || 'apppw_used' === e.kind) {
+        return `acting as ${user}`;
+      }
       return `by ${user}`;
+    },
+    // Only kinds that ACCUMULATE carry a count ("– once" / "– 4 times").
+    // Password lifecycle rows are one-shot by construction — the recorder
+    // bails when last_used is already set — so a count there could only
+    // ever say "1", which is noise, not news.
+    countedKind(e) {
+      return !(e.kind && 0 === e.kind.indexOf('apppw_'));
     },
     // What the request came in with. Password lifecycle rows get none — the
     // subject line above already names the key.
@@ -516,7 +531,9 @@ export default {
         </span>
 
         <div class="ar-aa__ev">
-          <span class="ar-aa__kindline">{{ eventKind(e) }}</span>
+          <!-- The count folds into the kind line on cards ("ABILITY USED – 2 TIMES");
+               the wide table hides the span — it has a Uses column. -->
+          <span class="ar-aa__kindline">{{ eventKind(e) }}<span v-if="countedKind(e)" class="ar-aa__kinduses"> – {{ e.hits > 1 ? `${e.hits} times` : 'once' }}</span></span>
           <span
             class="ar-aa__what"
             @mouseenter="showUaTip($event, subjectHint(e), '')"
@@ -526,7 +543,7 @@ export default {
         </div>
         </td>
 
-        <td class="ar-aa__cell ar-aa__cell--who">
+        <td class="ar-aa__cell ar-aa__cell--who" data-label="Who">
         <div class="ar-aa__whoblk">
           <span class="ar-aa__who">
             <svg class="ar-aa__lineicon" viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="8" cy="5.2" r="2.6" /><path d="M3.2 13.4a4.8 4.8 0 0 1 9.6 0" /></svg>
@@ -551,7 +568,7 @@ export default {
         </div>
         </td>
 
-        <td class="ar-aa__cell ar-aa__cell--uses">
+        <td class="ar-aa__cell ar-aa__cell--uses" data-label="Uses">
         <div class="ar-aa__usesblk">
           <span class="ar-aa__uses">{{ e.hits > 1 ? `${e.hits} uses` : '1 use' }}</span>
         </div>

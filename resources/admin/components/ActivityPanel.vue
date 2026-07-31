@@ -1025,8 +1025,9 @@ export default {
               <tbody>
                 <tr v-for="(r, i) in recentGrouped" :key="i">
                   <td class="ar-act-table__agent" data-label="Agent">{{ r.agent }}</td>
-                  <td data-label="Endpoint"><code class="ar-act-feed__ep">{{ r.endpoint }}</code></td>
+                  <td data-label="Endpoint"><svg class="ar-cardico" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="7" rx="1.5" /><rect x="3" y="13" width="18" height="7" rx="1.5" /><line x1="7" y1="7.5" x2="7" y2="7.5" /><line x1="7" y1="16.5" x2="7" y2="16.5" /></svg><code class="ar-act-feed__ep">{{ r.endpoint }}</code></td>
                   <td v-if="hasNetwork" data-label="Network">
+                    <svg class="ar-cardico" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5" /><path d="M3.5 12h17" /><path d="M12 3.5c2.6 2.5 2.6 14.5 0 17-2.6-2.5-2.6-14.5 0-17z" /></svg>
                     <span
                       v-if="r.network"
                       class="ar-act-feed__net"
@@ -1041,7 +1042,7 @@ export default {
                     <span v-else class="ar-act-feed__ua is-empty">no User-Agent</span>
                   </td>
                   <td data-label="Hits" :class="{ 'is-empty-cell': r.count <= 1 }"><span class="ar-act-feed__count" :title="r.count > 1 ? `${r.count} hits` : null">{{ r.count > 1 ? '×' + r.count : '' }}</span></td>
-                  <td class="ar-act-table__at" data-label="Seen">{{ ago(r.at) }}</td>
+                  <td class="ar-act-table__at" data-label="Seen"><svg class="ar-cardico" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5" /><path d="M12 7.5V12l3 2" /></svg>{{ ago(r.at) }}</td>
                 </tr>
               </tbody>
             </table>
