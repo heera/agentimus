@@ -69,13 +69,60 @@
     verifyOn: true, identifyOn: true, autoPrune: true, maxRows: 50000,
   };
 
+  // The citation-checks toggle: on by default for the shots; open the harness
+  // with ?checksoff to exercise the Bing-only state (screen always exists).
+  if (window.AgentimusData && window.AgentimusData.settings) {
+    window.AgentimusData.settings.enable_visibility = !/checksoff/.test(window.location.search);
+  }
+
+  // Canned Bing summary for the AI Visibility screen's Found by AI Search card:
+  // a rising index trend and one robots conflict, so the pin renders too.
+  window.__BING__ = {
+    connected: true, siteUrl: 'https://example.com/', hasMsvalidate: true,
+    connectedAt: 0, lastError: '', days: 30,
+    totals: { inIndex: 141, crawledLatest: 38, crawlErrors: 7, blockedByRobots: 12 },
+    trend: (function () {
+      var out = [];
+      for (var i = 29; i >= 0; i--) {
+        var d = new Date(Date.now() - i * 86400000);
+        var crawled = 22 + ((i * 7) % 17);
+        var errs = i < 5 ? 1 : (i % 9 === 0 ? 2 : 0);
+        out.push({
+          date: d.toISOString().slice(0, 10),
+          inIndex: 141 - Math.round(i * 0.8),
+          crawled: crawled,
+          ok: crawled - errs - 2,
+          redirects: 2,
+          clientErrors: errs,
+          serverErrors: i === 3 ? 1 : 0,
+          blockedByRobots: 0,
+        });
+      }
+      return out;
+    })(),
+    conflicts: [
+      {
+        id: 'bing-robots-blocked', level: 'warn',
+        title: 'Bing reports pages blocked by robots.txt, but your policy welcomes search',
+        body: 'Bing says 12 of your pages are closed to it by robots.txt. Your site policy says search crawlers are welcome — so something in robots.txt is saying more than you chose. Agentimus writes your robots.txt: check for another plugin or a manual rule adding lines. Once robots.txt opens up, this warning clears with Bing’s next numbers.',
+        url: 'https://example.com/robots.txt',
+      },
+    ],
+  };
+
   (function () {
     window.fetch = function (u) {
       u = String(u);
       var body = '{}';
-      if (u.indexOf('/agent-access') > -1) body = JSON.stringify(window.__AGENT_ACCESS__ || {});
+      if (u.indexOf('/bing/summary') > -1 || u.indexOf('/bing/refresh') > -1) body = JSON.stringify(Object.assign({}, window.__BING__, { lastPollAt: Math.floor(Date.now() / 1000) - 7200 }));
+      else if (u.indexOf('/agent-access') > -1) body = JSON.stringify(window.__AGENT_ACCESS__ || {});
       else if (u.indexOf('/cloudflare/summary') > -1) body = JSON.stringify(Object.assign({}, window.__EDGE__, { lastPollAt: Math.floor(Date.now() / 1000) - 1500 }));
       else if (u.indexOf('/cloudflare/refresh') > -1) body = JSON.stringify(Object.assign({}, window.__EDGE__, { lastPollAt: Math.floor(Date.now() / 1000) }));
+      else if (u.indexOf('/visibility/config') > -1) body = JSON.stringify({ config: { targets: [] }, aiAvailable: false, lastRunAt: '' });
+      else if (u.indexOf('/visibility/dashboard') > -1) body = JSON.stringify({ dashboard: { products: [] }, running: false });
+      // Settings saves must ECHO the settings back — the app snapshots the
+      // response, and an empty body would poison every dirty-check after it.
+      else if (u.indexOf('/settings') > -1) body = JSON.stringify({ settings: (window.AgentimusData || {}).settings || {} });
       else if (u.indexOf('/activity/log/facets') > -1) body = JSON.stringify({ agents: [], endpoints: [], networks: ['OpenAI'] });
       else if (u.indexOf('/activity/log') > -1) body = JSON.stringify(window.__LOG__ || {});
       else if (u.indexOf('/activity') > -1) body = JSON.stringify(window.__ACTIVITY__ || {});
