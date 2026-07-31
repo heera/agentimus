@@ -32,11 +32,52 @@
     retention: 90, maxRows: 5000,
   };
 
+  // Canned edge summary for the Request-Log tab's "At the Edge" cards: totals that
+  // don't quite match (blocked + cached + origin < requests is realistic — Cloudflare
+  // samples), one crawler the owner blocks that keeps knocking (fills the conduct
+  // list), three companies for the bytes bars. Mirrors inc/Cloudflare/Summary.php.
+  window.__EDGE__ = {
+    connected: true, zoneName: 'example.com', lastError: '', days: 7,
+    totals: { requests: 743, cached: 81, origin: 646, blocked: 16, bytes: 96468992 },
+    crawlers: [
+      { ua: 'claude-searchbot', name: 'Claude-SearchBot', operator: 'Anthropic', requests: 250, cached: 45, origin: 205, blocked: 0, bytes: 41943040, blockedByYou: false },
+      { ua: 'perplexitybot', name: 'PerplexityBot', operator: 'Perplexity', requests: 139, cached: 10, origin: 129, blocked: 0, bytes: 23068672, blockedByYou: false },
+      { ua: 'chatgpt-user', name: 'ChatGPT-User', operator: 'OpenAI', requests: 187, cached: 14, origin: 173, blocked: 0, bytes: 19922944, blockedByYou: false },
+      { ua: 'gptbot', name: 'GPTBot', operator: 'OpenAI', requests: 110, cached: 12, origin: 82, blocked: 16, bytes: 10485760, blockedByYou: false },
+      { ua: 'bytespider', name: 'Bytespider', operator: 'ByteDance', requests: 57, cached: 0, origin: 57, blocked: 0, bytes: 1048576, blockedByYou: true },
+    ],
+    companies: [
+      { operator: 'Anthropic', requests: 250, bytes: 41943040 },
+      { operator: 'OpenAI', requests: 297, bytes: 30408704 },
+      { operator: 'Perplexity', requests: 139, bytes: 23068672 },
+      { operator: 'ByteDance', requests: 57, bytes: 1048576 },
+    ],
+    conflicts: [],
+    dashUrl: 'https://dash.cloudflare.com/?to=/:account/example.com/security/bots',
+  };
+
+  // Canned Request-Log page: one row per status kind (unchecked script, verified
+  // crawler, spoofed claimant, refused claimant) so the card mode shows its range.
+  window.__LOG__ = {
+    rows: [
+      { agent: 'Agentimus/1.32.0 self-check', verdict: 0, refused: false, signer: '', endpoint: 'oauth-authorization-server', network: '', ua: 'Agentimus/1.32.0 self-check', at: '2026-07-31T14:07:00+00:00' },
+      { agent: 'ChatGPT-User', verdict: 1, refused: false, signer: '', endpoint: 'markdown', network: 'OpenAI', ua: 'Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko); compatible; ChatGPT-User/1.0; +https://openai.com/bot', at: '2026-07-31T13:44:00+00:00' },
+      { agent: 'Claude-SearchBot', verdict: 2, refused: false, signer: '', endpoint: 'llms.txt', network: '', ua: 'Mozilla/5.0 (compatible; Claude-SearchBot/1.0; +https://www.anthropic.com)', at: '2026-07-31T11:29:00+00:00' },
+      { agent: 'GPTBot', verdict: 0, refused: true, signer: '', endpoint: 'markdown', network: '', ua: 'Mozilla/5.0 (compatible; GPTBot/1.2; +https://openai.com/gptbot)', at: '2026-07-30T17:12:00+00:00' },
+    ],
+    total: 4, hasMore: false, cursor: null, retentionDays: 90,
+    verifyOn: true, identifyOn: true, autoPrune: true, maxRows: 50000,
+  };
+
   (function () {
     window.fetch = function (u) {
       u = String(u);
       var body = '{}';
       if (u.indexOf('/agent-access') > -1) body = JSON.stringify(window.__AGENT_ACCESS__ || {});
+      else if (u.indexOf('/cloudflare/summary') > -1) body = JSON.stringify(Object.assign({}, window.__EDGE__, { lastPollAt: Math.floor(Date.now() / 1000) - 1500 }));
+      else if (u.indexOf('/cloudflare/refresh') > -1) body = JSON.stringify(Object.assign({}, window.__EDGE__, { lastPollAt: Math.floor(Date.now() / 1000) }));
+      else if (u.indexOf('/activity/log/facets') > -1) body = JSON.stringify({ agents: [], endpoints: [], networks: ['OpenAI'] });
+      else if (u.indexOf('/activity/log') > -1) body = JSON.stringify(window.__LOG__ || {});
       else if (u.indexOf('/activity') > -1) body = JSON.stringify(window.__ACTIVITY__ || {});
       return Promise.resolve(new Response(body, { status: 200, headers: { 'Content-Type': 'application/json' } }));
     };
