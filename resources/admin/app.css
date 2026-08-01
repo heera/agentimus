@@ -718,6 +718,8 @@
 }
 .ar-rail-tier[data-state="top"] .ar-rail-tier__name { color: #5cc08a; }
 .ar-rail-tier[data-state="floor"] .ar-rail-tier__name { color: #e08a72; }
+/* Local site with search engines discouraged: a launch-day to-do, amber not red. */
+.ar-rail-tier[data-state="local"] .ar-rail-tier__name { color: #e0b24c; }
 .ar-rail-tier__sub {
   font-family: var(--ar-mono); font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase;
   color: rgba(243, 240, 231, 0.45);
@@ -2378,11 +2380,44 @@ html { scrollbar-gutter: stable; }
 .ar-modal__panel--confirm .ar-modal__actions { border-top: 0; padding-top: 8px; }
 
 /* ---- Onboarding wizard (reuses the modal shell) ------------------------ */
-.ar-modal__panel.ar-wiz { max-width: 600px; }
-.ar-wiz__steps { display: flex; align-items: center; gap: 6px; }
-.ar-wiz__dot { width: 7px; height: 7px; border-radius: 50%; background: var(--ar-line-strong); transition: background 0.2s ease; }
-.ar-wiz__dot.is-on { background: var(--ar-accent); }
-.ar-wiz__count { margin: 8px 0 0; font-family: var(--ar-mono); font-size: 10.5px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--ar-ink-faint); }
+.ar-modal__panel.ar-wiz {
+  max-width: 720px;
+  /* Roomier than the base modal; SAME vh/svh pair discipline (iOS large-viewport
+     trap) — and note this compound selector outranks the small-screen media
+     override below, so the offsets here must stay viewport-safe on their own. */
+  max-height: min(calc(100vh - 40px), 740px);
+  max-height: min(calc(100svh - 40px), 740px);
+}
+/* The stepper rail: five stations, a connector line at dot height, ✓ when
+   passed. House colors carry the meaning — accent = where you are, good-green
+   = done, quiet lines for what's ahead. */
+.ar-stepper { list-style: none; display: flex; margin: 0; padding: 0; counter-reset: none; }
+.ar-stepper li {
+  position: relative; flex: 1 1 0; min-width: 0;
+  display: flex; flex-direction: column; align-items: center; gap: 2px; text-align: center;
+}
+/* Connector: from this centered dot's right edge to the next one's left edge. */
+.ar-stepper li:not(:last-child)::after {
+  content: ""; position: absolute; top: 13px; height: 2px;
+  left: calc(50% + 20px); right: calc(-50% + 20px);
+  background: var(--ar-line-strong);
+}
+.ar-stepper__dot {
+  width: 28px; height: 28px; border-radius: 50%; margin-bottom: 6px;
+  display: grid; place-items: center;
+  background: var(--ar-surface); border: 2px solid var(--ar-line-strong);
+  font-family: var(--ar-mono); font-size: 12px; color: var(--ar-ink-faint);
+}
+.ar-stepper__label { font-size: 12.5px; font-weight: 600; color: var(--ar-ink-soft); }
+.ar-stepper__desc { font-size: 10.5px; color: var(--ar-ink-faint); line-height: 1.35; padding-inline: 4px; }
+.ar-stepper .is-now .ar-stepper__dot { border-color: var(--ar-accent); color: var(--ar-accent); }
+.ar-stepper .is-now .ar-stepper__label { color: var(--ar-ink); }
+.ar-stepper .is-done .ar-stepper__dot { border-color: var(--ar-good); color: var(--ar-good); }
+.ar-stepper .is-done .ar-stepper__label { color: var(--ar-good); }
+@media (max-width: 600px) {
+  .ar-stepper__desc { display: none; }
+  .ar-stepper__label { font-size: 10px; }
+}
 .ar-wiz__step { display: flex; flex-direction: column; gap: 14px; }
 .ar-wiz__step > * { margin: 0; }
 .ar-wiz__subhead { font-family: var(--ar-mono); font-size: 10.5px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--ar-ink-faint); }
@@ -2394,6 +2429,10 @@ html { scrollbar-gutter: stable; }
 /* Welcome screen (first run) */
 .ar-wiz__welcome { text-align: center; padding: 6px 0 2px; }
 .ar-wiz__welcome-mark { width: 56px; height: 56px; border-radius: 50%; background: var(--ar-surface-2); border: 1px solid var(--ar-line); display: flex; align-items: center; justify-content: center; margin: 2px auto 16px; color: var(--ar-accent); }
+/* The brand variant: the header tile's ink ground so the paper/amber "A" reads.
+   The size override outranks the header's 18px/16px .ar__logo rules. */
+.ar-wiz__welcome-mark--brand { background: var(--ar-ink); border-color: var(--ar-ink); }
+.ar-wiz__welcome-mark--brand .ar__logo { width: 26px; }
 .ar-wiz__welcome-title { font-family: var(--ar-serif); font-size: 24px; font-weight: 600; margin: 0 0 10px; }
 .ar-wiz__welcome-lead { color: var(--ar-ink-soft); font-size: 14px; line-height: 1.6; max-width: 46ch; margin: 0 auto 18px; }
 .ar-wiz__welcome-points { list-style: none; margin: 0 auto; padding: 0; display: inline-flex; flex-direction: column; gap: 9px; text-align: left; }
@@ -2432,6 +2471,167 @@ html { scrollbar-gutter: stable; }
   .ar-wiz__done-check { animation: none; }
   .ar-wiz__confetti { display: none; }
 }
+
+.ar-wiz__moretypes { margin-top: 2px; align-self: flex-start; font-family: var(--ar-mono); font-size: 11px; text-decoration: none; }
+.ar-wiz__moretypes:hover { text-decoration: underline; }
+
+/* The services repeater: one bordered block per service, the fields inside. */
+.ar-wiz__svc { border: 1px solid var(--ar-line); border-radius: 6px; padding: 12px 14px 14px; }
+.ar-wiz__svc-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 2px; }
+.ar-wiz__svc .ar-field { margin-top: 12px; }
+.ar-wiz__svc .ar-field:first-of-type { margin-top: 0; }
+.ar-wiz__centernote { margin-inline: auto; text-align: center; }
+
+/* The celebration's "live right now" ticks: real, verifiable accomplishments —
+   the ✓ list idiom, centered as a block, reading left like the welcome points.
+   No width cap: each line's copy is sized to fit on ONE line at panel width. */
+.ar-wiz__protect--live {
+  display: inline-flex; text-align: left; margin: 14px auto 0;
+}
+.ar-wiz__protect--live a { color: var(--ar-ink); }
+.ar-wiz__protect--live a:hover code { color: var(--ar-accent); }
+.ar-wiz__protect--live code { font-size: 12px; }
+
+/* ---- About: in-page search + the screens manual -------------------------- */
+.ar-about-search { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.ar-about-search .ar-input { max-width: 420px; }
+.ar-about-search__count { font-size: 12.5px; color: var(--ar-ink-soft); }
+.ar-about-screen { padding: 16px 0 4px; }
+.ar-about-screen + .ar-about-screen { border-top: 1px solid var(--ar-line); }
+.ar-about-screen__where { font-family: var(--ar-mono); font-size: 10.5px; letter-spacing: 0.08em; color: var(--ar-ink-faint); margin-left: 8px; }
+/* Full card width, justified, hyphenated at breaks — the manual reads like a
+   set page, not a narrow column. */
+.ar-about-screen__purpose,
+.ar-about-screen__do,
+.ar-about-screen__ft {
+  text-align: justify;
+  hyphens: auto; -webkit-hyphens: auto;
+}
+.ar-about-screen__purpose { margin: 6px 0 0; font-size: 13px; line-height: 1.6; color: var(--ar-ink); }
+.ar-about-screen__do { margin: 8px 0 0; font-size: 12.5px; line-height: 1.6; color: var(--ar-ink-soft); }
+.ar-about-screen__k { margin: 14px 0 6px; font-family: var(--ar-mono); font-size: 10.5px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--ar-ink-faint); }
+.ar-about-screen__facts { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.ar-about-screen__facts li { display: flex; gap: 10px; font-size: 12.5px; line-height: 1.55; color: var(--ar-ink-soft); }
+.ar-about-screen__ico { flex: 0 0 auto; margin-top: 1px; display: inline-flex; }
+.ar-about-screen__facts .is-info .ar-about-screen__ico { color: var(--ar-info); }
+.ar-about-screen__facts .is-warn .ar-about-screen__ico { color: var(--ar-warn); }
+.ar-about-screen__facts .is-tip .ar-about-screen__ico { color: var(--ar-accent); }
+.ar-about-screen__ft { flex: 1; min-width: 0; }
+
+/* ---- "Worth a look next" — the post-setup dashboard map ------------------ */
+/* One-time guidance, not another data card: the accent rail + tinted surface
+   (the What's New dress), and numbered accent chips carrying the priority. */
+.ar-next {
+  border-left: 3px solid var(--ar-accent);
+  background: color-mix(in srgb, var(--ar-accent) 3%, var(--ar-surface));
+}
+.ar-next__n {
+  flex: 0 0 auto; width: 24px; height: 24px; border-radius: 50%; margin-top: 1px;
+  background: var(--ar-accent); color: var(--ar-paper);
+  display: grid; place-items: center;
+  font-family: var(--ar-mono); font-size: 11px;
+}
+.ar-next__head { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
+.ar-next__title { margin: 0 0 4px; font-size: 17px; letter-spacing: -0.01em; }
+.ar-next__sub { margin: 0; font-size: 12.5px; line-height: 1.5; color: var(--ar-ink-soft); }
+.ar-next__head .ar-linkbtn { flex: 0 0 auto; white-space: nowrap; }
+.ar-next__list { list-style: none; margin: 14px 0 0; padding: 0; }
+.ar-next__list li {
+  display: flex; align-items: center; gap: 18px;
+  padding: 13px 0; border-top: 1px solid var(--ar-line);
+}
+.ar-next__body { flex: 1 1 auto; min-width: 0; }
+.ar-next__body strong { display: block; font-size: 13.5px; margin-bottom: 2px; }
+.ar-next__body p { margin: 0; font-size: 12.5px; line-height: 1.5; color: var(--ar-ink-soft); max-width: 70ch; }
+.ar-next__list .ar-btn { flex: 0 0 auto; }
+@media (max-width: 640px) {
+  .ar-next__list li { flex-direction: column; align-items: flex-start; gap: 9px; }
+}
+
+/* Form-like proof states put their title in the modal's fixed head; the title
+   is the head's only line, so it drops its usual bottom margin. */
+.ar-wiz__proofttl { margin: 0; }
+
+/* The empty-"about" nudge: a tip, not a problem — amber, never the error red
+   (.ar-warn wears --ar-bad, which reads as "something broke"). */
+.ar-wiz__tip { color: var(--ar-warn); }
+
+/* overflow:hidden — falling confetti transforms otherwise extend the modal's
+   scroll area past this now-short screen and flash a phantom scrollbar. */
+.ar-wiz__done { padding: 2px 0 0; overflow: hidden; }
+.ar-wiz__done .ar-wiz__done-check { width: 52px; height: 52px; margin: 2px auto 12px; }
+.ar-wiz__done .ar-wiz__done-check svg { width: 26px; height: 26px; }
+
+/* The ceremonial proof states (watching, success) have no head — they carry
+   the head's top breathing room themselves, or their first line would sit 8px
+   from the panel edge while every headed screen's sits 24px. */
+.ar-wiz__proof { padding-top: 16px; }
+
+/* The proof screen: assistant pick cards (the .ar-type idiom, button-flavoured). */
+.ar-ask-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(205px, 1fr)); gap: 9px; }
+.ar-ask {
+  appearance: none; display: flex; align-items: center; gap: 12px; text-align: left; cursor: pointer;
+  border: 1px solid var(--ar-line); border-radius: 6px; background: var(--ar-surface);
+  padding: 13px 15px; transition: border-color 0.15s, background 0.15s; font-family: var(--ar-sans);
+}
+.ar-ask:hover { border-color: var(--ar-accent); background: #f0f6f4; }
+.ar-ask:focus-visible { outline: 2px solid var(--ar-accent); outline-offset: 2px; }
+.ar-ask__mark {
+  flex: 0 0 auto; width: 30px; height: 30px; border-radius: 50%;
+  background: var(--ar-surface-2); border: 1px solid var(--ar-line);
+  display: flex; align-items: center; justify-content: center; color: var(--ar-ink);
+}
+.ar-ask__body { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.ar-ask__name { font-size: 13.5px; font-weight: 600; color: var(--ar-ink); }
+.ar-ask__name::after { content: " ↗"; color: var(--ar-ink-faint); font-weight: 400; }
+.ar-ask__sub { font-size: 11.5px; color: var(--ar-ink-soft); }
+
+/* Watching the log: one quiet pulse and an honest clock. */
+.ar-watch { display: flex; flex-direction: column; align-items: center; gap: 14px; padding: 8px 0; text-align: center; }
+.ar-watch__pulse { width: 14px; height: 14px; border-radius: 50%; background: var(--ar-accent); animation: ar-watch-pulse 1.4s ease-in-out infinite; }
+@keyframes ar-watch-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(20, 107, 100, 0.35); }
+  50% { box-shadow: 0 0 0 12px rgba(20, 107, 100, 0); }
+}
+@media (prefers-reduced-motion: reduce) { .ar-watch__pulse { animation: none; } }
+.ar-watch__title { font-family: var(--ar-serif); font-size: 19px; font-weight: 600; margin: 0; }
+.ar-watch__clock { margin: 0; font-family: var(--ar-mono); font-size: 13px; color: var(--ar-ink-faint); font-variant-numeric: tabular-nums; }
+.ar-watch__lead { max-width: 44ch; }
+
+/* The payoff: the owner's own log line (the .is-on capsule palette). */
+.ar-logline {
+  display: flex; align-items: center; flex-wrap: wrap; gap: 10px; text-align: left;
+  margin: 18px 0 0; padding: 13px 16px;
+  border: 1px solid #bcdcc6; border-radius: 6px; background: #eef5f0;
+}
+.ar-logline__dot { width: 8px; height: 8px; border-radius: 50%; background: var(--ar-good); flex: 0 0 auto; }
+.ar-logline__name { font-weight: 700; font-size: 14px; }
+.ar-logline__chip { font-family: var(--ar-mono); font-size: 11px; background: var(--ar-surface); border: 1px solid var(--ar-line); border-radius: 4px; padding: 2px 8px; }
+.ar-logline__net { font-size: 12px; color: var(--ar-ink-soft); }
+.ar-logline__time { margin-left: auto; font-family: var(--ar-mono); font-size: 11px; color: var(--ar-ink-soft); }
+@media (max-width: 640px) { .ar-logline__time { margin-left: 0; flex-basis: 100%; } }
+
+/* The honest timeout: numbered plain-words reasons, firewall first. */
+.ar-reasons { margin: 6px 0 0; padding: 0; list-style: none; display: grid; gap: 12px; text-align: left; }
+.ar-reasons li { display: flex; gap: 12px; font-size: 13px; line-height: 1.5; color: var(--ar-ink); }
+.ar-reasons li strong { font-weight: 600; }
+.ar-reasons li small { display: block; color: var(--ar-ink-soft); font-size: 12.5px; margin-top: 1px; }
+.ar-reasons__n {
+  flex: 0 0 auto; width: 22px; height: 22px; border-radius: 50%; margin-top: 1px;
+  border: 1px solid var(--ar-line-strong); background: var(--ar-surface-2);
+  display: flex; align-items: center; justify-content: center;
+  font-family: var(--ar-mono); font-size: 11px; color: var(--ar-ink-soft);
+}
+
+/* The optional second wow: the one-click connect card, dashed = an offer, not a step. */
+.ar-connect {
+  margin-top: 20px; text-align: left; border: 1px dashed var(--ar-line-strong);
+  border-radius: 6px; background: var(--ar-surface-2); padding: 15px 17px;
+  display: flex; align-items: center; gap: 16px; flex-wrap: wrap;
+}
+.ar-connect__body { flex: 1 1 260px; display: flex; flex-direction: column; gap: 3px; }
+.ar-connect__title { font-size: 13.5px; font-weight: 600; }
+.ar-connect__sub { font-size: 12.5px; color: var(--ar-ink-soft); line-height: 1.5; }
 
 /* ---- Readiness ---------------------------------------------------------- */
 /* Each rung is a titled group of checks, with its own pass tally. */
@@ -2481,15 +2681,20 @@ html { scrollbar-gutter: stable; }
    nowrap child (e.g. an Optimize page link) truncates instead of overflowing the panel. */
 .ar-checks { margin: 14px 0 0; padding: 0; list-style: none; display: grid; grid-template-columns: minmax(0, 1fr); gap: 0; border-top: 1px solid var(--ar-line); }
 .ar-check {
-  display: flex; align-items: flex-start; gap: 16px;
+  /* Grid, not flex: the fix note and action live at row level so the note can
+     span the FULL row width (flush with the status chip), while the color rule
+     still stretches every row via grid-row 1/-1. */
+  display: grid; grid-template-columns: auto minmax(0, 1fr) auto;
+  column-gap: 16px; align-items: start;
   padding: 15px 4px; border-bottom: 1px solid var(--ar-line);
   /* Clear the fixed WordPress admin bar when the rail's next-step link jumps here. */
   scroll-margin-top: 40px;
 }
-.ar-check__text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.ar-check__text { min-width: 0; display: flex; flex-direction: column; gap: 2px; }
 .ar-check__text strong { font-size: 14px; font-weight: 600; }
 .ar-check__text small { color: var(--ar-ink-soft); font-size: 12.5px; }
 .ar-check__fix {
+  grid-column: 2 / -1;
   margin: 8px 0 0; padding: 8px 11px;
   font-size: 12.5px; line-height: 1.5; color: var(--ar-ink);
   background: var(--ar-paper); border-radius: 6px;
@@ -2498,6 +2703,7 @@ html { scrollbar-gutter: stable; }
 .ar-check.is-warn .ar-check__fix { border-left-color: var(--ar-warn); }
 .ar-check.is-fail .ar-check__fix { border-left-color: var(--ar-bad); }
 .ar-check__action {
+  grid-column: 2; justify-self: start;
   align-self: flex-start; margin: 8px 0 0; padding: 0;
   background: none; border: 0; cursor: pointer;
   font-family: var(--ar-mono); font-size: 11px; letter-spacing: 0.04em;
@@ -2515,7 +2721,10 @@ html { scrollbar-gutter: stable; }
 .ar-check__tag.is-pass { color: var(--ar-good); border-color: #bcdcc6; background: #eef5f0; }
 .ar-check__tag.is-warn { color: var(--ar-warn); border-color: #e6d5a8; background: #f7f1df; }
 .ar-check__tag.is-fail { color: var(--ar-bad); border-color: #e6c1b9; background: #f8ebe8; }
-.ar-check__rule { flex: 0 0 auto; width: 3px; align-self: stretch; border-radius: 2px; background: var(--ar-line-strong); }
+/* span 3 = the max possible rows (text / fix / action) — "1 / -1" can't reach
+   IMPLICIT grid rows, so it left the bar one row tall. Unused spanned rows are
+   zero-height and invisible. */
+.ar-check__rule { grid-row: 1 / span 3; width: 3px; align-self: stretch; border-radius: 2px; background: var(--ar-line-strong); }
 .ar-check.is-pass .ar-check__rule { background: var(--ar-good); }
 .ar-check.is-warn .ar-check__rule { background: var(--ar-warn); }
 .ar-check.is-fail .ar-check__rule { background: var(--ar-bad); }

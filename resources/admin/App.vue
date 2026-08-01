@@ -145,7 +145,11 @@ export default {
       moreShift: MORE_TUCK,
       showWizard: false,
       wizardCelebrate: false,
+      firstRunWizard: false, // sticky "this session is the first run" — see mounted()
       onboarding: false,
+      // The post-setup "Worth a look next" dashboard card; flips on the moment
+      // onboarding completes in-session, persists via the server option.
+      nextSteps: !!(this.boot.nextSteps && this.boot.nextSteps.show),
       profileSaving: false,
       profileSaved: false,
       servicesSaving: false,
@@ -242,9 +246,34 @@ export default {
       // Starts empty (full offset), animates to the score once mounted.
       return this.ringReady ? this.circumference * (1 - this.score.pct / 100) : this.circumference;
     },
+    // The quill's state, LIVE: the two switches exist in this SPA's own settings
+    // object, so flipping them must light the quill (and retire the popover's
+    // stale advice) without a reload. providerReady stays from boot — the AI
+    // provider is configured outside this app, so a snapshot is the truth here.
+    assistantState() {
+      const s = this.settings || {};
+      return {
+        ...this.assistant,
+        writesOn: !!s.enable_agent_writes,
+        serverOn: !!s.enable_mcp_server,
+      };
+    },
+    // Whether assistants can reach this site at all — false only when the boot
+    // payload says so (.test/localhost/private IP). The score card words its
+    // "blocked" state around it: on a local site, an unreachable verdict is the
+    // expected state of the world, not an alarm.
+    siteIsLocal() {
+      return (this.boot.askAi || {}).public === false;
+    },
+    // Whether WordPress's "Discourage search engines" master switch is off —
+    // read from the live readiness rows so a wizard-applied fix updates it.
+    blogPublicOk() {
+      const r = (this.readiness || []).find((x) => x.id === 'public');
+      return !r || r.status !== 'fail';
+    },
     // The rail gauge now shows the composite AEO/GEO score {@see \Agentimus\Score}.
     aeoTone() {
-      if (!this.aeo || this.aeo.blocked) return 'low';
+      if (!this.aeo || this.aeo.blocked) return this.siteIsLocal ? 'ok' : 'low';
       return this.aeo.score >= 70 ? 'good' : this.aeo.score >= 50 ? 'ok' : 'low';
     },
     aeoDashOffset() {
@@ -519,9 +548,12 @@ export default {
     this.refreshActivity();
     // Resume live updates if this admin left them on.
     if (this.live) this.startActivityPolling();
-    // First run: greet a new admin with the setup wizard.
+    // First run: greet a new admin with the setup wizard. The flag is sticky for
+    // the whole first-run session — `onboarded` flips after the first save, but
+    // a Back-from-celebration edit + re-Finish must celebrate again, not close.
     if (!this.onboarded) {
       this.showWizard = true;
+      this.firstRunWizard = true;
     }
   },
   beforeUnmount() {
@@ -937,7 +969,7 @@ export default {
     // done. Wizard state lives in the child; we only receive the final payload.
     async finishWizard(payload) {
       if (this.onboarding) return;
-      const firstRun = !this.onboarded; // decided before we flip the flag below
+      const firstRun = this.firstRunWizard; // sticky — survives the onboarded flip after the first save
       this.onboarding = true;
       clearTimeout(this._autoTimer); // the settings swap below must not queue a save
       try {
@@ -947,8 +979,15 @@ export default {
         next.identity.name = payload.name;
         next.identity.about = payload.about;
         next.identity.expertise = payload.expertise;
+        next.identity.role = payload.role || '';
+        next.identity.audience = payload.audience || '';
+        next.identity.same_as = payload.same_as || [];
+        next.identity.services = payload.services || [];
         next.post_types = payload.types;
         if (payload.content_signal) next.content_signal = payload.content_signal;
+        // The guided search-visibility fix rides the same save; the server flips
+        // blog_public first, so the returned readiness/score already show it.
+        if (payload.make_public) next.make_public = true;
         const res = await this.api.saveSettings(next);
         this._skipAutosave = true;
         this.settings = JSON.parse(JSON.stringify(res.settings || {}));
@@ -962,6 +1001,7 @@ export default {
           // wizard switch to its celebration view. Reviews just save quietly.
           this.onboarded = true;
           this.wizardCelebrate = true;
+          this.nextSteps = true; // the dashboard map behind the modal, ready when it closes
         } else {
           this.onboarded = true;
           this.showWizard = false;
@@ -977,6 +1017,7 @@ export default {
     closeWizard() {
       this.showWizard = false;
       this.wizardCelebrate = false;
+      this.firstRunWizard = false;
     },
     skipWizard() {
       // Skipping must feel instant: close now and persist the "onboarded" flag
@@ -985,7 +1026,15 @@ export default {
       // If the write fails the modal simply reappears next load — self-correcting.
       this.showWizard = false;
       this.onboarded = true;
-      this.api.completeOnboarding().catch((e) => this.flash('error', e.message));
+      this.firstRunWizard = false;
+      // Skipping still lands somewhere sane: the server seeds empty identity
+      // fields from the site's own facts, so llms.txt opens with a real line.
+      this.nextSteps = true;
+      this.api.completeOnboarding({ seed: true }).catch((e) => this.flash('error', e.message));
+    },
+    dismissNextSteps() {
+      this.nextSteps = false; // optimistic — a failed write just shows it again next load
+      this.api.markNextStepsSeen().catch(() => {});
     },
     // "Run setup again" from Settings — reopen over the current settings (the
     // child re-seeds itself from them on open). Does not clear the onboarded flag.
@@ -1095,8 +1144,17 @@ export default {
       try {
         const r = await this.api.getScore();
         if (r && r.score) this.aeo = r.score;
+        // The rows the score was graded from: a fix made in ANOTHER tab (site
+        // icon in the Customizer, Reading settings…) refreshes on return here.
+        if (r && r.readiness) this.readiness = r.readiness;
         this._scoreAt = Date.now();
-      } catch (e) { /* leave the last known score in place */ }
+      } catch (e) {
+        // 404 = the route is gone — the plugin was deactivated or removed under
+        // this open tab. Stop the quiet focus-refreshes; they can never succeed
+        // again and only fill server logs with no-route errors.
+        if (e && e.status === 404) this._scoreGone = true;
+        /* otherwise leave the last known score in place */
+      }
     },
     // Content is edited in the POST EDITOR — i.e. in another tab — so by the time the owner
     // looks back at this one, the score they're reading can be several edits old, still
@@ -1104,6 +1162,7 @@ export default {
     // throttled so flicking between windows doesn't hammer the endpoint.
     onTabVisible() {
       if (document.visibilityState !== 'visible') return;
+      if (this._scoreGone) return; // the plugin vanished under this tab — stop knocking
       if (this._scoreAt && Date.now() - this._scoreAt < 10000) return;
       this.refreshScore();
     },
@@ -1488,7 +1547,7 @@ export default {
 
       <!-- The writing assistant's quill — the bell's sibling; dimmed with guidance
            until the writes switch is on and a provider is connected. -->
-      <AssistantLauncher :state="assistant" @open="assistantOpen = true" @navigate="goTo" />
+      <AssistantLauncher :state="assistantState" @open="assistantOpen = true" @navigate="goTo" />
       <ReviewMenu
         :threats="(activity && activity.threats) || {}"
         :enabled="!!(activity && activity.enabled)"
@@ -1542,13 +1601,18 @@ export default {
       :entity-types="entityTypes"
       :post-types="postTypes"
       :saving="onboarding"
-      :returning="onboarded"
+      :returning="onboarded && !firstRunWizard"
       :celebrate="wizardCelebrate"
       :links="{ llms: endpoints.llms || '', discovery: (discovery.endpoints || {}).discovery || '' }"
       :score="aeo"
+      :ask-ai="boot.askAi || { assistants: [], public: true }"
+      :api="api"
+      :blog-public="blogPublicOk"
+      :suggest="boot.suggest || {}"
       @finish="finishWizard"
       @skip="skipWizard"
       @done="closeWizard"
+      @revisit="wizardCelebrate = false"
       @navigate="(t) => { closeWizard(); goTo(t); }"
     />
 
@@ -1617,6 +1681,44 @@ export default {
           @refresh="refreshDiscovery"
           @navigate="goTo"
         />
+        <!-- The post-setup map: the rooms a new owner would otherwise never
+             find, in priority order. The owner chooses — nothing navigates
+             without their click. Dismiss is for good. -->
+        <section v-if="nextSteps && tab === 'dashboard'" class="ar-card ar-next" aria-label="Worth a look next">
+          <div class="ar-next__head">
+            <div>
+              <h2 class="ar-next__title">Worth a look next</h2>
+              <p class="ar-next__sub">Setup is done. These three rooms are where Agentimus earns its keep — in priority order.</p>
+            </div>
+            <button type="button" class="ar-linkbtn" @click="dismissNextSteps">Got it — hide this</button>
+          </div>
+          <ol class="ar-next__list">
+            <li>
+              <span class="ar-next__n" aria-hidden="true">1</span>
+              <div class="ar-next__body">
+                <strong>AI Visibility</strong>
+                <p>Which AI assistants cite your site, and what AI search has already indexed. Connect Bing Webmaster there and the crawl and index numbers come straight from the source.</p>
+              </div>
+              <button type="button" class="ar-btn ar-btn--ghost ar-btn--small" @click="goTo('visibility')">Open AI Visibility</button>
+            </li>
+            <li>
+              <span class="ar-next__n" aria-hidden="true">2</span>
+              <div class="ar-next__body">
+                <strong>Cloudflare</strong>
+                <p>If Cloudflare fronts your site, connect it under Data sources — you’ll see which AI visitors get served, cached, or turned away before your site ever sees them.</p>
+              </div>
+              <button type="button" class="ar-btn ar-btn--ghost ar-btn--small" @click="goTo({ tab: 'settings', anchor: 'ar-sec-cloudflare' })">Open Data sources</button>
+            </li>
+            <li>
+              <span class="ar-next__n" aria-hidden="true">3</span>
+              <div class="ar-next__body">
+                <strong>Connect an assistant</strong>
+                <p>Approve ChatGPT or Claude to work your site over MCP — check pages, draft content — with every action recorded in Agent Access.</p>
+              </div>
+              <button type="button" class="ar-btn ar-btn--ghost ar-btn--small" @click="goTo({ tab: 'settings', anchor: 'ar-sec-mcp' })">Open MCP settings</button>
+            </li>
+          </ol>
+        </section>
         <!-- Once-per-release highlights, dashboard only — never a site-wide notice. -->
         <WhatsNew
           v-if="whatsNew.show && tab === 'dashboard'"
@@ -1766,10 +1868,13 @@ export default {
               </svg>
               <span class="ar-rail-gauge__num">{{ aeo.blocked ? '—' : aeo.score }}<small v-if="!aeo.blocked">%</small></span>
             </div>
-            <div class="ar-rail-tier" :data-state="aeo.blocked ? 'floor' : (aeo.ready ? 'top' : 'climb')">
-              <strong class="ar-rail-tier__name">{{ aeo.blocked ? 'Not reachable' : aeo.band }}</strong>
+            <!-- The blocked verdict (blog_public off) reads differently by context:
+                 on a live site it's the red master-switch alarm; on a local site
+                 it's a calm to-do for launch day, not a failure. -->
+            <div class="ar-rail-tier" :data-state="aeo.blocked ? (siteIsLocal ? 'local' : 'floor') : (aeo.ready ? 'top' : 'climb')">
+              <strong class="ar-rail-tier__name">{{ aeo.blocked ? (siteIsLocal ? 'Not public yet' : 'Not reachable') : aeo.band }}</strong>
               <span class="ar-rail-tier__sub">{{
-                aeo.blocked ? 'agents can’t read the site'
+                aeo.blocked ? (siteIsLocal ? 'switch on Search engine visibility before launch' : 'agents can’t read the site')
                 : aeo.ready ? 'fully agent-ready'
                 : 'getting ready'
               }}</span>

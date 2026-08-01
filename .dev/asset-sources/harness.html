@@ -75,6 +75,42 @@
     window.AgentimusData.settings.enable_visibility = !/checksoff/.test(window.location.search);
   }
 
+  // The setup wizard: open with ?wizard to run the full first-run flow
+  // (welcome → steps → celebration → proof). The proof's "visit" lands ~8s
+  // after the first log poll (see the /activity/log branch below), so the
+  // success screen demos itself; add &local to see the non-public branch.
+  // A data.js captured on 1.33+ carries askAi (icons included); the fallback
+  // here only keeps an older capture usable.
+  if (/[?&]wizard/.test(window.location.search) && window.AgentimusData) {
+    window.AgentimusData.onboarded = false;
+    var wizAsk = window.AgentimusData.askAi || {
+      assistants: [
+        { label: 'ChatGPT', href: 'https://chatgpt.com/?q=demo', icon: '', agents: ['ChatGPT-User'] },
+        { label: 'Claude', href: 'https://claude.ai/new?q=demo', icon: '', agents: ['Claude-User'] },
+        { label: 'Perplexity', href: 'https://www.perplexity.ai/search?q=demo', icon: '', agents: ['Perplexity-User'] },
+        { label: 'Grok', href: 'https://grok.com/?q=demo', icon: '', agents: ['Grok'] },
+      ],
+    };
+    wizAsk.public = !/[?&]local/.test(window.location.search);
+    window.AgentimusData.askAi = wizAsk;
+    // &local also previews the score card's calm "Not public yet" state.
+    if (!wizAsk.public && window.AgentimusData.score) {
+      window.AgentimusData.score.blocked = true;
+    }
+    // &discourage: WordPress's "Discourage search engines" is on — the review
+    // step should offer the guided one-tick fix.
+    if (/[?&]discourage/.test(window.location.search) && Array.isArray(window.AgentimusData.readiness)) {
+      window.AgentimusData.readiness.forEach(function (r) { if (r.id === 'public') { r.status = 'fail'; } });
+    }
+    // &manytypes: a plugin-heavy site — exercises step 2's "Show N more" fold.
+    if (/[?&]manytypes/.test(window.location.search)) {
+      var wizPts = window.AgentimusData.postTypes = window.AgentimusData.postTypes || [];
+      ['Products', 'Courses', 'Lessons', 'Events', 'Recipes', 'Portfolios', 'Testimonials', 'Docs', 'Forms', 'Popups'].forEach(function (label) {
+        wizPts.push({ slug: label.toLowerCase(), label: label, source: 'Demo Plugin' });
+      });
+    }
+  }
+
   // Canned Bing summary for the AI Visibility screen's Found by AI Search card:
   // a rising index trend and one robots conflict, so the pin renders too.
   window.__BING__ = {
@@ -114,6 +150,21 @@
     window.fetch = function (u) {
       u = String(u);
       var body = '{}';
+      // The wizard's done screen fetches the live llms.txt to show it. Plain
+      // text, built from the captured identity so the highlights land.
+      if (u.indexOf('/llms.txt') > -1) {
+        // Mirrors the REAL LlmsText shape: boilerplate paragraphs first, the
+        // owner's words down in ## About — so the wizard's excerpt splice
+        // (title + ⋯ + About) is exercised, not just the happy first lines.
+        var wizId = (((window.AgentimusData || {}).settings || {}).identity) || {};
+        var llms = '# ' + (wizId.name || 'This site') + '\n\n'
+          + 'A WordPress site. Plain-text and markdown versions of any page are available by appending `.md` to its URL.\n\n'
+          + "A machine-readable discovery manifest of this site's agent endpoints, capabilities, and identity is at [/.well-known/discovery.json](https://example.com/.well-known/discovery.json).\n\n"
+          + '## About\n\n'
+          + (wizId.about || 'What this site is about.') + '\n\n'
+          + 'Topics: ' + ((wizId.expertise || []).join(', ') || 'WordPress') + '\n';
+        return Promise.resolve(new Response(llms, { status: 200, headers: { 'Content-Type': 'text/plain' } }));
+      }
       if (u.indexOf('/bing/summary') > -1 || u.indexOf('/bing/refresh') > -1) body = JSON.stringify(Object.assign({}, window.__BING__, { lastPollAt: Math.floor(Date.now() / 1000) - 7200 }));
       else if (u.indexOf('/agent-access') > -1) body = JSON.stringify(window.__AGENT_ACCESS__ || {});
       else if (u.indexOf('/cloudflare/summary') > -1) body = JSON.stringify(Object.assign({}, window.__EDGE__, { lastPollAt: Math.floor(Date.now() / 1000) - 1500 }));
@@ -124,7 +175,25 @@
       // response, and an empty body would poison every dirty-check after it.
       else if (u.indexOf('/settings') > -1) body = JSON.stringify({ settings: (window.AgentimusData || {}).settings || {} });
       else if (u.indexOf('/activity/log/facets') > -1) body = JSON.stringify({ agents: [], endpoints: [], networks: ['OpenAI'] });
-      else if (u.indexOf('/activity/log') > -1) body = JSON.stringify(window.__LOG__ || {});
+      else if (u.indexOf('/activity/log') > -1) {
+        var wizLog = window.__LOG__ || {};
+        // ?wizard: after ~8s of watching, a fresh ChatGPT visit "lands" — newer
+        // than every canned row, so the proof screen's baseline check passes.
+        if (/[?&]wizard/.test(window.location.search)) {
+          if (!window.__WIZ_LOG_FIRST__) window.__WIZ_LOG_FIRST__ = Date.now();
+          if (Date.now() - window.__WIZ_LOG_FIRST__ > 8000) {
+            wizLog = Object.assign({}, wizLog, {
+              rows: [{
+                endpoint: 'llms.txt', agent: 'ChatGPT',
+                ua: 'Mozilla/5.0 (compatible; ChatGPT-User/1.0; +https://openai.com/bot)',
+                network: 'openai.com', verdict: 1, signer: '', refused: false,
+                at: new Date().toISOString(),
+              }].concat(wizLog.rows || []),
+            });
+          }
+        }
+        body = JSON.stringify(wizLog);
+      }
       else if (u.indexOf('/activity') > -1) body = JSON.stringify(window.__ACTIVITY__ || {});
       return Promise.resolve(new Response(body, { status: 200, headers: { 'Content-Type': 'application/json' } }));
     };

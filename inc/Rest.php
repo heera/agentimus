@@ -174,6 +174,16 @@ final class Rest {
 
 		register_rest_route(
 			self::NAMESPACE,
+			'/nextsteps-seen',
+			array(
+				'methods'             => 'POST',
+				'callback'            => array( $this, 'nextsteps_seen' ),
+				'permission_callback' => array( $this, 'can_manage' ),
+			)
+		);
+
+		register_rest_route(
+			self::NAMESPACE,
 			'/whatsnew-seen',
 			array(
 				'methods'             => \WP_REST_Server::EDITABLE,
@@ -409,6 +419,15 @@ final class Rest {
 		if ( isset( $input['settings'] ) && is_array( $input['settings'] ) ) {
 			$input = $input['settings'];
 		}
+
+		// The wizard's guided fix: the owner explicitly ticked "switch on Search
+		// engine visibility", so flip the core option BEFORE the readiness and
+		// score runs below — the response must already show the site open. Only
+		// ever an explicit tick; the key is not a setting and is never stored.
+		if ( ! empty( $input['make_public'] ) ) {
+			update_option( 'blog_public', 1 );
+		}
+		unset( $input['make_public'] );
 
 		$saved     = $this->settings->update( (array) $input );
 		$readiness = ( new Readiness( $this->settings ) )->report();
@@ -697,9 +716,46 @@ final class Rest {
 	 *
 	 * @return \WP_REST_Response
 	 */
-	public function complete_onboarding() {
+	public function complete_onboarding( \WP_REST_Request $request ) {
+		// Skipping is not abandonment: with `seed`, empty identity fields are
+		// filled from what the site already says about itself (the tagline), so
+		// even a skipper's llms.txt opens with a real sentence, not a blank.
+		// Fields the owner has set are never overwritten.
+		if ( ! empty( $request['seed'] ) ) {
+			$tagline = Plugin::real_tagline();
+			if ( '' !== $tagline && '' === trim( (string) $this->settings->identity( 'about', '' ) ) ) {
+				// Full-shape update: a partial array would reset every unset toggle.
+				$all                      = $this->settings->all();
+				$all['identity']['about'] = $tagline;
+				$this->settings->update( $all );
+			}
+		}
 		update_option( 'agentimus_onboarded', AGENTIMUS_VERSION );
+		// Queue the dashboard's "Worth a look next" card — the map to the rooms
+		// (AI Visibility, Cloudflare, MCP) a new owner would otherwise never
+		// find. It stays until the owner dismisses it; navigation is theirs.
+		if ( 'done' !== get_option( 'agentimus_next_steps', '' ) ) {
+			update_option( 'agentimus_next_steps', 'show' );
+		}
+		// A fresh install has no past: stamp this version as "seen" so the
+		// What's New card doesn't stack release notes on top of the map card.
+		// It debuts with the site's first real update instead.
+		if ( '' === (string) get_option( 'agentimus_whatsnew_seen', '' ) ) {
+			update_option( 'agentimus_whatsnew_seen', AGENTIMUS_VERSION );
+		}
 		return rest_ensure_response( array( 'onboarded' => true ) );
+	}
+
+	/**
+	 * POST /nextsteps-seen — dismiss the dashboard's post-setup "Worth a look
+	 * next" card, for good ('done' also blocks a later re-onboarding from
+	 * resurrecting it).
+	 *
+	 * @return \WP_REST_Response
+	 */
+	public function nextsteps_seen() {
+		update_option( 'agentimus_next_steps', 'done' );
+		return rest_ensure_response( array( 'seen' => true ) );
 	}
 
 	/**
@@ -851,7 +907,15 @@ final class Rest {
 	 */
 	public function get_score() {
 		$readiness = ( new Readiness( $this->settings ) )->report();
-		return rest_ensure_response( array( 'score' => $this->score_report( $readiness ) ) );
+		return rest_ensure_response(
+			array(
+				'score'     => $this->score_report( $readiness ),
+				// The report the score was graded FROM rides along, so the app's
+				// tab-return refresh updates the readiness rows too — a fix made
+				// in another tab (Customizer, Reading settings) shows on return.
+				'readiness' => $readiness,
+			)
+		);
 	}
 
 	/**

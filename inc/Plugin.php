@@ -249,6 +249,19 @@ final class Plugin {
 	 *      can't thrash flushes; the timestamp is recorded only on an actual flush, so a
 	 *      genuine change still persists on the next admin request once the window clears.
 	 */
+	/**
+	 * The site tagline, when it actually says something: WordPress's factory
+	 * placeholder counts as empty — seeding "Just another WordPress site" into
+	 * an AI-facing profile would be worse than a blank. Used by the wizard's
+	 * prefill suggestion and the skip-path identity seed.
+	 *
+	 * @return string
+	 */
+	public static function real_tagline() {
+		$tagline = trim( (string) get_bloginfo( 'description' ) );
+		return 0 === strcasecmp( $tagline, 'Just another WordPress site' ) ? '' : $tagline;
+	}
+
 	public static function maybe_flush_rewrites() {
 		// Guard 1 — never on the front end.
 		if ( ! is_admin() && ! ( defined( 'WP_CLI' ) && WP_CLI ) ) {

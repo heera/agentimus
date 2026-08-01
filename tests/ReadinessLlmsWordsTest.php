@@ -86,4 +86,16 @@ final class ReadinessLlmsWordsTest extends TestCase {
 		$this->assertSame( 'pass', $row['status'] );
 		$this->assertSame( '', $row['fix'] );
 	}
+
+	public function test_warns_with_profile_set_and_points_at_publishing() {
+		// The owner's profile is already in the file — the advice must not send
+		// them back to redo it. The only real lever left is published content,
+		// so the fix says publish and the action opens the editor.
+		update_option( Settings::OPTION, array( 'identity' => array( 'about' => 'A real profile sentence.' ) ) );
+		$row = $this->grade( 40 );
+		$this->assertSame( 'warn', $row['status'] );
+		$this->assertStringContainsString( 'Publish a few pages or posts', $row['fix'] );
+		$this->assertStringNotContainsString( 'Settings → Identity', $row['fix'] );
+		$this->assertStringContainsString( 'post-new.php', $row['action']['href'] );
+	}
 }

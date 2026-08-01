@@ -2235,6 +2235,16 @@ export default {
           </div>
         </div>
 
+        <!-- The off-state must narrate the order, or an arriving link ("allow
+             writing", "approve ChatGPT") strands the reader in front of greyed
+             switches and an invisible connect block. -->
+        <p v-if="!settings.enable_mcp_server" class="ar-card__note ar-card__note--wide">
+          Everything here is off right now. The order: turn on the server above and save —
+          your connect address and setup steps appear on this card, assistants like ChatGPT
+          and Claude can then ask for your approval, and each one you approve is listed here.
+          After that, allow writing above if you want them drafting.
+        </p>
+
         <div v-show="settings.enable_mcp_server" class="ar-mcp-connect">
           <!-- Status: is the server actually answering, and has anything used it?
                The probe runs in the browser because the adapter's state genuinely

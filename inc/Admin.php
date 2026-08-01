@@ -738,6 +738,26 @@ final class Admin {
 				'llmsFull' => home_url( '/llms-full.txt' ),
 				'robots'   => home_url( '/robots.txt' ),
 			),
+			// The wizard's proof screen: Ask-AI links carrying a site-level question
+			// (the assistant has to fetch the site to answer — that fetch is what the
+			// screen watches the request log for), plus whether the public internet
+			// can reach this site at all (on .test/localhost the watch would never end).
+			'askAi'       => array(
+				'assistants' => ( new AskAi( $this->settings ) )->wizard_links(
+					sprintf( 'Read %s and tell me in two sentences who is behind this site and what it covers.', home_url( '/' ) )
+				),
+				'public'     => AskAi::host_is_public( (string) wp_parse_url( home_url( '/' ), PHP_URL_HOST ) ),
+			),
+			// What WordPress already knows, offered to the wizard as prefills — a
+			// new owner should edit a suggestion, not stare at a blank field.
+			'suggest'     => array(
+				'about' => Plugin::real_tagline(),
+			),
+			// The post-setup "Worth a look next" dashboard card: queued by
+			// finishing (or skipping) the wizard, gone for good once dismissed.
+			'nextSteps'   => array(
+				'show' => 'show' === get_option( 'agentimus_next_steps', '' ),
+			),
 			'version'     => AGENTIMUS_VERSION,
 			// The nav-bar quill's state: live when both prerequisites hold, dimmed with
 			// guidance otherwise (the guidance popover names the missing one).

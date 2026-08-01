@@ -37,11 +37,13 @@ final class ReadinessEntityTest extends TestCase {
 
 	/* -- role / jobTitle -------------------------------------------------- */
 
-	public function test_person_without_role_warns_and_routes_to_identity() {
-		// Defaults: entity is a Person with no role.
+	public function test_person_without_role_warns_and_routes_to_the_role_field() {
+		// Defaults: entity is a Person with no role. The action must land on the
+		// ROLE input itself — ar-about sent owners typing their role into the
+		// wrong field (caught live, 2026-08-01).
 		$row = $this->check( 'check_entity_role' );
 		$this->assertSame( 'warn', $row['status'] );
-		$this->assertSame( 'ar-about', $row['action']['anchor'] );
+		$this->assertSame( 'ar-role', $row['action']['anchor'] );
 	}
 
 	public function test_person_with_role_passes() {

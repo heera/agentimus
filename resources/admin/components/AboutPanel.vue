@@ -11,9 +11,132 @@ export default {
   data() {
     return {
       openFaq: 0,
+      // In-page search: filters the screens guide, feature groups and Q&A by
+      // plain substring. The static reference sections (Privacy, Protocol,
+      // What It Can't Do) always stay visible — search narrows topics, it
+      // never hides facts.
+      aboutQuery: '',
+      // The working manual, screen by screen: what it's for, what you do
+      // there, and the facts worth knowing so nothing surprises you.
+      // SAMPLE: Request Log first — the remaining screens follow its shape.
+      screens: [
+        {
+          id: 'log',
+          title: 'Request Log',
+          where: 'More → Request Log',
+          purpose: 'Every request to your agent-facing files — llms.txt, the markdown twins, the discovery documents — and the visits recognised AI agents make, each one named, verdicted and timestamped. This is the plugin’s ground truth: when a wizard proof, a pin or a chart claims something happened, the row that proves it lives here.',
+          actions: 'Filter by client, endpoint, network or verdict. Click a user-agent to copy it. Ask “check this bot” to verify a claimed identity against the operator’s own published checks. Allow, block or ignore a client from the review bell — Manage clients (Settings → AI access) keeps every standing decision with an undo. Clear the log any time.',
+          // Fact kinds carry the annotation: info = a notice worth knowing,
+          // warn = a caution that prevents a wrong conclusion, tip = a lightbulb.
+          facts: [
+            { k: 'info', t: 'You are never in your own log: logged-in administrators are skipped, and the plugin’s own self-checks carry a signed token that keeps them out — the user-agent alone is never trusted for that, because anyone can wear one.' },
+            { k: 'warn', t: 'Names are claims. Recognition reads the user-agent, which is forgeable — that is exactly why verdicts exist: Verified means the operator’s own published checks confirmed the address, Spoofed means they disproved it, Unchecked means nobody has looked yet.' },
+            { k: 'info', t: 'Retention and the report window are different facts: rows are kept for as long as you choose (30 days by default); the screen shows at most the last 30 days of what is kept. A size cap outranks both, so the table can never grow without bound.' },
+            { k: 'info', t: 'Refusals are recorded. A client that was turned away still gets its row — a proven impostor can’t be refused in silence.' },
+            { k: 'info', t: 'No IP addresses are stored by default; the optional flagged-clients setting is the single, disclosed exception (see Privacy below).' },
+            { k: 'tip', t: 'A quiet log on a fresh site is normal — crawlers usually find your files within a day or two, and every visit from then on counts up here.' },
+          ],
+        },
+        {
+          id: 'dashboard',
+          title: 'Dashboard',
+          where: 'first tab',
+          purpose: 'The day’s answer at a glance: your AEO/GEO score with the single most useful next step, endpoint activity by day, your busiest agent-facing files, and recent requests. The one-time “Worth a look next” card after setup and the once-per-release “What’s new” card live here too — never anywhere else in wp-admin.',
+          actions: 'Click a day’s bar for that day’s full report. Follow the score card’s “Next:” line straight to the thing it names. Answer the review bell when a new client wants a verdict. Tiles drill into their report screens with the filter carried along.',
+          facts: [
+            { k: 'info', t: 'The score’s Cited rung only counts when citation tracking is on; otherwise its weight is redistributed, so you are never penalised for a feature you don’t use.' },
+            { k: 'info', t: 'A blocked verdict on the score card means one thing: WordPress’s “Discourage search engines” switch is on. Nothing else scores until that master switch does — the card links the fix.' },
+            { k: 'tip', t: 'On a local site that verdict reads “Not public yet” in calm amber, not red — being unreachable is the expected state of a development site, and it only matters at launch.' },
+          ],
+        },
+        {
+          id: 'readiness',
+          title: 'Readiness',
+          where: 'Readiness tab',
+          purpose: 'Every check the score is built from, grouped by rung — Findable, Readable, Trusted — each row saying what it found, what to do, and where to do it. Below them, Optimize grades each page’s citability, and Agent preview shows the exact JSON-LD and Markdown any page serves to a machine.',
+          actions: 'Work the rows: each warn or fail carries plain-words advice and a link that lands on the exact field or screen that fixes it. Run “Verify live” to fetch your own files the way an agent would. Scan for exposed files. In Optimize, open a page to fix it in the editor, or set it aside as not-cited content — counted visibly, never hidden.',
+          facts: [
+            { k: 'info', t: 'Advice is state-aware. A thin llms.txt points at your Identity settings only until your profile is in the file — after that it points at publishing content, because that is the only lever left.' },
+            { k: 'info', t: 'The “Verify live” fetches are deliberately anonymous — they grade what an agent receives, not what an admin sees — and they carry a signed token so they stay out of your own Request Log.' },
+            { k: 'warn', t: '“Could not verify” is informational, never a verdict against your site: probe data fails open, and a stale good result outranks a fresh failure to fetch.' },
+            { k: 'info', t: 'Checks read stored data; the llms.txt and home-page probes run in the background twice a day (and after plugin or theme changes), so a route silently taken over by another plugin is noticed without slowing your admin.' },
+            { k: 'tip', t: 'Fixes made in another tab — a site icon in the Customizer, Reading settings — show up here on return, within moments, without a reload.' },
+          ],
+        },
+        {
+          id: 'settings',
+          title: 'Settings',
+          where: 'Settings tab',
+          purpose: 'Every switch the plugin has, grouped and explained where it sits — identity, content and policy, trust and verification, data sources, the MCP server. What each readiness row links to lives here.',
+          actions: 'Flip switches and type — changes autosave (switches immediately, text as you pause). Manage clients holds every allow/block/ignore decision with an undo. Data sources connects Cloudflare and Bing with read-only credentials. Run setup again replays the wizard over your current answers. Reset shows a preview of exactly what would change before it does.',
+          facts: [
+            { k: 'warn', t: 'The write tier is deliberately nested: turning the MCP server off also turns “Let connected agents write” off. Write access can never stay armed invisibly under a switched-off server.' },
+            { k: 'info', t: 'Connection secrets — the Cloudflare token, visibility keys — are stored encrypted at rest and are never echoed back in a REST response after saving.' },
+            { k: 'info', t: 'The trainer blocklist and the reading policy are separate ideas: blocking a training crawler hides nothing from readers, because assistants fetch reader requests with different agents. Google is the documented exception — one token governs both.' },
+            { k: 'tip', t: 'You rarely need to browse here: every readiness fix that is a switch links straight to its exact field, and the wizard set the important ones already.' },
+          ],
+        },
+        {
+          id: 'discovery',
+          title: 'Discovery',
+          where: 'Discovery tab',
+          purpose: 'The registry of everything your site publishes for machines — llms.txt and the full-text edition, discovery.json, the agent card, mcp.json — with live links and a validity check across every registration.',
+          actions: 'Open any document to read exactly what agents read. Re-scan after changing plugins. Third-party plugins that speak the WP_Discovery protocol appear here alongside Agentimus’s own surfaces.',
+          facts: [
+            { k: 'info', t: 'A 404 on a discovery URL can be by design: some documents only exist while their feature is on, so an absent file often means “switched off”, not “broken”. The validity line tells the difference.' },
+            { k: 'info', t: 'With signing on, the discovery documents carry RFC 9421 signatures — an agent can verify they really came from your server, unaltered.' },
+            { k: 'info', t: 'The registry is open: any plugin can register its machine surfaces with one hook (the snippet is in the protocol section below), and they get listed and validated like the built-ins.' },
+          ],
+        },
+        {
+          id: 'ai-traffic',
+          title: 'AI Traffic',
+          where: 'More → AI Traffic',
+          purpose: 'The human half of the story: readers who arrived from an AI assistant’s answer — daily counts by assistant and by the page they landed on. The Request Log shows machines reading you; this screen shows the people those machines sent.',
+          actions: 'Pick the window, see which assistants send readers and to which pages. The weekly email draws its “readers from AI” lines from here.',
+          facts: [
+            { k: 'info', t: 'Counts are daily aggregates — a total per day, per source, per landing page. Never a row that stands for one person, no IP addresses, no identities.' },
+            { k: 'info', t: 'Attribution is honest and therefore conservative: agentic browsers often arrive looking like Direct traffic, so real AI-sent readers can be undercounted — they are never invented.' },
+            { k: 'info', t: 'Your own clicks out of assistant chats are skipped — the plugin re-checks the admin cookie even on cached pages, so the owner never inflates their own numbers.' },
+          ],
+        },
+        {
+          id: 'visibility',
+          title: 'AI Visibility',
+          where: 'More → AI Visibility',
+          purpose: 'Two independent answers on one screen: can AI search find you (Bing’s index, which ChatGPT search and Copilot read today), and do assistants actually cite you when asked the questions your buyers ask.',
+          actions: 'Connect Bing Webmaster with one read-only key — Agentimus prints the verification tag for you — and read index, crawl and error numbers day by day. Turn on citation checks inside the Citations tab, set the questions (or let AI suggest a spread), and track mentioned, linked, ranked against rivals.',
+          facts: [
+            { k: 'info', t: 'Citation checks deliberately use their own keys, not WordPress’s shared AI provider: shared connectors hand back only answer text, and grading needs the list of cited sources each engine returns on its own API.' },
+            { k: 'info', t: 'Both tabs store their history in your own database, so it keeps growing where the vendors’ own reporting windows end.' },
+            { k: 'tip', t: 'Good tracked questions never mention your name. The point is to learn whether an assistant reaches for you when the buyer didn’t.' },
+          ],
+        },
+        {
+          id: 'agent-access',
+          title: 'Agent Access',
+          where: 'More → Agent Access',
+          purpose: 'The audit trail of credentialed agents — every key minted, every ability used, every refusal. If the Request Log is who knocked, this is what the ones you let in actually did.',
+          actions: 'Watch events roll up per credential with first-seen and last-seen. A NEW pill flags a key’s first appearance — and the nav badge re-lights when something new lands. Disconnect an approved assistant from the MCP card; revoke an application password from the user’s profile.',
+          facts: [
+            { k: 'info', t: 'Every connected agent acts as the WordPress user behind its credential — it can never do more than that user could on these screens, and each ability keeps its own permission check on top.' },
+            { k: 'info', t: 'Refusals are events too: a key that tried something it isn’t allowed to do shows up here saying exactly that. Silence is never how a denial ends.' },
+            { k: 'info', t: 'Writes only exist while “Let connected agents write” is on, drafts-only unless you also allow publishing — and every write lands in this feed either way.' },
+          ],
+        },
+      ],
       // Documentation of what the plugin publishes. "Default" is the shipped
       // state; the live on/off for each lives on the Settings tab.
       featureGroups: [
+        {
+          title: 'Guided Setup',
+          lead: 'A couple of minutes from install to a working, measured site — the wizard collects what matters, fixes what it can, and proves the whole thing live.',
+          items: [
+            { name: 'Setup wizard', where: 'first run · Settings → Run setup again', desc: 'Five short steps that gather everything the checks below will later ask for: who you are (name, role, profile sentence — pre-filled from what WordPress already knows), the topics, profiles and audience that help AI trust you, the services you offer, and what AI may read and do with it. Skipping is safe too: sensible defaults stay on and your site’s tagline seeds the profile, so even a skipped setup speaks.', tag: 'On' },
+            { name: 'Guided fixes', where: 'setup wizard', desc: 'Where a WordPress setting stands in the way, the wizard offers the fix as a one-tick choice instead of homework — “Discourage search engines” being the classic. Pre-ticked on live sites, where it’s almost always a leftover; explained and left unticked on local ones. Nothing is ever changed without the tick.', tag: 'On' },
+            { name: 'Proof, then a map', where: 'end of setup · Dashboard', desc: 'On a public site, setup ends with proof: ask ChatGPT, Claude, Perplexity or Grok about your site and watch the visit land in your own Request Log, live on the screen — with honest reasons named when nothing arrives. Afterwards a one-time dashboard card points at the rooms worth a look next — AI Visibility, Cloudflare, connecting an assistant — and leaves the choosing to you.', tag: 'On' },
+          ],
+        },
         {
           title: 'AEO/GEO Score & Optimization',
           lead: 'Your dashboard turns everything below into one score — and the single next thing to improve.',
@@ -162,6 +285,36 @@ export default {
     };
   },
   computed: {
+    // ---- in-page search: plain substring over the topic collections --------
+    q() {
+      return this.aboutQuery.trim().toLowerCase();
+    },
+    filteredScreens() {
+      if (!this.q) return this.screens;
+      return this.screens.filter((s) =>
+        [s.title, s.where, s.purpose, s.actions, ...(s.facts || [])].join(' ').toLowerCase().includes(this.q));
+    },
+    filteredGroups() {
+      if (!this.q) return this.featureGroups;
+      return this.featureGroups
+        .map((g) => {
+          // A hit on the group's own title/lead keeps the whole group.
+          if (`${g.title} ${g.lead}`.toLowerCase().includes(this.q)) return g;
+          const items = g.items.filter((it) =>
+            `${it.name} ${it.where} ${it.desc} ${it.tag}`.toLowerCase().includes(this.q));
+          return items.length ? { ...g, items } : null;
+        })
+        .filter(Boolean);
+    },
+    filteredFaqs() {
+      if (!this.q) return this.faqs;
+      return this.faqs.filter((f) => `${f.q} ${f.a}`.toLowerCase().includes(this.q));
+    },
+    matchCount() {
+      return this.filteredScreens.length
+        + this.filteredGroups.reduce((n, g) => n + g.items.length, 0)
+        + this.filteredFaqs.length;
+    },
     protocolVersion() { return this.protocol.version || '1.0'; },
     hook() { return this.protocol.hook || 'wpdiscovery_register'; },
     specUrl() { return this.protocol.specUrl || ''; },
@@ -184,8 +337,53 @@ export default {
 
 <template>
   <div class="ar-about">
+    <!-- In-page search: narrows the topic collections below. The static
+         reference sections (Privacy, Protocol, Can't-Do) always stay — search
+         finds topics, it never hides facts. -->
+    <div class="ar-about-search">
+      <input
+        v-model="aboutQuery"
+        type="search"
+        class="ar-input"
+        placeholder="Search this page — try “retention”, “spoofed”, “publish”…"
+        aria-label="Search this page"
+      />
+      <span v-if="q" class="ar-about-search__count">
+        {{ matchCount }} topic{{ matchCount === 1 ? '' : 's' }} match
+        <button type="button" class="ar-linkbtn" @click="aboutQuery = ''">clear</button>
+      </span>
+    </div>
+
+    <!-- The working manual, screen by screen. -->
+    <section v-if="filteredScreens.length" id="ar-about-screens" class="ar-card">
+      <h2 class="ar-card__title">The Screens</h2>
+      <p class="ar-card__lead">
+        What each screen is for, what you do on it, and the facts worth knowing so nothing
+        surprises you.
+      </p>
+      <div v-for="s in filteredScreens" :key="s.id" class="ar-about-screen">
+        <h3 class="ar-about-feat__title">{{ s.title }} <span class="ar-about-screen__where">{{ s.where }}</span></h3>
+        <p class="ar-about-screen__purpose">{{ s.purpose }}</p>
+        <p class="ar-about-screen__do"><strong>What you do here:</strong> {{ s.actions }}</p>
+        <p class="ar-about-screen__k">Worth knowing</p>
+        <ul class="ar-about-screen__facts">
+          <li v-for="f in s.facts" :key="f.t" :class="`is-${f.k}`">
+            <span class="ar-about-screen__ico" aria-hidden="true">
+              <!-- notice -->
+              <svg v-if="f.k === 'info'" viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="9" /><path d="M12 11v5" /><path d="M12 7.6v.4" /></svg>
+              <!-- alert -->
+              <svg v-else-if="f.k === 'warn'" viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.5 21.5 20h-19z" /><path d="M12 10v4.5" /><path d="M12 17.2v.3" /></svg>
+              <!-- lightbulb -->
+              <svg v-else viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a6 6 0 0 0-3.4 10.9c.8.6 1.4 1.4 1.4 2.1h4c0-.7.6-1.5 1.4-2.1A6 6 0 0 0 12 3z" /><path d="M10 19h4" /><path d="M10.7 21.5h2.6" /></svg>
+            </span>
+            <span class="ar-about-screen__ft">{{ f.t }}</span>
+          </li>
+        </ul>
+      </div>
+    </section>
+
     <!-- Features -->
-    <section class="ar-card">
+    <section v-if="filteredGroups.length" class="ar-card">
       <h2 class="ar-card__title">What It Does</h2>
       <p class="ar-card__lead">
         Agentimus does two things for the age of AI agents. <strong>First, it makes your site legible and
@@ -209,7 +407,7 @@ export default {
         walks through every feature, step by step.
       </p>
 
-      <div v-for="g in featureGroups" :key="g.title" class="ar-about-feat">
+      <div v-for="g in filteredGroups" :key="g.title" class="ar-about-feat">
         <div class="ar-about-feat__head">
           <h3 class="ar-about-feat__title">{{ g.title }}</h3>
           <p class="ar-about-feat__lead">{{ g.lead }}</p>
@@ -358,10 +556,10 @@ export default {
     </section>
 
     <!-- FAQ -->
-    <section class="ar-card">
+    <section v-if="filteredFaqs.length" class="ar-card">
       <h2 class="ar-card__title">Questions &amp; Answers</h2>
       <ul class="ar-about-faq">
-        <li v-for="(f, i) in faqs" :key="i" class="ar-about-faq__item" :class="{ 'is-open': openFaq === i }">
+        <li v-for="(f, i) in filteredFaqs" :key="f.q" class="ar-about-faq__item" :class="{ 'is-open': openFaq === i }">
           <button
             type="button"
             class="ar-about-faq__q"

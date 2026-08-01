@@ -79,6 +79,8 @@ export default {
           <span class="ar__assist-guide__mark" aria-hidden="true">{{ state.writesOn ? '✓' : '1' }}</span>
           <span>
             <strong>Let connected agents write</strong> — your consent switch for AI writing.
+            It lives inside the MCP Server card<template v-if="state.serverOn === false">;
+            the server switch above it is off, so turn that on first</template>.
             <button v-if="!state.writesOn" type="button" class="ar-linkbtn" @click="goSettings">Turn on in Settings</button>
             <em v-else>on</em>
           </span>

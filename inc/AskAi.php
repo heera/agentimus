@@ -252,6 +252,60 @@ final class AskAi {
 	}
 
 	/**
+	 * The assistant links for the setup wizard's proof screen — the same catalog
+	 * and policy gate as the front-end bar, carrying a SITE-level prompt instead
+	 * of a post's. Same closed loop: the prompt is a question about the address,
+	 * so the assistant has to fetch, and that fetch is what the wizard watches
+	 * the request log for.
+	 *
+	 * @param string $prompt The pre-filled question (plain text, un-encoded).
+	 * @return array[] Each: label + href (final URL) + icon (SVG path d) + agents (reader UA tokens).
+	 */
+	public function wizard_links( $prompt ) {
+		$links = array();
+
+		foreach ( $this->networks() as $network ) {
+			$links[] = array(
+				'label'  => $network['label'],
+				'href'   => sprintf( $network['url'], rawurlencode( (string) $prompt ) ),
+				'icon'   => isset( $network['icon'] ) ? $network['icon'] : '',
+				'agents' => isset( $network['agents'] ) ? array_values( (array) $network['agents'] ) : array(),
+			);
+		}
+
+		return $links;
+	}
+
+	/**
+	 * Whether a host is one the public internet can reach. The wizard's proof
+	 * screen needs this truth up front: an assistant can never fetch
+	 * wpftest.test or 192.168.*, and watching the log for that visit would
+	 * wait forever — honesty beats a spinner that can't end.
+	 *
+	 * @param string $host Bare host name (no scheme, no port).
+	 * @return bool
+	 */
+	public static function host_is_public( $host ) {
+		$host = strtolower( trim( (string) $host ) );
+
+		if ( '' === $host || 'localhost' === $host || false === strpos( $host, '.' ) ) {
+			return false;
+		}
+
+		// Reserved and development-convention suffixes (RFC 2606/6761, mDNS, RFC 8375).
+		if ( preg_match( '/\.(test|local|localhost|example|invalid|internal|home\.arpa)$/', $host ) ) {
+			return false;
+		}
+
+		if ( filter_var( $host, FILTER_VALIDATE_IP ) ) {
+			// A literal IP is reachable only outside the private/reserved ranges.
+			return (bool) filter_var( $host, FILTER_VALIDATE_IP, FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE );
+		}
+
+		return true;
+	}
+
+	/**
 	 * Layout-only styles — deliberately no colors, borders or backgrounds, so
 	 * the links wear whatever the theme gives its anchors and the icons follow
 	 * via `currentColor`. Compact by design (Heera's call).

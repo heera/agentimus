@@ -22,7 +22,11 @@ export function createApi(boot) {
       } catch (e) {
         /* ignore */
       }
-      throw new Error(message);
+      // The status rides along so callers can react to CLASSES of failure
+      // (a 404 = the route is gone) without matching localized message text.
+      const err = new Error(message);
+      err.status = res.status;
+      throw err;
     }
     return res.json();
   }
@@ -43,7 +47,10 @@ export function createApi(boot) {
       request('/optimize/ignore-issue', { method: 'POST', body: JSON.stringify({ issue }) }),
     // Empty the set-aside list: every parked page returns to grading.
     restoreAllOptimize: () => request('/optimize/restore-all', { method: 'POST' }),
-    completeOnboarding: () => request('/onboarding', { method: 'POST' }),
+    // `payload` carries the skip-path `{ seed: true }` — the server then fills
+    // empty identity fields from what the site already says about itself.
+    completeOnboarding: (payload) =>
+      request('/onboarding', { method: 'POST', body: JSON.stringify(payload || {}) }),
     getReadiness: () => request('/readiness'),
     getScore: () => request('/score'),
     // JSON-LD preview: the site graph (post omitted / 0) or a chosen post's graph.
@@ -116,6 +123,7 @@ export function createApi(boot) {
       request('/verifier/probe-ranges', { method: 'POST', body: JSON.stringify({ url }) }),
     // Dismiss the once-per-release "What's new" card.
     markWhatsNewSeen: () => request('/whatsnew-seen', { method: 'POST' }),
+    markNextStepsSeen: () => request('/nextsteps-seen', { method: 'POST' }),
     // Answer the review ask: 'review' / 'done' close it for good, 'later' snoozes a month.
     reviewAck: (answer) => request('/review-ack', { method: 'POST', body: JSON.stringify({ answer }) }),
 

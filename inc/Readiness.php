@@ -362,16 +362,34 @@ final class Readiness {
 			);
 		}
 
+		$detail = sprintf(
+			/* translators: 1: word count; 2: the minimum, e.g. 200. */
+			__( 'Your /llms.txt is thin — about %1$s words, under the %2$s-word minimum an agent expects. A sparse index gives it little to read or cite.', 'agentimus' ),
+			number_format_i18n( $words ),
+			number_format_i18n( self::MIN_LLMS_WORDS )
+		);
+
+		// State-aware advice: never send an owner back to redo what they've done.
+		// With the profile already in the file, the only real lever left is
+		// published content — say so, and point at the editor, not at Settings.
+		$has_profile = '' !== trim( (string) $this->settings->identity( 'about', '' ) );
+
+		if ( $has_profile ) {
+			return $this->row(
+				'llms_words',
+				__( '/llms.txt substance', 'agentimus' ),
+				'warn',
+				$detail,
+				__( 'Your profile is already in the file — it’s thin because the site has little published content yet. Publish a few pages or posts; each flows into llms.txt and lifts it over the minimum.', 'agentimus' ),
+				$this->link( __( 'Write a post', 'agentimus' ), admin_url( 'post-new.php' ) )
+			);
+		}
+
 		return $this->row(
 			'llms_words',
 			__( '/llms.txt substance', 'agentimus' ),
 			'warn',
-			sprintf(
-				/* translators: 1: word count; 2: the minimum, e.g. 200. */
-				__( 'Your /llms.txt is thin — about %1$s words, under the %2$s-word minimum an agent expects. A sparse index gives it little to read or cite.', 'agentimus' ),
-				number_format_i18n( $words ),
-				number_format_i18n( self::MIN_LLMS_WORDS )
-			),
+			$detail,
 			__( 'Flesh it out with real content, not filler: add a profile sentence and 3–5 expertise topics under Settings → Identity, and publish a few pages or posts. Each flows into llms.txt and lifts it over the minimum.', 'agentimus' ),
 			$this->nav( __( 'Edit Identity', 'agentimus' ), 'ar-about' )
 		);
@@ -638,7 +656,9 @@ final class Readiness {
 			'warn',
 			__( 'No role or title set. An engine can name you but not say what you do — a weaker author signal.', 'agentimus' ),
 			__( 'Add a short role under Settings → Identity (e.g. “WordPress developer”, “Nutrition researcher”). It becomes your schema jobTitle and sharpens your standing as an author.', 'agentimus' ),
-			$this->nav( __( 'Add a role', 'agentimus' ), 'ar-about' )
+			// The ROLE input, not the about textarea — pointing "Add a role" at
+			// ar-about had owners typing their role into the wrong field.
+			$this->nav( __( 'Add a role', 'agentimus' ), 'ar-role' )
 		);
 	}
 
