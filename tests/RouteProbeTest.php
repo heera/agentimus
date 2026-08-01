@@ -10,6 +10,7 @@
 
 namespace Agentimus\Tests;
 
+use Agentimus\Activity\Owner;
 use Agentimus\LlmsText;
 use Agentimus\RouteProbe;
 use Agentimus\Settings;
@@ -148,6 +149,22 @@ final class RouteProbeTest extends TestCase {
 		$data = RouteProbe::data();
 		$this->assertSame( 1, $data['head']['og_titles'] ); // The good summary survived.
 		$this->assertNotSame( '', $data['error'] );          // And the failure is on record.
+	}
+
+	/**
+	 * The probe's fetches carry a freshly minted X-Agentimus-Selfcheck token, and
+	 * only its hash is stored — the token, not the (forgeable) UA, is what keeps
+	 * the probe out of the site's own activity log.
+	 */
+	public function test_probe_fetches_carry_a_valid_selfcheck_token() {
+		$GLOBALS['_af_transients_on'] = true;
+		RouteProbe::refresh(); // Empty queue: both fetches get the default 200 response.
+
+		$args = $GLOBALS['_af_http_last']['args'];
+		$sent = isset( $args['headers']['X-Agentimus-Selfcheck'] ) ? $args['headers']['X-Agentimus-Selfcheck'] : '';
+		$this->assertMatchesRegularExpression( '/\A[0-9a-f]{32}\z/', $sent );
+		$this->assertSame( hash( 'sha256', $sent ), \get_transient( Owner::PROBE_TRANSIENT ) );
+		$this->assertStringContainsString( 'self-check', $args['user-agent'] );
 	}
 
 	/** The filter seam: tests and site owners can override the stored summary. */

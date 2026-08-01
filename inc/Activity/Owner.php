@@ -28,6 +28,11 @@ final class Owner {
 	const SELFCHECK_TRANSIENT = 'agentimus_selfcheck';
 	const SELFCHECK_TTL       = 2 * MINUTE_IN_SECONDS;
 
+	/** The cron route probe's own slot ({@see \Agentimus\RouteProbe}). Separate from the
+	 *  browser slot so a probe firing mid "Verify live" run cannot overwrite that run's
+	 *  token and dump its remaining fetches into the log as anonymous visits. */
+	const PROBE_TRANSIENT = 'agentimus_selfcheck_probe';
+
 	/**
 	 * Whether this request should be left out of the activity log.
 	 *
@@ -42,7 +47,9 @@ final class Owner {
 		 * deliberately anonymous (credentials omitted — they grade what an AGENT
 		 * receives) and so can't be recognised by their cookie; they identify
 		 * themselves with a server-minted, short-lived token instead
-		 * ({@see is_self_check()}). Filter to false to log every request regardless.
+		 * ({@see is_self_check()}). The route probe's loopback fetches carry the
+		 * same kind of token — a site checking its own front door is not agent
+		 * traffic either. Filter to false to log every request regardless.
 		 *
 		 * @param bool $skip Whether to skip this request. Default true for admins.
 		 */
@@ -58,8 +65,28 @@ final class Owner {
 	 * @return string The raw token, for the admin client that requested it.
 	 */
 	public static function mint_self_check_token() {
+		return self::mint( self::SELFCHECK_TRANSIENT );
+	}
+
+	/**
+	 * Mint the token the route probe carries on its loopback fetches — same trust
+	 * model, its own storage slot. The probe's UA ("Agentimus/x.y self-check") is
+	 * honest but forgeable, so it must never be what keeps a request out of the
+	 * log; this token is.
+	 *
+	 * @return string The raw token, for the probe about to fetch.
+	 */
+	public static function mint_probe_token() {
+		return self::mint( self::PROBE_TRANSIENT );
+	}
+
+	/**
+	 * @param string $slot Transient the token's hash lives in.
+	 * @return string The raw token.
+	 */
+	private static function mint( $slot ) {
 		$token = bin2hex( random_bytes( 16 ) );
-		set_transient( self::SELFCHECK_TRANSIENT, hash( 'sha256', $token ), self::SELFCHECK_TTL );
+		set_transient( $slot, hash( 'sha256', $token ), self::SELFCHECK_TTL );
 		return $token;
 	}
 
@@ -80,8 +107,14 @@ final class Owner {
 		if ( '' === $token || strlen( $token ) > 64 ) {
 			return false;
 		}
-		$stored = get_transient( self::SELFCHECK_TRANSIENT );
-		return is_string( $stored ) && '' !== $stored && hash_equals( $stored, hash( 'sha256', $token ) );
+		$hash = hash( 'sha256', $token );
+		foreach ( array( self::SELFCHECK_TRANSIENT, self::PROBE_TRANSIENT ) as $slot ) {
+			$stored = get_transient( $slot );
+			if ( is_string( $stored ) && '' !== $stored && hash_equals( $stored, $hash ) ) {
+				return true;
+			}
+		}
+		return false;
 	}
 
 	/**

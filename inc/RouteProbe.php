@@ -123,6 +123,7 @@ final class RouteProbe {
 	public static function refresh() {
 		$settings = new Settings();
 		$previous = self::data();
+		$token    = Activity\Owner::mint_probe_token();
 		$summary  = array(
 			'checked_at' => time(),
 			'error'      => '',
@@ -132,7 +133,7 @@ final class RouteProbe {
 
 		if ( $settings->enabled( 'enable_llms_txt' ) ) {
 			$expected = ( new LlmsText( $settings ) )->llms_txt();
-			$response = self::fetch( home_url( '/llms.txt' ) );
+			$response = self::fetch( home_url( '/llms.txt' ), $token );
 			if ( is_array( $response ) ) {
 				$summary['llms'] = array(
 					'http'       => $response['code'],
@@ -144,7 +145,7 @@ final class RouteProbe {
 			}
 		}
 
-		$response = self::fetch( home_url( '/' ) );
+		$response = self::fetch( home_url( '/' ), $token );
 		if ( is_array( $response ) ) {
 			$summary['head'] = self::head_summary( $response['body'] );
 		} else {
@@ -227,12 +228,16 @@ final class RouteProbe {
 	}
 
 	/**
-	 * One capped, short-timeout GET against this site itself.
+	 * One capped, short-timeout GET against this site itself. The token rides in
+	 * X-Agentimus-Selfcheck so the activity log skips the probe
+	 * ({@see Activity\Owner}); the UA names the probe honestly but is forgeable,
+	 * so it is never what earns the skip.
 	 *
-	 * @param string $url Absolute URL on this site.
+	 * @param string $url   Absolute URL on this site.
+	 * @param string $token This run's self-check token.
 	 * @return array{code:int,body:string}|string Response, or an error sentence.
 	 */
-	private static function fetch( $url ) {
+	private static function fetch( $url, $token ) {
 		$response = wp_remote_get(
 			$url,
 			array(
@@ -240,6 +245,7 @@ final class RouteProbe {
 				'redirection'         => 2,
 				'limit_response_size' => self::MAX_BYTES,
 				'user-agent'          => 'Agentimus/' . AGENTIMUS_VERSION . ' self-check',
+				'headers'             => array( 'X-Agentimus-Selfcheck' => $token ),
 			)
 		);
 		if ( is_wp_error( $response ) ) {

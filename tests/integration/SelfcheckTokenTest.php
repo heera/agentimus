@@ -19,6 +19,7 @@ final class SelfcheckTokenTest extends RestTestCase {
 	protected function tearDown(): void {
 		unset( $_SERVER['HTTP_X_AGENTIMUS_SELFCHECK'] );
 		delete_transient( Owner::SELFCHECK_TRANSIENT );
+		delete_transient( Owner::PROBE_TRANSIENT );
 		parent::tearDown();
 	}
 
@@ -38,6 +39,23 @@ final class SelfcheckTokenTest extends RestTestCase {
 
 		$_SERVER['HTTP_X_AGENTIMUS_SELFCHECK'] = str_repeat( 'a', 32 );
 		$this->assertFalse( Owner::skip(), 'A guessed token buys nothing.' );
+	}
+
+	/**
+	 * The route probe's token lives in its own slot: a cron probe firing in the
+	 * middle of a "Verify live" run must not clobber that run's token, and both
+	 * kinds of self-traffic skip the log.
+	 */
+	public function test_probe_token_has_its_own_slot_and_both_skip() {
+		wp_set_current_user( 0 );
+		$live  = Owner::mint_self_check_token();
+		$probe = Owner::mint_probe_token();
+
+		$_SERVER['HTTP_X_AGENTIMUS_SELFCHECK'] = $probe;
+		$this->assertTrue( Owner::skip(), 'The route probe is the site checking its own front door.' );
+
+		$_SERVER['HTTP_X_AGENTIMUS_SELFCHECK'] = $live;
+		$this->assertTrue( Owner::skip(), 'The live-check token still validates after a probe minted.' );
 	}
 
 	public function test_only_the_hash_is_stored() {
