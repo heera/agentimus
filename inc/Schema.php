@@ -503,6 +503,34 @@ final class Schema {
 			$node['description'] = $this->clean( $desc );
 		}
 
+		// schema.org SpeakableSpecification on article-shaped content: the headline
+		// and the lead paragraph are what a voice agent should read aloud. We don't
+		// render the theme's HTML, so the selector list covers the classic theme
+		// contract (.entry-title/.entry-content), block themes (wp-block-post-*),
+		// and an h1.page-title headline — a selector that matches nothing is inert
+		// for consumers, and a theme with its own classes adjusts via the filter
+		// (an empty list suppresses the node). Pages stay quiet: WebPage chrome
+		// (contact forms, link hubs) isn't read-aloud material.
+		if ( 'WebPage' !== $type ) {
+			/**
+			 * Filter the speakable CSS selectors for a post.
+			 *
+			 * @param string[] $selectors CSS selectors for read-aloud content.
+			 * @param \WP_Post $post      The post.
+			 */
+			$speakable = (array) apply_filters(
+				'agentimus_speakable_selectors',
+				array( '.entry-title', 'h1.page-title', '.wp-block-post-title', '.entry-content > p:first-of-type', '.wp-block-post-content > p:first-of-type' ),
+				$post
+			);
+			if ( ! empty( $speakable ) ) {
+				$node['speakable'] = array(
+					'@type'       => 'SpeakableSpecification',
+					'cssSelector' => array_values( $speakable ),
+				);
+			}
+		}
+
 		return $node;
 	}
 

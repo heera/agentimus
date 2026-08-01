@@ -65,12 +65,38 @@ final class McpServerRestTest extends RestTestCase {
 			);
 		}
 
-		// 4. Anonymous is denied at the transport (401), not told the route is absent (404).
+		// 4. The anonymous PROTOCOL contract (McpPublicSurface): the read-only
+		// handshake — initialize, tools/list, ping — answers without auth (it
+		// publishes nothing mcp.json doesn't already), statelessly (no session
+		// minted), while anything with side effects keeps its 401 so OAuth-capable
+		// clients still get the WWW-Authenticate signal.
 		wp_set_current_user( 0 );
 		$request = new \WP_REST_Request( 'POST', '/agentimus/v1/mcp' );
 		$request->set_header( 'Content-Type', 'application/json' );
 		$request->set_body( wp_json_encode( array( 'jsonrpc' => '2.0', 'id' => 1, 'method' => 'initialize', 'params' => array() ) ) );
-		$this->assertSame( 401, rest_do_request( $request )->get_status() );
+		$anon = rest_do_request( $request );
+		$this->assertSame( 200, $anon->get_status(), 'anonymous initialize must answer' );
+		$anon_init = json_decode( wp_json_encode( $anon->get_data() ), true );
+		$this->assertNotEmpty( $anon_init['result']['serverInfo']['name'], 'anonymous initialize carries the server identity' );
+		// A tool-only server: the resources/prompts capabilities the adapter
+		// advertises by default are trimmed — a capability that would answer
+		// empty reads as broken, so the handshake must not claim it.
+		$this->assertArrayHasKey( 'tools', $anon_init['result']['capabilities'] );
+		$this->assertArrayNotHasKey( 'resources', $anon_init['result']['capabilities'], 'no resources are registered, so none may be advertised' );
+		$this->assertArrayNotHasKey( 'prompts', $anon_init['result']['capabilities'], 'no prompts are registered, so none may be advertised' );
+		$headers = $anon->get_headers();
+		$this->assertArrayNotHasKey( 'Mcp-Session-Id', $headers, 'the anonymous surface is stateless — no session minted' );
+
+		$request = new \WP_REST_Request( 'POST', '/agentimus/v1/mcp' );
+		$request->set_header( 'Content-Type', 'application/json' );
+		$request->set_body( wp_json_encode( array( 'jsonrpc' => '2.0', 'id' => 2, 'method' => 'tools/list', 'params' => array() ) ) );
+		$anon_tools = json_decode( wp_json_encode( rest_do_request( $request )->get_data() ), true );
+		$this->assertNotEmpty( $anon_tools['result']['tools'], 'anonymous tools/list shows the (already-public) tool list' );
+
+		$request = new \WP_REST_Request( 'POST', '/agentimus/v1/mcp' );
+		$request->set_header( 'Content-Type', 'application/json' );
+		$request->set_body( wp_json_encode( array( 'jsonrpc' => '2.0', 'id' => 3, 'method' => 'tools/call', 'params' => array( 'name' => 'agentimus-read-readiness', 'arguments' => array() ) ) ) );
+		$this->assertSame( 401, rest_do_request( $request )->get_status(), 'anonymous tools/call must stay denied' );
 
 		// 5. An authenticated admin completes the MCP handshake.
 		wp_set_current_user( $this->admin );

@@ -104,7 +104,12 @@ final class OpenApi {
 				array( 'url' => rtrim( (string) ( isset( $info['server'] ) ? $info['server'] : '' ), '/' ) ),
 			),
 			'paths'      => array(),
-			'components' => array( 'schemas' => array( 'ContentItem' => self::content_item_schema() ) ),
+			'components' => array(
+				'schemas' => array(
+					'ContentItem' => self::content_item_schema(),
+					'Error'       => self::error_schema(),
+				),
+			),
 		);
 
 		foreach ( $resources as $r ) {
@@ -115,14 +120,16 @@ final class OpenApi {
 			// GET /{namespace}/{base} — list.
 			$doc['paths'][ $path ] = array(
 				'get' => array(
-					'tags'       => array( $label ),
-					'summary'    => sprintf( 'List %s', $label ),
-					'parameters' => array(
+					'operationId' => self::operation_id( 'list', $path ),
+					'tags'        => array( $label ),
+					'summary'     => sprintf( 'List %s', $label ),
+					'description' => sprintf( 'Returns published %s, newest first, as the WordPress REST API serves them. Supports page/per_page pagination and full-text search.', strtolower( $label ) ),
+					'parameters'  => array(
 						self::query_param( 'page', 'integer', 'Page of the result set.' ),
 						self::query_param( 'per_page', 'integer', 'Items per page (1–100).' ),
 						self::query_param( 'search', 'string', 'Limit results to those matching a string.' ),
 					),
-					'responses'  => array(
+					'responses'   => array(
 						'200' => self::json_response(
 							sprintf( 'A page of %s.', $label ),
 							array(
@@ -130,6 +137,7 @@ final class OpenApi {
 								'items' => array( '$ref' => '#/components/schemas/ContentItem' ),
 							)
 						),
+						'400' => self::json_response( 'Invalid parameter.', array( '$ref' => '#/components/schemas/Error' ) ),
 					),
 				),
 			);
@@ -137,9 +145,11 @@ final class OpenApi {
 			// GET /{namespace}/{base}/{id} — single.
 			$doc['paths'][ $path . '/{id}' ] = array(
 				'get' => array(
-					'tags'       => array( $label ),
-					'summary'    => sprintf( 'Get a single %s by id', $one ),
-					'parameters' => array(
+					'operationId' => self::operation_id( 'get', $path . '/{id}' ),
+					'tags'        => array( $label ),
+					'summary'     => sprintf( 'Get a single %s by id', $one ),
+					'description' => sprintf( 'Returns one published %s by its numeric id, as the WordPress REST API serves it.', strtolower( $one ) ),
+					'parameters'  => array(
 						array(
 							'name'     => 'id',
 							'in'       => 'path',
@@ -147,15 +157,29 @@ final class OpenApi {
 							'schema'   => array( 'type' => 'integer' ),
 						),
 					),
-					'responses'  => array(
+					'responses'   => array(
 						'200' => self::json_response( sprintf( 'The requested %s.', $one ), array( '$ref' => '#/components/schemas/ContentItem' ) ),
-						'404' => array( 'description' => 'Not found.' ),
+						'404' => self::json_response( 'Not found.', array( '$ref' => '#/components/schemas/Error' ) ),
 					),
 				),
 			);
 		}
 
 		return $doc;
+	}
+
+	/**
+	 * A deterministic operationId derived from the verb and the literal path, so
+	 * every operation carries the unique, [A-Za-z0-9_]-safe name function-calling
+	 * toolchains key on ("/wp/v2/posts" → "list_wp_v2_posts"). Paths are unique per
+	 * document, so ids collide only if paths do.
+	 *
+	 * @param string $verb Operation verb prefix ("list", "get").
+	 * @param string $path The OpenAPI path, template braces included.
+	 * @return string
+	 */
+	private static function operation_id( $verb, $path ) {
+		return $verb . '_' . strtolower( trim( (string) preg_replace( '/[^A-Za-z0-9]+/', '_', (string) $path ), '_' ) );
 	}
 
 	/**
@@ -216,6 +240,35 @@ final class OpenApi {
 				'excerpt'  => $rendered,
 				'content'  => $rendered,
 			),
+		);
+	}
+
+	/**
+	 * The typed error shape every WordPress REST error actually has — documented
+	 * so agents can branch on `code` instead of parsing prose. Describing what
+	 * already exists, not adding behaviour.
+	 *
+	 * @return array
+	 */
+	private static function error_schema() {
+		return array(
+			'type'        => 'object',
+			'description' => 'The WordPress REST error object.',
+			'properties'  => array(
+				'code'    => array(
+					'type'        => 'string',
+					'description' => 'Machine-readable error code, e.g. rest_post_invalid_id.',
+				),
+				'message' => array(
+					'type'        => 'string',
+					'description' => 'Human-readable message.',
+				),
+				'data'    => array(
+					'type'       => 'object',
+					'properties' => array( 'status' => array( 'type' => 'integer' ) ),
+				),
+			),
+			'required'    => array( 'code', 'message' ),
 		);
 	}
 

@@ -69,7 +69,7 @@ final class WellKnown {
 		// canonical redirect resolves it to the homepage (a 200, not a 404). So
 		// security.txt etc. are intentionally absent — a provider that serves one
 		// adds its name here via the `agentimus_well_known_routed` filter.
-		$names = array( 'discovery.json', 'agent-card.json', 'agent.json', 'mcp.json', 'openapi.json', 'api-catalog', 'oauth-protected-resource', 'tdmrep.json', Signer::DIRECTORY );
+		$names = array( 'discovery.json', 'agent-card.json', 'agent.json', 'mcp.json', 'openapi.json', 'api-catalog', 'agent-skills', 'oauth-protected-resource', 'tdmrep.json', Signer::DIRECTORY );
 
 		/**
 		 * Filter the /.well-known names routed to WordPress by an explicit rule.
@@ -94,6 +94,9 @@ final class WellKnown {
 		$names = array(
 			'mcp/server-card.json',
 			'agent-skills/index.json',
+			// The site's Agent Skill (agentskills.io). The directory segment is the
+			// site-derived skill name — the spec requires the two to match.
+			'agent-skills/' . SkillMd::name() . '/SKILL.md',
 			'oauth-authorization-server/agentimus/mcp',
 			'oauth-protected-resource/agentimus/mcp',
 		);
@@ -263,8 +266,15 @@ final class WellKnown {
 				$this->send( ( new OpenApi( $this->settings ) )->json(), 'application/json', 'openapi.json' );
 				break;
 			case 'api-catalog':
-				// RFC 9727 API catalog, as an RFC 9264 link set.
-				$this->send( $this->envelope->api_catalog_json(), 'application/linkset+json', 'api-catalog' );
+				// RFC 9727 API catalog, as an RFC 9264 link set. The profile parameter
+				// is the RFC 9727 §7.3 Profile URI — it tells a client this linkset IS
+				// an API catalog, and validators check for it.
+				$this->send( $this->envelope->api_catalog_json(), 'application/linkset+json; profile="https://www.rfc-editor.org/info/rfc9727"', 'api-catalog' );
+				break;
+			case 'agent-skills':
+				// The bare directory path — a markdown listing of the packaged skills,
+				// so a probe of the namespace itself learns where SKILL.md lives.
+				$this->send( $this->envelope->skill_directory_md(), 'text/markdown', 'agent-skills' );
 				break;
 			case 'oauth-protected-resource':
 				// RFC 9728 — served only when the owner declared an auth server.
@@ -329,6 +339,9 @@ final class WellKnown {
 				if ( '' !== $body ) {
 					$this->send( $body, 'application/json', 'agent-skills/index.json' );
 				}
+				break;
+			case 'agent-skills/' . SkillMd::name() . '/SKILL.md':
+				$this->send( $this->envelope->skill_md(), 'text/markdown', 'agent-skills/SKILL.md' );
 				break;
 			case 'oauth-authorization-server/agentimus/mcp':
 				$body = $this->envelope->oauth_authorization_server_json();

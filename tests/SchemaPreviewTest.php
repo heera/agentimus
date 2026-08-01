@@ -176,4 +176,36 @@ final class SchemaPreviewTest extends TestCase {
 		$doc = $this->schema()->build_document( $this->post( array( 'post_content' => self::FAQ_HTML ) ), false );
 		$this->assertNotContains( 'FAQPage', $this->types( $doc ) );
 	}
+
+	/* -- Speakable (AR-CONT-04): article-shaped content only ---------------- */
+
+	/** The post/article node of a built document, or null. */
+	private function content_node( $doc ) {
+		foreach ( (array) ( $doc['@graph'] ?? array() ) as $node ) {
+			if ( isset( $node['@type'] ) && in_array( $node['@type'], array( 'BlogPosting', 'Article', 'WebPage' ), true ) ) {
+				return $node;
+			}
+		}
+		return null;
+	}
+
+	public function test_posts_carry_a_speakable_specification() {
+		$node = $this->content_node( $this->schema()->build_document( $this->post(), false ) );
+		$this->assertSame( 'SpeakableSpecification', $node['speakable']['@type'] );
+		// Headline + lead selectors for both theme families ship by default.
+		$this->assertContains( '.entry-title', $node['speakable']['cssSelector'] );
+		$this->assertContains( '.entry-content > p:first-of-type', $node['speakable']['cssSelector'] );
+	}
+
+	public function test_pages_do_not_carry_speakable() {
+		// WebPage chrome (contact forms, link hubs) is not read-aloud material.
+		$node = $this->content_node( $this->schema()->build_document( $this->post( array( 'post_type' => 'page' ) ), false ) );
+		$this->assertArrayNotHasKey( 'speakable', $node );
+	}
+
+	public function test_an_empty_selector_filter_suppresses_the_speakable_node() {
+		add_filter( 'agentimus_speakable_selectors', static function () { return array(); } );
+		$node = $this->content_node( $this->schema()->build_document( $this->post(), false ) );
+		$this->assertArrayNotHasKey( 'speakable', $node );
+	}
 }

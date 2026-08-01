@@ -44,10 +44,24 @@ final class WellKnownDocsTest extends TestCase {
 		$doc = json_decode( $this->envelope()->api_catalog_json(), true );
 		$this->assertArrayHasKey( 'linkset', $doc );
 
+		// RFC 9727 Appendix A.2: the FIRST entry is anchored at the catalog's own
+		// well-known URI and lists every API as an `item` bookmark — the shape
+		// catalog validators check (linkset[0].item[] non-empty).
 		$ctx = $doc['linkset'][0];
-		$this->assertSame( 'https://example.test/', $ctx['anchor'] );
-		$this->assertContains( 'https://example.test/.well-known/discovery.json', array_column( $ctx['service-desc'], 'href' ) );
-		$this->assertContains( 'https://example.test/wp-json/wc/store/v1', array_column( $ctx['service'], 'href' ) );
+		$this->assertSame( 'https://example.test/.well-known/api-catalog', $ctx['anchor'] );
+		$items = array_column( $ctx['item'], 'href' );
+		$this->assertContains( 'https://example.test/wp-json/', $items );
+		$this->assertContains( 'https://example.test/wp-json/wc/store/v1', $items );
+
+		// The REST root's own entry carries its service description (the OpenAPI doc).
+		$anchors = array_column( $doc['linkset'], 'anchor' );
+		$rest    = $doc['linkset'][ array_search( 'https://example.test/wp-json/', $anchors, true ) ];
+		$this->assertContains( 'https://example.test/.well-known/openapi.json', array_column( $rest['service-desc'], 'href' ) );
+
+		// The site-level entry (kept for consumers of the previous shape) still
+		// links the discovery document.
+		$site = $doc['linkset'][ array_search( 'https://example.test/', $anchors, true ) ];
+		$this->assertContains( 'https://example.test/.well-known/discovery.json', array_column( $site['service-desc'], 'href' ) );
 	}
 
 	/* -- MCP Server Card: gated on a real server -------------------------- */
@@ -55,6 +69,50 @@ final class WellKnownDocsTest extends TestCase {
 	public function test_mcp_server_card_is_empty_without_a_real_server() {
 		// No MCP adapter / mcp_adapter_init in the unit env → mcp.available is false.
 		$this->assertSame( '', $this->envelope()->mcp_server_card_json() );
+	}
+
+	/* -- Flat RFC 9728 protected-resource metadata ------------------------- */
+
+	public function test_flat_prm_serves_the_builtin_server_when_no_external_is_declared() {
+		// Scanners probe only the flat /.well-known/oauth-protected-resource; while
+		// the built-in OAuth server is live, a 404 there reads as "no OAuth on this
+		// domain" with a working authorization server one path segment away.
+		update_option( \Agentimus\Settings::OPTION, array( 'enable_mcp_server' => true ) );
+		$doc = json_decode( $this->envelope()->oauth_protected_resource_json(), true );
+		$this->assertSame( 'https://example.test/wp-json/agentimus/v1/mcp', $doc['resource'] );
+		$this->assertSame( array( 'https://example.test/agentimus/mcp' ), $doc['authorization_servers'] );
+	}
+
+	public function test_flat_prm_prefers_the_owner_declared_external_server() {
+		// The owner's explicit statement about the whole site outranks the built-in.
+		update_option( \Agentimus\Settings::OPTION, array( 'enable_mcp_server' => true, 'oauth_auth_server' => 'https://auth.example.com' ) );
+		$doc = json_decode( $this->envelope()->oauth_protected_resource_json(), true );
+		$this->assertSame( array( 'https://auth.example.com' ), $doc['authorization_servers'] );
+	}
+
+	public function test_flat_prm_stays_a_404_with_neither_server() {
+		$this->assertSame( '', $this->envelope()->oauth_protected_resource_json() );
+	}
+
+	public function test_flat_prm_defers_to_a_provider_registered_document() {
+		// A provider proposes, the owner disposes — and the built-in server must
+		// not shadow a provider's own flat PRM. Only the owner's explicit external
+		// declaration outranks it.
+		Registry::instance()->add_well_known(
+			array(
+				'name'     => 'oauth-protected-resource',
+				'callback' => static function () {
+					return '{"resource":"https://example.test/","authorization_servers":["https://sso.acme.example"]}';
+				},
+			)
+		);
+		update_option( \Agentimus\Settings::OPTION, array( 'enable_mcp_server' => true ) );
+		$this->assertSame( '', $this->envelope()->oauth_protected_resource_json(), 'the built-in doc must yield so the router falls through to the provider' );
+
+		// The owner's declared external server still wins over everything.
+		update_option( \Agentimus\Settings::OPTION, array( 'enable_mcp_server' => true, 'oauth_auth_server' => 'https://auth.example.com' ) );
+		$doc = json_decode( $this->envelope()->oauth_protected_resource_json(), true );
+		$this->assertSame( array( 'https://auth.example.com' ), $doc['authorization_servers'] );
 	}
 
 	/* -- Agent Skills index ----------------------------------------------- */

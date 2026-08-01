@@ -194,16 +194,20 @@ final class McpSurface {
 			foreach ( $servers as $server ) {
 				$tools += $server['tools'];
 			}
-			// The adapter's default auth is application-password; when the owner has
-			// declared an OAuth authorization server, the protected resources (this
-			// server included) use OAuth — reflect that, and link its metadata below.
-			$oauth = trim( (string) $this->settings->get( 'oauth_auth_server', '' ) );
-			$mcp   = array(
+			// The adapter's default auth is application-password; OAuth applies when
+			// the owner has declared an external authorization server OR the built-in
+			// one is live (it ships with the MCP server since 1.32 — application
+			// passwords still work, but OAuth is the settled discovery handshake, so
+			// the hint names it and links its metadata below). Advertising basic-only
+			// here made scanners conclude the site "does not implement OAuth".
+			$oauth   = trim( (string) $this->settings->get( 'oauth_auth_server', '' ) );
+			$builtin = $this->settings->enabled( 'enable_mcp_server' );
+			$mcp     = array(
 				'available' => true,
 				'source'    => 'wordpress-mcp',
 				'endpoint'  => $servers[0]['endpoint'],
 				'transport' => $servers[0]['transport'],
-				'auth'      => '' !== $oauth ? 'oauth' : 'application-password',
+				'auth'      => ( '' !== $oauth || $builtin ) ? 'oauth' : 'application-password',
 				'tools'     => $tools,
 				'servers'   => $servers,
 			);
@@ -286,9 +290,10 @@ final class McpSurface {
 				$tool_list = self::server_tools( $server );
 				$id        = method_exists( $server, 'get_server_id' ) ? (string) $server->get_server_id() : '';
 				$entry     = array(
-					'id'        => $id,
-					'name'      => method_exists( $server, 'get_server_name' ) ? (string) $server->get_server_name() : '',
-					'version'   => method_exists( $server, 'get_server_version' ) ? (string) $server->get_server_version() : '',
+					'id'          => $id,
+					'name'        => method_exists( $server, 'get_server_name' ) ? (string) $server->get_server_name() : '',
+					'description' => method_exists( $server, 'get_server_description' ) ? (string) $server->get_server_description() : '',
+					'version'     => method_exists( $server, 'get_server_version' ) ? (string) $server->get_server_version() : '',
 					'endpoint'  => esc_url_raw( rest_url( trailingslashit( $namespace ) . ltrim( $route, '/' ) ) ),
 					'transport' => 'streamable-http',
 					'tools'     => count( $tool_list ),
@@ -410,19 +415,38 @@ final class McpSurface {
 	 * @return array
 	 */
 	private function build_server_card( $server, $mcp ) {
-		$site = $this->envelope->site();
-		$card = array(
+		$site        = $this->envelope->site();
+		$name        = ( isset( $server['name'] ) && '' !== $server['name'] ) ? $server['name'] : $site['name'];
+		$version     = ( isset( $server['version'] ) && '' !== $server['version'] ) ? $server['version'] : '1.0.0';
+		$description = ( isset( $server['description'] ) && '' !== $server['description'] ) ? $server['description'] : $site['description'];
+		$endpoint    = isset( $server['endpoint'] ) ? $server['endpoint'] : '';
+		$card        = array(
 			'schemaVersion' => '2024-11-05',
+			// The same identity twice: top-level name/description/version/serverUrl is
+			// the flat shape scanners validate a server card against; serverInfo +
+			// transport is the SEP-2127 nesting MCP clients read. Serving only the
+			// nested form read as "card missing name/description/version" to the flat
+			// consumers, so the card speaks both.
+			'name'          => $name,
+			'description'   => $description,
+			'version'       => $version,
+			'serverUrl'     => $endpoint,
 			'serverInfo'    => array(
-				'name'    => ( isset( $server['name'] ) && '' !== $server['name'] ) ? $server['name'] : $site['name'],
-				'version' => ( isset( $server['version'] ) && '' !== $server['version'] ) ? $server['version'] : '1.0.0',
+				'name'    => $name,
+				'version' => $version,
 			),
 			'transport'     => array(
 				'type' => ( isset( $server['transport'] ) && '' !== $server['transport'] ) ? $server['transport'] : 'http',
-				'url'  => isset( $server['endpoint'] ) ? $server['endpoint'] : '',
+				'url'  => $endpoint,
 			),
 			'tools'         => self::card_tools( $server ),
 		);
+		// A branded listing is name + description + icon together; the site icon is
+		// the only image the owner has actually chosen, so it is the only candidate.
+		$icon = function_exists( 'get_site_icon_url' ) ? (string) get_site_icon_url( 512 ) : '';
+		if ( '' !== $icon ) {
+			$card['icon'] = esc_url_raw( $icon );
+		}
 		if ( ! empty( $mcp['auth'] ) ) {
 			// The card speaks standard vocabulary, not WordPress-isms: an
 			// application password IS HTTP Basic (RFC 7617), and "oauth2" is the
@@ -458,6 +482,12 @@ final class McpSurface {
 	 * @return string Absolute URL, or ''.
 	 */
 	private function oauth_prm_url() {
+		// The built-in OAuth server (live whenever the MCP server is on) publishes
+		// its PRM at the issuer-path form — the same URL the endpoint's own 401
+		// WWW-Authenticate hints. Prefer it: it describes the MCP endpoint itself.
+		if ( $this->settings->enabled( 'enable_mcp_server' ) ) {
+			return home_url( '/.well-known/oauth-protected-resource/agentimus/mcp' );
+		}
 		$served = '' !== trim( (string) $this->settings->get( 'oauth_auth_server', '' ) )
 			|| file_exists( \Agentimus\Paths::site_root() . '.well-known/oauth-protected-resource' )
 			|| isset( $this->registry->well_known()['oauth-protected-resource'] );

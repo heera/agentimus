@@ -79,6 +79,7 @@ final class ReadinessLlmsWordsTest extends TestCase {
 		$this->assertSame( 'warn', $row['status'] );
 		$this->assertSame( 'ar-about', $row['action']['anchor'] );
 		$this->assertStringContainsString( '200', $row['detail'] );
+		$this->assertSame( 'AR-DISC-03', $row['ar'], 'The llms.txt check cites its AgentReady requirement.' );
 	}
 
 	public function test_passes_when_at_or_above_the_floor() {

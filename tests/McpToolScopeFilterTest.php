@@ -95,6 +95,15 @@ final class McpToolScopeFilterTest extends TestCase {
 		$this->assertCount( 5, $this->registrar()->filter_tools_for_scope( $this->tools() ) );
 	}
 
+	/** The shared write-name predicate — the anonymous read-surface narrows with it too. */
+	public function test_is_write_tool_name_recognises_both_wire_shapes() {
+		$this->assertTrue( Registrar::is_write_tool_name( 'agentimus/create-content' ) );
+		$this->assertTrue( Registrar::is_write_tool_name( 'agentimus-apply-fix' ) );
+		$this->assertFalse( Registrar::is_write_tool_name( 'agentimus-read-readiness' ) );
+		$this->assertFalse( Registrar::is_write_tool_name( 'acme/create-content' ), 'another namespace\'s tool is not ours to hide' );
+		$this->assertFalse( Registrar::is_write_tool_name( '' ) );
+	}
+
 	public function test_read_only_oauth_grant_is_shown_no_write_tools() {
 		$client = Server::register_client(
 			array(

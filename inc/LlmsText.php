@@ -89,6 +89,10 @@ final class LlmsText {
 		if ( $this->settings->enabled( 'enable_llms_full' ) ) {
 			$out .= '- [Full text](' . esc_url_raw( home_url( '/llms-full.txt' ) ) . "): every page and recent post concatenated into one document\n";
 		}
+		// The site as an installable Agent Skill (agentskills.io): what this site
+		// offers an agent and when to use it — the agent-instruction companion to
+		// the discovery manifest linked above.
+		$out .= '- [Agent skill](' . esc_url_raw( \Agentimus\Discovery\SkillMd::url() ) . "): this site packaged as a SKILL.md — capabilities and when to use them\n";
 		$out .= '- [Feed](' . esc_url_raw( get_feed_link() ) . "): RSS of recent posts\n";
 		$sitemap = $this->sitemap_url();
 		if ( $sitemap ) {

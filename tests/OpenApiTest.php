@@ -77,4 +77,46 @@ final class OpenApiTest extends TestCase {
 		$this->assertSame( '3.1.0', $doc['openapi'] );
 		$this->assertSame( array(), $doc['paths'] );
 	}
+
+	public function test_error_responses_are_typed_and_operations_described() {
+		// Agents branch on a machine-readable error code, not prose — so 4xx
+		// responses reference the WordPress REST error shape the API really
+		// returns, and every operation carries a description beside its summary.
+		$doc = $this->doc();
+
+		$err = $doc['components']['schemas']['Error'];
+		$this->assertSame( 'string', $err['properties']['code']['type'] );
+		$this->assertContains( 'code', $err['required'] );
+
+		$list = $doc['paths']['/wp/v2/posts']['get'];
+		$this->assertNotEmpty( $list['description'] );
+		$this->assertSame( '#/components/schemas/Error', $list['responses']['400']['content']['application/json']['schema']['$ref'] );
+
+		$item = $doc['paths']['/wp/v2/posts/{id}']['get'];
+		$this->assertNotEmpty( $item['description'] );
+		$this->assertSame( '#/components/schemas/Error', $item['responses']['404']['content']['application/json']['schema']['$ref'] );
+	}
+
+	public function test_every_operation_carries_a_unique_operation_id() {
+		// operationId is what function-calling toolchains name the tool after; a
+		// spec without them graded "0/N operationIds" on agent-compatibility
+		// scanners. Derived from the literal path, so ids are unique iff paths are.
+		$doc = $this->doc( array(
+			array( 'path' => '/wp/v2/posts', 'label' => 'Posts', 'single' => 'Post' ),
+			array( 'path' => '/wp/v2/pages', 'label' => 'Pages', 'single' => 'Page' ),
+		) );
+
+		$this->assertSame( 'list_wp_v2_posts', $doc['paths']['/wp/v2/posts']['get']['operationId'] );
+		$this->assertSame( 'get_wp_v2_posts_id', $doc['paths']['/wp/v2/posts/{id}']['get']['operationId'] );
+
+		$ids = array();
+		foreach ( $doc['paths'] as $ops ) {
+			foreach ( $ops as $op ) {
+				$this->assertArrayHasKey( 'operationId', $op );
+				$this->assertMatchesRegularExpression( '/^[a-z0-9_]+$/', $op['operationId'] );
+				$ids[] = $op['operationId'];
+			}
+		}
+		$this->assertSame( $ids, array_values( array_unique( $ids ) ), 'operationIds must be unique across the document.' );
+	}
 }

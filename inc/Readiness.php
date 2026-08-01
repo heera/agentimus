@@ -126,8 +126,32 @@ final class Readiness {
 	 *                           { label, tab, anchor } or an external { label, href }.
 	 * @return array
 	 */
+	/**
+	 * AgentReady v1.0.0 (agentready.org) stable requirement IDs, attached to the
+	 * checks that evidence them. Only protocol-backed rows are tagged — a
+	 * content-quality grade is this plugin's own bar, not a spec citation, and
+	 * an over-tagged report would claim more than the spec says.
+	 */
+	const AR_MAP = array(
+		'ai_usage'       => 'AR-DISC-01',
+		'robots'         => 'AR-DISC-01',
+		'sitemap'        => 'AR-DISC-02',
+		'robots_sitemap' => 'AR-DISC-02',
+		'llms'           => 'AR-DISC-03',
+		'llms_words'     => 'AR-DISC-03',
+		'llms_full'      => 'AR-DISC-04',
+		'llms_full_size' => 'AR-DISC-04',
+		'schema'         => 'AR-CONT-01',
+		'about'          => 'AR-CONT-01',
+		'entity_role'    => 'AR-CONT-01',
+		'entity_image'   => 'AR-CONT-01',
+		'same_as'        => 'AR-CONT-01',
+	);
+
 	private function row( $id, $label, $status, $detail, $fix = '', $action = null ) {
-		return compact( 'id', 'label', 'status', 'detail', 'fix', 'action' );
+		$row       = compact( 'id', 'label', 'status', 'detail', 'fix', 'action' );
+		$row['ar'] = isset( self::AR_MAP[ $id ] ) ? self::AR_MAP[ $id ] : '';
+		return $row;
 	}
 
 	/**

@@ -62,6 +62,11 @@ namespace Agentimus\Tests {
 		public function get_tools() { return array( new FakeDtoTool() ); }
 	}
 
+	/** A server that also describes itself, like the real adapter since 0.5. */
+	class FakeDescribedMcpServer extends FakeMcpServer {
+		public function get_server_description() { return 'Books Acme slots.'; }
+	}
+
 	final class McpServerWiringTest extends TestCase {
 
 		protected function setUp(): void {
@@ -113,6 +118,16 @@ namespace Agentimus\Tests {
 			$this->assertSame( 'https://example.test/.well-known/oauth-protected-resource', $mcp['auth_metadata'] );
 		}
 
+		public function test_builtin_oauth_server_wires_auth_and_metadata() {
+			// Since 1.32 the built-in OAuth server ships with the MCP server — no
+			// external declaration involved. The hint must say oauth (advertising
+			// basic-only made scanners conclude "no OAuth here") and link the
+			// issuer-path PRM, the same URL the endpoint's 401 WWW-Authenticate hints.
+			$mcp = $this->mcp( array( 'enable_mcp_server' => true ) );
+			$this->assertSame( 'oauth', $mcp['auth'] );
+			$this->assertSame( 'https://example.test/.well-known/oauth-protected-resource/agentimus/mcp', $mcp['auth_metadata'] );
+		}
+
 		public function test_server_card_translates_application_password_to_http_basic() {
 			// The card must be readable by clients that never heard of WordPress:
 			// an application password is HTTP Basic (RFC 7617), so that is what
@@ -132,6 +147,22 @@ namespace Agentimus\Tests {
 			// The descriptor says 'oauth'; the card translates to the standard name.
 			$this->assertSame( 'oauth2', $card['auth']['type'] );
 			$this->assertSame( 'https://example.test/.well-known/oauth-protected-resource', $card['auth']['metadata'] );
+		}
+
+		public function test_server_card_carries_flat_identity_fields() {
+			// Two shapes, one card: serverInfo/transport is the SEP-2127 nesting MCP
+			// clients read; top-level name/description/version/serverUrl is the flat
+			// shape scanners validate. A card with only the nested form was graded
+			// "missing fields: name, description, version" by catalog scanners.
+			\WP\MCP\Core\McpAdapter::$servers = array( new FakeDescribedMcpServer() );
+			$card = json_decode( ( new Envelope( new Settings(), Registry::instance() ) )->mcp_server_card_json(), true );
+
+			$this->assertSame( 'Acme MCP', $card['name'] );
+			$this->assertSame( 'Books Acme slots.', $card['description'] );
+			$this->assertSame( '2.0.0', $card['version'] );
+			$this->assertSame( $card['transport']['url'], $card['serverUrl'] );
+			$this->assertSame( $card['serverInfo']['name'], $card['name'] );
+			$this->assertSame( $card['serverInfo']['version'], $card['version'] );
 		}
 	}
 }

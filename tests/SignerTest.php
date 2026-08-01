@@ -58,6 +58,11 @@ final class SignerTest extends TestCase {
 		$this->assertSame( 'Ed25519', $jwk['crv'] );
 		$this->assertNotEmpty( $jwk['kid'] );
 		$this->assertNotEmpty( $jwk['x'] );
+		// Web Bot Auth verifiers expect a key lifetime: nbf = the key's stored
+		// creation time, exp a fixed window after it (never sliding — a lifetime
+		// that renews on every fetch is no lifetime at all).
+		$this->assertGreaterThan( 0, $jwk['nbf'] );
+		$this->assertSame( $jwk['nbf'] + 2 * YEAR_IN_SECONDS, $jwk['exp'] );
 	}
 
 	public function test_signature_verifies_against_the_published_key() {

@@ -1,25 +1,117 @@
 <script>
+import SelectMenu from './SelectMenu.vue';
+
 export default {
   name: 'AboutPanel',
+  components: { SelectMenu },
   props: {
     version: { type: String, default: '' },
     // { name, version, hook, specUrl, schemaUrl } — sourced from PHP so it
     // mirrors the real constants instead of hand-copied strings.
     protocol: { type: Object, default: () => ({}) },
+    // Whether the About tab is the one on screen. The panel stays MOUNTED on
+    // other tabs (App uses v-show), so anything it teleports into the shared
+    // page header — and the scrollspy behind it — must gate on this, or the
+    // jump menu haunts every other screen's header.
+    active: { type: Boolean, default: true },
   },
   emits: ['navigate'],
   data() {
     return {
       openFaq: 0,
-      // In-page search: filters the screens guide, feature groups and Q&A by
-      // plain substring. The static reference sections (Privacy, Protocol,
-      // What It Can't Do) always stay visible — search narrows topics, it
-      // never hides facts.
-      aboutQuery: '',
-      // The working manual, screen by screen: what it's for, what you do
-      // there, and the facts worth knowing so nothing surprises you.
-      // SAMPLE: Request Log first — the remaining screens follow its shape.
+      // The "On this page" menu doubles as a position indicator: this holds the
+      // anchor of the section currently under the header, kept in sync by the
+      // scrollspy — scrolling moves it, picking from the menu jumps to it.
+      tocCurrent: '',
+      // True while a picked jump is smooth-scrolling: the spy stands down so
+      // the label shows the DESTINATION, not every section flying past.
+      spyLock: false,
+      // The jump menu teleports into the sticky page header. On the panel's
+      // INITIAL mount (a direct #about load) the header target isn't in the
+      // document yet — a Teleport that mounts then silently renders nothing —
+      // so it waits for this flag, flipped in mounted(), when everything is.
+      teleportReady: false,
+      // The working manual, screen by screen — kept in the SAME order as the
+      // nav (the four bar tabs, then the More menu top to bottom), so the
+      // manual reads like the plugin walks.
       screens: [
+        {
+          id: 'dashboard',
+          title: 'Dashboard',
+          where: 'first tab',
+          purpose: 'The day’s answer at a glance: your AEO/GEO score with the single most useful next step, endpoint activity by day, your busiest agent-facing files, and recent requests. The one-time “Worth a look next” card after setup and the once-per-release “What’s new” card live here too — never anywhere else in wp-admin.',
+          actions: 'Click a day’s bar for that day’s full report. Follow the score card’s “Next:” line straight to the thing it names. Answer the review bell when a new client wants a verdict. Tiles drill into their report screens with the filter carried along.',
+          facts: [
+            { k: 'info', t: 'The score’s Cited rung only counts when citation tracking is on; otherwise its weight is redistributed, so you are never penalised for a feature you don’t use.' },
+            { k: 'info', t: 'A blocked verdict on the score card means one thing: WordPress’s “Discourage search engines” switch is on. Nothing else scores until that master switch does — the card links the fix.' },
+            { k: 'tip', t: 'On a local site that verdict reads “Not public yet” in calm amber, not red — being unreachable is the expected state of a development site, and it only matters at launch.' },
+          ],
+        },
+        {
+          id: 'settings',
+          title: 'Settings',
+          where: 'Settings tab',
+          purpose: 'Every switch the plugin has, grouped and explained where it sits — identity, content and policy, trust and verification, data sources, the MCP server. What each readiness row links to lives here.',
+          actions: 'Flip switches and type — changes autosave (switches immediately, text as you pause). Manage clients holds every allow/block/ignore decision with an undo. Data sources connects Cloudflare and Bing with read-only credentials. Run setup again replays the wizard over your current answers. Reset shows a preview of exactly what would change before it does.',
+          facts: [
+            { k: 'warn', t: 'The write tier is deliberately nested: turning the MCP server off also turns “Let connected agents write” off. Write access can never stay armed invisibly under a switched-off server.' },
+            { k: 'info', t: 'With the MCP server on, the handshake is public: anyone may ask the server its name and its read-tool list — the same information mcp.json already publishes. Running any tool still signs in, and an anonymous asker is shown fewer tools than any credentialed caller: the write tools stay out of its list entirely.' },
+            { k: 'info', t: 'Connection secrets — the Cloudflare token, visibility keys — are stored encrypted at rest and are never echoed back in a REST response after saving.' },
+            { k: 'info', t: 'The trainer blocklist and the reading policy are separate ideas: blocking a training crawler hides nothing from readers, because assistants fetch reader requests with different agents. Google is the documented exception — one token governs both.' },
+            { k: 'tip', t: 'You rarely need to browse here: every readiness fix that is a switch links straight to its exact field, and the wizard set the important ones already.' },
+          ],
+        },
+        {
+          id: 'readiness',
+          title: 'Readiness',
+          where: 'Readiness tab',
+          purpose: 'Every check the score is built from, grouped by rung — Findable, Readable, Trusted — each row saying what it found, what to do, and where to do it. Below them, Optimize grades each page’s citability, and Agent preview shows the exact JSON-LD and Markdown any page serves to a machine.',
+          actions: 'Work the rows: each warn or fail carries plain-words advice and a link that lands on the exact field or screen that fixes it. Run “Verify live” to fetch your own files the way an agent would. Scan for exposed files. In Optimize, open a page to fix it in the editor, or set it aside as not-cited content — counted visibly, never hidden.',
+          facts: [
+            { k: 'info', t: 'Advice is state-aware. A thin llms.txt points at your Identity settings only until your profile is in the file — after that it points at publishing content, because that is the only lever left.' },
+            { k: 'info', t: 'The “Verify live” fetches are deliberately anonymous — they grade what an agent receives, not what an admin sees — and they carry a signed token so they stay out of your own Request Log.' },
+            { k: 'warn', t: '“Could not verify” is informational, never a verdict against your site: probe data fails open, and a stale good result outranks a fresh failure to fetch.' },
+            { k: 'info', t: 'Checks read stored data; the llms.txt and home-page probes run in the background twice a day (and after plugin or theme changes), so a route silently taken over by another plugin is noticed without slowing your admin.' },
+            { k: 'tip', t: 'Fixes made in another tab — a site icon in the Customizer, Reading settings — show up here on return, within moments, without a reload.' },
+          ],
+        },
+        {
+          id: 'discovery',
+          title: 'Discovery',
+          where: 'Discovery tab',
+          purpose: 'The registry of everything your site publishes for machines — llms.txt and the full-text edition, discovery.json, the agent card, mcp.json — with live links and a validity check across every registration.',
+          actions: 'Open any document to read exactly what agents read. Re-scan after changing plugins. Third-party plugins that speak the WP_Discovery protocol appear here alongside Agentimus’s own surfaces.',
+          facts: [
+            { k: 'info', t: 'A 404 on a discovery URL can be by design: some documents only exist while their feature is on, so an absent file often means “switched off”, not “broken”. The validity line tells the difference.' },
+            { k: 'info', t: 'With signing on, the discovery documents carry RFC 9421 signatures — an agent can verify they really came from your server, unaltered.' },
+            { k: 'info', t: 'The registry is open: any plugin can register its machine surfaces with one hook (the snippet is in the protocol section below), and they get listed and validated like the built-ins.' },
+            { k: 'info', t: 'Two documents are written for agents to act on, not just index: auth.md explains how to sign in — rebuilt from your live settings on every request, so it cannot drift from what the server really does — and the agent skill under /.well-known/agent-skills packages the whole site with explicit “use when” guidance.' },
+          ],
+        },
+        {
+          id: 'visibility',
+          title: 'AI Visibility',
+          where: 'More → AI Visibility',
+          purpose: 'Two independent answers on one screen: can AI search find you (Bing’s index, which ChatGPT search and Copilot read today), and do assistants actually cite you when asked the questions your buyers ask.',
+          actions: 'Connect Bing Webmaster with one read-only key — Agentimus prints the verification tag for you — and read index, crawl and error numbers day by day. Turn on citation checks inside the Citations tab, set the questions (or let AI suggest a spread), and track mentioned, linked, ranked against rivals.',
+          facts: [
+            { k: 'info', t: 'Citation checks deliberately use their own keys, not WordPress’s shared AI provider: shared connectors hand back only answer text, and grading needs the list of cited sources each engine returns on its own API.' },
+            { k: 'info', t: 'Both tabs store their history in your own database, so it keeps growing where the vendors’ own reporting windows end.' },
+            { k: 'tip', t: 'Good tracked questions never mention your name. The point is to learn whether an assistant reaches for you when the buyer didn’t.' },
+          ],
+        },
+        {
+          id: 'ai-traffic',
+          title: 'AI Traffic',
+          where: 'More → AI Traffic',
+          purpose: 'The human half of the story: readers who arrived from an AI assistant’s answer — daily counts by assistant and by the page they landed on. The Request Log shows machines reading you; this screen shows the people those machines sent.',
+          actions: 'Pick the window, see which assistants send readers and to which pages. The weekly email draws its “readers from AI” lines from here.',
+          facts: [
+            { k: 'info', t: 'Counts are daily aggregates — a total per day, per source, per landing page. Never a row that stands for one person, no IP addresses, no identities.' },
+            { k: 'info', t: 'Attribution is honest and therefore conservative: agentic browsers often arrive looking like Direct traffic, so real AI-sent readers can be undercounted — they are never invented.' },
+            { k: 'info', t: 'Your own clicks out of assistant chats are skipped — the plugin re-checks the admin cookie even on cached pages, so the owner never inflates their own numbers.' },
+          ],
+        },
         {
           id: 'log',
           title: 'Request Log',
@@ -38,81 +130,6 @@ export default {
           ],
         },
         {
-          id: 'dashboard',
-          title: 'Dashboard',
-          where: 'first tab',
-          purpose: 'The day’s answer at a glance: your AEO/GEO score with the single most useful next step, endpoint activity by day, your busiest agent-facing files, and recent requests. The one-time “Worth a look next” card after setup and the once-per-release “What’s new” card live here too — never anywhere else in wp-admin.',
-          actions: 'Click a day’s bar for that day’s full report. Follow the score card’s “Next:” line straight to the thing it names. Answer the review bell when a new client wants a verdict. Tiles drill into their report screens with the filter carried along.',
-          facts: [
-            { k: 'info', t: 'The score’s Cited rung only counts when citation tracking is on; otherwise its weight is redistributed, so you are never penalised for a feature you don’t use.' },
-            { k: 'info', t: 'A blocked verdict on the score card means one thing: WordPress’s “Discourage search engines” switch is on. Nothing else scores until that master switch does — the card links the fix.' },
-            { k: 'tip', t: 'On a local site that verdict reads “Not public yet” in calm amber, not red — being unreachable is the expected state of a development site, and it only matters at launch.' },
-          ],
-        },
-        {
-          id: 'readiness',
-          title: 'Readiness',
-          where: 'Readiness tab',
-          purpose: 'Every check the score is built from, grouped by rung — Findable, Readable, Trusted — each row saying what it found, what to do, and where to do it. Below them, Optimize grades each page’s citability, and Agent preview shows the exact JSON-LD and Markdown any page serves to a machine.',
-          actions: 'Work the rows: each warn or fail carries plain-words advice and a link that lands on the exact field or screen that fixes it. Run “Verify live” to fetch your own files the way an agent would. Scan for exposed files. In Optimize, open a page to fix it in the editor, or set it aside as not-cited content — counted visibly, never hidden.',
-          facts: [
-            { k: 'info', t: 'Advice is state-aware. A thin llms.txt points at your Identity settings only until your profile is in the file — after that it points at publishing content, because that is the only lever left.' },
-            { k: 'info', t: 'The “Verify live” fetches are deliberately anonymous — they grade what an agent receives, not what an admin sees — and they carry a signed token so they stay out of your own Request Log.' },
-            { k: 'warn', t: '“Could not verify” is informational, never a verdict against your site: probe data fails open, and a stale good result outranks a fresh failure to fetch.' },
-            { k: 'info', t: 'Checks read stored data; the llms.txt and home-page probes run in the background twice a day (and after plugin or theme changes), so a route silently taken over by another plugin is noticed without slowing your admin.' },
-            { k: 'tip', t: 'Fixes made in another tab — a site icon in the Customizer, Reading settings — show up here on return, within moments, without a reload.' },
-          ],
-        },
-        {
-          id: 'settings',
-          title: 'Settings',
-          where: 'Settings tab',
-          purpose: 'Every switch the plugin has, grouped and explained where it sits — identity, content and policy, trust and verification, data sources, the MCP server. What each readiness row links to lives here.',
-          actions: 'Flip switches and type — changes autosave (switches immediately, text as you pause). Manage clients holds every allow/block/ignore decision with an undo. Data sources connects Cloudflare and Bing with read-only credentials. Run setup again replays the wizard over your current answers. Reset shows a preview of exactly what would change before it does.',
-          facts: [
-            { k: 'warn', t: 'The write tier is deliberately nested: turning the MCP server off also turns “Let connected agents write” off. Write access can never stay armed invisibly under a switched-off server.' },
-            { k: 'info', t: 'Connection secrets — the Cloudflare token, visibility keys — are stored encrypted at rest and are never echoed back in a REST response after saving.' },
-            { k: 'info', t: 'The trainer blocklist and the reading policy are separate ideas: blocking a training crawler hides nothing from readers, because assistants fetch reader requests with different agents. Google is the documented exception — one token governs both.' },
-            { k: 'tip', t: 'You rarely need to browse here: every readiness fix that is a switch links straight to its exact field, and the wizard set the important ones already.' },
-          ],
-        },
-        {
-          id: 'discovery',
-          title: 'Discovery',
-          where: 'Discovery tab',
-          purpose: 'The registry of everything your site publishes for machines — llms.txt and the full-text edition, discovery.json, the agent card, mcp.json — with live links and a validity check across every registration.',
-          actions: 'Open any document to read exactly what agents read. Re-scan after changing plugins. Third-party plugins that speak the WP_Discovery protocol appear here alongside Agentimus’s own surfaces.',
-          facts: [
-            { k: 'info', t: 'A 404 on a discovery URL can be by design: some documents only exist while their feature is on, so an absent file often means “switched off”, not “broken”. The validity line tells the difference.' },
-            { k: 'info', t: 'With signing on, the discovery documents carry RFC 9421 signatures — an agent can verify they really came from your server, unaltered.' },
-            { k: 'info', t: 'The registry is open: any plugin can register its machine surfaces with one hook (the snippet is in the protocol section below), and they get listed and validated like the built-ins.' },
-          ],
-        },
-        {
-          id: 'ai-traffic',
-          title: 'AI Traffic',
-          where: 'More → AI Traffic',
-          purpose: 'The human half of the story: readers who arrived from an AI assistant’s answer — daily counts by assistant and by the page they landed on. The Request Log shows machines reading you; this screen shows the people those machines sent.',
-          actions: 'Pick the window, see which assistants send readers and to which pages. The weekly email draws its “readers from AI” lines from here.',
-          facts: [
-            { k: 'info', t: 'Counts are daily aggregates — a total per day, per source, per landing page. Never a row that stands for one person, no IP addresses, no identities.' },
-            { k: 'info', t: 'Attribution is honest and therefore conservative: agentic browsers often arrive looking like Direct traffic, so real AI-sent readers can be undercounted — they are never invented.' },
-            { k: 'info', t: 'Your own clicks out of assistant chats are skipped — the plugin re-checks the admin cookie even on cached pages, so the owner never inflates their own numbers.' },
-          ],
-        },
-        {
-          id: 'visibility',
-          title: 'AI Visibility',
-          where: 'More → AI Visibility',
-          purpose: 'Two independent answers on one screen: can AI search find you (Bing’s index, which ChatGPT search and Copilot read today), and do assistants actually cite you when asked the questions your buyers ask.',
-          actions: 'Connect Bing Webmaster with one read-only key — Agentimus prints the verification tag for you — and read index, crawl and error numbers day by day. Turn on citation checks inside the Citations tab, set the questions (or let AI suggest a spread), and track mentioned, linked, ranked against rivals.',
-          facts: [
-            { k: 'info', t: 'Citation checks deliberately use their own keys, not WordPress’s shared AI provider: shared connectors hand back only answer text, and grading needs the list of cited sources each engine returns on its own API.' },
-            { k: 'info', t: 'Both tabs store their history in your own database, so it keeps growing where the vendors’ own reporting windows end.' },
-            { k: 'tip', t: 'Good tracked questions never mention your name. The point is to learn whether an assistant reaches for you when the buyer didn’t.' },
-          ],
-        },
-        {
           id: 'agent-access',
           title: 'Agent Access',
           where: 'More → Agent Access',
@@ -124,7 +141,7 @@ export default {
             { k: 'info', t: 'Writes only exist while “Let connected agents write” is on, drafts-only unless you also allow publishing — and every write lands in this feed either way.' },
           ],
         },
-      ],
+],
       // Documentation of what the plugin publishes. "Default" is the shipped
       // state; the live on/off for each lives on the Settings tab.
       featureGroups: [
@@ -173,10 +190,12 @@ export default {
           items: [
             { name: 'Discovery manifest', where: '/.well-known/discovery.json', desc: 'The master document describing your site, content and capabilities.', tag: 'On' },
             { name: 'Agent card', where: '/.well-known/agent-card.json', desc: 'Agent-to-agent (A2A) identity card, also served at agent.json.', tag: 'On' },
-            { name: 'API description', where: '/.well-known/openapi.json · /api-catalog', desc: 'OpenAPI 3.1 spec and a catalog of your public REST API.', tag: 'On' },
+            { name: 'API description', where: '/.well-known/openapi.json · /api-catalog', desc: 'OpenAPI 3.1 spec and an RFC 9727 catalog of your public REST API — every operation carries a stable id, a description and a typed error shape, the details function-calling toolchains read.', tag: 'On' },
             { name: 'MCP manifest', where: '/.well-known/mcp.json', desc: 'Advertises Model Context Protocol servers running on your site — Agentimus’s own, or another plugin’s — with their tools and per-server cards.', tag: 'Auto' },
-            { name: 'MCP server', where: '/wp-json/agentimus/v1/mcp', desc: 'Off by default. One switch (Settings → Discovery) runs a Model Context Protocol server on your own site — everything needed ships with the plugin — so the AI assistants you already use can run the twelve read-only Agentimus tools above. A second switch (off by default) adds the write tools — draft/edit content, set AI topics and descriptions, apply Readiness fixes — and a third decides whether agents may publish or only leave drafts for review. Nothing is public: every call signs in, each tool keeps the same permission checks as its admin screen, every call is recorded under Agent Access, and turning the switch off disconnects connected assistants immediately.', tag: 'Opt-in' },
+            { name: 'MCP server', where: '/wp-json/agentimus/v1/mcp', desc: 'Off by default. One switch (Settings → Discovery) runs a Model Context Protocol server on your own site — everything needed ships with the plugin — so the AI assistants you already use can run the twelve read-only Agentimus tools above. A second switch (off by default) adds the write tools — draft/edit content, set AI topics and descriptions, apply Readiness fixes — and a third decides whether agents may publish or only leave drafts for review. Anyone may ask the server what it is: the handshake answers with its name and read-tool list, the same information mcp.json already publishes, so an assistant can see what’s offered before connecting. Running anything signs in: each tool keeps the same permission checks as its admin screen, every call is recorded under Agent Access, and turning the switch off disconnects connected assistants immediately.', tag: 'Opt-in' },
             { name: 'Connect an assistant', where: 'Settings → Discovery → MCP Server', desc: 'Give an assistant only your server address and it asks you for permission on a consent page served by your own site: it names what it calls itself and where it will return, and you choose Read only or Read and write — you may grant less than it asked for. Approving gives that one assistant its own key; it appears under Connected assistants with its scope, its last call and its own Disconnect, so cutting one off leaves the others working. The flow is the OAuth 2.1 standard with PKCE and dynamic client registration, served entirely by your site — no third party brokers it, and Agentimus stores only a fingerprint of every key. Assistants that cannot ask for approval use a shared token instead (one secret, read-only or read-and-write, shown once, revocable), or a WordPress application password. Whichever door it came through, a read-only key is shown only the read tools, and no key can exceed your write settings.', tag: 'Opt-in' },
+            { name: 'How agents sign in (auth.md)', where: '/auth.md', desc: 'A plain-markdown page telling agents how to authenticate — generated from your live settings on every request, so it can never promise a flow you don’t run. It walks the standard auth.md shape (discover, pick a method, register, claim, use the credential, errors, revocation), states outright whether public registration exists, and while the MCP server is off it simply says reading is public and changes stay with you.', tag: 'On' },
+            { name: 'Agent skill (SKILL.md)', where: '/.well-known/agent-skills', desc: 'Your site packaged as an installable agent skill (the agentskills.io format): what it offers, the addresses that matter, and explicit “use when” guidance — assembled live from what’s actually switched on, named after your own domain, and linked from llms.txt so agents find it without guessing.', tag: 'On' },
             { name: 'Browser tools (WebMCP)', where: 'your public pages', desc: 'Off by default. Lets an AI agent working inside a visitor’s browser call your site’s read-only tools (like site search) directly, via the emerging WebMCP browser standard. It adds one tiny, self-hosted script that stays inert in browsers without support, and each tool can be shown or hidden individually in Settings.', tag: 'Opt-in' },
           ],
         },
@@ -194,7 +213,7 @@ export default {
           title: 'Structured Data & Crawl Signals',
           lead: 'Standards search engines and agents already understand.',
           items: [
-            { name: 'JSON-LD schema', where: 'in your page <head>', desc: 'schema.org WebSite, Person/Organization, articles, breadcrumbs and FAQ.', tag: 'On' },
+            { name: 'JSON-LD schema', where: 'in your page <head>', desc: 'schema.org WebSite, Person/Organization, articles, breadcrumbs and FAQ — plus speakable markup on posts, naming the headline and lead a voice assistant should read aloud.', tag: 'On' },
             { name: 'Topics for AI', where: 'per post', desc: 'Per-page topics → JSON-LD keywords and about entities (linkable to Wikidata/Wikipedia) plus a Markdown line, so assistants know exactly what each page is about.', tag: 'On' },
             { name: 'AI description', where: 'per post', desc: 'A one-line summary → the JSON-LD description, the Markdown lead, and your page’s meta description (replacing your theme’s, unless a dedicated SEO plugin owns it). Blank pages fall back to the excerpt, or a short summary of the page.', tag: 'On' },
             { name: 'Search basics', where: 'Settings → Discovery', desc: 'With no SEO plugin installed, Agentimus covers the search essentials itself: a per-page “SEO title” field in the editor, Open Graph/X share cards (featured image → your chosen default → Site Icon), and canonical links on the views WordPress leaves bare. Install an SEO plugin and every one of these steps aside automatically — nothing is ever emitted twice — and a dashboard card names the division of labour.', tag: 'On' },
@@ -215,7 +234,7 @@ export default {
           lead: 'Prove the documents really came from you.',
           items: [
             { name: 'Verified responses', where: '/.well-known/http-message-signatures-directory', desc: 'Signs discovery docs (RFC 9421) so agents can verify they’re from you and unaltered.', tag: 'On' },
-            { name: 'OAuth metadata', where: '/.well-known/oauth-protected-resource', desc: 'Points agents at your authorization server (RFC 9728).', tag: 'When set' },
+            { name: 'OAuth metadata', where: '/.well-known/oauth-protected-resource', desc: 'Points agents at your authorization server (RFC 9728) — the one you declare, or the plugin’s own consent flow automatically while the MCP server is on. A document another plugin registers for this address is never shadowed.', tag: 'Auto' },
             { name: 'security.txt', where: '/.well-known/security.txt', desc: 'A standard security contact for your site (RFC 9116).', tag: 'Opt-in' },
           ],
         },
@@ -271,7 +290,7 @@ export default {
         { q: 'Why am I getting a weekly email from Agentimus?', a: 'That’s the weekly digest — a short note about what AI did on your site: agent visits, readers arriving from AI answers, impostors caught, and your readiness score with its change since the last note. It’s on by default because the plugin’s work is otherwise invisible, and it’s built only from the data already stored on your site — the email to your own inbox is the only thing that leaves the server. A week with nothing to report sends nothing. Stop it with the one-click link inside any of the emails, or under Settings → Weekly email, where you can also pick the day and time it arrives, change the address and send yourself a test.' },
         { q: 'How do I know if an AI agent or app logged into my site?', a: 'More → Agent Access records it: when an application password (the key a program uses to reach WordPress as you) is created, first used, renamed or revoked; when an ability is run; and when a request is refused or someone probes for abilities that don’t exist. Every entry says who — the user and the named key it used. It’s a record, not a guard — it never blocks anything — and it stores no IP addresses, so it names the key that was used, not the person. A new application password is especially worth checking: it keeps working even after you change your password, which is exactly why one appearing unannounced matters.' },
         { q: 'Can AI write a whole post for me?', a: 'Yes — the writing assistant (the quill button on Agentimus’s screens) turns a described idea into a complete draft. It proposes an outline you edit first, then writes every section in parallel — long articles aren’t capped by a single AI response — with the title, AI description, topics and suggested categories and tags, and shows you everything before anything is saved. Create draft opens the post in the editor, where image placeholders arrive alt-filled — fill them from your library or generate them with AI. It can also revise an existing post without ever changing its status. It needs “Let connected agents write” plus an AI provider under Settings → AI, and it never publishes: drafts and pending review only.' },
-        { q: 'Does Agentimus run an MCP server?', a: 'Yes — as an opt-in, on WordPress 6.9 or newer. Turn on Settings → Discovery → MCP server and the AI assistants you already use can talk to your site over the Model Context Protocol and run the same permission-checked tools your admin AI gets — ten read-only ones, plus the write tools only if you separately allow those (see the next question). Everything needed ships with the plugin. Connecting is usually one approval: give the assistant your server address and it asks you for permission on a page served by your own site, where you choose read-only or read-and-write. Claude and Cursor work this way today. Assistants that cannot ask — ChatGPT and Codex at the time of writing — take a shared token instead: create one on the card and send it as a Bearer header. A WordPress application password still works too, and suits anyone who wants one key per tool tied to a specific user. Nothing becomes public: every request signs in, every call is recorded under More → Agent Access, and turning the switch off disconnects connected assistants immediately. Worth knowing: a connection token or an approved assistant’s key works only on this server’s address, while an application password signs in as that user across your whole REST API.' },
+        { q: 'Does Agentimus run an MCP server?', a: 'Yes — as an opt-in, on WordPress 6.9 or newer. Turn on Settings → Discovery → MCP server and the AI assistants you already use can talk to your site over the Model Context Protocol and run the same permission-checked tools your admin AI gets — twelve read-only ones, plus the write tools only if you separately allow those (see the next question). Everything needed ships with the plugin. Connecting is usually one approval: give the assistant your server address and it asks you for permission on a page served by your own site, where you choose read-only or read-and-write. Claude, Cursor and ChatGPT work this way today. Assistants that cannot ask — Codex at the time of writing — take a shared token instead: create one on the card and send it as a Bearer header. A WordPress application password still works too, and suits anyone who wants one key per tool tied to a specific user. The handshake is public — the server will tell anyone its name and read-tool list, exactly what mcp.json already publishes — but every tool run signs in, every call is recorded under More → Agent Access, and turning the switch off disconnects connected assistants immediately. Worth knowing: a connection token or an approved assistant’s key works only on this server’s address, while an application password signs in as that user across your whole REST API.' },
         { q: 'Can an agent write to my site through MCP?', a: 'Only if you say so, twice. The MCP server starts read-only; a second switch (“Let connected agents write”) adds the write tools — draft and edit posts and pages complete with categories, tags and a featured image (from your media library, or imported from a URL), set their AI topics and descriptions, and apply Readiness fixes (a fixed list that can only turn documented features on, never loosen a protection). Even then, agents can’t publish: they leave drafts and pending posts for your review, unless you flip a third switch that allows going live. Every write runs as the signed-in user — an agent can never do more than that user could in the editor: filing under existing categories, creating new ones, and uploading images each follow that user’s own permissions — and every call is recorded under More → Agent Access.' },
         { q: 'What happens to AI training of my content?', a: 'By default Agentimus signals “do not train” (via tdmrep.json, the tdm-reservation header and robots Content-Signal) while still letting search engines and AI assistants read it. You control all of this in Settings.' },
         { q: 'Why is there no Google button in the Ask AI row?', a: 'Because your own bot policy forbids it — and the row is honest about that. Google made a single robots token, Google-Extended, govern both AI training and Gemini/AI-Mode reading. Agentimus blocks AI training by default, which therefore also tells Google’s assistant it may not read your pages — its button could only ever answer “page inaccessible,” so Agentimus hides it rather than hand readers a dead end. Allow Google-Extended (or add it to your always-allowed list) under Settings → AI access and the button returns. Blocking GPTBot or ClaudeBot hides nothing: OpenAI and Anthropic fetch reader-initiated requests with separate agents (ChatGPT-User, Claude-User) that a training block never touches.' },
@@ -285,35 +304,20 @@ export default {
     };
   },
   computed: {
-    // ---- in-page search: plain substring over the topic collections --------
-    q() {
-      return this.aboutQuery.trim().toLowerCase();
-    },
-    filteredScreens() {
-      if (!this.q) return this.screens;
-      return this.screens.filter((s) =>
-        [s.title, s.where, s.purpose, s.actions, ...(s.facts || [])].join(' ').toLowerCase().includes(this.q));
-    },
-    filteredGroups() {
-      if (!this.q) return this.featureGroups;
-      return this.featureGroups
-        .map((g) => {
-          // A hit on the group's own title/lead keeps the whole group.
-          if (`${g.title} ${g.lead}`.toLowerCase().includes(this.q)) return g;
-          const items = g.items.filter((it) =>
-            `${it.name} ${it.where} ${it.desc} ${it.tag}`.toLowerCase().includes(this.q));
-          return items.length ? { ...g, items } : null;
-        })
-        .filter(Boolean);
-    },
-    filteredFaqs() {
-      if (!this.q) return this.faqs;
-      return this.faqs.filter((f) => `${f.q} ${f.a}`.toLowerCase().includes(this.q));
-    },
-    matchCount() {
-      return this.filteredScreens.length
-        + this.filteredGroups.reduce((n, g) => n + g.items.length, 0)
-        + this.filteredFaqs.length;
+    // The "On this page" jump menu: every section in page order, with the
+    // screens and feature groups indented under their parents. Values are the
+    // anchor ids the picker scrolls to.
+    tocOptions() {
+      return [
+        { value: 'ar-about-screens', label: 'The Screens' },
+        ...this.screens.map((s) => ({ value: `ar-about-s-${s.id}`, label: ` ${s.title}` })),
+        { value: 'ar-about-features', label: 'What It Does' },
+        ...this.featureGroups.map((g, gi) => ({ value: `ar-about-g-${gi}`, label: ` ${g.title}` })),
+        { value: 'ar-about-cantdo', label: 'What It Can’t Do' },
+        { value: 'ar-about-privacy', label: 'Privacy & Data' },
+        { value: 'ar-about-protocol', label: 'The Protocol' },
+        { value: 'ar-about-faq', label: 'Questions & Answers' },
+      ];
     },
     protocolVersion() { return this.protocol.version || '1.0'; },
     hook() { return this.protocol.hook || 'wpdiscovery_register'; },
@@ -329,39 +333,85 @@ export default {
         + "} );";
     },
   },
+  mounted() {
+    this.teleportReady = true;
+    window.addEventListener('scroll', this.spy, { passive: true });
+    this.$nextTick(() => this.applySpy());
+  },
+  beforeUnmount() {
+    window.removeEventListener('scroll', this.spy);
+    if (this._spyRaf) cancelAnimationFrame(this._spyRaf);
+    clearTimeout(this._spyT);
+  },
   methods: {
     toggleFaq(i) { this.openFaq = this.openFaq === i ? -1 : i; },
+    // A pick is a command: jump there and show the destination at once. The
+    // spy is locked until the smooth scroll settles (scrollend where it
+    // exists, a timeout everywhere), then resumes following the reader.
+    jump(id) {
+      const el = document.getElementById(id);
+      if (!el) return;
+      this.tocCurrent = id;
+      this.spyLock = true;
+      el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      clearTimeout(this._spyT);
+      const release = () => {
+        if (!this.spyLock) return;
+        this.spyLock = false;
+        window.removeEventListener('scrollend', release);
+        this.applySpy();
+      };
+      window.addEventListener('scrollend', release, { once: true });
+      this._spyT = setTimeout(release, 1000);
+    },
+    // Scrollspy, one frame at a time: the current section is the LAST anchor
+    // whose top sits above the reading line (just under the sticky bars).
+    spy() {
+      if (!this.active || this.spyLock || this._spyRaf) return;
+      this._spyRaf = requestAnimationFrame(() => {
+        this._spyRaf = null;
+        this.applySpy();
+      });
+    },
+    applySpy() {
+      if (this.spyLock) return;
+      const sticky = document.querySelector('.ar__sticky');
+      const line = (sticky ? sticky.getBoundingClientRect().bottom : 150) + 30;
+      let current = '';
+      for (const o of this.tocOptions) {
+        const el = document.getElementById(o.value);
+        if (!el) continue;
+        if (el.getBoundingClientRect().top <= line) current = o.value;
+        else if (current) break; // anchors come in page order — we're past the line
+      }
+      this.tocCurrent = current;
+    },
   },
 };
 </script>
 
 <template>
   <div class="ar-about">
-    <!-- In-page search: narrows the topic collections below. The static
-         reference sections (Privacy, Protocol, Can't-Do) always stay — search
-         finds topics, it never hides facts. -->
-    <div class="ar-about-search">
-      <input
-        v-model="aboutQuery"
-        type="search"
-        class="ar-input"
-        placeholder="Search this page — try “retention”, “spoofed”, “publish”…"
-        aria-label="Search this page"
-      />
-      <span v-if="q" class="ar-about-search__count">
-        {{ matchCount }} topic{{ matchCount === 1 ? '' : 's' }} match
-        <button type="button" class="ar-linkbtn" @click="aboutQuery = ''">clear</button>
-      </span>
-    </div>
+    <!-- "On this page" — a jump menu over every section, screen and feature
+         group, teleported into the sticky page header so it's always in reach.
+         Deliberately NOT a text search: the browser's own find does words
+         better, and it can only work when nothing on the page is hidden. -->
+    <Teleport v-if="teleportReady && active" to="#ar-pagehead-tools">
+      <div class="ar-about-toc">
+        <!-- NOT v-model: a user pick is a jump command (no watcher loop), while
+             the scrollspy writes tocCurrent for display only. -->
+        <SelectMenu :model-value="tocCurrent" :options="tocOptions" placeholder="On this page…" aria-label="Jump to a section" @update:model-value="jump" />
+      </div>
+    </Teleport>
 
-    <!-- The working manual, screen by screen. -->
-    <section v-if="filteredScreens.length" id="ar-about-screens" class="ar-card">
+    <!-- The working manual, screen by screen — in the nav's own order. -->
+    <section id="ar-about-screens" class="ar-card">
       <h2 class="ar-card__title">The Screens</h2>
       <p class="ar-card__lead">
         What each screen is for, what you do on it, and the facts worth knowing so nothing
         surprises you.
       </p>
-      <div v-for="s in filteredScreens" :key="s.id" class="ar-about-screen">
+      <div v-for="s in screens" :id="`ar-about-s-${s.id}`" :key="s.id" class="ar-about-screen">
         <h3 class="ar-about-feat__title">{{ s.title }} <span class="ar-about-screen__where">{{ s.where }}</span></h3>
         <p class="ar-about-screen__purpose">{{ s.purpose }}</p>
         <p class="ar-about-screen__do"><strong>What you do here:</strong> {{ s.actions }}</p>
@@ -383,7 +433,7 @@ export default {
     </section>
 
     <!-- Features -->
-    <section v-if="filteredGroups.length" class="ar-card">
+    <section id="ar-about-features" class="ar-card">
       <h2 class="ar-card__title">What It Does</h2>
       <p class="ar-card__lead">
         Agentimus does two things for the age of AI agents. <strong>First, it makes your site legible and
@@ -407,7 +457,7 @@ export default {
         walks through every feature, step by step.
       </p>
 
-      <div v-for="g in filteredGroups" :key="g.title" class="ar-about-feat">
+      <div v-for="(g, gi) in featureGroups" :id="`ar-about-g-${gi}`" :key="g.title" class="ar-about-feat">
         <div class="ar-about-feat__head">
           <h3 class="ar-about-feat__title">{{ g.title }}</h3>
           <p class="ar-about-feat__lead">{{ g.lead }}</p>
@@ -428,7 +478,7 @@ export default {
     </section>
 
     <!-- Honest expectations -->
-    <section class="ar-card">
+    <section id="ar-about-cantdo" class="ar-card">
       <h2 class="ar-card__title">What It Can’t Do</h2>
       <p class="ar-card__lead">
         Agentimus makes your site <strong>discoverable and correctly understood</strong> — when an AI agent
@@ -442,7 +492,7 @@ export default {
     </section>
 
     <!-- Privacy & data -->
-    <section class="ar-card ar-about-priv">
+    <section id="ar-about-privacy" class="ar-card ar-about-priv">
       <h2 class="ar-card__title">Privacy &amp; Data</h2>
       <p class="ar-card__lead">
         A discovery plugin should be honest about itself. Here is exactly what leaves your server, what’s
@@ -556,10 +606,10 @@ export default {
     </section>
 
     <!-- FAQ -->
-    <section v-if="filteredFaqs.length" class="ar-card">
+    <section id="ar-about-faq" class="ar-card">
       <h2 class="ar-card__title">Questions &amp; Answers</h2>
       <ul class="ar-about-faq">
-        <li v-for="(f, i) in filteredFaqs" :key="f.q" class="ar-about-faq__item" :class="{ 'is-open': openFaq === i }">
+        <li v-for="(f, i) in faqs" :key="f.q" class="ar-about-faq__item" :class="{ 'is-open': openFaq === i }">
           <button
             type="button"
             class="ar-about-faq__q"

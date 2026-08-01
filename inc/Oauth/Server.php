@@ -119,6 +119,19 @@ final class Server {
 			'grant_types_supported'                 => array( 'authorization_code', 'refresh_token' ),
 			'code_challenge_methods_supported'      => array( 'S256' ),
 			'token_endpoint_auth_methods_supported' => array( 'none' ),
+			// The auth.md (workos.com/auth-md) agent_auth block — only what we truly
+			// run: anonymous RFC 7591 client registration, credentialed by the
+			// standard authorization-code + PKCE grant the site owner approves in the
+			// browser. No identity assertions (ID-JAG), no claim ceremony — so those
+			// types are simply not advertised.
+			'agent_auth'                            => array(
+				'skill'                    => home_url( '/auth.md' ),
+				'register_uri'             => rest_url( 'agentimus/v1/oauth/register' ),
+				'identity_types_supported' => array( 'anonymous' ),
+				'anonymous'                => array(
+					'credential_types_supported' => array( 'authorization_code' ),
+				),
+			),
 		);
 	}
 

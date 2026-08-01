@@ -111,18 +111,29 @@ final class Signer {
 		if ( null === $keys ) {
 			return '';
 		}
-		$doc = array(
-			'keys' => array(
-				array(
-					'kid' => $keys['kid'],
-					'kty' => 'OKP',
-					'crv' => 'Ed25519',
-					'x'   => $this->b64url( $keys['public'] ),
-					'alg' => 'EdDSA',
-					'use' => 'sig',
-				),
-			),
+		$jwk = array(
+			'kid' => $keys['kid'],
+			'kty' => 'OKP',
+			'crv' => 'Ed25519',
+			'x'   => $this->b64url( $keys['public'] ),
+			'alg' => 'EdDSA',
+			'use' => 'sig',
 		);
+		// Web Bot Auth verifiers expect a key lifetime (nbf/exp). The stored key
+		// records its creation; a pre-lifetime key gets one stamped now, so the
+		// window is stable from here on. An override key (filter-supplied, never in
+		// the DB) has no knowable birth date — it carries no lifetime rather than a
+		// fabricated one.
+		$stored = get_option( self::OPTION );
+		if ( is_array( $stored ) && ! empty( $stored['secret'] ) ) {
+			if ( empty( $stored['created'] ) ) {
+				$stored['created'] = time();
+				update_option( self::OPTION, $stored, false );
+			}
+			$jwk['nbf'] = (int) $stored['created'];
+			$jwk['exp'] = (int) $stored['created'] + 2 * YEAR_IN_SECONDS;
+		}
+		$doc = array( 'keys' => array( $jwk ) );
 		$json = wp_json_encode( $doc, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES );
 		return is_string( $json ) ? $json : '';
 	}

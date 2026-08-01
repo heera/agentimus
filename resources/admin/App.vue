@@ -1571,8 +1571,13 @@ export default {
     </header>
 
     <div class="ar__pagehead">
-      <h1 class="ar__pagehead-title">{{ pageMeta.title }}</h1>
-      <p v-if="pageMeta.description" class="ar__pagehead-desc">{{ pageMeta.description }}</p>
+      <div class="ar__pagehead-text">
+        <h1 class="ar__pagehead-title">{{ pageMeta.title }}</h1>
+        <p v-if="pageMeta.description" class="ar__pagehead-desc">{{ pageMeta.description }}</p>
+      </div>
+      <!-- A slot a panel can teleport its own tools into (the About search lives
+           here) — inside the sticky header, so they never scroll away. -->
+      <div id="ar-pagehead-tools" class="ar__pagehead-tools"></div>
     </div>
     </div>
 
@@ -1835,6 +1840,7 @@ export default {
         />
         <AboutPanel
           v-show="tab === 'about'"
+          :active="tab === 'about'"
           :version="version"
           :protocol="protocol"
           @navigate="goTo"

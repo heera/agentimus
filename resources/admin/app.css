@@ -658,13 +658,18 @@
 .ar__pagehead {
   /* Locked to the nav bar's exact height (shared token) and the content is
      vertically centred — so the title/intro never make this strip taller or
-     shorter than the nav above it, whatever the per-tab text. */
+     shorter than the nav above it, whatever the per-tab text. A row now: the
+     title/intro column on the left, a tools slot on the right edge that a
+     panel can teleport into (the About search lives there, always in reach). */
   height: var(--ar-bar-h);
-  display: flex; flex-direction: column; justify-content: center;
+  display: flex; align-items: center; gap: 18px;
   padding: 0 34px;
   background: var(--ar-surface);
   border-bottom: 1px solid var(--ar-line);
 }
+.ar__pagehead-text { display: flex; flex-direction: column; justify-content: center; min-width: 0; }
+.ar__pagehead-tools { margin-left: auto; flex: 0 1 auto; min-width: 0; }
+.ar__pagehead-tools .ar-about-toc .ar-input { width: 230px; max-width: 30vw; }
 /* #agentimus-app lifts specificity (1,1,0) above wp-admin's core .wrap h1
    (0,1,1), which would otherwise force 23px / weight 400 / 5px padding onto our
    title and inflate the page header. padding:0 explicitly drops the .wrap h1 5px. */
@@ -1049,8 +1054,14 @@
   /* Small screens: the nav above already wraps taller here, so the desktop
      height-lock pairing is moot — let the strip grow and show the whole
      tagline instead of ellipsis-truncating it. */
-  .ar__pagehead { padding: 12px 16px; height: auto; min-height: var(--ar-bar-h); }
+  .ar__pagehead { padding: 12px 16px; height: auto; min-height: var(--ar-bar-h); flex-wrap: wrap; row-gap: 10px; }
   .ar__pagehead-desc { white-space: normal; overflow: visible; text-overflow: clip; }
+  /* The tools slot takes its own full-width row under the title (a wrapping
+     flex row wraps before it shrinks — title and tools never share a line
+     at phone width), and the jump menu stretches edge to edge. */
+  .ar__pagehead-tools { flex: 1 1 100%; margin-left: 0; }
+  .ar__pagehead-tools .ar-about-toc, .ar__pagehead-tools .ar-about-toc .ar-select { width: 100%; }
+  .ar__pagehead-tools .ar-about-toc .ar-input { width: 100%; max-width: none; }
   .ar__body { padding: 20px 16px; }
 }
 
@@ -2493,9 +2504,19 @@ html { scrollbar-gutter: stable; }
 .ar-wiz__protect--live code { font-size: 12px; }
 
 /* ---- About: in-page search + the screens manual -------------------------- */
-.ar-about-search { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
-.ar-about-search .ar-input { max-width: 420px; }
-.ar-about-search__count { font-size: 12.5px; color: var(--ar-ink-soft); }
+/* Jump-menu targets sit under two sticky bars (nav + pagehead) — without this
+   margin a jump lands with its heading hidden behind them. The #agentimus-app
+   prefix is load-bearing: the global `#agentimus-app [id^="ar-"]` 16px rule
+   carries an id selector, so a class-only selector here would lose to it.
+   NO --ar-adminbar term: WordPress already shifts the whole document with
+   html { margin-top } for the admin bar, so adding it here double-counts —
+   the jump lands a bar-height too low, and the scrollspy (whose reading line
+   sits just under the sticky stack) then blames the PREVIOUS section. */
+#agentimus-app .ar-about section[id],
+#agentimus-app .ar-about .ar-about-screen[id],
+#agentimus-app .ar-about .ar-about-feat[id] {
+  scroll-margin-top: calc((2 * var(--ar-bar-h)) + 12px);
+}
 .ar-about-screen { padding: 16px 0 4px; }
 .ar-about-screen + .ar-about-screen { border-top: 1px solid var(--ar-line); }
 .ar-about-screen__where { font-family: var(--ar-mono); font-size: 10.5px; letter-spacing: 0.08em; color: var(--ar-ink-faint); margin-left: 8px; }
@@ -2691,6 +2712,14 @@ html { scrollbar-gutter: stable; }
   scroll-margin-top: 40px;
 }
 .ar-check__text { min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+/* The AgentReady citation chip: quiet spec ID beside the label, linking out. */
+.ar-check__arid {
+  display: inline-block; vertical-align: 1px; margin-left: 7px; padding: 1px 7px;
+  font-family: var(--ar-mono); font-size: 9.5px; letter-spacing: 0.06em; font-weight: 400;
+  color: var(--ar-ink-faint); border: 1px solid var(--ar-line-strong); border-radius: 999px;
+  text-decoration: none;
+}
+.ar-check__arid:hover { color: var(--ar-accent); border-color: var(--ar-accent); }
 .ar-check__text strong { font-size: 14px; font-weight: 600; }
 .ar-check__text small { color: var(--ar-ink-soft); font-size: 12.5px; }
 .ar-check__fix {
@@ -4233,7 +4262,10 @@ button.ar-act-more:hover { color: var(--ar-ink); }
   background: var(--ar-surface-2); border: 1px solid var(--ar-line); border-radius: 3px; padding: 1px 6px;
   overflow-wrap: anywhere;
 }
-.ar-about-item__desc { margin: 4px 0 0; font-size: 12.5px; line-height: 1.5; color: var(--ar-ink-soft); max-width: 80ch; }
+/* Same set-page dress as the screens manual — full card width, justified,
+   hyphenated — so the two halves of the page read as one document (the old
+   80ch cap left these as a narrow ragged column beside full-width intros). */
+.ar-about-item__desc { margin: 4px 0 0; font-size: 12.5px; line-height: 1.5; color: var(--ar-ink-soft); text-align: justify; hyphens: auto; -webkit-hyphens: auto; }
 .ar-about-tag {
   flex: 0 0 auto; font-family: var(--ar-mono); font-size: 9px; letter-spacing: 0.08em; text-transform: uppercase;
   padding: 3px 8px; border-radius: 999px; border: 1px solid var(--ar-line-strong); color: var(--ar-ink-faint);
@@ -4472,13 +4504,27 @@ a.ar-about-proto__v:hover { text-decoration: underline; }
   .ar-act-table.ar-act-table--cards tbody tr::before { content: ""; order: 3; width: 100%; height: 1px; background: var(--ar-line); }
   /* Content-width, not greedy: the status word must land right beside the
      name, and the date's auto margin claims whatever is left. */
-  .ar-act-table.ar-act-table--cards tbody td:first-child { order: 1; flex: 0 1 auto; min-width: 0; padding-left: 0; }
+  /* The name ELLIPSIZES rather than pushing the date off the header row — a
+     wrapped, right-floating date reads as a layout accident. Full identity
+     still lives in the UA box below. */
+  .ar-act-table.ar-act-table--cards tbody td:first-child {
+    order: 1; flex: 0 1 auto; min-width: 0; padding-left: 0;
+    display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
   .ar-act-table.ar-act-table--cards tbody td.ar-log__seen,
   .ar-act-table.ar-act-table--cards tbody td.ar-act-table__at {
     order: 2; flex: 0 0 auto; flex-direction: row; align-items: center; gap: 6px;
     font-family: var(--ar-mono); font-size: 11px; color: var(--ar-ink-faint);
   }
   .ar-act-table.ar-act-table--cards tbody td.ar-log__seen { margin-left: auto; }
+  /* Log cards carry name + status + date — at phone width that trio can never
+     share a line (wrapping flex rows wrap before they shrink), and a date
+     wrapped to a right-floating line reads as an accident. Rows WITH a status
+     (the log) seat the date as a deliberate left byline under the name; the
+     dashboard feed (no status) keeps its corner date, which fits. */
+  .ar-act-table.ar-act-table--cards tbody tr:has(td.ar-log__statuscol) td.ar-log__seen {
+    margin-left: 0; flex: 1 1 100%;
+  }
   .ar-act-table.ar-act-table--cards tbody td[data-label="Hits"] { order: 2; margin-left: auto; flex: 0 0 auto; }
   .ar-act-table.ar-act-table--cards tbody tr:has(td[data-label="Hits"].is-empty-cell) td.ar-act-table__at { margin-left: auto; }
   /* Facts: icon-anchored slots — glyph left, label over value right, a seam
@@ -4525,13 +4571,15 @@ a.ar-about-proto__v:hover { text-decoration: underline; }
   .ar-act-table.ar-act-table--cards td[data-label="Endpoint"] .ar-log__pivot,
   .ar-act-table.ar-act-table--cards td[data-label="Endpoint"] > .ar-act-feed__ep,
   .ar-act-table.ar-act-table--cards td[data-label="Network"] .ar-act-feed__net,
-  .ar-act-table.ar-act-table--cards td[data-label="Network"] .ar-log__mark {
+  .ar-act-table.ar-act-table--cards td[data-label="Network"] .ar-log__mark,
+  .ar-act-table.ar-act-table--cards td[data-label="Network"] .ar-act-table__dash {
     grid-row: 2; grid-column: 2;
   }
   /* The network value wears the endpoint chip's dress — "unknown" included, as
      a plain quiet word: a dotted hover-underline means nothing to a thumb. */
   .ar-act-table.ar-act-table--cards td[data-label="Network"] .ar-act-feed__net,
-  .ar-act-table.ar-act-table--cards td[data-label="Network"] .ar-log__mark {
+  .ar-act-table.ar-act-table--cards td[data-label="Network"] .ar-log__mark,
+  .ar-act-table.ar-act-table--cards td[data-label="Network"] .ar-act-table__dash {
     display: inline-block; font-family: var(--ar-mono); font-size: 11.5px;
     line-height: 1.6; letter-spacing: 0; text-transform: none; color: var(--ar-ink-soft);
     background: var(--ar-surface-2); padding: 2px 8px; border: 0; border-radius: 3px;
@@ -4699,7 +4747,30 @@ a.ar-about-proto__v:hover { text-decoration: underline; }
 @media (max-width: 782px) {
   .ar-log__field, .ar-log__field--ua { flex: 1 1 100%; }
   .ar-log__field--date { width: 100%; }
+  /* Matches the specificity of the wide-screen `.ar-aitraffic` date rule —
+     without this, its 150px flex-basis beats the width above (basis outranks
+     width on a flex item) and the date boxes stay narrow on phones. */
+  .ar-aitraffic .ar-log__field--date { flex: 1 1 100%; }
   .ar-log__actions .ar-btn { flex: 1 1 auto; }
+}
+
+/* Phones: the settings group strip scrolls sideways with natural-width tabs —
+   never crushes labels into clipped fragments ("ATA SOURCE"). Scrollbar hidden;
+   the half-visible neighbour tab is the scroll affordance. */
+@media (max-width: 782px) {
+  .ar-tabpanel__tabs { overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
+  .ar-tabpanel__tabs::-webkit-scrollbar { display: none; }
+  .ar-subnav__item { flex: 0 0 auto; white-space: nowrap; }
+}
+
+/* iOS Safari auto-links emails/phones it detects inside the UA boxes (the
+   underlined searchbot@… on iPhone). A UA is text, and the box is click-to-copy
+   — neutralise the injected anchors so they read and behave as plain text. */
+.ar-act-feed__ua a,
+.ar-act-feed__ua a[x-apple-data-detectors] {
+  color: inherit !important;
+  text-decoration: none !important;
+  pointer-events: none;
 }
 
 /* ---- "More" nav menu -----------------------------------------------------

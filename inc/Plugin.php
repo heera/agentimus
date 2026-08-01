@@ -93,6 +93,7 @@ final class Plugin {
 		RouteProbe::watch(); // Async self-check of /llms.txt and the home <head>; re-queued when the plugin/theme mix changes.
 		McpToken::watch(); // Bearer connection-token auth, honored only on the MCP route.
 		Oauth\Server::watch(); // OAuth access-token auth — same route, next seat in the inspector line.
+		( new McpPublicSurface( $this->settings ) )->register(); // Anonymous MCP read-surface: initialize/ping/tools-list answer without auth (they publish nothing mcp.json doesn't); everything else keeps its 401.
 
 		( new Endpoints( $this->settings ) )->register();
 		( new Oauth\Consent( $this->settings ) )->register(); // The /agentimus/connect consent page.

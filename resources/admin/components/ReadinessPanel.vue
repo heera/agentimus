@@ -339,7 +339,17 @@ export default {
         <li v-for="c in g.items" :id="`ar-check-${c.id}`" :key="c.id" class="ar-check" :class="`is-${c.status}`">
           <span class="ar-check__rule" aria-hidden="true"></span>
           <div class="ar-check__text">
-            <strong>{{ c.label }}</strong>
+            <strong>
+              {{ c.label }}
+              <a
+                v-if="c.ar"
+                class="ar-check__arid"
+                href="https://agentready.org/"
+                target="_blank"
+                rel="noopener"
+                :aria-label="`AgentReady requirement ${c.ar}`"
+              >{{ c.ar }}</a>
+            </strong>
             <small>{{ c.detail }}</small>
           </div>
           <span class="ar-check__tag" :class="`is-${c.status}`">{{ tagLabel(c.status) }}</span>

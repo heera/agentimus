@@ -89,6 +89,16 @@ final class OauthServerTest extends TestCase {
 		$this->assertSame( array( 'S256' ), $as['code_challenge_methods_supported'] );
 		$this->assertSame( array( 'none' ), $as['token_endpoint_auth_methods_supported'] );
 		$this->assertSame( array( 'code' ), $as['response_types_supported'] );
+
+		// The auth.md agent_auth block: only what we truly run — anonymous RFC 7591
+		// registration credentialed by the authorization-code grant. No identity
+		// assertions are advertised, because none are accepted.
+		$agent = $as['agent_auth'];
+		$this->assertSame( $as['registration_endpoint'], $agent['register_uri'] );
+		$this->assertSame( array( 'anonymous' ), $agent['identity_types_supported'] );
+		$this->assertSame( array( 'authorization_code' ), $agent['anonymous']['credential_types_supported'] );
+		$this->assertStringContainsString( '/auth.md', $agent['skill'] );
+		$this->assertArrayNotHasKey( 'identity_assertion', $agent, 'unsupported identity types must not be advertised' );
 		$this->assertStringEndsWith( '/agentimus/mcp', $as['issuer'] ); // Path-based: collision-proof well-knowns.
 
 		$pr = Server::protected_resource_metadata();

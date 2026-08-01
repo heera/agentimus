@@ -44,6 +44,7 @@ final class ReadinessEntityTest extends TestCase {
 		$row = $this->check( 'check_entity_role' );
 		$this->assertSame( 'warn', $row['status'] );
 		$this->assertSame( 'ar-role', $row['action']['anchor'] );
+		$this->assertSame( 'AR-CONT-01', $row['ar'], 'Schema-feeding checks cite the JSON-LD requirement.' );
 	}
 
 	public function test_person_with_role_passes() {

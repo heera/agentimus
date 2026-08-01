@@ -101,6 +101,34 @@ final class Registrar {
 		// the request is authenticated, so the tool list can only be narrowed HERE,
 		// per request, once we know which key knocked.
 		add_filter( 'mcp_adapter_tools_list', array( $this, 'filter_tools_for_scope' ), 10, 1 );
+		// The adapter's initialize advertises resources + prompts capabilities
+		// unconditionally; this server registers neither. A capability advertised
+		// and then empty reads as broken to clients (and to scanners, which score
+		// "advertises resources but resources/list has none" as a failure while a
+		// tool-only server scores n/a) — so the handshake tells the truth.
+		add_filter( 'mcp_adapter_initialize_response', array( $this, 'trim_initialize_capabilities' ), 10, 2 );
+	}
+
+	/**
+	 * Drop the resources/prompts capabilities from OUR server's initialize answer —
+	 * it exposes tools only. Other servers on the same adapter are left alone.
+	 *
+	 * @param object $result The InitializeResult DTO.
+	 * @param object $server The MCP server answering.
+	 * @return object
+	 */
+	public function trim_initialize_capabilities( $result, $server ) {
+		if ( ! is_object( $server ) || ! method_exists( $server, 'get_server_id' ) || 'agentimus' !== (string) $server->get_server_id() ) {
+			return $result;
+		}
+		try {
+			$data = $result->toArray();
+			unset( $data['capabilities']['resources'], $data['capabilities']['prompts'] );
+			$class = get_class( $result );
+			return $class::fromArray( $data );
+		} catch ( \Throwable $e ) {
+			return $result; // Adapter DTO drift → the stock answer, never a broken handshake.
+		}
 	}
 
 	/**
@@ -120,23 +148,36 @@ final class Registrar {
 		if ( McpToken::request_allows_writes() && Oauth\Server::request_allows_writes() ) {
 			return $tools;
 		}
-		$write = array();
-		foreach ( self::WRITE_SLUGS as $slug ) {
-			// Tool names reach the wire with the category separator normalised.
-			$write[] = self::CATEGORY . '/' . $slug;
-			$write[] = self::CATEGORY . '-' . $slug;
-		}
 		return array_values(
 			array_filter(
 				(array) $tools,
-				static function ( $tool ) use ( $write ) {
+				static function ( $tool ) {
 					if ( ! is_object( $tool ) || ! method_exists( $tool, 'getName' ) ) {
 						return true; // Unknown shape — never drop it on a guess.
 					}
-					return ! in_array( $tool->getName(), $write, true );
+					return ! self::is_write_tool_name( $tool->getName() );
 				}
 			)
 		);
+	}
+
+	/**
+	 * Whether a wire-shape tool name is one of OUR write tools — the single
+	 * source of truth for every surface that narrows a list to the read tier
+	 * (the per-request scope filter above, the anonymous read-surface).
+	 *
+	 * @param string $name Tool name as it reaches the wire.
+	 * @return bool
+	 */
+	public static function is_write_tool_name( $name ) {
+		$name = (string) $name;
+		foreach ( self::WRITE_SLUGS as $slug ) {
+			// Tool names reach the wire with the category separator normalised.
+			if ( self::CATEGORY . '/' . $slug === $name || self::CATEGORY . '-' . $slug === $name ) {
+				return true;
+			}
+		}
+		return false;
 	}
 
 	/**
@@ -563,10 +604,11 @@ final class Registrar {
 		$this->add(
 			'check-page',
 			__( 'Check a page’s AI readability', 'agentimus' ),
-			'Grades ONE post/page for how easily an AI can read, section and cite it: word count, an opening '
-				. 'summary, concrete figures or cited sources, heading structure, quotable passage length, link '
-				. 'density, image alt text, and freshness. Returns a pass/warn/fail row per check plus a tally. '
-				. 'Use it to tell an author exactly what to improve on a specific page.',
+			'Checks ONE post/page’s readability for AI: grades how easily an AI can read, section and cite it — '
+				. 'word count, an opening summary, concrete figures or cited sources, heading structure, quotable '
+				. 'passage length, link density, image alt text, and freshness. Returns a pass/warn/fail row per '
+				. 'check plus a tally. Use it when asked to check a page’s readability, or to tell an author '
+				. 'exactly what to improve on a specific page.',
 			self::obj(
 				array(
 					'post_id' => self::i( 'The post/page ID to grade.' ),
@@ -1310,6 +1352,9 @@ final class Registrar {
 		if ( $with_fix ) {
 			$props['fix']    = self::s();
 			$props['action'] = array( 'type' => array( 'object', 'null' ), 'additionalProperties' => true );
+			// AgentReady stable requirement ID ('' when the check has none) —
+			// agents reading readiness can cite the spec the row evidences.
+			$props['ar'] = self::s();
 		}
 		return self::arr( $props );
 	}

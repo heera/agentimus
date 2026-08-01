@@ -61,11 +61,13 @@ final class WellKnownDocs {
 
 	/**
 	 * The RFC 9727 API catalog at /.well-known/api-catalog, as an RFC 9264 link set
-	 * (`application/linkset+json`). Points agents at this site's API descriptions:
-	 * the discovery document (service-desc), the WordPress REST root, and every API
-	 * base already derived for the discovery envelope. The document complement to
-	 * the `rel="api-catalog"` Link header — same information, fetchable at the
-	 * standard well-known path some scanners check directly.
+	 * (`application/linkset+json`). Shaped exactly as RFC 9727 Appendix A.2: the
+	 * first linkset entry is anchored at the catalog's own well-known URI and lists
+	 * every API as an `item` bookmark; each API then gets its own entry carrying its
+	 * `service-desc` (the OpenAPI document for the REST root, provider schemas for
+	 * the rest). The document complement to the `rel="api-catalog"` Link header —
+	 * same information, fetchable at the standard well-known path some scanners
+	 * check directly.
 	 *
 	 * @return string
 	 */
@@ -73,55 +75,90 @@ final class WellKnownDocs {
 		$built = $this->envelope->build();
 		$rest  = esc_url_raw( rest_url() );
 
-		$service_desc = array(
-			array( 'href' => home_url( '/.well-known/discovery.json' ), 'type' => 'application/json', 'title' => 'WP Discovery document' ),
-		);
-		$service = array(
+		$item = array(
 			array( 'href' => $rest, 'type' => 'application/json', 'title' => 'WordPress REST API' ),
 		);
-
-		$seen = array( $rest => true );
-		foreach ( $built['apis'] as $api ) {
-			if ( '' !== $api['base'] && empty( $seen[ $api['base'] ] ) ) {
-				$service[]            = array( 'href' => $api['base'], 'type' => 'application/json', 'title' => $api['id'] );
-				$seen[ $api['base'] ] = true;
-			}
-			if ( ! empty( $api['schema'] ) ) {
-				$service_desc[] = array( 'href' => $api['schema'], 'type' => 'application/json' );
-			}
-		}
-
-		$doc = array(
-			'linkset' => array(
-				array(
-					'anchor'       => $built['site']['url'],
-					'service-desc' => $service_desc,
-					'service'      => $service,
+		// Per-API linkset entries: each anchored at its own base with its description
+		// document, per RFC 9727 §4 — a client follows an item, then reads its entry.
+		$per_api = array(
+			array(
+				'anchor'       => $rest,
+				'service-desc' => array(
+					array( 'href' => home_url( '/.well-known/openapi.json' ), 'type' => 'application/json', 'title' => 'OpenAPI 3.1' ),
 				),
 			),
 		);
 
-		$json = wp_json_encode( $doc, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE );
+		$seen = array( $rest => true );
+		foreach ( $built['apis'] as $api ) {
+			if ( '' === $api['base'] || ! empty( $seen[ $api['base'] ] ) ) {
+				continue;
+			}
+			$seen[ $api['base'] ] = true;
+			$item[]               = array( 'href' => $api['base'], 'type' => 'application/json', 'title' => $api['id'] );
+			if ( ! empty( $api['schema'] ) ) {
+				$per_api[] = array(
+					'anchor'       => $api['base'],
+					'service-desc' => array( array( 'href' => $api['schema'], 'type' => 'application/json' ) ),
+				);
+			}
+		}
+
+		$linkset = array_merge(
+			array(
+				array(
+					'anchor' => home_url( '/.well-known/api-catalog' ),
+					'item'   => $item,
+				),
+			),
+			$per_api,
+			array(
+				// The site-level entry earlier versions served first: the discovery
+				// document as the site's own service description. Kept (last) so a
+				// consumer that learned the old shape still finds it.
+				array(
+					'anchor'       => $built['site']['url'],
+					'service-desc' => array(
+						array( 'href' => home_url( '/.well-known/discovery.json' ), 'type' => 'application/json', 'title' => 'WP Discovery document' ),
+					),
+				),
+			)
+		);
+
+		$json = wp_json_encode( array( 'linkset' => $linkset ), JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE );
 		return is_string( $json ) ? $json : '{}';
 	}
 
 	/**
-	 * RFC 9728 OAuth Protected Resource Metadata — served only when the owner has
-	 * declared an authorization server (settings → oauth_auth_server). For a site
-	 * with no authenticated API this is '' → a clean 404. We never fabricate an
-	 * RFC 8414 authorization-server document (WordPress is not one).
+	 * RFC 9728 OAuth Protected Resource Metadata at the FLAT well-known path.
+	 * The owner's declared EXTERNAL authorization server wins (their explicit
+	 * statement about the whole site); otherwise, while the built-in OAuth server
+	 * is live, the flat path serves the SAME metadata as the MCP endpoint's
+	 * path-suffixed forms — because scanners and older clients probe only the
+	 * flat form, and a 404 there reads as "no OAuth on this domain" while a
+	 * working authorization server sits one path segment away. With neither,
+	 * '' → a clean 404. We never fabricate a flat RFC 8414 authorization-server
+	 * document — its issuer-match rule (§3.3) would make ours a lie there.
 	 *
-	 * @return string JSON, or '' when no auth server is configured.
+	 * @return string JSON, or '' when no auth server exists in any form.
 	 */
 	public function oauth_protected_resource_json() {
 		$auth = trim( (string) $this->settings->get( 'oauth_auth_server', '' ) );
-		if ( '' === $auth ) {
+		if ( '' !== $auth ) {
+			$doc = array(
+				'resource'              => home_url( '/' ),
+				'authorization_servers' => array( $auth ),
+			);
+		} elseif ( isset( $this->registry->well_known()['oauth-protected-resource'] ) ) {
+			// A provider registered the flat document — theirs serves (the router
+			// falls through to it on our ''). Only the owner's explicit external
+			// declaration above outranks a provider; the built-in server must not.
+			return '';
+		} elseif ( $this->settings->enabled( 'enable_mcp_server' ) ) {
+			$doc = \Agentimus\Oauth\Server::protected_resource_metadata();
+		} else {
 			return '';
 		}
-		$doc  = array(
-			'resource'              => home_url( '/' ),
-			'authorization_servers' => array( $auth ),
-		);
 		$json = wp_json_encode( $doc, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES );
 		return is_string( $json ) ? $json : '';
 	}

@@ -116,6 +116,13 @@ final class Endpoints {
 			$this->send( $this->llms->llms_full_txt(), 'text/plain', 'llms-full.txt' );
 		}
 
+		// /auth.md — how agents authenticate here, generated from the live OAuth/MCP
+		// config. Always served (public reading has an auth story too: "none needed"),
+		// but a real file on disk wins, same as robots.txt.
+		if ( '/auth.md' === $path && ! $this->yields( 'auth_md' ) && ! file_exists( Paths::site_root() . 'auth.md' ) ) {
+			$this->send( ( new AuthMd( $this->settings ) )->markdown(), 'text/markdown', 'auth.md' );
+		}
+
 		// The change feed: recently added/updated content as JSON, with a `?since=`
 		// delta filter. Freshness is the point, so it gets a short edge max-age.
 		if ( '/agentimus-changes.json' === $path && $this->settings->enabled( 'enable_changes' ) && ! $this->yields( 'changes' ) ) {
@@ -167,6 +174,13 @@ final class Endpoints {
 		}
 		$accept = isset( $_SERVER['HTTP_ACCEPT'] ) ? sanitize_text_field( wp_unslash( $_SERVER['HTTP_ACCEPT'] ) ) : '';
 		if ( ! self::prefers_markdown( $accept ) ) {
+			// The HTML variant of a negotiable URL must declare that it varies by
+			// Accept — send() already does for the markdown variant — or a shared
+			// cache that stored the HTML hands it to an agent asking for markdown
+			// (and the markdown to humans, whichever landed in cache first).
+			if ( ! headers_sent() ) {
+				header( 'Vary: Accept', false );
+			}
 			return;
 		}
 		if ( is_singular() ) {
