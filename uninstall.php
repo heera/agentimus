@@ -29,12 +29,20 @@ function agentimus_uninstall_site() {
 	delete_option( 'agentimus_robots_watch' );
 	delete_option( 'agentimus_mcp_token' );
 	delete_option( 'agentimus_oauth' );
+	delete_option( 'agentimus_seo_mode' );      // SeoContext verdict cache — survived a real uninstall, caught 2026-08-01.
+	delete_option( 'agentimus_next_steps' );    // The post-setup "Worth a look next" card state.
+	delete_option( 'agentimus_digest_last' );   // Weekly digest snapshot + unsubscribe key.
+	delete_option( 'agentimus_digest_stop_key' );
 	delete_transient( 'agentimus_ranges_pending' );
 	delete_transient( 'agentimus_llms_txt' );
 	delete_transient( 'agentimus_llms_full' );
 	delete_transient( 'agentimus_changes' );
 	delete_transient( 'agentimus' );
 	delete_transient( 'agentimus_activation_redirect' );
+	delete_transient( 'agentimus_topic_suggest' );
+	delete_transient( 'agentimus_review_count' );
+	delete_transient( 'agentimus_selfcheck' );
+	delete_transient( 'agentimus_selfcheck_probe' );
 
 	// Markdown body cache: the settings epoch + the filesystem cache directory.
 	delete_option( 'agentimus_md_cache_epoch' );
@@ -66,6 +74,9 @@ function agentimus_uninstall_site() {
 	delete_option( 'agentimus_client_decisions' );
 	wp_clear_scheduled_hook( 'agentimus_prune_activity' );
 	wp_clear_scheduled_hook( 'agentimus_warm_llms_full' );
+	wp_clear_scheduled_hook( 'agentimus_weekly_digest' );
+	wp_clear_scheduled_hook( 'agentimus_refresh_bot_ranges' );
+	wp_clear_scheduled_hook( 'agentimus_route_probe_refresh' );
 
 	// Agent Access: the credential/ability event log, its schema flag and the proven
 	// execute-hook verdict.
