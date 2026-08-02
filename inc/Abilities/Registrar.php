@@ -582,6 +582,8 @@ final class Registrar {
 			'canonicalDiffers' => self::b( 'Google treats a different URL as this page\'s real address.' ),
 			'googleCanonical'  => self::s( 'The canonical Google chose; empty when unknown.' ),
 			'inSitemap'        => self::b( 'Whether a sitemap Google knows lists this URL — false on an unindexed page means nobody told Google it exists.' ),
+			'referrers'        => self::i( 'Pages Google knows link to this URL (at least — Google caps what it reports); 0 on an unindexed page names the other discovery gap: nothing points here.' ),
+			'stateKey'         => self::s( 'The problem bucket this row counts under: error | canonical | unknown | discovered | crawled | blocked | other; groups and site.problemStates share these keys.' ),
 			'richIssues'       => self::i( 'Rich-result issues Google reports on this page; 0 = none.' ),
 			'richTypes'        => self::s( 'Rich-result types Google detected, comma-separated; empty = none.' ),
 			'gscLink'          => self::s( 'Deep link to this URL\'s inspection in Search Console — where "Request indexing" lives (that button has no API).' ),
@@ -637,6 +639,34 @@ final class Registrar {
 							'notOnGoogle' => self::i( 'Of those, how many are not (or failed their check).' ),
 							'cycleDays'   => self::i( 'How many days one full pass over the site takes at the daily rotation size — 1 = every page is checked every day.' ),
 							'problems'    => self::arr( $index_row ),
+							'problemsTotal' => self::i( 'Problem pages found across the site in total — `problems` is capped at 50 rows, this count is not.' ),
+							'problemStates' => self::obj(
+								array(
+									'error'      => self::i( 'Checks that failed.' ),
+									'canonical'  => self::i( 'Google chose a different address.' ),
+									'unknown'    => self::i( 'Never seen by Google.' ),
+									'discovered' => self::i( 'Discovered, not yet crawled.' ),
+									'crawled'    => self::i( 'Crawled, but not indexed.' ),
+									'blocked'    => self::i( 'Blocked by robots.txt or noindex.' ),
+									'other'      => self::i( 'Anything else not on Google.' ),
+								)
+							),
+						)
+					),
+					'sitemaps'  => self::obj(
+						array(
+							'checkedAt'  => self::i( 'Unix time the registered-sitemaps list was last read from Search Console; 0 = never looked yet (says nothing about the site).' ),
+							'liveUrl'    => self::s( 'The sitemap URL this site actually serves today — the address worth registering.' ),
+							'registered' => self::arr(
+								array(
+									'path'      => self::s( 'The sitemap URL as registered in Search Console — possibly years ago, possibly an address nothing serves anymore.' ),
+									'pending'   => self::b( 'Submitted but not yet processed by Google.' ),
+									'lastRead'  => self::i( 'Unix time Google last downloaded it; 0 = never. A registration whose live file moved keeps its old date forever — the silent way sitemaps die.' ),
+									'errors'    => self::i( 'Errors Google reports for this sitemap\'s contents.' ),
+									'warnings'  => self::i( 'Warnings Google reports for this sitemap\'s contents.' ),
+									'submitted' => self::i( 'URLs the sitemap declared at Google\'s last read.' ),
+								)
+							),
 						)
 					),
 					'rows'      => self::arr( $index_row ),
@@ -732,6 +762,27 @@ final class Registrar {
 							'clicks'      => self::i(),
 							'ctr'         => array( 'type' => 'number' ),
 							'position'    => array( 'type' => 'number' ),
+						)
+					),
+					'daily'      => self::arr(
+						array(
+							'date'        => self::s( 'Y-m-d.' ),
+							'impressions' => self::i(),
+							'clicks'      => self::i(),
+						),
+						'Clicks and impressions per day, oldest first — Google only (Bing\'s API has no daily split; empty there). History accumulates locally beyond Google\'s own window; the payload ships the most recent 112 days.'
+					),
+					'weekly'     => self::obj(
+						array(
+							'ready'    => self::b( 'True only when 14 days of history exist — before that a week-on-week claim would be a guess, so the numbers below stay zero and mean NOTHING.' ),
+							'thisWeek' => self::obj( array( 'impressions' => self::i(), 'clicks' => self::i() ) ),
+							'lastWeek' => self::obj( array( 'impressions' => self::i(), 'clicks' => self::i() ) ),
+						)
+					),
+					'discover'   => self::obj(
+						array(
+							'impressions' => self::i( 'Times shown in Google Discover this window — a feed, not a search; most sites honestly sit at 0.' ),
+							'clicks'      => self::i(),
 						)
 					),
 				)
@@ -1593,11 +1644,15 @@ final class Registrar {
 	 *
 	 * @param array|null $item_props Property map for each item, or null for a loose object.
 	 */
-	private static function arr( $item_props ) {
-		$items = null === $item_props
+	private static function arr( $item_props, $description = '' ) {
+		$items  = null === $item_props
 			? array( 'type' => 'object', 'additionalProperties' => true )
 			: self::obj( $item_props, array(), true );
-		return array( 'type' => 'array', 'items' => $items );
+		$schema = array( 'type' => 'array', 'items' => $items );
+		if ( '' !== $description ) {
+			$schema['description'] = $description;
+		}
+		return $schema;
 	}
 
 	/** The empty-input schema for a no-argument ability. */

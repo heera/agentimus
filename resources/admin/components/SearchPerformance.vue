@@ -80,6 +80,21 @@ export default {
       const d = (s) => formatDate(new Date(`${s}T00:00:00`));
       return `${d(r.start)} – ${d(r.end)}`;
     },
+    trend() {
+      return (this.data && this.data.trend) || null;
+    },
+    // "Reported days", not "days": the window ends where Search Console's
+    // numbers are final, two days back — the provenance line names the dates.
+    weeklyLine() {
+      const w = this.trend && this.trend.weekly;
+      if (!w || !w.ready) return '';
+      return `The last 7 reported days: shown ${this.num(w.thisWeek.impressions)} times, ${this.num(w.thisWeek.clicks)} visits — the 7 days before: ${this.num(w.lastWeek.impressions)} and ${this.num(w.lastWeek.clicks)}.`;
+    },
+    discoverLine() {
+      const d = this.trend && this.trend.discover;
+      if (!d || !d.impressions) return '';
+      return `Google Discover also showed your pages ${this.num(d.impressions)} times this window${d.clicks ? ` (${this.num(d.clicks)} visits)` : ''} — that’s Google’s feed, separate from search.`;
+    },
   },
   watch: {
     // Fetch on every reveal: a connect or an overnight poll must show without
@@ -119,7 +134,9 @@ export default {
 
 <template>
   <section class="ar-card ar-perf">
-    <div class="ar-perf__head">
+    <!-- head--ruled: the masthead rule spans the CARD, not the lead's text
+         column — a rule that stops mid-card reads as broken, not typographic. -->
+    <div class="ar-perf__head ar-card__head--ruled">
       <div>
         <h2 class="ar-card__title">Search Performance</h2>
         <p class="ar-card__lead">
@@ -128,13 +145,21 @@ export default {
           search engine itself — nothing is estimated.
         </p>
       </div>
-      <!-- The source switch appears only when there is a real choice to make. -->
+      <!-- The source switch appears only when there is a real choice to make;
+           with ONE source the same seat holds a static label — the engine
+           must be named where the eye looks for it, not only in the
+           provenance line at the bottom. A label is not a button: no hover,
+           no affordance, nothing pretending to be pressable. -->
       <div v-if="bothConnected" class="ar-srcpick" role="group" aria-label="Show numbers from">
         <span class="ar-srcpick__label">Show numbers from</span>
         <span class="ar-srcpick__set">
           <button type="button" class="ar-srcpick__btn" :class="{ 'is-on': active_source === 'google' }" @click="pick('google')">Google</button>
           <button type="button" class="ar-srcpick__btn" :class="{ 'is-on': active_source === 'bing' }" @click="pick('bing')">Bing</button>
         </span>
+      </div>
+      <div v-else-if="active_source" class="ar-srcpick">
+        <span class="ar-srcpick__label">Numbers from</span>
+        <span class="ar-srcpick__solo">{{ active_source === 'google' ? 'Google' : 'Bing' }}</span>
       </div>
     </div>
 
@@ -185,8 +210,17 @@ export default {
         Nothing has been removed here; this screen is the engine’s raw record. The
         <em>Search Opportunities</em> worklist judges people-only traffic.
       </p>
+      <!-- Google-only: the week-on-week line renders ONLY once 14 days of
+           history exist (weekly.ready) — zeros that mean "unknown" must never
+           print as "nothing happened". Discover renders only when nonzero:
+           most sites honestly sit at 0 and silence beats a zero tile. -->
+      <p v-if="weeklyLine" class="ar-srcline ar-perf__trend">{{ weeklyLine }}</p>
+      <p v-if="discoverLine" class="ar-srcline ar-perf__trend">{{ discoverLine }}</p>
       <p class="ar-srcline">
         These numbers come from <strong>{{ sourceLabel }}</strong><template v-if="rangeText">, covering {{ rangeText }}</template>.
+        This screen counts <strong>people</strong> using classic search — machines reading your
+        site live on the AI Traffic and Request Log screens<template v-if="probeShare > 0"> (and when automated probes
+        sneak into {{ sourceLabel }}'s own numbers, this screen says so right beside them)</template>.
         <template v-if="bothConnected">Switch above to see what {{ active_source === 'google' ? 'Bing' : 'Google' }} reported instead — the two count different searchers, so they never match exactly.</template>
       </p>
 

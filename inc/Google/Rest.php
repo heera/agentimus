@@ -62,6 +62,16 @@ final class Rest {
 				'permission_callback' => array( $this, 'can_manage' ),
 			),
 		) );
+		register_rest_route( self::NS, '/google/index/lookup', array(
+			array(
+				'methods'             => \WP_REST_Server::READABLE,
+				'callback'            => array( $this, 'index_lookup' ),
+				'permission_callback' => array( $this, 'can_manage' ),
+				'args'                => array(
+					'url' => array( 'type' => 'string', 'required' => true ),
+				),
+			),
+		) );
 		register_rest_route( self::NS, '/google', array(
 			array(
 				'methods'             => \WP_REST_Server::READABLE,
@@ -183,6 +193,23 @@ final class Rest {
 		}
 		( new Module( $this->google, $this->client ) )->run_index_sweep();
 		return rest_ensure_response( Index::view( $this->google ) );
+	}
+
+	/**
+	 * GET /google/index/lookup?url= — one page's STORED answer, from the rows
+	 * and the rotation's coverage map. No live call, no quota: the honest
+	 * answer for "is this specific page in?" including the healthy pages that
+	 * never render as rows. `cycleDays` rides along so "not checked yet" can
+	 * name when the rotation reaches it.
+	 *
+	 * @param \WP_REST_Request $request The request.
+	 * @return \WP_REST_Response
+	 */
+	public function index_lookup( \WP_REST_Request $request ) {
+		$out              = Index::lookup( (string) $request->get_param( 'url' ) );
+		$view             = Index::view( $this->google );
+		$out['cycleDays'] = (int) $view['site']['cycleDays'];
+		return rest_ensure_response( $out );
 	}
 
 	/**

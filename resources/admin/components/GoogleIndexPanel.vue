@@ -16,6 +16,20 @@
  */
 import { formatDate } from '../wpDate.js';
 
+// The problem buckets, in reading order (most-lost first) — keyed by the
+// SERVER's stateKey, whose per-state totals are counted before the row cap,
+// so a group's count pill tells the truth even when its rows are a slice.
+// Each group quotes Google's own wording once: the footnote promises it.
+const GROUP_META = [
+  { key: 'unknown', label: 'Never seen by Google', sub: 'Google’s own wording: “URL is unknown to Google” — it hasn’t discovered these pages at all.' },
+  { key: 'discovered', label: 'Discovered, not yet crawled', sub: 'Google’s own wording: “Discovered – currently not indexed” — known, still waiting for a first visit.' },
+  { key: 'crawled', label: 'Crawled, but left out', sub: 'Google’s own wording: “Crawled – currently not indexed” — visited, then not added to the index.' },
+  { key: 'canonical', label: 'Google chose a different address', sub: 'These pages are known — Google just files them under another URL; each row names which.' },
+  { key: 'blocked', label: 'Blocked by this site', sub: 'robots.txt or a noindex tag asks Google to stay out — each row names which.' },
+  { key: 'error', label: 'Check failed', sub: 'These checks did not get an answer from Google — each row carries its own error.' },
+  { key: 'other', label: 'Not in the index', sub: '' },
+];
+
 export default {
   name: 'GoogleIndexPanel',
   props: {
@@ -31,6 +45,11 @@ export default {
       loaded: false,
       checking: false,
       error: '',
+      watchOpen: false,
+      openGroups: {},
+      lookupQuery: '',
+      lookupOut: null,
+      lookupBusy: false,
     };
   },
   computed: {
@@ -50,7 +69,7 @@ export default {
       return this.rows.length > 0;
     },
     site() {
-      return (this.view && this.view.site) || { totalUrls: 0, checked: 0, onGoogle: 0, notOnGoogle: 0, cycleDays: 0, problems: [] };
+      return (this.view && this.view.site) || { totalUrls: 0, checked: 0, onGoogle: 0, notOnGoogle: 0, cycleDays: 0, problems: [], problemsTotal: 0 };
     },
     // The whole-site summary in one sentence, honest about partial passes.
     siteLine() {
@@ -64,6 +83,101 @@ export default {
         ? 'Every page is re-checked daily.'
         : `Every page gets re-checked about every ${s.cycleDays} days.`;
       return `${head} ${cadence}`;
+    },
+    sitemaps() {
+      return (this.view && this.view.sitemaps) || { checkedAt: 0, liveUrl: '', registered: [] };
+    },
+    // The registration that matches what the site serves TODAY (slash-blind).
+    liveRegistration() {
+      const norm = (u) => String(u || '').replace(/\/+$/, '');
+      const live = norm(this.sitemaps.liveUrl);
+      if (!live) return null;
+      return this.sitemaps.registered.find((r) => norm(r.path) === live) || null;
+    },
+    gscSitemapsLink() {
+      return this.view && this.view.property
+        ? `https://search.google.com/search-console/sitemaps?resource_id=${encodeURIComponent(this.view.property)}`
+        : '';
+    },
+    // Registration health in one sentence — the failure only Google's own
+    // bookkeeping can see: a perfect on-site file whose REGISTRATION points
+    // at an address that moved. null = never looked (silence, not a verdict).
+    sitemapNote() {
+      const s = this.sitemaps;
+      if (!s.checkedAt || !s.liveUrl) return null;
+      if (!s.registered.length) {
+        return { warn: true, text: `No sitemap is registered in Search Console — submit ${s.liveUrl} once, and Google finds new posts on its own.` };
+      }
+      const live = this.liveRegistration;
+      if (!live) {
+        return { warn: true, text: `The sitemap${s.registered.length > 1 ? 's' : ''} registered in Search Console point${s.registered.length > 1 ? '' : 's'} at ${s.registered.length > 1 ? 'addresses' : 'an address'} this site no longer serves — submit ${s.liveUrl} once.` };
+      }
+      if (!live.lastRead) {
+        return { warn: false, text: 'Sitemap submitted — Google hasn\'t read it yet. The first read usually lands within a day.' };
+      }
+      if (live.errors > 0) {
+        return { warn: true, text: `Google reads your sitemap but reports ${live.errors} error${live.errors > 1 ? 's' : ''} in it.` };
+      }
+      return { warn: false, text: `Google's registered sitemap is the one this site serves — last read ${this.day(live.lastRead)}${live.submitted ? `, ${live.submitted} URLs` : ''}.` };
+    },
+    // Problems grouped by the SERVER's stateKey, so the state is said ONCE
+    // per group instead of on every row — and the count pill reads from
+    // site.problemStates, the pre-cap totals: counts are always the whole
+    // truth, rows are the bounded slice.
+    problemGroups() {
+      const cap = 8;
+      const byKey = new Map();
+      for (const r of this.site.problems) {
+        const key = r.stateKey || 'other';
+        if (!byKey.has(key)) byKey.set(key, []);
+        byKey.get(key).push(r);
+      }
+      const totals = this.site.problemStates || {};
+      return GROUP_META.filter((g) => byKey.has(g.key)).map((g) => {
+        const all = byKey.get(g.key);
+        const open = !!this.openGroups[g.key];
+        return {
+          key: g.key,
+          label: g.label,
+          sub: g.sub,
+          count: Number(totals[g.key]) || all.length,
+          rows: open ? all : all.slice(0, cap),
+          more: open ? 0 : Math.max(0, all.length - cap),
+          open,
+        };
+      });
+    },
+    // When the 50-row cap binds, the full list lives in Search Console's own
+    // Pages report — the archive to our lens.
+    gscPagesLink() {
+      return this.view && this.view.property
+        ? `https://search.google.com/search-console/index?resource_id=${encodeURIComponent(this.view.property)}`
+        : '';
+    },
+    // A clause true of EVERY problem row is a site fact, not a row fact —
+    // said once above the groups, dropped from each row below.
+    hoistedClauses() {
+      const rows = this.site.problems;
+      if (rows.length < 2) return [];
+      const out = [];
+      if (rows.every((r) => r.verdict && r.verdict !== 'pass' && !r.inSitemap)) out.push('no sitemap Google knows lists any of them');
+      if (rows.every((r) => r.verdict && r.verdict !== 'pass' && !r.referrers)) out.push('no page Google knows links to any of them');
+      return out;
+    },
+    // The hoisted sentence, lag named: right after a sitemap submission the
+    // healthy registration line below and a "no sitemap" clause here are BOTH
+    // true — without naming the lag, that reads as broken data.
+    hoistLine() {
+      const c = this.hoistedClauses;
+      if (!c.length) return '';
+      const parts = [];
+      if (c.some((x) => x.includes('sitemap'))) {
+        parts.push('Google’s page-by-page records don’t yet connect them to a sitemap — those records lag, and update as each page is re-checked');
+      }
+      if (c.some((x) => x.includes('links'))) {
+        parts.push('no page Google knows links to any of them');
+      }
+      return `All of the pages below share this: ${parts.join('; and ')}.`;
     },
   },
   watch: {
@@ -82,6 +196,11 @@ export default {
       try {
         this.view = await this.api.getGoogleIndex();
         this.loaded = true;
+        // A run left mid-flight (a refresh killed the loop, a guard ran out)
+        // resumes by itself: this is the owner's own browser — the same
+        // hands that pressed Check now — and wp-cron on a cached site can
+        // take hours over what this loop finishes in a minute.
+        if (this.view && this.view.pending > 0 && !this.checking) this.checkNow();
       } catch (e) {
         this.error = e && e.message ? e.message : 'Could not load the Google index status.';
       } finally {
@@ -98,11 +217,16 @@ export default {
       this.checking = true;
       this.error = '';
       try {
-        let guard = 30;
+        // 120 ≥ one full run (watchlist + the whole daily rotation) even at
+        // the slow-origin worst case of one inspection per chunk — the cap
+        // exists for runaways, not as a working limit that strands a queue.
+        let guard = 120;
         do {
           this.view = await this.api.refreshGoogleIndex();
         } while (this.view && this.view.pending > 0 && !this.view.lastError && !this.view.quotaHit && --guard > 0);
       } catch (e) {
+        // Surfaced inside the card ({{ error }} under the rail) — a loop
+        // that dies must say so where the owner is looking.
         this.error = e && e.message ? e.message : 'Could not reach Google.';
       } finally {
         this.checking = false;
@@ -124,8 +248,9 @@ export default {
       return 'is-warn';
     },
     reasonLabel(reason) {
-      // Site-rotation rows sit under their own heading — a tag would repeat it.
-      return { home: 'homepage', new: 'new post', busy: 'busiest' }[reason] || '';
+      // One word each, naming why the row is WATCHED — "new post" claimed the
+      // post was new; "newest" claims only its place on the list.
+      return { home: 'home', new: 'newest', busy: 'busiest' }[reason] || '';
     },
     // Ratio-bar segment width, of the pages actually checked.
     pct(n) {
@@ -135,10 +260,12 @@ export default {
     // own coverage sentence carries the "why not"; our clauses name the silent
     // killers — canonical swaps, robots/noindex blocks, fetch failures, a page
     // no sitemap ever mentioned, rich-result issues.
-    rowNote(r) {
+    rowNote(r, grouped = false) {
       if (r.error) return r.error;
       const bits = [];
-      if (r.verdict && r.verdict !== 'pass' && r.state) bits.push(r.state);
+      // Inside a problem GROUP the state is the heading — repeating it on
+      // every row is what made the flat list read as noise.
+      if (!grouped && r.verdict && r.verdict !== 'pass' && r.state) bits.push(r.state);
       if (r.canonicalDiffers) bits.push(`Google treats ${r.googleCanonical} as the real address of this page`);
       if (r.robotsBlocked) bits.push('robots.txt blocks Google here');
       if (r.noindex) bits.push('a noindex tag or header asks Google to skip this page');
@@ -149,9 +276,31 @@ export default {
         ACCESS_DENIED: 'the page refused Google’s fetch',
       }[r.fetchState];
       if (fetch) bits.push(fetch);
-      if (r.verdict && r.verdict !== 'pass' && !r.inSitemap) bits.push('no sitemap Google knows lists this address');
+      // Clauses hoisted to the one site-level line stay off grouped rows.
+      const hoistSitemap = grouped && this.hoistedClauses.some((c) => c.includes('sitemap'));
+      const hoistLinks = grouped && this.hoistedClauses.some((c) => c.includes('links'));
+      if (!hoistSitemap && r.verdict && r.verdict !== 'pass' && !r.inSitemap) bits.push('no sitemap Google knows lists this address');
+      if (!hoistLinks && r.verdict && r.verdict !== 'pass' && !r.referrers) bits.push('no page Google knows links to this one');
       if (r.richIssues > 0) bits.push(`${r.richIssues} rich-result issue${r.richIssues > 1 ? 's' : ''}${r.richTypes ? ` (${r.richTypes})` : ''}`);
       return bits.join(' · ');
+    },
+    toggleGroup(key) {
+      this.openGroups = { ...this.openGroups, [key]: !this.openGroups[key] };
+    },
+    // One page's STORED answer — the coverage map remembers every checked
+    // page, so this needs no live call and spends no quota.
+    async runLookup() {
+      const q = this.lookupQuery.trim();
+      if (!this.api || !q || this.lookupBusy) return;
+      this.lookupBusy = true;
+      this.lookupOut = null;
+      try {
+        this.lookupOut = await this.api.lookupGoogleIndex(q);
+      } catch (e) {
+        this.lookupOut = { status: 'error', row: null, message: e && e.message ? e.message : 'Lookup failed.' };
+      } finally {
+        this.lookupBusy = false;
+      }
     },
     day(ts) {
       const t = Number(ts || 0) * 1000;
@@ -193,8 +342,10 @@ export default {
       <h2 class="ar-card__title">In Google's Index <span class="ar-card__tag">Google · checked daily</span></h2>
       <p class="ar-card__lead">
         Whether Google's index holds the pages that matter — not how they rank or earn
-        (that's Search Performance below), just whether they're in. AI Overviews,
-        AI Mode and Gemini find pages through this index.
+        (that's Search Performance below), just whether they're in. Everything finds
+        pages through this one index: classic Google Search that people use, and the
+        AI surfaces (AI Overviews, AI Mode, Gemini) alike — fixing a page here helps
+        both audiences at once.
       </p>
 
       <div class="ar-mcp-rail" data-state="running">
@@ -210,13 +361,21 @@ export default {
         </button>
         <template v-if="!checking && view.pending > 0">
           <span class="ar-mcp-rail__sep" aria-hidden="true">·</span>
-          <span>{{ view.pending }} pages still being checked in the background — answers fill in as they arrive</span>
+          <!-- Honest about the machinery: the daily check WILL finish these,
+               but on a heavily cached site wp-cron can take hours over what
+               Check now does in a minute — never promise "fills in as it
+               arrives" for a trickle. -->
+          <span>{{ view.pending }} pages still to check — press Check now to finish, or the daily check picks them up</span>
         </template>
         <template v-if="view.lastError">
           <span class="ar-mcp-rail__sep ar-gidx__sep-warn" aria-hidden="true">·</span>
           <span class="ar-warn">Last check failed: {{ view.lastError }} — showing the last good answers.</span>
         </template>
       </div>
+
+      <!-- A checkNow loop that dies must say so HERE, where the owner is
+           looking — the closing error slot below only renders disconnected. -->
+      <p v-if="error" class="ar-log__error" role="alert">{{ error }}</p>
 
       <!-- Quota is a state, not a fault — named in its own words so a partial
            list never reads as a partial site. -->
@@ -249,65 +408,136 @@ export default {
           <span class="ar-gidx__ratio-seg is-warn" :style="{ width: pct(counts.notOnGoogle) }"></span>
           <span class="ar-gidx__ratio-seg is-err" :style="{ width: pct(counts.errors) }"></span>
         </div>
-        <!-- The scope lives NEXT TO the numbers it scopes — at the bottom it
-             went unread and "why only 21?" was the first question asked. -->
+        <!-- THE ROW GRAMMAR, card-wide: one line, four fixed lanes —
+             title | date | console door | chip. Empty lanes still render, so
+             all four columns run straight from the first watchlist row to the
+             last problem row; the clause line sits under the title, capped to
+             the title lane. The door is on EVERY checked row (the deep link
+             is the honest "Request indexing" — that button has no API). -->
+        <div class="ar-gidx__sec">
+          <span class="ar-perf__eyebrow ar-gidx__secname">Watchlist</span>
+          <span class="ar-gidx__seccount">{{ rows.length }}</span>
+        </div>
         <p class="ar-gidx__scope">
-          These tiles are the daily watchlist: your homepage, up to {{ watched.busiest }} busiest
-          pages, and your {{ watched.newest }} newest posts. The rest of the site is covered
-          below, in rotation.
+          Checked every day: your homepage, up to {{ watched.busiest }} busiest
+          pages, and up to {{ watched.newest }} newest posts. The rest of the site
+          is covered below, in rotation.
         </p>
 
         <ul class="ar-gidx__list">
-          <li v-for="r in rows" :key="r.url" class="ar-gidx__row">
+          <li v-for="r in (watchOpen ? rows : rows.slice(0, 8))" :key="r.url" class="ar-gidx__row">
             <div class="ar-gidx__main">
               <span class="ar-gidx__page">
                 <a :href="r.url" target="_blank" rel="noopener" class="ar-gidx__title">{{ r.title }}</a>
                 <span v-if="reasonLabel(r.reason)" class="ar-gidx__why">{{ reasonLabel(r.reason) }}</span>
               </span>
-              <span class="ar-gidx__meta">
-                <!-- "visited", not "Google last visited": the card head already
-                     says Google, and repeated 21 times the long phrase made the
-                     date outweigh the verdict. Always rendered, even empty —
-                     it is a grid cell, and a missing cell would slide the chip
-                     into the date column. -->
-                <span class="ar-gidx__crawl">{{ r.lastCrawl ? `visited ${day(r.lastCrawl)}` : (r.error ? '' : 'never visited') }}</span>
-                <span class="ar-gidx__chip" :class="verdictClass(r)">{{ verdictLabel(r) }}</span>
-              </span>
+              <span class="ar-gidx__crawl">{{ r.lastCrawl ? `visited ${day(r.lastCrawl)}` : (r.error ? '' : 'never visited') }}</span>
+              <span class="ar-gidx__door"><a v-if="r.gscLink" class="ar-gidx__gsc" :href="r.gscLink" target="_blank" rel="noopener">Open in Search Console ↗</a></span>
+              <span class="ar-gidx__chip" :class="verdictClass(r)">{{ verdictLabel(r) }}</span>
+              <p v-if="rowNote(r)" class="ar-gidx__note" :class="r.error ? 'is-err' : 'is-warn'">{{ rowNote(r) }}</p>
             </div>
-            <!-- A note only exists when something needs attention, so any
-                 non-error note wears the warn color — a canonical swap on an
-                 indexed page is as much a finding as a missing page. The
-                 Search Console link is the honest "Request indexing": that
-                 button has no API, but this lands one click away from it. -->
-            <p v-if="rowNote(r)" class="ar-gidx__note" :class="r.error ? 'is-err' : 'is-warn'">
-              {{ rowNote(r) }}<a v-if="r.gscLink" class="ar-gidx__gsc" :href="r.gscLink" target="_blank" rel="noopener">Open in Search Console</a>
-            </p>
           </li>
         </ul>
+        <button v-if="rows.length > 8" type="button" class="ar-gidx__fold" @click="watchOpen = !watchOpen">
+          {{ watchOpen ? 'Show fewer ↑' : `Show all ${rows.length} ↓` }}
+        </button>
 
         <!-- The whole-site rotation: healthy pages are a count, problems are
              rows — 500 green rows would be noise, one number isn't. -->
         <template v-if="siteLine">
-          <p class="ar-perf__eyebrow ar-gidx__siteeyebrow">Across the whole site</p>
+          <div class="ar-gidx__sec ar-gidx__siteeyebrow">
+            <span class="ar-perf__eyebrow ar-gidx__secname">Across the whole site</span>
+          </div>
           <p class="ar-gidx__siteline">{{ siteLine }}</p>
-          <ul v-if="site.problems.length" class="ar-gidx__list">
-            <li v-for="r in site.problems" :key="r.url" class="ar-gidx__row">
-              <div class="ar-gidx__main">
-                <span class="ar-gidx__page">
-                  <a :href="r.url" target="_blank" rel="noopener" class="ar-gidx__title">{{ r.title }}</a>
-                </span>
-                <span class="ar-gidx__meta">
-                  <span class="ar-gidx__crawl">{{ r.lastCrawl ? `visited ${day(r.lastCrawl)}` : (r.error ? '' : 'never visited') }}</span>
-                  <span class="ar-gidx__chip" :class="verdictClass(r)">{{ verdictLabel(r) }}</span>
-                </span>
-              </div>
-              <p v-if="rowNote(r)" class="ar-gidx__note" :class="r.error ? 'is-err' : 'is-warn'">
-                {{ rowNote(r) }}<a v-if="r.gscLink" class="ar-gidx__gsc" :href="r.gscLink" target="_blank" rel="noopener">Open in Search Console</a>
-              </p>
-            </li>
-          </ul>
+          <!-- A clause true of EVERY problem row is a site fact — said once
+               here, lag named, not repeated down the list. -->
+          <p v-if="site.problems.length && hoistLine" class="ar-gidx__note is-warn ar-gidx__hoist">{{ hoistLine }}</p>
+          <template v-if="site.problems.length">
+            <!-- Problems grouped by the server's stateKey: the heading carries
+                 the state ONCE (with Google's own wording quoted below it),
+                 the count pill reads the PRE-CAP totals, and past 8 rows the
+                 group unfolds in place — counts are truth, rows are the
+                 bounded slice. -->
+            <template v-for="g in problemGroups" :key="g.key">
+              <h4 class="ar-gidx__group">{{ g.label }} <span class="ar-gidx__groupcount">{{ g.count }}</span></h4>
+              <p v-if="g.sub" class="ar-gidx__gsub">{{ g.sub }}</p>
+              <ul class="ar-gidx__list ar-gidx__list--grouped">
+                <li v-for="r in g.rows" :key="r.url" class="ar-gidx__row">
+                  <div class="ar-gidx__main">
+                    <span class="ar-gidx__page">
+                      <a :href="r.url" target="_blank" rel="noopener" class="ar-gidx__title">{{ r.title }}</a>
+                    </span>
+                    <span class="ar-gidx__crawl">{{ r.lastCrawl ? `visited ${day(r.lastCrawl)}` : (r.error ? '' : 'never visited') }}</span>
+                    <span class="ar-gidx__door"><a v-if="r.gscLink" class="ar-gidx__gsc" :href="r.gscLink" target="_blank" rel="noopener">Open in Search Console ↗</a></span>
+                    <span class="ar-gidx__chip" :class="verdictClass(r)">{{ verdictLabel(r) }}</span>
+                    <p v-if="rowNote(r, true)" class="ar-gidx__note" :class="r.error ? 'is-err' : 'is-warn'">{{ rowNote(r, true) }}</p>
+                  </div>
+                </li>
+              </ul>
+              <button v-if="g.more || g.open" type="button" class="ar-gidx__morebtn" @click="toggleGroup(g.key)">
+                {{ g.open ? 'Show fewer' : `Show the other ${g.more}` }}
+              </button>
+            </template>
+            <p v-if="site.problemsTotal > site.problems.length" class="ar-gidx__more">
+              These groups cover the first {{ site.problems.length }} of {{ site.problemsTotal }} problem
+              pages — the daily rotation keeps re-checking them all.
+              <a v-if="gscPagesLink" class="ar-gidx__gsc" :href="gscPagesLink" target="_blank" rel="noopener">See the complete list in Search Console ↗</a>
+            </p>
+          </template>
           <p v-else class="ar-gidx__siteclear">Nothing else on the site needs attention.</p>
         </template>
+
+        <!-- Look up one page: answered from the STORED daily checks — the
+             coverage map remembers every checked page, including the healthy
+             ones that never earn a row. No live call, no quota spent. -->
+        <div class="ar-gidx__sec ar-gidx__siteeyebrow">
+          <span class="ar-perf__eyebrow ar-gidx__secname">Look up a page</span>
+        </div>
+        <div class="ar-gidx__lookup">
+          <input
+            type="text"
+            v-model="lookupQuery"
+            :disabled="lookupBusy"
+            placeholder="Paste one of this site's page URLs — e.g. /my-post/"
+            aria-label="Look up a page by URL"
+            @keyup.enter="runLookup"
+          />
+        </div>
+        <template v-if="lookupOut">
+          <ul v-if="lookupOut.status === 'found' && lookupOut.row" class="ar-gidx__list ar-gidx__list--grouped">
+            <li class="ar-gidx__row">
+              <div class="ar-gidx__main">
+                <span class="ar-gidx__page">
+                  <a :href="lookupOut.row.url" target="_blank" rel="noopener" class="ar-gidx__title">{{ lookupOut.row.title }}</a>
+                </span>
+                <span class="ar-gidx__crawl">{{ lookupOut.row.lastCrawl ? `visited ${day(lookupOut.row.lastCrawl)}` : (lookupOut.row.error ? '' : 'never visited') }}</span>
+                <span class="ar-gidx__door"><a v-if="lookupOut.row.gscLink" class="ar-gidx__gsc" :href="lookupOut.row.gscLink" target="_blank" rel="noopener">Open in Search Console ↗</a></span>
+                <span class="ar-gidx__chip" :class="verdictClass(lookupOut.row)">{{ verdictLabel(lookupOut.row) }}</span>
+                <p v-if="rowNote(lookupOut.row)" class="ar-gidx__note" :class="lookupOut.row.error ? 'is-err' : 'is-warn'">{{ rowNote(lookupOut.row) }}</p>
+              </div>
+            </li>
+          </ul>
+          <p v-else-if="lookupOut.status === 'unchecked'" class="ar-gidx__note is-warn ar-gidx__lookupmsg">
+            This page hasn't been checked yet — {{ lookupOut.cycleDays <= 1 ? 'the daily rotation reaches every page within a day' : `the rotation reaches every page within about ${lookupOut.cycleDays} days` }}.
+          </p>
+          <p v-else-if="lookupOut.status === 'foreign'" class="ar-gidx__note is-warn ar-gidx__lookupmsg">
+            That address isn't on this site — only this site's pages are checked.
+          </p>
+          <p v-else-if="lookupOut.status === 'error'" class="ar-gidx__note is-err ar-gidx__lookupmsg">{{ lookupOut.message }}</p>
+        </template>
+        <p class="ar-gidx__lookuphint">
+          Answers come from the stored daily checks, not a live call. A page not
+          checked yet says so.
+        </p>
+
+        <!-- Registration health — the failure only Google's bookkeeping can
+             see: a perfect on-site file whose registration points at an
+             address that moved. Quiet when healthy, amber when the owner
+             should act, silent until the first look. -->
+        <p v-if="sitemapNote" class="ar-gidx__sitemap" :class="{ 'is-warn': sitemapNote.warn }">
+          {{ sitemapNote.text }}
+          <a v-if="sitemapNote.warn && gscSitemapsLink" class="ar-gidx__gsc" :href="gscSitemapsLink" target="_blank" rel="noopener">Open Sitemaps in Search Console</a>
+        </p>
 
         <p class="ar-card__note ar-cf-note">
           All answers come from Google's own URL Inspection tool, once a day: the watchlist

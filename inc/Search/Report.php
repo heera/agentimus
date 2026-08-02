@@ -83,6 +83,16 @@ final class Report {
 			'counts'     => array( 'queries' => 0, 'pages' => 0 ),
 			'topQueries' => array(),
 			'topPages'   => array(),
+			// Google-only extras — empty-but-present for Bing, whose API has
+			// no daily split and no Discover. `ready` gates the week-on-week
+			// claim: zeros where the truth is "unknown yet" would be a lie.
+			'daily'      => array(),
+			'weekly'     => array(
+				'ready'    => false,
+				'thisWeek' => array( 'impressions' => 0, 'clicks' => 0 ),
+				'lastWeek' => array( 'impressions' => 0, 'clicks' => 0 ),
+			),
+			'discover'   => array( 'impressions' => 0, 'clicks' => 0 ),
 		);
 		if ( '' === $state['source'] ) {
 			return $out;
@@ -101,7 +111,70 @@ final class Report {
 				'end'   => (string) $rows[0]['range_end'],
 			);
 		}
+
+		if ( 'google' === $state['source'] ) {
+			$out = array_merge( $out, self::google_extras() );
+		}
+
 		return $out;
+	}
+
+	/**
+	 * The Google-only extras — daily series, week-on-week, Discover — from
+	 * one producer, so the admin screen and an assistant can never be told
+	 * different trends. Bing has no daily split and no Discover; callers
+	 * simply don't ask for its extras.
+	 *
+	 * @return array{daily:array,weekly:array,discover:array{impressions:int,clicks:int}}
+	 */
+	public static function google_extras() {
+		$trend    = get_option( \Agentimus\Google\Module::TREND_OPTION, array() );
+		$trend    = is_array( $trend ) ? $trend : array();
+		$daily    = isset( $trend['daily'] ) && is_array( $trend['daily'] ) ? array_values( $trend['daily'] ) : array();
+		$discover = isset( $trend['discover'] ) && is_array( $trend['discover'] ) ? $trend['discover'] : array();
+		return array(
+			// The recent series, not the whole archive — 16 weeks tells the
+			// story; the option keeps the longer history.
+			'daily'    => array_slice( $daily, -112 ),
+			'weekly'   => self::weekly_from_daily( $daily ),
+			'discover' => array(
+				'impressions' => (int) ( isset( $discover['impressions'] ) ? $discover['impressions'] : 0 ),
+				'clicks'      => (int) ( isset( $discover['clicks'] ) ? $discover['clicks'] : 0 ),
+			),
+		);
+	}
+
+	/**
+	 * This week vs last from a daily series (oldest first). `ready` stays
+	 * false under 14 days of history — zeros that mean "unknown" must never
+	 * print as zeros that mean "nothing happened".
+	 *
+	 * @param array $daily Rows [{date, clicks, impressions}], oldest first.
+	 * @return array{ready:bool,thisWeek:array{impressions:int,clicks:int},lastWeek:array{impressions:int,clicks:int}}
+	 */
+	public static function weekly_from_daily( array $daily ) {
+		$out = array(
+			'ready'    => false,
+			'thisWeek' => array( 'impressions' => 0, 'clicks' => 0 ),
+			'lastWeek' => array( 'impressions' => 0, 'clicks' => 0 ),
+		);
+		if ( count( $daily ) < 14 ) {
+			return $out;
+		}
+		$tail = array_slice( array_values( $daily ), -14 );
+		$sum  = static function ( array $days ) {
+			$t = array( 'impressions' => 0, 'clicks' => 0 );
+			foreach ( $days as $d ) {
+				$t['impressions'] += (int) ( isset( $d['impressions'] ) ? $d['impressions'] : 0 );
+				$t['clicks']      += (int) ( isset( $d['clicks'] ) ? $d['clicks'] : 0 );
+			}
+			return $t;
+		};
+		return array(
+			'ready'    => true,
+			'thisWeek' => $sum( array_slice( $tail, 7 ) ),
+			'lastWeek' => $sum( array_slice( $tail, 0, 7 ) ),
+		);
 	}
 
 	/**

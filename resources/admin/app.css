@@ -1603,8 +1603,12 @@ td.ar-edge__n.is-bad { color: var(--ar-bad); font-weight: 600; }
 .ar-gidx__row:last-child { border-bottom: 0; }
 /* Three real columns — title | date | verdict — so every row's date and chip
    sit on the same vertical lines instead of trailing each title. */
-.ar-gidx__main { display: grid; grid-template-columns: minmax(0, 1fr) max-content max-content; gap: 4px 14px; align-items: baseline; }
+/* One row = one line, four fixed lanes: title | date | door | chip. Fixed
+   widths, not max-content — each row is its own grid, so only fixed lanes
+   align ACROSS rows (max-content sized per-row is exactly the old zigzag). */
+.ar-gidx__main { display: grid; grid-template-columns: minmax(0, 1fr) 150px 158px 104px; gap: 2px 16px; align-items: baseline; }
 .ar-gidx__meta { display: contents; }
+.ar-gidx__door { text-align: right; white-space: nowrap; }
 .ar-gidx__page { display: inline-flex; align-items: baseline; gap: 8px; min-width: 0; }
 .ar-gidx__title { font-size: 13px; color: var(--ar-ink); text-decoration: none; overflow-wrap: anywhere; }
 .ar-gidx__title:hover { text-decoration: underline; }
@@ -1626,7 +1630,7 @@ td.ar-edge__n.is-bad { color: var(--ar-bad); font-weight: 600; }
 .ar-gidx__chip.is-warn { color: var(--ar-warn); border-color: color-mix(in srgb, var(--ar-warn) 40%, var(--ar-line)); background: color-mix(in srgb, var(--ar-warn) 9%, var(--ar-surface)); }
 .ar-gidx__chip.is-err { color: var(--ar-bad); border-color: color-mix(in srgb, var(--ar-bad) 35%, var(--ar-line)); background: color-mix(in srgb, var(--ar-bad) 7%, var(--ar-surface)); }
 .ar-gidx__chip.is-dim { color: var(--ar-ink-faint); }
-.ar-gidx__note { margin: 4px 0 0; font-size: 12px; line-height: 1.5; }
+.ar-gidx__note { margin: 4px 0 0; font-size: 12px; line-height: 1.5; grid-column: 1; min-width: 0; }
 .ar-gidx__note.is-warn { color: var(--ar-warn); }
 .ar-gidx__note.is-err { color: var(--ar-bad); }
 /* The quiet door to Search Console — where "Request indexing" lives. */
@@ -1636,15 +1640,73 @@ td.ar-edge__n.is-bad { color: var(--ar-bad); font-weight: 600; }
 .ar-gidx__siteeyebrow { margin-top: 24px; }
 .ar-gidx__siteline { margin: 8px 0 0; font-size: 13px; line-height: 1.55; color: var(--ar-ink-soft); }
 .ar-gidx__siteclear { margin: 8px 0 0; font-size: 12px; color: var(--ar-good); }
+/* Problem groups: the state is a real heading with its count — the
+   Opportunities group grammar — so rows below stop repeating it. */
+.ar-gidx__group {
+  margin: 18px 0 0; font-size: 13px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: 0.02em; color: var(--ar-ink);
+}
+.ar-gidx__groupcount {
+  margin-left: 6px; font-weight: 600; font-size: 12px;
+  color: var(--ar-warn);
+}
+.ar-gidx__list--grouped { margin-top: 4px; }
+.ar-gidx__list--grouped .ar-gidx__row { padding: 9px 0; }
+.ar-gidx__more { margin: 6px 0 0; font-size: 12px; color: var(--ar-ink-faint); }
+.ar-gidx__hoist { margin-top: 10px; }
+.ar-gidx__gsc--cell { margin-left: 0; text-align: right; }
+/* Registration health: one quiet line, amber only when the owner should act. */
+.ar-gidx__sitemap { margin: 16px 0 0; font-size: 12px; color: var(--ar-ink-faint); }
+.ar-gidx__sitemap.is-warn { color: var(--ar-warn); }
+/* Section headers: eyebrow + the amber count pill (his crop's grammar). */
+.ar-gidx__sec { display: flex; align-items: baseline; gap: 8px; margin-top: 22px; }
+.ar-gidx__sec .ar-gidx__secname { margin: 0; }
+.ar-gidx__seccount {
+  font: 600 10.5px/1 var(--ar-mono); color: var(--ar-warn);
+  background: color-mix(in srgb, var(--ar-warn) 10%, var(--ar-surface));
+  border: 1px solid color-mix(in srgb, var(--ar-warn) 30%, var(--ar-line));
+  border-radius: 9px; padding: 2px 7px;
+}
+.ar-gidx__group .ar-gidx__groupcount {
+  margin-left: 6px; font: 600 10.5px/1 var(--ar-mono); color: var(--ar-warn);
+  background: color-mix(in srgb, var(--ar-warn) 10%, var(--ar-surface));
+  border: 1px solid color-mix(in srgb, var(--ar-warn) 30%, var(--ar-line));
+  border-radius: 9px; padding: 2px 7px;
+}
+/* Google's exact phrase, once per group — the footnote promises "Google's
+   own wording", so the plain-words heading must show its source. */
+.ar-gidx__gsub { margin: 2px 0 0; font-size: 11px; color: var(--ar-ink-faint); }
+.ar-gidx__fold {
+  display: block; width: 100%; background: none; border: 0; border-top: 1px solid var(--ar-line);
+  margin-top: -1px; padding: 10px 0 2px; font: inherit; font-size: 12px; color: var(--ar-info);
+  cursor: pointer; text-align: center;
+}
+.ar-gidx__fold:hover { text-decoration: underline; }
+.ar-gidx__morebtn {
+  background: none; border: 0; padding: 6px 0 0; font: inherit; font-size: 12px;
+  color: var(--ar-info); cursor: pointer; text-align: left;
+}
+.ar-gidx__morebtn:hover { text-decoration: underline; }
+/* The page lookup: stored answers only — styled like the house inputs. */
+.ar-gidx__lookup { margin: 10px 0 0; }
+.ar-gidx__lookup input {
+  width: 100%; box-sizing: border-box; background: var(--ar-surface);
+  border: 1px solid var(--ar-line-strong); border-radius: 3px;
+  padding: 7px 10px; font: inherit; color: var(--ar-ink);
+}
+.ar-gidx__lookup input:focus { outline: 2px solid var(--ar-accent); outline-offset: 1px; border-color: var(--ar-accent); }
+.ar-gidx__lookupmsg { margin-top: 8px; }
+.ar-gidx__lookuphint { margin: 6px 0 0; font-size: 11.5px; color: var(--ar-ink-faint); }
 @media (max-width: 600px) {
   /* Tiles go 2×2 — four abreast crushed the labels into vertical shards. */
   .ar-gidx .ar-act-stats--4 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .ar-gidx .ar-wd-stat strong { white-space: nowrap; }
-  /* Rows: the title takes its own line; date left and chip right share the
-     second — the request-log byline rule, in grid form. */
-  .ar-gidx__main { grid-template-columns: minmax(0, 1fr) max-content; }
+  /* Rows: the title takes its own line; date left, door and chip right share
+     the second — the request-log byline rule, in grid form. */
+  .ar-gidx__main { grid-template-columns: minmax(0, 1fr) max-content max-content; }
   .ar-gidx__page { grid-column: 1 / -1; }
   .ar-gidx__crawl { text-align: left; }
+  .ar-gidx__note { grid-column: 1 / -1; }
 }
 
 /* Settings: the two setup steps breathe — the first eyebrow was hugging the
@@ -1718,6 +1780,9 @@ td.ar-edge__n.is-bad { color: var(--ar-bad); font-weight: 600; }
    so "whose numbers am I looking at?" is answered the same way in both rooms. */
 .ar-srcpick { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .ar-srcpick__label { font-size: 12px; color: var(--ar-ink-soft); }
+/* One-source state: the engine named in the switch's seat — a label, not a
+   disabled-looking button. */
+.ar-srcpick__solo { font-size: 12.5px; font-weight: 600; color: var(--ar-ink); }
 .ar-srcpick__set { display: flex; gap: 0; border: 1px solid var(--ar-line); border-radius: 999px; overflow: hidden; }
 .ar-srcpick__btn {
   appearance: none; background: var(--ar-surface); border: 0; cursor: pointer;

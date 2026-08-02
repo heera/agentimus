@@ -55,6 +55,10 @@ final class Index {
 	/** @var int Google's documented URL Inspection budget, per property per day. */
 	const DAILY_CAP = 2000;
 
+	/** @var int Problem rows the VIEW ships at most — REST, MCP and the DOM all
+	 * ride this payload; problemsTotal always carries the uncapped truth. */
+	const PROBLEMS_CAP = 50;
+
 	/**
 	 * Everything one sweep run should inspect: the watchlist, then the day's
 	 * rotation slice.
@@ -364,18 +368,50 @@ final class Index {
 		}
 
 		$payload = array(
-			'rows'       => $rows,
-			'checked_at' => time(),
-			'error'      => $error,
-			'quota'      => $quota,
-			'watch'      => empty( $queue ) ? array() : $watch,
-			'queue'      => $queue,
-			'cov'        => $cov,
-			'rot_cursor' => $cursor,
-			'site_total' => $state['site_total'],
+			'rows'        => $rows,
+			'checked_at'  => time(),
+			'error'       => $error,
+			'quota'       => $quota,
+			'watch'       => empty( $queue ) ? array() : $watch,
+			'queue'       => $queue,
+			'cov'         => $cov,
+			'rot_cursor'  => $cursor,
+			'site_total'  => $state['site_total'],
+			'sitemaps'    => $state['sitemaps'],
+			'sitemaps_at' => $state['sitemaps_at'],
 		);
 		update_option( self::OPTION, $payload, false );
 		return $payload;
+	}
+
+	/**
+	 * Whether a sweep run is mid-flight — a persisted queue awaiting its next
+	 * chunk. Callers use it to do once-per-RUN work (not once per chunk).
+	 *
+	 * @return bool
+	 */
+	public static function run_in_flight() {
+		$stored = self::stored();
+		return ! empty( $stored['queue'] );
+	}
+
+	/**
+	 * Store the registered-sitemaps snapshot ({@see Client::sitemaps()}).
+	 * Kept only on success — a transport blip never erases the last good
+	 * answer — and stamped, so the view can tell "no sitemap registered"
+	 * (a finding) apart from "never looked" (silence).
+	 *
+	 * @param array $out Client::sitemaps() result.
+	 * @return void
+	 */
+	public static function store_sitemaps( array $out ) {
+		if ( isset( $out['error'] ) || ! isset( $out['sitemaps'] ) ) {
+			return;
+		}
+		$stored                = self::stored();
+		$stored['sitemaps']    = array_slice( (array) $out['sitemaps'], 0, 20 );
+		$stored['sitemaps_at'] = time();
+		update_option( self::OPTION, $stored, false );
 	}
 
 	/**
@@ -399,6 +435,8 @@ final class Index {
 			'cov'        => isset( $raw['cov'] ) && is_array( $raw['cov'] ) ? $raw['cov'] : array(),
 			'rot_cursor' => (int) ( isset( $raw['rot_cursor'] ) ? $raw['rot_cursor'] : 0 ),
 			'site_total' => (int) ( isset( $raw['site_total'] ) ? $raw['site_total'] : 0 ),
+			'sitemaps'    => isset( $raw['sitemaps'] ) && is_array( $raw['sitemaps'] ) ? $raw['sitemaps'] : array(),
+			'sitemaps_at' => (int) ( isset( $raw['sitemaps_at'] ) ? $raw['sitemaps_at'] : 0 ),
 		);
 	}
 
@@ -433,12 +471,27 @@ final class Index {
 				'canonicalDiffers' => 0,
 			),
 			'site'      => array(
-				'totalUrls'   => 0,
-				'checked'     => 0,
-				'onGoogle'    => 0,
-				'notOnGoogle' => 0,
-				'cycleDays'   => 0,
-				'problems'    => array(),
+				'totalUrls'     => 0,
+				'checked'       => 0,
+				'onGoogle'      => 0,
+				'notOnGoogle'   => 0,
+				'cycleDays'     => 0,
+				'problems'      => array(),
+				'problemsTotal' => 0,
+				'problemStates' => array(
+					'error'      => 0,
+					'canonical'  => 0,
+					'unknown'    => 0,
+					'discovered' => 0,
+					'crawled'    => 0,
+					'blocked'    => 0,
+					'other'      => 0,
+				),
+			),
+			'sitemaps'  => array(
+				'checkedAt'  => 0,
+				'liveUrl'    => '',
+				'registered' => array(),
 			),
 			'rows'      => array(),
 		);
@@ -451,6 +504,22 @@ final class Index {
 		$base['lastError'] = $stored['error'];
 		$base['quotaHit']  = $stored['quota'];
 		$base['pending']   = count( $stored['queue'] );
+
+		// Registered-sitemap health — what the OWNER once told Google vs what
+		// the site serves today. checkedAt 0 = never looked (say nothing);
+		// looked + empty registered = a finding, not silence.
+		$base['sitemaps']['checkedAt'] = $stored['sitemaps_at'];
+		$base['sitemaps']['liveUrl']   = (string) \Agentimus\Sitemap::url();
+		foreach ( $stored['sitemaps'] as $reg ) {
+			$base['sitemaps']['registered'][] = array(
+				'path'      => (string) ( isset( $reg['path'] ) ? $reg['path'] : '' ),
+				'pending'   => ! empty( $reg['pending'] ),
+				'lastRead'  => (int) ( isset( $reg['last_downloaded'] ) ? $reg['last_downloaded'] : 0 ),
+				'errors'    => (int) ( isset( $reg['errors'] ) ? $reg['errors'] : 0 ),
+				'warnings'  => (int) ( isset( $reg['warnings'] ) ? $reg['warnings'] : 0 ),
+				'submitted' => (int) ( isset( $reg['submitted'] ) ? $reg['submitted'] : 0 ),
+			);
+		}
 
 		$watch_norms = array();
 		foreach ( $stored['rows'] as $row ) {
@@ -492,6 +561,22 @@ final class Index {
 		$site['notOnGoogle'] = max( 0, $site['checked'] - $site['onGoogle'] );
 		$rotating            = max( 0, $site['totalUrls'] - count( $stored['rows'] ) );
 		$site['cycleDays']   = $rotating > 0 ? (int) ceil( $rotating / self::ROTATION_DAILY ) : 0;
+
+		// Bounded payload: a sick 5,000-page site must not ship thousands of
+		// problem rows through REST and MCP. problemsTotal owns the truth —
+		// a cap presented as the whole picture would be the silent-cap lie —
+		// and the per-state totals are counted BEFORE the cap, so a group's
+		// count pill stays true even when its rows are the bounded slice.
+		$site['problemsTotal'] = count( $site['problems'] );
+		foreach ( $site['problems'] as $problem ) {
+			$bucket = (string) $problem['stateKey'];
+			if ( isset( $site['problemStates'][ $bucket ] ) ) {
+				$site['problemStates'][ $bucket ]++;
+			}
+		}
+		if ( $site['problemsTotal'] > self::PROBLEMS_CAP ) {
+			$site['problems'] = array_slice( $site['problems'], 0, self::PROBLEMS_CAP );
+		}
 
 		return $base;
 	}
@@ -536,12 +621,81 @@ final class Index {
 			'canonicalDiffers' => '' !== $canonical && self::norm( $canonical ) !== self::norm( $url ),
 			'googleCanonical'  => $canonical,
 			'inSitemap'        => ! empty( $row['in_sitemap'] ),
+			'referrers'        => (int) ( isset( $row['referrers'] ) ? $row['referrers'] : 0 ),
+			'stateKey'         => self::state_key( $row ),
 			'richIssues'       => (int) ( isset( $row['rich_issues'] ) ? $row['rich_issues'] : 0 ),
 			'richTypes'        => (string) ( isset( $row['rich_types'] ) ? $row['rich_types'] : '' ),
 			'gscLink'          => (string) ( isset( $row['gsc_link'] ) ? $row['gsc_link'] : '' ),
 			'inspectedAt'      => (int) ( isset( $row['inspected_at'] ) ? $row['inspected_at'] : 0 ),
 			'error'            => $row_error,
 		);
+	}
+
+	/**
+	 * The state bucket a problem row belongs to — computed HERE so the group
+	 * count pills can tell the uncapped truth: rows are capped, counts never
+	 * are, and the client must group by the same key the totals were counted
+	 * under. Buckets, most-lost first: error, canonical, unknown, discovered,
+	 * crawled, blocked, other.
+	 *
+	 * @param array $row A stored sweep row (or coverage entry).
+	 * @return string
+	 */
+	public static function state_key( array $row ) {
+		if ( ! empty( $row['error'] ) ) {
+			return 'error';
+		}
+		$canonical = (string) ( isset( $row['google_canonical'] ) ? $row['google_canonical'] : '' );
+		if ( '' !== $canonical && self::norm( $canonical ) !== self::norm( (string) ( isset( $row['url'] ) ? $row['url'] : '' ) ) ) {
+			return 'canonical';
+		}
+		$state = (string) ( isset( $row['coverage_state'] ) ? $row['coverage_state'] : '' );
+		if ( false !== stripos( $state, 'unknown to Google' ) ) {
+			return 'unknown';
+		}
+		if ( 0 === stripos( $state, 'Discovered' ) ) {
+			return 'discovered';
+		}
+		if ( 0 === stripos( $state, 'Crawled' ) ) {
+			return 'crawled';
+		}
+		if ( 'DISALLOWED' === (string) ( isset( $row['robots_state'] ) ? $row['robots_state'] : '' )
+			|| 0 === strpos( (string) ( isset( $row['indexing_state'] ) ? $row['indexing_state'] : '' ), 'BLOCKED_BY' ) ) {
+			return 'blocked';
+		}
+		return 'other';
+	}
+
+	/**
+	 * One page's stored answer, by URL — the coverage map remembers every
+	 * checked page, including the healthy ones that never earn a row, so a
+	 * lookup answers from local data alone: no live call, no quota.
+	 *
+	 * @param string $url Absolute URL (or a path on this site).
+	 * @return array{status:string,row:array|null} status: found | unchecked | foreign.
+	 */
+	public static function lookup( $url ) {
+		$url = trim( (string) $url );
+		if ( '' !== $url && '/' === $url[0] ) {
+			$url = home_url( $url );
+		}
+		$home_host = strtolower( (string) wp_parse_url( home_url( '/' ), PHP_URL_HOST ) );
+		$host      = strtolower( (string) wp_parse_url( $url, PHP_URL_HOST ) );
+		if ( '' === $host || $host !== $home_host ) {
+			return array( 'status' => 'foreign', 'row' => null );
+		}
+
+		$key    = self::norm( $url );
+		$stored = self::stored();
+		foreach ( $stored['rows'] as $row ) {
+			if ( self::norm( (string) $row['url'] ) === $key ) {
+				return array( 'status' => 'found', 'row' => self::row_view( $row ) );
+			}
+		}
+		if ( isset( $stored['cov'][ $key ] ) ) {
+			return array( 'status' => 'found', 'row' => self::row_view( $stored['cov'][ $key ] ) );
+		}
+		return array( 'status' => 'unchecked', 'row' => null );
 	}
 
 	/**
@@ -586,6 +740,7 @@ final class Index {
 			'google_canonical' => '',
 			'crawled_as'       => '',
 			'in_sitemap'       => false,
+			'referrers'        => 0,
 			'gsc_link'         => '',
 			'rich_types'       => '',
 			'rich_issues'      => 0,

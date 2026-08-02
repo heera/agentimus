@@ -465,7 +465,7 @@ final class PageCheck {
 			'featured_image',
 			__( 'No featured image', 'agentimus' ),
 			'warn',
-			__( 'Without a featured image, link previews and embeds have no picture to show for this page. Choose an image that stands for it.', 'agentimus' )
+			__( 'Without a featured image, link previews and embeds have no picture to show for this page. Choose an image that stands for it. This row grades the saved post — it updates when you save or publish.', 'agentimus' )
 		);
 	}
 

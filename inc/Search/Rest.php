@@ -114,6 +114,7 @@ final class Rest {
 			'source'      => $state['source'],
 			'performance' => null,
 			'range'       => null,
+			'trend'       => null,
 		);
 
 		if ( '' !== $state['source'] ) {
@@ -126,6 +127,9 @@ final class Rest {
 					'end'   => (string) $rows[0]['range_end'],
 				);
 			}
+			// Google-only extras from the same producer the MCP tool reads —
+			// the two doors must tell one story ({@see Report::google_extras}).
+			$out['trend'] = 'google' === $state['source'] ? Report::google_extras() : null;
 		}
 
 		return rest_ensure_response( $out );

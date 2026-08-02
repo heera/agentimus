@@ -201,7 +201,9 @@ export default {
         <h2 class="ar-card__title">Found by AI Search <span class="ar-card__tag">Bing · last {{ summary.days }} days</span></h2>
         <p class="ar-card__lead">
           How much of your site Bing's index holds, and how cleanly Bing's crawler gets in.
-          ChatGPT search and Microsoft Copilot find pages through this index today.
+          ChatGPT search, Microsoft Copilot and people using Bing all find pages through
+          this index — no people are counted on this card, only the machinery that serves
+          them; searchers' clicks live in Search Performance below.
         </p>
 
         <div class="ar-mcp-rail" data-state="running">

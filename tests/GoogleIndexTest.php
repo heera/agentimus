@@ -114,6 +114,170 @@ final class GoogleIndexTest extends TestCase {
 		$this->assertSame( 2, $out['result']['rich_issues'] );
 	}
 
+	/** sitemaps.list → normalized rows; the registration bookkeeping only
+	 * Google has (a moved live file keeps its stale lastRead forever). */
+	public function test_sitemaps_list_normalizes_registrations() {
+		$GLOBALS['_af_http_queue'][] = array(
+			'response' => array( 'code' => 200 ),
+			'body'     => (string) wp_json_encode( array( 'sitemap' => array(
+				array(
+					'path'           => 'https://example.test/wp-sitemap.xml',
+					'lastDownloaded' => '2026-07-19T00:00:00Z',
+					'isPending'      => false,
+					'errors'         => '0',
+					'warnings'       => '2',
+					'contents'       => array(
+						array( 'type' => 'web', 'submitted' => '150', 'indexed' => '0' ),
+						array( 'type' => 'web', 'submitted' => '24', 'indexed' => '0' ),
+					),
+				),
+				array( 'path' => 'https://example.test/new.xml', 'isPending' => true ),
+			) ) ),
+			'headers'  => array(),
+		);
+
+		$out = ( new Client() )->sitemaps( 'tok', 'sc-domain:example.test' );
+		$this->assertCount( 2, $out['sitemaps'] );
+		$this->assertSame( 'https://example.test/wp-sitemap.xml', $out['sitemaps'][0]['path'] );
+		$this->assertSame( (int) strtotime( '2026-07-19T00:00:00Z' ), $out['sitemaps'][0]['last_downloaded'] );
+		$this->assertSame( 2, $out['sitemaps'][0]['warnings'] );
+		$this->assertSame( 174, $out['sitemaps'][0]['submitted'] );
+		$this->assertTrue( $out['sitemaps'][1]['pending'] );
+		$this->assertSame( 0, $out['sitemaps'][1]['last_downloaded'] );
+	}
+
+	/** store_sitemaps: success stores + stamps; an error keeps the last good
+	 * snapshot AND its stamp (a blip must not fake "never looked"). */
+	public function test_store_sitemaps_keeps_last_good_on_error() {
+		Index::store_sitemaps( array( 'sitemaps' => array( array( 'path' => 'a' ) ) ) );
+		$first = Index::stored();
+		$this->assertSame( 'a', $first['sitemaps'][0]['path'] );
+		$this->assertGreaterThan( 0, $first['sitemaps_at'] );
+
+		Index::store_sitemaps( array( 'error' => 'transport' ) );
+		$after = Index::stored();
+		$this->assertSame( 'a', $after['sitemaps'][0]['path'] );
+		$this->assertSame( $first['sitemaps_at'], $after['sitemaps_at'] );
+	}
+
+	/** The snapshot survives a sweep write — sweep() rebuilds the whole option. */
+	public function test_sweep_carries_the_sitemaps_snapshot() {
+		Index::store_sitemaps( array( 'sitemaps' => array( array( 'path' => 'kept' ) ) ) );
+		$this->queue_inspection( $this->pass_row() );
+		Index::sweep( new Client(), 'tok', 'p', array( array( 'url' => 'https://example.test/', 'post_id' => 0, 'reason' => 'home' ) ) );
+		$stored = Index::stored();
+		$this->assertSame( 'kept', $stored['sitemaps'][0]['path'] );
+		$this->assertGreaterThan( 0, $stored['sitemaps_at'] );
+	}
+
+	/** The view separates "never looked" (checkedAt 0) from "looked, none
+	 * registered" — the second is a finding, the first is silence. */
+	public function test_view_reports_sitemap_registrations() {
+		$settings = $this->connect();
+		$view     = Index::view( $settings );
+		$this->assertSame( 0, $view['sitemaps']['checkedAt'] );
+		$this->assertSame( array(), $view['sitemaps']['registered'] );
+
+		Index::store_sitemaps( array( 'sitemaps' => array( array(
+			'path'            => 'https://example.test/old.xml',
+			'pending'         => false,
+			'last_downloaded' => 123,
+			'errors'          => 1,
+			'warnings'        => 0,
+			'submitted'       => 9,
+		) ) ) );
+		$view = Index::view( $settings );
+		$this->assertGreaterThan( 0, $view['sitemaps']['checkedAt'] );
+		$reg = $view['sitemaps']['registered'][0];
+		$this->assertSame( 'https://example.test/old.xml', $reg['path'] );
+		$this->assertSame( 123, $reg['lastRead'] );
+		$this->assertSame( 1, $reg['errors'] );
+		$this->assertSame( 9, $reg['submitted'] );
+	}
+
+	/** state_key: the bucket totals and the client's groups must share one
+	 * derivation — this pins the precedence (error > canonical > states). */
+	public function test_state_key_buckets_by_precedence() {
+		$this->assertSame( 'error', Index::state_key( array( 'error' => 'x', 'google_canonical' => 'https://a.test/b' ) ) );
+		$this->assertSame( 'canonical', Index::state_key( array( 'url' => 'https://a.test/x', 'google_canonical' => 'https://a.test/y' ) ) );
+		$this->assertSame( 'unknown', Index::state_key( array( 'coverage_state' => 'URL is unknown to Google' ) ) );
+		$this->assertSame( 'discovered', Index::state_key( array( 'coverage_state' => 'Discovered - currently not indexed' ) ) );
+		$this->assertSame( 'crawled', Index::state_key( array( 'coverage_state' => 'Crawled - currently not indexed' ) ) );
+		$this->assertSame( 'blocked', Index::state_key( array( 'robots_state' => 'DISALLOWED' ) ) );
+		$this->assertSame( 'other', Index::state_key( array( 'coverage_state' => 'Weird new state' ) ) );
+	}
+
+	/** problemStates counts BEFORE the row cap — counts are truth, rows are
+	 * the slice; a pill reading 4 when the state holds 40 is the silent lie. */
+	public function test_problem_state_totals_survive_the_row_cap() {
+		$cov = array();
+		for ( $i = 1; $i <= 60; $i++ ) {
+			$cov[ "https://example.test/p$i" ] = array(
+				'url'            => "https://example.test/p$i",
+				'post_id'        => $i,
+				'verdict'        => 'NEUTRAL',
+				'coverage_state' => 'Crawled - currently not indexed',
+				'inspected_at'   => 100 + $i,
+			);
+		}
+		$settings = $this->connect( array( 'cov' => $cov, 'site_total' => 80 ) );
+		$view     = Index::view( $settings );
+		$this->assertSame( 60, $view['site']['problemsTotal'] );
+		$this->assertCount( 50, $view['site']['problems'] );
+		$this->assertSame( 60, $view['site']['problemStates']['crawled'] );
+	}
+
+	/** lookup answers from stored data: watch rows, the coverage map's healthy
+	 * entries, honest "unchecked", and "foreign" for another site's URL. */
+	public function test_lookup_reads_rows_cov_and_says_the_rest_honestly() {
+		$this->connect( array(
+			'rows' => array( array(
+				'url'            => 'https://example.test/watched/',
+				'post_id'        => 5,
+				'reason'         => 'busy',
+				'verdict'        => 'PASS',
+				'coverage_state' => 'Submitted and indexed',
+				'inspected_at'   => 111,
+			) ),
+			'cov'  => array(
+				'https://example.test/healthy' => array(
+					'url'          => 'https://example.test/healthy/',
+					'post_id'      => 7,
+					'verdict'      => 'PASS',
+					'inspected_at' => 222,
+				),
+			),
+		) );
+
+		$out = Index::lookup( 'https://example.test/watched' );
+		$this->assertSame( 'found', $out['status'] );
+		$this->assertSame( 'pass', $out['row']['verdict'] );
+
+		$out = Index::lookup( '/healthy/' ); // path form resolves against home.
+		$this->assertSame( 'found', $out['status'] );
+		$this->assertSame( 222, $out['row']['inspectedAt'] );
+
+		$out = Index::lookup( 'https://example.test/never-checked/' );
+		$this->assertSame( 'unchecked', $out['status'] );
+		$this->assertNull( $out['row'] );
+
+		$out = Index::lookup( 'https://elsewhere.test/watched/' );
+		$this->assertSame( 'foreign', $out['status'] );
+	}
+
+	/** referringUrls → a count; absent → 0 (the "nothing points here" signal). */
+	public function test_inspect_url_counts_referring_pages() {
+		$this->queue_inspection( array_merge( $this->pass_row(), array(
+			'referringUrls' => array( 'https://example.test/one/', 'https://example.test/two/' ),
+		) ) );
+		$out = ( new Client() )->inspect_url( 'tok', 'p', 'https://example.test/a/' );
+		$this->assertSame( 2, $out['result']['referrers'] );
+
+		$this->queue_inspection( array( 'verdict' => 'NEUTRAL' ) );
+		$out = ( new Client() )->inspect_url( 'tok', 'p', 'https://example.test/b/' );
+		$this->assertSame( 0, $out['result']['referrers'] );
+	}
+
 	public function test_inspect_url_reports_never_crawled_as_zero() {
 		// Google encodes "never" as the epoch — that must not surface as 1970.
 		$this->queue_inspection( array( 'verdict' => 'NEUTRAL', 'lastCrawlTime' => '1970-01-01T00:00:00Z' ) );

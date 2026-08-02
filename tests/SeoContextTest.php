@@ -147,15 +147,16 @@ final class SeoContextTest extends TestCase {
 	/* ---- consumers keep their behavior ------------------------------------ */
 
 	/**
-	 * Clean env + the enable_sitemap default: detect() still falls through to the
-	 * Agentimus generator (core absent, no suite) — the refactor onto SeoContext
-	 * changed no step of the cascade.
+	 * Clean env + the enable_sitemap default: detect() promotes the Agentimus
+	 * generator (core absent, no suite) — advertised at core's canonical
+	 * /wp-sitemap.xml, the address that never moves out from under a
+	 * search-console registration.
 	 */
 	public function test_sitemap_detect_falls_through_to_agentimus_in_clean_env() {
 		\update_option( Settings::OPTION, array() ); // Defaults: enable_sitemap on.
 		$detected = Sitemap::detect();
 		$this->assertSame( 'agentimus', $detected['source'] );
-		$this->assertSame( 'https://example.test' . Sitemap::PATH, $detected['url'] );
+		$this->assertSame( 'https://example.test' . Sitemap::INDEX_PATH, $detected['url'] );
 	}
 
 	/** enable_sitemap off in a clean env: nothing to advertise, url is ''. */

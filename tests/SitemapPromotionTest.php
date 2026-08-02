@@ -38,12 +38,51 @@ final class SitemapPromotionTest extends TestCase {
 		$this->assertTrue( Sitemap::promoted() );
 	}
 
-	/** Promotion beats core: even with core sitemaps on, ours is THE sitemap. */
+	/** Promotion beats core: even with core sitemaps on, ours is THE sitemap —
+	 * advertised at core's own canonical address, never a moved one. */
 	public function test_promotion_wins_over_core() {
 		$GLOBALS['_af_core_sitemaps'] = true;
 		$detected                     = Sitemap::detect();
 		$this->assertSame( 'agentimus', $detected['source'] );
-		$this->assertSame( 'https://example.test' . Sitemap::PATH, $detected['url'] );
+		$this->assertSame( 'https://example.test' . Sitemap::INDEX_PATH, $detected['url'] );
+	}
+
+	/* ---- routing: the standard path serves, every other door redirects ------ */
+
+	/** Promoted: the index answers at /wp-sitemap.xml itself. */
+	public function test_promoted_index_serves_at_the_standard_path() {
+		$this->assertSame( 'index', Sitemap::route_for( Sitemap::INDEX_PATH ) );
+	}
+
+	/** Promoted: the legacy path and the de-facto convention both 301 home —
+	 * a registration of either keeps working instead of dying as a 404. */
+	public function test_promoted_legacy_doors_redirect() {
+		$this->assertSame( 'redirect', Sitemap::route_for( Sitemap::PATH ) );
+		$this->assertSame( 'redirect', Sitemap::route_for( '/sitemap.xml' ) );
+	}
+
+	/** Promoted: sub-sitemaps and unrelated paths are not the router's business. */
+	public function test_promoted_router_ignores_children_and_strangers() {
+		$this->assertSame( '', Sitemap::route_for( '/agentimus-sitemap-post-1.xml' ) );
+		$this->assertSame( '', Sitemap::route_for( '/robots.txt' ) );
+	}
+
+	/** Not promoted (feature off): every path passes through — core or a suite
+	 * owns these addresses, and we must not shadow or redirect them. */
+	public function test_router_stands_down_when_not_promoted() {
+		\update_option( Settings::OPTION, array( 'enable_sitemap' => false ) );
+		$this->assertSame( '', Sitemap::route_for( Sitemap::INDEX_PATH ) );
+		$this->assertSame( '', Sitemap::route_for( '/sitemap.xml' ) );
+		$this->assertSame( '', Sitemap::route_for( Sitemap::PATH ) );
+	}
+
+	/** Not promoted (coexist): same stand-down, decided by mode not toggle. */
+	public function test_router_stands_down_in_coexist_mode() {
+		\add_filter( 'agentimus_solo_mode', function () {
+			return false;
+		} );
+		$this->assertSame( '', Sitemap::route_for( Sitemap::INDEX_PATH ) );
+		$this->assertSame( '', Sitemap::route_for( Sitemap::PATH ) );
 	}
 
 	/** The feature toggle still rules: off = no promotion, core keeps the slot. */

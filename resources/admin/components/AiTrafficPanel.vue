@@ -263,9 +263,10 @@ export default {
         </button>
       </div>
       <p class="ar-card__lead">
-        Real visitors who arrived from an AI assistant (ChatGPT, Perplexity, Gemini…). Counted on your
-        own site — no IP, nothing sent anywhere. Some AI visits can’t be detected, so read this as a
-        floor: at least this many.
+        Real visitors who arrived from an AI assistant (ChatGPT, Perplexity, Gemini…). These are
+        <strong>people</strong>, not bots — the machines reading your site live in the Request Log
+        and Agent Access. Counted on your own site — no IP, nothing sent anywhere. Some AI visits
+        can’t be detected, so read this as a floor: at least this many.
       </p>
       <p v-if="beacon" class="ar-card__lead">
         <strong>CDN mode is on</strong> — these are counted in your visitors’ browsers so the number

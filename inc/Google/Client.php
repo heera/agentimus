@@ -48,6 +48,40 @@ final class Client {
 	}
 
 	/**
+	 * The sitemaps REGISTERED for this property in Search Console, with
+	 * Google's own fetch bookkeeping. The on-site file can be perfect while
+	 * the registration is dead (a moved path, an old plugin's address) — a
+	 * silent failure no on-site check can see; only this list can.
+	 *
+	 * @param string $token    Bearer token.
+	 * @param string $property The GSC property.
+	 * @return array { sitemaps?: array<int,array{path:string,pending:bool,last_downloaded:int,errors:int,warnings:int,submitted:int}>, error?: string }
+	 */
+	public function sitemaps( $token, $property ) {
+		$out = $this->request( 'GET', 'sites/' . rawurlencode( (string) $property ) . '/sitemaps', $token );
+		if ( isset( $out['error'] ) ) {
+			return $out;
+		}
+		$list = array();
+		foreach ( (array) ( $out['data']['sitemap'] ?? array() ) as $row ) {
+			$submitted = 0;
+			foreach ( (array) ( $row['contents'] ?? array() ) as $content ) {
+				$submitted += (int) ( $content['submitted'] ?? 0 );
+			}
+			$down   = isset( $row['lastDownloaded'] ) ? (int) strtotime( (string) $row['lastDownloaded'] ) : 0;
+			$list[] = array(
+				'path'            => (string) ( $row['path'] ?? '' ),
+				'pending'         => ! empty( $row['isPending'] ),
+				'last_downloaded' => $down > 0 ? $down : 0,
+				'errors'          => (int) ( $row['errors'] ?? 0 ),
+				'warnings'        => (int) ( $row['warnings'] ?? 0 ),
+				'submitted'       => $submitted,
+			);
+		}
+		return array( 'sitemaps' => $list );
+	}
+
+	/**
 	 * Query×page performance for a window, most impressions first — one row
 	 * per (page, query) with clicks, impressions and average position exactly
 	 * as Search Console reports them.
@@ -88,6 +122,81 @@ final class Client {
 			);
 		}
 		return array( 'rows' => $rows );
+	}
+
+	/**
+	 * Clicks and impressions PER DAY for a window — the series behind
+	 * "this week vs last". One row per date, exactly as Search Console
+	 * reports it; no query/page split, so the row count stays tiny.
+	 *
+	 * @param string $token    Bearer token.
+	 * @param string $property The GSC property.
+	 * @param string $start    Y-m-d start date.
+	 * @param string $end      Y-m-d end date.
+	 * @return array { days?: array<int,array{date:string,clicks:int,impressions:int}>, error?: string }
+	 */
+	public function search_analytics_daily( $token, $property, $start, $end ) {
+		$out = $this->request(
+			'POST',
+			'sites/' . rawurlencode( (string) $property ) . '/searchAnalytics/query',
+			$token,
+			array(
+				'startDate'  => (string) $start,
+				'endDate'    => (string) $end,
+				'dimensions' => array( 'date' ),
+				'rowLimit'   => self::ROW_LIMIT,
+			)
+		);
+		if ( isset( $out['error'] ) ) {
+			return $out;
+		}
+		$days = array();
+		foreach ( (array) ( $out['data']['rows'] ?? array() ) as $row ) {
+			$keys = (array) ( $row['keys'] ?? array() );
+			if ( empty( $keys[0] ) ) {
+				continue;
+			}
+			$days[] = array(
+				'date'        => (string) $keys[0],
+				'clicks'      => (int) round( (float) ( $row['clicks'] ?? 0 ) ),
+				'impressions' => (int) round( (float) ( $row['impressions'] ?? 0 ) ),
+			);
+		}
+		return array( 'days' => $days );
+	}
+
+	/**
+	 * Google Discover totals for a window — the feed surface most owners never
+	 * know they appear on. No dimensions: one aggregate row (Discover has no
+	 * queries, and position means nothing there).
+	 *
+	 * @param string $token    Bearer token.
+	 * @param string $property The GSC property.
+	 * @param string $start    Y-m-d start date.
+	 * @param string $end      Y-m-d end date.
+	 * @return array { totals?: array{impressions:int,clicks:int}, error?: string }
+	 */
+	public function discover_totals( $token, $property, $start, $end ) {
+		$out = $this->request(
+			'POST',
+			'sites/' . rawurlencode( (string) $property ) . '/searchAnalytics/query',
+			$token,
+			array(
+				'startDate' => (string) $start,
+				'endDate'   => (string) $end,
+				'type'      => 'discover',
+			)
+		);
+		if ( isset( $out['error'] ) ) {
+			return $out;
+		}
+		$row = (array) ( ( $out['data']['rows'] ?? array() )[0] ?? array() );
+		return array(
+			'totals' => array(
+				'impressions' => (int) round( (float) ( $row['impressions'] ?? 0 ) ),
+				'clicks'      => (int) round( (float) ( $row['clicks'] ?? 0 ) ),
+			),
+		);
 	}
 
 	/**
@@ -153,6 +262,11 @@ final class Client {
 				// The sitemaps Google knows reference this URL — empty + not
 				// indexed is the "nobody told Google" signal.
 				'in_sitemap'       => ! empty( $isr['sitemap'] ),
+				// How many pages Google knows link to this URL. Zero + not
+				// indexed names the OTHER discovery lever: nothing points here.
+				// (Google itself caps the list it reports — treat the count as
+				// "at least", never print it as exhaustive.)
+				'referrers'        => count( (array) ( $isr['referringUrls'] ?? array() ) ),
 				// Deep link to THIS URL's inspection in Search Console — where
 				// "Request indexing" lives (that button has no API; the link is
 				// the honest version of it).

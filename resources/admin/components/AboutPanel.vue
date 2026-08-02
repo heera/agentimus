@@ -224,7 +224,7 @@ export default {
             { name: 'AI description', where: 'per post', desc: 'A one-line summary → the JSON-LD description, the Markdown lead, and your page’s meta description (replacing your theme’s, unless a dedicated SEO plugin owns it). Blank pages fall back to the excerpt, or a short summary of the page.', tag: 'On' },
             { name: 'Search basics', where: 'Settings → Discovery', desc: 'With no SEO plugin installed, Agentimus covers the search essentials itself: a per-page “SEO title” field in the editor, Open Graph/X share cards (featured image → your chosen default → Site Icon), and canonical links on the views WordPress leaves bare. Install an SEO plugin and every one of these steps aside automatically — nothing is ever emitted twice — and a dashboard card names the division of labour.', tag: 'On' },
             { name: 'robots.txt', where: '/robots.txt', desc: 'Adds Content-Signal directives and advertises your sitemap.', tag: 'On' },
-            { name: 'XML sitemap', where: '/agentimus-sitemap.xml', desc: 'With no SEO plugin, Agentimus serves your sitemap — including the last-changed dates WordPress core’s own leaves out — and advertises it in robots.txt and llms.txt. With one installed, it stands down and links theirs instead.', tag: 'On' },
+            { name: 'XML sitemap', where: '/wp-sitemap.xml', desc: 'With no SEO plugin, Agentimus serves your sitemap — including the last-changed dates WordPress core’s own leaves out — at WordPress’s standard address, so a sitemap registered in any search console keeps working. Older addresses (/sitemap.xml, /agentimus-sitemap.xml) redirect there. With an SEO plugin installed, it stands down and links theirs instead.', tag: 'On' },
           ],
         },
         {

@@ -132,9 +132,30 @@ final class Endpoints {
 			$this->send( Changes::document( $this->settings, $since ), 'application/json', 'changes', 300 );
 		}
 
+		// The PROMOTED sitemap lives at core's own /wp-sitemap.xml — the address
+		// the world registers in search consoles — and every other sitemap door
+		// answers with a permanent redirect instead of a 404, so a registration
+		// made years ago (or under an earlier Agentimus, whose takeover briefly
+		// 404'd this path) heals on the crawler's next retry. Promotion-only:
+		// route_for() passes everything through when core or a suite owns these
+		// addresses. Runs at template_redirect 0, ahead of core's own renderer.
+		$sitemap_route = Sitemap::route_for( $path );
+		if ( 'index' === $sitemap_route ) {
+			$body = Sitemap::body( Sitemap::PATH );
+			if ( '' !== $body ) {
+				$this->send( $body, 'application/xml', 'sitemap' );
+			}
+		}
+		if ( 'redirect' === $sitemap_route ) {
+			wp_safe_redirect( home_url( Sitemap::INDEX_PATH ), 301 );
+			exit;
+		}
+
 		// The opt-in fallback sitemap (index + paginated sub-sitemaps) — served
 		// only while Agentimus actually owns the sitemap (core/SEO absent), so we
-		// never shadow another plugin's file.
+		// never shadow another plugin's file. Under promotion the index request
+		// never reaches here (redirected above); sub-sitemaps still serve from
+		// this prefix in both modes.
 		if ( 0 === strpos( $path, '/agentimus-sitemap' ) && '.xml' === substr( $path, -4 ) ) {
 			if ( 'agentimus' === Sitemap::detect()['source'] ) {
 				$body = Sitemap::body( $path );

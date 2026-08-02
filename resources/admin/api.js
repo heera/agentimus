@@ -241,6 +241,7 @@ export function createApi(boot) {
     // The Google index watch: stored answers, and an inline "Check now" sweep.
     getGoogleIndex: () => request('/google/index'),
     refreshGoogleIndex: () => request('/google/index', { method: 'POST' }),
+    lookupGoogleIndex: (url) => request(`/google/index/lookup?url=${encodeURIComponent(url)}`),
 
     // AI Visibility monitoring.
     getVisibilityConfig: () => request('/visibility/config'),

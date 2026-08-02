@@ -7,10 +7,18 @@
  * Two postures, decided by the mode ({@see SeoContext}):
  *   - solo (no SEO suite): Agentimus's own sitemap is promoted to THE sitemap —
  *     it carries per-URL lastmod dates, which core's wp-sitemap leaves out —
- *     and core's duplicate is switched off ({@see register()}).
+ *     and core's duplicate is switched off ({@see register()}). The promoted
+ *     index is served AT core's own address, /wp-sitemap.xml: that path is
+ *     what the world registers in search consoles, so taking over the sitemap
+ *     must never move it. The other doors — /sitemap.xml (the de-facto web
+ *     convention crawlers guess blind) and the legacy /agentimus-sitemap.xml —
+ *     answer with a permanent redirect, so a registration made years ago, or
+ *     under an earlier Agentimus, keeps working ({@see route_for()}).
  *   - coexist: Agentimus never competes. It detects the existing sitemap
  *     (core's or the suite's) and links that; its own generator is only the
- *     opt-in fallback when nobody else provides one.
+ *     opt-in fallback when nobody else provides one — served at the legacy
+ *     path, with no redirects, so it never shadows an address another plugin
+ *     might claim tomorrow.
  *
  * Suite detection is read from {@see SeoContext} — the same table Schema and the
  * mode resolver use, so all three stay in lockstep by construction.
@@ -24,8 +32,15 @@ defined( 'ABSPATH' ) || exit;
 
 final class Sitemap {
 
-	/** Where the Agentimus-generated sitemap is served. */
+	/** The legacy Agentimus index path — still the fallback-mode address, and a
+	 * permanent redirect to INDEX_PATH while promoted. Sub-sitemaps keep this
+	 * prefix in both modes (only the index is an address anyone registers). */
 	const PATH = '/agentimus-sitemap.xml';
+
+	/** Where the PROMOTED index is served: core's canonical path since WP 5.5.
+	 * Search consoles, tutorials and muscle memory all point here — a sitemap
+	 * that moves off this address silently kills every registration of it. */
+	const INDEX_PATH = '/wp-sitemap.xml';
 
 	/**
 	 * Register the runtime hook: while the solo-mode promotion is on, core's
@@ -59,6 +74,29 @@ final class Sitemap {
 	}
 
 	/**
+	 * Routing verdict for a request path, promotion-only. Outside promotion
+	 * every path passes through untouched: core or a suite owns these
+	 * addresses then, and the coexist fallback keeps its legacy serving with
+	 * no redirects.
+	 *
+	 * @param string $path Request path, e.g. '/wp-sitemap.xml'.
+	 * @return string 'index' (serve the promoted index here), 'redirect'
+	 *                (301 to INDEX_PATH), or '' (not ours to answer).
+	 */
+	public static function route_for( $path ) {
+		if ( ! self::promoted() ) {
+			return '';
+		}
+		if ( self::INDEX_PATH === $path ) {
+			return 'index';
+		}
+		if ( '/sitemap.xml' === $path || self::PATH === $path ) {
+			return 'redirect';
+		}
+		return '';
+	}
+
+	/**
 	 * Resolve the live sitemap, in priority order:
 	 *   0. The solo-mode promotion — Agentimus's own sitemap wins outright.
 	 *   1. WordPress core sitemaps (on by default since 5.5).
@@ -74,9 +112,11 @@ final class Sitemap {
 	public static function detect() {
 		// 0. Solo-mode promotion (the wp_sitemaps_enabled filter above keeps
 		// core's duplicate off for exactly the requests this branch wins on).
+		// Advertised at the canonical address — robots.txt, llms.txt and the
+		// discovery document all name the URL that never moves.
 		if ( self::promoted() ) {
 			return array(
-				'url'    => home_url( self::PATH ),
+				'url'    => home_url( self::INDEX_PATH ),
 				'source' => 'agentimus',
 				'label'  => __( 'Agentimus', 'agentimus' ),
 			);

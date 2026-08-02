@@ -34,6 +34,13 @@ final class Module {
 	/** @var int The report window, in days. */
 	const WINDOW_DAYS = 56;
 
+	/** @var string Daily clicks/impressions history + Discover totals — kept
+	 * where Search Console's own window ends, like the Bing side's history. */
+	const TREND_OPTION = 'agentimus_google_trend';
+
+	/** @var int Days of daily history kept at most. */
+	const TREND_KEEP = 400;
+
 	/** @var int Search Console data lags — the window ends this many days ago, where numbers are final. */
 	const LAG_DAYS = 2;
 
@@ -177,6 +184,60 @@ final class Module {
 
 		Search\Table::replace( 'google', $rows );
 		$this->settings->record_poll( '' );
+
+		// The trend series and Discover totals ride the same poll — two cheap
+		// extra calls. Their failures never smear the snapshot above: the
+		// window numbers just landed, and a transport blip on the extras
+		// leaves the last good series in place rather than a false zero.
+		$trend = get_option( self::TREND_OPTION, array() );
+		$trend = is_array( $trend ) ? $trend : array();
+
+		$daily = $this->client->search_analytics_daily( $auth['token'], $property, $start, $end );
+		if ( isset( $daily['days'] ) ) {
+			$trend['daily'] = self::merge_daily(
+				isset( $trend['daily'] ) && is_array( $trend['daily'] ) ? $trend['daily'] : array(),
+				$daily['days'],
+				self::TREND_KEEP
+			);
+		}
+
+		$discover = $this->client->discover_totals( $auth['token'], $property, $start, $end );
+		if ( isset( $discover['totals'] ) ) {
+			$trend['discover'] = $discover['totals'];
+		}
+
+		update_option( self::TREND_OPTION, $trend, false );
+	}
+
+	/**
+	 * Merge a fresh daily window into the stored history: fresh days replace
+	 * stored ones (Search Console revises recent days), older history stays —
+	 * the series keeps growing where Google's own window ends. Sorted by
+	 * date, capped from the OLD end.
+	 *
+	 * @param array $stored Stored rows [{date, clicks, impressions}].
+	 * @param array $fresh  This poll's window rows, same shape.
+	 * @param int   $keep   Days kept at most.
+	 * @return array
+	 */
+	public static function merge_daily( array $stored, array $fresh, $keep ) {
+		$by_date = array();
+		foreach ( $stored as $row ) {
+			if ( ! empty( $row['date'] ) ) {
+				$by_date[ (string) $row['date'] ] = $row;
+			}
+		}
+		foreach ( $fresh as $row ) {
+			if ( ! empty( $row['date'] ) ) {
+				$by_date[ (string) $row['date'] ] = array(
+					'date'        => (string) $row['date'],
+					'clicks'      => (int) ( isset( $row['clicks'] ) ? $row['clicks'] : 0 ),
+					'impressions' => (int) ( isset( $row['impressions'] ) ? $row['impressions'] : 0 ),
+				);
+			}
+		}
+		ksort( $by_date );
+		return array_slice( array_values( $by_date ), -1 * max( 1, (int) $keep ) );
 	}
 
 	/**
@@ -204,6 +265,13 @@ final class Module {
 			$stored['error'] = (string) $auth['error'];
 			update_option( Index::OPTION, $stored, false );
 			return $stored;
+		}
+
+		// The registered-sitemaps snapshot rides the sweep, refreshed once per
+		// RUN, not per chunk — one cheap GET answering the question no on-site
+		// check can: does Google still fetch what the owner once registered?
+		if ( ! Index::run_in_flight() ) {
+			Index::store_sitemaps( $this->client->sitemaps( $auth['token'], $property ) );
 		}
 
 		$out = Index::sweep( $this->client, $auth['token'], $property, Index::run_targets(), $budget );
