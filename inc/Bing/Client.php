@@ -111,6 +111,89 @@ final class Client {
 	}
 
 	/**
+	 * Site-wide query traffic: one row per query over Bing's trailing window.
+	 * No page attribution at this endpoint — these rows feed the site's own
+	 * CTR median; the page-attributed rows come from page_query_stats().
+	 *
+	 * @param string $api_key  API key.
+	 * @param string $site_url Site URL.
+	 * @return array { rows?: array<int,array>, error?: string }
+	 */
+	public function query_stats( $api_key, $site_url ) {
+		$out = $this->get( 'GetQueryStats', $api_key, array( 'siteUrl' => (string) $site_url ) );
+		return isset( $out['error'] ) ? $out : array( 'rows' => self::qstats_rows( $out['d'], 'Query' ) );
+	}
+
+	/**
+	 * Per-page traffic: one row per PAGE (Bing reuses its QueryStats DTO here —
+	 * the page URL travels in the Query field). Used to pick the top pages worth
+	 * a per-page query breakdown.
+	 *
+	 * @param string $api_key  API key.
+	 * @param string $site_url Site URL.
+	 * @return array { rows?: array<int,array>, error?: string }
+	 */
+	public function page_stats( $api_key, $site_url ) {
+		$out = $this->get( 'GetPageStats', $api_key, array( 'siteUrl' => (string) $site_url ) );
+		return isset( $out['error'] ) ? $out : array( 'rows' => self::qstats_rows( $out['d'], 'Query' ) );
+	}
+
+	/**
+	 * The queries one specific page ranks for.
+	 *
+	 * @param string $api_key  API key.
+	 * @param string $site_url Site URL.
+	 * @param string $page     The page URL.
+	 * @return array { rows?: array<int,array>, error?: string }
+	 */
+	public function page_query_stats( $api_key, $site_url, $page ) {
+		$out = $this->get( 'GetPageQueryStats', $api_key, array(
+			'siteUrl' => (string) $site_url,
+			'page'    => (string) $page,
+		) );
+		return isset( $out['error'] ) ? $out : array( 'rows' => self::qstats_rows( $out['d'], 'Query' ) );
+	}
+
+	/**
+	 * Normalize Bing's QueryStats DTO rows: { key, clicks, impressions,
+	 * position }. Position prefers the impression-weighted average and is
+	 * filterable (`agentimus_bing_position_scale`) because the DTO's position
+	 * scale gets confirmed against the live API at connect time — the parser
+	 * stays tolerant instead of assuming.
+	 *
+	 * @param mixed  $d         The WCF "d" payload.
+	 * @param string $key_field Which field carries the row's key (query text, or the page URL).
+	 * @return array<int,array>
+	 */
+	private static function qstats_rows( $d, $key_field ) {
+		/**
+		 * Filter the divisor applied to Bing's Avg*Position values.
+		 *
+		 * @param float $scale 1 by default; set 10 if the live API reports positions ×10.
+		 */
+		$scale = max( 1.0, (float) apply_filters( 'agentimus_bing_position_scale', 1.0 ) );
+
+		$rows = array();
+		foreach ( (array) $d as $row ) {
+			if ( ! is_array( $row ) ) {
+				continue;
+			}
+			$key = (string) ( $row[ $key_field ] ?? $row['Page'] ?? $row['Url'] ?? '' );
+			if ( '' === $key ) {
+				continue;
+			}
+			$position = (float) ( $row['AvgImpressionPosition'] ?? $row['AvgClickPosition'] ?? 0 );
+			$rows[]   = array(
+				'key'         => $key,
+				'clicks'      => (int) ( $row['Clicks'] ?? 0 ),
+				'impressions' => (int) ( $row['Impressions'] ?? 0 ),
+				'position'    => round( $position / $scale, 2 ),
+			);
+		}
+		return $rows;
+	}
+
+	/**
 	 * A WCF "/Date(1690761600000)/" (optionally with a zone suffix) as
 	 * Y-m-d, or '' when unparseable.
 	 *

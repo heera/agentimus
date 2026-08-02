@@ -38,6 +38,7 @@ final class Settings {
 			'connected_at' => 0,
 			'last_poll_at' => 0,
 			'last_error'   => '', // The most recent poll failure, '' after a clean poll.
+			'last_query_error' => '', // The query-stats side of the poll fails on its own line — crawl data staying fresh must not mask it, or vice versa.
 		);
 	}
 
@@ -149,6 +150,19 @@ final class Settings {
 	}
 
 	/**
+	 * Record the query-stats half of the poll — its own field, so a failure
+	 * here is never hidden behind healthy crawl numbers.
+	 *
+	 * @param string $error Human-readable failure, or '' for a clean run.
+	 * @return void
+	 */
+	public function record_query_poll( $error = '' ) {
+		$all                      = $this->all();
+		$all['last_query_error']  = sanitize_text_field( (string) $error );
+		$this->persist( $all );
+	}
+
+	/**
 	 * The connection state as the admin UI may see it — everything EXCEPT the
 	 * key, which never crosses the REST boundary in either direction.
 	 *
@@ -163,6 +177,7 @@ final class Settings {
 			'connectedAt'   => (int) $all['connected_at'],
 			'lastPollAt'    => (int) $all['last_poll_at'],
 			'lastError'     => (string) $all['last_error'],
+			'lastQueryError' => (string) $all['last_query_error'],
 		);
 	}
 

@@ -459,7 +459,11 @@ final class Seo {
 		$noun = ( $obj && ! empty( $obj->labels->singular_name ) ) ? strtolower( $obj->labels->singular_name ) : $post->post_type;
 
 		echo '<div class="agentimus-seo-title">';
-		echo '<p><label for="agentimus-seo-title-input">'
+		// The field's NAME first (scannable), its explanation second — three
+		// fields share this box, so each needs a heading of its own.
+		echo '<p class="agentimus-fieldhead"><label for="agentimus-seo-title-input">'
+			. esc_html__( 'SEO title', 'agentimus' ) . '</label></p>';
+		echo '<p class="agentimus-fieldhint">'
 			. esc_html(
 				sprintf(
 					/* translators: %s: the content type in lowercase, e.g. "post", "page", "product". */
@@ -467,7 +471,7 @@ final class Seo {
 					$noun
 				)
 			)
-			. '</label></p>';
+			. '</p>';
 		echo '<input type="text" id="agentimus-seo-title-input" name="agentimus_seo_title" class="widefat" maxlength="' . esc_attr( (string) self::TITLE_MAX_LEN ) . '" value="'
 			. esc_attr( $value ) . '" placeholder="' . esc_attr( $post->post_title ) . '" />';
 		echo '</div>';

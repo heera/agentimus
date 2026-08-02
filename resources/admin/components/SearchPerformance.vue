@@ -1,0 +1,273 @@
+<script>
+/**
+ * Search Performance — the whole-picture half of the AI Visibility screen's
+ * search story: what the site earned in the window, the queries that brought
+ * it, and the pages that did the earning.
+ *
+ * The counterpart to Readiness → Search Opportunities: the same stored
+ * snapshot, the opposite lens. This screen answers "how am I doing?"; that one
+ * answers "what should I fix?" — and each points at the other.
+ *
+ * Off state = one quiet pointer at Settings → Data sources. No form here: the
+ * keys have exactly one home.
+ */
+import { formatDate } from '../wpDate.js';
+
+export default {
+  name: 'SearchPerformance',
+  props: {
+    api: { type: Object, default: null },
+    // Rendered with v-show, so it stays mounted across tab switches.
+    active: { type: Boolean, default: false },
+  },
+  emits: ['navigate'],
+  data() {
+    return {
+      data: null,
+      loading: false,
+      loaded: false,
+      error: '',
+      source: '', // The source the owner picked, '' = let the server choose.
+    };
+  },
+  computed: {
+    sources() {
+      return (this.data && this.data.sources) || {};
+    },
+    anyConnected() {
+      const s = this.sources;
+      return !!((s.bing && s.bing.connected) || (s.google && s.google.connected));
+    },
+    bothConnected() {
+      const s = this.sources;
+      return !!(s.bing && s.bing.hasData && s.google && s.google.hasData);
+    },
+    active_source() {
+      return (this.data && this.data.source) || '';
+    },
+    sourceLabel() {
+      return this.active_source === 'google' ? 'Google Search Console' : 'Bing Webmaster Tools';
+    },
+    totals() {
+      return (this.data && this.data.performance && this.data.performance.totals) || null;
+    },
+    topQueries() {
+      return (this.data && this.data.performance && this.data.performance.top_queries) || [];
+    },
+    hasProbes() {
+      return this.topQueries.some((q) => q.is_probe);
+    },
+    probeShare() {
+      return Number(this.totals && this.totals.probeShare) || 0;
+    },
+    // Totals behind each top list. A capped list that never says it is capped
+    // reads as the whole picture — the same rule the worklist follows.
+    counts() {
+      return (this.data && this.data.performance && this.data.performance.counts) || { queries: 0, pages: 0 };
+    },
+    // >0 when the source only reports page detail for its busiest pages, which
+    // scopes every page figure on this screen and in the worklist.
+    pageCap() {
+      const s = this.sources[this.active_source];
+      return s ? Number(s.pageCap) || 0 : 0;
+    },
+    topPages() {
+      return (this.data && this.data.performance && this.data.performance.top_pages) || [];
+    },
+    rangeText() {
+      const r = this.data && this.data.range;
+      if (!r || !r.start) return '';
+      const d = (s) => formatDate(new Date(`${s}T00:00:00`));
+      return `${d(r.start)} – ${d(r.end)}`;
+    },
+  },
+  watch: {
+    // Fetch on every reveal: a connect or an overnight poll must show without
+    // a page reload (same contract as the Bing card beside it).
+    active(on) {
+      if (on) this.load();
+    },
+  },
+  mounted() {
+    if (this.active) this.load();
+  },
+  methods: {
+    async load() {
+      if (this.loading || !this.api || !this.api.getSearchPerformance) return;
+      this.loading = true;
+      this.error = '';
+      try {
+        this.data = await this.api.getSearchPerformance(this.source);
+      } catch (e) {
+        this.error = (e && e.message) || 'Could not read search performance.';
+      } finally {
+        this.loading = false;
+        this.loaded = true;
+      }
+    },
+    pick(source) {
+      if (this.source === source) return;
+      this.source = source;
+      this.load();
+    },
+    num(n) {
+      return Number(n || 0).toLocaleString();
+    },
+  },
+};
+</script>
+
+<template>
+  <section class="ar-card ar-perf">
+    <div class="ar-perf__head">
+      <div>
+        <h2 class="ar-card__title">Search Performance</h2>
+        <p class="ar-card__lead">
+          How your pages did in search: what was searched for, how often you showed up,
+          and how often those results were clicked. Every number here is reported by the
+          search engine itself — nothing is estimated.
+        </p>
+      </div>
+      <!-- The source switch appears only when there is a real choice to make. -->
+      <div v-if="bothConnected" class="ar-srcpick" role="group" aria-label="Show numbers from">
+        <span class="ar-srcpick__label">Show numbers from</span>
+        <span class="ar-srcpick__set">
+          <button type="button" class="ar-srcpick__btn" :class="{ 'is-on': active_source === 'google' }" @click="pick('google')">Google</button>
+          <button type="button" class="ar-srcpick__btn" :class="{ 'is-on': active_source === 'bing' }" @click="pick('bing')">Bing</button>
+        </span>
+      </div>
+    </div>
+
+    <p v-if="error" class="ar-field__hint ar-warn">{{ error }}</p>
+
+    <!-- Nothing connected: one pointer, no form. -->
+    <p v-else-if="loaded && !anyConnected" class="ar-perf__empty">
+      Connect <strong>Google Search Console</strong> or <strong>Bing Webmaster Tools</strong> under
+      <button type="button" class="ar-linkbtn" @click="$emit('navigate', { tab: 'settings', anchor: 'ar-sec-google' })">Settings → Data sources</button>
+      and this fills itself — read-only, one daily poll, stored in your own database.
+    </p>
+
+    <!-- Connected, but the engine hasn't reported yet. -->
+    <p v-else-if="loaded && !active_source" class="ar-perf__empty">
+      Connected — no numbers yet. Search engines report on a delay, so the first
+      window usually lands within a day or two.
+    </p>
+
+    <template v-else-if="totals">
+      <div class="ar-perf__tiles">
+        <div class="ar-perf__tile">
+          <span class="ar-perf__label">Times shown</span>
+          <span class="ar-perf__num">{{ num(totals.impressions) }}</span>
+          <span class="ar-perf__hint">your pages appeared in results</span>
+        </div>
+        <div class="ar-perf__tile">
+          <span class="ar-perf__label">Visits</span>
+          <span class="ar-perf__num">{{ num(totals.clicks) }}</span>
+          <span class="ar-perf__hint">someone clicked through</span>
+        </div>
+        <div class="ar-perf__tile">
+          <span class="ar-perf__label">Click rate</span>
+          <span class="ar-perf__num">{{ totals.ctr }}%</span>
+          <span class="ar-perf__hint">of everyone who saw you</span>
+        </div>
+        <div class="ar-perf__tile">
+          <span class="ar-perf__label">Average rank</span>
+          <span class="ar-perf__num">{{ totals.position }}</span>
+          <span class="ar-perf__hint">1 is the top result</span>
+        </div>
+      </div>
+      <!-- The tiles are the engine's own totals and stay untouched. But "of the
+           people who saw you" is only true if the views were people, so when a
+           large share weren't, that has to be said next to the number. -->
+      <p v-if="probeShare >= 25" class="ar-srcline ar-perf__probeline">
+        <strong>{{ probeShare }}% of these views came from automated probes</strong>, not
+        people — so the click rate above is lower than the rate real visitors give you.
+        Nothing has been removed here; this screen is the engine’s raw record. The
+        <em>Search Opportunities</em> worklist judges people-only traffic.
+      </p>
+      <p class="ar-srcline">
+        These numbers come from <strong>{{ sourceLabel }}</strong><template v-if="rangeText">, covering {{ rangeText }}</template>.
+        <template v-if="bothConnected">Switch above to see what {{ active_source === 'google' ? 'Bing' : 'Google' }} reported instead — the two count different searchers, so they never match exactly.</template>
+      </p>
+
+      <div class="ar-perf__cols">
+        <div class="ar-perf__col">
+          <p class="ar-perf__eyebrow">What was searched for</p>
+          <table class="ar-perf__table">
+            <thead>
+              <tr><th>Search</th><th>Shown</th><th>Visits</th><th>Rank</th></tr>
+            </thead>
+            <tbody>
+              <tr v-for="q in topQueries" :key="q.query">
+                <td class="ar-perf__q">
+                  {{ q.query }}
+                  <!-- Named for what it is. The row stays — this screen is the raw
+                       record — but it must not pass for a person's question. -->
+                  <span v-if="q.is_probe" class="ar-perf__probe">probe</span>
+                </td>
+                <td class="ar-perf__n">{{ num(q.impressions) }}</td>
+                <td class="ar-perf__n">{{ num(q.clicks) }}</td>
+                <td class="ar-perf__n ar-perf__n--dim">{{ q.position }}</td>
+              </tr>
+              <tr v-if="!topQueries.length"><td colspan="4" class="ar-perf__none">No queries in this window.</td></tr>
+            </tbody>
+          </table>
+          <p v-if="counts.queries > topQueries.length" class="ar-perf__foot">
+            Showing the {{ topQueries.length }} most-shown of
+            {{ num(counts.queries) }} searches.
+          </p>
+          <p v-if="hasProbes" class="ar-perf__foot">
+            Rows marked <span class="ar-perf__probe">probe</span> are search operators —
+            <code>site:</code>, <code>intext:</code> and the like — run in bulk by scrapers
+            and SEO tools. They are real results the engine reported, so they stay here, but
+            nobody was ever going to click them.
+          </p>
+        </div>
+
+        <div class="ar-perf__col">
+          <p class="ar-perf__eyebrow">Which pages they found</p>
+          <table class="ar-perf__table">
+            <thead>
+              <tr><th>Page</th><th>Shown</th><th>Visits</th><th>Rank</th></tr>
+            </thead>
+            <tbody>
+              <tr v-for="p in topPages" :key="p.page_url">
+                <td class="ar-perf__q">
+                  <a v-if="p.edit_url" :href="p.edit_url" class="ar-perf__page">{{ p.title }}</a>
+                  <span v-else>{{ p.title }}</span>
+                </td>
+                <td class="ar-perf__n">{{ num(p.impressions) }}</td>
+                <td class="ar-perf__n">{{ num(p.clicks) }}</td>
+                <td class="ar-perf__n ar-perf__n--dim">{{ p.position }}</td>
+              </tr>
+              <tr v-if="!topPages.length">
+                <td colspan="4" class="ar-perf__none">
+                  This source reports queries without naming the page.
+                </td>
+              </tr>
+            </tbody>
+          </table>
+          <p v-if="counts.pages > topPages.length" class="ar-perf__foot">
+            Showing the {{ topPages.length }} most-shown of {{ num(counts.pages) }} pages.
+          </p>
+          <!-- The cap is OURS, not the engine's: Bing has no report pairing searches
+               with pages, so each page costs its own request and the poll takes the
+               busiest few. Blaming the engine for our own budget would be a lie. -->
+          <p v-if="pageCap" class="ar-perf__foot">
+            {{ sourceLabel }} has no single report pairing searches with pages, so
+            Agentimus fetches that page by page — for your {{ pageCap }} busiest pages,
+            to keep the daily check small. Quieter pages can’t appear here however
+            well they rank.
+          </p>
+        </div>
+      </div>
+
+      <p class="ar-card__note">
+        This screen is the whole record. To see what to improve — pages just off page
+        one, and pages on page one being scrolled past —
+        <button type="button" class="ar-linkbtn" @click="$emit('navigate', { tab: 'readiness', anchor: 'ar-group-search' })">Search Opportunities</button>
+        turns these same numbers into a to-do list.
+      </p>
+    </template>
+  </section>
+</template>

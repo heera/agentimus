@@ -16,6 +16,7 @@ import AiTrafficPanel from './components/AiTrafficPanel.vue';
 import RequestLog from './components/RequestLog.vue';
 import EdgePanel from './components/EdgePanel.vue';
 import BingPanel from './components/BingPanel.vue';
+import SearchPerformance from './components/SearchPerformance.vue';
 import AgentAccess from './components/AgentAccess.vue';
 import ReviewMenu from './components/ReviewMenu.vue';
 import OnboardingWizard from './components/OnboardingWizard.vue';
@@ -43,7 +44,7 @@ const MORE_EDGE_GAP = 12;
 
 export default {
   name: 'AgentimusApp',
-  components: { SettingsForm, ReadinessPanel, DiscoveryHub, ActivityPanel, WhatsNew, ReviewAsk, AssistantLauncher, AssistantDrawer, AiTrafficPanel, RequestLog, EdgePanel, BingPanel, AgentAccess, ReviewMenu, OnboardingWizard, AboutPanel, ConfirmDialog, VisibilityPanel },
+  components: { SettingsForm, ReadinessPanel, DiscoveryHub, ActivityPanel, WhatsNew, ReviewAsk, AssistantLauncher, AssistantDrawer, AiTrafficPanel, RequestLog, EdgePanel, BingPanel, SearchPerformance, AgentAccess, ReviewMenu, OnboardingWizard, AboutPanel, ConfirmDialog, VisibilityPanel },
   // The styled hover bubble (shared with the activity tables) — the score rail's
   // rung and next-step hints use it instead of slow, unthemeable native titles.
   mixins: [uaTip],
@@ -410,7 +411,9 @@ export default {
           },
           visibility: {
             title: 'AI Visibility',
-            description: 'Whether AI search can find you, and whether assistants cite you — Bing’s index and scheduled citation checks, side by side.',
+            // Names all THREE cards on the screen. Search Performance moved here and
+            // can report Google, so a lead naming only Bing describes the old screen.
+            description: 'Whether AI search can find you, whether assistants cite you, and how you did in classic search — Bing’s index, scheduled citation checks, and the numbers Google or Bing reported.',
           },
           settings: {
             title: 'Settings',
@@ -1666,6 +1669,7 @@ export default {
         />
         <ReadinessPanel
           v-show="tab === 'readiness'"
+          :active="tab === 'readiness'"
           :checks="readiness"
           :optimize="optimizeWork"
           :optimize-ignored="optimizeIgnored"
@@ -1833,6 +1837,14 @@ export default {
           @enable-checks="settings.enable_visibility = $event"
         />
         <BingPanel
+          v-show="tab === 'visibility' && visView === 'aisearch'"
+          :api="api"
+          :active="tab === 'visibility' && visView === 'aisearch'"
+          @navigate="goTo"
+        />
+        <!-- Classic search's own half: what the engines sent, from the same
+             snapshot Readiness carves its worklist out of. -->
+        <SearchPerformance
           v-show="tab === 'visibility' && visView === 'aisearch'"
           :api="api"
           :active="tab === 'visibility' && visView === 'aisearch'"

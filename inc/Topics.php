@@ -412,6 +412,18 @@ final class Topics {
 	 * @param \WP_Post $post Post being edited.
 	 */
 	public function render_meta_box( $post ) {
+		// Up to three fields share this one box, and three paragraphs of prose with
+		// no names read as a wall of text. Each section gets a short heading (what
+		// the field IS) with its sentence demoted to a hint below (what it does) —
+		// the natural scan order, and truer label semantics too. Printed HERE, by
+		// the box itself, because each field's own stylesheet only loads when that
+		// field is enabled — and the SEO title has no stylesheet at all.
+		echo '<style>'
+			. '.agentimus-fieldhead{margin:0 0 3px;font-size:12px;font-weight:600;color:#1d2327;line-height:1.4}'
+			. '.agentimus-fieldhead label{font-weight:600;cursor:pointer}'
+			. '.agentimus-fieldhint{margin:0 0 8px;font-size:11.5px;line-height:1.5;color:#646970}'
+			. '</style>';
+
 		// The solo-mode SEO title sits on top — search snippet order: title, then
 		// description. Its own save hook is untouched; only the container is shared.
 		if ( Seo::title_ui_enabled() ) {
@@ -462,7 +474,9 @@ final class Topics {
 		$obj  = get_post_type_object( $post->post_type );
 		$noun = ( $obj && ! empty( $obj->labels->singular_name ) ) ? strtolower( $obj->labels->singular_name ) : $post->post_type;
 
-		echo '<p><label for="agentimus-topics-input">'
+		echo '<p class="agentimus-fieldhead"><label for="agentimus-topics-input">'
+			. esc_html__( 'Topics for AI', 'agentimus' ) . '</label></p>';
+		echo '<p class="agentimus-fieldhint">'
 			. esc_html(
 				sprintf(
 					/* translators: %s: the content type in lowercase, e.g. "post", "page", "product". */
@@ -470,7 +484,7 @@ final class Topics {
 					$noun
 				)
 			)
-			. '</label></p>';
+			. '</p>';
 
 		echo '<textarea id="agentimus-topics-input" name="agentimus_topics" class="widefat agentimus-topics__raw" rows="3" placeholder="'
 			. esc_attr__( 'e.g. llms.txt, AI visibility, structured data', 'agentimus' ) . '">'

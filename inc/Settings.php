@@ -91,6 +91,7 @@ final class Settings {
 			'post_types'       => self::default_post_types(),
 			'evergreen_categories' => array(), // Category term IDs whose posts are exempt from the content "freshness" check — timeless content (references, tutorials, legal) that doesn't go stale with age. Empty = every post is age-checked.
 			'optimize_ignored'     => array(), // Post IDs the owner marked "not cited content" from the Optimize worklist — pages that aren't meant to be quoted (landing/utility/index). Left out of citability grading entirely; always shown as a visible "set aside" count so the score stays honest.
+			'search_ignored'       => array(), // Post IDs set aside from the Search Opportunities worklist — pages the owner doesn't want search suggestions for. Its OWN list, not shared with optimize_ignored: "don't grade this for citability" and "don't suggest search fixes for this" are different judgements. Shown inside the Search Opportunities section so it is never a hidden ledger.
 			'rest_namespaces'  => array(), // Owner-curated REST namespaces to publish in discovery (opt-in; empty = none).
 			'oauth_auth_server' => '',     // Optional OAuth authorization-server URL; when set, serve RFC 9728 protected-resource metadata. Never fabricate RFC 8414.
 			'suppressed_resources' => array(), // Owner opt-OUT: ids of provider-registered Resources to hide from all output. Declared Resources default to published (spec §04), so empty = publish everything a provider declared.
@@ -906,6 +907,19 @@ final class Settings {
 			}
 		);
 		$clean['optimize_ignored'] = array_values( array_slice( array_unique( $ignored_ids ), 0, 1000 ) );
+
+		// Search "set aside" list: its own ledger, same rules. Deliberately SEPARATE
+		// from optimize_ignored — excusing a page from citability grading and
+		// excusing it from search suggestions are different judgements about
+		// different work, and each list is shown inside the screen that owns it.
+		$search_in                = isset( $input['search_ignored'] ) ? (array) $input['search_ignored'] : array();
+		$search_ids               = array_filter(
+			array_map( 'intval', $search_in ),
+			static function ( $n ) {
+				return $n > 0;
+			}
+		);
+		$clean['search_ignored'] = array_values( array_slice( array_unique( $search_ids ), 0, 1000 ) );
 
 		/**
 		 * Filter the sanitised settings before they are stored.

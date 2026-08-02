@@ -1615,6 +1615,291 @@ td.ar-edge__n.is-bad { color: var(--ar-bad); font-weight: 600; }
    button shortened to the filter-bar height so the pair reads as one control. */
 .ar-cf-row { display: flex; gap: 8px; margin: 14px 0 8px; }
 .ar-cf-row .ar-input { flex: 1; }
+/* Choosing the downloaded file beats pasting 2 KB of JSON: one control, one
+   line, and the file name confirms the right thing was picked. */
+.ar-google__pick { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin: 12px 0 4px; }
+.ar-google__choose { position: relative; overflow: hidden; cursor: pointer; }
+.ar-google__file { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; }
+.ar-google__filename { font-family: var(--ar-mono); font-size: 11.5px; color: var(--ar-ink-soft); overflow-wrap: anywhere; }
+.ar-google__pastelink { font-size: 12px; }
+/* The paste fallback keeps its monospace shape for the rare hand-paste. */
+.ar-google__key { font-family: var(--ar-mono); font-size: 11.5px; line-height: 1.5; resize: vertical; min-height: 62px; width: 100%; margin-top: 4px; }
+.ar-google__connect { margin-top: 4px; }
+/* Reads the pasted key back to the owner: the one address Search Console needs,
+   lifted out of the JSON so nobody has to go hunting in it. */
+.ar-google__found {
+  margin: 10px 0 4px; padding: 12px 14px; border-radius: 8px;
+  background: color-mix(in srgb, var(--ar-good) 7%, var(--ar-surface));
+  border: 1px solid color-mix(in srgb, var(--ar-good) 28%, transparent);
+}
+.ar-google__found-lead { margin: 0; font-size: 12.5px; line-height: 1.55; color: var(--ar-ink-soft); }
+/* The "this is safe and small" line, before the steps that look intimidating. */
+.ar-google__reassure { margin-top: 12px; }
+.ar-google__reassure strong { color: var(--ar-ink); }
+.ar-google__found-lead strong { color: var(--ar-ink); }
+.ar-google__found-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin: 7px 0; }
+.ar-google__email {
+  font-family: var(--ar-mono); font-size: 12px; color: var(--ar-ink);
+  background: var(--ar-paper); border: 1px solid var(--ar-line); border-radius: 5px;
+  padding: 4px 9px; overflow-wrap: anywhere;
+}
+
+/* ---- Search Performance (AI Visibility → beside Found by AI Search) ------ */
+.ar-perf__head { display: flex; align-items: flex-start; gap: 16px; flex-wrap: wrap; }
+.ar-perf__head > div:first-child { flex: 1 1 320px; min-width: 0; }
+/* The source picker — shared by Search Performance and Search Opportunities,
+   so "whose numbers am I looking at?" is answered the same way in both rooms. */
+.ar-srcpick { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.ar-srcpick__label { font-size: 12px; color: var(--ar-ink-soft); }
+.ar-srcpick__set { display: flex; gap: 0; border: 1px solid var(--ar-line); border-radius: 999px; overflow: hidden; }
+.ar-srcpick__btn {
+  appearance: none; background: var(--ar-surface); border: 0; cursor: pointer;
+  font-size: 12px; color: var(--ar-ink-soft); padding: 5px 14px;
+}
+.ar-srcpick__btn.is-on { background: var(--ar-ink); color: var(--ar-paper); font-weight: 600; }
+.ar-srcpick__btn:focus-visible { outline: 2px solid var(--ar-accent); outline-offset: -2px; }
+/* The provenance line: plain words, always visible, never a footnote. */
+.ar-srcline { margin: 12px 0 0; font-size: 12.5px; color: var(--ar-ink-soft); }
+.ar-srcline strong { color: var(--ar-ink); }
+.ar-perf__empty { margin: 14px 0 0; font-size: 13px; color: var(--ar-ink-soft); }
+.ar-perf__tiles { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin: 16px 0 0; }
+.ar-perf__tile {
+  background: var(--ar-surface); border: 1px solid var(--ar-line); border-radius: 8px;
+  padding: 12px 14px; display: flex; flex-direction: column; gap: 3px; min-width: 0;
+}
+.ar-perf__label {
+  font-family: var(--ar-mono); font-size: 9.5px; letter-spacing: 0.12em;
+  text-transform: uppercase; color: var(--ar-ink-faint);
+}
+.ar-perf__num { font-size: 21px; font-weight: 650; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
+/* One plain sentence under each figure — the difference between a number and a
+   number someone understands. */
+.ar-perf__hint { font-size: 11px; line-height: 1.35; color: var(--ar-ink-faint); }
+.ar-perf__meta { margin: 8px 0 0; font-family: var(--ar-mono); font-size: 10.5px; color: var(--ar-ink-faint); }
+.ar-perf__cols { display: grid; grid-template-columns: 1fr 1fr; gap: 22px; margin-top: 18px; }
+.ar-perf__col { min-width: 0; }
+.ar-perf__eyebrow {
+  margin: 0 0 6px; font-family: var(--ar-mono); font-size: 10.5px;
+  letter-spacing: 0.1em; text-transform: uppercase; color: var(--ar-ink);
+}
+.ar-perf__table { border-collapse: collapse; width: 100%; table-layout: fixed; }
+.ar-perf__table th {
+  text-align: right; font-family: var(--ar-mono); font-weight: 400; font-size: 9.5px;
+  letter-spacing: 0.1em; text-transform: uppercase; color: var(--ar-ink-faint);
+  padding: 0 0 4px 12px; border-bottom: 1px solid var(--ar-line); width: 4.6em;
+}
+.ar-perf__table th:first-child { text-align: left; padding-left: 0; width: auto; }
+.ar-perf__table td {
+  padding: 6px 0 6px 12px; border-bottom: 1px solid var(--ar-line);
+  text-align: right; font-variant-numeric: tabular-nums; font-size: 12px; white-space: nowrap;
+}
+.ar-perf__table tr:last-child td { border-bottom: 0; }
+.ar-perf__table td.ar-perf__q {
+  text-align: left; padding-left: 0; white-space: nowrap;
+  overflow: hidden; text-overflow: ellipsis; color: var(--ar-ink);
+}
+.ar-perf__page { color: var(--ar-ink); text-decoration: none; }
+.ar-perf__page:hover { text-decoration: underline; }
+.ar-perf__n--dim { color: var(--ar-ink-faint); }
+.ar-perf__table td.ar-perf__none { text-align: left; padding-left: 0; color: var(--ar-ink-faint); font-size: 12px; white-space: normal; }
+.ar-perf__probe {
+	display: inline-block;
+	margin-left: 6px;
+	padding: 0 5px;
+	border: 1px solid var(--ar-line, #ddd);
+	border-radius: 9px;
+	color: var(--ar-ink-faint, #777);
+	font-size: 10.5px;
+	line-height: 15px;
+	letter-spacing: .03em;
+	text-transform: uppercase;
+	vertical-align: 1px;
+}
+.ar-perf__foot { margin: 8px 0 0; color: var(--ar-ink-faint, #777); font-size: 12px; }
+.ar-perf__probeline { margin-bottom: 4px; }
+@container (max-width: 720px) {
+  .ar-perf__tiles { grid-template-columns: 1fr 1fr; }
+  .ar-perf__cols { grid-template-columns: 1fr; gap: 18px; }
+}
+
+/* ---- Search Opportunities (Readiness → sibling of Optimize) -------------- */
+.ar-opp__state { margin: 4px 0 2px; }
+/* The provenance line and the scope note sit tight together (both describe where
+   these numbers came from); the finding below is a different kind of statement, so
+   it gets real air rather than stacking into one undifferentiated block. */
+.ar-opp__noise { margin: 13px 0 0; }
+/* The disclosure is the audit trail for a filter that removed real numbers, so it
+   wears the weight of a record: a full-width bordered card that opens in place —
+   the same language as the Settings folds — not a pill floating between
+   paragraphs with its contents spilling straight onto the page. */
+.ar-opp__noiselist {
+	margin: 14px 0 16px;
+	padding: 0 16px;
+	font-size: 12.5px;
+	border: 1px solid var(--ar-line-strong);
+	border-radius: var(--ar-radius);
+	background: var(--ar-surface-2);
+}
+.ar-opp__noiselist[open] { background: var(--ar-surface); padding-bottom: 13px; }
+.ar-opp__noiselist > summary {
+	display: flex;
+	align-items: center;
+	gap: 9px;
+	padding: 11px 0;
+	color: var(--ar-ink);
+	font-size: 13px;
+	font-weight: 600;
+	cursor: pointer;
+	/* Both are needed to drop the native marker: `display` handles WebKit, the
+	   list-style pair handles Firefox. We draw our own caret so it can rotate. */
+	list-style: none;
+	transition: color .15s ease;
+}
+.ar-opp__noiselist > summary::-webkit-details-marker { display: none; }
+.ar-opp__noiselist > summary::before {
+	content: "";
+	width: 0;
+	height: 0;
+	border-left: 5px solid currentColor;
+	border-top: 4px solid transparent;
+	border-bottom: 4px solid transparent;
+	transition: transform .15s ease;
+}
+.ar-opp__noiselist[open] > summary::before { transform: rotate(90deg); }
+.ar-opp__noiselist > summary:hover { color: var(--ar-accent); }
+.ar-opp__noiselist > summary:focus-visible {
+	outline: 2px solid var(--ar-accent);
+	outline-offset: 2px;
+}
+.ar-opp__noiselist[open] > summary {
+	border-bottom: 1px solid var(--ar-line);
+	margin-bottom: 12px;
+}
+@media (prefers-reduced-motion: reduce) {
+	.ar-opp__noiselist > summary,
+	.ar-opp__noiselist > summary::before { transition: none; }
+}
+
+.ar-opp__noiselist .ar-opp__qwrap { margin-top: 0; }
+.ar-opp__noiselist .ar-opp__queries { margin-top: 0; }
+/* The dropped searches ARE operator syntax — set them in mono so the list itself
+   shows why each row is here. */
+.ar-opp__noiselist td.ar-opp__q { font-family: var(--ar-mono); font-size: 11px; }
+.ar-opp__noisefoot {
+	margin: 0;
+	padding-top: 10px;
+	border-top: 1px solid var(--ar-line);
+	color: var(--ar-ink-soft);
+	font-size: 12px;
+	line-height: 1.55;
+}
+.ar-opp__noise code,
+.ar-opp__noisefoot code {
+	font-size: 0.92em;
+	padding: 1px 4px;
+	border-radius: 3px;
+	background: var(--ar-surface-2, rgba(0, 0, 0, .05));
+	white-space: nowrap;
+}
+/* The provenance line sits on the group's own grid row, with the switch pushed
+   to the far edge so "whose numbers?" and "show the other one" read as one idea. */
+.ar-opp__srcline { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.ar-opp__srcline .ar-srcpick { margin-left: auto; }
+/* Sits directly under the provenance line it qualifies — tighter than the 12px
+   .ar-srcline default, so the two read as one statement about these numbers. */
+.ar-opp__scope { margin-top: 4px; }
+.ar-opp__eyebrow {
+  margin: 16px 0 2px; font-family: var(--ar-mono); font-size: 10.5px;
+  letter-spacing: 0.1em; text-transform: uppercase; color: var(--ar-ink);
+}
+.ar-opp__why { margin-left: 8px; letter-spacing: 0.04em; text-transform: none; color: var(--ar-ink-faint); }
+/* The two worklist groups are the structure of this section, so their headers
+   speak a tier above the table eyebrows: a real heading plus the SAME rank pill
+   the rows below carry — the header explains its group's chips before the
+   reader meets them. The set-aside ledger stays on the quiet eyebrow tier on
+   purpose. */
+.ar-opp__grouphead { display: flex; align-items: center; gap: 9px; margin: 18px 0 0; }
+.ar-opp__grouptitle {
+  margin: 0; font-size: 13px; font-weight: 700; letter-spacing: 0.05em;
+  text-transform: uppercase; color: var(--ar-ink);
+}
+.ar-opp__groupwhy { margin: 3px 0 0; font-size: 12.5px; color: var(--ar-ink-soft); }
+.ar-opp__list { margin-top: 6px; }
+/* The instruction under each group heading: the difference between "here is a
+   problem" and "here is what to do about it". It wears a quiet card — the
+   NEUTRAL surface, not the amber of the warn pills, because this is guidance,
+   not a warning. */
+.ar-opp__todo {
+  margin: 8px 0 0; padding: 10px 14px;
+  font-size: 12.5px; line-height: 1.55; color: var(--ar-ink-soft);
+  background: var(--ar-surface-2); border: 1px solid var(--ar-line);
+  border-radius: var(--ar-radius);
+  text-align: justify; hyphens: auto; -webkit-hyphens: auto;
+}
+.ar-opp__todo strong { color: var(--ar-ink); }
+.ar-opp__body { min-width: 0; grid-column: 2 / -1; }
+.ar-opp__top { display: flex; align-items: baseline; gap: 9px; flex-wrap: wrap; }
+.ar-opp__title { font-weight: 650; font-size: 13px; color: var(--ar-ink); text-decoration: none; }
+a.ar-opp__title:hover { text-decoration: underline; }
+.ar-opp__path {
+  font-family: var(--ar-mono); font-size: 10.5px; color: var(--ar-ink-soft);
+  background: var(--ar-surface); border: 1px solid var(--ar-line); border-radius: 4px; padding: 1px 6px;
+  max-width: 34ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+/* "This page is on the other worklist too" — amber, because it is a nudge to
+   combine two visits, not a fault of its own. */
+.ar-opp__alsoflag {
+  font-size: 10.5px; color: var(--ar-warn); white-space: nowrap;
+  background: color-mix(in srgb, var(--ar-warn) 12%, transparent);
+  border: 1px solid color-mix(in srgb, var(--ar-warn) 30%, transparent);
+  border-radius: 999px; padding: 1px 9px;
+}
+.ar-opp__qwrap { overflow-x: auto; margin-top: 8px; }
+.ar-opp__queries { border-collapse: collapse; width: 100%; min-width: 520px; }
+.ar-opp__queries th {
+  text-align: right; font-family: var(--ar-mono); font-weight: 400; font-size: 9.5px;
+  letter-spacing: 0.1em; text-transform: uppercase; color: var(--ar-ink-faint);
+  padding: 0 0 4px 16px; border-bottom: 1px solid var(--ar-line);
+}
+.ar-opp__queries th:first-child { text-align: left; padding-left: 0; }
+.ar-opp__queries td {
+  padding: 6px 0 6px 16px; border-bottom: 1px solid var(--ar-line);
+  text-align: right; font-variant-numeric: tabular-nums; font-size: 12px; white-space: nowrap;
+}
+.ar-opp__queries tr:last-child td { border-bottom: 0; }
+/* Element-qualified to outrank `.ar-opp__queries td` above (class+element beats
+   a lone class) — without it the query text right-aligns with the numbers. */
+/* The search column absorbs ALL the slack, so the numeric columns stay grouped at
+   the right instead of being spread evenly across a wide card — on a 1900px screen
+   an even split puts each figure ~400px from the label it belongs to, and the row
+   stops reading as one record. */
+.ar-opp__queries td.ar-opp__q,
+.ar-opp__queries th:first-child { width: 100%; }
+.ar-opp__queries td.ar-opp__q { text-align: left; padding-left: 0; white-space: normal; color: var(--ar-ink); }
+.ar-opp__queries th:not(:first-child),
+.ar-opp__queries td:not(.ar-opp__q) { white-space: nowrap; }
+.ar-opp__num.is-dim { color: var(--ar-ink-faint); }
+.ar-opp__num.is-low { color: var(--ar-warn); font-weight: 650; }
+.ar-opp__pos {
+  display: inline-block; min-width: 40px; text-align: center; border-radius: 999px;
+  font-family: var(--ar-mono); font-size: 10.5px; padding: 1px 7px;
+}
+.ar-opp__pos.is-two { color: var(--ar-warn); background: color-mix(in srgb, var(--ar-warn) 14%, transparent); }
+.ar-opp__pos.is-one { color: var(--ar-good); background: color-mix(in srgb, var(--ar-good) 14%, transparent); }
+.ar-opp__more { margin: 6px 0 0; font-size: 11.5px; color: var(--ar-ink-faint); }
+.ar-opp__actions { display: flex; align-items: center; gap: 10px; margin-top: 9px; flex-wrap: wrap; }
+/* A quiet link-shaped action, not the page's heaviest button: this is a row in
+   a worklist, and a black slab per card would shout over the numbers. */
+.ar-opp__edit {
+  font-size: 12px; color: var(--ar-accent); text-decoration: none;
+  border: 1px solid color-mix(in srgb, var(--ar-accent) 40%, transparent);
+  border-radius: 6px; padding: 4px 11px; background: var(--ar-surface);
+}
+.ar-opp__edit:hover { border-color: var(--ar-accent); text-decoration: none; }
+/* The action most likely to move the number carries a little more weight —
+   never a filled slab, which would shout over the figures it belongs to. */
+.ar-opp__edit.is-primary { border-color: var(--ar-accent); font-weight: 600; }
+.ar-opp__actions .ar-optcheck__restore { margin-left: auto; }
 .ar-cf-row .ar-btn { padding: 9px 22px; }
 .ar-cf-note { margin-top: 18px; }
 .ar-mcp-recipe { border-left: 2px solid var(--ar-accent); padding: 2px 0 2px 14px; }

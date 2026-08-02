@@ -49,6 +49,7 @@ use Agentimus\InternalLinks;
 use Agentimus\Schema;
 use Agentimus\Markdown;
 use Agentimus\Exposure;
+use Agentimus\Search\Report as SearchReport;
 use Agentimus\BotVerifier;
 use Agentimus\Activity\Referrals;
 use Agentimus\Activity\Repository;
@@ -516,14 +517,15 @@ final class Registrar {
 			),
 			self::obj(
 				array(
-					'connected'     => self::b( 'False = no Bing key is connected; the data fields are then absent.' ),
-					'siteUrl'       => self::s( 'The site as Bing Webmaster Tools stores it.' ),
-					'hasMsvalidate' => self::b( 'Whether the site prints the msvalidate verification tag.' ),
-					'connectedAt'   => self::i(),
-					'lastPollAt'    => self::i( 'Unix time of the newest numbers; 0 = never polled.' ),
-					'lastError'     => self::s( 'The most recent poll failure, empty after a clean poll.' ),
-					'days'          => self::i(),
-					'totals'        => self::obj(
+					'connected'      => self::b( 'False = no Bing key is connected; the data fields are then absent.' ),
+					'siteUrl'        => self::s( 'The site as Bing Webmaster Tools stores it.' ),
+					'hasMsvalidate'  => self::b( 'Whether the site prints the msvalidate verification tag.' ),
+					'connectedAt'    => self::i(),
+					'lastPollAt'     => self::i( 'Unix time of the newest numbers; 0 = never polled.' ),
+					'lastError'      => self::s( 'The most recent poll failure, empty after a clean poll.' ),
+					'lastQueryError' => self::s( 'The most recent query-stats poll failure, empty after a clean run. Separate from lastError so healthy crawl numbers cannot hide it.' ),
+					'days'           => self::i(),
+					'totals'         => self::obj(
 						array(
 							'inIndex'         => self::i( 'Pages in Bing\'s index on the most recent day.' ),
 							'crawledLatest'   => self::i( 'Pages Bing crawled on the most recent day.' ),
@@ -531,7 +533,7 @@ final class Registrar {
 							'blockedByRobots' => self::i( 'Pages robots.txt closes to Bing, most recent day.' ),
 						)
 					),
-					'trend'         => self::arr(
+					'trend'          => self::arr(
 						array(
 							'date'            => self::s( 'Y-m-d.' ),
 							'inIndex'         => self::i(),
@@ -543,7 +545,7 @@ final class Registrar {
 							'blockedByRobots' => self::i(),
 						)
 					),
-					'conflicts'     => self::arr(
+					'conflicts'      => self::arr(
 						array(
 							'id'    => self::s(),
 							'level' => self::s(),
@@ -558,6 +560,186 @@ final class Registrar {
 				$days = isset( $input['days'] ) ? (int) $input['days'] : 30;
 				$days = ( $days >= 1 && $days <= 90 ) ? $days : 30;
 				return BingSummary::build( new BingSettings(), $this->settings, $days );
+			},
+			$manage
+		);
+
+		$this->add(
+			'read-search-performance',
+			__( 'Get classic-search performance', 'agentimus' ),
+			'Returns what classic search actually sent this site over the reported window: total times '
+				. 'shown, visits, click rate and impression-weighted average rank, plus the top searches '
+				. 'people used and the top pages they landed on. Numbers are the engine\'s own — Google '
+				. 'Search Console and/or Bing Webmaster Tools, whichever the owner connected — never '
+				. 'estimated, and never blended (the two count different searchers). Use it to answer '
+				. '"how is this site doing in search?". Returns source="" when no engine has reported yet.',
+			self::obj(
+				array(
+					'source' => self::s( 'Which engine to read: "google" or "bing". Omit for the richer one that has data.' ),
+				)
+			),
+			self::obj(
+				array(
+					'source'  => self::s( 'The engine these numbers came from; empty when none has data yet.' ),
+					'range'   => self::obj(
+						array(
+							'start' => self::s( 'Y-m-d, first day of the reported window.' ),
+							'end'   => self::s( 'Y-m-d, last day.' ),
+						)
+					),
+					'sources' => self::obj(
+						array(
+							'google' => self::obj(
+								array(
+									'connected' => self::b(),
+									'hasData'   => self::b(),
+									'lastError' => self::s(),
+									'pageCap'   => self::i( '0 — Google reports query x page directly, so no page-level sampling applies.' ),
+								)
+							),
+							'bing'   => self::obj(
+								array(
+									'connected' => self::b(),
+									'hasData'   => self::b(),
+									'lastError' => self::s(),
+									'pageCap'   => self::i( 'Page-level figures cover only this many of the busiest pages — Bing has no query x page report, so the poll samples. State this scope before generalising about "the site".' ),
+								)
+							),
+						)
+					),
+					'totals'  => self::obj(
+						array(
+							'impressions' => self::i( 'Times a page of this site appeared in results.' ),
+							'clicks'      => self::i( 'Visits that came from those appearances.' ),
+							'ctr'         => array( 'type' => 'number', 'description' => 'Click rate as a percentage.' ),
+							'position'    => array( 'type' => 'number', 'description' => 'Impression-weighted average rank; 1 is the top result.' ),
+							'probeShare'  => self::i(
+								'Percentage of these impressions that came from search-operator probes (site:, intext:) run by scrapers '
+								. 'rather than people. Nothing is subtracted — these are the engine\'s own totals — but a high share means '
+								. 'the click rate above understates how people actually respond. Say so before drawing conclusions from it.'
+							),
+						)
+					),
+					'counts'     => self::obj(
+						array(
+							'queries' => self::i( 'Distinct searches in the window — topQueries is only the largest few of these.' ),
+							'pages'   => self::i( 'Pages the engine attributed traffic to — topPages is only the largest few.' ),
+						)
+					),
+					'topQueries' => self::arr(
+						array(
+							'query'       => self::s(),
+							'isProbe'     => self::b( 'True when this is a search-operator probe, not a person\'s search.' ),
+							'impressions' => self::i(),
+							'clicks'      => self::i(),
+							'ctr'         => array( 'type' => 'number' ),
+							'position'    => array( 'type' => 'number' ),
+						)
+					),
+					'topPages'   => self::arr(
+						array(
+							'title'       => self::s(),
+							'url'         => self::s(),
+							'postId'      => self::i( '0 when the URL maps to no post (an archive, a removed page).' ),
+							'impressions' => self::i(),
+							'clicks'      => self::i(),
+							'ctr'         => array( 'type' => 'number' ),
+							'position'    => array( 'type' => 'number' ),
+						)
+					),
+				)
+			),
+			function ( $input ) {
+				return SearchReport::performance( $this->settings, isset( $input['source'] ) ? (string) $input['source'] : '' );
+			},
+			$manage
+		);
+
+		$this->add(
+			'read-search-opportunities',
+			__( 'Get search pages worth improving', 'agentimus' ),
+			'Returns the pages that already rank in classic search but under-earn — the worklist behind '
+				. 'the Search Opportunities screen. Two groups: "almostThere" (ranking 8–20, one improvement '
+				. 'from page one) and "seenNotClicked" (already on page one, but a click rate well under THIS '
+				. 'site\'s own page-one median — never an industry benchmark). Each page carries its searches, '
+				. 'its totals, and whether it qualified on a single search or on the page\'s combined demand. '
+				. 'Pair it with write-description / update-content to act on what it finds. Returns state '
+				. '"not_connected", "collecting" or "too_thin" when no honest verdict is possible.',
+			self::obj(
+				array(
+					'source' => self::s( 'Which engine to read: "google" or "bing". Omit for the richer one that has data.' ),
+				)
+			),
+			self::obj(
+				array(
+					'state'     => self::s( 'ready | not_connected | collecting | too_thin | clear.' ),
+					'source'    => self::s( 'The engine these numbers came from; empty when none has data yet.' ),
+					'sources'   => self::obj(
+						array(
+							'google' => self::obj(
+								array(
+									'connected' => self::b(),
+									'hasData'   => self::b(),
+									'lastError' => self::s(),
+									'pageCap'   => self::i( '0 — Google reports query x page directly, so no page-level sampling applies.' ),
+								)
+							),
+							'bing'   => self::obj(
+								array(
+									'connected' => self::b(),
+									'hasData'   => self::b(),
+									'lastError' => self::s(),
+									'pageCap'   => self::i( 'Page-level figures cover only this many of the busiest pages — Bing has no query x page report, so the poll samples. State this scope before generalising about "the site".' ),
+								)
+							),
+						)
+					),
+					'medianCtr' => array(
+						'type'        => array( 'number', 'null' ),
+						'description' => 'This site\'s own page-one median click rate (percentage) — the bar "seenNotClicked" is measured against. Null when no honest bar can be set, in which case that group stays empty and medianReason says why.',
+					),
+					'ctrBar'      => array(
+						'type'        => array( 'number', 'null' ),
+						'description' => 'The click-rate threshold actually applied to "seenNotClicked" (percentage): a page must fall BELOW this, '
+							. 'not merely below medianCtr. Quote this, never medianCtr, when stating what "not clicked enough" means.',
+					),
+					'medianRows'  => self::i( 'How many page-one results carried enough views to measure a click rate.' ),
+					'medianNeeds' => self::i( 'How many it takes before a bar is computed at all.' ),
+					'medianReason' => self::s(
+						'Why there is no bar, when medianCtr is null: "thin" = too few page-one results carry enough views to measure (says nothing about clicking); '
+						. '"unclicked" = enough exist and the middle one earned no clicks at all. Empty string when a bar exists. Never report one of these as the other.'
+					),
+					'noise'     => self::obj(
+						array(
+							'searches' => self::i( 'Distinct searches discarded as search-operator probes (one search on six pages counts once).' ),
+						'examples' => self::arr(
+							array(
+								'query'       => self::s( 'The discarded search, verbatim.' ),
+								'impressions' => self::i(),
+							)
+						),
+							'share'    => self::i(
+								'Percentage of the reported views that came from automated site:/intext: probes rather than people. '
+								. 'These are excluded from every judgement here (no title rewrite makes a scraper click), which is why '
+								. 'read-search-performance — the raw record — reports larger numbers. A high share is the real story on a '
+								. 'site with no worklist: state it before concluding anything about how the pages are performing.'
+							),
+						)
+					),
+					'counts'    => self::obj(
+						array(
+							'opportunities' => self::i( 'Pages worth looking at, both groups.' ),
+							'almost'        => self::i(),
+							'seen'          => self::i(),
+							'setAside'      => self::i( 'Pages the owner excused from this worklist.' ),
+						)
+					),
+					'almostThere'    => self::opportunity_rows(),
+					'seenNotClicked' => self::opportunity_rows(),
+				)
+			),
+			function ( $input ) {
+				return SearchReport::opportunities( $this->settings, isset( $input['source'] ) ? (string) $input['source'] : '' );
 			},
 			$manage
 		);
@@ -1012,6 +1194,8 @@ final class Registrar {
 			self::CATEGORY . '/read-request-log',
 			self::CATEGORY . '/read-edge-traffic',
 			self::CATEGORY . '/read-search-visibility',
+			self::CATEGORY . '/read-search-performance',
+			self::CATEGORY . '/read-search-opportunities',
 			self::CATEGORY . '/identify-bot',
 			self::CATEGORY . '/check-page',
 			self::CATEGORY . '/preview-schema',
@@ -1097,6 +1281,36 @@ final class Registrar {
 	/* ---------------------------------------------------------------------- *
 	 *  Registration helper + permission callbacks
 	 * ---------------------------------------------------------------------- */
+
+	/**
+	 * The shape of one opportunity page, shared by both groups.
+	 *
+	 * @return array
+	 */
+	private static function opportunity_rows() {
+		return self::arr(
+			array(
+				'title'       => self::s(),
+				'url'         => self::s(),
+				'postId'      => self::i( '0 when the URL maps to no post.' ),
+				'impressions' => self::i( 'The page\'s whole demand in the window.' ),
+				'clicks'      => self::i(),
+				'ctr'         => array( 'type' => 'number', 'description' => 'Click rate as a percentage.' ),
+				'position'    => array( 'type' => 'number', 'description' => 'Impression-weighted average rank.' ),
+				'searches'    => self::i( 'How many distinct searches found this page.' ),
+				'wholePage'   => self::b( 'True when the PAGE\'s combined demand qualified rather than any single search — the shape an engine produces when one page\'s traffic arrives as many long-tail searches.' ),
+				'queries'     => self::arr(
+					array(
+						'query'       => self::s(),
+						'impressions' => self::i(),
+						'clicks'      => self::i(),
+						'ctr'         => array( 'type' => 'number' ),
+						'position'    => array( 'type' => 'number' ),
+					)
+				),
+			)
+		);
+	}
 
 	/**
 	 * Register one ability under our namespace + category, with the readonly

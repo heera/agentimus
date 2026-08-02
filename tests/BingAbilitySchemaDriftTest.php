@@ -5,8 +5,12 @@
  * an undeclared key makes the tool reject its own honest response (the
  * 1.30.0 verifyOn lesson, guarded the same way for the edge and log twins).
  *
- * The connected payload needs a database, so the key lists here are MIRRORS
- * of Summary::build()'s return literals.
+ * The top level runs the REAL producer: Summary::build() in its not-connected
+ * state needs no database yet still carries every public_view() key, so a new
+ * connection field fails here without anyone updating a list (a hand-mirrored
+ * list let lastQueryError ship undeclared and break the live tool in every
+ * state). Only the connected-side additions and row shapes stay mirrors —
+ * their literals need window rows.
  *
  * @package Agentimus\Tests
  */
@@ -14,6 +18,8 @@
 namespace Agentimus\Tests {
 
 	use Agentimus\Abilities\Registrar;
+	use Agentimus\Bing\Settings as BingSettings;
+	use Agentimus\Bing\Summary;
 	use Agentimus\Settings;
 	use PHPUnit\Framework\TestCase;
 
@@ -33,19 +39,8 @@ namespace Agentimus\Tests {
 			}
 		}
 
-		/** Mirror of Summary::build()'s connected return literal. */
-		private const SUMMARY_KEYS = array(
-			'connected',
-			'siteUrl',
-			'hasMsvalidate',
-			'connectedAt',
-			'lastPollAt',
-			'lastError',
-			'days',
-			'totals',
-			'trend',
-			'conflicts',
-		);
+		/** Mirror of what the connected path ADDS on top of public_view() + days. */
+		private const CONNECTED_ONLY_KEYS = array( 'totals', 'trend', 'conflicts' );
 
 		/** Mirror of the totals literal. */
 		private const TOTAL_KEYS = array( 'inIndex', 'crawledLatest', 'crawlErrors', 'blockedByRobots' );
@@ -85,11 +80,24 @@ namespace Agentimus\Tests {
 				$schema['additionalProperties'],
 				'Top-level output allows undeclared keys — this test expects the strict mode that made the 1.30.0 bug possible.'
 			);
-			foreach ( self::SUMMARY_KEYS as $key ) {
+
+			// The REAL producer: not-connected, so no database — and every
+			// public_view() key still travels (the connected path only ADDS
+			// the keys mirrored below).
+			$payload = Summary::build( new BingSettings(), new Settings(), 30 );
+			foreach ( array_keys( $payload ) as $key ) {
 				$this->assertArrayHasKey(
 					$key,
 					$schema['properties'],
 					"Summary::build() returns `$key` but the output schema does not declare it — the ability will reject its own response."
+				);
+			}
+
+			foreach ( self::CONNECTED_ONLY_KEYS as $key ) {
+				$this->assertArrayHasKey(
+					$key,
+					$schema['properties'],
+					"The connected payload adds `$key` but the output schema does not declare it — the ability will reject its own response."
 				);
 			}
 		}

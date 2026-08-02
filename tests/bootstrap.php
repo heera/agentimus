@@ -160,6 +160,7 @@ namespace {
 	// from $_af_http_queue (a WP_Error or a { response:{code}, body, headers } array).
 	if ( ! function_exists( 'wp_remote_post' ) )        { function wp_remote_post( $url, $args = array() ) { $GLOBALS['_af_http_last'] = array( 'url' => $url, 'args' => $args ); $q = &$GLOBALS['_af_http_queue']; return ! empty( $q ) ? array_shift( $q ) : array( 'response' => array( 'code' => 200 ), 'body' => '{}', 'headers' => array() ); } }
 	if ( ! function_exists( 'wp_remote_get' ) )         { function wp_remote_get( $url, $args = array() ) { $GLOBALS['_af_http_last'] = array( 'url' => $url, 'args' => $args ); $q = &$GLOBALS['_af_http_queue']; return ! empty( $q ) ? array_shift( $q ) : array( 'response' => array( 'code' => 200 ), 'body' => '{}', 'headers' => array() ); } }
+	if ( ! function_exists( 'wp_remote_request' ) )     { function wp_remote_request( $url, $args = array() ) { $GLOBALS['_af_http_last'] = array( 'url' => $url, 'args' => $args ); $q = &$GLOBALS['_af_http_queue']; return ! empty( $q ) ? array_shift( $q ) : array( 'response' => array( 'code' => 200 ), 'body' => '{}', 'headers' => array() ); } }
 	// Mail capture, mirroring the HTTP stubs above: wp_mail records every send into
 	// $GLOBALS['_af_mail'] (to/subject/message/headers) and returns the queued verdict
 	// from $_af_mail_ok (default true) — so the digest's send flow is testable without

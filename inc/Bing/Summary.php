@@ -105,16 +105,45 @@ final class Summary {
 			$last_day_errors = $last['code_4xx'] + $last['code_5xx'];
 		}
 		if ( $totals['crawlErrors'] >= self::MIN_ERRORS && $last_day_errors > 0 ) {
+			$errors_4xx = 0;
+			$errors_5xx = 0;
+			foreach ( $rows as $row ) {
+				$errors_4xx += $row['code_4xx'];
+				$errors_5xx += $row['code_5xx'];
+			}
+			// The advice must match what the numbers say: 4xx = pages that no
+			// longer exist (a links-and-redirects chore), 5xx = the site failing
+			// to answer (a server chore). "Check your server" over a pile of
+			// 404s sends the owner to the wrong room.
+			if ( 0 === $errors_5xx ) {
+				$body = sprintf(
+					/* translators: 1: error count, 2: number of days. */
+					__( 'Bing’s crawler got %1$s error answers in the last %2$d days — including some on the most recent day. Every one was a “page not found” kind of answer (4xx), which usually means pages that no longer exist: links or a sitemap entry still point at deleted or moved URLs. Open Bing Webmaster Tools to see which URLs, then fix the links or add redirects. Pages that answer with errors drop out of Bing’s index, and ChatGPT search finds pages through that index today. Once the errors stop, this warning clears with Bing’s next numbers.', 'agentimus' ),
+					number_format_i18n( $totals['crawlErrors'] ),
+					count( $rows )
+				);
+			} elseif ( 0 === $errors_4xx ) {
+				$body = sprintf(
+					/* translators: 1: error count, 2: number of days. */
+					__( 'Bing’s crawler got %1$s error answers in the last %2$d days — including some on the most recent day. Every one was a server error (5xx) — the site failed to answer. Check your server and any firewall in front of it. Pages that answer with errors drop out of Bing’s index, and ChatGPT search finds pages through that index today. Once the errors stop, this warning clears with Bing’s next numbers.', 'agentimus' ),
+					number_format_i18n( $totals['crawlErrors'] ),
+					count( $rows )
+				);
+			} else {
+				$body = sprintf(
+					/* translators: 1: error count, 2: number of days, 3: 4xx count, 4: 5xx count. */
+					__( 'Bing’s crawler got %1$s error answers in the last %2$d days — including some on the most recent day. %3$s were “page not found” kind of answers (4xx) — usually pages that no longer exist, so fix the links or add redirects — and %4$s were server errors (5xx), so also check your server and any firewall in front of it. Pages that answer with errors drop out of Bing’s index, and ChatGPT search finds pages through that index today. Once the errors stop, this warning clears with Bing’s next numbers.', 'agentimus' ),
+					number_format_i18n( $totals['crawlErrors'] ),
+					count( $rows ),
+					number_format_i18n( $errors_4xx ),
+					number_format_i18n( $errors_5xx )
+				);
+			}
 			$out[] = array(
 				'id'    => 'bing-crawl-errors',
 				'level' => 'warn',
 				'title' => __( 'Bing keeps hitting errors on your site', 'agentimus' ),
-				'body'  => sprintf(
-					/* translators: 1: error count, 2: number of days. */
-					__( 'Bing’s crawler got %1$s error answers in the last %2$d days — including some on the most recent day. Pages that answer with errors drop out of Bing’s index, and ChatGPT search finds pages through that index today. Check your server and any firewall in front of it. Once the errors stop, this warning clears with Bing’s next numbers.', 'agentimus' ),
-					number_format_i18n( $totals['crawlErrors'] ),
-					count( $rows )
-				),
+				'body'  => $body,
 				'url'   => 'https://www.bing.com/webmasters/',
 			);
 		}

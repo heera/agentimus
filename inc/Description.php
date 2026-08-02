@@ -457,9 +457,11 @@ final class Description {
 		/* translators: %s: the content type in lowercase, e.g. "post", "page", "product". */
 		$ai_only   = __( 'One short sentence saying what this %s is about, written for AI assistants.', 'agentimus' );
 
-		echo '<p><label for="agentimus-description-input">'
+		echo '<p class="agentimus-fieldhead"><label for="agentimus-description-input">'
+			. esc_html__( 'AI description', 'agentimus' ) . '</label></p>';
+		echo '<p class="agentimus-fieldhint">'
 			. esc_html( sprintf( self::meta_tag_enabled() ? $with_meta : $ai_only, $noun ) )
-			. '</label></p>';
+			. '</p>';
 
 		echo '<textarea id="agentimus-description-input" name="agentimus_description" class="widefat agentimus-desc__input" rows="3" maxlength="' . esc_attr( (string) self::MAX_LEN ) . '" placeholder="'
 			. esc_attr__( 'e.g. A plain-language guide to why the HTTP QUERY method exists and when to use it.', 'agentimus' ) . '">'

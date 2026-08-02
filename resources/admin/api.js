@@ -225,6 +225,15 @@ export function createApi(boot) {
     saveBingCode: (code) => request('/bing/code', { method: 'POST', body: JSON.stringify({ code }) }),
     connectBing: (key) => request('/bing', { method: 'POST', body: JSON.stringify({ key }) }),
     disconnectBing: () => request('/bing', { method: 'DELETE' }),
+    getGoogleStatus: () => request('/google'),
+    connectGoogle: (keyJson) => request('/google', { method: 'POST', body: JSON.stringify({ key_json: keyJson }) }),
+    disconnectGoogle: () => request('/google', { method: 'DELETE' }),
+    getSearchOpportunities: (source) => request('/search/opportunities' + (source ? `?source=${encodeURIComponent(source)}` : '')),
+    getSearchPerformance: (source) => request('/search/performance' + (source ? `?source=${encodeURIComponent(source)}` : '')),
+    // Set aside (ignored=true) or restore (false) a page from the SEARCH worklist —
+    // its own list, separate from the citability one. Returns the refreshed report.
+    ignoreSearch: (post, ignored) =>
+      request('/search/ignore', { method: 'POST', body: JSON.stringify({ post, ignored }) }),
     getBingSummary: (days = 30) => request(`/bing/summary?days=${Math.max(1, days | 0)}`),
     // Refresh: one inline poll, then the fresh summary in the same response.
     refreshBingSummary: (days = 30) =>

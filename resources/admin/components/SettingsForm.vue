@@ -88,6 +88,16 @@ export default {
       bingDisconnecting: false,
       bingError: '',
       bingJustConnected: false,
+      google: null, // Google connection status (never the key).
+      googleChecked: false,
+      googleKey: '', // The service-account JSON — read from the chosen file (or pasted). Sent once on Connect, then cleared.
+      googleKeyName: '', // The chosen file's name, so the row shows what was picked.
+      googleFileError: '',
+      googlePasteOpen: false, // The paste fallback, for anyone who can't reach the file.
+      googleConnecting: false,
+      googleDisconnecting: false,
+      googleError: '',
+      googleJustConnected: false,
       typeQuery: '',
       catQuery: '',
       nsQuery: '',
@@ -173,6 +183,7 @@ export default {
     group(key) {
       if (key === 'sources' && !this.cf) this.loadCloudflare();
       if (key === 'sources' && !this.bing) this.loadBing();
+      if (key === 'sources' && !this.google) this.loadGoogle();
     },
     // Document-level Esc while the reset dialog is open — the panel-scoped
     // handler dies as soon as focus leaves the panel (e.g. a backdrop click).
@@ -221,6 +232,20 @@ export default {
     },
   },
   computed: {
+    // The service account's address, read out of the pasted key file in the
+    // browser (nothing is sent). It is what Search Console must be told about,
+    // and it is otherwise buried in a wall of JSON — the step people get stuck
+    // on. A half-typed or wrong-shaped paste simply yields '' rather than throwing.
+    googleKeyEmail() {
+      const raw = (this.googleKey || '').trim();
+      if (raw.length < 20 || raw[0] !== '{') return '';
+      try {
+        const data = JSON.parse(raw);
+        return data && data.type === 'service_account' && data.client_email ? String(data.client_email) : '';
+      } catch (e) {
+        return ''; // Still typing, or not a key file — say nothing rather than guess.
+      }
+    },
     // The Verified-bots registry as one list: built-ins (toggleable) then the owner's
     // custom entries (removable). Mirrors VerifierRegistry::entries() server-side.
     verifierRows() {
@@ -1252,6 +1277,84 @@ export default {
       } finally {
         this.bingConnecting = false;
       }
+    },
+    async loadGoogle() {
+      if (!this.api) return;
+      try {
+        this.google = await this.api.getGoogleStatus();
+      } catch (e) {
+        // Leave google null — a failed status read is not worth a banner.
+      }
+      this.googleChecked = true;
+    },
+    // Read the chosen key file in the browser. Nothing is uploaded: the text
+    // becomes the same value a paste would have produced, and only Connect
+    // sends it — to this site's own REST route.
+    readGoogleKeyFile(event) {
+      const file = event.target && event.target.files && event.target.files[0];
+      if (!file) return;
+      this.googleFileError = '';
+      if (file.size > 64 * 1024) {
+        this.googleFileError = 'That file is far larger than a service-account key. Choose the small .json file Google downloaded.';
+        return;
+      }
+      const reader = new FileReader();
+      reader.onload = () => {
+        this.googleKey = String(reader.result || '').trim();
+        this.googleKeyName = file.name;
+        this.googlePasteOpen = false;
+        if (!this.googleKeyEmail) {
+          this.googleFileError = 'That file doesn’t look like a service-account key — it should start with {"type": "service_account". Check you picked the JSON key, not another download.';
+        }
+      };
+      reader.onerror = () => {
+        this.googleFileError = 'That file could not be read. Try choosing it again.';
+      };
+      reader.readAsText(file);
+    },
+    async connectGoogle() {
+      const keyJson = this.googleKey.trim();
+      if (!keyJson || this.googleConnecting || !this.api) return;
+      this.googleConnecting = true;
+      this.googleError = '';
+      try {
+        this.google = await this.api.connectGoogle(keyJson);
+        this.googleKey = '';
+        this.googleKeyName = '';
+        this.googleFileError = '';
+        this.googlePasteOpen = false;
+        this.googleJustConnected = true;
+      } catch (e) {
+        this.googleError = (e && e.message) || 'Could not connect to Google.';
+      } finally {
+        this.googleConnecting = false;
+      }
+    },
+    async disconnectGoogle() {
+      if (this.googleDisconnecting || !this.api) return;
+      const ok = await confirm({
+        title: 'Disconnect Google?',
+        message: 'Agentimus forgets the service-account key and stops polling right away. The numbers already stored stay in your database — reconnecting is one paste.',
+        confirmLabel: 'Disconnect',
+        cancelLabel: 'Cancel',
+        tone: 'danger',
+      });
+      if (!ok) return;
+      this.googleDisconnecting = true;
+      this.googleError = '';
+      try {
+        this.google = await this.api.disconnectGoogle();
+        this.googleJustConnected = false;
+      } catch (e) {
+        this.googleError = (e && e.message) || 'Could not disconnect.';
+      } finally {
+        this.googleDisconnecting = false;
+      }
+    },
+    googlePolledText() {
+      if (!this.google || !this.google.lastPollAt) return '';
+      const d = new Date(this.google.lastPollAt * 1000);
+      return `${formatDate(d)} ${formatTime(d)}`;
     },
     async disconnectBing() {
       if (this.bingDisconnecting || !this.api) return;
@@ -3662,6 +3765,147 @@ export default {
       <!-- Bing — the second data source: the index ChatGPT search reads today.
            Setup is two pastes; the verification tag is printed by Agentimus
            itself, so there is no file upload and no DNS. -->
+      <section id="ar-sec-google" class="ar-card">
+        <h2 class="ar-card__title">Google</h2>
+        <p class="ar-card__lead">
+          Google Search Console knows which queries bring your pages to searchers — and
+          which pages under-earn their rankings. Connect it and
+          <a href="#readiness">Search Opportunities</a> turns those numbers into a worklist,
+          each entry wired to the exact field that fixes it.
+        </p>
+
+        <div class="ar-mcp-rail" :data-state="google && google.connected ? 'running' : (googleChecked ? 'unsaved' : 'idle')">
+          <span class="ar-mcp-rail__dot" aria-hidden="true"></span>
+          <template v-if="google && google.connected">
+            <strong>Connected</strong>
+            <span class="ar-mcp-rail__sep" aria-hidden="true">·</span><span>{{ google.property }}</span>
+            <template v-if="googlePolledText()">
+              <span class="ar-mcp-rail__sep" aria-hidden="true">·</span><span>numbers as of {{ googlePolledText() }}</span>
+            </template>
+            <template v-if="google.lastError">
+              <span class="ar-mcp-rail__sep" aria-hidden="true">·</span><span class="ar-warn">Last poll failed: {{ google.lastError }}.</span>
+            </template>
+          </template>
+          <template v-else-if="googleChecked">
+            <strong>Not connected.</strong>
+            <span class="ar-mcp-rail__sep" aria-hidden="true">·</span>
+            <span>Read-only — a key you mint, talking straight to Google. No middleman, ever.</span>
+          </template>
+          <template v-else>
+            <span>Checking the connection…</span>
+          </template>
+        </div>
+
+        <p v-if="googleError" class="ar-field__hint ar-warn">{{ googleError }}</p>
+
+        <template v-if="googleChecked && (!google || !google.connected)">
+          <p class="ar-mcp-eyebrow">Your service-account key file</p>
+          <!-- A downloaded file should be CHOSEN, not copy-pasted: the key is a
+               2 KB JSON file, and a textarea full of it reads as a wall of noise.
+               Read in the browser (FileReader) — the contents never leave this
+               page until Connect. Pasting stays available for anyone who can't
+               reach the file (a remote admin, a locked-down machine). -->
+          <div class="ar-google__pick">
+            <label class="ar-btn ar-google__choose">
+              <input
+                type="file"
+                accept="application/json,.json"
+                class="ar-google__file"
+                aria-label="Google service-account key file"
+                @change="readGoogleKeyFile"
+              />
+              Choose key file…
+            </label>
+            <span v-if="googleKeyName" class="ar-google__filename">{{ googleKeyName }}</span>
+            <button v-if="!googlePasteOpen && !googleKey" type="button" class="ar-linkbtn ar-google__pastelink" @click="googlePasteOpen = true">
+              or paste it instead
+            </button>
+          </div>
+          <p v-if="googleFileError" class="ar-field__hint ar-warn">{{ googleFileError }}</p>
+          <textarea
+            v-if="googlePasteOpen && !googleKeyName"
+            v-model="googleKey"
+            class="ar-input ar-google__key"
+            rows="3"
+            autocomplete="off"
+            spellcheck="false"
+            placeholder='Paste the whole key file — it starts {"type": "service_account", …}'
+            aria-label="Google service-account key JSON"
+          ></textarea>
+          <!-- The moment the key is pasted, read its address out of the file and
+               put it on screen. Step 4 asks the owner to grant THIS address access
+               in Search Console, and hunting for it inside a JSON file is the step
+               people get stuck on. Parsed in the browser; nothing is sent. -->
+          <div v-if="googleKeyEmail" class="ar-google__found">
+            <p class="ar-google__found-lead">
+              <strong>Key read.</strong> It belongs to this address — the one Search Console needs to know:
+            </p>
+            <div class="ar-google__found-row">
+              <code class="ar-google__email">{{ googleKeyEmail }}</code>
+              <button type="button" class="ar-btn ar-btn--small" @click="copyPlainText(googleKeyEmail)">Copy</button>
+            </div>
+            <p class="ar-google__found-lead">
+              Add it in
+              <a href="https://search.google.com/search-console/users" target="_blank" rel="noopener">Search Console → Settings → Users and permissions</a>
+              (choose <strong>Restricted</strong>), then connect below. If you connect first,
+              nothing breaks — Agentimus will just tell you this same thing.
+            </p>
+            <button type="button" class="ar-btn ar-google__connect" :disabled="googleConnecting" @click="connectGoogle">
+              {{ googleConnecting ? 'Connecting…' : 'Connect' }}
+            </button>
+          </div>
+          <!-- A pasted-but-unreadable key still needs a way forward: the server's
+               error message is more specific than anything guessed here. -->
+          <div v-else-if="googleKey.trim()" class="ar-google__pick">
+            <button type="button" class="ar-btn" :disabled="googleConnecting" @click="connectGoogle">
+              {{ googleConnecting ? 'Connecting…' : 'Connect' }}
+            </button>
+          </div>
+          <p class="ar-field__hint">
+            Stored like your other secrets — encrypted, never shown again, and sent nowhere
+            except Google’s own API. Unlike other plugins, there is no “connect with Google”
+            button here on purpose: those route your data through the plugin maker’s server.
+            This key is yours, minted in your own Google Cloud, revocable there any time.
+          </p>
+          <p class="ar-field__hint ar-google__reassure">
+            <strong>Five minutes, once.</strong> It looks like a lot because it happens in Google’s
+            console, but nothing here costs money, nothing touches your website, and every step is
+            undoable — you’re creating a robot account and letting it <em>read</em> your search
+            statistics. Delete the key any time and this stops working; nothing else changes.
+          </p>
+          <p class="ar-field__hint">
+            <strong>Before you start:</strong> your site needs to be a verified property in
+            <a href="https://search.google.com/search-console" target="_blank" rel="noopener">Search Console</a>
+            already — that’s where the numbers come from. If you’ve never set it up there, do that first.
+          </p>
+          <div class="ar-mcp-recipe">
+            <ol class="ar-mcp-recipe__steps">
+              <li>Open <a href="https://console.cloud.google.com/iam-admin/serviceaccounts" target="_blank" rel="noopener"><code>console.cloud.google.com</code></a> and create a <strong>service account</strong>. Any project works — a fresh one keeps this tidy and separate from anything else you run. Name it anything (“agentimus” is fine); steps 2 and 3 are marked optional, so <strong>Create and close</strong> finishes it in one click. <em>No billing details are asked for.</em></li>
+              <li>Turn on the <a href="https://console.cloud.google.com/apis/library/searchconsole.googleapis.com" target="_blank" rel="noopener"><strong>Search Console API</strong></a> for that same project — the blue Enable button, one click.</li>
+              <li>Back on your service account, open the <code>Keys</code> tab → <code>Add key</code> → <code>Create new key</code> → <strong>JSON</strong>. A small file downloads: that’s the key. Google shows a yellow warning about key files here — it’s advice for code running <em>inside</em> Google Cloud, which can borrow an identity instead. Your WordPress server isn’t, so a key file is the correct path.</li>
+              <li>Click <strong>Choose key file…</strong> above and pick that downloaded file. Agentimus reads it here in your browser and shows you the robot’s email address, with a Copy button.</li>
+              <li>In <a href="https://search.google.com/search-console/users" target="_blank" rel="noopener">Search Console → Settings → Users and permissions</a>, click <strong>Add user</strong>, paste that address, choose <strong>Restricted</strong>, and confirm. Then press Connect — Agentimus finds your site’s property on its own.</li>
+            </ol>
+          </div>
+        </template>
+
+        <template v-else-if="google && google.connected">
+          <p v-if="googleJustConnected" class="ar-field__hint">
+            <strong>First numbers are in.</strong> <a href="#readiness">Search Opportunities →</a>
+          </p>
+          <p class="ar-field__hint">
+            One key, read-only, one daily poll of query-level search performance. Numbers are
+            stored in your own database, so your history keeps growing where Google’s own
+            window ends. The key stays revocable in your Google Cloud console; the granted
+            access stays visible in Search Console’s user list<template v-if="google.saEmail"> under
+            <code>{{ google.saEmail }}</code></template>.
+          </p>
+          <button type="button" class="ar-btn ar-btn--danger ar-btn--small" :disabled="googleDisconnecting" @click="disconnectGoogle">
+            {{ googleDisconnecting ? 'Disconnecting…' : 'Disconnect' }}
+          </button>
+        </template>
+      </section>
+
       <section id="ar-sec-bing" class="ar-card">
         <h2 class="ar-card__title">Bing</h2>
         <p class="ar-card__lead">

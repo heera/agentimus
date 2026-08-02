@@ -74,4 +74,80 @@ final class BingTest extends TestCase {
 		$view = $settings->public_view();
 		$this->assertTrue( $view['hasMsvalidate'] );
 	}
+
+	// ── Summary::conflicts — the crawl-errors advice matches the error kind ──
+
+	/**
+	 * Run the private conflicts() on synthetic rows.
+	 *
+	 * @param array $rows Window rows carrying code_4xx / code_5xx.
+	 * @return array The conflicts list.
+	 */
+	private function conflicts_for( array $rows ): array {
+		$errors = 0;
+		foreach ( $rows as $row ) {
+			$errors += $row['code_4xx'] + $row['code_5xx'];
+		}
+		$totals = array( 'crawlErrors' => $errors, 'blockedByRobots' => 0 );
+		$m      = new \ReflectionMethod( \Agentimus\Bing\Summary::class, 'conflicts' );
+		$m->setAccessible( true );
+		return $m->invoke( null, $totals, $rows, new \Agentimus\Settings() );
+	}
+
+	public function test_all_4xx_errors_get_the_dead_pages_advice_not_the_server_advice() {
+		$conflicts = $this->conflicts_for( array(
+			array( 'code_4xx' => 50, 'code_5xx' => 0 ),
+			array( 'code_4xx' => 6, 'code_5xx' => 0 ),
+		) );
+
+		$this->assertCount( 1, $conflicts );
+		$this->assertSame( 'bing-crawl-errors', $conflicts[0]['id'] );
+		$this->assertStringContainsString( 'no longer exist', $conflicts[0]['body'] );
+		// "Check your server" over a pile of 404s sends the owner to the wrong room.
+		$this->assertStringNotContainsString( 'Check your server', $conflicts[0]['body'] );
+	}
+
+	public function test_all_5xx_errors_get_the_server_advice_not_the_dead_pages_advice() {
+		$conflicts = $this->conflicts_for( array(
+			array( 'code_4xx' => 0, 'code_5xx' => 30 ),
+			array( 'code_4xx' => 0, 'code_5xx' => 2 ),
+		) );
+
+		$this->assertCount( 1, $conflicts );
+		$this->assertStringContainsString( 'Check your server and any firewall', $conflicts[0]['body'] );
+		$this->assertStringNotContainsString( 'no longer exist', $conflicts[0]['body'] );
+	}
+
+	public function test_mixed_errors_name_both_kinds_with_their_own_counts() {
+		$conflicts = $this->conflicts_for( array(
+			array( 'code_4xx' => 40, 'code_5xx' => 15 ),
+			array( 'code_4xx' => 0, 'code_5xx' => 1 ),
+		) );
+
+		$this->assertCount( 1, $conflicts );
+		$body = $conflicts[0]['body'];
+		$this->assertStringContainsString( '40', $body );
+		$this->assertStringContainsString( '16', $body );
+		$this->assertStringContainsString( 'no longer exist', $body );
+		$this->assertStringContainsString( 'check your server and any firewall', $body );
+	}
+
+	public function test_a_clean_most_recent_day_keeps_the_warning_quiet() {
+		// The currency rule: a big week fires only while the site still errors.
+		$conflicts = $this->conflicts_for( array(
+			array( 'code_4xx' => 60, 'code_5xx' => 0 ),
+			array( 'code_4xx' => 0, 'code_5xx' => 0 ),
+		) );
+
+		$this->assertSame( array(), $conflicts );
+	}
+
+	public function test_errors_under_the_floor_stay_a_fact_not_a_warning() {
+		$conflicts = $this->conflicts_for( array(
+			array( 'code_4xx' => 20, 'code_5xx' => 0 ),
+			array( 'code_4xx' => 4, 'code_5xx' => 0 ),
+		) );
+
+		$this->assertSame( array(), $conflicts );
+	}
 }

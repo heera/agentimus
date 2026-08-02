@@ -49,6 +49,7 @@ final class Module {
 	 */
 	public function register() {
 		Table::maybe_install();
+		\Agentimus\Search\Table::maybe_install();
 		add_action( self::CRON, array( $this, 'poll' ) );
 		add_action( 'admin_init', array( $this, 'sync_schedule' ) );
 		// The verification tag: printed whenever a code is stored, so "click
@@ -85,6 +86,35 @@ final class Module {
 		}
 		if ( ! $scheduled ) {
 			wp_schedule_event( time() + 5 * MINUTE_IN_SECONDS, 'daily', self::CRON );
+		}
+		$this->maybe_backfill_queries();
+	}
+
+	/** @var string Marks the one-time query-stats backfill as done. */
+	const BACKFILL_OPTION = 'agentimus_bing_query_backfill';
+
+	/**
+	 * Query stats arrived after Bing did: a site that connected Bing BEFORE this
+	 * feature existed has crawl numbers but no query rows, and would show
+	 * "connected, no numbers yet" until the next daily poll — a whole day of
+	 * looking broken to someone who just updated. Schedule one catch-up poll,
+	 * once ever, a minute after the owner next opens wp-admin.
+	 *
+	 * @return void
+	 */
+	private function maybe_backfill_queries() {
+		if ( get_option( self::BACKFILL_OPTION ) ) {
+			return;
+		}
+		// Nothing to catch up on when rows already exist (a fresh connect polls
+		// inline) — mark it done and never look again.
+		if ( \Agentimus\Search\Table::has_rows( 'bing' ) ) {
+			update_option( self::BACKFILL_OPTION, 1, false );
+			return;
+		}
+		update_option( self::BACKFILL_OPTION, 1, false );
+		if ( ! wp_next_scheduled( self::CRON ) || wp_next_scheduled( self::CRON ) > time() + MINUTE_IN_SECONDS ) {
+			wp_schedule_single_event( time() + MINUTE_IN_SECONDS, self::CRON );
 		}
 	}
 
@@ -149,12 +179,81 @@ final class Module {
 		if ( isset( $out['error'] ) ) {
 			// Keep the last good data; the card shows the numbers' age and this note.
 			$this->settings->record_poll( (string) $out['error'] );
-			return;
+		} else {
+			Table::upsert( (array) $out['rows'] );
+			$this->settings->record_poll( '' );
+			Table::prune();
 		}
 
-		Table::upsert( (array) $out['rows'] );
-		$this->settings->record_poll( '' );
-		Table::prune();
+		// The query-stats half runs regardless of how the crawl half fared, and
+		// records its outcome on its own line — two datasets, two honest statuses.
+		$this->run_query_poll( $key, $site );
+	}
+
+	/** @var int Per-page query breakdowns are fetched for this many top pages — bounded work, one poll a day. */
+	const QUERY_TOP_PAGES = 10;
+
+	/**
+	 * Snapshot Bing's query performance: the site-wide query list (feeds the
+	 * site's own CTR median), plus per-page query breakdowns for the top pages
+	 * by impressions (the rows that can name the page to fix). At most
+	 * 2 + QUERY_TOP_PAGES HTTP calls, once a day. Fail-open: any error keeps
+	 * the previous snapshot and records itself.
+	 *
+	 * @param string $key  API key, plaintext.
+	 * @param string $site WMT site URL.
+	 * @return void
+	 */
+	public function run_query_poll( $key, $site ) {
+		$rows = array();
+
+		// 1. Site-wide queries — median material, no page attribution here.
+		$site_wide = $this->client->query_stats( $key, $site );
+		if ( isset( $site_wide['error'] ) ) {
+			$this->settings->record_query_poll( (string) $site_wide['error'] );
+			return;
+		}
+		foreach ( (array) $site_wide['rows'] as $row ) {
+			$rows[] = array(
+				'query'       => $row['key'],
+				'page_url'    => '',
+				'page_id'     => 0,
+				'clicks'      => $row['clicks'],
+				'impressions' => $row['impressions'],
+				'position'    => $row['position'],
+			);
+		}
+
+		// 2. Top pages, then each page's own queries.
+		$pages = $this->client->page_stats( $key, $site );
+		if ( isset( $pages['error'] ) ) {
+			$this->settings->record_query_poll( (string) $pages['error'] );
+			return;
+		}
+		$page_rows = (array) $pages['rows'];
+		usort( $page_rows, static function ( $a, $b ) {
+			return $b['impressions'] <=> $a['impressions'];
+		} );
+		foreach ( array_slice( $page_rows, 0, self::QUERY_TOP_PAGES ) as $page ) {
+			$per = $this->client->page_query_stats( $key, $site, $page['key'] );
+			if ( isset( $per['error'] ) ) {
+				continue; // One page's breakdown failing must not sink the snapshot.
+			}
+			$page_id = \Agentimus\Search\Pages::resolve( $page['key'] );
+			foreach ( (array) $per['rows'] as $row ) {
+				$rows[] = array(
+					'query'       => $row['key'],
+					'page_url'    => $page['key'],
+					'page_id'     => $page_id,
+					'clicks'      => $row['clicks'],
+					'impressions' => $row['impressions'],
+					'position'    => $row['position'],
+				);
+			}
+		}
+
+		\Agentimus\Search\Table::replace( 'bing', $rows );
+		$this->settings->record_query_poll( '' );
 	}
 
 	/**

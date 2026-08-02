@@ -96,7 +96,16 @@ function agentimus_uninstall_site() {
 	delete_option( 'agentimus_bing' );
 	delete_option( 'agentimus_bing_db_version' );
 	delete_option( 'agentimus_bing_lock' );
+	delete_option( 'agentimus_bing_query_backfill' );
 	wp_clear_scheduled_hook( 'agentimus_bing_poll' );
+
+	// Google search source + the shared search-queries snapshot table.
+	$wpdb->query( "DROP TABLE IF EXISTS {$wpdb->prefix}agentimus_search_queries" ); // phpcs:ignore WordPress.DB
+	delete_option( 'agentimus_google' );
+	delete_option( 'agentimus_google_lock' );
+	delete_option( 'agentimus_search_db_version' );
+	delete_transient( 'agentimus_google_token' );
+	wp_clear_scheduled_hook( 'agentimus_google_poll' );
 
 	// AI Visibility monitoring: results table, options and scheduled run.
 	$wpdb->query( "DROP TABLE IF EXISTS {$wpdb->prefix}agentimus_visibility" ); // phpcs:ignore WordPress.DB

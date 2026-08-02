@@ -147,6 +147,14 @@ final class Plugin {
 		( new Bing\Module( $bing ) )->register();
 		( new Bing\Rest( $bing, $this->settings ) )->register();
 
+		// Google Search Console data source (opt-in, BYO service-account key —
+		// local auth, never a proxy). One daily poll of query×page performance
+		// stored locally, feeding the same Search Opportunities engine as Bing.
+		$google = new Google\Settings();
+		( new Google\Module( $google ) )->register();
+		( new Google\Rest( $google ) )->register();
+		( new Search\Rest( $this->settings ) )->register();
+
 		// Self-heal the /.well-known rewrite rules: flush ONCE whenever the routed-name
 		// set changes — an Agentimus update that adds a built-in name (e.g. tdmrep.json)
 		// OR a provider plugin that opts a name in via the `agentimus_well_known_routed`
@@ -219,6 +227,8 @@ final class Plugin {
 		Cloudflare\Module::schedule();
 		Bing\Table::install();
 		Bing\Module::schedule();
+		Search\Table::install();
+		Google\Module::schedule();
 		Digest\Module::schedule();
 		Discovery\WellKnown::add_rules();
 		self::flush_rewrites_in_context();
@@ -382,6 +392,7 @@ final class Plugin {
 		Visibility\Module::unschedule();
 		Cloudflare\Module::unschedule();
 		Bing\Module::unschedule();
+		Google\Module::unschedule();
 		Digest\Module::unschedule();
 		BotRanges::clear_schedule();
 		RouteProbe::clear_schedule();
