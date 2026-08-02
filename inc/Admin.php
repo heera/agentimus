@@ -654,24 +654,28 @@ final class Admin {
 			'show'    => $show,
 			'items'   => array(
 				array(
-					'title' => 'Connect an assistant by approving it',
-					'text'  => 'Give an AI assistant your MCP address and it asks you for permission on a page on your own site. You choose Read only or Read and write — you can grant less than it asked for — and it gets its own key. Every approved assistant is listed under Connected assistants with its own Disconnect, so cutting one off leaves the others working. No keys to copy. Works today with Claude, ChatGPT and Cursor.',
+					'title' => 'Classic search, measured',
+					'text'  => 'Connect Bing Webmaster Tools or Google Search Console — a key held on your own server, no third-party proxy — and Search Performance shows what people searched, how often you appeared, and what was clicked, every number the engine\'s own. Search Opportunities turns the same numbers into a to-do list: pages one improvement from page one, and page-one results being scrolled past. Automated probe traffic is named, never blended into your click rates.',
 				),
 				array(
-					'title' => 'A shared token for the rest',
-					'text'  => 'Some assistants can’t ask for approval — Codex among them. For those, one revocable token does the job: read-only or read-and-write, shown once, rotated or revoked whenever you like. And a read-only key now sees only the read tools, so an assistant is never offered a door it can’t open.',
+					'title' => 'In Google\'s Index',
+					'text'  => 'The index behind classic Google, AI Overviews, AI Mode and Gemini — and now you can see whether it holds your pages. A daily watchlist covers your homepage, busiest pages and newest posts; a rotation walks the whole site; every verdict is Google\'s own wording, problems are grouped with a Search Console link on every row, and a lookup answers for any single page. Plus the week-on-week trend, Google Discover, and whether Google can still fetch the sitemap you registered — the silent failure no on-site check can see.',
 				),
 				array(
-					'title' => 'The MCP card, rebuilt',
-					'text'  => 'Your server address leads, because with one-click approval that address is the whole setup. Under it: who is connected — each row saying how its key got in, by approval or by token — then setup steps folded away that show only the assistant you pick. One status line replaces three scattered facts.',
+					'title' => 'Found by AI Search',
+					'text'  => 'The Bing side of the same story: how much of your site Bing\'s index holds and how cleanly its crawler gets in — the index ChatGPT search and Microsoft Copilot read today. Crawl errors say what kind they are, so a pile of dead links is never called a server problem.',
 				),
 				array(
-					'title' => 'Tables where they help, cards where they fit',
-					'text'  => 'Agent Access events now sit in a real table with column headings, so the labels aren’t repeated on every row. On phones the rows re-stack as the familiar cards — and the Request Log and the dashboard’s Recent Requests do the same, instead of scrolling sideways.',
+					'title' => 'What the edge saw',
+					'text'  => 'Connect Cloudflare with your own token and the edge panel shows what was answered from cache or blocked before your server ever saw the request — and warns when the edge disagrees with your crawler policy.',
 				),
 				array(
-					'title' => 'Honest about your own files',
-					'text'  => 'Readiness now checks your /llms.txt and home page the way an agent would, and says plainly when another plugin is serving them instead of taking the credit. It also names any plugin adding duplicate description or social-card tags, and tells you once — in plain words — when your robots.txt changes.',
+					'title' => 'The sitemap comes home',
+					'text'  => 'With no SEO plugin, Agentimus now serves your sitemap at WordPress\'s standard address, /wp-sitemap.xml — and the old addresses redirect to it. A sitemap that quietly moved was failing search-console registrations without a word; now registrations heal on their own, and the Google card tells you when Google last managed to read what you registered.',
+				),
+				array(
+					'title' => 'People and machines, never confused',
+					'text'  => 'Every data screen now says whose behavior it counts. AI Traffic counts people who arrived from an assistant; the index cards count the machinery that serves them; Search Performance counts searchers. You always know which audience a number is about — and which one a fix is for.',
 				),
 			),
 		);

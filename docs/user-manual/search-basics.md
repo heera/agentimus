@@ -43,7 +43,9 @@ A canonical link tells search engines which address is the official one for a pa
 
 ## The sitemap
 
-With no SEO plugin, Agentimus serves your sitemap at `/agentimus-sitemap.xml` — including per-URL **last-changed dates**, which WordPress core's own sitemap leaves out — and advertises it in `robots.txt`, `llms.txt` and the discovery document. With an SEO plugin, it links the plugin's sitemap instead. The full story is on the [discovery outputs](discovery-outputs.html) page.
+With no SEO plugin, Agentimus serves your sitemap at WordPress's own standard address, **`/wp-sitemap.xml`** — including per-URL **last-changed dates**, which core's sitemap leaves out — and advertises it in `robots.txt`, `llms.txt` and the discovery document. With an SEO plugin, it links the plugin's sitemap instead. The full story is on the [discovery outputs](discovery-outputs.html) page.
+
+Two older addresses, `/sitemap.xml` and `/agentimus-sitemap.xml`, redirect permanently to it. That matters more than it sounds: search consoles remember the address you registered, and a sitemap that quietly moves keeps failing there — silently, sometimes for months — while the file itself is perfectly healthy. Serving at the address the world already registers means a registration made years ago keeps working. If you connect Google Search Console, the [In Google's Index](google-index.html) card also reports when Google last managed to read the sitemap you registered.
 
 ## When an SEO plugin is active
 
