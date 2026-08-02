@@ -21,6 +21,10 @@ final class Module {
 	/** @var string The recurring poll event. */
 	const CRON = 'agentimus_google_poll';
 
+	/** @var string Single events that continue an index sweep left unfinished
+	 * by a budgeted chunk — so the daily cron request never runs long either. */
+	const CRON_INDEX = 'agentimus_google_index_chunk';
+
 	/** @var string Option-backed run lock. */
 	const LOCK_OPTION = 'agentimus_google_lock';
 
@@ -56,6 +60,7 @@ final class Module {
 	public function register() {
 		Search\Table::maybe_install();
 		add_action( self::CRON, array( $this, 'poll' ) );
+		add_action( self::CRON_INDEX, array( $this, 'index_chunk' ) );
 		add_action( 'admin_init', array( $this, 'sync_schedule' ) );
 	}
 
@@ -98,6 +103,7 @@ final class Module {
 	 */
 	public static function unschedule() {
 		wp_clear_scheduled_hook( self::CRON );
+		wp_clear_scheduled_hook( self::CRON_INDEX );
 		delete_option( self::LOCK_OPTION );
 	}
 
@@ -117,6 +123,11 @@ final class Module {
 		update_option( self::LOCK_OPTION, time(), false );
 		try {
 			$this->run_poll();
+			// The index sweep rides the same daily slot but keeps its own
+			// bookkeeping: a spent inspection quota must not smear "poll
+			// failed" over a perfectly good performance snapshot. One chunk
+			// here; the continuation event carries whatever remains.
+			$this->run_index_sweep( 15.0 );
 		} finally {
 			delete_option( self::LOCK_OPTION );
 		}
@@ -166,6 +177,53 @@ final class Module {
 
 		Search\Table::replace( 'google', $rows );
 		$this->settings->record_poll( '' );
+	}
+
+	/**
+	 * One budgeted chunk of the index sweep ({@see Index::sweep()} for why it
+	 * is chunked). Called by the daily poll, by the REST "Check now", and by
+	 * the continuation event; when a chunk leaves work pending, the next
+	 * continuation is scheduled here — so no single web request ever carries
+	 * the whole watchlist.
+	 *
+	 * @param float $budget Seconds this chunk may spend inspecting.
+	 * @return array|null The stored payload, or null when not connected.
+	 */
+	public function run_index_sweep( $budget = 6.0 ) {
+		$sa_json  = $this->settings->sa_json();
+		$property = (string) $this->settings->get( 'property', '' );
+		if ( '' === $sa_json || '' === $property ) {
+			return null;
+		}
+
+		$auth = Auth::token( $sa_json );
+		if ( isset( $auth['error'] ) ) {
+			// A dead token fails every inspection identically — record once, keep
+			// the last good answers.
+			$stored          = Index::stored();
+			$stored['error'] = (string) $auth['error'];
+			update_option( Index::OPTION, $stored, false );
+			return $stored;
+		}
+
+		$out = Index::sweep( $this->client, $auth['token'], $property, Index::run_targets(), $budget );
+
+		if ( ! empty( $out['queue'] ) && ! wp_next_scheduled( self::CRON_INDEX ) ) {
+			// A safety net, not the fast path: the panel's own polling loop
+			// usually finishes the run in seconds; this picks it up if the
+			// owner closed the tab mid-sweep (or the daily cron started it).
+			wp_schedule_single_event( time() + MINUTE_IN_SECONDS, self::CRON_INDEX );
+		}
+		return $out;
+	}
+
+	/**
+	 * The continuation event's handler.
+	 *
+	 * @return void
+	 */
+	public function index_chunk() {
+		$this->run_index_sweep( 15.0 );
 	}
 
 	/**

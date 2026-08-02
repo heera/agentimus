@@ -62,6 +62,8 @@ use Agentimus\Cloudflare\Settings as CloudflareSettings;
 use Agentimus\Cloudflare\Summary as CloudflareSummary;
 use Agentimus\Bing\Settings as BingSettings;
 use Agentimus\Bing\Summary as BingSummary;
+use Agentimus\Google\Settings as GoogleSettings;
+use Agentimus\Google\Index as GoogleIndex;
 
 defined( 'ABSPATH' ) || exit;
 
@@ -564,6 +566,88 @@ final class Registrar {
 			$manage
 		);
 
+		// One row shape, used for the watchlist rows AND the site-sweep problem
+		// rows — a single definition so the two can never drift apart.
+		$index_row = array(
+			'url'              => self::s(),
+			'postId'           => self::i( '0 when the URL maps to no post (the homepage, an archive).' ),
+			'title'            => self::s(),
+			'reason'           => self::s( 'Why this page was checked: "home", "new" (newest posts), "busy" (busiest in Google) or "site" (the whole-site rotation).' ),
+			'verdict'          => self::s( '"pass" = on Google, "neutral"/"fail" = not on Google, "" = not checked yet.' ),
+			'state'            => self::s( 'Google\'s own coverage sentence, e.g. "Crawled - currently not indexed".' ),
+			'lastCrawl'        => self::i( 'Unix time Googlebot last visited; 0 = never.' ),
+			'robotsBlocked'    => self::b( 'robots.txt closes this URL to Google.' ),
+			'noindex'          => self::b( 'A noindex tag or header asks Google to skip this URL.' ),
+			'fetchState'       => self::s( 'How Google\'s last fetch of the page went, e.g. SUCCESSFUL, SOFT_404, NOT_FOUND, SERVER_ERROR; empty when unknown.' ),
+			'canonicalDiffers' => self::b( 'Google treats a different URL as this page\'s real address.' ),
+			'googleCanonical'  => self::s( 'The canonical Google chose; empty when unknown.' ),
+			'inSitemap'        => self::b( 'Whether a sitemap Google knows lists this URL — false on an unindexed page means nobody told Google it exists.' ),
+			'richIssues'       => self::i( 'Rich-result issues Google reports on this page; 0 = none.' ),
+			'richTypes'        => self::s( 'Rich-result types Google detected, comma-separated; empty = none.' ),
+			'gscLink'          => self::s( 'Deep link to this URL\'s inspection in Search Console — where "Request indexing" lives (that button has no API).' ),
+			'inspectedAt'      => self::i( 'Unix time THIS row was last inspected — older than checkedAt means a quota-cut sweep kept its previous answer.' ),
+			'error'            => self::s( 'This row\'s own inspection failure, if any.' ),
+		);
+
+		$this->add(
+			'read-google-index',
+			__( 'Get Google index status for this site', 'agentimus' ),
+			'Returns whether Google\'s index holds this site\'s pages, when the owner has connected '
+				. 'Google Search Console. Google\'s index is what AI Overviews, AI Mode and Gemini '
+				. 'grounding read — the Google counterpart of "Bing\'s index is what ChatGPT search '
+				. 'reads". Two tiers share Google\'s 2,000-inspections/day budget (there is no bulk '
+				. 'index report): a WATCHLIST (homepage, busiest pages, newest posts — every answer in '
+				. 'rows) checked daily, and a WHOLE-SITE ROTATION walking every published URL in daily '
+				. 'slices — its healthy pages become the site counts, only its problems appear in '
+				. 'site.problems. On sites small enough the rotation covers everything every day; '
+				. 'site.cycleDays states the honest cadence. Presence only, no traffic '
+				. '(read-search-performance has the traffic). Returns connected=false with empty rows '
+				. 'when no key is connected.',
+			self::no_input(),
+			self::obj(
+				array(
+					'connected' => self::b( 'False = Google Search Console is not connected; rows is then empty.' ),
+					'property'  => self::s( 'The Search Console property the answers come from.' ),
+					'checkedAt' => self::i( 'Unix time of the newest sweep; 0 = never checked.' ),
+					'lastError' => self::s( 'The most recent sweep failure, empty after a clean sweep.' ),
+					'quotaHit'  => self::b( 'True when Google\'s daily inspection budget ran out mid-sweep — unreached rows keep their last good answers (see each row\'s inspectedAt).' ),
+					'pending'   => self::i( 'Pages of the current sweep still waiting — the sweep runs in short budgeted chunks so no web request runs long. 0 = the last sweep finished; rows not yet reached carry their previous answers.' ),
+					'watched'   => self::obj(
+						array(
+							'busiest'       => self::i( 'How many busiest-in-Google pages the watchlist covers at most.' ),
+							'newest'        => self::i( 'How many newest posts the watchlist covers at most.' ),
+							'rotationDaily' => self::i( 'How many whole-site URLs the rotation inspects per day.' ),
+							'dailyCap'      => self::i( 'Google\'s documented inspections-per-day budget for the property.' ),
+						)
+					),
+					'counts'    => self::obj(
+						array(
+							'checked'          => self::i( 'Watchlist pages with an answer.' ),
+							'onGoogle'         => self::i( 'Watchlist pages Google confirms are in its index.' ),
+							'notOnGoogle'      => self::i( 'Watchlist pages Google confirms are NOT in its index — each row\'s state says why in Google\'s own words.' ),
+							'errors'           => self::i( 'Watchlist pages whose inspection itself failed.' ),
+							'canonicalDiffers' => self::i( 'Watchlist pages where Google chose a different canonical URL than the one checked.' ),
+						)
+					),
+					'site'      => self::obj(
+						array(
+							'totalUrls'   => self::i( 'Every published URL plus the homepage — what "the whole site" means here; 0 until the first rotation ran.' ),
+							'checked'     => self::i( 'Distinct site URLs with an answer so far (watchlist included).' ),
+							'onGoogle'    => self::i( 'Of those, how many Google confirms are in its index.' ),
+							'notOnGoogle' => self::i( 'Of those, how many are not (or failed their check).' ),
+							'cycleDays'   => self::i( 'How many days one full pass over the site takes at the daily rotation size — 1 = every page is checked every day.' ),
+							'problems'    => self::arr( $index_row ),
+						)
+					),
+					'rows'      => self::arr( $index_row ),
+				)
+			),
+			function () {
+				return GoogleIndex::view( new GoogleSettings() );
+			},
+			$manage
+		);
+
 		$this->add(
 			'read-search-performance',
 			__( 'Get classic-search performance', 'agentimus' ),
@@ -572,7 +656,10 @@ final class Registrar {
 				. 'people used and the top pages they landed on. Numbers are the engine\'s own — Google '
 				. 'Search Console and/or Bing Webmaster Tools, whichever the owner connected — never '
 				. 'estimated, and never blended (the two count different searchers). Use it to answer '
-				. '"how is this site doing in search?". Returns source="" when no engine has reported yet.',
+				. '"how is this site doing in search?". Returns source="" when no engine has reported yet. '
+				. 'When source="bing", totals and topPages come from two separate Bing reports counted '
+				. 'differently — they never quite reconcile, and one page can show more clicks than '
+				. 'totals.clicks. Neither is an error: state the split rather than reconciling the numbers.',
 			self::obj(
 				array(
 					'source' => self::s( 'Which engine to read: "google" or "bing". Omit for the richer one that has data.' ),
@@ -1194,6 +1281,7 @@ final class Registrar {
 			self::CATEGORY . '/read-request-log',
 			self::CATEGORY . '/read-edge-traffic',
 			self::CATEGORY . '/read-search-visibility',
+			self::CATEGORY . '/read-google-index',
 			self::CATEGORY . '/read-search-performance',
 			self::CATEGORY . '/read-search-opportunities',
 			self::CATEGORY . '/identify-bot',

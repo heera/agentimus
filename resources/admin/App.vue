@@ -16,6 +16,7 @@ import AiTrafficPanel from './components/AiTrafficPanel.vue';
 import RequestLog from './components/RequestLog.vue';
 import EdgePanel from './components/EdgePanel.vue';
 import BingPanel from './components/BingPanel.vue';
+import GoogleIndexPanel from './components/GoogleIndexPanel.vue';
 import SearchPerformance from './components/SearchPerformance.vue';
 import AgentAccess from './components/AgentAccess.vue';
 import ReviewMenu from './components/ReviewMenu.vue';
@@ -44,7 +45,7 @@ const MORE_EDGE_GAP = 12;
 
 export default {
   name: 'AgentimusApp',
-  components: { SettingsForm, ReadinessPanel, DiscoveryHub, ActivityPanel, WhatsNew, ReviewAsk, AssistantLauncher, AssistantDrawer, AiTrafficPanel, RequestLog, EdgePanel, BingPanel, SearchPerformance, AgentAccess, ReviewMenu, OnboardingWizard, AboutPanel, ConfirmDialog, VisibilityPanel },
+  components: { SettingsForm, ReadinessPanel, DiscoveryHub, ActivityPanel, WhatsNew, ReviewAsk, AssistantLauncher, AssistantDrawer, AiTrafficPanel, RequestLog, EdgePanel, BingPanel, GoogleIndexPanel, SearchPerformance, AgentAccess, ReviewMenu, OnboardingWizard, AboutPanel, ConfirmDialog, VisibilityPanel },
   // The styled hover bubble (shared with the activity tables) — the score rail's
   // rung and next-step hints use it instead of slow, unthemeable native titles.
   mixins: [uaTip],
@@ -1837,6 +1838,15 @@ export default {
           @enable-checks="settings.enable_visibility = $event"
         />
         <BingPanel
+          v-show="tab === 'visibility' && visView === 'aisearch'"
+          :api="api"
+          :active="tab === 'visibility' && visView === 'aisearch'"
+          @navigate="goTo"
+        />
+        <!-- Google's index answered the only way Google allows: a stated
+             watchlist, inspected daily — presence, where Bing's card above
+             is volume. -->
+        <GoogleIndexPanel
           v-show="tab === 'visibility' && visView === 'aisearch'"
           :api="api"
           :active="tab === 'visibility' && visView === 'aisearch'"

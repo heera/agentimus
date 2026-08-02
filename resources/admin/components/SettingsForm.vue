@@ -3771,7 +3771,9 @@ export default {
           Google Search Console knows which queries bring your pages to searchers — and
           which pages under-earn their rankings. Connect it and
           <a href="#readiness">Search Opportunities</a> turns those numbers into a worklist,
-          each entry wired to the exact field that fixes it.
+          each entry wired to the exact field that fixes it — and the AI Visibility screen
+          checks daily that your key pages are actually in Google's index, the index
+          AI Overviews and Gemini read.
         </p>
 
         <div class="ar-mcp-rail" :data-state="google && google.connected ? 'running' : (googleChecked ? 'unsaved' : 'idle')">

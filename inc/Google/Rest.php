@@ -50,6 +50,18 @@ final class Rest {
 	 * @return void
 	 */
 	public function routes() {
+		register_rest_route( self::NS, '/google/index', array(
+			array(
+				'methods'             => \WP_REST_Server::READABLE,
+				'callback'            => array( $this, 'index_status' ),
+				'permission_callback' => array( $this, 'can_manage' ),
+			),
+			array(
+				'methods'             => \WP_REST_Server::CREATABLE,
+				'callback'            => array( $this, 'index_refresh' ),
+				'permission_callback' => array( $this, 'can_manage' ),
+			),
+		) );
 		register_rest_route( self::NS, '/google', array(
 			array(
 				'methods'             => \WP_REST_Server::READABLE,
@@ -140,7 +152,37 @@ final class Rest {
 		// First numbers now, not tomorrow — same courtesy as the Bing connect.
 		( new Module( $this->google, $this->client ) )->run_poll();
 
+		// The index sweep is ~20 sequential inspections — too slow to sit
+		// inside this request. A single cron event moments from now gets the
+		// card its first answers without making the connect click hang.
+		if ( ! wp_next_scheduled( Module::CRON ) || wp_next_scheduled( Module::CRON ) > time() + MINUTE_IN_SECONDS ) {
+			wp_schedule_single_event( time() + 15, Module::CRON );
+		}
+
 		return rest_ensure_response( $this->google->public_view() );
+	}
+
+	/**
+	 * GET /google/index — the stored index-watch answers.
+	 *
+	 * @return \WP_REST_Response
+	 */
+	public function index_status() {
+		return rest_ensure_response( Index::view( $this->google ) );
+	}
+
+	/**
+	 * POST /google/index — inspect the watchlist now and answer with the result.
+	 * The owner clicked "Check now": ~20 sequential API calls, a few seconds.
+	 *
+	 * @return \WP_REST_Response|\WP_Error
+	 */
+	public function index_refresh() {
+		if ( ! $this->google->connected() ) {
+			return new \WP_Error( 'agentimus_google_off', __( 'Google Search Console is not connected.', 'agentimus' ), array( 'status' => 400 ) );
+		}
+		( new Module( $this->google, $this->client ) )->run_index_sweep();
+		return rest_ensure_response( Index::view( $this->google ) );
 	}
 
 	/**

@@ -1580,6 +1580,73 @@ td.ar-edge__n.is-bad { color: var(--ar-bad); font-weight: 600; }
   .ar-bing__trend { gap: 4px; }
   .ar-bing__bar { min-width: 16px; }
 }
+/* ── In Google's Index (AI Visibility screen) ────────────────────────────────
+   The Bing card's Google sibling: a watchlist of verdict rows, not a trend —
+   Google's inspection API answers per URL, so the card speaks per page. */
+.ar-gidx__offlead { margin: 0; padding: 0; border-bottom: 0; }
+.ar-gidx .ar-mcp-rail { margin-top: 14px; }
+.ar-gidx__quota { color: var(--ar-warn); }
+.ar-gidx__hot { color: var(--ar-warn); }
+/* One thin ratio track under the tiles: green = in, amber = out, red = check
+   failed. The tiles carry the numbers; this carries the proportion at a glance. */
+.ar-gidx__ratio {
+  display: flex; height: 6px; margin: 10px 0 0; border-radius: 3px; overflow: hidden;
+  background: var(--ar-surface-2); border: 1px solid var(--ar-line);
+}
+.ar-gidx__ratio-seg.is-ok { background: var(--ar-good); }
+.ar-gidx__ratio-seg.is-warn { background: var(--ar-warn); }
+.ar-gidx__ratio-seg.is-err { background: var(--ar-bad); }
+/* The scope sentence, seated with the tiles it scopes. */
+.ar-gidx__scope { margin: 8px 0 0; font-size: 12px; color: var(--ar-ink-faint); }
+.ar-gidx__list { list-style: none; margin: 12px 0 0; padding: 0; }
+.ar-gidx__row { padding: 12px 0; border-bottom: 1px solid var(--ar-line); }
+.ar-gidx__row:last-child { border-bottom: 0; }
+/* Three real columns — title | date | verdict — so every row's date and chip
+   sit on the same vertical lines instead of trailing each title. */
+.ar-gidx__main { display: grid; grid-template-columns: minmax(0, 1fr) max-content max-content; gap: 4px 14px; align-items: baseline; }
+.ar-gidx__meta { display: contents; }
+.ar-gidx__page { display: inline-flex; align-items: baseline; gap: 8px; min-width: 0; }
+.ar-gidx__title { font-size: 13px; color: var(--ar-ink); text-decoration: none; overflow-wrap: anywhere; }
+.ar-gidx__title:hover { text-decoration: underline; }
+/* Why this page is on the watchlist — the label that keeps a quiet new post
+   from reading like an odd pick. */
+.ar-gidx__why {
+  font-family: var(--ar-mono); font-size: 9px; letter-spacing: 0.08em;
+  text-transform: uppercase; color: var(--ar-ink-faint); white-space: nowrap;
+}
+.ar-gidx__crawl { font-size: 11px; color: var(--ar-ink-faint); white-space: nowrap; text-align: right; }
+/* A fixed minimum makes every chip the same width, so both chip edges align
+   down the column. */
+.ar-gidx__chip {
+  font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 10px;
+  border: 1px solid var(--ar-line); white-space: nowrap;
+  min-width: 104px; text-align: center; justify-self: end;
+}
+.ar-gidx__chip.is-ok { color: var(--ar-good); border-color: color-mix(in srgb, var(--ar-good) 35%, var(--ar-line)); background: color-mix(in srgb, var(--ar-good) 8%, var(--ar-surface)); }
+.ar-gidx__chip.is-warn { color: var(--ar-warn); border-color: color-mix(in srgb, var(--ar-warn) 40%, var(--ar-line)); background: color-mix(in srgb, var(--ar-warn) 9%, var(--ar-surface)); }
+.ar-gidx__chip.is-err { color: var(--ar-bad); border-color: color-mix(in srgb, var(--ar-bad) 35%, var(--ar-line)); background: color-mix(in srgb, var(--ar-bad) 7%, var(--ar-surface)); }
+.ar-gidx__chip.is-dim { color: var(--ar-ink-faint); }
+.ar-gidx__note { margin: 4px 0 0; font-size: 12px; line-height: 1.5; }
+.ar-gidx__note.is-warn { color: var(--ar-warn); }
+.ar-gidx__note.is-err { color: var(--ar-bad); }
+/* The quiet door to Search Console — where "Request indexing" lives. */
+.ar-gidx__gsc { margin-left: 10px; font-size: 11px; color: var(--ar-info); text-decoration: none; white-space: nowrap; }
+.ar-gidx__gsc:hover { text-decoration: underline; }
+/* The whole-site section under the watchlist. */
+.ar-gidx__siteeyebrow { margin-top: 24px; }
+.ar-gidx__siteline { margin: 8px 0 0; font-size: 13px; line-height: 1.55; color: var(--ar-ink-soft); }
+.ar-gidx__siteclear { margin: 8px 0 0; font-size: 12px; color: var(--ar-good); }
+@media (max-width: 600px) {
+  /* Tiles go 2×2 — four abreast crushed the labels into vertical shards. */
+  .ar-gidx .ar-act-stats--4 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .ar-gidx .ar-wd-stat strong { white-space: nowrap; }
+  /* Rows: the title takes its own line; date left and chip right share the
+     second — the request-log byline rule, in grid form. */
+  .ar-gidx__main { grid-template-columns: minmax(0, 1fr) max-content; }
+  .ar-gidx__page { grid-column: 1 / -1; }
+  .ar-gidx__crawl { text-align: left; }
+}
+
 /* Settings: the two setup steps breathe — the first eyebrow was hugging the
    connection rail. */
 #ar-sec-bing .ar-mcp-eyebrow { margin-top: 24px; }
@@ -1716,6 +1783,9 @@ td.ar-edge__n.is-bad { color: var(--ar-bad); font-weight: 600; }
 	vertical-align: 1px;
 }
 .ar-perf__foot { margin: 8px 0 0; color: var(--ar-ink-faint, #777); font-size: 12px; }
+/* The two-reports notice borrows the edge-pin grammar; only the seat is ours. */
+.ar-perf__pin { margin-top: 12px; }
+.ar-perf__pin .ar-edge-pin__body { margin-bottom: 0; }
 .ar-perf__probeline { margin-bottom: 4px; }
 @container (max-width: 720px) {
   .ar-perf__tiles { grid-template-columns: 1fr 1fr; }

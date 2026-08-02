@@ -238,6 +238,9 @@ export function createApi(boot) {
     // Refresh: one inline poll, then the fresh summary in the same response.
     refreshBingSummary: (days = 30) =>
       request(`/bing/refresh?days=${Math.max(1, days | 0)}`, { method: 'POST' }),
+    // The Google index watch: stored answers, and an inline "Check now" sweep.
+    getGoogleIndex: () => request('/google/index'),
+    refreshGoogleIndex: () => request('/google/index', { method: 'POST' }),
 
     // AI Visibility monitoring.
     getVisibilityConfig: () => request('/visibility/config'),

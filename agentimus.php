@@ -3,7 +3,7 @@
  * Plugin Name:       Agentimus
  * Plugin URI:        https://github.com/heera/agentimus
  * Description:       Make your site agent-ready (llms.txt, markdown, JSON-LD, a /.well-known discovery document, AI-crawl controls, agent-activity log) AND let the AI tools you use operate it over MCP — read your data and, opt-in, draft/edit/publish posts. Lightweight, no SEO bloat.
- * Version:           1.33.0-dev89
+ * Version:           1.33.0-dev95
  * Requires at least: 6.0
  * Requires PHP:      7.4
  * Author:            Sheikh Heera
@@ -19,7 +19,7 @@ namespace Agentimus;
 
 defined( 'ABSPATH' ) || exit;
 
-define( 'AGENTIMUS_VERSION', '1.33.0-dev89' );
+define( 'AGENTIMUS_VERSION', '1.33.0-dev95' );
 define( 'AGENTIMUS_FILE', __FILE__ );
 define( 'AGENTIMUS_DIR', plugin_dir_path( __FILE__ ) );
 define( 'AGENTIMUS_URL', plugin_dir_url( __FILE__ ) );

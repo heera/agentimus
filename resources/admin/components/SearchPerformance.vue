@@ -259,6 +259,23 @@ export default {
             to keep the daily check small. Quieter pages can’t appear here however
             well they rank.
           </p>
+          <!-- Split-report sources disagree with themselves: the tiles sum the
+               engine's site-wide report, this column its per-page one, and the two
+               never reconcile — a single page can out-count the Visits tile. Said
+               here at the seam, and LOUD (the info-pin grammar, not a footnote):
+               a reader who spots 18 > 16 must meet the explanation before blaming
+               the plugin's arithmetic. Google can't clash (its totals are summed
+               from these same rows), so this rides the split-source condition. -->
+          <div v-if="pageCap" class="ar-edge-pin ar-edge-pin--info ar-perf__pin">
+            <span class="ar-edge-pin__badge">Two reports</span>
+            <p class="ar-edge-pin__body">
+              The totals at the top come from {{ sourceLabel }}’s site-wide report, the
+              page figures here from its per-page one — counted separately, never
+              reconciled. So the two never agree exactly, and a busy page can even show
+              more visits than the Visits tile. Neither is a miscount; both are exactly
+              as reported.
+            </p>
+          </div>
         </div>
       </div>
 
