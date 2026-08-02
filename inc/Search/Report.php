@@ -92,6 +92,7 @@ final class Report {
 				'thisWeek' => array( 'impressions' => 0, 'clicks' => 0 ),
 				'lastWeek' => array( 'impressions' => 0, 'clicks' => 0 ),
 			),
+			'updatedAt'  => 0,
 			'discover'   => array( 'impressions' => 0, 'clicks' => 0 ),
 		);
 		if ( '' === $state['source'] ) {
@@ -135,9 +136,12 @@ final class Report {
 		return array(
 			// The recent series, not the whole archive — 16 weeks tells the
 			// story; the option keeps the longer history.
-			'daily'    => array_slice( $daily, -112 ),
-			'weekly'   => self::weekly_from_daily( $daily ),
-			'discover' => array(
+			'daily'     => array_slice( $daily, -112 ),
+			'weekly'    => self::weekly_from_daily( $daily ),
+			// 0 = never refreshed; readers show a staleness note past ~3 days
+			// so last-good data can't pose as current.
+			'updatedAt' => (int) ( isset( $trend['daily_at'] ) ? $trend['daily_at'] : 0 ),
+			'discover'  => array(
 				'impressions' => (int) ( isset( $discover['impressions'] ) ? $discover['impressions'] : 0 ),
 				'clicks'      => (int) ( isset( $discover['clicks'] ) ? $discover['clicks'] : 0 ),
 			),

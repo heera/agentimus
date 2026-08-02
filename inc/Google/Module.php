@@ -199,6 +199,10 @@ final class Module {
 				$daily['days'],
 				self::TREND_KEEP
 			);
+			// Stamped on SUCCESS only: keeping last-good data on a blip is
+			// right, but a trend quietly stale for a week must be able to
+			// say so on the screen instead of posing as current.
+			$trend['daily_at'] = time();
 		}
 
 		$discover = $this->client->discover_totals( $auth['token'], $property, $start, $end );

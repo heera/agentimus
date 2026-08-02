@@ -234,7 +234,17 @@ final class Module {
 		usort( $page_rows, static function ( $a, $b ) {
 			return $b['impressions'] <=> $a['impressions'];
 		} );
+		// Budgeted like the Google sweep learned to be: this loop can run
+		// INSIDE a web request (connect / Refresh), and ~10 sequential calls
+		// against a slow morning is a held FPM worker racing the gateway
+		// timeout. Past the deadline the remaining pages simply skip their
+		// per-page detail this poll — the site-wide numbers above are already
+		// stored, and tomorrow's cron (no budget pressure) fills the rest.
+		$deadline = microtime( true ) + 20.0;
 		foreach ( array_slice( $page_rows, 0, self::QUERY_TOP_PAGES ) as $page ) {
+			if ( microtime( true ) >= $deadline ) {
+				break;
+			}
 			$per = $this->client->page_query_stats( $key, $site, $page['key'] );
 			if ( isset( $per['error'] ) ) {
 				continue; // One page's breakdown failing must not sink the snapshot.

@@ -779,6 +779,7 @@ final class Registrar {
 							'lastWeek' => self::obj( array( 'impressions' => self::i(), 'clicks' => self::i() ) ),
 						)
 					),
+					'updatedAt'  => self::i( 'Unix time the daily series last refreshed successfully; 0 = never. Older than a few days = the trend is last-good data, not current — say so.' ),
 					'discover'   => self::obj(
 						array(
 							'impressions' => self::i( 'Times shown in Google Discover this window — a feed, not a search; most sites honestly sit at 0.' ),

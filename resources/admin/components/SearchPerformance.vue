@@ -88,7 +88,14 @@ export default {
     weeklyLine() {
       const w = this.trend && this.trend.weekly;
       if (!w || !w.ready) return '';
-      return `The last 7 reported days: shown ${this.num(w.thisWeek.impressions)} times, ${this.num(w.thisWeek.clicks)} visits — the 7 days before: ${this.num(w.lastWeek.impressions)} and ${this.num(w.lastWeek.clicks)}.`;
+      let line = `The last 7 reported days: shown ${this.num(w.thisWeek.impressions)} times, ${this.num(w.thisWeek.clicks)} visits — the 7 days before: ${this.num(w.lastWeek.impressions)} and ${this.num(w.lastWeek.clicks)}.`;
+      // Last-good data must not pose as current: past ~3 days without a
+      // successful refresh, the trend says its own age.
+      const at = Number(this.trend.updatedAt) || 0;
+      if (at && Date.now() / 1000 - at > 3 * 86400) {
+        line += ` (Trend last refreshed ${formatDate(new Date(at * 1000))} — recent daily polls couldn't update it.)`;
+      }
+      return line;
     },
     discoverLine() {
       const d = this.trend && this.trend.discover;
