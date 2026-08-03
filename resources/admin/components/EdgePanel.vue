@@ -200,7 +200,12 @@ export default {
           </template>
           <template v-if="summary.lastPurgeError">
             <span class="ar-mcp-rail__sep ar-edge__sep-warn" aria-hidden="true">·</span>
-            <span class="ar-warn">Last purge failed: {{ summary.lastPurgeError }} — the token may lack the Cache Purge permission.</span>
+            <!-- The failure names its own fix, at the moment it happens: edit the
+                 token (which keeps its secret valid — rolling would not), add the
+                 one permission, done. Nobody should need to research this line. -->
+            <span class="ar-warn">Last purge failed: {{ summary.lastPurgeError }} — the token may lack the Cache Purge permission.
+              <a href="https://dash.cloudflare.com/profile/api-tokens" target="_blank" rel="noopener">Edit the token in Cloudflare ↗</a>
+              and add Zone → Cache Purge → Purge. Editing keeps the stored token valid.</span>
           </template>
           <template v-else-if="purgeNote">
             <span class="ar-mcp-rail__sep" aria-hidden="true">·</span>
