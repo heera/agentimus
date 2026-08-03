@@ -288,18 +288,32 @@ final class Rest {
 				'edit_url' => (string) get_edit_post_link( $id, 'raw' ),
 			);
 		}
-		// URL-keyed entries wear their path as the name — the same name their
-		// card wore — and offer no editor door, exactly like the card didn't.
+		// URL-keyed entries wear their card's name — "Homepage" for the one
+		// unmapped page we can name, the path for the rest — and offer no
+		// editor door, exactly like the card didn't.
 		foreach ( $this->set_aside_urls() as $url ) {
 			$path   = (string) wp_parse_url( $url, PHP_URL_PATH );
+			$path   = '' !== $path ? $path : '/';
 			$rows[] = array(
 				'id'       => 0,
-				'title'    => '' !== $path ? $path : '/',
+				'title'    => self::is_home_path( $path ) ? __( 'Homepage', 'agentimus' ) : $path,
 				'url'      => $url,
 				'edit_url' => '',
 			);
 		}
 		return $rows;
+	}
+
+	/**
+	 * Whether a path is the site root — subdirectory installs compare against
+	 * their real home path, not "/".
+	 *
+	 * @param string $path URL path ('/' when bare).
+	 * @return bool
+	 */
+	private static function is_home_path( $path ) {
+		$home = untrailingslashit( (string) wp_parse_url( home_url( '/' ), PHP_URL_PATH ) );
+		return untrailingslashit( (string) $path ) === $home;
 	}
 
 	/**
@@ -341,10 +355,12 @@ final class Rest {
 			// title really is the site title + tagline (that is what core
 			// prints for the front page); an archive or a gone permalink has
 			// no such single lever, and naming one would be a lie.
-			$home_path         = untrailingslashit( (string) wp_parse_url( home_url( '/' ), PHP_URL_PATH ) );
-			$is_home           = untrailingslashit( $card['path'] ) === $home_path;
-			$card['doorless']  = $is_home ? 'home' : 'generic';
+			$is_home          = self::is_home_path( $card['path'] );
+			$card['doorless'] = $is_home ? 'home' : 'generic';
 			if ( $is_home ) {
+				// A name, not a bare "/": this is the one unmapped page whose
+				// identity the plugin actually knows.
+				$card['title']       = __( 'Homepage', 'agentimus' );
 				$card['general_url'] = admin_url( 'options-general.php' );
 			}
 		}
