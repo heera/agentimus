@@ -255,7 +255,7 @@ Yes — there is no minified-only code. The admin interface is built from Vue 3 
 5. Crawler policy & bot identity — declare your content-usage signals, block AI-training crawlers by name, turn away spoofed traffic, and verify bots against what each operator publishes: reverse DNS for the search engines, published IP ranges for GPTBot and PerplexityBot, cryptographic signatures for agents that sign. The verified-bots registry is yours to edit.
 6. Request Log — every request an agent made, in one filterable table: narrow by client, endpoint, network, verification verdict, User-Agent or date to see exactly what a single bot fetched. A Status column carries one honest mark per request — verified, signed, spoofed, forged, refused or unchecked. Your own logged-in visits are never recorded.
 7. MCP server — one switch runs a Model Context Protocol server on your own site. Your server address leads: give it to an assistant and it asks you for approval — no keys to paste — and every approved assistant is listed with its scope, its last call and its own Disconnect. Above it, the trust ladder: a second switch lets agents write, a third decides whether they may publish or only leave drafts.
-8. Data sources — the outside services Agentimus reads from, all optional and read-only, each with one key held on your own server and no third-party proxy: Cloudflare for what the edge answered or blocked before your server saw it, Google Search Console and Bing Webmaster Tools for classic search and index coverage. Numbers land in your own database, so your history outlives each service's own reporting window.
+8. Data sources — the outside services Agentimus reads from, all optional, each with one key held on your own server and no third-party proxy: Cloudflare for what the edge answered or blocked before your server saw it (and, with an optional extra permission, clearing its cache when you publish), Google Search Console and Bing Webmaster Tools for classic search and index coverage. Numbers land in your own database, so your history outlives each service's own reporting window.
 9. AI Visibility — an opt-in, bring-your-own-key scoreboard showing whether ChatGPT, Perplexity, Gemini and Claude mention and link each brand, product or person you track: seen-in-answers and linked-your-site rates, rank against each item's own rivals, and question-by-question results with the sources each engine cited.
 10. Discovery Hub — everything your site tells AI agents, in one place: the providers describing it, the read capabilities they expose, the public APIs, and the MCP & tools surface — your own MCP server alongside the WordPress Abilities API, with the tools each carries. Each summary tile jumps to its own countable list, and any registration problem is listed with a plain-English fix.
 11. The writing assistant — a quill button on every Agentimus screen opens the drawer: describe the post you want, edit the outline it proposes, preview the fully dressed draft, then create it as a draft and land straight in the editor. Nothing is saved until you say so, and it never publishes.
@@ -285,10 +285,13 @@ URL-like strings in the plugin's output are labels, not requests — the discove
 
 == Changelog ==
 
-= 1.33.1 =
+= 1.34.0 =
+* New: Clear Cloudflare's cache from Agentimus — publishing or editing a post now clears its stale copies from Cloudflare's edge (the one cache no caching plugin purges for you), along with the front page and the machine files agents read, and the edge panel gains a Purge button for everything else. Needs one extra permission on your token — Zone → Cache Purge → Purge; without it everything stays read-only, and the panel says so in words.
+* Improved: a network blip during the daily index check now pauses the run and resumes where it stopped, instead of ending it — one slow answer from Google no longer costs the whole watchlist's inspection budget on the retry.
 * Fixed: the page lookup on In Google's Index kept showing its previous answer after the box was cleared or edited — an answer now clears with the question that produced it.
 * Fixed: the sitemap-health line sat below the page lookup, where it read as a fact about the page you had just looked up. It now sits with the whole-site section it describes.
 * Improved: the lookup hint says what the answer is, not only what it isn't — your own record of what Google said, rather than a new question to Google.
+* Improved: the markdown edition's "never store this" cache instruction now speaks nginx's own dialect too, closing the one cache layer that ignores the standard headers.
 
 = 1.33.0 =
 * New: Classic search, measured — Search Performance and Search Opportunities screens for Bing Webmaster Tools and Google Search Console: what people searched, how often you appeared, and which pages sit one improvement from page one. Every number is the engine's own, and automated probe traffic is named, never blended in.
@@ -331,8 +334,8 @@ Earlier releases — the full history, in the same words — live in [CHANGELOG.
 
 == Upgrade Notice ==
 
-= 1.33.1 =
-Two fixes to the page lookup on the In Google's Index card: a stale answer no longer outlives the question, and the sitemap-health line moves back beside the whole-site figures it describes. No breaking changes.
+= 1.34.0 =
+Cloudflare cache purge on publish and on demand (one optional token permission), an index check that resumes after a network blip instead of restarting, and two fixes to the page lookup on the In Google's Index card. No breaking changes.
 
 = 1.33.0 =
 Classic search, measured: Search Performance and Opportunities for Bing and Google, an In Google's Index card with whole-site coverage and page lookup, a Cloudflare edge view, and a setup wizard. The sitemap returns to WordPress's standard /wp-sitemap.xml — old addresses redirect, so registrations heal on their own. No breaking changes.

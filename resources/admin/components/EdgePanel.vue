@@ -29,6 +29,8 @@ export default {
       loading: false,
       loaded: false,
       fetching: false,
+      purging: false,
+      purgeNote: '',
       error: '',
     };
   },
@@ -110,6 +112,27 @@ export default {
         this.fetching = false;
       }
     },
+    // Drop everything Cloudflare holds for the zone — the honest fix when an
+    // edited page keeps serving stale from the edge. Safe for data: the cache
+    // rebuilds as visitors return. Needs the token to carry the optional
+    // Cache Purge permission; a refusal lands in lastPurgeError on this rail.
+    async purgeEdge() {
+      if (!this.api || this.purging) return;
+      this.purging = true;
+      this.purgeNote = '';
+      try {
+        const out = await this.api.purgeCloudflareCache();
+        if (this.summary) {
+          this.summary.lastPurgeAt = out.lastPurgeAt;
+          this.summary.lastPurgeError = out.lastPurgeError;
+        }
+        if (out.ok) this.purgeNote = 'Edge cache cleared — Cloudflare rebuilds it as visitors return.';
+      } catch (e) {
+        this.error = e && e.message ? e.message : 'Could not reach Cloudflare.';
+      } finally {
+        this.purging = false;
+      }
+    },
     fmtBytes(b) {
       b = Number(b) || 0;
       if (b >= 1073741824) return `${(b / 1073741824).toFixed(1)} GB`;
@@ -167,9 +190,21 @@ export default {
           <button type="button" class="ar-linkbtn" :disabled="fetching" @click="fetchNow">
             {{ fetching ? 'Refreshing…' : 'Refresh' }}
           </button>
+          <span class="ar-mcp-rail__sep" aria-hidden="true">·</span>
+          <button type="button" class="ar-linkbtn" :disabled="purging" @click="purgeEdge">
+            {{ purging ? 'Purging…' : 'Purge edge cache' }}
+          </button>
           <template v-if="summary.lastError">
             <span class="ar-mcp-rail__sep ar-edge__sep-warn" aria-hidden="true">·</span>
             <span class="ar-warn">Last poll failed: {{ summary.lastError }} — showing the last good numbers.</span>
+          </template>
+          <template v-if="summary.lastPurgeError">
+            <span class="ar-mcp-rail__sep ar-edge__sep-warn" aria-hidden="true">·</span>
+            <span class="ar-warn">Last purge failed: {{ summary.lastPurgeError }} — the token may lack the Cache Purge permission.</span>
+          </template>
+          <template v-else-if="purgeNote">
+            <span class="ar-mcp-rail__sep" aria-hidden="true">·</span>
+            <span>{{ purgeNote }}</span>
           </template>
         </div>
 

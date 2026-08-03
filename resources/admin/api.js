@@ -213,6 +213,9 @@ export function createApi(boot) {
     // Fetch now: one inline poll, then the fresh summary in the same response.
     refreshCloudflareSummary: (days = 7) =>
       request(`/cloudflare/refresh?days=${Math.max(1, days | 0)}`, { method: 'POST' }),
+    // Purge everything Cloudflare holds for the zone — needs the token to
+    // carry the optional Cache Purge permission; a refusal comes back in words.
+    purgeCloudflareCache: () => request('/cloudflare/purge', { method: 'POST' }),
     // Hide one conflict pin; it returns only if the conflict ends and recurs.
     dismissCloudflareConflict: (id) =>
       request('/cloudflare/dismiss', { method: 'POST', body: JSON.stringify({ id }) }),

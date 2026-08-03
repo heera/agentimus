@@ -66,7 +66,14 @@ final class CachePurge {
 	 * Queue the site-wide agent files for purge.
 	 */
 	public static function queue_site_files() {
-		self::queue( self::site_urls() );
+		$urls = self::site_urls();
+		// The front page's listings change on every content change. Caching
+		// plugins purge it themselves — only the edge needs telling, so it
+		// joins the set only when the Cloudflare source is connected.
+		if ( Cloudflare\Purge::available() ) {
+			$urls[] = home_url( '/' );
+		}
+		self::queue( $urls );
 	}
 
 	/**
@@ -84,7 +91,15 @@ final class CachePurge {
 		}
 		$permalink = get_permalink( $post_id );
 		if ( $permalink ) {
-			self::queue( array( untrailingslashit( $permalink ) . '.md' ) );
+			$urls = array( untrailingslashit( $permalink ) . '.md' );
+			// The edited page itself: every caching plugin already purges it,
+			// but none of them can reach Cloudflare — an edited post keeps
+			// serving stale from the edge until its TTL runs out. When the
+			// edge source is connected, the page joins the set.
+			if ( Cloudflare\Purge::available() ) {
+				$urls[] = (string) $permalink;
+			}
+			self::queue( $urls );
 		}
 	}
 
@@ -166,6 +181,12 @@ final class CachePurge {
 		if ( function_exists( 'rocket_clean_files' ) ) {
 			rocket_clean_files( $urls );
 		}
+
+		// Cloudflare — also the whole list at once (batched by the API's own
+		// limit). Quiet no-op unless the edge source is connected; a refusal
+		// (e.g. a token without the purge permission) is recorded on the
+		// connection and shown in the edge panel's rail, never fatal here.
+		Cloudflare\Purge::purge_urls( $urls );
 
 		foreach ( $urls as $url ) {
 			// Nginx Helper — the global purger exposes a per-URL purge.

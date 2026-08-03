@@ -99,6 +99,12 @@ final class Rest {
 			),
 		) );
 
+		register_rest_route( self::NS, '/cloudflare/purge', array(
+			'methods'             => \WP_REST_Server::CREATABLE,
+			'callback'            => array( $this, 'purge' ),
+			'permission_callback' => array( $this, 'can_manage' ),
+		) );
+
 		register_rest_route( self::NS, '/cloudflare/dismiss', array(
 			array(
 				'methods'             => \WP_REST_Server::CREATABLE,
@@ -222,6 +228,23 @@ final class Rest {
 		$days = ( $days >= 1 && $days <= self::MAX_DAYS ) ? $days : 7;
 
 		return Summary::build( $this->cloudflare, $this->core, $days );
+	}
+
+	/**
+	 * Purge everything Cloudflare holds for the zone — the edge panel's button.
+	 * Safe for data (the cache rebuilds as visitors return); the outcome is
+	 * recorded on the connection either way, so the answer carries both the
+	 * ok flag for the button's own line and the refreshed purge bookkeeping
+	 * for the rail.
+	 *
+	 * @return array|\WP_Error
+	 */
+	public function purge() {
+		if ( ! $this->cloudflare->connected() ) {
+			return new \WP_Error( 'agentimus_cf_off', __( 'Connect Cloudflare first.', 'agentimus' ), array( 'status' => 400 ) );
+		}
+		$out = Purge::purge_all( $this->cloudflare, $this->client );
+		return array_merge( $this->cloudflare->public_view(), array( 'ok' => ! empty( $out['ok'] ) ) );
 	}
 
 	/**

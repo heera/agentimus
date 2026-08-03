@@ -39,6 +39,10 @@ final class Settings {
 			'connected_at' => 0,
 			'last_poll_at' => 0,
 			'last_error'   => '', // The most recent poll failure, '' after a clean poll.
+			// Purge bookkeeping, kept apart from the poll's: a failed purge must
+			// not smear "poll failed" over perfectly good numbers, and vice versa.
+			'last_purge_at'    => 0,
+			'last_purge_error' => '',
 			// Conflicts the owner chose to hide: { conflict id => dismissed-at }.
 			// A dismissal covers that ONGOING situation only — prune_dismissed()
 			// drops the record once the conflict stops firing, so a later
@@ -202,6 +206,20 @@ final class Settings {
 	}
 
 	/**
+	 * Record the outcome of a cache purge — a timestamp always, an error only
+	 * when one happened (a clean purge clears the previous error).
+	 *
+	 * @param string $error Human-readable failure, or '' for a clean purge.
+	 * @return void
+	 */
+	public function record_purge( $error = '' ) {
+		$all                     = $this->all();
+		$all['last_purge_at']    = time();
+		$all['last_purge_error'] = sanitize_text_field( (string) $error );
+		$this->persist( $all );
+	}
+
+	/**
 	 * The connection state as the admin UI may see it — everything EXCEPT the
 	 * token, which never crosses the REST boundary in either direction.
 	 *
@@ -210,11 +228,13 @@ final class Settings {
 	public function public_view() {
 		$all = $this->all();
 		return array(
-			'connected'   => $this->connected(),
-			'zoneName'    => (string) $all['zone_name'],
-			'connectedAt' => (int) $all['connected_at'],
-			'lastPollAt'  => (int) $all['last_poll_at'],
-			'lastError'   => (string) $all['last_error'],
+			'connected'      => $this->connected(),
+			'zoneName'       => (string) $all['zone_name'],
+			'connectedAt'    => (int) $all['connected_at'],
+			'lastPollAt'     => (int) $all['last_poll_at'],
+			'lastError'      => (string) $all['last_error'],
+			'lastPurgeAt'    => (int) $all['last_purge_at'],
+			'lastPurgeError' => (string) $all['last_purge_error'],
 		);
 	}
 

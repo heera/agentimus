@@ -3719,6 +3719,7 @@ export default {
             <ol class="ar-mcp-recipe__steps">
               <li>In Cloudflare, open <a href="https://dash.cloudflare.com/profile/api-tokens" target="_blank" rel="noopener"><code>My Profile → API Tokens</code></a> → Create Token.</li>
               <li>Give it one permission: <code>Zone → Analytics → Read</code>, for this site’s zone only.</li>
+              <li>Optional: also add <code>Zone → Cache Purge → Purge</code>. Then publishing a post clears its stale copies from Cloudflare’s cache, and the edge panel gets a Purge button.</li>
               <li>Paste it here. Agentimus finds the zone by itself.</li>
             </ol>
           </div>
@@ -3729,8 +3730,11 @@ export default {
             <strong>First numbers are in.</strong> See them on the <a href="#log">Request Log</a> screen.
           </p>
           <p class="ar-field__hint">
-            One scoped token, analytics read-only, one hourly poll. Numbers are stored in your
-            own database, so your history outlives Cloudflare’s short Free-plan window.
+            One scoped token, one hourly poll. Numbers are stored in your own database, so
+            your history outlives Cloudflare’s short Free-plan window. If the token also
+            carries the <code>Cache Purge</code> permission, publishing clears the changed
+            pages from Cloudflare’s cache — that is the only thing Agentimus ever asks
+            Cloudflare to change.
           </p>
           <button type="button" class="ar-btn ar-btn--danger ar-btn--small" :disabled="cfDisconnecting" @click="disconnectCloudflare">
             {{ cfDisconnecting ? 'Disconnecting…' : 'Disconnect' }}

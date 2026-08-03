@@ -654,28 +654,16 @@ final class Admin {
 			'show'    => $show,
 			'items'   => array(
 				array(
-					'title' => 'Classic search, measured',
-					'text'  => 'Connect Bing Webmaster Tools or Google Search Console — a key held on your own server, no third-party proxy — and Search Performance shows what people searched, how often you appeared, and what was clicked, every number the engine\'s own. Search Opportunities turns the same numbers into a to-do list: pages one improvement from page one, and page-one results being scrolled past. Automated probe traffic is named, never blended into your click rates.',
+					'title' => 'Clear Cloudflare\'s cache from here',
+					'text'  => 'Publishing or editing a post now clears its stale copies from Cloudflare\'s edge — the one cache no caching plugin can purge for you — along with the front page and the machine files agents read. The edge panel gains a Purge button for everything else. One extra permission on your token turns it on (Zone → Cache Purge → Purge); without it nothing changes, and the panel says why in words.',
 				),
 				array(
-					'title' => 'In Google\'s Index',
-					'text'  => 'The index behind classic Google, AI Overviews, AI Mode and Gemini — and now you can see whether it holds your pages. A daily watchlist covers your homepage, busiest pages and newest posts; a rotation walks the whole site; every verdict is Google\'s own wording, problems are grouped with a Search Console link on every row, and a lookup answers for any single page. Plus the week-on-week trend, Google Discover, and whether Google can still fetch the sitemap you registered — the silent failure no on-site check can see.',
+					'title' => 'A blip is a pause, not a restart',
+					'text'  => 'One slow answer from Google used to end the daily index check, and the retry re-spent the whole watchlist\'s inspection budget. Now the check pauses exactly where it stopped and resumes on your next visit or the next daily run — nothing is re-inspected, nothing is lost, and the card says what happened in words.',
 				),
 				array(
-					'title' => 'Found by AI Search',
-					'text'  => 'The Bing side of the same story: how much of your site Bing\'s index holds and how cleanly its crawler gets in — the index ChatGPT search and Microsoft Copilot read today. Crawl errors say what kind they are, so a pile of dead links is never called a server problem.',
-				),
-				array(
-					'title' => 'What the edge saw',
-					'text'  => 'Connect Cloudflare with your own token and the edge panel shows what was answered from cache or blocked before your server ever saw the request — and warns when the edge disagrees with your crawler policy.',
-				),
-				array(
-					'title' => 'The sitemap comes home',
-					'text'  => 'With no SEO plugin, Agentimus now serves your sitemap at WordPress\'s standard address, /wp-sitemap.xml — and the old addresses redirect to it. A sitemap that quietly moved was failing search-console registrations without a word; now registrations heal on their own, and the Google card tells you when Google last managed to read what you registered.',
-				),
-				array(
-					'title' => 'People and machines, never confused',
-					'text'  => 'Every data screen now says whose behavior it counts. AI Traffic counts people who arrived from an assistant; the index cards count the machinery that serves them; Search Performance counts searchers. You always know which audience a number is about — and which one a fix is for.',
+					'title' => 'The page lookup answers cleanly',
+					'text'  => 'On the In Google\'s Index card, an answer now clears with the question that produced it, the sitemap-health line sits with the whole-site figures it describes, and the hint says what a lookup is: your own record of what Google said, not a new question to Google.',
 				),
 			),
 		);

@@ -10,6 +10,7 @@
 use Agentimus\Cloudflare\Client;
 use Agentimus\Cloudflare\Conflicts;
 use Agentimus\Cloudflare\Module;
+use Agentimus\Cloudflare\Purge;
 use Agentimus\Cloudflare\Settings;
 use Agentimus\Visibility\Crypto;
 use PHPUnit\Framework\TestCase;
@@ -385,5 +386,93 @@ final class CloudflareTest extends TestCase {
 
 		$this->assertFalse( $settings->connected() );
 		$this->assertSame( '', $settings->token() );
+	}
+
+	// ── Purge: the write half of the edge integration ───────────────────────
+
+	private function purge_ok() {
+		return array( 'response' => array( 'code' => 200 ), 'body' => '{"success":true}', 'headers' => array() );
+	}
+
+	private function purge_denied() {
+		// What a token without Zone → Cache Purge → Purge gets back.
+		return array( 'response' => array( 'code' => 403 ), 'body' => '{"success":false,"errors":[{"message":"Unauthorized to access requested resource"}]}', 'headers' => array() );
+	}
+
+	public function test_purge_urls_batches_at_cloudflares_limit() {
+		$urls = array();
+		for ( $i = 0; $i < 35; $i++ ) {
+			$urls[] = "https://example.test/p$i/";
+		}
+		$GLOBALS['_af_http_queue'] = array( $this->purge_ok(), $this->purge_ok() );
+
+		$out = ( new Client() )->purge_urls( 'tok', 'zone1', $urls );
+		$this->assertTrue( $out['ok'] );
+		$this->assertSame( 35, $out['purged'] );
+		$this->assertEmpty( $GLOBALS['_af_http_queue'], 'exactly two calls went out — 30 + 5' );
+		$body = json_decode( (string) $GLOBALS['_af_http_last']['args']['body'], true );
+		$this->assertCount( 5, $body['files'], 'the second call carried the remainder' );
+	}
+
+	public function test_a_purge_refusal_surfaces_in_words_with_honest_progress() {
+		$GLOBALS['_af_http_queue'] = array( $this->purge_ok(), $this->purge_denied() );
+		$urls                      = array();
+		for ( $i = 0; $i < 31; $i++ ) {
+			$urls[] = "https://example.test/p$i/";
+		}
+
+		$out = ( new Client() )->purge_urls( 'tok', 'zone1', $urls );
+		$this->assertSame( 'Unauthorized to access requested resource', $out['error'] );
+		$this->assertSame( 30, $out['purged'], 'the count already purged rides along — never all-or-nothing' );
+	}
+
+	public function test_purge_all_maps_success_and_refusal() {
+		$GLOBALS['_af_http_queue'][] = $this->purge_ok();
+		$this->assertTrue( ( new Client() )->purge_all( 'tok', 'zone1' )['ok'] );
+		$body = json_decode( (string) $GLOBALS['_af_http_last']['args']['body'], true );
+		$this->assertTrue( $body['purge_everything'] );
+
+		$GLOBALS['_af_http_queue'][] = $this->purge_denied();
+		$this->assertSame( 'Unauthorized to access requested resource', ( new Client() )->purge_all( 'tok', 'zone1' )['error'] );
+	}
+
+	public function test_purge_module_is_a_quiet_noop_when_disconnected() {
+		$GLOBALS['_af_http_last'] = null;
+		Purge::purge_urls( array( 'https://example.test/a/' ) );
+		$this->assertNull( $GLOBALS['_af_http_last'], 'no call went out' );
+		$this->assertFalse( Purge::purge_all()['ok'] );
+	}
+
+	public function test_purge_outcome_is_recorded_on_the_connection() {
+		$settings = new Settings();
+		$settings->connect( 'tok', 'zone1', 'example.com' );
+
+		$GLOBALS['_af_http_queue'][] = $this->purge_ok();
+		Purge::purge_urls( array( 'https://example.test/a/' ), $settings );
+		$view = $settings->public_view();
+		$this->assertGreaterThan( 0, $view['lastPurgeAt'] );
+		$this->assertSame( '', $view['lastPurgeError'] );
+
+		$GLOBALS['_af_http_queue'][] = $this->purge_denied();
+		Purge::purge_all( $settings );
+		$this->assertSame( 'Unauthorized to access requested resource', $settings->public_view()['lastPurgeError'] );
+
+		// A clean purge clears the failure — the rail line must not outlive it.
+		$GLOBALS['_af_http_queue'][] = $this->purge_ok();
+		Purge::purge_all( $settings );
+		$this->assertSame( '', $settings->public_view()['lastPurgeError'] );
+	}
+
+	public function test_a_failed_purge_never_smears_the_poll_and_vice_versa() {
+		$settings = new Settings();
+		$settings->connect( 'tok', 'zone1', 'example.com' );
+		$settings->record_poll( '' );
+
+		$GLOBALS['_af_http_queue'][] = $this->purge_denied();
+		Purge::purge_all( $settings );
+
+		$view = $settings->public_view();
+		$this->assertSame( '', $view['lastError'], 'the poll stays clean' );
+		$this->assertNotSame( '', $view['lastPurgeError'], 'the purge wears its own failure' );
 	}
 }

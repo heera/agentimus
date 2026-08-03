@@ -28,6 +28,9 @@ final class Client {
 	/** @var int Rows per GraphQL window; ordered busiest-first so the tail is what's shed. */
 	const GRAPHQL_LIMIT = 5000;
 
+	/** @var int URLs per purge call — Cloudflare's own per-request limit. */
+	const PURGE_BATCH = 30;
+
 	/**
 	 * Check a token is valid at all (any scope) — Cloudflare's own verify call.
 	 *
@@ -152,6 +155,66 @@ final class Client {
 	}
 
 	/**
+	 * Ask Cloudflare to drop specific URLs from its cache, in batches of
+	 * {@see PURGE_BATCH} — the API's own per-call ceiling. Stops at the first
+	 * failure (the remaining batches would fail the same way) and reports it,
+	 * with the count already purged riding along so the caller can record
+	 * honest progress rather than all-or-nothing.
+	 *
+	 * Purging needs the token to carry Zone → Cache Purge → Purge; a token
+	 * scoped for analytics only is refused by Cloudflare and the refusal
+	 * surfaces here in words — never as silence.
+	 *
+	 * @param string   $token   API token, plaintext.
+	 * @param string   $zone_id Zone tag.
+	 * @param string[] $urls    Absolute URLs to drop.
+	 * @return array { ok?: true, purged: int, error?: string }
+	 */
+	public function purge_urls( $token, $zone_id, array $urls ) {
+		$urls   = array_values( array_filter( array_map( 'strval', $urls ) ) );
+		$purged = 0;
+		foreach ( array_chunk( $urls, self::PURGE_BATCH ) as $batch ) {
+			$out = $this->post_json(
+				self::API . '/zones/' . rawurlencode( (string) $zone_id ) . '/purge_cache',
+				$token,
+				array( 'files' => $batch )
+			);
+			if ( isset( $out['error'] ) ) {
+				return array( 'error' => (string) $out['error'], 'purged' => $purged );
+			}
+			if ( empty( $out['json']['success'] ) ) {
+				return array( 'error' => $this->api_error( $out['json'] ), 'purged' => $purged );
+			}
+			$purged += count( $batch );
+		}
+		return array( 'ok' => true, 'purged' => $purged );
+	}
+
+	/**
+	 * Ask Cloudflare to drop EVERYTHING it holds for the zone. Safe for data —
+	 * the cache rebuilds as visitors return — but blunt, so it lives behind the
+	 * owner's own button and never behind an automatic hook.
+	 *
+	 * @param string $token   API token, plaintext.
+	 * @param string $zone_id Zone tag.
+	 * @return array { ok?: true, error?: string }
+	 */
+	public function purge_all( $token, $zone_id ) {
+		$out = $this->post_json(
+			self::API . '/zones/' . rawurlencode( (string) $zone_id ) . '/purge_cache',
+			$token,
+			array( 'purge_everything' => true )
+		);
+		if ( isset( $out['error'] ) ) {
+			return $out;
+		}
+		if ( empty( $out['json']['success'] ) ) {
+			return array( 'error' => $this->api_error( $out['json'] ) );
+		}
+		return array( 'ok' => true );
+	}
+
+	/**
 	 * POST one GraphQL query.
 	 *
 	 * @param string $token     API token, plaintext.
@@ -199,6 +262,37 @@ final class Client {
 			'redirection'        => 2,
 			'reject_unsafe_urls' => true,
 			'headers'            => array( 'authorization' => 'Bearer ' . $token ),
+		) );
+
+		if ( is_wp_error( $response ) ) {
+			return array( 'error' => $response->get_error_message() );
+		}
+		$code = (int) wp_remote_retrieve_response_code( $response );
+		$json = json_decode( (string) wp_remote_retrieve_body( $response ), true );
+
+		if ( $code < 200 || $code >= 300 ) {
+			return array( 'error' => $this->api_error( $json, $code ) );
+		}
+		return array( 'json' => is_array( $json ) ? $json : array() );
+	}
+
+	/**
+	 * POST one REST endpoint with a JSON body and the bearer token.
+	 *
+	 * @param string $url   Full URL.
+	 * @param string $token API token, plaintext.
+	 * @param array  $body  JSON-encodable request body.
+	 * @return array { json?: array, error?: string }
+	 */
+	private function post_json( $url, $token, array $body ) {
+		$response = wp_remote_post( $url, array(
+			'timeout'            => self::TIMEOUT,
+			'reject_unsafe_urls' => true,
+			'headers'            => array(
+				'authorization' => 'Bearer ' . $token,
+				'content-type'  => 'application/json',
+			),
+			'body'               => wp_json_encode( $body ),
 		) );
 
 		if ( is_wp_error( $response ) ) {

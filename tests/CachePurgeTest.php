@@ -60,4 +60,28 @@ final class CachePurgeTest extends TestCase {
 		} );
 		$this->assertSame( array( '/a', '/extra' ), CachePurge::urls_to_purge( array( '/a' ) ) );
 	}
+
+	/* -- the Cloudflare adapter: the one cache no WP plugin purges for ----- */
+
+	public function test_purge_hands_the_whole_list_to_a_connected_cloudflare() {
+		( new \Agentimus\Cloudflare\Settings() )->connect( 'tok', 'zone1', 'example.com' );
+		$GLOBALS['_af_http_queue'] = array(
+			array( 'response' => array( 'code' => 200 ), 'body' => '{"success":true}', 'headers' => array() ),
+		);
+
+		CachePurge::purge( array( 'https://example.test/a/', 'https://example.test/b/' ) );
+
+		$last = $GLOBALS['_af_http_last'];
+		$this->assertStringContainsString( '/zones/zone1/purge_cache', (string) $last['url'] );
+		$body = json_decode( (string) $last['args']['body'], true );
+		$this->assertSame( array( 'https://example.test/a/', 'https://example.test/b/' ), $body['files'] );
+		$GLOBALS['_af_http_queue'] = array();
+		$GLOBALS['_af_http_last']  = null;
+	}
+
+	public function test_purge_makes_no_edge_call_when_cloudflare_is_off() {
+		$GLOBALS['_af_http_last'] = null;
+		CachePurge::purge( array( 'https://example.test/a/' ) );
+		$this->assertNull( $GLOBALS['_af_http_last'], 'a disconnected edge source hears nothing' );
+	}
 }

@@ -439,12 +439,14 @@ final class Registrar {
 			),
 			self::obj(
 				array(
-					'connected'   => self::b( 'False = no Cloudflare zone is connected; the data fields are then absent.' ),
-					'zoneName'    => self::s(),
-					'connectedAt' => self::i(),
-					'lastPollAt'  => self::i( 'Unix time of the newest numbers; 0 = never polled.' ),
-					'lastError'   => self::s( 'The most recent poll failure, empty after a clean poll.' ),
-					'days'        => self::i(),
+					'connected'      => self::b( 'False = no Cloudflare zone is connected; the data fields are then absent.' ),
+					'zoneName'       => self::s(),
+					'connectedAt'    => self::i(),
+					'lastPollAt'     => self::i( 'Unix time of the newest numbers; 0 = never polled.' ),
+					'lastError'      => self::s( 'The most recent poll failure, empty after a clean poll.' ),
+					'lastPurgeAt'    => self::i( 'Unix time of the last edge cache purge; 0 = never purged.' ),
+					'lastPurgeError' => self::s( 'The most recent purge failure (e.g. the token lacks the Cache Purge permission), empty after a clean purge. Separate from lastError so healthy numbers cannot hide it.' ),
+					'days'           => self::i(),
 					'totals'      => self::obj(
 						array(
 							'requests' => self::i(),

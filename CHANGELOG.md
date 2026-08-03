@@ -4,6 +4,15 @@ The full release history. The readme.txt shipped to WordPress.org keeps only
 the most recent releases (its Changelog section has a 5,000-word cap); this
 file is the complete record.
 
+## 1.33.0
+* New: Classic search, measured — Search Performance and Search Opportunities screens for Bing Webmaster Tools and Google Search Console: what people searched, how often you appeared, and which pages sit one improvement from page one. Every number is the engine's own, and automated probe traffic is named, never blended in.
+* New: In Google's Index — a daily watchlist plus a whole-site rotation through Google's URL Inspection: every verdict in Google's own words, problems grouped with Search Console deep links, any page's answer one lookup away — plus week-on-week trend, Google Discover, and the health of the sitemap you registered.
+* New: Found by AI Search — how much of your site Bing's index holds and how cleanly its crawler gets in; ChatGPT search and Copilot read this index today.
+* New: Cloudflare edge panel (opt-in, your own token) — what the edge answered or blocked before your server ever saw the request, with a warning when the edge disagrees with your crawler policy.
+* New: a setup wizard on first visit, and an agent-ready front door — SKILL.md, auth.md, and an MCP handshake that answers strangers politely.
+* Fixed: the promoted XML sitemap now serves at WordPress's standard /wp-sitemap.xml, and the old addresses redirect to it — a moved sitemap had been silently failing search-console registrations.
+* Improved: every data screen names whose behavior it counts — people or machines — and every external data pull is chunked or budgeted, resumes after failure, and reports what happened in words.
+
 ## 1.32.0
 * New — **Connect an assistant by approval, not by key.** Give an AI assistant your MCP address and it asks *you* for permission: a consent page on your own site names what it calls itself, where it will return, and lets you choose **Read only** or **Read and write** — you can grant less than it asked for. Approving gives that one assistant its own key; every connection is listed under **Connected assistants** with its own Disconnect, so cutting one off leaves the others working. Standards-based (OAuth 2.1 with PKCE, dynamic client registration), all on your own site — nothing is brokered by anyone else. Verified with Claude, Cursor and ChatGPT (ChatGPT connects behind its Developer-mode switch).
 * New — **A shared token for assistants that can't ask.** One revocable secret, created in a click, for clients that don't support the approval flow (Codex among them). Read-only or read-and-write, shown once, rotated or revoked whenever you like — Agentimus stores only a fingerprint, never the secret.
