@@ -296,6 +296,9 @@ URL-like strings in the plugin's output are labels, not requests — the discove
 * Fixed: the sitemap-health line sat below the page lookup, where it read as a fact about the page you had just looked up. It now sits with the whole-site section it describes.
 * Improved: the lookup hint says what the answer is, not only what it isn't — your own record of what Google said, rather than a new question to Google.
 * Improved: the markdown edition's "never store this" cache instruction now speaks nginx's own dialect too, closing the one cache layer that ignores the standard headers.
+* Improved: Search Opportunities cards for pages with no post behind them — the homepage on many sites, an archive — can now be set aside like every other card. They are held by address, listed in the same visible set-aside list, restorable in a click, and the card says why it offers no editor buttons.
+* Improved: a search card's readability flag no longer waits for the page to be recently edited — every card's page is graded the moment the card renders, so "Also in Optimize" and its Check readability door appear the first time you see the card.
+* Improved: the search worklist's fine print now names its terms — which title it means (the SEO title in the "Search & AI" box, or the post title when that field is empty), that set-aside covers both engines, and that a fixed page's card clears when later reports improve, not when you press Save.
 
 = 1.33.0 =
 * New: Classic search, measured — Search Performance and Search Opportunities screens for Bing Webmaster Tools and Google Search Console: what people searched, how often you appeared, and which pages sit one improvement from page one. Every number is the engine's own, and automated probe traffic is named, never blended in.
@@ -339,7 +342,7 @@ Earlier releases — the full history, in the same words — live in [CHANGELOG.
 == Upgrade Notice ==
 
 = 1.34.0 =
-Cloudflare cache purge on publish and on demand (one optional token permission), an index check that resumes after a network blip instead of restarting, fixes to the page lookup on the In Google's Index card — plus on-demand doors from Readiness to your robots.txt and sitemap, as served and as each engine reads them. No breaking changes.
+Cloudflare cache purge on publish and on demand (one optional token permission), an index check that resumes after a network blip instead of restarting, fixes to the page lookup on the In Google's Index card, on-demand doors from Readiness to your robots.txt and sitemap — and every search card can now be set aside, even the homepage. No breaking changes.
 
 = 1.33.0 =
 Classic search, measured: Search Performance and Opportunities for Bing and Google, an In Google's Index card with whole-site coverage and page lookup, a Cloudflare edge view, and a setup wizard. The sitemap returns to WordPress's standard /wp-sitemap.xml — old addresses redirect, so registrations heal on their own. No breaking changes.

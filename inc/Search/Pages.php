@@ -42,6 +42,19 @@ final class Pages {
 	}
 
 	/**
+	 * The stable identity for an engine-reported URL — how the set-aside ledger
+	 * keys pages that map to no post. Trailing-slash variants collapse to one
+	 * entry, because engines report both spellings of the same page.
+	 *
+	 * @param string $url Absolute URL as the engine reported it.
+	 * @return string Empty when there is nothing to key.
+	 */
+	public static function key( $url ) {
+		$url = trim( (string) $url );
+		return '' === $url ? '' : untrailingslashit( $url );
+	}
+
+	/**
 	 * Test seam.
 	 *
 	 * @return void

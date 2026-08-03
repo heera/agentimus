@@ -188,6 +188,30 @@ final class SearchOpportunitiesTest extends TestCase {
 		$this->assertSame( 1, $report['counts']['set_aside'], 'the hidden page is counted visibly' );
 	}
 
+	public function test_a_page_with_no_post_can_be_set_aside_by_url() {
+		$rows = array(
+			$this->row( 'heera', 11.0, 300, 0, 0, 'https://example.test/' ),
+		);
+
+		$report = Opportunities::build( $rows );
+		$this->assertSame( 1, $report['counts']['almost'], 'an unmapped page still earns its card' );
+
+		// Hidden and counted — whichever trailing-slash spelling the ledger stored.
+		$report = Opportunities::build( $rows, array(), array( 'https://example.test' ) );
+		$this->assertSame( 0, $report['counts']['almost'] );
+		$this->assertSame( 1, $report['counts']['set_aside'], 'the URL-hidden page is counted visibly' );
+	}
+
+	public function test_a_url_entry_keeps_holding_back_a_page_that_gained_a_post_id() {
+		// Set aside while unmapped; a later poll resolves the same URL to a post.
+		// The decision was about the page, not about how we happened to key it.
+		$rows   = array( $this->row( 'heera', 11.0, 300, 0, 42, 'https://example.test/' ) );
+		$report = Opportunities::build( $rows, array(), array( 'https://example.test/' ) );
+
+		$this->assertSame( 0, $report['counts']['almost'] );
+		$this->assertSame( 1, $report['counts']['set_aside'] );
+	}
+
 	public function test_page_counts_expose_what_the_display_cap_hides() {
 		// Eight qualifying pages, six shown: the report must still say eight, or
 		// the screen would present a cap as the whole picture.

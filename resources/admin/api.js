@@ -234,9 +234,11 @@ export function createApi(boot) {
     getSearchOpportunities: (source) => request('/search/opportunities' + (source ? `?source=${encodeURIComponent(source)}` : '')),
     getSearchPerformance: (source) => request('/search/performance' + (source ? `?source=${encodeURIComponent(source)}` : '')),
     // Set aside (ignored=true) or restore (false) a page from the SEARCH worklist —
-    // its own list, separate from the citability one. Returns the refreshed report.
-    ignoreSearch: (post, ignored) =>
-      request('/search/ignore', { method: 'POST', body: JSON.stringify({ post, ignored }) }),
+    // its own list, separate from the citability one. `ident` is { post: id } for
+    // mapped pages or { url } for pages with no post behind them (the homepage on
+    // some sites, an archive). Returns the refreshed report.
+    ignoreSearch: (ident, ignored) =>
+      request('/search/ignore', { method: 'POST', body: JSON.stringify({ ...ident, ignored }) }),
     getBingSummary: (days = 30) => request(`/bing/summary?days=${Math.max(1, days | 0)}`),
     // Refresh: one inline poll, then the fresh summary in the same response.
     refreshBingSummary: (days = 30) =>

@@ -2023,6 +2023,9 @@ a.ar-opp__title:hover { text-decoration: underline; }
 .ar-opp__pos.is-one { color: var(--ar-good); background: color-mix(in srgb, var(--ar-good) 14%, transparent); }
 .ar-opp__more { margin: 6px 0 0; font-size: 11.5px; color: var(--ar-ink-faint); }
 .ar-opp__actions { display: flex; align-items: center; gap: 10px; margin-top: 9px; flex-wrap: wrap; }
+/* Doorless cards (no post behind the URL) say WHY they offer no editor buttons,
+   in the same quiet voice as the totals line — sits left of the Set aside. */
+.ar-opp__noeditor { font-size: 11.5px; color: var(--ar-ink-faint); }
 /* A quiet link-shaped action, not the page's heaviest button: this is a row in
    a worklist, and a black slab per card would shout over the numbers. */
 .ar-opp__edit {

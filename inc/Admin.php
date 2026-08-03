@@ -669,6 +669,10 @@ final class Admin {
 					'title' => 'Doors on the robots and sitemap rows',
 					'text'  => 'The Readiness page\'s robots.txt row now opens your file — and, with Google or Bing connected, the copy each engine last read, straight in their own consoles. The sitemap row opens the sitemap actually served. And the passing "robots.txt changed" note moved out of the checks into the weekly email, so the readiness count never moves because of a transient event.',
 				),
+				array(
+					'title' => 'Every search card can be set aside',
+					'text'  => 'A Search Opportunities card with no post behind it — the homepage on many sites, an archive — could neither be acted on nor dismissed. Now it takes the same one-click Set aside as every other card, joins the same visible list, and says why it offers no editor buttons. Readability flags also stop waiting for a recent edit: every card\'s page is graded the moment the card renders.',
+				),
 			),
 		);
 	}

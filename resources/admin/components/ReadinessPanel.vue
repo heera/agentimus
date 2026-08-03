@@ -170,7 +170,11 @@ export default {
           why: 'These sit around rank 8–20. A small improvement can move them up.',
           // What to actually do, in the editor, in plain words. Without this the
           // card sends people to a screen full of passing checks and no next step.
-          todo: 'Open the post and make it answer this search more directly: use the words people typed in the title and in an early heading, and add a paragraph that answers it plainly. Then link to this post from your other posts — the “Link to your own posts” box in the editor sidebar suggests which ones.',
+          // Static in-house copy — rendered via v-html, so no user data may ever
+          // land here. Bold marks ONLY the which-title/which-description
+          // clarifiers (his call: emphasis is for naming the fields, not for
+          // decorating the instructions).
+          todo: 'Open the post and make it answer this search more directly: use the words people typed in the title searchers see (<strong>the SEO title in the “Search & AI” box</strong>, or <strong>the post title</strong> when that field is empty) and in an early heading, and add a paragraph that answers it plainly. Then link to this post from your other posts — the “Link to your own posts” box in the editor sidebar suggests which ones. Fixing a page does not clear its card — the card leaves when a later report shows better numbers, usually after a few weeks.',
           cards: r.almost_there || [],
         },
         {
@@ -180,7 +184,7 @@ export default {
           chipTone: 'is-one',
           total: (r.page_counts && r.page_counts.seen) || 0,
           why: 'Already on page one, yet people scroll past. Usually the title or description.',
-          todo: 'Nothing is wrong with the page itself — people just aren’t picking it out of the results. In the editor, find the “Search & AI” box in the right-hand sidebar and rewrite two fields there: the SEO title and the AI description. That pair is exactly what a searcher reads before deciding to click.',
+          todo: 'Nothing is wrong with the page itself — people just aren’t picking it out of the results. In the editor, find the “Search & AI” box in the right-hand sidebar and rewrite two fields there: <strong>the SEO title</strong> and <strong>the AI description</strong>. That pair is exactly what a searcher reads before deciding to click. Fixing a page does not clear its card — the card leaves when a later report shows better numbers, usually after a few weeks.',
           cards: r.seen_not_chosen || [],
         },
       ];
@@ -312,15 +316,29 @@ export default {
       this.searchPick = source;
       this.loadSearch(source);
     },
+    // The citability flags for one search card. The server grades each mapped
+    // card's page directly now (optimize_flags — {@see Score::page_flags}), so
+    // the badge no longer depends on the page sitting in Optimize's recency
+    // sample; the worklist map stays as the fallback for report payloads
+    // fetched before that field existed.
+    cardFlags(card) {
+      if (Array.isArray(card.optimize_flags)) return card.optimize_flags.length ? card.optimize_flags : null;
+      const m = this.optimizeFlagsById[card.page_id];
+      return m && m.length ? m : null;
+    },
     // Set aside (or restore) a page in the SEARCH worklist. Its own list: this
     // says "don't suggest search fixes for this page", which is a different
     // judgement from Optimize's "don't grade this for quoting". The route
     // answers with the refreshed report, so no second round-trip.
-    async setAsideSearch(id, ignored = true) {
-      if (this.busySearchIgnore || !id) return;
-      this.busySearchIgnore = id;
+    // `ident` is { post } for mapped pages, { url } for pages with no post
+    // behind them (the homepage on some sites, an archive) — the ledger keys
+    // differ, and the URL is the only identity an unmapped page has.
+    async setAsideSearch(ident, ignored = true) {
+      const busy = (ident && (ident.post || ident.url)) || 0;
+      if (this.busySearchIgnore || !busy) return;
+      this.busySearchIgnore = busy;
       try {
-        this.search = await this.api.ignoreSearch(id, ignored);
+        this.search = await this.api.ignoreSearch(ident, ignored);
       } catch (e) {
         this.$emit('flash', { type: 'error', text: (e && e.message) || 'Could not update. Try again.' });
       } finally {
@@ -800,7 +818,8 @@ export default {
             </div>
             <p class="ar-opp__groupwhy">{{ group.why }}</p>
             <p class="ar-opp__todo">
-              <strong>What to do:</strong> {{ group.todo }}
+              <!-- eslint-disable-next-line vue/no-v-html — group.todo is our own static copy above, never user data -->
+              <strong>What to do:</strong> <span v-html="group.todo"></span>
               <!-- Never let a cap pass for completeness. -->
               <template v-if="group.total > group.cards.length">
                 Showing the {{ group.cards.length }} pages with the most impressions, of {{ group.total }} —
@@ -817,8 +836,8 @@ export default {
                     <code class="ar-opp__path">{{ card.path }}</code>
                     <!-- Both worklists pointing at one page is worth saying: it
                          turns two separate chores into a single visit. -->
-                    <span v-if="optimizeFlagsById[card.page_id]" class="ar-opp__alsoflag">
-                      Also in Optimize: {{ optimizeFlagsById[card.page_id].join(' · ').toLowerCase() }}
+                    <span v-if="cardFlags(card)" class="ar-opp__alsoflag">
+                      Also in Optimize: {{ cardFlags(card).join(' · ').toLowerCase() }}
                     </span>
                   </div>
                   <div class="ar-opp__qwrap">
@@ -869,15 +888,21 @@ export default {
                        it. New tab, like every page link in the worklists: this
                        screen is a checklist you work down, not a place to leave. -->
                   <div class="ar-opp__actions">
+                    <!-- A card with no post offers no editor doors — say why, or the
+                         missing buttons read as a bug (the homepage on a latest-posts
+                         site, an archive). The levers it points to are real: the home
+                         title tag comes from Settings → General, the description from
+                         the theme. -->
+                    <span v-if="!card.page_id" class="ar-opp__noeditor">No post behind this address — its title and description live in your theme and site settings.</span>
                     <a v-if="card.edit_url" :href="card.edit_url" target="_blank" rel="noopener" class="ar-opp__edit is-primary">Improve title &amp; description ↗</a>
                     <a v-if="group.key === 'almost' && card.links_url" :href="card.links_url" target="_blank" rel="noopener" class="ar-opp__edit">Add internal links ↗</a>
-                    <a v-if="optimizeFlagsById[card.page_id] && card.read_url" :href="card.read_url" target="_blank" rel="noopener" class="ar-opp__edit">Check readability ↗</a>
+                    <a v-if="cardFlags(card) && card.read_url" :href="card.read_url" target="_blank" rel="noopener" class="ar-opp__edit">Check readability ↗</a>
                     <button
-                      v-if="card.page_id"
+                      v-if="card.page_id || card.page_url"
                       type="button"
                       class="ar-optcheck__restore"
-                      :disabled="busySearchIgnore === card.page_id"
-                      @click="setAsideSearch(card.page_id, true)"
+                      :disabled="busySearchIgnore === (card.page_id || card.page_url)"
+                      @click="setAsideSearch(card.page_id ? { post: card.page_id } : { url: card.page_url }, true)"
                     >Set aside</button>
                   </div>
                 </div>
@@ -901,19 +926,19 @@ export default {
         <div class="ar-setaside__head">
           <p class="ar-opp__eyebrow">
             Set aside from search
-            <span class="ar-opp__why">— {{ searchAside.length }} page{{ searchAside.length === 1 ? '' : 's' }} you don’t want search suggestions for</span>
+            <span class="ar-opp__why">— {{ searchAside.length }} page{{ searchAside.length === 1 ? '' : 's' }} you don’t want search suggestions for, from either engine</span>
           </p>
         </div>
         <ul class="ar-optcheck__pages">
-          <li v-for="p in searchAside" :key="p.id" class="ar-optcheck__row">
+          <li v-for="p in searchAside" :key="p.id || p.url" class="ar-optcheck__row">
             <div class="ar-optcheck__asided">
               <a :href="p.url" target="_blank" rel="noopener" class="ar-optcheck__page ar-optcheck__page--muted">{{ p.title }} ↗</a>
             </div>
             <button
               type="button"
               class="ar-optcheck__restore"
-              :disabled="busySearchIgnore === p.id"
-              @click="setAsideSearch(p.id, false)"
+              :disabled="busySearchIgnore === (p.id || p.url)"
+              @click="setAsideSearch(p.id ? { post: p.id } : { url: p.url }, false)"
             >Restore</button>
           </li>
         </ul>

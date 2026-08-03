@@ -60,11 +60,47 @@ final class Score {
 	/** @var Settings */
 	private $settings;
 
+	/** @var array<int,string[]> Per-request memo for {@see page_flags()} — each answer parses a post. */
+	private $flags_memo = array();
+
 	/**
 	 * @param Settings $settings Settings store.
 	 */
 	public function __construct( Settings $settings ) {
 		$this->settings = $settings;
+	}
+
+	/**
+	 * The citability labels ONE page trips — the same checks, gates and wording
+	 * the Optimize worklist uses, answered for a single page instead of the
+	 * sampled average. Empty when the page passes everything, and equally empty
+	 * when the page isn't gradeable at all (a container, a commerce page, a
+	 * set-aside) — a caller must never flag what the worklist itself would
+	 * excuse. This is what frees the search worklist's cross-flag from the
+	 * recency sample: whether a page's problems show must not depend on when
+	 * it was last edited.
+	 *
+	 * @param int $post_id The page.
+	 * @return string[] Failed-check labels, in check order.
+	 */
+	public function page_flags( $post_id ) {
+		$post_id = (int) $post_id;
+		if ( isset( $this->flags_memo[ $post_id ] ) ) {
+			return $this->flags_memo[ $post_id ];
+		}
+		$flags = array();
+		$post  = $post_id > 0 ? get_post( $post_id ) : null;
+		if ( $post && 'publish' === $post->post_status
+			&& in_array( (string) $post->post_type, $this->citability_post_types(), true )
+			&& $this->is_gradeable( $post ) ) {
+			foreach ( PageCheck::analyze( $post ) as $row ) {
+				if ( 'pass' !== $row['status'] ) {
+					$flags[] = (string) $row['label'];
+				}
+			}
+		}
+		$this->flags_memo[ $post_id ] = $flags;
+		return $flags;
 	}
 
 	/**

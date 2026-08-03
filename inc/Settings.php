@@ -93,6 +93,7 @@ final class Settings {
 			'evergreen_categories' => array(), // Category term IDs whose posts are exempt from the content "freshness" check — timeless content (references, tutorials, legal) that doesn't go stale with age. Empty = every post is age-checked.
 			'optimize_ignored'     => array(), // Post IDs the owner marked "not cited content" from the Optimize worklist — pages that aren't meant to be quoted (landing/utility/index). Left out of citability grading entirely; always shown as a visible "set aside" count so the score stays honest.
 			'search_ignored'       => array(), // Post IDs set aside from the Search Opportunities worklist — pages the owner doesn't want search suggestions for. Its OWN list, not shared with optimize_ignored: "don't grade this for citability" and "don't suggest search fixes for this" are different judgements. Shown inside the Search Opportunities section so it is never a hidden ledger.
+			'search_ignored_urls'  => array(), // Its URL-keyed twin, for pages that map to no post (the homepage on some sites, an archive, a gone permalink) — the only identity such a page has. Same judgement, different key ({@see \Agentimus\Search\Pages::key}).
 			'rest_namespaces'  => array(), // Owner-curated REST namespaces to publish in discovery (opt-in; empty = none).
 			'oauth_auth_server' => '',     // Optional OAuth authorization-server URL; when set, serve RFC 9728 protected-resource metadata. Never fabricate RFC 8414.
 			'suppressed_resources' => array(), // Owner opt-OUT: ids of provider-registered Resources to hide from all output. Declared Resources default to published (spec §04), so empty = publish everything a provider declared.
@@ -921,6 +922,20 @@ final class Settings {
 			}
 		);
 		$clean['search_ignored'] = array_values( array_slice( array_unique( $search_ids ), 0, 1000 ) );
+
+		// …and its URL-keyed twin, for pages that map to no post. Same-host only
+		// (the ledger names this site's own pages, never arbitrary strings) and
+		// normalized so both trailing-slash spellings collapse to one entry.
+		$surl_in   = isset( $input['search_ignored_urls'] ) ? (array) $input['search_ignored_urls'] : array();
+		$surl      = array();
+		$home_host = strtolower( (string) wp_parse_url( home_url( '/' ), PHP_URL_HOST ) );
+		foreach ( $surl_in as $u ) {
+			$u = Search\Pages::key( esc_url_raw( (string) $u ) );
+			if ( '' !== $u && strtolower( (string) wp_parse_url( $u, PHP_URL_HOST ) ) === $home_host ) {
+				$surl[] = $u;
+			}
+		}
+		$clean['search_ignored_urls'] = array_values( array_slice( array_unique( $surl ), 0, 1000 ) );
 
 		/**
 		 * Filter the sanitised settings before they are stored.

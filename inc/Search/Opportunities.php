@@ -57,8 +57,10 @@ final class Opportunities {
 	/**
 	 * Build the report from a snapshot.
 	 *
-	 * @param array $rows      Snapshot rows ({@see Table::snapshot()}).
-	 * @param array $set_aside Post IDs the owner set aside (the shared Optimize list).
+	 * @param array $rows           Snapshot rows ({@see Table::snapshot()}).
+	 * @param array $set_aside      Post IDs the owner set aside (the shared Optimize list).
+	 * @param array $set_aside_urls URL keys ({@see Pages::key()}) set aside for pages that
+	 *                              map to no post — the only identity such a page has.
 	 * @return array {
 	 *     almost_there:    array<int,array> page cards,
 	 *     seen_not_chosen: array<int,array> page cards,
@@ -66,8 +68,9 @@ final class Opportunities {
 	 *     counts:          array{opportunities:int,almost:int,seen:int,set_aside:int},
 	 * }
 	 */
-	public static function build( array $rows, array $set_aside = array() ) {
-		$set_aside = array_map( 'intval', $set_aside );
+	public static function build( array $rows, array $set_aside = array(), array $set_aside_urls = array() ) {
+		$set_aside      = array_map( 'intval', $set_aside );
+		$set_aside_urls = array_map( array( Pages::class, 'key' ), array_map( 'strval', $set_aside_urls ) );
 
 		// 1. Measure the machine traffic BEFORE discarding it. Dropping it silently
 		// leaves an empty worklist next to a Search Performance screen full of big
@@ -182,9 +185,15 @@ final class Opportunities {
 				}
 			}
 
-			// The set-aside: excluded from the worklists, counted visibly.
-			if ( $page_id > 0 && in_array( $page_id, $set_aside, true ) ) {
-				$hidden_pages[ $page_id ] = true;
+			// The set-aside: excluded from the worklists, counted visibly. A page
+			// that maps to no post is held back by URL — the same one-click
+			// decision, keyed by the only identity such a page has. The URL match
+			// runs for mapped pages too, so an entry stored while a page was
+			// unmapped keeps holding it back after it gains a post ID.
+			$url_key = Pages::key( (string) $page['page_url'] );
+			if ( ( $page_id > 0 && in_array( $page_id, $set_aside, true ) )
+				|| ( '' !== $url_key && in_array( $url_key, $set_aside_urls, true ) ) ) {
+				$hidden_pages[ $key ] = true;
 				continue;
 			}
 

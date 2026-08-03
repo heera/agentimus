@@ -20,6 +20,9 @@ final class Rest {
 	/** @var \Agentimus\Settings Core settings — holds the shared set-aside list. */
 	private $core;
 
+	/** @var \Agentimus\Score|null Lazy — only report() needs it, and only for mapped cards. */
+	private $score;
+
 	/**
 	 * @param \Agentimus\Settings $core Core settings instance.
 	 */
@@ -56,7 +59,11 @@ final class Rest {
 			'callback'            => array( $this, 'ignore' ),
 			'permission_callback' => array( $this, 'can_manage' ),
 			'args'                => array(
-				'post'    => array( 'type' => 'integer', 'required' => true ),
+				// One of the two identities, checked in the callback (REST arg
+				// validation cannot express "exactly one of"): `post` for mapped
+				// pages, `url` for pages with no post behind them.
+				'post'    => array( 'type' => 'integer', 'required' => false ),
+				'url'     => array( 'type' => 'string', 'required' => false ),
 				'ignored' => array( 'type' => 'boolean', 'required' => true ),
 			),
 		) );
@@ -81,19 +88,37 @@ final class Rest {
 	 * @return \WP_REST_Response|\WP_Error
 	 */
 	public function ignore( \WP_REST_Request $request ) {
-		$id = absint( $request->get_param( 'post' ) );
-		if ( $id < 1 ) {
-			return new \WP_Error( 'agentimus_bad_post', __( 'Invalid post.', 'agentimus' ), array( 'status' => 400 ) );
-		}
+		$id     = absint( $request->get_param( 'post' ) );
+		$url    = trim( (string) $request->get_param( 'url' ) );
 		$ignore = (bool) $request->get_param( 'ignored' );
 
-		$all  = $this->core->all();
-		$list = ( isset( $all['search_ignored'] ) && is_array( $all['search_ignored'] ) ) ? array_map( 'intval', $all['search_ignored'] ) : array();
-		$list = array_values( array_diff( $list, array( $id ) ) );
-		if ( $ignore ) {
-			$list[] = $id;
+		$all = $this->core->all();
+		if ( $id > 0 ) {
+			$list = ( isset( $all['search_ignored'] ) && is_array( $all['search_ignored'] ) ) ? array_map( 'intval', $all['search_ignored'] ) : array();
+			$list = array_values( array_diff( $list, array( $id ) ) );
+			if ( $ignore ) {
+				$list[] = $id;
+			}
+			$all['search_ignored'] = $list;
+		} elseif ( '' !== $url ) {
+			// URL-keyed: the only identity an unmapped page (the homepage on some
+			// sites, an archive, a gone permalink) has. Same host only — this
+			// ledger names OUR pages, and must not become a store of arbitrary
+			// strings.
+			$key  = Pages::key( esc_url_raw( $url ) );
+			$host = strtolower( (string) wp_parse_url( home_url( '/' ), PHP_URL_HOST ) );
+			if ( '' === $key || strtolower( (string) wp_parse_url( $key, PHP_URL_HOST ) ) !== $host ) {
+				return new \WP_Error( 'agentimus_bad_url', __( 'Invalid page address.', 'agentimus' ), array( 'status' => 400 ) );
+			}
+			$list = ( isset( $all['search_ignored_urls'] ) && is_array( $all['search_ignored_urls'] ) ) ? array_map( 'strval', $all['search_ignored_urls'] ) : array();
+			$list = array_values( array_diff( $list, array( $key ) ) );
+			if ( $ignore ) {
+				$list[] = $key;
+			}
+			$all['search_ignored_urls'] = $list;
+		} else {
+			return new \WP_Error( 'agentimus_bad_post', __( 'Invalid post.', 'agentimus' ), array( 'status' => 400 ) );
 		}
-		$all['search_ignored'] = $list;
 		$this->core->update( $all );
 
 		return $this->report( $request ); // The worklist the caller is looking at, already refreshed.
@@ -188,7 +213,7 @@ final class Rest {
 
 		if ( '' !== $source ) {
 			$rows   = Table::snapshot( $source );
-			$report = Opportunities::build( $rows, $this->set_aside() );
+			$report = Opportunities::build( $rows, $this->set_aside(), $this->set_aside_urls() );
 
 			$report['almost_there']    = array_map( array( $this, 'enrich' ), $report['almost_there'] );
 			$report['seen_not_chosen'] = array_map( array( $this, 'enrich' ), $report['seen_not_chosen'] );
@@ -231,6 +256,18 @@ final class Rest {
 	}
 
 	/**
+	 * Its URL-keyed twin — pages held back by address because no post ID exists
+	 * to hold them by.
+	 *
+	 * @return array<int,string>
+	 */
+	private function set_aside_urls() {
+		$all  = $this->core->all();
+		$list = ( isset( $all['search_ignored_urls'] ) && is_array( $all['search_ignored_urls'] ) ) ? $all['search_ignored_urls'] : array();
+		return array_map( 'strval', $list );
+	}
+
+	/**
 	 * The set-aside pages as rows the UI can list and restore — shown inside the
 	 * Search Opportunities section, so a page held back is always visible where
 	 * the decision was made.
@@ -249,6 +286,17 @@ final class Rest {
 				'title'    => $title,
 				'url'      => (string) get_permalink( $id ),
 				'edit_url' => (string) get_edit_post_link( $id, 'raw' ),
+			);
+		}
+		// URL-keyed entries wear their path as the name — the same name their
+		// card wore — and offer no editor door, exactly like the card didn't.
+		foreach ( $this->set_aside_urls() as $url ) {
+			$path   = (string) wp_parse_url( $url, PHP_URL_PATH );
+			$rows[] = array(
+				'id'       => 0,
+				'title'    => '' !== $path ? $path : '/',
+				'url'      => $url,
+				'edit_url' => '',
 			);
 		}
 		return $rows;
@@ -277,6 +325,10 @@ final class Rest {
 			$card['edit_url'] = $edit . '#agentimus-topics';
 			$card['links_url'] = $edit . '#agentimus-internal-links';
 			$card['read_url']  = $edit . '#agentimus-panel';
+			// The same citability verdicts the Optimize worklist gives, asked for
+			// THIS page — so the "Also in Optimize" flag doesn't depend on the
+			// page happening to sit in the recency sample ({@see Score::page_flags}).
+			$card['optimize_flags'] = $this->score()->page_flags( $id );
 		} else {
 			$card['title']    = (string) wp_parse_url( (string) $card['page_url'], PHP_URL_PATH );
 			$card['edit_url'] = '';
@@ -285,5 +337,18 @@ final class Rest {
 		$card['path'] = '' !== $path ? $path : '/';
 		unset( $card['all_queries'] ); // Counted in `counts`; the wire carries only what renders.
 		return $card;
+	}
+
+	/**
+	 * The grader behind the per-card citability flags — one instance per
+	 * request, so its per-post memo holds across both groups' cards.
+	 *
+	 * @return \Agentimus\Score
+	 */
+	private function score() {
+		if ( null === $this->score ) {
+			$this->score = new \Agentimus\Score( $this->core );
+		}
+		return $this->score;
 	}
 }

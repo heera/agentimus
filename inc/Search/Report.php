@@ -215,9 +215,10 @@ final class Report {
 			return $out;
 		}
 
-		$all      = $core->all();
-		$aside    = ( isset( $all['search_ignored'] ) && is_array( $all['search_ignored'] ) ) ? array_map( 'intval', $all['search_ignored'] ) : array();
-		$report   = Opportunities::build( Table::snapshot( $state['source'] ), $aside );
+		$all        = $core->all();
+		$aside      = ( isset( $all['search_ignored'] ) && is_array( $all['search_ignored'] ) ) ? array_map( 'intval', $all['search_ignored'] ) : array();
+		$aside_urls = ( isset( $all['search_ignored_urls'] ) && is_array( $all['search_ignored_urls'] ) ) ? array_map( 'strval', $all['search_ignored_urls'] ) : array();
+		$report     = Opportunities::build( Table::snapshot( $state['source'] ), $aside, $aside_urls );
 		$has_work = $report['counts']['opportunities'] > 0;
 
 		$out['state']          = $has_work ? 'ready' : ( $report['judged'] ? 'clear' : 'too_thin' );
