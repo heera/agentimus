@@ -392,6 +392,43 @@ final class GoogleIndexTest extends TestCase {
 		$this->assertCount( 2, $out['rows'], 'both pages keep their last good answers' );
 		$this->assertSame( 'PASS', $out['rows'][0]['verdict'] );
 		$this->assertSame( 'PASS', $out['rows'][1]['verdict'], 'a dead token stops the sweep — no per-URL retries' );
+
+		// The stop is a PAUSE, not an abort: nothing was inspected, so nothing
+		// may leave the queue — the run resumes here instead of restarting from
+		// scratch (and re-spending the watchlist's quota) on the next call.
+		$this->assertCount( 2, $out['queue'], 'the un-inspected URLs survive the failure' );
+		$this->assertSame(
+			'https://example.test/a/',
+			end( $out['queue'] )['url'],
+			'the URL whose call failed rejoined at the tail, so it cannot block the line'
+		);
+	}
+
+	public function test_a_transport_blip_pauses_the_run_and_the_next_call_resumes_it() {
+		// Chunk one: /a/ hits a transport failure (a timeout, a 5xx) — the run
+		// pauses with the error on record and both URLs still queued.
+		$this->queue_error( 500, 'cURL error 28: Operation timed out' );
+		$paused = Index::sweep( new Client(), 'tok', 'p', $this->targets( 'https://example.test/a/', 'https://example.test/b/' ) );
+		$this->assertSame( 'cURL error 28: Operation timed out', $paused['error'] );
+		$this->assertCount( 2, $paused['queue'] );
+
+		// The next call resumes the SAME run — its own persisted queue, not the
+		// fresh targets it was handed — and the blip has fully healed.
+		$this->queue_inspection( $this->pass_row() );
+		$this->queue_inspection( $this->pass_row() );
+		$out = Index::sweep( new Client(), 'tok', 'p', $this->targets( 'https://example.test/intruder/' ) );
+
+		$this->assertSame( '', $out['error'], 'the recovered run does not keep wearing the old failure' );
+		$this->assertSame( array(), $out['queue'], 'the run finished' );
+		$this->assertCount( 2, $out['rows'] );
+		$this->assertSame(
+			array( 'https://example.test/a/', 'https://example.test/b/' ),
+			array_column( $out['rows'], 'url' ),
+			'the paused run finished its own list — the new target never cut in'
+		);
+		foreach ( $out['rows'] as $row ) {
+			$this->assertSame( 'PASS', $row['verdict'] );
+		}
 	}
 
 	public function test_sweep_records_a_single_refused_url_and_keeps_going() {

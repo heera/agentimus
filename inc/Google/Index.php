@@ -269,8 +269,12 @@ final class Index {
 	 *   uninspected keeps its last good answer;
 	 * - one URL refused (400): that URL's own problem — recorded on the row,
 	 *   the sweep keeps going;
-	 * - token/transport: every further call would fail identically — stop and
-	 *   record the failure once.
+	 * - token/transport: every further call in THIS chunk would fail the same
+	 *   way — record the failure once and PAUSE, never abort: the un-inspected
+	 *   URL rejoins the queue and the run resumes on the next call (the panel's
+	 *   next visit, or the daily sweep). A transient blip — one slow Google
+	 *   answer, a network hiccup — costs nothing; aborting used to restart the
+	 *   run from scratch and re-spend the whole watchlist's quota over it.
 	 *
 	 * @param Client     $client   The API client.
 	 * @param string     $token    Bearer token.
@@ -318,9 +322,15 @@ final class Index {
 						'inspected_at' => time(),
 					) );
 				} else {
-					// Token/transport — every further call fails identically.
-					$error = (string) $out['error'];
-					$queue = array();
+					// Token/transport — stop this chunk and record the failure once,
+					// but keep the queue so the run PAUSES instead of aborting. The
+					// failed URL rejoins at the TAIL: a URL that reliably hangs Google
+					// can then never block the head of the line for the rest. No
+					// retry loop hides here — the panel's chunk loop stops on a
+					// reported error, and the cron safety net only follows a clean
+					// chunk ({@see Module::run_index_sweep()}).
+					$error   = (string) $out['error'];
+					$queue[] = $t;
 					break;
 				}
 			} else {

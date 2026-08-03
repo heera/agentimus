@@ -280,10 +280,13 @@ final class Module {
 
 		$out = Index::sweep( $this->client, $auth['token'], $property, Index::run_targets(), $budget );
 
-		if ( ! empty( $out['queue'] ) && ! wp_next_scheduled( self::CRON_INDEX ) ) {
+		if ( ! empty( $out['queue'] ) && '' === (string) $out['error'] && ! wp_next_scheduled( self::CRON_INDEX ) ) {
 			// A safety net, not the fast path: the panel's own polling loop
 			// usually finishes the run in seconds; this picks it up if the
 			// owner closed the tab mid-sweep (or the daily cron started it).
+			// After a transport failure the net stands down — a one-minute
+			// retry against a dead network is a loop, not a net. The paused
+			// queue waits for the owner's next panel visit or the daily sweep.
 			wp_schedule_single_event( time() + MINUTE_IN_SECONDS, self::CRON_INDEX );
 		}
 		return $out;

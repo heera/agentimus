@@ -299,8 +299,9 @@ final class Endpoints {
 	 *
 	 * One URL answering with two different bodies is safe only if every cache in
 	 * front of the site honours the "never store this" instruction the markdown
-	 * answer carries — `Cache-Control`, `CDN-Cache-Control` and Cloudflare's own
-	 * vendor header, all set to `no-store` (see {@see send()}).
+	 * answer carries — `Cache-Control`, `CDN-Cache-Control`, Cloudflare's own
+	 * vendor header and nginx's `X-Accel-Expires`, all saying "don't store"
+	 * (see {@see markdown_no_store_headers()}).
 	 *
 	 * Real CDNs don't. A Cloudflare "Cache Everything" rule with an Edge TTL
 	 * overrides *every* cache directive an origin can send, and no mainstream CDN
@@ -387,6 +388,34 @@ final class Endpoints {
 		return $markdown > 0.0 && $markdown > $html;
 	}
 
+	/**
+	 * The "never store this" instruction for a markdown body, in every dialect a
+	 * cache in front of the site reads. Markdown can share a URL with the HTML
+	 * page (content negotiation), so a shared cache that stored it would hand raw
+	 * markdown to human visitors — `Cache-Control` alone is not enough:
+	 *
+	 * - A CDN configured to override origin headers (Cloudflare "Cache Everything"
+	 *   with an Edge TTL, and the equivalent on other edges) rewrites it and caches
+	 *   the body anyway; `CDN-Cache-Control` takes precedence over `Cache-Control`
+	 *   at the edge, and Cloudflare's own vendor header outranks both.
+	 * - An origin-side nginx FastCGI/proxy cache is commonly configured to ignore
+	 *   `Cache-Control` outright (`fastcgi_ignore_headers`) — but nginx's own
+	 *   `X-Accel-Expires: 0` is still honoured unless it too is explicitly listed,
+	 *   and nginx consumes the header rather than forwarding it to clients.
+	 *
+	 * Pure so the full dialect set is pinned by a test and never silently narrows.
+	 *
+	 * @return string[] Header lines, ready for header().
+	 */
+	public static function markdown_no_store_headers() {
+		return array(
+			'Cache-Control: no-store, max-age=0',
+			'CDN-Cache-Control: no-store',
+			'Cloudflare-CDN-Cache-Control: no-store',
+			'X-Accel-Expires: 0',
+		);
+	}
+
 	private function send( $body, $content_type, $label = '', $max_age = 3600 ) {
 		// Optional hard enforcement (opt-in): deny denylisted/spoofed agents before
 		// we serve — and before we record a hit, so a blocked request never appears
@@ -407,17 +436,9 @@ final class Endpoints {
 			header( 'Vary: Accept', false );
 
 			if ( 'text/markdown' === $content_type ) {
-				// Markdown can share a URL with the HTML page (content negotiation), so a
-				// shared cache that stored it would hand the raw markdown to human
-				// visitors. Say "don't store this" in every dialect a CDN reads, because
-				// `Cache-Control` alone is not enough: a CDN configured to override origin
-				// headers (Cloudflare "Cache Everything" with an Edge TTL, and the
-				// equivalent on other edges) rewrites it and caches the body anyway. The
-				// CDN-targeted headers below take precedence over `Cache-Control` at the
-				// edge, and Cloudflare's own vendor header outranks both.
-				header( 'Cache-Control: no-store, max-age=0' );
-				header( 'CDN-Cache-Control: no-store' );
-				header( 'Cloudflare-CDN-Cache-Control: no-store' );
+				foreach ( self::markdown_no_store_headers() as $line ) {
+					header( $line );
+				}
 			} else {
 				// Stable URLs (llms.txt, the sitemap) are safe to cache; the change
 				// feed passes a shorter max-age since freshness is its whole point.

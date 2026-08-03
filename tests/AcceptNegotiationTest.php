@@ -104,4 +104,19 @@ final class AcceptNegotiationTest extends TestCase {
 		$this->assertTrue( Endpoints::negotiates_markdown() );
 		$GLOBALS['_af_filters'] = array();
 	}
+
+	/* -- The markdown answer says "don't store this" in every cache dialect -- */
+
+	public function test_a_markdown_answer_refuses_storage_in_every_cache_dialect() {
+		// One dialect per cache layer: the client/spec one, the generic CDN one,
+		// Cloudflare's vendor one that outranks it — and nginx's own, because an
+		// origin-side FastCGI cache set to ignore `Cache-Control` still honours
+		// `X-Accel-Expires`. Dropping any of these re-opens the 1.21.x poisoning:
+		// an agent's markdown answer cached under the page URL, served to humans.
+		$headers = Endpoints::markdown_no_store_headers();
+		$this->assertContains( 'Cache-Control: no-store, max-age=0', $headers );
+		$this->assertContains( 'CDN-Cache-Control: no-store', $headers );
+		$this->assertContains( 'Cloudflare-CDN-Cache-Control: no-store', $headers );
+		$this->assertContains( 'X-Accel-Expires: 0', $headers );
+	}
 }
