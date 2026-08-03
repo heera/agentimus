@@ -49,6 +49,9 @@ export default {
       openGroups: {},
       lookupQuery: '',
       lookupOut: null,
+      // The query the shown answer belongs to. An answer must never outlive
+      // the question that produced it — editing or clearing the box drops it.
+      lookupFor: '',
       lookupBusy: false,
     };
   },
@@ -184,6 +187,12 @@ export default {
     active(on) {
       if (on && !this.loading) this.load();
     },
+    // A stale answer beside a changed question is a label claiming more than
+    // its data — the moment the box no longer holds the query that produced
+    // the answer, the answer goes.
+    lookupQuery(now) {
+      if (this.lookupOut && now.trim() !== this.lookupFor) this.lookupOut = null;
+    },
   },
   mounted() {
     if (this.active) this.load();
@@ -294,6 +303,7 @@ export default {
       if (!this.api || !q || this.lookupBusy) return;
       this.lookupBusy = true;
       this.lookupOut = null;
+      this.lookupFor = q;
       try {
         this.lookupOut = await this.api.lookupGoogleIndex(q);
       } catch (e) {
@@ -487,6 +497,14 @@ export default {
           <p v-else class="ar-gidx__siteclear">Nothing else on the site needs attention.</p>
         </template>
 
+        <!-- Registration health belongs with the SITE-level story above, not
+             after a per-page lookup, where it reads as a fact about the page
+             someone just looked up. -->
+        <p v-if="sitemapNote" class="ar-gidx__sitemap" :class="{ 'is-warn': sitemapNote.warn }">
+          {{ sitemapNote.text }}
+          <a v-if="sitemapNote.warn && gscSitemapsLink" class="ar-gidx__gsc" :href="gscSitemapsLink" target="_blank" rel="noopener">Open Sitemaps in Search Console</a>
+        </p>
+
         <!-- Look up one page: answered from the STORED daily checks — the
              coverage map remembers every checked page, including the healthy
              ones that never earn a row. No live call, no quota spent. -->
@@ -526,17 +544,9 @@ export default {
           <p v-else-if="lookupOut.status === 'error'" class="ar-gidx__note is-err ar-gidx__lookupmsg">{{ lookupOut.message }}</p>
         </template>
         <p class="ar-gidx__lookuphint">
-          Answers come from the stored daily checks, not a live call. A page not
-          checked yet says so.
-        </p>
-
-        <!-- Registration health — the failure only Google's bookkeeping can
-             see: a perfect on-site file whose registration points at an
-             address that moved. Quiet when healthy, amber when the owner
-             should act, silent until the first look. -->
-        <p v-if="sitemapNote" class="ar-gidx__sitemap" :class="{ 'is-warn': sitemapNote.warn }">
-          {{ sitemapNote.text }}
-          <a v-if="sitemapNote.warn && gscSitemapsLink" class="ar-gidx__gsc" :href="gscSitemapsLink" target="_blank" rel="noopener">Open Sitemaps in Search Console</a>
+          Answers come from the stored daily checks, not a live call — this is
+          your own record of what Google said, not a new question to Google.
+          A page not checked yet says so.
         </p>
 
         <p class="ar-card__note ar-cf-note">
