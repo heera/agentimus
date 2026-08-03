@@ -56,7 +56,6 @@ final class Readiness {
 			$this->check_head_conflict(),
 			$this->check_seo_coverage(),
 			$this->check_static_robots(),
-			$this->check_robots_change(),
 			$this->check_ai_usage_policy(),
 			$this->check_sitemap(),
 			$this->check_robots_sitemap(),
@@ -148,8 +147,8 @@ final class Readiness {
 		'same_as'        => 'AR-CONT-01',
 	);
 
-	private function row( $id, $label, $status, $detail, $fix = '', $action = null ) {
-		$row       = compact( 'id', 'label', 'status', 'detail', 'fix', 'action' );
+	private function row( $id, $label, $status, $detail, $fix = '', $action = null, array $links = array() ) {
+		$row       = compact( 'id', 'label', 'status', 'detail', 'fix', 'action', 'links' );
 		$row['ar'] = isset( self::AR_MAP[ $id ] ) ? self::AR_MAP[ $id ] : '';
 		return $row;
 	}
@@ -829,55 +828,58 @@ final class Readiness {
 				__( 'Delete robots.txt from your site root to let Agentimus serve a managed virtual one — or, if you maintain it by hand, add your crawler and Sitemap directives there yourself.', 'agentimus' ),
 				// The fix lives on the server, not in wp-admin — the honest link is
 				// the file itself, so the owner sees exactly what's overriding us.
-				$this->link( __( 'View robots.txt', 'agentimus' ), home_url( '/robots.txt' ) )
+				$this->link( __( 'View robots.txt', 'agentimus' ), home_url( '/robots.txt' ) ),
+				$this->robots_engine_links()
 			)
-			: $this->row( 'robots', __( 'robots.txt control', 'agentimus' ), 'pass', __( 'WordPress serves a virtual robots.txt that this plugin manages.', 'agentimus' ) );
+			: $this->row(
+				'robots',
+				__( 'robots.txt control', 'agentimus' ),
+				'pass',
+				__( 'WordPress serves a virtual robots.txt that this plugin manages.', 'agentimus' ),
+				'',
+				// The permanent home of the on-demand doors: your file, and the
+				// copy each connected engine last read — reachable any day, not
+				// only during the two weeks after a change.
+				$this->link( __( 'View robots.txt', 'agentimus' ), home_url( '/robots.txt' ) ),
+				$this->robots_engine_links()
+			);
 	}
 
 	/**
-	 * A recent robots.txt change — an observation, not an accusation: the
-	 * owner's own edits land here too, and the copy says so. The row exists
-	 * only while RobotsWatch holds an unexpired change event; report() drops
-	 * the null the rest of the time. Scoreless by design.
+	 * The per-engine robots doors: what does Google/Bing actually read? One
+	 * door per CONNECTED source, never invented — Google's robots report shows
+	 * the file Google last fetched and when; Bing's tester does the same for
+	 * Bingbot. Each engine keeps fetching robots.txt on its own schedule, so
+	 * this is a different question from "what does my server serve?".
+	 *
+	 * @return array[] Zero or more links ({@see link()}).
 	 */
-	private function check_robots_change() {
-		$change = RobotsWatch::change();
-		if ( null === $change ) {
-			return null;
-		}
-
-		$parts = array();
-		if ( ! empty( $change['added'] ) ) {
-			$parts[] = sprintf(
-				/* translators: 1: number of lines, 2: the lines, e.g. "user-agent: GPTBot; disallow: /". */
-				__( 'New: %2$s', 'agentimus' ),
-				count( $change['added'] ),
-				RobotsWatch::excerpt( $change['added'] )
+	private function robots_engine_links() {
+		$links  = array();
+		$google = new Google\Settings();
+		if ( $google->connected() ) {
+			$links[] = $this->link(
+				__( 'See what Google reads', 'agentimus' ),
+				'https://search.google.com/search-console/settings/robots-txt?resource_id=' . rawurlencode( (string) $google->get( 'property' ) )
 			);
 		}
-		if ( ! empty( $change['removed'] ) ) {
-			$parts[] = sprintf(
-				/* translators: 1: number of lines, 2: the lines, e.g. "content-signal: ai-train=no". */
-				__( 'Gone: %2$s', 'agentimus' ),
-				count( $change['removed'] ),
-				RobotsWatch::excerpt( $change['removed'] )
+		$bing = new Bing\Settings();
+		if ( $bing->connected() ) {
+			$links[] = $this->link(
+				__( 'See what Bing reads', 'agentimus' ),
+				'https://www.bing.com/webmasters/robotstxttester?siteUrl=' . rawurlencode( (string) $bing->get( 'site_url' ) )
 			);
 		}
-
-		return $this->row(
-			'robots_change',
-			__( 'robots.txt changed', 'agentimus' ),
-			'warn',
-			sprintf(
-				/* translators: 1: date, 2: the changed lines summary. */
-				__( 'The crawler rules in robots.txt changed on %1$s. %2$s', 'agentimus' ),
-				wp_date( get_option( 'date_format', 'F j, Y' ), (int) $change['at'] ),
-				implode( ' ', $parts )
-			),
-			__( 'If you made this change, everything is fine — this note clears itself after two weeks. If you did not, another plugin probably rewrote your robots.txt: check the plugins you activated recently.', 'agentimus' ),
-			$this->link( __( 'View robots.txt', 'agentimus' ), home_url( '/robots.txt' ) )
-		);
+		return $links;
 	}
+
+	// NOTE deliberately absent: the transient "robots.txt changed" observation
+	// used to render here as a scoreless row, but a notice among checks read as
+	// a check — it breathed the report's denominator and painted a WARN over a
+	// healthy group (removed 1.34.0, the owner's call). The change still
+	// surfaces where a notice belongs: the weekly digest. The robots DOORS —
+	// the file, and what each engine last read — live on the permanent
+	// robots.txt-control row above, on demand.
 
 	private function check_ai_usage_policy() {
 		$signal   = (array) $this->settings->get( 'content_signal', array() );
@@ -942,17 +944,26 @@ final class Readiness {
 			);
 		}
 
+		// Every serving branch names — and OPENS — the address actually served:
+		// detect() is the single truth (promoted = the standard /wp-sitemap.xml,
+		// coexist = the legacy path, core/SEO = theirs), so the row can never
+		// again tell an old story while robots.txt advertises the new one.
+		$view = $this->link( __( 'View sitemap', 'agentimus' ), $sitemap['url'] );
+
 		// WordPress core serves it.
 		if ( 'core' === $sitemap['source'] ) {
 			return $this->row(
 				'sitemap',
 				__( 'XML sitemap', 'agentimus' ),
 				'pass',
-				__( 'WordPress core sitemap is live and advertised in robots.txt and llms.txt.', 'agentimus' )
+				__( 'WordPress core sitemap is live and advertised in robots.txt and llms.txt.', 'agentimus' ),
+				'',
+				$view
 			);
 		}
 
-		// Agentimus's own fallback generator is filling the gap.
+		// Agentimus serves it — promoted to the standard address, or filling
+		// the gap at its own.
 		if ( 'agentimus' === $sitemap['source'] ) {
 			return $this->row(
 				'sitemap',
@@ -961,8 +972,10 @@ final class Readiness {
 				sprintf(
 					/* translators: %s: sitemap URL. */
 					__( 'Agentimus is generating your sitemap at %s and advertising it in robots.txt and llms.txt.', 'agentimus' ),
-					home_url( Sitemap::PATH )
-				)
+					$sitemap['url']
+				),
+				'',
+				$view
 			);
 		}
 
@@ -975,7 +988,9 @@ final class Readiness {
 				/* translators: %s: SEO plugin name, e.g. “Yoast SEO”. */
 				__( 'Provided by %s and advertised in robots.txt and llms.txt — Agentimus links it rather than emitting a duplicate.', 'agentimus' ),
 				$sitemap['label']
-			)
+			),
+			'',
+			$view
 		);
 	}
 

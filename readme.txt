@@ -288,6 +288,10 @@ URL-like strings in the plugin's output are labels, not requests — the discove
 = 1.34.0 =
 * New: Clear Cloudflare's cache from Agentimus — publishing or editing a post now clears its stale copies from Cloudflare's edge (the one cache no caching plugin purges for you), along with the front page and the machine files agents read, and the edge panel gains a Purge button for everything else. Needs one extra permission on your token — Zone → Cache Purge → Purge; without it everything stays read-only, and the panel says so in words.
 * Improved: a network blip during the daily index check now pauses the run and resumes where it stopped, instead of ending it — one slow answer from Google no longer costs the whole watchlist's inspection budget on the retry.
+* Improved: the robots.txt check now opens the file as each engine last read it — a door to Google's robots report and Bing's robots tester, one per connected source, available any day on demand.
+* Fixed: the XML-sitemap readiness check still named the pre-1.33 legacy address while robots.txt advertised the standard one — it now names, and opens, the sitemap actually served.
+* Improved: the transient "robots.txt changed" note no longer renders as a readiness row — a notice among checks read as a failing check and changed the report's count. The readiness count stays fixed now; the change itself still reaches you in the weekly email.
+* Improved: the automatic Cloudflare purge is polite about everything — a switch on the Cloudflare card turns it off, a permission refusal stands it down silently until a reconnect or a successful manual purge re-arms it, and where the server supports it the save's response is closed before the edge is called, so publishing never waits on Cloudflare.
 * Fixed: the page lookup on In Google's Index kept showing its previous answer after the box was cleared or edited — an answer now clears with the question that produced it.
 * Fixed: the sitemap-health line sat below the page lookup, where it read as a fact about the page you had just looked up. It now sits with the whole-site section it describes.
 * Improved: the lookup hint says what the answer is, not only what it isn't — your own record of what Google said, rather than a new question to Google.
@@ -335,7 +339,7 @@ Earlier releases — the full history, in the same words — live in [CHANGELOG.
 == Upgrade Notice ==
 
 = 1.34.0 =
-Cloudflare cache purge on publish and on demand (one optional token permission), an index check that resumes after a network blip instead of restarting, and two fixes to the page lookup on the In Google's Index card. No breaking changes.
+Cloudflare cache purge on publish and on demand (one optional token permission), an index check that resumes after a network blip instead of restarting, fixes to the page lookup on the In Google's Index card — plus on-demand doors from Readiness to your robots.txt and sitemap, as served and as each engine reads them. No breaking changes.
 
 = 1.33.0 =
 Classic search, measured: Search Performance and Opportunities for Bing and Google, an In Google's Index card with whole-site coverage and page lookup, a Cloudflare edge view, and a setup wizard. The sitemap returns to WordPress's standard /wp-sitemap.xml — old addresses redirect, so registrations heal on their own. No breaking changes.

@@ -162,4 +162,23 @@ final class SitemapPromotionTest extends TestCase {
 		$this->assertFalse( \get_transient( Cache::LLMS_TXT ) );
 		$this->assertSame( 'coexist', \get_option( SeoContext::MODE_OPTION ) );
 	}
+
+	/* ---- the readiness row tells detect()'s truth -------------------------- */
+
+	/** The 1.33 regression's last echo: robots.txt advertised the promoted
+	 * standard address while the readiness row still NAMED the legacy one.
+	 * The row now formats detect()'s own URL — the two can never disagree —
+	 * and opens it, like the robots row opens robots.txt. */
+	public function test_readiness_row_names_and_opens_the_promoted_address() {
+		$this->assertTrue( Sitemap::promoted(), 'precondition: solo mode' );
+
+		$m = new \ReflectionMethod( \Agentimus\Readiness::class, 'check_sitemap' );
+		$m->setAccessible( true );
+		$row = $m->invoke( new \Agentimus\Readiness( new Settings() ) );
+
+		$this->assertSame( 'pass', $row['status'] );
+		$this->assertStringContainsString( Sitemap::INDEX_PATH, $row['detail'], 'the row names the address actually served' );
+		$this->assertStringNotContainsString( Sitemap::PATH, $row['detail'], 'never the legacy one while promoted' );
+		$this->assertStringContainsString( Sitemap::INDEX_PATH, $row['action']['href'], 'and opens the same address' );
+	}
 }

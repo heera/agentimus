@@ -665,6 +665,10 @@ final class Admin {
 					'title' => 'The page lookup answers cleanly',
 					'text'  => 'On the In Google\'s Index card, an answer now clears with the question that produced it, the sitemap-health line sits with the whole-site figures it describes, and the hint says what a lookup is: your own record of what Google said, not a new question to Google.',
 				),
+				array(
+					'title' => 'Doors on the robots and sitemap rows',
+					'text'  => 'The Readiness page\'s robots.txt row now opens your file — and, with Google or Bing connected, the copy each engine last read, straight in their own consoles. The sitemap row opens the sitemap actually served. And the passing "robots.txt changed" note moved out of the checks into the weekly email, so the readiness count never moves because of a transient event.',
+				),
 			),
 		);
 	}

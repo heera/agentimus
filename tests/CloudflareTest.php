@@ -463,6 +463,74 @@ final class CloudflareTest extends TestCase {
 		$this->assertSame( '', $settings->public_view()['lastPurgeError'] );
 	}
 
+	public function test_a_refusal_stands_the_automatic_path_down_and_a_clean_manual_purge_rearms_it() {
+		$settings = new Settings();
+		$settings->connect( 'tok', 'zone1', 'example.com' );
+
+		// First automatic attempt: refused (401/403 = the token cannot purge).
+		$GLOBALS['_af_http_queue'][] = $this->purge_denied();
+		Purge::purge_urls( array( 'https://example.test/a/' ), $settings );
+		$this->assertTrue( $settings->purge_denied() );
+
+		// Every save after that: SILENT — no request, no re-recorded nag.
+		$GLOBALS['_af_http_last'] = null;
+		Purge::purge_urls( array( 'https://example.test/b/' ), $settings );
+		$this->assertNull( $GLOBALS['_af_http_last'], 'a known-refused token is not asked again on every save' );
+
+		// The manual button always attempts — a clean purge re-arms the
+		// automatic path in the same stroke.
+		$GLOBALS['_af_http_queue'][] = $this->purge_ok();
+		Purge::purge_all( $settings );
+		$this->assertFalse( $settings->purge_denied() );
+
+		$GLOBALS['_af_http_queue'][] = $this->purge_ok();
+		Purge::purge_urls( array( 'https://example.test/c/' ), $settings );
+		$this->assertNotNull( $GLOBALS['_af_http_last'], 'the automatic path is back' );
+	}
+
+	public function test_a_transient_failure_never_stands_the_automatic_path_down() {
+		$settings = new Settings();
+		$settings->connect( 'tok', 'zone1', 'example.com' );
+
+		// A 5xx (or a timeout) deserves a fresh attempt on the next occasion.
+		$GLOBALS['_af_http_queue'][] = array( 'response' => array( 'code' => 503 ), 'body' => '{}', 'headers' => array() );
+		Purge::purge_urls( array( 'https://example.test/a/' ), $settings );
+		$this->assertNotSame( '', $settings->public_view()['lastPurgeError'] );
+		$this->assertFalse( $settings->purge_denied(), 'a blip is not a refusal' );
+
+		$GLOBALS['_af_http_queue'][] = $this->purge_ok();
+		$GLOBALS['_af_http_last']    = null;
+		Purge::purge_urls( array( 'https://example.test/b/' ), $settings );
+		$this->assertNotNull( $GLOBALS['_af_http_last'], 'the next save attempts again' );
+	}
+
+	public function test_the_owner_switch_turns_only_the_automatic_path_off() {
+		$settings = new Settings();
+		$settings->connect( 'tok', 'zone1', 'example.com' );
+		$GLOBALS['_af_options']['agentimus_settings'] = array( 'cf_purge_on_change' => false );
+
+		$GLOBALS['_af_http_last'] = null;
+		Purge::purge_urls( array( 'https://example.test/a/' ), $settings );
+		$this->assertNull( $GLOBALS['_af_http_last'], 'switch off = no automatic attempt' );
+
+		// The manual button ignores the switch — pressing it IS the consent.
+		$GLOBALS['_af_http_queue'][] = $this->purge_ok();
+		$this->assertTrue( Purge::purge_all( $settings )['ok'] );
+	}
+
+	public function test_reconnecting_forgets_the_old_tokens_purge_verdicts() {
+		$settings = new Settings();
+		$settings->connect( 'tok', 'zone1', 'example.com' );
+		$GLOBALS['_af_http_queue'][] = $this->purge_denied();
+		Purge::purge_all( $settings );
+		$this->assertTrue( $settings->purge_denied() );
+
+		// A new token is a new question.
+		$settings->connect( 'tok2', 'zone1', 'example.com' );
+		$this->assertFalse( $settings->purge_denied() );
+		$this->assertSame( '', $settings->public_view()['lastPurgeError'] );
+	}
+
 	public function test_a_failed_purge_never_smears_the_poll_and_vice_versa() {
 		$settings = new Settings();
 		$settings->connect( 'tok', 'zone1', 'example.com' );

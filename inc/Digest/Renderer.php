@@ -200,7 +200,18 @@ final class Renderer {
 			count( (array) $change['added'] ),
 			count( (array) $change['removed'] )
 		);
-		return self::section( __( 'robots.txt changed', 'agentimus' ), self::stat_row( $line, '' ) );
+		// The email is this notice's only surface (it renders no readiness row),
+		// so it carries the WHICH, not just the how-many.
+		$detail = array();
+		if ( ! empty( $change['added'] ) ) {
+			/* translators: %s: the added lines, e.g. "user-agent: GPTBot; disallow: /". */
+			$detail[] = sprintf( __( 'New: %s.', 'agentimus' ), \Agentimus\RobotsWatch::excerpt( (array) $change['added'] ) );
+		}
+		if ( ! empty( $change['removed'] ) ) {
+			/* translators: %s: the removed lines. */
+			$detail[] = sprintf( __( 'Gone: %s.', 'agentimus' ), \Agentimus\RobotsWatch::excerpt( (array) $change['removed'] ) );
+		}
+		return self::section( __( 'robots.txt changed', 'agentimus' ), self::stat_row( $line, implode( ' ', $detail ) ) );
 	}
 
 	/** Authenticated agent activity. The store is event-keyed, so say "events", never "calls". */

@@ -1712,6 +1712,12 @@ final class Registrar {
 		if ( $with_fix ) {
 			$props['fix']    = self::s();
 			$props['action'] = array( 'type' => array( 'object', 'null' ), 'additionalProperties' => true );
+			// Extra doors beyond the one action — e.g. the robots row's
+			// per-engine "see what Google/Bing reads" links; [] on most rows.
+			$props['links'] = array(
+				'type'  => 'array',
+				'items' => array( 'type' => 'object', 'additionalProperties' => true ),
+			);
 			// AgentReady stable requirement ID ('' when the check has none) —
 			// agents reading readiness can cite the spec the row evidences.
 			$props['ar'] = self::s();

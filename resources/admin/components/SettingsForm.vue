@@ -3736,6 +3736,14 @@ export default {
             pages from Cloudflare’s cache — that is the only thing Agentimus ever asks
             Cloudflare to change.
           </p>
+          <label id="ar-feat-cf_purge_on_change" class="ar-toggle ar-toggle--nested">
+            <input v-model="settings.cf_purge_on_change" type="checkbox" />
+            <span class="ar-toggle__track" aria-hidden="true"></span>
+            <span class="ar-toggle__text">
+              <strong>Clear Cloudflare’s cache when content changes</strong>
+              <small>When you publish or edit, the changed pages — the post itself, the front page, the AI files — are cleared from Cloudflare’s edge, the one cache no caching plugin can reach. Needs the <code>Cache Purge</code> permission on the token; without it the attempt is refused and Agentimus stops asking until you fix the token and press Purge once. Turn this off to keep the token analytics-only — the Purge button on the Request Log’s edge panel still works either way.</small>
+            </span>
+          </label>
           <button type="button" class="ar-btn ar-btn--danger ar-btn--small" :disabled="cfDisconnecting" @click="disconnectCloudflare">
             {{ cfDisconnecting ? 'Disconnecting…' : 'Disconnect' }}
           </button>

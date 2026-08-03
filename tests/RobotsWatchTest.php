@@ -101,41 +101,56 @@ final class RobotsWatchTest extends TestCase {
 		$this->assertNull( \get_option( RobotsWatch::OPTION )['change'] ); // Cleared, not just hidden.
 	}
 
-	/* ---- the readiness row ------------------------------------------------ */
+	/* ---- the readiness surface -------------------------------------------- */
+	// The transient "robots.txt changed" note deliberately renders NO readiness
+	// row (removed 1.34.0, the owner's call): a notice among checks read as a
+	// check — it breathed the report's denominator and painted a WARN over a
+	// healthy group. The change still reaches the owner through the weekly
+	// digest (below); the robots DOORS live on the permanent robots.txt-control
+	// row, on demand.
 
-	private function robots_change_row() {
-		$m = new \ReflectionMethod( Readiness::class, 'check_robots_change' );
+	private function static_robots_row() {
+		$m = new \ReflectionMethod( Readiness::class, 'check_static_robots' );
 		$m->setAccessible( true );
 		return $m->invoke( new Readiness( new Settings() ) );
 	}
 
-	/** No change on record: no row at all. */
-	public function test_row_absent_without_a_change() {
-		$this->assertNull( $this->robots_change_row() );
-	}
-
-	/** With a change: a warn that shows the lines and never blames the owner. */
-	public function test_row_warns_with_the_lines_and_neutral_wording() {
+	/** A robots change never adds a row — the checks list keeps a fixed size. */
+	public function test_a_change_adds_no_readiness_row() {
 		\update_option(
 			RobotsWatch::OPTION,
 			array(
 				'hash'     => 'x',
 				'lines'    => array(),
 				'taken_at' => time(),
-				'change'   => array(
-					'at'      => time(),
-					'added'   => array( 'content-signal: ai-train=no' ),
-					'removed' => array( 'allow: /wp-admin/admin-ajax.php' ),
-				),
+				'change'   => array( 'at' => time(), 'added' => array( 'disallow: /' ), 'removed' => array() ),
 			),
 			false
 		);
-		$row = $this->robots_change_row();
-		$this->assertSame( 'warn', $row['status'] );
-		$this->assertSame( 'robots_change', $row['id'] );
-		$this->assertStringContainsString( 'content-signal: ai-train=no', $row['detail'] );
-		$this->assertStringContainsString( 'Gone: allow: /wp-admin/admin-ajax.php', $row['detail'] );
-		$this->assertStringContainsString( 'If you made this change, everything is fine', $row['fix'] );
+		// The watch still holds the change (the digest below reads it)…
+		$this->assertNotNull( RobotsWatch::change() );
+		// …but no readiness check consumes it: the row producer is gone, so a
+		// transient event can never breathe the report's count again.
+		$this->assertFalse( method_exists( Readiness::class, 'check_robots_change' ) );
+	}
+
+	/** The on-demand doors live on the PERMANENT robots row — your file, and
+	 * what each connected engine last read; one door per source, never invented. */
+	public function test_the_permanent_robots_row_carries_the_engine_doors_on_demand() {
+		// Nothing connected: the file door only — a link to a console the
+		// owner never connected is an invention.
+		$row = $this->static_robots_row();
+		$this->assertNotEmpty( $row['action'], 'View robots.txt is always there' );
+		$this->assertSame( array(), $row['links'] );
+
+		$GLOBALS['_af_options']['agentimus_google'] = array( 'sa_json' => 'key', 'property' => 'sc-domain:example.test' );
+		$GLOBALS['_af_options']['agentimus_bing']   = array( 'api_key' => 'k', 'site_url' => 'https://example.test/' );
+
+		$row = $this->static_robots_row();
+		$this->assertCount( 2, $row['links'] );
+		$this->assertStringContainsString( 'search-console/settings/robots-txt', $row['links'][0]['href'] );
+		$this->assertStringContainsString( rawurlencode( 'sc-domain:example.test' ), $row['links'][0]['href'] );
+		$this->assertStringContainsString( 'bing.com/webmasters/robotstxttester', $row['links'][1]['href'] );
 	}
 
 	/* ---- the digest surfaces ---------------------------------------------- */

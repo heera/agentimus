@@ -168,22 +168,26 @@ final class Client {
 	 * @param string   $token   API token, plaintext.
 	 * @param string   $zone_id Zone tag.
 	 * @param string[] $urls    Absolute URLs to drop.
-	 * @return array { ok?: true, purged: int, error?: string }
+	 * @param int      $timeout Per-request timeout, seconds. The automatic
+	 *                          content-change path passes a short one — a save's
+	 *                          tail must not wait long on a struggling edge API.
+	 * @return array { ok?: true, purged: int, error?: string, status?: int }
 	 */
-	public function purge_urls( $token, $zone_id, array $urls ) {
+	public function purge_urls( $token, $zone_id, array $urls, $timeout = self::TIMEOUT ) {
 		$urls   = array_values( array_filter( array_map( 'strval', $urls ) ) );
 		$purged = 0;
 		foreach ( array_chunk( $urls, self::PURGE_BATCH ) as $batch ) {
 			$out = $this->post_json(
 				self::API . '/zones/' . rawurlencode( (string) $zone_id ) . '/purge_cache',
 				$token,
-				array( 'files' => $batch )
+				array( 'files' => $batch ),
+				$timeout
 			);
 			if ( isset( $out['error'] ) ) {
-				return array( 'error' => (string) $out['error'], 'purged' => $purged );
+				return array( 'error' => (string) $out['error'], 'status' => (int) ( isset( $out['status'] ) ? $out['status'] : 0 ), 'purged' => $purged );
 			}
 			if ( empty( $out['json']['success'] ) ) {
-				return array( 'error' => $this->api_error( $out['json'] ), 'purged' => $purged );
+				return array( 'error' => $this->api_error( $out['json'] ), 'status' => 200, 'purged' => $purged );
 			}
 			$purged += count( $batch );
 		}
@@ -197,7 +201,7 @@ final class Client {
 	 *
 	 * @param string $token   API token, plaintext.
 	 * @param string $zone_id Zone tag.
-	 * @return array { ok?: true, error?: string }
+	 * @return array { ok?: true, error?: string, status?: int }
 	 */
 	public function purge_all( $token, $zone_id ) {
 		$out = $this->post_json(
@@ -209,7 +213,7 @@ final class Client {
 			return $out;
 		}
 		if ( empty( $out['json']['success'] ) ) {
-			return array( 'error' => $this->api_error( $out['json'] ) );
+			return array( 'error' => $this->api_error( $out['json'] ), 'status' => 200 );
 		}
 		return array( 'ok' => true );
 	}
@@ -279,14 +283,15 @@ final class Client {
 	/**
 	 * POST one REST endpoint with a JSON body and the bearer token.
 	 *
-	 * @param string $url   Full URL.
-	 * @param string $token API token, plaintext.
-	 * @param array  $body  JSON-encodable request body.
-	 * @return array { json?: array, error?: string }
+	 * @param string $url     Full URL.
+	 * @param string $token   API token, plaintext.
+	 * @param array  $body    JSON-encodable request body.
+	 * @param int    $timeout Per-request timeout, seconds.
+	 * @return array { json?: array, error?: string, status?: int }
 	 */
-	private function post_json( $url, $token, array $body ) {
+	private function post_json( $url, $token, array $body, $timeout = self::TIMEOUT ) {
 		$response = wp_remote_post( $url, array(
-			'timeout'            => self::TIMEOUT,
+			'timeout'            => (int) $timeout,
 			'reject_unsafe_urls' => true,
 			'headers'            => array(
 				'authorization' => 'Bearer ' . $token,
@@ -302,7 +307,9 @@ final class Client {
 		$json = json_decode( (string) wp_remote_retrieve_body( $response ), true );
 
 		if ( $code < 200 || $code >= 300 ) {
-			return array( 'error' => $this->api_error( $json, $code ) );
+			// The status rides along so a caller can tell a REFUSAL (401/403 —
+			// stop asking) from a transient fault (retry next occasion).
+			return array( 'error' => $this->api_error( $json, $code ), 'status' => $code );
 		}
 		return array( 'json' => is_array( $json ) ? $json : array() );
 	}

@@ -26,6 +26,9 @@ defined( 'ABSPATH' ) || exit;
 
 final class Purge {
 
+	/** @var int Automatic-path timeout, seconds — a save's tail must stay short. */
+	const AUTO_TIMEOUT = 5;
+
 	/**
 	 * Whether the edge purge can run at all — a connected zone is the gate.
 	 * (Whether the token may PURGE is Cloudflare's call, made per request and
@@ -40,9 +43,27 @@ final class Purge {
 	}
 
 	/**
-	 * Drop specific URLs from the edge cache. Quiet no-op when the edge source
-	 * isn't connected; otherwise the outcome — clean or failed — is recorded on
-	 * the connection so the panel's rail can tell the owner without a nag.
+	 * Whether the AUTOMATIC content-change purge should run: connected, the
+	 * owner's switch is on, and no permission refusal is standing it down.
+	 * The manual button deliberately ignores all but the connection — pressing
+	 * it IS the consent, and a fresh attempt is how a fixed token re-arms.
+	 *
+	 * @param Settings|null $settings Injectable for tests.
+	 * @return bool
+	 */
+	public static function armed( Settings $settings = null ) {
+		$settings = $settings ? $settings : new Settings();
+		return $settings->connected()
+			&& (bool) ( new \Agentimus\Settings() )->get( 'cf_purge_on_change', true )
+			&& ! $settings->purge_denied();
+	}
+
+	/**
+	 * Drop specific URLs from the edge cache — the AUTOMATIC path. Quiet no-op
+	 * unless {@see armed()}; otherwise the outcome — clean or failed — is
+	 * recorded on the connection so the panel's rail can tell the owner without
+	 * a nag: a permission refusal (401/403) records ONCE and stands the
+	 * automatic path down until a reconnect or a clean manual purge re-arms it.
 	 *
 	 * @param string[]      $urls     Absolute URLs.
 	 * @param Settings|null $settings Injectable for tests.
@@ -51,12 +72,28 @@ final class Purge {
 	 */
 	public static function purge_urls( array $urls, Settings $settings = null, Client $client = null ) {
 		$settings = $settings ? $settings : new Settings();
-		if ( ! $settings->connected() || empty( $urls ) ) {
+		if ( ! self::armed( $settings ) || empty( $urls ) ) {
 			return;
 		}
 		$client = $client ? $client : new Client();
-		$out    = $client->purge_urls( $settings->token(), (string) $settings->get( 'zone_id' ), $urls );
-		$settings->record_purge( isset( $out['error'] ) ? (string) $out['error'] : '' );
+		$out    = $client->purge_urls( $settings->token(), (string) $settings->get( 'zone_id' ), $urls, self::AUTO_TIMEOUT );
+		$settings->record_purge(
+			isset( $out['error'] ) ? (string) $out['error'] : '',
+			self::is_refusal( $out )
+		);
+	}
+
+	/**
+	 * A permission refusal, as opposed to a transient fault: 401/403 means the
+	 * token cannot purge and every retry would fail identically; anything else
+	 * (a timeout, a 5xx) deserves a fresh attempt on the next occasion.
+	 *
+	 * @param array $out A Client purge result.
+	 * @return bool
+	 */
+	private static function is_refusal( array $out ) {
+		$status = (int) ( isset( $out['status'] ) ? $out['status'] : 0 );
+		return isset( $out['error'] ) && in_array( $status, array( 401, 403 ), true );
 	}
 
 	/**
@@ -75,7 +112,9 @@ final class Purge {
 		$client = $client ? $client : new Client();
 		$out    = $client->purge_all( $settings->token(), (string) $settings->get( 'zone_id' ) );
 		$error  = isset( $out['error'] ) ? (string) $out['error'] : '';
-		$settings->record_purge( $error );
+		// A clean manual purge re-arms the automatic path (record_purge clears
+		// the denial); a refused one stands it down — same verdict either way.
+		$settings->record_purge( $error, self::is_refusal( $out ) );
 		return '' === $error ? array( 'ok' => true ) : array( 'ok' => false, 'error' => $error );
 	}
 }

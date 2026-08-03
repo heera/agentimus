@@ -69,8 +69,8 @@ final class CachePurge {
 		$urls = self::site_urls();
 		// The front page's listings change on every content change. Caching
 		// plugins purge it themselves — only the edge needs telling, so it
-		// joins the set only when the Cloudflare source is connected.
-		if ( Cloudflare\Purge::available() ) {
+		// joins the set only when the automatic edge purge will actually run.
+		if ( Cloudflare\Purge::armed() ) {
 			$urls[] = home_url( '/' );
 		}
 		self::queue( $urls );
@@ -94,9 +94,9 @@ final class CachePurge {
 			$urls = array( untrailingslashit( $permalink ) . '.md' );
 			// The edited page itself: every caching plugin already purges it,
 			// but none of them can reach Cloudflare — an edited post keeps
-			// serving stale from the edge until its TTL runs out. When the
-			// edge source is connected, the page joins the set.
-			if ( Cloudflare\Purge::available() ) {
+			// serving stale from the edge until its TTL runs out. It joins the
+			// set only when the automatic edge purge will actually run.
+			if ( Cloudflare\Purge::armed() ) {
 				$urls[] = (string) $permalink;
 			}
 			self::queue( $urls );
@@ -145,6 +145,15 @@ final class CachePurge {
 	public static function flush_queue() {
 		$urls        = array_keys( self::$queue );
 		self::$queue = array();
+		// Every adapter here is local except Cloudflare — a real network call.
+		// When that call is about to happen, close the visitor's connection
+		// first where the server allows it (PHP-FPM): the response is already
+		// built at shutdown, so the save returns instantly and the edge purge
+		// finishes in the background of this same process — outcome still read,
+		// still recorded. Elsewhere the short AUTO_TIMEOUT bounds the wait.
+		if ( ! empty( $urls ) && function_exists( 'fastcgi_finish_request' ) && Cloudflare\Purge::armed() ) {
+			fastcgi_finish_request();
+		}
 		self::purge( $urls );
 	}
 

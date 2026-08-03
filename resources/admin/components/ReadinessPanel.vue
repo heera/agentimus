@@ -556,6 +556,16 @@ export default {
             class="ar-check__action"
             @click="$emit('navigate', { tab: c.action.tab, anchor: c.action.anchor })"
           >{{ c.action.label }} →</button>
+          <!-- Extra doors beyond the one action (e.g. robots-change: what each
+               connected engine last read). Server-built, only when connected. -->
+          <a
+            v-for="l in c.links || []"
+            :key="l.href"
+            class="ar-check__action"
+            :href="l.href"
+            target="_blank"
+            rel="noopener"
+          >{{ l.label }} ↗</a>
         </li>
       </ul>
     </div>

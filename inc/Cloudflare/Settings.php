@@ -43,6 +43,12 @@ final class Settings {
 			// not smear "poll failed" over perfectly good numbers, and vice versa.
 			'last_purge_at'    => 0,
 			'last_purge_error' => '',
+			// A 401/403 refusal stands the AUTOMATIC purge down (the token can't
+			// purge, and retrying on every save would be a nag plus a wasted
+			// request). Cleared by any clean purge — the manual button always
+			// attempts, so fixing the token and pressing Purge once re-arms —
+			// and by reconnecting.
+			'purge_denied'     => false,
 			// Conflicts the owner chose to hide: { conflict id => dismissed-at }.
 			// A dismissal covers that ONGOING situation only — prune_dismissed()
 			// drops the record once the conflict stops firing, so a later
@@ -178,6 +184,10 @@ final class Settings {
 		$all['connected_at'] = time();
 		$all['last_poll_at'] = 0;
 		$all['last_error']   = '';
+		// A new token is a new question — forget the old one's purge verdicts.
+		$all['last_purge_at']    = 0;
+		$all['last_purge_error'] = '';
+		$all['purge_denied']     = false;
 		$this->persist( $all );
 	}
 
@@ -207,16 +217,29 @@ final class Settings {
 
 	/**
 	 * Record the outcome of a cache purge — a timestamp always, an error only
-	 * when one happened (a clean purge clears the previous error).
+	 * when one happened (a clean purge clears the previous error AND re-arms
+	 * the automatic path).
 	 *
-	 * @param string $error Human-readable failure, or '' for a clean purge.
+	 * @param string $error  Human-readable failure, or '' for a clean purge.
+	 * @param bool   $denied Whether the failure was a permission refusal
+	 *                       (401/403) — stands the automatic path down.
 	 * @return void
 	 */
-	public function record_purge( $error = '' ) {
+	public function record_purge( $error = '', $denied = false ) {
 		$all                     = $this->all();
 		$all['last_purge_at']    = time();
 		$all['last_purge_error'] = sanitize_text_field( (string) $error );
+		$all['purge_denied']     = '' === (string) $error ? false : (bool) $denied;
 		$this->persist( $all );
+	}
+
+	/**
+	 * Whether the automatic purge is standing down after a permission refusal.
+	 *
+	 * @return bool
+	 */
+	public function purge_denied() {
+		return (bool) $this->get( 'purge_denied', false );
 	}
 
 	/**
