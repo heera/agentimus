@@ -889,11 +889,15 @@ export default {
                        screen is a checklist you work down, not a place to leave. -->
                   <div class="ar-opp__actions">
                     <!-- A card with no post offers no editor doors — say why, or the
-                         missing buttons read as a bug (the homepage on a latest-posts
-                         site, an archive). The levers it points to are real: the home
-                         title tag comes from Settings → General, the description from
-                         the theme. -->
-                    <span v-if="!card.page_id" class="ar-opp__noeditor">No post behind this address — its title and description live in your theme and site settings.</span>
+                         missing buttons read as a bug. Two cases, each told only the
+                         truth that fits it: the HOMEPAGE's result title really is the
+                         site title + tagline (that's what core prints for the front
+                         page), so it gets that instruction and a real door to
+                         Settings → General; any other doorless address (an archive, a
+                         gone permalink) has no single lever, so no lever is named. -->
+                    <span v-if="card.doorless === 'home'" class="ar-opp__noeditor">This is your homepage — searchers see your site title and tagline as its title; its description comes from your theme.</span>
+                    <span v-else-if="card.doorless" class="ar-opp__noeditor">No post behind this address — WordPress builds this page from other content (an archive, or an address that no longer exists), so there is no editor to open.</span>
+                    <a v-if="card.doorless === 'home' && card.general_url" :href="card.general_url" target="_blank" rel="noopener" class="ar-opp__edit is-primary">Edit site title &amp; tagline ↗</a>
                     <a v-if="card.edit_url" :href="card.edit_url" target="_blank" rel="noopener" class="ar-opp__edit is-primary">Improve title &amp; description ↗</a>
                     <a v-if="group.key === 'almost' && card.links_url" :href="card.links_url" target="_blank" rel="noopener" class="ar-opp__edit">Add internal links ↗</a>
                     <a v-if="cardFlags(card) && card.read_url" :href="card.read_url" target="_blank" rel="noopener" class="ar-opp__edit">Check readability ↗</a>

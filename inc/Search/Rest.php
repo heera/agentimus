@@ -335,6 +335,19 @@ final class Rest {
 		}
 		$path         = (string) wp_parse_url( (string) $card['page_url'], PHP_URL_PATH );
 		$card['path'] = '' !== $path ? $path : '/';
+		if ( ! (int) $card['page_id'] ) {
+			// WHICH doorless case this is, so the card can instruct instead of
+			// shrug — and only where the instruction is true. The homepage's
+			// title really is the site title + tagline (that is what core
+			// prints for the front page); an archive or a gone permalink has
+			// no such single lever, and naming one would be a lie.
+			$home_path         = untrailingslashit( (string) wp_parse_url( home_url( '/' ), PHP_URL_PATH ) );
+			$is_home           = untrailingslashit( $card['path'] ) === $home_path;
+			$card['doorless']  = $is_home ? 'home' : 'generic';
+			if ( $is_home ) {
+				$card['general_url'] = admin_url( 'options-general.php' );
+			}
+		}
 		unset( $card['all_queries'] ); // Counted in `counts`; the wire carries only what renders.
 		return $card;
 	}
