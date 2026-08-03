@@ -88,6 +88,7 @@ final class Plugin {
 		SeoContext::watch(); // One cache flush per solo/coexist flip — cached surfaces bake the mode in.
 		Sitemap::register(); // Core's sitemap stands down while the solo-mode promotion is on.
 		CachePurge::boot();
+		IndexNow::boot(); // Re-reads its switch at queue time — registration is unconditional.
 		MarkdownCache::register();
 		BotRanges::boot(); // Daily refresh of published bot-IP-range files (self-heals its schedule).
 		RouteProbe::watch(); // Async self-check of /llms.txt and the home <head>; re-queued when the plugin/theme mix changes.

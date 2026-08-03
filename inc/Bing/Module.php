@@ -188,6 +188,13 @@ final class Module {
 		// The query-stats half runs regardless of how the crawl half fared, and
 		// records its outcome on its own line — two datasets, two honest statuses.
 		$this->run_query_poll( $key, $site );
+
+		// The sitemap snapshot — one cheap call. Fail-open: on error the stored
+		// snapshot stands (it carries Bing's own dates, so it stays honest).
+		$feeds = $this->client->feeds( $key, $site );
+		if ( ! isset( $feeds['error'] ) ) {
+			$this->settings->record_feeds( (array) $feeds['rows'] );
+		}
 	}
 
 	/** @var int Per-page query breakdowns are fetched for this many top pages — bounded work, one poll a day. */

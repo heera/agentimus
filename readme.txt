@@ -265,7 +265,9 @@ Yes — there is no minified-only code. The admin interface is built from Vue 3 
 
 Agentimus makes no outbound requests by default: no remote scripts, fonts or analytics, and the agent-activity log stays in your own database with no IP addresses. (IP storage is optional, off by default — see the FAQ.)
 
-**Two opt-in features go outbound; both are off by default.**
+**Every outbound feature is opt-in and off by default.**
+
+**Data sources & IndexNow:** connecting Cloudflare, Google Search Console or Bing Webmaster Tools polls that service with your own key. The optional IndexNow switch announces published and removed URLs to search engines via api.indexnow.org (https://www.indexnow.org/) — only the changed URL list is sent.
 
 **Verify bot identities** makes DNS lookups and, once a day, downloads the IP-range files bot operators publish to verify their crawlers (Google, Microsoft, DuckDuckGo, Apple, OpenAI, Perplexity — or a URL you add yourself). Only those files are fetched; nothing about your site is sent.
 
@@ -299,6 +301,8 @@ URL-like strings in the plugin's output are labels, not requests — the discove
 * Improved: Search Opportunities cards for pages with no post behind them — the homepage on many sites, an archive — can now be set aside like every other card. They are held by address, listed in the same visible set-aside list, restorable in a click, and the card says why it offers no editor buttons.
 * Improved: a search card's readability flag no longer waits for the page to be recently edited — every card's page is graded the moment the card renders, so "Also in Optimize" and its Check readability door appear the first time you see the card.
 * Improved: the search worklist's fine print now names its terms — which title it means (the SEO title in the "Search & AI" box, or the post title when that field is empty), that set-aside covers both engines, and that a fixed page's card clears when later reports improve, not when you press Save.
+* New: IndexNow — publishing, editing or removing a post can announce the changed address to search engines the moment it happens: one standard ping that Bing (the index ChatGPT search and Copilot read), Yandex and other participating engines all listen to. Off by default, one switch on the Bing card; only the changed addresses are sent, and a key file at /<key>.txt proves the pings are yours. Works for every public post type — and content that lives outside posts (a plugin's own catalog tables) can join with one line: do_action( 'agentimus_announce_url', $url ).
+* New: the Found by AI Search card answers "does Bing know my sitemap?" — Bing's own record of your registered sitemaps, when it last read them and how many URLs they carried, in Bing's own dates. The IndexNow status gets its own honest line there too.
 
 = 1.33.0 =
 * New: Classic search, measured — Search Performance and Search Opportunities screens for Bing Webmaster Tools and Google Search Console: what people searched, how often you appeared, and which pages sit one improvement from page one. Every number is the engine's own, and automated probe traffic is named, never blended in.
@@ -342,7 +346,7 @@ Earlier releases — the full history, in the same words — live in [CHANGELOG.
 == Upgrade Notice ==
 
 = 1.34.0 =
-Cloudflare cache purge on publish and on demand (one optional token permission), an index check that resumes after a network blip instead of restarting, fixes to the page lookup on the In Google's Index card, on-demand doors from Readiness to your robots.txt and sitemap — and every search card can now be set aside, even the homepage. No breaking changes.
+IndexNow announcements the moment you publish (off by default), Cloudflare cache purge on publish and on demand (one optional token permission), an index check that resumes after a network blip instead of restarting, Bing's own record of your sitemap on the Found by AI Search card — and every search card can now be set aside, even the homepage. No breaking changes.
 
 = 1.33.0 =
 Classic search, measured: Search Performance and Opportunities for Bing and Google, an In Google's Index card with whole-site coverage and page lookup, a Cloudflare edge view, and a setup wizard. The sitemap returns to WordPress's standard /wp-sitemap.xml — old addresses redirect, so registrations heal on their own. No breaking changes.

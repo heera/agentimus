@@ -1644,6 +1644,7 @@ export default {
           :known-allowed="knownAllowed"
           :verifier-builtins="verifierBuiltins"
           :social-image-url="boot.socialDefaultImageUrl || ''"
+          :indexnow-key-url="boot.indexnowKeyUrl || ''"
           :admin-email="boot.adminEmail || ''"
           :default-allowed="defaultAllowed"
           :webmcp-tools="webmcpTools"

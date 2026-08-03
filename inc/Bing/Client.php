@@ -111,6 +111,45 @@ final class Client {
 	}
 
 	/**
+	 * The sitemaps Bing holds for the site — GetFeeds: each feed's URL, when
+	 * Bing last read it, and how many URLs it carried. This is Bing's own
+	 * record, not ours: the health line it feeds answers "does Bing know my
+	 * sitemap, and is it reading it?" with Bing's dates, the same question the
+	 * Google card answers from sitemaps.list.
+	 *
+	 * @param string $api_key  API key.
+	 * @param string $site_url Site URL.
+	 * @return array { rows?: array<int,array{url:string,lastReadAt:string,urls:int}>, error?: string }
+	 */
+	public function feeds( $api_key, $site_url ) {
+		$out = $this->get( 'GetFeeds', $api_key, array( 'siteUrl' => (string) $site_url ) );
+		if ( isset( $out['error'] ) ) {
+			return $out;
+		}
+		$rows = array();
+		foreach ( (array) $out['d'] as $row ) {
+			$url = isset( $row['Url'] ) ? (string) $row['Url'] : ( isset( $row['FeedUrl'] ) ? (string) $row['FeedUrl'] : '' );
+			if ( '' === $url ) {
+				continue;
+			}
+			$rows[] = array(
+				'url'        => $url,
+				// Y-m-d, '' when Bing hasn't read it yet — the card renders the
+				// absence honestly rather than inventing a date.
+				'lastReadAt' => self::wcf_date( isset( $row['LastCrawled'] ) ? (string) $row['LastCrawled'] : '' ),
+				'urls'       => (int) ( isset( $row['UrlCount'] ) ? $row['UrlCount'] : ( isset( $row['SubmittedCount'] ) ? $row['SubmittedCount'] : 0 ) ),
+			);
+		}
+		// Most-recently-read first: a long-lived site's registry collects
+		// fossils (a 2018 sitemap, a feed from 2013), and the card leads with
+		// row one — it must name the feed Bing is actually reading today.
+		usort( $rows, static function ( $a, $b ) {
+			return strcmp( $b['lastReadAt'], $a['lastReadAt'] );
+		} );
+		return array( 'rows' => $rows );
+	}
+
+	/**
 	 * Site-wide query traffic: one row per query over Bing's trailing window.
 	 * No page attribution at this endpoint — these rows feed the site's own
 	 * CTR median; the page-attributed rows come from page_query_stats().

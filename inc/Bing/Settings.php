@@ -39,7 +39,23 @@ final class Settings {
 			'last_poll_at' => 0,
 			'last_error'   => '', // The most recent poll failure, '' after a clean poll.
 			'last_query_error' => '', // The query-stats side of the poll fails on its own line — crawl data staying fresh must not mask it, or vice versa.
+			'feeds'        => array(), // Bing's own sitemap record (GetFeeds): url, lastReadAt (Y-m-d, Bing's date), urls. Kept on feed-poll failure — Bing's dates stay honest without our own age line.
+			'feeds_at'     => 0, // When the feeds snapshot was last refreshed.
 		);
+	}
+
+	/**
+	 * Store the sitemap snapshot Bing reported. A failed fetch never lands
+	 * here — the previous snapshot (with Bing's own dates) beats an empty one.
+	 *
+	 * @param array $rows Feed rows from {@see Client::feeds()}.
+	 * @return void
+	 */
+	public function record_feeds( array $rows ) {
+		$all             = $this->all();
+		$all['feeds']    = array_slice( $rows, 0, 20 );
+		$all['feeds_at'] = time();
+		$this->persist( $all );
 	}
 
 	/**

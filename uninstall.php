@@ -99,6 +99,9 @@ function agentimus_uninstall_site() {
 	delete_option( 'agentimus_bing_query_backfill' );
 	wp_clear_scheduled_hook( 'agentimus_bing_poll' );
 
+	// IndexNow: the key + last-ping bookkeeping.
+	delete_option( 'agentimus_indexnow' );
+
 	// Google search source + the shared search-queries snapshot table.
 	$wpdb->query( "DROP TABLE IF EXISTS {$wpdb->prefix}agentimus_search_queries" ); // phpcs:ignore WordPress.DB
 	delete_option( 'agentimus_google' );

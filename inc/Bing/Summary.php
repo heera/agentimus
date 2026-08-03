@@ -28,6 +28,9 @@ final class Summary {
 	public static function build( Settings $bing, \Agentimus\Settings $core, $days ) {
 		$days = max( 1, (int) $days );
 		$view = $bing->public_view();
+		// IndexNow travels on both branches: it needs no Bing connection to
+		// work, and the card is where an owner looks for "does Bing know?".
+		$view['indexnow'] = \Agentimus\IndexNow::state();
 		if ( empty( $view['connected'] ) ) {
 			return array_merge( $view, array( 'days' => $days ) );
 		}
@@ -65,6 +68,14 @@ final class Summary {
 			'totals'    => $totals,
 			'trend'     => $trend,
 			'conflicts' => self::conflicts( $totals, $rows, $core ),
+			// Bing's own sitemap record — url, lastReadAt (Bing's date, '' when
+			// never read), urls — so the card can answer "does Bing know my
+			// sitemap?" the way the Google card answers it from sitemaps.list.
+			// feedsAt distinguishes "no sitemap registered" (fetched, empty)
+			// from "not fetched yet" (0) — the card must never claim the first
+			// while the truth is the second.
+			'feeds'     => array_values( (array) $bing->get( 'feeds', array() ) ),
+			'feedsAt'   => (int) $bing->get( 'feeds_at', 0 ),
 		) );
 	}
 

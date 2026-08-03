@@ -558,6 +558,22 @@ final class Registrar {
 							'url'   => self::s( 'Where the owner can act.' ),
 						)
 					),
+					'feeds'          => self::arr(
+						array(
+							'url'        => self::s( 'The sitemap as Bing Webmaster Tools stores it.' ),
+							'lastReadAt' => self::s( 'Y-m-d Bing last read it, in Bing\'s own record; empty = never read.' ),
+							'urls'       => self::i( 'How many URLs Bing reports the sitemap carried.' ),
+						)
+					),
+					'feedsAt'        => self::i( 'Unix time the sitemap snapshot was fetched; 0 = not fetched yet — an empty feeds list then means "unknown", never "none registered".' ),
+					'indexnow'       => self::obj(
+						array(
+							'enabled'   => self::b( 'Whether the owner turned IndexNow pings on (off by default).' ),
+							'lastAt'    => self::i( 'Unix time of the last ping; 0 = never pinged.' ),
+							'lastError' => self::s( 'The last ping failure, empty after a clean ping.' ),
+							'lastUrls'  => self::i( 'How many URLs the last ping carried.' ),
+						)
+					),
 				)
 			),
 			function ( $input ) {

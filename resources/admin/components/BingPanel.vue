@@ -51,6 +51,41 @@ export default {
     conflicts() {
       return (this.summary && this.summary.conflicts) || [];
     },
+    // Bing's own sitemap record (GetFeeds) as one line — the same question the
+    // Google card answers from sitemaps.list: does Bing know the sitemap, and
+    // is it reading it? Dates are Bing's, so the line needs no age disclaimer.
+    feedsNote() {
+      if (!this.summary || !this.summary.connected || !Array.isArray(this.summary.feeds)) return null;
+      const feeds = this.summary.feeds;
+      if (!feeds.length) {
+        // feedsAt 0 = the snapshot was never fetched (older install, poll not
+        // run yet) — saying "no sitemap registered" then would be a guess.
+        if (!this.summary.feedsAt) return null;
+        return { warn: true, text: 'No sitemap is registered in Bing Webmaster Tools — submit yours once, and Bing finds new posts on its own.' };
+      }
+      const f = feeds[0];
+      const more = feeds.length > 1 ? ` (+${feeds.length - 1} more)` : '';
+      if (!f.lastReadAt) {
+        return { warn: false, text: `Sitemap submitted — Bing hasn't read it yet. The first read usually lands within a day.${more}` };
+      }
+      return { warn: false, text: `Bing's registered sitemap: ${f.url}${more} — last read ${this.day(f.lastReadAt)}${f.urls ? `, ${this.n(f.urls)} URLs` : ''}.` };
+    },
+    // Whether this site announces publishes (IndexNow) — status when on,
+    // one quiet pointer when off, never a nag.
+    indexnowNote() {
+      const inw = this.summary && this.summary.indexnow;
+      if (!inw) return null;
+      if (!inw.enabled) {
+        return { warn: false, text: 'IndexNow is off — one switch in Settings announces each publish to search engines the moment it happens.' };
+      }
+      if (inw.lastError) {
+        return { warn: true, text: `IndexNow is on, but the last announcement failed: ${inw.lastError}` };
+      }
+      if (!inw.lastAt) {
+        return { warn: false, text: 'IndexNow is on — the next publish announces itself to Bing and every engine that listens.' };
+      }
+      return { warn: false, text: `IndexNow is on — last announced ${this.n(inw.lastUrls)} URL${inw.lastUrls === 1 ? '' : 's'}, ${this.agoMin(inw.lastAt)}.` };
+    },
     siteHost() {
       const url = (this.summary && this.summary.siteUrl) || '';
       return url.replace(/^https?:\/\//, '').replace(/\/$/, '');
@@ -103,8 +138,19 @@ export default {
   },
   mounted() {
     if (this.active) this.load();
+    // Coming back from another BROWSER tab is a reveal too: the owner saves a
+    // post over there, returns here, and the IndexNow line is the receipt —
+    // it must not need a manual reload (his catch). Same listener App and
+    // SettingsForm already use.
+    document.addEventListener('visibilitychange', this.onTabReturn);
+  },
+  beforeUnmount() {
+    document.removeEventListener('visibilitychange', this.onTabReturn);
   },
   methods: {
+    onTabReturn() {
+      if (!document.hidden && this.active && !this.loading) this.load();
+    },
     async load() {
       if (!this.api || this.loading) return;
       this.loading = true;
@@ -262,6 +308,12 @@ export default {
             <span v-if="trendLast">{{ day(trendLast.date) }} · {{ n(trendLast.inIndex) }}</span>
           </div>
         </template>
+
+        <!-- The machine lines, mirroring the Google card's sitemap note: does
+             Bing know the sitemap (Bing's own record and dates), and does this
+             site announce publishes (IndexNow)? One quiet line each. -->
+        <p v-if="feedsNote" class="ar-gidx__sitemap" :class="{ 'is-warn': feedsNote.warn }">{{ feedsNote.text }}</p>
+        <p v-if="indexnowNote" class="ar-gidx__sitemap" :class="{ 'is-warn': indexnowNote.warn }">{{ indexnowNote.text }}</p>
 
         <p class="ar-card__note ar-cf-note">
           Numbers come from Bing Webmaster Tools, one poll a day, kept in your own database —

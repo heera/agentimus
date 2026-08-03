@@ -25,6 +25,7 @@ export default {
     maxRowsChoices: { type: Array, default: () => [10000, 25000, 50000, 100000, 250000] },
     busy: { type: Boolean, default: false },
     api: { type: Object, default: null },
+    indexnowKeyUrl: { type: String, default: '' }, // The /{key}.txt address, for the IndexNow hint.
     entityTypes: { type: Array, default: () => ['Person', 'Organization', 'LocalBusiness', 'Store'] },
     postTypes: { type: Array, default: () => [] },
     categories: { type: Array, default: () => [] }, // {id, name} for the evergreen picker.
@@ -4025,10 +4026,32 @@ export default {
             <template v-else>Your site was already verified in Bing, so no verification tag was needed.</template>
             Disconnecting brings the steps back.
           </p>
-          <button type="button" class="ar-btn ar-btn--danger ar-btn--small" :disabled="bingDisconnecting" @click="disconnectBing">
-            {{ bingDisconnecting ? 'Disconnecting…' : 'Disconnect' }}
-          </button>
         </template>
+
+        <!-- IndexNow lives on the Bing card because Bing's index is where the
+             ping matters most (ChatGPT search reads it) — but it needs NO Bing
+             connection, and the copy says so. Off by default: it is an
+             outbound request, and the standing promise is "no outbound by
+             default". -->
+        <label id="ar-feat-indexnow_enabled" class="ar-toggle">
+          <input v-model="settings.indexnow_enabled" type="checkbox" />
+          <span class="ar-toggle__track" aria-hidden="true"></span>
+          <span class="ar-toggle__text">
+            <strong>Announce changes with IndexNow</strong>
+            <small>When you publish, edit or remove a post, Agentimus tells search engines right away — one standard ping to <code>api.indexnow.org</code>, which Bing, Yandex and other participating engines all read. Bing hearing about a new post in minutes matters, because ChatGPT search and Copilot read Bing's index. Only the changed addresses are sent, nothing else, and it works with or without a Bing connection. A small key file at <code>/&lt;key&gt;.txt</code> proves the pings come from your site.</small>
+          </span>
+        </label>
+        <p v-if="settings.indexnow_enabled && indexnowKeyUrl" class="ar-field__hint">
+          Key file: <a :href="indexnowKeyUrl" target="_blank" rel="noopener">{{ indexnowKeyUrl }}</a>
+          — live once this setting is saved. Engines fetch it to confirm the pings are yours;
+          the Found by AI Search card reports each announcement's outcome.
+        </p>
+
+        <!-- Disconnect closes the card — an exit lives at the end, never
+             between the settings it would orphan. -->
+        <button v-if="bing && bing.connected" type="button" class="ar-btn ar-btn--danger ar-btn--small" :disabled="bingDisconnecting" @click="disconnectBing">
+          {{ bingDisconnecting ? 'Disconnecting…' : 'Disconnect' }}
+        </button>
 
         <p class="ar-card__note ar-cf-note">
           More sources will join here later — always under the same rules: optional,

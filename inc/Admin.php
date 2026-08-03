@@ -673,6 +673,10 @@ final class Admin {
 					'title' => 'Every search card can be set aside',
 					'text'  => 'A Search Opportunities card with no post behind it — the homepage on many sites, an archive — could neither be acted on nor dismissed. Now it takes the same one-click Set aside as every other card, joins the same visible list, and says why it offers no editor buttons. Readability flags also stop waiting for a recent edit: every card\'s page is graded the moment the card renders.',
 				),
+				array(
+					'title' => 'Tell search engines the moment you publish',
+					'text'  => 'One switch on the Bing settings card turns on IndexNow: publishing, editing or removing a post announces the changed address right away — to Bing (whose index ChatGPT search and Copilot read), Yandex, and every engine that listens. Off by default because it is an outbound request; only the changed addresses are ever sent. The Found by AI Search card also gains Bing\'s own record of your sitemap — registered or not, when Bing last read it, how many URLs it saw.',
+				),
 			),
 		);
 	}
@@ -768,6 +772,10 @@ final class Admin {
 			// site gets the wizard; release notes would be noise about a past it
 			// never had). Dismiss stores the version — see Rest::whatsnew_seen().
 			'whatsNew'    => $this->whats_new(),
+			// The IndexNow verification file's address — the Settings hint links
+			// it so the owner can open the half an engine checks. Minted here on
+			// first need; served only while the switch is on.
+			'indexnowKeyUrl' => IndexNow::key_url(),
 			// The review ask (Dashboard only, same family): shows once the plugin
 			// has earned it — see Review::eligible() for the gates. Answers land
 			// at Rest::review_ack(); a final answer also quiets the footer's line.
