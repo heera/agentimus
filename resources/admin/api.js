@@ -247,6 +247,7 @@ export function createApi(boot) {
     getGoogleIndex: () => request('/google/index'),
     refreshGoogleIndex: () => request('/google/index', { method: 'POST' }),
     lookupGoogleIndex: (url) => request(`/google/index/lookup?url=${encodeURIComponent(url)}`),
+    googleIndexProblems: (state, page) => request(`/google/index/problems?state=${encodeURIComponent(state)}&page=${Math.max(1, Number(page) || 1)}`),
 
     // AI Visibility monitoring.
     getVisibilityConfig: () => request('/visibility/config'),

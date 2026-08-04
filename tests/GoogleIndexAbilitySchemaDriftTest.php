@@ -149,4 +149,37 @@ final class GoogleIndexAbilitySchemaDriftTest extends TestCase {
 			'Index::view() site problem row'
 		);
 	}
+
+	/** The optional paging input swaps site.problems for one state's page —
+	 * everything else in the payload, counts included, stays complete. */
+	public function test_problems_paging_input_swaps_the_problem_rows() {
+		$this->ensure_capture_stub();
+		$GLOBALS['_af_abilities'] = array();
+		( new Registrar( new Settings() ) )->register_abilities();
+		$ability = $GLOBALS['_af_abilities']['agentimus/read-google-index'];
+
+		$GLOBALS['_af_options']['agentimus_google'] = array(
+			'sa_json'  => 'ciphertext-not-empty',
+			'property' => 'sc-domain:example.test',
+		);
+		$cov = array();
+		for ( $i = 1; $i <= 60; $i++ ) {
+			$cov[ "https://example.test/p$i" ] = array(
+				'url'            => "https://example.test/p$i",
+				'post_id'        => $i,
+				'verdict'        => 'NEUTRAL',
+				'coverage_state' => 'Crawled - currently not indexed',
+				'inspected_at'   => $i,
+			);
+		}
+		$GLOBALS['_af_options'][ Index::OPTION ] = array( 'cov' => $cov );
+
+		$paged = call_user_func( $ability['execute_callback'], array( 'problemsState' => 'crawled', 'problemsPage' => 2 ) );
+		$this->assertCount( 10, $paged['site']['problems'], '60 crawled rows: page 2 of 50 holds the last 10' );
+		$this->assertSame( 'https://example.test/p60', $paged['site']['problems'][9]['url'] );
+		$this->assertSame( 60, $paged['site']['problemStates']['crawled'], 'counts stay complete beside the slice' );
+
+		$plain = call_user_func( $ability['execute_callback'], array() );
+		$this->assertCount( 50, $plain['site']['problems'], 'without the input, the bounded default shape holds' );
+	}
 }

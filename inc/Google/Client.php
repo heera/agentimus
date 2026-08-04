@@ -214,12 +214,14 @@ final class Client {
 	 * @return array { result?: array, error?: string, status?: int, quota?: bool }
 	 */
 	public function inspect_url( $token, $property, $url ) {
-		// 10s, not the default 20: inspections run in budgeted chunks, and one
-		// hung call must not be able to double a chunk's worst case.
+		// 15s, not the default 20: inspections run in budgeted chunks, so one
+		// hung call has to leave a chunk's worst case bounded — but Google
+		// routinely takes close to 10s over a real answer, and a tighter cap
+		// cut those off mid-flight ("cURL error 28" every few URLs).
 		$out = $this->request( 'POST', self::INSPECT_API, $token, array(
 			'inspectionUrl' => (string) $url,
 			'siteUrl'       => (string) $property,
-		), 10 );
+		), 15 );
 		if ( isset( $out['error'] ) ) {
 			$status = isset( $out['status'] ) ? (int) $out['status'] : 0;
 			return array(

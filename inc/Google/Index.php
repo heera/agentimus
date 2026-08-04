@@ -4,15 +4,23 @@
  *
  * Google exposes no bulk index report (its Crawl Stats screen has no API), so
  * the URL Inspection API — 2,000 lookups a day, one URL at a time — is the
- * only honest way to ask. Two tiers share that budget:
+ * only honest way to ask. Three tiers share that budget:
  *
- * - the WATCHLIST: homepage, busiest pages, newest posts — checked every day,
- *   every answer shown as a row. Small, stable, the pages that matter most.
+ * - the WATCHLIST: homepage, busiest pages, newest posts — checked every day.
+ *   Small, stable, the pages where silent de-indexing costs the most.
+ * - PROMOTED PROBLEMS: any page a check found unhealthy joins the daily check
+ *   (stalest answer first, capped at {@see PROMOTED_DAILY}) until it heals —
+ *   "watching" a problem means asking about it every day, not once a rotation.
  * - the SITE ROTATION: every other published URL, walked in daily slices of
  *   {@see ROTATION_DAILY}. A small site gets full coverage every day; a big
  *   one gets every page re-checked on a stated cadence — never a pretended
- *   whole-site snapshot. Only PROBLEMS surface as rows; healthy pages become
- *   one summary count, because 500 green rows is noise and one number isn't.
+ *   whole-site snapshot.
+ *
+ * Rows are for what needs eyes. Only PROBLEMS stand as rows; healthy pages
+ * become counts, because 500 green rows is noise and one number isn't — and a
+ * page that heals announces "now on Google" for {@see HEALED_KEEP} before
+ * going quiet like the rest: the disappearance of a problem row is news, and
+ * news must never be delivered as silence.
  *
  * Why it earns a card at all: Google's index is what AI Overviews, AI Mode and
  * Gemini grounding read — the Google twin of "Bing's index is what ChatGPT
@@ -59,16 +67,78 @@ final class Index {
 	 * ride this payload; problemsTotal always carries the uncapped truth. */
 	const PROBLEMS_CAP = 50;
 
+	/** @var int Rows per page of the on-demand problems listing — one bounded
+	 * slice per page turn, however sick the site. */
+	const PROBLEMS_PER_PAGE = 50;
+
+	/** @var int Consecutive no-answer failures (a timeout, a reset, a Google
+	 * 5xx) a run absorbs in silence before it pauses loudly. One slow Google
+	 * answer is routine; three in a row is a line worth telling the owner about. */
+	const BLIP_LIMIT = 3;
+
+	/** @var int Problem pages promoted into the daily check at most — capped so
+	 * a sick site cannot spend the whole inspection budget on its wounds.
+	 * Stalest answer first, so with more problems than this every page still
+	 * takes its turn at the front. */
+	const PROMOTED_DAILY = 20;
+
+	/** @var int How long a healed page keeps announcing "now on Google" before
+	 * it goes quiet like every other healthy page. */
+	const HEALED_KEEP = 2 * DAY_IN_SECONDS;
+
+	/** @var int Healed rows the view ships at most — the announcement list is
+	 * bounded like every other list here. */
+	const HEALED_CAP = 20;
+
 	/**
-	 * Everything one sweep run should inspect: the watchlist, then the day's
-	 * rotation slice.
+	 * Everything one sweep run should inspect: the watchlist, then the
+	 * promoted problems (both daily), then the day's rotation slice.
 	 *
 	 * @param \Agentimus\Settings|null $core Core settings (injectable for tests).
 	 * @return array<int,array{url:string,post_id:int,reason:string}>
 	 */
 	public static function run_targets( \Agentimus\Settings $core = null ) {
 		$watch = self::targets( $core );
-		return array_merge( $watch, self::rotation_targets( $watch, $core ) );
+		$daily = array_merge( $watch, self::promoted_targets( $watch ) );
+		return array_merge( $daily, self::rotation_targets( $daily, $core ) );
+	}
+
+	/**
+	 * The promoted tier: every page the coverage map holds as a PROBLEM joins
+	 * the daily check until it heals — a problem page is exactly the page the
+	 * owner is waiting on, and waiting deserves a daily answer, not a rotation
+	 * slot. Stalest answer first, capped at {@see PROMOTED_DAILY} and stated
+	 * on the card: with 100 problems on a 200-page site, the twenty asked
+	 * longest ago go first and the rest keep their rotation cadence.
+	 *
+	 * @param array $watch The watchlist (for dedup).
+	 * @return array<int,array{url:string,post_id:int,reason:string}>
+	 */
+	public static function promoted_targets( array $watch ) {
+		$seen = array();
+		foreach ( $watch as $t ) {
+			$seen[ self::norm( $t['url'] ) ] = true;
+		}
+		$sick = array();
+		foreach ( self::stored()['cov'] as $key => $entry ) {
+			if ( isset( $seen[ $key ] ) || ! is_array( $entry ) || ! self::is_problem( $entry ) ) {
+				continue;
+			}
+			$sick[] = $entry;
+		}
+		usort( $sick, static function ( $a, $b ) {
+			return (int) ( isset( $a['inspected_at'] ) ? $a['inspected_at'] : 0 ) <=> (int) ( isset( $b['inspected_at'] ) ? $b['inspected_at'] : 0 );
+		} );
+
+		$out = array();
+		foreach ( array_slice( $sick, 0, self::PROMOTED_DAILY ) as $entry ) {
+			$out[] = array(
+				'url'     => (string) $entry['url'],
+				'post_id' => (int) ( isset( $entry['post_id'] ) ? $entry['post_id'] : 0 ),
+				'reason'  => 'problem',
+			);
+		}
+		return $out;
 	}
 
 	/**
@@ -269,12 +339,16 @@ final class Index {
 	 *   uninspected keeps its last good answer;
 	 * - one URL refused (400): that URL's own problem — recorded on the row,
 	 *   the sweep keeps going;
-	 * - token/transport: every further call in THIS chunk would fail the same
-	 *   way — record the failure once and PAUSE, never abort: the un-inspected
-	 *   URL rejoins the queue and the run resumes on the next call (the panel's
-	 *   next visit, or the daily sweep). A transient blip — one slow Google
-	 *   answer, a network hiccup — costs nothing; aborting used to restart the
-	 *   run from scratch and re-spend the whole watchlist's quota over it.
+	 * - token/transport: the chunk ends and the failed URL rejoins the queue at
+	 *   the tail — the run PAUSES, never aborts, and resumes on the next call
+	 *   (the panel's next visit, or the daily sweep). HOW LOUDLY it pauses
+	 *   depends on what the next call would meet: a refusal with an HTTP status
+	 *   (401, 403) repeats for every URL, so it is recorded at once; no answer
+	 *   at all (a timeout, a reset) or Google's own 5xx is usually one slow
+	 *   moment — those pause in SILENCE, so the panel's loop simply carries on,
+	 *   and only {@see BLIP_LIMIT} of them in a row (an answer in between
+	 *   starts the count over) get recorded as a failure. A recorded error
+	 *   used to be the price of any blip — and every 121-URL run met one.
 	 *
 	 * @param Client     $client   The API client.
 	 * @param string     $token    Bearer token.
@@ -300,6 +374,7 @@ final class Index {
 
 		$cov      = $state['cov'];
 		$cursor   = $state['rot_cursor'];
+		$blips    = $state['queue'] ? $state['blips'] : 0;
 		$fresh    = array();
 		$error    = '';
 		$quota    = false;
@@ -322,14 +397,20 @@ final class Index {
 						'inspected_at' => time(),
 					) );
 				} else {
-					// Token/transport — stop this chunk and record the failure once,
-					// but keep the queue so the run PAUSES instead of aborting. The
-					// failed URL rejoins at the TAIL: a URL that reliably hangs Google
-					// can then never block the head of the line for the rest. No
-					// retry loop hides here — the panel's chunk loop stops on a
-					// reported error, and the cron safety net only follows a clean
-					// chunk ({@see Module::run_index_sweep()}).
-					$error   = (string) $out['error'];
+					// Token/transport — stop this chunk, but keep the queue so the
+					// run PAUSES instead of aborting. The failed URL rejoins at the
+					// TAIL: a URL that reliably hangs Google can then never block
+					// the head of the line for the rest. A failure that carried no
+					// answer (a timeout, a reset) or Google's own 5xx stays silent
+					// until BLIP_LIMIT in a row; a refusal with any other status
+					// would repeat for every URL, so it surfaces at once. No retry
+					// loop hides here — a chunk still ends on its first failure;
+					// only the RUN outlives it ({@see Module::run_index_sweep()}).
+					$status = (int) ( isset( $out['status'] ) ? $out['status'] : 0 );
+					$blips  = ( 0 === $status || $status >= 500 ) ? $blips + 1 : self::BLIP_LIMIT;
+					if ( $blips >= self::BLIP_LIMIT ) {
+						$error = (string) $out['error'];
+					}
 					$queue[] = $t;
 					break;
 				}
@@ -339,22 +420,39 @@ final class Index {
 					'inspected_at' => time(),
 				) );
 			}
+			// An answer of any kind — even a per-URL refusal — proves the line
+			// is alive: the blip count starts over.
+			$blips = 0;
 
-			if ( 'site' === $t['reason'] ) {
-				$key    = self::norm( $t['url'] );
-				$cursor = (int) $t['post_id'];
+			$key = self::norm( $t['url'] );
+			if ( 'site' === $t['reason'] || 'problem' === $t['reason'] ) {
+				if ( 'site' === $t['reason'] ) {
+					// Only the rotation walks the cursor — a promoted re-check
+					// is out-of-band and must not skip anyone's turn.
+					$cursor = (int) $t['post_id'];
+				}
 				if ( isset( $cov[ $key ] ) || count( $cov ) < self::COVERAGE_CAP ) {
 					// Healthy pages shrink to a count; problems keep the whole
-					// story so they can stand as rows.
-					$cov[ $key ] = self::is_problem( $row ) ? $row : array(
-						'url'          => $row['url'],
-						'post_id'      => $row['post_id'],
-						'verdict'      => $row['verdict'],
-						'inspected_at' => $row['inspected_at'],
+					// story so they can stand as rows. A page that just turned
+					// healthy takes a healed stamp with it — the disappearance
+					// of its problem row is news, not silence.
+					$prev_entry  = isset( $cov[ $key ] ) ? (array) $cov[ $key ] : array();
+					$cov[ $key ] = self::is_problem( $row ) ? $row : array_merge(
+						array(
+							'url'          => $row['url'],
+							'post_id'      => $row['post_id'],
+							'verdict'      => $row['verdict'],
+							'inspected_at' => $row['inspected_at'],
+						),
+						self::healed_mark( $prev_entry )
 					);
 				}
 			} else {
-				$fresh[ self::norm( $t['url'] ) ] = $row;
+				// Watch rows heal too — against their own previous answer.
+				if ( ! self::is_problem( $row ) && isset( $prev[ $key ] ) ) {
+					$row = array_merge( $row, self::healed_mark( (array) $prev[ $key ] ) );
+				}
+				$fresh[ $key ] = $row;
 			}
 
 			if ( microtime( true ) >= $deadline ) {
@@ -364,9 +462,10 @@ final class Index {
 
 		// Rebuild the card rows in watchlist order: this run's answer, else the
 		// last good one. A URL that fell off the watchlist falls off with it.
+		// Promoted problems are coverage entries, not rows — they skip too.
 		$rows = array();
 		foreach ( $watch as $t ) {
-			if ( 'site' === $t['reason'] ) {
+			if ( 'site' === $t['reason'] || 'problem' === $t['reason'] ) {
 				continue;
 			}
 			$key = self::norm( $t['url'] );
@@ -384,6 +483,7 @@ final class Index {
 			'quota'       => $quota,
 			'watch'       => empty( $queue ) ? array() : $watch,
 			'queue'       => $queue,
+			'blips'       => empty( $queue ) ? 0 : $blips,
 			'cov'         => $cov,
 			'rot_cursor'  => $cursor,
 			'site_total'  => $state['site_total'],
@@ -392,6 +492,126 @@ final class Index {
 		);
 		update_option( self::OPTION, $payload, false );
 		return $payload;
+	}
+
+	/**
+	 * One page of one state's problem rows, from stored data alone — the
+	 * on-demand half of the problems display. The card ships every group's
+	 * true count up front; opening a group (or turning its page) asks here
+	 * for a bounded slice: no live Google call, no quota, and only the
+	 * slice's rows pay the row_view() cost (titles are DB lookups).
+	 *
+	 * Order matches the view's composition: watched pages first, then the
+	 * coverage map in its stored order — stable across pages of one snapshot.
+	 *
+	 * @param string $state One of the {@see state_key()} buckets.
+	 * @param int    $page  1-based page number.
+	 * @return array { state, page, pages, perPage, total, rows }
+	 */
+	public static function problems_page( $state, $page ) {
+		$state  = (string) $state;
+		$page   = max( 1, (int) $page );
+		$stored = self::stored();
+
+		$watch_norms = array();
+		$matching    = array();
+		foreach ( $stored['rows'] as $row ) {
+			$watch_norms[ self::norm( (string) $row['url'] ) ] = true;
+			// Same "unasked is not a problem" rule the view counts by — the
+			// listing and the count pills must never disagree.
+			if ( self::is_problem( $row ) && self::answered( $row ) && self::state_key( $row ) === $state ) {
+				$matching[] = $row;
+			}
+		}
+		foreach ( $stored['cov'] as $key => $entry ) {
+			if ( isset( $watch_norms[ $key ] ) || ! is_array( $entry ) ) {
+				continue;
+			}
+			if ( self::is_problem( $entry ) && self::state_key( $entry ) === $state ) {
+				$matching[] = $entry;
+			}
+		}
+
+		$total = count( $matching );
+		$pages = (int) ceil( $total / self::PROBLEMS_PER_PAGE );
+		$slice = array_slice( $matching, ( $page - 1 ) * self::PROBLEMS_PER_PAGE, self::PROBLEMS_PER_PAGE );
+
+		$rows = array();
+		foreach ( $slice as $row ) {
+			$rows[] = self::row_view( $row );
+		}
+		return array(
+			'state'   => $state,
+			'page'    => $page,
+			'pages'   => $pages,
+			'perPage' => self::PROBLEMS_PER_PAGE,
+			'total'   => $total,
+			'rows'    => $rows,
+		);
+	}
+
+	/**
+	 * Cap a problem list by seating one row per state bucket per round until
+	 * the seats run out — every bucket that exists ships rows, bigger buckets
+	 * take the leftover seats, and within a bucket the original order holds.
+	 * (The client groups by stateKey, so the interleaved order is invisible.)
+	 *
+	 * @param array $rows View problem rows (each carrying stateKey).
+	 * @param int   $cap  Seats available.
+	 * @return array
+	 */
+	private static function fair_cap( array $rows, $cap ) {
+		$buckets = array();
+		foreach ( $rows as $row ) {
+			$buckets[ (string) $row['stateKey'] ][] = $row;
+		}
+		$out  = array();
+		$more = true;
+		while ( count( $out ) < $cap && $more ) {
+			$more = false;
+			foreach ( array_keys( $buckets ) as $key ) {
+				if ( empty( $buckets[ $key ] ) ) {
+					continue;
+				}
+				$out[] = array_shift( $buckets[ $key ] );
+				$more  = true;
+				if ( count( $out ) >= $cap ) {
+					break;
+				}
+			}
+		}
+		return $out;
+	}
+
+	/**
+	 * The healed stamp a newly-healthy answer carries forward. Three cases:
+	 * the previous answer was a problem (the healing moment — stamp it now,
+	 * and remember what it healed FROM: "now on Google" means little without
+	 * "was: discovered, not yet crawled"); the previous answer already carried
+	 * a stamp still inside its {@see HEALED_KEEP} window (carry it, don't
+	 * renew it — an announcement that resets daily never ends); anything else
+	 * (no stamp).
+	 *
+	 * @param array $prev The previous stored answer for the same URL.
+	 * @return array Empty, or { healed_at: int, healed_from: string }.
+	 */
+	private static function healed_mark( array $prev ) {
+		if ( empty( $prev ) ) {
+			return array();
+		}
+		if ( self::is_problem( $prev ) ) {
+			return array(
+				'healed_at'   => time(),
+				'healed_from' => self::state_key( $prev ),
+			);
+		}
+		if ( ! empty( $prev['healed_at'] ) && ( time() - (int) $prev['healed_at'] ) < self::HEALED_KEEP ) {
+			return array(
+				'healed_at'   => (int) $prev['healed_at'],
+				'healed_from' => (string) ( isset( $prev['healed_from'] ) ? $prev['healed_from'] : '' ),
+			);
+		}
+		return array();
 	}
 
 	/**
@@ -428,9 +648,10 @@ final class Index {
 	 * The stored sweep result, shape-guaranteed. `queue` is the tail of a run
 	 * still in flight (empty = the last sweep finished); `watch` is that run's
 	 * full target list, kept so every chunk rebuilds rows in one stable order;
+	 * `blips` is the run's consecutive no-answer failure count ({@see sweep()});
 	 * `cov` is the cumulative site-rotation coverage keyed by normalized URL.
 	 *
-	 * @return array{rows:array,checked_at:int,error:string,quota:bool,watch:array,queue:array,cov:array,rot_cursor:int,site_total:int}
+	 * @return array{rows:array,checked_at:int,error:string,quota:bool,watch:array,queue:array,blips:int,cov:array,rot_cursor:int,site_total:int}
 	 */
 	public static function stored() {
 		$raw = get_option( self::OPTION, array() );
@@ -442,6 +663,7 @@ final class Index {
 			'quota'      => ! empty( $raw['quota'] ),
 			'watch'      => isset( $raw['watch'] ) && is_array( $raw['watch'] ) ? $raw['watch'] : array(),
 			'queue'      => isset( $raw['queue'] ) && is_array( $raw['queue'] ) ? $raw['queue'] : array(),
+			'blips'      => (int) ( isset( $raw['blips'] ) ? $raw['blips'] : 0 ),
 			'cov'        => isset( $raw['cov'] ) && is_array( $raw['cov'] ) ? $raw['cov'] : array(),
 			'rot_cursor' => (int) ( isset( $raw['rot_cursor'] ) ? $raw['rot_cursor'] : 0 ),
 			'site_total' => (int) ( isset( $raw['site_total'] ) ? $raw['site_total'] : 0 ),
@@ -470,6 +692,7 @@ final class Index {
 			'watched'   => array(
 				'busiest'       => self::BUSIEST,
 				'newest'        => self::NEWEST,
+				'promotedDaily' => self::PROMOTED_DAILY,
 				'rotationDaily' => self::ROTATION_DAILY,
 				'dailyCap'      => self::DAILY_CAP,
 			),
@@ -486,6 +709,8 @@ final class Index {
 				'onGoogle'      => 0,
 				'notOnGoogle'   => 0,
 				'cycleDays'     => 0,
+				'healed'        => array(),
+				'healedTotal'   => 0,
 				'problems'      => array(),
 				'problemsTotal' => 0,
 				'problemStates' => array(
@@ -531,7 +756,10 @@ final class Index {
 			);
 		}
 
-		$watch_norms = array();
+		$now          = time();
+		$healed       = array();
+		$watch_norms  = array();
+		$watch_sick   = array();
 		foreach ( $stored['rows'] as $row ) {
 			$watch_norms[ self::norm( (string) $row['url'] ) ] = true;
 
@@ -548,14 +776,25 @@ final class Index {
 			}
 			$base['counts']['checked']++;
 			$base['rows'][] = $view_row;
+
+			// Watched pages with problems stand with every other problem — one
+			// list for "needs a look", wherever the page came from. An answer
+			// the sweep never reached (verdict and error both empty) is not a
+			// problem yet, just unasked.
+			if ( self::is_problem( $row ) && self::answered( $row ) ) {
+				$watch_sick[] = $view_row;
+			} elseif ( $view_row['healedAt'] > 0 && ( $now - $view_row['healedAt'] ) < self::HEALED_KEEP ) {
+				$healed[] = $view_row;
+			}
 		}
 
 		// The whole-site picture: the coverage map plus the watchlist rows —
 		// watched pages are site pages too, they just live in their own list.
-		$site             = &$base['site'];
+		$site              = &$base['site'];
 		$site['totalUrls'] = $stored['site_total'];
 		$site['checked']   = $base['counts']['checked'];
 		$site['onGoogle']  = $base['counts']['onGoogle'];
+		$site['problems']  = $watch_sick;
 		foreach ( $stored['cov'] as $key => $entry ) {
 			if ( isset( $watch_norms[ $key ] ) ) {
 				continue; // Its watchlist row already counted it.
@@ -566,8 +805,18 @@ final class Index {
 			}
 			if ( self::is_problem( $entry ) ) {
 				$site['problems'][] = self::row_view( $entry );
+			} elseif ( ! empty( $entry['healed_at'] ) && ( $now - (int) $entry['healed_at'] ) < self::HEALED_KEEP ) {
+				$healed[] = self::row_view( $entry );
 			}
 		}
+
+		// The healed announcements: newest first, bounded like every list, the
+		// uncapped truth in healedTotal.
+		usort( $healed, static function ( $a, $b ) {
+			return $b['healedAt'] <=> $a['healedAt'];
+		} );
+		$site['healedTotal'] = count( $healed );
+		$site['healed']      = array_slice( $healed, 0, self::HEALED_CAP );
 		$site['notOnGoogle'] = max( 0, $site['checked'] - $site['onGoogle'] );
 		$rotating            = max( 0, $site['totalUrls'] - count( $stored['rows'] ) );
 		$site['cycleDays']   = $rotating > 0 ? (int) ceil( $rotating / self::ROTATION_DAILY ) : 0;
@@ -585,7 +834,12 @@ final class Index {
 			}
 		}
 		if ( $site['problemsTotal'] > self::PROBLEMS_CAP ) {
-			$site['problems'] = array_slice( $site['problems'], 0, self::PROBLEMS_CAP );
+			// Fair-share, not a head-slice: a straight cut in coverage order
+			// could swallow a whole bucket (96 discovered rows ahead of 4
+			// blocked ones = the blocked group never renders), and a category
+			// of trouble with no rows is invisible no matter what the counts
+			// say. Every bucket keeps its first rows on screen.
+			$site['problems'] = self::fair_cap( $site['problems'], self::PROBLEMS_CAP );
 		}
 
 		return $base;
@@ -637,8 +891,20 @@ final class Index {
 			'richTypes'        => (string) ( isset( $row['rich_types'] ) ? $row['rich_types'] : '' ),
 			'gscLink'          => (string) ( isset( $row['gsc_link'] ) ? $row['gsc_link'] : '' ),
 			'inspectedAt'      => (int) ( isset( $row['inspected_at'] ) ? $row['inspected_at'] : 0 ),
+			'healedAt'         => (int) ( isset( $row['healed_at'] ) ? $row['healed_at'] : 0 ),
+			'healedFrom'       => (string) ( isset( $row['healed_from'] ) ? $row['healed_from'] : '' ),
 			'error'            => $row_error,
 		);
+	}
+
+	/**
+	 * Every bucket {@see state_key()} can answer with — the vocabulary REST
+	 * and MCP validate a requested state against.
+	 *
+	 * @return array<int,string>
+	 */
+	public static function state_keys() {
+		return array( 'error', 'canonical', 'unknown', 'discovered', 'crawled', 'blocked', 'other' );
 	}
 
 	/**
@@ -706,6 +972,19 @@ final class Index {
 			return array( 'status' => 'found', 'row' => self::row_view( $stored['cov'][ $key ] ) );
 		}
 		return array( 'status' => 'unchecked', 'row' => null );
+	}
+
+	/**
+	 * Whether a stored row ever got an answer — verdict or error, either
+	 * counts. A row the sweep never reached is unasked, not a problem; the
+	 * ONE definition the view's counts and the problems listing both use.
+	 *
+	 * @param array $row A stored sweep row.
+	 * @return bool
+	 */
+	private static function answered( array $row ) {
+		return '' !== (string) ( isset( $row['verdict'] ) ? $row['verdict'] : '' )
+			|| '' !== (string) ( isset( $row['error'] ) ? $row['error'] : '' );
 	}
 
 	/**

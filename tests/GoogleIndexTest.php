@@ -227,6 +227,83 @@ final class GoogleIndexTest extends TestCase {
 		$this->assertSame( 60, $view['site']['problemStates']['crawled'] );
 	}
 
+	public function test_the_row_cap_keeps_a_share_from_every_bucket() {
+		// 96 discovered rows AHEAD of 4 blocked ones: a head-slice would ship
+		// 50 discovered and zero blocked — and a group with no rows never
+		// renders, no matter what its count says. The cap must seat everyone.
+		$cov = array();
+		for ( $i = 1; $i <= 96; $i++ ) {
+			$cov[ "https://example.test/d$i" ] = array(
+				'url'            => "https://example.test/d$i",
+				'post_id'        => $i,
+				'verdict'        => 'NEUTRAL',
+				'coverage_state' => 'Discovered - currently not indexed',
+				'inspected_at'   => 100 + $i,
+			);
+		}
+		for ( $i = 1; $i <= 4; $i++ ) {
+			$cov[ "https://example.test/b$i" ] = array(
+				'url'            => "https://example.test/b$i",
+				'post_id'        => 900 + $i,
+				'verdict'        => 'NEUTRAL',
+				'coverage_state' => 'Blocked',
+				'robots_state'   => 'DISALLOWED',
+				'inspected_at'   => 200 + $i,
+			);
+		}
+		$view    = Index::view( $this->connect( array( 'cov' => $cov, 'site_total' => 120 ) ) );
+		$shipped = array_count_values( array_column( $view['site']['problems'], 'stateKey' ) );
+
+		$this->assertCount( 50, $view['site']['problems'] );
+		$this->assertSame( 4, $shipped['blocked'], 'the small bucket ships whole — no invisible category of trouble' );
+		$this->assertSame( 46, $shipped['discovered'], 'the big bucket takes the leftover seats' );
+		$this->assertSame( 96, $view['site']['problemStates']['discovered'], 'counts stay the uncapped truth' );
+		$this->assertSame( 4, $view['site']['problemStates']['blocked'] );
+	}
+
+	public function test_problems_page_filters_orders_and_pages() {
+		// A watched problem (leads the list), 120 rotation 'crawled' problems,
+		// and one 'discovered' page that must never leak into this listing.
+		$rows = array(
+			array( 'url' => 'https://example.test/w/', 'post_id' => 1, 'reason' => 'busy', 'verdict' => 'NEUTRAL', 'coverage_state' => 'Crawled - currently not indexed', 'inspected_at' => 50, 'error' => '' ),
+		);
+		$cov  = array(
+			'https://example.test/d1' => array( 'url' => 'https://example.test/d1', 'post_id' => 500, 'verdict' => 'NEUTRAL', 'coverage_state' => 'Discovered - currently not indexed', 'inspected_at' => 60 ),
+		);
+		for ( $i = 1; $i <= 120; $i++ ) {
+			$cov[ "https://example.test/c$i" ] = array( 'url' => "https://example.test/c$i", 'post_id' => $i, 'verdict' => 'NEUTRAL', 'coverage_state' => 'Crawled - currently not indexed', 'inspected_at' => 100 + $i );
+		}
+		$GLOBALS['_af_options'][ Index::OPTION ] = array( 'rows' => $rows, 'cov' => $cov );
+
+		$one = Index::problems_page( 'crawled', 1 );
+		$this->assertSame( 121, $one['total'] );
+		$this->assertSame( 3, $one['pages'] );
+		$this->assertSame( 50, $one['perPage'] );
+		$this->assertCount( 50, $one['rows'] );
+		$this->assertSame( 'https://example.test/w/', $one['rows'][0]['url'], 'the watched problem leads the listing' );
+		foreach ( $one['rows'] as $row ) {
+			$this->assertSame( 'crawled', $row['stateKey'], 'one state per listing — nothing leaks in' );
+		}
+
+		$three = Index::problems_page( 'crawled', 3 );
+		$this->assertCount( 21, $three['rows'], '121 rows page as 50 + 50 + 21' );
+		$this->assertSame( 'https://example.test/c120', end( $three['rows'] )['url'], 'stable order across pages' );
+
+		$beyond = Index::problems_page( 'crawled', 9 );
+		$this->assertSame( array(), $beyond['rows'], 'past the end is empty, not an error' );
+		$this->assertSame( 121, $beyond['total'] );
+	}
+
+	public function test_problems_page_skips_the_unasked_and_answers_unknown_states_empty() {
+		$GLOBALS['_af_options'][ Index::OPTION ] = array(
+			'rows' => array(
+				array( 'url' => 'https://example.test/u/', 'post_id' => 2, 'reason' => 'new', 'verdict' => '', 'inspected_at' => 0, 'error' => '' ),
+			),
+		);
+		$this->assertSame( 0, Index::problems_page( 'other', 1 )['total'], 'a never-asked row is not a problem' );
+		$this->assertSame( 0, Index::problems_page( 'nonsense', 1 )['total'], 'an unknown state matches nothing' );
+	}
+
 	/** lookup answers from stored data: watch rows, the coverage map's healthy
 	 * entries, honest "unchecked", and "foreign" for another site's URL. */
 	public function test_lookup_reads_rows_cov_and_says_the_rest_honestly() {
@@ -404,13 +481,19 @@ final class GoogleIndexTest extends TestCase {
 		);
 	}
 
-	public function test_a_transport_blip_pauses_the_run_and_the_next_call_resumes_it() {
-		// Chunk one: /a/ hits a transport failure (a timeout, a 5xx) — the run
-		// pauses with the error on record and both URLs still queued.
-		$this->queue_error( 500, 'cURL error 28: Operation timed out' );
+	public function test_a_transport_blip_pauses_the_run_silently_and_the_next_call_resumes_it() {
+		// Chunk one: /a/'s call brings back no answer at all (a timeout, a
+		// reset) — the run pauses with NOTHING on record: one blip is not
+		// worth a banner, and the panel's loop reads no error and carries on.
+		$GLOBALS['_af_http_queue'][] = new \WP_Error( 'http_request_failed', 'cURL error 28: Operation timed out' );
 		$paused = Index::sweep( new Client(), 'tok', 'p', $this->targets( 'https://example.test/a/', 'https://example.test/b/' ) );
-		$this->assertSame( 'cURL error 28: Operation timed out', $paused['error'] );
+		$this->assertSame( '', $paused['error'], 'a single blip stays off the record' );
 		$this->assertCount( 2, $paused['queue'] );
+		$this->assertSame(
+			'https://example.test/a/',
+			end( $paused['queue'] )['url'],
+			'the blipped URL rejoined at the tail'
+		);
 
 		// The next call resumes the SAME run — its own persisted queue, not the
 		// fresh targets it was handed — and the blip has fully healed.
@@ -429,6 +512,43 @@ final class GoogleIndexTest extends TestCase {
 		foreach ( $out['rows'] as $row ) {
 			$this->assertSame( 'PASS', $row['verdict'] );
 		}
+	}
+
+	public function test_blip_limit_in_a_row_pauses_the_run_loudly() {
+		$targets = $this->targets( 'https://example.test/a/', 'https://example.test/b/' );
+
+		// Two silent chunks: a no-answer failure and Google's own 5xx both
+		// count as blips — either way the next call may well succeed.
+		$GLOBALS['_af_http_queue'][] = new \WP_Error( 'http_request_failed', 'cURL error 28: Operation timed out' );
+		$this->assertSame( '', Index::sweep( new Client(), 'tok', 'p', $targets )['error'] );
+		$this->queue_error( 502, 'Bad gateway' );
+		$this->assertSame( '', Index::sweep( new Client(), 'tok', 'p', $targets )['error'] );
+
+		$GLOBALS['_af_http_queue'][] = new \WP_Error( 'http_request_failed', 'cURL error 28: Operation timed out' );
+		$out = Index::sweep( new Client(), 'tok', 'p', $targets );
+		$this->assertSame( 'cURL error 28: Operation timed out', $out['error'], 'the third in a row is a failure, not a blip' );
+		$this->assertCount( 2, $out['queue'], 'even the loud pause keeps the queue' );
+	}
+
+	public function test_an_answer_between_blips_starts_the_count_over() {
+		$targets = $this->targets( 'https://example.test/a/', 'https://example.test/b/' );
+
+		$GLOBALS['_af_http_queue'][] = new \WP_Error( 'http_request_failed', 'cURL error 28: Operation timed out' );
+		Index::sweep( new Client(), 'tok', 'p', $targets ); // blip one, /a/ to the tail
+
+		// /b/ answers — the line is alive — then /a/ blips again. Without the
+		// reset that second blip would be number two and the NEXT chunk's
+		// would pause loudly; with it, the next one is still only number two.
+		$this->queue_inspection( $this->pass_row() );
+		$GLOBALS['_af_http_queue'][] = new \WP_Error( 'http_request_failed', 'cURL error 28: Operation timed out' );
+		$this->assertSame( '', Index::sweep( new Client(), 'tok', 'p', $targets )['error'] );
+
+		$GLOBALS['_af_http_queue'][] = new \WP_Error( 'http_request_failed', 'cURL error 28: Operation timed out' );
+		$this->assertSame(
+			'',
+			Index::sweep( new Client(), 'tok', 'p', $targets )['error'],
+			'still only two in a row since the last answer'
+		);
 	}
 
 	public function test_sweep_records_a_single_refused_url_and_keeps_going() {
@@ -544,6 +664,144 @@ final class GoogleIndexTest extends TestCase {
 		$this->assertSame( 2, $view['site']['onGoogle'] );
 		$this->assertCount( 1, $view['site']['problems'], 'only the problem surfaces as a row' );
 		$this->assertSame( 'https://example.test/s2/', $view['site']['problems'][0]['url'] );
+	}
+
+	/* -- promoted problems + healing ---------------------------------------- */
+	// The third tier: a problem page is exactly the page the owner is waiting
+	// on, so it joins the daily check until it heals — and a healed page
+	// announces itself instead of vanishing.
+
+	public function test_promoted_targets_are_problems_only_stalest_first() {
+		$GLOBALS['_af_options'][ Index::OPTION ] = array(
+			'cov' => array(
+				'https://example.test/p1' => array( 'url' => 'https://example.test/p1/', 'post_id' => 11, 'verdict' => 'NEUTRAL', 'inspected_at' => 300 ),
+				'https://example.test/p2' => array( 'url' => 'https://example.test/p2/', 'post_id' => 12, 'verdict' => 'NEUTRAL', 'inspected_at' => 100 ),
+				'https://example.test/ok' => array( 'url' => 'https://example.test/ok/', 'post_id' => 13, 'verdict' => 'PASS', 'inspected_at' => 50 ),
+				'https://example.test/w'  => array( 'url' => 'https://example.test/w/', 'post_id' => 14, 'verdict' => 'NEUTRAL', 'inspected_at' => 10 ),
+			),
+		);
+		$out = Index::promoted_targets( $this->targets( 'https://example.test/w/' ) );
+		$this->assertSame(
+			array( 'https://example.test/p2/', 'https://example.test/p1/' ),
+			array_column( $out, 'url' ),
+			'problems only, the already-watched page excluded, the stalest answer first'
+		);
+		$this->assertSame( array( 'problem', 'problem' ), array_column( $out, 'reason' ) );
+	}
+
+	public function test_promotion_is_capped_at_the_stated_daily_allowance() {
+		$cov = array();
+		for ( $i = 1; $i <= Index::PROMOTED_DAILY + 5; $i++ ) {
+			$cov[ "https://example.test/p$i" ] = array( 'url' => "https://example.test/p$i/", 'post_id' => $i, 'verdict' => 'NEUTRAL', 'inspected_at' => $i );
+		}
+		$GLOBALS['_af_options'][ Index::OPTION ] = array( 'cov' => $cov );
+		$this->assertCount(
+			Index::PROMOTED_DAILY,
+			Index::promoted_targets( array() ),
+			'the cap holds — a sick site cannot spend the whole budget on its wounds'
+		);
+	}
+
+	public function test_a_promoted_answer_updates_coverage_and_leaves_the_cursor() {
+		$GLOBALS['_af_options'][ Index::OPTION ] = array(
+			'cov'        => array(
+				'https://example.test/p1' => array( 'url' => 'https://example.test/p1/', 'post_id' => 7, 'verdict' => 'NEUTRAL', 'coverage_state' => 'Crawled - currently not indexed', 'inspected_at' => 100 ),
+			),
+			'rot_cursor' => 42,
+		);
+		$this->queue_inspection( array( 'verdict' => 'PASS' ) );
+		$out = Index::sweep( new Client(), 'tok', 'p', array( array( 'url' => 'https://example.test/p1/', 'post_id' => 7, 'reason' => 'problem' ) ) );
+
+		$this->assertSame( array(), $out['rows'], 'a promoted answer is coverage, not a card row' );
+		$this->assertSame( 42, $out['rot_cursor'], 'an out-of-band re-check must not move the rotation cursor' );
+		$this->assertSame( 'PASS', $out['cov']['https://example.test/p1']['verdict'] );
+	}
+
+	public function test_a_healed_page_takes_the_stamp_and_announces_in_the_view() {
+		$GLOBALS['_af_options'][ Index::OPTION ] = array(
+			'cov' => array(
+				'https://example.test/p1' => array( 'url' => 'https://example.test/p1/', 'post_id' => 7, 'verdict' => 'NEUTRAL', 'coverage_state' => 'Discovered - currently not indexed', 'inspected_at' => 100 ),
+			),
+		);
+		$this->queue_inspection( array( 'verdict' => 'PASS' ) );
+		Index::sweep( new Client(), 'tok', 'p', array( array( 'url' => 'https://example.test/p1/', 'post_id' => 7, 'reason' => 'problem' ) ) );
+
+		$entry = Index::stored()['cov']['https://example.test/p1'];
+		$this->assertGreaterThan( 0, $entry['healed_at'], 'the healing moment is stamped' );
+		$this->assertSame( 'discovered', $entry['healed_from'], 'and remembers what it healed FROM' );
+
+		$view = Index::view( $this->connect() );
+		$this->assertSame( array(), $view['site']['problems'], 'healed means no longer a problem' );
+		$this->assertCount( 1, $view['site']['healed'] );
+		$this->assertSame( 'https://example.test/p1/', $view['site']['healed'][0]['url'] );
+		$this->assertSame( 'discovered', $view['site']['healed'][0]['healedFrom'] );
+		$this->assertSame( 1, $view['site']['healedTotal'] );
+	}
+
+	public function test_the_healed_stamp_carries_inside_its_window_then_expires() {
+		$stamp = time() - 100;
+		$GLOBALS['_af_options'][ Index::OPTION ] = array(
+			'cov' => array(
+				'https://example.test/h' => array( 'url' => 'https://example.test/h/', 'post_id' => 3, 'verdict' => 'PASS', 'inspected_at' => 100, 'healed_at' => $stamp, 'healed_from' => 'crawled' ),
+			),
+		);
+		$this->queue_inspection( array( 'verdict' => 'PASS' ) );
+		Index::sweep( new Client(), 'tok', 'p', array( array( 'url' => 'https://example.test/h/', 'post_id' => 3, 'reason' => 'site' ) ) );
+		$entry = Index::stored()['cov']['https://example.test/h'];
+		$this->assertSame( $stamp, $entry['healed_at'], 'the stamp carries, never renews — an announcement that resets daily never ends' );
+		$this->assertSame( 'crawled', $entry['healed_from'] );
+
+		$GLOBALS['_af_options'][ Index::OPTION ] = array(
+			'cov' => array(
+				'https://example.test/h' => array( 'url' => 'https://example.test/h/', 'post_id' => 3, 'verdict' => 'PASS', 'inspected_at' => 100, 'healed_at' => time() - Index::HEALED_KEEP - 10, 'healed_from' => 'crawled' ),
+			),
+		);
+		$this->queue_inspection( array( 'verdict' => 'PASS' ) );
+		Index::sweep( new Client(), 'tok', 'p', array( array( 'url' => 'https://example.test/h/', 'post_id' => 3, 'reason' => 'site' ) ) );
+		$this->assertArrayNotHasKey(
+			'healed_at',
+			Index::stored()['cov']['https://example.test/h'],
+			'past its window the stamp is dropped and the page goes quiet like the rest'
+		);
+	}
+
+	public function test_watch_problems_stand_with_every_other_problem_in_the_view() {
+		$view = Index::view( $this->connect( array(
+			'rows' => array(
+				array( 'url' => 'https://example.test/red/', 'post_id' => 1, 'reason' => 'busy', 'verdict' => 'NEUTRAL', 'coverage_state' => 'Crawled - currently not indexed', 'inspected_at' => 100, 'error' => '' ),
+				array( 'url' => 'https://example.test/green/', 'post_id' => 2, 'reason' => 'new', 'verdict' => 'PASS', 'inspected_at' => 100, 'error' => '' ),
+				array( 'url' => 'https://example.test/unasked/', 'post_id' => 3, 'reason' => 'new', 'verdict' => '', 'inspected_at' => 0, 'error' => '' ),
+			),
+			'cov'  => array(
+				'https://example.test/s' => array( 'url' => 'https://example.test/s/', 'post_id' => 9, 'verdict' => 'NEUTRAL', 'coverage_state' => 'Crawled - currently not indexed', 'inspected_at' => 90 ),
+			),
+		) ) );
+
+		$urls = array_column( $view['site']['problems'], 'url' );
+		$this->assertSame(
+			array( 'https://example.test/red/', 'https://example.test/s/' ),
+			$urls,
+			'a watched problem is a problem — and it leads the list; healthy and never-asked rows stay out'
+		);
+		$this->assertSame( 2, $view['site']['problemsTotal'] );
+		$this->assertSame( 2, $view['site']['problemStates']['crawled'], 'bucket totals count the watched problem too' );
+	}
+
+	public function test_a_watch_row_heals_and_announces() {
+		$GLOBALS['_af_options'][ Index::OPTION ] = array(
+			'rows' => array(
+				array( 'url' => 'https://example.test/a/', 'post_id' => 1, 'reason' => 'busy', 'verdict' => 'NEUTRAL', 'coverage_state' => 'Discovered - currently not indexed', 'inspected_at' => 100, 'error' => '' ),
+			),
+		);
+		$this->queue_inspection( array( 'verdict' => 'PASS' ) );
+		$out = Index::sweep( new Client(), 'tok', 'p', $this->targets( 'https://example.test/a/' ) );
+		$this->assertSame( 'PASS', $out['rows'][0]['verdict'] );
+		$this->assertGreaterThan( 0, $out['rows'][0]['healed_at'], 'watch rows heal too — against their own previous answer' );
+
+		$view = Index::view( $this->connect() );
+		$this->assertCount( 1, $view['site']['healed'] );
+		$this->assertSame( 'discovered', $view['site']['healed'][0]['healedFrom'] );
+		$this->assertSame( array(), $view['site']['problems'] );
 	}
 
 	/* -- the view ----------------------------------------------------------- */

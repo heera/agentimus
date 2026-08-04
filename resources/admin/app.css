@@ -1697,9 +1697,114 @@ td.ar-edge__n.is-bad { color: var(--ar-bad); font-weight: 600; }
 .ar-gidx__lookup input:focus { outline: 2px solid var(--ar-accent); outline-offset: 1px; border-color: var(--ar-accent); }
 .ar-gidx__lookupmsg { margin-top: 8px; }
 .ar-gidx__lookuphint { margin: 6px 0 0; font-size: 11.5px; color: var(--ar-ink-faint); }
+
+/* The ratio track rides INSIDE the tiles box, along its bottom edge — the
+   1px grid gap above it reads as the divider, its own track fills the cell. */
+.ar-wd-stats .ar-gidx__ratio {
+  grid-column: 1 / -1;
+  margin: 0;
+  border: 0;
+  border-radius: 0;
+  height: 7px;
+}
+
+/* The problems-group collapsible — the Search screen's own fold, sized for
+   this card: every heading carries its state's TRUE count; rows arrive only
+   on demand, one stored-data page per turn. */
+.ar-gidx__grp { margin: 10px 0; }
+.ar-gidx__grp > summary { font-size: 12.5px; }
+.ar-gidx__grp > summary::after {
+  content: "⌄";
+  margin-left: auto;
+  color: var(--ar-ink-faint);
+  font-size: 13px;
+}
+.ar-gidx__grp[open] > summary::after { content: "⌃"; }
+/* An open group holds its height whatever a page carries — the rows scroll
+   inside, the pagination stays pinned below the scroll. No overscroll
+   containment: once the list hits its end the wheel must pass to the page,
+   or the card becomes a trap the pointer has to escape from. */
+.ar-gidx__scrollbox {
+  max-height: 430px;
+  overflow-y: auto;
+  padding-right: 6px;
+}
+.ar-gidx__scrollbox.is-busy { opacity: 0.45; }
+/* The always-open announcement list borrows the collapsibles' box, so the
+   sections read as one family. */
+.ar-gidx__rowsbox {
+  margin-top: 10px;
+  padding: 0 16px;
+  border: 1px solid var(--ar-line-strong);
+  border-radius: var(--ar-radius);
+  background: var(--ar-surface-2);
+}
+/* Group-table footer: the range on the left, page controls bottom right. */
+.ar-gidx__pagefoot {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  border-top: 1px solid var(--ar-line);
+  padding: 9px 0 3px;
+}
+.ar-gidx__range {
+  font-family: var(--ar-mono);
+  font-size: 11px;
+  color: var(--ar-ink-faint);
+  font-variant-numeric: tabular-nums;
+}
+.ar-gidx__pager { display: flex; align-items: center; gap: 4px; margin-left: auto; }
+.ar-gidx__pager button {
+  min-width: 26px;
+  padding: 3px 6px;
+  font-family: var(--ar-mono);
+  font-size: 11.5px;
+  font-variant-numeric: tabular-nums;
+  color: var(--ar-info);
+  background: var(--ar-surface);
+  border: 1px solid var(--ar-line-strong);
+  border-radius: 4px;
+  cursor: pointer;
+}
+.ar-gidx__pager button:hover:not(:disabled):not([aria-current="page"]) { border-color: var(--ar-info); }
+.ar-gidx__pager button[aria-current="page"] {
+  background: var(--ar-info);
+  border-color: var(--ar-info);
+  color: var(--ar-surface);
+  cursor: default;
+}
+.ar-gidx__pager button:disabled { color: var(--ar-ink-faint); cursor: default; }
+.ar-gidx__pager button:focus-visible { outline: 2px solid var(--ar-accent); outline-offset: 1px; }
+.ar-gidx__pgap { color: var(--ar-ink-faint); font-size: 11.5px; padding: 0 2px; }
+/* Two matched cards close the section: the site-level pointers beside the
+   per-page lookup. */
+.ar-gidx__footcols {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+  margin-top: 22px;
+}
+.ar-gidx__footbox {
+  padding: 12px 16px;
+  border: 1px solid var(--ar-line-strong);
+  border-radius: var(--ar-radius);
+  font-size: 12px;
+  color: var(--ar-ink-faint);
+}
+.ar-gidx__footbox p { margin: 6px 0; }
+.ar-gidx__footbox .ar-gidx__secname { display: block; margin-bottom: 6px; }
+.ar-gidx__warned { color: var(--ar-warn); }
+/* A found row inside the half-width lookup card: the four-lane grammar
+   collapses to the narrow form — title on its own line, the rest below. */
+.ar-gidx__footbox .ar-gidx__main { grid-template-columns: minmax(0, 1fr) max-content max-content; }
+.ar-gidx__footbox .ar-gidx__page { grid-column: 1 / -1; }
+.ar-gidx__footbox .ar-gidx__crawl { text-align: left; }
+.ar-gidx__footbox .ar-gidx__note { grid-column: 1 / -1; }
 @media (max-width: 600px) {
   /* Tiles go 2×2 — four abreast crushed the labels into vertical shards. */
   .ar-gidx .ar-act-stats--4 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .ar-gidx__footcols { grid-template-columns: 1fr; }
   .ar-gidx .ar-wd-stat strong { white-space: nowrap; }
   /* Rows: the title takes its own line; date left, door and chip right share
      the second — the request-log byline rule, in grid form. */

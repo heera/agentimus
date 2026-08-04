@@ -606,6 +606,8 @@ final class Registrar {
 			'richTypes'        => self::s( 'Rich-result types Google detected, comma-separated; empty = none.' ),
 			'gscLink'          => self::s( 'Deep link to this URL\'s inspection in Search Console — where "Request indexing" lives (that button has no API).' ),
 			'inspectedAt'      => self::i( 'Unix time THIS row was last inspected — older than checkedAt means a quota-cut sweep kept its previous answer.' ),
+			'healedAt'         => self::i( 'Unix time this page turned from problem to healthy; 0 = not recently healed. Healed pages announce in site.healed for about two days, then go quiet.' ),
+			'healedFrom'       => self::s( 'The problem bucket this page healed FROM (same keys as stateKey); empty when not recently healed.' ),
 			'error'            => self::s( 'This row\'s own inspection failure, if any.' ),
 		);
 
@@ -615,15 +617,27 @@ final class Registrar {
 			'Returns whether Google\'s index holds this site\'s pages, when the owner has connected '
 				. 'Google Search Console. Google\'s index is what AI Overviews, AI Mode and Gemini '
 				. 'grounding read — the Google counterpart of "Bing\'s index is what ChatGPT search '
-				. 'reads". Two tiers share Google\'s 2,000-inspections/day budget (there is no bulk '
+				. 'reads". Three tiers share Google\'s 2,000-inspections/day budget (there is no bulk '
 				. 'index report): a WATCHLIST (homepage, busiest pages, newest posts — every answer in '
-				. 'rows) checked daily, and a WHOLE-SITE ROTATION walking every published URL in daily '
-				. 'slices — its healthy pages become the site counts, only its problems appear in '
-				. 'site.problems. On sites small enough the rotation covers everything every day; '
-				. 'site.cycleDays states the honest cadence. Presence only, no traffic '
+				. 'rows) checked daily; PROMOTED PROBLEMS — pages any check found unhealthy join the '
+				. 'daily check (stalest first, capped at watched.promotedDaily) until they heal; and a '
+				. 'WHOLE-SITE ROTATION walking every published URL in daily slices — healthy pages '
+				. 'become the site counts, every problem (watched or not) appears in site.problems, '
+				. 'and a page that just healed announces in site.healed for about two days before '
+				. 'going quiet. On sites small enough the rotation covers everything every day; '
+				. 'site.cycleDays states the honest cadence. site.problems ships a bounded, '
+				. 'every-bucket share of the problem rows; to walk ALL of one state\'s pages, pass '
+				. 'problemsState (a stateKey) and page with problemsPage — site.problems then holds '
+				. 'exactly that page of 50, in a stable order, while every count stays complete '
+				. '(pages = ceil(site.problemStates[state] / 50)). Presence only, no traffic '
 				. '(read-search-performance has the traffic). Returns connected=false with empty rows '
 				. 'when no key is connected.',
-			self::no_input(),
+			self::obj(
+				array(
+					'problemsState' => self::s( 'Optional: a problem bucket (error | canonical | unknown | discovered | crawled | blocked | other) — site.problems becomes one page of exactly that state\'s rows.' ),
+					'problemsPage'  => self::i( 'Optional: 1-based page of 50 within problemsState; ignored without it. Beyond the last page, site.problems is empty.' ),
+				)
+			),
 			self::obj(
 				array(
 					'connected' => self::b( 'False = Google Search Console is not connected; rows is then empty.' ),
@@ -636,6 +650,7 @@ final class Registrar {
 						array(
 							'busiest'       => self::i( 'How many busiest-in-Google pages the watchlist covers at most.' ),
 							'newest'        => self::i( 'How many newest posts the watchlist covers at most.' ),
+							'promotedDaily' => self::i( 'How many problem pages join the daily check at most (stalest answer first) — the rest keep the rotation cadence until their turn.' ),
 							'rotationDaily' => self::i( 'How many whole-site URLs the rotation inspects per day.' ),
 							'dailyCap'      => self::i( 'Google\'s documented inspections-per-day budget for the property.' ),
 						)
@@ -655,9 +670,11 @@ final class Registrar {
 							'checked'     => self::i( 'Distinct site URLs with an answer so far (watchlist included).' ),
 							'onGoogle'    => self::i( 'Of those, how many Google confirms are in its index.' ),
 							'notOnGoogle' => self::i( 'Of those, how many are not (or failed their check).' ),
-							'cycleDays'   => self::i( 'How many days one full pass over the site takes at the daily rotation size — 1 = every page is checked every day.' ),
+							'cycleDays'   => self::i( 'How many days one full pass over the site takes at the daily rotation size — 1 = every page is checked every day. Problem pages are re-checked daily regardless, up to watched.promotedDaily.' ),
+							'healed'      => self::arr( $index_row ),
+							'healedTotal' => self::i( 'Pages that turned from problem to healthy within the last ~two days — `healed` is capped at 20 rows, this count is not.' ),
 							'problems'    => self::arr( $index_row ),
-							'problemsTotal' => self::i( 'Problem pages found across the site in total — `problems` is capped at 50 rows, this count is not.' ),
+							'problemsTotal' => self::i( 'Problem pages found across the site in total — `problems` is capped at 50 rows, this count is not. Watched pages with problems are included.' ),
 							'problemStates' => self::obj(
 								array(
 									'error'      => self::i( 'Checks that failed.' ),
@@ -690,8 +707,14 @@ final class Registrar {
 					'rows'      => self::arr( $index_row ),
 				)
 			),
-			function () {
-				return GoogleIndex::view( new GoogleSettings() );
+			function ( $input ) {
+				$view  = GoogleIndex::view( new GoogleSettings() );
+				$state = isset( $input['problemsState'] ) ? (string) $input['problemsState'] : '';
+				if ( '' !== $state && in_array( $state, GoogleIndex::state_keys(), true ) ) {
+					$paged                     = GoogleIndex::problems_page( $state, isset( $input['problemsPage'] ) ? (int) $input['problemsPage'] : 1 );
+					$view['site']['problems']  = $paged['rows'];
+				}
+				return $view;
 			},
 			$manage
 		);

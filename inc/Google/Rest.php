@@ -72,6 +72,19 @@ final class Rest {
 				),
 			),
 		) );
+		register_rest_route( self::NS, '/google/index/problems', array(
+			array(
+				'methods'             => \WP_REST_Server::READABLE,
+				'callback'            => array( $this, 'index_problems' ),
+				'permission_callback' => array( $this, 'can_manage' ),
+				'args'                => array(
+					// No enum here: schema validation runs BEFORE the permission
+					// callback. The state's value check lives in the callback.
+					'state' => array( 'type' => 'string', 'required' => true ),
+					'page'  => array( 'type' => 'integer', 'required' => false ),
+				),
+			),
+		) );
 		register_rest_route( self::NS, '/google', array(
 			array(
 				'methods'             => \WP_REST_Server::READABLE,
@@ -193,6 +206,26 @@ final class Rest {
 		}
 		( new Module( $this->google, $this->client ) )->run_index_sweep();
 		return rest_ensure_response( Index::view( $this->google ) );
+	}
+
+	/**
+	 * GET /google/index/problems?state=&page= — one page of one state's
+	 * problem rows, from stored data alone. The card ships every group's true
+	 * count; this serves the rows when a group is opened or its page turns.
+	 * No live call, no quota.
+	 *
+	 * @param \WP_REST_Request $request The request.
+	 * @return \WP_REST_Response|\WP_Error
+	 */
+	public function index_problems( \WP_REST_Request $request ) {
+		if ( ! $this->google->connected() ) {
+			return new \WP_Error( 'agentimus_google_off', __( 'Google Search Console is not connected.', 'agentimus' ), array( 'status' => 400 ) );
+		}
+		$state = sanitize_key( (string) $request->get_param( 'state' ) );
+		if ( ! in_array( $state, Index::state_keys(), true ) ) {
+			return new \WP_Error( 'agentimus_google_bad_state', __( 'Unknown problem state.', 'agentimus' ), array( 'status' => 400 ) );
+		}
+		return rest_ensure_response( Index::problems_page( $state, (int) $request->get_param( 'page' ) ) );
 	}
 
 	/**
