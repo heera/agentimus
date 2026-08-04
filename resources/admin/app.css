@@ -1574,7 +1574,7 @@ td.ar-edge__n.is-bad { color: var(--ar-bad); font-weight: 600; }
    bars touch-wide and scrolls sideways instead — rtl scroller so it OPENS at
    the newest days, ltr inner so time still runs left → right (the dashboard
    charts' exact recipe). */
-@media (max-width: 600px) {
+@container (max-width: 600px) {
   .ar-bing__scrollwrap { overflow-x: auto; direction: rtl; scrollbar-width: thin; padding-bottom: 4px; }
   .ar-bing__scrollwrap > * { direction: ltr; min-width: 100%; width: max-content; }
   .ar-bing__trend { gap: 4px; }
@@ -1612,12 +1612,6 @@ td.ar-edge__n.is-bad { color: var(--ar-bad); font-weight: 600; }
 .ar-gidx__page { display: inline-flex; align-items: baseline; gap: 8px; min-width: 0; }
 .ar-gidx__title { font-size: 13px; color: var(--ar-ink); text-decoration: none; overflow-wrap: anywhere; }
 .ar-gidx__title:hover { text-decoration: underline; }
-/* Why this page is on the watchlist — the label that keeps a quiet new post
-   from reading like an odd pick. */
-.ar-gidx__why {
-  font-family: var(--ar-mono); font-size: 9px; letter-spacing: 0.08em;
-  text-transform: uppercase; color: var(--ar-ink-faint); white-space: nowrap;
-}
 .ar-gidx__crawl { font-size: 11px; color: var(--ar-ink-faint); white-space: nowrap; text-align: right; }
 /* A fixed minimum makes every chip the same width, so both chip edges align
    down the column. */
@@ -1639,7 +1633,6 @@ td.ar-edge__n.is-bad { color: var(--ar-bad); font-weight: 600; }
 /* The whole-site section under the watchlist. */
 .ar-gidx__siteeyebrow { margin-top: 24px; }
 .ar-gidx__siteline { margin: 8px 0 0; font-size: 13px; line-height: 1.55; color: var(--ar-ink-soft); }
-.ar-gidx__siteclear { margin: 8px 0 0; font-size: 12px; color: var(--ar-good); }
 /* Problem groups: the state is a real heading with its count — the
    Opportunities group grammar — so rows below stop repeating it. */
 .ar-gidx__group {
@@ -1652,7 +1645,6 @@ td.ar-edge__n.is-bad { color: var(--ar-bad); font-weight: 600; }
 }
 .ar-gidx__list--grouped { margin-top: 4px; }
 .ar-gidx__list--grouped .ar-gidx__row { padding: 9px 0; }
-.ar-gidx__more { margin: 6px 0 0; font-size: 12px; color: var(--ar-ink-faint); }
 .ar-gidx__hoist { margin-top: 10px; }
 .ar-gidx__gsc--cell { margin-left: 0; text-align: right; }
 /* Registration health: one quiet line, amber only when the owner should act. */
@@ -1676,17 +1668,6 @@ td.ar-edge__n.is-bad { color: var(--ar-bad); font-weight: 600; }
 /* Google's exact phrase, once per group — the footnote promises "Google's
    own wording", so the plain-words heading must show its source. */
 .ar-gidx__gsub { margin: 2px 0 0; font-size: 11px; color: var(--ar-ink-faint); }
-.ar-gidx__fold {
-  display: block; width: 100%; background: none; border: 0; border-top: 1px solid var(--ar-line);
-  margin-top: -1px; padding: 10px 0 2px; font: inherit; font-size: 12px; color: var(--ar-info);
-  cursor: pointer; text-align: center;
-}
-.ar-gidx__fold:hover { text-decoration: underline; }
-.ar-gidx__morebtn {
-  background: none; border: 0; padding: 6px 0 0; font: inherit; font-size: 12px;
-  color: var(--ar-info); cursor: pointer; text-align: left;
-}
-.ar-gidx__morebtn:hover { text-decoration: underline; }
 /* The page lookup: stored answers only — styled like the house inputs. */
 .ar-gidx__lookup { margin: 10px 0 0; }
 .ar-gidx__lookup input {
@@ -1801,7 +1782,10 @@ td.ar-edge__n.is-bad { color: var(--ar-bad); font-weight: 600; }
 .ar-gidx__footbox .ar-gidx__page { grid-column: 1 / -1; }
 .ar-gidx__footbox .ar-gidx__crawl { text-align: left; }
 .ar-gidx__footbox .ar-gidx__note { grid-column: 1 / -1; }
-@media (max-width: 600px) {
+/* CONTAINER, not viewport: the admin menu eats ~160px, so a 760px window
+   already leaves this card ~600px of room. A viewport media query kept the
+   four-lane row grid alive in a container far too narrow for it. */
+@container (max-width: 600px) {
   /* Tiles go 2×2 — four abreast crushed the labels into vertical shards. */
   .ar-gidx .ar-act-stats--4 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .ar-gidx__footcols { grid-template-columns: 1fr; }
@@ -3497,6 +3481,25 @@ button.ar-wd-stat:focus-visible { outline: 2px solid var(--ar-accent); outline-o
   .ar-wd-endpoint-row { flex-direction: column; align-items: stretch; }
   .ar-wd-endpoint-row .ar-btn { width: 100%; }
   .ar-wd-canonical__path { font-size: 12px; }
+}
+
+/* Narrow: the rung header's tally ("21 graded · 8 set aside") never shrinks,
+   so beside it the blurb was squeezed into a ~200px gutter and even the title
+   wrapped mid-phrase. Give the tally its own line under the text, indented to
+   clear the status dot — the header keeps its reading order, and the sentence
+   gets the full width. Same rule for the set-aside header's note and its
+   Restore All. */
+@container (max-width: 500px) {
+  .ar-checkgroup__head { flex-wrap: wrap; }
+  .ar-checkgroup__count { flex: 1 0 100%; padding-left: 20px; text-align: left; }
+  .ar-setaside__head { flex-wrap: wrap; }
+  .ar-setaside__note { flex: 1 0 100%; }
+  .ar-setaside__restoreall { margin-left: 0; }
+  /* The left-out list is a TWO-column table (search + views) — it never needed
+     the five-column worklist's 520px floor, which forced a sideways scroll and
+     clipped its own second heading mid-word. */
+  .ar-opp__noiselist .ar-opp__queries { min-width: 0; }
+  .ar-opp__noiselist .ar-opp__queries th:not(:first-child) { white-space: normal; }
 }
 
 /* Readiness header carries FOUR actions — too many to sit beside the title on a

@@ -658,12 +658,16 @@ final class Admin {
 					'text'  => 'Publishing or editing a post now clears its stale copies from Cloudflare\'s edge — the one cache no caching plugin can purge for you — along with the front page and the machine files agents read. The edge panel gains a Purge button for everything else. One extra permission on your token turns it on (Zone → Cache Purge → Purge); without it nothing changes, and the panel says why in words.',
 				),
 				array(
-					'title' => 'A blip is a pause, not a restart',
-					'text'  => 'One slow answer from Google used to end the daily index check, and the retry re-spent the whole watchlist\'s inspection budget. Now the check pauses exactly where it stopped and resumes on your next visit or the next daily run — nothing is re-inspected, nothing is lost, and the card says what happened in words.',
+					'title' => 'In Google\'s Index reports your site, not a watchlist',
+					'text'  => 'The numbers now cover every page checked, so a site with half its pages missing from Google says so in the first figure you read. The standing list of watched pages is gone — those green rows never changed, and which pages get asked about first is a schedule, which the card states in a sentence. What is left is what needs a look.',
 				),
 				array(
-					'title' => 'The page lookup answers cleanly',
-					'text'  => 'On the In Google\'s Index card, an answer now clears with the question that produced it, the sitemap-health line sits with the whole-site figures it describes, and the hint says what a lookup is: your own record of what Google said, not a new question to Google.',
+					'title' => 'A page Google left out is chased daily',
+					'text'  => 'Instead of waiting its turn in the whole-site rotation, any page Google has not indexed is re-checked every day until it gets in — up to 20 a day, the one waiting longest first. And when one finally gets in, the card says so for about two days, rather than the problem quietly disappearing.',
+				),
+				array(
+					'title' => 'A blip is a pause, not a restart',
+					'text'  => 'One slow answer from Google used to end the daily index check and demand another press of Check now. Now it rejoins the back of the line and the check carries on, reporting a failure only after three misses in a row — and a check you walk away from finishes on its own.',
 				),
 				array(
 					'title' => 'Doors on the robots and sitemap rows',

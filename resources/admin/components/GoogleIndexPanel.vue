@@ -5,12 +5,14 @@
  * Bing hold?"; this one answers "is this site in Google's index?" — the index
  * AI Overviews, AI Mode and Gemini read.
  *
- * Rows are for what needs eyes: problems lead the card and join the daily
- * check until they heal, a page that heals announces "now on Google" instead
- * of vanishing, and the healthy watched pages fold into one line — a green
- * row that never changes carries no news. The headline counts speak for the
- * WHOLE SITE (walked daily in rotation slices), and the summary sentence does
- * the arithmetic out loud, so no healthy page is invisible — just quiet.
+ * Rows are for what needs eyes, with no exceptions: problems lead the card
+ * and join the daily check until they heal, and a page that heals announces
+ * "now on Google" instead of vanishing. Healthy pages never earn rows — not
+ * even the watched ones, because which pages get asked about first is a
+ * schedule, not a display; the summary sentence states that schedule in
+ * words where it changes anything. The headline counts speak for the WHOLE
+ * SITE, and that sentence does the arithmetic out loud, so no healthy page
+ * is invisible — just quiet.
  * Presence, not traffic (traffic lives one card down in Search Performance).
  *
  * Off state = one quiet pointer at Settings → Data sources. No form here.
@@ -95,26 +97,17 @@ export default {
         failed: Number(t.error) || 0,
       };
     },
-    // URLs currently ANNOUNCED in Now on Google — one row per page,
-    // card-wide: a page being announced up top must not also sit in the
-    // watched fold; when the announcement expires it drops back in.
-    healedSet() {
-      const set = new Set();
-      for (const r of this.site.healed || []) set.add(r.url);
-      return set;
-    },
-    // The watch rows the collapsed fold holds: everything not standing above
-    // as a problem or an announcement. Mirrors the server's is_problem() —
-    // a "not checked yet" row is unasked, not a problem, and folds with the
-    // healthy.
-    healthyRows() {
-      return this.rows.filter((r) => !this.isProblemRow(r) && !this.healedSet.has(r.url));
-    },
-    watchFoldLabel() {
-      const n = this.healthyRows.length;
-      const on = this.healthyRows.filter((r) => r.verdict === 'pass').length;
-      const tail = ` (${n} ${n === 1 ? 'page' : 'pages'})`;
-      return (on === n ? `All ${n} are on Google` : `${on} of ${n} are on Google`) + tail;
+    // What "Needs a look" can honestly promise about re-checking. With more
+    // problems than the daily allowance, "these are re-checked daily" would
+    // be an overclaim; on a site the rotation covers in a day, naming the
+    // allowance at all is noise.
+    problemsCadence() {
+      const w = this.watched;
+      if (this.site.cycleDays <= 1) return 'Every one of these is re-checked daily, until it heals.';
+      if (this.site.problemsTotal > w.promotedDaily) {
+        return `Up to ${w.promotedDaily} of these re-join the daily check each day — the ones asked about longest ago first — until they heal.`;
+      }
+      return 'Every one of these re-joins the daily check until it heals.';
     },
     // The whole-site summary does the arithmetic FOR the reader: quiet healthy
     // pages + the rows on screen must add back up to every page checked. An
@@ -130,18 +123,22 @@ export default {
       const tally = s.problemsTotal > 0
         ? `The ${quiet} healthy pages stay quiet — rows are for the ${s.problemsTotal} that need${s.problemsTotal === 1 ? 's' : ''} a look.`
         : 'Every checked page is healthy — nothing needs a row.';
-      // The cadence claim must survive the sick-site case: with more problems
-      // than the daily allowance, "problem pages are re-checked daily" would
-      // be an overclaim — say what actually happens instead.
+      // The cadence sentence is where the checking ORDER lives now that no
+      // section renders it: on a site the rotation covers in a day there is
+      // no order worth naming, and on a bigger one it is the whole point —
+      // your homepage does not wait a week for its turn.
+      const w = this.watched;
       let cadence;
       if (s.cycleDays <= 1) {
         cadence = 'Every page is re-checked daily.';
-      } else if (!s.problemsTotal) {
-        cadence = `Every page gets re-checked about every ${s.cycleDays} days.`;
-      } else if (s.problemsTotal > this.watched.promotedDaily) {
-        cadence = `Each day the ${this.watched.promotedDaily} problem pages waiting longest get re-checked; every page comes around about every ${s.cycleDays} days.`;
       } else {
-        cadence = `Problem pages are re-checked daily until they heal; the rest about every ${s.cycleDays} days.`;
+        const daily = [`your homepage, up to ${w.busiest} busiest pages and up to ${w.newest} newest posts`];
+        if (s.problemsTotal > w.promotedDaily) {
+          daily.push(`the ${w.promotedDaily} problem pages waiting longest`);
+        } else if (s.problemsTotal) {
+          daily.push('every page needing a look, until it heals');
+        }
+        cadence = `Checked every day: ${daily.join(', plus ')}. Every other page comes around about every ${s.cycleDays} days.`;
       }
       return `${head} ${tally} ${cadence}`;
     },
@@ -327,16 +324,6 @@ export default {
       if (r.verdict === 'pass') return 'is-ok';
       if (r.verdict === '') return 'is-dim';
       return 'is-warn';
-    },
-    reasonLabel(reason) {
-      // One word each, naming why the row is WATCHED — "new post" claimed the
-      // post was new; "newest" claims only its place on the list.
-      return { home: 'home', new: 'newest', busy: 'busiest' }[reason] || '';
-    },
-    // The client-side twin of the server's is_problem() — the fold must never
-    // hide a row the server would stand up as a problem.
-    isProblemRow(r) {
-      return !!(r.error || (r.verdict && r.verdict !== 'pass') || r.canonicalDiffers || r.robotsBlocked || r.noindex);
     },
     // The healed row's second line: what it healed FROM (the group label the
     // problem stood under), and since when it's been in.
@@ -624,10 +611,7 @@ export default {
             <span class="ar-perf__eyebrow ar-gidx__secname">Needs a look</span>
             <span class="ar-gidx__seccount">{{ site.problemsTotal }}</span>
           </div>
-          <p class="ar-gidx__gsub">
-            Problem pages join the daily check until they heal — up to
-            {{ watched.promotedDaily }} a day, the one asked about longest ago first.
-          </p>
+          <p class="ar-gidx__gsub">{{ problemsCadence }}</p>
           <!-- A clause true of EVERY problem row is a site fact — said once
                here, lag named, not repeated down the list. -->
           <p v-if="hoistLine" class="ar-gidx__note is-warn ar-gidx__hoist">{{ hoistLine }}</p>
@@ -690,36 +674,15 @@ export default {
           </details>
         </template>
 
-        <!-- The watched-daily fold: green rows carry no news, so they fold to
-             one line — the same doctrine that keeps healthy rotation pages as
-             a count. Expanding is one click; hiding a problem is impossible,
-             problems stand above. -->
-        <div class="ar-gidx__sec ar-gidx__siteeyebrow">
-          <span class="ar-perf__eyebrow ar-gidx__secname">Watched daily</span>
-          <span class="ar-gidx__seccount">{{ rows.length }}</span>
-        </div>
-        <p class="ar-gidx__scope">
-          Checked every day: your homepage, up to {{ watched.busiest }} busiest
-          pages, up to {{ watched.newest }} newest posts — and every problem
-          page above, up to {{ watched.promotedDaily }} a day, until it heals.
-        </p>
-        <details v-if="healthyRows.length" class="ar-opp__noiselist ar-gidx__grp">
-          <summary>{{ watchFoldLabel }}</summary>
-          <ul class="ar-gidx__list ar-gidx__scrollbox">
-            <li v-for="r in healthyRows" :key="r.url" class="ar-gidx__row">
-              <div class="ar-gidx__main">
-                <span class="ar-gidx__page">
-                  <a :href="r.url" target="_blank" rel="noopener" class="ar-gidx__title">{{ r.title }}</a>
-                  <span v-if="reasonLabel(r.reason)" class="ar-gidx__why">{{ reasonLabel(r.reason) }}</span>
-                </span>
-                <span class="ar-gidx__crawl">{{ r.lastCrawl ? `visited ${day(r.lastCrawl)}` : (r.error ? '' : 'never visited') }}</span>
-                <span class="ar-gidx__door"><a v-if="r.gscLink" class="ar-gidx__gsc" :href="r.gscLink" target="_blank" rel="noopener">Open in Search Console ↗</a></span>
-                <span class="ar-gidx__chip" :class="verdictClass(r)">{{ verdictLabel(r) }}</span>
-                <p v-if="rowNote(r)" class="ar-gidx__note" :class="r.error ? 'is-err' : 'is-warn'">{{ rowNote(r) }}</p>
-              </div>
-            </li>
-          </ul>
-        </details>
+        <!-- No "watched daily" section: which pages get asked about first is a
+             SCHEDULE, not a display. It only changes what a reader sees on a
+             site too big for one day's rotation — and there the cadence
+             sentence above says it in words. Rendering it as a list put a
+             standing block of never-changing green rows on the card, which is
+             the same noise the rotation's healthy pages were never allowed to
+             make. A watched page still surfaces the moment it has news: as a
+             problem above, as an announcement when it heals, or by URL in the
+             lookup. -->
 
         <!-- Two matched cards close the section: the site-level pointers
              (Search Console's complete archive, the registered-sitemap
