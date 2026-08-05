@@ -662,53 +662,6 @@ export default {
         this.pick.busy = false;
       }
     },
-    async pickPost(row) {
-      if (!row.compatible || this.pick.busy) return;
-      this.pick.busy = true;
-      this.pick.error = '';
-      try {
-        const r = await this.api.assistantPost(row.id);
-        const doc = r.post;
-        this.mode = 'edit';
-        // type/shape ride along: every later call about this document — refine, a
-        // section revision — is made in the shape the thing already is, not in
-        // whatever the write chooser happens to be showing.
-        this.editing = {
-          id: doc.id,
-          status: doc.status,
-          statusLabel: doc.statusLabel,
-          title: doc.title,
-          type: doc.type || 'post',
-          typeLabel: doc.typeLabel || '',
-          typeSingular: doc.typeSingular || '',
-          shape: doc.shape || 'article',
-        };
-        // The fetched document IS a draft — the preview/refine/undo machinery
-        // takes it from here unchanged. Images ride the slots invisibly and
-        // return to the post on update; the editor is where they're worked on.
-        this.draft = {
-          title: doc.title,
-          excerpt: doc.excerpt,
-          content: doc.content,
-          description: doc.description,
-          topics: doc.topics || [],
-          tags: doc.tags || [],
-          categories: doc.categories || [],
-          images: (doc.images || []).map(({ url, ...slot }) => slot),
-        };
-        this.prevDraft = null;
-        this.refineText = '';
-        this.outline = null;
-        this.usedOutline = false;
-        this.staging = null; // An edit session writes nothing staged.
-        this.step = 'preview';
-        this.persistHeld();
-      } catch (e) {
-        this.pick.error = (e && e.message) || 'Couldn’t open that one.';
-      } finally {
-        this.pick.busy = false;
-      }
-    },
     // The ONLY write of the edit flow — and it never carries a status: the
     // assistant edits content, not visibility. WordPress keeps the previous
     // version in Revisions on top of the drawer's own one-step Undo.
@@ -904,7 +857,10 @@ export default {
                   </SelectMenu>
                 </div>
                 <span v-else class="ar-assist__spacer"></span>
-                <button type="button" class="ar-linkbtn ar-assist__editdoor" :disabled="busy" @click="openPicker">Edit existing</button>
+                <!-- "Open", not "Edit": this door leads to the editor now, and a
+                     link that says Edit but navigates elsewhere is a small lie
+                     told on every visit. -->
+                <button type="button" class="ar-linkbtn ar-assist__editdoor" :disabled="busy" @click="openPicker">Open existing</button>
               </div>
 
               <p v-if="showTypeChooser" class="ar-assist__typenote">{{ isPageShape
@@ -1019,7 +975,7 @@ export default {
             <!-- ============ Pick a post ============ -->
             <template v-else-if="'pick' === step">
               <!-- The way back lives in the drawer header, beside the close. -->
-              <label class="ar-assist__label" for="ar-pick-q">Edit something you’ve written</label>
+              <label class="ar-assist__label" for="ar-pick-q">Open something you’ve written</label>
               <div class="ar-assist__librow">
                 <input
                   id="ar-pick-q"
@@ -1066,15 +1022,19 @@ export default {
               </p>
 
               <p v-if="pick.error" class="ar-assist__error" role="alert">{{ pick.error }}</p>
+              <!-- Real links, not click handlers. An <a> gives cmd-click,
+                   middle-click, "open in new window" and the browser's own
+                   new-tab handling for free; window.open() gives a popup blocker
+                   and none of them. Every row is reachable — the list stopped
+                   refusing rows the moment it stopped rewriting them. -->
               <div v-else-if="pick.results.length" class="ar-assist__postlist">
-                <button
+                <a
                   v-for="row in pick.results"
                   :key="row.id"
-                  type="button"
+                  :href="row.editUrl"
                   class="ar-assist__postitem"
-                  :class="{ 'is-blocked': !row.compatible }"
-                  :disabled="!row.compatible || pick.busy"
-                  @click="pickPost(row)"
+                  target="_blank"
+                  rel="noopener"
                 >
                   <span class="ar-assist__posttitle">{{ row.title }}</span>
                   <span class="ar-assist__postmeta">
@@ -1085,16 +1045,17 @@ export default {
                          already filtered to one type — it says so above. -->
                     <span v-if="!pick.type && row.typeLabel" class="ar-assist__chip">{{ row.typeLabel }}</span>
                     <span>{{ row.date }}</span>
+                    <span class="ar-assist__postgo" aria-hidden="true">Opens in the editor ↗</span>
                   </span>
-                  <span v-if="!row.compatible" class="ar-assist__postreason">This {{ (row.typeSingular || 'post').toLowerCase() }} {{ row.reason }}.</span>
-                </button>
+                </a>
               </div>
               <p v-else-if="!pick.busy" class="ar-assist__hint">Nothing matched — try another word.</p>
 
               <p class="ar-assist__hint">
-                The assistant revises the post’s text and keeps its images. Its status never changes
-                here — a draft stays a draft, a published post stays published, and WordPress keeps
-                the previous version in Revisions.
+                Each of these opens in the block editor, in a new tab — the assistant’s
+                <strong>Ask&nbsp;AI</strong> panel is there, on any block you select, so a change can
+                be aimed at one paragraph instead of the whole page. Nothing here is opened, locked
+                or altered by this list.
               </p>
 
             </template>

@@ -79,9 +79,18 @@ final class Assistant {
 	/** Output budget for the scene-describer (one vivid paragraph). */
 	const SCENE_TOKENS = 400;
 
-	/** Output budget for a single-section revision (the editor's per-block
-	 *  "Revise with AI"): one section back, never the whole document. */
-	const SECTION_TOKENS = 2048;
+	/** Output budget for a single-section revision: one section back, never the
+	 *  whole document.
+	 *
+	 *  Sized for the biggest thing this call is now legitimately asked to do,
+	 *  not the smallest. It began as "reword this paragraph" at 2048, but it is
+	 *  the same call a plan's insert runs through — and an insert's instruction
+	 *  can reasonably be "add ten more recommendations here". Multi-block asks
+	 *  land here too, where the answer replaces a whole selection. Add a
+	 *  reasoning model spending thinking tokens from this same allowance before
+	 *  it writes anything, and 2048 buys a truncated answer, which arrives as
+	 *  "the revision came back empty" — a symptom that names the wrong cause. */
+	const SECTION_TOKENS = 8192;
 
 	/** Context ceiling for section revisions — the full post rides along as
 	 *  plain text so the model keeps the surrounding voice and facts, capped so
@@ -92,6 +101,30 @@ final class Assistant {
 	 *  outline should cost pennies next to a full draft), but with headroom for
 	 *  reasoning models that spend thinking tokens from the same budget. */
 	const OUTLINE_TOKENS = 2048;
+
+	/** The PLAN: a list of targets and per-target instructions, never content —
+	 *  so the ANSWER stays small however long the post is. The budget doesn't,
+	 *  and can't: a reasoning model spends thinking tokens from this same
+	 *  allowance before it emits a character, so a budget sized to the visible
+	 *  answer gets consumed before the answer starts. What comes back is then a
+	 *  half-written JSON object, and truncation arrives disguised as a parse
+	 *  error — the same trap COMPOSE_TOKENS is deliberately generous about. */
+	const PLAN_TOKENS = 8192;
+
+	/** Blocks the plan may be shown. A post longer than this is planned over its
+	 *  first N blocks; the alternative is a payload that grows without limit and
+	 *  a model that loses the thread halfway down it. */
+	const MAX_PLAN_BLOCKS = 200;
+
+	/** Edits one plan may propose. A plan that wants to change forty things is
+	 *  not a plan, it's a rewrite wearing one — and the owner has to read every
+	 *  proposal before it runs. */
+	const MAX_PLAN_EDITS = 20;
+
+	/** Characters of each block shown to the planner. Enough to recognise a
+	 *  block, nowhere near enough to rewrite it — which is the point: a planner
+	 *  that could rewrite would, and then we'd be re-emitting documents again. */
+	const PLAN_EXCERPT = 140;
 
 	/** Output budget for ONE PART of a staged article (a section, the intro or
 	 *  the closing). Per-part budgets are what lift the whole-document ceiling:
@@ -308,6 +341,15 @@ final class Assistant {
 			array(
 				'methods'             => \WP_REST_Server::EDITABLE,
 				'callback'            => array( $this, 'revise_block' ),
+				'permission_callback' => array( $this, 'can_compose' ),
+			)
+		);
+		register_rest_route(
+			self::NS,
+			'/assistant/plan',
+			array(
+				'methods'             => \WP_REST_Server::EDITABLE,
+				'callback'            => array( $this, 'plan' ),
 				'permission_callback' => array( $this, 'can_compose' ),
 			)
 		);
@@ -1173,6 +1215,300 @@ final class Assistant {
 	}
 
 	/**
+	 * POST /assistant/plan — one instruction about a WHOLE post, answered as a
+	 * list of targeted edits rather than a new document.
+	 *
+	 * This is the endpoint that lets "shorten the whole thing" and "reword
+	 * paragraphs 2 and 9" exist at all, and the shape of it is the reason it
+	 * works where a whole-document rewrite doesn't:
+	 *
+	 *  · The planner is shown an OUTLINE — one line per block: number, block
+	 *    type, and the first {@see PLAN_EXCERPT} characters. It therefore CANNOT
+	 *    rewrite anything, which is deliberate. A planner that could rewrite
+	 *    would, and we would be re-emitting whole documents again, with every
+	 *    problem that brings.
+	 *  · So it returns targets and a per-target INSTRUCTION. The writing itself
+	 *    goes back through /assistant/revise-block — one small, proven call per
+	 *    accepted edit, already shape-aware, already able to return more blocks
+	 *    than it was given. Deletes and moves need no model at all.
+	 *  · A block the plan doesn't name is never touched. That is what keeps a
+	 *    table, an embed or a separator safe without a compatibility gate: they
+	 *    are not "preserved" by careful handling, they are simply not addressed.
+	 *
+	 * Writes nothing. The plan is a proposal; the editor shows it and the owner
+	 * accepts the parts they want.
+	 *
+	 * @param \WP_REST_Request $request Request.
+	 * @return \WP_REST_Response|\WP_Error
+	 */
+	public function plan( \WP_REST_Request $request ) {
+		$instruction = trim( sanitize_textarea_field( (string) $request->get_param( 'instruction' ) ) );
+		if ( strlen( $instruction ) < 4 ) {
+			return new \WP_Error(
+				'agentimus_plan_empty',
+				__( 'Say what should change across the post.', 'agentimus' ),
+				array( 'status' => 400 )
+			);
+		}
+
+		$outline = self::clean_plan_outline( $request->get_param( 'outline' ) );
+		if ( ! $outline ) {
+			return new \WP_Error(
+				'agentimus_plan_no_content',
+				__( 'There’s nothing in this post to plan against yet.', 'agentimus' ),
+				array( 'status' => 400 )
+			);
+		}
+
+		if ( ! Assist::ai_available() ) {
+			return new \WP_Error(
+				'agentimus_ai_unavailable',
+				__( 'No AI text model is configured. Add or enable one under Settings → AI, then try again.', 'agentimus' ),
+				array( 'status' => 503 )
+			);
+		}
+
+		$title = sanitize_text_field( (string) $request->get_param( 'title' ) );
+		$text  = ( new Assist( $this->settings ) )->generate(
+			self::plan_system_prompt( self::shape_for( self::read_type( $request ) ) ),
+			self::plan_prompt( $instruction, $outline, $title ),
+			self::PLAN_TOKENS
+		);
+		if ( is_wp_error( $text ) ) {
+			return self::friendly_ai_error( $text );
+		}
+
+		$plan = self::parse_plan( $text, count( $outline ) );
+		if ( empty( $plan['ok'] ) ) {
+			// Two very different failures wear this one message — a model that
+			// answered in prose, and one whose JSON was cut off mid-object because
+			// it thought for longer than the budget allowed. They need opposite
+			// fixes, so on a debug site the answer's own tail rides along: a string
+			// ending mid-token is truncation, a string of apology is not.
+			$data = array( 'status' => 502 );
+			if ( defined( 'WP_DEBUG' ) && WP_DEBUG ) {
+				$data['chars'] = mb_strlen( (string) $text );
+				$data['tail']  = mb_substr( trim( (string) $text ), -160 );
+			}
+			return new \WP_Error(
+				'agentimus_plan_unreadable',
+				__( 'The plan didn’t come back in a form we could read. Try again, or say it another way.', 'agentimus' ),
+				$data
+			);
+		}
+
+		return rest_ensure_response( $plan );
+	}
+
+	/**
+	 * PURE: hold the client's outline to shape and to bounds.
+	 *
+	 * The block NUMBER is the address the whole feature turns on, so it is taken
+	 * from the array position here and echoed back — never trusted from the
+	 * client, and never a client id. The editor resolves numbers to client ids
+	 * on its side at apply time, which is also what makes the plan survive the
+	 * document shifting under it.
+	 *
+	 * @param mixed $raw Raw outline rows.
+	 * @return array<int,array{type:string,text:string}>
+	 */
+	public static function clean_plan_outline( $raw ) {
+		$out = array();
+		foreach ( (array) $raw as $row ) {
+			if ( count( $out ) >= self::MAX_PLAN_BLOCKS ) {
+				break;
+			}
+			if ( ! is_array( $row ) ) {
+				continue;
+			}
+			$type = sanitize_text_field( (string) ( $row['type'] ?? '' ) );
+			$text = trim( wp_strip_all_tags( (string) ( $row['text'] ?? '' ) ) );
+			if ( '' === $type ) {
+				continue;
+			}
+			$out[] = array(
+				'type' => mb_substr( $type, 0, 60 ),
+				'text' => mb_substr( $text, 0, self::PLAN_EXCERPT ),
+			);
+		}
+		return $out;
+	}
+
+	/**
+	 * The planning instruction. Everything it forbids is something that would
+	 * quietly turn this back into a document rewrite.
+	 *
+	 * @param string $shape Article or page.
+	 * @return string
+	 */
+	public static function plan_system_prompt( $shape = self::SHAPE_ARTICLE ) {
+		$page = self::SHAPE_PAGE === $shape;
+
+		return 'You are the writing assistant inside a WordPress site\'s admin, planning changes to an existing '
+			. ( $page ? 'standing PAGE' : 'post' ) . '. '
+			. 'You are given the ' . ( $page ? 'page' : 'post' ) . ' as a NUMBERED OUTLINE: one line per block, '
+			. 'with its number, its block type, and only the BEGINNING of its text. You are not shown the full '
+			. 'text and you must not pretend to have read it. '
+			. 'Your job is to decide WHAT should change and WHERE — never to write the replacement. '
+			. 'Respond with ONLY a single JSON object — no markdown fences, no commentary — with these keys: '
+			. '"edits" (array of 0–' . self::MAX_PLAN_EDITS . ' objects), '
+			. '"note" (string: one plain sentence, empty unless there is something the owner needs to know — '
+			. 'for example that the request needs a block type you cannot write). '
+			. 'Each edit is {'
+			. '"target": the block NUMBER from the outline, '
+			. '"action": one of "replace", "insert-after", "insert-before", "delete", "move-after", '
+			. '"instruction": a short, self-contained instruction for whoever writes that block — required for '
+			. 'replace and the two inserts, omitted for delete and move-after, '
+			. '"to": the block number this one should move after — required for move-after only, '
+			. '"why": one short clause the owner will read to decide whether to accept it}. '
+			. 'ADDING IS AN EDIT. If the request asks for more — more examples, more sections, a conclusion, '
+			. 'ten more of something — that is an "insert-after" edit anchored to the block the new material '
+			. 'should follow. Do not answer an expansion request with an empty plan just because nothing already '
+			. 'there is wrong: "nothing to fix" and "nothing to add" are different answers, and the request '
+			. 'decides which one you are being asked for. '
+			. 'ONE PLACE, ONE EDIT. Everything that belongs in the same position goes in a SINGLE insert, however '
+			. 'much of it there is — ten items after block 22 is one edit whose instruction asks for ten, never '
+			. 'ten edits asking for one each. Split into several edits only when the material belongs in '
+			. 'DIFFERENT places in the post. '
+			. 'AN ADDITION CHANGES THE WHOLE. The first block or two is usually the opening summary — the paragraph '
+			. 'that tells a reader, and an answer engine, what the whole piece covers. Whenever your plan adds or '
+			. 'removes material, read that opening again and ask whether it still describes the '
+			. ( $page ? 'page' : 'post' ) . ' it now introduces. A summary naming three things in a piece that '
+			. 'covers ten is simply wrong, and it is the single most quoted paragraph there is. When it no longer '
+			. 'fits, include a "replace" edit for it in the SAME plan, with an instruction saying what it must now '
+			. 'cover. That instruction must ask the summary to CHARACTERISE the piece — how many things it covers '
+			. 'and what kind they are — and must never ask it to list them all by name. A paragraph reciting ten '
+			. 'product names is a list, not a summary; it is harder to read, it is the passage most likely to be '
+			. 'quoted back at the reader, and a writer told to name everything will simply miss some. '
+			. 'Check any closing that counts or lists what came before for the same reason. This is not an '
+			. 'optional courtesy: an addition that leaves the summary describing the old piece has left the '
+			. ( $page ? 'page' : 'post' ) . ' inconsistent with itself. '
+			. 'EVERY INSTRUCTION IS EXECUTED ALONE, by a writer who is handed one block, cannot see your other '
+			. 'edits, and does not know what they cover. So each instruction must be self-contained and must say '
+			. 'exactly what THIS edit adds or changes — never a restatement of the owner\'s request. If two of '
+			. 'your instructions could be swapped without anyone noticing, they should have been one edit. '
+			. 'Rules that matter more than being helpful: '
+			. 'Name ONLY blocks the request actually calls for — a block you do not name is left exactly as it '
+			. 'is, and that is the point of this format, not a limitation of it. '
+			. 'You write text: paragraphs, headings, lists, quotes. Never target an image, table, embed, group, '
+			. 'columns or separator block; if the request needs one of those changed, say so in "note" and leave '
+			. 'it out of the edits. '
+			. 'Never propose an edit you cannot justify in "why". '
+			. 'Prefer few, decisive edits over many small ones — but never fewer than the request needs. '
+			. 'Return an empty "edits" array ONLY when the request is genuinely already satisfied, and say so '
+			. 'in "note" when you do: an empty plan is an answer, so it has to be the true one.'
+			. ( $page
+				? ' This is a standing page: do not propose an introduction, invented sections, or length for its '
+					. 'own sake, and never propose adding a fact the page does not already carry.'
+				: '' );
+	}
+
+	/**
+	 * PURE: the planning user prompt — the request, then the addressed outline.
+	 *
+	 * @param string $instruction The owner's request.
+	 * @param array  $outline     The cleaned outline.
+	 * @param string $title       Post title, for grounding.
+	 * @return string
+	 */
+	public static function plan_prompt( $instruction, array $outline, $title = '' ) {
+		$lines = array();
+		foreach ( $outline as $i => $row ) {
+			$lines[] = ( $i + 1 ) . '. [' . $row['type'] . '] ' . $row['text'];
+		}
+
+		return ( '' !== $title ? "The post's title:\n" . $title . "\n\n" : '' )
+			. "The owner's request:\n" . $instruction
+			. "\n\nThe post, one line per block:\n" . implode( "\n", $lines );
+	}
+
+	/**
+	 * PURE: the model's text → a plan that can only address blocks that exist.
+	 *
+	 * Every target is re-checked against the outline's real length here, because
+	 * a hallucinated block 47 in a 12-block post would otherwise become an edit
+	 * the editor tries to apply to nothing.
+	 *
+	 * @param string $text  Raw model output.
+	 * @param int    $count How many blocks were shown.
+	 * @return array{edits:array,note:string}
+	 */
+	public static function parse_plan( $text, $count ) {
+		$text  = trim( (string) $text );
+		$start = strpos( $text, '{' );
+		$end   = strrpos( $text, '}' );
+		$data  = ( false !== $start && false !== $end && $end > $start )
+			? json_decode( substr( $text, $start, $end - $start + 1 ), true )
+			: null;
+
+		// An unreadable answer is NOT an empty plan. Both used to return the same
+		// thing, so a model that replied with prose — or nothing — reached the
+		// owner as "no changes proposed", which reads as considered advice. The
+		// caller turns this into an error the owner can act on (try again)
+		// instead of a verdict they can't.
+		if ( ! is_array( $data ) ) {
+			return array( 'ok' => false, 'edits' => array(), 'note' => '' );
+		}
+
+		$actions = array( 'replace', 'insert-after', 'insert-before', 'delete', 'move-after' );
+		$edits   = array();
+		// Edits already taken, keyed by what makes one distinguishable from
+		// another. A second edit with the same target, action and instruction can
+		// only produce the same paragraph twice — the writer executes each one
+		// alone and cannot see the others, so there is nothing to make them
+		// differ. It is also undecidable for the owner: a review list of
+		// identical rows can't be accepted or rejected row by row.
+		$seen = array();
+		foreach ( (array) ( $data['edits'] ?? array() ) as $raw ) {
+			if ( count( $edits ) >= self::MAX_PLAN_EDITS || ! is_array( $raw ) ) {
+				continue;
+			}
+			$action = sanitize_key( str_replace( '_', '-', (string) ( $raw['action'] ?? '' ) ) );
+			$target = (int) ( $raw['target'] ?? 0 );
+			if ( ! in_array( $action, $actions, true ) || $target < 1 || $target > $count ) {
+				continue;
+			}
+
+			$edit = array(
+				'target' => $target,
+				'action' => $action,
+				'why'    => mb_substr( trim( sanitize_text_field( (string) ( $raw['why'] ?? '' ) ) ), 0, 200 ),
+			);
+
+			if ( 'move-after' === $action ) {
+				$to = (int) ( $raw['to'] ?? 0 );
+				// A move to nowhere, or onto itself, is not an edit.
+				if ( $to < 1 || $to > $count || $to === $target ) {
+					continue;
+				}
+				$edit['to'] = $to;
+			} elseif ( 'delete' !== $action ) {
+				$instruction = trim( sanitize_textarea_field( (string) ( $raw['instruction'] ?? '' ) ) );
+				// Without an instruction there is nothing for the writer to do, so
+				// the edit would arrive at the owner as a promise nothing can keep.
+				if ( mb_strlen( $instruction ) < 4 ) {
+					continue;
+				}
+				$edit['instruction'] = mb_substr( $instruction, 0, 600 );
+			}
+
+			$key = $edit['target'] . '|' . $edit['action'] . '|' . mb_strtolower( $edit['instruction'] ?? ( $edit['to'] ?? '' ) );
+			if ( isset( $seen[ $key ] ) ) {
+				continue;
+			}
+			$seen[ $key ] = true;
+
+			$edits[] = $edit;
+		}
+
+		return array(
+			'ok'    => true,
+			'edits' => $edits,
+			'note'  => mb_substr( trim( sanitize_text_field( (string) ( $data['note'] ?? '' ) ) ), 0, 300 ),
+		);
+	}
+
+	/**
 	 * POST /assistant/revise-block — the editor's per-section act: the user
 	 * selected a block, typed an instruction, and the full post rides along as
 	 * context. The instruction may REWRITE the section or ADD new blocks around
@@ -1252,6 +1588,14 @@ final class Assistant {
 			. 'the selected content plus any requested additions, in final order — as clean HTML using only '
 			. '<h2>, <h3>, <p>, <ul>, <ol>, <li>, <strong>, <em>, <a>, <blockquote>. '
 			. 'Keep everything the instruction does not ask to change EXACTLY as it is, word for word. '
+			// The same bar every other writing prompt here carries, and it was
+			// missing from this one — which is the prompt that runs when someone
+			// asks for "ten more examples". That request is an open invitation to
+			// produce ten plausible names with confident details attached, and
+			// this is the only line standing between the invitation and the post.
+			. 'Write concretely; no filler, and no invented facts, statistics, names, prices or products. If the '
+			. 'instruction asks for specifics you have no grounds for, say less rather than making them up — a '
+			. 'shorter true passage beats a longer invented one, every time. '
 			. ( $page
 				? 'This is a standing page, so do not lengthen it beyond what the instruction asks, and do not introduce '
 					. 'facts the section did not already carry — on a page that states terms or promises, an invented '
@@ -1521,9 +1865,17 @@ final class Assistant {
 	}
 
 	/**
-	 * GET /assistant/posts — the edit-existing picker's search: the owner's own
-	 * editable posts, each carrying an honest verdict on whether the assistant
-	 * can rewrite it safely (and why not, when it can't).
+	 * GET /assistant/posts — the picker's search: the owner's own editable posts
+	 * and pages, each carrying the address of its editor.
+	 *
+	 * A LAUNCHER, not a workspace. The drawer owns the blank page — brief,
+	 * outline, draft, create — and hands anything that already exists to the
+	 * block editor, which is where such a thing lives. That division is what
+	 * retired the compatibility verdict this list used to carry: the drawer had
+	 * to refuse a page containing a separator, because rewriting a whole
+	 * document through a schema that only covers what the assistant itself
+	 * writes destroys everything it doesn't recognise. The editor recognises
+	 * every block, so the question stops being asked.
 	 *
 	 * @param \WP_REST_Request $request Request.
 	 * @return \WP_REST_Response
@@ -1564,15 +1916,18 @@ final class Assistant {
 			if ( ! current_user_can( 'edit_post', $post->ID ) ) {
 				continue;
 			}
-			$reason = self::edit_gate_reason( $post->post_content );
 			$rows[] = array(
 				'id'          => $post->ID,
 				'title'       => '' !== $post->post_title ? $post->post_title : __( '(no title)', 'agentimus' ),
 				'status'      => $post->post_status,
 				'statusLabel' => self::status_label( $post->post_status ),
 				'date'        => get_the_modified_date( '', $post ),
-				'compatible'  => '' === $reason,
-				'reason'      => $reason,
+				// Where the row goes: the real editor, which is where a post that
+				// already exists is edited. No compatibility verdict rides along
+				// any more — the list stopped judging when it stopped rewriting.
+				// A block this assistant can't write is no longer any of its
+				// business, because the editor can hold every one of them.
+				'editUrl'     => (string) get_edit_post_link( $post->ID, 'raw' ),
 				// The row says which type it is, so a mixed list reads honestly and
 				// the client can send the right type back when it revises this one.
 				'type'         => $post->post_type,

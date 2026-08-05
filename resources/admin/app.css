@@ -496,16 +496,23 @@
 .ar-assist__labelrow .ar-assist__label { margin-bottom: 0; }
 .ar-assist__editentry--top { margin: 0; padding: 0; border-top: 0; }
 .ar-assist__postlist { display: grid; gap: 8px; margin-top: 12px; }
+/* A row is an <a> now, so it carries link resets rather than button ones — and
+   no blocked state: the list stopped refusing rows when it stopped rewriting
+   them. */
 .ar-assist__postitem {
-  appearance: none; text-align: left; cursor: pointer;
+  text-align: left; cursor: pointer; text-decoration: none;
   display: grid; gap: 4px; padding: 10px 12px;
   border: 1px solid var(--ar-line); border-radius: 9px; background: var(--ar-surface);
 }
-.ar-assist__postitem:hover:not(:disabled) { border-color: var(--ar-accent); }
-.ar-assist__postitem.is-blocked { cursor: default; opacity: 0.65; background: var(--ar-surface-2); }
+.ar-assist__postitem:hover { border-color: var(--ar-accent); }
+.ar-assist__postitem:focus-visible { outline: 2px solid var(--ar-accent); outline-offset: 2px; }
 .ar-assist__posttitle { font-size: 13px; font-weight: 600; color: var(--ar-ink); }
 .ar-assist__postmeta { display: flex; align-items: center; gap: 8px; font-size: 11px; color: var(--ar-ink-faint); }
-.ar-assist__postreason { font-size: 11px; color: var(--ar-warn, #a15c00); }
+/* Where the row goes, said once per row but only on hover/focus — every row
+   goes to the same place, so saying it constantly is noise. */
+.ar-assist__postgo { margin-left: auto; color: var(--ar-accent); opacity: 0; transition: opacity 0.15s ease; }
+.ar-assist__postitem:hover .ar-assist__postgo,
+.ar-assist__postitem:focus-visible .ar-assist__postgo { opacity: 1; }
 .ar-assist__editingbar { margin: 0 0 12px; }
 .ar-assist__statusnote { font-family: var(--ar-mono); font-size: 10.5px; letter-spacing: 0.04em; text-transform: uppercase; color: var(--ar-ink-faint); }
 

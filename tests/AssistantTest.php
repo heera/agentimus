@@ -192,6 +192,148 @@ final class AssistantTest extends TestCase {
 		unset( $GLOBALS['_af_available_post_types'] );
 	}
 
+	/* -- The plan -------------------------------------------------------------- */
+
+	public function test_a_plan_can_only_address_blocks_that_exist() {
+		$plan = Assistant::parse_plan(
+			wp_json_encode(
+				array(
+					'edits' => array(
+						array( 'target' => 2, 'action' => 'replace', 'instruction' => 'Cut this to two sentences.', 'why' => 'Repeats the intro.' ),
+						array( 'target' => 47, 'action' => 'delete', 'why' => 'Hallucinated block in a 4-block post.' ),
+						array( 'target' => 0, 'action' => 'delete' ),
+						array( 'target' => 3, 'action' => 'obliterate', 'why' => 'Not an action we perform.' ),
+					),
+					'note'  => 'The image can’t be changed from here.',
+				)
+			),
+			4
+		);
+
+		$this->assertCount( 1, $plan['edits'], 'Only the in-range edit with a real action survives.' );
+		$this->assertSame( 2, $plan['edits'][0]['target'] );
+		$this->assertStringContainsString( 'image', $plan['note'] );
+	}
+
+	public function test_an_edit_without_the_field_that_makes_it_actionable_is_dropped() {
+		$plan = Assistant::parse_plan(
+			wp_json_encode(
+				array(
+					'edits' => array(
+						// A replace with no instruction is a promise nothing can keep:
+						// there is no text for the writer to work from.
+						array( 'target' => 1, 'action' => 'replace', 'why' => 'Too long.' ),
+						// A move to nowhere, and a move onto itself.
+						array( 'target' => 2, 'action' => 'move-after', 'why' => 'x' ),
+						array( 'target' => 3, 'action' => 'move-after', 'to' => 3, 'why' => 'x' ),
+						// Delete needs neither, and survives.
+						array( 'target' => 4, 'action' => 'delete', 'why' => 'Duplicate.' ),
+						// A good move.
+						array( 'target' => 5, 'action' => 'move-after', 'to' => 2, 'why' => 'Belongs with the intro.' ),
+					),
+				)
+			),
+			6
+		);
+
+		$this->assertCount( 2, $plan['edits'] );
+		$this->assertSame( 'delete', $plan['edits'][0]['action'] );
+		$this->assertSame( 2, $plan['edits'][1]['to'] );
+	}
+
+	public function test_interchangeable_edits_collapse_to_one() {
+		// Ten inserts on the same block carrying the same instruction: each is
+		// executed alone by a writer that can't see the others, so they can only
+		// produce the same paragraph ten times — and a review list of identical
+		// rows can't be accepted or rejected row by row.
+		$same = array();
+		for ( $i = 0; $i < 10; $i++ ) {
+			$same[] = array( 'target' => 22, 'action' => 'insert-after', 'instruction' => 'Add requested additional winter fragrance.', 'why' => 'More options.' );
+		}
+		// Distinguishable neighbours must survive: same block, different work.
+		$same[] = array( 'target' => 22, 'action' => 'insert-after', 'instruction' => 'Add a short line on where to store the bottles.', 'why' => 'Storage was asked for.' );
+		$same[] = array( 'target' => 22, 'action' => 'delete', 'why' => 'Different action entirely.' );
+
+		$plan = Assistant::parse_plan( wp_json_encode( array( 'edits' => $same ) ), 30 );
+		$this->assertCount( 3, $plan['edits'] );
+		$this->assertSame( 'insert-after', $plan['edits'][0]['action'] );
+		$this->assertStringContainsString( 'store the bottles', mb_strtolower( $plan['edits'][1]['instruction'] ) );
+		$this->assertSame( 'delete', $plan['edits'][2]['action'] );
+	}
+
+	public function test_the_plan_prompt_splits_by_place_not_by_quantity() {
+		$system = Assistant::plan_system_prompt();
+		$this->assertStringContainsString( 'ONE PLACE, ONE EDIT', $system );
+		$this->assertStringContainsString( 'EVERY INSTRUCTION IS EXECUTED ALONE', $system );
+		$this->assertStringContainsString( 'DIFFERENT places', $system );
+	}
+
+	public function test_the_plan_must_re_check_the_opening_summary_after_adding() {
+		// Seven sections added to a post whose opening names three things leaves
+		// the summary describing an article that no longer exists — and that
+		// paragraph is the one answer engines lift.
+		$system = Assistant::plan_system_prompt();
+		$this->assertStringContainsString( 'AN ADDITION CHANGES THE WHOLE', $system );
+		$this->assertStringContainsString( 'opening summary', $system );
+		$this->assertStringContainsString( 'in the SAME plan', $system );
+
+		// The page shape says the same thing in its own noun, so a page's summary
+		// isn't left behind either.
+		$this->assertStringContainsString( 'page it now introduces', Assistant::plan_system_prompt( Assistant::SHAPE_PAGE ) );
+		$this->assertStringContainsString( 'post it now introduces', $system );
+	}
+
+	public function test_a_plan_is_bounded_and_survives_junk() {
+		$many = array();
+		for ( $i = 1; $i <= 40; $i++ ) {
+			$many[] = array( 'target' => $i, 'action' => 'delete', 'why' => 'x' );
+		}
+		$plan = Assistant::parse_plan( wp_json_encode( array( 'edits' => $many ) ), 40 );
+		$this->assertCount( Assistant::MAX_PLAN_EDITS, $plan['edits'], 'A plan that wants forty changes is a rewrite wearing a plan.' );
+
+		// Prose around the object is the classic wrapper, and no object at all
+		// must degrade to "no plan", never to an exception.
+		$wrapped = Assistant::parse_plan( 'Sure! {"edits":[{"target":1,"action":"delete","why":"x"}],"note":""} Hope that helps.', 3 );
+		$this->assertCount( 1, $wrapped['edits'] );
+		$this->assertTrue( $wrapped['ok'] );
+
+		// An unreadable answer must be distinguishable from "nothing to do" —
+		// they used to be the same value, so a model replying with prose reached
+		// the owner as considered advice that no change was needed.
+		$unreadable = Assistant::parse_plan( 'no json here', 3 );
+		$this->assertFalse( $unreadable['ok'] );
+		$this->assertSame( array(), $unreadable['edits'] );
+		$this->assertTrue( Assistant::parse_plan( '{"edits":[],"note":"Already short."}', 3 )['ok'], 'A genuinely empty plan is still a good answer.' );
+	}
+
+	public function test_the_outline_is_bounded_and_addresses_come_from_position() {
+		$rows = array();
+		for ( $i = 0; $i < 260; $i++ ) {
+			$rows[] = array( 'type' => 'core/paragraph', 'text' => str_repeat( 'word ', 60 ) );
+		}
+		$rows[] = 'not-an-array';
+		$clean = Assistant::clean_plan_outline( $rows );
+
+		$this->assertCount( Assistant::MAX_PLAN_BLOCKS, $clean );
+		$this->assertLessThanOrEqual( Assistant::PLAN_EXCERPT, mb_strlen( $clean[0]['text'] ), 'The planner sees enough to recognise a block, never enough to rewrite it.' );
+
+		// Numbering is positional, so the prompt and the client agree on what
+		// "block 3" means without the client ever sending an address.
+		$prompt = Assistant::plan_prompt( 'Tighten it', array( array( 'type' => 'core/heading', 'text' => 'Why winter' ) ), 'T' );
+		$this->assertStringContainsString( '1. [core/heading] Why winter', $prompt );
+	}
+
+	public function test_the_plan_prompt_forbids_what_would_make_it_a_rewrite() {
+		$system = Assistant::plan_system_prompt();
+		$this->assertStringContainsString( 'never to write the replacement', $system );
+		$this->assertStringContainsString( 'a block you do not name is left exactly as it', $system );
+		$this->assertStringNotContainsString( '"content"', $system, 'The planner is never asked for content.' );
+
+		$page = Assistant::plan_system_prompt( Assistant::SHAPE_PAGE );
+		$this->assertStringContainsString( 'standing page', $page );
+		$this->assertNotSame( $system, $page );
+	}
+
 	/* -- Compose contract ------------------------------------------------------ */
 
 	public function test_the_system_prompt_pins_the_json_contract_parse_draft_expects() {
