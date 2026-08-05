@@ -27,9 +27,16 @@ namespace {
 	if ( ! function_exists( 'get_post_type_object' ) ) {
 		function get_post_type_object( $type ) {
 			return (object) array(
-				'cap' => (object) array(
+				'cap'    => (object) array(
 					'edit_posts'    => 'edit_posts',
 					'publish_posts' => 'publish_posts',
+				),
+				// Both labels, the way core carries them — plural for headings,
+				// singular for prose. Without the pair, a test can't catch the
+				// classic slip of writing "This posts has more images".
+				'labels' => (object) array(
+					'name'          => ucfirst( $type ) . 's',
+					'singular_name' => ucfirst( $type ),
 				),
 			);
 		}

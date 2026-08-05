@@ -211,6 +211,9 @@ namespace {
 	// defaults mimic a standard site: posts/pages support thumbnails, none set).
 	if ( ! function_exists( 'has_post_thumbnail' ) )    { function has_post_thumbnail( $post = null ) { $id = is_object( $post ) ? (int) $post->ID : (int) $post; return ! empty( $GLOBALS['_af_thumbnails'][ $id ] ); } }
 	if ( ! function_exists( 'post_type_supports' ) )    { function post_type_supports( $type, $feature ) { $k = $type . ':' . $feature; if ( isset( $GLOBALS['_af_type_supports'][ $k ] ) ) { return (bool) $GLOBALS['_af_type_supports'][ $k ]; } return 'thumbnail' === $feature && in_array( (string) $type, array( 'post', 'page' ), true ); } }
+	// Core's own answer for the two built-ins; $GLOBALS['_af_hierarchical_types'] lets a
+	// test register a page-like CPT, which is what Assistant::shape_for() reads.
+	if ( ! function_exists( 'is_post_type_hierarchical' ) ) { function is_post_type_hierarchical( $type ) { $extra = (array) ( $GLOBALS['_af_hierarchical_types'] ?? array() ); return 'page' === (string) $type || in_array( (string) $type, $extra, true ); } }
 	// Share-card + canonical surface for the Seo tests. _af_thumbnails doubles as the
 	// post-ID → attachment-ID map (has_post_thumbnail above only cares that it's truthy).
 	if ( ! function_exists( 'get_post_thumbnail_id' ) )        { function get_post_thumbnail_id( $post = null ) { $id = is_object( $post ) ? (int) $post->ID : (int) $post; return (int) ( $GLOBALS['_af_thumbnails'][ $id ] ?? 0 ); } }
@@ -323,7 +326,11 @@ namespace Agentimus {
 			// index to its header + about block, which is all the probe tests need.
 			public static function index_sections() { return self::post_types(); }
 			public static function query( $post_type, $limit = 50 ) { return array(); }
-			public static function label( $post_type ) { return ucfirst( (string) $post_type ); }
+			// Plural for headings and chips, singular for prose — the real class
+			// reads both off the post-type object, and code that writes sentences
+			// has to be able to tell them apart here too.
+			public static function label( $post_type ) { return ucfirst( (string) $post_type ) . 's'; }
+			public static function singular( $post_type ) { return ucfirst( (string) $post_type ); }
 			// Mirrors the real Content::markdown_source closely enough for the Markdown
 			// privacy tests: run the (mocked) the_content filter over the stored body,
 			// with the same blank-render fallback to the post's own blocks.

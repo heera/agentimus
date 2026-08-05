@@ -21,15 +21,44 @@
  * WP draft: "nothing is saved until you say so" stays literally true.
  */
 import { confirm } from '../confirm.js';
+import SelectMenu from './SelectMenu.vue';
 
 const HELD_KEY = 'agentimus:assistant:held';
 const HELD_TTL_MS = 7 * 24 * 3600 * 1000;
 
+/**
+ * Starting frames for the brief, one set per shape.
+ *
+ * Every seed is written as a fill-in-the-blanks sentence rather than a finished
+ * instruction: the [brackets] are the point — they show the owner exactly which
+ * decisions are theirs, and a brief still carrying them tells the model where it
+ * must not guess. Nothing here is stored or sent as a mode; a chip only ever
+ * types into the box on the owner's behalf.
+ */
+const ARTICLE_PRESETS = [
+  { label: 'SEO article', seed: 'A practical article on [topic] for [audience] — what actually matters, the mistakes people make, and a short checklist to finish. Around 900 words.' },
+  { label: 'Tutorial', seed: 'A step-by-step tutorial showing how to [task], for someone who [level of experience]. Numbered steps, what to expect after each one, and a short troubleshooting section at the end.' },
+  { label: 'Comparison', seed: 'A fair comparison of [A] and [B] for [audience] — where each one wins, where each falls short, and a clear answer on who should pick which.' },
+  { label: 'Product review', seed: 'An honest review of [product] after real use — what it does well, what it doesn’t, who it suits and who should skip it. No marketing voice.' },
+];
+
+const PAGE_PRESETS = [
+  { label: 'About', seed: 'An About page for [who] — what they do, what they’re known for, and how to get in touch. Warm, specific, not boastful. Short.' },
+  { label: 'Services', seed: 'A Services page covering [service one] and [service two] — what each includes, who it’s for, and what happens after someone gets in touch.' },
+  { label: 'Contact', seed: 'A Contact page — the ways to reach [who], what to expect for a reply, and what to include in a first message.' },
+  // The placeholder instruction is repeated here on purpose: this is the one
+  // preset where an invented fact becomes a commitment the owner never made.
+  { label: 'Terms / Policy', seed: 'A [Terms of service / Privacy policy] page covering [what it has to cover]. Leave a [placeholder] anywhere I haven’t given you a fact — do not invent a company name, jurisdiction, retention period or guarantee.' },
+];
+
 export default {
   name: 'AssistantDrawer',
+  components: { SelectMenu },
   props: {
     open: { type: Boolean, default: false },
     api: { type: Object, default: null },
+    // [{ slug, label, shape }] — the agent-visible types, from the boot payload.
+    types: { type: Array, default: () => [] },
   },
   emits: ['close', 'flash'],
   data() {
@@ -59,8 +88,12 @@ export default {
       // The picked post's identity rides here; its content becomes `draft` and
       // the whole preview/refine/undo machinery works on it unchanged.
       mode: 'write', // write | edit
-      editing: null, // { id, status, statusLabel, title }
-      pick: { q: '', results: [], busy: false, error: '' },
+      editing: null, // { id, status, statusLabel, title, type, shape }
+      // What the WRITE flow is composing. An edit never reads this — its type is
+      // whatever the picked post already is, which is not a thing to re-decide.
+      // Empty until the drawer opens; resolveType() fills it from the boot list.
+      writeType: '',
+      pick: { q: '', results: [], busy: false, error: '', type: '' },
       // Targeted revision of the held draft.
       refineText: '',
       refining: false,
@@ -78,6 +111,11 @@ export default {
       // so hiding the document scrollbar can't shift the layout sideways.
       document.documentElement.style.overflow = now ? 'hidden' : '';
       if (now) {
+        // Settle the chooser on a real slug the first time the drawer opens (or
+        // after a restored session left it empty). Never overwrite a choice
+        // that's already been made — a held draft was written in ITS type, and
+        // reopening the drawer must not quietly re-file it.
+        if (!this.writeType) this.writeType = this.defaultType;
         this.$nextTick(() => {
           const el = 'idle' === this.step ? this.$refs.promptEl : this.$refs.panel;
           if (el) el.focus();
@@ -94,6 +132,73 @@ export default {
     // parts alike.
     busy() {
       return 'composing' === this.step || this.outlining || this.stagingActive;
+    },
+    // THE type for everything this drawer is doing right now, and the only thing
+    // the API calls read. Writing uses the chooser; editing uses the type the
+    // post already is — a page being revised must not be rewritten as an article
+    // because a chooser somewhere still said "Post".
+    activeType() {
+      if ('edit' === this.mode && this.editing && this.editing.type) return this.editing.type;
+      return this.writeType || this.defaultType;
+    },
+    // Posts when posts are visible, otherwise the first type that is — a site
+    // that has switched posts off still gets a working assistant. Mirrors
+    // Assistant::read_type() on the server, which has the final say anyway.
+    defaultType() {
+      if (!this.types.length) return 'post';
+      const post = this.types.find((t) => 'post' === t.slug);
+      return post ? post.slug : this.types[0].slug;
+    },
+    // The shape the CHOOSER is showing — and the one every word on the brief
+    // screen describes, because those words sit directly under the control that
+    // sets it. Deliberately NOT activeType: while an edit is held, that points at
+    // the post being revised, so a chooser reading "Posts" was getting a note
+    // underneath it about standing pages, and a row of page presets to match.
+    // Two different questions were sharing one answer.
+    writeShape() {
+      const slug = this.writeType || this.defaultType;
+      const found = this.types.find((t) => t.slug === slug);
+      return found ? found.shape : 'article';
+    },
+    isPageShape() {
+      return 'page' === this.writeShape;
+    },
+    // The chooser only earns its space when there's a real choice to make.
+    showTypeChooser() {
+      return this.types.length > 1;
+    },
+    // The noun the brief screen uses, so "Describe the post" doesn't greet
+    // someone who just chose Page.
+    typeNoun() {
+      // The chooser's type, for the same reason as writeShape: this noun names
+      // what the brief will produce, not what a held edit happens to be.
+      const found = this.types.find((t) => t.slug === (this.writeType || this.defaultType));
+      // The SINGULAR, lowercased: this noun always appears inside a sentence
+      // about one thing ("Describe the post"), never as a heading.
+      return found ? (found.singular || found.label).toLowerCase() : 'post';
+    },
+    // Is there anything for "Start over" to clear? A typed-but-unsent brief
+    // counts: it's work, even though nothing has been paid for yet.
+    hasWorkToClear() {
+      return !!(this.draft || this.outline || this.prompt.trim());
+    },
+    // Which frames to offer, decided by the same shape that decides the prompt.
+    presets() {
+      return this.isPageShape ? PAGE_PRESETS : ARTICLE_PRESETS;
+    },
+    // SelectMenu takes { value, label }; the boot list speaks slug/label.
+    typeOptions() {
+      return this.types.map((t) => ({ value: t.slug, label: t.label }));
+    },
+    // The picker's filter leads with the no-filter option, because the list's
+    // own default is everything you last touched, whatever type it was.
+    filterOptions() {
+      return [{ value: '', label: 'Everything' }].concat(this.typeOptions);
+    },
+    // What the picker's filter is currently narrowed to, for the line under it.
+    filterLabel() {
+      const found = this.types.find((t) => t.slug === this.pick.type);
+      return found ? found.label : '';
     },
     // Staged progress, counted over every part (sections + intro + closing +
     // the dressing call).
@@ -117,7 +222,7 @@ export default {
       if (this.stagingActive) return `Writing… ${this.stagedDone}/${this.stagedTotal}`;
       if (this.stagedFailed) return 'Retry the failed parts';
       if (this.staging) return 'Continue writing';
-      return 'Write the article';
+      return this.isPageShape ? 'Write the page' : 'Write the article';
     },
     // The gate opens once at least one section has a real heading.
     outlineReady() {
@@ -167,6 +272,10 @@ export default {
           usedOutline: this.usedOutline,
           mode: this.mode,
           editing: this.editing,
+          // The type the held draft was WRITTEN in. Without it a page composed
+          // last night comes back after a reload and gets created as a post —
+          // the shape it was written in would survive only in the prose.
+          writeType: this.writeType,
           // Additive on purpose (still v:1): an older build reading this stash
           // simply ignores the key and restores the outline — degraded, never
           // broken. Finished parts are paid work; in-flight ones restart.
@@ -200,6 +309,12 @@ export default {
           return;
         }
         this.prompt = 'string' === typeof held.prompt ? held.prompt : '';
+        // Restore the type the draft was written in, but only if it's still one
+        // the owner allows — a type switched off since last night falls back to
+        // the default rather than resurrecting itself from localStorage.
+        if ('string' === typeof held.writeType && this.types.some((t) => t.slug === held.writeType)) {
+          this.writeType = held.writeType;
+        }
         if (o) {
           this.outline = {
             title: o.title,
@@ -218,6 +333,12 @@ export default {
             status: held.editing.status || 'draft',
             statusLabel: held.editing.statusLabel || 'Draft',
             title: held.editing.title,
+            // An older stash predates these; 'post'/'article' is what that build
+            // would have done anyway, so the fallback restores its behaviour
+            // rather than inventing a new one.
+            type: held.editing.type || 'post',
+            typeLabel: held.editing.typeLabel || '',
+            shape: held.editing.shape || 'article',
           };
         }
         if (draft) {
@@ -258,7 +379,7 @@ export default {
       this.mode = 'write'; // Outlining starts a WRITE path.
       this.editing = null;
       try {
-        const r = await this.api.assistantOutline(brief);
+        const r = await this.api.assistantOutline(brief, this.activeType);
         this.outline = r.outline;
         this.usedOutline = false;
         this.staging = null; // A new outline is a new plan — no old part fits it.
@@ -316,7 +437,7 @@ export default {
       this.mode = 'write'; // Composing writes a NEW post, whatever came before.
       this.editing = null;
       try {
-        const r = await this.api.assistantCompose(brief, null);
+        const r = await this.api.assistantCompose(brief, null, this.activeType);
         this.prevDraft = this.draft || null; // "Draft again" overwrites too — same one-step undo.
         this.draft = r.draft;
         this.usedOutline = false;
@@ -388,11 +509,11 @@ export default {
           });
       };
       const calls = [
-        fire('meta', () => this.api.assistantComposeMeta(brief, outline), (r) => r.meta),
-        fire('intro', () => this.api.assistantComposeSection(brief, outline, 'intro'), (r) => r.html),
-        fire('conclusion', () => this.api.assistantComposeSection(brief, outline, 'conclusion'), (r) => r.html),
+        fire('meta', () => this.api.assistantComposeMeta(brief, outline, this.activeType), (r) => r.meta),
+        fire('intro', () => this.api.assistantComposeSection(brief, outline, 'intro', -1, this.activeType), (r) => r.html),
+        fire('conclusion', () => this.api.assistantComposeSection(brief, outline, 'conclusion', -1, this.activeType), (r) => r.html),
       ].concat(outline.sections.map((s, i) =>
-        fire('s' + i, () => this.api.assistantComposeSection(brief, outline, 'section', i), (r) => r.html)));
+        fire('s' + i, () => this.api.assistantComposeSection(brief, outline, 'section', i, this.activeType), (r) => r.html)));
 
       await Promise.all(calls.filter(Boolean));
       if (this.staging !== st) return; // Cleared mid-flight (Start over) — nothing to land.
@@ -485,7 +606,7 @@ export default {
       // has nothing to land on and is dropped — compose's staging guard, for refine.
       const held = this.draft;
       try {
-        const r = await this.api.assistantRefine(held, instruction);
+        const r = await this.api.assistantRefine(held, instruction, this.activeType);
         if (this.draft !== held) return;
         this.prevDraft = held; // Keep the version being replaced — one-step undo.
         this.draft = r.draft;
@@ -505,17 +626,34 @@ export default {
       this.persistHeld();
     },
     // ---- Edit-existing: pick a post, work on it with the same machinery --------
+    // A chip fills an empty box, and APPENDS to one that isn't — typing is never
+    // destroyed by a click that only meant "give me a starting point". Focus
+    // lands back in the textarea with the caret at the end, because the seed is
+    // a sentence to finish, not an answer.
+    applyPreset(p) {
+      const current = this.prompt.trim();
+      this.prompt = current ? current + '\n\n' + p.seed : p.seed;
+      this.$nextTick(() => {
+        const el = this.$refs.promptEl;
+        if (!el) return;
+        el.focus();
+        el.setSelectionRange(el.value.length, el.value.length);
+        el.scrollTop = el.scrollHeight;
+      });
+    },
     openPicker() {
       this.step = 'pick';
       this.error = '';
-      this.pick = { q: '', results: [], busy: false, error: '' };
+      // The filter resets with the picker: it's a way to narrow THIS search, not
+      // a preference that follows you around.
+      this.pick = { q: '', results: [], busy: false, error: '', type: '' };
       this.searchPosts();
     },
     async searchPosts() {
       this.pick.busy = true;
       this.pick.error = '';
       try {
-        const r = await this.api.assistantPosts(this.pick.q.trim());
+        const r = await this.api.assistantPosts(this.pick.q.trim(), this.pick.type);
         this.pick.results = r.posts || [];
       } catch (e) {
         this.pick.error = (e && e.message) || 'Couldn’t search your posts.';
@@ -532,7 +670,19 @@ export default {
         const r = await this.api.assistantPost(row.id);
         const doc = r.post;
         this.mode = 'edit';
-        this.editing = { id: doc.id, status: doc.status, statusLabel: doc.statusLabel, title: doc.title };
+        // type/shape ride along: every later call about this document — refine, a
+        // section revision — is made in the shape the thing already is, not in
+        // whatever the write chooser happens to be showing.
+        this.editing = {
+          id: doc.id,
+          status: doc.status,
+          statusLabel: doc.statusLabel,
+          title: doc.title,
+          type: doc.type || 'post',
+          typeLabel: doc.typeLabel || '',
+          typeSingular: doc.typeSingular || '',
+          shape: doc.shape || 'article',
+        };
         // The fetched document IS a draft — the preview/refine/undo machinery
         // takes it from here unchanged. Images ride the slots invisibly and
         // return to the post on update; the editor is where they're worked on.
@@ -554,7 +704,7 @@ export default {
         this.step = 'preview';
         this.persistHeld();
       } catch (e) {
-        this.pick.error = (e && e.message) || 'Couldn’t open that post.';
+        this.pick.error = (e && e.message) || 'Couldn’t open that one.';
       } finally {
         this.pick.busy = false;
       }
@@ -618,7 +768,7 @@ export default {
       this.error = '';
       try {
         const r = await this.api.assistantCreate({
-          type: 'post',
+          type: this.activeType,
           status: this.statusChoice,
           title: this.draft.title,
           content: this.draft.content,
@@ -703,7 +853,7 @@ export default {
             </span>
             <div class="ar-drawer__titles">
               <h2 id="ar-assist-title" class="ar-drawer__title">Writing assistant</h2>
-              <p class="ar-drawer__sub">Describe the post — nothing is saved until you say so.</p>
+              <p class="ar-drawer__sub">Describe the {{ typeNoun }} — nothing is saved until you say so.</p>
             </div>
             <!-- When a screen has a way back, it sits with the close — the two
                  leave-this-screen acts share the corner. From the picker it
@@ -723,14 +873,45 @@ export default {
           <div class="ar-drawer__body" :class="{ 'ar-drawer__body--footed': onFootedScreen }">
             <!-- ============ Brief ============ -->
             <template v-if="'idle' === step || ('composing' === step && 'outline' !== composeOrigin)">
-              <!-- Both doors visible before anyone types: write on the left,
-                   the second door (revise something that exists) on the right. -->
-              <div class="ar-assist__labelrow">
-                <label class="ar-assist__label" for="ar-assist-prompt">What should it write?</label>
-                <p class="ar-assist__editentry ar-assist__editentry--top">
-                  <button type="button" class="ar-linkbtn" :disabled="busy" @click="openPicker">Edit an existing post</button>
-                </p>
+              <!-- Both doors visible before anyone types: the type field on the
+                   left is the write door, the link on the right is the revise
+                   one. The type is chosen BEFORE the brief because it decides the
+                   shape of the whole generation — an article gets an outline,
+                   image slots and taxonomies; a page gets none of them and is
+                   told to stop when it's done. Choosing afterwards would mean
+                   re-writing, not re-filing.
+
+                   The label and the field hide together when the site has made
+                   only one type agent-visible — a chooser with one option is
+                   furniture — but the revise door always stays. -->
+              <!-- Same attached-label control the picker's filter uses — one
+                   bordered object rather than a caption floating over a field.
+                   The revise door shares the row: the two are alternatives to
+                   each other, so they belong on one line. With no chooser to
+                   show, the spacer keeps the link right-aligned on its own. -->
+              <div class="ar-assist__typerow2">
+                <div v-if="showTypeChooser" class="ar-inputgroup ar-assist__typefield">
+                  <span class="ar-inputgroup__addon">Content type</span>
+                  <SelectMenu
+                    v-model="writeType"
+                    :options="typeOptions"
+                    :disabled="busy"
+                    aria-label="What kind of content to write"
+                  >
+                    <template #leading>
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H7a2 2 0 00-2 2v14a2 2 0 002 2h10a2 2 0 002-2V8z" /><path d="M14 3v5h5M9 13h6M9 17h4" /></svg>
+                    </template>
+                  </SelectMenu>
+                </div>
+                <span v-else class="ar-assist__spacer"></span>
+                <button type="button" class="ar-linkbtn ar-assist__editdoor" :disabled="busy" @click="openPicker">Edit existing</button>
               </div>
+
+              <p v-if="showTypeChooser" class="ar-assist__typenote">{{ isPageShape
+                ? 'Written as a standing page — no sections invented to fill it, no image slots, no categories.'
+                : 'Written as an article — an opening that answers, then sections.' }}</p>
+
+              <label class="ar-assist__section" for="ar-assist-prompt">Describe what you want</label>
               <textarea
                 id="ar-assist-prompt"
                 ref="promptEl"
@@ -742,10 +923,29 @@ export default {
                 @keydown.meta.enter="compose(false)"
                 @keydown.ctrl.enter="compose(false)"
               ></textarea>
+
+              <!-- Starting frames, not modes. A chip drops a scaffold into the box
+                   and gets out of the way: nothing is stored, nothing is sent, and
+                   every word stays editable — the brief remains the only thing the
+                   model is told. They're shaped by what's being written, because
+                   "SEO article" is meaningless on a Terms page and "About page" is
+                   meaningless on a blog post. -->
+              <div class="ar-assist__presets">
+                <button
+                  v-for="p in presets"
+                  :key="p.label"
+                  type="button"
+                  class="ar-assist__preset"
+                  :disabled="busy"
+                  @click="applyPreset(p)"
+                >{{ p.label }}</button>
+              </div>
+
               <p class="ar-assist__hint">
-                Be as specific as you like — audience, angle, length, language. Your site’s Content
+                Be as specific as you like — audience, tone, length, language. Your site’s Content
                 Guidelines are applied automatically. “Outline first” lets you shape the sections
                 before the full draft is written — rerolling an outline costs far less than a draft.
+                <span v-if="isPageShape">A page that states terms or promises will leave a [placeholder] wherever your brief doesn’t give it a fact, rather than inventing one.</span>
               </p>
               <p v-if="error" class="ar-assist__error" role="alert">{{ error }}</p>
 
@@ -754,18 +954,47 @@ export default {
                    cost the generation. Drafting again is what replaces it. A held
                    EDIT of a real post says WHICH post — "your drafted post" would
                    misdescribe it. -->
-              <div v-if="draft && !busy" class="ar-assist__held">
-                <span v-if="'edit' === mode && editing" class="ar-assist__heldtext">Still editing “{{ editing.title }}” — nothing was lost.</span>
-                <span v-else class="ar-assist__heldtext">Your drafted post is still here — nothing was lost.</span>
-                <button type="button" class="ar-linkbtn" @click="restorePreview">{{ 'edit' === mode && editing ? 'Back to the post' : 'Back to the preview' }}</button>
+              <div v-if="draft && !busy" class="ar-assist__heldcard">
+                <span class="ar-assist__heldicon" aria-hidden="true">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 109-9 9 9 0 00-6.4 2.7L3 8" /><path d="M3 3v5h5M12 7v5l3.5 2" /></svg>
+                </span>
+                <div class="ar-assist__heldbody">
+                  <p class="ar-assist__heldlabel">{{ 'edit' === mode && editing ? 'Still editing' : 'Continuing previous draft' }}</p>
+                  <!-- The draft's own title, not a description of it: after a day
+                       away, "your drafted post" identifies nothing. -->
+                  <p class="ar-assist__heldtitle">{{ ('edit' === mode && editing ? editing.title : draft.title) || 'Untitled' }}</p>
+                  <button type="button" class="ar-linkbtn" @click="restorePreview">{{ 'edit' === mode && editing ? 'Back to the post →' : 'Back to the draft →' }}</button>
+                </div>
               </div>
               <!-- Same promise for a shaped outline when no draft holds the spotlight. -->
-              <div v-else-if="outline && !busy" class="ar-assist__held">
-                <span class="ar-assist__heldtext">Your outline is still here — nothing was lost.</span>
-                <button type="button" class="ar-linkbtn" @click="step = 'outline'">Back to the outline</button>
+              <div v-else-if="outline && !busy" class="ar-assist__heldcard">
+                <span class="ar-assist__heldicon" aria-hidden="true">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01" /></svg>
+                </span>
+                <div class="ar-assist__heldbody">
+                  <p class="ar-assist__heldlabel">Outline still here</p>
+                  <p class="ar-assist__heldtitle">{{ outline.title || 'Untitled' }}</p>
+                  <button type="button" class="ar-linkbtn" @click="step = 'outline'">Back to the outline →</button>
+                </div>
               </div>
 
-              <div class="ar-assist__actions">
+              <!-- The armed confirm REPLACES this row rather than joining it —
+                   the same swap both pinned feet do. Sharing the row meant a
+                   long question and four controls competing for one line, which
+                   wrapped "Yes, clear it" into three. A question deserves the
+                   width of a question. -->
+              <div v-if="!confirmReset" class="ar-assist__actions">
+                <!-- The screen's only way out, in the row where the other
+                     decisions are. Appears once there is anything to clear — a
+                     typed brief counts, not just paid work — behind the inline
+                     confirm, because one stray click must not cost a generation. -->
+                <button
+                  v-if="hasWorkToClear"
+                  type="button"
+                  class="ar-linkbtn ar-assist__resetlink"
+                  :disabled="busy"
+                  @click="confirmReset = true"
+                >Start over</button>
                 <span class="ar-assist__spacer"></span>
                 <button type="button" class="ar-btn ar-btn--ghost" :disabled="prompt.trim().length < 8 || busy" @click="compose(false)">
                   <span v-if="'composing' === step" class="ar-spinner ar-assist__spin" aria-hidden="true"></span>
@@ -776,21 +1005,29 @@ export default {
                   {{ outlining ? 'Outlining…' : 'Outline first' }}
                 </button>
               </div>
+              <!-- Same words and classes as the outline and preview feet — one
+                   confirm exists in this drawer, not three lookalikes. -->
+              <div v-else class="ar-assist__actions">
+                <span class="ar-assist__resettext">Clear everything here and start fresh? Nothing on your site is affected.</span>
+                <span class="ar-assist__spacer"></span>
+                <button type="button" class="ar-linkbtn ar-assist__resetdanger" @click="confirmStartOver">Yes, clear it</button>
+                <button type="button" class="ar-linkbtn" @click="confirmReset = false">Keep it</button>
+              </div>
 
             </template>
 
             <!-- ============ Pick a post ============ -->
             <template v-else-if="'pick' === step">
               <!-- The way back lives in the drawer header, beside the close. -->
-              <label class="ar-assist__label" for="ar-pick-q">Edit an existing post</label>
+              <label class="ar-assist__label" for="ar-pick-q">Edit something you’ve written</label>
               <div class="ar-assist__librow">
                 <input
                   id="ar-pick-q"
                   v-model="pick.q"
                   type="text"
                   class="ar-assist__refineinput"
-                  placeholder="Search your posts"
-                  aria-label="Search your posts"
+                  placeholder="Search your content"
+                  aria-label="Search your content"
                   @keydown.enter="searchPosts"
                 />
                 <button type="button" class="ar-btn ar-assist__refinebtn" :disabled="pick.busy" @click="searchPosts">
@@ -798,10 +1035,34 @@ export default {
                 </button>
               </div>
 
+              <!-- The filter sits under the search, not beside it: it narrows the
+                   list, it doesn't run it. "Everything" is the default because the
+                   list is what you last touched, whatever type that was. Shown
+                   only when there's more than one type to choose between. -->
+              <!-- Label attached to the control rather than floating above it:
+                   one bordered object that reads as a single sentence, and the
+                   row stops competing with the search field above it. -->
+              <div v-if="showTypeChooser" class="ar-inputgroup ar-assist__filtergroup">
+                <span class="ar-inputgroup__addon">Filter by type</span>
+                <!-- Not v-model: the search has to run AFTER the filter lands,
+                     so the assignment and the fetch are one explicit handler
+                     rather than two listeners racing on the same event. -->
+                <SelectMenu
+                  :model-value="pick.type"
+                  :options="filterOptions"
+                  :disabled="pick.busy"
+                  aria-label="Filter the list by type"
+                  @update:model-value="(v) => { pick.type = v; searchPosts(); }"
+                />
+              </div>
+
               <!-- The unsearched list explains itself; once a query is typed the
                    results are matches, so the line steps aside. -->
-              <p v-if="!pick.q.trim()" class="ar-assist__hint">
-                Your ten most recently edited posts — search finds any post on your site.
+              <p v-if="!pick.q.trim() && !pick.type" class="ar-assist__hint">
+                Your ten most recently edited posts and pages — search finds anything on your site.
+              </p>
+              <p v-else-if="!pick.q.trim()" class="ar-assist__hint">
+                Your ten most recently edited, filtered to {{ filterLabel }} — search finds anything of that type.
               </p>
 
               <p v-if="pick.error" class="ar-assist__error" role="alert">{{ pick.error }}</p>
@@ -818,9 +1079,14 @@ export default {
                   <span class="ar-assist__posttitle">{{ row.title }}</span>
                   <span class="ar-assist__postmeta">
                     <span class="ar-assist__chip">{{ row.statusLabel }}</span>
+                    <!-- A mixed list has to say which is which, or "Terms and
+                         Conditions" sitting under a heading about posts is the
+                         screen telling a small lie. Dropped once the list is
+                         already filtered to one type — it says so above. -->
+                    <span v-if="!pick.type && row.typeLabel" class="ar-assist__chip">{{ row.typeLabel }}</span>
                     <span>{{ row.date }}</span>
                   </span>
-                  <span v-if="!row.compatible" class="ar-assist__postreason">This post {{ row.reason }}.</span>
+                  <span v-if="!row.compatible" class="ar-assist__postreason">This {{ (row.typeSingular || 'post').toLowerCase() }} {{ row.reason }}.</span>
                 </button>
               </div>
               <p v-else-if="!pick.busy" class="ar-assist__hint">Nothing matched — try another word.</p>
@@ -912,7 +1178,7 @@ export default {
               </p>
 
               <div v-if="draft && !busy" class="ar-assist__held">
-                <span class="ar-assist__heldtext">{{ staging ? 'Your earlier draft is still here — finishing this article replaces it.' : 'Your drafted post is still here — “Write the article” replaces it.' }}</span>
+                <span class="ar-assist__heldtext">{{ staging ? 'Your earlier draft is still here — finishing this one replaces it.' : `Your drafted ${typeNoun} is still here — “${writeLabel}” replaces it.` }}</span>
                 <button type="button" class="ar-linkbtn" @click="restorePreview">Back to the preview</button>
               </div>
 
@@ -1086,24 +1352,7 @@ export default {
               </div>
             </template>
 
-            <!-- ============ Start over ============ -->
-            <!-- The brief screen's copy of the way out (the outline and preview
-                 screens carry theirs inside their pinned foot): clear the brief,
-                 outline and held draft in one act, behind the inline confirm —
-                 it discards paid work. Never shown mid-call or after creation. -->
-            <div
-              v-if="'idle' === step && !busy && (draft || outline || prompt.trim())"
-              class="ar-assist__reset"
-            >
-              <template v-if="!confirmReset">
-                <button type="button" class="ar-linkbtn" @click="confirmReset = true">Start over</button>
-              </template>
-              <template v-else>
-                <span class="ar-assist__resettext">Clear everything here and start fresh? Nothing on your site is affected.</span>
-                <button type="button" class="ar-linkbtn ar-assist__resetdanger" @click="confirmStartOver">Yes, clear it</button>
-                <button type="button" class="ar-linkbtn" @click="confirmReset = false">Keep it</button>
-              </template>
-            </div>
+
           </div>
         </div>
       </div>

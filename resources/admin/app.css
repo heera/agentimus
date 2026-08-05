@@ -509,11 +509,10 @@
 .ar-assist__editingbar { margin: 0 0 12px; }
 .ar-assist__statusnote { font-family: var(--ar-mono); font-size: 10.5px; letter-spacing: 0.04em; text-transform: uppercase; color: var(--ar-ink-faint); }
 
-/* Start over: the one way out, tucked under a rule at the drawer's foot. */
-.ar-assist__reset {
-  display: flex; justify-content: flex-end; align-items: center; gap: 12px; flex-wrap: wrap;
-  margin-top: 16px; padding-top: 10px; border-top: 1px dashed var(--ar-line);
-}
+/* Start over's confirm, wherever it's armed — the brief's action row and both
+   pinned feet share these two. (The brief screen's separate dashed strip is
+   gone: it lived under the buttons and duplicated the link now sitting in the
+   action row beside them.) */
 .ar-assist__resettext { font-size: 11.5px; color: var(--ar-ink-faint); }
 .ar-assist__resetdanger { color: var(--ar-bad); }
 
@@ -548,6 +547,106 @@
    will hold. (The image workshop lives in the block editor now.) */
 .ar-assist__imagesnote { margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--ar-line); }
 .ar-assist__librow { display: flex; gap: 8px; align-items: center; }
+
+/* ---- Brief screen -------------------------------------------------------
+   Two labelled fields, stacked: the content type, then the brief. Each opens
+   with a head row carrying its label on the left and — on the type field — the
+   way into the OTHER door on the right, so both paths are visible before
+   anything is typed. */
+/* The field and the way out to the other door share a row, centred on each
+   other — they're alternatives, so they read as one choice, not as a heading
+   with a stray link beside it. The field takes the row; the link keeps only
+   the width of its own words. */
+.ar-assist__typerow2 { display: flex; align-items: center; gap: 14px; }
+.ar-assist__typefield { flex: 1 1 auto; min-width: 0; }
+.ar-assist__editdoor { flex: 0 0 auto; }
+.ar-assist__typenote { margin: 7px 0 0; font-size: 11.5px; line-height: 1.55; color: var(--ar-ink-faint); }
+
+/* The brief's own label, sized as a section heading — it's the screen's real
+   question, and the small-label treatment made it read as a form field. */
+.ar-assist__section {
+  display: block; margin: 20px 0 9px;
+  font-size: 16px; font-weight: 600; letter-spacing: -0.01em; color: var(--ar-ink);
+}
+
+/* Starting frames. Pills rather than buttons: they type for you, they don't
+   commit you to anything, and the weight should say so. */
+.ar-assist__presets { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 10px; }
+.ar-assist__preset {
+  padding: 6px 12px; border: 1px solid var(--ar-line-strong); border-radius: 999px;
+  background: var(--ar-surface); color: var(--ar-ink-soft);
+  font-size: 12px; line-height: 1.2; cursor: pointer;
+  transition: border-color 0.15s ease, color 0.15s ease, background 0.15s ease;
+}
+.ar-assist__preset:hover:not(:disabled) { border-color: var(--ar-accent); color: var(--ar-accent); background: var(--ar-surface-2); }
+.ar-assist__preset:disabled { opacity: 0.5; cursor: default; }
+
+/* Held work, as a card rather than a sentence: after a day away, "your drafted
+   post" identifies nothing — the card carries the actual title. */
+.ar-assist__heldcard {
+  display: flex; gap: 11px; align-items: flex-start;
+  margin-top: 16px; padding: 12px 13px;
+  background: var(--ar-surface-2); border: 1px solid var(--ar-line); border-radius: var(--ar-radius);
+}
+.ar-assist__heldicon {
+  flex: 0 0 auto; display: inline-flex; align-items: center; justify-content: center;
+  width: 30px; height: 30px; border-radius: var(--ar-radius);
+  background: var(--ar-surface); border: 1px solid var(--ar-line); color: var(--ar-accent);
+}
+.ar-assist__heldbody { min-width: 0; }
+.ar-assist__heldlabel { margin: 0; font-size: 11.5px; color: var(--ar-ink-faint); }
+.ar-assist__heldtitle {
+  margin: 1px 0 3px; font-size: 13px; font-weight: 600; color: var(--ar-ink);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+
+/* ---- Input group ---------------------------------------------------------
+   A label welded to its control: one border around both, the label in a shaded
+   segment on the left. Reads as a single object ("Filter by type: Everything")
+   instead of a caption hovering over a field, and it costs a row of height.
+
+   Generic on purpose — any .ar-input or SelectMenu can be dropped inside.
+
+   NOT overflow:hidden, tempting as that is for the corners: SelectMenu's popup
+   is absolutely positioned inside .ar-select, so clipping the group would clip
+   the open menu. The addon rounds its own left corners instead. */
+.ar-inputgroup {
+  display: flex;
+  align-items: stretch;
+  border: 1px solid var(--ar-line-strong);
+  border-radius: var(--ar-radius);
+  background: var(--ar-surface);
+}
+.ar-inputgroup__addon {
+  display: flex; align-items: center; flex: 0 0 auto;
+  padding: 0 12px;
+  border-right: 1px solid var(--ar-line);
+  border-radius: calc(var(--ar-radius) - 1px) 0 0 calc(var(--ar-radius) - 1px);
+  background: var(--ar-surface-2);
+  font-size: 12.5px; font-weight: 600; color: var(--ar-ink-soft); white-space: nowrap;
+}
+.ar-inputgroup > .ar-select { flex: 1 1 auto; min-width: 0; }
+/* The control gives up its own frame — the group wears it now. The id prefix is
+   here to out-specify SelectMenu's scoped rules, which otherwise tie on weight
+   and win or lose on build order. */
+#agentimus-app .ar-inputgroup .ar-select__btn,
+#agentimus-app .ar-inputgroup .ar-input {
+  border: 0; border-radius: 0; background: transparent; box-shadow: none; height: 40px;
+}
+/* One focus ring, drawn by the group, whether the inner control is focused or
+   its menu is open. */
+#agentimus-app .ar-inputgroup:focus-within,
+#agentimus-app .ar-inputgroup:has(.ar-select.is-open) {
+  border-color: var(--ar-accent);
+  box-shadow: 0 0 0 3px rgba(20, 107, 100, 0.13);
+}
+
+/* Full width, so it lines up with the search row above it — a filter that stops
+   short of the field it filters reads as an afterthought. */
+.ar-assist__filtergroup { margin: 10px 0 8px; }
+
+/* What the chosen type will do to the writing, under the field that chose it. */
+.ar-assist__typenote { margin: 7px 0 0; font-size: 11.5px; line-height: 1.55; color: var(--ar-ink-faint); }
 
 /* Refine: revise-in-place bar under the preview. */
 .ar-assist__refine { display: flex; gap: 8px; margin-top: 12px; }

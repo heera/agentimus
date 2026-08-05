@@ -108,6 +108,90 @@ final class AssistantTest extends TestCase {
 		$this->assertTrue( ( new Assistant( new Settings() ) )->state()['writesOn'] );
 	}
 
+	/* -- Shapes ---------------------------------------------------------------- */
+
+	public function test_shape_is_decided_by_hierarchy_not_by_a_hard_coded_list() {
+		$this->assertSame( Assistant::SHAPE_ARTICLE, Assistant::shape_for( 'post' ) );
+		$this->assertSame( Assistant::SHAPE_PAGE, Assistant::shape_for( 'page' ) );
+
+		// A page-like CPT classifies itself the day it's registered — nothing to
+		// configure, no list to keep in step.
+		$GLOBALS['_af_hierarchical_types'] = array( 'handbook' );
+		$this->assertSame( Assistant::SHAPE_PAGE, Assistant::shape_for( 'handbook' ) );
+		$this->assertSame( Assistant::SHAPE_ARTICLE, Assistant::shape_for( 'essay' ), 'A flat CPT is an article.' );
+		unset( $GLOBALS['_af_hierarchical_types'] );
+
+		// An unknown or empty type can't be hierarchical, so it writes as an article.
+		$this->assertSame( Assistant::SHAPE_ARTICLE, Assistant::shape_for( '' ) );
+	}
+
+	public function test_the_shape_filter_can_override_and_only_the_two_shapes_exist() {
+		add_filter( 'agentimus_assistant_shape', function ( $shape, $type ) {
+			return 'landing' === $type ? Assistant::SHAPE_PAGE : $shape;
+		}, 10, 2 );
+		$this->assertSame( Assistant::SHAPE_PAGE, Assistant::shape_for( 'landing' ) );
+
+		// Anything the filter invents that isn't the page shape lands back on the
+		// article — the prompts branch on two values and only two exist.
+		add_filter( 'agentimus_assistant_shape', function () {
+			return 'brochure';
+		} );
+		$this->assertSame( Assistant::SHAPE_ARTICLE, Assistant::shape_for( 'page' ) );
+	}
+
+	public function test_a_page_prompt_drops_the_article_furniture() {
+		$page = Assistant::system_prompt( Assistant::SHAPE_PAGE );
+
+		// Same JSON keys either way — the parser must never have to know which
+		// shape it's holding — but a page is told to send the article furniture
+		// back empty rather than being offered it.
+		foreach ( array( '"title"', '"excerpt"', '"content"', '"description"', '"topics"', '"tags"', '"categories"', '"images"' ) as $key ) {
+			$this->assertStringContainsString( $key, $page );
+		}
+		$this->assertStringContainsString( 'ALWAYS an empty array', $page );
+		$this->assertStringNotContainsString( 'after_heading', $page, 'A page is offered no image anchors.' );
+		$this->assertStringNotContainsString( 'answer engines lift it as the summary', $page );
+		$this->assertStringContainsString( '[placeholder]', $page, 'A page that carries obligations must not invent facts.' );
+
+		// The article shape is untouched by any of it.
+		$article = Assistant::system_prompt();
+		$this->assertStringContainsString( 'after_heading', $article );
+		$this->assertStringNotContainsString( 'ALWAYS an empty array', $article );
+		$this->assertSame( $article, Assistant::system_prompt( Assistant::SHAPE_ARTICLE ), 'Default is the article shape.' );
+	}
+
+	public function test_every_generating_prompt_takes_a_shape() {
+		foreach ( array( 'outline_system_prompt', 'staged_part_system_prompt', 'staged_meta_system_prompt', 'section_system_prompt' ) as $fn ) {
+			$article = Assistant::$fn();
+			$page    = Assistant::$fn( Assistant::SHAPE_PAGE );
+			$this->assertNotSame( $article, $page, $fn . '() must differ by shape.' );
+			$this->assertSame( $article, Assistant::$fn( Assistant::SHAPE_ARTICLE ), $fn . '() defaults to the article.' );
+		}
+
+		// The outline's floor comes down for a page: two sections is a real page,
+		// eight is an article wearing a page's name.
+		$this->assertStringContainsString( '2–5', Assistant::outline_system_prompt( Assistant::SHAPE_PAGE ) );
+		$this->assertStringContainsString( '3–8', Assistant::outline_system_prompt() );
+	}
+
+	public function test_the_type_list_carries_each_shape_and_both_labels() {
+		$GLOBALS['_af_available_post_types'] = array( 'post', 'page' );
+		$types = Assistant::types();
+		$by    = array();
+		foreach ( $types as $t ) {
+			// Both names travel: the plural names the chooser, the singular writes
+			// the sentences around it. Shipping only the plural is what produced
+			// "Describe the posts" and "This pages uses blocks…".
+			$this->assertArrayHasKey( 'label', $t );
+			$this->assertArrayHasKey( 'singular', $t );
+			$this->assertNotSame( $t['label'], $t['singular'], 'A type must offer a distinct singular for prose.' );
+			$by[ $t['slug'] ] = $t['shape'];
+		}
+		$this->assertSame( Assistant::SHAPE_ARTICLE, $by['post'] );
+		$this->assertSame( Assistant::SHAPE_PAGE, $by['page'] );
+		unset( $GLOBALS['_af_available_post_types'] );
+	}
+
 	/* -- Compose contract ------------------------------------------------------ */
 
 	public function test_the_system_prompt_pins_the_json_contract_parse_draft_expects() {
@@ -547,12 +631,40 @@ final class AssistantTest extends TestCase {
 		$this->assertSame( '', Assistant::edit_gate_reason( '<h2>Classic</h2><p>No block comments at all.</p>' ) );
 	}
 
-	public function test_edit_gate_bounds_images_and_length() {
-		$figures = str_repeat( Assistant::figure_html( 'https://x.test/i.jpg', 'Some alt text', 7 ), 5 );
-		$this->assertStringContainsString( 'more images', Assistant::edit_gate_reason( '<p>Hi.</p>' . $figures ) );
+	public function test_edit_gate_bounds_length_but_never_images() {
+		// Images are lifted out before the model runs and put back after, so their
+		// number says nothing about what a rewrite can hold. This many used to be
+		// refused; refusing it was the suggestion ceiling escaping onto the
+		// owner's own pictures.
+		$figures = str_repeat( Assistant::figure_html( 'https://x.test/i.jpg', 'Some alt text', 7 ), 12 );
+		$this->assertSame( '', Assistant::edit_gate_reason( '<p>Hi.</p>' . $figures ), 'A picture-heavy post is still editable.' );
 
 		$long = '<p>' . implode( ' ', array_fill( 0, 4200, 'word' ) ) . '</p>';
 		$this->assertStringContainsString( 'longer than', Assistant::edit_gate_reason( $long ) );
+	}
+
+	public function test_existing_images_ride_through_while_invented_ones_stay_capped() {
+		// Twelve real images (each carrying an attachment) plus a greedy pile of
+		// invented ones. Every real image survives; the inventions stop at the
+		// ceiling. Slicing the array as one list — the old behaviour — would have
+		// returned four slots and quietly deleted eight pictures.
+		$slots = array();
+		for ( $i = 1; $i <= 12; $i++ ) {
+			$slots[] = array( 'alt' => 'A real photograph number ' . $i, 'attachment_id' => 100 + $i );
+		}
+		for ( $i = 1; $i <= 9; $i++ ) {
+			$slots[] = array( 'alt' => 'An invented suggestion number ' . $i );
+		}
+
+		$clean    = Assistant::clean_image_slots( $slots );
+		$existing = array_filter( $clean, function ( $s ) { return ! empty( $s['attachment_id'] ); } );
+		$invented = array_filter( $clean, function ( $s ) { return empty( $s['attachment_id'] ); } );
+
+		$this->assertCount( 12, $existing, 'Every image the owner already had must survive the round-trip.' );
+		$this->assertCount( Assistant::MAX_IMAGE_SLOTS, $invented, 'Invention stays bounded.' );
+
+		// Order is preserved, so re-injection still lands each figure where it was.
+		$this->assertSame( 101, $clean[0]['attachment_id'] );
 	}
 
 	public function test_content_to_doc_mirrors_create_lifting_figures_into_anchored_slots() {

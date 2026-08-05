@@ -1174,7 +1174,21 @@ final class Registrar {
 				. 'site’s "agents may publish" switch on top of the user’s own publish permission; when it is '
 				. 'off, create a draft (or pending) for the owner to review. Returns the new id and the saved '
 				. 'draft’s AI-readability grade — fix anything under `attention`; check-page has the full '
-				. 'per-check detail.'
+				. 'per-check detail. '
+				// You write the content, not us — this tool stores what it is
+				// handed. So the house rules for the two shapes have to be stated
+				// here, in the contract you read before you write, rather than
+				// applied in a prompt we control. The in-admin assistant follows
+				// the same two shapes; this keeps the site's content consistent
+				// no matter which door it came through.
+				. 'HOW TO WRITE EACH TYPE — a page ("page", or any hierarchical type) is a standing part of the '
+				. 'site (About, Services, Terms, Contact) that a reader arrives at to get one thing done. Write '
+				. 'it short: no article-style opening, headings only where the page truly has parts, no '
+				. 'categories or tags, and no images unless the owner asked for one. A post (or any '
+				. 'non-hierarchical type) is an article: open with a self-contained paragraph that answers the '
+				. 'title, then sections. On a page that states terms or promises — legal, privacy, refunds — '
+				. 'state only what the user actually told you; leave a plain [placeholder] wherever a fact is '
+				. 'missing rather than inventing a jurisdiction, a period, an address or a guarantee.'
 			),
 			self::obj(
 				array(
@@ -1220,7 +1234,16 @@ final class Registrar {
 				. 'featured image alongside the content, or on their own. CAUTION: fields REPLACE — passing '
 				. 'content replaces the current body (posts and pages keep a revision of the old one, but a '
 				. 'content type without revision support does not), and a categories/tags list replaces the '
-				. 'current list ([] clears it). The response includes the post’s AI-readability grade after the save.'
+				. 'current list ([] clears it). The response includes the post’s AI-readability grade after the save. '
+				// Same reason as create-content: the words are yours, so the rule
+				// has to travel in the contract. Editing carries one rule of its
+				// own — the shape is already decided by what you are editing.
+				. 'HOW TO WRITE EACH TYPE — keep the shape the target already has: a page ("page", or any '
+				. 'hierarchical type) stays a short standing page (no article opening, no invented sections, no '
+				. 'categories or tags), and a post stays an article. Do not rewrite a page into an article '
+				. 'because it reads thin — a Terms page is not improved by an introduction. On any page that '
+				. 'states terms or promises, never introduce a fact the page did not already carry: an invented '
+				. 'detail there is a commitment the owner never made.'
 			),
 			self::obj(
 				array(

@@ -57,9 +57,24 @@ final class Assistant {
 	const MAX_TAGS       = 6;
 	const MAX_CATEGORIES = 3;
 
-	/** Image SLOTS per article: the text model proposes where a picture helps and
-	 *  what it should show (free); each actual image is an explicit, per-slot act. */
-	const MAX_IMAGE_SLOTS = 4;
+	/** Image SUGGESTIONS the writer may propose: the text model says where a
+	 *  picture would help and what it should show (free); each actual image is an
+	 *  explicit, per-slot act. A ceiling on INVENTION, not on content — how many
+	 *  a given piece actually gets is decided by the piece, and the prompt asks
+	 *  for none rather than a quota when none would help. */
+	const MAX_IMAGE_SLOTS = 5;
+
+	/** How many slots one document may carry in total. Existing images — the ones
+	 *  arriving with an attachment_id — are never counted against the suggestion
+	 *  ceiling above and never truncated: dropping them would delete the owner's
+	 *  own pictures on a round-trip that was only meant to touch text. This is
+	 *  the outer sanity bound, so a payload still can't be unbounded. */
+	const MAX_IMAGE_CARRY = 60;
+
+	/** Rows the edit picker shows. The number is also a promise the screen makes
+	 *  in words ("your ten most recently edited…"), so the query over-fetches and
+	 *  the loop trims to exactly this after the per-post capability check. */
+	const PICKER_ROWS = 10;
 
 	/** Output budget for the scene-describer (one vivid paragraph). */
 	const SCENE_TOKENS = 400;
@@ -94,6 +109,10 @@ final class Assistant {
 	 *  through the model without loss — exactly the vocabulary the assistant
 	 *  itself writes. Anything else refuses the post LOUDLY instead of quietly
 	 *  destroying a table or an embed. */
+	/** The two shapes the assistant writes in. {@see shape_for()} decides which. */
+	const SHAPE_ARTICLE = 'article';
+	const SHAPE_PAGE    = 'page';
+
 	const EDIT_SAFE_BLOCKS = array( 'paragraph', 'heading', 'list', 'list-item', 'quote', 'image', 'html' );
 
 	/** Word ceiling for a whole-document rewrite — the same COMPOSE_TOKENS
@@ -137,7 +156,83 @@ final class Assistant {
 			'providerReady' => Assist::ai_available(),
 			'imageReady'    => self::image_ready(),
 			'canUpload'     => current_user_can( 'upload_files' ),
+			'types'         => self::types(),
 		);
+	}
+
+	/**
+	 * The agent-visible types the assistant can write, each carrying the SHAPE it
+	 * will be written in — so the chooser on the brief screen and the filter on
+	 * the picker both render from one list, and neither can offer a type the
+	 * endpoints would reject.
+	 *
+	 * @return array<int,array{slug:string,label:string,shape:string}>
+	 */
+	public static function types() {
+		$out = array();
+		foreach ( Content::post_types() as $slug ) {
+			$out[] = array(
+				'slug'     => $slug,
+				'label'    => Content::label( $slug ),
+				// Both: the plural names the chooser, the singular writes the prose
+				// around it ("Describe the post"). One of them is always wrong for
+				// the other job.
+				'singular' => Content::singular( $slug ),
+				'shape'    => self::shape_for( $slug ),
+			);
+		}
+		return $out;
+	}
+
+	/**
+	 * Which of the two shapes a type is written in.
+	 *
+	 * WordPress already knows the answer, so nothing here is configured and no
+	 * list is hard-coded: hierarchical types are standing pages (they nest, they
+	 * have no feed, they are rarely filed under taxonomies), and everything else
+	 * is an article. A custom type therefore classifies itself correctly the day
+	 * it is registered — `docs` and `essays` write as articles, a page-like type
+	 * writes as a page — and the filter is there for the type that gets it wrong.
+	 *
+	 * Two shapes and no more, deliberately. A third ("utility page" for terms and
+	 * privacy, say) would need a signal WordPress doesn't give us, which means
+	 * tagging pages by hand, which means a setting nobody maintains.
+	 *
+	 * @param string $type Post type slug.
+	 * @return string self::SHAPE_PAGE|self::SHAPE_ARTICLE
+	 */
+	public static function shape_for( $type ) {
+		$type  = sanitize_key( (string) $type );
+		$shape = ( '' !== $type && is_post_type_hierarchical( $type ) ) ? self::SHAPE_PAGE : self::SHAPE_ARTICLE;
+
+		/**
+		 * Filter the shape the assistant writes a type in.
+		 *
+		 * @param string $shape One of 'article' or 'page'.
+		 * @param string $type  Post type slug.
+		 */
+		$shape = (string) apply_filters( 'agentimus_assistant_shape', $shape, $type );
+
+		return self::SHAPE_PAGE === $shape ? self::SHAPE_PAGE : self::SHAPE_ARTICLE;
+	}
+
+	/**
+	 * The requested type, held to what the owner has made agent-visible.
+	 *
+	 * An unknown or absent type falls back to 'post' when that is visible, and
+	 * otherwise to the first type that is — a site that has switched posts off
+	 * still gets a working assistant rather than a 400.
+	 *
+	 * @param \WP_REST_Request $request Request.
+	 * @return string
+	 */
+	public static function read_type( \WP_REST_Request $request ) {
+		$types = Content::post_types();
+		$type  = sanitize_key( (string) $request->get_param( 'type' ) );
+		if ( in_array( $type, $types, true ) ) {
+			return $type;
+		}
+		return in_array( 'post', $types, true ) ? 'post' : (string) reset( $types );
 	}
 
 	/**
@@ -389,7 +484,11 @@ final class Assistant {
 			);
 		}
 
-		$text = ( new Assist( $this->settings ) )->generate( self::system_prompt(), $prompt, self::COMPOSE_TOKENS );
+		$text = ( new Assist( $this->settings ) )->generate(
+			self::system_prompt( self::shape_for( self::read_type( $request ) ) ),
+			$prompt,
+			self::COMPOSE_TOKENS
+		);
 		if ( is_wp_error( $text ) ) {
 			return self::friendly_ai_error( $text );
 		}
@@ -426,7 +525,11 @@ final class Assistant {
 			);
 		}
 
-		$text = ( new Assist( $this->settings ) )->generate( self::outline_system_prompt(), $prompt, self::OUTLINE_TOKENS );
+		$text = ( new Assist( $this->settings ) )->generate(
+			self::outline_system_prompt( self::shape_for( self::read_type( $request ) ) ),
+			$prompt,
+			self::OUTLINE_TOKENS
+		);
 		if ( is_wp_error( $text ) ) {
 			return self::friendly_ai_error( $text );
 		}
@@ -490,7 +593,7 @@ final class Assistant {
 		}
 
 		$text = ( new Assist( $this->settings ) )->generate(
-			self::staged_part_system_prompt(),
+			self::staged_part_system_prompt( self::shape_for( self::read_type( $request ) ) ),
 			self::staged_part_prompt( $prompt, $outline, $part, $index ),
 			self::STAGED_PART_TOKENS
 		);
@@ -554,7 +657,7 @@ final class Assistant {
 		}
 
 		$text = ( new Assist( $this->settings ) )->generate(
-			self::staged_meta_system_prompt(),
+			self::staged_meta_system_prompt( self::shape_for( self::read_type( $request ) ) ),
 			self::staged_meta_prompt( $prompt, $outline ),
 			self::STAGED_META_TOKENS
 		);
@@ -576,15 +679,28 @@ final class Assistant {
 	 *
 	 * @return string
 	 */
-	public static function staged_part_system_prompt() {
-		return 'You write ONE PART of a WordPress post. The post is being written part by part from an owner-approved '
+	public static function staged_part_system_prompt( $shape = self::SHAPE_ARTICLE ) {
+		$page = self::SHAPE_PAGE === $shape;
+		$noun = $page ? 'page' : 'post';
+
+		return 'You write ONE PART of a WordPress ' . $noun . '. '
+			. ( $page
+				? 'It is a standing page — a fixed part of the site a reader arrives at to get one thing done, not an '
+					. 'article — so this part earns nothing by being long. '
+				: '' )
+			. 'The ' . $noun . ' is being written part by part from an owner-approved '
 			. 'outline — the other parts are written by separate calls, so write ONLY the part you are asked for: '
-			. 'no post title, no other sections, no meta commentary. '
+			. 'no ' . $noun . ' title, no other sections, no meta commentary. '
 			. 'Respond with ONLY the part\'s content as clean HTML using only <h2>, <h3>, <p>, <ul>, <ol>, <li>, '
 			. '<strong>, <em>, <a>, <blockquote> — no <h1>, no images, no markdown fences, no document wrapper. '
 			. 'The parts are assembled in outline order, so write prose that flows: assume the reader has just read '
-			. 'the previous part, don\'t re-introduce the article, and don\'t cover ground the outline assigns elsewhere. '
+			. 'the previous part, don\'t re-introduce the ' . $noun . ', and don\'t cover ground the outline assigns elsewhere. '
 			. 'Write concretely in the brief\'s language; no filler, no invented facts or statistics. '
+			. ( $page
+				? 'Stop as soon as this part has done its job, and never pad it to match the others. Where the brief '
+					. 'leaves a fact out — a jurisdiction, an address, a period — leave a plain [placeholder] rather than '
+					. 'inventing one; a page that carries obligations must not guess. '
+				: '' )
 			. self::readability_rules() . ' '
 			. 'Voice: follow the site content guidelines above when they declare one (their author, their person, '
 			. 'their tone are real — use them); never invent credentials, employers or anecdotes the guidelines '
@@ -650,20 +766,30 @@ final class Assistant {
 	 *
 	 * @return string
 	 */
-	public static function staged_meta_system_prompt() {
-		return 'You prepare the DRESSING for a WordPress post that is being written section by section from an '
-			. 'owner-approved outline — everything about the post except its body text. '
+	public static function staged_meta_system_prompt( $shape = self::SHAPE_ARTICLE ) {
+		$page = self::SHAPE_PAGE === $shape;
+		$noun = $page ? 'page' : 'post';
+
+		return 'You prepare the DRESSING for a WordPress ' . $noun . ' that is being written section by section from an '
+			. 'owner-approved outline — everything about the ' . $noun . ' except its body text. '
 			. 'Respond with ONLY a single JSON object — no markdown fences, no commentary before or after — with exactly these keys: '
-			. '"title" (string: the post title — use the outline\'s title unless the brief itself demands another), '
+			. '"title" (string: the ' . $noun . ' title — use the outline\'s title unless the brief itself demands another), '
 			. '"excerpt" (string, 1–2 plain sentences), '
 			. '"description" (string: one sentence under 160 characters saying what the page is about, for AI assistants), '
 			. '"topics" (array of 3–6 short topic phrases), '
-			. '"tags" (array of 2–5 tag names), '
-			. '"categories" (array of 0–2 category names, only if clearly implied by the brief), '
-			. '"images" (array of 0–4 image SUGGESTIONS, only where a picture would genuinely help the reader: '
-			. 'each {"alt": a rich, self-contained visual description an image generator could paint from — subject, setting, mood, '
-			. '"after_heading": the exact text of one of the outline\'s section headings, verbatim, that the image should follow, '
-			. 'or "" for right after the introduction}). '
+			// Same split as the whole-document contract: one schema, emptied for a
+			// page, so the parser never has to know which shape it is holding.
+			. ( $page
+				? '"tags" (ALWAYS an empty array — a standing page is not filed under taxonomies), '
+					. '"categories" (ALWAYS an empty array, for the same reason), '
+					. '"images" (ALWAYS an empty array — a page carries no illustration slots). '
+				: '"tags" (array of 2–5 tag names), '
+					. '"categories" (array of 0–2 category names, only if clearly implied by the brief), '
+					. '"images" (image SUGGESTIONS — let the piece decide how many, up to 5. Roughly one per section at '
+					. 'most, fewer when the sections are short, and an empty array when no picture would earn its place: '
+					. 'each {"alt": a rich, self-contained visual description an image generator could paint from — subject, setting, mood, '
+					. '"after_heading": the exact text of one of the outline\'s section headings, verbatim, that the image should follow, '
+					. 'or "" for right after the introduction}). ' )
 			. 'Ground everything in the brief and the outline; write in the brief\'s language; no invented facts.';
 	}
 
@@ -866,13 +992,25 @@ final class Assistant {
 	 *
 	 * @return string
 	 */
-	public static function outline_system_prompt() {
-		return 'You are the writing assistant inside a WordPress site\'s admin, planning a post from the owner\'s brief. '
+	public static function outline_system_prompt( $shape = self::SHAPE_ARTICLE ) {
+		$page = self::SHAPE_PAGE === $shape;
+
+		return 'You are the writing assistant inside a WordPress site\'s admin, planning a '
+			. ( $page ? 'standing PAGE' : 'post' ) . ' from the owner\'s brief. '
+			. ( $page
+				? 'A page is a fixed part of the site — About, Services, Terms — that a reader arrives at to get one '
+					. 'thing done, so its sections are the things it has to cover, not the beats of an argument. '
+				: '' )
 			. 'Respond with ONLY a single JSON object — no markdown fences, no commentary before or after — with exactly these keys: '
-			. '"title" (string: a working title for the post), '
-			. '"sections" (array of 3–8 objects, each {"heading": the exact h2 text the section will use, '
+			. '"title" (string: a working title for the ' . ( $page ? 'page' : 'post' ) . '), '
+			// A page gets a lower floor: two sections is a real page, eight is an
+			// article wearing a page's name. The ceiling comes down with it.
+			. '"sections" (array of ' . ( $page ? '2–5' : '3–8' ) . ' objects, each {"heading": the exact h2 text the section will use, '
 			. '"note": one plain sentence on what the section covers}). '
-			. 'Plan concretely in the brief\'s language; order the sections so the post reads naturally. '
+			. 'Plan concretely in the brief\'s language; order the sections so the ' . ( $page ? 'page' : 'post' ) . ' reads naturally. '
+			. ( $page
+				? 'Propose a section only where the page genuinely has that part — do not manufacture structure to fill it. '
+				: '' )
 			. 'Do not include the introduction or a conclusion as sections — those are written around the outline later.';
 	}
 
@@ -1001,7 +1139,7 @@ final class Assistant {
 		}
 
 		$text = ( new Assist( $this->settings ) )->generate(
-			self::system_prompt(),
+			self::system_prompt( self::shape_for( self::read_type( $request ) ) ),
 			self::revision_prompt( $draft, $instruction ),
 			self::COMPOSE_TOKENS
 		);
@@ -1082,7 +1220,7 @@ final class Assistant {
 		}
 
 		$text = ( new Assist( $this->settings ) )->generate(
-			self::section_system_prompt(),
+			self::section_system_prompt( self::shape_for( self::read_type( $request ) ) ),
 			self::revise_block_prompt( $title, $context, $section, $instruction ),
 			self::SECTION_TOKENS
 		);
@@ -1105,13 +1243,21 @@ final class Assistant {
 	 *
 	 * @return string
 	 */
-	public static function section_system_prompt() {
-		return 'You revise ONE section of a WordPress post. The user selected that section; their instruction may ask you to '
+	public static function section_system_prompt( $shape = self::SHAPE_ARTICLE ) {
+		$page = self::SHAPE_PAGE === $shape;
+		$noun = $page ? 'page' : 'post';
+
+		return 'You revise ONE section of a WordPress ' . $noun . '. The user selected that section; their instruction may ask you to '
 			. 'rewrite it, split it, or ADD new content before or after it. Respond with ONLY the section\'s final form — '
 			. 'the selected content plus any requested additions, in final order — as clean HTML using only '
 			. '<h2>, <h3>, <p>, <ul>, <ol>, <li>, <strong>, <em>, <a>, <blockquote>. '
 			. 'Keep everything the instruction does not ask to change EXACTLY as it is, word for word. '
-			. 'No commentary, no markdown fences, no <img>, no document wrapper. Write in the post\'s language and voice.';
+			. ( $page
+				? 'This is a standing page, so do not lengthen it beyond what the instruction asks, and do not introduce '
+					. 'facts the section did not already carry — on a page that states terms or promises, an invented '
+					. 'detail is a commitment the owner never made. '
+				: '' )
+			. 'No commentary, no markdown fences, no <img>, no document wrapper. Write in the ' . $noun . '\'s language and voice.';
 	}
 
 	/**
@@ -1324,7 +1470,11 @@ final class Assistant {
 		$status = 'pending' === (string) $request->get_param( 'status' ) ? 'pending' : 'draft';
 
 		$input = array(
-			'type'    => sanitize_key( (string) ( $request->get_param( 'type' ) ? $request->get_param( 'type' ) : 'post' ) ),
+			// Held to the agent-visible list rather than taken on trust: read_type
+			// falls back to a type the owner has actually allowed, so a stale or
+			// hand-crafted request can't materialise content in a type the rest of
+			// the plugin doesn't consider its business.
+			'type'    => self::read_type( $request ),
 			'title'   => sanitize_text_field( (string) $request->get_param( 'title' ) ),
 			'content' => wp_kses_post( (string) $request->get_param( 'content' ) ),
 			'status'  => $status,
@@ -1379,13 +1529,27 @@ final class Assistant {
 	 * @return \WP_REST_Response
 	 */
 	public function posts( \WP_REST_Request $request ) {
-		$q     = trim( sanitize_text_field( (string) $request->get_param( 'q' ) ) );
+		$q = trim( sanitize_text_field( (string) $request->get_param( 'q' ) ) );
+
+		// An empty or unknown filter means every agent-visible type — the list's
+		// own default. Only a type the owner has actually made visible narrows it,
+		// so the filter can never widen what the picker is allowed to show.
+		$filter = sanitize_key( (string) $request->get_param( 'type' ) );
+		$types  = Content::post_types();
+		$scope  = in_array( $filter, $types, true ) ? $filter : $types;
+
 		$query = new \WP_Query(
 			array(
-				'post_type'      => Content::post_types(),
+				'post_type'      => $scope,
 				'post_status'    => array( 'publish', 'draft', 'pending', 'private', 'future' ),
 				's'              => $q,
-				'posts_per_page' => 10,
+				// Over-fetch, then trim to PICKER_ROWS after the capability check
+				// below. Asking for exactly ten and then dropping the ones this
+				// user can't edit is how a line promising ten shows six: the
+				// filtering happens in PHP, not in the query, so the query has to
+				// hand over spares. Three times is generous enough for an author
+				// among editors without turning the picker into a report.
+				'posts_per_page' => self::PICKER_ROWS * 3,
 				'orderby'        => '' === $q ? 'modified' : 'relevance',
 				'order'          => 'DESC',
 				'no_found_rows'  => true,
@@ -1394,6 +1558,9 @@ final class Assistant {
 
 		$rows = array();
 		foreach ( $query->posts as $post ) {
+			if ( count( $rows ) >= self::PICKER_ROWS ) {
+				break;
+			}
 			if ( ! current_user_can( 'edit_post', $post->ID ) ) {
 				continue;
 			}
@@ -1406,6 +1573,11 @@ final class Assistant {
 				'date'        => get_the_modified_date( '', $post ),
 				'compatible'  => '' === $reason,
 				'reason'      => $reason,
+				// The row says which type it is, so a mixed list reads honestly and
+				// the client can send the right type back when it revises this one.
+				'type'         => $post->post_type,
+				'typeLabel'    => Content::label( $post->post_type ),
+				'typeSingular' => Content::singular( $post->post_type ),
 			);
 		}
 		return rest_ensure_response( array( 'posts' => $rows ) );
@@ -1486,11 +1658,13 @@ final class Assistant {
 
 	/**
 	 * PURE: why a post can't be rewritten by the assistant, or '' when it can.
-	 * Three honest gates: block vocabulary (anything outside what the assistant
-	 * itself writes would be destroyed by the round-trip), image count (more
-	 * figures than slots exist to carry them), and length (a whole-document
-	 * rewrite must fit the output budget). Phrases complete the sentence
-	 * "This post …".
+	 * Two honest gates: block vocabulary (anything outside what the assistant
+	 * itself writes would be destroyed by the round-trip) and length (a
+	 * whole-document rewrite must fit the output budget). Phrases complete the
+	 * sentence "This post …".
+	 *
+	 * Both are real: they describe what would be LOST, not what we'd prefer.
+	 * A gate that can't finish that sentence honestly doesn't belong here.
 	 *
 	 * @param string $content Raw post_content (block markup or classic HTML).
 	 * @return string Empty when editable; otherwise the reason.
@@ -1515,14 +1689,11 @@ final class Assistant {
 			}
 		}
 
-		if ( preg_match_all( self::FIGURE_RX, $content, $unused ) > self::MAX_IMAGE_SLOTS ) {
-			return sprintf(
-				/* translators: %d: the image-slot ceiling. */
-				__( 'has more images than the assistant can carry (%d)', 'agentimus' ),
-				self::MAX_IMAGE_SLOTS
-			);
-		}
-
+		// No image gate. There used to be one, and it was wrong: it applied the
+		// SUGGESTION ceiling — a bound on what the writer may invent — to pictures
+		// the owner had already placed. Images don't go through the model on an
+		// edit; they're lifted out before it runs and put back after, so their
+		// number has nothing to do with what the model can hold. {@see bounded_slots()}
 		$words = str_word_count( wp_strip_all_tags( $content ) );
 		if ( $words > self::MAX_EDIT_WORDS ) {
 			return sprintf(
@@ -1621,6 +1792,13 @@ final class Assistant {
 
 		return array(
 			'id'            => $post->ID,
+			// The type travels with the document so every later call about it —
+			// refine, revise a section — is made in the shape the thing already is.
+			// An edit inherits its shape from the target; it is never re-chosen.
+			'type'          => $post->post_type,
+			'typeLabel'     => Content::label( $post->post_type ),
+			'typeSingular'  => Content::singular( $post->post_type ),
+			'shape'         => self::shape_for( $post->post_type ),
 			'status'        => $post->post_status,
 			'statusLabel'   => self::status_label( $post->post_status ),
 			'title'         => (string) $post->post_title,
@@ -1682,29 +1860,60 @@ final class Assistant {
 	 *
 	 * @return string
 	 */
-	public static function system_prompt() {
-		return 'You are the writing assistant inside a WordPress site\'s admin, drafting a post from the owner\'s brief. '
+	public static function system_prompt( $shape = self::SHAPE_ARTICLE ) {
+		$page = self::SHAPE_PAGE === $shape;
+
+		return 'You are the writing assistant inside a WordPress site\'s admin, drafting a '
+			. ( $page ? 'standing PAGE' : 'post' ) . ' from the owner\'s brief. '
+			. ( $page
+				? 'A page is not an article: it is a fixed part of the site — About, Services, Terms, Contact — that a '
+					. 'reader arrives at to get one thing done. It is not dated, not filed, not part of a series, and it '
+					. 'earns nothing by being long. '
+				: '' )
 			. 'Respond with ONLY a single JSON object — no markdown fences, no commentary before or after — with exactly these keys: '
 			. '"title" (string), '
 			. '"excerpt" (string, 1–2 plain sentences), '
-			. '"content" (string: the full post body as clean HTML using only <h2>, <h3>, <p>, <ul>, <ol>, <li>, <strong>, <em>, <a>, <blockquote> — no <h1>, no images, no scripts or styles), '
+			. '"content" (string: the full ' . ( $page ? 'page' : 'post' ) . ' body as clean HTML using only <h2>, <h3>, <p>, <ul>, <ol>, <li>, <strong>, <em>, <a>, <blockquote> — no <h1>, no images, no scripts or styles), '
 			. '"description" (string: one sentence under 160 characters saying what the page is about, for AI assistants), '
 			. '"topics" (array of 3–6 short topic phrases), '
-			. '"tags" (array of 2–5 tag names), '
-			. '"categories" (array of 0–2 category names, only if clearly implied by the brief), '
-			. '"images" (array of 0–4 image SUGGESTIONS, only where a picture would genuinely help the reader: '
-			. 'each {"alt": a rich, self-contained visual description an image generator could paint from — subject, setting, mood, '
-			. '"after_heading": the exact text of the h2/h3 the image should follow, or "" for right after the introduction}; '
-			. 'never put <img> tags in "content"). '
+			// Taxonomies and illustration slots are article furniture. The keys stay
+			// in the contract either way so the parser sees one schema; a page is
+			// simply told to send them back empty.
+			. ( $page
+				? '"tags" (ALWAYS an empty array — a standing page is not filed under taxonomies), '
+					. '"categories" (ALWAYS an empty array, for the same reason), '
+					. '"images" (ALWAYS an empty array — a page carries no illustration slots; if the brief explicitly '
+					. 'asks for a picture, say so in the excerpt and let the owner place it). '
+				: '"tags" (array of 2–5 tag names), '
+					. '"categories" (array of 0–2 category names, only if clearly implied by the brief), '
+					. '"images" (image SUGGESTIONS — let the piece decide how many, up to 5. '
+					. 'A short post usually wants none or one; a long one with several sections can carry about one per '
+					. 'section. Propose a picture only where it shows something the words are working hard to describe, '
+					. 'and return an empty array when that is nowhere — never space them out to fill a quota, and never '
+					. 'crowd a thin piece with illustrations it cannot support: '
+					. 'each {"alt": a rich, self-contained visual description an image generator could paint from — subject, setting, mood, '
+					. '"after_heading": the exact text of the h2/h3 the image should follow, or "" for right after the introduction}; '
+					. 'never put <img> tags in "content"). ' )
 			. 'Write concretely in the brief\'s language; no filler, no invented facts or statistics. '
-			. 'Open the article with a self-contained first paragraph that summarises the whole piece in two or '
-			. 'three sentences — answer engines lift it as the summary. '
+			. ( $page
+				? 'Open by stating plainly what this page is for, in one or two sentences a reader can act on. '
+					. 'Use <h2> headings only where the page genuinely has parts — a short page needs none, and inventing '
+					. 'sections to fill it is the most common way these go wrong. '
+				: 'Open the article with a self-contained first paragraph that summarises the whole piece in two or '
+					. 'three sentences — answer engines lift it as the summary. ' )
 			. self::readability_rules() . ' '
 			. 'Voice: follow the site content guidelines above when they declare one (their author, '
 			. 'their person, their tone are real — use them); never INVENT credentials, employers or '
 			. 'anecdotes the guidelines don\'t provide; and when the brief itself specifies a voice, '
 			. 'the brief wins. With no guidance from either, write in a neutral site voice. '
-			. 'If the brief asks for length, honour it; otherwise write a complete, useful post of natural length.';
+			. ( $page
+				? 'If the brief asks for length, honour it; otherwise stop as soon as the page has done its job. '
+					. 'Never pad a page to look substantial. '
+					. 'One more rule for pages that carry obligations — terms, privacy, refunds, disclaimers: state only what '
+					. 'the brief actually establishes. Do not invent jurisdictions, company names, retention periods, '
+					. 'contact addresses or legal guarantees. Where the brief leaves a fact out, leave a plain [placeholder] '
+					. 'the owner can fill, and never dress a guess as a commitment.'
+				: 'If the brief asks for length, honour it; otherwise write a complete, useful post of natural length.' );
 	}
 
 	/**
@@ -1785,9 +1994,45 @@ final class Assistant {
 	 * @param mixed $value Raw slots.
 	 * @return array
 	 */
+	/**
+	 * PURE: bound a raw slot list WITHOUT deleting anybody's pictures.
+	 *
+	 * The two kinds of slot in this array are not the same thing and must not
+	 * share a ceiling. A slot with an `attachment_id` is a real image already
+	 * sitting in the post — on an edit the model never sees it, never rewrites
+	 * it, and it is only passing through on its way back into the body. A slot
+	 * without one is a SUGGESTION the model invented, and inventions are what the
+	 * ceiling exists to bound.
+	 *
+	 * Slicing the array as a whole (which is what this used to do) confused the
+	 * two: editing a post with nine images meant four came back. That is data
+	 * loss dressed as a limit.
+	 *
+	 * @param mixed $raw Raw slots.
+	 * @return array Slots in original order, suggestions capped, images intact.
+	 */
+	private static function bounded_slots( $raw ) {
+		$out       = array();
+		$suggested = 0;
+		foreach ( (array) $raw as $slot ) {
+			$existing = is_array( $slot ) && absint( $slot['attachment_id'] ?? 0 ) > 0;
+			if ( ! $existing ) {
+				if ( $suggested >= self::MAX_IMAGE_SLOTS ) {
+					continue;
+				}
+				++$suggested;
+			}
+			$out[] = $slot;
+			if ( count( $out ) >= self::MAX_IMAGE_CARRY ) {
+				break;
+			}
+		}
+		return $out;
+	}
+
 	public static function clean_image_slots( $value ) {
 		$out = array();
-		foreach ( array_slice( (array) $value, 0, self::MAX_IMAGE_SLOTS ) as $slot ) {
+		foreach ( self::bounded_slots( $value ) as $slot ) {
 			if ( ! is_array( $slot ) ) {
 				continue;
 			}
@@ -1848,7 +2093,7 @@ final class Assistant {
 	 */
 	private static function figures_from_slots( $raw ) {
 		$figures = array();
-		foreach ( array_slice( (array) $raw, 0, self::MAX_IMAGE_SLOTS ) as $img ) {
+		foreach ( self::bounded_slots( $raw ) as $img ) {
 			if ( ! is_array( $img ) ) {
 				continue;
 			}

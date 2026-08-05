@@ -108,7 +108,7 @@ export default {
       seo: this.boot.seo || { mode: 'solo', plugin: null },
       whatsNew: this.boot.whatsNew || { show: false, version: '', items: [] },
       reviewAsk: this.boot.reviewAsk || { show: false, url: '' },
-      assistant: this.boot.assistant || { writesOn: false, providerReady: false },
+      assistant: this.boot.assistant || { writesOn: false, providerReady: false, types: [] },
       assistantOpen: false,
       // The Request Log / AI-traffic filter a dashboard row asked for
       // (endpoint/client/source/page drill-downs); seq-stamped so repeat
@@ -1601,7 +1601,10 @@ export default {
     <ConfirmDialog />
 
     <!-- Always mounted (v-show inside), so a composed preview survives Esc/close. -->
-    <AssistantDrawer :open="assistantOpen" :api="api" @close="assistantOpen = false" @flash="flash" />
+    <!-- The types come from the same boot payload the launcher reads, so the
+         chooser and the picker's filter can only ever offer what the owner has
+         made agent-visible. -->
+    <AssistantDrawer :open="assistantOpen" :api="api" :types="assistantState.types || []" @close="assistantOpen = false" @flash="flash" />
 
     <OnboardingWizard
       :open="showWizard"

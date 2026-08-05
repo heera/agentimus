@@ -152,6 +152,24 @@ final class Content {
 	}
 
 	/**
+	 * The SINGULAR name, for prose.
+	 *
+	 * label() is the plural — right on a heading or a chip, wrong the moment a
+	 * sentence uses it as a noun ("This posts has more images…"). WordPress keeps
+	 * both, so anything that writes a sentence about ONE item asks for this.
+	 *
+	 * @param string $post_type Post type slug.
+	 * @return string
+	 */
+	public static function singular( $post_type ) {
+		$obj = get_post_type_object( $post_type );
+		if ( $obj && isset( $obj->labels->singular_name ) && '' !== $obj->labels->singular_name ) {
+			return $obj->labels->singular_name;
+		}
+		return ucfirst( $post_type );
+	}
+
+	/**
 	 * Start recording which plugin registers each post type. Hooked on
 	 * plugins_loaded (before `init`) so init-time registrations are captured.
 	 * Scoped to our settings screen by the caller, so the backtrace cost is never

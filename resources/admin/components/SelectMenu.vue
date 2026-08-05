@@ -16,6 +16,10 @@ export default {
     placeholder: { type: String, default: 'Select…' },
     ariaLabel: { type: String, default: '' },
     mono: { type: Boolean, default: false }, // monospace values (e.g. model IDs)
+    // Matches a native select's disabled: the trigger stops responding AND stops
+    // being focusable, so a menu can't be opened by keyboard while whatever it
+    // configures is mid-flight.
+    disabled: { type: Boolean, default: false },
   },
   emits: ['update:modelValue'],
   data() {
@@ -35,10 +39,12 @@ export default {
   },
   methods: {
     toggle() {
+      if (this.disabled) return;
       if (this.open) this.close();
       else this.openMenu();
     },
     openMenu() {
+      if (this.disabled) return;
       this.open = true;
       this.activeIndex = Math.max(0, this.items.findIndex((i) => i.value === this.modelValue));
       document.addEventListener('mousedown', this.onDocDown, true);
@@ -80,8 +86,14 @@ export default {
       :aria-label="ariaLabel"
       aria-haspopup="listbox"
       :aria-expanded="open ? 'true' : 'false'"
+      :disabled="disabled"
       @click="toggle"
     >
+      <!-- Optional leading mark (an icon, usually). In the flex flow rather than
+           positioned over the trigger, so the label can never sit under it — an
+           overlay would need a padding override, and a padding override on a
+           scoped rule is a specificity coin-flip. -->
+      <span v-if="$slots.leading" class="ar-select__lead" aria-hidden="true"><slot name="leading" /></span>
       <span class="ar-select__value">{{ selectedLabel }}</span>
       <span class="ar-select__caret" aria-hidden="true">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6" /></svg>
@@ -108,7 +120,12 @@ export default {
   display: flex; align-items: center; justify-content: space-between; gap: 8px;
   width: 100%; text-align: left; cursor: pointer;
 }
-.ar-select__value { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ar-select__lead { flex: 0 0 auto; display: inline-flex; align-items: center; color: var(--ar-accent); }
+/* Takes the middle so the caret stays pinned right whether or not a lead is there. */
+.ar-select__value { flex: 1 1 auto; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* Disabled reads the same as the rest of the admin's disabled controls: dimmed,
+   and the pointer stops promising it will do something. */
+.ar-select__btn:disabled { opacity: 0.55; cursor: default; }
 .ar-select--mono .ar-select__value { font-family: var(--ar-mono); }
 .ar-select__caret { flex: 0 0 auto; display: inline-flex; color: var(--ar-ink-faint); transition: transform 0.15s ease; }
 .ar-select.is-open .ar-select__caret { transform: rotate(180deg); }

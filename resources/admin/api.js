@@ -130,41 +130,51 @@ export function createApi(boot) {
     // One weekly-digest email, right now, to the SAVED recipient — the settings
     // button's proof that the site can actually send mail.
     sendTestDigest: () => request('/digest/test', { method: 'POST' }),
-    // The writing assistant: first the cheap skeleton (title + sections) the
-    // owner can shape before any real writing happens…
-    assistantOutline: (prompt) =>
-      request('/assistant/outline', { method: 'POST', body: JSON.stringify({ prompt }) }),
+    // The writing assistant. EVERY generating call carries the type, because the
+    // type decides the shape the server writes in — an article gets an outline,
+    // image slots and taxonomies; a page gets none of them and is told to stop
+    // when it's done. A call that forgets to send it silently gets an article,
+    // which is the failure worth designing against, so it rides in every
+    // signature rather than being looked up somewhere central.
+    assistantOutline: (prompt, type) =>
+      request('/assistant/outline', { method: 'POST', body: JSON.stringify({ prompt, type }) }),
     // …then one structured generation, optionally gated by that approved
     // outline as a contract (writes nothing either way)…
-    assistantCompose: (prompt, outline) =>
+    assistantCompose: (prompt, outline, type) =>
       request('/assistant/compose', {
         method: 'POST',
-        body: JSON.stringify(outline ? { prompt, outline } : { prompt }),
+        body: JSON.stringify(outline ? { prompt, outline, type } : { prompt, type }),
       }),
     // …or the staged pipeline: the CLIENT is the parallelism — it fires one
     // request per part (intro, each outline section, closing) plus one small
     // dressing call, all at once, and assembles them in outline order…
-    assistantComposeSection: (prompt, outline, part, index = -1) =>
+    assistantComposeSection: (prompt, outline, part, index = -1, type) =>
       request('/assistant/compose-section', {
         method: 'POST',
-        body: JSON.stringify({ prompt, outline, part, index }),
+        body: JSON.stringify({ prompt, outline, part, index, type }),
       }),
-    assistantComposeMeta: (prompt, outline) =>
-      request('/assistant/compose-meta', { method: 'POST', body: JSON.stringify({ prompt, outline }) }),
+    assistantComposeMeta: (prompt, outline, type) =>
+      request('/assistant/compose-meta', { method: 'POST', body: JSON.stringify({ prompt, outline, type }) }),
     // …one image for one slot, on one explicit click (scene-describe → render →
     // media-library import)…
     assistantGenerateImage: (alt, title) =>
       request('/assistant/generate-image', { method: 'POST', body: JSON.stringify({ alt, title }) }),
     // …a targeted revision of the held draft ("add a section on caching")…
-    assistantRefine: (draft, instruction) =>
-      request('/assistant/refine', { method: 'POST', body: JSON.stringify({ draft, instruction }) }),
+    assistantRefine: (draft, instruction, type) =>
+      request('/assistant/refine', { method: 'POST', body: JSON.stringify({ draft, instruction, type }) }),
     // …and the explicit materialise step (drafts/pending only, never publish).
     assistantCreate: (payload) =>
       request('/assistant/create', { method: 'POST', body: JSON.stringify(payload) }),
     // Edit-existing: search the owner's posts (each with an honest can-edit
     // verdict), fetch one as an editable document, and the explicit update —
     // which NEVER carries a status: the assistant edits content, not visibility.
-    assistantPosts: (q) => request('/assistant/posts?q=' + encodeURIComponent(q || '')),
+    // The picker's list is filterable by type; an empty filter means every
+    // agent-visible type, which is the list's own default.
+    assistantPosts: (q, type) =>
+      request(
+        '/assistant/posts?q=' + encodeURIComponent(q || '') +
+        (type ? '&type=' + encodeURIComponent(type) : '')
+      ),
     assistantPost: (id) => request('/assistant/post/' + id),
     assistantUpdate: (payload) =>
       request('/assistant/update', { method: 'POST', body: JSON.stringify(payload) }),
