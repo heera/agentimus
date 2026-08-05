@@ -4,7 +4,7 @@ Tags: ai-agents, mcp, agent-readiness, llms-txt, ai-seo
 Requires at least: 6.0
 Tested up to: 7.1
 Requires PHP: 7.4
-Stable tag: 1.33.0
+Stable tag: 1.34.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -153,6 +153,10 @@ No. When Yoast, Rank Math, SEOPress, AIOSEO or The SEO Framework is active, Agen
 = My robots.txt rules aren't showing. =
 
 If a static `robots.txt` file exists at your site root, or your CDN serves its own, it overrides WordPress's virtual robots.txt. The readiness report flags this. Remove the static file to let Agentimus manage the rules.
+
+= An SEO audit tool says my robots.txt is invalid. =
+
+Some audit tools flag the `Content-Signal:` line Agentimus adds. The line is valid: the robots.txt standard (RFC 9309) tells parsers to ignore any field they don't recognise, so every crawler still reads the rest of your file exactly as written. The tool is behind the standard, not your site. Nothing to fix.
 
 = I turned something on but nothing seems to happen — is it broken? =
 
