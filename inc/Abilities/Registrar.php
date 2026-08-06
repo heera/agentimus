@@ -45,6 +45,9 @@ use Agentimus\Readiness;
 use Agentimus\Score;
 use Agentimus\Content;
 use Agentimus\Media;
+use Agentimus\LlmsText;
+use Agentimus\Discovery\Envelope;
+use Agentimus\Discovery\Registry;
 use Agentimus\PageCheck;
 use Agentimus\InternalLinks;
 use Agentimus\Schema;
@@ -1231,6 +1234,8 @@ final class Registrar {
 			}
 		);
 
+		$this->register_resource_abilities();
+
 		// The write tier exists only when the owner deliberately turned it on — AND the
 		// MCP server itself is on, because that is where the switch lives in the UI: a
 		// sub-toggle the owner can't see (MCP card collapsed) must never still be armed
@@ -1241,6 +1246,136 @@ final class Registrar {
 		if ( $this->settings->enabled( 'enable_mcp_server' ) && $this->settings->enabled( 'enable_agent_writes' ) ) {
 			$this->register_write_abilities( $manage );
 		}
+	}
+
+	/**
+	 * The documents this site publishes for agents, registered as abilities so the
+	 * MCP server can offer them as RESOURCES rather than as tools.
+	 *
+	 * The distinction is the point. A tool is something a model DOES; a resource
+	 * is something a client can read and attach on its own, listed with a URI and
+	 * a MIME type. Agentimus has spent its life producing exactly this kind of
+	 * thing — an llms.txt index, a full-text edition, a discovery document, an
+	 * agent card — and until now an agent could only reach them by fetching URLs
+	 * over the open web, which assumes the client has web access at all and knows
+	 * this site's conventions. Offered here, they are simply listed.
+	 *
+	 * Nothing is generated twice: each callback asks the same builder the public
+	 * endpoint asks, in-process. No loopback HTTP — a request to our own site to
+	 * read our own document would be the slowest possible way to answer, and the
+	 * one most likely to fail behind auth or a cache.
+	 *
+	 * Only documents the site ACTUALLY serves are registered. Advertising a
+	 * resource for a disabled endpoint would hand an agent a URI that 404s, which
+	 * is worse than not offering it.
+	 */
+	private function register_resource_abilities() {
+		// Public documents: anyone on the open web can already read these, so the
+		// gate is only "you got through the door", which the server already
+		// enforces. A capability check here would be theatre.
+		$anyone = static function () {
+			return true;
+		};
+
+		if ( $this->settings->enabled( 'enable_llms_txt' ) ) {
+			$this->add(
+				'llms-txt',
+				__( 'llms.txt — this site\'s index for AI', 'agentimus' ),
+				'The site\'s llms.txt: a plain-text index of what this site is, what it publishes, and where '
+					. 'the important pages are, in the llmstxt.org convention. Read this FIRST to understand a '
+					. 'site before fetching anything from it — it is the map, written by the owner rather than '
+					. 'inferred from crawling.',
+				self::obj( array() ),
+				self::obj( array( 'content' => self::s( 'The document, as plain text.' ) ) ),
+				function () {
+					return array( 'content' => ( new LlmsText( $this->settings ) )->llms_txt() );
+				},
+				$anyone,
+				true,
+				false,
+				array( 'uri' => home_url( '/llms.txt' ), 'mimeType' => 'text/plain' )
+			);
+		}
+
+		if ( $this->settings->enabled( 'enable_llms_txt' ) && $this->settings->enabled( 'enable_llms_full' ) ) {
+			$this->add(
+				'llms-full-txt',
+				__( 'llms-full.txt — this site\'s full text', 'agentimus' ),
+				'The site\'s llms-full.txt: the full text of its recent content in one document, so an agent '
+					. 'can ingest the site in a single read instead of crawling page by page. Larger than '
+					. 'llms.txt and bounded by the owner\'s size budget — read llms.txt first if you only need '
+					. 'the shape of the site.',
+				self::obj( array() ),
+				self::obj( array( 'content' => self::s( 'The document, as plain text.' ) ) ),
+				function () {
+					return array( 'content' => ( new LlmsText( $this->settings ) )->llms_full_txt() );
+				},
+				$anyone,
+				true,
+				false,
+				array( 'uri' => home_url( '/llms-full.txt' ), 'mimeType' => 'text/plain' )
+			);
+		}
+
+		$this->add(
+			'discovery-json',
+			__( 'discovery.json — identity, capabilities and APIs', 'agentimus' ),
+			'The site\'s /.well-known/discovery.json: one normalized document naming who runs this site, what '
+				. 'it can do, which APIs it exposes and which agent cards it publishes. Owner-curated, not '
+				. 'inferred — the single predictable place to look before deciding how to work with a site.',
+			self::obj( array() ),
+			self::obj( array( 'content' => self::s( 'The document, as JSON text.' ) ) ),
+			function () {
+				return array( 'content' => ( new Envelope( $this->settings, Registry::instance() ) )->discovery_json() );
+			},
+			$anyone,
+			true,
+			false,
+			array( 'uri' => home_url( '/.well-known/discovery.json' ), 'mimeType' => 'application/json' )
+		);
+
+		$this->add(
+			'agent-card-json',
+			__( 'agent-card.json — this site as an A2A agent', 'agentimus' ),
+			'The site\'s /.well-known/agent-card.json: an A2A agent card describing this site as something '
+				. 'another agent can talk to — its name, description, skills and endpoints.',
+			self::obj( array() ),
+			self::obj( array( 'content' => self::s( 'The document, as JSON text.' ) ) ),
+			function () {
+				return array( 'content' => ( new Envelope( $this->settings, Registry::instance() ) )->agent_card_json() );
+			},
+			$anyone,
+			true,
+			false,
+			array( 'uri' => home_url( '/.well-known/agent-card.json' ), 'mimeType' => 'application/json' )
+		);
+	}
+
+	/**
+	 * The abilities offered as MCP RESOURCES — the documents, never the reports.
+	 *
+	 * Kept apart from mcp_abilities() deliberately: a client lists tools and
+	 * resources separately and treats them differently, and the same ability in
+	 * both lists would be offered twice with two meanings.
+	 *
+	 * @return string[]
+	 */
+	public function mcp_resources() {
+		$names = array();
+		foreach ( array( 'llms-txt', 'llms-full-txt', 'discovery-json', 'agent-card-json' ) as $slug ) {
+			// Registered conditionally above, so ask rather than assume: a resource
+			// pointing at a switched-off endpoint would 404 for whoever read it.
+			if ( function_exists( 'wp_get_ability' ) && wp_get_ability( self::CATEGORY . '/' . $slug ) ) {
+				$names[] = self::CATEGORY . '/' . $slug;
+			}
+		}
+
+		/**
+		 * The documents Agentimus offers over MCP as readable resources.
+		 *
+		 * @param string[] $names Ability names.
+		 */
+		return (array) apply_filters( 'agentimus_mcp_server_resources', $names );
 	}
 
 	/**
@@ -1570,7 +1705,7 @@ final class Registrar {
 			$error_handler,
 			class_exists( $observability ) ? $observability : null,
 			$this->mcp_abilities(),    // Tools.
-			array(),                   // Resources.
+			$this->mcp_resources(),    // Resources.
 			array()                    // Prompts.
 		);
 	}
@@ -1626,7 +1761,7 @@ final class Registrar {
 	 * @param bool     $destructive  Whether a call can lose data that nothing keeps a copy of (update-content: a
 	 *                               body replacement on a post type without revision support is unrecoverable).
 	 */
-	private function add( $slug, $label, $description, array $input_schema, array $output_schema, callable $execute, callable $permission, $readonly = true, $destructive = false ) {
+	private function add( $slug, $label, $description, array $input_schema, array $output_schema, callable $execute, callable $permission, $readonly = true, $destructive = false, array $mcp = array() ) {
 		$name = self::CATEGORY . '/' . $slug;
 
 		// Every ability we register funnels through here, which makes this the one place that can
@@ -1672,7 +1807,10 @@ final class Registrar {
 					),
 					// Do NOT auto-join the default public MCP server; the scoped server in
 					// register_mcp_server() is the single, deliberate external surface.
-					'mcp'          => array( 'public' => false ),
+					// $mcp carries the extras a RESOURCE needs — the adapter reads its
+					// uri and mimeType from exactly here, and refuses to register a
+					// resource without a uri.
+					'mcp'          => array_merge( array( 'public' => false ), $mcp ),
 				),
 			)
 		);
