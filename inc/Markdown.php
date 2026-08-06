@@ -16,6 +16,20 @@ defined( 'ABSPATH' ) || exit;
 final class Markdown {
 
 	/**
+	 * The media notes for the post currently being rendered, keyed by
+	 * {@see PageCheck::media_key()}.
+	 *
+	 * Held here rather than threaded through the converter because the DOM walk
+	 * is a pure node → markdown recursion with nowhere to carry post context, and
+	 * a player node needs to reach its own note. Set for the duration of one
+	 * {@see post()} call and cleared straight after, so {@see from_html()} — which
+	 * belongs to no post — is never affected by whatever ran before it.
+	 *
+	 * @var array<string,string>
+	 */
+	private static $media_notes = array();
+
+	/**
 	 * A single post/page rendered as standalone markdown with small front matter.
 	 *
 	 * @param int $post_id Post ID.
@@ -80,12 +94,28 @@ final class Markdown {
 			$out .= 'Topics: ' . implode( ', ', $topics ) . "\n\n";
 		}
 
+		// The owner's lines about this post's media, so each player in the body can
+		// be followed by what it actually holds. Cleared in the finally below: a
+		// leftover map would annotate the NEXT post's players with this one's notes.
+		try {
+			// resolve(), not all(): notes are STORED against the URL the author saw,
+			// and looked up here by media identity — the same video arrives as
+			// `watch?v=ID` in one render and `embed/ID` in another. Reading the raw
+			// map made every lookup miss, so a note written in the editor silently
+			// never reached this document.
+			self::$media_notes = MediaContext::resolve( $post->ID );
+		} catch ( \Throwable $e ) {
+			self::$media_notes = array();
+		}
+
 		try {
 			$out .= self::from_html( Content::markdown_source( $post ) );
 		} catch ( \Throwable $e ) {
 			// A shortcode/block/page-builder callback inside the_content threw — serve
 			// the title + metadata already assembled rather than 500 the endpoint.
 			$out = rtrim( $out );
+		} finally {
+			self::$media_notes = array();
 		}
 
 		return rtrim( $out ) . "\n";
@@ -243,6 +273,17 @@ final class Markdown {
 				$alt = trim( (string) $node->getAttribute( 'alt' ) );
 				return '' === $src ? '' : '![' . $alt . '](' . $src . ')';
 
+			case 'iframe':
+			case 'video':
+			case 'audio':
+				// A player has no text content at all, so it used to leave NOTHING
+				// here — a page built around a video read as an empty page. Name it
+				// and link it: a reader of the plain-text edition at least learns
+				// the media exists and where it is. What it SAYS still has to come
+				// from a transcript ({@see PageCheck::check_video()}); this line
+				// never pretends otherwise.
+				return self::media_line( $node, $tag );
+
 			case 'blockquote':
 				$t = trim( $inner );
 				return "\n\n" . preg_replace( '/^/m', '> ', $t ) . "\n\n";
@@ -255,6 +296,43 @@ final class Markdown {
 				return $inner; // Composed by list_node().
 
 			case 'figure':
+				// An embed block with no player element of its own to speak for it.
+				// Two ways that happens, and both leave the reader of this document
+				// unable to tell there is a video here at all:
+				//
+				//  - WordPress only swaps an embed's URL for an iframe inside the
+				//    loop, and this document is generated OFF the loop — so on a
+				//    real site the figure usually arrives carrying a bare URL.
+				//  - Script-based providers (TikTok, Instagram) never render an
+				//    iframe server-side at all; they render a <blockquote> and put
+				//    the video's address on its `cite` attribute.
+				//
+				// A figure that DOES contain a player is left alone: the player's
+				// own case below already named it, and naming it twice would be
+				// worse than not naming it once.
+				if ( 0 === $node->getElementsByTagName( 'iframe' )->length
+					&& 0 === $node->getElementsByTagName( 'video' )->length ) {
+					$embedded = PageCheck::embed_figure_video( $node );
+					if ( $embedded ) {
+						$line = "\n\n" . __( 'Video', 'agentimus' ) . ': [' . $embedded['url'] . '](' . $embedded['url'] . ")\n"
+							. self::media_note( $embedded['url'] ) . "\n";
+
+						// Keep whatever else the figure rendered — a TikTok caption, or
+						// the author's own <figcaption> — since both are real text an
+						// assistant can quote. The bare URL is stripped out first: an
+						// unresolved embed carries its address as body text, and the
+						// line above already states it.
+						$rest = str_replace( $embedded['url'], '', $inner );
+						$rest = trim( (string) preg_replace( "/\n{3,}/", "\n\n", $rest ) );
+						if ( '' !== $rest ) {
+							return $line . $rest . "\n\n";
+						}
+						return $line;
+					}
+				}
+				$t = trim( $inner );
+				return '' === $t ? '' : "\n\n" . $t . "\n\n";
+
 			case 'figcaption':
 			case 'div':
 			case 'section':
@@ -292,6 +370,94 @@ final class Markdown {
 			$lines[] = $marker . ' ' . $content;
 		}
 		return implode( "\n", $lines );
+	}
+
+	/**
+	 * One honest line for a player element. Names what the media IS and where it
+	 * lives — never what it says.
+	 *
+	 * The noun is only "Video"/"Audio" where the markup proves it: a bare
+	 * <iframe> is as likely to be a map, a form or a comment widget, and calling
+	 * one of those a video would be a plain lie in a document whose whole promise
+	 * is that it matches the page.
+	 *
+	 * @param \DOMNode $node The player node.
+	 * @param string   $tag  Lowercased tag name (iframe|video|audio).
+	 * @return string
+	 */
+	private static function media_line( $node, $tag ) {
+		$src = trim( (string) $node->getAttribute( 'src' ) );
+		if ( '' === $src ) {
+			// <video>/<audio> may carry their URL on a child <source> instead.
+			foreach ( $node->childNodes as $child ) {
+				if ( XML_ELEMENT_NODE === $child->nodeType && 'source' === strtolower( $child->nodeName ) ) {
+					$src = trim( (string) $child->getAttribute( 'src' ) );
+					if ( '' !== $src ) {
+						break;
+					}
+				}
+			}
+		}
+
+		// The oEmbed iframes WordPress generates carry the real video title here.
+		$label = trim( (string) $node->getAttribute( 'title' ) );
+		if ( '' === $label ) {
+			$label = trim( (string) $node->getAttribute( 'aria-label' ) );
+		}
+		// Square brackets in a title would break the link syntax around it.
+		$label = trim( (string) str_replace( array( '[', ']' ), '', self::text( $label ) ) );
+
+		// Whether this is media the plugin actually grades. A hand-written <iframe>
+		// is not: it is named, and nothing of ours is attached to it — including a
+		// note, which would otherwise print a second time under a duplicate of a
+		// video that IS in an embed block, since both resolve to one identity.
+		$ours = true;
+
+		if ( 'video' === $tag ) {
+			$noun = __( 'Video', 'agentimus' );
+		} elseif ( 'audio' === $tag ) {
+			$noun = __( 'Audio', 'agentimus' );
+		} elseif ( PageCheck::inside_embed_block( $node ) && PageCheck::is_video_embed( $src ) ) {
+			// Only WordPress's own embeds are named as video. A hand-written
+			// <iframe> is named neutrally however familiar its host looks — the
+			// checks no longer grade such markup, and this document must not
+			// announce a video the rest of the plugin says is not there.
+			$noun = __( 'Video', 'agentimus' );
+		} else {
+			$noun = __( 'Embedded', 'agentimus' );
+			$ours = false;
+		}
+
+		if ( '' === $src ) {
+			// Nothing to point at. A label alone is still worth a line; without one
+			// there is genuinely nothing to say, so say nothing.
+			return '' === $label ? '' : "\n\n" . $noun . ': ' . $label . "\n\n";
+		}
+
+		$link = '[' . ( '' !== $label ? $label : $src ) . '](' . $src . ')';
+		return "\n\n" . $noun . ': ' . $link . "\n" . ( $ours ? self::media_note( $src ) : '' ) . "\n";
+	}
+
+	/**
+	 * The owner's line about one media item, ready to sit under its link — or ''
+	 * when they haven't written one.
+	 *
+	 * This is the only thing in the plain-text edition that says what a player
+	 * actually holds. The link above it proves the media exists; this says what
+	 * it is.
+	 *
+	 * @param string $url The media URL.
+	 * @return string
+	 */
+	private static function media_note( $url ) {
+		if ( empty( self::$media_notes ) || '' === trim( (string) $url ) ) {
+			return '';
+		}
+		$key = PageCheck::media_key( $url );
+		if ( ! isset( self::$media_notes[ $key ] ) || '' === self::$media_notes[ $key ] ) {
+			return '';
+		}
+		return self::text( self::$media_notes[ $key ] ) . "\n";
 	}
 
 	/**

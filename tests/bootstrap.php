@@ -111,9 +111,9 @@ namespace {
 		if ( ! function_exists( 'esc_html__' ) )            { function esc_html__( $s, $d = null ) { return htmlspecialchars( (string) $s, ENT_QUOTES ); } }
 		if ( ! function_exists( 'esc_attr__' ) )            { function esc_attr__( $s, $d = null ) { return htmlspecialchars( (string) $s, ENT_QUOTES ); } }
 	if ( ! function_exists( 'sanitize_key' ) )          { function sanitize_key( $k ) { return preg_replace( '/[^a-z0-9_\-]/', '', strtolower( (string) $k ) ); } }
-	if ( ! function_exists( 'sanitize_text_field' ) )   { function sanitize_text_field( $s ) { return trim( preg_replace( '/\s+/', ' ', strip_tags( (string) $s ) ) ); } }
+	if ( ! function_exists( 'sanitize_text_field' ) )   { function sanitize_text_field( $s ) { return trim( preg_replace( '/\s+/', ' ', wp_strip_all_tags( (string) $s ) ) ); } }
 	if ( ! function_exists( 'wp_unslash' ) )            { function wp_unslash( $v ) { return is_string( $v ) ? stripslashes( $v ) : $v; } }
-	if ( ! function_exists( 'sanitize_textarea_field' ) ) { function sanitize_textarea_field( $s ) { return trim( strip_tags( (string) $s ) ); } }
+	if ( ! function_exists( 'sanitize_textarea_field' ) ) { function sanitize_textarea_field( $s ) { return trim( wp_strip_all_tags( (string) $s ) ); } }
 	if ( ! function_exists( 'sanitize_file_name' ) )    { function sanitize_file_name( $n ) { return preg_replace( '/[^A-Za-z0-9._\-]/', '', (string) $n ); } }
 	if ( ! function_exists( 'sanitize_email' ) )        { function sanitize_email( $e ) { $e = trim( (string) $e ); return filter_var( $e, FILTER_VALIDATE_EMAIL ) ? $e : ''; } }
 	if ( ! function_exists( 'esc_url_raw' ) )           { function esc_url_raw( $u, $p = null ) { return trim( (string) $u ); } }
@@ -121,7 +121,11 @@ namespace {
 	if ( ! function_exists( 'wp_parse_url' ) )          { function wp_parse_url( $u, $c = -1 ) { return parse_url( (string) $u, $c ); } }
 	if ( ! function_exists( 'is_email' ) )              { function is_email( $e ) { return filter_var( $e, FILTER_VALIDATE_EMAIL ) ? $e : false; } }
 	if ( ! function_exists( 'wp_normalize_path' ) )     { function wp_normalize_path( $p ) { return str_replace( '\\', '/', (string) $p ); } }
-	if ( ! function_exists( 'wp_strip_all_tags' ) )     { function wp_strip_all_tags( $s ) { return trim( strip_tags( (string) $s ) ); } }
+	// Core removes <script>/<style> CONTENTS before stripping tags — without that the
+	// stub is weaker than production and would let a test pass on markup WordPress
+	// would have neutered. sanitize_text_field()/sanitize_textarea_field() both route
+	// through it, so they inherit the same behaviour.
+	if ( ! function_exists( 'wp_strip_all_tags' ) )     { function wp_strip_all_tags( $s ) { return trim( strip_tags( (string) preg_replace( '@<(script|style)[^>]*?>.*?</\\1>@si', '', (string) $s ) ) ); } }
 	if ( ! function_exists( 'get_locale' ) )            { function get_locale() { return 'en_US'; } }
 	// Post-body sanitiser stub: keeps the tags the Assistant's preview allows, drops
 	// script/style etc. — close enough to assert "dangerous input doesn't survive".
@@ -146,6 +150,9 @@ namespace {
 	if ( ! function_exists( 'add_action' ) )            { function add_action() { return true; } }
 	if ( ! function_exists( 'add_filter' ) )            { function add_filter( $tag, $cb, $priority = 10, $args = 1 ) { $GLOBALS['_af_filters'][ $tag ][] = $cb; return true; } }
 	if ( ! function_exists( 'remove_all_filters' ) )    { function remove_all_filters( $tag = false ) { if ( false === $tag ) { $GLOBALS['_af_filters'] = array(); } else { unset( $GLOBALS['_af_filters'][ $tag ] ); } return true; } }
+	// Without this a test that adds a filter can never take it back, and it leaks
+	// into every test that runs after it — a whole-suite hazard, not a local one.
+	if ( ! function_exists( 'remove_filter' ) )         { function remove_filter( $tag, $cb, $priority = 10 ) { if ( empty( $GLOBALS['_af_filters'][ $tag ] ) ) { return false; } foreach ( $GLOBALS['_af_filters'][ $tag ] as $i => $registered ) { if ( $registered === $cb ) { unset( $GLOBALS['_af_filters'][ $tag ][ $i ] ); return true; } } return false; } }
 	if ( ! function_exists( 'did_action' ) )            { function did_action( $tag ) { return ! empty( $GLOBALS['_af_did_actions'][ $tag ] ) ? 1 : 0; } }
 	// Minimal object-cache surface with faithful add-semantics, so the build-lock
 	// mutex (Cache::acquire_lock/release_lock) can be exercised: wp_cache_add writes
@@ -225,6 +232,9 @@ namespace {
 	// post-ID → attachment-ID map (has_post_thumbnail above only cares that it's truthy).
 	if ( ! function_exists( 'get_post_thumbnail_id' ) )        { function get_post_thumbnail_id( $post = null ) { $id = is_object( $post ) ? (int) $post->ID : (int) $post; return (int) ( $GLOBALS['_af_thumbnails'][ $id ] ?? 0 ); } }
 	if ( ! function_exists( 'wp_get_attachment_image_src' ) )  { function wp_get_attachment_image_src( $id, $size = 'thumbnail' ) { return $GLOBALS['_af_attachments'][ (int) $id ] ?? false; } }
+	// Resolves the featured image straight to a URL — Schema's VideoObject uses it
+	// for thumbnailUrl. Returns false with no thumbnail set, exactly as core does.
+	if ( ! function_exists( 'get_the_post_thumbnail_url' ) )    { function get_the_post_thumbnail_url( $post = null, $size = 'post-thumbnail' ) { $src = wp_get_attachment_image_src( get_post_thumbnail_id( $post ), $size ); return ( is_array( $src ) && ! empty( $src[0] ) ) ? $src[0] : false; } }
 	if ( ! function_exists( 'is_paged' ) )                     { function is_paged() { return ! empty( $GLOBALS['_af_is_paged'] ); } }
 	if ( ! function_exists( 'is_category' ) )                  { function is_category( $c = '' ) { return ! empty( $GLOBALS['_af_is_category'] ); } }
 	if ( ! function_exists( 'is_tag' ) )                       { function is_tag( $t = '' ) { return ! empty( $GLOBALS['_af_is_tag'] ); } }

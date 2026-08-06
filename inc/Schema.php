@@ -211,6 +211,13 @@ final class Schema {
 			if ( $faq ) {
 				$graph[] = $faq;
 			}
+
+			// A VideoObject per player on the page — the only node that can hold a
+			// transcript, and the only way what a video SAYS becomes structured
+			// data rather than a blank rectangle.
+			foreach ( $this->video_nodes( $post ) as $video ) {
+				$graph[] = $video;
+			}
 		}
 
 		$graph = array_values( array_filter( $graph ) );
@@ -442,6 +449,180 @@ final class Schema {
 			'url'        => $url,
 			'mainEntity' => $entities,
 		);
+	}
+
+	/**
+	 * A `VideoObject` (or `AudioObject`) per playable item on the page.
+	 *
+	 * The point of these nodes is `description`: an assistant that can tell what a
+	 * video or a podcast is about can say so, and cite the page for it. There is no
+	 * other structured place to put that. Everything else here is the supporting
+	 * cast schema.org expects around it.
+	 *
+	 * Fields are emitted ONLY where they are true. A `description` is the owner's
+	 * own line about THAT item, never the page's description borrowed to fill a
+	 * gap. `thumbnailUrl` comes from the featured image or not at all — we don't
+	 * construct a provider's thumbnail URL and call it the media's own.
+	 * `uploadDate` is the post's publish date, which is exactly what schema.org
+	 * asks for ("when this media object was uploaded to this site"), not a guess at
+	 * when the video was filmed.
+	 *
+	 * @param \WP_Post $post Post.
+	 * @return array<int,array>
+	 */
+	private function video_nodes( $post ) {
+		$items = MediaContext::items_for( $post );
+		if ( empty( $items ) ) {
+			return array();
+		}
+
+		// Speak only where we have something to add.
+		//
+		// A node without a description is `name` + `url` + `uploadDate` — exactly
+		// what a video plugin already emits, better, with a real thumbnail. Saying
+		// it again in a second node duplicates their work to contribute nothing,
+		// and duplicate structured data for one video is the failure this whole
+		// file is careful about. The description is the field nobody else has.
+		$items = array_values(
+			array_filter(
+				$items,
+				static function ( $item ) {
+					return '' !== $item['context'];
+				}
+			)
+		);
+		if ( empty( $items ) ) {
+			return array();
+		}
+
+		/**
+		 * Filter whether to stand down on media schema for this post.
+		 *
+		 * Defaults to whether something else on the page already describes its
+		 * media in JSON-LD — detected by the symptom, never by a list of plugin
+		 * names. Emitters that write in `wp_head` or `wp_footer` run after this
+		 * does and cannot be seen, so a plugin that knows it emits its own can say
+		 * so here.
+		 *
+		 * @param bool     $defer Whether to emit nothing.
+		 * @param \WP_Post $post  The post.
+		 */
+		if ( apply_filters( 'agentimus_defer_video_schema', MediaContext::foreign_video_schema( $post ), $post ) ) {
+			return array();
+		}
+
+		/**
+		 * Filter the most media nodes one page may emit. A guard against a
+		 * video-wall page turning its @graph into a catalogue, not a judgement
+		 * about how many videos a page should have.
+		 *
+		 * @param int $max Maximum nodes.
+		 */
+		$limit = (int) apply_filters( 'agentimus_video_max_nodes', 10 );
+		$items = array_slice( $items, 0, max( 1, $limit ) );
+
+		$url        = get_permalink( $post );
+		$thumb      = get_the_post_thumbnail_url( $post, 'full' );
+		$transcript = MediaContext::on_page_transcript( function_exists( 'do_blocks' ) ? do_blocks( (string) $post->post_content ) : (string) $post->post_content );
+
+		$nodes = array();
+		foreach ( $items as $i => $item ) {
+			$node = array(
+				'@type'      => 'audio' === $item['kind'] ? 'AudioObject' : 'VideoObject',
+				// The first keeps the bare "#video" fragment it has always had, so
+				// nothing already pointing at it breaks.
+				'@id'        => $url . '#video' . ( $i > 0 ? '-' . ( $i + 1 ) : '' ),
+				'name'       => $this->clean( $this->media_name( $item, $post ) ),
+				'uploadDate' => get_the_date( DATE_W3C, $post ),
+			);
+
+			// A player URL and a media-file URL are different properties, and calling
+			// one the other misdescribes what is at the end of the link.
+			$node[ $item['embed'] ? 'embedUrl' : 'contentUrl' ] = $item['url'];
+
+			// The owner's line about THIS item — the reason these nodes exist. Absent
+			// rather than borrowed: a page-level description pasted onto six players
+			// would tell an assistant that all six are the same thing.
+			if ( '' !== $item['context'] ) {
+				$node['description'] = $this->clean( $item['context'] );
+			}
+
+			// This video's own still, when the author set one. Otherwise the post's
+			// featured image — but ONLY on a page with a single item, where it is a
+			// fair stand-in. Repeating it across five nodes said all five looked the
+			// same, which was simply untrue; an absent thumbnailUrl is honest, a
+			// wrong one is not.
+			$still = (string) $item['poster'];
+
+			// Core extracts cover art from an uploaded video and hangs it on the
+			// attachment (wp-admin/includes/image.php), so a media-library video can
+			// already have a real still even with no poster set.
+			if ( '' === $still && ! $item['embed'] ) {
+				$attachment = function_exists( 'attachment_url_to_postid' ) ? (int) attachment_url_to_postid( $item['url'] ) : 0;
+				if ( $attachment ) {
+					$still = (string) get_the_post_thumbnail_url( $attachment, 'full' );
+				}
+			}
+
+			if ( '' !== $still ) {
+				$node['thumbnailUrl'] = $still;
+			} elseif ( $thumb && 1 === count( $items ) ) {
+				$node['thumbnailUrl'] = $thumb;
+			}
+
+			// A transcript already on the page, from whatever tool put it there — but
+			// ONLY when the page has a single item. With several, one transcript
+			// cannot say which of them it belongs to.
+			if ( '' !== $transcript && 1 === count( $items ) ) {
+				$node['transcript'] = $this->clean( $transcript );
+			}
+
+			/**
+			 * Filter one media node (add duration, a real uploadDate from a provider
+			 * API, a per-item transcript…), or return null to omit it.
+			 *
+			 * @param array|null $node  The node.
+			 * @param \WP_Post    $post  The post.
+			 * @param array      $item  The detected item: { kind, url, name, embed, key, context }.
+			 * @param int        $index Its position on the page, from 0.
+			 */
+			$node = apply_filters( 'agentimus_video_node', $node, $post, $item, $i );
+			if ( is_array( $node ) && ! empty( $node ) ) {
+				$nodes[] = $node;
+			}
+		}
+
+		return $nodes;
+	}
+
+	/**
+	 * A name for one media item.
+	 *
+	 * The provider's own title first. Failing that the owner's line about THIS
+	 * item, shortened — a short descriptive phrase is a fair name, and it is at
+	 * least about the right video. The post's title is the last resort, and it is
+	 * only honest when the page holds a single item: on a page with five, naming
+	 * every node after the post states five times that each one is the post.
+	 *
+	 * @param array    $item The detected item.
+	 * @param \WP_Post $post The post.
+	 * @return string
+	 */
+	private function media_name( $item, $post ) {
+		if ( '' !== $item['name'] ) {
+			return $item['name'];
+		}
+
+		if ( '' !== $item['context'] ) {
+			// First sentence, capped — a name, not a paragraph.
+			$name = trim( (string) preg_replace( '/\s+/', ' ', $item['context'] ) );
+			if ( preg_match( '/^(.{10,110}?[.!?])\s/u', $name . ' ', $m ) ) {
+				$name = $m[1];
+			}
+			return mb_strlen( $name ) > 110 ? trim( mb_substr( $name, 0, 109 ) ) . '…' : $name;
+		}
+
+		return get_the_title( $post );
 	}
 
 	/**

@@ -250,6 +250,136 @@ final class PageCheckTest extends TestCase {
 		$this->assertSame( 'pass', $this->check( 'check_summary', array( 'words' => 40, 'paragraphs' => array( 2 ), 'has_excerpt' => false ) )['status'] );
 	}
 
+	/* -- video legibility -------------------------------------------------- */
+
+	public function test_stats_sees_players_captions_and_transcripts() {
+		// A YouTube embed carries no words at all — the gap the check exists for.
+		$embed = PageCheck::stats( '<figure class="wp-block-embed"><iframe src="https://www.youtube.com/embed/abc123" title="Talk"></iframe></figure><p>Watch the talk.</p>' );
+		$this->assertSame( 1, $embed['videos'] );
+		$this->assertFalse( $embed['has_transcript'] );
+
+		// A bare iframe is never a video here, known host or not.
+		$map = PageCheck::stats( '<iframe src="https://example.com/widget"></iframe>' );
+		$this->assertSame( 0, $map['videos'] );
+
+		// Self-hosted video, with captions already attached.
+		$hosted = PageCheck::stats( '<video src="/wp-content/uploads/talk.mp4"><track kind="captions" src="/talk.vtt"></video>' );
+		$this->assertSame( 1, $hosted['videos'] );
+		$this->assertSame( 1, $hosted['video_captions'] );
+
+		// A <track> with no src is a declaration, not a captions file.
+		$empty_track = PageCheck::stats( '<video src="/talk.mp4"><track kind="captions" src=""></video>' );
+		$this->assertSame( 0, $empty_track['video_captions'] );
+
+		// Both ways an author writes a transcript.
+		$this->assertTrue( PageCheck::stats( '<h2>Transcript</h2><p>So today…</p>' )['has_transcript'] );
+		$this->assertTrue( PageCheck::stats( '<details><summary>Full transcript</summary><p>So today…</p></details>' )['has_transcript'] );
+
+		// Regression, caught on a live site: an embed block holds a BARE URL until
+		// WordPress's autoembed swaps in the player, and autoembed only runs inside
+		// the the_content chain. Anything scanning a plain block render — the editor
+		// screen deciding whether to offer the transcript field, the schema pass —
+		// saw no iframe and concluded the post had no video at all.
+		$unresolved = PageCheck::stats( '<figure class="wp-block-embed is-type-video is-provider-youtube"><div class="wp-block-embed__wrapper">https://www.youtube.com/watch?v=dQw4w9WgXcQ</div></figure>' );
+		$this->assertSame( 1, $unresolved['videos'], 'An unresolved embed block is still a video.' );
+
+		// …and once it IS resolved, the figure and its iframe are one video, not two.
+		$resolved = PageCheck::stats( '<figure class="wp-block-embed is-type-video"><div class="wp-block-embed__wrapper"><iframe src="https://www.youtube.com/embed/dQw4w9WgXcQ"></iframe></div></figure>' );
+		$this->assertSame( 1, $resolved['videos'] );
+
+		// An embed block for something that isn't a video stays uncounted.
+		$tweet = PageCheck::stats( '<figure class="wp-block-embed is-type-rich"><div class="wp-block-embed__wrapper">https://example.com/status/123</div></figure>' );
+		$this->assertSame( 0, $tweet['videos'] );
+
+		// WordPress's OWN classification is the authority: a provider missing from
+		// our host list is still a video when the embed block says it is. This is
+		// what makes the feature cover providers added after it was written.
+		$unknown = PageCheck::stats( '<figure class="wp-block-embed is-type-video is-provider-newthing"><div class="wp-block-embed__wrapper">https://newthing.example/v/42</div></figure>' );
+		$this->assertSame( 1, $unknown['videos'] );
+
+		// …and once such an embed resolves, the figure and its player are one video.
+		$unknown_resolved = PageCheck::stats( '<figure class="wp-block-embed is-type-video"><div class="wp-block-embed__wrapper"><iframe src="https://newthing.example/embed/42"></iframe></div></figure>' );
+		$this->assertSame( 1, $unknown_resolved['videos'] );
+
+		// A hand-written <iframe> outside any embed block is NOT graded — whatever
+		// an author put in their own markup is their business, not this plugin's.
+		$this->assertSame( 0, PageCheck::stats( '<iframe src="https://player.vimeo.com/video/76979871"></iframe>' )['videos'] );
+		$this->assertSame( 0, PageCheck::stats( '<iframe src="https://www.facebook.com/plugins/page.php?href=x"></iframe>' )['videos'] );
+
+		// A <video>/<audio> ELEMENT is still graded: that is what core's own media
+		// blocks render, and it is a player by definition rather than by guesswork.
+		$this->assertSame( 1, PageCheck::stats( '<video src="https://example.com/talk.mp4"></video>' )['videos'] );
+
+		// Merely talking about transcripts is not having one.
+		$this->assertFalse(
+			PageCheck::stats( '<p>You should always publish a transcript alongside your video, because assistants cannot hear.</p>' )['has_transcript'],
+			'Prose that mentions transcripts must not read as a transcript.'
+		);
+	}
+
+	public function test_the_media_row_asks_whether_an_agent_can_tell_what_it_is() {
+		// No media — the row stands down.
+		$this->assertSame( 'pass', $this->check( 'check_media', array( 'videos' => 0, 'audios' => 0, 'words' => 20 ) )['status'] );
+
+		// The gap: a page that IS the player, and says nothing about it.
+		$bare = $this->check( 'check_media', array( 'videos' => 1, 'audios' => 0, 'words' => 30, 'media_described' => 0 ) );
+		$this->assertSame( 'warn', $bare['status'] );
+		$this->assertStringContainsString( 'say what it is about', $bare['detail'] );
+		// It must NOT demand a transcript — that belongs to whatever tool already
+		// owns it, and asking for one is how this feature went wrong the first time.
+		$this->assertStringNotContainsString( 'transcript', strtolower( $bare['detail'] ) );
+
+		// Three separate things settle it, and the row names which one did.
+		$described = $this->check( 'check_media', array( 'videos' => 2, 'audios' => 0, 'words' => 5, 'media_described' => 2 ) );
+		$this->assertSame( 'pass', $described['status'] );
+		$this->assertStringContainsString( 'line of context', $described['detail'] );
+
+		$transcribed = $this->check( 'check_media', array( 'videos' => 1, 'audios' => 0, 'words' => 5, 'media_described' => 0, 'has_transcript' => true ) );
+		$this->assertSame( 'pass', $transcribed['status'] );
+
+		$written = $this->check( 'check_media', array( 'videos' => 1, 'audios' => 0, 'words' => 400, 'media_described' => 0 ) );
+		$this->assertSame( 'pass', $written['status'] );
+
+	}
+
+	public function test_audio_is_graded_exactly_like_video() {
+		// A podcast episode has the same problem and is the commonest case of all;
+		// it was excluded from this feature entirely until the redesign.
+		$row = $this->check( 'check_media', array( 'videos' => 0, 'audios' => 1, 'words' => 30, 'media_described' => 0 ) );
+		$this->assertSame( 'warn', $row['status'] );
+		$this->assertStringContainsString( 'audio item', $row['detail'] );
+	}
+
+	public function test_a_partly_described_page_says_how_many_are_left() {
+		$row = $this->check( 'check_media', array( 'videos' => 3, 'audios' => 0, 'words' => 10, 'media_described' => 1 ) );
+		$this->assertSame( 'warn', $row['status'] );
+		$this->assertStringContainsString( '2 of 3 videos', $row['detail'] );
+	}
+
+	public function test_media_notes_never_prop_up_the_length_row() {
+		// His call, and the right one: notes make a page LEGIBLE, not SUBSTANTIAL.
+		// Letting captions clear a bar calibrated for prose would turn a page that is
+		// five videos and five one-liners green — the opposite of what this grades.
+		// The media row credits that work; this row keeps telling the truth.
+		$row = $this->check( 'check_words', array( 'words' => 27, 'media_described' => 5 ) );
+
+		$this->assertSame( 'warn', $row['status'] );
+		$this->assertStringContainsString( '27 words', $row['detail'] );
+		$this->assertStringNotContainsString( 'describing the media', $row['detail'] );
+
+		// And the page's own words still carry it when there are enough of them.
+		$this->assertSame( 'pass', $this->check( 'check_words', array( 'words' => 400 ) )['status'] );
+	}
+
+	public function test_the_media_row_outlives_the_thin_content_row() {
+		// 120 words clears MIN_WORDS, so the length check passes it — while nothing
+		// still says what the video holds. The two rows must disagree here, or the gap
+		// this feature exists for goes unreported.
+		$s = array( 'videos' => 1, 'audios' => 0, 'words' => 120, 'media_described' => 0, 'paragraphs' => array( 40 ) );
+		$this->assertSame( 'pass', $this->check( 'check_words', $s )['status'] );
+		$this->assertSame( 'warn', $this->check( 'check_media', $s )['status'] );
+	}
+
 	/* -- citability signals ----------------------------------------------- */
 
 	public function test_stats_counts_figures_and_outbound_sources() {

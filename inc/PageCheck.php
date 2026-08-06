@@ -45,6 +45,14 @@ final class PageCheck {
 	/** Below this a page is too short to expect outbound references. */
 	const SOURCES_MIN_WORDS = 300;
 
+	/** A page carrying video needs at least this much readable text of its own.
+	 *  Below it the page IS the video: an assistant sees an <iframe> — which
+	 *  carries no words at all — and a handful of framing sentences, so nothing
+	 *  the video actually says can ever be quoted or cited. Set above
+	 *  MIN_WORDS because a video page clears the thin-content bar on framing
+	 *  alone while still being unreadable in the only way that matters here. */
+	const VIDEO_MIN_WORDS = 150;
+
 	/** Flesch Reading Ease bands: at/above OK reads general-audience; below HARD
 	 *  is university-level prose. (English-only — the formula fits no other
 	 *  language, and the check says so instead of mis-grading.) */
@@ -72,7 +80,8 @@ final class PageCheck {
 	 */
 	public static function analyze( \WP_Post $post ) {
 		$has_excerpt = '' !== trim( (string) $post->post_excerpt );
-		$stats       = self::stats( Content::markdown_source( $post ), $has_excerpt, self::home_host() );
+		$measured    = Content::markdown_source( $post );
+		$stats       = self::stats( $measured, $has_excerpt, self::home_host() );
 		// Recency is a post fact, not a content fact — fold it in after the pure parse.
 		$stats['age_days']  = self::age_days( $post );
 		$stats['evergreen'] = self::is_evergreen( $post );
@@ -83,6 +92,36 @@ final class PageCheck {
 		// type and theme actually offer one.
 		$stats['featured']          = has_post_thumbnail( $post );
 		$stats['featured_expected'] = post_type_supports( $post->post_type, 'thumbnail' ) && current_theme_supports( 'post-thumbnails' );
+
+		// The owner's own notes about this page's media.
+		$items      = MediaContext::items_for( $post );
+		$described  = 0;
+		$note_text  = '';
+		foreach ( $items as $item ) {
+			if ( '' !== $item['context'] ) {
+				++$described;
+				$note_text .= ' ' . $item['context'];
+			}
+		}
+
+		$stats['media_described'] = $described;
+
+		// Deliberately NOT added to the word count. The notes make a page LEGIBLE —
+		// an agent can tell what its media holds — but they do not make it
+		// SUBSTANTIAL, and a bar calibrated for prose must not be cleared by
+		// captions. Blending the two would let five videos and five one-liners turn
+		// a nearly-empty page green, which is the opposite of what this panel is
+		// for. The media row credits the work; the length row keeps telling the
+		// truth about the page's own words. Two rows, two separate facts, neither
+		// covering for the other.
+
+		// The media detection above ran on the full the_content render; the notes
+		// are keyed to the block render. Where the two disagree about how many
+		// items exist, trust the one the owner actually saw in the editor.
+		if ( ! empty( $items ) ) {
+			$stats['videos'] = count( array_filter( $items, static function ( $m ) { return 'audio' !== $m['kind']; } ) );
+			$stats['audios'] = count( array_filter( $items, static function ( $m ) { return 'audio' === $m['kind']; } ) );
+		}
 
 		$checks = array(
 			self::check_words( $stats ),
@@ -95,6 +134,7 @@ final class PageCheck {
 			self::check_reading_ease( $stats ),
 			self::check_link_density( $stats ),
 			self::check_alt_text( $stats ),
+			self::check_media( $stats ),
 			self::check_featured_image( $stats ),
 			self::check_freshness( $stats ),
 		);
@@ -135,13 +175,38 @@ final class PageCheck {
 		$outbound   = 0;
 		$images     = 0;
 		$images_no_alt = 0;
+		$captions   = 0;
+		$transcript = false;
+		$media      = array();
 
 		$dom = self::dom( $html );
 		if ( $dom ) {
+			// One detection pass, shared with the editor and the emitters, so the
+			// count in the panel can never disagree with the list beside it.
+			$media = self::media_items_from_dom( $dom );
+
 			foreach ( $dom->getElementsByTagName( '*' ) as $node ) {
 				$tag = strtolower( $node->nodeName );
 				if ( preg_match( '/^h([1-6])$/', $tag, $m ) ) {
 					$headings[] = (int) $m[1];
+					// "Transcript" as a section heading — the plainest way an author
+					// writes one, and it costs nothing to recognise.
+					if ( self::is_transcript_label( $node->textContent ) ) {
+						$transcript = true;
+					}
+				} elseif ( 'track' === $tag ) {
+					// Captions already attached to a self-hosted video: words that
+					// exist and simply aren't being used yet.
+					$kind = strtolower( trim( (string) $node->getAttribute( 'kind' ) ) );
+					if ( ( '' === $kind || 'captions' === $kind || 'subtitles' === $kind ) && '' !== trim( (string) $node->getAttribute( 'src' ) ) ) {
+						++$captions;
+					}
+				} elseif ( 'details' === $tag ) {
+					// A collapsed "Transcript" block — visible to a reader who opens
+					// it, and always present in the text an assistant reads.
+					if ( self::is_transcript_label( self::summary_text( $node ) ) ) {
+						$transcript = true;
+					}
 				} elseif ( 'p' === $tag ) {
 					$paragraphs[] = self::word_count( $node->textContent );
 				} elseif ( 'a' === $tag ) {
@@ -214,6 +279,11 @@ final class PageCheck {
 			'outbound_links' => $outbound,
 			'images'         => $images,
 			'images_no_alt'  => $images_no_alt,
+			'media'          => $media,
+			'videos'         => count( array_filter( $media, static function ( $m ) { return 'audio' !== $m['kind']; } ) ),
+			'audios'         => count( array_filter( $media, static function ( $m ) { return 'audio' === $m['kind']; } ) ),
+			'video_captions' => $captions,
+			'has_transcript' => (bool) $transcript,
 			'has_excerpt'    => (bool) $has_excerpt,
 			'sentences'      => $sentences,
 			'prose_words'    => $prose_words,
@@ -229,14 +299,21 @@ final class PageCheck {
 	 * ---------------------------------------------------------------------- */
 
 	private static function check_words( array $s ) {
-		if ( (int) $s['words'] >= self::MIN_WORDS ) {
-			return self::row( 'words', __( 'Enough substance', 'agentimus' ), 'pass', sprintf( /* translators: %d: word count. */ __( '%d words — enough for an agent to extract and cite.', 'agentimus' ), (int) $s['words'] ) );
+		$words = (int) $s['words'];
+
+		if ( $words >= self::MIN_WORDS ) {
+			return self::row(
+				'words',
+				__( 'Enough substance', 'agentimus' ),
+				'pass',
+				sprintf( /* translators: %d: word count. */ __( '%d words — enough for an agent to extract and cite.', 'agentimus' ), $words )
+			);
 		}
 		return self::row(
 			'words',
 			__( 'Not enough substance yet', 'agentimus' ),
 			'warn',
-			sprintf( /* translators: 1: word count, 2: the minimum. */ __( 'Only %1$d words. Below ~%2$d an agent has little to work with — expand the page or merge it.', 'agentimus' ), (int) $s['words'], self::MIN_WORDS )
+			sprintf( /* translators: 1: word count, 2: the minimum. */ __( 'Only %1$d words. Below ~%2$d an agent has little to work with — expand the page or merge it.', 'agentimus' ), $words, self::MIN_WORDS )
 		);
 	}
 
@@ -450,6 +527,596 @@ final class PageCheck {
 		}
 		$detail = (int) $s['images'] > 0 ? __( 'Every image has alt text.', 'agentimus' ) : __( 'No images to describe.', 'agentimus' );
 		return self::row( 'alt_text', __( 'Image alt text', 'agentimus' ), 'pass', $detail );
+	}
+
+	/**
+	 * Can an agent tell what this page's media is about?
+	 *
+	 * Deliberately NOT "is there a transcript?". A transcript is one way to
+	 * answer, not the requirement — and it belongs to whatever tool the owner
+	 * already uses for it. Any of four things settles this row, and the row says
+	 * which one did.
+	 *
+	 * @param array $s Stats.
+	 * @return array
+	 */
+	private static function check_media( array $s ) {
+		$videos = (int) ( isset( $s['videos'] ) ? $s['videos'] : 0 );
+		$audios = (int) ( isset( $s['audios'] ) ? $s['audios'] : 0 );
+		$total  = $videos + $audios;
+
+		$label = __( 'Video & audio', 'agentimus' );
+		if ( $total < 1 ) {
+			return self::row( 'media', $label, 'pass', __( 'No video or audio on this page.', 'agentimus' ) );
+		}
+
+		$noun = self::media_noun( $videos, $audios );
+
+		// Every item is described — the outcome this row exists to produce.
+		$described = (int) ( isset( $s['media_described'] ) ? $s['media_described'] : 0 );
+		if ( $described >= $total ) {
+			return self::row(
+				'media',
+				$label,
+				'pass',
+				sprintf( /* translators: %s: e.g. "2 videos". */ __( 'Every item has a line of context, so an assistant knows what it holds (%s).', 'agentimus' ), $noun )
+			);
+		}
+
+		// A transcript already published on the page — by any tool — answers it too.
+		if ( ! empty( $s['has_transcript'] ) ) {
+			return self::row( 'media', $label, 'pass', __( 'The page carries a transcript, so what is said here can be quoted.', 'agentimus' ) );
+		}
+
+		$words = (int) $s['words'];
+		if ( $words >= self::VIDEO_MIN_WORDS ) {
+			return self::row(
+				'media',
+				$label,
+				'pass',
+				sprintf( /* translators: %d: word count. */ __( '%d words of readable text accompany it — the page stands on its own.', 'agentimus' ), $words )
+			);
+		}
+
+		// Nothing answers it. Ask for the cheapest thing that would.
+		$missing = $total - $described;
+		if ( $described > 0 ) {
+			return self::row(
+				'media',
+				__( 'Media without context', 'agentimus' ),
+				'warn',
+				sprintf(
+					/* translators: 1: how many items lack a line, 2: e.g. "3 videos". */
+					_n(
+						'%1$d of %2$s still has no line of context. An assistant reads no sound or picture — describe it so it knows what is there.',
+						'%1$d of %2$s still have no line of context. An assistant reads no sound or picture — describe them so it knows what is there.',
+						$missing,
+						'agentimus'
+					),
+					$missing,
+					$noun
+				)
+			);
+		}
+
+		$detail = (int) ( isset( $s['video_captions'] ) ? $s['video_captions'] : 0 ) > 0
+			// Captions exist but reach nothing: name the shorter next step.
+			? __( 'A captions file is attached but nothing on the page says what this is about. Add a line of context, or publish those words as a transcript.', 'agentimus' )
+			: __( 'An assistant reads no sound or picture, so this page tells it almost nothing. Select each one in the editor and say what it is about.', 'agentimus' );
+
+		return self::row(
+			'media',
+			__( 'Media without context', 'agentimus' ),
+			'warn',
+			sprintf( /* translators: 1: e.g. "3 videos", 2: the advice. */ __( '%1$s and %2$d words. %3$s', 'agentimus' ), ucfirst( $noun ), (int) $s['words'], $detail )
+		);
+	}
+
+	/**
+	 * "2 videos", "a podcast and 1 video" — a plain phrase for what a page holds.
+	 *
+	 * @param int $videos Video count.
+	 * @param int $audios Audio count.
+	 * @return string
+	 */
+	private static function media_noun( $videos, $audios ) {
+		$parts = array();
+		if ( $videos > 0 ) {
+			/* translators: %d: number of videos. */
+			$parts[] = sprintf( _n( '%d video', '%d videos', $videos, 'agentimus' ), $videos );
+		}
+		if ( $audios > 0 ) {
+			/* translators: %d: number of audio items. */
+			$parts[] = sprintf( _n( '%d audio item', '%d audio items', $audios, 'agentimus' ), $audios );
+		}
+		return implode( __( ' and ', 'agentimus' ), $parts );
+	}
+
+	/**
+	 * Whether an iframe src points at a video player. Hosts only — the path and
+	 * query differ per provider and prove nothing.
+	 *
+	 * Public because {@see Markdown} names the same players in the plain-text
+	 * edition and must agree with this check about what counts as one.
+	 *
+	 * @param string $src The iframe's src attribute.
+	 * @return bool
+	 */
+	public static function is_video_embed( $src ) {
+		$host = (string) wp_parse_url( trim( (string) $src ), PHP_URL_HOST );
+		if ( '' === $host ) {
+			return false;
+		}
+		$host = strtolower( preg_replace( '~^www\.~i', '', $host ) );
+
+		foreach ( self::video_hosts() as $known ) {
+			$known = strtolower( ltrim( (string) $known, '.' ) );
+			if ( '' !== $known && ( $host === $known || substr( $host, -strlen( '.' . $known ) ) === '.' . $known ) ) {
+				return true;
+			}
+		}
+		return false;
+	}
+
+	/**
+	 * The hosts recognised as video players.
+	 *
+	 * Public and separate from {@see is_video_embed()} because the block-editor
+	 * panel needs the same list to recognise a raw <iframe> inside an HTML block,
+	 * and a second copy of it living in JavaScript would drift from this one.
+	 *
+	 * @return string[]
+	 */
+	public static function video_hosts() {
+		/**
+		 * Filter the hosts recognised as video players. A match is by suffix, so
+		 * "youtube.com" also covers "www.youtube.com" and "player.youtube.com".
+		 *
+		 * @param array<int,string> $hosts Video player hosts.
+		 */
+		return (array) apply_filters(
+			'agentimus_video_hosts',
+			array(
+				// Consumer platforms.
+				'youtube.com',
+				'youtube-nocookie.com',
+				'youtu.be',
+				'vimeo.com',
+				'dailymotion.com',
+				'ted.com',
+				'twitch.tv',
+				'tiktok.com',
+				'rumble.com',
+				'odysee.com',
+				'bitchute.com',
+				'kick.com',
+				'streamable.com',
+				// Facebook and Instagram are deliberately ABSENT. This list matches on
+				// host alone, and a raw facebook.com iframe is far more often a like
+				// button or a page plugin than a video — counting those would produce
+				// confident, wrong advice. Their actual videos come through the embed
+				// block, where WordPress's own `is-type-video` classification catches
+				// them properly.
+				// Business / hosted video.
+				'wistia.net',
+				'wistia.com',
+				'loom.com',
+				'videopress.com',
+				'video.wordpress.com',
+				'brightcove.net',
+				'jwplayer.com',
+				'vidyard.com',
+				'sproutvideo.com',
+				'vidalytics.com',
+				'panopto.com',
+				'kaltura.com',
+				'api.video',
+				'muse.ai',
+				// Infrastructure players — the URL is the only thing that names them.
+				'videodelivery.net',      // Cloudflare Stream.
+				'cloudflarestream.com',
+				'mediadelivery.net',      // Bunny Stream.
+				'stream.mux.com',
+			)
+		);
+	}
+
+	/**
+	 * Every playable item in some rendered HTML, in document order.
+	 *
+	 * The single detection pass the whole feature reads: {@see stats()} counts
+	 * from it, the editor lists from it, and Schema and Markdown describe from it
+	 * — so the checker, the panel and the machine surfaces can never disagree
+	 * about what media a page holds.
+	 *
+	 * @param string $html Rendered content HTML.
+	 * @return array<int,array{kind:string,url:string,name:string,embed:bool,key:string}>
+	 */
+	public static function media_items( $html ) {
+		$dom = self::dom( (string) $html );
+		return $dom ? self::media_items_from_dom( $dom ) : array();
+	}
+
+	/**
+	 * {@see media_items()} against an already-parsed document.
+	 *
+	 * @param \DOMDocument $dom Parsed document.
+	 * @return array<int,array{kind:string,url:string,name:string,embed:bool,key:string}>
+	 */
+	private static function media_items_from_dom( $dom ) {
+		$found = array();
+		$seen  = array();
+
+		foreach ( $dom->getElementsByTagName( '*' ) as $node ) {
+			$tag  = strtolower( $node->nodeName );
+			$item = null;
+
+			// An embed block owns whatever player is inside it, so it is resolved as
+			// a whole and its descendants are skipped — otherwise one embed would
+			// yield both a figure and an iframe for the same media.
+			if ( 'figure' === $tag ) {
+				$item = self::embed_figure_video( $node );
+				if ( $item ) {
+					$item['kind'] = 'video';
+				}
+			} elseif ( self::inside_embed_block( $node ) ) {
+				continue;
+			} elseif ( 'iframe' === $tag ) {
+				// A standalone <iframe> is hand-written markup, and what the author
+				// put inside it is their business, not this plugin's. Only WordPress's
+				// own embeds are graded — the block above — so the plugin never
+				// second-guesses markup somebody wrote deliberately.
+				continue;
+			} elseif ( 'video' === $tag || 'audio' === $tag ) {
+				// Audio is first class here. A podcast episode has exactly the same
+				// problem a silent video does — the words do not exist for anything
+				// that cannot listen — and it is the commonest case of all.
+				$src = trim( (string) $node->getAttribute( 'src' ) );
+				if ( '' === $src ) {
+					foreach ( $node->childNodes as $child ) {
+						if ( XML_ELEMENT_NODE === $child->nodeType && 'source' === strtolower( $child->nodeName ) ) {
+							$src = trim( (string) $child->getAttribute( 'src' ) );
+							if ( '' !== $src ) {
+								break;
+							}
+						}
+					}
+				}
+				if ( '' !== $src ) {
+					$item = array(
+						'kind'  => $tag,
+						'url'   => $src,
+						'name'  => trim( (string) $node->getAttribute( 'title' ) ),
+						'embed' => false,
+						// core/video's own Poster image control renders here. It is
+						// THIS video's still, chosen by the author — the only honest
+						// thumbnail available without asking them for a second one.
+						'poster' => trim( (string) $node->getAttribute( 'poster' ) ),
+					);
+				}
+			}
+
+			if ( ! $item ) {
+				continue;
+			}
+			$item['key']     = self::media_key( $item['url'] );
+			$item['caption'] = self::figure_caption( $node );
+			if ( ! isset( $item['poster'] ) ) {
+				$item['poster'] = '';
+			}
+			if ( isset( $seen[ $item['key'] ] ) ) {
+				continue; // The same media twice on a page is one item.
+			}
+			$seen[ $item['key'] ] = true;
+			$found[]              = $item;
+		}
+
+		return $found;
+	}
+
+	/**
+	 * A figure's text with its `<figcaption>` left out.
+	 *
+	 * @param \DOMNode $figure Figure node.
+	 * @return string
+	 */
+	private static function figure_text_without_caption( $figure ) {
+		$out = '';
+		foreach ( $figure->childNodes as $child ) {
+			if ( XML_ELEMENT_NODE === $child->nodeType && 'figcaption' === strtolower( $child->nodeName ) ) {
+				continue;
+			}
+			$out .= ' ' . $child->textContent;
+		}
+		return trim( $out );
+	}
+
+	/**
+	 * The caption an author wrote under a piece of media, or ''.
+	 *
+	 * Worth reading because it is already a description of the media, written by
+	 * the person who put it there and visible to the reader — which makes it a
+	 * far better default than anything this plugin could infer.
+	 *
+	 * @param \DOMNode $node The media node, or the figure holding it.
+	 * @return string
+	 */
+	private static function figure_caption( $node ) {
+		// Walk up to the figure when we were handed the player itself.
+		$figure = $node;
+		if ( 'figure' !== strtolower( $figure->nodeName ) ) {
+			for ( $p = $node->parentNode, $depth = 0; $p && $depth < 4; $p = $p->parentNode, $depth++ ) {
+				if ( XML_ELEMENT_NODE === $p->nodeType && 'figure' === strtolower( $p->nodeName ) ) {
+					$figure = $p;
+					break;
+				}
+			}
+		}
+		if ( ! method_exists( $figure, 'getElementsByTagName' ) ) {
+			return '';
+		}
+
+		foreach ( $figure->getElementsByTagName( 'figcaption' ) as $caption ) {
+			$text = trim( (string) preg_replace( '/\s+/', ' ', $caption->textContent ) );
+			if ( '' !== $text ) {
+				return $text;
+			}
+		}
+		return '';
+	}
+
+	/**
+	 * A stable identity for one piece of media, so a note written against it
+	 * survives the URL changing shape.
+	 *
+	 * It has to, because the SAME video has two addresses depending on whether
+	 * WordPress has resolved the embed yet: the block stores
+	 * `youtube.com/watch?v=ID`, the resolved player is `youtube.com/embed/ID`,
+	 * and a note keyed on one would be invisible to the other.
+	 *
+	 * The rule is deliberately provider-agnostic — a table of "where YouTube puts
+	 * its id" would need extending for every service that ever exists. Instead:
+	 * the host, plus the last path segment that isn't structural scaffolding
+	 * ("embed", "iframe", "watch"…), falling back to the shortest id-shaped query
+	 * value. On both YouTube forms that yields `ID`; on both Vimeo forms,
+	 * the numeric id; on a Cloudflare Stream `/{id}/iframe`, the id.
+	 *
+	 * @param string $url Media URL.
+	 * @return string
+	 */
+	public static function media_key( $url ) {
+		$url  = trim( (string) $url );
+		$host = strtolower( (string) wp_parse_url( $url, PHP_URL_HOST ) );
+
+		// The last two labels, not the whole host: the same video is served from
+		// `vimeo.com` in the block and `player.vimeo.com` once resolved, and from
+		// `customer-<account>.cloudflarestream.com` per account. Keying on the full
+		// host would make one video look like two. The id below is what actually
+		// distinguishes items, so a coarse host costs nothing.
+		$labels = array_values( array_filter( explode( '.', $host ), 'strlen' ) );
+		if ( count( $labels ) > 2 ) {
+			$labels = array_slice( $labels, -2 );
+		}
+		$host = implode( '.', $labels );
+
+		/**
+		 * Filter the path segments treated as scaffolding rather than identity.
+		 *
+		 * @param string[] $words Lowercased segment names to skip.
+		 */
+		$skip = (array) apply_filters(
+			'agentimus_media_key_skip_segments',
+			array( 'embed', 'embeds', 'iframe', 'watch', 'video', 'videos', 'v', 'e', 'player', 'view', 'oembed' )
+		);
+
+		$id   = '';
+		$path = (string) wp_parse_url( $url, PHP_URL_PATH );
+		$segments = array_values( array_filter( explode( '/', $path ), 'strlen' ) );
+		for ( $i = count( $segments ) - 1; $i >= 0; $i-- ) {
+			$segment = $segments[ $i ];
+			if ( in_array( strtolower( $segment ), $skip, true ) ) {
+				continue;
+			}
+			if ( preg_match( '~^[A-Za-z0-9_.-]{6,}$~', $segment ) ) {
+				$id = $segment;
+				break;
+			}
+		}
+
+		if ( '' === $id ) {
+			// The id lives in the query string (`watch?v=…`). Prefer the SHORTEST
+			// id-shaped value: on a YouTube watch URL the playlist id is the longer
+			// one and is not the video's identity.
+			$query = (string) wp_parse_url( $url, PHP_URL_QUERY );
+			parse_str( $query, $params );
+			foreach ( (array) $params as $value ) {
+				if ( ! is_string( $value ) || ! preg_match( '~^[A-Za-z0-9_-]{6,}$~', $value ) ) {
+					continue;
+				}
+				if ( '' === $id || strlen( $value ) < strlen( $id ) ) {
+					$id = $value;
+				}
+			}
+		}
+
+		if ( '' === $id ) {
+			// Nothing id-shaped anywhere — fall back to the whole address, so two
+			// genuinely different items still get two keys.
+			$id = md5( $url );
+		}
+
+		return ( '' !== $host ? $host : 'local' ) . ':' . $id;
+	}
+
+	/**
+	 * The player an embed-block figure represents, or null.
+	 *
+	 * Providers disagree about where they put the video's address, so this looks
+	 * in all four places they use: a resolved `<iframe>`, a bare URL left in the
+	 * figure's text, the `cite` attribute of the `<blockquote>` that script-based
+	 * providers render (TikTok and Instagram both do this — the URL appears in no
+	 * text node at all), and finally a link in the body.
+	 *
+	 * Shared so {@see Markdown} and {@see Schema} can never disagree about what a
+	 * figure is or where it points.
+	 *
+	 * @param \DOMNode $figure A `<figure>` node.
+	 * @return array{url:string,name:string,embed:bool}|null
+	 */
+	public static function embed_figure_video( $figure ) {
+		if ( ! method_exists( $figure, 'getAttribute' ) ) {
+			return null;
+		}
+		$class = (string) $figure->getAttribute( 'class' );
+		if ( false === strpos( $class, 'wp-block-embed' ) ) {
+			return null;
+		}
+
+		// WordPress's own classification. When it is absent we fall back to the
+		// host list, so an unclassified figure still resolves if we know the host.
+		$is_video = false !== strpos( $class, 'is-type-video' );
+
+		// A resolved player carries the real title — always prefer it.
+		foreach ( $figure->getElementsByTagName( 'iframe' ) as $frame ) {
+			$src = trim( (string) $frame->getAttribute( 'src' ) );
+			if ( '' !== $src && ( $is_video || self::is_video_embed( $src ) ) ) {
+				return array(
+					'url'   => $src,
+					'name'  => trim( (string) $frame->getAttribute( 'title' ) ),
+					'embed' => true,
+				);
+			}
+		}
+
+		// NOT $figure->textContent: a captioned embed concatenates its bare URL and
+		// its caption with no separator, so "…/abc12345" + "A short walkthrough"
+		// reads as "…/abc12345A" and every caption silently corrupted the video's
+		// identity. The caption is prose about the media, never its address.
+		$text = self::figure_text_without_caption( $figure );
+		$url  = self::embedded_video_url( $text );
+
+		if ( '' === $url && $is_video ) {
+			// WordPress says this is a video, so an address we don't recognise is
+			// still the video's address.
+			if ( preg_match( '~https?://[^\s<>"\']+~i', $text, $m ) ) {
+				$url = rtrim( $m[0], '.,;:)' );
+			}
+		}
+
+		if ( '' === $url ) {
+			foreach ( $figure->getElementsByTagName( 'blockquote' ) as $quote ) {
+				$cite = trim( (string) $quote->getAttribute( 'cite' ) );
+				if ( '' !== $cite && ( $is_video || self::is_video_embed( $cite ) ) && preg_match( '~^https?://~i', $cite ) ) {
+					$url = $cite;
+					break;
+				}
+			}
+		}
+
+		if ( '' === $url ) {
+			foreach ( $figure->getElementsByTagName( 'a' ) as $link ) {
+				$href = trim( (string) $link->getAttribute( 'href' ) );
+				if ( '' !== $href && self::is_video_embed( $href ) ) {
+					$url = $href;
+					break;
+				}
+			}
+		}
+
+		if ( '' === $url ) {
+			return null;
+		}
+
+		return array(
+			'url'   => $url,
+			'name'  => '', // Only a resolved player's markup carries a title.
+			'embed' => true,
+		);
+	}
+
+	/**
+	 * Whether a node sits inside a `wp-block-embed` figure, which counts its own
+	 * player. Walks up a handful of levels — the block's wrapper nesting is fixed
+	 * and shallow.
+	 *
+	 * @param \DOMNode $node Node.
+	 * @return bool
+	 */
+	public static function inside_embed_block( $node ) {
+		for ( $p = $node->parentNode, $depth = 0; $p && $depth < 4; $p = $p->parentNode, $depth++ ) {
+			if ( XML_ELEMENT_NODE !== $p->nodeType ) {
+				continue;
+			}
+			if ( 'figure' === strtolower( $p->nodeName )
+				&& false !== strpos( (string) $p->getAttribute( 'class' ), 'wp-block-embed' ) ) {
+				return true;
+			}
+		}
+		return false;
+	}
+
+	/**
+	 * The first video URL in a block of text ('' when there is none) — how an
+	 * unresolved embed block names its video.
+	 *
+	 * @param string $text Text content.
+	 * @return string
+	 */
+	public static function embedded_video_url( $text ) {
+		if ( ! preg_match_all( '~https?://[^\s<>"\']+~i', (string) $text, $m ) ) {
+			return '';
+		}
+		foreach ( $m[0] as $url ) {
+			$url = rtrim( $url, '.,;:)' );
+			if ( self::is_video_embed( $url ) ) {
+				return $url;
+			}
+		}
+		return '';
+	}
+
+	/**
+	 * The <summary> text of a <details> element ('' when it has none).
+	 *
+	 * @param \DOMNode $node The <details> node.
+	 * @return string
+	 */
+	private static function summary_text( $node ) {
+		foreach ( $node->childNodes as $child ) {
+			if ( XML_ELEMENT_NODE === $child->nodeType && 'summary' === strtolower( $child->nodeName ) ) {
+				return (string) $child->textContent;
+			}
+		}
+		return '';
+	}
+
+	/**
+	 * Whether a label names a transcript. Deliberately loose about what surrounds
+	 * the word ("Full transcript", "Transcript of the talk") and deliberately
+	 * strict about length, so a paragraph merely mentioning transcripts is never
+	 * mistaken for one.
+	 *
+	 * Public because {@see MediaContext} pulls the words out of the very sections
+	 * this recognises, and the two must never disagree about what one is.
+	 *
+	 * @param string $text Heading or summary text.
+	 * @return bool
+	 */
+	public static function is_transcript_label( $text ) {
+		$text = trim( (string) preg_replace( '/\s+/', ' ', wp_strip_all_tags( (string) $text ) ) );
+		if ( '' === $text || strlen( $text ) > 60 ) {
+			return false;
+		}
+
+		/**
+		 * Filter the pattern that recognises a transcript label, for sites that
+		 * write the heading in another language.
+		 *
+		 * @param string $pattern A full preg pattern, matched against the label.
+		 */
+		$pattern = (string) apply_filters( 'agentimus_transcript_label_pattern', '~\btranscript(ion)?\b~i' );
+
+		return (bool) preg_match( $pattern, $text );
 	}
 
 	private static function check_featured_image( array $s ) {
@@ -687,6 +1354,10 @@ final class PageCheck {
 	 * @param string $html HTML.
 	 * @return \DOMDocument|null
 	 */
+	public static function dom_of( $html ) {
+		return self::dom( $html );
+	}
+
 	private static function dom( $html ) {
 		$html = trim( (string) $html );
 		if ( '' === $html || ! class_exists( '\DOMDocument' ) ) {

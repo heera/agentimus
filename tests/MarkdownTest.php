@@ -104,6 +104,34 @@ final class MarkdownTest extends TestCase {
 	 * PageCheck doesn't mis-report a full page as "0 words". Regression for the
 	 * "Not enough substance yet · Only 0 words" report on a post with thousands of words.
 	 */
+	/**
+	 * A note written in the editor must reach the plain-text edition.
+	 *
+	 * Regression: notes are STORED against the URL the author saw, but looked up
+	 * by media identity — the same video is `watch?v=ID` in one render and
+	 * `embed/ID` in another. Reading the raw map instead of the resolved one made
+	 * every lookup miss, so notes silently never appeared here. Caught by a
+	 * question, not by a test.
+	 */
+	public function test_a_media_note_reaches_the_markdown_beside_its_player() {
+		$this->fixture(
+			8,
+			array(
+				'post_content' => '<figure class="wp-block-embed is-type-video"><div>https://youtu.be/abc12345</div></figure>',
+			)
+		);
+		$GLOBALS['_af_postmeta'][8] = array(
+			// Stored against the block's URL; the twin renders the resolved one.
+			'_agentimus_media_context' => array( 'https://youtu.be/abc12345' => 'A walkthrough of content negotiation.' ),
+			'_agentimus_description'   => 'A talk.',
+		);
+
+		$md = Markdown::post( 8 );
+
+		$this->assertStringContainsString( 'Video: [https://youtu.be/abc12345]', $md );
+		$this->assertStringContainsString( 'A walkthrough of content negotiation.', $md );
+	}
+
 	public function test_a_blanking_the_content_filter_falls_back_to_the_posts_own_body() {
 		$this->fixture( 5, array( 'post_content' => '<p>This body must survive a blanking filter.</p>' ) );
 		add_filter( 'the_content', static function () { return ''; } );
@@ -114,4 +142,5 @@ final class MarkdownTest extends TestCase {
 		$this->assertStringContainsString( 'This body must survive a blanking filter.', $md );
 		$this->assertStringNotContainsString( 'Not found', $md );
 	}
+
 }

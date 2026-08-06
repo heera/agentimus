@@ -104,4 +104,125 @@ final class MarkdownConvertTest extends TestCase {
 	public function test_empty_table_emits_nothing() {
 		$this->assertSame( "\n", Markdown::from_html( '<table></table>' ) );
 	}
+
+	/* -- players ----------------------------------------------------------- */
+
+	/** Trimmed oEmbed render of a core/embed YouTube block. */
+	private const YOUTUBE_HTML = '<figure class="wp-block-embed is-provider-youtube">'
+		. '<div class="wp-block-embed__wrapper">'
+		. '<iframe title="What is llms.txt?" width="500" height="281" src="https://www.youtube.com/embed/dQw4w9WgXcQ?feature=oembed" frameborder="0" allowfullscreen></iframe>'
+		. '</div></figure>';
+
+	public function test_a_video_embed_is_named_and_linked_instead_of_vanishing() {
+		$md = Markdown::from_html( self::YOUTUBE_HTML );
+
+		// The regression this exists for: an <iframe> holds no text, so the whole
+		// figure used to convert to an empty string — a video post read as blank.
+		$this->assertNotSame( "\n", $md, 'A video must leave a trace in the plain-text edition.' );
+		$this->assertStringContainsString( 'Video: [What is llms.txt?](https://www.youtube.com/embed/dQw4w9WgXcQ?feature=oembed)', $md );
+	}
+
+	public function test_an_unresolved_embed_block_is_still_named_a_video() {
+		// Caught on a live post. WordPress only swaps an embed's URL for a player
+		// inside the loop, and the .md twin is generated OFF the loop — so the
+		// figure arrives here as a bare URL, which used to be dumped into the
+		// document as if it were body text.
+		$md = Markdown::from_html(
+			'<figure class="wp-block-embed is-type-video is-provider-youtube"><div class="wp-block-embed__wrapper">'
+			. 'https://www.youtube.com/watch?v=TOfxwCbK1Ro' . '</div></figure>'
+		);
+
+		$this->assertStringContainsString( 'Video: [https://www.youtube.com/watch?v=TOfxwCbK1Ro](https://www.youtube.com/watch?v=TOfxwCbK1Ro)', $md );
+	}
+
+	/** Trimmed TikTok oEmbed: a blockquote, no iframe, URL only on `cite`. */
+	private const TIKTOK_HTML = '<figure class="wp-block-embed is-type-video is-provider-tiktok">'
+		. '<div class="wp-block-embed__wrapper">'
+		. '<blockquote class="tiktok-embed" cite="https://www.tiktok.com/@scout2015/video/6718335390845095173">'
+		. '<section><a href="https://www.tiktok.com/@scout2015?refer=embed">@scout2015</a>'
+		. '<p>Scramble up ur name and I will try to guess it</p></section></blockquote>'
+		. '</div></figure>';
+
+	public function test_a_script_rendered_provider_is_named_and_keeps_its_caption() {
+		// TikTok and Instagram never render an iframe server-side — they render a
+		// blockquote and put the video's address on `cite`, where no text node ever
+		// sees it. The video went uncounted in the twin until this.
+		$md = Markdown::from_html( self::TIKTOK_HTML );
+
+		$this->assertStringContainsString( 'Video: [https://www.tiktok.com/@scout2015/video/6718335390845095173]', $md );
+		// The caption is real text an assistant can quote — naming the video must
+		// not cost us the words the provider DID render.
+		$this->assertStringContainsString( 'Scramble up ur name', $md );
+	}
+
+	public function test_a_figure_with_a_real_player_is_not_named_twice() {
+		$md = Markdown::from_html( self::YOUTUBE_HTML );
+
+		$this->assertSame( 1, substr_count( $md, 'Video:' ) );
+	}
+
+	public function test_a_caption_survives_but_the_bare_url_is_not_repeated() {
+		// An unresolved embed carries its address as body text, and the Video: line
+		// above already states it — but the author's caption is real prose about the
+		// media and must come through.
+		$md = Markdown::from_html(
+			'<figure class="wp-block-embed is-type-video"><div class="wp-block-embed__wrapper">https://youtu.be/abc12345</div>'
+			. '<figcaption>A short walkthrough of content negotiation</figcaption></figure>'
+		);
+
+		$this->assertStringContainsString( 'A short walkthrough of content negotiation', $md );
+		$this->assertSame( 1, substr_count( $md, 'https://youtu.be/abc12345](' ), 'The link is written once…' );
+		$this->assertStringNotContainsString( "\n\nhttps://youtu.be/abc12345\n", $md, '…and never again as loose body text.' );
+	}
+
+	public function test_an_unresolved_embed_of_something_else_is_left_as_it_was() {
+		$md = Markdown::from_html( '<figure class="wp-block-embed is-type-rich"><div class="wp-block-embed__wrapper">https://example.com/status/123</div></figure>' );
+
+		$this->assertStringNotContainsString( 'Video:', $md );
+		$this->assertStringContainsString( 'https://example.com/status/123', $md );
+	}
+
+	public function test_a_self_hosted_player_uses_its_source_url() {
+		$md = Markdown::from_html( '<video controls><source src="https://example.com/talk.mp4" type="video/mp4"></video>' );
+		$this->assertStringContainsString( 'Video: [https://example.com/talk.mp4](https://example.com/talk.mp4)', $md );
+
+		$audio = Markdown::from_html( '<audio src="https://example.com/ep1.mp3" title="Episode 1"></audio>' );
+		$this->assertStringContainsString( 'Audio: [Episode 1](https://example.com/ep1.mp3)', $audio );
+	}
+
+	public function test_a_non_video_iframe_is_never_called_a_video() {
+		// Calling a map "Video" would be a plain falsehood in a document whose
+		// promise is that it matches the page.
+		$md = Markdown::from_html( '<iframe title="Our office" src="https://www.google.com/maps/embed?pb=123"></iframe>' );
+		$this->assertStringContainsString( 'Embedded: [Our office]', $md );
+		$this->assertStringNotContainsString( 'Video:', $md );
+	}
+
+	public function test_a_title_with_brackets_cannot_break_the_link() {
+		$md = Markdown::from_html( '<figure class="wp-block-embed is-type-video"><iframe title="Talk [2026]" src="https://vimeo.com/76979871"></iframe></figure>' );
+		$this->assertStringContainsString( 'Video: [Talk 2026](https://vimeo.com/76979871)', $md );
+	}
+
+	public function test_a_hand_written_iframe_is_named_neutrally() {
+		// The checks no longer grade markup somebody wrote by hand, so this document
+		// must not announce a video the rest of the plugin says is not there — however
+		// familiar the host looks. It still says something is embedded, and where.
+		$md = Markdown::from_html( '<iframe title="Some talk" src="https://www.youtube.com/embed/abc123"></iframe>' );
+
+		$this->assertStringContainsString( 'Embedded: [Some talk](https://www.youtube.com/embed/abc123)', $md );
+		$this->assertStringNotContainsString( 'Video:', $md );
+	}
+
+	public function test_a_player_with_nothing_to_point_at_says_nothing() {
+		$this->assertSame( "\n", Markdown::from_html( '<video controls></video>' ) );
+	}
+
+	public function test_a_transcript_beside_the_video_survives_into_markdown() {
+		// The whole point of the on-page transcript: these are the words an
+		// assistant can actually quote.
+		$md = Markdown::from_html(
+			self::YOUTUBE_HTML . '<details><summary>Transcript</summary><p>So today I want to talk about llms.txt.</p></details>'
+		);
+		$this->assertStringContainsString( 'So today I want to talk about llms.txt.', $md );
+	}
 }

@@ -514,6 +514,7 @@ final class Topics {
 		echo '</div>';
 	}
 
+
 	/**
 	 * Progressively enhance the editor meta box into a chip input with a live
 	 * preview. Vanilla JS + CSS, inlined on a registered handle (the same pattern

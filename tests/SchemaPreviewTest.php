@@ -208,4 +208,195 @@ final class SchemaPreviewTest extends TestCase {
 		$node = $this->content_node( $this->schema()->build_document( $this->post(), false ) );
 		$this->assertArrayNotHasKey( 'speakable', $node );
 	}
+
+	/* -- VideoObject ------------------------------------------------------- */
+
+	/** Every VideoObject node in a built document. */
+	private function video_nodes( $doc ): array {
+		$out = array();
+		foreach ( (array) ( $doc['@graph'] ?? array() ) as $node ) {
+			if ( 'VideoObject' === ( $node['@type'] ?? '' ) ) {
+				$out[] = $node;
+			}
+		}
+		return $out;
+	}
+
+	public function test_every_player_on_the_page_gets_its_own_node() {
+		// Captions give each item a description, without which nothing is emitted
+		// at all ({@see test_a_node_is_only_emitted_when_we_have_something_to_add}).
+		$content = '<figure class="wp-block-embed is-type-video"><div>https://www.youtube.com/watch?v=aaa111</div><figcaption>The first talk.</figcaption></figure>'
+			. '<figure class="wp-block-embed is-type-video"><div>https://vimeo.com/222222</div><figcaption>The second talk.</figcaption></figure>'
+			. '<figure class="wp-block-video"><video src="https://example.com/talk.mp4"></video><figcaption>The third talk.</figcaption></figure>';
+
+		$videos = $this->video_nodes( $this->schema()->build_document( $this->post( array( 'post_content' => $content ) ), false ) );
+
+		$this->assertCount( 3, $videos, 'A page with three players describes three players.' );
+
+		// The first keeps the bare fragment it has always had; the rest are unique,
+		// or the @graph would carry three nodes claiming one identity.
+		$ids = array_map( static function ( $n ) { return $n['@id']; }, $videos );
+		$this->assertCount( 3, array_unique( $ids ) );
+		$this->assertStringEndsWith( '#video', $ids[0] );
+
+		// A player URL and a media-file URL are different properties.
+		$this->assertArrayHasKey( 'embedUrl', $videos[0] );
+		$this->assertArrayHasKey( 'contentUrl', $videos[2] );
+	}
+
+	public function test_the_same_video_twice_on_a_page_is_one_node() {
+		$embed   = '<figure class="wp-block-embed is-type-video"><div>https://youtu.be/aaa111</div><figcaption>One talk.</figcaption></figure>';
+		$this->assertCount( 1, $this->video_nodes( $this->schema()->build_document( $this->post( array( 'post_content' => $embed . $embed ) ), false ) ) );
+	}
+
+	public function test_a_transcript_on_the_page_is_used_only_when_there_is_one_item() {
+		// Read from the page, never stored by us — whichever tool published it.
+		$body = '<figure class="wp-block-embed is-type-video"><div>https://youtu.be/aaa111</div><figcaption>One talk.</figcaption></figure>'
+			. '<h2>Transcript</h2><p>Every word that was said.</p>';
+		$one  = $this->video_nodes( $this->schema()->build_document( $this->post( array( 'post_content' => $body ) ), false ) );
+		$this->assertStringContainsString( 'Every word that was said.', $one[0]['transcript'] ?? '' );
+
+		// With several players we cannot know WHICH one it belongs to, and hanging
+		// it on all of them would tell an assistant they all say the same thing —
+		// worse than saying nothing.
+		$many = $this->video_nodes(
+			$this->schema()->build_document(
+					$this->post( array( 'post_content' => $body . '<figure class="wp-block-embed is-type-video"><div>https://vimeo.com/222222</div><figcaption>Another talk.</figcaption></figure>' ) ),
+				false
+			)
+		);
+		$this->assertCount( 2, $many );
+		foreach ( $many as $node ) {
+			$this->assertArrayNotHasKey( 'transcript', $node );
+		}
+	}
+
+	public function test_each_item_carries_its_OWN_note_and_never_a_borrowed_one() {
+		$body = '<figure class="wp-block-embed is-type-video"><div>https://youtu.be/aaa111</div></figure>'
+			. '<figure class="wp-block-embed is-type-video"><div>https://vimeo.com/222222</div><figcaption>The other one.</figcaption></figure>';
+		$GLOBALS['_af_postmeta'][11] = array(
+			// Stored by URL, exactly as the block panel writes it.
+			'_agentimus_media_context' => array( 'https://youtu.be/aaa111' => 'A talk about llms.txt.' ),
+		);
+
+		$nodes = $this->video_nodes( $this->schema()->build_document( $this->post( array( 'post_content' => $body ) ), false ) );
+
+		$this->assertCount( 2, $nodes );
+		$this->assertSame( 'A talk about llms.txt.', $nodes[0]['description'] );
+		// Its OWN caption, never its neighbour's note and never the page's
+		// description — either would claim the two are the same thing.
+		$this->assertSame( 'The other one.', $nodes[1]['description'] );
+
+		unset( $GLOBALS['_af_postmeta'][11] );
+	}
+
+	public function test_a_node_is_only_emitted_when_we_have_something_to_add() {
+		// Without a description our node is name + url + date — exactly what a video
+		// plugin already emits, better, with a real thumbnail. Saying it again would
+		// duplicate their work to contribute nothing.
+		$bare = $this->video_nodes(
+			$this->schema()->build_document( $this->post( array( 'post_content' => '<figure class="wp-block-embed is-type-video"><div>https://youtu.be/aaa111</div></figure>' ) ), false )
+		);
+		$this->assertSame( array(), $bare );
+
+		// One caption is enough to make it worth saying.
+		$described = $this->video_nodes(
+			$this->schema()->build_document( $this->post( array( 'post_content' => '<figure class="wp-block-embed is-type-video"><div>https://youtu.be/aaa111</div><figcaption>A talk.</figcaption></figure>' ) ), false )
+		);
+		$this->assertCount( 1, $described );
+	}
+
+	public function test_we_stand_down_when_something_else_already_describes_the_media() {
+		// Detected by the SYMPTOM — a VideoObject already in the page — never by a
+		// list of plugin names, which would be wrong the day one renamed a class or
+		// a new one shipped.
+		$foreign = '<figure class="wp-block-embed is-type-video"><div>https://youtu.be/aaa111</div><figcaption>A talk.</figcaption></figure>'
+			. '<script type="application/ld+json">{"@context":"https://schema.org","@type":"VideoObject","name":"Someone else\'s node"}</script>';
+
+		$this->assertSame( array(), $this->video_nodes( $this->schema()->build_document( $this->post( array( 'post_content' => $foreign ) ), false ) ) );
+
+		// A page whose JSON-LD is about something else entirely is not a conflict.
+		$unrelated = '<figure class="wp-block-embed is-type-video"><div>https://youtu.be/aaa111</div><figcaption>A talk.</figcaption></figure>'
+			. '<script type="application/ld+json">{"@type":"Recipe","name":"Soup"}</script>';
+		$this->assertCount( 1, $this->video_nodes( $this->schema()->build_document( $this->post( array( 'post_content' => $unrelated ) ), false ) ) );
+	}
+
+	public function test_a_plugin_can_declare_it_emits_its_own() {
+		// For emitters that run in wp_head or wp_footer, after us, and so cannot be
+		// seen from here at all.
+		$defer = static function () { return true; };
+		add_filter( 'agentimus_defer_video_schema', $defer );
+
+		$nodes = $this->video_nodes(
+			$this->schema()->build_document( $this->post( array( 'post_content' => '<figure class="wp-block-embed is-type-video"><div>https://youtu.be/aaa111</div><figcaption>A talk.</figcaption></figure>' ) ), false )
+		);
+
+		remove_filter( 'agentimus_defer_video_schema', $defer );
+		$this->assertSame( array(), $nodes );
+	}
+
+	public function test_a_note_survives_the_embed_being_resolved_to_another_url() {
+		// The block stores watch?v=ID; the resolved player is embed/ID. A note keyed
+		// to one must be found from the other, or it would silently vanish the
+		// moment WordPress resolved the embed.
+		$this->assertSame(
+			\Agentimus\PageCheck::media_key( 'https://www.youtube.com/watch?v=TOfxwCbK1Ro&list=RDTOfxwCbK1Ro' ),
+			\Agentimus\PageCheck::media_key( 'https://www.youtube.com/embed/TOfxwCbK1Ro?feature=oembed' )
+		);
+		$this->assertSame(
+			\Agentimus\PageCheck::media_key( 'https://vimeo.com/76979871' ),
+			\Agentimus\PageCheck::media_key( 'https://player.vimeo.com/video/76979871' )
+		);
+		// Two genuinely different videos still get two keys.
+		$this->assertNotSame(
+			\Agentimus\PageCheck::media_key( 'https://www.youtube.com/embed/aaa111' ),
+			\Agentimus\PageCheck::media_key( 'https://www.youtube.com/embed/bbb222' )
+		);
+	}
+
+	public function test_audio_becomes_an_audio_object() {
+		$podcast = '<figure class="wp-block-audio"><audio src="https://example.com/ep1.mp3"></audio><figcaption>Episode 12, on content negotiation.</figcaption></figure>';
+
+		$this->assertSame( array(), $this->video_nodes( $this->schema()->build_document( $this->post( array( 'post_content' => $podcast ) ), false ) ), 'video_nodes() filters on VideoObject.' );
+		$this->assertContains( 'AudioObject', $this->types( $this->schema()->build_document( $this->post( array( 'post_content' => $podcast ) ), false ) ) );
+	}
+
+	public function test_the_thumbnail_is_the_videos_own_or_absent() {
+		$GLOBALS['_af_thumbnails'][11]  = 99;
+		$GLOBALS['_af_attachments'][99] = array( 'https://example.com/featured.png', 1200, 600 );
+
+		// core/video's own Poster control — this video's still, chosen by the author.
+		$poster = $this->video_nodes(
+			$this->schema()->build_document(
+				$this->post( array( 'post_content' => '<figure class="wp-block-video"><video poster="https://example.com/still.jpg" src="https://example.com/talk.mp4"></video><figcaption>The talk.</figcaption></figure>' ) ),
+				false
+			)
+		);
+		$this->assertSame( 'https://example.com/still.jpg', $poster[0]['thumbnailUrl'] );
+
+		// One video and no poster: the post's featured image is a fair stand-in.
+		$single = $this->video_nodes(
+			$this->schema()->build_document( $this->post( array( 'post_content' => '<figure class="wp-block-embed is-type-video"><div>https://youtu.be/aaa111</div><figcaption>One talk.</figcaption></figure>' ) ), false )
+		);
+		$this->assertSame( 'https://example.com/featured.png', $single[0]['thumbnailUrl'] );
+
+		// Several videos and no posters: repeating one image across all of them
+		// claims they look alike, which is simply untrue. Absent beats wrong.
+		$many = $this->video_nodes(
+			$this->schema()->build_document(
+				$this->post( array( 'post_content' => '<figure class="wp-block-embed is-type-video"><div>https://youtu.be/aaa111</div><figcaption>One.</figcaption></figure><figure class="wp-block-embed is-type-video"><div>https://vimeo.com/222222</div><figcaption>Two.</figcaption></figure>' ) ),
+				false
+			)
+		);
+		$this->assertCount( 2, $many );
+		foreach ( $many as $node ) {
+			$this->assertArrayNotHasKey( 'thumbnailUrl', $node );
+		}
+
+		unset( $GLOBALS['_af_thumbnails'][11], $GLOBALS['_af_attachments'][99] );
+	}
+
+	public function test_a_page_with_no_player_carries_no_video_node() {
+		$this->assertSame( array(), $this->video_nodes( $this->schema()->build_document( $this->post(), false ) ) );
+	}
 }

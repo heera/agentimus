@@ -104,6 +104,7 @@ final class Plugin {
 		( new EditorPanel( $this->settings ) )->register(); // One "Agentimus" editor box: JSON-LD + AI Readability as tabs.
 		( new Topics( $this->settings ) )->register();
 		( new Description( $this->settings ) )->register();
+		( new MediaContext( $this->settings ) )->register(); // A line of context per video/audio item, so an agent knows what a player holds. Field composed into the Topics box; writes nothing to the front end.
 		( new AskAi( $this->settings ) )->register(); // "Ask AI about this post" bar after singular post content (enable_ask_ai, on by default).
 		( new ShareCopy( $this->settings ) )->register(); // REST for the editor panel's Share tab — per-network share drafts; the tab itself is composed by EditorPanel.
 		( new Assist( $this->settings ) )->register(); // "Draft with AI" for the description + topics fields (no-ops without a configured AI provider).
