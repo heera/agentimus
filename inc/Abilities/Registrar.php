@@ -44,6 +44,7 @@ use Agentimus\Assistant;
 use Agentimus\Readiness;
 use Agentimus\Score;
 use Agentimus\Content;
+use Agentimus\Media;
 use Agentimus\PageCheck;
 use Agentimus\InternalLinks;
 use Agentimus\Schema;
@@ -1169,6 +1170,67 @@ final class Registrar {
 			$manage
 		);
 
+		$this->add(
+			'search-media',
+			__( 'Search the media library', 'agentimus' ),
+			'Finds images and other attachments ALREADY in this site\'s media library, so an agent can name '
+				. 'one by id — most often as the featured_image on create-content or update-content, which '
+				. 'accepts an attachment id but had no way to discover one. Searches titles, captions and '
+				. 'descriptions AND alt text (alt is where photographs are usually described — a file called '
+				. 'IMG_4831.jpg may carry the alt "sunrise over the river", and a title-only search would '
+				. 'miss it). An empty query returns the most recent uploads, which is the right way to ask '
+				. '"what is in here?". Returns each attachment\'s id, title, alt, url, mime type, pixel '
+				. 'dimensions and upload date — the url so a client that can see images may look before it '
+				. 'chooses, the dimensions because a 300px logo is not a featured image. '
+				. 'READ-ONLY: it uploads nothing and changes nothing. To bring in a picture the library does '
+				. 'not have, pass an http(s) image URL as featured_image instead and the write tools import '
+				. 'it. There is deliberately no way to upload bytes through this server.',
+			self::obj(
+				array(
+					'query' => self::s( 'Words to look for in titles, captions, descriptions and alt text. Omit or leave empty for the most recent uploads.' ),
+					'limit' => self::i( 'How many to return, 1–' . Media::MAX_RESULTS . ' (default ' . Media::DEFAULT_RESULTS . ').' ),
+					'mime'  => self::s( 'MIME filter, matched as a prefix — "image" (the default) for pictures, "video", "audio", "application/pdf", or "" for everything in the library.' ),
+				)
+			),
+			self::obj(
+				array(
+					'total' => self::i( 'How many rows this answer holds. Never more than limit; a full page may mean there are more, so narrow the query rather than assuming this is everything.' ),
+					'items' => self::arr(
+						self::obj(
+							array(
+								'id'     => self::i( 'Attachment ID — this is what featured_image takes.' ),
+								'title'  => self::s( 'The attachment title, which is often just the filename.' ),
+								'alt'    => self::s( 'Alt text, empty when the owner never wrote any. The most reliable description of what a picture SHOWS.' ),
+								'url'    => self::s( 'Public URL of the full-size file.' ),
+								'mime'   => self::s( 'e.g. image/jpeg.' ),
+								'width'  => self::i( 'Pixel width, 0 when unknown or not an image.' ),
+								'height' => self::i( 'Pixel height, 0 when unknown or not an image.' ),
+								'date'   => self::s( 'Upload date, YYYY-MM-DD.' ),
+							)
+						)
+					),
+				)
+			),
+			function ( $input ) {
+				$items = Media::search(
+					isset( $input['query'] ) ? (string) $input['query'] : '',
+					isset( $input['limit'] ) ? (int) $input['limit'] : Media::DEFAULT_RESULTS,
+					isset( $input['mime'] ) ? (string) $input['mime'] : 'image'
+				);
+				return array(
+					'total' => count( $items ),
+					'items' => $items,
+				);
+			},
+			// The media library's own capability, not the site-admin bar the
+			// reporting tools use: this reads uploads, and upload_files is what
+			// WordPress asks for at upload.php. An editor who can see the library
+			// in wp-admin can see it here, and nobody else can.
+			static function () {
+				return current_user_can( 'upload_files' );
+			}
+		);
+
 		// The write tier exists only when the owner deliberately turned it on — AND the
 		// MCP server itself is on, because that is where the switch lives in the UI: a
 		// sub-toggle the owner can't see (MCP card collapsed) must never still be armed
@@ -1435,6 +1497,12 @@ final class Registrar {
 			// list, so the tool the release notes described did not exist on the
 			// server. Read-only and permission-gated like the rest.
 			self::CATEGORY . '/suggest-internal-links',
+			// Read-only, but it exists FOR the write tier: the featured_image
+			// parameter takes an attachment id, and until this there was no way
+			// for an agent to learn one. Listed unconditionally anyway — knowing
+			// what is in the library is a reading question, and it answers
+			// "which picture is this?" for anyone, writes or not.
+			self::CATEGORY . '/search-media',
 		);
 		if ( $this->settings->enabled( 'enable_agent_writes' ) ) {
 			foreach ( self::WRITE_SLUGS as $slug ) {
