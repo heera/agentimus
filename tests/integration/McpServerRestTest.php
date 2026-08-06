@@ -78,11 +78,14 @@ final class McpServerRestTest extends RestTestCase {
 		$this->assertSame( 200, $anon->get_status(), 'anonymous initialize must answer' );
 		$anon_init = json_decode( wp_json_encode( $anon->get_data() ), true );
 		$this->assertNotEmpty( $anon_init['result']['serverInfo']['name'], 'anonymous initialize carries the server identity' );
-		// A tool-only server: the resources/prompts capabilities the adapter
-		// advertises by default are trimmed — a capability that would answer
-		// empty reads as broken, so the handshake must not claim it.
+		// The advertised capabilities must match what this server actually holds,
+		// in BOTH directions. Claiming one that answers empty reads as broken;
+		// hiding one that is full is worse — a client decides what to ASK for
+		// from this object, so an unadvertised resources capability means
+		// resources/list is never called and the documents are unreachable.
+		// (Shipped that way for one dev build: the trim predated the resources.)
 		$this->assertArrayHasKey( 'tools', $anon_init['result']['capabilities'] );
-		$this->assertArrayNotHasKey( 'resources', $anon_init['result']['capabilities'], 'no resources are registered, so none may be advertised' );
+		$this->assertArrayHasKey( 'resources', $anon_init['result']['capabilities'], 'this server registers documents, so it must admit to them' );
 		$this->assertArrayNotHasKey( 'prompts', $anon_init['result']['capabilities'], 'no prompts are registered, so none may be advertised' );
 		$headers = $anon->get_headers();
 		$this->assertArrayNotHasKey( 'Mcp-Session-Id', $headers, 'the anonymous surface is stateless — no session minted' );
@@ -131,6 +134,26 @@ final class McpServerRestTest extends RestTestCase {
 		$this->assertNotEmpty( $tools, 'tools/list must return the read set' );
 		foreach ( $tools as $tool ) {
 			$this->assertStringStartsWith( 'agentimus-', str_replace( '/', '-', $tool ), 'Only agentimus tools may be exposed, got: ' . $tool );
+		}
+
+		// 7. And the documents answer for real. Advertising the capability and
+		// registering the abilities are two halves that can each be right while
+		// the site still offers nothing readable — so ask the way a client asks,
+		// over the wire, and require the URIs back.
+		$request = new \WP_REST_Request( 'POST', '/agentimus/v1/mcp' );
+		$request->set_header( 'Content-Type', 'application/json' );
+		$request->set_header( 'Mcp-Session-Id', $session );
+		$request->set_header( 'MCP-Protocol-Version', $protocol );
+		$request->set_body( wp_json_encode( array( 'jsonrpc' => '2.0', 'id' => 3, 'method' => 'resources/list', 'params' => array() ) ) );
+		$response = rest_do_request( $request );
+		$this->assertSame( 200, $response->get_status(), 'resources/list: ' . wp_json_encode( $response->get_data() ) );
+		$listed = json_decode( wp_json_encode( $response->get_data() ), true );
+		$uris   = isset( $listed['result']['resources'] ) ? wp_list_pluck( $listed['result']['resources'], 'uri' ) : array();
+		$this->assertNotEmpty( $uris, 'resources/list must return the documents this site publishes' );
+		foreach ( $uris as $uri ) {
+			// The adapter refuses a relative URI outright, so a bare "/llms.txt"
+			// would not be missing from this list — it would never have registered.
+			$this->assertMatchesRegularExpression( '#^https?://#', (string) $uri, 'a resource URI must be absolute, got: ' . $uri );
 		}
 	}
 }

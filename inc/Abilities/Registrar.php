@@ -109,16 +109,24 @@ final class Registrar {
 		// per request, once we know which key knocked.
 		add_filter( 'mcp_adapter_tools_list', array( $this, 'filter_tools_for_scope' ), 10, 1 );
 		// The adapter's initialize advertises resources + prompts capabilities
-		// unconditionally; this server registers neither. A capability advertised
-		// and then empty reads as broken to clients (and to scanners, which score
-		// "advertises resources but resources/list has none" as a failure while a
-		// tool-only server scores n/a) — so the handshake tells the truth.
+		// unconditionally, whatever the server actually holds. A capability
+		// advertised and then empty reads as broken to clients (and to scanners,
+		// which score "advertises resources but resources/list has none" as a
+		// failure while a tool-only server scores n/a) — so the handshake tells
+		// the truth about THIS server, in both directions: prompts always go
+		// (we register none), resources go only when there are none to offer.
+		// The both-directions part is not pedantry. A client reads capabilities
+		// to decide what to ASK for: a server that registers resources and then
+		// says it has none is never sent resources/list, and its documents are
+		// unreachable no matter how correctly they were registered.
 		add_filter( 'mcp_adapter_initialize_response', array( $this, 'trim_initialize_capabilities' ), 10, 2 );
 	}
 
 	/**
-	 * Drop the resources/prompts capabilities from OUR server's initialize answer —
-	 * it exposes tools only. Other servers on the same adapter are left alone.
+	 * Make OUR server's advertised capabilities match what it actually holds.
+	 * Prompts are never registered, so that capability always goes; resources
+	 * go only when this site is offering none. Other servers on the same
+	 * adapter are left alone.
 	 *
 	 * @param object $result The InitializeResult DTO.
 	 * @param object $server The MCP server answering.
@@ -130,7 +138,10 @@ final class Registrar {
 		}
 		try {
 			$data = $result->toArray();
-			unset( $data['capabilities']['resources'], $data['capabilities']['prompts'] );
+			unset( $data['capabilities']['prompts'] );
+			if ( ! $this->mcp_resources() ) {
+				unset( $data['capabilities']['resources'] );
+			}
 			$class = get_class( $result );
 			return $class::fromArray( $data );
 		} catch ( \Throwable $e ) {

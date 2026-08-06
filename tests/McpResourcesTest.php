@@ -106,6 +106,89 @@ namespace Agentimus\Tests {
 			);
 		}
 
+		/**
+		 * The handshake must ADMIT to the resources. Registering them is only
+		 * half the job: a client reads `capabilities` to decide what to ask
+		 * for, so a server that holds four documents and answers "no resources
+		 * capability" is never sent resources/list, and those documents are
+		 * unreachable however correctly they were registered. Caught on a live
+		 * site (heera.it, 1.35.0-dev4), not by any test that existed then — the
+		 * trim filter predated resources and was still stripping the capability
+		 * it had been written to strip when there genuinely were none.
+		 */
+		public function test_the_handshake_admits_to_the_resources_it_holds() {
+			$registrar = $this->register();
+			$this->assertNotEmpty( $registrar->mcp_resources(), 'Precondition: this site offers documents.' );
+
+			$caps = $this->advertised_capabilities( $registrar );
+
+			$this->assertArrayHasKey( 'resources', $caps, 'Resources are registered but not advertised — no client will ask for them.' );
+			$this->assertArrayHasKey( 'tools', $caps );
+			$this->assertArrayNotHasKey( 'prompts', $caps, 'No prompts are registered, so the capability would be a promise of nothing.' );
+		}
+
+		public function test_a_site_offering_no_documents_advertises_no_resources() {
+			// The original reason the filter exists: an advertised-then-empty
+			// capability reads as broken to clients and scores as a failure to
+			// scanners, where a tool-only server scores n/a.
+			// Emptied through the documented filter rather than by guessing which
+			// combination of switches leaves nothing — a site CAN reach zero
+			// (every endpoint off, or this filter), and that is the case the
+			// original trim was written for.
+			$registrar = $this->register();
+			add_filter(
+				'agentimus_mcp_server_resources',
+				static function () {
+					return array();
+				}
+			);
+			$this->assertSame( array(), $registrar->mcp_resources(), 'Precondition: this site offers nothing.' );
+
+			$this->assertArrayNotHasKey( 'resources', $this->advertised_capabilities( $registrar ) );
+		}
+
+		/**
+		 * Run the initialize DTO through our filter and return the capabilities
+		 * it would put on the wire. A stand-in DTO, because the adapter's own is
+		 * only loadable with the full adapter present — the filter's contract is
+		 * toArray()/fromArray(), and that is what is exercised here.
+		 *
+		 * @param Registrar $registrar Registrar under test.
+		 * @return array
+		 */
+		private function advertised_capabilities( Registrar $registrar ): array {
+			$dto = new class() {
+				/** @var array */
+				public static $data = array();
+
+				public function toArray(): array {
+					return self::$data;
+				}
+
+				public static function fromArray( array $data ): self {
+					self::$data = $data;
+					return new self();
+				}
+			};
+			// What the adapter hands us: all three, unconditionally.
+			$dto::$data = array(
+				'capabilities' => array(
+					'prompts'   => array( 'listChanged' => false ),
+					'resources' => array( 'subscribe' => false, 'listChanged' => false ),
+					'tools'     => array( 'listChanged' => false ),
+				),
+			);
+
+			$server = new class() {
+				public function get_server_id(): string {
+					return 'agentimus';
+				}
+			};
+
+			$out = $registrar->trim_initialize_capabilities( $dto, $server );
+			return $out->toArray()['capabilities'];
+		}
+
 		public function test_a_resource_is_read_only_and_needs_no_input() {
 			$registrar = $this->register();
 
