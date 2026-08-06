@@ -1021,4 +1021,41 @@ final class GoogleIndexTest extends TestCase {
 		$this->assertStringContainsString( 'not in property', $out['row']['error'] );
 		$this->assertArrayHasKey( 'https://example.test/a', Index::stored()['cov'] );
 	}
+
+	/* -- What a person types --------------------------------------------------- */
+
+	public function test_a_lookup_understands_what_a_person_actually_types() {
+		update_option( Index::OPTION, array(
+			'rows' => array(),
+			'cov'  => array( 'https://example.test/terms' => array( 'url' => 'https://example.test/terms/', 'post_id' => 7, 'verdict' => 'PASS', 'inspected_at' => 100 ) ),
+		) );
+
+		// Four spellings of one page. Refusing three of them as "not on this
+		// site" was the tool being pedantic about its own input format.
+		foreach ( array(
+			'https://example.test/terms/',
+			'/terms/',
+			'terms/',
+			'example.test/terms/',
+		) as $typed ) {
+			$this->assertSame( 'found', Index::lookup( $typed )['status'], "\"$typed\" means the same page." );
+		}
+	}
+
+	public function test_a_named_foreign_host_is_still_refused() {
+		update_option( Index::OPTION, array( 'rows' => array(), 'cov' => array() ) );
+
+		// A URL that NAMES another host is refused, however it is written.
+		foreach ( array( 'https://elsewhere.test/x/', '//elsewhere.test/x', '' ) as $foreign ) {
+			$this->assertSame( 'foreign', Index::lookup( $foreign )['status'], "\"$foreign\" names somewhere else." );
+		}
+
+		// But a bare "elsewhere.test/x" names nothing parse_url can see — it has
+		// the same shape as "terms/". It is read as a path here and answered
+		// "not checked yet", which is true, rather than refused as foreign. The
+		// alternative rule ("contains a dot, must be a domain") would refuse
+		// "sitemap.xml" as another website, and being wrong about someone's own
+		// page is the worse mistake.
+		$this->assertSame( 'unchecked', Index::lookup( 'elsewhere.test/x' )['status'] );
+	}
 }

@@ -964,13 +964,8 @@ final class Index {
 	 * @return array{status:string,row:array|null} status: found | unchecked | foreign.
 	 */
 	public static function lookup( $url ) {
-		$url = trim( (string) $url );
-		if ( '' !== $url && '/' === $url[0] ) {
-			$url = home_url( $url );
-		}
-		$home_host = strtolower( (string) wp_parse_url( home_url( '/' ), PHP_URL_HOST ) );
-		$host      = strtolower( (string) wp_parse_url( $url, PHP_URL_HOST ) );
-		if ( '' === $host || $host !== $home_host ) {
+		$url = self::resolve_local( $url );
+		if ( '' === $url ) {
 			return array( 'status' => 'foreign', 'row' => null );
 		}
 
@@ -1080,13 +1075,8 @@ final class Index {
 	 * @return array{status:string,row:?array,error:string}
 	 */
 	public static function inspect_now( Client $client, $token, $property, $url ) {
-		$url = trim( (string) $url );
-		if ( '' !== $url && '/' === $url[0] ) {
-			$url = home_url( $url );
-		}
-		$home_host = strtolower( (string) wp_parse_url( home_url( '/' ), PHP_URL_HOST ) );
-		$host      = strtolower( (string) wp_parse_url( $url, PHP_URL_HOST ) );
-		if ( '' === $host || $host !== $home_host ) {
+		$url = self::resolve_local( $url );
+		if ( '' === $url ) {
 			// Google answers only for URLs inside the connected property, so a
 			// foreign address is refused here rather than spending an inspection
 			// to be told the same thing.
@@ -1230,6 +1220,64 @@ final class Index {
 		update_option( self::OPTION, $raw, false );
 
 		return $now;
+	}
+
+	/**
+	 * Resolve what someone typed (or a stored row carries) into an absolute URL
+	 * ON THIS SITE, or '' when it plainly isn't one.
+	 *
+	 * The old rule was one line — prepend home_url() only when the string starts
+	 * with '/' — and it refused everything else as foreign. That is fine for
+	 * stored rows, which are always absolute, and wrong for the lookup box, where
+	 * a person types what a person types. "privacy-policy", "heera.it/terms" and
+	 * "/terms/" all mean the same page on their own site, and answering the first
+	 * two with "that address isn't on this site" is the tool being pedantic about
+	 * its own input format.
+	 *
+	 * Anything genuinely elsewhere still comes back empty — this widens what we
+	 * understand, never what we accept.
+	 *
+	 * @param string $url A URL, a host-relative path, or a bare path.
+	 * @return string Absolute URL on this site, or '' when it is not ours.
+	 */
+	private static function resolve_local( $url ) {
+		$url = trim( (string) $url );
+		if ( '' === $url ) {
+			return '';
+		}
+
+		$home_host = strtolower( (string) wp_parse_url( home_url( '/' ), PHP_URL_HOST ) );
+
+		// Scheme-relative ("//host/path") — rare from a person, common from a paste.
+		if ( 0 === strpos( $url, '//' ) ) {
+			$url = 'https:' . $url;
+		}
+
+		// With a scheme, the host is knowable and decides it outright.
+		if ( preg_match( '#^[a-z][a-z0-9+.\-]*://#i', $url ) ) {
+			$host = strtolower( (string) wp_parse_url( $url, PHP_URL_HOST ) );
+			return $host === $home_host ? $url : '';
+		}
+
+		// Without one, parse_url reports NO host for either "terms/" or
+		// "elsewhere.test/x" — they are the same shape to it. So the first
+		// segment is compared against this site's own host, and only that
+		// settles it: "example.test/terms" is this site written out in full,
+		// while anything else is read as a PATH here.
+		//
+		// Reading the leftovers as a path is the deliberate choice. The
+		// alternative — guessing "has a dot, must be a domain" — refuses
+		// "sitemap.xml" as a foreign site, and being wrong about someone's own
+		// page is worse than answering "not checked yet" about a path that
+		// turns out not to exist.
+		$first = strtolower( (string) strtok( ltrim( $url, '/' ), '/' ) );
+		if ( $first === $home_host || 'www.' . $first === $home_host || $first === 'www.' . $home_host ) {
+			$abs  = ( 0 === strpos( home_url( '/' ), 'http://' ) ? 'http://' : 'https://' ) . ltrim( $url, '/' );
+			$host = strtolower( (string) wp_parse_url( $abs, PHP_URL_HOST ) );
+			return $host === $home_host ? $abs : '';
+		}
+
+		return home_url( '/' . ltrim( $url, '/' ) );
 	}
 
 	private static function norm( $url ) {

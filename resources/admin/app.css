@@ -54,6 +54,12 @@
   --ar-warn: #ad7b18;
   --ar-bad: #b93c2b;
   --ar-info: #2f5f9e; /* blue — for informational actions (distinct from teal/green) */
+  /* The hover pill behind text buttons. ONE colour for every such button,
+     whatever colour its own text is: hover means "your cursor is here", and a
+     mark that changed hue per button would read as meaning something. Mixed
+     rather than a flat hex so it washes over cream cards and white panels
+     alike instead of stamping a rectangle of the wrong white on one of them. */
+  --ar-hover: color-mix(in srgb, #8bc34a 22%, transparent);
 
   --ar-radius: 4px;
   /* Shared height for the nav bar and the page-head below it, so the two strips
@@ -1741,7 +1747,7 @@ td.ar-edge__n.is-bad { color: var(--ar-bad); font-weight: 600; }
    Faint until hovered: every row has one, and a lane of live buttons would
    out-shout the verdicts beside them, which are why anyone is reading the row. */
 .ar-gidx__recheck { margin-left: 0; font-size: 11px; color: var(--ar-ink-faint); text-decoration: none; }
-.ar-gidx__recheck:hover:not(:disabled) { color: var(--ar-info); text-decoration: underline; }
+.ar-gidx__recheck:hover:not(:disabled) { color: var(--ar-info); }
 .ar-gidx__recheck:disabled { opacity: 0.55; cursor: default; }
 /* The separator carries the same weight as the words it divides. */
 .ar-gidx__doorsep { margin: 0 6px; font-size: 11px; color: var(--ar-line-strong); }
@@ -1792,6 +1798,9 @@ td.ar-edge__n.is-bad { color: var(--ar-bad); font-weight: 600; }
 }
 .ar-gidx__lookup input:focus { outline: 2px solid var(--ar-accent); outline-offset: 1px; border-color: var(--ar-accent); }
 .ar-gidx__lookupmsg { margin-top: 8px; }
+/* A failed Re-check, reported where the rows are — it can be clicked from any
+   of them, so its error can't live inside the lookup box at the foot. */
+.ar-gidx__checkerr { margin: 12px 0 0; }
 .ar-gidx__lookuphint { margin: 6px 0 0; font-size: 11.5px; color: var(--ar-ink-faint); }
 
 /* The ratio track rides INSIDE the tiles box, along its bottom edge — the
@@ -2683,14 +2692,13 @@ select.ar-input {
   display: block;
   width: fit-content;
   margin: 8px 0 0 auto;
-  padding: 2px 0;
+  padding: 2px 5px;
   font-size: 13px;
   color: var(--ar-accent);
   background: transparent;
   border: 0;
   cursor: pointer;
 }
-.ar-svc__add:hover { text-decoration: underline; }
 .ar-signals { display: flex; flex-direction: column; }
 
 /* Known-crawler suggestions */
@@ -2732,14 +2740,36 @@ select.ar-input {
   color: var(--ar-ink-soft); font-size: 12px; line-height: 1.5;
 }
 
+/* No underline anywhere: these sit inside sentences and rails where a rule
+   under every one of them reads as clutter. Colour carries the affordance at
+   rest; hover answers with a soft pill. The padding is carried AT REST, not
+   added on hover — a button that grows under the cursor jostles the
+   separators and words either side on every pass of the mouse, so the room
+   is reserved once and only the fill arrives.
+   Keyboard users get a real focus ring, not a text-decoration to spot. */
 .ar-linkbtn {
-  appearance: none; background: none; border: 0; padding: 0; margin-left: 4px; cursor: pointer;
-  font: inherit; color: var(--ar-accent); text-decoration: underline;
+  appearance: none; background: none; border: 0; padding: 0 5px; margin-left: 4px; cursor: pointer;
+  font: inherit; color: var(--ar-accent); text-decoration: none; border-radius: 8px;
+  transition: color 0.15s ease, background-color 0.15s ease;
 }
-.ar-linkbtn:hover { color: var(--ar-ink); }
+.ar-linkbtn:hover { color: var(--ar-ink); background: var(--ar-hover); }
+.ar-linkbtn:focus-visible { outline: 2px solid var(--ar-accent); outline-offset: 2px; }
+
+/* One hover language across the app: these text buttons used to answer with a
+   rule of their own. Same pill, same reserved room. */
+.ar-tags__edit, .ar-wiz__moretypes, .ar-svc__add, .ar-rev-link {
+  padding: 0 5px; border-radius: 8px;
+  transition: color 0.15s ease, background-color 0.15s ease;
+}
+.ar-tags__edit:hover, .ar-wiz__moretypes:hover, .ar-svc__add:hover, .ar-rev-link:hover {
+  background: var(--ar-hover);
+}
+@media (prefers-reduced-motion: reduce) {
+  .ar-linkbtn, .ar-tags__edit, .ar-wiz__moretypes, .ar-svc__add, .ar-rev-link { transition: none; }
+}
 /* Disabled must LOOK disabled — a full-color underlined link that silently
    ignores clicks reads as broken, not busy. */
-.ar-linkbtn:disabled, .ar-linkbtn:disabled:hover { color: var(--ar-ink-faint); text-decoration: none; cursor: default; opacity: 0.7; }
+.ar-linkbtn:disabled, .ar-linkbtn:disabled:hover { color: var(--ar-ink-faint); text-decoration: none; background: none; box-shadow: none; cursor: default; opacity: 0.7; }
 
 /* Content types — compact, scalable selectable cards */
 /* Same grid as the cards below, so the search lines up to the columns. */
@@ -2750,8 +2780,7 @@ select.ar-input {
 .ar-types-search { grid-column: 1 / span 2; padding: 9px 13px; } /* exactly two cards wide */
 .ar-types-meta { grid-column: 3 / -1; display: flex; align-items: center; justify-content: flex-end; gap: 14px; }
 .ar-types-count { font-family: var(--ar-mono); font-size: 11px; color: var(--ar-ink-faint); }
-.ar-types-bar .ar-linkbtn { font-family: var(--ar-mono); font-size: 11px; text-decoration: none; }
-.ar-types-bar .ar-linkbtn:hover { text-decoration: underline; }
+.ar-types-bar .ar-linkbtn { font-family: var(--ar-mono); font-size: 11px; }
 
 /* Scroll only when the list gets long; small sites never scroll. */
 .ar-types-scroll {
@@ -2838,10 +2867,9 @@ select.ar-input {
 }
 /* The chip label doubles as an "edit" button — click to pop it back into the input. */
 .ar-tags__edit {
-  appearance: none; border: 0; background: none; cursor: pointer; padding: 0;
+  appearance: none; border: 0; background: none; cursor: pointer; padding: 0 5px;
   color: inherit; font-family: inherit; font-size: inherit; line-height: 1.3;
 }
-.ar-tags__edit:hover { text-decoration: underline; text-underline-offset: 2px; }
 .ar-tags__x {
   appearance: none; border: 0; background: none; cursor: pointer;
   color: rgba(243, 240, 231, 0.6); font-size: 15px; line-height: 1; padding: 0;
@@ -3121,7 +3149,6 @@ html { scrollbar-gutter: stable; }
 }
 
 .ar-wiz__moretypes { margin-top: 2px; align-self: flex-start; font-family: var(--ar-mono); font-size: 11px; text-decoration: none; }
-.ar-wiz__moretypes:hover { text-decoration: underline; }
 
 /* The services repeater: one bordered block per service, the fields inside. */
 .ar-wiz__svc { border: 1px solid var(--ar-line); border-radius: 6px; padding: 12px 14px 14px; }
@@ -4744,14 +4771,19 @@ button.ar-act-more:hover { color: var(--ar-ink); }
 .ar-rev-btn--block { color: var(--ar-bad); border-color: #e6c1b9; }
 .ar-rev-btn--block:hover:not(:disabled) { background: #f9ece9; }
 .ar-rev-link {
-  appearance: none; cursor: pointer; border: 0; background: none; padding: 0;
+  appearance: none; cursor: pointer; border: 0; background: none; padding: 0 5px;
   font-family: var(--ar-sans); font-size: 12px; font-weight: 500; color: var(--ar-ink-soft);
-  transition: color 0.14s ease;
+  transition: color 0.14s ease, background-color 0.15s ease;
 }
-.ar-rev-link:hover { color: var(--ar-ink); text-decoration: underline; }
+.ar-rev-link:hover { color: var(--ar-ink); }
 .ar-rev-link:disabled { color: var(--ar-ink-faint); cursor: default; text-decoration: none; }
 .ar-rev-link--details { color: var(--ar-info); }
-.ar-rev-link--details.is-on { text-decoration: underline; }
+/* Open is a STATE, not a hover — it holds the chip down rather than wearing a
+   rule, so the app has one mark for "this button is live" in both cases. */
+.ar-rev-link--details.is-on {
+  color: var(--ar-info);
+  background: var(--ar-hover);
+}
 
 /* Details panel — the honest evidence (verification + UA), collapsed by default. */
 .ar-rev-details { margin-top: 11px; padding-top: 11px; border-top: 1px solid var(--ar-line); display: flex; flex-direction: column; gap: 8px; }

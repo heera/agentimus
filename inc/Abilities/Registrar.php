@@ -1797,6 +1797,15 @@ final class Registrar {
 				'permission_callback' => $permission,
 				'meta'                => array(
 					'show_in_rest' => true,
+					// Declared TWICE, on purpose, because the adapter's two readers
+					// disagree in 0.5.0: RegisterAbilityAsMcpTool reads meta.annotations
+					// at the top level and has no fallback, while
+					// RegisterAbilityAsMcpResource prefers mcp.annotations and emits a
+					// deprecation notice when it finds only the old place. Writing one
+					// location breaks tools; writing the other trips a _doing_it_wrong
+					// on every resource. Writing both satisfies each reader at its
+					// preferred address and warns about nothing — drop the top-level
+					// copy when the adapter's tool path learns to look under mcp.
 					'annotations'  => array(
 						'readonly'    => (bool) $readonly,
 						// Declared per ability. Nothing here deletes, but update-content
@@ -1810,7 +1819,16 @@ final class Registrar {
 					// $mcp carries the extras a RESOURCE needs — the adapter reads its
 					// uri and mimeType from exactly here, and refuses to register a
 					// resource without a uri.
-					'mcp'          => array_merge( array( 'public' => false ), $mcp ),
+					'mcp'          => array_merge(
+						array(
+							'public'      => false,
+							'annotations' => array(
+								'readonly'    => (bool) $readonly,
+								'destructive' => (bool) $destructive,
+							),
+						),
+						$mcp
+					),
 				),
 			)
 		);

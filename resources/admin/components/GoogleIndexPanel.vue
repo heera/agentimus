@@ -47,6 +47,15 @@ export default {
       loading: false,
       loaded: false,
       checking: false,
+      // A cancel asked for while the loop runs, and the memory of one that
+      // landed. The loop cannot be aborted mid-chunk — a request already with
+      // Google is paid for either way — so `cancelling` means "no further
+      // chunks" and the button says so. `cancelled` outranks the auto-resume
+      // in load(): a cancel that a tab-switch undoes is not a cancel. It
+      // lasts for this screen's life — a fresh page load is fresh intent, and
+      // the resume exists precisely for the run a refresh killed.
+      cancelling: false,
+      cancelled: false,
       error: '',
       // Per-state fetched rows: { [stateKey]: { rows, page, pages, total,
       // busy, loaded, error } }. Groups render from counts alone; rows exist
@@ -281,9 +290,11 @@ export default {
         this.refreshGroups();
         // A run left mid-flight (a refresh killed the loop, a guard ran out)
         // resumes by itself: this is the owner's own browser — the same
-        // hands that pressed Check now — and wp-cron on a cached site can
-        // take hours over what this loop finishes in a minute.
-        if (this.view && this.view.pending > 0 && !this.checking) this.checkNow();
+        // hands that pressed Check Now — and wp-cron on a cached site can
+        // take hours over what this loop finishes in a minute. Unless the
+        // owner stopped it on purpose: then the queue waits for another press
+        // or for the daily check, which is what the rail says it will do.
+        if (this.view && this.view.pending > 0 && !this.checking && !this.cancelled) this.checkNow();
       } catch (e) {
         this.error = e && e.message ? e.message : 'Could not load the Google index status.';
       } finally {
@@ -291,7 +302,7 @@ export default {
       }
     },
     // The sweep is chunked server-side (a full watchlist in one request held
-    // a worker long enough to 502) — so "Check now" is a LOOP of short
+    // a worker long enough to 502) — so "Check Now" is a LOOP of short
     // requests, each returning the rows it managed plus how many remain.
     // Answers fill in live between chunks; a hard cap bounds the loop even
     // if `pending` never falls (a chunk that met a transport blip re-queues
@@ -299,6 +310,10 @@ export default {
     async checkNow() {
       if (!this.api || this.checking) return;
       this.checking = true;
+      // A deliberate press clears an earlier cancel — the hands that stopped
+      // it are the hands starting it again.
+      this.cancelling = false;
+      this.cancelled  = false;
       this.error = '';
       try {
         // 120 ≥ one full run (watchlist + the whole daily rotation) even at
@@ -307,7 +322,7 @@ export default {
         let guard = 120;
         do {
           this.view = await this.api.refreshGoogleIndex();
-        } while (this.view && this.view.pending > 0 && !this.view.lastError && !this.view.quotaHit && --guard > 0);
+        } while (this.view && this.view.pending > 0 && !this.view.lastError && !this.view.quotaHit && !this.cancelling && --guard > 0);
         // The run rewrote the stored answers the group listings read from.
         this.refreshGroups();
       } catch (e) {
@@ -316,7 +331,20 @@ export default {
         this.error = e && e.message ? e.message : 'Could not reach Google.';
       } finally {
         this.checking = false;
+        // Only a cancel that actually ended a loop counts. One asked for as
+        // the last chunk landed leaves nothing pending, and a veto over an
+        // empty queue would only sit there confusing the next visit.
+        this.cancelled  = this.cancelling && !!this.view && this.view.pending > 0;
+        this.cancelling = false;
       }
+    },
+    // Stop after the chunk in flight. That chunk's inspections are already
+    // spent with Google, so there is nothing to save by killing it mid-answer
+    // — and letting it land keeps its verdicts instead of throwing them away.
+    // The queue is server-side: cancelling abandons nothing, it puts the rest
+    // back to the daily check or the next press.
+    cancelCheck() {
+      if (this.checking) this.cancelling = true;
     },
     // The verdict in plain words. "On Google" is Google's own phrasing in the
     // inspection tool — reusing it keeps this card and their console in one
@@ -493,7 +521,14 @@ export default {
     // back with it: one fresh verdict can empty a problem group and moves the
     // site counts, so repainting only the row would leave the totals above it
     // describing a site that no longer exists.
-    async checkNow(url) {
+    //
+    // NOT checkNow(): that name was already taken by the whole-watchlist sweep
+    // above. Two methods of one name in a single object is not an error in JS —
+    // the later one silently wins — so this replaced the sweep, and because the
+    // sweep's button binds @click="checkNow" with no parentheses, Vue handed it
+    // the click EVENT as the url. The result was a card whose "Check Now" no
+    // longer swept and answered "Invalid parameter(s): url" instead.
+    async recheckUrl(url) {
       if (!this.api || !url || this.checkingUrl) return;
       this.checkingUrl = url;
       this.checkError = '';
@@ -509,6 +544,9 @@ export default {
         // else reloaded it — the group would contradict the counts above it.
         this.refreshGroups();
       } catch (e) {
+        // The server's own sentence when it sent one; the bare status is a last
+        // resort, because "Request failed (400)" tells nobody which of the four
+        // refusals happened.
         this.checkError = (e && e.message) || 'The check didn’t come back — try again.';
       } finally {
         this.checkingUrl = '';
@@ -575,15 +613,24 @@ export default {
         </template>
         <span class="ar-mcp-rail__sep" aria-hidden="true">·</span>
         <button type="button" class="ar-linkbtn" :disabled="checking" @click="checkNow">
-          {{ checking ? (view.pending > 0 ? `Checking… ${view.pending} to go` : 'Checking…') : 'Check now' }}
+          {{ checking ? (view.pending > 0 ? `Checking… ${view.pending} to go` : 'Checking…') : 'Check Now' }}
         </button>
+        <!-- A minute-long loop the owner started by hand needs a way out of
+             it. Its own control rather than a toggled label, so the progress
+             count stays readable while the way out sits beside it. -->
+        <template v-if="checking">
+          <span class="ar-mcp-rail__sep" aria-hidden="true">·</span>
+          <button type="button" class="ar-linkbtn" :disabled="cancelling" @click="cancelCheck">
+            {{ cancelling ? 'Finishing this page…' : 'Cancel' }}
+          </button>
+        </template>
         <template v-if="!checking && view.pending > 0">
           <span class="ar-mcp-rail__sep" aria-hidden="true">·</span>
           <!-- Honest about the machinery: the daily check WILL finish these,
                but on a heavily cached site wp-cron can take hours over what
-               Check now does in a minute — never promise "fills in as it
+               Check Now does in a minute — never promise "fills in as it
                arrives" for a trickle. -->
-          <span>{{ view.pending }} pages still to check — press Check now to finish, or the daily check picks them up</span>
+          <span>{{ view.pending }} pages still to check — press Check Now to finish, or the daily check picks them up</span>
         </template>
         <template v-if="view.lastError">
           <span class="ar-mcp-rail__sep ar-gidx__sep-warn" aria-hidden="true">·</span>
@@ -605,7 +652,7 @@ export default {
 
       <div v-if="!hasRows" class="ar-wd-empty">
         No answers yet. The first check runs within moments of connecting — or press
-        Check now.
+        Check Now.
       </div>
       <template v-else>
         <!-- The story before the list — the Bing card's own tile grammar, so
@@ -659,7 +706,7 @@ export default {
                   </span>
                   <span class="ar-gidx__crawl">{{ r.lastCrawl ? `visited ${day(r.lastCrawl)}` : 'never visited' }}</span>
                   <span class="ar-gidx__door">
-                    <button type="button" class="ar-linkbtn ar-gidx__recheck" :disabled="!!checkingUrl" @click="checkNow(r.url)">{{ checkLabel(r.url) }}</button>
+                    <button type="button" class="ar-linkbtn ar-gidx__recheck" :disabled="!!checkingUrl" @click="recheckUrl(r.url)">{{ checkLabel(r.url) }}</button>
                     <span v-if="r.gscLink" class="ar-gidx__doorsep" aria-hidden="true">·</span>
                     <a v-if="r.gscLink" class="ar-gidx__gsc" :href="r.gscLink" target="_blank" rel="noopener" @click="noteOpened(r)">Open in Search Console ↗</a>
                     <span v-if="r.openedAt" class="ar-gidx__opened">console opened {{ day(r.openedAt) }}</span>
@@ -671,6 +718,12 @@ export default {
             </ul>
           </div>
         </template>
+
+        <!-- Re-check is on every row, so its failure has to be visible from every
+             row. It used to render only inside the lookup box, which meant a
+             row-triggered error appeared nowhere at all and the only evidence
+             was a 400 in the browser console. -->
+        <p v-if="checkError" class="ar-gidx__note is-err ar-gidx__checkerr">{{ checkError }}</p>
 
         <template v-if="site.problemsTotal > 0">
           <div class="ar-gidx__sec ar-gidx__siteeyebrow">
@@ -710,7 +763,7 @@ export default {
                   </span>
                   <span class="ar-gidx__crawl">{{ r.lastCrawl ? `visited ${day(r.lastCrawl)}` : (r.error ? '' : 'never visited') }}</span>
                   <span class="ar-gidx__door">
-                    <button type="button" class="ar-linkbtn ar-gidx__recheck" :disabled="!!checkingUrl" @click="checkNow(r.url)">{{ checkLabel(r.url) }}</button>
+                    <button type="button" class="ar-linkbtn ar-gidx__recheck" :disabled="!!checkingUrl" @click="recheckUrl(r.url)">{{ checkLabel(r.url) }}</button>
                     <span v-if="r.gscLink" class="ar-gidx__doorsep" aria-hidden="true">·</span>
                     <a v-if="r.gscLink" class="ar-gidx__gsc" :href="r.gscLink" target="_blank" rel="noopener" @click="noteOpened(r)">Open in Search Console ↗</a>
                     <span v-if="r.openedAt" class="ar-gidx__opened">console opened {{ day(r.openedAt) }}</span>
@@ -814,12 +867,11 @@ export default {
                    the default. Offered for a page never checked too — that is
                    exactly when waiting for the rotation is the wrong answer. -->
               <p v-if="lookupOut.status === 'found' || lookupOut.status === 'unchecked'" class="ar-gidx__checkrow">
-                <button type="button" class="ar-linkbtn" :disabled="!!checkingUrl" @click="checkNow(lookupOut.row ? lookupOut.row.url : lookupFor)">
-                  {{ checkingUrl ? 'Asking Google…' : 'Check it now' }}
+                <button type="button" class="ar-linkbtn" :disabled="!!checkingUrl" @click="recheckUrl(lookupOut.row ? lookupOut.row.url : lookupFor)">
+                  {{ checkingUrl ? 'Asking Google…' : 'Check It Now' }}
                 </button>
                 <span class="ar-gidx__checkhint">Asks Google about this one page and spends one of today's checks.</span>
               </p>
-              <p v-if="checkError" class="ar-gidx__note is-err ar-gidx__lookupmsg">{{ checkError }}</p>
             </template>
             <p class="ar-gidx__lookuphint">
               Answers come from the stored daily checks, not a live call — this is

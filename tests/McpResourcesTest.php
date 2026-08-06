@@ -114,6 +114,16 @@ namespace Agentimus\Tests {
 				$this->assertTrue( $args['meta']['annotations']['readonly'], "$name must be readonly — a document is read, never run." );
 				$this->assertFalse( $args['meta']['annotations']['destructive'] );
 				$this->assertSame( array(), $args['input_schema']['properties'], "$name takes no arguments: reading a document is not a query." );
+
+				// Both locations, because the adapter's two readers disagree: the
+				// tool path reads meta.annotations with no fallback, the resource
+				// path prefers mcp.annotations and fires a deprecation notice when
+				// it finds only the old one. Dropping either breaks one of them.
+				$this->assertSame(
+					$args['meta']['annotations'],
+					$args['meta']['mcp']['annotations'],
+					"$name must declare annotations in BOTH places while the adapter reads two."
+				);
 			}
 		}
 	}
