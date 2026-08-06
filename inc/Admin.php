@@ -654,32 +654,24 @@ final class Admin {
 			'show'    => $show,
 			'items'   => array(
 				array(
-					'title' => 'Clear Cloudflare\'s cache from here',
-					'text'  => 'Publishing or editing a post now clears its stale copies from Cloudflare\'s edge — the one cache no caching plugin can purge for you — along with the front page and the machine files agents read. The edge panel gains a Purge button for everything else. One extra permission on your token turns it on (Zone → Cache Purge → Purge); without it nothing changes, and the panel says why in words.',
+					'title' => 'Ask AI in the editor — a block, a selection, or the whole post',
+					'text'  => 'Revision now happens where the post lives. Rewrite or extend the block you are in; select several blocks and change them all with one instruction; or ask about the whole post and get back a list of proposed edits — rewrite this paragraph, delete that one, add a section here — each with the reason it was proposed, to accept or reject one at a time. Blocks the plan does not name are never touched, and every change steps back through the editor\'s own undo.',
 				),
 				array(
-					'title' => 'In Google\'s Index reports your site, not a watchlist',
-					'text'  => 'The numbers now cover every page checked, so a site with half its pages missing from Google says so in the first figure you read. The standing list of watched pages is gone — those green rows never changed, and which pages get asked about first is a schedule, which the card states in a sentence. What is left is what needs a look.',
+					'title' => 'The assistant creates, the editor revises',
+					'text'  => 'Editing an existing post inside the assistant\'s drawer is gone. That drawer could only safely handle the blocks it had written itself, so any post with a real-world layout was declined rather than mangled — you would open a post and find the assistant refusing to touch it. Create draft now opens the post in the editor, where every block type is at home and Ask AI does the revising. Nothing you have written is affected.',
 				),
 				array(
-					'title' => 'A page Google left out is chased daily',
-					'text'  => 'Instead of waiting its turn in the whole-site rotation, any page Google has not indexed is re-checked every day until it gets in — up to 20 a day, the one waiting longest first. And when one finally gets in, the card says so for about two days, rather than the problem quietly disappearing.',
+					'title' => 'A page is not an article',
+					'text'  => 'The writing assistant now writes posts, pages and your own content types, and knows the difference. A page gets no invented sections, no image slots, and no tags or categories — and where only you know a fact (an address, an opening time, a policy) it leaves a marked placeholder instead of writing something plausible. Choose the type on the brief screen and filter the list by it. Agents drafting over MCP follow the same rules.',
 				),
 				array(
-					'title' => 'A blip is a pause, not a restart',
-					'text'  => 'One slow answer from Google used to end the daily index check and demand another press of Check now. Now it rejoins the back of the line and the check carries on, reporting a failure only after three misses in a row — and a check you walk away from finishes on its own.',
+					'title' => 'Ask Google about one page, right now',
+					'text'  => 'Every problem row, and the page lookup, gains a Re-check that inspects that single URL there and then — one of the day\'s 2,000 inspections, stored like any other — so a page you just fixed is never judged by yesterday\'s answer. A whole-site check you started can now be cancelled too: it stops after the answer already in flight, and the rest of the queue waits for your next press or the daily run rather than being thrown away.',
 				),
 				array(
-					'title' => 'Doors on the robots and sitemap rows',
-					'text'  => 'The Readiness page\'s robots.txt row now opens your file — and, with Google or Bing connected, the copy each engine last read, straight in their own consoles. The sitemap row opens the sitemap actually served. And the passing "robots.txt changed" note moved out of the checks into the weekly email, so the readiness count never moves because of a transient event.',
-				),
-				array(
-					'title' => 'Every search card can be set aside',
-					'text'  => 'A Search Opportunities card with no post behind it — the homepage on many sites, an archive — could neither be acted on nor dismissed. Now it takes the same one-click Set aside as every other card, joins the same visible list, and says why it offers no editor buttons. Readability flags also stop waiting for a recent edit: every card\'s page is graded the moment the card renders.',
-				),
-				array(
-					'title' => 'Tell search engines the moment you publish',
-					'text'  => 'One switch on the Bing settings card turns on IndexNow: publishing, editing or removing a post announces the changed address right away — to Bing (whose index ChatGPT search and Copilot read), Yandex, and every engine that listens. Off by default because it is an outbound request; only the changed addresses are ever sent. The Found by AI Search card also gains Bing\'s own record of your sitemap — registered or not, when Bing last read it, how many URLs it saw.',
+					'title' => 'Your documents, offered to be read',
+					'text'  => 'llms.txt, llms-full.txt, discovery.json and your agent card are now listed as MCP resources, so a connected assistant attaches them the way it attaches a file instead of being told to fetch a URL — and a document you switched off is never offered. A new media search also lets an agent find a picture you already have, by title or by alt text, rather than inventing one for a featured image.',
 				),
 			),
 		);

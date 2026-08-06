@@ -20,7 +20,7 @@ Everything needed ships with the plugin. There is nothing else to install, no ac
 
 **Cannot:** act anonymously — nothing about this is public. And until you flip the write switch, it cannot write, change, delete or publish anything: every tool it gets is read-only, and the write tools don't merely refuse — they don't exist.
 
-A key can be read-only on its own, too. An assistant connected with a read-only key is shown the ten read tools and nothing else; a read-and-write key is shown all fifteen. The limit is checked on the server whatever the key claims, so hiding the write tools does not add safety — it saves the assistant from finding the wall by walking into it.
+A key can be read-only on its own, too. An assistant connected with a read-only key is shown the sixteen read tools and nothing else; a read-and-write key is shown all twenty-one. The limit is checked on the server whatever the key claims, so hiding the write tools does not add safety — it saves the assistant from finding the wall by walking into it.
 
 Three locks stand between the internet and those reports:
 
