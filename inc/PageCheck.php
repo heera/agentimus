@@ -234,7 +234,7 @@ final class PageCheck {
 		}
 		return self::row(
 			'words',
-			__( 'Thin content', 'agentimus' ),
+			__( 'Not enough substance yet', 'agentimus' ),
 			'warn',
 			sprintf( /* translators: 1: word count, 2: the minimum. */ __( 'Only %1$d words. Below ~%2$d an agent has little to work with — expand the page or merge it.', 'agentimus' ), (int) $s['words'], self::MIN_WORDS )
 		);
@@ -269,7 +269,7 @@ final class PageCheck {
 		}
 		return self::row(
 			'evidence',
-			__( 'Nothing concrete to quote', 'agentimus' ),
+			__( 'Short on specifics', 'agentimus' ),
 			'warn',
 			__( 'No figures, dates, or outbound sources. Answer engines lift and cite specifics — add a statistic, a concrete detail, or a link to a source you build on.', 'agentimus' )
 		);
@@ -388,7 +388,7 @@ final class PageCheck {
 				implode( ', ', $heavy )
 			);
 		}
-		return self::row( 'reading_ease', __( 'Hard to read', 'agentimus' ), 'warn', $detail );
+		return self::row( 'reading_ease', __( 'Low reading ease', 'agentimus' ), 'warn', $detail );
 	}
 
 	/**

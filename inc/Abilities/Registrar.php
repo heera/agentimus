@@ -606,6 +606,7 @@ final class Registrar {
 			'richTypes'        => self::s( 'Rich-result types Google detected, comma-separated; empty = none.' ),
 			'gscLink'          => self::s( 'Deep link to this URL\'s inspection in Search Console — where "Request indexing" lives (that button has no API).' ),
 			'inspectedAt'      => self::i( 'Unix time THIS row was last inspected — older than checkedAt means a quota-cut sweep kept its previous answer.' ),
+			'openedAt'         => self::i( 'Unix time the OWNER last opened this URL in Search Console, or 0. A record of their click and nothing more: Google keeps no memory of "indexing requested" and no API exposes a pending state, so never read this as "indexing was requested" or "Google is working on it".' ),
 			'healedAt'         => self::i( 'Unix time this page turned from problem to healthy; 0 = not recently healed. Healed pages announce in site.healed for about two days, then go quiet.' ),
 			'healedFrom'       => self::s( 'The problem bucket this page healed FROM (same keys as stateKey); empty when not recently healed.' ),
 			'error'            => self::s( 'This row\'s own inspection failure, if any.' ),

@@ -102,7 +102,7 @@ final class MarkdownTest extends TestCase {
 	 * meta-box render, or our own off-loop .md generation) — must not blank the
 	 * body. We fall back to the post's own blocks so /slug.md keeps real content and
 	 * PageCheck doesn't mis-report a full page as "0 words". Regression for the
-	 * "Thin content · Only 0 words" report on a post with thousands of words.
+	 * "Not enough substance yet · Only 0 words" report on a post with thousands of words.
 	 */
 	public function test_a_blanking_the_content_filter_falls_back_to_the_posts_own_body() {
 		$this->fixture( 5, array( 'post_content' => '<p>This body must survive a blanking filter.</p>' ) );

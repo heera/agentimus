@@ -332,6 +332,24 @@ export default {
       const was = g ? `Was “${g.label.toLowerCase()}” — ` : '';
       return `${was}in Google's index since ${this.day(r.healedAt)}.`;
     },
+    // Remember that this row was opened in Search Console, and say so on the row
+    // from now on.
+    //
+    // Google keeps no memory of "indexing requested" — a fresh inspection shows
+    // a plain REQUEST INDEXING again and no API exposes a pending state — so the
+    // only thing anyone can honestly record is the owner's own click. The note
+    // therefore says "console opened {date}", which is true, and never "indexing
+    // requested", which nobody here can know.
+    //
+    // Fire-and-forget: the link opens in its own tab regardless, and failing to
+    // write a note must never interrupt going to Search Console.
+    noteOpened(r) {
+      if (!r || !r.url) return;
+      r.openedAt = Math.floor(Date.now() / 1000); // Optimistic — the row is ours to paint.
+      if (this.api && this.api.markGoogleIndexOpened) {
+        this.api.markGoogleIndexOpened(r.url).catch(() => {});
+      }
+    },
     // Ratio-bar segment width, of the site pages actually checked.
     pct(n) {
       return this.rail.checked ? `${(Number(n || 0) / this.rail.checked) * 100}%` : '0%';
@@ -597,7 +615,10 @@ export default {
                     <a :href="r.url" target="_blank" rel="noopener" class="ar-gidx__title">{{ r.title }}</a>
                   </span>
                   <span class="ar-gidx__crawl">{{ r.lastCrawl ? `visited ${day(r.lastCrawl)}` : 'never visited' }}</span>
-                  <span class="ar-gidx__door"><a v-if="r.gscLink" class="ar-gidx__gsc" :href="r.gscLink" target="_blank" rel="noopener">Open in Search Console ↗</a></span>
+                  <span class="ar-gidx__door">
+                    <a v-if="r.gscLink" class="ar-gidx__gsc" :href="r.gscLink" target="_blank" rel="noopener" @click="noteOpened(r)">Open in Search Console ↗</a>
+                    <span v-if="r.openedAt" class="ar-gidx__opened">console opened {{ day(r.openedAt) }}</span>
+                  </span>
                   <span class="ar-gidx__chip is-ok">On Google</span>
                   <p class="ar-gidx__note">{{ healedNote(r) }}</p>
                 </div>
@@ -643,7 +664,10 @@ export default {
                     <a :href="r.url" target="_blank" rel="noopener" class="ar-gidx__title">{{ r.title }}</a>
                   </span>
                   <span class="ar-gidx__crawl">{{ r.lastCrawl ? `visited ${day(r.lastCrawl)}` : (r.error ? '' : 'never visited') }}</span>
-                  <span class="ar-gidx__door"><a v-if="r.gscLink" class="ar-gidx__gsc" :href="r.gscLink" target="_blank" rel="noopener">Open in Search Console ↗</a></span>
+                  <span class="ar-gidx__door">
+                    <a v-if="r.gscLink" class="ar-gidx__gsc" :href="r.gscLink" target="_blank" rel="noopener" @click="noteOpened(r)">Open in Search Console ↗</a>
+                    <span v-if="r.openedAt" class="ar-gidx__opened">console opened {{ day(r.openedAt) }}</span>
+                  </span>
                   <span class="ar-gidx__chip" :class="verdictClass(r)">{{ verdictLabel(r) }}</span>
                   <p v-if="rowNote(r, true)" class="ar-gidx__note" :class="r.error ? 'is-err' : 'is-warn'">{{ rowNote(r, true) }}</p>
                 </div>
@@ -720,7 +744,10 @@ export default {
                       <a :href="lookupOut.row.url" target="_blank" rel="noopener" class="ar-gidx__title">{{ lookupOut.row.title }}</a>
                     </span>
                     <span class="ar-gidx__crawl">{{ lookupOut.row.lastCrawl ? `visited ${day(lookupOut.row.lastCrawl)}` : (lookupOut.row.error ? '' : 'never visited') }}</span>
-                    <span class="ar-gidx__door"><a v-if="lookupOut.row.gscLink" class="ar-gidx__gsc" :href="lookupOut.row.gscLink" target="_blank" rel="noopener">Open in Search Console ↗</a></span>
+                    <span class="ar-gidx__door">
+                      <a v-if="lookupOut.row.gscLink" class="ar-gidx__gsc" :href="lookupOut.row.gscLink" target="_blank" rel="noopener" @click="noteOpened(lookupOut.row)">Open in Search Console ↗</a>
+                      <span v-if="lookupOut.row.openedAt" class="ar-gidx__opened">console opened {{ day(lookupOut.row.openedAt) }}</span>
+                    </span>
                     <span class="ar-gidx__chip" :class="verdictClass(lookupOut.row)">{{ verdictLabel(lookupOut.row) }}</span>
                     <p v-if="rowNote(lookupOut.row)" class="ar-gidx__note" :class="lookupOut.row.error ? 'is-err' : 'is-warn'">{{ rowNote(lookupOut.row) }}</p>
                   </div>

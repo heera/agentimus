@@ -914,4 +914,40 @@ final class GoogleIndexTest extends TestCase {
 		) );
 		$this->assertSame( 'WP-CLI – The Command Line Tool', Index::view( $google )['rows'][0]['title'] );
 	}
+
+	/* -- The console-opened note ---------------------------------------------- */
+
+	public function test_marking_a_row_opened_records_the_owners_click_and_nothing_else() {
+		update_option( Index::OPTION, array(
+			'rows' => array(
+				array( 'url' => 'https://example.test/alpha/', 'post_id' => 7, 'verdict' => 'FAIL', 'inspected_at' => 1753900000 ),
+			),
+			'cov'  => array(),
+		) );
+
+		$at = Index::mark_opened( 'https://example.test/alpha/' );
+		$this->assertGreaterThan( 0, $at, 'A URL this card holds records the click.' );
+
+		$stored = Index::stored();
+		$this->assertSame( $at, $stored['opened']['https://example.test/alpha'], 'Keyed by the normalised URL.' );
+
+		// A URL nobody here holds is refused: otherwise a hand-crafted request
+		// could grow the option without bound and pin a note on a row that will
+		// never render.
+		$this->assertSame( 0, Index::mark_opened( 'https://example.test/never-heard-of-it/' ) );
+		$this->assertSame( 0, Index::mark_opened( '' ) );
+		$this->assertCount( 1, Index::stored()['opened'] );
+	}
+
+	public function test_the_opened_note_survives_a_sweep_because_it_is_not_googles_answer() {
+		update_option( Index::OPTION, array(
+			'rows'   => array( array( 'url' => 'https://example.test/alpha/', 'post_id' => 7, 'verdict' => 'FAIL' ) ),
+			'cov'    => array(),
+			'opened' => array( 'https://example.test/alpha' => 1753900000 ),
+		) );
+
+		// stored() is what every sweep reads its carry-forward state from; the
+		// note has to be in there or the next sweep silently erases the record.
+		$this->assertSame( 1753900000, Index::stored()['opened']['https://example.test/alpha'] );
+	}
 }

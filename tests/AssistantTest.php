@@ -261,6 +261,20 @@ final class AssistantTest extends TestCase {
 		$this->assertSame( 'delete', $plan['edits'][2]['action'] );
 	}
 
+	public function test_a_section_revision_must_join_what_is_already_there() {
+		// Inserted sections that open cold are the tell of machine-added material.
+		// The whole post travels as context precisely so they don't have to.
+		$system = Assistant::section_system_prompt();
+		$this->assertStringContainsString( 'ADDED MATERIAL MUST JOIN WHAT IS ALREADY THERE', $system );
+		$this->assertStringContainsString( 'hand off', $system );
+		$this->assertStringContainsString( 'first-person voice', $system );
+
+		// And the bar every other writing prompt carries, which this one lacked
+		// until an "add ten fragrances" run produced products from nowhere.
+		$this->assertStringContainsString( 'no invented facts', $system );
+		$this->assertStringContainsString( 'page', Assistant::section_system_prompt( Assistant::SHAPE_PAGE ) );
+	}
+
 	public function test_the_plan_prompt_splits_by_place_not_by_quantity() {
 		$system = Assistant::plan_system_prompt();
 		$this->assertStringContainsString( 'ONE PLACE, ONE EDIT', $system );
@@ -764,27 +778,6 @@ final class AssistantTest extends TestCase {
 
 	/* -- Edit-existing: the gate and the mirror ------------------------------- */
 
-	public function test_edit_gate_names_the_blocks_it_cannot_rewrite() {
-		$table = "<!-- wp:table -->\n<figure class=\"wp-block-table\"><table><tbody><tr><td>x</td></tr></tbody></table></figure>\n<!-- /wp:table -->";
-		$this->assertStringContainsString( 'table', Assistant::edit_gate_reason( $table ) );
-
-		$safe = Assistant::blockify( '<h2>A</h2><p>Fine.</p><ul><li>x</li></ul><blockquote><p>q</p></blockquote>' );
-		$this->assertSame( '', Assistant::edit_gate_reason( $safe ), 'The assistant’s own vocabulary always passes.' );
-		$this->assertSame( '', Assistant::edit_gate_reason( '<h2>Classic</h2><p>No block comments at all.</p>' ) );
-	}
-
-	public function test_edit_gate_bounds_length_but_never_images() {
-		// Images are lifted out before the model runs and put back after, so their
-		// number says nothing about what a rewrite can hold. This many used to be
-		// refused; refusing it was the suggestion ceiling escaping onto the
-		// owner's own pictures.
-		$figures = str_repeat( Assistant::figure_html( 'https://x.test/i.jpg', 'Some alt text', 7 ), 12 );
-		$this->assertSame( '', Assistant::edit_gate_reason( '<p>Hi.</p>' . $figures ), 'A picture-heavy post is still editable.' );
-
-		$long = '<p>' . implode( ' ', array_fill( 0, 4200, 'word' ) ) . '</p>';
-		$this->assertStringContainsString( 'longer than', Assistant::edit_gate_reason( $long ) );
-	}
-
 	public function test_existing_images_ride_through_while_invented_ones_stay_capped() {
 		// Twelve real images (each carrying an attachment) plus a greedy pile of
 		// invented ones. Every real image survives; the inventions stop at the
@@ -809,72 +802,6 @@ final class AssistantTest extends TestCase {
 		$this->assertSame( 101, $clean[0]['attachment_id'] );
 	}
 
-	public function test_content_to_doc_mirrors_create_lifting_figures_into_anchored_slots() {
-		// Build a post the way create() builds one: figures injected, then blockified.
-		$original = Assistant::blockify(
-			Assistant::inject_images(
-				'<p>Intro.</p><h2>Alpha</h2><p>Body A.</p><h2>Beta</h2><p>Body B.</p>',
-				array(
-					array(
-						'html'          => Assistant::figure_html( 'https://x.test/sun.jpg', 'The Sun in extreme ultraviolet.', 42 ),
-						'after_heading' => 'Alpha',
-					),
-				)
-			)
-		);
-
-		$doc = Assistant::content_to_doc( $original );
-		$this->assertStringNotContainsString( '<!-- wp:', $doc['content'], 'Block comments are stripped for the model.' );
-		$this->assertStringNotContainsString( '<figure', $doc['content'], 'Figures never ride through the model.' );
-		$this->assertStringContainsString( '<p>Body A.</p>', $doc['content'] );
-
-		$this->assertCount( 1, $doc['images'] );
-		$this->assertSame( 42, $doc['images'][0]['attachment_id'] );
-		$this->assertSame( 'Alpha', $doc['images'][0]['after_heading'], 'The nearest preceding heading anchors the slot.' );
-		$this->assertSame( 'The Sun in extreme ultraviolet.', $doc['images'][0]['alt'] );
-	}
-
-	public function test_content_to_doc_round_trips_back_through_inject_and_blockify() {
-		$doc     = Assistant::content_to_doc(
-			Assistant::blockify(
-				Assistant::inject_images(
-					'<h2>Alpha</h2><p>Text.</p>',
-					array(
-						array(
-							'html'          => Assistant::figure_html( 'https://x.test/i.jpg', 'A described image.', 42 ),
-							'after_heading' => 'Alpha',
-						),
-					)
-				)
-			)
-		);
-		$rebuilt = Assistant::blockify(
-			Assistant::inject_images(
-				$doc['content'],
-				array(
-					array(
-						'html'          => Assistant::figure_html( 'https://x.test/i.jpg', $doc['images'][0]['alt'], $doc['images'][0]['attachment_id'] ),
-						'after_heading' => $doc['images'][0]['after_heading'],
-					),
-				)
-			)
-		);
-		$this->assertStringContainsString( '<!-- wp:image {"id":42', $rebuilt );
-		$this->assertTrue(
-			strpos( $rebuilt, 'wp:heading' ) < strpos( $rebuilt, 'wp:image' ),
-			'The figure returns to its place after the heading.'
-		);
-	}
-
-	public function test_content_to_doc_never_loses_an_image_and_classic_posts_work() {
-		// A classic (no block comments) post with a figure whose alt is unusable.
-		$classic = '<h2>Head</h2>' . Assistant::figure_html( 'https://x.test/i.jpg', 'x', 9 ) . '<p>Text.</p>';
-		$doc     = Assistant::content_to_doc( $classic );
-		$this->assertCount( 1, $doc['images'], 'A short-alt figure gains a placeholder alt instead of being dropped.' );
-		$this->assertSame( 9, $doc['images'][0]['attachment_id'] );
-		$this->assertGreaterThanOrEqual( 5, mb_strlen( $doc['images'][0]['alt'] ) );
-	}
-
 	public function test_placeholder_figures_become_empty_image_blocks_with_alt() {
 		$content = Assistant::inject_images(
 			'<h2>Alpha</h2><p>Text.</p>',
@@ -890,12 +817,6 @@ final class AssistantTest extends TestCase {
 		$this->assertStringNotContainsString( '"id":', $out );
 		$this->assertStringContainsString( 'alt="The Sun in extreme ultraviolet."', $out, 'The alt rides into the editor — it is the Generate prompt there.' );
 		$this->assertTrue( strpos( $out, 'wp:heading' ) < strpos( $out, 'wp:image' ), 'Placeholder sits after its anchor heading.' );
-
-		// And the mirror: an edit round-trip lifts the placeholder back into a slot.
-		$doc = Assistant::content_to_doc( $out );
-		$this->assertCount( 1, $doc['images'] );
-		$this->assertArrayNotHasKey( 'attachment_id', $doc['images'][0] );
-		$this->assertSame( 'Alpha', $doc['images'][0]['after_heading'] );
 	}
 
 	public function test_stacked_figures_under_one_heading_keep_their_order() {

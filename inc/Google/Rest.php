@@ -72,6 +72,16 @@ final class Rest {
 				),
 			),
 		) );
+		register_rest_route( self::NS, '/google/index/opened', array(
+			array(
+				'methods'             => \WP_REST_Server::CREATABLE,
+				'callback'            => array( $this, 'index_opened' ),
+				'permission_callback' => array( $this, 'can_manage' ),
+				'args'                => array(
+					'url' => array( 'type' => 'string', 'required' => true ),
+				),
+			),
+		) );
 		register_rest_route( self::NS, '/google/index/problems', array(
 			array(
 				'methods'             => \WP_REST_Server::READABLE,
@@ -243,6 +253,24 @@ final class Rest {
 		$view             = Index::view( $this->google );
 		$out['cycleDays'] = (int) $view['site']['cycleDays'];
 		return rest_ensure_response( $out );
+	}
+
+	/**
+	 * POST /google/index/opened — remember that the owner opened this row in
+	 * Search Console.
+	 *
+	 * Writes nothing to Google and asks it nothing. Google keeps no memory of
+	 * "indexing requested" and exposes no pending state through any API, so the
+	 * only honest record is ours: what the owner did, and when. The row then
+	 * says "console opened {date}" — a true statement about a click — instead of
+	 * "indexing requested", which nobody here is in a position to claim.
+	 *
+	 * @param \WP_REST_Request $request The request.
+	 * @return \WP_REST_Response
+	 */
+	public function index_opened( \WP_REST_Request $request ) {
+		$at = Index::mark_opened( (string) $request->get_param( 'url' ) );
+		return rest_ensure_response( array( 'openedAt' => $at ) );
 	}
 
 	/**

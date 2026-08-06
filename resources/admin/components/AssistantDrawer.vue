@@ -84,14 +84,9 @@ export default {
       stagingActive: false, // Requests in flight (staging itself survives failures).
       composeOrigin: 'idle', // Where composing started — errors and spinners return there.
       confirmReset: false, // "Start over" arms an inline confirm — it discards paid work.
-      // Edit-existing: 'write' composes a new post, 'edit' revises a real one.
-      // The picked post's identity rides here; its content becomes `draft` and
-      // the whole preview/refine/undo machinery works on it unchanged.
-      mode: 'write', // write | edit
-      editing: null, // { id, status, statusLabel, title, type, shape }
-      // What the WRITE flow is composing. An edit never reads this — its type is
-      // whatever the picked post already is, which is not a thing to re-decide.
-      // Empty until the drawer opens; resolveType() fills it from the boot list.
+      // What this drawer is composing. There is no edit mode any more: a post
+      // that already exists is revised in the block editor, and the picker below
+      // only opens it there.
       writeType: '',
       pick: { q: '', results: [], busy: false, error: '', type: '' },
       // Targeted revision of the held draft.
@@ -133,12 +128,9 @@ export default {
     busy() {
       return 'composing' === this.step || this.outlining || this.stagingActive;
     },
-    // THE type for everything this drawer is doing right now, and the only thing
-    // the API calls read. Writing uses the chooser; editing uses the type the
-    // post already is — a page being revised must not be rewritten as an article
-    // because a chooser somewhere still said "Post".
+    // The type every API call carries — the chooser's, or the default when the
+    // drawer hasn't been opened yet.
     activeType() {
-      if ('edit' === this.mode && this.editing && this.editing.type) return this.editing.type;
       return this.writeType || this.defaultType;
     },
     // Posts when posts are visible, otherwise the first type that is — a site
@@ -270,8 +262,6 @@ export default {
           draft: this.draft,
           outline: this.outline,
           usedOutline: this.usedOutline,
-          mode: this.mode,
-          editing: this.editing,
           // The type the held draft was WRITTEN in. Without it a page composed
           // last night comes back after a reload and gets created as a post —
           // the shape it was written in would survive only in the prose.
@@ -324,22 +314,13 @@ export default {
           };
           this.usedOutline = !!held.usedOutline;
         }
-        // An interrupted edit session restores as one — but only with its post
-        // identity AND its document both intact; anything less falls back to write.
-        if (draft && 'edit' === held.mode && held.editing && held.editing.id && 'string' === typeof held.editing.title) {
-          this.mode = 'edit';
-          this.editing = {
-            id: held.editing.id,
-            status: held.editing.status || 'draft',
-            statusLabel: held.editing.statusLabel || 'Draft',
-            title: held.editing.title,
-            // An older stash predates these; 'post'/'article' is what that build
-            // would have done anyway, so the fallback restores its behaviour
-            // rather than inventing a new one.
-            type: held.editing.type || 'post',
-            typeLabel: held.editing.typeLabel || '',
-            shape: held.editing.shape || 'article',
-          };
+        // A stash from the build that could revise a real post in here is
+        // dropped rather than restored: there is nowhere to save it back to any
+        // more, and reopening it would offer work that cannot be committed. The
+        // post on the site was never touched — only the unsaved revision goes.
+        if ('edit' === held.mode) {
+          this.clearHeld();
+          return;
         }
         if (draft) {
           ['topics', 'tags', 'categories', 'images'].forEach((k) => { if (!Array.isArray(draft[k])) draft[k] = []; });
@@ -376,8 +357,6 @@ export default {
       if (brief.length < 8 || this.busy) return;
       this.outlining = true;
       this.error = '';
-      this.mode = 'write'; // Outlining starts a WRITE path.
-      this.editing = null;
       try {
         const r = await this.api.assistantOutline(brief, this.activeType);
         this.outline = r.outline;
@@ -434,8 +413,6 @@ export default {
       this.composeOrigin = 'outline' === this.step ? 'outline' : 'idle';
       this.step = 'composing';
       this.error = '';
-      this.mode = 'write'; // Composing writes a NEW post, whatever came before.
-      this.editing = null;
       try {
         const r = await this.api.assistantCompose(brief, null, this.activeType);
         this.prevDraft = this.draft || null; // "Draft again" overwrites too — same one-step undo.
@@ -453,12 +430,9 @@ export default {
     // confirm, not in a floating caption. A first draft asks nothing.
     async confirmReplaceHeld() {
       if (!this.draft) return true;
-      const editHeld = 'edit' === this.mode && this.editing;
       return confirm({
         title: 'Write a new draft?',
-        message: editHeld
-          ? `The new draft replaces the edit of “${this.editing.title}” you're holding — the post itself on your site is untouched.`
-          : `The new draft replaces the one you're holding.`,
+        message: `The new draft replaces the one you're holding.`,
         confirmLabel: 'Write it',
         within: '.ar-drawer__panel',
       });
@@ -486,8 +460,6 @@ export default {
       const st = this.staging;
       this.step = 'outline'; // Progress lives where the plan lives.
       this.error = '';
-      this.mode = 'write';
-      this.editing = null;
       this.stagingActive = true;
 
       // The browser IS the parallelism: every unfinished part flies now. Each
@@ -662,48 +634,6 @@ export default {
         this.pick.busy = false;
       }
     },
-    // The ONLY write of the edit flow — and it never carries a status: the
-    // assistant edits content, not visibility. WordPress keeps the previous
-    // version in Revisions on top of the drawer's own one-step Undo.
-    async update() {
-      if (!this.draft || !this.editing || 'creating' === this.step || this.refining) return;
-      const published = 'publish' === this.editing.status;
-      const isDraft = 'draft' === this.editing.status;
-      const ok = await confirm({
-        title: published ? 'Update the published post?' : (isDraft ? 'Update the draft?' : 'Update the post?'),
-        message: published
-          ? 'The changes go live on your site immediately. The previous version is kept in Revisions.'
-          : `The post is updated and stays ${this.editing.statusLabel.toLowerCase()}. The previous version is kept in Revisions.`,
-        confirmLabel: published ? 'Update — it goes live' : 'Update',
-        within: '.ar-drawer__panel',
-      });
-      if (!ok) return;
-      this.step = 'creating';
-      this.error = '';
-      try {
-        const r = await this.api.assistantUpdate({
-          id: this.editing.id,
-          title: this.draft.title,
-          content: this.draft.content,
-          excerpt: this.draft.excerpt,
-          description: this.draft.description,
-          topics: this.draft.topics,
-          tags: this.draft.tags,
-          categories: this.draft.categories,
-          // ALL slots travel: filled ones return as real figures, bare ones
-          // as alt-only placeholders — nothing is silently dropped.
-          images: (this.draft.images || [])
-            .map((s) => ({ attachment_id: s.attachment_id, after_heading: s.after_heading, alt: s.alt })),
-        });
-        this.post = r.post;
-        this.step = 'done';
-        this.clearHeld();
-        this.$emit('flash', 'success', 'Post updated — the previous version is in Revisions.');
-      } catch (e) {
-        this.error = (e && e.message) || 'Couldn’t update the post — please try again.';
-        this.step = 'preview'; // The revised document is still good; only the write failed.
-      }
-    },
     // ---- Create ---------------------------------------------------------------
     async create() {
       if (!this.draft || 'creating' === this.step || this.refining) return;
@@ -766,8 +696,6 @@ export default {
       this.staging = null; // In-flight parts land into the detached object and die with it.
       this.stagingActive = false;
       this.composeOrigin = 'idle';
-      this.mode = 'write';
-      this.editing = null;
       this.pick = { q: '', results: [], busy: false, error: '' };
       this.clearHeld();
       this.$nextTick(() => {
@@ -812,11 +740,11 @@ export default {
                  leave-this-screen acts share the corner. From the picker it
                  returns to the brief; from an edit it returns to the picker. -->
             <button
-              v-if="'pick' === step || ('edit' === mode && ('preview' === step || 'creating' === step))"
+              v-if="'pick' === step"
               type="button"
               class="ar-linkbtn ar-drawer__back"
               :disabled="refining || 'creating' === step"
-              @click="'pick' === step ? (step = 'idle') : openPicker()"
+              @click="step = 'idle'"
             >← Back</button>
             <button type="button" class="ar-drawer__close" aria-label="Close the assistant" @click="$emit('close')">
               <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" aria-hidden="true"><path d="M4 4l8 8M12 4l-8 8" /></svg>
@@ -915,11 +843,11 @@ export default {
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 109-9 9 9 0 00-6.4 2.7L3 8" /><path d="M3 3v5h5M12 7v5l3.5 2" /></svg>
                 </span>
                 <div class="ar-assist__heldbody">
-                  <p class="ar-assist__heldlabel">{{ 'edit' === mode && editing ? 'Still editing' : 'Continuing previous draft' }}</p>
+                  <p class="ar-assist__heldlabel">Continuing previous draft</p>
                   <!-- The draft's own title, not a description of it: after a day
                        away, "your drafted post" identifies nothing. -->
-                  <p class="ar-assist__heldtitle">{{ ('edit' === mode && editing ? editing.title : draft.title) || 'Untitled' }}</p>
-                  <button type="button" class="ar-linkbtn" @click="restorePreview">{{ 'edit' === mode && editing ? 'Back to the post →' : 'Back to the draft →' }}</button>
+                  <p class="ar-assist__heldtitle">{{ draft.title || 'Untitled' }}</p>
+                  <button type="button" class="ar-linkbtn" @click="restorePreview">Back to the draft →</button>
                 </div>
               </div>
               <!-- Same promise for a shaped outline when no draft holds the spotlight. -->
@@ -1167,16 +1095,6 @@ export default {
 
             <!-- ============ Preview ============ -->
             <template v-else-if="'preview' === step || 'creating' === step">
-              <!-- Editing a real post: say WHICH one, and that visibility is
-                   untouchable here — the one rule of the edit flow. -->
-              <!-- The way back lives in the drawer header's ← Back, beside the close. -->
-              <div v-if="'edit' === mode && editing" class="ar-assist__held ar-assist__editingbar">
-                <span class="ar-assist__heldtext">
-                  Editing “{{ editing.title }}” — it stays {{ editing.statusLabel.toLowerCase() }};
-                  the previous version is kept in Revisions.
-                </span>
-              </div>
-
               <div class="ar-assist__preview">
                 <h3 class="ar-assist__ptitle">{{ draft.title }}</h3>
                 <p v-if="draft.excerpt" class="ar-assist__pexcerpt">{{ draft.excerpt }}</p>
@@ -1253,29 +1171,15 @@ export default {
                     <button type="button" class="ar-linkbtn" :disabled="refining || 'creating' === step" @click="compose(usedOutline)">Try again</button>
                   </div>
                   <div class="ar-assist__footrow ar-assist__footrow--commit">
-                    <button v-if="'edit' === mode" type="button" class="ar-linkbtn ar-assist__resetlink" :disabled="refining || 'creating' === step" @click="confirmReset = true">Start over</button>
                     <span class="ar-assist__spacer"></span>
-                    <template v-if="'write' === mode">
-                      <select v-model="statusChoice" class="ar-assist__status" :disabled="refining || 'creating' === step" aria-label="Save as">
-                        <option value="draft">as a draft</option>
-                        <option value="pending">as pending review</option>
-                      </select>
-                      <button type="button" class="ar-btn ar-assist__go" :disabled="refining || 'creating' === step" @click="create">
-                        <span v-if="'creating' === step" class="ar-spinner ar-assist__spin" aria-hidden="true"></span>
-                        {{ 'creating' === step ? 'Creating…' : 'Create draft' }}
-                      </button>
-                    </template>
-                    <template v-else>
-                      <!-- Editing a draft: "Update draft" says it all, no note
-                           needed. Any other status keeps the generic button and
-                           the "stays …" note — on a published post that note is
-                           the warning that the change goes live on update. -->
-                      <span v-if="editing && 'draft' !== editing.status" class="ar-assist__statusnote">stays {{ editing.statusLabel.toLowerCase() }}</span>
-                      <button type="button" class="ar-btn ar-assist__go" :disabled="refining || 'creating' === step" @click="update">
-                        <span v-if="'creating' === step" class="ar-spinner ar-assist__spin" aria-hidden="true"></span>
-                        {{ 'creating' === step ? 'Updating…' : (editing && 'draft' === editing.status ? 'Update draft' : 'Update post') }}
-                      </button>
-                    </template>
+                    <select v-model="statusChoice" class="ar-assist__status" :disabled="refining || 'creating' === step" aria-label="Save as">
+                      <option value="draft">as a draft</option>
+                      <option value="pending">as pending review</option>
+                    </select>
+                    <button type="button" class="ar-btn ar-assist__go" :disabled="refining || 'creating' === step" @click="create">
+                      <span v-if="'creating' === step" class="ar-spinner ar-assist__spin" aria-hidden="true"></span>
+                      {{ 'creating' === step ? 'Creating…' : 'Create draft' }}
+                    </button>
                   </div>
                 </template>
                 <div v-else class="ar-assist__footrow">
@@ -1293,18 +1197,14 @@ export default {
                 <span class="ar-assist__doneicon" aria-hidden="true">
                   <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9" /><path d="M8.2 12.4l2.6 2.6 5-5.4" /></svg>
                 </span>
-                <h3 class="ar-assist__donetitle">{{ 'edit' === mode ? 'Post updated' : statusLabel(post.status) + ' created' }}</h3>
-                <p v-if="'edit' === mode" class="ar-assist__donetext">
-                  “{{ post.title }}” was updated — its status didn’t change, and the previous
-                  version is saved under Revisions in the editor.
-                </p>
-                <p v-else class="ar-assist__donetext">
+                <h3 class="ar-assist__donetitle">{{ statusLabel(post.status) + ' created' }}</h3>
+                <p class="ar-assist__donetext">
                   “{{ post.title }}” is waiting {{ 'pending' === post.status ? 'for review' : 'in your drafts' }} —
                   nothing is published.
                 </p>
                 <div class="ar-assist__doneactions">
                   <a class="ar-btn" :href="post.editUrl" target="_blank" rel="noopener noreferrer">Open in editor</a>
-                  <button type="button" class="ar-btn ar-btn--ghost" @click="writeAnother">{{ 'edit' === mode ? 'Start another' : 'Write another' }}</button>
+                  <button type="button" class="ar-btn ar-btn--ghost" @click="writeAnother">Write another</button>
                 </div>
                 <p class="ar-assist__nudge">
                   Tip: in the editor, run the <strong>AI Readability</strong> check (the Agentimus box)

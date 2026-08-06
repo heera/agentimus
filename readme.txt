@@ -16,9 +16,7 @@ Agentimus is an all-in-one AI SEO plugin for the age of AI agents — AEO (Answe
 
 **It makes your site legible and citable.** It helps AI assistants like ChatGPT, Claude and Perplexity find your site, read it correctly, and cite it in your own words — and shows you which AI bots are actually visiting. **You don't need to understand AI or web standards to use it:** a setup wizard walks you through everything in about a minute, then it runs on its own.
 
-**And it lets the AI tools you already use operate your site.** Turn on the built-in Model Context Protocol (MCP) server and Claude Code, Claude Desktop, Cursor or Codex can read your reports and — behind two more opt-in switches — **draft, edit and publish posts** for you, every write running as the signed-in user, permission-checked and audited. All three switches are off by default. Prefer to stay in wp-admin? A built-in **writing assistant** drafts and revises posts there. (Full details below.)
-
-You also get a first-party log of the AI crawlers reading you, one-click blocking, and an AEO/GEO readiness score that always names the next fix.
+**And it lets the AI tools you already use operate your site.** Turn on the built-in Model Context Protocol (MCP) server and Claude Code, Claude Desktop, Cursor or Codex can read your reports and — behind two more opt-in switches — **draft, edit and publish posts** for you, every write running as the signed-in user, permission-checked and audited. All three switches are off by default. Prefer to stay in wp-admin? A built-in **writing assistant** drafts and revises posts there.
 
 By default it makes no outbound requests, collects no analytics, and logs no IP addresses — everything runs on your own site. Three optional, off-by-default features change that only when you enable them: **AI Visibility**, **Verify bot identities** and **Store IP addresses** (each disclosed in full under *External services*).
 
@@ -26,8 +24,8 @@ By default it makes no outbound requests, collects no analytics, and logs no IP 
 
 **With an SEO plugin — or instead of one**
 
-* **No SEO plugin? You don't need one.** Agentimus covers the search basics itself: per-page SEO titles, social share cards (Open Graph), canonical links, meta descriptions, and an XML sitemap that carries the last-changed dates core's own leaves out.
-* **Already running Yoast, Rank Math, SEOPress, AIOSEO or The SEO Framework?** Agentimus detects it and steps aside on every overlapping surface — titles, cards, schema, sitemap — automatically. No duplicate tags, ever: it adds only the AI layer your SEO plugin doesn't cover.
+* **No SEO plugin? You don't need one.** Agentimus covers the search basics itself: per-page SEO titles, social share cards (Open Graph), canonical links, meta descriptions, and an XML sitemap carrying the last-changed dates core's own leaves out.
+* **Already running Yoast, Rank Math, SEOPress, AIOSEO or The SEO Framework?** It detects them and steps aside on every overlapping surface — titles, cards, schema, sitemap. No duplicate tags, ever: it adds only the AI layer your SEO plugin doesn't cover.
 
 **Operate your site from your AI agent (MCP) — opt-in**
 
@@ -35,14 +33,13 @@ By default it makes no outbound requests, collects no analytics, and logs no IP 
 * **Connect by approving, not by pasting keys** — an assistant asks *you* for permission on a consent page on your own site; you choose **Read only** or **Read and write**, and each approved assistant gets its own key and its own Disconnect. Standards-based (OAuth 2.1 with PKCE), nothing brokered by a third party; a revocable **shared token** covers clients that can't ask.
 * **Read your site's data** — connected agents run the read-only tools (readiness/AEO-GEO score, AI traffic, request log, bot identification, page / JSON-LD / Markdown previews) — the same ones WordPress's built-in AI gets.
 * **Draft, edit and publish posts — behind two more switches** — turn on **Let connected agents write** and the agent can create and edit posts and pages fully dressed (categories, tags, featured image, AI topics and descriptions) and apply Readiness fixes; turn on a third switch and it may publish, otherwise it leaves drafts for your review.
-* **Safe by construction** — every write runs as the signed-in WordPress user, never exceeding their permissions, and is recorded under **More → Agent Access**. Nothing is public, and with the write switch off the write tools don't exist on any surface. All three switches are off by default.
+* **Safe by construction** — every write runs as the signed-in WordPress user, never exceeding their permissions, and is recorded under **More → Agent Access**. Nothing is public, and with the write switch off the write tools don't exist on any surface.
 
 **Write with AI in wp-admin — the built-in assistant (opt-in)**
 
-* **Idea → draft without leaving wp-admin** — a quill button opens the writing assistant: describe the post, edit the outline it proposes, and preview the complete draft — real editor blocks, AI description, topics, categories, tags. Nothing is saved until you click **Create draft**, and it never publishes.
-* **Edit existing posts** — describe the change and it revises the content; a post's status never changes, and WordPress revisions keep every prior version.
-* **Images where you write** — alt-filled placeholders in drafts, **Generate image from the alt text** on every image block, a **Featured image (AI)** sidebar panel — or pick from your library.
-* **Ask AI on any block** — rewrite, shorten or extend any block with one instruction; undo brings it back. Everything runs on WordPress's built-in AI Client (7.0+, Settings → AI — Agentimus never sees your key), and every AI button hides until a provider is set up.
+* **Idea → draft without leaving wp-admin** — a quill button opens the writing assistant: pick posts or pages, describe what you want, shape the outline it proposes, then preview the complete draft — real editor blocks, AI description, topics, categories, tags. A page is written as a page: no invented sections, no image slots. Nothing is saved until you click **Create draft**, and it never publishes.
+* **Ask AI in the editor — one block, a selection, or the whole post** — rewrite or extend the block you're in; select several and change them with one instruction; or ask about the whole post and get back a list of proposed edits — rewrite this, delete that, add a section here — each with its reason, to accept or reject one at a time. Blocks the plan doesn't name are never touched, and undo steps back through everything.
+* **Images where you write** — alt-filled placeholders in drafts, **Generate image from the alt text** on every image block, a **Featured image (AI)** sidebar panel — or pick from your library. Everything runs on WordPress's built-in AI Client (7.0+, Settings → AI — Agentimus never sees your key), and every AI button hides until a provider is set up.
 
 **Control — who may use your content**
 
@@ -51,7 +48,7 @@ By default it makes no outbound requests, collects no analytics, and logs no IP 
 
 **Reduce exposure — what your site reveals to bots**
 
-* **Exposure controls (opt-in, all OFF by default)** — switches that quietly close what stock WordPress reveals to anonymous crawlers: username enumeration, author archives, the WordPress version, the auto-generated `<head>` discovery links, and XML-RPC. Nothing changes until you turn one on, and signed-in admins and the block editor are never affected. Exposure hygiene, not a firewall.
+* **Exposure controls (opt-in, all OFF by default)** — switches that quietly close what stock WordPress reveals to anonymous crawlers: username enumeration, author archives, the WordPress version, the auto-generated `<head>` discovery links, and XML-RPC. Signed-in admins and the block editor are never affected. Exposure hygiene, not a firewall.
 
 **Visibility — who is reading you**
 
@@ -92,17 +89,13 @@ By default it makes no outbound requests, collects no analytics, and logs no IP 
 
 **Machine discovery (forward-looking)**
 
-Agentimus also publishes a single, normalized discovery document — the conventions the agent ecosystem is converging on (`.well-known`, A2A agent cards, MCP-shaped tools) — putting identity, capabilities and APIs in one predictable place:
+Everything above is read by search engines and AI tools **today**. This part is forward-looking: a single, normalized discovery document — the conventions the agent ecosystem is converging on (`.well-known`, A2A agent cards, MCP-shaped tools) — putting identity, capabilities and APIs in one predictable place:
 
 * **/.well-known/discovery.json** — an owner-curated document describing the site's identity, capabilities, APIs and agent cards. Other plugins can declare themselves through one optional hook.
 * **/.well-known/agent-card.json** and **/.well-known/mcp.json** — an A2A agent card and an MCP manifest, generated automatically.
-* **Standards-aligned `.well-known` endpoints** — an RFC 9727 `api-catalog`, plus — *only when the capability actually exists* — an MCP server card and an Agent Skills index. Optional **response signing** (Web Bot Auth / HTTP Message Signatures, RFC 9421) signs the discovery documents with an Ed25519 key so agents can verify they came from you; on by default, and the private key stays on your server.
-* **WordPress Abilities API** — Agentimus registers its own **read-only abilities** (readiness/AEO-GEO score, AI traffic, request log, bot checks, and page / JSON-LD / Markdown previews), so WordPress's built-in AI — and, with the MCP adapter, external agents — can read them, each gated by the same capability as its screen. A separate, off-by-default switch adds the write abilities above.
+* **Standards-aligned `.well-known` endpoints** — an RFC 9727 `api-catalog`, plus — *only when the capability actually exists* — an MCP server card and an Agent Skills index. **Response signing** (Web Bot Auth / HTTP Message Signatures, RFC 9421) signs them with an Ed25519 key that never leaves your server, so agents can verify they came from you; on by default.
+* **WordPress Abilities API** — the same read-only tools are registered as WordPress abilities, so its built-in AI — and, with the MCP adapter, external agents — can read them, each gated by the same capability as its screen. A separate, off-by-default switch adds the write abilities above.
 * **Zero-config auto-discovery** — reads your REST namespaces, public post types and the Abilities API, so a site is described even when no plugin declares itself; the **Discovery Hub** screen shows what an agent sees, and you decide what is published.
-
-**What's read today vs. what it readies you for**
-
-The content signals above are read by search engines and AI tools **today**; the discovery document is **forward-looking**, preparing your site for agents as they adopt these conventions.
 
 **Why it's useful**
 

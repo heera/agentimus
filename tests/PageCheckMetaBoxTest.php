@@ -37,7 +37,10 @@ final class PageCheckMetaBoxTest extends TestCase {
 		$post = new \WP_Post( array( 'ID' => 2, 'post_content' => '<p>Just a few words.</p>' ) );
 		$html = PageCheckMetaBox::rows_html( $post );
 
-		$this->assertStringContainsString( 'Thin content', $html );
+		// The label names the gap without grading the writing — these strings are
+		// quoted verbatim on the Optimize screen, where "Thin content" read as a
+		// verdict on the author rather than a thing to do.
+		$this->assertStringContainsString( 'Not enough substance yet', $html );
 		$this->assertStringContainsString( 'is-warn', $html );
 	}
 

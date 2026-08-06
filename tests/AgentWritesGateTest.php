@@ -127,7 +127,7 @@ namespace Agentimus\Tests {
 		public function test_readability_summary_compacts_rows_for_the_write_response() {
 			$rows = array(
 				array( 'id' => 'words', 'label' => 'Enough substance', 'status' => 'pass', 'detail' => 'plenty' ),
-				array( 'id' => 'reading_ease', 'label' => 'Hard to read', 'status' => 'warn', 'detail' => 'Score 33' ),
+				array( 'id' => 'reading_ease', 'label' => 'Low reading ease', 'status' => 'warn', 'detail' => 'Score 33' ),
 				array( 'id' => 'alt_text', 'label' => 'Image alt text', 'status' => 'fail', 'detail' => '2 images missing alt' ),
 				array( 'id' => 'mystery', 'label' => 'From a filter', 'status' => 'meh', 'detail' => 'unknown status' ),
 			);

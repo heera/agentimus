@@ -489,6 +489,9 @@ final class Index {
 			'site_total'  => $state['site_total'],
 			'sitemaps'    => $state['sitemaps'],
 			'sitemaps_at' => $state['sitemaps_at'],
+			// Carried through untouched: this is a record of what the OWNER did,
+			// not of anything Google said, so a sweep has no business clearing it.
+			'opened'      => $state['opened'],
 		);
 		update_option( self::OPTION, $payload, false );
 		return $payload;
@@ -665,6 +668,9 @@ final class Index {
 			'queue'      => isset( $raw['queue'] ) && is_array( $raw['queue'] ) ? $raw['queue'] : array(),
 			'blips'      => (int) ( isset( $raw['blips'] ) ? $raw['blips'] : 0 ),
 			'cov'        => isset( $raw['cov'] ) && is_array( $raw['cov'] ) ? $raw['cov'] : array(),
+			// url => unix time the owner opened that row in Search Console. OUR
+			// record of THEIR click; never a claim about Google's queue.
+			'opened'     => isset( $raw['opened'] ) && is_array( $raw['opened'] ) ? $raw['opened'] : array(),
 			'rot_cursor' => (int) ( isset( $raw['rot_cursor'] ) ? $raw['rot_cursor'] : 0 ),
 			'site_total' => (int) ( isset( $raw['site_total'] ) ? $raw['site_total'] : 0 ),
 			'sitemaps'    => isset( $raw['sitemaps'] ) && is_array( $raw['sitemaps'] ) ? $raw['sitemaps'] : array(),
@@ -852,6 +858,12 @@ final class Index {
 	 * @return array
 	 */
 	private static function row_view( array $row ) {
+		// Read per row, not cached in a static: mark_opened() can write during the
+		// same request that renders the answer, and a static would hand back the
+		// state from before the click. get_option is already memory-cached, so
+		// the honest version costs nothing. {@see mark_opened()}.
+		$opened = self::stored()['opened'];
+
 		$verdict   = strtoupper( (string) ( isset( $row['verdict'] ) ? $row['verdict'] : '' ) );
 		$row_error = (string) ( isset( $row['error'] ) ? $row['error'] : '' );
 		$canonical = (string) ( isset( $row['google_canonical'] ) ? $row['google_canonical'] : '' );
@@ -890,6 +902,7 @@ final class Index {
 			'richIssues'       => (int) ( isset( $row['rich_issues'] ) ? $row['rich_issues'] : 0 ),
 			'richTypes'        => (string) ( isset( $row['rich_types'] ) ? $row['rich_types'] : '' ),
 			'gscLink'          => (string) ( isset( $row['gsc_link'] ) ? $row['gsc_link'] : '' ),
+			'openedAt'         => (int) ( isset( $opened[ self::norm( $url ) ] ) ? $opened[ self::norm( $url ) ] : 0 ),
 			'inspectedAt'      => (int) ( isset( $row['inspected_at'] ) ? $row['inspected_at'] : 0 ),
 			'healedAt'         => (int) ( isset( $row['healed_at'] ) ? $row['healed_at'] : 0 ),
 			'healedFrom'       => (string) ( isset( $row['healed_from'] ) ? $row['healed_from'] : '' ),
@@ -1043,6 +1056,55 @@ final class Index {
 	 * @param string $url Absolute URL.
 	 * @return string
 	 */
+	/**
+	 * Record that the owner opened this URL in Search Console.
+	 *
+	 * Google keeps no memory of "indexing requested": a fresh inspection shows a
+	 * plain REQUEST INDEXING again, and no API exposes the pending state. So the
+	 * only honest tracker is our own — a note that says what the OWNER did and
+	 * when, never a claim about Google's queue. The row says "console opened
+	 * {date}", which is true, rather than "indexing requested", which we cannot
+	 * know. Survives sweeps: {@see sweep()} carries `opened` through untouched.
+	 *
+	 * @param string $url The URL whose Search Console link was opened.
+	 * @return int Unix time recorded, or 0 when the URL isn't one we hold.
+	 */
+	public static function mark_opened( $url ) {
+		$url = esc_url_raw( (string) $url );
+		if ( '' === $url ) {
+			return 0;
+		}
+
+		$state = self::stored();
+		$key   = self::norm( $url );
+
+		// Only URLs this card actually knows about. Anything else would grow the
+		// option without bound on a hand-crafted request, and would put a note on
+		// a row that will never render.
+		$known = isset( $state['cov'][ $key ] );
+		if ( ! $known ) {
+			foreach ( $state['rows'] as $row ) {
+				if ( self::norm( (string) $row['url'] ) === $key ) {
+					$known = true;
+					break;
+				}
+			}
+		}
+		if ( ! $known ) {
+			return 0;
+		}
+
+		$now                    = time();
+		$state['opened'][ $key ] = $now;
+
+		$raw           = get_option( self::OPTION, array() );
+		$raw           = is_array( $raw ) ? $raw : array();
+		$raw['opened'] = $state['opened'];
+		update_option( self::OPTION, $raw, false );
+
+		return $now;
+	}
+
 	private static function norm( $url ) {
 		$url  = rtrim( (string) $url, '/' );
 		$head = (string) wp_parse_url( $url, PHP_URL_SCHEME ) . '://' . (string) wp_parse_url( $url, PHP_URL_HOST );

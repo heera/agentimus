@@ -372,7 +372,6 @@
 .ar-assist__error { margin: 10px 0 0; font-size: 11.5px; font-weight: 500; line-height: 1.55; color: var(--ar-bad); }
 .ar-assist__actions { display: flex; align-items: center; gap: 10px; margin-top: 14px; }
 .ar-assist__actions .ar-assist__go { margin-left: auto; display: inline-flex; align-items: center; gap: 7px; }
-.ar-assist__actions--preview { flex-wrap: wrap; }
 .ar-assist__spacer { flex: 1; }
 /* Compound selector on purpose: the base .ar-spinner (26px) is declared LATER
    in this file and would win the tie — this must outrank it, or every button
@@ -482,19 +481,6 @@
 .ar-assist__resetlink { color: var(--ar-ink-faint); }
 .ar-assist__resetlink:hover { color: var(--ar-bad); }
 
-/* Edit-existing: the second door on the brief screen, the post picker, and
- * the editing banner + status note on the preview. */
-.ar-assist__editentry {
-  margin-top: 16px; padding-top: 12px; border-top: 1px dashed var(--ar-line);
-  font-size: 11.5px; color: var(--ar-ink-faint); text-align: right;
-}
-/* Beside the brief's title the second door needs no divider of its own. */
-.ar-assist__labelrow {
-  display: flex; align-items: baseline; justify-content: space-between;
-  gap: 6px 12px; flex-wrap: wrap; margin-bottom: 7px;
-}
-.ar-assist__labelrow .ar-assist__label { margin-bottom: 0; }
-.ar-assist__editentry--top { margin: 0; padding: 0; border-top: 0; }
 .ar-assist__postlist { display: grid; gap: 8px; margin-top: 12px; }
 /* A row is an <a> now, so it carries link resets rather than button ones — and
    no blocked state: the list stopped refusing rows when it stopped rewriting
@@ -513,8 +499,6 @@
 .ar-assist__postgo { margin-left: auto; color: var(--ar-accent); opacity: 0; transition: opacity 0.15s ease; }
 .ar-assist__postitem:hover .ar-assist__postgo,
 .ar-assist__postitem:focus-visible .ar-assist__postgo { opacity: 1; }
-.ar-assist__editingbar { margin: 0 0 12px; }
-.ar-assist__statusnote { font-family: var(--ar-mono); font-size: 10.5px; letter-spacing: 0.04em; text-transform: uppercase; color: var(--ar-ink-faint); }
 
 /* Start over's confirm, wherever it's armed — the brief's action row and both
    pinned feet share these two. (The brief screen's separate dashed strip is
@@ -1736,6 +1720,11 @@ td.ar-edge__n.is-bad { color: var(--ar-bad); font-weight: 600; }
 /* The quiet door to Search Console — where "Request indexing" lives. */
 .ar-gidx__gsc { margin-left: 10px; font-size: 11px; color: var(--ar-info); text-decoration: none; white-space: nowrap; }
 .ar-gidx__gsc:hover { text-decoration: underline; }
+/* Our record of the owner's own click, under the door it belongs to. Deliberately
+   quiet and deliberately worded as a fact about them, not about Google: no API
+   exposes whether an indexing request is pending, so this is the only claim
+   anyone here can make truthfully. */
+.ar-gidx__opened { display: block; margin-left: 10px; font-size: 10.5px; line-height: 1.6; color: var(--ar-ink-faint); white-space: nowrap; }
 /* The whole-site section under the watchlist. */
 .ar-gidx__siteeyebrow { margin-top: 24px; }
 .ar-gidx__siteline { margin: 8px 0 0; font-size: 13px; line-height: 1.55; color: var(--ar-ink-soft); }

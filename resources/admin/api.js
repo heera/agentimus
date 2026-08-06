@@ -165,19 +165,15 @@ export function createApi(boot) {
     // …and the explicit materialise step (drafts/pending only, never publish).
     assistantCreate: (payload) =>
       request('/assistant/create', { method: 'POST', body: JSON.stringify(payload) }),
-    // Edit-existing: search the owner's posts (each with an honest can-edit
-    // verdict), fetch one as an editable document, and the explicit update —
-    // which NEVER carries a status: the assistant edits content, not visibility.
-    // The picker's list is filterable by type; an empty filter means every
-    // agent-visible type, which is the list's own default.
+    // The picker: search what the owner has already written, so a row can open
+    // it in the block editor. Read-only — revising something that exists happens
+    // there, through the editor's own Ask AI panel, not in the drawer. Filterable
+    // by type; an empty filter means every agent-visible type.
     assistantPosts: (q, type) =>
       request(
         '/assistant/posts?q=' + encodeURIComponent(q || '') +
         (type ? '&type=' + encodeURIComponent(type) : '')
       ),
-    assistantPost: (id) => request('/assistant/post/' + id),
-    assistantUpdate: (payload) =>
-      request('/assistant/update', { method: 'POST', body: JSON.stringify(payload) }),
     // The full changelog for the in-admin dialog — parsed from the bundled readme,
     // no outbound call.
     getChangelog: () => request('/changelog'),
@@ -258,6 +254,11 @@ export function createApi(boot) {
     refreshGoogleIndex: () => request('/google/index', { method: 'POST' }),
     lookupGoogleIndex: (url) => request(`/google/index/lookup?url=${encodeURIComponent(url)}`),
     googleIndexProblems: (state, page) => request(`/google/index/problems?state=${encodeURIComponent(state)}&page=${Math.max(1, Number(page) || 1)}`),
+    // Remembers that the owner opened a row in Search Console. Writes nothing to
+    // Google and asks it nothing — Google keeps no memory of "indexing
+    // requested", so our record of the click is the only honest one there is.
+    markGoogleIndexOpened: (url) =>
+      request('/google/index/opened', { method: 'POST', body: JSON.stringify({ url }) }),
 
     // AI Visibility monitoring.
     getVisibilityConfig: () => request('/visibility/config'),
