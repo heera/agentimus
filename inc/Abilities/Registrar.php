@@ -637,6 +637,7 @@ final class Registrar {
 				array(
 					'problemsState' => self::s( 'Optional: a problem bucket (error | canonical | unknown | discovered | crawled | blocked | other) — site.problems becomes one page of exactly that state\'s rows.' ),
 					'problemsPage'  => self::i( 'Optional: 1-based page of 50 within problemsState; ignored without it. Beyond the last page, site.problems is empty.' ),
+					'url'           => self::s( 'Optional: ONE page to answer for, absolute or site-relative. Answers from the stored record only — no live call to Google, no quota spent — so use it to ask "is THIS page in?" without walking rows. Adds `lookup` to the response; the rest of the payload is unchanged.' ),
 				)
 			),
 			self::obj(
@@ -706,6 +707,13 @@ final class Registrar {
 						)
 					),
 					'rows'      => self::arr( $index_row ),
+					'lookup'    => self::obj(
+						array(
+							'status' => self::s( 'Only present when `url` was asked for. found = a stored answer is in `row`; unchecked = this site\'s page, no answer stored yet (site.cycleDays says when the rotation reaches it); foreign = not a URL on this site, so it is never checked here.' ),
+							'url'    => self::s( 'The URL as asked, resolved against the site when it was site-relative.' ),
+							'row'    => self::obj( $index_row ),
+						)
+					),
 				)
 			),
 			function ( $input ) {
@@ -715,6 +723,22 @@ final class Registrar {
 					$paged                     = GoogleIndex::problems_page( $state, isset( $input['problemsPage'] ) ? (int) $input['problemsPage'] : 1 );
 					$view['site']['problems']  = $paged['rows'];
 				}
+
+				// The twin of the card's own lookup box: the coverage map already
+				// remembers every checked page, so answering "is this one page in?"
+				// costs a read and nothing else. Deliberately NOT a live check —
+				// an agent should not be able to spend the owner's daily
+				// inspection budget by asking a question.
+				$url = isset( $input['url'] ) ? trim( (string) $input['url'] ) : '';
+				if ( '' !== $url ) {
+					$found            = GoogleIndex::lookup( $url );
+					$view['lookup']   = array(
+						'status' => (string) $found['status'],
+						'url'    => '/' === $url[0] ? home_url( $url ) : $url,
+						'row'    => $found['row'],
+					);
+				}
+
 				return $view;
 			},
 			$manage

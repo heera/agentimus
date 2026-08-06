@@ -254,6 +254,29 @@ final class Module {
 	 * @param float $budget Seconds this chunk may spend inspecting.
 	 * @return array|null The stored payload, or null when not connected.
 	 */
+	/**
+	 * One live inspection, on the owner's click. Same auth path as the sweep,
+	 * one URL instead of a queue, and no cron: this is never scheduled, because
+	 * it exists to answer a question someone is asking right now.
+	 *
+	 * @param string $url The URL to inspect.
+	 * @return array{status:string,row:?array,error:string}
+	 */
+	public function inspect_one( $url ) {
+		$sa_json  = $this->settings->sa_json();
+		$property = (string) $this->settings->get( 'property', '' );
+		if ( '' === $sa_json || '' === $property ) {
+			return array( 'status' => 'error', 'row' => null, 'error' => __( 'Google Search Console is not connected.', 'agentimus' ) );
+		}
+
+		$auth = Auth::token( $sa_json );
+		if ( isset( $auth['error'] ) ) {
+			return array( 'status' => 'error', 'row' => null, 'error' => (string) $auth['error'] );
+		}
+
+		return Index::inspect_now( $this->client, $auth['token'], $property, $url );
+	}
+
 	public function run_index_sweep( $budget = 6.0 ) {
 		$sa_json  = $this->settings->sa_json();
 		$property = (string) $this->settings->get( 'property', '' );

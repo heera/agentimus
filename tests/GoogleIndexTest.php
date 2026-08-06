@@ -950,4 +950,75 @@ final class GoogleIndexTest extends TestCase {
 		// note has to be in there or the next sweep silently erases the record.
 		$this->assertSame( 1753900000, Index::stored()['opened']['https://example.test/alpha'] );
 	}
+
+	/* -- Check it now: one live inspection on an explicit click ---------------- */
+
+	public function test_a_live_check_stores_its_answer_where_that_url_already_lives() {
+		update_option( Index::OPTION, array(
+			'rows' => array(
+				array( 'url' => 'https://example.test/watched/', 'post_id' => 3, 'reason' => 'busy', 'verdict' => 'FAIL', 'coverage_state' => 'Crawled – currently not indexed', 'inspected_at' => 100 ),
+			),
+			'cov'  => array(),
+		) );
+		$this->queue_inspection( array( 'verdict' => 'PASS', 'coverageState' => 'Submitted and indexed' ) );
+
+		$out = Index::inspect_now( new Client(), 'tok', 'sc-domain:example.test', 'https://example.test/watched/' );
+
+		$this->assertSame( 'checked', $out['status'] );
+		$this->assertSame( 'pass', $out['row']['verdict'] );
+
+		$stored = Index::stored();
+		$this->assertCount( 1, $stored['rows'], 'A watch row is REPLACED, never duplicated into coverage.' );
+		$this->assertSame( 'PASS', $stored['rows'][0]['verdict'] );
+		$this->assertSame( 'busy', $stored['rows'][0]['reason'], 'An out-of-band check says nothing about why the page is watched.' );
+		$this->assertNotEmpty( $stored['rows'][0]['healed_at'], 'A watch row that just turned healthy announces it, exactly as a sweep would.' );
+	}
+
+	public function test_a_live_check_on_an_unwatched_page_becomes_a_coverage_entry() {
+		update_option( Index::OPTION, array( 'rows' => array(), 'cov' => array() ) );
+		$this->queue_inspection( array( 'verdict' => 'PASS', 'coverageState' => 'Submitted and indexed' ) );
+
+		Index::inspect_now( new Client(), 'tok', 'sc-domain:example.test', 'https://example.test/quiet/' );
+
+		$cov = Index::stored()['cov'];
+		$this->assertArrayHasKey( 'https://example.test/quiet', $cov );
+		// Healthy pages shrink to a count the same way the rotation shrinks them,
+		// or a manual check would leave a page stored unlike its neighbours.
+		$this->assertSame( 'PASS', $cov['https://example.test/quiet']['verdict'] );
+		$this->assertArrayNotHasKey( 'coverage_state', $cov['https://example.test/quiet'] );
+		$this->assertSame( array(), Index::stored()['rows'], 'It is not promoted to a row.' );
+	}
+
+	public function test_a_foreign_url_is_refused_before_an_inspection_is_spent() {
+		update_option( Index::OPTION, array( 'rows' => array(), 'cov' => array() ) );
+		$GLOBALS['_af_http_queue'] = array();
+
+		$out = Index::inspect_now( new Client(), 't', 'p', 'https://elsewhere.test/x/' );
+
+		$this->assertSame( 'foreign', $out['status'] );
+		// Nothing was dequeued: Google is never asked about a URL it could not
+		// answer for, and the day's budget is not spent learning that.
+		$this->assertSame( array(), $GLOBALS['_af_http_queue'] );
+	}
+
+	public function test_the_three_failure_lanes_stay_apart() {
+		update_option( Index::OPTION, array( 'rows' => array(), 'cov' => array() ) );
+
+		// Quota is the DAY's problem, not the page's — nothing is written down.
+		$this->queue_error( 429, 'rate limited' );
+		$this->assertSame( 'quota', Index::inspect_now( new Client(), 't', 'p', 'https://example.test/a/' )['status'] );
+		$this->assertSame( array(), Index::stored()['cov'] );
+
+		// Transport/token says nothing about the page, so no verdict is stored.
+		$this->queue_error( 401, 'token expired' );
+		$this->assertSame( 'error', Index::inspect_now( new Client(), 't', 'p', 'https://example.test/a/' )['status'] );
+		$this->assertSame( array(), Index::stored()['cov'] );
+
+		// A 400 IS about this URL, so it becomes this URL's answer.
+		$this->queue_error( 400, 'not in property' );
+		$out = Index::inspect_now( new Client(), 't', 'p', 'https://example.test/a/' );
+		$this->assertSame( 'checked', $out['status'] );
+		$this->assertStringContainsString( 'not in property', $out['row']['error'] );
+		$this->assertArrayHasKey( 'https://example.test/a', Index::stored()['cov'] );
+	}
 }

@@ -59,6 +59,14 @@ export default {
       // the question that produced it — editing or clearing the box drops it.
       lookupFor: '',
       lookupBusy: false,
+      // The live single-URL check, which spends one of the day's inspections —
+      // separate from lookupBusy so the stored answer stays on screen while the
+      // fresh one is being fetched.
+      // The URL currently being asked about, '' when idle. Per-URL rather than a
+      // single boolean because the button now sits on every row: one spinner on
+      // the row that was clicked, not on all of them.
+      checkingUrl: '',
+      checkError: '',
     };
   },
   computed: {
@@ -477,6 +485,41 @@ export default {
         this.lookupBusy = false;
       }
     },
+    // ONE live inspection, on an explicit click. The lookup above reads storage
+    // and costs nothing; this asks Google and spends one of the day's 2,000, so
+    // it is never automatic and never part of loading the card.
+    //
+    // The answer replaces the stored one server-side, and the whole view comes
+    // back with it: one fresh verdict can empty a problem group and moves the
+    // site counts, so repainting only the row would leave the totals above it
+    // describing a site that no longer exists.
+    async checkNow(url) {
+      if (!this.api || !url || this.checkingUrl) return;
+      this.checkingUrl = url;
+      this.checkError = '';
+      try {
+        const r = await this.api.checkGoogleIndexUrl(url);
+        if (r && r.view) this.view = r.view;
+        // The lookup answer, when it happens to be about the same page.
+        if (r && r.row && this.lookupOut && this.lookupOut.row && this.lookupOut.row.url === url) {
+          this.lookupOut = { status: 'found', row: r.row, cycleDays: this.site.cycleDays };
+        }
+        // Problem groups are fetched separately from the view, so a page that
+        // just healed would otherwise sit in its old bucket until something
+        // else reloaded it — the group would contradict the counts above it.
+        this.refreshGroups();
+      } catch (e) {
+        this.checkError = (e && e.message) || 'The check didn’t come back — try again.';
+      } finally {
+        this.checkingUrl = '';
+      }
+    },
+    // The row-level door: short, because it shares a 158px lane with the
+    // Search Console link, and "Re-check" is the truth on a row that already
+    // carries an answer.
+    checkLabel(url) {
+      return this.checkingUrl === url ? 'Asking…' : 'Re-check';
+    },
     day(ts) {
       const t = Number(ts || 0) * 1000;
       return t ? formatDate(new Date(t), true) : '';
@@ -616,6 +659,8 @@ export default {
                   </span>
                   <span class="ar-gidx__crawl">{{ r.lastCrawl ? `visited ${day(r.lastCrawl)}` : 'never visited' }}</span>
                   <span class="ar-gidx__door">
+                    <button type="button" class="ar-linkbtn ar-gidx__recheck" :disabled="!!checkingUrl" @click="checkNow(r.url)">{{ checkLabel(r.url) }}</button>
+                    <span v-if="r.gscLink" class="ar-gidx__doorsep" aria-hidden="true">·</span>
                     <a v-if="r.gscLink" class="ar-gidx__gsc" :href="r.gscLink" target="_blank" rel="noopener" @click="noteOpened(r)">Open in Search Console ↗</a>
                     <span v-if="r.openedAt" class="ar-gidx__opened">console opened {{ day(r.openedAt) }}</span>
                   </span>
@@ -665,6 +710,8 @@ export default {
                   </span>
                   <span class="ar-gidx__crawl">{{ r.lastCrawl ? `visited ${day(r.lastCrawl)}` : (r.error ? '' : 'never visited') }}</span>
                   <span class="ar-gidx__door">
+                    <button type="button" class="ar-linkbtn ar-gidx__recheck" :disabled="!!checkingUrl" @click="checkNow(r.url)">{{ checkLabel(r.url) }}</button>
+                    <span v-if="r.gscLink" class="ar-gidx__doorsep" aria-hidden="true">·</span>
                     <a v-if="r.gscLink" class="ar-gidx__gsc" :href="r.gscLink" target="_blank" rel="noopener" @click="noteOpened(r)">Open in Search Console ↗</a>
                     <span v-if="r.openedAt" class="ar-gidx__opened">console opened {{ day(r.openedAt) }}</span>
                   </span>
@@ -760,6 +807,19 @@ export default {
                 That address isn't on this site — only this site's pages are checked.
               </p>
               <p v-else-if="lookupOut.status === 'error'" class="ar-gidx__note is-err ar-gidx__lookupmsg">{{ lookupOut.message }}</p>
+
+              <!-- The one place a live call is offered, and only after a stored
+                   answer has been shown: the stored answer is free and usually
+                   enough, so asking Google is the deliberate second step, not
+                   the default. Offered for a page never checked too — that is
+                   exactly when waiting for the rotation is the wrong answer. -->
+              <p v-if="lookupOut.status === 'found' || lookupOut.status === 'unchecked'" class="ar-gidx__checkrow">
+                <button type="button" class="ar-linkbtn" :disabled="!!checkingUrl" @click="checkNow(lookupOut.row ? lookupOut.row.url : lookupFor)">
+                  {{ checkingUrl ? 'Asking Google…' : 'Check it now' }}
+                </button>
+                <span class="ar-gidx__checkhint">Asks Google about this one page and spends one of today's checks.</span>
+              </p>
+              <p v-if="checkError" class="ar-gidx__note is-err ar-gidx__lookupmsg">{{ checkError }}</p>
             </template>
             <p class="ar-gidx__lookuphint">
               Answers come from the stored daily checks, not a live call — this is

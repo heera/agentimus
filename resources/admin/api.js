@@ -254,6 +254,11 @@ export function createApi(boot) {
     refreshGoogleIndex: () => request('/google/index', { method: 'POST' }),
     lookupGoogleIndex: (url) => request(`/google/index/lookup?url=${encodeURIComponent(url)}`),
     googleIndexProblems: (state, page) => request(`/google/index/problems?state=${encodeURIComponent(state)}&page=${Math.max(1, Number(page) || 1)}`),
+    // ONE live inspection, on an explicit click — spends one of the day's 2,000.
+    // Answers with the fresh row AND the whole refreshed view, because a single
+    // verdict moves the site counts and can empty a problem group.
+    checkGoogleIndexUrl: (url) =>
+      request('/google/index/check', { method: 'POST', body: JSON.stringify({ url }) }),
     // Remembers that the owner opened a row in Search Console. Writes nothing to
     // Google and asks it nothing — Google keeps no memory of "indexing
     // requested", so our record of the click is the only honest one there is.

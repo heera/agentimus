@@ -72,6 +72,16 @@ final class Rest {
 				),
 			),
 		) );
+		register_rest_route( self::NS, '/google/index/check', array(
+			array(
+				'methods'             => \WP_REST_Server::CREATABLE,
+				'callback'            => array( $this, 'index_check' ),
+				'permission_callback' => array( $this, 'can_manage' ),
+				'args'                => array(
+					'url' => array( 'type' => 'string', 'required' => true ),
+				),
+			),
+		) );
 		register_rest_route( self::NS, '/google/index/opened', array(
 			array(
 				'methods'             => \WP_REST_Server::CREATABLE,
@@ -253,6 +263,55 @@ final class Rest {
 		$view             = Index::view( $this->google );
 		$out['cycleDays'] = (int) $view['site']['cycleDays'];
 		return rest_ensure_response( $out );
+	}
+
+	/**
+	 * POST /google/index/check?url= — inspect ONE url live, right now.
+	 *
+	 * The lookup above answers from storage and costs nothing; this asks Google
+	 * and spends one of the day's 2,000 inspections, so it only ever runs on an
+	 * explicit click. The fresh answer is stored where that URL already lives,
+	 * so the card can't end up showing yesterday's verdict beside today's.
+	 *
+	 * Every outcome is named rather than flattened into a failure: a foreign URL,
+	 * a spent daily budget and a dead connection are three different things, and
+	 * only one of them is about the page.
+	 *
+	 * @param \WP_REST_Request $request The request.
+	 * @return \WP_REST_Response|\WP_Error
+	 */
+	public function index_check( \WP_REST_Request $request ) {
+		if ( ! $this->google->connected() ) {
+			return new \WP_Error( 'agentimus_google_off', __( 'Google Search Console is not connected.', 'agentimus' ), array( 'status' => 400 ) );
+		}
+
+		$out = ( new Module( $this->google, $this->client ) )->inspect_one( (string) $request->get_param( 'url' ) );
+
+		if ( 'foreign' === $out['status'] ) {
+			return new \WP_Error(
+				'agentimus_google_foreign_url',
+				__( 'That address isn’t on this site, so Google can’t be asked about it here.', 'agentimus' ),
+				array( 'status' => 400 )
+			);
+		}
+		if ( 'quota' === $out['status'] ) {
+			return new \WP_Error(
+				'agentimus_google_quota',
+				__( 'Google’s daily inspection budget is spent — this page keeps its last answer until tomorrow.', 'agentimus' ),
+				array( 'status' => 429 )
+			);
+		}
+		if ( 'error' === $out['status'] ) {
+			return new \WP_Error( 'agentimus_google_check_failed', $out['error'], array( 'status' => 502 ) );
+		}
+
+		// The whole view rides back, not just the row: one fresh answer moves the
+		// site counts and can empty a problem group, and a card left showing its
+		// old totals beside a new verdict is the same lie in a different lane.
+		return rest_ensure_response( array(
+			'row'  => $out['row'],
+			'view' => Index::view( $this->google ),
+		) );
 	}
 
 	/**

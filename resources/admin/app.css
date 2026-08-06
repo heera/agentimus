@@ -1696,7 +1696,7 @@ td.ar-edge__n.is-bad { color: var(--ar-bad); font-weight: 600; }
 /* One row = one line, four fixed lanes: title | date | door | chip. Fixed
    widths, not max-content — each row is its own grid, so only fixed lanes
    align ACROSS rows (max-content sized per-row is exactly the old zigzag). */
-.ar-gidx__main { display: grid; grid-template-columns: minmax(0, 1fr) 150px 158px 104px; gap: 2px 16px; align-items: baseline; }
+.ar-gidx__main { display: grid; grid-template-columns: minmax(0, 1fr) 150px 232px 104px; gap: 2px 16px; align-items: baseline; }
 .ar-gidx__meta { display: contents; }
 .ar-gidx__door { text-align: right; white-space: nowrap; }
 .ar-gidx__page { display: inline-flex; align-items: baseline; gap: 8px; min-width: 0; }
@@ -1718,13 +1718,33 @@ td.ar-edge__n.is-bad { color: var(--ar-bad); font-weight: 600; }
 .ar-gidx__note.is-warn { color: var(--ar-warn); }
 .ar-gidx__note.is-err { color: var(--ar-bad); }
 /* The quiet door to Search Console — where "Request indexing" lives. */
-.ar-gidx__gsc { margin-left: 10px; font-size: 11px; color: var(--ar-info); text-decoration: none; white-space: nowrap; }
+/* No margin-left: the separator owns the spacing now that Re-check sits beside
+   this, and a stray margin would push the pair off the lane's right edge. */
+.ar-gidx__gsc { font-size: 11px; color: var(--ar-info); text-decoration: none; white-space: nowrap; }
 .ar-gidx__gsc:hover { text-decoration: underline; }
 /* Our record of the owner's own click, under the door it belongs to. Deliberately
    quiet and deliberately worded as a fact about them, not about Google: no API
    exposes whether an indexing request is pending, so this is the only claim
    anyone here can make truthfully. */
 .ar-gidx__opened { display: block; margin-left: 10px; font-size: 10.5px; line-height: 1.6; color: var(--ar-ink-faint); white-space: nowrap; }
+/* In the lookup box the live check sits UNDER the stored answer: the free
+   answer comes first, and asking Google is the deliberate second step. */
+.ar-gidx__checkrow { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; margin: 10px 0 0; }
+.ar-gidx__checkhint { font-size: 11.5px; color: var(--ar-ink-faint); }
+/* Both doors on ONE line — the reason the door lane above grew from 158px to
+   232px. Stacked, this sat under the Search Console link as an orphan: a lone
+   link dangling below another, adding a second line to every row in the card.
+   Widening a FIXED lane is the honest fix (the width has to stay fixed or rows
+   stop aligning with each other); the extra 74px comes out of the title, which
+   is the only flexible lane and the one best able to give it up.
+
+   Faint until hovered: every row has one, and a lane of live buttons would
+   out-shout the verdicts beside them, which are why anyone is reading the row. */
+.ar-gidx__recheck { margin-left: 0; font-size: 11px; color: var(--ar-ink-faint); text-decoration: none; }
+.ar-gidx__recheck:hover:not(:disabled) { color: var(--ar-info); text-decoration: underline; }
+.ar-gidx__recheck:disabled { opacity: 0.55; cursor: default; }
+/* The separator carries the same weight as the words it divides. */
+.ar-gidx__doorsep { margin: 0 6px; font-size: 11px; color: var(--ar-line-strong); }
 /* The whole-site section under the watchlist. */
 .ar-gidx__siteeyebrow { margin-top: 24px; }
 .ar-gidx__siteline { margin: 8px 0 0; font-size: 13px; line-height: 1.55; color: var(--ar-ink-soft); }
@@ -1885,12 +1905,22 @@ td.ar-edge__n.is-bad { color: var(--ar-bad); font-weight: 600; }
   .ar-gidx .ar-act-stats--4 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .ar-gidx__footcols { grid-template-columns: 1fr; }
   .ar-gidx .ar-wd-stat strong { white-space: nowrap; }
-  /* Rows: the title takes its own line; date left, door and chip right share
-     the second — the request-log byline rule, in grid form. */
-  .ar-gidx__main { grid-template-columns: minmax(0, 1fr) max-content max-content; }
-  .ar-gidx__page { grid-column: 1 / -1; }
-  .ar-gidx__crawl { text-align: left; }
-  .ar-gidx__note { grid-column: 1 / -1; }
+  /* Rows in three lines: title, then date + verdict, then the doors.
+     Every position is stated rather than left to auto-placement, because the
+     doors span the full width and auto-placement never goes back for the chip —
+     it would land on a fourth line of its own. Explicit rows also mean a row
+     with no note simply has no fourth line.
+
+     The doors get their own line because there are two of them now: sharing a
+     max-content lane with the date crushed the 1fr title lane to nothing and
+     the date printed straight through "Re-check". */
+  .ar-gidx__main { grid-template-columns: minmax(0, 1fr) max-content; }
+  .ar-gidx__page { grid-column: 1 / -1; grid-row: 1; }
+  .ar-gidx__crawl { grid-column: 1; grid-row: 2; text-align: left; }
+  .ar-gidx__chip { grid-column: 2; grid-row: 2; }
+  .ar-gidx__door { grid-column: 1 / -1; grid-row: 3; text-align: left; white-space: normal; }
+  .ar-gidx__opened { margin-left: 0; }
+  .ar-gidx__note { grid-column: 1 / -1; grid-row: 4; }
 }
 
 /* Settings: the two setup steps breathe — the first eyebrow was hugging the

@@ -1057,6 +1057,133 @@ final class Index {
 	 * @return string
 	 */
 	/**
+	 * Inspect ONE url live, right now, because the owner asked.
+	 *
+	 * The rotation answers "is the site in?" on its own schedule; this answers
+	 * "what about THIS page, this second?" — after a fix, before a share, when
+	 * the stored answer is a day old and the question is urgent. It spends one
+	 * of the day's 2,000 inspections, so it only ever runs on a click.
+	 *
+	 * The same three failure lanes the sweep uses, for the same reasons: a 429
+	 * is the day's budget, not this page's fault; a 400 is this URL's own
+	 * problem and becomes its answer; anything else is the connection or the
+	 * token and must not be written down as a verdict about the page.
+	 *
+	 * A successful answer is STORED, not just returned — otherwise the card
+	 * would keep showing yesterday's verdict beside a fresh one, and the owner
+	 * would have to wonder which is true.
+	 *
+	 * @param Client $client   The Search Console client.
+	 * @param string $token    OAuth token.
+	 * @param string $property The property owning the URL.
+	 * @param string $url      The URL to inspect.
+	 * @return array{status:string,row:?array,error:string}
+	 */
+	public static function inspect_now( Client $client, $token, $property, $url ) {
+		$url = trim( (string) $url );
+		if ( '' !== $url && '/' === $url[0] ) {
+			$url = home_url( $url );
+		}
+		$home_host = strtolower( (string) wp_parse_url( home_url( '/' ), PHP_URL_HOST ) );
+		$host      = strtolower( (string) wp_parse_url( $url, PHP_URL_HOST ) );
+		if ( '' === $host || $host !== $home_host ) {
+			// Google answers only for URLs inside the connected property, so a
+			// foreign address is refused here rather than spending an inspection
+			// to be told the same thing.
+			return array( 'status' => 'foreign', 'row' => null, 'error' => '' );
+		}
+
+		$target = array(
+			'url'     => $url,
+			'post_id' => function_exists( 'url_to_postid' ) ? (int) url_to_postid( $url ) : 0,
+			'reason'  => 'lookup',
+		);
+
+		$out = $client->inspect_url( $token, $property, $url );
+
+		if ( isset( $out['error'] ) ) {
+			if ( ! empty( $out['quota'] ) ) {
+				return array( 'status' => 'quota', 'row' => null, 'error' => (string) $out['error'] );
+			}
+			if ( 400 !== (int) ( isset( $out['status'] ) ? $out['status'] : 0 ) ) {
+				// Transport or token: nothing was learned about this page, so
+				// nothing about this page gets written down.
+				return array( 'status' => 'error', 'row' => null, 'error' => (string) $out['error'] );
+			}
+			$row = array_merge( $target, self::empty_result(), array(
+				'error'        => (string) $out['error'],
+				'inspected_at' => time(),
+			) );
+		} else {
+			$row = array_merge( $target, $out['result'], array(
+				'error'        => '',
+				'inspected_at' => time(),
+			) );
+		}
+
+		return array( 'status' => 'checked', 'row' => self::store_single( $row ), 'error' => '' );
+	}
+
+	/**
+	 * File one fresh answer where that URL already lives, and hand back its view.
+	 *
+	 * A URL on the watchlist keeps its row; anything else is a coverage entry,
+	 * shrunk to a count when healthy exactly as the rotation shrinks it — a
+	 * single manual check must not leave a page stored differently from how the
+	 * daily sweep would have stored it, or the two would disagree tomorrow.
+	 *
+	 * @param array $row The fresh row.
+	 * @return array The row as readers see it.
+	 */
+	private static function store_single( array $row ) {
+		$raw = get_option( self::OPTION, array() );
+		$raw = is_array( $raw ) ? $raw : array();
+		$key = self::norm( (string) $row['url'] );
+
+		$state = self::stored();
+		$rows  = $state['rows'];
+		$found = false;
+		foreach ( $rows as $i => $existing ) {
+			if ( self::norm( (string) $existing['url'] ) !== $key ) {
+				continue;
+			}
+			// Healing is news: a watch row that just turned healthy says so,
+			// the same way it would have after a sweep.
+			if ( ! self::is_problem( $row ) ) {
+				$row = array_merge( $row, self::healed_mark( (array) $existing ) );
+			}
+			// Keep the reason it was watched for — this check was out-of-band and
+			// says nothing about why the page is on the list.
+			$row['reason'] = isset( $existing['reason'] ) ? $existing['reason'] : $row['reason'];
+			$rows[ $i ]    = $row;
+			$found         = true;
+			break;
+		}
+
+		if ( $found ) {
+			$raw['rows'] = $rows;
+		} else {
+			$cov  = $state['cov'];
+			$prev = isset( $cov[ $key ] ) ? (array) $cov[ $key ] : array();
+			if ( isset( $cov[ $key ] ) || count( $cov ) < self::COVERAGE_CAP ) {
+				$cov[ $key ] = self::is_problem( $row ) ? $row : array_merge(
+					array(
+						'url'          => $row['url'],
+						'post_id'      => $row['post_id'],
+						'verdict'      => $row['verdict'],
+						'inspected_at' => $row['inspected_at'],
+					),
+					self::healed_mark( $prev )
+				);
+			}
+			$raw['cov'] = $cov;
+		}
+
+		update_option( self::OPTION, $raw, false );
+		return self::row_view( $row );
+	}
+
+	/**
 	 * Record that the owner opened this URL in Search Console.
 	 *
 	 * Google keeps no memory of "indexing requested": a fresh inspection shows a
