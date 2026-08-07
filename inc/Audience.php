@@ -150,13 +150,17 @@ final class Audience {
 	private static function analytics_half( $window ) {
 		$settings = new Google\Settings();
 		$empty    = array(
-			'connected' => false,
-			'users'     => 0,
-			'sessions'  => 0,
-			'views'     => 0,
-			'stale'     => false,
-			'fetched'   => 0,
-			'window'    => (int) $window,
+			'connected'     => false,
+			'users'         => 0,
+			'sessions'      => 0,
+			'views'         => 0,
+			// null, not 0: "GA4 has no opinion" and "GA4 counted none" are
+			// different answers, and the screen shows them differently.
+			'aiSessions'    => null,
+			'otherSessions' => null,
+			'stale'         => false,
+			'fetched'       => 0,
+			'window'        => (int) $window,
 		);
 		if ( ! $settings->analytics_connected() ) {
 			return $empty;
@@ -172,11 +176,18 @@ final class Audience {
 
 		$fetched = (int) ( isset( $snap['fetched'] ) ? $snap['fetched'] : 0 );
 
+		$split = isset( $snap['split'] ) && is_array( $snap['split'] ) ? $snap['split'] : null;
+
 		return array(
 			'connected' => true,
 			'users'     => (int) ( isset( $totals['users'] ) ? $totals['users'] : 0 ),
 			'sessions'  => (int) ( isset( $totals['sessions'] ) ? $totals['sessions'] : 0 ),
 			'views'     => (int) ( isset( $totals['views'] ) ? $totals['views'] : 0 ),
+			// GA4's OWN reading of how many an assistant sent. Kept separate from
+			// the local count on purpose — the Readers screen shows both and names
+			// the reason they differ, rather than picking a winner.
+			'aiSessions' => null === $split ? null : (int) ( isset( $split['ai'] ) ? $split['ai'] : 0 ),
+			'otherSessions' => null === $split ? null : (int) ( isset( $split['other'] ) ? $split['other'] : 0 ),
 			// Older than two polls. A number that has quietly stopped moving must
 			// be able to say so; silence looks exactly like a flat week.
 			'stale'     => $fetched > 0 && ( time() - $fetched ) > 2 * DAY_IN_SECONDS,

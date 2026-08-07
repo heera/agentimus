@@ -226,7 +226,7 @@ export default {
       <p class="ar-srcline">
         These numbers come from <strong>{{ sourceLabel }}</strong><template v-if="rangeText">, covering {{ rangeText }}</template>.
         This screen counts <strong>people</strong> using classic search — machines reading your
-        site live on the AI Traffic and Request Log screens<template v-if="probeShare > 0"> (and when automated probes
+        site live on the Readers and Request Log screens<template v-if="probeShare > 0"> (and when automated probes
         sneak into {{ sourceLabel }}'s own numbers, this screen says so right beside them)</template>.
         <template v-if="bothConnected">Switch above to see what {{ active_source === 'google' ? 'Bing' : 'Google' }} reported instead — the two count different searchers, so they never match exactly.</template>
       </p>

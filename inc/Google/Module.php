@@ -256,7 +256,9 @@ final class Module {
 		$end    = gmdate( 'Y-m-d' );
 		$start  = gmdate( 'Y-m-d', time() - ( max( 1, $window ) - 1 ) * DAY_IN_SECONDS );
 
-		$out = ( new Analytics() )->totals( $auth['token'], $property, $start, $end );
+		$client = new Analytics();
+
+		$out = $client->totals( $auth['token'], $property, $start, $end );
 		if ( isset( $out['error'] ) ) {
 			// Last good numbers stay put. A transport blip must not turn into a
 			// confident zero on a card that says how many people read the site.
@@ -264,10 +266,17 @@ final class Module {
 			return;
 		}
 
+		// GA4's own reading of how many of those readers an assistant sent — the
+		// second opinion the Readers screen shows beside our own count. A failure
+		// here costs only the split: the totals above are already good, and
+		// throwing them away over a secondary report would be a poor trade.
+		$split = $client->ai_split( $auth['token'], $property, $start, $end );
+
 		update_option(
 			self::GA4_OPTION,
 			array(
 				'totals'  => $out['totals'],
+				'split'   => isset( $split['split'] ) ? $split['split'] : null,
 				'window'  => (int) $window,
 				'start'   => $start,
 				'end'     => $end,

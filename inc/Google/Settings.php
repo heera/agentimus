@@ -107,8 +107,10 @@ final class Settings {
 	 * @return void
 	 */
 	public function set_ga4_property( $property ) {
-		$all                 = $this->all();
-		$all['ga4_property'] = preg_replace( '/[^0-9]/', '', (string) $property );
+		$all = $this->all();
+		// Strict: '' clears, digits store, anything else is refused rather than
+		// stripped down into a plausible wrong ID. {@see Analytics::clean_property}.
+		$all['ga4_property'] = Analytics::clean_property( $property );
 		$all['ga4_error']    = '';
 		$this->persist( $all );
 	}

@@ -951,7 +951,7 @@ export default {
                     type="button"
                     class="ar-act-rank__btn"
                     :aria-label="`Open the AI traffic report filtered to ${s.label}`"
-                    @click="$emit('navigate', { tab: 'ai-traffic', ai: { source: s.label } })"
+                    @click="$emit('navigate', { tab: 'readers', ai: { source: s.label } })"
                     @mouseenter="showUaTip($event, refShareTip(s.hits), 'Click for the full report', 'cursor')"
                     @mouseleave="hideUaTip"
                   >
@@ -970,7 +970,7 @@ export default {
                     type="button"
                     class="ar-act-rank__btn"
                     :aria-label="`Open the AI traffic report filtered to ${p.path}`"
-                    @click="$emit('navigate', { tab: 'ai-traffic', ai: { path: p.path } })"
+                    @click="$emit('navigate', { tab: 'readers', ai: { path: p.path } })"
                     @mouseenter="showUaTip($event, refShareTip(p.hits), 'Click for the full report', 'cursor')"
                     @mouseleave="hideUaTip"
                   >
@@ -991,7 +991,7 @@ export default {
         </p>
 
         <p class="ar-card__more">
-          <button type="button" class="ar-linkbtn" @click="$emit('navigate', { tab: 'ai-traffic' })">
+          <button type="button" class="ar-linkbtn" @click="$emit('navigate', { tab: 'readers' })">
             See the full report
             <svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 4l4 4-4 4" /></svg>
           </button>

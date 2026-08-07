@@ -164,7 +164,7 @@ final class Rest {
 	 * @return \WP_REST_Response|\WP_Error
 	 */
 	public function connect_analytics( \WP_REST_Request $request ) {
-		$property = preg_replace( '/[^0-9]/', '', (string) $request->get_param( 'property' ) );
+		$property = Analytics::clean_property( (string) $request->get_param( 'property' ) );
 		if ( '' === $property ) {
 			return new \WP_Error(
 				'agentimus_ga4_property',

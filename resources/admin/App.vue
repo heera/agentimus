@@ -62,7 +62,7 @@ export default {
     // load validates against — `tabs()` only governs a hashchange — so a screen missing
     // from it silently boots on the dashboard instead.
     const actOn = !!(this.boot.settings && this.boot.settings.enable_activity);
-    const activityTabs = ['log', 'ai-traffic'];
+    const activityTabs = ['log', 'readers'];
     // 'agent-access' and 'visibility' are unconditional: always mounted, so their
     // hashes always have somewhere to land. (Visibility hosts two tenants — the
     // citation checks and AI Search — each gated by its OWN key inside the screen.)
@@ -387,7 +387,7 @@ export default {
         // traffic is the human side (day totals, no clock time). Keeping them apart is
         // what keeps "agents taking" and "AI giving back" legible in the nav.
         ...(this.settings.enable_activity
-          ? [{ id: 'ai-traffic', label: 'AI Traffic' }, { id: 'log', label: 'Request Log' }]
+          ? [{ id: 'readers', label: 'Readers' }, { id: 'log', label: 'Request Log' }]
           : []),
         // Agent access is the ACT side of the same story the two screens above tell about
         // READS, so it sits with them. Always listed (never hidden behind its own setting):
@@ -451,15 +451,17 @@ export default {
             title: 'Dashboard',
             description: 'An overview of your agent-readiness — what you expose, and who is reading it.',
           },
-          'ai-traffic': {
-            title: 'AI Traffic',
-            // The one screen name in the product that points the wrong way: "AI
-            // Traffic" reads as machines, and every number on it is a PERSON who
-            // arrived because an assistant named you. The badge says so before
-            // the title can mislead — cheaper, and less disruptive to anyone
-            // who already knows the screen, than renaming it.
+          'readers': {
+            // Was "AI Traffic" — a name that read as machines while every number
+            // on it was a PERSON who arrived because an assistant named you. The
+            // badge patched that; the name now says it outright, which matters
+            // more once the screen holds ALL readers and not only the AI-sent
+            // ones. The REST paths keep their /activity/ai-traffic spelling on
+            // purpose: they are a stable surface, and renaming them would break
+            // callers to fix a label.
+            title: 'Readers',
             audience: 'people',
-            description: 'Readers an AI assistant sent you — day by day, by source and landing page. These are people: the machines are in the Request Log.',
+            description: 'Everyone who read your site — how many arrived because an AI assistant named you, and how many came another way. People only: the machines are in the Request Log.',
           },
           log: {
             title: 'Request Log',
@@ -518,7 +520,7 @@ export default {
     // Same for the request log and AI traffic: both panels are v-if'd on this setting, so
     // switching recording off while viewing one would unmount it and leave the screen blank.
     'settings.enable_activity'(on) {
-      if (!on && (this.tab === 'log' || this.tab === 'ai-traffic')) this.goTo('dashboard');
+      if (!on && (this.tab === 'log' || this.tab === 'readers')) this.goTo('dashboard');
     },
     // Opening by click or keyboard should put you inside the menu: on the screen you're
     // already on, or the first one you can reach. Escape hands focus back to the trigger
@@ -801,7 +803,7 @@ export default {
     moreIcon(id) {
       return {
         visibility: ['M1.6 8S4 3.9 8 3.9 14.4 8 14.4 8 12 12.1 8 12.1 1.6 8 1.6 8Z', 'M8 9.7a1.7 1.7 0 1 0 0-3.4 1.7 1.7 0 0 0 0 3.4Z'],
-        'ai-traffic': ['M2 12.2 6.1 7.9l2.6 2.2 4.6-5.4', 'M10.1 4.4h3.5v3.4'],
+        'readers': ['M2 12.2 6.1 7.9l2.6 2.2 4.6-5.4', 'M10.1 4.4h3.5v3.4'],
         log: ['M3 4.2h10', 'M3 8h10', 'M3 11.8h6'],
         // A key: this screen is about the credentials that reach the machine surface.
         'agent-access': ['M9.9 6.1a2.6 2.6 0 1 0 3.7 3.7 2.6 2.6 0 0 0-3.7-3.7Z', 'M9.9 9.8 4 15.7', 'M6.4 13.2l1.6 1.6'],
@@ -2027,13 +2029,17 @@ export default {
           @navigate="goTo"
           @flash="flash"
         />
+        <!-- Readers. The `audience` block rides the activity payload the dashboard
+             already polls, so opening this screen costs no extra request for the
+             site totals it now opens with. -->
         <AiTrafficPanel
           v-if="settings.enable_activity"
-          v-show="tab === 'ai-traffic'"
+          v-show="tab === 'readers'"
           :api="api"
-          :active="tab === 'ai-traffic'"
+          :active="tab === 'readers'"
           :log-unknown="!!settings.log_unknown_referrers"
           :preset="aiPreset"
+          :audience="activity && activity.audience"
           @navigate="goTo"
           @flash="flash"
         />

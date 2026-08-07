@@ -6520,3 +6520,54 @@ a.ar-about-proto__v:hover { text-decoration: underline; }
 .ar-ga4__row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-top: 8px; }
 .ar-ga4__input { max-width: 220px; font-family: var(--ar-mono); }
 .ar-ga4__err { color: var(--ar-bad); }
+
+/* ---------------------------------------------------------------------------
+   Readers — the site totals above the referral report.
+
+   The two AI counts sit in equal columns with a rule between them, never one
+   above the other: stacking would read as a headline and its correction, and
+   neither of these is correcting the other. They are two instruments pointed
+   at the same thing, and the sentence beneath says why they differ.
+   --------------------------------------------------------------------------- */
+.ar-rd__totals {
+  display: flex; flex-wrap: wrap; gap: 30px;
+  margin: 16px 0 0; padding-bottom: 18px;
+}
+.ar-rd__stat { min-width: 0; }
+.ar-rd__n {
+  margin: 0; font-family: var(--ar-serif); font-size: 28px; line-height: 1.05;
+  font-weight: 600; color: var(--ar-ink); font-variant-numeric: tabular-nums;
+}
+.ar-rd__stat.is-accent .ar-rd__n { color: var(--ar-accent); }
+.ar-rd__l { margin: 3px 0 0; font-size: 12px; color: var(--ar-ink-soft); max-width: 22ch; }
+
+.ar-rd__pair {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 0;
+  border-top: 1px solid var(--ar-line); padding-top: 16px;
+}
+.ar-rd__side { padding: 0 22px; min-width: 0; }
+.ar-rd__side:first-child { padding-left: 0; }
+.ar-rd__side:last-child { border-left: 1px solid var(--ar-line); padding-right: 0; }
+.ar-rd__side-k {
+  margin: 0 0 5px; font-family: var(--ar-mono); font-size: 10px;
+  letter-spacing: 0.12em; text-transform: uppercase; color: var(--ar-ink-faint);
+}
+.ar-rd__side-n {
+  margin: 0; font-family: var(--ar-mono); font-size: 21px; font-weight: 700;
+  color: var(--ar-ink); font-variant-numeric: tabular-nums;
+}
+.ar-rd__side-l { margin: 3px 0 0; font-size: 12px; color: var(--ar-ink-soft); }
+.ar-rd__why {
+  margin: 14px 0 0; padding-top: 12px; border-top: 1px dashed var(--ar-line-strong);
+  font-size: 12.5px; line-height: 1.55; color: var(--ar-ink-soft); max-width: 82ch;
+}
+
+@container (max-width: 720px) {
+  .ar-rd__totals { gap: 20px; }
+  .ar-rd__pair { grid-template-columns: 1fr; }
+  .ar-rd__side { padding: 0; }
+  .ar-rd__side:last-child {
+    border-left: 0; border-top: 1px solid var(--ar-line);
+    margin-top: 14px; padding-top: 14px;
+  }
+}

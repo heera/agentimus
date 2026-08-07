@@ -118,6 +118,160 @@ final class Analytics {
 	}
 
 	/**
+	 * Hosts that mean "an AI assistant sent this reader", as GA4 spells them.
+	 *
+	 * GA4 reports the referring HOST in `sessionSource`, so this is a host list,
+	 * not the referrer-matching logic in {@see \Agentimus\Activity\Referrals}.
+	 * The two are deliberately independent: they are meant to be two separate
+	 * measurements of the same thing, and sharing a list would make them agree
+	 * for the wrong reason.
+	 *
+	 * @var array<int,string>
+	 */
+	const AI_SOURCES = array(
+		'chatgpt.com',
+		'chat.openai.com',
+		'openai.com',
+		'perplexity.ai',
+		'www.perplexity.ai',
+		'gemini.google.com',
+		'bard.google.com',
+		'claude.ai',
+		'copilot.microsoft.com',
+		'bing.com/chat',
+		'grok.com',
+		'x.ai',
+		'duckduckgo.com/aichat',
+		'chat.deepseek.com',
+		'deepseek.com',
+		'you.com',
+		'phind.com',
+		'poe.com',
+		'meta.ai',
+		'mistral.ai',
+		'chat.mistral.ai',
+	);
+
+	/**
+	 * GA4's own count of readers an assistant sent, beside its total.
+	 *
+	 * The point of asking Google this when the plugin already counts referrals
+	 * itself: the two disagree, and the disagreement is informative. GA4 misses
+	 * every reader who declined its script; the local count misses every reader
+	 * whose referrer was stripped in transit. Neither is wrong — they are
+	 * different instruments — and a screen showing both, with the reason, tells
+	 * an owner more than either number pretending to be the truth.
+	 *
+	 * @param string $token    Bearer token.
+	 * @param string $property The GA4 property ID.
+	 * @param string $start    Y-m-d start date.
+	 * @param string $end      Y-m-d end date.
+	 * @return array { split?: array{ai:int,other:int,total:int,bySource:array}, error?: string }
+	 */
+	public function ai_split( $token, $property, $start, $end ) {
+		$out = $this->run_report(
+			$token,
+			$property,
+			array(
+				'dateRanges' => array( array( 'startDate' => (string) $start, 'endDate' => (string) $end ) ),
+				'dimensions' => array( array( 'name' => 'sessionSource' ) ),
+				'metrics'    => array( array( 'name' => 'sessions' ) ),
+				'orderBys'   => array( array( 'desc' => true, 'metric' => array( 'metricName' => 'sessions' ) ) ),
+				// Generous: the tail is summed into "other", so a low cap would
+				// quietly shrink the total this split is measured against.
+				'limit'      => 250,
+			)
+		);
+		if ( isset( $out['error'] ) ) {
+			return $out;
+		}
+
+		$ai        = 0;
+		$total     = 0;
+		$by_source = array();
+
+		foreach ( (array) ( $out['data']['rows'] ?? array() ) as $row ) {
+			$source   = strtolower( (string) ( ( (array) ( $row['dimensionValues'] ?? array() ) )[0]['value'] ?? '' ) );
+			$sessions = (int) round( (float) ( ( (array) ( $row['metricValues'] ?? array() ) )[0]['value'] ?? 0 ) );
+			$total   += $sessions;
+
+			if ( '' === $source || ! self::is_ai_source( $source ) ) {
+				continue;
+			}
+			$ai                  += $sessions;
+			$by_source[ $source ] = ( isset( $by_source[ $source ] ) ? $by_source[ $source ] : 0 ) + $sessions;
+		}
+
+		arsort( $by_source );
+
+		return array(
+			'split' => array(
+				'ai'       => $ai,
+				'other'    => max( 0, $total - $ai ),
+				'total'    => $total,
+				'bySource' => $by_source,
+			),
+		);
+	}
+
+	/**
+	 * Whether a GA4 `sessionSource` value names an AI assistant.
+	 *
+	 * Matched on the host, and on a host BOUNDARY — a plain substring test would
+	 * count `notchatgpt.com.example` as ChatGPT. Filterable, because the list of
+	 * assistants changes faster than any release cycle.
+	 *
+	 * @param string $source Lowercased sessionSource value.
+	 * @return bool
+	 */
+	public static function is_ai_source( $source ) {
+		/**
+		 * Filter the GA4 session sources counted as AI assistants.
+		 *
+		 * @param array  $hosts  Host strings.
+		 * @param string $source The value being tested.
+		 */
+		$hosts = (array) apply_filters( 'agentimus_ga4_ai_sources', self::AI_SOURCES, $source );
+
+		foreach ( $hosts as $host ) {
+			$host = strtolower( (string) $host );
+			if ( '' === $host ) {
+				continue;
+			}
+			if ( $source === $host ) {
+				return true;
+			}
+			// A subdomain of a listed host, or a listed path prefix like
+			// bing.com/chat — never a bare substring.
+			if ( substr( $source, -( strlen( $host ) + 1 ) ) === '.' . $host ) {
+				return true;
+			}
+			if ( false !== strpos( $host, '/' ) && 0 === strpos( $source, $host ) ) {
+				return true;
+			}
+		}
+		return false;
+	}
+
+	/**
+	 * A GA4 property ID, or '' if the input isn't one.
+	 *
+	 * ⚠️ REJECTS rather than salvages. Stripping non-digits looks tidy and is
+	 * wrong here: the mistake people actually make is pasting the measurement ID
+	 * (`G-ABC123`), and stripping turns that into `123` — a real, valid-looking
+	 * property ID belonging to somebody else. A confusing permission error hours
+	 * later is the BEST case; the worst is that it answers. Anything that isn't
+	 * already digits is refused, and the message names the mistake.
+	 *
+	 * @param string $property Raw input.
+	 * @return string Digits, or ''.
+	 */
+	public static function clean_property( $property ) {
+		$property = trim( (string) $property );
+		return preg_match( '/^[0-9]+$/', $property ) ? $property : '';
+	}
+
+	/**
 	 * Confirm a property ID actually answers for this key, before it is saved.
 	 *
 	 * A property the key cannot read fails at REPORT time otherwise — hours later,
@@ -145,8 +299,8 @@ final class Analytics {
 	 * @return array { data?: array, error?: string }
 	 */
 	private function run_report( $token, $property, array $body ) {
-		$property = preg_replace( '/[^0-9]/', '', (string) $property );
-		if ( '' === (string) $property ) {
+		$property = self::clean_property( $property );
+		if ( '' === $property ) {
 			return array( 'error' => __( 'That GA4 property ID doesn’t look right — it’s the numeric ID from Admin → Property details, not the measurement ID that starts with G-.', 'agentimus' ) );
 		}
 

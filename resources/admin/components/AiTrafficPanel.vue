@@ -35,6 +35,8 @@ export default {
     // A drill-down from a dashboard row: filter keys to apply on arrival
     // (plus a seq stamp so repeat clicks on the same row still re-apply).
     preset: { type: Object, default: null },
+    // The dashboard's audience block — the site totals this screen opens with.
+    audience: { type: Object, default: null },
   },
   // `flash` is required by the uaTip mixin: copying a path reports its result there.
   emits: ['navigate', 'flash'],
@@ -58,6 +60,42 @@ export default {
     };
   },
   computed: {
+    // ---- The site totals this screen now opens with ------------------------
+    people() {
+      return (this.audience && this.audience.people) || null;
+    },
+    ga() {
+      return (this.people && this.people.all) || null;
+    },
+    gaOn() {
+      return !!(this.ga && this.ga.connected);
+    },
+    // GA4's own count of AI-referred sessions, when it has one. `null` means
+    // Google has no opinion — different from a counted zero, and shown as such.
+    gaAi() {
+      return this.gaOn && this.ga.aiSessions !== null && this.ga.aiSessions !== undefined ? this.ga.aiSessions : null;
+    },
+    // Ours, from the referral store.
+    ownAi() {
+      return (this.people && this.people.ai && this.people.ai.visits) || 0;
+    },
+    // Which way the two disagree, in plain words. Never "wrong" — they measure
+    // different populations, and the sentence has to say which.
+    disagreement() {
+      if (this.gaAi === null) return '';
+      const g = this.gaAi;
+      const o = this.ownAi;
+      if (g === o) return 'Both instruments agree this window — unusual, and worth nothing more than a nod.';
+      if (g > o) {
+        return 'Google counts more. Its script sees visits whose referrer never reached your server — a redirect or a privacy proxy in between strips it, and those land here as “direct”.';
+      }
+      return 'Agentimus counts more. Your server sees every request, including readers who declined Google’s script — and consent banners alone put that gap in the double digits on most sites.';
+    },
+    aiShare() {
+      if (!this.gaOn || !this.ga.sessions) return null;
+      const base = this.gaAi !== null ? this.gaAi : this.ownAi;
+      return Math.round((base / this.ga.sessions) * 1000) / 10;
+    },
     range() {
       return (this.report && this.report.range) || { from: '', to: '', floor: '' };
     },
@@ -143,6 +181,10 @@ export default {
     if (this.active) this.load();
   },
   methods: {
+    // Grouped digits, matching the dashboard card these totals come from.
+    n(v) {
+      return (Number(v) || 0).toLocaleString('en-US');
+    },
     async load() {
       if (!this.api) return;
       this.loading = true;
@@ -243,6 +285,70 @@ export default {
 
 <template>
   <div class="ar-aitraffic">
+    <!-- Everyone, then how much of it AI drove. This sits ABOVE the referral
+         report because it is the frame for it: the report below counts one
+         route in, and without a total beside it nobody can tell whether that
+         route is a trickle or the whole river. -->
+    <section v-if="people" class="ar-card ar-rd">
+      <h2 class="ar-card__title">
+        Everyone who read your site
+        <span class="ar-card__tag">last {{ audience.window }} days</span>
+      </h2>
+
+      <template v-if="gaOn">
+        <div class="ar-rd__totals">
+          <div class="ar-rd__stat">
+            <p class="ar-rd__n">{{ n(ga.users) }}</p>
+            <p class="ar-rd__l">readers</p>
+          </div>
+          <div class="ar-rd__stat">
+            <p class="ar-rd__n">{{ n(ga.sessions) }}</p>
+            <p class="ar-rd__l">visits</p>
+          </div>
+          <div class="ar-rd__stat">
+            <p class="ar-rd__n">{{ n(ga.views) }}</p>
+            <p class="ar-rd__l">page views</p>
+          </div>
+          <div v-if="aiShare !== null" class="ar-rd__stat is-accent">
+            <p class="ar-rd__n">{{ aiShare }}%</p>
+            <p class="ar-rd__l">of visits came from an AI answer</p>
+          </div>
+        </div>
+
+        <!-- The two instruments, side by side. Neither is presented as the
+             correction of the other. -->
+        <div class="ar-rd__pair">
+          <div class="ar-rd__side">
+            <p class="ar-rd__side-k">Agentimus counted</p>
+            <p class="ar-rd__side-n">{{ n(ownAi) }}</p>
+            <p class="ar-rd__side-l">visits, recorded on your own server</p>
+          </div>
+          <div class="ar-rd__side">
+            <p class="ar-rd__side-k">Google Analytics counted</p>
+            <p class="ar-rd__side-n">
+              <template v-if="gaAi !== null">{{ n(gaAi) }}</template>
+              <template v-else>—</template>
+            </p>
+            <p class="ar-rd__side-l">
+              <template v-if="gaAi !== null">sessions whose source was an assistant</template>
+              <template v-else>no session-source report yet</template>
+            </p>
+          </div>
+        </div>
+        <p v-if="disagreement" class="ar-rd__why">{{ disagreement }}</p>
+      </template>
+
+      <template v-else>
+        <p class="ar-card__lead">
+          This screen can only count the readers an assistant sent, because no analytics
+          source is connected — so there is no total to compare them against, and
+          <strong>{{ n(ownAi) }}</strong> could be most of your traffic or a rounding error.
+          Connect Google Analytics under Settings → Data sources and this becomes a share
+          of everyone, plus Google’s own second opinion on the same question.
+        </p>
+      </template>
+    </section>
+
     <section class="ar-card ar-ai">
       <div class="ar-card__titlewrap">
         <h2 class="ar-card__title">

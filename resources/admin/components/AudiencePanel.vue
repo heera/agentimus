@@ -108,7 +108,7 @@ export default {
           {{ n(people.all.sessions) }} visits · {{ n(people.all.views) }} page views
         </p>
 
-        <button type="button" class="ar-linkbtn" @click="$emit('navigate', 'ai-traffic')">
+        <button type="button" class="ar-linkbtn" @click="$emit('navigate', 'readers')">
           See who sent them →
         </button>
       </div>

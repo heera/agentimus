@@ -30,11 +30,11 @@ The card is a summary over the reporting window (30 days by default), counted in
 - **Top sources** — which assistants sent the most readers (up to five).
 - **Top landing pages** — which of your pages AI readers arrived on most (up to five).
 
-For the day-by-day detail — and for the sources it *couldn't* name — a **See the full report** link opens the dedicated **AI Traffic** screen, described next.
+For the day-by-day detail — and for the sources it *couldn't* name — a **See the full report** link opens the dedicated **Readers** screen, described next.
 
-### The AI Traffic report (More → AI Traffic)
+### The Readers report (More → Readers)
 
-The dashboard card is the summary; the full report lives on its own screen, opened from **More → AI Traffic**. It answers the cross-question the card can't — *which pages does Perplexity send readers to?* — and reaches deeper history: the card only ever covers the last 30 days, while this screen can page over everything the visit log still retains.
+The dashboard card is the summary; the full report lives on its own screen, opened from **More → Readers**. It answers the cross-question the card can't — *which pages does Perplexity send readers to?* — and reaches deeper history: the card only ever covers the last 30 days, while this screen can page over everything the visit log still retains.
 
 Three filters narrow it, and no more — the store keeps only a day, a source, a path and a count, so anything finer would imply a per-visit record it doesn't hold:
 
@@ -48,7 +48,7 @@ There is no clock time anywhere in this report — **the day is the finest level
 
 ### Find missed AI sources (the diagnostic)
 
-"Traffic from AI" only counts assistants it *recognises*, and a miss leaves no trace — so a brand-new assistant could be sending you readers without ever showing up. The **Unrecognised referrers** diagnostic on the AI Traffic screen closes that blind spot: it lists the referrer hosts and `utm_source` tags that arrived but matched no known assistant, so you can spot one that ought to be counted and add it (with the `agentimus_ai_referral_sources` filter).
+"Traffic from AI" only counts assistants it *recognises*, and a miss leaves no trace — so a brand-new assistant could be sending you readers without ever showing up. The **Unrecognised referrers** diagnostic on the Readers screen closes that blind spot: it lists the referrer hosts and `utm_source` tags that arrived but matched no known assistant, so you can spot one that ought to be counted and add it (with the `agentimus_ai_referral_sources` filter).
 
 It's **opt-in and off by default** — turn on **Find missed AI sources** under **Settings → Visit log**. Unlike the referral counter, it writes a row for *every* externally-referred pageview, so it's meant to be switched on for a week and then off again. It records only the referring site's name and the link's `utm_source` tag — still no IP addresses, still nothing sent anywhere. While it's off, the screen says so and links you straight to the setting.
 
@@ -156,7 +156,7 @@ Two summary cards rank the whole window (30 days by default). Every window on th
 - **Top clients** — which agents hit you most (up to eight), and
 - **By endpoint** — which of your machine-readable files got fetched most.
 
-Every row is a door: click an endpoint or client to open the **Request Log** pre-filtered to it, and on the Traffic-from-AI card a source or landing page opens the **AI Traffic** report the same way. Hover a row for the numbers behind it — a trend arrow shows the two half-window counts it compares, a referral row its share of the window's visits.
+Every row is a door: click an endpoint or client to open the **Request Log** pre-filtered to it, and on the Traffic-from-AI card a source or landing page opens the **Readers** report the same way. Hover a row for the numbers behind it — a trend arrow shows the two half-window counts it compares, a referral row its share of the window's visits.
 
 Each row shows the name, a bar for its share, and its total count. Beside the bar is a small **trend** — a green ▲ or a red ▼ with a percentage — telling you whether that client or file is getting **more or less** AI attention across the window. It's the at-a-glance answer to "is GPTBot crawling me more this month?" or "is attention on `llms.txt` slipping?"
 
@@ -194,7 +194,7 @@ To keep one abusive burst from drowning out the traffic you care about, the log 
 
 ## The Request Log
 
-Open it from **More → Request Log** in the nav bar. (The occasional screens — AI Visibility, AI Traffic, Request Log and About Agentimus — live behind that one menu, so the bar stays readable on a narrow admin.)
+Open it from **More → Request Log** in the nav bar. (The occasional screens — AI Visibility, Readers, Request Log and About Agentimus — live behind that one menu, so the bar stays readable on a narrow admin.)
 
 The Dashboard answers *who* visited and *how much*. The Request Log answers **what a particular bot actually fetched** — the question the summary cards can't, because they show clients and endpoints as two separate lists.
 

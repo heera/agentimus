@@ -1996,7 +1996,7 @@ export default {
           Records which AI assistants fetch your AI files, and counts the visitors AI sends you
           (“Traffic from AI”). Everything is stored on your own site — no IP addresses by default (one optional
           setting stores IPs for flagged crawlers only), nothing sent anywhere. You read the summary on the
-          Dashboard, and the full reports under More → AI Traffic and More → Request Log.
+          Dashboard, and the full reports under More → Readers and More → Request Log.
         </p>
 
         <label id="ar-feat-enable_activity" class="ar-toggle">
@@ -2014,7 +2014,7 @@ export default {
             <span class="ar-toggle__track" aria-hidden="true"></span>
             <span class="ar-toggle__text">
               <strong>Find missed AI sources (diagnostic)</strong>
-              <small>“Traffic from AI” only counts assistants it recognises, and a miss leaves no trace. Turn this on and Agentimus also lists the referrers it <em>couldn’t</em> name — so you can see whether an assistant is being overlooked. Records the site name and <code>utm_source</code> tag only: still no IPs, nothing sent anywhere. It writes a row for every visit referred from another site, so switch it on for a week, read the list under More → AI Traffic, then switch it off.</small>
+              <small>“Traffic from AI” only counts assistants it recognises, and a miss leaves no trace. Turn this on and Agentimus also lists the referrers it <em>couldn’t</em> name — so you can see whether an assistant is being overlooked. Records the site name and <code>utm_source</code> tag only: still no IPs, nothing sent anywhere. It writes a row for every visit referred from another site, so switch it on for a week, read the list under More → Readers, then switch it off.</small>
             </span>
           </label>
 

@@ -26,7 +26,7 @@ Disconnecting forgets the key. The numbers already stored stay — they're your 
 
 The plain answer, for the trailing window each engine reports as final: **times shown**, **visits**, **click rate**, **average rank**, then your top searches and the pages that earned them.
 
-This screen counts **people** using classic search. The machines reading your site live on the AI Traffic and Request Log screens — no number here is ever a blend of the two.
+This screen counts **people** using classic search. The machines reading your site live on the Readers and Request Log screens — no number here is ever a blend of the two.
 
 Three honesty rules run through it:
 
