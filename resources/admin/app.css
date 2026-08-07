@@ -6441,9 +6441,9 @@ a.ar-about-proto__v:hover { text-decoration: underline; }
    uses for a recessed surface. Hex first for browsers without color-mix; the
    mix refines it where supported, and keeps it tied to the paper it sits on
    rather than being a second, unrelated cream. */
-.ar-aud { --ar-amber: #fef9ec; }
+.ar-aud { --ar-amber: #fefcf3; }
 @supports (color: color-mix(in srgb, red, blue)) {
-  .ar-aud { --ar-amber: color-mix(in srgb, #f2b23a 6%, var(--ar-surface)); }
+  .ar-aud { --ar-amber: color-mix(in srgb, #f2b23a 3%, var(--ar-surface)); }
 }
 .ar-aud__half {
   min-width: 0; padding: 16px 18px 14px;
