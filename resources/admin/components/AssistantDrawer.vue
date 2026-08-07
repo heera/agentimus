@@ -2,7 +2,7 @@
 /**
  * The writing assistant's drawer — right-hand panel on desktop (the underlying
  * screen stays readable beside it: composing is a side-by-side activity), full
- * sheet on phones. Summoned by the nav-bar quill.
+ * sheet on phones. Summoned by the nav-bar spark.
  *
  * v1 flow, deliberately linear: brief → ONE structured generation → preview card
  * → explicit "Create draft" (or pending). Compose writes nothing; create can only
@@ -726,10 +726,14 @@ export default {
           @keydown.esc="$emit('close')"
         >
           <div class="ar-drawer__head">
+            <!-- The launcher's spark, repeated: this badge is the first thing you
+                 see after pressing it, so the two have to be the same mark. Drawn
+                 here rather than shared because the sizes differ (16 vs 15) and a
+                 component for one path would cost more than the duplication —
+                 but they change together. Class name kept from the quill era. -->
             <span class="ar-drawer__quill" aria-hidden="true">
               <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M20.5 3.5c-4-.5-8.3 1-11.2 3.9-2 2-3.3 4.6-3.8 7.2L3 17.1l3.9 3.9 2.5-2.5c2.6-.5 5.2-1.8 7.2-3.8 2.9-2.9 4.4-7.2 3.9-11.2z" />
-                <path d="M14.5 9.5L4.5 19.5" />
+                <path d="M12 3.2c1.1 5.3 2.5 6.7 7.8 7.8-5.3 1.1-6.7 2.5-7.8 7.8-1.1-5.3-2.5-6.7-7.8-7.8 5.3-1.1 6.7-2.5 7.8-7.8Z" />
               </svg>
             </span>
             <div class="ar-drawer__titles">
