@@ -181,6 +181,37 @@ final class Focus {
 	}
 
 	/**
+	 * How many days the reported searches cover, from the snapshot's own range.
+	 *
+	 * Read rather than assumed: the poll window is configurable and the engines
+	 * revise it, so a hardcoded "last 28 days" would be right until the day it
+	 * quietly wasn't — and a number with the wrong span attached is worse than
+	 * one with no span at all.
+	 *
+	 * @return int Days, or 0 when the snapshot cannot say.
+	 */
+	public static function window_days() {
+		try {
+			$state = Search\Report::source_state();
+			if ( '' === (string) $state['source'] ) {
+				return 0;
+			}
+			$totals = Search\Table::totals( (string) $state['source'] );
+		} catch ( \Throwable $e ) {
+			return 0;
+		}
+		if ( empty( $totals['start'] ) || empty( $totals['end'] ) ) {
+			return 0;
+		}
+		$start = strtotime( (string) $totals['start'] );
+		$end   = strtotime( (string) $totals['end'] );
+		if ( ! $start || ! $end || $end < $start ) {
+			return 0;
+		}
+		return (int) round( ( $end - $start ) / DAY_IN_SECONDS ) + 1; // Inclusive of both ends.
+	}
+
+	/**
 	 * Measure the page against its focus.
 	 *
 	 * Reads the post's OWN saved content, not the live editor buffer — so the
@@ -234,8 +265,17 @@ final class Focus {
 
 		if ( $searches ) {
 			echo '<p class="agentimus-fieldhead" style="margin-top:12px">' . esc_html__( 'Also finding this page', 'agentimus' ) . '</p>';
+			$days = self::window_days();
 			echo '<p class="agentimus-fieldhint">'
-				. esc_html__( 'The searches this page is shown for. Scraper probes are left out.', 'agentimus' )
+				. esc_html(
+					$days > 0
+						? sprintf(
+							/* translators: %d: number of days the search report covers. */
+							__( 'Last %d days. Scraper probes are left out.', 'agentimus' ),
+							$days
+						)
+						: __( 'The searches this page is shown for. Scraper probes are left out.', 'agentimus' )
+				)
 				. '</p>';
 
 			echo '<div class="agentimus-focus__list">';
@@ -424,9 +464,12 @@ final class Focus {
 
 		$this->render_flags( $post );
 
-		// What to actually do about it. Plain text, not a link: there is nowhere
-		// to send someone that is closer to the fix than the editor they are
-		// already looking at, and a link that only scrolls would be theatre.
+		// What to actually do about it — the panel's one instruction, and marked
+		// as such: a rule down its left edge and the only bold line in the
+		// verdict. Still plain TEXT, not a link, and deliberately: there is
+		// nowhere to send someone closer to the fix than the editor they are
+		// already looking at, and a link that only scrolls is theatre. The
+		// design's arrow promised a destination this box does not have.
 		$advice = array(
 			Coverage::SCATTERED => __( 'Bring those words together into one paragraph that answers it.', 'agentimus' ),
 			Coverage::BARELY    => __( 'Write a paragraph that answers this search directly.', 'agentimus' ),
@@ -455,7 +498,7 @@ final class Focus {
 			. '.agentimus-focus__opt input{margin:2px 0 0}'
 			. '.agentimus-focus__q{font-size:12.5px;color:#1e1e1e;overflow-wrap:anywhere;line-height:1.35}'
 			. '.agentimus-focus__n{grid-column:2;font-size:10.5px;color:#646970;font-variant-numeric:tabular-nums}'
-			. '.agentimus-focus__now{border:1px solid #146b64;border-left-width:3px;border-radius:2px;background:#f2f8f7;padding:8px 10px;margin:0 0 8px}.agentimus-focus__nowq{display:block;font-size:13.5px;font-weight:600;color:#1e1e1e;line-height:1.35;overflow-wrap:anywhere}.agentimus-focus__nown{display:block;margin-top:2px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:10.5px;color:#50575e;font-variant-numeric:tabular-nums}.agentimus-focus__todo{margin:4px 0 0;font-size:11.5px;line-height:1.45;color:#1e1e1e}.agentimus-focus__text{margin:0 0 8px}'
+			. '.agentimus-focus__now{border:1px solid #146b64;border-left-width:3px;border-radius:2px;background:#f2f8f7;padding:8px 10px;margin:0 0 8px}.agentimus-focus__nowq{display:block;font-size:13.5px;font-weight:600;color:#1e1e1e;line-height:1.35;overflow-wrap:anywhere}.agentimus-focus__nown{display:block;margin-top:2px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:10.5px;color:#50575e;font-variant-numeric:tabular-nums}.agentimus-focus__todo{margin:8px 0 0;padding-left:9px;border-left:2px solid #146b64;font-size:12px;font-weight:600;line-height:1.45;color:#1e1e1e}.agentimus-focus__text{margin:0 0 8px}'
 			. '.agentimus-focus__verdict{display:flex;gap:5px;align-items:baseline;margin:0 0 4px;font-size:11.5px;line-height:1.45;color:#50575e}.agentimus-focus__mark{flex:0 0 auto}'
 			. '.agentimus-focus__verdict strong{font-weight:600}'
 			. '.agentimus-focus__verdict.is-ok strong{color:#2f7a4c}'

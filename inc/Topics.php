@@ -424,20 +424,20 @@ final class Topics {
 			. '.agentimus-fieldhint{margin:0 0 8px;font-size:11.5px;line-height:1.5;color:#646970}'
 			. '</style>';
 
-		// What the page is FOR leads the box: the title and description below are
-		// the response to it, and the coverage line under it is the reason to
-		// rewrite either. Its own save hook is untouched; only the container is
-		// shared — same arrangement as the two halves beneath.
-		( new Focus( $this->settings ) )->render_field( $post );
-		echo '<hr style="margin:14px 0 12px;border:0;border-top:1px solid #dcdcde" />';
-
-		// The solo-mode SEO title sits on top — search snippet order: title, then
-		// description. Its own save hook is untouched; only the container is shared.
+		// SEARCH SNIPPET ORDER, top to bottom: title, then what the page is for,
+		// then the description. The focus led this box for a while on the
+		// argument that the title answers it — true, but it put a diagnosis
+		// above the field it diagnoses, and the field is what an author opens
+		// this box to edit. Each half keeps its own save hook; only the
+		// container is shared.
 		if ( Seo::title_ui_enabled() ) {
 			( new Seo( $this->settings ) )->render_title_field( $post );
-			if ( Description::enabled() || self::enabled() ) {
-				echo '<hr style="margin:14px 0 12px;border:0;border-top:1px solid #dcdcde" />';
-			}
+			echo '<hr style="margin:14px 0 12px;border:0;border-top:1px solid #dcdcde" />';
+		}
+
+		( new Focus( $this->settings ) )->render_field( $post );
+		if ( Description::enabled() || self::enabled() ) {
+			echo '<hr style="margin:14px 0 12px;border:0;border-top:1px solid #dcdcde" />';
 		}
 		// The AI description, when that feature is on.
 		// Its own save/assets hooks are untouched — only the container is shared.
