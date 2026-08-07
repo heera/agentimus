@@ -12,7 +12,11 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        php: ['7.4', '8.2']
+        # 7.4 is what production runs; 8.2 is the common modern host. 8.4 and 8.5
+        # are here because that is where PHP started deprecating things we were
+        # doing — implicitly nullable parameters shipped unnoticed precisely
+        # because no job in this matrix could see them.
+        php: ['7.4', '8.2', '8.4', '8.5']
     steps:
       - uses: actions/checkout@v5
 

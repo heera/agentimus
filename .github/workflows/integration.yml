@@ -32,6 +32,11 @@ jobs:
           - php: '8.2'
             wp: 'latest'
             multisite: '1'
+          # The versions that deprecate what older PHP accepts silently.
+          - php: '8.4'
+            wp: 'latest'
+          - php: '8.5'
+            wp: 'latest'
 
     services:
       mysql:
