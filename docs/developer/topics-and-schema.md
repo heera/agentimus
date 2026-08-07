@@ -302,6 +302,117 @@ add_filter( 'agentimus_schema_for_post', function ( $node, $post ) {
 
 The return is validated with `is_array()` before it joins the graph — a scalar (string/number) return is discarded rather than corrupting the `@graph`, and `null` cleanly omits the node.
 
+#### A worked example: WooCommerce products
+
+Agentimus ships no commerce knowledge of its own. Enable a store's product type
+under **Settings → Content** and its products are already listed in `llms.txt`,
+served as `.md` twins, and included in the sitemap and change feed — but their
+JSON-LD falls back to `Article`, because nothing has told Agentimus they are
+products. This filter is where that is fixed, and it needs no registration and
+no adapter plugin.
+
+```php
+add_filter(
+	'agentimus_schema_for_post',
+	function ( $node, $post ) {
+		if ( 'product' !== $post->post_type || ! function_exists( 'wc_get_product' ) ) {
+			return $node;
+		}
+		$product = wc_get_product( $post->ID );
+		if ( ! $product ) {
+			return $node;
+		}
+
+		$url    = get_permalink( $post );
+		$schema = array(
+			'@type' => 'Product',
+			'@id'   => $url . '#product',
+			'name'  => $product->get_name(),
+			'url'   => $url,
+		);
+
+		// A variable product has a price RANGE, and one Offer would misstate it.
+		if ( $product->is_type( 'variable' ) ) {
+			$schema['offers'] = array(
+				'@type'         => 'AggregateOffer',
+				'lowPrice'      => $product->get_variation_price( 'min' ),
+				'highPrice'     => $product->get_variation_price( 'max' ),
+				'offerCount'    => count( $product->get_children() ),
+				'priceCurrency' => get_woocommerce_currency(),
+			);
+		} else {
+			$schema['offers'] = array(
+				'@type'         => 'Offer',
+				'url'           => $url,
+				'price'         => $product->get_price(),
+				'priceCurrency' => get_woocommerce_currency(),
+				'availability'  => $product->is_in_stock()
+					? 'https://schema.org/InStock'
+					: 'https://schema.org/OutOfStock',
+			);
+		}
+
+		// Everything below is added ONLY when the store actually has it. An absent
+		// field costs you nothing; a guessed one is a claim about a real product.
+		$description = $product->get_short_description() ?: $product->get_description();
+		if ( '' !== trim( (string) $description ) ) {
+			$schema['description'] = wp_strip_all_tags( $description );
+		}
+
+		if ( $product->get_sku() ) {
+			$schema['sku'] = $product->get_sku();
+		}
+
+		$image = wp_get_attachment_image_url( $product->get_image_id(), 'full' );
+		if ( $image ) {
+			$schema['image'] = $image;
+		}
+
+		// Product identifiers Google Merchant looks for. Store them however you
+		// like — this reads the conventional meta keys.
+		foreach ( array( 'gtin13', 'mpn' ) as $identifier ) {
+			$value = get_post_meta( $post->ID, '_' . $identifier, true );
+			if ( $value ) {
+				$schema[ $identifier ] = $value;
+			}
+		}
+
+		$brands = get_the_terms( $post->ID, 'product_brand' );
+		if ( $brands && ! is_wp_error( $brands ) ) {
+			$schema['brand'] = array( '@type' => 'Brand', 'name' => $brands[0]->name );
+		}
+
+		// Ratings only when reviews exist — an empty aggregate is worse than none,
+		// and Google treats a fabricated one as a structured-data violation.
+		if ( $product->get_review_count() > 0 ) {
+			$schema['aggregateRating'] = array(
+				'@type'       => 'AggregateRating',
+				'ratingValue' => $product->get_average_rating(),
+				'reviewCount' => $product->get_review_count(),
+			);
+		}
+
+		return $schema;
+	},
+	10,
+	2
+);
+```
+
+**Returning a fresh array replaces the default node**, so the `keywords`, `about`,
+`description` and `speakable` fields Agentimus had built are dropped. That is
+usually what you want for a product — but if you would rather keep them, merge
+instead of replacing:
+
+```php
+return array_merge( $node, $schema );
+```
+
+The same filter covers `Event`, `Recipe`, `Course`, `SoftwareApplication` and
+anything else schema.org defines: the post type test is the only part that
+changes.
+
+
 ### agentimus_faq_pairs
 
 Supply or refine the question/answer pairs used to build the `FAQPage` node. Agentimus auto-detects pairs from the rendered post content (headings and Details blocks) via `Faq::extract()`; this filter lets you add, edit, or clear them.

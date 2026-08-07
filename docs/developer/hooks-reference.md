@@ -153,6 +153,11 @@ add_filter( 'agentimus_schema_for_post', function ( $node, $post ) {
 }, 10, 2 );
 ```
 
+For a full node — offers, price ranges on variable products, SKU, GTIN/MPN,
+brand and ratings — see the [worked WooCommerce example]({% link developer/topics-and-schema.md %}#a-worked-example-woocommerce-products).
+Agentimus ships no commerce knowledge of its own, so this filter is how a store's
+products stop being described as `Article`.
+
 ### Topics for AI
 
 Per-page topics become JSON-LD `keywords` plus `about` `DefinedTerm` entities, and appear in the Markdown output. These filters shape how topics are derived, cleaned, suggested and linked.
