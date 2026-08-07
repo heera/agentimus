@@ -917,7 +917,7 @@ final class Rest {
 	/**
 	 * GET /findings — every open finding across every subsystem, ranked.
 	 *
-	 * The Today screen's refresh. It arrives with the boot payload too; this
+	 * The Attention screen's refresh. It arrives with the boot payload too; this
 	 * route is how the screen catches up after the owner acts on something (a
 	 * Block, an Ignore, a settings save) without a full page reload.
 	 *

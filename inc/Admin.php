@@ -736,7 +736,7 @@ final class Admin {
 			'readiness'   => $readiness = ( new Readiness( $this->settings ) )->report(),
 			'score'       => $score = $this->aeo_score( $readiness ), // AEO/GEO score + action plan, from the same readiness run.
 			// Every open finding across every subsystem, ranked by what it costs —
-			// what the Today screen renders. Shipped with the boot payload so the
+			// what the Attention screen renders. Shipped with the boot payload so the
 			// plugin's first screen answers "is anything wrong?" with no round trip.
 			'findings'    => ( new Findings( $this->settings ) )->all(),
 			// Counts only — no page is parsed — so the content section can open

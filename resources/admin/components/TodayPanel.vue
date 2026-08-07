@@ -50,12 +50,14 @@ export default {
     // lied about the size of the job.
     heading() {
       const n = this.open.length;
-      if (!n) return this.rows.length ? 'Nothing needs you right now' : 'All clear';
+      if (!n) return this.rows.length ? 'Nothing needs your attention right now' : 'All clear';
       const count = n === 1 ? 'One thing' : `${this.spell(n)} things`;
       // Sentence case, always. The number is spelled out, so without this the
-      // headline opens lowercase ("five things need you") and reads like a
-      // fragment rather than the page's title.
-      return `${count.charAt(0).toUpperCase()}${count.slice(1)} need${n === 1 ? 's' : ''} you`;
+      // headline opens lowercase ("five things need your attention") and reads
+      // like a fragment rather than the page's title.
+      // "…your attention", not the shorter "…you": the screen is named Attention,
+      // and its opening line is where that name is earned.
+      return `${count.charAt(0).toUpperCase()}${count.slice(1)} need${n === 1 ? 's' : ''} your attention`;
     },
     subheading() {
       if (!this.open.length) {

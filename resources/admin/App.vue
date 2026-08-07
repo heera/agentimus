@@ -65,12 +65,12 @@ export default {
     // 'agent-access' and 'visibility' are unconditional: always mounted, so their
     // hashes always have somewhere to land. (Visibility hosts two tenants — the
     // citation checks and AI Search — each gated by its OWN key inside the screen.)
-    // Dashboard is where a cold load lands. Today is reachable — by its icon in
-    // the controls, and by #today — but it is not the default: opening the plugin
+    // Dashboard is where a cold load lands. Attention is reachable — by its icon in
+    // the controls, and by #attention — but it is not the default: opening the plugin
     // on a worklist puts a to-do list in front of someone who came to look at
     // something, and the icon has no way to say "you are already here" that a
     // person arriving would read as a choice they made.
-    let startTab = ['today', 'dashboard', ...activityTabs, 'agent-access', 'visibility', 'settings', 'readiness', 'discovery', 'about'].includes(fromHash) ? fromHash : 'dashboard';
+    let startTab = ['attention', 'dashboard', ...activityTabs, 'agent-access', 'visibility', 'settings', 'readiness', 'discovery', 'about'].includes(fromHash) ? fromHash : 'dashboard';
     if (activityTabs.includes(startTab) && !actOn) startTab = 'dashboard';
     return {
       api: createApi(this.boot),
@@ -409,10 +409,10 @@ export default {
     // Every reachable screen — what syncTabFromHash() validates a #hash against. A disabled
     // item is listed but NOT navigable, so #visibility must not resolve while it's off.
     tabs() {
-      // Today is not in the bar — it has an icon in the controls instead — but it
+      // Attention is not in the bar — it has an icon in the controls instead — but it
       // is still a screen, so its #hash has to resolve. Leaving it out here made
-      // Back/Forward and a pasted #today link silently land somewhere else.
-      return [{ id: 'today' }, ...this.primaryTabs, ...this.moreTabs.filter((t) => !t.disabled)];
+      // Back/Forward and a pasted #attention link silently land somewhere else.
+      return [{ id: 'attention' }, ...this.primaryTabs, ...this.moreTabs.filter((t) => !t.disabled)];
     },
     dashSummary() {
       const c = (this.discovery && this.discovery.counts) || {};
@@ -433,8 +433,14 @@ export default {
     pageMeta() {
       return (
         {
-          today: {
-            title: 'Today',
+          attention: {
+            // Not "Today": nothing on this screen is scoped to a day, and the
+            // Dashboard already spends that word on an activity count meaning
+            // something else. The list is ranked by what each item COSTS, and the
+            // panel opens with "… things need your attention" — so the title is
+            // the last word of its own first sentence, and a noun like every
+            // other title in the bar.
+            title: 'Attention',
             // Says what the screen IS, not what it contains — the list under it
             // already names each finding, and a head that summarised them twice
             // would push the first row below the fold for no new information.
@@ -1707,21 +1713,33 @@ export default {
            negative margins: the bar's gap changes with the viewport, so those
            nudges only ever matched at the width they were measured on. -->
       <div class="ar__controls">
-      <!-- Today. An icon rather than a tab: it is where the app opens, so it needs
-           a way BACK more than it needs a name in a bar that was already long. Sits
-           with the quill and the bell — the controls that are reachable from every
-           screen — and marks itself active when you are on it. -->
+      <!-- Attention. An icon rather than a tab: the screen is a place you come BACK to
+           between jobs, and the bar was already long. Sits with the assistant and
+           the bell — the controls reachable from every screen — and marks itself
+           active when you are on it. -->
       <button
         type="button"
         class="ar__review-btn ar__todaybtn"
-        :class="{ 'is-here': tab === 'today' }"
-        :aria-label="tab === 'today' ? 'Today (current screen)' : 'Today'"
-        :aria-current="tab === 'today' ? 'page' : null"
-        @click="goTo('today')"
+        :class="{ 'is-here': tab === 'attention' }"
+        :aria-label="tab === 'attention' ? 'Attention (current screen)' : 'Attention'"
+        :aria-current="tab === 'attention' ? 'page' : null"
+        @click="goTo('attention')"
       >
+        <!-- A checklist: two ticked rows. Every mark tried before it was a
+             metaphor for the WORD on the button rather than for the screen — a
+             tray (arrivals, 10px from the bell, which is the real arrivals
+             control), a calendar and a clock (a day, which this list is not
+             scoped to), a bulb (an idea, which is the assistant's job). The list
+             is things to do, so the mark is a list of things to do.
+
+             Two rows, not three: the third lands on a half pixel at 15px and
+             greys the whole glyph. Ticks sized to survive the same 15px — the
+             stroke is the shape here, there is no counter to lose. -->
         <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-          <path d="M3.5 13.5h4l1.4 2.6h6.2l1.4-2.6h4" />
-          <path d="M4.6 13.5 7 5.2a1.4 1.4 0 0 1 1.35-1h7.3A1.4 1.4 0 0 1 17 5.2l2.4 8.3v4.3a1.7 1.7 0 0 1-1.7 1.7H6.3a1.7 1.7 0 0 1-1.7-1.7z" />
+          <path d="M3.4 8.1 5.3 10 8.6 6.3" />
+          <path d="M11.8 8.2h8.8" />
+          <path d="M3.4 16.5 5.3 18.4 8.6 14.7" />
+          <path d="M11.8 16.6h8.8" />
         </svg>
       </button>
 
@@ -1876,7 +1894,7 @@ export default {
              by the server, so the first screen answers the only question anyone
              arrives with. Everything else on this page stays exactly as it is. -->
         <TodayPanel
-          v-show="tab === 'today'"
+          v-show="tab === 'attention'"
           :findings="findings"
           :score="aeo"
           :busy="refreshingFindings"
@@ -1887,7 +1905,7 @@ export default {
              findings above; the per-item worklist here. Deliberately NOT its own
              tab — one place to look is the entire point. -->
         <ContentWorklist
-          v-show="tab === 'today'"
+          v-show="tab === 'attention'"
           :data="worklist"
           :preview="worklistPreview"
           :loaded="worklistLoaded"

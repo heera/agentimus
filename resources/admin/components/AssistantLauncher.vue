@@ -64,9 +64,13 @@ export default {
       :aria-expanded="guideOpen"
       @click.stop="click"
     >
+      <!-- A spark, not the old quill. The quill said "writing", which is only half
+           of it — what the button actually opens is the machine that does the
+           writing. The spark is the mark people already read as "AI will do this",
+           and it is the one shape here that survives the 45% dim state, where a
+           thin nib and its hairline stem simply disappeared. -->
       <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-        <path d="M20.5 3.5c-4-.5-8.3 1-11.2 3.9-2 2-3.3 4.6-3.8 7.2L3 17.1l3.9 3.9 2.5-2.5c2.6-.5 5.2-1.8 7.2-3.8 2.9-2.9 4.4-7.2 3.9-11.2z" />
-      <path d="M14.5 9.5L4.5 19.5" />
+        <path d="M12 3.2c1.1 5.3 2.5 6.7 7.8 7.8-5.3 1.1-6.7 2.5-7.8 7.8-1.1-5.3-2.5-6.7-7.8-7.8 5.3-1.1 6.7-2.5 7.8-7.8Z" />
       </svg>
     </button>
 

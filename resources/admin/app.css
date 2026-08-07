@@ -6274,17 +6274,57 @@ a.ar-about-proto__v:hover { text-decoration: underline; }
   .ar-work__tabs, .ar-work__foot, .ar-work__empty { padding-left: 20px; padding-right: 20px; }
 }
 
-/* Today's control. Wears the shared pill (.ar__review-btn) so it reads as one
-   family with the quill and the bell, and takes over pushing the cluster right
-   — that job used to belong to .ar__assist, which now simply follows it. */
+/* The Attention control (class kept as .ar__todaybtn — the screen was called
+   Today until the name was fixed; renaming the hook across the stylesheet buys
+   nothing a reader can see). Wears the shared pill (.ar__review-btn) so it reads as one
+   family with the assistant and the bell, and takes over pushing the cluster
+   right — that job used to belong to .ar__assist, which now simply follows it. */
 .ar__todaybtn { flex: 0 0 auto; align-self: center; margin-left: auto; }
-.ar__todaybtn + .ar__assist { margin-left: 8px; }
-/* On the screen it opens: filled, so the control says where you are rather than
-   only where you can go. */
-.ar__todaybtn.is-here {
-  color: var(--ar-paper); background: var(--ar-ink); border-color: var(--ar-ink);
+
+/* The two badge-less controls are circles, not lozenges. A pill is the right
+   shape for something with a label or a count inside it — the bell has both, so
+   the bell keeps it. Today and the assistant carry one 15px glyph and nothing
+   else, and a lozenge around a single centred mark just reads as a pill that
+   lost its text.
+
+   The size is the BELL'S measured height, not the circle's own content. A circle
+   sized from its 15px glyph comes out 27px (15 + 10 padding + 2 border) and sits
+   half a pixel low, because what sets the bell's height is its 16px count badge,
+   not its glyph: 16 + 10 + 2 = 28. Under 720px the shared padding drops to 4px,
+   so the pair becomes 26. Both numbers are measured, not derived — aspect-ratio
+   was tried first and loses to flex, which sizes a flex item's main axis from
+   its content and gave a 17px-wide oval. */
+.ar__todaybtn.ar__review-btn,
+.ar__assist-btn.ar__review-btn {
+  padding: 0; width: 28px; height: 28px; justify-content: center;
 }
-.ar__todaybtn.is-here:hover { color: var(--ar-paper); background: #000; border-color: #000; }
+@container (max-width: 720px) {
+  .ar__todaybtn.ar__review-btn,
+  .ar__assist-btn.ar__review-btn { width: 26px; height: 26px; }
+}
+/* The assistant's button is wrapped — the wrapper anchors its guidance popover.
+   Making that wrapper a flex row drops the inline line-box slack under the
+   button, which would otherwise make the wrapper a couple of px taller than the
+   circle inside it. Safe: the popover is position:absolute, out of flow. */
+.ar__controls .ar__assist { display: flex; }
+.ar__todaybtn + .ar__assist { margin-left: 8px; }
+/* On the screen it opens: a solid disc, filled with --ar-accent — the SAME
+   colour the nav paints under the active tab. Filled rather than outlined
+   because at 15px an outline states "you are here" in a few hairlines and
+   little else; the disc says it at a glance, from the far side of the bar.
+   Accent rather than the ink it used to be, so the two "you are here" marks in
+   this row agree. Paper on accent measures 5.6:1, well clear of the 3:1 a 15px
+   glyph needs. */
+.ar__todaybtn.is-here {
+  color: var(--ar-paper); background: var(--ar-accent); border-color: var(--ar-accent);
+}
+/* Hover has to be written out, or the shared .ar__review-btn:hover would pull
+   the active control back to plain ink and undo the whole signal. */
+.ar__todaybtn.is-here:hover {
+  color: var(--ar-paper);
+  background: color-mix(in srgb, var(--ar-accent) 86%, #000);
+  border-color: color-mix(in srgb, var(--ar-accent) 86%, #000);
+}
 
 /* A folded-out primary borrows the bar's 24-grid mark inside the 16px menu, so
    it has to be scaled down to sit on the same optical line as its neighbours. */
@@ -6335,9 +6375,11 @@ a.ar-about-proto__v:hover { text-decoration: underline; }
 .ar__review.is-open .ar__review-btn { border-color: var(--ar-line-control-strong); }
 /* The resting bell keeps its quieter edge, one step softer than its siblings. */
 .ar__review.is-quiet .ar__review-btn { border-color: var(--ar-line-control-soft); }
-/* Today on its own screen stays filled — the ink edge is the point of that state. */
-.ar__todaybtn.is-here,
-.ar__todaybtn.is-here:hover { border-color: var(--ar-ink); }
+/* Today on its own screen is NOT pinned here. Its active edge is the accent, set
+   with the rest of that state further up (.ar__todaybtn.is-here). This section
+   used to force --ar-ink on it, from when the state was a filled ink disc — same
+   specificity as the real rule but lower in the file, so it quietly outranked
+   it and the border alone stayed black while the mark went teal. */
 .ar-work__src { font-size: 10.5px; color: var(--ar-ink-faint); }
 
 /* ---------------------------------------------------------------------------
