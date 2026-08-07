@@ -225,11 +225,17 @@ final class Focus {
 
 		wp_nonce_field( self::NONCE, self::NONCE );
 
-		echo '<p class="agentimus-fieldhead">' . esc_html__( 'This page is for', 'agentimus' ) . '</p>';
+		// The focus itself, promoted out of the list. A checked radio among five
+		// says "one of these"; this says "this is what the page is for", which is
+		// the claim the verdict below is about.
+		$this->render_current( $current['query'], $searches );
+
+		$this->render_verdict( $post, $current['query'] );
 
 		if ( $searches ) {
+			echo '<p class="agentimus-fieldhead" style="margin-top:12px">' . esc_html__( 'Also finding this page', 'agentimus' ) . '</p>';
 			echo '<p class="agentimus-fieldhint">'
-				. esc_html__( 'Searches that already reach this page. Pick the one it should answer.', 'agentimus' )
+				. esc_html__( 'The searches this page is shown for. Scraper probes are left out.', 'agentimus' )
 				. '</p>';
 
 			echo '<div class="agentimus-focus__list">';
@@ -276,8 +282,75 @@ final class Focus {
 			esc_attr__( 'e.g. wordpress llms.txt', 'agentimus' )
 		);
 
-		$this->render_verdict( $post, $current['query'] );
 		$this->inline_css();
+	}
+
+	/**
+	 * The current focus, shown as its own block with the traffic it earns.
+	 *
+	 * @param string $query    The focus.
+	 * @param array  $searches This page's reported searches.
+	 * @return void
+	 */
+	private function render_current( $query, array $searches ) {
+		echo '<p class="agentimus-fieldhead">' . esc_html__( 'This page is for', 'agentimus' ) . '</p>';
+
+		if ( '' === $query ) {
+			echo '<p class="agentimus-fieldhint">'
+				. esc_html__( 'No searches have reached this page yet — normal for a new post. Say what it is for and the check below can still run.', 'agentimus' )
+				. '</p>';
+			return;
+		}
+
+		// The numbers, when this focus is one of the reported searches. A focus
+		// typed by hand has none, and inventing a zero row would read as traffic.
+		$stats = '';
+		foreach ( $searches as $row ) {
+			if ( $row['query'] === $query ) {
+				$stats = sprintf(
+					/* translators: 1: average position, 2: impressions, 3: clicks. */
+					__( '#%1$s · %2$s shown · %3$s visits', 'agentimus' ),
+					number_format_i18n( $row['position'], 1 ),
+					number_format_i18n( $row['impressions'] ),
+					number_format_i18n( $row['clicks'] )
+				);
+				break;
+			}
+		}
+
+		printf(
+			'<div class="agentimus-focus__now"><span class="agentimus-focus__nowq">%1$s</span>%2$s</div>',
+			esc_html( $query ),
+			'' !== $stats ? '<span class="agentimus-focus__nown">' . esc_html( $stats ) . '</span>' : ''
+		);
+	}
+
+	/**
+	 * What the content checks flagged, as one line.
+	 *
+	 * The focus asks whether the page answers its search; this asks whether the
+	 * page is worth quoting at all. Both belong here — an author fixing one is
+	 * already in the right place to fix the other, and the worklist says both
+	 * about the same row.
+	 *
+	 * @param \WP_Post $post The post.
+	 * @return void
+	 */
+	private function render_flags( $post ) {
+		$flags = array();
+		foreach ( (array) PageCheck::analyze( $post ) as $check ) {
+			if ( isset( $check['status'] ) && 'pass' !== $check['status'] ) {
+				$flags[] = (string) $check['label'];
+			}
+		}
+		if ( ! $flags ) {
+			return;
+		}
+		printf(
+			'<p class="agentimus-focus__verdict is-warn"><span class="agentimus-focus__mark" aria-hidden="true">◐</span><span><strong>%1$s</strong> — %2$s</span></p>',
+			esc_html__( 'Also worth fixing', 'agentimus' ),
+			esc_html( implode( ' · ', array_slice( $flags, 0, 3 ) ) )
+		);
 	}
 
 	/**
@@ -349,6 +422,20 @@ final class Focus {
 				. '</span></p>';
 		}
 
+		$this->render_flags( $post );
+
+		// What to actually do about it. Plain text, not a link: there is nowhere
+		// to send someone that is closer to the fix than the editor they are
+		// already looking at, and a link that only scrolls would be theatre.
+		$advice = array(
+			Coverage::SCATTERED => __( 'Bring those words together into one paragraph that answers it.', 'agentimus' ),
+			Coverage::BARELY    => __( 'Write a paragraph that answers this search directly.', 'agentimus' ),
+			Coverage::MISSING   => __( 'Either answer it here, or this is not what the page is for.', 'agentimus' ),
+		);
+		if ( isset( $advice[ $cover['state'] ] ) ) {
+			echo '<p class="agentimus-focus__todo">' . esc_html( $advice[ $cover['state'] ] ) . '</p>';
+		}
+
 		echo '<p class="agentimus-focus__note">'
 			. esc_html__( 'Measured against the last saved version of this page.', 'agentimus' )
 			. '</p>';
@@ -368,7 +455,7 @@ final class Focus {
 			. '.agentimus-focus__opt input{margin:2px 0 0}'
 			. '.agentimus-focus__q{font-size:12.5px;color:#1e1e1e;overflow-wrap:anywhere;line-height:1.35}'
 			. '.agentimus-focus__n{grid-column:2;font-size:10.5px;color:#646970;font-variant-numeric:tabular-nums}'
-			. '.agentimus-focus__text{margin:0 0 8px}'
+			. '.agentimus-focus__now{border:1px solid #146b64;border-left-width:3px;border-radius:2px;background:#f2f8f7;padding:8px 10px;margin:0 0 8px}.agentimus-focus__nowq{display:block;font-size:13.5px;font-weight:600;color:#1e1e1e;line-height:1.35;overflow-wrap:anywhere}.agentimus-focus__nown{display:block;margin-top:2px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:10.5px;color:#50575e;font-variant-numeric:tabular-nums}.agentimus-focus__todo{margin:4px 0 0;font-size:11.5px;line-height:1.45;color:#1e1e1e}.agentimus-focus__text{margin:0 0 8px}'
 			. '.agentimus-focus__verdict{display:flex;gap:5px;align-items:baseline;margin:0 0 4px;font-size:11.5px;line-height:1.45;color:#50575e}.agentimus-focus__mark{flex:0 0 auto}'
 			. '.agentimus-focus__verdict strong{font-weight:600}'
 			. '.agentimus-focus__verdict.is-ok strong{color:#2f7a4c}'
