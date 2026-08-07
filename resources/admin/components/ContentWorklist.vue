@@ -108,6 +108,14 @@ export default {
       }
       return 'None of it is on the page — either the wrong search for this one, or an opening.';
     },
+    // Who decided this is the page's search, in as few words as will carry it.
+    focusLabel(i) {
+      if (i.focus.chosen) return 'You chose';
+      // Name the engine only when we know which one reported it. Otherwise say
+      // the true, vaguer thing — attributing a phrase to Google that may have
+      // come from Bing is a small lie that costs trust in every number beside it.
+      return i.focus.engine ? `${i.focus.engine} shows it for` : 'Search engines show it for';
+    },
     rank(n) {
       return `#${Number(n).toFixed(1)}`;
     },
@@ -204,15 +212,24 @@ export default {
             <span v-else-if="!needsWork(i)" class="ar-work__flags">
               <span class="ar-work__flag is-clear">nothing else to fix</span>
             </span>
+
+            <!-- The search sits WITH the thing it describes. It used to open the
+                 verdict column, which put a quoted phrase at the top of a block
+                 of judgements about it — and left this column half empty while
+                 that one ran long. -->
+            <span v-if="i.focus" class="ar-work__forline">
+              <span class="ar-work__forlabel">{{ focusLabel(i) }}</span>
+              <span class="ar-work__q">{{ i.focus.query }}</span>
+            </span>
           </div>
 
           <div class="ar-work__for">
             <template v-if="i.focus">
-              <span class="ar-work__q">{{ i.focus.query }}</span>
-              <!-- Whose decision this is. A row judged against the author's own
-                   choice and one judged against its busiest search are different
-                   claims, and only one of them is the plugin's opinion. -->
-              <span class="ar-work__src">{{ i.focus.chosen ? 'chosen in the editor' : 'its busiest search' }}</span>
+              <!-- The search, with a label saying WHOSE it is before you read it.
+                   A row judged against the author's own choice and one judged
+                   against a search Google reported are different claims, and
+                   only one of them is the plugin's opinion — so the label names
+                   the source rather than leaving the phrase to speak for itself. -->
               <span class="ar-work__nums">
                 <span class="ar-work__rank">{{ rank(i.focus.position) }}</span>
                 <span>{{ num(i.focus.impressions) }} shown</span>

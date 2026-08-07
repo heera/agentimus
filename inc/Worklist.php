@@ -217,6 +217,22 @@ final class Worklist {
 	}
 
 	/**
+	 * The engine whose report the focus came from, named the way people say it.
+	 *
+	 * @return string 'Google', 'Bing', or '' when neither is answering.
+	 */
+	private function engine_label() {
+		$source = (string) Report::source_state()['source'];
+		if ( 'google' === $source ) {
+			return 'Google';
+		}
+		if ( 'bing' === $source ) {
+			return 'Bing';
+		}
+		return '';
+	}
+
+	/**
 	 * Which posts get a row, in the order they earn one: everything the engines
 	 * reported first (those can be ranked by what a fix is worth), then the most
 	 * recently edited content, so a site with no search data still has a list.
@@ -325,6 +341,11 @@ final class Worklist {
 				'clicks'      => (int) $best['clicks'],
 				'others'      => max( 0, count( $rows ) - 1 ),
 				'chosen'      => (bool) $chosen['chosen'],
+				// WHICH engine said so. The row already distinguishes the author's
+				// choice from a reported search; naming the reporter is the rest of
+				// that sentence, and it is the difference between "we think this
+				// page is about X" and "Google shows this page for X".
+				'engine'      => (bool) $chosen['chosen'] ? '' : $this->engine_label(),
 			);
 			$cov   = Coverage::measure( $html, $post->post_title, $focus['query'] );
 		}
