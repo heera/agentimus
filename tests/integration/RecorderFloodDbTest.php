@@ -48,19 +48,33 @@ final class RecorderFloodDbTest extends DbTestCase {
 		// recognised traffic now shares ONE budget, so rotating names buys nothing: the total stays
 		// near RECOGNISED_THRESHOLD plus a ~1-in-FLOOD_SAMPLE tail.
 		$names = array( 'GPTBot', 'ClaudeBot', 'Googlebot', 'PerplexityBot', 'Bytespider', 'CCBot', 'Amazonbot', 'Bingbot', 'Applebot', 'YandexBot' );
+
+		// The budget is per FLOOD_WINDOW, so a run slow enough to cross a window
+		// boundary legitimately gets a second one. That is the product working —
+		// but a fixed ceiling of 2x the threshold sits exactly ON that boundary,
+		// so the test failed on CI's slowest job (multisite) whenever 1000 real
+		// inserts straddled a minute: 300 + 300 + tail = 630 against a 600 bar.
+		// Count the windows this run actually spanned and scale with them; the
+		// claim being tested is that ten NAMES do not buy ten budgets, which is
+		// independent of how many minutes the loop took.
+		$first_window = (int) floor( time() / Recorder::FLOOD_WINDOW );
 		foreach ( $names as $name ) {
 			$_SERVER['HTTP_USER_AGENT'] = $name . '/1.0 (compatible)';
 			for ( $i = 0; $i < 100; $i++ ) {
 				Recorder::record( 'llms.txt' );
 			}
 		}
+		$windows = (int) floor( time() / Recorder::FLOOD_WINDOW ) - $first_window + 1;
 
 		$logged = $this->rows();
-		$ceiling = Recorder::RECOGNISED_THRESHOLD * 2; // budget + a generous allowance for the sampled tail
+		// Per window: the full budget, plus a generous allowance for the
+		// ~1-in-FLOOD_SAMPLE tail. Ten names sharing one budget lands near 335;
+		// ten names each holding their own would be thousands.
+		$ceiling = $windows * Recorder::RECOGNISED_THRESHOLD * 2;
 		$this->assertLessThan(
 			$ceiling,
 			$logged,
-			"1000 rotating-name requests logged $logged rows; a shared budget must keep this near RECOGNISED_THRESHOLD, not multiply per name."
+			"1000 rotating-name requests logged $logged rows across $windows flood window(s); a shared budget must keep this near RECOGNISED_THRESHOLD per window, not multiply per name."
 		);
 	}
 
