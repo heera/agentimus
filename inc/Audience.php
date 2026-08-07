@@ -376,13 +376,13 @@ final class Audience {
 			$out[] = array(
 				'key'   => 'people-partial',
 				'scope' => 'humans',
-				'text'  => __( 'This isn’t your total traffic — only readers from search and AI.', 'agentimus' ),
+				'text'  => __( 'Not your whole audience — search and AI only.', 'agentimus' ),
 			);
 		} else {
 			$out[] = array(
 				'key'   => 'people-sampled',
 				'scope' => 'both',
-				'text'  => __( 'Analytics and machine counts are measured differently and won’t match.', 'agentimus' ),
+				'text'  => __( 'The two counts never reconcile exactly.', 'agentimus' ),
 			);
 		}
 
@@ -398,13 +398,13 @@ final class Audience {
 			$out[] = array(
 				'key'   => 'search-blended',
 				'scope' => 'humans',
-				'text'  => __( 'Search engines don’t separate AI Overviews from ordinary results.', 'agentimus' ),
+				'text'  => __( 'Search hides AI clicks; AI visits are a floor.', 'agentimus' ),
 			);
 		} else {
 			$out[] = array(
 				'key'   => 'search-missing',
 				'scope' => 'humans',
-				'text'  => __( 'No search engine connected — the search half is empty, not zero.', 'agentimus' ),
+				'text'  => __( 'No search engine connected — empty, not zero.', 'agentimus' ),
 			);
 		}
 
@@ -412,23 +412,20 @@ final class Audience {
 			$out[] = array(
 				'key'   => 'machines-endpoints',
 				'scope' => 'machines',
-				'text'  => __( 'Machine fetches count agent files, not ordinary pages.', 'agentimus' ),
+				'text'  => __( 'Agent files only — not ordinary pages.', 'agentimus' ),
 			);
 		} else {
 			$out[] = array(
 				'key'   => 'machines-off',
 				'scope' => 'machines',
-				'text'  => __( 'Agent activity isn’t being recorded — the machine half is empty, not zero.', 'agentimus' ),
+				'text'  => __( 'Not recording — empty, not zero.', 'agentimus' ),
 			);
 		}
 
-		if ( ! empty( $ai['enabled'] ) ) {
-			$out[] = array(
-				'key'   => 'ai-referrer',
-				'scope' => 'humans',
-				'text'  => __( 'AI-sent readers are a floor: some arrive untraceable.', 'agentimus' ),
-			);
-		}
+		// The "AI-sent readers are a floor" warning used to be its own entry. It
+		// is folded into the search line above, because the two said the same
+		// thing from different ends — and because every group here has to fit
+		// ONE line, or the three columns stop reading as three equal blocks.
 
 		return $out;
 	}

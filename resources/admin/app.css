@@ -6502,9 +6502,13 @@ a.ar-about-proto__v:hover { text-decoration: underline; }
   font-size: 9.5px; font-weight: 700; font-style: normal; letter-spacing: 0;
   display: inline-flex; align-items: center; justify-content: center;
 }
+/* Equal blocks. Every caveat is written to fit ONE line in a third-width
+   column, so the three groups are the same height without anything being
+   padded — and if a state ever adds a second line to one of them, stretch
+   keeps the ruled labels level rather than letting one column ride up. */
 .ar-aud__note-grid {
   display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px 28px;
-  align-items: start;
+  align-items: stretch;
 }
 .ar-aud__note-grp { min-width: 0; }
 .ar-aud__note-k {
