@@ -114,6 +114,11 @@ final class Module {
 						// a second HTTP round-trip that would also drag back up to 100 event rows
 						// just to render a number.
 						$stats['agentAccessUnseen'] = \Agentimus\AgentAccess\Store::unseen_count();
+						// People and machines, side by side, from the payload above
+						// plus one indexed aggregate per connected search source.
+						// Assembled server-side so the two halves can never drift
+						// apart between the screens that show them.
+						$stats['audience'] = \Agentimus\Audience::from_stats( $stats );
 						return rest_ensure_response( $stats );
 					},
 				),

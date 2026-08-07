@@ -25,8 +25,28 @@ final class Table {
 	/** @var string Option recording the installed schema version. */
 	const VERSION_OPTION = 'agentimus_search_db_version';
 
-	/** @var int Sanity cap per source per poll — far above anything the APIs return. */
-	const MAX_ROWS = 5000;
+	/**
+	 * @var int Sanity cap per source per poll.
+	 *
+	 * Was 5,000, described as "far above anything the APIs return" — it is not.
+	 * Search Console reports page+query rows sorted by clicks DESCENDING, so a
+	 * cap does not sample the window, it TRUNCATES THE TAIL: on a site with more
+	 * than this many page/query pairs, the pages that earn a handful of clicks
+	 * each simply vanish. Those are exactly the pages the worklist is for, and a
+	 * page with no row gets no promoted focus — the feature silently degrades on
+	 * the sites that need it most, with nothing on screen saying so.
+	 */
+	const MAX_ROWS = 25000;
+
+	/**
+	 * @var int Tuples per INSERT.
+	 *
+	 * The rows used to go in as ONE statement. At 5,000 tuples that was already
+	 * a large packet; at 25,000 it is a `max_allowed_packet` error on default
+	 * MySQL — which would have arrived as a silently empty snapshot, since the
+	 * query result was never checked. Chunked, and each chunk is checked.
+	 */
+	const INSERT_CHUNK = 500;
 
 	/**
 	 * The fully-prefixed table name.
@@ -99,20 +119,46 @@ final class Table {
 	 *
 	 * @param string $source 'bing' or 'google'.
 	 * @param array  $rows   Rows: { query, page_url, page_id, clicks, impressions, position, range_start, range_end }.
-	 * @return void
+	 * @return int Rows actually written — 0 means nothing was stored.
 	 */
 	public static function replace( $source, array $rows ) {
 		global $wpdb;
 		if ( empty( $rows ) ) {
-			return;
+			return 0;
 		}
 		$source = sanitize_key( (string) $source );
 		$table  = self::name();
 
 		$wpdb->delete( $table, array( 'source' => $source ), array( '%s' ) );
 
-		$values = array();
-		foreach ( array_slice( $rows, 0, self::MAX_ROWS ) as $row ) {
+		// Built and flushed a chunk at a time. Holding every prepared tuple first
+		// meant a third full copy of the window in memory — on top of the API's
+		// decoded response and the caller's mapped rows — which at 25,000 rows is
+		// how a poll gets itself killed on a 128MB host. Only INSERT_CHUNK
+		// tuples are ever alive here now.
+		$written = 0;
+		$values  = array();
+		$count   = 0;
+		$flush   = function () use ( &$values, &$written, $table, $wpdb ) {
+			if ( empty( $values ) ) {
+				return true;
+			}
+			$done = $wpdb->query( // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- every tuple prepared below; table name is our own.
+				"INSERT INTO $table (source,query_text,page_url,page_id,clicks,impressions,position,range_start,range_end) VALUES " . implode( ',', $values )
+			);
+			$values = array();
+			if ( false === $done ) {
+				return false;
+			}
+			$written += (int) $done;
+			return true;
+		};
+
+		foreach ( $rows as $row ) {
+			if ( $count >= self::MAX_ROWS ) {
+				break;
+			}
+			$count++;
 			$values[] = $wpdb->prepare(
 				'(%s,%s,%s,%d,%d,%d,%f,%s,%s)',
 				$source,
@@ -125,9 +171,46 @@ final class Table {
 				(string) ( isset( $row['range_start'] ) ? $row['range_start'] : gmdate( 'Y-m-d', time() - 56 * DAY_IN_SECONDS ) ),
 				(string) ( isset( $row['range_end'] ) ? $row['range_end'] : gmdate( 'Y-m-d' ) )
 			);
+
+			// A failed chunk stops the run rather than letting the rest land on
+			// top of a hole: the screens would read the survivors as the whole
+			// truth. The count returned says how much actually made it.
+			if ( count( $values ) >= self::INSERT_CHUNK && ! $flush() ) {
+				return $written;
+			}
 		}
-		$wpdb->query( // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- every tuple prepared above; table name is our own.
-			"INSERT INTO $table (source,query_text,page_url,page_id,clicks,impressions,position,range_start,range_end) VALUES " . implode( ',', $values )
+		$flush();
+
+		return $written;
+	}
+
+	/**
+	 * One source's window totals, as one aggregate.
+	 *
+	 * Deliberately SQL rather than summing {@see snapshot()}: a caller that only
+	 * wants "how many clicks" must not pull the whole window into PHP to find
+	 * out. That mattered little at 5,000 rows and matters a great deal at
+	 * 25,000 — and the audience card asks this on every dashboard poll.
+	 *
+	 * @param string $source 'bing' or 'google'.
+	 * @return array{clicks:int,impressions:int,rows:int,start:string,end:string}
+	 */
+	public static function totals( $source ) {
+		global $wpdb;
+		$table = self::name();
+		$row   = $wpdb->get_row( $wpdb->prepare( // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- our own table.
+			"SELECT COALESCE(SUM(clicks),0) AS clicks, COALESCE(SUM(impressions),0) AS impressions, COUNT(*) AS rows_held,
+				MIN(range_start) AS range_start, MAX(range_end) AS range_end
+			FROM $table WHERE source = %s",
+			sanitize_key( (string) $source )
+		), ARRAY_A );
+
+		return array(
+			'clicks'      => (int) ( isset( $row['clicks'] ) ? $row['clicks'] : 0 ),
+			'impressions' => (int) ( isset( $row['impressions'] ) ? $row['impressions'] : 0 ),
+			'rows'        => (int) ( isset( $row['rows_held'] ) ? $row['rows_held'] : 0 ),
+			'start'       => (string) ( isset( $row['range_start'] ) ? $row['range_start'] : '' ),
+			'end'         => (string) ( isset( $row['range_end'] ) ? $row['range_end'] : '' ),
 		);
 	}
 

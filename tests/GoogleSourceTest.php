@@ -140,6 +140,77 @@ PEM;
 		$this->assertStringContainsString( '"dimensions":["page","query"]', (string) $GLOBALS['_af_http_last']['args']['body'] );
 	}
 
+	/**
+	 * One short answer must end the walk. Nearly every site lands here, and a
+	 * second request against a window Google has already finished reporting is
+	 * quota spent on nothing.
+	 */
+	public function test_search_analytics_stops_after_a_short_page() {
+		$GLOBALS['_af_http_queue'][] = array(
+			'response' => array( 'code' => 200 ),
+			'body'     => (string) wp_json_encode( array( 'rows' => array(
+				array( 'keys' => array( 'https://example.test/a/', 'q' ), 'clicks' => 3, 'impressions' => 9, 'position' => 4.0 ),
+			) ) ),
+		);
+		$out = ( new Client() )->search_analytics( 'tok', 'sc-domain:example.test', '2026-06-01', '2026-07-27' );
+
+		$this->assertCount( 1, $out['rows'] );
+		$this->assertSame( array(), $GLOBALS['_af_http_queue'], 'a short page must not trigger a second request' );
+		$this->assertStringContainsString( '"startRow":0', (string) $GLOBALS['_af_http_last']['args']['body'] );
+	}
+
+	/**
+	 * A FULL page means Google is holding more, and the next request must ask
+	 * from where the last one stopped. This is the whole point of the change:
+	 * rows arrive clicks-descending, so everything past the first page is the
+	 * quiet end of the site — the pages the worklist exists to find.
+	 */
+	public function test_search_analytics_pages_until_the_rows_run_out() {
+		$full = array();
+		for ( $i = 0; $i < Client::ROW_LIMIT; $i++ ) {
+			$full[] = array( 'keys' => array( 'https://example.test/p' . $i . '/', 'q' . $i ), 'clicks' => 1, 'impressions' => 2, 'position' => 5.0 );
+		}
+		$GLOBALS['_af_http_queue'][] = array( 'response' => array( 'code' => 200 ), 'body' => (string) wp_json_encode( array( 'rows' => $full ) ) );
+		$GLOBALS['_af_http_queue'][] = array(
+			'response' => array( 'code' => 200 ),
+			'body'     => (string) wp_json_encode( array( 'rows' => array(
+				array( 'keys' => array( 'https://example.test/tail/', 'the quiet one' ), 'clicks' => 1, 'impressions' => 4, 'position' => 30.0 ),
+			) ) ),
+		);
+		$out = ( new Client() )->search_analytics( 'tok', 'sc-domain:example.test', '2026-06-01', '2026-07-27' );
+
+		$this->assertCount( Client::ROW_LIMIT + 1, $out['rows'] );
+		$this->assertSame( 'the quiet one', $out['rows'][ Client::ROW_LIMIT ]['query'], 'the second page has to be appended, not replace the first' );
+		$this->assertStringContainsString( '"startRow":' . Client::ROW_LIMIT, (string) $GLOBALS['_af_http_last']['args']['body'] );
+	}
+
+	/**
+	 * A blip on page two keeps page one. A partial window is still true about
+	 * the rows it holds, and discarding it would replace a real snapshot with
+	 * nothing over a transport hiccup.
+	 */
+	public function test_search_analytics_keeps_what_it_already_has_when_a_later_page_fails() {
+		$full = array();
+		for ( $i = 0; $i < Client::ROW_LIMIT; $i++ ) {
+			$full[] = array( 'keys' => array( 'https://example.test/p' . $i . '/', 'q' . $i ), 'clicks' => 1, 'impressions' => 2, 'position' => 5.0 );
+		}
+		$GLOBALS['_af_http_queue'][] = array( 'response' => array( 'code' => 200 ), 'body' => (string) wp_json_encode( array( 'rows' => $full ) ) );
+		$GLOBALS['_af_http_queue'][] = array( 'response' => array( 'code' => 500 ), 'body' => '{"error":{"message":"Backend error"}}' );
+		$out = ( new Client() )->search_analytics( 'tok', 'sc-domain:example.test', '2026-06-01', '2026-07-27' );
+
+		$this->assertArrayNotHasKey( 'error', $out );
+		$this->assertCount( Client::ROW_LIMIT, $out['rows'] );
+	}
+
+	/** But a failure on the FIRST page is a real failure — there is nothing to keep. */
+	public function test_search_analytics_reports_a_first_page_failure() {
+		$GLOBALS['_af_http_queue'][] = array( 'response' => array( 'code' => 403 ), 'body' => '{"error":{"message":"User does not have sufficient permission"}}' );
+		$out = ( new Client() )->search_analytics( 'tok', 'sc-domain:example.test', '2026-06-01', '2026-07-27' );
+
+		$this->assertSame( 'User does not have sufficient permission', $out['error'] );
+		$this->assertArrayNotHasKey( 'rows', $out );
+	}
+
 	public function test_api_errors_surface_googles_words() {
 		$GLOBALS['_af_http_queue'][] = array(
 			'response' => array( 'code' => 403 ),

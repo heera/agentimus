@@ -182,7 +182,14 @@ final class Module {
 			);
 		}
 
+		// The decoded API response is dead once the rows are mapped, and on a big
+		// property it is the largest single thing in memory. Dropped before the
+		// write rather than at the end of the function, so the insert never runs
+		// alongside a copy nothing will read again.
+		unset( $out );
+
 		Search\Table::replace( 'google', $rows );
+		unset( $rows );
 		$this->settings->record_poll( '' );
 
 		// The trend series and Discover totals ride the same poll — two cheap

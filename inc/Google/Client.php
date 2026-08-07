@@ -23,8 +23,26 @@ final class Client {
 	/** @var string The URL Inspection API lives on a different host than the v3 reports. */
 	const INSPECT_API = 'https://searchconsole.googleapis.com/v1/urlInspection/index:inspect';
 
-	/** @var int Row cap per report — Google's own per-request maximum. */
-	const ROW_LIMIT = 5000;
+	/**
+	 * @var int Rows per request — Google's actual per-request maximum.
+	 *
+	 * This said 5,000 and called 5,000 the API maximum. It never was: the
+	 * documented ceiling is 25,000, and the difference is not academic, because
+	 * rows come back sorted by clicks descending. A low cap does not sample the
+	 * window, it removes the quiet end of it — the pages earning a few clicks
+	 * each, which are the ones the worklist exists to find.
+	 */
+	const ROW_LIMIT = 25000;
+
+	/**
+	 * @var int Requests per report before we stop asking.
+	 *
+	 * 4 × 25,000 = 100,000 page/query pairs, far beyond any site this plugin
+	 * runs on, and a hard backstop against a paging loop that never ends
+	 * because a property keeps answering. Paging STOPS EARLY the moment a
+	 * response comes back short, which is the normal exit.
+	 */
+	const MAX_PAGES = 4;
 
 	/**
 	 * The properties this key can read: [ { property, permission } … ].
@@ -86,6 +104,17 @@ final class Client {
 	 * per (page, query) with clicks, impressions and average position exactly
 	 * as Search Console reports them.
 	 *
+	 * Paged: Search Console caps one response at ROW_LIMIT rows and hands the
+	 * rest back through startRow. A single request therefore returned only the
+	 * loudest slice of the window and said nothing about the rest — so the walk
+	 * continues until a response comes back SHORT, which is how the API says
+	 * "that was the last of them".
+	 *
+	 * A page that errors mid-walk does NOT discard the pages already collected:
+	 * a partial window is still true about the rows it holds, and the caller
+	 * replaces its snapshot with something rather than nothing. The error is
+	 * only returned when the FIRST request fails, i.e. when there is nothing.
+	 *
 	 * @param string $token    Bearer token.
 	 * @param string $property The GSC property (sc-domain:… or a URL prefix).
 	 * @param string $start    Y-m-d start date.
@@ -93,34 +122,50 @@ final class Client {
 	 * @return array { rows?: array<int,array{page:string,query:string,clicks:int,impressions:int,position:float}>, error?: string }
 	 */
 	public function search_analytics( $token, $property, $start, $end ) {
-		$out = $this->request(
-			'POST',
-			'sites/' . rawurlencode( (string) $property ) . '/searchAnalytics/query',
-			$token,
-			array(
-				'startDate'  => (string) $start,
-				'endDate'    => (string) $end,
-				'dimensions' => array( 'page', 'query' ),
-				'rowLimit'   => self::ROW_LIMIT,
-			)
-		);
-		if ( isset( $out['error'] ) ) {
-			return $out;
-		}
 		$rows = array();
-		foreach ( (array) ( $out['data']['rows'] ?? array() ) as $row ) {
-			$keys = (array) ( $row['keys'] ?? array() );
-			if ( count( $keys ) < 2 ) {
-				continue;
-			}
-			$rows[] = array(
-				'page'        => (string) $keys[0],
-				'query'       => (string) $keys[1],
-				'clicks'      => (int) round( (float) ( $row['clicks'] ?? 0 ) ),
-				'impressions' => (int) round( (float) ( $row['impressions'] ?? 0 ) ),
-				'position'    => round( (float) ( $row['position'] ?? 0 ), 2 ),
+
+		for ( $page = 0; $page < self::MAX_PAGES; $page++ ) {
+			$out = $this->request(
+				'POST',
+				'sites/' . rawurlencode( (string) $property ) . '/searchAnalytics/query',
+				$token,
+				array(
+					'startDate'  => (string) $start,
+					'endDate'    => (string) $end,
+					'dimensions' => array( 'page', 'query' ),
+					'rowLimit'   => self::ROW_LIMIT,
+					'startRow'   => $page * self::ROW_LIMIT,
+				)
 			);
+			if ( isset( $out['error'] ) ) {
+				if ( 0 === $page ) {
+					return $out;
+				}
+				break;
+			}
+
+			$batch = (array) ( $out['data']['rows'] ?? array() );
+			foreach ( $batch as $row ) {
+				$keys = (array) ( $row['keys'] ?? array() );
+				if ( count( $keys ) < 2 ) {
+					continue;
+				}
+				$rows[] = array(
+					'page'        => (string) $keys[0],
+					'query'       => (string) $keys[1],
+					'clicks'      => (int) round( (float) ( $row['clicks'] ?? 0 ) ),
+					'impressions' => (int) round( (float) ( $row['impressions'] ?? 0 ) ),
+					'position'    => round( (float) ( $row['position'] ?? 0 ), 2 ),
+				);
+			}
+
+			// Short answer = the end of the window. The overwhelming majority of
+			// sites exit here on the first pass, having made exactly one call.
+			if ( count( $batch ) < self::ROW_LIMIT ) {
+				break;
+			}
 		}
+
 		return array( 'rows' => $rows );
 	}
 

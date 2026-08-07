@@ -6420,3 +6420,71 @@ a.ar-about-proto__v:hover { text-decoration: underline; }
 .ar-setaside.ar-optmore > .ar-optmore__toggle { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; text-transform: none; font-family: var(--ar-sans); font-size: 12.5px; letter-spacing: 0; }
 .ar-setaside.ar-optmore > .ar-optmore__toggle .ar-setaside__title { font-size: 12.5px; }
 .ar-setaside__actions { display: flex; justify-content: flex-end; margin: 0 0 8px; }
+
+/* ---------------------------------------------------------------------------
+   "Who reached your site" — the people/machines split.
+
+   Two halves, equal weight, with a rule between them rather than a card each:
+   they are two readings of ONE window, and two cards would invite the eye to
+   compare them as rivals. The numbers are deliberately never summed — a fetch
+   is not a visit — so there is no total row anywhere in this block.
+   --------------------------------------------------------------------------- */
+.ar-aud__head { margin-bottom: 14px; }
+.ar-aud__wait { margin: 0; font-size: 13px; color: var(--ar-ink-faint); }
+
+.ar-aud__split { display: grid; grid-template-columns: 1fr 1fr; gap: 0; }
+.ar-aud__half { padding: 4px 24px; min-width: 0; }
+.ar-aud__half:first-child { padding-left: 0; }
+/* The divider belongs to the second half, so it can never render on a lone
+   column when the grid stacks. */
+.ar-aud__half:last-child { border-left: 1px solid var(--ar-line); padding-right: 0; }
+
+.ar-aud__kind {
+  margin: 0 0 6px; font-family: var(--ar-mono); font-size: 10.5px;
+  letter-spacing: 0.14em; text-transform: uppercase; color: var(--ar-ink-faint);
+}
+.ar-aud__n {
+  margin: 0; font-family: var(--ar-serif); font-size: 34px; line-height: 1.05;
+  font-weight: 600; color: var(--ar-ink); font-variant-numeric: tabular-nums;
+}
+.ar-aud__unit { margin: 2px 0 14px; font-size: 12.5px; color: var(--ar-ink-soft); }
+
+.ar-aud__rows { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 7px; }
+.ar-aud__rows li { display: flex; align-items: baseline; gap: 9px; font-size: 13px; }
+.ar-aud__row-n {
+  flex: 0 0 auto; min-width: 3.2ch; text-align: right;
+  font-family: var(--ar-mono); font-weight: 600; color: var(--ar-ink);
+  font-variant-numeric: tabular-nums;
+}
+.ar-aud__row-l { color: var(--ar-ink-soft); min-width: 0; }
+.ar-aud__rows li.is-bad .ar-aud__row-n { color: var(--ar-bad); }
+/* A switched-off source states itself in the row rather than showing a bare 0,
+   which would read as a measured absence instead of an unasked question. */
+.ar-aud__off { font-style: normal; color: var(--ar-ink-faint); }
+.ar-aud__off::before { content: "· "; }
+
+.ar-aud__detail {
+  margin: 12px 0 10px; font-size: 12px; color: var(--ar-ink-faint);
+  overflow-wrap: anywhere;
+}
+
+.ar-aud__limits {
+  margin-top: 18px; padding-top: 14px; border-top: 1px dashed var(--ar-line-strong);
+}
+.ar-aud__limits-t {
+  margin: 0 0 8px; font-family: var(--ar-mono); font-size: 10.5px;
+  letter-spacing: 0.12em; text-transform: uppercase; color: var(--ar-ink-faint);
+}
+.ar-aud__limits ul { margin: 0; padding: 0 0 0 16px; display: flex; flex-direction: column; gap: 7px; }
+.ar-aud__limits li { font-size: 12.5px; line-height: 1.55; color: var(--ar-ink-soft); max-width: 78ch; }
+
+/* Stacked, and the divider becomes a horizontal rule so the two halves stay
+   visibly separate rather than running together into one column of numbers. */
+@container (max-width: 720px) {
+  .ar-aud__split { grid-template-columns: 1fr; }
+  .ar-aud__half { padding: 0; }
+  .ar-aud__half:last-child {
+    border-left: 0; border-top: 1px solid var(--ar-line);
+    margin-top: 18px; padding-top: 18px;
+  }
+}
