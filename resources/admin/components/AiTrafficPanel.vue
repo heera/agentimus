@@ -57,6 +57,8 @@ export default {
       // Set when a setting the report depends on changed while we were hidden; consumed on
       // the next activation to force a reload of an otherwise-cached report.
       stale: false,
+      // The 'Learn more' fold on the diagnostic card.
+      unknownWhy: false,
     };
   },
   computed: {
@@ -123,6 +125,16 @@ export default {
     },
     landingPages() {
       return (this.people && this.people.ai && this.people.ai.pages) || [];
+    },
+    topAssistant() {
+      return this.assistants.length ? this.assistants[0] : null;
+    },
+    topAssistantPct() {
+      if (!this.topAssistant || !this.ownAi) return 0;
+      return Math.round((this.topAssistant.hits / this.ownAi) * 100);
+    },
+    topLanding() {
+      return this.landingPages.length ? this.landingPages[0] : null;
     },
     // Everyone's busiest pages, from analytics.
     allPages() {
@@ -367,19 +379,25 @@ export default {
         </div>
       </div>
 
-      <div v-if="allPages.length" class="ar-rd__col ar-rd__col--wide">
-        <p class="ar-rd__col-t">Most-read pages</p>
-        <ul class="ar-rd__list">
-          <li v-for="p in allPages" :key="p.path">
-            <span class="ar-rd__list-l is-path">{{ p.path }}</span>
-            <span class="ar-rd__list-n">{{ n(p.views) }}</span>
-          </li>
-        </ul>
-      </div>
-
       <p v-if="ga.stale" class="ar-rd__note">
         These haven’t refreshed in over two days — they’re the last good numbers, not today’s.
       </p>
+    </section>
+
+    <!-- Content analytics, not audience overview — so it stands on its own
+         rather than hanging off the bottom of the four totals above it. -->
+    <section v-if="gaOn && allPages.length" class="ar-card ar-rd">
+      <h2 class="ar-card__title">
+        Most-read pages
+        <span class="ar-card__tag">last {{ audience.window }} days</span>
+      </h2>
+      <p class="ar-card__lead">Your whole site, busiest first — everyone, not only AI.</p>
+      <ul class="ar-rd__list ar-rd__list--wide">
+        <li v-for="p in allPages" :key="p.path">
+          <span class="ar-rd__list-l is-path">{{ p.path }}</span>
+          <span class="ar-rd__list-n">{{ n(p.views) }}</span>
+        </li>
+      </ul>
     </section>
 
     <!-- The AI slice: did AI send anyone, is it growing, which pages earned it. -->
@@ -405,39 +423,33 @@ export default {
         </template>
       </p>
 
-      <div v-if="assistants.length || landingPages.length" class="ar-rd__cols">
-        <div v-if="assistants.length" class="ar-rd__col">
-          <p class="ar-rd__col-t">Which AI sent them</p>
-          <ul class="ar-rd__list">
-            <li v-for="a in assistants" :key="a.source">
-              <span class="ar-rd__list-l">{{ a.source }}</span>
-              <span class="ar-rd__list-n">{{ n(a.hits) }}</span>
-            </li>
-          </ul>
-        </div>
+      <!-- The interpretation the reader would otherwise have to do themselves:
+           who leads, what they read, and whether that is a lot. -->
+      <ul v-if="topAssistant || topLanding" class="ar-rd__insights">
+        <li v-if="topAssistant">
+          <span class="ar-rd__ik">Top assistant</span>
+          <span class="ar-rd__iv">{{ topAssistant.source }}</span>
+          <span class="ar-rd__ip">{{ topAssistantPct }}%</span>
+        </li>
+        <li v-if="topLanding">
+          <span class="ar-rd__ik">Most-cited page</span>
+          <span class="ar-rd__iv is-path">{{ topLanding.path }}</span>
+          <span class="ar-rd__ip">{{ topLanding.hits }}</span>
+        </li>
+      </ul>
 
-        <div v-if="landingPages.length" class="ar-rd__col">
-          <p class="ar-rd__col-t">Pages they landed on</p>
-          <ul class="ar-rd__list">
-            <li v-for="p in landingPages" :key="p.path">
-              <span class="ar-rd__list-l is-path">{{ p.path }}</span>
-              <span class="ar-rd__list-n">{{ n(p.hits) }}</span>
-            </li>
-          </ul>
-        </div>
-      </div>
-
-      <!-- One sentence, small, at the bottom. It used to be a section. -->
-      <p v-if="gaAi !== null && gaAi !== ownAi" class="ar-rd__note">
-        Google Analytics counts these differently — it says {{ n(gaAi) }}. Neither is wrong;
-        each one misses people the other sees.
+      <!-- A footnote, and it looks like one. It used to be a whole section
+           competing with the numbers it annotates. -->
+      <p v-if="gaAi !== null && gaAi !== ownAi" class="ar-rd__fine">
+        <span class="ar-rd__fine-i" aria-hidden="true">i</span>
+        Google Analytics says {{ n(gaAi) }} — each counts people the other can’t see.
       </p>
     </section>
 
     <section class="ar-card ar-ai">
       <div class="ar-card__titlewrap">
         <h2 class="ar-card__title">
-          Traffic from AI
+          Narrow it down
           <span v-if="rangeLabel" class="ar-card__tag">{{ rangeLabel }}</span>
         </h2>
         <button
@@ -454,17 +466,20 @@ export default {
         </button>
       </div>
       <p class="ar-card__lead">
-        Real visitors who arrived from an AI assistant (ChatGPT, Perplexity, Gemini…). These are
-        <strong>people</strong>, not bots — the machines reading your site live in the Request Log
-        and Agent Access. Counted on your own site — no IP, nothing sent anywhere. Some AI visits
-        can’t be detected, so read this as a floor: at least this many.
+        Narrow everything below to one assistant, one section of the site, or a
+        different stretch of time.
       </p>
-      <p v-if="beacon" class="ar-card__lead">
-        <strong>CDN mode is on</strong> — these are counted in your visitors’ browsers so the number
-        survives a full-page cache. Treat it as indicative, not exact: a visitor whose ad-blocker
-        blocks the counting script is missed, and because the count comes from the browser it can
-        also be inflated by automated traffic. It’s a useful trend, not an audited figure.
-      </p>
+      <!-- The CDN caveat was three lines of prose interrupting the flow between
+           a heading and its controls. Folded: it matters, and it does not
+           matter more than getting to the filters. -->
+      <details v-if="beacon" class="ar-ai__cdn">
+        <summary>Counted in the browser (CDN mode)</summary>
+        <p>
+          These are counted in your visitors’ browsers so the number survives a full-page
+          cache. A visitor whose ad-blocker stops the script is missed, and browser counting
+          can also be inflated by automated traffic. Treat it as a trend, not an audited figure.
+        </p>
+      </details>
 
       <!-- The assistant is a closed set drawn from the log itself, so it's a dropdown. The
            landing page is free text, because a path is unbounded and the match is a prefix.
@@ -508,12 +523,6 @@ export default {
       </div>
 
       <template v-else>
-        <div class="ar-wd-stats ar-act-stats ar-act-stats--3">
-          <div class="ar-wd-stat"><strong>{{ total }}</strong><span>{{ total === 1 ? 'visit' : 'visits' }}</span></div>
-          <div class="ar-wd-stat"><strong>{{ sourceCount }}</strong><span>{{ sourceCount === 1 ? 'source' : 'sources' }}</span></div>
-          <div class="ar-wd-stat"><strong>{{ activeDays }}</strong><span>days with visits</span></div>
-        </div>
-
         <p v-if="filterSummary" class="ar-ai__filternote">Showing <strong>{{ filterSummary }}</strong> only.</p>
 
         <p v-if="!total && hasFilters" class="ar-wd-empty">Nothing matched those filters.</p>
@@ -565,7 +574,7 @@ export default {
     <section v-if="!error && report && total && daily.length" class="ar-card ar-ai">
       <h2 class="ar-card__title">By Day <span v-if="rangeLabel" class="ar-card__tag">{{ rangeLabel }}</span></h2>
       <p class="ar-card__lead">
-        Click a day to see which source landed on which page. The day is the finest “when”
+        Open a day to see which assistant landed on which page. Days are the finest detail
         stored — no times, nothing that could stand for a person.
       </p>
       <ul class="ar-aiday">
@@ -576,9 +585,11 @@ export default {
                   :aria-expanded="refDayOpen(d.date)"
                   @click="toggleRefDay(d.date)"
                 >
-                  <span class="ar-aiday__date">{{ dateLabel(d.date) }}</span>
+                  <span class="ar-aiday__date">
+                    {{ dateLabel(d.date) }}
+                    <em class="ar-aiday__count">{{ d.hits }} {{ d.hits === 1 ? 'visit' : 'visits' }}</em>
+                  </span>
                   <span class="ar-act-rank__track"><span class="ar-act-rank__bar" :style="{ width: pct(d.hits, dailyMax) }"></span></span>
-                  <span class="ar-aiday__n">{{ d.hits }}</span>
                   <svg class="ar-aiday__chev" :class="{ 'is-open': refDayOpen(d.date) }" viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6l4 4 4-4" /></svg>
                 </button>
                 <ul v-if="refDayOpen(d.date)" class="ar-aiday__detail">
@@ -621,10 +632,17 @@ export default {
     <section v-if="unknownOn" class="ar-card ar-ai">
       <h2 class="ar-card__title">Unrecognised Referrers <span class="ar-card__tag">Diagnostic</span></h2>
       <p class="ar-card__lead">
-        Readers arrived from these places and none matched a known AI assistant. Most will be ordinary
-        sites, search engines and social apps — and some, like Google’s AI Overviews, can’t be told apart
-        from an ordinary search click, so Agentimus refuses to guess. If you spot an assistant among them,
-        add it with the <code>agentimus_ai_referral_sources</code> filter and it will count from then on.
+        Visits from places that couldn’t be matched to an AI assistant. Most are ordinary sites,
+        search engines and social apps.
+        <button type="button" class="ar-linkbtn" @click="unknownWhy = !unknownWhy">
+          {{ unknownWhy ? 'Hide details' : 'Learn more' }}
+        </button>
+      </p>
+      <p v-if="unknownWhy" class="ar-card__lead">
+        Some, like Google’s AI Overviews, can’t be told apart from an ordinary search click, so
+        Agentimus refuses to guess rather than inflate the count. Spot an assistant in this list and
+        you can add it with the <code>agentimus_ai_referral_sources</code> filter — it counts from
+        then on.
       </p>
 
       <div v-if="unknownHosts.length || unknownUtm.length" class="ar-ai__cols">
