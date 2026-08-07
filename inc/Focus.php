@@ -464,16 +464,24 @@ final class Focus {
 
 		$this->render_flags( $post );
 
+		// WHICH words, not how many. "None of it is on the page" leaves an author
+		// to work out what to write; the badges hand them the list, and on a page
+		// that half matches they show the one word to go and use.
+		$this->render_terms( $cover );
+
 		// What to actually do about it — the panel's one instruction, and marked
 		// as such: a rule down its left edge and the only bold line in the
 		// verdict. Still plain TEXT, not a link, and deliberately: there is
 		// nowhere to send someone closer to the fix than the editor they are
-		// already looking at, and a link that only scrolls is theatre. The
-		// design's arrow promised a destination this box does not have.
+		// already looking at, and a link that only scrolls is theatre.
+		//
+		// Each line names the ACT, the PLACE and the moment it re-checks —
+		// "answer it here" assumed the author already knew that "here" is the
+		// post body and that one paragraph has to carry the whole search.
 		$advice = array(
-			Coverage::SCATTERED => __( 'Bring those words together into one paragraph that answers it.', 'agentimus' ),
-			Coverage::BARELY    => __( 'Write a paragraph that answers this search directly.', 'agentimus' ),
-			Coverage::MISSING   => __( 'Either answer it here, or this is not what the page is for.', 'agentimus' ),
+			Coverage::SCATTERED => __( 'These words are all on the page but never together. Put them in ONE paragraph of the post that answers the search. Re-checked when you save.', 'agentimus' ),
+			Coverage::BARELY    => __( 'Add a paragraph to the post that uses the missing words above and answers the search directly. Re-checked when you save.', 'agentimus' ),
+			Coverage::MISSING   => __( 'Add a paragraph to the post using these words, or pick a search below that this page really is for. Re-checked when you save.', 'agentimus' ),
 		);
 		if ( isset( $advice[ $cover['state'] ] ) ) {
 			echo '<p class="agentimus-focus__todo">' . esc_html( $advice[ $cover['state'] ] ) . '</p>';
@@ -482,6 +490,40 @@ final class Focus {
 		echo '<p class="agentimus-focus__note">'
 			. esc_html__( 'Measured against the last saved version of this page.', 'agentimus' )
 			. '</p>';
+	}
+
+	/**
+	 * The searched words, one badge each, in the spelling the searcher used.
+	 *
+	 * Three states, and they are not a scale: in the passage that answers best,
+	 * elsewhere on the page, or absent. Colour never carries it alone — the
+	 * shapes differ too, and each badge says its state in a title.
+	 *
+	 * @param array $cover A Coverage::measure() verdict.
+	 * @return void
+	 */
+	private function render_terms( array $cover ) {
+		$terms = isset( $cover['terms'] ) && is_array( $cover['terms'] ) ? $cover['terms'] : array();
+		if ( ! $terms ) {
+			return;
+		}
+
+		echo '<p class="agentimus-focus__terms">';
+		foreach ( $terms as $t ) {
+			$state = ! empty( $t['in_passage'] ) ? 'in' : ( ! empty( $t['on_page'] ) ? 'page' : 'out' );
+			$title = 'in' === $state
+				? __( 'In the paragraph that answers best', 'agentimus' )
+				: ( 'page' === $state
+					? __( 'On the page, but in a different paragraph', 'agentimus' )
+					: __( 'Not on the page', 'agentimus' ) );
+			printf(
+				'<span class="agentimus-focus__term is-%1$s" title="%2$s">%3$s</span>',
+				esc_attr( $state ),
+				esc_attr( $title ),
+				esc_html( (string) $t['word'] )
+			);
+		}
+		echo '</p>';
 	}
 
 	/**
@@ -498,7 +540,7 @@ final class Focus {
 			. '.agentimus-focus__opt input{margin:2px 0 0}'
 			. '.agentimus-focus__q{font-size:12.5px;color:#1e1e1e;overflow-wrap:anywhere;line-height:1.35}'
 			. '.agentimus-focus__n{grid-column:2;font-size:10.5px;color:#646970;font-variant-numeric:tabular-nums}'
-			. '.agentimus-focus__now{border:1px solid #146b64;border-left-width:3px;border-radius:2px;background:#f2f8f7;padding:8px 10px;margin:0 0 8px}.agentimus-focus__nowq{display:block;font-size:13.5px;font-weight:600;color:#1e1e1e;line-height:1.35;overflow-wrap:anywhere}.agentimus-focus__nown{display:block;margin-top:2px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:10.5px;color:#50575e;font-variant-numeric:tabular-nums}.agentimus-focus__todo{margin:8px 0 0;padding-left:9px;border-left:2px solid #146b64;font-size:12px;font-weight:600;line-height:1.45;color:#1e1e1e}.agentimus-focus__text{margin:0 0 8px}'
+			. '.agentimus-focus__now{border:1px solid #146b64;border-left-width:3px;border-radius:2px;background:#f2f8f7;padding:8px 10px;margin:0 0 8px}.agentimus-focus__nowq{display:block;font-size:13.5px;font-weight:600;color:#1e1e1e;line-height:1.35;overflow-wrap:anywhere}.agentimus-focus__nown{display:block;margin-top:2px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:10.5px;color:#50575e;font-variant-numeric:tabular-nums}.agentimus-focus__terms{margin:7px 0 0;display:flex;flex-wrap:wrap;gap:5px}.agentimus-focus__term{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:10.5px;line-height:1.6;padding:1px 7px;border-radius:999px;border:1px solid transparent}.agentimus-focus__term.is-in{color:#fff;background:#146b64;border-color:#146b64}.agentimus-focus__term.is-page{color:#50575e;background:#fff;border-color:#c3c4c7}.agentimus-focus__term.is-out{color:#8c8f94;border-color:#dcdcde;border-style:dashed;text-decoration:line-through}.agentimus-focus__todo{margin:8px 0 0;padding-left:9px;border-left:2px solid #146b64;font-size:12px;font-weight:600;line-height:1.45;color:#1e1e1e}.agentimus-focus__text{margin:0 0 8px}'
 			. '.agentimus-focus__verdict{display:flex;gap:5px;align-items:baseline;margin:0 0 4px;font-size:11.5px;line-height:1.45;color:#50575e}.agentimus-focus__mark{flex:0 0 auto}'
 			. '.agentimus-focus__verdict strong{font-weight:600}'
 			. '.agentimus-focus__verdict.is-ok strong{color:#2f7a4c}'
