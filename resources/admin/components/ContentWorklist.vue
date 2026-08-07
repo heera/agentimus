@@ -209,6 +209,10 @@ export default {
           <div class="ar-work__for">
             <template v-if="i.focus">
               <span class="ar-work__q">{{ i.focus.query }}</span>
+              <!-- Whose decision this is. A row judged against the author's own
+                   choice and one judged against its busiest search are different
+                   claims, and only one of them is the plugin's opinion. -->
+              <span class="ar-work__src">{{ i.focus.chosen ? 'chosen in the editor' : 'its busiest search' }}</span>
               <span class="ar-work__nums">
                 <span class="ar-work__rank">{{ rank(i.focus.position) }}</span>
                 <span>{{ num(i.focus.impressions) }} shown</span>

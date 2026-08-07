@@ -104,6 +104,7 @@ final class Plugin {
 		( new Seo( $this->settings ) )->register(); // Solo-mode head output (per-page SEO title; cards + canonical land here). Stands down at request time when an SEO suite is active.
 		( new EditorPanel( $this->settings ) )->register(); // One "Agentimus" editor box: JSON-LD + AI Readability as tabs.
 		( new Topics( $this->settings ) )->register();
+		( new Focus( $this->settings ) )->register(); // "This page is for" — the first section of the shared Search & AI box.
 		( new Description( $this->settings ) )->register();
 		( new MediaContext( $this->settings ) )->register(); // A line of context per video/audio item, so an agent knows what a player holds. Field composed into the Topics box; writes nothing to the front end.
 		( new AskAi( $this->settings ) )->register(); // "Ask AI about this post" bar after singular post content (enable_ask_ai, on by default).

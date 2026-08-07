@@ -291,14 +291,40 @@ final class Worklist {
 		$focus = null;
 		$cov   = null;
 
-		if ( $rows ) {
-			$best  = $rows[0];
+		// The author's own choice wins, so this row and the editor's panel can
+		// never disagree about what the page is for. Without a choice, the search
+		// that brings the most people stands in.
+		$chosen = Focus::for_post( $post );
+		$best   = null;
+		if ( $chosen['chosen'] && '' !== $chosen['query'] ) {
+			foreach ( $rows as $row ) {
+				if ( $row['query'] === $chosen['query'] ) {
+					$best = $row;
+					break;
+				}
+			}
+			// Chosen by hand, or its search has since dropped out of the report:
+			// still the focus, just with no numbers to show against it.
+			if ( ! $best ) {
+				$best = array(
+					'query'       => $chosen['query'],
+					'position'    => 0.0,
+					'impressions' => 0,
+					'clicks'      => 0,
+				);
+			}
+		} elseif ( $rows ) {
+			$best = $rows[0];
+		}
+
+		if ( $best ) {
 			$focus = array(
 				'query'       => (string) $best['query'],
 				'position'    => round( (float) $best['position'], 1 ),
 				'impressions' => (int) $best['impressions'],
 				'clicks'      => (int) $best['clicks'],
 				'others'      => max( 0, count( $rows ) - 1 ),
+				'chosen'      => (bool) $chosen['chosen'],
 			);
 			$cov   = Coverage::measure( $html, $post->post_title, $focus['query'] );
 		}

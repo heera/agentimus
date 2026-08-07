@@ -263,6 +263,15 @@ The reverse-DNS crawler verifier (whose on/off and lookup hooks — `agentimus_v
 | `agentimus_trusted_proxies` | filter | `( array $proxies ): array` | Trusted proxy/CDN definitions used to resolve the real client IP, each `array( 'header' => string, 'ranges' => string[] )` of CIDRs. Ships with Cloudflare's ranges + `CF-Connecting-IP`. A forwarded header is honoured **only** when the direct peer (`REMOTE_ADDR`) falls inside that proxy's ranges, so it can't be used to spoof a source IP from the open internet. |
 | `agentimus_client_ip` | filter | `( string $ip ): string` | Final override of the resolved client IP used for bot verification. It already resolves the real client behind a trusted proxy; reach for this only for an unusual proxy header or to pin a value in tests. |
 
+### What a page is for
+
+Agentimus judges a page against a real search — one the engines already report for it, promoted by the author in the editor, or typed by hand when a page is too new to have data. It then asks whether **one passage** of the page carries that whole search, rather than counting the words anywhere on it: a page mentioning "crawler" in the intro and "blocking" in a caption answers nothing, and only the passage question can tell that apart. Four verdicts — **answered**, **scattered** (every word present, never together), **barely**, **missing**.
+
+| Hook | Type | Signature | Purpose |
+| --- | --- | --- | --- |
+| `agentimus_coverage` | filter | `( array $verdict, string $query, string $html ): array` | The whole verdict for one search against one page — `{ state, words, in_passage, on_page, in_title, heading, quote }`. Replace the measurement outright (a semantic model, a language the built-in stemmer does not fit) without touching the editor panel or the worklist that render it. |
+| `agentimus_coverage_stopwords` | filter | `( string[] $words ): string[]` | Words treated as carrying no meaning of their own. Deliberately short by default: every word dropped here is one the page no longer has to contain, so a long list hands out "answered" for free. Replace it wholesale for another language. |
+
 ### Self-declared identity check
 
 Many crawlers put a home page in their own User-Agent (`+https://example.com/bot`) and keep a page there explaining who they are. `Activity\IdentityProbe` looks at whether that page answers — in a one-off cron event, at most one request per host per week, never on a render path, and always through `wp_safe_remote_get()` (the URL comes from a stranger's header). It reports three states: **answers**, **missing** (a 404/410, or a host that resolves to nothing) and **unreached** — everything inconclusive, including a 403 that may be a firewall turning *this* site away. It changes no verdict and blocks nothing.

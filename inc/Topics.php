@@ -424,6 +424,13 @@ final class Topics {
 			. '.agentimus-fieldhint{margin:0 0 8px;font-size:11.5px;line-height:1.5;color:#646970}'
 			. '</style>';
 
+		// What the page is FOR leads the box: the title and description below are
+		// the response to it, and the coverage line under it is the reason to
+		// rewrite either. Its own save hook is untouched; only the container is
+		// shared — same arrangement as the two halves beneath.
+		( new Focus( $this->settings ) )->render_field( $post );
+		echo '<hr style="margin:14px 0 12px;border:0;border-top:1px solid #dcdcde" />';
+
 		// The solo-mode SEO title sits on top — search snippet order: title, then
 		// description. Its own save hook is untouched; only the container is shared.
 		if ( Seo::title_ui_enabled() ) {

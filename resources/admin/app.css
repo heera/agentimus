@@ -6338,3 +6338,4 @@ a.ar-about-proto__v:hover { text-decoration: underline; }
 /* Today on its own screen stays filled — the ink edge is the point of that state. */
 .ar__todaybtn.is-here,
 .ar__todaybtn.is-here:hover { border-color: var(--ar-ink); }
+.ar-work__src { font-size: 10.5px; color: var(--ar-ink-faint); }
