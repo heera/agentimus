@@ -462,7 +462,7 @@ export default {
             // callers to fix a label.
             title: 'Readers',
             audience: 'people',
-            description: 'Everyone who read your site — how many arrived because an AI assistant named you, and how many came another way. People only: the machines are in the Request Log.',
+            description: 'Everyone who read your site — how many arrived because an AI assistant named you, and how many came another way. Humans only: the machines are in the Request Log.',
           },
           log: {
             title: 'Request Log',
@@ -1793,7 +1793,7 @@ export default {
             v-if="pageMeta.audience"
             class="ar__pagehead-aud"
             :class="`is-${pageMeta.audience}`"
-          >{{ pageMeta.audience === 'people' ? 'People' : 'Machines' }}</span>
+          >{{ pageMeta.audience === 'people' ? 'Humans' : 'Machines' }}</span>
         </h1>
         <p v-if="pageMeta.description" class="ar__pagehead-desc">{{ pageMeta.description }}</p>
       </div>

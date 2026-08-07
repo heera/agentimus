@@ -375,58 +375,50 @@ final class Audience {
 		if ( empty( $all['connected'] ) ) {
 			$out[] = array(
 				'key'  => 'people-partial',
-				'short' => __( 'This isn’t your total traffic — only readers from search and AI.', 'agentimus' ),
-				'text' => __( 'This counts only readers from search and from AI answers. Direct visits, social and email are not measured here, so it is not your site’s total traffic — connect Google Analytics under Settings → Data sources to make it whole.', 'agentimus' ),
+				'text'  => __( 'This isn’t your total traffic — only readers from search and AI.', 'agentimus' ),
 			);
 		} else {
 			$out[] = array(
 				'key'  => 'people-sampled',
-				'short' => __( 'Analytics and machine counts are measured differently and won’t match.', 'agentimus' ),
-				'text' => __( 'Total readers come from Google Analytics, which counts browsers that accepted its script — a visitor who declines cookies is missing there and still present in the machine half. The two are measured differently and will not reconcile exactly.', 'agentimus' ),
+				'text'  => __( 'Analytics and machine counts are measured differently and won’t match.', 'agentimus' ),
 			);
 		}
 
 		if ( ! empty( $all['stale'] ) ) {
 			$out[] = array(
 				'key'  => 'people-stale',
-				'short' => __( 'The analytics figure is over two days old.', 'agentimus' ),
-				'text' => __( 'The analytics figure hasn’t refreshed in over two days. It is the last good number, not today’s.', 'agentimus' ),
+				'text'  => __( 'The analytics figure is over two days old.', 'agentimus' ),
 			);
 		}
 
 		if ( $search['connected'] ) {
 			$out[] = array(
 				'key'  => 'search-blended',
-				'short' => __( 'Search engines don’t separate AI Overviews from ordinary results.', 'agentimus' ),
-				'text' => __( 'Search clicks count people. Google folds AI Overview appearances into the same figures and publishes no way to separate them, so a share of these impressions was an AI answer quoting you.', 'agentimus' ),
+				'text'  => __( 'Search engines don’t separate AI Overviews from ordinary results.', 'agentimus' ),
 			);
 		} else {
 			$out[] = array(
 				'key'  => 'search-missing',
-				'short' => __( 'No search engine connected — the search half is empty, not zero.', 'agentimus' ),
-				'text' => __( 'No search engine is connected, so the people-from-search half is empty — not zero. Connect Google or Bing under Settings → Data sources.', 'agentimus' ),
+				'text'  => __( 'No search engine connected — the search half is empty, not zero.', 'agentimus' ),
 			);
 		}
 
 		if ( $machines['enabled'] ) {
 			$out[] = array(
 				'key'  => 'machines-endpoints',
-				'short' => __( 'Machine fetches count agent files, not ordinary pages.', 'agentimus' ),
-				'text' => __( 'Machine fetches are counted on the routes built for agents — llms.txt, the .md twins, the discovery documents. A crawler reading an ordinary page is not in this number, because nothing here records ordinary page requests.', 'agentimus' ),
+				'text'  => __( 'Machine fetches count agent files, not ordinary pages.', 'agentimus' ),
 			);
 		} else {
 			$out[] = array(
 				'key'  => 'machines-off',
-				'short' => __( 'Agent activity isn’t being recorded — the machine half is empty, not zero.', 'agentimus' ),
-				'text' => __( 'Agent activity is not being recorded, so the machine half is empty — not zero. Turn on “Record agent access” in Settings.', 'agentimus' ),
+				'text'  => __( 'Agent activity isn’t being recorded — the machine half is empty, not zero.', 'agentimus' ),
 			);
 		}
 
 		if ( ! empty( $ai['enabled'] ) ) {
 			$out[] = array(
 				'key'  => 'ai-referrer',
-				'short' => __( 'AI-sent readers are a floor: some arrive untraceable.', 'agentimus' ),
-				'text' => __( 'Readers an assistant sent are counted when the visit still carries a recognisable referrer or campaign tag. An assistant that strips both never appears here.', 'agentimus' ),
+				'text'  => __( 'AI-sent readers are a floor: some arrive untraceable.', 'agentimus' ),
 			);
 		}
 

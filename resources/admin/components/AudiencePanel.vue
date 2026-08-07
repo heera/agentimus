@@ -64,26 +64,26 @@ export default {
         </h2>
         <p class="ar-card__lead">
           Two audiences, counted separately because they are not the same thing and
-          never add up: people who arrived to read, and machines that fetched.
+          never add up: humans who arrived to read, and machines that fetched.
         </p>
       </div>
     </div>
 
     <p v-if="!loaded" class="ar-aud__wait">Reading both halves…</p>
 
-    <!-- Two panels, not two columns of text. Each audience gets its own
-         surface, its own mark and its own colour, so the split is legible
-         before a single number is read — which is the entire idea of the card
-         and was, in a field of same-weight prose, the one thing you could not
-         see. -->
+    <!-- Two panels, distinguished by their MARK, not by colour.
+         Colouring one accent and the other neutral said that one of them was
+         the primary audience — and for this plugin that is backwards twice
+         over: the machine half is the half nobody else measures. Equal
+         surfaces, equal weight, and the icon carries the difference. -->
     <div v-else class="ar-aud__split">
-      <!-- PEOPLE ------------------------------------------------------------ -->
-      <div class="ar-aud__half is-people">
+      <!-- HUMANS ------------------------------------------------------------ -->
+      <div class="ar-aud__half">
         <p class="ar-aud__kind">
           <span class="ar-aud__mark" aria-hidden="true">
             <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="3.6" /><path d="M4.8 20.2a7.2 7.2 0 0 1 14.4 0" /></svg>
           </span>
-          People
+          Humans
         </p>
         <p class="ar-aud__n">{{ n(people.arrived) }}</p>
         <p class="ar-aud__unit">
@@ -121,7 +121,7 @@ export default {
       </div>
 
       <!-- MACHINES ---------------------------------------------------------- -->
-      <div class="ar-aud__half is-machines">
+      <div class="ar-aud__half">
         <p class="ar-aud__kind">
           <!-- The same bot glyph the review queue uses for a crawler, so one
                mark means one thing across the plugin. -->
@@ -159,17 +159,17 @@ export default {
 
     <!-- The honesty half. Shipped WITH the numbers rather than in a docs page,
          because the misreadings these prevent happen at the moment of reading. -->
-    <details v-if="loaded && limits.length" class="ar-aud__limits">
-      <summary>
-        What these numbers can’t tell you
-        <span class="ar-aud__limits-n">{{ limits.length }}</span>
-      </summary>
-      <ul>
-        <li v-for="l in limits" :key="l.key">
-          <strong>{{ l.short }}</strong>
-          <span>{{ l.text }}</span>
-        </li>
-      </ul>
-    </details>
+    <!-- One notice, full width, one line per fact. Always visible: a caveat
+         behind a fold is a caveat nobody reads, and these are short enough now
+         that hiding them buys nothing. -->
+    <div v-if="loaded && limits.length" class="ar-aud__note">
+      <span class="ar-aud__note-i" aria-hidden="true">i</span>
+      <div class="ar-aud__note-body">
+        <p class="ar-aud__note-t">Worth knowing</p>
+        <ul>
+          <li v-for="l in limits" :key="l.key">{{ l.text }}</li>
+        </ul>
+      </div>
+    </div>
   </section>
 </template>
