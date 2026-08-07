@@ -6599,3 +6599,16 @@ a.ar-about-proto__v:hover { text-decoration: underline; }
   border-color: var(--ar-line); border-style: dashed;
   text-decoration: line-through; text-decoration-thickness: 1px;
 }
+
+/* A search badge carries its own verdict when a page is for several: filled
+   when a passage answers it, plain when the words are around but not together,
+   struck when none of it is there. The row used to show only the first search,
+   which hid the very decisions it was judged on. */
+.ar-work__q.is-answered {
+  color: var(--ar-paper); background: var(--ar-good, var(--ar-accent));
+  border-color: var(--ar-good, var(--ar-accent));
+}
+.ar-work__q.is-missing {
+  color: var(--ar-ink-faint); background: transparent;
+  border-style: dashed; text-decoration: line-through;
+}

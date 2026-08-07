@@ -314,6 +314,7 @@ final class Worklist {
 		// takes the first — the one the author put first. The editor is where
 		// the rest are measured. {@see Focus::primary()}
 		$chosen          = Focus::for_post( $post );
+		$chosen['all']   = $chosen['query'];
 		$chosen['query'] = Focus::primary( $post );
 		$best            = null;
 		if ( $chosen['chosen'] && '' !== $chosen['query'] ) {
@@ -337,9 +338,26 @@ final class Worklist {
 			$best = $rows[0];
 		}
 
+		// Every search the author chose, each with its own verdict — the editor
+		// measures them all, and a row that showed only the first was quietly
+		// hiding the other decisions it was made from.
+		$others = array();
+		if ( $chosen['chosen'] ) {
+			foreach ( Focus::phrases( $chosen['all'] ) as $phrase ) {
+				$c = Focus::coverage( $post, $phrase, $html );
+				$others[] = array(
+					'query' => $phrase,
+					'state' => $c ? (string) $c['state'] : '',
+				);
+			}
+		}
+
 		if ( $best ) {
 			$focus = array(
 				'query'       => (string) $best['query'],
+				// One entry when there is one search; the row renders whatever
+				// is here, so it never has to know which case it is in.
+				'all'         => $others,
 				'position'    => round( (float) $best['position'], 1 ),
 				'impressions' => (int) $best['impressions'],
 				'clicks'      => (int) $best['clicks'],

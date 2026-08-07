@@ -41,6 +41,20 @@ final class Focus {
 	/** @var int Longest focus accepted. A search, not a sentence. */
 	const MAX_LEN = 120;
 
+	/**
+	 * @var array<string,string> Badge tone per coverage state.
+	 *
+	 * The badge shows the SEARCH, so it carries that search's verdict: filled
+	 * when a passage answers it, outlined when the words are on the page but
+	 * not together, struck when none of it is there.
+	 */
+	const BADGE_BY_STATE = array(
+		Coverage::ANSWERED  => 'in',
+		Coverage::SCATTERED => 'page',
+		Coverage::BARELY    => 'page',
+		Coverage::MISSING   => 'out',
+	);
+
 	/** @var int Searches offered as choices before the list is cut. */
 	const MAX_CHOICES = 5;
 
@@ -636,7 +650,7 @@ final class Focus {
 		// WHICH words, not how many. "None of it is on the page" leaves an author
 		// to work out what to write; the badges hand them the list, and on a page
 		// that half matches they show the one word to go and use.
-		$this->render_terms( $cover );
+		$this->render_terms( $cover, $query );
 
 		// What to actually do about it — the panel's one instruction, marked by a
 		// rule down its left edge and nothing else. It was bold, which is fine
@@ -680,28 +694,46 @@ final class Focus {
 	 * @param array $cover A Coverage::measure() verdict.
 	 * @return void
 	 */
-	private function render_terms( array $cover ) {
+	private function render_terms( array $cover, $query = '' ) {
 		$terms = isset( $cover['terms'] ) && is_array( $cover['terms'] ) ? $cover['terms'] : array();
 		if ( ! $terms ) {
 			return;
 		}
 
-		echo '<p class="agentimus-focus__terms">';
-		foreach ( $terms as $t ) {
-			$state = ! empty( $t['in_passage'] ) ? 'in' : ( ! empty( $t['on_page'] ) ? 'page' : 'out' );
-			$title = 'in' === $state
-				? __( 'In the paragraph that answers best', 'agentimus' )
-				: ( 'page' === $state
-					? __( 'On the page, but in a different paragraph', 'agentimus' )
-					: __( 'Not on the page', 'agentimus' ) );
-			printf(
-				'<span class="agentimus-focus__term is-%1$s" title="%2$s">%3$s</span>',
-				esc_attr( $state ),
-				esc_attr( $title ),
-				esc_html( (string) $t['word'] )
-			);
+		// ONE badge for the search, exactly as it was entered. A badge per word
+		// broke "new features" into two, which contradicted the single chip that
+		// produced it — and the state label above already says how it did, so
+		// the per-word row was mostly saying it again in another alphabet.
+		$state = self::BADGE_BY_STATE[ $cover['state'] ];
+		printf(
+			'<p class="agentimus-focus__terms"><span class="agentimus-focus__term is-%1$s">%2$s</span></p>',
+			esc_attr( $state ),
+			esc_html( '' !== $query ? $query : implode( ' ', wp_list_pluck( $terms, 'word' ) ) )
+		);
+
+		// WHICH words are missing, in a sentence, and only when knowing changes
+		// what you would write. "Answered" needs no list, and "Missing" means
+		// all of them.
+		if ( Coverage::BARELY === $cover['state'] || Coverage::SCATTERED === $cover['state'] ) {
+			$absent = array();
+			foreach ( $terms as $t ) {
+				if ( empty( $t['on_page'] ) ) {
+					$absent[] = (string) $t['word'];
+				}
+			}
+			if ( $absent ) {
+				printf(
+					'<p class="agentimus-focus__absent">%s</p>',
+					esc_html(
+						sprintf(
+							/* translators: %s: comma-separated list of words. */
+							_n( 'Not on the page: %s', 'Not on the page: %s', count( $absent ), 'agentimus' ),
+							implode( ', ', $absent )
+						)
+					)
+				);
+			}
 		}
-		echo '</p>';
 	}
 
 	/**
@@ -718,7 +750,7 @@ final class Focus {
 			. '.agentimus-focus__opt input{margin:2px 0 0}'
 			. '.agentimus-focus__q{font-size:12.5px;color:#1e1e1e;overflow-wrap:anywhere;line-height:1.35}'
 			. '.agentimus-focus__n{grid-column:2;font-size:10.5px;color:#646970;font-variant-numeric:tabular-nums}'
-			. '.agentimus-focus__now{border:1px solid #146b64;border-left-width:3px;border-radius:2px;background:#f2f8f7;padding:8px 10px;margin:0 0 8px}.agentimus-focus__nowq{display:block;font-size:13.5px;font-weight:600;color:#1e1e1e;line-height:1.35;overflow-wrap:anywhere}.agentimus-focus__nown{display:block;margin-top:2px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:10.5px;color:#50575e;font-variant-numeric:tabular-nums}.agentimus-focus__which{margin:10px 0 2px;font-size:12px;font-weight:600;color:#1e1e1e;overflow-wrap:anywhere}.agentimus-focus__which:first-child{margin-top:0}.agentimus-focus__chiplabel{margin:10px 0 4px;font-size:11px;color:#646970}.agentimus-focus__chips{display:flex;flex-wrap:wrap;gap:5px;margin:0 0 6px}.agentimus-focus__chip{display:inline-flex;align-items:center;gap:4px;font-size:12px;line-height:1.6;padding:2px 4px 2px 10px;border-radius:999px;color:#1e1e1e;background:#fff;border:1px solid #c3c4c7}.agentimus-focus__chipx{appearance:none;border:0;background:none;cursor:pointer;color:#8c8f94;font-size:14px;line-height:1;padding:0 4px;border-radius:999px}.agentimus-focus__chipx:hover{color:#b32d2e;background:#f6e7e7}.agentimus-focus__terms{margin:7px 0 0;display:flex;flex-wrap:wrap;gap:5px}.agentimus-focus__term{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:10.5px;line-height:1.6;padding:1px 7px;border-radius:999px;border:1px solid transparent}.agentimus-focus__term.is-in{color:#fff;background:#146b64;border-color:#146b64}.agentimus-focus__term.is-page{color:#50575e;background:#fff;border-color:#c3c4c7}.agentimus-focus__term.is-out{color:#8c8f94;border-color:#dcdcde;border-style:dashed;text-decoration:line-through}.agentimus-focus__todo{margin:8px 0 0;padding-left:9px;border-left:2px solid #146b64;font-size:12px;line-height:1.5;color:#1e1e1e}.agentimus-focus__text{margin:0 0 8px}'
+			. '.agentimus-focus__now{border:1px solid #146b64;border-left-width:3px;border-radius:2px;background:#f2f8f7;padding:8px 10px;margin:0 0 8px}.agentimus-focus__nowq{display:block;font-size:13.5px;font-weight:600;color:#1e1e1e;line-height:1.35;overflow-wrap:anywhere}.agentimus-focus__nown{display:block;margin-top:2px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:10.5px;color:#50575e;font-variant-numeric:tabular-nums}.agentimus-focus__which{margin:10px 0 2px;font-size:12px;font-weight:600;color:#1e1e1e;overflow-wrap:anywhere}.agentimus-focus__which:first-child{margin-top:0}.agentimus-focus__chiplabel{margin:10px 0 4px;font-size:11px;color:#646970}.agentimus-focus__chips{display:flex;flex-wrap:wrap;gap:5px;margin:0 0 6px}.agentimus-focus__chip{display:inline-flex;align-items:center;gap:4px;font-size:12px;line-height:1.6;padding:2px 4px 2px 10px;border-radius:999px;color:#1e1e1e;background:#fff;border:1px solid #c3c4c7}.agentimus-focus__chipx{appearance:none;border:0;background:none;cursor:pointer;color:#8c8f94;font-size:14px;line-height:1;padding:0 4px;border-radius:999px}.agentimus-focus__chipx:hover{color:#b32d2e;background:#f6e7e7}.agentimus-focus__absent{margin:4px 0 0;font-size:11px;color:#8c8f94}.agentimus-focus__terms{margin:7px 0 0;display:flex;flex-wrap:wrap;gap:5px}.agentimus-focus__term{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:10.5px;line-height:1.6;padding:1px 7px;border-radius:999px;border:1px solid transparent}.agentimus-focus__term.is-in{color:#fff;background:#146b64;border-color:#146b64}.agentimus-focus__term.is-page{color:#50575e;background:#fff;border-color:#c3c4c7}.agentimus-focus__term.is-out{color:#8c8f94;border-color:#dcdcde;border-style:dashed;text-decoration:line-through}.agentimus-focus__todo{margin:8px 0 0;padding-left:9px;border-left:2px solid #146b64;font-size:12px;line-height:1.5;color:#1e1e1e}.agentimus-focus__text{margin:0 0 8px}'
 			. '.agentimus-focus__verdict{display:flex;gap:5px;align-items:baseline;margin:0 0 4px;font-size:11.5px;line-height:1.45;color:#50575e}.agentimus-focus__mark{flex:0 0 auto}'
 			. '.agentimus-focus__verdict strong{font-weight:600}'
 			. '.agentimus-focus__verdict.is-ok strong{color:#2f7a4c}'

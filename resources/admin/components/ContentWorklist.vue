@@ -116,6 +116,15 @@ export default {
       // come from Bing is a small lie that costs trust in every number beside it.
       return i.focus.engine ? `${i.focus.engine} shows it for` : 'Search engines show it for';
     },
+    // The verdict in one word, for a badge's title.
+    stateWord(state) {
+      return {
+        answered: 'Answered by one passage',
+        scattered: 'Words are on the page, never together',
+        barely: 'Some of the words are here',
+        missing: 'None of it is on the page',
+      }[state] || '';
+    },
     rank(n) {
       return `#${Number(n).toFixed(1)}`;
     },
@@ -219,7 +228,20 @@ export default {
                  that one ran long. -->
             <span v-if="i.focus" class="ar-work__forline">
               <span class="ar-work__forlabel">{{ focusLabel(i) }}</span>
-              <span class="ar-work__q">{{ i.focus.query }}</span>
+              <!-- Every search the author chose, each carrying its own verdict.
+                   Showing only the first hid the other decisions the row was
+                   made from — and on a page chosen for three things, which one
+                   is failing is the whole question. -->
+              <template v-if="i.focus.all && i.focus.all.length > 1">
+                <span
+                  v-for="f in i.focus.all"
+                  :key="f.query"
+                  class="ar-work__q"
+                  :class="'is-' + (f.state || 'none')"
+                  :title="stateWord(f.state)"
+                >{{ f.query }}</span>
+              </template>
+              <span v-else class="ar-work__q">{{ i.focus.query }}</span>
             </span>
           </div>
 
