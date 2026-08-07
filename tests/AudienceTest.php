@@ -106,12 +106,17 @@ final class AudienceTest extends TestCase {
 		$this->assertSame( 2, $out['machines']['impostors'] );
 	}
 
+	/**
+	 * The payload carries the list the Readers screen needs; the dashboard card
+	 * slices its own one-liner out of it. One payload, two appetites.
+	 */
 	public function test_the_ai_leaderboard_is_capped_and_ordered() {
 		$out = Audience::from_stats( $this->stats() );
 
-		$this->assertCount( 3, $out['people']['ai']['top'] );
+		$this->assertCount( 4, $out['people']['ai']['top'], 'all four fixture sources fit under the cap of 6' );
 		$this->assertSame( 'ChatGPT', $out['people']['ai']['top'][0]['source'] );
-		// …but the honest count of sources is the full one, not the slice.
+		$this->assertSame( 'Copilot', $out['people']['ai']['top'][3]['source'], 'ordering survives' );
+		// …and the honest count of sources is the full one, not the slice.
 		$this->assertSame( 4, $out['people']['ai']['sources'] );
 	}
 

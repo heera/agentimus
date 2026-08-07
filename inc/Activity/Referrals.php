@@ -591,6 +591,36 @@ final class Referrals {
 	 * @param string $path   Landing-path prefix, or ''.
 	 * @return array{daily:array,bySource:array,topPages:array,total:int}
 	 */
+	/**
+	 * Visits in the window immediately BEFORE the current one — the number the
+	 * headline's "more than last month" is measured against.
+	 *
+	 * Same length, ending the day before the current window opens, so the two
+	 * spans never overlap: an overlapping comparison would count the same days
+	 * on both sides and flatten every trend it was meant to show.
+	 *
+	 * @param int $window Days in the current window.
+	 * @return int
+	 */
+	public static function previous_window_total( $window ) {
+		global $wpdb;
+		if ( ! is_object( $wpdb ) ) {
+			return 0; // No database to ask — a comparison nobody can make is 0, not a fatal.
+		}
+		$window = max( 1, (int) $window );
+		$table  = self::name();
+
+		$cur_start  = gmdate( 'Y-m-d', time() - ( $window - 1 ) * DAY_IN_SECONDS );
+		$prev_end   = gmdate( 'Y-m-d', strtotime( $cur_start . ' -1 day' ) );
+		$prev_start = gmdate( 'Y-m-d', strtotime( $prev_end . ' -' . ( $window - 1 ) . ' days' ) );
+
+		return (int) $wpdb->get_var( $wpdb->prepare( // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- our own table.
+			"SELECT COALESCE(SUM(hits),0) FROM $table WHERE day >= %s AND day <= %s",
+			$prev_start,
+			$prev_end
+		) );
+	}
+
 	private static function aggregate( $from, $to, $source, $path ) {
 		global $wpdb;
 		$table = self::name();

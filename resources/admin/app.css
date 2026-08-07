@@ -6522,112 +6522,65 @@ a.ar-about-proto__v:hover { text-decoration: underline; }
 .ar-ga4__err { color: var(--ar-bad); }
 
 /* ---------------------------------------------------------------------------
-   Readers — everyone who visited, and how they found you.
+   Readers — one answer, then what to do about it.
 
-   Written for someone who has never read an analytics screen: big plain
-   numbers, one bar, and every segment of that bar repeated as a labelled
-   number underneath. Nothing here depends on seeing colour, and nothing
-   depends on knowing what a "session" is.
+   This card used to open with three totals, a bar and two paragraphs about how
+   the numbers are measured. That is the author's interest, not the reader's.
+   The reader has one question — did AI send me anyone, and is it growing — so
+   the number that answers it is the largest thing on the screen and everything
+   else is subordinate to it.
    --------------------------------------------------------------------------- */
-.ar-rd__totals {
-  display: flex; flex-wrap: wrap; gap: 34px;
-  margin: 16px 0 4px;
+.ar-rd__kicker {
+  margin: 0; font-family: var(--ar-mono); font-size: 10.5px;
+  letter-spacing: 0.14em; text-transform: uppercase; color: var(--ar-ink-faint);
 }
-.ar-rd__stat { min-width: 0; }
-.ar-rd__n {
-  margin: 0; font-family: var(--ar-serif); font-size: 30px; line-height: 1.05;
+.ar-rd__hero {
+  margin: 4px 0 0; font-family: var(--ar-serif); font-size: 54px; line-height: 1;
   font-weight: 600; color: var(--ar-ink); font-variant-numeric: tabular-nums;
+  display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap;
 }
-.ar-rd__l { margin: 3px 0 0; font-size: 12.5px; color: var(--ar-ink-soft); }
-
-/* ---- the one picture ---------------------------------------------------- */
-.ar-rd__split { margin-top: 22px; padding-top: 18px; border-top: 1px solid var(--ar-line); }
-.ar-rd__split-t {
-  margin: 0 0 10px; font-size: 13px; font-weight: 600; color: var(--ar-ink);
+.ar-rd__hero-u {
+  font-family: var(--ar-sans, inherit); font-size: 15px; font-weight: 400;
+  color: var(--ar-ink-soft); letter-spacing: 0;
 }
-.ar-rd__bar {
-  display: flex; height: 14px; border-radius: 999px; overflow: hidden;
-  background: var(--ar-line); /* the "another way" remainder */
+.ar-rd__trend {
+  margin: 10px 0 0; font-size: 13.5px; display: flex; align-items: baseline; gap: 6px;
 }
-.ar-rd__bar-ai {
-  display: block; height: 100%; background: var(--ar-accent);
-  border-radius: 999px 0 0 999px; min-width: 3px;
-}
-
-.ar-rd__legend { list-style: none; margin: 14px 0 0; padding: 0; display: flex; flex-direction: column; gap: 9px; }
-.ar-rd__legend li { display: flex; align-items: baseline; gap: 9px; font-size: 13px; flex-wrap: wrap; }
-.ar-rd__dot {
-  flex: 0 0 auto; width: 9px; height: 9px; border-radius: 50%;
-  align-self: center;
-}
-.ar-rd__dot.is-ai { background: var(--ar-accent); }
-.ar-rd__dot.is-other { background: var(--ar-line-strong); }
-.ar-rd__leg-n {
-  font-family: var(--ar-mono); font-weight: 700; color: var(--ar-ink);
-  font-variant-numeric: tabular-nums;
-}
-.ar-rd__leg-l { color: var(--ar-ink-soft); min-width: 0; }
-.ar-rd__leg-p {
-  margin-left: auto; font-family: var(--ar-mono); font-size: 12px;
-  color: var(--ar-ink-faint); font-variant-numeric: tabular-nums;
+.ar-rd__trend.is-up { color: var(--ar-good, var(--ar-accent)); }
+.ar-rd__trend.is-down { color: var(--ar-bad); }
+.ar-rd__trend.is-flat { color: var(--ar-ink-faint); }
+.ar-rd__arrow { font-weight: 700; }
+.ar-rd__context {
+  margin: 10px 0 0; font-size: 13px; color: var(--ar-ink-soft); max-width: 70ch;
 }
 
-/* ---- which assistant ---------------------------------------------------- */
-.ar-rd__who { margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--ar-line); }
-.ar-rd__chips { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 8px; }
-.ar-rd__chips li {
-  font-size: 12.5px; color: var(--ar-ink-soft);
-  background: var(--ar-surface-2); border: 1px solid var(--ar-line);
-  border-radius: 999px; padding: 4px 11px;
+/* Two short lists, side by side: who sent them, and what they read. Both are
+   things the owner can act on — unlike a total, which is only a mood. */
+.ar-rd__cols {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 34px;
+  margin-top: 22px; padding-top: 18px; border-top: 1px solid var(--ar-line);
 }
-.ar-rd__chips strong { color: var(--ar-ink); font-weight: 600; }
-
-/* ---- the two counts, folded away ---------------------------------------- */
-.ar-rd__two { margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--ar-line); }
-.ar-rd__two > summary {
-  cursor: pointer; font-size: 13px; font-weight: 600; color: var(--ar-ink);
-  display: flex; align-items: center; gap: 10px; list-style: none;
+.ar-rd__col { min-width: 0; }
+.ar-rd__col-t { margin: 0 0 10px; font-size: 13px; font-weight: 600; color: var(--ar-ink); }
+.ar-rd__list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 7px; }
+.ar-rd__list li {
+  display: flex; align-items: baseline; gap: 12px; font-size: 13px;
+  border-bottom: 1px solid var(--ar-line); padding-bottom: 6px;
 }
-.ar-rd__two > summary::-webkit-details-marker { display: none; }
-.ar-rd__two > summary::before {
-  content: "›"; display: inline-block; color: var(--ar-ink-faint);
-  transition: transform 0.15s ease; font-size: 15px; line-height: 1;
-}
-.ar-rd__two[open] > summary::before { transform: rotate(90deg); }
-/* The range sits IN the summary, so the fold still answers the question for
-   anyone who never opens it. */
-.ar-rd__two-tag {
-  font-family: var(--ar-mono); font-size: 11px; font-weight: 700;
-  color: var(--ar-accent); background: color-mix(in srgb, var(--ar-accent) 8%, var(--ar-surface));
-  border: 1px solid color-mix(in srgb, var(--ar-accent) 22%, var(--ar-surface));
-  border-radius: 999px; padding: 2px 9px;
-}
-
-.ar-rd__pair { display: grid; grid-template-columns: 1fr 1fr; gap: 0; margin-top: 14px; }
-.ar-rd__side { padding: 0 22px; min-width: 0; }
-.ar-rd__side:first-child { padding-left: 0; }
-.ar-rd__side:last-child { border-left: 1px solid var(--ar-line); padding-right: 0; }
-.ar-rd__side-k {
-  margin: 0 0 5px; font-family: var(--ar-mono); font-size: 10px;
-  letter-spacing: 0.12em; text-transform: uppercase; color: var(--ar-ink-faint);
-}
-.ar-rd__side-n {
-  margin: 0; font-family: var(--ar-mono); font-size: 21px; font-weight: 700;
+.ar-rd__list li:last-child { border-bottom: 0; padding-bottom: 0; }
+.ar-rd__list-l { color: var(--ar-ink); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ar-rd__list-l.is-path { font-family: var(--ar-mono); font-size: 12px; color: var(--ar-ink-soft); direction: ltr; }
+.ar-rd__list-n {
+  margin-left: auto; flex: 0 0 auto; font-family: var(--ar-mono); font-weight: 700;
   color: var(--ar-ink); font-variant-numeric: tabular-nums;
 }
-.ar-rd__side-l { margin: 3px 0 0; font-size: 12px; color: var(--ar-ink-soft); }
-.ar-rd__why {
-  margin: 14px 0 0; font-size: 12.5px; line-height: 1.6;
-  color: var(--ar-ink-soft); max-width: 82ch;
+
+.ar-rd__note {
+  margin: 20px 0 0; padding-top: 12px; border-top: 1px dashed var(--ar-line-strong);
+  font-size: 12px; line-height: 1.55; color: var(--ar-ink-faint); max-width: 82ch;
 }
 
 @container (max-width: 720px) {
-  .ar-rd__totals { gap: 22px; }
-  .ar-rd__pair { grid-template-columns: 1fr; }
-  .ar-rd__side { padding: 0; }
-  .ar-rd__side:last-child {
-    border-left: 0; border-top: 1px solid var(--ar-line);
-    margin-top: 14px; padding-top: 14px;
-  }
-  .ar-rd__leg-p { margin-left: 0; }
+  .ar-rd__hero { font-size: 42px; }
+  .ar-rd__cols { grid-template-columns: 1fr; gap: 22px; }
 }

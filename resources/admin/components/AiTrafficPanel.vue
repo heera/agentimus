@@ -95,29 +95,34 @@ export default {
     // The AI slice as a percentage of all visits, one decimal.
     aiShare() {
       if (!this.gaOn || !this.ga.sessions) return null;
-      const base = this.gaAi !== null ? this.gaAi : this.ownAi;
-      return Math.round((base / this.ga.sessions) * 1000) / 10;
+      return Math.round((this.ownAi / this.ga.sessions) * 1000) / 10;
     },
-    otherShare() {
-      return this.aiShare === null ? null : Math.round((100 - this.aiShare) * 10) / 10;
+    // Up, down or level against the window before this one.
+    change() {
+      return (this.people && this.people.ai && this.people.ai.change) || 0;
     },
-    // Visits that came any way other than an AI assistant.
-    otherVisits() {
-      if (!this.gaOn) return 0;
-      if (this.ga.otherSessions !== null && this.ga.otherSessions !== undefined) return this.ga.otherSessions;
-      return Math.max(0, this.ga.sessions - (this.gaAi || 0));
+    hasPrev() {
+      return !!(this.people && this.people.ai && this.people.ai.hasPrev);
     },
-    // The bar's AI width. Floored at a visible sliver so a real-but-tiny share
-    // never renders as nothing at all — a 0.2% slice that draws as an empty bar
-    // reads as "no AI traffic", which is a different and wrong statement.
-    aiBarWidth() {
-      if (this.aiShare === null) return 0;
-      if (this.aiShare <= 0) return 0;
-      return Math.max(1.5, this.aiShare);
+    trendWord() {
+      if (!this.hasPrev) return '';
+      if (this.change > 0) return `${this.n(this.change)} more than the ${this.audience.window} days before`;
+      if (this.change < 0) return `${this.n(Math.abs(this.change))} fewer than the ${this.audience.window} days before`;
+      return `the same as the ${this.audience.window} days before`;
     },
-    // Which assistants, named the way people say them.
+    trendDir() {
+      if (!this.hasPrev || this.change === 0) return 'flat';
+      return this.change > 0 ? 'up' : 'down';
+    },
+    // Assistants: ours when we have them (it works with nothing connected),
+    // Google's naming when only that exists.
     assistants() {
+      const own = (this.people && this.people.ai && this.people.ai.top) || [];
+      if (own.length) return own;
       return (this.ga && this.ga.aiBySource) || [];
+    },
+    landingPages() {
+      return (this.people && this.people.ai && this.people.ai.pages) || [];
     },
     range() {
       return (this.report && this.report.range) || { from: '', to: '', floor: '' };
@@ -308,124 +313,58 @@ export default {
 
 <template>
   <div class="ar-aitraffic">
-    <!-- Everyone, then how much of it AI drove. This sits ABOVE the referral
-         report because it is the frame for it: the report below counts one
-         route in, and without a total beside it nobody can tell whether that
-         route is a trickle or the whole river. -->
+    <!-- The one question this screen exists to answer: did AI send anyone,
+         is it growing, and which pages earned it. Everything that is not that
+         has been taken off the top of the screen. -->
     <section v-if="people" class="ar-card ar-rd">
-      <h2 class="ar-card__title">
-        Everyone who read your site
-        <span class="ar-card__tag">last {{ audience.window }} days</span>
-      </h2>
+      <p class="ar-rd__kicker">AI sent you</p>
+      <p class="ar-rd__hero">
+        {{ n(ownAi) }}<span class="ar-rd__hero-u">visits</span>
+      </p>
 
-      <template v-if="gaOn">
-        <p class="ar-card__lead">
-          Everyone who opened a page, and how they found you. “Visits” counts each
-          time somebody came; one person can visit more than once.
-        </p>
+      <p v-if="trendWord" class="ar-rd__trend" :class="'is-' + trendDir">
+        <span class="ar-rd__arrow" aria-hidden="true">{{ trendDir === 'up' ? '↑' : (trendDir === 'down' ? '↓' : '·') }}</span>
+        {{ trendWord }}
+      </p>
+      <p v-else class="ar-rd__trend is-flat">in the last {{ audience.window }} days</p>
 
-        <div class="ar-rd__totals">
-          <div class="ar-rd__stat">
-            <p class="ar-rd__n">{{ n(ga.users) }}</p>
-            <p class="ar-rd__l">people</p>
-          </div>
-          <div class="ar-rd__stat">
-            <p class="ar-rd__n">{{ n(ga.sessions) }}</p>
-            <p class="ar-rd__l">visits</p>
-          </div>
-          <div class="ar-rd__stat">
-            <p class="ar-rd__n">{{ n(ga.views) }}</p>
-            <p class="ar-rd__l">pages opened</p>
-          </div>
-        </div>
+      <p class="ar-rd__context">
+        <template v-if="gaOn && ga.sessions">
+          Out of {{ n(ga.sessions) }} visits in total — about {{ aiShare }}% of everyone who came.
+        </template>
+        <template v-else>
+          Connect Google Analytics under <strong>Settings → Data sources</strong> to see what
+          share of your visitors that is.
+        </template>
+      </p>
 
-        <!-- One picture, because the share is the whole point and a percentage
-             buried in a sentence gets skimmed past. The bar carries no meaning
-             on its own — every segment is repeated as a labelled number below,
-             so nothing here depends on seeing colour. -->
-        <div class="ar-rd__split">
-          <p class="ar-rd__split-t">How people found you</p>
-          <div
-            v-if="aiShare !== null"
-            class="ar-rd__bar"
-            role="img"
-            :aria-label="`Out of ${n(ga.sessions)} visits, ${n(gaAi !== null ? gaAi : ownAi)} came from an AI assistant and ${n(otherVisits)} came another way.`"
-          >
-            <span class="ar-rd__bar-ai" :style="{ width: aiBarWidth + '%' }"></span>
-          </div>
-
-          <ul class="ar-rd__legend">
-            <li>
-              <span class="ar-rd__dot is-ai" aria-hidden="true"></span>
-              <span class="ar-rd__leg-n">{{ n(gaAi !== null ? gaAi : ownAi) }}</span>
-              <span class="ar-rd__leg-l">visits came from an AI assistant</span>
-              <span v-if="aiShare !== null" class="ar-rd__leg-p">{{ aiShare }}%</span>
-            </li>
-            <li>
-              <span class="ar-rd__dot is-other" aria-hidden="true"></span>
-              <span class="ar-rd__leg-n">{{ n(otherVisits) }}</span>
-              <span class="ar-rd__leg-l">came another way — search, a link, or straight to your site</span>
-              <span v-if="otherShare !== null" class="ar-rd__leg-p">{{ otherShare }}%</span>
-            </li>
-          </ul>
-        </div>
-
-        <!-- Which assistant, in the names people use. -->
-        <div v-if="assistants.length" class="ar-rd__who">
-          <p class="ar-rd__split-t">Which AI sent them</p>
-          <ul class="ar-rd__chips">
+      <div v-if="assistants.length || landingPages.length" class="ar-rd__cols">
+        <div v-if="assistants.length" class="ar-rd__col">
+          <p class="ar-rd__col-t">Which AI sent them</p>
+          <ul class="ar-rd__list">
             <li v-for="a in assistants" :key="a.source">
-              <strong>{{ a.source }}</strong> {{ n(a.hits) }}
+              <span class="ar-rd__list-l">{{ a.source }}</span>
+              <span class="ar-rd__list-n">{{ n(a.hits) }}</span>
             </li>
           </ul>
         </div>
 
-        <!-- Two counts of the same thing. Framed as a range rather than a
-             contradiction, because that is what it is. -->
-        <details class="ar-rd__two">
-          <summary>
-            Why you’ll see two different AI numbers
-            <span class="ar-rd__two-tag">{{ n(Math.min(ownAi, gaAi === null ? ownAi : gaAi)) }}–{{ n(Math.max(ownAi, gaAi === null ? ownAi : gaAi)) }}</span>
-          </summary>
-          <div class="ar-rd__pair">
-            <div class="ar-rd__side">
-              <p class="ar-rd__side-k">Agentimus says</p>
-              <p class="ar-rd__side-n">{{ n(ownAi) }}</p>
-              <p class="ar-rd__side-l">counted by your own website, on your own server</p>
-            </div>
-            <div class="ar-rd__side">
-              <p class="ar-rd__side-k">Google says</p>
-              <p class="ar-rd__side-n">
-                <template v-if="gaAi !== null">{{ n(gaAi) }}</template>
-                <template v-else>—</template>
-              </p>
-              <p class="ar-rd__side-l">
-                <template v-if="gaAi !== null">counted by Google Analytics, in the visitor’s browser</template>
-                <template v-else>Google hasn’t sent this breakdown yet</template>
-              </p>
-            </div>
-          </div>
-          <p v-if="disagreement" class="ar-rd__why">{{ disagreement }}</p>
-          <p class="ar-rd__why">
-            Neither one is wrong. Each misses different people, so treat the two as the
-            low and high end of the same answer.
-          </p>
-        </details>
-      </template>
+        <div v-if="landingPages.length" class="ar-rd__col">
+          <p class="ar-rd__col-t">Pages they landed on</p>
+          <ul class="ar-rd__list">
+            <li v-for="p in landingPages" :key="p.path">
+              <span class="ar-rd__list-l is-path">{{ p.path }}</span>
+              <span class="ar-rd__list-n">{{ n(p.hits) }}</span>
+            </li>
+          </ul>
+        </div>
+      </div>
 
-      <template v-else>
-        <p class="ar-card__lead">
-          <strong>{{ n(ownAi) }} visits</strong> came from an AI assistant in the last
-          {{ audience.window }} days. What’s missing is everything else — Agentimus can’t
-          see your other visitors, so there is no way to tell whether that is a big share
-          of your traffic or a tiny one.
-        </p>
-        <p class="ar-rd__why">
-          Connect Google Analytics under <strong>Settings → Data sources</strong> and this
-          screen shows your whole audience, what share of it AI sent, and which assistants
-          they came from.
-        </p>
-      </template>
+      <!-- One sentence, small, at the bottom. It used to be a section. -->
+      <p v-if="gaAi !== null && gaAi !== ownAi" class="ar-rd__note">
+        Google Analytics counts these differently — it says {{ n(gaAi) }}. Neither is wrong;
+        each one misses people the other sees.
+      </p>
     </section>
 
     <section class="ar-card ar-ai">

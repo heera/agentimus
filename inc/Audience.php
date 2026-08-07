@@ -55,7 +55,7 @@ final class Audience {
 		$referral = isset( $stats['referrals'] ) && is_array( $stats['referrals'] ) ? $stats['referrals'] : array();
 
 		$search = self::search_half();
-		$ai     = self::ai_half( $referral );
+		$ai     = self::ai_half( $referral, $window );
 		$all    = self::analytics_half( $window );
 
 		$machines = array(
@@ -258,24 +258,48 @@ final class Audience {
 	 * @param array $referral A Referrals::summary() payload.
 	 * @return array{enabled:bool,visits:int,today:int,sources:int,top:array}
 	 */
-	private static function ai_half( array $referral ) {
+	private static function ai_half( array $referral, $window = 30 ) {
 		$totals = isset( $referral['totals'] ) && is_array( $referral['totals'] ) ? $referral['totals'] : array();
 		$by     = isset( $referral['bySource'] ) && is_array( $referral['bySource'] ) ? $referral['bySource'] : array();
 
 		$top = array();
-		foreach ( array_slice( $by, 0, 3 ) as $row ) {
+		foreach ( array_slice( $by, 0, 6 ) as $row ) {
 			$top[] = array(
 				'source' => (string) ( isset( $row['source'] ) ? $row['source'] : ( isset( $row['label'] ) ? $row['label'] : '' ) ),
 				'hits'   => (int) ( isset( $row['hits'] ) ? $row['hits'] : 0 ),
 			);
 		}
 
+		// Where those readers actually landed. The most useful thing on the
+		// screen: it names the pages that are earning the citations.
+		$pages = array();
+		foreach ( array_slice( (array) ( isset( $referral['topPages'] ) ? $referral['topPages'] : array() ), 0, 6 ) as $row ) {
+			$pages[] = array(
+				'path' => (string) ( isset( $row['path'] ) ? $row['path'] : '' ),
+				'hits' => (int) ( isset( $row['hits'] ) ? $row['hits'] : 0 ),
+			);
+		}
+
+		$visits = isset( $totals['window'] ) ? (int) $totals['window'] : 0;
+		$prev   = 0;
+		if ( ! empty( $referral['enabled'] ) ) {
+			$prev = Activity\Referrals::previous_window_total( $window );
+		}
+
 		return array(
 			'enabled' => ! empty( $referral['enabled'] ),
-			'visits'  => isset( $totals['window'] ) ? (int) $totals['window'] : 0,
+			'visits'  => $visits,
 			'today'   => isset( $totals['today'] ) ? (int) $totals['today'] : 0,
 			'sources' => isset( $referral['sourceCount'] ) ? (int) $referral['sourceCount'] : 0,
 			'top'     => $top,
+			'pages'   => $pages,
+			// The window before this one, same length, no overlap — so the
+			// headline can say whether this is going anywhere.
+			'prev'    => $prev,
+			'change'  => $visits - $prev,
+			// A first window has nothing to compare against, and inventing
+			// "+100%" out of a zero baseline is how dashboards lie cheerfully.
+			'hasPrev' => $prev > 0,
 		);
 	}
 

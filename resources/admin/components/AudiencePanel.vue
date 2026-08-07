@@ -36,9 +36,11 @@ export default {
       return (this.data && this.data.window) || 30;
     },
     // The AI leaderboard as one line: "ChatGPT 40 · Perplexity 12 · Claude 5".
+    // Three, not the whole list the payload carries: this is a one-line summary
+    // on a card, and the Readers screen is where the full list belongs.
     aiLine() {
       const top = (this.people && this.people.ai && this.people.ai.top) || [];
-      return top.filter((t) => t.source).map((t) => `${t.source} ${this.n(t.hits)}`).join(' · ');
+      return top.filter((t) => t.source).slice(0, 3).map((t) => `${t.source} ${this.n(t.hits)}`).join(' · ');
     },
   },
   methods: {
