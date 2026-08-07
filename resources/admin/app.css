@@ -6479,6 +6479,17 @@ a.ar-about-proto__v:hover { text-decoration: underline; }
 .ar-aud__detail { margin: 12px 0 0; font-size: 12px; color: var(--ar-ink-faint); overflow-wrap: anywhere; }
 /* Pinned to the bottom of its panel so the two links sit on one line. */
 .ar-aud__go { margin-top: auto; padding-top: 14px; align-self: flex-start; }
+/* No hover pill here. The shared .ar-linkbtn tint is right for a link sitting
+   inside a sentence; standing alone at the foot of a panel it becomes a slab —
+   and a tinted slab on an already-tinted surface. A footer action gets a
+   link's own affordance instead: it darkens and underlines. */
+.ar-aud__go:hover,
+.ar-aud__go:focus-visible {
+  background: none;
+  color: color-mix(in srgb, var(--ar-accent) 82%, #000);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
 
 /* "Worth knowing" — three labelled columns sharing one left edge.
    The version before this had three different left edges (the icon, the group
