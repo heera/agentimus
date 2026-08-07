@@ -127,6 +127,96 @@ final class Rest {
 				'permission_callback' => array( $this, 'can_manage' ),
 			),
 		) );
+
+		// GA4 is its own route because it is its own grant: the key may already be
+		// stored and working for Search Console while the service account has not
+		// been added to any Analytics property at all.
+		register_rest_route( self::NS, '/google/analytics', array(
+			array(
+				'methods'             => \WP_REST_Server::CREATABLE,
+				'callback'            => array( $this, 'connect_analytics' ),
+				'permission_callback' => array( $this, 'can_manage' ),
+				'args'                => array(
+					// Validated in the callback, not here: schema validation runs
+					// BEFORE the permission callback.
+					'property' => array( 'type' => 'string', 'required' => true ),
+				),
+			),
+			array(
+				'methods'             => \WP_REST_Server::DELETABLE,
+				'callback'            => array( $this, 'disconnect_analytics' ),
+				'permission_callback' => array( $this, 'can_manage' ),
+			),
+		) );
+	}
+
+	/**
+	 * POST /google/analytics — verify a GA4 property ID, then store it.
+	 *
+	 * Verified against the live API before it persists, for the same reason the
+	 * Search Console key is: a property the service account cannot read fails on
+	 * a cron hours later, where nobody sees the error and the card just stays
+	 * empty. The failure that matters is the common one — the key exists, but
+	 * nobody has added its email to the property yet — so that answer carries the
+	 * email, because granting it IS the fix.
+	 *
+	 * @param \WP_REST_Request $request The request.
+	 * @return \WP_REST_Response|\WP_Error
+	 */
+	public function connect_analytics( \WP_REST_Request $request ) {
+		$property = preg_replace( '/[^0-9]/', '', (string) $request->get_param( 'property' ) );
+		if ( '' === $property ) {
+			return new \WP_Error(
+				'agentimus_ga4_property',
+				__( 'That doesn’t look like a GA4 property ID. It’s the number in Admin → Property details — not the measurement ID beginning with G-.', 'agentimus' ),
+				array( 'status' => 400 )
+			);
+		}
+
+		$sa_json = $this->google->sa_json();
+		if ( '' === $sa_json ) {
+			return new \WP_Error(
+				'agentimus_ga4_no_key',
+				__( 'Connect the Google key first — Analytics uses the same service account as Search Console.', 'agentimus' ),
+				array( 'status' => 400 )
+			);
+		}
+
+		$auth = Auth::token( $sa_json, Auth::SCOPE_ANALYTICS );
+		if ( isset( $auth['error'] ) ) {
+			return new \WP_Error( 'agentimus_ga4_auth', (string) $auth['error'], array( 'status' => 400 ) );
+		}
+
+		$check = ( new Analytics() )->verify( $auth['token'], $property );
+		if ( isset( $check['error'] ) ) {
+			$email = (string) $this->google->get( 'sa_email', '' );
+			$msg   = (string) $check['error'];
+			if ( '' !== $email ) {
+				$msg .= ' ' . sprintf(
+					/* translators: %s: the service-account email address. */
+					__( 'Add %s to the property as a Viewer in GA4 → Admin → Property access management, then try again.', 'agentimus' ),
+					$email
+				);
+			}
+			return new \WP_Error( 'agentimus_ga4_denied', $msg, array( 'status' => 400 ) );
+		}
+
+		$this->google->set_ga4_property( $property );
+		return rest_ensure_response( $this->google->public_view() );
+	}
+
+	/**
+	 * DELETE /google/analytics — forget the property, keep the key.
+	 *
+	 * Analytics off must never take Search Console with it: they are two grants
+	 * on one key, and an owner turning off one has said nothing about the other.
+	 *
+	 * @return \WP_REST_Response
+	 */
+	public function disconnect_analytics() {
+		$this->google->set_ga4_property( '' );
+		delete_option( Module::GA4_OPTION );
+		return rest_ensure_response( $this->google->public_view() );
 	}
 
 	/**

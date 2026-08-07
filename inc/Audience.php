@@ -56,6 +56,7 @@ final class Audience {
 
 		$search = self::search_half();
 		$ai     = self::ai_half( $referral );
+		$all    = self::analytics_half( $window );
 
 		$machines = array(
 			'enabled'  => $logging,
@@ -75,12 +76,18 @@ final class Audience {
 			// units — a fetch is not a visit — and inviting the comparison is the
 			// whole point of putting them side by side.
 			'people'   => array(
+				// When analytics is connected, EVERYONE is the headline and the two
+				// named routes become shares of it. Without it, the headline can
+				// only be the routes we can see — which is a smaller claim, and the
+				// limits below say so out loud rather than letting it pose as all.
+				'all'     => $all,
 				'search'  => $search,
 				'ai'      => $ai,
-				'arrived' => $search['clicks'] + $ai['visits'],
+				'arrived' => $all['connected'] ? $all['users'] : $search['clicks'] + $ai['visits'],
+				'whole'   => $all['connected'],
 			),
 			'machines' => $machines,
-			'limits'   => self::limits( $search, $ai, $machines ),
+			'limits'   => self::limits( $search, $ai, $machines, $all ),
 		);
 	}
 
@@ -126,6 +133,55 @@ final class Audience {
 			'rows'        => $rows,
 			'start'       => $start,
 			'end'         => $end,
+		);
+	}
+
+	/**
+	 * Everyone — the GA4 half, when the owner has connected it.
+	 *
+	 * `activeUsers` is the headline rather than sessions or page views: sessions
+	 * count the same reader twice for coming back after lunch, and views count
+	 * them again for every click. The question this card asks is "how many
+	 * people", so the metric has to be people.
+	 *
+	 * @param int $window The card's window in days.
+	 * @return array{connected:bool,users:int,sessions:int,views:int,stale:bool,fetched:int,window:int}
+	 */
+	private static function analytics_half( $window ) {
+		$settings = new Google\Settings();
+		$empty    = array(
+			'connected' => false,
+			'users'     => 0,
+			'sessions'  => 0,
+			'views'     => 0,
+			'stale'     => false,
+			'fetched'   => 0,
+			'window'    => (int) $window,
+		);
+		if ( ! $settings->analytics_connected() ) {
+			return $empty;
+		}
+
+		$snap   = Google\Module::analytics_snapshot();
+		$totals = isset( $snap['totals'] ) && is_array( $snap['totals'] ) ? $snap['totals'] : array();
+		if ( empty( $totals ) ) {
+			// Connected, but nothing fetched yet (or every attempt failed). Still
+			// NOT "connected: true with zero people" — that reads as a dead site.
+			return $empty;
+		}
+
+		$fetched = (int) ( isset( $snap['fetched'] ) ? $snap['fetched'] : 0 );
+
+		return array(
+			'connected' => true,
+			'users'     => (int) ( isset( $totals['users'] ) ? $totals['users'] : 0 ),
+			'sessions'  => (int) ( isset( $totals['sessions'] ) ? $totals['sessions'] : 0 ),
+			'views'     => (int) ( isset( $totals['views'] ) ? $totals['views'] : 0 ),
+			// Older than two polls. A number that has quietly stopped moving must
+			// be able to say so; silence looks exactly like a flat week.
+			'stale'     => $fetched > 0 && ( time() - $fetched ) > 2 * DAY_IN_SECONDS,
+			'fetched'   => $fetched,
+			'window'    => (int) ( isset( $snap['window'] ) ? $snap['window'] : $window ),
 		);
 	}
 
@@ -193,10 +249,34 @@ final class Audience {
 	 * @param array $search   The search half.
 	 * @param array $ai       The AI-referral half.
 	 * @param array $machines The machine half.
+	 * @param array $all      The analytics half.
 	 * @return array<int,array{key:string,text:string}>
 	 */
-	private static function limits( array $search, array $ai, array $machines ) {
+	private static function limits( array $search, array $ai, array $machines, array $all = array() ) {
 		$out = array();
+
+		// The most important line on the card when analytics is absent: without
+		// it, "People" is two named routes, NOT the site's audience — and a
+		// headline number that quietly means something narrower than it looks is
+		// the exact failure this whole block exists to prevent.
+		if ( empty( $all['connected'] ) ) {
+			$out[] = array(
+				'key'  => 'people-partial',
+				'text' => __( 'This counts only readers from search and from AI answers. Direct visits, social and email are not measured here, so it is not your site’s total traffic — connect Google Analytics under Settings → Data sources to make it whole.', 'agentimus' ),
+			);
+		} else {
+			$out[] = array(
+				'key'  => 'people-sampled',
+				'text' => __( 'Total readers come from Google Analytics, which counts browsers that accepted its script — a visitor who declines cookies is missing there and still present in the machine half. The two are measured differently and will not reconcile exactly.', 'agentimus' ),
+			);
+		}
+
+		if ( ! empty( $all['stale'] ) ) {
+			$out[] = array(
+				'key'  => 'people-stale',
+				'text' => __( 'The analytics figure hasn’t refreshed in over two days. It is the last good number, not today’s.', 'agentimus' ),
+			);
+		}
 
 		if ( $search['connected'] ) {
 			$out[] = array(

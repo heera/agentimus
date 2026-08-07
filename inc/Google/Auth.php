@@ -22,11 +22,28 @@ defined( 'ABSPATH' ) || exit;
 
 final class Auth {
 
-	/** @var string The one scope this integration ever asks for. */
+	/**
+	 * @var string Search Console, read-only. The default scope, and the only one
+	 * this integration asked for until GA4 arrived.
+	 */
 	const SCOPE = 'https://www.googleapis.com/auth/webmasters.readonly';
 
-	/** @var string Access-token cache slot. */
+	/**
+	 * @var string Analytics Data (GA4), read-only.
+	 *
+	 * A SEPARATE scope, deliberately requested separately: a token minted for
+	 * Search Console must never carry analytics rights it does not need, and an
+	 * owner who connects only one of the two grants only that one. The same
+	 * service-account key can serve both — what differs is what each token is
+	 * allowed to touch.
+	 */
+	const SCOPE_ANALYTICS = 'https://www.googleapis.com/auth/analytics.readonly';
+
+	/** @var string Access-token cache slot (the default scope). */
 	const TOKEN_TRANSIENT = 'agentimus_google_token';
+
+	/** @var string Cache slot prefix for any non-default scope. */
+	const TOKEN_PREFIX = 'agentimus_google_token_';
 
 	/**
 	 * Parse and sanity-check a service-account JSON key.
@@ -58,11 +75,19 @@ final class Auth {
 	 * An access token for the read-only Search Console scope — cached for its
 	 * lifetime, minted fresh when the cache is cold.
 	 *
+	 * Cached PER SCOPE. One slot for both would hand a Search Console token to a
+	 * GA4 request — which fails with an authorisation error that reads like a bad
+	 * key, sending the owner off to re-mint a key that was never the problem.
+	 *
 	 * @param string $sa_json The service-account key JSON (plaintext).
+	 * @param string $scope   The scope to mint for; defaults to Search Console.
 	 * @return array { token?: string, error?: string }
 	 */
-	public static function token( $sa_json ) {
-		$cached = get_transient( self::TOKEN_TRANSIENT );
+	public static function token( $sa_json, $scope = self::SCOPE ) {
+		$scope = '' === (string) $scope ? self::SCOPE : (string) $scope;
+		$slot  = self::slot( $scope );
+
+		$cached = get_transient( $slot );
 		if ( is_string( $cached ) && '' !== $cached ) {
 			return array( 'token' => $cached );
 		}
@@ -76,7 +101,7 @@ final class Auth {
 			return array( 'error' => $key['error'] );
 		}
 
-		$assertion = self::jwt( $key['email'], $key['private_key'], $key['token_uri'] );
+		$assertion = self::jwt( $key['email'], $key['private_key'], $key['token_uri'], $scope );
 		if ( '' === $assertion ) {
 			return array( 'error' => __( 'The private key in the file couldn’t be used to sign — the key may be malformed or truncated.', 'agentimus' ) );
 		}
@@ -99,17 +124,40 @@ final class Auth {
 
 		$token = (string) $json['access_token'];
 		$ttl   = max( 60, (int) ( $json['expires_in'] ?? 3600 ) - 300 );
-		set_transient( self::TOKEN_TRANSIENT, $token, $ttl );
+		set_transient( $slot, $token, $ttl );
 		return array( 'token' => $token );
 	}
 
 	/**
-	 * Drop the cached token — on disconnect, or when a key changes.
+	 * The cache slot for a scope. The default scope keeps its original slot name
+	 * so an upgrade doesn't throw away a token that is still valid.
+	 *
+	 * @param string $scope Full scope URL.
+	 * @return string
+	 */
+	private static function slot( $scope ) {
+		if ( self::SCOPE === $scope ) {
+			return self::TOKEN_TRANSIENT;
+		}
+		// Hashed: transient keys are length-limited, and a scope is a URL.
+		return self::TOKEN_PREFIX . substr( md5( (string) $scope ), 0, 16 );
+	}
+
+	/**
+	 * Drop cached tokens — on disconnect, or when a key changes.
+	 *
+	 * EVERY scope, not just the one that changed: the key underneath them is the
+	 * same, so a revoked or replaced key invalidates all of them at once. Leaving
+	 * a sibling token behind meant a disconnected integration could keep
+	 * answering for up to an hour.
 	 *
 	 * @return void
 	 */
 	public static function forget() {
 		delete_transient( self::TOKEN_TRANSIENT );
+		foreach ( array( self::SCOPE_ANALYTICS ) as $scope ) {
+			delete_transient( self::slot( $scope ) );
+		}
 	}
 
 	/**
@@ -120,12 +168,12 @@ final class Auth {
 	 * @param string $token_uri Audience (Google's token endpoint).
 	 * @return string The compact JWT, or '' when signing fails.
 	 */
-	public static function jwt( $email, $pkey, $token_uri ) {
+	public static function jwt( $email, $pkey, $token_uri, $scope = self::SCOPE ) {
 		$now     = time();
 		$header  = self::b64url( (string) wp_json_encode( array( 'alg' => 'RS256', 'typ' => 'JWT' ) ) );
 		$claims  = self::b64url( (string) wp_json_encode( array(
 			'iss'   => (string) $email,
-			'scope' => self::SCOPE,
+			'scope' => '' === (string) $scope ? self::SCOPE : (string) $scope,
 			'aud'   => (string) $token_uri,
 			'iat'   => $now,
 			'exp'   => $now + HOUR_IN_SECONDS,

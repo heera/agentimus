@@ -38,6 +38,9 @@ final class Module {
 	 * where Search Console's own window ends, like the Bing side's history. */
 	const TREND_OPTION = 'agentimus_google_trend';
 
+	/** @var string The last GA4 window — totals only, never per-visitor anything. */
+	const GA4_OPTION = 'agentimus_google_ga4';
+
 	/** @var int Days of daily history kept at most. */
 	const TREND_KEEP = 400;
 
@@ -218,6 +221,71 @@ final class Module {
 		}
 
 		update_option( self::TREND_OPTION, $trend, false );
+
+		$this->poll_analytics();
+	}
+
+	/**
+	 * The GA4 half of the poll — everyone who came, not only the ones an engine
+	 * or an assistant sent.
+	 *
+	 * Runs LAST and never touches the Search Console outcome above: analytics is
+	 * a second, independent grant, and a property the key can't read must leave
+	 * the search snapshot exactly as it found it. Its own error field, its own
+	 * timestamp, its own silence.
+	 *
+	 * A SHORT window (the dashboard's own report span, not Search Console's 56
+	 * days): this number sits beside counts from the request log, and two figures
+	 * side by side must cover the same days or the comparison is a lie.
+	 *
+	 * @return void
+	 */
+	private function poll_analytics() {
+		if ( ! $this->settings->analytics_connected() ) {
+			return;
+		}
+		$property = (string) $this->settings->get( 'ga4_property', '' );
+
+		$auth = Auth::token( $this->settings->sa_json(), Auth::SCOPE_ANALYTICS );
+		if ( isset( $auth['error'] ) ) {
+			$this->settings->record_ga4_poll( (string) $auth['error'] );
+			return;
+		}
+
+		$window = \Agentimus\Activity\Repository::report_days();
+		$end    = gmdate( 'Y-m-d' );
+		$start  = gmdate( 'Y-m-d', time() - ( max( 1, $window ) - 1 ) * DAY_IN_SECONDS );
+
+		$out = ( new Analytics() )->totals( $auth['token'], $property, $start, $end );
+		if ( isset( $out['error'] ) ) {
+			// Last good numbers stay put. A transport blip must not turn into a
+			// confident zero on a card that says how many people read the site.
+			$this->settings->record_ga4_poll( (string) $out['error'] );
+			return;
+		}
+
+		update_option(
+			self::GA4_OPTION,
+			array(
+				'totals'  => $out['totals'],
+				'window'  => (int) $window,
+				'start'   => $start,
+				'end'     => $end,
+				'fetched' => time(),
+			),
+			false
+		);
+		$this->settings->record_ga4_poll( '' );
+	}
+
+	/**
+	 * The stored GA4 snapshot, or an empty shell.
+	 *
+	 * @return array
+	 */
+	public static function analytics_snapshot() {
+		$stored = get_option( self::GA4_OPTION, array() );
+		return is_array( $stored ) ? $stored : array();
 	}
 
 	/**

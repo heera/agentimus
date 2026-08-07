@@ -99,6 +99,9 @@ export default {
       googleDisconnecting: false,
       googleError: '',
       googleJustConnected: false,
+      ga4Property: '', // The GA4 property ID being typed; never holds a secret.
+      ga4Busy: false,
+      ga4Error: '',
       typeQuery: '',
       catQuery: '',
       nsQuery: '',
@@ -1350,6 +1353,34 @@ export default {
         this.googleError = (e && e.message) || 'Could not disconnect.';
       } finally {
         this.googleDisconnecting = false;
+      }
+    },
+    // Verified against the live API before it saves — a property the key can't
+    // read would otherwise fail hours later on a cron, where nobody sees it.
+    async connectGoogleAnalytics() {
+      if (this.ga4Busy || !this.api || !this.ga4Property) return;
+      this.ga4Busy = true;
+      this.ga4Error = '';
+      try {
+        this.google = await this.api.connectGoogleAnalytics(this.ga4Property);
+        this.ga4Property = '';
+      } catch (e) {
+        this.ga4Error = (e && e.message) || 'Could not read that property.';
+      } finally {
+        this.ga4Busy = false;
+      }
+    },
+    // Analytics off, Search Console untouched — two grants, two switches.
+    async disconnectGoogleAnalytics() {
+      if (this.ga4Busy || !this.api) return;
+      this.ga4Busy = true;
+      this.ga4Error = '';
+      try {
+        this.google = await this.api.disconnectGoogleAnalytics();
+      } catch (e) {
+        this.ga4Error = (e && e.message) || 'Could not disconnect Analytics.';
+      } finally {
+        this.ga4Busy = false;
       }
     },
     googlePolledText() {
@@ -3918,6 +3949,49 @@ export default {
           <button type="button" class="ar-btn ar-btn--danger ar-btn--small" :disabled="googleDisconnecting" @click="disconnectGoogle">
             {{ googleDisconnecting ? 'Disconnecting…' : 'Disconnect' }}
           </button>
+
+          <!-- Analytics: a SECOND grant on the same key. Kept visually inside the
+               Google card (it is the same account) but with its own connect and
+               its own disconnect, because an owner who wants search numbers has
+               not thereby asked us to read their whole audience. -->
+          <div class="ar-ga4">
+            <p class="ar-ga4__title">Analytics <span class="ar-field__tag">optional</span></p>
+            <template v-if="google.analytics && google.analytics.connected">
+              <p class="ar-field__hint">
+                Reading property <code>{{ google.analytics.property }}</code> — total readers,
+                visits and page views for the same window the dashboard reports. This is what
+                turns “People” on the dashboard from two routes into everyone.
+              </p>
+              <p v-if="google.analytics.lastError" class="ar-field__hint ar-ga4__err">{{ google.analytics.lastError }}</p>
+              <button type="button" class="ar-btn ar-btn--ghost ar-btn--small" :disabled="ga4Busy" @click="disconnectGoogleAnalytics">
+                {{ ga4Busy ? 'Working…' : 'Stop reading Analytics' }}
+              </button>
+            </template>
+            <template v-else>
+              <p class="ar-field__hint">
+                Without this, the dashboard can only count readers search or an AI answer sent —
+                not direct, social or email. Paste your GA4 <strong>property ID</strong> (the number
+                in GA4 → Admin → Property details, not the <code>G-</code> measurement ID), and add
+                <template v-if="google.saEmail"><code>{{ google.saEmail }}</code></template>
+                <template v-else>the service-account email</template>
+                as a Viewer on that property first.
+              </p>
+              <div class="ar-ga4__row">
+                <input
+                  v-model="ga4Property"
+                  type="text"
+                  class="ar-input ar-ga4__input"
+                  inputmode="numeric"
+                  placeholder="123456789"
+                  aria-label="GA4 property ID"
+                />
+                <button type="button" class="ar-btn ar-btn--small" :disabled="ga4Busy || !ga4Property" @click="connectGoogleAnalytics">
+                  {{ ga4Busy ? 'Checking…' : 'Connect Analytics' }}
+                </button>
+              </div>
+              <p v-if="ga4Error" class="ar-field__hint ar-ga4__err">{{ ga4Error }}</p>
+            </template>
+          </div>
         </template>
       </section>
 

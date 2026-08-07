@@ -115,6 +115,79 @@ final class AudienceTest extends TestCase {
 		$this->assertSame( 4, $out['people']['ai']['sources'] );
 	}
 
+	/* -- the analytics half ---------------------------------------------- */
+
+	/**
+	 * The headline claim. Without GA4 the People number is two named routes, and
+	 * the card has to admit that in the one place someone reads it.
+	 */
+	public function test_without_analytics_people_is_partial_and_says_so() {
+		$out  = Audience::from_stats( $this->stats() );
+		$keys = array_column( $out['limits'], 'key' );
+
+		$this->assertFalse( $out['people']['whole'] );
+		$this->assertFalse( $out['people']['all']['connected'] );
+		$this->assertSame( $out['people']['search']['clicks'] + 59, $out['people']['arrived'] );
+		$this->assertContains( 'people-partial', $keys );
+		$this->assertNotContains( 'people-sampled', $keys );
+	}
+
+	/**
+	 * With GA4 the headline becomes everyone, and the two routes become shares of
+	 * it — never added on top, which would double-count every reader search sent.
+	 */
+	public function test_with_analytics_people_is_everyone_and_the_routes_are_shares() {
+		// No Search Console property on purpose: the two grants are independent,
+		// and this test is about the analytics one standing on its own.
+		update_option( 'agentimus_google', array( 'sa_json' => 'x', 'ga4_property' => '12345' ) );
+		update_option(
+			'agentimus_google_ga4',
+			array( 'totals' => array( 'users' => 1200, 'sessions' => 1500, 'views' => 3000 ), 'window' => 30, 'fetched' => time() )
+		);
+
+		$out  = Audience::from_stats( $this->stats() );
+		$keys = array_column( $out['limits'], 'key' );
+
+		$this->assertTrue( $out['people']['whole'] );
+		$this->assertSame( 1200, $out['people']['arrived'], 'the headline is PEOPLE, not sessions or views' );
+		$this->assertSame( 59, $out['people']['ai']['visits'], 'the AI share survives as a share' );
+		$this->assertContains( 'people-sampled', $keys );
+		$this->assertNotContains( 'people-partial', $keys );
+
+		delete_option( 'agentimus_google' );
+		delete_option( 'agentimus_google_ga4' );
+	}
+
+	/** Connected but never successfully fetched must not read as a dead site. */
+	public function test_connected_analytics_with_no_snapshot_is_not_a_confident_zero() {
+		update_option( 'agentimus_google', array( 'sa_json' => 'x', 'ga4_property' => '12345' ) );
+		delete_option( 'agentimus_google_ga4' );
+
+		$out = Audience::from_stats( $this->stats() );
+
+		$this->assertFalse( $out['people']['all']['connected'], 'no snapshot = not yet answering, not zero people' );
+		$this->assertContains( 'people-partial', array_column( $out['limits'], 'key' ) );
+
+		delete_option( 'agentimus_google' );
+	}
+
+	/** A number that stopped moving has to say so — silence looks like a flat week. */
+	public function test_a_stale_analytics_snapshot_announces_itself() {
+		update_option( 'agentimus_google', array( 'sa_json' => 'x', 'ga4_property' => '12345' ) );
+		update_option(
+			'agentimus_google_ga4',
+			array( 'totals' => array( 'users' => 10, 'sessions' => 12, 'views' => 20 ), 'window' => 30, 'fetched' => time() - 5 * DAY_IN_SECONDS )
+		);
+
+		$out = Audience::from_stats( $this->stats() );
+
+		$this->assertTrue( $out['people']['all']['stale'] );
+		$this->assertContains( 'people-stale', array_column( $out['limits'], 'key' ) );
+
+		delete_option( 'agentimus_google' );
+		delete_option( 'agentimus_google_ga4' );
+	}
+
 	public function test_a_referral_free_site_still_returns_a_whole_shape() {
 		$out = Audience::from_stats( array( 'enabled' => true, 'window' => 7, 'totals' => array() ) );
 

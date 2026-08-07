@@ -74,7 +74,13 @@ export default {
       <div class="ar-aud__half">
         <p class="ar-aud__kind">People</p>
         <p class="ar-aud__n">{{ n(people.arrived) }}</p>
-        <p class="ar-aud__unit">arrived to read</p>
+        <!-- The unit changes with what the number can honestly claim: everyone,
+             or only the two routes we can see. Saying "arrived to read" over a
+             partial figure is the misreading this card exists to stop. -->
+        <p class="ar-aud__unit">
+          <template v-if="people.whole">read your site</template>
+          <template v-else>arrived from search or an AI answer</template>
+        </p>
 
         <ul class="ar-aud__rows">
           <li>
@@ -95,6 +101,12 @@ export default {
         </ul>
 
         <p v-if="aiLine" class="ar-aud__detail">{{ aiLine }}</p>
+        <!-- Sessions and views only exist once analytics is connected, and they
+             sit BELOW the people count rather than beside it: they answer a
+             different question and would otherwise compete with the headline. -->
+        <p v-if="people.whole" class="ar-aud__detail">
+          {{ n(people.all.sessions) }} visits · {{ n(people.all.views) }} page views
+        </p>
 
         <button type="button" class="ar-linkbtn" @click="$emit('navigate', 'ai-traffic')">
           See who sent them →

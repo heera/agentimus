@@ -6511,3 +6511,12 @@ a.ar-about-proto__v:hover { text-decoration: underline; }
   background: var(--ar-surface-2);
   border: 1px solid var(--ar-line-strong);
 }
+
+/* The GA4 sub-section inside the Google card. Set in from the card's own edge
+   with a rule above it, so it reads as a second grant on the same account
+   rather than a second account. */
+.ar-ga4 { margin-top: 18px; padding-top: 14px; border-top: 1px solid var(--ar-line); }
+.ar-ga4__title { margin: 0 0 6px; font-size: 13px; font-weight: 600; color: var(--ar-ink); }
+.ar-ga4__row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-top: 8px; }
+.ar-ga4__input { max-width: 220px; font-family: var(--ar-mono); }
+.ar-ga4__err { color: var(--ar-bad); }

@@ -36,6 +36,13 @@ final class Settings {
 			'sa_json'      => '', // The service-account key file, ciphertext at rest; '' when disconnected.
 			'sa_email'     => '', // client_email from the key — plaintext, it's what the owner grants in GSC.
 			'property'     => '', // The matched Search Console property (sc-domain:… or URL prefix).
+			// GA4, deliberately SEPARATE from the Search Console property above: the
+			// same key can serve both, but connecting one must never be taken as
+			// consent to read the other. Empty = the analytics half is simply off,
+			// and every screen that would show it says so rather than showing zero.
+			'ga4_property' => '', // The numeric GA4 property ID.
+			'ga4_error'    => '', // Last GA4 failure, in Google's words.
+			'ga4_poll_at'  => 0,
 			'connected_at' => 0,
 			'last_poll_at' => 0,
 			'last_error'   => '',
@@ -75,6 +82,48 @@ final class Settings {
 	public function connected() {
 		$all = $this->all();
 		return '' !== (string) $all['sa_json'] && '' !== (string) $all['property'];
+	}
+
+	/**
+	 * Whether GA4 can be read: the same key, plus a property ID for it.
+	 *
+	 * Separate from {@see connected()} on purpose — a site can have Search
+	 * Console working and no analytics, or (once a key is pasted) analytics and
+	 * no verified Search Console property. Neither implies the other, and a
+	 * screen that assumes it will show an empty panel with no explanation.
+	 *
+	 * @return bool
+	 */
+	public function analytics_connected() {
+		$all = $this->all();
+		return '' !== (string) $all['sa_json'] && '' !== (string) $all['ga4_property'];
+	}
+
+	/**
+	 * Store (or clear) the GA4 property ID. Digits only — the numeric property
+	 * ID, never the G-XXXX measurement ID people reach for first.
+	 *
+	 * @param string $property The property ID, or '' to disconnect analytics.
+	 * @return void
+	 */
+	public function set_ga4_property( $property ) {
+		$all                 = $this->all();
+		$all['ga4_property'] = preg_replace( '/[^0-9]/', '', (string) $property );
+		$all['ga4_error']    = '';
+		$this->persist( $all );
+	}
+
+	/**
+	 * Record a GA4 poll outcome — '' on success.
+	 *
+	 * @param string $error Google's words, or ''.
+	 * @return void
+	 */
+	public function record_ga4_poll( $error = '' ) {
+		$all                = $this->all();
+		$all['ga4_error']   = sanitize_text_field( (string) $error );
+		$all['ga4_poll_at'] = time();
+		$this->persist( $all );
 	}
 
 	/**
@@ -147,6 +196,15 @@ final class Settings {
 			'connectedAt' => (int) $all['connected_at'],
 			'lastPollAt'  => (int) $all['last_poll_at'],
 			'lastError'   => (string) $all['last_error'],
+			// The analytics half. The property ID is not a secret (it appears in
+			// every GA4 URL the owner already sees), unlike the key beside it,
+			// which never leaves the server in any form.
+			'analytics'   => array(
+				'connected' => $this->analytics_connected(),
+				'property'  => (string) $all['ga4_property'],
+				'lastPollAt' => (int) $all['ga4_poll_at'],
+				'lastError' => (string) $all['ga4_error'],
+			),
 		);
 	}
 

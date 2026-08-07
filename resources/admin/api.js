@@ -243,6 +243,10 @@ export function createApi(boot) {
     getGoogleStatus: () => request('/google'),
     connectGoogle: (keyJson) => request('/google', { method: 'POST', body: JSON.stringify({ key_json: keyJson }) }),
     disconnectGoogle: () => request('/google', { method: 'DELETE' }),
+    // GA4 is its own grant on the same key: connecting it says nothing about
+    // Search Console, and turning it off leaves Search Console untouched.
+    connectGoogleAnalytics: (property) => request('/google/analytics', { method: 'POST', body: JSON.stringify({ property }) }),
+    disconnectGoogleAnalytics: () => request('/google/analytics', { method: 'DELETE' }),
     getSearchOpportunities: (source) => request('/search/opportunities' + (source ? `?source=${encodeURIComponent(source)}` : '')),
     getSearchPerformance: (source) => request('/search/performance' + (source ? `?source=${encodeURIComponent(source)}` : '')),
     // Set aside (ignored=true) or restore (false) a page from the SEARCH worklist —
