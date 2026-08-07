@@ -6339,3 +6339,42 @@ a.ar-about-proto__v:hover { text-decoration: underline; }
 .ar__todaybtn.is-here,
 .ar__todaybtn.is-here:hover { border-color: var(--ar-ink); }
 .ar-work__src { font-size: 10.5px; color: var(--ar-ink-faint); }
+
+/* ---------------------------------------------------------------------------
+   Optimize, collapsed.
+
+   The card used to be nine complaint rows, each unfolding its own pages, with
+   the set-aside ledger under them — so learning what was wrong with ONE page
+   meant reading all nine and assembling the answer. Today's content worklist is
+   that information one row per page, so this keeps the headline and hands over
+   the working-through. The by-issue view stays behind a disclosure rather than
+   being deleted: its bulk actions ("Ignore All" for a whole check) have no
+   per-page equivalent.
+   --------------------------------------------------------------------------- */
+.ar-optsum { display: flex; flex-direction: column; align-items: flex-start; gap: 12px; padding: 4px 0 2px; }
+.ar-optsum__lead { margin: 0; font-size: 14px; line-height: 1.6; color: var(--ar-ink-soft); max-width: 68ch; }
+
+.ar-optmore { margin-top: 16px; border-top: 1px solid var(--ar-line); padding-top: 12px; }
+.ar-optmore__toggle {
+  cursor: pointer; list-style: none;
+  font-family: var(--ar-mono); font-size: 11px; letter-spacing: 0.06em;
+  text-transform: uppercase; color: var(--ar-ink-soft);
+  display: inline-flex; align-items: center; gap: 6px;
+}
+.ar-optmore__toggle::-webkit-details-marker { display: none; }
+.ar-optmore__toggle::before {
+  content: '▸'; font-size: 9px; color: var(--ar-ink-faint);
+  transition: transform 0.15s ease;
+}
+.ar-optmore[open] > .ar-optmore__toggle::before { transform: rotate(90deg); }
+.ar-optmore__toggle:hover { color: var(--ar-ink); }
+.ar-optmore__toggle:focus-visible { outline: 2px solid var(--ar-accent); outline-offset: 3px; border-radius: 2px; }
+.ar-optmore[open] > .ar-optmore__toggle { margin-bottom: 14px; }
+@media (prefers-reduced-motion: reduce) { .ar-optmore__toggle::before { transition: none; } }
+
+/* Set aside, folded. The count stays visible in the summary — a parked-pages
+   ledger that hides its own size is how content gets excluded from a score and
+   forgotten — but the list itself was the tallest thing on the card. */
+.ar-setaside.ar-optmore > .ar-optmore__toggle { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; text-transform: none; font-family: var(--ar-sans); font-size: 12.5px; letter-spacing: 0; }
+.ar-setaside.ar-optmore > .ar-optmore__toggle .ar-setaside__title { font-size: 12.5px; }
+.ar-setaside__actions { display: flex; justify-content: flex-end; margin: 0 0 8px; }

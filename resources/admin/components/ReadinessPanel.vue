@@ -193,6 +193,23 @@ export default {
     optimizeTotal() {
       return this.optimize.reduce((n, i) => n + Number(i.count || 0), 0);
     },
+    // The issue affecting the most pages — the one worth naming in a summary.
+    optimizeTopIssue() {
+      return this.optimize.reduce((top, i) => (!top || Number(i.count || 0) > Number(top.count || 0) ? i : top), null);
+    },
+    // "Up to N", not a sum: one page can carry several issues, so adding the
+    // counts would claim more pages than the site has. The largest single count
+    // is the only figure that is certainly true of real pages.
+    optimizeSummary() {
+      const top = this.optimizeTopIssue;
+      if (!top) return '';
+      const kinds = this.optimize.length;
+      const pages = Number(top.count || 0);
+      const graded = Number(this.optimizeGraded || 0);
+      const scope = graded ? `up to ${pages} of your ${graded} graded pages` : `${pages} pages`;
+      const kindsPart = kinds === 1 ? 'one kind of issue' : `${kinds} kinds of issue`;
+      return `There's ${kindsPart} across your recent content — ${scope} have something worth fixing. The most common is “${top.label}”.`;
+    },
     // Show the section whenever there's anything to act on — issues, or set-aside pages.
     hasOptimizeSection() {
       return this.optimize.length > 0 || this.optimizeIgnored.length > 0;
@@ -608,7 +625,31 @@ export default {
         </span>
       </div>
 
-      <ul v-if="optimize.length" class="ar-checks">
+      <!-- The summary IS the card now. This list used to be nine rows deep, each
+           unfolding its own pages, with the set-aside ledger below it — so
+           learning what was wrong with ONE page meant reading all nine and
+           assembling the answer yourself. Today's content worklist is that same
+           information turned ninety degrees, one row per page, so this card
+           keeps the headline and hands over the working-through. The full
+           by-issue view stays one click away, because its bulk actions have no
+           equivalent per page. -->
+      <!-- Nothing flagged. Said here rather than inside the disclosure, which is
+           the one place an all-clear must never hide. -->
+      <p v-if="!optimize.length" class="ar-optcheck__clear">Every graded post and page reads as citable. Anything set aside is listed below.</p>
+
+      <div v-if="optimize.length" class="ar-optsum">
+        <p class="ar-optsum__lead">{{ optimizeSummary }}</p>
+        <button type="button" class="ar-btn ar-btn--small" @click="$emit('navigate', { tab: 'today' })">
+          Work through them page by page
+        </button>
+      </div>
+
+      <details v-if="optimize.length" class="ar-optmore">
+        <summary class="ar-optmore__toggle">
+          Or work by issue<span class="ar-optcheck__n"> · {{ optimize.length }}</span>
+        </summary>
+
+      <ul class="ar-checks">
         <li v-for="issue in optimize" :id="`ar-opt-${issue.id}`" :key="issue.id" class="ar-check is-warn">
           <span class="ar-check__rule" aria-hidden="true"></span>
           <div class="ar-check__text">
@@ -645,13 +686,19 @@ export default {
           </div>
         </li>
       </ul>
-      <p v-else class="ar-optcheck__clear">Every graded post and page reads as citable. Anything set aside is listed below.</p>
 
-      <!-- Set aside — always visible, one-click restore, so nothing is silently hidden. -->
-      <div v-if="optimizeIgnored.length" class="ar-setaside">
-        <div class="ar-setaside__head">
+      </details>
+
+      <!-- Set aside — folded, not hidden. The COUNT stays on screen because a
+           silent ledger is how pages get quietly excluded from a score forever;
+           the list itself was the longest thing on the card and nobody reads a
+           parked list every visit. One click still restores anything. -->
+      <details v-if="optimizeIgnored.length" class="ar-setaside ar-optmore">
+        <summary class="ar-optmore__toggle ar-setaside__head">
           <strong class="ar-setaside__title">Set Aside <span class="ar-optcheck__n">· {{ optimizeIgnored.length }}</span></strong>
           <span class="ar-setaside__note">not cited content — left out of the score</span>
+        </summary>
+        <div class="ar-setaside__actions">
           <button
             type="button"
             class="ar-optcheck__restore ar-setaside__restoreall"
@@ -675,7 +722,7 @@ export default {
             >Restore</button>
           </li>
         </ul>
-      </div>
+      </details>
     </div>
 
     <!-- Search Opportunities: the same worklist idea aimed at classic search —
