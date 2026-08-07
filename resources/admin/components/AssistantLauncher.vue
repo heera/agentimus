@@ -1,6 +1,6 @@
 <script>
 /**
- * The nav-bar quill — the writing assistant's launcher, sibling of the review bell.
+ * The nav-bar spark — the writing assistant's launcher, sibling of the review bell.
  * Two states, both honest:
  *  - READY (writes switch on + an AI provider configured): click opens the drawer.
  *  - DIMMED otherwise: the button stays visible (the house rule — "appears as
@@ -98,7 +98,7 @@ export default {
           </span>
         </li>
       </ul>
-      <p class="ar__assist-guide__foot">Once both are set, this quill lights up — nothing is ever written without your explicit “Create draft”.</p>
+      <p class="ar__assist-guide__foot">Once both are set, this button lights up — nothing is ever written without your explicit “Create draft”.</p>
     </div>
   </div>
 </template>

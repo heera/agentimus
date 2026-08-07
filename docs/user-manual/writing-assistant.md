@@ -6,7 +6,7 @@ nav_order: 13
 
 # The writing assistant
 
-The **writing assistant** turns a described idea into a complete, fully dressed draft — without leaving wp-admin and without any external AI tool. A **quill button** in Agentimus's own navigation (next to the review bell) opens it as a drawer on every Agentimus screen.
+The **writing assistant** turns a described idea into a complete, fully dressed draft — without leaving wp-admin and without any external AI tool. A **spark button** in Agentimus's own navigation (next to the review bell) opens it as a drawer on every Agentimus screen.
 
 It drafts and revises; **it never publishes**. Nothing is saved to WordPress until you click **Create draft**, and going live remains a button only you press.
 
@@ -17,7 +17,7 @@ It also drafts to your site's own quality bar: the writing prompts embed the sam
 
 ## What you need first
 
-The quill button lights up when two things are true:
+The spark button lights up when two things are true:
 
 1. **Let connected agents write** is on (Settings → Discovery, the same trust switch that governs MCP writes — the assistant uses the identical, audited write path).
 2. An **AI provider** is connected in WordPress (Settings → AI, WordPress 7.0+, your own key — Agentimus never sees it).
