@@ -79,22 +79,45 @@ export default {
     ownAi() {
       return (this.people && this.people.ai && this.people.ai.visits) || 0;
     },
-    // Which way the two disagree, in plain words. Never "wrong" — they measure
-    // different populations, and the sentence has to say which.
+    // Which way the two differ, in words a first-time reader can act on. Never
+    // "wrong" or "correct": they watch different people, and the sentence says
+    // which people each one misses.
     disagreement() {
       if (this.gaAi === null) return '';
       const g = this.gaAi;
       const o = this.ownAi;
-      if (g === o) return 'Both instruments agree this window — unusual, and worth nothing more than a nod.';
+      if (g === o) return 'Both numbers match this month. That happens, and it means nothing is missing from either one.';
       if (g > o) {
-        return 'Google counts more. Its script sees visits whose referrer never reached your server — a redirect or a privacy proxy in between strips it, and those land here as “direct”.';
+        return 'Google’s number is higher. Some people arrive without their browser telling your site where they came from, so Agentimus can’t see the AI behind those visits — Google still can, because its script runs in the visitor’s browser.';
       }
-      return 'Agentimus counts more. Your server sees every request, including readers who declined Google’s script — and consent banners alone put that gap in the double digits on most sites.';
+      return 'Agentimus’ number is higher. Your own server sees every visit, including people who turn down cookies — and those people are missing from Google’s count entirely.';
     },
+    // The AI slice as a percentage of all visits, one decimal.
     aiShare() {
       if (!this.gaOn || !this.ga.sessions) return null;
       const base = this.gaAi !== null ? this.gaAi : this.ownAi;
       return Math.round((base / this.ga.sessions) * 1000) / 10;
+    },
+    otherShare() {
+      return this.aiShare === null ? null : Math.round((100 - this.aiShare) * 10) / 10;
+    },
+    // Visits that came any way other than an AI assistant.
+    otherVisits() {
+      if (!this.gaOn) return 0;
+      if (this.ga.otherSessions !== null && this.ga.otherSessions !== undefined) return this.ga.otherSessions;
+      return Math.max(0, this.ga.sessions - (this.gaAi || 0));
+    },
+    // The bar's AI width. Floored at a visible sliver so a real-but-tiny share
+    // never renders as nothing at all — a 0.2% slice that draws as an empty bar
+    // reads as "no AI traffic", which is a different and wrong statement.
+    aiBarWidth() {
+      if (this.aiShare === null) return 0;
+      if (this.aiShare <= 0) return 0;
+      return Math.max(1.5, this.aiShare);
+    },
+    // Which assistants, named the way people say them.
+    assistants() {
+      return (this.ga && this.ga.aiBySource) || [];
     },
     range() {
       return (this.report && this.report.range) || { from: '', to: '', floor: '' };
@@ -296,10 +319,15 @@ export default {
       </h2>
 
       <template v-if="gaOn">
+        <p class="ar-card__lead">
+          Everyone who opened a page, and how they found you. “Visits” counts each
+          time somebody came; one person can visit more than once.
+        </p>
+
         <div class="ar-rd__totals">
           <div class="ar-rd__stat">
             <p class="ar-rd__n">{{ n(ga.users) }}</p>
-            <p class="ar-rd__l">readers</p>
+            <p class="ar-rd__l">people</p>
           </div>
           <div class="ar-rd__stat">
             <p class="ar-rd__n">{{ n(ga.sessions) }}</p>
@@ -307,44 +335,95 @@ export default {
           </div>
           <div class="ar-rd__stat">
             <p class="ar-rd__n">{{ n(ga.views) }}</p>
-            <p class="ar-rd__l">page views</p>
-          </div>
-          <div v-if="aiShare !== null" class="ar-rd__stat is-accent">
-            <p class="ar-rd__n">{{ aiShare }}%</p>
-            <p class="ar-rd__l">of visits came from an AI answer</p>
+            <p class="ar-rd__l">pages opened</p>
           </div>
         </div>
 
-        <!-- The two instruments, side by side. Neither is presented as the
-             correction of the other. -->
-        <div class="ar-rd__pair">
-          <div class="ar-rd__side">
-            <p class="ar-rd__side-k">Agentimus counted</p>
-            <p class="ar-rd__side-n">{{ n(ownAi) }}</p>
-            <p class="ar-rd__side-l">visits, recorded on your own server</p>
+        <!-- One picture, because the share is the whole point and a percentage
+             buried in a sentence gets skimmed past. The bar carries no meaning
+             on its own — every segment is repeated as a labelled number below,
+             so nothing here depends on seeing colour. -->
+        <div class="ar-rd__split">
+          <p class="ar-rd__split-t">How people found you</p>
+          <div
+            v-if="aiShare !== null"
+            class="ar-rd__bar"
+            role="img"
+            :aria-label="`Out of ${n(ga.sessions)} visits, ${n(gaAi !== null ? gaAi : ownAi)} came from an AI assistant and ${n(otherVisits)} came another way.`"
+          >
+            <span class="ar-rd__bar-ai" :style="{ width: aiBarWidth + '%' }"></span>
           </div>
-          <div class="ar-rd__side">
-            <p class="ar-rd__side-k">Google Analytics counted</p>
-            <p class="ar-rd__side-n">
-              <template v-if="gaAi !== null">{{ n(gaAi) }}</template>
-              <template v-else>—</template>
-            </p>
-            <p class="ar-rd__side-l">
-              <template v-if="gaAi !== null">sessions whose source was an assistant</template>
-              <template v-else>no session-source report yet</template>
-            </p>
-          </div>
+
+          <ul class="ar-rd__legend">
+            <li>
+              <span class="ar-rd__dot is-ai" aria-hidden="true"></span>
+              <span class="ar-rd__leg-n">{{ n(gaAi !== null ? gaAi : ownAi) }}</span>
+              <span class="ar-rd__leg-l">visits came from an AI assistant</span>
+              <span v-if="aiShare !== null" class="ar-rd__leg-p">{{ aiShare }}%</span>
+            </li>
+            <li>
+              <span class="ar-rd__dot is-other" aria-hidden="true"></span>
+              <span class="ar-rd__leg-n">{{ n(otherVisits) }}</span>
+              <span class="ar-rd__leg-l">came another way — search, a link, or straight to your site</span>
+              <span v-if="otherShare !== null" class="ar-rd__leg-p">{{ otherShare }}%</span>
+            </li>
+          </ul>
         </div>
-        <p v-if="disagreement" class="ar-rd__why">{{ disagreement }}</p>
+
+        <!-- Which assistant, in the names people use. -->
+        <div v-if="assistants.length" class="ar-rd__who">
+          <p class="ar-rd__split-t">Which AI sent them</p>
+          <ul class="ar-rd__chips">
+            <li v-for="a in assistants" :key="a.source">
+              <strong>{{ a.source }}</strong> {{ n(a.hits) }}
+            </li>
+          </ul>
+        </div>
+
+        <!-- Two counts of the same thing. Framed as a range rather than a
+             contradiction, because that is what it is. -->
+        <details class="ar-rd__two">
+          <summary>
+            Why you’ll see two different AI numbers
+            <span class="ar-rd__two-tag">{{ n(Math.min(ownAi, gaAi === null ? ownAi : gaAi)) }}–{{ n(Math.max(ownAi, gaAi === null ? ownAi : gaAi)) }}</span>
+          </summary>
+          <div class="ar-rd__pair">
+            <div class="ar-rd__side">
+              <p class="ar-rd__side-k">Agentimus says</p>
+              <p class="ar-rd__side-n">{{ n(ownAi) }}</p>
+              <p class="ar-rd__side-l">counted by your own website, on your own server</p>
+            </div>
+            <div class="ar-rd__side">
+              <p class="ar-rd__side-k">Google says</p>
+              <p class="ar-rd__side-n">
+                <template v-if="gaAi !== null">{{ n(gaAi) }}</template>
+                <template v-else>—</template>
+              </p>
+              <p class="ar-rd__side-l">
+                <template v-if="gaAi !== null">counted by Google Analytics, in the visitor’s browser</template>
+                <template v-else>Google hasn’t sent this breakdown yet</template>
+              </p>
+            </div>
+          </div>
+          <p v-if="disagreement" class="ar-rd__why">{{ disagreement }}</p>
+          <p class="ar-rd__why">
+            Neither one is wrong. Each misses different people, so treat the two as the
+            low and high end of the same answer.
+          </p>
+        </details>
       </template>
 
       <template v-else>
         <p class="ar-card__lead">
-          This screen can only count the readers an assistant sent, because no analytics
-          source is connected — so there is no total to compare them against, and
-          <strong>{{ n(ownAi) }}</strong> could be most of your traffic or a rounding error.
-          Connect Google Analytics under Settings → Data sources and this becomes a share
-          of everyone, plus Google’s own second opinion on the same question.
+          <strong>{{ n(ownAi) }} visits</strong> came from an AI assistant in the last
+          {{ audience.window }} days. What’s missing is everything else — Agentimus can’t
+          see your other visitors, so there is no way to tell whether that is a big share
+          of your traffic or a tiny one.
+        </p>
+        <p class="ar-rd__why">
+          Connect Google Analytics under <strong>Settings → Data sources</strong> and this
+          screen shows your whole audience, what share of it AI sent, and which assistants
+          they came from.
         </p>
       </template>
     </section>

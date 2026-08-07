@@ -158,6 +158,7 @@ final class Audience {
 			// different answers, and the screen shows them differently.
 			'aiSessions'    => null,
 			'otherSessions' => null,
+			'aiBySource'    => array(),
 			'stale'         => false,
 			'fetched'       => 0,
 			'window'        => (int) $window,
@@ -188,12 +189,67 @@ final class Audience {
 			// the reason they differ, rather than picking a winner.
 			'aiSessions' => null === $split ? null : (int) ( isset( $split['ai'] ) ? $split['ai'] : 0 ),
 			'otherSessions' => null === $split ? null : (int) ( isset( $split['other'] ) ? $split['other'] : 0 ),
+			// Which assistants, in Google's reading. Named hosts are turned into
+			// the names people actually use — nobody thinks of their readers as
+			// arriving from "gemini.google.com".
+			'aiBySource' => null === $split ? array() : self::name_sources( isset( $split['bySource'] ) ? (array) $split['bySource'] : array() ),
 			// Older than two polls. A number that has quietly stopped moving must
 			// be able to say so; silence looks exactly like a flat week.
 			'stale'     => $fetched > 0 && ( time() - $fetched ) > 2 * DAY_IN_SECONDS,
 			'fetched'   => $fetched,
 			'window'    => (int) ( isset( $snap['window'] ) ? $snap['window'] : $window ),
 		);
+	}
+
+	/**
+	 * Turn GA4's referring hosts into the names people say out loud.
+	 *
+	 * An unknown host is kept as-is rather than dropped or relabelled "Other":
+	 * a new assistant showing up is exactly the thing worth noticing, and
+	 * hiding it behind a bucket is how it goes unnoticed for months.
+	 *
+	 * @param array<string,int> $by_source host => visits.
+	 * @return array<int,array{source:string,hits:int}>
+	 */
+	private static function name_sources( array $by_source ) {
+		$names = array(
+			'chatgpt.com'            => 'ChatGPT',
+			'chat.openai.com'        => 'ChatGPT',
+			'openai.com'             => 'ChatGPT',
+			'perplexity.ai'          => 'Perplexity',
+			'www.perplexity.ai'      => 'Perplexity',
+			'gemini.google.com'      => 'Gemini',
+			'bard.google.com'        => 'Gemini',
+			'claude.ai'              => 'Claude',
+			'copilot.microsoft.com'  => 'Copilot',
+			'bing.com/chat'          => 'Copilot',
+			'grok.com'               => 'Grok',
+			'x.ai'                   => 'Grok',
+			'chat.deepseek.com'      => 'DeepSeek',
+			'deepseek.com'           => 'DeepSeek',
+			'duckduckgo.com/aichat'  => 'DuckDuckGo AI',
+			'you.com'                => 'You.com',
+			'phind.com'              => 'Phind',
+			'poe.com'                => 'Poe',
+			'meta.ai'                => 'Meta AI',
+			'mistral.ai'             => 'Mistral',
+			'chat.mistral.ai'        => 'Mistral',
+		);
+
+		// Two hosts can share one name (chatgpt.com and chat.openai.com), and a
+		// reader does not care which — so they are summed, not listed twice.
+		$merged = array();
+		foreach ( $by_source as $host => $hits ) {
+			$label              = isset( $names[ $host ] ) ? $names[ $host ] : (string) $host;
+			$merged[ $label ]   = ( isset( $merged[ $label ] ) ? $merged[ $label ] : 0 ) + (int) $hits;
+		}
+		arsort( $merged );
+
+		$out = array();
+		foreach ( array_slice( $merged, 0, 6, true ) as $label => $hits ) {
+			$out[] = array( 'source' => $label, 'hits' => (int) $hits );
+		}
+		return $out;
 	}
 
 	/**
