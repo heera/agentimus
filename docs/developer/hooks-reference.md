@@ -263,6 +263,15 @@ The reverse-DNS crawler verifier (whose on/off and lookup hooks — `agentimus_v
 | `agentimus_trusted_proxies` | filter | `( array $proxies ): array` | Trusted proxy/CDN definitions used to resolve the real client IP, each `array( 'header' => string, 'ranges' => string[] )` of CIDRs. Ships with Cloudflare's ranges + `CF-Connecting-IP`. A forwarded header is honoured **only** when the direct peer (`REMOTE_ADDR`) falls inside that proxy's ranges, so it can't be used to spoof a source IP from the open internet. |
 | `agentimus_client_ip` | filter | `( string $ip ): string` | Final override of the resolved client IP used for bot verification. It already resolves the real client behind a trusted proxy; reach for this only for an unusual proxy header or to pin a value in tests. |
 
+### Self-declared identity check
+
+Many crawlers put a home page in their own User-Agent (`+https://example.com/bot`) and keep a page there explaining who they are. `Activity\IdentityProbe` looks at whether that page answers — in a one-off cron event, at most one request per host per week, never on a render path, and always through `wp_safe_remote_get()` (the URL comes from a stranger's header). It reports three states: **answers**, **missing** (a 404/410, or a host that resolves to nothing) and **unreached** — everything inconclusive, including a 403 that may be a firewall turning *this* site away. It changes no verdict and blocks nothing.
+
+| Hook | Type | Signature | Purpose |
+| --- | --- | --- | --- |
+| `agentimus_identity_probes` | filter | `( array $results ): array` | The stored map of declared URL → `{ state, code, at, seen }`. Filter to pin results (tests) or to silence the check by returning `array()`. Same warning as `agentimus_route_probe`: cron hook names and filter tags share one namespace, so never register a cron hook under this name. |
+| `agentimus_identity_probe_resolves` | filter | `( ?bool $resolves, string $host ): ?bool` | Whether a hostname exists in DNS. Consulted **only** after a failed request, to tell "there is no such host" (conclusive) from "we couldn't get there" (not). `null` — the default — looks it up with `checkdnsrr()`. Return a bool on a host whose PHP cannot resolve names. |
+
 ### Classifier (labelling)
 
 | Hook | Type | Signature | Purpose |

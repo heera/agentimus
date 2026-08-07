@@ -92,6 +92,7 @@ final class Plugin {
 		MarkdownCache::register();
 		BotRanges::boot(); // Daily refresh of published bot-IP-range files (self-heals its schedule).
 		RouteProbe::watch(); // Async self-check of /llms.txt and the home <head>; re-queued when the plugin/theme mix changes.
+		Activity\IdentityProbe::watch(); // Async look at the home page a self-declared crawler names in its own UA; queued only when one is on the review queue.
 		McpToken::watch(); // Bearer connection-token auth, honored only on the MCP route.
 		Oauth\Server::watch(); // OAuth access-token auth — same route, next seat in the inspector line.
 		( new McpPublicSurface( $this->settings ) )->register(); // Anonymous MCP read-surface: initialize/ping/tools-list answer without auth (they publish nothing mcp.json doesn't); everything else keeps its 401.
@@ -398,6 +399,7 @@ final class Plugin {
 		Digest\Module::unschedule();
 		BotRanges::clear_schedule();
 		RouteProbe::clear_schedule();
+		Activity\IdentityProbe::clear_schedule();
 		wp_clear_scheduled_hook( 'agentimus_warm_llms_full' );
 		wp_clear_scheduled_hook( Visibility\Module::HOOK_ONCE ); // the one-off "run now" event, if queued.
 		self::flush_rewrites_in_context();

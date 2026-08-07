@@ -178,6 +178,14 @@ The queue does one piece of housekeeping on its own, and says so rather than lea
 
 Every flagged row's **Details** also gives a plain, honest verdict on that one client. For an impersonator it reads like *"claims to be Googlebot, but its address failed reverse-DNS verification when it visited — a forgery, not the real Googlebot."* Because blocking the *name* would also block the genuine engine, the guidance is to **block the IP** at your host or CDN instead. To see the exact address, turn on the opt-in **Store IP addresses for flagged clients** setting (off by default) — it records forward-only, so it shows the IP of future flagged visits — or find it now in your server's access log by matching the User-Agent shown in the panel. Beside Block and Allow sits an **Ignore** action, which dismisses a row you've judged harmless; it quietly re-surfaces if that client keeps hammering you. Every decision you make here — blocked, allowed or ignored — is listed afterwards under **Settings → AI access → Manage clients**, with the date you decided and a one-click undo. That dialog is the only place an *ignored* client can be seen and brought back.
 
+Where a client is one Agentimus doesn't recognise, Details also shows the **home page it names in its own User-Agent** — the `+https://example.com/bot` convention most well-behaved crawlers follow — as a link you can open, with what was found there beside it. A real operator keeps a page at that address explaining who they are and how to block them, so the answer is worth having:
+
+- **answers** — there's a page there. Read it; it's still the client's own claim, not proof of who it is.
+- **nothing there (404)** — the address it gave leads nowhere. That's a reason to look harder before you allow it.
+- **couldn't reach it — says nothing** — the request got nowhere conclusive. That may be *your* server's network, a firewall turning it away, or a bad afternoon at the other end, so it's reported as evidence of nothing.
+
+The check runs quietly in the background, at most once a week per site, and never while you're loading a page. It changes no verdict and blocks nothing — it's one more honest fact on the card, and the decision stays yours.
+
 ### Flood protection
 
 To keep one abusive burst from drowning out the traffic you care about, the log is flood-aware. A **recognised crawler** (GPTBot, Googlebot, ClaudeBot…) is **always** logged, however fast it hits — that's exactly the signal you want. Everything else (unknown clients, scripts, spoofs) is throttle-eligible: once such hits pass a threshold within a short window, the log keeps only a sample of them. So a stampede of throwaway user-agents (*EvilBot-1, EvilBot-2, …*) can't push real agents out of the log.

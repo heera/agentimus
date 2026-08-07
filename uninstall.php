@@ -27,6 +27,7 @@ function agentimus_uninstall_site() {
 	delete_option( 'agentimus_review_ask' );
 	delete_option( 'agentimus_route_probe' );
 	delete_option( 'agentimus_robots_watch' );
+	delete_option( 'agentimus_identity_probes' ); // Self-declared crawler home pages and what answered there.
 	delete_option( 'agentimus_mcp_token' );
 	delete_option( 'agentimus_oauth' );
 	delete_option( 'agentimus_seo_mode' );      // SeoContext verdict cache — survived a real uninstall, caught 2026-08-01.
@@ -77,6 +78,7 @@ function agentimus_uninstall_site() {
 	wp_clear_scheduled_hook( 'agentimus_weekly_digest' );
 	wp_clear_scheduled_hook( 'agentimus_refresh_bot_ranges' );
 	wp_clear_scheduled_hook( 'agentimus_route_probe_refresh' );
+	wp_clear_scheduled_hook( 'agentimus_identity_probe_run' );
 
 	// Agent Access: the credential/ability event log, its schema flag and the proven
 	// execute-hook verdict.

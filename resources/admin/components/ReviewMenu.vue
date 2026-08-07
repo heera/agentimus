@@ -313,6 +313,28 @@ export default {
       if ('spoofed' === s.verdict) return { text: 'the real source', tone: 'danger' };
       return { text: 'reverse DNS', tone: 'muted' };
     },
+    // The home page a self-declared crawler names in its own User-Agent, and what
+    // answered there when the site last looked (a weekly background check — never
+    // on this render). null when it declares none.
+    //
+    // Three states, and the third is deliberately empty of judgement: a request
+    // that got nowhere may be THIS server's network, so it must not read as
+    // evidence about the crawler.
+    homeLine(s) {
+      if (!s.guide || !s.guide.url) return null;
+      // A proven impostor copied its whole User-Agent, URL included: that page is
+      // the real operator's and will answer. Showing it here would read as a point
+      // in this client's favour on a card that has already caught it out.
+      if ('spoofed' === s.verdict) return null;
+      const r = s.guide.reachable || null;
+      const line = { url: s.guide.url, host: s.guide.host || s.guide.url };
+      if (!r) return { ...line, text: 'not checked yet', tone: 'muted' };
+      if ('answers' === r.state) return { ...line, text: 'answers', tone: 'ok' };
+      if ('missing' === r.state) {
+        return { ...line, text: r.code ? `nothing there (${r.code})` : 'no such site', tone: 'warn' };
+      }
+      return { ...line, text: 'couldn’t reach it — says nothing', tone: 'muted' };
+    },
     detailSentence(s) {
       if ('spoofed' === s.verdict) {
         return impostorDetail({
@@ -330,7 +352,20 @@ export default {
         return scannerDetail({ ipCount: (s.ips && s.ips.length) || 0 });
       }
       if (s.guide && s.guide.url) {
-        return `It points to ${s.guide.host || 'a site'} in its own User-Agent — its claim, not verified. Open it with care, then Allow or Block.`;
+        const host = s.guide.host || 'a site';
+        const state = (s.guide.reachable && s.guide.reachable.state) || '';
+        // What the page says about itself is still only its claim — a reachable
+        // page proves somebody is home, never who this client is.
+        if ('answers' === state) {
+          return `It points to ${host} in its own User-Agent, and that page answers — read it before you decide. Still its own claim, not proof of who it is.`;
+        }
+        if ('missing' === state) {
+          return `It points to ${host} in its own User-Agent, and there is nothing there. A crawler worth allowing keeps a page saying who it is and how to block it. Research it below, then Allow or Block.`;
+        }
+        if ('unreached' === state) {
+          return `It points to ${host} in its own User-Agent. This site couldn’t reach that page, which may be its own network — that says nothing either way. Open it with care, then Allow or Block.`;
+        }
+        return `It points to ${host} in its own User-Agent — its claim, not verified. Open it with care, then Allow or Block.`;
       }
       return 'It isn’t in the known-bot list and declares no home page of its own. Research it below, then Allow or Block.';
     },
@@ -607,6 +642,18 @@ export default {
             <div v-if="s.network" class="ar-rev-kv">
               <span class="ar-rev-kv__k">Network</span>
               <span class="ar-rev-kv__v ar-rev-network">{{ s.network }}<span class="ar-rev-network__note" :class="'is-' + networkLine(s).tone">· {{ networkLine(s).text }}</span></span>
+            </div>
+
+            <!-- The home page it declares in its own UA, and whether that page answers.
+                 A link, because the whole point is that the owner can go and look; the
+                 note beside it is what the weekly background check found. -->
+            <div v-if="homeLine(s)" class="ar-rev-kv">
+              <span class="ar-rev-kv__k">Home page</span>
+              <span class="ar-rev-kv__v ar-rev-home"><a
+                :href="homeLine(s).url"
+                target="_blank"
+                rel="noopener noreferrer nofollow"
+              >{{ homeLine(s).host }}</a><span class="ar-rev-home__note" :class="'is-' + homeLine(s).tone">· {{ homeLine(s).text }}</span></span>
             </div>
 
             <!-- Admin "Re-check": re-run reverse-DNS live now on this client's captured IP(s).

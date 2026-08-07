@@ -727,6 +727,36 @@ final class Repository {
 			unset( $row );
 		}
 
+		// The home pages these clients declare in their own User-Agents: note them
+		// for the weekly background look, and hand each row whatever the last look
+		// found. observe() records and queues; it never fetches — this is a read
+		// path, and it runs behind the admin bell on every page load.
+		// A caught impostor is skipped on both counts. The URL in a forged
+		// "bingbot/2.0" User-Agent is Bing's own page, copied along with the rest of
+		// the string: it will answer, and that answer says nothing whatever about
+		// the client sending it. Checking it wastes a request; showing it puts a
+		// green tick on a card that has already proven a forgery.
+		$declared = array();
+		foreach ( $result['sources'] as $row ) {
+			if ( 'spoofed' === $row['verdict'] ) {
+				continue;
+			}
+			if ( ! empty( $row['guide']['url'] ) ) {
+				$declared[] = (string) $row['guide']['url'];
+			}
+		}
+		if ( ! empty( $declared ) ) {
+			IdentityProbe::observe( $declared );
+			foreach ( $result['sources'] as &$row ) {
+				if ( 'spoofed' !== $row['verdict'] && ! empty( $row['guide']['url'] ) ) {
+					// null until the first probe lands — the panel renders that as
+					// "not checked", never as a result.
+					$row['guide']['reachable'] = IdentityProbe::state( $row['guide']['url'] );
+				}
+			}
+			unset( $row );
+		}
+
 		return $result;
 	}
 
