@@ -121,10 +121,11 @@ final class Focus {
 
 		$cover = self::coverage( $post, $query, $content, $title );
 
+		// Called even when there is no coverage — an empty focus has its own
+		// answer ("add the words…") and skipping the renderer left the panel
+		// blank instead, which reads as broken rather than as waiting.
 		ob_start();
-		if ( $cover ) {
-			$this->render_verdict( $post, $query, $cover, $live );
-		}
+		$this->render_verdict( $post, $query, $cover, $live );
 		return rest_ensure_response( array( 'html' => (string) ob_get_clean() ) );
 	}
 
@@ -424,14 +425,11 @@ final class Focus {
 		echo '<p class="agentimus-fieldhead">' . esc_html__( 'This page is for', 'agentimus' ) . '</p>';
 
 		if ( '' === $query ) {
-			// Nothing measured, so nothing to show: no verdict, no words, no
-			// alternatives. Say that plainly and name the one action that starts
-			// it, rather than leaving an author to wonder what the box is for.
+			// Only the fact, here. The instruction lives inside the live region
+			// below, so clearing the words puts it back and it can never sit
+			// beside a verdict that contradicts it.
 			echo '<p class="agentimus-fieldhint">'
 				. esc_html__( 'No searches have reached this page yet — normal for a new post.', 'agentimus' )
-				. '</p>';
-			echo '<p class="agentimus-focus__todo">'
-				. esc_html__( 'Type what this page is for below, then save. The check runs against your saved text and shows which of those words the page actually uses.', 'agentimus' )
 				. '</p>';
 			return;
 		}
@@ -497,6 +495,12 @@ final class Focus {
 	public function render_verdict( $post, $query, $cover = null, $live = false ) {
 		$cover = null === $cover ? self::coverage( $post, $query ) : $cover;
 		if ( ! $cover || ! $cover['words'] ) {
+			// No focus, so no verdict — and saying so is the live region's job,
+			// because clearing the words has to remove the old answer rather
+			// than leave it standing over an empty field.
+			echo '<p class="agentimus-focus__todo">'
+				. esc_html__( 'Add the words this page should be found for. The check tells you which of them the page actually uses.', 'agentimus' )
+				. '</p>';
 			return;
 		}
 
@@ -638,7 +642,7 @@ final class Focus {
 			. '.agentimus-focus__opt input{margin:2px 0 0}'
 			. '.agentimus-focus__q{font-size:12.5px;color:#1e1e1e;overflow-wrap:anywhere;line-height:1.35}'
 			. '.agentimus-focus__n{grid-column:2;font-size:10.5px;color:#646970;font-variant-numeric:tabular-nums}'
-			. '.agentimus-focus__now{border:1px solid #146b64;border-left-width:3px;border-radius:2px;background:#f2f8f7;padding:8px 10px;margin:0 0 8px}.agentimus-focus__nowq{display:block;font-size:13.5px;font-weight:600;color:#1e1e1e;line-height:1.35;overflow-wrap:anywhere}.agentimus-focus__nown{display:block;margin-top:2px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:10.5px;color:#50575e;font-variant-numeric:tabular-nums}.agentimus-focus__terms{margin:7px 0 0;display:flex;flex-wrap:wrap;gap:5px}.agentimus-focus__term{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:10.5px;line-height:1.6;padding:1px 7px;border-radius:999px;border:1px solid transparent}.agentimus-focus__term.is-in{color:#fff;background:#146b64;border-color:#146b64}.agentimus-focus__term.is-page{color:#50575e;background:#fff;border-color:#c3c4c7}.agentimus-focus__term.is-out{color:#8c8f94;border-color:#dcdcde;border-style:dashed;text-decoration:line-through}.agentimus-focus__todo{margin:8px 0 0;padding-left:9px;border-left:2px solid #146b64;font-size:12px;font-weight:600;line-height:1.45;color:#1e1e1e}.agentimus-focus__text{margin:0 0 8px}'
+			. '.agentimus-focus__now{border:1px solid #146b64;border-left-width:3px;border-radius:2px;background:#f2f8f7;padding:8px 10px;margin:0 0 8px}.agentimus-focus__nowq{display:block;font-size:13.5px;font-weight:600;color:#1e1e1e;line-height:1.35;overflow-wrap:anywhere}.agentimus-focus__nown{display:block;margin-top:2px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:10.5px;color:#50575e;font-variant-numeric:tabular-nums}.agentimus-focus__chips{display:flex;flex-wrap:wrap;gap:5px;margin:0 0 6px}.agentimus-focus__chip{display:inline-flex;align-items:center;gap:5px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:11px;line-height:1.6;padding:2px 4px 2px 9px;border-radius:999px;color:#fff;background:#146b64}.agentimus-focus__chipx{appearance:none;border:0;background:none;cursor:pointer;color:#cfe4e1;font-size:14px;line-height:1;padding:0 4px;border-radius:999px}.agentimus-focus__chipx:hover{color:#fff;background:#0f544f}.agentimus-focus__terms{margin:7px 0 0;display:flex;flex-wrap:wrap;gap:5px}.agentimus-focus__term{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:10.5px;line-height:1.6;padding:1px 7px;border-radius:999px;border:1px solid transparent}.agentimus-focus__term.is-in{color:#fff;background:#146b64;border-color:#146b64}.agentimus-focus__term.is-page{color:#50575e;background:#fff;border-color:#c3c4c7}.agentimus-focus__term.is-out{color:#8c8f94;border-color:#dcdcde;border-style:dashed;text-decoration:line-through}.agentimus-focus__todo{margin:8px 0 0;padding-left:9px;border-left:2px solid #146b64;font-size:12px;font-weight:600;line-height:1.45;color:#1e1e1e}.agentimus-focus__text{margin:0 0 8px}'
 			. '.agentimus-focus__verdict{display:flex;gap:5px;align-items:baseline;margin:0 0 4px;font-size:11.5px;line-height:1.45;color:#50575e}.agentimus-focus__mark{flex:0 0 auto}'
 			. '.agentimus-focus__verdict strong{font-weight:600}'
 			. '.agentimus-focus__verdict.is-ok strong{color:#2f7a4c}'
