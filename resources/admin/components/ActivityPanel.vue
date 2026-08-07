@@ -637,65 +637,6 @@ export default {
 
 <template>
   <div class="ar-act">
-    <!-- What the site EXPOSES, before who read it — the page's own subtitle
-         says "what you expose, and who is reading it", and the tiles are the
-         first half of that sentence. Quieter than a data card (they are
-         configuration) but first, because they are the premise.
-
-         Readiness isn't a tile here — it's the rail's AEO/GEO card, which owns
-         the score and rungs. These describe the agent SURFACE instead. -->
-    <div v-if="summary" class="ar-dash-sum">
-      <button type="button" class="ar-dash-tile" @click="$emit('navigate', { tab: 'discovery', anchor: 'ar-wd-providers' })">
-        <span class="ar-dash-tile__ic" aria-hidden="true" v-html="tileIcon('providers')"></span>
-        <span class="ar-dash-tile__body">
-          <span class="ar-dash-tile__row">
-            <strong class="ar-dash-tile__v">{{ summary.providers }}</strong>
-            <span class="ar-dash-tile__k">Providers</span>
-          </span>
-          <span v-if="dashProvidersHeld > 0" class="ar-dash-tile__sub">{{ summary.providersPublic }} public · {{ dashProvidersHeld }} sign-in only</span>
-          <span v-else class="ar-dash-tile__sub">sources describing your site</span>
-        </span>
-      </button>
-      <button type="button" class="ar-dash-tile" @click="$emit('navigate', { tab: 'discovery', anchor: 'ar-wd-capabilities' })">
-        <span class="ar-dash-tile__ic" aria-hidden="true" v-html="tileIcon('capabilities')"></span>
-        <span class="ar-dash-tile__body">
-          <span class="ar-dash-tile__row">
-            <strong class="ar-dash-tile__v">{{ summary.capabilities }}</strong>
-            <span class="ar-dash-tile__k">Capabilities</span>
-          </span>
-          <span class="ar-dash-tile__sub">what agents can do or read</span>
-        </span>
-      </button>
-      <button type="button" class="ar-dash-tile" @click="$emit('navigate', { tab: 'discovery', anchor: 'ar-wd-apis' })">
-        <span class="ar-dash-tile__ic" aria-hidden="true" v-html="tileIcon('apis')"></span>
-        <span class="ar-dash-tile__body">
-          <span class="ar-dash-tile__row">
-            <strong class="ar-dash-tile__v">{{ summary.apis }}</strong>
-            <span class="ar-dash-tile__k">APIs</span>
-          </span>
-          <span class="ar-dash-tile__sub">interfaces agents can call</span>
-        </span>
-      </button>
-      <button type="button" class="ar-dash-tile" @click="$emit('navigate', { tab: 'discovery', anchor: 'ar-wd-tools' })">
-        <span class="ar-dash-tile__ic" aria-hidden="true" v-html="tileIcon('tools')"></span>
-        <span class="ar-dash-tile__body">
-          <span class="ar-dash-tile__row">
-            <strong class="ar-dash-tile__v">{{ summary.tools }}</strong>
-            <span class="ar-dash-tile__k">Tools</span>
-          </span>
-          <span v-if="dashToolsHeld > 0" class="ar-dash-tile__sub">{{ summary.toolsPublic }} public · {{ dashToolsHeld }} sign-in only</span>
-          <span v-else class="ar-dash-tile__sub">actions agents can run</span>
-        </span>
-      </button>
-    </div>
-
-    <!-- Quiet privacy framing so the dashboard reads as informational, not
-         surveillance. The shield-check is the privacy-fact mark (.ar-privnote). -->
-    <p class="ar-dash-note ar-privnote">
-      Informational only — which AI assistants read your site, in aggregate. No IP addresses by default,
-      nothing sent anywhere.
-    </p>
-
     <!-- At-a-glance summary (clickable → jumps to the relevant tab) -->
     <!-- Readiness isn't a tile here — it's the rail's AEO/GEO card, which owns the score
          and rungs. Repeating "19/19 · 100%" beside a "91" gauge just shows two readiness

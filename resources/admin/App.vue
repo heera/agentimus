@@ -9,6 +9,7 @@ import ReadinessPanel from './components/ReadinessPanel.vue';
 import DiscoveryHub from './components/DiscoveryHub.vue';
 import ActivityPanel from './components/ActivityPanel.vue';
 import AudiencePanel from './components/AudiencePanel.vue';
+import SurfaceTiles from './components/SurfaceTiles.vue';
 import WhatsNew from './components/WhatsNew.vue';
 import ReviewAsk from './components/ReviewAsk.vue';
 import AssistantLauncher from './components/AssistantLauncher.vue';
@@ -48,7 +49,7 @@ const MORE_EDGE_GAP = 12;
 
 export default {
   name: 'AgentimusApp',
-  components: { SettingsForm, ReadinessPanel, DiscoveryHub, ActivityPanel, AudiencePanel, WhatsNew, ReviewAsk, AssistantLauncher, AssistantDrawer, AiTrafficPanel, RequestLog, EdgePanel, BingPanel, GoogleIndexPanel, SearchPerformance, AgentAccess, ReviewMenu, OnboardingWizard, AboutPanel, ConfirmDialog, VisibilityPanel, TodayPanel, ContentWorklist },
+  components: { SettingsForm, ReadinessPanel, DiscoveryHub, ActivityPanel, AudiencePanel, SurfaceTiles, WhatsNew, ReviewAsk, AssistantLauncher, AssistantDrawer, AiTrafficPanel, RequestLog, EdgePanel, BingPanel, GoogleIndexPanel, SearchPerformance, AgentAccess, ReviewMenu, OnboardingWizard, AboutPanel, ConfirmDialog, VisibilityPanel, TodayPanel, ContentWorklist },
   // The styled hover bubble (shared with the activity tables) — the score rail's
   // rung and next-step hints use it instead of slow, unthemeable native titles.
   mixins: [uaTip],
@@ -2006,6 +2007,15 @@ export default {
             assistants read, agent activity and verification, and your AI-usage signals.
           </p>
         </section>
+        <!-- What the site exposes — the first thing on the page, because the
+             page's own subtitle asks "what you expose" before "who is reading
+             it". Lives here rather than inside ActivityPanel so it can sit
+             above the audience card instead of under it. -->
+        <SurfaceTiles
+          v-show="tab === 'dashboard'"
+          :summary="dashSummary"
+          @navigate="goTo"
+        />
         <!-- Who reached the site — people and machines, side by side. Sits ABOVE
              Endpoint Activity because it is the frame for everything below it:
              that card counts machines only, and until now nothing on the screen

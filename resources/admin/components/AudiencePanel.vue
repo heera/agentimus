@@ -21,9 +21,6 @@ export default {
     data: { type: Object, default: null },
     loaded: { type: Boolean, default: false },
   },
-  data() {
-    return { limitsOpen: false };
-  },
   emits: ['navigate'],
   computed: {
     people() {
@@ -74,14 +71,21 @@ export default {
 
     <p v-if="!loaded" class="ar-aud__wait">Reading both halves…</p>
 
+    <!-- Two panels, not two columns of text. Each audience gets its own
+         surface, its own mark and its own colour, so the split is legible
+         before a single number is read — which is the entire idea of the card
+         and was, in a field of same-weight prose, the one thing you could not
+         see. -->
     <div v-else class="ar-aud__split">
       <!-- PEOPLE ------------------------------------------------------------ -->
-      <div class="ar-aud__half">
-        <p class="ar-aud__kind">People</p>
+      <div class="ar-aud__half is-people">
+        <p class="ar-aud__kind">
+          <span class="ar-aud__mark" aria-hidden="true">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="3.6" /><path d="M4.8 20.2a7.2 7.2 0 0 1 14.4 0" /></svg>
+          </span>
+          People
+        </p>
         <p class="ar-aud__n">{{ n(people.arrived) }}</p>
-        <!-- The unit changes with what the number can honestly claim: everyone,
-             or only the two routes we can see. Saying "arrived to read" over a
-             partial figure is the misreading this card exists to stop. -->
         <p class="ar-aud__unit">
           <template v-if="people.whole">read your site</template>
           <template v-else>arrived from search or an AI answer</template>
@@ -103,24 +107,29 @@ export default {
               <template v-if="people.ai.sources"> · {{ people.ai.sources }} assistant<template v-if="people.ai.sources !== 1">s</template></template>
             </span>
           </li>
+          <li v-if="people.whole">
+            <span class="ar-aud__row-n">{{ n(people.all.sessions) }}</span>
+            <span class="ar-aud__row-l">visits · {{ n(people.all.views) }} pages opened</span>
+          </li>
         </ul>
 
         <p v-if="aiLine" class="ar-aud__detail">{{ aiLine }}</p>
-        <!-- Sessions and views only exist once analytics is connected, and they
-             sit BELOW the people count rather than beside it: they answer a
-             different question and would otherwise compete with the headline. -->
-        <p v-if="people.whole" class="ar-aud__detail">
-          {{ n(people.all.sessions) }} visits · {{ n(people.all.views) }} page views
-        </p>
 
-        <button type="button" class="ar-linkbtn" @click="$emit('navigate', 'readers')">
+        <button type="button" class="ar-linkbtn ar-aud__go" @click="$emit('navigate', 'readers')">
           See who sent them →
         </button>
       </div>
 
       <!-- MACHINES ---------------------------------------------------------- -->
-      <div class="ar-aud__half">
-        <p class="ar-aud__kind">Machines</p>
+      <div class="ar-aud__half is-machines">
+        <p class="ar-aud__kind">
+          <!-- The same bot glyph the review queue uses for a crawler, so one
+               mark means one thing across the plugin. -->
+          <span class="ar-aud__mark" aria-hidden="true">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="8" width="14" height="10" rx="2.6" /><path d="M12 5.2V8" /><circle cx="12" cy="4.2" r="1.1" /><path d="M9.4 12.6v1.2M14.6 12.6v1.2" /></svg>
+          </span>
+          Machines
+        </p>
         <p class="ar-aud__n">{{ n(machines.fetches) }}</p>
         <p class="ar-aud__unit">fetches of your agent files</p>
 
@@ -136,11 +145,13 @@ export default {
             <span class="ar-aud__row-n">{{ n(machines.impostors) }}</span>
             <span class="ar-aud__row-l">caught faking an identity</span>
           </li>
+          <li>
+            <span class="ar-aud__row-n">{{ n(machines.today) }}</span>
+            <span class="ar-aud__row-l">fetched today</span>
+          </li>
         </ul>
 
-        <p class="ar-aud__detail">{{ n(machines.today) }} today</p>
-
-        <button type="button" class="ar-linkbtn" @click="$emit('navigate', 'log')">
+        <button type="button" class="ar-linkbtn ar-aud__go" @click="$emit('navigate', 'log')">
           See every request →
         </button>
       </div>
@@ -148,19 +159,17 @@ export default {
 
     <!-- The honesty half. Shipped WITH the numbers rather than in a docs page,
          because the misreadings these prevent happen at the moment of reading. -->
-    <div v-if="loaded && limits.length" class="ar-aud__limits">
-      <p class="ar-aud__limits-t">
+    <details v-if="loaded && limits.length" class="ar-aud__limits">
+      <summary>
         What these numbers can’t tell you
-        <button type="button" class="ar-linkbtn" @click="limitsOpen = !limitsOpen">
-          {{ limitsOpen ? 'Less' : 'Read more' }}
-        </button>
-      </p>
-      <!-- Four paragraphs on a dashboard is four paragraphs nobody reads. The
-           short form carries the actual warning; the long form keeps the
-           reasoning for whoever wants it. -->
+        <span class="ar-aud__limits-n">{{ limits.length }}</span>
+      </summary>
       <ul>
-        <li v-for="l in limits" :key="l.key">{{ limitsOpen ? l.text : l.short }}</li>
+        <li v-for="l in limits" :key="l.key">
+          <strong>{{ l.short }}</strong>
+          <span>{{ l.text }}</span>
+        </li>
       </ul>
-    </div>
+    </details>
   </section>
 </template>
