@@ -6584,3 +6584,30 @@ a.ar-about-proto__v:hover { text-decoration: underline; }
   .ar-rd__hero { font-size: 42px; }
   .ar-rd__cols { grid-template-columns: 1fr; gap: 22px; }
 }
+
+/* "Everyone who visited" — the human half, its own card above the AI one.
+   Four cells, each a number with its label and one line of detail underneath,
+   so a reader gets the shape of the month without opening anything. */
+.ar-rd__grid {
+  display: grid; grid-template-columns: repeat(4, 1fr); gap: 26px;
+  margin: 18px 0 0;
+}
+.ar-rd__cell { min-width: 0; }
+.ar-rd__cn {
+  margin: 0; font-family: var(--ar-serif); font-size: 28px; line-height: 1.05;
+  font-weight: 600; color: var(--ar-ink); font-variant-numeric: tabular-nums;
+}
+.ar-rd__cl { margin: 3px 0 0; font-size: 12.5px; color: var(--ar-ink-soft); }
+.ar-rd__cs { margin: 5px 0 0; font-size: 11.5px; color: var(--ar-ink-faint); line-height: 1.45; }
+
+.ar-rd__col--wide {
+  margin-top: 22px; padding-top: 18px; border-top: 1px solid var(--ar-line);
+}
+.ar-rd--all { margin-bottom: 16px; }
+
+@container (max-width: 900px) {
+  .ar-rd__grid { grid-template-columns: repeat(2, 1fr); gap: 20px; }
+}
+@container (max-width: 480px) {
+  .ar-rd__grid { grid-template-columns: 1fr; }
+}

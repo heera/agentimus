@@ -124,6 +124,24 @@ export default {
     landingPages() {
       return (this.people && this.people.ai && this.people.ai.pages) || [];
     },
+    // Everyone's busiest pages, from analytics.
+    allPages() {
+      return (this.ga && this.ga.pages) || [];
+    },
+    // "2m 14s" — plain, and never a bare number of seconds, which nobody reads
+    // as a duration.
+    avgTime() {
+      const s = (this.ga && this.ga.avgSeconds) || 0;
+      if (!s) return '—';
+      if (s < 60) return `${s}s`;
+      const m = Math.floor(s / 60);
+      const r = s % 60;
+      return r ? `${m}m ${r}s` : `${m}m`;
+    },
+    returning() {
+      if (!this.gaOn) return 0;
+      return Math.max(0, this.ga.users - this.ga.newUsers);
+    },
     range() {
       return (this.report && this.report.range) || { from: '', to: '', floor: '' };
     },
@@ -313,9 +331,58 @@ export default {
 
 <template>
   <div class="ar-aitraffic">
-    <!-- The one question this screen exists to answer: did AI send anyone,
-         is it growing, and which pages earned it. Everything that is not that
-         has been taken off the top of the screen. -->
+    <!-- EVERYONE first, then the AI slice of it. Two cards, not one: they are
+         two different questions, and the AI card's numbers only mean something
+         against the totals in this one. -->
+    <section v-if="gaOn" class="ar-card ar-rd ar-rd--all">
+      <h2 class="ar-card__title">
+        Everyone who visited
+        <span class="ar-card__tag">last {{ audience.window }} days</span>
+      </h2>
+      <p class="ar-card__lead">
+        Every visitor, however they found you. A visit is one person’s trip to your
+        site; they can come back and visit again.
+      </p>
+
+      <div class="ar-rd__grid">
+        <div class="ar-rd__cell">
+          <p class="ar-rd__cn">{{ n(ga.users) }}</p>
+          <p class="ar-rd__cl">people</p>
+          <p class="ar-rd__cs">{{ n(ga.newUsers) }} first-timers · {{ n(returning) }} came back</p>
+        </div>
+        <div class="ar-rd__cell">
+          <p class="ar-rd__cn">{{ n(ga.sessions) }}</p>
+          <p class="ar-rd__cl">visits</p>
+          <p class="ar-rd__cs">{{ ga.perVisit }} pages per visit</p>
+        </div>
+        <div class="ar-rd__cell">
+          <p class="ar-rd__cn">{{ n(ga.views) }}</p>
+          <p class="ar-rd__cl">pages opened</p>
+          <p class="ar-rd__cs">across the whole site</p>
+        </div>
+        <div class="ar-rd__cell">
+          <p class="ar-rd__cn">{{ avgTime }}</p>
+          <p class="ar-rd__cl">average visit</p>
+          <p class="ar-rd__cs">{{ ga.engagedPct }}% stayed to read</p>
+        </div>
+      </div>
+
+      <div v-if="allPages.length" class="ar-rd__col ar-rd__col--wide">
+        <p class="ar-rd__col-t">Most-read pages</p>
+        <ul class="ar-rd__list">
+          <li v-for="p in allPages" :key="p.path">
+            <span class="ar-rd__list-l is-path">{{ p.path }}</span>
+            <span class="ar-rd__list-n">{{ n(p.views) }}</span>
+          </li>
+        </ul>
+      </div>
+
+      <p v-if="ga.stale" class="ar-rd__note">
+        These haven’t refreshed in over two days — they’re the last good numbers, not today’s.
+      </p>
+    </section>
+
+    <!-- The AI slice: did AI send anyone, is it growing, which pages earned it. -->
     <section v-if="people" class="ar-card ar-rd">
       <p class="ar-rd__kicker">AI sent you</p>
       <p class="ar-rd__hero">

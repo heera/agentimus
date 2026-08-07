@@ -152,8 +152,14 @@ final class Audience {
 		$empty    = array(
 			'connected'     => false,
 			'users'         => 0,
+			'newUsers'      => 0,
 			'sessions'      => 0,
 			'views'         => 0,
+			'engaged'       => 0,
+			'engagedPct'    => 0,
+			'avgSeconds'    => 0,
+			'perVisit'      => 0.0,
+			'pages'         => array(),
 			// null, not 0: "GA4 has no opinion" and "GA4 counted none" are
 			// different answers, and the screen shows them differently.
 			'aiSessions'    => null,
@@ -179,11 +185,27 @@ final class Audience {
 
 		$split = isset( $snap['split'] ) && is_array( $snap['split'] ) ? $snap['split'] : null;
 
+		$pages = array();
+		foreach ( array_slice( (array) ( isset( $snap['pages'] ) ? $snap['pages'] : array() ), 0, 6 ) as $row ) {
+			$pages[] = array(
+				'path'  => (string) ( isset( $row['path'] ) ? $row['path'] : '' ),
+				'views' => (int) ( isset( $row['views'] ) ? $row['views'] : 0 ),
+				'users' => (int) ( isset( $row['users'] ) ? $row['users'] : 0 ),
+			);
+		}
+
 		return array(
 			'connected' => true,
 			'users'     => (int) ( isset( $totals['users'] ) ? $totals['users'] : 0 ),
+			'newUsers'  => (int) ( isset( $totals['newUsers'] ) ? $totals['newUsers'] : 0 ),
 			'sessions'  => (int) ( isset( $totals['sessions'] ) ? $totals['sessions'] : 0 ),
 			'views'     => (int) ( isset( $totals['views'] ) ? $totals['views'] : 0 ),
+			// How the visit went, not just that it happened.
+			'engaged'    => (int) ( isset( $totals['engaged'] ) ? $totals['engaged'] : 0 ),
+			'engagedPct' => (int) ( isset( $totals['engagedPct'] ) ? $totals['engagedPct'] : 0 ),
+			'avgSeconds' => (int) ( isset( $totals['avgSeconds'] ) ? $totals['avgSeconds'] : 0 ),
+			'perVisit'   => (float) ( isset( $totals['perVisit'] ) ? $totals['perVisit'] : 0 ),
+			'pages'      => $pages,
 			// GA4's OWN reading of how many an assistant sent. Kept separate from
 			// the local count on purpose — the Readers screen shows both and names
 			// the reason they differ, rather than picking a winner.

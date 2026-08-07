@@ -44,18 +44,31 @@ final class Analytics {
 	 * @param string $property The GA4 property ID (digits).
 	 * @param string $start    Y-m-d start date.
 	 * @param string $end      Y-m-d end date.
-	 * @return array { totals?: array{users:int,sessions:int,views:int}, error?: string }
+	 * @return array { totals?: array, error?: string }
 	 */
 	public function totals( $token, $property, $start, $end ) {
+		// Order matters — the response returns values positionally, so this list
+		// and the reads below have to be kept in step. Named in the array so the
+		// pairing is checkable by eye rather than by counting.
+		$metrics = array(
+			'users'      => 'activeUsers',
+			'newUsers'   => 'newUsers',
+			'sessions'   => 'sessions',
+			'views'      => 'screenPageViews',
+			'engaged'    => 'engagedSessions',
+			'avgSeconds' => 'averageSessionDuration',
+		);
+
 		$out = $this->run_report(
 			$token,
 			$property,
 			array(
 				'dateRanges' => array( array( 'startDate' => (string) $start, 'endDate' => (string) $end ) ),
-				'metrics'    => array(
-					array( 'name' => 'activeUsers' ),
-					array( 'name' => 'sessions' ),
-					array( 'name' => 'screenPageViews' ),
+				'metrics'    => array_map(
+					static function ( $name ) {
+						return array( 'name' => $name );
+					},
+					array_values( $metrics )
 				),
 			)
 		);
@@ -66,13 +79,25 @@ final class Analytics {
 		$row = (array) ( ( $out['data']['rows'] ?? array() )[0] ?? array() );
 		$mv  = (array) ( $row['metricValues'] ?? array() );
 
-		return array(
-			'totals' => array(
-				'users'    => (int) round( (float) ( $mv[0]['value'] ?? 0 ) ),
-				'sessions' => (int) round( (float) ( $mv[1]['value'] ?? 0 ) ),
-				'views'    => (int) round( (float) ( $mv[2]['value'] ?? 0 ) ),
-			),
-		);
+		$totals = array();
+		$i      = 0;
+		foreach ( $metrics as $key => $unused ) {
+			$raw            = (float) ( $mv[ $i ]['value'] ?? 0 );
+			$totals[ $key ] = 'avgSeconds' === $key ? (int) round( $raw ) : (int) round( $raw );
+			$i++;
+		}
+
+		// Derived here rather than asked for: GA4's own engagementRate is a
+		// percentage of sessions, and computing it from the two counts we already
+		// have keeps the numbers on screen consistent with each other.
+		$totals['engagedPct'] = $totals['sessions'] > 0
+			? (int) round( ( $totals['engaged'] / $totals['sessions'] ) * 100 )
+			: 0;
+		$totals['perVisit'] = $totals['sessions'] > 0
+			? round( $totals['views'] / $totals['sessions'], 1 )
+			: 0.0;
+
+		return array( 'totals' => $totals );
 	}
 
 	/**

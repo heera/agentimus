@@ -272,11 +272,18 @@ final class Module {
 		// throwing them away over a secondary report would be a poor trade.
 		$split = $client->ai_split( $auth['token'], $property, $start, $end );
 
+		// The busiest pages for EVERYONE — the human half's equivalent of the
+		// AI landing-page list, and the thing that makes that list mean
+		// something (a page with 8 AI visits reads differently when the page
+		// has 40 in total than when it has 9).
+		$pages = $client->top_pages( $auth['token'], $property, $start, $end, 8 );
+
 		update_option(
 			self::GA4_OPTION,
 			array(
 				'totals'  => $out['totals'],
 				'split'   => isset( $split['split'] ) ? $split['split'] : null,
+				'pages'   => isset( $pages['pages'] ) ? $pages['pages'] : array(),
 				'window'  => (int) $window,
 				'start'   => $start,
 				'end'     => $end,

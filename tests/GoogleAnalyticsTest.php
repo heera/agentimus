@@ -108,17 +108,63 @@ final class GoogleAnalyticsTest extends TestCase {
 		$this->assertStringContainsString( 'sufficient permissions', $out['error'] );
 	}
 
-	public function test_totals_read_users_sessions_and_views_in_order() {
+	/**
+	 * GA4 answers positionally, so the metric list and the reads have to stay in
+	 * step. This pins the order: users, newUsers, sessions, views, engaged,
+	 * avgSeconds. A reordering that nobody notices silently relabels every
+	 * number on the screen.
+	 */
+	public function test_totals_read_every_metric_in_the_order_they_were_asked_for() {
 		$GLOBALS['_af_http_queue'][] = array(
 			'response' => array( 'code' => 200 ),
 			'body'     => (string) wp_json_encode( array( 'rows' => array(
-				array( 'metricValues' => array( array( 'value' => '1200' ), array( 'value' => '1500' ), array( 'value' => '3000' ) ) ),
+				array( 'metricValues' => array(
+					array( 'value' => '1200' ),  // users
+					array( 'value' => '900' ),   // newUsers
+					array( 'value' => '1500' ),  // sessions
+					array( 'value' => '3000' ),  // views
+					array( 'value' => '1050' ),  // engagedSessions
+					array( 'value' => '73.4' ),  // averageSessionDuration
+				) ),
 			) ) ),
 		);
 		$out = ( new Analytics() )->totals( 'tok', '12345', '2026-07-10', '2026-08-08' );
 
 		$this->assertSame( 1200, $out['totals']['users'] );
+		$this->assertSame( 900, $out['totals']['newUsers'] );
 		$this->assertSame( 1500, $out['totals']['sessions'] );
 		$this->assertSame( 3000, $out['totals']['views'] );
+		$this->assertSame( 1050, $out['totals']['engaged'] );
+		$this->assertSame( 73, $out['totals']['avgSeconds'] );
+	}
+
+	/** Derived from the counts already fetched, so the screen stays self-consistent. */
+	public function test_engagement_and_pages_per_visit_are_derived_not_asked_for() {
+		$GLOBALS['_af_http_queue'][] = array(
+			'response' => array( 'code' => 200 ),
+			'body'     => (string) wp_json_encode( array( 'rows' => array(
+				array( 'metricValues' => array(
+					array( 'value' => '1200' ), array( 'value' => '900' ), array( 'value' => '1500' ),
+					array( 'value' => '3000' ), array( 'value' => '1050' ), array( 'value' => '73' ),
+				) ),
+			) ) ),
+		);
+		$out = ( new Analytics() )->totals( 'tok', '12345', '2026-07-10', '2026-08-08' );
+
+		$this->assertSame( 70, $out['totals']['engagedPct'], '1050 of 1500' );
+		$this->assertSame( 2.0, $out['totals']['perVisit'], '3000 views over 1500 visits' );
+	}
+
+	/** A property with no traffic must not divide by zero. */
+	public function test_an_empty_window_does_not_divide_by_zero() {
+		$GLOBALS['_af_http_queue'][] = array(
+			'response' => array( 'code' => 200 ),
+			'body'     => (string) wp_json_encode( array( 'rows' => array() ) ),
+		);
+		$out = ( new Analytics() )->totals( 'tok', '12345', '2026-07-10', '2026-08-08' );
+
+		$this->assertSame( 0, $out['totals']['sessions'] );
+		$this->assertSame( 0, $out['totals']['engagedPct'] );
+		$this->assertSame( 0.0, $out['totals']['perVisit'] );
 	}
 }
