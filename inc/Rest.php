@@ -234,6 +234,26 @@ final class Rest {
 
 		register_rest_route(
 			self::NAMESPACE,
+			'/findings',
+			array(
+				'methods'             => \WP_REST_Server::READABLE,
+				'callback'            => array( $this, 'get_findings' ),
+				'permission_callback' => array( $this, 'can_manage' ),
+			)
+		);
+
+		register_rest_route(
+			self::NAMESPACE,
+			'/worklist',
+			array(
+				'methods'             => \WP_REST_Server::READABLE,
+				'callback'            => array( $this, 'get_worklist' ),
+				'permission_callback' => array( $this, 'can_manage' ),
+			)
+		);
+
+		register_rest_route(
+			self::NAMESPACE,
 			'/readiness',
 			array(
 				'methods'             => \WP_REST_Server::READABLE,
@@ -892,6 +912,33 @@ final class Rest {
 	 */
 	public function get_readiness() {
 		return rest_ensure_response( ( new Readiness( $this->settings ) )->report() );
+	}
+
+	/**
+	 * GET /findings — every open finding across every subsystem, ranked.
+	 *
+	 * The Today screen's refresh. It arrives with the boot payload too; this
+	 * route is how the screen catches up after the owner acts on something (a
+	 * Block, an Ignore, a settings save) without a full page reload.
+	 *
+	 * @return \WP_REST_Response
+	 */
+	public function get_findings() {
+		return rest_ensure_response( ( new Findings( $this->settings ) )->all() );
+	}
+
+	/**
+	 * GET /worklist — one row per piece of content, with the search it is found
+	 * for, whether it answers it, and what the content checks flagged.
+	 *
+	 * Deliberately NOT in the boot payload: every row parses a page, so shipping
+	 * it with the admin bootstrap would slow every page load for a section the
+	 * owner may not scroll to. The screen asks for it when it needs it.
+	 *
+	 * @return \WP_REST_Response
+	 */
+	public function get_worklist() {
+		return rest_ensure_response( ( new Worklist( $this->settings ) )->all() );
 	}
 
 	/**

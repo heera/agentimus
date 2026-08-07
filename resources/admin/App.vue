@@ -24,6 +24,8 @@ import OnboardingWizard from './components/OnboardingWizard.vue';
 import AboutPanel from './components/AboutPanel.vue';
 import ConfirmDialog from './components/ConfirmDialog.vue';
 import VisibilityPanel from './components/VisibilityPanel.vue';
+import TodayPanel from './components/TodayPanel.vue';
+import ContentWorklist from './components/ContentWorklist.vue';
 
 // Live updates: poll the same /activity endpoint the Refresh button uses, on a
 // gentle interval. Polling (not SSE/WebSockets) on purpose — it works on any
@@ -45,7 +47,7 @@ const MORE_EDGE_GAP = 12;
 
 export default {
   name: 'AgentimusApp',
-  components: { SettingsForm, ReadinessPanel, DiscoveryHub, ActivityPanel, WhatsNew, ReviewAsk, AssistantLauncher, AssistantDrawer, AiTrafficPanel, RequestLog, EdgePanel, BingPanel, GoogleIndexPanel, SearchPerformance, AgentAccess, ReviewMenu, OnboardingWizard, AboutPanel, ConfirmDialog, VisibilityPanel },
+  components: { SettingsForm, ReadinessPanel, DiscoveryHub, ActivityPanel, WhatsNew, ReviewAsk, AssistantLauncher, AssistantDrawer, AiTrafficPanel, RequestLog, EdgePanel, BingPanel, GoogleIndexPanel, SearchPerformance, AgentAccess, ReviewMenu, OnboardingWizard, AboutPanel, ConfirmDialog, VisibilityPanel, TodayPanel, ContentWorklist },
   // The styled hover bubble (shared with the activity tables) — the score rail's
   // rung and next-step hints use it instead of slow, unthemeable native titles.
   mixins: [uaTip],
@@ -63,7 +65,12 @@ export default {
     // 'agent-access' and 'visibility' are unconditional: always mounted, so their
     // hashes always have somewhere to land. (Visibility hosts two tenants — the
     // citation checks and AI Search — each gated by its OWN key inside the screen.)
-    let startTab = ['dashboard', ...activityTabs, 'agent-access', 'visibility', 'settings', 'readiness', 'discovery', 'about'].includes(fromHash) ? fromHash : 'dashboard';
+    // Dashboard is where a cold load lands. Today is reachable — by its icon in
+    // the controls, and by #today — but it is not the default: opening the plugin
+    // on a worklist puts a to-do list in front of someone who came to look at
+    // something, and the icon has no way to say "you are already here" that a
+    // person arriving would read as a choice they made.
+    let startTab = ['today', 'dashboard', ...activityTabs, 'agent-access', 'visibility', 'settings', 'readiness', 'discovery', 'about'].includes(fromHash) ? fromHash : 'dashboard';
     if (activityTabs.includes(startTab) && !actOn) startTab = 'dashboard';
     return {
       api: createApi(this.boot),
@@ -75,6 +82,21 @@ export default {
       defaults: this.boot.defaults || {},
       readiness: this.boot.readiness || [],
       aeo: this.boot.score || null,
+      // Today's ranked list, shipped with the boot payload so the first screen
+      // answers "is anything wrong?" before any request is made.
+      findings: this.boot.findings || { findings: [], clear: [], failed: [], counts: {} },
+      refreshingFindings: false,
+      // The per-item worklist. NOT in the boot payload — every row parses a
+      // page — so it is fetched the first time Today is looked at.
+      worklist: { items: [], counts: {}, capped: false, total: 0, noSearchData: 0, searchState: '' },
+      worklistPreview: this.boot.worklistPreview || { published: 0, withSearch: 0, setAside: 0, searchState: '' },
+      worklistLoaded: false,
+      // Whether the nav bar has room for every screen name. Below this the bar
+      // wrapped to a second line that sat under the fold — the items were there,
+      // but only findable by scrolling a header nobody scrolls.
+      narrowNav: false,
+      refreshingWorklist: false,
+      settingAside: 0,
       refreshingReadiness: false,
       discovery: this.boot.discovery || {},
       refreshingDiscovery: false,
@@ -327,12 +349,22 @@ export default {
     // The four screens you work in day to day. Kept in the bar itself so the nav stays
     // short enough to read on a narrow admin, where it would otherwise scroll sideways.
     primaryTabs() {
-      return [
+      const wide = [
         { id: 'dashboard', label: 'Dashboard' },
         { id: 'settings', label: 'Settings' },
         { id: 'readiness', label: 'Readiness' },
         { id: 'discovery', label: 'Discovery' },
       ];
+      // Two of the four fold away when the bar runs out of room. Dashboard and
+      // Settings stay because they are the two most reached; the other two are
+      // not lost, they move to the top of More.
+      return this.narrowNav ? wide.slice(0, 2) : wide;
+    },
+    // The screens folded out of the bar, in bar order.
+    foldedTabs() {
+      return this.narrowNav
+        ? [{ id: 'readiness', label: 'Readiness' }, { id: 'discovery', label: 'Discovery' }]
+        : [];
     },
     // The occasional ones, behind "More".
     //
@@ -342,9 +374,13 @@ export default {
     // and switching recording off is a deliberate act, so it simply goes.
     moreTabs() {
       return [
+        // Folded-out primaries come FIRST: they are the ones someone was looking
+        // for in the bar, so they must be the first thing in the menu they were
+        // moved to — not buried under the occasional screens.
+        ...this.foldedTabs,
         // Always on: the screen hosts two tenants (citation checks + AI Search),
         // each gated by its own key INSIDE the screen — never by the nav.
-        { id: 'visibility', label: 'AI Visibility' },
+        { id: 'visibility', label: 'AI Visibility', divided: this.narrowNav },
         // Two screens, one switch — but they are NOT the same view of the same thing.
         // The request log is the bot side (one row per fetch, with a clock time); AI
         // traffic is the human side (day totals, no clock time). Keeping them apart is
@@ -373,7 +409,10 @@ export default {
     // Every reachable screen — what syncTabFromHash() validates a #hash against. A disabled
     // item is listed but NOT navigable, so #visibility must not resolve while it's off.
     tabs() {
-      return [...this.primaryTabs, ...this.moreTabs.filter((t) => !t.disabled)];
+      // Today is not in the bar — it has an icon in the controls instead — but it
+      // is still a screen, so its #hash has to resolve. Leaving it out here made
+      // Back/Forward and a pasted #today link silently land somewhere else.
+      return [{ id: 'today' }, ...this.primaryTabs, ...this.moreTabs.filter((t) => !t.disabled)];
     },
     dashSummary() {
       const c = (this.discovery && this.discovery.counts) || {};
@@ -394,6 +433,13 @@ export default {
     pageMeta() {
       return (
         {
+          today: {
+            title: 'Today',
+            // Says what the screen IS, not what it contains — the list under it
+            // already names each finding, and a head that summarised them twice
+            // would push the first row below the fold for no new information.
+            description: 'Everything open across your site, in one place: crawlers waiting on a decision, pages losing a click they already earn, and anything the setup checks caught.',
+          },
           dashboard: {
             title: 'Dashboard',
             description: 'An overview of your agent-readiness — what you expose, and who is reading it.',
@@ -509,6 +555,14 @@ export default {
     },
   },
   mounted() {
+    // Keep the bar's capacity in sync with the window. matchMedia rather than a
+    // resize handler: it fires only when the answer actually changes.
+    this._navQuery = window.matchMedia('(max-width: 1200px)');
+    this.narrowNav = this._navQuery.matches;
+    this._onNavQuery = (e) => { this.narrowNav = e.matches; };
+    if (this._navQuery.addEventListener) this._navQuery.addEventListener('change', this._onNavQuery);
+    else this._navQuery.addListener(this._onNavQuery); // Safari < 14
+
     // `mousedown`, not `click`: the trigger's own click would otherwise fire after this
     // handler had already closed the menu, and it would reopen on every second press.
     document.addEventListener('mousedown', this.onMoreDocDown);
@@ -561,6 +615,11 @@ export default {
     }
   },
   beforeUnmount() {
+    if (this._navQuery && this._onNavQuery) {
+      if (this._navQuery.removeEventListener) this._navQuery.removeEventListener('change', this._onNavQuery);
+      else this._navQuery.removeListener(this._onNavQuery);
+    }
+
     document.removeEventListener('mousedown', this.onMoreDocDown);
     document.removeEventListener('keydown', this.onMoreKey);
     document.removeEventListener('visibilitychange', this.onTabVisible);
@@ -839,24 +898,51 @@ export default {
         // The watcher has already read the flag by now; clear it so a later plain
         // tab switch still snaps to the top even if the anchor lookup below bails.
         this._jumpAnchor = null;
-        const el = document.getElementById(anchor);
-        if (!el) return;
-        // Reveal the target if it's tucked inside one or more collapsed <details>.
-        for (let d = el.closest('details'); d; d = d.parentElement && d.parentElement.closest('details')) {
-          d.open = true;
-        }
-        // Land the target JUST BELOW the sticky header, not at the raw viewport top —
-        // otherwise scrollIntoView({block:'start'}) tucks the section's own heading
-        // under the pinned header (admin bar + the two header strips). Measure the
-        // header's rendered bottom so it's right on desktop AND mobile (where the nav
-        // wraps taller). The header sits at the page top whether stuck or not, so its
-        // bottom is a stable offset.
-        const sticky = document.querySelector('.ar__sticky');
-        const gap = (sticky ? sticky.getBoundingClientRect().bottom : 0) + 12;
-        const y = el.getBoundingClientRect().top + window.pageYOffset - gap;
-        window.scrollTo({ top: Math.max(0, y), behavior: 'smooth' });
-        this.flashTarget(el);
+        this.jumpToAnchor(anchor);
       });
+    },
+    /**
+     * Scroll to a section, waiting for it if it isn't there yet.
+     *
+     * Some sections only exist once their screen has fetched its data — the
+     * search worklist is rendered from a report that arrives after the tab
+     * switches. Looking once, on the tick the tab changed, found nothing and
+     * left the owner at the top of a long page: the exact "it just goes to the
+     * top" bug. So we look again for a short window, then give up quietly.
+     *
+     * @param {string} anchor DOM id to land on.
+     * @param {number} tries  Frames left to wait (~16ms each).
+     */
+    jumpToAnchor(anchor, tries = 90) {
+      const el = document.getElementById(anchor);
+      // Two ways to be "not ready", and both looked like success before:
+      //   - the element doesn't exist yet — its screen is still fetching the
+      //     report it renders from;
+      //   - it exists but is still display:none, because the tab it lives on
+      //     was switched this same tick. A hidden element's rect is all zeros,
+      //     so the scroll target computed to 0 and we "scrolled" to the top —
+      //     exactly the "it just goes to the top of Readiness" bug.
+      // Wait for a real, laid-out box before measuring anything.
+      const ready = el && el.offsetParent !== null && el.getBoundingClientRect().height > 0;
+      if (!ready) {
+        if (tries > 0) requestAnimationFrame(() => this.jumpToAnchor(anchor, tries - 1));
+        return;
+      }
+      // Reveal the target if it's tucked inside one or more collapsed <details>.
+      for (let d = el.closest('details'); d; d = d.parentElement && d.parentElement.closest('details')) {
+        d.open = true;
+      }
+      // Land the target JUST BELOW the sticky header, not at the raw viewport top —
+      // otherwise scrollIntoView({block:'start'}) tucks the section's own heading
+      // under the pinned header (admin bar + the two header strips). Measure the
+      // header's rendered bottom so it's right on desktop AND mobile (where the nav
+      // wraps taller). The header sits at the page top whether stuck or not, so its
+      // bottom is a stable offset.
+      const sticky = document.querySelector('.ar__sticky');
+      const gap = (sticky ? sticky.getBoundingClientRect().bottom : 0) + 12;
+      const y = el.getBoundingClientRect().top + window.pageYOffset - gap;
+      window.scrollTo({ top: Math.max(0, y), behavior: 'smooth' });
+      this.flashTarget(el);
     },
     // Briefly ring a jumped-to element so the eye lands on the exact control to
     // change, and focus it when it's a form field (ready to act). The ring is CSS;
@@ -1128,6 +1214,63 @@ export default {
         this.flash('error', (e && e.message) || 'Could not save your changes — your switch was reset.');
       } finally {
         this.endBusy();
+      }
+    },
+    // Re-read Today's list. Loud on failure (unlike the score rail) because this
+    // screen IS the answer to "is anything wrong?" — a silent stale list would
+    // let an owner believe a finding they just acted on is still open.
+    // Read the content worklist. Called by the section itself, not on page
+    // load: thirty rows means thirty pages parsed, and an owner who never
+    // scrolls that far should never pay for it.
+    async loadWorklist() {
+      this.refreshingWorklist = true;
+      try {
+        this.worklist = await this.api.getWorklist();
+        this.worklistLoaded = true;
+      } catch (e) {
+        this.flash('error', e.message);
+      } finally {
+        this.refreshingWorklist = false;
+      }
+    },
+    // Set aside / bring back one item, through the SAME route the Optimize
+    // worklist uses — one decision, one store, honoured in both places.
+    async setAsideItem({ id, aside }) {
+      this.settingAside = id;
+      try {
+        const res = await this.api.ignoreOptimize(id, aside);
+        if (res && res.score) this.aeo = res.score;
+        // The row's own state, without re-parsing every page to learn one bit.
+        const row = this.worklist.items.find((i) => i.id === id);
+        if (row) row.setAside = aside;
+        this.recountWorklist();
+        this.flash('success', aside ? 'Set aside.' : 'Back in the list.');
+      } catch (e) {
+        this.flash('error', e.message);
+      } finally {
+        this.settingAside = 0;
+      }
+    },
+    // Keep the chips honest after a local change, using the same rule the
+    // server used — the numbers must still add up to the rows on screen.
+    recountWorklist() {
+      const counts = { fixable: 0, clear: 0, setAside: 0 };
+      this.worklist.items.forEach((i) => {
+        const needs = (i.flags && i.flags.length) || (i.coverage && i.coverage.state && 'answered' !== i.coverage.state);
+        if (i.setAside) counts.setAside += 1;
+        else if (needs) counts.fixable += 1;
+        else counts.clear += 1;
+      });
+      this.worklist = { ...this.worklist, counts };
+    },
+    async refreshFindings() {
+      this.refreshingFindings = true;
+      try {
+        this.findings = await this.api.getFindings();
+      } catch (e) {
+        this.flash('error', e.message);
+      } finally {
+        this.refreshingFindings = false;
       }
     },
     async refreshReadiness() {
@@ -1535,7 +1678,17 @@ export default {
               :aria-current="tab === t.id ? 'page' : null"
               @click="pickMore(t)"
             >
-              <svg class="ar__more-icon" viewBox="0 0 16 16" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <!-- A tab folded out of the bar keeps the mark it had there: the
+                   menu's own 16px set doesn't cover the primaries, and a row
+                   with a blank where every sibling has an icon reads as broken
+                   rather than as a different kind of entry. -->
+              <span
+                v-if="!moreIcon(t.id).length && navIcon(t.id)"
+                class="ar__more-icon ar__more-icon--nav"
+                aria-hidden="true"
+                v-html="navIcon(t.id)"
+              ></span>
+              <svg v-else class="ar__more-icon" viewBox="0 0 16 16" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                 <path v-for="(d, i) in moreIcon(t.id)" :key="i" :d="d" />
               </svg>
               <span class="ar__more-item-label">{{ t.label }}</span>
@@ -1548,6 +1701,29 @@ export default {
           </template>
         </div>
       </div>
+
+      <!-- The three controls reachable from every screen. Grouped in one element
+           with its own gap, rather than left as bar siblings nudged together by
+           negative margins: the bar's gap changes with the viewport, so those
+           nudges only ever matched at the width they were measured on. -->
+      <div class="ar__controls">
+      <!-- Today. An icon rather than a tab: it is where the app opens, so it needs
+           a way BACK more than it needs a name in a bar that was already long. Sits
+           with the quill and the bell — the controls that are reachable from every
+           screen — and marks itself active when you are on it. -->
+      <button
+        type="button"
+        class="ar__review-btn ar__todaybtn"
+        :class="{ 'is-here': tab === 'today' }"
+        :aria-label="tab === 'today' ? 'Today (current screen)' : 'Today'"
+        :aria-current="tab === 'today' ? 'page' : null"
+        @click="goTo('today')"
+      >
+        <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M3.5 13.5h4l1.4 2.6h6.2l1.4-2.6h4" />
+          <path d="M4.6 13.5 7 5.2a1.4 1.4 0 0 1 1.35-1h7.3A1.4 1.4 0 0 1 17 5.2l2.4 8.3v4.3a1.7 1.7 0 0 1-1.7 1.7H6.3a1.7 1.7 0 0 1-1.7-1.7z" />
+        </svg>
+      </button>
 
       <!-- The writing assistant's quill — the bell's sibling; dimmed with guidance
            until the writes switch is on and a provider is connected. -->
@@ -1572,6 +1748,7 @@ export default {
         @flash="flash"
         @manage="openClientManager"
       />
+      </div>
     </header>
 
     <div class="ar__pagehead">
@@ -1693,6 +1870,31 @@ export default {
           :data="discovery"
           :refreshing="refreshingDiscovery"
           @refresh="refreshDiscovery"
+          @navigate="goTo"
+        />
+        <!-- Today: the front door. Every open finding, already merged and ranked
+             by the server, so the first screen answers the only question anyone
+             arrives with. Everything else on this page stays exactly as it is. -->
+        <TodayPanel
+          v-show="tab === 'today'"
+          :findings="findings"
+          :score="aeo"
+          :busy="refreshingFindings"
+          @navigate="goTo"
+          @refresh="refreshFindings"
+        />
+        <!-- Today's second half: the same screen, a different question. Site-wide
+             findings above; the per-item worklist here. Deliberately NOT its own
+             tab — one place to look is the entire point. -->
+        <ContentWorklist
+          v-show="tab === 'today'"
+          :data="worklist"
+          :preview="worklistPreview"
+          :loaded="worklistLoaded"
+          :busy="refreshingWorklist"
+          :setting-aside="settingAside"
+          @load="loadWorklist"
+          @set-aside="setAsideItem"
           @navigate="goTo"
         />
         <!-- The post-setup map: the rooms a new owner would otherwise never

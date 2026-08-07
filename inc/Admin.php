@@ -735,6 +735,14 @@ final class Admin {
 			'socialDefaultImageUrl' => $this->social_default_image_url(),
 			'readiness'   => $readiness = ( new Readiness( $this->settings ) )->report(),
 			'score'       => $score = $this->aeo_score( $readiness ), // AEO/GEO score + action plan, from the same readiness run.
+			// Every open finding across every subsystem, ranked by what it costs —
+			// what the Today screen renders. Shipped with the boot payload so the
+			// plugin's first screen answers "is anything wrong?" with no round trip.
+			'findings'    => ( new Findings( $this->settings ) )->all(),
+			// Counts only — no page is parsed — so the content section can open
+			// knowing something true about the site rather than an empty panel
+			// with a button on it.
+			'worklistPreview' => ( new Worklist( $this->settings ) )->preview(),
 			'discovery'   => Discovery\Hub::data( $this->settings, Discovery\Registry::instance() ),
 			'restNamespacesDetected' => Discovery\Adapters\RestApi::detected(),
 			'entityTypes'   => $this->settings->entity_types(),

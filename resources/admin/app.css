@@ -1128,15 +1128,22 @@
      than wrapping a tab onto its own row. The bell stays pinned right;
      flex-basis:0 lets the strip shrink-to-fit beside it. */
   .ar__tabs {
-    flex: 1 1 0; min-width: 0;
+    /* `0 1 auto`, not `1 1 auto`. Growing made the strip's box stretch far past
+       its last label, so More sat 16px after an EMPTY container edge and read as
+       a much wider gap than the 16px between the tabs themselves. Hugging the
+       content puts More the same distance from Settings as Settings is from
+       Dashboard. Shrink is still allowed, so a full strip scrolls as before. */
+    flex: 0 1 auto; min-width: 0;
     flex-wrap: nowrap;
     overflow-x: auto;
     gap: 16px;
-    /* Spread the tabs across the full strip so they reach toward the bell instead
-       of bunching at the left with dead space before it. space-between only
-       distributes EXISTING free space, so when the strip is too narrow it collapses
-       to the gap and scrolls — it can never force an overflow. */
-    justify-content: space-between;
+    /* Was space-between, to spread FIVE labels across the strip so they reached
+       toward the bell. Narrow screens now fold Readiness and Discovery into More,
+       so the strip holds two — and space-between pushed those two to opposite
+       ends, opening a 67px hole where the gap says 16. With a short strip the
+       honest layout is simply left-aligned; the controls cluster still pins
+       itself right on its own margin. */
+    justify-content: flex-start;
   }
   .ar__tab { letter-spacing: 0.07em; font-size: 10.5px; white-space: nowrap; }
   .ar__review { flex: 0 0 auto; align-self: center; }
@@ -5932,3 +5939,402 @@ a.ar-about-proto__v:hover { text-decoration: underline; }
   .ar-aa__seenblk { flex-direction: row; align-items: baseline; gap: 8px; }
   .ar-aa__seenval { color: var(--ar-ink-soft); }
 }
+
+/* ---------------------------------------------------------------------------
+   Today — the front door.
+
+   The whole screen is one card holding one list, because the point of it is
+   that there IS only one list. Rank is carried by order alone; the only visual
+   weight is the severity mark, so nothing shouts over the sentence next to it.
+   --------------------------------------------------------------------------- */
+.ar-today__card { padding: 0; overflow: hidden; }
+
+.ar-today__head {
+  display: flex; align-items: flex-start; justify-content: space-between;
+  gap: 22px; flex-wrap: wrap;
+  padding: 24px 26px 20px; border-bottom: 1px solid var(--ar-line);
+}
+.ar-today__headings { display: flex; flex-direction: column; gap: 5px; min-width: 0; }
+.ar-today__title { font-family: var(--ar-serif); font-size: 24px; font-weight: 600; margin: 0; color: var(--ar-ink); }
+.ar-today__sub { margin: 0; font-size: 13px; color: var(--ar-ink-soft); max-width: 62ch; }
+.ar-today__meta { display: flex; align-items: center; gap: 16px; }
+/* Deliberately quiet: the score answers "is my setup right", which is not the
+   question this screen exists to answer. It stays available, never dominant. */
+.ar-today__score { text-align: right; white-space: nowrap; }
+.ar-today__score-n { display: block; font-family: var(--ar-mono); font-size: 15px; font-weight: 600; color: var(--ar-good); font-variant-numeric: tabular-nums; }
+.ar-today__score-l { display: block; font-size: 10px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ar-ink-faint); }
+.ar-today__refresh { font-size: 12px; }
+
+.ar-today__list { list-style: none; margin: 0; padding: 0; }
+.ar-today__row {
+  display: grid; grid-template-columns: 18px minmax(0, 1fr) auto;
+  gap: 14px; align-items: start;
+  padding: 16px 26px; border-bottom: 1px solid var(--ar-line);
+}
+.ar-today__row:last-child { border-bottom: 0; }
+.ar-today__mark { font-size: 13px; line-height: 1.7; }
+.ar-today__row.is-urgent .ar-today__mark { color: var(--ar-bad); }
+.ar-today__row.is-worth .ar-today__mark { color: var(--ar-warn); }
+.ar-today__row.is-later .ar-today__mark { color: var(--ar-ink-faint); }
+.ar-today__main { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.ar-today__row-title { margin: 0; font-size: 14.5px; font-weight: 600; color: var(--ar-ink); }
+.ar-today__why { margin: 0; font-size: 12.5px; line-height: 1.55; color: var(--ar-ink-soft); max-width: 68ch; }
+.ar-today__ev { margin: 3px 0 0; display: flex; flex-wrap: wrap; gap: 6px; }
+.ar-today__chip {
+  font-family: var(--ar-mono); font-size: 10.5px; color: var(--ar-ink-soft);
+  background: var(--ar-surface-2); border: 1px solid var(--ar-line);
+  border-radius: 3px; padding: 1px 7px; font-variant-numeric: tabular-nums;
+}
+.ar-today__act { display: flex; align-items: flex-start; }
+.ar-today__act .ar-btn { white-space: nowrap; }
+
+/* The fence. Optional work must never share a run of rows with urgent work —
+   that mixing is what makes a long list stop being read at all. */
+.ar-today__divider {
+  margin: 0; padding: 9px 26px;
+  background: var(--ar-surface-2); border-bottom: 1px solid var(--ar-line);
+  font-family: var(--ar-mono); font-size: 10px; letter-spacing: 0.09em;
+  text-transform: uppercase; color: var(--ar-ink-faint);
+}
+
+/* Stated, not implied: with nothing open the screen must read as "checked". */
+.ar-today__clear {
+  display: flex; gap: 9px; align-items: baseline; margin: 0;
+  padding: 14px 26px; border-top: 1px solid var(--ar-line);
+  background: color-mix(in srgb, var(--ar-good) 7%, transparent);
+  font-size: 12.5px; color: var(--ar-ink-soft);
+}
+.ar-today__clear-mark { color: var(--ar-good); font-size: 12px; }
+.ar-today__clear .ar-linkbtn { margin-left: 7px; font-size: 12px; }
+
+.ar-today__failed {
+  margin: 0; padding: 12px 26px; border-top: 1px solid var(--ar-line);
+  font-size: 12px; color: var(--ar-ink-faint);
+}
+
+@media (max-width: 782px) {
+  .ar-today__head { padding: 20px 18px 16px; }
+  .ar-today__row { grid-template-columns: 18px minmax(0, 1fr); padding: 14px 18px; }
+  .ar-today__act { grid-column: 2; }
+  .ar-today__divider, .ar-today__clear, .ar-today__failed { padding-left: 18px; padding-right: 18px; }
+}
+
+/* One button width for the whole column. The labels differ in length ("Review
+   them" vs "Open the worklist") and a ragged right edge down a list of five
+   reads as five unrelated controls rather than one repeated affordance. The
+   width is set by the longest label so nothing ever truncates. */
+.ar-today__act { min-width: 196px; justify-content: flex-end; }
+.ar-today__act .ar-btn { min-width: 196px; justify-content: center; text-align: center; }
+@media (max-width: 782px) {
+  /* Stacked under the text, the column no longer has a shared edge to align to,
+     so the shared width would only push the button off the card. */
+  .ar-today__act, .ar-today__act .ar-btn { min-width: 0; }
+}
+
+/* ---------------------------------------------------------------------------
+   Your content — Today's second card.
+
+   Three columns on desktop (the thing · what it's for · what to do), stacking
+   on narrow. The coverage verdict carries a mark AND a word: colour alone is
+   not a verdict anyone can read aloud, and the sentence under it is what makes
+   the judgement checkable rather than a grade.
+   --------------------------------------------------------------------------- */
+.ar-work { padding: 0; overflow: hidden; margin-top: 18px; }
+
+.ar-work__head {
+  display: flex; align-items: flex-start; justify-content: space-between; gap: 20px;
+  padding: 22px 26px 18px; border-bottom: 1px solid var(--ar-line); flex-wrap: wrap;
+}
+.ar-work__title { font-family: var(--ar-serif); font-size: 21px; font-weight: 600; margin: 0 0 4px; color: var(--ar-ink); }
+.ar-work__sub { margin: 0; font-size: 13px; color: var(--ar-ink-soft); max-width: 66ch; }
+
+.ar-work__idle { padding: 22px 26px 26px; display: flex; flex-direction: column; gap: 12px; align-items: flex-start; }
+.ar-work__idle p { margin: 0; font-size: 13px; color: var(--ar-ink-soft); }
+
+.ar-work__tabs { display: flex; gap: 6px; flex-wrap: wrap; padding: 12px 26px; border-bottom: 1px solid var(--ar-line); background: var(--ar-surface-2); }
+.ar-work__tab {
+  appearance: none; cursor: pointer; font: inherit; font-size: 11.5px;
+  border: 1px solid var(--ar-line-strong); border-radius: 12px; padding: 3px 12px;
+  background: var(--ar-surface); color: var(--ar-ink-soft);
+}
+.ar-work__tab.is-active { border-color: var(--ar-accent); color: var(--ar-accent); background: var(--ar-accent-soft, #e3efec); font-weight: 600; }
+.ar-work__tab-n { font-family: var(--ar-mono); font-variant-numeric: tabular-nums; opacity: 0.75; }
+
+.ar-work__list { list-style: none; margin: 0; padding: 0; }
+.ar-work__row {
+  display: grid; grid-template-columns: minmax(0, 1.05fr) minmax(0, 1.15fr) auto;
+  gap: 20px; align-items: start; padding: 16px 26px; border-bottom: 1px solid var(--ar-line);
+}
+.ar-work__row:last-child { border-bottom: 0; }
+.ar-work__row.is-aside { opacity: 0.62; }
+
+.ar-work__thing { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.ar-work__type {
+  font-family: var(--ar-mono); font-size: 9.5px; letter-spacing: 0.09em;
+  text-transform: uppercase; color: var(--ar-ink-faint);
+}
+.ar-work__name { font-size: 14px; font-weight: 600; color: var(--ar-ink); text-decoration: none; overflow-wrap: anywhere; }
+.ar-work__name:hover, .ar-work__name:focus-visible { color: var(--ar-accent); text-decoration: underline; text-underline-offset: 2px; }
+.ar-work__flags { display: flex; gap: 5px; flex-wrap: wrap; margin-top: 2px; }
+.ar-work__flag {
+  font-size: 10.5px; border: 1px solid #e0d3ae; background: #fbf5e6; color: #96690f;
+  border-radius: 3px; padding: 1px 7px;
+}
+.ar-work__flag.is-more { border-style: dashed; }
+.ar-work__flag.is-clear { border-color: #cfe3d5; background: #eef6f0; color: var(--ar-good); }
+
+.ar-work__for { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.ar-work__q { font-size: 13px; color: var(--ar-ink); overflow-wrap: anywhere; }
+.ar-work__nums {
+  font-family: var(--ar-mono); font-size: 10.5px; color: var(--ar-ink-soft);
+  font-variant-numeric: tabular-nums; display: flex; gap: 8px; flex-wrap: wrap;
+}
+.ar-work__rank { color: var(--ar-ink); font-weight: 600; }
+.ar-work__cover { display: flex; align-items: baseline; gap: 6px; margin-top: 2px; }
+.ar-work__cover-mark { font-size: 11px; }
+.ar-work__cover-t { font-size: 12px; font-weight: 600; }
+.ar-work__cover.is-answered .ar-work__cover-mark, .ar-work__cover.is-answered .ar-work__cover-t { color: var(--ar-good); }
+.ar-work__cover.is-scattered .ar-work__cover-mark, .ar-work__cover.is-scattered .ar-work__cover-t { color: var(--ar-warn); }
+.ar-work__cover.is-barely .ar-work__cover-mark, .ar-work__cover.is-barely .ar-work__cover-t { color: var(--ar-ink-soft); }
+.ar-work__cover.is-missing .ar-work__cover-mark, .ar-work__cover.is-missing .ar-work__cover-t { color: var(--ar-bad); }
+.ar-work__why { font-size: 11.5px; color: var(--ar-ink-soft); line-height: 1.5; }
+
+.ar-work__act { display: flex; flex-direction: column; gap: 5px; align-items: flex-end; white-space: nowrap; }
+.ar-linkbtn--mute { color: var(--ar-ink-faint); }
+.ar-linkbtn--mute:hover, .ar-linkbtn--mute:focus-visible { color: var(--ar-ink-soft); }
+
+.ar-work__empty { margin: 0; padding: 26px; font-size: 13px; color: var(--ar-ink-soft); }
+.ar-work__foot { margin: 0; padding: 13px 26px; border-top: 1px solid var(--ar-line); font-size: 11.5px; color: var(--ar-ink-faint); }
+
+@media (max-width: 1080px) {
+  .ar-work__row { grid-template-columns: minmax(0, 1fr); gap: 10px; padding: 14px 18px; }
+  .ar-work__act { align-items: flex-start; flex-direction: row; gap: 14px; }
+  .ar-work__head, .ar-work__tabs, .ar-work__foot, .ar-work__empty, .ar-work__idle { padding-left: 18px; padding-right: 18px; }
+}
+
+/* A finding with several separable facts states them as points. Prose on a
+   worklist gets skimmed, and the last clause — usually what to DO — is the one
+   that gets skipped. */
+.ar-today__points { margin: 2px 0 0; padding: 0 0 0 15px; list-style: none; display: flex; flex-direction: column; gap: 3px; }
+.ar-today__points li { position: relative; font-size: 12.5px; line-height: 1.5; color: var(--ar-ink-soft); max-width: 68ch; }
+.ar-today__points li::before {
+  content: '—'; position: absolute; left: -15px; color: var(--ar-ink-faint);
+}
+
+/* One WIDTH for the action column, not a minimum on the buttons.
+   A min-width lets the longest label push past it — "Set up AI Visibility"
+   outgrew "Open the worklist" and the column went ragged again. Fixing the
+   column and filling it means every button matches whatever labels arrive. */
+.ar-today__act { width: 214px; min-width: 0; }
+.ar-today__act .ar-btn { width: 100%; min-width: 0; padding-left: 10px; padding-right: 10px; }
+@media (max-width: 782px) {
+  .ar-today__act, .ar-today__act .ar-btn { width: auto; }
+}
+
+/* Check again and the score share one line. The "Setup score" caption is gone:
+   a two-line block beside a one-line control forced the head taller than either
+   needed, and the number reads clearly enough next to what re-reads it. */
+.ar-today__meta { align-items: baseline; gap: 14px; }
+.ar-today__score-n { display: inline; }
+
+/* Score above, its re-check directly beneath — right-aligned so both hang off
+   the same edge as the action column below them. */
+.ar-today__meta { flex-direction: column; align-items: flex-end; gap: 3px; }
+.ar-today__meta .ar-today__refresh { font-size: 11.5px; }
+
+/* Both the same width, set by whichever is wider. A column of max-content sized
+   to its widest child, with the children stretched to fill it — so the button
+   and the number it re-takes read as one control, not two things that happen to
+   sit near each other. */
+.ar-today__meta { align-items: stretch; width: max-content; }
+.ar-today__score-n { display: block; text-align: center; }
+.ar-today__meta .ar-today__refresh { width: 100%; text-align: center; }
+
+/* The score and its re-check, exactly the same width.
+   A single-column inline-grid: the column takes the width of the wider child
+   and both stretch into it. Flex could not do this reliably here because
+   .ar-linkbtn carries a 4px left nudge for its hover pill, which pushed the
+   button off the shared edge however the widths were set — so it is zeroed.
+   Uppercase mono to match the buttons below; this is a control, not prose. */
+.ar-today__meta {
+  display: inline-grid; grid-auto-flow: row; justify-items: stretch;
+  gap: 4px; width: auto;
+}
+.ar-today__score-n { display: block; text-align: center; }
+.ar-today__meta .ar-today__refresh {
+  margin-left: 0; width: 100%; text-align: center;
+  font-family: var(--ar-mono); font-size: 10.5px;
+  letter-spacing: 0.08em; text-transform: uppercase;
+}
+
+/* The reserve twin is an inline-grid, which would override the full-width
+   stretch this button needs to match the score above it. Keep both. */
+.ar-today__meta .ar-today__refresh.ar-btn--reserve { display: grid; width: 100%; }
+
+/* ---------------------------------------------------------------------------
+   Your content — the opening state.
+
+   A first run, not an empty panel: centred, generous, and already saying
+   something true about this site. The counts come from the boot payload (no
+   page is parsed for them), so the invitation is grounded in real numbers
+   before the expensive read is ever asked for.
+   --------------------------------------------------------------------------- */
+.ar-work__intro {
+  display: flex; flex-direction: column; align-items: center; text-align: center;
+  gap: 14px; padding: 46px 26px 42px;
+}
+.ar-work__intro-mark { color: var(--ar-accent); opacity: 0.85; }
+.ar-work__intro-title {
+  font-family: var(--ar-serif); font-size: 22px; font-weight: 600;
+  margin: 0; color: var(--ar-ink); text-wrap: balance;
+}
+.ar-work__intro-lead {
+  margin: 0; font-size: 14px; line-height: 1.6; color: var(--ar-ink-soft);
+  max-width: 54ch; text-wrap: pretty;
+}
+
+/* The numbers. Big enough to read as facts rather than captions, and separated
+   by hairlines so they group as one statement about the site. */
+.ar-work__stats {
+  display: flex; flex-wrap: wrap; justify-content: center;
+  gap: 0; margin: 4px 0 6px;
+  border: 1px solid var(--ar-line); border-radius: var(--ar-radius);
+  background: var(--ar-surface-2); overflow: hidden;
+}
+.ar-work__stat {
+  display: flex; flex-direction: column; gap: 2px; align-items: center;
+  padding: 12px 24px; border-left: 1px solid var(--ar-line); min-width: 132px;
+}
+.ar-work__stat:first-child { border-left: 0; }
+.ar-work__stat-n {
+  font-family: var(--ar-mono); font-size: 21px; font-weight: 600;
+  color: var(--ar-ink); font-variant-numeric: tabular-nums; line-height: 1.1;
+}
+.ar-work__stat-l { font-size: 11px; color: var(--ar-ink-faint); letter-spacing: 0.01em; }
+
+.ar-work__intro-note { margin: 0; font-size: 11.5px; color: var(--ar-ink-faint); max-width: 52ch; }
+
+@media (max-width: 600px) {
+  .ar-work__intro { padding: 34px 18px 30px; }
+  .ar-work__stats { flex-direction: column; width: 100%; }
+  .ar-work__stat { border-left: 0; border-top: 1px solid var(--ar-line); width: 100%; }
+  .ar-work__stat:first-child { border-top: 0; }
+}
+
+/* ---------------------------------------------------------------------------
+   Narrow screens.
+
+   Two things went wrong once the three-column rows collapsed:
+
+   The breakpoint is 1080px, not 782px, because the card is not the viewport:
+   the right rail takes ~300px and wp-admin's own menu another ~160px, so a
+   960px window leaves this card about 545px wide — already deep in the squeeze.
+   Measure the container, not the screen.
+
+   1. The action column keeps `justify-content: flex-end` from the desktop
+      layout, where it aligns a column of buttons to a shared right edge. Once
+      the button drops under the text that edge no longer exists, so it stranded
+      itself far right with a lake of empty space beside the sentence it belongs
+      to. Actions read left, under what they act on.
+   2. The breakpoint sat at 782px, but the squeeze starts earlier: between about
+      900px and 782px the title wraps to two lines while a 214px action column
+      still holds its width. Collapse before it gets that tight.
+   --------------------------------------------------------------------------- */
+@media (max-width: 1080px) {
+  .ar-today__row { grid-template-columns: 18px minmax(0, 1fr); padding: 15px 20px; }
+  .ar-today__act {
+    grid-column: 2; width: auto; justify-content: flex-start;
+    margin-top: 4px;
+  }
+  .ar-today__act .ar-btn { width: auto; min-width: 0; padding-left: 18px; padding-right: 18px; }
+  .ar-today__why, .ar-today__points li { max-width: none; }
+  .ar-today__head { padding: 20px 20px 16px; }
+  .ar-today__divider, .ar-today__clear, .ar-today__failed { padding-left: 20px; padding-right: 20px; }
+
+  /* The head's score + re-check stop hugging the right edge, which on a narrow
+     column reads as a stray fragment far from the heading it belongs to. */
+  .ar-today__head { flex-direction: column; align-items: flex-start; gap: 12px; }
+  .ar-today__meta { justify-items: start; }
+  .ar-today__score-n, .ar-today__meta .ar-today__refresh { text-align: left; }
+}
+
+/* The content rows collapse at the same width, so the two halves of Today never
+   disagree about what "narrow" means. */
+@media (max-width: 1080px) {
+  .ar-work__head { flex-direction: column; align-items: flex-start; gap: 10px; }
+  .ar-work__row { padding: 16px 20px; }
+  /* Actions get a rule above them: stacked, they otherwise read as one more
+     line of the description rather than the things you can do to it. */
+  .ar-work__act {
+    align-items: center; flex-direction: row; gap: 18px;
+    padding-top: 10px; margin-top: 2px; border-top: 1px solid var(--ar-line);
+    width: 100%;
+  }
+  .ar-work__act .ar-linkbtn { margin-left: 0; padding-left: 0; }
+  .ar-work__tabs, .ar-work__foot, .ar-work__empty { padding-left: 20px; padding-right: 20px; }
+}
+
+/* Today's control. Wears the shared pill (.ar__review-btn) so it reads as one
+   family with the quill and the bell, and takes over pushing the cluster right
+   — that job used to belong to .ar__assist, which now simply follows it. */
+.ar__todaybtn { flex: 0 0 auto; align-self: center; margin-left: auto; }
+.ar__todaybtn + .ar__assist { margin-left: 8px; }
+/* On the screen it opens: filled, so the control says where you are rather than
+   only where you can go. */
+.ar__todaybtn.is-here {
+  color: var(--ar-paper); background: var(--ar-ink); border-color: var(--ar-ink);
+}
+.ar__todaybtn.is-here:hover { color: var(--ar-paper); background: #000; border-color: #000; }
+
+/* A folded-out primary borrows the bar's 24-grid mark inside the 16px menu, so
+   it has to be scaled down to sit on the same optical line as its neighbours. */
+.ar__more-icon--nav { display: inline-flex; align-items: center; justify-content: center; width: 15px; height: 15px; }
+.ar__more-icon--nav svg { width: 15px; height: 15px; }
+
+/* One gap across the whole control cluster, owned by the cluster.
+   The pills used to be bar siblings pulled together with negative margins, and
+   the bar's gap is not one number — 26px normally, 16px under the narrow
+   container query. So a nudge tuned at one width was wrong at the other: -6px
+   gave the intended 10px on a narrow window and 20px on a wide one. A wrapper
+   with its own gap is immune to whatever the bar does around it. */
+.ar__controls {
+  display: flex; align-items: center; gap: 10px;
+  flex: 0 0 auto; align-self: center; margin-left: auto;
+}
+/* Inside the group, every sibling nudge and auto-margin from the old flat
+   arrangement has to stand down or it fights the gap. */
+.ar__controls .ar__todaybtn,
+.ar__controls .ar__assist,
+.ar__controls .ar__assist + .ar__review,
+.ar__controls .ar__review { margin-left: 0; }
+
+/* ---------------------------------------------------------------------------
+   The three control pills — Today, the quill, the bell.
+
+   Their border was --ar-line-strong, the same warm tan as every card edge on
+   the page, so the cluster dissolved into the bar rather than reading as a set
+   of controls. A mild sage — the accent teal mixed down into that same tan —
+   keeps them in the palette while marking them as things you press. Hex first
+   for browsers without color-mix; the mix refines it where supported.
+   --------------------------------------------------------------------------- */
+:root {
+  --ar-line-control: #aabdae;        /* accent 28% into --ar-line */
+  --ar-line-control-strong: #82a396; /* accent 48%, for hover */
+  --ar-line-control-soft: #bccbba;   /* accent 18%, for a resting bell */
+}
+@supports (color: color-mix(in srgb, red, blue)) {
+  :root {
+    --ar-line-control: color-mix(in srgb, var(--ar-accent) 28%, var(--ar-line));
+    --ar-line-control-strong: color-mix(in srgb, var(--ar-accent) 48%, var(--ar-line));
+    --ar-line-control-soft: color-mix(in srgb, var(--ar-accent) 18%, var(--ar-line));
+  }
+}
+
+.ar__review-btn { border-color: var(--ar-line-control); }
+.ar__review-btn:hover,
+.ar__review.is-open .ar__review-btn { border-color: var(--ar-line-control-strong); }
+/* The resting bell keeps its quieter edge, one step softer than its siblings. */
+.ar__review.is-quiet .ar__review-btn { border-color: var(--ar-line-control-soft); }
+/* Today on its own screen stays filled — the ink edge is the point of that state. */
+.ar__todaybtn.is-here,
+.ar__todaybtn.is-here:hover { border-color: var(--ar-ink); }

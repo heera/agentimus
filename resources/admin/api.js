@@ -52,6 +52,12 @@ export function createApi(boot) {
     completeOnboarding: (payload) =>
       request('/onboarding', { method: 'POST', body: JSON.stringify(payload || {}) }),
     getReadiness: () => request('/readiness'),
+    // Today's list, re-read after the owner acts on something (a Block, an
+    // Ignore, a settings save) so the front door catches up without a reload.
+    getFindings: () => request('/findings'),
+    // The per-item content worklist. Fetched on demand, never in the boot
+    // payload: each row parses a page.
+    getWorklist: () => request('/worklist'),
     getScore: () => request('/score'),
     // JSON-LD preview: the site graph (post omitted / 0) or a chosen post's graph.
     getSchemaPreview: (post = 0) => request(`/preview/schema?post=${encodeURIComponent(post || 0)}`),
