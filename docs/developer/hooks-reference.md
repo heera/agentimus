@@ -16,6 +16,13 @@ Hooks fall into three tiers, mirrored in `examples/all-hooks-reference.php`:
 - **Extension** — supported output-shaping filters. Useful for deeper integrations; signatures may evolve between releases, so test against the version you target.
 - **Internal** — advanced site-owner and internal-tuning knobs. Not a third-party integration surface; listed for completeness.
 
+**A hook that is not on this page is Internal**, whether or not it looks useful in
+the source. It may change signature or disappear in any release, without notice
+and without a changelog entry — the tiers above describe what is documented, not
+everything that exists. If you need an extension point that is missing here, say
+so and it will be added as a supported hook rather than left for you to discover;
+that is a smaller cost to us than a broken integration is to you.
+
 In the signatures below, `Registry`, `Settings` and `Plugin` are `Agentimus\Discovery\Registry`, `Agentimus\Settings` and `Agentimus\Plugin`. A `filter` must return a value of the same shape it receives; an `action` returns nothing.
 
 ## Discovery & output
@@ -157,6 +164,27 @@ For a full node — offers, price ranges on variable products, SKU, GTIN/MPN,
 brand and ratings — see the [worked WooCommerce example]({% link developer/topics-and-schema.md %}#a-worked-example-woocommerce-products).
 Agentimus ships no commerce knowledge of its own, so this filter is how a store's
 products stop being described as `Article`.
+
+### Video & audio context
+
+The per-item notes that describe a page's media, and the `VideoObject` /
+`AudioObject` nodes they feed. See {% link developer/topics-and-schema.md %} for
+what the nodes contain.
+
+| Hook | Type | Signature | Purpose |
+| --- | --- | --- | --- |
+| `agentimus_video_hosts` | filter | `( string[] $hosts ): string[]` | Hosts recognised as video players, matched by suffix (`youtube.com` covers `player.youtube.com`). Only consulted for embeds WordPress has not classified itself. |
+| `agentimus_media_context_blocks` | filter | `( string[] $blocks ): string[]` | Block types offered a "Context for AI" field. Default: `core/embed`, `core/video`, `core/audio`. |
+| `agentimus_video_node` | filter | `( array\|null $node, WP_Post $post, array $item, int $index ): array\|null` | One media node before it joins the graph — add `duration`, a real `uploadDate` from a provider API, or a per-item transcript. Return `null` to omit it. |
+| `agentimus_video_max_nodes` | filter | `( int $max ): int` | Most media nodes one page may emit. Default `10`. |
+| `agentimus_defer_video_schema` | filter | `( bool $defer, WP_Post $post ): bool` | Stand down on media schema. Defaults to whether the rendered content already contains a `VideoObject` — detected by the symptom, never by a list of plugin names. Emitters running in `wp_head`/`wp_footer` execute after Agentimus and cannot be detected, so a plugin that knows it emits its own should return `true` here. |
+| `agentimus_media_key_skip_segments` | filter | `( string[] $words ): string[]` | Path segments treated as scaffolding rather than identity when keying a media item (`embed`, `iframe`, `watch`…). |
+| `agentimus_media_max_bytes` | filter | `( int $bytes ): int` | Byte ceiling above which media detection is skipped for a post. Default `256 KB`. |
+| `agentimus_transcript_label_pattern` | filter | `( string $pattern ): string` | The pattern that recognises a "Transcript" heading or `<summary>`, for sites writing it in another language. |
+
+Agentimus never stores or renders a transcript: it detects one already published
+on the page — by any plugin — and credits it. See the
+{% link user-manual/index.md %} for the authoring side.
 
 ### Topics for AI
 
@@ -379,3 +407,40 @@ add_action( 'agentimus_booted', function ( $plugin ) {
 - `examples/all-hooks-reference.php` — copy-paste blocks for the most-used hooks on this page, grouped by the same stability tiers.
 - `examples/integrate-your-plugin.php` — the full `Registry::register()` / `add_well_known()` schema used inside the registration action.
 - The **Registering your plugin** and **Topics for AI** pages walk through the two most common integrations end to end.
+
+## Internal knobs
+
+Listed so the boundary is explicit rather than accidental. These exist in the
+source and are **Internal** by the rule above: they are site-owner escape
+hatches and internal tuning, not an integration surface, and they may change
+without notice. If you have a real use for one, ask for it to be promoted —
+that is how it becomes safe to depend on.
+
+| Hook | Area | Tunes |
+| --- | --- | --- |
+| `agentimus_announce_url` | IndexNow | Whether a URL is announced on publish. |
+| `agentimus_ask_ai_enabled` | Ask AI | Force the Ask-AI bar on or off for a request. |
+| `agentimus_ask_ai_networks` | Ask AI | Which assistants the bar offers. |
+| `agentimus_share_copy_enabled` | Share | Force the Share tab on or off. |
+| `agentimus_share_copy_networks` | Share | Which networks Share drafts for. |
+| `agentimus_internal_links_enabled` | Internal links | Force the suggester on or off. |
+| `agentimus_assist_rate_max` | Assist | Rate ceiling on AI drafting calls. |
+| `agentimus_assistant_shape` | Assistant | The writing assistant's request shape. |
+| `agentimus_assistant_image_models` | Assistant | Image models offered for featured images. |
+| `agentimus_canonical_url` | Solo SEO | The canonical URL in solo mode. |
+| `agentimus_emit_social_cards` | Solo SEO | Whether OG/X card tags are printed. |
+| `agentimus_social_card_tags` | Solo SEO | The card tags themselves. |
+| `agentimus_solo_mode` | Solo SEO | Whether Agentimus owns the search basics. |
+| `agentimus_entity_image` | Schema | The site entity's image. |
+| `agentimus_guidelines` | Guidelines | The published agent guidelines. |
+| `agentimus_bing_position_scale` | Bing | Position scaling in the Bing data source. |
+| `agentimus_known_signature_agents` | Web Bot Auth | Agents recognised by signature. |
+| `agentimus_wba_fetch_budget` | Web Bot Auth | Key-fetch budget per request. |
+| `agentimus_flagged_ips_purge` | Activity | Retention for flagged IPs. |
+| `agentimus_unknown_sources_max_rows` | Activity | Row cap on the unknown-referrer diagnostic. |
+| `agentimus_mcp_server_resources` | MCP | Which documents are offered as MCP resources. |
+| `agentimus_publish_gated_abilities` | Abilities | Whether gated abilities are advertised. |
+
+Agentimus also *consumes* third-party and core hooks (`the_content`,
+`robots_txt`, `litespeed_purge_url`); those belong to WordPress and their
+respective plugins, not to this API.
