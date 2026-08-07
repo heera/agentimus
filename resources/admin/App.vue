@@ -453,14 +453,22 @@ export default {
           },
           'ai-traffic': {
             title: 'AI Traffic',
-            description: 'Readers an AI assistant sent you — day by day, by source and landing page.',
+            // The one screen name in the product that points the wrong way: "AI
+            // Traffic" reads as machines, and every number on it is a PERSON who
+            // arrived because an assistant named you. The badge says so before
+            // the title can mislead — cheaper, and less disruptive to anyone
+            // who already knows the screen, than renaming it.
+            audience: 'people',
+            description: 'Readers an AI assistant sent you — day by day, by source and landing page. These are people: the machines are in the Request Log.',
           },
           log: {
             title: 'Request Log',
+            audience: 'machines',
             description: 'Every request an agent made — filter by client and endpoint to see exactly what one bot fetched. Anything marked “refused” was turned away, not served.',
           },
           'agent-access': {
             title: 'Agent Access',
+            audience: 'machines',
             description: 'What agents did on your site — keys created and used, abilities run. A record, not a guard.',
           },
           visibility: {
@@ -1772,7 +1780,18 @@ export default {
 
     <div class="ar__pagehead">
       <div class="ar__pagehead-text">
-        <h1 class="ar__pagehead-title">{{ pageMeta.title }}</h1>
+        <h1 class="ar__pagehead-title">
+          {{ pageMeta.title }}
+          <!-- Whose numbers these are. Only on the screens that count ONE
+               audience: a screen holding both (AI Visibility carries citation
+               checks AND classic search) gets no badge, because a half-true
+               label is worse than none. -->
+          <span
+            v-if="pageMeta.audience"
+            class="ar__pagehead-aud"
+            :class="`is-${pageMeta.audience}`"
+          >{{ pageMeta.audience === 'people' ? 'People' : 'Machines' }}</span>
+        </h1>
         <p v-if="pageMeta.description" class="ar__pagehead-desc">{{ pageMeta.description }}</p>
       </div>
       <!-- A slot a panel can teleport its own tools into (the About search lives

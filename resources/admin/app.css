@@ -6488,3 +6488,26 @@ a.ar-about-proto__v:hover { text-decoration: underline; }
     margin-top: 18px; padding-top: 18px;
   }
 }
+
+/* The audience badge in the page head — whose numbers this screen counts.
+   Two states only, and the pair is deliberately NOT colour-coded good/bad:
+   neither audience is a problem, they are simply different readers. People
+   take the accent (the colour the nav already uses for "you are here"),
+   machines a neutral ink, so the eye reads them as two categories rather
+   than a status. */
+.ar__pagehead-aud {
+  display: inline-block; vertical-align: 0.32em; margin-left: 10px;
+  font-family: var(--ar-mono); font-size: 9.5px; font-weight: 600;
+  letter-spacing: 0.12em; text-transform: uppercase;
+  padding: 3px 8px; border-radius: 999px; white-space: nowrap;
+}
+.ar__pagehead-aud.is-people {
+  color: var(--ar-accent);
+  background: color-mix(in srgb, var(--ar-accent) 9%, var(--ar-surface));
+  border: 1px solid color-mix(in srgb, var(--ar-accent) 26%, var(--ar-surface));
+}
+.ar__pagehead-aud.is-machines {
+  color: var(--ar-ink-soft);
+  background: var(--ar-surface-2);
+  border: 1px solid var(--ar-line-strong);
+}
