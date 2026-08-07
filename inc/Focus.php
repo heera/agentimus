@@ -64,7 +64,87 @@ final class Focus {
 		add_action( 'init', array( __CLASS__, 'register_meta' ) );
 		if ( is_admin() ) {
 			add_action( 'save_post', array( $this, 'save' ), 10, 2 );
+			add_action( 'admin_enqueue_scripts', array( $this, 'enqueue_live' ) );
 		}
+		add_action( 'rest_api_init', array( $this, 'routes' ) );
+	}
+
+	/**
+	 * REST: POST /focus/check — re-measure without saving.
+	 *
+	 * READ ONLY, and that is what makes it safe in a box that is otherwise
+	 * deliberately no-JS. The rule this box follows is about WRITES: a meta box
+	 * that saves through REST can be clobbered by the form POST Gutenberg fires
+	 * straight afterwards. Nothing here writes anything — it measures text the
+	 * caller already has against a focus they just typed, and returns markup.
+	 *
+	 * @return void
+	 */
+	public function routes() {
+		register_rest_route(
+			'agentimus/v1',
+			'/focus/check',
+			array(
+				'methods'             => \WP_REST_Server::CREATABLE,
+				'callback'            => array( $this, 'rest_check' ),
+				'permission_callback' => static function ( $request ) {
+					return current_user_can( 'edit_post', (int) $request->get_param( 'post' ) );
+				},
+				'args'                => array(
+					'post'    => array( 'type' => 'integer', 'required' => true ),
+					'query'   => array( 'type' => 'string', 'required' => true ),
+					'content' => array( 'type' => 'string', 'required' => false ),
+					'title'   => array( 'type' => 'string', 'required' => false ),
+				),
+			)
+		);
+	}
+
+	/**
+	 * Measure and hand back the verdict block, rendered by the same code that
+	 * renders it on page load — so the live answer can never drift from the
+	 * saved one in wording, marks or order.
+	 *
+	 * @param \WP_REST_Request $request The request.
+	 * @return \WP_REST_Response
+	 */
+	public function rest_check( \WP_REST_Request $request ) {
+		$post = get_post( (int) $request->get_param( 'post' ) );
+		if ( ! $post ) {
+			return rest_ensure_response( array( 'html' => '' ) );
+		}
+
+		$query   = self::sanitize( (string) $request->get_param( 'query' ) );
+		$content = $request->get_param( 'content' );
+		$title   = $request->get_param( 'title' );
+		$live    = null !== $content;
+
+		$cover = self::coverage( $post, $query, $content, $title );
+
+		ob_start();
+		if ( $cover ) {
+			$this->render_verdict( $post, $query, $cover, $live );
+		}
+		return rest_ensure_response( array( 'html' => (string) ob_get_clean() ) );
+	}
+
+	/**
+	 * The live-check script, only on an editor screen showing this box.
+	 *
+	 * @param string $hook The admin page.
+	 * @return void
+	 */
+	public function enqueue_live( $hook ) {
+		if ( 'post.php' !== $hook && 'post-new.php' !== $hook ) {
+			return;
+		}
+		wp_enqueue_script(
+			'agentimus-focus-live',
+			plugins_url( 'assets/focus-live.js', AGENTIMUS_FILE ),
+			array( 'wp-api-fetch' ),
+			AGENTIMUS_VERSION,
+			true
+		);
 	}
 
 	/**
@@ -222,13 +302,17 @@ final class Focus {
 	 * @param string   $query The focus.
 	 * @return array|null Coverage verdict, or null when there is nothing to measure.
 	 */
-	public static function coverage( $post, $query ) {
+	public static function coverage( $post, $query, $content = null, $title = null ) {
 		$query = self::sanitize( $query );
 		if ( '' === $query || ! $post ) {
 			return null;
 		}
-		$html = function_exists( 'do_blocks' ) ? do_blocks( (string) $post->post_content ) : (string) $post->post_content;
-		return Coverage::measure( $html, (string) $post->post_title, $query );
+		// A live check passes the editor's current text; everything else measures
+		// what is saved. Same measurement either way — only the source differs,
+		// and the panel says which one it read.
+		$raw  = null === $content ? (string) $post->post_content : (string) $content;
+		$html = function_exists( 'do_blocks' ) ? do_blocks( $raw ) : $raw;
+		return Coverage::measure( $html, null === $title ? (string) $post->post_title : (string) $title, $query );
 	}
 
 	/* ---------------------------------------------------------------------- *
@@ -261,7 +345,11 @@ final class Focus {
 		// the claim the verdict below is about.
 		$this->render_current( $current['query'], $searches );
 
+		// One wrapper, so the live check has a single node to swap. Everything
+		// inside it is a function of (post content, focus) and nothing else.
+		echo '<div class="agentimus-focus__live" data-post="' . esc_attr( (string) $post->ID ) . '">';
 		$this->render_verdict( $post, $current['query'] );
+		echo '</div>';
 
 		if ( $searches ) {
 			echo '<p class="agentimus-fieldhead" style="margin-top:12px">' . esc_html__( 'Also finding this page', 'agentimus' ) . '</p>';
@@ -308,10 +396,10 @@ final class Focus {
 			);
 			echo '</div>';
 		} else {
-			echo '<p class="agentimus-fieldhint">'
-				. esc_html__( 'No searches have reached this page yet — normal for a new post. Say what it is for and the check below can still run.', 'agentimus' )
-				. '</p>';
-			// With nothing to pick from, the typed value IS the choice.
+			// The "no searches yet" sentence belongs to render_current() above and
+			// is printed there — both branches fire on a new post, and it appeared
+			// twice. This one only has to make the typed value the choice, since
+			// there is nothing to pick from.
 			echo '<input type="hidden" name="agentimus_focus_pick" value="__custom__" />';
 		}
 
@@ -336,8 +424,14 @@ final class Focus {
 		echo '<p class="agentimus-fieldhead">' . esc_html__( 'This page is for', 'agentimus' ) . '</p>';
 
 		if ( '' === $query ) {
+			// Nothing measured, so nothing to show: no verdict, no words, no
+			// alternatives. Say that plainly and name the one action that starts
+			// it, rather than leaving an author to wonder what the box is for.
 			echo '<p class="agentimus-fieldhint">'
-				. esc_html__( 'No searches have reached this page yet — normal for a new post. Say what it is for and the check below can still run.', 'agentimus' )
+				. esc_html__( 'No searches have reached this page yet — normal for a new post.', 'agentimus' )
+				. '</p>';
+			echo '<p class="agentimus-focus__todo">'
+				. esc_html__( 'Type what this page is for below, then save. The check runs against your saved text and shows which of those words the page actually uses.', 'agentimus' )
 				. '</p>';
 			return;
 		}
@@ -400,8 +494,8 @@ final class Focus {
 	 * @param string   $query The focus.
 	 * @return void
 	 */
-	private function render_verdict( $post, $query ) {
-		$cover = self::coverage( $post, $query );
+	public function render_verdict( $post, $query, $cover = null, $live = false ) {
+		$cover = null === $cover ? self::coverage( $post, $query ) : $cover;
 		if ( ! $cover || ! $cover['words'] ) {
 			return;
 		}
@@ -488,7 +582,11 @@ final class Focus {
 		}
 
 		echo '<p class="agentimus-focus__note">'
-			. esc_html__( 'Measured against the last saved version of this page.', 'agentimus' )
+			. esc_html(
+				$live
+					? __( 'Measured against what you have written, saved or not.', 'agentimus' )
+					: __( 'Measured against the last saved version of this page.', 'agentimus' )
+			)
 			. '</p>';
 	}
 
