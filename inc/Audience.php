@@ -374,50 +374,58 @@ final class Audience {
 		// the exact failure this whole block exists to prevent.
 		if ( empty( $all['connected'] ) ) {
 			$out[] = array(
-				'key'  => 'people-partial',
+				'key'   => 'people-partial',
+				'scope' => 'humans',
 				'text'  => __( 'This isn’t your total traffic — only readers from search and AI.', 'agentimus' ),
 			);
 		} else {
 			$out[] = array(
-				'key'  => 'people-sampled',
+				'key'   => 'people-sampled',
+				'scope' => 'both',
 				'text'  => __( 'Analytics and machine counts are measured differently and won’t match.', 'agentimus' ),
 			);
 		}
 
 		if ( ! empty( $all['stale'] ) ) {
 			$out[] = array(
-				'key'  => 'people-stale',
+				'key'   => 'people-stale',
+				'scope' => 'humans',
 				'text'  => __( 'The analytics figure is over two days old.', 'agentimus' ),
 			);
 		}
 
 		if ( $search['connected'] ) {
 			$out[] = array(
-				'key'  => 'search-blended',
+				'key'   => 'search-blended',
+				'scope' => 'humans',
 				'text'  => __( 'Search engines don’t separate AI Overviews from ordinary results.', 'agentimus' ),
 			);
 		} else {
 			$out[] = array(
-				'key'  => 'search-missing',
+				'key'   => 'search-missing',
+				'scope' => 'humans',
 				'text'  => __( 'No search engine connected — the search half is empty, not zero.', 'agentimus' ),
 			);
 		}
 
 		if ( $machines['enabled'] ) {
 			$out[] = array(
-				'key'  => 'machines-endpoints',
+				'key'   => 'machines-endpoints',
+				'scope' => 'machines',
 				'text'  => __( 'Machine fetches count agent files, not ordinary pages.', 'agentimus' ),
 			);
 		} else {
 			$out[] = array(
-				'key'  => 'machines-off',
+				'key'   => 'machines-off',
+				'scope' => 'machines',
 				'text'  => __( 'Agent activity isn’t being recorded — the machine half is empty, not zero.', 'agentimus' ),
 			);
 		}
 
 		if ( ! empty( $ai['enabled'] ) ) {
 			$out[] = array(
-				'key'  => 'ai-referrer',
+				'key'   => 'ai-referrer',
+				'scope' => 'humans',
 				'text'  => __( 'AI-sent readers are a floor: some arrive untraceable.', 'agentimus' ),
 			);
 		}

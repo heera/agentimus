@@ -32,6 +32,18 @@ export default {
     limits() {
       return (this.data && this.data.limits) || [];
     },
+    // Split by the half each caveat is actually about. Two columns implied a
+    // grouping the list did not have — one human fact happened to land beside a
+    // machine one — so the grouping is real now, and labelled.
+    limitsBoth() {
+      return this.limits.filter((l) => l.scope === 'both');
+    },
+    limitsHumans() {
+      return this.limits.filter((l) => l.scope === 'humans');
+    },
+    limitsMachines() {
+      return this.limits.filter((l) => l.scope === 'machines');
+    },
     window() {
       return (this.data && this.data.window) || 30;
     },
@@ -159,16 +171,34 @@ export default {
 
     <!-- The honesty half. Shipped WITH the numbers rather than in a docs page,
          because the misreadings these prevent happen at the moment of reading. -->
-    <!-- One notice, full width, one line per fact. Always visible: a caveat
-         behind a fold is a caveat nobody reads, and these are short enough now
-         that hiding them buys nothing. -->
+    <!-- One notice, full width. Grouped by the half each fact is about, and
+         labelled — an unlabelled two-column list of mixed facts silently
+         claims that the left column and the right column mean something. -->
     <div v-if="loaded && limits.length" class="ar-aud__note">
       <span class="ar-aud__note-i" aria-hidden="true">i</span>
       <div class="ar-aud__note-body">
         <p class="ar-aud__note-t">Worth knowing</p>
-        <ul>
-          <li v-for="l in limits" :key="l.key">{{ l.text }}</li>
+
+        <!-- Facts about the pair go first, full width: they belong to neither
+             column and would be a lie inside either. -->
+        <ul v-if="limitsBoth.length" class="ar-aud__note-both">
+          <li v-for="l in limitsBoth" :key="l.key">{{ l.text }}</li>
         </ul>
+
+        <div class="ar-aud__note-cols">
+          <div v-if="limitsHumans.length">
+            <p class="ar-aud__note-k">Humans</p>
+            <ul>
+              <li v-for="l in limitsHumans" :key="l.key">{{ l.text }}</li>
+            </ul>
+          </div>
+          <div v-if="limitsMachines.length">
+            <p class="ar-aud__note-k">Machines</p>
+            <ul>
+              <li v-for="l in limitsMachines" :key="l.key">{{ l.text }}</li>
+            </ul>
+          </div>
+        </div>
       </div>
     </div>
   </section>

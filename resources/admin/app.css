@@ -6500,19 +6500,29 @@ a.ar-about-proto__v:hover { text-decoration: underline; }
   margin: 0 0 6px; font-family: var(--ar-mono); font-size: 10px;
   letter-spacing: 0.12em; text-transform: uppercase; color: var(--ar-ink-faint);
 }
-/* Two columns on a wide card so four short facts read as a block, not a list
-   that runs the eye down the whole page. */
-.ar-aud__note ul {
-  margin: 0; padding: 0; list-style: none;
-  columns: 2; column-gap: 34px;
+/* Grouped and labelled. The previous version put four mixed facts into a
+   two-column flow, which reads as "these two belong together and those two
+   belong together" — a claim the list was not making. Facts about the PAIR sit
+   full width above the columns, because they belong to neither. */
+.ar-aud__note-both { margin: 0 0 10px; padding: 0; list-style: none; }
+.ar-aud__note-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 34px; }
+.ar-aud__note-k {
+  margin: 0 0 4px; font-family: var(--ar-mono); font-size: 9.5px;
+  letter-spacing: 0.12em; text-transform: uppercase; color: var(--ar-ink-faint);
 }
+.ar-aud__note ul { margin: 0; padding: 0; list-style: none; }
 .ar-aud__note li {
   font-size: 12.5px; line-height: 1.5; color: var(--ar-ink-soft);
-  break-inside: avoid; padding-left: 13px; position: relative; margin-bottom: 4px;
+  padding-left: 13px; position: relative; margin-bottom: 4px;
 }
 .ar-aud__note li::before {
   content: ""; position: absolute; left: 0; top: 0.55em;
   width: 4px; height: 4px; border-radius: 50%; background: var(--ar-line-strong);
+}
+.ar-aud__note-both li::before { background: var(--ar-ink-faint); }
+
+@container (max-width: 720px) {
+  .ar-aud__note-cols { grid-template-columns: 1fr; }
 }
 
 /* The surface tiles, above everything. */
