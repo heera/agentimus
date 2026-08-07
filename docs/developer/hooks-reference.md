@@ -168,8 +168,8 @@ products stop being described as `Article`.
 ### Video & audio context
 
 The per-item notes that describe a page's media, and the `VideoObject` /
-`AudioObject` nodes they feed. See {% link developer/topics-and-schema.md %} for
-what the nodes contain.
+`AudioObject` nodes they feed. See [Topics & schema]({% link developer/topics-and-schema.md %})
+for what the nodes contain.
 
 | Hook | Type | Signature | Purpose |
 | --- | --- | --- | --- |
@@ -184,7 +184,7 @@ what the nodes contain.
 
 Agentimus never stores or renders a transcript: it detects one already published
 on the page — by any plugin — and credits it. See the
-{% link user-manual/index.md %} for the authoring side.
+[user manual]({% link user-manual.md %}) for the authoring side.
 
 ### Topics for AI
 
