@@ -310,8 +310,12 @@ final class Worklist {
 		// The author's own choice wins, so this row and the editor's panel can
 		// never disagree about what the page is for. Without a choice, the search
 		// that brings the most people stands in.
-		$chosen = Focus::for_post( $post );
-		$best   = null;
+		// A page may now be for SEVERAL searches. This screen judges one, so it
+		// takes the first — the one the author put first. The editor is where
+		// the rest are measured. {@see Focus::primary()}
+		$chosen          = Focus::for_post( $post );
+		$chosen['query'] = Focus::primary( $post );
+		$best            = null;
 		if ( $chosen['chosen'] && '' !== $chosen['query'] ) {
 			foreach ( $rows as $row ) {
 				if ( $row['query'] === $chosen['query'] ) {

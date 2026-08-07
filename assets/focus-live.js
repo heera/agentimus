@@ -35,7 +35,10 @@
 	/* -- the value ---------------------------------------------------------- */
 
 	function joined() {
-		return words.join( ' ' );
+		// COMMA, not space: each chip is its own search, and joining with a
+		// space would fuse "clamp" and "new features" into one four-word query
+		// that nobody typed.
+		return words.join( ', ' );
 	}
 
 	function sync() {
@@ -212,7 +215,7 @@
 		// These are the searches you TYPED; those are what the page uses.
 		var chipLabel = document.createElement( 'p' );
 		chipLabel.className = 'agentimus-focus__chiplabel';
-		chipLabel.textContent = 'Searches you added';
+		chipLabel.textContent = 'Searches you added — each is checked on its own';
 		entry.parentNode.insertBefore( chipLabel, entry );
 
 		chipWrap = document.createElement( 'div' );

@@ -114,18 +114,15 @@ final class Focus {
 			return rest_ensure_response( array( 'html' => '' ) );
 		}
 
-		$query   = self::sanitize( (string) $request->get_param( 'query' ) );
+		$query   = (string) $request->get_param( 'query' );
 		$content = $request->get_param( 'content' );
 		$title   = $request->get_param( 'title' );
-		$live    = null !== $content;
 
-		$cover = self::coverage( $post, $query, $content, $title );
-
-		// Called even when there is no coverage — an empty focus has its own
-		// answer ("add the words…") and skipping the renderer left the panel
-		// blank instead, which reads as broken rather than as waiting.
+		// Called even when the focus is empty — that state has its own answer
+		// ("add the words…"), and skipping the renderer left the panel blank
+		// instead, which reads as broken rather than as waiting.
 		ob_start();
-		$this->render_verdict( $post, $query, $cover, $live );
+		$this->render_verdicts( $post, $query, $content, $title );
 		return rest_ensure_response( array( 'html' => (string) ob_get_clean() ) );
 	}
 
@@ -194,6 +191,46 @@ final class Focus {
 	 * @param int|\WP_Post $post Post or ID.
 	 * @return array{query:string,chosen:bool}
 	 */
+	/**
+	 * Split a stored focus into the searches it holds.
+	 *
+	 * The meta is still ONE string — a comma-separated list — so nothing that
+	 * reads it needs a schema change or a migration, and a single-search value
+	 * from before this existed comes back as a list of one. Comma is the
+	 * separator because it is the character people already use for "and another
+	 * one", and because a space has to stay INSIDE a search: "new features" is
+	 * one thing somebody types into Google.
+	 *
+	 * @param string $value A stored or submitted focus.
+	 * @return array<int,string> One or more searches, in order, deduplicated.
+	 */
+	public static function phrases( $value ) {
+		$out = array();
+		foreach ( explode( ',', (string) $value ) as $part ) {
+			$part = self::sanitize( $part );
+			if ( '' !== $part && ! in_array( $part, $out, true ) ) {
+				$out[] = $part;
+			}
+		}
+		return $out;
+	}
+
+	/**
+	 * The one search everything OUTSIDE this editor uses.
+	 *
+	 * The worklist, the Attention screen and the MCP tools each judge a page
+	 * against a single search, and teaching all of them about lists is a much
+	 * bigger change than this box needed. They take the first — the one the
+	 * author put first — and the editor is where the rest are measured.
+	 *
+	 * @param \WP_Post|int $post The post.
+	 * @return string
+	 */
+	public static function primary( $post ) {
+		$phrases = self::phrases( self::for_post( $post )['query'] );
+		return $phrases ? $phrases[0] : '';
+	}
+
 	public static function for_post( $post ) {
 		$post = get_post( $post );
 		if ( ! $post ) {
@@ -349,7 +386,7 @@ final class Focus {
 		// One wrapper, so the live check has a single node to swap. Everything
 		// inside it is a function of (post content, focus) and nothing else.
 		echo '<div class="agentimus-focus__live" data-post="' . esc_attr( (string) $post->ID ) . '">';
-		$this->render_verdict( $post, $current['query'] );
+		$this->render_verdicts( $post, $current['query'] );
 		echo '</div>';
 
 		if ( $searches ) {
@@ -492,7 +529,41 @@ final class Focus {
 	 * @param string   $query The focus.
 	 * @return void
 	 */
-	public function render_verdict( $post, $query, $cover = null, $live = false ) {
+	/**
+	 * Every search this page is for, each measured on its own.
+	 *
+	 * @param \WP_Post $post    The post.
+	 * @param string   $value   The focus value (one search, or several).
+	 * @param string   $content Editor text, or null for the saved post.
+	 * @param string   $title   Editor title, or null.
+	 * @return void
+	 */
+	public function render_verdicts( $post, $value, $content = null, $title = null ) {
+		$phrases = self::phrases( $value );
+		if ( ! $phrases ) {
+			$this->render_verdict( $post, '', null, null !== $content );
+			return;
+		}
+
+		$live = null !== $content;
+		foreach ( $phrases as $i => $phrase ) {
+			$cover = self::coverage( $post, $phrase, $content, $title );
+			// The search itself heads its own verdict once there is more than
+			// one, or three marks in a row belong to nothing in particular.
+			if ( count( $phrases ) > 1 ) {
+				printf(
+					'<p class="agentimus-focus__which">%s</p>',
+					esc_html( $phrase )
+				);
+			}
+			// Only the last one carries the "measured against…" note, and only
+			// the first carries an instruction: repeating either per search
+			// turns a short panel into a wall.
+			$this->render_verdict( $post, $phrase, $cover, $live, 0 === $i, count( $phrases ) - 1 === $i );
+		}
+	}
+
+	public function render_verdict( $post, $query, $cover = null, $live = false, $with_todo = true, $with_note = true ) {
 		$cover = null === $cover ? self::coverage( $post, $query ) : $cover;
 		if ( ! $cover || ! $cover['words'] ) {
 			// No focus, so no verdict — and saying so is the live region's job,
@@ -567,9 +638,11 @@ final class Focus {
 		// that half matches they show the one word to go and use.
 		$this->render_terms( $cover );
 
-		// What to actually do about it — the panel's one instruction, and marked
-		// as such: a rule down its left edge and the only bold line in the
-		// verdict. Still plain TEXT, not a link, and deliberately: there is
+		// What to actually do about it — the panel's one instruction, marked by a
+		// rule down its left edge and nothing else. It was bold, which is fine
+		// for a phrase and shouting for four lines: the rule already says "this
+		// is the instruction", so the weight was doing the job twice. Still
+		// plain TEXT, not a link, and deliberately: there is
 		// nowhere to send someone closer to the fix than the editor they are
 		// already looking at, and a link that only scrolls is theatre.
 		//
@@ -581,10 +654,13 @@ final class Focus {
 			Coverage::BARELY    => __( 'Add a paragraph to the post that uses the missing words above and answers the search directly. Re-checked when you save.', 'agentimus' ),
 			Coverage::MISSING   => __( 'Add a paragraph to the post using these words, or pick a search below that this page really is for. Re-checked when you save.', 'agentimus' ),
 		);
-		if ( isset( $advice[ $cover['state'] ] ) ) {
+		if ( $with_todo && isset( $advice[ $cover['state'] ] ) ) {
 			echo '<p class="agentimus-focus__todo">' . esc_html( $advice[ $cover['state'] ] ) . '</p>';
 		}
 
+		if ( ! $with_note ) {
+			return;
+		}
 		echo '<p class="agentimus-focus__note">'
 			. esc_html(
 				$live
@@ -642,7 +718,7 @@ final class Focus {
 			. '.agentimus-focus__opt input{margin:2px 0 0}'
 			. '.agentimus-focus__q{font-size:12.5px;color:#1e1e1e;overflow-wrap:anywhere;line-height:1.35}'
 			. '.agentimus-focus__n{grid-column:2;font-size:10.5px;color:#646970;font-variant-numeric:tabular-nums}'
-			. '.agentimus-focus__now{border:1px solid #146b64;border-left-width:3px;border-radius:2px;background:#f2f8f7;padding:8px 10px;margin:0 0 8px}.agentimus-focus__nowq{display:block;font-size:13.5px;font-weight:600;color:#1e1e1e;line-height:1.35;overflow-wrap:anywhere}.agentimus-focus__nown{display:block;margin-top:2px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:10.5px;color:#50575e;font-variant-numeric:tabular-nums}.agentimus-focus__chiplabel{margin:10px 0 4px;font-size:11px;color:#646970}.agentimus-focus__chips{display:flex;flex-wrap:wrap;gap:5px;margin:0 0 6px}.agentimus-focus__chip{display:inline-flex;align-items:center;gap:4px;font-size:12px;line-height:1.6;padding:2px 4px 2px 10px;border-radius:999px;color:#1e1e1e;background:#fff;border:1px solid #c3c4c7}.agentimus-focus__chipx{appearance:none;border:0;background:none;cursor:pointer;color:#8c8f94;font-size:14px;line-height:1;padding:0 4px;border-radius:999px}.agentimus-focus__chipx:hover{color:#b32d2e;background:#f6e7e7}.agentimus-focus__terms{margin:7px 0 0;display:flex;flex-wrap:wrap;gap:5px}.agentimus-focus__term{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:10.5px;line-height:1.6;padding:1px 7px;border-radius:999px;border:1px solid transparent}.agentimus-focus__term.is-in{color:#fff;background:#146b64;border-color:#146b64}.agentimus-focus__term.is-page{color:#50575e;background:#fff;border-color:#c3c4c7}.agentimus-focus__term.is-out{color:#8c8f94;border-color:#dcdcde;border-style:dashed;text-decoration:line-through}.agentimus-focus__todo{margin:8px 0 0;padding-left:9px;border-left:2px solid #146b64;font-size:12px;font-weight:600;line-height:1.45;color:#1e1e1e}.agentimus-focus__text{margin:0 0 8px}'
+			. '.agentimus-focus__now{border:1px solid #146b64;border-left-width:3px;border-radius:2px;background:#f2f8f7;padding:8px 10px;margin:0 0 8px}.agentimus-focus__nowq{display:block;font-size:13.5px;font-weight:600;color:#1e1e1e;line-height:1.35;overflow-wrap:anywhere}.agentimus-focus__nown{display:block;margin-top:2px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:10.5px;color:#50575e;font-variant-numeric:tabular-nums}.agentimus-focus__which{margin:10px 0 2px;font-size:12px;font-weight:600;color:#1e1e1e;overflow-wrap:anywhere}.agentimus-focus__which:first-child{margin-top:0}.agentimus-focus__chiplabel{margin:10px 0 4px;font-size:11px;color:#646970}.agentimus-focus__chips{display:flex;flex-wrap:wrap;gap:5px;margin:0 0 6px}.agentimus-focus__chip{display:inline-flex;align-items:center;gap:4px;font-size:12px;line-height:1.6;padding:2px 4px 2px 10px;border-radius:999px;color:#1e1e1e;background:#fff;border:1px solid #c3c4c7}.agentimus-focus__chipx{appearance:none;border:0;background:none;cursor:pointer;color:#8c8f94;font-size:14px;line-height:1;padding:0 4px;border-radius:999px}.agentimus-focus__chipx:hover{color:#b32d2e;background:#f6e7e7}.agentimus-focus__terms{margin:7px 0 0;display:flex;flex-wrap:wrap;gap:5px}.agentimus-focus__term{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:10.5px;line-height:1.6;padding:1px 7px;border-radius:999px;border:1px solid transparent}.agentimus-focus__term.is-in{color:#fff;background:#146b64;border-color:#146b64}.agentimus-focus__term.is-page{color:#50575e;background:#fff;border-color:#c3c4c7}.agentimus-focus__term.is-out{color:#8c8f94;border-color:#dcdcde;border-style:dashed;text-decoration:line-through}.agentimus-focus__todo{margin:8px 0 0;padding-left:9px;border-left:2px solid #146b64;font-size:12px;line-height:1.5;color:#1e1e1e}.agentimus-focus__text{margin:0 0 8px}'
 			. '.agentimus-focus__verdict{display:flex;gap:5px;align-items:baseline;margin:0 0 4px;font-size:11.5px;line-height:1.45;color:#50575e}.agentimus-focus__mark{flex:0 0 auto}'
 			. '.agentimus-focus__verdict strong{font-weight:600}'
 			. '.agentimus-focus__verdict.is-ok strong{color:#2f7a4c}'
