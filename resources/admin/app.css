@@ -6707,5 +6707,13 @@ a.ar-about-proto__v:hover { text-decoration: underline; }
 
 /* Configuration tiles are configuration, not analytics — so they sit below the
    activity they explain and read one step quieter than a data card. */
+/* The tiles stay WHITE. Softening them read as "these are less important",
+   which is the wrong note for the first thing on the page — they are the
+   premise, not a footnote. Their quietness comes from being small and from
+   sitting above the cards, not from being greyed. */
 .ar-dash-sum { margin-top: 4px; }
-.ar-dash-sum .ar-dash-tile { background: var(--ar-surface-2); }
+/* Breathing room before the privacy line, and less after it: the line belongs
+   to the tiles above it, not to the card below. The page grid's own 22px row
+   gap is what separated them, so it is pulled back rather than added to. */
+.ar-surface .ar-dash-note { margin-top: 12px; }
+.ar-surface { margin-bottom: -8px; }
