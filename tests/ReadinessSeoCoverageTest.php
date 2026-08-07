@@ -26,7 +26,7 @@ final class ReadinessSeoCoverageTest extends TestCase {
 	/** Reflection-call the private check (report() touches WP-heavy deps). */
 	private function coverage_row() {
 		$m = new \ReflectionMethod( Readiness::class, 'check_seo_coverage' );
-		$m->setAccessible( true );
+		\_af_accessible( $m );
 		return $m->invoke( new Readiness( new Settings() ) );
 	}
 

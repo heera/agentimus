@@ -289,7 +289,7 @@ final class Client {
 	 * @param int        $timeout Per-request timeout, seconds.
 	 * @return array { data?: array, error?: string, status?: int }
 	 */
-	private function request( $method, $path, $token, array $body = null, $timeout = 20 ) {
+	private function request( $method, $path, $token, ?array $body = null, $timeout = 20 ) {
 		$args = array(
 			'method'  => $method,
 			'timeout' => (int) $timeout,

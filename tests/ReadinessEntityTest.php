@@ -31,7 +31,7 @@ final class ReadinessEntityTest extends TestCase {
 	/** Reflection-call a private check (they read only settings — no DB). */
 	private function check( string $method ): array {
 		$m = new \ReflectionMethod( Readiness::class, $method );
-		$m->setAccessible( true );
+		\_af_accessible( $m );
 		return (array) $m->invoke( new Readiness( new Settings() ) );
 	}
 

@@ -133,7 +133,7 @@ namespace Agentimus\Tests {
 			// (is_probe → isProbe), so checking the producer's own output would
 			// verify a shape that never reaches a client.
 			$wq = new \ReflectionMethod( Report::class, 'wire_query' );
-			$wq->setAccessible( true );
+			\_af_accessible( $wq );
 			$this->assert_declared(
 				$schema['properties']['topQueries']['items']['properties'],
 				$wq->invoke( null, $perf['top_queries'][0] ),
@@ -142,7 +142,7 @@ namespace Agentimus\Tests {
 
 			$this->assertNotEmpty( $perf['top_pages'], 'Fixture produced no top pages — the drift check would pass vacuously.' );
 			$wp = new \ReflectionMethod( Report::class, 'wire_page' );
-			$wp->setAccessible( true );
+			\_af_accessible( $wp );
 			$this->assert_declared(
 				$schema['properties']['topPages']['items']['properties'],
 				$wp->invoke( null, $perf['top_pages'][0] ),
@@ -170,7 +170,7 @@ namespace Agentimus\Tests {
 
 			// wire_card() is pure and private; run the REAL shaper on a REAL card.
 			$m = new \ReflectionMethod( Report::class, 'wire_card' );
-			$m->setAccessible( true );
+			\_af_accessible( $m );
 			$card = $m->invoke( null, $report['almost_there'][0] );
 
 			$declared = $schema['properties']['almostThere']['items']['properties'];

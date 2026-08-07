@@ -90,7 +90,7 @@ final class BingTest extends TestCase {
 		}
 		$totals = array( 'crawlErrors' => $errors, 'blockedByRobots' => 0 );
 		$m      = new \ReflectionMethod( \Agentimus\Bing\Summary::class, 'conflicts' );
-		$m->setAccessible( true );
+		\_af_accessible( $m );
 		return $m->invoke( null, $totals, $rows, new \Agentimus\Settings() );
 	}
 

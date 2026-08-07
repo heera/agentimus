@@ -108,7 +108,7 @@ final class Suggest {
 	 * @param CoreSettings $core    Core settings (identity). Instantiated if omitted.
 	 * @return array<int,string>|\WP_Error Questions, or an error when no AI is configured.
 	 */
-	public static function ai_questions( array $product, CoreSettings $core = null ) {
+	public static function ai_questions( array $product, ?CoreSettings $core = null ) {
 		$core     = $core instanceof CoreSettings ? $core : new CoreSettings();
 		$brand    = self::brand_of( $product, $core );
 		$category = self::tidy( $product['category'] ?? '' );
@@ -293,7 +293,7 @@ final class Suggest {
 	 * @param CoreSettings $core    Core settings (identity). Instantiated if omitted.
 	 * @return array<int,string>
 	 */
-	public static function for_product( array $product, CoreSettings $core = null ) {
+	public static function for_product( array $product, ?CoreSettings $core = null ) {
 		$core = $core instanceof CoreSettings ? $core : new CoreSettings();
 
 		return self::questions(

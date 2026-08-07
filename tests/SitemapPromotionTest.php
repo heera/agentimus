@@ -173,7 +173,7 @@ final class SitemapPromotionTest extends TestCase {
 		$this->assertTrue( Sitemap::promoted(), 'precondition: solo mode' );
 
 		$m = new \ReflectionMethod( \Agentimus\Readiness::class, 'check_sitemap' );
-		$m->setAccessible( true );
+		\_af_accessible( $m );
 		$row = $m->invoke( new \Agentimus\Readiness( new Settings() ) );
 
 		$this->assertSame( 'pass', $row['status'] );

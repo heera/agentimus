@@ -56,3 +56,20 @@ require "{$_tests_dir}/includes/bootstrap.php";
 // the WP test bootstrap so WP_UnitTestCase, which they extend, exists.
 require __DIR__ . '/DbTestCase.php';
 require __DIR__ . '/RestTestCase.php';
+
+/**
+ * Reflection accessor, version-aware — the twin of the unit bootstrap's.
+ *
+ * setAccessible() is REQUIRED on PHP 7.4 (which production still runs), has been
+ * a no-op since 8.1, and is deprecated as of 8.5. Guarding it in one place keeps
+ * the suite silent on a modern local PHP without breaking the version we ship
+ * against. Defined here as well because the two suites load different bootstraps.
+ */
+if ( ! function_exists( '_af_accessible' ) ) {
+	function _af_accessible( $ref ) {
+		if ( PHP_VERSION_ID < 80100 ) {
+			$ref->setAccessible( true ); // phpcs:ignore -- the one place this call belongs.
+		}
+		return $ref;
+	}
+}

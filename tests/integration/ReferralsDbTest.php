@@ -78,7 +78,7 @@ final class ReferralsDbTest extends DbTestCase {
 
 	public function test_increment_upserts_the_daily_counter() {
 		$increment = new \ReflectionMethod( Referrals::class, 'increment' );
-		$increment->setAccessible( true );
+		\_af_accessible( $increment );
 		$increment->invoke( null, 'ChatGPT', '/landing' );
 		$increment->invoke( null, 'ChatGPT', '/landing' ); // same (day,source,path) → +1, not a new row.
 		$increment->invoke( null, 'ChatGPT', '/other' );

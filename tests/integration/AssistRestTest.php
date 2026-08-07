@@ -115,7 +115,7 @@ final class AssistRestTest extends RestTestCase {
 		wp_set_current_user( self::factory()->user->create( array( 'role' => 'administrator' ) ) );
 
 		$rate = new \ReflectionMethod( \Agentimus\Assist::class, 'rate_limited' );
-		$rate->setAccessible( true );
+		\_af_accessible( $rate );
 
 		$key = 'agentimus_assist_rate_' . get_current_user_id() . '_' . (int) floor( time() / \Agentimus\Assist::ASSIST_RATE_WINDOW );
 		delete_transient( $key );
@@ -137,7 +137,7 @@ final class AssistRestTest extends RestTestCase {
 		add_filter( 'agentimus_assist_rate_max', '__return_zero' );
 
 		$rate = new \ReflectionMethod( \Agentimus\Assist::class, 'rate_limited' );
-		$rate->setAccessible( true );
+		\_af_accessible( $rate );
 
 		$blocked = false;
 		for ( $i = 0; $i < 50; $i++ ) {

@@ -17,7 +17,7 @@ final class AbilityReadOnlyHintTest extends TestCase {
 	/** Reflection-call a private static method on AbilitiesApi. */
 	private function call( string $method, ...$args ) {
 		$m = new \ReflectionMethod( AbilitiesApi::class, $method );
-		$m->setAccessible( true );
+		\_af_accessible( $m );
 		return $m->invoke( null, ...$args );
 	}
 

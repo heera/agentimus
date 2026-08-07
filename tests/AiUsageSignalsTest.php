@@ -114,7 +114,7 @@ final class AiUsageSignalsTest extends TestCase {
 	/** Reflection-call the private readiness check (report() touches WP-heavy deps). */
 	private function ai_check(): array {
 		$m = new \ReflectionMethod( Readiness::class, 'check_ai_usage_policy' );
-		$m->setAccessible( true );
+		\_af_accessible( $m );
 		return $m->invoke( new Readiness( new Settings() ) );
 	}
 

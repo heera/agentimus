@@ -97,7 +97,7 @@ final class Index {
 	 * @param \Agentimus\Settings|null $core Core settings (injectable for tests).
 	 * @return array<int,array{url:string,post_id:int,reason:string}>
 	 */
-	public static function run_targets( \Agentimus\Settings $core = null ) {
+	public static function run_targets( ?\Agentimus\Settings $core = null ) {
 		$watch = self::targets( $core );
 		$daily = array_merge( $watch, self::promoted_targets( $watch ) );
 		return array_merge( $daily, self::rotation_targets( $daily, $core ) );
@@ -149,7 +149,7 @@ final class Index {
 	 * @param \Agentimus\Settings|null $core Core settings (injectable for tests).
 	 * @return array<int,array{url:string,post_id:int,reason:string}>
 	 */
-	public static function targets( \Agentimus\Settings $core = null ) {
+	public static function targets( ?\Agentimus\Settings $core = null ) {
 		$core = $core ? $core : new \Agentimus\Settings();
 
 		$home = array(
@@ -216,7 +216,7 @@ final class Index {
 	 * @param \Agentimus\Settings|null $core  Core settings (injectable for tests).
 	 * @return array<int,array{url:string,post_id:int,reason:string}>
 	 */
-	public static function rotation_targets( array $watch, \Agentimus\Settings $core = null ) {
+	public static function rotation_targets( array $watch, ?\Agentimus\Settings $core = null ) {
 		$core = $core ? $core : new \Agentimus\Settings();
 
 		$ids = get_posts( array(

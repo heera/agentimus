@@ -30,21 +30,21 @@ final class ReadinessLlmsWordsTest extends TestCase {
 	/** Reflection-call the private readiness check (report() touches WP-heavy deps). */
 	private function check(): array {
 		$m = new \ReflectionMethod( Readiness::class, 'check_llms_words' );
-		$m->setAccessible( true );
+		\_af_accessible( $m );
 		return $m->invoke( new Readiness( new Settings() ) );
 	}
 
 	/** Reflection-call the private static word counter. */
 	private function count_words( string $markdown ): int {
 		$m = new \ReflectionMethod( Readiness::class, 'word_count' );
-		$m->setAccessible( true );
+		\_af_accessible( $m );
 		return (int) $m->invoke( null, $markdown );
 	}
 
 	/** Reflection-call the grading seam with a known count (skips llms.txt generation). */
 	private function grade( int $words ): array {
 		$m = new \ReflectionMethod( Readiness::class, 'llms_words_row' );
-		$m->setAccessible( true );
+		\_af_accessible( $m );
 		return $m->invoke( new Readiness( new Settings() ), $words );
 	}
 

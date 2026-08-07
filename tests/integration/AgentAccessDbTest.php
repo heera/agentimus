@@ -139,7 +139,7 @@ final class AgentAccessDbTest extends DbTestCase {
 	 */
 	private function reset_request_state() {
 		$hooked = new \ReflectionProperty( Module::class, 'hooked' );
-		$hooked->setAccessible( true );
+		\_af_accessible( $hooked );
 		$hooked->setValue( null, array() );
 	}
 

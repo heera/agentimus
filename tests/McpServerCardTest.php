@@ -17,7 +17,7 @@ final class McpServerCardTest extends TestCase {
 	/** Reflection-call a private static method on McpSurface (server_tools/primary_server/card_tools moved there). */
 	private function call( string $method, ...$args ) {
 		$m = new \ReflectionMethod( McpSurface::class, $method );
-		$m->setAccessible( true );
+		\_af_accessible( $m );
 		return $m->invoke( null, ...$args );
 	}
 

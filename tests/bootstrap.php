@@ -13,7 +13,7 @@
 
 namespace {
 
-	error_reporting( E_ALL & ~E_DEPRECATED );
+	error_reporting( E_ALL );
 
 	$plugin_dir = dirname( __DIR__ ); // .../plugins/agentimus
 
@@ -104,6 +104,24 @@ namespace {
 	}
 
 	// --- Minimal WordPress function surface (only what the tested code calls). ---
+	/**
+	 * Reflection accessor for tests, version-aware.
+	 *
+	 * setAccessible() is REQUIRED on PHP 7.4 (which production still runs) to reach
+	 * a private method, has been a no-op since 8.1, and is deprecated as of 8.5 —
+	 * so calling it unconditionally makes the suite noisy on a modern local PHP
+	 * while removing it breaks the version we actually ship against.
+	 *
+	 * @param \ReflectionMethod|\ReflectionProperty $ref Reflection object.
+	 * @return \ReflectionMethod|\ReflectionProperty
+	 */
+	function _af_accessible( $ref ) {
+		if ( PHP_VERSION_ID < 80100 ) {
+			$ref->setAccessible( true ); // phpcs:ignore -- the one place this call belongs.
+		}
+		return $ref;
+	}
+
 	if ( ! function_exists( 'is_wp_error' ) )           { function is_wp_error( $t ) { return $t instanceof \WP_Error; } }
 	if ( ! function_exists( '__' ) )                    { function __( $s, $d = null ) { return $s; } }
 		if ( ! function_exists( 'esc_html' ) )              { function esc_html( $s ) { return htmlspecialchars( (string) $s, ENT_QUOTES ); } }
@@ -317,7 +335,7 @@ namespace {
 			return;
 		}
 		$prop = new \ReflectionProperty( 'Agentimus\\Discovery\\Registry', 'instance' );
-		$prop->setAccessible( true );
+		\_af_accessible( $prop );
 		$prop->setValue( null, null );
 	}
 

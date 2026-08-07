@@ -29,7 +29,7 @@ final class ReadinessConflictTest extends TestCase {
 	/** Reflection-call a private check (report() touches WP-heavy deps). */
 	private function invoke( $method ) {
 		$m = new \ReflectionMethod( Readiness::class, $method );
-		$m->setAccessible( true );
+		\_af_accessible( $m );
 		return $m->invoke( new Readiness( new Settings() ) );
 	}
 

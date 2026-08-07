@@ -18,7 +18,7 @@ final class PageCheckTest extends TestCase {
 	/** Invoke a private static check with a stats array. */
 	private function check( string $method, array $stats ): array {
 		$m = new \ReflectionMethod( PageCheck::class, $method );
-		$m->setAccessible( true );
+		\_af_accessible( $m );
 		return (array) $m->invoke( null, $stats );
 	}
 
@@ -162,7 +162,7 @@ final class PageCheckTest extends TestCase {
 	public function test_syllable_estimator_is_sane() {
 		$syl = function ( string $w ): int {
 			$m = new \ReflectionMethod( PageCheck::class, 'syllables' );
-			$m->setAccessible( true );
+			\_af_accessible( $m );
 			return (int) $m->invoke( null, $w );
 		};
 		$this->assertSame( 1, $syl( 'cat' ) );

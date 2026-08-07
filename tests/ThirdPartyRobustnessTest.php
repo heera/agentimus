@@ -85,7 +85,7 @@ final class ThirdPartyRobustnessTest extends TestCase {
 		);
 
 		$m = new \ReflectionMethod( Readiness::class, 'normalize' );
-		$m->setAccessible( true );
+		\_af_accessible( $m );
 		$out = $m->invoke( new Readiness( new Settings() ), $raw );
 
 		$this->assertIsArray( $out );

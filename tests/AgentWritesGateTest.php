@@ -114,7 +114,7 @@ namespace Agentimus\Tests {
 			// external agents the EXACT rules the in-admin assistant's prompts embed,
 			// so "generated content follows the readability checks" holds everywhere.
 			$m = new \ReflectionMethod( Registrar::class, 'guided' );
-			$m->setAccessible( true );
+			\_af_accessible( $m );
 			$out = (string) $m->invoke( null, 'Creates a post.' );
 
 			$rules = \Agentimus\Assistant::readability_rules();
@@ -193,7 +193,7 @@ namespace Agentimus\Tests {
 			update_option( Settings::OPTION, $settings );
 			$writer = new ContentWriter( new Settings() );
 			$method = new \ReflectionMethod( ContentWriter::class, 'validate_status' );
-			$method->setAccessible( true );
+			\_af_accessible( $method );
 			return $method->invoke( $writer, $status, 'post', $already_published );
 		}
 

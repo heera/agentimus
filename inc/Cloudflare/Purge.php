@@ -37,7 +37,7 @@ final class Purge {
 	 * @param Settings|null $settings Injectable for tests.
 	 * @return bool
 	 */
-	public static function available( Settings $settings = null ) {
+	public static function available( ?Settings $settings = null ) {
 		$settings = $settings ? $settings : new Settings();
 		return $settings->connected();
 	}
@@ -51,7 +51,7 @@ final class Purge {
 	 * @param Settings|null $settings Injectable for tests.
 	 * @return bool
 	 */
-	public static function armed( Settings $settings = null ) {
+	public static function armed( ?Settings $settings = null ) {
 		$settings = $settings ? $settings : new Settings();
 		return $settings->connected()
 			&& (bool) ( new \Agentimus\Settings() )->get( 'cf_purge_on_change', true )
@@ -70,7 +70,7 @@ final class Purge {
 	 * @param Client|null   $client   Injectable for tests.
 	 * @return void
 	 */
-	public static function purge_urls( array $urls, Settings $settings = null, Client $client = null ) {
+	public static function purge_urls( array $urls, ?Settings $settings = null, ?Client $client = null ) {
 		$settings = $settings ? $settings : new Settings();
 		if ( ! self::armed( $settings ) || empty( $urls ) ) {
 			return;
@@ -104,7 +104,7 @@ final class Purge {
 	 * @param Client|null   $client   Injectable for tests.
 	 * @return array { ok: bool, error?: string }
 	 */
-	public static function purge_all( Settings $settings = null, Client $client = null ) {
+	public static function purge_all( ?Settings $settings = null, ?Client $client = null ) {
 		$settings = $settings ? $settings : new Settings();
 		if ( ! $settings->connected() ) {
 			return array( 'ok' => false, 'error' => __( 'Connect Cloudflare first.', 'agentimus' ) );

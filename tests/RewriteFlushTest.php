@@ -23,7 +23,7 @@ final class RewriteFlushTest extends TestCase {
 	/** Invoke the private signature helper. */
 	private function signature(): string {
 		$m = new \ReflectionMethod( Plugin::class, 'rewrite_signature' );
-		$m->setAccessible( true );
+		\_af_accessible( $m );
 		return (string) $m->invoke( null );
 	}
 
@@ -48,7 +48,7 @@ final class RewriteFlushTest extends TestCase {
 		// The consent rule is fingerprinted by its query var: change it, and the
 		// hash must move so existing installs re-flush on their next admin load.
 		$m = new \ReflectionMethod( Plugin::class, 'rewrite_signature' );
-		$m->setAccessible( true );
+		\_af_accessible( $m );
 		$this->assertNotSame(
 			$sig,
 			md5( 'a-different-rule-set' ),

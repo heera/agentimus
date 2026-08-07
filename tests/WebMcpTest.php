@@ -36,7 +36,7 @@ final class WebMcpTest extends TestCase {
 	/** The tools actually exposed to agents — registered minus the owner's hide list. */
 	private function exposed(): array {
 		$method = new \ReflectionMethod( WebMcp::class, 'tools' );
-		$method->setAccessible( true );
+		\_af_accessible( $method );
 		return (array) $method->invoke( new WebMcp( new Settings() ) );
 	}
 

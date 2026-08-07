@@ -15,7 +15,7 @@ use PHPUnit\Framework\TestCase;
 
 final class OpenApiTest extends TestCase {
 
-	private function doc( array $resources = null, array $info = null ): array {
+	private function doc( ?array $resources = null, ?array $info = null ): array {
 		$resources = $resources ?? array(
 			array( 'path' => '/wp/v2/posts', 'label' => 'Posts', 'single' => 'Post' ),
 		);

@@ -58,7 +58,7 @@ final class GoogleIndexTest extends TestCase {
 		);
 	}
 
-	private function connect( array $index_payload = null ): Settings {
+	private function connect( ?array $index_payload = null ): Settings {
 		$GLOBALS['_af_options']['agentimus_google'] = array(
 			'sa_json'  => 'ciphertext-not-empty',
 			'property' => 'sc-domain:example.test',

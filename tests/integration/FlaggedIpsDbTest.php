@@ -101,7 +101,7 @@ final class FlaggedIpsDbTest extends DbTestCase {
 		// make this test flaky. Reflection calls it deterministically rather than adding a
 		// test-only seam to production code.
 		$cap = new \ReflectionMethod( FlaggedIps::class, 'cap_client' );
-		$cap->setAccessible( true );
+		\_af_accessible( $cap );
 		$cap->invoke( null, $ckey );
 
 		global $wpdb;

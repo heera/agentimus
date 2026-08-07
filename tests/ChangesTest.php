@@ -20,21 +20,21 @@ final class ChangesTest extends TestCase {
 	/** Reflection-call the private static since parser. */
 	private function parse( string $raw ) {
 		$m = new \ReflectionMethod( Changes::class, 'parse_since' );
-		$m->setAccessible( true );
+		\_af_accessible( $m );
 		return $m->invoke( null, $raw );
 	}
 
 	/** Reflection-call the private static delta filter. */
 	private function filter( array $items, $since ): array {
 		$m = new \ReflectionMethod( Changes::class, 'filter_since' );
-		$m->setAccessible( true );
+		\_af_accessible( $m );
 		return (array) $m->invoke( null, $items, $since );
 	}
 
 	/** Reflection-read the clamped window size. */
 	private function maxItems(): int {
 		$m = new \ReflectionMethod( Changes::class, 'max_items' );
-		$m->setAccessible( true );
+		\_af_accessible( $m );
 		return (int) $m->invoke( null );
 	}
 

@@ -27,7 +27,7 @@ final class EndpointsRobotsTest extends TestCase {
 
 	private function body(): string {
 		$m = new \ReflectionMethod( Endpoints::class, 'robots_body' );
-		$m->setAccessible( true );
+		\_af_accessible( $m );
 		return (string) $m->invoke( new Endpoints( new Settings() ) );
 	}
 

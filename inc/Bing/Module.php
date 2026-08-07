@@ -37,7 +37,7 @@ final class Module {
 	 * @param Settings    $settings The Bing connection store.
 	 * @param Client|null $client   Injectable for tests.
 	 */
-	public function __construct( Settings $settings, Client $client = null ) {
+	public function __construct( Settings $settings, ?Client $client = null ) {
 		$this->settings = $settings;
 		$this->client   = $client ? $client : new Client();
 	}

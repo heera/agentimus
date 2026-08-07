@@ -56,7 +56,7 @@ final class ServiceSchemaTest extends TestCase {
 	/** Reflection-call a private Schema builder. */
 	private function build( string $method, ...$args ) {
 		$m = new \ReflectionMethod( Schema::class, $method );
-		$m->setAccessible( true );
+		\_af_accessible( $m );
 		return $m->invoke( new Schema( new Settings() ), ...$args );
 	}
 

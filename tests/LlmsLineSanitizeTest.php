@@ -17,7 +17,7 @@ final class LlmsLineSanitizeTest extends TestCase {
 	private function text( $input ): string {
 		$ref = new \ReflectionClass( LlmsText::class );
 		$m   = $ref->getMethod( 'text' );
-		$m->setAccessible( true );
+		\_af_accessible( $m );
 		return (string) $m->invoke( $ref->newInstanceWithoutConstructor(), $input );
 	}
 

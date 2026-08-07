@@ -111,7 +111,7 @@ final class RobotsWatchTest extends TestCase {
 
 	private function static_robots_row() {
 		$m = new \ReflectionMethod( Readiness::class, 'check_static_robots' );
-		$m->setAccessible( true );
+		\_af_accessible( $m );
 		return $m->invoke( new Readiness( new Settings() ) );
 	}
 
@@ -173,7 +173,7 @@ final class RobotsWatchTest extends TestCase {
 	/** The digest section names the date and the counts; absent when null. */
 	public function test_digest_section_renders_the_change() {
 		$m = new \ReflectionMethod( Renderer::class, 'section_robots' );
-		$m->setAccessible( true );
+		\_af_accessible( $m );
 
 		$this->assertSame( '', $m->invoke( null, array( 'robots' => array( 'change' => null ) ) ) );
 

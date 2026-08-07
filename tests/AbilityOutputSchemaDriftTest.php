@@ -89,7 +89,7 @@ namespace Agentimus\Tests {
 
 			// hit_row() is pure — run the REAL producer on a full fixture row.
 			$m = new \ReflectionMethod( Repository::class, 'hit_row' );
-			$m->setAccessible( true );
+			\_af_accessible( $m );
 			$row = $m->invoke(
 				null,
 				array(

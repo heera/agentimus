@@ -29,14 +29,14 @@ final class ReadinessTopicsTest extends TestCase {
 	/** Reflection-call the pure grading seam with known counts (skips the DB). */
 	private function grade( int $total, int $with, bool $derive ): array {
 		$m = new \ReflectionMethod( Readiness::class, 'topics_row' );
-		$m->setAccessible( true );
+		\_af_accessible( $m );
 		return $m->invoke( new Readiness( new Settings() ), $total, $with, $derive );
 	}
 
 	/** Reflection-call check_topics (its OFF path takes no DB). */
 	private function check(): array {
 		$m = new \ReflectionMethod( Readiness::class, 'check_topics' );
-		$m->setAccessible( true );
+		\_af_accessible( $m );
 		return $m->invoke( new Readiness( new Settings() ) );
 	}
 

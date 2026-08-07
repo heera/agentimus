@@ -61,7 +61,7 @@ final class LlmsFullBudgetTest extends TestCase {
 
 		$llms   = new LlmsText( new Settings() );
 		$method = new \ReflectionMethod( LlmsText::class, 'generation_deadline' );
-		$method->setAccessible( true );
+		\_af_accessible( $method );
 
 		$this->assertSame( (float) $expected, $method->invoke( $llms ) );
 
