@@ -6472,8 +6472,14 @@ a.ar-about-proto__v:hover { text-decoration: underline; }
 
 /* Both sides carry the same number of rows, so the panels end level instead of
    one trailing whitespace the other has filled. */
-.ar-aud__rows { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
-.ar-aud__rows li { display: flex; align-items: baseline; gap: 10px; font-size: 13px; }
+/* One row shape, three rows a side, separated by hairlines rather than gaps:
+   a list this short reads faster as a small table than as floating lines. */
+.ar-aud__rows { list-style: none; margin: 0; padding: 0; }
+.ar-aud__rows li {
+  display: flex; align-items: baseline; gap: 12px; font-size: 13px;
+  padding: 7px 0; border-bottom: 1px solid var(--ar-line);
+}
+.ar-aud__rows li:first-child { border-top: 1px solid var(--ar-line); }
 .ar-aud__row-n {
   flex: 0 0 auto; min-width: 3.4ch; text-align: right;
   font-family: var(--ar-mono); font-weight: 700; color: var(--ar-ink);
@@ -6484,25 +6490,6 @@ a.ar-about-proto__v:hover { text-decoration: underline; }
 .ar-aud__off { font-style: normal; color: var(--ar-ink-faint); }
 .ar-aud__off::before { content: "· "; }
 
-/* The headline's own instrument, on the headline's own line. */
-.ar-aud__sub { margin: -8px 0 16px; font-size: 12.5px; color: var(--ar-ink-soft); }
-
-/* Everything under this label comes from somewhere else and does not sum to
-   the headline. The label is what stops the rows reading as a breakdown. */
-.ar-aud__rows-k {
-  margin: 0 0 8px; padding-bottom: 6px; border-top: 1px solid var(--ar-line);
-  padding-top: 12px;
-  font-family: var(--ar-mono); font-size: 9.5px;
-  letter-spacing: 0.12em; text-transform: uppercase; color: var(--ar-ink-faint);
-}
-/* Each row says which instrument produced it — the fix is attribution, not
-   smaller type. */
-.ar-aud__src {
-  display: block; font-style: normal; font-size: 11px;
-  color: var(--ar-ink-faint); margin-top: 1px;
-}
-
-.ar-aud__detail { margin: 12px 0 0; font-size: 12px; color: var(--ar-ink-faint); overflow-wrap: anywhere; }
 /* Pinned to the bottom of its panel so the two links sit on one line. */
 .ar-aud__go { margin-top: auto; padding-top: 14px; align-self: flex-start; }
 /* No hover pill here. The shared .ar-linkbtn tint is right for a link sitting

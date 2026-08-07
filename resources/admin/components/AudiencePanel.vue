@@ -88,6 +88,11 @@ export default {
          the primary audience — and for this plugin that is backwards twice
          over: the machine half is the half nobody else measures. Equal
          surfaces, equal weight, and the icon carries the difference. -->
+    <!-- Two panels, one shape. Kicker, number, what it counts, three rows,
+         one link — identical on both sides, so the eye learns the layout once
+         and then only reads the numbers. Everything that was explanation has
+         moved into the notice below, which exists for exactly that: source
+         captions under each row turned a summary into a form. -->
     <div v-else class="ar-aud__split">
       <!-- HUMANS ------------------------------------------------------------ -->
       <div class="ar-aud__half">
@@ -103,37 +108,20 @@ export default {
           <template v-else>arrived from search or an AI answer</template>
         </p>
 
-        <!-- Same instrument as the headline, so it sits WITH the headline. -->
-        <p v-if="people.whole" class="ar-aud__sub">
-          {{ n(people.all.sessions) }} visits · {{ n(people.all.views) }} pages opened
-        </p>
-
-        <!-- Everything below is measured somewhere else and does NOT add up to
-             the number above: search clicks are Google's count of clicks, AI
-             visits are our own server's count of visits, and the headline is
-             Analytics' count of people. Three instruments, three units. Stacked
-             as bare sub-rows they read as a breakdown of the total, which is a
-             promise none of them can keep — so each one names its source. -->
-        <p class="ar-aud__rows-k">How they found you</p>
         <ul class="ar-aud__rows">
           <li>
             <span class="ar-aud__row-n">{{ n(people.search.clicks) }}</span>
-            <span class="ar-aud__row-l">
-              search clicks
-              <em v-if="people.search.connected" class="ar-aud__src">as {{ people.search.source }} count them</em>
-              <em v-else class="ar-aud__src">nothing connected</em>
-            </span>
+            <span class="ar-aud__row-l">from search</span>
           </li>
           <li>
             <span class="ar-aud__row-n">{{ n(people.ai.visits) }}</span>
-            <span class="ar-aud__row-l">
-              visits from an AI answer
-              <em class="ar-aud__src">counted on your server<template v-if="people.ai.sources">, {{ people.ai.sources }} assistant<template v-if="people.ai.sources !== 1">s</template></template></em>
-            </span>
+            <span class="ar-aud__row-l">from an AI answer</span>
+          </li>
+          <li>
+            <span class="ar-aud__row-n">{{ n(people.all.sessions) }}</span>
+            <span class="ar-aud__row-l">visits in total</span>
           </li>
         </ul>
-
-        <p v-if="aiLine" class="ar-aud__detail">{{ aiLine }}</p>
 
         <button type="button" class="ar-linkbtn ar-aud__go" @click="$emit('navigate', 'readers')">
           See who sent them →
@@ -143,29 +131,29 @@ export default {
       <!-- MACHINES ---------------------------------------------------------- -->
       <div class="ar-aud__half">
         <p class="ar-aud__kind">
-          <!-- The same bot glyph the review queue uses for a crawler, so one
-               mark means one thing across the plugin. -->
           <span class="ar-aud__mark" aria-hidden="true">
             <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="8" width="14" height="10" rx="2.6" /><path d="M12 5.2V8" /><circle cx="12" cy="4.2" r="1.1" /><path d="M9.4 12.6v1.2M14.6 12.6v1.2" /></svg>
           </span>
           Machines
         </p>
         <p class="ar-aud__n">{{ n(machines.fetches) }}</p>
-        <p class="ar-aud__unit">fetches of your agent files</p>
-        <p class="ar-aud__sub">{{ n(machines.today) }} of them today</p>
+        <p class="ar-aud__unit">fetched your agent files</p>
 
-        <p class="ar-aud__rows-k">What they were</p>
         <ul class="ar-aud__rows">
           <li>
             <span class="ar-aud__row-n">{{ n(machines.agents) }}</span>
             <span class="ar-aud__row-l">
-              distinct clients
+              different clients
               <em v-if="!machines.enabled" class="ar-aud__off">not recording</em>
             </span>
           </li>
           <li :class="{ 'is-bad': machines.impostors > 0 }">
             <span class="ar-aud__row-n">{{ n(machines.impostors) }}</span>
-            <span class="ar-aud__row-l">caught faking an identity</span>
+            <span class="ar-aud__row-l">faking an identity</span>
+          </li>
+          <li>
+            <span class="ar-aud__row-n">{{ n(machines.today) }}</span>
+            <span class="ar-aud__row-l">fetches today</span>
           </li>
         </ul>
 
@@ -175,8 +163,6 @@ export default {
       </div>
     </div>
 
-    <!-- The honesty half. Shipped WITH the numbers rather than in a docs page,
-         because the misreadings these prevent happen at the moment of reading. -->
     <!-- Three labelled columns on ONE left edge. The previous version had the
          icon, the group labels and the bullets each starting at a different x,
          and the shared fact floating above the headings with no heading of its
