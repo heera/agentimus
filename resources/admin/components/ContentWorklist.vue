@@ -101,12 +101,12 @@ export default {
         return c.heading ? `One passage carries it, under “${c.heading}”.` : 'One passage carries the whole search.';
       }
       if ('scattered' === c.state) {
-        return `All ${c.words} words are on the page, never together in one passage.`;
+        return 'Every word is on the page, but never together in one passage.';
       }
       if ('barely' === c.state) {
-        return `${c.on_page} of ${c.words} words appear anywhere on the page.`;
+        return 'Some of the search is here, most of it isn’t.';
       }
-      return `None of the ${c.words} words appear — probably not what this one is for.`;
+      return 'None of it is on the page — either the wrong search for this one, or an opening.';
     },
     rank(n) {
       return `#${Number(n).toFixed(1)}`;
@@ -222,6 +222,18 @@ export default {
               <span class="ar-work__cover" :class="'is-' + i.coverage.state">
                 <span class="ar-work__cover-mark" aria-hidden="true">{{ coverMark(i.coverage.state) }}</span>
                 <span class="ar-work__cover-t">{{ coverLabel(i.coverage.state) }}</span>
+              </span>
+              <!-- Word by word, in the searcher's own spelling. A count told you
+                   how many were missing; badges tell you WHICH — and on a page
+                   that half matches, which one to go and write about. -->
+              <span v-if="i.coverage.terms && i.coverage.terms.length" class="ar-work__terms">
+                <span
+                  v-for="t in i.coverage.terms"
+                  :key="t.word"
+                  class="ar-work__term"
+                  :class="t.in_passage ? 'is-passage' : (t.on_page ? 'is-page' : 'is-absent')"
+                  :title="t.in_passage ? 'In the passage that answers best' : (t.on_page ? 'On the page, but not in that passage' : 'Not on the page')"
+                >{{ t.word }}</span>
               </span>
               <span class="ar-work__why">{{ coverWhy(i) }}</span>
             </template>

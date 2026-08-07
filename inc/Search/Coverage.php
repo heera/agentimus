@@ -85,17 +85,20 @@ final class Coverage {
 			'in_title'   => 0,
 			'heading'    => '',
 			'quote'      => '',
+			'terms'      => array(),
 		);
 
-		$wanted = self::words( $query );
+		$terms  = self::terms( $query );
+		$wanted = array_column( $terms, 'stem' );
 		$total  = count( $wanted );
 		if ( ! $total ) {
 			return $empty; // Nothing meaningful was searched for.
 		}
 		$empty['words'] = $total;
 
-		$best     = array( 'hit' => 0, 'heading' => '', 'text' => '' );
-		$anywhere = array();
+		$best       = array( 'hit' => 0, 'heading' => '', 'text' => '' );
+		$best_words = array();
+		$anywhere   = array();
 
 		foreach ( self::passages( $html ) as $passage ) {
 			$have = self::words( $passage['heading'] . ' ' . $passage['text'] );
@@ -104,11 +107,12 @@ final class Coverage {
 				$anywhere = array_unique( array_merge( $anywhere, $hit ) );
 			}
 			if ( count( $hit ) > $best['hit'] ) {
-				$best = array(
+				$best       = array(
 					'hit'     => count( $hit ),
 					'heading' => $passage['heading'],
 					'text'    => $passage['text'],
 				);
+				$best_words = array_values( $hit );
 			}
 		}
 
@@ -133,6 +137,19 @@ final class Coverage {
 			// the best of a bad set would send the owner to the wrong paragraph.
 			'heading'    => self::ANSWERED === $state ? (string) $best['heading'] : '',
 			'quote'      => self::ANSWERED === $state ? self::clip( $best['text'] ) : '',
+			// Word by word, in the searcher's own spelling. A count says "none of
+			// the 3 words appear"; this says WHICH — and on a page that half
+			// matches, which one to go and write about.
+			'terms'      => array_map(
+				static function ( $t ) use ( $anywhere, $best_words ) {
+					return array(
+						'word'       => $t['word'],
+						'on_page'    => in_array( $t['stem'], $anywhere, true ),
+						'in_passage' => in_array( $t['stem'], $best_words, true ),
+					);
+				},
+				$terms
+			),
 		);
 
 		/**
@@ -157,6 +174,18 @@ final class Coverage {
 	 * @return string[]
 	 */
 	public static function words( $text ) {
+		return array_values( array_unique( array_column( self::terms( $text ), 'stem' ) ) );
+	}
+
+	/**
+	 * The same extraction, keeping the word the SEARCHER typed alongside its
+	 * stem — so a surface can show "llms.txt" rather than whatever the stemmer
+	 * folded it to. {@see words()} is this, deduplicated to stems.
+	 *
+	 * @param string $text Any text.
+	 * @return array<int,array{word:string,stem:string}>
+	 */
+	public static function terms( $text ) {
 		$text = strtolower( html_entity_decode( (string) $text, ENT_QUOTES, 'UTF-8' ) );
 
 		/**
@@ -166,7 +195,8 @@ final class Coverage {
 		 */
 		$stop = (array) apply_filters( 'agentimus_coverage_stopwords', self::STOPWORDS );
 
-		$out = array();
+		$out  = array();
+		$seen = array();
 		// Dots and hyphens survive the split: "llms.txt" and "json-ld" are single
 		// terms, and breaking them would let a page match "txt" and call it a hit.
 		foreach ( preg_split( '/[^a-z0-9._-]+/u', $text ) as $word ) {
@@ -174,9 +204,14 @@ final class Coverage {
 			if ( strlen( $word ) < self::MIN_WORD || in_array( $word, $stop, true ) ) {
 				continue;
 			}
-			$out[] = self::stem( $word );
+			$stem = self::stem( $word );
+			if ( isset( $seen[ $stem ] ) ) {
+				continue; // One entry per stem, keeping the FIRST spelling seen.
+			}
+			$seen[ $stem ] = true;
+			$out[]         = array( 'word' => $word, 'stem' => $stem );
 		}
-		return array_values( array_unique( $out ) );
+		return $out;
 	}
 
 	/**

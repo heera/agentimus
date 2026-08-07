@@ -183,4 +183,50 @@ final class CoverageTest extends TestCase {
 
 		$this->assertNotContains( 'wordpress', Coverage::words( 'wordpress plugin' ) );
 	}
+
+	/* -- the per-word verdict ---------------------------------------------- */
+
+	/**
+	 * Each searched word comes back in the spelling the SEARCHER used, not the
+	 * stem it was folded to. "llms.txt" must never surface as "llms.tx".
+	 */
+	public function test_terms_keep_the_searchers_spelling() {
+		$out   = Coverage::measure( '<p>Nothing here.</p>', 'T', 'Crawlers llms.txt WordPress' );
+		$words = array_column( $out['terms'], 'word' );
+
+		$this->assertSame( array( 'crawlers', 'llms.txt', 'wordpress' ), $words );
+	}
+
+	/** Three states per word, and they follow the passage the verdict chose. */
+	public function test_each_word_reports_where_it_was_found() {
+		$html = '<h2>About llms.txt</h2><p>The llms.txt file and WordPress.</p><p>A plugin lives elsewhere.</p>';
+		$out  = Coverage::measure( $html, 'T', 'llms.txt wordpress plugin' );
+		$by   = array();
+		foreach ( $out['terms'] as $t ) {
+			$by[ $t['word'] ] = $t;
+		}
+
+		$this->assertTrue( $by['llms.txt']['in_passage'], 'in the best passage' );
+		$this->assertTrue( $by['wordpress']['in_passage'] );
+		// "plugin" is on the page, but in a DIFFERENT passage — that distinction
+		// is the whole point of the middle badge.
+		$this->assertFalse( $by['plugin']['in_passage'] );
+		$this->assertTrue( $by['plugin']['on_page'] );
+	}
+
+	public function test_a_missing_search_marks_every_word_absent() {
+		$out = Coverage::measure( '<p>Entirely unrelated prose.</p>', 'T', 'llms.txt wordpress plugin' );
+
+		$this->assertSame( 'missing', $out['state'] );
+		foreach ( $out['terms'] as $t ) {
+			$this->assertFalse( $t['on_page'], $t['word'] . ' should be absent' );
+			$this->assertFalse( $t['in_passage'] );
+		}
+	}
+
+	/** One badge per distinct word — a search that repeats itself must not. */
+	public function test_a_repeated_word_yields_one_badge() {
+		$out = Coverage::measure( '<p>x</p>', 'T', 'plugin plugin plugins' );
+		$this->assertCount( 1, $out['terms'] );
+	}
 }

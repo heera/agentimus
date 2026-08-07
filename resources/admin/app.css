@@ -6559,3 +6559,27 @@ a.ar-about-proto__v:hover { text-decoration: underline; }
    gap is what separated them, so it is pulled back rather than added to. */
 .ar-surface .ar-dash-note { margin-top: 12px; }
 .ar-surface { margin-bottom: -8px; }
+
+/* The searched words, one badge each, in the spelling the searcher used.
+   Three states, and they are not a scale: in the answering passage, on the
+   page but elsewhere, or absent. Colour alone never carries it — the shapes
+   differ too (filled, outlined, struck), and each badge has a title. */
+.ar-work__terms { display: inline-flex; flex-wrap: wrap; gap: 5px; margin-right: 2px; }
+.ar-work__term {
+  font-family: var(--ar-mono); font-size: 10.5px; line-height: 1.5;
+  padding: 1px 7px; border-radius: 999px; white-space: nowrap;
+  border: 1px solid transparent;
+}
+.ar-work__term.is-passage {
+  color: var(--ar-paper); background: var(--ar-good, var(--ar-accent));
+  border-color: var(--ar-good, var(--ar-accent));
+}
+.ar-work__term.is-page {
+  color: var(--ar-ink-soft); background: var(--ar-surface);
+  border-color: var(--ar-line-strong);
+}
+.ar-work__term.is-absent {
+  color: var(--ar-ink-faint); background: transparent;
+  border-color: var(--ar-line); border-style: dashed;
+  text-decoration: line-through; text-decoration-thickness: 1px;
+}
