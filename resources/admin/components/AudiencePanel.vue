@@ -171,33 +171,30 @@ export default {
 
     <!-- The honesty half. Shipped WITH the numbers rather than in a docs page,
          because the misreadings these prevent happen at the moment of reading. -->
-    <!-- One notice, full width. Grouped by the half each fact is about, and
-         labelled — an unlabelled two-column list of mixed facts silently
-         claims that the left column and the right column mean something. -->
+    <!-- Three labelled columns on ONE left edge. The previous version had the
+         icon, the group labels and the bullets each starting at a different x,
+         and the shared fact floating above the headings with no heading of its
+         own — so nothing lined up with anything. Every group is a column now,
+         including the shared one, and the bullets are gone: the column IS the
+         grouping, so a dot in front of each line was a second one. -->
     <div v-if="loaded && limits.length" class="ar-aud__note">
-      <span class="ar-aud__note-i" aria-hidden="true">i</span>
-      <div class="ar-aud__note-body">
-        <p class="ar-aud__note-t">Worth knowing</p>
+      <p class="ar-aud__note-t">
+        <span class="ar-aud__note-i" aria-hidden="true">i</span>
+        Worth knowing
+      </p>
 
-        <!-- Facts about the pair go first, full width: they belong to neither
-             column and would be a lie inside either. -->
-        <ul v-if="limitsBoth.length" class="ar-aud__note-both">
-          <li v-for="l in limitsBoth" :key="l.key">{{ l.text }}</li>
-        </ul>
-
-        <div class="ar-aud__note-cols">
-          <div v-if="limitsHumans.length">
-            <p class="ar-aud__note-k">Humans</p>
-            <ul>
-              <li v-for="l in limitsHumans" :key="l.key">{{ l.text }}</li>
-            </ul>
-          </div>
-          <div v-if="limitsMachines.length">
-            <p class="ar-aud__note-k">Machines</p>
-            <ul>
-              <li v-for="l in limitsMachines" :key="l.key">{{ l.text }}</li>
-            </ul>
-          </div>
+      <div class="ar-aud__note-grid">
+        <div v-if="limitsBoth.length" class="ar-aud__note-grp">
+          <p class="ar-aud__note-k">Both</p>
+          <p v-for="l in limitsBoth" :key="l.key">{{ l.text }}</p>
+        </div>
+        <div v-if="limitsHumans.length" class="ar-aud__note-grp">
+          <p class="ar-aud__note-k">Humans</p>
+          <p v-for="l in limitsHumans" :key="l.key">{{ l.text }}</p>
+        </div>
+        <div v-if="limitsMachines.length" class="ar-aud__note-grp">
+          <p class="ar-aud__note-k">Machines</p>
+          <p v-for="l in limitsMachines" :key="l.key">{{ l.text }}</p>
         </div>
       </div>
     </div>

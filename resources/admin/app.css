@@ -6480,233 +6480,47 @@ a.ar-about-proto__v:hover { text-decoration: underline; }
 /* Pinned to the bottom of its panel so the two links sit on one line. */
 .ar-aud__go { margin-top: auto; padding-top: 14px; align-self: flex-start; }
 
-/* One notice, full width, one line per fact.
-   This was a fold containing four paragraphs — a shape that guarantees either
-   nobody opens it or, opened, it becomes the largest thing on the card. Facts
-   this short do not need hiding; they need to be readable in one pass. */
+/* "Worth knowing" — three labelled columns sharing one left edge.
+   The version before this had three different left edges (the icon, the group
+   labels, the bullets) and a shared fact hanging above the headings with no
+   heading of its own. Nothing aligned with anything. Now the heading is its own
+   row, every group is a column — including the shared one — and the bullets are
+   gone, because the column already IS the grouping. */
 .ar-aud__note {
-  display: flex; gap: 11px; margin-top: 16px; padding: 13px 15px;
+  margin-top: 16px; padding: 14px 16px 15px;
   background: var(--ar-surface-2); border: 1px solid var(--ar-line);
   border-radius: var(--ar-radius);
 }
-.ar-aud__note-i {
-  flex: 0 0 auto; width: 17px; height: 17px; border-radius: 50%; margin-top: 1px;
-  border: 1px solid var(--ar-line-strong); color: var(--ar-ink-faint);
-  font-size: 10px; font-weight: 700; font-style: normal;
-  display: inline-flex; align-items: center; justify-content: center;
-}
-.ar-aud__note-body { min-width: 0; }
 .ar-aud__note-t {
-  margin: 0 0 6px; font-family: var(--ar-mono); font-size: 10px;
+  margin: 0 0 12px; display: flex; align-items: center; gap: 8px;
+  font-family: var(--ar-mono); font-size: 10px;
   letter-spacing: 0.12em; text-transform: uppercase; color: var(--ar-ink-faint);
 }
-/* Grouped and labelled. The previous version put four mixed facts into a
-   two-column flow, which reads as "these two belong together and those two
-   belong together" — a claim the list was not making. Facts about the PAIR sit
-   full width above the columns, because they belong to neither. */
-.ar-aud__note-both { margin: 0 0 10px; padding: 0; list-style: none; }
-.ar-aud__note-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 34px; }
-.ar-aud__note-k {
-  margin: 0 0 4px; font-family: var(--ar-mono); font-size: 9.5px;
-  letter-spacing: 0.12em; text-transform: uppercase; color: var(--ar-ink-faint);
-}
-.ar-aud__note ul { margin: 0; padding: 0; list-style: none; }
-.ar-aud__note li {
-  font-size: 12.5px; line-height: 1.5; color: var(--ar-ink-soft);
-  padding-left: 13px; position: relative; margin-bottom: 4px;
-}
-.ar-aud__note li::before {
-  content: ""; position: absolute; left: 0; top: 0.55em;
-  width: 4px; height: 4px; border-radius: 50%; background: var(--ar-line-strong);
-}
-.ar-aud__note-both li::before { background: var(--ar-ink-faint); }
-
-@container (max-width: 720px) {
-  .ar-aud__note-cols { grid-template-columns: 1fr; }
-}
-
-/* The surface tiles, above everything. */
-.ar-surface { margin-bottom: 16px; }
-
-@container (max-width: 720px) {
-  .ar-aud__split { grid-template-columns: 1fr; }
-}
-
-/* The audience badge in the page head — whose numbers this screen counts.
-   Two states only, and the pair is deliberately NOT colour-coded good/bad:
-   neither audience is a problem, they are simply different readers. People
-   take the accent (the colour the nav already uses for "you are here"),
-   machines a neutral ink, so the eye reads them as two categories rather
-   than a status. */
-.ar__pagehead-aud {
-  display: inline-block; vertical-align: 0.32em; margin-left: 10px;
-  font-family: var(--ar-mono); font-size: 9.5px; font-weight: 600;
-  letter-spacing: 0.12em; text-transform: uppercase;
-  padding: 3px 8px; border-radius: 999px; white-space: nowrap;
-}
-.ar__pagehead-aud.is-people {
-  color: var(--ar-accent);
-  background: color-mix(in srgb, var(--ar-accent) 9%, var(--ar-surface));
-  border: 1px solid color-mix(in srgb, var(--ar-accent) 26%, var(--ar-surface));
-}
-.ar__pagehead-aud.is-machines {
-  color: var(--ar-ink-soft);
-  background: var(--ar-surface-2);
-  border: 1px solid var(--ar-line-strong);
-}
-
-/* The GA4 sub-section inside the Google card. Set in from the card's own edge
-   with a rule above it, so it reads as a second grant on the same account
-   rather than a second account. */
-.ar-ga4 { margin-top: 18px; padding-top: 14px; border-top: 1px solid var(--ar-line); }
-.ar-ga4__title { margin: 0 0 6px; font-size: 13px; font-weight: 600; color: var(--ar-ink); }
-.ar-ga4__row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-top: 8px; }
-.ar-ga4__input { max-width: 220px; font-family: var(--ar-mono); }
-.ar-ga4__err { color: var(--ar-bad); }
-
-/* ---------------------------------------------------------------------------
-   Readers — one answer, then what to do about it.
-
-   This card used to open with three totals, a bar and two paragraphs about how
-   the numbers are measured. That is the author's interest, not the reader's.
-   The reader has one question — did AI send me anyone, and is it growing — so
-   the number that answers it is the largest thing on the screen and everything
-   else is subordinate to it.
-   --------------------------------------------------------------------------- */
-.ar-rd__kicker {
-  margin: 0; font-family: var(--ar-mono); font-size: 10.5px;
-  letter-spacing: 0.14em; text-transform: uppercase; color: var(--ar-ink-faint);
-}
-.ar-rd__hero {
-  margin: 4px 0 0; font-family: var(--ar-serif); font-size: 54px; line-height: 1;
-  font-weight: 600; color: var(--ar-ink); font-variant-numeric: tabular-nums;
-  display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap;
-}
-.ar-rd__hero-u {
-  font-family: var(--ar-sans, inherit); font-size: 15px; font-weight: 400;
-  color: var(--ar-ink-soft); letter-spacing: 0;
-}
-.ar-rd__trend {
-  margin: 10px 0 0; font-size: 13.5px; display: flex; align-items: baseline; gap: 6px;
-}
-.ar-rd__trend.is-up { color: var(--ar-good, var(--ar-accent)); }
-.ar-rd__trend.is-down { color: var(--ar-bad); }
-.ar-rd__trend.is-flat { color: var(--ar-ink-faint); }
-.ar-rd__arrow { font-weight: 700; }
-.ar-rd__context {
-  margin: 10px 0 0; font-size: 13px; color: var(--ar-ink-soft); max-width: 70ch;
-}
-
-/* Two short lists, side by side: who sent them, and what they read. Both are
-   things the owner can act on — unlike a total, which is only a mood. */
-.ar-rd__cols {
-  display: grid; grid-template-columns: 1fr 1fr; gap: 34px;
-  margin-top: 22px; padding-top: 18px; border-top: 1px solid var(--ar-line);
-}
-.ar-rd__col { min-width: 0; }
-.ar-rd__col-t { margin: 0 0 10px; font-size: 13px; font-weight: 600; color: var(--ar-ink); }
-.ar-rd__list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 7px; }
-.ar-rd__list li {
-  display: flex; align-items: baseline; gap: 12px; font-size: 13px;
-  border-bottom: 1px solid var(--ar-line); padding-bottom: 6px;
-}
-.ar-rd__list li:last-child { border-bottom: 0; padding-bottom: 0; }
-.ar-rd__list-l { color: var(--ar-ink); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.ar-rd__list-l.is-path { font-family: var(--ar-mono); font-size: 12px; color: var(--ar-ink-soft); direction: ltr; }
-.ar-rd__list-n {
-  margin-left: auto; flex: 0 0 auto; font-family: var(--ar-mono); font-weight: 700;
-  color: var(--ar-ink); font-variant-numeric: tabular-nums;
-}
-
-.ar-rd__note {
-  margin: 20px 0 0; padding-top: 12px; border-top: 1px dashed var(--ar-line-strong);
-  font-size: 12px; line-height: 1.55; color: var(--ar-ink-faint); max-width: 82ch;
-}
-
-@container (max-width: 720px) {
-  .ar-rd__hero { font-size: 42px; }
-  .ar-rd__cols { grid-template-columns: 1fr; gap: 22px; }
-}
-
-/* "Everyone who visited" — the human half, its own card above the AI one.
-   Four cells, each a number with its label and one line of detail underneath,
-   so a reader gets the shape of the month without opening anything. */
-.ar-rd__grid {
-  display: grid; grid-template-columns: repeat(4, 1fr); gap: 26px;
-  margin: 18px 0 0;
-}
-.ar-rd__cell { min-width: 0; }
-.ar-rd__cn {
-  margin: 0; font-family: var(--ar-serif); font-size: 28px; line-height: 1.05;
-  font-weight: 600; color: var(--ar-ink); font-variant-numeric: tabular-nums;
-}
-.ar-rd__cl { margin: 3px 0 0; font-size: 12.5px; color: var(--ar-ink-soft); }
-.ar-rd__cs { margin: 5px 0 0; font-size: 11.5px; color: var(--ar-ink-faint); line-height: 1.45; }
-
-.ar-rd__col--wide {
-  margin-top: 22px; padding-top: 18px; border-top: 1px solid var(--ar-line);
-}
-.ar-rd--all { margin-bottom: 16px; }
-
-@container (max-width: 900px) {
-  .ar-rd__grid { grid-template-columns: repeat(2, 1fr); gap: 20px; }
-}
-@container (max-width: 480px) {
-  .ar-rd__grid { grid-template-columns: 1fr; }
-}
-
-/* Insight lines under the AI headline — the interpretation a reader would
-   otherwise have to do themselves. Key, value, figure: one grid, so the three
-   columns line up down the list instead of drifting with the text length. */
-.ar-rd__insights { list-style: none; margin: 16px 0 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
-.ar-rd__insights li { display: flex; align-items: baseline; gap: 12px; font-size: 13px; }
-.ar-rd__ik { flex: 0 0 132px; color: var(--ar-ink-faint); font-size: 12px; }
-.ar-rd__iv { color: var(--ar-ink); font-weight: 600; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.ar-rd__iv.is-path { font-family: var(--ar-mono); font-size: 12px; font-weight: 400; }
-.ar-rd__ip {
-  margin-left: auto; font-family: var(--ar-mono); font-size: 12px; font-weight: 700;
-  color: var(--ar-accent); font-variant-numeric: tabular-nums;
-}
-
-/* The GA4 footnote. It annotates the numbers; it must not weigh like them. */
-.ar-rd__fine {
-  margin: 18px 0 0; font-size: 11.5px; line-height: 1.5; color: var(--ar-ink-faint);
-  display: flex; align-items: flex-start; gap: 7px; max-width: 78ch;
-}
-.ar-rd__fine-i {
-  flex: 0 0 auto; width: 14px; height: 14px; border-radius: 50%; margin-top: 1px;
+.ar-aud__note-i {
+  flex: 0 0 auto; width: 16px; height: 16px; border-radius: 50%;
   border: 1px solid var(--ar-line-strong); color: var(--ar-ink-faint);
-  font-size: 9px; font-weight: 700; font-style: normal;
+  font-size: 9.5px; font-weight: 700; font-style: normal; letter-spacing: 0;
   display: inline-flex; align-items: center; justify-content: center;
 }
-
-.ar-rd__list--wide li { padding-bottom: 8px; }
-
-/* The CDN caveat, folded. */
-.ar-ai__cdn { margin: -4px 0 14px; }
-.ar-ai__cdn > summary {
-  cursor: pointer; font-size: 12px; color: var(--ar-ink-faint);
-  list-style: none; display: inline-flex; align-items: center; gap: 6px;
+.ar-aud__note-grid {
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px 28px;
+  align-items: start;
 }
-.ar-ai__cdn > summary::-webkit-details-marker { display: none; }
-.ar-ai__cdn > summary::before { content: "›"; transition: transform 0.15s ease; }
-.ar-ai__cdn[open] > summary::before { transform: rotate(90deg); }
-.ar-ai__cdn p { margin: 8px 0 0; font-size: 12px; line-height: 1.55; color: var(--ar-ink-soft); max-width: 80ch; }
+.ar-aud__note-grp { min-width: 0; }
+.ar-aud__note-k {
+  margin: 0 0 6px; padding-bottom: 5px; border-bottom: 1px solid var(--ar-line);
+  font-family: var(--ar-mono); font-size: 9.5px;
+  letter-spacing: 0.12em; text-transform: uppercase; color: var(--ar-ink-faint);
+}
+.ar-aud__note-grp p:not(.ar-aud__note-k) {
+  margin: 0 0 6px; font-size: 12.5px; line-height: 1.5; color: var(--ar-ink-soft);
+}
+.ar-aud__note-grp p:last-child { margin-bottom: 0; }
 
-/* By Day: the count moves INTO the label, so the row reads as a sentence and
-   the chevron is the only thing left to interpret. */
-.ar-aiday__count {
-  display: block; font-style: normal; font-family: var(--ar-mono);
-  font-size: 11px; color: var(--ar-ink-faint); margin-top: 2px;
+@container (max-width: 720px) {
+  .ar-aud__note-grid { grid-template-columns: 1fr; gap: 14px; }
 }
 
-/* The limits list, short form: three one-line notes, not four paragraphs.
-   The heading carries its own Read more, so the fold is where the eye is. */
-.ar-aud__limits-t { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
-.ar-aud__limits-t .ar-linkbtn { font-size: 11px; letter-spacing: 0; text-transform: none; }
-
-/* Configuration tiles are configuration, not analytics — so they sit below the
-   activity they explain and read one step quieter than a data card. */
 /* The tiles stay WHITE. Softening them read as "these are less important",
    which is the wrong note for the first thing on the page — they are the
    premise, not a footnote. Their quietness comes from being small and from
