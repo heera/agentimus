@@ -4,10 +4,12 @@
  * Two things, both progressive enhancements over a form that works without
  * them:
  *
- *  1. The free-text focus becomes CHIPS. Type a word, press Enter or comma, and
- *     it becomes a removable chip while the box empties for the next one. The
- *     check measures word by word, so a word is the unit the author should be
- *     handling — a sentence in a text field hid that.
+ *  1. The free-text focus becomes CHIPS. Type a phrase, press Enter, and it
+ *     becomes a removable chip while the box empties for the next. A chip is a
+ *     PHRASE — "new features" is one thing people search for — so only a comma
+ *     separates them. The verdict above still reports word by word, because
+ *     that is how the measurement works; the two lists are different views of
+ *     the same thing and are styled so.
  *  2. The verdict re-measures on every change, against what is IN THE EDITOR,
  *     unsaved text included. Write, look, adjust — not write, save, reload.
  *
@@ -20,13 +22,13 @@
  *
  * ⚠️ The no-JS path must survive. The original text input keeps carrying the
  * value — this script hands its NAME to a hidden twin holding the joined words
- * and repurposes the visible one as the "add a word" box. With JS blocked or
+ * and repurposes the visible one as the entry box. With JS blocked or
  * broken, the untouched input submits exactly as before.
  */
 ( function () {
 	'use strict';
 
-	var box, live, hidden, entry, chipWrap;
+	var box, live, hidden, entry, chipWrap, onCommit;
 	var words = [];
 	var seq = 0;
 
@@ -48,12 +50,14 @@
 	}
 
 	function add( raw ) {
-		// A pasted phrase becomes several chips, because the check would have
-		// split it into several words anyway.
+		// A chip is a PHRASE, not a word. "new features" is one thing somebody
+		// searches for, and splitting it on the space made two chips out of one
+		// idea. Only a comma separates — that is the character people already
+		// use to mean "and another one".
 		String( raw )
-			.split( /[\s,]+/ )
+			.split( ',' )
 			.map( function ( w ) {
-				return w.trim().toLowerCase();
+				return w.trim().replace( /\s+/g, ' ' ).toLowerCase();
 			} )
 			.filter( Boolean )
 			.forEach( function ( w ) {
@@ -102,6 +106,9 @@
 	function commit() {
 		paintChips();
 		sync();
+		if ( onCommit ) {
+			onCommit();
+		}
 		check();
 	}
 
@@ -198,18 +205,34 @@
 
 		add( entry.value );
 		entry.value = '';
-		entry.placeholder = 'Add a word, press Enter';
+		entry.placeholder = 'Add a search, press Enter';
+
+		// Labelled, because the verdict above shows a row of word badges and two
+		// unlabelled rows of pills invite the reader to wonder why it is twice.
+		// These are the searches you TYPED; those are what the page uses.
+		var chipLabel = document.createElement( 'p' );
+		chipLabel.className = 'agentimus-focus__chiplabel';
+		chipLabel.textContent = 'Searches you added';
+		entry.parentNode.insertBefore( chipLabel, entry );
 
 		chipWrap = document.createElement( 'div' );
 		chipWrap.className = 'agentimus-focus__chips';
 		entry.parentNode.insertBefore( chipWrap, entry );
 
+		chipLabel.hidden = true;
+		var showLabel = function () {
+			chipLabel.hidden = 0 === words.length;
+		};
+
+		onCommit = showLabel;
 		paintChips();
 		sync();
+		showLabel();
 
 		entry.addEventListener( 'keydown', function ( e ) {
 			if ( 'Enter' === e.key || ',' === e.key ) {
 				e.preventDefault(); // Enter in a meta box would submit the post.
+				// Enter commits WHATEVER is typed, spaces and all.
 				if ( entry.value.trim() ) {
 					add( entry.value );
 					entry.value = '';
