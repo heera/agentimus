@@ -1,7 +1,7 @@
 ---
 title: Building & contributing
 parent: Developer Reference
-nav_order: 7
+nav_order: 8
 ---
 
 Agentimus ships as a plain WordPress plugin with a small Vue 3 admin app compiled on top.

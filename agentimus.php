@@ -56,6 +56,10 @@ spl_autoload_register(
 // the autoloader above — load it eagerly for third-party plugins.
 require AGENTIMUS_DIR . 'inc/discovery-api.php';
 
+// Theme-facing template tags. Global functions, so they bypass the autoloader
+// too — and eager, so a theme may call them at any point in the load order.
+require AGENTIMUS_DIR . 'inc/template-tags.php';
+
 add_action(
 	'plugins_loaded',
 	static function () {

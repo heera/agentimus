@@ -329,6 +329,10 @@ namespace {
 		}
 	);
 
+	// The theme-facing template tags are global functions, so the loader above
+	// never sees them — the runtime requires the file eagerly and so do we.
+	require_once AGENTIMUS_DIR . 'inc/template-tags.php';
+
 	// Reset the Registry singleton between tests (it is process-global).
 	function _af_reset_registry() {
 		if ( ! class_exists( 'Agentimus\\Discovery\\Registry' ) ) {
