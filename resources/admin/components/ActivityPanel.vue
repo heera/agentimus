@@ -569,7 +569,7 @@ export default {
       if (hits < MIN_HITS || t === null || t === undefined || Math.abs(t) <= BAND) {
         return { dir: 'flat', label: '–' };
       }
-      return t > 0 ? { dir: 'up', label: `▲ ${t}%` } : { dir: 'down', label: `▼ ${Math.abs(t)}%` };
+      return t > 0 ? { dir: 'up', label: `↑ ${t}%` } : { dir: 'down', label: `↓ ${Math.abs(t)}%` };
     },
     // ---- Formatting ------------------------------------------------------------
     listMax(list) {
@@ -641,57 +641,6 @@ export default {
     <!-- Readiness isn't a tile here — it's the rail's AEO/GEO card, which owns the score
          and rungs. Repeating "19/19 · 100%" beside a "91" gauge just shows two readiness
          numbers. These three describe the agent SURFACE instead. -->
-    <div v-if="summary" class="ar-dash-sum">
-      <button type="button" class="ar-dash-tile" @click="$emit('navigate', { tab: 'discovery', anchor: 'ar-wd-providers' })">
-        <span class="ar-dash-tile__ic" aria-hidden="true" v-html="tileIcon('providers')"></span>
-        <span class="ar-dash-tile__body">
-          <span class="ar-dash-tile__row">
-            <strong class="ar-dash-tile__v">{{ summary.providers }}</strong>
-            <span class="ar-dash-tile__k">Providers</span>
-          </span>
-          <span v-if="dashProvidersHeld > 0" class="ar-dash-tile__sub">{{ summary.providersPublic }} public · {{ dashProvidersHeld }} sign-in only</span>
-          <span v-else class="ar-dash-tile__sub">sources describing your site</span>
-        </span>
-      </button>
-      <button type="button" class="ar-dash-tile" @click="$emit('navigate', { tab: 'discovery', anchor: 'ar-wd-capabilities' })">
-        <span class="ar-dash-tile__ic" aria-hidden="true" v-html="tileIcon('capabilities')"></span>
-        <span class="ar-dash-tile__body">
-          <span class="ar-dash-tile__row">
-            <strong class="ar-dash-tile__v">{{ summary.capabilities }}</strong>
-            <span class="ar-dash-tile__k">Capabilities</span>
-          </span>
-          <span class="ar-dash-tile__sub">what agents can do or read</span>
-        </span>
-      </button>
-      <button type="button" class="ar-dash-tile" @click="$emit('navigate', { tab: 'discovery', anchor: 'ar-wd-apis' })">
-        <span class="ar-dash-tile__ic" aria-hidden="true" v-html="tileIcon('apis')"></span>
-        <span class="ar-dash-tile__body">
-          <span class="ar-dash-tile__row">
-            <strong class="ar-dash-tile__v">{{ summary.apis }}</strong>
-            <span class="ar-dash-tile__k">APIs</span>
-          </span>
-          <span class="ar-dash-tile__sub">interfaces agents can call</span>
-        </span>
-      </button>
-      <button type="button" class="ar-dash-tile" @click="$emit('navigate', { tab: 'discovery', anchor: 'ar-wd-tools' })">
-        <span class="ar-dash-tile__ic" aria-hidden="true" v-html="tileIcon('tools')"></span>
-        <span class="ar-dash-tile__body">
-          <span class="ar-dash-tile__row">
-            <strong class="ar-dash-tile__v">{{ summary.tools }}</strong>
-            <span class="ar-dash-tile__k">Tools</span>
-          </span>
-          <span v-if="dashToolsHeld > 0" class="ar-dash-tile__sub">{{ summary.toolsPublic }} public · {{ dashToolsHeld }} sign-in only</span>
-          <span v-else class="ar-dash-tile__sub">actions agents can run</span>
-        </span>
-      </button>
-    </div>
-
-    <!-- Quiet privacy framing so the dashboard reads as informational, not
-         surveillance. The shield-check is the privacy-fact mark (.ar-privnote). -->
-    <p class="ar-dash-note ar-privnote">
-      Informational only — which AI assistants read your site, in aggregate. No IP addresses by default,
-      nothing sent anywhere.
-    </p>
 
     <!-- First load in flight: show a skeleton, not the empty state. -->
     <template v-if="!loaded">
@@ -850,7 +799,7 @@ export default {
       </section>
 
       <section class="ar-card">
-        <h2 class="ar-card__title">Top Clients <span class="ar-card__tag">Last {{ data.window || 30 }} days</span></h2>
+        <h2 class="ar-card__title">Top Agents <span class="ar-card__tag">Last {{ data.window || 30 }} days</span></h2>
         <p class="ar-card__lead">
           Who does the reading — the clients behind those hits: AI agents, crawlers and browsers,
           busiest first. Names are what each client declares about itself.
@@ -883,121 +832,6 @@ export default {
       <!-- Traffic from AI — one report card: magnitude (KPIs), composition
            (top sources + pages), and the timeline drill-down (which source →
            which page, by day). All from the same aggregate-by-day store. -->
-      <section v-if="referrals" class="ar-card ar-ai">
-        <h2 class="ar-card__title">Traffic from AI <span class="ar-card__tag">Last {{ data.window || 30 }} days</span></h2>
-        <!-- The floor caveat earns its space on a summary card; the longer CDN-mode
-             explanation belongs with the full report, which is where it lives. -->
-        <p class="ar-card__lead">
-          Real visitors who arrived from an AI assistant (ChatGPT, Perplexity, Gemini…). Counted on your
-          own site — no IP, nothing sent anywhere. Some AI visits can’t be detected, so read this as a
-          floor: at least this many.
-        </p>
-
-        <div class="ar-wd-stats ar-act-stats ar-act-stats--3">
-          <div class="ar-wd-stat"><strong>{{ refTotals.today }}</strong><span>today</span></div>
-          <div class="ar-wd-stat"><strong>{{ refTotals.window }}</strong><span>{{ data.window || 30 }} days</span></div>
-          <div class="ar-wd-stat"><strong>{{ refSourceCount }}</strong><span>sources</span></div>
-        </div>
-
-        <template v-if="refTotals.window">
-          <!-- Shape of the month. A read-only sparkline, not the 30-row list that used to
-               live here: anything whose height grows with the window belongs on the AI
-               traffic screen, not on a summary card. -->
-          <div ref="refSparkWrap" class="ar-act-sparkwrap ar-act-sparkwrap--ref">
-            <!-- Same phone treatment as the endpoint chart: touch-wide bars in a
-                 sideways scroller anchored at the newest days. -->
-            <div class="ar-act-sparkscroll">
-            <div class="ar-refspark" role="group" :aria-label="refSparkAria" @mouseleave="hideRefTip">
-              <button
-                v-for="(d, i) in refSpark"
-                :key="i"
-                type="button"
-                class="ar-refspark__bar"
-                :class="{ 'is-zero': !d.hits, 'is-active': aiDay.open && aiDay.date === d.date }"
-                :aria-label="`${dateLabel(d.date)}, ${d.hits} ${d.hits === 1 ? 'visit' : 'visits'}${d.hits ? ' — open this day' : ''}`"
-                :style="{ height: pct(d.hits, refSparkMax) }"
-                @click="openAiDay(d)"
-                @mouseenter="showRefTip(d, $event)"
-                @focus="showRefTip(d, $event)"
-                @blur="hideRefTip"
-              ></button>
-            </div>
-            </div>
-            <transition name="ar-tip">
-              <div
-                v-if="refTip.show && refTip.day"
-                ref="refTipEl"
-                class="ar-act-tip"
-                :style="{ transform: 'translateX(calc(' + refTip.x + 'px - 50%))' }"
-                role="tooltip"
-                aria-hidden="true"
-              >
-                <span class="ar-act-tip__date">{{ dateLabel(refTip.day.date) }}</span>
-                <span class="ar-act-tip__hits">{{ refTip.day.hits }} {{ refTip.day.hits === 1 ? 'visit' : 'visits' }}</span>
-                <span class="ar-act-tip__caret" :style="{ left: refTip.caret + 'px' }"></span>
-              </div>
-            </transition>
-          </div>
-          <p class="ar-act-sparkcap">Visits per day · last {{ refSpark.length }} days · click a bar for that day’s report</p>
-
-          <!-- Composition: who sent traffic, and where it landed. Top 5 of each;
-               each row drills into the full report pre-filtered to itself. -->
-          <div class="ar-ai__cols">
-            <div class="ar-ai__col">
-              <h3 class="ar-ai__sub">Top sources</h3>
-              <ul class="ar-act-rank">
-                <li v-for="s in refTopSources" :key="s.label">
-                  <button
-                    type="button"
-                    class="ar-act-rank__btn"
-                    :aria-label="`Open the AI traffic report filtered to ${s.label}`"
-                    @click="$emit('navigate', { tab: 'readers', ai: { source: s.label } })"
-                    @mouseenter="showUaTip($event, refShareTip(s.hits), 'Click for the full report', 'cursor')"
-                    @mouseleave="hideUaTip"
-                  >
-                    <span class="ar-act-rank__label">{{ s.label }}</span>
-                    <span class="ar-act-rank__track"><span class="ar-act-rank__bar" :style="{ width: pct(s.hits, listMax(refTopSources)) }"></span></span>
-                    <span class="ar-act-rank__n">{{ s.hits }}</span>
-                  </button>
-                </li>
-              </ul>
-            </div>
-            <div class="ar-ai__col">
-              <h3 class="ar-ai__sub">Top landing pages</h3>
-              <ul v-if="refTopPages.length" class="ar-act-rank">
-                <li v-for="p in refTopPages" :key="p.path">
-                  <button
-                    type="button"
-                    class="ar-act-rank__btn"
-                    :aria-label="`Open the AI traffic report filtered to ${p.path}`"
-                    @click="$emit('navigate', { tab: 'readers', ai: { path: p.path } })"
-                    @mouseenter="showUaTip($event, refShareTip(p.hits), 'Click for the full report', 'cursor')"
-                    @mouseleave="hideUaTip"
-                  >
-                    <span class="ar-act-rank__label"><code>{{ p.path }}</code></span>
-                    <span class="ar-act-rank__track"><span class="ar-act-rank__bar" :style="{ width: pct(p.hits, listMax(refTopPages)) }"></span></span>
-                    <span class="ar-act-rank__n">{{ p.hits }}</span>
-                  </button>
-                </li>
-              </ul>
-              <p v-else class="ar-wd-empty">No pages yet.</p>
-            </div>
-          </div>
-        </template>
-
-        <p v-else class="ar-wd-empty">
-          No AI-referred visits recorded yet. When someone arrives from ChatGPT, Perplexity and the like,
-          it’ll show here.
-        </p>
-
-        <p class="ar-card__more">
-          <button type="button" class="ar-linkbtn" @click="$emit('navigate', { tab: 'readers' })">
-            See the full report
-            <svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 4l4 4-4 4" /></svg>
-          </button>
-          <span class="ar-card__morenote">day-by-day visits, every source and landing page{{ unknownOn ? ', and what we couldn’t attribute' : '' }}</span>
-        </p>
-      </section>
 
       <!-- Recent requests (latest, live — static) -->
       <section class="ar-card">
@@ -1330,5 +1164,131 @@ export default {
         >{{ netTip }}<span class="ar-act-uatip__caret" :style="{ left: netHint.caret + 'px' }"></span></div>
       </transition>
     </Teleport>
+      <section v-if="referrals" class="ar-card ar-ai">
+        <h2 class="ar-card__title">Traffic from AI <span class="ar-card__tag">Last {{ data.window || 30 }} days</span></h2>
+        <!-- The floor caveat earns its space on a summary card; the longer CDN-mode
+             explanation belongs with the full report, which is where it lives. -->
+        <p class="ar-card__lead">
+          Real visitors who arrived from an AI assistant (ChatGPT, Perplexity, Gemini…). Counted on your
+          own site — no IP, nothing sent anywhere. Some AI visits can’t be detected, so read this as a
+          floor: at least this many.
+        </p>
+
+        <div class="ar-wd-stats ar-act-stats ar-act-stats--3">
+          <div class="ar-wd-stat"><strong>{{ refTotals.today }}</strong><span>today</span></div>
+          <div class="ar-wd-stat"><strong>{{ refTotals.window }}</strong><span>{{ data.window || 30 }} days</span></div>
+          <div class="ar-wd-stat"><strong>{{ refSourceCount }}</strong><span>sources</span></div>
+        </div>
+
+        <template v-if="refTotals.window">
+          <!-- Shape of the month. A read-only sparkline, not the 30-row list that used to
+               live here: anything whose height grows with the window belongs on the AI
+               traffic screen, not on a summary card. -->
+          <div ref="refSparkWrap" class="ar-act-sparkwrap ar-act-sparkwrap--ref">
+            <!-- Same phone treatment as the endpoint chart: touch-wide bars in a
+                 sideways scroller anchored at the newest days. -->
+            <div class="ar-act-sparkscroll">
+            <div class="ar-refspark" role="group" :aria-label="refSparkAria" @mouseleave="hideRefTip">
+              <button
+                v-for="(d, i) in refSpark"
+                :key="i"
+                type="button"
+                class="ar-refspark__bar"
+                :class="{ 'is-zero': !d.hits, 'is-active': aiDay.open && aiDay.date === d.date }"
+                :aria-label="`${dateLabel(d.date)}, ${d.hits} ${d.hits === 1 ? 'visit' : 'visits'}${d.hits ? ' — open this day' : ''}`"
+                :style="{ height: pct(d.hits, refSparkMax) }"
+                @click="openAiDay(d)"
+                @mouseenter="showRefTip(d, $event)"
+                @focus="showRefTip(d, $event)"
+                @blur="hideRefTip"
+              ></button>
+            </div>
+            </div>
+            <transition name="ar-tip">
+              <div
+                v-if="refTip.show && refTip.day"
+                ref="refTipEl"
+                class="ar-act-tip"
+                :style="{ transform: 'translateX(calc(' + refTip.x + 'px - 50%))' }"
+                role="tooltip"
+                aria-hidden="true"
+              >
+                <span class="ar-act-tip__date">{{ dateLabel(refTip.day.date) }}</span>
+                <span class="ar-act-tip__hits">{{ refTip.day.hits }} {{ refTip.day.hits === 1 ? 'visit' : 'visits' }}</span>
+                <span class="ar-act-tip__caret" :style="{ left: refTip.caret + 'px' }"></span>
+              </div>
+            </transition>
+          </div>
+          <p class="ar-act-sparkcap">Visits per day · last {{ refSpark.length }} days · click a bar for that day’s report</p>
+
+          <!-- A dashboard card should tempt you into the report, not BE the
+               report. The two rank lists that used to sit here are one click
+               away, where they have room and filters. -->
+          <p class="ar-card__more">
+          <button type="button" class="ar-linkbtn" @click="$emit('navigate', { tab: 'readers' })">
+            See the full report
+            <svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 4l4 4-4 4" /></svg>
+          </button>
+          <span class="ar-card__morenote">day-by-day visits, every source and landing page{{ unknownOn ? ', and what we couldn’t attribute' : '' }}</span>
+          </p>
+        </template>
+
+        <p v-else class="ar-wd-empty">
+          No AI-referred visits yet. When somebody arrives from ChatGPT, Perplexity or another
+          assistant, they’ll show up here.
+        </p>
+      </section>
+
+    <div v-if="summary" class="ar-dash-sum">
+      <button type="button" class="ar-dash-tile" @click="$emit('navigate', { tab: 'discovery', anchor: 'ar-wd-providers' })">
+        <span class="ar-dash-tile__ic" aria-hidden="true" v-html="tileIcon('providers')"></span>
+        <span class="ar-dash-tile__body">
+          <span class="ar-dash-tile__row">
+            <strong class="ar-dash-tile__v">{{ summary.providers }}</strong>
+            <span class="ar-dash-tile__k">Providers</span>
+          </span>
+          <span v-if="dashProvidersHeld > 0" class="ar-dash-tile__sub">{{ summary.providersPublic }} public · {{ dashProvidersHeld }} sign-in only</span>
+          <span v-else class="ar-dash-tile__sub">sources describing your site</span>
+        </span>
+      </button>
+      <button type="button" class="ar-dash-tile" @click="$emit('navigate', { tab: 'discovery', anchor: 'ar-wd-capabilities' })">
+        <span class="ar-dash-tile__ic" aria-hidden="true" v-html="tileIcon('capabilities')"></span>
+        <span class="ar-dash-tile__body">
+          <span class="ar-dash-tile__row">
+            <strong class="ar-dash-tile__v">{{ summary.capabilities }}</strong>
+            <span class="ar-dash-tile__k">Capabilities</span>
+          </span>
+          <span class="ar-dash-tile__sub">what agents can do or read</span>
+        </span>
+      </button>
+      <button type="button" class="ar-dash-tile" @click="$emit('navigate', { tab: 'discovery', anchor: 'ar-wd-apis' })">
+        <span class="ar-dash-tile__ic" aria-hidden="true" v-html="tileIcon('apis')"></span>
+        <span class="ar-dash-tile__body">
+          <span class="ar-dash-tile__row">
+            <strong class="ar-dash-tile__v">{{ summary.apis }}</strong>
+            <span class="ar-dash-tile__k">APIs</span>
+          </span>
+          <span class="ar-dash-tile__sub">interfaces agents can call</span>
+        </span>
+      </button>
+      <button type="button" class="ar-dash-tile" @click="$emit('navigate', { tab: 'discovery', anchor: 'ar-wd-tools' })">
+        <span class="ar-dash-tile__ic" aria-hidden="true" v-html="tileIcon('tools')"></span>
+        <span class="ar-dash-tile__body">
+          <span class="ar-dash-tile__row">
+            <strong class="ar-dash-tile__v">{{ summary.tools }}</strong>
+            <span class="ar-dash-tile__k">Tools</span>
+          </span>
+          <span v-if="dashToolsHeld > 0" class="ar-dash-tile__sub">{{ summary.toolsPublic }} public · {{ dashToolsHeld }} sign-in only</span>
+          <span v-else class="ar-dash-tile__sub">actions agents can run</span>
+        </span>
+      </button>
+    </div>
+
+    <!-- Quiet privacy framing so the dashboard reads as informational, not
+         surveillance. The shield-check is the privacy-fact mark (.ar-privnote). -->
+    <p class="ar-dash-note ar-privnote">
+      Informational only — which AI assistants read your site, in aggregate. No IP addresses by default,
+      nothing sent anywhere.
+    </p>
   </div>
 </template>

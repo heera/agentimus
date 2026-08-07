@@ -21,6 +21,9 @@ export default {
     data: { type: Object, default: null },
     loaded: { type: Boolean, default: false },
   },
+  data() {
+    return { limitsOpen: false };
+  },
   emits: ['navigate'],
   computed: {
     people() {
@@ -146,9 +149,17 @@ export default {
     <!-- The honesty half. Shipped WITH the numbers rather than in a docs page,
          because the misreadings these prevent happen at the moment of reading. -->
     <div v-if="loaded && limits.length" class="ar-aud__limits">
-      <p class="ar-aud__limits-t">What these numbers can’t tell you</p>
+      <p class="ar-aud__limits-t">
+        What these numbers can’t tell you
+        <button type="button" class="ar-linkbtn" @click="limitsOpen = !limitsOpen">
+          {{ limitsOpen ? 'Less' : 'Read more' }}
+        </button>
+      </p>
+      <!-- Four paragraphs on a dashboard is four paragraphs nobody reads. The
+           short form carries the actual warning; the long form keeps the
+           reasoning for whoever wants it. -->
       <ul>
-        <li v-for="l in limits" :key="l.key">{{ l.text }}</li>
+        <li v-for="l in limits" :key="l.key">{{ limitsOpen ? l.text : l.short }}</li>
       </ul>
     </div>
   </section>

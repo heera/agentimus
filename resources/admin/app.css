@@ -6656,3 +6656,13 @@ a.ar-about-proto__v:hover { text-decoration: underline; }
   display: block; font-style: normal; font-family: var(--ar-mono);
   font-size: 11px; color: var(--ar-ink-faint); margin-top: 2px;
 }
+
+/* The limits list, short form: three one-line notes, not four paragraphs.
+   The heading carries its own Read more, so the fold is where the eye is. */
+.ar-aud__limits-t { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+.ar-aud__limits-t .ar-linkbtn { font-size: 11px; letter-spacing: 0; text-transform: none; }
+
+/* Configuration tiles are configuration, not analytics — so they sit below the
+   activity they explain and read one step quieter than a data card. */
+.ar-dash-sum { margin-top: 4px; }
+.ar-dash-sum .ar-dash-tile { background: var(--ar-surface-2); }
