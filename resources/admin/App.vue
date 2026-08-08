@@ -904,7 +904,17 @@ export default {
         this._logSeq = (this._logSeq || 0) + 1;
         this.workPick = { pages, seq: this._logSeq };
       }
+      const sameTab = tab && this.tab === tab;
       if (tab) this.tab = tab;
+      // Already on that screen? The tab watcher will not fire, so nothing would
+      // perform the jump — the button would filter the list below and leave the
+      // reader looking at the finding they just clicked.
+      if (sameTab && anchor) {
+        this.$nextTick(() => {
+          this._jumpAnchor = null;
+          this.jumpToAnchor(anchor);
+        });
+      }
       // Deep-link into the AI Visibility panel's Settings/Results sub-view when asked.
       if ('visibility' === tab && view) {
         this.$nextTick(() => {

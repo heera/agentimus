@@ -45,7 +45,15 @@ export default {
         if (!next || !next.pages || !next.pages.length) return;
         this.picked = next.pages.slice();
         if (!this.loaded) this.$emit('load');
+        this.bringIntoView();
       },
+    },
+    // The rows arrive after the request. Scrolling only on the click landed
+    // while this card was still its pre-load self and a different height, so
+    // the browser cancelled the smooth scroll and nothing moved at all — the
+    // button looked dead. Land again once the rows are actually here.
+    loaded(now) {
+      if (now && this.picked) this.bringIntoView();
     },
   },
   computed: {
@@ -150,6 +158,19 @@ export default {
         missing: 'None of it is on the page',
       }[state] || '';
     },
+    // Put this card under the sticky header. Instant, not smooth: a smooth
+    // scroll is cancelled by the re-render that follows it, and an instant one
+    // that lands is worth more than an animation that does not.
+    bringIntoView() {
+      this.$nextTick(() => {
+        const el = this.$el;
+        if (!el || !el.getBoundingClientRect) return;
+        const sticky = document.querySelector('.ar__sticky');
+        const gap = (sticky ? sticky.getBoundingClientRect().bottom : 0) + 12;
+        const y = el.getBoundingClientRect().top + window.pageYOffset - gap;
+        window.scrollTo({ top: Math.max(0, y), behavior: 'auto' });
+      });
+    },
     rank(n) {
       return `#${Number(n).toFixed(1)}`;
     },
@@ -164,7 +185,11 @@ export default {
 </script>
 
 <template>
-  <div class="ar-card ar-work">
+  <!-- id, not just a class: findings navigate here by anchor, and jumpToAnchor
+       resolves with getElementById. Without it the jump looked for 90 frames,
+       found nothing and gave up silently — the click filtered the list and
+       left the reader exactly where they were, which reads as a dead button. -->
+  <div id="ar-work" class="ar-card ar-work">
 
     <div class="ar-work__head">
       <div>
@@ -225,7 +250,7 @@ export default {
       <!-- A filtered list has to say so and offer the way out. Silently showing
            4 of 30 rows is how somebody concludes the other 26 vanished. -->
       <p v-if="picked" class="ar-work__picked">
-        Showing the {{ shown.length }} {{ shown.length === 1 ? 'page' : 'pages' }} from that finding.
+        Showing {{ shown.length === 1 ? 'the 1 page' : `the ${shown.length} pages` }} from that finding.
         <button type="button" class="ar-linkbtn" @click="picked = null">Show everything</button>
       </p>
 
