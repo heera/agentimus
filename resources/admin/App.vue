@@ -93,6 +93,11 @@ export default {
       worklist: { items: [], counts: {}, capped: false, total: 0, noSearchData: 0, searchState: '' },
       worklistPreview: this.boot.worklistPreview || { published: 0, withSearch: 0, setAside: 0, searchState: '' },
       worklistLoaded: false,
+      // When the list was read, and whether something has probably changed
+      // since. Editing a post happens in ANOTHER tab, so this screen can hold a
+      // verdict the author has already fixed and say nothing about it.
+      worklistAt: 0,
+      worklistStale: false,
       // Whether the nav bar has room for every screen name. Below this the bar
       // wrapped to a second line that sat under the fold — the items were there,
       // but only findable by scrolling a header nobody scrolls.
@@ -575,6 +580,17 @@ export default {
     },
   },
   mounted() {
+    // Coming back to this tab is the moment an edit made elsewhere becomes
+    // invisible: the list still shows what it read before. Deliberately does
+    // NOT re-fetch — thirty rows means thirty pages parsed — it just stops
+    // claiming to be current, and offers the one click that makes it so.
+    this._onFocus = () => {
+      if (!this.worklistLoaded || this.refreshingWorklist) return;
+      if (Date.now() - this.worklistAt > 15000) this.worklistStale = true;
+    };
+    window.addEventListener('focus', this._onFocus);
+    document.addEventListener('visibilitychange', this._onFocus);
+
     // Keep the bar's capacity in sync with the window. matchMedia rather than a
     // resize handler: it fires only when the answer actually changes.
     this._navQuery = window.matchMedia('(max-width: 1200px)');
@@ -635,6 +651,8 @@ export default {
     }
   },
   beforeUnmount() {
+    window.removeEventListener('focus', this._onFocus);
+    document.removeEventListener('visibilitychange', this._onFocus);
     if (this._navQuery && this._onNavQuery) {
       if (this._navQuery.removeEventListener) this._navQuery.removeEventListener('change', this._onNavQuery);
       else this._navQuery.removeListener(this._onNavQuery);
@@ -1264,6 +1282,8 @@ export default {
       try {
         this.worklist = await this.api.getWorklist();
         this.worklistLoaded = true;
+        this.worklistAt = Date.now();
+        this.worklistStale = false;
       } catch (e) {
         this.flash('error', e.message);
       } finally {
@@ -1952,6 +1972,7 @@ export default {
           :data="worklist"
           :preview="worklistPreview"
           :loaded="worklistLoaded"
+          :stale="worklistStale"
           :busy="refreshingWorklist"
           :setting-aside="settingAside"
           @load="loadWorklist"

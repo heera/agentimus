@@ -26,6 +26,8 @@ export default {
     settingAside: { type: Number, default: 0 },
     // { pages: [id], seq } — a finding handing over the exact rows it counted.
     pick: { type: Object, default: null },
+    // The tab was away long enough that a post may have been edited elsewhere.
+    stale: { type: Boolean, default: false },
   },
   emits: ['load', 'set-aside', 'navigate'],
   data() {
@@ -247,6 +249,18 @@ export default {
     </div>
 
     <template v-else>
+      <!-- Editing happens in another tab. Coming back to a verdict that has
+           already been fixed, with nothing saying so, is how somebody concludes
+           the check is wrong. This does not re-read on its own — thirty rows is
+           thirty pages parsed — it stops claiming to be current and offers the
+           one click that makes it so. -->
+      <p v-if="stale && loaded" class="ar-work__stale">
+        Edited a page since this was read? These verdicts are from before that.
+        <button type="button" class="ar-linkbtn" :disabled="busy" @click="$emit('load')">
+          {{ busy ? 'Reading…' : 'Read them again' }}
+        </button>
+      </p>
+
       <!-- A filtered list has to say so and offer the way out. Silently showing
            4 of 30 rows is how somebody concludes the other 26 vanished. -->
       <p v-if="picked" class="ar-work__picked">

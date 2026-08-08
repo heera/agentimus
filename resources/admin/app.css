@@ -6639,3 +6639,14 @@ a.ar-about-proto__v:hover { text-decoration: underline; }
   font-size: 13px; color: var(--ar-ink-soft);
   display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap;
 }
+
+/* "These are from before that" — shown when the tab has been away and a post
+   may have been edited elsewhere. Amber rather than red: nothing is wrong, the
+   screen is just no longer sure it is current. */
+.ar-work__stale {
+  margin: 0; padding: 10px 26px;
+  background: color-mix(in srgb, #f2b23a 13%, var(--ar-surface));
+  border-bottom: 1px solid color-mix(in srgb, #e0b34a 30%, var(--ar-line));
+  font-size: 12.5px; color: var(--ar-ink-soft);
+  display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap;
+}
