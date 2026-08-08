@@ -6520,49 +6520,58 @@ a.ar-about-proto__v:hover { text-decoration: underline; }
   text-underline-offset: 3px;
 }
 
-/* "Worth knowing" — three labelled columns sharing one left edge.
-   The version before this had three different left edges (the icon, the group
-   labels, the bullets) and a shared fact hanging above the headings with no
-   heading of its own. Nothing aligned with anything. Now the heading is its own
-   row, every group is a column — including the shared one — and the bullets are
-   gone, because the column already IS the grouping. */
+/* "Worth knowing" — three short facts, each marked with whose half it is
+   about. The column headings BOTH / HUMANS / MACHINES were three shouted
+   words above three quiet sentences, and "both" is a word nobody says. The
+   marks are the ones already standing at the top of each panel, so the tie is
+   made without any words at all. Amber, and warmer than the panels, because a
+   note about the numbers should not look like another number. */
 .ar-aud__note {
-  margin-top: 16px; padding: 14px 16px 15px;
-  background: var(--ar-amber); border: 1px solid var(--ar-line);
+  --ar-note: #fdf6e0;
+  margin-top: 14px; padding: 10px 14px 11px;
+  background: var(--ar-note);
+  border: 1px solid color-mix(in srgb, #e0b34a 34%, var(--ar-line));
   border-radius: var(--ar-radius);
 }
+@supports (color: color-mix(in srgb, red, blue)) {
+  .ar-aud__note { --ar-note: color-mix(in srgb, #f2b23a 13%, var(--ar-surface)); }
+}
 .ar-aud__note-t {
-  margin: 0 0 12px; display: flex; align-items: center; gap: 8px;
+  margin: 0 0 8px; display: flex; align-items: center; gap: 8px;
   font-family: var(--ar-mono); font-size: 10px;
-  letter-spacing: 0.12em; text-transform: uppercase; color: var(--ar-ink-faint);
+  letter-spacing: 0.12em; text-transform: uppercase; color: #8a6d2f;
 }
+/* The horn in the accent, on white, inside the amber. An amber mark on an
+   amber ground is a mark nobody sees — and this is the one element in the
+   block that is meant to catch the eye first. */
 .ar-aud__note-i {
-  flex: 0 0 auto; width: 16px; height: 16px; border-radius: 50%;
-  border: 1px solid var(--ar-line-strong); color: var(--ar-ink-faint);
-  font-size: 9.5px; font-weight: 700; font-style: normal; letter-spacing: 0;
-  display: inline-flex; align-items: center; justify-content: center;
+  flex: 0 0 auto; display: inline-flex; align-items: center; justify-content: center;
+  width: 22px; height: 22px; border-radius: 50%;
+  background: var(--ar-surface); color: var(--ar-accent);
+  border: 1px solid color-mix(in srgb, var(--ar-accent) 30%, var(--ar-surface));
 }
-/* Equal blocks. Every caveat is written to fit ONE line in a third-width
-   column, so the three groups are the same height without anything being
-   padded — and if a state ever adds a second line to one of them, stretch
-   keeps the ruled labels level rather than letting one column ride up. */
 .ar-aud__note-grid {
-  display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px 28px;
-  align-items: stretch;
+  list-style: none; margin: 0; padding: 0;
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: 7px 20px;
+  align-items: start;
 }
-.ar-aud__note-grp { min-width: 0; }
-.ar-aud__note-k {
-  margin: 0 0 6px; padding-bottom: 5px; border-bottom: 1px solid var(--ar-line);
-  font-family: var(--ar-mono); font-size: 9.5px;
-  letter-spacing: 0.12em; text-transform: uppercase; color: var(--ar-ink-faint);
+/* One line each, always. A caveat that wraps onto a second line in one column
+   and not the others makes three equal facts look like one big one and two
+   small ones — the strings are written short enough to fit, and the title
+   attribute carries the full text if a translation ever outgrows the column. */
+.ar-aud__note-grid li {
+  display: flex; align-items: center; gap: 7px; min-width: 0;
+  font-size: 12.5px; line-height: 1.5; color: var(--ar-ink-soft);
 }
-.ar-aud__note-grp p:not(.ar-aud__note-k) {
-  margin: 0 0 6px; font-size: 12.5px; line-height: 1.5; color: var(--ar-ink-soft);
+.ar-aud__note-grid li > span:last-child {
+  min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
-.ar-aud__note-grp p:last-child { margin-bottom: 0; }
+.ar-aud__note-m {
+  flex: 0 0 auto; color: var(--ar-ink-faint); display: inline-flex;
+}
 
 @container (max-width: 720px) {
-  .ar-aud__note-grid { grid-template-columns: 1fr; gap: 14px; }
+  .ar-aud__note-grid { grid-template-columns: 1fr; gap: 9px; }
 }
 
 /* The tiles stay WHITE. Softening them read as "these are less important",

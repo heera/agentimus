@@ -382,7 +382,7 @@ final class Audience {
 			$out[] = array(
 				'key'   => 'people-sampled',
 				'scope' => 'both',
-				'text'  => __( 'Every number here comes from a different source — they don’t add up.', 'agentimus' ),
+				'text'  => __( 'Different sources — they don’t add up.', 'agentimus' ),
 			);
 		}
 

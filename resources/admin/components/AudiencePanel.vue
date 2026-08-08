@@ -163,32 +163,33 @@ export default {
       </div>
     </div>
 
-    <!-- Three labelled columns on ONE left edge. The previous version had the
-         icon, the group labels and the bullets each starting at a different x,
-         and the shared fact floating above the headings with no heading of its
-         own — so nothing lined up with anything. Every group is a column now,
-         including the shared one, and the bullets are gone: the column IS the
-         grouping, so a dot in front of each line was a second one. -->
+    <!-- Marks, not words. "BOTH / HUMANS / MACHINES" as column headings put
+         three shouted labels above three short sentences — and "both" is a
+         word nobody would say out loud. The panels above already carry a
+         person and a bot; reusing them here ties each caveat to its half
+         without a single extra word. -->
     <div v-if="loaded && limits.length" class="ar-aud__note">
       <p class="ar-aud__note-t">
-        <span class="ar-aud__note-i" aria-hidden="true">i</span>
+        <span class="ar-aud__note-i" aria-hidden="true">
+          <!-- A megaphone. A mic is what you speak INTO; this block is something
+                 being said TO you, and the horn is the shape that carries that
+                 without a word. Drawn a touch larger than the marks beside it —
+                 the cone loses its silhouette below about 14px. -->
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M16.8 5.2 7 9.4H5.2a2.4 2.4 0 0 0 0 5.2H7l9.8 4.2z" /><path d="M9.6 14.6v3.1a1.7 1.7 0 0 0 3.4 0v-1.4" /><path d="M19.8 9.9l1.8-1M20.2 12h2M19.8 14.1l1.8 1" /></svg>
+        </span>
         Worth knowing
       </p>
 
-      <div class="ar-aud__note-grid">
-        <div v-if="limitsBoth.length" class="ar-aud__note-grp">
-          <p class="ar-aud__note-k">Both</p>
-          <p v-for="l in limitsBoth" :key="l.key">{{ l.text }}</p>
-        </div>
-        <div v-if="limitsHumans.length" class="ar-aud__note-grp">
-          <p class="ar-aud__note-k">Humans</p>
-          <p v-for="l in limitsHumans" :key="l.key">{{ l.text }}</p>
-        </div>
-        <div v-if="limitsMachines.length" class="ar-aud__note-grp">
-          <p class="ar-aud__note-k">Machines</p>
-          <p v-for="l in limitsMachines" :key="l.key">{{ l.text }}</p>
-        </div>
-      </div>
+      <ul class="ar-aud__note-grid">
+        <li v-for="l in limits" :key="l.key" :class="'is-' + (l.scope || 'both')">
+          <span class="ar-aud__note-m" aria-hidden="true">
+            <svg v-if="'humans' === l.scope" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="3.6" /><path d="M4.8 20.2a7.2 7.2 0 0 1 14.4 0" /></svg>
+            <svg v-else-if="'machines' === l.scope" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="8" width="14" height="10" rx="2.6" /><path d="M12 5.2V8" /><circle cx="12" cy="4.2" r="1.1" /><path d="M9.4 12.6v1.2M14.6 12.6v1.2" /></svg>
+            <svg v-else viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="8.4" cy="12" r="4.2" /><circle cx="15.6" cy="12" r="4.2" /></svg>
+          </span>
+          <span :title="l.text">{{ l.text }}</span>
+        </li>
+      </ul>
     </div>
   </section>
 </template>
