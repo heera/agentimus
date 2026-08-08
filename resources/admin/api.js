@@ -58,6 +58,9 @@ export function createApi(boot) {
     // The per-item content worklist. Fetched on demand, never in the boot
     // payload: each row parses a page.
     getWorklist: () => request('/worklist'),
+    // { id: modified } as the screen last saw it → rebuilt rows for whatever
+    // has changed since, and nothing when nothing has.
+    worklistChanged: (seen) => request('/worklist/changed', { method: 'POST', body: JSON.stringify({ seen }) }),
     getScore: () => request('/score'),
     // JSON-LD preview: the site graph (post omitted / 0) or a chosen post's graph.
     getSchemaPreview: (post = 0) => request(`/preview/schema?post=${encodeURIComponent(post || 0)}`),

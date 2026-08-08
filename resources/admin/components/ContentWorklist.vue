@@ -249,15 +249,16 @@ export default {
     </div>
 
     <template v-else>
-      <!-- Editing happens in another tab. Coming back to a verdict that has
-           already been fixed, with nothing saying so, is how somebody concludes
-           the check is wrong. This does not re-read on its own — thirty rows is
-           thirty pages parsed — it stops claiming to be current and offers the
-           one click that makes it so. -->
+      <!-- Editing happens in another tab. Coming back, the screen asks the
+           database which of these posts have moved on — one indexed query, no
+           page read — and re-reads only those. What it CANNOT fix by itself is
+           the tab counts, which are computed over the whole site, so it says so
+           rather than showing a total it is no longer sure of. -->
       <p v-if="stale && loaded" class="ar-work__stale">
-        Edited a page since this was read? These verdicts are from before that.
+        Pages you edited have been re-read. The counts above them cover the whole
+        site, so those may still be behind.
         <button type="button" class="ar-linkbtn" :disabled="busy" @click="$emit('load')">
-          {{ busy ? 'Reading…' : 'Read them again' }}
+          {{ busy ? 'Reading…' : 'Read everything again' }}
         </button>
       </p>
 

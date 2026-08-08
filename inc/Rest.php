@@ -252,6 +252,20 @@ final class Rest {
 			)
 		);
 
+		// Which of these rows are older than the posts they describe, and the
+		// rebuild for just those. Editing happens in another tab; without this
+		// the screen either shows a stale verdict or re-reads every page to
+		// discover that one of them changed.
+		register_rest_route(
+			self::NAMESPACE,
+			'/worklist/changed',
+			array(
+				'methods'             => \WP_REST_Server::CREATABLE,
+				'callback'            => array( $this, 'worklist_changed' ),
+				'permission_callback' => array( $this, 'can_manage' ),
+			)
+		);
+
 		register_rest_route(
 			self::NAMESPACE,
 			'/readiness',
@@ -901,6 +915,44 @@ final class Rest {
 			array(
 				'ok'      => false,
 				'message' => isset( $messages[ $reason ] ) ? $messages[ $reason ] : $messages['not-a-range-file'],
+			)
+		);
+	}
+
+	/**
+	 * POST /worklist/changed — reconcile a held list against the database.
+	 *
+	 * Takes { id: modified } as the caller last saw it. Answers with rebuilt
+	 * rows for the ones that have moved on, and nothing at all when none have —
+	 * which is the common case and costs one indexed query.
+	 *
+	 * @param \WP_REST_Request $request The request.
+	 * @return \WP_REST_Response
+	 */
+	public function worklist_changed( \WP_REST_Request $request ) {
+		$seen = (array) $request->get_param( 'seen' );
+		if ( ! $seen ) {
+			return rest_ensure_response( array( 'rows' => array() ) );
+		}
+
+		$worklist = new Worklist( $this->settings );
+		$stamps   = $worklist->stamps( array_keys( $seen ) );
+
+		$changed = array();
+		foreach ( $stamps as $id => $modified ) {
+			$had = isset( $seen[ $id ] ) ? (string) $seen[ $id ] : '';
+			if ( $had !== $modified ) {
+				$changed[] = (int) $id;
+			}
+		}
+		// A post that has been deleted or unpublished since is reported too, so
+		// the row can leave rather than linger as a verdict about nothing.
+		$gone = array_values( array_diff( array_map( 'intval', array_keys( $seen ) ), array_map( 'intval', array_keys( $stamps ) ) ) );
+
+		return rest_ensure_response(
+			array(
+				'rows' => $changed ? $worklist->rows_for( $changed ) : array(),
+				'gone' => $gone,
 			)
 		);
 	}

@@ -586,7 +586,9 @@ export default {
     // claiming to be current, and offers the one click that makes it so.
     this._onFocus = () => {
       if (!this.worklistLoaded || this.refreshingWorklist) return;
-      if (Date.now() - this.worklistAt > 15000) this.worklistStale = true;
+      if (document.hidden) return;
+      if (Date.now() - this.worklistAt < 3000) return;
+      this.reconcileWorklist();
     };
     window.addEventListener('focus', this._onFocus);
     document.addEventListener('visibilitychange', this._onFocus);
@@ -1288,6 +1290,44 @@ export default {
         this.flash('error', e.message);
       } finally {
         this.refreshingWorklist = false;
+      }
+    },
+    // Ask the database which of the rows on screen describe a post that has
+    // been edited since — one indexed query, no page read — and rebuild only
+    // those. Editing happens in another tab, so without this the screen shows
+    // a verdict the author has already fixed; and re-reading the whole list on
+    // every glance back would parse thirty pages to find the one that moved.
+    async reconcileWorklist() {
+      const items = (this.worklist && this.worklist.items) || [];
+      if (!items.length || !this.api) return;
+
+      const seen = {};
+      items.forEach((i) => { seen[i.id] = i.modified || ''; });
+
+      try {
+        const res = await this.api.worklistChanged(seen);
+        const rows = (res && res.rows) || [];
+        const gone = (res && res.gone) || [];
+        if (!rows.length && !gone.length) {
+          this.worklistAt = Date.now(); // Confirmed current; stop asking for a while.
+          return;
+        }
+        const byId = {};
+        rows.forEach((r) => { byId[r.id] = r; });
+        this.worklist = {
+          ...this.worklist,
+          items: items
+            .filter((i) => gone.indexOf(i.id) === -1)
+            .map((i) => byId[i.id] || i),
+        };
+        this.worklistAt = Date.now();
+        // Counts and tab totals are computed over the whole site, so a changed
+        // row can move between buckets without them noticing. Say the summary
+        // may be behind rather than quietly showing a wrong total.
+        this.worklistStale = true;
+      } catch (e) {
+        // A failed reconcile is not worth a banner; the list is still the last
+        // good one, and the next focus tries again.
       }
     },
     // Set aside / bring back one item, through the SAME route the Optimize

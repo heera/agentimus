@@ -233,6 +233,59 @@ final class Worklist {
 	}
 
 	/**
+	 * Rebuild rows for named posts only.
+	 *
+	 * The expensive half of {@see all()} is per row — each one renders and reads
+	 * its page — so re-reading the whole list to catch one edit is thirty times
+	 * the work it needs. The cheap half (the search snapshot) is shared and runs
+	 * once here as well.
+	 *
+	 * @param array<int,int> $ids Post IDs.
+	 * @return array<int,array> Rows, in the order asked for; missing posts drop out.
+	 */
+	public function rows_for( array $ids ) {
+		$ids = array_values( array_unique( array_filter( array_map( 'intval', $ids ) ) ) );
+		if ( ! $ids ) {
+			return array();
+		}
+		$ids = array_slice( $ids, 0, self::MAX_ITEMS );
+
+		$search = $this->search_by_post();
+		$aside  = $this->set_aside_ids();
+
+		$out = array();
+		foreach ( $ids as $id ) {
+			$item = $this->item( $id, isset( $search[ $id ] ) ? $search[ $id ] : array(), in_array( $id, $aside, true ) );
+			if ( $item ) {
+				$out[] = $item;
+			}
+		}
+		return $out;
+	}
+
+	/**
+	 * When each of these posts was last edited — no page is read.
+	 *
+	 * @param array<int,int> $ids Post IDs.
+	 * @return array<int,string> id => post_modified_gmt.
+	 */
+	public function stamps( array $ids ) {
+		global $wpdb;
+		$ids = array_values( array_unique( array_filter( array_map( 'intval', $ids ) ) ) );
+		if ( ! $ids ) {
+			return array();
+		}
+		$in   = implode( ',', $ids ); // Ints only, cast above.
+		$rows = $wpdb->get_results( "SELECT ID, post_modified_gmt FROM {$wpdb->posts} WHERE ID IN ($in)" ); // phpcs:ignore WordPress.DB -- ids are cast to int; no user string reaches this.
+
+		$out = array();
+		foreach ( (array) $rows as $row ) {
+			$out[ (int) $row->ID ] = (string) $row->post_modified_gmt;
+		}
+		return $out;
+	}
+
+	/**
 	 * Which posts get a row, in the order they earn one: everything the engines
 	 * reported first (those can be ranked by what a fix is worth), then the most
 	 * recently edited content, so a site with no search data still has a list.
@@ -384,6 +437,10 @@ final class Worklist {
 
 		return array(
 			'id'       => (int) $post->ID,
+			// When this row was true of. A screen holding the list can ask which
+			// posts have been edited since — one indexed query — instead of
+			// re-reading thirty pages to discover that one changed.
+			'modified' => (string) $post->post_modified_gmt,
 			'title'    => '' !== trim( $title ) ? $title : __( '(untitled)', 'agentimus' ),
 			// Named, because "Pages" would be a lie on a site whose content is
 			// Products, Docs or Recipes — and the owner needs to know which of
