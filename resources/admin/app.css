@@ -6526,18 +6526,22 @@ a.ar-about-proto__v:hover { text-decoration: underline; }
    marks are the ones already standing at the top of each panel, so the tie is
    made without any words at all. Amber, and warmer than the panels, because a
    note about the numbers should not look like another number. */
+/* One row, not two. The heading sat on its own line above three short facts,
+   which spent a whole line of height saying "worth knowing" — it belongs
+   beside them, as the label it is. */
 .ar-aud__note {
   --ar-note: #fdf6e0;
-  margin-top: 14px; padding: 10px 14px 11px;
+  margin-top: 14px; padding: 8px 13px;
   background: var(--ar-note);
   border: 1px solid color-mix(in srgb, #e0b34a 34%, var(--ar-line));
   border-radius: var(--ar-radius);
+  display: flex; align-items: center; gap: 8px 22px; flex-wrap: wrap;
 }
 @supports (color: color-mix(in srgb, red, blue)) {
   .ar-aud__note { --ar-note: color-mix(in srgb, #f2b23a 13%, var(--ar-surface)); }
 }
 .ar-aud__note-t {
-  margin: 0 0 8px; display: flex; align-items: center; gap: 8px;
+  margin: 0; flex: 0 0 auto; display: flex; align-items: center; gap: 7px;
   font-family: var(--ar-mono); font-size: 10px;
   letter-spacing: 0.12em; text-transform: uppercase; color: #8a6d2f;
 }
@@ -6546,14 +6550,19 @@ a.ar-about-proto__v:hover { text-decoration: underline; }
    block that is meant to catch the eye first. */
 .ar-aud__note-i {
   flex: 0 0 auto; display: inline-flex; align-items: center; justify-content: center;
-  width: 22px; height: 22px; border-radius: 50%;
+  width: 21px; height: 21px; border-radius: 50%;
   background: var(--ar-surface); color: var(--ar-accent);
   border: 1px solid color-mix(in srgb, var(--ar-accent) 30%, var(--ar-surface));
 }
+/* Content-sized, not equal thirds. Three columns of one third each left a
+   long fact hard against its neighbour and a short one trailing whitespace —
+   the gaps looked arbitrary because they were a consequence of the text
+   lengths rather than a decision. Flowing them puts the same space between
+   every pair. */
 .ar-aud__note-grid {
   list-style: none; margin: 0; padding: 0;
-  display: grid; grid-template-columns: repeat(3, 1fr); gap: 7px 20px;
-  align-items: start;
+  display: flex; flex-wrap: wrap; gap: 5px 26px;
+  align-items: center; flex: 1 1 auto; min-width: 0;
 }
 /* One line each, always. A caveat that wraps onto a second line in one column
    and not the others makes three equal facts look like one big one and two
@@ -6571,7 +6580,7 @@ a.ar-about-proto__v:hover { text-decoration: underline; }
 }
 
 @container (max-width: 720px) {
-  .ar-aud__note-grid { grid-template-columns: 1fr; gap: 9px; }
+  .ar-aud__note-grid { flex-direction: column; align-items: flex-start; gap: 7px; }
 }
 
 /* The tiles stay WHITE. Softening them read as "these are less important",
