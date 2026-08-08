@@ -225,9 +225,14 @@ export default {
       <p v-if="discoverLine" class="ar-srcline ar-perf__trend">{{ discoverLine }}</p>
       <p class="ar-srcline">
         These numbers come from <strong>{{ sourceLabel }}</strong><template v-if="rangeText">, covering {{ rangeText }}</template>.
-        This screen counts <strong>people</strong> using classic search — machines reading your
+        <!-- "This CARD", not "this screen". True when Search Performance stood
+             alone; false since it moved onto AI Visibility, where the two cards
+             beside it (Bing's index, Google's index) count machines and nothing
+             else. A sentence that claims the whole screen for one audience is
+             the same over-reach the AI filter had. -->
+        This card counts <strong>people</strong> using classic search — machines reading your
         site live on the Readers and Request Log screens<template v-if="probeShare > 0"> (and when automated probes
-        sneak into {{ sourceLabel }}'s own numbers, this screen says so right beside them)</template>.
+        sneak into {{ sourceLabel }}'s own numbers, this card says so right beside them)</template>.
         <template v-if="bothConnected">Switch above to see what {{ active_source === 'google' ? 'Bing' : 'Google' }} reported instead — the two count different searchers, so they never match exactly.</template>
       </p>
 
