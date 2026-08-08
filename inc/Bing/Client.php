@@ -194,11 +194,16 @@ final class Client {
 	}
 
 	/**
-	 * Normalize Bing's QueryStats DTO rows: { key, clicks, impressions,
-	 * position }. Position prefers the impression-weighted average and is
-	 * filterable (`agentimus_bing_position_scale`) because the DTO's position
-	 * scale gets confirmed against the live API at connect time — the parser
-	 * stays tolerant instead of assuming.
+	 * Normalize Bing's QueryStats DTO rows: { key, date_at, clicks,
+	 * impressions, position }. Position prefers the impression-weighted
+	 * average and is filterable (`agentimus_bing_position_scale`) because the
+	 * DTO's position scale gets confirmed against the live API at connect
+	 * time — the parser stays tolerant instead of assuming.
+	 *
+	 * ⚠️ These rows are WEEKLY BUCKETS, not aggregates: the DTO's Date field
+	 * (verified live: always a Friday, exactly 7 days apart, ~16 months deep)
+	 * stamps which week each row counts. Discarding it — as this parser once
+	 * did — turns "top queries" into a 16-month sum posing as a window.
 	 *
 	 * @param mixed  $d         The WCF "d" payload.
 	 * @param string $key_field Which field carries the row's key (query text, or the page URL).
@@ -224,6 +229,9 @@ final class Client {
 			$position = (float) ( $row['AvgImpressionPosition'] ?? $row['AvgClickPosition'] ?? 0 );
 			$rows[]   = array(
 				'key'         => $key,
+				// '' when the DTO drifts — callers treat a dateless row as
+				// in-window rather than silently dropping data.
+				'date_at'     => self::wcf_date( (string) ( $row['Date'] ?? '' ) ),
 				'clicks'      => (int) ( $row['Clicks'] ?? 0 ),
 				'impressions' => (int) ( $row['Impressions'] ?? 0 ),
 				'position'    => round( $position / $scale, 2 ),

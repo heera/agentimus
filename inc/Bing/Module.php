@@ -207,6 +207,14 @@ final class Module {
 	 * 2 + QUERY_TOP_PAGES HTTP calls, once a day. Fail-open: any error keeps
 	 * the previous snapshot and records itself.
 	 *
+	 * ⚠️ Bing's query endpoints return WEEKLY buckets spanning ~16 months —
+	 * one row per query per week ({@see Client::qstats_rows()}). Summing them
+	 * whole put a 16-month figure under a card whose Google neighbour covers
+	 * 56 days, labelled as if it were the same span. So the snapshot keeps the
+	 * exact trailing window Google uses, anchored where Bing's own reporting
+	 * ends, aggregates the buckets inside it, and states that range on every
+	 * row — the range the card prints is now the range the data covers.
+	 *
 	 * @param string $key  API key, plaintext.
 	 * @param string $site WMT site URL.
 	 * @return void
@@ -220,24 +228,22 @@ final class Module {
 			$this->settings->record_query_poll( (string) $site_wide['error'] );
 			return;
 		}
-		foreach ( (array) $site_wide['rows'] as $row ) {
-			$rows[] = array(
-				'query'       => $row['key'],
-				'page_url'    => '',
-				'page_id'     => 0,
-				'clicks'      => $row['clicks'],
-				'impressions' => $row['impressions'],
-				'position'    => $row['position'],
-			);
-		}
 
-		// 2. Top pages, then each page's own queries.
+		// 2. Top pages, fetched before any row is shaped: their buckets help
+		//    anchor the window everything in this snapshot is measured over.
 		$pages = $this->client->page_stats( $key, $site );
 		if ( isset( $pages['error'] ) ) {
 			$this->settings->record_query_poll( (string) $pages['error'] );
 			return;
 		}
-		$page_rows = (array) $pages['rows'];
+
+		$window = self::bucket_window( array_merge( (array) $site_wide['rows'], (array) $pages['rows'] ) );
+
+		foreach ( self::window_aggregate( (array) $site_wide['rows'], $window ) as $row ) {
+			$rows[] = self::snapshot_row( $row, '', 0, $window );
+		}
+
+		$page_rows = self::window_aggregate( (array) $pages['rows'], $window );
 		usort( $page_rows, static function ( $a, $b ) {
 			return $b['impressions'] <=> $a['impressions'];
 		} );
@@ -257,20 +263,109 @@ final class Module {
 				continue; // One page's breakdown failing must not sink the snapshot.
 			}
 			$page_id = \Agentimus\Search\Pages::resolve( $page['key'] );
-			foreach ( (array) $per['rows'] as $row ) {
-				$rows[] = array(
-					'query'       => $row['key'],
-					'page_url'    => $page['key'],
-					'page_id'     => $page_id,
-					'clicks'      => $row['clicks'],
-					'impressions' => $row['impressions'],
-					'position'    => $row['position'],
-				);
+			foreach ( self::window_aggregate( (array) $per['rows'], $window ) as $row ) {
+				$rows[] = self::snapshot_row( $row, $page['key'], $page_id, $window );
 			}
 		}
 
 		\Agentimus\Search\Table::replace( 'bing', $rows );
 		$this->settings->record_query_poll( '' );
+	}
+
+	/**
+	 * The snapshot's window over Bing's weekly buckets: Google's own span
+	 * ({@see \Agentimus\Google\Module::WINDOW_DAYS} — referenced, not copied,
+	 * so the two sources can never quietly drift apart), anchored at the
+	 * newest bucket Bing reported rather than at today — a stale poll must
+	 * not silently shrink the set.
+	 *
+	 * @param array $rows Normalized qstats rows (with date_at).
+	 * @return array{start:string,end:string}|null Null when no row carries a date.
+	 */
+	public static function bucket_window( array $rows ) {
+		$end = '';
+		foreach ( $rows as $row ) {
+			$date = isset( $row['date_at'] ) ? (string) $row['date_at'] : '';
+			if ( $date > $end ) {
+				$end = $date;
+			}
+		}
+		if ( '' === $end ) {
+			return null;
+		}
+		$anchor = strtotime( $end . ' 00:00:00 +0000' );
+		return array(
+			'start' => gmdate( 'Y-m-d', $anchor - ( ( \Agentimus\Google\Module::WINDOW_DAYS - 1 ) * DAY_IN_SECONDS ) ),
+			'end'   => $end,
+		);
+	}
+
+	/**
+	 * Collapse weekly buckets into one row per key over the window: clicks and
+	 * impressions summed, position impression-weighted (falling back to a
+	 * plain mean when every kept bucket has zero impressions — rare, but a
+	 * division by zero must not be how we learn it happens).
+	 *
+	 * A dateless row (DTO drift) is kept rather than dropped: over-counting a
+	 * malformed week is a smaller lie than silently losing real traffic.
+	 *
+	 * @param array      $rows   Normalized qstats rows.
+	 * @param array|null $window From bucket_window(); null = no filtering.
+	 * @return array<int,array{key:string,clicks:int,impressions:int,position:float}>
+	 */
+	public static function window_aggregate( array $rows, $window ) {
+		$by = array();
+		foreach ( $rows as $row ) {
+			$date = isset( $row['date_at'] ) ? (string) $row['date_at'] : '';
+			if ( null !== $window && '' !== $date && ( $date < $window['start'] || $date > $window['end'] ) ) {
+				continue;
+			}
+			$key = (string) $row['key'];
+			if ( ! isset( $by[ $key ] ) ) {
+				$by[ $key ] = array( 'key' => $key, 'clicks' => 0, 'impressions' => 0, 'weight' => 0.0, 'pos_sum' => 0.0, 'buckets' => 0 );
+			}
+			$by[ $key ]['clicks']      += (int) $row['clicks'];
+			$by[ $key ]['impressions'] += (int) $row['impressions'];
+			$by[ $key ]['weight']      += (float) $row['position'] * (int) $row['impressions'];
+			$by[ $key ]['pos_sum']     += (float) $row['position'];
+			$by[ $key ]['buckets']++;
+		}
+
+		$out = array();
+		foreach ( $by as $row ) {
+			$row['position'] = $row['impressions'] > 0
+				? round( $row['weight'] / $row['impressions'], 2 )
+				: round( $row['pos_sum'] / max( 1, $row['buckets'] ), 2 );
+			unset( $row['weight'], $row['pos_sum'], $row['buckets'] );
+			$out[] = $row;
+		}
+		return $out;
+	}
+
+	/**
+	 * One aggregated row shaped for {@see \Agentimus\Search\Table::replace()},
+	 * carrying the window it was measured over.
+	 *
+	 * @param array      $row      An aggregated {key, clicks, impressions, position} row.
+	 * @param string     $page_url The page this row belongs to, '' for site-wide.
+	 * @param int        $page_id  The resolved post ID, 0 when none.
+	 * @param array|null $window   The snapshot's window, when one was found.
+	 * @return array
+	 */
+	private static function snapshot_row( array $row, $page_url, $page_id, $window ) {
+		$out = array(
+			'query'       => $row['key'],
+			'page_url'    => (string) $page_url,
+			'page_id'     => (int) $page_id,
+			'clicks'      => $row['clicks'],
+			'impressions' => $row['impressions'],
+			'position'    => $row['position'],
+		);
+		if ( null !== $window ) {
+			$out['range_start'] = $window['start'];
+			$out['range_end']   = $window['end'];
+		}
+		return $out;
 	}
 
 	/**
