@@ -446,15 +446,28 @@ export default {
       </p>
     </section>
 
-    <section class="ar-card ar-ai">
-      <div class="ar-card__titlewrap">
-        <h2 class="ar-card__title">
-          Narrow it down
+    <!-- A STRIP, not a card.
+         As a full-width card carrying the same weight as the data cards, this
+         implied it governed the screen — and its old lead, "narrow everything
+         below", said so outright. It does not. It governs the cards beneath it
+         and nothing else: the two analytics cards at the top read a different
+         dataset entirely, and the "AI sent you" hero directly above reads the
+         audience payload rather than this filtered report. Someone who picked
+         one assistant and glanced up at an unchanged hero had every reason to
+         think the control was broken.
+         So it stops being a section. The controls already carry their own
+         tinted box; that is frame enough for a toolbar, and the line above it
+         now states its reach instead of overstating it. -->
+    <div class="ar-rdfilter">
+      <div class="ar-rdfilter__bar">
+        <p class="ar-rdfilter__t">
+          Filter the cards below
           <span v-if="rangeLabel" class="ar-card__tag">{{ rangeLabel }}</span>
-        </h2>
+        </p>
+        <p class="ar-rdfilter__scope">The totals above don’t change.</p>
         <button
           type="button"
-          class="ar-log__refresh"
+          class="ar-log__refresh ar-rdfilter__reload"
           :class="{ 'is-busy': loading }"
           :disabled="loading"
           :aria-label="loading ? 'Reloading AI traffic…' : 'Reload AI traffic'"
@@ -465,10 +478,6 @@ export default {
           <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="23 4 23 10 17 10" /><polyline points="1 20 1 14 7 14" /><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" /></svg>
         </button>
       </div>
-      <p class="ar-card__lead">
-        Narrow everything below to one assistant, one section of the site, or a
-        different stretch of time.
-      </p>
       <!-- The CDN caveat was three lines of prose interrupting the flow between
            a heading and its controls. Folded: it matters, and it does not
            matter more than getting to the filters. -->
@@ -487,9 +496,13 @@ export default {
            daily count per (source, path) and nothing that could stand for a person. -->
       <div class="ar-log__filters">
         <div class="ar-log__row">
+          <!-- "Sent by", not "Assistant". On a screen whose own subtitle
+               promises the machines are in the Request Log, a bare "Assistant"
+               reads as a machine that visited. It is not: it names WHO REFERRED
+               the person, and the relationship is what the label has to say. -->
           <div class="ar-log__field">
-            <span class="ar-log__label">Assistant</span>
-            <SelectMenu v-model="filters.source" :options="sourceOptions" aria-label="Filter by assistant" />
+            <span class="ar-log__label">Sent by</span>
+            <SelectMenu v-model="filters.source" :options="sourceOptions" aria-label="Filter by the assistant that sent them" />
           </div>
           <div class="ar-log__field ar-log__field--ua">
             <span class="ar-log__label">Landing page starts with</span>
@@ -532,7 +545,7 @@ export default {
           it’ll show here.
         </p>
       </template>
-    </section>
+    </div>
 
     <!-- Composition — its own card, like the dashboard's By-endpoint /
          Top-clients pair: where the visits came from, and where they landed.
