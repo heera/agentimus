@@ -136,6 +136,20 @@ export default {
     topLanding() {
       return this.landingPages.length ? this.landingPages[0] : null;
     },
+    // GA4's per-engine arrivals — Bing's human traffic measured by the same
+    // instrument as Google's. `null`/empty means GA4 hasn't said (an older
+    // snapshot, or a poll away), not "no engine sent anyone".
+    engines() {
+      return (this.ga && this.ga.engineBySource) || [];
+    },
+    engineTotal() {
+      return this.gaOn && this.ga.engineSessions !== null && this.ga.engineSessions !== undefined
+        ? this.ga.engineSessions
+        : null;
+    },
+    engineLine() {
+      return this.engines.map((e) => `${e.source} ${this.n(e.hits)}`).join(' · ');
+    },
     // Everyone's busiest pages, from analytics.
     allPages() {
       return (this.ga && this.ga.pages) || [];
@@ -378,6 +392,17 @@ export default {
           <p class="ar-rd__cs">{{ ga.engagedPct }}% stayed to read</p>
         </div>
       </div>
+
+      <!-- Which engines sent them — GA4's own attribution, organic clicks
+           only, so Bing's people are counted by the same instrument as
+           Google's. The Search Performance card counts what the ENGINES
+           report; the sentence says so before anyone compares the two. -->
+      <p v-if="engineTotal" class="ar-rd__note">
+        Search engines sent <strong>{{ n(engineTotal) }}</strong> of these visits —
+        {{ engineLine }}. That’s Google Analytics’ own attribution; the Search
+        Performance card counts what the engines themselves report, so the two
+        won’t match exactly.
+      </p>
 
       <p v-if="ga.stale" class="ar-rd__note">
         These haven’t refreshed in over two days — they’re the last good numbers, not today’s.

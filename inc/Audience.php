@@ -178,6 +178,11 @@ final class Audience {
 			'aiSessions'    => null,
 			'otherSessions' => null,
 			'aiBySource'    => array(),
+			// GA4's count of arrivals each search engine sent — the human
+			// half's answer to "from Bing, like Google": one instrument
+			// measuring both engines the same way.
+			'engineSessions' => null,
+			'engineBySource' => array(),
 			'stale'         => false,
 			'fetched'       => 0,
 			'window'        => (int) $window,
@@ -228,6 +233,10 @@ final class Audience {
 			// the names people actually use — nobody thinks of their readers as
 			// arriving from "gemini.google.com".
 			'aiBySource' => null === $split ? array() : self::name_sources( isset( $split['bySource'] ) ? (array) $split['bySource'] : array() ),
+			// GA4's per-engine arrivals, organic only. Older snapshots predate
+			// the engines key; null keeps "no opinion yet" distinct from zero.
+			'engineSessions' => null === $split || ! isset( $split['engines'] ) ? null : array_sum( array_map( 'intval', (array) $split['engines'] ) ),
+			'engineBySource' => null === $split || ! isset( $split['engines'] ) ? array() : self::name_engines( (array) $split['engines'] ),
 			// Older than two polls. A number that has quietly stopped moving must
 			// be able to say so; silence looks exactly like a flat week.
 			'stale'     => $fetched > 0 && ( time() - $fetched ) > 2 * DAY_IN_SECONDS,
@@ -283,6 +292,40 @@ final class Audience {
 		$out = array();
 		foreach ( array_slice( $merged, 0, 6, true ) as $label => $hits ) {
 			$out[] = array( 'source' => $label, 'hits' => (int) $hits );
+		}
+		return $out;
+	}
+
+	/**
+	 * The canonical engine keys as the names on the boxes people search in.
+	 *
+	 * The keys are a fixed vocabulary ({@see \Agentimus\Google\Analytics::ENGINE_SOURCES}),
+	 * but an unknown one — a filter added an engine — keeps its key as the
+	 * label rather than vanishing: same rule as {@see name_sources()}.
+	 *
+	 * @param array<string,int> $engines engine key => sessions, sorted desc.
+	 * @return array<int,array{source:string,hits:int}>
+	 */
+	private static function name_engines( array $engines ) {
+		$names = array(
+			'google'     => 'Google',
+			'bing'       => 'Bing',
+			'duckduckgo' => 'DuckDuckGo',
+			'yahoo'      => 'Yahoo',
+			'ecosia'     => 'Ecosia',
+			'brave'      => 'Brave',
+			'startpage'  => 'Startpage',
+			'qwant'      => 'Qwant',
+			'baidu'      => 'Baidu',
+			'yandex'     => 'Yandex',
+		);
+
+		$out = array();
+		foreach ( array_slice( $engines, 0, 6, true ) as $key => $hits ) {
+			$out[] = array(
+				'source' => isset( $names[ $key ] ) ? $names[ $key ] : (string) $key,
+				'hits'   => (int) $hits,
+			);
 		}
 		return $out;
 	}

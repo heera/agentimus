@@ -167,4 +167,76 @@ final class GoogleAnalyticsTest extends TestCase {
 		$this->assertSame( 0, $out['totals']['engagedPct'] );
 		$this->assertSame( 0.0, $out['totals']['perVisit'] );
 	}
+
+	// ── The search-engine split riding the same rows ───────────────────────
+
+	/** Queue a runReport response from [source, medium, sessions] triples. */
+	private function queue_source_mediums( array $triples ) {
+		$rows = array();
+		foreach ( $triples as $t ) {
+			$rows[] = array(
+				'dimensionValues' => array( array( 'value' => (string) $t[0] ), array( 'value' => (string) $t[1] ) ),
+				'metricValues'    => array( array( 'value' => (string) $t[2] ) ),
+			);
+		}
+		$GLOBALS['_af_http_queue'][] = array(
+			'response' => array( 'code' => 200 ),
+			'body'     => (string) wp_json_encode( array( 'rows' => $rows ) ),
+		);
+	}
+
+	/**
+	 * The point of the whole feature: Bing's people counted by the same
+	 * instrument as Google's — organic only, so a paid click can't pose as
+	 * a search result, and Copilot's chat referrals can't pose as Bing.
+	 */
+	public function test_engines_are_split_out_organic_only() {
+		$this->queue_source_mediums( array(
+			array( 'google', 'organic', 500 ),
+			array( 'bing', 'organic', 60 ),
+			array( 'google', 'cpc', 40 ),          // Paid — not a search result.
+			array( 'bing.com/chat', 'referral', 10 ), // Copilot: AI, never Bing.
+			array( 'duckduckgo', 'organic', 7 ),
+			array( 'facebook.com', 'referral', 20 ),
+		) );
+
+		$out = ( new Analytics() )->ai_split( 'tok', '12345', '2026-07-10', '2026-08-08' );
+
+		$this->assertSame( array( 'google' => 500, 'bing' => 60, 'duckduckgo' => 7 ), $out['split']['engines'] );
+		$this->assertSame( 10, $out['split']['ai'], 'the chat referral landed on the AI side' );
+		$this->assertSame( 637, $out['split']['total'], 'the total keeps counting every row, paid and social included' );
+	}
+
+	/** Rows GA4 sent before the medium dimension existed still parse: no medium, no engine claim. */
+	public function test_a_row_without_a_medium_is_counted_but_never_as_an_engine() {
+		$this->queue_sources( array( 'bing' => 90, 'chatgpt.com' => 5 ) );
+
+		$out = ( new Analytics() )->ai_split( 'tok', '12345', '2026-07-10', '2026-08-08' );
+
+		$this->assertSame( array(), $out['split']['engines'] );
+		$this->assertSame( 95, $out['split']['total'] );
+		$this->assertSame( 5, $out['split']['ai'] );
+	}
+
+	public function test_engine_matching_holds_the_same_boundary_as_the_ai_list() {
+		$this->assertSame( 'bing', Analytics::engine_source( 'bing' ) );
+		$this->assertSame( 'bing', Analytics::engine_source( 'bing.com' ) );
+		$this->assertSame( 'bing', Analytics::engine_source( 'cn.bing.com' ), 'a real subdomain counts' );
+		$this->assertSame( 'yandex', Analytics::engine_source( 'yandex.ru' ) );
+		$this->assertSame( '', Analytics::engine_source( 'notbing.com' ), 'never a bare substring' );
+		$this->assertSame( '', Analytics::engine_source( 'bing.com.phish.example' ), 'a lookalike suffix host is not Bing' );
+		$this->assertSame( '', Analytics::engine_source( '(direct)' ) );
+	}
+
+	public function test_the_engine_list_is_filterable() {
+		$f = function ( $map ) {
+			$map['kagi.com'] = 'kagi';
+			return $map;
+		};
+		add_filter( 'agentimus_ga4_engine_sources', $f );
+
+		$this->assertSame( 'kagi', Analytics::engine_source( 'kagi.com' ) );
+
+		remove_filter( 'agentimus_ga4_engine_sources', $f );
+	}
 }

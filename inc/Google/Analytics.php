@@ -178,7 +178,8 @@ final class Analytics {
 	);
 
 	/**
-	 * GA4's own count of readers an assistant sent, beside its total.
+	 * GA4's own count of readers an assistant sent, beside its total — and,
+	 * from the same rows, its count of readers each SEARCH ENGINE sent.
 	 *
 	 * The point of asking Google this when the plugin already counts referrals
 	 * itself: the two disagree, and the disagreement is informative. GA4 misses
@@ -187,11 +188,18 @@ final class Analytics {
 	 * different instruments — and a screen showing both, with the reason, tells
 	 * an owner more than either number pretending to be the truth.
 	 *
+	 * The engine split rides along for the same reason: Search Console and
+	 * Webmaster Tools report the engines' clicks, GA4 reports the arrivals it
+	 * saw — one instrument per engine on each side, so Bing's human traffic is
+	 * measured exactly the way Google's is. Engines count ORGANIC sessions
+	 * only (the medium dimension exists so a paid click can't pose as a search
+	 * result); the AI split keeps summing across mediums, unchanged.
+	 *
 	 * @param string $token    Bearer token.
 	 * @param string $property The GA4 property ID.
 	 * @param string $start    Y-m-d start date.
 	 * @param string $end      Y-m-d end date.
-	 * @return array { split?: array{ai:int,other:int,total:int,bySource:array}, error?: string }
+	 * @return array { split?: array{ai:int,other:int,total:int,bySource:array,engines:array}, error?: string }
 	 */
 	public function ai_split( $token, $property, $start, $end ) {
 		$out = $this->run_report(
@@ -199,12 +207,13 @@ final class Analytics {
 			$property,
 			array(
 				'dateRanges' => array( array( 'startDate' => (string) $start, 'endDate' => (string) $end ) ),
-				'dimensions' => array( array( 'name' => 'sessionSource' ) ),
+				'dimensions' => array( array( 'name' => 'sessionSource' ), array( 'name' => 'sessionMedium' ) ),
 				'metrics'    => array( array( 'name' => 'sessions' ) ),
 				'orderBys'   => array( array( 'desc' => true, 'metric' => array( 'metricName' => 'sessions' ) ) ),
 				// Generous: the tail is summed into "other", so a low cap would
-				// quietly shrink the total this split is measured against.
-				'limit'      => 250,
+				// quietly shrink the total this split is measured against —
+				// raised with the medium dimension, which multiplies the rows.
+				'limit'      => 1000,
 			)
 		);
 		if ( isset( $out['error'] ) ) {
@@ -214,20 +223,34 @@ final class Analytics {
 		$ai        = 0;
 		$total     = 0;
 		$by_source = array();
+		$engines   = array();
 
 		foreach ( (array) ( $out['data']['rows'] ?? array() ) as $row ) {
-			$source   = strtolower( (string) ( ( (array) ( $row['dimensionValues'] ?? array() ) )[0]['value'] ?? '' ) );
+			$dims     = (array) ( $row['dimensionValues'] ?? array() );
+			$source   = strtolower( (string) ( $dims[0]['value'] ?? '' ) );
+			$medium   = strtolower( (string) ( $dims[1]['value'] ?? '' ) );
 			$sessions = (int) round( (float) ( ( (array) ( $row['metricValues'] ?? array() ) )[0]['value'] ?? 0 ) );
 			$total   += $sessions;
 
-			if ( '' === $source || ! self::is_ai_source( $source ) ) {
+			if ( '' === $source ) {
 				continue;
 			}
-			$ai                  += $sessions;
-			$by_source[ $source ] = ( isset( $by_source[ $source ] ) ? $by_source[ $source ] : 0 ) + $sessions;
+			// AI first: bing.com/chat must land on Copilot, never on Bing.
+			if ( self::is_ai_source( $source ) ) {
+				$ai                  += $sessions;
+				$by_source[ $source ] = ( isset( $by_source[ $source ] ) ? $by_source[ $source ] : 0 ) + $sessions;
+				continue;
+			}
+			if ( 'organic' === $medium ) {
+				$engine = self::engine_source( $source );
+				if ( '' !== $engine ) {
+					$engines[ $engine ] = ( isset( $engines[ $engine ] ) ? $engines[ $engine ] : 0 ) + $sessions;
+				}
+			}
 		}
 
 		arsort( $by_source );
+		arsort( $engines );
 
 		return array(
 			'split' => array(
@@ -235,6 +258,7 @@ final class Analytics {
 				'other'    => max( 0, $total - $ai ),
 				'total'    => $total,
 				'bySource' => $by_source,
+				'engines'  => $engines,
 			),
 		);
 	}
@@ -276,6 +300,70 @@ final class Analytics {
 			}
 		}
 		return false;
+	}
+
+	/**
+	 * GA4 `sessionSource` spellings of the classic search engines, mapped to
+	 * one canonical key each — GA4 writes the bare name for organic traffic
+	 * ('bing') and the host for the odd referral-shaped arrival ('bing.com'),
+	 * and both mean the same engine.
+	 *
+	 * @var array<string,string>
+	 */
+	const ENGINE_SOURCES = array(
+		'google'          => 'google',
+		'google.com'      => 'google',
+		'bing'            => 'bing',
+		'bing.com'        => 'bing',
+		'duckduckgo'      => 'duckduckgo',
+		'duckduckgo.com'  => 'duckduckgo',
+		'yahoo'           => 'yahoo',
+		'yahoo.com'       => 'yahoo',
+		'ecosia'          => 'ecosia',
+		'ecosia.org'      => 'ecosia',
+		'brave'           => 'brave',
+		'search.brave.com' => 'brave',
+		'startpage'       => 'startpage',
+		'startpage.com'   => 'startpage',
+		'qwant'           => 'qwant',
+		'qwant.com'       => 'qwant',
+		'baidu'           => 'baidu',
+		'baidu.com'       => 'baidu',
+		'yandex'          => 'yandex',
+		'yandex.ru'       => 'yandex',
+		'yandex.com'      => 'yandex',
+	);
+
+	/**
+	 * The canonical engine a GA4 `sessionSource` value names, or ''.
+	 *
+	 * Exact match, or a subdomain of a listed host (cn.bing.com) — never a
+	 * bare substring, for the same reason {@see is_ai_source()} refuses one.
+	 * Callers check {@see is_ai_source()} FIRST: bing.com/chat is Copilot.
+	 * Filterable, like the AI list, because spellings drift.
+	 *
+	 * @param string $source Lowercased sessionSource value.
+	 * @return string
+	 */
+	public static function engine_source( $source ) {
+		/**
+		 * Filter the GA4 session sources counted as classic search engines.
+		 *
+		 * @param array  $map    source spelling => canonical engine key.
+		 * @param string $source The value being tested.
+		 */
+		$map = (array) apply_filters( 'agentimus_ga4_engine_sources', self::ENGINE_SOURCES, $source );
+
+		if ( isset( $map[ $source ] ) ) {
+			return (string) $map[ $source ];
+		}
+		foreach ( $map as $host => $engine ) {
+			$host = strtolower( (string) $host );
+			if ( false !== strpos( $host, '.' ) && substr( $source, -( strlen( $host ) + 1 ) ) === '.' . $host ) {
+				return (string) $engine;
+			}
+		}
+		return '';
 	}
 
 	/**
