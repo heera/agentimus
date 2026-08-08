@@ -299,6 +299,60 @@ final class Focus {
 	}
 
 	/**
+	 * A search's numbers, in words rather than in Search Console's shorthand.
+	 *
+	 * "#4.2 · 2,140 shown · 63 visits" is three pieces of jargon to anyone who
+	 * has never opened Search Console — and this panel is shown to everyone who
+	 * writes a post, not to the people who already know what an impression is.
+	 *
+	 * @param array $row A reported search: position, impressions, clicks.
+	 * @return string
+	 */
+	public static function plain_stats( array $row ) {
+		$position = (float) ( isset( $row['position'] ) ? $row['position'] : 0 );
+		$shown    = (int) ( isset( $row['impressions'] ) ? $row['impressions'] : 0 );
+		$clicks   = (int) ( isset( $row['clicks'] ) ? $row['clicks'] : 0 );
+
+		if ( $shown <= 0 ) {
+			return __( 'You typed this one — Google hasn’t reported it', 'agentimus' );
+		}
+
+		return sprintf(
+			/* translators: 1: rounded average position, 2: impressions, 3: clicks. */
+			__( 'Usually %1$s in results · seen %2$s times · %3$s came to read', 'agentimus' ),
+			// Rounded and ordinal: "usually 4th" is a place somebody can picture;
+			// "#4.2" is a decimal nobody can.
+			self::ordinal( (int) max( 1, round( $position ) ) ),
+			number_format_i18n( $shown ),
+			number_format_i18n( $clicks )
+		);
+	}
+
+	/**
+	 * 1 → 1st, 2 → 2nd, 11 → 11th.
+	 *
+	 * @param int $n A place in the results.
+	 * @return string
+	 */
+	private static function ordinal( $n ) {
+		$n   = (int) $n;
+		$mod = $n % 100;
+		if ( $mod >= 11 && $mod <= 13 ) {
+			return $n . 'th';
+		}
+		switch ( $n % 10 ) {
+			case 1:
+				return $n . 'st';
+			case 2:
+				return $n . 'nd';
+			case 3:
+				return $n . 'rd';
+			default:
+				return $n . 'th';
+		}
+	}
+
+	/**
 	 * How many days the reported searches cover, from the snapshot's own range.
 	 *
 	 * Read rather than assumed: the poll window is configurable and the engines
@@ -395,17 +449,21 @@ final class Focus {
 		echo '</div>';
 
 		if ( $searches ) {
-			echo '<p class="agentimus-fieldhead" style="margin-top:12px">' . esc_html__( 'Also finding this page', 'agentimus' ) . '</p>';
+			// "Also finding this page" named the list without saying what the
+			// radios beneath it DO — so a reader who has never opened Search
+			// Console was asked to make a choice with no idea of its effect.
+			// The heading is the question, and the line under it is the answer.
+			echo '<p class="agentimus-fieldhead" style="margin-top:12px">' . esc_html__( 'Which search should this page answer?', 'agentimus' ) . '</p>';
 			$days = self::window_days();
 			echo '<p class="agentimus-fieldhint">'
 				. esc_html(
 					$days > 0
 						? sprintf(
 							/* translators: %d: number of days the search report covers. */
-							__( 'Last %d days. Scraper probes are left out.', 'agentimus' ),
+							__( 'Google showed this page for these in the last %d days. Pick one and the check above measures against it.', 'agentimus' ),
 							$days
 						)
-						: __( 'The searches this page is shown for. Scraper probes are left out.', 'agentimus' )
+						: __( 'Google showed this page for these. Pick one and the check above measures against it.', 'agentimus' )
 				)
 				. '</p>';
 
@@ -419,23 +477,17 @@ final class Focus {
 					esc_attr( $row['query'] ),
 					$checked ? ' checked="checked"' : '',
 					esc_html( $row['query'] ),
-					esc_html(
-						sprintf(
-							/* translators: 1: average position, 2: impressions, 3: clicks. */
-							__( '#%1$s · %2$s shown · %3$s visits', 'agentimus' ),
-							number_format_i18n( $row['position'], 1 ),
-							number_format_i18n( $row['impressions'] ),
-							number_format_i18n( $row['clicks'] )
-						)
-					)
+					esc_html( self::plain_stats( $row ) )
 				);
 			}
 			printf(
 				'<label class="agentimus-focus__opt"><input type="radio" name="agentimus_focus_pick" value="%1$s"%2$s />'
-					. '<span class="agentimus-focus__q">%3$s</span></label>',
+					. '<span class="agentimus-focus__q">%3$s</span>'
+					. '<span class="agentimus-focus__n">%4$s</span></label>',
 				esc_attr( '__custom__' ),
 				'' !== $custom ? ' checked="checked"' : '',
-				esc_html__( 'Something else:', 'agentimus' )
+				esc_html__( 'Something I’ll type instead', 'agentimus' ),
+				esc_html__( 'For a search Google hasn’t reported yet', 'agentimus' )
 			);
 			echo '</div>';
 		} else {
@@ -498,13 +550,7 @@ final class Focus {
 		$stats = '';
 		foreach ( $searches as $row ) {
 			if ( $row['query'] === $query ) {
-				$stats = sprintf(
-					/* translators: 1: average position, 2: impressions, 3: clicks. */
-					__( '#%1$s · %2$s shown · %3$s visits', 'agentimus' ),
-					number_format_i18n( $row['position'], 1 ),
-					number_format_i18n( $row['impressions'] ),
-					number_format_i18n( $row['clicks'] )
-				);
+				$stats = self::plain_stats( $row );
 				break;
 			}
 		}
@@ -752,8 +798,8 @@ final class Focus {
 			. '.agentimus-focus__opt{display:grid;grid-template-columns:18px minmax(0,1fr);gap:2px 4px;align-items:start;cursor:pointer}'
 			. '.agentimus-focus__opt input{margin:2px 0 0}'
 			. '.agentimus-focus__q{font-size:12.5px;color:#1e1e1e;overflow-wrap:anywhere;line-height:1.35}'
-			. '.agentimus-focus__n{grid-column:2;font-size:10.5px;color:#646970;font-variant-numeric:tabular-nums}'
-			. '.agentimus-focus__now{border:1px solid #146b64;border-left-width:3px;border-radius:2px;background:#f2f8f7;padding:8px 10px;margin:0 0 8px}.agentimus-focus__nowq{display:block;font-size:13.5px;font-weight:600;color:#1e1e1e;line-height:1.35;overflow-wrap:anywhere}.agentimus-focus__nown{display:block;margin-top:2px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:10.5px;color:#50575e;font-variant-numeric:tabular-nums}.agentimus-focus__which{margin:10px 0 2px;font-size:12px;font-weight:600;color:#1e1e1e;overflow-wrap:anywhere}.agentimus-focus__which:first-child{margin-top:0}.agentimus-focus__chiplabel{margin:10px 0 4px;font-size:11px;color:#646970}.agentimus-focus__chips{display:flex;flex-wrap:wrap;gap:5px;margin:0 0 6px}.agentimus-focus__chip{display:inline-flex;align-items:center;gap:4px;font-size:12px;line-height:1.6;padding:2px 4px 2px 10px;border-radius:999px;color:#1e1e1e;background:#fff;border:1px solid #c3c4c7}.agentimus-focus__chipx{appearance:none;border:0;background:none;cursor:pointer;color:#8c8f94;font-size:14px;line-height:1;padding:0 4px;border-radius:999px}.agentimus-focus__chipx:hover{color:#b32d2e;background:#f6e7e7}.agentimus-focus__absent{margin:4px 0 0;font-size:11px;color:#8c8f94}.agentimus-focus__todo{margin:8px 0 0;padding-left:9px;border-left:2px solid #146b64;font-size:12px;line-height:1.5;color:#1e1e1e}.agentimus-focus__text{margin:0 0 8px}'
+			. '.agentimus-focus__n{grid-column:2;font-size:11px;color:#646970;line-height:1.45}'
+			. '.agentimus-focus__now{border:1px solid #146b64;border-left-width:3px;border-radius:2px;background:#f2f8f7;padding:8px 10px;margin:0 0 8px}.agentimus-focus__nowq{display:block;font-size:13.5px;font-weight:600;color:#1e1e1e;line-height:1.35;overflow-wrap:anywhere}.agentimus-focus__nown{display:block;margin-top:3px;font-size:11.5px;color:#50575e}.agentimus-focus__which{margin:10px 0 2px;font-size:12px;font-weight:600;color:#1e1e1e;overflow-wrap:anywhere}.agentimus-focus__which:first-child{margin-top:0}.agentimus-focus__chiplabel{margin:10px 0 4px;font-size:11px;color:#646970}.agentimus-focus__chips{display:flex;flex-wrap:wrap;gap:5px;margin:0 0 6px}.agentimus-focus__chip{display:inline-flex;align-items:center;gap:4px;font-size:12px;line-height:1.6;padding:2px 4px 2px 10px;border-radius:999px;color:#1e1e1e;background:#fff;border:1px solid #c3c4c7}.agentimus-focus__chipx{appearance:none;border:0;background:none;cursor:pointer;color:#8c8f94;font-size:14px;line-height:1;padding:0 4px;border-radius:999px}.agentimus-focus__chipx:hover{color:#b32d2e;background:#f6e7e7}.agentimus-focus__absent{margin:4px 0 0;font-size:11px;color:#8c8f94}.agentimus-focus__todo{margin:8px 0 0;padding-left:9px;border-left:2px solid #146b64;font-size:12px;line-height:1.5;color:#1e1e1e}.agentimus-focus__text{margin:0 0 8px}'
 			. '.agentimus-focus__verdict{display:flex;gap:5px;align-items:baseline;margin:0 0 4px;font-size:11.5px;line-height:1.45;color:#50575e}.agentimus-focus__mark{flex:0 0 auto}'
 			. '.agentimus-focus__verdict strong{font-weight:600}'
 			. '.agentimus-focus__verdict.is-ok strong{color:#2f7a4c}'
