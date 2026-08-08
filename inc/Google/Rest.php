@@ -202,6 +202,13 @@ final class Rest {
 		}
 
 		$this->google->set_ga4_property( $property );
+
+		// First numbers now, not tomorrow — the key connect and the Bing
+		// connect both extend this courtesy, and a Readers screen that just
+		// verified fine must not sit empty until the next daily cron. Only
+		// the GA4 half: the search snapshot wasn't touched by this consent.
+		( new Module( $this->google, $this->client ) )->run_analytics_poll();
+
 		return rest_ensure_response( $this->google->public_view() );
 	}
 

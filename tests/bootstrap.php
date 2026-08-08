@@ -324,6 +324,7 @@ namespace {
 	if ( ! function_exists( 'trailingslashit' ) )       { function trailingslashit( $s ) { return rtrim( (string) $s, '/\\' ) . '/'; } }
 	if ( ! function_exists( 'rest_url' ) )              { function rest_url( $p = '' ) { return 'https://example.test/wp-json/' . ltrim( (string) $p, '/' ); } }
 	if ( ! function_exists( 'rest_get_url_prefix' ) )   { function rest_get_url_prefix() { return 'wp-json'; } }
+	if ( ! function_exists( 'rest_ensure_response' ) )  { function rest_ensure_response( $r ) { return $r; } }
 	if ( ! function_exists( 'absint' ) )                { function absint( $n ) { return abs( (int) $n ); } }
 
 	// Autoload Agentimus\ classes from inc/ (runtime uses its own loader).

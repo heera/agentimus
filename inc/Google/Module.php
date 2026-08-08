@@ -226,6 +226,18 @@ final class Module {
 	}
 
 	/**
+	 * The GA4 half alone, for the moment Analytics is connected — the same
+	 * first-numbers-now courtesy the key connect and the Bing connect give.
+	 * Without it, a Readers screen that just verified successfully sits empty
+	 * until tomorrow's cron, looking broken to the owner who connected it.
+	 *
+	 * @return void
+	 */
+	public function run_analytics_poll() {
+		$this->poll_analytics();
+	}
+
+	/**
 	 * The GA4 half of the poll — everyone who came, not only the ones an engine
 	 * or an assistant sent.
 	 *

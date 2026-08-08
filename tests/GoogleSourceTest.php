@@ -267,4 +267,50 @@ PEM;
 		$this->assertFalse( $settings->connected() );
 		$this->assertSame( '', $settings->sa_json() );
 	}
+
+	/* -- the Analytics connect ---------------------------------------------- */
+
+	/**
+	 * Connecting Analytics must fill the Readers screen NOW, not tomorrow —
+	 * the key connect and the Bing connect both poll inline, and this route
+	 * once forgot to (found the day the flow first ran against real Google:
+	 * a clean verify, then an empty screen until the next daily cron).
+	 */
+	public function test_connecting_analytics_polls_inline_instead_of_waiting_for_cron() {
+		$sa_json = (string) wp_json_encode( array(
+			'type'         => 'service_account',
+			'client_email' => 'agentimus@project.iam.gserviceaccount.com',
+			'private_key'  => self::TEST_PRIVATE_KEY,
+		) );
+		$settings = new Settings();
+		$settings->connect( $sa_json, 'agentimus@project.iam.gserviceaccount.com', 'sc-domain:example.test' );
+
+		// The token mint, then the verify report. Everything the inline poll
+		// asks after that meets the queue's default empty answer — zero rows,
+		// which is fine: what this test pins is that the poll RAN.
+		$GLOBALS['_af_http_queue'][] = array(
+			'response' => array( 'code' => 200 ),
+			'body'     => '{"access_token":"tok-analytics","expires_in":3600}',
+		);
+		$GLOBALS['_af_http_queue'][] = array(
+			'response' => array( 'code' => 200 ),
+			'body'     => (string) wp_json_encode( array( 'rows' => array(
+				array( 'metricValues' => array(
+					array( 'value' => '10' ), array( 'value' => '5' ), array( 'value' => '12' ),
+					array( 'value' => '20' ), array( 'value' => '8' ), array( 'value' => '60' ),
+				) ),
+			) ) ),
+		);
+
+		$request = new \WP_REST_Request( 'POST', '/agentimus/v1/google/analytics' );
+		$request->set_param( 'property', '382790047' );
+		$out = ( new \Agentimus\Google\Rest( $settings, new Client() ) )->connect_analytics( $request );
+
+		$this->assertNotInstanceOf( \WP_Error::class, $out, 'the connect must verify cleanly' );
+		$this->assertTrue( $settings->analytics_connected() );
+
+		$snap = get_option( Module::GA4_OPTION );
+		$this->assertIsArray( $snap, 'the GA4 snapshot must exist the moment connect returns' );
+		$this->assertGreaterThan( 0, (int) $snap['fetched'], 'stamped by the inline poll, not left for the cron' );
+	}
 }
