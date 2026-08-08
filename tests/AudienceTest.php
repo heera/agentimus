@@ -202,6 +202,39 @@ final class AudienceTest extends TestCase {
 		$this->assertIsArray( $out['limits'] );
 	}
 
+	/* -- the GA4 pending state ---------------------------------------------- */
+
+	/**
+	 * Connected in Settings but never polled must be its OWN state: `pending`
+	 * true, carrying any recorded failure — so the screen can offer a fetch
+	 * button instead of telling the owner to connect a thing they just
+	 * connected (the exact words heera.it showed the day this was found).
+	 */
+	public function test_connected_but_never_polled_says_pending_not_connect_it() {
+		$GLOBALS['_af_options']['agentimus_google'] = array(
+			'sa_json'      => 'ciphertext',
+			'ga4_property' => '382790047',
+			'ga4_error'    => 'User does not have sufficient permissions for this property.',
+		);
+		try {
+			$out = Audience::from_stats( $this->stats() );
+			$all = $out['people']['all'];
+
+			$this->assertFalse( $all['connected'], 'no usable numbers yet — connected stays false for every consumer' );
+			$this->assertTrue( $all['pending'] );
+			$this->assertSame( 'User does not have sufficient permissions for this property.', $all['error'] );
+		} finally {
+			unset( $GLOBALS['_af_options']['agentimus_google'] );
+		}
+	}
+
+	public function test_not_connected_at_all_is_not_pending() {
+		$out = Audience::from_stats( $this->stats() );
+
+		$this->assertFalse( $out['people']['all']['connected'] );
+		$this->assertFalse( $out['people']['all']['pending'], 'nothing to fetch — the screen shows the connect pointer' );
+	}
+
 	/* -- the Bing sampling caveat ------------------------------------------- */
 
 	/**

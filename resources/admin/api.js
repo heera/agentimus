@@ -250,6 +250,7 @@ export function createApi(boot) {
     // Search Console, and turning it off leaves Search Console untouched.
     connectGoogleAnalytics: (property) => request('/google/analytics', { method: 'POST', body: JSON.stringify({ property }) }),
     disconnectGoogleAnalytics: () => request('/google/analytics', { method: 'DELETE' }),
+    refreshGoogleAnalytics: () => request('/google/analytics/refresh', { method: 'POST' }),
     getSearchOpportunities: (source) => request('/search/opportunities' + (source ? `?source=${encodeURIComponent(source)}` : '')),
     getSearchPerformance: (source) => request('/search/performance' + (source ? `?source=${encodeURIComponent(source)}` : '')),
     // Set aside (ignored=true) or restore (false) a page from the SEARCH worklist —

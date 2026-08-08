@@ -148,6 +148,15 @@ final class Rest {
 				'permission_callback' => array( $this, 'can_manage' ),
 			),
 		) );
+
+		// The fetch-now door: a connected-but-never-polled state must be
+		// leavable with one click on the screen that shows it — never by
+		// disconnect-and-reconnect gymnastics.
+		register_rest_route( self::NS, '/google/analytics/refresh', array(
+			'methods'             => \WP_REST_Server::CREATABLE,
+			'callback'            => array( $this, 'refresh_analytics' ),
+			'permission_callback' => array( $this, 'can_manage' ),
+		) );
 	}
 
 	/**
@@ -210,6 +219,33 @@ final class Rest {
 		( new Module( $this->google, $this->client ) )->run_analytics_poll();
 
 		return rest_ensure_response( $this->google->public_view() );
+	}
+
+	/**
+	 * POST /google/analytics/refresh — run the GA4 poll now.
+	 *
+	 * The Readers screen's fetch button. A failure comes back as the error the
+	 * poll recorded — Google's own words — so the invitation on screen can say
+	 * what went wrong instead of quietly staying empty.
+	 *
+	 * @return \WP_REST_Response|\WP_Error
+	 */
+	public function refresh_analytics() {
+		if ( ! $this->google->analytics_connected() ) {
+			return new \WP_Error(
+				'agentimus_ga4_off',
+				__( 'Analytics isn’t connected — connect it under Settings → Data sources first.', 'agentimus' ),
+				array( 'status' => 400 )
+			);
+		}
+
+		( new Module( $this->google, $this->client ) )->run_analytics_poll();
+
+		$error = (string) $this->google->get( 'ga4_error', '' );
+		if ( '' !== $error ) {
+			return new \WP_Error( 'agentimus_ga4_poll', $error, array( 'status' => 400 ) );
+		}
+		return rest_ensure_response( array( 'ok' => true ) );
 	}
 
 	/**

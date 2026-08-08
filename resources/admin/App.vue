@@ -2133,6 +2133,7 @@ export default {
           :audience="activity && activity.audience"
           @navigate="goTo"
           @flash="flash"
+          @reload-audience="refreshActivity"
         />
         <div v-if="settings.enable_activity && edgeConflicts.length" v-show="tab === 'log'" class="ar-edge-pins">
           <div v-for="c in edgeConflicts" :key="c.id" class="ar-edge-pin" :class="`ar-edge-pin--${c.level}`">

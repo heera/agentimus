@@ -183,6 +183,12 @@ final class Audience {
 			// measuring both engines the same way.
 			'engineSessions' => null,
 			'engineBySource' => array(),
+			// Connected in Settings but never successfully polled. The screen
+			// renders this as an invitation with a fetch button — NOT as the
+			// "connect it" pointer, which would tell the owner to do a thing
+			// they just did.
+			'pending'       => false,
+			'error'         => '',
 			'stale'         => false,
 			'fetched'       => 0,
 			'window'        => (int) $window,
@@ -196,6 +202,10 @@ final class Audience {
 		if ( empty( $totals ) ) {
 			// Connected, but nothing fetched yet (or every attempt failed). Still
 			// NOT "connected: true with zero people" — that reads as a dead site.
+			// `pending` carries the truth, and the last failure rides along so
+			// the invitation can say WHY if a fetch already went wrong.
+			$empty['pending'] = true;
+			$empty['error']   = (string) $settings->get( 'ga4_error', '' );
 			return $empty;
 		}
 

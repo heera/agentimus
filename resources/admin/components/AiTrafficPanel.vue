@@ -39,13 +39,20 @@ export default {
     audience: { type: Object, default: null },
   },
   // `flash` is required by the uaTip mixin: copying a path reports its result there.
-  emits: ['navigate', 'flash'],
+  // `reload-audience` asks App to re-pull the activity payload this screen's
+  // totals ride on — fired after the first-fetch button succeeds.
+  emits: ['navigate', 'flash', 'reload-audience'],
   data() {
     return {
       report: null,
       sources: [],
       loading: false,
       error: '',
+      // The first-fetch invitation's own state, kept apart from the report's:
+      // its button must be able to fail with Google's words while the rest of
+      // the screen stays whatever it was.
+      fetchBusy: false,
+      fetchError: '',
       // What the user is editing. Applied to the server only on Filter / Enter / Clear —
       // typing a path prefix should not fire a query per keystroke.
       filters: { from: '', to: '', source: '', path: '' },
@@ -71,6 +78,12 @@ export default {
     },
     gaOn() {
       return !!(this.ga && this.ga.connected);
+    },
+    // Connected in Settings, never successfully polled. Rendered as an
+    // invitation with a fetch button — the owner already connected it, so the
+    // "connect it" pointer would be an instruction to do a done thing.
+    gaPending() {
+      return !!(this.ga && this.ga.pending);
     },
     // GA4's own count of AI-referred sessions, when it has one. `null` means
     // Google has no opinion — different from a counted zero, and shown as such.
@@ -341,6 +354,22 @@ export default {
     listMax(list) {
       return Math.max(1, ...(list || []).map((x) => x.hits));
     },
+    // The first fetch, from the screen that needs it. Success hands the reload
+    // to App (the audience block rides the activity payload); failure prints
+    // Google's own words right under the button that earned them.
+    async startAnalyticsFetch() {
+      if (this.fetchBusy || !this.api || !this.api.refreshGoogleAnalytics) return;
+      this.fetchBusy = true;
+      this.fetchError = '';
+      try {
+        await this.api.refreshGoogleAnalytics();
+        this.$emit('reload-audience');
+      } catch (e) {
+        this.fetchError = (e && e.message) || 'The fetch failed — try again in a moment.';
+      } finally {
+        this.fetchBusy = false;
+      }
+    },
     pct(hits, max) {
       return `${Math.max(2, Math.round((hits / max) * 100))}%`;
     },
@@ -357,6 +386,44 @@ export default {
 
 <template>
   <div class="ar-aitraffic">
+    <!-- Connected, never fetched: the invitation, in the worklist intro's
+         grammar — icon, headline, one lead, ONE button, a reassurance line.
+         The state exists because the first poll hasn't run; the button IS the
+         first poll, so nobody is ever told to reconnect a thing they just
+         connected. Disappears forever once numbers exist. -->
+    <section v-if="gaPending" class="ar-card ar-rd">
+      <div class="ar-work__intro">
+        <svg class="ar-work__intro-mark" viewBox="0 0 48 48" width="44" height="44" fill="none"
+             stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M6 40h36" />
+          <path d="M11 40V26M20 40V18M29 40V22M38 40V12" />
+          <circle cx="38" cy="8" r="2.4" />
+        </svg>
+
+        <h3 class="ar-work__intro-title">Google Analytics is connected</h3>
+        <p class="ar-work__intro-lead">
+          One fetch brings in your whole audience — every visitor, however they found
+          you, next to the ones AI sent. After this first one, it refreshes itself
+          once a day.
+        </p>
+
+        <button
+          type="button"
+          class="ar-btn ar-btn--reserve"
+          data-reserve="Fetching your numbers…"
+          :disabled="fetchBusy"
+          @click="startAnalyticsFetch"
+        ><span>{{ fetchBusy ? 'Fetching your numbers…' : 'Fetch my numbers' }}</span></button>
+
+        <p v-if="fetchError || ga.error" class="ar-field__hint ar-warn">
+          {{ fetchError || ga.error }}
+        </p>
+        <p class="ar-work__intro-note">
+          Takes a few seconds — one read-only request to Google, stored in your own database.
+        </p>
+      </div>
+    </section>
+
     <!-- EVERYONE first, then the AI slice of it. Two cards, not one: they are
          two different questions, and the AI card's numbers only mean something
          against the totals in this one. -->
@@ -441,6 +508,12 @@ export default {
       <p class="ar-rd__context">
         <template v-if="gaOn && ga.sessions">
           Out of {{ n(ga.sessions) }} visits in total — about {{ aiShare }}% of everyone who came.
+        </template>
+        <!-- Pending says nothing here: the invitation card above already owns
+             that story, and "connect it" would instruct a done thing. -->
+        <template v-else-if="gaPending">
+          Fetch your Google Analytics numbers above to see what share of your
+          visitors that is.
         </template>
         <template v-else>
           Connect Google Analytics under <strong>Settings → Data sources</strong> to see what

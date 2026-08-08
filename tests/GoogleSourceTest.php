@@ -313,4 +313,40 @@ PEM;
 		$this->assertIsArray( $snap, 'the GA4 snapshot must exist the moment connect returns' );
 		$this->assertGreaterThan( 0, (int) $snap['fetched'], 'stamped by the inline poll, not left for the cron' );
 	}
+
+	/**
+	 * The fetch-now door: a connected-but-never-polled screen offers ONE
+	 * button, and this is what it presses. Refusals must be words, not
+	 * silence — a failing poll answers with Google's own error.
+	 */
+	public function test_the_refresh_route_runs_the_poll_and_stores_the_snapshot() {
+		$sa_json = (string) wp_json_encode( array(
+			'type'         => 'service_account',
+			'client_email' => 'agentimus@project.iam.gserviceaccount.com',
+			'private_key'  => self::TEST_PRIVATE_KEY,
+		) );
+		$settings = new Settings();
+		$settings->connect( $sa_json, 'agentimus@project.iam.gserviceaccount.com', 'sc-domain:example.test' );
+		$settings->set_ga4_property( '382790047' );
+
+		// Token mint; the poll's reports then meet the queue's empty default.
+		$GLOBALS['_af_http_queue'][] = array(
+			'response' => array( 'code' => 200 ),
+			'body'     => '{"access_token":"tok-analytics","expires_in":3600}',
+		);
+
+		$out = ( new \Agentimus\Google\Rest( $settings, new Client() ) )->refresh_analytics();
+
+		$this->assertNotInstanceOf( \WP_Error::class, $out );
+		$snap = get_option( Module::GA4_OPTION );
+		$this->assertIsArray( $snap, 'the snapshot must exist the moment the button returns' );
+		$this->assertGreaterThan( 0, (int) $snap['fetched'] );
+	}
+
+	public function test_the_refresh_route_refuses_plainly_when_analytics_is_not_connected() {
+		$out = ( new \Agentimus\Google\Rest( new Settings(), new Client() ) )->refresh_analytics();
+
+		$this->assertInstanceOf( \WP_Error::class, $out );
+		$this->assertFalse( get_option( Module::GA4_OPTION ), 'no poll may run without a grant' );
+	}
 }
