@@ -552,12 +552,18 @@ export default {
          Honors the same filters and range as the overview above. -->
     <section v-if="!error && report && total" class="ar-card ar-ai">
       <h2 class="ar-card__title">Top Sources &amp; Landing Pages <span v-if="rangeLabel" class="ar-card__tag">{{ rangeLabel }}</span></h2>
+      <!-- Says PEOPLE, in its own lead. The page subtitle says it once at the
+           top, which is off-screen by the time anyone reaches this card — and a
+           list reading "ChatGPT 7" beside a column of page paths is the exact
+           shape of a crawler report. Every card down here has to carry the
+           distinction itself or the reader rebuilds the wrong model. -->
       <p class="ar-card__lead">
-        Where the visits came from, and where they landed — busiest first.
+        People an assistant sent you — which assistant, and the page they opened.
+        Busiest first.
       </p>
       <div class="ar-ai__cols">
         <div class="ar-ai__col">
-          <h3 class="ar-ai__sub">Top sources</h3>
+          <h3 class="ar-ai__sub">Which assistant sent them</h3>
           <ul class="ar-act-rank">
             <li v-for="s in bySource" :key="s.label">
               <span class="ar-act-rank__label">{{ s.label }}</span>
@@ -567,7 +573,7 @@ export default {
           </ul>
         </div>
         <div class="ar-ai__col">
-          <h3 class="ar-ai__sub">Top landing pages</h3>
+          <h3 class="ar-ai__sub">The page they opened</h3>
           <ul v-if="topPages.length" class="ar-act-rank">
             <li v-for="p in topPages" :key="p.path">
               <span class="ar-act-rank__label"><code>{{ p.path }}</code></span>
@@ -581,14 +587,18 @@ export default {
     </section>
 
     <!-- Timeline — its OWN card: the overview above answers "how much and
-         where", this answers "when". Expand a day to see which source landed
-         on which page (the day is the finest "when" stored). Honors the same
-         filters and range as the overview. -->
+         where", this answers "when". Expand a day to see which assistant sent
+         someone and the page they opened (the day is the finest "when" stored).
+         Honors the same filters and range as the overview. -->
     <section v-if="!error && report && total && daily.length" class="ar-card ar-ai">
       <h2 class="ar-card__title">By Day <span v-if="rangeLabel" class="ar-card__tag">{{ rangeLabel }}</span></h2>
+      <!-- "which assistant landed on which page" was a straight error, and the
+           worst kind: it taught the crawler model of this entire screen in one
+           sentence. No assistant landed anywhere. A PERSON opened the page,
+           after an assistant pointed them at it. -->
       <p class="ar-card__lead">
-        Open a day to see which assistant landed on which page. Days are the finest detail
-        stored — no times, nothing that could stand for a person.
+        Open a day to see which assistant sent someone, and the page they opened. Days are
+        the finest detail stored — no times, nothing that could stand for a person.
       </p>
       <ul class="ar-aiday">
               <li v-for="d in daily" :key="d.date" class="ar-aiday__item">
@@ -645,8 +655,8 @@ export default {
     <section v-if="unknownOn" class="ar-card ar-ai">
       <h2 class="ar-card__title">Unrecognised Referrers <span class="ar-card__tag">Diagnostic</span></h2>
       <p class="ar-card__lead">
-        Visits from places that couldn’t be matched to an AI assistant. Most are ordinary sites,
-        search engines and social apps.
+        People who arrived from somewhere we couldn’t match to an AI assistant. Most are
+        ordinary sites, search engines and social apps.
         <button type="button" class="ar-linkbtn" @click="unknownWhy = !unknownWhy">
           {{ unknownWhy ? 'Hide details' : 'Learn more' }}
         </button>
