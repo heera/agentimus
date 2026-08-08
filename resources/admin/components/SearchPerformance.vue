@@ -217,10 +217,13 @@ export default {
         Nothing has been removed here; this screen is the engine’s raw record. The
         <em>Search Opportunities</em> worklist judges people-only traffic.
       </p>
-      <!-- Google-only: the week-on-week line renders ONLY once 14 days of
+      <!-- Both engines: the week-on-week line renders ONLY once 14 days of
            history exist (weekly.ready) — zeros that mean "unknown" must never
-           print as "nothing happened". Discover renders only when nonzero:
-           most sites honestly sit at 0 and silence beats a zero tile. -->
+           print as "nothing happened". Google's series comes from Search
+           Console's date split, Bing's from its daily traffic report; one
+           payload shape, so this line needs no idea which. Discover renders
+           only when nonzero: it is Google's feed, Bing has no equivalent, and
+           most sites honestly sit at 0 — silence beats a zero tile. -->
       <p v-if="weeklyLine" class="ar-srcline ar-perf__trend">{{ weeklyLine }}</p>
       <p v-if="discoverLine" class="ar-srcline ar-perf__trend">{{ discoverLine }}</p>
       <p class="ar-srcline">

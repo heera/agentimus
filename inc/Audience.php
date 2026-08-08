@@ -31,8 +31,6 @@
 
 namespace Agentimus;
 
-use Agentimus\Search\Table as SearchTable;
-
 defined( 'ABSPATH' ) || exit;
 
 final class Audience {
@@ -121,7 +119,10 @@ final class Audience {
 			$connected = true;
 			$named[]   = 'google' === $key ? 'Google' : 'Bing';
 
-			$t            = SearchTable::totals( $key );
+			// Through Report, not the table: for Bing that applies the daily
+			// series' site-wide sums, so this row and the Search Performance
+			// tiles can never quote two different figures for one engine.
+			$t            = Search\Report::window_totals( $key );
 			$clicks      += $t['clicks'];
 			$impressions += $t['impressions'];
 			$rows        += $t['rows'];
@@ -139,10 +140,11 @@ final class Audience {
 			'rows'        => $rows,
 			'start'       => $start,
 			'end'         => $end,
-			// Site-wide clicks are never sampled — both engines report those in
-			// full. This cap is about the PAGE-level figures every other screen
-			// draws from the same rows, and the caveat list is where the card
-			// admits it, since the two numbers sit under one heading.
+			// Site-wide clicks are never sampled — Google reports them in full
+			// and Bing's come from its daily site-wide series. This cap is
+			// about the PAGE-level figures every other screen draws from the
+			// same rows, and the caveat list is where the card admits it,
+			// since the two numbers sit under one heading.
 			'pageCap'     => Search\Report::page_cap(),
 		);
 	}

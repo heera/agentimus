@@ -105,9 +105,11 @@ final class Report {
 			'counts'     => array( 'queries' => 0, 'pages' => 0 ),
 			'topQueries' => array(),
 			'topPages'   => array(),
-			// Google-only extras — empty-but-present for Bing, whose API has
-			// no daily split and no Discover. `ready` gates the week-on-week
-			// claim: zeros where the truth is "unknown yet" would be a lie.
+			// The trend extras — empty-but-present until a source fills them.
+			// Both engines report a daily split (Google via the date dimension,
+			// Bing via GetRankAndTrafficStats); only Discover is Google's.
+			// `ready` gates the week-on-week claim: zeros where the truth is
+			// "unknown yet" would be a lie.
 			'daily'      => array(),
 			'weekly'     => array(
 				'ready'    => false,
@@ -135,29 +137,89 @@ final class Report {
 			);
 		}
 
-		if ( 'google' === $state['source'] ) {
-			$out = array_merge( $out, self::google_extras() );
-		}
+		$out           = array_merge( $out, self::extras( $state['source'] ) );
+		$out['totals'] = self::apply_series_totals( $out['totals'], $state['source'] );
 
 		return $out;
 	}
 
 	/**
-	 * The Google-only extras — daily series, week-on-week, Discover — from
-	 * one producer, so the admin screen and an assistant can never be told
-	 * different trends. Bing has no daily split and no Discover; callers
-	 * simply don't ask for its extras.
+	 * One source's window totals for ANY card that quotes them — the Search
+	 * Performance tiles and the dashboard's audience row must never disagree
+	 * about the same engine.
 	 *
-	 * @return array{daily:array,weekly:array,discover:array{impressions:int,clicks:int}}
+	 * For Bing, the stored query rows are its top-N sample and undercount the
+	 * site (measured live: the sample held 1,388 of 8,047 impressions), so
+	 * when the daily traffic series covers the snapshot's window it supplies
+	 * clicks and impressions instead; `series` says whether it did. Google's
+	 * rows ARE the full report, so its sums pass through untouched.
+	 *
+	 * @param string $source 'bing' or 'google'.
+	 * @return array{clicks:int,impressions:int,rows:int,start:string,end:string,series:bool}
 	 */
-	public static function google_extras() {
+	public static function window_totals( $source ) {
+		$t           = Table::totals( $source );
+		$t['series'] = false;
+		if ( 'bing' === $source && '' !== $t['start'] ) {
+			$d = \Agentimus\Bing\Table::traffic_totals( $t['start'], $t['end'] );
+			if ( $d['days'] > 0 ) {
+				$t['clicks']      = $d['clicks'];
+				$t['impressions'] = $d['impressions'];
+				$t['series']      = true;
+			}
+		}
+		return $t;
+	}
+
+	/**
+	 * Swap sampled totals for the daily series' where the series answers —
+	 * shared by both doors ({@see performance()} and the REST controller), so
+	 * the admin and an assistant read the same tiles. Position is left as the
+	 * sample's impression-weighted figure: the daily series carries no rank.
+	 *
+	 * @param array  $totals A Performance::build() totals block.
+	 * @param string $source 'bing' or 'google'.
+	 * @return array
+	 */
+	public static function apply_series_totals( array $totals, $source ) {
+		$wt = self::window_totals( $source );
+		if ( empty( $wt['series'] ) ) {
+			return $totals;
+		}
+		$totals['clicks']      = $wt['clicks'];
+		$totals['impressions'] = $wt['impressions'];
+		$totals['ctr']         = $wt['impressions'] > 0 ? round( ( $wt['clicks'] / $wt['impressions'] ) * 100, 1 ) : 0.0;
+		return $totals;
+	}
+
+	/**
+	 * The trend extras — daily series, week-on-week, Discover — from one
+	 * producer, so the admin screen and an assistant can never be told
+	 * different trends. Google's series lives in the trend option, Bing's in
+	 * its daily table; both come out in one shape. Discover stays Google's:
+	 * Bing has no equivalent surface, and 0 there means exactly that.
+	 *
+	 * @param string $source 'bing' or 'google'.
+	 * @return array{daily:array,weekly:array,updatedAt:int,discover:array{impressions:int,clicks:int}}
+	 */
+	public static function extras( $source ) {
+		if ( 'bing' === $source ) {
+			$daily = \Agentimus\Bing\Table::traffic_series( \Agentimus\Google\Module::TREND_KEEP );
+			return array(
+				'daily'     => array_slice( $daily, -112 ),
+				'weekly'    => self::weekly_from_daily( $daily ),
+				'updatedAt' => (int) ( new \Agentimus\Bing\Settings() )->get( 'traffic_at', 0 ),
+				'discover'  => array( 'impressions' => 0, 'clicks' => 0 ),
+			);
+		}
+
 		$trend    = get_option( \Agentimus\Google\Module::TREND_OPTION, array() );
 		$trend    = is_array( $trend ) ? $trend : array();
 		$daily    = isset( $trend['daily'] ) && is_array( $trend['daily'] ) ? array_values( $trend['daily'] ) : array();
 		$discover = isset( $trend['discover'] ) && is_array( $trend['discover'] ) ? $trend['discover'] : array();
 		return array(
 			// The recent series, not the whole archive — 16 weeks tells the
-			// story; the option keeps the longer history.
+			// story; the store keeps the longer history.
 			'daily'     => array_slice( $daily, -112 ),
 			'weekly'    => self::weekly_from_daily( $daily ),
 			// 0 = never refreshed; readers show a staleness note past ~3 days

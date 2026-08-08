@@ -146,15 +146,19 @@ final class Rest {
 			$rows = Table::snapshot( $state['source'] );
 			$out['performance'] = Performance::build( $rows );
 			$out['performance']['top_pages'] = array_map( array( $this, 'name_page' ), $out['performance']['top_pages'] );
+			// Bing's tiles: the daily series' site-wide sums where it covers
+			// the window — the same swap the MCP door makes, from the same
+			// producer, so the two doors keep telling one story.
+			$out['performance']['totals'] = Report::apply_series_totals( $out['performance']['totals'], $state['source'] );
 			if ( ! empty( $rows ) ) {
 				$out['range'] = array(
 					'start' => (string) $rows[0]['range_start'],
 					'end'   => (string) $rows[0]['range_end'],
 				);
 			}
-			// Google-only extras from the same producer the MCP tool reads —
-			// the two doors must tell one story ({@see Report::google_extras}).
-			$out['trend'] = 'google' === $state['source'] ? Report::google_extras() : null;
+			// The trend extras from the same producer the MCP tool reads —
+			// daily and week-on-week for either engine ({@see Report::extras}).
+			$out['trend'] = Report::extras( $state['source'] );
 		}
 
 		return rest_ensure_response( $out );

@@ -185,6 +185,17 @@ final class Module {
 			Table::prune();
 		}
 
+		// The human-traffic series — clicks and impressions per day, the same
+		// site-wide daily record Google's trend is built from. One extra call;
+		// fail-open like everything here: on error the stored series stands and
+		// its own timestamp ages, which is how the screen learns to say so
+		// ({@see \Agentimus\Search\Report::extras()}).
+		$traffic = $this->client->traffic_stats( $key, $site );
+		if ( ! isset( $traffic['error'] ) ) {
+			Table::record_traffic( (array) $traffic['rows'] );
+			$this->settings->record_traffic_poll();
+		}
+
 		// The query-stats half runs regardless of how the crawl half fared, and
 		// records its outcome on its own line — two datasets, two honest statuses.
 		$this->run_query_poll( $key, $site );

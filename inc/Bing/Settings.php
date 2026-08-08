@@ -41,7 +41,22 @@ final class Settings {
 			'last_query_error' => '', // The query-stats side of the poll fails on its own line — crawl data staying fresh must not mask it, or vice versa.
 			'feeds'        => array(), // Bing's own sitemap record (GetFeeds): url, lastReadAt (Y-m-d, Bing's date), urls. Kept on feed-poll failure — Bing's dates stay honest without our own age line.
 			'feeds_at'     => 0, // When the feeds snapshot was last refreshed.
+			'traffic_at'   => 0, // When the daily traffic series last refreshed SUCCESSFULLY — the trend's staleness line reads this, so a failing poll ages it honestly.
 		);
+	}
+
+	/**
+	 * Stamp a successful traffic-series poll. Success only: last-good data on
+	 * a blip is right, but a trend quietly stale for a week must be able to
+	 * say so on screen instead of posing as current — the same rule Google's
+	 * daily_at follows ({@see \Agentimus\Google\Module}).
+	 *
+	 * @return void
+	 */
+	public function record_traffic_poll() {
+		$all               = $this->all();
+		$all['traffic_at'] = time();
+		$this->persist( $all );
 	}
 
 	/**

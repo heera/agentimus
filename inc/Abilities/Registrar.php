@@ -768,9 +768,10 @@ final class Registrar {
 				. 'Search Console and/or Bing Webmaster Tools, whichever the owner connected — never '
 				. 'estimated, and never blended (the two count different searchers). Use it to answer '
 				. '"how is this site doing in search?". Returns source="" when no engine has reported yet. '
-				. 'When source="bing", totals and topPages come from two separate Bing reports counted '
-				. 'differently — they never quite reconcile, and one page can show more clicks than '
-				. 'totals.clicks. Neither is an error: state the split rather than reconciling the numbers.',
+				. 'When source="bing", totals come from Bing\'s site-wide daily series (sample sums until that '
+				. 'series has reported) while topQueries and topPages are its top-N sample counted separately '
+				. '— the lists sum to less than the totals, and one busy page can even out-count a tile. '
+				. 'Neither is an error: state the split rather than reconciling the numbers.',
 			self::obj(
 				array(
 					'source' => self::s( 'Which engine to read: "google" or "bing". Omit for the richer one that has data.' ),
@@ -851,7 +852,7 @@ final class Registrar {
 							'impressions' => self::i(),
 							'clicks'      => self::i(),
 						),
-						'Clicks and impressions per day, oldest first — Google only (Bing\'s API has no daily split; empty there). History accumulates locally beyond Google\'s own window; the payload ships the most recent 112 days.'
+						'Clicks and impressions per day, oldest first — Google from Search Console\'s date split, Bing from its site-wide daily traffic report. History accumulates locally beyond each engine\'s own window; the payload ships the most recent 112 days.'
 					),
 					'weekly'     => self::obj(
 						array(

@@ -111,6 +111,42 @@ final class Client {
 	}
 
 	/**
+	 * Site-wide clicks and impressions PER DAY — GetRankAndTrafficStats, the
+	 * human-traffic twin of crawl_stats(). One row per calendar day, oldest
+	 * first. Verified against the live API: ~16 months of consecutive days,
+	 * no gaps, no rank field despite the method's name.
+	 *
+	 * @param string $api_key  API key.
+	 * @param string $site_url Site URL.
+	 * @return array { rows?: array<int,array{date_at:string,clicks:int,impressions:int}>, error?: string }
+	 */
+	public function traffic_stats( $api_key, $site_url ) {
+		$out = $this->get( 'GetRankAndTrafficStats', $api_key, array( 'siteUrl' => (string) $site_url ) );
+		if ( isset( $out['error'] ) ) {
+			return $out;
+		}
+		$rows = array();
+		foreach ( (array) $out['d'] as $row ) {
+			if ( ! is_array( $row ) ) {
+				continue;
+			}
+			$date = self::wcf_date( isset( $row['Date'] ) ? (string) $row['Date'] : '' );
+			if ( '' === $date ) {
+				continue;
+			}
+			$rows[] = array(
+				'date_at'     => $date,
+				'clicks'      => (int) ( isset( $row['Clicks'] ) ? $row['Clicks'] : 0 ),
+				'impressions' => (int) ( isset( $row['Impressions'] ) ? $row['Impressions'] : 0 ),
+			);
+		}
+		usort( $rows, static function ( $a, $b ) {
+			return strcmp( $a['date_at'], $b['date_at'] );
+		} );
+		return array( 'rows' => $rows );
+	}
+
+	/**
 	 * The sitemaps Bing holds for the site — GetFeeds: each feed's URL, when
 	 * Bing last read it, and how many URLs it carried. This is Bing's own
 	 * record, not ours: the health line it feeds answers "does Bing know my
