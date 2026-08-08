@@ -24,10 +24,29 @@ export default {
     loaded: { type: Boolean, default: false },
     busy: { type: Boolean, default: false },
     settingAside: { type: Number, default: 0 },
+    // { pages: [id], seq } — a finding handing over the exact rows it counted.
+    pick: { type: Object, default: null },
   },
   emits: ['load', 'set-aside', 'navigate'],
   data() {
-    return { filter: 'fixable' };
+    return {
+      // Post IDs a finding asked for. Null means "show everything".
+      picked: null,
+      filter: 'fixable',
+    };
+  },
+  watch: {
+    // A finding handed over its pages. Load the list if it has not been read
+    // yet — landing on an unloaded card after clicking "show me those pages"
+    // reads as broken — then show exactly those rows.
+    pick: {
+      immediate: true,
+      handler(next) {
+        if (!next || !next.pages || !next.pages.length) return;
+        this.picked = next.pages.slice();
+        if (!this.loaded) this.$emit('load');
+      },
+    },
   },
   computed: {
     items() {
@@ -45,6 +64,12 @@ export default {
       ];
     },
     shown() {
+      // A finding's subset wins over the tab: it was chosen deliberately and
+      // the pages in it may sit across two tabs.
+      if (this.picked) {
+        const want = this.picked;
+        return this.items.filter((i) => want.indexOf(i.id) > -1);
+      }
       return this.items.filter((i) => {
         if ('setAside' === this.filter) return i.setAside;
         if (i.setAside) return false;
@@ -197,7 +222,14 @@ export default {
     </div>
 
     <template v-else>
-      <div class="ar-work__tabs">
+      <!-- A filtered list has to say so and offer the way out. Silently showing
+           4 of 30 rows is how somebody concludes the other 26 vanished. -->
+      <p v-if="picked" class="ar-work__picked">
+        Showing the {{ shown.length }} {{ shown.length === 1 ? 'page' : 'pages' }} from that finding.
+        <button type="button" class="ar-linkbtn" @click="picked = null">Show everything</button>
+      </p>
+
+      <div v-else class="ar-work__tabs">
         <button
           v-for="t in tabs"
           :key="t.key"

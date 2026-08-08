@@ -6612,3 +6612,12 @@ a.ar-about-proto__v:hover { text-decoration: underline; }
   color: var(--ar-ink-faint); background: transparent;
   border-style: dashed; text-decoration: line-through;
 }
+
+/* The worklist, narrowed to one finding's pages. It replaces the tabs rather
+   than sitting above them: the tabs count the whole list, and leaving them on
+   screen beside a filtered view puts two contradictory counts side by side. */
+.ar-work__picked {
+  margin: 0; padding: 12px 26px; border-bottom: 1px solid var(--ar-line);
+  font-size: 13px; color: var(--ar-ink-soft);
+  display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap;
+}

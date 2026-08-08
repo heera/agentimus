@@ -138,6 +138,8 @@ export default {
       // (endpoint/client/source/page drill-downs); seq-stamped so repeat
       // clicks re-apply.
       logPreset: null,
+      // { pages: [id], seq } — the subset a finding asked the worklist to show.
+      workPick: null,
       // The AI Visibility screen's current sub-view (Results / Settings) —
       // announced by the panel, so screen-mates can seat themselves with the
       // right one (Found by AI Search rides Results).
@@ -883,7 +885,7 @@ export default {
     goTo(target) {
       // Navigation unmounts whatever the pointer was over — never strand its tooltip.
       this.hideUaTip();
-      const { tab, anchor, view, log, ai } = typeof target === 'string' ? { tab: target } : target || {};
+      const { tab, anchor, view, log, ai, pages } = typeof target === 'string' ? { tab: target } : target || {};
       // Tell the tab watcher not to snap to the top: we're aiming at a section below.
       this._jumpAnchor = anchor || null;
       // A dashboard row drilling into a report screen carries its filter along.
@@ -894,6 +896,13 @@ export default {
       if (ai) {
         this._logSeq = (this._logSeq || 0) + 1;
         this.aiPreset = { ...ai, seq: this._logSeq };
+      }
+      // A finding handing over the exact pages it counted. Without this the
+      // list arrives complete and the reader has to find those pages again,
+      // having just been told how many there were.
+      if (pages && pages.length) {
+        this._logSeq = (this._logSeq || 0) + 1;
+        this.workPick = { pages, seq: this._logSeq };
       }
       if (tab) this.tab = tab;
       // Deep-link into the AI Visibility panel's Settings/Results sub-view when asked.
@@ -1928,6 +1937,7 @@ export default {
              findings above; the per-item worklist here. Deliberately NOT its own
              tab — one place to look is the entire point. -->
         <ContentWorklist
+          :pick="workPick"
           v-show="tab === 'attention'"
           :data="worklist"
           :preview="worklistPreview"

@@ -86,7 +86,14 @@ export default {
         window.open(action.url, '_blank', 'noopener');
         return;
       }
-      this.$emit('navigate', { tab: action.tab, view: action.view || '', anchor: action.anchor || '' });
+      // `pages` travels with it: a finding that counted four pages hands those
+      // four over, so the list it lands on shows them rather than everything.
+      this.$emit('navigate', {
+        tab: action.tab,
+        view: action.view || '',
+        anchor: action.anchor || '',
+        pages: action.pages || null,
+      });
     },
   },
 };

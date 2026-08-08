@@ -219,8 +219,15 @@ final class Findings {
 	 * @param string $anchor Optional DOM id to scroll to on arrival.
 	 * @return array
 	 */
-	private function go( $label, $tab, $view = '', $anchor = '' ) {
-		return array( 'label' => $label, 'tab' => $tab, 'view' => $view, 'anchor' => $anchor );
+	private function go( $label, $tab, $view = '', $anchor = '', array $pages = array() ) {
+		$out = array( 'label' => $label, 'tab' => $tab, 'view' => $view, 'anchor' => $anchor );
+		// The pages this finding actually counted. A finding that says "4 pages"
+		// and then hands over thirty rows has made the reader do the counting
+		// again; with these, the list arrives showing exactly those four.
+		if ( $pages ) {
+			$out['pages'] = array_values( array_unique( array_map( 'intval', $pages ) ) );
+		}
+		return $out;
 	}
 
 	/* ---------------------------------------------------------------------- *
@@ -382,7 +389,17 @@ final class Findings {
 					sprintf( /* translators: %s: formatted impression count. */ __( '%s shown', 'agentimus' ), number_format_i18n( $shown ) ),
 					sprintf( /* translators: %s: formatted click count. */ __( '%s visits', 'agentimus' ), number_format_i18n( $clicks ) ),
 				),
-				$this->go( __( 'Open the worklist', 'agentimus' ), 'readiness', '', 'ar-group-search' ),
+				$this->go(
+					sprintf(
+						/* translators: %d: how many pages the finding counted. */
+						_n( 'Show me that page', 'Show me those %d pages', $n, 'agentimus' ),
+						$n
+					),
+					'attention',
+					'',
+					'ar-work',
+					wp_list_pluck( $pages, 'postId' )
+				),
 				array(
 					__( 'Use the words people typed in the title they see.', 'agentimus' ),
 					__( 'Answer the question directly in one paragraph.', 'agentimus' ),
@@ -424,7 +441,17 @@ final class Findings {
 				),
 				__( 'On page one, and people scroll past.', 'agentimus' ),
 				$evidence,
-				$this->go( __( 'Open the worklist', 'agentimus' ), 'readiness', '', 'ar-group-search' ),
+				$this->go(
+					sprintf(
+						/* translators: %d: how many pages the finding counted. */
+						_n( 'Show me that page', 'Show me those %d pages', $n, 'agentimus' ),
+						$n
+					),
+					'attention',
+					'',
+					'ar-work',
+					wp_list_pluck( $pages, 'postId' )
+				),
 				array(
 					__( 'Nothing is wrong with the page itself.', 'agentimus' ),
 					__( 'The title and description are what they read before deciding.', 'agentimus' ),
@@ -480,6 +507,19 @@ final class Findings {
 		$graded = (int) ( isset( $report['graded'] ) ? $report['graded'] : 0 );
 		$pages  = max( $issues );
 
+		// Every post named by any issue, deduplicated — a page with three
+		// problems is still one page to open, and the button now lands on a
+		// list of pages rather than a list of issue kinds.
+		$affected = array();
+		foreach ( (array) ( isset( $report['content'] ) ? $report['content'] : array() ) as $issue ) {
+			// Each row carries `pages` as objects, not bare ids — the Optimize
+			// card renders their titles and edit links.
+			foreach ( (array) ( isset( $issue['pages'] ) ? $issue['pages'] : array() ) as $page ) {
+				$affected[] = (int) ( is_array( $page ) ? ( isset( $page['id'] ) ? $page['id'] : 0 ) : $page );
+			}
+		}
+		$affected = array_values( array_unique( array_filter( $affected ) ) );
+
 		$evidence = array();
 		$i        = 0;
 		foreach ( $issues as $label => $count ) {
@@ -515,7 +555,19 @@ final class Findings {
 					$kinds
 				),
 				$evidence,
-				$this->go( __( 'Open the worklist', 'agentimus' ), 'readiness', '', 'ar-group-optimized' ),
+				$this->go(
+					$affected
+						? sprintf(
+							/* translators: %d: how many pages have an issue. */
+							_n( 'Show me that page', 'Show me those %d pages', count( $affected ), 'agentimus' ),
+							count( $affected )
+						)
+						: __( 'See the issues', 'agentimus' ),
+					$affected ? 'attention' : 'readiness',
+					'',
+					$affected ? 'ar-work' : 'ar-group-optimized',
+					$affected
+				),
 				array(
 					__( 'Each one is a small edit in the post editor.', 'agentimus' ),
 					__( 'Set aside anything that is not meant to be quoted.', 'agentimus' ),
