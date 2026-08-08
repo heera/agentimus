@@ -381,7 +381,12 @@ final class Focus {
 		// The focus itself, promoted out of the list. A checked radio among five
 		// says "one of these"; this says "this is what the page is for", which is
 		// the claim the verdict below is about.
-		$this->render_current( $current['query'], $searches );
+		// The PRIMARY, not the raw meta: with several searches stored the value is
+		// "clamp, php - 8.6", and printing that here would show a comma-joined
+		// blob as though somebody had searched for it, with one page's stats
+		// underneath. Each search gets its own verdict below instead.
+		$phrases = self::phrases( $current['query'] );
+		$this->render_current( $phrases ? $phrases[0] : '', $searches, count( $phrases ) );
 
 		// One wrapper, so the live check has a single node to swap. Everything
 		// inside it is a function of (post content, focus) and nothing else.
@@ -458,7 +463,7 @@ final class Focus {
 	 * @param array  $searches This page's reported searches.
 	 * @return void
 	 */
-	private function render_current( $query, array $searches ) {
+	private function render_current( $query, array $searches, $total = 1 ) {
 		echo '<p class="agentimus-fieldhead">' . esc_html__( 'This page is for', 'agentimus' ) . '</p>';
 
 		if ( '' === $query ) {
@@ -468,6 +473,23 @@ final class Focus {
 			echo '<p class="agentimus-fieldhint">'
 				. esc_html__( 'No searches have reached this page yet — normal for a new post.', 'agentimus' )
 				. '</p>';
+			return;
+		}
+
+		// With several searches stored, the box shows the first and says so —
+		// otherwise it reads as the only one, and the verdicts below come out of
+		// nowhere.
+		if ( $total > 1 ) {
+			printf(
+				'<p class="agentimus-fieldhint">%s</p>',
+				esc_html(
+					sprintf(
+						/* translators: %d: how many searches this page is for. */
+						_n( '%d search, each checked on its own:', '%d searches, each checked on its own:', $total, 'agentimus' ),
+						$total
+					)
+				)
+			);
 			return;
 		}
 
@@ -548,13 +570,15 @@ final class Focus {
 		$live = null !== $content;
 		foreach ( $phrases as $i => $phrase ) {
 			$cover = self::coverage( $post, $phrase, $content, $title );
-			// The search heads its own verdict, always — it is the one place the
-			// words need to appear up here, now that the badge beneath them is
-			// gone, and a mark with no subject belongs to nothing.
-			printf(
-				'<p class="agentimus-focus__which">%s</p>',
-				esc_html( $phrase )
-			);
+			// The heading gives each verdict its subject — needed when there are
+			// several, and a third naming of the same words when there is one:
+			// the box above already shows it, and the chip below repeats it.
+			if ( count( $phrases ) > 1 ) {
+				printf(
+					'<p class="agentimus-focus__which">%s</p>',
+					esc_html( $phrase )
+				);
+			}
 			// Only the last one carries the "measured against…" note, and only
 			// the first carries an instruction: repeating either per search
 			// turns a short panel into a wall.
