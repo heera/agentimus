@@ -201,4 +201,72 @@ final class AudienceTest extends TestCase {
 		$this->assertSame( 0, $out['machines']['fetches'] );
 		$this->assertIsArray( $out['limits'] );
 	}
+
+	/* -- the Bing sampling caveat ------------------------------------------- */
+
+	/**
+	 * Make Bing the one source that answers, with a $wpdb thin enough to say
+	 * "yes, there are rows" and nothing else.
+	 *
+	 * @return void
+	 */
+	private function connect_bing_only() {
+		$GLOBALS['_af_options']['agentimus_bing'] = array(
+			'api_key'  => 'ciphertext',
+			'site_url' => 'https://example.com/',
+		);
+		$GLOBALS['_af_options']['agentimus_google'] = array();
+
+		$GLOBALS['wpdb'] = new class() {
+			public $prefix = 'wp_';
+			public function prepare( $sql, ...$args ) {
+				return $sql;
+			}
+			public function get_var( $sql ) {
+				// has_rows(): Bing has data, Google does not.
+				return false !== strpos( $sql, 'bing' ) || false === strpos( $sql, 'google' ) ? 1 : null;
+			}
+			public function get_row( $sql, $output = null ) {
+				return array( 'clicks' => 12, 'impressions' => 400, 'rows_held' => 30, 'range_start' => '2026-07-01', 'range_end' => '2026-07-30' );
+			}
+		};
+	}
+
+	private function forget_bing() {
+		unset( $GLOBALS['_af_options']['agentimus_bing'], $GLOBALS['_af_options']['agentimus_google'], $GLOBALS['wpdb'] );
+	}
+
+	/**
+	 * The whole point of this pair. Bing reports no query×page join, so page
+	 * detail is sampled — and a card that shows page-level numbers without
+	 * saying so is presenting a sample as the site.
+	 */
+	public function test_a_bing_only_site_admits_its_page_figures_are_sampled() {
+		$this->connect_bing_only();
+		try {
+			$out  = Audience::from_stats( $this->stats() );
+			$keys = array_column( $out['limits'], 'key' );
+
+			$this->assertContains( 'search-sampled', $keys );
+			$this->assertSame( \Agentimus\Bing\Module::QUERY_TOP_PAGES, $out['people']['search']['pageCap'] );
+			// And it names the engine, so "from search" can never quietly mean
+			// something narrower than the reader assumes.
+			$this->assertSame( 'Bing', $out['people']['search']['source'] );
+		} finally {
+			$this->forget_bing();
+		}
+	}
+
+	/**
+	 * The negative half, and the one that would actually regress: Google joins
+	 * query×page itself, so the caveat must NOT appear and frighten an owner
+	 * about a limit their source does not have.
+	 */
+	public function test_a_site_without_a_sampling_source_says_nothing_about_it() {
+		$out  = Audience::from_stats( $this->stats() );
+		$keys = array_column( $out['limits'], 'key' );
+
+		$this->assertNotContains( 'search-sampled', $keys );
+		$this->assertSame( 0, $out['people']['search']['pageCap'] );
+	}
 }

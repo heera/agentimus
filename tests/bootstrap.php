@@ -34,6 +34,12 @@ namespace {
 		if ( ! defined( 'MINUTE_IN_SECONDS' ) ) define( 'MINUTE_IN_SECONDS', 60 );
 	if ( ! defined( 'DAY_IN_SECONDS' ) )           define( 'DAY_IN_SECONDS', 86400 );
 	if ( ! defined( 'YEAR_IN_SECONDS' ) )          define( 'YEAR_IN_SECONDS', 365 * 86400 );
+	// wpdb's output-format constants. Only reached by tests that stand up a fake
+	// $wpdb, but undefined they degrade to the bare string in PHP 7 and to a
+	// fatal in PHP 8 — a difference that would only ever show up in CI.
+	if ( ! defined( 'OBJECT' ) )                   define( 'OBJECT', 'OBJECT' );
+	if ( ! defined( 'ARRAY_A' ) )                  define( 'ARRAY_A', 'ARRAY_A' );
+	if ( ! defined( 'ARRAY_N' ) )                  define( 'ARRAY_N', 'ARRAY_N' );
 	// A wp-config-style salt so Visibility\Crypto derives its key from the salt path
 	// (what production uses) rather than the no-salts option fallback.
 	if ( ! defined( 'AUTH_KEY' ) )                 define( 'AUTH_KEY', 'agentimus-test-auth-key-0123456789abcdef' );

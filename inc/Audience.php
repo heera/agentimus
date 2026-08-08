@@ -94,7 +94,13 @@ final class Audience {
 	/**
 	 * People arriving from search engines: the engines' own reported clicks.
 	 *
-	 * @return array{connected:bool,source:string,clicks:int,impressions:int,rows:int,start:string,end:string}
+	 * Both engines are summed, because a click is a click whoever reported it —
+	 * but the card has to NAME them. "From search" over a figure that silently
+	 * includes Bing, or silently doesn't, is the same quiet mis-claim this class
+	 * exists to prevent, so `source` travels with the number and the panel prints
+	 * it in the row label.
+	 *
+	 * @return array{connected:bool,source:string,clicks:int,impressions:int,rows:int,start:string,end:string,pageCap:int}
 	 */
 	private static function search_half() {
 		$state     = Search\Report::source_state();
@@ -133,6 +139,11 @@ final class Audience {
 			'rows'        => $rows,
 			'start'       => $start,
 			'end'         => $end,
+			// Site-wide clicks are never sampled — both engines report those in
+			// full. This cap is about the PAGE-level figures every other screen
+			// draws from the same rows, and the caveat list is where the card
+			// admits it, since the two numbers sit under one heading.
+			'pageCap'     => Search\Report::page_cap(),
 		);
 	}
 
@@ -400,6 +411,23 @@ final class Audience {
 				'scope' => 'humans',
 				'text'  => __( 'Search hides AI clicks; AI visits are a floor.', 'agentimus' ),
 			);
+
+			// Bing has no query×page report, so page detail is fetched one call
+			// per page and stops at the busiest few. The clicks above are whole;
+			// everything page-level downstream is that sample. Saying so here is
+			// cheaper than every screen re-explaining it, and it only appears
+			// when Bing is actually the source being read.
+			if ( $search['pageCap'] > 0 ) {
+				$out[] = array(
+					'key'   => 'search-sampled',
+					'scope' => 'humans',
+					'text'  => sprintf(
+						/* translators: %d: how many pages Bing reports searches for. */
+						__( 'Bing names pages for your %d busiest only.', 'agentimus' ),
+						(int) $search['pageCap']
+					),
+				);
+			}
 		} else {
 			$out[] = array(
 				'key'   => 'search-missing',

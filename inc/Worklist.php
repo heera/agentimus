@@ -115,6 +115,12 @@ final class Worklist {
 			// verdict on it, and a page with no data can still need work.
 			'noSearchData' => $no_search,
 			'searchState' => $this->search_state(),
+			// Whose report every row above was drawn from, and how many pages
+			// that report can speak about. On Bing the answer is the busiest few,
+			// which changes what an empty focus column MEANS: not "no searches
+			// reached this page" but "this source never looked at this page".
+			'engine'      => $this->engine_label(),
+			'pageCap'     => Report::page_cap(),
 		);
 
 		/**
@@ -124,7 +130,7 @@ final class Worklist {
 		 * @param Settings $settings Plugin settings.
 		 */
 		$payload = apply_filters( self::FILTER, $payload, $this->settings );
-		return is_array( $payload ) ? $payload : array( 'items' => array(), 'counts' => $counts, 'capped' => false, 'total' => 0, 'searchState' => '' );
+		return is_array( $payload ) ? $payload : array( 'items' => array(), 'counts' => $counts, 'capped' => false, 'total' => 0, 'searchState' => '', 'engine' => '', 'pageCap' => 0 );
 	}
 
 	/**
@@ -157,6 +163,11 @@ final class Worklist {
 			'withSearch'  => $with_search,
 			'setAside'    => count( $this->set_aside_ids() ),
 			'searchState' => $this->search_state(),
+			// "12 of your 300 pages have search data" invites one of two very
+			// different conclusions, and only the source can say which: Google
+			// found 12, or Bing was only ever asked about 10.
+			'engine'      => $this->engine_label(),
+			'pageCap'     => Report::page_cap(),
 		);
 	}
 

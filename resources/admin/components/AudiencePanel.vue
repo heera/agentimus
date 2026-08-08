@@ -47,6 +47,16 @@ export default {
     window() {
       return (this.data && this.data.window) || 30;
     },
+    // "from Google", "from Bing", "from Google + Bing" — the engines by name.
+    //
+    // This row sums whichever engines are connected, and a bare "from search"
+    // over that total never said which. Two owners read the same words and one
+    // of them is wrong about what the number covers. The name is short enough
+    // to live in the label, so it costs no line and no caption.
+    searchLabel() {
+      const named = (this.people && this.people.search && this.people.search.source) || '';
+      return named ? `from ${named}` : 'from search';
+    },
     // The AI leaderboard as one line: "ChatGPT 40 · Perplexity 12 · Claude 5".
     // Three, not the whole list the payload carries: this is a one-line summary
     // on a card, and the Readers screen is where the full list belongs.
@@ -111,7 +121,7 @@ export default {
         <ul class="ar-aud__rows">
           <li>
             <span class="ar-aud__row-n">{{ n(people.search.clicks) }}</span>
-            <span class="ar-aud__row-l">from search</span>
+            <span class="ar-aud__row-l">{{ searchLabel }}</span>
           </li>
           <li>
             <span class="ar-aud__row-n">{{ n(people.ai.visits) }}</span>

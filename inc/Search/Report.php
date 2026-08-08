@@ -66,6 +66,28 @@ final class Report {
 	}
 
 	/**
+	 * How many pages the ACTIVE source can speak about, or 0 for "all of them".
+	 *
+	 * Every page-level figure in this plugin — a worklist row, a page's focus, a
+	 * coverage verdict — is drawn from the one source {@see source_state()} picks.
+	 * On Bing that source knows about {@see \Agentimus\Bing\Module::QUERY_TOP_PAGES}
+	 * pages and no more, so "no searches have reached this page" is only true for
+	 * pages inside that sample; outside it, the honest sentence is "Bing doesn't
+	 * report this one". Screens that cannot tell those apart present a sample as
+	 * the whole site, which is the one thing this card set exists to avoid.
+	 *
+	 * @return int Pages covered, or 0 when the source reports every page.
+	 */
+	public static function page_cap() {
+		$state  = self::source_state();
+		$source = (string) $state['source'];
+		if ( '' === $source || ! isset( $state['sources'][ $source ]['pageCap'] ) ) {
+			return 0;
+		}
+		return (int) $state['sources'][ $source ]['pageCap'];
+	}
+
+	/**
 	 * The performance summary, MCP-shaped.
 	 *
 	 * @param \Agentimus\Settings $core   Core settings.

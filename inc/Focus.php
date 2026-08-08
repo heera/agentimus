@@ -308,13 +308,42 @@ final class Focus {
 	 * @param array $row A reported search: position, impressions, clicks.
 	 * @return string
 	 */
+	/**
+	 * The engine these numbers came from, named the way people say it.
+	 *
+	 * This box was written against Search Console and said "Google" in four
+	 * places, all of them plain wrong on a site that connected only Bing —
+	 * telling an author Google reported a search that Google never saw. The
+	 * source is already known; nothing here has to guess.
+	 *
+	 * @return string 'Google', 'Bing', or a neutral plural when neither answers.
+	 */
+	private static function engine_name() {
+		try {
+			$source = (string) Search\Report::source_state()['source'];
+		} catch ( \Throwable $e ) {
+			return __( 'Search engines', 'agentimus' );
+		}
+		if ( 'google' === $source ) {
+			return __( 'Google', 'agentimus' );
+		}
+		if ( 'bing' === $source ) {
+			return __( 'Bing', 'agentimus' );
+		}
+		return __( 'Search engines', 'agentimus' );
+	}
+
 	public static function plain_stats( array $row ) {
 		$position = (float) ( isset( $row['position'] ) ? $row['position'] : 0 );
 		$shown    = (int) ( isset( $row['impressions'] ) ? $row['impressions'] : 0 );
 		$clicks   = (int) ( isset( $row['clicks'] ) ? $row['clicks'] : 0 );
 
 		if ( $shown <= 0 ) {
-			return __( 'You typed this one — Google hasn’t reported it', 'agentimus' );
+			return sprintf(
+				/* translators: %s: the connected search engine, e.g. Google or Bing. */
+				__( 'You typed this one — %s hasn’t reported it', 'agentimus' ),
+				self::engine_name()
+			);
 		}
 
 		return sprintf(
@@ -459,11 +488,16 @@ final class Focus {
 				. esc_html(
 					$days > 0
 						? sprintf(
-							/* translators: %d: number of days the search report covers. */
-							__( 'Google showed this page for these in the last %d days. Pick one and the check above measures against it.', 'agentimus' ),
+							/* translators: 1: the connected search engine, 2: number of days the search report covers. */
+							__( '%1$s showed this page for these in the last %2$d days. Pick one and the check above measures against it.', 'agentimus' ),
+							self::engine_name(),
 							$days
 						)
-						: __( 'Google showed this page for these. Pick one and the check above measures against it.', 'agentimus' )
+						: sprintf(
+							/* translators: %s: the connected search engine, e.g. Google or Bing. */
+							__( '%s showed this page for these. Pick one and the check above measures against it.', 'agentimus' ),
+							self::engine_name()
+						)
 				)
 				. '</p>';
 
@@ -487,7 +521,13 @@ final class Focus {
 				esc_attr( '__custom__' ),
 				'' !== $custom ? ' checked="checked"' : '',
 				esc_html__( 'Something I’ll type instead', 'agentimus' ),
-				esc_html__( 'For a search Google hasn’t reported yet', 'agentimus' )
+				esc_html(
+					sprintf(
+						/* translators: %s: the connected search engine, e.g. Google or Bing. */
+						__( 'For a search %s hasn’t reported yet', 'agentimus' ),
+						self::engine_name()
+					)
+				)
 			);
 			echo '</div>';
 		} else {
@@ -522,8 +562,24 @@ final class Focus {
 			// Only the fact, here. The instruction lives inside the live region
 			// below, so clearing the words puts it back and it can never sit
 			// beside a verdict that contradicts it.
+			//
+			// Which fact, though, depends on who is reporting. Bing buys page
+			// detail one HTTP call at a time and stops at the busiest few, so on
+			// a page outside that sample "no searches have reached this page" is
+			// not something waiting will fix — and telling an author their post
+			// is invisible when the source simply never looked at it is the
+			// worst version of this box being wrong.
+			$cap = Search\Report::page_cap();
 			echo '<p class="agentimus-fieldhint">'
-				. esc_html__( 'No searches have reached this page yet — normal for a new post.', 'agentimus' )
+				. esc_html(
+					$cap > 0
+						? sprintf(
+							/* translators: %d: how many pages the connected engine reports searches for. */
+							__( 'Your search source only reports the %d busiest pages, and this is not one of them. Type the search you want it to answer.', 'agentimus' ),
+							$cap
+						)
+						: __( 'No searches have reached this page yet — normal for a new post.', 'agentimus' )
+				)
 				. '</p>';
 			return;
 		}

@@ -17,10 +17,10 @@
 export default {
   name: 'ContentWorklist',
   props: {
-    data: { type: Object, default: () => ({ items: [], counts: {}, capped: false, total: 0, noSearchData: 0, searchState: '' }) },
+    data: { type: Object, default: () => ({ items: [], counts: {}, capped: false, total: 0, noSearchData: 0, searchState: '', engine: '', pageCap: 0 }) },
     // Cheap counts from the boot payload — no page parsed. They let the opening
     // state say something true about the site instead of just offering a button.
-    preview: { type: Object, default: () => ({ published: 0, withSearch: 0, setAside: 0, searchState: '' }) },
+    preview: { type: Object, default: () => ({ published: 0, withSearch: 0, setAside: 0, searchState: '', engine: '', pageCap: 0 }) },
     loaded: { type: Boolean, default: false },
     busy: { type: Boolean, default: false },
     settingAside: { type: Number, default: 0 },
@@ -65,6 +65,29 @@ export default {
     counts() {
       return this.data.counts || {};
     },
+    // How many pages the source behind these rows can speak about at all.
+    // 0 means "every page" — Google reports query x page directly.
+    pageCap() {
+      return Number(this.data.pageCap) || 0;
+    },
+    engine() {
+      return this.data.engine || '';
+    },
+    // Why a row's focus column is empty, and the two reasons are NOT the same.
+    //
+    // Google looks at every page, so an empty column really does mean no search
+    // has reached it — normal for a new post, and it will fill in on its own.
+    // Bing has no query x page report at all: the poll buys page detail one HTTP
+    // call at a time and stops at the busiest few, so outside that sample the
+    // column is empty because nobody ASKED, and waiting will never fill it.
+    // Printing the first sentence in the second case tells an owner their page
+    // is invisible when it may be doing fine.
+    emptyWhy() {
+      if (this.pageCap > 0) {
+        return `${this.engine || 'This source'} only reports searches for your ${this.pageCap} busiest pages — this one is outside that list.`;
+      }
+      return 'No searches have reached this one yet.';
+    },
     // Chips are exclusive and add up to the list, so the numbers can be trusted.
     tabs() {
       return [
@@ -93,7 +116,14 @@ export default {
         bits.push(`Showing the ${this.items.length} most worth looking at, of ${this.data.total}.`);
       }
       if (this.data.noSearchData) {
-        bits.push(`${this.data.noSearchData} have no search data yet — normal for recent posts, and they still show their content issues.`);
+        // "Normal for recent posts" is true under Google and misleading under
+        // Bing, where the blank column is the sample's edge rather than the
+        // page's age. Same number, two different things to do about it.
+        bits.push(
+          this.pageCap > 0
+            ? `${this.data.noSearchData} sit outside the ${this.pageCap} pages ${this.engine || 'this source'} reports searches for, so nothing here can say what they are found for. Their content issues are still real.`
+            : `${this.data.noSearchData} have no search data yet — normal for recent posts, and they still show their content issues.`
+        );
       }
       if ('not_connected' === this.data.searchState) {
         bits.push('No search source is connected, so no row can say what it is found for.');
@@ -110,7 +140,14 @@ export default {
       const p = this.preview || {};
       const out = [{ n: p.published || 0, label: p.published === 1 ? 'published item' : 'published items' }];
       if ('ready' === p.searchState) {
-        out.push({ n: p.withSearch || 0, label: 'already found in search' });
+        // Under Bing this can never exceed the poll's page budget, so calling it
+        // "already found in search" would read as a verdict on the other 290
+        // pages when it is only the shape of the report.
+        const cap = Number(p.pageCap) || 0;
+        out.push({
+          n: p.withSearch || 0,
+          label: cap > 0 ? `reported by ${p.engine || 'your search source'}` : 'already found in search',
+        });
       }
       if (p.setAside) {
         out.push({ n: p.setAside, label: 'set aside by you' });
@@ -348,7 +385,7 @@ export default {
               </span>
               <span class="ar-work__why">{{ coverWhy(i) }}</span>
             </template>
-            <span v-else class="ar-work__why">No searches have reached this one yet.</span>
+            <span v-else class="ar-work__why">{{ emptyWhy }}</span>
           </div>
 
           <div class="ar-work__act">
