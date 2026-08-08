@@ -17,6 +17,9 @@
 export default {
   name: 'ContentWorklist',
   props: {
+    // Only for /worklist/rows — the list itself stays App-owned and arrives
+    // as `data`, so this panel cannot drift into loading two truths.
+    api: { type: Object, default: null },
     data: { type: Object, default: () => ({ items: [], counts: {}, capped: false, total: 0, noSearchData: 0, searchState: '', engine: '', pageCap: 0 }) },
     // Cheap counts from the boot payload — no page parsed. They let the opening
     // state say something true about the site instead of just offering a button.
@@ -34,6 +37,12 @@ export default {
     return {
       // Post IDs a finding asked for. Null means "show everything".
       picked: null,
+      // Rows fetched for a finding's pages that sit BELOW the shortlist the
+      // list payload carries — without these, a handed-over page outside the
+      // top rows filtered down to "Nothing in this view" and the finding's
+      // button read as a lie. Cleared with the filter.
+      extraRows: [],
+      pickFetching: false,
       filter: 'fixable',
     };
   },
@@ -46,7 +55,9 @@ export default {
       handler(next) {
         if (!next || !next.pages || !next.pages.length) return;
         this.picked = next.pages.slice();
+        this.extraRows = [];
         if (!this.loaded) this.$emit('load');
+        else this.resolvePicked();
         this.bringIntoView();
       },
     },
@@ -55,12 +66,21 @@ export default {
     // the browser cancelled the smooth scroll and nothing moved at all — the
     // button looked dead. Land again once the rows are actually here.
     loaded(now) {
-      if (now && this.picked) this.bringIntoView();
+      if (now && this.picked) {
+        this.resolvePicked();
+        this.bringIntoView();
+      }
     },
   },
   computed: {
     items() {
-      return Array.isArray(this.data.items) ? this.data.items : [];
+      const base = Array.isArray(this.data.items) ? this.data.items : [];
+      if (!this.extraRows.length) return base;
+      // The finding's below-the-shortlist rows, appended once. Dedup by id:
+      // a reload can promote a page into the shortlist while its fetched
+      // twin is still here.
+      const have = new Set(base.map((i) => i.id));
+      return base.concat(this.extraRows.filter((r) => !have.has(r.id)));
     },
     counts() {
       return this.data.counts || {};
@@ -134,6 +154,31 @@ export default {
     },
   },
   methods: {
+    // A finding may name pages the shortlist doesn't carry — fetch exactly
+    // those rows so the hand-off always lands on what was counted. Failure
+    // falls through to the picked-empty copy, which explains itself.
+    async resolvePicked() {
+      if (!this.picked || !this.api || !this.api.getWorklistRows) return;
+      const have = new Set(this.items.map((i) => i.id));
+      const missing = this.picked.filter((id) => !have.has(id));
+      if (!missing.length) return;
+      this.pickFetching = true;
+      try {
+        const res = await this.api.getWorklistRows(missing);
+        this.extraRows = Array.isArray(res && res.rows) ? res.rows : [];
+      } catch (e) {
+        this.extraRows = [];
+      } finally {
+        this.pickFetching = false;
+      }
+    },
+    // Leaving the finding's view drops its extra rows too — they were fetched
+    // for that filter, and "Show everything" must mean the list as shipped
+    // (its footer counts stay true).
+    showEverything() {
+      this.picked = null;
+      this.extraRows = [];
+    },
     // Only the numbers that mean something on this site. A stat reading "0"
     // teaches nothing and makes the row look broken.
     previewStats() {
@@ -300,10 +345,19 @@ export default {
       </p>
 
       <!-- A filtered list has to say so and offer the way out. Silently showing
-           4 of 30 rows is how somebody concludes the other 26 vanished. -->
+           4 of 30 rows is how somebody concludes the other 26 vanished — and a
+           filter that comes up EMPTY has to say why, or the finding's button
+           reads as a lie ("Showing the 0 pages" was heera.it's actual words). -->
       <p v-if="picked" class="ar-work__picked">
-        Showing {{ shown.length === 1 ? 'the 1 page' : `the ${shown.length} pages` }} from that finding.
-        <button type="button" class="ar-linkbtn" @click="picked = null">Show everything</button>
+        <template v-if="pickFetching">Fetching those pages…</template>
+        <template v-else-if="shown.length">
+          Showing {{ shown.length === 1 ? 'the 1 page' : `the ${shown.length} pages` }} from that finding.
+        </template>
+        <template v-else>
+          The pages that finding counted aren't here any more — re-graded clean,
+          set aside, or no longer published. The finding catches up on its next check.
+        </template>
+        <button type="button" class="ar-linkbtn" @click="showEverything">Show everything</button>
       </p>
 
       <div v-else class="ar-work__tabs">
@@ -400,9 +454,15 @@ export default {
 
         </li>
       </ul>
-      <p v-else class="ar-work__empty">Nothing in this view.</p>
+      <!-- Not in the picked view: its own line above already explains an empty
+           result, and stacking "Nothing in this view" under it read as three
+           contradictory sentences about one list. -->
+      <p v-else-if="!picked" class="ar-work__empty">Nothing in this view.</p>
 
-      <p v-if="foot" class="ar-work__foot">{{ foot }}</p>
+      <!-- The footer describes the list as shipped ("the 30 most worth looking
+           at, of 67") — under a finding's filter that claim belongs to a list
+           the reader isn't looking at. -->
+      <p v-if="foot && !picked" class="ar-work__foot">{{ foot }}</p>
     </template>
 
   </div>

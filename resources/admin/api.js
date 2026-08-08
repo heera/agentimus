@@ -58,6 +58,7 @@ export function createApi(boot) {
     // The per-item content worklist. Fetched on demand, never in the boot
     // payload: each row parses a page.
     getWorklist: () => request('/worklist'),
+    getWorklistRows: (ids) => request(`/worklist/rows?ids=${ids.map(Number).join(',')}`),
     // { id: modified } as the screen last saw it → rebuilt rows for whatever
     // has changed since, and nothing when nothing has.
     worklistChanged: (seen) => request('/worklist/changed', { method: 'POST', body: JSON.stringify({ seen }) }),

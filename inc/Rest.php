@@ -252,6 +252,24 @@ final class Rest {
 			)
 		);
 
+		// Rows for named posts, whatever the shortlist holds. A finding hands
+		// over the exact pages it counted, but the worklist ships only its 30
+		// most-worth-looking-at rows — a handed-over page below that line
+		// filtered down to "Nothing in this view", which read as the button
+		// lying. This door fetches precisely the named rows instead.
+		register_rest_route(
+			self::NAMESPACE,
+			'/worklist/rows',
+			array(
+				'methods'             => \WP_REST_Server::READABLE,
+				'callback'            => array( $this, 'worklist_rows' ),
+				'permission_callback' => array( $this, 'can_manage' ),
+				'args'                => array(
+					'ids' => array( 'type' => 'string', 'required' => true ),
+				),
+			)
+		);
+
 		// Which of these rows are older than the posts they describe, and the
 		// rebuild for just those. Editing happens in another tab; without this
 		// the screen either shows a stale verdict or re-reads every page to
@@ -917,6 +935,26 @@ final class Rest {
 				'message' => isset( $messages[ $reason ] ) ? $messages[ $reason ] : $messages['not-a-range-file'],
 			)
 		);
+	}
+
+	/**
+	 * GET /worklist/rows — rows for exactly these posts.
+	 *
+	 * The findings hand-off's other half: the worklist's own payload is its
+	 * shortlist, and a finding may name pages outside it. Missing posts
+	 * (deleted, unpublished) drop out of the answer — the screen says what
+	 * that means rather than inventing rows for them.
+	 *
+	 * @param \WP_REST_Request $request The request.
+	 * @return \WP_REST_Response
+	 */
+	public function worklist_rows( \WP_REST_Request $request ) {
+		$ids = array_values( array_filter( array_map( 'absint', explode( ',', (string) $request->get_param( 'ids' ) ) ) ) );
+		if ( ! $ids ) {
+			return rest_ensure_response( array( 'rows' => array() ) );
+		}
+		$worklist = new Worklist( $this->settings );
+		return rest_ensure_response( array( 'rows' => $worklist->rows_for( $ids ) ) );
 	}
 
 	/**

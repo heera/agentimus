@@ -2007,6 +2007,7 @@ export default {
              findings above; the per-item worklist here. Deliberately NOT its own
              tab — one place to look is the entire point. -->
         <ContentWorklist
+          :api="api"
           :pick="workPick"
           v-show="tab === 'attention'"
           :data="worklist"
