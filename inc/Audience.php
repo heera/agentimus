@@ -23,7 +23,7 @@
  *     stores `endpoint` (llms.txt, a .md twin, a discovery document), and the
  *     recorder only ever sees bot-facing routes. A crawler reading an ordinary
  *     page is not in this number, because nothing records it.
- *  3. Readers AI sent are counted when the visit still carries a recognisable
+ *  3. Visitors AI sent are counted when the visit still carries a recognisable
  *     referrer or campaign tag. An assistant that strips both is invisible here.
  *
  * @package Agentimus
@@ -235,7 +235,7 @@ final class Audience {
 			'perVisit'   => (float) ( isset( $totals['perVisit'] ) ? $totals['perVisit'] : 0 ),
 			'pages'      => $pages,
 			// GA4's OWN reading of how many an assistant sent. Kept separate from
-			// the local count on purpose — the Readers screen shows both and names
+			// the local count on purpose — the Visitors screen shows both and names
 			// the reason they differ, rather than picking a winner.
 			'aiSessions' => null === $split ? null : (int) ( isset( $split['ai'] ) ? $split['ai'] : 0 ),
 			'otherSessions' => null === $split ? null : (int) ( isset( $split['other'] ) ? $split['other'] : 0 ),

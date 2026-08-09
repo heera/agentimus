@@ -20,6 +20,7 @@ import EdgePanel from './components/EdgePanel.vue';
 import BingPanel from './components/BingPanel.vue';
 import GoogleIndexPanel from './components/GoogleIndexPanel.vue';
 import SearchPerformance from './components/SearchPerformance.vue';
+import SearchOpportunities from './components/SearchOpportunities.vue';
 import AgentAccess from './components/AgentAccess.vue';
 import ReviewMenu from './components/ReviewMenu.vue';
 import OnboardingWizard from './components/OnboardingWizard.vue';
@@ -46,10 +47,15 @@ const ACTIVITY_EVENTS = ['mousemove', 'keydown', 'wheel', 'pointerdown', 'touchs
 const MORE_TUCK = -6;
 // ...and the breathing room it keeps from the window edge when it has to shift inward.
 const MORE_EDGE_GAP = 12;
+// Screens get renamed; bookmarks don't. Old hashes keep landing where their
+// screen went — silently booting the dashboard instead reads as "my bookmark
+// broke". Applied on cold load AND on hashchange, and the tab watcher then
+// writes the current name back into the address bar, so the alias heals itself.
+const LEGACY_HASHES = { today: 'findings', attention: 'findings', 'ai-traffic': 'visitors', readers: 'visitors' };
 
 export default {
   name: 'AgentimusApp',
-  components: { SettingsForm, ReadinessPanel, DiscoveryHub, ActivityPanel, AudiencePanel, SurfaceTiles, WhatsNew, ReviewAsk, AssistantLauncher, AssistantDrawer, AiTrafficPanel, RequestLog, EdgePanel, BingPanel, GoogleIndexPanel, SearchPerformance, AgentAccess, ReviewMenu, OnboardingWizard, AboutPanel, ConfirmDialog, VisibilityPanel, TodayPanel, ContentWorklist },
+  components: { SettingsForm, ReadinessPanel, DiscoveryHub, ActivityPanel, AudiencePanel, SurfaceTiles, WhatsNew, ReviewAsk, AssistantLauncher, AssistantDrawer, AiTrafficPanel, RequestLog, EdgePanel, BingPanel, GoogleIndexPanel, SearchPerformance, SearchOpportunities, AgentAccess, ReviewMenu, OnboardingWizard, AboutPanel, ConfirmDialog, VisibilityPanel, TodayPanel, ContentWorklist },
   // The styled hover bubble (shared with the activity tables) — the score rail's
   // rung and next-step hints use it instead of slow, unthemeable native titles.
   mixins: [uaTip],
@@ -57,22 +63,21 @@ export default {
     boot: { type: Object, required: true },
   },
   data() {
-    const fromHash = (window.location.hash || '').replace(/^#/, '');
+    const rawHash  = (window.location.hash || '').replace(/^#/, '');
+    const fromHash = LEGACY_HASHES[rawHash] || rawHash;
     // With the activity log switched off there is nothing to read, so both activity
     // tabs are hidden and their hashes have nowhere to land. This list is what a COLD
     // load validates against — `tabs()` only governs a hashchange — so a screen missing
     // from it silently boots on the dashboard instead.
     const actOn = !!(this.boot.settings && this.boot.settings.enable_activity);
-    const activityTabs = ['log', 'readers'];
+    const activityTabs = ['log', 'visitors'];
     // 'agent-access' and 'visibility' are unconditional: always mounted, so their
     // hashes always have somewhere to land. (Visibility hosts two tenants — the
     // citation checks and AI Search — each gated by its OWN key inside the screen.)
-    // Dashboard is where a cold load lands. Attention is reachable — by its icon in
-    // the controls, and by #attention — but it is not the default: opening the plugin
-    // on a worklist puts a to-do list in front of someone who came to look at
-    // something, and the icon has no way to say "you are already here" that a
-    // person arriving would read as a choice they made.
-    let startTab = ['attention', 'dashboard', ...activityTabs, 'agent-access', 'visibility', 'settings', 'readiness', 'discovery', 'about'].includes(fromHash) ? fromHash : 'dashboard';
+    // Dashboard is where a cold load lands. Findings is reachable — its tab, and
+    // #findings — but it is not the default: opening the plugin on a worklist
+    // puts a to-do list in front of someone who came to look at something.
+    let startTab = ['findings', 'dashboard', ...activityTabs, 'agent-access', 'visibility', 'settings', 'readiness', 'discovery', 'about'].includes(fromHash) ? fromHash : 'dashboard';
     if (activityTabs.includes(startTab) && !actOn) startTab = 'dashboard';
     return {
       api: createApi(this.boot),
@@ -98,10 +103,6 @@ export default {
       // verdict the author has already fixed and say nothing about it.
       worklistAt: 0,
       worklistStale: false,
-      // Whether the nav bar has room for every screen name. Below this the bar
-      // wrapped to a second line that sat under the fold — the items were there,
-      // but only findable by scrolling a header nobody scrolls.
-      narrowNav: false,
       refreshingWorklist: false,
       settingAside: 0,
       refreshingReadiness: false,
@@ -145,10 +146,16 @@ export default {
       logPreset: null,
       // { pages: [id], seq } — the subset a finding asked the worklist to show.
       workPick: null,
-      // The AI Visibility screen's current sub-view (Results / Settings) —
-      // announced by the panel, so screen-mates can seat themselves with the
-      // right one (Found by AI Search rides Results).
-      visView: 'results',
+      // The Visibility screen's current view — announced by the panel, so
+      // screen-mates can seat themselves on the right one (the two search
+      // cards ride the Search view, whose id stays 'performance'; the two
+      // index cards ride 'aisearch', which kept its id when it became the
+      // In-the-index view). Starts at the panel's own landing view.
+      visView: 'performance',
+      // What the Search Opportunities card announced about itself ({ show,
+      // count, aside }) — handed to Readiness, whose pointer card renders from
+      // it. Null until the card's first fetch answers.
+      searchOppsPtr: null,
       // Edge conflicts (from EdgePanel's summary fetch), pinned ABOVE the request
       // log: a breakage must be the first thing on that screen, while the edge
       // cards themselves sit below the log they annotate.
@@ -170,7 +177,7 @@ export default {
       saving: false,
       resetting: false,
       onboarded: !!this.boot.onboarded,
-      // The "More" nav menu (Request log / AI Visibility / About).
+      // The "More" nav menu (Request log / Visibility / About).
       moreOpen: false,
       // Horizontal offset of the menu from its trigger, in px. Normally a slight tuck to
       // the left (MORE_TUCK); clamped by positionMore() when the trigger sits close enough
@@ -326,7 +333,7 @@ export default {
       const a = this.aeoNext && this.aeoNext.action;
       if (!a) return '';
       // href actions open a new tab (see openNext) — say so; in-app jumps keep
-      // the action's own label ("Open AI Visibility").
+      // the action's own label ("Open Visibility").
       return a.href ? 'Open in a new tab →' : (a.label ? `${a.label} →` : '');
     },
     // The per-page content worklist behind the Optimized rung (issue → affected pages).
@@ -355,47 +362,45 @@ export default {
         return '';
       }
     },
-    // The four screens you work in day to day. Kept in the bar itself so the nav stays
-    // short enough to read on a narrow admin, where it would otherwise scroll sideways.
+    // The screens that live in the bar, at every width (his call: Readiness
+    // and Discovery used to fold into More on a narrow admin, and a primary
+    // you cannot see is a primary you stop visiting). The row fits where five
+    // tabs did not because Settings left it for the gear at the bar's far end.
     primaryTabs() {
-      const wide = [
+      return [
         { id: 'dashboard', label: 'Dashboard' },
-        { id: 'settings', label: 'Settings' },
         { id: 'readiness', label: 'Readiness' },
         { id: 'discovery', label: 'Discovery' },
+        // Findings graduated from a controls icon to a plain tab (his call),
+        // seated last so its count sits beside More — where the eye already
+        // checks for the unread dot. Named for its CONTENTS: "Attention" in a
+        // row of destination nouns read as a command, and every synonym for
+        // attention names the reader's state, not the screen's.
+        { id: 'findings', label: 'Findings', count: this.attentionCount },
       ];
-      // Two of the four fold away when the bar runs out of room. Dashboard and
-      // Settings stay because they are the two most reached; the other two are
-      // not lost, they move to the top of More.
-      return this.narrowNav ? wide.slice(0, 2) : wide;
     },
-    // The screens folded out of the bar, in bar order.
-    foldedTabs() {
-      return this.narrowNav
-        ? [{ id: 'readiness', label: 'Readiness' }, { id: 'discovery', label: 'Discovery' }]
-        : [];
+    // The Findings tab's count — urgent + worth, the same number the
+    // screen's headline states. Zero hides the badge entirely: a quiet tab
+    // honestly means "nothing needs you", exactly like the bell at rest.
+    attentionCount() {
+      const c = (this.findings && this.findings.counts) || {};
+      return (Number(c.urgent) || 0) + (Number(c.worth) || 0);
     },
-    // The occasional ones, behind "More".
-    //
-    // AI Visibility is always LISTED, even when citation tracking is off — showing it greyed
+    // Visibility is always LISTED, even when citation tracking is off — showing it greyed
     // out tells an owner the feature exists and where to turn it on, where hiding it just
     // leaves a hole they never learn about. The request log is different: it's on by default
     // and switching recording off is a deliberate act, so it simply goes.
     moreTabs() {
       return [
-        // Folded-out primaries come FIRST: they are the ones someone was looking
-        // for in the bar, so they must be the first thing in the menu they were
-        // moved to — not buried under the occasional screens.
-        ...this.foldedTabs,
         // Always on: the screen hosts two tenants (citation checks + AI Search),
         // each gated by its own key INSIDE the screen — never by the nav.
-        { id: 'visibility', label: 'AI Visibility', divided: this.narrowNav },
+        { id: 'visibility', label: 'Visibility' },
         // Two screens, one switch — but they are NOT the same view of the same thing.
         // The request log is the bot side (one row per fetch, with a clock time); AI
         // traffic is the human side (day totals, no clock time). Keeping them apart is
         // what keeps "agents taking" and "AI giving back" legible in the nav.
         ...(this.settings.enable_activity
-          ? [{ id: 'readers', label: 'Readers' }, { id: 'log', label: 'Request Log' }]
+          ? [{ id: 'visitors', label: 'Visitors' }, { id: 'log', label: 'Request Log' }]
           : []),
         // Agent access is the ACT side of the same story the two screens above tell about
         // READS, so it sits with them. Always listed (never hidden behind its own setting):
@@ -418,10 +423,11 @@ export default {
     // Every reachable screen — what syncTabFromHash() validates a #hash against. A disabled
     // item is listed but NOT navigable, so #visibility must not resolve while it's off.
     tabs() {
-      // Attention is not in the bar — it has an icon in the controls instead — but it
-      // is still a screen, so its #hash has to resolve. Leaving it out here made
-      // Back/Forward and a pasted #attention link silently land somewhere else.
-      return [{ id: 'attention' }, ...this.primaryTabs, ...this.moreTabs.filter((t) => !t.disabled)];
+      // Settings is not in the bar — it is the gear in the controls — but it
+      // is still a screen, so its #hash has to resolve. Leaving it out here
+      // would make Back/Forward and a pasted #settings link silently land
+      // somewhere else (the trap Attention hit when IT was the controls icon).
+      return [{ id: 'settings' }, ...this.primaryTabs, ...this.moreTabs.filter((t) => !t.disabled)];
     },
     dashSummary() {
       const c = (this.discovery && this.discovery.counts) || {};
@@ -442,34 +448,35 @@ export default {
     pageMeta() {
       return (
         {
-          attention: {
-            // Not "Today": nothing on this screen is scoped to a day, and the
-            // Dashboard already spends that word on an activity count meaning
-            // something else. The list is ranked by what each item COSTS, and the
-            // panel opens with "… things need your attention" — so the title is
-            // the last word of its own first sentence, and a noun like every
-            // other title in the bar.
-            title: 'Attention',
+          findings: {
+            // Named for the screen's CONTENTS (was "Today", then "Attention").
+            // His journey to it: nothing here is scoped to a day; and as a bar
+            // label "Attention" read as a command — the one word in a row of
+            // destination nouns that shouts at the reader. The headline still
+            // says "… need your attention"; a sentence earns the word a label
+            // could not.
+            title: 'Findings',
             // Says what the screen IS, not what it contains — the list under it
             // already names each finding, and a head that summarised them twice
             // would push the first row below the fold for no new information.
-            description: 'Everything open across your site, in one place: crawlers waiting on a decision, pages losing a click they already earn, and anything the setup checks caught.',
+            description: 'Everything open across your site, in one place: pages losing a click they already earn, and anything the setup checks caught. Clients waiting on a verdict stay with the bell.',
           },
           dashboard: {
             title: 'Dashboard',
             description: 'An overview of your agent-readiness — what you expose, and who is reading it.',
           },
-          'readers': {
-            // Was "AI Traffic" — a name that read as machines while every number
-            // on it was a PERSON who arrived because an assistant named you. The
-            // badge patched that; the name now says it outright, which matters
-            // more once the screen holds ALL readers and not only the AI-sent
-            // ones. The REST paths keep their /activity/ai-traffic spelling on
+          'visitors': {
+            // Was "AI Traffic" (read as machines), then "Readers" — which the
+            // screen's own stat contradicted: "65% stayed to read" means a third
+            // of the "Readers" never read anything. Since GA4 the screen counts
+            // the WHOLE audience — visits, time, engines — so it is named for
+            // what it counts; "read" survives in the sentences where it is true.
+            // The REST paths keep their /activity/ai-traffic spelling on
             // purpose: they are a stable surface, and renaming them would break
             // callers to fix a label.
-            title: 'Readers',
+            title: 'Visitors',
             audience: 'people',
-            description: 'Everyone who read your site — how many arrived because an AI assistant named you, and how many came another way. Humans only: the machines are in the Request Log.',
+            description: 'Everyone who visited your site — how many arrived because an AI assistant named you, and how many came another way. Humans only: the machines are in the Request Log.',
           },
           log: {
             title: 'Request Log',
@@ -482,10 +489,11 @@ export default {
             description: 'What agents did on your site — keys created and used, abilities run. A record, not a guard.',
           },
           visibility: {
-            title: 'AI Visibility',
-            // Names all THREE cards on the screen. Search Performance moved here and
-            // can report Google, so a lead naming only Bing describes the old screen.
-            description: 'Whether AI search can find you, whether assistants cite you, and how you did in classic search — Bing’s index, scheduled citation checks, and the numbers Google or Bing reported.',
+            title: 'Visibility',
+            // Names all three QUESTIONS the screen's views answer — and says
+            // out loud that the room mixes audiences, because each card names
+            // its own. "AI Visibility" over-claimed for the Search view.
+            description: 'How your pages did in the results, whether the engines’ indexes hold you — Google’s, and Bing’s, the one AI search reads — and whether AI answers cite you. People and machines both live here; every card says which it counts.',
           },
           settings: {
             title: 'Settings',
@@ -528,7 +536,7 @@ export default {
     // Same for the request log and AI traffic: both panels are v-if'd on this setting, so
     // switching recording off while viewing one would unmount it and leave the screen blank.
     'settings.enable_activity'(on) {
-      if (!on && (this.tab === 'log' || this.tab === 'readers')) this.goTo('dashboard');
+      if (!on && (this.tab === 'log' || this.tab === 'visitors')) this.goTo('dashboard');
     },
     // Opening by click or keyboard should put you inside the menu: on the screen you're
     // already on, or the first one you can reach. Escape hands focus back to the trigger
@@ -554,6 +562,20 @@ export default {
       // Never leave the More menu hanging open over a screen you've already left — this
       // also covers arriving via Back/Forward or a primary tab, not just picking an item.
       this.moreOpen = false;
+      // The Findings screen summarises decisions made elsewhere — the bell, the
+      // editor, another tab entirely. Entering it re-reads the findings, the same
+      // courtesy the worklist's reconcile gives its rows: one cheap GET, and the
+      // card can never keep claiming a queue that has already been emptied.
+      if ('findings' === val) this.silentRefreshFindings();
+      // The dashboard keeps the freshness contract too: entering it re-reads
+      // the activity payload quietly — old tiles hold the screen while the
+      // fresh counts land. Activity ONLY: refreshDiscovery() is the Discovery
+      // screen's explicit re-scan and announces itself with a toast — calling
+      // it here greeted every dashboard visit with "Discovery registry
+      // re-scanned." (his catch). The Endpoint Activity card's own Refresh
+      // stays the screen's hand-crank; a second one in the pagehead was the
+      // same button twice.
+      if ('dashboard' === val) this.refreshActivity();
       // Reflect the active tab in the URL hash, PUSHING a history entry so the
       // browser Back/Forward buttons step through the tabs. The guard skips the
       // push when the hash already matches — i.e. when the change itself came from
@@ -592,14 +614,6 @@ export default {
     };
     window.addEventListener('focus', this._onFocus);
     document.addEventListener('visibilitychange', this._onFocus);
-
-    // Keep the bar's capacity in sync with the window. matchMedia rather than a
-    // resize handler: it fires only when the answer actually changes.
-    this._navQuery = window.matchMedia('(max-width: 1200px)');
-    this.narrowNav = this._navQuery.matches;
-    this._onNavQuery = (e) => { this.narrowNav = e.matches; };
-    if (this._navQuery.addEventListener) this._navQuery.addEventListener('change', this._onNavQuery);
-    else this._navQuery.addListener(this._onNavQuery); // Safari < 14
 
     // `mousedown`, not `click`: the trigger's own click would otherwise fire after this
     // handler had already closed the menu, and it would reopen on every second press.
@@ -655,11 +669,6 @@ export default {
   beforeUnmount() {
     window.removeEventListener('focus', this._onFocus);
     document.removeEventListener('visibilitychange', this._onFocus);
-    if (this._navQuery && this._onNavQuery) {
-      if (this._navQuery.removeEventListener) this._navQuery.removeEventListener('change', this._onNavQuery);
-      else this._navQuery.removeListener(this._onNavQuery);
-    }
-
     document.removeEventListener('mousedown', this.onMoreDocDown);
     document.removeEventListener('keydown', this.onMoreKey);
     document.removeEventListener('visibilitychange', this.onTabVisible);
@@ -695,12 +704,12 @@ export default {
       return `${r.score}%`;
     },
     rungTarget(r) {
-      // Cited opens AI Visibility on the sub-view the score chose: Settings when setup
+      // Cited opens Visibility on the sub-view the score chose: Settings when setup
       // isn't complete enough to run a check, otherwise Results.
       return 'visibility' === r.to ? { tab: 'visibility', view: r.view || 'results' } : { tab: 'readiness', anchor: `ar-group-${r.key}` };
     },
     rungTitle(r) {
-      return 'visibility' === r.to ? 'Open AI Visibility' : `View ${r.label} checks in the readiness report`;
+      return 'visibility' === r.to ? 'Open Visibility' : `View ${r.label} checks in the readiness report`;
     },
     // "N to fix" for a check-backed rung: its non-passing (warn or fail) checks.
     rungTodo(r) {
@@ -826,7 +835,7 @@ export default {
     moreIcon(id) {
       return {
         visibility: ['M1.6 8S4 3.9 8 3.9 14.4 8 14.4 8 12 12.1 8 12.1 1.6 8 1.6 8Z', 'M8 9.7a1.7 1.7 0 1 0 0-3.4 1.7 1.7 0 0 0 0 3.4Z'],
-        'readers': ['M2 12.2 6.1 7.9l2.6 2.2 4.6-5.4', 'M10.1 4.4h3.5v3.4'],
+        'visitors': ['M2 12.2 6.1 7.9l2.6 2.2 4.6-5.4', 'M10.1 4.4h3.5v3.4'],
         log: ['M3 4.2h10', 'M3 8h10', 'M3 11.8h6'],
         // A key: this screen is about the credentials that reach the machine surface.
         'agent-access': ['M9.9 6.1a2.6 2.6 0 1 0 3.7 3.7 2.6 2.6 0 0 0-3.7-3.7Z', 'M9.9 9.8 4 15.7', 'M6.4 13.2l1.6 1.6'],
@@ -905,7 +914,30 @@ export default {
     goTo(target) {
       // Navigation unmounts whatever the pointer was over — never strand its tooltip.
       this.hideUaTip();
-      const { tab, anchor, view, log, ai, pages } = typeof target === 'string' ? { tab: target } : target || {};
+      // A new journey ends any anchor-hold from the previous one — two
+      // correctors aiming at different targets would fight over the viewport.
+      if (this._unHold) this._unHold();
+      let { tab, anchor, view, log, ai, pages } = typeof target === 'string' ? { tab: target } : target || {};
+      // Renamed screens keep their old ids working HERE too, not only in the
+      // hash: a stale emitter asking for 'today' used to set a tab no panel
+      // matches — a blank screen wearing a dead URL.
+      tab = LEGACY_HASHES[tab] || tab;
+      // Moved sections get the same courtesy as renamed tabs. Search
+      // Opportunities lived on Readiness until 1.36; a stale emitter (a
+      // long-open tab's cached payload, an old assistant deep link) still
+      // asks for it there — reroute to its seat under Search Performance.
+      if ('readiness' === tab && 'ar-group-search' === anchor) {
+        tab = 'visibility';
+        view = view || 'performance';
+      }
+      // The worklist loads on request, never on page load (every row parses a
+      // page) — but a button that says "work through them page by page" IS
+      // that request. Landing on the card's ask-first intro after clicking it
+      // reads as broken, so the navigation grants the load the intro's own
+      // button would have.
+      if ('findings' === tab && 'ar-work' === anchor && !this.worklistLoaded && !this.refreshingWorklist) {
+        this.loadWorklist();
+      }
       // Tell the tab watcher not to snap to the top: we're aiming at a section below.
       this._jumpAnchor = anchor || null;
       // A dashboard row drilling into a report screen carries its filter along.
@@ -935,7 +967,7 @@ export default {
           this.jumpToAnchor(anchor);
         });
       }
-      // Deep-link into the AI Visibility panel's Settings/Results sub-view when asked.
+      // Deep-link into the Visibility panel's sub-views when asked.
       if ('visibility' === tab && view) {
         this.$nextTick(() => {
           if (this.$refs.visibilityPanel && this.$refs.visibilityPanel.openView) {
@@ -1000,6 +1032,46 @@ export default {
       const y = el.getBoundingClientRect().top + window.pageYOffset - gap;
       window.scrollTo({ top: Math.max(0, y), behavior: 'smooth' });
       this.flashTarget(el);
+      this.holdAnchor(el, gap);
+    },
+    /**
+     * Keep a jumped-to element aligned while its screen settles.
+     *
+     * Landing is not the end of the journey: a screen-mate ABOVE the target can
+     * still be fetching its data when the jump aligns (Search Performance loads
+     * on first reveal, and the Search Opportunities card sits under it). When
+     * that card fills in, everything below slides down and the reader is left
+     * on the wrong rows — an aligned scroll against a layout that no longer
+     * exists. So for a short window after the jump, watch the target's document
+     * position and re-issue the scroll when it drifts. The reader's own scroll
+     * ends the hold immediately — a correction must never fight a person.
+     *
+     * @param {Element} el  The jumped-to element.
+     * @param {number}  gap Viewport offset the jump aligned to (below the sticky header).
+     */
+    holdAnchor(el, gap) {
+      if (this._unHold) this._unHold();
+      let stop = false;
+      const cancel = () => { stop = true; };
+      const evs = ['wheel', 'touchstart', 'keydown'];
+      evs.forEach((ev) => window.addEventListener(ev, cancel, { passive: true }));
+      const off = () => evs.forEach((ev) => window.removeEventListener(ev, cancel));
+      this._unHold = () => { stop = true; off(); };
+      const until = Date.now() + 1500;
+      // Drift is measured in DOCUMENT position (rect.top + scrollY), which the
+      // in-flight smooth scroll doesn't change — so the hold corrects layout
+      // shifts without ever fighting the jump's own animation.
+      let docTop = el.getBoundingClientRect().top + window.pageYOffset;
+      const tick = () => {
+        if (stop || Date.now() > until || !document.contains(el)) { off(); return; }
+        const now = el.getBoundingClientRect().top + window.pageYOffset;
+        if (Math.abs(now - docTop) > 4) {
+          docTop = now;
+          window.scrollTo({ top: Math.max(0, now - gap), behavior: 'smooth' });
+        }
+        requestAnimationFrame(tick);
+      };
+      requestAnimationFrame(tick);
     },
     // Briefly ring a jumped-to element so the eye lands on the exact control to
     // change, and focus it when it's a form field (ready to act). The ring is CSS;
@@ -1018,7 +1090,8 @@ export default {
       }
     },
     syncTabFromHash() {
-      const h = window.location.hash.replace(/^#/, '');
+      const raw = window.location.hash.replace(/^#/, '');
+      const h   = LEGACY_HASHES[raw] || raw;
       if (!h || h === this.tab) return;
       if (this.tabs.some((t) => t.id === h)) {
         this.tab = h;
@@ -1040,6 +1113,8 @@ export default {
       this.profileSaving = true;
       try {
         const res = await this.api.saveSettings(this.settings);
+        // Config-gap findings judge these very settings — catch the badge up quietly.
+        this.silentRefreshFindings();
         const savedId = (res.settings && res.settings.identity) || {};
         ['entity_type', 'name', 'role', 'about', 'not_description', 'audience', 'contact_email'].forEach((k) => {
           if (this.settings.identity) this.settings.identity[k] = savedId[k];
@@ -1071,6 +1146,8 @@ export default {
           if (payload.identity) payload.identity[k] = savedId[k];
         });
         const res = await this.api.saveSettings(payload);
+        // Config-gap findings judge these very settings — catch the badge up quietly.
+        this.silentRefreshFindings();
         const storedServices = (res.settings && res.settings.identity && Array.isArray(res.settings.identity.services))
           ? res.settings.identity.services : [];
         if (this.settings.identity) this.settings.identity.services = storedServices;
@@ -1136,6 +1213,8 @@ export default {
         // blog_public first, so the returned readiness/score already show it.
         if (payload.make_public) next.make_public = true;
         const res = await this.api.saveSettings(next);
+        // Config-gap findings judge these very settings — catch the badge up quietly.
+        this.silentRefreshFindings();
         this._skipAutosave = true;
         this.settings = JSON.parse(JSON.stringify(res.settings || {}));
         this.$nextTick(() => { this._skipAutosave = false; });
@@ -1246,6 +1325,8 @@ export default {
       this.beginBusy(); // lock for the round-trip (covers the text-field path too)
       try {
         const res = await this.api.saveSettings(payload);
+        // Config-gap findings judge these very settings — catch the badge up quietly.
+        this.silentRefreshFindings();
         this.savedSnapshot = JSON.stringify(res.settings);
         this.readiness = res.readiness || this.readiness;
         if (res.score) this.aeo = res.score; // Keep the rail card live with the save.
@@ -1370,6 +1451,22 @@ export default {
         this.refreshingFindings = false;
       }
     },
+    // The quiet twin: no busy state, no error toast. For every AUTOMATIC
+    // refresh — a bell decision, a settings save, a score move, the live
+    // poll — where the Findings badge and card should simply catch up
+    // without any control on screen flashing about it. The loud version
+    // stays for the one explicit button ("Check again").
+    async silentRefreshFindings() {
+      if (this._findingsInFlight) return;
+      this._findingsInFlight = true;
+      try {
+        this.findings = await this.api.getFindings();
+      } catch (e) {
+        /* the next trigger retries; a background miss must not toast */
+      } finally {
+        this._findingsInFlight = false;
+      }
+    },
     async refreshReadiness() {
       this.refreshingReadiness = true;
       try {
@@ -1392,6 +1489,10 @@ export default {
         // icon in the Customizer, Reading settings…) refreshes on return here.
         if (r && r.readiness) this.readiness = r.readiness;
         this._scoreAt = Date.now();
+        // Findings are carved from the same material the score just re-read —
+        // a set-aside, a fixed page, a reconciled worklist all move both. One
+        // quiet re-pull keeps the Findings badge honest with the rail.
+        this.silentRefreshFindings();
       } catch (e) {
         // 404 = the route is gone — the plugin was deactivated or removed under
         // this open tab. Stop the quiet focus-refreshes; they can never succeed
@@ -1533,6 +1634,9 @@ export default {
       // review" signal, and the stat tiles update in place. A popup here would be
       // a redundant, interruptive third notice for the same event.
       this.activity = fresh;
+      // The same tick keeps the Findings badge live: both counted controls
+      // refresh on one clock, never one badge moving while its neighbour sleeps.
+      this.silentRefreshFindings();
       // Live, on the same tick as the review bell: a key minted right now lights the nav up
       // without the owner having to reload the page to find out.
       this.syncAgentAccessBadge(fresh);
@@ -1557,6 +1661,9 @@ export default {
         this.activity = res.activity || res;
         if (res.settings) this.syncBlockSettings(res.settings);
         this._activityBlockKey = this.blockingKeyOf(this.settings);
+        // The Findings card and its badge count this queue — a decision made
+        // at the bell must show there without a reload, and quietly.
+        this.silentRefreshFindings();
       } catch (e) {
         this.flash('error', e.message);
       } finally {
@@ -1572,6 +1679,7 @@ export default {
         this.activity = res.activity || res;
         if (res.settings) this.syncBlockSettings(res.settings);
         this._activityBlockKey = this.blockingKeyOf(this.settings);
+        this.silentRefreshFindings(); // Same reason as blockAgent: the Findings card counts this queue.
       } catch (e) {
         this.flash('error', e.message);
       } finally {
@@ -1585,6 +1693,7 @@ export default {
       this.dismissingNow = payload;
       try {
         this.activity = await this.api.dismissAgent(payload);
+        this.silentRefreshFindings(); // Same reason as blockAgent: the Findings card counts this queue.
       } catch (e) {
         this.flash('error', e.message);
       } finally {
@@ -1602,6 +1711,7 @@ export default {
         const res = await this.api.reverifyBot(payload);
         this.activity = res.activity || res;
         this.reverifyResult = { ua: payload.ua, status: res.status, verdict: res.verdict };
+        this.silentRefreshFindings(); // A re-check can clear a row from the queue the Findings card counts.
       } catch (e) {
         this.flash('error', e.message);
       } finally {
@@ -1708,15 +1818,22 @@ export default {
           :class="{ 'is-active': tab === t.id }"
           role="tab"
           :aria-selected="tab === t.id"
+          :aria-label="t.count ? `${t.label} — ${t.count} ${t.count === 1 ? 'thing needs' : 'things need'} your attention` : null"
           @click="tab = t.id"
         >
           <span class="ar__tab-ic" aria-hidden="true" v-html="navIcon(t.id)"></span>
           {{ t.label }}
+          <!-- Findings' open count — the same number the screen's headline
+               states, in the findings' amber (red stays the bell's). Inline in
+               the tab, not a corner bubble: a bar tab owns its text line, so
+               the count reads as part of the label. Absent at zero — a quiet
+               tab honestly means "nothing needs you". -->
+          <span v-if="t.count" class="ar__tab-count" aria-hidden="true">{{ t.count }}</span>
         </button>
       </nav>
 
       <!-- The occasional screens. Folding them behind one control keeps the bar short on a
-           narrow admin, and lets AI Visibility appear and disappear without the nav's width
+           narrow admin, and lets Visibility appear and disappear without the nav's width
            jumping. It carries the active underline when the screen you're on is inside it,
            so the bar always shows where you are.
 
@@ -1804,42 +1921,20 @@ export default {
            negative margins: the bar's gap changes with the viewport, so those
            nudges only ever matched at the width they were measured on. -->
       <div class="ar__controls">
-      <!-- Attention. An icon rather than a tab: the screen is a place you come BACK to
-           between jobs, and the bar was already long. Sits with the assistant and
-           the bell — the controls reachable from every screen — and marks itself
-           active when you are on it. -->
-      <button
-        type="button"
-        class="ar__review-btn ar__todaybtn"
-        :class="{ 'is-here': tab === 'attention' }"
-        :aria-label="tab === 'attention' ? 'Attention (current screen)' : 'Attention'"
-        :aria-current="tab === 'attention' ? 'page' : null"
-        @click="goTo('attention')"
-      >
-        <!-- A checklist: two ticked rows. Every mark tried before it was a
-             metaphor for the WORD on the button rather than for the screen — a
-             tray (arrivals, 10px from the bell, which is the real arrivals
-             control), a calendar and a clock (a day, which this list is not
-             scoped to), a bulb (an idea, which is the assistant's job). The list
-             is things to do, so the mark is a list of things to do.
-
-             Two rows, not three: the third lands on a half pixel at 15px and
-             greys the whole glyph. Ticks sized to survive the same 15px — the
-             stroke is the shape here, there is no counter to lose. -->
-        <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-          <path d="M3.4 8.1 5.3 10 8.6 6.3" />
-          <path d="M11.8 8.2h8.8" />
-          <path d="M3.4 16.5 5.3 18.4 8.6 14.7" />
-          <path d="M11.8 16.6h8.8" />
-        </svg>
-      </button>
-
-      <!-- The writing assistant's quill — the bell's sibling; dimmed with guidance
-           until the writes switch is on and a provider is connected. -->
+      <!-- The writing assistant's quill leads: it opens a drawer, the bell
+           carries a count, and the gear closes the row — tools first,
+           configuration last. The findings screen left this cluster for the bar (his
+           call): its count now rides the tab, beside More. -->
       <AssistantLauncher :state="assistantState" @open="assistantOpen = true" @navigate="goTo" />
+      <!-- `enabled` from BOOT settings, not the fetched activity payload: the
+           fetched flag arrives a beat after first paint and popped the bell in
+           late — a layout shift for a control that is always present when
+           logging is on. The count still rides the payload, and a corner
+           bubble appearing out of flow shifts nothing. -->
       <ReviewMenu
         :threats="(activity && activity.threats) || {}"
-        :enabled="!!(activity && activity.enabled)"
+        :enabled="!!settings.enable_activity"
+        :seed="Number(boot.reviewCount) || 0"
         :store-ips="!!settings.store_flagged_ips"
         :blocking="blockingNow"
         :allowing="allowingNow"
@@ -1857,6 +1952,24 @@ export default {
         @flash="flash"
         @manage="openClientManager"
       />
+      <!-- Settings, as the gear every admin knows, at the row's far end (his
+           call): the working screens read on the left, configuration sits
+           last. Same 28px circle grammar as its neighbours; on its own screen
+           it wears the solid accent disc — the same "you are here" mark the
+           Attention control wore when it lived in this cluster. -->
+      <button
+        type="button"
+        class="ar__review-btn ar__gearbtn"
+        :class="{ 'is-here': tab === 'settings' }"
+        :aria-label="tab === 'settings' ? 'Settings (current screen)' : 'Settings'"
+        :aria-current="tab === 'settings' ? 'page' : null"
+        @click="goTo('settings')"
+      >
+        <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <circle cx="12" cy="12" r="3.2" />
+          <path d="M19.4 15a1.7 1.7 0 0 0 .34 1.87l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.7 1.7 0 0 0-1.87-.34 1.7 1.7 0 0 0-1.03 1.56V21a2 2 0 1 1-4 0v-.09a1.7 1.7 0 0 0-1.11-1.56 1.7 1.7 0 0 0-1.87.34l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.7 1.7 0 0 0 .34-1.87 1.7 1.7 0 0 0-1.56-1.03H3a2 2 0 1 1 0-4h.09a1.7 1.7 0 0 0 1.56-1.11 1.7 1.7 0 0 0-.34-1.87l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.7 1.7 0 0 0 1.87.34h.08A1.7 1.7 0 0 0 10.11 3.1V3a2 2 0 1 1 4 0v.09a1.7 1.7 0 0 0 1.03 1.56 1.7 1.7 0 0 0 1.87-.34l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.7 1.7 0 0 0-.34 1.87v.08a1.7 1.7 0 0 0 1.56 1.03H21a2 2 0 1 1 0 4h-.09a1.7 1.7 0 0 0-1.56 1.03z" />
+        </svg>
+      </button>
       </div>
     </header>
 
@@ -1865,7 +1978,7 @@ export default {
         <h1 class="ar__pagehead-title">
           {{ pageMeta.title }}
           <!-- Whose numbers these are. Only on the screens that count ONE
-               audience: a screen holding both (AI Visibility carries citation
+               audience: a screen holding both (Visibility carries citation
                checks AND classic search) gets no badge, because a half-true
                label is worse than none. -->
           <span
@@ -1877,7 +1990,9 @@ export default {
         <p v-if="pageMeta.description" class="ar__pagehead-desc">{{ pageMeta.description }}</p>
       </div>
       <!-- A slot a panel can teleport its own tools into (the About search lives
-           here) — inside the sticky header, so they never scroll away. -->
+           here) — inside the sticky header, so they never scroll away. NOT a
+           home for per-screen refresh cranks: the dashboard briefly grew one
+           here and it was the Endpoint Activity card's Refresh, twice. -->
       <div id="ar-pagehead-tools" class="ar__pagehead-tools"></div>
     </div>
     </div>
@@ -1968,10 +2083,10 @@ export default {
           @reopen-wizard="reopenWizard"
           @clients-changed="syncBlockSettings"
           @flash="flash"
+          @navigate="goTo"
         />
         <ReadinessPanel
           v-show="tab === 'readiness'"
-          :active="tab === 'readiness'"
           :checks="readiness"
           :optimize="optimizeWork"
           :optimize-ignored="optimizeIgnored"
@@ -1979,6 +2094,7 @@ export default {
           :refreshing="refreshingReadiness"
           :live-config="liveConfig"
           :is-local="isLocal"
+          :search-pointer="searchOppsPtr"
           :api="api"
           @refresh="refreshReadiness"
           @navigate="goTo"
@@ -1992,11 +2108,11 @@ export default {
           @refresh="refreshDiscovery"
           @navigate="goTo"
         />
-        <!-- Today: the front door. Every open finding, already merged and ranked
+        <!-- Findings: the front door. Every open finding, already merged and ranked
              by the server, so the first screen answers the only question anyone
              arrives with. Everything else on this page stays exactly as it is. -->
         <TodayPanel
-          v-show="tab === 'attention'"
+          v-show="tab === 'findings'"
           :findings="findings"
           :score="aeo"
           :busy="refreshingFindings"
@@ -2009,7 +2125,7 @@ export default {
         <ContentWorklist
           :api="api"
           :pick="workPick"
-          v-show="tab === 'attention'"
+          v-show="tab === 'findings'"
           :data="worklist"
           :preview="worklistPreview"
           :loaded="worklistLoaded"
@@ -2035,10 +2151,10 @@ export default {
             <li>
               <span class="ar-next__n" aria-hidden="true">1</span>
               <div class="ar-next__body">
-                <strong>AI Visibility</strong>
-                <p>Which AI assistants cite your site, and what AI search has already indexed. Connect Bing Webmaster there and the crawl and index numbers come straight from the source.</p>
+                <strong>Visibility</strong>
+                <p>How search treated your pages, what the engines’ indexes hold, and which AI assistants cite you. Connect Bing Webmaster there and the crawl and index numbers come straight from the source.</p>
               </div>
-              <button type="button" class="ar-btn ar-btn--ghost ar-btn--small" @click="goTo('visibility')">Open AI Visibility</button>
+              <button type="button" class="ar-btn ar-btn--ghost ar-btn--small" @click="goTo('visibility')">Open Visibility</button>
             </li>
             <li>
               <span class="ar-next__n" aria-hidden="true">2</span>
@@ -2121,14 +2237,14 @@ export default {
           @navigate="goTo"
           @flash="flash"
         />
-        <!-- Readers. The `audience` block rides the activity payload the dashboard
+        <!-- Visitors. The `audience` block rides the activity payload the dashboard
              already polls, so opening this screen costs no extra request for the
              site totals it now opens with. -->
         <AiTrafficPanel
           v-if="settings.enable_activity"
-          v-show="tab === 'readers'"
+          v-show="tab === 'visitors'"
           :api="api"
-          :active="tab === 'readers'"
+          :active="tab === 'visitors'"
           :log-unknown="!!settings.log_unknown_referrers"
           :preset="aiPreset"
           :audience="activity && activity.audience"
@@ -2176,13 +2292,15 @@ export default {
           @seen="agentAccessUnseen = 0"
           @flash="flash"
         />
-        <!-- Always mounted: the screen is a room with two tenants. The checks
-             tenant is gated by its own toggle (checks-on), the AI Search tenant
-             by its connection — neither key opens or closes the room. -->
+        <!-- Always mounted: the screen is a room whose tenants each carry
+             their own key. The citations tenant is gated by its toggle
+             (checks-on), the index and performance cards by their data-source
+             connections — no key opens or closes the room itself. -->
         <VisibilityPanel
           v-show="tab === 'visibility'"
           ref="visibilityPanel"
           :api="api"
+          :active="tab === 'visibility'"
           :checks-on="!!settings.enable_visibility"
           @flash="flash"
           @measured="refreshScore"
@@ -2208,10 +2326,22 @@ export default {
         <!-- Classic search's own half: what the engines sent, from the same
              snapshot Readiness carves its worklist out of. -->
         <SearchPerformance
-          v-show="tab === 'visibility' && visView === 'aisearch'"
+          v-show="tab === 'visibility' && visView === 'performance'"
           :api="api"
-          :active="tab === 'visibility' && visView === 'aisearch'"
+          :active="tab === 'visibility' && visView === 'performance'"
           @navigate="goTo"
+        />
+        <!-- The worklist carved from that same report, directly below it —
+             moved here from Readiness (1.36): how search went, then what to
+             do about it, one view. It announces its state up so Readiness's
+             pointer card can say what waits here without fetching anything. -->
+        <SearchOpportunities
+          v-show="tab === 'visibility' && visView === 'performance'"
+          :api="api"
+          :active="tab === 'visibility' && visView === 'performance'"
+          :optimize="optimizeWork"
+          @flash="flash"
+          @state="searchOppsPtr = $event"
         />
         <AboutPanel
           v-show="tab === 'about'"

@@ -1225,7 +1225,7 @@ export default {
                report. The two rank lists that used to sit here are one click
                away, where they have room and filters. -->
           <p class="ar-card__more">
-          <button type="button" class="ar-linkbtn" @click="$emit('navigate', { tab: 'readers' })">
+          <button type="button" class="ar-linkbtn" @click="$emit('navigate', { tab: 'visitors' })">
             See the full report
             <svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 4l4 4-4 4" /></svg>
           </button>

@@ -30,6 +30,10 @@ export default {
     // is — a stable, quiet resting state (no count badge) rather than vanishing the
     // moment the queue clears. With logging off there's nothing to watch, so hide it.
     enabled: { type: Boolean, default: false },
+    // The boot payload's cached queue count (the WP sidebar bubble's own
+    // number). Holds the badge truthful for the beat before the first
+    // activity payload lands — the live list takes over the moment it does.
+    seed: { type: Number, default: 0 },
     // Whether "Store IP addresses for flagged clients" is currently on. Drives the
     // impostor Details copy: with it off we say "turn it on for future visits"; with it
     // on but no IP stored (a hit that predates it) we say so instead of misleadingly
@@ -62,6 +66,10 @@ export default {
       return (this.threats.sources || []).filter((s) => !s.blocked);
     },
     count() {
+      // Before the first activity payload arrives the parent passes threats
+      // as {} — no sources array at all. That is "not answered yet", not
+      // "zero": the boot seed holds the badge steady until the list lands.
+      if (!Array.isArray(this.threats.sources)) return Number(this.seed) || 0;
       return this.pending.length;
     },
     // "Needs attention": the clear problems — a caught impersonator or a legacy-device

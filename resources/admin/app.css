@@ -243,15 +243,30 @@
 }
 .ar__tab:hover { color: var(--ar-ink-soft); }
 .ar__tab.is-active { color: var(--ar-ink); border-bottom-color: var(--ar-accent); }
+/* The Findings tab's open count — the findings' amber, never the bell's red
+   (red means clients waiting on a verdict, amber means work worth doing).
+   Inline after the label, not a corner bubble: a bar tab owns its text line,
+   and the tab's flex row seats it without new layout. */
+.ar__tab-count {
+  margin-left: 7px; min-width: 16px; height: 16px; padding: 0 4px;
+  display: inline-flex; align-items: center; justify-content: center;
+  border-radius: 999px; background: var(--ar-warn); color: var(--ar-paper);
+  font-size: 10px; font-weight: 700; letter-spacing: 0;
+}
 /* Each tab's mark — inherits the label's ink so it dims, wakes and activates
    with the text as one unit. */
 .ar__tab-ic { display: inline-flex; margin-right: 7px; }
 .ar__tab-ic svg { width: 13px; height: 13px; display: block; }
 
 /* ---- Nav "Activity to review" badge + dropdown ------------------------- */
-.ar__review { flex: 0 0 auto; align-self: center; position: relative; margin-left: auto; }
+/* NOT position:relative — the queue pop positions against .ar__controls (the
+   whole cluster), because the bell stopped being the rightmost control when
+   the gear took that seat: anchored to the bell alone, the pop hung off the
+   left edge of a phone and stopped 38px short of the content edge on desktop. */
+.ar__review { flex: 0 0 auto; align-self: center; margin-left: auto; }
 .ar__review-btn {
   appearance: none; cursor: pointer;
+  position: relative; /* anchors the corner count bubble */
   display: inline-flex; align-items: center; gap: 6px;
   padding: 5px 9px; border-radius: 999px;
   border: 1px solid var(--ar-line-strong); background: var(--ar-surface); color: var(--ar-ink-soft);
@@ -263,12 +278,48 @@
    and no red count, so a populated queue (red badge) is what draws the eye. */
 .ar__review.is-quiet .ar__review-btn { border-color: var(--ar-line); }
 .ar__review-btn:focus-visible { outline: 2px solid var(--ar-accent); outline-offset: 2px; }
+/* Count badges ride the CORNER of their control, out of flow — one badge
+   grammar for the whole trio. Inline counts forced the bell into a pill and
+   deformed the Attention circle into a blob; a corner bubble leaves every
+   control a clean circle and costs the row no width at all. */
 .ar__review-count {
+  position: absolute; top: -5px; right: -6px; z-index: 1;
   font-family: var(--ar-mono); font-size: 10px; font-weight: 700; line-height: 1;
   min-width: 16px; height: 16px; padding: 0 4px; border-radius: 999px;
   display: inline-flex; align-items: center; justify-content: center;
   background: var(--ar-bad); color: var(--ar-paper);
+  /* A paper ring so the bubble reads as sitting ABOVE the circle it overlaps —
+     including the filled is-here disc — not as a bite out of its edge. */
+  box-shadow: 0 0 0 2px var(--ar-paper);
 }
+/* ---- Loading skeletons ------------------------------------------------------
+   A data screen's first paint used to be its header over a blank page while
+   the fetch ran. Each screen now sketches its own real layout in quiet
+   surface blocks with one slow sheen — enough to say "coming", never a
+   spinner. Shapes are composed per screen from these primitives; the sheen
+   stands down under prefers-reduced-motion. -------------------------------- */
+.ar-skel { position: relative; overflow: hidden; border-radius: 6px; background: var(--ar-surface-2); }
+.ar-skel::after {
+  content: ''; position: absolute; inset: 0;
+  background: linear-gradient(100deg, transparent 32%, rgba(255, 255, 255, 0.45) 50%, transparent 68%);
+  transform: translateX(-100%);
+  animation: ar-skel-sheen 1.7s ease-in-out infinite;
+}
+@keyframes ar-skel-sheen { to { transform: translateX(100%); } }
+@media (prefers-reduced-motion: reduce) { .ar-skel::after { animation: none; } }
+.ar-skel--title { height: 17px; width: 210px; }
+.ar-skel--line { height: 12px; }
+.ar-skel--tile { height: 82px; border-radius: var(--ar-radius); flex: 1 1 0; }
+.ar-skel-tiles { display: flex; gap: 14px; margin: 0 0 18px; }
+.ar-skel-lines { display: grid; gap: 11px; align-content: start; }
+.ar-skel-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 26px; margin-top: 22px; }
+.ar-skel-head { margin: 0 0 18px; display: grid; gap: 10px; }
+@container (max-width: 720px) {
+  .ar-skel-cols { grid-template-columns: 1fr; }
+  .ar-skel-tiles { flex-wrap: wrap; }
+  .ar-skel--tile { flex: 1 1 40%; }
+}
+
 /* ---- Writing assistant: quill launcher + guidance popover + drawer ---------- */
 /* The quill shares the bell's chrome (.ar__review-btn). Dimmed = prerequisites
    missing — visible but quiet, per the "never hidden, say how to turn it on" rule. */
@@ -706,6 +757,8 @@
 }
 
 .ar__review-pop {
+  /* right:0 resolves against .ar__controls (see its position:relative) — the
+     pop's right edge rides the cluster's, not the bell's. */
   position: absolute; top: calc(100% + 8px); right: 0; z-index: 60;
   width: 400px; max-width: calc(100cqw - 32px);
   /* Flex column: the list region (.ar-rev-scroll) scrolls, the footer is a fixed
@@ -1093,28 +1146,56 @@
   .ar__rail { position: static; margin-top: 22px; max-height: none; overflow: visible; }
 }
 
-/* Narrow widths: stack the header into two rows. Row 1 is the brand alone; row 2
-   is the navbar — all tabs on a single line at the left with the bell pinned to
-   the right (a touch smaller) so the notification sits on the menu row. The tab
-   strip keeps every item on one line, scrolling horizontally only if the screen
-   is too narrow for all of them. */
-@container (max-width: 720px) {
+/* Mid widths: stack the header into two rows well before phone width. Nothing
+   folds into More any more (his call: Readiness and Discovery were vanishing
+   there, and a primary you cannot see is a primary you stop visiting), so one
+   row stops fitting around ~1000px — the brand takes its own top row and every
+   tab plus the controls share the row below. Structure only: the brand and the
+   labels keep their desktop size until the ≤720 block condenses them. */
+@container (max-width: 1024px) {
   .ar__bar {
     flex-wrap: wrap;
     align-items: center;
     /* Row-gap applies twice across the invisible break line → ~12px brand↔nav. */
     gap: 6px 16px;
-    padding: 11px 16px;
     min-height: 0;
   }
-  /* The brand→nav break becomes a full-width line break: it bumps the tabs +
-     bell onto the row below while leaving the brand its own top row — without
-     turning the brand button itself into a full-width tap target. */
-  .ar__sep { display: block; flex-basis: 100%; height: 0; margin: 0; }
+  /* The brand→nav break becomes a full-width line break — but the CONTROLS
+     jump it (his call: the circles were wrapping onto a row of their own
+     below the tabs). Explicit order pulls them ahead of the break: row one is
+     brand left + quill/bell/gear right (the controls' own margin-left:auto
+     pins them), row two is the tab strip with More. */
+  .ar__brand { order: 0; }
+  .ar__controls { order: 1; }
+  .ar__sep { order: 2; display: block; flex-basis: 100%; height: 0; margin: 0; }
+  .ar__tabs { order: 3; }
+  .ar__more { order: 4; }
   /* The quill→bell pull-in assumes the desktop bar's 26px gap (26−16 = 10px
      between the pills); this row's gap is 16px, where −16 left them TOUCHING.
      Ease it so the pair keeps the same 10px daylight here. */
   .ar__assist + .ar__review { margin-left: -6px; }
+  /* Navbar row: all tabs stay on ONE line at the left, and if the viewport is
+     narrower than the full strip it scrolls horizontally (scrollbar hidden)
+     rather than wrapping a tab onto its own row. The bell stays pinned right. */
+  .ar__tabs {
+    /* `0 1 auto`, not `1 1 auto`. Growing made the strip's box stretch far past
+       its last label, so More sat 16px after an EMPTY container edge and read as
+       a much wider gap than the 16px between the tabs themselves. Hugging the
+       content puts More the same distance from the last tab as that tab is from
+       Dashboard. Shrink is still allowed, so a full strip scrolls as before. */
+    flex: 0 1 auto; min-width: 0;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    gap: 16px;
+    justify-content: flex-start;
+  }
+  .ar__review { flex: 0 0 auto; align-self: center; }
+}
+
+/* Narrow widths: the two-row structure above holds; here the type and chrome
+   condense so the whole strip fits typical small screens unscrolled. */
+@container (max-width: 720px) {
+  .ar__bar { padding: 11px 16px; }
   /* Condense the masthead: drop the version line and the arrow, shrink the
      mark + wordmark. */
   .ar__ver { display: none; }
@@ -1122,31 +1203,7 @@
   .ar__mark { width: 26px; height: 26px; }
   .ar__logo { width: 16px; }
   .ar__name { font-size: 15px; }
-  /* Navbar row: all tabs stay on ONE line at the left; the labels tighten a
-     touch so every one fits on typical small screens, and if the viewport is
-     narrower than that the strip scrolls horizontally (scrollbar hidden) rather
-     than wrapping a tab onto its own row. The bell stays pinned right;
-     flex-basis:0 lets the strip shrink-to-fit beside it. */
-  .ar__tabs {
-    /* `0 1 auto`, not `1 1 auto`. Growing made the strip's box stretch far past
-       its last label, so More sat 16px after an EMPTY container edge and read as
-       a much wider gap than the 16px between the tabs themselves. Hugging the
-       content puts More the same distance from Settings as Settings is from
-       Dashboard. Shrink is still allowed, so a full strip scrolls as before. */
-    flex: 0 1 auto; min-width: 0;
-    flex-wrap: nowrap;
-    overflow-x: auto;
-    gap: 16px;
-    /* Was space-between, to spread FIVE labels across the strip so they reached
-       toward the bell. Narrow screens now fold Readiness and Discovery into More,
-       so the strip holds two — and space-between pushed those two to opposite
-       ends, opening a 67px hole where the gap says 16. With a short strip the
-       honest layout is simply left-aligned; the controls cluster still pins
-       itself right on its own margin. */
-    justify-content: flex-start;
-  }
   .ar__tab { letter-spacing: 0.07em; font-size: 10.5px; white-space: nowrap; }
-  .ar__review { flex: 0 0 auto; align-self: center; }
   /* Phones: clamp the five nav labels harder so the last one (About) clears the
      bell instead of scrolling under it. Tighter tracking, smaller type, slimmer
      gaps + bar padding reclaim ~60px; the strip still scrolls below ~360px. */
@@ -1154,6 +1211,9 @@
      looming over them. */
   .ar__review-btn { padding: 4px 7px; gap: 5px; }
   .ar__review-btn > svg:first-child { width: 13px; height: 13px; }
+  /* The bell's count badge shrinks with its pill, so both
+     badged controls still fit beside the quill on a phone. */
+  .ar__review-count { min-width: 14px; height: 14px; font-size: 9px; padding: 0 3px; }
   /* Small screens: the nav above already wraps taller here, so the desktop
      height-lock pairing is moot — let the strip grow and show the whole
      tagline instead of ellipsis-truncating it. */
@@ -1188,6 +1248,7 @@
   .ar__tabs { gap: 3px; }
   .ar__tab { letter-spacing: 0; font-size: 9px; }
   .ar__review-btn { padding: 4px 6px; gap: 4px; }
+  .ar__review-count { min-width: 13px; height: 13px; font-size: 8px; padding: 0 3px; }
 }
 
 .ar-card {
@@ -2006,13 +2067,19 @@ td.ar-edge__n.is-bad { color: var(--ar-bad); font-weight: 600; }
 /* ---- Search Performance (AI Visibility → beside Found by AI Search) ------ */
 .ar-perf__head { display: flex; align-items: flex-start; gap: 16px; flex-wrap: wrap; }
 .ar-perf__head > div:first-child { flex: 1 1 320px; min-width: 0; }
+/* The engine switch sits at the head's bottom edge — just above the masthead
+   rule — rather than floating top-right with dead air under it. */
+.ar-perf__head .ar-srcpick { align-self: flex-end; }
+/* A readable measure: on a wide admin this lead ran nearly the whole card
+   and the eye lost the line ends. ~72ch is the serif's comfortable width. */
+.ar-perf__head .ar-card__lead { max-width: 72ch; }
 /* The source picker — shared by Search Performance and Search Opportunities,
    so "whose numbers am I looking at?" is answered the same way in both rooms. */
 .ar-srcpick { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .ar-srcpick__label { font-size: 12px; color: var(--ar-ink-soft); }
 /* One-source state: the engine named in the switch's seat — a label, not a
    disabled-looking button. */
-.ar-srcpick__solo { font-size: 12.5px; font-weight: 600; color: var(--ar-ink); }
+.ar-srcpick__solo { font-size: 12.5px; font-weight: 700; color: var(--ar-ink); }
 .ar-srcpick__set { display: flex; gap: 0; border: 1px solid var(--ar-line); border-radius: 999px; overflow: hidden; }
 .ar-srcpick__btn {
   appearance: none; background: var(--ar-surface); border: 0; cursor: pointer;
@@ -2168,8 +2235,9 @@ td.ar-edge__n.is-bad { color: var(--ar-bad); font-weight: 600; }
 }
 /* The provenance line sits on the group's own grid row, with the switch pushed
    to the far edge so "whose numbers?" and "show the other one" read as one idea. */
-.ar-opp__srcline { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
-.ar-opp__srcline .ar-srcpick { margin-left: auto; }
+/* Plain prose since the engine switch moved up into the masthead — as a flex
+   row, the gap split the sentence around its own <strong>. */
+.ar-opp__srcline { margin-top: 0; }
 /* Sits directly under the provenance line it qualifies — tighter than the 12px
    .ar-srcline default, so the two read as one statement about these numbers. */
 .ar-opp__scope { margin-top: 4px; }
@@ -2256,18 +2324,23 @@ a.ar-opp__title:hover { text-decoration: underline; }
 /* Doorless cards (no post behind the URL) say WHY they offer no editor buttons,
    in the same quiet voice as the totals line — sits left of the Set aside. */
 .ar-opp__noeditor { font-size: 11.5px; color: var(--ar-ink-faint); }
-/* A quiet link-shaped action, not the page's heaviest button: this is a row in
-   a worklist, and a black slab per card would shout over the numbers. */
+/* Plain links, not pills (his call): this is a row in a worklist, and a border
+   per action dressed these as buttons when they only open the editor. */
 .ar-opp__edit {
   font-size: 12px; color: var(--ar-accent); text-decoration: none;
-  border: 1px solid color-mix(in srgb, var(--ar-accent) 40%, transparent);
-  border-radius: 6px; padding: 4px 11px; background: var(--ar-surface);
 }
-.ar-opp__edit:hover { border-color: var(--ar-accent); text-decoration: none; }
-/* The action most likely to move the number carries a little more weight —
-   never a filled slab, which would shout over the figures it belongs to. */
-.ar-opp__edit.is-primary { border-color: var(--ar-accent); font-weight: 600; }
+.ar-opp__edit:hover { text-decoration: underline; }
+/* The action most likely to move the number carries a little more weight. */
+.ar-opp__edit.is-primary { font-weight: 600; }
 .ar-opp__actions .ar-optcheck__restore { margin-left: auto; }
+/* The Opportunities masthead's right column: workload count on top, the engine
+   switch at the head's bottom edge — the same seat it holds on Search
+   Performance next door. */
+.ar-opp-card__side { display: flex; flex-direction: column; align-items: flex-end; justify-content: space-between; gap: 8px; align-self: stretch; }
+.ar-opp-card__count { font-family: var(--ar-mono); font-size: 13px; font-weight: 600; color: var(--ar-warn); }
+/* The card left the checkgroup grammar but kept its check-row lists — restore
+   the flush seams the checkgroup parent used to provide. */
+.ar-opp-card .ar-checks { margin-top: 0; border-top: 0; }
 .ar-cf-row .ar-btn { padding: 9px 22px; }
 .ar-cf-note { margin-top: 18px; }
 .ar-mcp-recipe { border-left: 2px solid var(--ar-accent); padding: 2px 0 2px 14px; }
@@ -5457,13 +5530,17 @@ a.ar-about-proto__v:hover { text-decoration: underline; }
   .ar-log__actions .ar-btn { flex: 1 1 auto; }
 }
 
-/* Phones: the settings group strip scrolls sideways with natural-width tabs —
-   never crushes labels into clipped fragments ("ATA SOURCE"). Scrollbar hidden;
-   the half-visible neighbour tab is the scroll affordance. */
+/* Phones: the SETTINGS group strip scrolls sideways with natural-width tabs —
+   six labels can't share one phone row without crushing into clipped fragments
+   ("ATA SOURCE"). Scrollbar hidden; the half-visible neighbour tab is the
+   scroll affordance. Scoped to the --scroll modifier: written bare, this rule
+   also caught the Visibility strip's THREE tabs and broke their full-width
+   thirds — the row sat left-hugged over dead space (his iPhone screenshot).
+   A short strip keeps the default: equal thirds, never scrolls. */
 @media (max-width: 782px) {
-  .ar-tabpanel__tabs { overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
-  .ar-tabpanel__tabs::-webkit-scrollbar { display: none; }
-  .ar-subnav__item { flex: 0 0 auto; white-space: nowrap; }
+  .ar-tabpanel__tabs--scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
+  .ar-tabpanel__tabs--scroll::-webkit-scrollbar { display: none; }
+  .ar-tabpanel__tabs--scroll .ar-subnav__item { flex: 0 0 auto; white-space: nowrap; }
 }
 
 /* iOS Safari auto-links emails/phones it detects inside the UA boxes (the
@@ -6290,53 +6367,49 @@ a.ar-about-proto__v:hover { text-decoration: underline; }
   .ar-work__tabs, .ar-work__foot, .ar-work__empty { padding-left: 20px; padding-right: 20px; }
 }
 
-/* The Attention control (class kept as .ar__todaybtn — the screen was called
-   Today until the name was fixed; renaming the hook across the stylesheet buys
-   nothing a reader can see). Wears the shared pill (.ar__review-btn) so it reads as one
-   family with the assistant and the bell, and takes over pushing the cluster
-   right — that job used to belong to .ar__assist, which now simply follows it. */
-.ar__todaybtn { flex: 0 0 auto; align-self: center; margin-left: auto; }
+/* The Settings gear — the cluster's closing control (his call: the working
+   screens read on the left, configuration sits last). Wears the shared pill
+   (.ar__review-btn) so it reads as one family with the assistant and the bell. */
+.ar__gearbtn { flex: 0 0 auto; align-self: center; }
 
-/* The two badge-less controls are circles, not lozenges. A pill is the right
-   shape for something with a label or a count inside it — the bell has both, so
-   the bell keeps it. Today and the assistant carry one 15px glyph and nothing
-   else, and a lozenge around a single centred mark just reads as a pill that
-   lost its text.
+/* All THREE controls are circles, not lozenges: each carries one 15px glyph
+   and nothing else in flow — the bell's count rides the corner as an
+   out-of-flow bubble, so no control needs pill room for a number.
+   A lozenge around a single centred mark just reads as a pill that lost its
+   text, and two badge grammars in one trio read as a glitch.
 
-   The size is the BELL'S measured height, not the circle's own content. A circle
-   sized from its 15px glyph comes out 27px (15 + 10 padding + 2 border) and sits
-   half a pixel low, because what sets the bell's height is its 16px count badge,
-   not its glyph: 16 + 10 + 2 = 28. Under 720px the shared padding drops to 4px,
-   so the pair becomes 26. Both numbers are measured, not derived — aspect-ratio
-   was tried first and loses to flex, which sizes a flex item's main axis from
-   its content and gave a 17px-wide oval. */
-.ar__todaybtn.ar__review-btn,
-.ar__assist-btn.ar__review-btn {
+   28px is the family size the trio settled on back when the bell's inline
+   badge set it (16 badge + 10 padding + 2 border); the badge has since moved
+   to the corner but the measure stays — it is the height the whole bar row
+   was tuned against. 26 under 720px, same story. Fixed sizes, not
+   aspect-ratio: flex sizes a flex item's main axis from content and gave a
+   17px-wide oval when aspect-ratio was tried. */
+.ar__gearbtn.ar__review-btn,
+.ar__assist-btn.ar__review-btn,
+.ar__review > .ar__review-btn {
   padding: 0; width: 28px; height: 28px; justify-content: center;
 }
 @container (max-width: 720px) {
-  .ar__todaybtn.ar__review-btn,
-  .ar__assist-btn.ar__review-btn { width: 26px; height: 26px; }
+  .ar__gearbtn.ar__review-btn,
+  .ar__assist-btn.ar__review-btn,
+  .ar__review > .ar__review-btn { width: 26px; height: 26px; }
 }
 /* The assistant's button is wrapped — the wrapper anchors its guidance popover.
    Making that wrapper a flex row drops the inline line-box slack under the
    button, which would otherwise make the wrapper a couple of px taller than the
    circle inside it. Safe: the popover is position:absolute, out of flow. */
 .ar__controls .ar__assist { display: flex; }
-.ar__todaybtn + .ar__assist { margin-left: 8px; }
 /* On the screen it opens: a solid disc, filled with --ar-accent — the SAME
    colour the nav paints under the active tab. Filled rather than outlined
    because at 15px an outline states "you are here" in a few hairlines and
    little else; the disc says it at a glance, from the far side of the bar.
-   Accent rather than the ink it used to be, so the two "you are here" marks in
-   this row agree. Paper on accent measures 5.6:1, well clear of the 3:1 a 15px
-   glyph needs. */
-.ar__todaybtn.is-here {
+   Paper on accent measures 5.6:1, well clear of the 3:1 a 15px glyph needs. */
+.ar__gearbtn.is-here {
   color: var(--ar-paper); background: var(--ar-accent); border-color: var(--ar-accent);
 }
 /* Hover has to be written out, or the shared .ar__review-btn:hover would pull
    the active control back to plain ink and undo the whole signal. */
-.ar__todaybtn.is-here:hover {
+.ar__gearbtn.is-here:hover {
   color: var(--ar-paper);
   background: color-mix(in srgb, var(--ar-accent) 86%, #000);
   border-color: color-mix(in srgb, var(--ar-accent) 86%, #000);
@@ -6356,16 +6429,20 @@ a.ar-about-proto__v:hover { text-decoration: underline; }
 .ar__controls {
   display: flex; align-items: center; gap: 10px;
   flex: 0 0 auto; align-self: center; margin-left: auto;
+  /* The positioning context for the bell's queue pop: right:0 inside it means
+     the CLUSTER's right edge — flush with the content edge at every width,
+     whichever seat the bell itself sits in. */
+  position: relative;
 }
 /* Inside the group, every sibling nudge and auto-margin from the old flat
    arrangement has to stand down or it fights the gap. */
-.ar__controls .ar__todaybtn,
+.ar__controls .ar__gearbtn,
 .ar__controls .ar__assist,
 .ar__controls .ar__assist + .ar__review,
 .ar__controls .ar__review { margin-left: 0; }
 
 /* ---------------------------------------------------------------------------
-   The three control pills — Today, the quill, the bell.
+   The three control pills — the quill, the bell, the gear.
 
    Their border was --ar-line-strong, the same warm tan as every card edge on
    the page, so the cluster dissolved into the bar rather than reading as a set
@@ -6391,11 +6468,11 @@ a.ar-about-proto__v:hover { text-decoration: underline; }
 .ar__review.is-open .ar__review-btn { border-color: var(--ar-line-control-strong); }
 /* The resting bell keeps its quieter edge, one step softer than its siblings. */
 .ar__review.is-quiet .ar__review-btn { border-color: var(--ar-line-control-soft); }
-/* Today on its own screen is NOT pinned here. Its active edge is the accent, set
-   with the rest of that state further up (.ar__todaybtn.is-here). This section
-   used to force --ar-ink on it, from when the state was a filled ink disc — same
-   specificity as the real rule but lower in the file, so it quietly outranked
-   it and the border alone stayed black while the mark went teal. */
+/* The gear on its own screen is NOT pinned here. Its active edge is the accent,
+   set with the rest of that state further up (.ar__gearbtn.is-here). This section
+   once forced --ar-ink on the active control — same specificity as the real rule
+   but lower in the file, so it quietly outranked it and the border alone stayed
+   black while the mark went teal. */
 .ar-work__src { font-size: 10.5px; color: var(--ar-ink-faint); }
 
 /* ---------------------------------------------------------------------------

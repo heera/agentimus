@@ -59,7 +59,7 @@ export default {
     },
     // The AI leaderboard as one line: "ChatGPT 40 · Perplexity 12 · Claude 5".
     // Three, not the whole list the payload carries: this is a one-line summary
-    // on a card, and the Readers screen is where the full list belongs.
+    // on a card, and the Visitors screen is where the full list belongs.
     aiLine() {
       const top = (this.people && this.people.ai && this.people.ai.top) || [];
       return top.filter((t) => t.source).slice(0, 3).map((t) => `${t.source} ${this.n(t.hits)}`).join(' · ');
@@ -133,7 +133,7 @@ export default {
           </li>
         </ul>
 
-        <button type="button" class="ar-linkbtn ar-aud__go" @click="$emit('navigate', 'readers')">
+        <button type="button" class="ar-linkbtn ar-aud__go" @click="$emit('navigate', 'visitors')">
           See who sent them →
         </button>
       </div>

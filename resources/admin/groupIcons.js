@@ -1,5 +1,5 @@
 // One outline icon per tab-group headline (the serif caption under a tab strip) —
-// shared by the Settings groups and the AI Visibility views. Inline SVG (WP.org: no
+// shared by the Settings groups and the Visibility views. Inline SVG (WP.org: no
 // external assets), 24px grid, bold 2px stroke so the mark carries the headline's
 // weight. Static strings rendered via v-html; nothing user-supplied passes through.
 const OPEN = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">';
@@ -12,8 +12,10 @@ const GROUP_ICONS = {
   exposure: OPEN + '<path d="M12 3.4l6.8 2.7v5c0 4.6-3.2 7.9-6.8 9.3-3.6-1.4-6.8-4.7-6.8-9.3v-5z"/></svg>',
   sources: OPEN + '<path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"/></svg>',
   advanced: OPEN + '<path d="M4.2 7.5h8M17.8 7.5h2M4.2 16.5h2M11.8 16.5h8"/><circle cx="14.8" cy="7.5" r="2.3"/><circle cx="8.2" cy="16.5" r="2.3"/></svg>',
-  // AI Visibility views
+  // Visibility views
   results: OPEN + '<path d="M4.5 19.5h15"/><path d="M7.5 15.5v-5M12 15.5v-9M16.5 15.5v-3"/></svg>',
+  // Citations — a quotation mark: an AI answer naming this site in its own words.
+  citations: OPEN + '<path d="M5 13.5a3.2 3.2 0 1 0 3.2 3.2C8.2 12.4 6.8 8.9 4.4 6.8"/><path d="M14.3 13.5a3.2 3.2 0 1 0 3.2 3.2c0-4.3-1.4-7.8-3.8-9.9"/></svg>',
   settings: OPEN + '<path d="M4.2 7.5h8M17.8 7.5h2M4.2 16.5h2M11.8 16.5h8"/><circle cx="14.8" cy="7.5" r="2.3"/><circle cx="8.2" cy="16.5" r="2.3"/></svg>',
 };
 
@@ -35,6 +37,11 @@ const NAV_ICONS = {
   settings: GROUP_ICONS.settings,
   readiness: OPEN + '<circle cx="12" cy="12" r="8.6"/><path d="M8.4 12.5l2.4 2.4 4.8-5.2"/></svg>',
   discovery: GROUP_ICONS.discovery,
+  // Findings — a flag: each row is something the plugin flagged for a look.
+  // Not the old checklist (that mark said "things to DO"; half the list is
+  // things FOUND — an opportunity is not a chore), and not a magnifier, which
+  // reads as search everywhere and Search is now a named view next door.
+  findings: OPEN + '<path d="M5.5 20.6V4"/><path d="M5.5 4.9c4.7-2.3 8.4 2.2 13.1 0v8.7c-4.7 2.2-8.4-2.3-13.1 0"/></svg>',
   more: OPEN + '<circle cx="5.2" cy="12" r="1.7"/><circle cx="12" cy="12" r="1.7"/><circle cx="18.8" cy="12" r="1.7"/></svg>',
 };
 
