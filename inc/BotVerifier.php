@@ -623,10 +623,16 @@ final class BotVerifier {
 	 * @return bool True while the budget allows a new lookup.
 	 */
 	private static function spend_lookup() {
-		$max = (int) apply_filters( 'agentimus_verify_lookup_budget', self::BUDGET_MAX );
+		$cap = max( 1, (int) apply_filters( 'agentimus_verify_lookup_budget', self::BUDGET_MAX ) );
 		$key = self::BUDGET_PREFIX . (int) floor( time() / self::BUDGET_WINDOW );
-		$n   = (int) get_transient( $key ) + 1;
-		set_transient( $key, $n, self::BUDGET_WINDOW * 2 );
-		return $n <= max( 1, $max );
+		$n   = (int) get_transient( $key );
+		if ( $n >= $cap ) {
+			// Budget already spent this window — deny WITHOUT another write, so a flood
+			// past the cap can't keep hammering wp_options. (The sibling spend_dns_budget /
+			// spend_fetch / beacon_within_rate guards check-before-write for the same reason.)
+			return false;
+		}
+		set_transient( $key, $n + 1, self::BUDGET_WINDOW * 2 );
+		return true;
 	}
 }

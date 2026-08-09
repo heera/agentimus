@@ -826,13 +826,4 @@ final class Referrals {
 		update_option( self::VERSION_OPTION, self::VERSION ); // Autoloaded: read on every boot by maybe_install(), so it belongs in the single alloptions load.
 	}
 
-	/**
-	 * Drop the table and forget the version (used by uninstall).
-	 */
-	public static function drop() {
-		global $wpdb;
-		$table = self::name();
-		$wpdb->query( "DROP TABLE IF EXISTS $table" ); // phpcs:ignore WordPress.DB, PluginCheck.Security.DirectDB.UnescapedDBParameter -- schema teardown; $table is our own prefix-derived name, not user input.
-		delete_option( self::VERSION_OPTION );
-	}
 }

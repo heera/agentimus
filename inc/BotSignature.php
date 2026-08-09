@@ -216,13 +216,13 @@ final class BotSignature {
 		}
 
 		// Replay: the draft leaves nonce policy to the verifier. Ours: within one
-		// validity window the same nonce never mints a second fresh verdict.
-		if ( '' !== $input['nonce'] ) {
-			$nonce_key = self::NONCE_PREFIX . md5( $signer . '|' . $input['nonce'] );
-			if ( get_transient( $nonce_key ) ) {
-				return self::verdict( 'indeterminate', $signer, 'nonce replayed' );
-			}
-			set_transient( $nonce_key, 1, max( 60, $input['expires'] - $now ) );
+		// validity window the same nonce never mints a second fresh VERIFIED verdict.
+		// The check is here (a cheap read), but the record is WRITTEN only after the
+		// signature verifies (below) — otherwise a flood of forged signatures with
+		// random nonces would write an unbounded transient each, before any crypto ran.
+		$nonce_key = '' !== $input['nonce'] ? self::NONCE_PREFIX . md5( $signer . '|' . $input['nonce'] ) : '';
+		if ( '' !== $nonce_key && get_transient( $nonce_key ) ) {
+			return self::verdict( 'indeterminate', $signer, 'nonce replayed' );
 		}
 
 		$directory = null === $loader ? self::load_directory( $signer ) : call_user_func( $loader, $signer );
@@ -249,9 +249,15 @@ final class BotSignature {
 			return self::verdict( 'indeterminate', $signer, 'verify errored: ' . $e->getMessage() );
 		}
 
-		return $ok
-			? self::verdict( 'verified', $signer, '' )
-			: self::verdict( 'failed', $signer, 'signature does not verify against the signer key' );
+		if ( ! $ok ) {
+			return self::verdict( 'failed', $signer, 'signature does not verify against the signer key' );
+		}
+		// Record the nonce now that the signature is proven — a replay of THIS
+		// verified request inside its validity window is caught by the check above.
+		if ( '' !== $nonce_key ) {
+			set_transient( $nonce_key, 1, max( 60, $input['expires'] - $now ) );
+		}
+		return self::verdict( 'verified', $signer, '' );
 	}
 
 	/**

@@ -235,6 +235,22 @@ final class BotSignatureTest extends TestCase {
 		$this->assertStringContainsString( 'replayed', $second['reason'] );
 	}
 
+	/** A signature that FAILS must not consume the nonce — else a forged flood could
+	 * pre-burn nonces, and (the real cost) each attempt would write an unbounded
+	 * transient before any crypto ran. The nonce is recorded only on a verified pass. */
+	public function test_a_failing_signature_does_not_consume_the_nonce() {
+		$bad = $this->signed_request( array( 'nonce' => 'shared-nonce' ) );
+		$bad['headers']['signature'] = 'sig1=:' . base64_encode( str_repeat( 'x', 64 ) ) . ':';
+		$first = BotSignature::inspect_from( $bad['headers'], $bad['loader'], self::NOW );
+		$this->assertSame( 'failed', $first['state'] );
+
+		// A genuine request reusing the SAME nonce still verifies — the failed
+		// attempt left no record. (nonce_key = signer|nonce, independent of the key.)
+		$good   = $this->signed_request( array( 'nonce' => 'shared-nonce' ) );
+		$second = BotSignature::inspect_from( $good['headers'], $good['loader'], self::NOW );
+		$this->assertSame( 'verified', $second['state'] );
+	}
+
 	/* ------------------------------ signer-origin hygiene (SSRF surface) ------------------------------ */
 
 	public function test_signer_origin_accepts_only_clean_https_origins() {

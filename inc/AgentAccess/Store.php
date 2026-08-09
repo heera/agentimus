@@ -264,6 +264,21 @@ final class Store {
 	}
 
 	/**
+	 * Count events last-active in a half-open GMT window [$from, $to). The store is
+	 * event-keyed (one row per client/decision, bumped on repeat), not per-hit, so
+	 * this counts distinct events touched in the window.
+	 *
+	 * @param string $from GMT datetime, inclusive.
+	 * @param string $to   GMT datetime, exclusive.
+	 * @return int
+	 */
+	public static function count_active_between( $from, $to ) {
+		global $wpdb;
+		$table = self::name();
+		return (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM $table WHERE last_at >= %s AND last_at < %s", $from, $to ) ); // phpcs:ignore WordPress.DB, PluginCheck.Security.DirectDB.UnescapedDBParameter -- $table is our own prefix-derived table name; every value is bound via prepare().
+	}
+
+	/**
 	 * Delete events older than the retention window. Scheduled with the daily activity prune.
 	 *
 	 * @return void

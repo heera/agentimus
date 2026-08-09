@@ -191,14 +191,4 @@ final class VerifierRegistry {
 		return $map;
 	}
 
-	/**
-	 * Human label for a token ('' when unknown).
-	 *
-	 * @param string $token Entry token.
-	 * @return string
-	 */
-	public static function label( $token ) {
-		$e = self::entry( $token );
-		return $e ? (string) $e['label'] : '';
-	}
 }

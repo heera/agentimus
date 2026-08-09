@@ -31,6 +31,13 @@ final class FlaggedIps {
 	const PER_CLIENT_MAX = 25;
 	const DISPLAY_MAX    = 12;
 
+	/** Whole-table backstop. The per-client cap bounds one client, but a flood
+	 *  rotating review keys (a distinct ckey per spoofed token) makes each a fresh
+	 *  bucket the per-client cap can't reach — so the table as a whole is bounded
+	 *  too. Kept small: this is the only PII the plugin stores. Filter
+	 *  `agentimus_flagged_ips_max_rows`. */
+	const MAX_ROWS = 5000;
+
 	/** Default retention for stored IPs, in days — shorter than the activity log's, as
 	 *  this is the only PII the plugin ever keeps. Filter `agentimus_flagged_ip_retention_days`. */
 	const RETENTION_DAYS = 14;
@@ -85,16 +92,6 @@ final class FlaggedIps {
 	}
 
 	/**
-	 * Drop the table and forget the version (used by uninstall).
-	 */
-	public static function drop() {
-		global $wpdb;
-		$table = self::name();
-		$wpdb->query( "DROP TABLE IF EXISTS $table" ); // phpcs:ignore WordPress.DB, PluginCheck.Security.DirectDB.UnescapedDBParameter -- schema teardown; $table is our own prefix-derived name.
-		delete_option( self::VERSION_OPTION );
-	}
-
-	/**
 	 * Record one flagged-client IP: upsert (bump hits + last_at on a repeat), then keep the
 	 * per-client set bounded. Silently no-ops on empty input.
 	 *
@@ -127,6 +124,41 @@ final class FlaggedIps {
 		if ( 1 === wp_rand( 1, 8 ) ) {
 			self::cap_client( $ckey );
 		}
+		// Whole-table backstop, sampled rarer (it runs a full-table COUNT): a flood
+		// rotating ckeys sails past the per-client cap, so bound the table too. During
+		// exactly that flood, record() runs often, so the rare sample still fires.
+		if ( 1 === wp_rand( 1, 50 ) ) {
+			self::trim_to_cap();
+		}
+	}
+
+	/**
+	 * Cap the whole table to the newest {@see MAX_ROWS} rows — the recency-first
+	 * backstop the per-client cap can't provide across rotating clients. Same
+	 * anti-join the sibling stores use; keyed on last_at to match this store's
+	 * retention model (newest kept, oldest dropped).
+	 *
+	 * @return void
+	 */
+	public static function trim_to_cap() {
+		$max = (int) apply_filters( 'agentimus_flagged_ips_max_rows', self::MAX_ROWS );
+		if ( $max < 1 ) {
+			return; // Cap disabled.
+		}
+		global $wpdb;
+		$table = self::name();
+		// phpcs:disable WordPress.DB, PluginCheck.Security.DirectDB.UnescapedDBParameter -- $table is our own prefix-derived name; the value ($max) is bound via prepare().
+		$count = (int) $wpdb->get_var( "SELECT COUNT(*) FROM $table" );
+		if ( $count <= $max ) {
+			return;
+		}
+		$wpdb->query(
+			$wpdb->prepare(
+				"DELETE t FROM $table t LEFT JOIN ( SELECT id FROM $table ORDER BY last_at DESC, id DESC LIMIT %d ) keep ON t.id = keep.id WHERE keep.id IS NULL",
+				$max
+			)
+		);
+		// phpcs:enable WordPress.DB, PluginCheck.Security.DirectDB.UnescapedDBParameter
 	}
 
 	/**
@@ -222,6 +254,7 @@ final class FlaggedIps {
 		global $wpdb;
 		$table = self::name();
 		$wpdb->query( $wpdb->prepare( "DELETE FROM $table WHERE last_at < %s", $cutoff ) ); // phpcs:ignore WordPress.DB, PluginCheck.Security.DirectDB.UnescapedDBParameter -- $table is our own prefix-derived name; the value is bound via prepare().
+		self::trim_to_cap(); // Daily backstop, independent of the write-time sampling.
 	}
 
 	/**
