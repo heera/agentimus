@@ -1858,13 +1858,26 @@ td.ar-edge__n.is-bad { color: var(--ar-bad); font-weight: 600; }
    own wording", so the plain-words heading must show its source. */
 .ar-gidx__gsub { margin: 2px 0 0; font-size: 11px; color: var(--ar-ink-faint); }
 /* The page lookup: stored answers only — styled like the house inputs. */
-.ar-gidx__lookup { margin: 10px 0 0; }
+.ar-gidx__lookup { margin: 10px 0 0; display: flex; }
 .ar-gidx__lookup input {
-  width: 100%; box-sizing: border-box; background: var(--ar-surface);
-  border: 1px solid var(--ar-line-strong); border-radius: 3px;
+  flex: 1; min-width: 0; box-sizing: border-box; background: var(--ar-surface);
+  border: 1px solid var(--ar-line-strong); border-radius: 3px 0 0 3px;
   padding: 7px 10px; font: inherit; color: var(--ar-ink);
 }
 .ar-gidx__lookup input:focus { outline: 2px solid var(--ar-accent); outline-offset: 1px; border-color: var(--ar-accent); }
+/* The ask button rides the input's right edge as one control — a phone
+   answers with a tap, not a hunt for the Enter key. The shared edge is the
+   input's border; the button brings only its other three sides, so the seam
+   stays 1px in every state. */
+.ar-gidx__lookupbtn {
+  flex: 0 0 auto; box-sizing: border-box; margin: 0;
+  border: 1px solid var(--ar-line-strong); border-left: 0; border-radius: 0 3px 3px 0;
+  background: var(--ar-surface-2); color: var(--ar-ink-soft);
+  font: inherit; font-size: 12px; padding: 0 14px; cursor: pointer;
+}
+.ar-gidx__lookupbtn:hover { background: var(--ar-surface); color: var(--ar-ink); }
+.ar-gidx__lookupbtn:focus-visible { outline: 2px solid var(--ar-accent); outline-offset: 1px; }
+.ar-gidx__lookupbtn:disabled { cursor: default; opacity: 0.55; }
 .ar-gidx__lookupmsg { margin-top: 8px; }
 /* A failed Re-check, reported where the rows are — it can be clicked from any
    of them, so its error can't live inside the lookup box at the foot. */
@@ -1952,35 +1965,32 @@ td.ar-edge__n.is-bad { color: var(--ar-bad); font-weight: 600; }
 .ar-gidx__pgap { color: var(--ar-ink-faint); font-size: 11.5px; padding: 0 2px; }
 /* Two matched cards close the section: the site-level pointers beside the
    per-page lookup. */
-.ar-gidx__footcols {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 14px;
-  margin-top: 22px;
-}
-.ar-gidx__footbox {
-  padding: 12px 16px;
+/* The machine facts between the rows and the lookup — a hairline sets them
+   off from the rows above, and every line carries the right rail's ↳ mark:
+   the same grammar LIVE ENDPOINTS uses for "a pointer to a machine's own
+   record". Shared by both index cards (Google: Pages report + sitemap;
+   Bing: sitemap + IndexNow). */
+.ar-gidx__facts { margin-top: 18px; border-top: 1px solid var(--ar-line); padding-top: 2px; }
+.ar-gidx__facts .ar-gidx__sitemap { margin-top: 10px; }
+.ar-gidx__facts .ar-gidx__sitemap::before { content: "↳ "; color: var(--ar-ink-faint); }
+
+/* The per-page question in its own full-width card, on both index cards —
+   an input deserves a frame; two half-width boxes did not. A found row
+   inside renders in the standard four-lane grammar; the narrow-form
+   collapse died with the half-width box. */
+.ar-gidx__lookupsec {
+  margin-top: 18px;
+  padding: 12px 16px 14px;
   border: 1px solid var(--ar-line-strong);
   border-radius: var(--ar-radius);
-  font-size: 12px;
-  color: var(--ar-ink-faint);
 }
-.ar-gidx__footbox p { margin: 6px 0; }
-.ar-gidx__footbox .ar-gidx__secname { display: block; margin-bottom: 6px; }
-.ar-gidx__warned { color: var(--ar-warn); }
-/* A found row inside the half-width lookup card: the four-lane grammar
-   collapses to the narrow form — title on its own line, the rest below. */
-.ar-gidx__footbox .ar-gidx__main { grid-template-columns: minmax(0, 1fr) max-content max-content; }
-.ar-gidx__footbox .ar-gidx__page { grid-column: 1 / -1; }
-.ar-gidx__footbox .ar-gidx__crawl { text-align: left; }
-.ar-gidx__footbox .ar-gidx__note { grid-column: 1 / -1; }
+.ar-gidx__lookupsec .ar-gidx__secname { display: block; }
 /* CONTAINER, not viewport: the admin menu eats ~160px, so a 760px window
    already leaves this card ~600px of room. A viewport media query kept the
    four-lane row grid alive in a container far too narrow for it. */
 @container (max-width: 600px) {
   /* Tiles go 2×2 — four abreast crushed the labels into vertical shards. */
   .ar-gidx .ar-act-stats--4 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .ar-gidx__footcols { grid-template-columns: 1fr; }
   .ar-gidx .ar-wd-stat strong { white-space: nowrap; }
   /* Rows in three lines: title, then date + verdict, then the doors.
      Every position is stated rather than left to auto-placement, because the

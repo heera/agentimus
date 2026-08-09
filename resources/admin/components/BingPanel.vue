@@ -56,6 +56,18 @@ export default {
     trend() {
       return (this.summary && this.summary.trend) || [];
     },
+    // Deep links into Bing Webmaster Tools — the doors the Google card's
+    // Search Console links mirror. Bing's console addresses a site by
+    // ?siteUrl=; the matched WMT site URL travels in the summary precisely
+    // so these point at THIS site, not the console's site picker.
+    wmtHomeLink() {
+      const s = this.summary && this.summary.siteUrl;
+      return s ? `https://www.bing.com/webmasters/home?siteUrl=${encodeURIComponent(s)}` : 'https://www.bing.com/webmasters/';
+    },
+    wmtSitemapsLink() {
+      const s = this.summary && this.summary.siteUrl;
+      return s ? `https://www.bing.com/webmasters/sitemaps?siteUrl=${encodeURIComponent(s)}` : '';
+    },
     conflicts() {
       return (this.summary && this.summary.conflicts) || [];
     },
@@ -384,17 +396,22 @@ export default {
           </div>
         </template>
 
-        <!-- The machine lines, mirroring the Google card's sitemap note: does
-             Bing know the sitemap (Bing's own record and dates), and does this
-             site announce publishes (IndexNow)? One quiet line each. -->
-        <p v-if="feedsNote" class="ar-gidx__sitemap" :class="{ 'is-warn': feedsNote.warn }">{{ feedsNote.text }}</p>
-        <p v-if="indexnowNote" class="ar-gidx__sitemap" :class="{ 'is-warn': indexnowNote.warn }">{{ indexnowNote.text }}</p>
+        <!-- The machine lines, in the shared facts grammar the Google card
+             uses: does Bing know the sitemap (Bing's own record and dates),
+             and does this site announce publishes (IndexNow)? -->
+        <div v-if="feedsNote || indexnowNote" class="ar-gidx__facts">
+          <p v-if="feedsNote" class="ar-gidx__sitemap" :class="{ 'is-warn': feedsNote.warn }">
+            {{ feedsNote.text }}
+            <a v-if="feedsNote.warn && wmtSitemapsLink" class="ar-gidx__gsc" :href="wmtSitemapsLink" target="_blank" rel="noopener">Open Sitemaps in Webmaster Tools</a>
+          </p>
+          <p v-if="indexnowNote" class="ar-gidx__sitemap" :class="{ 'is-warn': indexnowNote.warn }">{{ indexnowNote.text }}</p>
+        </div>
 
         <!-- The live per-URL question — Bing's twin of the Google card's
              lookup, with the semantics reversed and SAID: Google's box reads
              the stored checks, this one asks Bing right now. Same markup
              grammar as Google's box, no new CSS. -->
-        <div class="ar-bing__lookup">
+        <div class="ar-bing__lookup ar-gidx__lookupsec">
           <span class="ar-perf__eyebrow ar-gidx__secname">Ask Bing about a page</span>
           <div class="ar-gidx__lookup">
             <input
@@ -405,6 +422,7 @@ export default {
               aria-label="Ask Bing about a page by URL"
               @keyup.enter="runLookup"
             />
+            <button type="button" class="ar-gidx__lookupbtn" :disabled="lookupBusy" @click="runLookup">Ask Bing</button>
           </div>
           <p v-if="lookupBusy" class="ar-gidx__note ar-gidx__lookupmsg">Asking Bing…</p>
           <template v-else-if="lookupOut">
@@ -426,7 +444,9 @@ export default {
         <!-- Provenance only — the AI story lives in its own labeled pin above,
              where it can be seen instead of skimmed past. -->
         <p class="ar-card__note ar-cf-note">
-          Numbers come from Bing Webmaster Tools, one poll a day, kept in your own database —
+          Numbers come from
+          <a class="ar-gidx__gsc" :href="wmtHomeLink" target="_blank" rel="noopener">Bing Webmaster Tools ↗</a>,
+          one poll a day, kept in your own database —
           your history keeps growing where Bing's own window ends.
         </p>
       </section>

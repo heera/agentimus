@@ -838,24 +838,24 @@ export default {
              problem above, as an announcement when it heals, or by URL in the
              lookup. -->
 
-        <!-- Two matched cards close the section: the site-level pointers
-             (Search Console's complete archive, the registered-sitemap
-             health) beside the per-page lookup — answered from the STORED
-             checks, no live call, no quota spent. -->
-        <div class="ar-gidx__footcols">
-          <div class="ar-gidx__footbox">
-            <p>
-              The complete list, every state, lives in
-              <a v-if="gscPagesLink" class="ar-gidx__gsc" :href="gscPagesLink" target="_blank" rel="noopener">Search Console's Pages report ↗</a>
-              — the group counts above are complete.
-            </p>
-            <p v-if="sitemapNote" :class="{ 'ar-gidx__warned': sitemapNote.warn }">
-              {{ sitemapNote.text }}
-              <a v-if="sitemapNote.warn && gscSitemapsLink" class="ar-gidx__gsc" :href="gscSitemapsLink" target="_blank" rel="noopener">Open Sitemaps in Search Console</a>
-            </p>
-          </div>
-          <div class="ar-gidx__footbox">
-            <span class="ar-perf__eyebrow ar-gidx__secname">Look up a page</span>
+        <!-- The site-level pointers, in the shared facts grammar: a hairline
+             off the rows, each line carrying the right rail's ↳ mark. The
+             per-page lookup below gets the card's full width — a found row
+             answers in the same four-lane grammar as the problem rows above. -->
+        <div class="ar-gidx__facts">
+          <p class="ar-gidx__sitemap">
+            The complete list, every state, lives in
+            <a v-if="gscPagesLink" class="ar-gidx__gsc" :href="gscPagesLink" target="_blank" rel="noopener">Search Console's Pages report ↗</a>
+            — the group counts above are complete.
+          </p>
+          <p v-if="sitemapNote" class="ar-gidx__sitemap" :class="{ 'is-warn': sitemapNote.warn }">
+            {{ sitemapNote.text }}
+            <a v-if="sitemapNote.warn && gscSitemapsLink" class="ar-gidx__gsc" :href="gscSitemapsLink" target="_blank" rel="noopener">Open Sitemaps in Search Console</a>
+          </p>
+        </div>
+
+        <div class="ar-gidx__lookupsec">
+            <span class="ar-perf__eyebrow ar-gidx__secname">Look up a page — from the stored checks</span>
             <div class="ar-gidx__lookup">
               <input
                 type="text"
@@ -865,6 +865,7 @@ export default {
                 aria-label="Look up a page by URL"
                 @keyup.enter="runLookup"
               />
+              <button type="button" class="ar-gidx__lookupbtn" :disabled="lookupBusy" @click="runLookup">Look up</button>
             </div>
             <template v-if="lookupOut">
               <ul v-if="lookupOut.status === 'found' && lookupOut.row" class="ar-gidx__list ar-gidx__list--grouped">
@@ -910,7 +911,6 @@ export default {
               enough, <strong>Re-check</strong> on the answer asks Google live,
               spending one of the day's inspections.
             </p>
-          </div>
         </div>
 
         <p class="ar-card__note ar-cf-note">
