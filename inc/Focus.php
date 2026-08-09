@@ -218,7 +218,7 @@ final class Focus {
 	/**
 	 * The one search everything OUTSIDE this editor uses.
 	 *
-	 * The worklist, the Attention screen and the MCP tools each judge a page
+	 * The worklist, the Findings screen and the MCP tools each judge a page
 	 * against a single search, and teaching all of them about lists is a much
 	 * bigger change than this box needed. They take the first — the one the
 	 * author put first — and the editor is where the rest are measured.

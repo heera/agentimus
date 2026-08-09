@@ -784,7 +784,7 @@ final class Rest {
 		}
 		update_option( 'agentimus_onboarded', AGENTIMUS_VERSION );
 		// Queue the dashboard's "Worth a look next" card — the map to the rooms
-		// (AI Visibility, Cloudflare, MCP) a new owner would otherwise never
+		// (Visibility, Cloudflare, MCP) a new owner would otherwise never
 		// find. It stays until the owner dismisses it; navigation is theirs.
 		if ( 'done' !== get_option( 'agentimus_next_steps', '' ) ) {
 			update_option( 'agentimus_next_steps', 'show' );
@@ -1007,7 +1007,7 @@ final class Rest {
 	/**
 	 * GET /findings — every open finding across every subsystem, ranked.
 	 *
-	 * The Attention screen's refresh. It arrives with the boot payload too; this
+	 * The Findings screen's refresh. It arrives with the boot payload too; this
 	 * route is how the screen catches up after the owner acts on something (a
 	 * Block, an Ignore, a settings save) without a full page reload.
 	 *

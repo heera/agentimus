@@ -55,17 +55,20 @@ export default {
       // Sentence case, always. The number is spelled out, so without this the
       // headline opens lowercase ("five things need your attention") and reads
       // like a fragment rather than the page's title.
-      // "…your attention", not the shorter "…you": the screen is named Attention,
-      // and its opening line is where that name is earned.
+      // "…your attention" survives the tab's rename to Findings, deliberately:
+      // a sentence earns the word the bare label couldn't (as a label it read
+      // as a command). The headline states what the findings ask of you.
       return `${count.charAt(0).toUpperCase()}${count.slice(1)} need${n === 1 ? 's' : ''} your attention`;
     },
     subheading() {
+      // No mention of waiting crawlers in either line: the review queue is the
+      // bell's story alone now (his call) — this screen never repeats it.
       if (!this.open.length) {
         return this.later.length
           ? 'Nothing is costing you anything today. There are a couple of things worth knowing below.'
-          : 'Every check passes and no page or crawler is waiting on a decision.';
+          : 'Every check passes and no page is waiting on a fix.';
       }
-      return 'Ranked by what each one costs — visitors lost, trust at risk, or a decision only you can make.';
+      return 'Ranked by what each one costs — visitors lost, agents turned away, or a page underselling itself.';
     },
     scoreLine() {
       if (!this.score || this.score.blocked || 'number' !== typeof this.score.score) return null;

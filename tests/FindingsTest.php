@@ -79,22 +79,20 @@ final class FindingsTest extends TestCase {
 	public function test_the_ranking_contract_holds() {
 		$w = Findings::WEIGHTS;
 
-		$this->assertGreaterThan( $w['content_issues'], $w['review_queue'], 'a decision only the owner can make outranks a chore' );
-		$this->assertGreaterThan( $w['config_gap'], $w['review_queue'], 'a caught impostor outranks a broken setup' );
-		$this->assertGreaterThan( Findings::REVIEW_QUEUE_QUIET, $w['config_gap'], 'a broken setup outranks a queue with no impostor in it' );
+		$this->assertGreaterThan( $w['content_issues'], $w['config_gap'], 'a broken setup outranks a chore' );
 		$this->assertGreaterThan( $w['content_issues'], $w['near_page_one'], 'traffic already earned outranks clean-up' );
 		$this->assertGreaterThan( $w['never_measured'], $w['seen_not_chosen'], 'a lost click outranks an unrun report' );
 	}
 
 	/**
-	 * The queue is one row, never three. Impostors, unjudged clients and a dead
-	 * declared URL all resolve to the same place — the nav bell — so splitting
-	 * them produced three buttons doing what an always-visible badge already does.
+	 * The review queue is NOT a finding at all (his call, 2026-08-09). The nav
+	 * bell already carries its live count and opens the queue itself, so a row
+	 * on the front door was the same information twice — each copy pointing at
+	 * the other. Same reasoning that earlier collapsed three rows into one.
 	 */
-	public function test_the_review_queue_is_a_single_finding() {
-		$this->assertArrayHasKey( 'review_queue', Findings::WEIGHTS );
-		foreach ( array( 'forged_identity', 'waiting_clients', 'dead_identity_url' ) as $gone ) {
-			$this->assertArrayNotHasKey( $gone, Findings::WEIGHTS, "$gone must not be its own row" );
+	public function test_the_review_queue_is_not_a_finding() {
+		foreach ( array( 'review_queue', 'forged_identity', 'waiting_clients', 'dead_identity_url' ) as $gone ) {
+			$this->assertArrayNotHasKey( $gone, Findings::WEIGHTS, "$gone must not be a front-door row" );
 		}
 	}
 

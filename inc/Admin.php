@@ -736,9 +736,14 @@ final class Admin {
 			'readiness'   => $readiness = ( new Readiness( $this->settings ) )->report(),
 			'score'       => $score = $this->aeo_score( $readiness ), // AEO/GEO score + action plan, from the same readiness run.
 			// Every open finding across every subsystem, ranked by what it costs —
-			// what the Attention screen renders. Shipped with the boot payload so the
+			// what the Findings screen renders. Shipped with the boot payload so the
 			// plugin's first screen answers "is anything wrong?" with no round trip.
 			'findings'    => ( new Findings( $this->settings ) )->all(),
+			// The bell's number at first paint — the same cached count the WP
+			// sidebar bubble shows. Without it the badge waited for the activity
+			// fetch and popped in a beat after its neighbour, whose findings ride
+			// this same payload.
+			'reviewCount' => ReviewBadge::count( $this->settings ),
 			// Counts only — no page is parsed — so the content section can open
 			// knowing something true about the site rather than an empty panel
 			// with a button on it.

@@ -4,11 +4,15 @@
  * into one ranked list.
  *
  * The plugin grew a finding system per feature: readiness rows, the content
- * worklist, search opportunities, the review queue, the identity probe, the
- * citation measurement. Each is correct and each lives on its own screen, so an
- * owner had to visit five places and add the results up in their head. Worse,
- * the dashboard's headline score can read "Excellent" — configuration really can
- * be perfect — while four of those systems each hold something unread.
+ * worklist, search opportunities, the citation measurement. Each is correct and
+ * each lives on its own screen, so an owner had to visit five places and add
+ * the results up in their head. Worse, the dashboard's headline score can read
+ * "Excellent" — configuration really can be perfect — while four of those
+ * systems each hold something unread.
+ *
+ * The review queue is deliberately NOT a source here (his call): the nav bell
+ * already carries its live count and opens the queue itself, and a row on the
+ * front door was the same information twice — each copy pointing at the other.
  *
  * This class does the adding up. One list, ranked by what a finding COSTS the
  * owner rather than by which subsystem produced it: a decision only they can
@@ -60,16 +64,12 @@ final class Findings {
 	 * lost. Change these numbers to change the front door's opinion.
 	 */
 	const WEIGHTS = array(
-		'review_queue'   => 100,
 		'config_gap'     => 90,
 		'near_page_one'  => 70,
 		'content_issues' => 60,
 		'seen_not_chosen' => 50,
 		'never_measured' => 20,
 	);
-
-	/** The queue's weight when nobody in it was caught forging an identity. */
-	const REVIEW_QUEUE_QUIET = 80;
 
 	/** @var Settings */
 	private $settings;
@@ -99,7 +99,6 @@ final class Findings {
 		$failed = array();
 
 		$sources = array(
-			'review_queue'    => 'review_queue',
 			'near_page_one'   => 'near_page_one',
 			'seen_not_chosen' => 'seen_not_chosen',
 			'content_issues'  => 'content_issues',
@@ -215,7 +214,7 @@ final class Findings {
 	 *
 	 * @param string $label  Button label.
 	 * @param string $tab    Destination tab id.
-	 * @param string $view   Optional sub-view (AI Visibility's inner tabs).
+	 * @param string $view   Optional sub-view (the Visibility screen's inner views).
 	 * @param string $anchor Optional DOM id to scroll to on arrival.
 	 * @return array
 	 */
@@ -233,112 +232,6 @@ final class Findings {
 	/* ---------------------------------------------------------------------- *
 	 *  Sources
 	 * ---------------------------------------------------------------------- */
-
-	/**
-	 * The review queue, read once. Empty when the activity log is off — which is
-	 * a setting, not an error, so it yields no findings rather than a complaint.
-	 *
-	 * @return array<int,array>
-	 */
-	private function threat_rows() {
-		if ( ! $this->settings->enabled( 'enable_activity' ) ) {
-			return array();
-		}
-		$threats = Activity\Repository::threats( $this->settings );
-		return isset( $threats['sources'] ) ? (array) $threats['sources'] : array();
-	}
-
-	/**
-	 * The review queue, as ONE finding.
-	 *
-	 * This used to be three rows — impostors, unjudged clients, and a crawler
-	 * whose declared home page 404s — each with a button that opened the review
-	 * queue. That was three buttons doing what the nav bell already does, and
-	 * doing it worse: the bell is always on screen with a live count, and the
-	 * queue it opens holds every waiting client, not the subset a given row was
-	 * about. A front door should not forward you to a control you can already
-	 * see.
-	 *
-	 * So: one row that says what is actually in the queue — which the bell's
-	 * number cannot — and no button, because the bell IS the button.
-	 *
-	 * @return array<int,array>
-	 */
-	private function review_queue() {
-		$rows = $this->threat_rows();
-
-		$waiting = array();
-		$forged  = array();
-		$dead    = array();
-		foreach ( $rows as $row ) {
-			if ( ! empty( $row['blocked'] ) ) {
-				continue; // Already decided.
-			}
-			$name      = $this->client_name( $row );
-			$waiting[] = $name;
-			if ( 'spoofed' === ( isset( $row['verdict'] ) ? $row['verdict'] : '' ) ) {
-				$forged[] = $name;
-			}
-			$state = isset( $row['guide']['reachable']['state'] ) ? $row['guide']['reachable']['state'] : '';
-			if ( Activity\IdentityProbe::MISSING === $state ) {
-				$dead[] = $name;
-			}
-		}
-
-		if ( ! $waiting ) {
-			return array();
-		}
-
-		$total = count( $waiting );
-		$title = sprintf(
-			/* translators: %d: how many clients are awaiting an allow/block decision. */
-			_n( '%d client is waiting for your decision', '%d clients are waiting for your decision', $total, 'agentimus' ),
-			$total
-		);
-
-		// Separable facts, one clause each. This was a four-line paragraph and the
-		// last thing in it — what to actually do — was the thing nobody read.
-		$points = array();
-		if ( $forged ) {
-			$points[] = sprintf(
-				/* translators: %d: how many clients failed their claimed operator's identity check. */
-				_n(
-					'%d was caught faking a crawler you would normally trust.',
-					'%d were caught faking crawlers you would normally trust.',
-					count( $forged ),
-					'agentimus'
-				),
-				count( $forged )
-			);
-		}
-		if ( $dead ) {
-			$points[] = sprintf(
-				/* translators: %d: how many clients declare a home page that does not answer. */
-				_n(
-					'%d names a home page that does not exist.',
-					'%d name a home page that does not exist.',
-					count( $dead ),
-					'agentimus'
-				),
-				count( $dead )
-			);
-		}
-		$points[] = __( 'Allow or block them from the bell at the top of this screen.', 'agentimus' );
-
-		$row = $this->row(
-			'review_queue',
-			$forged ? self::URGENT : self::WORTH,
-			$title,
-			'', // Everything worth saying is a point; a lead sentence would repeat them.
-			$waiting,
-			null, // No button. The bell is the button, and it is already on screen.
-			$points
-		);
-		if ( ! $forged ) {
-			$row['weight'] = self::REVIEW_QUEUE_QUIET;
-		}
-		return array( $row );
-	}
 
 	/**
 	 * The search opportunity worklist, read once.
@@ -389,16 +282,21 @@ final class Findings {
 					sprintf( /* translators: %s: formatted impression count. */ __( '%s shown', 'agentimus' ), number_format_i18n( $shown ) ),
 					sprintf( /* translators: %s: formatted click count. */ __( '%s visits', 'agentimus' ), number_format_i18n( $clicks ) ),
 				),
+				// Lands on Search Opportunities, NOT the content worklist (his
+				// catch on heera.it): the worklist honestly reports "answered ·
+				// nothing else to fix" for a page whose only problem is rank —
+				// a dead end wearing a promise. The Opportunities card is BUILT
+				// from this finding: same pages, each with its searches, the
+				// what-to-do, and the exact edit links.
 				$this->go(
 					sprintf(
 						/* translators: %d: how many pages the finding counted. */
 						_n( 'Show me that page', 'Show me those %d pages', $n, 'agentimus' ),
 						$n
 					),
-					'attention',
-					'',
-					'ar-work',
-					wp_list_pluck( $pages, 'postId' )
+					'visibility',
+					'performance',
+					'ar-group-search'
 				),
 				array(
 					__( 'Use the words people typed in the title they see.', 'agentimus' ),
@@ -441,16 +339,18 @@ final class Findings {
 				),
 				__( 'On page one, and people scroll past.', 'agentimus' ),
 				$evidence,
+				// Same landing as near_page_one, same reason: the fix for a
+				// passed-over page-one result is its title and description,
+				// and the card holding those instructions is Opportunities.
 				$this->go(
 					sprintf(
 						/* translators: %d: how many pages the finding counted. */
 						_n( 'Show me that page', 'Show me those %d pages', $n, 'agentimus' ),
 						$n
 					),
-					'attention',
-					'',
-					'ar-work',
-					wp_list_pluck( $pages, 'postId' )
+					'visibility',
+					'performance',
+					'ar-group-search'
 				),
 				array(
 					__( 'Nothing is wrong with the page itself.', 'agentimus' ),
@@ -539,19 +439,23 @@ final class Findings {
 				self::WORTH,
 				$graded > 0
 					? sprintf(
-						/* translators: 1: pages with the most common issue, 2: pages graded. */
-						__( 'Up to %1$s of your %2$s graded pages have something worth fixing', 'agentimus' ),
+						// "Pieces", not "pages": the graded sample is posts, pages and
+						// anything else published — a blog whose 19 graded items are
+						// all posts must not be told about "19 pages".
+						/* translators: 1: pieces with the most common issue, 2: pieces graded. */
+						_n( 'Up to %1$s of your %2$s graded pieces has something worth fixing', 'Up to %1$s of your %2$s graded pieces have something worth fixing', $pages, 'agentimus' ),
 						number_format_i18n( $pages ),
 						number_format_i18n( $graded )
 					)
 					: sprintf(
-						/* translators: %s: pages affected by the most common issue. */
-						__( '%s pages have something worth fixing', 'agentimus' ),
+						/* translators: %s: pieces affected by the most common issue. */
+						_n( '%s piece has something worth fixing', '%s pieces have something worth fixing', $pages, 'agentimus' ),
 						number_format_i18n( $pages )
 					),
 				sprintf(
+					// This line grounds the headline's "pieces" in plain words.
 					/* translators: %d: how many distinct kinds of content issue were found. */
-					_n( 'One kind of issue, across your recent pages.', '%d kinds of issue, across your recent pages.', $kinds, 'agentimus' ),
+					_n( 'One kind of issue, across your recent posts and pages.', '%d kinds of issue, across your recent posts and pages.', $kinds, 'agentimus' ),
 					$kinds
 				),
 				$evidence,
@@ -563,7 +467,7 @@ final class Findings {
 							count( $affected )
 						)
 						: __( 'See the issues', 'agentimus' ),
-					$affected ? 'attention' : 'readiness',
+					$affected ? 'findings' : 'readiness',
 					'',
 					$affected ? 'ar-work' : 'ar-group-optimized',
 					$affected
@@ -650,7 +554,7 @@ final class Findings {
 				__( 'You have never measured whether AI engines cite you', 'agentimus' ),
 				__( 'The one reading that says whether any of this worked.', 'agentimus' ),
 				array( __( 'Cited · no reading yet', 'agentimus' ) ),
-				$this->go( __( 'Set up AI Visibility', 'agentimus' ), 'visibility', 'settings' ),
+				$this->go( __( 'Set up citation checks', 'agentimus' ), 'visibility', 'settings' ),
 				array(
 					__( 'Everything else here is about being READY to be cited.', 'agentimus' ),
 					__( 'Runs on your own AI keys — nothing is sent anywhere else.', 'agentimus' ),
@@ -690,23 +594,5 @@ final class Findings {
 			return $lines;
 		}
 		return $lines;
-	}
-
-	/**
-	 * The best short name for a flagged client: the catalog's name, then the one
-	 * it declares for itself, then a clipped User-Agent.
-	 *
-	 * @param array $row A review-queue source row.
-	 * @return string
-	 */
-	private function client_name( array $row ) {
-		if ( ! empty( $row['known']['name'] ) ) {
-			return (string) $row['known']['name'];
-		}
-		if ( ! empty( $row['guide']['name'] ) ) {
-			return (string) $row['guide']['name'];
-		}
-		$ua = (string) ( isset( $row['ua'] ) ? $row['ua'] : '' );
-		return '' !== $ua ? mb_substr( $ua, 0, 28 ) : __( 'No user-agent', 'agentimus' );
 	}
 }
