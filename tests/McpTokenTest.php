@@ -85,6 +85,15 @@ final class McpTokenTest extends TestCase {
 		$this->assertSame( 7, McpToken::authenticate( false ) );
 	}
 
+	/** A core REST route that merely names the MCP route in its query string must NOT be treated as the MCP route. */
+	public function test_query_string_spoof_does_not_open_the_door() {
+		$token = McpToken::create( 'read', 7 );
+		$this->bearer( $token );
+		$_SERVER['REQUEST_URI'] = '/wp-json/wp/v2/users?x=/agentimus/v1/mcp';
+		unset( $_GET['rest_route'] );
+		$this->assertFalse( McpToken::authenticate( false ) );
+	}
+
 	public function test_wrong_token_and_wrong_prefix_fall_through() {
 		McpToken::create( 'read', 7 );
 		$this->bearer( 'agmcp_r_' . str_repeat( '0', 40 ) );

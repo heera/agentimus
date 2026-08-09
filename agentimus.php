@@ -97,7 +97,7 @@ add_filter(
 	static function ( $tables, $blog_id ) {
 		global $wpdb;
 		$prefix = $wpdb->get_blog_prefix( (int) $blog_id );
-		foreach ( array( 'agentimus_agent_hits', 'agentimus_ai_referrals', 'agentimus_flagged_ips', 'agentimus_unknown_sources', 'agentimus_agent_events', 'agentimus_visibility', 'agentimus_edge_hourly', 'agentimus_bing_daily' ) as $agentimus_table ) {
+		foreach ( array( 'agentimus_agent_hits', 'agentimus_ai_referrals', 'agentimus_flagged_ips', 'agentimus_unknown_sources', 'agentimus_agent_events', 'agentimus_visibility', 'agentimus_edge_hourly', 'agentimus_bing_daily', 'agentimus_search_queries' ) as $agentimus_table ) {
 			$tables[] = $prefix . $agentimus_table;
 		}
 		return $tables;

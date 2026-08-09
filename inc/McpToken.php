@@ -261,8 +261,14 @@ final class McpToken {
 	 * @return bool
 	 */
 	private static function is_mcp_request() {
-		$uri = isset( $_SERVER['REQUEST_URI'] ) ? sanitize_text_field( wp_unslash( $_SERVER['REQUEST_URI'] ) ) : '';
-		if ( false !== strpos( $uri, self::ROUTE ) ) {
+		// Match on the request PATH only, never the raw URI. A bearer token scoped
+		// to this route must NOT be honored on a core REST endpoint that merely
+		// mentions the route in its query string (e.g. /wp-json/wp/v2/users?x=/agentimus/v1/mcp).
+		// Pretty permalinks put the route at the tail of the path; the plain
+		// ?rest_route= form carries no route in the path and is matched separately below.
+		$uri  = isset( $_SERVER['REQUEST_URI'] ) ? sanitize_text_field( wp_unslash( $_SERVER['REQUEST_URI'] ) ) : '';
+		$path = untrailingslashit( (string) wp_parse_url( $uri, PHP_URL_PATH ) );
+		if ( '' !== $path && self::ROUTE === substr( $path, -strlen( self::ROUTE ) ) ) {
 			return true;
 		}
 		$route = isset( $_GET['rest_route'] ) ? sanitize_text_field( wp_unslash( $_GET['rest_route'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- routing detection only, no state change.
