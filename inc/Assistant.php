@@ -142,11 +142,6 @@ final class Assistant {
 	const SHAPE_ARTICLE = 'article';
 	const SHAPE_PAGE    = 'page';
 
-	/** Inline elements that belong INSIDE a paragraph. A model sometimes closes
-	 *  a paragraph, drops one of these bare between blocks, and opens a new
-	 *  paragraph — one sentence in three pieces. {@see heal_loose_inlines()}. */
-	const INLINE_TAGS = array( 'a', 'strong', 'em', 'b', 'i', 'code', 'u', 's', 'sub', 'sup', 'mark', 'small', 'abbr', 'kbd', 'br' );
-
 	/** @var Settings */
 	private $settings;
 
@@ -469,11 +464,7 @@ final class Assistant {
 		}
 
 		if ( ! Assist::ai_available() ) {
-			return new \WP_Error(
-				'agentimus_ai_unavailable',
-				__( 'No AI text model is configured. Add or enable one under Settings → AI, then try again.', 'agentimus' ),
-				array( 'status' => 503 )
-			);
+			return self::ai_unavailable_error();
 		}
 
 		$text = ( new Assist( $this->settings ) )->generate(
@@ -510,11 +501,7 @@ final class Assistant {
 		}
 
 		if ( ! Assist::ai_available() ) {
-			return new \WP_Error(
-				'agentimus_ai_unavailable',
-				__( 'No AI text model is configured. Add or enable one under Settings → AI, then try again.', 'agentimus' ),
-				array( 'status' => 503 )
-			);
+			return self::ai_unavailable_error();
 		}
 
 		$text = ( new Assist( $this->settings ) )->generate(
@@ -577,11 +564,7 @@ final class Assistant {
 		}
 
 		if ( ! Assist::ai_available() ) {
-			return new \WP_Error(
-				'agentimus_ai_unavailable',
-				__( 'No AI text model is configured. Add or enable one under Settings → AI, then try again.', 'agentimus' ),
-				array( 'status' => 503 )
-			);
+			return self::ai_unavailable_error();
 		}
 
 		$text = ( new Assist( $this->settings ) )->generate(
@@ -641,11 +624,7 @@ final class Assistant {
 		}
 
 		if ( ! Assist::ai_available() ) {
-			return new \WP_Error(
-				'agentimus_ai_unavailable',
-				__( 'No AI text model is configured. Add or enable one under Settings → AI, then try again.', 'agentimus' ),
-				array( 'status' => 503 )
-			);
+			return self::ai_unavailable_error();
 		}
 
 		$text = ( new Assist( $this->settings ) )->generate(
@@ -807,12 +786,7 @@ final class Assistant {
 	 * @return array|\WP_Error
 	 */
 	public static function parse_meta( $text ) {
-		$text  = trim( (string) $text );
-		$start = strpos( $text, '{' );
-		$end   = strrpos( $text, '}' );
-		$data  = ( false !== $start && false !== $end && $end > $start )
-			? json_decode( substr( $text, $start, $end - $start + 1 ), true )
-			: null;
+		$data = self::json_object( $text );
 		return self::sanitize_meta( $data );
 	}
 
@@ -955,6 +929,40 @@ final class Assistant {
 	}
 
 	/**
+	 * PURE: the "no AI text model configured" 503 that every write path returns
+	 * before it starts. One home so the error code, message, and status can never
+	 * drift across the call sites that guard on {@see Assist::ai_available()}.
+	 *
+	 * @return \WP_Error
+	 */
+	private static function ai_unavailable_error() {
+		return new \WP_Error(
+			'agentimus_ai_unavailable',
+			__( 'No AI text model is configured. Add or enable one under Settings → AI, then try again.', 'agentimus' ),
+			array( 'status' => 503 )
+		);
+	}
+
+	/**
+	 * PURE: pull the JSON object out of a model reply — cut from the first "{" to
+	 * the last "}" and decode as an associative array. Returns the decoded value
+	 * (an array on success) or null when there is no balanced pair or it does not
+	 * decode. Models wrap JSON in prose or code fences; this is the one place that
+	 * unwrapping lives, so every parser agrees on how a reply becomes data.
+	 *
+	 * @param string $text Raw model output.
+	 * @return mixed Decoded JSON (array on success) or null.
+	 */
+	private static function json_object( $text ) {
+		$text  = trim( (string) $text );
+		$start = strpos( $text, '{' );
+		$end   = strrpos( $text, '}' );
+		return ( false !== $start && false !== $end && $end > $start )
+			? json_decode( substr( $text, $start, $end - $start + 1 ), true )
+			: null;
+	}
+
+	/**
 	 * The brief, validated the same way for outline and compose: bounded,
 	 * sanitised, or a clear 400 saying what's missing.
 	 *
@@ -1032,12 +1040,7 @@ final class Assistant {
 	 * @return array|\WP_Error
 	 */
 	public static function parse_outline( $text ) {
-		$text  = trim( (string) $text );
-		$start = strpos( $text, '{' );
-		$end   = strrpos( $text, '}' );
-		$data  = ( false !== $start && false !== $end && $end > $start )
-			? json_decode( substr( $text, $start, $end - $start + 1 ), true )
-			: null;
+		$data = self::json_object( $text );
 
 		if ( ! is_array( $data ) ) {
 			return new \WP_Error(
@@ -1123,11 +1126,7 @@ final class Assistant {
 		}
 
 		if ( ! Assist::ai_available() ) {
-			return new \WP_Error(
-				'agentimus_ai_unavailable',
-				__( 'No AI text model is configured. Add or enable one under Settings → AI, then try again.', 'agentimus' ),
-				array( 'status' => 503 )
-			);
+			return self::ai_unavailable_error();
 		}
 
 		$text = ( new Assist( $this->settings ) )->generate(
@@ -1211,11 +1210,7 @@ final class Assistant {
 		}
 
 		if ( ! Assist::ai_available() ) {
-			return new \WP_Error(
-				'agentimus_ai_unavailable',
-				__( 'No AI text model is configured. Add or enable one under Settings → AI, then try again.', 'agentimus' ),
-				array( 'status' => 503 )
-			);
+			return self::ai_unavailable_error();
 		}
 
 		$title = sanitize_text_field( (string) $request->get_param( 'title' ) );
@@ -1384,12 +1379,7 @@ final class Assistant {
 	 * @return array{edits:array,note:string}
 	 */
 	public static function parse_plan( $text, $count ) {
-		$text  = trim( (string) $text );
-		$start = strpos( $text, '{' );
-		$end   = strrpos( $text, '}' );
-		$data  = ( false !== $start && false !== $end && $end > $start )
-			? json_decode( substr( $text, $start, $end - $start + 1 ), true )
-			: null;
+		$data = self::json_object( $text );
 
 		// An unreadable answer is NOT an empty plan. Both used to return the same
 		// thing, so a model that replied with prose — or nothing — reached the
@@ -1498,11 +1488,7 @@ final class Assistant {
 		$title   = sanitize_text_field( (string) $request->get_param( 'title' ) );
 
 		if ( ! Assist::ai_available() ) {
-			return new \WP_Error(
-				'agentimus_ai_unavailable',
-				__( 'No AI text model is configured. Add or enable one under Settings → AI, then try again.', 'agentimus' ),
-				array( 'status' => 503 )
-			);
+			return self::ai_unavailable_error();
 		}
 
 		$text = ( new Assist( $this->settings ) )->generate(
@@ -2017,12 +2003,7 @@ final class Assistant {
 	 * @return array|\WP_Error
 	 */
 	public static function parse_draft( $text ) {
-		$text  = trim( (string) $text );
-		$start = strpos( $text, '{' );
-		$end   = strrpos( $text, '}' );
-		$data  = ( false !== $start && false !== $end && $end > $start )
-			? json_decode( substr( $text, $start, $end - $start + 1 ), true )
-			: null;
+		$data = self::json_object( $text );
 
 		if ( ! is_array( $data ) ) {
 			return new \WP_Error(
@@ -2263,217 +2244,16 @@ final class Assistant {
 	}
 
 	/**
-	 * PURE: wrap the assistant's bounded HTML in NATIVE block markup, so the
-	 * editor opens real Heading/Paragraph/List/Quote/Image blocks instead of
-	 * one Classic block with a "Convert to blocks" chore. Possible only
-	 * because the compose contract keeps the vocabulary tiny — each element
-	 * maps to exactly one core block, serialised the way the editor itself
-	 * serialises it. Loose inline strays are first healed back into paragraphs
-	 * ({@see heal_loose_inlines()}); anything block-level outside the
-	 * vocabulary rides in a custom-HTML block (renders identically); on any
-	 * parse trouble the original HTML is returned unchanged and the Classic
-	 * block remains the safety net.
+	 * Wrap the assistant's bounded HTML in NATIVE block markup, so the editor opens
+	 * real Heading/Paragraph/List/Quote/Image blocks instead of one Classic block
+	 * with a "Convert to blocks" chore. The historical entry point; the compiler
+	 * itself lives in {@see BlockCompiler}.
 	 *
 	 * @param string $content Clean post HTML (kses'd, figures already injected).
 	 * @return string Block markup, or the original content when conversion can't run.
 	 */
 	public static function blockify( $content ) {
-		$content = trim( (string) $content );
-		if ( '' === $content || false !== strpos( $content, '<!-- wp:' ) || ! class_exists( \DOMDocument::class ) ) {
-			return $content; // Empty, already blocks, or no DOM extension.
-		}
-
-		$dom = new \DOMDocument();
-		libxml_use_internal_errors( true );
-		$ok = $dom->loadHTML(
-			'<?xml encoding="utf-8" ?><div>' . $content . '</div>',
-			LIBXML_HTML_NOIMPLIED | LIBXML_HTML_NODEFDTD | LIBXML_NONET
-		);
-		libxml_clear_errors();
-		if ( ! $ok || ! $dom->documentElement ) {
-			return $content;
-		}
-
-		self::heal_loose_inlines( $dom->documentElement );
-
-		$blocks = array();
-		foreach ( $dom->documentElement->childNodes as $node ) {
-			$block = self::node_to_block( $node );
-			if ( '' !== $block ) {
-				$blocks[] = $block;
-			}
-		}
-		return $blocks ? implode( "\n\n", $blocks ) : $content;
-	}
-
-	/**
-	 * Re-home LOOSE inline nodes — a bare link/emphasis/text sitting between
-	 * block elements. The model sometimes writes
-	 * `<p>…hook into WordPress at the</p> <a>plugins_loaded</a> <p>action…</p>`,
-	 * which renders as one sentence broken across three lines (and, before this,
-	 * shipped the bare tag through the custom-HTML fallback). The repair follows
-	 * the sentence: a loose run continues the previous paragraph when that
-	 * paragraph is plainly unfinished (no terminal punctuation), and pulls the
-	 * following paragraph in when IT plainly continues the sentence (starts
-	 * lowercase). A run that is NOT mid-sentence just gains its own paragraph —
-	 * the same rendering the browser's anonymous block gave it, but as a real,
-	 * editable block. Mutates the parsed DOM in place, before block mapping.
-	 *
-	 * @param \DOMElement $root The parsed content's wrapping element.
-	 */
-	private static function heal_loose_inlines( \DOMElement $root ) {
-		$doc   = $root->ownerDocument;
-		$nodes = array();
-		foreach ( $root->childNodes as $node ) {
-			$nodes[] = $node; // Snapshot: the loop moves nodes around.
-		}
-
-		$open = null; // The paragraph currently absorbing a mid-sentence run.
-		$last = null; // The previous significant top-level node.
-		foreach ( $nodes as $node ) {
-			if ( XML_TEXT_NODE === $node->nodeType && '' === trim( $node->textContent ) ) {
-				continue; // Formatting whitespace between blocks.
-			}
-			$tag   = XML_ELEMENT_NODE === $node->nodeType ? strtolower( $node->nodeName ) : '';
-			$loose = XML_TEXT_NODE === $node->nodeType || in_array( $tag, self::INLINE_TAGS, true );
-
-			if ( $loose ) {
-				if ( ! $open ) {
-					if ( $last instanceof \DOMElement && 'p' === strtolower( $last->nodeName ) && self::sentence_open( $last->textContent ) ) {
-						$open = $last; // The run continues the unfinished sentence.
-					} else {
-						$open = $doc->createElement( 'p' ); // Standalone run: its own paragraph.
-						$root->insertBefore( $open, $node );
-						$last = $open;
-					}
-				}
-				if ( $open->hasChildNodes() ) {
-					$open->appendChild( $doc->createTextNode( ' ' ) ); // The seam the source line break stood for.
-				}
-				$open->appendChild( $node );
-				continue;
-			}
-
-			if ( $open && 'p' === $tag
-				&& self::sentence_open( $open->textContent )
-				&& preg_match( '/^\p{Ll}/u', trim( $node->textContent ) ) ) {
-				// The sentence runs on into this paragraph — fold it in.
-				$open->appendChild( $doc->createTextNode( ' ' ) );
-				while ( $node->firstChild ) {
-					$open->appendChild( $node->firstChild );
-				}
-				$root->removeChild( $node );
-				$open = null;
-				continue;
-			}
-
-			$open = null;
-			$last = $node;
-		}
-	}
-
-	/**
-	 * PURE: whether a paragraph's text ends mid-sentence — no terminal
-	 * punctuation (closing quotes/brackets may trail it). Colons and
-	 * semicolons count as terminal: "the following:" introduces a block,
-	 * it doesn't continue into one.
-	 *
-	 * @param string $text The paragraph's plain text.
-	 * @return bool
-	 */
-	private static function sentence_open( $text ) {
-		$text = trim( (string) $text );
-		return '' !== $text && ! preg_match( '/[.!?…:;]["\'\x{201D}\x{2019})\]]*$/u', $text );
-	}
-
-	/**
-	 * One top-level DOM node → one serialised core block.
-	 *
-	 * @param \DOMNode $node A child of the parsed content root.
-	 * @return string Block markup, or '' for ignorable nodes.
-	 */
-	private static function node_to_block( \DOMNode $node ) {
-		if ( XML_TEXT_NODE === $node->nodeType ) {
-			$text = trim( $node->textContent );
-			return '' === $text ? '' : "<!-- wp:paragraph -->\n<p>" . esc_html( $text ) . "</p>\n<!-- /wp:paragraph -->";
-		}
-		if ( XML_ELEMENT_NODE !== $node->nodeType ) {
-			return '';
-		}
-
-		$tag = strtolower( $node->nodeName );
-		switch ( $tag ) {
-			case 'p':
-				return "<!-- wp:paragraph -->\n<p>" . self::dom_inner_html( $node ) . "</p>\n<!-- /wp:paragraph -->";
-
-			case 'h2':
-				return "<!-- wp:heading -->\n<h2 class=\"wp-block-heading\">" . self::dom_inner_html( $node ) . "</h2>\n<!-- /wp:heading -->";
-
-			case 'h3':
-				return "<!-- wp:heading {\"level\":3} -->\n<h3 class=\"wp-block-heading\">" . self::dom_inner_html( $node ) . "</h3>\n<!-- /wp:heading -->";
-
-			case 'ul':
-			case 'ol':
-				$items = '';
-				foreach ( $node->childNodes as $child ) {
-					if ( XML_ELEMENT_NODE === $child->nodeType && 'li' === strtolower( $child->nodeName ) ) {
-						$items .= "<!-- wp:list-item -->\n<li>" . self::dom_inner_html( $child ) . "</li>\n<!-- /wp:list-item -->\n";
-					}
-				}
-				$attrs = 'ol' === $tag ? ' {"ordered":true}' : '';
-				return '<!-- wp:list' . $attrs . " -->\n<" . $tag . " class=\"wp-block-list\">\n" . $items . '</' . $tag . ">\n<!-- /wp:list -->";
-
-			case 'blockquote':
-				// The quote block nests paragraph blocks; loose inline content
-				// (a bare-text quote) collects into one.
-				$inner = '';
-				$loose = '';
-				foreach ( $node->childNodes as $child ) {
-					if ( XML_ELEMENT_NODE === $child->nodeType && 'p' === strtolower( $child->nodeName ) ) {
-						if ( '' !== trim( $loose ) ) {
-							$inner .= "<!-- wp:paragraph -->\n<p>" . trim( $loose ) . "</p>\n<!-- /wp:paragraph -->";
-							$loose  = '';
-						}
-						$inner .= "<!-- wp:paragraph -->\n<p>" . self::dom_inner_html( $child ) . "</p>\n<!-- /wp:paragraph -->";
-					} else {
-						$loose .= $node->ownerDocument->saveHTML( $child );
-					}
-				}
-				if ( '' !== trim( $loose ) ) {
-					$inner .= "<!-- wp:paragraph -->\n<p>" . trim( $loose ) . "</p>\n<!-- /wp:paragraph -->";
-				}
-				return "<!-- wp:quote -->\n<blockquote class=\"wp-block-quote\">" . $inner . "</blockquote>\n<!-- /wp:quote -->";
-
-			case 'figure':
-				// Our injected image figure — recover the attachment id from the
-				// wp-image-N class the editor itself uses.
-				$img = $node->getElementsByTagName( 'img' )->item( 0 );
-				$id  = 0;
-				if ( $img && preg_match( '/wp-image-(\d+)/', (string) $img->getAttribute( 'class' ), $m ) ) {
-					$id = (int) $m[1];
-				}
-				$attrs = $id > 0 ? sprintf( ' {"id":%d,"sizeSlug":"large","linkDestination":"none"}', $id ) : '';
-				return '<!-- wp:image' . $attrs . " -->\n" . $node->ownerDocument->saveHTML( $node ) . "\n<!-- /wp:image -->";
-
-			default:
-				// Outside the contract's vocabulary: render verbatim through the
-				// custom-HTML block — displays identically, still valid blocks.
-				return "<!-- wp:html -->\n" . $node->ownerDocument->saveHTML( $node ) . "\n<!-- /wp:html -->";
-		}
-	}
-
-	/**
-	 * The inner HTML of a DOM node, serialised by its own document.
-	 *
-	 * @param \DOMNode $node Node.
-	 * @return string
-	 */
-	private static function dom_inner_html( \DOMNode $node ) {
-		$html = '';
-		foreach ( $node->childNodes as $child ) {
-			$html .= $node->ownerDocument->saveHTML( $child );
-		}
-		return $html;
+		return BlockCompiler::compile( $content );
 	}
 
 	/**
