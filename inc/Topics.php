@@ -563,6 +563,32 @@ final class Topics {
 	private static function inline_js() {
 		return <<<'JS'
 (function(){
+  // Arriving through an "Improve meta title & description" door: the link's
+  // hash names this box. Gutenberg mounts meta boxes late and moves them, so
+  // the browser's own anchor jump silently misses — retry briefly, land the
+  // box in view, and put the cursor ON the field the link promised. Focus is
+  // preventScroll so the box's own scroll position stays where we put it.
+  if (window.location.hash === '#agentimus-topics') {
+    var landTries = 40;
+    var land = function () {
+      var box = document.getElementById('agentimus-topics');
+      if (!box || box.offsetParent === null) {
+        if (landTries-- > 0) { setTimeout(land, 150); }
+        return;
+      }
+      // Center the FIELD, not the box: the box is tall, and centering it
+      // parks its top — where the title field lives — above the viewport,
+      // leaving the cursor in an input nobody can see.
+      var input = document.getElementById('agentimus-seo-title-input');
+      (input || box).scrollIntoView({ block: 'center' });
+      if (input) {
+        try { input.focus({ preventScroll: true }); } catch (e) { input.focus(); }
+      }
+    };
+    setTimeout(land, 300);
+  }
+})();
+(function(){
   var root = document.querySelector('.agentimus-topics');
   if (!root) { return; }
   var cfg; try { cfg = JSON.parse(root.getAttribute('data-config') || '{}'); } catch (e) { return; }

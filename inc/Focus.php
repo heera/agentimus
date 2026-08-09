@@ -257,9 +257,16 @@ final class Focus {
 	 * @return array<int,array{query:string,position:float,impressions:int,clicks:int}>
 	 */
 	public static function searches( $post_id ) {
+		static $memo = array();
+
 		$post_id = (int) $post_id;
 		if ( $post_id <= 0 ) {
 			return array();
+		}
+		// One table read per request: the picker asks, and the answered-state
+		// next-step asks again for the same post moments later.
+		if ( isset( $memo[ $post_id ] ) ) {
+			return $memo[ $post_id ];
 		}
 
 		try {
@@ -295,7 +302,8 @@ final class Focus {
 				return $b['impressions'] <=> $a['impressions'];
 			}
 		);
-		return array_slice( $out, 0, self::MAX_CHOICES );
+		$memo[ $post_id ] = array_slice( $out, 0, self::MAX_CHOICES );
+		return $memo[ $post_id ];
 	}
 
 	/**
@@ -433,7 +441,24 @@ final class Focus {
 		// and the panel says which one it read.
 		$raw  = null === $content ? (string) $post->post_content : (string) $content;
 		$html = function_exists( 'do_blocks' ) ? do_blocks( $raw ) : $raw;
-		return Coverage::measure( $html, null === $title ? (string) $post->post_title : (string) $title, $query );
+
+		// "The title they see" is the SEO title whenever one is set (solo mode
+		// swaps it into the document title) — measuring the post title instead
+		// meant a fix typed into the SEO field could never clear the verdict:
+		// searchers saw the right title while the panel kept asking for it.
+		// The saved meta wins even during a live check: editing the H1 does not
+		// change what a search result shows while the SEO title stands. With an
+		// SEO plugin owning titles we cannot read its field, so the post title
+		// stays the honest nearest truth.
+		$seen = Seo::title_ui_enabled()
+			? Seo::sanitize_title( (string) get_post_meta( $post->ID, Seo::META_TITLE, true ) )
+			: '';
+		if ( '' !== $seen ) {
+			$title = $seen;
+		} elseif ( null === $title ) {
+			$title = (string) $post->post_title;
+		}
+		return Coverage::measure( $html, (string) $title, $query );
 	}
 
 	/* ---------------------------------------------------------------------- *
@@ -750,7 +775,11 @@ final class Focus {
 		);
 
 		// The single most valuable separate fact, and the one edit that fixes it.
-		if ( 0 === (int) $cover['in_title'] ) {
+		// NOT printed for an Answered page: there it stops being a footnote and
+		// becomes the instruction itself (see the answered next-step below) —
+		// whispering the one remaining fix in grey was how an owner arrived from
+		// "Improve meta title & description" and read a green verdict as "done".
+		if ( 0 === (int) $cover['in_title'] && Coverage::ANSWERED !== $cover['state'] ) {
 			echo '<p class="agentimus-focus__verdict is-mute"><span class="agentimus-focus__mark" aria-hidden="true">○</span><span>'
 				. esc_html__( 'Not in your title — the words people typed do not appear in the title they see.', 'agentimus' )
 				. '</span></p>';
@@ -783,6 +812,18 @@ final class Focus {
 			echo '<p class="agentimus-focus__todo">' . esc_html( $advice[ $cover['state'] ] ) . '</p>';
 		}
 
+		// Answered is not always done. The advice map above only spoke for the
+		// un-answered states, so an owner arriving from Search Opportunities —
+		// whose page answers but RANKS 8th, or sits on page one unclicked — met
+		// a green verdict and no next step. The search's own stored numbers say
+		// which lever is next; when they say nothing, silence stays earned.
+		if ( $with_todo && Coverage::ANSWERED === $cover['state'] ) {
+			$next = $this->answered_next_step( $post, $query, $cover );
+			if ( '' !== $next ) {
+				echo '<p class="agentimus-focus__todo">' . esc_html( $next ) . '</p>';
+			}
+		}
+
 		if ( ! $with_note ) {
 			return;
 		}
@@ -793,6 +834,162 @@ final class Focus {
 					: __( 'Measured against the last saved version of this page.', 'agentimus' )
 			)
 			. '</p>';
+	}
+
+	/**
+	 * The one instruction an ANSWERED page still deserves, from the chosen
+	 * search's own stored numbers.
+	 *
+	 * Three cases, first match wins, in the order of what they cost:
+	 *  - ranked 8–20: one push from page one — the title (or, with the words
+	 *    already there, internal links) is the lever;
+	 *  - page one, shown but never clicked: the title/description pair is what
+	 *    a searcher reads before deciding;
+	 *  - anything else with the words missing from the title: say only that.
+	 * A page that ranks well, earns its clicks and carries its words in the
+	 * title gets nothing — silence is the earned state, never a filler tip.
+	 *
+	 * @param \WP_Post $post  The post.
+	 * @param string   $query The chosen search.
+	 * @param array    $cover Its Coverage::measure() verdict.
+	 * @return string Empty when nothing is worth saying.
+	 */
+	private function answered_next_step( $post, $query, array $cover ) {
+		$query = trim( (string) $query );
+		if ( '' === $query ) {
+			return '';
+		}
+
+		$row = null;
+		foreach ( self::searches( $post->ID ) as $r ) {
+			if ( mb_strtolower( $r['query'] ) === mb_strtolower( $query ) ) {
+				$row = $r;
+				break;
+			}
+		}
+
+		// in_title is a COUNT of searched words found in the title, not a flag.
+		// "Already in your title" is only true when ALL of them are — his OKF
+		// page had "okf" in the title but not "bundle", and one match must not
+		// claim the set. Partial keeps the title as the lever: finishing it is
+		// the very edit being advised.
+		$words_total  = (int) $cover['words'];
+		$in_title_ct  = (int) $cover['in_title'];
+		$all_in_title = $words_total > 0 && $in_title_ct >= $words_total;
+		// Solo mode has the field in this very box; with an SEO plugin the
+		// words go in that plugin's field instead — never point at a field
+		// that is not on the screen.
+		$title_field = Seo::title_ui_enabled()
+			? __( 'the SEO title in this box', 'agentimus' )
+			: __( 'your SEO plugin’s title field', 'agentimus' );
+
+		$position = null !== $row ? (float) $row['position'] : 0.0;
+		$shown    = null !== $row ? (int) $row['impressions'] : 0;
+		$clicks   = null !== $row ? (int) $row['clicks'] : 0;
+
+		// Rank 8–20, the "almost on page one" band (7.5 rounds to 8th — the
+		// same edge the Opportunities card draws).
+		if ( null !== $row && $position >= 7.5 && $position < 20.5 ) {
+			if ( $all_in_title ) {
+				// The lever must see its own completion (his catch: he added the
+				// links and the panel kept asking). Inbound internal links are
+				// LOCAL data — count them, and when they exist the instruction
+				// becomes a status: your side is done, the rest is Google's
+				// clock. Never silence here — a standing rank problem with no
+				// words would read as the panel giving up.
+				$inbound = self::inbound_links( $post );
+				if ( $inbound > 0 ) {
+					return sprintf(
+						/* translators: %d: how many of the site's own posts link to this one. */
+						_n(
+							'Answered, titled, and %d of your posts links here — your side is done. What is left is Google’s: the next reports decide the rank, and the Opportunities card clears itself when they improve.',
+							'Answered, titled, and %d of your posts link here — your side is done. What is left is Google’s: the next reports decide the rank, and the Opportunities card clears itself when they improve.',
+							$inbound,
+							'agentimus'
+						),
+						$inbound
+					);
+				}
+				return __( 'Answered, and the words are already in your title — this result sits just off page one, so the next lever is links: the “Link to your own posts” box suggests which of your posts should point here.', 'agentimus' );
+			}
+			if ( $in_title_ct > 0 ) {
+				return sprintf(
+					/* translators: %s: where the SEO title is edited. */
+					__( 'Answered on the page — and the title is almost there: it carries some of the searched words, not all. This result sits just off page one; finish the set in %s, and use it in an early heading.', 'agentimus' ),
+					$title_field
+				);
+			}
+			return sprintf(
+				/* translators: %s: where the SEO title is edited. */
+				__( 'Answered on the page — now the title: this result sits just off page one and the searched words are not in the title searchers see. Put them in %s, and in an early heading.', 'agentimus' ),
+				$title_field
+			);
+		}
+
+		// Page one, real views, not one click: the snippet is losing, not the page.
+		if ( null !== $row && $position > 0 && $position < 7.5 && $shown >= 10 && 0 === $clicks ) {
+			return sprintf(
+				/* translators: 1: how often the result was shown, 2: where the SEO title is edited. */
+				__( 'Page one, and people scroll past — shown %1$s times, no one came to read. Rewrite %2$s and the AI description: that pair is what a searcher reads before deciding.', 'agentimus' ),
+				number_format_i18n( $shown ),
+				$title_field
+			);
+		}
+
+		if ( ! $all_in_title ) {
+			if ( $in_title_ct > 0 ) {
+				return sprintf(
+					/* translators: %s: where the SEO title is edited. */
+					__( 'One thing left: the title carries some of the searched words, not all. Finish the set in %s.', 'agentimus' ),
+					$title_field
+				);
+			}
+			return sprintf(
+				/* translators: %s: where the SEO title is edited. */
+				__( 'One thing left: the words people type are not in the title they see. Put them in %s.', 'agentimus' ),
+				$title_field
+			);
+		}
+
+		return '';
+	}
+
+	/**
+	 * How many of the site's own published pieces link to this post.
+	 *
+	 * One COUNT over post_content for the slug as a link path — matched with a
+	 * closing boundary (/ or ") so "the-okf" never counts "the-okf-2". Runs
+	 * only when the links-lever branch fires, in the editor, once per request.
+	 *
+	 * @param \WP_Post $post The post being edited.
+	 * @return int
+	 */
+	private static function inbound_links( $post ) {
+		static $memo = array();
+
+		$id = (int) $post->ID;
+		if ( isset( $memo[ $id ] ) ) {
+			return $memo[ $id ];
+		}
+		$slug = (string) $post->post_name;
+		if ( '' === $slug ) {
+			$memo[ $id ] = 0;
+			return 0;
+		}
+
+		global $wpdb;
+		$types = array_map( 'esc_sql', Content::post_types() );
+		$in    = "'" . implode( "','", $types ) . "'";
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- $in is esc_sql'd above.
+		$memo[ $id ] = (int) $wpdb->get_var(
+			$wpdb->prepare(
+				"SELECT COUNT(*) FROM {$wpdb->posts} WHERE post_status = 'publish' AND ID != %d AND post_type IN ($in) AND (post_content LIKE %s OR post_content LIKE %s)",
+				$id,
+				'%' . $wpdb->esc_like( '/' . $slug . '/' ) . '%',
+				'%' . $wpdb->esc_like( '/' . $slug . '"' ) . '%'
+			)
+		);
+		return $memo[ $id ];
 	}
 
 	/**
