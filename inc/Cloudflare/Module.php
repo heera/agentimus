@@ -14,10 +14,13 @@
 namespace Agentimus\Cloudflare;
 
 use Agentimus\Activity\Catalog;
+use Agentimus\PollLock;
 
 defined( 'ABSPATH' ) || exit;
 
 final class Module {
+
+	use PollLock;
 
 	/** @var string The recurring poll event. */
 	const CRON = 'agentimus_edge_poll';
@@ -258,27 +261,4 @@ final class Module {
 		return $ts ? gmdate( 'Y-m-d H:00:00', $ts ) : '';
 	}
 
-	/**
-	 * Take the run lock, stealing a stale one (a died job must not wedge the
-	 * poll forever).
-	 *
-	 * @return bool Whether this caller holds the lock.
-	 */
-	private static function acquire_lock() {
-		$held = (int) get_option( self::LOCK_OPTION, 0 );
-		if ( $held > 0 && ( time() - $held ) < self::LOCK_TTL ) {
-			return false;
-		}
-		update_option( self::LOCK_OPTION, time(), false );
-		return true;
-	}
-
-	/**
-	 * Release the run lock.
-	 *
-	 * @return void
-	 */
-	private static function release_lock() {
-		delete_option( self::LOCK_OPTION );
-	}
 }

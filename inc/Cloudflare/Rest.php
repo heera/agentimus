@@ -199,7 +199,7 @@ final class Rest {
 		// First numbers now, not next hour. A failure here is recorded on the
 		// connection (last_error) rather than failing the connect — the token
 		// and zone are already proven good.
-		( new Module( $this->cloudflare, $this->client ) )->run_poll();
+		( new Module( $this->cloudflare, $this->client ) )->poll_now();
 
 		return $this->status();
 	}
@@ -262,7 +262,7 @@ final class Rest {
 			return new \WP_Error( 'agentimus_cf_off', __( 'Connect Cloudflare first.', 'agentimus' ), array( 'status' => 400 ) );
 		}
 
-		( new Module( $this->cloudflare, $this->client ) )->run_poll();
+		( new Module( $this->cloudflare, $this->client ) )->poll_now();
 
 		return $this->summary( $request );
 	}

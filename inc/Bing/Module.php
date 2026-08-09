@@ -14,9 +14,13 @@
 
 namespace Agentimus\Bing;
 
+use Agentimus\PollLock;
+
 defined( 'ABSPATH' ) || exit;
 
 final class Module {
+
+	use PollLock;
 
 	/** @var string The recurring poll event. */
 	const CRON = 'agentimus_bing_poll';
@@ -279,8 +283,16 @@ final class Module {
 			}
 		}
 
-		\Agentimus\Search\Table::replace( 'bing', $rows );
-		$this->settings->record_query_poll( '' );
+		$expected = count( $rows );
+		$written  = \Agentimus\Search\Table::replace( 'bing', $rows );
+		if ( 0 === $written && $expected > 0 ) {
+			// Rows mapped but none stored — a database write failed, and replace()
+			// has already cleared the old query snapshot. Record it instead of a
+			// clean poll over the hole.
+			$this->settings->record_query_poll( __( 'The query snapshot could not be saved — a database write failed. Try refreshing; the numbers may be stale until it succeeds.', 'agentimus' ) );
+		} else {
+			$this->settings->record_query_poll( '' );
+		}
 	}
 
 	/**
@@ -379,26 +391,4 @@ final class Module {
 		return $out;
 	}
 
-	/**
-	 * Take the run lock, or report it held.
-	 *
-	 * @return bool
-	 */
-	private static function acquire_lock() {
-		$held = (int) get_option( self::LOCK_OPTION, 0 );
-		if ( $held > 0 && ( time() - $held ) < self::LOCK_TTL ) {
-			return false;
-		}
-		update_option( self::LOCK_OPTION, time(), false );
-		return true;
-	}
-
-	/**
-	 * Release the run lock.
-	 *
-	 * @return void
-	 */
-	private static function release_lock() {
-		delete_option( self::LOCK_OPTION );
-	}
 }

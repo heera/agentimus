@@ -30,19 +30,6 @@ final class Purge {
 	const AUTO_TIMEOUT = 5;
 
 	/**
-	 * Whether the edge purge can run at all — a connected zone is the gate.
-	 * (Whether the token may PURGE is Cloudflare's call, made per request and
-	 * surfaced in words when refused.)
-	 *
-	 * @param Settings|null $settings Injectable for tests.
-	 * @return bool
-	 */
-	public static function available( ?Settings $settings = null ) {
-		$settings = $settings ? $settings : new Settings();
-		return $settings->connected();
-	}
-
-	/**
 	 * Whether the AUTOMATIC content-change purge should run: connected, the
 	 * owner's switch is on, and no permission refusal is standing it down.
 	 * The manual button deliberately ignores all but the connection — pressing

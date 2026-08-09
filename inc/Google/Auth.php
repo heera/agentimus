@@ -67,8 +67,38 @@ final class Auth {
 		return array(
 			'email'       => $email,
 			'private_key' => $pkey,
-			'token_uri'   => (string) ( $data['token_uri'] ?? 'https://oauth2.googleapis.com/token' ),
+			'token_uri'   => self::safe_token_uri( (string) ( $data['token_uri'] ?? '' ) ),
 		);
+	}
+
+	/**
+	 * The token endpoint a service-account key may point at — always one of Google's
+	 * own https hosts. A real key's `token_uri` is `https://oauth2.googleapis.com/token`
+	 * (older keys used an accounts.google.com endpoint); anything else — an http URL,
+	 * an internal address, some other host — is not a genuine Google key, so we pin to
+	 * the canonical endpoint rather than POST the signed JWT assertion wherever an
+	 * admin-pasted file says (defence-in-depth against an SSRF via a crafted key).
+	 *
+	 * @param string $uri The token_uri from the pasted key, or '' when absent.
+	 * @return string A vetted https Google endpoint.
+	 */
+	private static function safe_token_uri( $uri ) {
+		$default = 'https://oauth2.googleapis.com/token';
+		$uri     = trim( (string) $uri );
+		if ( '' === $uri ) {
+			return $default;
+		}
+		$parts  = wp_parse_url( $uri );
+		$scheme = strtolower( (string) ( $parts['scheme'] ?? '' ) );
+		$host   = strtolower( (string) ( $parts['host'] ?? '' ) );
+		if ( 'https' === $scheme ) {
+			foreach ( array( 'googleapis.com', 'google.com' ) as $base ) {
+				if ( $host === $base || substr( $host, -strlen( '.' . $base ) ) === '.' . $base ) {
+					return $uri;
+				}
+			}
+		}
+		return $default;
 	}
 
 	/**

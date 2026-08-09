@@ -326,7 +326,7 @@ final class Rest {
 		$this->google->connect( $key_json, $parsed['email'], $property );
 
 		// First numbers now, not tomorrow — same courtesy as the Bing connect.
-		( new Module( $this->google, $this->client ) )->run_poll();
+		( new Module( $this->google, $this->client ) )->poll_now();
 
 		// The index sweep is ~20 sequential inspections — too slow to sit
 		// inside this request. A single cron event moments from now gets the

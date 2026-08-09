@@ -83,7 +83,7 @@ final class Analytics {
 		$i      = 0;
 		foreach ( $metrics as $key => $unused ) {
 			$raw            = (float) ( $mv[ $i ]['value'] ?? 0 );
-			$totals[ $key ] = 'avgSeconds' === $key ? (int) round( $raw ) : (int) round( $raw );
+			$totals[ $key ] = (int) round( $raw );
 			$i++;
 		}
 

@@ -12,11 +12,14 @@
 
 namespace Agentimus\Google;
 
+use Agentimus\PollLock;
 use Agentimus\Search;
 
 defined( 'ABSPATH' ) || exit;
 
 final class Module {
+
+	use PollLock;
 
 	/** @var string The recurring poll event. */
 	const CRON = 'agentimus_google_poll';
@@ -126,11 +129,9 @@ final class Module {
 		if ( ! $this->settings->connected() ) {
 			return;
 		}
-		$held = (int) get_option( self::LOCK_OPTION, 0 );
-		if ( $held > 0 && ( time() - $held ) < self::LOCK_TTL ) {
+		if ( ! self::acquire_lock() ) {
 			return;
 		}
-		update_option( self::LOCK_OPTION, time(), false );
 		try {
 			$this->run_poll();
 			// The index sweep rides the same daily slot but keeps its own
@@ -139,7 +140,7 @@ final class Module {
 			// here; the continuation event carries whatever remains.
 			$this->run_index_sweep( 15.0 );
 		} finally {
-			delete_option( self::LOCK_OPTION );
+			self::release_lock();
 		}
 	}
 
@@ -191,9 +192,17 @@ final class Module {
 		// alongside a copy nothing will read again.
 		unset( $out );
 
-		Search\Table::replace( 'google', $rows );
+		$expected = count( $rows );
+		$written  = Search\Table::replace( 'google', $rows );
 		unset( $rows );
-		$this->settings->record_poll( '' );
+		if ( 0 === $written && $expected > 0 ) {
+			// The rows mapped fine but none reached the table — a database write failed
+			// (e.g. max_allowed_packet), and replace() has already cleared the old
+			// snapshot. Say so rather than stamp the poll clean over an empty snapshot.
+			$this->settings->record_poll( __( 'The search snapshot could not be saved — a database write failed. Try refreshing; if it persists, the report may be too large for the database packet limit.', 'agentimus' ) );
+		} else {
+			$this->settings->record_poll( '' );
+		}
 
 		// The trend series and Discover totals ride the same poll — two cheap
 		// extra calls. Their failures never smear the snapshot above: the

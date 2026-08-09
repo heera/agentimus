@@ -254,7 +254,7 @@ final class Rest {
 
 		// First numbers now, not tomorrow. A failure here is recorded on the
 		// connection (last_error) rather than failing the connect.
-		( new Module( $this->bing, $this->client ) )->run_poll();
+		( new Module( $this->bing, $this->client ) )->poll_now();
 
 		return $this->status();
 	}
@@ -297,7 +297,7 @@ final class Rest {
 			return new \WP_Error( 'agentimus_bing_off', __( 'Connect Bing first.', 'agentimus' ), array( 'status' => 400 ) );
 		}
 
-		( new Module( $this->bing, $this->client ) )->run_poll();
+		( new Module( $this->bing, $this->client ) )->poll_now();
 
 		return $this->summary( $request );
 	}
