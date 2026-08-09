@@ -655,12 +655,7 @@ final class Focus {
 	 * @return void
 	 */
 	private function render_flags( $post ) {
-		$flags = array();
-		foreach ( (array) PageCheck::analyze( $post ) as $check ) {
-			if ( isset( $check['status'] ) && 'pass' !== $check['status'] ) {
-				$flags[] = (string) $check['label'];
-			}
-		}
+		$flags = PageCheck::flags( $post );
 		if ( ! $flags ) {
 			return;
 		}
@@ -1071,19 +1066,7 @@ final class Focus {
 	 * @return void
 	 */
 	public function save( $post_id, $post ) {
-		if ( ! isset( $_POST[ self::NONCE ] ) ) {
-			return; // Not our form (quick-edit, REST, autosave-only, …).
-		}
-		if ( ! wp_verify_nonce( sanitize_text_field( wp_unslash( $_POST[ self::NONCE ] ) ), self::NONCE ) ) {
-			return;
-		}
-		if ( defined( 'DOING_AUTOSAVE' ) && DOING_AUTOSAVE ) {
-			return;
-		}
-		if ( wp_is_post_revision( $post_id ) ) {
-			return;
-		}
-		if ( ! current_user_can( 'edit_post', $post_id ) ) {
+		if ( ! MetaSave::verified( $post_id, self::NONCE ) ) {
 			return;
 		}
 

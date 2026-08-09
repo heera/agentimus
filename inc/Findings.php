@@ -77,6 +77,9 @@ final class Findings {
 	/** @var array|null Memoized readiness report — several sources read it. */
 	private $readiness = null;
 
+	/** @var array|null Memoized score report — read by content_issues() and the worklist finding. */
+	private $score_report = null;
+
 	/**
 	 * @param Settings $settings Plugin settings.
 	 */
@@ -378,7 +381,10 @@ final class Findings {
 	 * @return array
 	 */
 	private function score_report() {
-		return (array) ( new Score( $this->settings ) )->report( $this->readiness() );
+		if ( null === $this->score_report ) {
+			$this->score_report = (array) ( new Score( $this->settings ) )->report( $this->readiness() );
+		}
+		return $this->score_report;
 	}
 
 	/**

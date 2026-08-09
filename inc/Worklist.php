@@ -480,12 +480,7 @@ final class Worklist {
 			$cov   = Coverage::measure( $html, $post->post_title, $focus['query'] );
 		}
 
-		$flags = array();
-		foreach ( (array) PageCheck::analyze( $post ) as $check ) {
-			if ( isset( $check['status'] ) && 'pass' !== $check['status'] ) {
-				$flags[] = (string) $check['label'];
-			}
-		}
+		$flags = PageCheck::flags( $post );
 
 		$type  = get_post_type_object( $post->post_type );
 		$title = html_entity_decode( wp_strip_all_tags( get_the_title( $post ) ), ENT_QUOTES, 'UTF-8' );

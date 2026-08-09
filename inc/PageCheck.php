@@ -152,6 +152,24 @@ final class PageCheck {
 	}
 
 	/**
+	 * The labels of every check a post does NOT pass — the readable "what's off"
+	 * list several screens collect from {@see analyze()}. One place so the reading
+	 * of a row's pass/label shape is written once.
+	 *
+	 * @param \WP_Post $post Post to check.
+	 * @return string[] Non-pass check labels.
+	 */
+	public static function flags( \WP_Post $post ) {
+		$flags = array();
+		foreach ( (array) self::analyze( $post ) as $check ) {
+			if ( isset( $check['status'] ) && 'pass' !== $check['status'] ) {
+				$flags[] = (string) $check['label'];
+			}
+		}
+		return $flags;
+	}
+
+	/**
 	 * Parse rendered HTML into the cheap counts the checks read. Pure — pass any
 	 * HTML string (and whether the post has a manual excerpt) and it holds.
 	 *

@@ -563,19 +563,7 @@ JS;
 	 * @param \WP_Post $post    Post — unused (kept for the save_post signature).
 	 */
 	public function save( $post_id, $post ) {
-		if ( ! isset( $_POST[ self::NONCE ] ) ) {
-			return; // Not our form (quick-edit, REST, autosave-only, …).
-		}
-		if ( ! wp_verify_nonce( sanitize_text_field( wp_unslash( $_POST[ self::NONCE ] ) ), self::NONCE ) ) {
-			return;
-		}
-		if ( defined( 'DOING_AUTOSAVE' ) && DOING_AUTOSAVE ) {
-			return;
-		}
-		if ( wp_is_post_revision( $post_id ) ) {
-			return;
-		}
-		if ( ! current_user_can( 'edit_post', $post_id ) ) {
+		if ( ! MetaSave::verified( $post_id, self::NONCE ) ) {
 			return;
 		}
 
@@ -588,38 +576,4 @@ JS;
 		}
 	}
 
-	/**
-	 * Description coverage across published, agent-visible content, for the Readiness
-	 * report: how many such posts have their own description (explicit meta or a manual
-	 * excerpt that the resolver will use). Cheap — counts, no per-post render.
-	 *
-	 * @return array{total:int,with_description:int}
-	 */
-	public static function coverage() {
-		$types = Content::post_types();
-
-		$total = 0;
-		foreach ( $types as $type ) {
-			$counts = wp_count_posts( $type );
-			if ( is_object( $counts ) && isset( $counts->publish ) ) {
-				$total += (int) $counts->publish;
-			}
-		}
-
-		$with = 0;
-		global $wpdb;
-		if ( ! empty( $types ) && isset( $wpdb ) && is_object( $wpdb ) ) {
-			$placeholders = implode( ', ', array_fill( 0, count( $types ), '%s' ) );
-			// A page "has" a description if it carries our meta OR a manual excerpt — both
-			// resolve to a non-empty description without an author writing one here.
-			$args = array_merge( array( self::META ), $types );
-			// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-			$with = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(DISTINCT p.ID) FROM {$wpdb->posts} p LEFT JOIN {$wpdb->postmeta} m ON ( m.post_id = p.ID AND m.meta_key = %s ) WHERE p.post_status = 'publish' AND p.post_type IN ($placeholders) AND ( ( m.meta_value IS NOT NULL AND m.meta_value <> '' ) OR ( p.post_excerpt <> '' ) )", $args ) );
-		}
-
-		return array(
-			'total'            => $total,
-			'with_description' => $with,
-		);
-	}
 }

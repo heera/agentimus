@@ -523,7 +523,7 @@ final class InternalLinks {
         var b = list[i];
         if ((b.name === 'core/paragraph' || b.name === 'core/heading') && typeof (b.attributes||{}).content === 'string') {
           var html = b.attributes.content;
-          if (html.indexOf('<a') === -1 || true) {
+          if (html.indexOf('<a') === -1) {
             var m = html.match(re);
             if (m) {
               var replaced = html.replace(re, function(_, pre, mid, hit){
