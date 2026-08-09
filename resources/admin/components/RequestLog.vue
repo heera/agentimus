@@ -109,8 +109,21 @@ export default {
     },
   },
   watch: {
+    // The freshness contract: every reveal re-reads the CURRENT page — same
+    // filters, same cursor, exactly what the refresh button beside the title
+    // does — so a return between polls never shows a log frozen at the last
+    // visit. Deferred a tick so a dashboard drill-down's preset fetch (its
+    // watcher fires first and starts a page-one load) is never raced by a
+    // stale-cursor read: if a load is already in flight, this one stands down.
     active(on) {
-      if (on && !this.loaded) this.load();
+      if (!on) return;
+      if (!this.loaded) {
+        this.load();
+        return;
+      }
+      this.$nextTick(() => {
+        if (!this.loading) this.load(this.before);
+      });
     },
     // A dashboard row's drill-down: start from clean filters, apply the preset
     // keys, and refetch if the log has already loaded once (first reveal picks

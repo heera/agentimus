@@ -423,11 +423,25 @@ export default {
     <div class="ar-card__head ar-card__head--inline">
       <div class="ar-card__titlewrap">
         <h2 class="ar-card__title">Events</h2>
+        <!-- The universal hand-crank, seated beside the title like every other
+             data card (was a ghost "Refresh" in the actions — whose bare
+             @click="load" quietly passed the CLICK EVENT as the paging cursor,
+             so "refresh" asked the server for ?before=[object PointerEvent]).
+             Reloads page one; ungated, so an empty list can still check for
+             arrivals. -->
+        <button
+          type="button"
+          class="ar-readiness__refresh"
+          :class="{ 'is-busy': loading }"
+          :disabled="loading"
+          :aria-label="loading ? 'Reloading agent access events…' : 'Reload agent access events'"
+          :title="loading ? 'Reloading…' : 'Reload agent access events'"
+          @click="load()"
+        >
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="23 4 23 10 17 10" /><polyline points="1 20 1 14 7 14" /><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" /></svg>
+        </button>
       </div>
       <div class="ar-card__actions" v-if="hasEvents">
-        <button type="button" class="ar-btn ar-btn--ghost" :disabled="loading" @click="load">
-          Refresh
-        </button>
         <button type="button" class="ar-btn ar-btn--danger" :disabled="loading" @click="clear">
           Clear log
         </button>

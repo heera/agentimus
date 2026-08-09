@@ -581,8 +581,25 @@ export default {
 
 <template>
   <div class="ar-gidx">
+    <!-- First fetch in flight: the card's own shape in skeleton — a blank
+         stretch under the caption read as a broken screen, not a loading one. -->
+    <section v-if="!loaded" class="ar-card" role="status" aria-label="Loading Google index data">
+      <div class="ar-skel-head" aria-hidden="true">
+        <span class="ar-skel ar-skel--title"></span>
+        <span class="ar-skel ar-skel--line" style="width: 58%"></span>
+      </div>
+      <div class="ar-skel-tiles" aria-hidden="true">
+        <span class="ar-skel ar-skel--tile"></span>
+        <span class="ar-skel ar-skel--tile"></span>
+        <span class="ar-skel ar-skel--tile"></span>
+      </div>
+      <div class="ar-skel-lines" aria-hidden="true">
+        <span class="ar-skel ar-skel--line" style="width: 72%"></span>
+        <span class="ar-skel ar-skel--line" style="width: 44%"></span>
+      </div>
+    </section>
     <!-- Off: one quiet pointer, no form, no nagging. -->
-    <section v-if="loaded && !connected" class="ar-card ar-card--muted">
+    <section v-else-if="!connected" class="ar-card ar-card--muted">
       <h2 class="ar-card__title">In Google's Index <span class="ar-card__tag">Off</span></h2>
       <p class="ar-card__lead ar-gidx__offlead">
         Google's index is what AI Overviews, AI Mode and Gemini read. Connect Google
@@ -595,7 +612,20 @@ export default {
     </section>
 
     <section v-else-if="connected" class="ar-card">
-      <h2 class="ar-card__title">In Google's Index <span class="ar-card__tag">Google · checked daily</span></h2>
+      <div class="ar-card__titlewrap">
+        <h2 class="ar-card__title">In Google's Index <span class="ar-card__tag">Google · checked daily</span></h2>
+        <button
+          type="button"
+          class="ar-readiness__refresh"
+          :class="{ 'is-busy': loading }"
+          :disabled="loading"
+          :aria-label="loading ? 'Re-reading Google index data…' : 'Re-read Google index data'"
+          :title="loading ? 'Re-reading…' : 'Re-read Google index data'"
+          @click="load"
+        >
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="23 4 23 10 17 10" /><polyline points="1 20 1 14 7 14" /><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" /></svg>
+        </button>
+      </div>
       <p class="ar-card__lead">
         Whether Google's index holds this site's pages — not how they rank or earn
         (that's Search Performance below), just whether they're in. Everything finds
@@ -876,7 +906,9 @@ export default {
             <p class="ar-gidx__lookuphint">
               Answers come from the stored daily checks, not a live call — this is
               your own record of what Google said, not a new question to Google.
-              A page not checked yet says so.
+              A page not checked yet says so. When the stored answer isn't fresh
+              enough, <strong>Re-check</strong> on the answer asks Google live,
+              spending one of the day's inspections.
             </p>
           </div>
         </div>

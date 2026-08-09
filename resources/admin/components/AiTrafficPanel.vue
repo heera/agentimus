@@ -242,8 +242,21 @@ export default {
     },
   },
   watch: {
+    // The freshness contract: every reveal re-reads the current report —
+    // same filters, quietly (old numbers hold the screen while the fresh
+    // ones land), so a return between visits never shows yesterday's AI
+    // traffic under a live audience card. Deferred a tick so a dashboard
+    // drill-down's preset fetch (its watcher fires first and starts a
+    // filtered load) is never raced: if a load is in flight, stand down.
     active(on) {
-      if (on && (!this.report || this.stale)) this.load();
+      if (!on) return;
+      if (!this.report || this.stale) {
+        this.load();
+        return;
+      }
+      this.$nextTick(() => {
+        if (!this.loading) this.load();
+      });
     },
     // A dashboard row's drill-down: start from clean filters, apply the preset
     // keys, and fetch the filtered report.
