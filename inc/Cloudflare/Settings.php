@@ -14,17 +14,17 @@
 
 namespace Agentimus\Cloudflare;
 
-use Agentimus\Visibility\Crypto;
+use Agentimus\ConnectionStore;
+use Agentimus\Crypto;
 
 defined( 'ABSPATH' ) || exit;
 
 final class Settings {
 
+	use ConnectionStore;
+
 	/** @var string Option key. */
 	const OPTION = 'agentimus_cloudflare';
-
-	/** @var array|null Lazily-loaded, defaults-merged settings. */
-	private $cache = null;
 
 	/**
 	 * Every stored field with its empty default.
@@ -121,31 +121,6 @@ final class Settings {
 	}
 
 	/**
-	 * The resolved, defaults-merged settings.
-	 *
-	 * @return array
-	 */
-	public function all() {
-		if ( null === $this->cache ) {
-			$stored      = get_option( self::OPTION, array() );
-			$this->cache = wp_parse_args( is_array( $stored ) ? $stored : array(), $this->defaults() );
-		}
-		return $this->cache;
-	}
-
-	/**
-	 * One resolved value.
-	 *
-	 * @param string $key      Field name.
-	 * @param mixed  $fallback Returned when the field is unknown.
-	 * @return mixed
-	 */
-	public function get( $key, $fallback = null ) {
-		$all = $this->all();
-		return array_key_exists( $key, $all ) ? $all[ $key ] : $fallback;
-	}
-
-	/**
 	 * Whether a token and a zone are stored — the gate every poll and every
 	 * summary read sits behind.
 	 *
@@ -164,7 +139,7 @@ final class Settings {
 	 * @return string
 	 */
 	public function token() {
-		return Crypto::decrypt( (string) $this->get( 'token', '' ) );
+		return $this->secret( 'token' );
 	}
 
 	/**
@@ -199,20 +174,6 @@ final class Settings {
 	 */
 	public function disconnect() {
 		$this->persist( $this->defaults() );
-	}
-
-	/**
-	 * Record the outcome of a poll — a timestamp always, an error only when one
-	 * happened (a clean poll clears the previous error).
-	 *
-	 * @param string $error Human-readable failure, or '' for a clean poll.
-	 * @return void
-	 */
-	public function record_poll( $error = '' ) {
-		$all                 = $this->all();
-		$all['last_poll_at'] = time();
-		$all['last_error']   = sanitize_text_field( (string) $error );
-		$this->persist( $all );
 	}
 
 	/**
@@ -259,16 +220,5 @@ final class Settings {
 			'lastPurgeAt'    => (int) $all['last_purge_at'],
 			'lastPurgeError' => (string) $all['last_purge_error'],
 		);
-	}
-
-	/**
-	 * Persist and refresh the cache.
-	 *
-	 * @param array $all The full settings array.
-	 * @return void
-	 */
-	private function persist( array $all ) {
-		update_option( self::OPTION, $all, false ); // autoload OFF — read on demand only.
-		$this->cache = $all;
 	}
 }
