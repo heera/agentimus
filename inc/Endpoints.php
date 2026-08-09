@@ -92,7 +92,7 @@ final class Endpoints {
 			return;
 		}
 
-		$uri  = isset( $_SERVER['REQUEST_URI'] ) ? sanitize_text_field( wp_unslash( $_SERVER['REQUEST_URI'] ) ) : '/';
+		$uri  = Request::uri();
 		$path = '/' . ltrim( (string) wp_parse_url( $uri, PHP_URL_PATH ), '/' );
 
 		// Guarantee a 200 robots.txt. WordPress's virtual robots.txt can come back 404
@@ -183,9 +183,16 @@ final class Endpoints {
 				$post_id = url_to_postid( home_url( $clean ) );
 			}
 			if ( $post_id && $this->post_in_scope( $post_id ) ) {
-				$this->send( MarkdownCache::post( $post_id ), 'text/markdown', 'markdown' );
+				$post = get_post( $post_id );
+				// Mirror Markdown::post()'s own gate: only a published, unprotected
+				// post may answer. Otherwise fall through to WordPress's real 404
+				// rather than send a cacheable 200 body of "# Not found" — a soft-404
+				// and a weak existence oracle for private / scheduled slugs.
+				if ( $post && 'publish' === $post->post_status && '' === (string) $post->post_password ) {
+					$this->send( MarkdownCache::post( $post_id ), 'text/markdown', 'markdown' );
+				}
 			}
-			return; // Unknown / out-of-scope .md path: let WordPress 404 normally.
+			return; // Unknown / out-of-scope / non-public .md path: let WordPress 404 normally.
 		}
 
 		// Content negotiation on the resolved view — OFF by default; see
@@ -265,8 +272,7 @@ final class Endpoints {
 			header( 'X-Content-Type-Options: nosniff' );
 			CacheHeaders::send( HOUR_IN_SECONDS );
 		}
-		$is_head = isset( $_SERVER['REQUEST_METHOD'] ) && 'HEAD' === strtoupper( sanitize_text_field( wp_unslash( $_SERVER['REQUEST_METHOD'] ) ) );
-		if ( ! $is_head ) {
+		if ( ! Request::is_head() ) {
 			echo $body; // phpcs:ignore WordPress.Security.EscapeOutput -- plain-text robots.txt payload.
 		}
 		exit;
@@ -448,8 +454,7 @@ final class Endpoints {
 			}
 		}
 
-		$is_head = isset( $_SERVER['REQUEST_METHOD'] ) && 'HEAD' === strtoupper( sanitize_text_field( wp_unslash( $_SERVER['REQUEST_METHOD'] ) ) );
-		if ( ! $is_head ) {
+		if ( ! Request::is_head() ) {
 			echo $body; // phpcs:ignore WordPress.Security.EscapeOutput -- plain-text/markdown payload.
 		}
 		exit;
@@ -716,7 +721,7 @@ final class Endpoints {
 			return;
 		}
 
-		$uri  = isset( $_SERVER['REQUEST_URI'] ) ? sanitize_text_field( wp_unslash( $_SERVER['REQUEST_URI'] ) ) : '/';
+		$uri  = Request::uri();
 		$path = strtolower( (string) wp_parse_url( $uri, PHP_URL_PATH ) );
 		if ( '/llms.txt' === $path || '/llms-full.txt' === $path || '/robots.txt' === $path
 			|| '.md' === substr( $path, -3 ) || 0 === strpos( $path, '/.well-known/' )

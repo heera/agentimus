@@ -64,12 +64,14 @@ final class WellKnown {
 	 * @return string[]
 	 */
 	public static function routed_names() {
-		// ONLY names this plugin actually serves. Routing a name we don't serve is
-		// harmful: with our rewrite tag set but no body produced, WordPress's
-		// canonical redirect resolves it to the homepage (a 200, not a 404). So
-		// security.txt etc. are intentionally absent — a provider that serves one
-		// adds its name here via the `agentimus_well_known_routed` filter.
-		$names = array( 'discovery.json', 'agent-card.json', 'agent.json', 'mcp.json', 'openapi.json', 'api-catalog', 'agent-skills', 'oauth-protected-resource', 'tdmrep.json', Signer::DIRECTORY );
+		// ONLY names this plugin actually serves — derived from flat_docs(), so the
+		// rewrite alternation, the CORS scope and route()'s dispatch can never fall
+		// out of step with each other. Routing a name we don't serve is harmful: with
+		// our rewrite tag set but no body produced, WordPress's canonical redirect
+		// resolves it to the homepage (a 200, not a 404). security.txt etc. are
+		// intentionally absent — a provider that serves one adds its name via the
+		// `agentimus_well_known_routed` filter.
+		$names = array_keys( self::flat_docs() );
 
 		/**
 		 * Filter the /.well-known names routed to WordPress by an explicit rule.
@@ -77,6 +79,32 @@ final class WellKnown {
 		 * @param string[] $names Doc names (no leading slash).
 		 */
 		return array_values( array_unique( (array) apply_filters( 'agentimus_well_known_routed', $names ) ) );
+	}
+
+	/**
+	 * The flat /.well-known docs this plugin generates, each with its content type
+	 * and whether it is GATED — served only when its body is non-empty, so a feature
+	 * that is turned off yields no body and route() falls through to a clean 404.
+	 *
+	 * The single source for the routed names, the CORS scope, the rewrite alternation
+	 * and route()'s dispatch metadata; the body for each name is produced by
+	 * {@see flat_body()}. Order matters — it fixes the rewrite-rule alternation.
+	 *
+	 * @return array<string,array{ct:string,gated:bool}>
+	 */
+	public static function flat_docs() {
+		return array(
+			'discovery.json'           => array( 'ct' => 'application/json', 'gated' => false ),
+			'agent-card.json'          => array( 'ct' => 'application/json', 'gated' => false ),
+			'agent.json'               => array( 'ct' => 'application/json', 'gated' => false ),
+			'mcp.json'                 => array( 'ct' => 'application/json', 'gated' => false ),
+			'openapi.json'             => array( 'ct' => 'application/json', 'gated' => false ),
+			'api-catalog'              => array( 'ct' => 'application/linkset+json; profile="https://www.rfc-editor.org/info/rfc9727"', 'gated' => false ),
+			'agent-skills'             => array( 'ct' => 'text/markdown', 'gated' => false ),
+			'oauth-protected-resource' => array( 'ct' => 'application/json', 'gated' => true ),
+			'tdmrep.json'              => array( 'ct' => 'application/json', 'gated' => true ),
+			Signer::DIRECTORY          => array( 'ct' => 'application/json', 'gated' => true ),
+		);
 	}
 
 	/**
@@ -191,7 +219,7 @@ final class WellKnown {
 
 		$method = isset( $_SERVER['REQUEST_METHOD'] ) ? strtoupper( sanitize_text_field( wp_unslash( $_SERVER['REQUEST_METHOD'] ) ) ) : 'GET';
 
-		$uri  = isset( $_SERVER['REQUEST_URI'] ) ? sanitize_text_field( wp_unslash( $_SERVER['REQUEST_URI'] ) ) : '/';
+		$uri  = \Agentimus\Request::uri();
 		$path = '/' . ltrim( (string) wp_parse_url( $uri, PHP_URL_PATH ), '/' );
 		if ( 0 !== strpos( $path, self::PREFIX ) ) {
 			return;
@@ -249,54 +277,17 @@ final class WellKnown {
 
 		$this->registry->collect();
 
-		// 2. Documents this plugin generates.
-		switch ( $name ) {
-			case 'discovery.json':
-				$this->send( $this->envelope->discovery_json(), 'application/json', 'discovery.json' );
-				break;
-			case 'agent-card.json':
-			case 'agent.json': // Alias for agents that look here first.
-				$this->send( $this->envelope->agent_card_json(), 'application/json', $name );
-				break;
-			case 'mcp.json':
-				$this->send( $this->envelope->mcp_json(), 'application/json', 'mcp.json' );
-				break;
-			case 'openapi.json':
-				// OpenAPI 3.1 description of the existing public REST read API.
-				$this->send( ( new OpenApi( $this->settings ) )->json(), 'application/json', 'openapi.json' );
-				break;
-			case 'api-catalog':
-				// RFC 9727 API catalog, as an RFC 9264 link set. The profile parameter
-				// is the RFC 9727 §7.3 Profile URI — it tells a client this linkset IS
-				// an API catalog, and validators check for it.
-				$this->send( $this->envelope->api_catalog_json(), 'application/linkset+json; profile="https://www.rfc-editor.org/info/rfc9727"', 'api-catalog' );
-				break;
-			case 'agent-skills':
-				// The bare directory path — a markdown listing of the packaged skills,
-				// so a probe of the namespace itself learns where SKILL.md lives.
-				$this->send( $this->envelope->skill_directory_md(), 'text/markdown', 'agent-skills' );
-				break;
-			case 'oauth-protected-resource':
-				// RFC 9728 — served only when the owner declared an auth server.
-				$prm = $this->envelope->oauth_protected_resource_json();
-				if ( '' !== $prm ) {
-					$this->send( $prm, 'application/json', 'oauth-protected-resource' );
-				}
-				break;
-			case Signer::DIRECTORY:
-				// The Web Bot Auth key directory — served only when signing is on.
-				$directory = $this->signer->directory();
-				if ( '' !== $directory ) {
-					$this->send( $directory, 'application/json', Signer::DIRECTORY );
-				}
-				break;
-			case 'tdmrep.json':
-				// TDM Reservation Protocol opt-out file — gated off => empty => 404.
-				$tdmrep = ( new \Agentimus\Tdmrep( $this->settings ) )->json();
-				if ( '' !== $tdmrep ) {
-					$this->send( $tdmrep, 'application/json', 'tdmrep.json' );
-				}
-				break;
+		// 2. Documents this plugin generates — metadata (content type, gating) from
+		// flat_docs(), the body from flat_body(). A GATED doc whose feature is off
+		// yields an empty body and is NOT sent, so route() falls through to a clean
+		// 404; an ungated doc sends whatever it produced. A null body means the name
+		// has no producer (a drift from flat_docs) — treated as "nothing produced".
+		$docs = self::flat_docs();
+		if ( isset( $docs[ $name ] ) ) {
+			$body = $this->flat_body( $name );
+			if ( null !== $body && ( ! $docs[ $name ]['gated'] || '' !== $body ) ) {
+				$this->send( $body, $docs[ $name ]['ct'], $name );
+			}
 		}
 
 		// 3. Provider-registered documents.
@@ -307,6 +298,48 @@ final class WellKnown {
 
 		// 4. We produced nothing — force a clean 404 if WE routed this request.
 		$this->maybe_clean_404();
+	}
+
+	/**
+	 * Produce the body for one flat /.well-known doc, or null when the name has no
+	 * producer here (a drift from {@see flat_docs()}). A gated doc whose feature is
+	 * off returns '' — the caller turns that into a clean 404.
+	 *
+	 * @param string $name Flat doc name (already matched against flat_docs()).
+	 * @return string|null
+	 */
+	private function flat_body( $name ) {
+		switch ( $name ) {
+			case 'discovery.json':
+				return $this->envelope->discovery_json();
+			case 'agent-card.json':
+			case 'agent.json': // Alias for agents that look here first.
+				return $this->envelope->agent_card_json();
+			case 'mcp.json':
+				return $this->envelope->mcp_json();
+			case 'openapi.json':
+				// OpenAPI 3.1 description of the existing public REST read API.
+				return ( new OpenApi( $this->settings ) )->json();
+			case 'api-catalog':
+				// RFC 9727 API catalog, as an RFC 9264 link set. The profile parameter
+				// on the content type (see flat_docs()) tells a client this linkset IS
+				// an API catalog, and validators check for it.
+				return $this->envelope->api_catalog_json();
+			case 'agent-skills':
+				// The bare directory path — a markdown listing of the packaged skills,
+				// so a probe of the namespace itself learns where SKILL.md lives.
+				return $this->envelope->skill_directory_md();
+			case 'oauth-protected-resource':
+				// RFC 9728 — non-empty only when the owner declared an auth server.
+				return $this->envelope->oauth_protected_resource_json();
+			case Signer::DIRECTORY:
+				// The Web Bot Auth key directory — non-empty only when signing is on.
+				return $this->signer->directory();
+			case 'tdmrep.json':
+				// TDM Reservation Protocol opt-out file — non-empty only when gated on.
+				return ( new \Agentimus\Tdmrep( $this->settings ) )->json();
+		}
+		return null;
 	}
 
 	/**
@@ -448,16 +481,7 @@ final class WellKnown {
 			\Agentimus\Activity\Recorder::record( $label );
 		}
 		if ( ! headers_sent() ) {
-			status_header( 200 );
-			// A name reached via the 404-intercept path (anything not in our rewrite,
-			// e.g. security.txt) inherits WordPress's 404 no-cache headers; clear them
-			// so our Cache-Control governs and the doc stays edge-cacheable.
-			header_remove( 'Expires' );
-			header_remove( 'Pragma' );
-			header( 'Content-Type: ' . $content_type . '; charset=UTF-8' );
-			header( 'X-Content-Type-Options: nosniff' );
-			header( 'Access-Control-Allow-Origin: *' ); // Discovery docs are public by design.
-			\Agentimus\CacheHeaders::send( 3600 );
+			self::emit_doc_headers( $content_type );
 
 			// Web Bot Auth: sign the low-volume discovery JSON docs when enabled.
 			if ( in_array( $label, $this->signed_surfaces(), true ) && $this->signer->enabled() ) {
@@ -489,7 +513,7 @@ final class WellKnown {
 	 * @return string
 	 */
 	private function current_url() {
-		$uri  = isset( $_SERVER['REQUEST_URI'] ) ? sanitize_text_field( wp_unslash( $_SERVER['REQUEST_URI'] ) ) : '/';
+		$uri  = \Agentimus\Request::uri();
 		$path = '/' . ltrim( (string) wp_parse_url( $uri, PHP_URL_PATH ), '/' );
 		// Take the canonical scheme+host from home_url() but keep the LITERAL request
 		// path. home_url( $path ) would re-prepend the site's subpath on a "WordPress
@@ -516,13 +540,7 @@ final class WellKnown {
 			$content_type = 'json' === strtolower( (string) pathinfo( $file, PATHINFO_EXTENSION ) ) ? 'application/json' : 'text/plain';
 		}
 		if ( ! headers_sent() ) {
-			status_header( 200 );
-			header_remove( 'Expires' ); // Drop WP's 404-path no-cache headers (see send()).
-			header_remove( 'Pragma' );
-			header( 'Content-Type: ' . $content_type . '; charset=UTF-8' );
-			header( 'X-Content-Type-Options: nosniff' );
-			header( 'Access-Control-Allow-Origin: *' ); // Public docs — match send() so on-disk files are cross-origin fetchable too.
-			\Agentimus\CacheHeaders::send( 3600 );
+			self::emit_doc_headers( $content_type );
 		}
 		if ( ! $this->is_head() ) {
 			readfile( $file ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_readfile -- streaming a discovery doc.
@@ -531,9 +549,29 @@ final class WellKnown {
 	}
 
 	/**
+	 * The header block shared by send() and stream(): a clean 200, WordPress's
+	 * 404-path no-cache headers cleared (a name reached via the 404-intercept
+	 * inherits them, e.g. security.txt — clearing them lets our Cache-Control
+	 * govern and keeps the doc edge-cacheable), the content type, nosniff, and the
+	 * public cross-origin allowance.
+	 *
+	 * @param string $content_type MIME type.
+	 * @return void
+	 */
+	private static function emit_doc_headers( $content_type ) {
+		status_header( 200 );
+		header_remove( 'Expires' );
+		header_remove( 'Pragma' );
+		header( 'Content-Type: ' . $content_type . '; charset=UTF-8' );
+		header( 'X-Content-Type-Options: nosniff' );
+		header( 'Access-Control-Allow-Origin: *' ); // Discovery docs are public by design.
+		\Agentimus\CacheHeaders::send( 3600 );
+	}
+
+	/**
 	 * @return bool Whether this is a HEAD request.
 	 */
 	private function is_head() {
-		return isset( $_SERVER['REQUEST_METHOD'] ) && 'HEAD' === strtoupper( sanitize_text_field( wp_unslash( $_SERVER['REQUEST_METHOD'] ) ) );
+		return \Agentimus\Request::is_head();
 	}
 }

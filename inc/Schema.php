@@ -130,6 +130,12 @@ final class Schema {
 	 * post's revision (its modified time) and a fingerprint of the settings + core site
 	 * identity, so any change that affects the graph produces a fresh key.
 	 *
+	 * It also folds in the cache epoch ({@see MarkdownCache::EPOCH_OPTION}), which the
+	 * `agentimus_cache_flushed` action rolls on every flush — including `edited_term`.
+	 * The graph's breadcrumb and keyword nodes derive from a post's TERMS, and a term
+	 * rename changes none of the other inputs (not post_modified_gmt), so without the
+	 * epoch a category rename would serve a stale graph until the entry aged out.
+	 *
 	 * @param \WP_Post|null $post  Post being described, or null for the site graph.
 	 * @param bool          $front Whether this is the front page.
 	 * @return string Cache key, or '' to skip caching.
@@ -142,6 +148,7 @@ final class Schema {
 		$fingerprint = md5(
 			(string) wp_json_encode( $this->settings->all() )
 			. '|' . get_bloginfo( 'name' ) . '|' . get_bloginfo( 'description' ) . '|' . get_locale()
+			. '|' . (string) get_option( MarkdownCache::EPOCH_OPTION, '' )
 		);
 		return 'agentimus_schema_' . md5( $post_sig . '|' . ( $front ? '1' : '0' ) . '|' . $fingerprint );
 	}

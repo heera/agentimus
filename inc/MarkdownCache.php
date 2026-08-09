@@ -183,17 +183,4 @@ final class MarkdownCache {
 		update_option( self::EPOCH_OPTION, uniqid( '', true ), false );
 	}
 
-	/**
-	 * Remove the whole cache directory (uninstall).
-	 */
-	public static function purge_all() {
-		$dir = self::dir();
-		if ( '' === $dir ) {
-			return;
-		}
-		foreach ( (array) glob( $dir . '/*.md' ) as $f ) {
-			@unlink( $f ); // phpcs:ignore WordPress.WP.AlternativeFunctions.unlink_unlink, WordPress.PHP.NoSilencedErrors -- our own cache files.
-		}
-		@rmdir( $dir ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_rmdir, WordPress.WP.AlternativeFunctions.directory_rmdir, WordPress.PHP.NoSilencedErrors -- our own now-empty cache dir; WP_Filesystem would need credentials we may not have here.
-	}
 }
