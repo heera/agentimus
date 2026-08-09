@@ -28,12 +28,13 @@ final class Network {
 	}
 
 	/**
-	 * Add the "AI Visibility" page to the Network Admin sidebar.
+	 * Add the "Citations" page to the Network Admin sidebar — the network view
+	 * of the citation checks (the single-site screen is Visibility → Citations).
 	 */
 	public function menu() {
 		add_menu_page(
-			__( 'AI Visibility', 'agentimus' ),
-			__( 'AI Visibility', 'agentimus' ),
+			__( 'AI Citations', 'agentimus' ),
+			__( 'AI Citations', 'agentimus' ),
 			'manage_network',
 			'agentimus-visibility-network',
 			array( $this, 'render' ),
@@ -54,8 +55,8 @@ final class Network {
 		$avg   = $this->average_score( $rows );
 
 		echo '<div class="wrap">';
-		echo '<h1>' . esc_html__( 'AI Visibility — Network', 'agentimus' ) . '</h1>';
-		echo '<p style="color:#646970;max-width:640px">' . esc_html__( 'Latest AI-visibility results across every site on the network. Each site keeps its own data; open a site to configure its prompts and API keys.', 'agentimus' ) . '</p>';
+		echo '<h1>' . esc_html__( 'AI Citations — Network', 'agentimus' ) . '</h1>';
+		echo '<p style="color:#646970;max-width:640px">' . esc_html__( 'Latest citation-check results across every site on the network. Each site keeps its own data; open a site to configure its prompts and API keys (Visibility → Citations).', 'agentimus' ) . '</p>';
 
 		printf(
 			'<p style="font-size:14px"><strong>%s</strong> %s</p>',

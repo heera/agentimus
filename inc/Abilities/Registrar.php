@@ -254,8 +254,8 @@ final class Registrar {
 
 		$this->add(
 			'read-ai-visibility',
-			__( 'Get AI Visibility results', 'agentimus' ),
-			'Returns the latest AI Visibility run: whether AI assistants mention and cite each tracked '
+			__( 'Get AI citation results', 'agentimus' ),
+			'Returns the latest citation-check run (the Visibility screen\'s Citations tab): whether AI assistants mention and cite each tracked '
 				. 'product, the overall visibility score and citation rate, per-product share-of-voice against '
 				. 'competitors, and the trend across recent runs. Empty (hasData=false) until a run has completed. '
 				. 'Read-only; it does not start a run (running one spends the site’s AI credits).',
@@ -880,7 +880,7 @@ final class Registrar {
 			'read-search-opportunities',
 			__( 'Get search pages worth improving', 'agentimus' ),
 			'Returns the pages that already rank in classic search but under-earn — the worklist behind '
-				. 'the Search Opportunities screen. Two groups: "almostThere" (ranking 8–20, one improvement '
+				. 'the Search Opportunities card (Visibility → Search). Two groups: "almostThere" (ranking 8–20, one improvement '
 				. 'from page one) and "seenNotClicked" (already on page one, but a click rate well under THIS '
 				. 'site\'s own page-one median — never an industry benchmark). Each page carries its searches, '
 				. 'its totals, and whether it qualified on a single search or on the page\'s combined demand. '

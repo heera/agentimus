@@ -1,12 +1,13 @@
 <script>
 /**
- * Search Performance — the whole-picture half of the AI Visibility screen's
- * search story: what the site earned in the window, the queries that brought
- * it, and the pages that did the earning.
+ * Search Performance — the Visibility screen's Search view: what the
+ * site earned in the window, the queries that brought it, and the pages that
+ * did the earning. People, counted by the engines themselves.
  *
- * The counterpart to Readiness → Search Opportunities: the same stored
- * snapshot, the opposite lens. This screen answers "how am I doing?"; that one
- * answers "what should I fix?" — and each points at the other.
+ * The counterpart to Search Opportunities, seated directly below on this same
+ * view: the same stored snapshot, the opposite lens. This card answers "how am
+ * I doing?"; that one answers "what should I fix?" — the numbers above the
+ * to-dos.
  *
  * Off state = one quiet pointer at Settings → Data sources. No form here: the
  * keys have exactly one home.
@@ -145,7 +146,22 @@ export default {
          column — a rule that stops mid-card reads as broken, not typographic. -->
     <div class="ar-perf__head ar-card__head--ruled">
       <div>
-        <h2 class="ar-card__title">Search Performance</h2>
+        <div class="ar-card__titlewrap">
+          <h2 class="ar-card__title">Search Performance</h2>
+          <!-- The hand-crank half of the freshness rule (reveal already
+               refetches): re-reads the stored report on demand. -->
+          <button
+            type="button"
+            class="ar-readiness__refresh"
+            :class="{ 'is-busy': loading }"
+            :disabled="loading"
+            :aria-label="loading ? 'Re-reading search performance…' : 'Re-read search performance'"
+            :title="loading ? 'Re-reading…' : 'Re-read search performance'"
+            @click="load"
+          >
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="23 4 23 10 17 10" /><polyline points="1 20 1 14 7 14" /><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" /></svg>
+          </button>
+        </div>
         <p class="ar-card__lead">
           How your pages did in search: what was searched for, how often you showed up,
           and how often those results were clicked. Every number here is reported by the
@@ -157,20 +173,55 @@ export default {
            must be named where the eye looks for it, not only in the
            provenance line at the bottom. A label is not a button: no hover,
            no affordance, nothing pretending to be pressable. -->
+      <!-- No written label: the two engine names ARE the explanation, and the
+           group keeps "Show numbers from" for screen readers. Seated at the
+           head's bottom edge, just above the masthead rule. -->
       <div v-if="bothConnected" class="ar-srcpick" role="group" aria-label="Show numbers from">
-        <span class="ar-srcpick__label">Show numbers from</span>
         <span class="ar-srcpick__set">
           <button type="button" class="ar-srcpick__btn" :class="{ 'is-on': active_source === 'google' }" @click="pick('google')">Google</button>
           <button type="button" class="ar-srcpick__btn" :class="{ 'is-on': active_source === 'bing' }" @click="pick('bing')">Bing</button>
         </span>
       </div>
+      <!-- One source: just its name, bold, in the switch's seat — no pill,
+           because a pill is the switch's costume and there is nothing here
+           to press. -->
       <div v-else-if="active_source" class="ar-srcpick">
-        <span class="ar-srcpick__label">Numbers from</span>
         <span class="ar-srcpick__solo">{{ active_source === 'google' ? 'Google' : 'Bing' }}</span>
       </div>
     </div>
 
     <p v-if="error" class="ar-field__hint ar-warn">{{ error }}</p>
+
+    <!-- First fetch in flight: sketch the real layout (tiles, provenance,
+         two columns) so the card says "coming" instead of ending at its own
+         header. Only the FIRST load — a refetch keeps yesterday's numbers on
+         screen until the new ones land. -->
+    <div v-else-if="!loaded" role="status" aria-label="Loading search performance">
+      <div class="ar-skel-tiles" aria-hidden="true">
+        <span class="ar-skel ar-skel--tile"></span>
+        <span class="ar-skel ar-skel--tile"></span>
+        <span class="ar-skel ar-skel--tile"></span>
+        <span class="ar-skel ar-skel--tile"></span>
+      </div>
+      <div class="ar-skel-lines" aria-hidden="true">
+        <span class="ar-skel ar-skel--line" style="width: 64%"></span>
+        <span class="ar-skel ar-skel--line" style="width: 46%"></span>
+      </div>
+      <div class="ar-skel-cols" aria-hidden="true">
+        <div class="ar-skel-lines">
+          <span class="ar-skel ar-skel--line" style="width: 40%"></span>
+          <span class="ar-skel ar-skel--line"></span>
+          <span class="ar-skel ar-skel--line" style="width: 92%"></span>
+          <span class="ar-skel ar-skel--line" style="width: 85%"></span>
+        </div>
+        <div class="ar-skel-lines">
+          <span class="ar-skel ar-skel--line" style="width: 40%"></span>
+          <span class="ar-skel ar-skel--line"></span>
+          <span class="ar-skel ar-skel--line" style="width: 92%"></span>
+          <span class="ar-skel ar-skel--line" style="width: 85%"></span>
+        </div>
+      </div>
+    </div>
 
     <!-- Nothing connected: one pointer, no form. -->
     <p v-else-if="loaded && !anyConnected" class="ar-perf__empty">
@@ -214,8 +265,8 @@ export default {
       <p v-if="probeShare >= 25" class="ar-srcline ar-perf__probeline">
         <strong>{{ probeShare }}% of these views came from automated probes</strong>, not
         people — so the click rate above is lower than the rate real visitors give you.
-        Nothing has been removed here; this screen is the engine’s raw record. The
-        <em>Search Opportunities</em> worklist judges people-only traffic.
+        Nothing has been removed here; this card is the engine’s raw record. The
+        <em>Search Opportunities</em> worklist below judges people-only traffic.
       </p>
       <!-- Both engines: the week-on-week line renders ONLY once 14 days of
            history exist (weekly.ready) — zeros that mean "unknown" must never
@@ -229,12 +280,14 @@ export default {
       <p class="ar-srcline">
         These numbers come from <strong>{{ sourceLabel }}</strong><template v-if="rangeText">, covering {{ rangeText }}</template>.
         <!-- "This CARD", not "this screen". True when Search Performance stood
-             alone; false since it moved onto AI Visibility, where the two cards
-             beside it (Bing's index, Google's index) count machines and nothing
-             else. A sentence that claims the whole screen for one audience is
-             the same over-reach the AI filter had. -->
+             alone; still right now that it holds the Search view, because
+             the In-the-index view next door counts machines and nothing else.
+             A sentence that claims the whole screen for one audience is the
+             same over-reach the AI filter had. And the machines' home is the
+             Request Log — Visitors counts PEOPLE an assistant sent, and naming
+             it here as a machine screen was this card's own quiet mis-claim. -->
         This card counts <strong>people</strong> using classic search — machines reading your
-        site live on the Readers and Request Log screens<template v-if="probeShare > 0"> (and when automated probes
+        site live on the Request Log screen<template v-if="probeShare > 0"> (and when automated probes
         sneak into {{ sourceLabel }}'s own numbers, this card says so right beside them)</template>.
         <template v-if="bothConnected">Switch above to see what {{ active_source === 'google' ? 'Bing' : 'Google' }} reported instead — the two count different searchers, so they never match exactly.</template>
       </p>
@@ -328,10 +381,12 @@ export default {
         </div>
       </div>
 
+      <!-- The worklist is a screen-mate now, not another room — the button
+           just scrolls to it (same tab + anchor, goTo's own path). -->
       <p class="ar-card__note">
-        This screen is the whole record. To see what to improve — pages just off page
-        one, and pages on page one being scrolled past —
-        <button type="button" class="ar-linkbtn" @click="$emit('navigate', { tab: 'readiness', anchor: 'ar-group-search' })">Search Opportunities</button>
+        This card is the whole record. What to improve — pages just off page one,
+        and pages on page one being scrolled past — sits right below:
+        <button type="button" class="ar-linkbtn" @click="$emit('navigate', { tab: 'visibility', view: 'performance', anchor: 'ar-group-search' })">Search Opportunities</button>
         turns these same numbers into a to-do list.
       </p>
     </template>

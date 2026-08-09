@@ -1,6 +1,9 @@
 <script>
 /**
- * Found by AI Search — the Bing half of the AI Visibility screen.
+ * In Bing's index — the Bing half of the Visibility screen's In-the-index view.
+ * (Long called "Found by AI Search": the AI significance is real — ChatGPT
+ * search and Copilot read this index today — but it is a STORY ABOUT the
+ * data, not the data, so it now lives in a labeled pin instead of the title.)
  *
  * The visibility checks above ask assistants questions; this card reads the
  * infrastructure underneath: how much of the site sits in Bing's index — the
@@ -36,6 +39,11 @@ export default {
       // The clicked bar's index; -1 = no day report open. All data is already
       // local (the trend rows carry the whole day), so there is no loading state.
       selectedDay: -1,
+      // The live per-URL question — the one thing on this card that IS a call
+      // to Bing right now, and its copy says so.
+      lookupQuery: '',
+      lookupBusy: false,
+      lookupOut: null,
     };
   },
   computed: {
@@ -199,6 +207,27 @@ export default {
       const d = new Date(`${iso}T00:00:00Z`);
       return Number.isNaN(d.getTime()) ? iso : formatDate(d, true);
     },
+    // Ask Bing about one page, live. Errors land inline in the same slot the
+    // answer would — Bing's words when Bing refused, ours when the input did.
+    async runLookup() {
+      const q = this.lookupQuery.trim();
+      if (!q || this.lookupBusy || !this.api || !this.api.checkBingUrl) return;
+      this.lookupBusy = true;
+      this.lookupOut = null;
+      try {
+        this.lookupOut = await this.api.checkBingUrl(q);
+      } catch (e) {
+        this.lookupOut = { error: (e && e.message) || 'Bing could not be reached.' };
+      } finally {
+        this.lookupBusy = false;
+      }
+    },
+    lookupLine(info) {
+      const bits = [];
+      if (info.discoveredAt) bits.push(`discovered ${this.day(info.discoveredAt)}`);
+      if (info.lastCrawledAt) bits.push(`last crawled ${this.day(info.lastCrawledAt)}`);
+      return `Bing's crawler knows this page — ${bits.join(', ')}.`;
+    },
     agoMin(ts) {
       const t = Number(ts || 0) * 1000;
       if (!t) return '';
@@ -218,9 +247,26 @@ export default {
 
 <template>
   <div class="ar-bing">
+    <!-- First fetch in flight: the card's own shape in skeleton — a blank
+         stretch under the caption read as a broken screen, not a loading one. -->
+    <section v-if="!loaded" class="ar-card" role="status" aria-label="Loading Bing index data">
+      <div class="ar-skel-head" aria-hidden="true">
+        <span class="ar-skel ar-skel--title"></span>
+        <span class="ar-skel ar-skel--line" style="width: 58%"></span>
+      </div>
+      <div class="ar-skel-tiles" aria-hidden="true">
+        <span class="ar-skel ar-skel--tile"></span>
+        <span class="ar-skel ar-skel--tile"></span>
+        <span class="ar-skel ar-skel--tile"></span>
+      </div>
+      <div class="ar-skel-lines" aria-hidden="true">
+        <span class="ar-skel ar-skel--line" style="width: 72%"></span>
+        <span class="ar-skel ar-skel--line" style="width: 44%"></span>
+      </div>
+    </section>
     <!-- Off: one quiet pointer, no form, no nagging. -->
-    <section v-if="loaded && !connected" class="ar-card ar-card--muted">
-      <h2 class="ar-card__title">Found by AI Search <span class="ar-card__tag">Off</span></h2>
+    <section v-else-if="!connected" class="ar-card ar-card--muted">
+      <h2 class="ar-card__title">In Bing's index <span class="ar-card__tag">Off</span></h2>
       <p class="ar-card__lead ar-bing__offlead">
         Bing is the index ChatGPT search reads today — Copilot too. Connect it and this card
         shows how much of your site that index holds, and warns you when something keeps
@@ -244,13 +290,42 @@ export default {
       </div>
 
       <section class="ar-card">
-        <h2 class="ar-card__title">Found by AI Search <span class="ar-card__tag">Bing · last {{ summary.days }} days</span></h2>
+        <div class="ar-card__titlewrap">
+          <h2 class="ar-card__title">In Bing's index <span class="ar-card__tag">last {{ summary.days }} days</span></h2>
+          <button
+            type="button"
+            class="ar-readiness__refresh"
+            :class="{ 'is-busy': loading }"
+            :disabled="loading"
+            :aria-label="loading ? 'Re-reading Bing index data…' : 'Re-read Bing index data'"
+            :title="loading ? 'Re-reading…' : 'Re-read Bing index data'"
+            @click="load"
+          >
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="23 4 23 10 17 10" /><polyline points="1 20 1 14 7 14" /><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" /></svg>
+          </button>
+        </div>
         <p class="ar-card__lead">
           How much of your site Bing's index holds, and how cleanly Bing's crawler gets in.
-          ChatGPT search, Microsoft Copilot and people using Bing all find pages through
-          this index — no people are counted on this card, only the machinery that serves
-          them; searchers' clicks live in Search Performance below.
+          Machines only — no people are counted on this card; searchers' clicks live on
+          the Search tab.
         </p>
+
+        <!-- The AI significance, SEPARATED from the data it annotates. Every
+             number on this card is classic index machinery; what makes it
+             matter for AI is a fact about who READS this index, and burying
+             that in the footer (or baking it into the title, as "Found by AI
+             Search" did) made users read crawl stats as AI data. A labeled
+             pin says exactly what is AI about this card — and can honestly
+             say "today". -->
+        <div class="ar-edge-pin ar-edge-pin--info">
+          <span class="ar-edge-pin__badge">AI search</span>
+          <p class="ar-edge-pin__body">
+            This is the index AI search reads today: ChatGPT search finds pages through
+            Bing, and Microsoft Copilot rides it too. There is no separate AI index to
+            show — when Bing's index holds you, they can find you. If that coupling ever
+            changes, this card still tells you how Bing sees you.
+          </p>
+        </div>
 
         <div class="ar-mcp-rail" data-state="running">
           <span class="ar-mcp-rail__dot" aria-hidden="true"></span>
@@ -315,11 +390,44 @@ export default {
         <p v-if="feedsNote" class="ar-gidx__sitemap" :class="{ 'is-warn': feedsNote.warn }">{{ feedsNote.text }}</p>
         <p v-if="indexnowNote" class="ar-gidx__sitemap" :class="{ 'is-warn': indexnowNote.warn }">{{ indexnowNote.text }}</p>
 
+        <!-- The live per-URL question — Bing's twin of the Google card's
+             lookup, with the semantics reversed and SAID: Google's box reads
+             the stored checks, this one asks Bing right now. Same markup
+             grammar as Google's box, no new CSS. -->
+        <div class="ar-bing__lookup">
+          <span class="ar-perf__eyebrow ar-gidx__secname">Ask Bing about a page</span>
+          <div class="ar-gidx__lookup">
+            <input
+              type="text"
+              v-model="lookupQuery"
+              :disabled="lookupBusy"
+              placeholder="Paste one of this site's page URLs — e.g. /my-post/"
+              aria-label="Ask Bing about a page by URL"
+              @keyup.enter="runLookup"
+            />
+          </div>
+          <p v-if="lookupBusy" class="ar-gidx__note ar-gidx__lookupmsg">Asking Bing…</p>
+          <template v-else-if="lookupOut">
+            <p v-if="lookupOut.error" class="ar-gidx__note is-err ar-gidx__lookupmsg">{{ lookupOut.error }}</p>
+            <p v-else-if="lookupOut.info && lookupOut.info.known" class="ar-gidx__note ar-gidx__lookupmsg">
+              {{ lookupLine(lookupOut.info) }}
+            </p>
+            <p v-else class="ar-gidx__note is-warn ar-gidx__lookupmsg">
+              Bing's crawler has never seen this page — too new, or nothing it has read links here yet.
+            </p>
+          </template>
+          <p class="ar-field__hint">
+            A live question to Bing, one call per check. Bing answers what its crawler
+            knows — discovered and last crawled. Its API doesn't say per page whether a
+            URL made the index, so the tiles above stay the index-level truth.
+          </p>
+        </div>
+
+        <!-- Provenance only — the AI story lives in its own labeled pin above,
+             where it can be seen instead of skimmed past. -->
         <p class="ar-card__note ar-cf-note">
           Numbers come from Bing Webmaster Tools, one poll a day, kept in your own database —
-          your history keeps growing where Bing's own window ends. “Today” matters: ChatGPT
-          search reads Bing's index today; if that ever changes, these numbers still tell you
-          how Bing and Copilot see you.
+          your history keeps growing where Bing's own window ends.
         </p>
       </section>
     </template>

@@ -52,7 +52,7 @@ export default {
     defaults: { type: Object, default: () => ({}) },
     llmsFullEstimate: { type: Object, default: () => ({}) },
   },
-  emits: ['save-profile', 'save-services', 'reset', 'reopen-wizard', 'clients-changed', 'flash'],
+  emits: ['save-profile', 'save-services', 'reset', 'reopen-wizard', 'clients-changed', 'flash', 'navigate'],
   data() {
     return {
       // Which settings group the sub-nav is showing. One group is visible at a
@@ -814,7 +814,7 @@ export default {
         { key: 'enable_share_copy', label: 'Share drafts', hint: 'Adds a “Share” tab in the post editor with ready-to-post drafts for X, Facebook, LinkedIn, WhatsApp, Telegram and Reddit — written from the post itself, polished with AI per card if a provider is set up. Editor-only; nothing is ever posted for you.' },
         { key: 'enable_ask_ai', label: 'Ask-AI buttons', hint: 'A small “Ask AI about this post” row after each post: one click opens ChatGPT, Claude, Perplexity, Google AI Mode or Grok pre-filled with the post’s address — and the assistant’s visit shows up in your request log. Plain links, no script; nothing is sent until a reader clicks.' + this.askAiPolicyNote },
         // Citation checks deliberately have NO row here: their key hangs inside
-        // their own door — the Citations tab on the always-on AI Visibility
+        // their own door — the Citations tab on the always-on Visibility
         // screen — exactly like the data sources activate by their own setup.
         { key: 'enable_sitemap', label: 'Sitemap', hint: 'With no SEO plugin installed, Agentimus serves your sitemap — including the last-changed dates WordPress core’s own leaves out. With an SEO plugin, it steps aside and only fills the gap when nothing else provides one.' },
         { key: 'enable_changes', label: 'Change feed', hint: 'A JSON feed of recently added or updated pages so assistants can re-check just what changed, instead of re-reading your whole site. (file: agentimus-changes.json)' },
@@ -1931,7 +1931,7 @@ export default {
          stack. Styled as a segmented control — visually distinct from the
          masthead tabs so the two nav levels never read as the same control. -->
     <div class="ar-tabpanel">
-      <nav class="ar-tabpanel__tabs" aria-label="Settings sections">
+      <nav class="ar-tabpanel__tabs ar-tabpanel__tabs--scroll" aria-label="Settings sections">
         <button
           v-for="g in groups"
           :key="g.key"
@@ -1996,7 +1996,7 @@ export default {
           Records which AI assistants fetch your AI files, and counts the visitors AI sends you
           (“Traffic from AI”). Everything is stored on your own site — no IP addresses by default (one optional
           setting stores IPs for flagged crawlers only), nothing sent anywhere. You read the summary on the
-          Dashboard, and the full reports under More → Readers and More → Request Log.
+          Dashboard, and the full reports under More → Visitors and More → Request Log.
         </p>
 
         <label id="ar-feat-enable_activity" class="ar-toggle">
@@ -2014,7 +2014,7 @@ export default {
             <span class="ar-toggle__track" aria-hidden="true"></span>
             <span class="ar-toggle__text">
               <strong>Find missed AI sources (diagnostic)</strong>
-              <small>“Traffic from AI” only counts assistants it recognises, and a miss leaves no trace. Turn this on and Agentimus also lists the referrers it <em>couldn’t</em> name — so you can see whether an assistant is being overlooked. Records the site name and <code>utm_source</code> tag only: still no IPs, nothing sent anywhere. It writes a row for every visit referred from another site, so switch it on for a week, read the list under More → Readers, then switch it off.</small>
+              <small>“Traffic from AI” only counts assistants it recognises, and a miss leaves no trace. Turn this on and Agentimus also lists the referrers it <em>couldn’t</em> name — so you can see whether an assistant is being overlooked. Records the site name and <code>utm_source</code> tag only: still no IPs, nothing sent anywhere. It writes a row for every visit referred from another site, so switch it on for a week, read the list under More → Visitors, then switch it off.</small>
             </span>
           </label>
 
@@ -3814,8 +3814,8 @@ export default {
         <p class="ar-card__lead">
           Google Search Console knows which queries bring your pages to searchers — and
           which pages under-earn their rankings. Connect it and
-          <a href="#readiness">Search Opportunities</a> turns those numbers into a worklist,
-          each entry wired to the exact field that fixes it — and the AI Visibility screen
+          <button type="button" class="ar-linkbtn" @click="$emit('navigate', { tab: 'visibility', view: 'performance', anchor: 'ar-group-search' })">Search Opportunities</button> turns those numbers into a worklist,
+          each entry wired to the exact field that fixes it — and the Visibility screen
           checks daily that your key pages are actually in Google's index, the index
           AI Overviews and Gemini read.
         </p>
@@ -3937,7 +3937,7 @@ export default {
 
         <template v-else-if="google && google.connected">
           <p v-if="googleJustConnected" class="ar-field__hint">
-            <strong>First numbers are in.</strong> <a href="#readiness">Search Opportunities →</a>
+            <strong>First numbers are in.</strong> <button type="button" class="ar-linkbtn" @click="$emit('navigate', { tab: 'visibility', view: 'performance', anchor: 'ar-group-search' })">Search Opportunities →</button>
           </p>
           <p class="ar-field__hint">
             One key, read-only, one daily poll of query-level search performance. Numbers are
@@ -4000,7 +4000,7 @@ export default {
         <p class="ar-card__lead">
           Bing is the index ChatGPT search reads today — Microsoft Copilot too. If Bing can
           see your pages, AI search can find them. Connect it and the
-          <a href="#visibility">AI Visibility</a> screen shows how much of your site is in
+          <a href="#visibility">Visibility</a> screen shows how much of your site is in
           that index, and warns you when something keeps Bing’s crawler out.
         </p>
 
@@ -4084,9 +4084,9 @@ export default {
 
         <template v-else-if="bing && bing.connected">
           <!-- Names the CARD, not the screen — the lead one paragraph up already
-               links "AI Visibility", and two identical links read as a glitch. -->
+               links "Visibility", and two identical links read as a glitch. -->
           <p v-if="bingJustConnected" class="ar-field__hint">
-            <strong>First numbers are in.</strong> <a href="#visibility">Found by AI Search →</a>
+            <strong>First numbers are in.</strong> <a href="#visibility">In Bing's index →</a>
           </p>
           <p class="ar-field__hint">
             One key, read-only, one daily poll. Numbers are stored in your own database, so
@@ -4118,7 +4118,7 @@ export default {
         <p v-if="settings.indexnow_enabled && indexnowKeyUrl" class="ar-field__hint">
           Key file: <a :href="indexnowKeyUrl" target="_blank" rel="noopener">{{ indexnowKeyUrl }}</a>
           — live once this setting is saved. Engines fetch it to confirm the pings are yours;
-          the Found by AI Search card reports each announcement's outcome.
+          the Bing index card on Visibility reports each announcement's outcome.
         </p>
 
         <!-- Disconnect closes the card — an exit lives at the end, never

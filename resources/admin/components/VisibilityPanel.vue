@@ -1,6 +1,6 @@
 <script>
 /**
- * AI Visibility (More → AI Visibility) — track whether AI assistants (ChatGPT, Perplexity, Gemini,
+ * Visibility (More → Visibility) — the Citations tenant tracks whether AI assistants (ChatGPT, Perplexity, Gemini,
  * Claude) mention and cite this site. Two sub-views: Results (the scored latest
  * run) and Settings (brand, competitors, prompts, per-engine keys, schedule).
  *
@@ -26,18 +26,27 @@ export default {
     // Whether the citation-checks FEATURE is on. The screen itself is always
     // on; this only gates the checks tenant (its views, never the room).
     checksOn: { type: Boolean, default: true },
+    // Whether the Visibility screen is the tab on view. The panel stays
+    // MOUNTED across tab switches (App uses v-show), so results fetched once
+    // go stale — coming back must quietly re-read them, the same contract
+    // every other data screen keeps.
+    active: { type: Boolean, default: true },
   },
   emits: ['flash', 'measured', 'view-change', 'navigate', 'enable-checks'],
   data() {
     return {
-      // The landing view matches the leading tab — the everyday glance.
-      view: 'aisearch',
+      // The landing view matches the leading tab — Performance, the "how did
+      // search go?" answer most visits come for. The room's three views group
+      // by QUESTION: how you performed (people) · whether you're in the
+      // indexes (machines) · whether AI answers cite you.
+      view: 'performance',
       // Inside Citations: its own workbench pair (Results / Settings).
       citView: 'results',
       keyMask: '__stored__', // matches Settings::KEY_MASK — a stored key shows as this.
       loaded: false,
       error: '',
       busy: false,
+      quietBusy: false, // background results re-read in flight (spins the runbar's refresh)
       // Which sections just saved ('targets' | 'engines' | 'schedule'), so the "Saved ✓"
       // pulse appears next to the heading you actually changed. A single pill on one
       // heading is useless: flip an engine switch and the confirmation flashes off-screen.
@@ -63,8 +72,11 @@ export default {
   },
   computed: {
     caption() {
+      if (this.view === 'performance') {
+        return 'How your pages did in the results — people, counted by the engines themselves.';
+      }
       if (this.view === 'aisearch') {
-        return "How much of your site sits in Bing's index — the index ChatGPT search and Copilot read today.";
+        return "Are your pages in the engines' indexes — Google's, and Bing's, the one ChatGPT search and Copilot read today. Machines counted here, not people.";
       }
       // The checks tenant is off: don't promise "your latest run" above a card
       // that explains there are no runs.
@@ -148,23 +160,33 @@ export default {
       if (this._unEscError) this._unEscError();
       this._unEscError = open ? bindDocEsc(() => this.closeError()) : null;
     },
-    // The parent seats screen-mates by sub-view (Found by AI Search belongs to
+    // The parent seats screen-mates by sub-view (the index cards belong to
     // Results only), so the current view is announced upward.
     view: {
       handler(v) {
         this.$emit('view-change', v);
+        // Switching TO Citations re-reads the results quietly — a run may
+        // have finished while the reader was on another view.
+        if ('citations' === v) this.quietReload();
       },
       immediate: true,
+    },
+    // Returning to the Visibility screen while Citations is the open view:
+    // same quiet re-read, same reason.
+    active(on) {
+      if (on && 'citations' === this.view) this.quietReload();
     },
   },
   methods: {
     groupIcon,
     // Open a specific sub-view — used when the score card's Cited rung
     // deep-links here. 'results'/'settings' name the citations workbench pair,
-    // so they open the Citations tab on that inner view.
+    // so they open the Citations tab on that inner view. 'aisearch' keeps its
+    // old id and now means the In-the-index view — every stored deep link
+    // (Settings cards, the score) lands where its cards went.
     openView(view) {
-      if ('aisearch' === view) {
-        this.view = 'aisearch';
+      if ('performance' === view || 'aisearch' === view) {
+        this.view = view;
       } else if ('results' === view || 'settings' === view) {
         this.view = 'citations';
         this.citView = view;
@@ -172,10 +194,47 @@ export default {
     },
     // The in-tab switch: the citations tenant's own key, thrown from inside its
     // own room (the parent persists it through the normal settings autosave).
+    // The quiet half of the freshness rule: re-read the RESULTS without
+    // touching the form (applyConfig on reveal would clobber an in-progress
+    // chip edit) and without the loading skeleton — yesterday's numbers hold
+    // the screen while the fresh ones land. Skipped mid-run: the run's own
+    // poll is already keeping the sheet current.
+    async quietReload() {
+      if (!this.checksOn || !this.loaded || this.busy || this._quietBusy) return;
+      this._quietBusy = true;
+      this.quietBusy = true;
+      try {
+        const d = await this.api.getVisibilityDashboard();
+        this.dashboard = d.dashboard;
+      } catch (e) {
+        // Stale-but-shown beats an error toast on a background courtesy.
+      } finally {
+        this._quietBusy = false;
+        this.quietBusy = false;
+      }
+    },
+    // The off switch asks first: it stops scheduled runs and takes the Cited
+    // rung out of the score — and the dialog states what is KEPT, so nobody
+    // declines out of fear of losing their history.
+    async confirmChecksOff() {
+      const ok = await confirm({
+        title: 'Turn off citation checks?',
+        message: 'Scheduled runs stop and the “Cited” rung leaves your score. Your targets, keys and history are all kept — turn it back on any time and it picks up where it left off.',
+        confirmLabel: 'Turn Off',
+        cancelLabel: 'Cancel',
+        tone: 'danger',
+      });
+      if (ok) this.setChecks(false);
+    },
     setChecks(on) {
       this.$emit('enable-checks', !!on);
       if (on) {
-        this.citView = 'results';
+        // Land on SETUP, not Results: a first turn-on has no results to show,
+        // and an empty sheet sends the reader hunting for the form this click
+        // was already promising. (The "never measured" finding's deep link
+        // lands on this same view; a returning owner re-enabling is one click
+        // from their kept history.)
+        this.citView = 'settings';
         this.loaded = false; // fetch the config the OFF state never loaded.
         this.load();
       }
@@ -447,7 +506,7 @@ export default {
         this.notify('warn', 'Couldn’t fetch suggestions just now.');
       }
     },
-    // Same, but asks the site's own configured AI for unbranded buyer-intent questions.
+    // Same, but asks the site's own configured AI for unbranded audience-intent questions.
     // Costs a call, so it's a deliberate click; any failure falls back to the templates
     // rather than leaving the owner with nothing.
     async suggestQuestionsAi(i) {
@@ -728,7 +787,7 @@ export default {
 
 <template>
   <div class="agv">
-    <div v-if="error" class="agv-note agv-note--bad">Could not load AI Visibility: {{ error }}</div>
+    <div v-if="error" class="agv-note agv-note--bad">Could not load Visibility: {{ error }}</div>
     <!-- First load in flight: the shared skeleton, not a bare "Loading…" — same
          treatment as Endpoint Activity and Agent Access. -->
     <div v-else-if="!loaded" class="ar-skel" aria-busy="true">
@@ -739,28 +798,65 @@ export default {
     </div>
 
     <div v-else class="ar-tabpanel">
-      <nav class="ar-tabpanel__tabs" aria-label="AI Visibility views">
-        <!-- Two tenants, two tabs. AI Search leads: it is the everyday glance
-             (daily index numbers); citations are the scheduled deep-read, and
-             their Results/Settings pair nests INSIDE their own tab. -->
-        <button type="button" class="ar-subnav__item" :class="{ 'is-active': view === 'aisearch' }" @click="view = 'aisearch'"><span class="ar-subnav__icon" aria-hidden="true" v-html="groupIcon('sources')"></span>AI Search</button>
-        <button type="button" class="ar-subnav__item" :class="{ 'is-active': view === 'citations' }" @click="view = 'citations'"><span class="ar-subnav__icon" aria-hidden="true" v-html="groupIcon('results')"></span>Citations</button>
+      <nav class="ar-tabpanel__tabs" aria-label="Visibility views">
+        <!-- Three views, three QUESTIONS: how search went for you (people),
+             whether you're in the indexes (machines), whether AI answers cite
+             you. Search leads — "how did search go?" is the everyday glance —
+             and it is NAMED for its subject (his call: "Performance" alone
+             never said performance of WHAT; the sibling labels all say). The
+             view ids keep their history ('performance' stays this view's id,
+             'aisearch' means the In-the-index view) so every stored deep link
+             still lands. The citations workbench pair nests INSIDE its own
+             tab, as before. -->
+        <button type="button" class="ar-subnav__item" :class="{ 'is-active': view === 'performance' }" @click="view = 'performance'"><span class="ar-subnav__icon" aria-hidden="true" v-html="groupIcon('results')"></span>Search</button>
+        <button type="button" class="ar-subnav__item" :class="{ 'is-active': view === 'aisearch' }" @click="view = 'aisearch'"><span class="ar-subnav__icon" aria-hidden="true" v-html="groupIcon('sources')"></span>In the index</button>
+        <button type="button" class="ar-subnav__item" :class="{ 'is-active': view === 'citations' }" @click="view = 'citations'"><span class="ar-subnav__icon" aria-hidden="true" v-html="groupIcon('citations')"></span>Citations</button>
       </nav>
       <p class="ar-tabpanel__caption">{{ caption }}</p>
 
       <div class="ar-tabpanel__body">
         <!-- RESULTS -------------------------------------------------------- -->
-        <!-- Checks off: the Citations tab holds its own key. One quiet card,
-             one real button — no trip to Settings, nothing to hunt for. -->
+        <!-- Checks off: the Citations tab holds its own key. Written for a
+             FIRST TIMER, in the worklist intro's own grammar (his call — the
+             ask-first invitation: mark, centered headline, plain explainer,
+             one button, fine print; ar-work__intro reused, zero new CSS). The
+             jargon (the "Cited" rung, keys, credit) only appears after the
+             reader knows what it buys them, and the button says "set up", not
+             "turn on", because that is what the click does: it opens the
+             setup, runs nothing and spends nothing. -->
         <section v-if="!checksOn && view === 'citations'" class="ar-card ar-card--muted">
           <h2 class="ar-card__title">Citations <span class="ar-card__tag">Off</span></h2>
+          <!-- "someone", never "a buyer" (his catch): nothing here knows
+               whether the site sells anything. -->
           <p class="ar-card__lead" style="margin: 0 0 14px; padding: 0; border-bottom: 0;">
-            Ask ChatGPT, Perplexity, Gemini and Claude about your site on a schedule, and see
-            whether they name and link it — with a “Cited” rung on your readiness score.
-            Checks run on your own AI key and spend your credit; nothing runs until you set
-            up targets and a key.
+            Whether AI assistants name and link your site when someone asks about your
+            subject — measured on a schedule, never guessed.
           </p>
-          <button type="button" class="ar-btn" @click="setChecks(true)">Turn on citation checks</button>
+          <div class="ar-work__intro">
+            <!-- The Citations view's own quote marks, at invitation size — the
+                 same symbol its subnav tab wears (one concept, one mark). -->
+            <svg class="ar-work__intro-mark" viewBox="0 0 48 48" width="44" height="44" fill="none"
+                 stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M11 24.5a7 7 0 1 0 7 7C18 24 15.4 15.5 9.8 9" />
+              <path d="M31.4 24.5a7 7 0 1 0 7 7C38.4 24 35.8 15.5 30.2 9" />
+            </svg>
+
+            <h3 class="ar-work__intro-title">Do AI answers name your site?</h3>
+            <p class="ar-work__intro-lead">
+              Write the questions your site should be the answer to — or let AI suggest
+              a spread — and Agentimus puts them to ChatGPT, Perplexity, Gemini and
+              Claude on a schedule, through your own AI keys. Each answer is graded —
+              mentioned, linked, or a rival named instead — and the verdicts build your
+              history and the “Cited” rung of your score.
+            </p>
+
+            <button type="button" class="ar-btn" @click="setChecks(true)">Set up citation checks</button>
+
+            <p class="ar-work__intro-note">
+              Setting this up runs nothing and spends nothing yet. Checks start once you’ve
+              added questions and a key — each run then spends a little of your own AI credit.
+            </p>
+          </div>
         </section>
 
         <!-- The citations workbench pair, nested inside its own tab. -->
@@ -773,7 +869,17 @@ export default {
              beside it — the global Features list no longer carries this toggle. -->
         <div v-if="checksOn && view === 'citations' && citView === 'settings'" class="agv-checkstate">
           <span>Citation checks are <strong>on</strong> — scheduled runs, the “Cited” rung and the MCP read tool are active. Turning them off keeps your targets and history.</span>
-          <button type="button" class="ar-linkbtn agv-checkstate__off" @click="setChecks(false)">Turn off citation checks</button>
+          <!-- A power mark + a confirm (his call): this link stops a scheduled
+               feature and reshapes the score, so it must not fire on a stray
+               click — and the dialog is where the "nothing is lost" promise
+               gets read before it matters. -->
+          <button type="button" class="ar-linkbtn agv-checkstate__off" @click="confirmChecksOff">
+            <svg class="agv-checkstate__power" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M12 3v9" />
+              <path d="M17.7 7.2a8 8 0 1 1-11.4 0" />
+            </svg>
+            Turn off citation checks
+          </button>
         </div>
 
         <div v-show="checksOn && view === 'citations' && citView === 'results'" class="agv-results">
@@ -781,6 +887,19 @@ export default {
           <div class="agv-sheet">
           <div class="agv-runbar">
             <span class="agv-runbar__meta">Last run · {{ fmtDate(lastRunAt) }}</span>
+            <!-- The hand-crank half of the freshness rule — same mark as every
+                 other data card. Re-reads stored results; it never starts a run. -->
+            <button
+              type="button"
+              class="ar-readiness__refresh"
+              :class="{ 'is-busy': quietBusy }"
+              :disabled="quietBusy || busy"
+              aria-label="Re-read the citation results"
+              title="Re-read the citation results"
+              @click="quietReload"
+            >
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="23 4 23 10 17 10" /><polyline points="1 20 1 14 7 14" /><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" /></svg>
+            </button>
             <div class="agv-runbar__actions">
               <button v-if="hasData" type="button" class="ar-btn ar-btn--ghost agv-btn-sm agv-btn-danger" :disabled="busy" @click="clearData">Clear</button>
               <button type="button" class="ar-btn agv-btn-sm" :disabled="busy" @click="run">{{ busy ? 'Running…' : 'Run check now' }}</button>
@@ -954,7 +1073,7 @@ export default {
                     <input type="text" class="ar-input" v-model="t.category" spellcheck="false"
                       maxlength="80"
                       placeholder="e.g. WordPress SEO plugin" @change="autoSaveTargets(i)" />
-                    <small class="ar-field__hint">The category a buyer would shop in — not what you write about. This is what we use to suggest questions.</small>
+                    <small class="ar-field__hint">The category people would look for it in — not what you write about. This is what we use to suggest questions.</small>
                   </div>
                 </div>
                 <div class="ar-grid">
@@ -993,7 +1112,7 @@ export default {
                           class="agv-linkbtn agv-suggest__trigger"
                           :disabled="suggBusy(i) || !(t.category || '').trim()"
                           :title="(t.category || '').trim()
-                            ? 'Ask the AI you set up under Settings → AI to write questions a buyer would type'
+                            ? 'Ask the AI you set up under Settings → AI to write questions people would type'
                             : 'First say what kind of thing this is, above — otherwise the AI has no market to ask about.'"
                           @click="suggestQuestionsAi(i)"
                         >{{ sugg[i] && sugg[i].aiLoading ? 'Asking your AI…' : '✦ Suggest with AI' }}</button>
@@ -1012,7 +1131,7 @@ export default {
                       <p v-else-if="sugg[i] && !suggBusy(i) && sugg[i].items" class="agv-muted agv-suggest__empty">
                         {{ (t.category || '').trim()
                           ? 'No new ideas right now — you already track the ones we’d suggest. Type your own above.'
-                          : 'Fill in “What kind of thing is it?” above and we can suggest the questions a buyer would ask.' }}
+                          : 'Fill in “What kind of thing is it?” above and we can suggest the questions people ask.' }}
                       </p>
                     </div>
                   </div>
@@ -1041,7 +1160,7 @@ export default {
               <strong>several engines side by side</strong>. WordPress’s shared AI connector hands back the
               answer text only — the cited sources are dropped — and points at a single provider, so it can’t
               run this check. Talking to each engine directly is the only way to see who it cited. (This is
-              also why AI Visibility works on WordPress older than 7.0, where that connector doesn’t exist.)
+              also why citation checks work on WordPress older than 7.0, where that connector doesn’t exist.)
             </p>
             <div class="agv-engines">
               <div class="agv-engine agv-engine--head">
@@ -1217,7 +1336,8 @@ export default {
   margin: 0 0 16px; padding: 10px 14px; font-size: 12.5px; color: var(--ar-ink-soft);
   background: var(--ar-surface-2); border: 1px solid var(--ar-line); border-radius: var(--ar-radius);
 }
-.agv-checkstate__off { color: var(--ar-bad); }
+.agv-checkstate__off { color: var(--ar-bad); display: inline-flex; align-items: center; gap: 5px; }
+.agv-checkstate__power { flex: 0 0 auto; }
 
 .agv-results { display: grid; gap: 18px; }
 .agv-sheet {

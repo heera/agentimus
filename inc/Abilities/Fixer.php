@@ -148,7 +148,7 @@ final class Fixer {
 			return $this->manual( __( 'This is a per-page content action, not a site switch. Run check-page on that post to see what to improve, then fix it with update-content / write-topics / write-description.', 'agentimus' ) );
 		}
 		if ( 'visibility_failing' === $check_id || 'measure_setup' === $check_id ) {
-			return $this->manual( __( 'AI Visibility runs spend the site’s own AI credits, so starting or configuring them stays with the owner (More → AI visibility).', 'agentimus' ) );
+			return $this->manual( __( 'Citation checks spend the site’s own AI credits, so starting or configuring them stays with the owner (More → Visibility → Citations).', 'agentimus' ) );
 		}
 
 		// A check id we don't recognise: either a third-party check appended via the

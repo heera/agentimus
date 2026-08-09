@@ -128,7 +128,7 @@ final class Plugin {
 		( new Abilities\AdapterBootstrap( $this->settings ) )->register(); // Boots the bundled MCP Adapter when the owner opts in (inert otherwise).
 		( new Abilities\Registrar( $this->settings ) )->register(); // Exposes our own read capabilities to the WP admin AI + MCP (no-ops pre-6.9).
 
-		// AI Visibility monitoring (opt-in, BYOK). Its config, keys and results live
+		// Citation checks (opt-in, BYOK) — the Visibility screen's Citations tenant. Its config, keys and results live
 		// in their own option/table, independent of the core settings above.
 		$visibility = new Visibility\Settings();
 		( new Visibility\Module( $visibility ) )->register();
