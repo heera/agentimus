@@ -228,7 +228,7 @@ final class Module {
 	/**
 	 * The GA4 half alone, for the moment Analytics is connected — the same
 	 * first-numbers-now courtesy the key connect and the Bing connect give.
-	 * Without it, a Readers screen that just verified successfully sits empty
+	 * Without it, a Visitors screen that just verified successfully sits empty
 	 * until tomorrow's cron, looking broken to the owner who connected it.
 	 *
 	 * @return void
@@ -279,7 +279,7 @@ final class Module {
 		}
 
 		// GA4's own reading of how many of those readers an assistant sent — the
-		// second opinion the Readers screen shows beside our own count. A failure
+		// second opinion the Visitors screen shows beside our own count. A failure
 		// here costs only the split: the totals above are already good, and
 		// throwing them away over a secondary report would be a poor trade.
 		$split = $client->ai_split( $auth['token'], $property, $start, $end );

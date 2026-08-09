@@ -213,7 +213,7 @@ final class Rest {
 		$this->google->set_ga4_property( $property );
 
 		// First numbers now, not tomorrow — the key connect and the Bing
-		// connect both extend this courtesy, and a Readers screen that just
+		// connect both extend this courtesy, and a Visitors screen that just
 		// verified fine must not sit empty until the next daily cron. Only
 		// the GA4 half: the search snapshot wasn't touched by this consent.
 		( new Module( $this->google, $this->client ) )->run_analytics_poll();
@@ -224,7 +224,7 @@ final class Rest {
 	/**
 	 * POST /google/analytics/refresh — run the GA4 poll now.
 	 *
-	 * The Readers screen's fetch button. A failure comes back as the error the
+	 * The Visitors screen's fetch button. A failure comes back as the error the
 	 * poll recorded — Google's own words — so the invitation on screen can say
 	 * what went wrong instead of quietly staying empty.
 	 *
