@@ -10,7 +10,9 @@
  *
  * The parent renders this with v-show, not v-if, so a composed preview SURVIVES
  * closing the drawer — Esc on a stray key never costs the owner a generation.
- * House dialog rules otherwise: Esc or Close only, the scrim doesn't close.
+ * Esc, Close and the scrim all close (his call): unlike the confirm dialogs,
+ * closing here can never lose anything — the brief and any held draft persist
+ * to localStorage and reopen exactly where they were.
  *
  * A composed draft is a PAID artifact, so the held draft (+ its brief) is also
  * persisted to localStorage: reloads, browser restarts and closed tabs all
@@ -713,8 +715,9 @@ export default {
   <Teleport to="body">
     <transition name="ar-drawer">
       <div v-if="open" class="ar-drawer" aria-hidden="false">
-        <!-- Scrim: dims, deliberately does NOT close (house rule: Esc or Close only). -->
-        <div class="ar-drawer__scrim" aria-hidden="true"></div>
+        <!-- Scrim: dims AND closes — nothing can be lost here (state persists
+             to localStorage), so the click-away is a safe exit, not a hazard. -->
+        <div class="ar-drawer__scrim" aria-hidden="true" @click="$emit('close')"></div>
 
         <div
           ref="panel"

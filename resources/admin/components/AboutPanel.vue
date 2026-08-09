@@ -33,7 +33,8 @@ export default {
       teleportReady: false,
       // The working manual, screen by screen — kept in the SAME order as the
       // nav (the bar tabs left to right, then the More menu top to bottom,
-      // then the gear), so the manual reads like the plugin walks.
+      // Settings in its meta group last), so the manual reads like the
+      // plugin walks.
       screens: [
         {
           id: 'dashboard',
@@ -94,7 +95,7 @@ export default {
           title: 'Visibility',
           where: 'More → Visibility',
           purpose: 'Three answers, one view each: how did search actually do for you (Search — what was searched for, how often you appeared, how often those results were clicked, and Search Opportunities right below: which pages to improve), are you in the engines’ indexes (Bing’s, which ChatGPT search and Copilot read today, and Google’s, which AI Overviews and Gemini read), and do assistants cite you when asked the questions your audience asks (Citations).',
-          actions: 'Read the Search tab for your totals, trend and top searches — switching between Google and Bing when both are connected, each with its own week-on-week line — then work Search Opportunities below it: each group says what to do in plain words, and every page opens on the “Search & AI” box where its meta title and description live. On In the index, connect Bing Webmaster with one read-only key (Agentimus prints the verification tag for you) and read index, crawl and error numbers day by day — or ask Bing about one page, live; connect Google Search Console and the In Google’s Index card checks your key pages daily. Press “Set up citation checks” inside the Citations tab — the click opens the setup and runs nothing, spends nothing — then set the questions (or let AI suggest a spread) and track mentioned, linked, ranked against rivals.',
+          actions: 'Read the Search tab for your totals, trend and top searches — switching between Google and Bing when both are connected, each with its own week-on-week line — then work Search Opportunities below it: each group says what to do in plain words, and every page opens on the “Search & AI” box where its meta title and description live. On In the index, connect Bing Webmaster with one read-only key (Agentimus prints the verification tag for you) and read index, crawl and error numbers day by day — or ask Bing about one page, live; connect Google Search Console and the In Google’s Index card checks your key pages daily — its Look up a page box answers for any page from your own stored checks, spending nothing. Press “Set up citation checks” inside the Citations tab — the click opens the setup and runs nothing, spends nothing — then set the questions (or let AI suggest a spread) and track mentioned, linked, ranked against rivals.',
           facts: [
             { k: 'info', t: 'Search Performance and Search Opportunities share the Search view because they read the same stored numbers through opposite lenses: the report answers “how am I doing?”, the worklist under it answers “what should I fix?”.' },
             { k: 'info', t: 'Search Opportunities only appears once a search source is connected, and it judges “not clicked enough” against your OWN page-one click rate — your site’s average, never an industry benchmark. Pages set aside there keep their own list, separate from Optimize’s on Readiness: excusing a page from citability grading and from search suggestions are different decisions.' },
@@ -112,7 +113,7 @@ export default {
           title: 'Visitors',
           where: 'More → Visitors',
           purpose: 'Everyone who visited your site. With Google Analytics connected the screen opens with the whole audience — people, visits, pages opened, time on site, your most-read pages, and which search engines sent visits (Google and Bing, counted by the one instrument that sees both) — then the AI slice beside it: visitors who arrived from an assistant’s answer, daily counts by assistant and by the page they landed on. The Request Log shows machines reading you; this screen shows people.',
-          actions: 'Connect Analytics under Settings → Data sources — the same service-account key as Search Console, plus a Viewer grant on your GA4 property; the screen itself offers the first fetch, one click, and it refreshes daily after that. Pick the window, see which assistants send visitors and to which pages. The weekly email draws its “readers from AI” lines from here.',
+          actions: 'Connect Analytics under Settings → Data sources — the same service-account key as Search Console, plus a Viewer grant on your GA4 property; the screen itself offers the first fetch, one click, and it refreshes daily after that. Pick the window, see which assistants send visitors and to which pages — and click a day in the By Day strip for that day’s story, assistant by assistant. The weekly email draws its “readers from AI” lines from here.',
           facts: [
             { k: 'info', t: 'Counts are daily aggregates — a total per day, per source, per landing page. Never a row that stands for one person, no IP addresses, no identities.' },
             { k: 'info', t: 'Attribution is honest and therefore conservative: AI browsers — assistants browsing on a person’s behalf — often arrive looking like Direct traffic, so real AI-sent visitors can be undercounted — they are never invented.' },
@@ -153,8 +154,8 @@ export default {
         {
           id: 'settings',
           title: 'Settings',
-          where: 'the gear, top right',
-          purpose: 'Every switch the plugin has, grouped and explained where it sits — identity, content and policy, trust and verification, data sources, the MCP server. What each readiness row links to lives here. Opened from the gear at the far right of the header, from any screen.',
+          where: 'More → Settings',
+          purpose: 'Every switch the plugin has, grouped and explained where it sits — identity, content and policy, trust and verification, data sources, the MCP server. What each readiness row links to lives here. Opened from More, where it sits with About below the menu’s rule.',
           actions: 'Flip switches and type — changes autosave (switches immediately, text as you pause). Manage clients holds every allow/block/ignore decision with an undo. Data sources connects Cloudflare, Google (Search Console and, optionally, Analytics — one key, two grants) and Bing, one scoped key each. Run setup again replays the wizard over your current answers. Reset shows a preview of exactly what would change before it does.',
           facts: [
             { k: 'warn', t: 'The write tier is deliberately nested: turning the MCP server off also turns “Let connected agents write” off. Write access can never stay armed invisibly under a switched-off server.' },

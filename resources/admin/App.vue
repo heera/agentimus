@@ -365,7 +365,7 @@ export default {
     // The screens that live in the bar, at every width (his call: Readiness
     // and Discovery used to fold into More on a narrow admin, and a primary
     // you cannot see is a primary you stop visiting). The row fits where five
-    // tabs did not because Settings left it for the gear at the bar's far end.
+    // tabs did not because Settings lives in More, with the meta screens.
     primaryTabs() {
       return [
         { id: 'dashboard', label: 'Dashboard' },
@@ -411,8 +411,14 @@ export default {
           label: 'Agent Access',
           badge: this.agentAccessUnseen,
         },
-        // About is reference material, not a working screen — the rule sets it apart.
-        { id: 'about', label: 'About Agentimus', divided: true },
+        // The meta pair below the rule: configuration and reference, set
+        // apart from the working screens. Settings moved here from the
+        // controls' gear (his call): the right-side icons are stateless
+        // ACTIONS — quill opens a drawer, bell opens a pop — and the one
+        // SCREEN among them wore a selected state its neighbours could
+        // never have. In the menu, selected state is native grammar.
+        { id: 'settings', label: 'Settings', divided: true },
+        { id: 'about', label: 'About Agentimus' },
       ];
     },
     // True when the screen you're on lives inside the menu, so "More" can carry the active
@@ -423,11 +429,7 @@ export default {
     // Every reachable screen — what syncTabFromHash() validates a #hash against. A disabled
     // item is listed but NOT navigable, so #visibility must not resolve while it's off.
     tabs() {
-      // Settings is not in the bar — it is the gear in the controls — but it
-      // is still a screen, so its #hash has to resolve. Leaving it out here
-      // would make Back/Forward and a pasted #settings link silently land
-      // somewhere else (the trap Attention hit when IT was the controls icon).
-      return [{ id: 'settings' }, ...this.primaryTabs, ...this.moreTabs.filter((t) => !t.disabled)];
+      return [...this.primaryTabs, ...this.moreTabs.filter((t) => !t.disabled)];
     },
     dashSummary() {
       const c = (this.discovery && this.discovery.counts) || {};
@@ -1922,9 +1924,11 @@ export default {
            nudges only ever matched at the width they were measured on. -->
       <div class="ar__controls">
       <!-- The writing assistant's quill leads: it opens a drawer, the bell
-           carries a count, and the gear closes the row — tools first,
-           configuration last. The findings screen left this cluster for the bar (his
-           call): its count now rides the tab, beside More. -->
+           opens a pop. Actions only — nothing here is ever "current". The
+           findings screen left this cluster for the bar (his call): its count
+           now rides the tab, beside More. Settings left it too, for More's
+           meta group — a screen among actions wore a selected state its
+           neighbours could never have. -->
       <AssistantLauncher :state="assistantState" @open="assistantOpen = true" @navigate="goTo" />
       <!-- `enabled` from BOOT settings, not the fetched activity payload: the
            fetched flag arrives a beat after first paint and popped the bell in
@@ -1952,24 +1956,9 @@ export default {
         @flash="flash"
         @manage="openClientManager"
       />
-      <!-- Settings, as the gear every admin knows, at the row's far end (his
-           call): the working screens read on the left, configuration sits
-           last. Same 28px circle grammar as its neighbours; on its own screen
-           it wears the solid accent disc — the same "you are here" mark the
-           Attention control wore when it lived in this cluster. -->
-      <button
-        type="button"
-        class="ar__review-btn ar__gearbtn"
-        :class="{ 'is-here': tab === 'settings' }"
-        :aria-label="tab === 'settings' ? 'Settings (current screen)' : 'Settings'"
-        :aria-current="tab === 'settings' ? 'page' : null"
-        @click="goTo('settings')"
-      >
-        <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-          <circle cx="12" cy="12" r="3.2" />
-          <path d="M19.4 15a1.7 1.7 0 0 0 .34 1.87l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.7 1.7 0 0 0-1.87-.34 1.7 1.7 0 0 0-1.03 1.56V21a2 2 0 1 1-4 0v-.09a1.7 1.7 0 0 0-1.11-1.56 1.7 1.7 0 0 0-1.87.34l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.7 1.7 0 0 0 .34-1.87 1.7 1.7 0 0 0-1.56-1.03H3a2 2 0 1 1 0-4h.09a1.7 1.7 0 0 0 1.56-1.11 1.7 1.7 0 0 0-.34-1.87l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.7 1.7 0 0 0 1.87.34h.08A1.7 1.7 0 0 0 10.11 3.1V3a2 2 0 1 1 4 0v.09a1.7 1.7 0 0 0 1.03 1.56 1.7 1.7 0 0 0 1.87-.34l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.7 1.7 0 0 0-.34 1.87v.08a1.7 1.7 0 0 0 1.56 1.03H21a2 2 0 1 1 0 4h-.09a1.7 1.7 0 0 0-1.56 1.03z" />
-        </svg>
-      </button>
+      <!-- No gear here any more (his call): Settings is a SCREEN, and it
+           lives with the other screens in More. This row is actions only —
+           nothing in it is ever "current". -->
       </div>
     </header>
 

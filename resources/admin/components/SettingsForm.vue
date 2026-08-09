@@ -1336,9 +1336,14 @@ export default {
     },
     async disconnectGoogle() {
       if (this.googleDisconnecting || !this.api) return;
+      // The message names the Analytics casualty only when there IS one — a
+      // warning about a thing you never connected reads as a bug.
+      const alsoAnalytics = this.google && this.google.analytics && this.google.analytics.connected
+        ? ' Analytics stops with it — it reads with this same key.'
+        : '';
       const ok = await confirm({
         title: 'Disconnect Google?',
-        message: 'Agentimus forgets the service-account key and stops polling right away. The numbers already stored stay in your database — reconnecting is one paste.',
+        message: `Agentimus forgets the service-account key and stops polling right away.${alsoAnalytics} The numbers already stored stay in your database — reconnecting is one paste.`,
         confirmLabel: 'Disconnect',
         cancelLabel: 'Cancel',
         tone: 'danger',
@@ -1373,6 +1378,14 @@ export default {
     // Analytics off, Search Console untouched — two grants, two switches.
     async disconnectGoogleAnalytics() {
       if (this.ga4Busy || !this.api) return;
+      const ok = await confirm({
+        title: 'Stop reading Analytics?',
+        message: 'The dashboard goes back to counting only the readers search or an AI answer sent — not direct, social or email. The audience numbers already stored stay in your database, the key is untouched, and resuming is one paste of the property ID.',
+        confirmLabel: 'Stop Reading',
+        cancelLabel: 'Cancel',
+        tone: 'danger',
+      });
+      if (!ok) return;
       this.ga4Busy = true;
       this.ga4Error = '';
       try {
@@ -3946,6 +3959,13 @@ export default {
             access stays visible in Search Console’s user list<template v-if="google.saEmail"> under
             <code>{{ google.saEmail }}</code></template>.
           </p>
+          <!-- Analytics rides this same key ({@see Settings::disconnect() —
+               it resets the whole store, property included}), so the warning
+               belongs HERE, before the act, not discovered afterwards. -->
+          <p v-if="google.analytics && google.analytics.connected" class="ar-field__hint">
+            Disconnecting also stops <strong>Analytics</strong> below — it reads with this same
+            key. Your stored history stays either way, search and audience both.
+          </p>
           <button type="button" class="ar-btn ar-btn--danger ar-btn--small" :disabled="googleDisconnecting" @click="disconnectGoogle">
             {{ googleDisconnecting ? 'Disconnecting…' : 'Disconnect' }}
           </button>
@@ -3963,19 +3983,37 @@ export default {
                 turns “People” on the dashboard from two routes into everyone.
               </p>
               <p v-if="google.analytics.lastError" class="ar-field__hint ar-ga4__err">{{ google.analytics.lastError }}</p>
-              <button type="button" class="ar-btn ar-btn--ghost ar-btn--small" :disabled="ga4Busy" @click="disconnectGoogleAnalytics">
+              <!-- Danger family, like Disconnect above: both END a data feed, and a
+                   stop-action in Cancel's white reads weaker than what it does. The
+                   real severity gap (a dead credential vs a retypeable property ID)
+                   is carried by the words, not by dressing one stop as harmless. -->
+              <button type="button" class="ar-btn ar-btn--danger ar-btn--small" :disabled="ga4Busy" @click="disconnectGoogleAnalytics">
                 {{ ga4Busy ? 'Working…' : 'Stop reading Analytics' }}
               </button>
             </template>
             <template v-else>
               <p class="ar-field__hint">
                 Without this, the dashboard can only count readers search or an AI answer sent —
-                not direct, social or email. Paste your GA4 <strong>property ID</strong> (the number
-                in GA4 → Admin → Property details, not the <code>G-</code> measurement ID), and add
-                <template v-if="google.saEmail"><code>{{ google.saEmail }}</code></template>
-                <template v-else>the service-account email</template>
-                as a Viewer on that property first.
+                not direct, social or email. Three short steps, all in the same Google account
+                your key already lives in:
               </p>
+              <!-- The Search Console half earned a linked recipe; the half people
+                   actually get stuck on deserves the same. Step 1 is the trap: the
+                   main recipe enables only the Search Console API, and a key
+                   without the Analytics Data API fails here with a Google error
+                   that never names the fix. -->
+              <div class="ar-mcp-recipe">
+                <ol class="ar-mcp-recipe__steps">
+                  <li>Turn on the <a href="https://console.cloud.google.com/apis/library/analyticsdata.googleapis.com" target="_blank" rel="noopener"><strong>Google Analytics Data API</strong></a> for the same project your key came from — the blue Enable button, one click. The Search Console API from the recipe above doesn't cover Analytics.</li>
+                  <li>In <a href="https://analytics.google.com/" target="_blank" rel="noopener">GA4 → Admin</a> → <strong>Property access management</strong>, add
+                    <template v-if="google.saEmail"><code>{{ google.saEmail }}</code> <button type="button" class="ar-linkbtn" @click="copyPlainText(google.saEmail)">Copy</button></template>
+                    <!-- Reachable only when the stored key never parsed (so no address
+                         was kept) — exactly when the reader most needs a map to it. -->
+                    <template v-else>the service-account email — the <code>client_email</code> inside your key file, also listed under <a href="https://console.cloud.google.com/iam-admin/serviceaccounts" target="_blank" rel="noopener">Service accounts</a> in your Google Cloud console —</template>
+                    as a <strong>Viewer</strong>.</li>
+                  <li><strong>Property details</strong>, in that same Admin column, shows the numeric <strong>property ID</strong> — paste it below. Not the <code>G-</code> measurement ID.</li>
+                </ol>
+              </div>
               <div class="ar-ga4__row">
                 <input
                   v-model="ga4Property"

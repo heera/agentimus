@@ -4444,35 +4444,18 @@ button.ar-act-more:hover { color: var(--ar-ink); }
 .ar-ai__filternote strong { color: var(--ar-ink); }
 
 /* ---- Traffic from AI: per-day drill-down -------------------------------- */
-.ar-aiday { margin: 0; padding: 0; list-style: none; display: grid; gap: 4px; }
-.ar-aiday__row {
-  display: grid; grid-template-columns: minmax(0, 1fr) 90px auto auto; align-items: center; gap: 12px;
-  /* Bleed 8px each side (width + negative margin) so the hover highlight has breathing
-     room past the content, while the padding keeps the resting content aligned as before. */
-  width: calc(100% + 16px); margin: 0 -8px; padding: 6px 8px; border: 0; background: transparent;
-  cursor: pointer; text-align: left; color: inherit;
-  border-radius: 6px; transition: background-color 0.12s ease;
-}
-.ar-aiday__row:hover { background: #f4f0e6; }
-.ar-aiday__row:focus-visible { outline: 2px solid var(--ar-accent); outline-offset: 2px; border-radius: 6px; }
-.ar-aiday__date { font-size: 13px; color: var(--ar-ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.ar-aiday__n { font-family: var(--ar-mono); font-size: 12px; color: var(--ar-ink-soft); text-align: right; min-width: 24px; }
-.ar-aiday__chev { color: var(--ar-ink-faint); opacity: 0.7; transition: transform 0.2s ease, opacity 0.15s ease; }
-.ar-aiday__row:hover .ar-aiday__chev { opacity: 1; color: var(--ar-ink-soft); }
-.ar-aiday__chev.is-open { transform: rotate(180deg); }
-/* min-width:0 at BOTH list levels. A grid item's default is min-width:auto — its
-   min-content width — and here that is the un-wrappable <code> path, so the row simply
-   refused to shrink: on a narrow card the path ran past the edge and pushed the hit count
-   clean out of view. The path's own ellipsis can only bite once its ancestors may shrink. */
-.ar-aiday__item { min-width: 0; }
-.ar-aiday__detail {
-  margin: 0 0 8px 2px; padding: 6px 0 2px 12px; list-style: none; display: grid; gap: 7px;
-  border-left: 2px solid var(--ar-line);
-  min-width: 0;
-}
-/* The same pairing rows inside the day-report dialog: the indent + left border
-   belong to the inline expand-under-a-row layout, not to a modal body. */
-.ar-aiday__detail--modal { margin: 0; padding: 2px 0 0; border-left: 0; gap: 9px; }
+/* The By-Day strip's empty days: the slot stays (the rhythm of absence is
+   part of the picture) but it is not a door — muted ink, no hover invite.
+   Zero-scaled bars, unlike Bing's min→max: a visit count's base IS zero. */
+.ar-aiday__bar.is-empty { background: var(--ar-line-strong); opacity: 0.7; cursor: default; }
+.ar-aiday__bar.is-empty:hover { filter: none; }
+/* The diagnostic shortlists' remainder line — the held-back rows counted out
+   loud, with the Show-all door beside them. */
+.ar-ai__more { margin: 8px 0 0; font-size: 11.5px; color: var(--ar-ink-faint); }
+.ar-aiday__detail { margin: 0; padding: 2px 0 0; list-style: none; display: grid; gap: 9px; min-width: 0; }
+/* The pairing rows live in the day-report dialog now; the --modal name is
+   kept so the template reads as the Bing modal's sibling. */
+.ar-aiday__detail--modal { margin: 0; }
 /* Flex (not grid): a grid item defaults to justify-self:stretch, which made the
    <code> path fill its column — and wp-admin's global code background then painted
    a full-width bar. Flex items size to content, so the path stays a small chip. */
@@ -4489,7 +4472,6 @@ button.ar-act-more:hover { color: var(--ar-ink); }
 .ar-aivis__path.is-copyable { cursor: pointer; transition: background-color 0.12s ease; }
 .ar-aivis__path.is-copyable:hover { background: #e6e4dd; }
 .ar-aivis__n { margin-left: auto; flex: 0 0 auto; font-family: var(--ar-mono); font-size: 12px; color: var(--ar-ink-soft); }
-@media (prefers-reduced-motion: reduce) { .ar-aiday__chev { transition: opacity 0.15s ease; } }
 
 /* Recent feed */
 /* Capped, scrollable feed with a bottom fade cue (same pattern as the modal). */
@@ -6377,30 +6359,25 @@ a.ar-about-proto__v:hover { text-decoration: underline; }
   .ar-work__tabs, .ar-work__foot, .ar-work__empty { padding-left: 20px; padding-right: 20px; }
 }
 
-/* The Settings gear — the cluster's closing control (his call: the working
-   screens read on the left, configuration sits last). Wears the shared pill
-   (.ar__review-btn) so it reads as one family with the assistant and the bell. */
-.ar__gearbtn { flex: 0 0 auto; align-self: center; }
-
-/* All THREE controls are circles, not lozenges: each carries one 15px glyph
+/* BOTH controls are circles, not lozenges: each carries one 15px glyph
    and nothing else in flow — the bell's count rides the corner as an
    out-of-flow bubble, so no control needs pill room for a number.
    A lozenge around a single centred mark just reads as a pill that lost its
-   text, and two badge grammars in one trio read as a glitch.
+   text, and two badge grammars in one pair read as a glitch.
 
-   28px is the family size the trio settled on back when the bell's inline
+   28px is the family size the cluster settled on back when the bell's inline
    badge set it (16 badge + 10 padding + 2 border); the badge has since moved
    to the corner but the measure stays — it is the height the whole bar row
    was tuned against. 26 under 720px, same story. Fixed sizes, not
    aspect-ratio: flex sizes a flex item's main axis from content and gave a
-   17px-wide oval when aspect-ratio was tried. */
-.ar__gearbtn.ar__review-btn,
+   17px-wide oval when aspect-ratio was tried. (The Settings gear used to
+   close this row; it moved into More — a screen among actions wore a
+   selected state its neighbours could never have.) */
 .ar__assist-btn.ar__review-btn,
 .ar__review > .ar__review-btn {
   padding: 0; width: 28px; height: 28px; justify-content: center;
 }
 @container (max-width: 720px) {
-  .ar__gearbtn.ar__review-btn,
   .ar__assist-btn.ar__review-btn,
   .ar__review > .ar__review-btn { width: 26px; height: 26px; }
 }
@@ -6409,21 +6386,6 @@ a.ar-about-proto__v:hover { text-decoration: underline; }
    button, which would otherwise make the wrapper a couple of px taller than the
    circle inside it. Safe: the popover is position:absolute, out of flow. */
 .ar__controls .ar__assist { display: flex; }
-/* On the screen it opens: a solid disc, filled with --ar-accent — the SAME
-   colour the nav paints under the active tab. Filled rather than outlined
-   because at 15px an outline states "you are here" in a few hairlines and
-   little else; the disc says it at a glance, from the far side of the bar.
-   Paper on accent measures 5.6:1, well clear of the 3:1 a 15px glyph needs. */
-.ar__gearbtn.is-here {
-  color: var(--ar-paper); background: var(--ar-accent); border-color: var(--ar-accent);
-}
-/* Hover has to be written out, or the shared .ar__review-btn:hover would pull
-   the active control back to plain ink and undo the whole signal. */
-.ar__gearbtn.is-here:hover {
-  color: var(--ar-paper);
-  background: color-mix(in srgb, var(--ar-accent) 86%, #000);
-  border-color: color-mix(in srgb, var(--ar-accent) 86%, #000);
-}
 
 /* A folded-out primary borrows the bar's 24-grid mark inside the 16px menu, so
    it has to be scaled down to sit on the same optical line as its neighbours. */
@@ -6881,13 +6843,6 @@ a.ar-about-proto__v:hover { text-decoration: underline; }
 .ar-ai__cdn > summary::before { content: "›"; transition: transform 0.15s ease; }
 .ar-ai__cdn[open] > summary::before { transform: rotate(90deg); }
 .ar-ai__cdn p { margin: 8px 0 0; font-size: 12px; line-height: 1.55; color: var(--ar-ink-soft); max-width: 80ch; }
-
-/* By Day: the count moves INTO the label, so the row reads as a sentence and
-   the chevron is the only thing left to interpret. */
-.ar-aiday__count {
-  display: block; font-style: normal; font-family: var(--ar-mono);
-  font-size: 11px; color: var(--ar-ink-faint); margin-top: 2px;
-}
 
 /* The limits list, short form: three one-line notes, not four paragraphs.
    The heading carries its own Read more, so the fold is where the eye is. */

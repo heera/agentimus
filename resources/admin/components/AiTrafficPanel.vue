@@ -57,7 +57,9 @@ export default {
       // typing a path prefix should not fire a query per keystroke.
       filters: { from: '', to: '', source: '', path: '' },
       applied: { from: '', to: '', source: '', path: '' },
-      refOpenDays: [],
+      // The open day in the By-Day strip, as an index into strip; -1 = closed.
+      // The same modal contract every chart in the app keeps (Bing's bars).
+      selectedDay: -1,
       // date -> { loading, error, rows, rowCount, full, capped }. Fetched the first time a
       // day is opened and dropped whenever the report reloads under it.
       dayCache: {},
@@ -66,6 +68,10 @@ export default {
       stale: false,
       // The 'Learn more' fold on the diagnostic card.
       unknownWhy: false,
+      // The diagnostic lists' "Show all" folds — the shortlist is the default,
+      // the remainder is counted out loud, and this is its door.
+      unknownAllHosts: false,
+      unknownAllUtm: false,
     };
   },
   computed: {
@@ -205,6 +211,58 @@ export default {
     dailyMax() {
       return Math.max(1, ...this.daily.map((d) => d.hits));
     },
+    // The By-Day strip: every day of the window, zero-filled — the rhythm of
+    // absence is part of the picture, and a chart that skipped quiet days
+    // would compress a month into its three busy ones. Bounded by the range
+    // the server already clamped (and a 400-slot backstop besides).
+    strip() {
+      const by = Object.create(null);
+      this.daily.forEach((d) => { by[d.date] = d.hits; });
+      const from = this.range.from;
+      const to = this.range.to;
+      const start = new Date(`${from}T00:00:00Z`);
+      const end = new Date(`${to}T00:00:00Z`);
+      if (!from || !to || Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) {
+        return this.daily.map((d) => ({ date: d.date, hits: d.hits }));
+      }
+      const out = [];
+      for (let t = start.getTime(); t <= end.getTime() && out.length < 400; t += 86400000) {
+        const date = new Date(t).toISOString().slice(0, 10);
+        out.push({ date, hits: by[date] || 0 });
+      }
+      return out;
+    },
+    selected() {
+      const d = this.strip[this.selectedDay];
+      return this.selectedDay >= 0 && d && d.hits ? d : null;
+    },
+    // The day picker offers only days someone arrived — a jump list of blanks
+    // would be thirty ways to open nothing.
+    dayOptions() {
+      return this.strip
+        .map((d, i) => ({ d, i }))
+        .filter((x) => x.d.hits)
+        .map((x) => ({
+          value: String(x.i),
+          label: `${this.dateLabel(x.d.date)} · ${x.d.hits} ${x.d.hits === 1 ? 'visit' : 'visits'}`,
+        }));
+    },
+    // The diagnostic shortlists: the 8 busiest (the house number — same as the
+    // overview's caps), the remainder counted out loud below.
+    unknownHostsShown() {
+      return this.unknownAllHosts ? this.unknownHosts : this.unknownHosts.slice(0, 8);
+    },
+    unknownHostsRest() {
+      const rest = this.unknownHosts.slice(8);
+      return { count: rest.length, hits: rest.reduce((a, x) => a + x.hits, 0) };
+    },
+    unknownUtmShown() {
+      return this.unknownAllUtm ? this.unknownUtm : this.unknownUtm.slice(0, 8);
+    },
+    unknownUtmRest() {
+      const rest = this.unknownUtm.slice(8);
+      return { count: rest.length, hits: rest.reduce((a, x) => a + x.hits, 0) };
+    },
     beacon() {
       return !!(this.report && this.report.beacon);
     },
@@ -242,6 +300,16 @@ export default {
     },
   },
   watch: {
+    // A picked day fetches its rows and hands focus to the dialog — the same
+    // open contract the Bing day report keeps.
+    selectedDay(now) {
+      if (now < 0 || !this.strip[now] || !this.strip[now].hits) return;
+      this.loadDay(this.strip[now].date);
+      this.$nextTick(() => {
+        const el = this.$refs.aiDayDialog;
+        if (el && el.focus) el.focus();
+      });
+    },
     // The freshness contract: every reveal re-reads the current report —
     // same filters, quietly (old numbers hold the screen while the fresh
     // ones land), so a return between visits never shows yesterday's AI
@@ -304,7 +372,7 @@ export default {
         // future, never inverted — so the date inputs can't disagree with the cards.
         this.filters.from = report.range.from;
         this.filters.to = report.range.to;
-        this.refOpenDays = this.refOpenDays.filter((d) => this.daily.some((x) => x.date === d));
+        this.selectedDay = -1; // fresh data, stale selection.
       } catch (e) {
         this.error = e.message || 'Could not load the report.';
       } finally {
@@ -323,17 +391,24 @@ export default {
 
     /* ---- The per-day drill-down ---------------------------------------------- */
 
-    toggleRefDay(date) {
-      const i = this.refOpenDays.indexOf(date);
-      if (i === -1) {
-        this.refOpenDays.push(date);
-        this.loadDay(date);
-      } else {
-        this.refOpenDays.splice(i, 1);
-      }
+    pickDay(i) {
+      if (this.strip[i] && this.strip[i].hits) this.selectedDay = i;
     },
-    refDayOpen(date) {
-      return this.refOpenDays.includes(date);
+    closeDay() {
+      this.selectedDay = -1;
+    },
+    // Step lands on the next day someone actually ARRIVED — an empty day has
+    // no report to show, so the arrows skip it rather than opening a blank.
+    stepDay(delta) {
+      let i = this.selectedDay + delta;
+      while (i >= 0 && i < this.strip.length && !this.strip[i].hits) i += delta;
+      if (i >= 0 && i < this.strip.length) this.selectedDay = i;
+    },
+    hasStep(delta) {
+      for (let i = this.selectedDay + delta; i >= 0 && i < this.strip.length; i += delta) {
+        if (this.strip[i].hits) return true;
+      }
+      return false;
     },
     day(date) {
       return this.dayCache[date] || { loading: false, error: '', rows: [], rowCount: 0, full: false, capped: false };
@@ -708,58 +783,124 @@ export default {
            sentence. No assistant landed anywhere. A PERSON opened the page,
            after an assistant pointed them at it. -->
       <p class="ar-card__lead">
-        Open a day to see which assistant sent someone, and the page they opened. Days are
-        the finest detail stored — no times, nothing that could stand for a person.
+        Every day of the window in one strip — click a day to see which assistant sent
+        someone, and the page they opened. Days are the finest detail stored — no times,
+        nothing that could stand for a person.
       </p>
-      <ul class="ar-aiday">
-              <li v-for="d in daily" :key="d.date" class="ar-aiday__item">
-                <button
-                  type="button"
-                  class="ar-aiday__row"
-                  :aria-expanded="refDayOpen(d.date)"
-                  @click="toggleRefDay(d.date)"
-                >
-                  <span class="ar-aiday__date">
-                    {{ dateLabel(d.date) }}
-                    <em class="ar-aiday__count">{{ d.hits }} {{ d.hits === 1 ? 'visit' : 'visits' }}</em>
-                  </span>
-                  <span class="ar-act-rank__track"><span class="ar-act-rank__bar" :style="{ width: pct(d.hits, dailyMax) }"></span></span>
-                  <svg class="ar-aiday__chev" :class="{ 'is-open': refDayOpen(d.date) }" viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6l4 4 4-4" /></svg>
-                </button>
-                <ul v-if="refDayOpen(d.date)" class="ar-aiday__detail">
-                  <li v-if="day(d.date).loading" class="ar-aivis ar-aivis--muted">Loading…</li>
-                  <li v-else-if="day(d.date).error" class="ar-aivis ar-aivis--muted">
-                    {{ day(d.date).error }}
-                    <button type="button" class="ar-linkbtn" @click="loadDay(d.date)">Retry</button>
-                  </li>
-                  <template v-else>
-                    <li v-for="(r, i) in day(d.date).rows" :key="i" class="ar-aivis">
-                      <span class="ar-aivis__src">{{ r.source }}</span>
-                      <span class="ar-aivis__arr" aria-hidden="true">→</span>
-                      <!-- A narrow card truncates the path, so the full value stays reachable:
-                           the same styled bubble the activity tables use, and click-to-copy. -->
-                      <code
-                        class="ar-aivis__path is-copyable"
-                        :aria-label="r.path"
-                        @mouseenter="showUaTip($event, r.path)"
-                        @mouseleave="hideUaTip"
-                        @click.stop="copyVal(r.path, 'Path')"
-                      >{{ r.path }}</code>
-                      <span class="ar-aivis__n">{{ r.hits }}</span>
-                    </li>
-                    <li v-if="day(d.date).rowCount > day(d.date).rows.length" class="ar-aivis ar-aivis--muted">
-                      <template v-if="day(d.date).capped">
-                        Showing the {{ day(d.date).rows.length }} busiest of {{ day(d.date).rowCount }} — narrow the filters to see the rest.
-                      </template>
-                      <button v-else type="button" class="ar-linkbtn" @click="loadDay(d.date, true)">
-                        Show all {{ day(d.date).rowCount }}
-                      </button>
-                    </li>
-                  </template>
-                </ul>
-              </li>
-      </ul>
+      <!-- The Bing chart's grammar: each bar with visits is a button, hover
+           says the day, a click opens the day report. Empty days keep their
+           slot (the rhythm of absence is part of the picture) but are not
+           doors — there is nothing behind them to open. Card height is
+           constant on any site, busy or quiet. -->
+      <div class="ar-bing__scrollwrap">
+        <div class="ar-bing__trend">
+          <button
+            v-for="(d, i) in strip"
+            :key="d.date"
+            type="button"
+            class="ar-bing__bar ar-aiday__bar"
+            :class="{ 'is-active': selectedDay === i, 'is-empty': !d.hits }"
+            :style="d.hits ? { height: pct(d.hits, dailyMax) } : null"
+            :disabled="!d.hits"
+            :aria-label="`${dateLabel(d.date)} — ${d.hits} ${d.hits === 1 ? 'visit' : 'visits'}`"
+            @click="pickDay(i)"
+            @mouseenter="showUaTip($event, `${dateLabel(d.date)} · ${d.hits} ${d.hits === 1 ? 'visit' : 'visits'}`)"
+            @mouseleave="hideUaTip"
+          ></button>
+        </div>
+      </div>
+      <div class="ar-bing__cap">
+        <span v-if="strip.length">{{ dateLabel(strip[0].date) }}</span>
+        <span v-if="strip.length > 1">{{ dateLabel(strip[strip.length - 1].date) }}</span>
+      </div>
     </section>
+
+    <!-- The day report — the same modal contract as the Bing chart's. Teleported
+         to body: the panel root is a size container, and a container is the
+         containing block for fixed descendants — unteleported, the overlay
+         pins to the panel, not the viewport. -->
+    <Teleport to="body">
+    <transition name="ar-modal">
+      <div v-if="selected" class="ar-modal">
+        <div
+          ref="aiDayDialog"
+          class="ar-modal__panel ar-modal__panel--day"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="ar-aiday-title"
+          tabindex="-1"
+          @keydown.esc="closeDay"
+          @keydown.left="stepDay(-1)"
+          @keydown.right="stepDay(1)"
+        >
+          <div class="ar-modal__head">
+            <div class="ar-day-head">
+              <h2 id="ar-aiday-title" class="ar-modal__title">{{ dateLabel(selected.date) }}</h2>
+              <div class="ar-day-nav" role="group" aria-label="Switch day">
+                <button type="button" class="ar-day-nav__btn" :disabled="!hasStep(-1)" aria-label="Previous day with visits" @click="stepDay(-1)">
+                  <svg viewBox="0 0 16 16" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 4l-4 4 4 4" /></svg>
+                </button>
+                <SelectMenu
+                  class="ar-day-picker"
+                  :model-value="String(selectedDay)"
+                  :options="dayOptions"
+                  aria-label="Jump to a day"
+                  @update:model-value="selectedDay = Number($event)"
+                />
+                <button type="button" class="ar-day-nav__btn" :disabled="!hasStep(1)" aria-label="Next day with visits" @click="stepDay(1)">
+                  <svg viewBox="0 0 16 16" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 4l4 4-4 4" /></svg>
+                </button>
+              </div>
+            </div>
+            <p class="ar-modal__lead">
+              {{ selected.hits }} {{ selected.hits === 1 ? 'visit' : 'visits' }} — which assistant
+              sent someone, and the page they opened. Same filters as the cards above.
+            </p>
+          </div>
+
+          <div class="ar-modal__body">
+            <div class="ar-modal__scroll">
+              <ul class="ar-aiday__detail ar-aiday__detail--modal">
+                <li v-if="day(selected.date).loading" class="ar-aivis ar-aivis--muted">Loading…</li>
+                <li v-else-if="day(selected.date).error" class="ar-aivis ar-aivis--muted">
+                  {{ day(selected.date).error }}
+                  <button type="button" class="ar-linkbtn" @click="loadDay(selected.date)">Retry</button>
+                </li>
+                <template v-else>
+                  <li v-for="(r, i) in day(selected.date).rows" :key="i" class="ar-aivis">
+                    <span class="ar-aivis__src">{{ r.source }}</span>
+                    <span class="ar-aivis__arr" aria-hidden="true">→</span>
+                    <!-- A narrow panel truncates the path, so the full value stays reachable:
+                         the same styled bubble the activity tables use, and click-to-copy. -->
+                    <code
+                      class="ar-aivis__path is-copyable"
+                      :aria-label="r.path"
+                      @mouseenter="showUaTip($event, r.path)"
+                      @mouseleave="hideUaTip"
+                      @click.stop="copyVal(r.path, 'Path')"
+                    >{{ r.path }}</code>
+                    <span class="ar-aivis__n">{{ r.hits }}</span>
+                  </li>
+                  <li v-if="day(selected.date).rowCount > day(selected.date).rows.length" class="ar-aivis ar-aivis--muted">
+                    <template v-if="day(selected.date).capped">
+                      Showing the {{ day(selected.date).rows.length }} busiest of {{ day(selected.date).rowCount }} — narrow the filters to see the rest.
+                    </template>
+                    <button v-else type="button" class="ar-linkbtn" @click="loadDay(selected.date, true)">
+                      Show all {{ day(selected.date).rowCount }}
+                    </button>
+                  </li>
+                </template>
+              </ul>
+            </div>
+          </div>
+
+          <div class="ar-modal__actions">
+            <button type="button" class="ar-btn ar-btn--ghost" @click="closeDay">Close</button>
+          </div>
+        </div>
+      </div>
+    </transition>
+    </Teleport>
 
     <!-- Unrecognised referrers — the opt-in diagnostic, over the SAME range as the cards
          above, so the two can never invite the wrong conclusion about the same days. -->
@@ -779,32 +920,55 @@ export default {
         then on.
       </p>
 
-      <div v-if="unknownHosts.length || unknownUtm.length" class="ar-ai__cols">
-        <div class="ar-ai__col">
+      <!-- Two columns only when BOTH lists have rows — an empty twin must not
+           hold half the card open for the word "None". Each list shows its 8
+           busiest with the remainder counted out loud; "Show all" is the door. -->
+      <div v-if="unknownHosts.length || unknownUtm.length" :class="{ 'ar-ai__cols': unknownHosts.length && unknownUtm.length }">
+        <div v-if="unknownHosts.length" class="ar-ai__col">
           <h3 class="ar-ai__sub">Referrer hosts</h3>
-          <ul v-if="unknownHosts.length" class="ar-act-rank">
-            <li v-for="h in unknownHosts" :key="h.token">
+          <ul class="ar-act-rank">
+            <li v-for="h in unknownHostsShown" :key="h.token">
               <span class="ar-act-rank__label"><code>{{ h.token }}</code></span>
               <span class="ar-act-rank__track"><span class="ar-act-rank__bar" :style="{ width: pct(h.hits, listMax(unknownHosts)) }"></span></span>
               <span class="ar-act-rank__n">{{ h.hits }}</span>
             </li>
           </ul>
-          <p v-else class="ar-wd-empty">None.</p>
+          <p v-if="unknownHostsRest.count" class="ar-ai__more">
+            <template v-if="!unknownAllHosts">
+              …and {{ unknownHostsRest.count }} more {{ unknownHostsRest.count === 1 ? 'host' : 'hosts' }},
+              {{ unknownHostsRest.hits }} {{ unknownHostsRest.hits === 1 ? 'visit' : 'visits' }} between them.
+            </template>
+            <button type="button" class="ar-linkbtn" @click="unknownAllHosts = !unknownAllHosts">
+              {{ unknownAllHosts ? 'Show the top 8' : `Show all ${unknownHosts.length}` }}
+            </button>
+          </p>
         </div>
-        <div class="ar-ai__col">
+        <div v-if="unknownUtm.length" class="ar-ai__col">
           <h3 class="ar-ai__sub">
             Link source tags
             <span class="ar-ai__subnote">where a link says it came from — its <code>utm_source</code> tag — seen even when the referrer was stripped</span>
           </h3>
-          <ul v-if="unknownUtm.length" class="ar-act-rank">
-            <li v-for="u in unknownUtm" :key="u.token">
+          <ul class="ar-act-rank">
+            <li v-for="u in unknownUtmShown" :key="u.token">
               <span class="ar-act-rank__label"><code>{{ u.token }}</code></span>
               <span class="ar-act-rank__track"><span class="ar-act-rank__bar" :style="{ width: pct(u.hits, listMax(unknownUtm)) }"></span></span>
               <span class="ar-act-rank__n">{{ u.hits }}</span>
             </li>
           </ul>
-          <p v-else class="ar-wd-empty">None.</p>
+          <p v-if="unknownUtmRest.count" class="ar-ai__more">
+            <template v-if="!unknownAllUtm">
+              …and {{ unknownUtmRest.count }} more {{ unknownUtmRest.count === 1 ? 'tag' : 'tags' }},
+              {{ unknownUtmRest.hits }} {{ unknownUtmRest.hits === 1 ? 'visit' : 'visits' }} between them.
+            </template>
+            <button type="button" class="ar-linkbtn" @click="unknownAllUtm = !unknownAllUtm">
+              {{ unknownAllUtm ? 'Show the top 8' : `Show all ${unknownUtm.length}` }}
+            </button>
+          </p>
         </div>
+        <p v-if="unknownHosts.length && !unknownUtm.length" class="ar-ai__more">
+          No link source tags in this window — a link that names its source (<code>utm_source</code>)
+          would be counted here even when the referrer was stripped.
+        </p>
       </div>
 
       <p v-else class="ar-wd-empty">
