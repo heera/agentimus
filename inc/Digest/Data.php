@@ -23,6 +23,7 @@ namespace Agentimus\Digest;
 use Agentimus\Activity\Referrals;
 use Agentimus\Activity\Repository;
 use Agentimus\Activity\Table;
+use Agentimus\AgentAccess\Store;
 use Agentimus\Readiness;
 use Agentimus\Score;
 use Agentimus\Settings;
@@ -114,18 +115,7 @@ final class Data {
 	 * @return int
 	 */
 	private static function count_between( $from, $to, $verdict = null ) {
-		global $wpdb;
-		$table = Table::name();
-		// phpcs:disable WordPress.DB, PluginCheck.Security.DirectDB.UnescapedDBParameter -- $table is our own prefix-derived table name; every value is bound via prepare().
-		if ( null === $verdict ) {
-			// Reads only — a refused request fetched nothing, so it must never inflate
-			// "agent visits" in the owner's weekly note.
-			return (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM $table WHERE refused = 0 AND hit_at >= %s AND hit_at < %s", $from, $to ) );
-		}
-		// Verdict counts (the impostor line) deliberately COUNT refusals too: a
-		// forgery turned away is exactly what that section is reporting.
-		return (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM $table WHERE hit_at >= %s AND hit_at < %s AND verdict = %d", $from, $to, $verdict ) );
-		// phpcs:enable WordPress.DB, PluginCheck.Security.DirectDB.UnescapedDBParameter
+		return Repository::count_between( $from, $to, $verdict );
 	}
 
 	/** Top clients by request count in [$from, $to). */
@@ -163,9 +153,7 @@ final class Data {
 
 	/** Agent-access events ACTIVE in the window. The store is event-keyed, not per-hit. */
 	private static function access_events( $from, $to ) {
-		global $wpdb;
-		$table = \Agentimus\AgentAccess\Table::name();
-		return (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM $table WHERE last_at >= %s AND last_at < %s", $from, $to ) ); // phpcs:ignore WordPress.DB, PluginCheck.Security.DirectDB.UnescapedDBParameter -- $table is our own prefix-derived table name; every value is bound via prepare().
+		return Store::count_active_between( $from, $to );
 	}
 
 	/**

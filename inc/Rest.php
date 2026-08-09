@@ -124,44 +124,6 @@ final class Rest {
 			)
 		);
 
-		// The OAuth front doors. Both PUBLIC by spec: registration is how an
-		// unknown client introduces itself (RFC 7591), and the token endpoint
-		// authenticates with the code + PKCE verifier, not with a session.
-		register_rest_route(
-			self::NAMESPACE,
-			'/oauth/register',
-			array(
-				'methods'             => \WP_REST_Server::CREATABLE,
-				'callback'            => array( $this, 'oauth_register' ),
-				'permission_callback' => '__return_true',
-			)
-		);
-		register_rest_route(
-			self::NAMESPACE,
-			'/oauth/token',
-			array(
-				'methods'             => \WP_REST_Server::CREATABLE,
-				'callback'            => array( $this, 'oauth_token' ),
-				'permission_callback' => '__return_true',
-			)
-		);
-		register_rest_route(
-			self::NAMESPACE,
-			'/oauth/grants',
-			array(
-				array(
-					'methods'             => \WP_REST_Server::READABLE,
-					'callback'            => array( $this, 'oauth_grants' ),
-					'permission_callback' => array( $this, 'can_manage' ),
-				),
-				array(
-					'methods'             => \WP_REST_Server::DELETABLE,
-					'callback'            => array( $this, 'oauth_revoke_grant' ),
-					'permission_callback' => array( $this, 'can_manage' ),
-				),
-			)
-		);
-
 		register_rest_route(
 			self::NAMESPACE,
 			'/changelog',
@@ -209,16 +171,6 @@ final class Rest {
 						'required' => true,
 					),
 				),
-			)
-		);
-
-		register_rest_route(
-			self::NAMESPACE,
-			'/digest/test',
-			array(
-				'methods'             => \WP_REST_Server::EDITABLE,
-				'callback'            => array( $this, 'digest_test' ),
-				'permission_callback' => array( $this, 'can_manage' ),
 			)
 		);
 
@@ -517,26 +469,6 @@ final class Rest {
 	}
 
 	/**
-	 * POST /digest/test — send one weekly-digest email right now, to whoever the
-	 * digest is configured to reach. Synchronous: a single wp_mail is fast, and
-	 * the button's whole point is an immediate yes-or-no. Uses the SAVED
-	 * settings — an unsaved recipient in the form does not exist yet.
-	 *
-	 * @return \WP_REST_Response|\WP_Error
-	 */
-	public function digest_test() {
-		$result = ( new Digest\Module( $this->settings ) )->send_test();
-		if ( empty( $result['sent'] ) ) {
-			return new \WP_Error(
-				'agentimus_mail_failed',
-				__( 'The email could not be sent. Your site’s mail setup may need attention — a plugin like WP Mail SMTP can help.', 'agentimus' ),
-				array( 'status' => 500 )
-			);
-		}
-		return rest_ensure_response( $result );
-	}
-
-	/**
 	 * POST /optimize/ignore — set aside (ignored=true) or restore (false) a page from
 	 * content-citability grading. Returns the recomputed score so the worklist, the
 	 * set-aside list, and the counts update without a reload.
@@ -683,82 +615,6 @@ final class Rest {
 	public function mcp_token_revoke() {
 		McpToken::revoke();
 		return rest_ensure_response( array( 'token' => null ) );
-	}
-
-	/**
-	 * POST /oauth/register — RFC 7591 dynamic client registration. Gated only
-	 * on the MCP server being on; a 404 otherwise, same as every other MCP
-	 * surface.
-	 *
-	 * @param \WP_REST_Request $request The registration request.
-	 * @return \WP_REST_Response|\WP_Error
-	 */
-	public function oauth_register( \WP_REST_Request $request ) {
-		if ( ! $this->settings->enabled( 'enable_mcp_server' ) ) {
-			return new \WP_Error( 'rest_no_route', __( 'No route was found matching the URL and request method.', 'agentimus' ), array( 'status' => 404 ) );
-		}
-		$body = $request->get_json_params();
-		$made = Oauth\Server::register_client( is_array( $body ) ? $body : array() );
-		if ( is_wp_error( $made ) ) {
-			return $made;
-		}
-		$response = rest_ensure_response( $made );
-		$response->set_status( 201 );
-		return $response;
-	}
-
-	/**
-	 * POST /oauth/token — code (+ PKCE) or refresh exchange. Errors go out in
-	 * the RFC 6749 shape ({"error": …}), not WordPress's, because that is the
-	 * dialect OAuth clients parse; the response is never cacheable.
-	 *
-	 * @param \WP_REST_Request $request The token request (form-encoded by spec).
-	 * @return \WP_REST_Response|\WP_Error
-	 */
-	public function oauth_token( \WP_REST_Request $request ) {
-		if ( ! $this->settings->enabled( 'enable_mcp_server' ) ) {
-			return new \WP_Error( 'rest_no_route', __( 'No route was found matching the URL and request method.', 'agentimus' ), array( 'status' => 404 ) );
-		}
-		$result = Oauth\Server::exchange_token( $request->get_params() );
-		if ( is_wp_error( $result ) ) {
-			$data     = (array) $result->get_error_data();
-			$response = new \WP_REST_Response(
-				array(
-					'error'             => isset( $data['error'] ) ? $data['error'] : 'invalid_request',
-					'error_description' => $result->get_error_message(),
-				),
-				isset( $data['status'] ) ? (int) $data['status'] : 400
-			);
-		} else {
-			$response = rest_ensure_response( $result );
-		}
-		$response->header( 'Cache-Control', 'no-store' );
-		$response->header( 'Pragma', 'no-cache' );
-		return $response;
-	}
-
-	/**
-	 * GET /oauth/grants — the Connected-agents rows. Names and dates only.
-	 *
-	 * @return \WP_REST_Response
-	 */
-	public function oauth_grants() {
-		return rest_ensure_response( array( 'grants' => Oauth\Server::grants() ) );
-	}
-
-	/**
-	 * DELETE /oauth/grants — revoke ONE client's connection; everyone else
-	 * stays connected.
-	 *
-	 * @param \WP_REST_Request $request { clientId }.
-	 * @return \WP_REST_Response|\WP_Error
-	 */
-	public function oauth_revoke_grant( \WP_REST_Request $request ) {
-		$client_id = (string) $request->get_param( 'clientId' );
-		if ( ! Oauth\Server::revoke_client( $client_id ) ) {
-			return new \WP_Error( 'agentimus_unknown_grant', __( 'That connection no longer exists.', 'agentimus' ), array( 'status' => 404 ) );
-		}
-		return rest_ensure_response( array( 'grants' => Oauth\Server::grants() ) );
 	}
 
 	/**

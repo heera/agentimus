@@ -293,23 +293,6 @@ final class ShareCopy {
 	}
 
 	/**
-	 * Clamp text to a character budget on a word boundary, with an ellipsis.
-	 *
-	 * @param string $text  Input.
-	 * @param int    $limit Max characters.
-	 * @return string
-	 */
-	private static function clamp( $text, $limit ) {
-		$len = function_exists( 'mb_strlen' ) ? mb_strlen( $text ) : strlen( $text );
-		if ( $len <= $limit ) {
-			return $text;
-		}
-		$cut = function_exists( 'mb_substr' ) ? mb_substr( $text, 0, $limit - 1 ) : substr( $text, 0, $limit - 1 );
-		$cut = (string) preg_replace( '/\s+\S*$/u', '', $cut );
-		return $cut . '…';
-	}
-
-	/**
 	 * Up to $max topics as #CamelCase hashtags ('' when the post has none).
 	 *
 	 * @param \WP_Post $post Post.

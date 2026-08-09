@@ -52,7 +52,47 @@ final class Module {
 		// the recipient may not be a logged-in admin at click time.
 		add_action( 'admin_post_' . self::STOP_ACTION, array( $this, 'handle_stop' ) );
 		add_action( 'admin_post_nopriv_' . self::STOP_ACTION, array( $this, 'handle_stop' ) );
+		add_action( 'rest_api_init', array( $this, 'rest_routes' ) );
 		$this->sync_schedule();
+	}
+
+	/**
+	 * The admin-only "send a test digest now" endpoint.
+	 *
+	 * @return void
+	 */
+	public function rest_routes() {
+		register_rest_route(
+			'agentimus/v1',
+			'/digest/test',
+			array(
+				'methods'             => \WP_REST_Server::EDITABLE,
+				'callback'            => array( $this, 'rest_test' ),
+				'permission_callback' => static function () {
+					return current_user_can( 'manage_options' );
+				},
+			)
+		);
+	}
+
+	/**
+	 * POST /digest/test — send one weekly-digest email right now, to whoever the
+	 * digest is configured to reach. Synchronous: a single wp_mail is fast, and
+	 * the button's whole point is an immediate yes-or-no. Uses the SAVED
+	 * settings — an unsaved recipient in the form does not exist yet.
+	 *
+	 * @return \WP_REST_Response|\WP_Error
+	 */
+	public function rest_test() {
+		$result = $this->send_test();
+		if ( empty( $result['sent'] ) ) {
+			return new \WP_Error(
+				'agentimus_mail_failed',
+				__( 'The email could not be sent. Your site’s mail setup may need attention — a plugin like WP Mail SMTP can help.', 'agentimus' ),
+				array( 'status' => 500 )
+			);
+		}
+		return rest_ensure_response( $result );
 	}
 
 	/**

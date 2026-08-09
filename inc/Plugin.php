@@ -99,6 +99,7 @@ final class Plugin {
 
 		( new Endpoints( $this->settings ) )->register();
 		( new Oauth\Consent( $this->settings ) )->register(); // The /agentimus/connect consent page.
+		( new Oauth\Rest( $this->settings ) )->register(); // /oauth/register · /oauth/token · /oauth/grants.
 		( new Tombstones() )->register(); // Records removals for the change feed (self-gates on enable_changes).
 		( new Schema( $this->settings ) )->register();
 		( new Seo( $this->settings ) )->register(); // Solo-mode head output (per-page SEO title; cards + canonical land here). Stands down at request time when an SEO suite is active.
