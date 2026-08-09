@@ -13,7 +13,7 @@
  *                    signals, averaged over a cached sample of posts.
  *   Cited     (15) — measured citation: the AI-Visibility "seen in answers" rate.
  *
- * A pillar with no data yet (no published posts to grade; AI Visibility not set up)
+ * A pillar with no data yet (no published posts to grade; citation checks not set up)
  * is EXCLUDED and its weight redistributed across the rest — a well-configured new
  * site is never penalised for an outcome it hasn't had the chance to produce. If the
  * site is hidden from crawlers ("Search engine visibility" fails) the score is floored
@@ -113,7 +113,7 @@ final class Score {
 	public function report( $readiness = null ) {
 		$readiness = is_array( $readiness ) ? $readiness : ( new Readiness( $this->settings ) )->report();
 		$optimize  = $this->optimize();
-		// AI Visibility (citation tracking) is opt-in. When off, the Cited rung is dropped
+		// Citation checks are opt-in. When off, the Cited rung is dropped
 		// entirely — no measurement, no rung — and its weight is redistributed across the
 		// rest, so the score is a clean four-rung ladder.
 		$track   = (bool) $this->settings->get( 'enable_visibility', false );
@@ -143,7 +143,7 @@ final class Score {
 			$this->signal_rung( 'optimized', __( 'Optimized', 'agentimus' ), $scores['optimized'], $this->optimize_note( $optimize ), '' ),
 		);
 		if ( $track ) {
-			// Route the Cited rung to the right AI Visibility sub-view: Settings when the
+			// Route the Cited rung to the right Visibility sub-view: Settings when the
 			// setup isn't complete enough to run a check (no engine key / no questions),
 			// otherwise Results.
 			$ready_to_run = '' === ( new Visibility\Runner( new Visibility\Settings() ) )->blocking_reason();
@@ -207,7 +207,15 @@ final class Score {
 			$acc     += (float) $val * $w;
 			$total_w += $w;
 		}
-		return $total_w > 0 ? (int) round( $acc / $total_w ) : 0;
+		if ( $total_w <= 0 ) {
+			return 0;
+		}
+		$avg = $acc / $total_w;
+		// 100 is EARNED, never rounded into. Three perfect pillars and a 99
+		// blend to 99.65, which round() proudly called 100 — on a card whose
+		// own rung column said "4 to fix" two lines below. A composite may
+		// only read 100 when every pillar it counted actually is.
+		return ( $avg < 100 ) ? min( 99, (int) round( $avg ) ) : 100;
 	}
 
 	/**
@@ -775,7 +783,7 @@ final class Score {
 	}
 
 	/* ---------------------------------------------------------------------- *
-	 *  Measure — the one pillar that reflects a real outcome (AI Visibility).
+	 *  Measure — the one pillar that reflects a real outcome (citation checks).
 	 * ---------------------------------------------------------------------- */
 
 	/**
@@ -842,7 +850,7 @@ final class Score {
 			$vscore   = (int) $summary['visibilityScore'];
 			$ago      = human_time_diff( $run, time() );
 			// A citation reading goes stale with time. Past the cutoff it no longer
-			// represents today, so it's kept only as a dated reference (the AI Visibility
+			// represents today, so it's kept only as a dated reference (the Citations
 			// tab still shows the figure + "Last run" date) and dropped from the composite.
 			$stale_after = (int) apply_filters( 'agentimus_cited_stale_days', self::CITED_STALE_DAYS );
 			$stale       = $stale_after > 0 && ( time() - $run ) > $stale_after * DAY_IN_SECONDS;
@@ -852,7 +860,7 @@ final class Score {
 
 		switch ( $state ) {
 			case 'unset':
-				$note = __( 'Not measured — add an AI provider key under AI Visibility to track whether engines cite you.', 'agentimus' );
+				$note = __( 'Not measured — add an AI provider key under Visibility → Citations to track whether engines cite you.', 'agentimus' );
 				break;
 			case 'failed':
 				$note = __( 'Every check failed on the last run — check your AI provider key.', 'agentimus' );
@@ -884,7 +892,7 @@ final class Score {
 				}
 				break;
 			default: // 'never'.
-				$note = __( 'AI Visibility is set up — run a check to measure whether engines cite you.', 'agentimus' );
+				$note = __( 'Citation checks are set up — run one to measure whether engines cite you.', 'agentimus' );
 				break;
 		}
 
@@ -967,19 +975,19 @@ final class Score {
 				$out[] = array(
 					'id'       => 'visibility_failing',
 					'pillar'   => 'cited',
-					'title'    => __( 'AI Visibility is failing', 'agentimus' ),
-					'why'      => __( 'Every check failed on the last run — usually an expired or rate-limited provider key. Open AI Visibility to check the key and re-run.', 'agentimus' ),
+					'title'    => __( 'Citation checks are failing', 'agentimus' ),
+					'why'      => __( 'Every check failed on the last run — usually an expired or rate-limited provider key. Open Visibility → Citations to check the key and re-run.', 'agentimus' ),
 					'severity' => 'warn',
-					'action'   => array( 'label' => __( 'Open AI Visibility', 'agentimus' ), 'tab' => 'visibility' ),
+					'action'   => array( 'label' => __( 'Open Visibility', 'agentimus' ), 'tab' => 'visibility' ),
 				);
 			} elseif ( in_array( $state, array( 'unset', 'never' ), true ) ) {
 				$out[] = array(
 					'id'       => 'measure_setup',
 					'pillar'   => 'cited',
 					'title'    => __( 'Measure AI citations', 'agentimus' ),
-					'why'      => __( 'Set up AI Visibility (your own AI keys) to track whether engines mention and link to you over time.', 'agentimus' ),
+					'why'      => __( 'Set up citation checks (your own AI keys, under Visibility → Citations) to track whether engines mention and link to you over time.', 'agentimus' ),
 					'severity' => 'info',
-					'action'   => array( 'label' => __( 'Open AI Visibility', 'agentimus' ), 'tab' => 'visibility' ),
+					'action'   => array( 'label' => __( 'Open Visibility', 'agentimus' ), 'tab' => 'visibility' ),
 				);
 			}
 		}

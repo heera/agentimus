@@ -50,6 +50,19 @@ final class ScoreTest extends TestCase {
 		$this->assertSame( 0, Score::blend( array( 'findable' => null, 'readable' => null, 'trusted' => null, 'optimized' => null, 'cited' => null ) ) );
 	}
 
+	/**
+	 * 100 is EARNED, never rounded into. heera.it's live card: three perfect
+	 * pillars + Optimized 99 = 99.65, which round() called 100 — beside a rung
+	 * column reading "4 to fix". A composite may only say 100 when every
+	 * pillar it counted actually is.
+	 */
+	public function test_blend_never_rounds_up_to_a_hundred() {
+		// (100*15 + 100*15 + 100*25 + 99*30) / 85 = 99.65 → 99, not 100.
+		$this->assertSame( 99, Score::blend( array( 'findable' => 100, 'readable' => 100, 'trusted' => 100, 'optimized' => 99, 'cited' => null ) ) );
+		// Ordinary rounding below the ceiling is untouched: 82.35 → 82 stays.
+		$this->assertSame( 82, Score::blend( array( 'findable' => 100, 'readable' => 100, 'trusted' => 100, 'optimized' => 50, 'cited' => null ) ) );
+	}
+
 	/* -- band ------------------------------------------------------------- */
 
 	public function test_band_thresholds() {
