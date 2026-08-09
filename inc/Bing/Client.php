@@ -147,6 +147,44 @@ final class Client {
 	}
 
 	/**
+	 * One page as Bing's crawler knows it — GetUrlInfo, asked LIVE.
+	 *
+	 * ⚠️ Probed against the live API: a page Bing has never seen answers 200
+	 * with .NET's zero date (year 1) in both date fields — {@see wcf_date()}
+	 * folds those to '' — and a URL outside the verified site answers
+	 * "ERROR!!! NotAuthorized". There is NO per-URL indexed-yes/no anywhere
+	 * in this API: discovered and last-crawled are all Bing will say about
+	 * one page, and the card's copy must not promise more.
+	 * (GetUrlTrafficInfo exists too, but returned zero impressions for pages
+	 * the query report counts thousands for — unreliable, deliberately unused.)
+	 *
+	 * @param string $api_key  API key.
+	 * @param string $site_url Site URL.
+	 * @param string $url      The page URL to ask about.
+	 * @return array { info?: array{known:bool,discoveredAt:string,lastCrawledAt:string}, error?: string }
+	 */
+	public function url_info( $api_key, $site_url, $url ) {
+		$out = $this->get( 'GetUrlInfo', $api_key, array(
+			'siteUrl' => (string) $site_url,
+			'url'     => (string) $url,
+		) );
+		if ( isset( $out['error'] ) ) {
+			return $out;
+		}
+		$d          = is_array( $out['d'] ) ? $out['d'] : array();
+		$discovered = self::wcf_date( (string) ( isset( $d['DiscoveryDate'] ) ? $d['DiscoveryDate'] : '' ) );
+		$crawled    = self::wcf_date( (string) ( isset( $d['LastCrawledDate'] ) ? $d['LastCrawledDate'] : '' ) );
+
+		return array(
+			'info' => array(
+				'known'         => '' !== $discovered || '' !== $crawled,
+				'discoveredAt'  => $discovered,
+				'lastCrawledAt' => $crawled,
+			),
+		);
+	}
+
+	/**
 	 * The sitemaps Bing holds for the site — GetFeeds: each feed's URL, when
 	 * Bing last read it, and how many URLs it carried. This is Bing's own
 	 * record, not ours: the health line it feeds answers "does Bing know my

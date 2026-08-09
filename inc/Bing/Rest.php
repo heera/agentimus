@@ -1,7 +1,7 @@
 <?php
 /**
  * Bing REST controller — the verification code, connect / status /
- * disconnect, the summary the Found by AI Search card renders, and an
+ * disconnect, the summary the Bing index card renders, and an
  * on-demand refresh.
  *
  * Everything is manage_options-gated. The API key goes IN through the
@@ -106,6 +106,50 @@ final class Rest {
 				'days' => array( 'type' => 'integer', 'required' => false ),
 			),
 		) );
+
+		// One page, asked live — the Bing twin of Google's per-URL Re-check.
+		register_rest_route( self::NS, '/bing/url-check', array(
+			'methods'             => \WP_REST_Server::CREATABLE,
+			'callback'            => array( $this, 'url_check' ),
+			'permission_callback' => array( $this, 'can_manage' ),
+			'args'                => array(
+				'url' => array( 'type' => 'string', 'required' => true ),
+			),
+		) );
+	}
+
+	/**
+	 * POST /bing/url-check — ask Bing about one page, live.
+	 *
+	 * Accepts a path ("/my-post/") or a full URL on this site; anything
+	 * off-site is refused here rather than round-tripped into Bing's
+	 * NotAuthorized — the local error can say what's wrong in plain words.
+	 *
+	 * @param \WP_REST_Request $request The request.
+	 * @return \WP_REST_Response|\WP_Error
+	 */
+	public function url_check( \WP_REST_Request $request ) {
+		if ( ! $this->bing->connected() ) {
+			return new \WP_Error( 'agentimus_bing_off', __( 'Connect Bing under Settings → Data sources first.', 'agentimus' ), array( 'status' => 400 ) );
+		}
+
+		$raw = trim( (string) $request->get_param( 'url' ) );
+		if ( '' === $raw ) {
+			return new \WP_Error( 'agentimus_bing_url', __( 'Paste a page address first.', 'agentimus' ), array( 'status' => 400 ) );
+		}
+
+		// A bare path is this site's by definition; a full URL must be.
+		$url = 0 === strpos( $raw, 'http' ) ? esc_url_raw( $raw ) : home_url( '/' . ltrim( $raw, '/' ) );
+		if ( '' === $url || ( 0 === strpos( $raw, 'http' ) && ! self::hosts_match( $url, home_url( '/' ) ) ) ) {
+			return new \WP_Error( 'agentimus_bing_url', __( 'That address isn’t on this site — Bing will only answer for the site this key verified.', 'agentimus' ), array( 'status' => 400 ) );
+		}
+
+		$out = $this->client->url_info( $this->bing->api_key(), (string) $this->bing->get( 'site_url', '' ), $url );
+		if ( isset( $out['error'] ) ) {
+			return new \WP_Error( 'agentimus_bing_api', (string) $out['error'], array( 'status' => 400 ) );
+		}
+
+		return rest_ensure_response( array( 'url' => $url, 'info' => $out['info'] ) );
 	}
 
 	/**
@@ -228,7 +272,7 @@ final class Rest {
 	}
 
 	/**
-	 * The summary the Found by AI Search card renders.
+	 * The summary the Bing index card renders.
 	 *
 	 * @param \WP_REST_Request $request The request.
 	 * @return array

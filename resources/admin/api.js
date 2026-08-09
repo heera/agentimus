@@ -261,6 +261,8 @@ export function createApi(boot) {
     ignoreSearch: (ident, ignored) =>
       request('/search/ignore', { method: 'POST', body: JSON.stringify({ ...ident, ignored }) }),
     getBingSummary: (days = 30) => request(`/bing/summary?days=${Math.max(1, days | 0)}`),
+    // Ask Bing about ONE page, live — the Bing twin of Google's per-URL Re-check.
+    checkBingUrl: (url) => request('/bing/url-check', { method: 'POST', body: JSON.stringify({ url }) }),
     // Refresh: one inline poll, then the fresh summary in the same response.
     refreshBingSummary: (days = 30) =>
       request(`/bing/refresh?days=${Math.max(1, days | 0)}`, { method: 'POST' }),
@@ -280,7 +282,7 @@ export function createApi(boot) {
     markGoogleIndexOpened: (url) =>
       request('/google/index/opened', { method: 'POST', body: JSON.stringify({ url }) }),
 
-    // AI Visibility monitoring.
+    // Citation checks (the Visibility screen's Citations tenant).
     getVisibilityConfig: () => request('/visibility/config'),
     saveVisibilityConfig: (config) =>
       request('/visibility/config', { method: 'POST', body: JSON.stringify(config) }),

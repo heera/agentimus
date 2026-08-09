@@ -55,6 +55,60 @@ final class BingTrafficTest extends TestCase {
 		);
 	}
 
+	// ── Client::url_info ────────────────────────────────────────────────────
+
+	public function test_url_info_parses_a_known_page() {
+		$GLOBALS['_af_http_queue'][] = array(
+			'response' => array( 'code' => 200 ),
+			'body'     => (string) wp_json_encode( array( 'd' => array(
+				'__type'          => 'UrlInfo:#Microsoft.Bing.Webmaster.Api',
+				'DiscoveryDate'   => '/Date(1742799600000-0700)/',
+				'LastCrawledDate' => '/Date(1786085955000)/',
+				'DocumentSize'    => 80022,
+				'IsPage'          => true,
+			) ) ),
+		);
+
+		$out = ( new Client() )->url_info( 'key', 'https://example.com/', 'https://example.com/post' );
+
+		$this->assertTrue( $out['info']['known'] );
+		$this->assertSame( '2025-03-24', $out['info']['discoveredAt'] );
+		$this->assertSame( '2026-08-07', $out['info']['lastCrawledAt'] );
+	}
+
+	/**
+	 * Probed live: a page Bing has never seen answers 200 with .NET's zero
+	 * date (year 1) in both fields — that is "unknown", and it must never
+	 * print as a real date from the year one.
+	 */
+	public function test_url_info_reads_dotnet_zero_dates_as_unknown() {
+		$GLOBALS['_af_http_queue'][] = array(
+			'response' => array( 'code' => 200 ),
+			'body'     => (string) wp_json_encode( array( 'd' => array(
+				'DiscoveryDate'   => '/Date(-62135568000000-0800)/',
+				'LastCrawledDate' => '/Date(-62135568000000-0800)/',
+				'DocumentSize'    => 0,
+			) ) ),
+		);
+
+		$out = ( new Client() )->url_info( 'key', 'https://example.com/', 'https://example.com/new-post' );
+
+		$this->assertFalse( $out['info']['known'] );
+		$this->assertSame( '', $out['info']['discoveredAt'] );
+		$this->assertSame( '', $out['info']['lastCrawledAt'] );
+	}
+
+	public function test_url_info_surfaces_bings_refusal() {
+		$GLOBALS['_af_http_queue'][] = array(
+			'response' => array( 'code' => 400 ),
+			'body'     => '{"ErrorCode":14,"Message":"ERROR!!! NotAuthorized"}',
+		);
+
+		$out = ( new Client() )->url_info( 'key', 'https://example.com/', 'https://other-site.example/foo' );
+
+		$this->assertSame( 'ERROR!!! NotAuthorized', $out['error'] );
+	}
+
 	public function test_traffic_stats_surfaces_bing_errors() {
 		$GLOBALS['_af_http_queue'][] = array(
 			'response' => array( 'code' => 400 ),
