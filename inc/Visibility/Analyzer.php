@@ -79,10 +79,19 @@ final class Analyzer {
 		if ( '' === $domain ) {
 			return false;
 		}
+		$suffix = '.' . $domain;
 		foreach ( $citations as $url ) {
 			$host = wp_parse_url( (string) $url, PHP_URL_HOST );
-			$host = is_string( $host ) ? strtolower( $host ) : (string) $url;
-			if ( false !== strpos( $host, $domain ) ) {
+			if ( ! is_string( $host ) || '' === $host ) {
+				// Scheme-less citation: parse_url found no host, so keep the leading
+				// host token (drop any path/query) rather than matching the whole string.
+				$host = preg_replace( '~[/?#].*$~', '', strtolower( trim( (string) $url ) ) );
+			}
+			$host = strtolower( (string) $host );
+			// The exact host or a subdomain of it — never a look-alike. A bare
+			// substring test would count "notmyexample.com" or "myexample.com.evil.net"
+			// as citing "myexample.com".
+			if ( $host === $domain || ( strlen( $host ) > strlen( $suffix ) && substr( $host, -strlen( $suffix ) ) === $suffix ) ) {
 				return true;
 			}
 		}

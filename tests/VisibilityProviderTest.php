@@ -14,6 +14,8 @@ use Agentimus\Visibility\Providers\Anthropic;
 use Agentimus\Visibility\Providers\Gemini;
 use Agentimus\Visibility\Providers\OpenAI;
 use Agentimus\Visibility\Providers\Perplexity;
+use Agentimus\Visibility\Providers\Provider;
+use Agentimus\Visibility\Settings;
 use PHPUnit\Framework\TestCase;
 
 final class VisibilityProviderTest extends TestCase {
@@ -24,6 +26,17 @@ final class VisibilityProviderTest extends TestCase {
 
 	protected function tearDown(): void {
 		\_af_reset_options();
+	}
+
+	/** The provider class registry and the settings catalog must list the SAME ids.
+	 * A drift means a configured engine silently never runs — make() returns null and
+	 * the runner skips it, with no row and no error. This guard makes that un-shippable. */
+	public function test_provider_map_and_settings_catalog_stay_in_sync() {
+		$map     = array_keys( Provider::MAP );
+		$catalog = array_keys( Settings::catalog() );
+		sort( $map );
+		sort( $catalog );
+		$this->assertSame( $catalog, $map, 'Provider::MAP and Settings::catalog() must list the same provider ids.' );
 	}
 
 	/** Queue one canned HTTP response for the next wp_remote_post. */

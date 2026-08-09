@@ -57,23 +57,32 @@ abstract class Provider {
 	abstract public function query( $prompt, $key, $model, $web_search = false );
 
 	/**
+	 * The provider id → class registry. The single source of truth for which
+	 * engines exist: every id here must also appear in {@see \Agentimus\Visibility\Settings::catalog()}
+	 * (its metadata) and vice versa — a drift means a configured engine silently
+	 * never runs, so a test pins the two lists together.
+	 *
+	 * @var array<string,string>
+	 */
+	const MAP = array(
+		'openai'     => OpenAI::class,
+		'perplexity' => Perplexity::class,
+		'gemini'     => Gemini::class,
+		'anthropic'  => Anthropic::class,
+	);
+
+	/**
 	 * Instantiate a provider by id, or null if unknown.
 	 *
 	 * @param string $id Provider id.
 	 * @return Provider|null
 	 */
 	public static function make( $id ) {
-		switch ( $id ) {
-			case 'openai':
-				return new OpenAI();
-			case 'perplexity':
-				return new Perplexity();
-			case 'gemini':
-				return new Gemini();
-			case 'anthropic':
-				return new Anthropic();
+		if ( ! isset( self::MAP[ $id ] ) ) {
+			return null;
 		}
-		return null;
+		$class = self::MAP[ $id ];
+		return new $class();
 	}
 
 	/**

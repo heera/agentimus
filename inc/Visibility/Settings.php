@@ -119,11 +119,6 @@ final class Settings {
 		);
 	}
 
-	/** @return string[] The provider IDs, in display order. */
-	public static function provider_ids() {
-		return array_keys( self::catalog() );
-	}
-
 	/**
 	 * The factory defaults. Brand and domain are seeded from the site so a first
 	 * run is meaningful before the user has configured anything.

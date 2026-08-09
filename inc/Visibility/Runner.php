@@ -26,6 +26,11 @@ final class Runner {
 	 * stale and may be stolen — a ceiling on one run, so monitoring can never wedge. */
 	const LOCK_TTL = HOUR_IN_SECONDS;
 
+	/** @var int Re-stamp the lock every this-many checks so a genuinely long run
+	 * (many checks × up to the web timeout each) stays fresh well inside LOCK_TTL and
+	 * isn't judged stale and stolen mid-flight — which would start a second, paid run. */
+	const LOCK_HEARTBEAT_EVERY = 10;
+
 	/** @var int Default hard ceiling on (prompt × provider) checks per run — a spend
 	 * backstop above the structural product/prompt/provider caps. Filterable. */
 	const DEFAULT_MAX_CHECKS = 1000;
@@ -143,6 +148,13 @@ final class Runner {
 					);
 					$checks++;
 
+					// Keep our own lock fresh so a long run isn't judged stale (LOCK_TTL)
+					// and stolen by a scheduled tick mid-flight — which would start a
+					// second, money-spending run. We hold the lock; this only re-stamps it.
+					if ( 0 === $checks % self::LOCK_HEARTBEAT_EVERY ) {
+						update_option( self::LOCK_OPTION, time(), false );
+					}
+
 					// Spend backstop: stop the whole run once the ceiling is hit,
 					// rather than keep spending past it.
 					if ( $checks >= $max_checks ) {
@@ -194,11 +206,21 @@ final class Runner {
 	 */
 	public static function acquire_run_lock() {
 		$held = (int) get_option( self::LOCK_OPTION, 0 );
-		if ( $held > 0 && ( time() - $held ) < self::LOCK_TTL ) {
-			return false;
+		if ( $held > 0 ) {
+			if ( ( time() - $held ) < self::LOCK_TTL ) {
+				return false; // A live run holds it.
+			}
+			// Stale — a crashed run. Steal it (best effort; the money-losing race is
+			// the free-lock one below, which add_option makes atomic).
+			update_option( self::LOCK_OPTION, time(), false );
+			return true;
 		}
-		update_option( self::LOCK_OPTION, time(), false );
-		return true;
+		// Free: acquire atomically. add_option is a single INSERT that fails when the
+		// row already exists, so if two runs start at once (a second "Run now", or a
+		// cron tick racing a manual run) exactly one wins — the loser does not run and
+		// does not spend a second round of API calls. update_option's get-then-set
+		// could let both through.
+		return add_option( self::LOCK_OPTION, time(), '', 'no' );
 	}
 
 	/**
