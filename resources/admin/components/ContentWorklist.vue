@@ -133,7 +133,11 @@ export default {
     foot() {
       const bits = [];
       if (this.data.capped) {
-        bits.push(`Showing the ${this.items.length} most worth looking at, of ${this.data.total}.`);
+        // Parked rows ride along so the Set aside view is complete, but they
+        // are not part of the "worth looking at" claim — counting them here
+        // would inflate a sentence about a different list.
+        const ranked = this.items.filter((i) => !i.setAside).length;
+        bits.push(`Showing the ${ranked} most worth looking at, of ${this.data.total}.`);
       }
       if (this.data.noSearchData) {
         // "Normal for recent posts" is true under Google and misleading under
@@ -178,6 +182,16 @@ export default {
     showEverything() {
       this.picked = null;
       this.extraRows = [];
+    },
+    // Set aside / bring back, with one wrinkle: the parent flips the row's
+    // state on success by finding it in ITS list — but a row fetched for a
+    // finding (extraRows) is ours, not the parent's, and used to sit there
+    // unchanged after the click, looking like the button did nothing. Flip
+    // it here, optimistically: the parent toasts any failure, and the next
+    // fetch corrects the rare miss.
+    setAsideRow(i) {
+      this.$emit('set-aside', { id: i.id, aside: !i.setAside });
+      if (this.extraRows.some((r) => r.id === i.id)) i.setAside = !i.setAside;
     },
     // Only the numbers that mean something on this site. A stat reading "0"
     // teaches nothing and makes the row look broken.
@@ -448,7 +462,7 @@ export default {
               type="button"
               class="ar-linkbtn ar-linkbtn--mute"
               :disabled="isSettingAside(i)"
-              @click="$emit('set-aside', { id: i.id, aside: !i.setAside })"
+              @click="setAsideRow(i)"
             >{{ isSettingAside(i) ? 'Saving…' : (i.setAside ? 'Bring back' : 'Set aside') }}</button>
           </div>
 

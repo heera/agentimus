@@ -73,6 +73,27 @@ final class Worklist {
 			}
 		}
 
+		// Every parked page ships, wherever it ranks. The cap governs the
+		// worth-looking-at list; Set aside is a LEDGER — a page parked from a
+		// finding that ranked below the shortlist used to vanish from this
+		// screen entirely: still excluded from grading, listed on Readiness,
+		// but unfindable and unrestorable HERE, where it was parked. Parked
+		// pages are few by nature (each is a hand decision), so the extra
+		// rows stay bounded.
+		$listed = array();
+		foreach ( $items as $item ) {
+			$listed[ (int) $item['id'] ] = true;
+		}
+		foreach ( $aside as $id ) {
+			if ( isset( $listed[ (int) $id ] ) ) {
+				continue;
+			}
+			$item = $this->item( (int) $id, isset( $search[ $id ] ) ? $search[ $id ] : array(), true );
+			if ( $item ) {
+				$items[] = $item;
+			}
+		}
+
 		// Sorted by what a fix is worth: impressions already being earned on a
 		// search the page answers poorly. A page with no data cannot be ranked
 		// this way and sits below the ones that can.
@@ -161,7 +182,11 @@ final class Worklist {
 		return array(
 			'published'   => $published,
 			'withSearch'  => $with_search,
-			'setAside'    => count( $this->set_aside_ids() ),
+			// LIVE pages only — the raw option collects fossils (ids of posts
+			// since deleted or unpublished), and Readiness already counts the
+			// living. Two surfaces naming two totals for one list reads as a
+			// miscount (seen live: 18 here, 11 there, 5 on the tab).
+			'setAside'    => $this->set_aside_live_count(),
 			'searchState' => $this->search_state(),
 			// "12 of your 300 pages have search data" invites one of two very
 			// different conclusions, and only the source can say which: Google
@@ -351,6 +376,25 @@ final class Worklist {
 	private function set_aside_ids() {
 		$raw = (array) $this->settings->get( 'optimize_ignored', array() );
 		return array_values( array_filter( array_map( 'intval', $raw ) ) );
+	}
+
+	/**
+	 * Parked pages that still EXIST — the number every surface should quote.
+	 * The raw list keeps fossil ids on purpose (a restored post gets its
+	 * verdict back), but a count that includes ghosts reads as a miscount
+	 * beside Readiness's living one.
+	 *
+	 * @return int
+	 */
+	private function set_aside_live_count() {
+		$n = 0;
+		foreach ( $this->set_aside_ids() as $id ) {
+			$post = get_post( $id );
+			if ( $post && 'publish' === $post->post_status ) {
+				++$n;
+			}
+		}
+		return $n;
 	}
 
 	/**
