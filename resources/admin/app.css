@@ -152,11 +152,12 @@
   /* The dark chrome accent: the violet the rail cards, score identity and
      section labels wear at night. Light mode has no equivalent — its chrome
      is the ink itself. */
-  /* No brighter "identity step" — it read acidic against the charcoal. The
-     chrome IS the accent; only hover steps up. */
-  --ar-chrome: #8ac4bb;
-  --ar-chrome-bright: #a5d4cc;
-  --ar-chrome-line: color-mix(in srgb, #8ac4bb 24%, var(--ar-line));
+  /* The chrome IS the good green — the same identity the light theme's score
+     card has always worn. Two teal-greens side by side fought; one green
+     doesn't. */
+  --ar-chrome: #5cc08a;
+  --ar-chrome-bright: #74cb9b;
+  --ar-chrome-line: color-mix(in srgb, #5cc08a 24%, var(--ar-line));
   --ar-hover: color-mix(in srgb, #57b6a6 16%, transparent);
 
   --ar-good-wash: color-mix(in srgb, var(--ar-good) 10%, var(--ar-surface));
@@ -233,10 +234,6 @@
 /* A 0.3-alpha black shadow reads on cream but not on near-black: the stuck
    pagehead deepens to true black and gains a hairline edge (as a shadow
    layer, so nothing shifts by a pixel). */
-/* The nav bar wears the same charcoal as wp-admin's bar directly above it —
-   a hairline seam (an inset shadow layer, so nothing shifts a pixel) keeps
-   the two from fusing. */
-:root[data-ar-theme="dark"] .ar__bar { box-shadow: inset 0 1px 0 var(--ar-line-strong); }
 :root[data-ar-theme="dark"] .ar__sticky.is-stuck {
   box-shadow:
     0 1px 0 var(--ar-line-strong),
