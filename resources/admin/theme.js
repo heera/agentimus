@@ -36,6 +36,11 @@ export function setTheme(setting) {
   apply();
 }
 
+/** What the page is actually showing right now: 'light' | 'dark'. */
+export function resolvedTheme() {
+  return resolve(themeSetting());
+}
+
 /** Resolve and stamp the attribute; call once before the app mounts, so the
  *  first paint is already in the right mode. Also re-applies on OS changes
  *  while the setting is "system". */
