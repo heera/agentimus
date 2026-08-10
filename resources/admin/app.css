@@ -123,21 +123,28 @@
    data-ar-theme attribute on <html>, set by theme.js (light / dark, with
    "system" resolved there); wp-admin around the app keeps its own colors. */
 :root[data-ar-theme="dark"] {
-  --ar-paper: #101012;
-  --ar-surface: #171719;
-  --ar-surface-2: #1f1f22;
+  /* His pick: the cards wear wp-admin's own sidebar charcoal, so the app and
+     the admin chrome around it read as one night. Page darker in the same
+     hue; raised surfaces one step up. */
+  --ar-paper: #101417;
+  --ar-surface: #1d2327;
+  --ar-surface-2: #262e34;
   /* Off-white, deliberately shy of white: full-bright serif headings on black
-     glare (his call) — this keeps ~10:1 body contrast without the sting. */
-  --ar-ink: #d9d6cf;
-  --ar-ink-soft: #9c9992;
-  --ar-ink-faint: #6b6a65;
-  --ar-line: #2b2b2e;
-  --ar-line-strong: #3c3c40;
+     glare (his call) — and COOL, because the charcoal ground is cool; a warm
+     cream here would clash in temperature. */
+  --ar-ink: #dde0e2;
+  --ar-ink-soft: #a2a8ad;
+  --ar-ink-faint: #6e757b;
+  --ar-line: #2d363d;
+  --ar-line-strong: #3a454e;
 
-  /* One accent family at night (his pick of the two mocks): the violet leads
-     everywhere an action or the chrome speaks — links, icon chips, the active
-     tab, the brand ring. Green stays what it means: a good state. */
-  --ar-accent: #a78bfa;
+  /* One accent family at night: the brand's own teal, brightened for the
+     charcoal — it leads everywhere an action or the chrome speaks (links,
+     icon chips, the active tab, the brand ring), sits naturally beside the
+     blue-charcoal ground, and keeps dark and light one brand. Green stays
+     what it means: a good state. (The violet round was tried and retired —
+     it read foreign against the charcoal.) */
+  --ar-accent: #57b6a6;
   --ar-good: #5cc08a;
   --ar-warn: #e0b24c;
   --ar-bad: #e08a72;
@@ -145,10 +152,10 @@
   /* The dark chrome accent: the violet the rail cards, score identity and
      section labels wear at night. Light mode has no equivalent — its chrome
      is the ink itself. */
-  --ar-chrome: #a78bfa;
-  --ar-chrome-bright: #c4b2fc;
-  --ar-chrome-line: color-mix(in srgb, #a78bfa 30%, var(--ar-line));
-  --ar-hover: color-mix(in srgb, #a78bfa 16%, transparent);
+  --ar-chrome: #63c2b2;
+  --ar-chrome-bright: #85d2c4;
+  --ar-chrome-line: color-mix(in srgb, #63c2b2 26%, var(--ar-line));
+  --ar-hover: color-mix(in srgb, #57b6a6 16%, transparent);
 
   --ar-good-wash: color-mix(in srgb, var(--ar-good) 10%, var(--ar-surface));
   --ar-good-tint: color-mix(in srgb, var(--ar-good) 26%, var(--ar-surface));
@@ -171,8 +178,8 @@
   /* The state on-ink accents (good/warn/bad) keep their light values: the
      surfaces that wear them stay dark at night. The teal ACTION pair follows
      the violet — same family as every other link. */
-  --ar-teal-on-ink: #a78bfa;
-  --ar-teal-on-ink-hover: #c4b2fc;
+  --ar-teal-on-ink: #57b6a6;
+  --ar-teal-on-ink-hover: #6fc7b8;
 
   --ar-on-signal: #14120e;
   --ar-ink-hard: #fff;
@@ -189,7 +196,7 @@
   background: var(--ar-surface-2); color: var(--ar-ink); border-color: var(--ar-line-strong);
 }
 :root[data-ar-theme="dark"] .ar-btn:hover:not(:disabled) {
-  background: #2b2b2f; border-color: var(--ar-ink-faint); box-shadow: none;
+  background: #2a333a; border-color: var(--ar-ink-faint); box-shadow: none;
 }
 :root[data-ar-theme="dark"] .ar-srcpick__btn.is-on {
   background: var(--ar-accent); color: var(--ar-on-signal);
@@ -198,7 +205,7 @@
 :root[data-ar-theme="dark"] .ar-about-priv__cell--head {
   background: var(--ar-surface-2); border-color: var(--ar-line-strong);
 }
-:root[data-ar-theme="dark"] .ar-about-snippet { background: #0c0c0e; color: var(--ar-ink-soft); }
+:root[data-ar-theme="dark"] .ar-about-snippet { background: #0d1114; color: var(--ar-ink-soft); }
 /* The rail is where the violet chrome lives: card borders, section labels,
    the score identity. Content cards to the left stay neutral. */
 :root[data-ar-theme="dark"] .ar-rail-card { border-color: var(--ar-chrome-line); }
