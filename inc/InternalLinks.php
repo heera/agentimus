@@ -521,8 +521,10 @@ final class InternalLinks {
     function walk(list){
       for (var i = 0; i < list.length; i++) {
         var b = list[i];
-        if ((b.name === 'core/paragraph' || b.name === 'core/heading') && typeof (b.attributes||{}).content === 'string') {
-          var html = b.attributes.content;
+        // content is a plain string on WP <= 6.4 but a RichTextData object from
+        // 6.5 on — String() folds both to the HTML source.
+        if ((b.name === 'core/paragraph' || b.name === 'core/heading') && (b.attributes||{}).content != null) {
+          var html = String(b.attributes.content);
           if (html.indexOf('<a') === -1) {
             var m = html.match(re);
             if (m) {
