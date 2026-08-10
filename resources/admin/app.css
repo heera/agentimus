@@ -219,6 +219,15 @@
 :root[data-ar-theme="dark"] .ar-rung[data-state="current"] { color: var(--ar-warn-on-ink); }
 :root[data-ar-theme="dark"] .ar-rung__todo { color: var(--ar-warn-on-ink); }
 :root[data-ar-theme="dark"] .ar-today__score-n { color: var(--ar-chrome); }
+/* A 0.3-alpha black shadow reads on cream but not on near-black: the stuck
+   pagehead deepens to true black and gains a hairline edge (as a shadow
+   layer, so nothing shifts by a pixel). */
+:root[data-ar-theme="dark"] .ar__sticky.is-stuck {
+  box-shadow:
+    0 1px 0 var(--ar-line-strong),
+    0 8px 18px -12px rgba(0, 0, 0, 0.9),
+    0 2px 5px -3px rgba(0, 0, 0, 0.6);
+}
 :root[data-ar-theme="dark"] .ar-rail-tier[data-state="floor"] .ar-rail-tier__name { color: var(--ar-bad-on-ink); }
 :root[data-ar-theme="dark"] .ar-rail-tier[data-state="local"] .ar-rail-tier__name { color: var(--ar-warn-on-ink); }
 /* The brand A drew its legs in paper on the ink tile; on the dark tile they
@@ -361,7 +370,7 @@
   box-shadow:
     0 0 0 2px var(--ar-surface),
     0 0 0 3px var(--ar-accent),
-    0 1px 5px -1px color-mix(in srgb, var(--ar-ink) 25%, transparent);
+    0 1px 5px -1px color-mix(in srgb, var(--ar-shade) 25%, transparent);
 }
 /* Name + version stacked, both flush-left, within the 30px mark height. The
    wordmark sets the column width; the version line is justified (spread by
@@ -521,7 +530,7 @@
   position: absolute; top: calc(100% + 8px); right: 0; z-index: 60;
   width: 340px; max-width: calc(100cqw - 32px);
   background: var(--ar-surface); border: 1px solid var(--ar-line-strong); border-radius: var(--ar-radius);
-  box-shadow: 0 14px 36px -12px color-mix(in srgb, var(--ar-ink) 45%, transparent);
+  box-shadow: 0 14px 36px -12px color-mix(in srgb, var(--ar-shade) 45%, transparent);
   padding: 14px 16px;
 }
 .ar__assist-guide__title { display: block; font-size: 13px; color: var(--ar-ink); }
@@ -546,7 +555,7 @@
   display: flex; flex-direction: column;
   background: var(--ar-surface);
   border-left: 1px solid var(--ar-line-strong);
-  box-shadow: -18px 0 48px -18px color-mix(in srgb, var(--ar-ink) 50%, transparent);
+  box-shadow: -18px 0 48px -18px color-mix(in srgb, var(--ar-shade) 50%, transparent);
   outline: none;
 }
 @media (max-width: 782px) {
@@ -716,7 +725,7 @@
   margin: 16px -20px 0; padding: 11px 20px 15px;
   background: var(--ar-surface);
   border-top: 1px solid var(--ar-line-strong);
-  box-shadow: 0 -12px 22px -16px color-mix(in srgb, var(--ar-ink) 40%, transparent);
+  box-shadow: 0 -12px 22px -16px color-mix(in srgb, var(--ar-shade) 40%, transparent);
 }
 .ar-assist__footrow { display: flex; align-items: center; gap: 13px; flex-wrap: wrap; }
 .ar-assist__footrow--commit { margin-top: 10px; }
@@ -935,7 +944,7 @@
      sibling below it — never sticky-pinned over content, so nothing shows through. */
   max-height: 72vh; display: flex; flex-direction: column; overflow: hidden;
   background: var(--ar-surface); border: 1px solid var(--ar-line-strong); border-radius: var(--ar-radius);
-  box-shadow: 0 14px 36px -12px color-mix(in srgb, var(--ar-ink) 45%, transparent);
+  box-shadow: 0 14px 36px -12px color-mix(in srgb, var(--ar-shade) 45%, transparent);
 }
 /* Fixed header block — title/count/auto-refresh + filter tabs. Mirror of .ar-rev-foot;
    raised (z-index) so its downward shadow paints over the cards scrolling beneath. */
@@ -943,7 +952,7 @@
   flex: 0 0 auto; position: relative; z-index: 1;
   padding: 16px 18px 12px;
   background: var(--ar-surface); border-bottom: 1px solid var(--ar-line-strong);
-  box-shadow: 0 8px 14px -10px color-mix(in srgb, var(--ar-ink) 28%, transparent);
+  box-shadow: 0 8px 14px -10px color-mix(in srgb, var(--ar-shade) 28%, transparent);
 }
 .ar-rev-top .ar-rev-tabs { margin: 12px 0 0; }
 .ar-rev-scroll { flex: 1 1 auto; min-height: 0; overflow-y: auto; padding: 0 18px 16px; }
@@ -1126,7 +1135,7 @@
   background: var(--ar-surface);
   border-radius: 8px;
   overflow: hidden;
-  box-shadow: 0 14px 36px -10px color-mix(in srgb, var(--ar-ink) 42%, transparent), 0 0 0 1px color-mix(in srgb, var(--ar-ink) 6%, transparent);
+  box-shadow: 0 14px 36px -10px color-mix(in srgb, var(--ar-shade) 42%, transparent), 0 0 0 1px color-mix(in srgb, var(--ar-shade) 6%, transparent);
   font-family: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
 }
 .ar-toast__bar { flex: 0 0 4px; background: var(--ar-ink-faint); }
@@ -2912,7 +2921,7 @@ select.ar-input {
   border: 1px solid var(--ar-line-strong);
   border-radius: var(--ar-radius);
   background: var(--ar-paper);
-  box-shadow: 0 1px 3px color-mix(in srgb, var(--ar-ink) 6%, transparent);
+  box-shadow: 0 1px 3px color-mix(in srgb, var(--ar-shade) 6%, transparent);
 }
 .ar-svc:first-of-type { margin-top: 6px; }
 .ar-svc__row { display: flex; flex-wrap: wrap; gap: 8px; padding-right: 24px; }
@@ -3147,7 +3156,7 @@ select.ar-input {
   background: var(--ar-ink); color: var(--ar-paper); border: 1px solid var(--ar-ink);
   transition: transform 0.12s, background 0.15s, box-shadow 0.15s;
 }
-.ar-btn:hover:not(:disabled) { background: var(--ar-ink-hard); box-shadow: 0 6px 18px -8px color-mix(in srgb, var(--ar-ink) 70%, transparent); }
+.ar-btn:hover:not(:disabled) { background: var(--ar-ink-hard); box-shadow: 0 6px 18px -8px color-mix(in srgb, var(--ar-shade) 70%, transparent); }
 .ar-btn:active:not(:disabled) { transform: translateY(1px); }
 /* A label that swaps to a longer busy form ("Refresh" → "Refreshing…") reserves
    the longer form's width up front via an invisible twin (data-reserve), so the
@@ -3219,7 +3228,7 @@ html { scrollbar-gutter: stable; }
   max-height: min(calc(100svh - 40px), 600px);
   background: var(--ar-surface); border: 1px solid var(--ar-line-strong);
   border-radius: 10px;
-  box-shadow: 0 24px 60px -20px color-mix(in srgb, var(--ar-ink) 50%, transparent);
+  box-shadow: 0 24px 60px -20px color-mix(in srgb, var(--ar-shade) 50%, transparent);
 }
 .ar-modal__panel:focus { outline: none; }
 /* Header + footer stay put; only the preview body scrolls, so the actions are
@@ -4071,7 +4080,7 @@ button.ar-wd-stat:focus-visible { outline: 2px solid var(--ar-accent); outline-o
 .ar-dash-tile__body { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
 /* "6 PROVIDERS" — the number leads and the label rides its baseline. */
 .ar-dash-tile__row { display: inline-flex; align-items: baseline; gap: 7px; }
-.ar-dash-tile:hover { border-color: var(--ar-line-strong); box-shadow: 0 5px 16px -9px color-mix(in srgb, var(--ar-ink) 40%, transparent); }
+.ar-dash-tile:hover { border-color: var(--ar-line-strong); box-shadow: 0 5px 16px -9px color-mix(in srgb, var(--ar-shade) 40%, transparent); }
 .ar-dash-tile:active { transform: translateY(1px); }
 .ar-dash-tile:focus-visible { outline: 2px solid var(--ar-accent); outline-offset: 2px; }
 .ar-dash-tile__k { font-family: var(--ar-mono); font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--ar-ink-faint); }
@@ -4151,7 +4160,7 @@ button.ar-wd-stat:focus-visible { outline: 2px solid var(--ar-accent); outline-o
   z-index: 6; pointer-events: none;
   display: grid; gap: 1px; width: max-content; max-width: 240px; padding: 8px 11px;
   background: var(--ar-ink); color: var(--ar-surface);
-  border-radius: 7px; box-shadow: 0 10px 24px -10px color-mix(in srgb, var(--ar-ink) 55%, transparent);
+  border-radius: 7px; box-shadow: 0 10px 24px -10px color-mix(in srgb, var(--ar-shade) 55%, transparent);
   font-size: 12px; line-height: 1.45;
 }
 .ar-act-tip__date { font-family: var(--ar-mono); font-size: 10.5px; letter-spacing: 0.04em; opacity: 0.72; white-space: nowrap; }
@@ -4181,7 +4190,7 @@ button.ar-wd-stat:focus-visible { outline: 2px solid var(--ar-accent); outline-o
      ink bubble over an ink card would otherwise have no visible edge. On light
      tables it reads as part of the shadow. */
   border-radius: 7px;
-  box-shadow: 0 0 0 1px color-mix(in srgb, var(--ar-surface) 22%, transparent), 0 10px 24px -10px color-mix(in srgb, var(--ar-ink) 55%, transparent);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--ar-surface) 22%, transparent), 0 10px 24px -10px color-mix(in srgb, var(--ar-shade) 55%, transparent);
   font-family: var(--ar-mono); font-size: 11.5px; line-height: 1.5;
   white-space: normal; word-break: break-word;
   transform: translateY(-100%); /* anchored ABOVE: the box's bottom sits at top:y */
@@ -4224,7 +4233,7 @@ button.ar-wd-stat:focus-visible { outline: 2px solid var(--ar-accent); outline-o
   /* The rail cards' own surface — the bubble reads as one of them, floating;
      the amber lives in the ring and the hint line, not the fill. */
   background: var(--ar-surface); color: var(--ar-ink);
-  box-shadow: 0 0 0 1px var(--ar-warn-tint), 0 10px 24px -10px color-mix(in srgb, var(--ar-ink) 45%, transparent);
+  box-shadow: 0 0 0 1px var(--ar-warn-tint), 0 10px 24px -10px color-mix(in srgb, var(--ar-shade) 45%, transparent);
   /* border-box so the card-width cap means the box's FULL width — with the
      default content-box, max-width excluded the padding and the clamp overshot. */
   box-sizing: border-box;
@@ -4787,7 +4796,7 @@ button.ar-act-more:hover { color: var(--ar-ink); }
 }
 .ar-rev-tab:hover { color: var(--ar-ink); }
 .ar-rev-tab:focus-visible { outline: 2px solid var(--ar-accent); outline-offset: 1px; }
-.ar-rev-tab.is-active { background: var(--ar-surface); color: var(--ar-ink); font-weight: 600; box-shadow: 0 1px 2px color-mix(in srgb, var(--ar-ink) 9%, transparent); }
+.ar-rev-tab.is-active { background: var(--ar-surface); color: var(--ar-shade); font-weight: 600; box-shadow: 0 1px 2px color-mix(in srgb, var(--ar-shade) 9%, transparent); }
 .ar-rev-tab__n { font-size: 11px; color: var(--ar-ink-faint); font-variant-numeric: tabular-nums; }
 .ar-rev-tab.is-active .ar-rev-tab__n { color: var(--ar-ink-soft); }
 .ar-rev-tab.is-attention .ar-rev-tab__n { color: var(--ar-bad); }
@@ -4960,7 +4969,7 @@ button.ar-act-more:hover { color: var(--ar-ink); }
   background: var(--ar-surface); border-top: 1px solid var(--ar-line-strong);
   /* Lift it off the rows scrolling past above — the border alone gets lost against
      a card edge stopping right at it. */
-  box-shadow: 0 -8px 14px -10px color-mix(in srgb, var(--ar-ink) 28%, transparent);
+  box-shadow: 0 -8px 14px -10px color-mix(in srgb, var(--ar-shade) 28%, transparent);
   display: flex; flex-direction: column; gap: 4px; align-items: flex-end;
 }
 .ar-rev-foot__note {
@@ -5590,7 +5599,7 @@ a.ar-about-proto__v:hover { text-decoration: underline; }
   border: 1px solid var(--ar-line-strong);
   /* One step up from --ar-radius (4px): a lifted sheet is softer than a flush card. */
   border-radius: 7px;
-  box-shadow: 0 1px 2px color-mix(in srgb, var(--ar-ink) 5%, transparent), 0 18px 36px -20px color-mix(in srgb, var(--ar-ink) 50%, transparent);
+  box-shadow: 0 1px 2px color-mix(in srgb, var(--ar-shade) 5%, transparent), 0 18px 36px -20px color-mix(in srgb, var(--ar-shade) 50%, transparent);
   animation: ar-more-in 0.13s cubic-bezier(0.22, 1, 0.36, 1);
   transform-origin: top left;
 }
