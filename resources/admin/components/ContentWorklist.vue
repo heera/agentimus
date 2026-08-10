@@ -32,7 +32,7 @@ export default {
     // The tab was away long enough that a post may have been edited elsewhere.
     stale: { type: Boolean, default: false },
   },
-  emits: ['load', 'set-aside', 'navigate'],
+  emits: ['load', 'set-aside'],
   data() {
     return {
       // Post IDs a finding asked for. Null means "show everything".
@@ -415,7 +415,7 @@ export default {
                   :key="f.query"
                   class="ar-work__q"
                   :class="'is-' + (f.state || 'none')"
-                  :title="stateWord(f.state)"
+                  v-tip="stateWord(f.state)"
                 >{{ f.query }}</span>
               </template>
               <span v-else class="ar-work__q">{{ i.focus.query }}</span>
@@ -448,7 +448,7 @@ export default {
                   :key="t.word"
                   class="ar-work__term"
                   :class="t.in_passage ? 'is-passage' : (t.on_page ? 'is-page' : 'is-absent')"
-                  :title="t.in_passage ? 'In the passage that answers best' : (t.on_page ? 'On the page, but not in that passage' : 'Not on the page')"
+                  v-tip="t.in_passage ? 'In the passage that answers best' : (t.on_page ? 'On the page, but not in that passage' : 'Not on the page')"
                 >{{ t.word }}</span>
               </span>
               <span class="ar-work__why">{{ coverWhy(i) }}</span>

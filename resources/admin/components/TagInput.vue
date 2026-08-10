@@ -91,7 +91,7 @@ export default {
     />
     <ul v-if="visibleTags.length" class="ar-tags__list" :class="{ 'ar-tags__list--after-hint': afterHint }">
       <li v-for="tag in visibleTags" :key="tag" class="ar-tags__chip">
-        <button type="button" class="ar-tags__edit" :title="`Edit “${tag}”`" @click="edit(tag)">{{ tag }}</button>
+        <button type="button" class="ar-tags__edit" v-tip="`Edit “${tag}”`" @click="edit(tag)">{{ tag }}</button>
         <button type="button" class="ar-tags__x" :aria-label="`Remove ${tag}`" @click="remove(tag)">×</button>
       </li>
     </ul>

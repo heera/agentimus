@@ -15,12 +15,13 @@
  * quietly stops short reads as "that's everything".
  */
 import SelectMenu from './SelectMenu.vue';
+import CardSkeleton from './CardSkeleton.vue';
 import { uaTip } from '../uaTip.js';
-import { formatStamp } from '../wpDate.js';
+import { formatStamp, relTimeShort } from '../wpDate.js';
 
 export default {
   name: 'RequestLog',
-  components: { SelectMenu },
+  components: { SelectMenu, CardSkeleton },
   mixins: [uaTip],
   props: {
     api: { type: Object, default: null },
@@ -261,14 +262,7 @@ export default {
       return Number.isNaN(d.getTime()) ? '' : formatStamp(d);
     },
     ago(iso) {
-      const t = Date.parse(iso);
-      if (!t) return '';
-      const m = Math.round((Date.now() - t) / 60000);
-      if (m < 1) return 'just now';
-      if (m < 60) return `${m}m ago`;
-      const h = Math.round(m / 60);
-      if (h < 24) return `${h}h ago`;
-      return `${Math.round(h / 24)}d ago`;
+      return relTimeShort(Date.parse(iso));
     },
   },
 };
@@ -349,12 +343,7 @@ export default {
 
     <!-- First load in flight: the shared skeleton, not a bare "Loading…" — same
          treatment as Endpoint Activity and Agent Access. -->
-    <div v-else-if="loading && !rows.length" class="ar-skel" aria-busy="true">
-      <p class="ar-card__lead">Loading the request log&hellip;</p>
-      <span class="ar-skel__line" style="width: 88%"></span>
-      <span class="ar-skel__line" style="width: 72%"></span>
-      <span class="ar-skel__line" style="width: 80%"></span>
-    </div>
+    <CardSkeleton v-else-if="loading && !rows.length" lead="Loading the request log…" />
 
     <div v-else-if="!rows.length" class="ar-log__empty">
       <template v-if="hasFilters">Nothing matched those filters.</template>

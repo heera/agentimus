@@ -1,7 +1,6 @@
 <script>
 import { createApi } from './api.js';
 import { navIcon } from './groupIcons.js';
-import { summarize } from './tiers.js';
 import { uaTip } from './uaTip.js';
 import { tipGuard } from './tipGuard.js';
 import SettingsForm from './components/SettingsForm.vue';
@@ -210,16 +209,6 @@ export default {
     tone() {
       return this.score.pct >= 80 ? 'good' : this.score.pct >= 50 ? 'ok' : 'low';
     },
-    // The Findable → Readable → Trusted ladder: which rung you've reached and the
-    // single next step, shown as the rail headline (see tiers.js).
-    ladder() {
-      return summarize(this.readiness);
-    },
-    // DOM id of the single next check the rail's next-step button jumps to.
-    nextAnchor() {
-      const r = this.ladder.next && this.ladder.next.remaining[0];
-      return r ? `ar-check-${r.id}` : null;
-    },
     // What the browser-side live self-check needs to probe the real endpoints.
     liveConfig() {
       return {
@@ -229,9 +218,6 @@ export default {
         samplePost: this.boot.samplePost || '',
         exposedPaths: this.exposedPaths,
       };
-    },
-    dirty() {
-      return JSON.stringify(this.settings) !== this.savedSnapshot;
     },
     // The free-text "profile" block (entity/name/role/about/email) saves explicitly
     // via the Identity card's Save button; everything else autosaves. profileDirty
@@ -281,10 +267,6 @@ export default {
     },
     circumference() {
       return 2 * Math.PI * 52;
-    },
-    dashOffset() {
-      // Starts empty (full offset), animates to the score once mounted.
-      return this.ringReady ? this.circumference * (1 - this.score.pct / 100) : this.circumference;
     },
     // The quill's state, LIVE: the two switches exist in this SPA's own settings
     // object, so flipping them must light the quill (and retire the popover's
@@ -353,14 +335,6 @@ export default {
     // fix, or set-aside pages to review/restore.
     optimizeActionable() {
       return this.optimizeWork.length > 0 || this.optimizeIgnored.length > 0;
-    },
-    host() {
-      const url = this.endpoints.robots || this.endpoints.llms || '';
-      try {
-        return new URL(url).host;
-      } catch (e) {
-        return '';
-      }
     },
     // The screens that live in the bar, at every width (his call: Readiness
     // and Discovery used to fold into More on a narrow admin, and a primary
@@ -1318,7 +1292,17 @@ export default {
     // the draft); on failure it rolls the autosaved fields back to the last good
     // state — keeping the identity draft — so a flipped switch returns to where it
     // was, and surfaces a proper error.
-    async autosaveInstant() {
+    // Serialize saves behind a promise chain: a quick second toggle on a slow
+    // network must not race the first. Out-of-order responses would adopt an OLDER
+    // server state as "saved" — and the rollback could revert a change the server
+    // actually kept. Each queued save reads the LATEST settings when it runs, so
+    // the final response is the one that sets savedSnapshot.
+    autosaveInstant() {
+      const prev = this._saveChain || Promise.resolve();
+      this._saveChain = prev.then(() => this._doAutosave()).catch(() => {});
+      return this._saveChain;
+    },
+    async _doAutosave() {
       const savedId = (JSON.parse(this.savedSnapshot).identity) || {};
       const payload = JSON.parse(JSON.stringify(this.settings));
       ['entity_type', 'name', 'role', 'about', 'not_description', 'audience', 'contact_email'].forEach((k) => {
@@ -2472,7 +2456,7 @@ export default {
           type="button"
           class="ar-rail-card ar-rail-regcard"
           :class="validation.ok ? 'is-ok' : 'is-alert'"
-          :title="validation.ok ? 'See what’s registered' : 'Review registration issues'"
+          v-tip="validation.ok ? 'See what’s registered' : 'Review registration issues'"
           @click="goTo({ tab: 'discovery', anchor: validation.ok ? 'ar-wd-providers' : 'ar-wd-validation' })"
         >
           <span class="ar-rail-regcard__icon" aria-hidden="true">{{ validation.ok ? '✓' : '⚠' }}</span>

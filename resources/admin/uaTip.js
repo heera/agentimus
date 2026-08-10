@@ -10,6 +10,7 @@
  * The consumer must declare `flash` in its `emits`, since copying reports its result there.
  */
 import { tipGuard } from './tipGuard.js';
+import { copyText } from './clipboard.js';
 
 export const uaTip = {
   data() {
@@ -97,36 +98,12 @@ export const uaTip = {
     async copyUa(text) {
       return this.copyVal(text, 'User-Agent');
     },
-    // Clipboard API where available, with the legacy textarea fallback for plain-HTTP
-    // (non-secure) sites, where navigator.clipboard is undefined.
+    // Copy the value (see clipboard.js for the secure-context/plain-HTTP handling)
+    // and report the outcome through `flash` — hence the consumer's emits: ['flash'].
     async copyVal(text, label) {
       if (!text) return;
-      let ok = false;
-      try {
-        if (navigator.clipboard && navigator.clipboard.writeText) {
-          await navigator.clipboard.writeText(text);
-          ok = true;
-        }
-      } catch (e) { /* fall through to the legacy path */ }
-      if (!ok) ok = this.legacyCopy(text);
+      const ok = await copyText(text);
       this.$emit('flash', ok ? 'success' : 'error', ok ? `${label} copied.` : 'Could not copy — select the text and copy manually.');
-    },
-    legacyCopy(text) {
-      try {
-        const ta = document.createElement('textarea');
-        ta.value = text;
-        ta.setAttribute('readonly', '');
-        ta.style.position = 'fixed';
-        ta.style.top = '-1000px';
-        ta.style.opacity = '0';
-        document.body.appendChild(ta);
-        ta.select();
-        const ok = document.execCommand('copy');
-        document.body.removeChild(ta);
-        return ok;
-      } catch (e) {
-        return false;
-      }
     },
   },
 };

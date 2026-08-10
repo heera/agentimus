@@ -248,7 +248,7 @@ export default {
       try {
         this.search = await this.api.ignoreSearch(ident, ignored);
       } catch (e) {
-        this.$emit('flash', { type: 'error', text: (e && e.message) || 'Could not update. Try again.' });
+        this.$emit('flash', 'error', (e && e.message) || 'Could not update. Try again.');
       } finally {
         this.busySearchIgnore = 0;
       }

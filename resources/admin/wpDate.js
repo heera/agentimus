@@ -124,3 +124,25 @@ export function formatStamp(d, utc = false) {
   const time = formatTime(d, utc);
   return date && time ? `${date} ${time}` : date || time;
 }
+
+/**
+ * The app's short relative age — "just now" / "5m ago" / "3h ago" / "2d ago".
+ * The one wording used across the data panels (Request Log, Edge/Bing/Google
+ * "updated Nm ago", the review feed). Takes epoch MILLISECONDS already
+ * normalised by the caller: an ISO string via `new Date(iso).getTime()`, a
+ * Unix-seconds stamp via `Number(ts) * 1000`. Empty for a missing or
+ * unparseable time (NaN or 0), and "just now" for anything in the future.
+ *
+ * "just now" covers a rounded age under one minute — so an item 30–59s old
+ * reads "1m ago" (the minute-first rounding four of the six former copies
+ * used). From one minute up, every former copy was already byte-identical.
+ */
+export function relTimeShort(ms) {
+  if (!ms) return '';
+  const m = Math.round((Date.now() - ms) / 60000);
+  if (m < 1) return 'just now';
+  if (m < 60) return `${m}m ago`;
+  const h = Math.round(m / 60);
+  if (h < 24) return `${h}h ago`;
+  return `${Math.round(h / 24)}d ago`;
+}

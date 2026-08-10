@@ -22,9 +22,12 @@
  */
 import { formatStamp } from '../wpDate.js';
 import { uaTip } from '../uaTip.js';
+import RefreshCrank from './RefreshCrank.vue';
+import CardSkeleton from './CardSkeleton.vue';
 
 export default {
   name: 'AgentAccess',
+  components: { RefreshCrank, CardSkeleton },
   mixins: [uaTip],
   props: {
     api: { type: Object, default: null },
@@ -234,9 +237,9 @@ export default {
         this.trail = [];
         this.unseen = 0;
         this.$emit('seen');
-        this.$emit('flash', 'Agent Access log cleared.');
+        this.$emit('flash', 'success', 'Agent Access log cleared.');
       } catch (e) {
-        this.$emit('flash', e.message || 'Could not clear the log.');
+        this.$emit('flash', 'error', e.message || 'Could not clear the log.');
       }
     },
     // One sentence per kind. The wording says what HAPPENED, not what it might mean — we have
@@ -280,40 +283,6 @@ export default {
     eventSubject(e) {
       if (e.kind === 'ability_probed') return '';
       return e.subject || '(unnamed)';
-    },
-    label(e) {
-      const name = e.subject || '(unnamed)';
-      switch (e.kind) {
-        case 'apppw_created':
-          return `New application password: “${name}”`;
-        case 'apppw_used':
-          return `Application password used for the first time: “${name}”`;
-        case 'apppw_renamed':
-          return `Application password renamed: “${name}”`;
-        case 'apppw_deleted':
-          return `Application password revoked: “${name}”`;
-        case 'ability_used':
-          return `Ability used: ${name}`;
-        case 'ability_refused':
-          return `Ability refused: ${name}`;
-        case 'ability_probed':
-          return 'Someone probed for abilities that don\u2019t exist';
-        default:
-          return name;
-      }
-    },
-    // The WHO line under a row. Everything here is the owner's own data (their user, their
-    // password label) resolved live by the server — still no IP, no location, no guessing.
-    // Whatever no longer resolves is said plainly rather than hidden ("(revoked)",
-    // "(deleted)"): the row happened, the thing is gone, both facts stand.
-    //
-    // Password-LIFECYCLE rows deliberately say "on X's account", not "by X": the stored
-    // user is the key's OWNER, and an admin can create or revoke a key on someone else's
-    // profile — "by" would claim an actor we didn't record.
-    who(e) {
-      const person = this.whoPerson(e);
-      const cred = this.whoCred(e);
-      return cred ? `${person} · ${cred}` : person;
     },
     // WHO, split in two: the person on one line, what they came in WITH on the
     // next. One sentence joined by a middot made the eye parse a punctuation
@@ -429,17 +398,12 @@ export default {
              so "refresh" asked the server for ?before=[object PointerEvent]).
              Reloads page one; ungated, so an empty list can still check for
              arrivals. -->
-        <button
-          type="button"
-          class="ar-readiness__refresh"
-          :class="{ 'is-busy': loading }"
-          :disabled="loading"
+        <RefreshCrank
+          :busy="loading"
           :aria-label="loading ? 'Reloading agent access events…' : 'Reload agent access events'"
           :title="loading ? 'Reloading…' : 'Reload agent access events'"
-          @click="load()"
-        >
-          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="23 4 23 10 17 10" /><polyline points="1 20 1 14 7 14" /><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" /></svg>
-        </button>
+          @refresh="load()"
+        />
       </div>
       <div class="ar-card__actions" v-if="hasEvents">
         <button type="button" class="ar-btn ar-btn--danger" :disabled="loading" @click="clear">
@@ -454,12 +418,7 @@ export default {
          Activity. Everything below waits on the fetch (the coverage box needs the server's
          verdict, the feed needs rows), so without this the screen renders only its title and
          its footer — and on a slow origin that blank sits long enough to read as broken. -->
-    <div v-if="!loaded && !error" class="ar-skel" aria-busy="true">
-      <p class="ar-card__lead">Loading agent access&hellip;</p>
-      <span class="ar-skel__line" style="width: 88%"></span>
-      <span class="ar-skel__line" style="width: 72%"></span>
-      <span class="ar-skel__line" style="width: 80%"></span>
-    </div>
+    <CardSkeleton v-if="!loaded && !error" lead="Loading agent access…" />
 
     <!-- What we can see HERE. Rendered before the table, because on most of these rungs the
          table's emptiness is explained entirely by this box. -->

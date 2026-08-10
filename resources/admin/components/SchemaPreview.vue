@@ -15,6 +15,7 @@
  * ar-btn / ar-input chrome; only the picker, code block and banners are custom.
  */
 import { bindDocEsc } from '../docEsc.js';
+import { copyText } from '../clipboard.js';
 
 export default {
   name: 'SchemaPreview',
@@ -212,17 +213,25 @@ export default {
       if (this.format === 'markdown' && this.mdResult) return;
       this.busy = true;
       this.error = '';
+      // Capture the target this fetch is FOR. Two quick picks race: a slower
+      // response must not overwrite the newer selection's data (or clear its busy
+      // state, or show its error). Only a response still matching the live
+      // selection wins.
+      const id = this.selected.id || 0;
+      const fmt = this.format;
+      const current = () => (this.selected.id || 0) === id && this.format === fmt;
       try {
-        const id = this.selected.id || 0;
-        if (this.format === 'markdown') {
-          this.mdResult = await this.api.getMarkdownPreview(id);
+        if (fmt === 'markdown') {
+          const res = await this.api.getMarkdownPreview(id);
+          if (current()) this.mdResult = res;
         } else {
-          this.result = await this.api.getSchemaPreview(id);
+          const res = await this.api.getSchemaPreview(id);
+          if (current()) this.result = res;
         }
       } catch (e) {
-        this.error = (e && e.message) || 'Could not build the preview.';
+        if (current()) this.error = (e && e.message) || 'Could not build the preview.';
       } finally {
-        this.busy = false;
+        if (current()) this.busy = false;
       }
     },
     setFormat(fmt) {
@@ -327,41 +336,13 @@ export default {
         ? ((this.mdResult && this.mdResult.markdown) || '')
         : ((this.result && this.result.json) || '');
       if (!text) return;
-      let ok = false;
-      // navigator.clipboard needs a secure context (HTTPS or localhost); on plain
-      // HTTP it's absent or throws, so fall back to the legacy execCommand path.
-      try {
-        if (navigator.clipboard && navigator.clipboard.writeText) {
-          await navigator.clipboard.writeText(text);
-          ok = true;
-        }
-      } catch (e) { /* fall through */ }
-      if (!ok) ok = this.legacyCopy(text);
+      const ok = await copyText(text);
       if (ok) {
         this.copied = true;
         clearTimeout(this._copyTimer);
         this._copyTimer = setTimeout(() => { this.copied = false; }, 2000);
       } else {
         this.$emit('flash', 'error', 'Could not copy to the clipboard — select the code and copy manually.');
-      }
-    },
-    // Copy via a throwaway off-screen textarea — works on HTTP where the async
-    // Clipboard API is unavailable.
-    legacyCopy(text) {
-      try {
-        const ta = document.createElement('textarea');
-        ta.value = text;
-        ta.setAttribute('readonly', '');
-        ta.style.position = 'fixed';
-        ta.style.top = '-1000px';
-        ta.style.opacity = '0';
-        document.body.appendChild(ta);
-        ta.select();
-        const ok = document.execCommand('copy');
-        document.body.removeChild(ta);
-        return ok;
-      } catch (e) {
-        return false;
       }
     },
   },
@@ -383,7 +364,7 @@ export default {
           tabindex="-1"
           @keydown.esc="close"
         >
-          <button type="button" class="agentimus-jsonld__close" @click="close" aria-label="Close preview" title="Close">
+          <button type="button" class="agentimus-jsonld__close" @click="close" aria-label="Close preview" v-tip="`Close`">
             <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 6 18 18M18 6 6 18" /></svg>
           </button>
 
@@ -532,7 +513,7 @@ export default {
                     <template v-if="format === 'jsonld'">
                       <p v-if="isEmpty && !res.postNote" class="agentimus-jsonld__empty">Nothing would be emitted for this target.</p>
                       <div v-else-if="!isEmpty" class="agentimus-jsonld__codewrap">
-                        <button type="button" class="agentimus-jsonld__codecopy" :class="{ 'is-copied': copied }" @click="copy" :aria-label="copyLabel" :title="copyLabel">
+                        <button type="button" class="agentimus-jsonld__codecopy" :class="{ 'is-copied': copied }" @click="copy" :aria-label="copyLabel" v-tip="copyLabel">
                           <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="11" height="11" rx="2" /><path d="M6 15H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v1" /></svg>
                           <span>{{ copied ? 'Copied' : 'Copy' }}</span>
                         </button>
@@ -543,7 +524,7 @@ export default {
                     <template v-else>
                       <p v-if="isEmpty && !res.postNote" class="agentimus-jsonld__empty">No Markdown is served for this target.</p>
                       <div v-else-if="!isEmpty" class="agentimus-jsonld__codewrap">
-                        <button type="button" class="agentimus-jsonld__codecopy" :class="{ 'is-copied': copied }" @click="copy" :aria-label="copyLabel" :title="copyLabel">
+                        <button type="button" class="agentimus-jsonld__codecopy" :class="{ 'is-copied': copied }" @click="copy" :aria-label="copyLabel" v-tip="copyLabel">
                           <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="11" height="11" rx="2" /><path d="M6 15H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v1" /></svg>
                           <span>{{ copied ? 'Copied' : 'Copy' }}</span>
                         </button>

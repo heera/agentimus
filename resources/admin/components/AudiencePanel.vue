@@ -197,7 +197,7 @@ export default {
             <svg v-else-if="'machines' === l.scope" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="8" width="14" height="10" rx="2.6" /><path d="M12 5.2V8" /><circle cx="12" cy="4.2" r="1.1" /><path d="M9.4 12.6v1.2M14.6 12.6v1.2" /></svg>
             <svg v-else viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="8.4" cy="12" r="4.2" /><circle cx="15.6" cy="12" r="4.2" /></svg>
           </span>
-          <span :title="l.text">{{ l.text }}</span>
+          <span v-tip="l.text">{{ l.text }}</span>
         </li>
       </ul>
     </div>

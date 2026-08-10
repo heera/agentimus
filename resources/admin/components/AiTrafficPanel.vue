@@ -16,13 +16,14 @@
  * "network" or "user-agent" filter would imply a per-visit record this table doesn't keep.
  */
 import SelectMenu from './SelectMenu.vue';
+import CardSkeleton from './CardSkeleton.vue';
 import { uaTip } from '../uaTip.js';
 import { formatDate } from '../wpDate.js';
 
 export default {
   name: 'AiTrafficPanel',
   mixins: [uaTip],
-  components: { SelectMenu },
+  components: { SelectMenu, CardSkeleton },
   props: {
     api: { type: Object, default: null },
     // Load when the screen is first opened, not on every dashboard visit.
@@ -714,12 +715,7 @@ export default {
 
       <!-- First load in flight: the shared skeleton, not a bare "Loading…" — same
            treatment as Endpoint Activity and Agent Access. -->
-      <div v-else-if="loading && !report" class="ar-skel" aria-busy="true">
-        <p class="ar-card__lead">Loading AI traffic&hellip;</p>
-        <span class="ar-skel__line" style="width: 88%"></span>
-        <span class="ar-skel__line" style="width: 72%"></span>
-        <span class="ar-skel__line" style="width: 80%"></span>
-      </div>
+      <CardSkeleton v-else-if="loading && !report" lead="Loading AI traffic…" />
 
       <template v-else>
         <p v-if="filterSummary" class="ar-ai__filternote">Showing <strong>{{ filterSummary }}</strong> only.</p>

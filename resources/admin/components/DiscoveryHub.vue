@@ -1,5 +1,6 @@
 <script>
 import ProviderRow from './ProviderRow.vue';
+import { copyText } from '../clipboard.js';
 
 export default {
   name: 'DiscoveryHub',
@@ -8,7 +9,7 @@ export default {
     data: { type: Object, default: () => ({}) },
     refreshing: { type: Boolean, default: false },
   },
-  emits: ['refresh'],
+  emits: ['refresh', 'navigate'],
   data() {
     // Expand the auto-discovered group by default ONLY when there is nothing
     // declared — otherwise it stays collapsed, since it's predictable baseline.
@@ -188,30 +189,10 @@ export default {
     jumpTo(anchor) {
       this.$emit('navigate', { tab: 'discovery', anchor });
     },
-    // Same clipboard approach as the settings card: navigator.clipboard needs a
-    // secure context (HTTPS or localhost); on plain HTTP it's absent or throws,
-    // so fall back to the legacy execCommand path.
     async copyDoor(d) {
       const text = (d && d.url) || '';
       if (!text) return;
-      let ok = false;
-      try {
-        if (navigator.clipboard && navigator.clipboard.writeText) {
-          await navigator.clipboard.writeText(text);
-          ok = true;
-        }
-      } catch (e) { /* fall through */ }
-      if (!ok) {
-        const ta = document.createElement('textarea');
-        ta.value = text;
-        ta.setAttribute('readonly', '');
-        ta.style.position = 'fixed';
-        ta.style.opacity = '0';
-        document.body.appendChild(ta);
-        ta.select();
-        try { ok = document.execCommand('copy'); } catch (e) { ok = false; }
-        document.body.removeChild(ta);
-      }
+      const ok = await copyText(text);
       if (!ok) return;
       this.copiedDoor = text;
       clearTimeout(this._doorCopyTimer);

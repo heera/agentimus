@@ -15,8 +15,12 @@
  * Off state = one quiet pointer card at Settings → Data sources. No form here:
  * the token has exactly one home.
  */
+import { relTimeShort } from '../wpDate.js';
+import CardSkeleton from './CardSkeleton.vue';
+
 export default {
   name: 'EdgePanel',
+  components: { CardSkeleton },
   props: {
     api: { type: Object, default: null },
     // Rendered with v-show, so it stays mounted across tab switches. Fetch on first reveal.
@@ -90,14 +94,7 @@ export default {
     },
     // "updated 25m ago" — lastPollAt is a Unix timestamp in seconds.
     agoMin(ts) {
-      const t = Number(ts || 0) * 1000;
-      if (!t) return '';
-      const m = Math.round((Date.now() - t) / 60000);
-      if (m < 1) return 'just now';
-      if (m < 60) return `${m}m ago`;
-      const h = Math.round(m / 60);
-      if (h < 24) return `${h}h ago`;
-      return `${Math.round(h / 24)}d ago`;
+      return relTimeShort(Number(ts || 0) * 1000);
     },
     // Fetch now: one inline poll server-side; the response IS the new summary.
     // A poll failure lands in summary.lastError and shows in this same rail.
@@ -153,8 +150,15 @@ export default {
 
 <template>
   <div class="ar-edge">
+    <!-- A load error before the first summary lands: surface it, not a skeleton. -->
+    <p v-if="!loaded && error" class="ar-log__error" role="alert">{{ error }}</p>
+
+    <!-- First reveal in flight: a skeleton, not a blank card — the same placeholder
+         the other data screens show while their first fetch is out. -->
+    <CardSkeleton v-else-if="!loaded" lead="Loading edge activity…" />
+
     <!-- Off: one quiet pointer, no form, no nagging. -->
-    <section v-if="loaded && !connected" class="ar-card ar-card--muted">
+    <section v-else-if="!connected" class="ar-card ar-card--muted">
       <h2 class="ar-card__title">At Cloudflare <span class="ar-card__tag">Off</span></h2>
       <p class="ar-card__lead ar-edge__offlead">
         Cloudflare answers many AI requests before they reach this log — this card can show
@@ -165,7 +169,7 @@ export default {
       </p>
     </section>
 
-    <template v-else-if="connected">
+    <template v-else>
       <section class="ar-card">
         <h2 class="ar-card__title">At Cloudflare <span class="ar-card__tag">Last {{ summary.days }} days</span></h2>
         <p class="ar-card__lead">
@@ -326,7 +330,5 @@ export default {
         </p>
       </section>
     </template>
-
-    <p v-else-if="error" class="ar-log__error" role="alert">{{ error }}</p>
   </div>
 </template>

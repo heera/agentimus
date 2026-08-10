@@ -15,6 +15,8 @@
  */
 import { impostorDetail, scannerDetail } from '../reviewCopy.js';
 import { tipGuard } from '../tipGuard.js';
+import { relTimeShort } from '../wpDate.js';
+import { copyText } from '../clipboard.js';
 
 export default {
   name: 'ReviewMenu',
@@ -403,32 +405,8 @@ export default {
     },
     async copyValue(text, label = 'User-Agent') {
       if (!text) return;
-      let ok = false;
-      try {
-        if (navigator.clipboard && navigator.clipboard.writeText) {
-          await navigator.clipboard.writeText(text);
-          ok = true;
-        }
-      } catch (e) { /* fall through to the legacy path */ }
-      if (!ok) ok = this.legacyCopy(text);
+      const ok = await copyText(text);
       this.$emit('flash', ok ? 'success' : 'error', ok ? `${label} copied.` : 'Could not copy — select the text and copy manually.');
-    },
-    legacyCopy(text) {
-      try {
-        const ta = document.createElement('textarea');
-        ta.value = text;
-        ta.setAttribute('readonly', '');
-        ta.style.position = 'fixed';
-        ta.style.top = '-1000px';
-        ta.style.opacity = '0';
-        document.body.appendChild(ta);
-        ta.select();
-        const ok = document.execCommand('copy');
-        document.body.removeChild(ta);
-        return ok;
-      } catch (e) {
-        return false;
-      }
     },
     // ---- Small helpers ---------------------------------------------------------
     engineName(s) {
@@ -495,15 +473,7 @@ export default {
       return { ai: 'AI crawler', seo: 'SEO crawler', search: 'Search engine', social: 'Social preview' }[kind] || 'Crawler';
     },
     ago(iso) {
-      const then = new Date(iso).getTime();
-      if (!then) return '';
-      const s = Math.max(0, Math.round((Date.now() - then) / 1000));
-      if (s < 60) return 'just now';
-      const m = Math.round(s / 60);
-      if (m < 60) return `${m}m ago`;
-      const h = Math.round(m / 60);
-      if (h < 24) return `${h}h ago`;
-      return `${Math.round(h / 24)}d ago`;
+      return relTimeShort(new Date(iso).getTime());
     },
   },
 };
@@ -542,7 +512,7 @@ export default {
           role="switch"
           :aria-checked="live"
           :aria-label="`Auto-refresh — check for new activity every ${liveInterval} seconds`"
-          :title="live ? `Auto-refresh is on — checking every ${liveInterval}s. Click to stop.` : `Auto-refresh is off — click to check every ${liveInterval}s.`"
+          v-tip="live ? `Auto-refresh is on — checking every ${liveInterval}s. Click to stop.` : `Auto-refresh is off — click to check every ${liveInterval}s.`"
           @click="$emit('set-live', !live)"
         >
           <span class="ar__live-dot" aria-hidden="true"></span>
@@ -585,8 +555,8 @@ export default {
             <div class="ar-rev-body">
               <div class="ar-rev-nameline">
                 <span class="ar-rev-name">{{ rowTitle(s) }}</span>
-                <span v-if="s.flags.heavy" class="ar-rev-tag is-heavy">High volume</span>
-                <span v-if="s.flags.new" class="ar-rev-tag is-new" :title="s.firstSeen ? `First seen ${ago(s.firstSeen)}` : null">{{ newChip(s) }}</span>
+                <span v-if="s.flags && s.flags.heavy" class="ar-rev-tag is-heavy">High volume</span>
+                <span v-if="s.flags && s.flags.new" class="ar-rev-tag is-new" v-tip="s.firstSeen ? `First seen ${ago(s.firstSeen)}` : null">{{ newChip(s) }}</span>
               </div>
 
               <!-- The hero: verification / identity state, coloured by severity. -->
@@ -615,7 +585,7 @@ export default {
                   <button type="button" class="ar-rev-btn ar-rev-btn--allow" :disabled="isBlocking(s) || isAllowing(s)" @click="doAllow(s)">
                     {{ isAllowing(s) ? 'Allowing…' : 'Allow' }}
                   </button>
-                  <button type="button" class="ar-rev-btn ar-rev-btn--block" :disabled="isBlocking(s) || isAllowing(s)" :title="'Blocks user-agents matching “' + s.token + '”'" @click="doBlock(s)">
+                  <button type="button" class="ar-rev-btn ar-rev-btn--block" :disabled="isBlocking(s) || isAllowing(s)" v-tip="'Blocks user-agents matching “' + s.token + '”'" @click="doBlock(s)">
                     {{ isBlocking(s) ? 'Blocking…' : 'Block' }}
                   </button>
                 </template>
@@ -707,7 +677,7 @@ export default {
                   :key="ip.ip"
                   type="button"
                   class="ar-rev-ip"
-                  :title="`Click to copy — seen ${ip.hits}×`"
+                  v-tip="`Click to copy — seen ${ip.hits}×`"
                   @click.stop="copyValue(ip.ip, 'IP address')"
                 >{{ ip.ip }}</button>
               </span>

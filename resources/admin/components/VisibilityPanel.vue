@@ -13,6 +13,8 @@
  */
 import TagInput from './TagInput.vue';
 import SelectMenu from './SelectMenu.vue';
+import RefreshCrank from './RefreshCrank.vue';
+import CardSkeleton from './CardSkeleton.vue';
 import { confirm } from '../confirm.js';
 import { bindDocEsc } from '../docEsc.js';
 import { groupIcon } from '../groupIcons.js';
@@ -20,7 +22,7 @@ import { formatStamp } from '../wpDate.js';
 
 export default {
   name: 'VisibilityPanel',
-  components: { TagInput, SelectMenu },
+  components: { TagInput, SelectMenu, RefreshCrank, CardSkeleton },
   props: {
     api: { type: Object, required: true },
     // Whether the citation-checks FEATURE is on. The screen itself is always
@@ -790,12 +792,7 @@ export default {
     <div v-if="error" class="agv-note agv-note--bad">Could not load Visibility: {{ error }}</div>
     <!-- First load in flight: the shared skeleton, not a bare "Loading…" — same
          treatment as Endpoint Activity and Agent Access. -->
-    <div v-else-if="!loaded" class="ar-skel" aria-busy="true">
-      <p class="ar-card__lead">Loading AI visibility&hellip;</p>
-      <span class="ar-skel__line" style="width: 88%"></span>
-      <span class="ar-skel__line" style="width: 72%"></span>
-      <span class="ar-skel__line" style="width: 80%"></span>
-    </div>
+    <CardSkeleton v-else-if="!loaded" lead="Loading AI visibility…" />
 
     <div v-else class="ar-tabpanel">
       <nav class="ar-tabpanel__tabs" aria-label="Visibility views">
@@ -889,17 +886,13 @@ export default {
             <span class="agv-runbar__meta">Last run · {{ fmtDate(lastRunAt) }}</span>
             <!-- The hand-crank half of the freshness rule — same mark as every
                  other data card. Re-reads stored results; it never starts a run. -->
-            <button
-              type="button"
-              class="ar-readiness__refresh"
-              :class="{ 'is-busy': quietBusy }"
-              :disabled="quietBusy || busy"
+            <RefreshCrank
+              :busy="quietBusy"
+              :disabled="busy"
               aria-label="Re-read the citation results"
               title="Re-read the citation results"
-              @click="quietReload"
-            >
-              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="23 4 23 10 17 10" /><polyline points="1 20 1 14 7 14" /><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" /></svg>
-            </button>
+              @refresh="quietReload"
+            />
             <div class="agv-runbar__actions">
               <button v-if="hasData" type="button" class="ar-btn ar-btn--ghost agv-btn-sm agv-btn-danger" :disabled="busy" @click="clearData">Clear</button>
               <button type="button" class="ar-btn agv-btn-sm" :disabled="busy" @click="run">{{ busy ? 'Running…' : 'Run check now' }}</button>
@@ -1006,12 +999,12 @@ export default {
                     <div class="agv-prompt__q">{{ q.prompt }}</div>
                     <div class="agv-prompt__providers">
                       <div v-for="(pr, j) in q.providers" :key="j" class="agv-pr">
-                        <span class="agv-chip" :data-state="chipState(pr).cls" :title="pr.error || pr.excerpt || ''">{{ providerLabel(pr.provider) }} · {{ chipState(pr).label }}</span>
+                        <span class="agv-chip" :data-state="chipState(pr).cls" v-tip="pr.error || pr.excerpt || ''">{{ providerLabel(pr.provider) }} · {{ chipState(pr).label }}</span>
                         <span v-if="pr.error" class="agv-err">{{ pr.error }}</span>
-                        <span v-if="pr.sources && pr.sources.length" class="agv-web" title="Answered using a live web search">web</span>
+                        <span v-if="pr.sources && pr.sources.length" class="agv-web" v-tip="`Answered using a live web search`">web</span>
                         <ul v-if="pr.sources && pr.sources.length" class="agv-src">
                           <li v-for="(u, k) in pr.sources" :key="k">
-                            <a :href="u" :title="u" target="_blank" rel="noopener nofollow">{{ srcHost(u) }}</a>
+                            <a :href="u" v-tip="u" target="_blank" rel="noopener nofollow">{{ srcHost(u) }}</a>
                           </li>
                         </ul>
                       </div>
@@ -1051,13 +1044,13 @@ export default {
                     </span>
                   </transition>
                   <label class="ar-toggle agv-sw agv-productcard__toggle"
-                    :title="t.active ? 'Active — included in checks' : 'Paused — skipped in checks'">
+                    v-tip="t.active ? 'Active — included in checks' : 'Paused — skipped in checks'">
                     <input type="checkbox" v-model="t.active" @change="autoSaveTargets(i)" />
                     <span class="ar-toggle__track" aria-hidden="true"></span>
                     <span class="agv-productcard__state">{{ t.active ? 'Active' : 'Paused' }}</span>
                   </label>
                   <button type="button" class="agv-productcard__remove" @click="removeTarget(i)"
-                    :disabled="form.targets.length === 1 && !t.name" title="Remove this product">Remove</button>
+                    :disabled="form.targets.length === 1 && !t.name" v-tip="`Remove this product`">Remove</button>
                 </div>
 
                 <div class="ar-grid">
@@ -1111,7 +1104,7 @@ export default {
                           type="button"
                           class="agv-linkbtn agv-suggest__trigger"
                           :disabled="suggBusy(i) || !(t.category || '').trim()"
-                          :title="(t.category || '').trim()
+                          v-tip="(t.category || '').trim()
                             ? 'Ask the AI you set up under Settings → AI to write questions people would type'
                             : 'First say what kind of thing this is, above — otherwise the AI has no market to ask about.'"
                           @click="suggestQuestionsAi(i)"
@@ -1174,10 +1167,10 @@ export default {
                   </label>
                   <span class="agv-engine__name">
                     <label :for="'agv-eng-' + id" class="agv-engine__toglabel">{{ providersMeta[id].label }}</label>
-                    <span v-if="providersMeta[id].grounded" class="agv-engine__tag" :class="{ 'is-off': !form.providers[id].enabled }" title="Perplexity always answers from a live web search — there's nothing to switch on.">Live web is always on</span>
+                    <span v-if="providersMeta[id].grounded" class="agv-engine__tag" :class="{ 'is-off': !form.providers[id].enabled }" v-tip="`Perplexity always answers from a live web search — there's nothing to switch on.`">Live web is always on</span>
                     <label v-else-if="providersMeta[id].webSearchCapable" class="agv-wspill"
                       :class="{ 'is-on': form.providers[id].web_search, 'is-off': !form.providers[id].enabled }"
-                      :title="webSearchTitle(id)">
+                      v-tip="webSearchTitle(id)">
                       <input type="checkbox" v-model="form.providers[id].web_search" :disabled="!form.providers[id].enabled" @change="autoSaveProviders" />
                       Live web {{ form.providers[id].web_search ? 'on' : 'off' }}
                     </label>
@@ -1191,7 +1184,7 @@ export default {
                     @change="autoSaveProviders"
                     :placeholder="providersMeta[id].hasKey ? 'Cleared — this removes the key' : providersMeta[id].keyHint" />
                   <button v-if="providersMeta[id].hasKey || form.providers[id].key" type="button" class="agv-engine__eye"
-                    :title="form.providers[id].reveal ? 'Hide key' : 'Show key'"
+                    v-tip="form.providers[id].reveal ? 'Hide key' : 'Show key'"
                     :aria-label="form.providers[id].reveal ? 'Hide key' : 'Show key'"
                     @click="toggleReveal(id)">
                     <svg v-if="!form.providers[id].reveal" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z"/><circle cx="12" cy="12" r="3"/></svg>
@@ -1216,7 +1209,7 @@ export default {
                   <template v-else-if="tests[id] && tests[id].state === 'bad'">
                     <button type="button" class="agv-engine__status-btn" @click="openError(id)">✗ See error</button>
                     <button type="button" class="agv-engine__status-x" @click="dismissTest(id)"
-                      aria-label="Dismiss error" title="Dismiss">✕</button>
+                      aria-label="Dismiss error" v-tip="`Dismiss`">✕</button>
                   </template>
                   <span v-else-if="providersMeta[id].hasKey" class="agv-engine__saved">✓ saved</span>
                   <a v-else-if="providersMeta[id].helpUrl" :href="providersMeta[id].helpUrl" target="_blank" rel="noopener" class="agv-engine__help">Get a key ↗</a>
@@ -1242,7 +1235,7 @@ export default {
             <!-- Master switch — just the toggle + On/Off under the section heading. -->
             <div class="ar-field agv-runfield">
               <div class="agv-switch">
-                <label class="ar-toggle agv-sw" title="Run checks automatically">
+                <label class="ar-toggle agv-sw" v-tip="`Run checks automatically`">
                   <input type="checkbox" id="agv-schedule" v-model="form.scheduleActive" aria-label="Run checks automatically" @change="autoSaveSchedule" />
                   <span class="ar-toggle__track" aria-hidden="true"></span>
                 </label>

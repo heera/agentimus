@@ -65,11 +65,10 @@ export default {
   emits: ['close', 'flash'],
   data() {
     return {
-      step: 'idle', // idle | outline | composing | preview | creating | done
+      step: 'idle', // idle | outline | composing | preview | creating
       prompt: '',
       draft: null,
       statusChoice: 'draft',
-      post: null,
       error: '',
       // The outline gate: a cheap skeleton (title + sections) the owner shapes
       // BEFORE the expensive generation. Rerolling a skeleton costs pennies.
@@ -689,7 +688,6 @@ export default {
       this.step = 'idle';
       this.prompt = '';
       this.draft = null;
-      this.post = null;
       this.error = '';
       this.refineText = '';
       this.prevDraft = null;
@@ -703,9 +701,6 @@ export default {
       this.$nextTick(() => {
         if (this.$refs.promptEl) this.$refs.promptEl.focus();
       });
-    },
-    statusLabel(status) {
-      return 'pending' === status ? 'Pending review' : 'Draft';
     },
   },
 };
@@ -1197,29 +1192,6 @@ export default {
                 </div>
               </div>
             </template>
-
-            <!-- ============ Done ============ -->
-            <template v-else-if="'done' === step">
-              <div class="ar-assist__done">
-                <span class="ar-assist__doneicon" aria-hidden="true">
-                  <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9" /><path d="M8.2 12.4l2.6 2.6 5-5.4" /></svg>
-                </span>
-                <h3 class="ar-assist__donetitle">{{ statusLabel(post.status) + ' created' }}</h3>
-                <p class="ar-assist__donetext">
-                  “{{ post.title }}” is waiting {{ 'pending' === post.status ? 'for review' : 'in your drafts' }} —
-                  nothing is published.
-                </p>
-                <div class="ar-assist__doneactions">
-                  <a class="ar-btn" :href="post.editUrl" target="_blank" rel="noopener noreferrer">Open in editor</a>
-                  <button type="button" class="ar-btn ar-btn--ghost" @click="writeAnother">Write another</button>
-                </div>
-                <p class="ar-assist__nudge">
-                  Tip: in the editor, run the <strong>AI Readability</strong> check (the Agentimus box)
-                  before publishing — it grades exactly what answer engines look for.
-                </p>
-              </div>
-            </template>
-
 
           </div>
         </div>

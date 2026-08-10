@@ -4,10 +4,11 @@ import { bindDocEsc } from '../docEsc.js';
 import { runAll, runExposureScan } from '../livecheck.js';
 import { confirm } from '../confirm.js';
 import SchemaPreview from './SchemaPreview.vue';
+import RefreshCrank from './RefreshCrank.vue';
 
 export default {
   name: 'ReadinessPanel',
-  components: { SchemaPreview },
+  components: { SchemaPreview, RefreshCrank },
   props: {
     checks: { type: Array, default: () => [] },
     optimize: { type: Array, default: () => [] }, // Content worklist behind the Optimized rung.
@@ -173,7 +174,7 @@ export default {
         const res = await this.api.ignoreOptimize(page.id, ignored);
         if (res && res.score) this.$emit('score-updated', res.score);
       } catch (e) {
-        this.$emit('flash', { type: 'error', text: (e && e.message) || 'Could not update. Try again.' });
+        this.$emit('flash', 'error', (e && e.message) || 'Could not update. Try again.');
       } finally {
         this.busyIgnore = 0;
       }
@@ -195,7 +196,7 @@ export default {
         const res = await this.api.ignoreOptimizeIssue(issue.id);
         if (res && res.score) this.$emit('score-updated', res.score);
       } catch (e) {
-        this.$emit('flash', { type: 'error', text: (e && e.message) || 'Could not update. Try again.' });
+        this.$emit('flash', 'error', (e && e.message) || 'Could not update. Try again.');
       } finally {
         this.busyIssue = '';
       }
@@ -218,7 +219,7 @@ export default {
         const res = await this.api.restoreAllOptimize();
         if (res && res.score) this.$emit('score-updated', res.score);
       } catch (e) {
-        this.$emit('flash', { type: 'error', text: (e && e.message) || 'Could not update. Try again.' });
+        this.$emit('flash', 'error', (e && e.message) || 'Could not update. Try again.');
       } finally {
         this.busyRestoreAll = false;
       }
@@ -318,17 +319,12 @@ export default {
         <!-- Refresh THIS report (recompute the checklist below). Kept beside the title
              and apart from the tool buttons so it reads as "update this card", not as
              another live check like "Verify live". -->
-        <button
-          type="button"
-          class="ar-readiness__refresh"
-          :class="{ 'is-busy': refreshing }"
-          :disabled="refreshing"
-          @click="$emit('refresh')"
+        <RefreshCrank
+          :busy="refreshing"
           :aria-label="refreshing ? 'Re-running the readiness checks…' : 'Re-run the readiness checks'"
           :title="refreshing ? 'Re-running…' : 'Re-run the readiness checks'"
-        >
-          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="23 4 23 10 17 10" /><polyline points="1 20 1 14 7 14" /><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" /></svg>
-        </button>
+          @refresh="$emit('refresh')"
+        />
       </div>
       <div class="ar-card__actions">
         <button type="button" class="ar-btn" @click="schemaOpen = true">
@@ -602,7 +598,7 @@ export default {
                     <span class="ar-live__dot" aria-hidden="true"></span>
                     <span class="ar-live__label">{{ r.label }}</span>
                     <span class="ar-live__detail">{{ r.detail }}</span>
-                    <span v-if="r.cache" class="ar-live__cachetag" :title="cacheTitle(r)">cached</span>
+                    <span v-if="r.cache" class="ar-live__cachetag" v-tip="cacheTitle(r)">cached</span>
                   </li>
                 </ul>
                 <div v-else class="ar-live__loading">
@@ -685,8 +681,8 @@ export default {
                     <!-- Public site: a loud red urgency cue. On a local site the amber dot +
                          "— downloadable" detail + the banner already say "would be exposed on
                          deploy", so no per-row chip there — it was pure repetition. -->
-                    <span v-if="r.state === 'exposed' && !r.empty && !isLocal" class="ar-live__cachetag" title="This file is publicly downloadable">exposed</span>
-                    <span v-else-if="r.state === 'exposed' && r.empty" class="ar-live__cachetag" title="Reachable but empty (0 bytes)">empty</span>
+                    <span v-if="r.state === 'exposed' && !r.empty && !isLocal" class="ar-live__cachetag" v-tip="`This file is publicly downloadable`">exposed</span>
+                    <span v-else-if="r.state === 'exposed' && r.empty" class="ar-live__cachetag" v-tip="`Reachable but empty (0 bytes)`">empty</span>
                   </li>
                 </ul>
                 <div v-else class="ar-live__loading">

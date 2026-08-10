@@ -35,7 +35,7 @@ export default {
     // a new owner edits a suggestion instead of staring at a blank field.
     suggest: { type: Object, default: () => ({}) },
   },
-  emits: ['finish', 'skip', 'done', 'navigate'],
+  emits: ['finish', 'skip', 'done', 'navigate', 'revisit'],
   data() {
     return {
       step: 1,

@@ -17,7 +17,8 @@
  *
  * Off state = one quiet pointer at Settings → Data sources. No form here.
  */
-import { formatDate } from '../wpDate.js';
+import { formatDate, relTimeShort } from '../wpDate.js';
+import RefreshCrank from './RefreshCrank.vue';
 
 // The problem buckets, in reading order (most-lost first) — keyed by the
 // SERVER's stateKey, whose per-state totals are counted before the row cap,
@@ -35,6 +36,7 @@ const GROUP_META = [
 
 export default {
   name: 'GoogleIndexPanel',
+  components: { RefreshCrank },
   props: {
     api: { type: Object, default: null },
     // Rendered with v-show, so it stays mounted across tab switches.
@@ -284,7 +286,6 @@ export default {
       this.error = '';
       try {
         this.view = await this.api.getGoogleIndex();
-        this.loaded = true;
         // Fetched group rows may predate this fresh view — re-read the open
         // ones, forget the rest.
         this.refreshGroups();
@@ -298,6 +299,9 @@ export default {
       } catch (e) {
         this.error = e && e.message ? e.message : 'Could not load the Google index status.';
       } finally {
+        // In finally, not the try: a failed FIRST load must still leave the
+        // skeleton for the error/off states, not hang on it forever.
+        this.loaded = true;
         this.loading = false;
       }
     },
@@ -563,14 +567,7 @@ export default {
       return t ? formatDate(new Date(t), true) : '';
     },
     agoMin(ts) {
-      const t = Number(ts || 0) * 1000;
-      if (!t) return '';
-      const m = Math.round((Date.now() - t) / 60000);
-      if (m < 1) return 'just now';
-      if (m < 60) return `${m}m ago`;
-      const h = Math.round(m / 60);
-      if (h < 24) return `${h}h ago`;
-      return `${Math.round(h / 24)}d ago`;
+      return relTimeShort(Number(ts || 0) * 1000);
     },
     goSettings() {
       this.$emit('navigate', { tab: 'settings', anchor: 'ar-sec-google' });
@@ -614,17 +611,12 @@ export default {
     <section v-else-if="connected" class="ar-card">
       <div class="ar-card__titlewrap">
         <h2 class="ar-card__title">In Google's Index <span class="ar-card__tag">Google · checked daily</span></h2>
-        <button
-          type="button"
-          class="ar-readiness__refresh"
-          :class="{ 'is-busy': loading }"
-          :disabled="loading"
+        <RefreshCrank
+          :busy="loading"
           :aria-label="loading ? 'Re-reading Google index data…' : 'Re-read Google index data'"
           :title="loading ? 'Re-reading…' : 'Re-read Google index data'"
-          @click="load"
-        >
-          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="23 4 23 10 17 10" /><polyline points="1 20 1 14 7 14" /><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" /></svg>
-        </button>
+          @refresh="load"
+        />
       </div>
       <p class="ar-card__lead">
         Whether Google's index holds this site's pages — not how they rank or earn

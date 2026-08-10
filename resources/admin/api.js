@@ -33,7 +33,6 @@ export function createApi(boot) {
 
   const request = (path, options = {}) => requestUrl(`${base}${path}`, options);
   return {
-    getSettings: () => request('/settings'),
     saveSettings: (settings) =>
       request('/settings', { method: 'POST', body: JSON.stringify({ settings }) }),
     resetSettings: () => request('/settings/reset', { method: 'POST' }),

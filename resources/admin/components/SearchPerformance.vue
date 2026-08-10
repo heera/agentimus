@@ -13,9 +13,11 @@
  * keys have exactly one home.
  */
 import { formatDate } from '../wpDate.js';
+import RefreshCrank from './RefreshCrank.vue';
 
 export default {
   name: 'SearchPerformance',
+  components: { RefreshCrank },
   props: {
     api: { type: Object, default: null },
     // Rendered with v-show, so it stays mounted across tab switches.
@@ -150,17 +152,12 @@ export default {
           <h2 class="ar-card__title">Search Performance</h2>
           <!-- The hand-crank half of the freshness rule (reveal already
                refetches): re-reads the stored report on demand. -->
-          <button
-            type="button"
-            class="ar-readiness__refresh"
-            :class="{ 'is-busy': loading }"
-            :disabled="loading"
+          <RefreshCrank
+            :busy="loading"
             :aria-label="loading ? 'Re-reading search performance…' : 'Re-read search performance'"
             :title="loading ? 'Re-reading…' : 'Re-read search performance'"
-            @click="load"
-          >
-            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="23 4 23 10 17 10" /><polyline points="1 20 1 14 7 14" /><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" /></svg>
-          </button>
+            @refresh="load"
+          />
         </div>
         <p class="ar-card__lead">
           How your pages did in search: what was searched for, how often you showed up,

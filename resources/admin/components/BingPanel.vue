@@ -14,13 +14,14 @@
  * Off state = one quiet pointer card at Settings → Data sources. No form
  * here: the key has exactly one home.
  */
-import { formatDate } from '../wpDate.js';
+import { formatDate, relTimeShort } from '../wpDate.js';
 import { uaTip } from '../uaTip.js';
 import SelectMenu from './SelectMenu.vue';
+import RefreshCrank from './RefreshCrank.vue';
 
 export default {
   name: 'BingPanel',
-  components: { SelectMenu },
+  components: { SelectMenu, RefreshCrank },
   // The trend bars use the house hover bubble — never a native title.
   mixins: [uaTip],
   props: {
@@ -177,11 +178,13 @@ export default {
       this.error = '';
       try {
         this.summary = await this.api.getBingSummary(30);
-        this.loaded = true;
         this.selectedDay = -1; // fresh data, stale selection.
       } catch (e) {
         this.error = e && e.message ? e.message : 'Could not load the Bing summary.';
       } finally {
+        // In finally, not the try: a failed FIRST load must still leave the
+        // skeleton for the error/off states, not hang on it forever.
+        this.loaded = true;
         this.loading = false;
       }
     },
@@ -241,14 +244,7 @@ export default {
       return `Bing's crawler knows this page — ${bits.join(', ')}.`;
     },
     agoMin(ts) {
-      const t = Number(ts || 0) * 1000;
-      if (!t) return '';
-      const m = Math.round((Date.now() - t) / 60000);
-      if (m < 1) return 'just now';
-      if (m < 60) return `${m}m ago`;
-      const h = Math.round(m / 60);
-      if (h < 24) return `${h}h ago`;
-      return `${Math.round(h / 24)}d ago`;
+      return relTimeShort(Number(ts || 0) * 1000);
     },
     goSettings() {
       this.$emit('navigate', { tab: 'settings', anchor: 'ar-sec-bing' });
@@ -304,17 +300,12 @@ export default {
       <section class="ar-card">
         <div class="ar-card__titlewrap">
           <h2 class="ar-card__title">In Bing's index <span class="ar-card__tag">last {{ summary.days }} days</span></h2>
-          <button
-            type="button"
-            class="ar-readiness__refresh"
-            :class="{ 'is-busy': loading }"
-            :disabled="loading"
+          <RefreshCrank
+            :busy="loading"
             :aria-label="loading ? 'Re-reading Bing index data…' : 'Re-read Bing index data'"
             :title="loading ? 'Re-reading…' : 'Re-read Bing index data'"
-            @click="load"
-          >
-            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="23 4 23 10 17 10" /><polyline points="1 20 1 14 7 14" /><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" /></svg>
-          </button>
+            @refresh="load"
+          />
         </div>
         <p class="ar-card__lead">
           How much of your site Bing's index holds, and how cleanly Bing's crawler gets in.
@@ -356,6 +347,10 @@ export default {
             <span class="ar-warn">Last poll failed: {{ summary.lastError }} — showing the last good numbers.</span>
           </template>
         </div>
+
+        <!-- A manual Refresh that fails must say so HERE, where the owner is
+             looking — the closing error slot below only renders disconnected. -->
+        <p v-if="error" class="ar-log__error" role="alert">{{ error }}</p>
 
         <div v-if="!trend.length" class="ar-wd-empty">
           No numbers from Bing yet. The first daily numbers usually appear within a day of

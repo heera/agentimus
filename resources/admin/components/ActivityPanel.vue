@@ -5,7 +5,7 @@ import SelectMenu from './SelectMenu.vue';
 
 import { uaTip } from '../uaTip.js';
 import { tipGuard } from '../tipGuard.js';
-import { formatDate, formatTime, formatStamp } from '../wpDate.js';
+import { formatDate, formatTime, formatStamp, relTimeShort } from '../wpDate.js';
 
 export default {
   name: 'ActivityPanel',
@@ -597,15 +597,7 @@ export default {
       return `${formatStamp(dt, true)} UTC`;
     },
     ago(iso) {
-      const then = new Date(iso).getTime();
-      if (!then) return '';
-      const s = Math.max(0, Math.round((Date.now() - then) / 1000));
-      if (s < 60) return 'just now';
-      const m = Math.round(s / 60);
-      if (m < 60) return `${m}m ago`;
-      const h = Math.round(m / 60);
-      if (h < 24) return `${h}h ago`;
-      return `${Math.round(h / 24)}d ago`;
+      return relTimeShort(new Date(iso).getTime());
     },
     // ---- Recent feed scroll cue ------------------------------------------------
     async confirmClear() {
@@ -681,7 +673,7 @@ export default {
           <div>
             <div class="ar-act-titlerow">
               <h2 class="ar-card__title">Endpoint Activity</h2>
-              <span v-if="live" class="ar-act-live" title="Auto-refresh is on — these stats update on their own. Refresh forces an update now.">
+              <span v-if="live" class="ar-act-live" v-tip="`Auto-refresh is on — these stats update on their own. Refresh forces an update now.`">
                 <span class="ar-act-live__dot" aria-hidden="true"></span>Auto-refresh
               </span>
             </div>
@@ -875,7 +867,7 @@ export default {
                     <code v-if="r.ua" class="ar-act-feed__ua is-copyable" :aria-label="r.ua" @mouseenter="showUaTip($event, r.ua)" @mouseleave="hideUaTip" @click.stop="copyUa(r.ua)">{{ r.ua }}</code>
                     <span v-else class="ar-act-feed__ua is-empty">no User-Agent</span>
                   </td>
-                  <td data-label="Hits" :class="{ 'is-empty-cell': r.count <= 1 }"><span class="ar-act-feed__count" :title="r.count > 1 ? `${r.count} hits` : null">{{ r.count > 1 ? '×' + r.count : '' }}</span></td>
+                  <td data-label="Hits" :class="{ 'is-empty-cell': r.count <= 1 }"><span class="ar-act-feed__count" v-tip="r.count > 1 ? `${r.count} hits` : null">{{ r.count > 1 ? '×' + r.count : '' }}</span></td>
                   <td class="ar-act-table__at" data-label="Seen"><svg class="ar-cardico" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5" /><path d="M12 7.5V12l3 2" /></svg>{{ ago(r.at) }}</td>
                 </tr>
               </tbody>
@@ -1016,7 +1008,7 @@ export default {
                       </span>
                       <code v-if="r.ua" class="ar-act-feed__ua is-copyable" :aria-label="r.ua" @mouseenter="showUaTip($event, r.ua)" @mouseleave="hideUaTip" @click.stop="copyUa(r.ua)">{{ r.ua }}</code>
                       <span v-else class="ar-act-feed__ua is-empty">no User-Agent</span>
-                      <span class="ar-act-log__at" :title="exactStamp(r.at)">{{ exactTime(r.at) }}</span>
+                      <span class="ar-act-log__at" v-tip="exactStamp(r.at)">{{ exactTime(r.at) }}</span>
                     </li>
                   </ul>
                   <p v-else class="ar-act-log__state">No requests recorded on this day.</p>
