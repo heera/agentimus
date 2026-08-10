@@ -61,6 +61,41 @@
      alike instead of stamping a rectangle of the wrong white on one of them. */
   --ar-hover: color-mix(in srgb, #8bc34a 22%, transparent);
 
+  /* Signal tints — the wash/tint/deep steps each signal family paints chips,
+     card washes and borders with. Values are the hand-picked originals; the
+     dark theme redefines the whole scale rather than each site. */
+  --ar-good-wash: #eef5f0;
+  --ar-good-tint: #bcdcc6;
+  --ar-good-bright: #5cc08a;
+  --ar-good-strong: #2f9e5e;
+  --ar-good-deep: #1d7a45;
+  --ar-warn-wash: #f7f1df;
+  --ar-warn-tint: #e6d5a8;
+  --ar-warn-bright: #f2b23a;
+  --ar-warn-mid: #e0b24c;
+  --ar-warn-deep: #96690f;
+  --ar-bad-wash: #f8ebe8;
+  --ar-bad-tint: #e6c1b9;
+  --ar-bad-mid: #e08a72;
+  --ar-bad-strong: #c0392b;
+  --ar-bad-deep: #8c2f22;
+  --ar-info-wash: #e9eff7;
+  --ar-info-tint: #c3d2e6;
+  --ar-info-strong: #3a6ea5;
+  --ar-info-deep: #2c5680;
+  /* Accents tuned for ink-coloured surfaces (the dark score card, code blocks).
+     In the dark theme those surfaces invert to cream, so these flip to the
+     deep on-light values. */
+  --ar-teal-on-ink: #57b6a6;
+  --ar-teal-on-ink-hover: #6fc7b8;
+  /* Accent washes (hover/selected fills behind accent-bordered controls). */
+  --ar-accent-wash: #f0f6f4;
+  --ar-accent-soft: #e3efec;
+  /* Text on a signal-coloured fill, and ink pushed past itself (the black a
+     hovered ink button deepens to). Both flip with the theme. */
+  --ar-on-signal: #fff;
+  --ar-ink-hard: #000;
+
   --ar-radius: 4px;
   /* Shared height for the nav bar and the page-head below it, so the two strips
      are always exactly the same height. Change here, both follow. */
@@ -174,7 +209,7 @@
   box-shadow:
     0 0 0 2px var(--ar-surface),
     0 0 0 3px var(--ar-accent),
-    0 1px 5px -1px rgba(27, 25, 19, 0.25);
+    0 1px 5px -1px color-mix(in srgb, var(--ar-ink) 25%, transparent);
 }
 /* Name + version stacked, both flush-left, within the 30px mark height. The
    wordmark sets the column width; the version line is justified (spread by
@@ -213,8 +248,8 @@
   stroke-linecap: round;
   stroke-linejoin: round;
 }
-.ar__sep-ring { stroke: rgba(173, 123, 24, 0.45); stroke-width: 1; }
-.ar__sep-node { fill: var(--ar-warn); filter: drop-shadow(0 0 2px rgba(173, 123, 24, 0.45)); }
+.ar__sep-ring { stroke: color-mix(in srgb, var(--ar-warn) 45%, transparent); stroke-width: 1; }
+.ar__sep-node { fill: var(--ar-warn); filter: drop-shadow(0 0 2px color-mix(in srgb, var(--ar-warn) 45%, transparent)); }
 
 /* Brand / nav break — invisible on wide screens; on narrow screens the media
    block below turns it into a full-width flex line break. */
@@ -334,7 +369,7 @@
   position: absolute; top: calc(100% + 8px); right: 0; z-index: 60;
   width: 340px; max-width: calc(100cqw - 32px);
   background: var(--ar-surface); border: 1px solid var(--ar-line-strong); border-radius: var(--ar-radius);
-  box-shadow: 0 14px 36px -12px rgba(27, 25, 19, 0.45);
+  box-shadow: 0 14px 36px -12px color-mix(in srgb, var(--ar-ink) 45%, transparent);
   padding: 14px 16px;
 }
 .ar__assist-guide__title { display: block; font-size: 13px; color: var(--ar-ink); }
@@ -352,14 +387,14 @@
 
 /* The drawer: right panel desktop, full sheet on phones (svh — the real viewport). */
 .ar-drawer { position: fixed; inset: 0; z-index: 100060; }
-.ar-drawer__scrim { position: absolute; inset: 0; background: rgba(27, 25, 19, 0.38); }
+.ar-drawer__scrim { position: absolute; inset: 0; background: color-mix(in srgb, var(--ar-ink) 38%, transparent); }
 .ar-drawer__panel {
   position: absolute; top: 0; right: 0; bottom: 0;
   width: 600px; max-width: 100vw;
   display: flex; flex-direction: column;
   background: var(--ar-surface);
   border-left: 1px solid var(--ar-line-strong);
-  box-shadow: -18px 0 48px -18px rgba(27, 25, 19, 0.5);
+  box-shadow: -18px 0 48px -18px color-mix(in srgb, var(--ar-ink) 50%, transparent);
   outline: none;
 }
 @media (max-width: 782px) {
@@ -529,7 +564,7 @@
   margin: 16px -20px 0; padding: 11px 20px 15px;
   background: var(--ar-surface);
   border-top: 1px solid var(--ar-line-strong);
-  box-shadow: 0 -12px 22px -16px rgba(27, 25, 19, 0.4);
+  box-shadow: 0 -12px 22px -16px color-mix(in srgb, var(--ar-ink) 40%, transparent);
 }
 .ar-assist__footrow { display: flex; align-items: center; gap: 13px; flex-wrap: wrap; }
 .ar-assist__footrow--commit { margin-top: 10px; }
@@ -686,7 +721,7 @@
 #agentimus-app .ar-inputgroup:focus-within,
 #agentimus-app .ar-inputgroup:has(.ar-select.is-open) {
   border-color: var(--ar-accent);
-  box-shadow: 0 0 0 3px rgba(20, 107, 100, 0.13);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--ar-accent) 13%, transparent);
 }
 
 /* Full width, so it lines up with the search row above it — a filter that stops
@@ -748,7 +783,7 @@
      sibling below it — never sticky-pinned over content, so nothing shows through. */
   max-height: 72vh; display: flex; flex-direction: column; overflow: hidden;
   background: var(--ar-surface); border: 1px solid var(--ar-line-strong); border-radius: var(--ar-radius);
-  box-shadow: 0 14px 36px -12px rgba(27, 25, 19, 0.45);
+  box-shadow: 0 14px 36px -12px color-mix(in srgb, var(--ar-ink) 45%, transparent);
 }
 /* Fixed header block — title/count/auto-refresh + filter tabs. Mirror of .ar-rev-foot;
    raised (z-index) so its downward shadow paints over the cards scrolling beneath. */
@@ -756,7 +791,7 @@
   flex: 0 0 auto; position: relative; z-index: 1;
   padding: 16px 18px 12px;
   background: var(--ar-surface); border-bottom: 1px solid var(--ar-line-strong);
-  box-shadow: 0 8px 14px -10px rgba(27, 25, 19, 0.28);
+  box-shadow: 0 8px 14px -10px color-mix(in srgb, var(--ar-ink) 28%, transparent);
 }
 .ar-rev-top .ar-rev-tabs { margin: 12px 0 0; }
 .ar-rev-scroll { flex: 1 1 auto; min-height: 0; overflow-y: auto; padding: 0 18px 16px; }
@@ -777,7 +812,7 @@
 }
 .ar__live:hover { border-color: var(--ar-ink-soft); color: var(--ar-ink); }
 .ar__live-dot { width: 6px; height: 6px; border-radius: 50%; border: 1.5px solid currentColor; background: transparent; }
-.ar__live.is-on { border-color: rgba(47, 122, 76, 0.45); color: var(--ar-good); background: rgba(47, 122, 76, 0.08); }
+.ar__live.is-on { border-color: color-mix(in srgb, var(--ar-good) 45%, transparent); color: var(--ar-good); background: color-mix(in srgb, var(--ar-good) 8%, transparent); }
 .ar__live.is-on .ar__live-dot { border-color: var(--ar-good); background: var(--ar-good); }
 
 /* ---- Page header (per-tab title + intro, below the nav bar) ------------- */
@@ -845,15 +880,15 @@
 .ar-rail-tier { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
 .ar-rail-tier__name {
   font-family: var(--ar-serif); font-size: 19px; font-weight: 600; line-height: 1.05;
-  color: rgba(243, 240, 231, 0.92);
+  color: color-mix(in srgb, var(--ar-paper) 92%, transparent);
 }
-.ar-rail-tier[data-state="top"] .ar-rail-tier__name { color: #5cc08a; }
-.ar-rail-tier[data-state="floor"] .ar-rail-tier__name { color: #e08a72; }
+.ar-rail-tier[data-state="top"] .ar-rail-tier__name { color: var(--ar-good-bright); }
+.ar-rail-tier[data-state="floor"] .ar-rail-tier__name { color: var(--ar-bad-mid); }
 /* Local site with search engines discouraged: a launch-day to-do, amber not red. */
-.ar-rail-tier[data-state="local"] .ar-rail-tier__name { color: #e0b24c; }
+.ar-rail-tier[data-state="local"] .ar-rail-tier__name { color: var(--ar-warn-mid); }
 .ar-rail-tier__sub {
   font-family: var(--ar-mono); font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase;
-  color: rgba(243, 240, 231, 0.45);
+  color: color-mix(in srgb, var(--ar-paper) 45%, transparent);
 }
 
 /* The three-rung strip under the gauge: name + tally, with a state dot. Each row
@@ -861,7 +896,7 @@
    underline, just a subtle brighten on hover (it stays a stat panel, not a menu). */
 .ar-rungs { list-style: none; margin: 12px 0 0; padding: 0; display: grid; gap: 6px; }
 .ar-rung {
-  font-family: var(--ar-mono); font-size: 12px; color: rgba(243, 240, 231, 0.4);
+  font-family: var(--ar-mono); font-size: 12px; color: color-mix(in srgb, var(--ar-paper) 40%, transparent);
 }
 .ar-rung__btn {
   display: flex; align-items: center; gap: 9px; width: 100%;
@@ -882,9 +917,9 @@
 /* A fixed right-aligned slot ("100%" wide), so the percentages hold a perfect
    column and the todo chips right-align against it without wobbling it. */
 .ar-rung__count { font-size: 11px; opacity: 0.85; flex: 0 0 auto; min-width: 4ch; text-align: right; }
-.ar-rung[data-state="done"] { color: #5cc08a; }
+.ar-rung[data-state="done"] { color: var(--ar-good-bright); }
 .ar-rung[data-state="done"] .ar-rung__tick { background: currentColor; }
-.ar-rung[data-state="current"] { color: #e0b24c; }
+.ar-rung[data-state="current"] { color: var(--ar-warn-mid); }
 .ar-rung[data-state="current"] .ar-rung__tick::after {
   content: ""; position: absolute; inset: 3px; border-radius: 50%; background: currentColor;
 }
@@ -900,7 +935,7 @@
 }
 /* A per-post content gap has no in-app page to jump to, so the next-step reads as a
    plain informational line (no arrow, no link) rather than a click that goes nowhere. */
-.ar-rail-next--info { margin: 11px 0 0; font-family: var(--ar-mono); font-size: 12px; color: rgba(243, 240, 231, 0.5); }
+.ar-rail-next--info { margin: 11px 0 0; font-family: var(--ar-mono); font-size: 12px; color: color-mix(in srgb, var(--ar-paper) 50%, transparent); }
 
 /* Dark variant of the Readiness rail card. Double class so it outranks the base
    .ar-rail-card background regardless of source order. Scheme-aware: on a
@@ -908,16 +943,16 @@
    on this card, the buttons and the editable chips — those dark surfaces take
    the scheme's flavour while the rest of the app keeps the designed palette. */
 .ar-rail-card.ar-rail-card--readiness { background: var(--ar-ink); border-color: var(--ar-ink); }
-.ar-rail-card--readiness .ar-rail-card__label { color: rgba(243, 240, 231, 0.5); }
-.ar-rail-card--readiness .ar-rail-gauge__track { stroke: rgba(243, 240, 231, 0.15); }
-.ar-rail-card--readiness .ar-rail-gauge__num { color: rgba(243, 240, 231, 0.62); }
-.ar-rail-card--readiness .ar-rail-allgood { color: #5cc08a; }
+.ar-rail-card--readiness .ar-rail-card__label { color: color-mix(in srgb, var(--ar-paper) 50%, transparent); }
+.ar-rail-card--readiness .ar-rail-gauge__track { stroke: color-mix(in srgb, var(--ar-paper) 15%, transparent); }
+.ar-rail-card--readiness .ar-rail-gauge__num { color: color-mix(in srgb, var(--ar-paper) 62%, transparent); }
+.ar-rail-card--readiness .ar-rail-allgood { color: var(--ar-good-bright); }
 /* Brightened gauge tones for contrast on the dark card. */
-.ar-rail-card--readiness .ar-rail-gauge__fill[data-tone="good"] { stroke: #5cc08a; }
-.ar-rail-card--readiness .ar-rail-gauge__fill[data-tone="ok"] { stroke: #e0b24c; }
-.ar-rail-card--readiness .ar-rail-gauge__fill[data-tone="low"] { stroke: #e08a72; }
-.ar-rail-card--readiness .ar-rail-link { color: #57b6a6; }
-.ar-rail-card--readiness .ar-rail-link:hover { color: #6fc7b8; }
+.ar-rail-card--readiness .ar-rail-gauge__fill[data-tone="good"] { stroke: var(--ar-good-bright); }
+.ar-rail-card--readiness .ar-rail-gauge__fill[data-tone="ok"] { stroke: var(--ar-warn-mid); }
+.ar-rail-card--readiness .ar-rail-gauge__fill[data-tone="low"] { stroke: var(--ar-bad-mid); }
+.ar-rail-card--readiness .ar-rail-link { color: var(--ar-teal-on-ink); }
+.ar-rail-card--readiness .ar-rail-link:hover { color: var(--ar-teal-on-ink-hover); }
 
 /* ---- Toast (teleported to <body>, so no UI shift & viewport-fixed) ------- */
 /* Self-contained: it lives outside #agentimus-app, so it can't rely on the CSS
@@ -936,27 +971,27 @@
   align-items: stretch;
   min-width: 268px;
   max-width: 400px;
-  background: #fffefb;
+  background: var(--ar-surface);
   border-radius: 8px;
   overflow: hidden;
-  box-shadow: 0 14px 36px -10px rgba(27, 25, 19, 0.42), 0 0 0 1px rgba(27, 25, 19, 0.06);
+  box-shadow: 0 14px 36px -10px color-mix(in srgb, var(--ar-ink) 42%, transparent), 0 0 0 1px color-mix(in srgb, var(--ar-ink) 6%, transparent);
   font-family: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
 }
-.ar-toast__bar { flex: 0 0 4px; background: #9a937f; }
+.ar-toast__bar { flex: 0 0 4px; background: var(--ar-ink-faint); }
 .ar-toast__body { display: flex; flex-direction: column; gap: 3px; padding: 11px 15px; min-width: 0; }
 .ar-toast__title {
-  font-size: 11px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: #1b1913;
+  font-size: 11px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ar-ink);
 }
-.ar-toast__msg { font-size: 13px; line-height: 1.4; color: #4a463d; }
+.ar-toast__msg { font-size: 13px; line-height: 1.4; color: color-mix(in srgb, var(--ar-ink) 78%, var(--ar-paper)); }
 
-.ar-toast.is-success .ar-toast__bar { background: #2f9e5e; }
-.ar-toast.is-success .ar-toast__title { color: #1d7a45; }
-.ar-toast.is-error .ar-toast__bar { background: #c0392b; }
-.ar-toast.is-error .ar-toast__title { color: #a3271a; }
-.ar-toast.is-warning .ar-toast__bar { background: #d99a1c; }
-.ar-toast.is-warning .ar-toast__title { color: #936713; }
-.ar-toast.is-info .ar-toast__bar { background: #3a6ea5; }
-.ar-toast.is-info .ar-toast__title { color: #2c5680; }
+.ar-toast.is-success .ar-toast__bar { background: var(--ar-good-strong); }
+.ar-toast.is-success .ar-toast__title { color: var(--ar-good-deep); }
+.ar-toast.is-error .ar-toast__bar { background: var(--ar-bad-strong); }
+.ar-toast.is-error .ar-toast__title { color: var(--ar-bad-deep); }
+.ar-toast.is-warning .ar-toast__bar { background: var(--ar-warn-mid); }
+.ar-toast.is-warning .ar-toast__title { color: var(--ar-warn-deep); }
+.ar-toast.is-info .ar-toast__bar { background: var(--ar-info-strong); }
+.ar-toast.is-info .ar-toast__title { color: var(--ar-info-deep); }
 
 /* Slide in from the right (right-to-left), out to the right. The leaving toast is
    taken out of flow so the survivors slide up smoothly via the move transition. */
@@ -1075,7 +1110,7 @@
 .ar-rail-valid__check {
   display: inline-flex; align-items: center; justify-content: center;
   width: 22px; height: 22px; flex: 0 0 auto; border-radius: 50%;
-  background: rgba(47, 122, 76, 0.12); color: var(--ar-good);
+  background: color-mix(in srgb, var(--ar-good) 12%, transparent); color: var(--ar-good);
 }
 .ar-rail-valid__text { font-size: 12.5px; color: var(--ar-ink); }
 /* Arrow sits at the right edge and is the click affordance (no underline-on-hover,
@@ -1107,8 +1142,8 @@
 .ar-rail-foot__link:focus-visible {
   color: var(--ar-ink); text-decoration: underline;
 }
-.ar-rail-card--validation.is-warn { border-color: rgba(173, 123, 24, 0.45); }
-.ar-rail-card--validation.is-bad { border-color: rgba(185, 60, 43, 0.45); }
+.ar-rail-card--validation.is-warn { border-color: color-mix(in srgb, var(--ar-warn) 45%, transparent); }
+.ar-rail-card--validation.is-bad { border-color: color-mix(in srgb, var(--ar-bad) 45%, transparent); }
 .ar-rail-valid__alert { padding: 0; font-size: 12.5px; line-height: 1.45; text-align: left; }
 .ar-rail-card--validation.is-warn .ar-rail-valid__alert { color: var(--ar-warn); }
 .ar-rail-card--validation.is-bad .ar-rail-valid__alert { color: var(--ar-bad); }
@@ -1277,7 +1312,7 @@
 /* The review ask — What's-New family: one row of words, one row of answers. */
 .ar-reviewask { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 14px 24px; }
 .ar-reviewask__body { display: flex; align-items: flex-start; gap: 12px; flex: 1 1 380px; }
-.ar-reviewask__stars { color: #e0a32e; font-size: 15px; letter-spacing: 2px; line-height: 1.7; white-space: nowrap; }
+.ar-reviewask__stars { color: var(--ar-warn-mid); font-size: 15px; letter-spacing: 2px; line-height: 1.7; white-space: nowrap; }
 .ar-reviewask__title { margin: 0 0 4px; font-family: var(--ar-serif); font-size: 17px; font-weight: 600; color: var(--ar-ink); }
 .ar-reviewask__text { margin: 0; font-size: 12.5px; line-height: 1.55; color: var(--ar-ink-soft); max-width: 640px; }
 .ar-reviewask__actions { display: flex; align-items: center; gap: 16px; }
@@ -1331,7 +1366,7 @@
 .ar-card__note {
   margin: 14px 0 0; padding: 9px 12px; max-width: 88ch;
   border-left: 2px solid var(--ar-line-strong); border-radius: 0 var(--ar-radius) var(--ar-radius) 0;
-  background: #faf8f2; color: var(--ar-ink-faint); font-size: 12px; line-height: 1.5;
+  background: var(--ar-surface-2); color: var(--ar-ink-faint); font-size: 12px; line-height: 1.5;
 }
 .ar-card__note strong { color: var(--ar-ink-soft); font-weight: 600; }
 .ar-card__note code { font-size: 11px; }
@@ -1460,7 +1495,7 @@
    still happening", and it isn't while the master is off. Presentation only: the saved
    value is untouched and shows again the moment the master turns back on. */
 [inert] .ar-toggle input:checked + .ar-toggle__track,
-.ar-toggle[inert] input:checked + .ar-toggle__track { background: #d8d2c2; }
+.ar-toggle[inert] input:checked + .ar-toggle__track { background: var(--ar-line-strong); }
 [inert] .ar-toggle input:checked + .ar-toggle__track::after,
 .ar-toggle[inert] input:checked + .ar-toggle__track::after { transform: none; }
 #agentimus-app .ar-webmcp-tools,
@@ -1626,8 +1661,8 @@
   letter-spacing: 0.1em; text-transform: uppercase; padding: 2px 6px;
   border-radius: 3px; margin: 0 0 6px;
 }
-.ar-edge-pin--warn .ar-edge-pin__badge { color: var(--ar-warn); border: 1px solid #e6d5a8; background: #f7f1df; }
-.ar-edge-pin--info .ar-edge-pin__badge { color: var(--ar-info); border: 1px solid #c3d2e6; background: #e9eff7; }
+.ar-edge-pin--warn .ar-edge-pin__badge { color: var(--ar-warn); border: 1px solid var(--ar-warn-tint); background: var(--ar-warn-wash); }
+.ar-edge-pin--info .ar-edge-pin__badge { color: var(--ar-info); border: 1px solid var(--ar-info-tint); background: var(--ar-info-wash); }
 .ar-edge-pin__title { margin: 0 0 4px; font-size: 14px; font-weight: 600; color: var(--ar-ink); }
 .ar-edge-pin__body { margin: 0 0 6px; font-size: 13px; line-height: 1.55; color: var(--ar-ink-soft); }
 .ar-edge-pin__actions { display: flex; flex-wrap: wrap; gap: 6px 18px; align-items: baseline; }
@@ -2013,8 +2048,8 @@ td.ar-edge__n.is-bad { color: var(--ar-bad); font-weight: 600; }
   text-transform: uppercase; padding: 3px 9px; border-radius: 3px;
   min-width: 52px; text-align: center; flex: none;
 }
-.ar-edge__tag--pass { color: var(--ar-good); border: 1px solid #bcdcc6; background: #eef5f0; }
-.ar-edge__tag--warn { color: var(--ar-warn); border: 1px solid #e6d5a8; background: #f7f1df; }
+.ar-edge__tag--pass { color: var(--ar-good); border: 1px solid var(--ar-good-tint); background: var(--ar-good-wash); }
+.ar-edge__tag--warn { color: var(--ar-warn); border: 1px solid var(--ar-warn-tint); background: var(--ar-warn-wash); }
 .ar-edge__who { color: var(--ar-ink); }
 .ar-edge__what { color: var(--ar-ink-soft); font-size: 12.5px; }
 
@@ -2482,11 +2517,11 @@ a.ar-opp__title:hover { text-decoration: underline; }
 .ar-mcp-key__whybtn {
   display: inline-flex; align-items: center; justify-content: center;
   width: 16px; height: 16px; padding: 0; border-radius: 50%;
-  border: 1px solid rgba(173, 123, 24, 0.55);
+  border: 1px solid color-mix(in srgb, var(--ar-warn) 55%, transparent);
   background: transparent; color: var(--ar-warn);
   font-size: 10.5px; font-weight: 700; line-height: 1; cursor: pointer;
 }
-.ar-mcp-key__whybtn:hover { background: rgba(173, 123, 24, 0.14); }
+.ar-mcp-key__whybtn:hover { background: color-mix(in srgb, var(--ar-warn) 14%, transparent); }
 .ar-mcp-key__whybtn:focus-visible { outline: 2px solid var(--ar-accent); outline-offset: 1px; }
 /* Informational variant — teal, for standing facts rather than warnings. */
 .ar-mcp-key__whybtn--info {
@@ -2537,7 +2572,7 @@ a.ar-opp__title:hover { text-decoration: underline; }
 .ar-toggle input { position: absolute; opacity: 0; width: 0; height: 0; }
 .ar-toggle__track {
   position: relative; flex: 0 0 auto; width: 40px; height: 22px; margin-top: 1px;
-  background: #d8d2c2; border-radius: 999px; transition: background 0.18s;
+  background: var(--ar-line-strong); border-radius: 999px; transition: background 0.18s;
   pointer-events: auto; cursor: pointer; /* the one part of the row that flips it. */
 }
 .ar-toggle__track::after {
@@ -2583,7 +2618,7 @@ a.ar-opp__title:hover { text-decoration: underline; }
 .ar-ipcheck__input:focus-visible { outline: 2px solid var(--ar-accent); outline-offset: 0; border-color: var(--ar-accent); }
 .ar-ipcheck__btn {
   appearance: none; cursor: pointer; white-space: nowrap; font-family: var(--ar-sans); font-size: 12.5px; font-weight: 600;
-  color: #fff; background: var(--ar-accent); padding: 7px 15px; border-radius: 7px; border: 1px solid var(--ar-accent);
+  color: var(--ar-on-signal); background: var(--ar-accent); padding: 7px 15px; border-radius: 7px; border: 1px solid var(--ar-accent);
   transition: opacity 0.12s ease;
 }
 .ar-ipcheck__btn:hover:not(:disabled) { opacity: 0.9; }
@@ -2602,8 +2637,8 @@ a.ar-opp__title:hover { text-decoration: underline; }
 .ar-dbgcard.is-pass { font-size: 12.5px; color: var(--ar-good); }
 .ar-dbgcard.is-warn,
 .ar-dbgcard.is-fail { padding: 12px 14px; border-radius: 8px; font-size: 13px; line-height: 1.55; color: var(--ar-ink); }
-.ar-dbgcard.is-warn { background: rgba(173, 123, 24, 0.08); border: 1px solid rgba(173, 123, 24, 0.35); }
-.ar-dbgcard.is-fail { background: rgba(180, 40, 40, 0.07); border: 1px solid rgba(180, 40, 40, 0.35); }
+.ar-dbgcard.is-warn { background: color-mix(in srgb, var(--ar-warn) 8%, transparent); border: 1px solid color-mix(in srgb, var(--ar-warn) 35%, transparent); }
+.ar-dbgcard.is-fail { background: color-mix(in srgb, var(--ar-bad) 7%, transparent); border: 1px solid color-mix(in srgb, var(--ar-bad) 35%, transparent); }
 .ar-dbgcard__title { display: block; margin-bottom: 5px; }
 .ar-dbgcard.is-warn .ar-dbgcard__title { color: var(--ar-warn); }
 .ar-dbgcard.is-fail .ar-dbgcard__title { color: var(--ar-bad); }
@@ -2636,8 +2671,8 @@ a.ar-opp__title:hover { text-decoration: underline; }
   font-family: var(--ar-mono); font-size: 9.5px; letter-spacing: 0.08em; text-transform: uppercase;
   padding: 3px 9px; border-radius: 999px; border: 1px solid;
 }
-.ar-signal-state.is-allow { color: var(--ar-good); border-color: #bcdcc6; background: #eef5f0; }
-.ar-signal-state.is-block { color: var(--ar-bad); border-color: #e6c1b9; background: #f8ebe8; }
+.ar-signal-state.is-allow { color: var(--ar-good); border-color: var(--ar-good-tint); background: var(--ar-good-wash); }
+.ar-signal-state.is-block { color: var(--ar-bad); border-color: var(--ar-bad-tint); background: var(--ar-bad-wash); }
 
 /* Crawler hard-block editor body (shown when training is Allowed, or on Customize). */
 .ar-enforce-body { margin-top: 10px; margin-left: 22px; }
@@ -2681,7 +2716,7 @@ a.ar-opp__title:hover { text-decoration: underline; }
 .ar-input {
   width: 100%; padding: 9px 11px; font-size: 14px; font-family: var(--ar-sans);
   border: 1px solid var(--ar-line-strong); border-radius: var(--ar-radius);
-  background: #fffefb; color: var(--ar-ink);
+  background: var(--ar-surface); color: var(--ar-ink);
   transition: border-color 0.15s, box-shadow 0.15s;
 }
 .ar-input:focus {
@@ -2725,7 +2760,7 @@ select.ar-input {
   border: 1px solid var(--ar-line-strong);
   border-radius: var(--ar-radius);
   background: var(--ar-paper);
-  box-shadow: 0 1px 3px rgba(27, 25, 19, 0.06);
+  box-shadow: 0 1px 3px color-mix(in srgb, var(--ar-ink) 6%, transparent);
 }
 .ar-svc:first-of-type { margin-top: 6px; }
 .ar-svc__row { display: flex; flex-wrap: wrap; gap: 8px; padding-right: 24px; }
@@ -2752,7 +2787,7 @@ select.ar-input {
   cursor: pointer;
   transition: background 0.15s, color 0.15s;
 }
-.ar-svc__x:hover { background: rgba(27, 25, 19, 0.08); color: var(--ar-ink); }
+.ar-svc__x:hover { background: color-mix(in srgb, var(--ar-ink) 8%, transparent); color: var(--ar-ink); }
 /* Plain text button, right-aligned. */
 .ar-svc__add {
   display: block;
@@ -2861,21 +2896,21 @@ select.ar-input {
 
 /* Identity "compose then save" block — free text grouped as its own unit with a
    footer Save. The chip fields below it (expertise, profile URLs) autosave. */
-.ar-id-block { border: 1px solid var(--ar-line); border-radius: var(--ar-radius); background: #fffefb; padding: 16px 16px 0; margin: 2px 0 16px; }
+.ar-id-block { border: 1px solid var(--ar-line); border-radius: var(--ar-radius); background: var(--ar-surface); padding: 16px 16px 0; margin: 2px 0 16px; }
 .ar-id-block > .ar-field:last-of-type { margin-bottom: 0; }
 .ar-id-foot { display: flex; align-items: center; gap: 14px; border-top: 1px solid var(--ar-line); margin: 14px -16px 0; padding: 12px 16px; }
 .ar-id-foot__status { font-family: var(--ar-mono); font-size: 11px; color: var(--ar-ink-faint); margin-right: auto; }
 .ar-id-foot__status.is-dirty { color: var(--ar-accent); }
-.ar-id-foot__status.is-saved { color: #2f9e5e; }
+.ar-id-foot__status.is-saved { color: var(--ar-good-strong); }
 
 .ar-type {
   position: relative;
   display: flex; align-items: center; gap: 11px;
   padding: 10px 26px 10px 14px; border: 1px solid var(--ar-line); border-radius: var(--ar-radius);
-  background: #fffefb; cursor: pointer; transition: border-color 0.15s, background 0.15s;
+  background: var(--ar-surface); cursor: pointer; transition: border-color 0.15s, background 0.15s;
 }
 .ar-type:hover { border-color: var(--ar-line-strong); }
-.ar-type.is-on { border-color: var(--ar-accent); background: #f0f6f4; }
+.ar-type.is-on { border-color: var(--ar-accent); background: var(--ar-accent-wash); }
 .ar-type input { position: absolute; opacity: 0; width: 0; height: 0; }
 
 /* No visible checkbox — the whole card is the control. Selected reads as the
@@ -2938,7 +2973,7 @@ select.ar-input {
 }
 .ar-tags__x {
   appearance: none; border: 0; background: none; cursor: pointer;
-  color: rgba(243, 240, 231, 0.6); font-size: 15px; line-height: 1; padding: 0;
+  color: color-mix(in srgb, var(--ar-paper) 60%, transparent); font-size: 15px; line-height: 1; padding: 0;
 }
 .ar-tags__x:hover { color: var(--ar-paper); }
 
@@ -2960,7 +2995,7 @@ select.ar-input {
   background: var(--ar-ink); color: var(--ar-paper); border: 1px solid var(--ar-ink);
   transition: transform 0.12s, background 0.15s, box-shadow 0.15s;
 }
-.ar-btn:hover:not(:disabled) { background: #000; box-shadow: 0 6px 18px -8px rgba(27, 25, 19, 0.7); }
+.ar-btn:hover:not(:disabled) { background: var(--ar-ink-hard); box-shadow: 0 6px 18px -8px color-mix(in srgb, var(--ar-ink) 70%, transparent); }
 .ar-btn:active:not(:disabled) { transform: translateY(1px); }
 /* A label that swaps to a longer busy form ("Refresh" → "Refreshing…") reserves
    the longer form's width up front via an invisible twin (data-reserve), so the
@@ -2982,7 +3017,7 @@ a.ar-btn--ghost, a.ar-btn--ghost:link, a.ar-btn--ghost:visited, a.ar-btn--ghost:
 }
 a.ar-btn:focus-visible { outline: 2px solid var(--ar-accent); outline-offset: 2px; box-shadow: none; }
 .ar-btn--danger { background: transparent; color: var(--ar-bad); border-color: var(--ar-bad); }
-.ar-btn--danger:hover:not(:disabled) { background: var(--ar-bad); color: var(--ar-paper); box-shadow: 0 6px 18px -8px rgba(185, 60, 43, 0.6); }
+.ar-btn--danger:hover:not(:disabled) { background: var(--ar-bad); color: var(--ar-paper); box-shadow: 0 6px 18px -8px color-mix(in srgb, var(--ar-bad) 60%, transparent); }
 
 /* ---- Reset to defaults -------------------------------------------------- */
 .ar-card--reset { border-color: var(--ar-line); }
@@ -3015,7 +3050,7 @@ html { scrollbar-gutter: stable; }
      anyway, the overlay itself scrolls (with margin:auto on the panel keeping both
      edges reachable) instead of clipping the Close button away. Inert otherwise. */
   overflow-y: auto;
-  background: rgba(27, 25, 19, 0.42);
+  background: color-mix(in srgb, var(--ar-ink) 42%, transparent);
   -webkit-backdrop-filter: blur(3px); backdrop-filter: blur(3px);
 }
 .ar-modal__panel {
@@ -3032,7 +3067,7 @@ html { scrollbar-gutter: stable; }
   max-height: min(calc(100svh - 40px), 600px);
   background: var(--ar-surface); border: 1px solid var(--ar-line-strong);
   border-radius: 10px;
-  box-shadow: 0 24px 60px -20px rgba(27, 25, 19, 0.5);
+  box-shadow: 0 24px 60px -20px color-mix(in srgb, var(--ar-ink) 50%, transparent);
 }
 .ar-modal__panel:focus { outline: none; }
 /* Header + footer stay put; only the preview body scrolls, so the actions are
@@ -3048,7 +3083,7 @@ html { scrollbar-gutter: stable; }
   position: absolute; left: 0; right: 0; bottom: 0; height: 52px;
   display: flex; align-items: flex-end; justify-content: center; padding-bottom: 6px;
   pointer-events: none; opacity: 0; transition: opacity 0.18s ease;
-  background: linear-gradient(to bottom, rgba(255, 253, 247, 0), var(--ar-surface) 80%);
+  background: linear-gradient(to bottom, color-mix(in srgb, var(--ar-surface) 0%, transparent), var(--ar-surface) 80%);
 }
 .ar-modal__fade.is-visible { opacity: 1; }
 /* The chevron is a real button: click to nudge the scroll body down (it also
@@ -3084,8 +3119,8 @@ html { scrollbar-gutter: stable; }
   font-family: var(--ar-mono); font-size: 10.5px; letter-spacing: 0.06em;
   padding: 2px 8px; border-radius: 3px; border: 1px solid;
 }
-.ar-preview__state.is-on { color: var(--ar-good); border-color: #bcdcc6; background: #eef5f0; }
-.ar-preview__state.is-off { color: var(--ar-ink-soft); border-color: var(--ar-line-strong); background: #f4f1e8; }
+.ar-preview__state.is-on { color: var(--ar-good); border-color: var(--ar-good-tint); background: var(--ar-good-wash); }
+.ar-preview__state.is-off { color: var(--ar-ink-soft); border-color: var(--ar-line-strong); background: var(--ar-paper); }
 .ar-preview__muted { color: var(--ar-ink-soft); font-size: 12.5px; }
 
 .ar-modal__actions {
@@ -3182,7 +3217,7 @@ html { scrollbar-gutter: stable; }
 
 /* Done / first-run celebration */
 .ar-wiz__done { position: relative; text-align: center; padding: 10px 0 4px; }
-.ar-wiz__done-check { width: 66px; height: 66px; border-radius: 50%; background: var(--ar-good); color: #fff; display: flex; align-items: center; justify-content: center; margin: 4px auto 18px; animation: ar-pop 360ms cubic-bezier(0.2, 0.8, 0.2, 1.5) both; }
+.ar-wiz__done-check { width: 66px; height: 66px; border-radius: 50%; background: var(--ar-good); color: var(--ar-on-signal); display: flex; align-items: center; justify-content: center; margin: 4px auto 18px; animation: ar-pop 360ms cubic-bezier(0.2, 0.8, 0.2, 1.5) both; }
 .ar-wiz__done-title { font-family: var(--ar-serif); font-size: 23px; font-weight: 600; margin: 0 0 9px; }
 .ar-wiz__done-lead { color: var(--ar-ink-soft); font-size: 14px; line-height: 1.6; max-width: 44ch; margin: 0 auto; }
 /* "Now explore" — jump-off cards to the capabilities added since first-run setup. */
@@ -3324,7 +3359,7 @@ html { scrollbar-gutter: stable; }
   border: 1px solid var(--ar-line); border-radius: 6px; background: var(--ar-surface);
   padding: 13px 15px; transition: border-color 0.15s, background 0.15s; font-family: var(--ar-sans);
 }
-.ar-ask:hover { border-color: var(--ar-accent); background: #f0f6f4; }
+.ar-ask:hover { border-color: var(--ar-accent); background: var(--ar-accent-wash); }
 .ar-ask:focus-visible { outline: 2px solid var(--ar-accent); outline-offset: 2px; }
 .ar-ask__mark {
   flex: 0 0 auto; width: 30px; height: 30px; border-radius: 50%;
@@ -3340,8 +3375,8 @@ html { scrollbar-gutter: stable; }
 .ar-watch { display: flex; flex-direction: column; align-items: center; gap: 14px; padding: 8px 0; text-align: center; }
 .ar-watch__pulse { width: 14px; height: 14px; border-radius: 50%; background: var(--ar-accent); animation: ar-watch-pulse 1.4s ease-in-out infinite; }
 @keyframes ar-watch-pulse {
-  0%, 100% { box-shadow: 0 0 0 0 rgba(20, 107, 100, 0.35); }
-  50% { box-shadow: 0 0 0 12px rgba(20, 107, 100, 0); }
+  0%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--ar-accent) 35%, transparent); }
+  50% { box-shadow: 0 0 0 12px color-mix(in srgb, var(--ar-accent) 0%, transparent); }
 }
 @media (prefers-reduced-motion: reduce) { .ar-watch__pulse { animation: none; } }
 .ar-watch__title { font-family: var(--ar-serif); font-size: 19px; font-weight: 600; margin: 0; }
@@ -3352,7 +3387,7 @@ html { scrollbar-gutter: stable; }
 .ar-logline {
   display: flex; align-items: center; flex-wrap: wrap; gap: 10px; text-align: left;
   margin: 18px 0 0; padding: 13px 16px;
-  border: 1px solid #bcdcc6; border-radius: 6px; background: #eef5f0;
+  border: 1px solid var(--ar-good-tint); border-radius: 6px; background: var(--ar-good-wash);
 }
 .ar-logline__dot { width: 8px; height: 8px; border-radius: 50%; background: var(--ar-good); flex: 0 0 auto; }
 .ar-logline__name { font-weight: 700; font-size: 14px; }
@@ -3404,9 +3439,9 @@ html { scrollbar-gutter: stable; }
   content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 1px;
   background: var(--ar-line-strong);
 }
-.ar-checkgroup.is-pass .ar-checkgroup__head::after { background: rgba(47, 122, 76, 0.55); }
-.ar-checkgroup.is-warn .ar-checkgroup__head::after { background: rgba(173, 123, 24, 0.5); }
-.ar-checkgroup.is-fail .ar-checkgroup__head::after { background: rgba(185, 60, 43, 0.5); }
+.ar-checkgroup.is-pass .ar-checkgroup__head::after { background: color-mix(in srgb, var(--ar-good) 55%, transparent); }
+.ar-checkgroup.is-warn .ar-checkgroup__head::after { background: color-mix(in srgb, var(--ar-warn) 50%, transparent); }
+.ar-checkgroup.is-fail .ar-checkgroup__head::after { background: color-mix(in srgb, var(--ar-bad) 50%, transparent); }
 .ar-checkgroup__rung {
   flex: 0 0 auto; width: 9px; height: 9px; border-radius: 50%;
   background: var(--ar-line-strong);
@@ -3476,9 +3511,9 @@ html { scrollbar-gutter: stable; }
   font-family: var(--ar-mono); font-size: 10.5px; letter-spacing: 0.1em;
   padding: 4px 10px; border-radius: 3px; border: 1px solid;
 }
-.ar-check__tag.is-pass { color: var(--ar-good); border-color: #bcdcc6; background: #eef5f0; }
-.ar-check__tag.is-warn { color: var(--ar-warn); border-color: #e6d5a8; background: #f7f1df; }
-.ar-check__tag.is-fail { color: var(--ar-bad); border-color: #e6c1b9; background: #f8ebe8; }
+.ar-check__tag.is-pass { color: var(--ar-good); border-color: var(--ar-good-tint); background: var(--ar-good-wash); }
+.ar-check__tag.is-warn { color: var(--ar-warn); border-color: var(--ar-warn-tint); background: var(--ar-warn-wash); }
+.ar-check__tag.is-fail { color: var(--ar-bad); border-color: var(--ar-bad-tint); background: var(--ar-bad-wash); }
 /* span 3 = the max possible rows (text / fix / action) — "1 / -1" can't reach
    IMPLICIT grid rows, so it left the bar one row tall. Unused spanned rows are
    zero-height and invisible. */
@@ -3553,36 +3588,36 @@ html { scrollbar-gutter: stable; }
    bypassed WordPress — the activity log under-counts and discovery can go stale. */
 .ar-live-cache {
   margin: 0 0 14px; padding: 12px 14px;
-  background: rgba(173, 123, 24, 0.08);
-  border: 1px solid rgba(173, 123, 24, 0.35); border-radius: 8px;
+  background: color-mix(in srgb, var(--ar-warn) 8%, transparent);
+  border: 1px solid color-mix(in srgb, var(--ar-warn) 35%, transparent); border-radius: 8px;
   font-size: 12.5px; line-height: 1.55; color: var(--ar-ink);
 }
 .ar-live-cache__title { display: block; margin-bottom: 5px; color: var(--ar-warn); font-size: 13px; }
 .ar-live-cache p { margin: 0; }
 .ar-live-cache__fix { margin-top: 7px !important; }
-.ar-live-cache code { font-family: var(--ar-mono); font-size: 11.5px; background: rgba(173, 123, 24, 0.12); padding: 1px 5px; border-radius: 4px; }
+.ar-live-cache code { font-family: var(--ar-mono); font-size: 11.5px; background: color-mix(in srgb, var(--ar-warn) 12%, transparent); padding: 1px 5px; border-radius: 4px; }
 .ar-live-cache a { color: var(--ar-warn); font-weight: 600; }
 /* Per-row "cached" marker + amber dot when a cache served that endpoint. */
 .ar-live__cachetag {
   flex: 0 0 auto; font-family: var(--ar-mono); font-size: 10px; letter-spacing: 0.04em; text-transform: uppercase;
-  color: var(--ar-warn); background: rgba(173, 123, 24, 0.12); padding: 1px 6px; border-radius: 999px; cursor: help;
+  color: var(--ar-warn); background: color-mix(in srgb, var(--ar-warn) 12%, transparent); padding: 1px 6px; border-radius: 999px; cursor: help;
 }
 .ar-live__row.is-cached .ar-live__dot { background: var(--ar-warn); }
 /* Exposed-files scan: green all-clear box, red "exposed" dot/tag, muted skipped row. */
 .ar-live-allclear {
   margin: 0 0 14px; padding: 12px 14px;
-  background: rgba(74, 124, 89, 0.09);
-  border: 1px solid rgba(74, 124, 89, 0.35); border-radius: 8px;
+  background: color-mix(in srgb, var(--ar-good) 9%, transparent);
+  border: 1px solid color-mix(in srgb, var(--ar-good) 35%, transparent); border-radius: 8px;
   font-size: 12.5px; line-height: 1.55; color: var(--ar-ink);
 }
 .ar-live-allclear strong { color: var(--ar-good); }
 .ar-live__row.is-skip { opacity: 0.55; }
-.ar-live__row.is-bad .ar-live__cachetag { color: var(--ar-bad); background: rgba(180, 40, 40, 0.12); }
+.ar-live__row.is-bad .ar-live__cachetag { color: var(--ar-bad); background: color-mix(in srgb, var(--ar-bad) 12%, transparent); }
 .ar-live__row.is-warn .ar-live__dot { background: var(--ar-warn); }
 .ar-live__row.is-warn .ar-live__detail { color: var(--ar-warn); }
 /* Red variant of the alert box for a leaking (non-empty) exposed file; empty ones reuse
    the base amber .ar-live-cache. */
-.ar-live-cache--bad { background: rgba(180, 40, 40, 0.07); border-color: rgba(180, 40, 40, 0.35); }
+.ar-live-cache--bad { background: color-mix(in srgb, var(--ar-bad) 7%, transparent); border-color: color-mix(in srgb, var(--ar-bad) 35%, transparent); }
 .ar-live-cache__title--bad { color: var(--ar-bad); }
 .ar-live-cache--bad a { color: var(--ar-bad); }
 .ar-live__foot { margin: 12px 0 0; font-size: 11.5px; line-height: 1.5; color: var(--ar-ink-faint); }
@@ -3618,11 +3653,11 @@ html { scrollbar-gutter: stable; }
 .ar-wd-canonical {
   display: flex; align-items: center; gap: 12px;
   margin: 4px 0 16px; padding: 13px 15px;
-  background: #faf8f1; border: 1px solid var(--ar-line-strong); border-radius: var(--ar-radius);
+  background: var(--ar-surface-2); border: 1px solid var(--ar-line-strong); border-radius: var(--ar-radius);
 }
 .ar-wd-canonical__method {
   font-family: var(--ar-mono); font-size: 10px; font-weight: 600; letter-spacing: 0.12em;
-  color: #fff; background: var(--ar-accent); padding: 3px 7px; border-radius: 3px;
+  color: var(--ar-on-signal); background: var(--ar-accent); padding: 3px 7px; border-radius: 3px;
 }
 .ar-wd-canonical__path { flex: 1; min-width: 0; font-family: var(--ar-mono); font-size: 13.5px; color: var(--ar-ink); overflow-wrap: anywhere; }
 .ar-wd-canonical__ext {
@@ -3762,8 +3797,8 @@ button.ar-wd-stat:focus-visible { outline: 2px solid var(--ar-accent); outline-o
   font-family: var(--ar-mono); font-size: 11px;
   padding: 1px 8px; border-radius: 999px; border: 1px solid var(--ar-line-strong);
 }
-.ar-wd-engine.is-on { color: var(--ar-good); border-color: #bcdcc6; background: #eef5f0; }
-.ar-wd-engine.is-off { color: var(--ar-bad); border-color: #e6c1b9; background: #f8ebe8; }
+.ar-wd-engine.is-on { color: var(--ar-good); border-color: var(--ar-good-tint); background: var(--ar-good-wash); }
+.ar-wd-engine.is-off { color: var(--ar-bad); border-color: var(--ar-bad-tint); background: var(--ar-bad-wash); }
 
 /* Provider rows */
 .ar-wd-list { margin: 14px 0 0; padding: 0; list-style: none; display: grid; gap: 0; border-top: 1px solid var(--ar-line); }
@@ -3776,7 +3811,7 @@ button.ar-wd-stat:focus-visible { outline: 2px solid var(--ar-accent); outline-o
   font-family: var(--ar-mono); font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase;
   color: var(--ar-accent); border: 1px solid color-mix(in srgb, var(--ar-accent) 28%, var(--ar-surface)); background: color-mix(in srgb, var(--ar-accent) 7%, var(--ar-surface)); padding: 2px 7px; border-radius: 3px;
 }
-.ar-wd-type--agent { color: var(--ar-warn); border-color: #e6d5a8; background: #f7f1df; }
+.ar-wd-type--agent { color: var(--ar-warn); border-color: var(--ar-warn-tint); background: var(--ar-warn-wash); }
 .ar-wd-ver { font-family: var(--ar-mono); font-size: 11px; color: var(--ar-ink-faint); }
 .ar-wd-prov__desc { margin: 7px 0 0; font-size: 13px; color: var(--ar-ink-soft); }
 .ar-wd-prov__provider { margin: 6px 0 0; }
@@ -3796,8 +3831,8 @@ button.ar-wd-stat:focus-visible { outline: 2px solid var(--ar-accent); outline-o
 }
 .ar-wd-eps code { font-size: 12px; color: var(--ar-ink); }
 .ar-wd-auth { font-family: var(--ar-mono); font-size: 10px; letter-spacing: 0.06em; padding: 2px 7px; border-radius: 3px; border: 1px solid; }
-.ar-wd-auth.is-open { color: var(--ar-good); border-color: #bcdcc6; background: #eef5f0; }
-.ar-wd-auth.is-locked { color: var(--ar-warn); border-color: #e6d5a8; background: #f7f1df; }
+.ar-wd-auth.is-open { color: var(--ar-good); border-color: var(--ar-good-tint); background: var(--ar-good-wash); }
+.ar-wd-auth.is-locked { color: var(--ar-warn); border-color: var(--ar-warn-tint); background: var(--ar-warn-wash); }
 
 @container (max-width: 760px) { .ar-wd-mcp { grid-template-columns: repeat(2, 1fr) !important; } }
 
@@ -3847,7 +3882,7 @@ button.ar-wd-stat:focus-visible { outline: 2px solid var(--ar-accent); outline-o
   flex: 0 0 auto; font-family: var(--ar-mono); font-size: 9px; letter-spacing: 0.08em;
   padding: 2px 7px; border-radius: 3px; border: 1px solid var(--ar-line-strong); color: var(--ar-ink-faint);
 }
-.ar-wd-src.is-file { color: var(--ar-good); border-color: #bcdcc6; background: #eef5f0; }
+.ar-wd-src.is-file { color: var(--ar-good); border-color: var(--ar-good-tint); background: var(--ar-good-wash); }
 .ar-wd-src.is-managed { color: var(--ar-accent); border-color: color-mix(in srgb, var(--ar-accent) 28%, var(--ar-surface)); background: color-mix(in srgb, var(--ar-accent) 7%, var(--ar-surface)); }
 
 .ar-wd-notices { margin: 14px 0 0; padding: 0; list-style: none; display: grid; gap: 9px; }
@@ -3856,8 +3891,8 @@ button.ar-wd-stat:focus-visible { outline: 2px solid var(--ar-accent); outline-o
   flex: 0 0 auto; font-family: var(--ar-mono); font-size: 9px; letter-spacing: 0.08em;
   padding: 2px 6px; border-radius: 3px; border: 1px solid;
 }
-.ar-wd-notice.is-error .ar-wd-notice__tag { color: var(--ar-bad); border-color: #e6c1b9; background: #f8ebe8; }
-.ar-wd-notice.is-warning .ar-wd-notice__tag { color: var(--ar-warn); border-color: #e6d5a8; background: #f7f1df; }
+.ar-wd-notice.is-error .ar-wd-notice__tag { color: var(--ar-bad); border-color: var(--ar-bad-tint); background: var(--ar-bad-wash); }
+.ar-wd-notice.is-warning .ar-wd-notice__tag { color: var(--ar-warn); border-color: var(--ar-warn-tint); background: var(--ar-warn-wash); }
 
 /* ---- Dashboard ---------------------------------------------------------- */
 .ar-act { display: grid; gap: 22px; min-width: 0; }
@@ -3884,7 +3919,7 @@ button.ar-wd-stat:focus-visible { outline: 2px solid var(--ar-accent); outline-o
 .ar-dash-tile__body { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
 /* "6 PROVIDERS" — the number leads and the label rides its baseline. */
 .ar-dash-tile__row { display: inline-flex; align-items: baseline; gap: 7px; }
-.ar-dash-tile:hover { border-color: var(--ar-line-strong); box-shadow: 0 5px 16px -9px rgba(27, 25, 19, 0.4); }
+.ar-dash-tile:hover { border-color: var(--ar-line-strong); box-shadow: 0 5px 16px -9px color-mix(in srgb, var(--ar-ink) 40%, transparent); }
 .ar-dash-tile:active { transform: translateY(1px); }
 .ar-dash-tile:focus-visible { outline: 2px solid var(--ar-accent); outline-offset: 2px; }
 .ar-dash-tile__k { font-family: var(--ar-mono); font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--ar-ink-faint); }
@@ -3964,7 +3999,7 @@ button.ar-wd-stat:focus-visible { outline: 2px solid var(--ar-accent); outline-o
   z-index: 6; pointer-events: none;
   display: grid; gap: 1px; width: max-content; max-width: 240px; padding: 8px 11px;
   background: var(--ar-ink); color: var(--ar-surface);
-  border-radius: 7px; box-shadow: 0 10px 24px -10px rgba(27, 25, 19, 0.55);
+  border-radius: 7px; box-shadow: 0 10px 24px -10px color-mix(in srgb, var(--ar-ink) 55%, transparent);
   font-size: 12px; line-height: 1.45;
 }
 .ar-act-tip__date { font-family: var(--ar-mono); font-size: 10.5px; letter-spacing: 0.04em; opacity: 0.72; white-space: nowrap; }
@@ -3994,7 +4029,7 @@ button.ar-wd-stat:focus-visible { outline: 2px solid var(--ar-accent); outline-o
      ink bubble over an ink card would otherwise have no visible edge. On light
      tables it reads as part of the shadow. */
   border-radius: 7px;
-  box-shadow: 0 0 0 1px rgba(255, 253, 247, 0.22), 0 10px 24px -10px rgba(27, 25, 19, 0.55);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--ar-surface) 22%, transparent), 0 10px 24px -10px color-mix(in srgb, var(--ar-ink) 55%, transparent);
   font-family: var(--ar-mono); font-size: 11.5px; line-height: 1.5;
   white-space: normal; word-break: break-word;
   transform: translateY(-100%); /* anchored ABOVE: the box's bottom sits at top:y */
@@ -4037,7 +4072,7 @@ button.ar-wd-stat:focus-visible { outline: 2px solid var(--ar-accent); outline-o
   /* The rail cards' own surface — the bubble reads as one of them, floating;
      the amber lives in the ring and the hint line, not the fill. */
   background: var(--ar-surface); color: var(--ar-ink);
-  box-shadow: 0 0 0 1px #e6d5a8, 0 10px 24px -10px rgba(27, 25, 19, 0.45);
+  box-shadow: 0 0 0 1px var(--ar-warn-tint), 0 10px 24px -10px color-mix(in srgb, var(--ar-ink) 45%, transparent);
   /* border-box so the card-width cap means the box's FULL width — with the
      default content-box, max-width excluded the padding and the clamp overshot. */
   box-sizing: border-box;
@@ -4058,11 +4093,11 @@ button.ar-wd-stat:focus-visible { outline: 2px solid var(--ar-accent); outline-o
 .ar-rung__todo {
   font-style: normal; font-family: var(--ar-mono);
   font-size: 10px; letter-spacing: 0.05em;
-  color: rgba(243, 240, 231, 0.55); white-space: nowrap;
+  color: color-mix(in srgb, var(--ar-paper) 55%, transparent); white-space: nowrap;
 }
 /* The User-Agent cell copies its full value on click (it's shown truncated). */
 .ar-act-feed__ua.is-copyable { cursor: pointer; transition: background-color 0.12s ease; }
-.ar-act-feed__ua.is-copyable:hover { background: #e6e4dd; }
+.ar-act-feed__ua.is-copyable:hover { background: color-mix(in srgb, var(--ar-ink) 10%, var(--ar-surface)); }
 
 /* The modal lists every hit individually (ungrouped), each with its exact time.
    Reuses the feed cell styles (agent/endpoint/UA) in its own 4-column grid; the
@@ -4445,7 +4480,7 @@ button.ar-act-more:hover { color: var(--ar-ink); }
 /* The loading / error line inside an opened day, before its rows arrive. */
 .ar-aivis--muted { color: var(--ar-ink-faint); font-size: 12px; gap: 10px; }
 .ar-aivis__path.is-copyable { cursor: pointer; transition: background-color 0.12s ease; }
-.ar-aivis__path.is-copyable:hover { background: #e6e4dd; }
+.ar-aivis__path.is-copyable:hover { background: color-mix(in srgb, var(--ar-ink) 10%, var(--ar-surface)); }
 .ar-aivis__n { margin-left: auto; flex: 0 0 auto; font-family: var(--ar-mono); font-size: 12px; color: var(--ar-ink-soft); }
 
 /* Recent feed */
@@ -4467,7 +4502,7 @@ button.ar-act-more:hover { color: var(--ar-ink); }
   position: absolute; left: 0; right: 0; bottom: 0; height: 44px;
   display: flex; align-items: flex-end; justify-content: center; padding-bottom: 4px;
   pointer-events: none; opacity: 0; transition: opacity 0.18s ease;
-  background: linear-gradient(to bottom, rgba(255, 253, 247, 0), var(--ar-surface) 82%);
+  background: linear-gradient(to bottom, color-mix(in srgb, var(--ar-surface) 0%, transparent), var(--ar-surface) 82%);
 }
 .ar-act-feedfade.is-visible { opacity: 1; }
 /* The chevron is a real button: click it to nudge the feed down (the list also
@@ -4600,7 +4635,7 @@ button.ar-act-more:hover { color: var(--ar-ink); }
 }
 .ar-rev-tab:hover { color: var(--ar-ink); }
 .ar-rev-tab:focus-visible { outline: 2px solid var(--ar-accent); outline-offset: 1px; }
-.ar-rev-tab.is-active { background: var(--ar-surface); color: var(--ar-ink); font-weight: 600; box-shadow: 0 1px 2px rgba(27, 25, 19, 0.09); }
+.ar-rev-tab.is-active { background: var(--ar-surface); color: var(--ar-ink); font-weight: 600; box-shadow: 0 1px 2px color-mix(in srgb, var(--ar-ink) 9%, transparent); }
 .ar-rev-tab__n { font-size: 11px; color: var(--ar-ink-faint); font-variant-numeric: tabular-nums; }
 .ar-rev-tab.is-active .ar-rev-tab__n { color: var(--ar-ink-soft); }
 .ar-rev-tab.is-attention .ar-rev-tab__n { color: var(--ar-bad); }
@@ -4608,7 +4643,7 @@ button.ar-act-more:hover { color: var(--ar-ink); }
 
 .ar-rev-banner {
   margin: 12px 0 0; padding: 8px 11px; border-radius: 8px;
-  background: #faf3e4; font-size: 11.5px; line-height: 1.5; color: var(--ar-ink-soft);
+  background: var(--ar-warn-wash); font-size: 11.5px; line-height: 1.5; color: var(--ar-ink-soft);
 }
 
 /* Items — an inbox, not a wall of cards: soft border + a severity accent on the left. */
@@ -4617,7 +4652,7 @@ button.ar-act-more:hover { color: var(--ar-ink); }
   border: 1px solid var(--ar-line); border-left: 3px solid var(--ar-line-strong);
   border-radius: 10px; background: var(--ar-surface); padding: 12px 13px;
 }
-.ar-rev-item.is-danger { border-left-color: var(--ar-bad); border-color: #eccdc6; background: #fdf6f4; }
+.ar-rev-item.is-danger { border-left-color: var(--ar-bad); border-color: var(--ar-bad-tint); background: color-mix(in srgb, var(--ar-bad) 4%, var(--ar-surface)); }
 .ar-rev-item.is-warn { border-left-color: var(--ar-warn); }
 .ar-rev-item.is-ok { border-left-color: var(--ar-good); }
 .ar-rev-item.is-calm { border-left-color: var(--ar-line-strong); }
@@ -4627,9 +4662,9 @@ button.ar-act-more:hover { color: var(--ar-ink); }
   flex: 0 0 auto; width: 34px; height: 34px; border-radius: 9px; display: grid; place-items: center;
   background: var(--ar-surface-2); color: var(--ar-ink-soft); border: 1px solid var(--ar-line);
 }
-.ar-rev-avatar.is-danger { background: #f8e5e0; color: var(--ar-bad); border-color: #eccdc6; }
-.ar-rev-avatar.is-warn { background: #f6eeda; color: var(--ar-warn); border-color: #e6d6b0; }
-.ar-rev-avatar.is-ok { background: #e7f2ea; color: var(--ar-good); border-color: #c4ddca; }
+.ar-rev-avatar.is-danger { background: var(--ar-bad-wash); color: var(--ar-bad); border-color: var(--ar-bad-tint); }
+.ar-rev-avatar.is-warn { background: var(--ar-warn-wash); color: var(--ar-warn); border-color: var(--ar-warn-tint); }
+.ar-rev-avatar.is-ok { background: var(--ar-good-wash); color: var(--ar-good); border-color: var(--ar-good-tint); }
 .ar-rev-body { min-width: 0; flex: 1; display: flex; flex-direction: column; gap: 5px; }
 
 .ar-rev-nameline { display: flex; align-items: center; gap: 7px; flex-wrap: wrap; }
@@ -4640,7 +4675,7 @@ button.ar-act-more:hover { color: var(--ar-ink); }
   color: var(--ar-ink-soft); background: var(--ar-surface-2); border: 1px solid var(--ar-line);
 }
 .ar-rev-tag.is-new { color: var(--ar-accent); background: color-mix(in srgb, var(--ar-accent) 7%, var(--ar-surface)); border-color: color-mix(in srgb, var(--ar-accent) 28%, var(--ar-surface)); }
-.ar-rev-tag.is-heavy { color: var(--ar-warn); background: #f7efdd; border-color: #e6d6ad; }
+.ar-rev-tag.is-heavy { color: var(--ar-warn); background: var(--ar-warn-wash); border-color: var(--ar-warn-tint); }
 
 /* The hero: verification / identity state. */
 .ar-rev-state { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; font-size: 12.5px; font-weight: 600; color: var(--ar-ink-soft); }
@@ -4657,7 +4692,7 @@ button.ar-act-more:hover { color: var(--ar-ink); }
 
 .ar-rev-rec { margin-top: 2px; padding: 7px 10px; border-radius: 7px; font-size: 12px; line-height: 1.45; color: var(--ar-ink-soft); }
 .ar-rev-rec strong { font-weight: 600; }
-.ar-rev-rec.is-danger { background: #f8e9e5; color: #8c2f22; }
+.ar-rev-rec.is-danger { background: var(--ar-bad-wash); color: var(--ar-bad-deep); }
 .ar-rev-rec.is-danger strong { color: var(--ar-bad); }
 
 /* Actions — real decisions as buttons, utilities as quiet links. */
@@ -4676,10 +4711,10 @@ button.ar-act-more:hover { color: var(--ar-ink); }
 }
 .ar-rev-btn:focus-visible { outline: 2px solid var(--ar-accent); outline-offset: 2px; }
 .ar-rev-btn:disabled { opacity: 0.5; cursor: default; }
-.ar-rev-btn--allow { color: var(--ar-good); border-color: #bcdcc6; }
-.ar-rev-btn--allow:hover:not(:disabled) { background: #edf5ef; }
-.ar-rev-btn--block { color: var(--ar-bad); border-color: #e6c1b9; }
-.ar-rev-btn--block:hover:not(:disabled) { background: #f9ece9; }
+.ar-rev-btn--allow { color: var(--ar-good); border-color: var(--ar-good-tint); }
+.ar-rev-btn--allow:hover:not(:disabled) { background: var(--ar-good-wash); }
+.ar-rev-btn--block { color: var(--ar-bad); border-color: var(--ar-bad-tint); }
+.ar-rev-btn--block:hover:not(:disabled) { background: var(--ar-bad-wash); }
 .ar-rev-link {
   appearance: none; cursor: pointer; border: 0; background: none; padding: 0 5px;
   font-family: var(--ar-sans); font-size: 12px; font-weight: 500; color: var(--ar-ink-soft);
@@ -4727,7 +4762,7 @@ button.ar-act-more:hover { color: var(--ar-ink); }
   padding: 2px 7px; border-radius: 5px; border: 1px solid var(--ar-line-strong); background: var(--ar-surface-2);
   transition: background 0.12s ease, border-color 0.12s ease;
 }
-.ar-rev-ip:hover { background: #f1e7d7; border-color: var(--ar-ink-faint); }
+.ar-rev-ip:hover { background: var(--ar-paper); border-color: var(--ar-ink-faint); }
 .ar-rev-ip:focus-visible { outline: 2px solid var(--ar-accent); outline-offset: 1px; }
 /* Admin "Re-check" controls (Details) — a quiet inset block, not a primary action. */
 .ar-rev-recheck { display: flex; flex-direction: column; gap: 7px; padding: 9px 10px; border-radius: 7px; background: var(--ar-surface-2); border: 1px solid var(--ar-line); }
@@ -4773,7 +4808,7 @@ button.ar-act-more:hover { color: var(--ar-ink); }
   background: var(--ar-surface); border-top: 1px solid var(--ar-line-strong);
   /* Lift it off the rows scrolling past above — the border alone gets lost against
      a card edge stopping right at it. */
-  box-shadow: 0 -8px 14px -10px rgba(27, 25, 19, 0.28);
+  box-shadow: 0 -8px 14px -10px color-mix(in srgb, var(--ar-ink) 28%, transparent);
   display: flex; flex-direction: column; gap: 4px; align-items: flex-end;
 }
 .ar-rev-foot__note {
@@ -4875,7 +4910,7 @@ button.ar-act-more:hover { color: var(--ar-ink); }
   padding: 3px 8px; border-radius: 999px; border: 1px solid var(--ar-line-strong); color: var(--ar-ink-faint);
   white-space: nowrap;
 }
-.ar-about-tag.is-on { color: var(--ar-good); border-color: #bcdcc6; background: #eef5f0; }
+.ar-about-tag.is-on { color: var(--ar-good); border-color: var(--ar-good-tint); background: var(--ar-good-wash); }
 
 /* Privacy & data */
 .ar-about-priv__grid { display: grid; gap: 14px; margin-top: 4px; }
@@ -4888,11 +4923,11 @@ button.ar-act-more:hover { color: var(--ar-ink); }
   display: flex; gap: 14px; align-items: flex-start; background: var(--ar-ink); border-color: var(--ar-ink);
 }
 .ar-about-priv__cell--head h3 { color: var(--ar-paper); }
-.ar-about-priv__cell--head p { color: rgba(243, 240, 231, 0.72); }
-.ar-about-priv__cell--head .ar-linkbtn { color: #57b6a6; }
+.ar-about-priv__cell--head p { color: color-mix(in srgb, var(--ar-paper) 72%, transparent); }
+.ar-about-priv__cell--head .ar-linkbtn { color: var(--ar-teal-on-ink); }
 .ar-about-priv__icon {
   flex: 0 0 auto; display: inline-flex; align-items: center; justify-content: center;
-  width: 34px; height: 34px; border-radius: 50%; color: #5cc08a; background: rgba(92, 192, 138, 0.14);
+  width: 34px; height: 34px; border-radius: 50%; color: var(--ar-good-bright); background: color-mix(in srgb, var(--ar-good-bright) 14%, transparent);
 }
 .ar-about-not { margin: 10px 0 0; padding: 0; list-style: none; display: grid; gap: 5px; }
 .ar-about-not li { position: relative; padding-left: 20px; font-size: 12px; color: var(--ar-ink-soft); }
@@ -4922,7 +4957,7 @@ a.ar-about-proto__v:hover { text-decoration: underline; }
 .ar-about-proto__dev p { margin: 0 0 12px; font-size: 12.5px; line-height: 1.6; color: var(--ar-ink-soft); max-width: 80ch; }
 .ar-about-snippet {
   margin: 0; padding: 14px 16px; overflow-x: auto; border-radius: var(--ar-radius);
-  background: var(--ar-ink); color: #e9e4d6; font-family: var(--ar-mono); font-size: 12px; line-height: 1.55;
+  background: var(--ar-ink); color: color-mix(in srgb, var(--ar-paper) 95%, var(--ar-ink)); font-family: var(--ar-mono); font-size: 12px; line-height: 1.55;
 }
 .ar-about-snippet code { color: inherit; background: none; padding: 0; border: 0; }
 
@@ -4954,7 +4989,7 @@ a.ar-about-proto__v:hover { text-decoration: underline; }
    misfire. Lives on core's #wpfooter (rendered by PHP), loaded alongside this stylesheet
    on our screen. */
 #wpfooter .agentimus-footer-sep {
-  color: #9a9ea4;
+  color: var(--ar-ink-faint);
   text-shadow: 0 1px 0 rgba(255, 255, 255, 0.55), 0 -1px 0 rgba(0, 0, 0, 0.28);
   margin: 0 5px;
 }
@@ -5403,7 +5438,7 @@ a.ar-about-proto__v:hover { text-decoration: underline; }
   border: 1px solid var(--ar-line-strong);
   /* One step up from --ar-radius (4px): a lifted sheet is softer than a flush card. */
   border-radius: 7px;
-  box-shadow: 0 1px 2px rgba(27, 25, 19, 0.05), 0 18px 36px -20px rgba(27, 25, 19, 0.5);
+  box-shadow: 0 1px 2px color-mix(in srgb, var(--ar-ink) 5%, transparent), 0 18px 36px -20px color-mix(in srgb, var(--ar-ink) 50%, transparent);
   animation: ar-more-in 0.13s cubic-bezier(0.22, 1, 0.36, 1);
   transform-origin: top left;
 }
@@ -5709,7 +5744,7 @@ a.ar-about-proto__v:hover { text-decoration: underline; }
   margin: 4px 0 0; padding: 10px 14px;
   border-left: 2px solid var(--ar-line-strong);
   border-radius: 0 var(--ar-radius) var(--ar-radius) 0;
-  background: #faf8f2;
+  background: var(--ar-surface-2);
   font-size: 12px; line-height: 1.6; color: var(--ar-ink-faint);
 }
 .ar-aa__limits strong { color: var(--ar-ink-soft); }
@@ -5982,11 +6017,11 @@ a.ar-about-proto__v:hover { text-decoration: underline; }
 .ar-work__name:hover, .ar-work__name:focus-visible { color: var(--ar-accent); text-decoration: underline; text-underline-offset: 2px; }
 .ar-work__flags { display: flex; gap: 5px; flex-wrap: wrap; margin-top: 2px; }
 .ar-work__flag {
-  font-size: 10.5px; border: 1px solid #e0d3ae; background: #fbf5e6; color: #96690f;
+  font-size: 10.5px; border: 1px solid var(--ar-warn-tint); background: var(--ar-warn-wash); color: var(--ar-warn-deep);
   border-radius: 3px; padding: 1px 7px;
 }
 .ar-work__flag.is-more { border-style: dashed; }
-.ar-work__flag.is-clear { border-color: #cfe3d5; background: #eef6f0; color: var(--ar-good); }
+.ar-work__flag.is-clear { border-color: var(--ar-good-tint); background: var(--ar-good-wash); color: var(--ar-good); }
 
 .ar-work__for { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
 /* The search this row is judged against, with a label saying whose it is.
@@ -6258,9 +6293,9 @@ a.ar-about-proto__v:hover { text-decoration: underline; }
    for browsers without color-mix; the mix refines it where supported.
    --------------------------------------------------------------------------- */
 :root {
-  --ar-line-control: #aabdae;        /* accent 28% into --ar-line */
-  --ar-line-control-strong: #82a396; /* accent 48%, for hover */
-  --ar-line-control-soft: #bccbba;   /* accent 18%, for a resting bell */
+  --ar-line-control: color-mix(in srgb, var(--ar-accent) 28%, var(--ar-line));        /* accent 28% into --ar-line */
+  --ar-line-control-strong: color-mix(in srgb, var(--ar-accent) 48%, var(--ar-line)); /* accent 48%, for hover */
+  --ar-line-control-soft: color-mix(in srgb, var(--ar-accent) 18%, var(--ar-line));   /* accent 18%, for a resting bell */
 }
 @supports (color: color-mix(in srgb, red, blue)) {
   :root {
@@ -6341,9 +6376,9 @@ a.ar-about-proto__v:hover { text-decoration: underline; }
    uses for a recessed surface. Hex first for browsers without color-mix; the
    mix refines it where supported, and keeps it tied to the paper it sits on
    rather than being a second, unrelated cream. */
-.ar-aud { --ar-amber: #fefcf3; }
+.ar-aud { --ar-amber: color-mix(in srgb, var(--ar-warn) 3%, var(--ar-surface)); }
 @supports (color: color-mix(in srgb, red, blue)) {
-  .ar-aud { --ar-amber: color-mix(in srgb, #f2b23a 3%, var(--ar-surface)); }
+  .ar-aud { --ar-amber: color-mix(in srgb, var(--ar-warn-bright) 3%, var(--ar-surface)); }
 }
 .ar-aud__half {
   min-width: 0; padding: 16px 18px 14px;
@@ -6399,7 +6434,7 @@ a.ar-about-proto__v:hover { text-decoration: underline; }
 .ar-aud__go:hover,
 .ar-aud__go:focus-visible {
   background: none;
-  color: color-mix(in srgb, var(--ar-accent) 82%, #000);
+  color: color-mix(in srgb, var(--ar-accent) 82%, var(--ar-ink-hard));
   text-decoration: underline;
   text-underline-offset: 3px;
 }
@@ -6414,20 +6449,20 @@ a.ar-about-proto__v:hover { text-decoration: underline; }
    which spent a whole line of height saying "worth knowing" — it belongs
    beside them, as the label it is. */
 .ar-aud__note {
-  --ar-note: #fdf6e0;
+  --ar-note: color-mix(in srgb, var(--ar-warn) 6%, var(--ar-surface));
   margin-top: 14px; padding: 8px 13px;
   background: var(--ar-note);
-  border: 1px solid color-mix(in srgb, #e0b34a 34%, var(--ar-line));
+  border: 1px solid color-mix(in srgb, var(--ar-warn-mid) 34%, var(--ar-line));
   border-radius: var(--ar-radius);
   display: flex; align-items: center; gap: 8px 22px; flex-wrap: wrap;
 }
 @supports (color: color-mix(in srgb, red, blue)) {
-  .ar-aud__note { --ar-note: color-mix(in srgb, #f2b23a 13%, var(--ar-surface)); }
+  .ar-aud__note { --ar-note: color-mix(in srgb, var(--ar-warn-bright) 13%, var(--ar-surface)); }
 }
 .ar-aud__note-t {
   margin: 0; flex: 0 0 auto; display: flex; align-items: center; gap: 7px;
   font-family: var(--ar-mono); font-size: 10px;
-  letter-spacing: 0.12em; text-transform: uppercase; color: #8a6d2f;
+  letter-spacing: 0.12em; text-transform: uppercase; color: var(--ar-warn-deep);
 }
 /* The horn in the accent, on white, inside the amber. An amber mark on an
    amber ground is a mark nobody sees — and this is the one element in the
@@ -6746,8 +6781,8 @@ a.ar-about-proto__v:hover { text-decoration: underline; }
    screen is just no longer sure it is current. */
 .ar-work__stale {
   margin: 0; padding: 10px 26px;
-  background: color-mix(in srgb, #f2b23a 13%, var(--ar-surface));
-  border-bottom: 1px solid color-mix(in srgb, #e0b34a 30%, var(--ar-line));
+  background: color-mix(in srgb, var(--ar-warn-bright) 13%, var(--ar-surface));
+  border-bottom: 1px solid color-mix(in srgb, var(--ar-warn-mid) 30%, var(--ar-line));
   font-size: 12.5px; color: var(--ar-ink-soft);
   display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap;
 }
