@@ -2941,31 +2941,38 @@ select.ar-input {
   box-shadow: 0 1px 3px color-mix(in srgb, var(--ar-shade) 6%, transparent);
 }
 .ar-svc:first-of-type { margin-top: 6px; }
-.ar-svc__row { display: flex; flex-wrap: wrap; gap: 8px; padding-right: 24px; }
+.ar-svc__row { display: flex; flex-wrap: wrap; gap: 8px; }
 .ar-svc__name { flex: 3 1 180px; min-width: 0; }
 .ar-svc__url { flex: 1 1 150px; min-width: 0; }
 /* Compact the fields so a service reads in one glance. */
 .ar-svc .ar-input { padding: 6px 9px; font-size: 13px; }
+/* The remove control rides the tray's corner as a small round badge — the
+   bell-bubble grammar — instead of sitting inside the row, so the fields get
+   the full width. Quiet until hovered; hover says what it deletes. */
 .ar-svc__x {
   position: absolute;
-  top: 5px;
-  right: 6px;
-  width: 22px;
-  height: 22px;
+  top: -8px;
+  right: -8px;
+  z-index: 1;
+  width: 20px;
+  height: 20px;
   display: flex;
   align-items: center;
   justify-content: center;
   padding: 0;
-  font-size: 18px;
+  font-size: 14px;
   line-height: 1;
   color: var(--ar-ink-soft);
-  background: transparent;
-  border: 0;
-  border-radius: 4px;
+  background: var(--ar-surface-2);
+  border: 1px solid var(--ar-line-strong);
+  border-radius: 999px;
+  /* A surface ring so the badge reads as sitting ABOVE the tray corner it
+     straddles, not as a bite out of the edge. */
+  box-shadow: 0 0 0 2px var(--ar-surface);
   cursor: pointer;
-  transition: background 0.15s, color 0.15s;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
 }
-.ar-svc__x:hover { background: color-mix(in srgb, var(--ar-ink) 8%, transparent); color: var(--ar-ink); }
+.ar-svc__x:hover { background: var(--ar-bad); border-color: var(--ar-bad); color: var(--ar-on-signal); }
 /* Plain text button, right-aligned. */
 .ar-svc__add {
   display: block;
