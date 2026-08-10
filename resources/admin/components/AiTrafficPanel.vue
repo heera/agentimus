@@ -569,7 +569,7 @@ export default {
          rather than hanging off the bottom of the four totals above it. -->
     <section v-if="gaOn && allPages.length" class="ar-card ar-rd">
       <h2 class="ar-card__title">
-        Most-read pages
+        Busiest pages
         <span class="ar-card__tag">last {{ audience.window }} days</span>
       </h2>
       <p class="ar-card__lead">Your whole site, busiest first — everyone, not only AI.</p>
