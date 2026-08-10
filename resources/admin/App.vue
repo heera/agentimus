@@ -3,6 +3,7 @@ import { createApi } from './api.js';
 import { navIcon } from './groupIcons.js';
 import { uaTip } from './uaTip.js';
 import { tipGuard } from './tipGuard.js';
+import { themeSetting, setTheme } from './theme.js';
 import SettingsForm from './components/SettingsForm.vue';
 import ReadinessPanel from './components/ReadinessPanel.vue';
 import DiscoveryHub from './components/DiscoveryHub.vue';
@@ -139,6 +140,9 @@ export default {
       reviewAsk: this.boot.reviewAsk || { show: false, url: '' },
       assistant: this.boot.assistant || { writesOn: false, providerReady: false, types: [] },
       assistantOpen: false,
+      // The stored theme SETTING ('light' | 'dark' | 'system') — mirrored here
+      // so the picker's icon and tip react; theme.js owns resolution & storage.
+      theme: themeSetting(),
       // The Request Log / AI-traffic filter a dashboard row asked for
       // (endpoint/client/source/page drill-downs); seq-stamped so repeat
       // clicks re-apply.
@@ -205,6 +209,16 @@ export default {
       const pass = this.readiness.filter((c) => c.status === 'pass').length;
       const total = this.readiness.length;
       return { pass, total, pct: Math.round((pass / total) * 100) };
+    },
+    // Name the CURRENT theme setting and where the next click lands, in one
+    // line — the picker cycles System → Light → Dark, and a cycling control
+    // that doesn't say its next stop reads as a mystery switch.
+    themeTip() {
+      return {
+        system: `Theme: System — follows your device. Click for Light.`,
+        light: `Theme: Light. Click for Dark.`,
+        dark: `Theme: Dark. Click for System.`,
+      }[this.theme];
     },
     tone() {
       return this.score.pct >= 80 ? 'good' : this.score.pct >= 50 ? 'ok' : 'low';
@@ -662,6 +676,14 @@ export default {
     // Dashboard tiles emit { tab, anchor? }. Switch tab, then (once the now-shown
     // tab has laid out) scroll the target section into view so a click lands on
     // the relevant content, not just the top of the page.
+    // Cycle the theme: System → Light → Dark → System. theme.js stores the
+    // setting and stamps <html data-ar-theme>; the local mirror redraws the
+    // icon and tip.
+    cycleTheme() {
+      const next = { system: 'light', light: 'dark', dark: 'system' }[this.theme];
+      setTheme(next);
+      this.theme = next;
+    },
     // ---- AEO/GEO rail card rungs -------------------------------------------
     // A rung's dot state: green when complete, amber when partway, muted when empty.
     // Check rungs complete at 100 (all checks pass); signal rungs at 70+.
@@ -1907,6 +1929,31 @@ export default {
            negative margins: the bar's gap changes with the viewport, so those
            nudges only ever matched at the width they were measured on. -->
       <div class="ar__controls">
+      <!-- The theme picker opens the cluster: one button cycling
+           System → Light → Dark, its icon always showing the CURRENT setting
+           (half-disc / sun / moon). A per-browser viewing preference, so it
+           lives with the actions, not in Settings. -->
+      <button
+        type="button"
+        class="ar__review-btn ar__theme-btn"
+        :aria-label="themeTip"
+        @click="cycleTheme"
+      >
+        <!-- System: a disc half-filled — "whichever side the device is on". -->
+        <svg v-if="theme === 'system'" viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <circle cx="12" cy="12" r="8.2" />
+          <path d="M12 3.8a8.2 8.2 0 0 1 0 16.4Z" fill="currentColor" stroke="none" />
+        </svg>
+        <!-- Light: the sun. -->
+        <svg v-else-if="theme === 'light'" viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <circle cx="12" cy="12" r="4.2" />
+          <path d="M12 2.6v2.2M12 19.2v2.2M2.6 12h2.2M19.2 12h2.2M5.4 5.4l1.5 1.5M17.1 17.1l1.5 1.5M18.6 5.4l-1.5 1.5M6.9 17.1l-1.5 1.5" />
+        </svg>
+        <!-- Dark: the moon. -->
+        <svg v-else viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M20.6 13.4A8.4 8.4 0 1 1 10.6 3.4a6.8 6.8 0 0 0 10 10Z" />
+        </svg>
+      </button>
       <!-- The writing assistant's quill leads: it opens a drawer, the bell
            opens a pop. Actions only — nothing here is ever "current". The
            findings screen left this cluster for the bar (his call): its count

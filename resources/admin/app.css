@@ -88,6 +88,9 @@
      deep on-light values. */
   --ar-teal-on-ink: #57b6a6;
   --ar-teal-on-ink-hover: #6fc7b8;
+  --ar-good-on-ink: #5cc08a;
+  --ar-warn-on-ink: #e0b24c;
+  --ar-bad-on-ink: #e08a72;
   /* Accent washes (hover/selected fills behind accent-bordered controls). */
   --ar-accent-wash: #f0f6f4;
   --ar-accent-soft: #e3efec;
@@ -95,6 +98,9 @@
      hovered ink button deepens to). Both flip with the theme. */
   --ar-on-signal: #fff;
   --ar-ink-hard: #000;
+  /* What darkness is made of: scrims and shades mix from this, NOT from ink —
+     ink flips to cream in the dark theme, but a scrim must always dim. */
+  --ar-shade: #1b1913;
 
   --ar-radius: 4px;
   /* Shared height for the nav bar and the page-head below it, so the two strips
@@ -106,6 +112,133 @@
 }
 @media screen and (max-width: 782px) { :root { --ar-adminbar: 46px; } }
 @media screen and (max-width: 600px) { :root { --ar-adminbar: 0px; } }
+
+/* ---- Dark theme ----------------------------------------------------------
+   The palette inverts rather than restyles: paper becomes warm near-black,
+   ink becomes cream, and every ink-coloured surface (the score card, the
+   dark buttons, code blocks) flips to cream with dark type — same broadsheet,
+   read under a desk lamp. Signals brighten one step for the dark ground; the
+   tint scales derive from the signal hues against the dark surface, so they
+   stay in key without a second hand-picked set. The switch is the
+   data-ar-theme attribute on <html>, set by theme.js (light / dark, with
+   "system" resolved there); wp-admin around the app keeps its own colors. */
+:root[data-ar-theme="dark"] {
+  --ar-paper: #101012;
+  --ar-surface: #171719;
+  --ar-surface-2: #1f1f22;
+  --ar-ink: #e9e7e2;
+  --ar-ink-soft: #a5a29c;
+  --ar-ink-faint: #71706b;
+  --ar-line: #2b2b2e;
+  --ar-line-strong: #3c3c40;
+
+  --ar-accent: #4db892;
+  --ar-good: #5cc08a;
+  --ar-warn: #e0b24c;
+  --ar-bad: #e08a72;
+  --ar-info: #8ab0e0;
+  /* The dark chrome accent: the violet the rail cards, score identity and
+     section labels wear at night. Light mode has no equivalent — its chrome
+     is the ink itself. */
+  --ar-chrome: #a78bfa;
+  --ar-chrome-bright: #c4b2fc;
+  --ar-chrome-line: color-mix(in srgb, #a78bfa 30%, var(--ar-line));
+  --ar-hover: color-mix(in srgb, #8bc34a 14%, transparent);
+
+  --ar-good-wash: color-mix(in srgb, var(--ar-good) 10%, var(--ar-surface));
+  --ar-good-tint: color-mix(in srgb, var(--ar-good) 26%, var(--ar-surface));
+  --ar-good-strong: #74cb9b;
+  --ar-good-deep: #93d8b1;
+  --ar-warn-wash: color-mix(in srgb, var(--ar-warn) 10%, var(--ar-surface));
+  --ar-warn-tint: color-mix(in srgb, var(--ar-warn) 26%, var(--ar-surface));
+  --ar-warn-deep: #eecd8d;
+  --ar-bad-wash: color-mix(in srgb, var(--ar-bad) 10%, var(--ar-surface));
+  --ar-bad-tint: color-mix(in srgb, var(--ar-bad) 26%, var(--ar-surface));
+  --ar-bad-strong: #eda28d;
+  --ar-bad-deep: #f2b5a3;
+  --ar-info-wash: color-mix(in srgb, var(--ar-info) 10%, var(--ar-surface));
+  --ar-info-tint: color-mix(in srgb, var(--ar-info) 26%, var(--ar-surface));
+  --ar-info-strong: #93b6e2;
+  --ar-info-deep: #b3cbeb;
+  --ar-accent-wash: color-mix(in srgb, var(--ar-accent) 12%, var(--ar-surface));
+  --ar-accent-soft: color-mix(in srgb, var(--ar-accent) 20%, var(--ar-surface));
+
+  /* The on-ink accents keep their light values: the surfaces that wear them
+     (score card, dark chips) stay dark at night — no cream islands. */
+
+  --ar-on-signal: #14120e;
+  --ar-ink-hard: #fff;
+  --ar-shade: #000;
+}
+/* Ink-coloured surfaces hold their ground at night: background var(--ar-ink)
+   would flip them cream, and a cream slab on a black page is a glare panel.
+   Each becomes a quiet dark card instead. */
+:root[data-ar-theme="dark"] .ar__mark,
+:root[data-ar-theme="dark"] .ar-wiz__welcome-mark--brand {
+  background: var(--ar-surface-2); color: var(--ar-ink);
+  border: 1px solid var(--ar-line-strong);
+}
+:root[data-ar-theme="dark"] .ar-btn {
+  background: var(--ar-surface-2); color: var(--ar-ink); border-color: var(--ar-line-strong);
+}
+:root[data-ar-theme="dark"] .ar-btn:hover:not(:disabled) {
+  background: #2b2b2f; border-color: var(--ar-ink-faint); box-shadow: none;
+}
+:root[data-ar-theme="dark"] .ar-srcpick__btn.is-on {
+  background: var(--ar-surface-2); color: var(--ar-ink);
+  box-shadow: inset 0 0 0 1px var(--ar-accent);
+}
+:root[data-ar-theme="dark"] .ar-tags__chip { background: var(--ar-surface-2); color: var(--ar-ink); }
+:root[data-ar-theme="dark"] .ar-about-priv__cell--head {
+  background: var(--ar-surface-2); border-color: var(--ar-line-strong);
+}
+:root[data-ar-theme="dark"] .ar-about-snippet { background: #0c0c0e; color: var(--ar-ink-soft); }
+/* The rail is where the violet chrome lives: card borders, section labels,
+   the score identity. Content cards to the left stay neutral. */
+:root[data-ar-theme="dark"] .ar-rail-card { border-color: var(--ar-chrome-line); }
+:root[data-ar-theme="dark"] .ar-rail-card__label { color: var(--ar-chrome); }
+:root[data-ar-theme="dark"] .ar-rail-card.ar-rail-card--readiness {
+  background: var(--ar-surface); border-color: var(--ar-chrome-line);
+}
+:root[data-ar-theme="dark"] .ar-rail-card--readiness .ar-rail-gauge__track { stroke: var(--ar-line-strong); }
+:root[data-ar-theme="dark"] .ar-rail-card--readiness .ar-rail-gauge__num { color: var(--ar-ink); }
+/* The card's supporting text was paper-tinted for the old ink ground — paper
+   is near-black now, so those lines re-ink from the grays. */
+:root[data-ar-theme="dark"] .ar-rail-tier__name { color: var(--ar-ink); }
+:root[data-ar-theme="dark"] .ar-rail-tier__sub { color: var(--ar-ink-faint); }
+:root[data-ar-theme="dark"] .ar-rung { color: color-mix(in srgb, var(--ar-ink) 55%, transparent); }
+/* Those two base re-inks outrank the light theme's state rules by source
+   order, so the states re-assert here (values unchanged from light — these
+   surfaces are dark in both themes). */
+:root[data-ar-theme="dark"] .ar-rung[data-state="current"] { color: var(--ar-warn-on-ink); }
+:root[data-ar-theme="dark"] .ar-rung__todo { color: var(--ar-warn-on-ink); }
+:root[data-ar-theme="dark"] .ar-rail-tier[data-state="floor"] .ar-rail-tier__name { color: var(--ar-bad-on-ink); }
+:root[data-ar-theme="dark"] .ar-rail-tier[data-state="local"] .ar-rail-tier__name { color: var(--ar-warn-on-ink); }
+/* The brand A drew its legs in paper on the ink tile; on the dark tile they
+   re-ink light (the gold crossbar needs no help). */
+:root[data-ar-theme="dark"] .ar__logo-line { stroke: var(--ar-ink); }
+:root[data-ar-theme="dark"] .ar-rail-card--readiness .ar-rail-gauge__fill[data-tone="good"] { stroke: var(--ar-chrome); }
+:root[data-ar-theme="dark"] .ar-rail-tier[data-state="top"] .ar-rail-tier__name,
+:root[data-ar-theme="dark"] .ar-rung[data-state="done"],
+:root[data-ar-theme="dark"] .ar-rail-card--readiness .ar-rail-allgood { color: var(--ar-chrome); }
+:root[data-ar-theme="dark"] .ar-rail-card--readiness .ar-rail-link { color: var(--ar-chrome); }
+:root[data-ar-theme="dark"] .ar-rail-card--readiness .ar-rail-link:hover { color: var(--ar-chrome-bright); }
+/* The app is transparent in light mode (it sits on wp-admin's own gray); in
+   dark it must paint its own ground or the admin backdrop shines through. */
+:root[data-ar-theme="dark"] #agentimus-app,
+:root[data-ar-theme="dark"] #wpbody { background: var(--ar-paper); }
+/* Native form controls otherwise keep wp-admin's white: repaint them from the
+   tokens, and let color-scheme flip the browser-drawn parts (date-picker
+   icons, select arrows, scrollbars). Checkboxes/radios/ranges stay native. */
+:root[data-ar-theme="dark"] #agentimus-app,
+:root[data-ar-theme="dark"] .ar-modal,
+:root[data-ar-theme="dark"] .ar-drawer { color-scheme: dark; }
+:root[data-ar-theme="dark"] :is(#agentimus-app, .ar-modal, .ar-drawer)
+  :is(input:not([type="checkbox"]):not([type="radio"]):not([type="range"]), textarea, select) {
+  background-color: var(--ar-surface);
+  color: var(--ar-ink);
+  border-color: var(--ar-line-strong);
+}
 
 #agentimus-app {
 
@@ -387,7 +520,7 @@
 
 /* The drawer: right panel desktop, full sheet on phones (svh — the real viewport). */
 .ar-drawer { position: fixed; inset: 0; z-index: 100060; }
-.ar-drawer__scrim { position: absolute; inset: 0; background: color-mix(in srgb, var(--ar-ink) 38%, transparent); }
+.ar-drawer__scrim { position: absolute; inset: 0; background: color-mix(in srgb, var(--ar-shade) 38%, transparent); }
 .ar-drawer__panel {
   position: absolute; top: 0; right: 0; bottom: 0;
   width: 600px; max-width: 100vw;
@@ -882,10 +1015,10 @@
   font-family: var(--ar-serif); font-size: 19px; font-weight: 600; line-height: 1.05;
   color: color-mix(in srgb, var(--ar-paper) 92%, transparent);
 }
-.ar-rail-tier[data-state="top"] .ar-rail-tier__name { color: var(--ar-good-bright); }
-.ar-rail-tier[data-state="floor"] .ar-rail-tier__name { color: var(--ar-bad-mid); }
+.ar-rail-tier[data-state="top"] .ar-rail-tier__name { color: var(--ar-good-on-ink); }
+.ar-rail-tier[data-state="floor"] .ar-rail-tier__name { color: var(--ar-bad-on-ink); }
 /* Local site with search engines discouraged: a launch-day to-do, amber not red. */
-.ar-rail-tier[data-state="local"] .ar-rail-tier__name { color: var(--ar-warn-mid); }
+.ar-rail-tier[data-state="local"] .ar-rail-tier__name { color: var(--ar-warn-on-ink); }
 .ar-rail-tier__sub {
   font-family: var(--ar-mono); font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase;
   color: color-mix(in srgb, var(--ar-paper) 45%, transparent);
@@ -917,9 +1050,9 @@
 /* A fixed right-aligned slot ("100%" wide), so the percentages hold a perfect
    column and the todo chips right-align against it without wobbling it. */
 .ar-rung__count { font-size: 11px; opacity: 0.85; flex: 0 0 auto; min-width: 4ch; text-align: right; }
-.ar-rung[data-state="done"] { color: var(--ar-good-bright); }
+.ar-rung[data-state="done"] { color: var(--ar-good-on-ink); }
 .ar-rung[data-state="done"] .ar-rung__tick { background: currentColor; }
-.ar-rung[data-state="current"] { color: var(--ar-warn-mid); }
+.ar-rung[data-state="current"] { color: var(--ar-warn-on-ink); }
 .ar-rung[data-state="current"] .ar-rung__tick::after {
   content: ""; position: absolute; inset: 3px; border-radius: 50%; background: currentColor;
 }
@@ -946,11 +1079,11 @@
 .ar-rail-card--readiness .ar-rail-card__label { color: color-mix(in srgb, var(--ar-paper) 50%, transparent); }
 .ar-rail-card--readiness .ar-rail-gauge__track { stroke: color-mix(in srgb, var(--ar-paper) 15%, transparent); }
 .ar-rail-card--readiness .ar-rail-gauge__num { color: color-mix(in srgb, var(--ar-paper) 62%, transparent); }
-.ar-rail-card--readiness .ar-rail-allgood { color: var(--ar-good-bright); }
+.ar-rail-card--readiness .ar-rail-allgood { color: var(--ar-good-on-ink); }
 /* Brightened gauge tones for contrast on the dark card. */
-.ar-rail-card--readiness .ar-rail-gauge__fill[data-tone="good"] { stroke: var(--ar-good-bright); }
-.ar-rail-card--readiness .ar-rail-gauge__fill[data-tone="ok"] { stroke: var(--ar-warn-mid); }
-.ar-rail-card--readiness .ar-rail-gauge__fill[data-tone="low"] { stroke: var(--ar-bad-mid); }
+.ar-rail-card--readiness .ar-rail-gauge__fill[data-tone="good"] { stroke: var(--ar-good-on-ink); }
+.ar-rail-card--readiness .ar-rail-gauge__fill[data-tone="ok"] { stroke: var(--ar-warn-on-ink); }
+.ar-rail-card--readiness .ar-rail-gauge__fill[data-tone="low"] { stroke: var(--ar-bad-on-ink); }
 .ar-rail-card--readiness .ar-rail-link { color: var(--ar-teal-on-ink); }
 .ar-rail-card--readiness .ar-rail-link:hover { color: var(--ar-teal-on-ink-hover); }
 
@@ -3050,7 +3183,7 @@ html { scrollbar-gutter: stable; }
      anyway, the overlay itself scrolls (with margin:auto on the panel keeping both
      edges reachable) instead of clipping the Close button away. Inert otherwise. */
   overflow-y: auto;
-  background: color-mix(in srgb, var(--ar-ink) 42%, transparent);
+  background: color-mix(in srgb, var(--ar-shade) 42%, transparent);
   -webkit-backdrop-filter: blur(3px); backdrop-filter: blur(3px);
 }
 .ar-modal__panel {
@@ -4927,7 +5060,7 @@ button.ar-act-more:hover { color: var(--ar-ink); }
 .ar-about-priv__cell--head .ar-linkbtn { color: var(--ar-teal-on-ink); }
 .ar-about-priv__icon {
   flex: 0 0 auto; display: inline-flex; align-items: center; justify-content: center;
-  width: 34px; height: 34px; border-radius: 50%; color: var(--ar-good-bright); background: color-mix(in srgb, var(--ar-good-bright) 14%, transparent);
+  width: 34px; height: 34px; border-radius: 50%; color: var(--ar-good-on-ink); background: color-mix(in srgb, var(--ar-good-on-ink) 14%, transparent);
 }
 .ar-about-not { margin: 10px 0 0; padding: 0; list-style: none; display: grid; gap: 5px; }
 .ar-about-not li { position: relative; padding-left: 20px; font-size: 12px; color: var(--ar-ink-soft); }
@@ -6245,11 +6378,13 @@ a.ar-about-proto__v:hover { text-decoration: underline; }
    close this row; it moved into More — a screen among actions wore a
    selected state its neighbours could never have.) */
 .ar__assist-btn.ar__review-btn,
+.ar__theme-btn.ar__review-btn,
 .ar__review > .ar__review-btn {
   padding: 0; width: 28px; height: 28px; justify-content: center;
 }
 @container (max-width: 720px) {
   .ar__assist-btn.ar__review-btn,
+  .ar__theme-btn.ar__review-btn,
   .ar__review > .ar__review-btn { width: 26px; height: 26px; }
 }
 /* The assistant's button is wrapped — the wrapper anchors its guidance popover.
