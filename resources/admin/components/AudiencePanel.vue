@@ -114,7 +114,7 @@ export default {
         </p>
         <p class="ar-aud__n">{{ n(people.arrived) }}</p>
         <p class="ar-aud__unit">
-          <template v-if="people.whole">read your site</template>
+          <template v-if="people.whole">people read your site</template>
           <template v-else>arrived from search or an AI answer</template>
         </p>
 

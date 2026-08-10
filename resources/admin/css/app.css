@@ -3360,6 +3360,7 @@ html { scrollbar-gutter: stable; }
   /* Same vh/svh pair as the base rule — a bare 100vh here is what originally trapped
      phone users: on iOS it overshoots the visible screen and hides the Close button. */
   .ar-modal__panel { max-height: calc(100vh - 20px); max-height: calc(100svh - 20px); }
+  .ar-modal__panel--day { min-height: 0; }
 }
 
 /* ---- Confirm dialog (reusable styled replacement for window.confirm) ---- */
@@ -4370,7 +4371,14 @@ button.ar-wd-stat:focus-visible { outline: 2px solid var(--ar-accent); outline-o
 /* Fixed height, not content-sized: the day report renders in two beats (spinner,
    then the full day) and days vary from 3 rows to hundreds — content sizing made
    the dialog visibly grow on load and jump between days. One constant size. */
-.ar-modal__panel--day { max-width: 640px; height: min(calc(100vh - 40px), 600px); height: min(calc(100svh - 40px), 600px); }
+/* A FLOOR, not a fixed height. The body is withheld while a day loads, so a
+   pure content height would collapse the dialog to its spinner and snap back
+   when the rows land — that beat is what the old fixed height protected. The
+   floor keeps it steady while letting a sparse day (two referrers) stop
+   sitting in 600px of empty paper; the base rule's 600px cap still tops it
+   out, and the small-screen block below drops the floor so a short viewport
+   can never be overflowed by it. */
+.ar-modal__panel--day { max-width: 720px; min-height: 420px; }
 .ar-day-head { display: flex; align-items: center; justify-content: space-between; gap: 10px 12px; margin-bottom: 8px; flex-wrap: wrap; }
 /* Day-switch loading: the body content is fully withheld while the day loads
    (a breakdown appearing ahead of the request rows read as inconsistent), so
