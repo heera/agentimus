@@ -26,6 +26,8 @@
        --ar-line: ...; --ar-line-strong: ...;
        ( optional: --ar-chrome / --ar-chrome-bright / --ar-chrome-line
          re-key the rail identity — see Coffee's gold below )
+       ( re-keying --ar-accent here? re-key --ar-good and --ar-chrome with it:
+         both are declared FROM the accent at :root, not at body )
      }
 
    Keep ink ≥ 4.5:1 on surface, and keep the ink family in the SAME

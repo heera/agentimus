@@ -145,7 +145,13 @@
      what it means: a good state. (The violet round was tried and retired —
      it read foreign against the charcoal.) */
   --ar-accent: #57b6a6;
-  --ar-good: #5cc08a;
+  /* ONE accent at night. Green and the brand teal sat 22 degrees apart with
+     the same weight — too close to read as a deliberate pair, too far to read
+     as one colour — so "good" IS the accent here, and a verdict is carried by
+     the word (PASS), the filled dot, and amber/red for anything needing you.
+     A scheme block below that re-keys --ar-accent should re-key these two
+     with it: they resolve the accent at :root, not at body. */
+  --ar-good: var(--ar-accent);
   --ar-warn: #e0b24c;
   --ar-bad: #e08a72;
   --ar-info: #8ab0e0;
@@ -155,15 +161,15 @@
   /* The chrome IS the good green — the same identity the light theme's score
      card has always worn. Two teal-greens side by side fought; one green
      doesn't. */
-  --ar-chrome: #5cc08a;
-  --ar-chrome-bright: #74cb9b;
-  --ar-chrome-line: color-mix(in srgb, #5cc08a 24%, var(--ar-line));
+  --ar-chrome: var(--ar-accent);
+  --ar-chrome-bright: #6fc7b8;
+  --ar-chrome-line: color-mix(in srgb, #57b6a6 24%, var(--ar-line));
   --ar-hover: color-mix(in srgb, #57b6a6 16%, transparent);
 
   --ar-good-wash: color-mix(in srgb, var(--ar-good) 10%, var(--ar-surface));
   --ar-good-tint: color-mix(in srgb, var(--ar-good) 26%, var(--ar-surface));
-  --ar-good-strong: #74cb9b;
-  --ar-good-deep: #93d8b1;
+  --ar-good-strong: #6fc7b8;
+  --ar-good-deep: #8ad3c6;
   --ar-warn-wash: color-mix(in srgb, var(--ar-warn) 10%, var(--ar-surface));
   --ar-warn-tint: color-mix(in srgb, var(--ar-warn) 26%, var(--ar-surface));
   --ar-warn-deep: #eecd8d;
