@@ -1,6 +1,6 @@
 <script>
 import ProviderRow from './ProviderRow.vue';
-import { copyText } from '../clipboard.js';
+import { copyText } from '../js/clipboard.js';
 
 export default {
   name: 'DiscoveryHub',

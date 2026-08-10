@@ -11,7 +11,7 @@
  * `{ tab: 'readiness', anchor: 'ar-group-search' }` address is aliased in
  * App.goTo, so every stale emitter still lands here.
  */
-import { formatDate } from '../wpDate.js';
+import { formatDate } from '../js/wpDate.js';
 
 export default {
   name: 'SearchOpportunities',

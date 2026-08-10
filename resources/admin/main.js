@@ -1,9 +1,9 @@
 import { createApp } from 'vue';
 import App from './App.vue';
-import { tip } from './tip.js';
-import { initTheme } from './theme.js';
-import './app.css';
-import './schemes.css'; // per-admin-color-scheme dark palettes — bundled after app.css
+import { tip } from './js/tip.js';
+import { initTheme } from './js/theme.js';
+import './css/app.css';
+import './css/schemes.css'; // per-admin-color-scheme dark palettes — bundled after app.css
 
 const mount = document.getElementById('agentimus-app');
 

@@ -20,8 +20,8 @@
  *
  * And it never claims to protect anything. It is a camera, not a lock: nothing here blocks.
  */
-import { formatStamp } from '../wpDate.js';
-import { uaTip } from '../uaTip.js';
+import { formatStamp } from '../js/wpDate.js';
+import { uaTip } from '../js/uaTip.js';
 import RefreshCrank from './RefreshCrank.vue';
 import CardSkeleton from './CardSkeleton.vue';
 

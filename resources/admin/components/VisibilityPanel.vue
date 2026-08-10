@@ -15,10 +15,10 @@ import TagInput from './TagInput.vue';
 import SelectMenu from './SelectMenu.vue';
 import RefreshCrank from './RefreshCrank.vue';
 import CardSkeleton from './CardSkeleton.vue';
-import { confirm } from '../confirm.js';
-import { bindDocEsc } from '../docEsc.js';
-import { groupIcon } from '../groupIcons.js';
-import { formatStamp } from '../wpDate.js';
+import { confirm } from '../js/confirm.js';
+import { bindDocEsc } from '../js/docEsc.js';
+import { groupIcon } from '../js/groupIcons.js';
+import { formatStamp } from '../js/wpDate.js';
 
 export default {
   name: 'VisibilityPanel',

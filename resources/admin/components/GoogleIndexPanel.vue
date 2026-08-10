@@ -17,7 +17,7 @@
  *
  * Off state = one quiet pointer at Settings → Data sources. No form here.
  */
-import { formatDate, relTimeShort } from '../wpDate.js';
+import { formatDate, relTimeShort } from '../js/wpDate.js';
 import RefreshCrank from './RefreshCrank.vue';
 
 // The problem buckets, in reading order (most-lost first) — keyed by the

@@ -15,7 +15,7 @@
  * Off state = one quiet pointer card at Settings → Data sources. No form here:
  * the token has exactly one home.
  */
-import { relTimeShort } from '../wpDate.js';
+import { relTimeShort } from '../js/wpDate.js';
 import CardSkeleton from './CardSkeleton.vue';
 
 export default {

@@ -14,10 +14,10 @@
  * and re-probes then. `active` mirrors the panel being shown (reveal plus
  * window-focus re-fetch of the token's live metadata). No emits: errors inline.
  */
-import { confirm } from '../confirm.js';
-import { formatDate, formatTime } from '../wpDate.js';
-import { copyText } from '../clipboard.js';
-import { bindDocEsc } from '../docEsc.js';
+import { confirm } from '../js/confirm.js';
+import { formatDate, formatTime } from '../js/wpDate.js';
+import { copyText } from '../js/clipboard.js';
+import { bindDocEsc } from '../js/docEsc.js';
 
 export default {
   name: 'McpServerCard',

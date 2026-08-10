@@ -16,8 +16,8 @@
  */
 import SelectMenu from './SelectMenu.vue';
 import CardSkeleton from './CardSkeleton.vue';
-import { uaTip } from '../uaTip.js';
-import { formatStamp, relTimeShort } from '../wpDate.js';
+import { uaTip } from '../js/uaTip.js';
+import { formatStamp, relTimeShort } from '../js/wpDate.js';
 
 export default {
   name: 'RequestLog',

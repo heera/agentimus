@@ -1,9 +1,9 @@
 <script>
-import { createApi } from './api.js';
-import { navIcon } from './groupIcons.js';
-import { uaTip } from './uaTip.js';
-import { tipGuard } from './tipGuard.js';
-import { setTheme, resolvedTheme } from './theme.js';
+import { createApi } from './js/api.js';
+import { navIcon } from './js/groupIcons.js';
+import { uaTip } from './js/uaTip.js';
+import { tipGuard } from './js/tipGuard.js';
+import { setTheme, resolvedTheme } from './js/theme.js';
 import SettingsForm from './components/SettingsForm.vue';
 import ReadinessPanel from './components/ReadinessPanel.vue';
 import DiscoveryHub from './components/DiscoveryHub.vue';

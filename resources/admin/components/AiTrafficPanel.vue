@@ -17,8 +17,8 @@
  */
 import SelectMenu from './SelectMenu.vue';
 import CardSkeleton from './CardSkeleton.vue';
-import { uaTip } from '../uaTip.js';
-import { formatDate } from '../wpDate.js';
+import { uaTip } from '../js/uaTip.js';
+import { formatDate } from '../js/wpDate.js';
 
 export default {
   name: 'AiTrafficPanel',

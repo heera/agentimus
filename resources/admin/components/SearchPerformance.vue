@@ -12,7 +12,7 @@
  * Off state = one quiet pointer at Settings → Data sources. No form here: the
  * keys have exactly one home.
  */
-import { formatDate } from '../wpDate.js';
+import { formatDate } from '../js/wpDate.js';
 import RefreshCrank from './RefreshCrank.vue';
 
 export default {

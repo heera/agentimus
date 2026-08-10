@@ -3,12 +3,12 @@ import TagInput from './TagInput.vue';
 import SelectMenu from './SelectMenu.vue';
 import IpChecker from './IpChecker.vue';
 import ClientManager from './ClientManager.vue';
-import { bindDocEsc } from '../docEsc.js';
-import { confirm } from '../confirm.js';
-import { uaTip } from '../uaTip.js';
-import { formatDate, formatTime } from '../wpDate.js';
+import { bindDocEsc } from '../js/docEsc.js';
+import { confirm } from '../js/confirm.js';
+import { uaTip } from '../js/uaTip.js';
+import { formatDate, formatTime } from '../js/wpDate.js';
 
-import { groupIcon } from '../groupIcons.js';
+import { groupIcon } from '../js/groupIcons.js';
 import CloudflareCard from './CloudflareCard.vue';
 import BingCard from './BingCard.vue';
 import GoogleCard from './GoogleCard.vue';

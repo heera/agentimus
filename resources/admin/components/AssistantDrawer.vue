@@ -22,7 +22,7 @@
  * from another month never ambushes anyone. Deliberately NOT auto-created as a
  * WP draft: "nothing is saved until you say so" stays literally true.
  */
-import { confirm } from '../confirm.js';
+import { confirm } from '../js/confirm.js';
 import SelectMenu from './SelectMenu.vue';
 
 const HELD_KEY = 'agentimus:assistant:held';

@@ -8,7 +8,7 @@
  * activity panel that used to own them. Configuration, not analytics — stated
  * first because it is the premise, styled quieter because it is not the news.
  */
-import { tileIcon } from '../groupIcons.js';
+import { tileIcon } from '../js/groupIcons.js';
 
 export default {
   name: 'SurfaceTiles',

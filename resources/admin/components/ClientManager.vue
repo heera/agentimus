@@ -16,7 +16,7 @@
  * Dialog conventions match the day reports: fixed size, Esc or Close only —
  * no backdrop-click close — and a centered spinner while loading.
  */
-import { formatDate } from '../wpDate.js';
+import { formatDate } from '../js/wpDate.js';
 
 export default {
   name: 'ClientManager',

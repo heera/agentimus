@@ -14,8 +14,8 @@
  * Off state = one quiet pointer card at Settings → Data sources. No form
  * here: the key has exactly one home.
  */
-import { formatDate, relTimeShort } from '../wpDate.js';
-import { uaTip } from '../uaTip.js';
+import { formatDate, relTimeShort } from '../js/wpDate.js';
+import { uaTip } from '../js/uaTip.js';
 import SelectMenu from './SelectMenu.vue';
 import RefreshCrank from './RefreshCrank.vue';
 

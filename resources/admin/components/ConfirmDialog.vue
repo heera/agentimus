@@ -1,10 +1,10 @@
 <script>
-import { confirmState, resolveConfirm } from '../confirm.js';
+import { confirmState, resolveConfirm } from '../js/confirm.js';
 
 // The single styled confirmation dialog. Mount it ONCE at the app root; it renders
 // whatever confirm() has queued in the shared store. Reuses the .ar-modal shell so
 // it matches the day-report and reset dialogs exactly.
-import { bindDocEsc } from '../docEsc.js';
+import { bindDocEsc } from '../js/docEsc.js';
 
 export default {
   name: 'ConfirmDialog',

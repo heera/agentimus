@@ -14,8 +14,8 @@
  * Reuses the app's .ar-modal shell (the same one as the Verify-live dialog) and
  * ar-btn / ar-input chrome; only the picker, code block and banners are custom.
  */
-import { bindDocEsc } from '../docEsc.js';
-import { copyText } from '../clipboard.js';
+import { bindDocEsc } from '../js/docEsc.js';
+import { copyText } from '../js/clipboard.js';
 
 export default {
   name: 'SchemaPreview',

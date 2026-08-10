@@ -1,11 +1,11 @@
 <script>
-import { confirm } from '../confirm.js';
-import { tileIcon } from '../groupIcons.js';
+import { confirm } from '../js/confirm.js';
+import { tileIcon } from '../js/groupIcons.js';
 import SelectMenu from './SelectMenu.vue';
 
-import { uaTip } from '../uaTip.js';
-import { tipGuard } from '../tipGuard.js';
-import { formatDate, formatTime, formatStamp, relTimeShort } from '../wpDate.js';
+import { uaTip } from '../js/uaTip.js';
+import { tipGuard } from '../js/tipGuard.js';
+import { formatDate, formatTime, formatStamp, relTimeShort } from '../js/wpDate.js';
 
 export default {
   name: 'ActivityPanel',

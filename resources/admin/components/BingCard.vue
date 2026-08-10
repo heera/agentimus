@@ -10,8 +10,8 @@
  * `active` mirrors "the sources tab is showing": the card stays mounted behind
  * the tab's v-show, so it defers its first status read until first shown.
  */
-import { confirm } from '../confirm.js';
-import { formatDate, formatTime } from '../wpDate.js';
+import { confirm } from '../js/confirm.js';
+import { formatDate, formatTime } from '../js/wpDate.js';
 import ConnectionRail from './ConnectionRail.vue';
 
 export default {

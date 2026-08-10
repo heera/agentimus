@@ -11,8 +11,8 @@
  * the tab's v-show, so it defers its first status read until first shown, the
  * same lazy load the parent used to do from its group watch.
  */
-import { confirm } from '../confirm.js';
-import { formatDate, formatTime } from '../wpDate.js';
+import { confirm } from '../js/confirm.js';
+import { formatDate, formatTime } from '../js/wpDate.js';
 import ConnectionRail from './ConnectionRail.vue';
 
 export default {

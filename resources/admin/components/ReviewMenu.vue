@@ -13,10 +13,10 @@
  * firewall). Verification is a three-state fact (verified / failed / not-checked), never a
  * score.
  */
-import { impostorDetail, scannerDetail } from '../reviewCopy.js';
-import { tipGuard } from '../tipGuard.js';
-import { relTimeShort } from '../wpDate.js';
-import { copyText } from '../clipboard.js';
+import { impostorDetail, scannerDetail } from '../js/reviewCopy.js';
+import { tipGuard } from '../js/tipGuard.js';
+import { relTimeShort } from '../js/wpDate.js';
+import { copyText } from '../js/clipboard.js';
 
 export default {
   name: 'ReviewMenu',

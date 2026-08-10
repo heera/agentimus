@@ -1,8 +1,8 @@
 <script>
-import { groupChecks } from '../tiers.js';
-import { bindDocEsc } from '../docEsc.js';
-import { runAll, runExposureScan } from '../livecheck.js';
-import { confirm } from '../confirm.js';
+import { groupChecks } from '../js/tiers.js';
+import { bindDocEsc } from '../js/docEsc.js';
+import { runAll, runExposureScan } from '../js/livecheck.js';
+import { confirm } from '../js/confirm.js';
 import SchemaPreview from './SchemaPreview.vue';
 import RefreshCrank from './RefreshCrank.vue';
 
