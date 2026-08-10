@@ -1,0 +1,70 @@
+/* ============================================================================
+   Agentimus — dark palettes per wp-admin COLOR SCHEME
+   (Users → Profile → Admin Color Scheme)
+
+   The base dark palette (app.css) is keyed to wp-admin's classic charcoal, so
+   it sits naturally beside Fresh, Midnight and friends. Schemes with a
+   different key get their own dark here — and ONLY dark: light mode keeps the
+   designed cream palette everywhere (its scheme flavour is the separate
+   PHP-side SchemeInk feature — see inc/SchemeInk.php).
+
+   HOW IT WORKS — no PHP, no JS: wp-admin stamps `admin-color-<slug>` on
+   <body>, the theme toggle stamps `data-ar-theme` on <html>, and a block here
+   simply redefines the design tokens where both match. Everything the app
+   paints — teleported modals, toasts and tooltips included — lives inside
+   <body>, so nothing escapes a re-key, and every wash, tint and chip below
+   the tokens re-derives on its own.
+
+   ADDING A SCHEME (a third-party one too) is one block in this shape — from
+   this file or from any admin stylesheet loaded after the app's:
+
+     :root[data-ar-theme="dark"] body.admin-color-<slug> {
+       --ar-paper:   ...;  ( the page canvas — darkest )
+       --ar-surface: ...;  ( cards )
+       --ar-surface-2: ...;( raised: chips, dark buttons, menus )
+       --ar-ink: ...; --ar-ink-soft: ...; --ar-ink-faint: ...;
+       --ar-line: ...; --ar-line-strong: ...;
+       ( optional: --ar-chrome / --ar-chrome-bright / --ar-chrome-line
+         re-key the rail identity — see Coffee's gold below )
+     }
+
+   Keep ink ≥ 4.5:1 on surface, and keep the ink family in the SAME
+   temperature as the ground (a warm ink on a cool ground is a quiet clash).
+   A scheme with no block here falls back to the charcoal base — nothing
+   breaks. Values below are Heera's hand-tuned picks (paper/surface anchors)
+   with the rest of each family derived to match.
+   ========================================================================= */
+
+/* ---- Default (slug: modern) — WP 7.1's neutral near-black ---------------- */
+:root[data-ar-theme="dark"] body.admin-color-modern {
+  --ar-paper: #151515;
+  --ar-surface: #242424;
+  --ar-surface-2: #2e2e2e;
+  --ar-ink: #dedede;
+  --ar-ink-soft: #a3a3a3;
+  --ar-ink-faint: #6f6f6f;
+  --ar-line: #383838;
+  --ar-line-strong: #464646;
+}
+/* The two hue-carrying literals in the dark overrides go neutral with it. */
+:root[data-ar-theme="dark"] body.admin-color-modern .ar-btn:hover:not(:disabled) { background: #383838; }
+:root[data-ar-theme="dark"] body.admin-color-modern .ar-about-snippet { background: #111111; }
+
+/* ---- Coffee — the same idea in that scheme's warm brown key -------------- */
+:root[data-ar-theme="dark"] body.admin-color-coffee {
+  --ar-paper: #202020;
+  --ar-surface: #35322f;
+  --ar-surface-2: #403c38;
+  --ar-ink: #e2dfdb;
+  --ar-ink-soft: #a8a49e;
+  --ar-ink-faint: #757169;
+  --ar-line: #46423d;
+  --ar-line-strong: #55504a;
+  /* The rail identity goes GOLD here (his pick) — coffee and gold, while
+     good/PASS keeps meaning green. */
+  --ar-chrome: #c09c5c;
+  --ar-chrome-bright: #d4b478;
+  --ar-chrome-line: color-mix(in srgb, #c09c5c 24%, var(--ar-line));
+}
+:root[data-ar-theme="dark"] body.admin-color-coffee .ar-btn:hover:not(:disabled) { background: #4a453f; }
+:root[data-ar-theme="dark"] body.admin-color-coffee .ar-about-snippet { background: #181715; }

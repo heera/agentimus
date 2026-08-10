@@ -216,47 +216,7 @@
 :root[data-ar-theme="dark"] .ar__tab { color: var(--ar-ink-soft); }
 :root[data-ar-theme="dark"] .ar__tab:hover { color: var(--ar-ink); }
 
-/* ---- Dark, per admin scheme -----------------------------------------------
-   The dark neutrals are keyed to wp-admin's CLASSIC charcoal (Fresh, Midnight
-   and friends). WP 7.1's new "Default" scheme (slug modern) is a NEUTRAL
-   near-black, and the blue-charcoal reads foreign beside it — so under that
-   scheme, dark re-keys to his neutral grays (paper/surface are his picks; the
-   rest of the family derives). Defined on body: the admin stamps
-   admin-color-<scheme> there, everything the app paints — teleported modals
-   and toasts included — lives inside it, and light mode never enters here.
-   Accents, signals and every wash stay as they are: the mixes re-derive from
-   the new surface on their own. */
-:root[data-ar-theme="dark"] body.admin-color-modern {
-  --ar-paper: #151515;
-  --ar-surface: #242424;
-  --ar-surface-2: #2e2e2e;
-  --ar-ink: #dedede;
-  --ar-ink-soft: #a3a3a3;
-  --ar-ink-faint: #6f6f6f;
-  --ar-line: #383838;
-  --ar-line-strong: #464646;
-}
-/* The two hue-carrying literals in the dark overrides go neutral with it. */
-:root[data-ar-theme="dark"] body.admin-color-modern .ar-btn:hover:not(:disabled) { background: #383838; }
-:root[data-ar-theme="dark"] body.admin-color-modern .ar-about-snippet { background: #111111; }
-/* Coffee: the same idea in that scheme's warm brown key (paper/surface his). */
-:root[data-ar-theme="dark"] body.admin-color-coffee {
-  --ar-paper: #202020;
-  --ar-surface: #35322f;
-  --ar-surface-2: #403c38;
-  --ar-ink: #e2dfdb;
-  --ar-ink-soft: #a8a49e;
-  --ar-ink-faint: #757169;
-  --ar-line: #46423d;
-  --ar-line-strong: #55504a;
-  /* The rail identity goes GOLD here (his pick) — coffee and gold, while
-     good/PASS keeps meaning green. */
-  --ar-chrome: #c09c5c;
-  --ar-chrome-bright: #d4b478;
-  --ar-chrome-line: color-mix(in srgb, #c09c5c 24%, var(--ar-line));
-}
-:root[data-ar-theme="dark"] body.admin-color-coffee .ar-btn:hover:not(:disabled) { background: #4a453f; }
-:root[data-ar-theme="dark"] body.admin-color-coffee .ar-about-snippet { background: #181715; }
+
 :root[data-ar-theme="dark"] .ar-about-priv__cell--head {
   background: var(--ar-surface-2); border-color: var(--ar-line-strong);
 }

@@ -3,6 +3,7 @@ import App from './App.vue';
 import { tip } from './tip.js';
 import { initTheme } from './theme.js';
 import './app.css';
+import './schemes.css'; // per-admin-color-scheme dark palettes — bundled after app.css
 
 const mount = document.getElementById('agentimus-app');
 
