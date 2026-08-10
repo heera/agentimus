@@ -1936,21 +1936,22 @@ export default {
            nudges only ever matched at the width they were measured on. -->
       <div class="ar__controls">
       <!-- The theme toggle opens the cluster: sun or moon, always showing
-           what the page is in, one click to the other. Until the first click
-           the theme quietly follows the device. A per-browser viewing
-           preference, so it lives with the actions, not in Settings. -->
+           where a click TAKES you (his call — dark shows the sun). The theme
+           follows the device until clicked, and a choice holds only until the
+           device itself flips again. A per-browser viewing preference, so it
+           lives with the actions, not in Settings. -->
       <button
         type="button"
         class="ar__review-btn ar__theme-btn"
         :aria-label="themeTip"
         @click="cycleTheme"
       >
-        <!-- Light: the sun. -->
-        <svg v-if="theme === 'light'" viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <!-- In dark: the sun a click brings. -->
+        <svg v-if="theme === 'dark'" viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
           <circle cx="12" cy="12" r="4.2" />
           <path d="M12 2.6v2.2M12 19.2v2.2M2.6 12h2.2M19.2 12h2.2M5.4 5.4l1.5 1.5M17.1 17.1l1.5 1.5M18.6 5.4l-1.5 1.5M6.9 17.1l-1.5 1.5" />
         </svg>
-        <!-- Dark: the moon. -->
+        <!-- In light: the moon a click brings. -->
         <svg v-else viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
           <path d="M20.6 13.4A8.4 8.4 0 1 1 10.6 3.4a6.8 6.8 0 0 0 10 10Z" />
         </svg>

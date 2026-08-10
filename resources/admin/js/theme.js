@@ -47,7 +47,14 @@ export function resolvedTheme() {
 export function initTheme() {
   apply();
   if (media) {
-    const rerun = () => { if (themeSetting() === 'system') apply(); };
+    // The device's own day/night rhythm always wins (his call): a manual
+    // choice from the toggle holds only until the NEXT OS flip — when the
+    // system turns light in the morning, the override clears and the UI
+    // follows, silently.
+    const rerun = () => {
+      try { window.localStorage.removeItem(KEY); } catch (e) { /* private mode */ }
+      apply();
+    };
     if (media.addEventListener) media.addEventListener('change', rerun);
     else if (media.addListener) media.addListener(rerun); // older Safari
   }
