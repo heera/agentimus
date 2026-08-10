@@ -1,0 +1,287 @@
+<script>
+import { uaTip } from '../js/uaTip.js';
+import { tipGuard } from '../js/tipGuard.js';
+
+/**
+ * The right rail: the AEO/GEO score card (gauge, band, the five rungs, the
+ * next-step line), the live-endpoint and discovery-doc link cards, the
+ * registration-status card and the colophon. Pure display over props — the
+ * score data, and every derived list, stays with App (panels share them);
+ * navigation goes back up as a `navigate` emit, exactly what goTo takes.
+ * Carries its own uaTip mixin instance for the next-step hover hints.
+ */
+export default {
+  name: 'ScoreRail',
+  mixins: [uaTip],
+  props: {
+    aeo: { type: Object, default: null },
+    siteIsLocal: { type: Boolean, default: false },
+    ringReady: { type: Boolean, default: false },
+    endpoints: { type: Object, required: true },
+    discoveryDocs: { type: Array, default: () => [] },
+    optimizeTotal: { type: Number, default: 0 },
+    optimizeActionable: { type: Boolean, default: false },
+    validation: { type: Object, required: true },
+  },
+  emits: ['navigate'],
+  computed: {
+    circumference() {
+      return 2 * Math.PI * 52;
+    },
+    // The rail gauge shows the composite AEO/GEO score {@see \Agentimus\Score}.
+    aeoTone() {
+      if (!this.aeo || this.aeo.blocked) return this.siteIsLocal ? 'ok' : 'low';
+      return this.aeo.score >= 70 ? 'good' : this.aeo.score >= 50 ? 'ok' : 'low';
+    },
+    aeoDashOffset() {
+      const pct = this.aeo && !this.aeo.blocked ? this.aeo.score : 0;
+      return this.ringReady ? this.circumference * (1 - pct / 100) : this.circumference;
+    },
+    // The single most impactful next step, shown as the rail's next-step line.
+    aeoNext() {
+      return this.aeo && this.aeo.actions && this.aeo.actions.length ? this.aeo.actions[0] : null;
+    },
+    // Its hover hint: WHY this is the next thing — the complaint in plain words
+    // (the action's own `why`), with the click destination as the second line.
+    aeoNextTip() {
+      return this.aeoNext ? (this.aeoNext.why || this.aeoNext.title || '') : '';
+    },
+    aeoNextTipHint() {
+      const a = this.aeoNext && this.aeoNext.action;
+      if (!a) return '';
+      // href actions open a new tab (see openNext) — say so; in-app jumps keep
+      // the action's own label ("Open Visibility").
+      return a.href ? 'Open in a new tab →' : (a.label ? `${a.label} →` : '');
+    },
+  },
+  methods: {
+    // Navigate up to App, hiding any hint first (the app's goTo used to do this).
+    go(target) {
+      this.hideUaTip();
+      this.$emit('navigate', target);
+    },
+    // ---- rungs -------------------------------------------------------------
+    // A rung's dot state: green when complete, amber when partway, muted when empty.
+    // Check rungs complete at 100 (all checks pass); signal rungs at 70+.
+    rungState(r) {
+      if (r.score === null) return '';
+      if ('check' === r.kind) return 100 === r.score ? 'done' : r.score >= 50 ? 'current' : '';
+      return r.score >= 70 ? 'done' : r.score >= 50 ? 'current' : '';
+    },
+    // Every rung shows its 0–100 score on one consistent scale (they roll up to the
+    // composite in the gauge). The per-check tally lives on the Readiness tab.
+    rungCount(r) {
+      // An unmeasured Cited explains itself in words, in the value slot itself
+      // (right-aligned like every value) — a bare dash read as "broken", when
+      // the truth is just "no reading yet".
+      if (null === r.score) return 'cited' === r.key ? 'not measured yet' : '—';
+      return `${r.score}%`;
+    },
+    rungTarget(r) {
+      // Cited opens Visibility on the sub-view the score chose: Settings when setup
+      // isn't complete enough to run a check, otherwise Results.
+      return 'visibility' === r.to ? { tab: 'visibility', view: r.view || 'results' } : { tab: 'readiness', anchor: `ar-group-${r.key}` };
+    },
+    rungTitle(r) {
+      return 'visibility' === r.to ? 'Open Visibility' : `View ${r.label} checks in the readiness report`;
+    },
+    // "N to fix" for a check-backed rung: its non-passing (warn or fail) checks.
+    rungTodo(r) {
+      return r && 'check' === r.kind ? Math.max(0, (r.total || 0) - (r.pass || 0)) : 0;
+    },
+    // The next-step line: follow the top action's own jump/link, or fall back to the
+    // full report. An external-link action opens in a new tab.
+    openNext() {
+      // Only called when the top action has a real destination (config fix / measure);
+      // content gaps are per-post and render as a non-clickable info line instead.
+      const a = this.aeoNext && this.aeoNext.action;
+      if (!a) return;
+      this.hideUaTip(); // the href path never reaches go()'s own hide
+      if (a.href) {
+        window.open(a.href, '_blank', 'noopener');
+        return;
+      }
+      this.go(a);
+    },
+    showRailTip(ev, text, hint = '') {
+      if (!text) return;
+      const el = ev.currentTarget;
+      // Scroll-induced mouseenters wait for a real mouse move (see tipGuard).
+      if (tipGuard.suppress(ev, el, () => this.showRailTip({ currentTarget: el, type: 'retry' }, text, hint))) return;
+      const rect = el.getBoundingClientRect();
+      const card = (el.closest && el.closest('.ar-rail-card')) || el.parentElement;
+      const c = card.getBoundingClientRect();
+      const below = rect.top < 96;
+      // The width cap rides the reactive state: an imperative tip.style.maxWidth
+      // would be wiped the moment Vue re-patches the bubble's :style binding.
+      const maxW = `${Math.max(160, Math.round(c.width - 24))}px`;
+      this.uaTip = {
+        show: true, text, hint, below, maxW,
+        x: Math.round(c.left + c.width / 2),
+        y: below ? rect.bottom + 8 : rect.top - 8,
+        caret: 0, // unused by the --rail variant: its caret is CSS-centred
+      };
+    },
+  },
+};
+</script>
+
+<template>
+      <aside class="ar__rail">
+        <!-- The Readiness card, evolved: the gauge now shows the composite AEO/GEO
+             score, and the ladder extends the three readiness rungs with two AEO/GEO
+             rungs (Optimized, Cited). Same card, same dark look — extended. -->
+        <div v-if="aeo" class="ar-rail-card ar-rail-card--readiness">
+          <p class="ar-rail-card__label">AEO / GEO</p>
+          <button
+            type="button"
+            class="ar-rail-readiness ar-rail-readiness--link"
+            aria-label="Open the full readiness report"
+            @click="go('readiness')"
+          >
+            <div class="ar-rail-gauge" role="img" :aria-label="`AEO/GEO score ${aeo.score} of 100`">
+              <svg viewBox="0 0 116 116">
+                <circle class="ar-rail-gauge__track" cx="58" cy="58" r="52" />
+                <circle
+                  class="ar-rail-gauge__fill"
+                  cx="58"
+                  cy="58"
+                  r="52"
+                  :data-tone="aeoTone"
+                  :stroke-dasharray="circumference"
+                  :stroke-dashoffset="aeoDashOffset"
+                />
+              </svg>
+              <span class="ar-rail-gauge__num">{{ aeo.blocked ? '—' : aeo.score }}<small v-if="!aeo.blocked">%</small></span>
+            </div>
+            <!-- The blocked verdict (blog_public off) reads differently by context:
+                 on a live site it's the red master-switch alarm; on a local site
+                 it's a calm to-do for launch day, not a failure. -->
+            <div class="ar-rail-tier" :data-state="aeo.blocked ? (siteIsLocal ? 'local' : 'floor') : (aeo.ready ? 'top' : 'climb')">
+              <strong class="ar-rail-tier__name">{{ aeo.blocked ? (siteIsLocal ? 'Not public yet' : 'Not reachable') : aeo.band }}</strong>
+              <span class="ar-rail-tier__sub">{{
+                aeo.blocked ? (siteIsLocal ? 'switch on Search engine visibility before launch' : 'agents can’t read the site')
+                : aeo.ready ? 'fully agent-ready'
+                : 'getting ready'
+              }}</span>
+            </div>
+          </button>
+
+          <!-- The three readiness rungs, extended by the two AEO/GEO rungs. Each links
+               to where you act on it; Optimized is per-post, so it's a plain stat row. -->
+          <ol class="ar-rungs">
+            <li v-for="r in aeo.rungs" :key="r.key" class="ar-rung" :data-state="rungState(r)">
+              <button
+                v-if="r.to"
+                type="button"
+                class="ar-rung__btn"
+                :aria-label="rungTitle(r)"
+                @click="go(rungTarget(r))"
+              >
+                <span class="ar-rung__tick" aria-hidden="true"></span>
+                <span class="ar-rung__name">{{ r.label }}</span>
+                <!-- Check-backed rungs count their non-passing checks; Cited is a
+                     measurement, not a checklist, so it never wears the chip. -->
+                <em v-if="rungTodo(r)" class="ar-rung__todo">{{ rungTodo(r) }} to fix</em>
+                <span class="ar-rung__count">{{ rungCount(r) }}</span>
+              </button>
+              <!-- Optimized routes like the other rungs — to its section on the
+                   Readiness tab (the per-page worklist), when there's work to do. -->
+              <button
+                v-else-if="r.key === 'optimized' && optimizeActionable"
+                type="button"
+                class="ar-rung__btn"
+                aria-label="See which pages to optimize"
+                @click="go({ tab: 'readiness', anchor: 'ar-group-optimized' })"
+              >
+                <span class="ar-rung__tick" aria-hidden="true"></span>
+                <span class="ar-rung__name">{{ r.label }}</span>
+                <!-- The WHOLE worklist's size — the Next line below only ever
+                     names the top issue, so this is where the total lives. -->
+                <em v-if="optimizeTotal" class="ar-rung__todo">{{ optimizeTotal }} to fix</em>
+                <span class="ar-rung__count">{{ rungCount(r) }}</span>
+              </button>
+              <div v-else class="ar-rung__btn ar-rung__btn--static">
+                <span class="ar-rung__tick" aria-hidden="true"></span>
+                <span class="ar-rung__name">{{ r.label }}</span>
+                <span class="ar-rung__count">{{ rungCount(r) }}</span>
+              </div>
+            </li>
+          </ol>
+
+          <button
+            v-if="aeoNext && aeoNext.action"
+            type="button"
+            class="ar-rail-link ar-rail-next"
+            @mouseenter="showRailTip($event, aeoNextTip, aeoNextTipHint)"
+            @mouseleave="hideUaTip"
+            @focus="showRailTip($event, aeoNextTip, aeoNextTipHint)"
+            @blur="hideUaTip"
+            @click="openNext"
+          >Next: {{ aeoNext.title }} →</button>
+          <p
+            v-else-if="aeoNext"
+            class="ar-rail-next ar-rail-next--info"
+            @mouseenter="showRailTip($event, aeoNextTip)"
+            @mouseleave="hideUaTip"
+          >Next: {{ aeoNext.title }}</p>
+          <p v-else class="ar-rail-allgood">
+            <svg viewBox="0 0 16 16" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <circle cx="8" cy="8" r="6.5" />
+              <path d="M5.2 8.3l2 2 3.6-4.2" />
+            </svg>
+            Everything looks good.
+          </p>
+        </div>
+
+        <div class="ar-rail-card">
+          <p class="ar-rail-card__label">Live endpoints</p>
+          <ul class="ar-rail-links">
+            <li><a :href="endpoints.llms" target="_blank" rel="noopener">llms.txt</a></li>
+            <li><a :href="endpoints.llmsFull" target="_blank" rel="noopener">llms-full.txt</a></li>
+            <li><a :href="endpoints.robots" target="_blank" rel="noopener">robots.txt</a></li>
+          </ul>
+        </div>
+
+        <div v-if="discoveryDocs.length" class="ar-rail-card">
+          <p class="ar-rail-card__label">Discovery docs</p>
+          <ul class="ar-rail-links">
+            <li v-for="d in discoveryDocs" :key="d.label">
+              <a :href="d.url" target="_blank" rel="noopener">{{ d.label }}</a>
+            </li>
+          </ul>
+        </div>
+
+        <!-- Registration status — its own compact one-line card (separate from the black
+             card). Green ✓ when valid, amber alert when broken; the → is always shown. -->
+        <button
+          type="button"
+          class="ar-rail-card ar-rail-regcard"
+          :class="validation.ok ? 'is-ok' : 'is-alert'"
+          v-tip="validation.ok ? 'See what’s registered' : 'Review registration issues'"
+          @click="go({ tab: 'discovery', anchor: validation.ok ? 'ar-wd-providers' : 'ar-wd-validation' })"
+        >
+          <span class="ar-rail-regcard__icon" aria-hidden="true">{{ validation.ok ? '✓' : '⚠' }}</span>
+          <span class="ar-rail-regcard__text">{{ validation.ok ? 'All registrations are valid' : `${validation.count} ${validation.count === 1 ? 'issue' : 'issues'} to fix` }}</span>
+          <span class="ar-rail-regcard__go" aria-hidden="true">→</span>
+        </button>
+
+        <p class="ar-rail-foot" aria-label="Made with love by Sheikh Heera"><span class="ar-rail-foot__text">Made with <span class="ar-rail-foot__heart" aria-hidden="true">♥</span> by <a class="ar-rail-foot__link" href="https://heera.it" target="_blank" rel="noopener">Sheikh Heera</a></span></p>
+      </aside>
+
+    <!-- The styled hover bubble for the score rail's rung + next-step hints —
+         the shared uaTip state, in its prose (--info) variant. -->
+    <Teleport to="body">
+      <transition name="ar-tip">
+        <div
+          v-if="uaTip.show"
+          ref="uaTipEl"
+          class="ar-act-uatip ar-act-uatip--info ar-act-uatip--rail"
+          :class="{ 'is-below': uaTip.below }"
+          :style="{ left: uaTip.x + 'px', top: uaTip.y + 'px', maxWidth: uaTip.maxW || null }"
+          role="tooltip"
+          aria-hidden="true"
+        ><span class="ar-act-uatip__ua">{{ uaTip.text }}</span><span v-if="uaTip.hint" class="ar-act-uatip__hint">{{ uaTip.hint }}</span><span class="ar-act-uatip__caret"></span></div>
+      </transition>
+    </Teleport>
+</template>
