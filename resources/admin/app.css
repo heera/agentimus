@@ -210,6 +210,11 @@
    Half-way between paper and surface mirrors light's cream-wash proportion,
    so the fields pop the way the white ones do by day. */
 :root[data-ar-theme="dark"] .ar-svc { background: color-mix(in srgb, var(--ar-paper) 45%, var(--ar-surface)); }
+/* The nav ladder is faint -> soft -> ink; on the dark grounds the faint rung
+   measures ~2.6:1 — below reading. Dark lifts the whole ladder one step:
+   soft at rest, ink on hover, active unchanged (already ink). */
+:root[data-ar-theme="dark"] .ar__tab { color: var(--ar-ink-soft); }
+:root[data-ar-theme="dark"] .ar__tab:hover { color: var(--ar-ink); }
 
 /* ---- Dark, per admin scheme -----------------------------------------------
    The dark neutrals are keyed to wp-admin's CLASSIC charcoal (Fresh, Midnight
@@ -244,6 +249,11 @@
   --ar-ink-faint: #757169;
   --ar-line: #46423d;
   --ar-line-strong: #55504a;
+  /* The rail identity goes GOLD here (his pick) — coffee and gold, while
+     good/PASS keeps meaning green. */
+  --ar-chrome: #c09c5c;
+  --ar-chrome-bright: #d4b478;
+  --ar-chrome-line: color-mix(in srgb, #c09c5c 24%, var(--ar-line));
 }
 :root[data-ar-theme="dark"] body.admin-color-coffee .ar-btn:hover:not(:disabled) { background: #4a453f; }
 :root[data-ar-theme="dark"] body.admin-color-coffee .ar-about-snippet { background: #181715; }
