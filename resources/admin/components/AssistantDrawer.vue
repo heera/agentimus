@@ -1163,9 +1163,11 @@ export default {
                   <button type="button" class="ar-linkbtn" @click="undoRefine">Undo — bring it back</button>
                 </p>
                 <template v-if="!confirmReset">
-                  <!-- Edit mode has no sibling links, so Start over joins the
-                       commit row instead of sitting stranded on its own line. -->
-                  <div v-if="'write' === mode" class="ar-assist__footrow">
+                  <!-- The preview's own way back: retry, reopen the brief or the
+                       outline, or clear it. This row once gated on a `mode` that
+                       no longer exists, so it silently never rendered and the
+                       preview became commit-or-close. -->
+                  <div class="ar-assist__footrow">
                     <button type="button" class="ar-linkbtn ar-assist__resetlink" :disabled="refining || 'creating' === step" @click="confirmReset = true">Start over</button>
                     <span class="ar-assist__spacer"></span>
                     <button type="button" class="ar-linkbtn" :disabled="refining || 'creating' === step" @click="editBrief">Edit the brief</button>
