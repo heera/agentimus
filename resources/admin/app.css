@@ -205,6 +205,11 @@
   background: var(--ar-accent); color: var(--ar-on-signal);
 }
 :root[data-ar-theme="dark"] .ar-tags__chip { background: var(--ar-surface-2); color: var(--ar-ink); }
+/* The service tray recedes GENTLY at night: full paper made a pit in the
+   charcoal card, and the card-coloured fields inside drowned among borders.
+   Half-way between paper and surface mirrors light's cream-wash proportion,
+   so the fields pop the way the white ones do by day. */
+:root[data-ar-theme="dark"] .ar-svc { background: color-mix(in srgb, var(--ar-paper) 45%, var(--ar-surface)); }
 :root[data-ar-theme="dark"] .ar-about-priv__cell--head {
   background: var(--ar-surface-2); border-color: var(--ar-line-strong);
 }
