@@ -152,9 +152,11 @@
   /* The dark chrome accent: the violet the rail cards, score identity and
      section labels wear at night. Light mode has no equivalent — its chrome
      is the ink itself. */
-  --ar-chrome: #63c2b2;
-  --ar-chrome-bright: #85d2c4;
-  --ar-chrome-line: color-mix(in srgb, #63c2b2 26%, var(--ar-line));
+  /* No brighter "identity step" — it read acidic against the charcoal. The
+     chrome IS the accent; only hover steps up. */
+  --ar-chrome: #57b6a6;
+  --ar-chrome-bright: #6fc7b8;
+  --ar-chrome-line: color-mix(in srgb, #57b6a6 24%, var(--ar-line));
   --ar-hover: color-mix(in srgb, #57b6a6 16%, transparent);
 
   --ar-good-wash: color-mix(in srgb, var(--ar-good) 10%, var(--ar-surface));
@@ -225,7 +227,9 @@
    surfaces are dark in both themes). */
 :root[data-ar-theme="dark"] .ar-rung[data-state="current"] { color: var(--ar-warn-on-ink); }
 :root[data-ar-theme="dark"] .ar-rung__todo { color: var(--ar-warn-on-ink); }
-:root[data-ar-theme="dark"] .ar-today__score-n { color: var(--ar-chrome); }
+/* The big score numerals read as ink at night, like the gauge number —
+   color belongs to words and marks; a neon number bites. */
+:root[data-ar-theme="dark"] .ar-today__score-n { color: var(--ar-ink); }
 /* A 0.3-alpha black shadow reads on cream but not on near-black: the stuck
    pagehead deepens to true black and gains a hairline edge (as a shadow
    layer, so nothing shifts by a pixel). */
