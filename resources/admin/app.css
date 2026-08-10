@@ -126,13 +126,18 @@
   --ar-paper: #101012;
   --ar-surface: #171719;
   --ar-surface-2: #1f1f22;
-  --ar-ink: #e9e7e2;
-  --ar-ink-soft: #a5a29c;
-  --ar-ink-faint: #71706b;
+  /* Off-white, deliberately shy of white: full-bright serif headings on black
+     glare (his call) — this keeps ~10:1 body contrast without the sting. */
+  --ar-ink: #d9d6cf;
+  --ar-ink-soft: #9c9992;
+  --ar-ink-faint: #6b6a65;
   --ar-line: #2b2b2e;
   --ar-line-strong: #3c3c40;
 
-  --ar-accent: #4db892;
+  /* One accent family at night (his pick of the two mocks): the violet leads
+     everywhere an action or the chrome speaks — links, icon chips, the active
+     tab, the brand ring. Green stays what it means: a good state. */
+  --ar-accent: #a78bfa;
   --ar-good: #5cc08a;
   --ar-warn: #e0b24c;
   --ar-bad: #e08a72;
@@ -143,7 +148,7 @@
   --ar-chrome: #a78bfa;
   --ar-chrome-bright: #c4b2fc;
   --ar-chrome-line: color-mix(in srgb, #a78bfa 30%, var(--ar-line));
-  --ar-hover: color-mix(in srgb, #8bc34a 14%, transparent);
+  --ar-hover: color-mix(in srgb, #a78bfa 16%, transparent);
 
   --ar-good-wash: color-mix(in srgb, var(--ar-good) 10%, var(--ar-surface));
   --ar-good-tint: color-mix(in srgb, var(--ar-good) 26%, var(--ar-surface));
@@ -163,8 +168,11 @@
   --ar-accent-wash: color-mix(in srgb, var(--ar-accent) 12%, var(--ar-surface));
   --ar-accent-soft: color-mix(in srgb, var(--ar-accent) 20%, var(--ar-surface));
 
-  /* The on-ink accents keep their light values: the surfaces that wear them
-     (score card, dark chips) stay dark at night — no cream islands. */
+  /* The state on-ink accents (good/warn/bad) keep their light values: the
+     surfaces that wear them stay dark at night. The teal ACTION pair follows
+     the violet — same family as every other link. */
+  --ar-teal-on-ink: #a78bfa;
+  --ar-teal-on-ink-hover: #c4b2fc;
 
   --ar-on-signal: #14120e;
   --ar-ink-hard: #fff;
@@ -176,7 +184,6 @@
 :root[data-ar-theme="dark"] .ar__mark,
 :root[data-ar-theme="dark"] .ar-wiz__welcome-mark--brand {
   background: var(--ar-surface-2); color: var(--ar-ink);
-  border: 1px solid var(--ar-line-strong);
 }
 :root[data-ar-theme="dark"] .ar-btn {
   background: var(--ar-surface-2); color: var(--ar-ink); border-color: var(--ar-line-strong);
@@ -212,6 +219,7 @@
    surfaces are dark in both themes). */
 :root[data-ar-theme="dark"] .ar-rung[data-state="current"] { color: var(--ar-warn-on-ink); }
 :root[data-ar-theme="dark"] .ar-rung__todo { color: var(--ar-warn-on-ink); }
+:root[data-ar-theme="dark"] .ar-today__score-n { color: var(--ar-chrome); }
 :root[data-ar-theme="dark"] .ar-rail-tier[data-state="floor"] .ar-rail-tier__name { color: var(--ar-bad-on-ink); }
 :root[data-ar-theme="dark"] .ar-rail-tier[data-state="local"] .ar-rail-tier__name { color: var(--ar-warn-on-ink); }
 /* The brand A drew its legs in paper on the ink tile; on the dark tile they
