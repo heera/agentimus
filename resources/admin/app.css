@@ -234,6 +234,19 @@
 /* The two hue-carrying literals in the dark overrides go neutral with it. */
 :root[data-ar-theme="dark"] body.admin-color-modern .ar-btn:hover:not(:disabled) { background: #383838; }
 :root[data-ar-theme="dark"] body.admin-color-modern .ar-about-snippet { background: #111111; }
+/* Coffee: the same idea in that scheme's warm brown key (paper/surface his). */
+:root[data-ar-theme="dark"] body.admin-color-coffee {
+  --ar-paper: #202020;
+  --ar-surface: #35322f;
+  --ar-surface-2: #403c38;
+  --ar-ink: #e2dfdb;
+  --ar-ink-soft: #a8a49e;
+  --ar-ink-faint: #757169;
+  --ar-line: #46423d;
+  --ar-line-strong: #55504a;
+}
+:root[data-ar-theme="dark"] body.admin-color-coffee .ar-btn:hover:not(:disabled) { background: #4a453f; }
+:root[data-ar-theme="dark"] body.admin-color-coffee .ar-about-snippet { background: #181715; }
 :root[data-ar-theme="dark"] .ar-about-priv__cell--head {
   background: var(--ar-surface-2); border-color: var(--ar-line-strong);
 }
