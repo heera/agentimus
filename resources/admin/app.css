@@ -127,16 +127,16 @@
      the admin chrome around it read as one night. Page darker in the same
      hue; raised surfaces one step up. */
   --ar-paper: #101417;
-  --ar-surface: #1d2327;
-  --ar-surface-2: #262e34;
+  --ar-surface: #262d31;
+  --ar-surface-2: #303940;
   /* Off-white, deliberately shy of white: full-bright serif headings on black
      glare (his call) — and COOL, because the charcoal ground is cool; a warm
      cream here would clash in temperature. */
   --ar-ink: #dde0e2;
   --ar-ink-soft: #a2a8ad;
   --ar-ink-faint: #6e757b;
-  --ar-line: #2d363d;
-  --ar-line-strong: #3a454e;
+  --ar-line: #39434a;
+  --ar-line-strong: #47525a;
 
   /* One accent family at night: the brand's own teal, brightened for the
      charcoal — it leads everywhere an action or the chrome speaks (links,
@@ -154,9 +154,9 @@
      is the ink itself. */
   /* No brighter "identity step" — it read acidic against the charcoal. The
      chrome IS the accent; only hover steps up. */
-  --ar-chrome: #57b6a6;
-  --ar-chrome-bright: #6fc7b8;
-  --ar-chrome-line: color-mix(in srgb, #57b6a6 24%, var(--ar-line));
+  --ar-chrome: #8ac4bb;
+  --ar-chrome-bright: #a5d4cc;
+  --ar-chrome-line: color-mix(in srgb, #8ac4bb 24%, var(--ar-line));
   --ar-hover: color-mix(in srgb, #57b6a6 16%, transparent);
 
   --ar-good-wash: color-mix(in srgb, var(--ar-good) 10%, var(--ar-surface));
@@ -198,7 +198,7 @@
   background: var(--ar-surface-2); color: var(--ar-ink); border-color: var(--ar-line-strong);
 }
 :root[data-ar-theme="dark"] .ar-btn:hover:not(:disabled) {
-  background: #2a333a; border-color: var(--ar-ink-faint); box-shadow: none;
+  background: #3a454d; border-color: var(--ar-ink-faint); box-shadow: none;
 }
 :root[data-ar-theme="dark"] .ar-srcpick__btn.is-on {
   background: var(--ar-accent); color: var(--ar-on-signal);
