@@ -247,6 +247,18 @@
   color: var(--ar-ink);
   border-color: var(--ar-line-strong);
 }
+/* Bare anchors — prose links that carry no .ar-* class — otherwise inherit
+   wp-admin's link blue, a stranger at night. :where() keeps this at element
+   specificity so every class-styled link still outranks it. */
+:where(:root[data-ar-theme="dark"] #agentimus-app,
+       :root[data-ar-theme="dark"] .ar-modal,
+       :root[data-ar-theme="dark"] .ar-drawer) a { color: var(--ar-accent); }
+:where(:root[data-ar-theme="dark"] #agentimus-app,
+       :root[data-ar-theme="dark"] .ar-modal,
+       :root[data-ar-theme="dark"] .ar-drawer) a:hover,
+:where(:root[data-ar-theme="dark"] #agentimus-app,
+       :root[data-ar-theme="dark"] .ar-modal,
+       :root[data-ar-theme="dark"] .ar-drawer) a:focus { color: var(--ar-chrome-bright); }
 
 #agentimus-app {
 
