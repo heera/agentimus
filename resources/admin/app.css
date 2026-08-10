@@ -272,6 +272,12 @@
   color: var(--ar-ink);
   border-color: var(--ar-line-strong);
 }
+/* The repaint above outranks the shared focus rule by specificity, so the
+   focused border re-asserts here — accent border + accent glow, same as day. */
+:root[data-ar-theme="dark"] :is(#agentimus-app, .ar-modal, .ar-drawer)
+  :is(input:not([type="checkbox"]):not([type="radio"]):not([type="range"]), textarea, select):focus {
+  border-color: var(--ar-accent);
+}
 /* Bare anchors — prose links that carry no .ar-* class — otherwise inherit
    wp-admin's link blue, a stranger at night. :where() keeps this at element
    specificity so every class-styled link still outranks it. */
@@ -2898,6 +2904,16 @@ a.ar-opp__title:hover { text-decoration: underline; }
   transition: border-color 0.15s, box-shadow 0.15s;
 }
 .ar-input:focus {
+  outline: none; border-color: var(--ar-accent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--ar-accent) 13%, transparent);
+}
+/* wp-admin's forms.css paints focus with the ADMIN SCHEME's color at
+   input[type=…]:focus specificity — (0,2,1), one element-tiebreak above the
+   class rule right here — so the scheme, not the app, owned every focus ring.
+   The id scope takes it back: the app's own accent, both themes, whatever
+   scheme the profile picked. Checkbox/radio/range keep their native focus. */
+#agentimus-app :is(input:not([type="checkbox"]):not([type="radio"]):not([type="range"]), textarea, select):focus,
+:is(.ar-modal, .ar-drawer) :is(input:not([type="checkbox"]):not([type="radio"]):not([type="range"]), textarea, select):focus {
   outline: none; border-color: var(--ar-accent);
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--ar-accent) 13%, transparent);
 }
