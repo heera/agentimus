@@ -138,9 +138,11 @@ final class Rest {
 			return new \WP_Error( 'agentimus_bing_url', __( 'Paste a page address first.', 'agentimus' ), array( 'status' => 400 ) );
 		}
 
-		// A bare path is this site's by definition; a full URL must be.
-		$url = 0 === strpos( $raw, 'http' ) ? esc_url_raw( $raw ) : home_url( '/' . ltrim( $raw, '/' ) );
-		if ( '' === $url || ( 0 === strpos( $raw, 'http' ) && ! self::hosts_match( $url, home_url( '/' ) ) ) ) {
+		// The same resolver Google's lookup uses — bare paths, scheme-relative
+		// pastes and the site written out host-first all land on this site;
+		// a foreign host answers ''.
+		$url = \Agentimus\LocalUrl::resolve( $raw );
+		if ( '' === $url ) {
 			return new \WP_Error( 'agentimus_bing_url', __( 'That address isn’t on this site — Bing will only answer for the site this key verified.', 'agentimus' ), array( 'status' => 400 ) );
 		}
 

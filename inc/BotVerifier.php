@@ -217,6 +217,42 @@ final class BotVerifier {
 	}
 
 	/**
+	 * The claim cascade, in ONE place: forward-confirmed reverse DNS first, the
+	 * operator's published IP-range file when rDNS is inapplicable (a range-only
+	 * operator like GPTBot) or inconclusive. Every consumer of "is this UA's
+	 * claim genuine?" reads THIS function — the serve-path Guard, the activity
+	 * ingest, and the admin re-check — so blocking, reporting and the re-check
+	 * button can never drift apart on what verified/spoofed means.
+	 *
+	 * @param string $ua    User-Agent, any case.
+	 * @param string $ip    Source IP.
+	 * @param bool   $fresh true = the admin re-check variant: fresh FCrDNS past
+	 *                      the lookup budget, and the range file may refetch;
+	 *                      false = the serve-path variant — cached verdicts and
+	 *                      the cron-fetched range cache, no network ever.
+	 * @return int 0 = unchecked/inconclusive, 1 = verified, 2 = spoofed.
+	 */
+	public static function claim_verdict( $ua, $ip, $fresh = false ) {
+		$ua_lc = strtolower( (string) $ua );
+		$r     = $fresh
+			? self::reverify_engine( $ua_lc, (string) $ip )
+			: self::verify_engine( $ua_lc, (string) $ip ); // true | false | null.
+		if ( true === $r ) {
+			return 1;
+		}
+		if ( false === $r ) {
+			return 2;
+		}
+		$token = VerifierRegistry::claimed( $ua_lc );
+		if ( '' === $token ) {
+			return 0; // No claim in the registry — nothing to fail. Fail open.
+		}
+		return $fresh
+			? BotRanges::recheck( $token, (string) $ip )
+			: BotRanges::verdict( $token, (string) $ip );
+	}
+
+	/**
 	 * Reverse-resolve an IP into its owning network and (for a verifiable engine) verdict — the
 	 * shared core behind {@see identify_ip()} (admin tool) and {@see attribute_ip()} (serve path).
 	 * Records a slow-lookup strike and returns `ok:false` on a slow reverse/forward lookup, so a

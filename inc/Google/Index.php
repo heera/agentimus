@@ -1241,43 +1241,10 @@ final class Index {
 	 * @return string Absolute URL on this site, or '' when it is not ours.
 	 */
 	private static function resolve_local( $url ) {
-		$url = trim( (string) $url );
-		if ( '' === $url ) {
-			return '';
-		}
-
-		$home_host = strtolower( (string) wp_parse_url( home_url( '/' ), PHP_URL_HOST ) );
-
-		// Scheme-relative ("//host/path") — rare from a person, common from a paste.
-		if ( 0 === strpos( $url, '//' ) ) {
-			$url = 'https:' . $url;
-		}
-
-		// With a scheme, the host is knowable and decides it outright.
-		if ( preg_match( '#^[a-z][a-z0-9+.\-]*://#i', $url ) ) {
-			$host = strtolower( (string) wp_parse_url( $url, PHP_URL_HOST ) );
-			return $host === $home_host ? $url : '';
-		}
-
-		// Without one, parse_url reports NO host for either "terms/" or
-		// "elsewhere.test/x" — they are the same shape to it. So the first
-		// segment is compared against this site's own host, and only that
-		// settles it: "example.test/terms" is this site written out in full,
-		// while anything else is read as a PATH here.
-		//
-		// Reading the leftovers as a path is the deliberate choice. The
-		// alternative — guessing "has a dot, must be a domain" — refuses
-		// "sitemap.xml" as a foreign site, and being wrong about someone's own
-		// page is worse than answering "not checked yet" about a path that
-		// turns out not to exist.
-		$first = strtolower( (string) strtok( ltrim( $url, '/' ), '/' ) );
-		if ( $first === $home_host || 'www.' . $first === $home_host || $first === 'www.' . $home_host ) {
-			$abs  = ( 0 === strpos( home_url( '/' ), 'http://' ) ? 'http://' : 'https://' ) . ltrim( $url, '/' );
-			$host = strtolower( (string) wp_parse_url( $abs, PHP_URL_HOST ) );
-			return $host === $home_host ? $abs : '';
-		}
-
-		return home_url( '/' . ltrim( $url, '/' ) );
+		// The rule lives in \Agentimus\LocalUrl now — Bing's URL check reads the
+		// same one, so the two boxes can never disagree about what "this site's
+		// page" means.
+		return \Agentimus\LocalUrl::resolve( $url );
 	}
 
 	private static function norm( $url ) {

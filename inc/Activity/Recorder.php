@@ -16,8 +16,6 @@ namespace Agentimus\Activity;
 use Agentimus\Settings;
 use Agentimus\Guard;
 use Agentimus\BotVerifier;
-use Agentimus\BotRanges;
-use Agentimus\VerifierRegistry;
 
 defined( 'ABSPATH' ) || exit;
 
@@ -272,15 +270,9 @@ final class Recorder {
 	 * @return int 0 = unchecked/inconclusive, 1 = verified, 2 = spoofed.
 	 */
 	public static function client_verdict( $ua, $ip ) {
-		$verdict = self::engine_verdict( $ua, $ip );
-		if ( 0 !== $verdict ) {
-			return $verdict;
-		}
-		$token = VerifierRegistry::claimed( strtolower( (string) $ua ) );
-		if ( '' === $token ) {
-			return 0;
-		}
-		return BotRanges::verdict( $token, (string) $ip );
+		// The cascade itself lives with the verifier now ({@see BotVerifier::claim_verdict})
+		// — one definition shared with the Guard and the admin re-check.
+		return BotVerifier::claim_verdict( $ua, $ip, false );
 	}
 
 	/**

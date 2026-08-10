@@ -226,15 +226,10 @@ final class Guard {
 		if ( '' === $ip ) {
 			return false; // Nothing to check against → inconclusive → fail open.
 		}
-		$verdict = BotVerifier::verify_engine( $ua_lc, $ip ); // true | false | null.
-		if ( false === $verdict ) {
-			return true;
-		}
-		if ( null !== $verdict ) {
-			return false; // Forward-confirmed genuine.
-		}
-		$token = VerifierRegistry::claimed( $ua_lc );
-		return '' !== $token && 2 === BotRanges::verdict( $token, $ip );
+		// The shared cascade (rDNS, then fresh published ranges) — one definition
+		// with the ingest and the re-check button. Only a conclusive "spoofed"
+		// (2) costs the claim anything; verified (1) and unchecked (0) fail open.
+		return 2 === BotVerifier::claim_verdict( $ua_lc, $ip, false );
 	}
 
 	/**

@@ -729,11 +729,9 @@ final class Module {
 		$verdict = 0;
 		$per_ip  = array();
 		foreach ( $ips as $ip ) {
-			$r = BotVerifier::reverify_engine( $ua_lc, $ip ); // true | false | null
-			$v = ( true === $r ) ? 1 : ( ( false === $r ) ? 2 : 0 );
-			if ( 0 === $v ) {
-				$v = BotRanges::recheck( $token, $ip ); // 0 | 1 | 2 — 0 when no range file.
-			}
+			// The shared cascade, fresh variant — same definition the ingest and the
+			// Guard read, just past the lookup budget and allowed to refetch ranges.
+			$v = BotVerifier::claim_verdict( $ua_lc, $ip, true );
 			if ( $v > $verdict ) {
 				$verdict = $v;
 			}

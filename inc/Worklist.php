@@ -477,7 +477,10 @@ final class Worklist {
 				// page is about X" and "Google shows this page for X".
 				'engine'      => (bool) $chosen['chosen'] ? '' : $this->engine_label(),
 			);
-			$cov   = Coverage::measure( $html, $post->post_title, $focus['query'] );
+			// Through Focus::coverage — the SEO-title-aware measurement the editor
+			// and the 'others' loop above already use — so this row can never
+			// contradict the editor's in_title verdict when an SEO title stands.
+			$cov = Focus::coverage( $post, $focus['query'], $html );
 		}
 
 		$flags = PageCheck::flags( $post );
