@@ -468,8 +468,19 @@ final class Admin {
 		global $_wp_admin_css_colors;
 		$base = isset( $_wp_admin_css_colors[ $scheme ]->colors[0] ) ? $_wp_admin_css_colors[ $scheme ]->colors[0] : '';
 		$ink  = self::card_ink_for( $scheme, $base );
+		if ( '' === $ink ) {
+			return '';
+		}
 
-		return '' === $ink ? '' : self::SCHEME_SCOPE . '{--ar-ink:' . $ink . '}';
+		// LIGHT MODE ONLY. This re-declared --ar-ink is a scheme-tinted DARK for
+		// the light theme's ink surfaces; the dark theme keeps the whole token
+		// set to itself — without this guard, a non-default scheme painted dark
+		// ink onto dark buttons (found on every scheme except fresh, which
+		// emits nothing and so never showed it).
+		$light = ':root:not([data-ar-theme="dark"]) ';
+		$scope = $light . implode( ',' . $light, explode( ',', self::SCHEME_SCOPE ) );
+
+		return $scope . '{--ar-ink:' . $ink . '}';
 	}
 
 	/**
