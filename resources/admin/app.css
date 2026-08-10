@@ -229,6 +229,12 @@
 /* A 0.3-alpha black shadow reads on cream but not on near-black: the stuck
    pagehead deepens to true black and gains a hairline edge (as a shadow
    layer, so nothing shifts by a pixel). */
+/* The nav bar and pagehead ride --ar-surface, which is now the same charcoal
+   as wp-admin's bar — three fused slabs. At night they join the CANVAS
+   instead: the wp bar reads as its own lighter chrome above a darker page,
+   and the cards keep the charcoal. Hairlines keep the internal edges. */
+:root[data-ar-theme="dark"] .ar__bar,
+:root[data-ar-theme="dark"] .ar__pagehead { background: var(--ar-paper); }
 :root[data-ar-theme="dark"] .ar__sticky.is-stuck {
   box-shadow:
     0 1px 0 var(--ar-line-strong),
