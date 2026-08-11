@@ -108,12 +108,12 @@ final class DigestTest extends TestCase {
 	/* -- Subject ----------------------------------------------------------- */
 
 	public function test_subject_leads_with_reads_and_score() {
-		$this->assertSame( 'Your site’s AI week: 143 agent reads, score 84', Renderer::subject( $this->fixture() ) );
+		$this->assertSame( 'Your site’s AI week: 143 AI reads, score 84', Renderer::subject( $this->fixture() ) );
 	}
 
 	public function test_subject_without_a_score_still_counts_reads() {
 		$data = $this->fixture( array( 'score' => array( 'now' => null, 'prev' => null ) ) );
-		$this->assertSame( 'Your site’s AI week: 143 agent reads', Renderer::subject( $data ) );
+		$this->assertSame( 'Your site’s AI week: 143 AI reads', Renderer::subject( $data ) );
 	}
 
 	/* -- Body -------------------------------------------------------------- */
@@ -167,7 +167,7 @@ final class DigestTest extends TestCase {
 	public function test_zero_count_sections_stay_out() {
 		$html = Renderer::html( $this->fixture( array( 'impostors' => array( 'total' => 0 ), 'access' => array( 'events' => 0 ) ) ) );
 		$this->assertStringNotContainsString( 'Impostors', $html );
-		$this->assertStringNotContainsString( 'Connected agents', $html );
+		$this->assertStringNotContainsString( 'Connected assistants', $html );
 	}
 
 	public function test_first_digest_score_has_no_invented_delta() {
@@ -219,7 +219,7 @@ final class DigestTest extends TestCase {
 		$this->assertCount( 1, $GLOBALS['_af_mail'] );
 		$mail = $GLOBALS['_af_mail'][0];
 		$this->assertSame( 'owner@example.test', $mail['to'] );
-		$this->assertStringContainsString( '143 agent reads', $mail['subject'] );
+		$this->assertStringContainsString( '143 AI reads', $mail['subject'] );
 		$this->assertContains( 'Content-Type: text/html; charset=UTF-8', (array) $mail['headers'] );
 
 		$snapshot = get_option( Module::SNAPSHOT_OPTION );

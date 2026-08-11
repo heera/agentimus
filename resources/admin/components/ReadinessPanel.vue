@@ -159,8 +159,11 @@ export default {
     if (this._unEscExposure) this._unEscExposure();
   },
   methods: {
+    // 'off' is the neutral fourth state: the feature this row measures is
+    // switched off, so there is nothing to grade — the chip states the fact
+    // in faint ink and the row stays out of every tally (see tiers.js).
     tagLabel(status) {
-      return { pass: 'PASS', warn: 'WARN', fail: 'FAIL' }[status] || String(status || 'CHECK').toUpperCase();
+      return { pass: 'PASS', warn: 'WARN', fail: 'FAIL', off: 'OFF' }[status] || String(status || 'CHECK').toUpperCase();
     },
     // Set a page aside as "not cited content" (or restore it). The server returns the
     // recomputed score, which the parent swaps in — so the worklist, the set-aside list,
@@ -361,12 +364,16 @@ export default {
           <div class="ar-check__text">
             <strong>
               {{ c.label }}
+              <!-- The spec citation stays a link, but whispers: v-tip (the app's
+                   themed tooltip — never a native title) says what the code means,
+                   so the chip doesn't have to try to say it with size. -->
               <a
                 v-if="c.ar"
                 class="ar-check__arid"
                 href="https://agentready.org/"
                 target="_blank"
                 rel="noopener"
+                v-tip="'The AgentReady spec requirement this check implements — the chip links to the spec.'"
                 :aria-label="`AgentReady requirement ${c.ar}`"
               >{{ c.ar }}</a>
             </strong>

@@ -1,7 +1,14 @@
 <?php
 /**
  * Readiness report — a list of pass/warn/fail checks that the admin "Readiness"
- * panel renders. Each check is cheap and never fetches; the rows that need the
+ * panel renders, plus a fourth, neutral status: 'off'. An 'off' row is the
+ * shadow of a switched-off feature — "the map is off, so there is nothing to
+ * measure". It used to say 'pass', which handed a green tick and a full score
+ * point to a feature that isn't running; 100 is earned, never rounded into.
+ * 'off' rows are informational only: Score leaves them out of every tally
+ * (the feature's own warn row already carries the cost of the switch).
+ *
+ * Each check is cheap and never fetches; the rows that need the
  * site's real served output read RouteProbe's stored summary, and report()
  * queues that probe's async refresh when the summary is stale.
  *
@@ -82,7 +89,7 @@ final class Readiness {
 	 * @return array<int,array<string,mixed>>
 	 */
 	private function normalize( $checks ) {
-		$valid = array( 'pass', 'warn', 'fail' );
+		$valid = array( 'pass', 'warn', 'fail', 'off' );
 		$out   = array();
 		foreach ( (array) $checks as $c ) {
 			if ( ! is_array( $c ) ) {
@@ -118,7 +125,9 @@ final class Readiness {
 	 *
 	 * @param string     $id     Identifier.
 	 * @param string     $label  Human label.
-	 * @param string     $status pass|warn|fail.
+	 * @param string     $status pass|warn|fail, or 'off' — the feature this row
+	 *                           measures is switched off, so there is nothing to
+	 *                           grade. Excluded from the score either way.
 	 * @param string     $detail What the check found (the current state).
 	 * @param string     $fix    What to do about it — shown for warn/fail. Empty for a clean pass.
 	 * @param array|null $action Optional call-to-action: an in-app jump
@@ -345,8 +354,11 @@ final class Readiness {
 	 */
 	private function check_llms_words() {
 		// When the index is off, check_llms_txt() already warns — don't double-flag.
+		// 'off', not 'pass': a tick here claimed a full score point for a feature
+		// that isn't running. The neutral row neither rewards nor penalises —
+		// the warn above already carries the whole cost of the switch.
 		if ( ! $this->settings->enabled( 'enable_llms_txt' ) ) {
-			return $this->row( 'llms_words', __( '/llms.txt substance', 'agentimus' ), 'pass', __( 'The /llms.txt map is off, so there is nothing to measure — the row above covers turning it on.', 'agentimus' ) );
+			return $this->row( 'llms_words', __( '/llms.txt substance', 'agentimus' ), 'off', __( 'The /llms.txt map is off, so there is nothing to measure — the row above covers turning it on.', 'agentimus' ) );
 		}
 
 		// Cache the word count so a repeat admin load (report() runs on every settings
@@ -446,9 +458,10 @@ final class Readiness {
 
 	private function check_llms_full_size() {
 		// Only meaningful when the full-text edition is on; when off, check_llms_full()
-		// already covers it — don't double-warn.
+		// already covers it — don't double-warn. 'off', not 'pass': nothing was
+		// measured here, so no point may be earned (see check_llms_words()).
 		if ( ! $this->settings->enabled( 'enable_llms_full' ) ) {
-			return $this->row( 'llms_full_size', __( 'Full-text file size', 'agentimus' ), 'pass', __( 'The full-text file is off, so there is nothing to size — the row above covers turning it on.', 'agentimus' ) );
+			return $this->row( 'llms_full_size', __( 'Full-text file size', 'agentimus' ), 'off', __( 'The full-text file is off, so there is nothing to size — the row above covers turning it on.', 'agentimus' ) );
 		}
 
 		$est       = Content::estimate_full_size( $this->settings );
@@ -631,8 +644,11 @@ final class Readiness {
 	 * emits, and stands down when Agentimus isn't the one publishing the entity schema.
 	 */
 	private function check_entity_image() {
+		// Schema off → no image is published, and check_schema_conflict() already
+		// warns about the switch. 'off', not 'pass': nothing measured, nothing
+		// scored (see check_llms_words()).
 		if ( ! $this->settings->enabled( 'enable_schema' ) ) {
-			return $this->row( 'entity_image', __( 'Entity image', 'agentimus' ), 'pass', __( 'Structured data is off, so no image is published here — the JSON-LD row covers turning it on.', 'agentimus' ) );
+			return $this->row( 'entity_image', __( 'Entity image', 'agentimus' ), 'off', __( 'Structured data is off, so no image is published here — the JSON-LD row covers turning it on.', 'agentimus' ) );
 		}
 		$schema = new Schema( $this->settings );
 		if ( $schema->seo_plugin_active() ) {

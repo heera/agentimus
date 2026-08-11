@@ -87,7 +87,7 @@ export default {
       }
       return this.citView === 'results'
         ? 'Whether AI assistants mention and link each thing you track — from your latest run.'
-        : 'Add each thing you want to track, then an AI key for each engine that should check it.';
+        : 'Add each thing you want to track, then an AI key for each assistant that should check it.';
     },
     providerIds() {
       return Object.keys(this.providersMeta);
@@ -345,7 +345,7 @@ export default {
     // Tooltip for an engine's optional "web search" toggle. Each engine grounds a
     // different way, so the hint is per-engine (and nudges you to enable it first).
     webSearchTitle(id) {
-      if (!this.form.providers[id] || !this.form.providers[id].enabled) return 'Turn this engine on first';
+      if (!this.form.providers[id] || !this.form.providers[id].enabled) return 'Turn this assistant on first';
       const hints = {
         openai: 'Answer using a live web search (needs a search-capable model, e.g. gpt-4.1)',
         gemini: 'Answer using a live Google Search',
@@ -698,7 +698,7 @@ export default {
           this.busy = false;
           this.notify('warn', r.run.reason === 'no_prompts'
             ? 'Add at least one question in Settings first.'
-            : 'Enable at least one engine and add its API key in Settings first.');
+            : 'Turn on at least one assistant and add its API key in Settings first.');
           return;
         }
 
@@ -1151,24 +1151,24 @@ export default {
 
           <section class="ar-card">
             <h2 class="ar-card__title">
-              AI Engines
+              AI Assistants
               <transition name="agv-fade"><span v-if="savedIn('engines')" class="agv-saved-pill">Saved ✓</span></transition>
             </h2>
-            <p class="ar-card__lead">Turn on the AI engines you want and paste each one’s API key (you get these from the engine’s own site). Keys stay on your server and are only used to run your checks. Perplexity always answers using a live web search; the others answer from what they already know, unless you switch on their web search. Changes here save on their own.</p>
+            <p class="ar-card__lead">Turn on the AI assistants you want and paste each one’s API key (you get these from each assistant’s own site). Keys stay on your server and are only used to run your checks. Perplexity always answers using a live web search; the others answer from what they already know, unless you switch on their web search. Changes here save on their own.</p>
             <!-- Pre-empts the fair "why not use WordPress's AI connector?" question a
                  user or developer will ask on seeing separate keys here. The reason is
                  intrinsic to the feature, not a WordPress-version thing. -->
             <p class="ar-card__note ar-card__note--wide">
               <strong>Why its own keys, and not your WordPress AI connector?</strong> A visibility check is
-              graded on the <strong>sources each engine cited</strong> in its answer, and it compares
-              <strong>several engines side by side</strong>. WordPress’s shared AI connector hands back the
+              graded on the <strong>sources each assistant cited</strong> in its answer, and it compares
+              <strong>several assistants side by side</strong>. WordPress’s shared AI connector hands back the
               answer text only — the cited sources are dropped — and points at a single provider, so it can’t
-              run this check. Talking to each engine directly is the only way to see who it cited. (This is
+              run this check. Talking to each assistant directly is the only way to see who it cited. (This is
               also why citation checks work on WordPress older than 7.0, where that connector doesn’t exist.)
             </p>
             <div class="agv-engines">
               <div class="agv-engine agv-engine--head">
-                <span>Engine</span><span>API key</span><span>Model</span><span></span><span></span>
+                <span>Assistant</span><span>API key</span><span>Model</span><span></span><span></span>
               </div>
               <div v-for="id in providerIds" :key="id" class="agv-engine">
                 <div class="agv-engine__id">
@@ -1230,8 +1230,8 @@ export default {
 
             <p class="ar-card__note ar-card__note--wide">
               <strong>Already added a key under Settings → AI?</strong> You still need one here. WordPress’s shared
-              connectors hand back the answer text only — they drop the list of sources an engine cited, and those
-              sources are what a visibility check grades. Reading them needs each engine’s own API, so these keys are
+              connectors hand back the answer text only — they drop the list of sources an assistant cited, and those
+              sources are what a visibility check grades. Reading them needs each assistant’s own API, so these keys are
               kept separate. They stay on your server and are only used to run your checks.
             </p>
           </section>

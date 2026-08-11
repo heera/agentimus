@@ -53,8 +53,11 @@ export default {
           <strong class="ar-dash-tile__v">{{ summary.providers }}</strong>
           <span class="ar-dash-tile__k">Providers</span>
         </span>
+        <!-- The teaching line stays even when the public/sign-in split shows:
+             the split is a count, not a definition, and a first-timer needs
+             the definition more. Two stacked subs; the flex column takes it. -->
+        <span class="ar-dash-tile__sub">sources describing your site</span>
         <span v-if="dashProvidersHeld > 0" class="ar-dash-tile__sub">{{ summary.providersPublic }} public · {{ dashProvidersHeld }} sign-in only</span>
-        <span v-else class="ar-dash-tile__sub">sources describing your site</span>
       </span>
     </button>
     <button type="button" class="ar-dash-tile" @click="$emit('navigate', { tab: 'discovery', anchor: 'ar-wd-capabilities' })">
@@ -64,7 +67,7 @@ export default {
           <strong class="ar-dash-tile__v">{{ summary.capabilities }}</strong>
           <span class="ar-dash-tile__k">Capabilities</span>
         </span>
-        <span class="ar-dash-tile__sub">what agents may read or do</span>
+        <span class="ar-dash-tile__sub">what AI assistants may read or do</span>
       </span>
     </button>
     <button type="button" class="ar-dash-tile" @click="$emit('navigate', { tab: 'discovery', anchor: 'ar-wd-apis' })">
@@ -74,7 +77,7 @@ export default {
           <strong class="ar-dash-tile__v">{{ summary.apis }}</strong>
           <span class="ar-dash-tile__k">APIs</span>
         </span>
-        <span class="ar-dash-tile__sub">interfaces agents can call</span>
+        <span class="ar-dash-tile__sub">addresses AI assistants can call for data</span>
       </span>
     </button>
     <button type="button" class="ar-dash-tile" @click="$emit('navigate', { tab: 'discovery', anchor: 'ar-wd-tools' })">
@@ -84,8 +87,8 @@ export default {
           <strong class="ar-dash-tile__v">{{ summary.tools }}</strong>
           <span class="ar-dash-tile__k">Tools</span>
         </span>
+        <span class="ar-dash-tile__sub">actions AI assistants can run</span>
         <span v-if="dashToolsHeld > 0" class="ar-dash-tile__sub">{{ summary.toolsPublic }} public · {{ dashToolsHeld }} sign-in only</span>
-        <span v-else class="ar-dash-tile__sub">actions agents can run</span>
       </span>
     </button>
   </div>

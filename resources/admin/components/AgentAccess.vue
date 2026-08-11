@@ -84,7 +84,11 @@ export default {
           tone: 'ok',
           badge: 'Watching',
           title: 'Watching every ability on this site',
-          body: "Whenever an ability runs, we'll record it — Agentimus's own and any other plugin's.",
+          // The teaching line leads even in the healthy state: "ability" is a
+          // term, and the owner most likely to read this box is the one who has
+          // never seen one run. The not-available states repeat it because a
+          // reader may land on any rung first.
+          body: "Abilities are how an AI assistant runs something on your site. Whenever one runs, we'll record it — Agentimus's own and any other plugin's.",
           action: '',
         },
         own_only: {
@@ -424,7 +428,7 @@ export default {
       </div>
     </div>
 
-    <p v-if="error" class="ar-aa__error">{{ error }}</p>
+    <p v-if="error" class="ar-aa__error">{{ error }} — try Refresh, and if it persists, reload the page.</p>
 
     <!-- First load in flight: show a skeleton, not a bare card. Same pattern as Endpoint
          Activity. Everything below waits on the fetch (the coverage box needs the server's
@@ -456,7 +460,7 @@ export default {
             </span>
             <span class="ar-aa__fact">last activity <strong>{{ lastActivity() }}</strong></span>
           </template>
-          <template v-else>Nothing has run yet — this list fills as agents act on your site.</template>
+          <template v-else>Nothing has run yet — this list fills as AI assistants act on your site.</template>
         </p>
       </div>
     </div>

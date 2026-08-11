@@ -32,10 +32,10 @@ export default {
       <!-- Say WHY, not just that. An owner seeing "not published" with no reason will assume
            something is broken. -->
       <p v-if="!r.suppressed && r.notPublic && !briefHeld" class="ar-wd-prov__held">
-        Every tool here needs an authenticated WordPress user, so an anonymous agent could never
+        Every tool here needs an authenticated WordPress user, so an anonymous assistant could never
         run one. Advertising them in the public discovery documents would hand out a map of your
-        tooling — the full descriptions and input/output schemas — without letting any agent
-        actually use it. Agents that hold real credentials still find them the proper way.
+        tooling — the full descriptions and input/output schemas — without letting any assistant
+        actually use it. Assistants that hold real credentials still find them the proper way.
       </p>
       <p v-else-if="!r.suppressed && r.notPublic" class="ar-wd-prov__held">
         Held back for the same reason as above — its tools need a signed-in user.

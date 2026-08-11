@@ -5,8 +5,8 @@
  * An llms.txt that's near-empty gives an agent almost nothing to read or cite.
  * check_llms_words() measures the generated index against MIN_LLMS_WORDS and warns
  * (nudging real content, never filler) when it falls short. These lock: the pure
- * word counter (URLs must not inflate the count), the off-path (no double-warn),
- * and the thin-site warn path.
+ * word counter (URLs must not inflate the count), the off-path (a neutral 'off'
+ * row — no double-warn, and no free point either), and the thin-site warn path.
  *
  * @package Agentimus\Tests
  */
@@ -63,12 +63,14 @@ final class ReadinessLlmsWordsTest extends TestCase {
 
 	/* -- The check -------------------------------------------------------- */
 
-	public function test_passes_silently_when_index_is_off() {
+	public function test_stands_down_to_off_when_index_is_off() {
 		// With /llms.txt disabled, check_llms_txt() already warns — this one must
-		// stand down to a clean pass rather than double-flag the same gap.
+		// stand down rather than double-flag the same gap. But standing down is
+		// 'off', not 'pass': a pass here handed a full score point to a feature
+		// that isn't running (100 is earned, never rounded into).
 		update_option( Settings::OPTION, array( 'enable_llms_txt' => false ) );
 		$row = $this->check();
-		$this->assertSame( 'pass', $row['status'] );
+		$this->assertSame( 'off', $row['status'] );
 		$this->assertSame( '', $row['fix'] );
 	}
 

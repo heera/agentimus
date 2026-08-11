@@ -101,7 +101,7 @@ export default {
     <div class="ar-card__head">
       <h2 id="ar-sys-title" class="ar-card__title">What your site runs</h2>
       <p class="ar-card__lead">
-        Every Agentimus system in one look &mdash; the doors agents use, the signals you announce,
+        Every Agentimus system in one look &mdash; the doors AI assistants use, the signals you announce,
         what search shows, and what your writing holds.
       </p>
     </div>
@@ -121,7 +121,7 @@ export default {
           Doors
         </p>
         <p class="ar-sys__n">{{ n(doors ? doors.runsTotal : 0) }}</p>
-        <p class="ar-sys__unit">tool runs by agents recorded</p>
+        <p class="ar-sys__unit">tool runs by AI assistants recorded</p>
         <ul class="ar-sys__rows" v-if="doors">
           <li>
             <span class="ar-sys__row-l">MCP server</span>
@@ -132,7 +132,7 @@ export default {
             </span>
           </li>
           <li>
-            <span class="ar-sys__row-l">Agents active</span>
+            <span class="ar-sys__row-l">Assistants active</span>
             <span class="ar-sys__row-s"><strong>{{ n(doors.agents30) }}</strong> this month</span>
           </li>
           <li>
@@ -164,7 +164,7 @@ export default {
           Signals
         </p>
         <p class="ar-sys__n">{{ signalsLive.on }}</p>
-        <p class="ar-sys__unit">of {{ signalsLive.of }} signals live, telling engines what changed</p>
+        <p class="ar-sys__unit">of {{ signalsLive.of }} signals live, telling search engines what changed</p>
         <ul class="ar-sys__rows" v-if="signals">
           <li>
             <span class="ar-sys__row-l">IndexNow</span>

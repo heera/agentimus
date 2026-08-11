@@ -118,7 +118,7 @@ export default {
         if (this.later.length) return `Nothing is costing you anything today. There are a couple of things worth knowing below.${held}`;
         return `Every check passes and no page is waiting on a fix.${held}`;
       }
-      return `Ranked by what each one costs — visitors lost, agents turned away, or a page underselling itself.${held}`;
+      return `Ranked by what each one costs — visitors lost, AI assistants turned away, or a page underselling itself.${held}`;
     },
     // "Your side is done" said once, in the screen's own voice.
     waitingLine() {

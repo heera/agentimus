@@ -43,6 +43,8 @@ use Agentimus\Guidelines;
 use Agentimus\Assistant;
 use Agentimus\Readiness;
 use Agentimus\Score;
+use Agentimus\Findings;
+use Agentimus\Audience;
 use Agentimus\Content;
 use Agentimus\Media;
 use Agentimus\LlmsText;
@@ -232,8 +234,9 @@ final class Registrar {
 			'Returns the site’s AI-visibility health: the blended 0–100 AEO/GEO score with its band '
 				. '(Findable, Readable, Trusted, Optimized, Cited pillars), the impact-ranked "do this next" '
 				. 'action plan, AND the full list of readiness checks with their pass/warn/fail status and the '
-				. 'fix for each. Use this to answer "how ready is my site to be found and cited by AI, and what '
-				. 'should I fix first?".',
+				. 'fix for each ("off" = the feature the check measures is switched off; informational only, '
+				. 'excluded from the score). Use this to answer "how ready is my site to be found and cited '
+				. 'by AI, and what should I fix first?".',
 			self::no_input(),
 			self::obj(
 				array(
@@ -303,7 +306,7 @@ final class Registrar {
 				array(
 					'from'   => self::date( 'Start date (YYYY-MM-DD). Defaults to the retention window.' ),
 					'to'     => self::date( 'End date (YYYY-MM-DD). Defaults to today.' ),
-					'source' => self::s( 'Narrow to one assistant, by its exact label (see read-ai-traffic facets).' ),
+					'source' => self::s( 'Narrow to one assistant, by its exact label — the labels are the ones this tool’s own bySource leaderboard returns.' ),
 					'path'   => self::s( 'Narrow to a landing-path prefix, e.g. "/blog".' ),
 				)
 			),
@@ -985,6 +988,214 @@ final class Registrar {
 			),
 			function ( $input ) {
 				return SearchReport::opportunities( $this->settings, isset( $input['source'] ) ? (string) $input['source'] : '' );
+			},
+			$manage
+		);
+
+		$this->add(
+			'read-findings',
+			__( 'Get the ranked findings list', 'agentimus' ),
+			'Returns the site’s open findings — the same ranked front door the owner’s Findings screen shows. '
+				. 'Every open question the plugin can answer, from every subsystem (setup checks, the content worklist, '
+				. 'search opportunities, split searches, the never-run citation measurement), merged into ONE list '
+				. 'ranked by what each finding costs the owner and bounded at 12 rows; rows merely waiting on a search '
+				. 'engine’s next report ride along uncounted (tier "waiting" — no edit can clear them). `clear` states '
+				. 'what is demonstrably fine, `failed` names any source that errored (its findings are MISSING, not '
+				. 'absent — never read a failed source as a clean one), and `counts` tallies the rows by tier. Start '
+				. 'here to answer "what should be done next on this site?", then use the per-area read tools for detail.',
+			self::no_input(),
+			self::obj(
+				array(
+					'findings' => self::arr(
+						array(
+							'id'       => self::s( 'Stable finding id (split-search findings are numbered: split_search_0…).' ),
+							'tier'     => array(
+								'type'        => 'string',
+								'enum'        => array( 'urgent', 'worth', 'later', 'waiting' ),
+								'description' => 'urgent = a decision only the owner can make, or a live trust problem; worth = traffic or citability measurably on the table; later = worth knowing, costs nothing today; waiting = the owner’s side is done and a search engine answers next.',
+							),
+							'weight'   => self::i( 'Sort weight; higher sorts first.' ),
+							'title'    => self::s( 'The headline, written as a fact.' ),
+							'why'      => self::s( 'One short line on why it matters.' ),
+							'points'   => array(
+								'type'        => 'array',
+								'items'       => self::s(),
+								'description' => 'Separable facts, one clause each.',
+							),
+							'evidence' => array(
+								'type'        => 'array',
+								'items'       => self::s(),
+								'description' => 'Short checkable strings; a trimmed list says so with a "+N more" tail.',
+							),
+							'action'   => array(
+								'type'                 => array( 'object', 'null' ),
+								'description'          => 'Where the fix lives: { label, tab, view, anchor }, plus `url` for an outward destination or `pages` (post ids) when the landing list should show exactly the pages this finding counted. Null when there is nothing to open.',
+								'additionalProperties' => true,
+							),
+							'check'    => self::s( 'On a config_gap finding only: the readiness check id behind it (feed it to apply-fix).' ),
+						)
+					),
+					'resolved' => array(
+						'type'                 => array( 'object', 'null' ),
+						'description'          => 'The engine’s own good news, or null when there is none. ONE row whatever the site’s size: a single win keeps its whole sentence, several become a count with the moves as evidence. News, not a finding — it has no action and expires on its own.',
+						'properties'           => array(
+							'id'       => self::s(),
+							'title'    => self::s(),
+							'evidence' => array( 'type' => 'array', 'items' => self::s() ),
+							'at'       => self::i( 'Unix time of the newest win.' ),
+						),
+						'additionalProperties' => false,
+					),
+					'clear'    => array(
+						'type'        => 'array',
+						'items'       => self::s(),
+						'description' => 'What is demonstrably fine, said out loud — an empty findings list must read as "checked", never "broken".',
+					),
+					'failed'   => array(
+						'type'        => 'array',
+						'items'       => self::s(),
+						'description' => 'Sources that errored. Their findings are missing, not absent.',
+					),
+					'counts'   => self::obj(
+						array(
+							'urgent'  => self::i(),
+							'worth'   => self::i(),
+							'later'   => self::i(),
+							'waiting' => self::i( 'Carried but never counted as open work — no edit can clear a waiting row.' ),
+						)
+					),
+				)
+			),
+			function () {
+				return ( new Findings( $this->settings ) )->all();
+			},
+			$manage
+		);
+
+		$this->add(
+			'read-audience',
+			__( 'Get the audience: people vs machines', 'agentimus' ),
+			'Returns who reached this site in the reporting window, counted as two populations that are NEVER '
+				. 'summed — the audience doctrine: a machine fetch is not a human visit, so no combined total exists '
+				. 'anywhere in this payload and none should be computed from it. `people` is the human half — clicks '
+				. 'the search engines themselves reported, visits AI assistants sent, and, when the owner has '
+				. 'connected Google Analytics, the site’s whole analytics audience with the two named routes as '
+				. 'shares of it. `machines` is AI crawler/agent fetches of the discovery endpoints, with the '
+				. 'impostor count. `limits` states what these numbers cannot say, per half — quote them before '
+				. 'generalising about "the audience".',
+			self::no_input(),
+			self::obj(
+				array(
+					'window'   => self::i( 'Reporting window, days.' ),
+					'people'   => self::obj(
+						array(
+							'all'     => self::obj(
+								array(
+									'connected'      => self::b( 'Whether Google Analytics is connected AND has usable numbers.' ),
+									'users'          => self::i( 'Active users — the headline metric is PEOPLE, not sessions or views.' ),
+									'newUsers'       => self::i(),
+									'sessions'       => self::i(),
+									'views'          => self::i(),
+									'engaged'        => self::i(),
+									'engagedPct'     => self::i(),
+									'avgSeconds'     => self::i(),
+									'perVisit'       => self::n( 'Pages per visit.' ),
+									'pages'          => self::arr(
+										array(
+											'path'  => self::s(),
+											'views' => self::i(),
+											'users' => self::i(),
+										)
+									),
+									'aiSessions'     => array(
+										'type'        => array( 'integer', 'null' ),
+										'description' => 'GA4’s own count of sessions AI assistants sent. Null = GA4 has no opinion yet, which is a different answer from zero.',
+									),
+									'otherSessions'  => array( 'type' => array( 'integer', 'null' ) ),
+									'aiBySource'     => self::arr(
+										array(
+											'source' => self::s(),
+											'hits'   => self::i(),
+										)
+									),
+									'engineSessions' => array(
+										'type'        => array( 'integer', 'null' ),
+										'description' => 'GA4’s per-engine organic arrivals, summed. Null on snapshots that predate the split.',
+									),
+									'engineBySource' => self::arr(
+										array(
+											'source' => self::s(),
+											'hits'   => self::i(),
+										)
+									),
+									'pending'        => self::b( 'Connected in Settings but never successfully polled — a fetch is what is missing, not the connection.' ),
+									'error'          => self::s( 'The last fetch failure, when pending.' ),
+									'stale'          => self::b( 'True when the snapshot is over two days old.' ),
+									'fetched'        => self::i( 'Unix time of the snapshot; 0 = never.' ),
+									'window'         => self::i(),
+								)
+							),
+							'search'  => self::obj(
+								array(
+									'connected'   => self::b(),
+									'source'      => self::s( 'Which engines these clicks came from ("Google", "Bing", "Google + Bing") — quote it, never assume.' ),
+									'clicks'      => self::i( 'People, by the engines’ own reports — but the engines fold AI Overview appearances into these figures with no separating dimension.' ),
+									'impressions' => self::i(),
+									'rows'        => self::i(),
+									'start'       => self::s( 'Widest window any connected source reports (YYYY-MM-DD); the engines publish on a delay, so it ends before today.' ),
+									'end'         => self::s(),
+									'pageCap'     => self::i( 'When > 0, page-level figures elsewhere sample only this many of the busiest pages (Bing). The site-wide clicks here are whole either way.' ),
+								)
+							),
+							'ai'      => self::obj(
+								array(
+									'enabled' => self::b(),
+									'visits'  => self::i( 'People an AI assistant sent, counted when the visit still carries a recognisable referrer or campaign tag — an assistant that strips both is invisible, so treat this as a minimum.' ),
+									'today'   => self::i(),
+									'sources' => self::i( 'Distinct assistants seen — the full count, not the capped leaderboard.' ),
+									'top'     => self::arr(
+										array(
+											'source' => self::s(),
+											'hits'   => self::i(),
+										)
+									),
+									'pages'   => self::arr(
+										array(
+											'path' => self::s(),
+											'hits' => self::i(),
+										),
+										'Where those readers landed — the pages earning the citations.'
+									),
+									'prev'    => self::i( 'The window before this one, same length, no overlap.' ),
+									'change'  => self::i(),
+									'hasPrev' => self::b( 'False on a first window — never invent a percentage from a zero baseline.' ),
+								)
+							),
+							'arrived' => self::i( 'The human headline: analytics users when connected, otherwise search clicks + AI visits. A sum of PEOPLE only — machines are never in it.' ),
+							'whole'   => self::b( 'True when `arrived` is the whole audience (analytics connected); false = the two named routes only, a smaller claim.' ),
+						)
+					),
+					'machines' => self::obj(
+						array(
+							'enabled'   => self::b(),
+							'fetches'   => self::i( 'Requests to the agent-facing endpoints in the window — endpoints (llms.txt, .md twins, discovery documents), never ordinary pages.' ),
+							'today'     => self::i(),
+							'agents'    => self::i( 'Distinct agents, by the name each declared.' ),
+							'impostors' => self::i( 'Clients caught claiming an identity verification did not support.' ),
+						)
+					),
+					'limits'   => self::arr(
+						array(
+							'key'   => self::s(),
+							'scope' => self::s( 'Which half the limit is about: humans, machines, or both.' ),
+							'text'  => self::s(),
+						),
+						'What these numbers cannot say — each entry present only when true for THIS site, so never boilerplate.'
+					),
+				)
+			),
+			function () {
+				return Audience::from_stats( Repository::stats( $this->settings ) );
 			},
 			$manage
 		);
@@ -1677,6 +1888,10 @@ final class Registrar {
 			// what is in the library is a reading question, and it answers
 			// "which picture is this?" for anyone, writes or not.
 			self::CATEGORY . '/search-media',
+			// The two cross-system reads: the Findings front door (one ranked
+			// list over every subsystem) and the people/machines audience split.
+			self::CATEGORY . '/read-findings',
+			self::CATEGORY . '/read-audience',
 		);
 		if ( $this->settings->enabled( 'enable_agent_writes' ) ) {
 			foreach ( self::WRITE_SLUGS as $slug ) {
@@ -2058,9 +2273,17 @@ final class Registrar {
 		$props = array(
 			'id'     => self::s(),
 			'label'  => self::s(),
+			// Readiness rows carry a fourth status PageCheck rows never emit:
+			// 'off' — the feature the row measures is switched off, so there is
+			// nothing to grade; the row is informational and excluded from the
+			// score. Output validates with the declared enum, so leaving 'off'
+			// out here would have the ability reject its own honest response
+			// (the 1.30.0 verifyOn lesson, as a value instead of a key).
 			'status' => array(
 				'type' => 'string',
-				'enum' => array( 'pass', 'warn', 'fail' ),
+				'enum' => $with_fix
+					? array( 'pass', 'warn', 'fail', 'off' )
+					: array( 'pass', 'warn', 'fail' ),
 			),
 			'detail' => self::s(),
 		);
@@ -2191,6 +2414,7 @@ final class Registrar {
 						'total'  => self::nullable_int(),
 						'note'   => self::s(),
 						'to'     => self::s(),
+						'view'   => self::s( 'On a signal rung only: which sub-view of the destination tab to open.' ),
 					)
 				),
 				'actions'  => self::arr(
@@ -2204,9 +2428,41 @@ final class Registrar {
 					)
 				),
 				'graded'   => self::i(),
-			),
-			array(),
-			true
+				// The report shipped these two from the start; the schema did not,
+				// and additionalProperties:true let the gap hide — declared keys
+				// are the only ones a schema-trusting client knows exist.
+				'content'  => self::arr(
+					array(
+						'id'         => self::s( 'The content check id (e.g. "summary", "freshness").' ),
+						'label'      => self::s(),
+						'why'        => self::s( 'What to do about it, at the group level.' ),
+						'count'      => self::i( 'How many graded pieces flag this check.' ),
+						'countLabel' => self::s( 'The count named by real content types ("3 Posts, 1 Page").' ),
+						'pages'      => self::arr(
+							array(
+								'id'    => self::i(),
+								'title' => self::s(),
+								'url'   => self::s( 'The page’s EDIT link.' ),
+							),
+							'The affected pages, capped per issue.'
+						),
+					),
+					'The per-page content worklist behind the Optimized rung, most common issue first.'
+				),
+				'ignored'  => self::arr(
+					array(
+						'id'    => self::i(),
+						'title' => self::s(),
+						'url'   => self::s( 'The page’s EDIT link.' ),
+						'flags' => array(
+							'type'        => 'array',
+							'items'       => self::s(),
+							'description' => 'What the page was flagged for when listed — why it was on the worklist.',
+						),
+					),
+					'The set-aside ledger: pages the owner excused from citability grading, each restorable.'
+				),
+			)
 		);
 	}
 

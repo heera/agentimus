@@ -12,6 +12,7 @@
 namespace Agentimus\Tests;
 
 use Agentimus\Score;
+use Agentimus\Settings;
 use PHPUnit\Framework\TestCase;
 
 final class ScoreTest extends TestCase {
@@ -32,6 +33,54 @@ final class ScoreTest extends TestCase {
 	public function test_rows_score_is_null_when_no_ids_present() {
 		$this->assertNull( Score::rows_score( array(), Score::FINDABLE_IDS ) );
 		$this->assertNull( Score::rows_score( array( array( 'id' => 'nope', 'status' => 'pass' ) ), Score::FINDABLE_IDS ) );
+	}
+
+	/**
+	 * 'off' rows — a switched-off feature's informational shadow — are excluded
+	 * from BOTH sides of the fraction. As a pass they bought a free point for a
+	 * feature that isn't running; as anything else they'd fine the owner twice,
+	 * because the feature's own warn row already carries the cost of the switch.
+	 */
+	public function test_rows_score_excludes_off_rows_from_numerator_and_denominator() {
+		$rows = array(
+			array( 'id' => 'public', 'status' => 'pass' ),      // 1.0, counted
+			array( 'id' => 'permalinks', 'status' => 'warn' ),  // 0.5, counted
+			array( 'id' => 'robots', 'status' => 'off' ),       // excluded entirely
+		);
+		// (1 + 0.5) / 2 = 0.75 → 75. With the off row counted as pass it would
+		// read 83; counted as a zero it would read 50. Neither is honest.
+		$this->assertSame( 75, Score::rows_score( $rows, Score::FINDABLE_IDS ) );
+	}
+
+	public function test_rows_score_is_null_not_division_by_zero_when_every_row_is_off() {
+		$rows = array(
+			array( 'id' => 'public', 'status' => 'off' ),
+			array( 'id' => 'robots', 'status' => 'off' ),
+		);
+		// An all-off rung has no data — null (excluded from the blend), never 0/0.
+		$this->assertNull( Score::rows_score( $rows, Score::FINDABLE_IDS ) );
+	}
+
+	/* -- rows_tally -------------------------------------------------------- */
+
+	/** Reflection-call the private tally (the rung card's pass/total figures). */
+	private function tally( array $rows, array $ids ): array {
+		$m = new \ReflectionMethod( Score::class, 'rows_tally' );
+		\_af_accessible( $m );
+		return $m->invoke( null, $rows, $ids );
+	}
+
+	/**
+	 * The tally must mirror rows_score: an off row in the total would surface on
+	 * the score rail as "1 to fix" (todo = total - pass) — work that doesn't exist.
+	 */
+	public function test_rows_tally_excludes_off_rows_from_the_total() {
+		$rows = array(
+			array( 'id' => 'public', 'status' => 'pass' ),
+			array( 'id' => 'permalinks', 'status' => 'warn' ),
+			array( 'id' => 'robots', 'status' => 'off' ),
+		);
+		$this->assertSame( array( 'pass' => 1, 'total' => 2 ), $this->tally( $rows, Score::FINDABLE_IDS ) );
 	}
 
 	/* -- blend ------------------------------------------------------------ */
@@ -101,6 +150,29 @@ final class ScoreTest extends TestCase {
 		// A partial run (some checks errored) still counts as measured — 'ok', not 'failed'.
 		$this->assertSame( 'ok', Score::cited_state( true, 5000, 2, 1, false ) );
 		$this->assertSame( 'stale', Score::cited_state( true, 5000, 2, 1, true ) );
+	}
+
+	/* -- actions ----------------------------------------------------------- */
+
+	/**
+	 * One switch, one action. The switched-off feature's warn row already queues
+	 * the "turn it on" step — its off shadow-row must not queue a second one
+	 * (it has no fix of its own; its action would have been an empty shell).
+	 */
+	public function test_actions_skip_off_rows() {
+		$readiness = array(
+			array( 'id' => 'llms', 'status' => 'warn', 'label' => 'llms.txt', 'fix' => 'Turn it on.', 'detail' => '', 'action' => null ),
+			array( 'id' => 'llms_words', 'status' => 'off', 'label' => 'llms.txt substance', 'fix' => '', 'detail' => 'Off — nothing to measure.', 'action' => null ),
+			array( 'id' => 'public', 'status' => 'pass', 'label' => 'Public', 'fix' => '', 'detail' => '', 'action' => null ),
+		);
+		$m = new \ReflectionMethod( Score::class, 'actions' );
+		\_af_accessible( $m );
+		$ids = array();
+		foreach ( $m->invoke( new Score( new Settings() ), $readiness, array( 'issues' => array() ), array( 'off' => true ) ) as $a ) {
+			$ids[] = $a['id'];
+		}
+		$this->assertContains( 'llms', $ids, 'the warn row still queues its action' );
+		$this->assertNotContains( 'llms_words', $ids, 'the off shadow-row must not queue a second one' );
 	}
 
 	/* -- rank ------------------------------------------------------------- */

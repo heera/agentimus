@@ -711,7 +711,7 @@ export default {
         </div>
       </div>
 
-      <p v-if="error" class="ar-log__error" role="alert">{{ error }}</p>
+      <p v-if="error" class="ar-log__error" role="alert">{{ error }} — try Refresh, and if it persists, reload the page.</p>
 
       <!-- First load in flight: the shared skeleton, not a bare "Loading…" — same
            treatment as Endpoint Activity and Agent Access. -->
@@ -763,7 +763,7 @@ export default {
               <span class="ar-act-rank__n">{{ p.hits }}</span>
             </li>
           </ul>
-          <p v-else class="ar-wd-empty">No pages yet.</p>
+          <p v-else class="ar-wd-empty">No pages yet — rows appear here as visitors from AI answers land on specific pages.</p>
         </div>
       </div>
     </section>

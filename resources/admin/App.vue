@@ -207,9 +207,13 @@ export default {
   computed: {
     score() {
       if (!this.readiness.length) return { pass: 0, total: 0, pct: 0 };
-      const pass = this.readiness.filter((c) => c.status === 'pass').length;
-      const total = this.readiness.length;
-      return { pass, total, pct: Math.round((pass / total) * 100) };
+      // 'off' rows (a switched-off feature's informational shadow) stay out of
+      // both sides of the fraction, matching Score::rows_score on the server —
+      // "18/20 checks pass" must only count checks that could pass.
+      const counted = this.readiness.filter((c) => c.status !== 'off');
+      const pass = counted.filter((c) => c.status === 'pass').length;
+      const total = counted.length;
+      return { pass, total, pct: total ? Math.round((pass / total) * 100) : 0 };
     },
     // Name the current theme and where the click lands. The toggle only ever
     // swaps light and dark; "system" is the silent default until the first
@@ -438,7 +442,7 @@ export default {
           },
           dashboard: {
             title: 'Dashboard',
-            description: 'An overview of your agent-readiness — what you expose, and who is reading it.',
+            description: 'Your whole site at a glance: what you publish for AI assistants, and who is reading it.',
           },
           'visitors': {
             // Was "AI Traffic" (read as machines), then "Readers" — which the
@@ -456,12 +460,12 @@ export default {
           log: {
             title: 'Request Log',
             audience: 'machines',
-            description: 'Every request an agent made — filter by client and endpoint to see exactly what one bot fetched. Anything marked “refused” was turned away, not served.',
+            description: 'Every visit a machine made to your site — which crawler or AI assistant it was, what it fetched, and whether it was served or turned away (“refused”).',
           },
           'agent-access': {
             title: 'Agent Access',
             audience: 'machines',
-            description: 'What agents did on your site — keys created and used, abilities run. A record, not a guard.',
+            description: 'What AI assistants did on your site — keys created and used, abilities run. A record, not a guard.',
           },
           visibility: {
             title: 'Visibility',
@@ -472,15 +476,15 @@ export default {
           },
           settings: {
             title: 'Settings',
-            description: 'Configure the signals Agentimus exposes and the identity agents read.',
+            description: 'What Agentimus publishes about your site, and what AI assistants may do here.',
           },
           readiness: {
             title: 'Readiness',
-            description: 'How machine-legible your site is right now — a checklist of pass, warn and fail checks.',
+            description: 'How easily AI assistants can read and quote your site right now — a checklist of pass, warn and fail, each with its fix.',
           },
           discovery: {
             title: 'Discovery',
-            description: 'The single document agents read to understand this site — every registered plugin aggregated into one place.',
+            description: 'The one document AI assistants read to learn what this site offers — everything your plugins publish, gathered in one place.',
           },
           about: {
             title: 'About Agentimus',
@@ -2157,7 +2161,7 @@ export default {
               <span class="ar-next__n" aria-hidden="true">3</span>
               <div class="ar-next__body">
                 <strong>Connect an assistant</strong>
-                <p>Approve ChatGPT or Claude to work your site over MCP — check pages, draft content — with every action recorded in Agent Access.</p>
+                <p>Approve ChatGPT or Claude to work your site over MCP — the connection standard AI assistants use. They can check pages and draft content, with every action recorded in Agent Access.</p>
               </div>
               <button type="button" class="ar-btn ar-btn--ghost ar-btn--small" @click="goTo({ tab: 'settings', anchor: 'ar-sec-mcp' })">Open MCP settings</button>
             </li>
@@ -2191,7 +2195,7 @@ export default {
             <strong>{{ seo.plugin ? seo.plugin.label : 'Your SEO plugin' }}</strong> handles search
             SEO on this site — titles, social cards, canonicals, schema. Agentimus stands aside
             there and adds the AI-facing layer it doesn’t: the page guide and plain-text pages
-            assistants read, agent activity and verification, and your AI-usage signals.
+            assistants read, the log of AI visits and identity checks, and your AI-usage signals.
           </p>
         </section>
         <!-- What the site exposes — the first thing on the page, because the

@@ -212,7 +212,7 @@ export default {
           <li>
             <span class="ar-aud__row-n">{{ n(machines.agents) }}</span>
             <span class="ar-aud__row-l">
-              different agents
+              different clients
               <em v-if="!machines.enabled" class="ar-aud__off">not recording</em>
             </span>
           </li>

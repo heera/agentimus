@@ -479,7 +479,7 @@ final class Description {
 		// Fallback hint: when the field is blank, show the excerpt-derived summary the
 		// surfaces will use instead, so "empty" never reads as "no description".
 		echo '<p class="agentimus-desc__fallback"' . ( '' === $fallback ? ' style="display:none"' : '' ) . '>'
-			. '<span class="agentimus-desc__fallback-label">' . esc_html__( 'If left blank, agents will use:', 'agentimus' ) . '</span> '
+			. '<span class="agentimus-desc__fallback-label">' . esc_html__( 'If left blank, AI assistants will use:', 'agentimus' ) . '</span> '
 			. '<span class="agentimus-desc__fallback-text">' . esc_html( $fallback ) . '</span></p>';
 
 		echo '</div>';

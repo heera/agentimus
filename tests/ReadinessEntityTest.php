@@ -61,9 +61,11 @@ final class ReadinessEntityTest extends TestCase {
 
 	/* -- entity image / logo ---------------------------------------------- */
 
-	public function test_schema_off_stands_down() {
+	public function test_schema_off_stands_down_to_off() {
+		// Standing down is neutral, not a pass: with schema off no image is
+		// published, so there is nothing to grade — and nothing to earn.
 		\update_option( Settings::OPTION, array( 'enable_schema' => false ) );
-		$this->assertSame( 'pass', $this->check( 'check_entity_image' )['status'] );
+		$this->assertSame( 'off', $this->check( 'check_entity_image' )['status'] );
 	}
 
 	public function test_no_image_warns() {

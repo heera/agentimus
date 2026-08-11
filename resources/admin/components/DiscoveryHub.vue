@@ -6,13 +6,13 @@ import { copyText } from '../js/clipboard.js';
 // owner's language, not the spec's. Keyed by served name; a row without an
 // entry (a future doc a provider adds) simply shows no note.
 const WK_NOTES = {
-  'discovery.json': 'Everything this site tells agents, gathered in one file.',
-  'agent-card.json': 'A card that introduces this site to other agents.',
+  'discovery.json': 'Everything this site tells AI assistants, gathered in one file.',
+  'agent-card.json': 'A card that introduces this site to AI assistants.',
   'agent.json': 'The same introduction card, at its older address.',
   'mcp.json': 'Announces this site’s MCP server and the tools it offers.',
   'openapi.json': 'Describes the public API in a form software can read.',
   'api-catalog': 'A short list of the APIs this site offers.',
-  'agent-skills': 'Lists the skills agents can use on this site.',
+  'agent-skills': 'Lists the skills AI assistants can use on this site.',
   'http-message-signatures-directory': 'This site’s public keys, so others can verify what it signs.',
   'oauth-protected-resource': 'Tells connecting apps how to sign in to the MCP server.',
   'security.txt': 'Who to contact if someone finds a security problem.',
@@ -299,13 +299,13 @@ export default {
         <button type="button" class="ar-wd-stat is-link" @click="jumpTo('ar-wd-capabilities')">
           <strong>{{ counts.capabilities }}</strong>
           <span>capabilities</span>
-          <small>What agents may read or do</small>
+          <small>What AI assistants may read or do</small>
         </button>
         <button type="button" class="ar-wd-stat is-link" @click="jumpTo('ar-wd-tools')">
           <strong>{{ counts.tools }}</strong>
           <span>tools</span>
           <small v-if="toolsHeld > 0">{{ counts.toolsPublished }} public · {{ toolsHeld }} sign-in only</small>
-          <small v-else>Actions agents can run</small>
+          <small v-else>Actions AI assistants can run</small>
         </button>
         <button type="button" class="ar-wd-stat is-link" @click="jumpTo('ar-wd-apis')">
           <strong>{{ counts.apis }}</strong>
@@ -313,7 +313,7 @@ export default {
           <!-- Same words as the dashboard tile: one count, one caption. "Endpoints
                agents can read" said the document verb about a callable thing, and
                collided with the capabilities tile's "read" beside it. -->
-          <small>Interfaces agents can call</small>
+          <small>Addresses AI assistants can call for data</small>
         </button>
         <button
           v-if="counts.errors > 0"
@@ -342,14 +342,14 @@ export default {
     <section id="ar-wd-providers" class="ar-card">
       <h2 class="ar-card__title">Registered Providers</h2>
       <p class="ar-card__lead">
-        Everything this site tells AI agents about itself. Each row is a provider — a source that
+        Everything this site tells AI assistants about itself. Each row is a provider — a source that
         declares what the site offers — from two places: things <strong>provided by your
         plugins</strong>, and things Agentimus <strong>found automatically</strong> by scanning the site.
       </p>
 
       <p v-if="!resources.length" class="ar-wd-empty">
-        Nothing registered yet. Agentimus will populate this automatically as it scans your site, and any
-        WP_Discovery-aware plugin you install will add to it.
+        Nothing registered yet — Agentimus fills this in on its own as it scans your site, and any
+        plugin that speaks the WP_Discovery format adds its own rows when you install it.
       </p>
 
       <template v-else>
@@ -401,10 +401,10 @@ export default {
            verb stays (a plugin can declare a create capability — the demo site
            does), so the next sentence answers the question outright instead. -->
       <p class="ar-card__lead">
-        The specific things agents may read or do, gathered from the providers above — one row each,
+        The specific things AI assistants may read or do, gathered from the providers above — one row each,
         so this list is exactly the <strong>{{ capabilityRows.length }}</strong> your dashboard counts.
         These are permissions, not tools: each names what an API allows and who declares it. The
-        tools an agent can run are their own list below, under <strong>For a signed-in agent</strong>.
+        tools an assistant can run are their own list below, under <strong>For a signed-in assistant</strong>.
       </p>
       <!-- Scrolls inside a fixed height rather than growing without limit. Most
            of these are one per public REST post type and taxonomy, so the length
@@ -438,7 +438,7 @@ export default {
     <section v-if="apiRows.length" id="ar-wd-apis" class="ar-card">
       <h2 class="ar-card__title">APIs <span class="ar-card__count">{{ apiRows.length }}</span></h2>
       <p class="ar-card__lead">
-        The endpoints agents can call directly — one row each, so this list is exactly the
+        The endpoints AI assistants can call directly — one row each, so this list is exactly the
         <strong>{{ apiRows.length }}</strong> your dashboard counts. Each belongs to the provider named beside it.
       </p>
       <div v-for="a in apiRows" :key="a.url" class="ar-wd-canonical ar-wd-mcp-endpoint">
@@ -453,9 +453,9 @@ export default {
     <section id="ar-wd-tools" class="ar-card">
       <h2 class="ar-card__title">MCP &amp; Tools</h2>
       <p class="ar-card__lead">
-        The tools a signed-in agent can run on this site, grouped by what provides them — the
+        The tools a signed-in assistant can run on this site, grouped by what provides them — the
         groups add up to the total. Each group names the doors that serve it, and the endpoints
-        beneath are those doors' addresses. Anonymous agents are a separate story: only tools you
+        beneath are those doors' addresses. Anonymous assistants are a separate story: only tools you
         publish appear in <code>/.well-known/mcp.json</code>, listed at the bottom. Running
         Agentimus’s own MCP server is its own switch (Settings → Discovery, off by default).
       </p>
@@ -465,7 +465,7 @@ export default {
            "14 + 16 = 30". -->
       <div class="ar-wd-mcp">
         <div class="ar-wd-mcp__cell">
-          <span>agent tools</span>
+          <span>assistant tools</span>
           <strong :class="counts.tools > 0 ? 'is-on' : 'is-off'">{{ counts.tools }}</strong>
         </div>
         <div class="ar-wd-mcp__cell">
@@ -489,7 +489,7 @@ export default {
            drops back to the plain surface the moment it opens). -->
       <div v-if="toolGroups.length" class="ar-wd-sect">
       <p class="ar-wd-lhead">
-        For a signed-in agent
+        For a signed-in assistant
         <span class="ar-wd-group__count">{{ counts.tools }}</span>
         <span class="ar-wd-lhead__note">
           tools, grouped by what provides them
@@ -565,7 +565,7 @@ export default {
       <div v-if="doorRows.length" class="ar-wd-sect">
       <p class="ar-wd-lhead">
         The doors named above
-        <span class="ar-wd-lhead__note">where an agent connects — signed in, so copy rather than open</span>
+        <span class="ar-wd-lhead__note">where an assistant connects — signed in, so copy rather than open</span>
       </p>
       <div v-for="d in doorRows" :key="d.url" class="ar-wd-canonical ar-wd-mcp-endpoint">
         <span class="ar-wd-canonical__method">{{ d.badge }}</span>
@@ -591,7 +591,7 @@ export default {
            identical rows, so its own panel is what keeps the two apart. -->
       <div v-if="tools.length" class="ar-wd-sect">
       <p class="ar-wd-lhead">
-        Published for anonymous agents
+        Published for anonymous assistants
         <span class="ar-wd-group__count">{{ tools.length }}</span>
         <span class="ar-wd-lhead__note">in /.well-known/mcp.json</span>
       </p>
@@ -619,13 +619,13 @@ export default {
            aren't on Agentimus's scoped server) — citing either here would sit
            beside the other and read as a contradiction. -->
       <p v-else-if="counts.tools > 0" class="ar-wd-empty">
-        Nothing is listed here because every agent tool on this site requires sign-in, and sign-in-only
+        Nothing is listed here because every tool on this site requires sign-in, and sign-in-only
         tools are deliberately not advertised in the public documents — an anonymous reader gets no map
-        of your tooling. An agent holding real credentials still discovers and runs them the proper way.
+        of your tooling. An assistant holding real credentials still discovers and runs them the proper way.
       </p>
       <p v-else class="ar-wd-empty">
-        No agent tools yet. They come from the WordPress Abilities API (in core from 6.9, or the Abilities
-        API plugin on older versions) or an MCP-aware plugin — once abilities are registered, they appear here.
+        No tools for AI assistants yet. They come from the WordPress Abilities API (in core from 6.9, or the
+        Abilities API plugin on older versions) or an MCP-aware plugin — once abilities are registered, they appear here.
       </p>
     </section>
 
@@ -634,7 +634,7 @@ export default {
     <section class="ar-card">
       <h2 class="ar-card__title">Well-Known Documents</h2>
       <p class="ar-card__lead">
-        The standard addresses an agent looks for first. Agentimus serves every one of these —
+        The standard addresses an AI assistant looks for first. Agentimus serves every one of these —
         if a real file on your server answers one instead, it is marked <strong>on disk</strong>,
         because that file wins and nothing here can override it.
       </p>

@@ -151,7 +151,7 @@ export default {
 <template>
   <div class="ar-edge">
     <!-- A load error before the first summary lands: surface it, not a skeleton. -->
-    <p v-if="!loaded && error" class="ar-log__error" role="alert">{{ error }}</p>
+    <p v-if="!loaded && error" class="ar-log__error" role="alert">{{ error }} — try Refresh, and if it persists, reload the page.</p>
 
     <!-- First reveal in flight: a skeleton, not a blank card — the same placeholder
          the other data screens show while their first fetch is out. -->

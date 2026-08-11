@@ -8,7 +8,7 @@ nav_order: 16
 
 AI assistants — Claude on the web, in the desktop app or in the terminal, Cursor, ChatGPT, the Codex CLI and others — can work on your site for you. The **MCP server** is how they talk to it. MCP (Model Context Protocol) is simply the common language these tools speak.
 
-Turn on **Settings → Discovery → MCP server**, and an AI tool you connect can *ask your site questions* and get live answers: "How AI-ready is this site?", "Which AI crawlers visited this week?", "Is this bot really Googlebot?", "How readable is this page for AI?". The same ten read-only reports you see in the Agentimus admin — readiness, AI traffic, the request log, bot identification, internal-link suggestions, and the page/schema/Markdown previews — become questions an AI assistant can ask on your behalf.
+Turn on **Settings → Discovery → MCP server**, and an AI tool you connect can *ask your site questions* and get live answers: "How AI-ready is this site?", "Which AI crawlers visited this week?", "Is this bot really Googlebot?", "How readable is this page for AI?". The same eighteen read-only reports you see in the Agentimus admin — the ranked findings list, readiness, your audience of people and machines, AI traffic, search performance, the request log, bot identification, internal-link suggestions, and the page/schema/Markdown previews — become questions an AI assistant can ask on your behalf.
 
 And if you choose to — with a second switch that starts off — the same connection can *act* for you too: draft and edit posts, file them under categories and tags, set a featured image, and apply Readiness fixes. That's covered in [Letting agents write](#letting-agents-write-optional) below.
 
@@ -16,11 +16,11 @@ Everything needed ships with the plugin. There is nothing else to install, no ac
 
 ## What it can and cannot do
 
-**Can:** read the ten Agentimus reports listed above. With the write switch on (below), also the five write tools — and nothing else.
+**Can:** read the eighteen Agentimus reports listed above. With the write switch on (below), also the five write tools — and nothing else.
 
 **Cannot:** act anonymously — nothing about this is public. And until you flip the write switch, it cannot write, change, delete or publish anything: every tool it gets is read-only, and the write tools don't merely refuse — they don't exist.
 
-A key can be read-only on its own, too. An assistant connected with a read-only key is shown the sixteen read tools and nothing else; a read-and-write key is shown all twenty-one. The limit is checked on the server whatever the key claims, so hiding the write tools does not add safety — it saves the assistant from finding the wall by walking into it.
+A key can be read-only on its own, too. An assistant connected with a read-only key is shown the eighteen read tools and nothing else; a read-and-write key is shown all twenty-three. The limit is checked on the server whatever the key claims, so hiding the write tools does not add safety — it saves the assistant from finding the wall by walking into it.
 
 Three locks stand between the internet and those reports:
 

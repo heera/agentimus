@@ -146,8 +146,8 @@ export default {
         <div class="ar-modal__head">
           <h2 id="ar-cm-title" class="ar-modal__title">Client Decisions</h2>
           <p class="ar-modal__lead">
-            Everything you've decided about visiting bots and agents — blocked, trusted, or ignored —
-            and when. Undoing here applies immediately.
+            Everything you've decided about visiting crawlers and AI assistants — blocked, trusted,
+            or ignored — and when. Undoing here applies immediately.
           </p>
           <div class="ar-rev-tabs" role="tablist" aria-label="Decision type">
             <button type="button" class="ar-rev-tab" :class="{ 'is-active': view === 'blocked' }" role="tab" :aria-selected="view === 'blocked'" @click="show('blocked')">
@@ -180,7 +180,7 @@ export default {
                     </button>
                   </li>
                 </ul>
-                <p v-else class="ar-cm__none">No blocked clients.</p>
+                <p v-else class="ar-cm__none">No blocked clients yet — when you Block one from the review bell or the Request Log, it lands here with its date.</p>
               </div>
 
               <div v-else-if="view === 'allowed'" class="ar-cm__section">
@@ -196,7 +196,7 @@ export default {
                     </button>
                   </li>
                 </ul>
-                <p v-else class="ar-cm__none">No trusted clients beyond the built-in search engines.</p>
+                <p v-else class="ar-cm__none">No trusted clients beyond the built-in search engines — when you Allow one from the review bell, it lands here.</p>
               </div>
 
               <div v-else class="ar-cm__section">
@@ -214,7 +214,7 @@ export default {
                     </button>
                   </li>
                 </ul>
-                <p v-else class="ar-cm__none">Nothing ignored.</p>
+                <p v-else class="ar-cm__none">Nothing ignored yet — clients you dismiss from the review bell wait here, in case you change your mind.</p>
                 <p v-if="data.ignored.length" class="ar-cm__note">
                   An ignored client also returns on its own if its traffic materially grows;
                   un-ignoring just brings it back to the review bell sooner (if it still visits).

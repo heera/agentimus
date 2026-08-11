@@ -350,7 +350,7 @@ export default {
 
         <!-- A manual Refresh that fails must say so HERE, where the owner is
              looking — the closing error slot below only renders disconnected. -->
-        <p v-if="error" class="ar-log__error" role="alert">{{ error }}</p>
+        <p v-if="error" class="ar-log__error" role="alert">{{ error }} — try Refresh, and if it persists, reload the page.</p>
 
         <div v-if="!trend.length" class="ar-wd-empty">
           No numbers from Bing yet. The first daily numbers usually appear within a day of

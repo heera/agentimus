@@ -168,6 +168,13 @@ final class Score {
 	 * Score a subset of readiness rows: pass = 1, warn = 0.5, fail = 0, as a 0–100
 	 * average. Null when none of the ids are present (nothing to score). Pure.
 	 *
+	 * 'off' rows are left out of BOTH sides of the fraction. Counting one as a
+	 * pass paid a full point for a switched-off feature (100 is earned, never
+	 * rounded into); counting it as anything else would fine the owner twice,
+	 * because the feature's own warn row already carries the cost of the switch.
+	 * A rung somehow all-off ends up with $n = 0 and returns null — excluded
+	 * from the blend, never a division by zero.
+	 *
 	 * @param array<int,array<string,mixed>> $rows Readiness rows.
 	 * @param array<int,string>              $ids  Ids that belong to this pillar.
 	 * @return int|null
@@ -177,6 +184,9 @@ final class Score {
 		$n   = 0;
 		foreach ( $rows as $r ) {
 			if ( ! isset( $r['id'] ) || ! in_array( $r['id'], $ids, true ) ) {
+				continue;
+			}
+			if ( isset( $r['status'] ) && 'off' === $r['status'] ) {
 				continue;
 			}
 			++$n;
@@ -292,6 +302,11 @@ final class Score {
 	/**
 	 * Count passing vs total checks for a rung's ids. Pure.
 	 *
+	 * 'off' rows stay out of the total, mirroring rows_score(): a rung scoring
+	 * 100 must also read "6/6", and the rail's "N to fix" chip is total minus
+	 * pass — an off row in the total would wear that chip as work to do, when
+	 * there is nothing to do here (the feature's warn row holds the work).
+	 *
 	 * @param array<int,array<string,mixed>> $rows Readiness rows.
 	 * @param array<int,string>              $ids  Ids in this rung.
 	 * @return array{pass:int,total:int}
@@ -301,6 +316,9 @@ final class Score {
 		$total = 0;
 		foreach ( $rows as $r ) {
 			if ( ! isset( $r['id'] ) || ! in_array( $r['id'], $ids, true ) ) {
+				continue;
+			}
+			if ( isset( $r['status'] ) && 'off' === $r['status'] ) {
 				continue;
 			}
 			++$total;
@@ -755,8 +773,11 @@ final class Score {
 		$out = array();
 
 		// Config gaps — reuse each readiness row's own fix + jump-to-fix action.
+		// 'off' rows are skipped with the passes: they carry no fix of their own,
+		// and the switched-off feature's warn row is already in this list — one
+		// switch must never queue two actions.
 		foreach ( $readiness as $r ) {
-			if ( 'pass' === $r['status'] ) {
+			if ( 'pass' === $r['status'] || 'off' === $r['status'] ) {
 				continue;
 			}
 			$out[] = array(

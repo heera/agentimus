@@ -339,7 +339,7 @@ export default {
       </div>
     </div>
 
-    <p v-if="error" class="ar-log__error" role="alert">{{ error }}</p>
+    <p v-if="error" class="ar-log__error" role="alert">{{ error }} — try Refresh, and if it persists, reload the page.</p>
 
     <!-- First load in flight: the shared skeleton, not a bare "Loading…" — same
          treatment as Endpoint Activity and Agent Access. -->
@@ -347,7 +347,7 @@ export default {
 
     <div v-else-if="!rows.length" class="ar-log__empty">
       <template v-if="hasFilters">Nothing matched those filters.</template>
-      <template v-else>No requests recorded yet.</template>
+      <template v-else>No requests recorded yet — the first time a crawler or an AI assistant fetches one of your AI files, its visit appears here.</template>
     </div>
 
     <div v-else class="ar-act-feedwrap">

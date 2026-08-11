@@ -662,7 +662,7 @@ export default {
 
       <!-- A checkNow loop that dies must say so HERE, where the owner is
            looking — the closing error slot below only renders disconnected. -->
-      <p v-if="error" class="ar-log__error" role="alert">{{ error }}</p>
+      <p v-if="error" class="ar-log__error" role="alert">{{ error }} — try Refresh, and if it persists, reload the page.</p>
 
       <!-- Quota is a state, not a fault — named in its own words so a partial
            list never reads as a partial site. -->

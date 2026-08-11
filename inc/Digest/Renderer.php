@@ -55,16 +55,16 @@ final class Renderer {
 
 		if ( $agents > 0 && null !== $score ) {
 			return sprintf(
-				/* translators: 1: number of AI agent requests this week, 2: readiness score. */
-				__( 'Your site’s AI week: %1$s agent reads, score %2$d', 'agentimus' ),
+				/* translators: 1: number of AI requests this week, 2: readiness score. */
+				__( 'Your site’s AI week: %1$s AI reads, score %2$d', 'agentimus' ),
 				number_format_i18n( $agents ),
 				$score
 			);
 		}
 		if ( $agents > 0 ) {
 			return sprintf(
-				/* translators: %s: number of AI agent requests this week. */
-				__( 'Your site’s AI week: %s agent reads', 'agentimus' ),
+				/* translators: %s: number of AI requests this week. */
+				__( 'Your site’s AI week: %s AI reads', 'agentimus' ),
 				number_format_i18n( $agents )
 			);
 		}
@@ -122,8 +122,8 @@ final class Renderer {
 			return '';
 		}
 		$line = sprintf(
-			/* translators: %s: number of requests from AI agents and crawlers. */
-			_n( 'AI agents and crawlers read your site %s time.', 'AI agents and crawlers read your site %s times.', $total, 'agentimus' ),
+			/* translators: %s: number of requests from AI assistants and crawlers. */
+			_n( 'AI assistants and crawlers read your site %s time.', 'AI assistants and crawlers read your site %s times.', $total, 'agentimus' ),
 			number_format_i18n( $total )
 		);
 		$body = self::stat_row( $line, self::compare( $total, isset( $a['prev'] ) ? $a['prev'] : null ) );
@@ -137,7 +137,7 @@ final class Renderer {
 			}
 			$body .= '</table>';
 		}
-		return self::section( __( 'Agent visits', 'agentimus' ), $body );
+		return self::section( __( 'AI reads', 'agentimus' ), $body );
 	}
 
 	/** Humans arriving from AI answers. */
@@ -184,7 +184,7 @@ final class Renderer {
 			_n( '%s request pretended to be a known crawler and failed the identity check.', '%s requests pretended to be a known crawler and failed the identity check.', $total, 'agentimus' ),
 			number_format_i18n( $total )
 		);
-		return self::section( __( 'Impostors', 'agentimus' ), self::stat_row( $line, '' ) );
+		return self::section( __( 'Impostors caught', 'agentimus' ), self::stat_row( $line, '' ) );
 	}
 
 	/** A robots.txt policy change this period — absent when nothing changed. */
@@ -221,11 +221,11 @@ final class Renderer {
 			return '';
 		}
 		$line = sprintf(
-			/* translators: %s: number of authenticated agent activity events. */
-			_n( 'Your connected agents were active this week: %s event.', 'Your connected agents were active this week: %s events.', $events, 'agentimus' ),
+			/* translators: %s: number of authenticated assistant activity events. */
+			_n( 'Your connected assistants were active this week: %s event.', 'Your connected assistants were active this week: %s events.', $events, 'agentimus' ),
 			number_format_i18n( $events )
 		);
-		return self::section( __( 'Connected agents', 'agentimus' ), self::stat_row( $line, '' ) );
+		return self::section( __( 'Connected assistants', 'agentimus' ), self::stat_row( $line, '' ) );
 	}
 
 	/** Readiness score + movement since the last digest. */

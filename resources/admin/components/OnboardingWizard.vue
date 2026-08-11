@@ -183,7 +183,7 @@ export default {
       // Reads the in-wizard stance (this.signal), not saved settings, so the summary
       // reflects the choice the owner just made in Step 2 before it's saved.
       if (!this.signal.ai_train) list.push('Your content is reserved from AI training');
-      if (s.enable_ai_header !== false || s.enable_tdmrep !== false) list.push('Your AI-usage choices stated everywhere agents look');
+      if (s.enable_ai_header !== false || s.enable_tdmrep !== false) list.push('Your AI-usage choices stated everywhere crawlers look');
       return list;
     },
   },
@@ -514,7 +514,7 @@ export default {
                   <div v-if="!isOrg" class="ar-field">
                     <label for="ar-wiz-role">Your role or title <span class="ar-field__tag">optional</span></label>
                     <input id="ar-wiz-role" v-model="role" type="text" class="ar-input" placeholder="e.g. WordPress developer" />
-                    <small class="ar-field__hint">How engines say what you do — it becomes your schema jobTitle.</small>
+                    <small class="ar-field__hint">How AI assistants describe what you do when they mention you.</small>
                   </div>
 
                   <div class="ar-field">
@@ -537,7 +537,7 @@ export default {
                   <div class="ar-field">
                     <label>Topics you cover</label>
                     <TagInput v-model="expertise" placeholder="e.g. WordPress tutorials — press Enter to add" />
-                    <small class="ar-field__hint">3–5 is plenty. They go into your llms.txt and your schema’s knowsAbout.</small>
+                    <small class="ar-field__hint">3–5 is plenty. They go into the files AI assistants read about you.</small>
                   </div>
 
                   <div class="ar-field">
@@ -558,9 +558,9 @@ export default {
                 <div v-else-if="step === 3" class="ar-wiz__step">
                   <h2 class="ar-modal__title">What do you offer?</h2>
                   <p class="ar-modal__lead">
-                    Anything people can hire you for or buy from you. Each one becomes a
-                    Schema.org <code>Service</code> naming you as the provider, so assistants
-                    can answer “what does this site offer?”. Don’t sell anything? Just
+                    Anything people can hire you for or buy from you. Each one is published as
+                    a service you provide, in the format AI assistants read — so they can
+                    answer “what does this site offer?”. Don’t sell anything? Just
                     continue — this is fully optional.
                   </p>
                   <div v-for="(svc, i) in services" :key="i" class="ar-wiz__svc">
@@ -669,8 +669,8 @@ export default {
                     </label>
                   </div>
                   <p class="ar-card__note">
-                    Stated in your <code>robots.txt</code> as a Content-Signal — a polite request well-behaved
-                    crawlers honour.
+                    Your choices are written into your site’s <code>robots.txt</code> — the file crawlers
+                    check for the rules — as a Content-Signal: a polite request well-behaved crawlers honour.
                   </p>
                 </div>
 

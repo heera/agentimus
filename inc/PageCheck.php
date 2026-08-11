@@ -324,14 +324,14 @@ final class PageCheck {
 				'words',
 				__( 'Enough substance', 'agentimus' ),
 				'pass',
-				sprintf( /* translators: %d: word count. */ __( '%d words — enough for an agent to extract and cite.', 'agentimus' ), $words )
+				sprintf( /* translators: %d: word count. */ __( '%d words — enough for an AI assistant to extract and cite.', 'agentimus' ), $words )
 			);
 		}
 		return self::row(
 			'words',
 			__( 'Not enough substance yet', 'agentimus' ),
 			'warn',
-			sprintf( /* translators: 1: word count, 2: the minimum. */ __( 'Only %1$d words. Below ~%2$d an agent has little to work with — expand the page or merge it.', 'agentimus' ), $words, self::MIN_WORDS )
+			sprintf( /* translators: 1: word count, 2: the minimum. */ __( 'Only %1$d words. Below ~%2$d an AI assistant has little to work with — expand the page or merge it.', 'agentimus' ), $words, self::MIN_WORDS )
 		);
 	}
 
@@ -342,7 +342,7 @@ final class PageCheck {
 		}
 		$lead = ! empty( $s['paragraphs'] ) ? (int) $s['paragraphs'][0] : 0;
 		if ( ! empty( $s['has_excerpt'] ) || $lead >= self::SUMMARY_MIN_WORDS ) {
-			return self::row( 'summary', __( 'Opening summary', 'agentimus' ), 'pass', __( 'Has an excerpt or a solid first paragraph an agent can use as the summary.', 'agentimus' ) );
+			return self::row( 'summary', __( 'Opening summary', 'agentimus' ), 'pass', __( 'Has an excerpt or a solid first paragraph an AI assistant can use as the summary.', 'agentimus' ) );
 		}
 		return self::row(
 			'summary',
@@ -360,13 +360,13 @@ final class PageCheck {
 		$figures  = (int) ( isset( $s['figures'] ) ? $s['figures'] : 0 );
 		$outbound = (int) ( isset( $s['outbound_links'] ) ? $s['outbound_links'] : 0 );
 		if ( $figures >= 2 || $outbound >= 1 ) {
-			return self::row( 'evidence', __( 'Backed with specifics', 'agentimus' ), 'pass', __( 'Carries figures or cited sources — the kind of specifics an engine can quote and attribute.', 'agentimus' ) );
+			return self::row( 'evidence', __( 'Backed with specifics', 'agentimus' ), 'pass', __( 'Carries figures or cited sources — the kind of specifics an AI assistant can quote and attribute.', 'agentimus' ) );
 		}
 		return self::row(
 			'evidence',
 			__( 'Short on specifics', 'agentimus' ),
 			'warn',
-			__( 'No figures, dates, or outbound sources. Answer engines lift and cite specifics — add a statistic, a concrete detail, or a link to a source you build on.', 'agentimus' )
+			__( 'No figures, dates, or outbound sources. AI assistants lift and cite specifics — add a statistic, a concrete detail, or a link to a source you build on.', 'agentimus' )
 		);
 	}
 
@@ -385,7 +385,7 @@ final class PageCheck {
 			'sources',
 			__( 'No outbound sources', 'agentimus' ),
 			'warn',
-			__( 'A long page with no links to outside sources gives readers no way to check its facts. Answer engines prefer pages that show their sources — link the material you build on.', 'agentimus' )
+			__( 'A long page with no links to outside sources gives readers no way to check its facts. AI assistants prefer pages that show their sources — link the material you build on.', 'agentimus' )
 		);
 	}
 
@@ -397,7 +397,7 @@ final class PageCheck {
 			'headings',
 			__( 'No headings', 'agentimus' ),
 			'warn',
-			__( 'A long page with no headings is one big block of text. Add H2/H3 headings so an agent can find and quote each part.', 'agentimus' )
+			__( 'A long page with no headings is one big block of text. Add H2/H3 headings so an AI assistant can find and quote each part.', 'agentimus' )
 		);
 	}
 
@@ -409,7 +409,7 @@ final class PageCheck {
 					'heading_order',
 					__( 'Heading order', 'agentimus' ),
 					'warn',
-					sprintf( /* translators: 1: from level, 2: to level. */ __( 'Heading levels jump (H%1$d → H%2$d). Don’t skip levels — it breaks the outline an agent builds from the page.', 'agentimus' ), (int) $prev, (int) $level )
+					sprintf( /* translators: 1: from level, 2: to level. */ __( 'Heading levels jump (H%1$d → H%2$d). Don’t skip levels — it breaks the outline an AI assistant builds from the page.', 'agentimus' ), (int) $prev, (int) $level )
 				);
 			}
 			$prev = (int) $level;
@@ -427,7 +427,7 @@ final class PageCheck {
 				'passages',
 				__( 'One long block', 'agentimus' ),
 				'warn',
-				sprintf( /* translators: 1: word count, 2: the threshold. */ __( 'A paragraph runs ~%1$d words. Break blocks over ~%2$d into shorter ones, so an engine can lift a clean, self-contained passage.', 'agentimus' ), $longest, self::LONG_PARAGRAPH_WORDS )
+				sprintf( /* translators: 1: word count, 2: the threshold. */ __( 'A paragraph runs ~%1$d words. Break blocks over ~%2$d into shorter ones, so an AI assistant can lift a clean, self-contained passage.', 'agentimus' ), $longest, self::LONG_PARAGRAPH_WORDS )
 			);
 		}
 		return self::row( 'passages', __( 'Quotable passages', 'agentimus' ), 'pass', __( 'Paragraphs are a quotable length — easy to lift a clean passage from.', 'agentimus' ) );
@@ -447,7 +447,7 @@ final class PageCheck {
 		}
 		$score = self::reading_ease( $s );
 		if ( $score >= self::READING_EASE_OK ) {
-			return self::row( 'reading_ease', __( 'Reading ease', 'agentimus' ), 'pass', sprintf( /* translators: %d: Flesch score. */ __( 'Score %d — plain enough for a general audience, the kind of writing answer engines quote most.', 'agentimus' ), (int) round( $score ) ) );
+			return self::row( 'reading_ease', __( 'Reading ease', 'agentimus' ), 'pass', sprintf( /* translators: %d: Flesch score. */ __( 'Score %d — plain enough for a general audience, the kind of writing AI assistants quote most.', 'agentimus' ), (int) round( $score ) ) );
 		}
 		// A technical subject is not hard prose: rescore with the page's own
 		// recurring terms priced as familiar. Clearing the bar HERE means the
@@ -474,7 +474,7 @@ final class PageCheck {
 			: __( 'college-level prose', 'agentimus' );
 		// floor, not round: a 49.5 must never display as "score 50" on a warn row
 		// — the number shown should stay below the pass bar the row failed.
-		$detail = sprintf( /* translators: 1: Flesch score, 2: difficulty band. */ __( 'Reading-ease score %1$d — %2$s. Shorter sentences and plainer words make passages easier for engines to lift and for readers to trust.', 'agentimus' ), (int) floor( $familiar ), $band );
+		$detail = sprintf( /* translators: 1: Flesch score, 2: difficulty band. */ __( 'Reading-ease score %1$d — %2$s. Shorter sentences and plainer words make passages easier for AI assistants to lift and for readers to trust.', 'agentimus' ), (int) floor( $familiar ), $band );
 		$heavy  = isset( $s['heavy_words'] ) ? array_slice( array_keys( (array) $s['heavy_words'] ), 0, 3 ) : array();
 		if ( $heavy ) {
 			$detail .= ' ' . sprintf(
@@ -540,7 +540,7 @@ final class PageCheck {
 				'alt_text',
 				__( 'Image alt text', 'agentimus' ),
 				'warn',
-				sprintf( /* translators: 1: missing count, 2: total. */ __( '%1$d of %2$d image(s) have no alt text. Agents can’t read pixels — describe each image so its meaning survives.', 'agentimus' ), (int) $s['images_no_alt'], (int) $s['images'] )
+				sprintf( /* translators: 1: missing count, 2: total. */ __( '%1$d of %2$d image(s) have no alt text. AI assistants can’t read pixels — describe each image so its meaning survives.', 'agentimus' ), (int) $s['images_no_alt'], (int) $s['images'] )
 			);
 		}
 		$detail = (int) $s['images'] > 0 ? __( 'Every image has alt text.', 'agentimus' ) : __( 'No images to describe.', 'agentimus' );
@@ -1171,7 +1171,7 @@ final class PageCheck {
 				'freshness',
 				__( 'Getting stale', 'agentimus' ),
 				'warn',
-				sprintf( /* translators: %d: months since last update. */ __( 'Last updated about %d months ago. Answer engines favour current sources — a refresh (even a dated review note) helps this page stay citable.', 'agentimus' ), $months )
+				sprintf( /* translators: %d: months since last update. */ __( 'Last updated about %d months ago. AI assistants favour current sources — a refresh (even a dated review note) helps this page stay citable.', 'agentimus' ), $months )
 			);
 		}
 		return self::row( 'freshness', __( 'Freshness', 'agentimus' ), 'pass', __( 'Recently enough updated to read as current.', 'agentimus' ) );

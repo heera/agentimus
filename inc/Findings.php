@@ -96,6 +96,9 @@ final class Findings {
 	/** @var array|null Memoized readiness report — several sources read it. */
 	private $readiness = null;
 
+	/** @var array|null Memoized opportunities report — three sources read it. */
+	private $opportunities = null;
+
 	/** @var array|null Memoized score report — read by content_issues() and the worklist finding. */
 	private $score_report = null;
 
@@ -285,10 +288,18 @@ final class Findings {
 	/**
 	 * The search opportunity worklist, read once.
 	 *
+	 * Memoized for the instance's lifetime, like readiness() and score_report():
+	 * near_page_one(), seen_not_chosen() and split_searches() each read it during
+	 * one all() pass, and Report::opportunities() re-shapes the whole stored
+	 * snapshot per call — the same answer, paid for three times.
+	 *
 	 * @return array
 	 */
 	private function opportunities() {
-		return (array) Search\Report::opportunities( $this->settings );
+		if ( null === $this->opportunities ) {
+			$this->opportunities = (array) Search\Report::opportunities( $this->settings );
+		}
+		return $this->opportunities;
 	}
 
 	/**
@@ -961,7 +972,10 @@ final class Findings {
 	private function config_gaps() {
 		$out = array();
 		foreach ( (array) $this->readiness() as $check ) {
-			if ( ! is_array( $check ) || ! isset( $check['status'] ) || 'pass' === $check['status'] ) {
+			// 'off' sits with 'pass' here: an off row is a switched-off feature's
+			// informational shadow, and the feature's own warn row is already in
+			// this loop — one switch must never surface as two findings.
+			if ( ! is_array( $check ) || ! isset( $check['status'] ) || 'pass' === $check['status'] || 'off' === $check['status'] ) {
 				continue;
 			}
 			$why = '' !== (string) ( isset( $check['fix'] ) ? $check['fix'] : '' )
@@ -1011,7 +1025,7 @@ final class Findings {
 			$this->row(
 				'never_measured',
 				self::LATER,
-				__( 'You have never measured whether AI engines cite you', 'agentimus' ),
+				__( 'You have never measured whether AI assistants cite you', 'agentimus' ),
 				__( 'The one reading that says whether any of this worked.', 'agentimus' ),
 				array( __( 'Cited · no reading yet', 'agentimus' ) ),
 				$this->go( __( 'Set up citation checks', 'agentimus' ), 'visibility', 'settings' ),
@@ -1038,6 +1052,12 @@ final class Findings {
 				if ( ! is_array( $check ) || ! isset( $check['status'] ) ) {
 					continue;
 				}
+				// An 'off' row is not a check that can pass — leaving it in the
+				// total would silence "all N setup checks pass" on a site whose
+				// only non-pass rows are switched-off features' shadows.
+				if ( 'off' === $check['status'] ) {
+					continue;
+				}
 				++$total;
 				if ( 'pass' === $check['status'] ) {
 					++$pass;
@@ -1046,7 +1066,7 @@ final class Findings {
 			if ( $total > 0 && $pass === $total ) {
 				$lines[] = sprintf(
 					/* translators: %s: number of configuration checks, all passing. */
-					__( 'Nothing is blocking agents — all %s setup checks pass.', 'agentimus' ),
+					__( 'Nothing is blocking AI assistants — all %s setup checks pass.', 'agentimus' ),
 					number_format_i18n( $total )
 				);
 			}

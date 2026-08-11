@@ -209,7 +209,7 @@ export default {
           why: `It signed its request as ${s.signer} — but the signature didn’t match ${s.signer}’s published key. Only the real operator can produce a valid one.`,
           recommend: s.refused
             ? 'It got nothing: every attempt was refused before your content was served. Listed here so you know it happened — no action needed.'
-            : 'Turn on blocking (with the spoofed-agents rule) and this is refused automatically.',
+            : 'Turn on blocking (with the spoofed-crawlers rule) and this is refused automatically.',
         };
       }
       // Proven genuine by signature — the other side of the same coin.
@@ -377,7 +377,7 @@ export default {
         }
         return `It points to ${host} in its own User-Agent — its claim, not verified. Open it with care, then Allow or Block.`;
       }
-      return 'It isn’t in the known-bot list and declares no home page of its own. Research it below, then Allow or Block.';
+      return 'It isn’t in the known-crawler list and declares no home page of its own. Research it below, then Allow or Block.';
     },
     // ---- Styled UA tooltip + click-to-copy (mirrors ActivityPanel) -------------
     showUaTip(ev, text) {
@@ -705,7 +705,7 @@ export default {
           </div>
         </li>
       </ul>
-      <p v-else-if="count" class="ar-rev-empty">Nothing in this view.</p>
+      <p v-else-if="count" class="ar-rev-empty">Nothing in this view — the clients waiting for you are under the other tab.</p>
       <p v-else class="ar-rev-empty">Nothing needs a look right now.</p>
       </div>
 

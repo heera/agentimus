@@ -471,7 +471,7 @@ export default {
       <!-- Not in the picked view: its own line above already explains an empty
            result, and stacking "Nothing in this view" under it read as three
            contradictory sentences about one list. -->
-      <p v-else-if="!picked" class="ar-work__empty">Nothing in this view.</p>
+      <p v-else-if="!picked" class="ar-work__empty">Nothing in this view yet — pages move here as their checks change, and the other tabs hold the rest of your content.</p>
 
       <!-- The footer describes the list as shipped ("the 30 most worth looking
            at, of 67") — under a finding's filter that claim belongs to a list

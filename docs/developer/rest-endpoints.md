@@ -226,7 +226,7 @@ On WordPress 6.9+ (Abilities API) Agentimus registers its abilities via `wp_regi
 
 **Read (always registered), annotated read-only.** Each carries the same capability check as the screen it comes from (`manage_options`, or `edit_post` for the per-post ones):
 
-`agentimus/read-readiness`, `read-ai-visibility`, `read-ai-traffic`, `read-request-log`, `identify-bot`, `check-page`, `preview-schema`, `preview-markdown`, `scan-exposed-files`.
+`agentimus/read-readiness`, `read-findings`, `read-audience`, `read-ai-visibility`, `read-ai-traffic`, `read-request-log`, `read-edge-traffic`, `read-search-visibility`, `read-google-index`, `read-search-performance`, `read-search-opportunities`, `identify-bot`, `check-page`, `preview-schema`, `preview-markdown`, `scan-exposed-files`, `suggest-internal-links`, `search-media`.
 
 **Write (registered only while BOTH `enable_mcp_server` and `enable_agent_writes` are on — off by default; off means the abilities don't exist on any surface):**
 
@@ -274,7 +274,7 @@ The browser half is not a REST route: **`/agentimus/connect`** is a rewrite (`Oa
 
 **How a client finds all this.** An unauthenticated call to `/wp-json/agentimus/v1/mcp` returns `401` with `WWW-Authenticate: Bearer resource_metadata="…/.well-known/oauth-protected-resource/agentimus/mcp"`. That document names the issuer, whose RFC 8414 metadata carries the authorize, token and registration endpoints. The issuer is path-based (`{site}/agentimus/mcp`) so the well-known documents stay under a path this plugin owns and cannot collide with another plugin's OAuth server on the same site. Not every client reads the `WWW-Authenticate` hint: some (ChatGPT, verified July 2026) derive the metadata URL themselves per RFC 9728 §3.1 — inserting `/.well-known/oauth-protected-resource` between the host and the endpoint's own path — so the SAME document is also served at `…/.well-known/oauth-protected-resource/wp-json/agentimus/v1/mcp`, and a 404 there would read as "does not implement OAuth".
 
-**Scope is enforced twice.** `Registrar::filter_tools_for_scope()` narrows the advertised tool list per request (a read-only key is shown the ten read tools, never the five write ones), and each write ability's permission callback is wrapped by both `McpToken::gate_write_permission()` and `Oauth\Server::gate_write_permission()`. Hiding the tools is a courtesy; the gate is the boundary. Neither can exceed the site's own write settings.
+**Scope is enforced twice.** `Registrar::filter_tools_for_scope()` narrows the advertised tool list per request (a read-only key is shown the eighteen read tools, never the five write ones), and each write ability's permission callback is wrapped by both `McpToken::gate_write_permission()` and `Oauth\Server::gate_write_permission()`. Hiding the tools is a courtesy; the gate is the boundary. Neither can exceed the site's own write settings.
 
 ### `GET /activity/log`
 

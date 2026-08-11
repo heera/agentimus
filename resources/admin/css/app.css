@@ -1208,6 +1208,32 @@
   color: var(--ar-ink-faint);
 }
 .ar-rail-card--readiness .ar-rail-card__gloss { color: color-mix(in srgb, var(--ar-paper) 52%, transparent); }
+
+/* Folded depth under a toggle's one-line description (Verify bot identities):
+   the plain sentence stays; the methods paragraph waits behind the fold. */
+.ar-toggle__more { margin: -6px 0 12px 54px; } /* 40px track + 14px gap = the toggle's text column. */
+/* The summary is a block, so the linkbtn hover pill would stretch the full
+   row (his catch, 2026-08-12) — shrink the box to its words and give a
+   standing link the underline affordance instead, like the panel footers. */
+.ar-toggle__more > summary { font-size: 12.5px; width: max-content; max-width: 100%; }
+.ar-toggle__more > summary:hover,
+.ar-toggle__more > summary:focus-visible {
+  background: none;
+  color: color-mix(in srgb, var(--ar-accent) 70%, var(--ar-ink));
+}
+.ar-toggle__more[open] > summary { margin-bottom: 7px; }
+/* The unfolded depth sits in the same quiet inset the readiness fix-notes
+   use: the raised tone, a hairline, and a reading measure — a card, not a
+   loose paragraph bleeding into the section (his call, 2026-08-12). */
+.ar-toggle__more > small {
+  display: block;
+  padding: 10px 14px;
+  background: var(--ar-surface-2);
+  border: 1px solid var(--ar-line);
+  border-radius: 8px;
+  font-size: 12.5px; line-height: 1.6; color: var(--ar-ink-soft);
+}
+.ar-toggle__more > small strong { color: var(--ar-ink); }
 .ar-rail-card--readiness .ar-rail-gauge__track { stroke: color-mix(in srgb, var(--ar-paper) 15%, transparent); }
 .ar-rail-card--readiness .ar-rail-gauge__num { color: color-mix(in srgb, var(--ar-paper) 62%, transparent); }
 .ar-rail-card--readiness .ar-rail-allgood { color: var(--ar-good-on-ink); }
@@ -3891,25 +3917,29 @@ html { scrollbar-gutter: stable; }
   scroll-margin-top: 40px;
 }
 .ar-check__text { min-width: 0; display: flex; flex-direction: column; gap: 2px; }
-/* The AgentReady citation chip: quiet spec ID beside the label, linking out. */
+/* The AgentReady citation chip: quiet spec ID beside the label, linking out.
+   Deliberately the smallest voice on the row — a citation, not a control — so
+   the border drops to the plain hairline and the size a half-point below the
+   OFF chip's ink. Its v-tip carries the explanation the size can't. */
 .ar-check__arid {
   display: inline-block; vertical-align: 1px; margin-left: 7px; padding: 1px 7px;
-  font-family: var(--ar-mono); font-size: 9.5px; letter-spacing: 0.06em; font-weight: 400;
-  color: var(--ar-ink-faint); border: 1px solid var(--ar-line-strong); border-radius: 999px;
+  font-family: var(--ar-mono); font-size: 9px; letter-spacing: 0.06em; font-weight: 400;
+  color: var(--ar-ink-faint); border: 1px solid var(--ar-line); border-radius: 999px;
   text-decoration: none;
 }
 .ar-check__arid:hover { color: var(--ar-accent); border-color: var(--ar-accent); }
 .ar-check__text strong { font-size: 14px; font-weight: 600; }
 .ar-check__text small { color: var(--ar-ink-soft); font-size: 12.5px; }
+/* The fix note: a quiet inset on the raised tone, not the page's darkest
+   (paper went near-black in dark mode), and NO left border of its own —
+   the row's rule already carries the status colour; a second amber bar
+   nested inside it read as decoration (his call, 2026-08-12). */
 .ar-check__fix {
   grid-column: 2 / -1;
   margin: 8px 0 0; padding: 8px 11px;
   font-size: 12.5px; line-height: 1.5; color: var(--ar-ink);
-  background: var(--ar-paper); border-radius: 6px;
-  border-left: 2px solid var(--ar-line-strong);
+  background: var(--ar-surface-2); border-radius: 6px;
 }
-.ar-check.is-warn .ar-check__fix { border-left-color: var(--ar-warn); }
-.ar-check.is-fail .ar-check__fix { border-left-color: var(--ar-bad); }
 .ar-check__action {
   grid-column: 2; justify-self: start;
   align-self: flex-start; margin: 8px 0 0; padding: 0;
@@ -3929,6 +3959,11 @@ html { scrollbar-gutter: stable; }
 .ar-check__tag.is-pass { color: var(--ar-good); border-color: var(--ar-good-tint); background: var(--ar-good-wash); }
 .ar-check__tag.is-warn { color: var(--ar-warn); border-color: var(--ar-warn-tint); background: var(--ar-warn-wash); }
 .ar-check__tag.is-fail { color: var(--ar-bad); border-color: var(--ar-bad-tint); background: var(--ar-bad-wash); }
+/* OFF — the neutral fourth state: the feature this row measures is switched off,
+   so there is nothing to grade. No wash, no verdict color: faint ink on the plain
+   hairline, quieter than a pass, because the row is stating a fact, not a result.
+   Tokens only — the WP admin scheme dialects retint these. */
+.ar-check__tag.is-off { color: var(--ar-ink-faint); border-color: var(--ar-line); background: transparent; }
 /* span 3 = the max possible rows (text / fix / action) — "1 / -1" can't reach
    IMPLICIT grid rows, so it left the bar one row tall. Unused spanned rows are
    zero-height and invisible. */
@@ -3936,6 +3971,9 @@ html { scrollbar-gutter: stable; }
 .ar-check.is-pass .ar-check__rule { background: var(--ar-good); }
 .ar-check.is-warn .ar-check__rule { background: var(--ar-warn); }
 .ar-check.is-fail .ar-check__rule { background: var(--ar-bad); }
+/* An off row's rule drops below even the neutral default — the faintest line in
+   the report, matching a row that measures nothing. */
+.ar-check.is-off .ar-check__rule { background: var(--ar-line); }
 /* Finished, and waiting on an engine. The amber rule is a call to act, so a card
    with nothing left to do must not wear one — it drops to the neutral rule, the
    same weight as a row that has never asked for anything. */

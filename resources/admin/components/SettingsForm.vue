@@ -197,8 +197,8 @@ export default {
       return [
         { key: 'identity', label: 'Identity', hint: 'Who owns this site' },
         { key: 'discovery', label: 'Discovery', hint: 'Files & data AI can read' },
-        { key: 'access', label: 'AI access', hint: 'What bots may do — and who to block' },
-        { key: 'exposure', label: 'Exposure', hint: 'Limit what your site reveals to bots & scanners' },
+        { key: 'access', label: 'AI access', hint: 'What crawlers may do — and who to block' },
+        { key: 'exposure', label: 'Exposure', hint: 'Limit what your site reveals to crawlers & scanners' },
         { key: 'sources', label: 'Data sources', hint: 'Outside services Agentimus reads from — optional, read-only' },
         { key: 'advanced', label: 'Advanced', hint: 'Trust, developer & maintenance' },
       ];
@@ -339,7 +339,7 @@ export default {
         .filter(([, token]) => !hit(token, allowed) && hit(token, blocked))
         .map(([name, token]) => `${name} (you block ${token})`);
       if (!hidden.length) return '';
-      return ` Hidden by your own bot policy right now: ${hidden.join(', ')} — that agent does the reading, so its button would only ever fail. Unblock it, or add it to your always-allowed list, to show the button.`;
+      return ` Hidden by your own crawler rules right now: ${hidden.join(', ')} — that is the reader the assistant sends to fetch your page, so its button would only ever fail. Unblock it, or add it to your always-allowed list, to show the button.`;
     },
     features() {
       // Plain-language labels; the real filename/term stays in the hint so it's
@@ -348,7 +348,7 @@ export default {
         { key: 'enable_llms_txt', label: 'AI page guide', hint: 'A plain map of your pages, topics and recent posts for assistants. (file: llms.txt)' },
         { key: 'enable_llms_full', label: 'Full text for AI', hint: 'Bundles your pages and recent posts into one document an assistant can read in a single pass. (file: llms-full.txt)' },
         { key: 'enable_markdown', label: 'Plain-text versions', hint: 'Lets assistants fetch a clean text version of any included page — add .md to its URL.' },
-        { key: 'enable_robots', label: 'Crawler rules', hint: 'States your preferences to crawlers and blocks known AI-training bots by name. (file: robots.txt)' },
+        { key: 'enable_robots', label: 'Crawler rules', hint: 'States your preferences to crawlers and blocks known AI-training crawlers by name. (file: robots.txt)' },
         { key: 'enable_schema', label: 'Rich data for search', hint: 'Adds structured data search engines and assistants understand (JSON-LD). Leave off if your SEO plugin already does this.' },
         { key: 'enable_page_checks', label: 'AI readability tips', hint: 'Adds an “AI Readability” panel in the post editor with per-page tips (headings, summary, thin content, image alt). Editor-only — nothing is shown to visitors.' },
         { key: 'enable_share_copy', label: 'Share drafts', hint: 'Adds a “Share” tab in the post editor with ready-to-post drafts for X, Facebook, LinkedIn, WhatsApp, Telegram and Reddit — written from the post itself, polished with AI per card if a provider is set up. Editor-only; nothing is ever posted for you.' },
@@ -383,7 +383,7 @@ export default {
         {
           key: 'tidy_head_links',
           label: 'Tidy page-head links',
-          hint: 'Removes a few rarely-used auto-generated links from your pages’ source code (the short-link and oEmbed embed links), trimming the technical footprint bots scrape. No effect on how your pages look or rank.',
+          hint: 'Removes a few rarely-used auto-generated links from your pages’ source code (the short-link and oEmbed embed links), trimming the technical footprint crawlers scrape. No effect on how your pages look or rank.',
         },
         {
           key: 'disable_xmlrpc',
@@ -451,7 +451,7 @@ export default {
       if (!this.settings.enable_ai_header && !this.settings.enable_tdmrep) {
         return 'robots.txt is only a request a crawler can ignore. Turn on a channel below to also publish your choice as a standardized signal that’s harder to skip.';
       }
-      return 'robots.txt is only a request a crawler can ignore — so your “no AI training” choice also goes out in the standardized signals below, which are harder for a bot to skip.';
+      return 'robots.txt is only a request a crawler can ignore — so your “no AI training” choice also goes out in the standardized signals below, which are harder for a crawler to skip.';
     },
     isOrg() {
       return this.identity.entity_type !== 'Person';
@@ -748,7 +748,7 @@ export default {
         try { doc = await res.json(); } catch (e) { doc = null; }
         const servers = doc && Array.isArray(doc.authorization_servers) ? doc.authorization_servers : [];
         if (servers.some((s) => norm(s) === norm(entered))) {
-          this.oauthCheck = { ok: true, msg: 'Published ✓ — agents can now discover your login server at /.well-known/oauth-protected-resource.' };
+          this.oauthCheck = { ok: true, msg: 'Published ✓ — AI assistants can now discover your login server at /.well-known/oauth-protected-resource.' };
         } else if (servers.length) {
           this.oauthCheck = { ok: false, msg: `Published, but it still lists ${servers[0]} — save your latest change, then check again.` };
         } else {
@@ -1064,7 +1064,7 @@ export default {
       <section id="ar-sec-digest" class="ar-card">
         <h2 class="ar-card__title">Weekly Email</h2>
         <p class="ar-card__lead">
-          Once a week, Agentimus emails you a short note about what AI did on your site: agent visits,
+          Once a week, Agentimus emails you a short note about what AI did on your site: AI reads,
           readers arriving from AI answers, impostors caught, and your readiness score. It is built only
           from the data already stored on your site and sent with WordPress’s own mail — nothing else
           leaves your server. A week with nothing to report sends nothing.
@@ -1132,7 +1132,7 @@ export default {
         <p class="ar-card__lead">
           A full-page cache or CDN in front of your site (Cloudflare, an Nginx or Varnish cache, a caching
           plugin) speeds up your pages — but it can get between AI and Agentimus two ways: it can serve stored
-          copies of your AI files (so agent fetches aren’t logged and the files go stale), and it can hide the
+          copies of your AI files (so fetches of them aren’t logged and the files go stale), and it can hide the
           visitors AI sends you (so “Traffic from AI” under-counts). These settings handle both. None of them
           matter if nothing caches your site.
         </p>
@@ -1150,8 +1150,8 @@ export default {
           <input v-model="settings.bypass_shared_cache" type="checkbox" />
           <span class="ar-toggle__track" aria-hidden="true"></span>
           <span class="ar-toggle__text">
-            <strong>Keep AI endpoints out of your cache</strong>
-            <small>If a cache or CDN sits in front of your site, it can serve stored copies of your AI files (<code>llms.txt</code>, the <code>.well-known</code> docs, the change feed) — so those agent fetches never reach WordPress, the log under-counts them, and the change feed can go stale. Turn this on and Agentimus asks caches not to store those files (a <code>no-store</code> header), so each fetch reaches WordPress and is counted and current. It works with any cache that respects that header; a cache told to “cache everything” or ignore origin headers still needs a rule set there. If nothing sits in front of your site, leave it off — it trades a little edge-caching on those endpoints.</small>
+            <strong>Keep AI files out of your cache</strong>
+            <small>If a cache or CDN sits in front of your site, it can serve stored copies of your AI files (<code>llms.txt</code>, the <code>.well-known</code> docs, the change feed) — so those fetches never reach WordPress, the log under-counts them, and the change feed can go stale. Turn this on and Agentimus asks caches not to store those files (a <code>no-store</code> header), so each fetch reaches WordPress and is counted and current. It works with any cache that respects that header; a cache told to “cache everything” or ignore origin headers still needs a rule set there. If nothing sits in front of your site, leave it off — it trades a little edge-caching on those files.</small>
           </span>
         </label>
 
@@ -1160,7 +1160,7 @@ export default {
           <span class="ar-toggle__track" aria-hidden="true"></span>
           <span class="ar-toggle__text">
             <strong>Refresh AI files when content changes</strong>
-            <small>When you publish or edit a post, your page cache refreshes that page — but not your AI files, so a cache can keep serving a stale <code>llms.txt</code>, change feed or <code>.md</code> twin until its own timer runs out. Turn this on and Agentimus asks every cache it can find (WP Rocket, Nginx Helper, W3 Total Cache, LiteSpeed, WP Super Cache, Cache Enabler…) to drop those files on each content change, so agents never get a stale copy after an edit. On by default; it does nothing if no page cache is installed. This keeps files <em>fresh</em> — it doesn’t change the log count (for that, use the switch above).</small>
+            <small>When you publish or edit a post, your page cache refreshes that page — but not your AI files, so a cache can keep serving a stale <code>llms.txt</code>, change feed or <code>.md</code> twin until its own timer runs out. Turn this on and Agentimus asks every cache it can find (WP Rocket, Nginx Helper, W3 Total Cache, LiteSpeed, WP Super Cache, Cache Enabler…) to drop those files on each content change, so AI assistants never get a stale copy after an edit. On by default; it does nothing if no page cache is installed. This keeps files <em>fresh</em> — it doesn’t change the log count (for that, use the switch above).</small>
           </span>
         </label>
       </section>
@@ -1301,7 +1301,7 @@ export default {
       <section id="ar-sec-webmcp" class="ar-card">
         <h2 class="ar-card__title">Browser Tools <span class="ar-card__tag">experimental</span></h2>
         <p class="ar-card__lead">
-          Lets an AI agent working inside a browser call your site’s read-only tools (like site
+          Lets an AI assistant working inside a browser call your site’s read-only tools (like site
           search) directly, via the emerging <strong>WebMCP</strong> browser standard. It adds a
           tiny script that does nothing in browsers without support. Off by default — turn it on
           only to be an early adopter.
@@ -1311,16 +1311,16 @@ export default {
           <input v-model="settings.enable_webmcp" type="checkbox" />
           <span class="ar-toggle__track" aria-hidden="true"></span>
           <span class="ar-toggle__text">
-            <strong>Offer browser tools to AI agents</strong>
-            <small>Registers the read-only tools below with the browser, for agents that support WebMCP.</small>
+            <strong>Offer browser tools to AI assistants</strong>
+            <small>Registers the read-only tools below with the browser, for assistants that support WebMCP.</small>
           </span>
         </label>
 
         <div :inert="!settings.enable_webmcp" class="ar-webmcp-tools">
-          <p v-if="!webmcpTools.length" class="ar-field__hint">No browser tools are registered yet.</p>
+          <p v-if="!webmcpTools.length" class="ar-field__hint">No browser tools registered yet — the moment Agentimus or another plugin registers one, it appears here with its own switch.</p>
           <template v-else>
             <p class="ar-webmcp-tools__head">
-              Tools offered to agents — turn one off to hide it (it won’t be registered with the browser at all).
+              Tools offered to assistants — turn one off to hide it (it won’t be registered with the browser at all).
             </p>
             <label v-for="t in webmcpTools" :key="t.name" class="ar-toggle ar-toggle--nested">
               <input type="checkbox" :checked="isToolExposed(t.name)" @change="toggleToolHidden(t.name)" />
@@ -1468,7 +1468,7 @@ export default {
       <section v-if="restNamespacesDetected.length" class="ar-card">
         <h2 class="ar-card__title">Discovery — REST APIs</h2>
         <p class="ar-card__lead">
-          REST APIs detected on your site. Publish the ones agents should use; internal or admin
+          REST APIs detected on your site. Publish the ones AI assistants should use; internal or admin
           APIs (analytics, telemetry, admin) are best left off. Nothing is published unless you tick it.
         </p>
         <div class="ar-types-bar">
@@ -1503,7 +1503,7 @@ export default {
         </div>
         <p class="ar-card__note">
           <strong>Publishing advertises an API — it doesn't open or close it.</strong>
-          Ticking one lists it in discovery so agents prefer it; leaving it off just hides it from
+          Ticking one lists it in discovery so AI assistants prefer it; leaving it off just hides it from
           the map. Either way the route is exactly as reachable as WordPress already makes it.
         </p>
       </section>
@@ -1512,7 +1512,7 @@ export default {
       <section v-if="providerResources.length" class="ar-card">
         <h2 class="ar-card__title">Provider Integrations</h2>
         <p class="ar-card__lead">
-          Resources that installed plugins declared for agents. Each is <strong>published by default</strong> —
+          Resources that installed plugins declared for AI assistants. Each is <strong>published by default</strong> —
           switch off any you'd rather not advertise. You decide whether it's listed; the plugin decides what it says.
         </p>
 
@@ -1536,7 +1536,7 @@ export default {
         <p class="ar-card__note">
           <strong>This controls listing, not access.</strong>
           Suppressing removes a resource from discovery, the agent card and the REST mirror — but the
-          plugin and its endpoints keep working exactly as before. It changes what agents are told, not what the site does.
+          plugin and its endpoints keep working exactly as before. It changes what AI assistants are told, not what the site does.
         </p>
       </section>
     </div>
@@ -1548,7 +1548,7 @@ export default {
       <!-- Identity ----------------------------------------------------- -->
       <section id="ar-sec-identity" class="ar-card">
         <h2 class="ar-card__title">Identity</h2>
-        <p class="ar-card__lead">The highest-signal data an agent reads — who owns this site and what it's about.</p>
+        <p class="ar-card__lead">The highest-signal data an AI assistant reads — who owns this site and what it's about.</p>
 
         <!-- Compose-and-save block: free text you compose, then commit with Save. -->
         <div class="ar-id-block">
@@ -1590,7 +1590,7 @@ export default {
             rows="2"
             placeholder="e.g. This is not a personal blog or a news site."
           ></textarea>
-          <small class="ar-field__hint">An explicit exclusion so agents don’t miscategorize you. Becomes JSON-LD <code>disambiguatingDescription</code> and a line in llms.txt.</small>
+          <small class="ar-field__hint">An explicit exclusion so AI assistants don’t miscategorize you. Becomes JSON-LD <code>disambiguatingDescription</code> and a line in llms.txt.</small>
         </div>
 
         <div class="ar-field">
@@ -1603,7 +1603,7 @@ export default {
           <label for="ar-contact">Public contact email <span class="ar-field__tag">optional</span></label>
           <input id="ar-contact" v-model="identity.contact_email" type="email" class="ar-input" placeholder="hello@example.com" />
           <small class="ar-field__hint">
-            Published in <code>discovery.json</code> so agents can reach you. Leave empty to expose none —
+            Published in <code>discovery.json</code> so AI assistants can reach you. Leave empty to expose none —
             your WordPress admin email is never used.
           </small>
         </div>
@@ -1629,7 +1629,7 @@ export default {
           <label>Profile URLs</label>
           <TagInput v-model="identity.same_as" :placeholder="profileUrlPlaceholder" />
           <small class="ar-field__hint">
-            Public profile URLs (LinkedIn, X, GitHub, Facebook, Wikipedia…) that help agents resolve your entity. Saved as you add.
+            Public profile URLs (LinkedIn, X, GitHub, Facebook, Wikipedia…) that help AI assistants confirm you are who you say. Saved as you add.
             <span v-if="identity.same_as.some((u) => !isUrl(u))" class="ar-warn">Some entries are not full https:// URLs.</span>
           </small>
         </div>
@@ -1641,7 +1641,7 @@ export default {
         <h2 class="ar-card__title">Services</h2>
         <p class="ar-card__lead">
           What you can be hired for — each becomes a Schema.org <code>Service</code> linked to you as
-          the provider, so agents can answer “what does this site offer?”. Optional; leave empty if
+          the provider, so AI assistants can answer “what does this site offer?”. Optional; leave empty if
           you don't sell services.
         </p>
 
@@ -1753,7 +1753,7 @@ export default {
             </div>
             <p class="ar-channels-panel__lead">{{ channelsSummary }}</p>
             <p class="ar-channels-panel__note">
-              The opt-out file is site-wide — it can’t block individual bots. Per-bot blocks live in the
+              The opt-out file is site-wide — it can’t block individual crawlers. Per-crawler blocks live in the
               crawler list above (robots.txt), and in scanner blocking below for a hard 403.
             </p>
 
@@ -1818,16 +1818,16 @@ export default {
       <section id="ar-sec-blocking" class="ar-card">
         <h2 class="ar-card__title">Block Scanners &amp; Scrapers <span class="ar-field__tag">optional</span></h2>
         <p class="ar-card__lead">
-          The crawler rules above are a polite request — well-behaved bots honour them. This is the
-          hard stop: the bots below are turned away from your AI files instead of being served. Off by default.
+          The crawler rules above are a polite request — well-behaved crawlers honour them. This is the
+          hard stop: the crawlers below are turned away from your AI files instead of being served. Off by default.
         </p>
 
         <label class="ar-toggle">
           <input v-model="settings.block_agents" type="checkbox" />
           <span class="ar-toggle__track" aria-hidden="true"></span>
           <span class="ar-toggle__text">
-            <strong>Deny blocked agents</strong>
-            <small>Turn the bots in the list below away — they get nothing instead of your <code>llms.txt</code>, <code>discovery.json</code> and other AI files.</small>
+            <strong>Deny blocked crawlers</strong>
+            <small>Turn the crawlers in the list below away — they get nothing instead of your <code>llms.txt</code>, <code>discovery.json</code> and other AI files.</small>
           </span>
         </label>
 
@@ -1836,8 +1836,8 @@ export default {
             <input v-model="settings.block_spoofed" type="checkbox" />
             <span class="ar-toggle__track" aria-hidden="true"></span>
             <span class="ar-toggle__text">
-              <strong>Auto-deny spoofed / legacy-device agents</strong>
-              <small>Turn away bots caught lying about who they are. Two kinds: bots disguised as ancient phones
+              <strong>Auto-deny spoofed / legacy-device crawlers</strong>
+              <small>Turn away crawlers caught lying about who they are. Two kinds: crawlers disguised as ancient phones
               (old Nokia/BlackBerry handsets — a classic scanner trick, shown as “Likely spoof/scanner” in your
               activity log), and — with <strong>Verify bot identities</strong> on — <strong>proven impostors</strong>:
               clients claiming a verified bot (Googlebot, GPTBot…) whose address conclusively fails that operator's
@@ -1874,7 +1874,7 @@ export default {
               Fix the pattern, or drop the slashes to match it as a plain fragment.
             </p>
             <small class="ar-field__hint">
-              Type part of a bot's name — capitalisation doesn't matter, and a fragment is enough
+              Type part of a crawler's name — capitalisation doesn't matter, and a fragment is enough
               (<code>SemrushBot</code> also catches <code>SemrushBot/7~bl</code>). Use <code>*</code> to stand in for
               anything (<code>Semrush*</code>, <code>*bot/2*</code>), or wrap a pattern in <code>/…/</code> for
               <strong>advanced matching</strong> (<code>/semrushbot\/\d+/</code>).
@@ -1889,7 +1889,7 @@ export default {
 
           <p v-if="!settings.verify_bots" class="ar-card__note ar-warn">
             ⚠ <strong>One costume beats this list.</strong> Blocking matches names, and real search engines are
-            always let through — so a blocked bot can dodge every rule here just by calling itself
+            always let through — so a blocked crawler can dodge every rule here just by calling itself
             <code>Googlebot</code>. Turn on <strong>Verify bot identities</strong> (in the next card) and a
             proven fake loses that free pass.
           </p>
@@ -1914,7 +1914,7 @@ export default {
           </small>
 
           <div v-if="allowSuggestions.length" class="ar-suggest">
-            <span class="ar-suggest__label">Add a trusted AI agent</span>
+            <span class="ar-suggest__label">Add a trusted AI crawler</span>
             <button
               v-for="a in allowSuggestions"
               :key="a"
@@ -1940,8 +1940,8 @@ export default {
         <h2 class="ar-card__title">Bot Identity <span class="ar-field__tag">optional</span></h2>
         <p class="ar-card__lead">
           A User-Agent name is just a claim — anyone can call themselves Googlebot. The checks here look
-          past the name: verify the bots whose operators publish a way to check, see the network every
-          other bot really belongs to, and look up any single address. Fail-open by design — an unclear
+          past the name: verify the crawlers whose operators publish a way to check, see the network every
+          other crawler really belongs to, and look up any single address. Fail-open by design — an unclear
           answer never punishes anyone.
         </p>
 
@@ -1953,23 +1953,33 @@ export default {
           <span class="ar-toggle__text">
             <strong>Verify bot identities</strong>
             <small>
-              When a visitor <em>says</em> it's a bot in the <strong>Verified bots</strong> list below, confirm its
-              network address really belongs to that operator — the one check that catches a scanner copying a
-              crawler's name. Three methods, depending on what the operator publishes: <strong>reverse DNS</strong>
-              (Googlebot, Bingbot…) checked live per visitor, <strong>published IP ranges</strong> (GPTBot,
-              PerplexityBot…) checked against a list refreshed daily in the background — never while serving a page,
-              so an unreachable publisher costs nothing — and <strong>cryptographic signatures</strong> (Web Bot
-              Auth): agents that sign their requests, as Google's agent and OpenAI already do, are checked
-              mathematically right on your server, the strongest proof of the three. A confirmed impersonator is flagged for review as an
-              <strong>Impersonator</strong>, and opening its <strong>Details</strong> shows the verdict. Works whether
-              or not blocking is on; if blocking <em>is</em> on (with the spoofed-agents block), a proven fake is
-              refused at the AI endpoints outright.
-              <strong>Behind a proxy or CDN?</strong> On Cloudflare it works automatically — Agentimus reads the real
-              visitor IP. Another proxy may need the true client IP passed through; either way, a slow or failed
-              lookup never drops a real crawler.
+              When a visitor claims to be a known crawler, check the claim is real — the one check that catches a
+              scanner copying a crawler's name. A confirmed fake is flagged for review as an
+              <strong>Impersonator</strong>; a slow or failed lookup never drops a real crawler.
+              <!-- The depth lives behind a fold (his call, 2026-08-12: the full
+                   paragraph inline read as a wall). Same details/summary grammar
+                   as Crawler Policy's "Publishing channels". -->
             </small>
           </span>
         </label>
+        <!-- OUTSIDE the label on purpose: a <summary> inside a <label> loses its
+             click to the checkbox, so the fold could never open (his catch,
+             2026-08-12). Sibling, indented to the toggle's text column. -->
+        <details class="ar-toggle__more">
+          <summary class="ar-linkbtn">How the checks work</summary>
+          <small>
+                It covers the crawlers in the <strong>Verified bots</strong> list below, three ways, depending on what
+                each operator publishes: <strong>reverse DNS</strong> (Googlebot, Bingbot…) checked live per visitor;
+                <strong>published IP ranges</strong> (GPTBot, PerplexityBot…) checked against a list refreshed daily in
+                the background — never while serving a page, so an unreachable publisher costs nothing; and
+                <strong>cryptographic signatures</strong> (Web Bot Auth), crawlers that sign their requests, as
+                Google's crawler and OpenAI already do — checked mathematically on your server, the strongest proof of
+                the three. Works whether or not blocking is on; if blocking <em>is</em> on (with the spoofed-crawlers
+                block), a proven fake is refused at your AI files outright. <strong>Behind a proxy or CDN?</strong> On
+                Cloudflare it works automatically — Agentimus reads the real visitor IP. Another proxy may need the
+                true client IP passed through.
+          </small>
+        </details>
 
         <!-- The Verified-bots registry: which bots this site can verify, and how. Owner-
              editable because verifiability is a property of the OPERATOR (they publish
@@ -1991,8 +2001,8 @@ export default {
                  then the action row: the live "what's still missing" line on the left
                  and the button on the right. -->
             <small class="ar-field__hint ar-verreg__intro">
-              Use the bot's exact name from its User-Agent (3+ characters — a short generic word would
-              mis-claim other bots), plus at least one source from the operator's own docs: the domain its
+              Use the crawler's exact name from its User-Agent (3+ characters — a short generic word would
+              mis-claim other crawlers), plus at least one source from the operator's own docs: the domain its
               reverse DNS must land in, and/or its published IP-ranges file (fetched once to confirm it's
               real when you add). Saved with the settings.
             </small>
@@ -2044,7 +2054,7 @@ export default {
           </ul>
 
           <small class="ar-field__hint">
-            Verification is only ever a check against what an operator <em>publishes</em>. Turning a bot off
+            Verification is only ever a check against what an operator <em>publishes</em>. Turning a crawler off
             here just makes it unverifiable again — nothing gets flagged by its absence.
           </small>
         </div>
@@ -2071,11 +2081,11 @@ export default {
           <span class="ar-toggle__text">
             <strong>Identify every bot by reverse DNS</strong>
             <small>
-              Verification only covers the bots in the Verified-bots list. Turn this on to
-              reverse-resolve <strong>every</strong> recorded bot and show the <strong>network it belongs to</strong>
+              Verification only covers the crawlers in the Verified-bots list. Turn this on to
+              reverse-resolve <strong>every</strong> recorded client and show the <strong>network it belongs to</strong>
               — <code>amazonaws.com</code>, <code>openai.com</code>, <code>googlebot.com</code> — so you can see
               <em>what</em> is really accessing your site, not just its self-declared name. Agentimus stores the
-              <strong>network, not the IP</strong> (it's org-level, not personal), and verifiable engines get their
+              <strong>network, not the IP</strong> (it's org-level, not personal), and verifiable crawlers get their
               verified/impostor verdict from the same lookup. Makes a small outbound DNS lookup per new address
               (cached, and bounded by the same limits as verification). To confirm a single address and see its full
               host, use <strong>Check an IP</strong> below.
@@ -2121,7 +2131,7 @@ export default {
       <section id="ar-sec-exposure" class="ar-card">
         <h2 class="ar-card__title">Exposure</h2>
         <p class="ar-card__lead">
-          The opposite of Discovery: stop your site quietly over-sharing with crawlers, bots and
+          The opposite of Discovery: stop your site quietly over-sharing with crawlers and
           scanners. Every control here is off by default and affects only anonymous visitors — you
           and your editors are never restricted.
         </p>
@@ -2222,7 +2232,7 @@ export default {
         <p class="ar-card__lead">
           If someone spots a security problem on your site, this tells them where to report it —
           published at the standard place (<code>/.well-known/security.txt</code>) that researchers and
-          agents look. <strong>What to do:</strong> turn it on and add one contact (usually your email).
+          AI assistants look. <strong>What to do:</strong> turn it on and add one contact (usually your email).
           It steps aside automatically if your site already provides one.
         </p>
 
@@ -2330,7 +2340,7 @@ export default {
         <div v-if="showAdvanced" id="ar-adv-body" class="ar-adv__body">
           <h3 class="ar-adv__title">Authenticated API <span class="ar-field__tag">optional</span></h3>
           <p class="ar-card__lead">
-            Only for a site whose API apps or AI agents <strong>log into</strong> — a headless build or app backend that uses OAuth.
+            Only for a site whose API apps or AI assistants <strong>log into</strong> — a headless build or app backend that uses OAuth.
             <strong>Most sites should leave this blank.</strong> And if your API already publishes its own login metadata,
             Agentimus finds it automatically, so there’s nothing to enter here.
           </p>
@@ -2344,7 +2354,7 @@ export default {
             </div>
             <p class="ar-field__hint">
               This is where apps sign in — your API platform shows it; you don’t make it up. Agentimus then publishes it at
-              <code>/.well-known/oauth-protected-resource</code> so agents can find the login. <strong>Check</strong> confirms it’s live on your site.
+              <code>/.well-known/oauth-protected-resource</code> so AI assistants can find the login. <strong>Check</strong> confirms it’s live on your site.
             </p>
             <p v-if="oauthCheck" class="ar-oauth__msg" :class="oauthCheckClass" role="status" aria-live="polite">{{ oauthCheck.msg }}</p>
           </div>

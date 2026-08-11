@@ -603,7 +603,7 @@ export default {
     async confirmClear() {
       const ok = await confirm({
         title: 'Clear activity log?',
-        message: 'This permanently deletes the entire agent activity log. This cannot be undone.',
+        message: 'This permanently deletes the entire AI activity log. This cannot be undone.',
         confirmLabel: 'Clear log',
         cancelLabel: 'Cancel',
         tone: 'danger',
@@ -679,7 +679,7 @@ export default {
               </span>
             </div>
             <p class="ar-card__lead">
-              Who fetched your discovery &amp; llms endpoints — AI agents, crawlers and browsers.
+              Who fetched your discovery &amp; llms endpoints — AI assistants, crawlers and browsers.
               Local-only, no IP logged.
               <!-- `window` is what these cards cover; `retention` is what still exists. The two
                    differ once an owner keeps more than 30 days, so this sentence — which is about
@@ -762,7 +762,7 @@ export default {
         <!-- The arrow claim must match what trend_pct actually computes: the
              two HALVES of this window, not this window vs the one before. -->
         <p class="ar-card__lead">
-          What gets read — hits for each of your agent-facing endpoints, busiest first. The arrow
+          What gets read — hits for each of your AI files, busiest first. The arrow
           compares the recent {{ trendHalfDays }} days with the {{ trendHalfDays }} before; hover a
           row for the numbers behind it.
         </p>
@@ -792,9 +792,9 @@ export default {
       </section>
 
       <section class="ar-card">
-        <h2 class="ar-card__title">Top Agents <span class="ar-card__tag">Last {{ data.window || 30 }} days</span></h2>
+        <h2 class="ar-card__title">Top Clients <span class="ar-card__tag">Last {{ data.window || 30 }} days</span></h2>
         <p class="ar-card__lead">
-          Who does the reading — the clients behind those hits: AI agents, crawlers and browsers,
+          Who does the reading — the clients behind those hits: AI assistants, crawlers and browsers,
           busiest first. Names are what each client declares about itself.
         </p>
         <!-- Same drill-down: the Request Log filtered to this client — what one
@@ -841,7 +841,7 @@ export default {
             <table class="ar-act-table ar-act-table--cards">
               <thead>
                 <tr>
-                  <th scope="col">Agent</th>
+                  <th scope="col">Client</th>
                   <th scope="col">Endpoint</th>
                   <th v-if="hasNetwork" scope="col">Network</th>
                   <th scope="col">User-Agent</th>
@@ -851,7 +851,7 @@ export default {
               </thead>
               <tbody>
                 <tr v-for="(r, i) in recentGrouped" :key="i">
-                  <td class="ar-act-table__agent" data-label="Agent">{{ r.agent }}</td>
+                  <td class="ar-act-table__agent" data-label="Client">{{ r.agent }}</td>
                   <td data-label="Endpoint"><svg class="ar-cardico" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="7" rx="1.5" /><rect x="3" y="13" width="18" height="7" rx="1.5" /><line x1="7" y1="7.5" x2="7" y2="7.5" /><line x1="7" y1="16.5" x2="7" y2="16.5" /></svg><code class="ar-act-feed__ep">{{ r.endpoint }}</code></td>
                   <td v-if="hasNetwork" data-label="Network">
                     <svg class="ar-cardico" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5" /><path d="M3.5 12h17" /><path d="M12 3.5c2.6 2.5 2.6 14.5 0 17-2.6-2.5-2.6-14.5 0-17z" /></svg>
@@ -887,7 +887,7 @@ export default {
           </div>
         </div>
         <p v-else class="ar-wd-empty">
-          No requests recorded yet. Agents that fetch your discovery/llms endpoints will appear here.
+          No requests recorded yet — the first crawler or AI assistant to fetch your discovery/llms endpoints appears here.
         </p>
 
         <!-- The same relationship the card above has to the AI traffic screen: this is a

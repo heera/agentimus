@@ -806,7 +806,7 @@ export default {
             <span class="ar-toggle__track" aria-hidden="true"></span>
             <span class="ar-toggle__text">
               <strong>Let connected agents write</strong>
-              <small>Adds write tools: draft and edit posts and pages — including categories, tags and the featured image — set their AI topics and descriptions, and apply Readiness fixes (a fixed list of safe switches — it can only turn documented features on, never loosen a protection). An agent still acts as the signed-in user and can never do more than that user could in the editor. Every write lands under <a href="#agent-access">Agent Access</a>.</small>
+              <small>Adds write tools: draft and edit posts and pages — including categories, tags and the featured image — set their AI topics and descriptions, and apply Readiness fixes (a fixed list of safe switches — it can only turn documented features on, never loosen a protection). An assistant still acts as the signed-in user and can never do more than that user could in the editor. Every write lands under <a href="#agent-access">Agent Access</a>.</small>
             </span>
           </label>
           <div :inert="!settings.enable_agent_writes" class="ar-webmcp-tools">
@@ -815,7 +815,7 @@ export default {
               <span class="ar-toggle__track" aria-hidden="true"></span>
               <span class="ar-toggle__text">
                 <strong>Let agents publish without your review</strong>
-                <small>Lets an agent put content live (and it still needs a user allowed to publish). Off — the safe default — means agents only create drafts and pending posts for you to review; editing something already published follows that user’s normal edit permission either way.</small>
+                <small>Lets an assistant put content live (and it still needs a user allowed to publish). Off — the safe default — means assistants only create drafts and pending posts for you to review; editing something already published follows that user’s normal edit permission either way.</small>
               </span>
             </label>
           </div>

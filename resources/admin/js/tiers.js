@@ -27,8 +27,10 @@ export const RUNGS = [
 ];
 
 // Order checks so the ones still needing attention float to the top of a group.
-const RANK = { fail: 0, warn: 1, pass: 2 };
-const byStatus = (a, b) => (RANK[a.status] ?? 3) - (RANK[b.status] ?? 3);
+// 'off' sinks below pass: a switched-off feature's shadow row is the quietest
+// thing in the report — informational, never asking for anything.
+const RANK = { fail: 0, warn: 1, pass: 2, off: 3 };
+const byStatus = (a, b) => (RANK[a.status] ?? 4) - (RANK[b.status] ?? 4);
 
 // A rung's overall status is its worst check: a fail trumps a warn trumps pass.
 // Drives the header's accent colour (dot, divider, count).
@@ -49,30 +51,36 @@ export function groupChecks(checks) {
   const groups = RUNGS.map((r) => {
     const items = r.ids.map((id) => byId[id]).filter(Boolean);
     items.forEach((c) => seen.add(c.id));
-    const pass = items.filter((c) => c.status === 'pass').length;
+    // 'off' rows render in the group but stay out of its arithmetic — they mirror
+    // the server (Score::rows_tally): a switched-off feature's shadow row is
+    // informational, so it must neither hold a tally under N/N nor block
+    // "complete". The feature's own warn row is the one that counts.
+    const counted = items.filter((c) => c.status !== 'off');
+    const pass = counted.filter((c) => c.status === 'pass').length;
     return {
       key: r.key,
       label: r.label,
       blurb: r.blurb,
       items: items.slice().sort(byStatus),
       pass,
-      total: items.length,
-      complete: items.length > 0 && pass === items.length,
+      total: counted.length,
+      complete: items.length > 0 && pass === counted.length,
       status: rungStatus(items),
     };
   });
 
   const extra = list.filter((c) => c && c.id && !seen.has(c.id)).sort(byStatus);
   if (extra.length) {
-    const pass = extra.filter((c) => c.status === 'pass').length;
+    const counted = extra.filter((c) => c.status !== 'off');
+    const pass = counted.filter((c) => c.status === 'pass').length;
     groups.push({
       key: 'more',
       label: 'More Checks',
       blurb: '',
       items: extra,
       pass,
-      total: extra.length,
-      complete: pass === extra.length,
+      total: counted.length,
+      complete: pass === counted.length,
     });
   }
   return groups;
@@ -110,8 +118,9 @@ export function summarize(checks) {
       ? {
           key: next.key,
           label: next.label,
+          // 'off' rows have nothing to do — they must never appear as a next step.
           remaining: next.items
-            .filter((c) => c.status !== 'pass')
+            .filter((c) => c.status !== 'pass' && c.status !== 'off')
             .map((c) => ({ id: c.id, label: c.label })),
         }
       : null,
