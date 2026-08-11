@@ -227,6 +227,53 @@ final class FindingsTest extends TestCase {
 		$this->assertSame( array(), $out['findings'] );
 	}
 
+	/* ---- a check's action survives becoming a finding's --------------------- */
+
+	/**
+	 * Readiness says `href`; a finding says `url`. Reading only `url` here sent
+	 * every one of the fifteen outward-pointing checks to the `tab` fallback, so
+	 * "View llms.txt" opened Settings. Both names are read, `href` wins.
+	 */
+	public function test_an_outward_check_keeps_its_destination() {
+		$out = Findings::check_action( array( 'label' => 'View llms.txt', 'href' => 'https://example.test/llms.txt' ) );
+
+		$this->assertSame( 'https://example.test/llms.txt', $out['url'] );
+		$this->assertSame( 'View llms.txt', $out['label'] );
+	}
+
+	/** A destination is not also a tab — one action, one meaning. */
+	public function test_a_destination_is_not_given_a_tab() {
+		$out = Findings::check_action( array( 'label' => 'View llms.txt', 'href' => 'https://example.test/llms.txt' ) );
+
+		$this->assertSame( '', $out['tab'], 'a URL opens in a new tab; the SPA route is not consulted' );
+	}
+
+	/** `url` is still honoured, so any other producer keeps working. */
+	public function test_url_is_accepted_as_well_as_href() {
+		$out = Findings::check_action( array( 'label' => 'Go', 'url' => 'https://example.test/x' ) );
+
+		$this->assertSame( 'https://example.test/x', $out['url'] );
+	}
+
+	/** An in-app check still routes by tab and anchor, and defaults to Settings. */
+	public function test_an_in_app_check_still_routes_by_tab() {
+		$out = Findings::check_action( array( 'label' => 'Open discovery', 'tab' => 'settings', 'anchor' => 'ar-set-discovery' ) );
+
+		$this->assertSame( '', $out['url'] );
+		$this->assertSame( 'settings', $out['tab'] );
+		$this->assertSame( 'ar-set-discovery', $out['anchor'] );
+
+		$bare = Findings::check_action( array( 'label' => 'Open it' ) );
+		$this->assertSame( 'settings', $bare['tab'], 'no destination and no tab still lands somewhere' );
+	}
+
+	/** No label, no button — a row with nothing to press is not an action. */
+	public function test_a_labelless_action_is_no_action() {
+		$this->assertNull( Findings::check_action( array( 'href' => 'https://example.test/' ) ) );
+		$this->assertNull( Findings::check_action( null ) );
+		$this->assertNull( Findings::check_action( 'nonsense' ) );
+	}
+
 	/* ---- caps -------------------------------------------------------------- */
 
 	/** The front door is a front door, not the whole worklist. */

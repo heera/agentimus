@@ -863,6 +863,39 @@ final class Findings {
 	 *
 	 * @return array<int,array>
 	 */
+	/**
+	 * A readiness check's call-to-action, translated into a finding's.
+	 *
+	 * The two subsystems name the same field differently — Readiness calls an
+	 * outward destination `href` (its own panel renders `c.action.href`), and a
+	 * finding's action carries `url`, which is what the front door opens in a new
+	 * tab. Reading only `url` here meant all fifteen `link()` checks arrived with
+	 * no destination and fell through to the `tab` default: "View llms.txt" put
+	 * you on Settings. `href` wins, `url` is accepted, and a check that has a
+	 * destination is not given a tab it never asked for.
+	 *
+	 * @param array|null $action The check's action, if it has one.
+	 * @return array|null A finding action, or null when there is nothing to do.
+	 */
+	public static function check_action( $action ) {
+		if ( ! is_array( $action ) || empty( $action['label'] ) ) {
+			return null;
+		}
+		$url = '';
+		foreach ( array( 'href', 'url' ) as $key ) {
+			if ( '' === $url && ! empty( $action[ $key ] ) ) {
+				$url = (string) $action[ $key ];
+			}
+		}
+		return array(
+			'label'  => (string) $action['label'],
+			'tab'    => '' !== $url ? '' : ( isset( $action['tab'] ) ? (string) $action['tab'] : 'settings' ),
+			'view'   => '',
+			'anchor' => isset( $action['anchor'] ) ? (string) $action['anchor'] : '',
+			'url'    => $url,
+		);
+	}
+
 	private function config_gaps() {
 		$out = array();
 		foreach ( (array) $this->readiness() as $check ) {
@@ -873,24 +906,13 @@ final class Findings {
 				? (string) $check['fix']
 				: (string) ( isset( $check['detail'] ) ? $check['detail'] : '' );
 
-			$action = null;
-			if ( ! empty( $check['action']['label'] ) ) {
-				$action = array(
-					'label'  => (string) $check['action']['label'],
-					'tab'    => isset( $check['action']['tab'] ) ? (string) $check['action']['tab'] : 'settings',
-					'view'   => '',
-					'anchor' => isset( $check['action']['anchor'] ) ? (string) $check['action']['anchor'] : '',
-					'url'    => isset( $check['action']['url'] ) ? (string) $check['action']['url'] : '',
-				);
-			}
-
 			$row          = $this->row(
 				'config_gap',
 				'fail' === $check['status'] ? self::URGENT : self::WORTH,
 				(string) $check['label'],
 				$why,
 				array(),
-				$action
+				self::check_action( isset( $check['action'] ) ? $check['action'] : null )
 			);
 			$row['check'] = (string) $check['id'];
 			// A hard failure outranks a warning within the config band.
