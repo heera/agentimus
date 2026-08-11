@@ -46,7 +46,14 @@ export default {
       const connected = (s.bing && s.bing.connected) || (s.google && s.google.connected);
       if (!connected) return '';
       if (!this.search.source) return 'collecting';
-      if (this.searchOpps) return 'ready';
+      // Anything to SHOW, not anything to DO. searchOpps deliberately excludes
+      // pages whose work is finished, which is right for the header and for
+      // Readiness's pointer — but it is the wrong question here. A site whose
+      // only remaining card was waiting fell through to "clear", the groups
+      // never rendered, and the Findings row's "Look at that page" landed on a
+      // screen that said nothing obvious was wrong. The button promised a page
+      // and the destination hid it.
+      if (this.searchOpps || this.searchWaiting) return 'ready';
       // Rows exist but every one is too thin to judge — a different fact from
       // "nothing to fix", and saying the wrong one is a lie by compliment.
       const r = this.search.report;
