@@ -69,7 +69,7 @@ export default {
           title: 'Discovery',
           where: 'Discovery tab',
           purpose: 'The registry of everything your site publishes for machines — llms.txt and the full-text edition, discovery.json, the agent card, mcp.json — with live links and a validity check across every registration.',
-          actions: 'Open any document to read exactly what agents read. Re-scan after changing plugins. Third-party plugins that speak the WP_Discovery protocol appear here alongside Agentimus’s own surfaces.',
+          actions: 'Open any document to read exactly what agents read, and expand any provider group under MCP & Tools to see the tools it contributes, by name. Re-scan after changing plugins. Third-party plugins that speak the WP_Discovery protocol appear here alongside Agentimus’s own surfaces.',
           facts: [
             { k: 'info', t: 'A 404 on a discovery URL can be by design: some documents only exist while their feature is on, so an absent file often means “switched off”, not “broken”. The validity line tells the difference.' },
             { k: 'info', t: 'With signing on, the discovery documents carry RFC 9421 signatures — an agent can verify they really came from your server, unaltered.' },
@@ -89,7 +89,7 @@ export default {
             { k: 'tip', t: 'When a page really does improve, one green line says so at the top — “5th in results now, it was 8th” — and expires by itself within a week. Seen it retires it sooner. A win you have to go hunting for is not a win, and a notice you cannot finish with teaches you to skim.' },
             { k: 'info', t: 'Clients waiting on your allow/block decision are deliberately not repeated here — the bell already counts them and opens the queue itself. One story, one place.' },
             { k: 'info', t: 'An empty list reads as “checked”, never as “not working”: what is demonstrably fine is stated out loud, and any source that failed to answer is named instead of silently missing.' },
-            { k: 'tip', t: 'Every finding’s button lands where the fix actually lives: the content finding hands its exact pages to the worklist below, and the two search findings open Search Opportunities on Visibility — the card that lists those same pages with what to do about each.' },
+            { k: 'tip', t: 'Every finding’s button lands where the fix actually lives: the content finding hands its exact pages to the worklist below, and the search findings — pages near page one, pages seen but not clicked, and pages splitting one search between them — open the matching card on Visibility → Search, which lists those same pages with what to do about each.' },
           ],
         },
         {
@@ -101,6 +101,7 @@ export default {
           facts: [
             { k: 'info', t: 'Search Performance and Search Opportunities share the Search view because they read the same stored numbers through opposite lenses: the report answers “how am I doing?”, the worklist under it answers “what should I fix?”.' },
             { k: 'info', t: 'Search Opportunities only appears once a search source is connected, and it judges “not clicked enough” against your OWN page-one click rate — your site’s average, never an industry benchmark. Pages set aside there keep their own list, separate from Optimize’s on Readiness: excusing a page from citability grading and from search suggestions are different decisions.' },
+            { k: 'info', t: 'One search, several answers: when two or more of your pages keep appearing for the same query, the clicks divide and every one of them ranks lower than one page would. The card names the page that earns the click and gives each weaker page one decision — point it at the winner, or set it aside. Only ever asserted from the engine’s own rows: thin data never accuses a page, and a query one page already owns is a result, not a problem.' },
             { k: 'info', t: 'The In Google’s Index card checks in three tiers, because Google has no bulk index report and allows 2,000 URL inspections a day: a daily watchlist (homepage, busiest pages, newest posts), every problem page until it heals, and a whole-site rotation of up to 100 pages a day. Small sites get every page checked daily; big ones get an honest stated cadence. Rows are only for what needs a look, or for a page that just healed — healthy pages are counted, never listed.' },
             { k: 'info', t: 'There is no “Request indexing” button anywhere, deliberately: Google’s Indexing API accepts only job-posting pages, and the Search Console button has no API. Every problem row links straight to that URL’s inspection in Search Console instead, where the real button is one click away.' },
             { k: 'warn', t: 'Google and Bing are never merged into one figure — they count different searchers, so a blended number would be one neither engine ever reported. The card names which one you are reading, and switches between them when both are connected.' },

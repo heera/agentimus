@@ -65,11 +65,18 @@ final class McpServerRestTest extends RestTestCase {
 			);
 		}
 
-		// 4. The anonymous PROTOCOL contract (McpPublicSurface): the read-only
-		// handshake — initialize, tools/list, ping — answers without auth (it
-		// publishes nothing mcp.json doesn't already), statelessly (no session
-		// minted), while anything with side effects keeps its 401 so OAuth-capable
-		// clients still get the WWW-Authenticate signal.
+		// 4. The anonymous PROTOCOL contract (McpPublicSurface): the handshake —
+		// initialize and ping — answers without auth, statelessly (no session
+		// minted), while everything else keeps its 401 so OAuth-capable clients
+		// still get the WWW-Authenticate signal.
+		//
+		// tools/list is NOT part of that contract, and the assertion below is the
+		// seam this file exists to hold. It used to answer anonymously on the
+		// premise that the names, descriptions and schemas were already public at
+		// mcp.json — untrue for abilities that require sign-in, which is all of
+		// ours. WellKnownDocsTest::test_a_non_public_resource_reaches_no_served_surface
+		// forbids exactly that leak in the documents; nothing was watching the
+		// protocol, so the same signatures went out the other door for a release.
 		wp_set_current_user( 0 );
 		$request = new \WP_REST_Request( 'POST', '/agentimus/v1/mcp' );
 		$request->set_header( 'Content-Type', 'application/json' );
@@ -93,8 +100,13 @@ final class McpServerRestTest extends RestTestCase {
 		$request = new \WP_REST_Request( 'POST', '/agentimus/v1/mcp' );
 		$request->set_header( 'Content-Type', 'application/json' );
 		$request->set_body( wp_json_encode( array( 'jsonrpc' => '2.0', 'id' => 2, 'method' => 'tools/list', 'params' => array() ) ) );
-		$anon_tools = json_decode( wp_json_encode( rest_do_request( $request )->get_data() ), true );
-		$this->assertNotEmpty( $anon_tools['result']['tools'], 'anonymous tools/list shows the (already-public) tool list' );
+		$anon_list = rest_do_request( $request );
+		$this->assertSame( 401, $anon_list->get_status(), 'anonymous tools/list must not hand out sign-in-only tool signatures' );
+		$this->assertStringNotContainsString(
+			'scan-exposed-files',
+			wp_json_encode( $anon_list->get_data() ),
+			'and must not name them in the refusal either'
+		);
 
 		$request = new \WP_REST_Request( 'POST', '/agentimus/v1/mcp' );
 		$request->set_header( 'Content-Type', 'application/json' );

@@ -1,17 +1,21 @@
 <?php
 /**
- * McpPublicSurface — the anonymous READ surface of the MCP endpoint: answers
- * unauthenticated `initialize`, `ping` and `tools/list` (plus the initialized
- * notification) so any MCP client can complete the protocol handshake and see
- * what this server offers BEFORE authenticating.
+ * McpPublicSurface — the anonymous handshake surface of the MCP endpoint:
+ * answers unauthenticated `initialize` and `ping` (plus the initialized
+ * notification) so any MCP client can complete the protocol handshake and learn
+ * that a server is here BEFORE authenticating.
  *
- * This publishes nothing new: the server's identity, tool names, descriptions
- * and input schemas are already public by design at /.well-known/mcp.json and
- * the server card. What it changes is the PROTOCOL answer — a scanner or a
- * cautious client no longer reads "401" as "no MCP here". Everything with side
- * effects (tools/call, resources, sessions) still requires authentication and
- * flows through the adapter untouched; an unauthenticated tools/call keeps its
- * 401 + WWW-Authenticate, which is the signal OAuth-capable clients key on.
+ * This publishes nothing that isn't already public: the server's identity and
+ * protocol version, and nothing else. It once answered `tools/list` too, on the
+ * premise that the tool names, descriptions and schemas were "already public by
+ * design at /.well-known/mcp.json" — which was never true for abilities that
+ * require sign-in, and those are all of ours. See PUBLIC_METHODS below.
+ *
+ * What it changes is the PROTOCOL answer — a scanner or a cautious client no
+ * longer reads "401" as "no MCP here". Everything else (tools/list, tools/call,
+ * resources, sessions) still requires authentication and flows through the
+ * adapter untouched, keeping its 401 + WWW-Authenticate, which is the signal
+ * OAuth-capable clients key on.
  *
  * Implementation: a rest_pre_dispatch interceptor that reuses the adapter's OWN
  * handlers, statelessly — the adapter's session layer binds sessions to real
@@ -33,7 +37,25 @@ final class McpPublicSurface {
 	private $settings;
 
 	/** JSON-RPC methods answerable without authentication — read-only protocol metadata. */
-	const PUBLIC_METHODS = array( 'initialize', 'ping', 'tools/list' );
+	/**
+	 * What an unauthenticated caller may ask.
+	 *
+	 * `tools/list` is deliberately NOT here. It was, on the premise — stated in
+	 * this file's own header — that the names, descriptions and schemas were
+	 * "already public by design at /.well-known/mcp.json". They are not: three
+	 * weeks earlier, abilities that all require sign-in were marked non-public
+	 * precisely so their signatures would stay OUT of the served documents, and
+	 * `WellKnownDocsTest::test_a_non_public_resource_reaches_no_served_surface`
+	 * asserts it by name — scan-exposed-files, and "nor may its schemas /
+	 * descriptions leak there". Answering tools/list anonymously handed back
+	 * over the protocol exactly what that rule keeps out of the files.
+	 *
+	 * The handshake still works: `initialize` answers, so a scanner or a cautious
+	 * client never reads 401 as "no MCP here", and tools/list now returns the
+	 * adapter's 401 + WWW-Authenticate — which tells a client "there are tools,
+	 * authenticate" rather than the empty list that would say "there are none".
+	 */
+	const PUBLIC_METHODS = array( 'initialize', 'ping' );
 
 	/**
 	 * @param Settings $settings Feature flags.
@@ -94,23 +116,6 @@ final class McpPublicSurface {
 					$params  = ( isset( $body['params'] ) && is_array( $body['params'] ) ) ? $body['params'] : array();
 					$version = ( isset( $params['protocolVersion'] ) && is_string( $params['protocolVersion'] ) ) ? $params['protocolVersion'] : '';
 					$payload = ( new \WP\MCP\Handlers\Initialize\InitializeHandler( $mcp ) )->handle( $version )->toArray();
-					break;
-				case 'tools/list':
-					$payload = ( new \WP\MCP\Handlers\Tools\ToolsHandler( $mcp ) )->list_tools()->toArray();
-					// An anonymous caller is shown the READ tier only — never more of
-					// the list than a read-scoped credential sees. The write tools'
-					// existence is public (mcp.json), but the protocol answer follows
-					// the same scope discipline as every credentialed one.
-					if ( isset( $payload['tools'] ) && is_array( $payload['tools'] ) ) {
-						$payload['tools'] = array_values(
-							array_filter(
-								$payload['tools'],
-								static function ( $tool ) {
-									return ! Abilities\Registrar::is_write_tool_name( isset( $tool['name'] ) ? $tool['name'] : '' );
-								}
-							)
-						);
-					}
 					break;
 				default: // ping.
 					$payload = new \stdClass(); // An empty JSON object, per the spec.

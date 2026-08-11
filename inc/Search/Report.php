@@ -288,6 +288,8 @@ final class Report {
 			'counts'         => array( 'opportunities' => 0, 'almost' => 0, 'seen' => 0, 'setAside' => 0 ),
 			'almostThere'    => array(),
 			'seenNotClicked' => array(),
+			'collisions'     => array(),
+			'collisionsTotal' => 0,
 		);
 
 		$connected = $state['sources']['bing']['connected'] || $state['sources']['google']['connected'];
@@ -333,6 +335,14 @@ final class Report {
 		);
 		$out['almostThere']    = self::mark_waiting( array_map( array( __CLASS__, 'wire_card' ), $report['almost_there'] ), Opportunities::KIND_NEAR );
 		$out['seenNotClicked'] = self::mark_waiting( array_map( array( __CLASS__, 'wire_card' ), $report['seen_not_chosen'] ), Opportunities::KIND_SEEN );
+
+		// Searches several pages are splitting — same snapshot, same set-aside
+		// list, so a page parked on the Optimize ledger stops being counted
+		// against a search here too. The wire carries the heaviest few; the
+		// total says what was held back (no silent caps).
+		$collisions             = Collisions::build( Table::snapshot( $state['source'] ), $aside, $aside_urls );
+		$out['collisionsTotal'] = count( $collisions );
+		$out['collisions']      = array_map( array( Collisions::class, 'wire' ), array_slice( $collisions, 0, 5 ) );
 
 		return $out;
 	}

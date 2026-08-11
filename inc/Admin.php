@@ -545,24 +545,28 @@ final class Admin {
 			'show'    => $show,
 			'items'   => array(
 				array(
-					'title' => 'Ask AI in the editor — a block, a selection, or the whole post',
-					'text'  => 'Revision now happens where the post lives. Rewrite or extend the block you are in; select several blocks and change them all with one instruction; or ask about the whole post and get back a list of proposed edits — rewrite this paragraph, delete that one, add a section here — each with the reason it was proposed, to accept or reject one at a time. Blocks the plan does not name are never touched, and every change steps back through the editor\'s own undo.',
+					'title' => 'Findings — one front door for what needs you',
+					'text'  => 'The score could read 99 and "Excellent" while five separate screens quietly held work you had never seen. Findings gathers all of it into one ranked list — pages losing a click they already earn, plus anything the setup checks caught — ordered by what each one actually costs you, and every row carries the button that lands on the fix. It sits in the bar with its own count, and that count only ever measures work you can do something about; anything merely waiting on a later report gets a quiet dot instead.',
 				),
 				array(
-					'title' => 'The assistant creates, the editor revises',
-					'text'  => 'Editing an existing post inside the assistant\'s drawer is gone. That drawer could only safely handle the blocks it had written itself, so any post with a real-world layout was declined rather than mangled — you would open a post and find the assistant refusing to touch it. Create draft now opens the post in the editor, where every block type is at home and Ask AI does the revising. Nothing you have written is affected.',
+					'title' => 'Pages splitting one search are now a finding',
+					'text'  => 'The engine can only send a search to one page at a time, so when several of your pages keep appearing for the same query they take turns — and every turn a weaker page takes is a click the strong one loses. Findings names the heaviest splits, and Visibility → Search lists each one with the page that earns the click stated outright and one decision on every other: point it at the winner, or set it aside. Asserted only from the engine\'s own numbers — thin data never accuses a page.',
 				),
 				array(
-					'title' => 'A page is not an article',
-					'text'  => 'The writing assistant now writes posts, pages and your own content types, and knows the difference. A page gets no invented sections, no image slots, and no tags or categories — and where only you know a fact (an address, an opening time, a policy) it leaves a marked placeholder instead of writing something plausible. Choose the type on the brief screen and filter the list by it. Agents drafting over MCP follow the same rules.',
+					'title' => 'Light and dark, and your device decides',
+					'text'  => 'The toggle shows the mode you are switching to. Dark is a hand-tuned palette rather than an inverted light one, and it speaks your WordPress admin colour scheme\'s own dialect, so it sits with the rest of your admin instead of fighting it. A choice you make by hand holds until your system next changes; after that your device\'s own rhythm wins again, silently.',
 				),
 				array(
-					'title' => 'Ask Google about one page, right now',
-					'text'  => 'Every problem row, and the page lookup, gains a Re-check that inspects that single URL there and then — one of the day\'s 2,000 inspections, stored like any other — so a page you just fixed is never judged by yesterday\'s answer. A whole-site check you started can now be cancelled too: it stops after the answer already in flight, and the rest of the queue waits for your next press or the daily run rather than being thrown away.',
+					'title' => 'The search worklist moved to its numbers',
+					'text'  => 'Search Opportunities — the list that turns Search Console figures into to-dos — now sits directly under the search report it reads from, on Visibility → Search, instead of at the bottom of Readiness. Readiness keeps a pointer to it. How search went, then what to do about it, in one view.',
 				),
 				array(
-					'title' => 'Your documents, offered to be read',
-					'text'  => 'llms.txt, llms-full.txt, discovery.json and your agent card are now listed as MCP resources, so a connected assistant attaches them the way it attaches a file instead of being told to fetch a URL — and a document you switched off is never offered. A new media search also lets an agent find a picture you already have, by title or by alt text, rather than inventing one for a featured image.',
+					'title' => 'Bing counted daily, and Analytics on the key you already have',
+					'text'  => 'Bing\'s human traffic now carries a day-by-day series with a week-on-week trend and your site\'s true totals — its query endpoints only report weekly buckets, so the daily numbers come from the traffic-stats endpoint instead. You can also ask Bing about a single page on the spot. And if Google Search Console is connected, Analytics can read visitor numbers from that same key, fetching the first ones right away rather than tomorrow.',
+				),
+				array(
+					'title' => 'People and machines, never added together',
+					'text'  => 'Every data surface now says which one it is counting. The AI traffic screen is Visitors, its cards say "people", and a page view is no longer called a read. The request log is the machine side, Visitors is the human side, the dashboard states both — and the two are never summed, because they are not the same thing.',
 				),
 			),
 		);

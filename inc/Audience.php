@@ -445,10 +445,15 @@ final class Audience {
 				'text'  => __( 'Not your whole audience — search and AI only.', 'agentimus' ),
 			);
 		} else {
+			// Naming the three instruments, not just asserting the sum fails.
+			// "Different sources" left an owner to guess WHY, and the honest
+			// answer is that no two of these numbers were measured by the same
+			// thing: analytics counts people, the engines count their own
+			// clicks, and this site's log counts what actually arrived.
 			$out[] = array(
 				'key'   => 'people-sampled',
 				'scope' => 'both',
-				'text'  => __( 'Different sources — they don’t add up.', 'agentimus' ),
+				'text'  => __( 'Three instruments — analytics, the engines, this site’s own log. They don’t add up.', 'agentimus' ),
 			);
 		}
 
@@ -464,7 +469,19 @@ final class Audience {
 			$out[] = array(
 				'key'   => 'search-blended',
 				'scope' => 'humans',
-				'text'  => __( 'Search hides AI clicks; AI visits are a floor.', 'agentimus' ),
+				// "A floor" is the right idea in the wrong register — it is a
+				// word an owner has to be taught. Say the thing itself.
+				'text'  => __( 'Search hides AI clicks, so AI referrals are a minimum.', 'agentimus' ),
+			);
+
+			// The card wears ONE window badge over numbers that do not share a
+			// window: the engines publish on their own delay, so their half ends
+			// before today while the two first-party halves run to now. The
+			// badge cannot say this and the row cannot carry it, so it lands here.
+			$out[] = array(
+				'key'   => 'search-window',
+				'scope' => 'humans',
+				'text'  => __( 'The engines publish on a delay — their half ends before today.', 'agentimus' ),
 			);
 
 			// Bing has no query×page report, so page detail is fetched one call
@@ -496,6 +513,23 @@ final class Audience {
 				'key'   => 'machines-endpoints',
 				'scope' => 'machines',
 				'text'  => __( 'Agent files only — not ordinary pages.', 'agentimus' ),
+			);
+			// The freshest instrument on the card, and the only first-party one:
+			// the log writes as requests arrive, so this half runs to NOW while
+			// the engines' half ends before today. The contrast belongs beside
+			// the caveat it answers.
+			$out[] = array(
+				'key'   => 'machines-live',
+				'scope' => 'machines',
+				'text'  => __( 'Counted live by this site’s own log — today is already in.', 'agentimus' ),
+			);
+			// Names come from the User-Agent: majors self-identify, scripts may
+			// not — so the fetch COUNT is exact while the agent NAMES are claims
+			// (the verify pass is what catches the liars).
+			$out[] = array(
+				'key'   => 'machines-declared',
+				'scope' => 'machines',
+				'text'  => __( 'Agents are counted by the name they declare.', 'agentimus' ),
 			);
 		} else {
 			$out[] = array(

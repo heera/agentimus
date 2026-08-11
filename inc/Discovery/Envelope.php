@@ -494,6 +494,8 @@ final class Envelope {
 			'agent.json'                 => 'A2A (legacy)',
 			'mcp.json'                   => 'MCP (experimental)',
 			'mcp/server-card.json'       => 'MCP Server Card',
+			// Same label WellKnownDocs uses when it links this document.
+			'openapi.json'               => 'OpenAPI 3.1',
 			'agent-skills'               => 'Agent Skills (agentskills.io)',
 			'agent-skills/index.json'    => 'Agent Skills',
 			'api-catalog'                => 'RFC 9727',
@@ -718,6 +720,18 @@ final class Envelope {
 	private function wire_resource( $resource ) {
 		$resource = $this->absolutize_resource( $resource );
 		unset( $resource['public'] );
+		// Each tool's `kind` (the admin's tool/document split) and `uri` (the
+		// admin's link to a document) are internal for the same reason `public`
+		// is, so they come off here rather than in normalize().
+		if ( isset( $resource['tools'] ) && is_array( $resource['tools'] ) ) {
+			$resource['tools'] = array_map(
+				static function ( $tool ) {
+					unset( $tool['kind'], $tool['uri'] );
+					return $tool;
+				},
+				(array) $resource['tools']
+			);
+		}
 		return $resource;
 	}
 

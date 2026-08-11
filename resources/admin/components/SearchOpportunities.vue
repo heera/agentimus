@@ -77,6 +77,14 @@ export default {
     searchCounts() {
       return (this.search && this.search.report && this.search.report.counts) || {};
     },
+    // Searches several pages are splitting — the wire carries the heaviest
+    // few, the total says what was held back.
+    searchCollisions() {
+      return (this.search && this.search.report && this.search.report.collisions) || [];
+    },
+    searchCollisionsTotal() {
+      return (this.search && this.search.report && this.search.report.collisions_total) || 0;
+    },
     // The search worklist's own held-back pages (never Optimize's).
     searchAside() {
       return (this.search && this.search.set_aside) || [];
@@ -284,6 +292,34 @@ export default {
       this.busySearchIgnore = busy;
       try {
         this.search = await this.api.ignoreSearch(ident, ignored);
+        // Announce the destination (owner, 2026-08-12): this action MOVES a
+        // row to another card — set aside sinks it into the ledger fold,
+        // restore returns it to its collision or opportunity card — and
+        // without the shared jump-ring the move read as "put in the wrong
+        // place": the row landed correctly, off-screen, unannounced.
+        await this.$nextTick();
+        const key = String(ident.post || ident.url || '');
+        let els = [];
+        if (ignored) {
+          const fold = this.$el.querySelector('details.ar-setaside');
+          if (fold && !fold.open) fold.open = true;
+          await this.$nextTick();
+          els = [...this.$el.querySelectorAll('[data-aside-key="' + CSS.escape(key) + '"]')];
+        } else {
+          // A page can live in TWO places here — its opportunity card and a
+          // collision row — and restore returns it to both. Ring every home,
+          // scroll to the topmost, or the return reads as a disappearance.
+          els = [...this.$el.querySelectorAll('[data-page-key="' + CSS.escape(key) + '"]')];
+        }
+        if (els.length) {
+          els[0].scrollIntoView({ block: 'center', behavior: 'smooth' });
+          els.forEach((el) => {
+            el.classList.remove('ar-jump-flash');
+            void el.offsetWidth; // restart the ring when the same row moves twice
+            el.classList.add('ar-jump-flash');
+            setTimeout(() => el.classList.remove('ar-jump-flash'), 1600);
+          });
+        }
       } catch (e) {
         this.$emit('flash', 'error', (e && e.message) || 'Could not update. Try again.');
       } finally {
@@ -473,6 +509,7 @@ export default {
               :key="group.key + card.page_url"
               class="ar-check ar-opp"
               :class="card.waiting ? 'is-waiting' : 'is-warn'"
+              :data-page-key="card.page_id || card.page_url"
             >
               <span class="ar-check__rule" aria-hidden="true"></span>
               <div class="ar-opp__body">
@@ -594,6 +631,66 @@ export default {
       </p>
     </template>
 
+    <!-- Searches several pages are SPLITTING. The engine can only send one
+         search to one page at a time, so competing pages take turns — and
+         every turn a weaker page takes is a click the strong one loses. The
+         id is the Findings row's landing. The winner is STATED, not asked:
+         most clicks, then the better position — the same maths the detector
+         ranks by — and it gets no button, because there is nothing to do to
+         the page that already earns the click. Renders outside the ready
+         branch on purpose: a worklist can be clear while a split still
+         costs clicks. -->
+    <div v-if="searchCollisions.length" id="ar-collisions" class="ar-clsn">
+      <div class="ar-opp__grouphead">
+        <h4 class="ar-opp__grouptitle">One search, several answers</h4>
+        <span class="ar-opp__pos is-two">{{ searchCollisions.length }} split search{{ searchCollisions.length === 1 ? '' : 'es' }}</span>
+      </div>
+      <p class="ar-opp__groupwhy">
+        These searches show more than one of your pages, and none of them wins the click —
+        the clicks divide, so each page ranks lower than one page would. Keep one page as
+        the answer for each search; the others can point to it, or answer something it doesn’t.
+      </p>
+
+      <div v-for="c in searchCollisions" :key="c.query" class="ar-clsn__card">
+        <div class="ar-clsn__head">
+          <span class="ar-clsn__q">“{{ c.query }}”</span>
+          <span class="ar-clsn__tot">{{ c.shown.toLocaleString() }} shown · {{ c.clicks.toLocaleString() }} click{{ c.clicks === 1 ? '' : 's' }}</span>
+        </div>
+        <div v-for="p in c.pages" :key="p.url" class="ar-clsn__row" :data-page-key="p.postId || p.url">
+          <div class="ar-clsn__main">
+            <a :href="p.editUrl || p.url" class="ar-clsn__t">{{ p.title }}</a>
+            <span class="ar-clsn__path">{{ p.url.replace(/^https?:\/\/[^/]+/, '') || '/' }}</span>
+          </div>
+          <span class="ar-clsn__nums">
+            <span><b>{{ p.impressions.toLocaleString() }}</b>shown</span>
+            <span><b>{{ p.clicks.toLocaleString() }}</b>clicks</span>
+            <span><b>#{{ p.position }}</b>position</span>
+          </span>
+          <span class="ar-clsn__bar" aria-hidden="true"><i :style="{ width: Math.round(p.share * 100) + '%' }"></i></span>
+          <span v-if="p.winner" class="ar-clsn__win">Earns the click</span>
+          <span v-else class="ar-clsn__acts">
+            <a v-if="p.editUrl" class="ar-clsn__act" :href="p.editUrl">Open to edit →</a>
+            <button
+              type="button"
+              class="ar-clsn__act"
+              :disabled="busySearchIgnore === (p.postId || p.url)"
+              @click="setAsideSearch(p.postId ? { post: p.postId } : { url: p.url }, true)"
+            >Set aside</button>
+          </span>
+        </div>
+      </div>
+
+      <p class="ar-card__note">
+        Open a weaker page and either point it at the winner — the editor’s internal-link
+        panel suggests the link — or make it answer something the winner doesn’t. Set aside
+        parks the page on this worklist’s ledger below, and it stops being counted against
+        the search.
+        <template v-if="searchCollisionsTotal > searchCollisions.length">
+          Showing the {{ searchCollisions.length }} heaviest splits of {{ searchCollisionsTotal }}.
+        </template>
+      </p>
+    </div>
+
     <!-- The search worklist's OWN set-aside list — always visible, one-click
          restore, so a page held back here is never hidden. Separate from
          Optimize's list on Readiness: different judgement, different ledger,
@@ -611,7 +708,7 @@ export default {
         <span class="ar-setaside__note">no search suggestions, from either engine</span>
       </summary>
       <ul class="ar-optcheck__pages">
-        <li v-for="p in searchAside" :key="p.id || p.url" class="ar-optcheck__row">
+        <li v-for="p in searchAside" :key="p.id || p.url" class="ar-optcheck__row" :data-aside-key="p.id || p.url">
           <div class="ar-optcheck__asided">
             <a :href="p.url" target="_blank" rel="noopener" class="ar-optcheck__page ar-optcheck__page--muted">{{ p.title }} ↗</a>
           </div>

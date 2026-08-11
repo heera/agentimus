@@ -5,6 +5,9 @@ export default {
   name: 'ProviderRow',
   props: {
     r: { type: Object, required: true },
+    // True when an earlier row already carries the full sign-in explanation —
+    // this row defers to it instead of repeating the same paragraph verbatim.
+    briefHeld: { type: Boolean, default: false },
   },
 };
 </script>
@@ -28,11 +31,14 @@ export default {
       <p v-if="r.description" class="ar-wd-prov__desc">{{ r.description }}</p>
       <!-- Say WHY, not just that. An owner seeing "not published" with no reason will assume
            something is broken. -->
-      <p v-if="!r.suppressed && r.notPublic" class="ar-wd-prov__held">
+      <p v-if="!r.suppressed && r.notPublic && !briefHeld" class="ar-wd-prov__held">
         Every tool here needs an authenticated WordPress user, so an anonymous agent could never
         run one. Advertising them in the public discovery documents would hand out a map of your
         tooling — the full descriptions and input/output schemas — without letting any agent
         actually use it. Agents that hold real credentials still find them the proper way.
+      </p>
+      <p v-else-if="!r.suppressed && r.notPublic" class="ar-wd-prov__held">
+        Held back for the same reason as above — its tools need a signed-in user.
       </p>
       <p class="ar-wd-prov__provider">
         <span v-if="r.auto">Found automatically · via the {{ r.engine }}</span>

@@ -14,6 +14,13 @@
  * no combined total, because a fetch is not a visit and adding them would invent
  * a number that means nothing.
  */
+// Below this many visits in the PREVIOUS window, a percentage stops being a
+// measurement and becomes an accident of a small denominator — 12 → 114 reads
+// "+850%", which sounds like a finding and is a fortnight of ordinary noise.
+// Under the floor the card states the previous count instead and lets the
+// reader size the change themselves.
+const TREND_MIN_BASE = 30;
+
 export default {
   name: 'AudiencePanel',
   props: {
@@ -32,12 +39,9 @@ export default {
     limits() {
       return (this.data && this.data.limits) || [];
     },
-    // Split by the half each caveat is actually about. Two columns implied a
-    // grouping the list did not have — one human fact happened to land beside a
-    // machine one — so the grouping is real now, and labelled.
-    limitsBoth() {
-      return this.limits.filter((l) => l.scope === 'both');
-    },
+    // Split by the half each caveat is actually about. Both-scoped caveats are
+    // deliberately NOT rendered here: the owner's sketch has no slot for them,
+    // and their claim ("the instruments don't add up") is the card lead's own.
     limitsHumans() {
       return this.limits.filter((l) => l.scope === 'humans');
     },
@@ -53,17 +57,44 @@ export default {
     // over that total never said which. Two owners read the same words and one
     // of them is wrong about what the number covers. The name is short enough
     // to live in the label, so it costs no line and no caption.
+    // "clicks", not "from" — this row is the ENGINES' own click count, not a
+    // visit this site measured. Calling it a visit would put it in the same
+    // unit as the sessions row below it and invite exactly the addition the
+    // card exists to prevent.
     searchLabel() {
       const named = (this.people && this.people.search && this.people.search.source) || '';
-      return named ? `from ${named}` : 'from search';
+      return named ? `clicks from ${named}` : 'clicks from search';
     },
-    // The AI leaderboard as one line: "ChatGPT 40 · Perplexity 12 · Claude 5".
-    // Three, not the whole list the payload carries: this is a one-line summary
-    // on a card, and the Visitors screen is where the full list belongs.
-    aiLine() {
-      const top = (this.people && this.people.ai && this.people.ai.top) || [];
-      return top.filter((t) => t.source).slice(0, 3).map((t) => `${t.source} ${this.n(t.hits)}`).join(' · ');
+    // 793 people making 878 visits is arithmetic an owner should not have to
+    // do. Shown only when the two actually differ — on a site where nobody
+    // came twice the line would be noise.
+    cameBack() {
+      if (!this.people || !this.people.whole) return false;
+      return Number(this.people.all.sessions) > Number(this.people.arrived);
     },
+    // Direction for the AI row. The payload already pays for the previous
+    // window (Referrals::previous_window_total), and a bare count supports no
+    // decision — "114" says nothing that "114, up 38%" does not say better.
+    //
+    // Search has no cheap previous window (Search\Table::totals takes no span),
+    // so that row stays a plain count rather than inventing plumbing for it.
+    aiTrend() {
+      const a = (this.people && this.people.ai) || null;
+      if (!a || !a.enabled) return null;
+      const now = Number(a.visits) || 0;
+      const prev = Number(a.prev) || 0;
+      // A first month has nothing to compare against, and "+100%" grown from
+      // zero would be the loudest number on the card and the least true.
+      if (prev <= 0) return null;
+      if (now === prev) return { dir: 'flat' };
+      const dir = now > prev ? 'up' : 'down';
+      if (prev < TREND_MIN_BASE) return { dir, from: prev };
+      return { dir, pct: Math.abs(Math.round(((now - prev) / prev) * 100)) };
+    },
+    // Caveats grouped by the half they qualify, one row each, with the half
+    // NAMED. The marks alone did not carry it: at 13px, in a list that wraps,
+    // a machine caveat lands at the end of a line that began with a human one
+    // and there is nothing to read the difference from.
   },
   methods: {
     // Grouped digits, in the site's own locale-free style — the admin's numbers
@@ -117,7 +148,19 @@ export default {
           <template v-if="people.whole">people visited your site</template>
           <template v-else>arrived from search or an AI answer</template>
         </p>
+        <!-- Sessions belong WITH the headline, not under the two source rows:
+             same instrument, same window, and the only pair on this card that
+             can honestly be read against each other. Left where it was, its
+             2,310 sat below two smaller numbers and turned the column into a
+             breakdown that ended larger than its own total. -->
+        <p v-if="people.whole" class="ar-aud__second">
+          {{ n(people.all.sessions) }} visits
+          <em v-if="cameBack" class="ar-aud__hint">some people came back</em>
+        </p>
 
+        <!-- The rows below are NOT shares of the number above — different
+             instruments, different windows. The caption is the fence. -->
+        <p class="ar-aud__group">Where they came from</p>
         <ul class="ar-aud__rows">
           <li>
             <span class="ar-aud__row-n">{{ n(people.search.clicks) }}</span>
@@ -125,11 +168,22 @@ export default {
           </li>
           <li>
             <span class="ar-aud__row-n">{{ n(people.ai.visits) }}</span>
-            <span class="ar-aud__row-l">from an AI answer</span>
-          </li>
-          <li>
-            <span class="ar-aud__row-n">{{ n(people.all.sessions) }}</span>
-            <span class="ar-aud__row-l">visits in total</span>
+            <span class="ar-aud__row-l">
+              referred by AI answers
+              <!-- An arrow and a percentage, the same convention the endpoint
+                   rows above already use; the tooltip carries what it is
+                   measured against, so the row stays one line. -->
+              <em
+                v-if="aiTrend"
+                class="ar-aud__trend"
+                :class="'is-' + aiTrend.dir"
+                v-tip="'Against the 30 days before this window'"
+              >
+                <template v-if="'flat' === aiTrend.dir">level</template>
+                <template v-else-if="undefined !== aiTrend.from">{{ 'up' === aiTrend.dir ? '▲' : '▼' }} from {{ n(aiTrend.from) }}</template>
+                <template v-else>{{ 'up' === aiTrend.dir ? '▲' : '▼' }}{{ aiTrend.pct }}%</template>
+              </em>
+            </span>
           </li>
         </ul>
 
@@ -148,22 +202,26 @@ export default {
         </p>
         <p class="ar-aud__n">{{ n(machines.fetches) }}</p>
         <p class="ar-aud__unit">fetched your agent files</p>
+        <!-- Same shape as the humans half: the second cut of the SAME
+             instrument sits with the headline, and only the rows that answer
+             a different question go below the caption. -->
+        <p class="ar-aud__second">{{ n(machines.today) }} today</p>
 
+        <p class="ar-aud__group">Who did the fetching</p>
         <ul class="ar-aud__rows">
           <li>
             <span class="ar-aud__row-n">{{ n(machines.agents) }}</span>
             <span class="ar-aud__row-l">
-              different clients
+              different agents
               <em v-if="!machines.enabled" class="ar-aud__off">not recording</em>
             </span>
           </li>
+          <!-- "caught" — the count is conclusive spoof verdicts only, and it
+               under-reports by design. Without that word a zero reads as "nobody
+               is faking", which is a claim the measurement cannot support. -->
           <li :class="{ 'is-bad': machines.impostors > 0 }">
             <span class="ar-aud__row-n">{{ n(machines.impostors) }}</span>
-            <span class="ar-aud__row-l">faking an identity</span>
-          </li>
-          <li>
-            <span class="ar-aud__row-n">{{ n(machines.today) }}</span>
-            <span class="ar-aud__row-l">fetches today</span>
+            <span class="ar-aud__row-l">caught faking an identity</span>
           </li>
         </ul>
 
@@ -173,33 +231,37 @@ export default {
       </div>
     </div>
 
-    <!-- Marks, not words. "BOTH / HUMANS / MACHINES" as column headings put
-         three shouted labels above three short sentences — and "both" is a
-         word nobody would say out loud. The panels above already carry a
-         person and a bot; reusing them here ties each caveat to its half
-         without a single extra word. -->
-    <div v-if="loaded && limits.length" class="ar-aud__note">
+    <!-- The owner's sketch, matched exactly (2026-08-11): bulb + WORTH KNOWING
+         in the note's gold, a short divider bar, then two equal columns — a
+         rounded HUMANS / MACHINES chip beside its stacked facts, another short
+         bar between them. Nothing else: the sketch has no lead line, and the
+         both-halves caveat it dropped ("three instruments… don't add up") is
+         already the card lead's own claim, so this block renders the two
+         scoped groups only. -->
+    <div v-if="loaded && (limitsHumans.length || limitsMachines.length)" class="ar-aud__note">
       <p class="ar-aud__note-t">
         <span class="ar-aud__note-i" aria-hidden="true">
-          <!-- A megaphone. A mic is what you speak INTO; this block is something
-                 being said TO you, and the horn is the shape that carries that
-                 without a word. Drawn a touch larger than the marks beside it —
-                 the cone loses its silhouette below about 14px. -->
-            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M16.8 5.2 7 9.4H5.2a2.4 2.4 0 0 0 0 5.2H7l9.8 4.2z" /><path d="M9.6 14.6v3.1a1.7 1.7 0 0 0 3.4 0v-1.4" /><path d="M19.8 9.9l1.8-1M20.2 12h2M19.8 14.1l1.8 1" /></svg>
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2.8a6.6 6.6 0 0 0-3.9 11.9c.8.6 1.3 1.5 1.3 2.4h5.2c0-.9.5-1.8 1.3-2.4A6.6 6.6 0 0 0 12 2.8z" /><path d="M9.9 20h4.2" /></svg>
         </span>
         Worth knowing
       </p>
+      <span class="ar-aud__note-sep" aria-hidden="true"></span>
 
-      <ul class="ar-aud__note-grid">
-        <li v-for="l in limits" :key="l.key" :class="'is-' + (l.scope || 'both')">
-          <span class="ar-aud__note-m" aria-hidden="true">
-            <svg v-if="'humans' === l.scope" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="3.6" /><path d="M4.8 20.2a7.2 7.2 0 0 1 14.4 0" /></svg>
-            <svg v-else-if="'machines' === l.scope" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="8" width="14" height="10" rx="2.6" /><path d="M12 5.2V8" /><circle cx="12" cy="4.2" r="1.1" /><path d="M9.4 12.6v1.2M14.6 12.6v1.2" /></svg>
-            <svg v-else viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="8.4" cy="12" r="4.2" /><circle cx="15.6" cy="12" r="4.2" /></svg>
+      <div class="ar-aud__note-cols">
+        <div v-if="limitsHumans.length" class="ar-aud__note-group">
+          <span class="ar-aud__note-chip">Humans</span>
+          <span class="ar-aud__note-facts">
+            <span v-for="l in limitsHumans" :key="l.key" class="ar-aud__note-item">{{ l.text }}</span>
           </span>
-          <span v-tip="l.text">{{ l.text }}</span>
-        </li>
-      </ul>
+        </div>
+        <span v-if="limitsHumans.length && limitsMachines.length" class="ar-aud__note-sep" aria-hidden="true"></span>
+        <div v-if="limitsMachines.length" class="ar-aud__note-group">
+          <span class="ar-aud__note-chip">Machines</span>
+          <span class="ar-aud__note-facts">
+            <span v-for="l in limitsMachines" :key="l.key" class="ar-aud__note-item">{{ l.text }}</span>
+          </span>
+        </div>
+      </div>
     </div>
   </section>
 </template>

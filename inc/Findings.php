@@ -123,6 +123,7 @@ final class Findings {
 		$sources = array(
 			'near_page_one'   => 'near_page_one',
 			'seen_not_chosen' => 'seen_not_chosen',
+			'split_searches'  => 'split_searches',
 			'content_issues'  => 'content_issues',
 			'config_gap'      => 'config_gaps',
 			'never_measured'  => 'never_measured',
@@ -388,6 +389,67 @@ final class Findings {
 			);
 		}
 
+		return $out;
+	}
+
+	/**
+	 * Searches that several pages are splitting. The engine sends one search
+	 * to one page at a time, so competing pages take turns — and every turn a
+	 * weaker page takes is a click the strong one loses. One row per split,
+	 * heaviest first, capped so the list names the worst rather than all.
+	 *
+	 * @return array<int,array>
+	 */
+	private function split_searches() {
+		$group      = $this->opportunities();
+		$collisions = isset( $group['collisions'] ) ? (array) $group['collisions'] : array();
+		if ( ! $collisions ) {
+			return array();
+		}
+
+		$out = array();
+		foreach ( array_slice( $collisions, 0, 3 ) as $i => $collision ) {
+			$n     = count( (array) $collision['pages'] );
+			$out[] = $this->row(
+				'split_search_' . $i,
+				self::WORTH,
+				sprintf(
+					/* translators: %d: how many pages appear for the same search. */
+					__( '%d pages are splitting one search', 'agentimus' ),
+					$n
+				),
+				__( 'They all appear for the same search — none of them wins the click.', 'agentimus' ),
+				array(
+					sprintf(
+						/* translators: 1: the search query, 2: formatted impression count, 3: formatted click count. */
+						__( '"%1$s" · %2$s shown · %3$s clicks', 'agentimus' ),
+						(string) $collision['query'],
+						number_format_i18n( (int) $collision['shown'] ),
+						number_format_i18n( (int) $collision['clicks'] )
+					),
+					sprintf(
+						/* translators: 1: best average position, 2: worst average position. */
+						__( 'best position #%1$s · worst #%2$s', 'agentimus' ),
+						number_format_i18n( $collision['best'], 1 ),
+						number_format_i18n( $collision['worst'], 1 )
+					),
+				),
+				$this->go(
+					sprintf(
+						/* translators: %d: how many pages compete for the search. */
+						__( 'Show me those %d pages', 'agentimus' ),
+						$n
+					),
+					'visibility',
+					'performance',
+					'ar-collisions'
+				),
+				array(
+					__( 'The clicks divide, so each ranks lower than one page would.', 'agentimus' ),
+					__( 'Keep one page as the answer; point the others at it, or set them apart.', 'agentimus' ),
+				)
+			);
+		}
 		return $out;
 	}
 

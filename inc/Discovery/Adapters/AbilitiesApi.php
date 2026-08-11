@@ -128,12 +128,21 @@ final class AbilitiesApi {
 
 			$tools[] = array(
 				'name'         => $name,
+				// An ability carrying an MCP `uri` is a RESOURCE — a document an
+				// assistant attaches, not a tool it runs. MCP itself keeps the two
+				// apart (tools/list vs resources/list) and so does our own README,
+				// but this array flattened them, so every count downstream said
+				// "tools" for a number that included four documents.
+				'kind'         => self::is_resource( $ability ) ? 'resource' : 'tool',
 				'title'        => (string) self::read( $ability, 'get_label' ),
 				'description'  => $desc,
 				'inputSchema'  => (array) self::read( $ability, 'get_input_schema', array() ),
 				'outputSchema' => (array) self::read( $ability, 'get_output_schema', array() ),
 				'annotations'  => array( 'readOnlyHint' => self::read_only_hint( $ability, $name ) ),
 				'auth'         => $auth,
+				// Resources only: the public address the document lives at, so the
+				// admin can link the row to the file itself. '' for runnable tools.
+				'uri'          => self::resource_uri( $ability ),
 			);
 
 			$skills[] = array( 'id' => sanitize_key( $short ), 'description' => '' !== $desc ? $desc : (string) self::read( $ability, 'get_label' ) );
@@ -230,6 +239,34 @@ final class AbilitiesApi {
 	 * @param mixed  $default Fallback.
 	 * @return mixed
 	 */
+	/**
+	 * Whether an ability is exposed as an MCP RESOURCE rather than a tool.
+	 *
+	 * The declaration is `meta.mcp.uri` ({@see \Agentimus\Abilities\Registrar::add()}'s
+	 * `$mcp` argument); the flat `meta.uri` is accepted too, since that is where the
+	 * readOnly hint already looks and an adapter version could put it either place.
+	 *
+	 * @param object $ability The ability object.
+	 * @return bool
+	 */
+	private static function is_resource( $ability ) {
+		return '' !== self::resource_uri( $ability );
+	}
+
+	/**
+	 * The MCP resource URI an ability carries, or '' when it carries none (a tool).
+	 *
+	 * @param object $ability The ability object.
+	 * @return string
+	 */
+	private static function resource_uri( $ability ) {
+		$meta = (array) self::read( $ability, 'get_meta', array() );
+		if ( ! empty( $meta['uri'] ) ) {
+			return (string) $meta['uri'];
+		}
+		return ( isset( $meta['mcp']['uri'] ) && '' !== $meta['mcp']['uri'] ) ? (string) $meta['mcp']['uri'] : '';
+	}
+
 	private static function read( $ability, $method, $default = '' ) {
 		if ( is_object( $ability ) && method_exists( $ability, $method ) ) {
 			$value = $ability->$method();

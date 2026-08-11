@@ -223,12 +223,25 @@ final class Resource {
 			}
 			$out[] = array(
 				'name'         => $name,
+				// 'tool' (runnable) or 'resource' (a document an assistant attaches).
+				// MCP keeps the two in separate lists and so must every count on the
+				// admin screen — flattened, the Agentimus namespace read "25 tools"
+				// for 21 tools and 4 documents. INTERNAL: stripped from the served
+				// document by Envelope::wire_resource(), for the same reason `public`
+				// is — discovery.json ships a canonical schema and an extra key would
+				// make a strict consumer reject it. Anything unmarked stays a tool,
+				// which is what a third-party provider's plain list has always meant.
+				'kind'         => ( isset( $tool['kind'] ) && 'resource' === $tool['kind'] ) ? 'resource' : 'tool',
 				'title'        => isset( $tool['title'] ) ? sanitize_text_field( (string) $tool['title'] ) : '',
 				'description'  => isset( $tool['description'] ) ? sanitize_text_field( (string) $tool['description'] ) : '',
 				'inputSchema'  => self::schema( isset( $tool['inputSchema'] ) ? $tool['inputSchema'] : array() ),
 				'outputSchema' => self::schema( isset( $tool['outputSchema'] ) ? $tool['outputSchema'] : array() ),
 				'annotations'  => self::annotations( isset( $tool['annotations'] ) ? $tool['annotations'] : array() ),
 				'auth'         => isset( $tool['auth'] ) ? sanitize_key( (string) $tool['auth'] ) : 'none',
+				// Resource-kind entries only: the public address the document lives
+				// at, so the admin can link the row. INTERNAL like `kind` — stripped
+				// from the served document by Envelope::wire_resource().
+				'uri'          => isset( $tool['uri'] ) ? esc_url_raw( (string) $tool['uri'] ) : '',
 			);
 		}
 		return $out;

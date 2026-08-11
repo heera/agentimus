@@ -116,12 +116,21 @@ final class Hub {
 				'tools'        => array_sum(
 					array_map(
 						static function ( $r ) {
-							return isset( $r['tools'] ) ? count( (array) $r['tools'] ) : 0;
+							return isset( $r['tools'] ) ? count( self::of_kind( $r['tools'], 'tool' ) ) : 0;
 						},
 						$builder->all_resources()
 					)
 				),
-				'toolsPublished' => count( $surface['tools'] ),
+				// Documents offered to be attached, counted apart from runnable tools.
+				'docs'         => array_sum(
+					array_map(
+						static function ( $r ) {
+							return isset( $r['tools'] ) ? count( self::of_kind( $r['tools'], 'resource' ) ) : 0;
+						},
+						$builder->all_resources()
+					)
+				),
+				'toolsPublished' => count( self::of_kind( $surface['tools'], 'tool' ) ),
 				'errors'       => count(
 					array_filter(
 						$registry->notices(),
@@ -141,6 +150,26 @@ final class Hub {
 	 * @param string[] $suppressed Owner-suppressed Resource ids.
 	 * @return array
 	 */
+	/**
+	 * The entries of one kind — 'tool' (runnable) or 'resource' (a document an
+	 * assistant attaches). Anything unmarked is a tool: only the abilities
+	 * adapter knows about resources, and a third-party provider's plain list
+	 * must keep counting the way it always did.
+	 *
+	 * @param mixed  $items Tool entries.
+	 * @param string $kind  'tool' or 'resource'.
+	 * @return array
+	 */
+	private static function of_kind( $items, $kind ) {
+		return array_filter(
+			(array) $items,
+			static function ( $t ) use ( $kind ) {
+				$k = ( is_array( $t ) && isset( $t['kind'] ) && 'resource' === $t['kind'] ) ? 'resource' : 'tool';
+				return $k === $kind;
+			}
+		);
+	}
+
 	private static function resource_row( $resource, array $suppressed = array() ) {
 		$provider = isset( $resource['provider']['plugin'] ) ? $resource['provider']['plugin'] : '';
 		$ours     = function_exists( 'plugin_basename' ) ? plugin_basename( AGENTIMUS_FILE ) : 'agentimus/agentimus.php';
@@ -184,7 +213,30 @@ final class Hub {
 				$resource['endpoints']
 			),
 			'hasAgent'     => ! empty( $resource['agent'] ),
-			'tools'        => count( $resource['tools'] ),
+			// Tools and resources counted APART. A document an assistant attaches
+			// is not a tool it can run, MCP models them as two lists, and lumping
+			// them made every "tools" number on screen overstate itself — the
+			// Agentimus group read "25 tools" for 21 tools and 4 documents.
+			'tools'        => count( self::of_kind( $resource['tools'], 'tool' ) ),
+			'docs'         => count( self::of_kind( $resource['tools'], 'resource' ) ),
+			// The names behind those counts. "25 tools" with nothing to open was a
+			// dead end: the card counted 42 and listed only the 7 published ones,
+			// so the other 35 existed nowhere an owner could look. Name, title and
+			// which of the two it is — the published list below carries the detail.
+			'toolList'     => array_values(
+				array_map(
+					static function ( $tool ) {
+						return array(
+							'name'  => isset( $tool['name'] ) ? (string) $tool['name'] : '',
+							'title' => isset( $tool['title'] ) ? (string) $tool['title'] : '',
+							'kind'  => ( isset( $tool['kind'] ) && 'resource' === $tool['kind'] ) ? 'resource' : 'tool',
+							// Resources carry their public address so the admin can link them.
+							'uri'   => isset( $tool['uri'] ) ? (string) $tool['uri'] : '',
+						);
+					},
+					(array) $resource['tools']
+				)
+			),
 			'abilities'    => $resource['abilities'],
 		);
 	}

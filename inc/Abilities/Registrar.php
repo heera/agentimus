@@ -957,6 +957,30 @@ final class Registrar {
 					),
 					'almostThere'    => self::opportunity_rows(),
 					'seenNotClicked' => self::opportunity_rows(),
+					'collisions'     => self::arr(
+						array(
+							'query'  => self::s( 'The search several pages are splitting, as the engine reported it.' ),
+							'shown'  => self::i( 'Times the search showed any of these pages, summed.' ),
+							'clicks' => self::i( 'Clicks the pages earned between them.' ),
+							'best'   => self::n( 'Best average position among the competing pages.' ),
+							'worst'  => self::n( 'Worst average position among the competing pages.' ),
+							'pages'  => self::arr(
+								array(
+									'title'       => self::s(),
+									'url'         => self::s(),
+									'postId'      => self::i( '0 when the URL never resolved to a post.' ),
+									'editUrl'     => self::s(),
+									'clicks'      => self::i(),
+									'impressions' => self::i(),
+									'position'    => self::n(),
+									'share'       => self::n( 'This page\'s fraction of the query\'s showings (0–1).' ),
+									'winner'      => self::b( 'True on the one page that earns the click — most clicks, then the better position. Advise keeping this page as the answer and pointing the others at it, or differentiating them; never advise editing the winner.' ),
+								)
+							),
+						),
+						'Searches that several pages are splitting: the engine sends one search to one page at a time, so competing pages take turns and every turn a weaker page takes is a click the strong one loses. The heaviest few, ranked by showings.'
+					),
+					'collisionsTotal' => self::i( 'How many split searches exist in total; the list above carries the heaviest few.' ),
 				)
 			),
 			function ( $input ) {
@@ -1933,6 +1957,11 @@ final class Registrar {
 	/** A boolean property, optionally described. */
 	private static function b( $description = '' ) {
 		return '' === $description ? array( 'type' => 'boolean' ) : array( 'type' => 'boolean', 'description' => $description );
+	}
+
+	/** A number (float) property, optionally described. */
+	private static function n( $description = '' ) {
+		return '' === $description ? array( 'type' => 'number' ) : array( 'type' => 'number', 'description' => $description );
 	}
 
 	/** A date string property (YYYY-MM-DD). */

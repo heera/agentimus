@@ -64,7 +64,7 @@ export default {
           <strong class="ar-dash-tile__v">{{ summary.capabilities }}</strong>
           <span class="ar-dash-tile__k">Capabilities</span>
         </span>
-        <span class="ar-dash-tile__sub">what agents can do or read</span>
+        <span class="ar-dash-tile__sub">what agents may read or do</span>
       </span>
     </button>
     <button type="button" class="ar-dash-tile" @click="$emit('navigate', { tab: 'discovery', anchor: 'ar-wd-apis' })">

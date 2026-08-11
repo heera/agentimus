@@ -98,7 +98,9 @@ final class RestApi {
 
 		// 1. WordPress core content, with capabilities derived from the public,
 		//    REST-enabled post types and taxonomies actually registered here.
-		if ( in_array( 'wp/v2', $namespaces, true ) && ! isset( $existing['wordpress-core'] ) && ! self::is_described( 'wp/v2', $existing ) ) {
+		// Root, not prefix: another provider owning a route INSIDE wp/v2 (any
+		// CPT with show_in_rest does) must not silence core's own content.
+		if ( in_array( 'wp/v2', $namespaces, true ) && ! isset( $existing['wordpress-core'] ) && ! self::is_root_described( 'wp/v2', $existing ) ) {
 			$registry->register(
 				array(
 					'id'           => 'wordpress-core',
@@ -309,6 +311,45 @@ final class RestApi {
 	 * @param array  $resources Already-registered resources, keyed by id.
 	 * @return bool
 	 */
+	/**
+	 * Whether a resource describes a namespace's ROOT — the namespace itself,
+	 * rather than merely a route that happens to live inside it.
+	 *
+	 * `wp/v2` is core's shared namespace, not any one plugin's: every custom
+	 * post type registered with `show_in_rest` and no `rest_namespace` of its
+	 * own lands a route inside it. Judged by {@see is_described()}, a single
+	 * provider naming one product endpoint was enough to answer "already
+	 * covered" for the whole of core — so a site's posts, pages, media and
+	 * taxonomies vanished from discovery.json while still answering 200 to
+	 * anyone who asked for them. A plugin describing its OWN namespace is the
+	 * opposite case and keeps the prefix match.
+	 *
+	 * @param string $namespace REST namespace.
+	 * @param array  $resources Already-registered resources.
+	 * @return bool
+	 */
+	public static function is_root_described( $namespace, array $resources ) {
+		if ( isset( $resources[ self::slug( $namespace ) ] ) ) {
+			return true;
+		}
+		$namespace = strtolower( trim( (string) $namespace, '/' ) );
+		if ( '' === $namespace ) {
+			return false;
+		}
+		$token = '/' . $namespace;
+		foreach ( $resources as $resource ) {
+			$endpoints = isset( $resource['endpoints'] ) ? (array) $resource['endpoints'] : array();
+			foreach ( $endpoints as $endpoint ) {
+				$url = isset( $endpoint['url'] ) ? $endpoint['url'] : '';
+				$url = rtrim( strtolower( (string) preg_replace( '/[?#].*$/', '', (string) $url ) ), '/' );
+				if ( '' !== $url && strlen( $url ) >= strlen( $token ) && substr( $url, -strlen( $token ) ) === $token ) {
+					return true;
+				}
+			}
+		}
+		return false;
+	}
+
 	public static function is_described( $namespace, array $resources ) {
 		if ( isset( $resources[ self::slug( $namespace ) ] ) ) {
 			return true;

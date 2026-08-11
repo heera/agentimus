@@ -222,6 +222,13 @@ final class Rest {
 			$report['almost_there']    = $this->enrich_group( $report['almost_there'], Opportunities::KIND_NEAR, $source );
 			$report['seen_not_chosen'] = $this->enrich_group( $report['seen_not_chosen'], Opportunities::KIND_SEEN, $source );
 
+			// Searches several pages are splitting — same snapshot, same
+			// set-aside list. The wire carries the heaviest few and the total
+			// says what was held back (no silent caps).
+			$collisions                  = Collisions::build( $rows, $this->set_aside(), $this->set_aside_urls() );
+			$report['collisions']        = array_map( array( Collisions::class, 'wire' ), array_slice( $collisions, 0, 5 ) );
+			$report['collisions_total']  = count( $collisions );
+
 			$out['report'] = $report;
 			if ( ! empty( $rows ) ) {
 				$out['range'] = array(

@@ -74,6 +74,11 @@
   --ar-warn-bright: #f2b23a;
   --ar-warn-mid: #e0b24c;
   --ar-warn-deep: #96690f;
+  /* The Worth-knowing card's gold family: ink-strength gold for its text and
+     chips, and his pale gold (#ebc98a, 2026-08-11) for the card's STRUCTURE —
+     ground, border, glow — where a light tone belongs. Dark overrides below. */
+  --ar-note-gold: var(--ar-warn-deep);
+  --ar-note-glow: #ebc98a;
   --ar-bad-wash: #f8ebe8;
   --ar-bad-tint: #e6c1b9;
   --ar-bad-mid: #e08a72;
@@ -134,7 +139,9 @@
      cream here would clash in temperature. */
   --ar-ink: #dde0e2;
   --ar-ink-soft: #a2a8ad;
-  --ar-ink-faint: #6e757b;
+  /* Raised from #6e757b (owner, 2026-08-11): at 11-12px the faint tier was
+     unreadable against the dark surfaces. Still a clear step below soft. */
+  --ar-ink-faint: #8a9197;
   --ar-line: #39434a;
   --ar-line-strong: #47525a;
 
@@ -173,6 +180,10 @@
   --ar-warn-wash: color-mix(in srgb, var(--ar-warn) 10%, var(--ar-surface));
   --ar-warn-tint: color-mix(in srgb, var(--ar-warn) 26%, var(--ar-surface));
   --ar-warn-deep: #eecd8d;
+  /* His pick for the Worth-knowing card at night (2026-08-11): antique gold,
+     one hex driving the card's text, chips, dividers, border and glow. */
+  --ar-note-gold: #c2a157;
+  --ar-note-glow: #c2a157;
   --ar-bad-wash: color-mix(in srgb, var(--ar-bad) 10%, var(--ar-surface));
   --ar-bad-tint: color-mix(in srgb, var(--ar-bad) 26%, var(--ar-surface));
   --ar-bad-strong: #eda28d;
@@ -2041,7 +2052,10 @@ td.ar-edge__n.is-bad { color: var(--ar-bad); font-weight: 600; }
 .ar-gidx__meta { display: contents; }
 .ar-gidx__door { text-align: right; white-space: nowrap; }
 .ar-gidx__page { display: inline-flex; align-items: baseline; gap: 8px; min-width: 0; }
-.ar-gidx__title { font-size: 13px; color: var(--ar-ink); text-decoration: none; overflow-wrap: anywhere; }
+/* A page title here IS a link out to the page — it has to read as one at
+   rest, not only under the cursor. Ink made it identical to the prose beside
+   it, so the only thing announcing the link was the pointer. */
+.ar-gidx__title { font-size: 13px; color: var(--ar-accent); text-decoration: none; overflow-wrap: anywhere; }
 .ar-gidx__title:hover { text-decoration: underline; }
 .ar-gidx__crawl { font-size: 11px; color: var(--ar-ink-faint); white-space: nowrap; text-align: right; }
 /* A fixed minimum makes every chip the same width, so both chip edges align
@@ -2164,15 +2178,11 @@ td.ar-edge__n.is-bad { color: var(--ar-bad); font-weight: 600; }
 /* The problems-group collapsible — the Search screen's own fold, sized for
    this card: every heading carries its state's TRUE count; rows arrive only
    on demand, one stored-data page per turn. */
+/* Wears the shared .ar-fold grammar (one fold for the plugin): its caret,
+   its cursor, its focus ring, and the native marker suppressed — this group
+   used to draw a second chevron of its own on the right while the browser's
+   own triangle still showed on the left. */
 .ar-gidx__grp { margin: 10px 0; }
-.ar-gidx__grp > summary { font-size: 12.5px; }
-.ar-gidx__grp > summary::after {
-  content: "⌄";
-  margin-left: auto;
-  color: var(--ar-ink-faint);
-  font-size: 13px;
-}
-.ar-gidx__grp[open] > summary::after { content: "⌃"; }
 /* An open group holds its height whatever a page carries — the rows scroll
    inside, the pagination stays pinned below the scroll. No overscroll
    containment: once the list hits its end the wheel must pass to the page,
@@ -2405,6 +2415,10 @@ td.ar-edge__n.is-bad { color: var(--ar-bad); font-weight: 600; }
   overflow: hidden; text-overflow: ellipsis; color: var(--ar-ink);
 }
 .ar-perf__page { color: var(--ar-ink); text-decoration: none; }
+/* Same rule as every other page title that links out: coloured at rest, not
+   only once the cursor finds it. Scoped to the anchor — the untitled fallback
+   beside it is a plain span and must stay ink. */
+a.ar-perf__page { color: var(--ar-accent); }
 .ar-perf__page:hover { text-decoration: underline; }
 .ar-perf__n--dim { color: var(--ar-ink-faint); }
 .ar-perf__table td.ar-perf__none { text-align: left; padding-left: 0; color: var(--ar-ink-faint); font-size: 12px; white-space: normal; }
@@ -2556,6 +2570,10 @@ td.ar-edge__n.is-bad { color: var(--ar-bad); font-weight: 600; }
 .ar-opp__body { min-width: 0; grid-column: 2 / -1; }
 .ar-opp__top { display: flex; align-items: baseline; gap: 9px; flex-wrap: wrap; }
 .ar-opp__title { font-weight: 650; font-size: 13px; color: var(--ar-ink); text-decoration: none; }
+/* Only the anchor takes the link colour. The same class dresses a plain
+   <span> when a card has no edit_url, and colouring that too would promise a
+   link that is not there — the exact fault this fixes, pointing the other way. */
+a.ar-opp__title { color: var(--ar-accent); }
 a.ar-opp__title:hover { text-decoration: underline; }
 .ar-opp__path {
   font-family: var(--ar-mono); font-size: 10.5px; color: var(--ar-ink-soft);
@@ -2618,6 +2636,55 @@ a.ar-opp__title:hover { text-decoration: underline; }
 .ar-opp__pos.is-two { color: var(--ar-warn); background: color-mix(in srgb, var(--ar-warn) 14%, transparent); }
 .ar-opp__pos.is-one { color: var(--ar-good); background: color-mix(in srgb, var(--ar-good) 14%, transparent); }
 .ar-opp__more { margin: 6px 0 0; font-size: 11.5px; color: var(--ar-ink-faint); }
+
+/* ---- Split searches (collisions): one query card per split, page rows with
+   the winner chipped and the losers each holding exactly one decision. The
+   share bar is proportion of the query's showings — same data as the number
+   beside it, drawn so the imbalance is visible at a glance. */
+.ar-clsn { margin-top: 26px; }
+.ar-clsn__card {
+  margin-top: 12px; padding: 13px 16px 6px;
+  border: 1px solid var(--ar-line); border-radius: var(--ar-radius);
+}
+.ar-clsn__head {
+  display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap;
+  padding-bottom: 9px; border-bottom: 1px solid var(--ar-line);
+}
+.ar-clsn__q { font-size: 13.5px; font-weight: 600; color: var(--ar-warn); }
+.ar-clsn__tot { font-family: var(--ar-mono); font-size: 11px; color: var(--ar-ink-faint); }
+.ar-clsn__row {
+  display: flex; align-items: center; gap: 16px; padding: 11px 0;
+  border-bottom: 1px solid var(--ar-line);
+}
+.ar-clsn__row:last-of-type { border-bottom: 0; }
+.ar-clsn__main { flex: 1 1 auto; min-width: 0; }
+.ar-clsn__t { font-size: 13px; color: var(--ar-accent); text-decoration: none; overflow-wrap: anywhere; }
+.ar-clsn__t:hover { text-decoration: underline; }
+.ar-clsn__path { display: block; margin-top: 1px; font-family: var(--ar-mono); font-size: 10.5px; color: var(--ar-ink-faint); overflow-wrap: anywhere; }
+.ar-clsn__nums { flex: 0 0 auto; display: flex; gap: 18px; font-family: var(--ar-mono); font-size: 10.5px; color: var(--ar-ink-soft); text-align: right; }
+.ar-clsn__nums b { display: block; font-size: 13px; color: var(--ar-ink); font-weight: 600; }
+.ar-clsn__bar { flex: 0 0 auto; width: 110px; height: 5px; border-radius: 3px; background: var(--ar-surface-2); overflow: hidden; }
+.ar-clsn__bar i { display: block; height: 100%; background: var(--ar-accent); opacity: 0.75; }
+.ar-clsn__win {
+  flex: 0 0 auto; font-family: var(--ar-mono); font-size: 10px; letter-spacing: 0.08em;
+  text-transform: uppercase; color: var(--ar-good);
+  border: 1px solid var(--ar-good-tint); border-radius: 999px; padding: 3px 10px;
+}
+.ar-clsn__acts { flex: 0 0 auto; display: flex; gap: 8px; }
+.ar-clsn__act {
+  font-family: var(--ar-mono); font-size: 10.5px; letter-spacing: 0.05em;
+  text-transform: uppercase; color: var(--ar-ink-soft); background: none;
+  border: 1px solid var(--ar-line-strong); border-radius: 5px;
+  padding: 5px 11px; cursor: pointer; text-decoration: none; white-space: nowrap;
+}
+.ar-clsn__act:hover:not(:disabled) { color: var(--ar-accent); border-color: var(--ar-accent); }
+.ar-clsn__act:disabled { opacity: 0.5; cursor: default; }
+/* Narrow: the row stacks — page, numbers, then the verdict or the decision. */
+@container (max-width: 720px) {
+  .ar-clsn__row { flex-wrap: wrap; gap: 8px 16px; }
+  .ar-clsn__main { flex-basis: 100%; }
+  .ar-clsn__bar { display: none; }
+}
 .ar-opp__actions { display: flex; align-items: center; gap: 10px; margin-top: 9px; flex-wrap: wrap; }
 /* Doorless cards (no post behind the URL) say WHY they offer no editor buttons,
    in the same quiet voice as the totals line — sits left of the Set aside. */
@@ -3991,8 +4058,11 @@ html { scrollbar-gutter: stable; }
 .ar-wd-endpoint-row .ar-wd-canonical { flex: 1; min-width: 0; margin: 0; }
 .ar-wd-endpoint-row .ar-btn { flex: 0 0 auto; white-space: nowrap; }
 
+/* flex-wrap + the path's 220px basis: on a phone the label and copy button
+   drop to their own line instead of squeezing the URL into a one-character
+   column (iPhone, owner's catch 2026-08-11 — same fault as .ar-wd-eps). */
 .ar-wd-canonical {
-  display: flex; align-items: center; gap: 12px;
+  display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px;
   margin: 4px 0 16px; padding: 13px 15px;
   background: var(--ar-surface-2); border: 1px solid var(--ar-line-strong); border-radius: var(--ar-radius);
 }
@@ -4000,7 +4070,7 @@ html { scrollbar-gutter: stable; }
   font-family: var(--ar-mono); font-size: 10px; font-weight: 600; letter-spacing: 0.12em;
   color: var(--ar-on-signal); background: var(--ar-accent); padding: 3px 7px; border-radius: 3px;
 }
-.ar-wd-canonical__path { flex: 1; min-width: 0; font-family: var(--ar-mono); font-size: 13.5px; color: var(--ar-ink); overflow-wrap: anywhere; }
+.ar-wd-canonical__path { flex: 1 1 220px; min-width: 0; font-family: var(--ar-mono); font-size: 13.5px; color: var(--ar-ink); overflow-wrap: anywhere; }
 .ar-wd-canonical__ext {
   display: inline-flex; align-items: center; justify-content: center;
   width: 26px; height: 26px; margin: -4px -4px -4px 0; border-radius: 4px;
@@ -4119,8 +4189,19 @@ button.ar-wd-stat:focus-visible { outline: 2px solid var(--ar-accent); outline-o
   font-size: 11px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ar-ink-faint);
 }
 .ar-wd-group__toggle:hover { color: var(--ar-ink-soft); }
-.ar-wd-group__caret { font-size: 9px; transition: transform 0.15s ease; }
-.ar-wd-group__caret.is-open { transform: rotate(90deg); }
+/* Disclosure carets are the SAME solid triangle the plugin's one fold draws
+   (owner, 2026-08-11, second pass): a ▸ font glyph at 9px was invisible and
+   at 12px still read as decoration — a glyph's ink is a fraction of its em
+   box, while drawn geometry is all ink. font-size:0 swallows the glyph the
+   markup still carries. Tooltip pointers and scroll hints are different
+   affordances and stay as they were. */
+.ar-wd-group__caret {
+  display: inline-block; width: 0; height: 0; font-size: 0; flex: 0 0 auto;
+  border-left: 6px solid var(--ar-ink-soft);
+  border-top: 5px solid transparent; border-bottom: 5px solid transparent;
+  transition: transform 0.15s ease, border-color 0.15s ease;
+}
+.ar-wd-group__caret.is-open { transform: rotate(90deg); border-left-color: var(--ar-accent); }
 .ar-wd-group__count {
   font-family: var(--ar-mono); font-size: 10px; font-weight: 600; letter-spacing: 0;
   padding: 1px 7px; border-radius: 999px; border: 1px solid var(--ar-line-strong); color: var(--ar-ink-faint);
@@ -4170,7 +4251,10 @@ button.ar-wd-stat:focus-visible { outline: 2px solid var(--ar-accent); outline-o
   font-family: var(--ar-mono); font-size: 9.5px; letter-spacing: 0.1em; text-transform: uppercase;
   color: var(--ar-ink-faint); border: 1px solid var(--ar-line-strong); padding: 2px 6px; border-radius: 3px;
 }
-.ar-wd-eps code { font-size: 12px; color: var(--ar-ink); }
+/* The URL claims the row's spare width and, when the badges leave it less
+   than ~220px (a phone), wraps to its own full-width line — without this it
+   was squeezed to a one-character-per-line column on narrow screens. */
+.ar-wd-eps code { font-size: 12px; color: var(--ar-ink); flex: 1 1 220px; min-width: 0; overflow-wrap: anywhere; }
 .ar-wd-auth { font-family: var(--ar-mono); font-size: 10px; letter-spacing: 0.06em; padding: 2px 7px; border-radius: 3px; border: 1px solid; }
 .ar-wd-auth.is-open { color: var(--ar-good); border-color: var(--ar-good-tint); background: var(--ar-good-wash); }
 .ar-wd-auth.is-locked { color: var(--ar-warn); border-color: var(--ar-warn-tint); background: var(--ar-warn-wash); }
@@ -4190,6 +4274,59 @@ button.ar-wd-stat:focus-visible { outline: 2px solid var(--ar-accent); outline-o
 .ar-wd-mcp__cell strong.is-on { color: var(--ar-good); }
 .ar-wd-mcp__cell strong.is-off { color: var(--ar-ink-faint); }
 .ar-wd-mcp-endpoint { margin: 12px 0 0; }
+/* Each of the three lists gets its own panel inside the card. Headings alone
+   were not enough separation — the sections still read as one long column.
+   BORDER ONLY, surface unchanged: every one of these always holds text, and a
+   step of separation is paid out of the legibility of whatever reads on it —
+   the same reason .ar-fold drops back to the plain surface when it opens. */
+.ar-wd-sect {
+  margin-top: 16px; padding: 0 15px 6px;
+  border: 1px solid var(--ar-line); border-radius: var(--ar-radius);
+}
+
+/* A list whose length the SITE decides, not us: one capability per public
+   REST post type and taxonomy, so a busy shop can push it past 60 rows. The
+   card holds its height and the rows scroll inside — max-height, not height,
+   so a short list still sits at its natural size instead of in a half-empty
+   box. `overscroll-behavior` is deliberately NOT set: once the list reaches
+   its end the wheel must pass to the page, or the card becomes a trap the
+   pointer has to escape from (the lesson already learned on the index
+   groups' own scrollbox). */
+.ar-wd-scrollbox {
+  max-height: 430px; overflow-y: auto;
+  scrollbar-gutter: stable;
+}
+/* The air between the rows and the scrollbar. Double selector on purpose:
+   `.ar-wd-tools` further down sets `padding: 0` and ties a single class on
+   specificity, so a single-class padding here silently loses to it — which
+   is exactly how the rows ended up flush against the thumb. */
+.ar-wd-tools.ar-wd-scrollbox { padding-right: 14px; }
+/* Rendered only when the box measures an actual overflow. Without it the
+   capped list reads as a list that simply ended. */
+.ar-wd-scrollnote {
+  margin: 8px 0 0; font-size: 11.5px; color: var(--ar-ink-faint);
+}
+/* The header belongs to its panel now, so it sheds its free-standing spacing. */
+.ar-wd-sect > .ar-wd-lhead { margin: 13px 0 2px; }
+/* The list's own top rule would sit a hairline under the panel's border. */
+.ar-wd-sect > .ar-wd-tools { margin-top: 0; border-top: 0; }
+/* …and its last row's rule would sit a hairline above the panel's bottom. */
+.ar-wd-sect > .ar-wd-tools > li:last-child { border-bottom: 0; }
+.ar-wd-sect > .ar-wd-mcp-endpoint:last-of-type { margin-bottom: 8px; }
+
+/* Names each of the three lists. Same voice as the provider groups' headers
+   above, minus the caret — these do not fold. */
+.ar-wd-lhead {
+  display: flex; align-items: center; gap: 7px; flex-wrap: wrap;
+  margin: 20px 0 10px;
+  font-size: 11px; font-weight: 700; letter-spacing: 0.06em;
+  text-transform: uppercase; color: var(--ar-ink-faint);
+}
+.ar-wd-lhead:first-of-type { margin-top: 16px; }
+.ar-wd-lhead__note {
+  font-family: var(--ar-mono); font-size: 10px; font-weight: 400;
+  letter-spacing: 0; text-transform: none; color: var(--ar-ink-faint);
+}
 .ar-wd-note {
   margin: 12px 0 0; padding: 10px 13px; font-size: 12.5px; line-height: 1.45; color: var(--ar-ink-soft);
   background: var(--ar-surface-2); border-left: 2px solid var(--ar-warn); border-radius: 0 var(--ar-radius) var(--ar-radius) 0;
@@ -4199,6 +4336,27 @@ button.ar-wd-stat:focus-visible { outline: 2px solid var(--ar-accent); outline-o
   display: flex; align-items: center; justify-content: space-between; gap: 12px;
   padding: 12px 4px; border-bottom: 1px solid var(--ar-line);
 }
+/* A provider group: the row, plus the tool names it can reveal. Its own class
+   rather than .ar-wd-tool, because that one is a flex ROW and this needs to be
+   a column holding a row and a list. */
+.ar-wd-grp { border-bottom: 1px solid var(--ar-line); }
+.ar-wd-grp__row {
+  display: flex; align-items: center; gap: 10px; width: 100%;
+  padding: 12px 4px; border: 0; background: none; font: inherit;
+  text-align: left; cursor: pointer; color: inherit;
+}
+.ar-wd-grp__row.is-static { cursor: default; }
+.ar-wd-grp__row:not(.is-static):hover { background: var(--ar-surface-2); }
+.ar-wd-grp__row:focus-visible { outline: 2px solid var(--ar-accent); outline-offset: -2px; }
+.ar-wd-grp__row .ar-wd-tool__id { flex: 1 1 auto; }
+/* The names, indented under the caret so they read as that group's contents. */
+.ar-wd-grp__names {
+  list-style: none; margin: 0 0 12px; padding: 0 4px 0 26px;
+  display: grid; gap: 5px;
+}
+.ar-wd-grp__names li { display: flex; gap: 10px; align-items: baseline; min-width: 0; }
+.ar-wd-grp__names code { font-size: 11.5px; color: var(--ar-ink-soft); flex: 0 0 auto; }
+.ar-wd-grp__names span { font-size: 12px; color: var(--ar-ink-faint); min-width: 0; }
 .ar-wd-tool__id { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
 .ar-wd-tool__id code { font-size: 12.5px; color: var(--ar-ink); }
 .ar-wd-tool__title { font-size: 12px; color: var(--ar-ink-soft); }
@@ -4214,17 +4372,52 @@ button.ar-wd-stat:focus-visible { outline: 2px solid var(--ar-accent); outline-o
   border: 1px solid var(--ar-line-strong); border-radius: 999px; padding: 1px 9px; margin-left: 6px; vertical-align: middle;
 }
 
-.ar-wd-wk { margin: 14px 0 0; padding: 0; list-style: none; display: grid; gap: 10px; }
-.ar-wd-wk li { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
-.ar-wd-wk a { text-decoration: none; }
-.ar-wd-wk code { font-size: 12px; color: var(--ar-ink); border-bottom: 1px solid var(--ar-line-strong); }
+/* Rows since 2026-08-11: address · spec · served-tick · plain-words note, as
+   FIXED grid columns — the note column is a constant 420px, so every row's
+   badges and note share the same left edges. Flex let a long address shove
+   its badges to the card edge while every other row held the column (the
+   signatures-directory row, owner's catch). A long address wraps inside its
+   own column instead; each cell is placed explicitly so a missing spec chip
+   cannot shift its neighbours. */
+.ar-wd-wk { margin: 14px 0 0; padding: 0; list-style: none; display: grid; gap: 16px; }
+.ar-wd-wk li { display: grid; grid-template-columns: minmax(0, 1fr) max-content max-content 420px; gap: 4px 12px; align-items: center; }
+.ar-wd-wk a { grid-column: 1; justify-self: start; min-width: 0; text-decoration: none; }
+.ar-wd-wk .ar-wd-src--spec { grid-column: 2; justify-self: end; }
+.ar-wd-wk .ar-wd-src.is-live, .ar-wd-wk .ar-wd-src.is-file { grid-column: 3; }
+.ar-wd-wk code { font-size: 12px; color: var(--ar-ink); border-bottom: 1px solid var(--ar-line-strong); overflow-wrap: anywhere; }
 .ar-wd-wk a:hover code { color: var(--ar-accent); border-bottom-color: var(--ar-accent); }
+/* The inline "opens elsewhere" mark after a linked document name — shared by
+   the Well-Known rows and the attachable-documents rows. Small on purpose:
+   it annotates the link, it is not a target of its own. */
+.ar-wd-ext { margin-left: 4px; font-size: 9px; color: var(--ar-ink-faint); vertical-align: 1px; }
+a:hover > .ar-wd-ext { color: var(--ar-accent); }
+/* A linked document name keeps the code chip's look; the anchor only adds
+   the accent on hover, same as the Well-Known addresses. */
+.ar-wd-doclink { text-decoration: none; }
+.ar-wd-doclink:hover code { color: var(--ar-accent); }
+.ar-wd-wk__note { grid-column: 4; margin: 0; font-size: 11.5px; line-height: 1.5; color: var(--ar-ink-faint); }
+/* Narrow: the table collapses to stacked rows — address, badges, then the
+   note on its own line. */
+@container (max-width: 900px) {
+  .ar-wd-wk li { display: flex; flex-wrap: wrap; align-items: center; }
+  .ar-wd-wk a { margin-right: auto; }
+  .ar-wd-wk__note { flex: 1 1 100%; max-width: 70ch; }
+}
 .ar-wd-src {
   flex: 0 0 auto; font-family: var(--ar-mono); font-size: 9px; letter-spacing: 0.08em;
   padding: 2px 7px; border-radius: 3px; border: 1px solid var(--ar-line-strong); color: var(--ar-ink-faint);
 }
 .ar-wd-src.is-file { color: var(--ar-good); border-color: var(--ar-good-tint); background: var(--ar-good-wash); }
-.ar-wd-src.is-managed { color: var(--ar-accent); border-color: color-mix(in srgb, var(--ar-accent) 28%, var(--ar-surface)); background: color-mix(in srgb, var(--ar-accent) 7%, var(--ar-surface)); }
+/* The quiet "answers live" tick — good-toned but washless, so ON DISK (the
+   exception an owner must act on) still reads a step louder than the rule. */
+.ar-wd-src.is-live { color: var(--ar-good); border-color: var(--ar-good-tint); }
+/* The standard's name beside an address — identity, so mixed case as written. */
+.ar-wd-src--spec { letter-spacing: 0.02em; }
+/* `is-managed` deliberately carries NO colour of its own any more. It and
+   is-generated both read "AGENTIMUS" now, and two identical labels painted two
+   different colours is a distinction the reader is invited to decode and can
+   never resolve. `is-file` keeps its own colour because it says something an
+   owner can act on: the web server is serving that one, not us. */
 
 .ar-wd-notices { margin: 14px 0 0; padding: 0; list-style: none; display: grid; gap: 9px; }
 .ar-wd-notice { display: flex; align-items: flex-start; gap: 10px; font-size: 12.5px; line-height: 1.45; }
@@ -4722,7 +4915,15 @@ button.ar-verreg__chip { appearance: none; font-family: inherit; line-height: in
 /* As a button: expand/collapse the day breakdown. Caret signals it unfolds (no underline). */
 button.ar-act-more { appearance: none; background: none; border: 0; padding: 0; cursor: pointer; font-family: inherit; display: inline-flex; align-items: center; gap: 4px; transition: color 0.15s ease; }
 button.ar-act-more:hover { color: var(--ar-ink); }
-.ar-act-more__caret { font-size: 8px; line-height: 1; }
+/* The shared drawn-triangle caret (see .ar-wd-group__caret), pointing down;
+   flips when open. currentColor rides the button's own hover. */
+.ar-act-more__caret {
+  display: inline-block; width: 0; height: 0;
+  border-top: 5px solid currentColor;
+  border-left: 4px solid transparent; border-right: 4px solid transparent;
+  transition: transform 0.15s ease;
+}
+.ar-act-more__caret.is-open { transform: rotate(180deg); }
 .ar-act-more-note { margin: 4px 0 0; font-size: 10px; font-style: italic; color: var(--ar-ink-faint); }
 
 /* ---- Traffic from AI: one consolidated report card ---------------------- */
@@ -5325,8 +5526,14 @@ a.ar-about-proto__v:hover { text-decoration: underline; }
   padding: 14px 2px; font-size: 13.5px; font-weight: 600; color: var(--ar-ink); font-family: var(--ar-sans);
 }
 .ar-about-faq__q:hover { color: var(--ar-accent); }
-.ar-about-faq__caret { flex: 0 0 auto; color: var(--ar-ink-faint); transition: transform 0.15s ease; }
-.ar-about-faq__item.is-open .ar-about-faq__caret { transform: rotate(90deg); color: var(--ar-accent); }
+/* Same drawn triangle as .ar-wd-group__caret — one disclosure grammar. */
+.ar-about-faq__caret {
+  flex: 0 0 auto; width: 0; height: 0; font-size: 0;
+  border-left: 6px solid var(--ar-ink-soft);
+  border-top: 5px solid transparent; border-bottom: 5px solid transparent;
+  transition: transform 0.15s ease, border-color 0.15s ease;
+}
+.ar-about-faq__item.is-open .ar-about-faq__caret { transform: rotate(90deg); border-left-color: var(--ar-accent); }
 .ar-about-faq__a { margin: 0 0 14px; padding-right: 28px; font-size: 12.5px; line-height: 1.65; color: var(--ar-ink-soft); max-width: 90ch; }
 
 @media (prefers-reduced-motion: reduce) { .ar-about-faq__caret { transition: none; } }
@@ -6389,6 +6596,7 @@ a.ar-about-proto__v:hover { text-decoration: underline; }
   text-transform: uppercase; color: var(--ar-ink-faint);
 }
 .ar-work__name { font-size: 14px; font-weight: 600; color: var(--ar-ink); text-decoration: none; overflow-wrap: anywhere; }
+a.ar-work__name { color: var(--ar-accent); }
 .ar-work__name:hover, .ar-work__name:focus-visible { color: var(--ar-accent); text-decoration: underline; text-underline-offset: 2px; }
 .ar-work__flags { display: flex; gap: 5px; flex-wrap: wrap; margin-top: 2px; }
 .ar-work__flag {
@@ -6766,7 +6974,30 @@ a.ar-about-proto__v:hover { text-decoration: underline; }
   margin: 0; font-family: var(--ar-serif); font-size: 38px; line-height: 1.03;
   font-weight: 600; color: var(--ar-ink); font-variant-numeric: tabular-nums;
 }
-.ar-aud__unit { margin: 2px 0 14px; font-size: 12.5px; color: var(--ar-ink-soft); }
+.ar-aud__unit { margin: 2px 0 4px; font-size: 12.5px; color: var(--ar-ink-soft); }
+/* The headline's second cut — sessions beside people, today beside the month.
+   Same instrument as the number above it, so it belongs up here and NOT in
+   the rows below, which answer a different question with a different tool. */
+.ar-aud__second {
+  margin: 0; font-size: 12.5px; color: var(--ar-ink-soft);
+  font-variant-numeric: tabular-nums;
+}
+/* The fence. The rows under this caption are sources, not shares — without a
+   label between them and the headline the column reads as a breakdown, and an
+   owner subtracts. Set in the same mono kicker as HUMANS / MACHINES so it
+   reads as structure rather than as another fact. */
+.ar-aud__group {
+  margin: 15px 0 6px; font-family: var(--ar-mono); font-size: 10px;
+  letter-spacing: 0.1em; text-transform: uppercase; color: var(--ar-ink-faint);
+}
+/* Direction, in the row that carries it. Never coloured red for "down": a
+   quiet month is information, not a fault, and this card does not grade. */
+.ar-aud__trend {
+  font-style: normal; font-family: var(--ar-mono); font-size: 11px;
+  color: var(--ar-ink-faint); white-space: nowrap;
+}
+.ar-aud__trend::before { content: "· "; }
+.ar-aud__trend.is-up { color: var(--ar-good); }
 
 /* Both sides carry the same number of rows, so the panels end level instead of
    one trailing whitespace the other has filled. */
@@ -6787,6 +7018,11 @@ a.ar-about-proto__v:hover { text-decoration: underline; }
 .ar-aud__rows li.is-bad .ar-aud__row-n { color: var(--ar-bad); }
 .ar-aud__off { font-style: normal; color: var(--ar-ink-faint); }
 .ar-aud__off::before { content: "· "; }
+/* Why a visit count can exceed a people count, said on the row that raises
+   the question. Same recessive weight as __off — it explains the number
+   beside it, it does not compete with it. */
+.ar-aud__hint { font-style: normal; color: var(--ar-ink-faint); }
+.ar-aud__hint::before { content: "— "; }
 
 /* Pinned to the bottom of its panel so the two links sit on one line. */
 .ar-aud__go { margin-top: auto; padding-top: 14px; align-self: flex-start; }
@@ -6808,61 +7044,71 @@ a.ar-about-proto__v:hover { text-decoration: underline; }
    marks are the ones already standing at the top of each panel, so the tie is
    made without any words at all. Amber, and warmer than the panels, because a
    note about the numbers should not look like another number. */
-/* One row, not two. The heading sat on its own line above three short facts,
-   which spent a whole line of height saying "worth knowing" — it belongs
-   beside them, as the label it is. */
+/* The owner's sketch, exactly (2026-08-11, third and final layout): bulb +
+   WORTH KNOWING in the note's own gold, a short divider bar, then two equal
+   columns of chip + stacked facts with another bar between them. Everything
+   gold derives from --ar-warn-deep so both themes keep their own amber. */
+/* Light ground and border derive from the glow gold (#ebc98a) — warm cream
+   wash, soft gold frame. Dark's own override below replaces both. */
 .ar-aud__note {
-  --ar-note: color-mix(in srgb, var(--ar-warn) 6%, var(--ar-surface));
-  margin-top: 14px; padding: 8px 13px;
+  --ar-note: color-mix(in srgb, var(--ar-note-glow) 14%, var(--ar-surface));
+  margin-top: 14px; padding: 13px 17px 14px;
   background: var(--ar-note);
-  border: 1px solid color-mix(in srgb, var(--ar-warn-mid) 34%, var(--ar-line));
+  border: 1px solid color-mix(in srgb, var(--ar-note-glow) 85%, var(--ar-line));
   border-radius: var(--ar-radius);
-  display: flex; align-items: center; gap: 8px 22px; flex-wrap: wrap;
+  display: flex; align-items: flex-start; flex-wrap: wrap; gap: 10px 16px;
 }
-@supports (color: color-mix(in srgb, red, blue)) {
-  .ar-aud__note { --ar-note: color-mix(in srgb, var(--ar-warn-bright) 13%, var(--ar-surface)); }
+/* Dark wears the owner's mock (2026-08-11): the theme's note-gold drives the
+   whole card, and the ground mixes over PAPER (not the cool surface) so the
+   card reads as one warm room. Paper is per-scheme, so the Default-neutral
+   and Coffee dialects each keep their own temperature. */
+:root[data-ar-theme="dark"] .ar-aud__note {
+  --ar-note: color-mix(in srgb, var(--ar-note-gold) 15%, var(--ar-paper));
+  border-color: color-mix(in srgb, var(--ar-note-gold) 55%, var(--ar-line));
 }
 .ar-aud__note-t {
-  margin: 0; flex: 0 0 auto; display: flex; align-items: center; gap: 7px;
-  font-family: var(--ar-mono); font-size: 10px;
-  letter-spacing: 0.12em; text-transform: uppercase; color: var(--ar-warn-deep);
+  margin: 0; flex: 0 0 auto; display: flex; align-items: center; gap: 8px;
+  font-family: var(--ar-mono); font-size: 10.5px; font-weight: 700;
+  letter-spacing: 0.12em; text-transform: uppercase; color: var(--ar-note-gold);
 }
-/* The horn in the accent, on white, inside the amber. An amber mark on an
-   amber ground is a mark nobody sees — and this is the one element in the
-   block that is meant to catch the eye first. */
+/* The bulb, gold and LIT: a soft radial halo behind it (the sketch's glow),
+   fading to nothing well before its box so it reads as light, not a chip. */
 .ar-aud__note-i {
   flex: 0 0 auto; display: inline-flex; align-items: center; justify-content: center;
-  width: 21px; height: 21px; border-radius: 50%;
-  background: var(--ar-surface); color: var(--ar-accent);
-  border: 1px solid color-mix(in srgb, var(--ar-accent) 30%, var(--ar-surface));
+  width: 28px; height: 28px; margin: -5px 0;
+  color: var(--ar-note-gold);
+  background: radial-gradient(circle, color-mix(in srgb, var(--ar-note-glow) 30%, transparent) 0%, color-mix(in srgb, var(--ar-note-glow) 12%, transparent) 45%, transparent 72%);
 }
-/* Content-sized, not equal thirds. Three columns of one third each left a
-   long fact hard against its neighbour and a short one trailing whitespace —
-   the gaps looked arbitrary because they were a consequence of the text
-   lengths rather than a decision. Flowing them puts the same space between
-   every pair. */
-.ar-aud__note-grid {
-  list-style: none; margin: 0; padding: 0;
-  display: flex; flex-wrap: wrap; gap: 5px 26px;
-  align-items: center; flex: 1 1 auto; min-width: 0;
+/* A short vertical bar, not a full-height rule — the sketch's own divider. */
+.ar-aud__note-sep {
+  flex: 0 0 auto; width: 1px; height: 20px; margin-top: 1px;
+  background: color-mix(in srgb, var(--ar-note-gold) 45%, transparent);
 }
-/* One line each, always. A caveat that wraps onto a second line in one column
-   and not the others makes three equal facts look like one big one and two
-   small ones — the strings are written short enough to fit, and the title
-   attribute carries the full text if a translation ever outgrows the column. */
-.ar-aud__note-grid li {
-  display: flex; align-items: center; gap: 7px; min-width: 0;
+.ar-aud__note-cols {
+  flex: 1 1 auto; min-width: 0;
+  display: flex; align-items: flex-start; gap: 16px;
+}
+.ar-aud__note-group {
+  flex: 1 1 0; min-width: 0;
+  display: grid; grid-template-columns: max-content minmax(0, 1fr);
+  gap: 10px 13px; align-items: start;
+}
+.ar-aud__note-chip {
+  font-family: var(--ar-mono); font-size: 10px; font-weight: 600; letter-spacing: 0.1em;
+  text-transform: uppercase; color: var(--ar-note-gold);
+  border: 1px solid color-mix(in srgb, var(--ar-note-gold) 55%, transparent);
+  border-radius: 999px; padding: 3px 12px 4px; margin-top: -2px;
+}
+.ar-aud__note-facts {
+  min-width: 0; display: flex; flex-direction: column; gap: 12px;
   font-size: 12.5px; line-height: 1.5; color: var(--ar-ink-soft);
 }
-.ar-aud__note-grid li > span:last-child {
-  min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-}
-.ar-aud__note-m {
-  flex: 0 0 auto; color: var(--ar-ink-faint); display: inline-flex;
-}
-
+/* Narrow: eyebrow row, then the groups stacked, chip above its facts. */
 @container (max-width: 720px) {
-  .ar-aud__note-grid { flex-direction: column; align-items: flex-start; gap: 7px; }
+  .ar-aud__note-sep { display: none; }
+  .ar-aud__note-cols { flex: 1 1 100%; flex-direction: column; gap: 12px; }
+  .ar-aud__note-group { grid-template-columns: 1fr; gap: 7px; }
+  .ar-aud__note-chip { justify-self: start; }
 }
 
 /* ---------------------------------------------------------------------------

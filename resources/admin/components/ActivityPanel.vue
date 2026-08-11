@@ -963,7 +963,7 @@ export default {
                     </ul>
                     <button v-if="modalDetail.clientCount > modalDetail.clients.length" type="button" class="ar-act-more" :aria-expanded="dayExpand.clients" @click="dayExpand.clients = !dayExpand.clients">
                       <span>{{ dayExpand.clients ? 'Show less' : '+' + (modalDetail.clientCount - modalDetail.clients.length) + ' more' }}</span>
-                      <span class="ar-act-more__caret" aria-hidden="true">{{ dayExpand.clients ? '▴' : '▾' }}</span>
+                      <span class="ar-act-more__caret" :class="{ 'is-open': dayExpand.clients }" aria-hidden="true"></span>
                     </button>
                     <p v-if="dayExpand.clients && dayModal.capped" class="ar-act-more-note">from the last {{ dayModal.rows.length }} requests this day</p>
                   </div>
@@ -978,7 +978,7 @@ export default {
                     </ul>
                     <button v-if="modalDetail.endpointCount > modalDetail.endpoints.length" type="button" class="ar-act-more" :aria-expanded="dayExpand.endpoints" @click="dayExpand.endpoints = !dayExpand.endpoints">
                       <span>{{ dayExpand.endpoints ? 'Show less' : '+' + (modalDetail.endpointCount - modalDetail.endpoints.length) + ' more' }}</span>
-                      <span class="ar-act-more__caret" aria-hidden="true">{{ dayExpand.endpoints ? '▴' : '▾' }}</span>
+                      <span class="ar-act-more__caret" :class="{ 'is-open': dayExpand.endpoints }" aria-hidden="true"></span>
                     </button>
                     <p v-if="dayExpand.endpoints && dayModal.capped" class="ar-act-more-note">from the last {{ dayModal.rows.length }} requests this day</p>
                   </div>

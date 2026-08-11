@@ -112,4 +112,43 @@ final class RestApiAdapterTest extends TestCase {
 	public function test_is_described_false_for_unknown() {
 		$this->assertFalse( RestApi::is_described( 'acme/v1', array() ) );
 	}
+
+	/**
+	 * The seam core fell through: a plugin owning ONE route inside wp/v2 —
+	 * which every custom post type with show_in_rest does — must not count as
+	 * describing core's whole content API. It did, and a site's posts, pages
+	 * and media disappeared from discovery.json while still answering 200.
+	 */
+	public function test_route_inside_a_namespace_does_not_describe_its_root() {
+		$resources = array(
+			'fluent-cart' => array(
+				'id'        => 'fluent-cart',
+				'endpoints' => array( array( 'url' => '/wp-json/wp/v2/fluent-products', 'type' => 'rest' ) ),
+			),
+		);
+
+		// The prefix match still holds — that is the right answer for a
+		// plugin's own namespace, and other callers depend on it.
+		$this->assertTrue( RestApi::is_described( 'wp/v2', $resources ) );
+
+		// The root does not: nothing here describes core content.
+		$this->assertFalse( RestApi::is_root_described( 'wp/v2', $resources ) );
+	}
+
+	public function test_root_described_by_an_endpoint_on_the_namespace_itself() {
+		foreach ( array( '/wp-json/wp/v2', 'https://example.com/wp-json/wp/v2', '/wp-json/wp/v2/' ) as $url ) {
+			$resources = array(
+				'core-ish' => array( 'id' => 'core-ish', 'endpoints' => array( array( 'url' => $url ) ) ),
+			);
+			$this->assertTrue( RestApi::is_root_described( 'wp/v2', $resources ), $url );
+		}
+	}
+
+	public function test_root_described_by_minted_id_and_false_when_absent() {
+		$this->assertTrue( RestApi::is_root_described( 'acme/v1', array( 'acme-v1' => array( 'id' => 'acme-v1' ) ) ) );
+		$this->assertFalse( RestApi::is_root_described( 'wp/v2', array() ) );
+		// Never let a longer name ending in the same run answer for it.
+		$resources = array( 'x' => array( 'id' => 'x', 'endpoints' => array( array( 'url' => '/wp-json/acme/wp/v2' ) ) ) );
+		$this->assertTrue( RestApi::is_root_described( 'wp/v2', $resources ) );
+	}
 }

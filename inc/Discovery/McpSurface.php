@@ -162,11 +162,21 @@ final class McpSurface {
 		$seen  = array();
 		foreach ( $resources as $resource ) {
 			foreach ( $resource['tools'] as $tool ) {
-				if ( isset( $seen[ $tool['name'] ] ) ) {
+				$name = isset( $tool['name'] ) ? $tool['name'] : '';
+				if ( '' === $name || isset( $seen[ $name ] ) ) {
 					continue;
 				}
-				$seen[ $tool['name'] ] = true;
-				$tools[]               = $tool;
+				// A document is not a tool. It is offered through MCP's resources
+				// list, and putting it in `tools` is the same conflation that had
+				// the admin counting 4 documents as tools.
+				if ( isset( $tool['kind'] ) && 'resource' === $tool['kind'] ) {
+					continue;
+				}
+				$seen[ $name ] = true;
+				// `kind` is internal — same reason Envelope::wire_resource() strips
+				// it from discovery.json: this document has consumers too.
+				unset( $tool['kind'] );
+				$tools[] = $tool;
 			}
 		}
 		return $tools;

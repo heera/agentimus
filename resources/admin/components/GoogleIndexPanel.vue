@@ -766,7 +766,7 @@ export default {
           <details
             v-for="g in problemGroups"
             :key="g.key"
-            class="ar-opp__noiselist ar-gidx__grp"
+            class="ar-fold ar-opp__noiselist ar-gidx__grp"
             @toggle="onGroupToggle(g.key, $event)"
           >
             <summary>{{ g.label }} ({{ g.count.toLocaleString() }} {{ g.count === 1 ? 'page' : 'pages' }})</summary>

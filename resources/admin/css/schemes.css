@@ -44,12 +44,23 @@
   --ar-surface-2: #2e2e2e;
   --ar-ink: #dedede;
   --ar-ink-soft: #a3a3a3;
-  --ar-ink-faint: #6f6f6f;
+  /* Raised with the base dark faint (2026-08-11): #6f was unreadable small. */
+  --ar-ink-faint: #8b8b8b;
   --ar-line: #383838;
   --ar-line-strong: #464646;
+  /* The Worth-knowing card's gold on the neutral near-black (his pick
+     2026-08-12): a paler parchment gold, brighter than the cool schemes'
+     sand so it carries on a ground with no warmth of its own. */
+  --ar-note-gold: #d2bd8e;
+  --ar-note-glow: #d2bd8e;
 }
 /* The two hue-carrying literals in the dark overrides go neutral with it. */
 :root[data-ar-theme="dark"] body.admin-color-modern .ar-btn:hover:not(:disabled) { background: #383838; }
+/* The parchment gold at the base 55% made a bright frame on the near-black —
+   the card's border sits a step darker here (his call, 2026-08-12). */
+:root[data-ar-theme="dark"] body.admin-color-modern .ar-aud__note {
+  border-color: color-mix(in srgb, var(--ar-note-gold) 32%, var(--ar-line));
+}
 :root[data-ar-theme="dark"] body.admin-color-modern .ar-about-snippet { background: #111111; }
 
 /* ---- Coffee — the same idea in that scheme's warm brown key -------------- */
@@ -59,7 +70,8 @@
   --ar-surface-2: #403c38;
   --ar-ink: #e2dfdb;
   --ar-ink-soft: #a8a49e;
-  --ar-ink-faint: #757169;
+  /* Raised with the base dark faint (2026-08-11), keeping the warm cast. */
+  --ar-ink-faint: #918c83;
   --ar-line: #46423d;
   --ar-line-strong: #55504a;
   /* The rail identity goes GOLD here (his pick) — coffee and gold, while
@@ -67,6 +79,34 @@
   --ar-chrome: #c09c5c;
   --ar-chrome-bright: #d4b478;
   --ar-chrome-line: color-mix(in srgb, #c09c5c 24%, var(--ar-line));
+  /* The Worth-knowing card's gold on coffee's brown (his pick 2026-08-12):
+     a quieter bronze, so the card separates from a surface that is already
+     warm instead of doubling its brass. */
+  --ar-note-gold: #af9a6d;
+  --ar-note-glow: #af9a6d;
 }
 :root[data-ar-theme="dark"] body.admin-color-coffee .ar-btn:hover:not(:disabled) { background: #4a453f; }
 :root[data-ar-theme="dark"] body.admin-color-coffee .ar-about-snippet { background: #181715; }
+/* Coffee's card, his exact pair (2026-08-12): the ground mixes from a
+   brighter brass (#cda54e) than the bronze the text wears, and the frame is
+   a flat muted olive-tan — quieter than the text's bronze. */
+:root[data-ar-theme="dark"] body.admin-color-coffee .ar-aud__note {
+  --ar-note: color-mix(in srgb, #cda54e 15%, var(--ar-paper));
+  border-color: #776e58;
+}
+
+/* ---- Fresh & Midnight — base palette serves both, ONE exception (his picks
+   2026-08-12): the Worth-knowing card's gold goes a grey-warmed sand against
+   their cool charcoal and slate, where the base #c2a157 ran too brassy.
+   Everything else on both stays the base dark. */
+:root[data-ar-theme="dark"] body.admin-color-fresh,
+:root[data-ar-theme="dark"] body.admin-color-midnight {
+  --ar-note-gold: #b2a484;
+  --ar-note-glow: #b2a484;
+}
+/* Same step-darker frame as Modern's (his call, 2026-08-12): the sand at the
+   base 55% still framed too bright on the cool grounds. */
+:root[data-ar-theme="dark"] body.admin-color-fresh .ar-aud__note,
+:root[data-ar-theme="dark"] body.admin-color-midnight .ar-aud__note {
+  border-color: color-mix(in srgb, var(--ar-note-gold) 32%, var(--ar-line));
+}
