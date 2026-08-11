@@ -566,7 +566,6 @@ final class Findings {
 	 */
 	private function waiting_row( $id, $kind, $source, array $pages, $title, $why, array $points ) {
 		$evidence = array();
-		$ids      = Search\Standing::card_ids( $pages );
 		foreach ( $pages as $page ) {
 			$page_id = (int) ( isset( $page['postId'] ) ? $page['postId'] : 0 );
 			$name    = (string) ( isset( $page['title'] ) ? $page['title'] : '' );
@@ -593,12 +592,17 @@ final class Findings {
 			$title,
 			$why,
 			$evidence,
+			// No page list. `pages` sets a filter on the CONTENT WORKLIST, and this
+			// button opens the Opportunities card instead — so the ids narrowed a
+			// list the owner never asked to see, and the filter was still there
+			// when they came back to Findings, showing one row saying "nothing
+			// else to fix". Only a finding that actually lands on the worklist
+			// hands it pages.
 			$this->go(
 				_n( 'Look at that page', 'Look at those pages', count( $pages ), 'agentimus' ),
 				'visibility',
 				'performance',
-				'ar-group-search',
-				$ids
+				'ar-group-search'
 			),
 			$points
 		);
