@@ -59,7 +59,23 @@ final class Content {
 		 * @param string[] $available All public post types.
 		 */
 		$types = (array) apply_filters( 'agentimus_post_types', $types, $available );
-		return array_values( array_unique( array_filter( $types ) ) );
+		$types = array_values( array_unique( array_filter( $types ) ) );
+
+		// The owner's refusals, applied LAST — after the filter, so a plugin's
+		// "yes" cannot outrank the site owner's "no" on their own site. This is
+		// the promise the Provider Integrations section already makes in words:
+		// the plugin decides what a thing IS, the owner decides whether it is
+		// advertised.
+		//
+		// A veto only ever REMOVES. It cannot add a type back, so a stale entry
+		// for a plugin that has since gone is inert rather than dangerous, and
+		// re-ticking simply drops the entry — handing the decision back to the
+		// plugin rather than pinning the type on.
+		$vetoed = (array) ( new Settings() )->get( 'post_types_vetoed', array() );
+		if ( $vetoed ) {
+			$types = array_values( array_diff( $types, array_map( 'sanitize_key', $vetoed ) ) );
+		}
+		return $types;
 	}
 
 	/**

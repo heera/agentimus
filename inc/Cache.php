@@ -32,6 +32,13 @@ final class Cache {
 	// of its transient keys; deleting it invalidates every page at once.
 	const SITEMAP_GEN = 'agentimus_sitemap_gen';
 
+	/**
+	 * Fingerprint of the content types the cached documents were built from.
+	 *
+	 * An option, not a transient: it has to outlive the very caches it guards.
+	 */
+	const TYPES_FINGERPRINT = 'agentimus_types_fingerprint';
+
 	const TTL = HOUR_IN_SECONDS;
 	// A truncated full-text body is re-attempted sooner — content or settings may
 	// change and bring it back under budget.
@@ -137,6 +144,43 @@ final class Cache {
 	}
 
 	/**
+	 * Flush everything when the set of ADVERTISED CONTENT TYPES has changed.
+	 *
+	 * Deactivating a plugin only flushes the discovery registry — deliberately,
+	 * so toggling something unrelated never regenerates llms-full.txt, which is
+	 * expensive. But a plugin that owned an advertised type is not unrelated:
+	 * deactivate FluentCart and llms.txt, the sitemap and the schema keep their
+	 * cached copies, still listing product URLs that now 404, for up to an hour.
+	 * Publishing links we know are dead is worse than the rebuild we were saving.
+	 *
+	 * Checked by FINGERPRINT rather than by hooking deactivation, for two
+	 * reasons. At deactivation the plugin is still loaded, so its types are still
+	 * registered and the change has not happened yet — the next request is where
+	 * it shows. And the list can change for reasons no plugin hook reports: a
+	 * type vetoed, a filter reconsidering, a CPT renamed. Comparing the list
+	 * itself catches every cause and cannot miss one nobody thought of.
+	 *
+	 * Admin-only: plugins are switched in the admin, so the next request after
+	 * one is an admin request. On the front end the existing TTL already bounds
+	 * staleness, and this is not worth a filter run on every page view.
+	 *
+	 * @return void
+	 */
+	public static function verify_types() {
+		$now  = md5( implode( ',', Content::post_types() ) );
+		$seen = (string) get_option( self::TYPES_FINGERPRINT, '' );
+		if ( $now === $seen ) {
+			return;
+		}
+		// First run has nothing to compare against — record it and flush nothing;
+		// there is no stale cache to clear on a site that has never had one.
+		if ( '' !== $seen ) {
+			self::flush();
+		}
+		update_option( self::TYPES_FINGERPRINT, $now, false );
+	}
+
+	/**
 	 * Bust the cache whenever content or site identity changes.
 	 */
 	public static function register_flush_hooks() {
@@ -161,5 +205,11 @@ final class Cache {
 		// plugin never regenerates llms-full.txt.
 		add_action( 'activated_plugin', array( __CLASS__, 'flush_discovery' ) );
 		add_action( 'deactivated_plugin', array( __CLASS__, 'flush_discovery' ) );
+
+		// …but if that plugin owned a type we were ADVERTISING, the content caches
+		// are stale too. Late on admin_init, so every type has registered.
+		if ( is_admin() ) {
+			add_action( 'admin_init', array( __CLASS__, 'verify_types' ), 99 );
+		}
 	}
 }

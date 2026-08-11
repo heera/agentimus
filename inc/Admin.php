@@ -839,6 +839,18 @@ final class Admin {
 	 * @return array
 	 */
 	private function available_post_types() {
+		// What the OWNER chose, before any plugin had a say. Anything active that
+		// is not in here was forced on through the `agentimus_post_types` filter,
+		// and its tickbox is not a control — ticking it changes nothing, and
+		// unticking it changes nothing either, because the filter runs last.
+		// Drawn unticked, it read as "off" for a type that was demonstrably on.
+		$chosen = (array) $this->settings->get( 'post_types', array() );
+		$vetoed = (array) $this->settings->get( 'post_types_vetoed', array() );
+		// What a plugin ASKED for, before the owner's veto removed anything —
+		// otherwise a vetoed type looks like one nobody ever offered, and the
+		// card loses the only clue that switching it back on is even possible.
+		$offered = array_values( array_unique( array_merge( Content::post_types(), $vetoed ) ) );
+
 		$out = array();
 		foreach ( Content::available() as $slug ) {
 			$obj = get_post_type_object( $slug );
@@ -859,6 +871,12 @@ final class Admin {
 				'slug'       => $slug,
 				'label'      => Content::label( $slug ),
 				'source'     => Content::source( $slug ),
+				// On, but not by the owner's hand. The screen shows these as
+				// enabled-and-locked rather than as an empty box nobody can fill.
+				// Offered by a plugin rather than picked by the owner.
+				'forced'     => in_array( $slug, $offered, true ) && ! in_array( $slug, $chosen, true ),
+				// …and the owner said no. Only meaningful alongside `forced`.
+				'vetoed'     => in_array( $slug, $vetoed, true ),
 				'restBase'   => $advertises ? sanitize_key( (string) ( ! empty( $obj->rest_base ) ? $obj->rest_base : $obj->name ) ) : '',
 				'taxonomies' => array_values( array_unique( $taxes ) ),
 			);

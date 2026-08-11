@@ -208,6 +208,16 @@ export default {
       const g = this.groups.find((x) => x.key === this.group);
       return g ? g.hint : '';
     },
+    // The owner's own list, then the ones plugins offered — two groups rather
+    // than one mixed grid. A border alone made the odd card out look like a
+    // rendering glitch; a labelled group under a rule says what it is. Empty
+    // groups drop out, so a site with no integrations never sees the heading.
+    typeGroups() {
+      return [
+        { key: 'own', label: '', types: this.filteredPostTypes.filter((pt) => !pt.forced) },
+        { key: 'plugin', label: 'Offered by plugins', types: this.filteredPostTypes.filter((pt) => pt.forced) },
+      ].filter((g) => g.types.length);
+    },
     filteredPostTypes() {
       const q = this.typeQuery.trim().toLowerCase();
       if (!q) return this.postTypes;
@@ -218,15 +228,21 @@ export default {
           (pt.source && pt.source.toLowerCase().includes(q)),
       );
     },
+    // Everything actually advertised — the owner's picks PLUS the plugin-offered
+    // types they have not refused. Counting only post_types read "3 / 8" on a
+    // site advertising four.
     selectedTypeCount() {
-      const sel = Array.isArray(this.settings.post_types) ? this.settings.post_types : [];
-      const slugs = this.postTypes.map((p) => p.slug);
-      return sel.filter((s) => slugs.includes(s)).length;
+      return this.postTypes.filter((pt) => this.typeShowsOn(pt)).length;
     },
     // The read capabilities the CURRENT selection advertises — computed exactly like
     // the discovery adapter does (type REST bases first, then the union of their
     // public taxonomies' bases, deduped), so this preview and the Discovery hub can
     // never disagree. Types the payload marks non-advertising (no restBase) add nothing.
+    // The types a plugin switched on, by name — for the one line under the grid
+    // that explains the dashed cards.
+    forcedTypes() {
+      return (this.postTypes || []).filter((p) => p.forced).map((p) => p.label);
+    },
     advertisedCapabilities() {
       const sel = Array.isArray(this.settings.post_types) ? this.settings.post_types : [];
       const bases = [];
@@ -805,6 +821,32 @@ export default {
       if (!Array.isArray(this.settings.allowed_agents)) this.settings.allowed_agents = [];
       if (!this.settings.allowed_agents.includes(name)) this.settings.allowed_agents.push(name);
     },
+    // What the tick shows. For a type the OWNER picked, their own list; for one
+    // a PLUGIN offered, the plugin's yes minus any veto.
+    //
+    // The veto is read from the LIVE settings object, never from pt.vetoed —
+    // that field is a photograph taken when the page loaded, so unticking wrote
+    // the veto (it worked) while the card carried on showing a tick.
+    typeShowsOn(pt) {
+      if (!pt.forced) return this.isTypeOn(pt.slug);
+      const vetoed = Array.isArray(this.settings.post_types_vetoed) ? this.settings.post_types_vetoed : [];
+      return !vetoed.includes(pt.slug);
+    },
+    // Clicking a plugin-offered card records a VETO (or clears one) rather than
+    // editing the owner's own list. Ticking it removes the veto — which hands
+    // the decision back to the plugin rather than pinning the type on, so if the
+    // plugin later stops asking, the type simply goes.
+    toggleTypeCard(pt) {
+      if (!pt.forced) {
+        this.toggleType(pt.slug);
+        return;
+      }
+      if (!Array.isArray(this.settings.post_types_vetoed)) this.settings.post_types_vetoed = [];
+      const list = this.settings.post_types_vetoed;
+      const i = list.indexOf(pt.slug);
+      if (i === -1) list.push(pt.slug);
+      else list.splice(i, 1);
+    },
     isTypeOn(slug) {
       return Array.isArray(this.settings.post_types) && this.settings.post_types.includes(slug);
     },
@@ -1314,31 +1356,53 @@ export default {
         </div>
 
         <div class="ar-types-scroll">
-          <div class="ar-types-grid">
-            <label
-              v-for="pt in filteredPostTypes"
-              :key="pt.slug"
-              class="ar-type"
-              :class="{ 'is-on': isTypeOn(pt.slug) }"
-            >
-              <input type="checkbox" :checked="isTypeOn(pt.slug)" @change="toggleType(pt.slug)" />
-              <span class="ar-type__check" aria-hidden="true"></span>
-              <span class="ar-type__body">
-                <span class="ar-type__label">{{ pt.label }}</span>
-                <span class="ar-type__meta">
-                  <span v-if="pt.source" class="ar-type__src">{{ pt.source }}</span>
-                  <code>{{ pt.slug }}</code>
+          <!-- One loop, two groups. The plugin-offered cards behave exactly like
+               the owner's own — same markup, same control — and only the meaning
+               of a tick differs: there it CLEARS a veto rather than adding a
+               pick, so switching one back on returns the decision to the plugin
+               instead of pinning the type on. Two copies of this card is how one
+               group quietly stops matching the other. -->
+          <template v-for="group in typeGroups" :key="group.key">
+            <p v-if="group.label" class="ar-types-group">{{ group.label }}</p>
+            <div class="ar-types-grid">
+              <label
+                v-for="pt in group.types"
+                :key="pt.slug"
+                class="ar-type"
+                :class="{ 'is-on': typeShowsOn(pt) }"
+                :title="pt.forced ? (typeShowsOn(pt) ? 'Offered by a plugin. Untick to stop advertising it — the plugin keeps working.' : 'You switched this off. Tick it to hand the decision back to the plugin.') : null"
+              >
+                <input type="checkbox" :checked="typeShowsOn(pt)" @change="toggleTypeCard(pt)" />
+                <span class="ar-type__check" aria-hidden="true"></span>
+                <span class="ar-type__body">
+                  <span class="ar-type__label">{{ pt.label }}</span>
+                  <span class="ar-type__meta">
+                    <span v-if="pt.source" class="ar-type__src">{{ pt.source }}</span>
+                    <code>{{ pt.slug }}</code>
+                  </span>
                 </span>
-              </span>
-            </label>
-            <p v-if="!filteredPostTypes.length" class="ar-types-empty">No types match “{{ typeQuery }}”.</p>
-          </div>
+              </label>
+            </div>
+          </template>
+          <p v-if="!filteredPostTypes.length" class="ar-types-empty">No types match “{{ typeQuery }}”.</p>
         </div>
         <!-- Teach the taxonomy expansion (why N types → more than N tokens) WITHOUT
              claiming to equal the dashboard's capabilities total: on a site where a
              commerce plugin owns wp/v2, Agentimus's core-content provider stands down
              and these tokens are superseded, so "= the 4 on the dashboard" would be a
              lie there. The mapping itself is always true. -->
+        <!-- Taught once, under the grid, rather than on every locked card: a line
+             inside the card made its row taller than the one above and the whole
+             grid looked broken. Shown only when there IS one, so a site with no
+             integrations never reads an explanation for something it cannot see. -->
+        <p v-if="forcedTypes.length" class="ar-card__note ar-card__note--wide">
+          <strong>Offered by plugins</strong> — an integration asked for
+          {{ forcedTypes.length === 1 ? 'this type' : 'these types' }}, so
+          {{ forcedTypes.length === 1 ? 'it is' : 'they are' }} on unless you say otherwise. Unticking
+          stops {{ forcedTypes.length === 1 ? 'it' : 'them' }} being advertised and your choice outlasts the
+          plugin being deactivated; ticking again hands the decision back rather than pinning
+          {{ forcedTypes.length === 1 ? 'it' : 'them' }} on. The plugin itself keeps working either way.
+        </p>
         <p v-if="advertisedCapabilities.length" class="ar-card__note ar-card__note--wide">
           <strong>Each ticked type is advertised with its public taxonomies</strong> — a post carries
           categories and tags, so {{ selectedTypeCount }}

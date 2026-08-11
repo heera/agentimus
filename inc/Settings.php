@@ -91,6 +91,7 @@ final class Settings {
 			'llms_full_posts'  => 50,
 			'llms_full_max_kb' => 900, // Hard byte budget for /llms-full.txt (KB): generation stops cleanly here and links the index. Deliberately UNDER 1024, not at it: a ~1 MB body sits exactly at the common memcached item ceiling, so with the key + serialization overhead the object cache silently REJECTS it — then every request re-runs the full build. 900 KB leaves headroom so the document actually caches. Filterable higher for sites whose cache (or lack of one) can take it.
 			'post_types'       => self::default_post_types(),
+			'post_types_vetoed'    => array(), // Types a PLUGIN switched on that the owner has switched back off. Separate from post_types because the two answer different questions: post_types is "what I chose", this is "what I refused". Applied LAST, after the agentimus_post_types filter, so the owner's no outranks a plugin's yes on their own site. Deliberately NOT intersected with the registered types on save (post_types is): a veto must outlive the plugin's absence, or deactivating it for a week and saving anything would silently forget the refusal and the type would come back advertised on reactivation.
 			'evergreen_categories' => array(), // Category term IDs whose posts are exempt from the content "freshness" check — timeless content (references, tutorials, legal) that doesn't go stale with age. Empty = every post is age-checked.
 			'optimize_ignored'     => array(), // Post IDs the owner marked "not cited content" from the Optimize worklist — pages that aren't meant to be quoted (landing/utility/index). Left out of citability grading entirely; always shown as a visible "set aside" count so the score stays honest.
 			'search_ignored'       => array(), // Post IDs set aside from the Search Opportunities worklist — pages the owner doesn't want search suggestions for. Its OWN list, not shared with optimize_ignored: "don't grade this for citability" and "don't suggest search fixes for this" are different judgements. Shown inside the Search Opportunities section so it is never a hidden ledger.
@@ -737,6 +738,10 @@ final class Settings {
 
 		$hour                 = isset( $input['digest_hour'] ) ? (int) $input['digest_hour'] : $defaults['digest_hour'];
 		$clean['digest_hour'] = ( $hour >= 0 && $hour <= 23 ) ? $hour : $defaults['digest_hour'];
+
+		// Kept VERBATIM — no intersect with what is registered today. See the
+		// default's note: a veto has to survive the vetoed plugin being away.
+		$clean['post_types_vetoed'] = $this->sanitize_list( isset( $input['post_types_vetoed'] ) ? $input['post_types_vetoed'] : array(), 'sanitize_key' );
 
 		$available           = Content::available();
 		$requested           = $this->sanitize_list( isset( $input['post_types'] ) ? $input['post_types'] : array(), 'sanitize_key' );

@@ -3169,11 +3169,51 @@ select.ar-input {
   content: "\2713"; position: absolute; top: 8px; right: 11px; /* \2713 (not a literal ✓): encoding-proof if the CSS is ever served as latin-1. */
   font-size: 11px; line-height: 1; font-weight: 700; color: var(--ar-accent);
 }
+/* Mid-save, the card's corner mark becomes a spinner — the tick would otherwise
+   flip instantly and claim a save that had not landed yet. Declared AFTER
+   `.ar-type.is-on::after` on purpose: the two selectors have equal specificity,
+   so source order is what lets the spinner win while the save is in flight. */
+.ar-type[data-busy]::after {
+  content: ""; position: absolute; top: 8px; right: 11px;
+  width: 11px; height: 11px; border-radius: 50%;
+  border: 1.5px solid var(--ar-line-strong); border-top-color: var(--ar-accent);
+  animation: ar-spin 0.7s linear infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .ar-type[data-busy]::after { animation-duration: 1.6s; }
+}
+/* Dimmed less than a toggle: something is turning in there and it has to stay
+   legible while it does. */
+.ar-type[data-busy] { opacity: 0.82; }
+
 /* The real <input> is visually hidden, so ring the whole card on KEYBOARD focus
    only. Using :has(:focus-visible) (not :focus-within) is deliberate: after a
    mouse click the checkbox keeps DOM focus, and :focus-within would leave the
    accent ring on a card the click just DESELECTED — making it look still-on. */
 .ar-type:has(:focus-visible) { border-color: var(--ar-accent); outline: 2px solid var(--ar-accent); outline-offset: 2px; }
+
+/* Switched on by a plugin, not by the owner. It reads as ON — because it is —
+   and the DASHED border is the whole signal: same accent, drawn as something
+   set from outside. A tick the owner cannot untick must not look identical to
+   the ones they chose.
+   Locked on the LABEL, never with a native [disabled]: wp-admin's forms.css
+   repaints a disabled checkbox as a bordered box and out-specifies our hide,
+   which leaks a stray tick onto the card (the same trap the busy state
+   documents above).
+   No extra line inside the card: one card a row taller than its neighbours
+   makes the whole grid look broken, and the explanation belongs once, under the
+   grid, rather than repeated on every locked card. */
+/* The plugin-offered group's label. The GROUPING carries the meaning now, so the
+   cards inside are drawn exactly like any other — a dashed border on every card
+   in a labelled group is decoration repeating what the label already said.
+   A RULE across the full width does the separating: a label alone floated in the
+   gap between two grids and read as another card's caption rather than a break
+   between two different kinds of thing. */
+.ar-types-group {
+  margin: 22px 0 10px; padding-top: 16px; border-top: 1px solid var(--ar-line);
+  font-family: var(--ar-mono); font-size: 10px;
+  letter-spacing: 0.09em; text-transform: uppercase; color: var(--ar-ink-faint);
+}
 
 .ar-type__body { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
 .ar-type__label {

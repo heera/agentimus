@@ -79,7 +79,13 @@ final class Plugin {
 		// the request URI because REST_REQUEST isn't defined this early (plugins_loaded).
 		$on_settings = is_admin() && 'agentimus' === ( isset( $_GET['page'] ) ? sanitize_key( wp_unslash( $_GET['page'] ) ) : '' ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only screen check, no state change.
 		$request_uri = isset( $_SERVER['REQUEST_URI'] ) ? sanitize_text_field( wp_unslash( $_SERVER['REQUEST_URI'] ) ) : '';
-		$on_preview  = false !== strpos( $request_uri, 'agentimus/v1/preview' );
+		// The assistant's state route joins the list: it re-serves the type
+		// chooser after a settings change, and without origin recording the
+		// refreshed list came back as a bare "Products" where the page load had
+		// said "Products · WooCommerce" — the same list, named two ways,
+		// depending on how it was fetched.
+		$on_preview  = false !== strpos( $request_uri, 'agentimus/v1/preview' )
+			|| false !== strpos( $request_uri, 'agentimus/v1/assistant/state' );
 		if ( $on_settings || $on_preview ) {
 			Content::watch_origins();
 		}
