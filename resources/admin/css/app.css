@@ -1604,17 +1604,30 @@
 /* (A full-width tinted band behind the header zone was tried and reverted: the tab strip
    already uses the secondary surface, so the panel opened as three stacked tinted strips,
    and the band's edge swallowed the masthead rule's contrast. Flat surface + rule wins.) */
-/* Quiet aside that clarifies a control's scope (e.g. "advertises, not enforces"). */
+/* Quiet aside that clarifies a control's scope (e.g. "advertises, not enforces").
+ *
+ * The BOX runs the full width of the card; the TEXT keeps an 88-character
+ * reading measure. Those used to be the same thing — `max-width: 88ch` on the
+ * element — which stopped a tinted, left-ruled panel at 56% of a 1188px card and
+ * read as unfinished rather than as a measure. A filled box has an edge, and an
+ * edge that lands nowhere looks like a mistake.
+ *
+ * So the measure moves into the padding: the right pad grows to eat whatever the
+ * card has beyond 88ch, and `max()` floors it at the normal 12px once the card
+ * is narrower than the measure — phones and half-width columns are untouched.
+ * Percentage padding resolves against the containing block's inline size, which
+ * for a block-level note IS the card's content width. */
 .ar-card__note {
-  margin: 14px 0 0; padding: 9px 12px; max-width: 88ch;
+  margin: 14px 0 0; padding: 9px 12px;
+  padding-right: max(12px, 100% - 88ch);
   border-left: 2px solid var(--ar-line-strong); border-radius: 0 var(--ar-radius) var(--ar-radius) 0;
   background: var(--ar-surface-2); color: var(--ar-ink-faint); font-size: 12px; line-height: 1.5;
 }
 .ar-card__note strong { color: var(--ar-ink-soft); font-weight: 600; }
 .ar-card__note code { font-size: 11px; }
-/* A note whose payload is a chip list needs the full card width, not the 88ch
-   reading measure — chips wrap far better across the whole row. */
-.ar-card__note--wide { max-width: none; }
+/* A note whose payload is a chip list wants the whole row, measure and all —
+   chips wrap far better across the full width than inside a reading column. */
+.ar-card__note--wide { padding-right: 12px; }
 .ar-card__note--wide code { white-space: nowrap; }
 /* Grouped panel for the AI opt-out channels published beyond robots.txt:
    a quiet inset card so the eyebrow + explainer + channel toggles read as one
@@ -3576,7 +3589,10 @@ html { scrollbar-gutter: stable; }
 .ar-wiz__svc-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 2px; }
 .ar-wiz__svc .ar-field { margin-top: 12px; }
 .ar-wiz__svc .ar-field:first-of-type { margin-top: 0; }
-.ar-wiz__centernote { margin-inline: auto; text-align: center; }
+/* Centred text needs a box narrow enough to be centred IN, so this one keeps
+   the measure as a width rather than as a right pad — auto margins have nothing
+   to balance against a full-width block. */
+.ar-wiz__centernote { max-width: 88ch; padding-right: 12px; margin-inline: auto; text-align: center; }
 
 /* The celebration's "live right now" ticks: real, verifiable accomplishments —
    the ✓ list idiom, centered as a block, reading left like the welcome points.
