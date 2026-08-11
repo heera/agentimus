@@ -1400,6 +1400,21 @@ export default {
       } finally {
         this.refreshingReadiness = false;
       }
+    // Open the drawer, and re-read what it can write on the way in.
+    //
+    // The boot payload carries this state, but a payload is a photograph: tick a
+    // content type in Settings and the type chooser kept offering the list from
+    // page load until the owner reloaded. Every other screen in this app re-reads
+    // on return; the drawer had been the exception because it is not a screen.
+    // The fetch is not awaited — the drawer opens instantly on what it already
+    // has, and the list corrects itself a moment later if anything changed.
+    openAssistant() {
+      this.assistantOpen = true;
+      if (!this.api || !this.api.assistantState) return;
+      this.api.assistantState()
+        .then((s) => { if (s && Array.isArray(s.types)) this.assistant = s; })
+        .catch(() => { /* the boot payload is still a good answer */ });
+    },
     },
     // Re-read the AEO/GEO rail. Quiet by design: it has no spinner and swallows its errors,
     // because it runs on tab focus and must never interrupt what the owner is doing.
@@ -1870,7 +1885,7 @@ export default {
            now rides the tab, beside More. Settings left it too, for More's
            meta group — a screen among actions wore a selected state its
            neighbours could never have. -->
-      <AssistantLauncher :state="assistantState" @open="assistantOpen = true" @navigate="goTo" />
+      <AssistantLauncher :state="assistantState" @open="openAssistant" @navigate="goTo" />
       <!-- `enabled` from BOOT settings, not the fetched activity payload: the
            fetched flag arrives a beat after first paint and popped the bell in
            late — a layout shift for a control that is always present when

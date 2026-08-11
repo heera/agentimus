@@ -766,6 +766,12 @@
 .ar-assist__footrow { display: flex; align-items: center; gap: 13px; flex-wrap: wrap; }
 .ar-assist__footrow--commit { margin-top: 10px; }
 .ar-assist__footrow .ar-assist__go { display: inline-flex; align-items: center; gap: 7px; }
+/* …unless it is reserving width. The rule above is more specific than
+   .ar-btn--reserve, so inline-flex won and the hidden reserve text stopped being
+   a stacked grid cell and became a FLEX SIBLING — sitting beside the label,
+   shoving it off centre and doubling the button's width. Restated at matching
+   specificity, the same way the Findings refresh does it. */
+.ar-assist__footrow .ar-assist__go.ar-btn--reserve { display: inline-grid; justify-items: center; }
 .ar-assist__footerror { margin: 0 0 9px; }
 .ar-assist__resetlink { color: var(--ar-ink-faint); }
 .ar-assist__resetlink:hover { color: var(--ar-bad); }
@@ -793,6 +799,14 @@
    pinned feet share these two. (The brief screen's separate dashed strip is
    gone: it lived under the buttons and duplicated the link now sitting in the
    action row beside them.) */
+/* The reset confirm holds its two answers on ONE line. The row wraps by design
+   — four controls on a narrow drawer need to — but a question whose "Yes, clear
+   it" and "Keep it" land on different lines stops reading as a pair and becomes
+   two unrelated links, one of them destructive. The PROSE gives way instead:
+   it shrinks and wraps within itself, which costs nothing. */
+.ar-assist__footrow--confirm { flex-wrap: nowrap; }
+.ar-assist__footrow--confirm .ar-assist__resettext { flex: 1 1 auto; min-width: 0; }
+.ar-assist__footrow--confirm .ar-linkbtn { flex: 0 0 auto; white-space: nowrap; }
 .ar-assist__resettext { font-size: 11.5px; color: var(--ar-ink-faint); }
 .ar-assist__resetdanger { color: var(--ar-bad); }
 

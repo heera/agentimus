@@ -181,11 +181,21 @@ final class Assistant {
 	 * the picker both render from one list, and neither can offer a type the
 	 * endpoints would reject.
 	 *
-	 * @return array<int,array{slug:string,label:string,shape:string}>
+	 * @return array<int,array{slug:string,label:string,shape:string,presets:array}>
 	 */
 	public static function types() {
 		$out = array();
 		foreach ( Content::post_types() as $slug ) {
+			// The assistant WRITES A BODY, and a type without editor support does
+			// not keep its body in post_content — the plugin that registered it
+			// keeps it somewhere we cannot see. Offering such a type would take a
+			// paid-for draft and file it into a field nothing ever renders, and
+			// report success. The rest of the plugin still lists these types
+			// happily: reading what a type has is a different question from
+			// writing into it, and only writing can lose someone's work.
+			if ( ! post_type_supports( $slug, 'editor' ) ) {
+				continue;
+			}
 			$out[] = array(
 				'slug'     => $slug,
 				'label'    => Content::label( $slug ),
@@ -194,9 +204,373 @@ final class Assistant {
 				// the other job.
 				'singular' => Content::singular( $slug ),
 				'shape'    => self::shape_for( $slug ),
+				'presets'  => self::presets_for( $slug ),
+				// What this type can actually be filed under, so the drawer never
+				// shows a term row the write would drop ({@see self::terms_for()}).
+				'terms'    => self::terms_for( $slug, self::shape_for( $slug ) ),
+			);
+		}
+		return self::name_types( $out );
+	}
+
+	/**
+	 * The name a type answers to in the chooser.
+	 *
+	 * "Products" is not one word, it is two plugins. WooCommerce registers
+	 * `product` labelled "Products"; FluentCart registers `fluent-products`
+	 * labelled "Products". A shop running both offered two identical entries and
+	 * no way to tell which was about to be written into.
+	 *
+	 * The vendor name comes from {@see Content::source()}, which the Content
+	 * Types setting has always used: it walks the call stack at registration to
+	 * the plugin folder that registered the type, then reads that plugin's own
+	 * header Name. Nothing is hardcoded and no slug list exists — and reusing it
+	 * means the chooser and the setting cannot disagree about who owns a type,
+	 * which two implementations of the same idea eventually would.
+	 *
+	 * The slug is the fallback, not the answer: a type registered by a theme or
+	 * an mu-plugin has no plugin name to read, and a bare "Products" would still
+	 * be ambiguous. It is also appended when two entries STILL read the same
+	 * after their vendors are named — one plugin registering two types both
+	 * called Products is unlikely, and unlikely is not never.
+	 *
+	 * @param array $types Type rows, each with slug + label.
+	 * @return array
+	 */
+	private static function name_types( array $types ) {
+		foreach ( $types as &$row ) {
+			$source = (string) Content::source( (string) $row['slug'] );
+			if ( '' !== $source ) {
+				/* translators: 1: post type label, 2: the plugin that registered it. */
+				$row['label'] = sprintf( __( '%1$s · %2$s', 'agentimus' ), $row['label'], $source );
+			}
+		}
+		unset( $row );
+
+		// Anything still indistinguishable gets the one identifier that cannot
+		// collide.
+		$seen = array();
+		foreach ( $types as $row ) {
+			$seen[ $row['label'] ] = isset( $seen[ $row['label'] ] ) ? $seen[ $row['label'] ] + 1 : 1;
+		}
+		foreach ( $types as &$row ) {
+			if ( $seen[ $row['label'] ] > 1 ) {
+				/* translators: 1: post type label, 2: post type slug. */
+				$row['label'] = sprintf( __( '%1$s · %2$s', 'agentimus' ), $row['label'], $row['slug'] );
+			}
+		}
+		unset( $row );
+		return $types;
+	}
+
+	/**
+	 * Every link the assistant writes to SOMEONE ELSE'S site opens in a new tab.
+	 *
+	 * A reader who follows a citation out of an article and loses the article is
+	 * a reader who does not come back, and the piece we just wrote is the thing
+	 * they were reading. Links to this site keep the normal behaviour: staying
+	 * inside a site is not leaving it, and a new tab for every internal link is
+	 * how you end up with fifteen of them.
+	 *
+	 * `rel` gains noopener/noreferrer, which is not optional with _blank: without
+	 * it the opened page can reach back through window.opener.
+	 *
+	 * Applied to STORED content, not just the preview, so the behaviour survives
+	 * into the post rather than being a trick of how the drawer renders.
+	 *
+	 * @param string $html Post body HTML.
+	 * @return string
+	 */
+	public static function outbound_links_blank( $html ) {
+		$html = (string) $html;
+		if ( '' === trim( $html ) || false === strpos( $html, '<a ' ) || ! class_exists( \DOMDocument::class ) ) {
+			return $html;
+		}
+
+		$host = strtolower( (string) wp_parse_url( home_url( '/' ), PHP_URL_HOST ) );
+
+		$dom = new \DOMDocument();
+		libxml_use_internal_errors( true );
+		$ok = $dom->loadHTML(
+			'<?xml encoding="utf-8" ?><div>' . $html . '</div>',
+			LIBXML_HTML_NOIMPLIED | LIBXML_HTML_NODEFDTD | LIBXML_NONET
+		);
+		libxml_clear_errors();
+		if ( ! $ok || ! $dom->documentElement ) {
+			return $html; // Unparseable: leave it exactly as it was.
+		}
+
+		$touched = false;
+		foreach ( $dom->getElementsByTagName( 'a' ) as $a ) {
+			$href = trim( (string) $a->getAttribute( 'href' ) );
+			if ( '' === $href ) {
+				continue;
+			}
+			$link_host = strtolower( (string) wp_parse_url( $href, PHP_URL_HOST ) );
+			// No host means a relative path, an anchor or a mailto — none of them
+			// is somewhere else.
+			if ( '' === $link_host || $link_host === $host ) {
+				continue;
+			}
+			$a->setAttribute( 'target', '_blank' );
+			$rel = trim( (string) $a->getAttribute( 'rel' ) );
+			$has = preg_split( '/\s+/', $rel, -1, PREG_SPLIT_NO_EMPTY );
+			foreach ( array( 'noopener', 'noreferrer' ) as $token ) {
+				if ( ! in_array( $token, $has, true ) ) {
+					$has[] = $token;
+				}
+			}
+			$a->setAttribute( 'rel', implode( ' ', $has ) );
+			$touched = true;
+		}
+		if ( ! $touched ) {
+			return $html;
+		}
+
+		$out = '';
+		foreach ( $dom->documentElement->childNodes as $child ) {
+			$out .= $dom->saveHTML( $child );
+		}
+		return $out;
+	}
+
+	/**
+	 * The word this site uses for ONE of these, for the frames to speak in.
+	 *
+	 * WordPress already knows it — a type's own singular label — so a Book's
+	 * frames say "book" and a Product's say "product" without anything here
+	 * guessing. Lowercased, because it lands mid-sentence.
+	 *
+	 * @param string $type Post type slug.
+	 * @return string
+	 */
+	private static function preset_noun( $type ) {
+		$singular = trim( (string) Content::singular( $type ) );
+		if ( '' === $singular ) {
+			return 'item';
+		}
+		// A parenthetical is a DISAMBIGUATOR, not part of the noun: FluentCart
+		// labels its singular "Product (FluentCart)" so its own products can be
+		// told from WooCommerce's in a shared admin. Left in, it broke this twice
+		// over — the shape lookup missed "product" entirely, so the two shops got
+		// different frames for the same thing, and the prose read "Describe this
+		// product (fluentcart) for…". The bracket is for lists, never sentences.
+		$singular = trim( (string) preg_replace( '/\s*[\(\[][^\)\]]*[\)\]]\s*/u', ' ', $singular ) );
+		$singular = trim( (string) preg_replace( '/\s+/u', ' ', $singular ) );
+		return '' !== $singular ? mb_strtolower( $singular ) : 'item';
+	}
+
+	/**
+	 * Starting frames for a type that is neither a post nor a page.
+	 *
+	 * MATCHED ON THE SINGULAR LABEL, never the slug. WooCommerce calls its type
+	 * `product` and FluentCart calls its `fluent-products`, but both call ONE of
+	 * them a "Product" — the label is the word the site itself uses, and it is
+	 * far steadier across plugins than any slug. An unrecognised word simply
+	 * falls to the neutral set.
+	 *
+	 * AND THIS IS EDITORIAL, NOT AN INFERENCE. Everywhere else this plugin
+	 * refuses a hardcoded list, it does so because WordPress can answer the
+	 * question itself (does this type take categories? does it use the block
+	 * editor?). Nothing can tell us what a recipe listing ought to contain —
+	 * there is no API for editorial convention. So these are suggestions written
+	 * by hand, exactly like the Posts and Pages sets above, for a handful of
+	 * shapes almost every site means the same thing by. Anything else gets
+	 * frames that cannot be wrong, and the filter below is how a plugin says
+	 * what its own type actually needs.
+	 *
+	 * @param string $noun The type's singular, lowercased.
+	 * @return array<int,array{label:string,seed:string}>
+	 */
+	private static function shaped_presets( $noun ) {
+		switch ( $noun ) {
+			case 'product':
+				return array(
+					array( 'label' => __( 'Describe it', 'agentimus' ), 'seed' => sprintf( __( 'Describe this %s for [audience] — what it does, who it suits, and what they get. Plain and specific, no marketing voice. Around 150 words, no headings.', 'agentimus' ), $noun ) ),
+					array( 'label' => __( 'What’s included', 'agentimus' ), 'seed' => sprintf( __( 'What this %s includes and what it does not — a short list, then one paragraph on who it is not for. Leave a [placeholder] wherever I haven’t given you the fact.', 'agentimus' ), $noun ) ),
+					array( 'label' => __( 'Who it’s for', 'agentimus' ), 'seed' => sprintf( __( 'Who this %s is for and who should skip it — the situations it fits, and the ones it does not. Honest, around 150 words.', 'agentimus' ), $noun ) ),
+					array( 'label' => __( 'FAQ', 'agentimus' ), 'seed' => sprintf( __( 'The questions people actually ask before buying this %s, answered plainly — including the awkward ones. One short answer each.', 'agentimus' ), $noun ) ),
+				);
+
+			case 'event':
+				return array(
+					array( 'label' => __( 'Describe it', 'agentimus' ), 'seed' => sprintf( __( 'Describe this %s for [audience] — what happens, who it is for, and why it is worth their time. Around 150 words, no headings.', 'agentimus' ), $noun ) ),
+					array( 'label' => __( 'What to expect', 'agentimus' ), 'seed' => sprintf( __( 'What happens at this %s, start to finish — the shape of the day and what someone should be ready for. Leave a [placeholder] for any time, price or address I haven’t given you.', 'agentimus' ), $noun ) ),
+					array( 'label' => __( 'Practical details', 'agentimus' ), 'seed' => sprintf( __( 'The practical details for this %s — getting there, what to bring, accessibility, what is provided. A short list. Invent nothing: leave a [placeholder] for anything I have not told you.', 'agentimus' ), $noun ) ),
+					array( 'label' => __( 'FAQ', 'agentimus' ), 'seed' => sprintf( __( 'The questions people ask before coming to this %s, answered plainly. One short answer each.', 'agentimus' ), $noun ) ),
+				);
+
+			case 'recipe':
+				return array(
+					array( 'label' => __( 'Describe it', 'agentimus' ), 'seed' => sprintf( __( 'Introduce this %s — what it tastes like, when to make it, and how much work it really is. Around 120 words, no headings.', 'agentimus' ), $noun ) ),
+					array( 'label' => __( 'Method', 'agentimus' ), 'seed' => sprintf( __( 'The method for this %s as numbered steps, with what to look for at each one rather than only times. Leave a [placeholder] for any quantity I have not given you — never invent an amount.', 'agentimus' ), $noun ) ),
+					array( 'label' => __( 'Tips', 'agentimus' ), 'seed' => sprintf( __( 'What usually goes wrong with this %s and how to avoid it — plus what can be prepared ahead and how to store it.', 'agentimus' ), $noun ) ),
+					array( 'label' => __( 'Variations', 'agentimus' ), 'seed' => sprintf( __( 'Sensible variations on this %s — swaps for common diets or missing ingredients, and which changes affect the result most.', 'agentimus' ), $noun ) ),
+				);
+
+			case 'book':
+				return array(
+					array( 'label' => __( 'Describe it', 'agentimus' ), 'seed' => sprintf( __( 'Describe this %s for [audience] — what it is about and what a reader takes away. No spoilers. Around 150 words.', 'agentimus' ), $noun ) ),
+					array( 'label' => __( 'What it covers', 'agentimus' ), 'seed' => sprintf( __( 'What this %s covers, section by section, and roughly how much ground each part takes. Leave a [placeholder] for anything I have not told you.', 'agentimus' ), $noun ) ),
+					array( 'label' => __( 'Who it’s for', 'agentimus' ), 'seed' => sprintf( __( 'Who this %s is for and who will find it too basic or too advanced — and what a reader should already know.', 'agentimus' ), $noun ) ),
+					array( 'label' => __( 'About the author', 'agentimus' ), 'seed' => sprintf( __( 'A short note on the author of this %s — what they do and why they were the one to write it. Invent nothing: leave a [placeholder] for any fact I have not given you.', 'agentimus' ), $noun ) ),
+				);
+		}
+
+		// The floor. Each one works whether the type holds a portfolio piece, a
+		// job listing or something nobody here has thought of, and none of them
+		// assumes the owner is blogging.
+		return array(
+			array( 'label' => __( 'Describe it', 'agentimus' ), 'seed' => sprintf( __( 'Describe this %s for [audience] — what it is, who it suits, and what they get. Plain and specific, no marketing voice. Around 150 words, no headings.', 'agentimus' ), $noun ) ),
+			array( 'label' => __( 'FAQ', 'agentimus' ), 'seed' => sprintf( __( 'The questions people actually ask about this %s, answered plainly — including the awkward ones. One short answer each. Leave a [placeholder] wherever I haven’t given you the fact.', 'agentimus' ), $noun ) ),
+			array( 'label' => __( 'Key details', 'agentimus' ), 'seed' => sprintf( __( 'The details someone needs before deciding about this %s — a short list, then one paragraph on who it is not for. Around 200 words.', 'agentimus' ), $noun ) ),
+			array( 'label' => __( 'Announcement', 'agentimus' ), 'seed' => sprintf( __( 'Announce this %s to [audience] — what has changed, why it matters to them, and what to do next. Around 150 words, no hype.', 'agentimus' ), $noun ) ),
+		);
+	}
+
+	/**
+	 * Whether the assistant proposes illustration slots for a type.
+	 *
+	 * Three image placeholders down the middle of a piece is an ARTICLE habit.
+	 * On a product description it produced exactly what it sounds like: a
+	 * shop-owner's product page interrupted by three empty figures — and in a
+	 * plugin's own classic editor those render as broken-image icons with the
+	 * alt text spilling into the prose.
+	 *
+	 * So the same discipline as {@see self::terms_for()}: `post` is the one type
+	 * whose conventions we can claim to know, pages have always been excluded on
+	 * editorial grounds, and everything else is offered nothing rather than
+	 * something wrong. The filter reaches this too, for a site that wants them.
+	 *
+	 * Note this is NOT gated on block-editor support: a FluentCart product
+	 * reports `use_block_editor_for_post_type() === true`, so that signal would
+	 * have said yes. What is wrong here is the convention, not the storage.
+	 *
+	 * @param string $type  Post type slug.
+	 * @param string $shape self::SHAPE_ARTICLE|self::SHAPE_PAGE.
+	 * @return bool
+	 */
+	public static function wants_images( $type, $shape = self::SHAPE_ARTICLE ) {
+		if ( self::SHAPE_PAGE === $shape ) {
+			return false;
+		}
+		$type  = sanitize_key( (string) $type );
+		$wants = ( '' === $type || 'post' === $type );
+
+		/**
+		 * Filter whether the assistant proposes illustration slots for a type.
+		 *
+		 * @param bool   $wants Whether to offer image slots.
+		 * @param string $type  Post type slug.
+		 */
+		return (bool) apply_filters( 'agentimus_assistant_images', $wants, $type );
+	}
+
+	/**
+	 * The starting frames offered for a type — fill-in-the-blanks briefs, not
+	 * modes: a chip only ever types into the box on the owner's behalf, and the
+	 * [brackets] are the point, showing which decisions stay the owner's.
+	 *
+	 * WHY THEY LIVE HERE and not in the admin app: a WordPress site is not only
+	 * a blog. Posts and Pages are the two types whose conventions we can honestly
+	 * claim to know; a Product, an Event, a Recipe or a Book is a THING rather
+	 * than a piece of writing, and offering "Product review" while someone writes
+	 * their own product was not merely unhelpful, it was backwards. So anything
+	 * else gets frames that fit any content and can never be wrong for it — and
+	 * the filter below lets a commerce plugin, a theme or a site supply frames
+	 * that really do fit, without this plugin maintaining a list of every
+	 * commerce plugin that exists. ({@see self::shape_for()} refused a hard-coded
+	 * type list for the same reason.)
+	 *
+	 * Server-side also makes them translatable, which they were not while they
+	 * sat in the JavaScript as English string literals.
+	 *
+	 * @param string $type Post type slug.
+	 * @return array<int,array{label:string,seed:string}>
+	 */
+	public static function presets_for( $type ) {
+		$type = sanitize_key( (string) $type );
+		$noun = self::preset_noun( $type );
+
+		if ( 'page' === $type ) {
+			$presets = array(
+				array( 'label' => __( 'About', 'agentimus' ), 'seed' => __( 'An About page for [who] — what they do, what they’re known for, and how to get in touch. Warm, specific, not boastful. Short.', 'agentimus' ) ),
+				array( 'label' => __( 'Services', 'agentimus' ), 'seed' => __( 'A Services page covering [service one] and [service two] — what each includes, who it’s for, and what happens after someone gets in touch.', 'agentimus' ) ),
+				array( 'label' => __( 'Contact', 'agentimus' ), 'seed' => __( 'A Contact page — the ways to reach [who], what to expect for a reply, and what to include in a first message.', 'agentimus' ) ),
+				// The placeholder instruction is repeated here on purpose: this is
+				// the one preset where an invented fact becomes a commitment the
+				// owner never made.
+				array( 'label' => __( 'Terms / Policy', 'agentimus' ), 'seed' => __( 'A [Terms of service / Privacy policy] page covering [what it has to cover]. Leave a [placeholder] anywhere I haven’t given you a fact — do not invent a company name, jurisdiction, retention period or guarantee.', 'agentimus' ) ),
+			);
+		} elseif ( 'post' === $type ) {
+			$presets = array(
+				array( 'label' => __( 'SEO article', 'agentimus' ), 'seed' => __( 'A practical article on [topic] for [audience] — what actually matters, the mistakes people make, and a short checklist to finish. Around 900 words.', 'agentimus' ) ),
+				array( 'label' => __( 'Tutorial', 'agentimus' ), 'seed' => __( 'A step-by-step tutorial showing how to [task], for someone who [level of experience]. Numbered steps, what to expect after each one, and a short troubleshooting section at the end.', 'agentimus' ) ),
+				array( 'label' => __( 'Comparison', 'agentimus' ), 'seed' => __( 'A fair comparison of [A] and [B] for [audience] — where each one wins, where each falls short, and a clear answer on who should pick which.', 'agentimus' ) ),
+				array( 'label' => __( 'Product review', 'agentimus' ), 'seed' => __( 'An honest review of [product] after real use — what it does well, what it doesn’t, who it suits and who should skip it. No marketing voice.', 'agentimus' ) ),
+			);
+		} else {
+			$presets = self::shaped_presets( $noun );
+		}
+
+		/**
+		 * Filter the starting frames the writing assistant offers for a type.
+		 *
+		 * This is the seam for the types this plugin cannot speak for. A commerce
+		 * plugin can hand a product type real product frames; a site can replace
+		 * the neutral set with its own house shapes. Return [] to offer none.
+		 *
+		 * @param array  $presets Each { label, seed }. Seeds are briefs with
+		 *                        [bracketed] blanks the owner fills in.
+		 * @param string $type    Post type slug.
+		 */
+		$presets = apply_filters( 'agentimus_assistant_presets', $presets, $type );
+
+		$out = array();
+		foreach ( (array) $presets as $preset ) {
+			if ( ! is_array( $preset ) || empty( $preset['label'] ) || empty( $preset['seed'] ) ) {
+				continue; // A half-written frame is worse than a missing one.
+			}
+			$out[] = array(
+				'label' => (string) $preset['label'],
+				'seed'  => (string) $preset['seed'],
 			);
 		}
 		return $out;
+	}
+
+	/**
+	 * Which taxonomies the assistant may fill for a type.
+	 *
+	 * TWO different questions used to be answered by one: "is this written like a
+	 * page?" decided both the prose shape AND whether tags and categories were
+	 * asked for. That holds for posts and pages and breaks for everything else —
+	 * a FluentCart product is article-shaped, so the model was asked for tags and
+	 * categories, produced them, showed them in the preview, and the write then
+	 * failed with "this content type does not use categories" AFTER the whole
+	 * draft had been paid for. The last possible moment to learn it.
+	 *
+	 * WordPress already knows the answer, so ask it. The page rule stays on top
+	 * as the editorial choice it always was: a standing page is not filed under
+	 * taxonomies even where it technically could be.
+	 *
+	 * @param string $type  Post type slug. Empty means "unknown" — callers with
+	 *                      no type keep the old shape-only behaviour.
+	 * @param string $shape self::SHAPE_ARTICLE|self::SHAPE_PAGE.
+	 * @return array{tags:bool,categories:bool}
+	 */
+	public static function terms_for( $type, $shape = self::SHAPE_ARTICLE ) {
+		if ( self::SHAPE_PAGE === $shape ) {
+			return array( 'tags' => false, 'categories' => false );
+		}
+		$type = sanitize_key( (string) $type );
+		if ( '' === $type || ! function_exists( 'is_object_in_taxonomy' ) ) {
+			return array( 'tags' => true, 'categories' => true );
+		}
+		return array(
+			'tags'       => (bool) is_object_in_taxonomy( $type, 'post_tag' ),
+			'categories' => (bool) is_object_in_taxonomy( $type, 'category' ),
+		);
 	}
 
 	/**
@@ -281,6 +655,26 @@ final class Assistant {
 				'permission_callback' => array( $this, 'can_compose' ),
 			)
 		);
+		// The drawer's own state, re-read when it opens. It arrives in the boot
+		// payload too, but that payload is fixed at page load — so ticking a
+		// content type in Settings left the type chooser showing yesterday's list
+		// until the owner reloaded the page. Deliberately NOT gated on the write
+		// switch: the launcher renders this state in order to explain that writing
+		// is off, and a 403 would leave it explaining nothing.
+		register_rest_route(
+			self::NS,
+			'/assistant/state',
+			array(
+				'methods'             => \WP_REST_Server::READABLE,
+				'callback'            => function () {
+					return rest_ensure_response( $this->state() );
+				},
+				'permission_callback' => static function () {
+					return current_user_can( 'edit_posts' );
+				},
+			)
+		);
+
 		register_rest_route(
 			self::NS,
 			'/assistant/outline',
@@ -468,7 +862,7 @@ final class Assistant {
 		}
 
 		$text = ( new Assist( $this->settings ) )->generate(
-			self::system_prompt( self::shape_for( self::read_type( $request ) ) ),
+			self::system_prompt( self::shape_for( self::read_type( $request ) ), self::read_type( $request ) ),
 			$prompt,
 			self::COMPOSE_TOKENS
 		);
@@ -476,7 +870,8 @@ final class Assistant {
 			return self::friendly_ai_error( $text );
 		}
 
-		$draft = self::parse_draft( $text );
+		$compose_type = self::read_type( $request );
+		$draft        = self::parse_draft( $text, $compose_type, self::shape_for( $compose_type ) );
 		if ( is_wp_error( $draft ) ) {
 			return $draft;
 		}
@@ -628,7 +1023,7 @@ final class Assistant {
 		}
 
 		$text = ( new Assist( $this->settings ) )->generate(
-			self::staged_meta_system_prompt( self::shape_for( self::read_type( $request ) ) ),
+			self::staged_meta_system_prompt( self::shape_for( self::read_type( $request ) ), self::read_type( $request ) ),
 			self::staged_meta_prompt( $prompt, $outline ),
 			self::STAGED_META_TOKENS
 		);
@@ -636,7 +1031,8 @@ final class Assistant {
 			return self::friendly_ai_error( $text );
 		}
 
-		$meta = self::parse_meta( $text );
+		$meta_type = self::read_type( $request );
+		$meta      = self::parse_meta( $text, $meta_type, self::shape_for( $meta_type ) );
 		if ( is_wp_error( $meta ) ) {
 			return $meta;
 		}
@@ -737,8 +1133,10 @@ final class Assistant {
 	 *
 	 * @return string
 	 */
-	public static function staged_meta_system_prompt( $shape = self::SHAPE_ARTICLE ) {
-		$page = self::SHAPE_PAGE === $shape;
+	public static function staged_meta_system_prompt( $shape = self::SHAPE_ARTICLE, $type = '' ) {
+		$page  = self::SHAPE_PAGE === $shape;
+		$terms  = self::terms_for( $type, $shape );
+		$images = self::wants_images( $type, $shape );
 		$noun = $page ? 'page' : 'post';
 
 		return 'You prepare the DRESSING for a WordPress ' . $noun . ' that is being written section by section from an '
@@ -754,13 +1152,19 @@ final class Assistant {
 				? '"tags" (ALWAYS an empty array — a standing page is not filed under taxonomies), '
 					. '"categories" (ALWAYS an empty array, for the same reason), '
 					. '"images" (ALWAYS an empty array — a page carries no illustration slots). '
-				: '"tags" (array of 2–5 tag names), '
-					. '"categories" (array of 0–2 category names, only if clearly implied by the brief), '
-					. '"images" (image SUGGESTIONS — let the piece decide how many, up to 5. Roughly one per section at '
-					. 'most, fewer when the sections are short, and an empty array when no picture would earn its place: '
-					. 'each {"alt": a rich, self-contained visual description an image generator could paint from — subject, setting, mood, '
-					. '"after_heading": the exact text of one of the outline\'s section headings, verbatim, that the image should follow, '
-					. 'or "" for right after the introduction}). ' )
+				: ( $terms['tags']
+					? '"tags" (array of 2–5 tag names), '
+					: '"tags" (ALWAYS an empty array — this content type does not use tags), ' )
+					. ( $terms['categories']
+						? '"categories" (array of 0–2 category names, only if clearly implied by the brief), '
+						: '"categories" (ALWAYS an empty array — this content type does not use categories), ' )
+					. ( $images
+						? '"images" (image SUGGESTIONS — let the piece decide how many, up to 5. Roughly one per section at '
+							. 'most, fewer when the sections are short, and an empty array when no picture would earn its place: '
+							. 'each {"alt": a rich, self-contained visual description an image generator could paint from — subject, setting, mood, '
+							. '"after_heading": the exact text of one of the outline\'s section headings, verbatim, that the image should follow, '
+							. 'or "" for right after the introduction}). '
+						: '"images" (ALWAYS an empty array — this content type is not illustrated that way). ' ) )
 			. 'Ground everything in the brief and the outline; write in the brief\'s language; no invented facts.';
 	}
 
@@ -785,9 +1189,9 @@ final class Assistant {
 	 * @param string $text Raw model output.
 	 * @return array|\WP_Error
 	 */
-	public static function parse_meta( $text ) {
+	public static function parse_meta( $text, $type = '', $shape = self::SHAPE_ARTICLE ) {
 		$data = self::json_object( $text );
-		return self::sanitize_meta( $data );
+		return self::sanitize_meta( $data, $type, $shape );
 	}
 
 	/**
@@ -798,7 +1202,9 @@ final class Assistant {
 	 * @param mixed $data Dressing-shaped input.
 	 * @return array|\WP_Error
 	 */
-	public static function sanitize_meta( $data ) {
+	public static function sanitize_meta( $data, $type = '', $shape = self::SHAPE_ARTICLE ) {
+		$terms  = self::terms_for( $type, $shape );
+		$images = self::wants_images( $type, $shape );
 		$title = is_array( $data ) ? sanitize_text_field( (string) ( $data['title'] ?? '' ) ) : '';
 		if ( '' === $title ) {
 			return new \WP_Error(
@@ -812,9 +1218,12 @@ final class Assistant {
 			'excerpt'     => sanitize_text_field( (string) ( $data['excerpt'] ?? '' ) ),
 			'description' => mb_substr( sanitize_text_field( (string) ( $data['description'] ?? '' ) ), 0, 200 ),
 			'topics'      => self::clean_list( $data['topics'] ?? array(), self::MAX_TOPICS ),
-			'tags'        => self::clean_list( $data['tags'] ?? array(), self::MAX_TAGS ),
-			'categories'  => self::clean_list( $data['categories'] ?? array(), self::MAX_CATEGORIES ),
-			'images'      => self::clean_image_slots( $data['images'] ?? array() ),
+			// Dropped rather than trusted. The prompt already asks only for what
+			// the type can hold; a model that returns them anyway must not put a
+			// row in the preview that the write would then refuse.
+			'tags'        => $terms['tags'] ? self::clean_list( $data['tags'] ?? array(), self::MAX_TAGS ) : array(),
+			'categories'  => $terms['categories'] ? self::clean_list( $data['categories'] ?? array(), self::MAX_CATEGORIES ) : array(),
+			'images'      => $images ? self::clean_image_slots( $data['images'] ?? array() ) : array(),
 		);
 	}
 
@@ -1120,7 +1529,7 @@ final class Assistant {
 			$instruction = substr( $instruction, 0, 500 );
 		}
 
-		$draft = self::sanitize_draft( $request->get_param( 'draft' ) );
+		$draft = self::sanitize_draft( $request->get_param( 'draft' ), self::read_type( $request ), self::shape_for( self::read_type( $request ) ) );
 		if ( is_wp_error( $draft ) ) {
 			return $draft;
 		}
@@ -1130,7 +1539,7 @@ final class Assistant {
 		}
 
 		$text = ( new Assist( $this->settings ) )->generate(
-			self::system_prompt( self::shape_for( self::read_type( $request ) ) ),
+			self::system_prompt( self::shape_for( self::read_type( $request ) ), self::read_type( $request ) ),
 			self::revision_prompt( $draft, $instruction ),
 			self::COMPOSE_TOKENS
 		);
@@ -1138,7 +1547,8 @@ final class Assistant {
 			return self::friendly_ai_error( $text );
 		}
 
-		$revised = self::parse_draft( $text );
+		$revise_type = self::read_type( $request );
+		$revised     = self::parse_draft( $text, $revise_type, self::shape_for( $revise_type ) );
 		if ( is_wp_error( $revised ) ) {
 			return $revised;
 		}
@@ -1586,7 +1996,7 @@ final class Assistant {
 		if ( preg_match( '/^```[a-z]*\s*(.*?)\s*```$/is', $text, $m ) ) {
 			$text = $m[1];
 		}
-		$html = wp_kses_post( $text );
+		$html = self::outbound_links_blank( wp_kses_post( $text ) );
 		if ( '' === trim( wp_strip_all_tags( $html ) ) ) {
 			return new \WP_Error(
 				'agentimus_ai_bad_output',
@@ -1766,7 +2176,10 @@ final class Assistant {
 			// the plugin doesn't consider its business.
 			'type'    => self::read_type( $request ),
 			'title'   => sanitize_text_field( (string) $request->get_param( 'title' ) ),
-			'content' => wp_kses_post( (string) $request->get_param( 'content' ) ),
+			// Applied here too, not only at compose: a draft stashed in the
+			// browser before this rule existed still reaches the post through
+			// this door.
+			'content' => self::outbound_links_blank( wp_kses_post( (string) $request->get_param( 'content' ) ) ),
 			'status'  => $status,
 		);
 		$excerpt = sanitize_text_field( (string) $request->get_param( 'excerpt' ) );
@@ -1777,7 +2190,21 @@ final class Assistant {
 		if ( '' !== $description ) {
 			$input['description'] = $description;
 		}
+		// The last gate, and the one that has to hold: a preview can outlive the
+		// rule that produced it. A draft composed before this check existed — or
+		// simply stashed in the browser for a week — still carries the terms it
+		// was given, and the owner would meet the refusal at the only moment that
+		// costs them the whole draft. Dropped here instead, quietly, because a
+		// term the type cannot hold was never going to be part of this post.
+		//
+		// ContentWriter still refuses them, and must: an AGENT sending categories
+		// to a type that has none has made a mistake worth reporting. This is the
+		// assistant's own door, where the terms were our suggestion, not theirs.
+		$terms = self::terms_for( $input['type'], self::shape_for( $input['type'] ) );
 		foreach ( array( 'topics', 'tags', 'categories' ) as $list ) {
+			if ( isset( $terms[ $list ] ) && ! $terms[ $list ] ) {
+				continue;
+			}
 			$values = self::clean_list( $request->get_param( $list ), 'topics' === $list ? self::MAX_TOPICS : ( 'tags' === $list ? self::MAX_TAGS : self::MAX_CATEGORIES ) );
 			if ( $values ) {
 				$input[ $list ] = $values;
@@ -1936,8 +2363,10 @@ final class Assistant {
 	 *
 	 * @return string
 	 */
-	public static function system_prompt( $shape = self::SHAPE_ARTICLE ) {
-		$page = self::SHAPE_PAGE === $shape;
+	public static function system_prompt( $shape = self::SHAPE_ARTICLE, $type = '' ) {
+		$page  = self::SHAPE_PAGE === $shape;
+		$terms  = self::terms_for( $type, $shape );
+		$images = self::wants_images( $type, $shape );
 
 		return 'You are the writing assistant inside a WordPress site\'s admin, drafting a '
 			. ( $page ? 'standing PAGE' : 'post' ) . ' from the owner\'s brief. '
@@ -1960,16 +2389,22 @@ final class Assistant {
 					. '"categories" (ALWAYS an empty array, for the same reason), '
 					. '"images" (ALWAYS an empty array — a page carries no illustration slots; if the brief explicitly '
 					. 'asks for a picture, say so in the excerpt and let the owner place it). '
-				: '"tags" (array of 2–5 tag names), '
-					. '"categories" (array of 0–2 category names, only if clearly implied by the brief), '
-					. '"images" (image SUGGESTIONS — let the piece decide how many, up to 5. '
-					. 'A short post usually wants none or one; a long one with several sections can carry about one per '
-					. 'section. Propose a picture only where it shows something the words are working hard to describe, '
-					. 'and return an empty array when that is nowhere — never space them out to fill a quota, and never '
-					. 'crowd a thin piece with illustrations it cannot support: '
-					. 'each {"alt": a rich, self-contained visual description an image generator could paint from — subject, setting, mood, '
-					. '"after_heading": the exact text of the h2/h3 the image should follow, or "" for right after the introduction}; '
-					. 'never put <img> tags in "content"). ' )
+				: ( $terms['tags']
+					? '"tags" (array of 2–5 tag names), '
+					: '"tags" (ALWAYS an empty array — this content type does not use tags), ' )
+					. ( $terms['categories']
+						? '"categories" (array of 0–2 category names, only if clearly implied by the brief), '
+						: '"categories" (ALWAYS an empty array — this content type does not use categories), ' )
+					. ( $images
+						? '"images" (image SUGGESTIONS — let the piece decide how many, up to 5. '
+							. 'A short post usually wants none or one; a long one with several sections can carry about one per '
+							. 'section. Propose a picture only where it shows something the words are working hard to describe, '
+							. 'and return an empty array when that is nowhere — never space them out to fill a quota, and never '
+							. 'crowd a thin piece with illustrations it cannot support: '
+							. 'each {"alt": a rich, self-contained visual description an image generator could paint from — subject, setting, mood, '
+							. '"after_heading": the exact text of the h2/h3 the image should follow, or "" for right after the introduction}; '
+							. 'never put <img> tags in "content"). '
+						: '"images" (ALWAYS an empty array — this content type is not illustrated that way; never put <img> tags in "content"). ' ) )
 			. 'Write concretely in the brief\'s language; no filler, no invented facts or statistics. '
 			. ( $page
 				? 'Open by stating plainly what this page is for, in one or two sentences a reader can act on. '
@@ -2002,7 +2437,7 @@ final class Assistant {
 	 * @param string $text Raw model output.
 	 * @return array|\WP_Error
 	 */
-	public static function parse_draft( $text ) {
+	public static function parse_draft( $text, $type = '', $shape = self::SHAPE_ARTICLE ) {
 		$data = self::json_object( $text );
 
 		if ( ! is_array( $data ) ) {
@@ -2025,7 +2460,9 @@ final class Assistant {
 	 * @param mixed $data Draft-shaped input.
 	 * @return array|\WP_Error
 	 */
-	public static function sanitize_draft( $data ) {
+	public static function sanitize_draft( $data, $type = '', $shape = self::SHAPE_ARTICLE ) {
+		$terms  = self::terms_for( $type, $shape );
+		$images = self::wants_images( $type, $shape );
 		if ( ! is_array( $data ) ) {
 			return new \WP_Error(
 				'agentimus_ai_bad_output',
@@ -2034,8 +2471,10 @@ final class Assistant {
 			);
 		}
 
+		$terms   = self::terms_for( $type, $shape );
+		$images  = self::wants_images( $type, $shape );
 		$title   = sanitize_text_field( (string) ( $data['title'] ?? '' ) );
-		$content = wp_kses_post( (string) ( $data['content'] ?? '' ) );
+		$content = self::outbound_links_blank( wp_kses_post( (string) ( $data['content'] ?? '' ) ) );
 		if ( '' === $title || '' === trim( wp_strip_all_tags( $content ) ) ) {
 			return new \WP_Error(
 				'agentimus_ai_bad_output',
@@ -2050,9 +2489,11 @@ final class Assistant {
 			'content'     => $content,
 			'description' => mb_substr( sanitize_text_field( (string) ( $data['description'] ?? '' ) ), 0, 200 ),
 			'topics'      => self::clean_list( $data['topics'] ?? array(), self::MAX_TOPICS ),
-			'tags'        => self::clean_list( $data['tags'] ?? array(), self::MAX_TAGS ),
-			'categories'  => self::clean_list( $data['categories'] ?? array(), self::MAX_CATEGORIES ),
-			'images'      => self::clean_image_slots( $data['images'] ?? array() ),
+			// See sanitize_meta(): a term the type cannot hold never reaches the
+			// preview, so the write can never be refused for carrying it.
+			'tags'        => $terms['tags'] ? self::clean_list( $data['tags'] ?? array(), self::MAX_TAGS ) : array(),
+			'categories'  => $terms['categories'] ? self::clean_list( $data['categories'] ?? array(), self::MAX_CATEGORIES ) : array(),
+			'images'      => $images ? self::clean_image_slots( $data['images'] ?? array() ) : array(),
 		);
 	}
 

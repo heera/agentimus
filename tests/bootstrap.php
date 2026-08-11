@@ -232,6 +232,9 @@ namespace {
 	// Users exist when listed in $_af_users (id => object|true); unknown ids resolve false like core.
 	if ( ! function_exists( 'get_userdata' ) )          { function get_userdata( $id ) { return isset( $GLOBALS['_af_users'][ (int) $id ] ) ? (object) array( 'ID' => (int) $id ) : false; } }
 	if ( ! function_exists( 'current_time' ) )          { function current_time( $type, $gmt = 0 ) { return 'timestamp' === $type ? time() : gmdate( 'Y-m-d H:i:s' ); } }
+	// The "any post changed" clock. Cache keys hang on it, so a test that wants a
+	// recomputation sets $_af_lastpostmodified to something new.
+	if ( ! function_exists( 'get_lastpostmodified' ) )  { function get_lastpostmodified( $tz = 'gmt' ) { return (string) ( $GLOBALS['_af_lastpostmodified'] ?? '2026-01-01 00:00:00' ); } }
 	if ( ! function_exists( 'get_post' ) )              { function get_post( $id = 0 ) { if ( is_object( $id ) ) { return $id; } $id = (int) $id; if ( ! $id ) { $id = (int) ( $GLOBALS['_af_current_post_id'] ?? 0 ); } return isset( $GLOBALS['_af_posts'][ $id ] ) ? $GLOBALS['_af_posts'][ $id ] : null; } }
 	if ( ! function_exists( 'post_type_exists' ) )      { function post_type_exists( $t ) { return in_array( (string) $t, (array) ( $GLOBALS['_af_post_types_exist'] ?? array() ), true ); } }
 	// Records every call's args, and can answer a QUEUE when a test needs two
@@ -253,7 +256,7 @@ namespace {
 	// Featured-image surface for the PageCheck featured row (toggle via the globals;
 	// defaults mimic a standard site: posts/pages support thumbnails, none set).
 	if ( ! function_exists( 'has_post_thumbnail' ) )    { function has_post_thumbnail( $post = null ) { $id = is_object( $post ) ? (int) $post->ID : (int) $post; return ! empty( $GLOBALS['_af_thumbnails'][ $id ] ); } }
-	if ( ! function_exists( 'post_type_supports' ) )    { function post_type_supports( $type, $feature ) { $k = $type . ':' . $feature; if ( isset( $GLOBALS['_af_type_supports'][ $k ] ) ) { return (bool) $GLOBALS['_af_type_supports'][ $k ]; } return 'thumbnail' === $feature && in_array( (string) $type, array( 'post', 'page' ), true ); } }
+	if ( ! function_exists( 'post_type_supports' ) )    { function post_type_supports( $type, $feature ) { $k = $type . ':' . $feature; if ( isset( $GLOBALS['_af_type_supports'][ $k ] ) ) { return (bool) $GLOBALS['_af_type_supports'][ $k ]; } return in_array( $feature, array( 'thumbnail', 'editor' ), true ) && in_array( (string) $type, array( 'post', 'page' ), true ); } }
 	// Core's own answer for the two built-ins; $GLOBALS['_af_hierarchical_types'] lets a
 	// test register a page-like CPT, which is what Assistant::shape_for() reads.
 	if ( ! function_exists( 'is_post_type_hierarchical' ) ) { function is_post_type_hierarchical( $type ) { $extra = (array) ( $GLOBALS['_af_hierarchical_types'] ?? array() ); return 'page' === (string) $type || in_array( (string) $type, $extra, true ); } }

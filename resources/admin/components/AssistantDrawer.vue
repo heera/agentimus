@@ -28,31 +28,6 @@ import SelectMenu from './SelectMenu.vue';
 const HELD_KEY = 'agentimus:assistant:held';
 const HELD_TTL_MS = 7 * 24 * 3600 * 1000;
 
-/**
- * Starting frames for the brief, one set per shape.
- *
- * Every seed is written as a fill-in-the-blanks sentence rather than a finished
- * instruction: the [brackets] are the point — they show the owner exactly which
- * decisions are theirs, and a brief still carrying them tells the model where it
- * must not guess. Nothing here is stored or sent as a mode; a chip only ever
- * types into the box on the owner's behalf.
- */
-const ARTICLE_PRESETS = [
-  { label: 'SEO article', seed: 'A practical article on [topic] for [audience] — what actually matters, the mistakes people make, and a short checklist to finish. Around 900 words.' },
-  { label: 'Tutorial', seed: 'A step-by-step tutorial showing how to [task], for someone who [level of experience]. Numbered steps, what to expect after each one, and a short troubleshooting section at the end.' },
-  { label: 'Comparison', seed: 'A fair comparison of [A] and [B] for [audience] — where each one wins, where each falls short, and a clear answer on who should pick which.' },
-  { label: 'Product review', seed: 'An honest review of [product] after real use — what it does well, what it doesn’t, who it suits and who should skip it. No marketing voice.' },
-];
-
-const PAGE_PRESETS = [
-  { label: 'About', seed: 'An About page for [who] — what they do, what they’re known for, and how to get in touch. Warm, specific, not boastful. Short.' },
-  { label: 'Services', seed: 'A Services page covering [service one] and [service two] — what each includes, who it’s for, and what happens after someone gets in touch.' },
-  { label: 'Contact', seed: 'A Contact page — the ways to reach [who], what to expect for a reply, and what to include in a first message.' },
-  // The placeholder instruction is repeated here on purpose: this is the one
-  // preset where an invented fact becomes a commitment the owner never made.
-  { label: 'Terms / Policy', seed: 'A [Terms of service / Privacy policy] page covering [what it has to cover]. Leave a [placeholder] anywhere I haven’t given you a fact — do not invent a company name, jurisdiction, retention period or guarantee.' },
-];
-
 export default {
   name: 'AssistantDrawer',
   components: { SelectMenu },
@@ -170,14 +145,33 @@ export default {
       // about one thing ("Describe the post"), never as a heading.
       return found ? (found.singular || found.label).toLowerCase() : 'post';
     },
+    // The chooser beside it names the STATUS; this names the ACT. Together they
+    // read "Pending Review → Create", which is the whole truth.
+    //
+    // It said "Submit for review" for a moment and that was worse than the bug
+    // it fixed: submit implies a recipient, and on a site whose only user is the
+    // owner there is nobody to submit to — the post simply sits in Pending. A
+    // verb that promises an audience the site may not have is a new lie in place
+    // of the old one. "Create" promises only what actually happens.
+    commitLabel() {
+      return 'creating' === this.step ? 'Creating…' : 'Create';
+    },
     // Is there anything for "Start over" to clear? A typed-but-unsent brief
     // counts: it's work, even though nothing has been paid for yet.
     hasWorkToClear() {
       return !!(this.draft || this.outline || this.prompt.trim());
     },
     // Which frames to offer, decided by the same shape that decides the prompt.
+    // Whatever the SERVER offers for this type. Posts and Pages are the two
+    // whose conventions we can honestly claim to know; a Product, an Event or a
+    // Recipe gets frames that fit any content, and a plugin can replace them
+    // through `agentimus_assistant_presets` ({@see \Agentimus\Assistant}).
+    // Nothing is decided here — a second opinion in the client is how the box
+    // ends up offering "Product review" to someone writing their own product.
     presets() {
-      return this.isPageShape ? PAGE_PRESETS : ARTICLE_PRESETS;
+      const slug = this.writeType || this.defaultType;
+      const found = this.types.find((t) => t.slug === slug);
+      return (found && Array.isArray(found.presets)) ? found.presets : [];
     },
     // SelectMenu takes { value, label }; the boot list speaks slug/label.
     typeOptions() {
@@ -325,6 +319,16 @@ export default {
         }
         if (draft) {
           ['topics', 'tags', 'categories', 'images'].forEach((k) => { if (!Array.isArray(draft[k])) draft[k] = []; });
+          // A stash can outlive the rule that filled it: a draft held from before
+          // this type's taxonomies were checked (or from a week ago) still carries
+          // terms the type cannot hold, and the preview would show rows the write
+          // is going to drop. The server is the authority on what this type takes
+          // — mirror it here so what you see is what gets created.
+          const allows = this.types.find((ty) => ty.slug === (held.writeType || this.defaultType));
+          if (allows && allows.terms) {
+            if (!allows.terms.tags) draft.tags = [];
+            if (!allows.terms.categories) draft.categories = [];
+          }
           this.draft = draft;
           this.step = 'preview'; // Reopen exactly where they left off.
         } else {
@@ -603,16 +607,49 @@ export default {
     // destroyed by a click that only meant "give me a starting point". Focus
     // lands back in the textarea with the caret at the end, because the seed is
     // a sentence to finish, not an answer.
-    applyPreset(p) {
+    // A chip SWAPS the frame; it never stacks another one on top.
+    //
+    // These seeds are whole briefs, so appending produced two contradictory
+    // instructions in one box — "a practical article on [topic]" immediately
+    // followed by "a step-by-step tutorial showing how to [task]" — and the
+    // model was handed both. Changing your mind about the shape is the ordinary
+    // reason to click a second chip, and stacking is never what that meant.
+    //
+    // The one thing a swap must not do is throw away words the owner wrote. An
+    // untouched seed (or an empty box) is nobody's work, so it is replaced in
+    // silence; anything they have typed or filled in is theirs, and gets asked
+    // about first.
+    async applyPreset(p) {
       const current = this.prompt.trim();
-      this.prompt = current ? current + '\n\n' + p.seed : p.seed;
+      const theirs = current && !this.isUntouchedSeed(current);
+      if (theirs) {
+        const ok = await confirm({
+          title: 'Replace your brief?',
+          message: `“${p.label}” starts a fresh frame. What you have written here will be replaced.`,
+          confirmLabel: 'Replace it',
+          cancelLabel: 'Keep mine',
+          within: '.ar-drawer',
+        });
+        if (!ok) return;
+      }
+      this.prompt = p.seed;
       this.$nextTick(() => {
         const el = this.$refs.promptEl;
         if (!el) return;
         el.focus();
-        el.setSelectionRange(el.value.length, el.value.length);
-        el.scrollTop = el.scrollHeight;
+        // Land on the first blank, so the very next keystroke fills the decision
+        // the frame is asking for rather than appending to the end of it.
+        const at = el.value.indexOf('[');
+        if (at >= 0) el.setSelectionRange(at, el.value.indexOf(']', at) + 1);
+        else el.setSelectionRange(el.value.length, el.value.length);
+        el.scrollTop = 0;
       });
+    },
+    // Is the box holding a seed exactly as a chip left it? Checked against every
+    // type's seeds, not just this one's — the chooser can change which chips are
+    // on offer while a seed from the previous type still sits in the box.
+    isUntouchedSeed(text) {
+      return (this.types || []).some((t) => (t.presets || []).some((p) => p.seed === text));
     },
     openPicker() {
       this.step = 'pick';
@@ -893,8 +930,8 @@ export default {
               </div>
               <!-- Same words and classes as the outline and preview feet — one
                    confirm exists in this drawer, not three lookalikes. -->
-              <div v-else class="ar-assist__actions">
-                <span class="ar-assist__resettext">Clear everything here and start fresh? Nothing on your site is affected.</span>
+              <div v-else class="ar-assist__actions ar-assist__footrow--confirm">
+                <span class="ar-assist__resettext">Clear everything here and start fresh?</span>
                 <span class="ar-assist__spacer"></span>
                 <button type="button" class="ar-linkbtn ar-assist__resetdanger" @click="confirmStartOver">Yes, clear it</button>
                 <button type="button" class="ar-linkbtn" @click="confirmReset = false">Keep it</button>
@@ -1086,8 +1123,8 @@ export default {
                     {{ writeLabel }}
                   </button>
                 </div>
-                <div v-else class="ar-assist__footrow">
-                  <span class="ar-assist__resettext">Clear everything here and start fresh? Nothing on your site is affected.</span>
+                <div v-else class="ar-assist__footrow ar-assist__footrow--confirm">
+                  <span class="ar-assist__resettext">Clear everything here and start fresh?</span>
                   <span class="ar-assist__spacer"></span>
                   <button type="button" class="ar-linkbtn ar-assist__resetdanger" @click="confirmStartOver">Yes, clear it</button>
                   <button type="button" class="ar-linkbtn" @click="confirmReset = false">Keep it</button>
@@ -1142,7 +1179,15 @@ export default {
                 <p v-if="error" class="ar-assist__error ar-assist__footerror" role="alert">{{ error }}</p>
                 <!-- Targeted revision: one instruction, one AI call, the draft revised in
                      place — with a one-step Undo, because a revision overwrites a paid
-                     generation. "Try again" stays the full reroll. -->
+                     generation. "New draft" stays the full reroll: it keeps the
+                     brief and the outline and writes another one, exactly as
+                     "New outline" does a rung up — same grammar, same meaning,
+                     and the one action that gets you a different draft without
+                     giving up the inputs. It replaced "Try again", which read as
+                     "the last one failed" and was indistinguishable from its
+                     neighbour "Start over", and then "Draft again", which did not
+                     say that the draft on screen is the one being replaced. The
+                     undo line above catches that: one step back, always. -->
                 <div class="ar-assist__refine">
                   <input
                     v-model="refineText"
@@ -1172,22 +1217,26 @@ export default {
                     <span class="ar-assist__spacer"></span>
                     <button type="button" class="ar-linkbtn" :disabled="refining || 'creating' === step" @click="editBrief">Edit the brief</button>
                     <button v-if="outline" type="button" class="ar-linkbtn" :disabled="refining || 'creating' === step" @click="step = 'outline'">Edit the outline</button>
-                    <button type="button" class="ar-linkbtn" :disabled="refining || 'creating' === step" @click="compose(usedOutline)">Try again</button>
+                    <button type="button" class="ar-linkbtn" :disabled="refining || 'creating' === step" @click="compose(usedOutline)">New draft</button>
                   </div>
                   <div class="ar-assist__footrow ar-assist__footrow--commit">
                     <span class="ar-assist__spacer"></span>
                     <select v-model="statusChoice" class="ar-assist__status" :disabled="refining || 'creating' === step" aria-label="Save as">
-                      <option value="draft">as a draft</option>
-                      <option value="pending">as pending review</option>
+                      <option value="draft">Draft</option>
+                      <option value="pending">Pending Review</option>
                     </select>
-                    <button type="button" class="ar-btn ar-assist__go" :disabled="refining || 'creating' === step" @click="create">
-                      <span v-if="'creating' === step" class="ar-spinner ar-assist__spin" aria-hidden="true"></span>
-                      {{ 'creating' === step ? 'Creating…' : 'Create draft' }}
+                    <!-- The status noun lives in the chooser; this button is the
+                         verb. "Create draft" standing over "as pending review"
+                         was untrue, and "Submit for review" replaced it with a
+                         promise of a reviewer the site may not have. data-reserve
+                         holds the busy label so the row keeps its width. -->
+                    <button type="button" class="ar-btn ar-assist__go ar-btn--reserve" data-reserve="Creating…" :disabled="refining || 'creating' === step" @click="create">
+                      <span><span v-if="'creating' === step" class="ar-spinner ar-assist__spin" aria-hidden="true"></span>{{ commitLabel }}</span>
                     </button>
                   </div>
                 </template>
-                <div v-else class="ar-assist__footrow">
-                  <span class="ar-assist__resettext">Clear everything here and start fresh? Nothing on your site is affected.</span>
+                <div v-else class="ar-assist__footrow ar-assist__footrow--confirm">
+                  <span class="ar-assist__resettext">Clear everything here and start fresh?</span>
                   <span class="ar-assist__spacer"></span>
                   <button type="button" class="ar-linkbtn ar-assist__resetdanger" @click="confirmStartOver">Yes, clear it</button>
                   <button type="button" class="ar-linkbtn" @click="confirmReset = false">Keep it</button>

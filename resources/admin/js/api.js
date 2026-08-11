@@ -149,6 +149,10 @@ export function createApi(boot) {
       request('/assistant/outline', { method: 'POST', body: JSON.stringify({ prompt, type }) }),
     // …then one structured generation, optionally gated by that approved
     // outline as a contract (writes nothing either way)…
+    // What the drawer can write RIGHT NOW. Re-read on open, because the boot
+    // payload froze this at page load and a content type ticked in Settings
+    // would not appear until a reload.
+    assistantState: () => request('/assistant/state'),
     assistantCompose: (prompt, outline, type) =>
       request('/assistant/compose', {
         method: 'POST',
