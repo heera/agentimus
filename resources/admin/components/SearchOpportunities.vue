@@ -372,7 +372,7 @@ export default {
          the card totals below exclude these, so a single 5-view probe makes a page
          read 2,139 here and 2,144 on Search Performance. Under 25% the paragraph
          above stays hidden, and this pill would be the only way to reconcile that. -->
-    <details v-if="searchNoiseExamples.length" class="ar-opp__noiselist">
+    <details v-if="searchNoiseExamples.length" class="ar-fold ar-opp__noiselist">
       <summary>See what was left out ({{ searchNoiseCount }} search{{ searchNoiseCount === 1 ? '' : 'es' }})</summary>
       <!-- Own scroll container: this table carries a 520px floor, and a long
            operator string must never push the page sideways on a phone. -->
@@ -605,8 +605,8 @@ export default {
          quietly excluded forever; the rows are a reference, read on the rare
          visit that restores something. Same classes as the Readiness fold on
          purpose: two lists doing one job must not look like two ideas. -->
-    <details v-if="searchAside.length" class="ar-setaside ar-optmore">
-      <summary class="ar-optmore__toggle ar-setaside__head">
+    <details v-if="searchAside.length" class="ar-fold ar-setaside">
+      <summary class="ar-setaside__head">
         <strong class="ar-setaside__title">Set aside from search <span class="ar-optcheck__n">· {{ searchAside.length }}</span></strong>
         <span class="ar-setaside__note">no search suggestions, from either engine</span>
       </summary>

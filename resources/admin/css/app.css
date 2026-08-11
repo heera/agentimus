@@ -2428,7 +2428,12 @@ td.ar-edge__n.is-bad { color: var(--ar-bad); font-weight: 600; }
    wears the weight of a record: a full-width bordered card that opens in place —
    the same language as the Settings folds — not a pill floating between
    paragraphs with its contents spilling straight onto the page. */
-.ar-opp__noiselist {
+/* THE FOLD. One disclosure grammar for the whole plugin: a filled, bordered bar
+   with a solid caret, ink-coloured and semibold, that goes accent under the
+   pointer. Written first for the noise list, and shared the day a fold drawn as
+   a faint caret beside quiet text turned out to be unfindable — a control has to
+   look like a control before anyone can learn what it opens. */
+.ar-fold {
 	margin: 14px 0 16px;
 	padding: 0 16px;
 	font-size: 12.5px;
@@ -2436,8 +2441,8 @@ td.ar-edge__n.is-bad { color: var(--ar-bad); font-weight: 600; }
 	border-radius: var(--ar-radius);
 	background: var(--ar-surface-2);
 }
-.ar-opp__noiselist[open] { background: var(--ar-surface); padding-bottom: 13px; }
-.ar-opp__noiselist > summary {
+.ar-fold[open] { background: var(--ar-surface); padding-bottom: 13px; }
+.ar-fold > summary {
 	display: flex;
 	align-items: center;
 	gap: 9px;
@@ -2449,10 +2454,11 @@ td.ar-edge__n.is-bad { color: var(--ar-bad); font-weight: 600; }
 	/* Both are needed to drop the native marker: `display` handles WebKit, the
 	   list-style pair handles Firefox. We draw our own caret so it can rotate. */
 	list-style: none;
+	flex-wrap: wrap;
 	transition: color .15s ease;
 }
-.ar-opp__noiselist > summary::-webkit-details-marker { display: none; }
-.ar-opp__noiselist > summary::before {
+.ar-fold > summary::-webkit-details-marker { display: none; }
+.ar-fold > summary::before {
 	content: "";
 	width: 0;
 	height: 0;
@@ -2461,19 +2467,19 @@ td.ar-edge__n.is-bad { color: var(--ar-bad); font-weight: 600; }
 	border-bottom: 4px solid transparent;
 	transition: transform .15s ease;
 }
-.ar-opp__noiselist[open] > summary::before { transform: rotate(90deg); }
-.ar-opp__noiselist > summary:hover { color: var(--ar-accent); }
-.ar-opp__noiselist > summary:focus-visible {
+.ar-fold[open] > summary::before { transform: rotate(90deg); }
+.ar-fold > summary:hover { color: var(--ar-accent); }
+.ar-fold > summary:focus-visible {
 	outline: 2px solid var(--ar-accent);
 	outline-offset: 2px;
 }
-.ar-opp__noiselist[open] > summary {
+.ar-fold[open] > summary {
 	border-bottom: 1px solid var(--ar-line);
 	margin-bottom: 12px;
 }
 @media (prefers-reduced-motion: reduce) {
-	.ar-opp__noiselist > summary,
-	.ar-opp__noiselist > summary::before { transition: none; }
+	.ar-fold > summary,
+	.ar-fold > summary::before { transition: none; }
 }
 
 .ar-opp__noiselist .ar-opp__qwrap { margin-top: 0; }
@@ -6687,29 +6693,14 @@ a.ar-about-proto__v:hover { text-decoration: underline; }
 .ar-optsum { display: flex; flex-direction: column; align-items: flex-start; gap: 12px; padding: 4px 0 2px; }
 .ar-optsum__lead { margin: 0; font-size: 14px; line-height: 1.6; color: var(--ar-ink-soft); max-width: 68ch; }
 
-.ar-optmore { margin-top: 16px; border-top: 1px solid var(--ar-line); padding-top: 12px; }
-.ar-optmore__toggle {
-  cursor: pointer; list-style: none;
-  font-family: var(--ar-mono); font-size: 11px; letter-spacing: 0.06em;
-  text-transform: uppercase; color: var(--ar-ink-soft);
-  display: inline-flex; align-items: center; gap: 6px;
-}
-.ar-optmore__toggle::-webkit-details-marker { display: none; }
-.ar-optmore__toggle::before {
-  content: '▸'; font-size: 9px; color: var(--ar-ink-faint);
-  transition: transform 0.15s ease;
-}
-.ar-optmore[open] > .ar-optmore__toggle::before { transform: rotate(90deg); }
-.ar-optmore__toggle:hover { color: var(--ar-ink); }
-.ar-optmore__toggle:focus-visible { outline: 2px solid var(--ar-accent); outline-offset: 3px; border-radius: 2px; }
-.ar-optmore[open] > .ar-optmore__toggle { margin-bottom: 14px; }
-@media (prefers-reduced-motion: reduce) { .ar-optmore__toggle::before { transition: none; } }
-
 /* Set aside, folded. The count stays visible in the summary — a parked-pages
    ledger that hides its own size is how content gets excluded from a score and
    forgotten — but the list itself was the tallest thing on the card. */
-.ar-setaside.ar-optmore > .ar-optmore__toggle { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; text-transform: none; font-family: var(--ar-sans); font-size: 12.5px; letter-spacing: 0; }
-.ar-setaside.ar-optmore > .ar-optmore__toggle .ar-setaside__title { font-size: 12.5px; }
+.ar-setaside.ar-fold > summary .ar-setaside__title { font-size: 13px; }
+/* The standalone list drew its own dashed rule and hung off the card's left
+   edge; folded, the bar IS the boundary and the box owns the padding. */
+.ar-setaside.ar-fold { margin: 16px 0 0; padding: 0 16px; border-top: 1px solid var(--ar-line-strong); }
+.ar-setaside.ar-fold[open] { padding-bottom: 13px; }
 .ar-setaside__actions { display: flex; justify-content: flex-end; margin: 0 0 8px; }
 
 /* ---------------------------------------------------------------------------

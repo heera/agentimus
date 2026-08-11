@@ -442,8 +442,8 @@ export default {
         </button>
       </div>
 
-      <details v-if="optimize.length" class="ar-optmore">
-        <summary class="ar-optmore__toggle">
+      <details v-if="optimize.length" class="ar-fold">
+        <summary>
           Or work by issue<span class="ar-optcheck__n"> · {{ optimize.length }}</span>
         </summary>
 
@@ -491,8 +491,8 @@ export default {
            silent ledger is how pages get quietly excluded from a score forever;
            the list itself was the longest thing on the card and nobody reads a
            parked list every visit. One click still restores anything. -->
-      <details v-if="optimizeIgnored.length" class="ar-setaside ar-optmore">
-        <summary class="ar-optmore__toggle ar-setaside__head">
+      <details v-if="optimizeIgnored.length" class="ar-fold ar-setaside">
+        <summary class="ar-setaside__head">
           <strong class="ar-setaside__title">Set Aside <span class="ar-optcheck__n">· {{ optimizeIgnored.length }}</span></strong>
           <span class="ar-setaside__note">not cited content — left out of the score</span>
         </summary>
