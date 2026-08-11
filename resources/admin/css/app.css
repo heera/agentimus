@@ -194,6 +194,26 @@
   --ar-ink-hard: #fff;
   --ar-shade: #000;
 }
+/* ---- Teleported surfaces re-ink themselves -----------------------------
+   Every dialog, drawer and toast is <Teleport to="body">, because a modal
+   rendered inside a panel is clipped by its ancestors' overflow. The cost is
+   that it also leaves the app wrapper — so it stops inheriting our ink and
+   inherits WordPress's instead (#3c434a, set on the admin body).
+
+   In light that grey is close enough to pass unnoticed. In dark it is a
+   catastrophe: his Client Decisions dialog rendered #3c434a bot names on a
+   #2e2e2e chip — about 1.1:1, invisible. Backgrounds were fine throughout,
+   because those are explicit vars; only `color` was left to inheritance, and
+   inheritance is exactly what teleporting breaks.
+
+   So each teleported ROOT states its ink. Anything descending from these is
+   covered; anything new that teleports must be added here. The rule lives
+   outside the dark block on purpose — the inheritance is wrong in both
+   themes, and only the consequence differs. */
+.ar-modal,
+.ar-drawer,
+.ar-toasts { color: var(--ar-ink); }
+
 /* Ink-coloured surfaces hold their ground at night: background var(--ar-ink)
    would flip them cream, and a cream slab on a black page is a glare panel.
    Each becomes a quiet dark card instead. */
@@ -4936,7 +4956,13 @@ button.ar-act-more:hover { color: var(--ar-ink); }
 }
 .ar-rev-tab:hover { color: var(--ar-ink); }
 .ar-rev-tab:focus-visible { outline: 2px solid var(--ar-accent); outline-offset: 1px; }
-.ar-rev-tab.is-active { background: var(--ar-surface); color: var(--ar-shade); font-weight: 600; box-shadow: 0 1px 2px color-mix(in srgb, var(--ar-shade) 9%, transparent); }
+/* --ar-INK, never --ar-shade. In light the two hold the same value (#1b1913),
+   so shade read as "the darkest text" and passed review. It isn't: shade is the
+   SCRIM — the colour shadows and overlays are mixed from — and at night it goes
+   to pure #000, which put black text on the dark surface this pill uses. The
+   selected tab was the least readable of the three, which is precisely backwards.
+   Shade belongs in the box-shadow below and nowhere else on this line. */
+.ar-rev-tab.is-active { background: var(--ar-surface); color: var(--ar-ink); font-weight: 600; box-shadow: 0 1px 2px color-mix(in srgb, var(--ar-shade) 9%, transparent); }
 .ar-rev-tab__n { font-size: 11px; color: var(--ar-ink-faint); font-variant-numeric: tabular-nums; }
 .ar-rev-tab.is-active .ar-rev-tab__n { color: var(--ar-ink-soft); }
 .ar-rev-tab.is-attention .ar-rev-tab__n { color: var(--ar-bad); }
