@@ -186,7 +186,7 @@ export default {
       const ok = await confirm({
         title: `Set all ${issue.count} aside?`,
         message: 'Nothing is deleted or changed — they stay published exactly as they are. Every page this check flags is left out of your content-optimization score (a page set aside is skipped by every check, not just this one). You can restore each one here anytime.',
-        confirmLabel: 'Ignore All',
+        confirmLabel: 'Set All Aside',
         cancelLabel: 'Cancel',
         tone: 'default',
       });
@@ -464,7 +464,7 @@ export default {
                 class="ar-optcheck__aside ar-optcheck__aside--all"
                 :disabled="busyIssue === issue.id"
                 @click="setAllAside(issue)"
-              >{{ busyIssue === issue.id ? 'Ignoring…' : 'Ignore All' }}</button>
+              >{{ busyIssue === issue.id ? 'Setting aside…' : 'Set All Aside' }}</button>
             </div>
             <small>{{ issue.why }}</small>
             <ul class="ar-optcheck__pages">
@@ -475,7 +475,7 @@ export default {
                   class="ar-optcheck__aside"
                   :disabled="busyIgnore === p.id"
                   @click="setAside(p, true)"
-                >Ignore It</button>
+                >Set Aside</button>
               </li>
             </ul>
             <p v-if="issue.pages.length < issue.count" class="ar-optcheck__more">

@@ -881,7 +881,7 @@ final class Findings {
 						// anything else published — a blog whose 19 graded items are
 						// all posts must not be told about "19 pages".
 						/* translators: 1: pieces with the most common issue, 2: pieces graded. */
-						_n( 'Up to %1$s of your %2$s graded pieces has something worth fixing', 'Up to %1$s of your %2$s graded pieces have something worth fixing', $pages, 'agentimus' ),
+						_n( 'Up to %1$s of your %2$s recent posts and pages has something worth fixing', 'Up to %1$s of your %2$s recent posts and pages have something worth fixing', $pages, 'agentimus' ),
 						number_format_i18n( $pages ),
 						number_format_i18n( $graded )
 					)

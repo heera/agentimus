@@ -89,7 +89,7 @@ final class ContentWriter {
 				'agentimus_bad_type',
 				sprintf(
 					/* translators: %s: comma-separated list of allowed post types. */
-					__( 'That type is not agent-visible on this site. Allowed: %s.', 'agentimus' ),
+					__( 'That content type isn’t shared with agents on this site. Allowed: %s.', 'agentimus' ),
 					implode( ', ', Content::post_types() )
 				),
 				array( 'status' => 400 )
@@ -445,13 +445,13 @@ final class ContentWriter {
 		if ( ctype_digit( $ref ) ) {
 			$id = (int) $ref;
 			if ( ! wp_attachment_is_image( $id ) ) {
-				return new \WP_Error( 'agentimus_not_an_image', __( 'That attachment ID is not an image in the media library.', 'agentimus' ), array( 'status' => 400 ) );
+				return new \WP_Error( 'agentimus_not_an_image', __( 'That media library item is not an image.', 'agentimus' ), array( 'status' => 400 ) );
 			}
 			return $id;
 		}
 
 		if ( ! preg_match( '#^https?://#i', $ref ) ) {
-			return new \WP_Error( 'agentimus_bad_image_ref', __( 'featured_image must be an attachment ID or an http(s) image URL.', 'agentimus' ), array( 'status' => 400 ) );
+			return new \WP_Error( 'agentimus_bad_image_ref', __( 'The featured image must be a media library item’s ID or an http(s) image URL.', 'agentimus' ), array( 'status' => 400 ) );
 		}
 		if ( ! current_user_can( 'upload_files' ) ) {
 			return new \WP_Error( 'agentimus_cannot_upload', __( 'The connected user may not upload files, so an image URL can’t be imported — pass an existing attachment ID instead.', 'agentimus' ), array( 'status' => 403 ) );

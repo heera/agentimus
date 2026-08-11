@@ -657,8 +657,9 @@ export default {
     <section v-else-if="data.enabled === false" class="ar-card">
       <h2 class="ar-card__title">Endpoint Activity</h2>
       <p class="ar-card__lead">
-        Activity logging is off. Enable <strong>Agent activity log</strong> in
-        Settings → Features to record who fetches your discovery and llms endpoints.
+        Activity logging is off. Enable <strong>Record AI activity &amp; referrals</strong> on the
+        Visit Log card under Settings → Discovery, and this screen starts recording which
+        AI tools and crawlers fetch your site&rsquo;s AI files.
       </p>
     </section>
 

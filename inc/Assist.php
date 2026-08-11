@@ -458,7 +458,7 @@ final class Assist {
 		}
 		$text = is_string( $text ) ? trim( $text ) : '';
 		if ( '' === $text ) {
-			return new \WP_Error( 'agentimus_ai_empty', __( 'The AI returned an empty response — please try again.', 'agentimus' ), array( 'status' => 502 ) );
+			return new \WP_Error( 'agentimus_ai_empty', __( 'The AI returned an empty response — try again, and if it keeps happening, check the provider key under Settings → AI.', 'agentimus' ), array( 'status' => 502 ) );
 		}
 		return $text;
 	}

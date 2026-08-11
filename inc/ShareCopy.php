@@ -499,7 +499,7 @@ final class ShareCopy {
 			'sparkSvg'    => '<svg class="agentimus-assist__icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M12 3l1.9 4.7L18.6 9l-4.7 1.9L12 15.6 10.1 10.9 5.4 9l4.7-1.3z"/></svg>',
 			'i18n'        => array(
 				'working'      => __( 'Drafting…', 'agentimus' ),
-				'error'        => __( 'Couldn’t write the drafts — please try again.', 'agentimus' ),
+				'error'        => __( 'Couldn’t write the drafts — try again, and if it keeps happening, check the provider key under Settings → AI.', 'agentimus' ),
 				'localNote'    => __( 'Drafted from the post’s title, description and topics — no AI involved.', 'agentimus' ),
 				'aiNote'       => __( 'Rewritten by your AI provider — edit to taste before posting.', 'agentimus' ),
 				'aiFellBack'   => __( 'The AI rewrite didn’t come back — this is the format draft.', 'agentimus' ),

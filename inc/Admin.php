@@ -916,7 +916,7 @@ final class Admin {
 
 		if ( ! is_readable( AGENTIMUS_DIR . 'assets/admin/app.js' ) ) {
 			echo '<div class="notice notice-warning"><p>' .
-				esc_html__( 'The admin interface has not been built yet. Run "npm install && npm run build" in the plugin directory.', 'agentimus' ) .
+				esc_html__( 'The plugin’s admin screens are missing from this install — usually a broken or partial upload. Re-install the plugin from a fresh zip. (Developers running from source: npm install && npm run build.)', 'agentimus' ) .
 				'</p></div>';
 		}
 

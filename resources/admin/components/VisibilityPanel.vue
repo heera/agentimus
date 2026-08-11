@@ -749,6 +749,17 @@ export default {
       }
     },
     async clearData() {
+      // The only other delete in the app confirms first (ActivityPanel's Clear
+      // log) — a one-word red button next to "Run check now" must not be the
+      // exception. States what is kept as well as what goes.
+      const ok = await confirm({
+        title: 'Clear citation history?',
+        message: 'This permanently deletes every stored citation result — all runs, for every provider. Your prompts and provider keys are kept. This cannot be undone.',
+        confirmLabel: 'Clear history',
+        cancelLabel: 'Cancel',
+        tone: 'danger',
+      });
+      if (!ok) return;
       this.busy = true;
       try {
         const r = await this.api.clearVisibilityData();
@@ -894,7 +905,7 @@ export default {
               @refresh="quietReload"
             />
             <div class="agv-runbar__actions">
-              <button v-if="hasData" type="button" class="ar-btn ar-btn--ghost agv-btn-sm agv-btn-danger" :disabled="busy" @click="clearData">Clear</button>
+              <button v-if="hasData" type="button" class="ar-btn ar-btn--ghost agv-btn-sm agv-btn-danger" :disabled="busy" @click="clearData">Clear history</button>
               <button type="button" class="ar-btn agv-btn-sm" :disabled="busy" @click="run">{{ busy ? 'Running…' : 'Run check now' }}</button>
             </div>
           </div>

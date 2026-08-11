@@ -22,6 +22,7 @@
  */
 import { formatStamp } from '../js/wpDate.js';
 import { uaTip } from '../js/uaTip.js';
+import { confirm } from '../js/confirm.js';
 import RefreshCrank from './RefreshCrank.vue';
 import CardSkeleton from './CardSkeleton.vue';
 
@@ -227,6 +228,17 @@ export default {
     },
     async clear() {
       if (!this.api) return;
+      // Same words, same colour, same danger as the activity log's Clear log —
+      // so the same confirmation. Two identical buttons with two different
+      // levels of care would teach the owner the dialogs mean nothing.
+      const ok = await confirm({
+        title: 'Clear the agent access log?',
+        message: 'This permanently deletes every recorded agent access event. This cannot be undone.',
+        confirmLabel: 'Clear log',
+        cancelLabel: 'Cancel',
+        tone: 'danger',
+      });
+      if (!ok) return;
       try {
         await this.api.clearAgentAccess();
         this.events = [];

@@ -80,8 +80,8 @@ export default {
         return {
           tone: 'warn',
           text: md
-            ? 'Markdown delivery is turned off in Settings → Features. This is a preview of what would be served if you switch it on.'
-            : 'JSON-LD output is turned off in Settings → Features. This is a preview of what would ship if you switch it on.',
+            ? 'Plain-text versions are turned off — the switch lives under Settings → Discovery. This is a preview of what would be served if you turn it on.'
+            : '“Rich data for search” is turned off — the switch lives under Settings → Discovery. This is a preview of what would ship if you turn it on.',
         };
       }
       if (this.res.reason === 'seo_plugin') {

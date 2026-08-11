@@ -397,11 +397,11 @@ final class Score {
 
 	private function optimize_note( array $optimize ) {
 		if ( null === $optimize['score'] ) {
-			return __( 'No published posts to grade yet.', 'agentimus' );
+			return __( 'No published posts to grade yet — publish your first post and this rung starts measuring.', 'agentimus' );
 		}
 		return sprintf(
 			/* translators: %d: number of posts/pages sampled. */
-			_n( 'Citability across your %d most recently edited post or page.', 'Citability across your %d most recently edited posts and pages.', (int) $optimize['posts'], 'agentimus' ),
+			_n( 'How easily an AI can read, quote and credit your %d most recently edited post or page.', 'How easily an AI can read, quote and credit your %d most recently edited posts and pages.', (int) $optimize['posts'], 'agentimus' ),
 			(int) $optimize['posts']
 		);
 	}
@@ -476,7 +476,7 @@ final class Score {
 			'featured_image' => __( 'Set a featured image so link previews have a picture.', 'agentimus' ),
 			'freshness'      => __( 'Refresh it — engines favour current pages.', 'agentimus' ),
 		);
-		return isset( $map[ $id ] ) ? $map[ $id ] : __( 'Improve its citability in the editor.', 'agentimus' );
+		return isset( $map[ $id ] ) ? $map[ $id ] : __( 'Open it in the editor — the Agentimus box shows what to improve.', 'agentimus' );
 	}
 
 	/**
@@ -699,7 +699,7 @@ final class Score {
 				$note = __( 'Not measured — add an AI provider key under Visibility → Citations to track whether engines cite you.', 'agentimus' );
 				break;
 			case 'failed':
-				$note = __( 'Every check failed on the last run — check your AI provider key.', 'agentimus' );
+				$note = __( 'Every check failed on the last run — open Visibility → Citations to check the provider key and re-run.', 'agentimus' );
 				break;
 			case 'stale':
 				$note = sprintf(
@@ -792,7 +792,7 @@ final class Score {
 				// own label stays accurate for every check, present and future.
 				'why'      => sprintf(
 					/* translators: 1: number of flagged posts/pages, 2: the check's warning label. */
-					_n( '%1$d item flags “%2$s” — open it to fix in the editor (its AI Readability panel).', '%1$d items flag “%2$s” — open one to fix in the editor (its AI Readability panel).', (int) $issue['count'], 'agentimus' ),
+					_n( '%1$d item flags “%2$s” — open it and the Agentimus box in the editor shows the fix.', '%1$d items flag “%2$s” — open one and the Agentimus box in the editor shows the fix.', (int) $issue['count'], 'agentimus' ),
 					(int) $issue['count'],
 					(string) $issue['label']
 				),

@@ -80,7 +80,7 @@ final class ReadinessConflictTest extends TestCase {
 		$this->probe( array( 'http' => 200, 'ours' => false, 'first_line' => '' ) );
 		$row = $this->invoke( 'check_llms_txt' );
 		$this->assertSame( 'warn', $row['status'] );
-		$this->assertStringContainsString( 'Disabled', $row['detail'] );
+		$this->assertStringContainsString( 'Off', $row['detail'] );
 	}
 
 	/** A static llms.txt file at the web root wins over everything: warn. */

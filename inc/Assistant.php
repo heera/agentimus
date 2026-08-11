@@ -1301,7 +1301,7 @@ final class Assistant {
 			$msg = mb_substr( $msg, 0, 159 ) . '…';
 		}
 		if ( '' === $msg ) {
-			$msg = __( 'The AI call failed — please try again.', 'agentimus' );
+			$msg = __( 'The AI call failed — try again, and if it keeps happening, check the provider key under Settings → AI.', 'agentimus' );
 		}
 		return new \WP_Error( 'agentimus_ai_failed', $msg, array( 'status' => 500 ) );
 	}
