@@ -598,13 +598,18 @@ export default {
          restore, so a page held back here is never hidden. Separate from
          Optimize's list on Readiness: different judgement, different ledger,
          each shown where it was made. -->
-    <div v-if="searchAside.length" class="ar-setaside ar-opp__aside">
-      <div class="ar-setaside__head">
-        <p class="ar-opp__eyebrow">
-          Set aside from search
-          <span class="ar-opp__why">— {{ searchAside.length }} page{{ searchAside.length === 1 ? '' : 's' }} you don’t want search suggestions for, from either engine</span>
-        </p>
-      </div>
+    <!-- FOLDED, exactly as Readiness folds its own set-aside list. This one has
+         no ceiling — every page ever set aside stays in it — so open it grows a
+         full-width row at a time until the work above it is off the screen. The
+         COUNT stays visible, because a ledger nobody can see is how pages get
+         quietly excluded forever; the rows are a reference, read on the rare
+         visit that restores something. Same classes as the Readiness fold on
+         purpose: two lists doing one job must not look like two ideas. -->
+    <details v-if="searchAside.length" class="ar-setaside ar-optmore">
+      <summary class="ar-optmore__toggle ar-setaside__head">
+        <strong class="ar-setaside__title">Set aside from search <span class="ar-optcheck__n">· {{ searchAside.length }}</span></strong>
+        <span class="ar-setaside__note">no search suggestions, from either engine</span>
+      </summary>
       <ul class="ar-optcheck__pages">
         <li v-for="p in searchAside" :key="p.id || p.url" class="ar-optcheck__row">
           <div class="ar-optcheck__asided">
@@ -618,6 +623,6 @@ export default {
           >Restore</button>
         </li>
       </ul>
-    </div>
+    </details>
   </div>
 </template>
