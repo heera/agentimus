@@ -448,7 +448,12 @@ export default {
             <span class="ar-opp__pos" :class="group.chipTone">{{ group.chip }}</span>
           </div>
           <p class="ar-opp__groupwhy">{{ group.why }}</p>
-          <p class="ar-opp__todo">
+          <!-- The instructions go when there is nobody left to instruct. With
+               every card in the group finished, "What to do: open the post and
+               make it answer this search more directly" sat directly on top of a
+               card saying the owner's side is done — the same contradiction the
+               waiting state removes, one level up, in bolder type. -->
+          <p v-if="group.cards.some((c) => !c.waiting)" class="ar-opp__todo">
             <!-- eslint-disable-next-line vue/no-v-html — group.todo is our own static copy above, never user data -->
             <strong>What to do:</strong> <span v-html="group.todo"></span>
             <!-- Never let a cap pass for completeness. -->
@@ -456,6 +461,11 @@ export default {
               Showing the {{ group.cards.length }} pages with the most impressions, of {{ group.total }} —
               fix these and the next ones move up.
             </template>
+          </p>
+          <p v-else class="ar-opp__todo ar-opp__todo--waiting">
+            <strong>Nothing to do here.</strong> Every page in this group is answered, titled and
+            linked — what is left is {{ group.key === 'seen' ? 'whether searchers click' : 'the rank' }},
+            and the next report decides it. The cards clear themselves when the numbers improve.
           </p>
           <ul class="ar-checks ar-opp__list">
             <li

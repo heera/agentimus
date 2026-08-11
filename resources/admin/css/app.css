@@ -2553,6 +2553,11 @@ a.ar-opp__title:hover { text-decoration: underline; }
 }
 /* "Your side is done." Stated on the card itself, in the neutral ink — it is a
    status, and a status wearing a warning colour is just another thing to fix. */
+/* The group's own "nothing to do" note, in the neutral ink the individual
+   waiting cards use — a group with no work must not shout in the colour a
+   group with work uses. */
+.ar-opp__todo--waiting { color: var(--ar-ink-soft); }
+
 .ar-opp__waiting {
   display: flex; gap: 8px; align-items: baseline; margin: 8px 0 0;
   padding: 8px 11px; border-radius: 5px;
