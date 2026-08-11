@@ -472,6 +472,11 @@ final class Rest {
 	 */
 	public function disconnect() {
 		$this->google->disconnect();
+		// The progress ledger describes THIS engine's reports. Kept across a
+		// disconnect, a reconnection weeks later would compare today's numbers
+		// to a world that no longer exists and announce "improvements" nobody
+		// was waiting for.
+		\Agentimus\Search\Progress::forget( 'google' );
 		return rest_ensure_response( $this->google->public_view() );
 	}
 }

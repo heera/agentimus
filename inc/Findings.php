@@ -55,6 +55,21 @@ final class Findings {
 	const LATER = 'later';
 
 	/**
+	 * The owner's side is done; what happens next belongs to a search engine.
+	 *
+	 * This tier exists because a COUNT IN A NAV IS A PROMISE that doing the work
+	 * makes it go down, and the search findings could not keep it: no edit
+	 * clears "ranks 8th" — only a later report does, weeks on. So the badge said
+	 * "one thing needs you" while the editor, on the very same page, said your
+	 * side is done. Both were locally true and jointly a lie, and a counter you
+	 * cannot work down is a counter you learn to ignore.
+	 *
+	 * Waiting findings are NOT hidden — they keep their row, their evidence and
+	 * their date. They are simply not counted, because nobody can act on them.
+	 */
+	const WAITING = 'waiting';
+
+	/**
 	 * Sort weights. Explicit integers rather than an enum order, so the ranking
 	 * is readable, arguable and testable in one place. Higher sorts first.
 	 *
@@ -69,6 +84,10 @@ final class Findings {
 		'content_issues' => 60,
 		'seen_not_chosen' => 50,
 		'never_measured' => 20,
+		// The waiting pair sort last among themselves; the tier, not the weight,
+		// is what puts them in their own band at the foot of the screen.
+		'near_page_one_waiting'   => 15,
+		'seen_not_chosen_waiting' => 14,
 	);
 
 	/** @var Settings */
@@ -123,17 +142,32 @@ final class Findings {
 			}
 		}
 
-		usort(
-			$found,
-			static function ( $a, $b ) {
-				$wa = isset( $a['weight'] ) ? (int) $a['weight'] : 0;
-				$wb = isset( $b['weight'] ) ? (int) $b['weight'] : 0;
-				return $wb <=> $wa;
-			}
-		);
-		$found = array_slice( $found, 0, self::MAX );
+		$by_weight = static function ( $a, $b ) {
+			$wa = isset( $a['weight'] ) ? (int) $a['weight'] : 0;
+			$wb = isset( $b['weight'] ) ? (int) $b['weight'] : 0;
+			return $wb <=> $wa;
+		};
 
-		$counts = array( self::URGENT => 0, self::WORTH => 0, self::LATER => 0 );
+		// The cap applies to WORK, not to status. A site with twelve open
+		// findings would otherwise slice the waiting rows off the end — and the
+		// waiting band is exactly what stops a done page from looking undone, so
+		// losing it under load defeats the whole thing. Two rows at most reach
+		// here anyway (one per search worklist), so the screen's ceiling is
+		// still fixed no matter how many pages are involved.
+		$waiting = array();
+		$open    = array();
+		foreach ( $found as $row ) {
+			if ( self::WAITING === ( isset( $row['tier'] ) ? $row['tier'] : '' ) ) {
+				$waiting[] = $row;
+			} else {
+				$open[] = $row;
+			}
+		}
+		usort( $open, $by_weight );
+		usort( $waiting, $by_weight );
+		$found = array_merge( array_slice( $open, 0, self::MAX ), $waiting );
+
+		$counts = array( self::URGENT => 0, self::WORTH => 0, self::LATER => 0, self::WAITING => 0 );
 		foreach ( $found as $row ) {
 			$tier = isset( $row['tier'] ) ? $row['tier'] : self::WORTH;
 			if ( isset( $counts[ $tier ] ) ) {
@@ -141,8 +175,19 @@ final class Findings {
 			}
 		}
 
+		// News, not findings — so it travels beside them rather than among them.
+		// A resolution has no action, no tier and no rank; it is read once and
+		// expires on its own ({@see Search\Progress::KEEP_DAYS}).
+		$resolved = null;
+		try {
+			$resolved = $this->resolved();
+		} catch ( \Throwable $e ) {
+			$failed[] = 'resolved';
+		}
+
 		$payload = array(
 			'findings' => array_values( $found ),
+			'resolved' => $resolved,
 			'clear'    => $this->clear_lines(),
 			'failed'   => $failed,
 			'counts'   => $counts,
@@ -152,11 +197,11 @@ final class Findings {
 		 * The assembled front-door findings. Add a finding from an add-on, drop
 		 * one you never want to see, or re-rank by rewriting `weight`.
 		 *
-		 * @param array    $payload  findings/clear/failed/counts.
+		 * @param array    $payload  findings/resolved/clear/failed/counts.
 		 * @param Settings $settings Plugin settings.
 		 */
 		$payload = apply_filters( self::FILTER, $payload, $this->settings );
-		return is_array( $payload ) ? $payload : array( 'findings' => array(), 'clear' => array(), 'failed' => array(), 'counts' => $counts );
+		return is_array( $payload ) ? $payload : array( 'findings' => array(), 'resolved' => null, 'clear' => array(), 'failed' => array(), 'counts' => $counts );
 	}
 
 	/**
@@ -258,24 +303,29 @@ final class Findings {
 			return array();
 		}
 
-		$queries = 0;
-		$shown   = 0;
-		$clicks  = 0;
-		foreach ( $pages as $page ) {
-			foreach ( (array) ( isset( $page['queries'] ) ? $page['queries'] : array() ) as $q ) {
-				++$queries;
-				$shown  += (int) ( isset( $q['impressions'] ) ? $q['impressions'] : 0 );
-				$clicks += (int) ( isset( $q['clicks'] ) ? $q['clicks'] : 0 );
-			}
-		}
-		$n = count( $pages );
+		$split = $this->partition( $pages );
+		$capped = $this->cap_note( isset( $group['counts']['almost'] ) ? $group['counts']['almost'] : 0, count( $pages ) );
+		$out    = array();
 
-		return array(
-			$this->row(
+		if ( $split['todo'] ) {
+			$todo    = $split['todo'];
+			$n       = count( $todo );
+			$queries = 0;
+			$shown   = 0;
+			$clicks  = 0;
+			foreach ( $todo as $page ) {
+				foreach ( (array) ( isset( $page['queries'] ) ? $page['queries'] : array() ) as $q ) {
+					++$queries;
+					$shown  += (int) ( isset( $q['impressions'] ) ? $q['impressions'] : 0 );
+					$clicks += (int) ( isset( $q['clicks'] ) ? $q['clicks'] : 0 );
+				}
+			}
+
+			$out[] = $this->row(
 				'near_page_one',
 				self::WORTH,
 				sprintf(
-					/* translators: %d: how many pages rank just below page one. */
+					/* translators: %d: how many pages rank just below page one and still need an edit. */
 					_n( '%d page is one push from page one', '%d pages are one push from page one', $n, 'agentimus' ),
 					$n
 				),
@@ -301,12 +351,44 @@ final class Findings {
 					'performance',
 					'ar-group-search'
 				),
-				array(
-					__( 'Use the words people typed in the title they see.', 'agentimus' ),
-					__( 'Answer the question directly in one paragraph.', 'agentimus' ),
+				array_merge(
+					array(
+						__( 'Use the words people typed in the title they see.', 'agentimus' ),
+						__( 'Answer the question directly in one paragraph.', 'agentimus' ),
+					),
+					$capped
 				)
-			),
-		);
+			);
+		}
+
+		if ( $split['waiting'] ) {
+			$out[] = $this->waiting_row(
+				'near_page_one_waiting',
+				Search\Opportunities::KIND_NEAR,
+				(string) ( isset( $group['source'] ) ? $group['source'] : '' ),
+				$split['waiting'],
+				sprintf(
+					/* translators: %d: how many pages are finished and awaiting a report. */
+					_n(
+						'%d page is waiting on Google',
+						'%d pages are waiting on Google',
+						count( $split['waiting'] ),
+						'agentimus'
+					),
+					count( $split['waiting'] )
+				),
+				__( 'Answered, titled and linked — there is no edit left to make.', 'agentimus' ),
+				array_merge(
+					array(
+						__( 'The next report decides the rank, not another edit.', 'agentimus' ),
+						__( 'You will be told here when it moves.', 'agentimus' ),
+					),
+					$capped
+				)
+			);
+		}
+
+		return $out;
 	}
 
 	/**
@@ -321,18 +403,22 @@ final class Findings {
 		if ( ! $pages ) {
 			return array();
 		}
-		$n = count( $pages );
 
-		$evidence = array();
-		foreach ( $pages as $page ) {
-			foreach ( (array) ( isset( $page['queries'] ) ? $page['queries'] : array() ) as $q ) {
-				$evidence[] = sprintf( '“%s” · #%s', (string) $q['query'], number_format_i18n( (float) $q['position'], 1 ) );
-				break;
+		$split = $this->partition( $pages );
+		$capped = $this->cap_note( isset( $group['counts']['seen'] ) ? $group['counts']['seen'] : 0, count( $pages ) );
+		$out    = array();
+
+		if ( $split['todo'] ) {
+			$n        = count( $split['todo'] );
+			$evidence = array();
+			foreach ( $split['todo'] as $page ) {
+				foreach ( (array) ( isset( $page['queries'] ) ? $page['queries'] : array() ) as $q ) {
+					$evidence[] = sprintf( '“%s” · #%s', (string) $q['query'], number_format_i18n( (float) $q['position'], 1 ) );
+					break;
+				}
 			}
-		}
 
-		return array(
-			$this->row(
+			$out[] = $this->row(
 				'seen_not_chosen',
 				self::WORTH,
 				sprintf(
@@ -355,12 +441,292 @@ final class Findings {
 					'performance',
 					'ar-group-search'
 				),
-				array(
-					__( 'Nothing is wrong with the page itself.', 'agentimus' ),
-					__( 'The title and description are what they read before deciding.', 'agentimus' ),
+				array_merge(
+					array(
+						__( 'Nothing is wrong with the page itself.', 'agentimus' ),
+						__( 'The title and description are what they read before deciding.', 'agentimus' ),
+					),
+					$capped
 				)
+			);
+		}
+
+		if ( $split['waiting'] ) {
+			$out[] = $this->waiting_row(
+				'seen_not_chosen_waiting',
+				Search\Opportunities::KIND_SEEN,
+				(string) ( isset( $group['source'] ) ? $group['source'] : '' ),
+				$split['waiting'],
+				sprintf(
+					/* translators: %d: how many rewritten pages await a report. */
+					_n(
+						'%d page is waiting on searchers',
+						'%d pages are waiting on searchers',
+						count( $split['waiting'] ),
+						'agentimus'
+					),
+					count( $split['waiting'] )
+				),
+				__( 'The title and description are both written — the pair they read before deciding.', 'agentimus' ),
+				array_merge(
+					array(
+						__( 'Whether people click is theirs to decide, not yours.', 'agentimus' ),
+						__( 'You will be told here when the click rate moves.', 'agentimus' ),
+					),
+					$capped
+				)
+			);
+		}
+
+		return $out;
+	}
+
+	/**
+	 * Split one worklist group into the pages that still need an edit and the
+	 * pages whose owner-side work is finished.
+	 *
+	 * The test is {@see \Agentimus\Focus}'s, not a second opinion written here —
+	 * the editor panel tells an owner "your side is done" about a specific page,
+	 * and the front door has to agree with it about that same page or one of
+	 * them is lying.
+	 *
+	 * A page with no post behind it (a homepage, an archive) can never be judged
+	 * done: there is no content to measure and no title field to read. It stays
+	 * on the actionable side, because "we cannot tell" must never be shown as
+	 * "nothing left to do".
+	 *
+	 * @param array  $pages Wire cards from {@see Search\Report::opportunities()}.
+	 * @param string $kind  Search\Opportunities::KIND_NEAR or ::KIND_SEEN.
+	 * @return array{todo:array<int,array>,waiting:array<int,array>}
+	 */
+	private function partition( array $pages ) {
+		// The verdict rides on the card already — Search\Report marks it when it
+		// shapes the worklist, so the agent's copy and this one cannot disagree.
+		// Asking Standing a second time here would be the same question, answered
+		// twice, with two chances to drift.
+		$todo    = array();
+		$waiting = array();
+		foreach ( $pages as $page ) {
+			if ( ! empty( $page['waiting'] ) ) {
+				$waiting[] = $page;
+			} else {
+				$todo[] = $page;
+			}
+		}
+		return array( 'todo' => $todo, 'waiting' => $waiting );
+	}
+
+	/**
+	 * The clause a CAPPED worklist owes its reader.
+	 *
+	 * The opportunities report ships the six biggest pages per group and states
+	 * the true total separately. Without this line a site with sixty qualifying
+	 * pages is told "6 pages are one push from page one" — a number that is not
+	 * wrong so much as silently partial, and the reader has no way to know the
+	 * difference. A cap that does not announce itself reads as completeness.
+	 *
+	 * @param int $total  How many pages really qualify.
+	 * @param int $judged How many the report actually sent.
+	 * @return array<int,string> One point, or none when nothing was hidden.
+	 */
+	private function cap_note( $total, $judged ) {
+		if ( (int) $total <= (int) $judged ) {
+			return array();
+		}
+		return array(
+			sprintf(
+				/* translators: 1: pages judged, 2: pages that qualify in total. */
+				__( 'Judged on the %1$s biggest of %2$s pages that qualify.', 'agentimus' ),
+				number_format_i18n( (int) $judged ),
+				number_format_i18n( (int) $total )
 			),
 		);
+	}
+
+	/**
+	 * One waiting row: same shape as any finding, minus the promise of work.
+	 *
+	 * It keeps an action — the owner should still be able to SEE the page it is
+	 * about — but the label says look, not fix. Handing someone a button marked
+	 * "Show me those 2 pages" for work that does not exist is the contradiction
+	 * this tier was built to remove, one level down.
+	 *
+	 * @param string $id     Row id (also the WEIGHTS key).
+	 * @param string $kind   Search\Opportunities::KIND_NEAR or ::KIND_SEEN.
+	 * @param string $source Which engine's report these pages are waiting on —
+	 *                       passed in, because the group this row was built from
+	 *                       already resolved it. A row builder that re-resolves
+	 *                       the active source can answer differently from the
+	 *                       list it belongs to.
+	 * @param array  $pages  The finished cards.
+	 * @param string $title  Headline.
+	 * @param string $why    One line.
+	 * @param array  $points Separable facts.
+	 * @return array
+	 */
+	private function waiting_row( $id, $kind, $source, array $pages, $title, $why, array $points ) {
+		$evidence = array();
+		$ids      = Search\Standing::card_ids( $pages );
+		foreach ( $pages as $page ) {
+			$page_id = (int) ( isset( $page['postId'] ) ? $page['postId'] : 0 );
+			$name    = (string) ( isset( $page['title'] ) ? $page['title'] : '' );
+			$since   = '' !== $source
+				? Search\Progress::since( $source, $kind, $page_id, (string) ( isset( $page['url'] ) ? $page['url'] : '' ) )
+				: 0;
+			// The date is only shown when a poll actually recorded one. A page
+			// that has been waiting since before this ledger existed has no
+			// honest "since", and inventing today's date would restart a clock
+			// that has been running for weeks.
+			$evidence[] = $since > 0
+				? sprintf(
+					/* translators: 1: page title, 2: the date it joined the worklist. */
+					__( '%1$s · since %2$s', 'agentimus' ),
+					$name,
+					date_i18n( (string) get_option( 'date_format' ), $since )
+				)
+				: $name;
+		}
+
+		$row = $this->row(
+			$id,
+			self::WAITING,
+			$title,
+			$why,
+			$evidence,
+			$this->go(
+				_n( 'Look at that page', 'Look at those pages', count( $pages ), 'agentimus' ),
+				'visibility',
+				'performance',
+				'ar-group-search',
+				$ids
+			),
+			$points
+		);
+		return $row;
+	}
+
+	/**
+	 * The engine's own good news, as ONE row.
+	 *
+	 * Read straight from the ledger and never recomputed here: a resolution is a
+	 * fact about two polls, and the only place that can compare them is the one
+	 * that saw both ({@see Search\Progress}).
+	 *
+	 * ONE row, whatever the site's size — the boundary law. A busy site can
+	 * resolve a dozen pages in a week, and a dozen green lines stacked above the
+	 * work would push the actual findings off the first screen: the reward for
+	 * doing well would be losing sight of what is left. So a single win keeps its
+	 * whole sentence, and several become a count with the moves as evidence,
+	 * clipped by the same rule every other finding's evidence follows.
+	 *
+	 * @return array|null The row, or null when there is no news.
+	 */
+	private function resolved() {
+		$wins = array();
+		foreach ( Search\Progress::resolved() as $win ) {
+			$id    = (int) $win['page_id'];
+			$title = $id > 0
+				? html_entity_decode( wp_strip_all_tags( (string) get_the_title( $id ) ), ENT_QUOTES, 'UTF-8' )
+				: (string) wp_parse_url( (string) $win['page_url'], PHP_URL_PATH );
+			if ( '' === trim( $title ) ) {
+				continue; // A win we cannot name is not a win anyone can read.
+			}
+			$win['name'] = $title;
+			$wins[]      = $win;
+		}
+		if ( ! $wins ) {
+			return null;
+		}
+
+		// One win says the whole thing. Nothing is gained by turning a single
+		// sentence into a headline plus one chip that repeats it.
+		if ( 1 === count( $wins ) ) {
+			return array(
+				'id'       => 'resolved',
+				'title'    => self::win_sentence( $wins[0] ),
+				'evidence' => array(),
+				'at'       => (int) $wins[0]['at'],
+			);
+		}
+
+		$moves  = array();
+		$newest = 0;
+		foreach ( $wins as $win ) {
+			$moves[] = sprintf( '%s · %s', self::clip_name( $win['name'] ), self::win_move( $win ) );
+			$newest  = max( $newest, (int) $win['at'] );
+		}
+
+		return array(
+			'id'       => 'resolved',
+			'title'    => sprintf(
+				/* translators: %s: how many pages improved. */
+				__( '%s pages improved', 'agentimus' ),
+				number_format_i18n( count( $wins ) )
+			),
+			'evidence' => self::clip_evidence( $moves ),
+			'at'       => $newest,
+		);
+	}
+
+	/**
+	 * One win as a whole sentence, for the case where it is the only news.
+	 *
+	 * @param array $win A ledger resolution, with `name` resolved.
+	 * @return string
+	 */
+	private static function win_sentence( array $win ) {
+		if ( Search\Opportunities::KIND_SEEN === (string) $win['kind'] ) {
+			return sprintf(
+				/* translators: 1: page title, 2: new click rate, 3: previous click rate. */
+				__( '%1$s is being clicked now — %2$s%% of the time, up from %3$s%%.', 'agentimus' ),
+				$win['name'],
+				number_format_i18n( (float) $win['to'], 1 ),
+				number_format_i18n( (float) $win['from'], 1 )
+			);
+		}
+		return sprintf(
+			/* translators: 1: page title, 2: new place in results, 3: previous place. */
+			__( '%1$s is %2$s in results now — it was %3$s. That is page one.', 'agentimus' ),
+			$win['name'],
+			Focus::ordinal( (int) max( 1, round( (float) $win['to'] ) ) ),
+			Focus::ordinal( (int) max( 1, round( (float) $win['from'] ) ) )
+		);
+	}
+
+	/**
+	 * The same win as a bare move, for a chip beside its page's name.
+	 *
+	 * @param array $win A ledger resolution.
+	 * @return string
+	 */
+	private static function win_move( array $win ) {
+		if ( Search\Opportunities::KIND_SEEN === (string) $win['kind'] ) {
+			return sprintf(
+				'%1$s%% → %2$s%%',
+				number_format_i18n( (float) $win['from'], 1 ),
+				number_format_i18n( (float) $win['to'], 1 )
+			);
+		}
+		return sprintf(
+			'%1$s → %2$s',
+			Focus::ordinal( (int) max( 1, round( (float) $win['from'] ) ) ),
+			Focus::ordinal( (int) max( 1, round( (float) $win['to'] ) ) )
+		);
+	}
+
+	/**
+	 * A page title short enough to sit in a chip.
+	 *
+	 * Post titles have no length limit, and one long one turns a row of chips into
+	 * a paragraph — the boundary law fails by the WIDTH of the data as readily as
+	 * by its count.
+	 *
+	 * @param string $name Page title.
+	 * @return string
+	 */
+	private static function clip_name( $name ) {
+		$name = trim( (string) $name );
+		return function_exists( 'mb_strimwidth' ) ? mb_strimwidth( $name, 0, 40, '…' ) : $name;
 	}
 
 	/**

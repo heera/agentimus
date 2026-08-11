@@ -62,12 +62,59 @@ final class FindingsTest extends TestCase {
 	/** Tier counts describe the rows actually returned, never a source's ambition. */
 	public function test_counts_match_the_rows_returned() {
 		$out    = $this->payload();
-		$counts = array( Findings::URGENT => 0, Findings::WORTH => 0, Findings::LATER => 0 );
+		$counts = array( Findings::URGENT => 0, Findings::WORTH => 0, Findings::LATER => 0, Findings::WAITING => 0 );
 		foreach ( $out['findings'] as $row ) {
 			++$counts[ $row['tier'] ];
 		}
 		$this->assertSame( $counts, $out['counts'] );
 	}
+
+	/**
+	 * The nav badge is urgent + worth, and NOTHING else.
+	 *
+	 * A count in a nav promises that doing the work makes it go down, and the
+	 * waiting tier is exactly the set of findings no edit can clear — a page
+	 * ranking 8th stays 8th until a later report says otherwise. Counting them
+	 * left the badge stuck on 1 while the post's own editor panel said his side
+	 * was done. If a future tier is added, this test is where it has to declare
+	 * whether it is work.
+	 */
+	public function test_the_waiting_tier_is_carried_but_never_counted_as_work() {
+		$out = $this->payload();
+
+		$this->assertArrayHasKey( Findings::WAITING, $out['counts'] );
+		$this->assertNotContains(
+			Findings::WAITING,
+			array( Findings::URGENT, Findings::WORTH ),
+			'the badge sums urgent + worth; waiting must not be either'
+		);
+	}
+
+	/**
+	 * Resolutions travel beside the findings, not among them — and as at most
+	 * ONE row.
+	 *
+	 * The boundary law: a busy site can resolve a dozen pages in a week, and a
+	 * dozen green lines above the list would push the actual work off the first
+	 * screen. Doing well must never cost you sight of what is left, so several
+	 * wins collapse into a count with the moves as clipped evidence.
+	 */
+	public function test_the_payload_carries_at_most_one_resolved_row() {
+		$out = $this->payload();
+
+		$this->assertArrayHasKey( 'resolved', $out );
+		$this->assertTrue( null === $out['resolved'] || is_array( $out['resolved'] ) );
+		if ( is_array( $out['resolved'] ) ) {
+			$this->assertArrayHasKey( 'title', $out['resolved'], 'one row, not a list of them' );
+			$this->assertLessThanOrEqual( self::MAX_EVIDENCE_SHOWN, count( $out['resolved']['evidence'] ) );
+		}
+		foreach ( $out['findings'] as $row ) {
+			$this->assertNotSame( 'resolved', $row['tier'], 'news is not a finding' );
+		}
+	}
+
+	/** The evidence cap plus the one "+N more" line the clipper appends. */
+	const MAX_EVIDENCE_SHOWN = Findings::MAX_EVIDENCE + 1;
 
 	/* ---- the ranking is a contract ----------------------------------------- */
 

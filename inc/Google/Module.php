@@ -202,6 +202,13 @@ final class Module {
 			$this->settings->record_poll( __( 'The search snapshot could not be saved — a database write failed. Try refreshing; if it persists, the report may be too large for the database packet limit.', 'agentimus' ) );
 		} else {
 			$this->settings->record_poll( '' );
+			// A fresh snapshot is the only moment new evidence exists about
+			// whether a worklist page climbed — the table it replaced is the
+			// version that would have been compared against. So the ledger is
+			// brought up to date here, and from no other path.
+			if ( $written > 0 ) {
+				Search\Progress::observe( 'google', $this->settings );
+			}
 		}
 
 		// The trend series and Discover totals ride the same poll — two cheap

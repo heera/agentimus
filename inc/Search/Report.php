@@ -331,10 +331,39 @@ final class Report {
 			'seen'          => (int) $report['counts']['seen'],
 			'setAside'      => (int) $report['counts']['set_aside'],
 		);
-		$out['almostThere']    = array_map( array( __CLASS__, 'wire_card' ), $report['almost_there'] );
-		$out['seenNotClicked'] = array_map( array( __CLASS__, 'wire_card' ), $report['seen_not_chosen'] );
+		$out['almostThere']    = self::mark_waiting( array_map( array( __CLASS__, 'wire_card' ), $report['almost_there'] ), Opportunities::KIND_NEAR );
+		$out['seenNotClicked'] = self::mark_waiting( array_map( array( __CLASS__, 'wire_card' ), $report['seen_not_chosen'] ), Opportunities::KIND_SEEN );
 
 		return $out;
+	}
+
+	/**
+	 * Flag the pages whose owner-side work is already finished.
+	 *
+	 * This is the AGENT'S copy of the worklist, and it was the last place still
+	 * telling the old lie. The admin screens learned to separate "still needs an
+	 * edit" from "done, waiting on the next report"; an assistant asked to take a
+	 * page from here and rewrite its title and description was still being handed
+	 * pages whose title and description were already written — and would dutifully
+	 * rewrite them.
+	 *
+	 * Same test as every other surface ({@see Standing}), so the agent and the
+	 * owner cannot be told different things about the same page.
+	 *
+	 * @param array  $cards Wire cards.
+	 * @param string $kind  Opportunities::KIND_NEAR or ::KIND_SEEN.
+	 * @return array<int,array>
+	 */
+	private static function mark_waiting( array $cards, $kind ) {
+		$done = Standing::map( Standing::card_ids( $cards ), $kind );
+		foreach ( $cards as &$card ) {
+			$id = (int) $card['postId'];
+			// A page with no post behind it can never be judged finished: nothing
+			// to measure, no title field to read. "We cannot tell" is never "done".
+			$card['waiting'] = $id > 0 && ! empty( $done[ $id ] );
+		}
+		unset( $card );
+		return $cards;
 	}
 
 	/**

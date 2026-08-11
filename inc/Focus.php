@@ -27,6 +27,7 @@
 namespace Agentimus;
 
 use Agentimus\Search\Coverage;
+use Agentimus\Search\Standing;
 
 defined( 'ABSPATH' ) || exit;
 
@@ -368,10 +369,13 @@ final class Focus {
 	/**
 	 * 1 → 1st, 2 → 2nd, 11 → 11th.
 	 *
+	 * Public because the Findings screen reports the same places in the same
+	 * words — "5th, up from 8th" has to read identically wherever it appears.
+	 *
 	 * @param int $n A place in the results.
 	 * @return string
 	 */
-	private static function ordinal( $n ) {
+	public static function ordinal( $n ) {
 		$n   = (int) $n;
 		$mod = $n % 100;
 		if ( $mod >= 11 && $mod <= 13 ) {
@@ -892,8 +896,13 @@ final class Focus {
 				// becomes a status: your side is done, the rest is Google's
 				// clock. Never silence here — a standing rank problem with no
 				// words would read as the panel giving up.
-				$inbound = self::inbound_links( $post );
-				if ( $inbound > 0 ) {
+				//
+				// The test itself lives in Standing because the Findings screen and
+				// the Opportunities card ask the same question of the same page, and
+				// copies of "done" would eventually answer differently — this panel
+				// saying nothing is left while the front door still counted it.
+				$inbound = Standing::inbound_links( $post );
+				if ( Standing::near_done( $post, $query, $cover ) ) {
 					return sprintf(
 						/* translators: %d: how many of the site's own posts link to this one. */
 						_n(
@@ -923,6 +932,17 @@ final class Focus {
 
 		// Page one, real views, not one click: the snippet is losing, not the page.
 		if ( null !== $row && $position > 0 && $position < 7.5 && $shown >= 10 && 0 === $clicks ) {
+			// This lever, too, must see its own completion. Once the pair is
+			// written there is no further edit to ask for, and asking anyway is
+			// the same bug the links branch above had: the panel kept demanding
+			// work that was already done.
+			if ( Standing::seen_done( $post ) ) {
+				return sprintf(
+					/* translators: %s: how often the result was shown. */
+					__( 'Page one, shown %s times, and your title and description are both written — your side is done. What is left is whether searchers click: the next reports decide it.', 'agentimus' ),
+					number_format_i18n( $shown )
+				);
+			}
 			return sprintf(
 				/* translators: 1: how often the result was shown, 2: where the SEO title is edited. */
 				__( 'Page one, and people scroll past — shown %1$s times, no one came to read. Rewrite %2$s and the AI description: that pair is what a searcher reads before deciding.', 'agentimus' ),
@@ -947,44 +967,6 @@ final class Focus {
 		}
 
 		return '';
-	}
-
-	/**
-	 * How many of the site's own published pieces link to this post.
-	 *
-	 * One COUNT over post_content for the slug as a link path — matched with a
-	 * closing boundary (/ or ") so "the-okf" never counts "the-okf-2". Runs
-	 * only when the links-lever branch fires, in the editor, once per request.
-	 *
-	 * @param \WP_Post $post The post being edited.
-	 * @return int
-	 */
-	private static function inbound_links( $post ) {
-		static $memo = array();
-
-		$id = (int) $post->ID;
-		if ( isset( $memo[ $id ] ) ) {
-			return $memo[ $id ];
-		}
-		$slug = (string) $post->post_name;
-		if ( '' === $slug ) {
-			$memo[ $id ] = 0;
-			return 0;
-		}
-
-		global $wpdb;
-		$types = array_map( 'esc_sql', Content::post_types() );
-		$in    = "'" . implode( "','", $types ) . "'";
-		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- $in is esc_sql'd above.
-		$memo[ $id ] = (int) $wpdb->get_var(
-			$wpdb->prepare(
-				"SELECT COUNT(*) FROM {$wpdb->posts} WHERE post_status = 'publish' AND ID != %d AND post_type IN ($in) AND (post_content LIKE %s OR post_content LIKE %s)",
-				$id,
-				'%' . $wpdb->esc_like( '/' . $slug . '/' ) . '%',
-				'%' . $wpdb->esc_like( '/' . $slug . '"' ) . '%'
-			)
-		);
-		return $memo[ $id ];
 	}
 
 	/**

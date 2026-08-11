@@ -292,6 +292,11 @@ final class Module {
 			$this->settings->record_query_poll( __( 'The query snapshot could not be saved — a database write failed. Try refreshing; the numbers may be stale until it succeeds.', 'agentimus' ) );
 		} else {
 			$this->settings->record_query_poll( '' );
+			// See the note on the Google side: the ledger only ever learns
+			// something when a poll replaces the snapshot it would compare to.
+			if ( $written > 0 ) {
+				\Agentimus\Search\Progress::observe( 'bing', $this->settings );
+			}
 		}
 	}
 

@@ -219,8 +219,8 @@ final class Rest {
 			$rows   = Table::snapshot( $source );
 			$report = Opportunities::build( $rows, $this->set_aside(), $this->set_aside_urls() );
 
-			$report['almost_there']    = array_map( array( $this, 'enrich' ), $report['almost_there'] );
-			$report['seen_not_chosen'] = array_map( array( $this, 'enrich' ), $report['seen_not_chosen'] );
+			$report['almost_there']    = $this->enrich_group( $report['almost_there'], Opportunities::KIND_NEAR, $source );
+			$report['seen_not_chosen'] = $this->enrich_group( $report['seen_not_chosen'], Opportunities::KIND_SEEN, $source );
 
 			$out['report'] = $report;
 			if ( ! empty( $rows ) ) {
@@ -328,6 +328,38 @@ final class Rest {
 	 * @param array $card An engine page card.
 	 * @return array
 	 */
+	/**
+	 * One worklist group, enriched — and told which of its cards are finished.
+	 *
+	 * The state is decided by {@see \Agentimus\Focus} and nowhere else. This card
+	 * and the Findings screen describe the same page to the same person on the
+	 * same day; a second opinion computed here would eventually disagree with the
+	 * front door, and the owner would have to decide which screen to believe.
+	 *
+	 * @param array  $cards  Raw cards.
+	 * @param string $kind   Opportunities::KIND_NEAR or ::KIND_SEEN.
+	 * @param string $source Source key, for the waiting-since date.
+	 * @return array<int,array>
+	 */
+	private function enrich_group( array $cards, $kind, $source ) {
+		$done = Standing::map( Standing::card_ids( $cards ), $kind );
+
+		$out = array();
+		foreach ( $cards as $card ) {
+			$card    = $this->enrich( $card );
+			$page_id = (int) $card['page_id'];
+			// A page with no post behind it can never be judged finished: there is
+			// no body to measure and no title field to read. "We cannot tell" must
+			// never render as "nothing left to do".
+			$card['waiting'] = $page_id > 0 && ! empty( $done[ $page_id ] );
+			$card['since']   = $card['waiting']
+				? Progress::since( $source, $kind, $page_id, (string) $card['page_url'] )
+				: 0;
+			$out[] = $card;
+		}
+		return $out;
+	}
+
 	private function enrich( array $card ) {
 		$id = (int) $card['page_id'];
 		if ( $id > 0 ) {
@@ -343,6 +375,10 @@ final class Rest {
 			$card['edit_url'] = $edit . '#agentimus-topics';
 			$card['links_url'] = $edit . '#agentimus-internal-links';
 			$card['read_url']  = $edit . '#agentimus-panel';
+			// The same editor with no fix attached — for a card whose work is
+			// done. Every link above lands ON a field and therefore asks for an
+			// edit; a finished card must still open, but it must not ask.
+			$card['open_url'] = $edit;
 			// The same citability verdicts the Optimize worklist gives, asked for
 			// THIS page — so the "Also in Optimize" flag doesn't depend on the
 			// page happening to sit in the recency sample ({@see Score::page_flags}).

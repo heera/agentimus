@@ -485,6 +485,17 @@
   border-radius: 999px; background: var(--ar-warn); color: var(--ar-paper);
   font-size: 10px; font-weight: 700; letter-spacing: 0;
 }
+/* The tab's third weight. A number means DO something; this dot means LOOK at
+   something — a finding whose work is finished and waiting on a report, or one
+   that has just moved. Deliberately smaller and quieter than the count: it is
+   an invitation, not a debt. It never appears alongside a count, so the tab
+   carries exactly one signal at a time. */
+.ar__tab-dot {
+  margin-left: 7px; width: 6px; height: 6px; border-radius: 999px;
+  display: inline-block; background: var(--ar-ink-faint);
+}
+.ar__tab-dot.is-news { background: var(--ar-good); }
+
 /* Each tab's mark — inherits the label's ink so it dims, wakes and activates
    with the text as one unit. */
 .ar__tab-ic { display: inline-flex; margin-right: 7px; }
@@ -2520,6 +2531,16 @@ a.ar-opp__title:hover { text-decoration: underline; }
   border: 1px solid color-mix(in srgb, var(--ar-warn) 30%, transparent);
   border-radius: 999px; padding: 1px 9px;
 }
+/* "Your side is done." Stated on the card itself, in the neutral ink — it is a
+   status, and a status wearing a warning colour is just another thing to fix. */
+.ar-opp__waiting {
+  display: flex; gap: 8px; align-items: baseline; margin: 8px 0 0;
+  padding: 8px 11px; border-radius: 5px;
+  background: var(--ar-surface-2); border: 1px solid var(--ar-line);
+  font-size: 12px; line-height: 1.5; color: var(--ar-ink-soft);
+}
+.ar-opp__waiting-mark { color: var(--ar-ink-faint); font-size: 11px; flex: none; }
+
 .ar-opp__qwrap { overflow-x: auto; margin-top: 8px; }
 .ar-opp__queries { border-collapse: collapse; width: 100%; min-width: 520px; }
 .ar-opp__queries th {
@@ -3750,6 +3771,10 @@ html { scrollbar-gutter: stable; }
 .ar-check.is-pass .ar-check__rule { background: var(--ar-good); }
 .ar-check.is-warn .ar-check__rule { background: var(--ar-warn); }
 .ar-check.is-fail .ar-check__rule { background: var(--ar-bad); }
+/* Finished, and waiting on an engine. The amber rule is a call to act, so a card
+   with nothing left to do must not wear one — it drops to the neutral rule, the
+   same weight as a row that has never asked for anything. */
+.ar-check.is-waiting .ar-check__rule { background: var(--ar-line-strong); }
 
 /* Two buttons in the report head (Verify live + Re-run). */
 .ar-card__actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
@@ -6152,6 +6177,11 @@ a.ar-about-proto__v:hover { text-decoration: underline; }
 .ar-today__row.is-urgent .ar-today__mark { color: var(--ar-bad); }
 .ar-today__row.is-worth .ar-today__mark { color: var(--ar-warn); }
 .ar-today__row.is-later .ar-today__mark { color: var(--ar-ink-faint); }
+/* Waiting is not work, and must not wear a working colour. The half-filled mark
+   in the faint ink reads as "under way, not by you" — the same weight as an
+   optional row, because neither is asking for anything today. */
+.ar-today__row.is-waiting .ar-today__mark { color: var(--ar-ink-faint); }
+.ar-today__row.is-waiting .ar-today__row-title { color: var(--ar-ink-soft); font-weight: 500; }
 .ar-today__main { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
 .ar-today__row-title { margin: 0; font-size: 14.5px; font-weight: 600; color: var(--ar-ink); }
 .ar-today__why { margin: 0; font-size: 12.5px; line-height: 1.55; color: var(--ar-ink-soft); max-width: 68ch; }
@@ -6173,6 +6203,21 @@ a.ar-about-proto__v:hover { text-decoration: underline; }
   text-transform: uppercase; color: var(--ar-ink-faint);
 }
 
+/* The win. Above the work, in the good colour, and gone within the week — it is
+   news, and news that stays becomes furniture. Sits inside the card's own top
+   rule so it reads as part of the list rather than a banner over it. */
+.ar-today__won {
+  display: flex; gap: 9px; align-items: baseline; margin: 0;
+  padding: 13px 26px; border-bottom: 1px solid var(--ar-line);
+  background: color-mix(in srgb, var(--ar-good) 7%, transparent);
+  font-size: 13px; color: var(--ar-ink);
+}
+.ar-today__won-mark { color: var(--ar-good); font-size: 12px; flex: none; }
+.ar-today__won-main { display: flex; flex-direction: column; gap: 5px; min-width: 0; }
+/* The way out, kept quiet and last: a win should not arrive wearing a button
+   that competes with the work below it. */
+.ar-today__won-seen { margin-left: auto; flex: none; align-self: flex-start; font-size: 12px; }
+
 /* Stated, not implied: with nothing open the screen must read as "checked". */
 .ar-today__clear {
   display: flex; gap: 9px; align-items: baseline; margin: 0;
@@ -6193,6 +6238,7 @@ a.ar-about-proto__v:hover { text-decoration: underline; }
   .ar-today__row { grid-template-columns: 18px minmax(0, 1fr); padding: 14px 18px; }
   .ar-today__act { grid-column: 2; }
   .ar-today__divider, .ar-today__clear, .ar-today__failed { padding-left: 18px; padding-right: 18px; }
+  .ar-today__won { padding-left: 18px; padding-right: 18px; }
 }
 
 /* One button width for the whole column. The labels differ in length ("Review
@@ -6442,6 +6488,7 @@ a.ar-about-proto__v:hover { text-decoration: underline; }
   .ar-today__why, .ar-today__points li { max-width: none; }
   .ar-today__head { padding: 20px 20px 16px; }
   .ar-today__divider, .ar-today__clear, .ar-today__failed { padding-left: 20px; padding-right: 20px; }
+  .ar-today__won { padding-left: 20px; padding-right: 20px; }
 
   /* The head's score + re-check stop hugging the right edge, which on a narrow
      column reads as a stray fragment far from the heading it belongs to. */

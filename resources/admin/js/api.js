@@ -54,6 +54,10 @@ export function createApi(boot) {
     // Today's list, re-read after the owner acts on something (a Block, an
     // Ignore, a settings save) so the front door catches up without a reload.
     getFindings: () => request('/findings'),
+    // "Seen it." Retires the resolved notice early — it expires on its own
+    // after a week, which is right for a win nobody read and a week too long
+    // for one they have. Answers with the refreshed payload.
+    markFindingsSeen: () => request('/findings/seen', { method: 'POST' }),
     // The per-item content worklist. Fetched on demand, never in the boot
     // payload: each row parses a page.
     getWorklist: () => request('/worklist'),
@@ -145,14 +149,14 @@ export function createApi(boot) {
     // when it's done. A call that forgets to send it silently gets an article,
     // which is the failure worth designing against, so it rides in every
     // signature rather than being looked up somewhere central.
-    assistantOutline: (prompt, type) =>
-      request('/assistant/outline', { method: 'POST', body: JSON.stringify({ prompt, type }) }),
-    // …then one structured generation, optionally gated by that approved
-    // outline as a contract (writes nothing either way)…
     // What the drawer can write RIGHT NOW. Re-read on open, because the boot
     // payload froze this at page load and a content type ticked in Settings
     // would not appear until a reload.
     assistantState: () => request('/assistant/state'),
+    assistantOutline: (prompt, type) =>
+      request('/assistant/outline', { method: 'POST', body: JSON.stringify({ prompt, type }) }),
+    // …then one structured generation, optionally gated by that approved
+    // outline as a contract (writes nothing either way)…
     assistantCompose: (prompt, outline, type) =>
       request('/assistant/compose', {
         method: 'POST',

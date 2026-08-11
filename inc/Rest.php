@@ -196,6 +196,16 @@ final class Rest {
 
 		register_rest_route(
 			self::NAMESPACE,
+			'/findings/seen',
+			array(
+				'methods'             => \WP_REST_Server::CREATABLE,
+				'callback'            => array( $this, 'mark_findings_seen' ),
+				'permission_callback' => array( $this, 'can_manage' ),
+			)
+		);
+
+		register_rest_route(
+			self::NAMESPACE,
 			'/worklist',
 			array(
 				'methods'             => \WP_REST_Server::READABLE,
@@ -870,6 +880,25 @@ final class Rest {
 	 * @return \WP_REST_Response
 	 */
 	public function get_findings() {
+		return rest_ensure_response( ( new Findings( $this->settings ) )->all() );
+	}
+
+	/**
+	 * POST /findings/seen — the owner has read the good news.
+	 *
+	 * A resolution expires on its own after a week, which is right for a win
+	 * nobody looked at and wrong for one they read on day one: a whole week of a
+	 * fixture they have finished with is a notice that trains them to skim past
+	 * that part of the screen. This is the way out — and it takes the whole
+	 * batch, because "seen it" is about the news, not about each line of it.
+	 *
+	 * Returns the refreshed payload, so the screen redraws from the server's
+	 * answer rather than guessing what dismissing did.
+	 *
+	 * @return \WP_REST_Response
+	 */
+	public function mark_findings_seen() {
+		Search\Progress::mark_seen();
 		return rest_ensure_response( ( new Findings( $this->settings ) )->all() );
 	}
 

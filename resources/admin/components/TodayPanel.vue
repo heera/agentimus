@@ -16,26 +16,71 @@
  *    unbroken list is what makes long lists unreadable.
  *  - An empty list says so out loud. Silence is not reassurance: with nothing
  *    open, the screen must read as "checked", never as "not working".
+ *
+ * The bands are STAGES OF ONE LIFECYCLE, not three categories — a finding goes
+ * needs-you → waiting → resolved, and it is the same finding throughout. That is
+ * why they share a scroll instead of sitting behind tabs: filing by state would
+ * hide the movement, and the movement is the part worth seeing.
+ *
+ * So the order follows the STORY, not a priority ranking: the work, then that
+ * same work finished and waiting, then — last — anything about something else.
+ * Ranking by urgency put the site-wide citation job in the middle, where it cut
+ * the one thread the screen exists to show.
  */
 export default {
   name: 'TodayPanel',
   props: {
-    findings: { type: Object, default: () => ({ findings: [], clear: [], failed: [], counts: {} }) },
+    findings: { type: Object, default: () => ({ findings: [], resolved: [], clear: [], failed: [], counts: {} }) },
     score: { type: Object, default: null },
     busy: { type: Boolean, default: false },
   },
-  emits: ['navigate', 'refresh'],
+  emits: ['navigate', 'refresh', 'seen'],
   computed: {
     rows() {
       return Array.isArray(this.findings.findings) ? this.findings.findings : [];
     },
-    // Everything that costs something today.
+    // Everything that costs something today. Waiting is excluded by name rather
+    // than by "not later": a waiting row that slipped in here would be counted
+    // by the headline, which is the exact miscount this tier exists to end.
     open() {
-      return this.rows.filter((r) => 'later' !== r.tier);
+      return this.rows.filter((r) => 'later' !== r.tier && 'waiting' !== r.tier);
     },
     // Worth knowing, costs nothing today — below the divider.
     later() {
       return this.rows.filter((r) => 'later' === r.tier);
+    },
+    // Your side is done; a search engine owns what happens next.
+    waiting() {
+      return this.rows.filter((r) => 'waiting' === r.tier);
+    },
+    // The engine's own good news — at most ONE row, whatever the site's size.
+    // A dozen wins arrive as a count with the moves as chips, never as a dozen
+    // lines: the furniture must not grow with the data, least of all the part
+    // that pushes the actual work off the screen.
+    //
+    // Two exits, and it needed both. It expires server-side after a week, which
+    // is right for a win nobody looked at; and "Seen it" retires it now, which
+    // is what someone who read it on day one deserves. A notice you cannot
+    // finish with teaches you to skim the top of the screen.
+    won() {
+      const r = this.findings.resolved;
+      return r && r.title ? r : null;
+    },
+    // One list of bands, rendered by a single loop. Three near-identical copies
+    // of the row markup is how one band quietly stops matching its siblings.
+    // Waiting comes BEFORE "when you have time" (his call, and the right one).
+    // The waiting rows are the SAME findings as the work above, one state later
+    // — "2 pages need an edit" reads directly into "2 pages are done, waiting",
+    // and that adjacency is the entire reason these are bands and not tabs.
+    // "When you have time" was the only band about something else (a site-wide
+    // setup job, not per-page search work), so sitting in the middle it cut the
+    // one story the screen exists to tell. Last, it interrupts nothing.
+    bands() {
+      return [
+        { key: 'open', divider: '', rows: this.open },
+        { key: 'waiting', divider: 'Waiting on the next report', rows: this.waiting },
+        { key: 'later', divider: 'When you have time', rows: this.later },
+      ].filter((b) => b.rows.length);
     },
     clearLines() {
       return Array.isArray(this.findings.clear) ? this.findings.clear : [];
@@ -63,12 +108,25 @@ export default {
     subheading() {
       // No mention of waiting crawlers in either line: the review queue is the
       // bell's story alone now (his call) — this screen never repeats it.
+      //
+      // Pages waiting on a report are named here rather than in the headline,
+      // which is a sentence about what the findings ASK OF YOU — and waiting
+      // asks nothing. Stated all the same, because an owner who finished the
+      // work needs to see that it registered.
+      const held = this.waiting.length ? ` ${this.waitingLine}` : '';
       if (!this.open.length) {
-        return this.later.length
-          ? 'Nothing is costing you anything today. There are a couple of things worth knowing below.'
-          : 'Every check passes and no page is waiting on a fix.';
+        if (this.later.length) return `Nothing is costing you anything today. There are a couple of things worth knowing below.${held}`;
+        return `Every check passes and no page is waiting on a fix.${held}`;
       }
-      return 'Ranked by what each one costs — visitors lost, agents turned away, or a page underselling itself.';
+      return `Ranked by what each one costs — visitors lost, agents turned away, or a page underselling itself.${held}`;
+    },
+    // "Your side is done" said once, in the screen's own voice.
+    waitingLine() {
+      const n = this.waiting.length;
+      if (!n) return '';
+      if (1 === n) return 'One finding below is finished on your side and waiting on the next report.';
+      const word = this.spell(n);
+      return `${word.charAt(0).toUpperCase()}${word.slice(1)} findings below are finished on your side and waiting on the next report.`;
     },
     scoreLine() {
       if (!this.score || this.score.blocked || 'number' !== typeof this.score.score) return null;
@@ -80,8 +138,12 @@ export default {
     spell(n) {
       return ['zero', 'one', 'two', 'three', 'four', 'five'][n] || String(n);
     },
+    // Filled = costs you something, hollow = costs nothing, half = under way
+    // without you. The shapes carry the tier on their own, so the bands stay
+    // legible to anyone who cannot separate their colours.
     mark(tier) {
-      return 'urgent' === tier ? '●' : 'worth' === tier ? '●' : '○';
+      if ('urgent' === tier || 'worth' === tier) return '●';
+      return 'waiting' === tier ? '◐' : '○';
     },
     go(action) {
       if (!action) return;
@@ -131,31 +193,37 @@ export default {
         </div>
       </div>
 
-      <!-- What costs something today. -->
-      <ul v-if="open.length" class="ar-today__list">
-        <li v-for="row in open" :key="row.id + row.title" class="ar-today__row" :class="'is-' + row.tier">
-          <span class="ar-today__mark" aria-hidden="true">{{ mark(row.tier) }}</span>
-          <div class="ar-today__main">
-            <p class="ar-today__row-title">{{ row.title }}</p>
-            <p v-if="row.why" class="ar-today__why">{{ row.why }}</p>
-            <ul v-if="row.points && row.points.length" class="ar-today__points">
-              <li v-for="pt in row.points" :key="pt">{{ pt }}</li>
-            </ul>
-            <p v-if="row.evidence && row.evidence.length" class="ar-today__ev">
-              <span v-for="e in row.evidence" :key="e" class="ar-today__chip">{{ e }}</span>
-            </p>
-          </div>
-          <div v-if="row.action" class="ar-today__act">
-            <button type="button" class="ar-btn ar-btn--sm" @click="go(row.action)">{{ row.action.label }}</button>
-          </div>
-        </li>
-      </ul>
+      <!-- News first: something you worked on has actually moved. It sits above
+           the work because a win nobody sees is a win that did not land, and it
+           expires on its own rather than waiting to be dismissed — a permanent
+           "recently resolved" list is a museum at the foot of a screen whose
+           whole promise is that it stays short. -->
+      <p v-if="won" class="ar-today__won">
+        <span class="ar-today__won-mark" aria-hidden="true">✓</span>
+        <span class="ar-today__won-main">
+          <span>{{ won.title }}</span>
+          <!-- The specifics, when there is more than one. Same chip grammar as
+               every finding's evidence, and clipped by the same rule — a count
+               whose proof runs off the page has stopped being proof. -->
+          <span v-if="won.evidence && won.evidence.length" class="ar-today__ev">
+            <span v-for="e in won.evidence" :key="e" class="ar-today__chip">{{ e }}</span>
+          </span>
+        </span>
+        <!-- The way out. A resolution expires by itself after a week, which is
+             right for a win nobody looked at and a week too long for one they
+             read on day one — a notice you cannot finish with teaches you to
+             skim the top of the screen. Takes the whole batch: "seen it" is
+             about the news, not about each line of it. -->
+        <button type="button" class="ar-linkbtn ar-today__won-seen" @click="$emit('seen')">Seen it</button>
+      </p>
 
-      <!-- Optional work, fenced off so it never competes with the list above. -->
-      <template v-if="later.length">
-        <p class="ar-today__divider">When you have time</p>
+      <!-- The three bands, one loop. Each keeps its own divider; the first has
+           none, because the work is what the screen is for and a heading over
+           it would only repeat the title. -->
+      <template v-for="band in bands" :key="band.key">
+        <p v-if="band.divider" class="ar-today__divider">{{ band.divider }}</p>
         <ul class="ar-today__list">
-          <li v-for="row in later" :key="row.id + row.title" class="ar-today__row is-later">
+          <li v-for="row in band.rows" :key="row.id + row.title" class="ar-today__row" :class="'is-' + row.tier">
             <span class="ar-today__mark" aria-hidden="true">{{ mark(row.tier) }}</span>
             <div class="ar-today__main">
               <p class="ar-today__row-title">{{ row.title }}</p>
@@ -167,9 +235,10 @@ export default {
                 <span v-for="e in row.evidence" :key="e" class="ar-today__chip">{{ e }}</span>
               </p>
             </div>
-            <!-- Same button as every other row. An optional finding is still an
-                 action, and a text link beside five solid buttons reads as a
-                 different KIND of thing rather than a quieter one. -->
+            <!-- Same button in every band. An optional or waiting finding is
+                 still somewhere to go, and a text link beside five solid buttons
+                 reads as a different KIND of thing rather than a quieter one —
+                 the waiting rows say "look", not "fix", in their label. -->
             <div v-if="row.action" class="ar-today__act">
               <button type="button" class="ar-btn ar-btn--sm" @click="go(row.action)">{{ row.action.label }}</button>
             </div>

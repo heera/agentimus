@@ -88,8 +88,19 @@ export default {
       });
       return map;
     },
+    // Pages with something left to do. A finished page is subtracted, because
+    // this number is what the header and Readiness's pointer both promise as
+    // work — and a page whose owner-side work is done is not work, however long
+    // its card stays up waiting for a report.
     searchOpps() {
-      return Number(this.searchCounts.opportunities || 0);
+      return Math.max(0, Number(this.searchCounts.opportunities || 0) - this.searchWaiting);
+    },
+    // Cards that are finished and waiting. Counted over the cards actually shown:
+    // the server only judges the ones it sent, and a page past the display cap
+    // has not been measured, so it is never claimed either way.
+    searchWaiting() {
+      const r = (this.search && this.search.report) || {};
+      return [...(r.almost_there || []), ...(r.seen_not_chosen || [])].filter((c) => c && c.waiting).length;
     },
     searchMedian() {
       return (this.search && this.search.report && this.search.report.median_ctr) || 0;
@@ -170,8 +181,12 @@ export default {
           // land here. Bold marks ONLY the which-title/which-description
           // clarifiers (his call: emphasis is for naming the fields, not for
           // decorating the instructions).
+          // Finished pages sink to the foot of their group. They keep their card
+          // — the numbers are still the story — but nothing with work left in it
+          // should ever sit below something with none.
+          waitingLabel: 'Your side is done. The next report decides the rank.',
           todo: 'Open the post and make it answer this search more directly: use the words people typed in the title searchers see (<strong>the SEO title in the “Search & AI” box</strong>, or <strong>the post title</strong> when that field is empty) and in an early heading, and add a paragraph that answers it plainly. Then link to this post from your other posts — the “Link to your own posts” box in the editor sidebar suggests which ones. Fixing a page does not clear its card — the card leaves when a later report shows better numbers, usually after a few weeks.',
-          cards: r.almost_there || [],
+          cards: this.sinkWaiting(r.almost_there),
         },
         {
           key: 'seen',
@@ -180,8 +195,9 @@ export default {
           chipTone: 'is-one',
           total: (r.page_counts && r.page_counts.seen) || 0,
           why: 'Already on page one, yet people scroll past. Usually the title or description.',
+          waitingLabel: 'Your side is done. Whether people click is theirs to decide.',
           todo: 'Nothing is wrong with the page itself — people just aren’t picking it out of the results. In the editor, find the “Search & AI” box in the right-hand sidebar and rewrite two fields there: <strong>the SEO title</strong> and <strong>the AI description</strong>. That pair is exactly what a searcher reads before deciding to click. Fixing a page does not clear its card — the card leaves when a later report shows better numbers, usually after a few weeks.',
-          cards: r.seen_not_chosen || [],
+          cards: this.sinkWaiting(r.seen_not_chosen),
         },
       ];
     },
@@ -206,6 +222,20 @@ export default {
     },
   },
   methods: {
+    // Finished cards to the foot of their group, order otherwise untouched (the
+    // server ranks by impressions and that ranking is still right within each
+    // half). Copied before sorting — sort() mutates, and these arrays belong to
+    // the fetched report.
+    sinkWaiting(cards) {
+      return [...(cards || [])].sort((a, b) => (a.waiting ? 1 : 0) - (b.waiting ? 1 : 0));
+    },
+    // When a finished page joined the worklist. Absent until a poll has recorded
+    // one — a page that was already waiting before the ledger existed has no
+    // honest date, and today's would restart a clock that has run for weeks.
+    waitingSince(card) {
+      if (!card || !card.since) return '';
+      return formatDate(new Date(Number(card.since) * 1000));
+    },
     // Load the opportunities report — lazily, on mount, and again after a page is
     // set aside from here (the report itself changes).
     async loadSearch(source) {
@@ -283,9 +313,10 @@ export default {
           people typed to find it, from the same numbers reported above.
         </p>
       </div>
-      <div v-if="searchOpps || searchSource" class="ar-opp-card__side">
-        <span v-if="searchOpps" class="ar-opp-card__count">
-          {{ searchOpps }} page{{ searchOpps === 1 ? '' : 's' }} to look at<template v-if="searchCounts.set_aside"> · {{ searchCounts.set_aside }} set aside</template>
+      <div v-if="searchOpps || searchWaiting || searchSource" class="ar-opp-card__side">
+        <span v-if="searchOpps || searchWaiting" class="ar-opp-card__count">
+          <template v-if="searchOpps">{{ searchOpps }} page{{ searchOpps === 1 ? '' : 's' }} to look at</template><template v-else>nothing to do</template><!--
+          --><template v-if="searchWaiting"> · {{ searchWaiting }} waiting</template><template v-if="searchCounts.set_aside"> · {{ searchCounts.set_aside }} set aside</template>
         </span>
         <!-- Its own switch, deliberately, even with Search Performance's on the
              same view: the two cards fetch independently, and a switch that
@@ -420,7 +451,12 @@ export default {
             </template>
           </p>
           <ul class="ar-checks ar-opp__list">
-            <li v-for="card in group.cards" :key="group.key + card.page_url" class="ar-check is-warn ar-opp">
+            <li
+              v-for="card in group.cards"
+              :key="group.key + card.page_url"
+              class="ar-check ar-opp"
+              :class="card.waiting ? 'is-waiting' : 'is-warn'"
+            >
               <span class="ar-check__rule" aria-hidden="true"></span>
               <div class="ar-opp__body">
                 <div class="ar-opp__top">
@@ -433,6 +469,15 @@ export default {
                     Also in Optimize: {{ cardFlags(card).join(' · ').toLowerCase() }}
                   </span>
                 </div>
+                <!-- The same verdict the editor gives this page, said here too.
+                     Without it the card reads as an open chore while the post's
+                     own panel says there is nothing left to do — two screens
+                     describing one page, disagreeing. The card stays because the
+                     numbers are still worth reading; only the ask is withdrawn. -->
+                <p v-if="card.waiting" class="ar-opp__waiting">
+                  <span class="ar-opp__waiting-mark" aria-hidden="true">◐</span>
+                  <span>{{ group.waitingLabel }}<template v-if="waitingSince(card)"> Waiting since {{ waitingSince(card) }}.</template></span>
+                </p>
                 <div class="ar-opp__qwrap">
                   <table class="ar-opp__queries">
                     <thead>
@@ -490,9 +535,26 @@ export default {
                        gone permalink) has no single lever, so no lever is named. -->
                   <span v-if="card.doorless === 'home'" class="ar-opp__noeditor">This is your homepage — searchers see your site title and tagline as its title; its description comes from your theme.</span>
                   <span v-else-if="card.doorless" class="ar-opp__noeditor">No post behind this address — WordPress builds this page from other content (an archive, or an address that no longer exists), so there is no editor to open.</span>
-                  <a v-if="card.doorless === 'home' && card.general_url" :href="card.general_url" target="_blank" rel="noopener" class="ar-opp__edit is-primary">Edit site title &amp; tagline ↗</a>
-                  <a v-if="card.edit_url" :href="card.edit_url" target="_blank" rel="noopener" class="ar-opp__edit is-primary">Improve meta title &amp; description ↗</a>
-                  <a v-if="group.key === 'almost' && card.links_url" :href="card.links_url" target="_blank" rel="noopener" class="ar-opp__edit">Add internal links ↗</a>
+                  <!-- A finished card keeps a door and loses the instructions.
+                       Every fix link lands ON a field, so it asks for an edit —
+                       and "Add internal links" asks for the very lever that
+                       finishing this page required. Offering them under the
+                       words "your side is done" is the same contradiction this
+                       state exists to remove, one level down. One neutral link,
+                       naming a destination rather than a task — in the worklist's
+                       own words for that destination ({@see ContentWorklist}), so
+                       "open in editor" means the same thing on every screen. NOT
+                       "open the post": every other link here goes to the editor,
+                       and the one that reads like the front end must not. -->
+                  <a v-if="card.waiting && card.open_url" :href="card.open_url" target="_blank" rel="noopener" class="ar-opp__edit">Open in editor ↗</a>
+                  <template v-if="!card.waiting">
+                    <a v-if="card.doorless === 'home' && card.general_url" :href="card.general_url" target="_blank" rel="noopener" class="ar-opp__edit is-primary">Edit site title &amp; tagline ↗</a>
+                    <a v-if="card.edit_url" :href="card.edit_url" target="_blank" rel="noopener" class="ar-opp__edit is-primary">Improve meta title &amp; description ↗</a>
+                    <a v-if="group.key === 'almost' && card.links_url" :href="card.links_url" target="_blank" rel="noopener" class="ar-opp__edit">Add internal links ↗</a>
+                  </template>
+                  <!-- Readability survives, waiting or not: it belongs to the
+                       OTHER worklist, and that one really does still have work.
+                       "Your side is done" was a statement about search. -->
                   <a v-if="cardFlags(card) && card.read_url" :href="card.read_url" target="_blank" rel="noopener" class="ar-opp__edit">Check readability ↗</a>
                   <button
                     v-if="card.page_id || card.page_url"

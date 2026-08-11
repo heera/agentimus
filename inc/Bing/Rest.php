@@ -270,6 +270,9 @@ final class Rest {
 	public function disconnect() {
 		$this->bing->disconnect();
 		Module::unschedule();
+		// See the Google side: baselines outliving their engine would let a
+		// later reconnection report climbs that never happened.
+		\Agentimus\Search\Progress::forget( 'bing' );
 		return $this->status();
 	}
 

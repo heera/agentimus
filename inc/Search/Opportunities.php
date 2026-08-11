@@ -30,6 +30,19 @@ defined( 'ABSPATH' ) || exit;
 final class Opportunities {
 
 	/** @var float Page-two band the "almost there" group covers. */
+	/**
+	 * The two worklists, named once.
+	 *
+	 * This class draws the line between them, so it owns what they are called.
+	 * Every other subsystem that has an opinion per group — the ledger's
+	 * baselines, the done-verdict, the findings split — keys off these rather
+	 * than off its own string literals.
+	 */
+	const KIND_NEAR = 'almost';
+
+	/** @see self::KIND_NEAR */
+	const KIND_SEEN = 'seen';
+
 	const NEAR_MIN = 8.0;
 	const NEAR_MAX = 20.0;
 
@@ -120,30 +133,7 @@ final class Opportunities {
 		$rows  = array_values( array_filter( $rows, static function ( $row ) {
 			return ! self::is_operator_query( (string) $row['query'] );
 		} ) );
-		$pages = array();
-		foreach ( $rows as $row ) {
-			$page_id = (int) $row['page_id'];
-			$url     = (string) $row['page_url'];
-			if ( 0 === $page_id && '' === $url ) {
-				continue;
-			}
-			$key = $page_id > 0 ? 'p' . $page_id : 'u' . md5( $url );
-			if ( ! isset( $pages[ $key ] ) ) {
-				$pages[ $key ] = array(
-					'page_id'     => $page_id,
-					'page_url'    => $url,
-					'impressions' => 0,
-					'clicks'      => 0,
-					'pos_weight'  => 0.0,
-					'rows'        => array(),
-				);
-			}
-			$impr = (int) $row['impressions'];
-			$pages[ $key ]['impressions'] += $impr;
-			$pages[ $key ]['clicks']      += (int) $row['clicks'];
-			$pages[ $key ]['pos_weight']  += ( (float) $row['position'] ) * $impr;
-			$pages[ $key ]['rows'][]       = $row;
-		}
+		$pages = self::page_index( $rows );
 
 		// 3. The bar. Individual searches decide it when enough of them carry
 		// real traffic; otherwise the same measure taken over whole pages —
@@ -230,7 +220,7 @@ final class Opportunities {
 			if ( $impr < self::NEAR_MIN_IMPRESSIONS ) {
 				continue;
 			}
-			$pos    = $page['pos_weight'] / $impr;
+			$pos    = self::page_position( $page );
 			$ctr    = $page['clicks'] / $impr;
 
 			if ( self::is_near( $pos, $impr ) ) {
@@ -415,6 +405,71 @@ final class Opportunities {
 			return $b['impressions'] <=> $a['impressions'];
 		} );
 		return $out;
+	}
+
+	/**
+	 * Snapshot rows grouped by the page they landed on.
+	 *
+	 * Public because the progress ledger needs the SAME page totals this class
+	 * judges against: a resolution is "this page's rank improved", and a second
+	 * implementation of the grouping would eventually disagree with this one
+	 * about what a page's rank even is. Rows with no page identity are dropped —
+	 * they inform the median, but they can never be a page.
+	 *
+	 * @param array $rows Snapshot rows, operator queries already filtered out.
+	 * @return array<string,array> Keyed by page key; carries pos_weight and rows.
+	 */
+	public static function page_index( array $rows ) {
+		$pages = array();
+		foreach ( $rows as $row ) {
+			$page_id = (int) $row['page_id'];
+			$url     = (string) $row['page_url'];
+			if ( 0 === $page_id && '' === $url ) {
+				continue;
+			}
+			$key = self::page_key( $page_id, $url );
+			if ( ! isset( $pages[ $key ] ) ) {
+				$pages[ $key ] = array(
+					'page_id'     => $page_id,
+					'page_url'    => $url,
+					'impressions' => 0,
+					'clicks'      => 0,
+					'pos_weight'  => 0.0,
+					'rows'        => array(),
+				);
+			}
+			$impr = (int) $row['impressions'];
+			$pages[ $key ]['impressions'] += $impr;
+			$pages[ $key ]['clicks']      += (int) $row['clicks'];
+			$pages[ $key ]['pos_weight']  += ( (float) $row['position'] ) * $impr;
+			$pages[ $key ]['rows'][]       = $row;
+		}
+		return $pages;
+	}
+
+	/**
+	 * One page's identity inside a snapshot. A post ID when the URL resolved to
+	 * one, the URL's digest otherwise — the same page must key the same way
+	 * across polls or the ledger loses track of it.
+	 *
+	 * @param int    $page_id Resolved post ID, or 0.
+	 * @param string $url     Page URL.
+	 * @return string
+	 */
+	public static function page_key( $page_id, $url ) {
+		return (int) $page_id > 0 ? 'p' . (int) $page_id : 'u' . md5( (string) $url );
+	}
+
+	/**
+	 * A page's impression-weighted average rank — the number both the cards and
+	 * the ledger mean by "where this page ranks".
+	 *
+	 * @param array $page One {@see self::page_index()} entry.
+	 * @return float Zero when the page has no impressions to weight by.
+	 */
+	public static function page_position( array $page ) {
+		$impr = (int) $page['impressions'];
+		return $impr > 0 ? ( (float) $page['pos_weight'] ) / $impr : 0.0;
 	}
 
 	/**

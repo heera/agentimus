@@ -332,15 +332,31 @@ export default {
         // checks for the unread dot. Named for its CONTENTS: "Attention" in a
         // row of destination nouns read as a command, and every synonym for
         // attention names the reader's state, not the screen's.
-        { id: 'findings', label: 'Findings', count: this.attentionCount },
+        { id: 'findings', label: 'Findings', count: this.attentionCount, dot: this.findingsDot },
       ];
     },
     // The Findings tab's count — urgent + worth, the same number the
     // screen's headline states. Zero hides the badge entirely: a quiet tab
     // honestly means "nothing needs you", exactly like the bell at rest.
+    //
+    // Waiting findings are deliberately NOT here. A number in a nav is a
+    // promise that doing the work makes it go down, and nothing an owner types
+    // clears "ranks 8th" — only a later report does. Counting it left the badge
+    // stuck at 1 while the editor told him, on that very page, that his side was
+    // done. They get the dot below instead.
     attentionCount() {
       const c = (this.findings && this.findings.counts) || {};
       return (Number(c.urgent) || 0) + (Number(c.worth) || 0);
+    },
+    // The tab's third weight. One glyph, three states: a number means DO
+    // something, a dot means LOOK at something, nothing means clear. The flag
+    // itself never changes shape — a nav icon that morphs under you costs more
+    // attention than the quiet state it is reporting deserves.
+    findingsDot() {
+      const c = (this.findings && this.findings.counts) || {};
+      const resolved = this.findings && this.findings.resolved;
+      if (resolved && resolved.title) return 'news';
+      return (Number(c.waiting) || 0) > 0 ? 'waiting' : '';
     },
     // Visibility is always LISTED, even when citation tracking is off — showing it greyed
     // out tells an owner the feature exists and where to turn it on, where hiding it just
@@ -650,6 +666,17 @@ export default {
   },
   methods: {
     navIcon,
+    // What a screen reader hears on a tab that carries state. The dot is purely
+    // visual, so its meaning has to be spelled out here or the tab announces
+    // nothing at all where a sighted user sees a mark.
+    tabLabel(t) {
+      if (t.count) {
+        return `${t.label} — ${t.count} ${t.count === 1 ? 'thing needs' : 'things need'} your attention`;
+      }
+      if ('news' === t.dot) return `${t.label} — something has improved`;
+      if ('waiting' === t.dot) return `${t.label} — nothing to do, waiting on the next report`;
+      return null;
+    },
     // Dashboard tiles emit { tab, anchor? }. Switch tab, then (once the now-shown
     // tab has laid out) scroll the target section into view so a click lands on
     // the relevant content, not just the top of the page.
@@ -1373,6 +1400,31 @@ export default {
         this.refreshingFindings = false;
       }
     },
+    // Open the drawer, and re-read what it can write on the way in.
+    //
+    // The boot payload carries this state, but a payload is a photograph: tick a
+    // content type in Settings and the type chooser kept offering the list from
+    // page load until the owner reloaded. Every other screen in this app re-reads
+    // on return; the drawer had been the exception because it is not a screen.
+    // The fetch is not awaited — the drawer opens instantly on what it already
+    // has, and the list corrects itself a moment later if anything changed.
+    openAssistant() {
+      this.assistantOpen = true;
+      if (!this.api || !this.api.assistantState) return;
+      this.api.assistantState()
+        .then((s) => { if (s && Array.isArray(s.types)) this.assistant = s; })
+        .catch(() => { /* the boot payload is still a good answer */ });
+    },
+    // "Seen it" on the resolved notice. The server answers with the refreshed
+    // payload, so the row leaves because the SERVER says it has — never because
+    // the screen hid it locally and would show it again on the next reload.
+    async dismissResolved() {
+      try {
+        this.findings = await this.api.markFindingsSeen();
+      } catch (e) {
+        this.flash('error', e.message);
+      }
+    },
     // The quiet twin: no busy state, no error toast. For every AUTOMATIC
     // refresh — a bell decision, a settings save, a score move, the live
     // poll — where the Findings badge and card should simply catch up
@@ -1400,21 +1452,6 @@ export default {
       } finally {
         this.refreshingReadiness = false;
       }
-    // Open the drawer, and re-read what it can write on the way in.
-    //
-    // The boot payload carries this state, but a payload is a photograph: tick a
-    // content type in Settings and the type chooser kept offering the list from
-    // page load until the owner reloaded. Every other screen in this app re-reads
-    // on return; the drawer had been the exception because it is not a screen.
-    // The fetch is not awaited — the drawer opens instantly on what it already
-    // has, and the list corrects itself a moment later if anything changed.
-    openAssistant() {
-      this.assistantOpen = true;
-      if (!this.api || !this.api.assistantState) return;
-      this.api.assistantState()
-        .then((s) => { if (s && Array.isArray(s.types)) this.assistant = s; })
-        .catch(() => { /* the boot payload is still a good answer */ });
-    },
     },
     // Re-read the AEO/GEO rail. Quiet by design: it has no spinner and swallows its errors,
     // because it runs on tab focus and must never interrupt what the owner is doing.
@@ -1755,7 +1792,7 @@ export default {
           :class="{ 'is-active': tab === t.id }"
           role="tab"
           :aria-selected="tab === t.id"
-          :aria-label="t.count ? `${t.label} — ${t.count} ${t.count === 1 ? 'thing needs' : 'things need'} your attention` : null"
+          :aria-label="tabLabel(t)"
           @click="tab = t.id"
         >
           <span class="ar__tab-ic" aria-hidden="true" v-html="navIcon(t.id)"></span>
@@ -1766,6 +1803,11 @@ export default {
                the count reads as part of the label. Absent at zero — a quiet
                tab honestly means "nothing needs you". -->
           <span v-if="t.count" class="ar__tab-count" aria-hidden="true">{{ t.count }}</span>
+          <!-- …and when there is nothing to DO but something to SEE: a page
+               whose work is finished and waiting on a report, or one that just
+               moved. Never both at once — a count outranks a dot, because work
+               outranks news. -->
+          <span v-else-if="t.dot" class="ar__tab-dot" :class="'is-' + t.dot" aria-hidden="true"></span>
         </button>
       </nav>
 
@@ -2063,6 +2105,7 @@ export default {
           :busy="refreshingFindings"
           @navigate="goTo"
           @refresh="refreshFindings"
+          @seen="dismissResolved"
         />
         <!-- Today's second half: the same screen, a different question. Site-wide
              findings above; the per-item worklist here. Deliberately NOT its own
