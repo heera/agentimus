@@ -10,6 +10,7 @@ import DiscoveryHub from './components/DiscoveryHub.vue';
 import ActivityPanel from './components/ActivityPanel.vue';
 import AudiencePanel from './components/AudiencePanel.vue';
 import SurfaceTiles from './components/SurfaceTiles.vue';
+import SiteSystems from './components/SiteSystems.vue';
 import WhatsNew from './components/WhatsNew.vue';
 import ReviewAsk from './components/ReviewAsk.vue';
 import AssistantLauncher from './components/AssistantLauncher.vue';
@@ -55,7 +56,7 @@ const LEGACY_HASHES = { today: 'findings', attention: 'findings', 'ai-traffic': 
 
 export default {
   name: 'AgentimusApp',
-  components: { ScoreRail, SettingsForm, ReadinessPanel, DiscoveryHub, ActivityPanel, AudiencePanel, SurfaceTiles, WhatsNew, ReviewAsk, AssistantLauncher, AssistantDrawer, AiTrafficPanel, RequestLog, EdgePanel, BingPanel, GoogleIndexPanel, SearchPerformance, SearchOpportunities, AgentAccess, ReviewMenu, OnboardingWizard, AboutPanel, ConfirmDialog, VisibilityPanel, TodayPanel, ContentWorklist },
+  components: { ScoreRail, SettingsForm, ReadinessPanel, DiscoveryHub, ActivityPanel, AudiencePanel, SurfaceTiles, SiteSystems, WhatsNew, ReviewAsk, AssistantLauncher, AssistantDrawer, AiTrafficPanel, RequestLog, EdgePanel, BingPanel, GoogleIndexPanel, SearchPerformance, SearchOpportunities, AgentAccess, ReviewMenu, OnboardingWizard, AboutPanel, ConfirmDialog, VisibilityPanel, TodayPanel, ContentWorklist },
   // The styled hover bubble (shared with the activity tables) — the score rail's
   // rung and next-step hints use it instead of slow, unthemeable native titles.
   props: {
@@ -2200,6 +2201,20 @@ export default {
         <SurfaceTiles
           v-show="tab === 'dashboard'"
           :summary="dashSummary"
+          @navigate="goTo"
+        />
+        <!-- What the site RUNS — the systems roll-up, between "what you expose"
+             (the tiles above) and "who is reading it" (the audience below):
+             the standing of each subsystem is the second half of the expose
+             story. Rides the same activity poll as the audience card; the
+             findings/worklist numbers are the boot payload's own, so this card
+             and the nav tab can never disagree. -->
+        <SiteSystems
+          v-show="tab === 'dashboard'"
+          :data="activity && activity.systems"
+          :loaded="activityLoaded && !!(activity && activity.systems)"
+          :findings="findings && findings.counts"
+          :worklist="worklistPreview"
           @navigate="goTo"
         />
         <!-- Who reached the site — people and machines, side by side. Sits ABOVE

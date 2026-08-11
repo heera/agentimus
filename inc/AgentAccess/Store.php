@@ -279,6 +279,35 @@ final class Store {
 	}
 
 	/**
+	 * Distinct credentials that RAN an ability since $from (GMT). The store is a
+	 * rollup keyed on (kind, user, cred, subject) whose last_at moves on use, so
+	 * "a cred with a recent last_at" is exactly "an agent active in the window" —
+	 * the honest per-window number this table can give (per-window hit counts
+	 * cannot be derived from a rollup, and are not attempted).
+	 *
+	 * @param string $from GMT datetime, inclusive.
+	 * @return int
+	 */
+	public static function agents_active_since( $from ) {
+		global $wpdb;
+		$table = self::name();
+		return (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(DISTINCT cred) FROM $table WHERE kind = %s AND cred <> '' AND last_at >= %s", Events::KIND_ABILITY_USED, $from ) ); // phpcs:ignore WordPress.DB, PluginCheck.Security.DirectDB.UnescapedDBParameter -- $table is our own prefix-derived table name; every value is bound via prepare().
+	}
+
+	/**
+	 * Total ability runs recorded, all time — the rollup's hits column summed
+	 * over ability_used rows. All-time because the rollup cannot window hits;
+	 * the caller's copy must say so rather than imply a month.
+	 *
+	 * @return int
+	 */
+	public static function ability_runs_total() {
+		global $wpdb;
+		$table = self::name();
+		return (int) $wpdb->get_var( $wpdb->prepare( "SELECT COALESCE(SUM(hits), 0) FROM $table WHERE kind = %s", Events::KIND_ABILITY_USED ) ); // phpcs:ignore WordPress.DB, PluginCheck.Security.DirectDB.UnescapedDBParameter -- $table is our own prefix-derived table name; the kind is bound via prepare().
+	}
+
+	/**
 	 * Delete events older than the retention window. Scheduled with the daily activity prune.
 	 *
 	 * @return void

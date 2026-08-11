@@ -119,6 +119,10 @@ final class Module {
 						// Assembled server-side so the two halves can never drift
 						// apart between the screens that show them.
 						$stats['audience'] = \Agentimus\Audience::from_stats( $stats );
+						// The systems roll-up card rides here too: option reads, two
+						// indexed COUNTs and two file_exists — see Systems for why the
+						// expensive truths it points at are NOT recomputed on this poll.
+						$stats['systems'] = \Agentimus\Systems::summary( $this->settings, $stats );
 						return rest_ensure_response( $stats );
 					},
 				),

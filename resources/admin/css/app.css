@@ -7112,6 +7112,68 @@ a.ar-work__name { color: var(--ar-accent); }
 }
 
 /* ---------------------------------------------------------------------------
+   "What your site runs" — the systems roll-up between the tiles and the
+   audience card. Four panels in the audience card's own grammar: mono kicker
+   + mark, one serif headline number, hairline rows, a footer link. Neutral
+   ground (surface-2) where the audience halves carry their amber wash — this
+   card states configuration, not a count of anyone. Tokens only: every WP
+   admin colour-scheme dark dialect in schemes.css re-keys it for free.
+   --------------------------------------------------------------------------- */
+.ar-sys__wait { margin: 0; font-size: 13px; color: var(--ar-ink-faint); }
+.ar-sys__grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.ar-sys__panel {
+  min-width: 0; padding: 16px 18px 14px;
+  border: 1px solid var(--ar-line); border-radius: var(--ar-radius);
+  background: var(--ar-surface-2);
+  display: flex; flex-direction: column;
+}
+.ar-sys__kind {
+  margin: 0 0 8px; display: flex; align-items: center; gap: 7px;
+  font-family: var(--ar-mono); font-size: 10.5px;
+  letter-spacing: 0.14em; text-transform: uppercase; color: var(--ar-ink-faint);
+}
+.ar-sys__mark {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 22px; height: 22px; border-radius: 6px;
+  background: var(--ar-surface); border: 1px solid var(--ar-line);
+  color: var(--ar-ink-soft);
+}
+.ar-sys__n {
+  margin: 0; font-family: var(--ar-serif); font-size: 38px; line-height: 1.03;
+  font-weight: 600; color: var(--ar-ink); font-variant-numeric: tabular-nums;
+}
+.ar-sys__n--off { color: var(--ar-ink-faint); }
+.ar-sys__unit { margin: 2px 0 12px; font-size: 12.5px; color: var(--ar-ink-soft); }
+.ar-sys__rows { list-style: none; margin: 0; padding: 0; }
+.ar-sys__rows li {
+  display: flex; align-items: baseline; justify-content: space-between; gap: 12px;
+  font-size: 13px; padding: 7px 0; border-bottom: 1px solid var(--ar-line);
+}
+.ar-sys__rows li:first-child { border-top: 1px solid var(--ar-line); }
+.ar-sys__row-l { color: var(--ar-ink-soft); min-width: 0; }
+.ar-sys__row-s {
+  text-align: right; color: var(--ar-ink-soft); font-variant-numeric: tabular-nums;
+}
+.ar-sys__row-s strong { color: var(--ar-ink); font-weight: 650; }
+/* Status words: good, warn, off — never a red "down"; off is information. */
+.ar-sys__row-s em { font-style: normal; font-weight: 650; }
+.ar-sys__row-s em.is-good { color: var(--ar-good); }
+.ar-sys__row-s em.is-warn { color: var(--ar-warn); }
+.ar-sys__row-s em.is-off { color: var(--ar-ink-faint); }
+/* Footer link pinned level across panels, same affordance as the audience's. */
+.ar-sys__go { margin-top: auto; padding-top: 14px; align-self: flex-start; }
+.ar-sys__go:hover,
+.ar-sys__go:focus-visible {
+  background: none;
+  color: color-mix(in srgb, var(--ar-accent) 82%, var(--ar-ink-hard));
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+@container (max-width: 720px) {
+  .ar-sys__grid { grid-template-columns: 1fr; }
+}
+
+/* ---------------------------------------------------------------------------
    RESTORED. Everything from here to the tiles below was deleted by d21ec1d, a
    commit that only meant to rewrite the .ar-aud__note rules directly above and
    whose replacement hunk ran on past them. It took the page-head audience

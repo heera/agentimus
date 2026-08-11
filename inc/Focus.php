@@ -425,6 +425,28 @@ final class Focus {
 	}
 
 	/**
+	 * How many published, agent-visible posts carry a focus. One indexed COUNT,
+	 * cheap enough for a payload ride-along. The empty-string guard is not
+	 * decoration: saving the editor writes the meta row even when the field was
+	 * never touched, so without it this would count every post ever opened.
+	 *
+	 * @return int
+	 */
+	public static function published_with_focus() {
+		global $wpdb;
+		$types = Content::post_types();
+		if ( empty( $types ) || ! isset( $wpdb ) || ! is_object( $wpdb ) ) {
+			return 0;
+		}
+		$placeholders = implode( ', ', array_fill( 0, count( $types ), '%s' ) );
+		$args         = array_merge( array( self::META ), $types );
+		// Same false-positive story as Topics::stats(): the sniff can't evaluate
+		// $placeholders, which array_fill() builds to match $types exactly.
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQLPlaceholders.ReplacementsWrongNumber
+		return (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(DISTINCT p.ID) FROM {$wpdb->posts} p INNER JOIN {$wpdb->postmeta} m ON m.post_id = p.ID WHERE m.meta_key = %s AND m.meta_value <> '' AND p.post_status = 'publish' AND p.post_type IN ($placeholders)", $args ) );
+	}
+
+	/**
 	 * Measure the page against its focus.
 	 *
 	 * Reads the post's OWN saved content, not the live editor buffer — so the
