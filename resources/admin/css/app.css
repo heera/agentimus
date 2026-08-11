@@ -42,6 +42,10 @@
   --ar-paper: #f3f0e7;
   --ar-surface: #fffdf7;
   --ar-surface-2: #faf6ec;
+  /* Fields (inputs, textareas): in light the near-white surface already reads
+     as a well against the cream cards, so the field tone IS the surface. Dark
+     re-keys this — see the dark block. */
+  --ar-field: var(--ar-surface);
   --ar-ink: #1b1913;
   --ar-ink-soft: #6c675a;
   --ar-ink-faint: #9a937f;
@@ -134,6 +138,19 @@
   --ar-paper: #161c20;
   --ar-surface: #262d31;
   --ar-surface-2: #303940;
+  /* Fields: the surface itself with ONLY its lightness raised — hue and
+     saturation untouched, so the base colour genuinely stays the scheme's
+     own (his formula, 2026-08-12: "slightly bright from its surface but
+     same base color"; white-mixing washed the saturation and read as a
+     different colour). +3.5% lightness lands on his hand-picked #2c2b2b
+     under Modern. Every dialect re-keys via its own surface. */
+  /* Hand-tuned like every other dark token: the surface's own hue and
+     saturation, lightness +3.5 points (his formula, 2026-08-12: "slightly
+     bright from its surface but same base color"). A LITERAL on purpose —
+     deriving it live (color-mix washed the saturation; relative-color
+     resolved against the wrong scheme's surface) kept changing the base
+     colour. Each scheme dialect sets its own in schemes.css. */
+  --ar-field: #2e363b;
   /* Off-white, deliberately shy of white: full-bright serif headings on black
      glare (his call) — and COOL, because the charcoal ground is cool; a warm
      cream here would clash in temperature. */
@@ -314,7 +331,10 @@
 :root[data-ar-theme="dark"] .ar-drawer { color-scheme: dark; }
 :root[data-ar-theme="dark"] :is(#agentimus-app, .ar-modal, .ar-drawer)
   :is(input:not([type="checkbox"]):not([type="radio"]):not([type="range"]), textarea, select) {
-  background-color: var(--ar-surface);
+  /* --ar-field, not --ar-surface: surface-on-surface left every field
+     distinguishable only by its border (his catch, 2026-08-12) — fields
+     recess into a well near the page tone instead. */
+  background-color: var(--ar-field);
   color: var(--ar-ink);
   border-color: var(--ar-line-strong);
 }
@@ -953,7 +973,7 @@
   align-items: stretch;
   border: 1px solid var(--ar-line-strong);
   border-radius: var(--ar-radius);
-  background: var(--ar-surface);
+  background: var(--ar-field);
 }
 .ar-inputgroup__addon {
   display: flex; align-items: center; flex: 0 0 auto;
@@ -3096,7 +3116,7 @@ a.ar-opp__title:hover { text-decoration: underline; }
 .ar-input {
   width: 100%; padding: 9px 11px; font-size: 14px; font-family: var(--ar-sans);
   border: 1px solid var(--ar-line-strong); border-radius: var(--ar-radius);
-  background: var(--ar-surface); color: var(--ar-ink);
+  background: var(--ar-field); color: var(--ar-ink);
   transition: border-color 0.15s, box-shadow 0.15s;
 }
 .ar-input:focus {
