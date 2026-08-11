@@ -244,6 +244,8 @@ Agentimus renders a post to Markdown by running its `post_content` through WordP
 
 Short-circuit it with `agentimus_markdown_source`. Return a rendered HTML string to override; return `null` to let Agentimus render the post the normal way.
 
+**Elementor and Beaver Builder need no filter** — Agentimus detects a page those builders own and asks the builder's own render API for the real body, on this same seam at priority 20. An explicit provider you register at the default priority (10) always wins over the built-in one. To teach Agentimus a builder it doesn't know (detection plus, optionally, a render door), add an entry to the `agentimus_page_builders` table — see the hooks reference.
+
 ```php
 /**
  * @param string|null $html Pre-rendered HTML, or null.

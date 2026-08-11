@@ -39,6 +39,7 @@ namespace Agentimus\Abilities;
 
 use Agentimus\Settings;
 use Agentimus\Content;
+use Agentimus\PageBuilders;
 use Agentimus\Topics;
 use Agentimus\Description;
 use Agentimus\Cache;
@@ -163,6 +164,29 @@ final class ContentWriter {
 		}
 		if ( ! in_array( $post->post_type, Content::post_types(), true ) ) {
 			return new \WP_Error( 'agentimus_bad_type', __( 'That post’s type is not agent-visible on this site.', 'agentimus' ), array( 'status' => 400 ) );
+		}
+
+		// A page a builder owns doesn't read its body from post_content — writing
+		// it there would REPORT success and change nothing visitors see (then the
+		// builder's next save erases the edit), or on a content-storage builder
+		// (Divi, WPBakery) destroy the built design outright. Refusing with the
+		// reason is the only honest answer; every non-body field stays writable.
+		if ( isset( $input['content'] ) ) {
+			$owner = PageBuilders::owner( $post );
+			if ( null !== $owner ) {
+				$message = ( 'content' === $owner['storage'] )
+					? sprintf(
+						/* translators: %s: page builder name (e.g. Divi). */
+						__( 'This page is built with %1$s — the layout is stored as builder markup inside the body itself, so replacing the body would destroy the page’s design. Edit the body in %1$s. Every other field here still works on this page: title, excerpt, AI description, topics, categories, tags, featured image, slug and status.', 'agentimus' ),
+						$owner['name']
+					)
+					: sprintf(
+						/* translators: %s: page builder name (e.g. Elementor). */
+						__( 'This page is built with %1$s — its visible content lives in the builder’s own layout, not in the body this tool writes. Replacing the body would change nothing visitors see, and the builder’s next save would overwrite it. Edit the body in %1$s. Every other field here still works on this page: title, excerpt, AI description, topics, categories, tags, featured image, slug and status.', 'agentimus' ),
+						$owner['name']
+					);
+				return new \WP_Error( 'agentimus_builder_page', $message, array( 'status' => 409 ) );
+			}
 		}
 
 		$postarr = array( 'ID' => $post->ID );

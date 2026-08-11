@@ -220,13 +220,20 @@ final class Description {
 			return $manual;
 		}
 
-		$content = (string) ( $post->post_content ?? '' );
-		if ( function_exists( 'excerpt_remove_blocks' ) ) {
-			$content = excerpt_remove_blocks( $content ); // Drop block delimiters, keep inner HTML.
+		// On a page a builder owns, post_content is the one place the body ISN'T
+		// (stale on Beaver Builder, a between-saves copy on Elementor) — a summary
+		// derived from it puts words in the meta description no visitor ever sees.
+		// PageBuilders keeps a cached plain-text render of the real body.
+		$content = PageBuilders::summary_text( $post );
+		if ( null === $content ) {
+			$content = (string) ( $post->post_content ?? '' );
+			if ( function_exists( 'excerpt_remove_blocks' ) ) {
+				$content = excerpt_remove_blocks( $content ); // Drop block delimiters, keep inner HTML.
+			}
+			$content = strip_shortcodes( $content );
+			$content = wp_strip_all_tags( $content );
+			$content = trim( (string) preg_replace( '/\s+/', ' ', $content ) );
 		}
-		$content = strip_shortcodes( $content );
-		$content = wp_strip_all_tags( $content );
-		$content = trim( (string) preg_replace( '/\s+/', ' ', $content ) );
 		if ( '' === $content ) {
 			return '';
 		}

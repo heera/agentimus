@@ -107,6 +107,7 @@ final class Plugin {
 		( new Oauth\Consent( $this->settings ) )->register(); // The /agentimus/connect consent page.
 		( new Oauth\Rest( $this->settings ) )->register(); // /oauth/register · /oauth/token · /oauth/grants.
 		( new Tombstones() )->register(); // Records removals for the change feed (self-gates on enable_changes).
+		( new PageBuilders() )->register(); // Builder-owned pages: supplies the REAL body (Elementor/Beaver render) to every read surface via agentimus_markdown_source; ContentWriter asks it before replacing a body.
 		( new Schema( $this->settings ) )->register();
 		( new Seo( $this->settings ) )->register(); // Solo-mode head output (per-page SEO title; cards + canonical land here). Stands down at request time when an SEO suite is active.
 		( new EditorPanel( $this->settings ) )->register(); // One "Agentimus" editor box: JSON-LD + AI Readability as tabs.

@@ -1493,6 +1493,9 @@ final class Registrar {
 				. 'content replaces the current body (posts and pages keep a revision of the old one, but a '
 				. 'content type without revision support does not), and a categories/tags list replaces the '
 				. 'current list ([] clears it). The response includes the post’s AI-readability grade after the save. '
+				. 'A page a page builder owns (Elementor, Divi, Beaver Builder and similar) refuses a body '
+				. 'replacement — its real content lives in the builder, and the tool says so instead of '
+				. 'silently changing nothing; every other field still works there. '
 				// Same reason as create-content: the words are yours, so the rule
 				// has to travel in the contract. Editing carries one rule of its
 				// own — the shape is already decided by what you are editing.
@@ -1507,7 +1510,7 @@ final class Registrar {
 				array(
 					'post_id'       => self::i( 'The post/page ID to update.' ),
 					'title'         => self::s( 'New title.' ),
-					'content'       => self::s( 'New body, as HTML. Replaces the current body — a revision keeps the old one only on content types that support revisions (posts and pages do).' ),
+					'content'       => self::s( 'New body, as HTML. Replaces the current body — a revision keeps the old one only on content types that support revisions (posts and pages do). Refused on a page a page builder owns.' ),
 					'excerpt'       => self::s( 'New manual excerpt.' ),
 					'slug'          => self::s( 'New URL slug.' ),
 					'status'        => self::status_input_schema(),
