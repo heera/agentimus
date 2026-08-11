@@ -262,6 +262,8 @@
    the score identity. Content cards to the left stay neutral. */
 :root[data-ar-theme="dark"] .ar-rail-card { border-color: var(--ar-chrome-line); }
 :root[data-ar-theme="dark"] .ar-rail-card__label { color: var(--ar-chrome); }
+/* The light card's paper-mix gloss goes invisible on the dark surface — re-key it. */
+:root[data-ar-theme="dark"] .ar-rail-card--readiness .ar-rail-card__gloss { color: var(--ar-ink-soft); }
 :root[data-ar-theme="dark"] .ar-rail-card.ar-rail-card--readiness {
   background: var(--ar-surface); border-color: var(--ar-chrome-line);
 }
@@ -1197,6 +1199,15 @@
    the scheme's flavour while the rest of the app keeps the designed palette. */
 .ar-rail-card.ar-rail-card--readiness { background: var(--ar-ink); border-color: var(--ar-ink); }
 .ar-rail-card--readiness .ar-rail-card__label { color: color-mix(in srgb, var(--ar-paper) 50%, transparent); }
+/* The label's gloss — dash-joined to the kicker on ONE line, masthead-and-tagline.
+   Upright serif (the card's own title voice, honoured by every platform's stack),
+   tracking and caps reset from the mono kicker it sits beside. */
+.ar-rail-card__gloss {
+  font-family: var(--ar-serif); font-style: normal; font-weight: 400;
+  font-size: 12px; letter-spacing: 0; text-transform: none; white-space: nowrap;
+  color: var(--ar-ink-faint);
+}
+.ar-rail-card--readiness .ar-rail-card__gloss { color: color-mix(in srgb, var(--ar-paper) 52%, transparent); }
 .ar-rail-card--readiness .ar-rail-gauge__track { stroke: color-mix(in srgb, var(--ar-paper) 15%, transparent); }
 .ar-rail-card--readiness .ar-rail-gauge__num { color: color-mix(in srgb, var(--ar-paper) 62%, transparent); }
 .ar-rail-card--readiness .ar-rail-allgood { color: var(--ar-good-on-ink); }

@@ -132,7 +132,11 @@ export default {
              score, and the ladder extends the three readiness rungs with two AEO/GEO
              rungs (Optimized, Cited). Same card, same dark look — extended. -->
         <div v-if="aeo" class="ar-rail-card ar-rail-card--readiness">
-          <p class="ar-rail-card__label">AEO / GEO</p>
+          <!-- The one place the headline label is taught: kicker and meaning share
+               the line, dash-joined like a masthead and its tagline. The gloss sets
+               in the upright serif — a voice this card already speaks, and one every
+               platform's font stack can honour. -->
+          <p class="ar-rail-card__label">AEO / GEO <span class="ar-rail-card__gloss">&mdash; your readiness for AI search</span></p>
           <button
             type="button"
             class="ar-rail-readiness ar-rail-readiness--link"
@@ -159,10 +163,11 @@ export default {
                  it's a calm to-do for launch day, not a failure. -->
             <div class="ar-rail-tier" :data-state="aeo.blocked ? (siteIsLocal ? 'local' : 'floor') : (aeo.ready ? 'top' : 'climb')">
               <strong class="ar-rail-tier__name">{{ aeo.blocked ? (siteIsLocal ? 'Not public yet' : 'Not reachable') : aeo.band }}</strong>
-              <span class="ar-rail-tier__sub">{{
-                aeo.blocked ? (siteIsLocal ? 'switch on Search engine visibility before launch' : 'agents can’t read the site')
-                : aeo.ready ? 'fully agent-ready'
-                : 'getting ready'
+              <!-- Only the blocked states earn a second line — they explain the
+                   em-dash gauge. On the healthy path "fully agent-ready" was a
+                   second verdict under the first; the band says it all. -->
+              <span v-if="aeo.blocked" class="ar-rail-tier__sub">{{
+                siteIsLocal ? 'switch on Search engine visibility before launch' : 'agents can’t read the site'
               }}</span>
             </div>
           </button>
