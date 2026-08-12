@@ -7012,18 +7012,15 @@ a.ar-work__name { color: var(--ar-accent); }
    read. A bare vertical rule between two identical text blocks made the card's
    whole idea — that these are different species — the one thing invisible. */
 .ar-aud__split { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
-/* A light amber wash rather than the neutral warm grey the rest of the app
-   uses for a recessed surface. Hex first for browsers without color-mix; the
-   mix refines it where supported, and keeps it tied to the paper it sits on
-   rather than being a second, unrelated cream. */
-.ar-aud { --ar-amber: color-mix(in srgb, var(--ar-warn) 3%, var(--ar-surface)); }
-@supports (color: color-mix(in srgb, red, blue)) {
-  .ar-aud { --ar-amber: color-mix(in srgb, var(--ar-warn-bright) 3%, var(--ar-surface)); }
-}
+/* The systems panels' own ground, not a private wash. The halves wore a
+   faint amber for a while; once "What your site runs" landed above them,
+   two cards of big panels in the same grammar sat on different paper —
+   raised-neutral above, warm below — and the difference read as a mistake,
+   not a meaning. One surface for both (2026-08-12). */
 .ar-aud__half {
   min-width: 0; padding: 16px 18px 14px;
   border: 1px solid var(--ar-line); border-radius: var(--ar-radius);
-  background: var(--ar-amber);
+  background: var(--ar-surface-2);
   display: flex; flex-direction: column;
 }
 
@@ -7117,22 +7114,23 @@ a.ar-work__name { color: var(--ar-accent); }
    WORTH KNOWING in the note's own gold, a short divider bar, then two equal
    columns of chip + stacked facts with another bar between them. Everything
    gold derives from --ar-warn-deep so both themes keep their own amber. */
-/* Light ground and border derive from the glow gold (#ebc98a) — warm cream
-   wash, soft gold frame. Dark's own override below replaces both. */
+/* Ground = the panels' own surface-2 with a slight amber cast (his call,
+   2026-08-12, same round that retired the halves' wash): the note sits on
+   the same paper as the cards above it, warmed just enough to read as a
+   note rather than as a separate warm room. The gold frame, chips and bulb
+   keep carrying its identity; only the fill quieted. */
 .ar-aud__note {
-  --ar-note: color-mix(in srgb, var(--ar-note-glow) 14%, var(--ar-surface));
+  --ar-note: color-mix(in srgb, var(--ar-note-glow) 8%, var(--ar-surface-2));
   margin-top: 14px; padding: 13px 17px 14px;
   background: var(--ar-note);
   border: 1px solid color-mix(in srgb, var(--ar-note-glow) 85%, var(--ar-line));
   border-radius: var(--ar-radius);
   display: flex; align-items: flex-start; flex-wrap: wrap; gap: 10px 16px;
 }
-/* Dark wears the owner's mock (2026-08-11): the theme's note-gold drives the
-   whole card, and the ground mixes over PAPER (not the cool surface) so the
-   card reads as one warm room. Paper is per-scheme, so the Default-neutral
-   and Coffee dialects each keep their own temperature. */
+/* Dark: the same recipe over dark's surface-2, cast with the theme's own
+   note-gold so Default-neutral and Coffee each keep their temperature. */
 :root[data-ar-theme="dark"] .ar-aud__note {
-  --ar-note: color-mix(in srgb, var(--ar-note-gold) 15%, var(--ar-paper));
+  --ar-note: color-mix(in srgb, var(--ar-note-gold) 8%, var(--ar-surface-2));
   border-color: color-mix(in srgb, var(--ar-note-gold) 55%, var(--ar-line));
 }
 .ar-aud__note-t {
@@ -7184,9 +7182,10 @@ a.ar-work__name { color: var(--ar-accent); }
    "What your site runs" — the systems roll-up between the tiles and the
    audience card. Four panels in the audience card's own grammar: mono kicker
    + mark, one serif headline number, hairline rows, a footer link. Neutral
-   ground (surface-2) where the audience halves carry their amber wash — this
-   card states configuration, not a count of anyone. Tokens only: every WP
-   admin colour-scheme dark dialect in schemes.css re-keys it for free.
+   ground (surface-2) — and since 2026-08-12 the audience halves share it,
+   so the dashboard's two big-panel cards sit on one paper. Tokens only:
+   every WP admin colour-scheme dark dialect in schemes.css re-keys it for
+   free.
    --------------------------------------------------------------------------- */
 .ar-sys__wait { margin: 0; font-size: 13px; color: var(--ar-ink-faint); }
 .ar-sys__grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
