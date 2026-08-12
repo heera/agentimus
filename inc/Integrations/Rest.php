@@ -40,6 +40,7 @@ final class Rest {
 		Plugins\FluentCrm::class,
 		Plugins\FluentBooking::class,
 		Plugins\FluentCommunity::class,
+		Plugins\FluentSupport::class,
 		Plugins\Edd::class,
 	);
 

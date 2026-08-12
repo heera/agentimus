@@ -19,6 +19,7 @@ const MARKS = {
   fluentcrm: 'Cr',
   fluentbooking: 'Bk',
   fluentcommunity: 'Cm',
+  fluentsupport: 'Sp',
   edd: 'Ed',
 };
 

@@ -107,4 +107,21 @@ final class IntegrationsRestTest extends TestCase {
 		);
 		$this->assertSame( 'agentimus_no_events', $slack->get_error_code() );
 	}
+
+	/* ---- the provider roster ------------------------------------------------ */
+
+	public function test_the_plugins_roster_lists_every_provider_in_card_order() {
+		$payload = $this->rest()->status();
+
+		$this->assertSame(
+			array( 'woocommerce', 'fluentcart', 'fluentforms', 'fluentcrm', 'fluentbooking', 'fluentcommunity', 'fluentsupport', 'edd' ),
+			array_column( $payload['plugins'], 'id' )
+		);
+		foreach ( $payload['plugins'] as $row ) {
+			$this->assertArrayHasKey( 'name', $row );
+			$this->assertArrayHasKey( 'blurb', $row );
+			$this->assertArrayHasKey( 'present', $row );
+			$this->assertFalse( $row['present'], 'None of the described plugins run in this suite.' );
+		}
+	}
 }
