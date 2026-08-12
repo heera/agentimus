@@ -7187,6 +7187,9 @@ a.ar-work__name { color: var(--ar-accent); }
    every WP admin colour-scheme dark dialect in schemes.css re-keys it for
    free.
    --------------------------------------------------------------------------- */
+/* Mirrors .ar-aud__head: a plain block, so the title keeps its line and the
+   lead's masthead rule spans the card. (.ar-card__head's flex row broke both.) */
+.ar-sys__head { margin-bottom: 16px; }
 .ar-sys__wait { margin: 0; font-size: 13px; color: var(--ar-ink-faint); }
 .ar-sys__grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
 .ar-sys__panel {
