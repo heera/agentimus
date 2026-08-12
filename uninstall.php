@@ -40,6 +40,8 @@ function agentimus_uninstall_site() {
 	delete_option( 'agentimus_integrations_queue' );          // Undelivered outgoing events.
 	delete_option( 'agentimus_integrations_findings_seen' );  // The findings diff's baseline.
 	delete_option( 'agentimus_integrations_impostor_seen' );  // Impostor announce debounce.
+	delete_option( 'agentimus_integrations_feed_token' );     // Private feed token fingerprint + fetch history.
+	delete_option( 'agentimus_integrations_feed_ring' );      // The private feed's event ring.
 	delete_transient( 'agentimus_ranges_pending' );
 	delete_transient( 'agentimus_llms_txt' );
 	delete_transient( 'agentimus_llms_full' );

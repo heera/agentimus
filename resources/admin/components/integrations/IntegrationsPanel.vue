@@ -5,7 +5,8 @@
  * PLUGINS is the roster of plugins whose content this site describes to AI
  * assistants (presence stated honestly either way), plus the developer card
  * pointing at the provider guide. SERVICES is what receives this site's own
- * report events — the webhook, Telegram, Slack, Discord and Google Sheets,
+ * report events — the webhook, Telegram, Slack, Discord, Google Sheets and
+ * the private feed (the one PULL service: readers come to a tokened URL),
  * the blessed roster complete.
  *
  * The tabs are the plugin's own tab convention: 50/50 full width, the active
@@ -20,8 +21,8 @@
  * open service, '' means none; Esc and a backdrop click both dismiss, and a
  * save or disconnect closes back to the updated card with the grid never
  * having moved. The webhook's signing secret appears exactly once, in the
- * response that minted it; the Telegram bot token goes the other way —
- * pasted in, never echoed back.
+ * response that minted it; the feed's tokened URL follows the same law; the
+ * Telegram bot token goes the other way — pasted in, never echoed back.
  *
  * Always mounted, fetch on first reveal, re-read on every return — the
  * freshness rule every data screen follows.
@@ -33,6 +34,7 @@ import TelegramCard from './services/TelegramCard.vue';
 import SlackCard from './services/SlackCard.vue';
 import DiscordCard from './services/DiscordCard.vue';
 import SheetsCard from './services/SheetsCard.vue';
+import FeedCard from './services/FeedCard.vue';
 import PluginCard from './plugins/PluginCard.vue';
 import { copyText } from '../../js/clipboard.js';
 import { confirm } from '../../js/confirm.js';
@@ -42,7 +44,7 @@ const DEV_GUIDE = 'https://heera.github.io/agentimus/developer/integrate-your-pl
 
 export default {
   name: 'IntegrationsPanel',
-  components: { CardSkeleton, IntegrationCard, WebhookCard, TelegramCard, SlackCard, DiscordCard, SheetsCard, PluginCard },
+  components: { CardSkeleton, IntegrationCard, WebhookCard, TelegramCard, SlackCard, DiscordCard, SheetsCard, FeedCard, PluginCard },
   props: {
     api: { type: Object, default: null },
     // Rendered with v-show; fetch on first reveal, re-read on every return.
@@ -61,6 +63,7 @@ export default {
       slack: { enabled: false, url: '', events: [], queued: 0, state: { lastDeliveredAt: 0, lastError: '', lastErrorAt: 0 } },
       discord: { enabled: false, url: '', events: [], queued: 0, state: { lastDeliveredAt: 0, lastError: '', lastErrorAt: 0 } },
       sheets: { enabled: false, spreadsheet: '', events: [], hasKey: false, saEmail: '', queued: 0, state: { lastDeliveredAt: 0, lastError: '', lastErrorAt: 0 } },
+      feed: { enabled: false, events: [], hasToken: false, lastFetchedAt: 0, queued: 0, state: { lastDeliveredAt: 0, lastError: '', lastErrorAt: 0 } },
       events: [],
       plugins: [],
       // Which service's focused panel is open ('' = none, one at a time).
@@ -70,18 +73,22 @@ export default {
       sl: { url: '', events: [] },
       dc: { url: '', events: [] },
       sh: { spreadsheet: '', events: [] },
+      fe: { events: [] },
       saving: false,
       formError: '',
       // The secret's single appearance. Cleared when the panel closes — after
       // that, only its existence is ever admitted again.
       secret: '',
       secretCopied: false,
+      // The feed URL's single appearance — the same one-sighting law.
+      feedUrl: '',
+      feedUrlCopied: false,
     };
   },
   computed: {
     // The open service's name over the modal — one shell, one title slot.
     modalTitle() {
-      return { webhook: 'Webhook', telegram: 'Telegram', slack: 'Slack', discord: 'Discord', sheets: 'Google Sheets' }[this.panel] || '';
+      return { webhook: 'Webhook', telegram: 'Telegram', slack: 'Slack', discord: 'Discord', sheets: 'Google Sheets', feed: 'Private feed' }[this.panel] || '';
     },
   },
   watch: {
@@ -127,6 +134,7 @@ export default {
       this.slack = data.slack || this.slack;
       this.discord = data.discord || this.discord;
       this.sheets = data.sheets || this.sheets;
+      this.feed = data.feed || this.feed;
       this.events = data.events || [];
       this.plugins = data.plugins || [];
     },
@@ -194,10 +202,25 @@ export default {
         if (el) el.focus();
       });
     },
+    openFeed() {
+      this.fe.events = this.defaultEvents(this.feed);
+      this.formError = '';
+      this.feedUrl = '';
+      this.feedUrlCopied = false;
+      this.panel = 'feed';
+      // No field to fill — the dialog itself takes focus, so Esc and Tab
+      // land where every other modal starts them.
+      this.$nextTick(() => {
+        const el = this.$refs.dialog;
+        if (el) el.focus();
+      });
+    },
     closePanel() {
       this.panel = '';
       this.secret = '';
       this.secretCopied = false;
+      this.feedUrl = '';
+      this.feedUrlCopied = false;
     },
     async save() {
       if (!this.api || this.saving) return;
@@ -313,6 +336,75 @@ export default {
         this.formError = e.message || 'Could not save the Google Sheets connection.';
       } finally {
         this.saving = false;
+      }
+    },
+    async saveFeed() {
+      if (!this.api || this.saving) return;
+      this.saving = true;
+      this.formError = '';
+      try {
+        const wasConnected = this.feed.enabled;
+        const data = await this.api.actIntegrations({
+          action: wasConnected ? 'save' : 'connect',
+          service: 'feed',
+          events: this.fe.events,
+        });
+        this.apply(data);
+        if (data.feedUrl) {
+          // The one sighting. The panel stays open so it can be copied.
+          this.feedUrl = data.feedUrl;
+          this.feedUrlCopied = false;
+        } else {
+          this.$emit('flash', 'success', 'Feed settings saved.');
+          this.closePanel();
+        }
+      } catch (e) {
+        this.formError = e.message || 'Could not save the feed.';
+      } finally {
+        this.saving = false;
+      }
+    },
+    async regenerateFeed() {
+      if (!this.api || this.saving) return;
+      // Same care as rotating the webhook secret: the old URL dies right here.
+      const ok = await confirm({
+        title: 'Make a new URL?',
+        message: 'The current URL stops answering the moment this saves — every reader still polling it is out. Paste the new URL into each of them.',
+        confirmLabel: 'New URL',
+        cancelLabel: 'Cancel',
+        tone: 'danger',
+      });
+      if (!ok) return;
+      this.saving = true;
+      this.formError = '';
+      try {
+        const data = await this.api.actIntegrations({ action: 'regenerate', service: 'feed' });
+        this.apply(data);
+        this.feedUrl = data.feedUrl || '';
+        this.feedUrlCopied = false;
+      } catch (e) {
+        this.formError = e.message || 'Could not make a new URL.';
+      } finally {
+        this.saving = false;
+      }
+    },
+    async disconnectFeed() {
+      if (!this.api || this.saving) return;
+      const ok = await confirm({
+        title: 'Disconnect the feed?',
+        message: 'The URL stops answering, the remembered events are dropped, and anything still queued for the feed is discarded. Reconnecting makes a new URL.',
+        confirmLabel: 'Disconnect',
+        cancelLabel: 'Cancel',
+        tone: 'danger',
+      });
+      if (!ok) return;
+      await this.doDisconnect({ action: 'disconnect', service: 'feed' }, 'Feed disconnected.');
+    },
+    async copyFeedUrl() {
+      if (await copyText(this.feedUrl)) {
+        this.feedUrlCopied = true;
+      } else {
+        this.$emit('flash', 'error', 'Could not copy — select the URL and copy it by hand.');
       }
     },
     async disconnectSheets() {
@@ -479,6 +571,7 @@ export default {
             <SlackCard :slack="slack" @open="openSlack" />
             <DiscordCard :discord="discord" @open="openDiscord" />
             <SheetsCard :sheets="sheets" @open="openSheets" />
+            <FeedCard :feed="feed" @open="openFeed" />
           </div>
 
         </section>
@@ -532,6 +625,13 @@ export default {
                 <template v-else>the service account’s email</template>
                 as an Editor, then paste the spreadsheet’s ID below. Connecting appends a header
                 row and one test row to prove the road works.
+              </p>
+              <p v-else-if="panel === 'feed'" class="ar-int__panellead">
+                A private feed of what Agentimus finds — paste its URL into any feed reader or
+                automation and events arrive there, alongside every finding still open. Nothing is
+                ever sent out: readers come to it. <strong>Anyone with the URL can read it, so
+                treat it like a key.</strong> It answers as RSS; add
+                <code>&amp;format=json</code> for JSON Feed.
               </p>
             </div>
 
@@ -740,6 +840,39 @@ export default {
                     <strong>What happened</strong> · <strong>Link</strong>.
                   </p>
                 </template>
+
+                <!-- The private feed -->
+                <template v-else-if="panel === 'feed'">
+                  <fieldset class="ar-int__events">
+                    <legend>Which events the feed carries</legend>
+                    <label v-for="ev in events" :key="ev.name" class="ar-int__event">
+                      <input v-model="fe.events" type="checkbox" :value="ev.name" :disabled="saving" />
+                      <span class="ar-int__eventtext">
+                        <strong>{{ ev.label }}</strong>
+                        <small>{{ ev.description }}</small>
+                      </span>
+                    </label>
+                  </fieldset>
+
+                  <p class="ar-field__hint">
+                    The feed keeps the last 50 events, plus an item for every finding still open.
+                    Your site’s own reports only — never your visitors’ data.
+                  </p>
+
+                  <!-- The URL's one and only sighting (connect or new URL). -->
+                  <div v-if="feedUrl" class="ar-int__once">
+                    <div class="ar-int__oncerow">
+                      <code class="ar-int__secret">{{ feedUrl }}</code>
+                      <button type="button" class="ar-btn ar-btn--ghost" @click="copyFeedUrl">
+                        {{ feedUrlCopied ? 'Copied' : 'Copy' }}
+                      </button>
+                    </div>
+                    <p class="ar-field__hint">
+                      <strong>Shown once.</strong> Paste it into your reader now — it can’t be
+                      shown again. Lost it? “New URL” mints a fresh one.
+                    </p>
+                  </div>
+                </template>
               </div>
             </div>
 
@@ -793,6 +926,20 @@ export default {
                 :disabled="saving"
                 @click="disconnectSheets"
               >Disconnect</button>
+              <button
+                v-if="panel === 'feed' && feed.enabled"
+                type="button"
+                class="ar-btn ar-btn--ghost"
+                :disabled="saving"
+                @click="regenerateFeed"
+              >New URL</button>
+              <button
+                v-if="panel === 'feed' && feed.enabled"
+                type="button"
+                class="ar-btn ar-btn--danger"
+                :disabled="saving"
+                @click="disconnectFeed"
+              >Disconnect</button>
               <button v-if="panel === 'webhook'" type="button" class="ar-btn" :disabled="saving" @click="save">
                 {{ saving ? 'Saving…' : (webhook.enabled ? 'Save' : 'Connect') }}
               </button>
@@ -807,6 +954,9 @@ export default {
               </button>
               <button v-else-if="panel === 'sheets'" type="button" class="ar-btn" :disabled="saving" @click="saveSheets">
                 {{ saving ? 'Saving…' : (sheets.enabled ? 'Save' : 'Connect') }}
+              </button>
+              <button v-else-if="panel === 'feed'" type="button" class="ar-btn" :disabled="saving" @click="saveFeed">
+                {{ saving ? 'Saving…' : (feed.enabled ? 'Save' : 'Connect') }}
               </button>
             </div>
           </div>

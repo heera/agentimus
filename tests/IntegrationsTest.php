@@ -482,6 +482,8 @@ namespace Agentimus\Tests {
 					'sheets_enabled'      => false,
 					'sheets_spreadsheet'  => '',
 					'sheets_events'       => array(),
+					'feed_enabled'        => false,
+					'feed_events'         => array(),
 				),
 				$defaults['integrations'],
 				'Every service defaults to off, empty, unsubscribed — the inertness law starts here.'

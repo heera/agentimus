@@ -16,6 +16,7 @@ namespace Agentimus\Tests;
 
 use Agentimus\Settings;
 use Agentimus\Integrations\Rest;
+use Agentimus\Integrations\Services\Feed;
 use PHPUnit\Framework\TestCase;
 
 final class IntegrationsRestTest extends TestCase {
@@ -166,6 +167,83 @@ final class IntegrationsRestTest extends TestCase {
 		$this->assertTrue( $payload['sheets']['hasKey'] );
 		$this->assertSame( 'agentimus@project.iam.gserviceaccount.com', $payload['sheets']['saEmail'] );
 		$this->assertStringContainsString( 'sheets.googleapis.com', $GLOBALS['_af_http_last']['url'], 'A connect proves the road.' );
+	}
+
+	/* ---- the feed door ------------------------------------------------------- */
+
+	/** The token out of a just-minted feed URL. */
+	private function feed_token( $url ) {
+		parse_str( (string) parse_url( (string) $url, PHP_URL_QUERY ), $query );
+		return isset( $query['token'] ) ? (string) $query['token'] : '';
+	}
+
+	public function test_feed_connect_answers_the_url_once_and_the_status_never_reprints_it() {
+		$payload = $this->rest()->act(
+			$this->request( array( 'service' => 'feed', 'action' => 'connect', 'events' => array( 'digest_sent' ) ) )
+		);
+
+		$this->assertIsArray( $payload );
+		$this->assertTrue( $payload['feed']['enabled'] );
+		$this->assertTrue( $payload['feed']['hasToken'] );
+		$this->assertSame( array( 'digest_sent' ), $payload['feed']['events'] );
+		$this->assertStringContainsString( '/agentimus/v1/integrations/feed?token=agfeed_', $payload['feedUrl'], 'The one appearance the tokened URL ever makes.' );
+
+		$status = $this->rest()->status();
+		$this->assertArrayNotHasKey( 'feedUrl', $status );
+		$this->assertStringNotContainsString( 'agfeed_', wp_json_encode( $status ), 'A screen reload never re-prints a credential promised to appear once.' );
+	}
+
+	public function test_feed_connect_with_no_events_is_refused_and_stores_nothing() {
+		$verdict = $this->rest()->act(
+			$this->request( array( 'service' => 'feed', 'action' => 'connect', 'events' => array() ) )
+		);
+
+		$this->assertInstanceOf( \WP_Error::class, $verdict );
+		$this->assertSame( 'agentimus_no_events', $verdict->get_error_code() );
+		$this->assertFalse( ( new Settings() )->get( 'integrations' )['feed_enabled'] ?? false, 'A refused connect must not half-store.' );
+		$this->assertFalse( Feed::has_token(), 'No connection, no token.' );
+	}
+
+	public function test_feed_save_keeps_the_standing_token_but_regenerate_rotates_it() {
+		$connected = $this->rest()->act(
+			$this->request( array( 'service' => 'feed', 'action' => 'connect', 'events' => array( 'digest_sent' ) ) )
+		);
+		$token     = $this->feed_token( $connected['feedUrl'] );
+		$this->assertTrue( Feed::verify_token( $token ) );
+
+		$saved = $this->rest()->act(
+			$this->request( array( 'service' => 'feed', 'action' => 'save', 'events' => array( 'digest_sent', 'impostor_flagged' ) ) )
+		);
+		$this->assertArrayNotHasKey( 'feedUrl', $saved, 'A checkbox edit must not rotate every reader\'s URL.' );
+		$this->assertTrue( Feed::verify_token( $token ) );
+		$this->assertSame( array( 'digest_sent', 'impostor_flagged' ), $saved['feed']['events'] );
+
+		$rotated = $this->rest()->act( $this->request( array( 'service' => 'feed', 'action' => 'regenerate' ) ) );
+		$this->assertFalse( Feed::verify_token( $token ), 'The old URL is out the moment the new one exists.' );
+		$this->assertTrue( Feed::verify_token( $this->feed_token( $rotated['feedUrl'] ) ) );
+	}
+
+	public function test_feed_regenerate_without_a_connection_is_refused() {
+		$verdict = $this->rest()->act( $this->request( array( 'service' => 'feed', 'action' => 'regenerate' ) ) );
+
+		$this->assertInstanceOf( \WP_Error::class, $verdict );
+		$this->assertSame( 'agentimus_not_connected', $verdict->get_error_code() );
+	}
+
+	public function test_feed_disconnect_is_a_full_goodbye() {
+		$connected = $this->rest()->act(
+			$this->request( array( 'service' => 'feed', 'action' => 'connect', 'events' => array( 'impostor_flagged' ) ) )
+		);
+		$token     = $this->feed_token( $connected['feedUrl'] );
+		Feed::deliver( 'impostor_flagged', array( 'event' => 'impostor_flagged', 'data' => array( 'client' => 'x' ) ) );
+		$this->assertCount( 1, Feed::ring() );
+
+		$payload = $this->rest()->act( $this->request( array( 'service' => 'feed', 'action' => 'disconnect' ) ) );
+
+		$this->assertFalse( $payload['feed']['enabled'] );
+		$this->assertFalse( $payload['feed']['hasToken'] );
+		$this->assertFalse( Feed::verify_token( $token ) );
+		$this->assertSame( array(), Feed::ring(), 'The remembered events go with the connection.' );
 	}
 
 	/* ---- the provider roster ------------------------------------------------ */
