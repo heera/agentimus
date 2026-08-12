@@ -5446,14 +5446,20 @@ button.ar-act-more:hover { color: var(--ar-ink); }
 .ar-skel__tiles { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
 .ar-skel__box { height: 58px; border-radius: var(--ar-radius); }
 .ar-skel__line { height: 13px; border-radius: 4px; }
-.ar-skel__box, .ar-skel__line {
+/* A ghost the height of one dashboard big-card panel, so those cards hold
+   their loaded shape while their poll is in flight instead of leaping from a
+   one-line wait to a wall of panels. Heights measured off the loaded cards:
+   a systems panel runs ~332px (four rows), an audience half ~298px. */
+.ar-skel__panel { height: 332px; border-radius: var(--ar-radius); }
+.ar-aud__split .ar-skel__panel { height: 298px; }
+.ar-skel__box, .ar-skel__line, .ar-skel__panel {
   background: linear-gradient(90deg, var(--ar-surface-2) 25%, var(--ar-line) 50%, var(--ar-surface-2) 75%);
   background-size: 200% 100%;
   animation: ar-shimmer 1.3s ease-in-out infinite;
 }
 @keyframes ar-shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
 @media (prefers-reduced-motion: reduce) {
-  .ar-skel__box, .ar-skel__line { animation: none; background: var(--ar-surface-2); }
+  .ar-skel__box, .ar-skel__line, .ar-skel__panel { animation: none; background: var(--ar-surface-2); }
 }
 
 /* ---- One-time load reveal (no perpetual motion) ------------------------- */
