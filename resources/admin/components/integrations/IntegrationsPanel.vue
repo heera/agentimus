@@ -5,20 +5,21 @@
  * PLUGINS is the roster of plugins whose content this site describes to AI
  * assistants (presence stated honestly either way), plus the developer card
  * pointing at the provider guide. SERVICES is what receives this site's own
- * report events — today the outgoing webhook, with the rest of the roster
- * shown as "Coming" so the owner learns what exists without a dead control
- * to click.
+ * report events — the webhook and Telegram work today, with the rest of the
+ * roster shown as "Coming" so the owner learns what exists without a dead
+ * control to click.
  *
  * The tabs are the plugin's own tab convention: 50/50 full width, the active
  * indicator on the TOP edge (the .ar-tabpanel__tabs strip Visibility already
  * wears). The card grid is the blessed FluentForms-style grammar, shared via
  * IntegrationCard.
  *
- * The webhook's doing happens in a focused panel below the grid — url, event
- * checkboxes, Save/Disconnect — never a modal (the Teleport law exists, but a
- * panel that stays in the page needs no teleporting at all). The signing
- * secret appears exactly once, in the response that minted it; afterwards the
- * screen only ever admits one exists.
+ * Each service's doing happens in a focused panel below the grid — fields,
+ * event checkboxes, Save/Disconnect — never a modal (the Teleport law exists,
+ * but a panel that stays in the page needs no teleporting at all). One panel
+ * at a time: `panel` names the open service, '' means none. The webhook's
+ * signing secret appears exactly once, in the response that minted it; the
+ * Telegram bot token goes the other way — pasted in, never echoed back.
  *
  * Always mounted, fetch on first reveal, re-read on every return — the
  * freshness rule every data screen follows.
@@ -26,6 +27,7 @@
 import CardSkeleton from '../CardSkeleton.vue';
 import IntegrationCard from './IntegrationCard.vue';
 import WebhookCard from './services/WebhookCard.vue';
+import TelegramCard from './services/TelegramCard.vue';
 import PluginCard from './plugins/PluginCard.vue';
 import { copyText } from '../../js/clipboard.js';
 import { confirm } from '../../js/confirm.js';
@@ -33,7 +35,6 @@ import { confirm } from '../../js/confirm.js';
 // The services that exist as plans, not code. Stated so the roster teaches
 // what is coming — with no controls, because there is nothing to control.
 const COMING = [
-  { id: 'telegram', mark: 'Tg', name: 'Telegram', blurb: 'Events as messages from a bot you own — your phone learns what your site saw.' },
   { id: 'slack', mark: 'Sl', name: 'Slack', blurb: 'Events into a channel, where your team already looks.' },
   { id: 'discord', mark: 'Dc', name: 'Discord', blurb: 'The same events, posted to a server you run.' },
   { id: 'sheets', mark: 'Sh', name: 'Google Sheets', blurb: 'Events appended to a sheet — a history that outlives the 30-day log.' },
@@ -43,7 +44,7 @@ const DEV_GUIDE = 'https://heera.github.io/agentimus/developer/integrate-your-pl
 
 export default {
   name: 'IntegrationsPanel',
-  components: { CardSkeleton, IntegrationCard, WebhookCard, PluginCard },
+  components: { CardSkeleton, IntegrationCard, WebhookCard, TelegramCard, PluginCard },
   props: {
     api: { type: Object, default: null },
     // Rendered with v-show; fetch on first reveal, re-read on every return.
@@ -59,11 +60,13 @@ export default {
       loaded: false,
       error: '',
       webhook: { enabled: false, url: '', events: [], hasSecret: false, queued: 0, state: { lastDeliveredAt: 0, lastError: '', lastErrorAt: 0 } },
+      telegram: { enabled: false, chat: '', events: [], tier: 'all', hasToken: false, queued: 0, state: { lastDeliveredAt: 0, lastError: '', lastErrorAt: 0 } },
       events: [],
       plugins: [],
-      // The focused webhook panel.
-      panelOpen: false,
+      // Which service's focused panel is open ('' = none, one at a time).
+      panel: '',
       form: { url: '', events: [] },
+      tg: { token: '', chat: '', tier: 'all', events: [] },
       saving: false,
       formError: '',
       // The secret's single appearance. Cleared when the panel closes — after
@@ -101,28 +104,46 @@ export default {
     },
     apply(data) {
       this.webhook = data.webhook || this.webhook;
+      this.telegram = data.telegram || this.telegram;
       this.events = data.events || [];
       this.plugins = data.plugins || [];
     },
-    openPanel() {
-      // The form starts from what is stored; a fresh connect starts with every
-      // box ticked — subscribing to nothing is the one setup that can never be
-      // what anyone meant, and the server refuses it anyway.
-      this.form.url = this.webhook.url || '';
-      this.form.events = this.webhook.enabled && this.webhook.events.length
-        ? [...this.webhook.events]
+    // A fresh connect starts with every box ticked — subscribing to nothing is
+    // the one setup that can never be what anyone meant, and the server
+    // refuses it anyway.
+    defaultEvents(service) {
+      return service.enabled && service.events.length
+        ? [...service.events]
         : this.events.map((e) => e.name);
+    },
+    openPanel() {
+      this.form.url = this.webhook.url || '';
+      this.form.events = this.defaultEvents(this.webhook);
       this.formError = '';
       this.secret = '';
       this.secretCopied = false;
-      this.panelOpen = true;
+      this.panel = 'webhook';
       this.$nextTick(() => {
         const el = this.$refs.urlInput;
         if (el) el.focus();
       });
     },
+    openTelegram() {
+      // The token field always starts empty: the stored one is never echoed
+      // back, so an empty field on a connected bot means "keep it".
+      this.tg.token = '';
+      this.tg.chat = this.telegram.chat || '';
+      this.tg.tier = this.telegram.tier || 'all';
+      this.tg.events = this.defaultEvents(this.telegram);
+      this.formError = '';
+      this.panel = 'telegram';
+      this.$nextTick(() => {
+        const el = this.telegram.enabled ? this.$refs.tgChatInput : this.$refs.tgTokenInput;
+        if (el) el.focus();
+      });
+    },
     closePanel() {
-      this.panelOpen = false;
+      this.panel = '';
       this.secret = '';
       this.secretCopied = false;
     },
@@ -152,6 +173,32 @@ export default {
         this.saving = false;
       }
     },
+    async saveTelegram() {
+      if (!this.api || this.saving) return;
+      this.saving = true;
+      this.formError = '';
+      try {
+        const wasConnected = this.telegram.enabled;
+        this.apply(await this.api.actIntegrations({
+          action: wasConnected ? 'save' : 'connect',
+          service: 'telegram',
+          token: this.tg.token,
+          chat: this.tg.chat,
+          tier: this.tg.tier,
+          events: this.tg.events,
+        }));
+        this.$emit(
+          'flash',
+          'success',
+          wasConnected ? 'Telegram settings saved.' : 'Telegram connected — the chat just got its first message.'
+        );
+        this.closePanel();
+      } catch (e) {
+        this.formError = e.message || 'Could not save the Telegram connection.';
+      } finally {
+        this.saving = false;
+      }
+    },
     async disconnect() {
       if (!this.api || this.saving) return;
       const ok = await confirm({
@@ -162,11 +209,26 @@ export default {
         tone: 'danger',
       });
       if (!ok) return;
+      await this.doDisconnect({ action: 'disconnect' }, 'Webhook disconnected.');
+    },
+    async disconnectTelegram() {
+      if (!this.api || this.saving) return;
+      const ok = await confirm({
+        title: 'Disconnect Telegram?',
+        message: 'Messages stop, anything still queued for Telegram is discarded, and the stored bot token is deleted. Reconnecting asks for the token again.',
+        confirmLabel: 'Disconnect',
+        cancelLabel: 'Cancel',
+        tone: 'danger',
+      });
+      if (!ok) return;
+      await this.doDisconnect({ action: 'disconnect', service: 'telegram' }, 'Telegram disconnected.');
+    },
+    async doDisconnect(payload, done) {
       this.saving = true;
       try {
-        this.apply(await this.api.actIntegrations({ action: 'disconnect' }));
+        this.apply(await this.api.actIntegrations(payload));
         this.closePanel();
-        this.$emit('flash', 'success', 'Webhook disconnected.');
+        this.$emit('flash', 'success', done);
       } catch (e) {
         this.$emit('flash', 'error', e.message || 'Could not disconnect.');
       } finally {
@@ -261,6 +323,7 @@ export default {
           </p>
           <div class="ar-int__grid">
             <WebhookCard :webhook="webhook" @open="openPanel" />
+            <TelegramCard :telegram="telegram" @open="openTelegram" />
             <IntegrationCard
               v-for="s in coming"
               :key="s.id"
@@ -272,7 +335,7 @@ export default {
           </div>
 
           <!-- The focused webhook panel: everything the card only points at. -->
-          <section v-if="panelOpen" id="ar-int-webhook" class="ar-card ar-int__panel">
+          <section v-if="panel === 'webhook'" id="ar-int-webhook" class="ar-card ar-int__panel">
             <div class="ar-card__head ar-card__head--inline">
               <div class="ar-card__titlewrap">
                 <h2 class="ar-card__title">Webhook</h2>
@@ -341,6 +404,104 @@ export default {
                 class="ar-btn ar-btn--danger"
                 :disabled="saving"
                 @click="disconnect"
+              >Disconnect</button>
+              <button type="button" class="ar-btn ar-btn--ghost" :disabled="saving" @click="closePanel">
+                Close
+              </button>
+            </div>
+          </section>
+
+          <!-- The focused Telegram panel. -->
+          <section v-if="panel === 'telegram'" id="ar-int-telegram" class="ar-card ar-int__panel">
+            <div class="ar-card__head ar-card__head--inline">
+              <div class="ar-card__titlewrap">
+                <h2 class="ar-card__title">Telegram</h2>
+              </div>
+            </div>
+            <p class="ar-int__panellead">
+              Telegram delivery is a <strong>bot</strong> you own: message
+              <code>@BotFather</code>, tell it <code>/newbot</code>, and it hands you a token —
+              that takes about a minute. Paste the token here, say which chat to post to, and
+              connecting sends that chat one test message to prove the road works.
+            </p>
+
+            <div class="ar-field">
+              <label for="ar-int-tg-token">Bot token</label>
+              <input
+                id="ar-int-tg-token"
+                ref="tgTokenInput"
+                v-model="tg.token"
+                type="password"
+                class="ar-input"
+                autocomplete="off"
+                placeholder="123456789:ABC…"
+                :disabled="saving"
+              />
+              <p v-if="telegram.enabled && telegram.hasToken" class="ar-field__hint">
+                A token is stored. Leave this blank to keep it — paste a new one only to replace it.
+              </p>
+            </div>
+
+            <div class="ar-field">
+              <label for="ar-int-tg-chat">Chat id</label>
+              <input
+                id="ar-int-tg-chat"
+                ref="tgChatInput"
+                v-model="tg.chat"
+                type="text"
+                class="ar-input"
+                autocomplete="off"
+                placeholder="123456789 or @yourchannel"
+                :disabled="saving"
+              />
+              <p class="ar-field__hint">
+                Your own id (ask <code>@userinfobot</code>), a group’s id (starts with a minus), or
+                <code>@name</code> for a channel you run. Message your bot once first — Telegram
+                only lets a bot write where it’s been let in.
+              </p>
+            </div>
+
+            <fieldset class="ar-int__events">
+              <legend>Which events to send</legend>
+              <label v-for="ev in events" :key="ev.name" class="ar-int__event">
+                <input v-model="tg.events" type="checkbox" :value="ev.name" :disabled="saving" />
+                <span class="ar-int__eventtext">
+                  <strong>{{ ev.label }}</strong>
+                  <small>{{ ev.description }}</small>
+                </span>
+              </label>
+            </fieldset>
+
+            <fieldset class="ar-int__events">
+              <legend>Which findings ring your phone</legend>
+              <label class="ar-int__event">
+                <input v-model="tg.tier" type="radio" value="all" :disabled="saving" />
+                <span class="ar-int__eventtext">
+                  <strong>Every new finding</strong>
+                  <small>Anything the daily check turns up.</small>
+                </span>
+              </label>
+              <label class="ar-int__event">
+                <input v-model="tg.tier" type="radio" value="urgent" :disabled="saving" />
+                <span class="ar-int__eventtext">
+                  <strong>Urgent only</strong>
+                  <small>The rest still waits on the Findings screen — just not on your phone.</small>
+                </span>
+              </label>
+            </fieldset>
+
+            <p v-if="formError" class="ar-field__hint ar-int__err" role="alert">{{ formError }}</p>
+
+            <div class="ar-int__actions">
+              <button type="button" class="ar-btn" :disabled="saving" @click="saveTelegram">
+                {{ saving ? 'Saving…' : (telegram.enabled ? 'Save' : 'Connect') }}
+              </button>
+              <button
+                v-if="telegram.enabled"
+                type="button"
+                class="ar-btn ar-btn--danger"
+                :disabled="saving"
+                @click="disconnectTelegram"
               >Disconnect</button>
               <button type="button" class="ar-btn ar-btn--ghost" :disabled="saving" @click="closePanel">
                 Close

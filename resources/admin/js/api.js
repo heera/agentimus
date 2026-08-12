@@ -206,10 +206,12 @@ export function createApi(boot) {
     removeClientToken: (token, list) =>
       request('/activity/client-remove', { method: 'POST', body: JSON.stringify({ token, list }) }),
 
-    // Integrations: one status read (webhook config sans secret, event catalog,
-    // provider presence), and one action door — { action: connect | save |
-    // disconnect | regenerate }. Connect and regenerate answer with `secret`
-    // exactly once; no other response ever carries it.
+    // Integrations: one status read (service configs sans credentials, event
+    // catalog, provider presence), and one action door — { service?: webhook |
+    // telegram, action: connect | save | disconnect | regenerate }; no service
+    // named means the webhook. Its connect and regenerate answer with `secret`
+    // exactly once; no other response ever carries a credential (Telegram's
+    // token is pasted in and never echoed back).
     getIntegrations: () => request('/integrations'),
     actIntegrations: (payload) =>
       request('/integrations', { method: 'POST', body: JSON.stringify(payload) }),

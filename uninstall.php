@@ -35,6 +35,7 @@ function agentimus_uninstall_site() {
 	delete_option( 'agentimus_digest_last' );   // Weekly digest snapshot + unsubscribe key.
 	delete_option( 'agentimus_digest_stop_key' );
 	delete_option( 'agentimus_integrations_webhook_secret' ); // Webhook signing secret.
+	delete_option( 'agentimus_integrations_telegram_token' ); // Telegram bot token.
 	delete_option( 'agentimus_integrations_state' );          // Per-connection delivery state.
 	delete_option( 'agentimus_integrations_queue' );          // Undelivered outgoing events.
 	delete_option( 'agentimus_integrations_findings_seen' );  // The findings diff's baseline.

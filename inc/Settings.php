@@ -184,9 +184,15 @@ final class Settings {
 			// tripped by every save; it lives in its own option (Services\Webhook), shown
 			// once at connect time like the MCP connection token.
 			'integrations'            => array(
-				'webhook_enabled' => false,
-				'webhook_url'     => '',
-				'webhook_events'  => array(),
+				'webhook_enabled'  => false,
+				'webhook_url'      => '',
+				'webhook_events'   => array(),
+				// Telegram's bot TOKEN is likewise not here (Services\Telegram's
+				// own option); the chat id is an address, not a secret.
+				'telegram_enabled' => false,
+				'telegram_chat'    => '',
+				'telegram_events'  => array(),
+				'telegram_tier'    => 'all', // Which findings ring the phone: 'all' | 'urgent'.
 			),
 		);
 
@@ -764,17 +770,19 @@ final class Settings {
 				: array();
 		}
 		$webhook_url           = isset( $int_in['webhook_url'] ) ? esc_url_raw( trim( (string) $int_in['webhook_url'] ), array( 'https', 'http' ) ) : '';
+		$telegram_chat         = isset( $int_in['telegram_chat'] ) ? Integrations\Services\Telegram::normalize_chat( $int_in['telegram_chat'] ) : '';
 		$clean['integrations'] = array(
 			// A connection with no URL cannot exist — the flag collapses with it,
 			// the same downward cascade the agent-writes ladder uses.
-			'webhook_enabled' => ! empty( $int_in['webhook_enabled'] ) && '' !== $webhook_url,
-			'webhook_url'     => $webhook_url,
-			'webhook_events'  => array_values(
-				array_intersect(
-					array_map( 'strval', (array) ( isset( $int_in['webhook_events'] ) ? $int_in['webhook_events'] : array() ) ),
-					Integrations\Events::names()
-				)
-			),
+			'webhook_enabled'  => ! empty( $int_in['webhook_enabled'] ) && '' !== $webhook_url,
+			'webhook_url'      => $webhook_url,
+			'webhook_events'   => $this->sanitize_integration_events( $int_in, 'webhook_events' ),
+			// Telegram: the same collapse — no chat, no connection. (The token
+			// is Services\Telegram's own option and never passes through here.)
+			'telegram_enabled' => ! empty( $int_in['telegram_enabled'] ) && '' !== $telegram_chat,
+			'telegram_chat'    => $telegram_chat,
+			'telegram_events'  => $this->sanitize_integration_events( $int_in, 'telegram_events' ),
+			'telegram_tier'    => isset( $int_in['telegram_tier'] ) && 'urgent' === $int_in['telegram_tier'] ? 'urgent' : 'all',
 		);
 
 		// Kept VERBATIM — no intersect with what is registered today. See the
@@ -991,6 +999,23 @@ final class Settings {
 		// Never persist a non-array: this result is written straight to the option,
 		// and a corrupt option would break every subsequent read + the admin.
 		return is_array( $filtered ) ? $filtered : $clean;
+	}
+
+	/**
+	 * One service's event choices, validated against the catalog — a stale or
+	 * invented event name can't linger in any service's subscription.
+	 *
+	 * @param array  $int_in The raw integrations block.
+	 * @param string $key    The service's events key (e.g. 'telegram_events').
+	 * @return string[]
+	 */
+	private function sanitize_integration_events( array $int_in, $key ) {
+		return array_values(
+			array_intersect(
+				array_map( 'strval', (array) ( isset( $int_in[ $key ] ) ? $int_in[ $key ] : array() ) ),
+				Integrations\Events::names()
+			)
+		);
 	}
 
 	/**

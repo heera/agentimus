@@ -1,16 +1,17 @@
 <script>
 /**
- * The webhook's card on the SERVICES tab — the one service that works today.
+ * The webhook's card on the SERVICES tab — the first service that worked.
  *
  * The card carries the connection's honesty line: last delivered, or the last
  * error, in that order of hope. A connected webhook that has been silently
  * failing must confess it HERE, on the card, where the owner actually looks —
  * not in a log nobody opens. All the doing (connect, save, disconnect, the
  * secret) lives in the panel the parent opens; this card only states and
- * invites.
+ * invites. The line itself comes from serviceNote — one dialect for every
+ * service card.
  */
 import IntegrationCard from '../IntegrationCard.vue';
-import { formatStamp } from '../../../js/wpDate.js';
+import { serviceNote } from '../../../js/serviceNote.js';
 
 export default {
   name: 'WebhookCard',
@@ -29,29 +30,8 @@ export default {
     action() {
       return this.webhook.enabled ? 'Manage' : 'Connect';
     },
-    // One line, the freshest truth first: an error outranks old good news.
     note() {
-      if (!this.webhook.enabled) return '';
-      const s = this.webhook.state || {};
-      if (s.lastError) {
-        return `Last error: ${s.lastError}${s.lastErrorAt ? ` — ${this.when(s.lastErrorAt)}` : ''}`;
-      }
-      if (s.lastDeliveredAt) {
-        let line = `Last delivered ${this.when(s.lastDeliveredAt)}`;
-        if (this.webhook.queued > 0) line += ` — ${this.webhook.queued} waiting`;
-        return line;
-      }
-      return this.webhook.queued > 0
-        ? `${this.webhook.queued} ${this.webhook.queued === 1 ? 'event' : 'events'} waiting for the next delivery run`
-        : 'Connected — nothing has happened to send yet.';
-    },
-    noteIsError() {
-      return !!(this.webhook.enabled && this.webhook.state && this.webhook.state.lastError);
-    },
-  },
-  methods: {
-    when(unix) {
-      return formatStamp(new Date(unix * 1000));
+      return serviceNote(this.webhook);
     },
   },
 };
@@ -67,7 +47,7 @@ export default {
     @act="$emit('open')"
   >
     <template #note>
-      <p v-if="note" class="ar-int__note" :class="{ 'is-err': noteIsError }">{{ note }}</p>
+      <p v-if="note.text" class="ar-int__note" :class="{ 'is-err': note.isError }">{{ note.text }}</p>
     </template>
   </IntegrationCard>
 </template>

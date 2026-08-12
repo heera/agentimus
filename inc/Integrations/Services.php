@@ -27,6 +27,7 @@
 namespace Agentimus\Integrations;
 
 use Agentimus\Settings;
+use Agentimus\Integrations\Services\Telegram;
 use Agentimus\Integrations\Services\Webhook;
 
 defined( 'ABSPATH' ) || exit;
@@ -40,7 +41,8 @@ final class Services {
 	 */
 	public static function all() {
 		return array(
-			Webhook::ID => Webhook::class,
+			Webhook::ID  => Webhook::class,
+			Telegram::ID => Telegram::class,
 		);
 	}
 

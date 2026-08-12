@@ -466,11 +466,16 @@ namespace Agentimus\Tests {
 			$defaults = ( new Settings() )->defaults();
 			$this->assertSame(
 				array(
-					'webhook_enabled' => false,
-					'webhook_url'     => '',
-					'webhook_events'  => array(),
+					'webhook_enabled'  => false,
+					'webhook_url'      => '',
+					'webhook_events'   => array(),
+					'telegram_enabled' => false,
+					'telegram_chat'    => '',
+					'telegram_events'  => array(),
+					'telegram_tier'    => 'all',
 				),
-				$defaults['integrations']
+				$defaults['integrations'],
+				'Every service defaults to off, empty, unsubscribed — the inertness law starts here.'
 			);
 		}
 
