@@ -5,9 +5,8 @@
  * PLUGINS is the roster of plugins whose content this site describes to AI
  * assistants (presence stated honestly either way), plus the developer card
  * pointing at the provider guide. SERVICES is what receives this site's own
- * report events — the webhook, Telegram, Slack and Discord work today, with
- * the rest of the roster shown as "Coming" so the owner learns what exists
- * without a dead control to click.
+ * report events — the webhook, Telegram, Slack, Discord and Google Sheets,
+ * the blessed roster complete.
  *
  * The tabs are the plugin's own tab convention: 50/50 full width, the active
  * indicator on the TOP edge (the .ar-tabpanel__tabs strip Visibility already
@@ -33,22 +32,17 @@ import WebhookCard from './services/WebhookCard.vue';
 import TelegramCard from './services/TelegramCard.vue';
 import SlackCard from './services/SlackCard.vue';
 import DiscordCard from './services/DiscordCard.vue';
+import SheetsCard from './services/SheetsCard.vue';
 import PluginCard from './plugins/PluginCard.vue';
 import { copyText } from '../../js/clipboard.js';
 import { confirm } from '../../js/confirm.js';
 import { bindDocEsc } from '../../js/docEsc.js';
 
-// The services that exist as plans, not code. Stated so the roster teaches
-// what is coming — with no controls, because there is nothing to control.
-const COMING = [
-  { id: 'sheets', mark: 'Sh', name: 'Google Sheets', blurb: 'Events appended to a sheet — a history that outlives the 30-day log.' },
-];
-
 const DEV_GUIDE = 'https://heera.github.io/agentimus/developer/integrate-your-plugin.html';
 
 export default {
   name: 'IntegrationsPanel',
-  components: { CardSkeleton, IntegrationCard, WebhookCard, TelegramCard, SlackCard, DiscordCard, PluginCard },
+  components: { CardSkeleton, IntegrationCard, WebhookCard, TelegramCard, SlackCard, DiscordCard, SheetsCard, PluginCard },
   props: {
     api: { type: Object, default: null },
     // Rendered with v-show; fetch on first reveal, re-read on every return.
@@ -58,7 +52,6 @@ export default {
   data() {
     return {
       view: 'plugins',
-      coming: COMING,
       devGuide: DEV_GUIDE,
       loading: false,
       loaded: false,
@@ -67,6 +60,7 @@ export default {
       telegram: { enabled: false, chat: '', events: [], tier: 'all', hasToken: false, queued: 0, state: { lastDeliveredAt: 0, lastError: '', lastErrorAt: 0 } },
       slack: { enabled: false, url: '', events: [], queued: 0, state: { lastDeliveredAt: 0, lastError: '', lastErrorAt: 0 } },
       discord: { enabled: false, url: '', events: [], queued: 0, state: { lastDeliveredAt: 0, lastError: '', lastErrorAt: 0 } },
+      sheets: { enabled: false, spreadsheet: '', events: [], hasKey: false, saEmail: '', queued: 0, state: { lastDeliveredAt: 0, lastError: '', lastErrorAt: 0 } },
       events: [],
       plugins: [],
       // Which service's focused panel is open ('' = none, one at a time).
@@ -75,6 +69,7 @@ export default {
       tg: { token: '', chat: '', tier: 'all', events: [] },
       sl: { url: '', events: [] },
       dc: { url: '', events: [] },
+      sh: { spreadsheet: '', events: [] },
       saving: false,
       formError: '',
       // The secret's single appearance. Cleared when the panel closes — after
@@ -86,7 +81,7 @@ export default {
   computed: {
     // The open service's name over the modal — one shell, one title slot.
     modalTitle() {
-      return { webhook: 'Webhook', telegram: 'Telegram', slack: 'Slack', discord: 'Discord' }[this.panel] || '';
+      return { webhook: 'Webhook', telegram: 'Telegram', slack: 'Slack', discord: 'Discord', sheets: 'Google Sheets' }[this.panel] || '';
     },
   },
   watch: {
@@ -131,6 +126,7 @@ export default {
       this.telegram = data.telegram || this.telegram;
       this.slack = data.slack || this.slack;
       this.discord = data.discord || this.discord;
+      this.sheets = data.sheets || this.sheets;
       this.events = data.events || [];
       this.plugins = data.plugins || [];
     },
@@ -185,6 +181,16 @@ export default {
       this.panel = 'discord';
       this.$nextTick(() => {
         const el = this.$refs.dcUrlInput;
+        if (el) el.focus();
+      });
+    },
+    openSheets() {
+      this.sh.spreadsheet = this.sheets.spreadsheet || '';
+      this.sh.events = this.defaultEvents(this.sheets);
+      this.formError = '';
+      this.panel = 'sheets';
+      this.$nextTick(() => {
+        const el = this.$refs.shIdInput;
         if (el) el.focus();
       });
     },
@@ -284,6 +290,42 @@ export default {
       } finally {
         this.saving = false;
       }
+    },
+    async saveSheets() {
+      if (!this.api || this.saving) return;
+      this.saving = true;
+      this.formError = '';
+      try {
+        const wasConnected = this.sheets.enabled;
+        this.apply(await this.api.actIntegrations({
+          action: wasConnected ? 'save' : 'connect',
+          service: 'sheets',
+          spreadsheet: this.sh.spreadsheet,
+          events: this.sh.events,
+        }));
+        this.$emit(
+          'flash',
+          'success',
+          wasConnected ? 'Sheets settings saved.' : 'Google Sheets connected — the sheet just got its header row and a first row.'
+        );
+        this.closePanel();
+      } catch (e) {
+        this.formError = e.message || 'Could not save the Google Sheets connection.';
+      } finally {
+        this.saving = false;
+      }
+    },
+    async disconnectSheets() {
+      if (!this.api || this.saving) return;
+      const ok = await confirm({
+        title: 'Disconnect Google Sheets?',
+        message: 'Rows stop being appended and anything still queued for Sheets is discarded. Rows already in the spreadsheet stay — the sheet is yours.',
+        confirmLabel: 'Disconnect',
+        cancelLabel: 'Cancel',
+        tone: 'danger',
+      });
+      if (!ok) return;
+      await this.doDisconnect({ action: 'disconnect', service: 'sheets' }, 'Google Sheets disconnected.');
     },
     async disconnectDiscord() {
       if (!this.api || this.saving) return;
@@ -436,14 +478,7 @@ export default {
             <TelegramCard :telegram="telegram" @open="openTelegram" />
             <SlackCard :slack="slack" @open="openSlack" />
             <DiscordCard :discord="discord" @open="openDiscord" />
-            <IntegrationCard
-              v-for="s in coming"
-              :key="s.id"
-              :mark="s.mark"
-              :name="s.name"
-              :blurb="s.blurb"
-              :chip="{ label: 'Coming', tone: '' }"
-            />
+            <SheetsCard :sheets="sheets" @open="openSheets" />
           </div>
 
         </section>
@@ -488,6 +523,15 @@ export default {
                 In your server: <strong>Server Settings → Integrations → Webhooks → New
                 Webhook</strong>, pick the channel, copy its URL and paste it here. Each event
                 arrives in that channel as one embed.
+              </p>
+              <p v-else-if="panel === 'sheets'" class="ar-int__panellead">
+                Each event becomes one row appended to a spreadsheet you own — a history that
+                outlives the 30-day log, using the same service-account key as your Google
+                connection. In Google Sheets, hit <strong>Share</strong> and add
+                <template v-if="sheets.saEmail"><code>{{ sheets.saEmail }}</code></template>
+                <template v-else>the service account’s email</template>
+                as an Editor, then paste the spreadsheet’s ID below. Connecting appends a header
+                row and one test row to prove the road works.
               </p>
             </div>
 
@@ -657,6 +701,45 @@ export default {
                     </label>
                   </fieldset>
                 </template>
+
+                <!-- Google Sheets -->
+                <template v-else-if="panel === 'sheets'">
+                  <div class="ar-field">
+                    <label for="ar-int-sh-id">Spreadsheet ID</label>
+                    <input
+                      id="ar-int-sh-id"
+                      ref="shIdInput"
+                      v-model="sh.spreadsheet"
+                      type="text"
+                      class="ar-input"
+                      autocomplete="off"
+                      placeholder="1AbC…xYz"
+                      :disabled="saving"
+                    />
+                    <p class="ar-field__hint">
+                      The long code in the sheet’s URL, between <code>/d/</code> and
+                      <code>/edit</code> — or paste the whole URL and the code is taken from it.
+                    </p>
+                  </div>
+
+                  <fieldset class="ar-int__events">
+                    <legend>Which events to append</legend>
+                    <label v-for="ev in events" :key="ev.name" class="ar-int__event">
+                      <input v-model="sh.events" type="checkbox" :value="ev.name" :disabled="saving" />
+                      <span class="ar-int__eventtext">
+                        <strong>{{ ev.label }}</strong>
+                        <small>{{ ev.description }}</small>
+                      </span>
+                    </label>
+                  </fieldset>
+
+                  <p class="ar-field__hint">
+                    Every event lands as one row of five columns, in this order:
+                    <strong>When</strong> (site time) · <strong>Event</strong> ·
+                    <strong>Level</strong> (a finding’s urgency; empty otherwise) ·
+                    <strong>What happened</strong> · <strong>Link</strong>.
+                  </p>
+                </template>
               </div>
             </div>
 
@@ -703,6 +786,13 @@ export default {
                 :disabled="saving"
                 @click="disconnectDiscord"
               >Disconnect</button>
+              <button
+                v-if="panel === 'sheets' && sheets.enabled"
+                type="button"
+                class="ar-btn ar-btn--danger"
+                :disabled="saving"
+                @click="disconnectSheets"
+              >Disconnect</button>
               <button v-if="panel === 'webhook'" type="button" class="ar-btn" :disabled="saving" @click="save">
                 {{ saving ? 'Saving…' : (webhook.enabled ? 'Save' : 'Connect') }}
               </button>
@@ -714,6 +804,9 @@ export default {
               </button>
               <button v-else-if="panel === 'discord'" type="button" class="ar-btn" :disabled="saving" @click="saveDiscord">
                 {{ saving ? 'Saving…' : (discord.enabled ? 'Save' : 'Connect') }}
+              </button>
+              <button v-else-if="panel === 'sheets'" type="button" class="ar-btn" :disabled="saving" @click="saveSheets">
+                {{ saving ? 'Saving…' : (sheets.enabled ? 'Save' : 'Connect') }}
               </button>
             </div>
           </div>

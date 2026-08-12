@@ -108,6 +108,66 @@ final class IntegrationsRestTest extends TestCase {
 		$this->assertSame( 'agentimus_no_events', $slack->get_error_code() );
 	}
 
+	/* ---- the sheets door ---------------------------------------------------- */
+
+	public function test_sheets_connect_refuses_garbage_ids_and_stores_nothing() {
+		$verdict = $this->rest()->act(
+			$this->request( array( 'service' => 'sheets', 'action' => 'connect', 'spreadsheet' => 'not a spreadsheet', 'events' => array( 'digest_sent' ) ) )
+		);
+
+		$this->assertInstanceOf( \WP_Error::class, $verdict );
+		$this->assertSame( 'agentimus_sheets_id', $verdict->get_error_code() );
+		$this->assertStringContainsString( '/d/', $verdict->get_error_message(), 'The refusal teaches where the ID lives in the URL.' );
+		$this->assertFalse( ( new Settings() )->get( 'integrations' )['sheets_enabled'] ?? false, 'A refused connect must not half-store.' );
+	}
+
+	public function test_sheets_connect_without_a_google_key_points_at_data_sources_never_a_second_credential() {
+		$verdict = $this->rest()->act(
+			$this->request(
+				array(
+					'service'     => 'sheets',
+					'action'      => 'connect',
+					'spreadsheet' => '1AbCdEfGhIjKlMnOpQrStUvWxYz0123456789abcdef',
+					'events'      => array( 'digest_sent' ),
+				)
+			)
+		);
+
+		$this->assertInstanceOf( \WP_Error::class, $verdict );
+		$this->assertSame( 'agentimus_sheets_nokey', $verdict->get_error_code() );
+		$this->assertStringContainsString( 'Data sources', $verdict->get_error_message() );
+		$this->assertNull( $GLOBALS['_af_http_last'], 'No key = no proof call to make.' );
+	}
+
+	public function test_sheets_connect_with_a_key_proves_the_road_and_connects() {
+		$GLOBALS['_af_options']['agentimus_google'] = array(
+			'sa_json'  => '{"type":"service_account"}',
+			'sa_email' => 'agentimus@project.iam.gserviceaccount.com',
+		);
+		$GLOBALS['_af_transients_on']               = true;
+		$GLOBALS['_af_transients'][ 'agentimus_google_token_' . substr( md5( \Agentimus\Google\Auth::SCOPE_SHEETS ), 0, 16 ) ] = 'sheets-token';
+		$GLOBALS['_af_http_queue']                  = array( array( 'response' => array( 'code' => 200 ), 'body' => '{}', 'headers' => array() ) );
+
+		$payload = $this->rest()->act(
+			$this->request(
+				array(
+					'service'     => 'sheets',
+					'action'      => 'connect',
+					// The kinder paste: the whole URL, normalized at the door.
+					'spreadsheet' => 'https://docs.google.com/spreadsheets/d/1AbCdEfGhIjKlMnOpQrStUvWxYz0123456789abcdef/edit#gid=0',
+					'events'      => array( 'digest_sent' ),
+				)
+			)
+		);
+
+		$this->assertIsArray( $payload );
+		$this->assertTrue( $payload['sheets']['enabled'] );
+		$this->assertSame( '1AbCdEfGhIjKlMnOpQrStUvWxYz0123456789abcdef', $payload['sheets']['spreadsheet'] );
+		$this->assertTrue( $payload['sheets']['hasKey'] );
+		$this->assertSame( 'agentimus@project.iam.gserviceaccount.com', $payload['sheets']['saEmail'] );
+		$this->assertStringContainsString( 'sheets.googleapis.com', $GLOBALS['_af_http_last']['url'], 'A connect proves the road.' );
+	}
+
 	/* ---- the provider roster ------------------------------------------------ */
 
 	public function test_the_plugins_roster_lists_every_provider_in_card_order() {

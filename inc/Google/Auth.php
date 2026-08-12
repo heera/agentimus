@@ -39,6 +39,18 @@ final class Auth {
 	 */
 	const SCOPE_ANALYTICS = 'https://www.googleapis.com/auth/analytics.readonly';
 
+	/**
+	 * @var string Google Sheets, read-write — the Integrations screen's Sheets
+	 * service appends event rows with it.
+	 *
+	 * The third separate scope, requested separately for the same reason as
+	 * analytics: a Search Console token must never carry write rights to
+	 * spreadsheets. Write, not readonly, because appending rows IS the job —
+	 * and it only reaches spreadsheets the owner explicitly shared with the
+	 * service account.
+	 */
+	const SCOPE_SHEETS = 'https://www.googleapis.com/auth/spreadsheets';
+
 	/** @var string Access-token cache slot (the default scope). */
 	const TOKEN_TRANSIENT = 'agentimus_google_token';
 
@@ -185,7 +197,7 @@ final class Auth {
 	 */
 	public static function forget() {
 		delete_transient( self::TOKEN_TRANSIENT );
-		foreach ( array( self::SCOPE_ANALYTICS ) as $scope ) {
+		foreach ( array( self::SCOPE_ANALYTICS, self::SCOPE_SHEETS ) as $scope ) {
 			delete_transient( self::slot( $scope ) );
 		}
 	}

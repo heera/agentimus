@@ -479,6 +479,9 @@ namespace Agentimus\Tests {
 					'discord_enabled'  => false,
 					'discord_url'      => '',
 					'discord_events'   => array(),
+					'sheets_enabled'      => false,
+					'sheets_spreadsheet'  => '',
+					'sheets_events'       => array(),
 				),
 				$defaults['integrations'],
 				'Every service defaults to off, empty, unsubscribed — the inertness law starts here.'

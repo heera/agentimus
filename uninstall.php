@@ -118,6 +118,10 @@ function agentimus_uninstall_site() {
 	delete_option( 'agentimus_google_trend' );
 	delete_option( 'agentimus_search_db_version' );
 	delete_transient( 'agentimus_google_token' );
+	// Non-default scope token slots (Google\Auth::slot hashes the scope URL;
+	// the plugin isn't loaded here, so the prefixes are precomputed):
+	delete_transient( 'agentimus_google_token_59618d64f3805a74' ); // analytics.readonly
+	delete_transient( 'agentimus_google_token_72359770ac5e1d20' ); // spreadsheets (the Sheets integration)
 	wp_clear_scheduled_hook( 'agentimus_google_poll' );
 	wp_clear_scheduled_hook( 'agentimus_google_index_chunk' );
 

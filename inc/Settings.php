@@ -202,6 +202,12 @@ final class Settings {
 				'discord_enabled'  => false,
 				'discord_url'      => '',
 				'discord_events'   => array(),
+				// Google Sheets: no credential of its own — the Google
+				// connection's service-account key is borrowed at delivery
+				// time (Services\Sheets). The spreadsheet ID is an address.
+				'sheets_enabled'      => false,
+				'sheets_spreadsheet'  => '',
+				'sheets_events'       => array(),
 			),
 		);
 
@@ -782,6 +788,7 @@ final class Settings {
 		$telegram_chat         = isset( $int_in['telegram_chat'] ) ? Integrations\Services\Telegram::normalize_chat( $int_in['telegram_chat'] ) : '';
 		$slack_url             = isset( $int_in['slack_url'] ) ? esc_url_raw( trim( (string) $int_in['slack_url'] ), array( 'https', 'http' ) ) : '';
 		$discord_url           = isset( $int_in['discord_url'] ) ? esc_url_raw( trim( (string) $int_in['discord_url'] ), array( 'https', 'http' ) ) : '';
+		$sheets_spreadsheet    = isset( $int_in['sheets_spreadsheet'] ) ? Integrations\Services\Sheets::normalize_spreadsheet_id( $int_in['sheets_spreadsheet'] ) : '';
 		$clean['integrations'] = array(
 			// A connection with no URL cannot exist — the flag collapses with it,
 			// the same downward cascade the agent-writes ladder uses.
@@ -802,6 +809,12 @@ final class Settings {
 			'discord_enabled'  => ! empty( $int_in['discord_enabled'] ) && '' !== $discord_url,
 			'discord_url'      => $discord_url,
 			'discord_events'   => $this->sanitize_integration_events( $int_in, 'discord_events' ),
+			// Sheets: the same collapse — no spreadsheet, no connection. (The
+			// key it borrows lives in the Google store, never here; whether it
+			// still exists is connected()'s runtime question.)
+			'sheets_enabled'      => ! empty( $int_in['sheets_enabled'] ) && '' !== $sheets_spreadsheet,
+			'sheets_spreadsheet'  => $sheets_spreadsheet,
+			'sheets_events'       => $this->sanitize_integration_events( $int_in, 'sheets_events' ),
 		);
 
 		// Kept VERBATIM — no intersect with what is registered today. See the

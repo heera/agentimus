@@ -21,6 +21,7 @@ namespace Agentimus\Integrations;
 
 use Agentimus\Settings;
 use Agentimus\Integrations\Services\Discord;
+use Agentimus\Integrations\Services\Sheets;
 use Agentimus\Integrations\Services\Slack;
 use Agentimus\Integrations\Services\Telegram;
 use Agentimus\Integrations\Services\Webhook;
@@ -98,9 +99,9 @@ final class Rest {
 	}
 
 	/**
-	 * POST /integrations — { service?: webhook | telegram | slack | discord,
-	 * action: connect | save | disconnect | regenerate }. No service named
-	 * means the webhook, phase one's whole roster.
+	 * POST /integrations — { service?: webhook | telegram | slack | discord |
+	 * sheets, action: connect | save | disconnect | regenerate }. No service
+	 * named means the webhook, phase one's whole roster.
 	 *
 	 * Every branch goes through Settings::update() with the FULL resolved
 	 * settings (read, amend, write back): a partial array would reset every
@@ -154,6 +155,14 @@ final class Rest {
 			}
 			if ( 'disconnect' === $action ) {
 				return $this->disconnect_url_service( 'discord', Discord::ID, array( Discord::class, 'forget_state' ) );
+			}
+		}
+		if ( Sheets::ID === $service ) {
+			if ( 'connect' === $action || 'save' === $action ) {
+				return $this->save_sheets( $request, 'connect' === $action );
+			}
+			if ( 'disconnect' === $action ) {
+				return $this->disconnect_sheets();
 			}
 		}
 		return new \WP_Error( 'agentimus_bad_action', __( 'Unknown action.', 'agentimus' ), array( 'status' => 400 ) );
@@ -326,6 +335,88 @@ final class Rest {
 		Telegram::forget_token();
 		Telegram::forget_state();
 		$this->after_disconnect( Telegram::ID );
+
+		return rest_ensure_response( $this->payload() );
+	}
+
+	/* -- Google Sheets -------------------------------------------------------- */
+
+	/**
+	 * Connect (or save) Google Sheets. There is no credential to take — the
+	 * Google connection's service-account key is borrowed — so the gate here
+	 * is threefold: the ID must look like one, the key must exist (and when it
+	 * doesn't, the error points at Settings → Data sources rather than asking
+	 * for a second credential), and a connect proves the road by appending the
+	 * header row and one test row. A save re-proves only a CHANGED
+	 * spreadsheet; a mere checkbox edit appends nothing at all.
+	 *
+	 * @param \WP_REST_Request $request The request.
+	 * @param bool             $connect Whether this is the connect action.
+	 * @return \WP_REST_Response|\WP_Error
+	 */
+	private function save_sheets( $request, $connect ) {
+		$spreadsheet = Sheets::normalize_spreadsheet_id( (string) $request->get_param( 'spreadsheet' ) );
+		if ( '' === $spreadsheet ) {
+			return new \WP_Error(
+				'agentimus_sheets_id',
+				__( 'That doesn’t look like a spreadsheet ID. It’s the long code in the sheet’s URL, between /d/ and /edit — or just paste the sheet’s whole URL.', 'agentimus' ),
+				array( 'status' => 400 )
+			);
+		}
+
+		$events = $this->events_param( $request );
+		if ( is_wp_error( $events ) ) {
+			return $events;
+		}
+
+		if ( ! Sheets::has_key() ) {
+			return new \WP_Error(
+				'agentimus_sheets_nokey',
+				__( 'Google Sheets uses the service-account key from your Google connection, and none is stored. Add it under Settings → Data sources first — the same key Search Console reads with.', 'agentimus' ),
+				array( 'status' => 400 )
+			);
+		}
+
+		// What must be proved: a fresh connect, or a spreadsheet this
+		// connection has never appended to.
+		if ( $connect || $spreadsheet !== Sheets::config( $this->settings )['spreadsheet'] ) {
+			$verdict = Sheets::verify( $spreadsheet );
+			if ( is_wp_error( $verdict ) ) {
+				return new \WP_Error( $verdict->get_error_code(), $verdict->get_error_message(), array( 'status' => 400 ) );
+			}
+		}
+
+		$this->store(
+			array(
+				'sheets_enabled'     => true,
+				'sheets_spreadsheet' => $spreadsheet,
+				'sheets_events'      => $events,
+			)
+		);
+
+		( new Events( $this->settings ) )->sync_findings_schedule();
+
+		return rest_ensure_response( $this->payload() );
+	}
+
+	/**
+	 * Disconnect Sheets: switch off, forget the spreadsheet and the choices,
+	 * drop its state and its queue rows. The rows already appended STAY — the
+	 * spreadsheet is the owner's file; only the appending stops.
+	 *
+	 * @return \WP_REST_Response
+	 */
+	private function disconnect_sheets() {
+		$this->store(
+			array(
+				'sheets_enabled'     => false,
+				'sheets_spreadsheet' => '',
+				'sheets_events'      => array(),
+			)
+		);
+
+		Sheets::forget_state();
+		$this->after_disconnect( Sheets::ID );
 
 		return rest_ensure_response( $this->payload() );
 	}
@@ -518,6 +609,7 @@ final class Rest {
 		$telegram   = Telegram::config( $this->settings );
 		$slack      = Slack::config( $this->settings );
 		$discord    = Discord::config( $this->settings );
+		$sheets     = Sheets::config( $this->settings );
 
 		return array(
 			'webhook'  => array(
@@ -550,6 +642,18 @@ final class Rest {
 				'events'  => $discord['events'],
 				'queued'  => $dispatcher->depth_for( Discord::ID ),
 				'state'   => Discord::state(),
+			),
+			'sheets'   => array(
+				'enabled'     => $sheets['enabled'],
+				'spreadsheet' => $sheets['spreadsheet'],
+				'events'      => $sheets['events'],
+				// The borrowed credential's presence, and the email the sheet
+				// must be shared with — the card's no-Google state and the
+				// connect help both speak from these.
+				'hasKey'      => Sheets::has_key(),
+				'saEmail'     => Sheets::sa_email(),
+				'queued'      => $dispatcher->depth_for( Sheets::ID ),
+				'state'       => Sheets::state(),
 			),
 			'events'   => $catalog,
 			'plugins'  => $plugins,
