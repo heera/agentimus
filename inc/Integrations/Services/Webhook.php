@@ -32,6 +32,7 @@
 namespace Agentimus\Integrations\Services;
 
 use Agentimus\Settings;
+use Agentimus\Integrations\DeliveryState;
 
 defined( 'ABSPATH' ) || exit;
 
@@ -43,8 +44,8 @@ final class Webhook {
 	/** Option: the signing secret. Its own option, never in the settings array. */
 	const SECRET_OPTION = 'agentimus_integrations_webhook_secret';
 
-	/** Option: per-connection delivery state ({ webhook: { lastDeliveredAt, lastError, lastErrorAt } }). */
-	const STATE_OPTION = 'agentimus_integrations_state';
+	/** Option: per-connection delivery state — DeliveryState's shared map. */
+	const STATE_OPTION = DeliveryState::OPTION;
 
 	/** Seconds an outgoing delivery may take. Short on purpose: this runs on cron,
 	 *  and a slow receiver must not hold the drain hostage. */
@@ -94,6 +95,20 @@ final class Webhook {
 		}
 		$config = self::config( $settings );
 		return in_array( (string) $event, $config['events'], true );
+	}
+
+	/**
+	 * The per-payload gate the service grammar reserves (Telegram's minimum
+	 * finding tier lives there). The webhook forwards everything its checkbox
+	 * subscribed to — the receiver is a machine; filtering is its job.
+	 *
+	 * @param Settings $settings Plugin settings.
+	 * @param string   $event    Event name.
+	 * @param array    $data     Contract-shaped payload.
+	 * @return bool
+	 */
+	public static function accepts( Settings $settings, $event, array $data ) { // phpcs:ignore Generic.CodeAnalysis.UnusedFunctionParameter -- the grammar's full signature.
+		return true;
 	}
 
 	/* -- The secret ---------------------------------------------------------- */
@@ -202,7 +217,7 @@ final class Webhook {
 		return true;
 	}
 
-	/* -- Delivery state ------------------------------------------------------ */
+	/* -- Delivery state (this service's slice of the shared honesty line) ---- */
 
 	/**
 	 * This connection's delivery state, always in its full shape.
@@ -210,69 +225,25 @@ final class Webhook {
 	 * @return array{lastDeliveredAt:int,lastError:string,lastErrorAt:int}
 	 */
 	public static function state() {
-		$all = get_option( self::STATE_OPTION, array() );
-		$row = is_array( $all ) && isset( $all[ self::ID ] ) && is_array( $all[ self::ID ] ) ? $all[ self::ID ] : array();
-		return array(
-			'lastDeliveredAt' => isset( $row['lastDeliveredAt'] ) ? (int) $row['lastDeliveredAt'] : 0,
-			'lastError'       => isset( $row['lastError'] ) ? (string) $row['lastError'] : '',
-			'lastErrorAt'     => isset( $row['lastErrorAt'] ) ? (int) $row['lastErrorAt'] : 0,
-		);
+		return DeliveryState::read( self::ID );
 	}
 
-	/**
-	 * A delivery landed. A success also clears the standing error: the card
-	 * shows the connection's PRESENT health, not its scars.
-	 */
+	/** A delivery landed (a success also clears the standing error). */
 	public static function record_success() {
-		self::write_state(
-			array(
-				'lastDeliveredAt' => time(),
-				'lastError'       => '',
-				'lastErrorAt'     => 0,
-			)
-		);
+		DeliveryState::success( self::ID );
 	}
 
 	/**
-	 * A delivery failed. The freshest error wins — it is the one the owner can
-	 * still act on.
+	 * A delivery failed; the freshest error wins.
 	 *
 	 * @param string $message Plain-words failure reason.
 	 */
 	public static function record_failure( $message ) {
-		$state = self::state();
-		self::write_state(
-			array(
-				'lastDeliveredAt' => $state['lastDeliveredAt'],
-				'lastError'       => substr( trim( (string) $message ), 0, 300 ),
-				'lastErrorAt'     => time(),
-			)
-		);
+		DeliveryState::failure( self::ID, $message );
 	}
 
 	/** Drop the state — the disconnect path. */
 	public static function forget_state() {
-		$all = get_option( self::STATE_OPTION, array() );
-		if ( is_array( $all ) && isset( $all[ self::ID ] ) ) {
-			unset( $all[ self::ID ] );
-			if ( empty( $all ) ) {
-				delete_option( self::STATE_OPTION );
-			} else {
-				update_option( self::STATE_OPTION, $all, false );
-			}
-		}
-	}
-
-	/**
-	 * Store this connection's slice of the shared state map.
-	 *
-	 * @param array $row Full state row.
-	 */
-	private static function write_state( array $row ) {
-		$all = get_option( self::STATE_OPTION, array() );
-		$all = is_array( $all ) ? $all : array();
-
-		$all[ self::ID ] = $row;
-		update_option( self::STATE_OPTION, $all, false );
+		DeliveryState::forget( self::ID );
 	}
 }

@@ -20,9 +20,11 @@
  *    CLIENT (the user-agent token), never an IP address; the digest event
  *    carries the digest's summary numbers, not the rows behind them.
  *  - Inert unless connected. register() stands down without adding a single
- *    hook when the webhook is off — the WebMCP doctrine. The do_action seams
- *    in the emitting subsystems always fire (a no-listener action is free);
- *    only THIS class's listeners come and go.
+ *    hook while no service is connected — the WebMCP doctrine. The do_action
+ *    seams in the emitting subsystems always fire (a no-listener action is
+ *    free); only THIS class's listeners come and go. One emit fans out to
+ *    every connected service that subscribed (Services::wanting), each as its
+ *    own queue row — so one slow receiver never owes another one anything.
  *
  * finding_opened is the one event with no live seam to listen on: findings are
  * COMPUTED on read (Findings::all()), not stored, so "a new finding appeared"
@@ -39,7 +41,6 @@ namespace Agentimus\Integrations;
 
 use Agentimus\Findings;
 use Agentimus\Settings;
-use Agentimus\Integrations\Services\Webhook;
 
 defined( 'ABSPATH' ) || exit;
 
@@ -201,7 +202,7 @@ final class Events {
 	 * @return bool True when the listeners were armed.
 	 */
 	public function register() {
-		if ( ! Webhook::connected( $this->settings ) ) {
+		if ( ! Services::any_connected( $this->settings ) ) {
 			// Bidirectional self-heal, like Digest\Module: a disconnect (or a
 			// settings restore) must take its scheduled work with it.
 			if ( wp_next_scheduled( self::CRON_FINDINGS ) ) {
@@ -257,7 +258,12 @@ final class Events {
 	 * @return bool
 	 */
 	public static function wants_findings_cron( Settings $settings ) {
-		return Webhook::connected( $settings ) && Webhook::wants( $settings, self::FINDING_OPENED );
+		foreach ( Services::all() as $class ) {
+			if ( $class::wants( $settings, self::FINDING_OPENED ) ) {
+				return true;
+			}
+		}
+		return false;
 	}
 
 	/* -- Payload builders (the contract, one per event) ---------------------- */
@@ -552,17 +558,28 @@ final class Events {
 	/* -- Internals ----------------------------------------------------------- */
 
 	/**
-	 * Hand one event to the queue, honouring the per-event checkbox.
+	 * Hand one event to the queue — one row per connected service that
+	 * subscribed to it (and whose own payload gate accepts it).
 	 *
 	 * @param string $event Event name.
 	 * @param array  $data  Contract-shaped payload.
-	 * @return bool Whether the event was queued.
+	 * @return bool Whether the event was queued for at least one service.
 	 */
 	private function emit( $event, array $data ) {
-		if ( ! Webhook::wants( $this->settings, $event ) ) {
+		$ids = Services::wanting( $this->settings, $event, $data );
+		if ( array() === $ids ) {
 			return false;
 		}
-		return ( new Dispatcher( $this->settings ) )->enqueue( $event, self::envelope( $event, $data ) );
+
+		$envelope   = self::envelope( $event, $data );
+		$dispatcher = new Dispatcher( $this->settings );
+		$queued     = false;
+		foreach ( $ids as $id ) {
+			if ( $dispatcher->enqueue( $event, $envelope, $id ) ) {
+				$queued = true;
+			}
+		}
+		return $queued;
 	}
 
 	/**

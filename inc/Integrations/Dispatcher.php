@@ -33,6 +33,13 @@ use Agentimus\Integrations\Services\Webhook;
 
 defined( 'ABSPATH' ) || exit;
 
+/**
+ * Since phase two the queue serves EVERY connected service, not just the
+ * webhook: each row names its service, the drain routes the row to that
+ * service's deliver() and writes the verdict to that service's state. A row
+ * without a service field is a webhook row that survived an upgrade — the
+ * default keeps its promise.
+ */
 final class Dispatcher {
 
 	/** The single cron hook every delivery happens under. */
@@ -77,7 +84,7 @@ final class Dispatcher {
 	 * @return bool True when the drain was armed.
 	 */
 	public function register() {
-		if ( ! Webhook::connected( $this->settings ) ) {
+		if ( ! Services::any_connected( $this->settings ) ) {
 			if ( wp_next_scheduled( self::CRON ) ) {
 				wp_clear_scheduled_hook( self::CRON );
 			}
@@ -99,16 +106,19 @@ final class Dispatcher {
 	 *
 	 * @param string $event    Event name.
 	 * @param array  $envelope The versioned envelope (Events::envelope()).
+	 * @param string $service  The service this row is bound for (a Services id).
 	 * @return bool Whether the event was queued.
 	 */
-	public function enqueue( $event, array $envelope ) {
-		if ( ! Webhook::connected( $this->settings ) ) {
+	public function enqueue( $event, array $envelope, $service = Webhook::ID ) {
+		$class = Services::get( $service );
+		if ( null === $class || ! $class::connected( $this->settings ) ) {
 			return false;
 		}
 
 		$queue   = $this->queue();
 		$queue[] = array(
 			'id'       => uniqid( 'ev_', true ),
+			'service'  => (string) $service,
 			'event'    => (string) $event,
 			'envelope' => $envelope,
 			'attempts' => 0,
@@ -136,7 +146,7 @@ final class Dispatcher {
 	 * tick walks past it and the backoff decides when it is asked again.
 	 */
 	public function drain() {
-		if ( ! Webhook::connected( $this->settings ) ) {
+		if ( ! Services::any_connected( $this->settings ) ) {
 			return; // Disconnected between the schedule and the tick.
 		}
 
@@ -154,6 +164,12 @@ final class Dispatcher {
 				continue; // A corrupt row is dropped, never retried forever.
 			}
 
+			// The row's service: absent = a webhook row from before rows named one.
+			$class = Services::get( isset( $row['service'] ) ? (string) $row['service'] : Webhook::ID );
+			if ( null === $class ) {
+				continue; // A service this build doesn't know cannot be delivered to.
+			}
+
 			$due = ( ! isset( $row['next_at'] ) || (int) $row['next_at'] <= $now );
 			if ( ! $due || $attempted >= self::BATCH ) {
 				$kept[] = $row;
@@ -161,16 +177,16 @@ final class Dispatcher {
 			}
 
 			++$attempted;
-			$verdict = Webhook::deliver( isset( $row['event'] ) ? (string) $row['event'] : '', $row['envelope'] );
+			$verdict = $class::deliver( isset( $row['event'] ) ? (string) $row['event'] : '', $row['envelope'] );
 
 			if ( true === $verdict ) {
-				Webhook::record_success();
+				$class::record_success();
 				continue; // Delivered — the row leaves the queue.
 			}
 
 			$row['attempts'] = ( isset( $row['attempts'] ) ? (int) $row['attempts'] : 0 ) + 1;
 			$message         = is_wp_error( $verdict ) ? (string) $verdict->get_error_message() : __( 'Delivery failed.', 'agentimus' );
-			Webhook::record_failure( $message );
+			$class::record_failure( $message );
 
 			if ( $row['attempts'] >= self::MAX_ATTEMPTS ) {
 				continue; // Out of tries — dropped, with the failure on record.
@@ -248,10 +264,52 @@ final class Dispatcher {
 	}
 
 	/**
-	 * Drop everything and cancel the tick — the disconnect path.
+	 * How many rows wait for ONE service — its card's number.
+	 *
+	 * @param string $service Service id.
+	 * @return int
+	 */
+	public function depth_for( $service ) {
+		$n = 0;
+		foreach ( $this->queue() as $row ) {
+			$owner = isset( $row['service'] ) ? (string) $row['service'] : Webhook::ID;
+			if ( $owner === (string) $service ) {
+				++$n;
+			}
+		}
+		return $n;
+	}
+
+	/**
+	 * Drop everything and cancel the tick — the last service's disconnect.
 	 */
 	public static function flush() {
 		delete_option( self::QUEUE_OPTION );
 		wp_clear_scheduled_hook( self::CRON );
+	}
+
+	/**
+	 * Drop ONE service's rows — its disconnect path. The other services'
+	 * pending events keep their place in line and their scheduled tick.
+	 *
+	 * @param string $service Service id.
+	 */
+	public static function flush_service( $service ) {
+		$queue = get_option( self::QUEUE_OPTION, array() );
+		if ( ! is_array( $queue ) ) {
+			return;
+		}
+		$kept = array();
+		foreach ( $queue as $row ) {
+			$owner = is_array( $row ) && isset( $row['service'] ) ? (string) $row['service'] : Webhook::ID;
+			if ( is_array( $row ) && $owner !== (string) $service ) {
+				$kept[] = $row;
+			}
+		}
+		if ( array() === $kept ) {
+			delete_option( self::QUEUE_OPTION );
+		} else {
+			update_option( self::QUEUE_OPTION, array_values( $kept ), false );
+		}
 	}
 }
