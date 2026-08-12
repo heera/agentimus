@@ -117,6 +117,15 @@ final class AssistRestTest extends RestTestCase {
 		$rate = new \ReflectionMethod( \Agentimus\Assist::class, 'rate_limited' );
 		\_af_accessible( $rate );
 
+		// The limiter keys every call on floor(time()/WINDOW), so a run that
+		// starts within a breath of a window boundary watches the counter reset
+		// mid-loop and the block never lands (bit CI once: "null !== 21").
+		// Step past the boundary first; the loop itself finishes in millis.
+		$remaining = \Agentimus\Assist::ASSIST_RATE_WINDOW - ( time() % \Agentimus\Assist::ASSIST_RATE_WINDOW );
+		if ( $remaining < 5 ) {
+			sleep( $remaining + 1 );
+		}
+
 		$key = 'agentimus_assist_rate_' . get_current_user_id() . '_' . (int) floor( time() / \Agentimus\Assist::ASSIST_RATE_WINDOW );
 		delete_transient( $key );
 
