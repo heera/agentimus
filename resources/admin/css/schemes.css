@@ -62,6 +62,13 @@
 :root[data-ar-theme="dark"] body.admin-color-modern .ar-aud__note {
   border-color: color-mix(in srgb, var(--ar-note-gold) 32%, var(--ar-line));
 }
+/* The row hairlines inside the six big dashboard panels, his exact pick
+   (2026-08-12): a clean step off the near-black without going bright.
+   Other dialects keep the token-derived line from app.css. */
+:root[data-ar-theme="dark"] body.admin-color-modern .ar-sys__rows li,
+:root[data-ar-theme="dark"] body.admin-color-modern .ar-aud__rows li {
+  border-color: #433f3f;
+}
 :root[data-ar-theme="dark"] body.admin-color-modern .ar-about-snippet { background: #111111; }
 
 /* ---- Coffee — the same idea in that scheme's warm brown key -------------- */
