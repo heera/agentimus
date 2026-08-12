@@ -112,7 +112,18 @@ export default {
       </p>
     </div>
 
-    <p v-if="!loaded" class="ar-sys__wait">Reading the site&rsquo;s systems&hellip;</p>
+    <!-- First poll in flight: four ghost panels hold the loaded grid's shape,
+         so the card fills in place instead of leaping from one line of text
+         to four panels. Same shimmer grammar as Endpoint Activity's skeleton. -->
+    <template v-if="!loaded">
+      <p class="ar-sys__wait">Reading the site&rsquo;s systems&hellip;</p>
+      <div class="ar-sys__grid" aria-hidden="true" style="margin-top: 12px">
+        <span class="ar-skel__panel"></span>
+        <span class="ar-skel__panel"></span>
+        <span class="ar-skel__panel"></span>
+        <span class="ar-skel__panel"></span>
+      </div>
+    </template>
 
     <div v-else class="ar-sys__grid">
 

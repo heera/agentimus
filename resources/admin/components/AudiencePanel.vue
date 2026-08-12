@@ -122,7 +122,16 @@ export default {
       </div>
     </div>
 
-    <p v-if="!loaded" class="ar-aud__wait">Reading both halves…</p>
+    <!-- First poll in flight: two ghost halves hold the loaded split's shape,
+         so the card fills in place instead of leaping from one line of text
+         to two panels. Same shimmer grammar as Endpoint Activity's skeleton. -->
+    <template v-if="!loaded">
+      <p class="ar-aud__wait">Reading both halves…</p>
+      <div class="ar-aud__split" aria-hidden="true" style="margin-top: 12px">
+        <span class="ar-skel__panel"></span>
+        <span class="ar-skel__panel"></span>
+      </div>
+    </template>
 
     <!-- Two panels, distinguished by their MARK, not by colour.
          Colouring one accent and the other neutral said that one of them was
