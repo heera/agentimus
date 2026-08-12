@@ -549,6 +549,14 @@ final class Admin {
 					'text'  => 'The score could read 99 and "Excellent" while five separate screens quietly held work you had never seen. Findings gathers all of it into one ranked list — pages losing a click they already earn, plus anything the setup checks caught — ordered by what each one actually costs you, and every row carries the button that lands on the fix. It sits in the bar with its own count, and that count only ever measures work you can do something about; anything merely waiting on a later report gets a quiet dot instead.',
 				),
 				array(
+					'title' => 'Page-builder pages tell the truth',
+					'text'  => 'On a page Elementor or Beaver Builder owns, the visible body never lived in the WordPress content — so the .md twin, the description fallback and the readability grade could all read a body no visitor sees. Every machine surface now asks the builder for the real rendered page, and an agent trying to replace the body of a builder-owned page is refused with the reason and the fields that do work there. Divi, Bricks, Oxygen, WPBakery and SiteOrigin pages get the same write protection.',
+				),
+				array(
+					'title' => 'The Dashboard says what your site runs',
+					'text'  => 'Four panels state every system\'s standing in one look — the doors agents use, the signals you announce, what search shows, and what your writing holds — each led by one number, each ending in the link that opens the full screen. The numbers are the same ones the nav and the screens already show, so the card can never disagree with the report it points into; a switched-off system is stated rather than hidden, because off is information.',
+				),
+				array(
 					'title' => 'Pages splitting one search are now a finding',
 					'text'  => 'The engine can only send a search to one page at a time, so when several of your pages keep appearing for the same query they take turns — and every turn a weaker page takes is a click the strong one loses. Findings names the heaviest splits, and Visibility → Search lists each one with the page that earns the click stated outright and one decision on every other: point it at the winner, or set it aside. Asserted only from the engine\'s own numbers — thin data never accuses a page.',
 				),
