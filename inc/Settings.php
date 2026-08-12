@@ -176,6 +176,18 @@ final class Settings {
 			'digest_recipient'        => '', // Optional override; empty = the site admin email.
 			'digest_day'              => 1, // Send day, ISO-8601: 1 = Monday … 7 = Sunday.
 			'digest_hour'             => 8, // Send hour (0–23), site time. WP-cron fires on the first visit after it.
+			// Integrations — external services that receive this site's own report events
+			// (see Integrations\Events for the catalog). OFF by default and inert until the
+			// owner connects: no hooks, no cron, no outbound request (the standing "no
+			// outbound by default" promise). The webhook's signing SECRET is deliberately
+			// NOT here — settings are localized into the admin boot payload and round-
+			// tripped by every save; it lives in its own option (Services\Webhook), shown
+			// once at connect time like the MCP connection token.
+			'integrations'            => array(
+				'webhook_enabled' => false,
+				'webhook_url'     => '',
+				'webhook_events'  => array(),
+			),
 		);
 
 		/**
@@ -738,6 +750,32 @@ final class Settings {
 
 		$hour                 = isset( $input['digest_hour'] ) ? (int) $input['digest_hour'] : $defaults['digest_hour'];
 		$clean['digest_hour'] = ( $hour >= 0 && $hour <= 23 ) ? $hour : $defaults['digest_hour'];
+
+		// Integrations. A partial update that omits the key keeps the STORED value,
+		// never the default — the Integrations screen writes this through its own
+		// route, and the main settings form's save (or any add-on's partial write)
+		// must not silently disconnect a webhook it never showed. Event names are
+		// validated against the catalog, so a stale or invented name can't linger.
+		$int_in = isset( $input['integrations'] ) && is_array( $input['integrations'] ) ? $input['integrations'] : null;
+		if ( null === $int_in ) {
+			$stored = get_option( self::OPTION, array() );
+			$int_in = is_array( $stored ) && isset( $stored['integrations'] ) && is_array( $stored['integrations'] )
+				? $stored['integrations']
+				: array();
+		}
+		$webhook_url           = isset( $int_in['webhook_url'] ) ? esc_url_raw( trim( (string) $int_in['webhook_url'] ), array( 'https', 'http' ) ) : '';
+		$clean['integrations'] = array(
+			// A connection with no URL cannot exist — the flag collapses with it,
+			// the same downward cascade the agent-writes ladder uses.
+			'webhook_enabled' => ! empty( $int_in['webhook_enabled'] ) && '' !== $webhook_url,
+			'webhook_url'     => $webhook_url,
+			'webhook_events'  => array_values(
+				array_intersect(
+					array_map( 'strval', (array) ( isset( $int_in['webhook_events'] ) ? $int_in['webhook_events'] : array() ) ),
+					Integrations\Events::names()
+				)
+			),
+		);
 
 		// Kept VERBATIM — no intersect with what is registered today. See the
 		// default's note: a veto has to survive the vetoed plugin being away.

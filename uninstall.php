@@ -34,6 +34,11 @@ function agentimus_uninstall_site() {
 	delete_option( 'agentimus_next_steps' );    // The post-setup "Worth a look next" card state.
 	delete_option( 'agentimus_digest_last' );   // Weekly digest snapshot + unsubscribe key.
 	delete_option( 'agentimus_digest_stop_key' );
+	delete_option( 'agentimus_integrations_webhook_secret' ); // Webhook signing secret.
+	delete_option( 'agentimus_integrations_state' );          // Per-connection delivery state.
+	delete_option( 'agentimus_integrations_queue' );          // Undelivered outgoing events.
+	delete_option( 'agentimus_integrations_findings_seen' );  // The findings diff's baseline.
+	delete_option( 'agentimus_integrations_impostor_seen' );  // Impostor announce debounce.
 	delete_transient( 'agentimus_ranges_pending' );
 	delete_transient( 'agentimus_llms_txt' );
 	delete_transient( 'agentimus_llms_full' );

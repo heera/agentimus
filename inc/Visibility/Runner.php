@@ -168,12 +168,22 @@ final class Runner {
 		Store::prune( (int) $this->settings->get( 'retention_days', 180 ) );
 		update_option( self::LAST_RUN_OPTION, $run_id, false );
 
-		return array(
+		$result = array(
 			'ran'    => true,
 			'runId'  => $run_id,
 			'checks' => $checks,
 			'capped' => $capped,
 		);
+
+		/**
+		 * Fires when a citation monitoring run completed and its results are
+		 * stored. Integrations relay the summary counts from here.
+		 *
+		 * @param array $result { ran, runId, checks, capped }.
+		 */
+		do_action( 'agentimus_citation_run_finished', $result );
+
+		return $result;
 	}
 
 	/**

@@ -106,6 +106,17 @@ final class RobotsWatch {
 			);
 		}
 		update_option( self::OPTION, $state, false );
+
+		if ( ! empty( $added ) || ! empty( $removed ) ) {
+			/**
+			 * Fires when robots.txt's policy lines moved — an observation, not an
+			 * accusation: the owner's own edit lands here too. Fired AFTER the
+			 * baseline advanced, so the same change can never announce twice.
+			 *
+			 * @param array $change { at, added, removed } — the normalized lines.
+			 */
+			do_action( 'agentimus_robots_policy_changed', $state['change'] );
+		}
 	}
 
 	/**

@@ -147,6 +147,16 @@ final class ContentWriter {
 		$this->apply_featured_image( (int) $post_id, $featured );
 		$this->write_ai_meta( (int) $post_id, $input );
 
+		/**
+		 * Fires after an agent-side write CREATED a post through this governed
+		 * path (an MCP/abilities call, or the in-admin assistant). Success only —
+		 * every refusal above returned before this line.
+		 *
+		 * @param int    $post_id The written post.
+		 * @param string $action  'create'.
+		 */
+		do_action( 'agentimus_agent_wrote_content', (int) $post_id, 'create' );
+
 		return $this->summarize( (int) $post_id );
 	}
 
@@ -250,6 +260,16 @@ final class ContentWriter {
 		$this->apply_terms( $post->ID, $term_ids );
 		$this->apply_featured_image( $post->ID, $featured );
 		$this->write_ai_meta( $post->ID, $input );
+
+		/**
+		 * Fires after an agent-side write UPDATED a post through this governed
+		 * path. Success only, meta-only edits included — an agent's description
+		 * edit is as much "an agent edited this page" as a body rewrite.
+		 *
+		 * @param int    $post_id The written post.
+		 * @param string $action  'update'.
+		 */
+		do_action( 'agentimus_agent_wrote_content', $post->ID, 'update' );
 
 		return $this->summarize( $post->ID );
 	}

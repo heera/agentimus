@@ -132,6 +132,9 @@ final class Plugin {
 		// to be hooked before any ability can run.
 		( new AgentAccess\Module( $this->settings ) )->register(); // Records app-password lifecycle + ability invocations. Inert where neither exists.
 		( new Digest\Module( $this->settings ) )->register(); // Weekly email digest: the cron handler, the one-click stop endpoint, and a self-healing schedule.
+		( new Integrations\Dispatcher( $this->settings ) )->register(); // Outgoing-event queue drain (cron). Inert — not one hook — until the webhook is connected.
+		( new Integrations\Events( $this->settings ) )->register(); // The listeners that feed that queue, + the daily findings diff. Same inertness.
+		( new Integrations\Rest( $this->settings ) )->register(); // The Integrations screen's routes — unconditional, they are how the webhook gets connected.
 		( new ReviewBadge( $this->settings ) )->register(); // Review-queue count on the admin menu + Heartbeat live updates (admin-only; no-ops on the front end).
 		( new Abilities\AdapterBootstrap( $this->settings ) )->register(); // Boots the bundled MCP Adapter when the owner opts in (inert otherwise).
 		( new Abilities\Registrar( $this->settings ) )->register(); // Exposes our own read capabilities to the WP admin AI + MCP (no-ops pre-6.9).
@@ -406,6 +409,8 @@ final class Plugin {
 		Bing\Module::unschedule();
 		Google\Module::unschedule();
 		Digest\Module::unschedule();
+		wp_clear_scheduled_hook( Integrations\Dispatcher::CRON ); // The queue rows stay (an option); the drain reschedules itself on the next boot.
+		wp_clear_scheduled_hook( Integrations\Events::CRON_FINDINGS );
 		BotRanges::clear_schedule();
 		RouteProbe::clear_schedule();
 		Activity\IdentityProbe::clear_schedule();
