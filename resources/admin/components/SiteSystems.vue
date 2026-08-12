@@ -98,7 +98,13 @@ export default {
 
 <template>
   <section class="ar-card ar-sys" aria-labelledby="ar-sys-title">
-    <div class="ar-card__head">
+    <!-- The audience card's own masthead, not .ar-card__head: that class is a
+         flex row built for a title sharing its line with buttons, and with a
+         LEAD in the second slot it squeezed the title into a wrapped column
+         and hung the rule under the lead alone. Stacked, the lead runs full
+         width and its rule closes the whole header zone — the same standfirst
+         the card below this one wears. -->
+    <div class="ar-sys__head">
       <h2 id="ar-sys-title" class="ar-card__title">What your site runs</h2>
       <p class="ar-card__lead">
         Every Agentimus system in one look &mdash; the doors AI assistants use, the signals you announce,
