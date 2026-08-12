@@ -20,6 +20,7 @@
 namespace Agentimus\Integrations;
 
 use Agentimus\Settings;
+use Agentimus\Integrations\Services\Slack;
 use Agentimus\Integrations\Services\Telegram;
 use Agentimus\Integrations\Services\Webhook;
 
@@ -127,6 +128,18 @@ final class Rest {
 			}
 			if ( 'disconnect' === $action ) {
 				return $this->disconnect_telegram();
+			}
+		}
+		if ( Slack::ID === $service ) {
+			if ( 'connect' === $action || 'save' === $action ) {
+				return $this->save_url_service(
+					$request,
+					'slack',
+					__( 'That doesn’t look like a Slack webhook URL. In Slack, add the “Incoming Webhooks” app to a channel and paste the https:// URL it gives you.', 'agentimus' )
+				);
+			}
+			if ( 'disconnect' === $action ) {
+				return $this->disconnect_url_service( 'slack', Slack::ID, array( Slack::class, 'forget_state' ) );
 			}
 		}
 		return new \WP_Error( 'agentimus_bad_action', __( 'Unknown action.', 'agentimus' ), array( 'status' => 400 ) );
@@ -303,6 +316,66 @@ final class Rest {
 		return rest_ensure_response( $this->payload() );
 	}
 
+	/* -- The URL-shaped services (Slack, Discord) ----------------------------- */
+
+	/**
+	 * Connect or save a service whose whole credential is a pasted URL. No
+	 * secret to mint, no proof call to make — the URL either answers the first
+	 * delivery or the card's honesty line says it didn't.
+	 *
+	 * @param \WP_REST_Request $request   The request.
+	 * @param string           $prefix    The service's settings key prefix (= its id).
+	 * @param string           $bad_url   The plain-words error for a URL that isn't one.
+	 * @return \WP_REST_Response|\WP_Error
+	 */
+	private function save_url_service( $request, $prefix, $bad_url ) {
+		$url = esc_url_raw( trim( (string) $request->get_param( 'url' ) ), array( 'https', 'http' ) );
+		if ( '' === $url ) {
+			return new \WP_Error( 'agentimus_bad_url', $bad_url, array( 'status' => 400 ) );
+		}
+
+		$events = $this->events_param( $request );
+		if ( is_wp_error( $events ) ) {
+			return $events;
+		}
+
+		$this->store(
+			array(
+				$prefix . '_enabled' => true,
+				$prefix . '_url'     => $url,
+				$prefix . '_events'  => $events,
+			)
+		);
+
+		( new Events( $this->settings ) )->sync_findings_schedule();
+
+		return rest_ensure_response( $this->payload() );
+	}
+
+	/**
+	 * Disconnect a URL-shaped service: switch off, forget the URL and the
+	 * choices, drop its state and its queue rows.
+	 *
+	 * @param string   $prefix       The service's settings key prefix.
+	 * @param string   $id           The service's id.
+	 * @param callable $forget_state The service's forget_state.
+	 * @return \WP_REST_Response
+	 */
+	private function disconnect_url_service( $prefix, $id, $forget_state ) {
+		$this->store(
+			array(
+				$prefix . '_enabled' => false,
+				$prefix . '_url'     => '',
+				$prefix . '_events'  => array(),
+			)
+		);
+
+		call_user_func( $forget_state );
+		$this->after_disconnect( $id );
+
+		return rest_ensure_response( $this->payload() );
+	}
+
 	/* -- Shared plumbing ------------------------------------------------------ */
 
 	/**
@@ -406,6 +479,7 @@ final class Rest {
 
 		$dispatcher = new Dispatcher( $this->settings );
 		$telegram   = Telegram::config( $this->settings );
+		$slack      = Slack::config( $this->settings );
 
 		return array(
 			'webhook'  => array(
@@ -424,6 +498,13 @@ final class Rest {
 				'hasToken' => Telegram::has_token(),
 				'queued'   => $dispatcher->depth_for( Telegram::ID ),
 				'state'    => Telegram::state(),
+			),
+			'slack'    => array(
+				'enabled' => $slack['enabled'],
+				'url'     => $slack['url'],
+				'events'  => $slack['events'],
+				'queued'  => $dispatcher->depth_for( Slack::ID ),
+				'state'   => Slack::state(),
 			),
 			'events'   => $catalog,
 			'plugins'  => $plugins,

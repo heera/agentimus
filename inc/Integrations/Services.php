@@ -27,6 +27,7 @@
 namespace Agentimus\Integrations;
 
 use Agentimus\Settings;
+use Agentimus\Integrations\Services\Slack;
 use Agentimus\Integrations\Services\Telegram;
 use Agentimus\Integrations\Services\Webhook;
 
@@ -43,6 +44,7 @@ final class Services {
 		return array(
 			Webhook::ID  => Webhook::class,
 			Telegram::ID => Telegram::class,
+			Slack::ID    => Slack::class,
 		);
 	}
 

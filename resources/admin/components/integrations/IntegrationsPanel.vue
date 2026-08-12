@@ -28,6 +28,7 @@ import CardSkeleton from '../CardSkeleton.vue';
 import IntegrationCard from './IntegrationCard.vue';
 import WebhookCard from './services/WebhookCard.vue';
 import TelegramCard from './services/TelegramCard.vue';
+import SlackCard from './services/SlackCard.vue';
 import PluginCard from './plugins/PluginCard.vue';
 import { copyText } from '../../js/clipboard.js';
 import { confirm } from '../../js/confirm.js';
@@ -35,7 +36,6 @@ import { confirm } from '../../js/confirm.js';
 // The services that exist as plans, not code. Stated so the roster teaches
 // what is coming — with no controls, because there is nothing to control.
 const COMING = [
-  { id: 'slack', mark: 'Sl', name: 'Slack', blurb: 'Events into a channel, where your team already looks.' },
   { id: 'discord', mark: 'Dc', name: 'Discord', blurb: 'The same events, posted to a server you run.' },
   { id: 'sheets', mark: 'Sh', name: 'Google Sheets', blurb: 'Events appended to a sheet — a history that outlives the 30-day log.' },
 ];
@@ -44,7 +44,7 @@ const DEV_GUIDE = 'https://heera.github.io/agentimus/developer/integrate-your-pl
 
 export default {
   name: 'IntegrationsPanel',
-  components: { CardSkeleton, IntegrationCard, WebhookCard, TelegramCard, PluginCard },
+  components: { CardSkeleton, IntegrationCard, WebhookCard, TelegramCard, SlackCard, PluginCard },
   props: {
     api: { type: Object, default: null },
     // Rendered with v-show; fetch on first reveal, re-read on every return.
@@ -61,12 +61,14 @@ export default {
       error: '',
       webhook: { enabled: false, url: '', events: [], hasSecret: false, queued: 0, state: { lastDeliveredAt: 0, lastError: '', lastErrorAt: 0 } },
       telegram: { enabled: false, chat: '', events: [], tier: 'all', hasToken: false, queued: 0, state: { lastDeliveredAt: 0, lastError: '', lastErrorAt: 0 } },
+      slack: { enabled: false, url: '', events: [], queued: 0, state: { lastDeliveredAt: 0, lastError: '', lastErrorAt: 0 } },
       events: [],
       plugins: [],
       // Which service's focused panel is open ('' = none, one at a time).
       panel: '',
       form: { url: '', events: [] },
       tg: { token: '', chat: '', tier: 'all', events: [] },
+      sl: { url: '', events: [] },
       saving: false,
       formError: '',
       // The secret's single appearance. Cleared when the panel closes — after
@@ -105,6 +107,7 @@ export default {
     apply(data) {
       this.webhook = data.webhook || this.webhook;
       this.telegram = data.telegram || this.telegram;
+      this.slack = data.slack || this.slack;
       this.events = data.events || [];
       this.plugins = data.plugins || [];
     },
@@ -139,6 +142,16 @@ export default {
       this.panel = 'telegram';
       this.$nextTick(() => {
         const el = this.telegram.enabled ? this.$refs.tgChatInput : this.$refs.tgTokenInput;
+        if (el) el.focus();
+      });
+    },
+    openSlack() {
+      this.sl.url = this.slack.url || '';
+      this.sl.events = this.defaultEvents(this.slack);
+      this.formError = '';
+      this.panel = 'slack';
+      this.$nextTick(() => {
+        const el = this.$refs.slUrlInput;
         if (el) el.focus();
       });
     },
@@ -198,6 +211,38 @@ export default {
       } finally {
         this.saving = false;
       }
+    },
+    async saveSlack() {
+      if (!this.api || this.saving) return;
+      this.saving = true;
+      this.formError = '';
+      try {
+        const wasConnected = this.slack.enabled;
+        this.apply(await this.api.actIntegrations({
+          action: wasConnected ? 'save' : 'connect',
+          service: 'slack',
+          url: this.sl.url,
+          events: this.sl.events,
+        }));
+        this.$emit('flash', 'success', wasConnected ? 'Slack settings saved.' : 'Slack connected.');
+        this.closePanel();
+      } catch (e) {
+        this.formError = e.message || 'Could not save the Slack connection.';
+      } finally {
+        this.saving = false;
+      }
+    },
+    async disconnectSlack() {
+      if (!this.api || this.saving) return;
+      const ok = await confirm({
+        title: 'Disconnect Slack?',
+        message: 'Messages stop, anything still queued for Slack is discarded, and the webhook URL is forgotten.',
+        confirmLabel: 'Disconnect',
+        cancelLabel: 'Cancel',
+        tone: 'danger',
+      });
+      if (!ok) return;
+      await this.doDisconnect({ action: 'disconnect', service: 'slack' }, 'Slack disconnected.');
     },
     async disconnect() {
       if (!this.api || this.saving) return;
@@ -324,6 +369,7 @@ export default {
           <div class="ar-int__grid">
             <WebhookCard :webhook="webhook" @open="openPanel" />
             <TelegramCard :telegram="telegram" @open="openTelegram" />
+            <SlackCard :slack="slack" @open="openSlack" />
             <IntegrationCard
               v-for="s in coming"
               :key="s.id"
@@ -502,6 +548,64 @@ export default {
                 class="ar-btn ar-btn--danger"
                 :disabled="saving"
                 @click="disconnectTelegram"
+              >Disconnect</button>
+              <button type="button" class="ar-btn ar-btn--ghost" :disabled="saving" @click="closePanel">
+                Close
+              </button>
+            </div>
+          </section>
+
+          <!-- The focused Slack panel. -->
+          <section v-if="panel === 'slack'" id="ar-int-slack" class="ar-card ar-int__panel">
+            <div class="ar-card__head ar-card__head--inline">
+              <div class="ar-card__titlewrap">
+                <h2 class="ar-card__title">Slack</h2>
+              </div>
+            </div>
+            <p class="ar-int__panellead">
+              Slack calls this an <strong>incoming webhook</strong>: in Slack, add the
+              “Incoming Webhooks” app to the channel you want, and it hands you a URL. Paste it
+              here and each event arrives in that channel as one message. Mattermost and
+              Rocket.Chat speak the same format — their URLs work too.
+            </p>
+
+            <div class="ar-field">
+              <label for="ar-int-sl-url">Webhook URL</label>
+              <input
+                id="ar-int-sl-url"
+                ref="slUrlInput"
+                v-model="sl.url"
+                type="url"
+                class="ar-input"
+                autocomplete="off"
+                placeholder="https://hooks.slack.com/services/…"
+                :disabled="saving"
+              />
+            </div>
+
+            <fieldset class="ar-int__events">
+              <legend>Which events to send</legend>
+              <label v-for="ev in events" :key="ev.name" class="ar-int__event">
+                <input v-model="sl.events" type="checkbox" :value="ev.name" :disabled="saving" />
+                <span class="ar-int__eventtext">
+                  <strong>{{ ev.label }}</strong>
+                  <small>{{ ev.description }}</small>
+                </span>
+              </label>
+            </fieldset>
+
+            <p v-if="formError" class="ar-field__hint ar-int__err" role="alert">{{ formError }}</p>
+
+            <div class="ar-int__actions">
+              <button type="button" class="ar-btn" :disabled="saving" @click="saveSlack">
+                {{ saving ? 'Saving…' : (slack.enabled ? 'Save' : 'Connect') }}
+              </button>
+              <button
+                v-if="slack.enabled"
+                type="button"
+                class="ar-btn ar-btn--danger"
+                :disabled="saving"
+                @click="disconnectSlack"
               >Disconnect</button>
               <button type="button" class="ar-btn ar-btn--ghost" :disabled="saving" @click="closePanel">
                 Close

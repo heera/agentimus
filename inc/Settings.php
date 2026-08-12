@@ -193,6 +193,11 @@ final class Settings {
 				'telegram_chat'    => '',
 				'telegram_events'  => array(),
 				'telegram_tier'    => 'all', // Which findings ring the phone: 'all' | 'urgent'.
+				// Slack: an incoming-webhook URL is the whole credential (Slack's
+				// own design), so it rides here like the webhook's URL does.
+				'slack_enabled'    => false,
+				'slack_url'        => '',
+				'slack_events'     => array(),
 			),
 		);
 
@@ -771,6 +776,7 @@ final class Settings {
 		}
 		$webhook_url           = isset( $int_in['webhook_url'] ) ? esc_url_raw( trim( (string) $int_in['webhook_url'] ), array( 'https', 'http' ) ) : '';
 		$telegram_chat         = isset( $int_in['telegram_chat'] ) ? Integrations\Services\Telegram::normalize_chat( $int_in['telegram_chat'] ) : '';
+		$slack_url             = isset( $int_in['slack_url'] ) ? esc_url_raw( trim( (string) $int_in['slack_url'] ), array( 'https', 'http' ) ) : '';
 		$clean['integrations'] = array(
 			// A connection with no URL cannot exist — the flag collapses with it,
 			// the same downward cascade the agent-writes ladder uses.
@@ -783,6 +789,10 @@ final class Settings {
 			'telegram_chat'    => $telegram_chat,
 			'telegram_events'  => $this->sanitize_integration_events( $int_in, 'telegram_events' ),
 			'telegram_tier'    => isset( $int_in['telegram_tier'] ) && 'urgent' === $int_in['telegram_tier'] ? 'urgent' : 'all',
+			// Slack: the same collapse — no URL, no connection.
+			'slack_enabled'    => ! empty( $int_in['slack_enabled'] ) && '' !== $slack_url,
+			'slack_url'        => $slack_url,
+			'slack_events'     => $this->sanitize_integration_events( $int_in, 'slack_events' ),
 		);
 
 		// Kept VERBATIM — no intersect with what is registered today. See the

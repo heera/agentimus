@@ -473,6 +473,9 @@ namespace Agentimus\Tests {
 					'telegram_chat'    => '',
 					'telegram_events'  => array(),
 					'telegram_tier'    => 'all',
+					'slack_enabled'    => false,
+					'slack_url'        => '',
+					'slack_events'     => array(),
 				),
 				$defaults['integrations'],
 				'Every service defaults to off, empty, unsubscribed — the inertness law starts here.'
