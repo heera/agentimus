@@ -31,10 +31,13 @@
 
 /* ---- The card grid ------------------------------------------------------ */
 
+/* THREE to a row on wide screens (his ruling — auto-fill's ~4-up is out): the
+   cards grow to fill the width, and both tabs wear the same count so the two
+   grids read as one grammar. Collapses to 2-up, then 1-up, as the room goes. */
 .ar-int__grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
-  gap: 14px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
   margin-top: 14px;
 }
 
@@ -45,7 +48,7 @@
   background: var(--ar-surface);
   border: 1px solid var(--ar-line);
   border-radius: var(--ar-radius);
-  padding: 14px 16px 0;
+  padding: 16px 18px 0;
 }
 
 .ar-int__head {
@@ -114,8 +117,8 @@
   /* The action never wraps its words (nowrap below); a card too narrow for the
      pair wraps the WHOLE button under the chip instead of overflowing. */
   flex-wrap: wrap;
-  margin: 0 -16px;
-  padding: 10px 16px;
+  margin: 0 -18px;
+  padding: 10px 18px;
   border-top: 1px solid var(--ar-line);
 }
 
@@ -263,7 +266,13 @@ a.ar-int__act:hover {
 }
 .ar-int__once .ar-field__hint { margin-bottom: 0; }
 
+/* The middle room: two to a row before the single column. 960px is the admin
+   content at a ~1100px window (WP menu + padding paid); 600px is where even a
+   pair would squeeze the chip-and-action footer. */
+@media (max-width: 960px) {
+  .ar-int__grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
 /* Phones: one column; the footer keeps its two ends. */
-@media (max-width: 480px) {
+@media (max-width: 600px) {
   .ar-int__grid { grid-template-columns: 1fr; }
 }
