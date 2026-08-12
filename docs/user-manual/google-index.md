@@ -38,7 +38,9 @@ On Google, once fourteen days of history exist, a line compares the last seven r
 
 ## Search Opportunities
 
-The same numbers, turned into a to-do list ([Readiness](readiness.html) → Opportunities): pages **ranking 8–20** — one improvement from page one — and pages **already on page one being scrolled past**, judged against *your own* site's median click rate, never an industry benchmark. Each card names the fix and links to the field that makes it.
+The same numbers, turned into a to-do list, sitting directly under the search report it reads from (**Visibility → Search** — it used to live at the bottom of Readiness, which keeps a pointer): pages **ranking 8–20** — one improvement from page one — and pages **already on page one being scrolled past**, judged against *your own* site's median click rate, never an industry benchmark. Each card names the fix and links to the field that makes it.
+
+A third card appears when the engine's rows show it: **pages splitting one search**. The engine can only send a search to one page at a time, so when several of your pages keep appearing for the same query they take turns — and every turn a weaker page takes is a click the strong one loses. The card names each split with the page that earns the click stated outright, and one decision on every other page: point it at the winner, or set it aside. It is asserted only from the engine's own numbers — thin data never accuses a page, and a query one page already owns (80% or more of its showings) is a result, not a problem. The heaviest splits also surface as a row on [Findings](findings.html).
 
 When there isn't enough traffic to judge honestly, the screen says that instead of inventing advice.
 

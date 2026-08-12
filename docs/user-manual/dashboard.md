@@ -15,7 +15,24 @@ Alongside these, the sidebar carries your **AEO/GEO score** — a single 0–100
 
 Everything on this tab is **first-party and local-only**. All of it lives in your own WordPress database, nothing is ever sent to Agentimus or any third party, and — importantly — **by default no IP addresses and no personal data are stored**. (One optional setting, off by default, can store an IP for a flagged impersonating or spoofed crawler so you can block it — never for an ordinary visitor, and never off your own server; see the privacy note below.) The two data stores are pruned and size-capped automatically, so they never grow without bound.
 
-The whole Dashboard is powered by a single setting, **Agent activity log**, which is **on by default**. It covers both directions at once — the traffic-in card and the bots-out log are one feature. If you ever turn it off in Settings, both stop recording.
+The activity half of the Dashboard is powered by a single setting, **Agent activity log**, which is **on by default**. It covers both directions at once — the traffic-in card and the bots-out log are one feature. If you ever turn it off in Settings, both stop recording.
+
+---
+
+## What your site runs
+
+Every Agentimus system's standing, in one card of four panels — so "what is running, and where does it stand" never needs a tour of the screens:
+
+- **Doors** — what machines can reach and do: the MCP server (on or off, how many tools, whether writes are allowed), how many assistants were active this month, WebMCP, and security.txt.
+- **Signals** — what your site announces on its own: IndexNow and when it last announced, the sitemap and robots.txt, the weekly digest, and Cloudflare.
+- **Search** — what the engines hold: your watched pages in Google's index, which engines are connected, and unknown sources waiting to be named.
+- **Content** — what your writing holds: findings open across the site, the worklist, and how many pages carry a focus keyword.
+
+Each panel is led by one number and ends in the link that opens its full screen. The numbers are the same ones the nav and the screens already show, read from the same payloads — the card can never disagree with the report it points into. And a switched-off system is stated in plain faint text rather than hidden, because off is information.
+
+## Who reached your site
+
+Two audiences, counted separately because they are not the same thing and never add up: **humans** who arrived to read (people, visits, where they came from — search clicks and AI referrals), and **machines** that fetched your agent files (how many fetches, how many distinct clients, and how many were caught faking an identity). There is deliberately no combined total — a fetch is not a visit, and adding them would invent a number that means nothing. A "worth knowing" note under the card states what each instrument can and cannot see.
 
 ---
 
