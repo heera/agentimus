@@ -5,9 +5,9 @@
  * PLUGINS is the roster of plugins whose content this site describes to AI
  * assistants (presence stated honestly either way), plus the developer card
  * pointing at the provider guide. SERVICES is what receives this site's own
- * report events — the webhook and Telegram work today, with the rest of the
- * roster shown as "Coming" so the owner learns what exists without a dead
- * control to click.
+ * report events — the webhook, Telegram, Slack and Discord work today, with
+ * the rest of the roster shown as "Coming" so the owner learns what exists
+ * without a dead control to click.
  *
  * The tabs are the plugin's own tab convention: 50/50 full width, the active
  * indicator on the TOP edge (the .ar-tabpanel__tabs strip Visibility already
@@ -29,6 +29,7 @@ import IntegrationCard from './IntegrationCard.vue';
 import WebhookCard from './services/WebhookCard.vue';
 import TelegramCard from './services/TelegramCard.vue';
 import SlackCard from './services/SlackCard.vue';
+import DiscordCard from './services/DiscordCard.vue';
 import PluginCard from './plugins/PluginCard.vue';
 import { copyText } from '../../js/clipboard.js';
 import { confirm } from '../../js/confirm.js';
@@ -36,7 +37,6 @@ import { confirm } from '../../js/confirm.js';
 // The services that exist as plans, not code. Stated so the roster teaches
 // what is coming — with no controls, because there is nothing to control.
 const COMING = [
-  { id: 'discord', mark: 'Dc', name: 'Discord', blurb: 'The same events, posted to a server you run.' },
   { id: 'sheets', mark: 'Sh', name: 'Google Sheets', blurb: 'Events appended to a sheet — a history that outlives the 30-day log.' },
 ];
 
@@ -44,7 +44,7 @@ const DEV_GUIDE = 'https://heera.github.io/agentimus/developer/integrate-your-pl
 
 export default {
   name: 'IntegrationsPanel',
-  components: { CardSkeleton, IntegrationCard, WebhookCard, TelegramCard, SlackCard, PluginCard },
+  components: { CardSkeleton, IntegrationCard, WebhookCard, TelegramCard, SlackCard, DiscordCard, PluginCard },
   props: {
     api: { type: Object, default: null },
     // Rendered with v-show; fetch on first reveal, re-read on every return.
@@ -62,6 +62,7 @@ export default {
       webhook: { enabled: false, url: '', events: [], hasSecret: false, queued: 0, state: { lastDeliveredAt: 0, lastError: '', lastErrorAt: 0 } },
       telegram: { enabled: false, chat: '', events: [], tier: 'all', hasToken: false, queued: 0, state: { lastDeliveredAt: 0, lastError: '', lastErrorAt: 0 } },
       slack: { enabled: false, url: '', events: [], queued: 0, state: { lastDeliveredAt: 0, lastError: '', lastErrorAt: 0 } },
+      discord: { enabled: false, url: '', events: [], queued: 0, state: { lastDeliveredAt: 0, lastError: '', lastErrorAt: 0 } },
       events: [],
       plugins: [],
       // Which service's focused panel is open ('' = none, one at a time).
@@ -69,6 +70,7 @@ export default {
       form: { url: '', events: [] },
       tg: { token: '', chat: '', tier: 'all', events: [] },
       sl: { url: '', events: [] },
+      dc: { url: '', events: [] },
       saving: false,
       formError: '',
       // The secret's single appearance. Cleared when the panel closes — after
@@ -108,6 +110,7 @@ export default {
       this.webhook = data.webhook || this.webhook;
       this.telegram = data.telegram || this.telegram;
       this.slack = data.slack || this.slack;
+      this.discord = data.discord || this.discord;
       this.events = data.events || [];
       this.plugins = data.plugins || [];
     },
@@ -152,6 +155,16 @@ export default {
       this.panel = 'slack';
       this.$nextTick(() => {
         const el = this.$refs.slUrlInput;
+        if (el) el.focus();
+      });
+    },
+    openDiscord() {
+      this.dc.url = this.discord.url || '';
+      this.dc.events = this.defaultEvents(this.discord);
+      this.formError = '';
+      this.panel = 'discord';
+      this.$nextTick(() => {
+        const el = this.$refs.dcUrlInput;
         if (el) el.focus();
       });
     },
@@ -231,6 +244,38 @@ export default {
       } finally {
         this.saving = false;
       }
+    },
+    async saveDiscord() {
+      if (!this.api || this.saving) return;
+      this.saving = true;
+      this.formError = '';
+      try {
+        const wasConnected = this.discord.enabled;
+        this.apply(await this.api.actIntegrations({
+          action: wasConnected ? 'save' : 'connect',
+          service: 'discord',
+          url: this.dc.url,
+          events: this.dc.events,
+        }));
+        this.$emit('flash', 'success', wasConnected ? 'Discord settings saved.' : 'Discord connected.');
+        this.closePanel();
+      } catch (e) {
+        this.formError = e.message || 'Could not save the Discord connection.';
+      } finally {
+        this.saving = false;
+      }
+    },
+    async disconnectDiscord() {
+      if (!this.api || this.saving) return;
+      const ok = await confirm({
+        title: 'Disconnect Discord?',
+        message: 'Messages stop, anything still queued for Discord is discarded, and the webhook URL is forgotten.',
+        confirmLabel: 'Disconnect',
+        cancelLabel: 'Cancel',
+        tone: 'danger',
+      });
+      if (!ok) return;
+      await this.doDisconnect({ action: 'disconnect', service: 'discord' }, 'Discord disconnected.');
     },
     async disconnectSlack() {
       if (!this.api || this.saving) return;
@@ -370,6 +415,7 @@ export default {
             <WebhookCard :webhook="webhook" @open="openPanel" />
             <TelegramCard :telegram="telegram" @open="openTelegram" />
             <SlackCard :slack="slack" @open="openSlack" />
+            <DiscordCard :discord="discord" @open="openDiscord" />
             <IntegrationCard
               v-for="s in coming"
               :key="s.id"
@@ -606,6 +652,63 @@ export default {
                 class="ar-btn ar-btn--danger"
                 :disabled="saving"
                 @click="disconnectSlack"
+              >Disconnect</button>
+              <button type="button" class="ar-btn ar-btn--ghost" :disabled="saving" @click="closePanel">
+                Close
+              </button>
+            </div>
+          </section>
+
+          <!-- The focused Discord panel. -->
+          <section v-if="panel === 'discord'" id="ar-int-discord" class="ar-card ar-int__panel">
+            <div class="ar-card__head ar-card__head--inline">
+              <div class="ar-card__titlewrap">
+                <h2 class="ar-card__title">Discord</h2>
+              </div>
+            </div>
+            <p class="ar-int__panellead">
+              In your server: <strong>Server Settings → Integrations → Webhooks → New
+              Webhook</strong>, pick the channel, copy its URL and paste it here. Each event
+              arrives in that channel as one embed.
+            </p>
+
+            <div class="ar-field">
+              <label for="ar-int-dc-url">Webhook URL</label>
+              <input
+                id="ar-int-dc-url"
+                ref="dcUrlInput"
+                v-model="dc.url"
+                type="url"
+                class="ar-input"
+                autocomplete="off"
+                placeholder="https://discord.com/api/webhooks/…"
+                :disabled="saving"
+              />
+            </div>
+
+            <fieldset class="ar-int__events">
+              <legend>Which events to send</legend>
+              <label v-for="ev in events" :key="ev.name" class="ar-int__event">
+                <input v-model="dc.events" type="checkbox" :value="ev.name" :disabled="saving" />
+                <span class="ar-int__eventtext">
+                  <strong>{{ ev.label }}</strong>
+                  <small>{{ ev.description }}</small>
+                </span>
+              </label>
+            </fieldset>
+
+            <p v-if="formError" class="ar-field__hint ar-int__err" role="alert">{{ formError }}</p>
+
+            <div class="ar-int__actions">
+              <button type="button" class="ar-btn" :disabled="saving" @click="saveDiscord">
+                {{ saving ? 'Saving…' : (discord.enabled ? 'Save' : 'Connect') }}
+              </button>
+              <button
+                v-if="discord.enabled"
+                type="button"
+                class="ar-btn ar-btn--danger"
+                :disabled="saving"
+                @click="disconnectDiscord"
               >Disconnect</button>
               <button type="button" class="ar-btn ar-btn--ghost" :disabled="saving" @click="closePanel">
                 Close

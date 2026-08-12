@@ -198,6 +198,10 @@ final class Settings {
 				'slack_enabled'    => false,
 				'slack_url'        => '',
 				'slack_events'     => array(),
+				// Discord: the same URL-is-the-credential shape as Slack.
+				'discord_enabled'  => false,
+				'discord_url'      => '',
+				'discord_events'   => array(),
 			),
 		);
 
@@ -777,6 +781,7 @@ final class Settings {
 		$webhook_url           = isset( $int_in['webhook_url'] ) ? esc_url_raw( trim( (string) $int_in['webhook_url'] ), array( 'https', 'http' ) ) : '';
 		$telegram_chat         = isset( $int_in['telegram_chat'] ) ? Integrations\Services\Telegram::normalize_chat( $int_in['telegram_chat'] ) : '';
 		$slack_url             = isset( $int_in['slack_url'] ) ? esc_url_raw( trim( (string) $int_in['slack_url'] ), array( 'https', 'http' ) ) : '';
+		$discord_url           = isset( $int_in['discord_url'] ) ? esc_url_raw( trim( (string) $int_in['discord_url'] ), array( 'https', 'http' ) ) : '';
 		$clean['integrations'] = array(
 			// A connection with no URL cannot exist — the flag collapses with it,
 			// the same downward cascade the agent-writes ladder uses.
@@ -793,6 +798,10 @@ final class Settings {
 			'slack_enabled'    => ! empty( $int_in['slack_enabled'] ) && '' !== $slack_url,
 			'slack_url'        => $slack_url,
 			'slack_events'     => $this->sanitize_integration_events( $int_in, 'slack_events' ),
+			// Discord: Slack's laws, Discord's keys.
+			'discord_enabled'  => ! empty( $int_in['discord_enabled'] ) && '' !== $discord_url,
+			'discord_url'      => $discord_url,
+			'discord_events'   => $this->sanitize_integration_events( $int_in, 'discord_events' ),
 		);
 
 		// Kept VERBATIM — no intersect with what is registered today. See the

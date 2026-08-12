@@ -20,6 +20,7 @@
 namespace Agentimus\Integrations;
 
 use Agentimus\Settings;
+use Agentimus\Integrations\Services\Discord;
 use Agentimus\Integrations\Services\Slack;
 use Agentimus\Integrations\Services\Telegram;
 use Agentimus\Integrations\Services\Webhook;
@@ -96,9 +97,9 @@ final class Rest {
 	}
 
 	/**
-	 * POST /integrations — { service?: webhook | telegram, action: connect |
-	 * save | disconnect | regenerate }. No service named means the webhook,
-	 * phase one's whole roster.
+	 * POST /integrations — { service?: webhook | telegram | slack | discord,
+	 * action: connect | save | disconnect | regenerate }. No service named
+	 * means the webhook, phase one's whole roster.
 	 *
 	 * Every branch goes through Settings::update() with the FULL resolved
 	 * settings (read, amend, write back): a partial array would reset every
@@ -140,6 +141,18 @@ final class Rest {
 			}
 			if ( 'disconnect' === $action ) {
 				return $this->disconnect_url_service( 'slack', Slack::ID, array( Slack::class, 'forget_state' ) );
+			}
+		}
+		if ( Discord::ID === $service ) {
+			if ( 'connect' === $action || 'save' === $action ) {
+				return $this->save_url_service(
+					$request,
+					'discord',
+					__( 'That doesn’t look like a Discord webhook URL. In your server: Server Settings → Integrations → Webhooks → New Webhook, pick the channel, and paste the https:// URL it gives you.', 'agentimus' )
+				);
+			}
+			if ( 'disconnect' === $action ) {
+				return $this->disconnect_url_service( 'discord', Discord::ID, array( Discord::class, 'forget_state' ) );
 			}
 		}
 		return new \WP_Error( 'agentimus_bad_action', __( 'Unknown action.', 'agentimus' ), array( 'status' => 400 ) );
@@ -480,6 +493,7 @@ final class Rest {
 		$dispatcher = new Dispatcher( $this->settings );
 		$telegram   = Telegram::config( $this->settings );
 		$slack      = Slack::config( $this->settings );
+		$discord    = Discord::config( $this->settings );
 
 		return array(
 			'webhook'  => array(
@@ -505,6 +519,13 @@ final class Rest {
 				'events'  => $slack['events'],
 				'queued'  => $dispatcher->depth_for( Slack::ID ),
 				'state'   => Slack::state(),
+			),
+			'discord'  => array(
+				'enabled' => $discord['enabled'],
+				'url'     => $discord['url'],
+				'events'  => $discord['events'],
+				'queued'  => $dispatcher->depth_for( Discord::ID ),
+				'state'   => Discord::state(),
 			),
 			'events'   => $catalog,
 			'plugins'  => $plugins,
