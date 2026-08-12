@@ -167,7 +167,7 @@ final class Rest {
 	 * @return \WP_REST_Response|\WP_Error
 	 */
 	private function save( $request, $mint ) {
-		$url = esc_url_raw( trim( (string) $request->get_param( 'url' ) ), array( 'https', 'http' ) );
+		$url = self::clean_url( $request->get_param( 'url' ) );
 		if ( '' === $url ) {
 			return new \WP_Error(
 				'agentimus_bad_url',
@@ -342,7 +342,7 @@ final class Rest {
 	 * @return \WP_REST_Response|\WP_Error
 	 */
 	private function save_url_service( $request, $prefix, $bad_url ) {
-		$url = esc_url_raw( trim( (string) $request->get_param( 'url' ) ), array( 'https', 'http' ) );
+		$url = self::clean_url( $request->get_param( 'url' ) );
 		if ( '' === $url ) {
 			return new \WP_Error( 'agentimus_bad_url', $bad_url, array( 'status' => 400 ) );
 		}
@@ -390,6 +390,29 @@ final class Rest {
 	}
 
 	/* -- Shared plumbing ------------------------------------------------------ */
+
+	/**
+	 * A pasted URL, or '' when it could never be one. esc_url_raw alone is too
+	 * forgiving here — it happily turns "not a url" into http://not%20a%20url,
+	 * and a connection that LOOKS made but could never deliver is exactly what
+	 * this screen must not manufacture. So the host must also look like a
+	 * host: a dot in it, or localhost (the "http:// for a local test" promise
+	 * the webhook's error copy makes).
+	 *
+	 * @param mixed $raw The url request param.
+	 * @return string
+	 */
+	public static function clean_url( $raw ) {
+		$url = esc_url_raw( trim( (string) $raw ), array( 'https', 'http' ) );
+		if ( '' === $url ) {
+			return '';
+		}
+		$host = strtolower( (string) wp_parse_url( $url, PHP_URL_HOST ) );
+		if ( '' === $host || ( false === strpos( $host, '.' ) && 'localhost' !== $host ) ) {
+			return '';
+		}
+		return $url;
+	}
 
 	/**
 	 * The event choices from a request, validated against the catalog and
