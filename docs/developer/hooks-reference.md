@@ -385,6 +385,21 @@ The opt-in AI-visibility monitor polls AI providers on a schedule to see whether
 | --- | --- | --- | --- |
 | `agentimus_visibility_max_checks_per_run` | filter | `( int $max ): int` | Hard ceiling on `(tracked prompt × active provider)` checks in one monitoring run — a spend backstop above the structural product/prompt/provider caps. Default `1000`; lower it to cap monitoring spend more tightly. |
 
+### Integrations (outgoing events)
+
+The **Integrations** screen (More → Integrations) can relay the plugin's own report events — a new finding, a caught impostor, a robots policy change — to an external service the owner connects (an outgoing webhook in this release). The catalog of relayable events is filterable, and the moments themselves fire as plain actions whether or not anything is connected, so a companion can both **add its own events** to the owner's checkbox list and **listen to the built-in moments** directly.
+
+| Hook | Type | Signature | Purpose |
+| --- | --- | --- | --- |
+| `agentimus_integration_events` | filter | `( array $catalog ): array` | The relayable-event catalog: `name → { label, description }`. Add your own event names here so the settings checkboxes and the sanitiser both know them; the six built-ins cannot be removed. |
+| `agentimus_digest_sent` | action | `( array $data )` | The weekly digest actually went out (never a test send). `$data` is the collected digest data. |
+| `agentimus_robots_policy_changed` | action | `( array $change )` | robots.txt's policy lines moved — `{ at, added, removed }`, normalized lines. An observation, not an accusation: the owner's own edits fire it too. |
+| `agentimus_impostor_flagged` | action | `( string $client, string $ua )` | A recorded hit carried a proven-impostor verdict. Client label + raw UA only — no IP. Fires **per hit**; debounce your own listener. |
+| `agentimus_citation_run_finished` | action | `( array $result )` | A citation monitoring run completed — `{ ran, runId, checks, capped }`. |
+| `agentimus_agent_wrote_content` | action | `( int $post_id, string $action )` | An agent-side write landed through the governed path (MCP/abilities, or the in-admin assistant). `$action` is `create` or `update`; success only. |
+
+Everything the webhook sends is the site's **own report data, never visitor PII** — an event you add through the catalog filter is expected to keep that promise too.
+
 ## Caching
 
 When a page cache or CDN sits in front of your site, these tune how Agentimus keeps its agent files reachable and fresh (see the **Caching & CDNs** guide).
