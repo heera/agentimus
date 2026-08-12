@@ -89,11 +89,14 @@
 }
 :root[data-ar-theme="dark"] body.admin-color-coffee .ar-btn:hover:not(:disabled) { background: #4a453f; }
 :root[data-ar-theme="dark"] body.admin-color-coffee .ar-about-snippet { background: #181715; }
-/* Coffee's card, his exact pair (2026-08-12): the ground mixes from a
-   brighter brass (#cda54e) than the bronze the text wears, and the frame is
-   a flat muted olive-tan — quieter than the text's bronze. */
+/* Coffee's card, his hue pair (2026-08-12): the ground casts from a brighter
+   brass (#cda54e) than the bronze the text wears, and the frame is a flat
+   muted olive-tan — quieter than the text's bronze. Same day, later round:
+   the ground base moved from paper to the panels' surface-2 at the note's
+   new slight strength, when the whole note left its warm room to sit on the
+   cards' own paper. */
 :root[data-ar-theme="dark"] body.admin-color-coffee .ar-aud__note {
-  --ar-note: color-mix(in srgb, #cda54e 15%, var(--ar-paper));
+  --ar-note: color-mix(in srgb, #cda54e 8%, var(--ar-surface-2));
   border-color: #776e58;
 }
 
