@@ -180,9 +180,13 @@ a.ar-int__act:hover {
 /* The outward mark, at the shared 9px the Documents rows set. */
 .ar-int__ext { font-size: 9px; line-height: 1; }
 
-/* ---- The focused webhook panel ------------------------------------------ */
+/* ---- The service modal (his ruling: the below-the-grid panel is out) ----- */
 
-.ar-int__panel { margin-top: 16px; }
+/* One step BELOW the app's modal default (100001): the disconnect and
+   new-secret confirms open ConfirmDialog on top of this modal, and its
+   teleport anchor lands EARLIER in <body> than ours — equal z-indexes would
+   paint the confirm underneath. Still clear of every wp-admin bar (99999). */
+.ar-modal--svc { z-index: 100000; }
 
 .ar-int__panellead {
   margin: 0 0 14px;
@@ -192,6 +196,20 @@ a.ar-int__act:hover {
   color: var(--ar-ink-soft);
 }
 .ar-int__panellead code { font-size: 11.5px; }
+/* In the modal head the lead is the last word before the rule — the head's own
+   padding provides the air. */
+.ar-modal__head .ar-int__panellead { margin-bottom: 0; }
+
+/* A refused connect, pinned between the scrolling body and the actions bar so
+   the verdict sits NEXT TO the button that asked, however long the form is. */
+.ar-int__moderr {
+  flex: 0 0 auto;
+  margin: 0;
+  padding: 10px 28px 0;
+  font-size: 12.5px;
+  line-height: 1.45;
+  color: var(--ar-bad);
+}
 
 .ar-int__events {
   margin: 14px 0 0;
@@ -244,15 +262,6 @@ a.ar-int__act:hover {
   padding: 0;
 }
 .ar-int__once .ar-field__hint { margin-bottom: 0; }
-
-.ar-int__err { color: var(--ar-bad); }
-
-.ar-int__actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin-top: 16px;
-}
 
 /* Phones: one column; the footer keeps its two ends. */
 @media (max-width: 480px) {

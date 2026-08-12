@@ -14,12 +14,15 @@
  * wears). The card grid is the blessed FluentForms-style grammar, shared via
  * IntegrationCard.
  *
- * Each service's doing happens in a focused panel below the grid — fields,
- * event checkboxes, Save/Disconnect — never a modal (the Teleport law exists,
- * but a panel that stays in the page needs no teleporting at all). One panel
- * at a time: `panel` names the open service, '' means none. The webhook's
- * signing secret appears exactly once, in the response that minted it; the
- * Telegram bot token goes the other way — pasted in, never echoed back.
+ * Each service's doing happens in the app's modal shell (his ruling: the
+ * below-the-grid panel is out) — the same .ar-modal ConfirmDialog and the
+ * Agent Preview wear, Teleported to body per the standing law, holding that
+ * service's fields and teaching copy. One modal at a time: `panel` names the
+ * open service, '' means none; Esc and a backdrop click both dismiss, and a
+ * save or disconnect closes back to the updated card with the grid never
+ * having moved. The webhook's signing secret appears exactly once, in the
+ * response that minted it; the Telegram bot token goes the other way —
+ * pasted in, never echoed back.
  *
  * Always mounted, fetch on first reveal, re-read on every return — the
  * freshness rule every data screen follows.
@@ -33,6 +36,7 @@ import DiscordCard from './services/DiscordCard.vue';
 import PluginCard from './plugins/PluginCard.vue';
 import { copyText } from '../../js/clipboard.js';
 import { confirm } from '../../js/confirm.js';
+import { bindDocEsc } from '../../js/docEsc.js';
 
 // The services that exist as plans, not code. Stated so the roster teaches
 // what is coming — with no controls, because there is nothing to control.
@@ -79,11 +83,24 @@ export default {
       secretCopied: false,
     };
   },
+  computed: {
+    // The open service's name over the modal — one shell, one title slot.
+    modalTitle() {
+      return { webhook: 'Webhook', telegram: 'Telegram', slack: 'Slack', discord: 'Discord' }[this.panel] || '';
+    },
+  },
   watch: {
     active(on) {
       // Every arrival re-fetches: a delivery may have landed (or failed) since
       // this screen was last on top, and the card's honesty line must say so.
       if (on) this.load();
+    },
+    panel(open) {
+      // Esc must close the modal even after focus leaves it (backdrop click
+      // parks focus on <body>) — bind at the document for exactly as long as
+      // it is open, the same net every dialog in the app wears.
+      if (this._unEsc) this._unEsc();
+      this._unEsc = open ? bindDocEsc(() => this.closePanel()) : null;
     },
   },
   // The watcher only fires on a CHANGE, so a cold load straight to
@@ -91,6 +108,9 @@ export default {
   // chrome and never fetch. Same guard every kept-alive panel uses.
   mounted() {
     if (this.active) this.load();
+  },
+  beforeUnmount() {
+    if (this._unEsc) this._unEsc();
   },
   methods: {
     async load() {
@@ -426,297 +446,279 @@ export default {
             />
           </div>
 
-          <!-- The focused webhook panel: everything the card only points at. -->
-          <section v-if="panel === 'webhook'" id="ar-int-webhook" class="ar-card ar-int__panel">
-            <div class="ar-card__head ar-card__head--inline">
-              <div class="ar-card__titlewrap">
-                <h2 class="ar-card__title">Webhook</h2>
-              </div>
-            </div>
-            <p class="ar-int__panellead">
-              Each event arrives at your URL as one JSON POST. The
-              <code>X-Agentimus-Signature</code> header carries an HMAC-SHA256 of the body, signed
-              with the secret below — check it and you know the event came from this site.
-            </p>
+        </section>
+      </template>
+    </div>
 
-            <div class="ar-field">
-              <label for="ar-int-url">Where to send events</label>
-              <input
-                id="ar-int-url"
-                ref="urlInput"
-                v-model="form.url"
-                type="url"
-                class="ar-input"
-                placeholder="https://hooks.example.com/…"
-                :disabled="saving"
-              />
-            </div>
-
-            <fieldset class="ar-int__events">
-              <legend>Which events to send</legend>
-              <label v-for="ev in events" :key="ev.name" class="ar-int__event">
-                <input v-model="form.events" type="checkbox" :value="ev.name" :disabled="saving" />
-                <span class="ar-int__eventtext">
-                  <strong>{{ ev.label }}</strong>
-                  <small>{{ ev.description }}</small>
-                </span>
-              </label>
-            </fieldset>
-
-            <!-- The secret's one and only sighting (connect or regenerate). -->
-            <div v-if="secret" class="ar-int__once">
-              <div class="ar-int__oncerow">
-                <code class="ar-int__secret">{{ secret }}</code>
-                <button type="button" class="ar-btn ar-btn--ghost" @click="copySecret">
-                  {{ secretCopied ? 'Copied' : 'Copy' }}
-                </button>
-              </div>
-              <p class="ar-field__hint">
-                <strong>Shown once.</strong> Copy it into your receiver now — it can’t be shown
-                again. Lost it? “New secret” mints a fresh one.
+    <!-- The service modal: one shell, the open service's fields inside. Teleported
+         to body (the standing law), Esc and a backdrop click both dismiss, and the
+         grid behind it never moves. -->
+    <Teleport to="body">
+      <transition name="ar-modal">
+        <div v-if="panel" class="ar-modal ar-modal--svc" @click.self="closePanel">
+          <div
+            ref="dialog"
+            class="ar-modal__panel"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="ar-int-modal-title"
+            tabindex="-1"
+            @keydown.esc="closePanel"
+          >
+            <div class="ar-modal__head">
+              <h2 id="ar-int-modal-title" class="ar-modal__title">{{ modalTitle }}</h2>
+              <p v-if="panel === 'webhook'" class="ar-int__panellead">
+                Each event arrives at your URL as one JSON POST. The
+                <code>X-Agentimus-Signature</code> header carries an HMAC-SHA256 of the body, signed
+                with the secret below — check it and you know the event came from this site.
+              </p>
+              <p v-else-if="panel === 'telegram'" class="ar-int__panellead">
+                Telegram delivery is a <strong>bot</strong> you own: message
+                <code>@BotFather</code>, tell it <code>/newbot</code>, and it hands you a token —
+                that takes about a minute. Paste the token here, say which chat to post to, and
+                connecting sends that chat one test message to prove the road works.
+              </p>
+              <p v-else-if="panel === 'slack'" class="ar-int__panellead">
+                Slack calls this an <strong>incoming webhook</strong>: in Slack, add the
+                “Incoming Webhooks” app to the channel you want, and it hands you a URL. Paste it
+                here and each event arrives in that channel as one message. Mattermost and
+                Rocket.Chat speak the same format — their URLs work too.
+              </p>
+              <p v-else-if="panel === 'discord'" class="ar-int__panellead">
+                In your server: <strong>Server Settings → Integrations → Webhooks → New
+                Webhook</strong>, pick the channel, copy its URL and paste it here. Each event
+                arrives in that channel as one embed.
               </p>
             </div>
 
-            <p v-if="formError" class="ar-field__hint ar-int__err" role="alert">{{ formError }}</p>
+            <div class="ar-modal__body">
+              <div class="ar-modal__scroll">
+                <!-- Webhook -->
+                <template v-if="panel === 'webhook'">
+                  <div class="ar-field">
+                    <label for="ar-int-url">Where to send events</label>
+                    <input
+                      id="ar-int-url"
+                      ref="urlInput"
+                      v-model="form.url"
+                      type="url"
+                      class="ar-input"
+                      placeholder="https://hooks.example.com/…"
+                      :disabled="saving"
+                    />
+                  </div>
 
-            <div class="ar-int__actions">
-              <button type="button" class="ar-btn" :disabled="saving" @click="save">
-                {{ saving ? 'Saving…' : (webhook.enabled ? 'Save' : 'Connect') }}
+                  <fieldset class="ar-int__events">
+                    <legend>Which events to send</legend>
+                    <label v-for="ev in events" :key="ev.name" class="ar-int__event">
+                      <input v-model="form.events" type="checkbox" :value="ev.name" :disabled="saving" />
+                      <span class="ar-int__eventtext">
+                        <strong>{{ ev.label }}</strong>
+                        <small>{{ ev.description }}</small>
+                      </span>
+                    </label>
+                  </fieldset>
+
+                  <!-- The secret's one and only sighting (connect or regenerate). -->
+                  <div v-if="secret" class="ar-int__once">
+                    <div class="ar-int__oncerow">
+                      <code class="ar-int__secret">{{ secret }}</code>
+                      <button type="button" class="ar-btn ar-btn--ghost" @click="copySecret">
+                        {{ secretCopied ? 'Copied' : 'Copy' }}
+                      </button>
+                    </div>
+                    <p class="ar-field__hint">
+                      <strong>Shown once.</strong> Copy it into your receiver now — it can’t be shown
+                      again. Lost it? “New secret” mints a fresh one.
+                    </p>
+                  </div>
+                </template>
+
+                <!-- Telegram -->
+                <template v-else-if="panel === 'telegram'">
+                  <div class="ar-field">
+                    <label for="ar-int-tg-token">Bot token</label>
+                    <input
+                      id="ar-int-tg-token"
+                      ref="tgTokenInput"
+                      v-model="tg.token"
+                      type="password"
+                      class="ar-input"
+                      autocomplete="off"
+                      placeholder="123456789:ABC…"
+                      :disabled="saving"
+                    />
+                    <p v-if="telegram.enabled && telegram.hasToken" class="ar-field__hint">
+                      A token is stored. Leave this blank to keep it — paste a new one only to replace it.
+                    </p>
+                  </div>
+
+                  <div class="ar-field">
+                    <label for="ar-int-tg-chat">Chat id</label>
+                    <input
+                      id="ar-int-tg-chat"
+                      ref="tgChatInput"
+                      v-model="tg.chat"
+                      type="text"
+                      class="ar-input"
+                      autocomplete="off"
+                      placeholder="123456789 or @yourchannel"
+                      :disabled="saving"
+                    />
+                    <p class="ar-field__hint">
+                      Your own id (ask <code>@userinfobot</code>), a group’s id (starts with a minus), or
+                      <code>@name</code> for a channel you run. Message your bot once first — Telegram
+                      only lets a bot write where it’s been let in.
+                    </p>
+                  </div>
+
+                  <fieldset class="ar-int__events">
+                    <legend>Which events to send</legend>
+                    <label v-for="ev in events" :key="ev.name" class="ar-int__event">
+                      <input v-model="tg.events" type="checkbox" :value="ev.name" :disabled="saving" />
+                      <span class="ar-int__eventtext">
+                        <strong>{{ ev.label }}</strong>
+                        <small>{{ ev.description }}</small>
+                      </span>
+                    </label>
+                  </fieldset>
+
+                  <fieldset class="ar-int__events">
+                    <legend>Which findings ring your phone</legend>
+                    <label class="ar-int__event">
+                      <input v-model="tg.tier" type="radio" value="all" :disabled="saving" />
+                      <span class="ar-int__eventtext">
+                        <strong>Every new finding</strong>
+                        <small>Anything the daily check turns up.</small>
+                      </span>
+                    </label>
+                    <label class="ar-int__event">
+                      <input v-model="tg.tier" type="radio" value="urgent" :disabled="saving" />
+                      <span class="ar-int__eventtext">
+                        <strong>Urgent only</strong>
+                        <small>The rest still waits on the Findings screen — just not on your phone.</small>
+                      </span>
+                    </label>
+                  </fieldset>
+                </template>
+
+                <!-- Slack -->
+                <template v-else-if="panel === 'slack'">
+                  <div class="ar-field">
+                    <label for="ar-int-sl-url">Webhook URL</label>
+                    <input
+                      id="ar-int-sl-url"
+                      ref="slUrlInput"
+                      v-model="sl.url"
+                      type="url"
+                      class="ar-input"
+                      autocomplete="off"
+                      placeholder="https://hooks.slack.com/services/…"
+                      :disabled="saving"
+                    />
+                  </div>
+
+                  <fieldset class="ar-int__events">
+                    <legend>Which events to send</legend>
+                    <label v-for="ev in events" :key="ev.name" class="ar-int__event">
+                      <input v-model="sl.events" type="checkbox" :value="ev.name" :disabled="saving" />
+                      <span class="ar-int__eventtext">
+                        <strong>{{ ev.label }}</strong>
+                        <small>{{ ev.description }}</small>
+                      </span>
+                    </label>
+                  </fieldset>
+                </template>
+
+                <!-- Discord -->
+                <template v-else-if="panel === 'discord'">
+                  <div class="ar-field">
+                    <label for="ar-int-dc-url">Webhook URL</label>
+                    <input
+                      id="ar-int-dc-url"
+                      ref="dcUrlInput"
+                      v-model="dc.url"
+                      type="url"
+                      class="ar-input"
+                      autocomplete="off"
+                      placeholder="https://discord.com/api/webhooks/…"
+                      :disabled="saving"
+                    />
+                  </div>
+
+                  <fieldset class="ar-int__events">
+                    <legend>Which events to send</legend>
+                    <label v-for="ev in events" :key="ev.name" class="ar-int__event">
+                      <input v-model="dc.events" type="checkbox" :value="ev.name" :disabled="saving" />
+                      <span class="ar-int__eventtext">
+                        <strong>{{ ev.label }}</strong>
+                        <small>{{ ev.description }}</small>
+                      </span>
+                    </label>
+                  </fieldset>
+                </template>
+              </div>
+            </div>
+
+            <!-- A refused connect must land NEXT TO the button that asked — the
+                 body scrolls, the verdict must not. -->
+            <p v-if="formError" class="ar-int__moderr" role="alert">{{ formError }}</p>
+
+            <div class="ar-modal__actions">
+              <button type="button" class="ar-btn ar-btn--ghost" :disabled="saving" @click="closePanel">
+                Close
               </button>
               <button
-                v-if="webhook.enabled"
+                v-if="panel === 'webhook' && webhook.enabled"
                 type="button"
                 class="ar-btn ar-btn--ghost"
                 :disabled="saving"
                 @click="regenerate"
               >New secret</button>
               <button
-                v-if="webhook.enabled"
+                v-if="panel === 'webhook' && webhook.enabled"
                 type="button"
                 class="ar-btn ar-btn--danger"
                 :disabled="saving"
                 @click="disconnect"
               >Disconnect</button>
-              <button type="button" class="ar-btn ar-btn--ghost" :disabled="saving" @click="closePanel">
-                Close
-              </button>
-            </div>
-          </section>
-
-          <!-- The focused Telegram panel. -->
-          <section v-if="panel === 'telegram'" id="ar-int-telegram" class="ar-card ar-int__panel">
-            <div class="ar-card__head ar-card__head--inline">
-              <div class="ar-card__titlewrap">
-                <h2 class="ar-card__title">Telegram</h2>
-              </div>
-            </div>
-            <p class="ar-int__panellead">
-              Telegram delivery is a <strong>bot</strong> you own: message
-              <code>@BotFather</code>, tell it <code>/newbot</code>, and it hands you a token —
-              that takes about a minute. Paste the token here, say which chat to post to, and
-              connecting sends that chat one test message to prove the road works.
-            </p>
-
-            <div class="ar-field">
-              <label for="ar-int-tg-token">Bot token</label>
-              <input
-                id="ar-int-tg-token"
-                ref="tgTokenInput"
-                v-model="tg.token"
-                type="password"
-                class="ar-input"
-                autocomplete="off"
-                placeholder="123456789:ABC…"
-                :disabled="saving"
-              />
-              <p v-if="telegram.enabled && telegram.hasToken" class="ar-field__hint">
-                A token is stored. Leave this blank to keep it — paste a new one only to replace it.
-              </p>
-            </div>
-
-            <div class="ar-field">
-              <label for="ar-int-tg-chat">Chat id</label>
-              <input
-                id="ar-int-tg-chat"
-                ref="tgChatInput"
-                v-model="tg.chat"
-                type="text"
-                class="ar-input"
-                autocomplete="off"
-                placeholder="123456789 or @yourchannel"
-                :disabled="saving"
-              />
-              <p class="ar-field__hint">
-                Your own id (ask <code>@userinfobot</code>), a group’s id (starts with a minus), or
-                <code>@name</code> for a channel you run. Message your bot once first — Telegram
-                only lets a bot write where it’s been let in.
-              </p>
-            </div>
-
-            <fieldset class="ar-int__events">
-              <legend>Which events to send</legend>
-              <label v-for="ev in events" :key="ev.name" class="ar-int__event">
-                <input v-model="tg.events" type="checkbox" :value="ev.name" :disabled="saving" />
-                <span class="ar-int__eventtext">
-                  <strong>{{ ev.label }}</strong>
-                  <small>{{ ev.description }}</small>
-                </span>
-              </label>
-            </fieldset>
-
-            <fieldset class="ar-int__events">
-              <legend>Which findings ring your phone</legend>
-              <label class="ar-int__event">
-                <input v-model="tg.tier" type="radio" value="all" :disabled="saving" />
-                <span class="ar-int__eventtext">
-                  <strong>Every new finding</strong>
-                  <small>Anything the daily check turns up.</small>
-                </span>
-              </label>
-              <label class="ar-int__event">
-                <input v-model="tg.tier" type="radio" value="urgent" :disabled="saving" />
-                <span class="ar-int__eventtext">
-                  <strong>Urgent only</strong>
-                  <small>The rest still waits on the Findings screen — just not on your phone.</small>
-                </span>
-              </label>
-            </fieldset>
-
-            <p v-if="formError" class="ar-field__hint ar-int__err" role="alert">{{ formError }}</p>
-
-            <div class="ar-int__actions">
-              <button type="button" class="ar-btn" :disabled="saving" @click="saveTelegram">
-                {{ saving ? 'Saving…' : (telegram.enabled ? 'Save' : 'Connect') }}
-              </button>
               <button
-                v-if="telegram.enabled"
+                v-if="panel === 'telegram' && telegram.enabled"
                 type="button"
                 class="ar-btn ar-btn--danger"
                 :disabled="saving"
                 @click="disconnectTelegram"
               >Disconnect</button>
-              <button type="button" class="ar-btn ar-btn--ghost" :disabled="saving" @click="closePanel">
-                Close
-              </button>
-            </div>
-          </section>
-
-          <!-- The focused Slack panel. -->
-          <section v-if="panel === 'slack'" id="ar-int-slack" class="ar-card ar-int__panel">
-            <div class="ar-card__head ar-card__head--inline">
-              <div class="ar-card__titlewrap">
-                <h2 class="ar-card__title">Slack</h2>
-              </div>
-            </div>
-            <p class="ar-int__panellead">
-              Slack calls this an <strong>incoming webhook</strong>: in Slack, add the
-              “Incoming Webhooks” app to the channel you want, and it hands you a URL. Paste it
-              here and each event arrives in that channel as one message. Mattermost and
-              Rocket.Chat speak the same format — their URLs work too.
-            </p>
-
-            <div class="ar-field">
-              <label for="ar-int-sl-url">Webhook URL</label>
-              <input
-                id="ar-int-sl-url"
-                ref="slUrlInput"
-                v-model="sl.url"
-                type="url"
-                class="ar-input"
-                autocomplete="off"
-                placeholder="https://hooks.slack.com/services/…"
-                :disabled="saving"
-              />
-            </div>
-
-            <fieldset class="ar-int__events">
-              <legend>Which events to send</legend>
-              <label v-for="ev in events" :key="ev.name" class="ar-int__event">
-                <input v-model="sl.events" type="checkbox" :value="ev.name" :disabled="saving" />
-                <span class="ar-int__eventtext">
-                  <strong>{{ ev.label }}</strong>
-                  <small>{{ ev.description }}</small>
-                </span>
-              </label>
-            </fieldset>
-
-            <p v-if="formError" class="ar-field__hint ar-int__err" role="alert">{{ formError }}</p>
-
-            <div class="ar-int__actions">
-              <button type="button" class="ar-btn" :disabled="saving" @click="saveSlack">
-                {{ saving ? 'Saving…' : (slack.enabled ? 'Save' : 'Connect') }}
-              </button>
               <button
-                v-if="slack.enabled"
+                v-if="panel === 'slack' && slack.enabled"
                 type="button"
                 class="ar-btn ar-btn--danger"
                 :disabled="saving"
                 @click="disconnectSlack"
               >Disconnect</button>
-              <button type="button" class="ar-btn ar-btn--ghost" :disabled="saving" @click="closePanel">
-                Close
-              </button>
-            </div>
-          </section>
-
-          <!-- The focused Discord panel. -->
-          <section v-if="panel === 'discord'" id="ar-int-discord" class="ar-card ar-int__panel">
-            <div class="ar-card__head ar-card__head--inline">
-              <div class="ar-card__titlewrap">
-                <h2 class="ar-card__title">Discord</h2>
-              </div>
-            </div>
-            <p class="ar-int__panellead">
-              In your server: <strong>Server Settings → Integrations → Webhooks → New
-              Webhook</strong>, pick the channel, copy its URL and paste it here. Each event
-              arrives in that channel as one embed.
-            </p>
-
-            <div class="ar-field">
-              <label for="ar-int-dc-url">Webhook URL</label>
-              <input
-                id="ar-int-dc-url"
-                ref="dcUrlInput"
-                v-model="dc.url"
-                type="url"
-                class="ar-input"
-                autocomplete="off"
-                placeholder="https://discord.com/api/webhooks/…"
-                :disabled="saving"
-              />
-            </div>
-
-            <fieldset class="ar-int__events">
-              <legend>Which events to send</legend>
-              <label v-for="ev in events" :key="ev.name" class="ar-int__event">
-                <input v-model="dc.events" type="checkbox" :value="ev.name" :disabled="saving" />
-                <span class="ar-int__eventtext">
-                  <strong>{{ ev.label }}</strong>
-                  <small>{{ ev.description }}</small>
-                </span>
-              </label>
-            </fieldset>
-
-            <p v-if="formError" class="ar-field__hint ar-int__err" role="alert">{{ formError }}</p>
-
-            <div class="ar-int__actions">
-              <button type="button" class="ar-btn" :disabled="saving" @click="saveDiscord">
-                {{ saving ? 'Saving…' : (discord.enabled ? 'Save' : 'Connect') }}
-              </button>
               <button
-                v-if="discord.enabled"
+                v-if="panel === 'discord' && discord.enabled"
                 type="button"
                 class="ar-btn ar-btn--danger"
                 :disabled="saving"
                 @click="disconnectDiscord"
               >Disconnect</button>
-              <button type="button" class="ar-btn ar-btn--ghost" :disabled="saving" @click="closePanel">
-                Close
+              <button v-if="panel === 'webhook'" type="button" class="ar-btn" :disabled="saving" @click="save">
+                {{ saving ? 'Saving…' : (webhook.enabled ? 'Save' : 'Connect') }}
+              </button>
+              <button v-else-if="panel === 'telegram'" type="button" class="ar-btn" :disabled="saving" @click="saveTelegram">
+                {{ saving ? 'Saving…' : (telegram.enabled ? 'Save' : 'Connect') }}
+              </button>
+              <button v-else-if="panel === 'slack'" type="button" class="ar-btn" :disabled="saving" @click="saveSlack">
+                {{ saving ? 'Saving…' : (slack.enabled ? 'Save' : 'Connect') }}
+              </button>
+              <button v-else-if="panel === 'discord'" type="button" class="ar-btn" :disabled="saving" @click="saveDiscord">
+                {{ saving ? 'Saving…' : (discord.enabled ? 'Save' : 'Connect') }}
               </button>
             </div>
-          </section>
-        </section>
-      </template>
-    </div>
+          </div>
+        </div>
+      </transition>
+    </Teleport>
   </div>
 </template>
