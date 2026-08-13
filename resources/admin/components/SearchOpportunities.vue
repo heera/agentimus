@@ -183,7 +183,7 @@ export default {
       return [
         {
           key: 'almost',
-          label: 'Almost on page one',
+          label: 'Almost on Page One',
           // The header chip repeats the SAME pill the rows below carry, so the
           // group explains its own rank chips before the reader meets them.
           chip: 'Rank 8–20',
@@ -205,7 +205,7 @@ export default {
         },
         {
           key: 'seen',
-          label: 'Seen, but not clicked',
+          label: 'Seen, but Not Clicked',
           chip: 'Page one',
           chipTone: 'is-one',
           total: (r.page_counts && r.page_counts.seen) || 0,
@@ -642,7 +642,7 @@ export default {
          costs clicks. -->
     <div v-if="searchCollisions.length" id="ar-collisions" class="ar-clsn">
       <div class="ar-opp__grouphead">
-        <h4 class="ar-opp__grouptitle">One search, several answers</h4>
+        <h4 class="ar-opp__grouptitle">One Search, Several Answers</h4>
         <span class="ar-opp__pos is-two">{{ searchCollisions.length }} split search{{ searchCollisions.length === 1 ? '' : 'es' }}</span>
       </div>
       <p class="ar-opp__groupwhy">

@@ -11,7 +11,7 @@
  * crawler gets in. Fetches /bing/summary on every reveal (a connect or an
  * overnight poll must show without a page reload).
  *
- * Off state = one quiet pointer card at Settings → Data sources. No form
+ * Off state = one quiet pointer card at Settings → Data Sources. No form
  * here: the key has exactly one home.
  */
 import { formatDate, relTimeShort } from '../js/wpDate.js';
@@ -280,7 +280,7 @@ export default {
         shows how much of your site that index holds, and warns you when something keeps
         Bing's crawler out.
         <button type="button" class="ar-linkbtn" @click="goSettings">
-          Connect Bing in Settings → Data sources
+          Connect Bing in Settings → Data Sources
         </button>
       </p>
     </section>

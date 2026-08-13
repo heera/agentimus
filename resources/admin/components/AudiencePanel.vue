@@ -112,7 +112,7 @@ export default {
     <div class="ar-aud__head">
       <div>
         <h2 id="ar-aud-title" class="ar-card__title">
-          Who reached your site
+          Who Reached Your Site
           <span class="ar-card__tag">last {{ window }} days</span>
         </h2>
         <p class="ar-card__lead">

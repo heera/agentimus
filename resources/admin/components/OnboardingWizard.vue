@@ -528,7 +528,7 @@ export default {
                      for, collected here instead of as post-setup homework. All
                      optional, each explains what it earns. -->
                 <div v-else-if="step === 2" class="ar-wiz__step">
-                  <h2 class="ar-modal__title">Help AI trust and describe you</h2>
+                  <h2 class="ar-modal__title">Help AI Trust and Describe You</h2>
                   <p class="ar-modal__lead">
                     All of this is optional — but each answer makes AI answers about you sharper.
                     Skip anything; it lives under Settings → Identity later.
@@ -556,7 +556,7 @@ export default {
                 <!-- Step 3 — services: the "what does this site offer?" answer.
                      A repeater that starts empty, so skipping is doing nothing. -->
                 <div v-else-if="step === 3" class="ar-wiz__step">
-                  <h2 class="ar-modal__title">What do you offer?</h2>
+                  <h2 class="ar-modal__title">What Do You Offer?</h2>
                   <p class="ar-modal__lead">
                     Anything people can hire you for or buy from you. Each one is published as
                     a service you provide, in the format AI assistants read — so they can
@@ -589,7 +589,7 @@ export default {
 
                 <!-- Step 4 — what can AI read -->
                 <div v-else-if="step === 4" class="ar-wiz__step">
-                  <h2 class="ar-modal__title">What can AI assistants read?</h2>
+                  <h2 class="ar-modal__title">What Can AI Assistants Read?</h2>
                   <p class="ar-modal__lead">
                     Posts and pages are included by default. Turn on anything else you'd like assistants
                     to read — and leave private things (orders, form entries, customer data) off.
@@ -747,7 +747,7 @@ export default {
                 <div class="ar-wiz__done-check" aria-hidden="true">
                   <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7" /></svg>
                 </div>
-                <h2 id="ar-wiz-title" class="ar-wiz__done-title">Your site speaks machine now</h2>
+                <h2 id="ar-wiz-title" class="ar-wiz__done-title">Your Site Speaks Machine Now</h2>
                 <p class="ar-wiz__done-lead">
                   All of this switched on the moment you clicked Finish — live right now:
                 </p>
@@ -812,7 +812,7 @@ export default {
                 <!-- WATCHING the log -->
                 <div v-else-if="proofState === 'watching'" class="ar-watch">
                   <div class="ar-watch__pulse" aria-hidden="true"></div>
-                  <h2 id="ar-wiz-title" class="ar-watch__title">Watching your request log…</h2>
+                  <h2 id="ar-wiz-title" class="ar-watch__title">Watching Your Request Log…</h2>
                   <p class="ar-watch__clock">{{ watchClock }}</p>
                   <p class="ar-modal__lead ar-watch__lead">
                     Ask {{ proofAssistant ? proofAssistant.label : 'the assistant' }} to read
@@ -822,7 +822,7 @@ export default {
 
                 <!-- SUCCESS: the owner's own log line -->
                 <div v-else-if="proofState === 'success'" class="ar-wiz__done">
-                  <h2 id="ar-wiz-title" class="ar-wiz__done-title">There it is.</h2>
+                  <h2 id="ar-wiz-title" class="ar-wiz__done-title">There It Is.</h2>
                   <p class="ar-wiz__done-lead">
                     <strong>{{ proofRow.agent }}</strong> read your site {{ proofAgoLabel }}.
                     This is the line from your own request log:

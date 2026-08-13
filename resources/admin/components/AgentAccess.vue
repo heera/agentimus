@@ -83,7 +83,7 @@ export default {
         full: {
           tone: 'ok',
           badge: 'Watching',
-          title: 'Watching every ability on this site',
+          title: 'Watching Every Ability on This Site',
           // The teaching line leads even in the healthy state: "ability" is a
           // term, and the owner most likely to read this box is the one who has
           // never seen one run. The not-available states repeat it because a
@@ -108,14 +108,14 @@ export default {
         installable: {
           tone: 'info',
           badge: 'Not available',
-          title: 'This site has no abilities to watch',
+          title: 'This Site Has No Abilities to Watch',
           body: "Abilities are how an AI assistant runs something on your site. WordPress didn't include them until 6.9, and this site doesn't have them — so there's nothing here to record.",
           action: 'Update WordPress to 6.9 or newer, or install the Abilities API plugin.',
         },
         unsupported: {
           tone: 'info',
           badge: 'Not available',
-          title: 'This site has no abilities to watch',
+          title: 'This Site Has No Abilities to Watch',
           body: `Abilities are how an AI assistant runs something on your site. They need WordPress 6.8 or newer — this site is on ${this.wpVersion || 'an older version'}.`,
           action: 'Update WordPress to turn this on.',
         },
@@ -471,7 +471,7 @@ export default {
     <div v-if="!passwords" class="ar-aa__state ar-aa__state--warn">
       <span class="ar-aa__badge">Off</span>
       <div class="ar-aa__statebody">
-        <h3 class="ar-aa__statetitle">Application passwords are switched off on this site</h3>
+        <h3 class="ar-aa__statetitle">Application Passwords Are Switched Off on This Site</h3>
         <p>
           WordPress only allows them over a secure (https) connection, so nobody can create or
           use one here — there's nothing for us to record. If this site <em>is</em> on https and

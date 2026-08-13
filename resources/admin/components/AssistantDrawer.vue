@@ -436,7 +436,7 @@ export default {
     async confirmReplaceHeld() {
       if (!this.draft) return true;
       return confirm({
-        title: 'Write a new draft?',
+        title: 'Write a New Draft?',
         message: `The new draft replaces the one you're holding.`,
         confirmLabel: 'Write it',
         within: '.ar-drawer__panel',
@@ -570,7 +570,7 @@ export default {
       // Each act states its consequence before it runs; the dialog centers
       // inside the drawer, where the act lives.
       const ok = await confirm({
-        title: 'Revise this draft?',
+        title: 'Revise This Draft?',
         message: 'The revision replaces the current version — one-step Undo brings it back. Nothing is saved to your site yet.',
         confirmLabel: 'Revise',
         within: '.ar-drawer__panel',
@@ -624,7 +624,7 @@ export default {
       const theirs = current && !this.isUntouchedSeed(current);
       if (theirs) {
         const ok = await confirm({
-          title: 'Replace your brief?',
+          title: 'Replace Your Brief?',
           message: `“${p.label}” starts a fresh frame. What you have written here will be replaced.`,
           confirmLabel: 'Replace it',
           cancelLabel: 'Keep mine',
@@ -772,7 +772,7 @@ export default {
               </svg>
             </span>
             <div class="ar-drawer__titles">
-              <h2 id="ar-assist-title" class="ar-drawer__title">Writing assistant</h2>
+              <h2 id="ar-assist-title" class="ar-drawer__title">Writing Assistant</h2>
               <p class="ar-drawer__sub">Describe the {{ typeNoun }} — nothing is saved until you say so.</p>
             </div>
             <!-- When a screen has a way back, it sits with the close — the two

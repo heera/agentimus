@@ -817,7 +817,7 @@ export default {
              still lands. The citations workbench pair nests INSIDE its own
              tab, as before. -->
         <button type="button" class="ar-subnav__item" :class="{ 'is-active': view === 'performance' }" @click="view = 'performance'"><span class="ar-subnav__icon" aria-hidden="true" v-html="groupIcon('results')"></span>Search</button>
-        <button type="button" class="ar-subnav__item" :class="{ 'is-active': view === 'aisearch' }" @click="view = 'aisearch'"><span class="ar-subnav__icon" aria-hidden="true" v-html="groupIcon('sources')"></span>In the index</button>
+        <button type="button" class="ar-subnav__item" :class="{ 'is-active': view === 'aisearch' }" @click="view = 'aisearch'"><span class="ar-subnav__icon" aria-hidden="true" v-html="groupIcon('sources')"></span>In the Index</button>
         <button type="button" class="ar-subnav__item" :class="{ 'is-active': view === 'citations' }" @click="view = 'citations'"><span class="ar-subnav__icon" aria-hidden="true" v-html="groupIcon('citations')"></span>Citations</button>
       </nav>
       <p class="ar-tabpanel__caption">{{ caption }}</p>
@@ -849,7 +849,7 @@ export default {
               <path d="M31.4 24.5a7 7 0 1 0 7 7C38.4 24 35.8 15.5 30.2 9" />
             </svg>
 
-            <h3 class="ar-work__intro-title">Do AI answers name your site?</h3>
+            <h3 class="ar-work__intro-title">Do AI Answers Name Your Site?</h3>
             <p class="ar-work__intro-lead">
               Write the questions your site should be the answer to — or let AI suggest
               a spread — and Agentimus puts them to ChatGPT, Perplexity, Gemini and
@@ -911,7 +911,7 @@ export default {
           </div>
 
           <div v-if="!hasData" class="agv-empty">
-            <h2>No results yet</h2>
+            <h2>No Results Yet</h2>
             <p>Head to Settings to add a product with a few questions and one AI key, then run your first check.</p>
             <div class="agv-empty__actions">
               <button type="button" class="ar-btn" @click="citView = 'settings'">Go to Settings</button>
@@ -945,7 +945,7 @@ export default {
             </div>
 
             <div class="agv-panel">
-              <h3 class="agv-panel__title">Visibility over time</h3>
+              <h3 class="agv-panel__title">Visibility Over Time</h3>
               <p class="agv-panel__hint">How often AI mentions you, across everything you track — run to run.</p>
               <template v-if="trend.length >= 2">
                 <svg class="agv-spark" viewBox="0 0 460 96" preserveAspectRatio="none">
@@ -1005,7 +1005,7 @@ export default {
                 </div>
 
                 <div v-if="p.prompts && p.prompts.length" class="agv-product__block">
-                  <h4 class="agv-sub">Question by question</h4>
+                  <h4 class="agv-sub">Question by Question</h4>
                   <div v-for="(q, i) in p.prompts" :key="i" class="agv-prompt">
                     <div class="agv-prompt__q">{{ q.prompt }}</div>
                     <div class="agv-prompt__providers">

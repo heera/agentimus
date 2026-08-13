@@ -3,7 +3,7 @@
  * The client manager — every standing decision about a client in one dialog:
  * blocked, trusted (always allowed), and ignored from the review queue, each
  * with its decision date (where recorded) and the recognition catalog's
- * identity for known crawlers. Opened from Settings → AI access; deliberately
+ * identity for known crawlers. Opened from Settings → AI Access; deliberately
  * NOT part of the review bell, which surfaces new clients rather than
  * managing old decisions.
  *

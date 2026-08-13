@@ -334,7 +334,7 @@ final class Module {
 			)
 		);
 
-		// The client manager (Settings → AI access): every standing decision about a
+		// The client manager (Settings → AI Access): every standing decision about a
 		// client — blocked, trusted, ignored — in one payload, with dates and the
 		// recognition catalog's identity where a token is a known crawler.
 		register_rest_route(

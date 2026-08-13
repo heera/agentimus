@@ -591,7 +591,9 @@ final class ShareCopy {
       (net.hint ? '<p class="agentimus-sc__cardhint">' + esc(net.hint) + '</p>' : '') +
       '<div class="agentimus-sc__row">' +
         '<button type="button" class="button button-small agentimus-sc__copy">' + esc(CFG.i18n.copy) + '</button>' + ai +
-        '<button type="button" class="button button-small button-link agentimus-sc__open">' + esc(net.intent.label) + '</button>' +
+        '<button type="button" class="button button-small button-link agentimus-sc__open">' + esc(net.intent.label) +
+          '<svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 17 17 7"/><path d="M9 7h8v8"/></svg>' +
+        '</button>' +
       '</div>';
 
     var area    = item.querySelector('.agentimus-sc__text');
@@ -740,6 +742,16 @@ JS;
 			. '.agentimus-sc__cardhint{font-size:11px;color:#646970;font-style:italic;margin:4px 0 0}'
 			. '.agentimus-sc__row{display:flex;gap:8px;align-items:center;margin-top:8px}'
 			. '.agentimus-sc__row .agentimus-sc__open{margin-left:auto}'
+			// The outward mark: these buttons leave the site — say so at a glance.
+			. '.agentimus-sc__open{display:inline-flex;align-items:center;gap:4px}'
+			// Under core's 782px admin breakpoint every .button swells to a 40px
+			// touch target. A drafting card is dense desk furniture, not a
+			// toolbar — the metabox opts out, keeping the same compact rhythm at
+			// every width. (The composer link keeps its own auto left margin.)
+			. '@media screen and (max-width:782px){'
+			.   '.wp-core-ui .agentimus-sc .button:not(.button-link){min-height:24px;line-height:22px;font-size:11px;padding:0 8px;margin:0;vertical-align:middle}'
+			.   '.wp-core-ui .agentimus-sc .button.button-link{font-size:11px;min-height:24px;line-height:22px;margin:0 0 0 auto}'
+			. '}'
 			. '.agentimus-sc__aione{display:inline-flex;align-items:center;gap:4px}'
 			. '.agentimus-sc__foot{color:#646970;font-size:12px;font-style:italic;margin:10px 0 0}'
 			. '.agentimus-sc__prevframe{flex:1;border:1px solid #dcdcde;border-radius:4px;overflow:hidden;display:flex;flex-direction:column;background:#f6f7f7}'
