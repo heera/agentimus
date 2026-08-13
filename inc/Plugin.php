@@ -121,6 +121,7 @@ final class Plugin {
 		( new InternalLinks( $this->settings ) )->register(); // "Link to your own posts": local-signal suggestions + one optional AI dressing call; Insert is a plain editor edit.
 		( new Assistant( $this->settings ) )->register(); // The in-admin writing assistant (nav-bar quill → drawer); gated on enable_agent_writes + a provider.
 		( new AssistantEditor( $this->settings ) )->register(); // Its block-editor half: per-Image-block Generate + the featured-image panel.
+		( new Worklist( $this->settings ) )->register(); // The grading sweep, and the saves that make a grade stale.
 		( new Rest( $this->settings ) )->register();
 		( new Admin( $this->settings ) )->register();
 		( new Discovery\Module( $this->settings ) )->register();
@@ -240,6 +241,9 @@ final class Plugin {
 		Bing\Table::install();
 		Bing\Module::schedule();
 		Search\Table::install();
+		Search\Asks::install();
+		Grades::install();
+		Grades::schedule();
 		Google\Module::schedule();
 		Digest\Module::schedule();
 		Discovery\WellKnown::add_rules();
@@ -406,6 +410,7 @@ final class Plugin {
 		Bing\Module::unschedule();
 		Google\Module::unschedule();
 		Digest\Module::unschedule();
+		Grades::unschedule(); // The stored grades stay: they describe his content, not our schedule.
 		BotRanges::clear_schedule();
 		RouteProbe::clear_schedule();
 		Activity\IdentityProbe::clear_schedule();

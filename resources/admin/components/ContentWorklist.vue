@@ -20,10 +20,10 @@ export default {
     // Only for /worklist/rows — the list itself stays App-owned and arrives
     // as `data`, so this panel cannot drift into loading two truths.
     api: { type: Object, default: null },
-    data: { type: Object, default: () => ({ items: [], counts: {}, capped: false, total: 0, noSearchData: 0, searchState: '', engine: '', pageCap: 0 }) },
+    data: { type: Object, default: () => ({ items: [], counts: {}, capped: false, total: 0, noSearchData: 0, searchState: '', engine: '', pageCap: 0, waiting: 0 }) },
     // Cheap counts from the boot payload — no page parsed. They let the opening
     // state say something true about the site instead of just offering a button.
-    preview: { type: Object, default: () => ({ published: 0, withSearch: 0, setAside: 0, searchState: '', engine: '', pageCap: 0 }) },
+    preview: { type: Object, default: () => ({ published: 0, withSearch: 0, setAside: 0, searchState: '', engine: '', pageCap: 0, waiting: 0 }) },
     loaded: { type: Boolean, default: false },
     busy: { type: Boolean, default: false },
     settingAside: { type: Number, default: 0 },
@@ -43,7 +43,6 @@ export default {
       // button read as a lie. Cleared with the filter.
       extraRows: [],
       pickFetching: false,
-      filter: 'fixable',
     };
   },
   watch: {
@@ -93,18 +92,23 @@ export default {
     engine() {
       return this.data.engine || '';
     },
-    // Why a row's focus column is empty, and the two reasons are NOT the same.
+    // How many of the site's pages this source has not been asked about yet.
+    // Only ever above zero on Bing, which answers about one page per request.
+    waiting() {
+      return Number(this.data.waiting) || 0;
+    },
+    // Why a row's search column is empty, and the reasons are NOT the same.
     //
-    // Google looks at every page, so an empty column really does mean no search
-    // has reached it — normal for a new post, and it will fill in on its own.
-    // Bing has no query x page report at all: the poll buys page detail one HTTP
-    // call at a time and stops at the busiest few, so outside that sample the
-    // column is empty because nobody ASKED, and waiting will never fill it.
-    // Printing the first sentence in the second case tells an owner their page
-    // is invisible when it may be doing fine.
+    // Google reports every page it knows about in one go, so an empty column
+    // really does mean no search has reached that page — normal for a new post,
+    // and it fills in on its own. Bing answers about one page per request, so
+    // its pages are worked through a few at a time; while any are still waiting,
+    // an empty column may only mean this page has not had its turn. Printing the
+    // first sentence in the second case tells an owner their page is invisible
+    // when it may be doing perfectly well.
     emptyWhy() {
-      if (this.pageCap > 0) {
-        return `${this.engine || 'This source'} only reports searches for your ${this.pageCap} busiest pages — this one is outside that list.`;
+      if (this.waiting > 0) {
+        return `${this.engine || 'This source'} answers about one page at a time, and ${this.waiting.toLocaleString()} of your pages have not been checked yet — so this may only mean this one has not had its turn.`;
       }
       return 'No searches have reached this one yet.';
     },
@@ -116,6 +120,27 @@ export default {
         { key: 'setAside', label: 'Set Aside', n: this.counts.setAside || 0 },
       ];
     },
+    // Which tab the rows on screen belong to. The SERVER decides this now —
+    // it ranks and pages over every published item, so the panel can no longer
+    // sort a local pile into buckets and must simply show what it was sent.
+    filter() {
+      return this.data.filter || 'fixable';
+    },
+    page() {
+      return Number(this.data.page) || 1;
+    },
+    per() {
+      return Number(this.data.per) || 20;
+    },
+    pages() {
+      return Math.max(1, Math.ceil((Number(this.data.total) || 0) / this.per));
+    },
+    // How many published items are still waiting to be read for the first time.
+    // Above zero means this ranking covers part of the site, not all of it —
+    // a different claim, and one the screen has to make out loud.
+    grading() {
+      return Number(this.data.grading) || 0;
+    },
     shown() {
       // A finding's subset wins over the tab: it was chosen deliberately and
       // the pages in it may sit across two tabs.
@@ -123,29 +148,26 @@ export default {
         const want = this.picked;
         return this.items.filter((i) => want.indexOf(i.id) > -1);
       }
-      return this.items.filter((i) => {
-        if ('setAside' === this.filter) return i.setAside;
-        if (i.setAside) return false;
-        return 'fixable' === this.filter ? this.needsWork(i) : !this.needsWork(i);
-      });
+      return this.items;
     },
     // Said out loud rather than implied by a list that simply stops.
     foot() {
       const bits = [];
-      if (this.data.capped) {
-        // Parked rows ride along so the Set aside view is complete, but they
-        // are not part of the "worth looking at" claim — counting them here
-        // would inflate a sentence about a different list.
-        const ranked = this.items.filter((i) => !i.setAside).length;
-        bits.push(`Showing the ${ranked} most worth looking at, of ${this.data.total}.`);
+      if (this.grading > 0) {
+        // The ranking is only as complete as the reading behind it. Saying so
+        // costs one sentence; not saying it presents a partial list as the
+        // whole site, which is the fault this screen exists to avoid.
+        bits.push(
+          `Still reading your content — ${this.grading.toLocaleString()} ${this.grading === 1 ? 'item has' : 'items have'} not been looked at yet, so this order may still change.`
+        );
       }
       if (this.data.noSearchData) {
-        // "Normal for recent posts" is true under Google and misleading under
-        // Bing, where the blank column is the sample's edge rather than the
-        // page's age. Same number, two different things to do about it.
+        // "Normal for recent posts" is true under Google and misleading while
+        // Bing is still working through the site. Same number, two different
+        // things for an owner to do about it.
         bits.push(
-          this.pageCap > 0
-            ? `${this.data.noSearchData} sit outside the ${this.pageCap} pages ${this.engine || 'this source'} reports searches for, so nothing here can say what they are found for. Their content issues are still real.`
+          this.waiting > 0
+            ? `${this.data.noSearchData} have no search data yet. ${this.engine || 'This source'} is still working through your pages — ${this.waiting.toLocaleString()} have not been checked — so some of these are waiting rather than quiet. Their content issues are still real.`
             : `${this.data.noSearchData} have no search data yet — normal for recent posts, and they still show their content issues.`
         );
       }
@@ -165,6 +187,32 @@ export default {
       this.picked = null;
       this.extraRows = [];
     },
+    // A tab is now a different question for the server, not a different filter
+    // over the same pile — so it costs a fetch, and always starts at page one.
+    pickFilter(key) {
+      if (key === this.filter && !this.picked) return;
+      this.picked = null;
+      this.extraRows = [];
+      this.$emit('load', { filter: key, page: 1 });
+    },
+    goPage(n) {
+      const want = Math.min(this.pages, Math.max(1, Number(n) || 1));
+      if (want === this.page) return;
+      this.$emit('load', { filter: this.filter, page: want });
+    },
+    // The window of page numbers worth drawing. A site with sixty pages of
+    // content should not get sixty buttons — the ends and the neighbours are
+    // what anyone actually clicks.
+    pageWindow() {
+      const out = [];
+      const last = this.pages;
+      const here = this.page;
+      for (let n = 1; n <= last; n++) {
+        if (n === 1 || n === last || Math.abs(n - here) <= 1) out.push(n);
+        else if (out[out.length - 1] !== '…') out.push('…');
+      }
+      return out;
+    },
     // Set aside / bring back, with one wrinkle: the parent flips the row's
     // state on success by finding it in ITS list — but a row fetched for a
     // finding (extraRows) is ours, not the parent's, and used to sit there
@@ -181,13 +229,13 @@ export default {
       const p = this.preview || {};
       const out = [{ n: p.published || 0, label: p.published === 1 ? 'published item' : 'published items' }];
       if ('ready' === p.searchState) {
-        // Under Bing this can never exceed the poll's page budget, so calling it
-        // "already found in search" would read as a verdict on the other 290
-        // pages when it is only the shape of the report.
-        const cap = Number(p.pageCap) || 0;
+        // While pages are still waiting their turn, "already found in search"
+        // would read as a verdict on the ones not yet checked. Name the source
+        // instead, which claims nothing about the rest.
+        const waiting = Number(p.waiting) || 0;
         out.push({
           n: p.withSearch || 0,
-          label: cap > 0 ? `reported by ${p.engine || 'your search source'}` : 'already found in search',
+          label: waiting > 0 ? `reported by ${p.engine || 'your search source'} so far` : 'already found in search',
         });
       }
       if (p.setAside) {
@@ -420,7 +468,8 @@ export default {
           type="button"
           class="ar-work__tab"
           :class="{ 'is-active': filter === t.key }"
-          @click="filter = t.key"
+          :disabled="busy"
+          @click="pickFilter(t.key)"
         >{{ t.label }} <span class="ar-work__tab-n">{{ t.n }}</span></button>
       </div>
 
@@ -527,10 +576,36 @@ export default {
 
         </li>
       </ul>
-      <!-- Not in the picked view: its own line above already explains an empty
-           result, and stacking "Nothing in this view" under it read as three
-           contradictory sentences about one list. -->
+      <!-- ⚠️ This v-else-if chains to the <ul> above it. Anything inserted
+           between the two silently re-points it and the empty message starts
+           appearing over a list full of rows. -->
       <p v-else-if="!picked" class="ar-work__empty">Nothing in this view yet — pages move here as their checks change, and the other tabs hold the rest of your content.</p>
+
+      <!-- The list covers every published item now, so it can run to more than
+           one screen. The range is spelled out on the left: a pager alone leaves
+           an owner counting rows to work out where they are. -->
+      <div v-if="!picked && shown.length && data.total > per" class="ar-work__pager">
+        <p class="ar-work__pager-count">
+          Showing {{ ((page - 1) * per + 1).toLocaleString() }}–{{ Math.min(page * per, data.total).toLocaleString() }}
+          of {{ Number(data.total).toLocaleString() }}
+        </p>
+        <div class="ar-work__pager-nav">
+          <button type="button" class="ar-work__pg" :disabled="busy || page <= 1" @click="goPage(page - 1)">‹ Previous</button>
+          <template v-for="(n, idx) in pageWindow()">
+            <span v-if="n === '…'" :key="'gap' + idx" class="ar-work__pg-gap" aria-hidden="true">…</span>
+            <button
+              v-else
+              :key="n"
+              type="button"
+              class="ar-work__pg"
+              :class="{ 'is-here': n === page }"
+              :disabled="busy"
+              @click="goPage(n)"
+            >{{ n }}</button>
+          </template>
+          <button type="button" class="ar-work__pg" :disabled="busy || page >= pages" @click="goPage(page + 1)">Next ›</button>
+        </div>
+      </div>
 
       <!-- The footer describes the list as shipped ("the 30 most worth looking
            at, of 67") — under a finding's filter that claim belongs to a list

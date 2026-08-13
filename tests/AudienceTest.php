@@ -252,6 +252,7 @@ final class AudienceTest extends TestCase {
 
 		$GLOBALS['wpdb'] = new class() {
 			public $prefix = 'wp_';
+			public $posts  = 'wp_posts'; // Asks::waiting() counts published pages against the ledger.
 			public function prepare( $sql, ...$args ) {
 				return $sql;
 			}
@@ -270,18 +271,27 @@ final class AudienceTest extends TestCase {
 	}
 
 	/**
-	 * The whole point of this pair. Bing reports no query×page join, so page
-	 * detail is sampled — and a card that shows page-level numbers without
-	 * saying so is presenting a sample as the site.
+	 * The whole point of this pair. Bing answers about one page per request, so
+	 * its page-level detail fills in over several days — and a card showing
+	 * page-level numbers while that is still happening has to say so, or a
+	 * half-finished picture reads as the finished one.
+	 *
+	 * ⚠️ This test used to assert a note reading "Bing names pages for your 10
+	 * busiest only", which was true while the poll re-asked the same ten pages
+	 * every day and erased the rest. The rotation replaced that, so the old
+	 * caveat became false — and a caveat that has stopped being true is worse
+	 * than no caveat at all.
 	 */
-	public function test_a_bing_only_site_admits_its_page_figures_are_sampled() {
+	public function test_a_bing_only_site_says_its_page_figures_are_still_filling_in() {
 		$this->connect_bing_only();
 		try {
 			$out  = Audience::from_stats( $this->stats() );
 			$keys = array_column( $out['limits'], 'key' );
 
-			$this->assertContains( 'search-sampled', $keys );
-			$this->assertSame( \Agentimus\Bing\Module::QUERY_TOP_PAGES, $out['people']['search']['pageCap'] );
+			$this->assertContains( 'search-filling', $keys );
+			$this->assertNotContains( 'search-sampled', $keys, 'Bing is no longer a fixed sample of the busiest pages.' );
+			// No fixed cap any more: every page gets its turn.
+			$this->assertSame( 0, $out['people']['search']['pageCap'] );
 			// And it names the engine, so "from search" can never quietly mean
 			// something narrower than the reader assumes.
 			$this->assertSame( 'Bing', $out['people']['search']['source'] );
@@ -291,14 +301,15 @@ final class AudienceTest extends TestCase {
 	}
 
 	/**
-	 * The negative half, and the one that would actually regress: Google joins
-	 * query×page itself, so the caveat must NOT appear and frighten an owner
-	 * about a limit their source does not have.
+	 * The negative half, and the one that would actually regress: Google reports
+	 * every page it knows about in one go, so the caveat must NOT appear and
+	 * worry an owner about a limit their source does not have.
 	 */
-	public function test_a_site_without_a_sampling_source_says_nothing_about_it() {
+	public function test_a_site_whose_source_waits_for_nothing_says_nothing_about_it() {
 		$out  = Audience::from_stats( $this->stats() );
 		$keys = array_column( $out['limits'], 'key' );
 
+		$this->assertNotContains( 'search-filling', $keys );
 		$this->assertNotContains( 'search-sampled', $keys );
 		$this->assertSame( 0, $out['people']['search']['pageCap'] );
 	}

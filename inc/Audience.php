@@ -146,6 +146,11 @@ final class Audience {
 			// same rows, and the caveat list is where the card admits it,
 			// since the two numbers sit under one heading.
 			'pageCap'     => Search\Report::page_cap(),
+			// Bing answers about one page per request, so its page-level figures
+			// fill in over several days rather than arriving at once. While any
+			// page is still waiting its turn, the card has to say so — otherwise
+			// a half-finished picture reads as the finished one.
+			'waiting'     => Search\Report::waiting_pages(),
 		);
 	}
 
@@ -484,19 +489,30 @@ final class Audience {
 				'text'  => __( 'The engines publish on a delay — their half ends before today.', 'agentimus' ),
 			);
 
-			// Bing has no query×page report, so page detail is fetched one call
-			// per page and stops at the busiest few. The clicks above are whole;
-			// everything page-level downstream is that sample. Saying so here is
-			// cheaper than every screen re-explaining it, and it only appears
-			// when Bing is actually the source being read.
-			if ( $search['pageCap'] > 0 ) {
+			// Bing answers about one page per request, so the site's pages are
+			// worked through a few at a time. The clicks above are whole either
+			// way; what is still filling in is the page-level detail every other
+			// screen draws from the same rows. This says so while it is true, and
+			// says nothing once every page has had its turn.
+			//
+			// ⚠️ This replaced a note reading "Bing names pages for your 10
+			// busiest only", which was accurate when the poll asked about the
+			// same ten pages for ever. It is not accurate now, and a caveat that
+			// has stopped being true is worse than no caveat at all.
+			$waiting = isset( $search['waiting'] ) ? (int) $search['waiting'] : 0;
+			if ( $waiting > 0 ) {
 				$out[] = array(
-					'key'   => 'search-sampled',
+					'key'   => 'search-filling',
 					'scope' => 'humans',
 					'text'  => sprintf(
-						/* translators: %d: how many pages Bing reports searches for. */
-						__( 'Bing names pages for your %d busiest only.', 'agentimus' ),
-						(int) $search['pageCap']
+						/* translators: %d: how many pages have not been checked yet. */
+						_n(
+							'Bing is still working through your pages — %d has not been checked yet.',
+							'Bing is still working through your pages — %d have not been checked yet.',
+							$waiting,
+							'agentimus'
+						),
+						$waiting
 					),
 				);
 			}

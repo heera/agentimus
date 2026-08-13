@@ -42,6 +42,13 @@ final class Settings {
 			'feeds'        => array(), // Bing's own sitemap record (GetFeeds): url, lastReadAt (Y-m-d, Bing's date), urls. Kept on feed-poll failure — Bing's dates stay honest without our own age line.
 			'feeds_at'     => 0, // When the feeds snapshot was last refreshed.
 			'traffic_at'   => 0, // When the daily traffic series last refreshed SUCCESSFULLY — the trend's staleness line reads this, so a failing poll ages it honestly.
+			// Rows the last poll could not store because the snapshot cap was
+			// reached. 0 on a poll that fitted — see ConnectionStore::record_dropped().
+			'dropped_rows' => 0,
+			// How many pages the next poll may ask Bing about. Paces ITSELF,
+			// because Bing publishes no rate limit to pace against: it halves the
+			// moment Bing refuses and climbs back slowly on clean runs.
+			'ask_batch'    => \Agentimus\Bing\Module::ASK_BATCH_START,
 		);
 	}
 
@@ -148,6 +155,22 @@ final class Settings {
 	 * @param string $error Human-readable failure, or '' for a clean run.
 	 * @return void
 	 */
+	/**
+	 * Set how many pages the next poll may ask about.
+	 *
+	 * Clamped here rather than trusted from the caller, so a stored value that
+	 * somehow went strange cannot turn into a burst of requests at somebody
+	 * else's expense.
+	 *
+	 * @param int $batch Pages per poll.
+	 * @return void
+	 */
+	public function set_ask_batch( $batch ) {
+		$all              = $this->all();
+		$all['ask_batch'] = (int) min( Module::ASK_BATCH_MAX, max( 1, (int) $batch ) );
+		$this->persist( $all );
+	}
+
 	public function record_query_poll( $error = '' ) {
 		$all                      = $this->all();
 		$all['last_query_error']  = sanitize_text_field( (string) $error );

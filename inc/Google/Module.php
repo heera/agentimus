@@ -172,19 +172,7 @@ final class Module {
 			return;
 		}
 
-		$rows = array();
-		foreach ( (array) $out['rows'] as $row ) {
-			$rows[] = array(
-				'query'       => $row['query'],
-				'page_url'    => $row['page'],
-				'page_id'     => Search\Pages::resolve( $row['page'] ),
-				'clicks'      => $row['clicks'],
-				'impressions' => $row['impressions'],
-				'position'    => $row['position'],
-				'range_start' => $start,
-				'range_end'   => $end,
-			);
-		}
+		$rows = self::map_rows( (array) $out['rows'], $start, $end );
 
 		// The decoded API response is dead once the rows are mapped, and on a big
 		// property it is the largest single thing in memory. Dropped before the
@@ -192,24 +180,42 @@ final class Module {
 		// alongside a copy nothing will read again.
 		unset( $out );
 
-		$expected = count( $rows );
-		$written  = Search\Table::replace( 'google', $rows );
+		$saved = Search\Table::replace( 'google', $rows, Search\Table::TYPE_WEB );
 		unset( $rows );
-		if ( 0 === $written && $expected > 0 ) {
-			// The rows mapped fine but none reached the table — a database write failed
-			// (e.g. max_allowed_packet), and replace() has already cleared the old
-			// snapshot. Say so rather than stamp the poll clean over an empty snapshot.
-			$this->settings->record_poll( __( 'The search snapshot could not be saved — a database write failed. Try refreshing; if it persists, the report may be too large for the database packet limit.', 'agentimus' ) );
+
+		// Written on every poll, clean or not: a poll that fitted has to clear a
+		// previous poll's number, or the screen keeps apologising for something
+		// that stopped being true.
+		$this->settings->record_dropped( $saved['dropped'] );
+
+		if ( ! $saved['ok'] ) {
+			// ⚠️ Checked on `ok`, never on a count. A part-written snapshot used to
+			// return a positive number and pass as a clean poll, and every screen
+			// then read the survivors as the whole truth.
+			//
+			// The wording is careful for the same reason: replace() throws a
+			// half-written set away and leaves the previous one standing, so what
+			// is true here is "the new numbers could not be saved" — NOT "your
+			// numbers are gone". Telling an owner their data vanished when it did
+			// not is its own kind of lie.
+			$this->settings->record_poll( __( 'The new search numbers could not be saved. The ones already here are still correct and still shown. This usually happens when the report is bigger than one database write allows.', 'agentimus' ) );
 		} else {
 			$this->settings->record_poll( '' );
 			// A fresh snapshot is the only moment new evidence exists about
 			// whether a worklist page climbed — the table it replaced is the
 			// version that would have been compared against. So the ledger is
 			// brought up to date here, and from no other path.
-			if ( $written > 0 ) {
+			if ( $saved['written'] > 0 ) {
 				Search\Progress::observe( 'google', $this->settings );
 			}
 		}
+
+		// The other surfaces. Search Console counts the Image, Video and News
+		// tabs separately from the "All" tab read above, so a page whose readers
+		// arrive from image search reads as quiet until they are asked for by
+		// name. Deliberately AFTER the poll has been recorded: these are extra,
+		// and one of them failing must never turn a good poll into a bad one.
+		$this->poll_extra_surfaces( (string) $auth['token'], $property, $start, $end );
 
 		// The trend series and Discover totals ride the same poll — two cheap
 		// extra calls. Their failures never smear the snapshot above: the
@@ -239,6 +245,86 @@ final class Module {
 		update_option( self::TREND_OPTION, $trend, false );
 
 		$this->poll_analytics();
+	}
+
+	/**
+	 * @var array<int,string> The surfaces read beyond the "All" tab.
+	 *
+	 * ⛔ `discover` is not here and never will be: it has no query at all, so a
+	 * row of it in a table keyed by query would be a lie about its own shape. Its
+	 * totals ride the trend option instead.
+	 * ⛔ `googleNews` is not here either — it is the Google News site and app,
+	 * a different product from the News tab, and almost no owner publishes to it.
+	 * An always-empty line invites a question that has no answer. One entry in
+	 * this list is all it would take to add.
+	 */
+	const EXTRA_SURFACES = array( 'image', 'video', 'news' );
+
+	/**
+	 * Shape one surface's API rows for the store.
+	 *
+	 * @param array  $api_rows Rows as Search Console returned them.
+	 * @param string $start    Window start, Y-m-d.
+	 * @param string $end      Window end, Y-m-d.
+	 * @return array<int,array>
+	 */
+	private static function map_rows( array $api_rows, $start, $end ) {
+		$rows = array();
+		foreach ( $api_rows as $row ) {
+			$rows[] = array(
+				'query'       => $row['query'],
+				'page_url'    => $row['page'],
+				// Memoized per request, so the surfaces after the first cost
+				// nothing for pages the "All" tab already resolved.
+				'page_id'     => Search\Pages::resolve( $row['page'] ),
+				'clicks'      => $row['clicks'],
+				'impressions' => $row['impressions'],
+				'position'    => $row['position'],
+				'range_start' => $start,
+				'range_end'   => $end,
+			);
+		}
+		return $rows;
+	}
+
+	/**
+	 * Read the Image, Video and News tabs, each into its own set of rows.
+	 *
+	 * Kept apart from the main poll on purpose. These are additional surfaces:
+	 * one of them failing leaves its own previous rows standing and says so, and
+	 * never marks the connection broken — the numbers an owner mostly looks at
+	 * came back fine. ⚠️ Every outcome is written down, including the good ones,
+	 * so "no image searches" and "we could not ask about image searches" are
+	 * never the same empty space on a screen.
+	 *
+	 * @param string $token    Bearer token.
+	 * @param string $property The GSC property.
+	 * @param string $start    Window start, Y-m-d.
+	 * @param string $end      Window end, Y-m-d.
+	 * @return void
+	 */
+	private function poll_extra_surfaces( $token, $property, $start, $end ) {
+		$state = array();
+
+		foreach ( self::EXTRA_SURFACES as $surface ) {
+			$out = $this->client->search_analytics( $token, $property, $start, $end, $surface );
+			if ( isset( $out['error'] ) ) {
+				$state[ $surface ] = (string) $out['error'];
+				continue;
+			}
+
+			$rows = self::map_rows( (array) $out['rows'], $start, $end );
+			unset( $out );
+
+			$saved = Search\Table::replace( 'google', $rows, $surface );
+			unset( $rows );
+
+			$state[ $surface ] = $saved['ok']
+				? ''
+				: __( 'These numbers could not be saved this time. The ones already here are still shown.', 'agentimus' );
+		}
+
+		$this->settings->record_surface_state( $state );
 	}
 
 	/**

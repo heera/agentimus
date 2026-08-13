@@ -95,7 +95,11 @@ export default {
       refreshingFindings: false,
       // The per-item worklist. NOT in the boot payload — every row parses a
       // page — so it is fetched the first time Today is looked at.
-      worklist: { items: [], counts: {}, capped: false, total: 0, noSearchData: 0, searchState: '' },
+      worklist: { items: [], counts: {}, total: 0, page: 1, per: 20, grading: 0, noSearchData: 0, searchState: '' },
+      // Which tab and page the list is currently showing. Held here, not in the
+      // panel, because the panel asks the App to fetch and the two must agree
+      // about what was asked for.
+      worklistWhere: { filter: 'fixable', page: 1 },
       worklistPreview: this.boot.worklistPreview || { published: 0, withSearch: 0, setAside: 0, searchState: '' },
       worklistLoaded: false,
       // When the list was read, and whether something has probably changed
@@ -1314,10 +1318,13 @@ export default {
     // Read the content worklist. Called by the section itself, not on page
     // load: thirty rows means thirty pages parsed, and an owner who never
     // scrolls that far should never pay for it.
-    async loadWorklist() {
+    async loadWorklist(where) {
+      const filter = (where && where.filter) || this.worklistWhere.filter;
+      const page = (where && where.page) || 1;
       this.refreshingWorklist = true;
       try {
-        this.worklist = await this.api.getWorklist();
+        this.worklist = await this.api.getWorklist(filter, page);
+        this.worklistWhere = { filter, page };
         this.worklistLoaded = true;
         this.worklistAt = Date.now();
         this.worklistStale = false;

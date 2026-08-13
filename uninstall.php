@@ -106,6 +106,12 @@ function agentimus_uninstall_site() {
 
 	// Google search source + the shared search-queries snapshot table.
 	$wpdb->query( "DROP TABLE IF EXISTS {$wpdb->prefix}agentimus_search_queries" ); // phpcs:ignore WordPress.DB
+	// The record of which pages each engine has been asked about.
+	$wpdb->query( "DROP TABLE IF EXISTS {$wpdb->prefix}agentimus_search_asks" ); // phpcs:ignore WordPress.DB
+	delete_option( 'agentimus_search_asks_db_version' );
+	// The stored content grades the worklist ranks by.
+	$wpdb->query( "DROP TABLE IF EXISTS {$wpdb->prefix}agentimus_content_grades" ); // phpcs:ignore WordPress.DB
+	delete_option( 'agentimus_grades_db_version' );
 	delete_option( 'agentimus_google' );
 	delete_option( 'agentimus_google_lock' );
 	delete_option( 'agentimus_google_index' );

@@ -54,6 +54,11 @@ final class Module {
 	public function register() {
 		Table::maybe_install();
 		\Agentimus\Search\Table::maybe_install();
+		// ⚠️ Here, not only in the activation block: a plugin UPDATE does not
+		// re-run activation, so a table introduced in a new version would never
+		// exist on any site that already had the plugin. Every table in this
+		// plugin migrates from a register() for exactly that reason.
+		\Agentimus\Search\Asks::maybe_install();
 		add_action( self::CRON, array( $this, 'poll' ) );
 		add_action( 'admin_init', array( $this, 'sync_schedule' ) );
 		// The verification tag: printed whenever a code is stored, so "click
@@ -212,14 +217,29 @@ final class Module {
 		}
 	}
 
-	/** @var int Per-page query breakdowns are fetched for this many top pages — bounded work, one poll a day. */
-	const QUERY_TOP_PAGES = 10;
+	/**
+	 * @var int Pages asked about in a poll to begin with.
+	 *
+	 * ⚠️ OURS, not Bing's. Bing publishes no rate limit for its Webmaster API —
+	 * checked against Microsoft's access guide, its full published method list,
+	 * and their own answer on collecting page metrics in bulk, none of which
+	 * states a per-second, per-day or per-key limit. So there is no honest number
+	 * to hard-code, and this one starts deliberately low and lets Bing's own
+	 * behaviour set the pace {@see ASK_BATCH_MAX, walk_pages()}.
+	 */
+	const ASK_BATCH_START = 10;
+
+	/** @var int The most pages one poll will ever ask about, however well it has been going. */
+	const ASK_BATCH_MAX = 50;
+
+	/** @var int What a clean run adds to the batch. Halving on refusal is much faster than this — deliberately. */
+	const ASK_BATCH_STEP = 5;
 
 	/**
 	 * Snapshot Bing's query performance: the site-wide query list (feeds the
 	 * site's own CTR median), plus per-page query breakdowns for the top pages
 	 * by impressions (the rows that can name the page to fix). At most
-	 * 2 + QUERY_TOP_PAGES HTTP calls, once a day. Fail-open: any error keeps
+	 * 2 + one call per page in the current batch, once a day. Fail-open: any error keeps
 	 * the previous snapshot and records itself.
 	 *
 	 * ⚠️ Bing's query endpoints return WEEKLY buckets spanning ~16 months —
@@ -235,8 +255,6 @@ final class Module {
 	 * @return void
 	 */
 	public function run_query_poll( $key, $site ) {
-		$rows = array();
-
 		// 1. Site-wide queries — median material, no page attribution here.
 		$site_wide = $this->client->query_stats( $key, $site );
 		if ( isset( $site_wide['error'] ) ) {
@@ -244,8 +262,9 @@ final class Module {
 			return;
 		}
 
-		// 2. Top pages, fetched before any row is shaped: their buckets help
-		//    anchor the window everything in this snapshot is measured over.
+		// 2. Bing's own busiest pages: their buckets anchor the window everything
+		//    in this snapshot is measured over, and they seed the rotation with
+		//    pages already known to have traffic.
 		$pages = $this->client->page_stats( $key, $site );
 		if ( isset( $pages['error'] ) ) {
 			$this->settings->record_query_poll( (string) $pages['error'] );
@@ -254,50 +273,171 @@ final class Module {
 
 		$window = self::bucket_window( array_merge( (array) $site_wide['rows'], (array) $pages['rows'] ) );
 
+		// 3. The site-wide set is written on its own, scoped to the rows that
+		//    carry no page. Bing rows are stored as 'all': its API has no
+		//    image/video/news split anywhere, so calling them 'web' would put a
+		//    distinction in Bing's mouth that Bing never made.
+		$site_rows = array();
 		foreach ( self::window_aggregate( (array) $site_wide['rows'], $window ) as $row ) {
-			$rows[] = self::snapshot_row( $row, '', 0, $window );
+			$site_rows[] = self::snapshot_row( $row, '', 0, $window );
+		}
+		$saved = \Agentimus\Search\Table::replace_page( 'bing', '', $site_rows, \Agentimus\Search\Table::TYPE_ALL );
+		$this->settings->record_dropped( $saved['dropped'] );
+
+		if ( ! $saved['ok'] ) {
+			// See the Google side: `ok`, never a count — and the previous snapshot
+			// is still standing, so the sentence must not claim it is gone.
+			$this->settings->record_query_poll( __( 'The new search numbers could not be saved. The ones already here are still correct and still shown. This usually happens when the report is bigger than one database write allows.', 'agentimus' ) );
+			return;
 		}
 
-		$page_rows = self::window_aggregate( (array) $pages['rows'], $window );
-		usort( $page_rows, static function ( $a, $b ) {
-			return $b['impressions'] <=> $a['impressions'];
-		} );
-		// Budgeted like the Google sweep learned to be: this loop can run
-		// INSIDE a web request (connect / Refresh), and ~10 sequential calls
-		// against a slow morning is a held FPM worker racing the gateway
-		// timeout. Past the deadline the remaining pages simply skip their
-		// per-page detail this poll — the site-wide numbers above are already
-		// stored, and tomorrow's cron (no budget pressure) fills the rest.
+		$this->settings->record_query_poll( '' );
+		// The ledger only ever learns something when a poll replaces the snapshot
+		// it would compare to.
+		if ( $saved['written'] > 0 ) {
+			\Agentimus\Search\Progress::observe( 'bing', $this->settings );
+		}
+
+		$this->walk_pages( $key, $site, (array) $pages['rows'], $window );
+	}
+
+	/**
+	 * Ask Bing about a few of the site's pages, and write down every answer.
+	 *
+	 * ⚠️ THIS REPLACED A LOOP THAT COULD NEVER GROW. It asked about the ten
+	 * busiest pages, and the write erased the whole source first — so the same
+	 * ten pages were refreshed every day and page eleven onward never had any
+	 * Bing data at all, for the life of the site. Bing was never the limit; the
+	 * loop was.
+	 *
+	 * Now each answer is written for that page alone, leaving every other page's
+	 * rows standing, and the ask ledger remembers who has been asked so the next
+	 * poll moves on to somebody new.
+	 *
+	 * The batch paces itself because Bing publishes no rate limit anywhere in its
+	 * documentation — so there is no honest number to hard-code. It starts small,
+	 * halves the moment Bing refuses, and grows again on clean runs.
+	 *
+	 * @param string $key       API key.
+	 * @param string $site      WMT site URL.
+	 * @param array  $page_rows Bing's own top-pages rows, unaggregated.
+	 * @param array  $window    The snapshot's window.
+	 * @return void
+	 */
+	private function walk_pages( $key, $site, array $page_rows, $window ) {
+		$batch = (int) $this->settings->get( 'ask_batch', self::ASK_BATCH_START );
+		$batch = min( self::ASK_BATCH_MAX, max( 1, $batch ) );
+
+		$queue = $this->ask_queue( $page_rows, $window, $batch );
+
+		// Budgeted, because this can run INSIDE a web request (connect, or the
+		// Refresh button): a run of sequential calls against a slow morning is a
+		// held worker racing the gateway timeout. A page passed over for time
+		// keeps its place at the front of the queue — it is simply not recorded
+		// as asked, which is the whole point of recording asks at all.
 		$deadline = microtime( true ) + 20.0;
-		foreach ( array_slice( $page_rows, 0, self::QUERY_TOP_PAGES ) as $page ) {
+		$refused  = false;
+
+		foreach ( $queue as $page ) {
 			if ( microtime( true ) >= $deadline ) {
 				break;
 			}
-			$per = $this->client->page_query_stats( $key, $site, $page['key'] );
-			if ( isset( $per['error'] ) ) {
-				continue; // One page's breakdown failing must not sink the snapshot.
+
+			$answer = $this->client->page_query_stats( $key, $site, $page['url'] );
+
+			if ( isset( $answer['error'] ) ) {
+				// Bing's own words, kept for the screen. A refusal ends the run:
+				// asking harder is how a quiet limit becomes a blocked account.
+				\Agentimus\Search\Asks::record(
+					'bing',
+					$page['url'],
+					$page['id'],
+					\Agentimus\Search\Asks::STATUS_ERROR,
+					0,
+					(string) $answer['error']
+				);
+				$refused = true;
+				break;
 			}
-			$page_id = \Agentimus\Search\Pages::resolve( $page['key'] );
-			foreach ( self::window_aggregate( (array) $per['rows'], $window ) as $row ) {
-				$rows[] = self::snapshot_row( $row, $page['key'], $page_id, $window );
+
+			$rows = array();
+			foreach ( self::window_aggregate( (array) $answer['rows'], $window ) as $row ) {
+				$rows[] = self::snapshot_row( $row, $page['url'], $page['id'], $window );
 			}
+
+			if ( $rows ) {
+				\Agentimus\Search\Table::replace_page( 'bing', $page['url'], $rows, \Agentimus\Search\Table::TYPE_ALL );
+			} else {
+				// Bing answered, and the answer was "nothing". Yesterday's rows for
+				// this page would now contradict the ledger, so they go.
+				\Agentimus\Search\Table::clear_page( 'bing', $page['url'], \Agentimus\Search\Table::TYPE_ALL );
+			}
+
+			\Agentimus\Search\Asks::record(
+				'bing',
+				$page['url'],
+				$page['id'],
+				$rows ? \Agentimus\Search\Asks::STATUS_OK : \Agentimus\Search\Asks::STATUS_NONE,
+				count( $rows )
+			);
 		}
 
-		$expected = count( $rows );
-		$written  = \Agentimus\Search\Table::replace( 'bing', $rows );
-		if ( 0 === $written && $expected > 0 ) {
-			// Rows mapped but none stored — a database write failed, and replace()
-			// has already cleared the old query snapshot. Record it instead of a
-			// clean poll over the hole.
-			$this->settings->record_query_poll( __( 'The query snapshot could not be saved — a database write failed. Try refreshing; the numbers may be stale until it succeeds.', 'agentimus' ) );
-		} else {
-			$this->settings->record_query_poll( '' );
-			// See the note on the Google side: the ledger only ever learns
-			// something when a poll replaces the snapshot it would compare to.
-			if ( $written > 0 ) {
-				\Agentimus\Search\Progress::observe( 'bing', $this->settings );
+		$this->settings->set_ask_batch(
+			$refused
+				? (int) max( 1, floor( $batch / 2 ) )
+				: (int) min( self::ASK_BATCH_MAX, $batch + self::ASK_BATCH_STEP )
+		);
+	}
+
+	/**
+	 * Which pages this poll will ask about, in order.
+	 *
+	 * Bing's own busiest pages first when they have never been asked about —
+	 * they already have traffic, so they are the fastest way to put real answers
+	 * on an owner's screen. Then whatever the ledger says is next: newest
+	 * unasked pages, then the ones waiting longest for a second look.
+	 *
+	 * @param array $page_rows Bing's top-pages rows, unaggregated.
+	 * @param array $window    The snapshot's window.
+	 * @param int   $batch     How many pages this poll may ask about.
+	 * @return array<int,array{url:string,id:int}>
+	 */
+	private function ask_queue( array $page_rows, $window, $batch ) {
+		$top = self::window_aggregate( $page_rows, $window );
+		usort( $top, static function ( $a, $b ) {
+			return $b['impressions'] <=> $a['impressions'];
+		} );
+
+		$queue = array();
+		$seen  = array();
+
+		foreach ( $top as $row ) {
+			if ( count( $queue ) >= $batch ) {
+				break;
 			}
+			$url = (string) $row['key'];
+			if ( '' === $url ) {
+				continue;
+			}
+			$id  = \Agentimus\Search\Pages::resolve( $url );
+			$id_key = \Agentimus\Search\Asks::key( $id, $url );
+			if ( isset( $seen[ $id_key ] ) || null !== \Agentimus\Search\Asks::state( 'bing', $url, $id ) ) {
+				continue;
+			}
+			$seen[ $id_key ] = true;
+			$queue[]         = array( 'url' => $url, 'id' => $id );
 		}
+
+		foreach ( \Agentimus\Search\Asks::next( 'bing', $batch - count( $queue ) ) as $page ) {
+			$id_key = \Agentimus\Search\Asks::key( $page['id'], $page['url'] );
+			if ( isset( $seen[ $id_key ] ) || '' === (string) $page['url'] ) {
+				continue;
+			}
+			$seen[ $id_key ] = true;
+			$queue[]         = $page;
+		}
+
+		return $queue;
 	}
 
 	/**

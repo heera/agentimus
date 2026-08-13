@@ -237,6 +237,8 @@ namespace {
 	if ( ! function_exists( 'get_lastpostmodified' ) )  { function get_lastpostmodified( $tz = 'gmt' ) { return (string) ( $GLOBALS['_af_lastpostmodified'] ?? '2026-01-01 00:00:00' ); } }
 	if ( ! function_exists( 'get_post' ) )              { function get_post( $id = 0 ) { if ( is_object( $id ) ) { return $id; } $id = (int) $id; if ( ! $id ) { $id = (int) ( $GLOBALS['_af_current_post_id'] ?? 0 ); } return isset( $GLOBALS['_af_posts'][ $id ] ) ? $GLOBALS['_af_posts'][ $id ] : null; } }
 	if ( ! function_exists( 'post_type_exists' ) )      { function post_type_exists( $t ) { return in_array( (string) $t, (array) ( $GLOBALS['_af_post_types_exist'] ?? array() ), true ); } }
+	// Keyed by name like WP's own 'names' output, so a caller can unset() one.
+	if ( ! function_exists( 'get_post_types' ) )        { function get_post_types( $args = array(), $output = 'names' ) { $all = (array) ( $GLOBALS['_af_public_post_types'] ?? array( 'post' => 'post', 'page' => 'page', 'attachment' => 'attachment' ) ); return $all; } }
 	// Records every call's args, and can answer a QUEUE when a test needs two
 	// different results from two different queries (Media::search runs a title
 	// pass then an alt pass). Falls back to the single-value form every other

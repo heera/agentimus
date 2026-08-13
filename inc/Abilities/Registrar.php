@@ -1144,7 +1144,8 @@ final class Registrar {
 									'rows'        => self::i(),
 									'start'       => self::s( 'Widest window any connected source reports (YYYY-MM-DD); the engines publish on a delay, so it ends before today.' ),
 									'end'         => self::s(),
-									'pageCap'     => self::i( 'When > 0, page-level figures elsewhere sample only this many of the busiest pages (Bing). The site-wide clicks here are whole either way.' ),
+									'pageCap'     => self::i( 'Always 0 now: no source samples a fixed set of pages. Kept so older readers of this payload keep taking their no-sampling path.' ),
+									'waiting'     => self::i( 'Pages Bing has not been asked about yet — it answers one page per request, so page-level detail fills in over days. The site-wide clicks here are whole either way. 0 for Google, which reports every page at once.' ),
 								)
 							),
 							'ai'      => self::obj(

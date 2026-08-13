@@ -37,18 +37,33 @@ final class Report {
 				'connected' => $bing->connected(),
 				'hasData'   => $bing->connected() && Table::has_rows( 'bing' ),
 				'lastError' => (string) $bing->get( 'last_query_error', '' ),
-				// Bing has no query×page report: page detail costs one HTTP call per
-				// page, so the poll takes the busiest few. Every page-level figure
-				// downstream is therefore scoped to those, and a screen that doesn't
-				// say so is presenting a sample as the whole site.
-				'pageCap'   => \Agentimus\Bing\Module::QUERY_TOP_PAGES,
+				// ⚠️ ZERO SINCE THE ROTATION LANDED, and the change matters.
+				// This used to be 10, meaning "page detail exists for your ten
+				// busiest pages and nowhere else, for ever" — because the poll
+				// asked about the same ten every day and the write erased the
+				// rest. Bing is now worked through a few pages at a time until
+				// every page has been asked about, so no fixed cap applies. What
+				// replaces it is not one number but two: how many pages have been
+				// asked about, and how many are still waiting.
+				// ⛔ The asked/waiting counts do NOT belong here, tempting as it is:
+				// source_state() is called on nearly every screen read, and two
+				// COUNT queries on a hot path is a real cost for a figure only one
+				// or two screens ever print. They are gathered where they are used
+				// {@see \Agentimus\Worklist::payload()} instead.
+				'pageCap'   => 0,
+				// Rows the last poll could not keep, because the store holds only
+				// so many. This belongs HERE and not in the connection's own view:
+				// it is a fact about the data we hold, not about the connection.
+				'dropped'   => (int) $bing->get( 'dropped_rows', 0 ),
 			),
 			'google' => array(
 				'connected' => $google->connected(),
 				'hasData'   => $google->connected() && Table::has_rows( 'google' ),
 				'lastError' => (string) $google->get( 'last_error', '' ),
-				// Google reports query×page directly — no per-page cap.
+				// Google reports query×page directly — no per-page cap, and every
+				// page it knows about arrives in one report, so nothing waits.
 				'pageCap'   => 0,
+				'dropped'   => (int) $google->get( 'dropped_rows', 0 ),
 			),
 		);
 
@@ -68,16 +83,41 @@ final class Report {
 	/**
 	 * How many pages the ACTIVE source can speak about, or 0 for "all of them".
 	 *
-	 * Every page-level figure in this plugin — a worklist row, a page's focus, a
-	 * coverage verdict — is drawn from the one source {@see source_state()} picks.
-	 * On Bing that source knows about {@see \Agentimus\Bing\Module::QUERY_TOP_PAGES}
-	 * pages and no more, so "no searches have reached this page" is only true for
-	 * pages inside that sample; outside it, the honest sentence is "Bing doesn't
-	 * report this one". Screens that cannot tell those apart present a sample as
-	 * the whole site, which is the one thing this card set exists to avoid.
+	 * ⚠️ NOW ALWAYS 0, and kept only so the screens that branch on it keep taking
+	 * their "no sampling" path. It used to answer 10 for Bing, because the poll
+	 * asked about the ten busiest pages and erased every other page's rows on
+	 * each run — a sample that could never grow. Bing is now worked through a few
+	 * pages per poll until all of them have been asked about, so no page is
+	 * permanently outside anything.
+	 *
+	 * The question this used to answer badly — "is this page blank because it has
+	 * no searches, or because nobody asked?" — is now answered exactly, per page,
+	 * by {@see \Agentimus\Search\Asks}. Screens should move to that; the branches
+	 * still reading this go quiet on their own in the meantime, because a cap of
+	 * zero means "no cap".
 	 *
 	 * @return int Pages covered, or 0 when the source reports every page.
 	 */
+	/**
+	 * How many of the site's pages the ACTIVE source has not been asked about yet.
+	 *
+	 * Only Bing can be waiting on anything: it answers about one page per
+	 * request, so its page-level detail fills in over days. Google reports every
+	 * page it knows about in one report, so nothing is ever pending.
+	 *
+	 * ⚠️ Costs a COUNT, so it is called by the one or two screens that print it,
+	 * never from {@see source_state()} — which nearly every screen read touches.
+	 *
+	 * @return int
+	 */
+	public static function waiting_pages() {
+		$state = self::source_state();
+		if ( 'bing' !== (string) $state['source'] ) {
+			return 0;
+		}
+		return Asks::waiting( 'bing' );
+	}
+
 	public static function page_cap() {
 		$state  = self::source_state();
 		$source = (string) $state['source'];

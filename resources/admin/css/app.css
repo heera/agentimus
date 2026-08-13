@@ -6698,6 +6698,26 @@ a.ar-about-proto__v:hover { text-decoration: underline; }
 }
 .ar-work__tab.is-active { border-color: var(--ar-accent); color: var(--ar-accent); background: var(--ar-accent-soft, #e3efec); font-weight: 600; }
 .ar-work__tab-n { font-family: var(--ar-mono); font-variant-numeric: tabular-nums; opacity: 0.75; }
+.ar-work__tab:disabled { opacity: 0.6; cursor: default; }
+
+/* The pager. Tokens only — the scheme dialects re-key these and a literal
+   colour here would be the one thing that did not follow the theme. */
+.ar-work__pager {
+  display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap;
+  padding: 12px 26px; border-top: 1px solid var(--ar-line);
+}
+.ar-work__pager-count { margin: 0; font-size: 12.5px; color: var(--ar-ink-soft); }
+.ar-work__pager-nav { display: flex; align-items: center; gap: 3px; flex-wrap: wrap; }
+.ar-work__pg {
+  appearance: none; cursor: pointer; font: inherit; font-size: 12.5px;
+  min-width: 28px; height: 28px; padding: 0 9px;
+  border: 1px solid transparent; border-radius: 4px;
+  background: transparent; color: var(--ar-ink-soft);
+}
+.ar-work__pg:hover:not(:disabled) { color: var(--ar-ink); border-color: var(--ar-line); }
+.ar-work__pg.is-here { border-color: var(--ar-line-strong); background: var(--ar-surface-2); color: var(--ar-ink); font-weight: 600; }
+.ar-work__pg:disabled { opacity: 0.45; cursor: default; }
+.ar-work__pg-gap { color: var(--ar-ink-faint); padding: 0 2px; }
 
 /* The list's column heads — the row grid restated, so a heading can never
    drift from the column it names. */
