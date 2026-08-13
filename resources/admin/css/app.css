@@ -6719,6 +6719,82 @@ a.ar-about-proto__v:hover { text-decoration: underline; }
 .ar-work__pg:disabled { opacity: 0.45; cursor: default; }
 .ar-work__pg-gap { color: var(--ar-ink-faint); padding: 0 2px; }
 
+/* ── The row that opens ──────────────────────────────────────────────────
+   One silhouette closed; everything known when asked for. Tokens only, so
+   every scheme dialect keeps its own voice. */
+.ar-work__row.is-open { background: var(--ar-surface-2); }
+.ar-work__rowhead {
+  display: grid; grid-template-columns: 20px minmax(0, 1fr) auto; gap: 0 12px;
+  align-items: start; padding: 14px 26px; cursor: pointer;
+}
+.ar-work__rowhead:focus-visible { outline: 2px solid var(--ar-accent); outline-offset: -2px; }
+.ar-work__caret { margin-top: 4px; color: var(--ar-ink-faint); transition: transform .14s ease; flex: none; }
+.ar-work__row.is-open .ar-work__caret { transform: rotate(90deg); color: var(--ar-ink-soft); }
+.ar-work__rowheadmain { min-width: 0; }
+.ar-work__gist { display: flex; flex-wrap: wrap; align-items: baseline; gap: 3px 9px; margin-top: 6px; }
+.ar-work__sep { color: var(--ar-line-strong); }
+.ar-work__eng { display: inline-flex; align-items: baseline; gap: 6px; white-space: nowrap; }
+.ar-work__eng b { font-weight: 600; color: var(--ar-ink); font-size: 12px; }
+.ar-work__eng-n { font-family: var(--ar-mono); font-size: 11.5px; font-variant-numeric: tabular-nums; color: var(--ar-ink-soft); }
+.ar-work__eng.is-quiet b, .ar-work__eng.is-quiet .ar-work__eng-n { color: var(--ar-ink-faint); font-weight: 500; }
+.ar-work__state {
+  justify-self: end; white-space: nowrap; font-size: 11.5px; padding: 2px 9px; border-radius: 3px;
+  border: 1px solid var(--ar-warn-tint); background: var(--ar-warn-wash); color: var(--ar-warn-deep);
+}
+.ar-work__state.is-clear { border-color: var(--ar-line); background: transparent; color: var(--ar-ink-faint); }
+
+.ar-work__body { padding: 2px 26px 20px 58px; }
+.ar-work__block { padding-top: 15px; margin-top: 15px; border-top: 1px solid var(--ar-line); }
+.ar-work__block:first-child { border-top: 0; margin-top: 0; padding-top: 4px; }
+.ar-work__bhead { display: flex; align-items: baseline; justify-content: space-between; gap: 14px; margin-bottom: 9px; }
+.ar-work__bhead h4 {
+  margin: 0; font-family: var(--ar-mono); font-size: 10px; letter-spacing: .11em;
+  text-transform: uppercase; color: var(--ar-ink-faint); font-weight: 600;
+}
+.ar-work__bhead .ar-work__when { font-size: 11.5px; color: var(--ar-ink-faint); white-space: nowrap; }
+.ar-work__qline--big .ar-work__w { font-size: 14px; }
+.ar-work__verdict { display: flex; flex-wrap: wrap; align-items: baseline; gap: 7px; margin-top: 7px; }
+
+.ar-work__srch { width: 100%; border-collapse: collapse; }
+.ar-work__srch td { padding: 5px 0; font-size: 12.5px; vertical-align: baseline; border-bottom: 1px solid var(--ar-line); }
+.ar-work__srch tr:last-child td { border-bottom: 0; }
+.ar-work__srch-q { color: var(--ar-ink); }
+.ar-work__srch-q.is-top { font-weight: 600; }
+.ar-work__srch-n {
+  text-align: right; width: 92px; white-space: nowrap; color: var(--ar-ink-soft);
+  font-family: var(--ar-mono); font-size: 11.5px; font-variant-numeric: tabular-nums;
+}
+.ar-work__srch-r { width: 62px; color: var(--ar-ink); }
+.ar-work__more { margin: 8px 0 0; font-size: 12px; color: var(--ar-ink-faint); }
+
+/* An absence that names itself — the teaching voice, inset. */
+.ar-work__aside {
+  background: var(--ar-surface); border-left: 2px solid var(--ar-line-strong);
+  border-radius: 0 4px 4px 0; padding: 10px 14px; font-size: 12.5px; color: var(--ar-ink-soft);
+}
+.ar-work__aside p { margin: 0; }
+.ar-work__aside b { color: var(--ar-ink); font-weight: 600; }
+
+/* Gold: a caveat about the data in front of you, and nothing else. */
+.ar-work__note {
+  margin-top: 14px; font-size: 12.5px; color: var(--ar-warn-deep);
+  background: var(--ar-warn-wash); border: 1px solid var(--ar-warn-tint);
+  border-radius: 4px; padding: 9px 13px;
+}
+.ar-work__note b { font-weight: 650; }
+
+.ar-work__body .ar-work__act {
+  margin-top: 16px; padding-top: 13px; border-top: 1px solid var(--ar-line);
+  display: flex; gap: 18px; align-items: baseline;
+}
+
+@media (max-width: 782px) {
+  .ar-work__rowhead { padding-left: 18px; padding-right: 18px; }
+  .ar-work__body { padding-left: 40px; padding-right: 18px; }
+  .ar-work__bhead { flex-direction: column; gap: 2px; }
+  .ar-work__srch-n { width: auto; }
+}
+
 /* The list's column heads — the row grid restated, so a heading can never
    drift from the column it names. */
 .ar-work__cols {
@@ -6746,15 +6822,20 @@ a.ar-about-proto__v:hover { text-decoration: underline; }
 .ar-work__go.ar-btn--reserve::after { padding-left: 22px; }
 
 .ar-work__list { list-style: none; margin: 0; padding: 0; }
+/* ⚠️ A ROW IS NO LONGER THREE COLUMNS. It was a grid of content / search /
+   actions read across; it is now one line that opens downward, so the row is a
+   block and its own header does the aligning. Leaving the old grid here put the
+   header in column one and the opened body in column two, side by side. The
+   padding moved onto the header and body for the same reason. */
 .ar-work__row {
-  display: grid; grid-template-columns: minmax(0, 1.05fr) minmax(0, 1.15fr) auto;
-  gap: 20px; align-items: start; padding: 16px 26px; border-bottom: 1px solid var(--ar-line);
+  display: block; border-bottom: 1px solid var(--ar-line);
 }
 .ar-work__row:last-child { border-bottom: 0; }
 .ar-work__row.is-aside { opacity: 0.62; }
 
 .ar-work__thing { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
 .ar-work__type {
+  display: block; /* Its own line: the title is the thing, this only names its kind. */
   font-family: var(--ar-mono); font-size: 9.5px; letter-spacing: 0.09em;
   text-transform: uppercase; color: var(--ar-ink-faint);
 }

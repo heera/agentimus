@@ -196,14 +196,17 @@ final class Worklist {
 	 *
 	 * @return array<int,array<int,array>>
 	 */
-	private function search_by_post() {
-		$state = Report::source_state();
-		if ( '' === (string) $state['source'] ) {
+	private function search_by_post( $source = '' ) {
+		if ( '' === (string) $source ) {
+			$state  = Report::source_state();
+			$source = (string) $state['source'];
+		}
+		if ( '' === (string) $source ) {
 			return array();
 		}
 
 		$out = array();
-		foreach ( (array) Search\Table::snapshot( $state['source'] ) as $row ) {
+		foreach ( (array) Search\Table::snapshot( $source ) as $row ) {
 			$id = (int) ( isset( $row['page_id'] ) ? $row['page_id'] : 0 );
 			if ( $id <= 0 ) {
 				continue;
@@ -307,11 +310,14 @@ final class Worklist {
 		$slice = Grades::page( $filter, $types, $aside, $page, $per );
 
 		$search = $this->search_by_post();
+		// Both engines, read once for the whole page rather than once per row.
+		$maps   = $this->engine_maps();
 		$items  = array();
 		foreach ( $slice['ids'] as $id ) {
 			$item = $this->item( (int) $id, isset( $search[ $id ] ) ? $search[ $id ] : array(), in_array( (int) $id, $aside, true ) );
 			if ( $item ) {
-				$items[] = $item;
+				$item['engines'] = $this->engine_blocks( (int) $id, (string) $item['url'], $maps );
+				$items[]         = $item;
 			}
 		}
 
@@ -337,6 +343,137 @@ final class Worklist {
 		/** This filter's contract is unchanged; the payload simply carries paging now. */
 		$payload = apply_filters( self::FILTER, $payload, $this->settings );
 		return is_array( $payload ) ? $payload : array( 'items' => array(), 'counts' => array(), 'total' => 0 );
+	}
+
+	/** @var int Searches shown per engine on an opened row before the rest are counted. */
+	const MAX_ENGINE_ROWS = 5;
+
+	/**
+	 * Read both engines once, for a whole page of rows.
+	 *
+	 * ⚠️ Once, not once per row: each call is a full snapshot read, and doing it
+	 * inside the row loop would be twenty of them for twenty rows.
+	 *
+	 * @return array
+	 */
+	private function engine_maps() {
+		$state = Report::source_state();
+		$maps  = array( 'state' => $state['sources'], 'rows' => array(), 'asks' => array(), 'checked' => array() );
+
+		foreach ( array( 'google', 'bing' ) as $source ) {
+			if ( empty( $state['sources'][ $source ]['connected'] ) ) {
+				continue;
+			}
+			$maps['rows'][ $source ] = $this->search_by_post( $source );
+		}
+
+		if ( ! empty( $state['sources']['google']['connected'] ) ) {
+			$maps['checked']['google'] = (int) ( new \Agentimus\Google\Settings() )->get( 'last_poll_at', 0 );
+		}
+		if ( ! empty( $state['sources']['bing']['connected'] ) ) {
+			// Bing is asked page by page, so "when was this checked" is a fact
+			// about the PAGE, not about the connection.
+			$maps['asks'] = Search\Asks::map( 'bing' );
+		}
+
+		return $maps;
+	}
+
+	/**
+	 * What each connected engine can say about ONE page.
+	 *
+	 * ⭐ THE POINT OF THE WHOLE ARC. Every screen before this picked one engine
+	 * and showed it as though it were the answer, so a site with both connected
+	 * saw only Google and never learned the other half. Here each engine gets its
+	 * own block, its own window and its own last-checked stamp, and ⛔ THE TWO ARE
+	 * NEVER SUMMED — an average of two engines' positions is a number neither of
+	 * them reported.
+	 *
+	 * The `state` is what lets an absence name itself, which the queries table
+	 * alone cannot do:
+	 *
+	 *   reported      → these are the searches, here they are
+	 *   none          → asked, and the engine reported nothing for this page
+	 *   unasked       → nobody has asked about this page yet (Bing only)
+	 *   error         → asked, and the engine refused; its own words are kept
+	 *   not_connected → this engine is not connected at all
+	 *
+	 * @param int    $post_id Post ID.
+	 * @param string $url     The page's permalink.
+	 * @param array  $maps    From {@see engine_maps()}.
+	 * @return array<string,array>
+	 */
+	private function engine_blocks( $post_id, $url, array $maps ) {
+		$out = array();
+
+		foreach ( array( 'google', 'bing' ) as $source ) {
+			$connected = ! empty( $maps['state'][ $source ]['connected'] );
+			$block     = array(
+				'name'      => 'google' === $source ? __( 'Google', 'agentimus' ) : __( 'Bing', 'agentimus' ),
+				'state'     => 'not_connected',
+				'rows'      => array(),
+				'more'      => 0,
+				'window'    => array( 'start' => '', 'end' => '' ),
+				'checkedAt' => 0,
+				'error'     => '',
+			);
+
+			if ( ! $connected ) {
+				$out[ $source ] = $block;
+				continue;
+			}
+
+			$rows = isset( $maps['rows'][ $source ][ $post_id ] ) ? $maps['rows'][ $source ][ $post_id ] : array();
+
+			if ( 'bing' === $source ) {
+				$ask = isset( $maps['asks'][ Search\Asks::key( $post_id, $url ) ] )
+					? $maps['asks'][ Search\Asks::key( $post_id, $url ) ]
+					: null;
+				if ( null === $ask ) {
+					// The sentence this arc exists for. Not "no searches reached
+					// this page" — nobody has put the question to Bing yet.
+					$block['state']  = 'unasked';
+					$out[ $source ] = $block;
+					continue;
+				}
+				$block['checkedAt'] = strtotime( $ask['askedAt'] . ' UTC' );
+				$block['error']     = (string) $ask['error'];
+				if ( Search\Asks::STATUS_ERROR === $ask['status'] ) {
+					$block['state'] = 'error';
+					$out[ $source ] = $block;
+					continue;
+				}
+			} else {
+				$block['checkedAt'] = isset( $maps['checked']['google'] ) ? (int) $maps['checked']['google'] : 0;
+			}
+
+			if ( ! $rows ) {
+				$block['state'] = 'none';
+				$out[ $source ] = $block;
+				continue;
+			}
+
+			$block['state'] = 'reported';
+			// Each engine's REAL window, off the rows themselves. Bing's is
+			// anchored at its own newest weekly bucket and can end days before
+			// Google's, so one shared "last 56 days" over both was never true.
+			$block['window'] = array(
+				'start' => (string) ( isset( $rows[0]['range_start'] ) ? $rows[0]['range_start'] : '' ),
+				'end'   => (string) ( isset( $rows[0]['range_end'] ) ? $rows[0]['range_end'] : '' ),
+			);
+			foreach ( array_slice( $rows, 0, self::MAX_ENGINE_ROWS ) as $row ) {
+				$block['rows'][] = array(
+					'query'       => (string) $row['query'],
+					'position'    => round( (float) $row['position'], 1 ),
+					'impressions' => (int) $row['impressions'],
+					'clicks'      => (int) $row['clicks'],
+				);
+			}
+			$block['more']  = max( 0, count( $rows ) - self::MAX_ENGINE_ROWS );
+			$out[ $source ] = $block;
+		}
+
+		return $out;
 	}
 
 	/**
