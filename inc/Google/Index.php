@@ -43,7 +43,7 @@ final class Index {
 	/** @var string Option key — one autoload-off option. */
 	const OPTION = 'agentimus_google_index';
 
-	/** @var int Busiest Pages watched, by Google's own impression counts. */
+	/** @var int Busiest pages watched, by Google's own impression counts. */
 	const BUSIEST = 10;
 
 	/** @var int Newest published posts watched — "is my new post indexed yet?". */
