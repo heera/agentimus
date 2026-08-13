@@ -6722,15 +6722,15 @@ a.ar-about-proto__v:hover { text-decoration: underline; }
 /* ── The row that opens ──────────────────────────────────────────────────
    One silhouette closed; everything known when asked for. Tokens only, so
    every scheme dialect keeps its own voice. */
-.ar-work__row.is-open { background: var(--ar-surface-2); }
-.ar-work__rowhead {
-  display: grid; grid-template-columns: 20px minmax(0, 1fr) auto; gap: 0 12px;
-  align-items: start; padding: 14px 26px; cursor: pointer;
-}
-.ar-work__rowhead:focus-visible { outline: 2px solid var(--ar-accent); outline-offset: -2px; }
-.ar-work__caret { margin-top: 4px; color: var(--ar-ink-faint); transition: transform .14s ease; flex: none; }
-.ar-work__row.is-open .ar-work__caret { transform: rotate(90deg); color: var(--ar-ink-soft); }
-.ar-work__rowheadmain { min-width: 0; }
+/* One bordered fold per row — the same furniture the index groups wear, so the
+   two screens read as one plugin and the caret is the fold's own drawn
+   triangle rather than a second one of ours. */
+.ar-work__fold { margin: 0 0 10px; }
+.ar-work__fold > summary { align-items: flex-start; gap: 10px; padding: 12px 0; font-weight: 400; }
+.ar-work__fold > summary::before { margin-top: 6px; flex: none; }
+.ar-work__fold[open] > summary { margin-bottom: 12px; }
+/* The title carries the weight in this fold, not the summary line as a whole. */
+.ar-work__summain { flex: 1 1 auto; min-width: 0; }
 .ar-work__gist { display: flex; flex-wrap: wrap; align-items: baseline; gap: 3px 9px; margin-top: 6px; }
 .ar-work__sep { color: var(--ar-line-strong); }
 .ar-work__eng { display: inline-flex; align-items: baseline; gap: 6px; white-space: nowrap; }
@@ -6743,7 +6743,7 @@ a.ar-about-proto__v:hover { text-decoration: underline; }
 }
 .ar-work__state.is-clear { border-color: var(--ar-line); background: transparent; color: var(--ar-ink-faint); }
 
-.ar-work__body { padding: 2px 26px 20px 58px; }
+.ar-work__body { padding: 0 0 2px 15px; }
 .ar-work__block { padding-top: 15px; margin-top: 15px; border-top: 1px solid var(--ar-line); }
 .ar-work__block:first-child { border-top: 0; margin-top: 0; padding-top: 4px; }
 .ar-work__bhead { display: flex; align-items: baseline; justify-content: space-between; gap: 14px; margin-bottom: 9px; }
@@ -6821,14 +6821,17 @@ a.ar-about-proto__v:hover { text-decoration: underline; }
    the moment the label swaps. */
 .ar-work__go.ar-btn--reserve::after { padding-left: 22px; }
 
-.ar-work__list { list-style: none; margin: 0; padding: 0; }
+/* The folds are boxes now, so the list needs the breathing room the old
+   full-bleed rows did not: a box flush against the card edge reads as a
+   mistake rather than a card. */
+.ar-work__list { list-style: none; margin: 0; padding: 14px 26px 4px; }
 /* ⚠️ A ROW IS NO LONGER THREE COLUMNS. It was a grid of content / search /
-   actions read across; it is now one line that opens downward, so the row is a
-   block and its own header does the aligning. Leaving the old grid here put the
-   header in column one and the opened body in column two, side by side. The
-   padding moved onto the header and body for the same reason. */
+   actions read across; it is now a FOLD that opens downward. Leaving the old
+   grid here put the summary in column one and the opened body in column two,
+   side by side. No border either: each fold draws its own box, and a rule
+   between boxes is a second separator doing the same job. */
 .ar-work__row {
-  display: block; border-bottom: 1px solid var(--ar-line);
+  display: block; border-bottom: 0;
 }
 .ar-work__row:last-child { border-bottom: 0; }
 .ar-work__row.is-aside { opacity: 0.62; }

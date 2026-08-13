@@ -195,10 +195,14 @@ export default {
     isOpen(i) {
       return this.opened.indexOf(i.id) > -1;
     },
-    toggle(i) {
+    // The fold opens itself — details/summary is the browser's own control, and
+    // reimplementing it would mean reimplementing its keyboard and screen-reader
+    // behaviour too. This only follows along, so the body can stay out of the
+    // DOM until a row is actually asked for.
+    onToggle(i, ev) {
       const at = this.opened.indexOf(i.id);
-      if (at > -1) this.opened.splice(at, 1);
-      else this.opened.push(i.id);
+      if (ev.target.open && at < 0) this.opened.push(i.id);
+      if (!ev.target.open && at > -1) this.opened.splice(at, 1);
     },
     // What one engine says in the width of a glance. Never merged with the
     // other's — each keeps its own name in front of its own numbers.
@@ -543,20 +547,20 @@ export default {
            so there is nothing to align and headings over it were furniture. -->
 
       <ul v-if="shown.length" class="ar-work__list">
-        <li v-for="i in shown" :key="i.id" class="ar-work__row" :class="{ 'is-aside': i.setAside, 'is-open': isOpen(i) }">
+        <li v-for="i in shown" :key="i.id" class="ar-work__row" :class="{ 'is-aside': i.setAside }">
 
-          <!-- THE GIST. One silhouette: what it is, what it is for, and what
-               each connected engine actually shows it for. Everything else
-               waits until somebody asks for it. -->
-          <div class="ar-work__rowhead" role="button" tabindex="0" :aria-expanded="isOpen(i) ? 'true' : 'false'"
-               @click="toggle(i)" @keydown.enter.prevent="toggle(i)" @keydown.space.prevent="toggle(i)">
-            <svg class="ar-work__caret" width="9" height="11" viewBox="0 0 9 11" aria-hidden="true"><path d="M1 1l6 4.5L1 10z" fill="currentColor"/></svg>
+          <!-- THE FOLD the rest of the plugin already uses (ar-fold): a native
+               details/summary, its own drawn triangle, one bordered box per row.
+               ⭐ His law — a caret is the fold's drawn triangle, never a glyph
+               and never a hand-rolled one. Same furniture as the index groups,
+               so the two screens read as one plugin. -->
+          <details class="ar-fold ar-work__fold" :open="isOpen(i)" @toggle="onToggle(i, $event)">
+            <summary>
+              <span class="ar-work__summain">
+                <span class="ar-work__type">{{ i.type }}</span>
+                <a class="ar-work__name" :href="i.edit || i.url" target="_blank" rel="noopener" @click.stop>{{ i.title }}</a>
 
-            <div class="ar-work__rowheadmain">
-              <span class="ar-work__type">{{ i.type }}</span>
-              <a class="ar-work__name" :href="i.edit || i.url" target="_blank" rel="noopener" @click.stop>{{ i.title }}</a>
-
-              <div class="ar-work__gist">
+                <span class="ar-work__gist">
                 <!-- The search prints as a phrase, because that is what it is —
                      words somebody typed — with each word carrying its own
                      reading in place. -->
@@ -577,11 +581,11 @@ export default {
                     <b>{{ e.name }}</b> <span class="ar-work__eng-n">{{ engineGist(e) }}</span>
                   </span>
                 </template>
-              </div>
-            </div>
+                </span>
+              </span>
 
-            <span class="ar-work__state" :class="{ 'is-clear': !needsWork(i) }">{{ stateChip(i) }}</span>
-          </div>
+              <span class="ar-work__state" :class="{ 'is-clear': !needsWork(i) }">{{ stateChip(i) }}</span>
+            </summary>
 
           <!-- OPENED: everything known, each engine speaking only for itself. -->
           <div v-if="isOpen(i)" class="ar-work__body">
@@ -680,6 +684,7 @@ export default {
               >{{ isSettingAside(i) ? 'Saving…' : (i.setAside ? 'Put this back' : 'Set this aside') }}</button>
             </div>
           </div>
+          </details>
 
         </li>
       </ul>
