@@ -59,7 +59,7 @@ export default {
   <IntegrationCard
     mark="Sh"
     name="Google Sheets"
-    blurb="Events appended to a sheet you name — a history that outlives the 30-day log."
+    blurb="Every event appended as a row to a spreadsheet you own — a permanent history you can sort, chart and share, long after the 30-day log has forgotten it."
     :chip="chip"
     :action="action"
     @act="$emit('open')"

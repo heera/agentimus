@@ -6,7 +6,6 @@
  * assistants (presence stated honestly either way), plus the developer card
  * pointing at the provider guide. SERVICES is what receives this site's own
  * report events — the webhook, Telegram, Slack, Discord, Google Sheets and
- * the private feed (the one PULL service: readers come to a tokened URL),
  * the blessed roster complete.
  *
  * The tabs are the plugin's own tab convention: 50/50 full width, the active
@@ -21,7 +20,7 @@
  * open service, '' means none; Esc and a backdrop click both dismiss, and a
  * save or disconnect closes back to the updated card with the grid never
  * having moved. The webhook's signing secret appears exactly once, in the
- * response that minted it; the feed's tokened URL follows the same law; the
+ * response that minted it; the
  * Telegram bot token goes the other way — pasted in, never echoed back.
  *
  * Always mounted, fetch on first reveal, re-read on every return — the
@@ -34,11 +33,11 @@ import TelegramCard from './services/TelegramCard.vue';
 import SlackCard from './services/SlackCard.vue';
 import DiscordCard from './services/DiscordCard.vue';
 import SheetsCard from './services/SheetsCard.vue';
-import FeedCard from './services/FeedCard.vue';
 import XCard from './services/XCard.vue';
+import LinkedInCard from './services/LinkedInCard.vue';
 import PluginCard from './plugins/PluginCard.vue';
 import { copyText } from '../../js/clipboard.js';
-import { relTimeShort } from '../../js/wpDate.js';
+import { formatDate, relTimeShort } from '../../js/wpDate.js';
 import { confirm } from '../../js/confirm.js';
 import { bindDocEsc } from '../../js/docEsc.js';
 
@@ -46,7 +45,7 @@ const DEV_GUIDE = 'https://heera.github.io/agentimus/developer/integrate-your-pl
 
 export default {
   name: 'IntegrationsPanel',
-  components: { CardSkeleton, IntegrationCard, WebhookCard, TelegramCard, SlackCard, DiscordCard, SheetsCard, FeedCard, XCard, PluginCard },
+  components: { CardSkeleton, IntegrationCard, WebhookCard, TelegramCard, SlackCard, DiscordCard, SheetsCard, XCard, LinkedInCard, PluginCard },
   props: {
     api: { type: Object, default: null },
     // Rendered with v-show; fetch on first reveal, re-read on every return.
@@ -65,7 +64,6 @@ export default {
       slack: { enabled: false, url: '', events: [], queued: 0, state: { lastDeliveredAt: 0, lastError: '', lastErrorAt: 0 } },
       discord: { enabled: false, url: '', events: [], queued: 0, state: { lastDeliveredAt: 0, lastError: '', lastErrorAt: 0 } },
       sheets: { enabled: false, spreadsheet: '', events: [], hasKey: false, saEmail: '', queued: 0, state: { lastDeliveredAt: 0, lastError: '', lastErrorAt: 0 } },
-      feed: { enabled: false, events: [], hasToken: false, lastFetchedAt: 0, queued: 0, state: { lastDeliveredAt: 0, lastError: '', lastErrorAt: 0 } },
       events: [],
       plugins: [],
       // The SHARING tab's read: each network's use of its shared connection,
@@ -73,6 +71,7 @@ export default {
       sharing: {
         telegram: { enabled: false, channel: '', hasToken: false, active: false, queued: 0, lastSentAt: 0 },
         x: { enabled: false, connected: false, active: false, handle: '', refreshError: '', connectError: '', callbackUrl: '', hasClientId: false, queued: 0, lastSentAt: 0 },
+        linkedin: { enabled: false, connected: false, expired: false, expiresAt: 0, active: false, name: '', connectError: '', callbackUrl: '', hasSecret: false, clientId: '', queued: 0, lastSentAt: 0 },
         ledger: { total: 0, queued: 0, sentWeek: 0, failed: 0 },
       },
       // The sharing form is inline (there is no credential to take, so no
@@ -86,26 +85,25 @@ export default {
       tg: { token: '', chat: '', tier: 'all', events: [] },
       // X's modal form: the one field a PKCE public client needs.
       xForm: { clientId: '' },
+      // LinkedIn's modal form: a confidential client's pair. The secret
+      // follows the bot token's law — pasted once, never echoed back.
+      liForm: { clientId: '', clientSecret: '' },
       callbackCopied: false,
       sl: { url: '', events: [] },
       dc: { url: '', events: [] },
       sh: { spreadsheet: '', events: [] },
-      fe: { events: [] },
       saving: false,
       formError: '',
       // The secret's single appearance. Cleared when the panel closes — after
       // that, only its existence is ever admitted again.
       secret: '',
       secretCopied: false,
-      // The feed URL's single appearance — the same one-sighting law.
-      feedUrl: '',
-      feedUrlCopied: false,
     };
   },
   computed: {
     // The open service's name over the modal — one shell, one title slot.
     modalTitle() {
-      return { webhook: 'Webhook', telegram: 'Telegram', x: 'X (Twitter)', slack: 'Slack', discord: 'Discord', sheets: 'Google Sheets', feed: 'Private Feed' }[this.panel] || '';
+      return { webhook: 'Webhook', telegram: 'Telegram', x: 'X (Twitter)', linkedin: 'LinkedIn', slack: 'Slack', discord: 'Discord', sheets: 'Google Sheets' }[this.panel] || '';
     },
   },
   watch: {
@@ -151,7 +149,6 @@ export default {
       this.slack = data.slack || this.slack;
       this.discord = data.discord || this.discord;
       this.sheets = data.sheets || this.sheets;
-      this.feed = data.feed || this.feed;
       this.events = data.events || [];
       this.plugins = data.plugins || [];
       if (data.sharing) {
@@ -182,6 +179,7 @@ export default {
       });
     },
     openTelegram() {
+      this.view = 'services';
       // The token field always starts empty: the stored one is never echoed
       // back, so an empty field on a connected bot means "keep it".
       this.tg.token = '';
@@ -225,25 +223,10 @@ export default {
         if (el) el.focus();
       });
     },
-    openFeed() {
-      this.fe.events = this.defaultEvents(this.feed);
-      this.formError = '';
-      this.feedUrl = '';
-      this.feedUrlCopied = false;
-      this.panel = 'feed';
-      // No field to fill — the dialog itself takes focus, so Esc and Tab
-      // land where every other modal starts them.
-      this.$nextTick(() => {
-        const el = this.$refs.dialog;
-        if (el) el.focus();
-      });
-    },
     closePanel() {
       this.panel = '';
       this.secret = '';
       this.secretCopied = false;
-      this.feedUrl = '';
-      this.feedUrlCopied = false;
     },
     async save() {
       if (!this.api || this.saving) return;
@@ -306,6 +289,9 @@ export default {
     },
     /* -- X (Twitter) ------------------------------------------------------- */
     openX() {
+      // Connections live on Services — reached from the Sharing card, the
+      // owner lands there first (Telegram's road), with the modal open on top.
+      this.view = 'services';
       this.xForm.clientId = '';
       this.formError = '';
       this.callbackCopied = false;
@@ -372,6 +358,102 @@ export default {
       try {
         this.apply(await this.api.actIntegrations({ action: 'share-test', service: 'x' }));
         this.$emit('flash', 'success', 'Test posted \u2014 look at the timeline.');
+      } catch (e) {
+        this.shareError = e.message || 'The test didn\u2019t go.';
+      } finally {
+        this.shareSaving = false;
+      }
+    },
+    /* -- LinkedIn ----------------------------------------------------------- */
+    liStateLine() {
+      const li = this.sharing.linkedin;
+      const parts = [];
+      if (li.lastSentAt) parts.push(`Last announcement ${relTimeShort(li.lastSentAt * 1000)}`);
+      if (li.queued) parts.push(`${li.queued} queued`);
+      return parts.length ? parts.join(' · ') : 'No announcements yet.';
+    },
+    // The date the sixty days end — the card's standing honesty line.
+    liReconnectBy() {
+      const at = this.sharing.linkedin.expiresAt;
+      return at ? formatDate(new Date(at * 1000)) : '';
+    },
+    openLinkedIn() {
+      // Same road as X: the Sharing card's connect lands on Services first.
+      this.view = 'services';
+      // A reconnect keeps the stored app: the id is pre-filled, the secret
+      // stays where it lives (its field empty means "keep what's stored").
+      this.liForm.clientId = this.sharing.linkedin.clientId || '';
+      this.liForm.clientSecret = '';
+      this.formError = '';
+      this.callbackCopied = false;
+      this.panel = 'linkedin';
+    },
+    async copyLinkedInCallback() {
+      const ok = await copyText(this.sharing.linkedin.callbackUrl);
+      this.callbackCopied = ok;
+      if (ok) setTimeout(() => { this.callbackCopied = false; }, 2200);
+    },
+    // Same round-trip as X's: the page leaves for LinkedIn and the callback
+    // lands the owner back on this screen — connected, or with the refusal
+    // written on the card.
+    async authorizeLinkedIn() {
+      if (!this.api || this.saving) return;
+      this.saving = true;
+      this.formError = '';
+      try {
+        const data = await this.api.actIntegrations({
+          action: 'authorize',
+          service: 'linkedin',
+          client_id: this.liForm.clientId,
+          client_secret: this.liForm.clientSecret,
+        });
+        if (data.authorizeUrl) window.location.href = data.authorizeUrl;
+      } catch (e) {
+        this.saving = false;
+        this.formError = e.message || 'Could not start the authorization.';
+      }
+    },
+    async disconnectLinkedIn() {
+      const ok = await confirm({
+        title: 'Disconnect LinkedIn?',
+        message: 'Announcements stop, anything still queued for LinkedIn is discarded when it comes due, and the app\u2019s access and secret are forgotten here. Reconnecting runs the authorize again.',
+        confirmLabel: 'Disconnect',
+        cancelLabel: 'Cancel',
+        tone: 'danger',
+      });
+      if (!ok) return;
+      await this.doDisconnect({ action: 'disconnect', service: 'linkedin' }, 'LinkedIn disconnected.');
+    },
+    async saveLinkedInSharing(on) {
+      if (!this.api || this.shareSaving) return;
+      if (!on) {
+        const ok = await confirm({
+          title: 'Turn off announcing on LinkedIn?',
+          message: 'New announcements can\u2019t be queued for LinkedIn, and anything already queued parks as \u201cDidn\u2019t go\u201d when its minute comes. The connection stays \u2014 coming back is one click.',
+          confirmLabel: 'Turn off',
+          cancelLabel: 'Keep announcing',
+          tone: 'danger',
+        });
+        if (!ok) return;
+      }
+      this.shareSaving = true;
+      this.shareError = '';
+      try {
+        this.apply(await this.api.actIntegrations({ action: 'share', service: 'linkedin', enabled: on }));
+        this.$emit('flash', 'success', on ? 'Announcing on LinkedIn is on.' : 'Announcing on LinkedIn is off.');
+      } catch (e) {
+        this.shareError = e.message || 'Could not save the announcing setup.';
+      } finally {
+        this.shareSaving = false;
+      }
+    },
+    async testLinkedInSharing() {
+      if (!this.api || this.shareSaving) return;
+      this.shareSaving = true;
+      this.shareError = '';
+      try {
+        this.apply(await this.api.actIntegrations({ action: 'share-test', service: 'linkedin' }));
+        this.$emit('flash', 'success', 'Test posted \u2014 look at your feed.');
       } catch (e) {
         this.shareError = e.message || 'The test didn\u2019t go.';
       } finally {
@@ -508,75 +590,6 @@ export default {
         this.formError = e.message || 'Could not save the Google Sheets connection.';
       } finally {
         this.saving = false;
-      }
-    },
-    async saveFeed() {
-      if (!this.api || this.saving) return;
-      this.saving = true;
-      this.formError = '';
-      try {
-        const wasConnected = this.feed.enabled;
-        const data = await this.api.actIntegrations({
-          action: wasConnected ? 'save' : 'connect',
-          service: 'feed',
-          events: this.fe.events,
-        });
-        this.apply(data);
-        if (data.feedUrl) {
-          // The one sighting. The panel stays open so it can be copied.
-          this.feedUrl = data.feedUrl;
-          this.feedUrlCopied = false;
-        } else {
-          this.$emit('flash', 'success', 'Feed settings saved.');
-          this.closePanel();
-        }
-      } catch (e) {
-        this.formError = e.message || 'Could not save the feed.';
-      } finally {
-        this.saving = false;
-      }
-    },
-    async regenerateFeed() {
-      if (!this.api || this.saving) return;
-      // Same care as rotating the webhook secret: the old URL dies right here.
-      const ok = await confirm({
-        title: 'Make a new URL?',
-        message: 'The current URL stops answering the moment this saves — every reader still polling it is out. Paste the new URL into each of them.',
-        confirmLabel: 'New URL',
-        cancelLabel: 'Cancel',
-        tone: 'danger',
-      });
-      if (!ok) return;
-      this.saving = true;
-      this.formError = '';
-      try {
-        const data = await this.api.actIntegrations({ action: 'regenerate', service: 'feed' });
-        this.apply(data);
-        this.feedUrl = data.feedUrl || '';
-        this.feedUrlCopied = false;
-      } catch (e) {
-        this.formError = e.message || 'Could not make a new URL.';
-      } finally {
-        this.saving = false;
-      }
-    },
-    async disconnectFeed() {
-      if (!this.api || this.saving) return;
-      const ok = await confirm({
-        title: 'Disconnect the feed?',
-        message: 'The URL stops answering, the remembered events are dropped, and anything still queued for the feed is discarded. Reconnecting makes a new URL.',
-        confirmLabel: 'Disconnect',
-        cancelLabel: 'Cancel',
-        tone: 'danger',
-      });
-      if (!ok) return;
-      await this.doDisconnect({ action: 'disconnect', service: 'feed' }, 'Feed disconnected.');
-    },
-    async copyFeedUrl() {
-      if (await copyText(this.feedUrl)) {
-        this.feedUrlCopied = true;
-      } else {
-        this.$emit('flash', 'error', 'Could not copy — select the URL and copy it by hand.');
       }
     },
     async disconnectSheets() {
@@ -750,13 +763,18 @@ export default {
             </span>
           </p>
           <div class="ar-int__grid">
-            <WebhookCard :webhook="webhook" @open="openPanel" />
-            <TelegramCard :telegram="telegram" @open="openTelegram" />
             <XCard :x="sharing.x" @open="openX" />
+            <LinkedInCard :linkedin="sharing.linkedin" @open="openLinkedIn" />
+            <TelegramCard :telegram="telegram" @open="openTelegram" />
             <SlackCard :slack="slack" @open="openSlack" />
             <DiscordCard :discord="discord" @open="openDiscord" />
             <SheetsCard :sheets="sheets" @open="openSheets" />
-            <FeedCard :feed="feed" @open="openFeed" />
+            <!-- The catch-all closes the shelf at full width, on its own
+                 ground — after the named tools, "everything else" makes
+                 sense; before them it would just be jargon. -->
+            <div class="ar-int__wide">
+              <WebhookCard :webhook="webhook" @open="openPanel" />
+            </div>
           </div>
 
         </section>
@@ -774,6 +792,125 @@ export default {
             </span>
           </p>
           <div class="ar-int__grid">
+
+            <article class="ar-int__card">
+              <div class="ar-int__head">
+                <h3 class="ar-int__name">X (Twitter)</h3>
+                <span class="ar-int__chip" :class="{ 'is-on': sharing.x.active }">
+                  {{ sharing.x.active ? 'Announcing' : (sharing.x.connected ? 'Off' : 'No app yet') }}
+                </span>
+                <button
+                  v-if="sharing.x.enabled"
+                  type="button"
+                  class="ar-int__power"
+                  :disabled="shareSaving"
+                  aria-label="Turn off announcing on X"
+                  @click="saveXSharing(false)"
+                >
+                  <svg viewBox="0 0 16 16" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 1.6v6" /><path d="M11.9 3.9a5.6 5.6 0 1 1-7.8 0" /></svg>
+                </button>
+              </div>
+
+              <template v-if="!sharing.x.connected">
+                <p class="ar-int__blurb">
+                  Announcing on X runs through an app you own — connect it once on Services.
+                </p>
+                <div class="ar-int__foot ar-int__foot--fill">
+                  <button type="button" class="ar-btn ar-btn--ghost" @click="openX">
+                    Connect X on Services
+                  </button>
+                </div>
+              </template>
+
+              <template v-else>
+                <p class="ar-int__blurb">
+                  Announcements post to <strong>@{{ sharing.x.handle || '…' }}</strong>'s own timeline —
+                  there is nothing to point at, so there is nothing to fill in. Drafts over 280 are
+                  refused at the queue, where you can still fix them.
+                </p>
+                <p v-if="sharing.x.refreshError" class="ar-int__note is-err">Renewal refused — announcing is paused. Reconnect on Services.</p>
+                <p v-if="shareError" class="ar-int__moderr" role="alert">{{ shareError }}</p>
+                <p v-if="sharing.x.active" class="ar-int__note">{{ xStateLine() }}</p>
+                <div class="ar-int__foot ar-int__foot--fill">
+                  <button
+                    v-if="!sharing.x.enabled"
+                    type="button"
+                    class="ar-btn"
+                    :disabled="shareSaving"
+                    @click="saveXSharing(true)"
+                  >Turn on Announcing</button>
+                  <button
+                    v-if="sharing.x.active"
+                    type="button"
+                    class="ar-btn ar-btn--ghost"
+                    :disabled="shareSaving"
+                    @click="testXSharing"
+                  >Send a Test Announcement</button>
+                </div>
+              </template>
+            </article>
+
+            <article class="ar-int__card">
+              <div class="ar-int__head">
+                <h3 class="ar-int__name">LinkedIn</h3>
+                <span class="ar-int__chip" :class="{ 'is-on': sharing.linkedin.active, 'is-err': sharing.linkedin.connected && sharing.linkedin.expired }">
+                  {{ sharing.linkedin.active ? 'Announcing' : (sharing.linkedin.connected ? (sharing.linkedin.expired ? 'Reconnect' : 'Off') : 'No app yet') }}
+                </span>
+                <button
+                  v-if="sharing.linkedin.enabled"
+                  type="button"
+                  class="ar-int__power"
+                  :disabled="shareSaving"
+                  aria-label="Turn off announcing on LinkedIn"
+                  @click="saveLinkedInSharing(false)"
+                >
+                  <svg viewBox="0 0 16 16" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 1.6v6" /><path d="M11.9 3.9a5.6 5.6 0 1 1-7.8 0" /></svg>
+                </button>
+              </div>
+
+              <template v-if="!sharing.linkedin.connected">
+                <p class="ar-int__blurb">
+                  Announcing on LinkedIn runs through an app you own — connect it once on Services.
+                </p>
+                <div class="ar-int__foot ar-int__foot--fill">
+                  <button type="button" class="ar-btn ar-btn--ghost" @click="openLinkedIn">
+                    Connect LinkedIn on Services
+                  </button>
+                </div>
+              </template>
+
+              <template v-else>
+                <p class="ar-int__blurb">
+                  Announcements post to <strong>{{ sharing.linkedin.name || '…' }}</strong>'s own feed —
+                  there is nothing to point at, so there is nothing to fill in. Drafts over 3,000
+                  characters are refused at the queue, where you can still fix them.
+                </p>
+                <p v-if="sharing.linkedin.expired" class="ar-int__note is-err">
+                  The sixty-day access ran out — announcing is paused. Reconnect on Services.
+                </p>
+                <p v-else-if="liReconnectBy()" class="ar-int__note">
+                  LinkedIn's access lasts about sixty days and doesn't renew itself — reconnect by {{ liReconnectBy() }}.
+                </p>
+                <p v-if="shareError" class="ar-int__moderr" role="alert">{{ shareError }}</p>
+                <p v-if="sharing.linkedin.active" class="ar-int__note">{{ liStateLine() }}</p>
+                <div class="ar-int__foot ar-int__foot--fill">
+                  <button
+                    v-if="!sharing.linkedin.enabled"
+                    type="button"
+                    class="ar-btn"
+                    :disabled="shareSaving || sharing.linkedin.expired"
+                    @click="saveLinkedInSharing(true)"
+                  >Turn on Announcing</button>
+                  <button
+                    v-if="sharing.linkedin.active"
+                    type="button"
+                    class="ar-btn ar-btn--ghost"
+                    :disabled="shareSaving"
+                    @click="testLinkedInSharing"
+                  >Send a Test Announcement</button>
+                </div>
+              </template>
+            </article>
             <article class="ar-int__card">
               <div class="ar-int__head">
                 <h3 class="ar-int__name">Telegram</h3>
@@ -799,8 +936,8 @@ export default {
                 <p class="ar-int__blurb">
                   Announcing uses the same bot as Services — connect it once and both work.
                 </p>
-                <div class="ar-int__foot">
-                  <button type="button" class="ar-btn ar-btn--ghost" @click="view = 'services'">
+                <div class="ar-int__foot ar-int__foot--fill">
+                  <button type="button" class="ar-btn ar-btn--ghost" @click="openTelegram">
                     Connect the bot on Services
                   </button>
                 </div>
@@ -841,7 +978,7 @@ export default {
                 </details>
                 <p v-if="shareError" class="ar-int__moderr" role="alert">{{ shareError }}</p>
                 <p v-if="sharing.telegram.active" class="ar-int__note">{{ sharingStateLine() }}</p>
-                <div class="ar-int__foot">
+                <div class="ar-int__foot ar-int__foot--fill">
                   <button type="button" class="ar-btn" :disabled="shareSaving" @click="saveTelegramSharing(true)">
                     {{ sharing.telegram.enabled ? 'Save' : 'Turn on announcing' }}
                   </button>
@@ -852,63 +989,6 @@ export default {
                     :disabled="shareSaving"
                     @click="testTelegramSharing"
                   >Send a test announcement</button>
-                </div>
-              </template>
-            </article>
-
-            <article class="ar-int__card">
-              <div class="ar-int__head">
-                <h3 class="ar-int__name">X (Twitter)</h3>
-                <span class="ar-int__chip" :class="{ 'is-on': sharing.x.active }">
-                  {{ sharing.x.active ? 'Announcing' : (sharing.x.connected ? 'Off' : 'No app yet') }}
-                </span>
-                <button
-                  v-if="sharing.x.enabled"
-                  type="button"
-                  class="ar-int__power"
-                  :disabled="shareSaving"
-                  aria-label="Turn off announcing on X"
-                  @click="saveXSharing(false)"
-                >
-                  <svg viewBox="0 0 16 16" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 1.6v6" /><path d="M11.9 3.9a5.6 5.6 0 1 1-7.8 0" /></svg>
-                </button>
-              </div>
-
-              <template v-if="!sharing.x.connected">
-                <p class="ar-int__blurb">
-                  Announcing on X runs through an app you own — connect it once on Services.
-                </p>
-                <div class="ar-int__foot">
-                  <button type="button" class="ar-btn ar-btn--ghost" @click="openX">
-                    Connect X on Services
-                  </button>
-                </div>
-              </template>
-
-              <template v-else>
-                <p class="ar-int__blurb">
-                  Announcements post to <strong>@{{ sharing.x.handle || '…' }}</strong>'s own timeline —
-                  there is nothing to point at, so there is nothing to fill in. Drafts over 280 are
-                  refused at the queue, where you can still fix them.
-                </p>
-                <p v-if="sharing.x.refreshError" class="ar-int__note is-err">Renewal refused — announcing is paused. Reconnect on Services.</p>
-                <p v-if="shareError" class="ar-int__moderr" role="alert">{{ shareError }}</p>
-                <p v-if="sharing.x.active" class="ar-int__note">{{ xStateLine() }}</p>
-                <div class="ar-int__foot">
-                  <button
-                    v-if="!sharing.x.enabled"
-                    type="button"
-                    class="ar-btn"
-                    :disabled="shareSaving"
-                    @click="saveXSharing(true)"
-                  >Turn on Announcing</button>
-                  <button
-                    v-if="sharing.x.active"
-                    type="button"
-                    class="ar-btn ar-btn--ghost"
-                    :disabled="shareSaving"
-                    @click="testXSharing"
-                  >Send a Test Announcement</button>
                 </div>
               </template>
             </article>
@@ -1004,13 +1084,6 @@ export default {
                 <template v-else>the service account’s email</template>
                 as an Editor, then paste the spreadsheet’s ID below. Connecting appends a header
                 row and one test row to prove the road works.
-              </p>
-              <p v-else-if="panel === 'feed'" class="ar-int__panellead">
-                A private feed of what Agentimus finds — paste its URL into any feed reader or
-                automation and events arrive there, alongside every finding still open. Nothing is
-                ever sent out: readers come to it. <strong>Anyone with the URL can read it, so
-                treat it like a key.</strong> It answers as RSS; add
-                <code>&amp;format=json</code> for JSON Feed.
               </p>
             </div>
 
@@ -1192,6 +1265,73 @@ export default {
                   </template>
                 </template>
 
+                <!-- LinkedIn -->
+                <template v-else-if="panel === 'linkedin'">
+                  <template v-if="!sharing.linkedin.connected">
+                    <details class="ar-fold ar-fold--guide">
+                      <summary>Creating your LinkedIn app, step by step</summary>
+                      <ol class="ar-guide">
+                        <li>Sign in at <code>developer.linkedin.com</code> and create an <strong>App</strong> — it asks for a LinkedIn Page to associate; your company page (or one you create) works.</li>
+                        <li>On the app's <strong>Products</strong> tab, add <strong>Share on LinkedIn</strong> and <strong>Sign In with LinkedIn using OpenID Connect</strong> — both are free, self-serve, and approved on request.</li>
+                        <li>On the <strong>Auth</strong> tab, paste the <strong>Callback URL</strong> from below under Authorized redirect URLs.</li>
+                        <li>Copy the <strong>Client ID</strong> and <strong>Client Secret</strong> from the same Auth tab into the fields below.</li>
+                      </ol>
+                    </details>
+
+                    <div class="ar-field">
+                      <label for="ar-int-li-callback">Callback URL — paste this into your LinkedIn app</label>
+                      <div class="ar-int__oncerow">
+                        <input id="ar-int-li-callback" class="ar-input" type="text" readonly :value="sharing.linkedin.callbackUrl" />
+                        <button type="button" class="ar-btn ar-btn--ghost" @click="copyLinkedInCallback">{{ callbackCopied ? 'Copied ✓' : 'Copy' }}</button>
+                      </div>
+                      <p class="ar-field__hint">
+                        LinkedIn sends you back here after you approve — it must match the app's settings exactly.
+                      </p>
+                    </div>
+
+                    <div class="ar-field">
+                      <label for="ar-int-li-client">Client ID</label>
+                      <input
+                        id="ar-int-li-client"
+                        v-model="liForm.clientId"
+                        type="text"
+                        class="ar-input"
+                        autocomplete="off"
+                        placeholder="86xyzab12cd…"
+                        :disabled="saving"
+                      />
+                    </div>
+                    <div class="ar-field">
+                      <label for="ar-int-li-secret">Client Secret</label>
+                      <input
+                        id="ar-int-li-secret"
+                        v-model="liForm.clientSecret"
+                        type="password"
+                        class="ar-input"
+                        autocomplete="off"
+                        :placeholder="sharing.linkedin.hasSecret ? 'Stored — paste again only to replace it' : 'WPL_AP1.…'"
+                        :disabled="saving"
+                      />
+                      <p class="ar-field__hint">
+                        Unlike X, LinkedIn's flow requires the secret. It stays on your server and is never shown back.
+                      </p>
+                    </div>
+                    <p v-if="sharing.linkedin.connectError" class="ar-int__moderr" role="alert">{{ sharing.linkedin.connectError }}</p>
+                  </template>
+
+                  <template v-else>
+                    <p class="ar-int__panellead">
+                      Connected as <strong>{{ sharing.linkedin.name || '…' }}</strong> — approved to post, read nothing.
+                      LinkedIn's access lasts about sixty days and doesn't renew itself
+                      <template v-if="liReconnectBy()">— reconnect by <strong>{{ liReconnectBy() }}</strong> </template>—
+                      when it ends, announcing pauses and queued posts wait as “Didn't go” rather than vanishing.
+                    </p>
+                    <p v-if="sharing.linkedin.expired" class="ar-int__moderr" role="alert">
+                      The sixty days ran out — disconnect, then connect again to resume.
+                    </p>
+                  </template>
+                </template>
+
                 <!-- Slack -->
                 <template v-else-if="panel === 'slack'">
                   <div class="ar-field">
@@ -1287,38 +1427,6 @@ export default {
                   </p>
                 </template>
 
-                <!-- The private feed -->
-                <template v-else-if="panel === 'feed'">
-                  <fieldset class="ar-int__events">
-                    <legend>Which events the feed carries</legend>
-                    <label v-for="ev in events" :key="ev.name" class="ar-int__event">
-                      <input v-model="fe.events" type="checkbox" :value="ev.name" :disabled="saving" />
-                      <span class="ar-int__eventtext">
-                        <strong>{{ ev.label }}</strong>
-                        <small>{{ ev.description }}</small>
-                      </span>
-                    </label>
-                  </fieldset>
-
-                  <p class="ar-field__hint">
-                    The feed keeps the last 50 events, plus an item for every finding still open.
-                    Your site’s own reports only — never your visitors’ data.
-                  </p>
-
-                  <!-- The URL's one and only sighting (connect or new URL). -->
-                  <div v-if="feedUrl" class="ar-int__once">
-                    <div class="ar-int__oncerow">
-                      <code class="ar-int__secret">{{ feedUrl }}</code>
-                      <button type="button" class="ar-btn ar-btn--ghost" @click="copyFeedUrl">
-                        {{ feedUrlCopied ? 'Copied' : 'Copy' }}
-                      </button>
-                    </div>
-                    <p class="ar-field__hint">
-                      <strong>Shown once.</strong> Paste it into your reader now — it can’t be
-                      shown again. Lost it? “New URL” mints a fresh one.
-                    </p>
-                  </div>
-                </template>
               </div>
             </div>
 
@@ -1373,20 +1481,6 @@ export default {
                 @click="disconnectSheets"
               >Disconnect</button>
               <button
-                v-if="panel === 'feed' && feed.enabled"
-                type="button"
-                class="ar-btn ar-btn--ghost"
-                :disabled="saving"
-                @click="regenerateFeed"
-              >New URL</button>
-              <button
-                v-if="panel === 'feed' && feed.enabled"
-                type="button"
-                class="ar-btn ar-btn--danger"
-                :disabled="saving"
-                @click="disconnectFeed"
-              >Disconnect</button>
-              <button
                 v-if="panel === 'x' && sharing.x.connected"
                 type="button"
                 class="ar-btn ar-btn--danger"
@@ -1395,6 +1489,16 @@ export default {
               >Disconnect</button>
               <button v-if="panel === 'x' && !sharing.x.connected" type="button" class="ar-btn" :disabled="saving" @click="authorizeX">
                 {{ saving ? 'Off to X…' : 'Authorize on X' }}
+              </button>
+              <button
+                v-if="panel === 'linkedin' && sharing.linkedin.connected"
+                type="button"
+                class="ar-btn ar-btn--danger"
+                :disabled="saving"
+                @click="disconnectLinkedIn"
+              >Disconnect</button>
+              <button v-if="panel === 'linkedin' && !sharing.linkedin.connected" type="button" class="ar-btn" :disabled="saving" @click="authorizeLinkedIn">
+                {{ saving ? 'Off to LinkedIn…' : 'Authorize on LinkedIn' }}
               </button>
               <button v-if="panel === 'webhook'" type="button" class="ar-btn" :disabled="saving" @click="save">
                 {{ saving ? 'Saving…' : (webhook.enabled ? 'Save' : 'Connect') }}
@@ -1410,9 +1514,6 @@ export default {
               </button>
               <button v-else-if="panel === 'sheets'" type="button" class="ar-btn" :disabled="saving" @click="saveSheets">
                 {{ saving ? 'Saving…' : (sheets.enabled ? 'Save' : 'Connect') }}
-              </button>
-              <button v-else-if="panel === 'feed'" type="button" class="ar-btn" :disabled="saving" @click="saveFeed">
-                {{ saving ? 'Saving…' : (feed.enabled ? 'Save' : 'Connect') }}
               </button>
             </div>
           </div>

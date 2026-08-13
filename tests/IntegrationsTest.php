@@ -476,6 +476,7 @@ namespace Agentimus\Tests {
 					'telegram_share_enabled' => false,
 					'telegram_share_channel' => '',
 					'x_share_enabled'  => false,
+					'linkedin_share_enabled' => false,
 					'slack_enabled'    => false,
 					'slack_url'        => '',
 					'slack_events'     => array(),
@@ -485,8 +486,6 @@ namespace Agentimus\Tests {
 					'sheets_enabled'      => false,
 					'sheets_spreadsheet'  => '',
 					'sheets_events'       => array(),
-					'feed_enabled'        => false,
-					'feed_events'         => array(),
 				),
 				$defaults['integrations'],
 				'Every service defaults to off, empty, unsubscribed — the inertness law starts here.'

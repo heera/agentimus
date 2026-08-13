@@ -12,22 +12,15 @@
  * that a secret exists — an admin screen reload must never re-print a
  * credential that was promised to appear once. Telegram's bot token is
  * stricter still: the owner already holds it, so no response ever carries it
- * — the status only admits one is stored. The feed's tokened URL follows the
- * webhook's law: minted at connect or regenerate, shown in that response and
- * never again.
- *
- * One route here is NOT an admin route: GET /integrations/feed, the private
- * feed itself, gated by its own token instead of a capability — see feed().
+ * — the status only admits one is stored.
  *
  * @package Agentimus
  */
 
 namespace Agentimus\Integrations;
 
-use Agentimus\Findings;
 use Agentimus\Settings;
 use Agentimus\Integrations\Services\Discord;
-use Agentimus\Integrations\Services\Feed;
 use Agentimus\Integrations\Services\Sheets;
 use Agentimus\Integrations\Services\Slack;
 use Agentimus\Integrations\Services\Telegram;
@@ -123,17 +116,13 @@ final class Rest {
 			)
 		);
 
-		// The feed itself — the one route on this screen a NON-admin reaches:
-		// a feed reader holding the tokened URL. The gate is the token, checked
-		// in the handler so every refusal is the same bare 401 (a permission
-		// callback's error would name the plugin's permission grammar, which is
-		// already more of a hint than a wrong token has earned).
+		// LinkedIn's OAuth callback — same public nature and gates as X's.
 		register_rest_route(
 			'agentimus/v1',
-			'/integrations/feed',
+			'/linkedin/callback',
 			array(
 				'methods'             => \WP_REST_Server::READABLE,
-				'callback'            => array( $this, 'feed' ),
+				'callback'            => array( $this, 'linkedin_callback' ),
 				'permission_callback' => '__return_true',
 			)
 		);
@@ -304,6 +293,24 @@ final class Rest {
 				return $this->disconnect_x();
 			}
 		}
+		if ( Services\LinkedIn::ID === $service ) {
+			if ( 'authorize' === $action ) {
+				$url = Services\LinkedIn::begin( (string) $request->get_param( 'client_id' ), (string) $request->get_param( 'client_secret' ) );
+				if ( is_wp_error( $url ) ) {
+					return new \WP_Error( $url->get_error_code(), $url->get_error_message(), array( 'status' => 400 ) );
+				}
+				return rest_ensure_response( array( 'authorizeUrl' => $url ) );
+			}
+			if ( 'share' === $action ) {
+				return $this->save_linkedin_sharing( $request );
+			}
+			if ( 'share-test' === $action ) {
+				return $this->test_linkedin_sharing();
+			}
+			if ( 'disconnect' === $action ) {
+				return $this->disconnect_linkedin();
+			}
+		}
 		if ( Slack::ID === $service ) {
 			if ( 'connect' === $action || 'save' === $action ) {
 				return $this->save_url_service(
@@ -334,17 +341,6 @@ final class Rest {
 			}
 			if ( 'disconnect' === $action ) {
 				return $this->disconnect_sheets();
-			}
-		}
-		if ( Feed::ID === $service ) {
-			if ( 'connect' === $action || 'save' === $action ) {
-				return $this->save_feed( $request, 'connect' === $action );
-			}
-			if ( 'regenerate' === $action ) {
-				return $this->regenerate_feed();
-			}
-			if ( 'disconnect' === $action ) {
-				return $this->disconnect_feed();
 			}
 		}
 		return new \WP_Error( 'agentimus_bad_action', __( 'Unknown action.', 'agentimus' ), array( 'status' => 400 ) );
@@ -667,6 +663,97 @@ final class Rest {
 		return rest_ensure_response( $this->payload() );
 	}
 
+	/* -- LinkedIn ------------------------------------------------------------- */
+
+	/**
+	 * LinkedIn's redirect lands here — the same going-home law as X's: a
+	 * REST 302, refusals written on the connection for the panel to show.
+	 *
+	 * @param \WP_REST_Request $request The request.
+	 */
+	public function linkedin_callback( $request ) {
+		$code  = (string) $request->get_param( 'code' );
+		$state = (string) $request->get_param( 'state' );
+
+		if ( '' !== $code && '' !== $state ) {
+			$verdict = Services\LinkedIn::complete( $code, $state );
+			if ( is_wp_error( $verdict ) ) {
+				$row                  = \Agentimus\Integrations\Connections::read( Services\LinkedIn::ID );
+				$row['connect_error'] = substr( $verdict->get_error_message(), 0, 300 );
+				\Agentimus\Integrations\Connections::store( Services\LinkedIn::ID, $row );
+			}
+		}
+
+		return new \WP_REST_Response(
+			null,
+			302,
+			array( 'Location' => admin_url( 'admin.php?page=agentimus#integrations' ) )
+		);
+	}
+
+	/**
+	 * Save the SHARING use of LinkedIn — one switch; the member's own feed
+	 * is the destination.
+	 *
+	 * @param \WP_REST_Request $request The request.
+	 * @return \WP_REST_Response|\WP_Error
+	 */
+	private function save_linkedin_sharing( $request ) {
+		$enabled = ! empty( $request->get_param( 'enabled' ) );
+
+		if ( $enabled && ! Services\LinkedIn::connected() ) {
+			return new \WP_Error(
+				'agentimus_linkedin_disconnected',
+				__( 'Connect LinkedIn first — on the Services tab. Announcing posts through your own app.', 'agentimus' ),
+				array( 'status' => 400 )
+			);
+		}
+		if ( $enabled && Services\LinkedIn::expired() ) {
+			return new \WP_Error(
+				'agentimus_linkedin_expired',
+				__( 'LinkedIn’s sixty days ran out — reconnect on the Services tab first.', 'agentimus' ),
+				array( 'status' => 400 )
+			);
+		}
+
+		$this->store( array( 'linkedin_share_enabled' => $enabled ) );
+		return rest_ensure_response( $this->payload() );
+	}
+
+	/**
+	 * One labelled test post to the member's own feed — a REAL public post.
+	 *
+	 * @return \WP_REST_Response|\WP_Error
+	 */
+	private function test_linkedin_sharing() {
+		if ( ! Services\LinkedIn::sharing_active( $this->settings ) ) {
+			return new \WP_Error(
+				'agentimus_linkedin_sharing_off',
+				__( 'Turn announcing on first — the test posts to your own feed.', 'agentimus' ),
+				array( 'status' => 400 )
+			);
+		}
+
+		$verdict = Services\LinkedIn::announce( __( 'A test from Agentimus — announcements this site schedules will appear here like this.', 'agentimus' ) );
+		if ( is_wp_error( $verdict ) ) {
+			return new \WP_Error( $verdict->get_error_code(), $verdict->get_error_message(), array( 'status' => 400 ) );
+		}
+		return rest_ensure_response( $this->payload() );
+	}
+
+	/**
+	 * Disconnect LinkedIn: forget the grant (LinkedIn offers no revocation
+	 * endpoint for member tokens — the sixty-day clock is the reaper) and
+	 * halt the sharing use with it.
+	 *
+	 * @return \WP_REST_Response
+	 */
+	private function disconnect_linkedin() {
+		Services\LinkedIn::forget();
+		$this->store( array( 'linkedin_share_enabled' => false ) );
+		return rest_ensure_response( $this->payload() );
+	}
+
 	/**
 	 * Disconnect Telegram: switch off, forget the chat, the choices, the
 	 * token, the state and its queue rows — and the sharing use with them,
@@ -773,154 +860,6 @@ final class Rest {
 		$this->after_disconnect( Sheets::ID );
 
 		return rest_ensure_response( $this->payload() );
-	}
-
-	/* -- The private feed ------------------------------------------------------ */
-
-	/**
-	 * Connect (or save) the feed. There is nothing to prove — no receiver
-	 * exists until a reader shows up — so the gate is only the event choices.
-	 * A connect mints the token and answers with the tokened URL, the one
-	 * appearance the plaintext ever makes; a save keeps the standing token, so
-	 * every reader's URL survives a checkbox edit.
-	 *
-	 * @param \WP_REST_Request $request The request.
-	 * @param bool             $mint    Whether to mint a fresh token (connect).
-	 * @return \WP_REST_Response|\WP_Error
-	 */
-	private function save_feed( $request, $mint ) {
-		$events = $this->events_param( $request );
-		if ( is_wp_error( $events ) ) {
-			return $events;
-		}
-
-		// Saving without ever having connected is a connect in disguise: no
-		// token exists yet, so no reader could ever be let in.
-		if ( ! $mint && ! Feed::has_token() ) {
-			$mint = true;
-		}
-
-		$this->store(
-			array(
-				'feed_enabled' => true,
-				'feed_events'  => $events,
-			)
-		);
-
-		$token = $mint ? Feed::mint_token() : '';
-
-		( new Events( $this->settings ) )->sync_findings_schedule();
-
-		$payload = $this->payload();
-		if ( '' !== $token ) {
-			// The one appearance the tokened URL ever makes.
-			$payload['feedUrl'] = Feed::url( $token );
-		}
-		return rest_ensure_response( $payload );
-	}
-
-	/**
-	 * Regenerate: a fresh token for a standing feed — the rotation path when
-	 * the URL leaked or was lost. Every reader holding the old URL is out the
-	 * moment this saves; the new URL is returned once, like connect's.
-	 *
-	 * @return \WP_REST_Response|\WP_Error
-	 */
-	private function regenerate_feed() {
-		if ( ! Feed::config( $this->settings )['enabled'] ) {
-			return new \WP_Error( 'agentimus_not_connected', __( 'Connect the feed first.', 'agentimus' ), array( 'status' => 400 ) );
-		}
-		$payload            = $this->payload();
-		$payload['feedUrl'] = Feed::url( Feed::mint_token() );
-		return rest_ensure_response( $payload );
-	}
-
-	/**
-	 * Disconnect the feed: switch off, forget the choices, delete the token,
-	 * the ring, the state and its queue rows. The URL goes dark mid-poll —
-	 * which is exactly what disconnecting a private feed means.
-	 *
-	 * @return \WP_REST_Response
-	 */
-	private function disconnect_feed() {
-		$this->store(
-			array(
-				'feed_enabled' => false,
-				'feed_events'  => array(),
-			)
-		);
-
-		Feed::forget_token();
-		Feed::forget_ring();
-		Feed::forget_state();
-		$this->after_disconnect( Feed::ID );
-
-		return rest_ensure_response( $this->payload() );
-	}
-
-	/**
-	 * GET /integrations/feed — the feed itself, for whoever holds the URL.
-	 *
-	 * The refusal is ONE uniform 401 for every wrong way in — no token, a
-	 * wrong token, a feed that is off or was never connected — so the answer
-	 * never hints whether a feed exists behind the door. An authorized fetch
-	 * is recorded (the card's honesty line) and answers in the asked format:
-	 * RSS 2.0 by default, JSON Feed 1.1 for ?format=json.
-	 *
-	 * @param \WP_REST_Request $request The request.
-	 * @return \WP_REST_Response|\WP_Error
-	 */
-	public function feed( $request ) {
-		$token = (string) $request->get_param( 'token' );
-		if ( ! Feed::connected( $this->settings ) || ! Feed::verify_token( $token ) ) {
-			return new \WP_Error( 'agentimus_unauthorized', __( 'Unauthorized.', 'agentimus' ), array( 'status' => 401 ) );
-		}
-
-		Feed::record_fetch();
-
-		$items = Feed::items( Feed::ring(), $this->open_findings() );
-
-		if ( 'json' === (string) $request->get_param( 'format' ) ) {
-			$response = new \WP_REST_Response( Feed::json_document( $items ) );
-			$response->header( 'Content-Type', 'application/feed+json; charset=utf-8' );
-			// The URL is a key: no shared cache may keep what it unlocks.
-			$response->header( 'Cache-Control', 'private, no-store' );
-			return $response;
-		}
-
-		$xml      = Feed::rss_document( $items );
-		$response = new \WP_REST_Response( null );
-		$response->header( 'Content-Type', 'application/rss+xml; charset=utf-8' );
-		$response->header( 'Cache-Control', 'private, no-store' );
-		// XML through a JSON server: serve the body ourselves. The filter is
-		// added inside this request's handler, so it can only ever see this
-		// request's serve.
-		add_filter(
-			'rest_pre_serve_request',
-			static function ( $served ) use ( $xml ) {
-				if ( ! $served ) {
-					echo $xml; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- a complete XML document; every interpolated value was escaped at build time (Feed::rss_document).
-				}
-				return true;
-			}
-		);
-		return $response;
-	}
-
-	/**
-	 * The findings the feed lists as standing items — and a broken findings
-	 * source must never take the feed's events with it, so any failure here
-	 * is an empty list, not a 500 mid-poll.
-	 *
-	 * @return array<int,array>
-	 */
-	private function open_findings() {
-		try {
-			$payload = ( new Findings( $this->settings ) )->all();
-			return isset( $payload['findings'] ) ? (array) $payload['findings'] : array();
-		} catch ( \Throwable $e ) {
-			return array();
-		}
 	}
 
 	/* -- The URL-shaped services (Slack, Discord) ----------------------------- */
@@ -1114,7 +1053,6 @@ final class Rest {
 		$slack      = Slack::config( $this->settings );
 		$discord    = Discord::config( $this->settings );
 		$sheets     = Sheets::config( $this->settings );
-		$feed       = Feed::config( $this->settings );
 
 		return array(
 			'webhook'  => array(
@@ -1160,16 +1098,6 @@ final class Rest {
 				'queued'      => $dispatcher->depth_for( Sheets::ID ),
 				'state'       => Sheets::state(),
 			),
-			'feed'     => array(
-				'enabled'       => $feed['enabled'],
-				'events'        => $feed['events'],
-				// The token's existence and the fetch history — never the
-				// token. The URL appears once, in the response that minted it.
-				'hasToken'      => Feed::has_token(),
-				'lastFetchedAt' => Feed::last_fetched_at(),
-				'queued'        => $dispatcher->depth_for( Feed::ID ),
-				'state'         => Feed::state(),
-			),
 			'events'   => $catalog,
 			'plugins'  => $plugins,
 			// The SHARING tab's read: each network's use of its shared
@@ -1196,6 +1124,20 @@ final class Rest {
 					'hasClientId'  => '' !== Services\X::connection()['client_id'],
 					'queued'       => isset( $announce['networks']['x'] ) ? $announce['networks']['x']['queued'] : 0,
 					'lastSentAt'   => isset( $announce['networks']['x'] ) ? $announce['networks']['x']['lastSentAt'] : 0,
+				),
+				'linkedin' => array(
+					'enabled'      => Services\LinkedIn::sharing_config( $this->settings )['enabled'],
+					'connected'    => Services\LinkedIn::connected(),
+					'expired'      => Services\LinkedIn::expired(),
+					'expiresAt'    => Services\LinkedIn::connection()['expires_at'],
+					'active'       => Services\LinkedIn::sharing_active( $this->settings ),
+					'name'         => Services\LinkedIn::connection()['name'],
+					'connectError' => Services\LinkedIn::connection()['connect_error'],
+					'callbackUrl'  => Services\LinkedIn::callback_url(),
+					'hasSecret'    => '' !== Services\LinkedIn::connection()['client_secret'],
+					'clientId'     => Services\LinkedIn::connection()['client_id'],
+					'queued'       => isset( $announce['networks']['linkedin'] ) ? $announce['networks']['linkedin']['queued'] : 0,
+					'lastSentAt'   => isset( $announce['networks']['linkedin'] ) ? $announce['networks']['linkedin']['lastSentAt'] : 0,
 				),
 				'ledger'   => array(
 					'total'    => $announce['total'],

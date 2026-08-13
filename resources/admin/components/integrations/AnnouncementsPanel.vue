@@ -131,7 +131,7 @@ export default {
       return relTimeShort(seconds * 1000);
     },
     networkWord(id) {
-      return { telegram: 'Telegram', x: 'X (Twitter)' }[id] || id;
+      return { telegram: 'Telegram', x: 'X (Twitter)', linkedin: 'LinkedIn' }[id] || id;
     },
     // The first-timer button: the road starts where connections live.
     goSharing() {

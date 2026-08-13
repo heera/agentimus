@@ -38,7 +38,7 @@ export default {
   <IntegrationCard
     mark="Dc"
     name="Discord"
-    blurb="The same events, posted to a server you run."
+    blurb="The same events, posted to a channel on a server you run — the team room for creators and communities that live on Discord."
     :chip="chip"
     :action="action"
     @act="$emit('open')"

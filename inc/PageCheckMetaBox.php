@@ -77,6 +77,7 @@ final class PageCheckMetaBox {
 			: esc_html__( 'Looks good — nothing to improve.', 'agentimus' );
 
 		echo '<p class="agentimus-pc__head">' . esc_html( $head ) . '</p>';
+		echo '<p class="agentimus-pc__reflect">' . esc_html__( 'Updates when you save.', 'agentimus' ) . '</p>';
 
 		echo '<ul class="agentimus-pc__list">';
 		foreach ( $rows as $r ) {
@@ -117,7 +118,6 @@ final class PageCheckMetaBox {
 		}
 		echo '</ul>';
 
-		echo '<p class="agentimus-pc__reflect">' . esc_html__( 'Updates when you save.', 'agentimus' ) . '</p>';
 		echo '</div>';
 		return (string) ob_get_clean();
 	}
@@ -128,7 +128,7 @@ final class PageCheckMetaBox {
 	 * @return string
 	 */
 	public static function css() {
-		return '.agentimus-pc__head{margin:0 0 10px;font-weight:600;font-size:13px}'
+		return '.agentimus-pc__head{margin:0 0 2px;font-weight:600;font-size:13px}'
 			. '.agentimus-pc__list{margin:0;padding:0;list-style:none}'
 			. '.agentimus-pc__row{display:flex;gap:9px;align-items:flex-start;padding:7px 0;border-top:1px solid #f0f0f1;font-size:13px}'
 			. '.agentimus-pc__row:first-child{border-top:0}'
@@ -138,7 +138,7 @@ final class PageCheckMetaBox {
 			. '.agentimus-pc__row.is-fail .agentimus-pc__mark{background:#d63638}'
 			. '.agentimus-pc__text{display:block}'
 			. '.agentimus-pc__detail{display:block;color:#646970;margin-top:2px}'
-			. '.agentimus-pc__reflect{color:#646970;font-size:12px;margin:10px 0 0}'
+			. '.agentimus-pc__reflect{color:#646970;font-size:12px;margin:0 0 10px}'
 			// The featured row's one-click, dressed like the Fix-with-AI button but
 			// styled here (its own class keeps it out of that handler's reach).
 			. '.agentimus-pc__genfeat{display:inline-flex;align-items:center;gap:4px;margin-top:6px;background:none;border:1px solid #c3c4c7;border-radius:3px;padding:2px 8px;font-size:12px;color:#2271b1;cursor:pointer}'

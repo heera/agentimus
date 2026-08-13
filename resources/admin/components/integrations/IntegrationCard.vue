@@ -21,7 +21,8 @@ export default {
     mark: { type: String, required: true },
     name: { type: String, required: true },
     blurb: { type: String, required: true },
-    // { label, tone } — tone 'on' (Connected/Described) or '' (everything quiet).
+    // { label, tone } — 'on' (Connected/Described), 'err' (needs the owner's
+    // hand — LinkedIn's expired grant), or '' (everything quiet).
     chip: { type: Object, required: true },
     // Button label, or empty for no control at all.
     action: { type: String, default: '' },
@@ -42,7 +43,7 @@ export default {
     <!-- The card's own status line (the webhook's last delivered / last error). -->
     <slot name="note"></slot>
     <div class="ar-int__foot">
-      <span class="ar-int__chip" :class="{ 'is-on': chip.tone === 'on' }">{{ chip.label }}</span>
+      <span class="ar-int__chip" :class="{ 'is-on': chip.tone === 'on', 'is-err': chip.tone === 'err' }">{{ chip.label }}</span>
       <a
         v-if="action && actionHref"
         class="ar-int__act"

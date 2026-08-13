@@ -41,7 +41,7 @@ export default {
   <IntegrationCard
     mark="Wh"
     name="Webhook"
-    blurb="Events from this site, sent to any URL as signed JSON — the door to Zapier, Make, n8n and your own scripts."
+    blurb="For every tool this shelf doesn't name. Agentimus sends each event to one web address you paste — automation services like Zapier, Make and n8n catch it there and turn it into anything: an email, a task, a row in Notion. Developers get the same events as signed JSON for their own code."
     :chip="chip"
     :action="action"
     @act="$emit('open')"

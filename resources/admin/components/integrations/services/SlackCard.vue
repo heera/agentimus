@@ -38,7 +38,7 @@ export default {
   <IntegrationCard
     mark="Sl"
     name="Slack"
-    blurb="Events into a channel, where your team already looks."
+    blurb="New findings, impostor alerts and the weekly digest, posted into a channel you pick — your site speaking up where your team already works."
     :chip="chip"
     :action="action"
     @act="$emit('open')"

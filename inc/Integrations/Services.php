@@ -28,7 +28,6 @@ namespace Agentimus\Integrations;
 
 use Agentimus\Settings;
 use Agentimus\Integrations\Services\Discord;
-use Agentimus\Integrations\Services\Feed;
 use Agentimus\Integrations\Services\Sheets;
 use Agentimus\Integrations\Services\Slack;
 use Agentimus\Integrations\Services\Telegram;
@@ -50,7 +49,6 @@ final class Services {
 			Slack::ID    => Slack::class,
 			Discord::ID  => Discord::class,
 			Sheets::ID   => Sheets::class,
-			Feed::ID     => Feed::class,
 		);
 	}
 

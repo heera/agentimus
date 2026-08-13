@@ -132,6 +132,25 @@
 
 /* Ruled footer: the rule runs edge to edge — the card's side padding steps
    aside for it, so the footer reads as the card's base, not a boxed row. */
+/* The catch-all's full-width slot (his call): Webhook closes the Services
+   shelf spanning every column, grounded on surface-2 so the generic door
+   reads as a different kind of thing from the branded cards above it. The
+   blurb gets a reading-width cap — full-width text lines would be a walk. */
+.ar-int__wide { grid-column: 1 / -1; min-width: 0; }
+.ar-int__wide .ar-int__card { background: var(--ar-surface-2); }
+.ar-int__wide .ar-int__blurb { max-width: 84ch; }
+
+/* The Sharing cards' feet fill the card (his call): one action per line,
+   edge to edge, the same at every width. */
+.ar-int__foot--fill {
+  flex-direction: column;
+  align-items: stretch;
+}
+.ar-int__foot--fill .ar-btn {
+  width: 100%;
+  text-align: center;
+}
+
 .ar-int__foot {
   display: flex;
   align-items: center;
@@ -168,6 +187,13 @@
   color: var(--ar-good);
   background: var(--ar-good-wash);
   border-color: var(--ar-good-tint);
+}
+/* The needs-a-hand tone — LinkedIn's expired grant wears it: not broken
+   machinery, a calendar that ran out and wants the owner back. */
+.ar-int__chip.is-err {
+  color: var(--ar-bad);
+  background: var(--ar-bad-wash);
+  border-color: var(--ar-bad-tint);
 }
 
 /* The uniform ghost action: quiet ink at rest, the accent ONLY on hover —

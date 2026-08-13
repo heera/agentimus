@@ -50,7 +50,7 @@ final class Announcements {
 	const HISTORY_MAX = 200;
 
 	/** The networks announcing knows today. Each entry is a sharing use that can send. */
-	const NETWORKS = array( 'telegram', 'x' );
+	const NETWORKS = array( 'telegram', 'x', 'linkedin' );
 
 	/** @var Settings */
 	private $settings;
@@ -98,10 +98,29 @@ final class Announcements {
 		if ( 'x' === $network && ! Services\X::sharing_active( $this->settings ) ) {
 			return new \WP_Error( 'agentimus_announce_off', __( 'Announcing on X is not set up — turn it on under Integrations → Sharing first.', 'agentimus' ) );
 		}
+		if ( 'linkedin' === $network && ! Services\LinkedIn::sharing_active( $this->settings ) ) {
+			return new \WP_Error(
+				'agentimus_announce_off',
+				Services\LinkedIn::expired()
+					? __( 'LinkedIn’s sixty days ran out — reconnect under Integrations → Services first.', 'agentimus' )
+					: __( 'Announcing on LinkedIn is not set up — turn it on under Integrations → Sharing first.', 'agentimus' )
+			);
+		}
 
 		$body = trim( (string) ( isset( $args['body'] ) ? $args['body'] : '' ) );
 		if ( '' === $body ) {
 			return new \WP_Error( 'agentimus_announce_empty', __( 'There is nothing to post — the draft is empty.', 'agentimus' ) );
+		}
+		if ( 'linkedin' === $network && mb_strlen( $body ) > Services\LinkedIn::LIMIT ) {
+			return new \WP_Error(
+				'agentimus_announce_long',
+				sprintf(
+					/* translators: 1: LinkedIn's limit, 2: the draft's length. */
+					__( 'Longer than LinkedIn allows — the limit is %1$d and this draft is %2$d. Trim it before it’s promised.', 'agentimus' ),
+					Services\LinkedIn::LIMIT,
+					mb_strlen( $body )
+				)
+			);
 		}
 		if ( 'x' === $network && Services\X::tweet_length( $body ) > Services\X::LIMIT ) {
 			return new \WP_Error(
@@ -356,6 +375,9 @@ final class Announcements {
 		}
 		if ( 'x' === $row['network'] ) {
 			return Services\X::announce( $row['body'] );
+		}
+		if ( 'linkedin' === $row['network'] ) {
+			return Services\LinkedIn::announce( $row['body'] );
 		}
 		// A row from a build that knew more networks than this one: parked as
 		// failed with an honest sentence, never guessed at.

@@ -202,6 +202,8 @@ final class Settings {
 				// the destination. The grant itself lives in the connection
 				// store, never here.
 				'x_share_enabled'        => false,
+				// LinkedIn: the same bare switch, the same runtime question.
+				'linkedin_share_enabled' => false,
 				// Slack: an incoming-webhook URL is the whole credential (Slack's
 				// own design), so it rides here like the webhook's URL does.
 				'slack_enabled'    => false,
@@ -217,12 +219,6 @@ final class Settings {
 				'sheets_enabled'      => false,
 				'sheets_spreadsheet'  => '',
 				'sheets_events'       => array(),
-				// The private feed: PULL, not push — readers come to a tokened
-				// URL. The token is Services\Feed's own option (minted like the
-				// MCP connection token, shown once); only the switch and the
-				// event choices live here.
-				'feed_enabled'        => false,
-				'feed_events'         => array(),
 			),
 		);
 
@@ -823,6 +819,7 @@ final class Settings {
 			// X: a bare switch — whether a grant stands behind it is the
 			// connection store's runtime question, like Sheets' borrowed key.
 			'x_share_enabled'        => ! empty( $int_in['x_share_enabled'] ),
+			'linkedin_share_enabled' => ! empty( $int_in['linkedin_share_enabled'] ),
 			// Slack: the same collapse — no URL, no connection.
 			'slack_enabled'    => ! empty( $int_in['slack_enabled'] ) && '' !== $slack_url,
 			'slack_url'        => $slack_url,
@@ -837,11 +834,6 @@ final class Settings {
 			'sheets_enabled'      => ! empty( $int_in['sheets_enabled'] ) && '' !== $sheets_spreadsheet,
 			'sheets_spreadsheet'  => $sheets_spreadsheet,
 			'sheets_events'       => $this->sanitize_integration_events( $int_in, 'sheets_events' ),
-			// The feed: no address to collapse against — its credential (the
-			// token) is Services\Feed's own option, so whether it still exists
-			// is connected()'s runtime question, exactly like Sheets' key.
-			'feed_enabled'        => ! empty( $int_in['feed_enabled'] ),
-			'feed_events'         => $this->sanitize_integration_events( $int_in, 'feed_events' ),
 		);
 
 		// Kept VERBATIM — no intersect with what is registered today. See the
