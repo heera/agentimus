@@ -4,10 +4,13 @@
  * learns what the site saw without any vendor between them.
  *
  * The shape of the trust: the owner mints a bot with @BotFather and pastes its
- * TOKEN here; the token is the credential, so it lives the way the webhook's
- * secret does — its own option, never in the settings array the admin app
- * round-trips, and no status surface ever prints it back. The CHAT ID is an
- * address, not a secret; it rides in settings like the webhook's URL.
+ * TOKEN here; the token is the credential, so it lives in the shared
+ * connection store — never in the settings array the admin app round-trips,
+ * and no status surface ever prints it back. The store is what lets a second
+ * use (announcing posts) ride the same bot without a second token form. The
+ * CHAT ID is an address, not a secret, and it belongs to THIS use — events to
+ * the owner's chat and announcements to a public channel are different rooms
+ * for different audiences — so it rides in settings like the webhook's URL.
  *
  * Connect proves the whole road before it stores anything, in two steps that
  * fail with two different sentences: getMe proves the TOKEN is a bot Telegram
@@ -29,6 +32,7 @@ namespace Agentimus\Integrations\Services;
 
 use Agentimus\Findings;
 use Agentimus\Settings;
+use Agentimus\Integrations\Connections;
 use Agentimus\Integrations\DeliveryState;
 use Agentimus\Integrations\Events;
 
@@ -39,7 +43,11 @@ final class Telegram {
 	/** This connection's id in settings, state and queue rows. */
 	const ID = 'telegram';
 
-	/** Option: the bot token. Its own option, never in the settings array. */
+	/**
+	 * Option: where the token lived before the shared connection store. Reads
+	 * still adopt it so an install that connected under the old build keeps
+	 * its bot without anyone retyping anything.
+	 */
 	const TOKEN_OPTION = 'agentimus_integrations_telegram_token';
 
 	/** Telegram's Bot API root. */
@@ -126,16 +134,90 @@ final class Telegram {
 		return preg_match( '/^(@[A-Za-z0-9_]{1,64}|-?[0-9]{1,32})$/', $chat ) ? $chat : '';
 	}
 
+	/* -- The sharing use ------------------------------------------------------ */
+
+	/**
+	 * The stored SHARING use of this bot — announcing posts to a channel. Its
+	 * own switch and its own destination, deliberately apart from the events
+	 * use above: events tell the OWNER (a private chat), announcements tell
+	 * the READERS (a public channel), and one shared field would quietly
+	 * invite both mistakes.
+	 *
+	 * @param Settings $settings Plugin settings.
+	 * @return array{enabled:bool,channel:string}
+	 */
+	public static function sharing_config( Settings $settings ) {
+		$integrations = (array) $settings->get( 'integrations', array() );
+		return array(
+			'enabled' => ! empty( $integrations['telegram_share_enabled'] ),
+			'channel' => isset( $integrations['telegram_share_channel'] ) ? (string) $integrations['telegram_share_channel'] : '',
+		);
+	}
+
+	/**
+	 * Whether the sharing use could deliver: switched on, has a channel, and
+	 * the shared connection holds the bot. The token check is what makes
+	 * "connected in Services" count here too — one credential, two uses.
+	 *
+	 * @param Settings $settings Plugin settings.
+	 * @return bool
+	 */
+	public static function sharing_active( Settings $settings ) {
+		$config = self::sharing_config( $settings );
+		return $config['enabled'] && '' !== $config['channel'] && self::has_token();
+	}
+
+	/**
+	 * Post one announcement to the sharing channel — the queue's send path.
+	 * One send, one verdict; what happens to a failed row is the queue's
+	 * business, and the queue's law there is the OWNER's hand, never a retry.
+	 *
+	 * @param string $text The announcement, posted verbatim.
+	 * @return true|\WP_Error True, or Telegram's own words on what went wrong.
+	 */
+	public static function announce( $text ) {
+		$settings = new Settings();
+		if ( ! self::sharing_active( $settings ) ) {
+			return new \WP_Error( 'agentimus_telegram_sharing_off', __( 'Announcing by Telegram is not set up.', 'agentimus' ) );
+		}
+		return self::send( self::token(), self::sharing_config( $settings )['channel'], (string) $text );
+	}
+
+	/**
+	 * Prove the announcement road: one test post to the channel, in the
+	 * sharing use's own words — the events connect-sentence would promise the
+	 * wrong thing in a room readers can see.
+	 *
+	 * @param string $channel The channel to prove.
+	 * @return true|\WP_Error True, or the sentence naming what to fix.
+	 */
+	public static function prove_channel( $channel ) {
+		$verdict = self::send(
+			self::token(),
+			$channel,
+			__( 'Agentimus connected. Announcements you schedule will be posted here.', 'agentimus' )
+		);
+		if ( is_wp_error( $verdict ) ) {
+			return new \WP_Error(
+				'agentimus_telegram_channel',
+				__( 'The bot couldn’t post to that channel. Check the @name — and make sure the bot has been added to the channel as an admin, because Telegram only lets admins post.', 'agentimus' )
+			);
+		}
+		return true;
+	}
+
 	/* -- The token ----------------------------------------------------------- */
 
 	/**
 	 * Store the owner-supplied bot token — the credential BotFather minted,
-	 * never one of ours.
+	 * never one of ours. It lands in the shared connection store, the one
+	 * home every use of this bot reads.
 	 *
 	 * @param string $token The bot token.
 	 */
 	public static function store_token( $token ) {
-		update_option( self::TOKEN_OPTION, (string) $token, false );
+		Connections::store( self::ID, array( 'token' => (string) $token ) );
+		delete_option( self::TOKEN_OPTION );
 	}
 
 	/**
@@ -144,22 +226,37 @@ final class Telegram {
 	 * @return bool
 	 */
 	public static function has_token() {
-		$token = get_option( self::TOKEN_OPTION, '' );
-		return is_string( $token ) && '' !== $token;
+		return '' !== self::token();
 	}
 
 	/**
-	 * The stored token, for the delivery path.
+	 * The stored token, for the delivery path. A token stored before the
+	 * shared store existed is adopted on first read — moved, not copied, so
+	 * the credential keeps exactly one home.
 	 *
 	 * @return string
 	 */
 	public static function token() {
-		$token = get_option( self::TOKEN_OPTION, '' );
-		return is_string( $token ) ? $token : '';
+		$row = Connections::read( self::ID );
+		if ( isset( $row['token'] ) && is_string( $row['token'] ) && '' !== $row['token'] ) {
+			return $row['token'];
+		}
+
+		$legacy = get_option( self::TOKEN_OPTION, '' );
+		if ( is_string( $legacy ) && '' !== $legacy ) {
+			Connections::store( self::ID, array( 'token' => $legacy ) );
+			delete_option( self::TOKEN_OPTION );
+			return $legacy;
+		}
+		return '';
 	}
 
-	/** Forget the token — the disconnect path. */
+	/**
+	 * Forget the token — the disconnect path for EVERY use of this bot, and
+	 * the surface that offers the button owes the owner that sentence.
+	 */
 	public static function forget_token() {
+		Connections::forget( self::ID );
 		delete_option( self::TOKEN_OPTION );
 	}
 

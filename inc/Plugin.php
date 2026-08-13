@@ -135,6 +135,7 @@ final class Plugin {
 		( new Integrations\Dispatcher( $this->settings ) )->register(); // Outgoing-event queue drain (cron). Inert — not one hook — until the webhook is connected.
 		( new Integrations\Events( $this->settings ) )->register(); // The listeners that feed that queue, + the daily findings diff. Same inertness.
 		( new Integrations\Rest( $this->settings ) )->register(); // The Integrations screen's routes — unconditional, they are how the webhook gets connected.
+		( new Integrations\Announcements( $this->settings ) )->register(); // The scheduled-announcements drain. Inert — not one hook — until a row is queued.
 		( new ReviewBadge( $this->settings ) )->register(); // Review-queue count on the admin menu + Heartbeat live updates (admin-only; no-ops on the front end).
 		( new Abilities\AdapterBootstrap( $this->settings ) )->register(); // Boots the bundled MCP Adapter when the owner opts in (inert otherwise).
 		( new Abilities\Registrar( $this->settings ) )->register(); // Exposes our own read capabilities to the WP admin AI + MCP (no-ops pre-6.9).
@@ -410,6 +411,7 @@ final class Plugin {
 		Google\Module::unschedule();
 		Digest\Module::unschedule();
 		wp_clear_scheduled_hook( Integrations\Dispatcher::CRON ); // The queue rows stay (an option); the drain reschedules itself on the next boot.
+		wp_clear_scheduled_hook( Integrations\Announcements::CRON ); // Same shape: queued announcements stay, register() re-arms on the next boot.
 		wp_clear_scheduled_hook( Integrations\Events::CRON_FINDINGS );
 		BotRanges::clear_schedule();
 		RouteProbe::clear_schedule();

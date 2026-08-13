@@ -56,7 +56,7 @@
   --ar-note-glow: #d2bd8e;
 }
 /* The two hue-carrying literals in the dark overrides go neutral with it. */
-:root[data-ar-theme="dark"] body.admin-color-modern .ar-btn:hover:not(:disabled) { background: #383838; }
+:root[data-ar-theme="dark"] body.admin-color-modern .ar-btn:hover:not(:disabled):not(.ar-btn--danger) { background: #383838; }
 /* The parchment gold at the base 55% made a bright frame on the near-black —
    the card's border sits a step darker here (his call, 2026-08-12). */
 :root[data-ar-theme="dark"] body.admin-color-modern .ar-aud__note {
@@ -94,7 +94,7 @@
   --ar-note-gold: #af9a6d;
   --ar-note-glow: #af9a6d;
 }
-:root[data-ar-theme="dark"] body.admin-color-coffee .ar-btn:hover:not(:disabled) { background: #4a453f; }
+:root[data-ar-theme="dark"] body.admin-color-coffee .ar-btn:hover:not(:disabled):not(.ar-btn--danger) { background: #4a453f; }
 :root[data-ar-theme="dark"] body.admin-color-coffee .ar-about-snippet { background: #181715; }
 /* Coffee's card, his hue pair (2026-08-12): the ground casts from a brighter
    brass (#cda54e) than the bronze the text wears, and the frame is a flat

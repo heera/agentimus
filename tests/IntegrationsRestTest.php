@@ -136,7 +136,7 @@ final class IntegrationsRestTest extends TestCase {
 
 		$this->assertInstanceOf( \WP_Error::class, $verdict );
 		$this->assertSame( 'agentimus_sheets_nokey', $verdict->get_error_code() );
-		$this->assertStringContainsString( 'Data sources', $verdict->get_error_message() );
+		$this->assertStringContainsString( 'Data Sources', $verdict->get_error_message() );
 		$this->assertNull( $GLOBALS['_af_http_last'], 'No key = no proof call to make.' );
 	}
 

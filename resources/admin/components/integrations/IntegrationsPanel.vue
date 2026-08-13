@@ -37,6 +37,7 @@ import SheetsCard from './services/SheetsCard.vue';
 import FeedCard from './services/FeedCard.vue';
 import PluginCard from './plugins/PluginCard.vue';
 import { copyText } from '../../js/clipboard.js';
+import { relTimeShort } from '../../js/wpDate.js';
 import { confirm } from '../../js/confirm.js';
 import { bindDocEsc } from '../../js/docEsc.js';
 
@@ -53,7 +54,7 @@ export default {
   emits: ['flash'],
   data() {
     return {
-      view: 'plugins',
+      view: 'services',
       devGuide: DEV_GUIDE,
       loading: false,
       loaded: false,
@@ -66,6 +67,17 @@ export default {
       feed: { enabled: false, events: [], hasToken: false, lastFetchedAt: 0, queued: 0, state: { lastDeliveredAt: 0, lastError: '', lastErrorAt: 0 } },
       events: [],
       plugins: [],
+      // The SHARING tab's read: each network's use of its shared connection,
+      // plus the ledger at a glance for the roll-up line.
+      sharing: {
+        telegram: { enabled: false, channel: '', hasToken: false, active: false, queued: 0, lastSentAt: 0 },
+        ledger: { total: 0, queued: 0, sentWeek: 0, failed: 0 },
+      },
+      // The sharing form is inline (there is no credential to take, so no
+      // modal): the channel being typed, and its own error and busy flags.
+      shareTg: { channel: '' },
+      shareError: '',
+      shareSaving: false,
       // Which service's focused panel is open ('' = none, one at a time).
       panel: '',
       form: { url: '', events: [] },
@@ -88,7 +100,7 @@ export default {
   computed: {
     // The open service's name over the modal — one shell, one title slot.
     modalTitle() {
-      return { webhook: 'Webhook', telegram: 'Telegram', slack: 'Slack', discord: 'Discord', sheets: 'Google Sheets', feed: 'Private feed' }[this.panel] || '';
+      return { webhook: 'Webhook', telegram: 'Telegram', slack: 'Slack', discord: 'Discord', sheets: 'Google Sheets', feed: 'Private Feed' }[this.panel] || '';
     },
   },
   watch: {
@@ -137,6 +149,12 @@ export default {
       this.feed = data.feed || this.feed;
       this.events = data.events || [];
       this.plugins = data.plugins || [];
+      if (data.sharing) {
+        this.sharing = data.sharing;
+        // The form starts from what is stored; apply() only runs after a load
+        // or a save, so this never overwrites mid-typing.
+        this.shareTg.channel = data.sharing.telegram.channel || this.shareTg.channel;
+      }
     },
     // A fresh connect starts with every box ticked — subscribing to nothing is
     // the one setup that can never be what anyone meant, and the server
@@ -246,6 +264,74 @@ export default {
         this.formError = e.message || 'Could not save the webhook.';
       } finally {
         this.saving = false;
+      }
+    },
+    // The announcing state line — the sharing counterpart of the Services
+    // cards' delivery note: the last send and what's waiting, or the honest
+    // "none yet".
+    sharingStateLine() {
+      const tg = this.sharing.telegram;
+      const parts = [];
+      if (tg.lastSentAt) parts.push(`Last announcement ${relTimeShort(tg.lastSentAt * 1000)}`);
+      if (tg.queued) parts.push(`${tg.queued} queued`);
+      return parts.length ? parts.join(' · ') : 'No announcements yet.';
+    },
+    async testTelegramSharing() {
+      if (!this.api || this.shareSaving) return;
+      this.shareSaving = true;
+      this.shareError = '';
+      try {
+        this.apply(await this.api.actIntegrations({ action: 'share-test', service: 'telegram' }));
+        this.$emit('flash', 'success', 'Test posted — look at the channel.');
+      } catch (e) {
+        this.shareError = e.message || 'The test didn’t go.';
+      } finally {
+        this.shareSaving = false;
+      }
+    },
+    goAnnouncements() {
+      window.location.hash = '#announcements';
+    },
+    // The sharing use's one switch: on proves the channel with a test post
+    // (the server skips the proof for a channel it already proved); off keeps
+    // the channel, so coming back is one click. Off asks first (his call) —
+    // and the confirm tells the WHOLE truth: queued rows will park as failed
+    // at their minute, because a due promise with no door goes nowhere.
+    async saveTelegramSharing(on) {
+      if (!this.api || this.shareSaving) return;
+      if (!on) {
+        const ok = await confirm({
+          title: 'Turn off announcing?',
+          message: 'New announcements can’t be queued, and anything already queued parks as “Didn’t go” when its minute comes — retry it after turning announcing back on. The bot stays connected and the channel is kept: coming back is one click.',
+          confirmLabel: 'Turn off',
+          cancelLabel: 'Keep announcing',
+          tone: 'danger',
+        });
+        if (!ok) return;
+      }
+      this.shareSaving = true;
+      this.shareError = '';
+      // Whether the server will prove the road — only a channel it has not
+      // stored yet gets the test post, so only that save may claim one.
+      const proved = on && this.shareTg.channel !== this.sharing.telegram.channel;
+      try {
+        this.apply(await this.api.actIntegrations({
+          action: 'share',
+          service: 'telegram',
+          enabled: on,
+          channel: this.shareTg.channel,
+        }));
+        this.$emit(
+          'flash',
+          'success',
+          on
+            ? (proved ? 'Announcing is on — the channel just got its first post.' : 'Announcing is on.')
+            : 'Announcing is off. The channel is kept.'
+        );
+      } catch (e) {
+        this.shareError = e.message || 'Could not save the announcing setup.';
+      } finally {
+        this.shareSaving = false;
       }
     },
     async saveTelegram() {
@@ -459,7 +545,7 @@ export default {
       if (!this.api || this.saving) return;
       const ok = await confirm({
         title: 'Disconnect Telegram?',
-        message: 'Messages stop, anything still queued for Telegram is discarded, and the stored bot token is deleted. Reconnecting asks for the token again.',
+        message: 'Messages and announcements stop, anything still queued for Telegram is discarded, and the stored bot token is deleted from this site. The token itself keeps working at Telegram — if it may have leaked, also revoke it with @BotFather (/mybots → API Token).',
         confirmLabel: 'Disconnect',
         cancelLabel: 'Cancel',
         tone: 'danger',
@@ -521,15 +607,21 @@ export default {
       <button
         type="button"
         class="ar-subnav__item"
-        :class="{ 'is-active': view === 'plugins' }"
-        @click="view = 'plugins'"
-      >Plugins</button>
-      <button
-        type="button"
-        class="ar-subnav__item"
         :class="{ 'is-active': view === 'services' }"
         @click="view = 'services'"
       >Services</button>
+      <button
+        type="button"
+        class="ar-subnav__item"
+        :class="{ 'is-active': view === 'sharing' }"
+        @click="view = 'sharing'"
+      >Sharing</button>
+      <button
+        type="button"
+        class="ar-subnav__item"
+        :class="{ 'is-active': view === 'plugins' }"
+        @click="view = 'plugins'"
+      >Plugins</button>
     </nav>
 
     <div class="ar-tabpanel__body">
@@ -540,9 +632,12 @@ export default {
         <!-- PLUGINS: what this site describes on other plugins' behalf. -->
         <section v-show="view === 'plugins'">
           <p class="ar-int__lead">
+            <span class="ar-int__lead-i" aria-hidden="true"><svg viewBox="0 0 16 16" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M8 14.2A6.2 6.2 0 1 0 8 1.8a6.2 6.2 0 0 0 0 12.4Z" /><path d="M8 7.4v3.4" /><path d="M8 5.2h.01" /></svg></span>
+            <span class="ar-int__lead-t">
             Plugins Agentimus recognises here are <strong>described</strong> — their content joins what
             AI assistants can read about your site. Ones you don’t run are listed so you know what
             would be described if you did.
+            </span>
           </p>
           <div class="ar-int__grid">
             <PluginCard v-for="p in plugins" :key="p.id" :plugin="p" />
@@ -561,9 +656,12 @@ export default {
         <!-- SERVICES: what receives this site's own report events. -->
         <section v-show="view === 'services'">
           <p class="ar-int__lead">
+            <span class="ar-int__lead-i" aria-hidden="true"><svg viewBox="0 0 16 16" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M8 14.2A6.2 6.2 0 1 0 8 1.8a6.2 6.2 0 0 0 0 12.4Z" /><path d="M8 7.4v3.4" /><path d="M8 5.2h.01" /></svg></span>
+            <span class="ar-int__lead-t">
             Services receive <strong>events</strong> from this site — a new finding, a caught impostor,
             the weekly digest’s numbers. Your site’s own reports only, never your visitors’ data, and
             nothing is sent until you connect one.
+            </span>
           </p>
           <div class="ar-int__grid">
             <WebhookCard :webhook="webhook" @open="openPanel" />
@@ -574,6 +672,143 @@ export default {
             <FeedCard :feed="feed" @open="openFeed" />
           </div>
 
+        </section>
+
+        <!-- SHARING: what announcing uses the connections for. No credential
+             lives here — that is Services' business; this tab holds each
+             network's own switch and its own destination. -->
+        <section v-show="view === 'sharing'">
+          <p class="ar-int__lead">
+            <span class="ar-int__lead-i" aria-hidden="true"><svg viewBox="0 0 16 16" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M8 14.2A6.2 6.2 0 1 0 8 1.8a6.2 6.2 0 0 0 0 12.4Z" /><path d="M8 7.4v3.4" /><path d="M8 5.2h.01" /></svg></span>
+            <span class="ar-int__lead-t">
+            Announcing posts your <strong>Share drafts</strong> for real — the ones each post offers
+            under its Share tab. The connection itself lives on Services; here you pick where
+            announcements go. Events tell you, announcements tell your readers — two rooms, on purpose.
+            </span>
+          </p>
+          <div class="ar-int__grid">
+            <article class="ar-int__card">
+              <div class="ar-int__head">
+                <h3 class="ar-int__name">Telegram</h3>
+                <span class="ar-int__chip" :class="{ 'is-on': sharing.telegram.active }">
+                  {{ sharing.telegram.active ? 'Announcing' : (sharing.telegram.hasToken ? 'Off' : 'No bot yet') }}
+                </span>
+                <!-- The off switch lives in the title row (his call — a third
+                     button made the foot wrap): a power mark, named for
+                     readers who can't see it. -->
+                <button
+                  v-if="sharing.telegram.enabled"
+                  type="button"
+                  class="ar-int__power"
+                  :disabled="shareSaving"
+                  aria-label="Turn off announcing"
+                  @click="saveTelegramSharing(false)"
+                >
+                  <svg viewBox="0 0 16 16" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 1.6v6" /><path d="M11.9 3.9a5.6 5.6 0 1 1-7.8 0" /></svg>
+                </button>
+              </div>
+
+              <template v-if="!sharing.telegram.hasToken">
+                <p class="ar-int__blurb">
+                  Announcing uses the same bot as Services — connect it once and both work.
+                </p>
+                <div class="ar-int__foot">
+                  <button type="button" class="ar-btn ar-btn--ghost" @click="view = 'services'">
+                    Connect the bot on Services
+                  </button>
+                </div>
+              </template>
+
+              <template v-else>
+                <p class="ar-int__blurb">
+                  Your bot is connected. Announcements go to a channel of their own — readers’ room,
+                  not the chat your events use.
+                </p>
+                <div class="ar-field">
+                  <label for="ar-int-tg-share-channel">Channel</label>
+                  <input
+                    id="ar-int-tg-share-channel"
+                    v-model="shareTg.channel"
+                    type="text"
+                    class="ar-input"
+                    autocomplete="off"
+                    placeholder="@yourchannel"
+                    :disabled="shareSaving"
+                  />
+                  <p class="ar-field__hint">
+                    <code>@name</code> for a public channel you run, or a private one’s
+                    <code>-100…</code> number. Add the bot to the channel as an admin first —
+                    Telegram only lets admins post.
+                  </p>
+                </div>
+                <!-- The recipe shows only until announcing is ON — a finished
+                     setup doesn't need its tutorial. The hint above owns the
+                     vocabulary and the why; these steps own only the doing. -->
+                <details v-if="!sharing.telegram.enabled" class="ar-fold ar-fold--guide">
+                  <summary>Setting up the channel, step by step</summary>
+                  <ol class="ar-guide">
+                    <li>In Telegram: <strong>New Channel</strong> — name it for your readers.</li>
+                    <li>Make it <strong>Public</strong> and claim its <code>t.me/…</code> link — the part after <code>t.me/</code> goes in the field above.</li>
+                    <li>Open the channel → its name → <strong>Administrators → Add Admin</strong> → your bot, with <strong>Post Messages</strong> allowed.</li>
+                  </ol>
+                </details>
+                <p v-if="shareError" class="ar-int__moderr" role="alert">{{ shareError }}</p>
+                <p v-if="sharing.telegram.active" class="ar-int__note">{{ sharingStateLine() }}</p>
+                <div class="ar-int__foot">
+                  <button type="button" class="ar-btn" :disabled="shareSaving" @click="saveTelegramSharing(true)">
+                    {{ sharing.telegram.enabled ? 'Save' : 'Turn on announcing' }}
+                  </button>
+                  <button
+                    v-if="sharing.telegram.active"
+                    type="button"
+                    class="ar-btn ar-btn--ghost"
+                    :disabled="shareSaving"
+                    @click="testTelegramSharing"
+                  >Send a test announcement</button>
+                </div>
+              </template>
+            </article>
+
+          </div>
+
+          <!-- Not a card (his ruling): a fact with no switch, field or door is
+               TEACHING, not furniture — it answers "why aren't they here" in a
+               quiet line instead of dressing up as a network. -->
+          <p class="ar-int__aside">
+            Facebook and WhatsApp aren’t here — neither lets an app post (their rule), so their
+            Share-tab drafts stay copy-paste.
+          </p>
+
+          <!-- The mock's owed gold note — the Worth-knowing grammar (the
+               .ar-aud__note family is the app's worth-knowing dialect; the
+               aud- prefix is history, the churn rule keeps it): the one
+               scheduling truth the switches above don't say themselves. -->
+          <div class="ar-aud__note">
+            <p class="ar-aud__note-t">
+              <span class="ar-aud__note-i" aria-hidden="true">
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2.8a6.6 6.6 0 0 0-3.9 11.9c.8.6 1.3 1.5 1.3 2.4h5.2c0-.9.5-1.8 1.3-2.4A6.6 6.6 0 0 0 12 2.8z" /><path d="M9.9 20h4.2" /></svg>
+              </span>
+              Worth knowing
+            </p>
+            <!-- No divider here: the dashboard's pipe separates label from its
+                 chip COLUMNS — with one plain column there is nothing to part. -->
+            <div class="ar-aud__note-cols">
+              <span class="ar-aud__note-facts">
+                <span class="ar-aud__note-item">Announcements go out from your own server at the minute you set. If your site is asleep at that minute — small sites sometimes are — the post goes out on its next visit instead, and Announcements records when it really went.</span>
+              </span>
+            </div>
+          </div>
+
+          <!-- The ledger's one line here — the record itself lives on its own
+               screen (the boundary law); this is only the count and the door. -->
+          <div class="ar-int__ledgerline">
+            <p class="ar-int__ledgertext">
+              <strong>Scheduled Announcements</strong>
+              <template v-if="sharing.ledger.total"> — {{ sharing.ledger.queued }} queued · {{ sharing.ledger.sentWeek }} sent this week<template v-if="sharing.ledger.failed"> · <span class="ar-int__ledgerbad">{{ sharing.ledger.failed }} didn’t go</span></template></template>
+              <template v-else> — nothing yet. Queue one from a post’s Share tab.</template>
+            </p>
+            <button type="button" class="ar-btn ar-btn--ghost" @click="goAnnouncements">See them all</button>
+          </div>
         </section>
       </template>
     </div>
@@ -653,7 +888,7 @@ export default {
                   </div>
 
                   <fieldset class="ar-int__events">
-                    <legend>Which events to send</legend>
+                    <legend>Which Events to Send</legend>
                     <label v-for="ev in events" :key="ev.name" class="ar-int__event">
                       <input v-model="form.events" type="checkbox" :value="ev.name" :disabled="saving" />
                       <span class="ar-int__eventtext">
@@ -680,6 +915,19 @@ export default {
 
                 <!-- Telegram -->
                 <template v-else-if="panel === 'telegram'">
+                  <!-- The first-timer's whole recipe, folded — the returning
+                       user never pays for the tutorial (his teaching doctrine:
+                       the guide lives where the fields are, closed until asked),
+                       and a CONNECTED bot doesn't need its birth story at all. -->
+                  <details v-if="!telegram.hasToken" class="ar-fold ar-fold--guide">
+                    <summary>Never made a bot? The whole thing takes about three minutes</summary>
+                    <ol class="ar-guide">
+                      <li>In Telegram, open <code>@BotFather</code> and send <code>/newbot</code> — give the bot a name, then a username ending in <code>bot</code>.</li>
+                      <li>BotFather answers with a <strong>token</strong> — the long <code>123456:ABC…</code> code. That’s what you paste below. Lost it? <code>/mybots</code> → your bot → API Token.</li>
+                      <li><strong>Message your new bot once</strong> — open it and press Start. Telegram only lets a bot write to someone who wrote first.</li>
+                      <li>For the <strong>chat id</strong>: message <code>@userinfobot</code> and it replies with your number.</li>
+                    </ol>
+                  </details>
                   <div class="ar-field">
                     <label for="ar-int-tg-token">Bot token</label>
                     <input
@@ -717,7 +965,7 @@ export default {
                   </div>
 
                   <fieldset class="ar-int__events">
-                    <legend>Which events to send</legend>
+                    <legend>Which Events to Send to Your Private Chat</legend>
                     <label v-for="ev in events" :key="ev.name" class="ar-int__event">
                       <input v-model="tg.events" type="checkbox" :value="ev.name" :disabled="saving" />
                       <span class="ar-int__eventtext">
@@ -728,7 +976,7 @@ export default {
                   </fieldset>
 
                   <fieldset class="ar-int__events">
-                    <legend>Which findings ring your phone</legend>
+                    <legend>Which Findings to Send</legend>
                     <label class="ar-int__event">
                       <input v-model="tg.tier" type="radio" value="all" :disabled="saving" />
                       <span class="ar-int__eventtext">
@@ -740,7 +988,7 @@ export default {
                       <input v-model="tg.tier" type="radio" value="urgent" :disabled="saving" />
                       <span class="ar-int__eventtext">
                         <strong>Urgent only</strong>
-                        <small>The rest still waits on the Findings screen — just not on your phone.</small>
+                        <small>A message only when something is actually broken.</small>
                       </span>
                     </label>
                   </fieldset>
@@ -763,7 +1011,7 @@ export default {
                   </div>
 
                   <fieldset class="ar-int__events">
-                    <legend>Which events to send</legend>
+                    <legend>Which Events to Send</legend>
                     <label v-for="ev in events" :key="ev.name" class="ar-int__event">
                       <input v-model="sl.events" type="checkbox" :value="ev.name" :disabled="saving" />
                       <span class="ar-int__eventtext">
@@ -791,7 +1039,7 @@ export default {
                   </div>
 
                   <fieldset class="ar-int__events">
-                    <legend>Which events to send</legend>
+                    <legend>Which Events to Send</legend>
                     <label v-for="ev in events" :key="ev.name" class="ar-int__event">
                       <input v-model="dc.events" type="checkbox" :value="ev.name" :disabled="saving" />
                       <span class="ar-int__eventtext">
@@ -823,7 +1071,7 @@ export default {
                   </div>
 
                   <fieldset class="ar-int__events">
-                    <legend>Which events to append</legend>
+                    <legend>Which Events to Append</legend>
                     <label v-for="ev in events" :key="ev.name" class="ar-int__event">
                       <input v-model="sh.events" type="checkbox" :value="ev.name" :disabled="saving" />
                       <span class="ar-int__eventtext">

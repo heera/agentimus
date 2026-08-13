@@ -38,7 +38,7 @@ export default {
   <IntegrationCard
     mark="Tg"
     name="Telegram"
-    blurb="Events as messages from a bot you own — your phone learns what your site saw."
+    blurb="Events as messages from a bot you own — wherever you use Telegram, your site's news finds you."
     :chip="chip"
     :action="action"
     @act="$emit('open')"

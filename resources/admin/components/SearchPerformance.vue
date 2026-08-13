@@ -9,7 +9,7 @@
  * I doing?"; that one answers "what should I fix?" — the numbers above the
  * to-dos.
  *
- * Off state = one quiet pointer at Settings → Data sources. No form here: the
+ * Off state = one quiet pointer at Settings → Data Sources. No form here: the
  * keys have exactly one home.
  */
 import { formatDate } from '../js/wpDate.js';
@@ -223,7 +223,7 @@ export default {
     <!-- Nothing connected: one pointer, no form. -->
     <p v-else-if="loaded && !anyConnected" class="ar-perf__empty">
       Connect <strong>Google Search Console</strong> or <strong>Bing Webmaster Tools</strong> under
-      <button type="button" class="ar-linkbtn" @click="$emit('navigate', { tab: 'settings', anchor: 'ar-sec-google' })">Settings → Data sources</button>
+      <button type="button" class="ar-linkbtn" @click="$emit('navigate', { tab: 'settings', anchor: 'ar-sec-google' })">Settings → Data Sources</button>
       and this fills itself — read-only, one daily poll, stored in your own database.
     </p>
 

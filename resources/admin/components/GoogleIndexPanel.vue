@@ -15,7 +15,7 @@
  * is invisible — just quiet.
  * Presence, not traffic (traffic lives one card down in Search Performance).
  *
- * Off state = one quiet pointer at Settings → Data sources. No form here.
+ * Off state = one quiet pointer at Settings → Data Sources. No form here.
  */
 import { formatDate, relTimeShort } from '../js/wpDate.js';
 import RefreshCrank from './RefreshCrank.vue';
@@ -603,7 +603,7 @@ export default {
         Search Console and this card checks every day that your key pages — homepage,
         busiest pages, newest posts — are actually in it.
         <button type="button" class="ar-linkbtn" @click="goSettings">
-          Connect Google in Settings → Data sources
+          Connect Google in Settings → Data Sources
         </button>
       </p>
     </section>

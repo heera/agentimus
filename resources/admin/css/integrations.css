@@ -20,13 +20,36 @@
 }
 
 /* The teaching line each tab leads with — every section's lead teaches its own
-   word (described / events), the no-glossary law. */
+   word (described / events), the no-glossary law. The aside strip (his call,
+   2026-08-13, third round): ar-card__note's inset grammar — surface-2 with a
+   left rule — so the lead reads as a different KIND of thing from the cards
+   (full border, surface) and from the gold (caveats only). Ink stays soft,
+   not faint: a lead teaches, so it must read. */
 .ar-int__lead {
-  margin: 0 0 4px;
-  max-width: 68ch;
+  margin: 0 0 14px;
+  padding: 11px 16px;
+  background: var(--ar-surface-2);
+  border-left: 2px solid var(--ar-line-strong);
+  border-radius: 0 var(--ar-radius) var(--ar-radius) 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
   font-size: 13px;
   line-height: 1.55;
   color: var(--ar-ink-soft);
+}
+
+/* The lead's quiet mark: an info circle in the faint ink, centred on the
+   whole text block (his call) — it says "this is telling you something",
+   never demanding anything. */
+.ar-int__lead-i {
+  flex: 0 0 auto;
+  display: inline-flex;
+  color: var(--ar-ink-faint);
+}
+
+.ar-int__lead-t {
+  min-width: 0;
 }
 
 /* ---- The card grid ------------------------------------------------------ */
@@ -275,4 +298,199 @@ a.ar-int__act:hover {
 /* Phones: one column; the footer keeps its two ends. */
 @media (max-width: 600px) {
   .ar-int__grid { grid-template-columns: 1fr; }
+}
+
+/* -- The Announcements screen — the ledger ---------------------------------- */
+
+.ar-ann__card {
+  background: var(--ar-surface);
+  border: 1px solid var(--ar-line);
+  border-radius: var(--ar-radius);
+  padding: 6px 18px 14px;
+  overflow-x: auto;
+}
+
+.ar-ann__table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.ar-ann__table th {
+  font-family: var(--ar-mono);
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ar-ink-faint);
+  text-align: left;
+  padding: 12px 10px 8px;
+  border-bottom: 1px solid var(--ar-line-strong);
+}
+
+.ar-ann__table td {
+  padding: 14px 10px;
+  border-bottom: 1px solid var(--ar-line);
+  vertical-align: top;
+}
+
+.ar-ann__table tr:last-child td {
+  border-bottom: 0;
+}
+
+.ar-ann__statuscol {
+  width: 34%;
+}
+
+.ar-ann__when {
+  white-space: nowrap;
+}
+
+.ar-ann__net {
+  font-family: var(--ar-mono);
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  padding: 2px 8px;
+  border: 1px solid var(--ar-line-strong);
+  border-radius: 9px;
+  color: var(--ar-ink-soft);
+  white-space: nowrap;
+}
+
+.ar-ann__post {
+  font-weight: 600;
+}
+
+.ar-ann__body {
+  color: var(--ar-ink-faint);
+  font-size: 12.5px;
+  margin-top: 3px;
+  max-width: 52ch;
+}
+
+.ar-ann__st {
+  font-family: var(--ar-mono);
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.ar-ann__st.is-queued { color: var(--ar-accent); }
+.ar-ann__st.is-sent   { color: var(--ar-good); }
+.ar-ann__st.is-failed { color: var(--ar-bad); }
+
+.ar-ann__why {
+  color: var(--ar-ink-soft);
+  font-size: 13px;
+  margin-top: 3px;
+  max-width: 46ch;
+}
+
+.ar-ann__acts {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.ar-ann__foot {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-top: 1px solid var(--ar-line-strong);
+  margin-top: 2px;
+  padding-top: 12px;
+}
+
+.ar-ann__count {
+  font-family: var(--ar-mono);
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ar-ink-faint);
+}
+
+.ar-ann__pager {
+  display: flex;
+  gap: 8px;
+}
+
+/* The Sharing tab's roll-up line — a count and a door, never the record. */
+.ar-int__ledgerline {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  background: var(--ar-surface);
+  border: 1px solid var(--ar-line);
+  border-radius: var(--ar-radius);
+  padding: 10px 16px;
+  margin-top: 14px;
+}
+
+.ar-int__ledgertext {
+  margin: 0;
+  color: var(--ar-ink-soft);
+}
+
+.ar-int__ledgertext strong {
+  color: var(--ar-ink);
+}
+
+.ar-int__ledgerbad {
+  color: var(--ar-bad);
+}
+
+/* A quiet why-line under a grid — teaching that answers an absence. A true
+   footnote (his call: it must not earn a focus): one line, small, italic —
+   the whisper register, quieter than anything framed around it. */
+.ar-int__aside {
+  margin: 10px 2px 0;
+  font-size: 12px;
+  font-style: italic;
+  line-height: 1.5;
+  color: var(--ar-ink-faint);
+  max-width: 90ch;
+}
+
+/* The announcing card's off switch — a power mark in the title row. It
+   wears the stopping color quietly from the start (his call — a power
+   button should admit what it does), and lights up to the full bad on
+   hover; the press itself asks first. */
+.ar-int__power {
+  flex: 0 0 auto;
+  margin-left: auto;
+  width: 30px;
+  height: 30px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  background: transparent;
+  border: 1px solid color-mix(in srgb, var(--ar-bad) 40%, var(--ar-line-strong));
+  border-radius: 50%;
+  color: var(--ar-bad-mid);
+  transition: color 0.15s ease, border-color 0.15s ease, background 0.15s ease;
+}
+.ar-int__power:hover:not(:disabled) {
+  color: var(--ar-bad);
+  border-color: var(--ar-bad);
+  background: var(--ar-bad-wash);
+}
+.ar-int__power:focus-visible {
+  outline: 2px solid var(--ar-accent);
+  outline-offset: 1px;
+}
+
+/* The folded first-timer recipes (Telegram bot / channel): numbered, quiet,
+   the ar-fold shell provides the caret and the ground. */
+.ar-guide {
+  margin: 10px 0 4px;
+  padding-left: 20px;
+  display: grid;
+  gap: 8px;
+  font-size: 12.5px;
+  line-height: 1.55;
+  color: var(--ar-ink-soft);
+}
+.ar-guide code {
+  font-size: 11.5px;
 }

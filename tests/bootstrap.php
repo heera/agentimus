@@ -317,7 +317,7 @@ namespace {
 	if ( ! function_exists( 'delete_transient' ) )      { function delete_transient( $k ) { unset( $GLOBALS['_af_transients'][ $k ] ); return true; } }
 	// Cron stubs (BotRanges' catch-up scheduling): nothing is ever scheduled in tests.
 	if ( ! function_exists( 'wp_next_scheduled' ) )     { function wp_next_scheduled( $h ) { return false; } }
-	if ( ! function_exists( 'wp_schedule_single_event' ) ) { function wp_schedule_single_event( $t, $h ) { return true; } }
+	if ( ! function_exists( 'wp_schedule_single_event' ) ) { function wp_schedule_single_event( $t, $h, $args = array() ) { if ( isset( $GLOBALS['_af_cron_events'] ) ) { $GLOBALS['_af_cron_events'][] = array( 'at' => (int) $t, 'hook' => (string) $h, 'single' => true ); } return true; } }
 	// Site-wide term query (used by Topics::suggestions() / LlmsText::topics()); empty
 	// unless a test seeds $GLOBALS['_af_get_terms'].
 	if ( ! function_exists( 'get_terms' ) )             { function get_terms( $args = array() ) { return isset( $GLOBALS['_af_get_terms'] ) ? $GLOBALS['_af_get_terms'] : array(); } }

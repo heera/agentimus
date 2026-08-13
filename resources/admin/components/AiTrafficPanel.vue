@@ -277,7 +277,7 @@ export default {
       return (this.report && this.report.unknown && this.report.unknown.utm) || [];
     },
     sourceOptions() {
-      return [{ value: '', label: 'Any assistant' }, ...this.sources];
+      return [{ value: '', label: 'Any Assistant' }, ...this.sources];
     },
     // The date inputs are pre-filled from the server's range, so they ride along on every
     // Filter press. `isDefault` is the server's own answer to "is this still the default
@@ -489,7 +489,7 @@ export default {
           <circle cx="38" cy="8" r="2.4" />
         </svg>
 
-        <h3 class="ar-work__intro-title">Google Analytics is connected</h3>
+        <h3 class="ar-work__intro-title">Google Analytics Is Connected</h3>
         <p class="ar-work__intro-lead">
           One fetch brings in your whole audience — every visitor, however they found
           you, next to the ones AI sent. After this first one, it refreshes itself
@@ -518,7 +518,7 @@ export default {
          against the totals in this one. -->
     <section v-if="gaOn" class="ar-card ar-rd ar-rd--all">
       <h2 class="ar-card__title">
-        Everyone who visited
+        Everyone Who Visited
         <span class="ar-card__tag">last {{ audience.window }} days</span>
       </h2>
       <p class="ar-card__lead">
@@ -569,7 +569,7 @@ export default {
          rather than hanging off the bottom of the four totals above it. -->
     <section v-if="gaOn && allPages.length" class="ar-card ar-rd">
       <h2 class="ar-card__title">
-        Busiest pages
+        Busiest Pages
         <span class="ar-card__tag">last {{ audience.window }} days</span>
       </h2>
       <p class="ar-card__lead">Your whole site, busiest first — everyone, not only AI.</p>
@@ -605,7 +605,7 @@ export default {
           visitors that is.
         </template>
         <template v-else>
-          Connect Google Analytics under <strong>Settings → Data sources</strong> to see what
+          Connect Google Analytics under <strong>Settings → Data Sources</strong> to see what
           share of your visitors that is.
         </template>
       </p>
@@ -745,7 +745,7 @@ export default {
       </p>
       <div class="ar-ai__cols">
         <div class="ar-ai__col">
-          <h3 class="ar-ai__sub">Which assistant sent them</h3>
+          <h3 class="ar-ai__sub">Which Assistant Sent Them</h3>
           <ul class="ar-act-rank">
             <li v-for="s in bySource" :key="s.label">
               <span class="ar-act-rank__label">{{ s.label }}</span>
@@ -755,7 +755,7 @@ export default {
           </ul>
         </div>
         <div class="ar-ai__col">
-          <h3 class="ar-ai__sub">The page they opened</h3>
+          <h3 class="ar-ai__sub">The Page They Opened</h3>
           <ul v-if="topPages.length" class="ar-act-rank">
             <li v-for="p in topPages" :key="p.path">
               <span class="ar-act-rank__label"><code>{{ p.path }}</code></span>
@@ -921,7 +921,7 @@ export default {
            busiest with the remainder counted out loud; "Show all" is the door. -->
       <div v-if="unknownHosts.length || unknownUtm.length" :class="{ 'ar-ai__cols': unknownHosts.length && unknownUtm.length }">
         <div v-if="unknownHosts.length" class="ar-ai__col">
-          <h3 class="ar-ai__sub">Referrer hosts</h3>
+          <h3 class="ar-ai__sub">Referrer Hosts</h3>
           <ul class="ar-act-rank">
             <li v-for="h in unknownHostsShown" :key="h.token">
               <span class="ar-act-rank__label"><code>{{ h.token }}</code></span>

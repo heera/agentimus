@@ -110,6 +110,10 @@
   /* What darkness is made of: scrims and shades mix from this, NOT from ink —
      ink flips to cream in the dark theme, but a scrim must always dim. */
   --ar-shade: #1b1913;
+  /* The loading sheen that sweeps a skeleton. Bright over cream; in the dark
+     theme it drops to a breath — a 45% white band over a night surface reads
+     as a searchlight, not a shimmer. */
+  --ar-skel-sheen: rgba(255, 255, 255, 0.45);
 
   --ar-radius: 4px;
   /* Shared height for the nav bar and the page-head below it, so the two strips
@@ -221,6 +225,7 @@
   --ar-on-signal: #14120e;
   --ar-ink-hard: #fff;
   --ar-shade: #000;
+  --ar-skel-sheen: rgba(255, 255, 255, 0.05);
 }
 /* ---- Teleported surfaces re-ink themselves -----------------------------
    Every dialog, drawer and toast is <Teleport to="body">, because a modal
@@ -605,7 +610,7 @@
 .ar-skel { position: relative; overflow: hidden; border-radius: 6px; background: var(--ar-surface-2); }
 .ar-skel::after {
   content: ''; position: absolute; inset: 0;
-  background: linear-gradient(100deg, transparent 32%, rgba(255, 255, 255, 0.45) 50%, transparent 68%);
+  background: linear-gradient(100deg, transparent 32%, var(--ar-skel-sheen) 50%, transparent 68%);
   transform: translateX(-100%);
   animation: ar-skel-sheen 1.7s ease-in-out infinite;
 }
@@ -3436,11 +3441,14 @@ select.ar-input {
   appearance: none; border: 0; background: none; cursor: pointer; padding: 0 5px;
   color: inherit; font-family: inherit; font-size: inherit; line-height: 1.3;
 }
+/* The × follows the chip's own ink (currentColor), not --ar-paper — paper
+   flips near-black in dark, which made every chip's × invisible at night
+   (his catch, 2026-08-13; the danger button fell to the same token). */
 .ar-tags__x {
   appearance: none; border: 0; background: none; cursor: pointer;
-  color: color-mix(in srgb, var(--ar-paper) 60%, transparent); font-size: 15px; line-height: 1; padding: 0;
+  color: color-mix(in srgb, currentColor 55%, transparent); font-size: 15px; line-height: 1; padding: 0;
 }
-.ar-tags__x:hover { color: var(--ar-paper); }
+.ar-tags__x:hover { color: currentColor; }
 
 /* ---- Live endpoints ----------------------------------------------------- */
 .ar-links { margin: 0; padding: 0; list-style: none; display: grid; gap: 8px; }
@@ -3481,8 +3489,18 @@ a.ar-btn--ghost, a.ar-btn--ghost:link, a.ar-btn--ghost:visited, a.ar-btn--ghost:
   color: var(--ar-ink);
 }
 a.ar-btn:focus-visible { outline: 2px solid var(--ar-accent); outline-offset: 2px; box-shadow: none; }
+/* His verdict (2026-08-13, after two wrong turns): RED OUTLINE at rest, the
+   FILL arrives on hover — and the fill's ink is literal white, the one color
+   legible on the brick in both worlds (the old hover borrowed --ar-paper:
+   cream in light, near-BLACK in dark). The dark pair below re-states both at
+   the same weight as dark's generic .ar-btn repaint — a single class loses
+   to it, which is how every danger button spent the night in grey. Night's
+   outline speaks --ar-bad-on-ink, the salmon the theme already declared
+   night-legible; the brick itself stays the fill. */
 .ar-btn--danger { background: transparent; color: var(--ar-bad); border-color: var(--ar-bad); }
-.ar-btn--danger:hover:not(:disabled) { background: var(--ar-bad); color: var(--ar-paper); box-shadow: 0 6px 18px -8px color-mix(in srgb, var(--ar-bad) 60%, transparent); }
+.ar-btn--danger:hover:not(:disabled) { background: var(--ar-bad); color: #fff; border-color: var(--ar-bad); box-shadow: 0 6px 18px -8px color-mix(in srgb, var(--ar-bad) 60%, transparent); }
+:root[data-ar-theme="dark"] .ar-btn--danger { background: transparent; color: var(--ar-bad-on-ink); border-color: color-mix(in srgb, var(--ar-bad-on-ink) 65%, var(--ar-line-strong)); }
+:root[data-ar-theme="dark"] .ar-btn--danger:hover:not(:disabled) { background: var(--ar-bad); color: #fff; border-color: var(--ar-bad); box-shadow: none; }
 
 /* ---- Reset to defaults -------------------------------------------------- */
 .ar-card--reset { border-color: var(--ar-line); }
@@ -5457,6 +5475,10 @@ button.ar-act-more:hover { color: var(--ar-ink); }
 
 /* ---- Loading skeleton (activity first load) ---------------------------- */
 .ar-skel { display: grid; gap: 14px; margin-top: 16px; }
+/* CardSkeleton's variant: the primitive above paints the container as a
+   visible panel, and a panel whose lead text touches its own edge reads
+   broken — the card form breathes like the cards it stands in for. */
+.ar-skel--card { padding: 18px 20px; }
 .ar-skel__tiles { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
 .ar-skel__box { height: 58px; border-radius: var(--ar-radius); }
 .ar-skel__line { height: 13px; border-radius: 4px; }

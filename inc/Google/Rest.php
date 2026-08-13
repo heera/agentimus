@@ -234,7 +234,7 @@ final class Rest {
 		if ( ! $this->google->analytics_connected() ) {
 			return new \WP_Error(
 				'agentimus_ga4_off',
-				__( 'Analytics isn’t connected — connect it under Settings → Data sources first.', 'agentimus' ),
+				__( 'Analytics isn’t connected — connect it under Settings → Data Sources first.', 'agentimus' ),
 				array( 'status' => 400 )
 			);
 		}

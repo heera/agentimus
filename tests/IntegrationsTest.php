@@ -473,6 +473,8 @@ namespace Agentimus\Tests {
 					'telegram_chat'    => '',
 					'telegram_events'  => array(),
 					'telegram_tier'    => 'all',
+					'telegram_share_enabled' => false,
+					'telegram_share_channel' => '',
 					'slack_enabled'    => false,
 					'slack_url'        => '',
 					'slack_events'     => array(),

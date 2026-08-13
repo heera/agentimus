@@ -370,11 +370,11 @@ final class Topics {
 			// the title stops scaling — this covers the box's whole job.
 			$title = __( 'Search & AI', 'agentimus' );
 		} elseif ( $topics && $description ) {
-			$title = __( 'AI description & topics', 'agentimus' );
+			$title = __( 'AI Description & Topics', 'agentimus' );
 		} elseif ( $topics ) {
 			$title = __( 'Topics for AI', 'agentimus' );
 		} else {
-			$title = __( 'AI description', 'agentimus' );
+			$title = __( 'AI Description', 'agentimus' );
 		}
 		foreach ( Content::post_types() as $type ) {
 			add_meta_box(

@@ -216,6 +216,13 @@ export function createApi(boot) {
     actIntegrations: (payload) =>
       request('/integrations', { method: 'POST', body: JSON.stringify(payload) }),
 
+    // Announcements: one paged read of the ledger (promises first), and one
+    // action door — { action: cancel | retry | remove, id, page } — that
+    // answers with the same page re-read.
+    getAnnouncements: (page = 1) => request(`/announcements?page=${page}`),
+    actAnnouncements: (payload) =>
+      request('/announcements', { method: 'POST', body: JSON.stringify(payload) }),
+
     // Agent access: who authenticated to, and acted on, the machine surface. The payload
     // carries its own coverage verdict (see AgentAccess\Events::ability_coverage) because
     // what this screen can HONESTLY see differs per site — an empty feed is not the same

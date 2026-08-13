@@ -197,9 +197,9 @@ export default {
       return [
         { key: 'identity', label: 'Identity', hint: 'Who owns this site' },
         { key: 'discovery', label: 'Discovery', hint: 'Files & data AI can read' },
-        { key: 'access', label: 'AI access', hint: 'What crawlers may do — and who to block' },
+        { key: 'access', label: 'AI Access', hint: 'What crawlers may do — and who to block' },
         { key: 'exposure', label: 'Exposure', hint: 'Limit what your site reveals to crawlers & scanners' },
-        { key: 'sources', label: 'Data sources', hint: 'Outside services Agentimus reads from — optional, read-only' },
+        { key: 'sources', label: 'Data Sources', hint: 'Outside services Agentimus reads from — optional, read-only' },
         { key: 'advanced', label: 'Advanced', hint: 'Trust, developer & maintenance' },
       ];
     },
@@ -215,7 +215,7 @@ export default {
     typeGroups() {
       return [
         { key: 'own', label: '', types: this.filteredPostTypes.filter((pt) => !pt.forced) },
-        { key: 'plugin', label: 'Offered by plugins', types: this.filteredPostTypes.filter((pt) => pt.forced) },
+        { key: 'plugin', label: 'Offered by Plugins', types: this.filteredPostTypes.filter((pt) => pt.forced) },
       ].filter((g) => g.types.length);
     },
     filteredPostTypes() {
@@ -411,7 +411,7 @@ export default {
       const d = this.defaults || {};
       const cs = d.content_signal || {};
       return {
-        features: [...this.features.map((f) => ({ label: f.label, on: !!d[f.key] })), { label: 'Visit log', on: !!d.enable_activity }],
+        features: [...this.features.map((f) => ({ label: f.label, on: !!d[f.key] })), { label: 'Visit Log', on: !!d.enable_activity }],
         signals: this.signalRows.map((r) => ({ label: r.label, allow: !!cs[r.key] })),
         trainers: Array.isArray(d.blocked_trainers) ? d.blocked_trainers.length : 0,
         types: Array.isArray(d.post_types) ? d.post_types.length : 0,
@@ -539,7 +539,7 @@ export default {
       if (!window.wp || !window.wp.media) return; // Media scripts missing — the button did nothing visible anyway.
       if (!this.socialFrame) {
         this.socialFrame = window.wp.media({
-          title: 'Default share image',
+          title: 'Default Share Image',
           library: { type: 'image' },
           multiple: false,
           button: { text: 'Use this image' },

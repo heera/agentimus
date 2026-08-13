@@ -1,6 +1,6 @@
 <script>
 /**
- * "What your site runs" — the Dashboard's systems roll-up.
+ * "What Your Site Runs" — the Dashboard's systems roll-up.
  *
  * Four panels, each led by ONE number in the audience card's own type, each
  * ending in the one link that opens its home screen: Doors (what machines can
@@ -105,7 +105,7 @@ export default {
          width and its rule closes the whole header zone — the same standfirst
          the card below this one wears. -->
     <div class="ar-sys__head">
-      <h2 id="ar-sys-title" class="ar-card__title">What your site runs</h2>
+      <h2 id="ar-sys-title" class="ar-card__title">What Your Site Runs</h2>
       <p class="ar-card__lead">
         Every Agentimus system in one look &mdash; the doors AI assistants use, the signals you announce,
         what search shows, and what your writing holds.

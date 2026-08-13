@@ -1091,7 +1091,7 @@ final class Registrar {
 						array(
 							'all'     => self::obj(
 								array(
-									'connected'      => self::b( 'Whether Google Analytics is connected AND has usable numbers.' ),
+									'connected'      => self::b( 'Whether Google Analytics Is Connected AND has usable numbers.' ),
 									'users'          => self::i( 'Active users — the headline metric is PEOPLE, not sessions or views.' ),
 									'newUsers'       => self::i(),
 									'sessions'       => self::i(),

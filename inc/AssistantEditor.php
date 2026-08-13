@@ -48,7 +48,7 @@ final class AssistantEditor {
 	public function register() {
 		add_action( 'admin_enqueue_scripts', array( $this, 'assets' ) );
 		// Priority 9: registered BEFORE Topics' box (default 10), so in the
-		// side column this box sits directly ABOVE "AI description & topics".
+		// side column this box sits directly ABOVE "AI Description & Topics".
 		add_action( 'add_meta_boxes', array( $this, 'featured_meta_box' ), 9 );
 	}
 
@@ -113,7 +113,7 @@ final class AssistantEditor {
 	/**
 	 * The "Featured image (AI)" box — a real side meta box (not a document
 	 * panel), so it sits in the meta-box column right above the
-	 * "AI description & topics" box, wearing the same Agentimus mark.
+	 * "AI Description & Topics" box, wearing the same Agentimus mark.
 	 */
 	public function featured_meta_box() {
 		if ( ! $this->can_serve() || ! $this->images_ready() ) {
@@ -149,7 +149,7 @@ final class AssistantEditor {
 
 	/**
 	 * The shared Agentimus mark + title, identical to the one on the
-	 * "AI description & topics" box (see Topics::meta_box_title()).
+	 * "AI Description & Topics" box (see Topics::meta_box_title()).
 	 *
 	 * @param string $text The plain-text title (already translated).
 	 * @return string

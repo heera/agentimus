@@ -31,8 +31,21 @@ export default {
       if (typeof s.toolsPublic !== 'number') return 0;
       return Math.max(0, (s.tools || 0) - s.toolsPublic);
     },
+    dashApisHeld() {
+      const s = this.summary || {};
+      if (typeof s.apisPublic !== 'number') return 0;
+      return Math.max(0, (s.apis || 0) - s.apisPublic);
+    },
   },
-  methods: { tileIcon },
+  methods: {
+    tileIcon,
+    // Every tile carries its third line (his alignment ruling): the split
+    // when there is one, the plain "N public" when nothing is held back.
+    splitLine(publicCount, held) {
+      if (typeof publicCount !== 'number') return '';
+      return held > 0 ? `${publicCount} public · ${held} sign-in only` : `${publicCount} public`;
+    },
+  },
 };
 </script>
 
@@ -55,9 +68,10 @@ export default {
         </span>
         <!-- The teaching line stays even when the public/sign-in split shows:
              the split is a count, not a definition, and a first-timer needs
-             the definition more. Two stacked subs; the flex column takes it. -->
-        <span class="ar-dash-tile__sub">sources describing your site</span>
-        <span v-if="dashProvidersHeld > 0" class="ar-dash-tile__sub">{{ summary.providersPublic }} public · {{ dashProvidersHeld }} sign-in only</span>
+             the definition more. Every tile carries BOTH lines (his alignment
+             ruling) — a row of tiles must land its baselines together. -->
+        <span class="ar-dash-tile__sub">Sources describing your site</span>
+        <span v-if="splitLine(summary.providersPublic, dashProvidersHeld)" class="ar-dash-tile__sub">{{ splitLine(summary.providersPublic, dashProvidersHeld) }}</span>
       </span>
     </button>
     <button type="button" class="ar-dash-tile" @click="$emit('navigate', { tab: 'discovery', anchor: 'ar-wd-capabilities' })">
@@ -67,7 +81,10 @@ export default {
           <strong class="ar-dash-tile__v">{{ summary.capabilities }}</strong>
           <span class="ar-dash-tile__k">Capabilities</span>
         </span>
-        <span class="ar-dash-tile__sub">what AI assistants may read or do</span>
+        <span class="ar-dash-tile__sub">What AI assistants may read or do</span>
+        <!-- No auth attaches to a capability name, so no split exists to
+             state — the third line is WHERE an agent reads them instead. -->
+        <span class="ar-dash-tile__sub">declared in discovery.json</span>
       </span>
     </button>
     <button type="button" class="ar-dash-tile" @click="$emit('navigate', { tab: 'discovery', anchor: 'ar-wd-apis' })">
@@ -77,7 +94,8 @@ export default {
           <strong class="ar-dash-tile__v">{{ summary.apis }}</strong>
           <span class="ar-dash-tile__k">APIs</span>
         </span>
-        <span class="ar-dash-tile__sub">addresses AI assistants can call for data</span>
+        <span class="ar-dash-tile__sub">Endpoints AI assistants can access</span>
+        <span v-if="splitLine(summary.apisPublic, dashApisHeld)" class="ar-dash-tile__sub">{{ splitLine(summary.apisPublic, dashApisHeld) }}</span>
       </span>
     </button>
     <button type="button" class="ar-dash-tile" @click="$emit('navigate', { tab: 'discovery', anchor: 'ar-wd-tools' })">
@@ -87,8 +105,8 @@ export default {
           <strong class="ar-dash-tile__v">{{ summary.tools }}</strong>
           <span class="ar-dash-tile__k">Tools</span>
         </span>
-        <span class="ar-dash-tile__sub">actions AI assistants can run</span>
-        <span v-if="dashToolsHeld > 0" class="ar-dash-tile__sub">{{ summary.toolsPublic }} public · {{ dashToolsHeld }} sign-in only</span>
+        <span class="ar-dash-tile__sub">Actions AI assistants can run</span>
+        <span v-if="splitLine(summary.toolsPublic, dashToolsHeld)" class="ar-dash-tile__sub">{{ splitLine(summary.toolsPublic, dashToolsHeld) }}</span>
       </span>
     </button>
   </div>

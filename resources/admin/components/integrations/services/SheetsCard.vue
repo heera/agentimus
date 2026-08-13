@@ -8,7 +8,7 @@
  * the modal the parent opens. One state is this card's own: NO GOOGLE
  * CONNECTION. The service borrows the Google connection's service-account key
  * — never a second credential — so without one the card says so plainly,
- * points at Settings → Data sources, and offers no dead Connect to click.
+ * points at Settings → Data Sources, and offers no dead Connect to click.
  * The honesty line is serviceNote's — the shared dialect.
  */
 import IntegrationCard from '../IntegrationCard.vue';
@@ -41,11 +41,11 @@ export default {
           ? {
               // Connected but the borrowed key left (a Google disconnect):
               // the standing truth, in error tone — nothing can deliver.
-              text: 'The Google connection’s key is gone, so nothing can be appended. Reconnect Google under Settings → Data sources, or disconnect here.',
+              text: 'The Google connection’s key is gone, so nothing can be appended. Reconnect Google under Settings → Data Sources, or disconnect here.',
               isError: true,
             }
           : {
-              text: 'Uses your Google connection’s service-account key — add it under Settings → Data sources first.',
+              text: 'Uses your Google connection’s service-account key — add it under Settings → Data Sources first.',
               isError: false,
             };
       }

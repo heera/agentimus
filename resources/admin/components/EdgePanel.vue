@@ -12,7 +12,7 @@
  * above the log — a breakage must be the first thing on the screen, while
  * these cards stay below the log they annotate.
  *
- * Off state = one quiet pointer card at Settings → Data sources. No form here:
+ * Off state = one quiet pointer card at Settings → Data Sources. No form here:
  * the token has exactly one home.
  */
 import { relTimeShort } from '../js/wpDate.js';
@@ -164,7 +164,7 @@ export default {
         Cloudflare answers many AI requests before they reach this log — this card can show
         them, and warn you when the edge disagrees with your policy.
         <button type="button" class="ar-linkbtn" @click="goSettings">
-          Connect Cloudflare in Settings → Data sources
+          Connect Cloudflare in Settings → Data Sources
         </button>
       </p>
     </section>

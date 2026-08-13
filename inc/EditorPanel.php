@@ -313,7 +313,11 @@ JS;
 	 * @return string
 	 */
 	private static function css() {
-		return '.agentimus-mbbadge{display:inline-flex;align-items:center;gap:5px;margin-left:12px;margin-right:auto;font-size:11px;font-weight:400;color:#996a00;line-height:1;vertical-align:middle}'
+		// The box's own header strip gets a quiet ground to tie it to the body.
+		// The cursor is left to core on purpose: metaboxes are draggable, and
+		// the move cursor is WordPress telling the owner so — not ours to hide.
+		return '#agentimus-panel .postbox-header{background:#fbfbfc}'
+			. '.agentimus-mbbadge{display:inline-flex;align-items:center;gap:5px;margin-left:12px;margin-right:auto;font-size:11px;font-weight:400;color:#996a00;line-height:1;vertical-align:middle}'
 			. '.agentimus-panel__tabs{display:flex;gap:16px;border-bottom:1px solid #dcdcde;margin:0 0 14px;padding:0}'
 			. '.agentimus-panel__tab{appearance:none;background:none;border:0;border-bottom:2px solid transparent;padding:6px 2px;margin-bottom:-1px;cursor:pointer;font-size:13px;color:#646970}'
 			. '.agentimus-panel__tab:hover{color:#1d2327}'

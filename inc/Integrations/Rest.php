@@ -37,6 +37,9 @@ defined( 'ABSPATH' ) || exit;
 
 final class Rest {
 
+	/** Ledger rows per page on the Announcements screen. */
+	const ANNOUNCEMENTS_PER_PAGE = 20;
+
 	/**
 	 * The provider cards, in the order the PLUGINS tab shows them. Each class
 	 * answers present() + describe(); adding a provider is adding a line here.
@@ -86,6 +89,27 @@ final class Rest {
 			)
 		);
 
+		// The Announcements screen — the ledger's read and its three verbs.
+		// A sibling of the Integrations screen (More → Announcements), riding
+		// this class because it wears the same gate and speaks to the same
+		// machinery.
+		register_rest_route(
+			'agentimus/v1',
+			'/announcements',
+			array(
+				array(
+					'methods'             => \WP_REST_Server::READABLE,
+					'callback'            => array( $this, 'announcements' ),
+					'permission_callback' => array( $this, 'can_manage' ),
+				),
+				array(
+					'methods'             => \WP_REST_Server::EDITABLE,
+					'callback'            => array( $this, 'announcements_act' ),
+					'permission_callback' => array( $this, 'can_manage' ),
+				),
+			)
+		);
+
 		// The feed itself — the one route on this screen a NON-admin reaches:
 		// a feed reader holding the tokened URL. The gate is the token, checked
 		// in the handler so every refusal is the same bare 401 (a permission
@@ -109,6 +133,94 @@ final class Rest {
 	 */
 	public function can_manage() {
 		return current_user_can( 'manage_options' );
+	}
+
+	/* -- The Announcements screen ---------------------------------------------- */
+
+	/**
+	 * GET /announcements — one page of the ledger, promises first. Titles are
+	 * resolved here, at read time: the row stores only the post's id, so a
+	 * retitled post reads by its current name.
+	 *
+	 * @param \WP_REST_Request $request The request.
+	 * @return \WP_REST_Response
+	 */
+	public function announcements( $request ) {
+		return rest_ensure_response( $this->announcements_page( max( 1, (int) $request->get_param( 'page' ) ) ) );
+	}
+
+	/**
+	 * POST /announcements — { action: cancel | retry | remove, id }. Each verb
+	 * keeps its lane (the engine refuses the wrong one), and the answer is the
+	 * same page the owner was looking at, re-read.
+	 *
+	 * @param \WP_REST_Request $request The request.
+	 * @return \WP_REST_Response|\WP_Error
+	 */
+	public function announcements_act( $request ) {
+		$engine = new Announcements( $this->settings );
+		$id     = (int) $request->get_param( 'id' );
+		$action = (string) $request->get_param( 'action' );
+
+		if ( 'queue' === $action ) {
+			// The Share tab's door: the approved draft, the chosen network,
+			// the chosen moment. The engine refuses whole anything that could
+			// only fail.
+			$verdict = $engine->queue(
+				array(
+					'network' => (string) $request->get_param( 'network' ),
+					'body'    => (string) $request->get_param( 'body' ),
+					'post_id' => (int) $request->get_param( 'post_id' ),
+					'at'      => (int) $request->get_param( 'at' ),
+				)
+			);
+		} elseif ( 'cancel' === $action ) {
+			$verdict = $engine->cancel( $id );
+		} elseif ( 'retry' === $action ) {
+			$verdict = $engine->retry( $id );
+		} elseif ( 'remove' === $action ) {
+			$verdict = $engine->remove( $id );
+		} else {
+			$verdict = new \WP_Error( 'agentimus_announce_action', __( 'Unknown action.', 'agentimus' ) );
+		}
+
+		if ( is_wp_error( $verdict ) ) {
+			return new \WP_Error( $verdict->get_error_code(), $verdict->get_error_message(), array( 'status' => 400 ) );
+		}
+		return rest_ensure_response( $this->announcements_page( max( 1, (int) $request->get_param( 'page' ) ) ) );
+	}
+
+	/**
+	 * One page of the ledger in the screen's vocabulary.
+	 *
+	 * @param int $page 1-based page.
+	 * @return array
+	 */
+	private function announcements_page( $page ) {
+		$read = ( new Announcements( $this->settings ) )->rows( $page, self::ANNOUNCEMENTS_PER_PAGE );
+
+		$rows = array();
+		foreach ( $read['rows'] as $row ) {
+			$title  = $row['post_id'] ? get_the_title( $row['post_id'] ) : '';
+			$rows[] = array(
+				'id'          => (int) $row['id'],
+				'network'     => (string) $row['network'],
+				'postId'      => (int) $row['post_id'],
+				'postTitle'   => '' !== $title ? $title : __( '(no post)', 'agentimus' ),
+				'body'        => (string) $row['body'],
+				'scheduledAt' => (int) $row['scheduled_at'],
+				'sentAt'      => (int) $row['sent_at'],
+				'status'      => (string) $row['status'],
+				'error'       => (string) $row['error'],
+			);
+		}
+
+		return array(
+			'rows'    => $rows,
+			'total'   => (int) $read['total'],
+			'page'    => (int) $page,
+			'perPage' => self::ANNOUNCEMENTS_PER_PAGE,
+		);
 	}
 
 	/**
@@ -150,6 +262,12 @@ final class Rest {
 		if ( Telegram::ID === $service ) {
 			if ( 'connect' === $action || 'save' === $action ) {
 				return $this->save_telegram( $request, 'connect' === $action );
+			}
+			if ( 'share' === $action ) {
+				return $this->save_telegram_sharing( $request );
+			}
+			if ( 'share-test' === $action ) {
+				return $this->test_telegram_sharing();
 			}
 			if ( 'disconnect' === $action ) {
 				return $this->disconnect_telegram();
@@ -350,18 +468,97 @@ final class Rest {
 	}
 
 	/**
+	 * Save the SHARING use of the bot — the switch and the channel, nothing
+	 * else. Enabling with a channel this use has never proved sends one test
+	 * post; switching off keeps the channel, so coming back is one click.
+	 * There is no credential here to take or forget — that is Services'
+	 * business, and the shared store's whole point.
+	 *
+	 * @param \WP_REST_Request $request The request.
+	 * @return \WP_REST_Response|\WP_Error
+	 */
+	private function save_telegram_sharing( $request ) {
+		$enabled = ! empty( $request->get_param( 'enabled' ) );
+
+		if ( ! $enabled ) {
+			$this->store( array( 'telegram_share_enabled' => false ) );
+			return rest_ensure_response( $this->payload() );
+		}
+
+		if ( ! Telegram::has_token() ) {
+			return new \WP_Error(
+				'agentimus_telegram_token',
+				__( 'Connect the Telegram bot first — on the Services tab. Announcing uses the same bot.', 'agentimus' ),
+				array( 'status' => 400 )
+			);
+		}
+
+		$channel = Telegram::normalize_chat( (string) $request->get_param( 'channel' ) );
+		if ( '' === $channel ) {
+			return new \WP_Error(
+				'agentimus_telegram_channel',
+				__( 'That doesn’t look like a channel. It’s @name for a public channel you run, or the -100… number of a private one.', 'agentimus' ),
+				array( 'status' => 400 )
+			);
+		}
+
+		$stored = Telegram::sharing_config( $this->settings )['channel'];
+		if ( $channel !== $stored ) {
+			$verdict = Telegram::prove_channel( $channel );
+			if ( is_wp_error( $verdict ) ) {
+				return new \WP_Error( $verdict->get_error_code(), $verdict->get_error_message(), array( 'status' => 400 ) );
+			}
+		}
+
+		$this->store(
+			array(
+				'telegram_share_enabled' => true,
+				'telegram_share_channel' => $channel,
+			)
+		);
+
+		return rest_ensure_response( $this->payload() );
+	}
+
+	/**
+	 * One labelled test announcement to the sharing channel — proof on demand,
+	 * in words a reader who sees it can place. Refused while announcing is
+	 * off: a test with nowhere to land would be a lie about readiness.
+	 *
+	 * @return \WP_REST_Response|\WP_Error
+	 */
+	private function test_telegram_sharing() {
+		if ( ! Telegram::sharing_active( $this->settings ) ) {
+			return new \WP_Error(
+				'agentimus_telegram_sharing_off',
+				__( 'Turn announcing on first — the test posts to the channel you picked.', 'agentimus' ),
+				array( 'status' => 400 )
+			);
+		}
+
+		$verdict = Telegram::announce( __( 'A test from Agentimus — announcements you schedule will appear here like this.', 'agentimus' ) );
+		if ( is_wp_error( $verdict ) ) {
+			return new \WP_Error( $verdict->get_error_code(), $verdict->get_error_message(), array( 'status' => 400 ) );
+		}
+		return rest_ensure_response( $this->payload() );
+	}
+
+	/**
 	 * Disconnect Telegram: switch off, forget the chat, the choices, the
-	 * token, the state and its queue rows.
+	 * token, the state and its queue rows — and the sharing use with them,
+	 * because forgetting the bot is the disconnect for EVERY use it powers.
 	 *
 	 * @return \WP_REST_Response
 	 */
 	private function disconnect_telegram() {
 		$this->store(
 			array(
-				'telegram_enabled' => false,
-				'telegram_chat'    => '',
-				'telegram_events'  => array(),
-				'telegram_tier'    => 'all',
+				'telegram_enabled'       => false,
+				'telegram_chat'          => '',
+				'telegram_events'        => array(),
+				'telegram_tier'          => 'all',
+				'telegram_share_enabled' => false,
+				'telegram_share_channel' => '',
 			)
 		);
 
@@ -378,7 +575,7 @@ final class Rest {
 	 * Connect (or save) Google Sheets. There is no credential to take — the
 	 * Google connection's service-account key is borrowed — so the gate here
 	 * is threefold: the ID must look like one, the key must exist (and when it
-	 * doesn't, the error points at Settings → Data sources rather than asking
+	 * doesn't, the error points at Settings → Data Sources rather than asking
 	 * for a second credential), and a connect proves the road by appending the
 	 * header row and one test row. A save re-proves only a CHANGED
 	 * spreadsheet; a mere checkbox edit appends nothing at all.
@@ -405,7 +602,7 @@ final class Rest {
 		if ( ! Sheets::has_key() ) {
 			return new \WP_Error(
 				'agentimus_sheets_nokey',
-				__( 'Google Sheets uses the service-account key from your Google connection, and none is stored. Add it under Settings → Data sources first — the same key Search Console reads with.', 'agentimus' ),
+				__( 'Google Sheets uses the service-account key from your Google connection, and none is stored. Add it under Settings → Data Sources first — the same key Search Console reads with.', 'agentimus' ),
 				array( 'status' => 400 )
 			);
 		}
@@ -788,6 +985,8 @@ final class Rest {
 
 		$dispatcher = new Dispatcher( $this->settings );
 		$telegram   = Telegram::config( $this->settings );
+		$tg_sharing = Telegram::sharing_config( $this->settings );
+		$announce   = ( new Announcements( $this->settings ) )->summary();
 		$slack      = Slack::config( $this->settings );
 		$discord    = Discord::config( $this->settings );
 		$sheets     = Sheets::config( $this->settings );
@@ -849,6 +1048,26 @@ final class Rest {
 			),
 			'events'   => $catalog,
 			'plugins'  => $plugins,
+			// The SHARING tab's read: each network's use of its shared
+			// connection (hasToken is what makes "connected in Services"
+			// visibly true here too — one credential, two uses), plus the
+			// ledger at a glance for the roll-up line.
+			'sharing'  => array(
+				'telegram' => array(
+					'enabled'    => $tg_sharing['enabled'],
+					'channel'    => $tg_sharing['channel'],
+					'hasToken'   => Telegram::has_token(),
+					'active'     => Telegram::sharing_active( $this->settings ),
+					'queued'     => isset( $announce['networks']['telegram'] ) ? $announce['networks']['telegram']['queued'] : 0,
+					'lastSentAt' => isset( $announce['networks']['telegram'] ) ? $announce['networks']['telegram']['lastSentAt'] : 0,
+				),
+				'ledger'   => array(
+					'total'    => $announce['total'],
+					'queued'   => $announce['queued'],
+					'sentWeek' => $announce['sentWeek'],
+					'failed'   => $announce['failed'],
+				),
+			),
 		);
 	}
 }

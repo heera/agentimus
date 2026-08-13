@@ -152,7 +152,7 @@ export default {
         rows.push({
           kind: 'token',
           id: 'shared-token',
-          name: 'Shared token',
+          name: 'Shared Token',
           host: 'any assistant holding it',
           when: this.mcpTokenLastUsedText
             ? `Created ${this.mcpTokenCreatedText} · ${this.mcpTokenLastUsedText.replace(/^Last used /, 'last used ')}`
@@ -278,7 +278,7 @@ export default {
         { key: 'claude-desktop', label: 'Claude Desktop' },
         { key: 'codex', label: 'ChatGPT / Codex', keyName: 'Codex' },
         { key: 'claude-code', label: 'Claude Code' },
-        { key: 'other', label: 'Other tools' },
+        { key: 'other', label: 'Other Tools' },
       ];
     },
     mcpAppPw() {
@@ -530,7 +530,7 @@ export default {
     // not in a hint line beside the button.
     async confirmRotateMcpToken() {
       const ok = await confirm({
-        title: 'Rotate the connection token?',
+        title: 'Rotate the Connection Token?',
         message: 'Rotating ends every current connection at once. Assistants can only reconnect with the new token.',
         confirmLabel: 'Rotate Token',
         cancelLabel: 'Cancel',
@@ -542,7 +542,7 @@ export default {
     // confirm proved missable in the very first review walk.
     async confirmRevokeMcpToken() {
       const ok = await confirm({
-        title: 'Disconnect every assistant?',
+        title: 'Disconnect Every Assistant?',
         message: 'The connection token stops working right away. Every assistant using it loses access until you create a new token.',
         confirmLabel: 'Disconnect Everything',
         cancelLabel: 'Cancel',
@@ -1100,7 +1100,7 @@ export default {
                   <p class="ar-mcp-key__pathlabel">
                     Create a fresh key
                     <span v-if="mcpKeyWarn" class="ar-mcp-key__taken" role="alert">
-                      That name is taken.
+                      That Name Is Taken.
                       <button
                         type="button"
                         class="ar-mcp-key__whybtn"
@@ -1271,7 +1271,7 @@ export default {
             tabindex="-1"
           >
             <div class="ar-modal__head">
-              <h2 id="ar-mcp-scope-title" class="ar-modal__title">One key, the whole REST API</h2>
+              <h2 id="ar-mcp-scope-title" class="ar-modal__title">One Key, the Whole REST API</h2>
               <p class="ar-modal__lead">
                 An application password signs in as <strong>{{ mcpUsername }}</strong> everywhere
                 WordPress’s REST API goes — it isn’t scoped to this server. That’s how WordPress
@@ -1305,7 +1305,7 @@ export default {
             tabindex="-1"
           >
             <div class="ar-modal__head">
-              <h2 id="ar-mcp-taken-title" class="ar-modal__title">That name is taken</h2>
+              <h2 id="ar-mcp-taken-title" class="ar-modal__title">That Name Is Taken</h2>
               <p class="ar-modal__lead">{{ mcpKeyWarn }}</p>
             </div>
             <div class="ar-modal__actions">

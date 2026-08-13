@@ -93,7 +93,7 @@ final class Description {
 
 		if ( is_admin() ) {
 			// No meta box of its own: the description renders as the top section of
-			// the shared "AI description & topics" box — {@see Topics::add_meta_box()}
+			// the shared "AI Description & Topics" box — {@see Topics::add_meta_box()}
 			// registers it and calls {@see render_meta_box()} for this half.
 			add_action( 'save_post', array( $this, 'save' ), 10, 2 );
 			add_action( 'admin_enqueue_scripts', array( $this, 'assets' ) );

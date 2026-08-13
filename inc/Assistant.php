@@ -1142,7 +1142,7 @@ final class Assistant {
 		return 'You prepare the DRESSING for a WordPress ' . $noun . ' that is being written section by section from an '
 			. 'owner-approved outline — everything about the ' . $noun . ' except its body text. '
 			. 'Respond with ONLY a single JSON object — no markdown fences, no commentary before or after — with exactly these keys: '
-			. '"title" (string: the ' . $noun . ' title — use the outline\'s title unless the brief itself demands another), '
+			. '"title" (string: the ' . $noun . ' title in Title Case — use the outline\'s title unless the brief itself demands another), '
 			. '"excerpt" (string, 1–2 plain sentences), '
 			. '"description" (string: one sentence under 160 characters saying what the page is about, for AI assistants), '
 			. '"topics" (array of 3–6 short topic phrases), '
@@ -1214,7 +1214,8 @@ final class Assistant {
 			);
 		}
 		return array(
-			'title'       => $title,
+			// The standing rule here too — the meta call proposes the title.
+			'title'       => Titles::case( $title ),
 			'excerpt'     => sanitize_text_field( (string) ( $data['excerpt'] ?? '' ) ),
 			'description' => mb_substr( sanitize_text_field( (string) ( $data['description'] ?? '' ) ), 0, 200 ),
 			'topics'      => self::clean_list( $data['topics'] ?? array(), self::MAX_TOPICS ),
@@ -1411,7 +1412,7 @@ final class Assistant {
 					. 'thing done, so its sections are the things it has to cover, not the beats of an argument. '
 				: '' )
 			. 'Respond with ONLY a single JSON object — no markdown fences, no commentary before or after — with exactly these keys: '
-			. '"title" (string: a working title for the ' . ( $page ? 'page' : 'post' ) . '), '
+			. '"title" (string: a working title for the ' . ( $page ? 'page' : 'post' ) . ', in Title Case), '
 			// A page gets a lower floor: two sections is a real page, eight is an
 			// article wearing a page's name. The ceiling comes down with it.
 			. '"sections" (array of ' . ( $page ? '2–5' : '3–8' ) . ' objects, each {"heading": the exact h2 text the section will use, '
@@ -1501,7 +1502,8 @@ final class Assistant {
 			return $bad;
 		}
 		return array(
-			'title'    => $title,
+			// The standing rule again: every generated title is Title Case.
+			'title'    => Titles::case( $title ),
 			'sections' => $sections,
 		);
 	}
@@ -2484,7 +2486,9 @@ final class Assistant {
 		}
 
 		return array(
-			'title'       => $title,
+			// The standing rule: a title the plugin generates is Title Case —
+			// the prompt asks for it, Titles::case() guarantees it.
+			'title'       => Titles::case( $title ),
 			'excerpt'     => sanitize_text_field( (string) ( $data['excerpt'] ?? '' ) ),
 			'content'     => $content,
 			'description' => mb_substr( sanitize_text_field( (string) ( $data['description'] ?? '' ) ), 0, 200 ),

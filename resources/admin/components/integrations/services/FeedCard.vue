@@ -51,7 +51,7 @@ export default {
 <template>
   <IntegrationCard
     mark="Fd"
-    name="Private feed"
+    name="Private Feed"
     blurb="What Agentimus finds, as RSS or JSON Feed at a private URL — nothing is sent out; your reader comes to it."
     :chip="chip"
     :action="action"

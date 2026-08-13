@@ -130,7 +130,7 @@ final class Rest {
 	 */
 	public function url_check( \WP_REST_Request $request ) {
 		if ( ! $this->bing->connected() ) {
-			return new \WP_Error( 'agentimus_bing_off', __( 'Connect Bing under Settings → Data sources first.', 'agentimus' ), array( 'status' => 400 ) );
+			return new \WP_Error( 'agentimus_bing_off', __( 'Connect Bing under Settings → Data Sources first.', 'agentimus' ), array( 'status' => 400 ) );
 		}
 
 		$raw = trim( (string) $request->get_param( 'url' ) );

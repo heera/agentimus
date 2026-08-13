@@ -136,7 +136,7 @@ export default {
                the line, dash-joined like a masthead and its tagline. The gloss sets
                in the upright serif — a voice this card already speaks, and one every
                platform's font stack can honour. -->
-          <p class="ar-rail-card__label">AEO / GEO <span class="ar-rail-card__gloss">&mdash; your readiness for AI search</span></p>
+          <p class="ar-rail-card__label">AEO / GEO <span class="ar-rail-card__gloss">&mdash; Your Readiness for AI Search</span></p>
           <button
             type="button"
             class="ar-rail-readiness ar-rail-readiness--link"

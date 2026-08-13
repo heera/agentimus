@@ -111,9 +111,9 @@ export default {
     // Chips are exclusive and add up to the list, so the numbers can be trusted.
     tabs() {
       return [
-        { key: 'fixable', label: 'Worth fixing', n: this.counts.fixable || 0 },
-        { key: 'clear', label: 'Nothing to fix', n: this.counts.clear || 0 },
-        { key: 'setAside', label: 'Set aside', n: this.counts.setAside || 0 },
+        { key: 'fixable', label: 'Worth Fixing', n: this.counts.fixable || 0 },
+        { key: 'clear', label: 'Nothing to Fix', n: this.counts.clear || 0 },
+        { key: 'setAside', label: 'Set Aside', n: this.counts.setAside || 0 },
       ];
     },
     shown() {
@@ -291,7 +291,7 @@ export default {
 
     <div class="ar-work__head">
       <div>
-        <h2 class="ar-work__title">Your content</h2>
+        <h2 class="ar-work__title">Your Content</h2>
         <p class="ar-work__sub">
           One row per post, page or whatever else you publish — what it is found for,
           whether it answers that, and anything else it needs.
@@ -318,7 +318,7 @@ export default {
         <path d="M39.5 38.5 44 43" />
       </svg>
 
-      <h3 class="ar-work__intro-title">See what each page is really for</h3>
+      <h3 class="ar-work__intro-title">See What Each Page Is Really For</h3>
       <p class="ar-work__intro-lead">
         Agentimus reads your content and tells you which search actually brings people
         to each piece — and whether that piece answers it.

@@ -193,6 +193,11 @@ final class Settings {
 				'telegram_chat'    => '',
 				'telegram_events'  => array(),
 				'telegram_tier'    => 'all', // Which findings ring the phone: 'all' | 'urgent'.
+				// The bot's SHARING use — announcing posts. Its own switch and
+				// its own destination: events tell the owner (a private chat),
+				// announcements tell the readers (a public channel).
+				'telegram_share_enabled' => false,
+				'telegram_share_channel' => '',
 				// Slack: an incoming-webhook URL is the whole credential (Slack's
 				// own design), so it rides here like the webhook's URL does.
 				'slack_enabled'    => false,
@@ -792,6 +797,7 @@ final class Settings {
 		}
 		$webhook_url           = isset( $int_in['webhook_url'] ) ? esc_url_raw( trim( (string) $int_in['webhook_url'] ), array( 'https', 'http' ) ) : '';
 		$telegram_chat         = isset( $int_in['telegram_chat'] ) ? Integrations\Services\Telegram::normalize_chat( $int_in['telegram_chat'] ) : '';
+		$telegram_share_channel = isset( $int_in['telegram_share_channel'] ) ? Integrations\Services\Telegram::normalize_chat( $int_in['telegram_share_channel'] ) : '';
 		$slack_url             = isset( $int_in['slack_url'] ) ? esc_url_raw( trim( (string) $int_in['slack_url'] ), array( 'https', 'http' ) ) : '';
 		$discord_url           = isset( $int_in['discord_url'] ) ? esc_url_raw( trim( (string) $int_in['discord_url'] ), array( 'https', 'http' ) ) : '';
 		$sheets_spreadsheet    = isset( $int_in['sheets_spreadsheet'] ) ? Integrations\Services\Sheets::normalize_spreadsheet_id( $int_in['sheets_spreadsheet'] ) : '';
@@ -807,6 +813,9 @@ final class Settings {
 			'telegram_chat'    => $telegram_chat,
 			'telegram_events'  => $this->sanitize_integration_events( $int_in, 'telegram_events' ),
 			'telegram_tier'    => isset( $int_in['telegram_tier'] ) && 'urgent' === $int_in['telegram_tier'] ? 'urgent' : 'all',
+			// The sharing use: the same collapse — no channel, no announcing.
+			'telegram_share_enabled' => ! empty( $int_in['telegram_share_enabled'] ) && '' !== $telegram_share_channel,
+			'telegram_share_channel' => $telegram_share_channel,
 			// Slack: the same collapse — no URL, no connection.
 			'slack_enabled'    => ! empty( $int_in['slack_enabled'] ) && '' !== $slack_url,
 			'slack_url'        => $slack_url,

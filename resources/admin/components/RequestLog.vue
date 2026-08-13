@@ -93,14 +93,14 @@ export default {
     nomarkTip() {
       return this.verifyOn
         ? 'No identity check — this client claims no crawler that can be verified (browsers and scripts never do). It was served normally.'
-        : 'No identity check — “Verify bot identities” is off, so no client’s claim was checked. Turn it on in Settings → AI access.';
+        : 'No identity check — “Verify bot identities” is off, so no client’s claim was checked. Turn it on in Settings → AI Access.';
     },
     // Why a row has no network. Two honest cases again: the lookup wasn't run at
     // all, or it ran and couldn't attribute this address to an organisation.
     networkTip() {
       return this.identifyOn
         ? 'No network — the lookup couldn’t attribute this visitor to an organisation. Common for home broadband, small hosts and anything behind a privacy proxy.'
-        : 'No network — “Identify every bot” is off, so visitors aren’t looked up. Turn it on in Settings → AI access to see which organisation each one belongs to.';
+        : 'No network — “Identify every bot” is off, so visitors aren’t looked up. Turn it on in Settings → AI Access to see which organisation each one belongs to.';
     },
     pageFrom() {
       return this.rows.length ? this.trail.length * this.perPage + 1 : 0;

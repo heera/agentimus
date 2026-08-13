@@ -60,7 +60,7 @@ export default {
       type="button"
       class="ar__review-btn ar__assist-btn"
       :class="{ 'is-dim': !ready }"
-      :aria-label="ready ? 'Writing assistant' : 'Writing assistant — needs setup'"
+      :aria-label="ready ? 'Writing Assistant' : 'Writing Assistant — needs setup'"
       :aria-expanded="guideOpen"
       @click.stop="click"
     >
@@ -75,7 +75,7 @@ export default {
     </button>
 
     <!-- The dimmed-state guidance: name the missing prerequisite(s), jump where we can. -->
-    <div v-if="guideOpen" class="ar__assist-guide" role="dialog" aria-label="Writing assistant setup" @click.stop>
+    <div v-if="guideOpen" class="ar__assist-guide" role="dialog" aria-label="Writing Assistant setup" @click.stop>
       <strong class="ar__assist-guide__title">The writing assistant drafts posts for you, right here.</strong>
       <p class="ar__assist-guide__lead">It needs two things before it can start:</p>
       <ul class="ar__assist-guide__list">
