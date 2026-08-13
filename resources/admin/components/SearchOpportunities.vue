@@ -616,7 +616,7 @@ export default {
                     class="ar-optcheck__restore"
                     :disabled="busySearchIgnore === (card.page_id || card.page_url)"
                     @click="setAsideSearch(card.page_id ? { post: card.page_id } : { url: card.page_url }, true)"
-                  >Set aside</button>
+                  >Set this aside</button>
                 </div>
               </div>
             </li>
@@ -675,7 +675,7 @@ export default {
               class="ar-clsn__act"
               :disabled="busySearchIgnore === (p.postId || p.url)"
               @click="setAsideSearch(p.postId ? { post: p.postId } : { url: p.url }, true)"
-            >Set aside</button>
+            >Set this aside</button>
           </span>
         </div>
       </div>
