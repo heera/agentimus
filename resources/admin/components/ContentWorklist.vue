@@ -220,6 +220,11 @@ export default {
     // Each engine's OWN window and its own last-checked stamp. Bing's window is
     // anchored at its own newest week and can end days before Google's, so one
     // shared "last 56 days" across both was never true of both.
+    // Just the age, with no "checked" in front of it — for sentences that
+    // supply their own verb.
+    askedAgo(e) {
+      return e.checkedAt ? relTimeShort(e.checkedAt * 1000) : '';
+    },
     engineWhen(e) {
       const bits = [];
       // ⚠️ These arrive as 'YYYY-MM-DD' strings and formatDate takes a DATE
@@ -626,14 +631,16 @@ export default {
                 <span class="ar-work__when">{{ engineWhen(e) }}</span>
               </div>
 
-              <table v-if="e.state === 'reported'" class="ar-work__srch">
-                <tr v-for="(r, n) in e.rows" :key="r.query">
-                  <td class="ar-work__srch-q" :class="{ 'is-top': n === 0 }">{{ r.query }}</td>
-                  <td class="ar-work__srch-n ar-work__srch-r">{{ rank(r.position) }}</td>
-                  <td class="ar-work__srch-n">{{ num(r.impressions) }} shown</td>
-                  <td class="ar-work__srch-n">{{ num(r.clicks) }} {{ r.clicks === 1 ? 'visit' : 'visits' }}</td>
-                </tr>
-              </table>
+              <div v-if="e.state === 'reported'" class="ar-work__srchbox">
+                <table class="ar-work__srch">
+                  <tr v-for="(r, n) in e.rows" :key="r.query">
+                    <td class="ar-work__srch-q" :class="{ 'is-top': n === 0 }">{{ r.query }}</td>
+                    <td class="ar-work__srch-n ar-work__srch-r">{{ rank(r.position) }}</td>
+                    <td class="ar-work__srch-n">{{ num(r.impressions) }} shown</td>
+                    <td class="ar-work__srch-n">{{ num(r.clicks) }} {{ r.clicks === 1 ? 'visit' : 'visits' }}</td>
+                  </tr>
+                </table>
+              </div>
               <p v-if="e.state === 'reported' && e.more" class="ar-work__more">
                 {{ e.more }} more {{ e.more === 1 ? 'search' : 'searches' }} {{ e.name }} reports for this page.
               </p>
@@ -644,26 +651,43 @@ export default {
                    this fired whenever an engine HAD reported but had no extra
                    searches to count — printing "not connected" directly under
                    that engine's own numbers. -->
-              <div v-if="e.state !== 'reported'" class="ar-work__aside">
-                <p v-if="e.state === 'unasked'">
-                  <b>{{ e.name }} has not been asked about this page yet.</b>
-                  {{ e.name }} answers about one page per request, so Agentimus works through
-                  your pages a few at a time rather than all at once.
-                  <template v-if="waiting"> {{ waiting.toLocaleString() }} still to go.</template>
-                  Nothing is missing from your site — the question simply has not been put yet.
-                </p>
-                <p v-else-if="e.state === 'none'">
-                  <b>{{ e.name }} reports no searches for this page.</b>
-                  That is a real answer, not a gap — it was asked{{ e.checkedAt ? ' ' + engineWhen(e) : '' }}.
-                </p>
-                <p v-else-if="e.state === 'error'">
-                  <b>{{ e.name }} refused the question.</b>
-                  <template v-if="e.error"> It said: “{{ e.error }}”.</template>
-                  It will be asked again on the next check.
-                </p>
-                <p v-else>
-                  <b>{{ e.name }} is not connected</b>, so it cannot say anything about this page.
-                </p>
+              <!-- An absence, in a box of its own with a mark that says WHICH
+                   absence at a glance: a tick for a real answer that happens to
+                   be empty, a warning for a question nobody has asked yet. The
+                   two used to be one blank space, and one word of difference is
+                   easy to skim past. -->
+              <div v-if="e.state !== 'reported'" class="ar-work__answer" :class="'is-' + e.state">
+                <span class="ar-work__answer-mark" aria-hidden="true">
+                  <svg v-if="e.state === 'none'" width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5">
+                    <circle cx="10" cy="10" r="8.25" /><path d="M6.4 10.2l2.4 2.4 4.8-4.8" stroke-linecap="round" stroke-linejoin="round" />
+                  </svg>
+                  <svg v-else width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5">
+                    <circle cx="10" cy="10" r="8.25" /><path d="M10 5.9v4.9" stroke-linecap="round" /><circle cx="10" cy="13.8" r=".85" fill="currentColor" stroke="none" />
+                  </svg>
+                </span>
+                <div class="ar-work__answer-t">
+                  <template v-if="e.state === 'unasked'">
+                    <b>{{ e.name }} has not been asked about this page yet.</b>
+                    <span>{{ e.name }} answers about one page per request, so Agentimus works through
+                    your pages a few at a time rather than all at once.<template v-if="waiting"> {{ waiting.toLocaleString() }} still to go.</template>
+                    Nothing is missing from your site — the question simply has not been put yet.</span>
+                  </template>
+                  <template v-else-if="e.state === 'none'">
+                    <b>{{ e.name }} reports no searches for this page.</b>
+                    <!-- ⚠️ Read "it was asked checked 22h ago" on the live screen:
+                         engineWhen() already begins with "checked". The stamp is
+                         in the heading above anyway, so this says only when. -->
+                    <span>That is a real answer, not a gap<template v-if="e.checkedAt"> — it was asked {{ askedAgo(e) }}</template>.</span>
+                  </template>
+                  <template v-else-if="e.state === 'error'">
+                    <b>{{ e.name }} refused the question.</b>
+                    <span><template v-if="e.error">It said: “{{ e.error }}”. </template>It will be asked again on the next check.</span>
+                  </template>
+                  <template v-else>
+                    <b>{{ e.name }} is not connected.</b>
+                    <span>It cannot say anything about this page until it is.</span>
+                  </template>
+                </div>
               </div>
             </div>
 
@@ -674,14 +698,27 @@ export default {
               mistake, and neither number corrects the other.
             </div>
 
+            <!-- Doing on the left, undoing on the right: two verbs that read
+                 alike from a distance, so they are kept apart and each carries
+                 its own mark. -->
             <div class="ar-work__act">
-              <a v-if="i.edit" class="ar-linkbtn" :href="i.edit" target="_blank" rel="noopener">Open in editor</a>
+              <a v-if="i.edit" class="ar-linkbtn ar-work__do" :href="i.edit" target="_blank" rel="noopener">
+                <svg width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+                  <path d="M13.6 3.4l3 3L7.2 15.8l-3.7.7.7-3.7z" stroke-linejoin="round" />
+                </svg>
+                Open in editor
+              </a>
               <button
                 type="button"
-                class="ar-linkbtn ar-linkbtn--mute"
+                class="ar-linkbtn ar-linkbtn--mute ar-work__undo"
                 :disabled="isSettingAside(i)"
                 @click="setAsideRow(i)"
-              >{{ isSettingAside(i) ? 'Saving…' : (i.setAside ? 'Put this back' : 'Set this aside') }}</button>
+              >
+                {{ isSettingAside(i) ? 'Saving…' : (i.setAside ? 'Put this back' : 'Set this aside') }}
+                <svg width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+                  <circle cx="10" cy="10" r="7.25" /><path d="M7.6 7.6l4.8 4.8M12.4 7.6l-4.8 4.8" stroke-linecap="round" />
+                </svg>
+              </button>
             </div>
           </div>
           </details>
@@ -690,8 +727,20 @@ export default {
       </ul>
       <!-- ⚠️ This v-else-if chains to the <ul> above it. Anything inserted
            between the two silently re-points it and the empty message starts
-           appearing over a list full of rows. -->
+           appearing over a list full of rows. It has caught me three times in
+           one day, so: nothing goes here. -->
       <p v-else-if="!picked" class="ar-work__empty">Nothing in this view yet — pages move here as their checks change, and the other tabs hold the rest of your content.</p>
+
+      <!-- A closed row shows the gist and nothing else, which is the point —
+           but a screen full of closed boxes has to say that opening one is
+           worth doing, or nobody finds out what is inside. Once, under the
+           list, not on every row. -->
+      <p v-if="shown.length" class="ar-work__tip">
+        <svg width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+          <circle cx="10" cy="10" r="8.25" /><path d="M10 9.2v4.6" stroke-linecap="round" /><circle cx="10" cy="6.4" r=".85" fill="currentColor" stroke="none" />
+        </svg>
+        Tip: open a row to see what each search engine shows for that page — or hasn’t been asked yet.
+      </p>
 
       <!-- The list covers every published item now, so it can run to more than
            one screen. The range is spelled out on the left: a pager alone leaves
