@@ -6727,11 +6727,24 @@ a.ar-about-proto__v:hover { text-decoration: underline; }
    triangle rather than a second one of ours. */
 .ar-work__fold { margin: 0 0 10px; }
 .ar-work__fold > summary { align-items: flex-start; gap: 10px; padding: 12px 0; font-weight: 400; }
-.ar-work__fold > summary::before { margin-top: 6px; flex: none; }
+/* The caret centres on the TITLE LINE, not on the summary — the summary is two
+   lines tall (title, then the gist), so centring on it would float the caret
+   between them. The sum is pinned rather than guessed: the fold's triangle is
+   8px tall (4px top + 4px bottom border), the title line is held at 21px
+   below, so (21 − 8) / 2 = 6.5px. Change one, change the other. */
+.ar-work__fold > summary::before { margin-top: 6.5px; flex: none; }
 .ar-work__fold[open] > summary { margin-bottom: 12px; }
 /* The title carries the weight in this fold, not the summary line as a whole. */
 .ar-work__summain { flex: 1 1 auto; min-width: 0; }
-.ar-work__gist { display: flex; flex-wrap: wrap; align-items: baseline; gap: 3px 9px; margin-top: 6px; }
+/* One line, aligned with the title above it. ⚠️ The focus label must NOT claim
+   a full row here (as `.ar-work__forlabel` does in the opened body): on its own
+   line it left the separator that follows it stranded at the head of the next
+   one, reading as a dangling bullet. */
+.ar-work__gist { display: flex; flex-wrap: wrap; align-items: baseline; gap: 3px 9px; margin-top: 5px; }
+.ar-work__nofocus {
+  font-family: var(--ar-mono); font-size: 9.5px; letter-spacing: 0.1em;
+  text-transform: uppercase; color: var(--ar-ink-faint);
+}
 .ar-work__sep { color: var(--ar-line-strong); }
 .ar-work__eng { display: inline-flex; align-items: baseline; gap: 6px; white-space: nowrap; }
 .ar-work__eng b { font-weight: 600; color: var(--ar-ink); font-size: 12px; }
@@ -6863,11 +6876,31 @@ a.ar-about-proto__v:hover { text-decoration: underline; }
 .ar-work__row.is-aside { opacity: 0.62; }
 
 .ar-work__thing { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+/* The kind, as a chip — the same rectangle grammar the edge tags wear. It
+   names what a row IS on a site whose content is Products or Recipes, so it
+   has to be legible at a glance without competing with the title. */
 .ar-work__type {
-  display: block; /* Its own line: the title is the thing, this only names its kind. */
   font-family: var(--ar-mono); font-size: 9.5px; letter-spacing: 0.09em;
-  text-transform: uppercase; color: var(--ar-ink-faint);
+  text-transform: uppercase; color: var(--ar-ink-soft);
+  /* ⭐ The line colour AS A FILL. It is one step off the surface in the same
+     hue family, which is exactly what a chip wants — and it moves the right way
+     on its own in both themes: lighter than the fold at night, a shade deeper
+     than the near-white card by day. Every scheme dialect re-keys it for free.
+     ⛔ Not surface-2 (that IS the closed fold's ground, so the chip vanished
+     into it) and ⛔ not paper (a plane BELOW the fold — at night that read as a
+     black hole punched in the row). */
+  border: 1px solid var(--ar-line-strong); border-radius: 3px;
+  background: var(--ar-line); padding: 1px 6px; flex: none;
+  /* ⚠️ Its own line-height, or it inherits the title's 21px and the chip grows
+     past the line the caret is centred against, dragging the row out of
+     alignment again. 14 + 2 padding + 2 border = 18, inside the 21px line. */
+  line-height: 14px;
+  align-self: center;
 }
+/* Kind : name, on one line. A two-word label does not earn a row of its own.
+   ⚠️ The line-height is stated, not inherited: the caret beside it is centred
+   against this exact number. */
+.ar-work__title { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0 6px; min-width: 0; line-height: 21px; }
 .ar-work__name { font-size: 14px; font-weight: 600; color: var(--ar-ink); text-decoration: none; overflow-wrap: anywhere; }
 a.ar-work__name { color: var(--ar-accent); }
 .ar-work__name:hover, .ar-work__name:focus-visible { color: var(--ar-accent); text-decoration: underline; text-underline-offset: 2px; }

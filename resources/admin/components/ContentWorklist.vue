@@ -562,8 +562,14 @@ export default {
           <details class="ar-fold ar-work__fold" :open="isOpen(i)" @toggle="onToggle(i, $event)">
             <summary>
               <span class="ar-work__summain">
-                <span class="ar-work__type">{{ i.type }}</span>
-                <a class="ar-work__name" :href="i.edit || i.url" target="_blank" rel="noopener" @click.stop>{{ i.title }}</a>
+                <!-- Kind and name on ONE line. Two lines for two words put a
+                     near-empty row above every title. The kind wears a chip so
+                     it separates itself — a punctuation mark between them was
+                     doing a border's job. -->
+                <span class="ar-work__title">
+                  <span class="ar-work__type">{{ i.type }}</span>
+                  <a class="ar-work__name" :href="i.edit || i.url" target="_blank" rel="noopener" @click.stop>{{ i.title }}</a>
+                </span>
 
                 <span class="ar-work__gist">
                 <!-- The search prints as a phrase, because that is what it is —
@@ -578,7 +584,7 @@ export default {
                     :class="w.cls"
                   >{{ w.word }}</span>
                 </span>
-                <span v-else class="ar-work__forlabel">no focus chosen</span>
+                <span v-else class="ar-work__nofocus">No focus keyword chosen</span>
 
                 <template v-for="(e, key) in i.engines || {}">
                   <span v-if="e.state !== 'not_connected'" :key="key" class="ar-work__sep" aria-hidden="true">·</span>
