@@ -18,7 +18,7 @@ export default {
 </script>
 
 <template>
-  <div class="ar-skel" aria-busy="true">
+  <div class="ar-skel ar-skel--card" aria-busy="true">
     <p class="ar-card__lead">{{ lead }}</p>
     <span class="ar-skel__line" style="width: 88%"></span>
     <span class="ar-skel__line" style="width: 72%"></span>
