@@ -198,6 +198,10 @@ final class Settings {
 				// announcements tell the readers (a public channel).
 				'telegram_share_enabled' => false,
 				'telegram_share_channel' => '',
+				// X's sharing use is only a switch — the connected account IS
+				// the destination. The grant itself lives in the connection
+				// store, never here.
+				'x_share_enabled'        => false,
 				// Slack: an incoming-webhook URL is the whole credential (Slack's
 				// own design), so it rides here like the webhook's URL does.
 				'slack_enabled'    => false,
@@ -816,6 +820,9 @@ final class Settings {
 			// The sharing use: the same collapse — no channel, no announcing.
 			'telegram_share_enabled' => ! empty( $int_in['telegram_share_enabled'] ) && '' !== $telegram_share_channel,
 			'telegram_share_channel' => $telegram_share_channel,
+			// X: a bare switch — whether a grant stands behind it is the
+			// connection store's runtime question, like Sheets' borrowed key.
+			'x_share_enabled'        => ! empty( $int_in['x_share_enabled'] ),
 			// Slack: the same collapse — no URL, no connection.
 			'slack_enabled'    => ! empty( $int_in['slack_enabled'] ) && '' !== $slack_url,
 			'slack_url'        => $slack_url,

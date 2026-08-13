@@ -50,7 +50,7 @@ final class Announcements {
 	const HISTORY_MAX = 200;
 
 	/** The networks announcing knows today. Each entry is a sharing use that can send. */
-	const NETWORKS = array( 'telegram' );
+	const NETWORKS = array( 'telegram', 'x' );
 
 	/** @var Settings */
 	private $settings;
@@ -95,10 +95,24 @@ final class Announcements {
 		if ( 'telegram' === $network && ! Telegram::sharing_active( $this->settings ) ) {
 			return new \WP_Error( 'agentimus_announce_off', __( 'Announcing by Telegram is not set up — turn it on under Integrations → Sharing first.', 'agentimus' ) );
 		}
+		if ( 'x' === $network && ! Services\X::sharing_active( $this->settings ) ) {
+			return new \WP_Error( 'agentimus_announce_off', __( 'Announcing on X is not set up — turn it on under Integrations → Sharing first.', 'agentimus' ) );
+		}
 
 		$body = trim( (string) ( isset( $args['body'] ) ? $args['body'] : '' ) );
 		if ( '' === $body ) {
 			return new \WP_Error( 'agentimus_announce_empty', __( 'There is nothing to post — the draft is empty.', 'agentimus' ) );
+		}
+		if ( 'x' === $network && Services\X::tweet_length( $body ) > Services\X::LIMIT ) {
+			return new \WP_Error(
+				'agentimus_announce_long',
+				sprintf(
+					/* translators: 1: X's limit, 2: the draft's weighted length. */
+					__( 'Longer than X allows — the limit is %1$d and this draft weighs %2$d. Trim it before it’s promised.', 'agentimus' ),
+					Services\X::LIMIT,
+					Services\X::tweet_length( $body )
+				)
+			);
 		}
 
 		// A moment already behind us means NOW — "send it" is a valid schedule,
@@ -339,6 +353,9 @@ final class Announcements {
 	private function send( array $row ) {
 		if ( 'telegram' === $row['network'] ) {
 			return Telegram::announce( $row['body'] );
+		}
+		if ( 'x' === $row['network'] ) {
+			return Services\X::announce( $row['body'] );
 		}
 		// A row from a build that knew more networks than this one: parked as
 		// failed with an honest sentence, never guessed at.

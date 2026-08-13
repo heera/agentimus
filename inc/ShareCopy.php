@@ -148,21 +148,6 @@ final class ShareCopy {
 					'label'   => __( 'Open LinkedIn', 'agentimus' ),
 				),
 			),
-			'reddit'   => array(
-				'label'  => 'Reddit',
-				'limit'  => 0,
-				'brief'  => __( 'the BODY text of a link submission — one or two honest first-person sentences on what the post covers and why it might interest the community; no marketing tone, no hashtags, no link (Reddit attaches it)', 'agentimus' ),
-				'hint'   => __( 'Reddit takes the post title and link by itself — this text goes in as the body.', 'agentimus' ),
-				'intent' => array(
-					'carries' => 'text',
-					// {title} = the post's own title; proven live: the new composer
-					// fills title, link AND body from these three parameters.
-					'href'    => 'https://www.reddit.com/submit?url={url}&title={title}&text={text}',
-					'label'   => __( 'Open Reddit', 'agentimus' ),
-				),
-			),
-			// The messengers close the list — platforms you POST to first, apps
-			// you SEND through last (Heera's ordering).
 			'whatsapp' => array(
 				'label'  => 'WhatsApp',
 				'limit'  => 0,
@@ -182,6 +167,19 @@ final class ShareCopy {
 					'carries' => 'text',
 					'href'    => 'https://t.me/share/url?url={url}&text={text}',
 					'label'   => __( 'Open Telegram', 'agentimus' ),
+				),
+			),
+			'reddit'   => array(
+				'label'  => 'Reddit',
+				'limit'  => 0,
+				'brief'  => __( 'the BODY text of a link submission — one or two honest first-person sentences on what the post covers and why it might interest the community; no marketing tone, no hashtags, no link (Reddit attaches it)', 'agentimus' ),
+				'hint'   => __( 'Reddit takes the post title and link by itself — this text goes in as the body.', 'agentimus' ),
+				'intent' => array(
+					'carries' => 'text',
+					// {title} = the post's own title; proven live: the new composer
+					// fills title, link AND body from these three parameters.
+					'href'    => 'https://www.reddit.com/submit?url={url}&title={title}&text={text}',
+					'label'   => __( 'Open Reddit', 'agentimus' ),
 				),
 			),
 		);
@@ -546,6 +544,7 @@ final class ShareCopy {
 			'canSchedule'      => current_user_can( 'manage_options' ),
 			'schedulable'      => array(
 				'telegram' => Integrations\Services\Telegram::sharing_active( new Settings() ),
+				'x'        => Integrations\Services\X::sharing_active( new Settings() ),
 			),
 			'sparkSvg'    => '<svg class="agentimus-assist__icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M12 3l1.9 4.7L18.6 9l-4.7 1.9L12 15.6 10.1 10.9 5.4 9l4.7-1.3z"/></svg>',
 			'i18n'        => array(
@@ -569,7 +568,8 @@ final class ShareCopy {
 				'queuedTick'   => __( 'Queued ✓', 'agentimus' ),
 				'queuedNote'   => __( 'Queued. Watch it under Agentimus → More → Announcements.', 'agentimus' ),
 				'pickTime'     => __( 'Pick a time first.', 'agentimus' ),
-				'connectToSchedule' => __( 'Connect Telegram under Agentimus → Integrations → Sharing, and this card can post by itself at a time you pick.', 'agentimus' ),
+				/* translators: %s: the network's name, e.g. Telegram. */
+				'connectToSchedule' => __( 'Connect %s under Agentimus → Integrations → Sharing, and this card can post by itself at a time you pick.', 'agentimus' ),
 				'fbNoSchedule' => __( 'Can’t be scheduled: Facebook doesn’t let apps post to a personal profile. The draft above stays ready to paste.', 'agentimus' ),
 			),
 		);
@@ -654,7 +654,7 @@ final class ShareCopy {
           '<button type="button" class="button button-small agentimus-sc__queue">' + esc(CFG.i18n.queueIt) + '</button>' +
         '</div>';
       } else {
-        sched = '<p class="agentimus-sc__sched agentimus-sc__sched--plain">' + esc(CFG.i18n.connectToSchedule) + '</p>';
+        sched = '<p class="agentimus-sc__sched agentimus-sc__sched--plain">' + esc(CFG.i18n.connectToSchedule.replace('%s', net.label)) + '</p>';
       }
     }
 

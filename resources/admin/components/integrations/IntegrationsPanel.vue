@@ -35,6 +35,7 @@ import SlackCard from './services/SlackCard.vue';
 import DiscordCard from './services/DiscordCard.vue';
 import SheetsCard from './services/SheetsCard.vue';
 import FeedCard from './services/FeedCard.vue';
+import XCard from './services/XCard.vue';
 import PluginCard from './plugins/PluginCard.vue';
 import { copyText } from '../../js/clipboard.js';
 import { relTimeShort } from '../../js/wpDate.js';
@@ -45,7 +46,7 @@ const DEV_GUIDE = 'https://heera.github.io/agentimus/developer/integrate-your-pl
 
 export default {
   name: 'IntegrationsPanel',
-  components: { CardSkeleton, IntegrationCard, WebhookCard, TelegramCard, SlackCard, DiscordCard, SheetsCard, FeedCard, PluginCard },
+  components: { CardSkeleton, IntegrationCard, WebhookCard, TelegramCard, SlackCard, DiscordCard, SheetsCard, FeedCard, XCard, PluginCard },
   props: {
     api: { type: Object, default: null },
     // Rendered with v-show; fetch on first reveal, re-read on every return.
@@ -71,6 +72,7 @@ export default {
       // plus the ledger at a glance for the roll-up line.
       sharing: {
         telegram: { enabled: false, channel: '', hasToken: false, active: false, queued: 0, lastSentAt: 0 },
+        x: { enabled: false, connected: false, active: false, handle: '', refreshError: '', connectError: '', callbackUrl: '', hasClientId: false, queued: 0, lastSentAt: 0 },
         ledger: { total: 0, queued: 0, sentWeek: 0, failed: 0 },
       },
       // The sharing form is inline (there is no credential to take, so no
@@ -82,6 +84,9 @@ export default {
       panel: '',
       form: { url: '', events: [] },
       tg: { token: '', chat: '', tier: 'all', events: [] },
+      // X's modal form: the one field a PKCE public client needs.
+      xForm: { clientId: '' },
+      callbackCopied: false,
       sl: { url: '', events: [] },
       dc: { url: '', events: [] },
       sh: { spreadsheet: '', events: [] },
@@ -100,7 +105,7 @@ export default {
   computed: {
     // The open service's name over the modal — one shell, one title slot.
     modalTitle() {
-      return { webhook: 'Webhook', telegram: 'Telegram', slack: 'Slack', discord: 'Discord', sheets: 'Google Sheets', feed: 'Private Feed' }[this.panel] || '';
+      return { webhook: 'Webhook', telegram: 'Telegram', x: 'X (Twitter)', slack: 'Slack', discord: 'Discord', sheets: 'Google Sheets', feed: 'Private Feed' }[this.panel] || '';
     },
   },
   watch: {
@@ -291,6 +296,87 @@ export default {
     },
     goAnnouncements() {
       window.location.hash = '#announcements';
+    },
+    xStateLine() {
+      const x = this.sharing.x;
+      const parts = [];
+      if (x.lastSentAt) parts.push(`Last announcement ${relTimeShort(x.lastSentAt * 1000)}`);
+      if (x.queued) parts.push(`${x.queued} queued`);
+      return parts.length ? parts.join(' · ') : 'No announcements yet.';
+    },
+    /* -- X (Twitter) ------------------------------------------------------- */
+    openX() {
+      this.xForm.clientId = '';
+      this.formError = '';
+      this.callbackCopied = false;
+      this.panel = 'x';
+    },
+    async copyCallback() {
+      const ok = await copyText(this.sharing.x.callbackUrl);
+      this.callbackCopied = ok;
+      if (ok) setTimeout(() => { this.callbackCopied = false; }, 2200);
+    },
+    // The authorize round-trip leaves the page — X brings the owner back to
+    // the callback, which lands them home on this screen, connected (or with
+    // the refusal written on the card).
+    async authorizeX() {
+      if (!this.api || this.saving) return;
+      this.saving = true;
+      this.formError = '';
+      try {
+        const data = await this.api.actIntegrations({ action: 'authorize', service: 'x', client_id: this.xForm.clientId });
+        if (data.authorizeUrl) window.location.href = data.authorizeUrl;
+      } catch (e) {
+        this.saving = false;
+        this.formError = e.message || 'Could not start the authorization.';
+      }
+    },
+    async disconnectX() {
+      const ok = await confirm({
+        title: 'Disconnect X?',
+        message: 'Announcements stop, anything still queued for X is discarded when it comes due, and the grant is revoked at X itself — not just deleted here. Reconnecting runs the authorize again.',
+        confirmLabel: 'Disconnect',
+        cancelLabel: 'Cancel',
+        tone: 'danger',
+      });
+      if (!ok) return;
+      await this.doDisconnect({ action: 'disconnect', service: 'x' }, 'X disconnected — the grant was revoked.');
+    },
+    async saveXSharing(on) {
+      if (!this.api || this.shareSaving) return;
+      if (!on) {
+        const ok = await confirm({
+          title: 'Turn off announcing on X?',
+          message: 'New announcements can\u2019t be queued for X, and anything already queued parks as \u201cDidn\u2019t go\u201d when its minute comes. The connection stays — coming back is one click.',
+          confirmLabel: 'Turn off',
+          cancelLabel: 'Keep announcing',
+          tone: 'danger',
+        });
+        if (!ok) return;
+      }
+      this.shareSaving = true;
+      this.shareError = '';
+      try {
+        this.apply(await this.api.actIntegrations({ action: 'share', service: 'x', enabled: on }));
+        this.$emit('flash', 'success', on ? 'Announcing on X is on.' : 'Announcing on X is off.');
+      } catch (e) {
+        this.shareError = e.message || 'Could not save the announcing setup.';
+      } finally {
+        this.shareSaving = false;
+      }
+    },
+    async testXSharing() {
+      if (!this.api || this.shareSaving) return;
+      this.shareSaving = true;
+      this.shareError = '';
+      try {
+        this.apply(await this.api.actIntegrations({ action: 'share-test', service: 'x' }));
+        this.$emit('flash', 'success', 'Test posted \u2014 look at the timeline.');
+      } catch (e) {
+        this.shareError = e.message || 'The test didn\u2019t go.';
+      } finally {
+        this.shareSaving = false;
+      }
     },
     // The sharing use's one switch: on proves the channel with a test post
     // (the server skips the proof for a channel it already proved); off keeps
@@ -666,6 +752,7 @@ export default {
           <div class="ar-int__grid">
             <WebhookCard :webhook="webhook" @open="openPanel" />
             <TelegramCard :telegram="telegram" @open="openTelegram" />
+            <XCard :x="sharing.x" @open="openX" />
             <SlackCard :slack="slack" @open="openSlack" />
             <DiscordCard :discord="discord" @open="openDiscord" />
             <SheetsCard :sheets="sheets" @open="openSheets" />
@@ -765,6 +852,63 @@ export default {
                     :disabled="shareSaving"
                     @click="testTelegramSharing"
                   >Send a test announcement</button>
+                </div>
+              </template>
+            </article>
+
+            <article class="ar-int__card">
+              <div class="ar-int__head">
+                <h3 class="ar-int__name">X (Twitter)</h3>
+                <span class="ar-int__chip" :class="{ 'is-on': sharing.x.active }">
+                  {{ sharing.x.active ? 'Announcing' : (sharing.x.connected ? 'Off' : 'No app yet') }}
+                </span>
+                <button
+                  v-if="sharing.x.enabled"
+                  type="button"
+                  class="ar-int__power"
+                  :disabled="shareSaving"
+                  aria-label="Turn off announcing on X"
+                  @click="saveXSharing(false)"
+                >
+                  <svg viewBox="0 0 16 16" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 1.6v6" /><path d="M11.9 3.9a5.6 5.6 0 1 1-7.8 0" /></svg>
+                </button>
+              </div>
+
+              <template v-if="!sharing.x.connected">
+                <p class="ar-int__blurb">
+                  Announcing on X runs through an app you own — connect it once on Services.
+                </p>
+                <div class="ar-int__foot">
+                  <button type="button" class="ar-btn ar-btn--ghost" @click="openX">
+                    Connect X on Services
+                  </button>
+                </div>
+              </template>
+
+              <template v-else>
+                <p class="ar-int__blurb">
+                  Announcements post to <strong>@{{ sharing.x.handle || '…' }}</strong>'s own timeline —
+                  there is nothing to point at, so there is nothing to fill in. Drafts over 280 are
+                  refused at the queue, where you can still fix them.
+                </p>
+                <p v-if="sharing.x.refreshError" class="ar-int__note is-err">Renewal refused — announcing is paused. Reconnect on Services.</p>
+                <p v-if="shareError" class="ar-int__moderr" role="alert">{{ shareError }}</p>
+                <p v-if="sharing.x.active" class="ar-int__note">{{ xStateLine() }}</p>
+                <div class="ar-int__foot">
+                  <button
+                    v-if="!sharing.x.enabled"
+                    type="button"
+                    class="ar-btn"
+                    :disabled="shareSaving"
+                    @click="saveXSharing(true)"
+                  >Turn on Announcing</button>
+                  <button
+                    v-if="sharing.x.active"
+                    type="button"
+                    class="ar-btn ar-btn--ghost"
+                    :disabled="shareSaving"
+                    @click="testXSharing"
+                  >Send a Test Announcement</button>
                 </div>
               </template>
             </article>
@@ -994,6 +1138,60 @@ export default {
                   </fieldset>
                 </template>
 
+                <!-- X (Twitter) -->
+                <template v-else-if="panel === 'x'">
+                  <template v-if="!sharing.x.connected">
+                    <details class="ar-fold ar-fold--guide">
+                      <summary>Creating your X app, step by step</summary>
+                      <ol class="ar-guide">
+                        <li>Sign in at <code>developer.x.com</code> and create your developer account. X meters API posting with <strong>credits</strong> — each announcement spends a little; their console states the price.</li>
+                        <li>Create a <strong>Project</strong> and an <strong>App</strong> inside it — names are yours to pick.</li>
+                        <li>In the app's <strong>User authentication settings</strong>: turn on <strong>OAuth 2.0</strong>, set the type to <strong>Public client</strong>, and paste the <strong>Callback URL</strong> from below.</li>
+                        <li>Copy the app's <strong>Client ID</strong> into the field below — there is no secret to copy; this connection doesn't use one.</li>
+                      </ol>
+                    </details>
+
+                    <div class="ar-field">
+                      <label for="ar-int-x-callback">Callback URL — paste this into your X app</label>
+                      <div class="ar-int__oncerow">
+                        <input id="ar-int-x-callback" class="ar-input" type="text" readonly :value="sharing.x.callbackUrl" />
+                        <button type="button" class="ar-btn ar-btn--ghost" @click="copyCallback">{{ callbackCopied ? 'Copied ✓' : 'Copy' }}</button>
+                      </div>
+                      <p class="ar-field__hint">
+                        X sends you back here after you approve — it must match the app's settings exactly.
+                      </p>
+                    </div>
+
+                    <div class="ar-field">
+                      <label for="ar-int-x-client">Client ID</label>
+                      <input
+                        id="ar-int-x-client"
+                        v-model="xForm.clientId"
+                        type="text"
+                        class="ar-input"
+                        autocomplete="off"
+                        placeholder="R2d2QmVFTjJh…"
+                        :disabled="saving"
+                      />
+                      <p class="ar-field__hint">
+                        From your app's Keys and tokens page. Just the Client ID — never the secret.
+                      </p>
+                    </div>
+                    <p v-if="sharing.x.connectError" class="ar-int__moderr" role="alert">{{ sharing.x.connectError }}</p>
+                  </template>
+
+                  <template v-else>
+                    <p class="ar-int__panellead">
+                      Connected as <strong>@{{ sharing.x.handle || '…' }}</strong> — approved to post, read nothing.
+                      Access renews itself; if X ever refuses the renewal, announcing pauses and this card
+                      says so — queued posts wait as “Didn't go” rather than vanishing.
+                    </p>
+                    <p v-if="sharing.x.refreshError" class="ar-int__moderr" role="alert">
+                      Renewal refused: {{ sharing.x.refreshError }} — reconnect to resume.
+                    </p>
+                  </template>
+                </template>
+
                 <!-- Slack -->
                 <template v-else-if="panel === 'slack'">
                   <div class="ar-field">
@@ -1188,6 +1386,16 @@ export default {
                 :disabled="saving"
                 @click="disconnectFeed"
               >Disconnect</button>
+              <button
+                v-if="panel === 'x' && sharing.x.connected"
+                type="button"
+                class="ar-btn ar-btn--danger"
+                :disabled="saving"
+                @click="disconnectX"
+              >Disconnect</button>
+              <button v-if="panel === 'x' && !sharing.x.connected" type="button" class="ar-btn" :disabled="saving" @click="authorizeX">
+                {{ saving ? 'Off to X…' : 'Authorize on X' }}
+              </button>
               <button v-if="panel === 'webhook'" type="button" class="ar-btn" :disabled="saving" @click="save">
                 {{ saving ? 'Saving…' : (webhook.enabled ? 'Save' : 'Connect') }}
               </button>

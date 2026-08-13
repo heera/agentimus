@@ -110,6 +110,19 @@ final class Rest {
 			)
 		);
 
+		// X's OAuth callback — the address the owner pastes into their X app.
+		// Public by nature (X's redirect arrives unauthenticated); its gates
+		// are the single-use state and the PKCE verifier behind it.
+		register_rest_route(
+			'agentimus/v1',
+			'/x/callback',
+			array(
+				'methods'             => \WP_REST_Server::READABLE,
+				'callback'            => array( $this, 'x_callback' ),
+				'permission_callback' => '__return_true',
+			)
+		);
+
 		// The feed itself — the one route on this screen a NON-admin reaches:
 		// a feed reader holding the tokened URL. The gate is the token, checked
 		// in the handler so every refusal is the same bare 401 (a permission
@@ -271,6 +284,24 @@ final class Rest {
 			}
 			if ( 'disconnect' === $action ) {
 				return $this->disconnect_telegram();
+			}
+		}
+		if ( Services\X::ID === $service ) {
+			if ( 'authorize' === $action ) {
+				$url = Services\X::begin( (string) $request->get_param( 'client_id' ) );
+				if ( is_wp_error( $url ) ) {
+					return new \WP_Error( $url->get_error_code(), $url->get_error_message(), array( 'status' => 400 ) );
+				}
+				return rest_ensure_response( array( 'authorizeUrl' => $url ) );
+			}
+			if ( 'share' === $action ) {
+				return $this->save_x_sharing( $request );
+			}
+			if ( 'share-test' === $action ) {
+				return $this->test_x_sharing();
+			}
+			if ( 'disconnect' === $action ) {
+				return $this->disconnect_x();
 			}
 		}
 		if ( Slack::ID === $service ) {
@@ -540,6 +571,99 @@ final class Rest {
 		if ( is_wp_error( $verdict ) ) {
 			return new \WP_Error( $verdict->get_error_code(), $verdict->get_error_message(), array( 'status' => 400 ) );
 		}
+		return rest_ensure_response( $this->payload() );
+	}
+
+	/* -- X (Twitter) ---------------------------------------------------------- */
+
+	/**
+	 * X's redirect lands here. A completed exchange goes home to the
+	 * Integrations screen; a refusal states itself plainly with the road
+	 * back — an OAuth dead-end page with no exit is a trap.
+	 *
+	 * @param \WP_REST_Request $request The request.
+	 */
+	public function x_callback( $request ) {
+		$code  = (string) $request->get_param( 'code' );
+		$state = (string) $request->get_param( 'state' );
+
+		// Everything goes home — a REST 302, never wp_redirect (the server
+		// sends the headers; tests dispatch without emitting any). A refusal
+		// is WRITTEN ON THE CONNECTION for the panel to show on arrival: an
+		// OAuth dead-end page with no exit is a trap.
+		if ( '' !== $code && '' !== $state ) {
+			$verdict = Services\X::complete( $code, $state );
+			if ( is_wp_error( $verdict ) ) {
+				$row                  = \Agentimus\Integrations\Connections::read( Services\X::ID );
+				$row['connect_error'] = substr( $verdict->get_error_message(), 0, 300 );
+				\Agentimus\Integrations\Connections::store( Services\X::ID, $row );
+			}
+		}
+
+		return new \WP_REST_Response(
+			null,
+			302,
+			array( 'Location' => admin_url( 'admin.php?page=agentimus#integrations' ) )
+		);
+	}
+
+	/**
+	 * Save the SHARING use of X — one switch, no destination: the connected
+	 * account IS the destination. Off keeps nothing because there is nothing
+	 * to keep.
+	 *
+	 * @param \WP_REST_Request $request The request.
+	 * @return \WP_REST_Response|\WP_Error
+	 */
+	private function save_x_sharing( $request ) {
+		$enabled = ! empty( $request->get_param( 'enabled' ) );
+
+		if ( $enabled && ! Services\X::connected() ) {
+			return new \WP_Error(
+				'agentimus_x_disconnected',
+				__( 'Connect X first — on the Services tab. Announcing posts through your own app.', 'agentimus' ),
+				array( 'status' => 400 )
+			);
+		}
+
+		$this->store( array( 'x_share_enabled' => $enabled ) );
+		return rest_ensure_response( $this->payload() );
+	}
+
+	/**
+	 * One labelled test post to the connected account's own timeline — a REAL
+	 * public post, said plainly by the button that asks for it. Refused while
+	 * announcing is off.
+	 *
+	 * @return \WP_REST_Response|\WP_Error
+	 */
+	private function test_x_sharing() {
+		if ( ! Services\X::sharing_active( $this->settings ) ) {
+			return new \WP_Error(
+				'agentimus_x_sharing_off',
+				__( 'Turn announcing on first — the test posts to the connected account.', 'agentimus' ),
+				array( 'status' => 400 )
+			);
+		}
+
+		$verdict = Services\X::announce( __( 'A test from Agentimus — announcements this site schedules will appear here like this.', 'agentimus' ) );
+		if ( is_wp_error( $verdict ) ) {
+			return new \WP_Error( $verdict->get_error_code(), $verdict->get_error_message(), array( 'status' => 400 ) );
+		}
+		return rest_ensure_response( $this->payload() );
+	}
+
+	/**
+	 * Disconnect X: revoke the grant AT X (best effort — deleting our copy
+	 * alone would leave it alive out there), forget the row, and halt the
+	 * sharing use with it.
+	 *
+	 * @return \WP_REST_Response
+	 */
+	private function disconnect_x() {
+		Services\X::revoke();
+		Services\X::forget();
+		$this->store( array( 'x_share_enabled' => false ) );
 		return rest_ensure_response( $this->payload() );
 	}
 
@@ -1060,6 +1184,18 @@ final class Rest {
 					'active'     => Telegram::sharing_active( $this->settings ),
 					'queued'     => isset( $announce['networks']['telegram'] ) ? $announce['networks']['telegram']['queued'] : 0,
 					'lastSentAt' => isset( $announce['networks']['telegram'] ) ? $announce['networks']['telegram']['lastSentAt'] : 0,
+				),
+				'x'        => array(
+					'enabled'      => Services\X::sharing_config( $this->settings )['enabled'],
+					'connected'    => Services\X::connected(),
+					'active'       => Services\X::sharing_active( $this->settings ),
+					'handle'       => Services\X::connection()['handle'],
+					'refreshError' => Services\X::connection()['refresh_error'],
+					'connectError' => Services\X::connection()['connect_error'],
+					'callbackUrl'  => Services\X::callback_url(),
+					'hasClientId'  => '' !== Services\X::connection()['client_id'],
+					'queued'       => isset( $announce['networks']['x'] ) ? $announce['networks']['x']['queued'] : 0,
+					'lastSentAt'   => isset( $announce['networks']['x'] ) ? $announce['networks']['x']['lastSentAt'] : 0,
 				),
 				'ledger'   => array(
 					'total'    => $announce['total'],

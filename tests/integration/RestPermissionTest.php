@@ -26,6 +26,9 @@ final class RestPermissionTest extends RestTestCase {
 		'/agentimus/v1/ai-hit',
 		'/agentimus/v1/oauth/register',
 		'/agentimus/v1/oauth/token',
+		// X's OAuth callback: public by nature (X's redirect arrives
+		// unauthenticated); its gates are the single-use state + PKCE.
+		'/agentimus/v1/x/callback',
 	);
 
 	public function test_no_admin_route_is_reachable_by_a_subscriber() {
