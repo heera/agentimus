@@ -158,27 +158,9 @@ export default {
     },
   },
   methods: {
-    // A finding may name pages the shortlist doesn't carry — fetch exactly
-    // those rows so the hand-off always lands on what was counted. Failure
-    // falls through to the picked-empty copy, which explains itself.
-    async resolvePicked() {
-      if (!this.picked || !this.api || !this.api.getWorklistRows) return;
-      const have = new Set(this.items.map((i) => i.id));
-      const missing = this.picked.filter((id) => !have.has(id));
-      if (!missing.length) return;
-      this.pickFetching = true;
-      try {
-        const res = await this.api.getWorklistRows(missing);
-        this.extraRows = Array.isArray(res && res.rows) ? res.rows : [];
-      } catch (e) {
-        this.extraRows = [];
-      } finally {
-        this.pickFetching = false;
-      }
-    },
-    // Leaving the finding's view drops its extra rows too — they were fetched
-    // for that filter, and "Show everything" must mean the list as shipped
-    // (its footer counts stay true).
+    /* The per-word evidence belongs to the PRIMARY search — the one the
+       coverage was measured against. Another search on the same page has a
+       verdict but no word-by-word reading, so it prints as plain words. */
     showEverything() {
       this.picked = null;
       this.extraRows = [];
@@ -224,7 +206,58 @@ export default {
     coverLabel(state) {
       return { answered: 'Answered', scattered: 'Scattered', barely: 'Barely', missing: 'Missing' }[state] || '';
     },
-    // The one line that makes a verdict checkable rather than a grade.
+    /* "Google mostly shows it for" — named from the row's own source, never
+       assumed. A Bing-only site must not be told Google said it. */
+    reportedLead(i) {
+      const e = (i.focus.reported && i.focus.reported.engine) || '';
+      return e ? `${e} mostly shows it for` : 'Search engines mostly show it for';
+    },
+    /* One shape for one search or four: the row's searches, each with its
+       own verdict. */
+    searches(i) {
+      if (!i.focus) return [];
+      if (i.focus.all && i.focus.all.length) return i.focus.all;
+      return [{ query: i.focus.query, state: i.coverage ? i.coverage.state : '' }];
+    },
+    /* The search EXACTLY as it was typed, word by word, with the graded words
+       carrying their reading. The terms array is NOT the phrase — it is what
+       the grader kept (Coverage::words() drops stopwords), so rendering it as
+       the search quietly rewrote "ai crawler blocking plugin" into "crawler
+       blocking plugin". The phrase leads; the marks ride along. Only the
+       PRIMARY search has readings — another search on the same page has a
+       verdict but no word-by-word measurement, so it prints plain. */
+    phraseWords(i, query) {
+      const norm = (w) => String(w).toLowerCase().replace(/^[^\w-]+|[^\w-]+$/g, '');
+      const primary = i.focus && query === i.focus.query;
+      const reading = new Map();
+      if (primary) {
+        (((i.coverage || {}).terms) || []).forEach((t) => reading.set(norm(t.word), t));
+      }
+      return String(query || '').split(/\s+/).filter(Boolean).map((w, n) => {
+        const t = reading.get(norm(w));
+        return {
+          key: n + ':' + w,
+          word: w,
+          // A word the grader never weighed (a stopword) is neither present
+          // nor missing — it stays quiet rather than claiming either.
+          cls: t ? this.wordClass(t) : 'is-plain',
+          tip: t ? this.wordTip(t) : '',
+        };
+      });
+    },
+    wordClass(t) {
+      return t.in_passage ? 'is-passage' : (t.on_page ? 'is-page' : 'is-absent');
+    },
+    wordTip(t) {
+      return t.in_passage
+        ? 'In the passage that answers best'
+        : (t.on_page ? 'On the page, but not in that passage' : 'Not on the page');
+    },
+    coverDetail(i) {
+      const c = i.coverage;
+      if (!c || 'answered' !== c.state || !c.heading) return '';
+      return this.coverWhy(i);
+    },
     coverWhy(i) {
       const c = i.coverage;
       if (!c) return '';
@@ -333,11 +366,17 @@ export default {
 
       <button
         type="button"
-        class="ar-btn ar-btn--reserve"
+        class="ar-btn ar-btn--reserve ar-work__go"
         data-reserve="Reading your content…"
         :disabled="busy"
         @click="$emit('load')"
-      ><span>{{ busy ? 'Reading your content…' : 'Look at my content' }}</span></button>
+      ><span class="ar-work__gotext">
+          <!-- The read takes real seconds (every page is opened once), so the
+               button says so with a turning mark, not only a changed word — a
+               still button with new text reads as "nothing happened". -->
+          <span class="ar-spinner ar-work__spin" :class="{ 'is-idle': !busy }" aria-hidden="true"></span>
+          {{ busy ? 'Reading your content…' : 'Look at my content' }}
+        </span></button>
 
       <p class="ar-work__intro-note">
         Takes a moment — every page is read once. Nothing is changed and nothing leaves your site.
@@ -385,6 +424,16 @@ export default {
         >{{ t.label }} <span class="ar-work__tab-n">{{ t.n }}</span></button>
       </div>
 
+      <!-- The grid's spine: three columns with no headings made the reader
+           infer the pattern row by row. Hidden from screen readers — the row
+           content names itself, and a fake table header would announce a
+           table this list is not. -->
+      <div v-if="shown.length" class="ar-work__cols" aria-hidden="true">
+        <span>Content</span>
+        <span>Search</span>
+        <span>Actions</span>
+      </div>
+
       <ul v-if="shown.length" class="ar-work__list">
         <li v-for="i in shown" :key="i.id" class="ar-work__row" :class="{ 'is-aside': i.setAside }">
 
@@ -405,20 +454,38 @@ export default {
                  that one ran long. -->
             <span v-if="i.focus" class="ar-work__forline">
               <span class="ar-work__forlabel">{{ focusLabel(i) }}</span>
-              <!-- Every search the author chose, each carrying its own verdict.
-                   Showing only the first hid the other decisions the row was
-                   made from — and on a page chosen for three things, which one
-                   is failing is the whole question. -->
-              <template v-if="i.focus.all && i.focus.all.length > 1">
+              <!-- The search reads as a phrase, because that is what it is —
+                   words somebody typed. Each word carries its own reading in
+                   place: the ones the answering passage holds, the ones that
+                   are on the page elsewhere, and the ones that never appear.
+                   The filled badges this replaced said the same thing twice —
+                   once whole in this column, once chopped into chips in the
+                   next — in two visual languages that competed. -->
+              <span
+                v-for="f in searches(i)"
+                :key="f.query"
+                class="ar-work__qline"
+                :class="'is-' + (f.state || 'none')"
+              >
+                <span class="ar-work__qmark" aria-hidden="true" v-tip="stateWord(f.state)">{{ coverMark(f.state) }}</span>
                 <span
-                  v-for="f in i.focus.all"
-                  :key="f.query"
-                  class="ar-work__q"
-                  :class="'is-' + (f.state || 'none')"
-                  v-tip="stateWord(f.state)"
-                >{{ f.query }}</span>
-              </template>
-              <span v-else class="ar-work__q">{{ i.focus.query }}</span>
+                  v-for="w in phraseWords(i, f.query)"
+                  :key="w.key"
+                  class="ar-work__w"
+                  :class="w.cls"
+                  v-tip="w.tip"
+                >{{ w.word }}</span>
+              </span>
+              <!-- Reality, when it disagrees with the choice. Only rendered
+                   for a chosen focus whose engine-reported search is a
+                   different phrase — the mismatch is the whole point, and a
+                   row where they agree has nothing to add. -->
+              <span v-if="i.focus.reported" class="ar-work__reported">
+                {{ reportedLead(i) }}
+                <strong>{{ i.focus.reported.query }}</strong>
+                <span aria-hidden="true" class="ar-work__dot"> · </span>
+                <span class="ar-work__reported-n">{{ rank(i.focus.reported.position) }} · {{ num(i.focus.reported.impressions) }} shown</span>
+              </span>
             </span>
           </div>
 
@@ -432,26 +499,18 @@ export default {
               <span class="ar-work__nums">
                 <span class="ar-work__rank">{{ rank(i.focus.position) }}</span>
                 <span>{{ num(i.focus.impressions) }} shown</span>
+                <span aria-hidden="true" class="ar-work__dot">·</span>
                 <span>{{ num(i.focus.clicks) }} visits</span>
-                <span v-if="i.focus.others">+{{ i.focus.others }} more searches</span>
+                <template v-if="i.focus.others">
+                  <span aria-hidden="true" class="ar-work__dot">·</span>
+                  <span>+{{ i.focus.others }} more searches</span>
+                </template>
               </span>
-              <span class="ar-work__cover" :class="'is-' + i.coverage.state">
+              <span class="ar-work__cover" :class="'is-' + i.coverage.state" v-tip="coverWhy(i)">
                 <span class="ar-work__cover-mark" aria-hidden="true">{{ coverMark(i.coverage.state) }}</span>
                 <span class="ar-work__cover-t">{{ coverLabel(i.coverage.state) }}</span>
               </span>
-              <!-- Word by word, in the searcher's own spelling. A count told you
-                   how many were missing; badges tell you WHICH — and on a page
-                   that half matches, which one to go and write about. -->
-              <span v-if="i.coverage.terms && i.coverage.terms.length" class="ar-work__terms">
-                <span
-                  v-for="t in i.coverage.terms"
-                  :key="t.word"
-                  class="ar-work__term"
-                  :class="t.in_passage ? 'is-passage' : (t.on_page ? 'is-page' : 'is-absent')"
-                  v-tip="t.in_passage ? 'In the passage that answers best' : (t.on_page ? 'On the page, but not in that passage' : 'Not on the page')"
-                >{{ t.word }}</span>
-              </span>
-              <span class="ar-work__why">{{ coverWhy(i) }}</span>
+              <span v-if="coverDetail(i)" class="ar-work__why">{{ coverDetail(i) }}</span>
             </template>
             <span v-else class="ar-work__why">{{ emptyWhy }}</span>
           </div>
@@ -463,7 +522,7 @@ export default {
               class="ar-linkbtn ar-linkbtn--mute"
               :disabled="isSettingAside(i)"
               @click="setAsideRow(i)"
-            >{{ isSettingAside(i) ? 'Saving…' : (i.setAside ? 'Bring back' : 'Set aside') }}</button>
+            >{{ isSettingAside(i) ? 'Saving…' : (i.setAside ? 'Put this back' : 'Set this aside') }}</button>
           </div>
 
         </li>

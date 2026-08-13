@@ -269,6 +269,36 @@ final class Worklist {
 	}
 
 	/**
+	 * The engine's own top search for a page whose owner chose a different one.
+	 *
+	 * Only speaks when there is something to add: a chosen focus, a reported
+	 * search, and the two not being the same phrase. The engine is named from
+	 * the same source the rest of the row reads, so a Bing-only site is never
+	 * told Google said it.
+	 *
+	 * @param array          $chosen The owner's choice ({ query, chosen }).
+	 * @param array<int,array> $rows  The page's reported searches, best first.
+	 * @param string         $shown  The query the row is already showing.
+	 * @return array|null { query, position, impressions, clicks, engine }
+	 */
+	private function reported_against( array $chosen, array $rows, $shown ) {
+		if ( empty( $chosen['chosen'] ) || ! $rows ) {
+			return null;
+		}
+		$top = $rows[0];
+		if ( (string) $top['query'] === (string) $shown ) {
+			return null;
+		}
+		return array(
+			'query'       => (string) $top['query'],
+			'position'    => round( (float) $top['position'], 1 ),
+			'impressions' => (int) $top['impressions'],
+			'clicks'      => (int) $top['clicks'],
+			'engine'      => $this->engine_label(),
+		);
+	}
+
+	/**
 	 * Rebuild rows for named posts only.
 	 *
 	 * The expensive half of {@see all()} is per row — each one renders and reads
@@ -471,6 +501,14 @@ final class Worklist {
 				'clicks'      => (int) $best['clicks'],
 				'others'      => max( 0, count( $rows ) - 1 ),
 				'chosen'      => (bool) $chosen['chosen'],
+				// What the ENGINE actually shows this page for, when the owner
+				// chose something else. Choosing a focus used to hide the
+				// reported search entirely — the row said "You chose X" and the
+				// only trace of reality was a "+3 more searches" count, so a
+				// page aimed at the wrong words looked identical to one aimed
+				// at the right ones. Null when nothing was reported, and null
+				// when the two agree (there is no second thing to say).
+				'reported'    => $this->reported_against( $chosen, $rows, (string) $best['query'] ),
 				// WHICH engine said so. The row already distinguishes the author's
 				// choice from a reported search; naming the reporter is the rest of
 				// that sentence, and it is the difference between "we think this

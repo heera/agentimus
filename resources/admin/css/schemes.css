@@ -83,11 +83,29 @@
   --ar-ink-faint: #918c83;
   --ar-line: #46423d;
   --ar-line-strong: #55504a;
-  /* The rail identity goes GOLD here (his pick) — coffee and gold, while
-     good/PASS keeps meaning green. */
-  --ar-chrome: #c09c5c;
-  --ar-chrome-bright: #d4b478;
-  --ar-chrome-line: color-mix(in srgb, #c09c5c 24%, var(--ar-line));
+  /* Coffee's accent is the base sage pulled 14 degrees toward yellow (his
+     round, 2026-08-13): the teal read cold against the brown, but GOLD could
+     not take the job — coffee already speaks gold three times (the chrome
+     below, the Worth-knowing note, and --ar-warn at hue 41), and the one-
+     accent law makes --ar-good the accent, so a gold accent collapses
+     good / needs-attention / identity into one colour. A warm sage belongs in
+     the room and still stands 59 degrees clear of amber. Restated in full
+     because --ar-good and --ar-hover resolve FROM the accent where they are
+     declared — at :root they would still be reading the base green. */
+  --ar-accent: #98ba87;
+  --ar-good: var(--ar-accent);
+  --ar-good-strong: #adc79c;
+  --ar-good-deep: #c1d4b4;
+  --ar-hover: color-mix(in srgb, #98ba87 16%, transparent);
+  /* The rail joins the accent (his call, 2026-08-13, second round): with the
+     accent warmed to sage the gold rail was the last surface still speaking
+     gold — and it spoke it right beside --ar-warn's amber ("11 to fix" sits
+     on the same rows), which is the collision the accent change was meant to
+     end. Coffee keeps its warmth in the ground and in the Worth-knowing
+     note's bronze below; the identity follows the app. */
+  --ar-chrome: var(--ar-accent);
+  --ar-chrome-bright: #adc79c;
+  --ar-chrome-line: color-mix(in srgb, #98ba87 24%, var(--ar-line));
   /* The Worth-knowing card's gold on coffee's brown (his pick 2026-08-12):
      a quieter bronze, so the card separates from a surface that is already
      warm instead of doubling its brass. */

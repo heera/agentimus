@@ -172,7 +172,13 @@
      blue-charcoal ground, and keeps dark and light one brand. Green stays
      what it means: a good state. (The violet round was tried and retired —
      it read foreign against the charcoal.) */
-  --ar-accent: #57b6a6;
+  /* Sage green at night (his pick, 2026-08-13: #8ab685 over the lighter
+     #95c290 — 4 points darker, so the accent stops weighing exactly what
+     secondary ink does, and the whole night reads calmer). Green also says
+     what the one-accent law already means here: --ar-good IS the accent.
+     Light mode keeps its teal; Coffee keeps the teal at night too (its own
+     dialect below), so the green is Fresh/Midnight/Modern's night voice. */
+  --ar-accent: #8ab685;
   /* ONE accent at night. Green and the brand teal sat 22 degrees apart with
      the same weight — too close to read as a deliberate pair, too far to read
      as one colour — so "good" IS the accent here, and a verdict is carried by
@@ -190,14 +196,14 @@
      card has always worn. Two teal-greens side by side fought; one green
      doesn't. */
   --ar-chrome: var(--ar-accent);
-  --ar-chrome-bright: #6fc7b8;
-  --ar-chrome-line: color-mix(in srgb, #57b6a6 24%, var(--ar-line));
-  --ar-hover: color-mix(in srgb, #57b6a6 16%, transparent);
+  --ar-chrome-bright: #a0c99c;
+  --ar-chrome-line: color-mix(in srgb, #8ab685 24%, var(--ar-line));
+  --ar-hover: color-mix(in srgb, #8ab685 16%, transparent);
 
   --ar-good-wash: color-mix(in srgb, var(--ar-good) 10%, var(--ar-surface));
   --ar-good-tint: color-mix(in srgb, var(--ar-good) 26%, var(--ar-surface));
-  --ar-good-strong: #6fc7b8;
-  --ar-good-deep: #8ad3c6;
+  --ar-good-strong: #a0c99c;
+  --ar-good-deep: #b6d7b2;
   --ar-warn-wash: color-mix(in srgb, var(--ar-warn) 10%, var(--ar-surface));
   --ar-warn-tint: color-mix(in srgb, var(--ar-warn) 26%, var(--ar-surface));
   --ar-warn-deep: #eecd8d;
@@ -6693,6 +6699,32 @@ a.ar-about-proto__v:hover { text-decoration: underline; }
 .ar-work__tab.is-active { border-color: var(--ar-accent); color: var(--ar-accent); background: var(--ar-accent-soft, #e3efec); font-weight: 600; }
 .ar-work__tab-n { font-family: var(--ar-mono); font-variant-numeric: tabular-nums; opacity: 0.75; }
 
+/* The list's column heads — the row grid restated, so a heading can never
+   drift from the column it names. */
+.ar-work__cols {
+  display: grid; grid-template-columns: minmax(0, 1.05fr) minmax(0, 1.15fr) auto;
+  gap: 20px; padding: 10px 26px 8px;
+  border-bottom: 1px solid var(--ar-line);
+  font-family: var(--ar-mono); font-size: 9.5px; letter-spacing: 0.1em;
+  text-transform: uppercase; color: var(--ar-ink-faint);
+}
+.ar-work__cols span:last-child { text-align: right; }
+@media (max-width: 1080px) { .ar-work__cols { display: none; } }
+
+/* The read button's own busy mark, at the assistant spinner's size. The mark's
+   SLOT is always there — hidden when idle — because the button reserves the
+   busy label's width up front (data-reserve) and a spinner appearing beside it
+   would have widened the button on click, which is exactly the jump that
+   pattern exists to prevent. */
+.ar-work__gotext { display: inline-flex; align-items: center; gap: 9px; }
+.ar-spinner.ar-work__spin {
+  box-sizing: border-box; width: 13px; height: 13px; border-width: 2px; flex: 0 0 auto;
+}
+.ar-work__spin.is-idle { visibility: hidden; animation: none; }
+/* The reserve twin has to hold the mark's room too, or the button still grows
+   the moment the label swaps. */
+.ar-work__go.ar-btn--reserve::after { padding-left: 22px; }
+
 .ar-work__list { list-style: none; margin: 0; padding: 0; }
 .ar-work__row {
   display: grid; grid-template-columns: minmax(0, 1.05fr) minmax(0, 1.15fr) auto;
@@ -6722,24 +6754,64 @@ a.ar-work__name { color: var(--ar-accent); }
    The phrase becomes a badge because it is a QUOTED VALUE — words somebody
    typed into Google — and reading it as running text invited it to be
    mistaken for the plugin's own description of the page. */
+/* ONE shape per row (his call, 2026-08-13: the list read messy): the label
+   takes its own line and the searches sit under it, whether the query is
+   three words or nine. Inline-with-wrap gave a short query one silhouette and
+   a long one another, so no two rows in the list repeated — the single
+   loudest source of the raggedness. */
 .ar-work__forline {
-  display: flex; align-items: baseline; gap: 7px; flex-wrap: wrap;
+  display: flex; flex-wrap: wrap; align-items: baseline; gap: 5px 7px;
   margin-top: 8px;
 }
+
 .ar-work__forlabel {
-  flex: 0 0 auto; font-family: var(--ar-mono); font-size: 9.5px;
+  /* The label claims the whole line; the searches wrap across the line below
+     it — one shape whether the query is three words or nine. Inline, a long
+     query dropped below and left the label stranded, so no two rows in the
+     list repeated. */
+  flex: 0 0 100%; font-family: var(--ar-mono); font-size: 9.5px;
   letter-spacing: 0.1em; text-transform: uppercase; color: var(--ar-ink-faint);
 }
-.ar-work__q {
-  font-size: 12.5px; color: var(--ar-ink); overflow-wrap: anywhere;
-  background: var(--ar-surface-2); border: 1px solid var(--ar-line-strong);
-  border-radius: 999px; padding: 2px 10px;
+/* The search, read as a phrase. No pill: the words themselves carry the
+   reading (his call, 2026-08-14 — the filled chips read chaotic), so the row
+   shows one line of language instead of a wall of badges. */
+.ar-work__qline {
+  display: block; font-size: 12.5px; line-height: 1.65;
+  color: var(--ar-ink); overflow-wrap: anywhere;
 }
+.ar-work__qmark { margin-right: 7px; font-size: 9px; color: var(--ar-ink-faint); vertical-align: 1px; }
+.ar-work__qline.is-answered .ar-work__qmark { color: var(--ar-good); }
+.ar-work__qline.is-scattered .ar-work__qmark { color: var(--ar-warn); }
+.ar-work__qline.is-missing .ar-work__qmark { color: var(--ar-bad); }
+/* Three readings, three treatments — colour never alone: weight lifts the
+   words the answering passage holds, and a strike marks the ones that are not
+   on the page at all. */
+.ar-work__w { margin-right: 5px; }
+.ar-work__w.is-passage { color: var(--ar-good); font-weight: 600; }
+.ar-work__w.is-page { color: var(--ar-ink); }
+/* The connective words the grader never weighs — present in the phrase
+   because that is what was typed, quiet because they carry no verdict. */
+.ar-work__w.is-plain { color: var(--ar-ink-soft); }
+.ar-work__w.is-absent {
+  color: var(--ar-ink-faint);
+  text-decoration: line-through; text-decoration-thickness: 1px;
+}
+
+/* The reported-search line: quiet, because it is context for a decision the
+   owner already made — not a correction shouted at them. */
+.ar-work__reported {
+  display: block; margin-top: 5px;
+  font-size: 11.5px; line-height: 1.5; color: var(--ar-ink-faint);
+}
+.ar-work__reported strong { color: var(--ar-ink-soft); font-weight: 600; }
+.ar-work__reported-n { font-family: var(--ar-mono); font-size: 10.5px; }
+
 .ar-work__nums {
   font-family: var(--ar-mono); font-size: 10.5px; color: var(--ar-ink-soft);
   font-variant-numeric: tabular-nums; display: flex; gap: 8px; flex-wrap: wrap;
 }
 .ar-work__rank { color: var(--ar-ink); font-weight: 600; }
+.ar-work__dot { color: var(--ar-ink-faint); }
 .ar-work__cover { display: flex; align-items: baseline; gap: 6px; margin-top: 2px; }
 .ar-work__cover-mark { font-size: 11px; }
 .ar-work__cover-t { font-size: 12px; font-weight: 600; }
@@ -7522,43 +7594,6 @@ a.ar-work__name { color: var(--ar-accent); }
    gap is what separated them, so it is pulled back rather than added to. */
 .ar-surface .ar-dash-note { margin-top: 12px; }
 .ar-surface { margin-bottom: -8px; }
-
-/* The searched words, one badge each, in the spelling the searcher used.
-   Three states, and they are not a scale: in the answering passage, on the
-   page but elsewhere, or absent. Colour alone never carries it — the shapes
-   differ too (filled, outlined, struck), and each badge has a title. */
-.ar-work__terms { display: inline-flex; flex-wrap: wrap; gap: 5px; margin-right: 2px; }
-.ar-work__term {
-  font-family: var(--ar-mono); font-size: 10.5px; line-height: 1.5;
-  padding: 1px 7px; border-radius: 999px; white-space: nowrap;
-  border: 1px solid transparent;
-}
-.ar-work__term.is-passage {
-  color: var(--ar-paper); background: var(--ar-good, var(--ar-accent));
-  border-color: var(--ar-good, var(--ar-accent));
-}
-.ar-work__term.is-page {
-  color: var(--ar-ink-soft); background: var(--ar-surface);
-  border-color: var(--ar-line-strong);
-}
-.ar-work__term.is-absent {
-  color: var(--ar-ink-faint); background: transparent;
-  border-color: var(--ar-line); border-style: dashed;
-  text-decoration: line-through; text-decoration-thickness: 1px;
-}
-
-/* A search badge carries its own verdict when a page is for several: filled
-   when a passage answers it, plain when the words are around but not together,
-   struck when none of it is there. The row used to show only the first search,
-   which hid the very decisions it was judged on. */
-.ar-work__q.is-answered {
-  color: var(--ar-paper); background: var(--ar-good, var(--ar-accent));
-  border-color: var(--ar-good, var(--ar-accent));
-}
-.ar-work__q.is-missing {
-  color: var(--ar-ink-faint); background: transparent;
-  border-style: dashed; text-decoration: line-through;
-}
 
 /* The worklist, narrowed to one finding's pages. It replaces the tabs rather
    than sitting above them: the tabs count the whole list, and leaving them on
