@@ -2433,6 +2433,26 @@ td.ar-edge__n.is-bad { color: var(--ar-bad); font-weight: 600; }
 /* The engine switch sits at the head's bottom edge — just above the masthead
    rule — rather than floating top-right with dead air under it. */
 .ar-perf__head .ar-srcpick { align-self: flex-end; }
+/* The asking strip — one slim band under the masthead: what the button will do
+   on the left, the button on the right, and the engine's refusal underneath.
+   ⚠️ Search Opportunities shares .ar-perf__head and .ar-srcpick and has no
+   engine to call, so it gets no strip; everything here is scoped to its own
+   classes and adds nothing to that card. */
+.ar-perf__strip {
+  margin: 14px 0 0; padding: 9px 13px;
+  display: flex; align-items: center; justify-content: space-between; gap: 14px; flex-wrap: wrap;
+  background: var(--ar-surface-2); border: 1px solid var(--ar-line); border-radius: 8px;
+}
+/* The sentence that used to be a tooltip — and the seat the engine's refusal
+   takes over when there is one. ⚠️ ONE line either way: the calm text and the
+   refusal share this slot precisely so the strip never grows and the tiles
+   below never move. */
+.ar-perf__stripsay { margin: 0; flex: 1 1 320px; min-width: 0; font-size: 12.5px; line-height: 1.45; color: var(--ar-ink-soft); overflow-wrap: anywhere; }
+.ar-perf__ask { flex: 0 0 auto; white-space: nowrap; }
+/* The whole band answers when the news is bad, so the warning is not one lonely
+   red line in an otherwise unchanged box. */
+.ar-perf__strip.is-warn { border-color: var(--ar-warn-tint); background: var(--ar-warn-wash); }
+.ar-perf__strip.is-warn .ar-perf__stripsay { color: var(--ar-warn); }
 /* A readable measure: on a wide admin this lead ran nearly the whole card
    and the eye lost the line ends. ~72ch is the serif's comfortable width. */
 .ar-perf__head .ar-card__lead { max-width: 72ch; }
