@@ -389,11 +389,14 @@ final class Module {
 			);
 		}
 
-		$this->settings->set_ask_batch(
-			$refused
-				? (int) max( 1, floor( $batch / 2 ) )
-				: (int) min( self::ASK_BATCH_MAX, $batch + self::ASK_BATCH_STEP )
-		);
+		// Down now, up once a day. Backing off is the safety half and belongs to
+		// the run that earned it; climbing is the optimistic half and must not
+		// be something a person can do by pressing a button repeatedly.
+		if ( $refused ) {
+			$this->settings->halve_ask_batch();
+		} else {
+			$this->settings->grow_ask_batch();
+		}
 	}
 
 	/**
