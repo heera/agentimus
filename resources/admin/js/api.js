@@ -277,6 +277,9 @@ export function createApi(boot) {
     // Refresh: one inline poll, then the fresh summary in the same response.
     refreshBingSummary: (days = 30) =>
       request(`/bing/refresh?days=${Math.max(1, days | 0)}`, { method: 'POST' }),
+    // Ask Search Console again, now. The performance numbers are then re-read
+    // through getSearchPerformance — this only makes them fresh first.
+    refreshGoogleSearch: () => request('/google/refresh', { method: 'POST' }),
     // The Google index watch: stored answers, and an inline "Check now" sweep.
     getGoogleIndex: () => request('/google/index'),
     refreshGoogleIndex: () => request('/google/index', { method: 'POST' }),

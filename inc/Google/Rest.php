@@ -128,6 +128,18 @@ final class Rest {
 			),
 		) );
 
+		// Ask Search Console again, now. ⚠️ This door was missing entirely: the
+		// performance snapshot could only be refreshed by the daily cron or by
+		// re-connecting the key, so the card's own control could re-READ the
+		// stored numbers and nothing more. Bing has had this since it shipped;
+		// Google never did, and nobody noticed because the cron usually made it
+		// look fine.
+		register_rest_route( self::NS, '/google/refresh', array(
+			'methods'             => \WP_REST_Server::CREATABLE,
+			'callback'            => array( $this, 'refresh' ),
+			'permission_callback' => array( $this, 'can_manage' ),
+		) );
+
 		// GA4 is its own route because it is its own grant: the key may already be
 		// stored and working for Search Console while the service account has not
 		// been added to any Analytics property at all.
@@ -277,6 +289,35 @@ final class Rest {
 	 * @return \WP_REST_Response
 	 */
 	public function status() {
+		return rest_ensure_response( $this->google->public_view() );
+	}
+
+	/**
+	 * POST /google/refresh — poll Search Console now, and answer with the
+	 * connection's own state so the caller can see how it went.
+	 *
+	 * The snapshot itself is read back through /search/performance, the way the
+	 * card already reads it; this route's job is only to make the numbers fresh
+	 * first. Its answer carries lastError, so a poll that failed says so instead
+	 * of leaving yesterday's numbers looking like today's.
+	 *
+	 * ⚠️ Slower than a read — it is real API calls, and on a big property the
+	 * walk pages through Search Console. That is the honest cost of asking
+	 * again, and the button that calls it says so.
+	 *
+	 * @return \WP_REST_Response|\WP_Error
+	 */
+	public function refresh() {
+		if ( ! $this->google->connected() ) {
+			return new \WP_Error(
+				'agentimus_google_off',
+				__( 'Connect Google Search Console first.', 'agentimus' ),
+				array( 'status' => 400 )
+			);
+		}
+
+		( new Module( $this->google, $this->client ) )->poll_now();
+
 		return rest_ensure_response( $this->google->public_view() );
 	}
 
