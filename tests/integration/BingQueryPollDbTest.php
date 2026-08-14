@@ -129,8 +129,8 @@ final class BingQueryPollDbTest extends DbTestCase {
 	}
 
 	/**
-	 * A clean run earns a bigger batch next time. Bing publishes no rate limit,
-	 * so this pacing is the only thing standing in for one.
+	 * A clean run earns a bigger batch. Bing publishes no rate limit, so this
+	 * pacing is the only thing standing in for one.
 	 */
 	public function test_a_clean_run_lets_the_batch_grow() {
 		$settings = new BingSettings();
@@ -141,5 +141,57 @@ final class BingQueryPollDbTest extends DbTestCase {
 		$after = (int) ( new BingSettings() )->get( 'ask_batch', 0 );
 		$this->assertGreaterThan( $before, $after );
 		$this->assertLessThanOrEqual( Module::ASK_BATCH_MAX, $after );
+	}
+
+	/**
+	 * ⚠️ THE ONE THAT WOULD HAVE CAUGHT IT. The ladder reads "grows slowly on
+	 * clean days" but stepped on clean RUNS — and Refresh is a run. Four clicks
+	 * took the batch from 10 to 30; a fifth sat it at the ceiling, firing fifty
+	 * requests at an API with no published rate limit. Growth is rationed per
+	 * calendar day now, however many polls happen inside it.
+	 */
+	public function test_pressing_refresh_again_does_not_walk_the_batch_up() {
+		$settings = new BingSettings();
+
+		( new Module( $settings ) )->run_query_poll( 'FAKE-KEY', 'https://example.org/' );
+		$after_first = (int) ( new BingSettings() )->get( 'ask_batch', 0 );
+
+		for ( $i = 0; $i < 3; $i++ ) {
+			( new Module( new BingSettings() ) )->run_query_poll( 'FAKE-KEY', 'https://example.org/' );
+		}
+
+		$this->assertSame(
+			$after_first,
+			(int) ( new BingSettings() )->get( 'ask_batch', 0 ),
+			'Three more polls the same day must not move it.'
+		);
+	}
+
+	/**
+	 * The other half: backing off is the SAFETY half and must land on the run
+	 * that earned it, not wait for tomorrow.
+	 */
+	public function test_a_refusal_halves_the_batch_the_same_day() {
+		$settings = new BingSettings();
+		( new Module( $settings ) )->run_query_poll( 'FAKE-KEY', 'https://example.org/' );
+		$grown = (int) ( new BingSettings() )->get( 'ask_batch', 0 );
+
+		// Bing starts refusing the per-page question.
+		remove_filter( 'pre_http_request', $this->http, 10 );
+		$this->http = static function ( $pre, $args, $url ) {
+			if ( false !== strpos( $url, 'GetPageQueryStats' ) ) {
+				return new \WP_Error( 'http_request_failed', 'too many requests' );
+			}
+			return array(
+				'response' => array( 'code' => 200 ),
+				'body'     => wp_json_encode( array( 'd' => array() ) ),
+				'headers'  => array(),
+			);
+		};
+		add_filter( 'pre_http_request', $this->http, 10, 3 );
+
+		( new Module( new BingSettings() ) )->run_query_poll( 'FAKE-KEY', 'https://example.org/' );
+
+		$this->assertLessThan( $grown, (int) ( new BingSettings() )->get( 'ask_batch', 0 ), 'A refusal backs off immediately.' );
 	}
 }

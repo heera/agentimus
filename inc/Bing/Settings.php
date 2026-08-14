@@ -47,8 +47,13 @@ final class Settings {
 			'dropped_rows' => 0,
 			// How many pages the next poll may ask Bing about. Paces ITSELF,
 			// because Bing publishes no rate limit to pace against: it halves the
-			// moment Bing refuses and climbs back slowly on clean runs.
+			// moment Bing refuses, and climbs back one step a DAY — not one step
+			// a poll, or the Refresh button would walk it to the ceiling in a
+			// minute.
 			'ask_batch'    => \Agentimus\Bing\Module::ASK_BATCH_START,
+			// The day the batch last moved, so growth can be rationed per day
+			// however many polls (cron, connect, Refresh) run inside it.
+			'ask_batch_at' => '',
 		);
 	}
 
@@ -156,18 +161,47 @@ final class Settings {
 	 * @return void
 	 */
 	/**
-	 * Set how many pages the next poll may ask about.
+	 * Let the batch climb one step — at most once a calendar day.
 	 *
-	 * Clamped here rather than trusted from the caller, so a stored value that
-	 * somehow went strange cannot turn into a burst of requests at somebody
-	 * else's expense.
+	 * Clamped to the ceiling here rather than trusted from a stored value, so a
+	 * number that somehow went strange cannot turn into a burst of requests at
+	 * somebody else's expense.
 	 *
-	 * @param int $batch Pages per poll.
 	 * @return void
 	 */
-	public function set_ask_batch( $batch ) {
-		$all              = $this->all();
-		$all['ask_batch'] = (int) min( Module::ASK_BATCH_MAX, max( 1, (int) $batch ) );
+	public function grow_ask_batch() {
+		$all   = $this->all();
+		$today = gmdate( 'Y-m-d' );
+
+		// ⚠️ ONCE A DAY, however many polls run. The ladder was written as
+		// "grows slowly on clean days" but stepped on clean RUNS, and the
+		// Refresh button is a poll — so four clicks took it from 10 to 30 and a
+		// fifth sat it at the ceiling, firing fifty requests at an API that
+		// publishes no rate limit. A person with a button is much faster than a
+		// day, and the pacing has to mean what it says.
+		if ( (string) $all['ask_batch_at'] === $today ) {
+			return;
+		}
+
+		$all['ask_batch']    = (int) min( Module::ASK_BATCH_MAX, max( 1, (int) $all['ask_batch'] ) + Module::ASK_BATCH_STEP );
+		$all['ask_batch_at'] = $today;
+		$this->persist( $all );
+	}
+
+	/**
+	 * Halve the batch, now — Bing refused.
+	 *
+	 * ⚠️ Deliberately NOT rationed by the day the way growth is: backing off is
+	 * the safety half, and it has to take effect on the run that earned it.
+	 * Stamping today's date on the way down also stops the batch climbing again
+	 * within the same day it was refused.
+	 *
+	 * @return void
+	 */
+	public function halve_ask_batch() {
+		$all                 = $this->all();
+		$all['ask_batch']    = (int) max( 1, floor( max( 1, (int) $all['ask_batch'] ) / 2 ) );
+		$all['ask_batch_at'] = gmdate( 'Y-m-d' );
 		$this->persist( $all );
 	}
 
