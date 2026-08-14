@@ -29,6 +29,9 @@ export default {
       data: null,
       loading: false,
       loaded: false,
+      // Asking the engine again, which is a slower thing than reading — kept
+      // apart from `loading` so the control can say which one is happening.
+      polling: false,
       error: '',
       source: '', // The source the owner picked, '' = let the server choose.
     };
@@ -36,6 +39,15 @@ export default {
   computed: {
     sources() {
       return (this.data && this.data.sources) || {};
+    },
+    // Whose numbers are on screen — so the control can name the engine it is
+    // about to go and ask, rather than saying "refresh" and leaving the owner
+    // to guess which of the two it means.
+    engineName() {
+      const active = this.source || (this.data && this.data.source) || '';
+      if ('bing' === active) return 'Bing';
+      if ('google' === active) return 'Google';
+      return 'the search engine';
     },
     anyConnected() {
       const s = this.sources;
@@ -130,6 +142,30 @@ export default {
         this.loaded = true;
       }
     },
+    // Ask the engine again, then read what it said.
+    //
+    // ⚠️ This control used to re-READ the stored snapshot and nothing more —
+    // and for Google there was no way to re-poll at all short of reconnecting
+    // the key, so a card whose numbers had quietly stopped updating offered a
+    // button that could not fix it. It polls the ACTIVE source now: whichever
+    // engine's numbers you are looking at is the one that gets asked.
+    async askAgain() {
+      if (this.polling || this.loading || !this.api) return;
+      const asked = this.source;
+      this.polling = true;
+      this.error = '';
+      try {
+        if ('bing' === asked && this.api.refreshBingSummary) await this.api.refreshBingSummary(30);
+        else if (this.api.refreshGoogleSearch) await this.api.refreshGoogleSearch();
+      } catch (e) {
+        this.error = (e && e.message) || 'Could not ask the search engine again.';
+      } finally {
+        this.polling = false;
+      }
+      // Read either way: a failed poll leaves the previous snapshot standing,
+      // and the card should still show it rather than go blank.
+      await this.load();
+    },
     pick(source) {
       if (this.source === source) return;
       this.source = source;
@@ -153,10 +189,10 @@ export default {
           <!-- The hand-crank half of the freshness rule (reveal already
                refetches): re-reads the stored report on demand. -->
           <RefreshCrank
-            :busy="loading"
-            :aria-label="loading ? 'Re-reading search performance…' : 'Re-read search performance'"
-            :title="loading ? 'Re-reading…' : 'Re-read search performance'"
-            @refresh="load"
+            :busy="polling || loading"
+            :aria-label="polling ? `Asking ${engineName} again…` : `Ask ${engineName} for its latest numbers`"
+            :title="polling ? `Asking ${engineName} again…` : `Ask ${engineName} again — this fetches fresh numbers, so it takes a moment`"
+            @refresh="askAgain"
           />
         </div>
         <p class="ar-card__lead">
