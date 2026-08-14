@@ -23,6 +23,8 @@ import GoogleIndexPanel from './components/GoogleIndexPanel.vue';
 import SearchPerformance from './components/SearchPerformance.vue';
 import SearchOpportunities from './components/SearchOpportunities.vue';
 import AgentAccess from './components/AgentAccess.vue';
+import IntegrationsPanel from './components/integrations/IntegrationsPanel.vue';
+import AnnouncementsPanel from './components/integrations/AnnouncementsPanel.vue';
 import ReviewMenu from './components/ReviewMenu.vue';
 import OnboardingWizard from './components/OnboardingWizard.vue';
 import AboutPanel from './components/AboutPanel.vue';
@@ -56,7 +58,7 @@ const LEGACY_HASHES = { today: 'findings', attention: 'findings', 'ai-traffic': 
 
 export default {
   name: 'AgentimusApp',
-  components: { ScoreRail, SettingsForm, ReadinessPanel, DiscoveryHub, ActivityPanel, AudiencePanel, SurfaceTiles, SiteSystems, WhatsNew, ReviewAsk, AssistantLauncher, AssistantDrawer, AiTrafficPanel, RequestLog, EdgePanel, BingPanel, GoogleIndexPanel, SearchPerformance, SearchOpportunities, AgentAccess, ReviewMenu, OnboardingWizard, AboutPanel, ConfirmDialog, VisibilityPanel, TodayPanel, ContentWorklist },
+  components: { ScoreRail, SettingsForm, ReadinessPanel, DiscoveryHub, ActivityPanel, AudiencePanel, SurfaceTiles, SiteSystems, WhatsNew, ReviewAsk, AssistantLauncher, AssistantDrawer, AiTrafficPanel, RequestLog, EdgePanel, BingPanel, GoogleIndexPanel, SearchPerformance, SearchOpportunities, AgentAccess, IntegrationsPanel, AnnouncementsPanel, ReviewMenu, OnboardingWizard, AboutPanel, ConfirmDialog, VisibilityPanel, TodayPanel, ContentWorklist },
   // The styled hover bubble (shared with the activity tables) — the score rail's
   // rung and next-step hints use it instead of slow, unthemeable native titles.
   props: {
@@ -77,7 +79,7 @@ export default {
     // Dashboard is where a cold load lands. Findings is reachable — its tab, and
     // #findings — but it is not the default: opening the plugin on a worklist
     // puts a to-do list in front of someone who came to look at something.
-    let startTab = ['findings', 'dashboard', ...activityTabs, 'agent-access', 'visibility', 'settings', 'readiness', 'discovery', 'about'].includes(fromHash) ? fromHash : 'dashboard';
+    let startTab = ['findings', 'dashboard', ...activityTabs, 'agent-access', 'integrations', 'announcements', 'visibility', 'settings', 'readiness', 'discovery', 'about'].includes(fromHash) ? fromHash : 'dashboard';
     if (activityTabs.includes(startTab) && !actOn) startTab = 'dashboard';
     return {
       api: createApi(this.boot),
@@ -392,6 +394,16 @@ export default {
           label: 'Agent Access',
           badge: this.agentAccessUnseen,
         },
+        // What the site connects TO — services receiving its reports, plugins it
+        // describes. It sits under the acting screens: connections are standing
+        // arrangements, the noun form of what the screens above show happening.
+        // The connections group, set apart by its own rule (his call): the
+        // screens above show the site being READ; these two are the site
+        // SPEAKING — standing arrangements and the record of what went out.
+        { id: 'integrations', label: 'Integrations', divided: true },
+        // The outgoing record: what announcing has queued, sent, or couldn't.
+        // Data lives here, connections live on Integrations — the boundary law.
+        { id: 'announcements', label: 'Announcements' },
         // The meta pair below the rule: configuration and reference, set
         // apart from the working screens. Settings moved here from the
         // controls' gear (his call): the right-side icons are stateless
@@ -424,6 +436,7 @@ export default {
         providersPublic: typeof c.resourcesRegistered === 'number' ? c.resources || 0 : null,
         capabilities: c.capabilities || 0,
         apis: c.apis || 0,
+        apisPublic: typeof c.apisPublic === 'number' ? c.apisPublic : null,
         tools: c.tools || 0,
         toolsPublic: typeof c.toolsPublished === 'number' ? c.toolsPublished : null,
       };
@@ -470,6 +483,15 @@ export default {
             title: 'Agent Access',
             audience: 'machines',
             description: 'What AI assistants did on your site — keys created and used, abilities run. A record, not a guard.',
+          },
+          integrations: {
+            // HIS pagehead lines, verbatim — the screen's contract with the mock.
+            title: 'Integrations',
+            description: 'What Agentimus connects to — services that receive your reports, and the plugins it describes to AI assistants on your behalf.',
+          },
+          announcements: {
+            title: 'Announcements',
+            description: 'Every announcement your site has sent, will send, or couldn’t — the whole record. A failure names its reason and waits for you; nothing is dropped in silence.',
           },
           visibility: {
             title: 'Visibility',
@@ -807,6 +829,10 @@ export default {
         log: ['M3 4.2h10', 'M3 8h10', 'M3 11.8h6'],
         // A key: this screen is about the credentials that reach the machine surface.
         'agent-access': ['M9.9 6.1a2.6 2.6 0 1 0 3.7 3.7 2.6 2.6 0 0 0-3.7-3.7Z', 'M9.9 9.8 4 15.7', 'M6.4 13.2l1.6 1.6'],
+        // A plug: this screen is about what the site connects to.
+        integrations: ['M6 1.8v3.4M10 1.8v3.4', 'M4.6 5.2h6.8v2.4a3.4 3.4 0 0 1-6.8 0Z', 'M8 11v3.2'],
+        // A megaphone: this screen is about what the site said out loud.
+        announcements: ['M2.6 9.6V6.4l8-3.6v10.4Z', 'M10.6 5.6a3.2 3.2 0 0 1 2.8 2.4', 'M4.8 10l1 3.6'],
         about: ['M8 14.2A6.2 6.2 0 1 0 8 1.8a6.2 6.2 0 0 0 0 12.4Z', 'M8 7.4v3.4', 'M8 5.2h.01'],
       }[id] || [];
     },
@@ -2142,7 +2168,7 @@ export default {
         <section v-if="nextSteps && tab === 'dashboard'" class="ar-card ar-next" aria-label="Worth a look next">
           <div class="ar-next__head">
             <div>
-              <h2 class="ar-next__title">Worth a look next</h2>
+              <h2 class="ar-next__title">Worth a Look Next</h2>
               <p class="ar-next__sub">Setup is done. These three rooms are where Agentimus earns its keep — in priority order.</p>
             </div>
             <button type="button" class="ar-linkbtn" @click="dismissNextSteps">Got it — hide this</button>
@@ -2160,9 +2186,9 @@ export default {
               <span class="ar-next__n" aria-hidden="true">2</span>
               <div class="ar-next__body">
                 <strong>Cloudflare</strong>
-                <p>If Cloudflare fronts your site, connect it under Data sources — you’ll see which AI visitors get served, cached, or turned away before your site ever sees them.</p>
+                <p>If Cloudflare fronts your site, connect it under Data Sources — you’ll see which AI visitors get served, cached, or turned away before your site ever sees them.</p>
               </div>
-              <button type="button" class="ar-btn ar-btn--ghost ar-btn--small" @click="goTo({ tab: 'settings', anchor: 'ar-sec-cloudflare' })">Open Data sources</button>
+              <button type="button" class="ar-btn ar-btn--ghost ar-btn--small" @click="goTo({ tab: 'settings', anchor: 'ar-sec-cloudflare' })">Open Data Sources</button>
             </li>
             <li>
               <span class="ar-next__n" aria-hidden="true">3</span>
@@ -2304,6 +2330,22 @@ export default {
           :active="tab === 'agent-access'"
           :unread="agentAccessUnseen"
           @seen="agentAccessUnseen = 0"
+          @flash="flash"
+        />
+        <!-- Always mounted, like agent-access: the nav lists it unconditionally,
+             so its hash always has somewhere to land. Fetches on first reveal
+             and re-reads on every return (the freshness rule). -->
+        <IntegrationsPanel
+          v-show="tab === 'integrations'"
+          :api="api"
+          :active="tab === 'integrations'"
+          @flash="flash"
+        />
+        <!-- The ledger beside it: same always-mounted shape, same freshness rule. -->
+        <AnnouncementsPanel
+          v-show="tab === 'announcements'"
+          :api="api"
+          :active="tab === 'announcements'"
           @flash="flash"
         />
         <!-- Always mounted: the screen is a room whose tenants each carry

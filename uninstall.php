@@ -34,6 +34,14 @@ function agentimus_uninstall_site() {
 	delete_option( 'agentimus_next_steps' );    // The post-setup "Worth a look next" card state.
 	delete_option( 'agentimus_digest_last' );   // Weekly digest snapshot + unsubscribe key.
 	delete_option( 'agentimus_digest_stop_key' );
+	delete_option( 'agentimus_integrations_webhook_secret' ); // Webhook signing secret.
+	delete_option( 'agentimus_integrations_telegram_token' ); // Telegram bot token (pre-store home).
+	delete_option( 'agentimus_integrations_connections' );    // Shared credential store ({ id → row }).
+	delete_option( 'agentimus_announcements' );               // Scheduled announcements — the queue and its ledger.
+	delete_option( 'agentimus_integrations_state' );          // Per-connection delivery state.
+	delete_option( 'agentimus_integrations_queue' );          // Undelivered outgoing events.
+	delete_option( 'agentimus_integrations_findings_seen' );  // The findings diff's baseline.
+	delete_option( 'agentimus_integrations_impostor_seen' );  // Impostor announce debounce.
 	delete_transient( 'agentimus_ranges_pending' );
 	delete_transient( 'agentimus_llms_txt' );
 	delete_transient( 'agentimus_llms_full' );
@@ -118,6 +126,10 @@ function agentimus_uninstall_site() {
 	delete_option( 'agentimus_google_trend' );
 	delete_option( 'agentimus_search_db_version' );
 	delete_transient( 'agentimus_google_token' );
+	// Non-default scope token slots (Google\Auth::slot hashes the scope URL;
+	// the plugin isn't loaded here, so the prefixes are precomputed):
+	delete_transient( 'agentimus_google_token_59618d64f3805a74' ); // analytics.readonly
+	delete_transient( 'agentimus_google_token_72359770ac5e1d20' ); // spreadsheets (the Sheets integration)
 	wp_clear_scheduled_hook( 'agentimus_google_poll' );
 	wp_clear_scheduled_hook( 'agentimus_google_index_chunk' );
 

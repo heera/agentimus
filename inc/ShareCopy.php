@@ -5,13 +5,14 @@
  * JSON-LD).
  *
  * The author finishes a post (written, AI-drafted, or edited — it doesn't
- * matter) and wants to announce it. Opening the tab shows a LINK PREVIEW —
- * the image and text a network's scraper will build a card from, resolved by
- * the same {@see Seo::social_image()} the cards use — and one uniform card
+ * matter) and wants to announce it. Opening the tab shows one uniform card
  * per network, each an editable draft with a character counter, a Copy
  * button, and an "open composer" link where the network accepts pre-filled
  * text (X, WhatsApp, Telegram and Reddit do; LinkedIn and Facebook take only
- * the URL, so there the flow is copy-then-open).
+ * the URL, so there the flow is copy-then-open). The LINK PREVIEW — the
+ * image and text a network's scraper will build a card from, resolved by the
+ * same {@see Seo::social_image()} the cards use — waits behind the eye on
+ * each card's title, in a small dialog: reference, not furniture.
  *
  * The default networks are the GENERAL-PUBLIC set — X, Facebook, LinkedIn,
  * WhatsApp, Telegram, Reddit — chosen for the ordinary site (a blogger, a
@@ -26,10 +27,12 @@
  * "Rewrite with AI" button on each network (shown only when a provider is
  * configured) spends ONE request through {@see Assist::generate()}, the same
  * governed choke point as every Agentimus draft, on that network alone — an
- * author who only posts to one place only ever pays for that one. Either way
- * NOTHING is posted anywhere: Agentimus never talks to a social network — the
- * author copies, or clicks through to the network's own composer, and posts
- * there.
+ * author who only posts to one place only ever pays for that one. By itself
+ * this tab posts NOTHING: the author copies, or clicks through to the
+ * network's own composer. The one exception is earned elsewhere — a network
+ * the owner connected under Integrations → Sharing gains a "Send it later"
+ * row here, and that row hands the approved draft to the announcements queue,
+ * which posts it at the chosen time with the owner's own credentials.
  *
  * Gated by the `enable_share_copy` setting (on by default — an authoring aid
  * with no front-end output, same posture as the AI Readability panel) plus the
@@ -124,6 +127,28 @@ final class ShareCopy {
 					'label'   => __( 'Open X', 'agentimus' ),
 				),
 			),
+			'linkedin' => array(
+				'label'  => 'LinkedIn',
+				'limit'  => 0,
+				'brief'  => __( 'two or three short paragraphs, professional but personal, at most three hashtags, the link on its own last line', 'agentimus' ),
+				'hint'   => __( 'LinkedIn won’t accept text from outside — Open copies your draft, so just paste it into the composer.', 'agentimus' ),
+				'intent' => array(
+					'carries' => 'url',
+					'href'    => 'https://www.linkedin.com/sharing/share-offsite/?url={url}',
+					'label'   => __( 'Open LinkedIn', 'agentimus' ),
+				),
+			),
+			'telegram' => array(
+				'label'  => 'Telegram',
+				'limit'  => 0,
+				'brief'  => __( 'one or two sentences for a channel post; the link is attached separately by Telegram, so do NOT include it', 'agentimus' ),
+				'hint'   => __( 'Telegram attaches the link by itself, so it isn’t in the text.', 'agentimus' ),
+				'intent' => array(
+					'carries' => 'text',
+					'href'    => 'https://t.me/share/url?url={url}&text={text}',
+					'label'   => __( 'Open Telegram', 'agentimus' ),
+				),
+			),
 			'facebook' => array(
 				'label'  => 'Facebook',
 				'limit'  => 0,
@@ -135,15 +160,14 @@ final class ShareCopy {
 					'label'   => __( 'Open Facebook', 'agentimus' ),
 				),
 			),
-			'linkedin' => array(
-				'label'  => 'LinkedIn',
+			'whatsapp' => array(
+				'label'  => 'WhatsApp',
 				'limit'  => 0,
-				'brief'  => __( 'two or three short paragraphs, professional but personal, at most three hashtags, the link on its own last line', 'agentimus' ),
-				'hint'   => __( 'LinkedIn won’t accept text from outside — Open copies your draft, so just paste it into the composer.', 'agentimus' ),
+				'brief'  => __( 'a short friendly message you would send to a group chat — one or two sentences, then the link', 'agentimus' ),
 				'intent' => array(
-					'carries' => 'url',
-					'href'    => 'https://www.linkedin.com/sharing/share-offsite/?url={url}',
-					'label'   => __( 'Open LinkedIn', 'agentimus' ),
+					'carries' => 'text',
+					'href'    => 'https://api.whatsapp.com/send?text={text}',
+					'label'   => __( 'Open WhatsApp', 'agentimus' ),
 				),
 			),
 			'reddit'   => array(
@@ -157,29 +181,6 @@ final class ShareCopy {
 					// fills title, link AND body from these three parameters.
 					'href'    => 'https://www.reddit.com/submit?url={url}&title={title}&text={text}',
 					'label'   => __( 'Open Reddit', 'agentimus' ),
-				),
-			),
-			// The messengers close the list — platforms you POST to first, apps
-			// you SEND through last (Heera's ordering).
-			'whatsapp' => array(
-				'label'  => 'WhatsApp',
-				'limit'  => 0,
-				'brief'  => __( 'a short friendly message you would send to a group chat — one or two sentences, then the link', 'agentimus' ),
-				'intent' => array(
-					'carries' => 'text',
-					'href'    => 'https://api.whatsapp.com/send?text={text}',
-					'label'   => __( 'Open WhatsApp', 'agentimus' ),
-				),
-			),
-			'telegram' => array(
-				'label'  => 'Telegram',
-				'limit'  => 0,
-				'brief'  => __( 'one or two sentences for a channel post; the link is attached separately by Telegram, so do NOT include it', 'agentimus' ),
-				'hint'   => __( 'Telegram attaches the link by itself, so it isn’t in the text.', 'agentimus' ),
-				'intent' => array(
-					'carries' => 'text',
-					'href'    => 'https://t.me/share/url?url={url}&text={text}',
-					'label'   => __( 'Open Telegram', 'agentimus' ),
 				),
 			),
 		);
@@ -430,13 +431,51 @@ final class ShareCopy {
 
 		return rest_ensure_response(
 			array(
-				'source'    => 'local',
-				'permalink' => (string) get_permalink( $post ),
-				'published' => 'publish' === $post->post_status,
-				'preview'   => $this->preview( $post ),
-				'networks'  => $cards,
+				'source'        => 'local',
+				'permalink'     => (string) get_permalink( $post ),
+				'published'     => 'publish' === $post->post_status,
+				'preview'       => $this->preview( $post ),
+				'networks'      => $cards,
+				'announceLines' => $this->announce_lines( $post->ID ),
 			)
 		);
+	}
+
+	/**
+	 * THIS post's standing with each schedulable network, as one ready
+	 * sentence per network — the card's memory beside its schedule row. One
+	 * line, chosen by what the owner can still act on: a queued promise
+	 * outranks a parked failure outranks the last success. Dates are
+	 * formatted HERE, in the site's own formats — never the browser's.
+	 *
+	 * @param int $post_id Post id.
+	 * @return array<string,string> Network key → line ('' = nothing to say).
+	 */
+	private function announce_lines( $post_id ) {
+		$engine = new Integrations\Announcements( $this->settings );
+		$lines  = array();
+		// Every network the queue knows — the card's memory must not lag the roster.
+		foreach ( Integrations\Announcements::NETWORKS as $network ) {
+			$state = $engine->post_network_state( $post_id, $network );
+			if ( $state['queuedAt'] ) {
+				$lines[ $network ] = sprintf(
+					/* translators: %s: the scheduled date and time, in the site's formats. */
+					__( 'Queued for %s — manage it under Agentimus → More → Announcements.', 'agentimus' ),
+					wp_date( get_option( 'date_format' ) . ' ' . get_option( 'time_format' ), $state['queuedAt'] )
+				);
+			} elseif ( $state['failed'] ) {
+				$lines[ $network ] = __( 'The last announcement didn’t go — see Agentimus → More → Announcements.', 'agentimus' );
+			} elseif ( $state['lastSentAt'] ) {
+				$lines[ $network ] = sprintf(
+					/* translators: %s: how long ago, e.g. "10 mins". */
+					__( 'Last announcement sent %s ago.', 'agentimus' ),
+					human_time_diff( $state['lastSentAt'], time() )
+				);
+			} else {
+				$lines[ $network ] = '';
+			}
+		}
+		return $lines;
 	}
 
 	/**
@@ -469,12 +508,13 @@ final class ShareCopy {
 	public function render_meta_box( $post ) {
 		?>
 		<div class="agentimus-sc" data-post="<?php echo (int) $post->ID; ?>">
-			<p class="agentimus-sc__lead"><?php esc_html_e( 'Announce this post without writing the announcements.', 'agentimus' ); ?></p>
-			<p class="agentimus-sc__intro"><?php esc_html_e( 'Each network gets a ready-to-post draft in its own format. Edit to taste, then copy it — or open the network’s composer with it already filled in. The preview shows the card networks will build from this link.', 'agentimus' ); ?></p>
-			<span class="agentimus-sc__note" aria-live="polite"></span>
+			<div class="agentimus-sc__intro-card">
+				<p class="agentimus-sc__lead"><?php esc_html_e( 'Announce this post without writing the announcements.', 'agentimus' ); ?></p>
+				<p class="agentimus-sc__intro"><?php esc_html_e( 'Each network gets a ready-to-post draft in its own format. Edit to taste, then copy it — or open the network’s composer with it already filled in. The eye on each card shows the preview networks will build from this link.', 'agentimus' ); ?></p>
+				<span class="agentimus-sc__note" aria-live="polite"></span>
+			</div>
 			<div class="agentimus-sc__body">
 				<div class="agentimus-sc__grid"></div>
-				<aside class="agentimus-sc__aside"></aside>
 			</div>
 			<p class="agentimus-sc__foot" hidden></p>
 		</div>
@@ -496,6 +536,18 @@ final class ShareCopy {
 			'endpoint'    => esc_url_raw( rest_url( self::NS . self::ROUTE ) ),
 			'nonce'       => wp_create_nonce( 'wp_rest' ),
 			'aiAvailable' => Assist::ai_available(),
+			// The scheduling door: which networks the announcements queue can
+			// post to (their sharing use is on), and whether THIS user may
+			// queue (the announcements route is admin-gated). A network absent
+			// from the map has no scheduling story yet — its card stays as it
+			// was, no dead promises.
+			'announceEndpoint' => esc_url_raw( rest_url( self::NS . '/announcements' ) ),
+			'canSchedule'      => current_user_can( 'manage_options' ),
+			'schedulable'      => array(
+				'telegram' => Integrations\Services\Telegram::sharing_active( new Settings() ),
+				'x'        => Integrations\Services\X::sharing_active( new Settings() ),
+				'linkedin' => Integrations\Services\LinkedIn::sharing_active( new Settings() ),
+			),
 			'sparkSvg'    => '<svg class="agentimus-assist__icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M12 3l1.9 4.7L18.6 9l-4.7 1.9L12 15.6 10.1 10.9 5.4 9l4.7-1.3z"/></svg>',
 			'i18n'        => array(
 				'working'      => __( 'Drafting…', 'agentimus' ),
@@ -508,11 +560,21 @@ final class ShareCopy {
 				'copy'         => __( 'Copy', 'agentimus' ),
 				'copied'       => __( 'Copied ✓', 'agentimus' ),
 				'chars'        => __( 'characters', 'agentimus' ),
-				'previewLabel' => __( 'Link preview', 'agentimus' ),
+				'previewLabel' => __( 'Link Preview', 'agentimus' ),
+				'previewOpen'  => __( 'See the link preview', 'agentimus' ),
+				'closeLabel'   => __( 'Close', 'agentimus' ),
 				'previewHint'  => __( 'The image and text networks build this link’s card from.', 'agentimus' ),
 				'pasteHint'    => __( 'Text copied — paste it into the composer that just opened (this network can’t be pre-filled).', 'agentimus' ),
 				'noImage'      => __( 'No image to share — set a featured image (or a default social image in Settings) so this link gets a picture.', 'agentimus' ),
 				'unpublished'  => __( 'This post isn’t published yet — the link in these drafts is its current address and can change at publish time.', 'agentimus' ),
+				'sendLater'    => __( 'Send it later', 'agentimus' ),
+				'queueIt'      => __( 'Queue it', 'agentimus' ),
+				'queuedTick'   => __( 'Queued ✓', 'agentimus' ),
+				'queuedNote'   => __( 'Queued. Watch it under Agentimus → More → Announcements.', 'agentimus' ),
+				'pickTime'     => __( 'Pick a time first.', 'agentimus' ),
+				/* translators: %s: the network's name, e.g. Telegram. */
+				'connectToSchedule' => __( 'Connect %s under Agentimus → Integrations → Sharing, and this card can post by itself at a time you pick.', 'agentimus' ),
+				'fbNoSchedule' => __( 'Can’t be scheduled: Facebook doesn’t let apps post to a personal profile. The draft above stays ready to paste.', 'agentimus' ),
 			),
 		);
 
@@ -523,8 +585,8 @@ final class ShareCopy {
 
   function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;'); }
 
-  function post(body){
-    return fetch(CFG.endpoint, {
+  function post(body, url){
+    return fetch(url || CFG.endpoint, {
       method: 'POST',
       credentials: 'same-origin',
       headers: { 'Content-Type': 'application/json', 'X-WP-Nonce': CFG.nonce },
@@ -557,23 +619,69 @@ final class ShareCopy {
               .replace('{title}', encodeURIComponent(title || ''));
   }
 
-  function previewCard(p){
-    var item = document.createElement('div');
-    item.className = 'agentimus-sc__card agentimus-sc__card--preview';
+  // The lightness of the first painted ancestor — the ground this box
+  // really sits on. Transparent layers are skipped; an unreadable color
+  // (some future syntax) is skipped the same way; nothing painted at all
+  // means wp-admin's default, which is light.
+  function luminance(color){
+    var m = /rgba?\(([\d.]+)[, ]+([\d.]+)[, ]+([\d.]+)(?:[,/ ]+([\d.]+))?\)/.exec(color || '');
+    if (!m) { return null; }
+    if (m[4] !== undefined && parseFloat(m[4]) === 0) { return null; }
+    return (0.2126 * m[1] + 0.7152 * m[2] + 0.0722 * m[3]) / 255;
+  }
+  function surroundingsAreDark(el){
+    var node = el.parentElement;
+    while (node) {
+      var l = luminance(getComputedStyle(node).backgroundColor);
+      if (l !== null) { return l < 0.5; }
+      node = node.parentElement;
+    }
+    return false;
+  }
+
+  // The link preview, on request: a small dialog on top of the editor.
+  // Appended to <body> (the modal law — never inside a scrolling metabox),
+  // closed by its button, the backdrop or Escape; focus walks back to the
+  // eye that asked.
+  function openPreview(p, opener){
+    if (document.querySelector('.agentimus-sc-pop')) { return; }
     var media = p.image
       ? '<div class="agentimus-sc__previmg" style="background-image:url(&quot;' + esc(p.image) + '&quot;)"></div>'
       : '<div class="agentimus-sc__previmg agentimus-sc__previmg--none">' + esc(CFG.i18n.noImage) + '</div>';
-    item.innerHTML =
-      '<div class="agentimus-sc__head"><span class="agentimus-sc__network">' + esc(CFG.i18n.previewLabel) + '</span></div>' +
-      '<div class="agentimus-sc__prevframe">' + media +
-        '<div class="agentimus-sc__prevbody">' +
-          '<span class="agentimus-sc__prevhost">' + esc(p.host || '') + '</span>' +
-          '<span class="agentimus-sc__prevtitle">' + esc(p.title || '') + '</span>' +
-          '<span class="agentimus-sc__prevdesc">' + esc(p.description || '') + '</span>' +
+    var pop = document.createElement('div');
+    pop.className = 'agentimus-sc-pop';
+    pop.setAttribute('role', 'dialog');
+    pop.setAttribute('aria-modal', 'true');
+    pop.setAttribute('aria-label', CFG.i18n.previewLabel);
+    pop.innerHTML =
+      '<div class="agentimus-sc-pop__panel">' +
+        '<div class="agentimus-sc-pop__head"><span>' + esc(CFG.i18n.previewLabel) + '</span>' +
+          '<button type="button" class="agentimus-sc-pop__close" aria-label="' + esc(CFG.i18n.closeLabel) + '">&times;</button>' +
         '</div>' +
-      '</div>' +
-      '<p class="agentimus-sc__prevhint">' + esc(CFG.i18n.previewHint) + '</p>';
-    return item;
+        '<div class="agentimus-sc__prevframe">' + media +
+          '<div class="agentimus-sc__prevbody">' +
+            '<span class="agentimus-sc__prevhost">' + esc(p.host || '') + '</span>' +
+            '<span class="agentimus-sc__prevtitle">' + esc(p.title || '') + '</span>' +
+            '<span class="agentimus-sc__prevdesc">' + esc(p.description || '') + '</span>' +
+          '</div>' +
+        '</div>' +
+        '<p class="agentimus-sc__prevhint">' + esc(CFG.i18n.previewHint) + '</p>' +
+      '</div>';
+    function close(){
+      document.removeEventListener('keydown', onKey);
+      if (pop.parentNode) { pop.parentNode.removeChild(pop); }
+      if (opener && opener.focus) { opener.focus(); }
+    }
+    function onKey(e){ if (e.key === 'Escape') { close(); } }
+    pop.addEventListener('click', function(e){ if (e.target === pop) { close(); } });
+    pop.querySelector('.agentimus-sc-pop__close').addEventListener('click', close);
+    document.addEventListener('keydown', onKey);
+    // The dialog is body-mounted, outside the measured box — it inherits the
+    // box's verdict rather than measuring <body>, so the pair always match.
+    var host = document.querySelector('.agentimus-sc');
+    if (host && host.classList.contains('agentimus-sc--dark')) { pop.classList.add('agentimus-sc--dark'); }
+    document.body.appendChild(pop);
+    pop.querySelector('.agentimus-sc-pop__close').focus();
   }
 
   function card(net, ctx){
@@ -582,9 +690,43 @@ final class ShareCopy {
     var ai = CFG.aiAvailable
       ? '<button type="button" class="button button-small agentimus-sc__aione">' + CFG.sparkSvg + esc(CFG.i18n.rewrite) + '</button>'
       : '';
+    // The schedule row: only a network the announcements queue can actually
+    // post to gets the controls; Facebook states why it never will; a network
+    // with no scheduling story yet shows nothing — no dead promises.
+    var sched = '';
+    if (net.key === 'facebook') {
+      sched = '<p class="agentimus-sc__sched agentimus-sc__sched--plain">' + esc(CFG.i18n.fbNoSchedule) + '</p>';
+    } else if (CFG.schedulable && Object.prototype.hasOwnProperty.call(CFG.schedulable, net.key)) {
+      if (CFG.schedulable[net.key] && CFG.canSchedule) {
+        // Picker and verb ride in one group: on a narrow card the pair wraps
+        // below the label TOGETHER — the button never orphans onto its own line.
+        sched = '<div class="agentimus-sc__sched">' +
+          '<span class="agentimus-sc__schedlabel">' + esc(CFG.i18n.sendLater) + '</span>' +
+          '<span class="agentimus-sc__schedgroup">' +
+            '<input type="datetime-local" class="agentimus-sc__schedtime">' +
+            '<button type="button" class="button button-small agentimus-sc__queue">' + esc(CFG.i18n.queueIt) + '</button>' +
+          '</span>' +
+        '</div>';
+      } else {
+        sched = '<p class="agentimus-sc__sched agentimus-sc__sched--plain">' + esc(CFG.i18n.connectToSchedule.replace('%s', net.label)) + '</p>';
+      }
+    }
+
+    // The card's monogram — the Sharing tab's mark grammar, carried here so
+    // the two surfaces read as one feature. Letters, never logos.
+    var MARKS = { x: 'X', facebook: 'Fb', linkedin: 'In', reddit: 'Rd', whatsapp: 'Wa', telegram: 'Tg' };
+    // The card's memory: this post's standing with the network, one server-
+    // written sentence (queued promise > parked failure > last success).
+    var aLine = ctx.announceLine(net.key);
+    var announce = aLine ? '<p class="agentimus-sc__announce">' + esc(aLine) + '</p>' : '';
+
     item.innerHTML =
       '<div class="agentimus-sc__head">' +
+        '<span class="agentimus-sc__mark" aria-hidden="true">' + esc(MARKS[net.key] || net.label.charAt(0)) + '</span>' +
         '<span class="agentimus-sc__network">' + esc(net.label) + '</span>' +
+        '<button type="button" class="agentimus-sc__eye" aria-label="' + esc(CFG.i18n.previewOpen) + '">' +
+          '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12z"/><circle cx="12" cy="12" r="3"/></svg>' +
+        '</button>' +
         '<span class="agentimus-sc__count"></span>' +
       '</div>' +
       '<textarea class="agentimus-sc__text" rows="6"></textarea>' +
@@ -594,11 +736,16 @@ final class ShareCopy {
         '<button type="button" class="button button-small button-link agentimus-sc__open">' + esc(net.intent.label) +
           '<svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 17 17 7"/><path d="M9 7h8v8"/></svg>' +
         '</button>' +
-      '</div>';
+      '</div>' +
+      sched +
+      announce;
 
     var area    = item.querySelector('.agentimus-sc__text');
     var count   = item.querySelector('.agentimus-sc__count');
     var copyBtn = item.querySelector('.agentimus-sc__copy');
+    item.querySelector('.agentimus-sc__eye').addEventListener('click', function(e){
+      ctx.preview(e.currentTarget);
+    });
     area.value = net.text;
 
     function recount(){
@@ -622,6 +769,39 @@ final class ShareCopy {
       }
       window.open(intentHref(net.intent.href, area.value, ctx.permalink(), ctx.title()), '_blank', 'noopener');
     });
+
+    var queueBtn = item.querySelector('.agentimus-sc__queue');
+    if (queueBtn) {
+      var timeInput = item.querySelector('.agentimus-sc__schedtime');
+      // Prefill an hour out, floored to the minute — a suggestion the owner
+      // adjusts, in the browser's local clock. The queue stores the absolute
+      // moment; the Announcements screen replays it in the site's format.
+      var seed = new Date(Date.now() + 3600000);
+      seed.setSeconds(0, 0);
+      var pad = function(n){ return (n < 10 ? '0' : '') + n; };
+      var toLocal = function(d){
+        return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()) + 'T' + pad(d.getHours()) + ':' + pad(d.getMinutes());
+      };
+      timeInput.value = toLocal(seed);
+      timeInput.min = toLocal(new Date());
+      queueBtn.addEventListener('click', function(){
+        var when = new Date(timeInput.value);
+        if (!timeInput.value || isNaN(when.getTime())) { ctx.note(CFG.i18n.pickTime); return; }
+        queueBtn.disabled = true;
+        post(
+          { action: 'queue', network: net.key, post_id: ctx.id(), body: area.value, at: Math.floor(when.getTime() / 1000) },
+          CFG.announceEndpoint
+        )
+          .then(function(res){
+            queueBtn.disabled = false;
+            if (!res.ok) { ctx.note((res.body && res.body.message) || CFG.i18n.error); return; }
+            queueBtn.textContent = CFG.i18n.queuedTick;
+            setTimeout(function(){ queueBtn.textContent = CFG.i18n.queueIt; }, 2400);
+            ctx.note(CFG.i18n.queuedNote);
+          })
+          .catch(function(){ queueBtn.disabled = false; ctx.note(CFG.i18n.error); });
+      });
+    }
 
     var aiBtn = item.querySelector('.agentimus-sc__aione');
     if (aiBtn) {
@@ -650,16 +830,24 @@ final class ShareCopy {
   function boot(){
     var box = document.querySelector('.agentimus-sc');
     if (!box) { return false; }
+    // One measurement, at boot: walk up to the first painted ancestor and
+    // read its lightness. The metabox wears whatever world it sits in — a
+    // light admin keeps it light at midnight; a genuinely darkened admin
+    // takes it along. (The OS's own mode is nobody here.)
+    if (surroundingsAreDark(box)) { box.classList.add('agentimus-sc--dark'); }
     var note  = box.querySelector('.agentimus-sc__note');
     var grid  = box.querySelector('.agentimus-sc__grid');
-    var aside = box.querySelector('.agentimus-sc__aside');
     var foot  = box.querySelector('.agentimus-sc__foot');
     var loaded = false, busy = false, permalink = '', postTitle = '';
+    var previewData = {};
 
+    var announceLines = {};
     var ctx = {
       id: function(){ return parseInt(box.getAttribute('data-post'), 10); },
       permalink: function(){ return permalink; },
       title: function(){ return postTitle; },
+      announceLine: function(key){ return announceLines[key] || ''; },
+      preview: function(opener){ openPreview(previewData, opener); },
       note: function(t){ note.textContent = t; }
     };
 
@@ -676,8 +864,8 @@ final class ShareCopy {
           postTitle = (res.body.preview && res.body.preview.title) || '';
           note.textContent = CFG.i18n.localNote;
           grid.innerHTML = '';
-          aside.innerHTML = '';
-          aside.appendChild(previewCard(res.body.preview || {}));
+          announceLines = res.body.announceLines || {};
+          previewData = res.body.preview || {};
           (res.body.networks || []).forEach(function(net){ grid.appendChild(card(net, ctx)); });
           if (res.body.published === false) {
             foot.textContent = CFG.i18n.unpublished;
@@ -724,23 +912,52 @@ JS;
 	 * @return string
 	 */
 	public static function css() {
-		return '.agentimus-sc__lead{font-size:13px;font-weight:600;color:#1d2327;margin:2px 0 2px}'
-			. '.agentimus-sc__intro{color:#646970;font-size:12px;max-width:72ch;margin:0 0 10px}'
-			. '.agentimus-sc__note{display:inline-flex;align-items:center;gap:7px;font-size:12px;color:#2c3338;background:#f6f7f7;border:1px solid #dcdcde;border-radius:999px;padding:3px 12px;margin:0 0 2px}'
+		// One local palette, declared twice: the whole surface paints from its
+		// own variables, so a dark OS re-inks everything in one media block.
+		// The sheet ground is what separates this box from the editor content
+		// above it — warm paper, warm cards on it, white fields on top: three
+		// planes the eye can tell apart in either mode.
+		return '.agentimus-sc,.agentimus-sc-pop{--asc-ground:#f6f5f2;--asc-card:#fdfcfa;--asc-line:#d5d3cf;--asc-line-soft:#e7e5e0;--asc-ink:#1d2327;--asc-soft:#646970;--asc-faint:#8c8f94;--asc-field:#fff;--asc-accent:#2271b1;--asc-bad:#b32d2e;'
+			. 'background:var(--asc-ground);border:1px solid var(--asc-line-soft);border-radius:10px;padding:16px;margin-top:6px}'
+			// Not the OS's clock — the metabox paints by the ground it actually
+			// sits on. wp-admin's metaboxes panel is light whatever the hour, so
+			// this class is granted by JS only when a MEASURED surrounding is
+			// dark (a dark-admin plugin, some future dark wp-admin) — never by
+			// prefers-color-scheme, which turned this card into a dark island
+			// inside a light editor the evening his Mac hit sunset.
+			. '.agentimus-sc--dark{--asc-ground:#1e1d1b;--asc-card:#282725;--asc-line:#403e3a;--asc-line-soft:#343330;--asc-ink:#e3e1de;--asc-soft:#a6a39e;--asc-faint:#8b8985;--asc-field:#191817;--asc-accent:#5b9bd5;--asc-bad:#e0705f}'
+			// The intro as an alert-shaped card: accent on the left edge, the
+			// lead, the how, and the drafting-source pill in one quiet callout.
+			. '.agentimus-sc__intro-card{background:var(--asc-card);border:1px solid var(--asc-line-soft);border-left:3px solid var(--asc-accent);border-radius:8px;padding:14px 16px 12px;margin:2px 0 14px;box-shadow:0 1px 2px rgba(16,24,40,.04)}'
+			. '.agentimus-sc__lead{font-size:14px;font-weight:600;color:var(--asc-ink);letter-spacing:-.01em;margin:0 0 3px}'
+			. '.agentimus-sc__intro{color:var(--asc-soft);font-size:12.5px;line-height:1.6;margin:0 0 9px}'
+			. '.agentimus-sc__note{display:inline-flex;align-items:center;gap:7px;font-size:12px;color:var(--asc-soft);background:var(--asc-field);border:1px solid var(--asc-line);border-radius:999px;padding:5px 14px;margin:0}'
 			. '.agentimus-sc__note:empty{display:none}'
-			. '.agentimus-sc__note::before{content:"";flex:none;width:6px;height:6px;border-radius:50%;background:#2271b1}'
-			. '.agentimus-sc__body{display:flex;flex-wrap:wrap;gap:12px;margin-top:8px;align-items:flex-start}'
-			. '.agentimus-sc__grid{flex:1 1 620px;display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:12px;align-items:stretch}'
-			. '.agentimus-sc__aside{flex:1 1 240px;max-width:320px}'
-			. '.agentimus-sc__aside .agentimus-sc__card{min-height:0}'
-			. '.agentimus-sc__card{display:flex;flex-direction:column;border:1px solid #e0e0e0;border-radius:4px;padding:12px;background:#fff;min-height:240px;box-sizing:border-box}'
-			. '.agentimus-sc__head{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px}'
-			. '.agentimus-sc__network{font-weight:600;font-size:13px}'
-			. '.agentimus-sc__count{font-size:11px;color:#646970}'
-			. '.agentimus-sc__count--over{color:#b32d2e;font-weight:600}'
-			. '.agentimus-sc__text{flex:1;width:100%;font-size:13px;line-height:1.5;resize:none;box-sizing:border-box}'
-			. '.agentimus-sc__cardhint{font-size:11px;color:#646970;font-style:italic;margin:4px 0 0}'
-			. '.agentimus-sc__row{display:flex;gap:8px;align-items:center;margin-top:8px}'
+			. '.agentimus-sc__note::before{content:"";flex:none;width:6px;height:6px;border-radius:50%;background:var(--asc-accent)}'
+			. '.agentimus-sc__body{display:flex;flex-wrap:wrap;gap:14px;align-items:flex-start;container-type:inline-size}'
+			// auto-rows 1fr: every card the size of the tallest, across ALL
+			// rows (his call) — the set reads as one sheet of identical cards.
+			. '.agentimus-sc__grid{flex:1 1 620px;display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));grid-auto-rows:1fr;gap:14px;align-items:stretch}'
+			// Three across at most (his number) — the auto-fill above is only
+			// the fallback for browsers without container queries.
+			. '@container (max-width:659px){.agentimus-sc__grid{grid-template-columns:1fr}}'
+			. '@container (min-width:660px){.agentimus-sc__grid{grid-template-columns:repeat(2,1fr)}}'
+			. '@container (min-width:1000px){.agentimus-sc__grid{grid-template-columns:repeat(3,1fr)}}'
+			// The card's own mild warm ground (his call) — the FIELD is the
+			// white thing; the card is the paper it sits on.
+			. '.agentimus-sc__card{display:flex;flex-direction:column;border:1px solid var(--asc-line-soft);border-radius:8px;padding:16px;background:var(--asc-card);min-height:240px;box-sizing:border-box;box-shadow:0 1px 2px rgba(16,24,40,.04);transition:border-color .15s ease,box-shadow .15s ease}'
+			. '.agentimus-sc__card:hover{border-color:var(--asc-line);box-shadow:0 4px 12px rgba(16,24,40,.07)}'
+			. '.agentimus-sc__head{display:flex;align-items:center;gap:8px;margin-bottom:10px}'
+			. '.agentimus-sc__mark{flex:none;width:26px;height:26px;border-radius:7px;display:inline-flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;background:var(--asc-ground);color:var(--asc-soft);border:1px solid var(--asc-line-soft)}'
+			. '.agentimus-sc__network{font-weight:600;font-size:13px;color:var(--asc-ink)}'
+			. '.agentimus-sc__count{margin-left:auto;font-size:11px;color:var(--asc-faint);font-variant-numeric:tabular-nums}'
+			. '.agentimus-sc__count--over{color:var(--asc-bad);font-weight:600}'
+			// One height for every draft box (his call): the card's leftover
+			// space collects between hint and actions instead of stretching
+			// whichever textarea happens to sit in the emptiest card.
+			. '.agentimus-sc__text{flex:none;height:160px;width:100%;font-size:13px;line-height:1.5;resize:none;box-sizing:border-box;border:1px solid var(--asc-line);border-radius:6px;padding:10px 12px;background:var(--asc-field);color:var(--asc-ink)}'
+			. '.agentimus-sc__cardhint{font-size:11px;color:var(--asc-soft);font-style:italic;margin:4px 0 0}'
+			. '.agentimus-sc__row{display:flex;gap:8px;align-items:center;margin-top:auto;padding-top:8px}'
 			. '.agentimus-sc__row .agentimus-sc__open{margin-left:auto}'
 			// The outward mark: these buttons leave the site — say so at a glance.
 			. '.agentimus-sc__open{display:inline-flex;align-items:center;gap:4px}'
@@ -753,14 +970,51 @@ JS;
 			.   '.wp-core-ui .agentimus-sc .button.button-link{font-size:11px;min-height:24px;line-height:22px;margin:0 0 0 auto}'
 			. '}'
 			. '.agentimus-sc__aione{display:inline-flex;align-items:center;gap:4px}'
-			. '.agentimus-sc__foot{color:#646970;font-size:12px;font-style:italic;margin:10px 0 0}'
-			. '.agentimus-sc__prevframe{flex:1;border:1px solid #dcdcde;border-radius:4px;overflow:hidden;display:flex;flex-direction:column;background:#f6f7f7}'
-			. '.agentimus-sc__previmg{aspect-ratio:1.91/1;background-size:cover;background-position:center;background-color:#dcdcde}'
-			. '.agentimus-sc__previmg--none{display:flex;align-items:center;justify-content:center;text-align:center;color:#646970;font-size:12px;padding:12px;box-sizing:border-box;background:repeating-linear-gradient(45deg,#f0f0f1,#f0f0f1 8px,#e8e8e9 8px,#e8e8e9 16px)}'
-			. '.agentimus-sc__prevbody{display:flex;flex-direction:column;gap:2px;padding:8px 10px}'
-			. '.agentimus-sc__prevhost{font-size:11px;color:#646970;text-transform:uppercase}'
-			. '.agentimus-sc__prevtitle{font-weight:600;font-size:13px;color:#1d2327;overflow:hidden;display:-webkit-box;-webkit-line-clamp:1;-webkit-box-orient:vertical}'
-			. '.agentimus-sc__prevdesc{font-size:12px;color:#646970;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}'
-			. '.agentimus-sc__prevhint{color:#646970;font-size:11px;margin:8px 0 0}';
+			. '.agentimus-sc__open{display:inline-flex;align-items:center;gap:4px}'
+			. '.agentimus-sc__foot{color:var(--asc-soft);font-size:12px;font-style:italic;margin:10px 0 0}'
+			. '.agentimus-sc__prevframe{flex:1;min-height:0;border:1px solid var(--asc-line);border-radius:6px;overflow:hidden;display:flex;flex-direction:column;background:var(--asc-field)}'
+			. '.agentimus-sc__previmg{flex:none;aspect-ratio:1.91/1;background-size:cover;background-position:center;background-color:var(--asc-line-soft)}'
+			. '.agentimus-sc__previmg--none{display:flex;align-items:center;justify-content:center;text-align:center;color:var(--asc-soft);font-size:12px;padding:12px;box-sizing:border-box;background:repeating-linear-gradient(45deg,var(--asc-ground),var(--asc-ground) 8px,var(--asc-line-soft) 8px,var(--asc-line-soft) 16px)}'
+			. '.agentimus-sc__prevbody{display:flex;flex-direction:column;gap:2px;padding:8px 10px;overflow:hidden}'
+			. '.agentimus-sc__prevhost{font-size:11px;color:var(--asc-soft);text-transform:uppercase}'
+			. '.agentimus-sc__prevtitle{font-weight:600;font-size:13px;color:var(--asc-ink);overflow:hidden;display:-webkit-box;-webkit-line-clamp:1;-webkit-box-orient:vertical}'
+			. '.agentimus-sc__prevdesc{font-size:12px;color:var(--asc-soft);overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}'
+			. '.agentimus-sc__prevhint{color:var(--asc-soft);font-size:11px;margin:8px 0 0}'
+			. '.agentimus-sc__sched{display:flex;flex-wrap:wrap;gap:8px;align-items:center;border-top:1px dashed var(--asc-line);margin-top:10px;padding-top:10px}'
+			. '.agentimus-sc__sched--plain{display:block;font-size:11px;color:var(--asc-soft);font-style:italic}'
+			. '.agentimus-sc__schedlabel{font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--asc-faint)}'
+			. '.agentimus-sc__schedgroup{display:flex;gap:8px;align-items:center;flex:1 1 auto;min-width:0}'
+			// Slim, to the button's own height (his call) — the row reads as
+			// one line of controls, not a field towering over its verb. The
+			// doubled class outranks core's input[type=datetime-local] rule,
+			// whose min-height:30px was quietly winning. 24px is button-small's
+			// REAL height (measured, not assumed — 26 left the verb 2px short).
+			// The field may flex down a little; its text is 12px, so 176px still
+			// shows the full stamp without clipping.
+			. '.agentimus-sc .agentimus-sc__schedtime{flex:1 1 176px;min-width:0;font-size:12px;background:var(--asc-field);color:var(--asc-ink);border:1px solid var(--asc-line);border-radius:4px;padding:0 6px;height:24px;min-height:24px;line-height:22px;box-sizing:border-box}'
+			. '.agentimus-sc__queue{flex:0 0 auto}'
+			// The card's memory as a small notice (his call) — the intro
+			// card's accent grammar in miniature, never bare floating text.
+			. '.agentimus-sc__announce{margin:10px 0 0;padding:7px 12px;background:var(--asc-ground);border-left:3px solid var(--asc-accent);border-radius:0 6px 6px 0;font-size:12px;line-height:1.5;color:var(--asc-soft)}'
+			// The eye: quiet beside the title, the accent only when asked.
+			. '.agentimus-sc__eye{flex:none;display:inline-flex;align-items:center;justify-content:center;width:24px;height:24px;padding:0;border:0;background:transparent;color:var(--asc-faint);cursor:pointer;border-radius:5px}'
+			. '.agentimus-sc__eye:hover,.agentimus-sc__eye:focus-visible{color:var(--asc-accent);background:var(--asc-ground)}'
+			// The preview dialog — body-mounted, so it carries the token set
+			// itself (see the :root-like selector above).
+			. '.agentimus-sc-pop{position:fixed;inset:0;z-index:100000;display:flex;align-items:center;justify-content:center;padding:24px;background:rgba(0,0,0,.55)}'
+			. '.agentimus-sc-pop__panel{width:min(400px,100%);max-height:min(80vh,640px);overflow:auto;background:var(--asc-card);border:1px solid var(--asc-line-soft);border-radius:10px;padding:16px;box-sizing:border-box;box-shadow:0 12px 40px rgba(0,0,0,.3)}'
+			. '.agentimus-sc-pop__head{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;font-weight:600;font-size:13px;color:var(--asc-ink)}'
+			. '.agentimus-sc-pop__close{flex:none;width:26px;height:26px;padding:0;border:0;background:transparent;color:var(--asc-faint);cursor:pointer;font-size:19px;line-height:1;border-radius:5px}'
+			. '.agentimus-sc-pop__close:hover,.agentimus-sc-pop__close:focus-visible{color:var(--asc-ink);background:var(--asc-ground)}'
+			// Under core's 782px admin breakpoint every .button and input
+			// swells to a 40px touch target. A drafting card is dense desk
+			// furniture, not a toolbar — the metabox opts out, keeping the
+			// same compact rhythm at every width. (.wp-core-ui outranks
+			// core's own mobile rule; the composer link keeps its own dress.)
+			. '@media screen and (max-width:782px){'
+			.   '.wp-core-ui .agentimus-sc .button:not(.button-link){min-height:24px;line-height:22px;font-size:11px;padding:0 8px;margin:0;vertical-align:middle}'
+			.   '.wp-core-ui .agentimus-sc .button.button-link{font-size:11px;min-height:24px;line-height:22px;margin:0 0 0 auto}'
+			.   '.agentimus-sc .agentimus-sc__schedtime{height:24px;min-height:24px;font-size:12px;line-height:22px;padding:0 6px}'
+			. '}';
 	}
 }

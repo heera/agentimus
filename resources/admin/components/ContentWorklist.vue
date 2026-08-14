@@ -566,7 +566,7 @@ export default {
                      near-empty row above every title. The kind wears a chip so
                      it separates itself — a punctuation mark between them was
                      doing a border's job. -->
-                <span class="ar-work__title">
+                <span class="ar-work__rowtitle">
                   <span class="ar-work__type">{{ i.type }}</span>
                   <a class="ar-work__name" :href="i.edit || i.url" target="_blank" rel="noopener" @click.stop>{{ i.title }}</a>
                 </span>

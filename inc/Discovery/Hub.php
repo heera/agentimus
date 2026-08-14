@@ -107,6 +107,17 @@ final class Hub {
 				),
 				'capabilities' => count( $envelope['capabilities'] ),
 				'apis'         => count( $envelope['apis'] ),
+				// The dashboard tile's public/sign-in split — an endpoint with
+				// no auth scheme (or 'none') is an open door; anything else
+				// wants a key. The same per-endpoint auth the envelope states.
+				'apisPublic'   => count(
+					array_filter(
+						$envelope['apis'],
+						static function ( $api ) {
+							return ! isset( $api['auth']['type'] ) || '' === $api['auth']['type'] || 'none' === $api['auth']['type'];
+						}
+					)
+				),
 				// `tools` counts what the site HAS, not what it anonymously publishes — this card is
 				// the owner's inventory of their own site, and an AUTHORISED agent really can run all
 				// of them. Counting only published tools would read 0 the moment abilities stopped

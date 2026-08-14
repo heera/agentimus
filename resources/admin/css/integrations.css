@@ -1,0 +1,522 @@
+/* ==========================================================================
+   Integrations (More → Integrations)
+
+   Split from app.css by size, not by nature: same tokens, same physics. The
+   grid is the blessed FluentForms-style card grammar — monogram + name, one
+   line, a ruled footer whose status chip is a UNIFORM 118px so a column of
+   cards reads as a column of states ("NOT INSTALLED" must never wrap), and a
+   uniform ghost action that only takes the accent on hover. The tab strip
+   itself is app.css's .ar-tabpanel__tabs — nothing new to say there.
+
+   Tokens only (--ar-*), so every scheme dialect and both themes just work.
+   ========================================================================== */
+
+.ar-int { min-width: 0; }
+
+.ar-int__error {
+  margin: 0 0 12px;
+  font-size: 12.5px;
+  color: var(--ar-bad);
+}
+
+/* The teaching line each tab leads with — every section's lead teaches its own
+   word (described / events), the no-glossary law. The aside strip (his call,
+   2026-08-13, third round): ar-card__note's inset grammar — surface-2 with a
+   left rule — so the lead reads as a different KIND of thing from the cards
+   (full border, surface) and from the gold (caveats only). Ink stays soft,
+   not faint: a lead teaches, so it must read. */
+.ar-int__lead {
+  margin: 0 0 14px;
+  padding: 11px 16px;
+  background: var(--ar-surface-2);
+  border-left: 2px solid var(--ar-line-strong);
+  border-radius: 0 var(--ar-radius) var(--ar-radius) 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 13px;
+  line-height: 1.55;
+  color: var(--ar-ink-soft);
+}
+
+/* The lead's quiet mark: an info circle in the faint ink, centred on the
+   whole text block (his call) — it says "this is telling you something",
+   never demanding anything. */
+.ar-int__lead-i {
+  flex: 0 0 auto;
+  display: inline-flex;
+  color: var(--ar-ink-faint);
+}
+
+.ar-int__lead-t {
+  min-width: 0;
+}
+
+/* ---- The card grid ------------------------------------------------------ */
+
+/* THREE to a row on wide screens (his ruling — auto-fill's ~4-up is out): the
+   cards grow to fill the width, and both tabs wear the same count so the two
+   grids read as one grammar. Collapses to 2-up, then 1-up, as the room goes. */
+.ar-int__grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+  margin-top: 14px;
+}
+
+.ar-int__card {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  background: var(--ar-surface);
+  border: 1px solid var(--ar-line);
+  border-radius: var(--ar-radius);
+  padding: 16px 18px 0;
+}
+
+.ar-int__head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+/* The monogram mark: a drawn stand-in for logos we don't ship (and must not
+   imitate) — two letters in the accent, on the accent's own wash. */
+.ar-int__mark {
+  flex: 0 0 auto;
+  width: 34px;
+  height: 34px;
+  border-radius: 8px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--ar-mono);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: var(--ar-accent);
+  background: var(--ar-accent-wash);
+  border: 1px solid var(--ar-line);
+}
+
+.ar-int__name {
+  margin: 0;
+  min-width: 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--ar-ink);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* flex:1 pushes the ruled footer to the card's base, so a short blurb and a
+   long one still land their footers on one line across the row. */
+.ar-int__blurb {
+  flex: 1 1 auto;
+  margin: 10px 0 12px;
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--ar-ink-soft);
+}
+
+/* The card's own status line (the webhook's last delivered / last error). */
+.ar-int__note {
+  margin: -6px 0 12px;
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--ar-ink-faint);
+}
+.ar-int__note.is-err { color: var(--ar-bad); }
+
+/* Ruled footer: the rule runs edge to edge — the card's side padding steps
+   aside for it, so the footer reads as the card's base, not a boxed row. */
+/* The catch-all's full-width slot (his call): Webhook closes the Services
+   shelf spanning every column, grounded on surface-2 so the generic door
+   reads as a different kind of thing from the branded cards above it. The
+   blurb gets a reading-width cap — full-width text lines would be a walk. */
+.ar-int__wide { grid-column: 1 / -1; min-width: 0; }
+.ar-int__wide .ar-int__card { background: var(--ar-surface-2); }
+.ar-int__wide .ar-int__blurb { max-width: 84ch; }
+
+/* The Sharing cards' feet fill the card (his call): one action per line,
+   edge to edge, the same at every width. */
+.ar-int__foot--fill {
+  flex-direction: column;
+  align-items: stretch;
+}
+.ar-int__foot--fill .ar-btn {
+  width: 100%;
+  text-align: center;
+}
+
+.ar-int__foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  /* The action never wraps its words (nowrap below); a card too narrow for the
+     pair wraps the WHOLE button under the chip instead of overflowing. */
+  flex-wrap: wrap;
+  margin: 0 -18px;
+  padding: 10px 18px;
+  border-top: 1px solid var(--ar-line);
+}
+
+/* The status chip: UNIFORM width (118px, his number), nowrap. */
+.ar-int__chip {
+  flex: 0 0 auto;
+  width: 118px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-align: center;
+  padding: 4px 0;
+  border-radius: 999px;
+  font-family: var(--ar-mono);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ar-ink-faint);
+  background: var(--ar-surface-2);
+  border: 1px solid var(--ar-line);
+}
+.ar-int__chip.is-on {
+  color: var(--ar-good);
+  background: var(--ar-good-wash);
+  border-color: var(--ar-good-tint);
+}
+/* The needs-a-hand tone — LinkedIn's expired grant wears it: not broken
+   machinery, a calendar that ran out and wants the owner back. */
+.ar-int__chip.is-err {
+  color: var(--ar-bad);
+  background: var(--ar-bad-wash);
+  border-color: var(--ar-bad-tint);
+}
+
+/* The uniform ghost action: quiet ink at rest, the accent ONLY on hover —
+   never a saturated link, never an underline. One class for <button> and <a>,
+   so the developer card's outward link wears exactly the same clothes. */
+.ar-int__act,
+a.ar-int__act,
+a.ar-int__act:link,
+a.ar-int__act:visited {
+  appearance: none;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  white-space: nowrap;
+  padding: 5px 12px;
+  background: transparent;
+  border: 1px solid var(--ar-line-strong);
+  border-radius: var(--ar-radius);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ar-ink-soft);
+  text-decoration: none;
+  transition: color 0.15s ease, border-color 0.15s ease;
+}
+.ar-int__act:hover,
+a.ar-int__act:hover {
+  color: var(--ar-accent);
+  border-color: var(--ar-accent);
+  text-decoration: none;
+}
+.ar-int__act:focus-visible {
+  outline: 2px solid var(--ar-accent);
+  outline-offset: 1px;
+}
+/* The outward mark, at the shared 9px the Documents rows set. */
+.ar-int__ext { font-size: 9px; line-height: 1; }
+
+/* ---- The service modal (his ruling: the below-the-grid panel is out) ----- */
+
+/* One step BELOW the app's modal default (100001): the disconnect and
+   new-secret confirms open ConfirmDialog on top of this modal, and its
+   teleport anchor lands EARLIER in <body> than ours — equal z-indexes would
+   paint the confirm underneath. Still clear of every wp-admin bar (99999). */
+.ar-modal--svc { z-index: 100000; }
+
+.ar-int__panellead {
+  margin: 0 0 14px;
+  max-width: 68ch;
+  font-size: 12.5px;
+  line-height: 1.55;
+  color: var(--ar-ink-soft);
+}
+.ar-int__panellead code { font-size: 11.5px; }
+/* In the modal head the lead is the last word before the rule — the head's own
+   padding provides the air. */
+.ar-modal__head .ar-int__panellead { margin-bottom: 0; }
+
+/* A refused connect, pinned between the scrolling body and the actions bar so
+   the verdict sits NEXT TO the button that asked, however long the form is. */
+.ar-int__moderr {
+  flex: 0 0 auto;
+  margin: 0;
+  padding: 10px 28px 0;
+  font-size: 12.5px;
+  line-height: 1.45;
+  color: var(--ar-bad);
+}
+
+.ar-int__events {
+  margin: 14px 0 0;
+  padding: 0;
+  border: 0;
+  min-width: 0;
+}
+.ar-int__events legend {
+  padding: 0;
+  margin: 0 0 6px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ar-ink);
+}
+.ar-int__event {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  padding: 7px 0;
+  cursor: pointer;
+}
+.ar-int__event input { margin: 2px 0 0; flex: 0 0 auto; }
+.ar-int__eventtext { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.ar-int__eventtext strong { font-size: 12.5px; font-weight: 600; color: var(--ar-ink); }
+.ar-int__eventtext small { font-size: 12px; line-height: 1.45; color: var(--ar-ink-faint); }
+
+/* The secret's one sighting: a field-toned well, so it reads as a value to
+   take, not a message to skim. */
+.ar-int__once {
+  margin: 14px 0 0;
+  padding: 12px;
+  background: var(--ar-field);
+  border: 1px solid var(--ar-line-strong);
+  border-radius: var(--ar-radius);
+}
+.ar-int__oncerow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+.ar-int__secret {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  font-family: var(--ar-mono);
+  font-size: 12px;
+  color: var(--ar-ink);
+  background: transparent;
+  padding: 0;
+}
+.ar-int__once .ar-field__hint { margin-bottom: 0; }
+
+/* The middle room: two to a row before the single column. 960px is the admin
+   content at a ~1100px window (WP menu + padding paid); 600px is where even a
+   pair would squeeze the chip-and-action footer. */
+@media (max-width: 960px) {
+  .ar-int__grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+/* Phones: one column; the footer keeps its two ends. */
+@media (max-width: 600px) {
+  .ar-int__grid { grid-template-columns: 1fr; }
+}
+
+/* -- The Announcements screen — the ledger ---------------------------------- */
+
+.ar-ann__card {
+  background: var(--ar-surface);
+  border: 1px solid var(--ar-line);
+  border-radius: var(--ar-radius);
+  padding: 6px 18px 14px;
+  overflow-x: auto;
+}
+
+.ar-ann__table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.ar-ann__table th {
+  font-family: var(--ar-mono);
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ar-ink-faint);
+  text-align: left;
+  padding: 12px 10px 8px;
+  border-bottom: 1px solid var(--ar-line-strong);
+}
+
+.ar-ann__table td {
+  padding: 14px 10px;
+  border-bottom: 1px solid var(--ar-line);
+  vertical-align: top;
+}
+
+.ar-ann__table tr:last-child td {
+  border-bottom: 0;
+}
+
+.ar-ann__statuscol {
+  width: 34%;
+}
+
+.ar-ann__when {
+  white-space: nowrap;
+}
+
+.ar-ann__net {
+  font-family: var(--ar-mono);
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  padding: 2px 8px;
+  border: 1px solid var(--ar-line-strong);
+  border-radius: 9px;
+  color: var(--ar-ink-soft);
+  white-space: nowrap;
+}
+
+.ar-ann__post {
+  font-weight: 600;
+}
+
+.ar-ann__body {
+  color: var(--ar-ink-faint);
+  font-size: 12.5px;
+  margin-top: 3px;
+  max-width: 52ch;
+}
+
+.ar-ann__st {
+  font-family: var(--ar-mono);
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.ar-ann__st.is-queued { color: var(--ar-accent); }
+.ar-ann__st.is-sent   { color: var(--ar-good); }
+.ar-ann__st.is-failed { color: var(--ar-bad); }
+
+.ar-ann__why {
+  color: var(--ar-ink-soft);
+  font-size: 13px;
+  margin-top: 3px;
+  max-width: 46ch;
+}
+
+.ar-ann__acts {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.ar-ann__foot {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-top: 1px solid var(--ar-line-strong);
+  margin-top: 2px;
+  padding-top: 12px;
+}
+
+.ar-ann__count {
+  font-family: var(--ar-mono);
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ar-ink-faint);
+}
+
+.ar-ann__pager {
+  display: flex;
+  gap: 8px;
+}
+
+/* The Sharing tab's roll-up line — a count and a door, never the record. */
+.ar-int__ledgerline {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  background: var(--ar-surface);
+  border: 1px solid var(--ar-line);
+  border-radius: var(--ar-radius);
+  padding: 10px 16px;
+  margin-top: 14px;
+}
+
+.ar-int__ledgertext {
+  margin: 0;
+  color: var(--ar-ink-soft);
+}
+
+.ar-int__ledgertext strong {
+  color: var(--ar-ink);
+}
+
+.ar-int__ledgerbad {
+  color: var(--ar-bad);
+}
+
+/* A quiet why-line under a grid — teaching that answers an absence. A true
+   footnote (his call: it must not earn a focus): one line, small, italic —
+   the whisper register, quieter than anything framed around it. */
+.ar-int__aside {
+  margin: 10px 2px 0;
+  font-size: 12px;
+  font-style: italic;
+  line-height: 1.5;
+  color: var(--ar-ink-faint);
+  max-width: 90ch;
+}
+
+/* The announcing card's off switch — a power mark in the title row. It
+   wears the stopping color quietly from the start (his call — a power
+   button should admit what it does), and lights up to the full bad on
+   hover; the press itself asks first. */
+.ar-int__power {
+  flex: 0 0 auto;
+  margin-left: auto;
+  width: 30px;
+  height: 30px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  background: transparent;
+  border: 1px solid color-mix(in srgb, var(--ar-bad) 40%, var(--ar-line-strong));
+  border-radius: 50%;
+  color: var(--ar-bad-mid);
+  transition: color 0.15s ease, border-color 0.15s ease, background 0.15s ease;
+}
+.ar-int__power:hover:not(:disabled) {
+  color: var(--ar-bad);
+  border-color: var(--ar-bad);
+  background: var(--ar-bad-wash);
+}
+.ar-int__power:focus-visible {
+  outline: 2px solid var(--ar-accent);
+  outline-offset: 1px;
+}
+
+/* The folded first-timer recipes (Telegram bot / channel): numbered, quiet,
+   the ar-fold shell provides the caret and the ground. */
+.ar-guide {
+  margin: 10px 0 4px;
+  padding-left: 20px;
+  display: grid;
+  gap: 8px;
+  font-size: 12.5px;
+  line-height: 1.55;
+  color: var(--ar-ink-soft);
+}
+.ar-guide code {
+  font-size: 11.5px;
+}

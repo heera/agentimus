@@ -176,6 +176,50 @@ final class Settings {
 			'digest_recipient'        => '', // Optional override; empty = the site admin email.
 			'digest_day'              => 1, // Send day, ISO-8601: 1 = Monday … 7 = Sunday.
 			'digest_hour'             => 8, // Send hour (0–23), site time. WP-cron fires on the first visit after it.
+			// Integrations — external services that receive this site's own report events
+			// (see Integrations\Events for the catalog). OFF by default and inert until the
+			// owner connects: no hooks, no cron, no outbound request (the standing "no
+			// outbound by default" promise). The webhook's signing SECRET is deliberately
+			// NOT here — settings are localized into the admin boot payload and round-
+			// tripped by every save; it lives in its own option (Services\Webhook), shown
+			// once at connect time like the MCP connection token.
+			'integrations'            => array(
+				'webhook_enabled'  => false,
+				'webhook_url'      => '',
+				'webhook_events'   => array(),
+				// Telegram's bot TOKEN is likewise not here (Services\Telegram's
+				// own option); the chat id is an address, not a secret.
+				'telegram_enabled' => false,
+				'telegram_chat'    => '',
+				'telegram_events'  => array(),
+				'telegram_tier'    => 'all', // Which findings ring the phone: 'all' | 'urgent'.
+				// The bot's SHARING use — announcing posts. Its own switch and
+				// its own destination: events tell the owner (a private chat),
+				// announcements tell the readers (a public channel).
+				'telegram_share_enabled' => false,
+				'telegram_share_channel' => '',
+				// X's sharing use is only a switch — the connected account IS
+				// the destination. The grant itself lives in the connection
+				// store, never here.
+				'x_share_enabled'        => false,
+				// LinkedIn: the same bare switch, the same runtime question.
+				'linkedin_share_enabled' => false,
+				// Slack: an incoming-webhook URL is the whole credential (Slack's
+				// own design), so it rides here like the webhook's URL does.
+				'slack_enabled'    => false,
+				'slack_url'        => '',
+				'slack_events'     => array(),
+				// Discord: the same URL-is-the-credential shape as Slack.
+				'discord_enabled'  => false,
+				'discord_url'      => '',
+				'discord_events'   => array(),
+				// Google Sheets: no credential of its own — the Google
+				// connection's service-account key is borrowed at delivery
+				// time (Services\Sheets). The spreadsheet ID is an address.
+				'sheets_enabled'      => false,
+				'sheets_spreadsheet'  => '',
+				'sheets_events'       => array(),
+			),
 		);
 
 		/**
@@ -739,6 +783,59 @@ final class Settings {
 		$hour                 = isset( $input['digest_hour'] ) ? (int) $input['digest_hour'] : $defaults['digest_hour'];
 		$clean['digest_hour'] = ( $hour >= 0 && $hour <= 23 ) ? $hour : $defaults['digest_hour'];
 
+		// Integrations. A partial update that omits the key keeps the STORED value,
+		// never the default — the Integrations screen writes this through its own
+		// route, and the main settings form's save (or any add-on's partial write)
+		// must not silently disconnect a webhook it never showed. Event names are
+		// validated against the catalog, so a stale or invented name can't linger.
+		$int_in = isset( $input['integrations'] ) && is_array( $input['integrations'] ) ? $input['integrations'] : null;
+		if ( null === $int_in ) {
+			$stored = get_option( self::OPTION, array() );
+			$int_in = is_array( $stored ) && isset( $stored['integrations'] ) && is_array( $stored['integrations'] )
+				? $stored['integrations']
+				: array();
+		}
+		$webhook_url           = isset( $int_in['webhook_url'] ) ? esc_url_raw( trim( (string) $int_in['webhook_url'] ), array( 'https', 'http' ) ) : '';
+		$telegram_chat         = isset( $int_in['telegram_chat'] ) ? Integrations\Services\Telegram::normalize_chat( $int_in['telegram_chat'] ) : '';
+		$telegram_share_channel = isset( $int_in['telegram_share_channel'] ) ? Integrations\Services\Telegram::normalize_chat( $int_in['telegram_share_channel'] ) : '';
+		$slack_url             = isset( $int_in['slack_url'] ) ? esc_url_raw( trim( (string) $int_in['slack_url'] ), array( 'https', 'http' ) ) : '';
+		$discord_url           = isset( $int_in['discord_url'] ) ? esc_url_raw( trim( (string) $int_in['discord_url'] ), array( 'https', 'http' ) ) : '';
+		$sheets_spreadsheet    = isset( $int_in['sheets_spreadsheet'] ) ? Integrations\Services\Sheets::normalize_spreadsheet_id( $int_in['sheets_spreadsheet'] ) : '';
+		$clean['integrations'] = array(
+			// A connection with no URL cannot exist — the flag collapses with it,
+			// the same downward cascade the agent-writes ladder uses.
+			'webhook_enabled'  => ! empty( $int_in['webhook_enabled'] ) && '' !== $webhook_url,
+			'webhook_url'      => $webhook_url,
+			'webhook_events'   => $this->sanitize_integration_events( $int_in, 'webhook_events' ),
+			// Telegram: the same collapse — no chat, no connection. (The token
+			// is Services\Telegram's own option and never passes through here.)
+			'telegram_enabled' => ! empty( $int_in['telegram_enabled'] ) && '' !== $telegram_chat,
+			'telegram_chat'    => $telegram_chat,
+			'telegram_events'  => $this->sanitize_integration_events( $int_in, 'telegram_events' ),
+			'telegram_tier'    => isset( $int_in['telegram_tier'] ) && 'urgent' === $int_in['telegram_tier'] ? 'urgent' : 'all',
+			// The sharing use: the same collapse — no channel, no announcing.
+			'telegram_share_enabled' => ! empty( $int_in['telegram_share_enabled'] ) && '' !== $telegram_share_channel,
+			'telegram_share_channel' => $telegram_share_channel,
+			// X: a bare switch — whether a grant stands behind it is the
+			// connection store's runtime question, like Sheets' borrowed key.
+			'x_share_enabled'        => ! empty( $int_in['x_share_enabled'] ),
+			'linkedin_share_enabled' => ! empty( $int_in['linkedin_share_enabled'] ),
+			// Slack: the same collapse — no URL, no connection.
+			'slack_enabled'    => ! empty( $int_in['slack_enabled'] ) && '' !== $slack_url,
+			'slack_url'        => $slack_url,
+			'slack_events'     => $this->sanitize_integration_events( $int_in, 'slack_events' ),
+			// Discord: Slack's laws, Discord's keys.
+			'discord_enabled'  => ! empty( $int_in['discord_enabled'] ) && '' !== $discord_url,
+			'discord_url'      => $discord_url,
+			'discord_events'   => $this->sanitize_integration_events( $int_in, 'discord_events' ),
+			// Sheets: the same collapse — no spreadsheet, no connection. (The
+			// key it borrows lives in the Google store, never here; whether it
+			// still exists is connected()'s runtime question.)
+			'sheets_enabled'      => ! empty( $int_in['sheets_enabled'] ) && '' !== $sheets_spreadsheet,
+			'sheets_spreadsheet'  => $sheets_spreadsheet,
+			'sheets_events'       => $this->sanitize_integration_events( $int_in, 'sheets_events' ),
+		);
+
 		// Kept VERBATIM — no intersect with what is registered today. See the
 		// default's note: a veto has to survive the vetoed plugin being away.
 		$clean['post_types_vetoed'] = $this->sanitize_list( isset( $input['post_types_vetoed'] ) ? $input['post_types_vetoed'] : array(), 'sanitize_key' );
@@ -953,6 +1050,23 @@ final class Settings {
 		// Never persist a non-array: this result is written straight to the option,
 		// and a corrupt option would break every subsequent read + the admin.
 		return is_array( $filtered ) ? $filtered : $clean;
+	}
+
+	/**
+	 * One service's event choices, validated against the catalog — a stale or
+	 * invented event name can't linger in any service's subscription.
+	 *
+	 * @param array  $int_in The raw integrations block.
+	 * @param string $key    The service's events key (e.g. 'telegram_events').
+	 * @return string[]
+	 */
+	private function sanitize_integration_events( array $int_in, $key ) {
+		return array_values(
+			array_intersect(
+				array_map( 'strval', (array) ( isset( $int_in[ $key ] ) ? $int_in[ $key ] : array() ) ),
+				Integrations\Events::names()
+			)
+		);
 	}
 
 	/**
