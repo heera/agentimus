@@ -6900,7 +6900,7 @@ a.ar-about-proto__v:hover { text-decoration: underline; }
 /* Kind : name, on one line. A two-word label does not earn a row of its own.
    ⚠️ The line-height is stated, not inherited: the caret beside it is centred
    against this exact number. */
-.ar-work__title { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0 6px; min-width: 0; line-height: 21px; }
+.ar-work__rowtitle { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0 6px; min-width: 0; line-height: 21px; }
 .ar-work__name { font-size: 14px; font-weight: 600; color: var(--ar-ink); text-decoration: none; overflow-wrap: anywhere; }
 a.ar-work__name { color: var(--ar-accent); }
 .ar-work__name:hover, .ar-work__name:focus-visible { color: var(--ar-accent); text-decoration: underline; text-underline-offset: 2px; }
