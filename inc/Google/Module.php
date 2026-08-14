@@ -206,7 +206,12 @@ final class Module {
 			// version that would have been compared against. So the ledger is
 			// brought up to date here, and from no other path.
 			if ( $saved['written'] > 0 ) {
-				Search\Progress::observe( 'google', $this->settings );
+				// ⚠️ FULLY QUALIFIED. Inside namespace Agentimus\Google a bare
+				// `Settings` is Google\Settings — the very class that caused this
+				// bug. Progress wants the plugin's CORE settings (the set-aside
+				// lists); handing it a connection store threw a TypeError that
+				// WordPress showed as "there has been a critical error".
+				Search\Progress::observe( 'google', new \Agentimus\Settings() );
 			}
 		}
 
