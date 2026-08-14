@@ -23,7 +23,14 @@ export default {
     // Rendered with v-show, so it stays mounted across tab switches.
     active: { type: Boolean, default: false },
   },
-  emits: ['navigate'],
+  // `polled` fires once the engine has been asked AND the reply has been read.
+  // Search Opportunities sits directly below this card and is carved from the
+  // very same stored snapshot — see App.vue, where the two are siblings on one
+  // view. Its own lead promises "the same numbers reported above", and without
+  // this it kept the PREVIOUS snapshot on screen until the view was left and
+  // returned to, because its reload hangs off the `active` prop and `active`
+  // never changes while you are standing on the page pressing the button.
+  emits: ['navigate', 'polled'],
   data() {
     return {
       data: null,
@@ -173,6 +180,12 @@ export default {
       // Read either way: a failed poll leaves the previous snapshot standing,
       // and the card should still show it rather than go blank.
       await this.load();
+      // Announced either way, and deliberately: on success the snapshot moved
+      // and everything drawn from it must move with it; on failure the card
+      // above now carries a warning the card below does not, and a re-read is
+      // one cheap query against a table we just touched. Two cards on one
+      // screen disagreeing about one snapshot is the bug worth preventing.
+      this.$emit('polled');
     },
     pick(source) {
       if (this.source === source) return;
