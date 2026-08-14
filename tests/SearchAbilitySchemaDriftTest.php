@@ -68,6 +68,30 @@ namespace Agentimus\Tests {
 		 * @param string $where    Human name for the failure message.
 		 * @return void
 		 */
+		/**
+		 * Both engines' per-source block, in whichever ability is being checked.
+		 *
+		 * ⚠️ THIS IS THE ONE THAT WAS MISSING. The checks here are top-level plus
+		 * a hand-picked list of nested shapes, and `sources` was never on that
+		 * list — so a key added to Report::source_state() sailed past every
+		 * suite and only died on a live MCP call, where the ability rejected its
+		 * own response. A nested shape nobody names is a shape nobody guards.
+		 *
+		 * @param array $schema The ability's output schema.
+		 * @param string $where Which ability, for the failure message.
+		 */
+		private function assert_sources_declared( array $schema, string $where ): void {
+			$state = Report::source_state();
+			foreach ( array( 'google', 'bing' ) as $engine ) {
+				$this->assertArrayHasKey( $engine, $schema['properties']['sources']['properties'], "$where declares no `$engine` source." );
+				$this->assert_declared(
+					$schema['properties']['sources']['properties'][ $engine ]['properties'],
+					$state['sources'][ $engine ],
+					"$where sources.$engine"
+				);
+			}
+		}
+
 		private function assert_declared( array $declared, array $actual, string $where ): void {
 			foreach ( array_keys( $actual ) as $key ) {
 				$this->assertArrayHasKey(
@@ -124,6 +148,8 @@ namespace Agentimus\Tests {
 				'Report::performance()'
 			);
 
+			$this->assert_sources_declared( $schema, 'read-search-performance' );
+
 			// The row shapes come from the pure producer, run on a real snapshot.
 			$perf = Performance::build( $this->rows() );
 			$this->assert_declared( $schema['properties']['totals']['properties'], $perf['totals'], 'Performance totals' );
@@ -158,6 +184,7 @@ namespace Agentimus\Tests {
 			$payload = Report::opportunities( new Settings(), '' );
 			$this->assert_declared( $schema['properties'], $payload, 'Report::opportunities()' );
 			$this->assert_declared( $schema['properties']['counts']['properties'], $payload['counts'], 'Opportunity counts' );
+			$this->assert_sources_declared( $schema, 'read-search-opportunities' );
 		}
 
 		public function test_an_opportunity_card_is_fully_declared() {

@@ -796,7 +796,8 @@ final class Registrar {
 									'connected' => self::b(),
 									'hasData'   => self::b(),
 									'lastError' => self::s(),
-									'pageCap'   => self::i( '0 — Google reports query x page directly, so no page-level sampling applies.' ),
+									'pageCap'   => self::i( 'Always 0: no source samples a fixed set of pages any more. Kept so readers that branch on it keep taking their no-sampling path.' ),
+									'dropped'   => self::i( 'Rows the last poll could not store, because the snapshot keeps only its busiest N. The engines report clicks-descending, so what is missing is the quiet tail — say so rather than treating the stored set as everything.' ),
 								)
 							),
 							'bing'   => self::obj(
@@ -804,7 +805,8 @@ final class Registrar {
 									'connected' => self::b(),
 									'hasData'   => self::b(),
 									'lastError' => self::s(),
-									'pageCap'   => self::i( 'Page-level figures cover only this many of the busiest pages — Bing has no query x page report, so the poll samples. State this scope before generalising about "the site".' ),
+									'pageCap'   => self::i( 'Always 0 now: Bing is worked through a few pages per poll until every page has been asked about, so no page sits permanently outside anything.' ),
+									'dropped'   => self::i( 'Rows the last poll could not store, because the snapshot keeps only its busiest N. What is missing is the quiet tail — say so rather than treating the stored set as everything.' ),
 								)
 							),
 						)
@@ -905,7 +907,8 @@ final class Registrar {
 									'connected' => self::b(),
 									'hasData'   => self::b(),
 									'lastError' => self::s(),
-									'pageCap'   => self::i( '0 — Google reports query x page directly, so no page-level sampling applies.' ),
+									'pageCap'   => self::i( 'Always 0: no source samples a fixed set of pages any more. Kept so readers that branch on it keep taking their no-sampling path.' ),
+									'dropped'   => self::i( 'Rows the last poll could not store, because the snapshot keeps only its busiest N. The engines report clicks-descending, so what is missing is the quiet tail — say so rather than treating the stored set as everything.' ),
 								)
 							),
 							'bing'   => self::obj(
@@ -913,7 +916,8 @@ final class Registrar {
 									'connected' => self::b(),
 									'hasData'   => self::b(),
 									'lastError' => self::s(),
-									'pageCap'   => self::i( 'Page-level figures cover only this many of the busiest pages — Bing has no query x page report, so the poll samples. State this scope before generalising about "the site".' ),
+									'pageCap'   => self::i( 'Always 0 now: Bing is worked through a few pages per poll until every page has been asked about, so no page sits permanently outside anything.' ),
+									'dropped'   => self::i( 'Rows the last poll could not store, because the snapshot keeps only its busiest N. What is missing is the quiet tail — say so rather than treating the stored set as everything.' ),
 								)
 							),
 						)
