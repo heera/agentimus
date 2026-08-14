@@ -207,7 +207,18 @@ final class Module {
 			// version that would have been compared against. So the ledger is
 			// brought up to date here, and from no other path.
 			if ( $written > 0 ) {
-				Search\Progress::observe( 'google', $this->settings );
+				// ⚠️ FULLY QUALIFIED, and deliberately so: inside namespace
+				// Agentimus\Google a bare `Settings` is Google\Settings — the very
+				// class that caused this. Progress wants the plugin's CORE settings
+				// (the set-aside lists); a connection store threw a TypeError that
+				// WordPress showed as "there has been a critical error".
+				//
+				// On this side the damage was quieter: the fatal lands AFTER
+				// record_poll('') , so the snapshot saved and everything below it —
+				// the trend series, the Discover totals, the analytics poll — simply
+				// never ran. The card reported "recent daily polls couldn't update
+				// it" for three days and nobody knew why.
+				Search\Progress::observe( 'google', new \Agentimus\Settings() );
 			}
 		}
 

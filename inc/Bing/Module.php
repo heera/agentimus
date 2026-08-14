@@ -295,7 +295,13 @@ final class Module {
 			// See the note on the Google side: the ledger only ever learns
 			// something when a poll replaces the snapshot it would compare to.
 			if ( $written > 0 ) {
-				\Agentimus\Search\Progress::observe( 'bing', $this->settings );
+				// ⚠️ The CORE settings, not this module's connection store. Progress
+				// wants the set-aside lists, which live in the plugin's own option;
+				// $this->settings here is Bing\Settings, and handing it over threw a
+				// TypeError that WordPress turned into "there has been a critical
+				// error" on the Bing card. It fires only on the branch nothing
+				// exercised — a poll that actually STORED rows.
+				\Agentimus\Search\Progress::observe( 'bing', new \Agentimus\Settings() );
 			}
 		}
 	}
