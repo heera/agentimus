@@ -880,6 +880,17 @@ export default {
     openClientManager() {
       if (this.$refs.settingsForm) this.$refs.settingsForm.openClientManager();
     },
+    // Search Performance just asked an engine and re-read the answer. The
+    // worklist below it is carved from that same snapshot, so it has to read
+    // again too — otherwise the two cards sit one above the other quoting
+    // different moments, and the lower one's own lead ("the same numbers
+    // reported above") stops being true.
+    // ⚠️ It reloads with its OWN engine pick, not the one that was polled: the
+    // two cards carry separate switches, and a Bing poll must never quietly
+    // swing this card over to Bing.
+    refreshSearchOpps() {
+      if (this.$refs.searchOpps) this.$refs.searchOpps.loadSearch();
+    },
     // Hide one edge-conflict pin: optimistic removal here, the server records
     // it. The pin returns only if that conflict ends and later starts again.
     hideEdgeConflict(c) {
@@ -2386,12 +2397,14 @@ export default {
           :api="api"
           :active="tab === 'visibility' && visView === 'performance'"
           @navigate="goTo"
+          @polled="refreshSearchOpps"
         />
         <!-- The worklist carved from that same report, directly below it —
              moved here from Readiness (1.36): how search went, then what to
              do about it, one view. It announces its state up so Readiness's
              pointer card can say what waits here without fetching anything. -->
         <SearchOpportunities
+          ref="searchOpps"
           v-show="tab === 'visibility' && visView === 'performance'"
           :api="api"
           :active="tab === 'visibility' && visView === 'performance'"
