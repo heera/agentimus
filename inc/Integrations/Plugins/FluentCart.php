@@ -64,18 +64,13 @@ final class FluentCart extends Provider {
 
 	/**
 	 * The product type's own read route — named only when this site really
-	 * registered that type, so a FluentCart build that renames or hides it
-	 * advertises nothing rather than a 404.
+	 * registered that type as public, and at the address the type itself
+	 * declares rather than one built from its name.
 	 */
 	protected static function endpoints() {
-		if ( ! post_type_exists( self::PRODUCT_TYPE ) ) {
-			return array();
-		}
-		return array(
-			array(
-				'url'         => '/wp-json/wp/v2/' . self::PRODUCT_TYPE,
-				'description' => __( 'Browse the products — name, description and permalink.', 'agentimus' ),
-			),
+		return self::type_endpoint(
+			self::PRODUCT_TYPE,
+			__( 'Browse the products — name, description and permalink.', 'agentimus' )
 		);
 	}
 

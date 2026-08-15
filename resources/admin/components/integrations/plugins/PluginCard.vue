@@ -1,13 +1,21 @@
 <script>
 /**
  * One provider row on the PLUGINS tab, from the server's describe() payload:
- * { id, name, blurb, present }. Present means "Described" — the plugin's
- * content joins what this site describes to AI assistants; absent is stated
- * as plainly ("Not installed") rather than hidden, because the roster doubles
- * as the honest answer to "what would Agentimus do more of here?".
+ * { id, name, blurb, present, describes }.
  *
- * No action button in phase one: there is nothing to configure on a provider
- * yet, and this grid does not grow dead controls.
+ * ⭐ THREE states, not two. Installed and described are different facts, and
+ * the card used to show only the first: on a site with the whole family
+ * installed it read "Described" eight times over, while four of those plugins
+ * keep everything behind a login and are described nowhere. A tick that is
+ * always on says nothing. So a plugin that is here but has nothing public
+ * says exactly that, and takes the sentence that explains it.
+ *
+ * Absent keeps its blurb — there it reads as the offer, "this is what would
+ * happen if you installed it", which is the honest answer to "what would
+ * Agentimus do more of here?".
+ *
+ * No action button: there is nothing to configure on a provider, and this
+ * grid does not grow dead controls.
  */
 import IntegrationCard from '../IntegrationCard.vue';
 
@@ -22,6 +30,7 @@ const BRANDS = {
   fluentforms: 'fluentforms',
   fluentbooking: 'fluentbooking',
   fluentcommunity: 'fluentcommunity',
+  fluentboards: 'fluentboards',
   edd: 'edd',
 };
 
@@ -34,6 +43,7 @@ const MARKS = {
   fluentcrm: 'Cr',
   fluentbooking: 'Bk',
   fluentcommunity: 'Cm',
+  fluentboards: 'Bd',
   fluentsupport: 'Sp',
   edd: 'Ed',
 };
@@ -42,7 +52,7 @@ export default {
   name: 'PluginCard',
   components: { IntegrationCard },
   props: {
-    plugin: { type: Object, required: true }, // { id, name, blurb, present }
+    plugin: { type: Object, required: true }, // { id, name, blurb, present, describes }
   },
   computed: {
     brand() {
@@ -52,14 +62,23 @@ export default {
       return MARKS[this.plugin.id] || (this.plugin.name || '?').slice(0, 2);
     },
     chip() {
-      return this.plugin.present
+      if (!this.plugin.present) return { label: 'Not installed', tone: '' };
+      return this.plugin.describes
         ? { label: 'Described', tone: 'on' }
-        : { label: 'Not installed', tone: '' };
+        : { label: 'Nothing public', tone: '' };
+    },
+    // ⛔ Never claim a cause we did not check. The plugin is here and nothing
+    // of its own is public — that is all this says.
+    line() {
+      if (this.plugin.present && !this.plugin.describes) {
+        return 'Installed. Nothing in it is public, so there is nothing to pass on.';
+      }
+      return this.plugin.blurb;
     },
   },
 };
 </script>
 
 <template>
-  <IntegrationCard :brand="brand" :mark="mark" :name="plugin.name" :blurb="plugin.blurb" :chip="chip" />
+  <IntegrationCard :brand="brand" :mark="mark" :name="plugin.name" :blurb="line" :chip="chip" />
 </template>

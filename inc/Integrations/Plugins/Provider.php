@@ -47,6 +47,7 @@ abstract class Provider {
 		FluentBooking::class,
 		FluentCommunity::class,
 		FluentSupport::class,
+		FluentBoards::class,
 		WooCommerce::class,
 		Edd::class,
 	);
@@ -263,14 +264,67 @@ abstract class Provider {
 	/**
 	 * The roster card the Integrations screen renders.
 	 *
-	 * @return array{id:string,name:string,blurb:string,present:bool}
+	 * ⚠️ `present` and `describes` are two different facts and the card used to
+	 * show only the first, calling every installed plugin "Described". On a site
+	 * with the whole family installed, five of them describe NOTHING — their data
+	 * is behind a login — and the card claimed otherwise for all five. A plugin
+	 * being here is not the same as us having anything to say about it.
+	 *
+	 * @return array{id:string,name:string,blurb:string,present:bool,describes:bool}
 	 */
 	public static function describe() {
+		$present = static::present();
 		return array(
-			'id'      => static::ID,
-			'name'    => static::name(),
-			'blurb'   => static::blurb(),
-			'present' => static::present(),
+			'id'        => static::ID,
+			'name'      => static::name(),
+			'blurb'     => static::blurb(),
+			'present'   => $present,
+			'describes' => $present && ( array() !== static::resource() || array() !== static::live_post_types() ),
+		);
+	}
+
+	/**
+	 * This plugin's post types that THIS site actually registered.
+	 *
+	 * @return string[]
+	 */
+	private static function live_post_types() {
+		$out = array();
+		foreach ( static::post_types() as $slug ) {
+			if ( post_type_exists( $slug ) ) {
+				$out[] = $slug;
+			}
+		}
+		return $out;
+	}
+
+	/**
+	 * One endpoint for a plugin's own public post type, or nothing.
+	 *
+	 * ⭐ The route is read from the type's OWN registration, never assembled from
+	 * its name: Easy Digital Downloads registers `download` but serves it at
+	 * `edd-downloads`, so guessing would have advertised a 404. And it is only
+	 * named when the site registered the type as public AND REST-enabled — the
+	 * vendor's own declaration that this content is public.
+	 *
+	 * @param string $post_type   The type slug.
+	 * @param string $description What an assistant would find there.
+	 * @return array<int,array>
+	 */
+	protected static function type_endpoint( $post_type, $description ) {
+		if ( ! post_type_exists( $post_type ) ) {
+			return array();
+		}
+		$object = get_post_type_object( $post_type );
+		if ( ! $object || empty( $object->public ) || empty( $object->show_in_rest ) ) {
+			return array();
+		}
+		$base = ! empty( $object->rest_base ) ? $object->rest_base : $post_type;
+		return array(
+			array(
+				'url'         => '/wp-json/wp/v2/' . $base,
+				'description' => $description,
+			),
 		);
 	}
 

@@ -33,6 +33,6 @@ final class FluentForms extends Provider {
 	}
 
 	protected static function blurb() {
-		return __( 'Form pages and their content, described to AI assistants.', 'agentimus' );
+		return __( 'Contact and survey forms.', 'agentimus' );
 	}
 }

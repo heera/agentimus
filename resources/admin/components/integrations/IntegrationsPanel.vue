@@ -734,9 +734,10 @@ export default {
           <p class="ar-int__lead">
             <span class="ar-int__lead-i" aria-hidden="true"><svg viewBox="0 0 16 16" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M8 14.2A6.2 6.2 0 1 0 8 1.8a6.2 6.2 0 0 0 0 12.4Z" /><path d="M8 7.4v3.4" /><path d="M8 5.2h.01" /></svg></span>
             <span class="ar-int__lead-t">
-            Plugins Agentimus recognises here are <strong>described</strong> — their content joins what
-            AI assistants can read about your site. Ones you don’t run are listed so you know what
-            would be described if you did.
+            A plugin is <strong>described</strong> when it keeps something public — that part joins
+            what AI assistants can read about your site. Plugins that keep everything behind your
+            login have nothing to pass on, and say so. Ones you don’t run are listed too, so you can
+            see the whole picture.
             </span>
           </p>
           <div class="ar-int__grid">

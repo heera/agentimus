@@ -437,14 +437,16 @@ final class IntegrationsRestTest extends TestCase {
 		// The running order the screen shows (his call, 2026-08-15): the Fluent
 		// family, then WooCommerce, then EDD, then whatever joins later.
 		$this->assertSame(
-			array( 'fluentcart', 'fluentforms', 'fluentcrm', 'fluentbooking', 'fluentcommunity', 'fluentsupport', 'woocommerce', 'edd' ),
+			array( 'fluentcart', 'fluentforms', 'fluentcrm', 'fluentbooking', 'fluentcommunity', 'fluentsupport', 'fluentboards', 'woocommerce', 'edd' ),
 			array_column( $payload['plugins'], 'id' )
 		);
 		foreach ( $payload['plugins'] as $row ) {
 			$this->assertArrayHasKey( 'name', $row );
 			$this->assertArrayHasKey( 'blurb', $row );
 			$this->assertArrayHasKey( 'present', $row );
+			$this->assertArrayHasKey( 'describes', $row );
 			$this->assertFalse( $row['present'], 'None of the described plugins run in this suite.' );
+			$this->assertFalse( $row['describes'], 'And an absent plugin never claims to be described.' );
 		}
 	}
 }

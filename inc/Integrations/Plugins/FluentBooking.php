@@ -33,6 +33,6 @@ final class FluentBooking extends Provider {
 	}
 
 	protected static function blurb() {
-		return __( 'Booking pages and availability, described to AI assistants.', 'agentimus' );
+		return __( 'Appointment booking and availability.', 'agentimus' );
 	}
 }

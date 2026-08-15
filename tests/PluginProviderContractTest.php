@@ -34,7 +34,7 @@ final class PluginProviderContractTest extends TestCase {
 
 	protected function tearDown(): void {
 		\_af_reset_options();
-		unset( $GLOBALS['_af_post_types_exist'] );
+		unset( $GLOBALS['_af_post_types_exist'], $GLOBALS['_af_post_type_objects'] );
 	}
 
 	/** Every provider in the roster, as class name => class name. */
@@ -180,6 +180,72 @@ final class PluginProviderContractTest extends TestCase {
 		TestMisbehavingProvider::provide( $taken );
 
 		$this->assertSame( array(), $taken->got, 'Theirs stands; we add no second voice.' );
+	}
+	/**
+	 * ⭐ INSTALLED IS NOT DESCRIBED. The card read "Described" for every plugin on
+	 * the roster the moment it was installed, including four whose data sits
+	 * entirely behind a login. A tick that is always on is not a fact.
+	 */
+	public function test_an_absent_plugin_never_claims_to_be_described() {
+		foreach ( $this->roster() as $class ) {
+			$this->assertFalse( $class::describe()['describes'], $class . ' cannot describe anything while absent.' );
+		}
+	}
+
+	public function test_present_with_nothing_public_is_not_described() {
+		$card = TestSilentProvider::describe();
+		$this->assertTrue( $card['present'], 'It is here.' );
+		$this->assertFalse( $card['describes'], 'Here, with nothing public — so it must not claim to be described.' );
+
+		$GLOBALS['_af_post_types_exist'] = array( 'thing' );
+		$this->assertTrue(
+			TestSilentProvider::describe()['describes'],
+			'Once the site really has its content type, it IS describing something.'
+		);
+	}
+
+	public function test_a_public_address_alone_counts_as_described() {
+		$this->assertTrue( TestMisbehavingProvider::describe()['describes'] );
+	}
+
+	/**
+	 * ⚠️ THE ROUTE IS READ, NEVER GUESSED. Easy Digital Downloads registers the
+	 * type `download` and serves it at `edd-downloads`; a provider that built the
+	 * address out of the type's name would have advertised a 404 on every EDD
+	 * site and looked entirely right doing it.
+	 */
+	public function test_a_type_route_comes_from_the_type_and_not_from_its_name() {
+		$GLOBALS['_af_post_types_exist']  = array( 'download' );
+		$GLOBALS['_af_post_type_objects'] = array(
+			'download' => array( 'public' => true, 'show_in_rest' => true, 'rest_base' => 'edd-downloads' ),
+		);
+
+		$urls = array_column( $this->endpoints_of( \Agentimus\Integrations\Plugins\Edd::class ), 'url' );
+		$this->assertSame( array( '/wp-json/wp/v2/edd-downloads' ), $urls );
+	}
+
+	/**
+	 * ⛔ The vendor decides. A type its own plugin registered as private, or kept
+	 * out of the REST API, is never named here however public its name sounds.
+	 */
+	public function test_a_type_its_plugin_keeps_private_is_never_named() {
+		$GLOBALS['_af_post_types_exist']  = array( 'download' );
+		$GLOBALS['_af_post_type_objects'] = array(
+			'download' => array( 'public' => false, 'show_in_rest' => true, 'rest_base' => 'edd-downloads' ),
+		);
+		$this->assertSame( array(), $this->endpoints_of( \Agentimus\Integrations\Plugins\Edd::class ), 'Private stays private.' );
+
+		$GLOBALS['_af_post_type_objects'] = array(
+			'download' => array( 'public' => true, 'show_in_rest' => false, 'rest_base' => 'edd-downloads' ),
+		);
+		$this->assertSame( array(), $this->endpoints_of( \Agentimus\Integrations\Plugins\Edd::class ), 'No REST route, no address to give.' );
+	}
+
+	/** A provider's endpoints as it hands them up, before the base makes them safe. */
+	private function endpoints_of( $class ) {
+		$m = new \ReflectionMethod( $class, 'endpoints' );
+		\_af_accessible( $m );
+		return (array) $m->invoke( null );
 	}
 }
 

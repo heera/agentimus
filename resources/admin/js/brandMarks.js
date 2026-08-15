@@ -109,6 +109,19 @@ export const BRAND_MARKS = {
       { d: "M79.2023 50.9074L37.4626 74.9924C33.6038 77.2187 28.6706 75.8959 26.444 72.0369L22.4124 65.0502L57.1649 44.9969C64.8827 40.5436 74.7487 43.1899 79.2023 50.9074Z" },
     ],
   },
+  // FluentBoards' own bundled icon (assets/images/icon.svg), path unchanged.
+  // ⚠️ It is a filled square with two shapes carved out of it, so it needs the
+  // even-odd rule — without it the knockouts fill in and the mark becomes a
+  // plain block that is not their logo. The box is padded to X's ratio: a
+  // mark that is solid ink corner to corner reads far heavier at tile size
+  // than an open glyph drawn to the same width.
+  fluentboards: {
+    title: "FluentBoards",
+    viewBox: '-47.36 -47.36 350.72 350.72',
+    shapes: [
+      { fr: 'evenodd', d: "M0 25.6C0 11.4615 11.4615 0 25.6 0H230.4C244.538 0 256 11.4615 256 25.6V230.4C256 244.538 244.538 256 230.4 256H25.6C11.4615 256 0 244.538 0 230.4V25.6ZM140.8 89.6C140.8 75.4615 152.262 64 166.4 64H186.88C189.708 64 192 66.2923 192 69.12V166.4C192 180.538 180.538 192 166.4 192H145.92C143.092 192 140.8 189.708 140.8 186.88V89.6ZM89.6 64C75.4615 64 64 75.4615 64 89.5999V148.48C64 151.308 66.2923 153.6 69.12 153.6H89.6C103.739 153.6 115.2 142.138 115.2 128V69.12C115.2 66.2923 112.908 64 110.08 64H89.6Z" },
+    ],
+  },
   edd: {
     title: "Easy Digital Downloads",
     viewBox: '29.21 29.18 197.63 197.63',

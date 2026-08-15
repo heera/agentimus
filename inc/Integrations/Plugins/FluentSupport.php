@@ -33,6 +33,6 @@ final class FluentSupport extends Provider {
 	}
 
 	protected static function blurb() {
-		return __( 'Help desk pages, described to AI assistants.', 'agentimus' );
+		return __( 'Customer support tickets.', 'agentimus' );
 	}
 }

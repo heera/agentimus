@@ -33,6 +33,6 @@ final class FluentCrm extends Provider {
 	}
 
 	protected static function blurb() {
-		return __( 'Campaign and contact pages, described to AI assistants.', 'agentimus' );
+		return __( 'Email marketing, contacts and campaigns.', 'agentimus' );
 	}
 }
