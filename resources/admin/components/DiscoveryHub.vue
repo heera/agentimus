@@ -150,7 +150,19 @@ export default {
           // Tools only: the attachable documents have their own section below,
           // the way MCP itself splits tools/list from resources/list.
           const list = (r.toolList || []).filter((t) => 'resource' !== t.kind);
-          return { key: r.id, title: r.title, tools: r.tools, doors, list, own: !!r.own };
+          return {
+            key: r.id,
+            title: r.title,
+            tools: r.tools,
+            doors,
+            list,
+            own: !!r.own,
+            // Switched off ABOVE, in the providers list. These jobs still exist
+            // and a signed-in assistant can still run them — what stopped is the
+            // announcing, and this section has to say so rather than look
+            // identical to a group that is being announced.
+            off: !this.isPublished(r.id),
+          };
         });
     },
     // The doors' addresses — connection info only, deliberately without counts.
@@ -199,6 +211,11 @@ export default {
       return n === 1
         ? 'Would stop announcing 1 job that changes something.'
         : 'Would stop announcing ' + n + ' jobs that change something.';
+    },
+    // Any group the owner switched off, so the section can say so once at the top
+    // instead of leaving it to be noticed row by row.
+    someJobsOff() {
+      return this.toolGroups.some((g) => g.off);
     },
     hasJobGroups() {
       return this.resources.some((r) => r.type === 'agent');
@@ -618,6 +635,9 @@ export default {
         <span class="ar-wd-lhead__note">
           tools, grouped by what provides them
         </span>
+        <!-- Said once at the top as well as on each dimmed group: an owner who
+             switched something off above should not have to spot it row by row. -->
+        <span v-if="someJobsOff" class="ar-wd-held">some are not announced — you switched them off above</span>
       </p>
       <!-- The SAME fold the provider groups wear (his call, 2026-08-15): one
            disclosure in this plugin, not one per section. A group with no names
@@ -628,15 +648,20 @@ export default {
           <details
             v-if="g.list.length"
             class="ar-fold ar-wd-grp"
-            :class="{ 'is-ours': g.own }"
+            :class="{ 'is-ours': g.own, 'is-off': g.off }"
             :open="!!openTools[g.key]"
             @toggle="toggleTools(g.key, $event.target.open)"
           >
             <summary>
               <h4 class="ar-wd-foldtitle">{{ g.title }} ({{ g.tools }})</h4>
               <span v-if="g.own" class="ar-wd-ours">Agentimus</span>
+              <span v-if="g.off" class="ar-wd-held">Not announced · you switched this off</span>
               <span class="ar-wd-lhead__note">via {{ g.doors.join(' · ') }}</span>
             </summary>
+            <p v-if="g.off" class="ar-wd-prov__held">
+              You switched this off in the list above, so none of it appears in your public files.
+              These jobs still work: an assistant that signs in can run them exactly as before.
+            </p>
             <ul class="ar-wd-grp__names">
               <li v-for="t in g.list" :key="t.name">
                 <code>{{ t.name }}</code>
@@ -644,7 +669,7 @@ export default {
               </li>
             </ul>
           </details>
-          <div v-else class="ar-fold ar-wd-grp is-static" :class="{ 'is-ours': g.own }">
+          <div v-else class="ar-fold ar-wd-grp is-static" :class="{ 'is-ours': g.own, 'is-off': g.off }">
             <p class="ar-fold__static">
               <span class="ar-wd-foldtitle">{{ g.title }} ({{ g.tools }})</span>
               <span class="ar-wd-lhead__note">via {{ g.doors.join(' · ') }}</span>

@@ -8340,3 +8340,17 @@ a.ar-work__name { color: var(--ar-accent); }
 .ar-wd-prov.is-ours .ar-wd-prov__bar { background: var(--ar-accent); }
 .ar-wd-prov.is-ours { padding-bottom: 14px; border-bottom: 1px solid var(--ar-line-strong); }
 .ar-fold.ar-wd-grp.is-ours { border-color: color-mix(in srgb, var(--ar-accent) 40%, var(--ar-line-strong)); }
+
+/* A group the owner switched off, said in colour as well as in words (his call,
+   2026-08-15): recessed ground, muted edge, quieter title. Not opacity — that
+   would fade the very chip explaining WHY it looks different. The jobs are still
+   listed because they still work; only the announcing stopped. */
+.ar-fold.ar-wd-grp.is-off {
+  border-color: var(--ar-line);
+  background: var(--ar-surface-2);
+}
+.ar-fold.ar-wd-grp.is-off > summary,
+.ar-fold.ar-wd-grp.is-off .ar-wd-foldtitle { color: var(--ar-ink-faint); }
+.ar-fold.ar-wd-grp.is-off > summary::before { border-left-color: var(--ar-ink-faint); }
+.ar-fold.ar-wd-grp.is-off .ar-wd-grp__names code,
+.ar-fold.ar-wd-grp.is-off .ar-wd-grp__names span { color: var(--ar-ink-faint); }
