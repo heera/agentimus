@@ -4535,9 +4535,10 @@ button.ar-wd-stat:focus-visible { outline: 2px solid var(--ar-accent); outline-o
    rather than .ar-wd-tool, because that one is a flex ROW and this needs to be
    a column holding a row and a list. */
 /* The tool groups wear the shared .ar-fold box, so they read as the same
-   disclosure the provider groups do. The old bottom rule belonged to a stacked
-   list; inside a bordered box it drew a line under a line. */
-.ar-wd-grp { border-bottom: 0; }
+   disclosure the provider groups do. ⚠️ This class carries NO border of its own:
+   it used to draw a bottom rule for a stacked list, and leaving that as
+   `border-bottom: 0` here rubbed out the FOLD's own bottom edge — an open group
+   with three sides. The box belongs to .ar-fold; nothing here may touch it. */
 /* A list of folds is a stack of boxes, not a ruled list. */
 .ar-wd-tools--folds { border: 0; }
 .ar-wd-tools--folds > li { border: 0; padding: 0; }
