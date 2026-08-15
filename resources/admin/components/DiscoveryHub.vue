@@ -27,13 +27,15 @@ export default {
   },
   emits: ['refresh', 'navigate'],
   data() {
-    // Expand the auto-discovered group by default ONLY when there is nothing
-    // declared — otherwise it stays collapsed, since it's predictable baseline.
-    const resources = (this.data && this.data.resources) || [];
+    // Every group is a fold, and every fold starts closed — the same call he
+    // made for the Search Opportunities groups. Three named boxes with their
+    // counts is a screen you can read in one look; three open lists is one you
+    // have to scroll past to reach the rest of the page. Keyed by group, never
+    // by index, so a refresh cannot reopen a different section than the one the
+    // owner opened.
     // openTools: which tool groups have been expanded. Closed by default —
-    // 42 names at once buries the four provider rows that are the point of
-    // this list.
-    return { showAuto: !resources.some((r) => !r.auto), copiedDoor: '', openTools: {}, capsOverflow: false };
+    // 42 names at once buries the provider rows that are the point of this list.
+    return { openGroups: {}, copiedDoor: '', openTools: {}, capsOverflow: false };
   },
   mounted() {
     this.$nextTick(this.measureCaps);
@@ -362,27 +364,39 @@ export default {
       </p>
 
       <template v-else>
-        <!-- Provided by plugins — what a plugin deliberately declared. -->
-        <div v-if="declared.length" class="ar-wd-group">
-          <h3 class="ar-wd-group__title">
-            Plugins that describe themselves <span class="ar-wd-group__count">{{ declared.length }}</span>
-          </h3>
+        <!-- All three groups wear the plugin's one fold (.ar-fold), the same
+             boxed disclosure the Search Opportunities groups wear: his call,
+             2026-08-15, and for the same reason — the described group has one
+             row today and a roster's worth coming, so it cannot be the one
+             section that grows without a lid. Closed by default, like those
+             groups: three named boxes with their counts read in one look,
+             three open lists have to be scrolled past. -->
+        <details
+          v-if="declared.length"
+          class="ar-fold ar-wd-group"
+          :open="!!openGroups.declared"
+          @toggle="openGroups.declared = $event.target.open"
+        >
+          <summary>
+            <h3 class="ar-wd-foldtitle">Plugins that describe themselves ({{ declared.length }})</h3>
+          </summary>
           <p class="ar-wd-engines">
             The plugin wrote these lines itself. Agentimus passes them on unchanged.
           </p>
           <ul class="ar-wd-list">
             <ProviderRow v-for="r in declared" :key="r.id" :r="r" :brief-held="r.id !== firstHeldId" />
           </ul>
-        </div>
+        </details>
 
-        <!-- Described by Agentimus — a plugin it recognises, written by hand.
-             Neither declared by that plugin nor found by a scan, and saying
-             either would be untrue. This is what the Plugins tab promises, so
-             it is shown open rather than folded away. -->
-        <div v-if="describedByAgentimus.length" class="ar-wd-group">
-          <h3 class="ar-wd-group__title">
-            Plugins Agentimus describes for you <span class="ar-wd-group__count">{{ describedByAgentimus.length }}</span>
-          </h3>
+        <details
+          v-if="describedByAgentimus.length"
+          class="ar-fold ar-wd-group"
+          :open="!!openGroups.described"
+          @toggle="openGroups.described = $event.target.open"
+        >
+          <summary>
+            <h3 class="ar-wd-foldtitle">Plugins Agentimus describes for you ({{ describedByAgentimus.length }})</h3>
+          </summary>
           <p class="ar-wd-engines">
             Agentimus recognises these plugins and writes the description itself, so they work
             without the plugin doing anything.
@@ -390,20 +404,17 @@ export default {
           <ul class="ar-wd-list">
             <ProviderRow v-for="r in describedByAgentimus" :key="r.id" :r="r" :brief-held="r.id !== firstHeldId" />
           </ul>
-        </div>
+        </details>
 
-        <!-- Found automatically — Agentimus's own scan, with engine status inline. -->
-        <div v-if="autoDiscovered.length" class="ar-wd-group">
-          <button
-            type="button"
-            class="ar-wd-group__toggle"
-            :aria-expanded="showAuto"
-            @click="showAuto = !showAuto"
-          >
-            <span class="ar-wd-group__caret" :class="{ 'is-open': showAuto }" aria-hidden="true">▸</span>
-            Found by looking at your site
-            <span class="ar-wd-group__count">{{ autoDiscovered.length }}</span>
-          </button>
+        <details
+          v-if="autoDiscovered.length"
+          class="ar-fold ar-wd-group"
+          :open="!!openGroups.auto"
+          @toggle="openGroups.auto = $event.target.open"
+        >
+          <summary>
+            <h3 class="ar-wd-foldtitle">Found by looking at your site ({{ autoDiscovered.length }})</h3>
+          </summary>
           <p class="ar-wd-engines">
             Nobody described these. Agentimus read what your site already publishes: your content,
             and the jobs your plugins registered with WordPress.
@@ -417,10 +428,10 @@ export default {
               :class="e.ok ? 'is-on' : 'is-off'"
             >{{ e.label }} {{ e.ok ? '✓' : '✕' }}</span>
           </p>
-          <ul v-show="showAuto" class="ar-wd-list">
+          <ul class="ar-wd-list">
             <ProviderRow v-for="r in autoDiscovered" :key="r.id" :r="r" :brief-held="r.id !== firstHeldId" />
           </ul>
-        </div>
+        </details>
       </template>
     </section>
 

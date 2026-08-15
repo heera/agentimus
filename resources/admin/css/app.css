@@ -4370,6 +4370,10 @@ button.ar-wd-stat:focus-visible { outline: 2px solid var(--ar-accent); outline-o
 
 /* Provider groups: Declared (always shown) and Auto-discovered (collapsible). */
 .ar-wd-group { margin-top: 18px; }
+/* The group heading inside a fold's summary takes the summary's own type, the
+   way the Search Opportunities groups do — a heading in the outline, a summary
+   line on screen. Its own uppercase style would fight the box it now sits in. */
+.ar-wd-foldtitle { margin: 0; font: inherit; color: inherit; }
 .ar-wd-group__title {
   margin: 0; font-size: 11px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase;
   color: var(--ar-ink-faint);
