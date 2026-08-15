@@ -114,17 +114,34 @@ final class AbilitiesApi {
 		$abilities = array();
 		$skills    = array();
 
-		$needs_auth = false;
+		$needs_auth     = false;
+		$any_advertised = false;
 
 		foreach ( $items as $item ) {
 			$ability     = $item['ability'];
 			$name        = $item['name'];
-			$abilities[] = $name;
 			$short       = strpos( $name, '/' ) ? substr( $name, strpos( $name, '/' ) + 1 ) : $name;
 			$desc        = (string) self::read( $ability, 'get_description' );
-			$auth        = self::auth_for( $ability );
 
-			$needs_auth = $needs_auth || 'none' !== $auth;
+			// TWO SEPARATE QUESTIONS, and conflating them was the bug.
+			//
+			//   1. Does the vendor advertise this tool? Their call, never ours —
+			//      we neither publish what they kept back nor hide what they
+			//      published. That is the `mcp.public` mark, and nothing else.
+			//   2. What does running it take? Ours to state honestly. A tool that
+			//      CHANGES something is never "no sign-in needed", whoever marked
+			//      it public: WooCommerce marks product-delete public, which asks
+			//      us to advertise it, not to promise anyone may run it.
+			$advertised = self::advertised( $ability );
+			$read_only  = self::read_only_hint( $ability, $name );
+			$auth       = self::auth_for( $advertised, $read_only );
+
+			// Only what is actually served decides the group's own line.
+			if ( $advertised ) {
+				$any_advertised = true;
+				$needs_auth     = $needs_auth || 'none' !== $auth;
+				$abilities[]    = $name;
+			}
 
 			$tools[] = array(
 				'name'         => $name,
@@ -134,6 +151,11 @@ final class AbilitiesApi {
 				// but this array flattened them, so every count downstream said
 				// "tools" for a number that included four documents.
 				'kind'         => self::is_resource( $ability ) ? 'resource' : 'tool',
+				// The vendor's decision, carried per tool so a namespace with a
+				// mixed hand publishes exactly the hand it was dealt. Held-back
+				// tools still reach the ADMIN screen — the owner sees everything
+				// their site holds; only the served document is trimmed.
+				'public'       => $advertised,
 				'title'        => (string) self::read( $ability, 'get_label' ),
 				'description'  => $desc,
 				'inputSchema'  => (array) self::read( $ability, 'get_input_schema', array() ),
@@ -181,7 +203,7 @@ final class AbilitiesApi {
 			'type'         => 'agent',
 			// Registered either way, so the Discovery screen can still show the owner what their
 			// site exposes — but kept out of every SERVED surface when it is all sign-in-only.
-			'public'       => $publish_gated || ! $needs_auth,
+			'public'       => $publish_gated || $any_advertised,
 			/* translators: 1: count, 2: namespace. */
 			'description'  => sprintf( _n( '%1$d ability from the "%2$s" namespace.', '%1$d abilities from the "%2$s" namespace.', count( $items ), 'agentimus' ), count( $items ), $namespace ),
 			'abilities'    => $abilities,
@@ -205,34 +227,54 @@ final class AbilitiesApi {
 	}
 
 	/**
-	 * What an agent must present to call this ability.
+	 * What running this tool takes. Ours to say, and never louder than the truth.
 	 *
-	 * This USED to be `(bool) read( $ability, 'get_permission_callback' ) ? 'wp' : 'none'`, and it
-	 * was a lie on every single ability. Core's WP_Ability exposes no `get_permission_callback()`
-	 * — only get_name/get_label/get_description/get_category/get_input_schema/get_output_schema/
-	 * get_meta/get_meta_item — so read()'s method_exists() check always failed, returned '', cast to
-	 * false, and the ternary could never yield 'wp'. Every ability in the public discovery document
-	 * was published as `auth: none`, including ones gated behind manage_options. An agent that
-	 * believed us walked straight into a 401, and telling agents the truth about a site is the one
-	 * job this plugin has.
+	 * Anyone may call a tool that is BOTH advertised by its vendor AND only reads.
+	 * Everything else needs a signed-in user: an ability nobody advertised, and —
+	 * the case that started this — a tool that CHANGES something, however its
+	 * vendor marked it. WooCommerce marks product-delete public; that is a request
+	 * to list it, not a promise that anyone may run it.
 	 *
-	 * There is nothing to introspect, so we take the safe direction instead of guessing. The
-	 * Abilities API requires a permission_callback at registration, so "gated" is the correct
-	 * default; an ability that genuinely is public can say so by declaring `meta.mcp.public`, the
-	 * same flag the MCP adapter reads (see Abilities\Registrar, which sets it FALSE precisely to
-	 * keep our own abilities off a public surface).
+	 * Under-claiming costs an agent one unnecessary auth header. Over-claiming
+	 * walks it into a 401 and misinforms every reader of the document. Those are
+	 * not symmetric.
 	 *
-	 * Under-claiming costs an agent one unnecessary auth header. Over-claiming sends it into a 401
-	 * and misinforms every reader of the document. Those are not symmetric.
+	 * @param bool $advertised Whether the vendor advertises it.
+	 * @param bool $read_only  Whether it only reads.
+	 * @return string 'none' when anyone may call it, 'wp' when it needs a sign-in.
+	 */
+	private static function auth_for( $advertised, $read_only ) {
+		return ( $advertised && $read_only ) ? 'none' : 'wp';
+	}
+
+	/**
+	 * Whether the VENDOR advertises this ability — their decision, read from the
+	 * `meta.mcp.public` mark and nothing else.
+	 *
+	 * ⭐ THE RULE (his, 2026-08-15): we do not advertise what a vendor keeps back,
+	 * and we do not hide what a vendor advertises. We never invent an entry on a
+	 * plugin's behalf. So this answers one question only, and the answer belongs
+	 * to whoever registered the ability. It holds for every plugin on the site,
+	 * today's and tomorrow's — nothing here is written for a particular vendor.
+	 *
+	 * ⛔ It does NOT answer "may anyone run this". That is a separate question,
+	 * answered by what the tool does, and mixing the two published five ways to
+	 * change a shop under the words "no sign-in needed". A mark that means
+	 * "advertise me" cannot be read as "everyone may use me".
+	 *
+	 * Default false is the safe direction and the correct one: the Abilities API
+	 * requires a permission callback at registration, so an ability is gated
+	 * unless it says otherwise. Our own Registrar sets the flag FALSE deliberately,
+	 * to keep Agentimus's tools off a public surface.
 	 *
 	 * @param mixed $ability The ability object.
-	 * @return string 'wp' when authentication is required, 'none' when the ability declares itself public.
+	 * @return bool True when the ability declares itself advertised.
 	 */
-	private static function auth_for( $ability ) {
+	private static function advertised( $ability ) {
 		$meta = (array) self::read( $ability, 'get_meta', array() );
 		$mcp  = isset( $meta['mcp'] ) && is_array( $meta['mcp'] ) ? $meta['mcp'] : array();
 
-		return ! empty( $mcp['public'] ) ? 'none' : 'wp';
+		return ! empty( $mcp['public'] );
 	}
 
 	/**

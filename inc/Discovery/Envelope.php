@@ -724,12 +724,24 @@ final class Envelope {
 		// admin's link to a document) are internal for the same reason `public`
 		// is, so they come off here rather than in normalize().
 		if ( isset( $resource['tools'] ) && is_array( $resource['tools'] ) ) {
-			$resource['tools'] = array_map(
+			// A tool the vendor never advertised does not reach the served document
+			// — the same publication boundary `public` draws around a whole
+			// resource, drawn around one tool. The admin path keeps them, so the
+			// owner still sees everything their site holds.
+			$advertised = array_filter(
+				(array) $resource['tools'],
 				static function ( $tool ) {
-					unset( $tool['kind'], $tool['uri'] );
-					return $tool;
-				},
-				(array) $resource['tools']
+					return ! isset( $tool['public'] ) || (bool) $tool['public'];
+				}
+			);
+			$resource['tools'] = array_values(
+				array_map(
+					static function ( $tool ) {
+						unset( $tool['kind'], $tool['uri'], $tool['public'] );
+						return $tool;
+					},
+					$advertised
+				)
 			);
 		}
 		return $resource;

@@ -89,46 +89,50 @@ final class AbilityReadOnlyHintTest extends TestCase {
 		$this->assertTrue( $this->call( 'looks_read_only', 'ns/get-output' ) );
 	}
 
-	/* -- 4. auth_for(): the discovery document must not lie about auth ----- */
+	/* -- 4. Two questions, never one ---------------------------------------- */
 
-	private function auth( array $meta ): string {
-		return (string) $this->call( 'auth_for', $this->ability( $meta ) );
+	/** The vendor's own mark: do they advertise this ability? */
+	private function advertised( array $meta ): bool {
+		return (bool) $this->call( 'advertised', $this->ability( $meta ) );
+	}
+
+	/** What running it takes, from the two facts that decide it. */
+	private function auth( bool $advertised, bool $read_only ): string {
+		return (string) $this->call( 'auth_for', $advertised, $read_only );
 	}
 
 	/**
-	 * THE REGRESSION. auth_for() used to be
-	 *   (bool) read( $ability, 'get_permission_callback' ) ? 'wp' : 'none'
-	 * and it returned 'none' for EVERY ability — core's WP_Ability exposes no
-	 * get_permission_callback(), so read()'s method_exists() check always failed, returned '', and
-	 * cast to false. The public /.well-known/discovery.json therefore told every agent on the
-	 * internet that manage_options-gated tools needed no authentication.
-	 *
-	 * This ability object deliberately has NO get_permission_callback(), exactly like core's — the
-	 * old code returns 'none' here and the test fails.
+	 * ⭐ THE RULE (his, 2026-08-15): publication is the VENDOR's call — we never
+	 * advertise what they keep back, never hide what they publish. advertised()
+	 * answers that and nothing else.
 	 */
-	public function test_an_ability_that_cannot_be_introspected_is_reported_as_gated() {
-		$this->assertSame( 'wp', $this->auth( array() ), 'With nothing to introspect, the safe answer is "authentication required".' );
-	}
-
-	public function test_our_own_abilities_are_reported_as_gated() {
-		// What Abilities\Registrar actually sets: mcp.public = false, precisely to keep these off a
-		// public surface. The discovery document must agree with the Registrar, not contradict it.
-		$meta = array(
-			'show_in_rest' => true,
-			'annotations'  => array( 'readonly' => true ),
-			'mcp'          => array( 'public' => false ),
+	public function test_advertising_is_the_vendors_decision_and_only_that() {
+		$this->assertTrue( $this->advertised( array( 'mcp' => array( 'public' => true ) ) ) );
+		$this->assertFalse( $this->advertised( array( 'mcp' => array( 'public' => false ) ) ) );
+		$this->assertFalse( $this->advertised( array() ), 'Unmarked is not advertised — the safe direction.' );
+		$this->assertFalse(
+			$this->advertised( array( 'annotations' => array( 'readonly' => true ) ) ),
+			'Read-only says nothing about whether a vendor wants it listed.'
 		);
-		$this->assertSame( 'wp', $this->auth( $meta ) );
 	}
 
-	public function test_an_ability_that_declares_itself_public_is_reported_as_open() {
-		// The one honest way out: an ability says so explicitly. Under-claiming costs an agent one
-		// unnecessary auth header; over-claiming walks it into a 401 and misinforms every reader.
-		$this->assertSame( 'none', $this->auth( array( 'mcp' => array( 'public' => true ) ) ) );
+	/**
+	 * ⛔ THE REGRESSION THIS FIXES. A vendor's "public" mark used to become
+	 * `auth: none` on its own, so WooCommerce marking product-delete public had
+	 * this site publicly advertising five ways to change a shop under the words
+	 * "no sign-in needed". A mark meaning "advertise me" is not a promise that
+	 * anyone may run it.
+	 */
+	public function test_an_advertised_tool_that_changes_something_still_needs_a_sign_in() {
+		$this->assertSame( 'wp', $this->auth( true, false ) );
 	}
 
-	public function test_readonly_does_not_imply_public() {
-		// Read-only says nothing about WHO may read. All nine of ours are read-only AND admin-only.
-		$this->assertSame( 'wp', $this->auth( array( 'annotations' => array( 'readonly' => true ) ) ) );
+	public function test_an_advertised_tool_that_only_reads_is_open_to_anyone() {
+		$this->assertSame( 'none', $this->auth( true, true ) );
+	}
+
+	public function test_anything_the_vendor_did_not_advertise_needs_a_sign_in() {
+		$this->assertSame( 'wp', $this->auth( false, true ), 'Read-only says nothing about WHO may read.' );
+		$this->assertSame( 'wp', $this->auth( false, false ) );
 	}
 }
