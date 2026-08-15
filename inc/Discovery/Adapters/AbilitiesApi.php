@@ -194,18 +194,20 @@ final class AbilitiesApi {
 
 		return array(
 			'id'           => 'abilities-' . sanitize_key( $namespace ),
-			// The namespace VERBATIM, never title-cased. ucfirst() turned real
-			// vendor names into misspellings — "Woocommerce", "Mailpoet", "Ai" —
-			// and put two spellings of one vendor on the same screen. A namespace
-			// is a slug, not a name: printing it as it is can never be wrong, and
-			// there is no honest way to derive a brand's capitalisation from one.
-			'title'        => $namespace . ' abilities',
+			// ⚠️ The namespace VERBATIM, and QUOTED so it reads as the name it is.
+			// ucfirst() turned real names into misspellings — "Woocommerce",
+			// "Mailpoet", "Ai" — and printing it bare made the row look broken in
+			// lower case. There is no honest source for a vendor's capitalisation:
+			// the registry holds slugs, and so do its categories. Quoting says
+			// "this is their word, not our sentence".
+			/* translators: %s: the namespace a plugin registered its jobs under, e.g. woocommerce. */
+			'title'        => sprintf( __( 'Jobs from “%s”', 'agentimus' ), $namespace ),
 			'type'         => 'agent',
 			// Registered either way, so the Discovery screen can still show the owner what their
 			// site exposes — but kept out of every SERVED surface when it is all sign-in-only.
 			'public'       => $publish_gated || $any_advertised,
-			/* translators: 1: count, 2: namespace. */
-			'description'  => sprintf( _n( '%1$d ability from the "%2$s" namespace.', '%1$d abilities from the "%2$s" namespace.', count( $items ), 'agentimus' ), count( $items ), $namespace ),
+			/* translators: %d: how many jobs this plugin registered. */
+			'description'  => sprintf( _n( '%d thing an AI assistant can do here. It is listed further down, under “For a signed-in assistant”.', '%d things an AI assistant can do here. They are listed further down, under “For a signed-in assistant”.', count( $items ), 'agentimus' ), count( $items ) ),
 			'abilities'    => $abilities,
 			'tools'        => $tools,
 			// The resource inherits the strictest requirement of the tools inside it. Left unset it

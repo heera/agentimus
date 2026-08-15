@@ -9,6 +9,15 @@ export default {
     // this row defers to it instead of repeating the same paragraph verbatim.
     briefHeld: { type: Boolean, default: false },
   },
+  computed: {
+    // The engine names are the specs' own ("REST API", "Abilities API"). On a
+    // screen read by shop owners they need saying in words, once, here.
+    foundWhere() {
+      if (this.r.engine === 'Abilities API') return 'in the list of jobs your plugins registered with WordPress';
+      if (this.r.engine === 'REST API') return 'by reading your site’s own data doors';
+      return 'by reading your site';
+    },
+  },
 };
 </script>
 
@@ -32,21 +41,20 @@ export default {
       <!-- Say WHY, not just that. An owner seeing "not published" with no reason will assume
            something is broken. -->
       <p v-if="!r.suppressed && r.notPublic && !briefHeld" class="ar-wd-prov__held">
-        Every tool here needs an authenticated WordPress user, so an anonymous assistant could never
-        run one. Advertising them in the public discovery documents would hand out a map of your
-        tooling — the full descriptions and input/output schemas — without letting any assistant
-        actually use it. Assistants that hold real credentials still find them the proper way.
+        Everything here needs someone signed in, so a stranger could never run it. Listing it
+        publicly would hand anyone who asks a map of your site’s tools, and let nobody use them. An
+        assistant that signs in still finds them.
       </p>
       <p v-else-if="!r.suppressed && r.notPublic" class="ar-wd-prov__held">
-        Held back for the same reason as above — its tools need a signed-in user.
+        Kept back for the same reason — signing in is needed here too.
       </p>
       <!-- Three sources, three sentences. "Found automatically" belongs only to
            what a scanner actually found: a plugin Agentimus recognises and
            describes was not discovered, it was written. -->
       <p class="ar-wd-prov__provider">
-        <span v-if="r.described">Described by Agentimus</span>
-        <span v-else-if="r.auto">Found automatically · via the {{ r.engine }}</span>
-        <span v-else>Provided by <code>{{ r.provider }}</code></span>
+        <span v-if="r.described">Agentimus wrote this</span>
+        <span v-else-if="r.auto">Agentimus found this · {{ foundWhere }}</span>
+        <span v-else>This plugin told us · <code>{{ r.provider }}</code></span>
       </p>
 
       <div v-if="r.capabilities.length" class="ar-wd-caps">

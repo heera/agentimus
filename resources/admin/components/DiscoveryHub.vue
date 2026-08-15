@@ -353,14 +353,13 @@ export default {
     <section id="ar-wd-providers" class="ar-card">
       <h2 class="ar-card__title">Registered Providers</h2>
       <p class="ar-card__lead">
-        Everything AI assistants can learn about your site, in one list. Each row is one thing they
-        can read or do. The three groups below only say <strong>where each row came from</strong> —
-        every row counts the same.
+        Everything an AI assistant can learn about your site. Each row is something it can read or
+        do. The three groups below only say <strong>who told us</strong> — every row counts the same.
       </p>
 
       <p v-if="!resources.length" class="ar-wd-empty">
-        Nothing registered yet — Agentimus fills this in on its own as it scans your site, and any
-        plugin that speaks the WP_Discovery format adds its own rows when you install it.
+        Nothing here yet. Agentimus fills this in by itself as it reads your site, and a plugin that
+        knows how to introduce itself adds its own rows when you install it.
       </p>
 
       <template v-else>
@@ -381,7 +380,7 @@ export default {
             <h3 class="ar-wd-foldtitle">Plugins that describe themselves ({{ declared.length }})</h3>
           </summary>
           <p class="ar-wd-engines">
-            The plugin wrote these lines itself. Agentimus passes them on unchanged.
+            These plugins tell us what they offer. We show it in their own words.
           </p>
           <ul class="ar-wd-list">
             <ProviderRow v-for="r in declared" :key="r.id" :r="r" :brief-held="r.id !== firstHeldId" />
@@ -398,8 +397,7 @@ export default {
             <h3 class="ar-wd-foldtitle">Plugins Agentimus describes for you ({{ describedByAgentimus.length }})</h3>
           </summary>
           <p class="ar-wd-engines">
-            Agentimus recognises these plugins and writes the description itself, so they work
-            without the plugin doing anything.
+            Agentimus knows these plugins, so it writes their part for them. They do nothing.
           </p>
           <ul class="ar-wd-list">
             <ProviderRow v-for="r in describedByAgentimus" :key="r.id" :r="r" :brief-held="r.id !== firstHeldId" />
@@ -416,8 +414,7 @@ export default {
             <h3 class="ar-wd-foldtitle">Found by looking at your site ({{ autoDiscovered.length }})</h3>
           </summary>
           <p class="ar-wd-engines">
-            Nobody described these. Agentimus read what your site already publishes: your content,
-            and the jobs your plugins registered with WordPress.
+            Nobody told us about these. Agentimus found them by reading your own site.
           </p>
           <p v-if="engineChips.length" class="ar-wd-engines">
             Agentimus checked:
