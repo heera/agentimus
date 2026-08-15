@@ -8355,19 +8355,49 @@ a.ar-work__name { color: var(--ar-accent); }
 .ar-fold.ar-wd-grp.is-off .ar-wd-grp__names code,
 .ar-fold.ar-wd-grp.is-off .ar-wd-grp__names span { color: var(--ar-ink-faint); }
 
-/* Numbered job names (his ask, 2026-08-15). A counter rather than markup: the
-   list is already a list, so the numbers are presentation and belong here. Mono
-   and right-aligned in a fixed gutter, so 1 and 23 line up down the same edge
-   and the names still start on one line — the count is a quiet aid, never a
-   column competing with the thing it counts. */
-.ar-wd-grp__names { counter-reset: ar-joblist; }
-.ar-wd-grp__names li { counter-increment: ar-joblist; }
+/* THE NUMBER RAIL (his design, picked 2026-08-15). Order given by a hairline
+   and a counter, not by furniture: the alternative put a bordered pill round
+   every row, and twenty-three boxes compete with the names they are counting.
+   Pills in this admin mean something — a count, a state — so spending one on an
+   ordinal is the wrong currency.
+
+   Zero-padded so 01 and 23 are the same width and the rail stays straight, mono
+   so they line up by construction, in the accent so the eye can run the column
+   without reading it. A tick per row ties each name to the rail; the rail alone
+   left the numbers floating beside a list. */
+.ar-wd-grp__names { counter-reset: ar-joblist; position: relative; }
+/* The rail itself: inset top and bottom so it starts and ends WITH the list
+   rather than running past the first and last tick. */
+.ar-wd-grp__names::before {
+  content: "";
+  position: absolute;
+  top: 7px;
+  bottom: 7px;
+  /* 26 (the list's padding) + 22 (the number) + 8 (half the gap) — measured
+     against the number's right edge and the name's left edge, not guessed. */
+  left: 56px;
+  width: 1px;
+  background: var(--ar-line);
+}
+.ar-wd-grp__names li {
+  counter-increment: ar-joblist;
+  position: relative;
+  gap: 16px; /* the rail lives in this gap, between the number and the name. */
+}
 .ar-wd-grp__names li::before {
-  content: counter(ar-joblist);
-  flex: 0 0 20px;
+  content: counter(ar-joblist, decimal-leading-zero);
+  flex: 0 0 22px;
   text-align: right;
   font-family: var(--ar-mono);
-  font-size: 10.5px;
-  color: var(--ar-ink-faint);
-  opacity: 0.7;
+  font-size: 11px;
+  letter-spacing: 0.02em;
+  color: var(--ar-accent);
 }
+/* ⛔ NO tick per row. There was one, and it sat on top of the second digit —
+   every number read "0". The rail and the numbers already carry the order
+   between them; a mark on each row was decoration fighting the thing it marked,
+   and the simplest fix for a decoration that breaks the content is to not have
+   it. (It also could not be placed safely: the rail is positioned against the
+   list and a row's mark against the row, two spaces 26px apart.) */
+/* Switched off: the rail and its numbers go quiet with the rest of the group. */
+.ar-fold.ar-wd-grp.is-off .ar-wd-grp__names li::before { color: var(--ar-ink-faint); }
