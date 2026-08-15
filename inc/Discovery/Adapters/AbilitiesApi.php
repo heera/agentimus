@@ -201,14 +201,20 @@ final class AbilitiesApi {
 
 		return array(
 			'id'           => 'abilities-' . sanitize_key( $namespace ),
-			// ⚠️ The namespace VERBATIM, and QUOTED so it reads as the name it is.
-			// ucfirst() turned real names into misspellings — "Woocommerce",
-			// "Mailpoet", "Ai" — and printing it bare made the row look broken in
-			// lower case. There is no honest source for a vendor's capitalisation:
-			// the registry holds slugs, and so do its categories. Quoting says
-			// "this is their word, not our sentence".
-			/* translators: %s: the namespace a plugin registered its jobs under, e.g. woocommerce. */
-			'title'        => sprintf( __( 'Jobs from “%s”', 'agentimus' ), $namespace ),
+			// ⭐ THE VENDOR'S OWN NAME when they wrote one. Ability CATEGORIES are
+			// registered with a human label — AIOSEO publishes "AIOSEO — Posts",
+			// WooCommerce "WooCommerce", FluentBoards "FluentBoards" — and we were
+			// printing the slug instead, which is hiding something a vendor
+			// advertises. (An earlier note here said no honest source existed for
+			// their capitalisation. wp_get_ability_categories() is that source; it
+			// was simply not looked at.)
+			//
+			// ⚠️ Only when the group agrees on ONE labelled category. WordPress
+			// core's two abilities sit under "Site" and "User" at once, and no
+			// single name is true of both — that group keeps the quoted slug, which
+			// says "this is their word, not our sentence". ⛔ ucfirst() is never the
+			// answer: it turned real names into misspellings ("Woocommerce", "Ai").
+			'title'        => self::group_title( $namespace, $items ),
 			'type'         => 'agent',
 			// Registered either way, so the Discovery screen can still show the owner what their
 			// site exposes — but kept out of every SERVED surface when it is all sign-in-only.
@@ -233,6 +239,74 @@ final class AbilitiesApi {
 				'auth'        => $needs_auth ? 'wp' : '',
 			),
 		);
+	}
+
+	/**
+	 * The heading for one group of jobs: the vendor's own words when they wrote
+	 * them, their slug in quotes when they didn't.
+	 *
+	 * @param string $namespace The name prefix these abilities share.
+	 * @param array  $items     The group's abilities.
+	 * @return string
+	 */
+	private static function group_title( $namespace, $items ) {
+		$label = self::shared_category_label( $items );
+
+		if ( '' !== $label ) {
+			/* translators: %s: a plugin's own name for a group of jobs, e.g. "AIOSEO — Posts". */
+			return sprintf( __( 'Jobs from %s', 'agentimus' ), $label );
+		}
+
+		/* translators: %s: the namespace a plugin registered its jobs under, e.g. woocommerce. */
+		return sprintf( __( 'Jobs from “%s”', 'agentimus' ), $namespace );
+	}
+
+	/**
+	 * The label of the one category every ability in a group belongs to, or ''.
+	 *
+	 * ⛔ Empty is returned for every case where a single name would be a guess: no
+	 * category API, a member with no category, two categories in one group, or a
+	 * category registered without a label. We publish their name or their slug —
+	 * never a third thing we made up.
+	 *
+	 * @param array $items The group's abilities.
+	 * @return string
+	 */
+	private static function shared_category_label( $items ) {
+		if ( ! function_exists( 'wp_get_ability_categories' ) ) {
+			return '';
+		}
+
+		$seen = array();
+		foreach ( $items as $item ) {
+			$category = self::read( isset( $item['ability'] ) ? $item['ability'] : null, 'get_category', '' );
+			$category = is_object( $category ) ? self::read( $category, 'get_name', '' ) : (string) $category;
+
+			if ( '' === $category ) {
+				return '';
+			}
+			$seen[ $category ] = true;
+		}
+
+		if ( 1 !== count( $seen ) ) {
+			return '';
+		}
+
+		$wanted = key( $seen );
+		foreach ( (array) wp_get_ability_categories() as $key => $category ) {
+			$name = is_object( $category ) ? self::read( $category, 'get_name', (string) $key ) : (string) $key;
+			if ( $name !== $wanted ) {
+				continue;
+			}
+
+			$label = is_object( $category )
+				? self::read( $category, 'get_label', '' )
+				: ( is_array( $category ) && isset( $category['label'] ) ? $category['label'] : '' );
+
+			return trim( (string) $label );
+		}
+
+		return '';
 	}
 
 	/**
