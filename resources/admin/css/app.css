@@ -8401,3 +8401,22 @@ a.ar-work__name { color: var(--ar-accent); }
    list and a row's mark against the row, two spaces 26px apart.) */
 /* Switched off: the rail and its numbers go quiet with the rest of the group. */
 .ar-fold.ar-wd-grp.is-off .ar-wd-grp__names li::before { color: var(--ar-ink-faint); }
+
+/* Inline code chips, readable in BOTH themes (his catch, 2026-08-15: "I don't
+   see the highlight/bg in the dark mode").
+
+   The chips inherited a global `code, kbd` rule painting rgba(0,0,0,0.07) — 7%
+   BLACK. On the light canvas that is the grey box he expects; on the dark one it
+   is black on near-black, so every inline path, token and ability name lost its
+   chip. It was never our rule, but it is our screen.
+
+   currentColor rather than a surface token, so the chip is always a tint of the
+   text it wraps: dark ink on light ground, light ink on dark. And wrapped in
+   :where() so this weighs NOTHING — it lands at the same specificity as the
+   global rule it replaces, and every component that sets its own chip (or
+   deliberately sets none, like the well-known paths and the code samples) still
+   wins without needing to know this exists. */
+:where(#agentimus-app) code,
+:where(#agentimus-app) kbd {
+  background: color-mix(in srgb, currentColor 11%, transparent);
+}
