@@ -65,6 +65,28 @@ trait ConnectionStore {
 	}
 
 	/**
+	 * How many rows the last poll had to leave out.
+	 *
+	 * The store holds the busiest rows up to a cap. The engines hand their
+	 * reports back busiest-first, so what falls off the end is the quiet tail —
+	 * the pages an owner is most likely to be looking for. Dropping them is
+	 * defensible; dropping them silently is not, which is why the number is kept
+	 * and said out loud rather than inferred from a total that looks fine.
+	 *
+	 * Written on EVERY poll, including clean ones — a poll that dropped nothing
+	 * must clear a previous poll's number, or the screen keeps apologising for
+	 * something that is no longer true.
+	 *
+	 * @param int $dropped Rows the cap left out.
+	 * @return void
+	 */
+	public function record_dropped( $dropped = 0 ) {
+		$all                 = $this->all();
+		$all['dropped_rows'] = max( 0, (int) $dropped );
+		$this->persist( $all );
+	}
+
+	/**
 	 * Decrypt a stored credential field, or '' when none is stored (or it can't
 	 * be decrypted — e.g. the site's salts were rotated). The stored form is
 	 * always ciphertext; this is the only supported way to read it back out.

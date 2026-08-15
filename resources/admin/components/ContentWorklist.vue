@@ -14,16 +14,18 @@
  *
  * Fetched on demand, not shipped with the page: every row parses a page.
  */
+import { formatDate, relTimeShort } from '../js/wpDate.js';
+
 export default {
   name: 'ContentWorklist',
   props: {
     // Only for /worklist/rows — the list itself stays App-owned and arrives
     // as `data`, so this panel cannot drift into loading two truths.
     api: { type: Object, default: null },
-    data: { type: Object, default: () => ({ items: [], counts: {}, capped: false, total: 0, noSearchData: 0, searchState: '', engine: '', pageCap: 0 }) },
+    data: { type: Object, default: () => ({ items: [], counts: {}, capped: false, total: 0, noSearchData: 0, searchState: '', engine: '', pageCap: 0, waiting: 0 }) },
     // Cheap counts from the boot payload — no page parsed. They let the opening
     // state say something true about the site instead of just offering a button.
-    preview: { type: Object, default: () => ({ published: 0, withSearch: 0, setAside: 0, searchState: '', engine: '', pageCap: 0 }) },
+    preview: { type: Object, default: () => ({ published: 0, withSearch: 0, setAside: 0, searchState: '', engine: '', pageCap: 0, waiting: 0 }) },
     loaded: { type: Boolean, default: false },
     busy: { type: Boolean, default: false },
     settingAside: { type: Number, default: 0 },
@@ -43,7 +45,9 @@ export default {
       // button read as a lie. Cleared with the filter.
       extraRows: [],
       pickFetching: false,
-      filter: 'fixable',
+      // Which rows are open. Ids, not a flag on the row, so a refetch cannot
+      // fold a row somebody has deliberately opened.
+      opened: [],
     };
   },
   watch: {
@@ -93,18 +97,23 @@ export default {
     engine() {
       return this.data.engine || '';
     },
-    // Why a row's focus column is empty, and the two reasons are NOT the same.
+    // How many of the site's pages this source has not been asked about yet.
+    // Only ever above zero on Bing, which answers about one page per request.
+    waiting() {
+      return Number(this.data.waiting) || 0;
+    },
+    // Why a row's search column is empty, and the reasons are NOT the same.
     //
-    // Google looks at every page, so an empty column really does mean no search
-    // has reached it — normal for a new post, and it will fill in on its own.
-    // Bing has no query x page report at all: the poll buys page detail one HTTP
-    // call at a time and stops at the busiest few, so outside that sample the
-    // column is empty because nobody ASKED, and waiting will never fill it.
-    // Printing the first sentence in the second case tells an owner their page
-    // is invisible when it may be doing fine.
+    // Google reports every page it knows about in one go, so an empty column
+    // really does mean no search has reached that page — normal for a new post,
+    // and it fills in on its own. Bing answers about one page per request, so
+    // its pages are worked through a few at a time; while any are still waiting,
+    // an empty column may only mean this page has not had its turn. Printing the
+    // first sentence in the second case tells an owner their page is invisible
+    // when it may be doing perfectly well.
     emptyWhy() {
-      if (this.pageCap > 0) {
-        return `${this.engine || 'This source'} only reports searches for your ${this.pageCap} busiest pages — this one is outside that list.`;
+      if (this.waiting > 0) {
+        return `${this.engine || 'This source'} answers about one page at a time, and ${this.waiting.toLocaleString()} of your pages have not been checked yet — so this may only mean this one has not had its turn.`;
       }
       return 'No searches have reached this one yet.';
     },
@@ -116,6 +125,27 @@ export default {
         { key: 'setAside', label: 'Set Aside', n: this.counts.setAside || 0 },
       ];
     },
+    // Which tab the rows on screen belong to. The SERVER decides this now —
+    // it ranks and pages over every published item, so the panel can no longer
+    // sort a local pile into buckets and must simply show what it was sent.
+    filter() {
+      return this.data.filter || 'fixable';
+    },
+    page() {
+      return Number(this.data.page) || 1;
+    },
+    per() {
+      return Number(this.data.per) || 20;
+    },
+    pages() {
+      return Math.max(1, Math.ceil((Number(this.data.total) || 0) / this.per));
+    },
+    // How many published items are still waiting to be read for the first time.
+    // Above zero means this ranking covers part of the site, not all of it —
+    // a different claim, and one the screen has to make out loud.
+    grading() {
+      return Number(this.data.grading) || 0;
+    },
     shown() {
       // A finding's subset wins over the tab: it was chosen deliberately and
       // the pages in it may sit across two tabs.
@@ -123,29 +153,26 @@ export default {
         const want = this.picked;
         return this.items.filter((i) => want.indexOf(i.id) > -1);
       }
-      return this.items.filter((i) => {
-        if ('setAside' === this.filter) return i.setAside;
-        if (i.setAside) return false;
-        return 'fixable' === this.filter ? this.needsWork(i) : !this.needsWork(i);
-      });
+      return this.items;
     },
     // Said out loud rather than implied by a list that simply stops.
     foot() {
       const bits = [];
-      if (this.data.capped) {
-        // Parked rows ride along so the Set aside view is complete, but they
-        // are not part of the "worth looking at" claim — counting them here
-        // would inflate a sentence about a different list.
-        const ranked = this.items.filter((i) => !i.setAside).length;
-        bits.push(`Showing the ${ranked} most worth looking at, of ${this.data.total}.`);
+      if (this.grading > 0) {
+        // The ranking is only as complete as the reading behind it. Saying so
+        // costs one sentence; not saying it presents a partial list as the
+        // whole site, which is the fault this screen exists to avoid.
+        bits.push(
+          `Still reading your content — ${this.grading.toLocaleString()} ${this.grading === 1 ? 'item has' : 'items have'} not been looked at yet, so this order may still change.`
+        );
       }
       if (this.data.noSearchData) {
-        // "Normal for recent posts" is true under Google and misleading under
-        // Bing, where the blank column is the sample's edge rather than the
-        // page's age. Same number, two different things to do about it.
+        // "Normal for recent posts" is true under Google and misleading while
+        // Bing is still working through the site. Same number, two different
+        // things for an owner to do about it.
         bits.push(
-          this.pageCap > 0
-            ? `${this.data.noSearchData} sit outside the ${this.pageCap} pages ${this.engine || 'this source'} reports searches for, so nothing here can say what they are found for. Their content issues are still real.`
+          this.waiting > 0
+            ? `${this.data.noSearchData} have no search data yet. ${this.engine || 'This source'} is still working through your pages — ${this.waiting.toLocaleString()} have not been checked — so some of these are waiting rather than quiet. Their content issues are still real.`
             : `${this.data.noSearchData} have no search data yet — normal for recent posts, and they still show their content issues.`
         );
       }
@@ -165,6 +192,101 @@ export default {
       this.picked = null;
       this.extraRows = [];
     },
+    isOpen(i) {
+      return this.opened.indexOf(i.id) > -1;
+    },
+    // The fold opens itself — details/summary is the browser's own control, and
+    // reimplementing it would mean reimplementing its keyboard and screen-reader
+    // behaviour too. This only follows along, so the body can stay out of the
+    // DOM until a row is actually asked for.
+    onToggle(i, ev) {
+      const at = this.opened.indexOf(i.id);
+      if (ev.target.open && at < 0) this.opened.push(i.id);
+      if (!ev.target.open && at > -1) this.opened.splice(at, 1);
+    },
+    // What one engine says in the width of a glance. Never merged with the
+    // other's — each keeps its own name in front of its own numbers.
+    engineGist(e) {
+      if ('reported' === e.state) {
+        const top = e.rows && e.rows[0];
+        if (!top) return 'no searches';
+        return `${this.rank(top.position)} · ${this.num(top.impressions)} shown`;
+      }
+      if ('unasked' === e.state) return 'not asked yet';
+      if ('none' === e.state) return 'no searches';
+      if ('error' === e.state) return 'could not ask';
+      return 'not connected';
+    },
+    // Each engine's OWN window and its own last-checked stamp. Bing's window is
+    // anchored at its own newest week and can end days before Google's, so one
+    // shared "last 56 days" across both was never true of both.
+    // Just the age, with no "checked" in front of it — for sentences that
+    // supply their own verb.
+    askedAgo(e) {
+      return e.checkedAt ? relTimeShort(e.checkedAt * 1000) : '';
+    },
+    engineWhen(e) {
+      const bits = [];
+      // ⚠️ These arrive as 'YYYY-MM-DD' strings and formatDate takes a DATE
+      // OBJECT — handed anything else it returns '' rather than complaining,
+      // so the range silently disappeared and left a lonely dash behind.
+      // Read as UTC, because that is the day the engine stamped, not ours.
+      const at = (d) => (d ? formatDate(new Date(`${d}T00:00:00Z`), true) : '');
+      if (e.window && e.window.start && e.window.end) {
+        const from = at(e.window.start);
+        const to = at(e.window.end);
+        if (from && to) bits.push(`${from} – ${to}`);
+      }
+      // ⚠️ relTimeShort already ends in "ago". Adding another one read
+      // "checked 21h ago ago" on the live screen.
+      if (e.checkedAt) {
+        const rel = relTimeShort(e.checkedAt * 1000);
+        if (rel) bits.push(`checked ${rel}`);
+      }
+      return bits.join(' · ');
+    },
+    // Only when both engines actually reported AND their top phrase differs.
+    // Silence when they agree: there is no second thing to say.
+    enginesDiffer(i) {
+      const es = i.engines || {};
+      const said = Object.keys(es)
+        .filter((k) => 'reported' === es[k].state && es[k].rows && es[k].rows.length)
+        .map((k) => ({ name: es[k].name, q: es[k].rows[0].query }));
+      if (said.length < 2) return '';
+      if (said[0].q === said[1].q) return '';
+      return said.map((s) => `${s.name} shows it most for “${s.q}”.`).join(' ');
+    },
+    stateChip(i) {
+      const n = (i.flags ? i.flags.length : 0) + (i.moreFlags || 0);
+      if (!n) return 'nothing to fix';
+      return `${n} ${1 === n ? 'thing' : 'things'} to fix`;
+    },
+    // A tab is now a different question for the server, not a different filter
+    // over the same pile — so it costs a fetch, and always starts at page one.
+    pickFilter(key) {
+      if (key === this.filter && !this.picked) return;
+      this.picked = null;
+      this.extraRows = [];
+      this.$emit('load', { filter: key, page: 1 });
+    },
+    goPage(n) {
+      const want = Math.min(this.pages, Math.max(1, Number(n) || 1));
+      if (want === this.page) return;
+      this.$emit('load', { filter: this.filter, page: want });
+    },
+    // The window of page numbers worth drawing. A site with sixty pages of
+    // content should not get sixty buttons — the ends and the neighbours are
+    // what anyone actually clicks.
+    pageWindow() {
+      const out = [];
+      const last = this.pages;
+      const here = this.page;
+      for (let n = 1; n <= last; n++) {
+        if (n === 1 || n === last || Math.abs(n - here) <= 1) out.push(n);
+        else if (out[out.length - 1] !== '…') out.push('…');
+      }
+      return out;
+    },
     // Set aside / bring back, with one wrinkle: the parent flips the row's
     // state on success by finding it in ITS list — but a row fetched for a
     // finding (extraRows) is ours, not the parent's, and used to sit there
@@ -181,13 +303,13 @@ export default {
       const p = this.preview || {};
       const out = [{ n: p.published || 0, label: p.published === 1 ? 'published item' : 'published items' }];
       if ('ready' === p.searchState) {
-        // Under Bing this can never exceed the poll's page budget, so calling it
-        // "already found in search" would read as a verdict on the other 290
-        // pages when it is only the shape of the report.
-        const cap = Number(p.pageCap) || 0;
+        // While pages are still waiting their turn, "already found in search"
+        // would read as a verdict on the ones not yet checked. Name the source
+        // instead, which claims nothing about the rest.
+        const waiting = Number(p.waiting) || 0;
         out.push({
           n: p.withSearch || 0,
-          label: cap > 0 ? `reported by ${p.engine || 'your search source'}` : 'already found in search',
+          label: waiting > 0 ? `reported by ${p.engine || 'your search source'} so far` : 'already found in search',
         });
       }
       if (p.setAside) {
@@ -420,51 +542,74 @@ export default {
           type="button"
           class="ar-work__tab"
           :class="{ 'is-active': filter === t.key }"
-          @click="filter = t.key"
+          :disabled="busy"
+          @click="pickFilter(t.key)"
         >{{ t.label }} <span class="ar-work__tab-n">{{ t.n }}</span></button>
       </div>
 
-      <!-- The grid's spine: three columns with no headings made the reader
-           infer the pattern row by row. Hidden from screen readers — the row
-           content names itself, and a fake table header would announce a
-           table this list is not. -->
-      <div v-if="shown.length" class="ar-work__cols" aria-hidden="true">
-        <span>Content</span>
-        <span>Search</span>
-        <span>Actions</span>
-      </div>
+      <!-- ⛔ The three-column spine is gone. It existed because a row was three
+           columns that had to be read across; a row is now ONE line that opens,
+           so there is nothing to align and headings over it were furniture. -->
 
       <ul v-if="shown.length" class="ar-work__list">
         <li v-for="i in shown" :key="i.id" class="ar-work__row" :class="{ 'is-aside': i.setAside }">
 
-          <div class="ar-work__thing">
-            <span class="ar-work__type">{{ i.type }}</span>
-            <a class="ar-work__name" :href="i.edit || i.url" target="_blank" rel="noopener">{{ i.title }}</a>
-            <span v-if="i.flags && i.flags.length" class="ar-work__flags">
-              <span v-for="f in i.flags" :key="f" class="ar-work__flag">{{ f }}</span>
-              <span v-if="i.moreFlags" class="ar-work__flag is-more">+{{ i.moreFlags }}</span>
-            </span>
-            <span v-else-if="!needsWork(i)" class="ar-work__flags">
-              <span class="ar-work__flag is-clear">nothing else to fix</span>
-            </span>
+          <!-- THE FOLD the rest of the plugin already uses (ar-fold): a native
+               details/summary, its own drawn triangle, one bordered box per row.
+               ⭐ His law — a caret is the fold's drawn triangle, never a glyph
+               and never a hand-rolled one. Same furniture as the index groups,
+               so the two screens read as one plugin. -->
+          <details class="ar-fold ar-work__fold" :open="isOpen(i)" @toggle="onToggle(i, $event)">
+            <summary>
+              <span class="ar-work__summain">
+                <!-- Kind and name on ONE line. Two lines for two words put a
+                     near-empty row above every title. The kind wears a chip so
+                     it separates itself — a punctuation mark between them was
+                     doing a border's job. -->
+                <span class="ar-work__rowtitle">
+                  <span class="ar-work__type">{{ i.type }}</span>
+                  <a class="ar-work__name" :href="i.edit || i.url" target="_blank" rel="noopener" @click.stop>{{ i.title }}</a>
+                </span>
 
-            <!-- The search sits WITH the thing it describes. It used to open the
-                 verdict column, which put a quoted phrase at the top of a block
-                 of judgements about it — and left this column half empty while
-                 that one ran long. -->
-            <span v-if="i.focus" class="ar-work__forline">
-              <span class="ar-work__forlabel">{{ focusLabel(i) }}</span>
-              <!-- The search reads as a phrase, because that is what it is —
-                   words somebody typed. Each word carries its own reading in
-                   place: the ones the answering passage holds, the ones that
-                   are on the page elsewhere, and the ones that never appear.
-                   The filled badges this replaced said the same thing twice —
-                   once whole in this column, once chopped into chips in the
-                   next — in two visual languages that competed. -->
+                <span class="ar-work__gist">
+                <!-- The search prints as a phrase, because that is what it is —
+                     words somebody typed — with each word carrying its own
+                     reading in place. -->
+                <span v-if="i.focus" class="ar-work__qline" :class="'is-' + (i.coverage && i.coverage.state || 'none')">
+                  <span class="ar-work__qmark" aria-hidden="true" v-tip="stateWord(i.coverage && i.coverage.state)">{{ coverMark(i.coverage && i.coverage.state) }}</span>
+                  <span
+                    v-for="w in phraseWords(i, i.focus.query)"
+                    :key="w.key"
+                    class="ar-work__w"
+                    :class="w.cls"
+                  >{{ w.word }}</span>
+                </span>
+                <span v-else class="ar-work__nofocus">No focus keyword chosen</span>
+
+                <template v-for="(e, key) in i.engines || {}">
+                  <span v-if="e.state !== 'not_connected'" :key="key" class="ar-work__sep" aria-hidden="true">·</span>
+                  <span v-if="e.state !== 'not_connected'" :key="key + '-e'" class="ar-work__eng" :class="{ 'is-quiet': e.state !== 'reported' }">
+                    <b>{{ e.name }}</b> <span class="ar-work__eng-n">{{ engineGist(e) }}</span>
+                  </span>
+                </template>
+                </span>
+              </span>
+
+              <span class="ar-work__state" :class="{ 'is-clear': !needsWork(i) }">{{ stateChip(i) }}</span>
+            </summary>
+
+          <!-- OPENED: everything known, each engine speaking only for itself. -->
+          <div v-if="isOpen(i)" class="ar-work__body">
+
+            <div v-if="i.focus" class="ar-work__block">
+              <div class="ar-work__bhead">
+                <h4>What this page is for</h4>
+                <span class="ar-work__when">{{ focusLabel(i) }}</span>
+              </div>
               <span
                 v-for="f in searches(i)"
                 :key="f.query"
-                class="ar-work__qline"
+                class="ar-work__qline ar-work__qline--big"
                 :class="'is-' + (f.state || 'none')"
               >
                 <span class="ar-work__qmark" aria-hidden="true" v-tip="stateWord(f.state)">{{ coverMark(f.state) }}</span>
@@ -476,61 +621,158 @@ export default {
                   v-tip="w.tip"
                 >{{ w.word }}</span>
               </span>
-              <!-- Reality, when it disagrees with the choice. Only rendered
-                   for a chosen focus whose engine-reported search is a
-                   different phrase — the mismatch is the whole point, and a
-                   row where they agree has nothing to add. -->
-              <span v-if="i.focus.reported" class="ar-work__reported">
-                {{ reportedLead(i) }}
-                <strong>{{ i.focus.reported.query }}</strong>
-                <span aria-hidden="true" class="ar-work__dot"> · </span>
-                <span class="ar-work__reported-n">{{ rank(i.focus.reported.position) }} · {{ num(i.focus.reported.impressions) }} shown</span>
-              </span>
-            </span>
-          </div>
+              <div class="ar-work__verdict">
+                <span class="ar-work__cover" :class="'is-' + i.coverage.state" v-tip="coverWhy(i)">
+                  <span class="ar-work__cover-t">{{ coverLabel(i.coverage.state) }}</span>
+                </span>
+                <span v-if="coverDetail(i)" class="ar-work__why">— {{ coverDetail(i) }}</span>
+              </div>
+            </div>
 
-          <div class="ar-work__for">
-            <template v-if="i.focus">
-              <!-- The search, with a label saying WHOSE it is before you read it.
-                   A row judged against the author's own choice and one judged
-                   against a search Google reported are different claims, and
-                   only one of them is the plugin's opinion — so the label names
-                   the source rather than leaving the phrase to speak for itself. -->
-              <span class="ar-work__nums">
-                <span class="ar-work__rank">{{ rank(i.focus.position) }}</span>
-                <span>{{ num(i.focus.impressions) }} shown</span>
-                <span aria-hidden="true" class="ar-work__dot">·</span>
-                <span>{{ num(i.focus.clicks) }} visits</span>
-                <template v-if="i.focus.others">
-                  <span aria-hidden="true" class="ar-work__dot">·</span>
-                  <span>+{{ i.focus.others }} more searches</span>
-                </template>
-              </span>
-              <span class="ar-work__cover" :class="'is-' + i.coverage.state" v-tip="coverWhy(i)">
-                <span class="ar-work__cover-mark" aria-hidden="true">{{ coverMark(i.coverage.state) }}</span>
-                <span class="ar-work__cover-t">{{ coverLabel(i.coverage.state) }}</span>
-              </span>
-              <span v-if="coverDetail(i)" class="ar-work__why">{{ coverDetail(i) }}</span>
-            </template>
-            <span v-else class="ar-work__why">{{ emptyWhy }}</span>
-          </div>
+            <!-- ⛔ One block per engine, NEVER one merged figure. Two engines'
+                 positions averaged together is a number neither reported. -->
+            <div v-for="(e, key) in i.engines || {}" :key="'blk-' + key" class="ar-work__block">
+              <div class="ar-work__bhead">
+                <h4>What {{ e.name }} shows this page for</h4>
+                <span class="ar-work__when">{{ engineWhen(e) }}</span>
+              </div>
 
-          <div class="ar-work__act">
-            <a v-if="i.edit" class="ar-linkbtn" :href="i.edit" target="_blank" rel="noopener">Open in editor</a>
-            <button
-              type="button"
-              class="ar-linkbtn ar-linkbtn--mute"
-              :disabled="isSettingAside(i)"
-              @click="setAsideRow(i)"
-            >{{ isSettingAside(i) ? 'Saving…' : (i.setAside ? 'Put this back' : 'Set this aside') }}</button>
+              <div v-if="e.state === 'reported'" class="ar-work__srchbox">
+                <table class="ar-work__srch">
+                  <tr v-for="(r, n) in e.rows" :key="r.query">
+                    <td class="ar-work__srch-q" :class="{ 'is-top': n === 0 }">{{ r.query }}</td>
+                    <td class="ar-work__srch-n ar-work__srch-r">{{ rank(r.position) }}</td>
+                    <td class="ar-work__srch-n">{{ num(r.impressions) }} shown</td>
+                    <td class="ar-work__srch-n">{{ num(r.clicks) }} {{ r.clicks === 1 ? 'visit' : 'visits' }}</td>
+                  </tr>
+                </table>
+              </div>
+              <p v-if="e.state === 'reported' && e.more" class="ar-work__more">
+                {{ e.more }} more {{ e.more === 1 ? 'search' : 'searches' }} {{ e.name }} reports for this page.
+              </p>
+
+              <!-- The four honest absences. Sharing one blank is the fault this
+                   whole screen was rebuilt to remove.
+                   ⚠️ Its own v-if, NOT a v-else: chained to the line above it,
+                   this fired whenever an engine HAD reported but had no extra
+                   searches to count — printing "not connected" directly under
+                   that engine's own numbers. -->
+              <!-- An absence, in a box of its own with a mark that says WHICH
+                   absence at a glance: a tick for a real answer that happens to
+                   be empty, a warning for a question nobody has asked yet. The
+                   two used to be one blank space, and one word of difference is
+                   easy to skim past. -->
+              <div v-if="e.state !== 'reported'" class="ar-work__answer" :class="'is-' + e.state">
+                <span class="ar-work__answer-mark" aria-hidden="true">
+                  <svg v-if="e.state === 'none'" width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5">
+                    <circle cx="10" cy="10" r="8.25" /><path d="M6.4 10.2l2.4 2.4 4.8-4.8" stroke-linecap="round" stroke-linejoin="round" />
+                  </svg>
+                  <svg v-else width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5">
+                    <circle cx="10" cy="10" r="8.25" /><path d="M10 5.9v4.9" stroke-linecap="round" /><circle cx="10" cy="13.8" r=".85" fill="currentColor" stroke="none" />
+                  </svg>
+                </span>
+                <div class="ar-work__answer-t">
+                  <template v-if="e.state === 'unasked'">
+                    <b>{{ e.name }} has not been asked about this page yet.</b>
+                    <span>{{ e.name }} answers about one page per request, so Agentimus works through
+                    your pages a few at a time rather than all at once.<template v-if="waiting"> {{ waiting.toLocaleString() }} still to go.</template>
+                    Nothing is missing from your site — the question simply has not been put yet.</span>
+                  </template>
+                  <template v-else-if="e.state === 'none'">
+                    <b>{{ e.name }} reports no searches for this page.</b>
+                    <!-- ⚠️ Read "it was asked checked 22h ago" on the live screen:
+                         engineWhen() already begins with "checked". The stamp is
+                         in the heading above anyway, so this says only when. -->
+                    <span>That is a real answer, not a gap<template v-if="e.checkedAt"> — it was asked {{ askedAgo(e) }}</template>.</span>
+                  </template>
+                  <template v-else-if="e.state === 'error'">
+                    <b>{{ e.name }} refused the question.</b>
+                    <span><template v-if="e.error">It said: “{{ e.error }}”. </template>It will be asked again on the next check.</span>
+                  </template>
+                  <template v-else>
+                    <b>{{ e.name }} is not connected.</b>
+                    <span>It cannot say anything about this page until it is.</span>
+                  </template>
+                </div>
+              </div>
+            </div>
+
+            <!-- A caveat about the data in front of you: the gold voice. -->
+            <div v-if="enginesDiffer(i)" class="ar-work__note">
+              <b>The two engines rank this page for different phrases.</b>
+              {{ enginesDiffer(i) }} Both are real — they are different audiences, not a
+              mistake, and neither number corrects the other.
+            </div>
+
+            <!-- Doing on the left, undoing on the right: two verbs that read
+                 alike from a distance, so they are kept apart and each carries
+                 its own mark. -->
+            <div class="ar-work__act">
+              <a v-if="i.edit" class="ar-linkbtn ar-work__do" :href="i.edit" target="_blank" rel="noopener">
+                <svg width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+                  <path d="M13.6 3.4l3 3L7.2 15.8l-3.7.7.7-3.7z" stroke-linejoin="round" />
+                </svg>
+                Open in editor
+              </a>
+              <button
+                type="button"
+                class="ar-linkbtn ar-linkbtn--mute ar-work__undo"
+                :disabled="isSettingAside(i)"
+                @click="setAsideRow(i)"
+              >
+                {{ isSettingAside(i) ? 'Saving…' : (i.setAside ? 'Put this back' : 'Set this aside') }}
+                <svg width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+                  <circle cx="10" cy="10" r="7.25" /><path d="M7.6 7.6l4.8 4.8M12.4 7.6l-4.8 4.8" stroke-linecap="round" />
+                </svg>
+              </button>
+            </div>
           </div>
+          </details>
 
         </li>
       </ul>
-      <!-- Not in the picked view: its own line above already explains an empty
-           result, and stacking "Nothing in this view" under it read as three
-           contradictory sentences about one list. -->
+      <!-- ⚠️ This v-else-if chains to the <ul> above it. Anything inserted
+           between the two silently re-points it and the empty message starts
+           appearing over a list full of rows. It has caught me three times in
+           one day, so: nothing goes here. -->
       <p v-else-if="!picked" class="ar-work__empty">Nothing in this view yet — pages move here as their checks change, and the other tabs hold the rest of your content.</p>
+
+      <!-- A closed row shows the gist and nothing else, which is the point —
+           but a screen full of closed boxes has to say that opening one is
+           worth doing, or nobody finds out what is inside. Once, under the
+           list, not on every row. -->
+      <p v-if="shown.length" class="ar-work__tip">
+        <svg width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+          <circle cx="10" cy="10" r="8.25" /><path d="M10 9.2v4.6" stroke-linecap="round" /><circle cx="10" cy="6.4" r=".85" fill="currentColor" stroke="none" />
+        </svg>
+        Tip: open a row to see what each search engine shows for that page — or hasn’t been asked yet.
+      </p>
+
+      <!-- The list covers every published item now, so it can run to more than
+           one screen. The range is spelled out on the left: a pager alone leaves
+           an owner counting rows to work out where they are. -->
+      <div v-if="!picked && shown.length && data.total > per" class="ar-work__pager">
+        <p class="ar-work__pager-count">
+          Showing {{ ((page - 1) * per + 1).toLocaleString() }}–{{ Math.min(page * per, data.total).toLocaleString() }}
+          of {{ Number(data.total).toLocaleString() }}
+        </p>
+        <div class="ar-work__pager-nav">
+          <button type="button" class="ar-work__pg" :disabled="busy || page <= 1" @click="goPage(page - 1)">‹ Previous</button>
+          <template v-for="(n, idx) in pageWindow()">
+            <span v-if="n === '…'" :key="'gap' + idx" class="ar-work__pg-gap" aria-hidden="true">…</span>
+            <button
+              v-else
+              :key="n"
+              type="button"
+              class="ar-work__pg"
+              :class="{ 'is-here': n === page }"
+              :disabled="busy"
+              @click="goPage(n)"
+            >{{ n }}</button>
+          </template>
+          <button type="button" class="ar-work__pg" :disabled="busy || page >= pages" @click="goPage(page + 1)">Next ›</button>
+        </div>
+      </div>
 
       <!-- The footer describes the list as shipped ("the 30 most worth looking
            at, of 67") — under a finding's filter that claim belongs to a list

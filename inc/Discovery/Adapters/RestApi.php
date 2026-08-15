@@ -104,9 +104,9 @@ final class RestApi {
 			$registry->register(
 				array(
 					'id'           => 'wordpress-core',
-					'title'        => 'WordPress Core',
+					'title'        => __( 'Your site’s content', 'agentimus' ),
 					'type'         => 'content',
-					'description'  => __( 'Core content exposed via the WordPress REST API.', 'agentimus' ),
+					'description'  => __( 'Your posts, pages and everything else you publish, in a form an AI assistant can read.', 'agentimus' ),
 					'capabilities' => self::content_capabilities(),
 					'endpoints'    => array(
 						array(
@@ -148,7 +148,7 @@ final class RestApi {
 					'id'          => self::slug( $namespace ),
 					'title'       => (string) $namespace,
 					'type'        => 'x-rest-api',
-					'description' => __( 'REST API namespace published via discovery.', 'agentimus' ),
+					'description' => __( 'A plugin’s own data door. You chose to list it; the plugin says nothing more about it.', 'agentimus' ),
 					'endpoints'   => array(
 						array( 'url' => '/wp-json/' . $namespace, 'type' => 'rest', 'auth' => 'none' ),
 					),

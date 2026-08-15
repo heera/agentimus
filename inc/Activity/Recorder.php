@@ -170,6 +170,20 @@ final class Recorder {
 			array( '%s', '%s', '%s', '%d', '%s', '%s', '%d', '%s' )
 		);
 
+		if ( 2 === (int) $verdict ) {
+			/**
+			 * Fires when a recorded hit carries a PROVEN-impostor verdict — a client
+			 * claiming a verified bot's name whose address conclusively failed the
+			 * operator's own check. Carries the client NAME only, never an IP; any
+			 * listener owes its own debouncing (this fires per hit, and a forged
+			 * crawler's crawl is many hits).
+			 *
+			 * @param string $client The client label Classifier::classify() gave this UA.
+			 * @param string $ua     The raw user-agent string.
+			 */
+			do_action( 'agentimus_impostor_flagged', $agent, $ua );
+		}
+
 		// OPT-IN, minimised IP capture. Only when the owner turned it on, and only for a
 		// client that is suspicious at record time — a proven impersonator (verdict 2) or a
 		// legacy-device spoof — so the review card can show real addresses to block. The IP

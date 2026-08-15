@@ -553,16 +553,16 @@ export default {
            only, so Bing's people are counted by the same instrument as
            Google's. The Search Performance card counts what the ENGINES
            report; the sentence says so before anyone compares the two. -->
-      <p v-if="engineTotal" class="ar-rd__note">
+      <p v-if="engineTotal" class="ar-rd__note"><span>
         Search engines sent <strong>{{ n(engineTotal) }}</strong> of these visits —
         {{ engineLine }}. That’s Google Analytics’ own attribution; the Search
         Performance card counts what the engines themselves report, so the two
         won’t match exactly.
-      </p>
+      </span></p>
 
-      <p v-if="ga.stale" class="ar-rd__note">
+      <p v-if="ga.stale" class="ar-rd__note"><span>
         These haven’t refreshed in over two days — they’re the last good numbers, not today’s.
-      </p>
+      </span></p>
     </section>
 
     <!-- Content analytics, not audience overview — so it stands on its own

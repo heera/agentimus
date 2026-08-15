@@ -18,9 +18,11 @@ import { confirm } from '../js/confirm.js';
 import { formatDate, formatTime } from '../js/wpDate.js';
 import { copyText } from '../js/clipboard.js';
 import { bindDocEsc } from '../js/docEsc.js';
+import AppLink from './AppLink.vue';
 
 export default {
   name: 'McpServerCard',
+  components: { AppLink },
   props: {
     settings: { type: Object, required: true },
     mcpServer: { type: Object, default: () => ({}) },
@@ -806,7 +808,7 @@ export default {
             <span class="ar-toggle__track" aria-hidden="true"></span>
             <span class="ar-toggle__text">
               <strong>Let connected agents write</strong>
-              <small>Adds write tools: draft and edit posts and pages — including categories, tags and the featured image — set their AI topics and descriptions, and apply Readiness fixes (a fixed list of safe switches — it can only turn documented features on, never loosen a protection). An assistant still acts as the signed-in user and can never do more than that user could in the editor. Every write lands under <a href="#agent-access">Agent Access</a>.</small>
+              <small>Adds write tools: draft and edit posts and pages — including categories, tags and the featured image — set their AI topics and descriptions, and apply Readiness fixes (a fixed list of safe switches — it can only turn documented features on, never loosen a protection). An assistant still acts as the signed-in user and can never do more than that user could in the editor. Every write lands under <AppLink to="#agent-access">Agent Access</AppLink>.</small>
             </span>
           </label>
           <div :inert="!settings.enable_agent_writes" class="ar-webmcp-tools">
@@ -847,7 +849,7 @@ export default {
             <template v-if="mcpRailCallText">
               <span class="ar-mcp-rail__sep" aria-hidden="true">·</span><span>{{ mcpRailCallText }}</span>
             </template>
-            <a href="#agent-access">See every call in Agent Access →</a>
+            <a class="ar-linkbtn" href="#agent-access">See every call in Agent Access →</a>
           </div>
           <p v-if="mcpStatus === 'unreachable'" class="ar-field__hint">
             The address returned “not found”. Re-save the settings; if it persists, something in
@@ -1237,7 +1239,7 @@ export default {
             <p v-if="mcpTestChecks.length && !mcpTestRunning" class="ar-field__hint">
               This tests the server and the key from your browser — the same call your AI tool
               makes. What it can’t see is the tool’s own side: the config file and a restart.
-              Every real call lands under <a href="#agent-access">Agent Access</a>, attributed to
+              Every real call lands under <AppLink to="#agent-access">Agent Access</AppLink>, attributed to
               the user and key it signed in with.
             </p>
           </div>

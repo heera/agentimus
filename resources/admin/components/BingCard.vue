@@ -13,10 +13,12 @@
 import { confirm } from '../js/confirm.js';
 import { formatDate, formatTime } from '../js/wpDate.js';
 import ConnectionRail from './ConnectionRail.vue';
+import CardSkeleton from './CardSkeleton.vue';
+import AppLink from './AppLink.vue';
 
 export default {
   name: 'BingCard',
-  components: { ConnectionRail },
+  components: { ConnectionRail, CardSkeleton, AppLink },
   props: {
     settings: { type: Object, required: true },
     api: { type: Object, default: null },
@@ -124,17 +126,29 @@ export default {
     <p class="ar-card__lead">
       Bing is the index ChatGPT search reads today — Microsoft Copilot too. If Bing can
       see your pages, AI search can find them. Connect it and the
-      <a href="#visibility">Visibility</a> screen shows how much of your site is in
+      <AppLink to="#visibility">Visibility</AppLink> screen shows how much of your site is in
       that index, and warns you when something keeps Bing’s crawler out.
     </p>
 
     <ConnectionRail
+      service="Bing"
       :connected="!!(bing && bing.connected)"
       :checked="bingChecked"
       :label="bingHost()"
       :polled-text="bingPolledText()"
       :last-error="(bing && bing.lastError) || ''"
       idle-note="Read-only — Agentimus never changes your Bing settings."
+    />
+
+    <!-- The card's body arrives all at once when the status read answers, and
+         a one-line "checking…" card leaping into a wall of settings shoves
+         every card below it down the page. The placeholder holds roughly the
+         room the real body will need, button included (his call, 2026-08-15). -->
+    <CardSkeleton
+      v-if="!bingChecked"
+      lead=""
+      :lines="['92%', '78%', '64%', '86%']"
+      action
     />
 
     <p v-if="bingError" class="ar-field__hint ar-warn">{{ bingError }}</p>
@@ -197,7 +211,7 @@ export default {
       <!-- Names the CARD, not the screen — the lead one paragraph up already
            links "Visibility", and two identical links read as a glitch. -->
       <p v-if="bingJustConnected" class="ar-field__hint">
-        <strong>First numbers are in.</strong> <a href="#visibility">In Bing's index →</a>
+        <strong>First numbers are in.</strong> <a class="ar-linkbtn" href="#visibility">In Bing's index →</a>
       </p>
       <p class="ar-field__hint">
         One key, read-only, one daily poll. Numbers are stored in your own database, so
@@ -226,7 +240,10 @@ export default {
         <small>When you publish, edit or remove a post, Agentimus tells search engines right away — one standard ping to <code>api.indexnow.org</code>, which Bing, Yandex and other participating engines all read. Bing hearing about a new post in minutes matters, because ChatGPT search and Copilot read Bing's index. Only the changed addresses are sent, nothing else, and it works with or without a Bing connection. A small key file at <code>/&lt;key&gt;.txt</code> proves the pings come from your site.</small>
       </span>
     </label>
-    <p v-if="settings.indexnow_enabled && indexnowKeyUrl" class="ar-field__hint">
+    <!-- The key file is a FACT about the setting above, not more of the
+         setting: it earns the aside dress the rest of the plugin uses for
+         exactly that — surface-2 behind a left rule (his call, 2026-08-15). -->
+    <p v-if="settings.indexnow_enabled && indexnowKeyUrl" class="ar-card__note ar-card__note--wide">
       Key file: <a :href="indexnowKeyUrl" target="_blank" rel="noopener">{{ indexnowKeyUrl }}</a>
       — live once this setting is saved. Engines fetch it to confirm the pings are yours;
       the Bing index card on Visibility reports each announcement's outcome.
@@ -237,10 +254,5 @@ export default {
     <button v-if="bing && bing.connected" type="button" class="ar-btn ar-btn--danger ar-btn--small" :disabled="bingDisconnecting" @click="disconnectBing">
       {{ bingDisconnecting ? 'Disconnecting…' : 'Disconnect' }}
     </button>
-
-    <p class="ar-card__note ar-cf-note">
-      More sources will join here later — always under the same rules: optional,
-      read-only, your database.
-    </p>
   </section>
 </template>

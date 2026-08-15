@@ -125,10 +125,58 @@
   border-color: #776e58;
 }
 
-/* ---- Fresh & Midnight — base palette serves both, ONE exception (his picks
-   2026-08-12): the Worth-knowing card's gold goes a grey-warmed sand against
-   their cool charcoal and slate, where the base #c2a157 ran too brassy.
-   Everything else on both stays the base dark. */
+/* ---- Midnight, the OLDER one — his surface pick #3c4146 -------------------
+   Keyed to the COLOUR, not the slug. WordPress retuned Midnight in 7.1: it was
+   #363b3f for years (still is on heera.it) and is #333c42 now, and the two are
+   not the same night — the old one is a flat grey at 7.7% saturation, the new
+   one is a blue-grey at 12.8%, which is the base palette's own family. So the
+   base dark already sits right on 7.1's Midnight (his verdict) and this block
+   must not touch it.
+
+   PHP stamps the active scheme's own surface colour on <body> as
+   `agentimus-scheme-<hex>` (see Admin::scheme_body_class), so this applies on
+   the install actually wearing #363b3f and nowhere else. A future retune stops
+   matching and quietly falls back to the base dark.
+
+   Against that older grey the base dark put cards (#262d31) a full step BELOW
+   the menu beside them, so the app read as a hole in the admin. His #3c4146
+   lifts the cards just above the menu and drops the canvas just below it —
+   the same relationship the base palette has with Fresh.
+
+   Everything else is that anchor's own hue and saturation (210°, 7.7%) at the
+   base palette's own lightness STEPS, so this is the same night in a different
+   key rather than a different design: canvas −6.5, raised +4.9, field +3.5,
+   line +8.6, line-strong +14.5.
+
+   The ink family is the one place the steps could not simply travel. A ground
+   this much lighter eats contrast: the base's soft grey lands at 4.29:1 here,
+   under the 4.5 floor this file sets, and the faint tier falls to 3.2. Both
+   are lifted until they measure what they measure on the base ground — soft
+   4.98:1, faint 4.4:1, body ink 8.0:1 — rather than being copied and left
+   quietly failing. */
+:root[data-ar-theme="dark"] body.admin-color-midnight.agentimus-scheme-363b3f {
+  --ar-paper: #2d3134;
+  --ar-surface: #3c4146; /* his pick — every value here is derived from it. */
+  --ar-surface-2: #474e53;
+  --ar-field: #444a50; /* surface, lightness +3.5 — the file's formula. */
+  --ar-ink: #e1e3e5;
+  --ar-ink-soft: #afb5bb;
+  --ar-ink-faint: #a4abb2;
+  --ar-line: #51575e;
+  --ar-line-strong: #5e666e;
+}
+/* The two hue-carrying literals in app.css's dark overrides, re-keyed: a
+   button's hover has to sit ABOVE its own surface-2, and on this lighter
+   ground the base #3a454d would have darkened it instead. */
+:root[data-ar-theme="dark"] body.admin-color-midnight.agentimus-scheme-363b3f .ar-btn:hover:not(:disabled):not(.ar-btn--danger) { background: #535a61; }
+:root[data-ar-theme="dark"] body.admin-color-midnight.agentimus-scheme-363b3f .ar-about-snippet { background: #232629; }
+
+/* ---- Fresh & Midnight — the Worth-knowing card's gold (his picks
+   2026-08-12): a grey-warmed sand against their cool charcoal and slate,
+   where the base #c2a157 ran too brassy. Fresh keeps the base dark for
+   everything else; Midnight has its own key above and takes this gold on top
+   of it (the sand was picked on the darker ground — worth his eye on the new
+   one, but it is his value and stays until he moves it). */
 :root[data-ar-theme="dark"] body.admin-color-fresh,
 :root[data-ar-theme="dark"] body.admin-color-midnight {
   --ar-note-gold: #b2a484;

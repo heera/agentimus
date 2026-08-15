@@ -292,7 +292,7 @@ export default {
           <p class="ar-edge-pin__title">{{ c.title }}</p>
           <p class="ar-edge-pin__body">{{ c.body }}</p>
           <div class="ar-edge-pin__actions">
-            <a class="ar-linkbtn" :href="c.url" target="_blank" rel="noopener">Take a look →</a>
+            <a class="ar-linkbtn" :href="c.url" target="_blank" rel="noopener">Take a look</a>
           </div>
         </div>
       </div>
@@ -440,7 +440,7 @@ export default {
              where it can be seen instead of skimmed past. -->
         <p class="ar-card__note ar-cf-note">
           Numbers come from
-          <a class="ar-gidx__gsc" :href="wmtHomeLink" target="_blank" rel="noopener">Bing Webmaster Tools ↗</a>,
+          <a class="ar-gidx__gsc" :href="wmtHomeLink" target="_blank" rel="noopener">Bing Webmaster Tools</a>,
           one poll a day, kept in your own database —
           your history keeps growing where Bing's own window ends.
         </p>

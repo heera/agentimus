@@ -23,17 +23,23 @@ export default {
   components: { ProviderRow },
   props: {
     data: { type: Object, default: () => ({}) },
+    // The live settings object. Mutating it is how every switch in this app saves:
+    // App.vue autosaves from a signature of the whole object, so there is no list
+    // to keep in sync and a new switch can never be silently forgotten.
+    settings: { type: Object, default: () => ({}) },
     refreshing: { type: Boolean, default: false },
   },
   emits: ['refresh', 'navigate'],
   data() {
-    // Expand the auto-discovered group by default ONLY when there is nothing
-    // declared — otherwise it stays collapsed, since it's predictable baseline.
-    const resources = (this.data && this.data.resources) || [];
+    // Every group is a fold, and every fold starts closed — the same call he
+    // made for the Search Opportunities groups. Three named boxes with their
+    // counts is a screen you can read in one look; three open lists is one you
+    // have to scroll past to reach the rest of the page. Keyed by group, never
+    // by index, so a refresh cannot reopen a different section than the one the
+    // owner opened.
     // openTools: which tool groups have been expanded. Closed by default —
-    // 42 names at once buries the four provider rows that are the point of
-    // this list.
-    return { showAuto: !resources.some((r) => !r.auto), copiedDoor: '', openTools: {}, capsOverflow: false };
+    // 42 names at once buries the provider rows that are the point of this list.
+    return { openGroups: {}, copiedDoor: '', openTools: {}, capsOverflow: false };
   },
   mounted() {
     this.$nextTick(this.measureCaps);
@@ -110,8 +116,15 @@ export default {
       if (!core || !Array.isArray(core.capabilities)) return [];
       return core.capabilities.map((c) => (typeof c === 'string' ? c : c.id)).filter(Boolean);
     },
+    // The "sign-in" cell's ANSWER, so it must never repeat the cell's own word —
+    // it read "sign-in: sign-in", which tells the owner nothing twice. Name the
+    // door when the site has one; otherwise say the thing that is true whatever
+    // the door turns out to be. ⛔ Never name a mechanism the site has not set
+    // up: with no MCP server, McpSurface leaves this empty on purpose.
     mcpAuthLabel() {
-      return this.mcp.auth === 'oauth' ? 'OAuth' : 'sign-in';
+      if (this.mcp.auth === 'oauth') return 'OAuth';
+      if (this.mcp.auth === 'application-password') return 'Application password';
+      return 'Required';
     },
     // The summary strip's server cell: the one place server identity lives.
     mcpServerLabel() {
@@ -127,6 +140,7 @@ export default {
       const servers = this.mcp.servers || [];
       return this.resources
         .filter((r) => (r.tools || 0) > 0)
+        .sort((a, b) => (b.own ? 1 : 0) - (a.own ? 1 : 0))
         .map((r) => {
           // The adapter flattens ability names (ns/tool → ns-tool) when it serves
           // them over MCP, so a namespace prefix match tells us whether a detected
@@ -143,7 +157,19 @@ export default {
           // Tools only: the attachable documents have their own section below,
           // the way MCP itself splits tools/list from resources/list.
           const list = (r.toolList || []).filter((t) => 'resource' !== t.kind);
-          return { key: r.id, title: r.title, tools: r.tools, doors, list };
+          return {
+            key: r.id,
+            title: r.title,
+            tools: r.tools,
+            doors,
+            list,
+            own: !!r.own,
+            // Switched off ABOVE, in the providers list. These jobs still exist
+            // and a signed-in assistant can still run them — what stopped is the
+            // announcing, and this section has to say so rather than look
+            // identical to a group that is being announced.
+            off: !this.isPublished(r.id),
+          };
         });
     },
     // The doors' addresses — connection info only, deliberately without counts.
@@ -167,8 +193,45 @@ export default {
     resources() {
       return this.data.resources || [];
     },
+    // Three buckets, no row in two of them: a plugin declared it, Agentimus
+    // describes it, or a scan found it.
+    // Rows the owner may switch off. Not the site's own content (Content types
+    // steers that) and not a bare data door (already an opt-in of its own).
+    controllable() {
+      // ⛔ And never on a row that publishes nothing anyway — a group whose
+      // plugin advertised none of its jobs cannot be switched any further off,
+      // and a switch that cannot change anything is worse than none (his call
+      // when we prototyped this list).
+      return (r) => !(r.auto && r.type !== 'agent') && !r.notPublic;
+    },
+    // What the "never publish changing jobs" tick would actually take away RIGHT
+    // NOW — so it must skip groups already switched off, or it promises to stop
+    // work that is not happening.
+    changingJobsNote() {
+      const n = this.resources
+        .filter((r) => r.type === 'agent' && this.isPublished(r.id))
+        .reduce((sum, r) => sum + (r.changes || 0), 0);
+      if (!n) return 'Nothing being announced changes anything, so this would take nothing away.';
+      if (this.settings.hold_back_changing_jobs) {
+        return n === 1 ? '1 job is being kept out of the public files.' : n + ' jobs are being kept out of the public files.';
+      }
+      return n === 1
+        ? 'Would stop announcing 1 job that changes something.'
+        : 'Would stop announcing ' + n + ' jobs that change something.';
+    },
+    // Any group the owner switched off, so the section can say so once at the top
+    // instead of leaving it to be noticed row by row.
+    someJobsOff() {
+      return this.toolGroups.some((g) => g.off);
+    },
+    hasJobGroups() {
+      return this.resources.some((r) => r.type === 'agent');
+    },
     declared() {
-      return this.resources.filter((r) => !r.auto);
+      return this.resources.filter((r) => !r.auto && !r.described);
+    },
+    describedByAgentimus() {
+      return this.resources.filter((r) => r.described);
     },
     autoDiscovered() {
       return this.resources.filter((r) => r.auto);
@@ -214,7 +277,11 @@ export default {
     // full; later rows defer to it. Two identical paragraphs back to back
     // taught nothing twice. Render order, not payload order.
     firstHeldId() {
-      const held = [...this.declared, ...this.autoDiscovered].filter((r) => !r.suppressed && r.notPublic);
+      // Same order the groups render in, so the full explanation lands on the
+      // first held row an owner actually reads.
+      const held = [...this.declared, ...this.describedByAgentimus, ...this.autoDiscovered].filter(
+        (r) => !r.suppressed && r.notPublic
+      );
       return held.length ? held[0].id : '';
     },
     notices() {
@@ -232,8 +299,30 @@ export default {
     },
   },
   methods: {
-    toggleTools(key) {
-      this.openTools = { ...this.openTools, [key]: !this.openTools[key] };
+    // Published unless the owner said otherwise — the boundary the spec calls
+    // owner authority, and the same list the settings screen used to write.
+    // ⭐ The fixed things first, the ones you can act on after — his call,
+    // 2026-08-15. Ours leads (we never sit among the plugins we describe), then
+    // everything with no switch (the site's own content, and a group whose
+    // plugin published nothing), then the rows an owner can actually work.
+    // Stable, so the order everything else was given is untouched.
+    ownFirst(list) {
+      const rank = (r) => (r.own ? 0 : (this.controllable(r) ? 2 : 1));
+      return [...list].sort((a, b) => rank(a) - rank(b));
+    },
+    isPublished(id) {
+      const sup = Array.isArray(this.settings.suppressed_resources) ? this.settings.suppressed_resources : [];
+      return sup.indexOf(id) === -1;
+    },
+    togglePublish(id) {
+      if (!Array.isArray(this.settings.suppressed_resources)) this.settings.suppressed_resources = [];
+      const list = this.settings.suppressed_resources;
+      const i = list.indexOf(id);
+      if (i === -1) list.push(id);
+      else list.splice(i, 1);
+    },
+    toggleTools(key, open) {
+      this.openTools = { ...this.openTools, [key]: !!open };
     },
     // Does the capability list actually overflow its box? Measured, not
     // guessed from a row count: macOS hides the overlay scrollbar at rest, so
@@ -274,7 +363,7 @@ export default {
         <div class="ar-wd-canonical">
           <span class="ar-wd-canonical__method">GET</span>
           <span class="ar-wd-canonical__path">{{ discoveryPath }}</span>
-          <a class="ar-wd-canonical__ext" :href="discoveryUrl" target="_blank" rel="noopener" aria-label="Open discovery.json in a new tab">↗</a>
+          <a class="ar-wd-canonical__ext" :href="discoveryUrl" target="_blank" rel="noopener" aria-label="Open discovery.json in a new tab"></a>
         </div>
         <button type="button" class="ar-btn" :disabled="refreshing" @click="$emit('refresh')">
           {{ refreshing ? 'Scanning…' : 'Re-scan' }}
@@ -342,39 +431,69 @@ export default {
     <section id="ar-wd-providers" class="ar-card">
       <h2 class="ar-card__title">Registered Providers</h2>
       <p class="ar-card__lead">
-        Everything this site tells AI assistants about itself. Each row is a provider — a source that
-        declares what the site offers — from two places: things <strong>provided by your
-        plugins</strong>, and things Agentimus <strong>found automatically</strong> by scanning the site.
+        Everything an AI assistant can learn about your site. Each row is something it can read or
+        do. The three groups below only say <strong>who told us</strong> — every row counts the same.
       </p>
 
       <p v-if="!resources.length" class="ar-wd-empty">
-        Nothing registered yet — Agentimus fills this in on its own as it scans your site, and any
-        plugin that speaks the WP_Discovery format adds its own rows when you install it.
+        Nothing here yet. Agentimus fills this in by itself as it reads your site, and a plugin that
+        knows how to introduce itself adds its own rows when you install it.
       </p>
 
       <template v-else>
-        <!-- Provided by plugins — what a plugin deliberately declared. -->
-        <div v-if="declared.length" class="ar-wd-group">
-          <h3 class="ar-wd-group__title">
-            Provided by your plugins <span class="ar-wd-group__count">{{ declared.length }}</span>
-          </h3>
+        <!-- All three groups wear the plugin's one fold (.ar-fold), the same
+             boxed disclosure the Search Opportunities groups wear: his call,
+             2026-08-15, and for the same reason — the described group has one
+             row today and a roster's worth coming, so it cannot be the one
+             section that grows without a lid. Closed by default, like those
+             groups: three named boxes with their counts read in one look,
+             three open lists have to be scrolled past. -->
+        <details
+          v-if="declared.length"
+          class="ar-fold ar-wd-group"
+          :open="!!openGroups.declared"
+          @toggle="openGroups.declared = $event.target.open"
+        >
+          <summary>
+            <h3 class="ar-wd-foldtitle">Plugins that describe themselves ({{ declared.length }})</h3>
+          </summary>
+          <p class="ar-wd-engines">
+            These plugins tell us what they offer. We show it in their own words.
+          </p>
           <ul class="ar-wd-list">
-            <ProviderRow v-for="r in declared" :key="r.id" :r="r" :brief-held="r.id !== firstHeldId" />
+            <ProviderRow v-for="r in ownFirst(declared)" :key="r.id" :r="r" :brief-held="r.id !== firstHeldId" :controllable="controllable(r)" :published="isPublished(r.id)" @toggle-publish="togglePublish" />
           </ul>
-        </div>
+        </details>
 
-        <!-- Found automatically — Agentimus's own scan, with engine status inline. -->
-        <div v-if="autoDiscovered.length" class="ar-wd-group">
-          <button
-            type="button"
-            class="ar-wd-group__toggle"
-            :aria-expanded="showAuto"
-            @click="showAuto = !showAuto"
-          >
-            <span class="ar-wd-group__caret" :class="{ 'is-open': showAuto }" aria-hidden="true">▸</span>
-            Found automatically by Agentimus
-            <span class="ar-wd-group__count">{{ autoDiscovered.length }}</span>
-          </button>
+        <details
+          v-if="describedByAgentimus.length"
+          class="ar-fold ar-wd-group"
+          :open="!!openGroups.described"
+          @toggle="openGroups.described = $event.target.open"
+        >
+          <summary>
+            <h3 class="ar-wd-foldtitle">Plugins Agentimus describes for you ({{ describedByAgentimus.length }})</h3>
+          </summary>
+          <p class="ar-wd-engines">
+            Agentimus knows these plugins, so it writes their part for them. They do nothing.
+          </p>
+          <ul class="ar-wd-list">
+            <ProviderRow v-for="r in ownFirst(describedByAgentimus)" :key="r.id" :r="r" :brief-held="r.id !== firstHeldId" :controllable="controllable(r)" :published="isPublished(r.id)" @toggle-publish="togglePublish" />
+          </ul>
+        </details>
+
+        <details
+          v-if="autoDiscovered.length"
+          class="ar-fold ar-wd-group"
+          :open="!!openGroups.auto"
+          @toggle="openGroups.auto = $event.target.open"
+        >
+          <summary>
+            <h3 class="ar-wd-foldtitle">Found by looking at your site ({{ autoDiscovered.length }})</h3>
+          </summary>
+          <p class="ar-wd-engines">
+            Nobody told us about these. Agentimus found them by reading your own site.
+          </p>
           <p v-if="engineChips.length" class="ar-wd-engines">
             Agentimus checked:
             <span
@@ -384,10 +503,37 @@ export default {
               :class="e.ok ? 'is-on' : 'is-off'"
             >{{ e.label }} {{ e.ok ? '✓' : '✕' }}</span>
           </p>
-          <ul v-show="showAuto" class="ar-wd-list">
-            <ProviderRow v-for="r in autoDiscovered" :key="r.id" :r="r" :brief-held="r.id !== firstHeldId" />
+          <ul class="ar-wd-list">
+            <ProviderRow v-for="r in ownFirst(autoDiscovered)" :key="r.id" :r="r" :brief-held="r.id !== firstHeldId" :controllable="controllable(r)" :published="isPublished(r.id)" @toggle-publish="togglePublish" />
           </ul>
-        </div>
+        </details>
+
+        <!-- The one rule that spans every group above, so it sits under them all
+             rather than inside any one fold. -->
+        <label v-if="hasJobGroups" class="ar-wd-rule">
+          <input v-model="settings.hold_back_changing_jobs" type="checkbox" />
+          <span class="ar-wd-switch__track" aria-hidden="true"></span>
+          <span class="ar-wd-rule__text">
+            <strong>Never publish jobs that change something</strong>
+            <!-- Say WHOSE decision this is. Without it the switch reads as a
+                 contradiction (he read it that way): we follow the vendor on
+                 what to advertise, and here we appear to overrule them. Two
+                 different people are deciding — the plugin says what it offers,
+                 the owner says what their own site announces — and the screen
+                 has to name that or it looks like we changed our mind. -->
+            <small>
+              Your call, not the plugin’s. These plugins asked to have them listed; this keeps them
+              out of your public files anyway. Off unless you switch it on.
+            </small>
+            <small>{{ changingJobsNote }}</small>
+          </span>
+        </label>
+
+        <p class="ar-card__note">
+          <strong>This changes what your site announces, not what it can do.</strong>
+          Switching something off takes it out of the public files. The plugin keeps working
+          exactly as before, and an assistant that signs in still finds it.
+        </p>
       </template>
     </section>
 
@@ -396,15 +542,15 @@ export default {
          is where the dashboard's "Capabilities" tile lands, so its number connects to
          rows you can count — the way Providers lands on the provider cards. -->
     <section v-if="capabilityRows.length" id="ar-wd-capabilities" class="ar-card">
-      <h2 class="ar-card__title">Capabilities <span class="ar-card__count">{{ capabilityRows.length }}</span></h2>
+      <h2 class="ar-card__title">What assistants may read <span class="ar-card__count">{{ capabilityRows.length }}</span></h2>
       <!-- "read or do" invited the owner's own question — "are these tools?". The
            verb stays (a plugin can declare a create capability — the demo site
            does), so the next sentence answers the question outright instead. -->
       <p class="ar-card__lead">
-        The specific things AI assistants may read or do, gathered from the providers above — one row each,
-        so this list is exactly the <strong>{{ capabilityRows.length }}</strong> your dashboard counts.
-        These are permissions, not tools: each names what an API allows and who declares it. The
-        tools an assistant can run are their own list below, under <strong>For a signed-in assistant</strong>.
+        One row for each kind of thing an assistant is allowed to look at, taken from the rows above.
+        This is a list of permissions, not a list of buttons: it says what is allowed and who allows
+        it, not what an assistant can press. The things they can actually <em>do</em> are further
+        down, under <strong>For a signed-in assistant</strong>.
       </p>
       <!-- Scrolls inside a fixed height rather than growing without limit. Most
            of these are one per public REST post type and taxonomy, so the length
@@ -423,12 +569,13 @@ export default {
         </li>
       </ul>
       <p v-if="capsOverflow" class="ar-wd-scrollnote">
-        Showing the first few — scroll the list for all {{ capabilityRows.length }}.
+        Scroll the list to see all {{ capabilityRows.length }}.
       </p>
       <p v-if="ownContentCapabilities.length" class="ar-card__note ar-card__note--wide">
-        <strong>Your own site's content</strong> ({{ ownContentCapabilities.join(', ') }}) is steered by
+        <strong>Your own content</strong> ({{ ownContentCapabilities.join(', ') }}) is chosen by
         <button type="button" class="ar-linkbtn" @click="$emit('navigate', { tab: 'settings', anchor: 'ar-content-types' })">Settings → Content types</button>
-        — each ticked type brings its public taxonomies too. The rest are declared by the plugins that own them.
+        — ticking a kind of content brings its categories and tags along too. The rest come from the
+        plugins that own them.
       </p>
     </section>
 
@@ -436,10 +583,11 @@ export default {
          here). Same endpoints listed on the provider cards, gathered so the number has
          its own home instead of sharing the providers section. -->
     <section v-if="apiRows.length" id="ar-wd-apis" class="ar-card">
-      <h2 class="ar-card__title">APIs <span class="ar-card__count">{{ apiRows.length }}</span></h2>
+      <h2 class="ar-card__title">Addresses assistants can ask <span class="ar-card__count">{{ apiRows.length }}</span></h2>
       <p class="ar-card__lead">
-        The endpoints AI assistants can call directly — one row each, so this list is exactly the
-        <strong>{{ apiRows.length }}</strong> your dashboard counts. Each belongs to the provider named beside it.
+        The web addresses an AI assistant can fetch to get data from your site, one row each. The
+        name beside an address says which row above it belongs to, and the tag at the end says
+        whether anyone can read it or a sign-in is needed.
       </p>
       <div v-for="a in apiRows" :key="a.url" class="ar-wd-canonical ar-wd-mcp-endpoint">
         <span class="ar-wd-canonical__method">{{ a.type }}</span>
@@ -451,13 +599,14 @@ export default {
 
     <!-- MCP & tools -->
     <section id="ar-wd-tools" class="ar-card">
-      <h2 class="ar-card__title">MCP &amp; Tools</h2>
+      <h2 class="ar-card__title">Things assistants can do</h2>
       <p class="ar-card__lead">
-        The tools a signed-in assistant can run on this site, grouped by what provides them — the
-        groups add up to the total. Each group names the doors that serve it, and the endpoints
-        beneath are those doors' addresses. Anonymous assistants are a separate story: only tools you
-        publish appear in <code>/.well-known/mcp.json</code>, listed at the bottom. Running
-        Agentimus’s own MCP server is its own switch (Settings → Discovery, off by default).
+        What an assistant can actually run here, grouped by whatever offers it. Every one of them
+        needs a sign-in first — each plugin checks who is asking before it answers. The addresses
+        under each group are the ways in. An assistant that has not signed in can still read the
+        list you publish, at the bottom of this card, but it cannot run anything on it. Letting
+        assistants connect to Agentimus itself is a separate switch, under Settings → Discovery,
+        and it is off unless you turn it on.
       </p>
 
       <!-- ONE total, stated once; the groups below PARTITION it (they visibly add up).
@@ -465,14 +614,17 @@ export default {
            "14 + 16 = 30". -->
       <div class="ar-wd-mcp">
         <div class="ar-wd-mcp__cell">
-          <span>assistant tools</span>
+          <span>things to do</span>
           <strong :class="counts.tools > 0 ? 'is-on' : 'is-off'">{{ counts.tools }}</strong>
         </div>
         <div class="ar-wd-mcp__cell">
-          <span>public</span><strong>{{ typeof counts.toolsPublished === 'number' ? counts.toolsPublished : '—' }}</strong>
+          <!-- "public" alone, sitting beside "sign-in", read as "these 67 are
+               open to anyone". They are LISTED in a file anyone can read, which
+               is a different sentence — the same one the panel below now uses. -->
+          <span>in public file</span><strong>{{ typeof counts.toolsPublished === 'number' ? counts.toolsPublished : '—' }}</strong>
         </div>
         <div class="ar-wd-mcp__cell">
-          <span>auth</span><strong>{{ counts.tools > 0 ? mcpAuthLabel : '—' }}</strong>
+          <span>sign-in</span><strong>{{ counts.tools > 0 ? mcpAuthLabel : '—' }}</strong>
         </div>
         <div class="ar-wd-mcp__cell">
           <span>MCP server</span>
@@ -494,32 +646,46 @@ export default {
         <span class="ar-wd-lhead__note">
           tools, grouped by what provides them
         </span>
+        <!-- Said once at the top as well as on each dimmed group: an owner who
+             switched something off above should not have to spot it row by row. -->
+        <span v-if="someJobsOff" class="ar-wd-held">some are not announced — you switched them off above</span>
       </p>
-      <ul class="ar-wd-tools">
-        <li v-for="g in toolGroups" :key="g.key" class="ar-wd-grp">
-          <!-- Openable only when we actually have the names: a caret that
-               reveals nothing is worse than no caret. -->
-          <component
-            :is="g.list.length ? 'button' : 'div'"
-            :type="g.list.length ? 'button' : null"
-            class="ar-wd-grp__row"
-            :class="{ 'is-static': !g.list.length }"
-            :aria-expanded="g.list.length ? String(!!openTools[g.key]) : null"
-            @click="g.list.length && toggleTools(g.key)"
+      <!-- The SAME fold the provider groups wear (his call, 2026-08-15): one
+           disclosure in this plugin, not one per section. A group with no names
+           to reveal keeps the box and loses the caret — a caret that opens onto
+           nothing is worse than no caret. -->
+      <ul class="ar-wd-tools ar-wd-tools--folds">
+        <li v-for="g in toolGroups" :key="g.key">
+          <details
+            v-if="g.list.length"
+            class="ar-fold ar-wd-grp"
+            :class="{ 'is-ours': g.own, 'is-off': g.off }"
+            :open="!!openTools[g.key]"
+            @toggle="toggleTools(g.key, $event.target.open)"
           >
-            <span v-if="g.list.length" class="ar-wd-group__caret" :class="{ 'is-open': openTools[g.key] }" aria-hidden="true">▸</span>
-            <span class="ar-wd-tool__id">
-              <code>{{ g.title }}</code>
-              <span class="ar-wd-tool__title">via {{ g.doors.join(' · ') }}</span>
-            </span>
-            <span class="ar-wd-badge">{{ g.tools }} {{ g.tools === 1 ? 'tool' : 'tools' }}</span>
-          </component>
-          <ul v-if="g.list.length" v-show="openTools[g.key]" class="ar-wd-grp__names">
-            <li v-for="t in g.list" :key="t.name">
-              <code>{{ t.name }}</code>
-              <span v-if="t.title">{{ t.title }}</span>
-            </li>
-          </ul>
+            <summary>
+              <h4 class="ar-wd-foldtitle">{{ g.title }} ({{ g.tools }})</h4>
+              <span v-if="g.own" class="ar-wd-ours">Agentimus</span>
+              <span v-if="g.off" class="ar-wd-held">Not announced · you switched this off</span>
+              <span class="ar-wd-lhead__note">via {{ g.doors.join(' · ') }}</span>
+            </summary>
+            <p v-if="g.off" class="ar-wd-prov__held">
+              You switched this off in the list above, so none of it appears in your public files.
+              These jobs still work: an assistant that signs in can run them exactly as before.
+            </p>
+            <ul class="ar-wd-grp__names">
+              <li v-for="t in g.list" :key="t.name">
+                <code>{{ t.name }}</code>
+                <span v-if="t.title">{{ t.title }}</span>
+              </li>
+            </ul>
+          </details>
+          <div v-else class="ar-fold ar-wd-grp is-static" :class="{ 'is-ours': g.own, 'is-off': g.off }">
+            <p class="ar-fold__static">
+              <span class="ar-wd-foldtitle">{{ g.title }} ({{ g.tools }})</span>
+              <span class="ar-wd-lhead__note">via {{ g.doors.join(' · ') }}</span>
+            </p>
+          </div>
         </li>
       </ul>
       </div>
@@ -542,7 +708,7 @@ export default {
         <ul v-if="docRows.length" class="ar-wd-tools">
           <li v-for="d in docRows" :key="d.name" class="ar-wd-tool">
             <div class="ar-wd-tool__id">
-              <a v-if="d.url" class="ar-wd-doclink" :href="d.url" target="_blank" rel="noopener"><code>{{ d.name }}</code><span class="ar-wd-ext" aria-hidden="true">↗</span></a>
+              <a v-if="d.url" class="ar-wd-doclink" :href="d.url" target="_blank" rel="noopener"><code>{{ d.name }}</code></a>
               <code v-else>{{ d.name }}</code>
               <span v-if="d.title" class="ar-wd-tool__title">{{ d.title }}</span>
             </div>
@@ -586,14 +752,21 @@ export default {
       </div>
       </div>
 
-      <!-- A DIFFERENT list from the groups above: the tools an anonymous agent
-           is handed, not the ones a signed-in agent can run. Both render as
-           identical rows, so its own panel is what keeps the two apart. -->
+      <!-- A DIFFERENT list from the groups above: the tools NAMED in the public
+           file, not a second set of tools. Both render as identical rows, so
+           its own panel is what keeps the two apart.
+           ⛔ It used to read "Published for anonymous assistants", which invited
+           the reading that a stranger could RUN these. They can be read by
+           anyone and run by nobody without a sign-in — the same two questions
+           that had 32 of them stamped "public" in the document itself. The
+           heading names the file; the note says the rest. -->
       <div v-if="tools.length" class="ar-wd-sect">
       <p class="ar-wd-lhead">
-        Published for anonymous assistants
+        Listed in your public file
         <span class="ar-wd-group__count">{{ tools.length }}</span>
-        <span class="ar-wd-lhead__note">in /.well-known/mcp.json</span>
+        <span class="ar-wd-lhead__note">
+          anyone can read /.well-known/mcp.json — running one still needs a sign-in
+        </span>
       </p>
       <ul class="ar-wd-tools">
         <li v-for="t in tools" :key="t.name" class="ar-wd-tool">
@@ -604,9 +777,13 @@ export default {
           <div class="ar-wd-tool__meta">
             <span v-if="t.annotations && t.annotations.readOnlyHint" class="ar-wd-badge">read-only</span>
             <span v-if="t.inputSchema && Object.keys(t.inputSchema).length" class="ar-wd-badge ar-wd-badge--schema">schema</span>
-            <span class="ar-wd-auth" :class="t.auth === 'none' ? 'is-open' : 'is-locked'">
-              {{ t.auth === 'none' ? 'public' : t.auth }}
-            </span>
+            <!-- ⭐ Only the exception is worth a chip. Every ability is gated by
+                 its own permission callback, so this reads "sign-in" on every
+                 row under a heading that already says "For a signed-in
+                 assistant" — a badge that never varies is furniture. It shows
+                 only when something really is open to anyone, and it never
+                 prints the raw scheme name: "wp" is our word, not the owner's. -->
+            <span v-if="t.auth === 'none'" class="ar-wd-auth is-open">public</span>
           </div>
         </li>
       </ul>
@@ -619,13 +796,13 @@ export default {
            aren't on Agentimus's scoped server) — citing either here would sit
            beside the other and read as a contradiction. -->
       <p v-else-if="counts.tools > 0" class="ar-wd-empty">
-        Nothing is listed here because every tool on this site requires sign-in, and sign-in-only
-        tools are deliberately not advertised in the public documents — an anonymous reader gets no map
-        of your tooling. An assistant holding real credentials still discovers and runs them the proper way.
+        Nothing is listed because everything here needs a sign-in, and we do not announce those
+        publicly — a stranger would get a map of your tools and no way to use them. An assistant that
+        signs in still finds them.
       </p>
       <p v-else class="ar-wd-empty">
-        No tools for AI assistants yet. They come from the WordPress Abilities API (in core from 6.9, or the
-        Abilities API plugin on older versions) or an MCP-aware plugin — once abilities are registered, they appear here.
+        Nothing for assistants to do here yet. These come from your plugins: once one registers a job
+        with WordPress, it shows up in this list by itself.
       </p>
     </section>
 
@@ -634,13 +811,14 @@ export default {
     <section class="ar-card">
       <h2 class="ar-card__title">Well-Known Documents</h2>
       <p class="ar-card__lead">
-        The standard addresses an AI assistant looks for first. Agentimus serves every one of these —
-        if a real file on your server answers one instead, it is marked <strong>on disk</strong>,
-        because that file wins and nothing here can override it.
+        The addresses an AI assistant checks first, because every site keeps them in the same place.
+        Agentimus answers all of them — unless a real file on your server answers one instead, which
+        is marked <strong>on disk</strong>,
+        because a real file always wins and nothing here can change that.
       </p>
       <ul class="ar-wd-wk">
         <li v-for="w in wellKnownRows" :key="w.name">
-          <a :href="w.url" target="_blank" rel="noopener"><code>/.well-known/{{ w.name }}</code><span class="ar-wd-ext" aria-hidden="true">↗</span></a>
+          <a :href="w.url" target="_blank" rel="noopener"><code>/.well-known/{{ w.name }}</code></a>
           <span v-if="w.spec" class="ar-wd-src ar-wd-src--spec">{{ w.spec }}</span>
           <!-- ON DISK stays the exception that changes what an owner would do:
                the web server answers it and we never override it. The quiet

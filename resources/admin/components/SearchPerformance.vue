@@ -23,12 +23,22 @@ export default {
     // Rendered with v-show, so it stays mounted across tab switches.
     active: { type: Boolean, default: false },
   },
-  emits: ['navigate'],
+  // `polled` fires once the engine has been asked AND the reply has been read.
+  // Search Opportunities sits directly below this card and is carved from the
+  // very same stored snapshot — see App.vue, where the two are siblings on one
+  // view. Its own lead promises "the same numbers reported above", and without
+  // this it kept the PREVIOUS snapshot on screen until the view was left and
+  // returned to, because its reload hangs off the `active` prop and `active`
+  // never changes while you are standing on the page pressing the button.
+  emits: ['navigate', 'polled'],
   data() {
     return {
       data: null,
       loading: false,
       loaded: false,
+      // Asking the engine again, which is a slower thing than reading — kept
+      // apart from `loading` so the control can say which one is happening.
+      polling: false,
       error: '',
       source: '', // The source the owner picked, '' = let the server choose.
     };
@@ -36,6 +46,23 @@ export default {
   computed: {
     sources() {
       return (this.data && this.data.sources) || {};
+    },
+    // Whose numbers are on screen — so the control can name the engine it is
+    // about to go and ask, rather than saying "refresh" and leaving the owner
+    // to guess which of the two it means.
+    engineName() {
+      const active = this.source || (this.data && this.data.source) || '';
+      if ('bing' === active) return 'Bing';
+      if ('google' === active) return 'Google';
+      return 'the search engine';
+    },
+    // What the ACTIVE engine said the last time it was asked, if it refused.
+    // The payload has carried this from the start; the card was throwing it
+    // away, so a poll could fail and the screen would look untouched.
+    sourceError() {
+      const active = this.source || (this.data && this.data.source) || '';
+      const s = this.sources[active];
+      return s && s.connected ? String(s.lastError || '') : '';
     },
     anyConnected() {
       const s = this.sources;
@@ -130,6 +157,36 @@ export default {
         this.loaded = true;
       }
     },
+    // Ask the engine again, then read what it said.
+    //
+    // ⚠️ This control used to re-READ the stored snapshot and nothing more —
+    // and for Google there was no way to re-poll at all short of reconnecting
+    // the key, so a card whose numbers had quietly stopped updating offered a
+    // button that could not fix it. It polls the ACTIVE source now: whichever
+    // engine's numbers you are looking at is the one that gets asked.
+    async askAgain() {
+      if (this.polling || this.loading || !this.api) return;
+      const asked = this.source;
+      this.polling = true;
+      this.error = '';
+      try {
+        if ('bing' === asked && this.api.refreshBingSummary) await this.api.refreshBingSummary(30);
+        else if (this.api.refreshGoogleSearch) await this.api.refreshGoogleSearch();
+      } catch (e) {
+        this.error = (e && e.message) || 'Could not ask the search engine again.';
+      } finally {
+        this.polling = false;
+      }
+      // Read either way: a failed poll leaves the previous snapshot standing,
+      // and the card should still show it rather than go blank.
+      await this.load();
+      // Announced either way, and deliberately: on success the snapshot moved
+      // and everything drawn from it must move with it; on failure the card
+      // above now carries a warning the card below does not, and a re-read is
+      // one cheap query against a table we just touched. Two cards on one
+      // screen disagreeing about one snapshot is the bug worth preventing.
+      this.$emit('polled');
+    },
     pick(source) {
       if (this.source === source) return;
       this.source = source;
@@ -151,11 +208,17 @@ export default {
         <div class="ar-card__titlewrap">
           <h2 class="ar-card__title">Search Performance</h2>
           <!-- The hand-crank half of the freshness rule (reveal already
-               refetches): re-reads the stored report on demand. -->
+               refetches): re-reads the stored report on demand.
+               ⚠️ The crank means ONE thing across this plugin — re-read what
+               we already hold. "Re-read Bing index data", "Reload agent access
+               events", and this. It briefly meant "go ask Google" here and
+               nowhere else, which made the same mark mean two things and made
+               the spinner on every tab reveal look like a live call. Asking an
+               engine is a named button now; the crank is a crank again. -->
           <RefreshCrank
             :busy="loading"
-            :aria-label="loading ? 'Re-reading search performance…' : 'Re-read search performance'"
-            :title="loading ? 'Re-reading…' : 'Re-read search performance'"
+            :aria-label="loading ? `Re-reading the stored ${engineName} numbers…` : `Re-read the stored ${engineName} numbers`"
+            :title="loading ? 'Re-reading…' : `Re-read the ${engineName} numbers already saved here`"
             @refresh="load"
           />
         </div>
@@ -183,8 +246,43 @@ export default {
            because a pill is the switch's costume and there is nothing here
            to press. -->
       <div v-else-if="active_source" class="ar-srcpick">
-        <span class="ar-srcpick__solo">{{ active_source === 'google' ? 'Google' : 'Bing' }}</span>
+        <span class="ar-srcpick__solo">{{ engineName }}</span>
       </div>
+    </div>
+
+    <!-- The asking strip. One slim band under the masthead that holds the whole
+         business of going to fetch: what it will do, the button that does it,
+         and what came back if the answer was no.
+         The explanation is WRITTEN, not hovered. It lived in a tooltip, which
+         meant the one sentence telling an owner this call leaves their site and
+         takes a moment was invisible to anyone who never hovered — including
+         everyone on a touch screen.
+         ⚠️ The error slot below is ALWAYS rendered and merely hidden when
+         empty, so the tiles do not jump down the moment a poll fails. -->
+    <div v-if="active_source" class="ar-perf__strip" :class="{ 'is-warn': !!sourceError }">
+      <!-- ONE line, always. The bad news does not stack under the good news —
+           it TAKES ITS PLACE, and the band warms to say so.
+           That is what keeps the strip slim and the tiles still: a reserved
+           empty row costs 24px of dead space on every healthy site forever,
+           and appending the error instead pushes everything below it down the
+           moment a poll fails. Swapping the text does neither.
+           ⚠️ The engine's own words are quoted rather than interpreted, and our
+           half of the sentence is kept SHORT on purpose — the vendor string is
+           of unknown length, and every word in front of it is a word closer to
+           a second line, which is the one thing that can still move the tiles.
+           This exists because a failure was reporting as silence: "Ask Again"
+           spun for five seconds, the poll came back InvalidApiKey, the payload
+           carried it, and the card printed nothing at all. -->
+      <p class="ar-perf__stripsay" aria-live="polite">
+        <template v-if="sourceError">These are last time’s numbers. {{ engineName }} said: “{{ sourceError }}”</template>
+        <template v-else>Fetch the latest numbers straight from {{ engineName }}. This leaves your site, so it takes a few seconds.</template>
+      </p>
+      <button
+        type="button"
+        class="ar-btn ar-btn--ghost ar-btn--small ar-perf__ask"
+        :disabled="polling || loading"
+        @click="askAgain"
+      >{{ polling ? 'Asking…' : 'Ask Again' }}</button>
     </div>
 
     <p v-if="error" class="ar-field__hint ar-warn">{{ error }}</p>
@@ -332,7 +430,7 @@ export default {
             <tbody>
               <tr v-for="p in topPages" :key="p.page_url">
                 <td class="ar-perf__q">
-                  <a v-if="p.edit_url" :href="p.edit_url" class="ar-perf__page">{{ p.title }}</a>
+                  <a v-if="p.edit_url" :href="p.edit_url" target="_blank" rel="noopener" class="ar-perf__page">{{ p.title }}</a>
                   <span v-else>{{ p.title }}</span>
                 </td>
                 <td class="ar-perf__n">{{ num(p.impressions) }}</td>

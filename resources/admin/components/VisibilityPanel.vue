@@ -973,7 +973,7 @@ export default {
             <section v-for="p in products" :key="p.name" class="agv-panel agv-product">
               <div class="agv-product__head">
                 <h3 class="agv-product__name">{{ p.name || 'Your site' }}</h3>
-                <a v-if="p.domain" class="agv-product__site" :href="'https://' + p.domain" target="_blank" rel="noopener">{{ p.domain }} ↗</a>
+                <a v-if="p.domain" class="agv-product__site" :href="'https://' + p.domain" target="_blank" rel="noopener">{{ p.domain }}</a>
                 <span v-if="p.paused" class="agv-paused-pill">Paused</span>
               </div>
 
@@ -1223,7 +1223,7 @@ export default {
                       aria-label="Dismiss error" v-tip="`Dismiss`">✕</button>
                   </template>
                   <span v-else-if="providersMeta[id].hasKey" class="agv-engine__saved">✓ saved</span>
-                  <a v-else-if="providersMeta[id].helpUrl" :href="providersMeta[id].helpUrl" target="_blank" rel="noopener" class="agv-engine__help">Get a key ↗</a>
+                  <a v-else-if="providersMeta[id].helpUrl" :href="providersMeta[id].helpUrl" target="_blank" rel="noopener" class="agv-engine__help">Get a key</a>
                 </span>
               </div>
             </div>
@@ -1301,7 +1301,7 @@ export default {
               </div>
             </div>
             <div class="ar-modal__actions agv-err__actions">
-              <a v-if="errorDialog.helpUrl" :href="errorDialog.helpUrl" target="_blank" rel="noopener" class="ar-btn ar-btn--ghost agv-btn-sm">Get a key ↗</a>
+              <a v-if="errorDialog.helpUrl" :href="errorDialog.helpUrl" target="_blank" rel="noopener" class="ar-btn ar-btn--ghost agv-btn-sm">Get a key</a>
               <button type="button" class="ar-btn ar-btn--ghost agv-btn-sm" :disabled="errorTesting" @click="testKey(errorDialog.id)">{{ errorTesting ? 'Testing…' : 'Test again' }}</button>
               <button type="button" class="ar-btn agv-btn-sm" :disabled="errorTesting" @click="closeError">Close</button>
             </div>

@@ -211,6 +211,15 @@ final class Rest {
 				'methods'             => \WP_REST_Server::READABLE,
 				'callback'            => array( $this, 'get_worklist' ),
 				'permission_callback' => array( $this, 'can_manage' ),
+				'args'                => array(
+					// Which tab. Validated in the handler rather than by enum:
+					// an enum is checked BEFORE the permission callback, so a
+					// bad value would answer 400 to a logged-out stranger and
+					// confirm the route exists.
+					'filter' => array( 'type' => 'string', 'required' => false ),
+					'page'   => array( 'type' => 'integer', 'required' => false ),
+					'per'    => array( 'type' => 'integer', 'required' => false ),
+				),
 			)
 		);
 
@@ -912,8 +921,21 @@ final class Rest {
 	 *
 	 * @return \WP_REST_Response
 	 */
-	public function get_worklist() {
-		return rest_ensure_response( ( new Worklist( $this->settings ) )->all() );
+	public function get_worklist( \WP_REST_Request $request ) {
+		$worklist = new Worklist( $this->settings );
+
+		// Grading happens on cron, but a screen that has just been opened on a
+		// fresh site would sit empty waiting for it. One chunk here means the
+		// first look already has rows, and the sweep carries on behind.
+		$worklist->sweep();
+
+		return rest_ensure_response(
+			$worklist->page(
+				(string) $request->get_param( 'filter' ),
+				(int) $request->get_param( 'page' ),
+				(int) $request->get_param( 'per' )
+			)
+		);
 	}
 
 	/**

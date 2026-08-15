@@ -232,6 +232,13 @@ final class Resource {
 				// make a strict consumer reject it. Anything unmarked stays a tool,
 				// which is what a third-party provider's plain list has always meant.
 				'kind'         => ( isset( $tool['kind'] ) && 'resource' === $tool['kind'] ) ? 'resource' : 'tool',
+				// The VENDOR's own decision about this one tool: advertise it, or
+				// keep it out of the served document. Not ours to make — we neither
+				// publish what a vendor kept back nor hide what it published.
+				// INTERNAL, like `kind`: {@see Envelope::wire_resource()} both acts
+				// on it and strips it. Default TRUE, because a provider handing us a
+				// plain list is advertising all of it.
+				'public'       => ! isset( $tool['public'] ) || (bool) $tool['public'],
 				'title'        => isset( $tool['title'] ) ? sanitize_text_field( (string) $tool['title'] ) : '',
 				'description'  => isset( $tool['description'] ) ? sanitize_text_field( (string) $tool['description'] ) : '',
 				'inputSchema'  => self::schema( isset( $tool['inputSchema'] ) ? $tool['inputSchema'] : array() ),

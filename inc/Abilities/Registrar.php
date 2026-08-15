@@ -210,7 +210,13 @@ final class Registrar {
 		wp_register_ability_category(
 			self::CATEGORY,
 			array(
-				'label'       => __( 'Agentimus — AI visibility', 'agentimus' ),
+				// ⭐ His call, 2026-08-16: just the name. It is the heading over our own
+				// group of jobs on the Discovery page, beside a badge that already says
+				// Agentimus — "Agentimus — AI visibility" there said it twice and read
+				// long next to every vendor's short name. The MCP SERVER name keeps the
+				// longer form: that one appears in an assistant's list of servers, where
+				// a plugin name alone says nothing about what it offers.
+				'label'       => __( 'Agentimus', 'agentimus' ),
 				'description' => __( 'Read — and, when the owner allows writes, improve — this site’s AI/agent readiness, traffic, bot activity, per-page readability and discovery output.', 'agentimus' ),
 			)
 		);
@@ -796,7 +802,8 @@ final class Registrar {
 									'connected' => self::b(),
 									'hasData'   => self::b(),
 									'lastError' => self::s(),
-									'pageCap'   => self::i( '0 — Google reports query x page directly, so no page-level sampling applies.' ),
+									'pageCap'   => self::i( 'Always 0: no source samples a fixed set of pages any more. Kept so readers that branch on it keep taking their no-sampling path.' ),
+									'dropped'   => self::i( 'Rows the last poll could not store, because the snapshot keeps only its busiest N. The engines report clicks-descending, so what is missing is the quiet tail — say so rather than treating the stored set as everything.' ),
 								)
 							),
 							'bing'   => self::obj(
@@ -804,7 +811,8 @@ final class Registrar {
 									'connected' => self::b(),
 									'hasData'   => self::b(),
 									'lastError' => self::s(),
-									'pageCap'   => self::i( 'Page-level figures cover only this many of the busiest pages — Bing has no query x page report, so the poll samples. State this scope before generalising about "the site".' ),
+									'pageCap'   => self::i( 'Always 0 now: Bing is worked through a few pages per poll until every page has been asked about, so no page sits permanently outside anything.' ),
+									'dropped'   => self::i( 'Rows the last poll could not store, because the snapshot keeps only its busiest N. What is missing is the quiet tail — say so rather than treating the stored set as everything.' ),
 								)
 							),
 						)
@@ -905,7 +913,8 @@ final class Registrar {
 									'connected' => self::b(),
 									'hasData'   => self::b(),
 									'lastError' => self::s(),
-									'pageCap'   => self::i( '0 — Google reports query x page directly, so no page-level sampling applies.' ),
+									'pageCap'   => self::i( 'Always 0: no source samples a fixed set of pages any more. Kept so readers that branch on it keep taking their no-sampling path.' ),
+									'dropped'   => self::i( 'Rows the last poll could not store, because the snapshot keeps only its busiest N. The engines report clicks-descending, so what is missing is the quiet tail — say so rather than treating the stored set as everything.' ),
 								)
 							),
 							'bing'   => self::obj(
@@ -913,7 +922,8 @@ final class Registrar {
 									'connected' => self::b(),
 									'hasData'   => self::b(),
 									'lastError' => self::s(),
-									'pageCap'   => self::i( 'Page-level figures cover only this many of the busiest pages — Bing has no query x page report, so the poll samples. State this scope before generalising about "the site".' ),
+									'pageCap'   => self::i( 'Always 0 now: Bing is worked through a few pages per poll until every page has been asked about, so no page sits permanently outside anything.' ),
+									'dropped'   => self::i( 'Rows the last poll could not store, because the snapshot keeps only its busiest N. What is missing is the quiet tail — say so rather than treating the stored set as everything.' ),
 								)
 							),
 						)
@@ -1144,7 +1154,8 @@ final class Registrar {
 									'rows'        => self::i(),
 									'start'       => self::s( 'Widest window any connected source reports (YYYY-MM-DD); the engines publish on a delay, so it ends before today.' ),
 									'end'         => self::s(),
-									'pageCap'     => self::i( 'When > 0, page-level figures elsewhere sample only this many of the busiest pages (Bing). The site-wide clicks here are whole either way.' ),
+									'pageCap'     => self::i( 'Always 0 now: no source samples a fixed set of pages. Kept so older readers of this payload keep taking their no-sampling path.' ),
+									'waiting'     => self::i( 'Pages Bing has not been asked about yet — it answers one page per request, so page-level detail fills in over days. The site-wide clicks here are whole either way. 0 for Google, which reports every page at once.' ),
 								)
 							),
 							'ai'      => self::obj(

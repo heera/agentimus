@@ -121,6 +121,7 @@ final class Plugin {
 		( new InternalLinks( $this->settings ) )->register(); // "Link to your own posts": local-signal suggestions + one optional AI dressing call; Insert is a plain editor edit.
 		( new Assistant( $this->settings ) )->register(); // The in-admin writing assistant (nav-bar quill → drawer); gated on enable_agent_writes + a provider.
 		( new AssistantEditor( $this->settings ) )->register(); // Its block-editor half: per-Image-block Generate + the featured-image panel.
+		( new Worklist( $this->settings ) )->register(); // The grading sweep, and the saves that make a grade stale.
 		( new Rest( $this->settings ) )->register();
 		( new Admin( $this->settings ) )->register();
 		( new Discovery\Module( $this->settings ) )->register();
@@ -132,6 +133,16 @@ final class Plugin {
 		// to be hooked before any ability can run.
 		( new AgentAccess\Module( $this->settings ) )->register(); // Records app-password lifecycle + ability invocations. Inert where neither exists.
 		( new Digest\Module( $this->settings ) )->register(); // Weekly email digest: the cron handler, the one-click stop endpoint, and a self-healing schedule.
+		( new Integrations\Dispatcher( $this->settings ) )->register(); // Outgoing-event queue drain (cron). Inert — not one hook — until the webhook is connected.
+		( new Integrations\Events( $this->settings ) )->register(); // The listeners that feed that queue, + the daily findings diff. Same inertness.
+		( new Integrations\Rest( $this->settings ) )->register(); // The Integrations screen's routes — unconditional, they are how the webhook gets connected.
+		( new Integrations\Announcements( $this->settings ) )->register(); // The scheduled-announcements drain. Inert — not one hook — until a row is queued.
+		// Every plugin provider, from the one roster they are listed in. A provider
+		// with nothing public to declare registers nothing — so this loop is safe
+		// for the presence-only entries and needs no second list to stay in step.
+		foreach ( Integrations\Plugins\Provider::ROSTER as $provider ) {
+			$provider::register();
+		}
 		( new ReviewBadge( $this->settings ) )->register(); // Review-queue count on the admin menu + Heartbeat live updates (admin-only; no-ops on the front end).
 		( new Abilities\AdapterBootstrap( $this->settings ) )->register(); // Boots the bundled MCP Adapter when the owner opts in (inert otherwise).
 		( new Abilities\Registrar( $this->settings ) )->register(); // Exposes our own read capabilities to the WP admin AI + MCP (no-ops pre-6.9).
@@ -240,6 +251,9 @@ final class Plugin {
 		Bing\Table::install();
 		Bing\Module::schedule();
 		Search\Table::install();
+		Search\Asks::install();
+		Grades::install();
+		Grades::schedule();
 		Google\Module::schedule();
 		Digest\Module::schedule();
 		Discovery\WellKnown::add_rules();
@@ -406,6 +420,10 @@ final class Plugin {
 		Bing\Module::unschedule();
 		Google\Module::unschedule();
 		Digest\Module::unschedule();
+		wp_clear_scheduled_hook( Integrations\Dispatcher::CRON ); // The queue rows stay (an option); the drain reschedules itself on the next boot.
+		wp_clear_scheduled_hook( Integrations\Announcements::CRON ); // Same shape: queued announcements stay, register() re-arms on the next boot.
+		wp_clear_scheduled_hook( Integrations\Events::CRON_FINDINGS );
+		Grades::unschedule(); // The stored grades stay: they describe his content, not our schedule.
 		BotRanges::clear_schedule();
 		RouteProbe::clear_schedule();
 		Activity\IdentityProbe::clear_schedule();

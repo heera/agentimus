@@ -46,6 +46,15 @@ final class Settings {
 			'connected_at' => 0,
 			'last_poll_at' => 0,
 			'last_error'   => '',
+			// Rows the last poll could not store because the snapshot cap was
+			// reached. 0 on a poll that fitted — see ConnectionStore::record_dropped().
+			'dropped_rows' => 0,
+			// One entry per extra surface (image, video, news): '' when that tab
+			// was read cleanly, otherwise what went wrong, in Google's words or
+			// ours. A surface MISSING from this map has never been asked about —
+			// which is a different thing from having been asked and reporting
+			// nothing, and the two must never share a blank on screen.
+			'surface_state' => array(),
 		);
 	}
 
@@ -100,6 +109,26 @@ final class Settings {
 		$all                = $this->all();
 		$all['ga4_error']   = sanitize_text_field( (string) $error );
 		$all['ga4_poll_at'] = time();
+		$this->persist( $all );
+	}
+
+	/**
+	 * Record how each extra surface's read went, replacing the whole map.
+	 *
+	 * Whole-map on purpose: a surface dropped from {@see Module::EXTRA_SURFACES}
+	 * should stop being reported about, rather than leaving a verdict behind that
+	 * nothing will ever update again.
+	 *
+	 * @param array<string,string> $state surface => '' for clean, or the reason.
+	 * @return void
+	 */
+	public function record_surface_state( array $state ) {
+		$clean = array();
+		foreach ( $state as $surface => $problem ) {
+			$clean[ sanitize_key( (string) $surface ) ] = sanitize_text_field( (string) $problem );
+		}
+		$all                  = $this->all();
+		$all['surface_state'] = $clean;
 		$this->persist( $all );
 	}
 

@@ -253,6 +253,14 @@ final class Module {
 				),
 				false
 			);
+
+			/**
+			 * Fires after the weekly digest actually went out (never for a test
+			 * send). Integrations relay its summary numbers from here.
+			 *
+			 * @param array $data The collected digest data (see Data::collect()).
+			 */
+			do_action( 'agentimus_digest_sent', $data );
 		}
 		return $sent;
 	}

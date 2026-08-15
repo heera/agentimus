@@ -14,10 +14,12 @@
 import { confirm } from '../js/confirm.js';
 import { formatDate, formatTime } from '../js/wpDate.js';
 import ConnectionRail from './ConnectionRail.vue';
+import CardSkeleton from './CardSkeleton.vue';
+import AppLink from './AppLink.vue';
 
 export default {
   name: 'CloudflareCard',
-  components: { ConnectionRail },
+  components: { ConnectionRail, CardSkeleton, AppLink },
   props: {
     settings: { type: Object, required: true },
     api: { type: Object, default: null },
@@ -129,19 +131,31 @@ export default {
     <p class="ar-card__lead">
       Cloudflare stands in front of your site. It answers many AI requests from its cache
       and blocks some — your server never sees those. Connect it and the
-      <a href="#log">Request Log</a> screen shows what Cloudflare saw, and warns you
+      <AppLink to="#log">Request Log</AppLink> screen shows what Cloudflare saw, and warns you
       when Cloudflare and your site policy disagree.
     </p>
 
     <!-- Three states, not two: "still asking" must not flash as "Not
          connected" — an untrue word, even for 200ms, reads as a glitch. -->
     <ConnectionRail
+      service="Cloudflare"
       :connected="!!(cf && cf.connected)"
       :checked="cfChecked"
       :label="cf ? 'zone ' + cf.zoneName : ''"
       :polled-text="cfPolledText()"
       :last-error="(cf && cf.lastError) || ''"
       idle-note="Read-only — Agentimus never changes your Cloudflare settings."
+    />
+
+    <!-- The card's body arrives all at once when the status read answers, and
+         a one-line "checking…" card leaping into a wall of settings shoves
+         every card below it down the page. The placeholder holds roughly the
+         room the real body will need, button included (his call, 2026-08-15). -->
+    <CardSkeleton
+      v-if="!cfChecked"
+      lead=""
+      :lines="['92%', '78%', '64%', '86%']"
+      action
     />
 
     <p v-if="cfError" class="ar-field__hint ar-warn">{{ cfError }}</p>
@@ -179,7 +193,7 @@ export default {
 
     <template v-else-if="cf && cf.connected">
       <p v-if="cfJustConnected" class="ar-field__hint">
-        <strong>First numbers are in.</strong> See them on the <a href="#log">Request Log</a> screen.
+        <strong>First numbers are in.</strong> See them on the <AppLink to="#log">Request Log</AppLink> screen.
       </p>
       <p class="ar-field__hint">
         One scoped token, one hourly poll. Numbers are stored in your own database, so
@@ -216,7 +230,7 @@ export default {
             <p class="ar-edge-pin__title">{{ c.title }}</p>
             <p class="ar-edge-pin__body">{{ c.body }}</p>
             <div class="ar-edge-pin__actions">
-              <a class="ar-linkbtn" :href="c.url" target="_blank" rel="noopener">Review in Cloudflare →</a>
+              <a class="ar-linkbtn" :href="c.url" target="_blank" rel="noopener">Review in Cloudflare</a>
               <span v-if="c.hiddenOnLog" class="ar-cf-hiddenmark">hidden on the Request Log</span>
             </div>
           </div>

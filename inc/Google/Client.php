@@ -115,13 +115,21 @@ final class Client {
 	 * replaces its snapshot with something rather than nothing. The error is
 	 * only returned when the FIRST request fails, i.e. when there is nothing.
 	 *
+	 * The `type` names which of Search Console's surfaces to read. It defaults to
+	 * `web`, which its reference defines as the combined "All" tab — the Image,
+	 * Video and News TABS are counted separately and have to be asked for by
+	 * name. Two surfaces are deliberately never asked for here: `discover` has no
+	 * query at all (it is a feed, not a search) and `googleNews` is a different
+	 * product most owners do not publish to.
+	 *
 	 * @param string $token    Bearer token.
 	 * @param string $property The GSC property (sc-domain:… or a URL prefix).
 	 * @param string $start    Y-m-d start date.
 	 * @param string $end      Y-m-d end date.
+	 * @param string $type     Surface: web | image | video | news.
 	 * @return array { rows?: array<int,array{page:string,query:string,clicks:int,impressions:int,position:float}>, error?: string }
 	 */
-	public function search_analytics( $token, $property, $start, $end ) {
+	public function search_analytics( $token, $property, $start, $end, $type = 'web' ) {
 		$rows = array();
 
 		for ( $page = 0; $page < self::MAX_PAGES; $page++ ) {
@@ -133,6 +141,7 @@ final class Client {
 					'startDate'  => (string) $start,
 					'endDate'    => (string) $end,
 					'dimensions' => array( 'page', 'query' ),
+					'type'       => (string) $type,
 					'rowLimit'   => self::ROW_LIMIT,
 					'startRow'   => $page * self::ROW_LIMIT,
 				)

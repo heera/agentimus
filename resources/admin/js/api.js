@@ -60,7 +60,11 @@ export function createApi(boot) {
     markFindingsSeen: () => request('/findings/seen', { method: 'POST' }),
     // The per-item content worklist. Fetched on demand, never in the boot
     // payload: each row parses a page.
-    getWorklist: () => request('/worklist'),
+    // The list is ranked and paged on the server now: it covers every published
+    // page, not the thirty one request could afford to read, so the tab and the
+    // page number have to travel with the ask.
+    getWorklist: (filter = 'fixable', page = 1) =>
+      request(`/worklist?filter=${encodeURIComponent(filter)}&page=${Number(page) || 1}`),
     getWorklistRows: (ids) => request(`/worklist/rows?ids=${ids.map(Number).join(',')}`),
     // { id: modified } as the screen last saw it → rebuilt rows for whatever
     // has changed since, and nothing when nothing has.
@@ -206,6 +210,23 @@ export function createApi(boot) {
     removeClientToken: (token, list) =>
       request('/activity/client-remove', { method: 'POST', body: JSON.stringify({ token, list }) }),
 
+    // Integrations: one status read (service configs sans credentials, event
+    // catalog, provider presence), and one action door — { service?: webhook |
+    // telegram, action: connect | save | disconnect | regenerate }; no service
+    // named means the webhook. Its connect and regenerate answer with `secret`
+    // exactly once; no other response ever carries a credential (Telegram's
+    // token is pasted in and never echoed back).
+    getIntegrations: () => request('/integrations'),
+    actIntegrations: (payload) =>
+      request('/integrations', { method: 'POST', body: JSON.stringify(payload) }),
+
+    // Announcements: one paged read of the ledger (promises first), and one
+    // action door — { action: cancel | retry | remove, id, page } — that
+    // answers with the same page re-read.
+    getAnnouncements: (page = 1) => request(`/announcements?page=${page}`),
+    actAnnouncements: (payload) =>
+      request('/announcements', { method: 'POST', body: JSON.stringify(payload) }),
+
     // Agent access: who authenticated to, and acted on, the machine surface. The payload
     // carries its own coverage verdict (see AgentAccess\Events::ability_coverage) because
     // what this screen can HONESTLY see differs per site — an empty feed is not the same
@@ -273,6 +294,9 @@ export function createApi(boot) {
     // Refresh: one inline poll, then the fresh summary in the same response.
     refreshBingSummary: (days = 30) =>
       request(`/bing/refresh?days=${Math.max(1, days | 0)}`, { method: 'POST' }),
+    // Ask Search Console again, now. The performance numbers are then re-read
+    // through getSearchPerformance — this only makes them fresh first.
+    refreshGoogleSearch: () => request('/google/refresh', { method: 'POST' }),
     // The Google index watch: stored answers, and an inline "Check now" sweep.
     getGoogleIndex: () => request('/google/index'),
     refreshGoogleIndex: () => request('/google/index', { method: 'POST' }),

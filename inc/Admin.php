@@ -57,6 +57,7 @@ final class Admin {
 		// Native admin-footer text + version, on our own screens ONLY (the
 		// scoped WordPress convention WooCommerce and others follow — we never
 		// touch the global admin footer or any unrelated screen).
+		add_filter( 'admin_body_class', array( $this, 'scheme_body_class' ) );
 		add_filter( 'admin_footer_text', array( $this, 'admin_footer_text' ) );
 		add_filter( 'update_footer', array( $this, 'admin_footer_version' ), 15 );
 
@@ -450,6 +451,30 @@ final class Admin {
 	 *
 	 * @return string CSS custom-property rule, or '' (default scheme / opted out).
 	 */
+	/**
+	 * Stamp the active colour scheme's OWN surface colour onto <body>, as
+	 * `agentimus-scheme-363b3f`.
+	 *
+	 * A dark dialect in schemes.css can then key off the colour WordPress
+	 * actually serves instead of off a slug that outlives its palette. The
+	 * owner has both Midnights in front of him: heera.it's older WordPress
+	 * registers #363b3f, WP 7.1 registers #333c42, and the right dark for one
+	 * is the wrong dark for the other.
+	 *
+	 * A dialect that no longer matches simply stops applying and the base dark
+	 * takes over — which is the correct outcome for an unknown palette, and
+	 * means a future retune degrades quietly instead of painting a night that
+	 * was mixed for a colour nobody is wearing any more.
+	 *
+	 * @param string $classes Space-separated classes from core.
+	 * @return string
+	 */
+	public function scheme_body_class( $classes ) {
+		$hex = SchemeInk::active_surface();
+
+		return '' === $hex ? $classes : trim( $classes . ' agentimus-scheme-' . substr( $hex, 1 ) );
+	}
+
 	private function scheme_css() {
 		/**
 		 * Filter whether the app adopts the admin colour scheme.

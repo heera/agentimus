@@ -496,14 +496,14 @@ export default {
                       <!-- The "Open live" links sit top-right, where they're seen on load.
                            Copy moved into the code block's corner (below). -->
                       <div v-if="hasPublicUrl" class="agentimus-jsonld__actions">
-                        <a :href="liveUrl" target="_blank" rel="noopener" class="agentimus-jsonld__tool">Open live page ↗</a>
+                        <a :href="liveUrl" target="_blank" rel="noopener" class="agentimus-jsonld__tool">Open live page</a>
                         <a
                           v-if="format === 'markdown' && mdResult && mdResult.mdUrl"
                           :href="mdResult.mdUrl"
                           target="_blank"
                           rel="noopener"
                           class="agentimus-jsonld__tool"
-                        >Open live .md ↗</a>
+                        >Open live .md</a>
                       </div>
                     </div>
 
@@ -537,11 +537,9 @@ export default {
                     <div v-if="format === 'jsonld' && !isEmpty" class="agentimus-jsonld__tools">
                       <template v-if="canTestLiveUrl">
                         <a :href="googleUrl" target="_blank" rel="noopener" class="agentimus-jsonld__tool">
-                          Google Rich Results test ↗
-                        </a>
+                          Google Rich Results test</a>
                         <a :href="schemaOrgUrl" target="_blank" rel="noopener" class="agentimus-jsonld__tool">
-                          Schema.org validator ↗
-                        </a>
+                          Schema.org validator</a>
                       </template>
                       <span v-else class="agentimus-jsonld__hint">
                         To validate, copy the JSON and paste it into the Schema.org validator’s "Code" tab.

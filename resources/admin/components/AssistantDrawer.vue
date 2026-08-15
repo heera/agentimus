@@ -705,9 +705,25 @@ export default {
             .map((s) => ({ attachment_id: s.attachment_id, after_heading: s.after_heading, alt: s.alt })),
         });
         // The draft is real — nothing left to do here. Straight to the editor,
-        // where the images (and everything else) are worked on.
+        // where the images (and everything else) are worked on. In a NEW TAB
+        // (his call, 2026-08-15), like every other editor link in the plugin:
+        // the screen the author was working on stays where it is.
+        //
+        // The fallback is not optional. This runs after an awaited write, so
+        // the click's transient activation may already have expired and the
+        // browser can refuse the tab — and a created draft must never be left
+        // behind a popup nobody saw. If the tab did not open, this one walks.
         this.clearHeld();
-        window.location.assign(r.post.editUrl);
+        const opened = window.open(r.post.editUrl, '_blank', 'noopener');
+        if (!opened) {
+          window.location.assign(r.post.editUrl);
+          return;
+        }
+        // The tab took the work; this drawer is back to a blank page rather
+        // than showing a draft that has already been created (which would read
+        // as unsaved work and invite a second create).
+        this.writeAnother();
+        this.$emit('flash', 'success', 'Draft created — it opened in a new tab.');
       } catch (e) {
         this.error = (e && e.message) || 'Couldn’t create the draft — please try again.';
         this.step = 'preview'; // The composed draft is still good; only the write failed.
@@ -1012,7 +1028,7 @@ export default {
                          already filtered to one type — it says so above. -->
                     <span v-if="!pick.type && row.typeLabel" class="ar-assist__chip">{{ row.typeLabel }}</span>
                     <span>{{ row.date }}</span>
-                    <span class="ar-assist__postgo" aria-hidden="true">Opens in the editor ↗</span>
+                    <span class="ar-assist__postgo" aria-hidden="true">Opens in the editor</span>
                   </span>
                 </a>
               </div>

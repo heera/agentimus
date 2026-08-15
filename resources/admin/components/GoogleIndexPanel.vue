@@ -730,7 +730,7 @@ export default {
                   <span class="ar-gidx__door">
                     <button type="button" class="ar-linkbtn ar-gidx__recheck" :disabled="!!checkingUrl" @click="recheckUrl(r.url)">{{ checkLabel(r.url) }}</button>
                     <span v-if="r.gscLink" class="ar-gidx__doorsep" aria-hidden="true">·</span>
-                    <a v-if="r.gscLink" class="ar-gidx__gsc" :href="r.gscLink" target="_blank" rel="noopener" @click="noteOpened(r)">Open in Search Console ↗</a>
+                    <a v-if="r.gscLink" class="ar-gidx__gsc" :href="r.gscLink" target="_blank" rel="noopener" @click="noteOpened(r)">Open in Search Console</a>
                     <span v-if="r.openedAt" class="ar-gidx__opened">console opened {{ day(r.openedAt) }}</span>
                   </span>
                   <span class="ar-gidx__chip is-ok">On Google</span>
@@ -787,7 +787,7 @@ export default {
                   <span class="ar-gidx__door">
                     <button type="button" class="ar-linkbtn ar-gidx__recheck" :disabled="!!checkingUrl" @click="recheckUrl(r.url)">{{ checkLabel(r.url) }}</button>
                     <span v-if="r.gscLink" class="ar-gidx__doorsep" aria-hidden="true">·</span>
-                    <a v-if="r.gscLink" class="ar-gidx__gsc" :href="r.gscLink" target="_blank" rel="noopener" @click="noteOpened(r)">Open in Search Console ↗</a>
+                    <a v-if="r.gscLink" class="ar-gidx__gsc" :href="r.gscLink" target="_blank" rel="noopener" @click="noteOpened(r)">Open in Search Console</a>
                     <span v-if="r.openedAt" class="ar-gidx__opened">console opened {{ day(r.openedAt) }}</span>
                   </span>
                   <span class="ar-gidx__chip" :class="verdictClass(r)">{{ verdictLabel(r) }}</span>
@@ -837,7 +837,7 @@ export default {
         <div class="ar-gidx__facts">
           <p class="ar-gidx__sitemap">
             The complete list, every state, lives in
-            <a v-if="gscPagesLink" class="ar-gidx__gsc" :href="gscPagesLink" target="_blank" rel="noopener">Search Console's Pages report ↗</a>
+            <a v-if="gscPagesLink" class="ar-gidx__gsc" :href="gscPagesLink" target="_blank" rel="noopener">Search Console's Pages report</a>
             — the group counts above are complete.
           </p>
           <p v-if="sitemapNote" class="ar-gidx__sitemap" :class="{ 'is-warn': sitemapNote.warn }">
@@ -868,7 +868,7 @@ export default {
                     </span>
                     <span class="ar-gidx__crawl">{{ lookupOut.row.lastCrawl ? `visited ${day(lookupOut.row.lastCrawl)}` : (lookupOut.row.error ? '' : 'never visited') }}</span>
                     <span class="ar-gidx__door">
-                      <a v-if="lookupOut.row.gscLink" class="ar-gidx__gsc" :href="lookupOut.row.gscLink" target="_blank" rel="noopener" @click="noteOpened(lookupOut.row)">Open in Search Console ↗</a>
+                      <a v-if="lookupOut.row.gscLink" class="ar-gidx__gsc" :href="lookupOut.row.gscLink" target="_blank" rel="noopener" @click="noteOpened(lookupOut.row)">Open in Search Console</a>
                       <span v-if="lookupOut.row.openedAt" class="ar-gidx__opened">console opened {{ day(lookupOut.row.openedAt) }}</span>
                     </span>
                     <span class="ar-gidx__chip" :class="verdictClass(lookupOut.row)">{{ verdictLabel(lookupOut.row) }}</span>

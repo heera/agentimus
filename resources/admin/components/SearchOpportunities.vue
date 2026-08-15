@@ -33,6 +33,11 @@ export default {
       search: null,
       searchPick: '', // The engine the owner chose; '' = let the server pick the richer one.
       busySearchIgnore: 0, // Post id mid-flight in the search worklist's own set-aside.
+      // Which groups the owner has opened or closed by hand, keyed by the
+      // group's own key — NEVER by index. This list re-reads on `polled` and
+      // on every return, and the cards re-sort as ranks move, so an
+      // index-keyed fold would reopen a different section each refresh.
+      groupsOpen: {},
     };
   },
   computed: {
@@ -272,6 +277,22 @@ export default {
     // The citability flags for one search card. The server grades each mapped
     // card's page directly now (optimize_flags — {@see Score::page_flags}), so
     // the badge no longer depends on the page sitting in Optimize's recency
+    // A group with nothing left to ask for: every card in it has finished the
+    // owner's side and is only waiting on the next report.
+    groupWaiting(group) {
+      return group.cards.length > 0 && group.cards.every((c) => c.waiting);
+    },
+    // Every group starts folded (his call, 2026-08-15): the section's own
+    // heading and each group's count already say what is inside, and a screen
+    // that opens as a list of headings can be read in one look. The owner's
+    // own opening holds across re-reads.
+    groupOpen(group) {
+      const chosen = this.groupsOpen[group.key];
+      return undefined === chosen ? false : chosen;
+    },
+    onGroupToggle(key, ev) {
+      this.groupsOpen[key] = !!(ev.target && ev.target.open);
+    },
     // sample; the worklist map stays as the fallback for report payloads
     // fetched before that field existed.
     cardFlags(card) {
@@ -478,11 +499,32 @@ export default {
 
     <template v-else-if="searchState === 'ready'">
       <template v-for="group in searchGroups" :key="group.key">
-        <template v-if="group.cards.length">
-          <div class="ar-opp__grouphead">
-            <h4 class="ar-opp__grouptitle">{{ group.label }}</h4>
+        <!-- The group's own heading IS its disclosure — ONE control for the
+             whole section, not one per card: a group whose banner says
+             "nothing to do here" is a stack of receipts, and twelve folds
+             would be twelve clicks to answer one question. A group with a
+             live ask opens itself, because there the searches ARE the
+             instruction the ask points at. -->
+        <details
+          v-if="group.cards.length"
+          class="ar-fold ar-opp__group"
+          :open="groupOpen(group)"
+          @toggle="onGroupToggle(group.key, $event)"
+        >
+          <!-- The Google-index groups' own summary, word for word: label, the
+               count in parentheses, one bordered box. Closed, this line has to
+               be enough to leave it closed — so a group with no ask left in it
+               says that here rather than only inside. -->
+          <!-- The label stays a real heading inside the summary (HTML allows
+               exactly that): these groups are named sections of one card, and
+               a section that reads as a heading on screen must be one in the
+               outline too — the split-search finding below is an h4, and two
+               siblings should not disagree about what they are. -->
+          <summary>
+            <h4 class="ar-opp__foldtitle">{{ group.label }} ({{ group.cards.length }} {{ group.cards.length === 1 ? 'page' : 'pages' }})</h4>
             <span class="ar-opp__pos" :class="group.chipTone">{{ group.chip }}</span>
-          </div>
+            <span v-if="groupWaiting(group)" class="ar-opp__groupcount">nothing to do yet</span>
+          </summary>
           <p class="ar-opp__groupwhy">{{ group.why }}</p>
           <!-- The instructions go when there is nobody left to instruct. With
                every card in the group finished, "What to do: open the post and
@@ -514,7 +556,7 @@ export default {
               <span class="ar-check__rule" aria-hidden="true"></span>
               <div class="ar-opp__body">
                 <div class="ar-opp__top">
-                  <a v-if="card.edit_url" :href="card.edit_url" class="ar-opp__title">{{ card.title }}</a>
+                  <a v-if="card.edit_url" :href="card.edit_url" target="_blank" rel="noopener" class="ar-opp__title">{{ card.title }}</a>
                   <span v-else class="ar-opp__title">{{ card.title }}</span>
                   <code class="ar-opp__path">{{ card.path }}</code>
                   <!-- Both worklists pointing at one page is worth saying: it
@@ -600,16 +642,16 @@ export default {
                        "open in editor" means the same thing on every screen. NOT
                        "open the post": every other link here goes to the editor,
                        and the one that reads like the front end must not. -->
-                  <a v-if="card.waiting && card.open_url" :href="card.open_url" target="_blank" rel="noopener" class="ar-opp__edit">Open in editor ↗</a>
+                  <a v-if="card.waiting && card.open_url" :href="card.open_url" target="_blank" rel="noopener" class="ar-opp__edit">Open in editor</a>
                   <template v-if="!card.waiting">
-                    <a v-if="card.doorless === 'home' && card.general_url" :href="card.general_url" target="_blank" rel="noopener" class="ar-opp__edit is-primary">Edit site title &amp; tagline ↗</a>
-                    <a v-if="card.edit_url" :href="card.edit_url" target="_blank" rel="noopener" class="ar-opp__edit is-primary">Improve meta title &amp; description ↗</a>
-                    <a v-if="group.key === 'almost' && card.links_url" :href="card.links_url" target="_blank" rel="noopener" class="ar-opp__edit">Add internal links ↗</a>
+                    <a v-if="card.doorless === 'home' && card.general_url" :href="card.general_url" target="_blank" rel="noopener" class="ar-opp__edit is-primary">Edit site title &amp; tagline</a>
+                    <a v-if="card.edit_url" :href="card.edit_url" target="_blank" rel="noopener" class="ar-opp__edit is-primary">Improve meta title &amp; description</a>
+                    <a v-if="group.key === 'almost' && card.links_url" :href="card.links_url" target="_blank" rel="noopener" class="ar-opp__edit">Add internal links</a>
                   </template>
                   <!-- Readability survives, waiting or not: it belongs to the
                        OTHER worklist, and that one really does still have work.
                        "Your side is done" was a statement about search. -->
-                  <a v-if="cardFlags(card) && card.read_url" :href="card.read_url" target="_blank" rel="noopener" class="ar-opp__edit">Check readability ↗</a>
+                  <a v-if="cardFlags(card) && card.read_url" :href="card.read_url" target="_blank" rel="noopener" class="ar-opp__edit">Check readability</a>
                   <button
                     v-if="card.page_id || card.page_url"
                     type="button"
@@ -621,14 +663,18 @@ export default {
               </div>
             </li>
           </ul>
-        </template>
+          <!-- The threshold belongs to the group it defines. Left outside the
+               fold it explained “not clicked enough” under a CLOSED box, to a
+               reader who could not see a single one of the pages it was
+               qualifying. -->
+          <p v-if="group.key === 'seen' && searchMedian" class="ar-card__note">
+            “Not clicked enough” means a click rate below <strong>{{ searchCtrBar }}%</strong> —
+            well under the <strong>{{ searchMedian }}%</strong> your own page-one results
+            typically get. Both numbers are your site’s own, not an industry figure, and a page
+            has to fall clearly short before it’s listed rather than merely below average.
+          </p>
+        </details>
       </template>
-      <p v-if="searchMedian" class="ar-card__note">
-        “Not clicked enough” means a click rate below <strong>{{ searchCtrBar }}%</strong> —
-        well under the <strong>{{ searchMedian }}%</strong> your own page-one results
-        typically get. Both numbers are your site’s own, not an industry figure, and a page
-        has to fall clearly short before it’s listed rather than merely below average.
-      </p>
     </template>
 
     <!-- Searches several pages are SPLITTING. The engine can only send one
@@ -641,15 +687,32 @@ export default {
          branch on purpose: a worklist can be clear while a split still
          costs clicks. -->
     <div v-if="searchCollisions.length" id="ar-collisions" class="ar-clsn">
-      <div class="ar-opp__grouphead">
-        <h4 class="ar-opp__grouptitle">One Search, Several Answers</h4>
+      <!-- This is NOT one of the folds above it and must not read as one: the
+           folds are groups of a worklist, this is a finding with its own
+           landing from the Findings screen, and every row in it carries a
+           live decision. So it wears its own head — a rule, a mark, and the
+           title in the section register. The mark is the thing itself: one
+           search forking to two pages. -->
+      <div class="ar-clsn__intro">
+      <div class="ar-clsn__band">
+        <span class="ar-clsn__mark" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M2.6 12h5.2" />
+            <path d="M7.8 12c4.4 0 3.2-5.6 7.6-5.6" />
+            <path d="M7.8 12c4.4 0 3.2 5.6 7.6 5.6" />
+            <circle cx="17.6" cy="6.4" r="2.4" />
+            <circle cx="17.6" cy="17.6" r="2.4" />
+          </svg>
+        </span>
+        <h4 class="ar-clsn__title">One Search, Several Answers</h4>
         <span class="ar-opp__pos is-two">{{ searchCollisions.length }} split search{{ searchCollisions.length === 1 ? '' : 'es' }}</span>
       </div>
-      <p class="ar-opp__groupwhy">
+      <p class="ar-clsn__why">
         These searches show more than one of your pages, and none of them wins the click —
         the clicks divide, so each page ranks lower than one page would. Keep one page as
         the answer for each search; the others can point to it, or answer something it doesn’t.
       </p>
+      </div>
 
       <div v-for="c in searchCollisions" :key="c.query" class="ar-clsn__card">
         <div class="ar-clsn__head">
@@ -658,7 +721,7 @@ export default {
         </div>
         <div v-for="p in c.pages" :key="p.url" class="ar-clsn__row" :data-page-key="p.postId || p.url">
           <div class="ar-clsn__main">
-            <a :href="p.editUrl || p.url" class="ar-clsn__t">{{ p.title }}</a>
+            <a :href="p.editUrl || p.url" target="_blank" rel="noopener" class="ar-clsn__t">{{ p.title }}</a>
             <span class="ar-clsn__path">{{ p.url.replace(/^https?:\/\/[^/]+/, '') || '/' }}</span>
           </div>
           <span class="ar-clsn__nums">
@@ -669,7 +732,7 @@ export default {
           <span class="ar-clsn__bar" aria-hidden="true"><i :style="{ width: Math.round(p.share * 100) + '%' }"></i></span>
           <span v-if="p.winner" class="ar-clsn__win">Earns the click</span>
           <span v-else class="ar-clsn__acts">
-            <a v-if="p.editUrl" class="ar-clsn__act" :href="p.editUrl">Open to edit →</a>
+            <a v-if="p.editUrl" class="ar-clsn__act" :href="p.editUrl" target="_blank" rel="noopener">Open to edit</a>
             <button
               type="button"
               class="ar-clsn__act"
@@ -710,7 +773,7 @@ export default {
       <ul class="ar-optcheck__pages">
         <li v-for="p in searchAside" :key="p.id || p.url" class="ar-optcheck__row" :data-aside-key="p.id || p.url">
           <div class="ar-optcheck__asided">
-            <a :href="p.url" target="_blank" rel="noopener" class="ar-optcheck__page ar-optcheck__page--muted">{{ p.title }} ↗</a>
+            <a :href="p.url" target="_blank" rel="noopener" class="ar-optcheck__page ar-optcheck__page--muted">{{ p.title }}</a>
           </div>
           <button
             type="button"

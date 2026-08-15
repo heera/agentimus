@@ -89,46 +89,127 @@ final class AbilityReadOnlyHintTest extends TestCase {
 		$this->assertTrue( $this->call( 'looks_read_only', 'ns/get-output' ) );
 	}
 
-	/* -- 4. auth_for(): the discovery document must not lie about auth ----- */
+	/* -- 4. Two questions, never one ---------------------------------------- */
 
-	private function auth( array $meta ): string {
-		return (string) $this->call( 'auth_for', $this->ability( $meta ) );
+	/** The vendor's own mark: do they advertise this ability? */
+	private function advertised( array $meta ): bool {
+		return (bool) $this->call( 'advertised', $this->ability( $meta ) );
+	}
+
+	/** What running it takes, from the two facts that decide it. */
+	private function auth(): string {
+		return (string) $this->call( 'auth_for' );
 	}
 
 	/**
-	 * THE REGRESSION. auth_for() used to be
-	 *   (bool) read( $ability, 'get_permission_callback' ) ? 'wp' : 'none'
-	 * and it returned 'none' for EVERY ability — core's WP_Ability exposes no
-	 * get_permission_callback(), so read()'s method_exists() check always failed, returned '', and
-	 * cast to false. The public /.well-known/discovery.json therefore told every agent on the
-	 * internet that manage_options-gated tools needed no authentication.
-	 *
-	 * This ability object deliberately has NO get_permission_callback(), exactly like core's — the
-	 * old code returns 'none' here and the test fails.
+	 * ⭐ THE RULE (his, 2026-08-15): publication is the VENDOR's call — we never
+	 * advertise what they keep back, never hide what they publish. advertised()
+	 * answers that and nothing else.
 	 */
-	public function test_an_ability_that_cannot_be_introspected_is_reported_as_gated() {
-		$this->assertSame( 'wp', $this->auth( array() ), 'With nothing to introspect, the safe answer is "authentication required".' );
-	}
-
-	public function test_our_own_abilities_are_reported_as_gated() {
-		// What Abilities\Registrar actually sets: mcp.public = false, precisely to keep these off a
-		// public surface. The discovery document must agree with the Registrar, not contradict it.
-		$meta = array(
-			'show_in_rest' => true,
-			'annotations'  => array( 'readonly' => true ),
-			'mcp'          => array( 'public' => false ),
+	public function test_advertising_is_the_vendors_decision_and_only_that() {
+		$this->assertTrue( $this->advertised( array( 'mcp' => array( 'public' => true ) ) ) );
+		$this->assertFalse( $this->advertised( array( 'mcp' => array( 'public' => false ) ) ) );
+		$this->assertFalse( $this->advertised( array() ), 'Unmarked is not advertised — the safe direction.' );
+		$this->assertFalse(
+			$this->advertised( array( 'annotations' => array( 'readonly' => true ) ) ),
+			'Read-only says nothing about whether a vendor wants it listed.'
 		);
-		$this->assertSame( 'wp', $this->auth( $meta ) );
 	}
 
-	public function test_an_ability_that_declares_itself_public_is_reported_as_open() {
-		// The one honest way out: an ability says so explicitly. Under-claiming costs an agent one
-		// unnecessary auth header; over-claiming walks it into a 401 and misinforms every reader.
-		$this->assertSame( 'none', $this->auth( array( 'mcp' => array( 'public' => true ) ) ) );
+	/**
+	 * ⛔ THE REGRESSION THIS FIXES. A vendor's "public" mark used to become
+	 * `auth: none` on its own, so WooCommerce marking product-delete public had
+	 * this site publicly advertising five ways to change a shop under the words
+	 * "no sign-in needed". A mark meaning "advertise me" is not a promise that
+	 * anyone may run it.
+	 */
+	public function test_an_advertised_tool_that_changes_something_still_needs_a_sign_in() {
+		$this->assertSame( 'wp', $this->auth() );
 	}
 
-	public function test_readonly_does_not_imply_public() {
-		// Read-only says nothing about WHO may read. All nine of ours are read-only AND admin-only.
-		$this->assertSame( 'wp', $this->auth( array( 'annotations' => array( 'readonly' => true ) ) ) );
+	/**
+	 * ⛔ THE SECOND HALF OF THE SAME BUG, found 2026-08-16. "Advertised AND
+	 * read-only ⇒ no sign-in needed" was still wrong: on a site running
+	 * WooCommerce, FluentCRM, FluentBoards, AIOSEO and WP Mail SMTP it put 32
+	 * tools in the public document as open to anyone — woocommerce/orders-query
+	 * among them, gated by wc_rest_check_post_permissions(). Read-only means a
+	 * tool does not write; it says nothing about whether what it reads is public,
+	 * and someone's customer orders are not.
+	 *
+	 * ⭐ The Abilities API registers every ability WITH a permission callback, so
+	 * there is no ungated ability to describe. A sign-in is the only honest
+	 * answer, whatever the two marks say.
+	 */
+	public function test_a_tool_that_only_reads_still_needs_a_sign_in() {
+		$this->assertSame( 'wp', $this->auth(), 'Read-only is not public. Every ability has a gate.' );
+	}
+
+	public function test_anything_the_vendor_did_not_advertise_needs_a_sign_in() {
+		$this->assertSame( 'wp', $this->auth(), 'Read-only says nothing about WHO may read.' );
+	}
+
+	/* -- 5. The owner's veto ------------------------------------------------ */
+
+	/**
+	 * Build a namespace's resource the way provide() does, with two abilities the
+	 * vendor advertises: one that reads, one that changes something.
+	 *
+	 * @param bool $hold_back The owner's tick.
+	 * @return array
+	 */
+	private function group( bool $hold_back ): array {
+		// Both advertised by their vendor. The read-only one SAYS SO, the way a
+		// real plugin does — WooCommerce declares the annotation on its query
+		// tools rather than leaving it to be guessed from the name.
+		$advertised = array( 'mcp' => array( 'public' => true ), 'show_in_rest' => true );
+		$reads      = $advertised + array( 'annotations' => array( 'readonly' => true ) );
+		$changes    = $advertised + array( 'annotations' => array( 'readonly' => false ) );
+		$items      = array(
+			array( 'name' => 'shop/products-query', 'ability' => $this->ability( $reads ) ),
+			array( 'name' => 'shop/product-delete', 'ability' => $this->ability( $changes ) ),
+		);
+
+		$m = new \ReflectionMethod( AbilitiesApi::class, 'resource_for' );
+		\_af_accessible( $m );
+		return $m->invoke( new AbilitiesApi(), 'shop', $items, $hold_back );
+	}
+
+	/** Which tool names the served document would carry. */
+	private function published( array $resource ): array {
+		$out = array();
+		foreach ( $resource['tools'] as $tool ) {
+			if ( ! empty( $tool['public'] ) ) {
+				$out[] = $tool['name'];
+			}
+		}
+		return $out;
+	}
+
+	public function test_without_the_veto_the_vendors_choice_stands() {
+		$resource = $this->group( false );
+
+		$this->assertSame(
+			array( 'shop/products-query', 'shop/product-delete' ),
+			$this->published( $resource ),
+			'The vendor advertised both, so both are published.'
+		);
+		$this->assertSame( 'basic', $resource['auth']['type'], 'A published tool that changes something means the group needs a sign-in.' );
+	}
+
+	/**
+	 * ⭐ HIS RULE, the owner's half: publication is the vendor's call, but on
+	 * their own site the owner's no outranks a plugin's yes — the same rule
+	 * post_types_vetoed already states for content.
+	 */
+	public function test_the_veto_removes_only_the_jobs_that_change_something() {
+		$resource = $this->group( true );
+
+		$this->assertSame(
+			array( 'shop/products-query' ),
+			$this->published( $resource ),
+			'The reading job is untouched; only the changing one leaves.'
+		);
+		$this->assertSame( 'basic', $resource['auth']['type'], 'Still a sign-in: reading a gated ability is not open to anyone.' );
+		$this->assertCount( 2, $resource['tools'], 'The owner still sees both on their own screen; only the served list is trimmed.' );
 	}
 }

@@ -268,6 +268,33 @@ final class Client {
 	}
 
 	/**
+	 * The pages one specific SEARCH shows — the same relationship as
+	 * {@see page_query_stats()}, asked from the other end.
+	 *
+	 * Worth having both. "Which searches show this page" fills in one page's row
+	 * and costs a request per page, so a large site is worked through slowly.
+	 * "Which pages show for this search" answers the split-search question — two
+	 * of your own pages competing for one search — in a single request, over a
+	 * list of searches that is short and already known. It also reaches pages the
+	 * page-by-page rotation has not got to yet.
+	 *
+	 * Bing reuses its QueryStats shape here as it does for page_stats(): the row
+	 * key is the PAGE URL, not the query.
+	 *
+	 * @param string $api_key  API key.
+	 * @param string $site_url Site URL.
+	 * @param string $query    The search.
+	 * @return array { rows?: array<int,array>, error?: string }
+	 */
+	public function query_page_stats( $api_key, $site_url, $query ) {
+		$out = $this->get( 'GetQueryPageStats', $api_key, array(
+			'siteUrl' => (string) $site_url,
+			'query'   => (string) $query,
+		) );
+		return isset( $out['error'] ) ? $out : array( 'rows' => self::qstats_rows( $out['d'], 'Query' ) );
+	}
+
+	/**
 	 * Normalize Bing's QueryStats DTO rows: { key, date_at, clicks,
 	 * impressions, position }. Position prefers the impression-weighted
 	 * average and is filterable (`agentimus_bing_position_scale`) because the

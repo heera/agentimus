@@ -97,34 +97,58 @@ final class AbilitiesApi {
 			$by_namespace[ $namespace ][] = array( 'name' => $name, 'ability' => $ability );
 		}
 
+		// The owner's one veto, read once: keep every job that CHANGES something
+		// out of the public documents, whatever its plugin marked. Publication is
+		// the vendor's call; this is the owner's no on top of it, and on their own
+		// site their no wins — the rule post_types_vetoed already states.
+		$hold_back = (bool) ( new \Agentimus\Settings() )->get( 'hold_back_changing_jobs', false );
+
 		foreach ( $by_namespace as $namespace => $items ) {
-			$registry->register( $this->resource_for( $namespace, $items ) );
+			$registry->register( $this->resource_for( $namespace, $items, $hold_back ) );
 		}
 	}
 
 	/**
 	 * Build one discovery resource for a namespace's abilities.
 	 *
-	 * @param string $namespace Namespace slug.
-	 * @param array[] $items    Each {name, ability}.
+	 * @param string  $namespace Namespace slug.
+	 * @param array[] $items     Each {name, ability}.
+	 * @param bool    $hold_back The owner's veto on jobs that change something.
 	 * @return array
 	 */
-	private function resource_for( $namespace, $items ) {
+	private function resource_for( $namespace, $items, $hold_back = false ) {
 		$tools     = array();
 		$abilities = array();
 		$skills    = array();
 
-		$needs_auth = false;
+		$needs_auth     = false;
+		$any_advertised = false;
 
 		foreach ( $items as $item ) {
 			$ability     = $item['ability'];
 			$name        = $item['name'];
-			$abilities[] = $name;
 			$short       = strpos( $name, '/' ) ? substr( $name, strpos( $name, '/' ) + 1 ) : $name;
 			$desc        = (string) self::read( $ability, 'get_description' );
-			$auth        = self::auth_for( $ability );
 
-			$needs_auth = $needs_auth || 'none' !== $auth;
+			// TWO SEPARATE QUESTIONS, and conflating them was the bug.
+			//
+			//   1. Does the vendor advertise this tool? Their call, never ours —
+			//      we neither publish what they kept back nor hide what they
+			//      published. That is the `mcp.public` mark, and nothing else.
+			//   2. What does running it take? Ours to state honestly. A tool that
+			//      CHANGES something is never "no sign-in needed", whoever marked
+			//      it public: WooCommerce marks product-delete public, which asks
+			//      us to advertise it, not to promise anyone may run it.
+			$read_only  = self::read_only_hint( $ability, $name );
+			$advertised = self::advertised( $ability ) && ! ( $hold_back && ! $read_only );
+			$auth       = self::auth_for();
+
+			// Only what is actually served decides the group's own line.
+			if ( $advertised ) {
+				$any_advertised = true;
+				$needs_auth     = $needs_auth || 'none' !== $auth;
+				$abilities[]    = $name;
+			}
 
 			$tools[] = array(
 				'name'         => $name,
@@ -134,6 +158,11 @@ final class AbilitiesApi {
 				// but this array flattened them, so every count downstream said
 				// "tools" for a number that included four documents.
 				'kind'         => self::is_resource( $ability ) ? 'resource' : 'tool',
+				// The vendor's decision, carried per tool so a namespace with a
+				// mixed hand publishes exactly the hand it was dealt. Held-back
+				// tools still reach the ADMIN screen — the owner sees everything
+				// their site holds; only the served document is trimmed.
+				'public'       => $advertised,
 				'title'        => (string) self::read( $ability, 'get_label' ),
 				'description'  => $desc,
 				'inputSchema'  => (array) self::read( $ability, 'get_input_schema', array() ),
@@ -172,13 +201,26 @@ final class AbilitiesApi {
 
 		return array(
 			'id'           => 'abilities-' . sanitize_key( $namespace ),
-			'title'        => ucfirst( $namespace ) . ' abilities',
+			// ⭐ THE VENDOR'S OWN NAME when they wrote one. Ability CATEGORIES are
+			// registered with a human label — AIOSEO publishes "AIOSEO — Posts",
+			// WooCommerce "WooCommerce", FluentBoards "FluentBoards" — and we were
+			// printing the slug instead, which is hiding something a vendor
+			// advertises. (An earlier note here said no honest source existed for
+			// their capitalisation. wp_get_ability_categories() is that source; it
+			// was simply not looked at.)
+			//
+			// ⚠️ Only when the group agrees on ONE labelled category. WordPress
+			// core's two abilities sit under "Site" and "User" at once, and no
+			// single name is true of both — that group keeps the quoted slug, which
+			// says "this is their word, not our sentence". ⛔ ucfirst() is never the
+			// answer: it turned real names into misspellings ("Woocommerce", "Ai").
+			'title'        => self::group_title( $namespace, $items ),
 			'type'         => 'agent',
 			// Registered either way, so the Discovery screen can still show the owner what their
 			// site exposes — but kept out of every SERVED surface when it is all sign-in-only.
-			'public'       => $publish_gated || ! $needs_auth,
-			/* translators: 1: count, 2: namespace. */
-			'description'  => sprintf( _n( '%1$d ability from the "%2$s" namespace.', '%1$d abilities from the "%2$s" namespace.', count( $items ), 'agentimus' ), count( $items ), $namespace ),
+			'public'       => $publish_gated || $any_advertised,
+			/* translators: %d: how many jobs this plugin registered. */
+			'description'  => sprintf( _n( '%d thing an AI assistant can do here. It is listed further down, under “For a signed-in assistant”.', '%d things an AI assistant can do here. They are listed further down, under “For a signed-in assistant”.', count( $items ), 'agentimus' ), count( $items ) ),
 			'abilities'    => $abilities,
 			'tools'        => $tools,
 			// The resource inherits the strictest requirement of the tools inside it. Left unset it
@@ -190,8 +232,8 @@ final class AbilitiesApi {
 			// application password is HTTP Basic auth over REST.
 			'auth'         => array( 'type' => $needs_auth ? 'basic' : 'none' ),
 			'agent'        => array(
-				'name'        => ucfirst( $namespace ) . ' Agent',
-				'description' => sprintf( '%s capabilities exposed as MCP tools.', ucfirst( $namespace ) ),
+				'name'        => $namespace . ' Agent',
+				'description' => sprintf( '%s capabilities exposed as MCP tools.', $namespace ),
 				'skills'      => $skills,
 				'endpoint'    => '',
 				'auth'        => $needs_auth ? 'wp' : '',
@@ -200,34 +242,189 @@ final class AbilitiesApi {
 	}
 
 	/**
-	 * What an agent must present to call this ability.
+	 * The heading for one group of jobs: the vendor's own words when they wrote
+	 * them, their slug in quotes when they didn't.
 	 *
-	 * This USED to be `(bool) read( $ability, 'get_permission_callback' ) ? 'wp' : 'none'`, and it
-	 * was a lie on every single ability. Core's WP_Ability exposes no `get_permission_callback()`
-	 * — only get_name/get_label/get_description/get_category/get_input_schema/get_output_schema/
-	 * get_meta/get_meta_item — so read()'s method_exists() check always failed, returned '', cast to
-	 * false, and the ternary could never yield 'wp'. Every ability in the public discovery document
-	 * was published as `auth: none`, including ones gated behind manage_options. An agent that
-	 * believed us walked straight into a 401, and telling agents the truth about a site is the one
-	 * job this plugin has.
+	 * @param string $namespace The name prefix these abilities share.
+	 * @param array  $items     The group's abilities.
+	 * @return string
+	 */
+	private static function group_title( $namespace, $items ) {
+		$label = self::shared_category_label( $namespace, $items );
+
+		if ( '' !== $label ) {
+			/* translators: %s: a plugin's own name for a group of jobs, e.g. "AIOSEO — Posts". */
+			return sprintf( __( 'Jobs from %s', 'agentimus' ), $label );
+		}
+
+		/* translators: %s: the namespace a plugin registered its jobs under, e.g. woocommerce. */
+		return sprintf( __( 'Jobs from “%s”', 'agentimus' ), $namespace );
+	}
+
+	/**
+	 * The label of the one category every ability in a group belongs to, or ''.
 	 *
-	 * There is nothing to introspect, so we take the safe direction instead of guessing. The
-	 * Abilities API requires a permission_callback at registration, so "gated" is the correct
-	 * default; an ability that genuinely is public can say so by declaring `meta.mcp.public`, the
-	 * same flag the MCP adapter reads (see Abilities\Registrar, which sets it FALSE precisely to
-	 * keep our own abilities off a public surface).
+	 * ⛔ Empty is returned for every case where a single name would be a guess: no
+	 * category API, a member with no category, two categories in one group, or a
+	 * category registered without a label. We publish their name or their slug —
+	 * never a third thing we made up.
 	 *
-	 * Under-claiming costs an agent one unnecessary auth header. Over-claiming sends it into a 401
-	 * and misinforms every reader of the document. Those are not symmetric.
+	 * ⚠️ THE ONE THAT GOT THROUGH. A category can be BORROWED: MailPoet files its
+	 * two abilities under WooCommerce's category, so a rule that only asked "do
+	 * they agree on one category" titled two different groups "Jobs from
+	 * WooCommerce" — one of them MailPoet's. A name is only a name if it points at
+	 * one thing. So the label is used when the category IS this group (its slug is
+	 * the namespace) or when nobody else files under it; a borrowed one names
+	 * nobody and the borrower keeps its slug.
+	 *
+	 * @param string $namespace The name prefix these abilities share.
+	 * @param array  $items     The group's abilities.
+	 * @return string
+	 */
+	private static function shared_category_label( $namespace, $items ) {
+		if ( ! function_exists( 'wp_get_ability_categories' ) ) {
+			return '';
+		}
+
+		$seen = array();
+		foreach ( $items as $item ) {
+			$category = self::read( isset( $item['ability'] ) ? $item['ability'] : null, 'get_category', '' );
+			$category = is_object( $category ) ? self::read( $category, 'get_name', '' ) : (string) $category;
+
+			if ( '' === $category ) {
+				return '';
+			}
+			$seen[ $category ] = true;
+		}
+
+		if ( 1 !== count( $seen ) ) {
+			return '';
+		}
+
+		$wanted = key( $seen );
+
+		if ( $wanted !== $namespace && ! self::category_belongs_only_to( $wanted, $namespace ) ) {
+			return '';
+		}
+
+		foreach ( (array) wp_get_ability_categories() as $key => $category ) {
+			$name = is_object( $category ) ? self::read( $category, 'get_name', (string) $key ) : (string) $key;
+			if ( $name !== $wanted ) {
+				continue;
+			}
+
+			$label = is_object( $category )
+				? self::read( $category, 'get_label', '' )
+				: ( is_array( $category ) && isset( $category['label'] ) ? $category['label'] : '' );
+
+			return trim( (string) $label );
+		}
+
+		return '';
+	}
+
+	/**
+	 * Whether a category is used by this namespace and no other.
+	 *
+	 * ⚠️ Every REGISTERED ability counts here, including the ones we skip further
+	 * up (no REST route, filtered out). A name shared with something we don't show
+	 * is still shared, and the question being asked is whose name it is — not
+	 * what we happen to publish.
+	 *
+	 * @param string $category  The category slug.
+	 * @param string $namespace The namespace claiming it.
+	 * @return bool
+	 */
+	private static function category_belongs_only_to( $category, $namespace ) {
+		if ( ! function_exists( 'wp_get_abilities' ) ) {
+			return false; // Cannot establish it is theirs alone, so do not claim it.
+		}
+
+		foreach ( (array) wp_get_abilities() as $ability ) {
+			$name = (string) self::read( $ability, 'get_name' );
+			if ( '' === $name ) {
+				continue;
+			}
+
+			$owner = strpos( $name, '/' ) ? substr( $name, 0, strpos( $name, '/' ) ) : $name;
+			if ( $owner === $namespace ) {
+				continue;
+			}
+
+			$theirs = self::read( $ability, 'get_category', '' );
+			$theirs = is_object( $theirs ) ? self::read( $theirs, 'get_name', '' ) : (string) $theirs;
+
+			if ( $theirs === $category ) {
+				return false;
+			}
+		}
+
+		return true;
+	}
+
+	/**
+	 * What running this tool takes. Ours to say, and never louder than the truth.
+	 *
+	 * ⛔ ALWAYS a sign-in, and the reason is in the Abilities API itself: every
+	 * ability is registered WITH a permission callback. There is no such thing as
+	 * an ungated ability, so "anyone may run this" is a sentence we can never
+	 * honestly write about one.
+	 *
+	 * ⚠️ WHAT THIS REPLACED, and why it was wrong twice. The rule used to read
+	 * "advertised AND read-only ⇒ no sign-in needed". The first half of that was
+	 * corrected once already, when marking writes public published five ways to
+	 * change a shop as open to anyone. The read half survived and was just as
+	 * wrong: on a site running WooCommerce, FluentCRM, FluentBoards, AIOSEO and
+	 * WP Mail SMTP it put THIRTY-TWO tools in the public document under "no
+	 * sign-in needed" — among them woocommerce/orders-query, gated by
+	 * wc_rest_check_post_permissions(), fluent-crm/list-contacts, and
+	 * fluent-boards/list-boards, whose own description says it returns the boards
+	 * "visible to the current user". A stranger calling any of them is refused.
+	 *
+	 * ⭐ Read-only was never the question. Read-only says a tool does not WRITE;
+	 * it says nothing about whether the thing it reads is public, and someone's
+	 * customer orders are not. The vendor's `mcp.public` mark is not the question
+	 * either — that one asks us to list the tool, which we do.
+	 *
+	 * Under-claiming costs an agent one unnecessary auth header. Over-claiming
+	 * walks it into a 401 and misinforms every reader of the document. Those are
+	 * not symmetric, and the screen already says it in words: every tool on the
+	 * Discovery page sits under the heading "For a signed-in assistant".
+	 *
+	 * @return string Always 'wp' — an ability is gated by its own permission callback.
+	 */
+	private static function auth_for() {
+		return 'wp';
+	}
+
+	/**
+	 * Whether the VENDOR advertises this ability — their decision, read from the
+	 * `meta.mcp.public` mark and nothing else.
+	 *
+	 * ⭐ THE RULE (his, 2026-08-15): we do not advertise what a vendor keeps back,
+	 * and we do not hide what a vendor advertises. We never invent an entry on a
+	 * plugin's behalf. So this answers one question only, and the answer belongs
+	 * to whoever registered the ability. It holds for every plugin on the site,
+	 * today's and tomorrow's — nothing here is written for a particular vendor.
+	 *
+	 * ⛔ It does NOT answer "may anyone run this". That is a separate question,
+	 * answered by what the tool does, and mixing the two published five ways to
+	 * change a shop under the words "no sign-in needed". A mark that means
+	 * "advertise me" cannot be read as "everyone may use me".
+	 *
+	 * Default false is the safe direction and the correct one: the Abilities API
+	 * requires a permission callback at registration, so an ability is gated
+	 * unless it says otherwise. Our own Registrar sets the flag FALSE deliberately,
+	 * to keep Agentimus's tools off a public surface.
 	 *
 	 * @param mixed $ability The ability object.
-	 * @return string 'wp' when authentication is required, 'none' when the ability declares itself public.
+	 * @return bool True when the ability declares itself advertised.
 	 */
-	private static function auth_for( $ability ) {
+	private static function advertised( $ability ) {
 		$meta = (array) self::read( $ability, 'get_meta', array() );
 		$mcp  = isset( $meta['mcp'] ) && is_array( $meta['mcp'] ) ? $meta['mcp'] : array();
 
-		return ! empty( $mcp['public'] ) ? 'none' : 'wp';
+		return ! empty( $mcp['public'] );
 	}
 
 	/**

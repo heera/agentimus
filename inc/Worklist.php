@@ -35,8 +35,19 @@ final class Worklist {
 	/** Filter tag on the assembled list. */
 	const FILTER = 'agentimus_worklist';
 
-	/** Rows built per request. Each one parses a page, so this is a real cost. */
+	/**
+	 * Rows built per request. Each one parses a page, so this is a real cost.
+	 *
+	 * ⚠️ No longer the ceiling on the LIST — only on one page of it. It used to
+	 * be both, which is why an owner with 340 pages was shown thirty and given no
+	 * way to reach the rest: the ranking itself could not be computed beyond what
+	 * one request could afford to parse. Grades are stored now {@see Grades}, so
+	 * the ranking covers the whole site and this governs one screenful.
+	 */
 	const MAX_ITEMS = 30;
+
+	/** Rows on one page of the list. */
+	const PER_PAGE = 20;
 
 	/** Content flags shown per row before the rest are counted. */
 	const MAX_FLAGS = 3;
@@ -52,107 +63,72 @@ final class Worklist {
 	}
 
 	/**
-	 * The whole worklist.
+	 * Bind the grading sweep and the two events that make a grade go stale.
 	 *
-	 * @return array{items:array<int,array>,counts:array<string,int>,capped:bool,total:int,searchState:string}
+	 * @return void
 	 */
-	public function all() {
-		$search = $this->search_by_post();
-		$ranked = $this->candidates( $search );
+	public function register() {
+		// ⚠️ A plugin update does not re-run activation, so a table added in a
+		// new version has to be created from a register() or it will never exist
+		// on a site that already had the plugin. It also has to happen BEFORE the
+		// hooks below: deleting a post fires deleted_post, and a write against a
+		// table that is not there is a database error in the owner's log.
+		Grades::maybe_install();
 
-		$total  = count( $ranked );
-		$capped = $total > self::MAX_ITEMS;
-		$ranked = array_slice( $ranked, 0, self::MAX_ITEMS );
+		add_action( Grades::CRON, array( $this, 'sweep_and_continue' ) );
 
-		$aside = $this->set_aside_ids();
-		$items = array();
-		foreach ( $ranked as $id ) {
-			$item = $this->item( (int) $id, isset( $search[ $id ] ) ? $search[ $id ] : array(), in_array( (int) $id, $aside, true ) );
-			if ( $item ) {
-				$items[] = $item;
-			}
-		}
-
-		// Every parked page ships, wherever it ranks. The cap governs the
-		// worth-looking-at list; Set aside is a LEDGER — a page parked from a
-		// finding that ranked below the shortlist used to vanish from this
-		// screen entirely: still excluded from grading, listed on Readiness,
-		// but unfindable and unrestorable HERE, where it was parked. Parked
-		// pages are few by nature (each is a hand decision), so the extra
-		// rows stay bounded.
-		$listed = array();
-		foreach ( $items as $item ) {
-			$listed[ (int) $item['id'] ] = true;
-		}
-		foreach ( $aside as $id ) {
-			if ( isset( $listed[ (int) $id ] ) ) {
-				continue;
-			}
-			$item = $this->item( (int) $id, isset( $search[ $id ] ) ? $search[ $id ] : array(), true );
-			if ( $item ) {
-				$items[] = $item;
-			}
-		}
-
-		// Sorted by what a fix is worth: impressions already being earned on a
-		// search the page answers poorly. A page with no data cannot be ranked
-		// this way and sits below the ones that can.
-		usort(
-			$items,
-			static function ( $a, $b ) {
-				return (int) $b['stake'] <=> (int) $a['stake'];
-			}
-		);
-
-		// Exclusive by construction: every row lands in exactly one bucket, so the
-		// chips add up to the list. Overlapping counts ("9 worth fixing, 16 with
-		// no data" over 30 rows) make an owner distrust the whole screen.
-		$counts = array(
-			'fixable'  => 0,
-			'clear'    => 0,
-			'setAside' => 0,
-		);
-		$no_search = 0;
-		foreach ( $items as $item ) {
-			if ( ! $item['focus'] ) {
-				++$no_search;
-			}
-			if ( $item['setAside'] ) {
-				++$counts['setAside'];
-			} elseif ( $this->needs_work( $item ) ) {
-				++$counts['fixable'];
-			} else {
-				++$counts['clear'];
-			}
-		}
-
-		$payload = array(
-			'items'       => $items,
-			'counts'      => $counts,
-			// Said out loud. A sample that stops silently reads as the whole site.
-			'capped'      => $capped,
-			'total'       => $total,
-			// Not a chip: "no search data yet" is a fact about a row, not a
-			// verdict on it, and a page with no data can still need work.
-			'noSearchData' => $no_search,
-			'searchState' => $this->search_state(),
-			// Whose report every row above was drawn from, and how many pages
-			// that report can speak about. On Bing the answer is the busiest few,
-			// which changes what an empty focus column MEANS: not "no searches
-			// reached this page" but "this source never looked at this page".
-			'engine'      => $this->engine_label(),
-			'pageCap'     => Report::page_cap(),
-		);
-
-		/**
-		 * The assembled content worklist.
-		 *
-		 * @param array    $payload  items/counts/capped/total/searchState.
-		 * @param Settings $settings Plugin settings.
-		 */
-		$payload = apply_filters( self::FILTER, $payload, $this->settings );
-		return is_array( $payload ) ? $payload : array( 'items' => array(), 'counts' => $counts, 'capped' => false, 'total' => 0, 'searchState' => '', 'engine' => '', 'pageCap' => 0 );
+		// Marking only — never grading here. A save is the one moment the owner
+		// is waiting for the editor to come back, and rendering their page again
+		// to re-grade it would be felt every single time.
+		add_action( 'save_post', array( __CLASS__, 'on_save' ), 20, 2 );
+		add_action( 'deleted_post', array( __CLASS__, 'on_delete' ) );
 	}
+
+	/**
+	 * Grade a chunk, and come straight back if there is more to do.
+	 *
+	 * The same shape the index sweep uses: an hourly schedule keeps it alive,
+	 * but a site with three hundred ungraded pages should not take three hundred
+	 * hours to finish, so a full chunk books the next one a minute out.
+	 *
+	 * @return void
+	 */
+	public function sweep_and_continue() {
+		$done = $this->sweep();
+		if ( $done >= Grades::SWEEP_CHUNK ) {
+			wp_schedule_single_event( time() + MINUTE_IN_SECONDS, Grades::CRON );
+		}
+	}
+
+	/**
+	 * A post was saved: its grade is now a statement about an older version.
+	 *
+	 * @param int      $post_id Post ID.
+	 * @param \WP_Post $post    The post.
+	 * @return void
+	 */
+	public static function on_save( $post_id, $post ) {
+		if ( wp_is_post_revision( $post_id ) || wp_is_post_autosave( $post_id ) ) {
+			return;
+		}
+		if ( ! $post || 'publish' !== $post->post_status ) {
+			// Unpublished content has no place in a list of pages to work on.
+			Grades::forget( $post_id );
+			return;
+		}
+		Grades::mark_stale( $post_id );
+	}
+
+	/**
+	 * A post was deleted: nothing about it is true any more.
+	 *
+	 * @param int $post_id Post ID.
+	 * @return void
+	 */
+	public static function on_delete( $post_id ) {
+		Grades::forget( $post_id );
+	}
+
 
 	/**
 	 * The cheap facts, for the state before anyone has asked for the real scan.
@@ -190,9 +166,10 @@ final class Worklist {
 			'searchState' => $this->search_state(),
 			// "12 of your 300 pages have search data" invites one of two very
 			// different conclusions, and only the source can say which: Google
-			// found 12, or Bing was only ever asked about 10.
+			// found 12, or Bing has not finished working through the other 288.
 			'engine'      => $this->engine_label(),
 			'pageCap'     => Report::page_cap(),
+			'waiting'     => Report::waiting_pages(),
 		);
 	}
 
@@ -219,14 +196,17 @@ final class Worklist {
 	 *
 	 * @return array<int,array<int,array>>
 	 */
-	private function search_by_post() {
-		$state = Report::source_state();
-		if ( '' === (string) $state['source'] ) {
+	private function search_by_post( $source = '' ) {
+		if ( '' === (string) $source ) {
+			$state  = Report::source_state();
+			$source = (string) $state['source'];
+		}
+		if ( '' === (string) $source ) {
 			return array();
 		}
 
 		$out = array();
-		foreach ( (array) Search\Table::snapshot( $state['source'] ) as $row ) {
+		foreach ( (array) Search\Table::snapshot( $source ) as $row ) {
 			$id = (int) ( isset( $row['page_id'] ) ? $row['page_id'] : 0 );
 			if ( $id <= 0 ) {
 				continue;
@@ -299,6 +279,252 @@ final class Worklist {
 	}
 
 	/**
+	 * One page of the list, ranked over the WHOLE site.
+	 *
+	 * ⭐ This is what the grade store bought. The order is unchanged — pages
+	 * needing work first, then by what a fix is worth — but it is now an indexed
+	 * query over every published page rather than a sort of the thirty this
+	 * request could afford to read. Page four costs what page one costs.
+	 *
+	 * Only the rows on this page are parsed. Their detail (which words are
+	 * missing, which passage answers the search) is built live and never cached,
+	 * so a row can never quietly describe a version of the post that no longer
+	 * exists.
+	 *
+	 * @param string $filter 'fixable' | 'clear' | 'setAside'.
+	 * @param int    $page   1-based page number.
+	 * @param int    $per    Rows per page.
+	 * @return array
+	 */
+	public function page( $filter, $page = 1, $per = self::PER_PAGE ) {
+		$filter = in_array( $filter, array( 'fixable', 'clear', 'setAside' ), true ) ? $filter : 'fixable';
+		// ⚠️ A missing or zero size means "use the normal page size", NOT "one
+		// row". Clamping with max(1, …) turned an absent parameter into a
+		// one-row page and an eight-row list into eight pages — which the tests
+		// never saw, because every one of them passed a size explicitly.
+		$per    = (int) $per > 0 ? min( self::MAX_ITEMS, (int) $per ) : self::PER_PAGE;
+		$page   = max( 1, (int) $page );
+
+		$types = $this->post_types();
+		$aside = $this->set_aside_ids();
+		$slice = Grades::page( $filter, $types, $aside, $page, $per );
+
+		$search = $this->search_by_post();
+		// Both engines, read once for the whole page rather than once per row.
+		$maps   = $this->engine_maps();
+		$items  = array();
+		foreach ( $slice['ids'] as $id ) {
+			$item = $this->item( (int) $id, isset( $search[ $id ] ) ? $search[ $id ] : array(), in_array( (int) $id, $aside, true ) );
+			if ( $item ) {
+				$item['engines'] = $this->engine_blocks( (int) $id, (string) $item['url'], $maps );
+				$items[]         = $item;
+			}
+		}
+
+		$payload = array(
+			'items'        => $items,
+			'counts'       => Grades::counts( $types, $aside ),
+			'filter'       => $filter,
+			'page'         => $page,
+			'per'          => $per,
+			'total'        => (int) $slice['total'],
+			// ⚠️ The screen's honesty about ITSELF. Until every page has been
+			// graded, this list is ranked over part of the site — a different
+			// claim from the finished one, and only this number can say which is
+			// on screen.
+			'grading'      => Grades::remaining( $types ),
+			'noSearchData' => Grades::without_search( $types ),
+			'searchState'  => $this->search_state(),
+			'engine'       => $this->engine_label(),
+			'pageCap'      => Report::page_cap(),
+			'waiting'      => Report::waiting_pages(),
+		);
+
+		/** This filter's contract is unchanged; the payload simply carries paging now. */
+		$payload = apply_filters( self::FILTER, $payload, $this->settings );
+		return is_array( $payload ) ? $payload : array( 'items' => array(), 'counts' => array(), 'total' => 0 );
+	}
+
+	/** @var int Searches shown per engine on an opened row before the rest are counted. */
+	const MAX_ENGINE_ROWS = 5;
+
+	/**
+	 * Read both engines once, for a whole page of rows.
+	 *
+	 * ⚠️ Once, not once per row: each call is a full snapshot read, and doing it
+	 * inside the row loop would be twenty of them for twenty rows.
+	 *
+	 * @return array
+	 */
+	private function engine_maps() {
+		$state = Report::source_state();
+		$maps  = array( 'state' => $state['sources'], 'rows' => array(), 'asks' => array(), 'checked' => array() );
+
+		foreach ( array( 'google', 'bing' ) as $source ) {
+			if ( empty( $state['sources'][ $source ]['connected'] ) ) {
+				continue;
+			}
+			$maps['rows'][ $source ] = $this->search_by_post( $source );
+		}
+
+		if ( ! empty( $state['sources']['google']['connected'] ) ) {
+			$maps['checked']['google'] = (int) ( new \Agentimus\Google\Settings() )->get( 'last_poll_at', 0 );
+		}
+		if ( ! empty( $state['sources']['bing']['connected'] ) ) {
+			// Bing is asked page by page, so "when was this checked" is a fact
+			// about the PAGE, not about the connection.
+			$maps['asks'] = Search\Asks::map( 'bing' );
+		}
+
+		return $maps;
+	}
+
+	/**
+	 * What each connected engine can say about ONE page.
+	 *
+	 * ⭐ THE POINT OF THE WHOLE ARC. Every screen before this picked one engine
+	 * and showed it as though it were the answer, so a site with both connected
+	 * saw only Google and never learned the other half. Here each engine gets its
+	 * own block, its own window and its own last-checked stamp, and ⛔ THE TWO ARE
+	 * NEVER SUMMED — an average of two engines' positions is a number neither of
+	 * them reported.
+	 *
+	 * The `state` is what lets an absence name itself, which the queries table
+	 * alone cannot do:
+	 *
+	 *   reported      → these are the searches, here they are
+	 *   none          → asked, and the engine reported nothing for this page
+	 *   unasked       → nobody has asked about this page yet (Bing only)
+	 *   error         → asked, and the engine refused; its own words are kept
+	 *   not_connected → this engine is not connected at all
+	 *
+	 * @param int    $post_id Post ID.
+	 * @param string $url     The page's permalink.
+	 * @param array  $maps    From {@see engine_maps()}.
+	 * @return array<string,array>
+	 */
+	private function engine_blocks( $post_id, $url, array $maps ) {
+		$out = array();
+
+		foreach ( array( 'google', 'bing' ) as $source ) {
+			$connected = ! empty( $maps['state'][ $source ]['connected'] );
+			$block     = array(
+				'name'      => 'google' === $source ? __( 'Google', 'agentimus' ) : __( 'Bing', 'agentimus' ),
+				'state'     => 'not_connected',
+				'rows'      => array(),
+				'more'      => 0,
+				'window'    => array( 'start' => '', 'end' => '' ),
+				'checkedAt' => 0,
+				'error'     => '',
+			);
+
+			if ( ! $connected ) {
+				$out[ $source ] = $block;
+				continue;
+			}
+
+			$rows = isset( $maps['rows'][ $source ][ $post_id ] ) ? $maps['rows'][ $source ][ $post_id ] : array();
+
+			if ( 'bing' === $source ) {
+				$ask = isset( $maps['asks'][ Search\Asks::key( $post_id, $url ) ] )
+					? $maps['asks'][ Search\Asks::key( $post_id, $url ) ]
+					: null;
+				if ( null === $ask ) {
+					// The sentence this arc exists for. Not "no searches reached
+					// this page" — nobody has put the question to Bing yet.
+					$block['state']  = 'unasked';
+					$out[ $source ] = $block;
+					continue;
+				}
+				$block['checkedAt'] = strtotime( $ask['askedAt'] . ' UTC' );
+				$block['error']     = (string) $ask['error'];
+				if ( Search\Asks::STATUS_ERROR === $ask['status'] ) {
+					$block['state'] = 'error';
+					$out[ $source ] = $block;
+					continue;
+				}
+			} else {
+				$block['checkedAt'] = isset( $maps['checked']['google'] ) ? (int) $maps['checked']['google'] : 0;
+			}
+
+			if ( ! $rows ) {
+				$block['state'] = 'none';
+				$out[ $source ] = $block;
+				continue;
+			}
+
+			$block['state'] = 'reported';
+			// Each engine's REAL window, off the rows themselves. Bing's is
+			// anchored at its own newest weekly bucket and can end days before
+			// Google's, so one shared "last 56 days" over both was never true.
+			$block['window'] = array(
+				'start' => (string) ( isset( $rows[0]['range_start'] ) ? $rows[0]['range_start'] : '' ),
+				'end'   => (string) ( isset( $rows[0]['range_end'] ) ? $rows[0]['range_end'] : '' ),
+			);
+			foreach ( array_slice( $rows, 0, self::MAX_ENGINE_ROWS ) as $row ) {
+				$block['rows'][] = array(
+					'query'       => (string) $row['query'],
+					'position'    => round( (float) $row['position'], 1 ),
+					'impressions' => (int) $row['impressions'],
+					'clicks'      => (int) $row['clicks'],
+				);
+			}
+			$block['more']  = max( 0, count( $rows ) - self::MAX_ENGINE_ROWS );
+			$out[ $source ] = $block;
+		}
+
+		return $out;
+	}
+
+	/**
+	 * Grade the next few ungraded pages.
+	 *
+	 * Runs on cron, a bounded chunk at a time, because grading a page means
+	 * rendering and reading it — the same real cost the worklist used to pay
+	 * inside somebody's page load, only now nobody is waiting for it.
+	 *
+	 * @param int|null $limit How many to grade; the sweep's own chunk by default.
+	 * @return int How many were graded.
+	 */
+	public function sweep( $limit = null ) {
+		$types = $this->post_types();
+		$ids   = Grades::ungraded( $types, null === $limit ? Grades::SWEEP_CHUNK : (int) $limit );
+		if ( ! $ids ) {
+			return 0;
+		}
+
+		// Read once for the whole chunk: the snapshot is shared by every row, and
+		// re-reading it per post would be the expensive half of this loop.
+		$search = $this->search_by_post();
+		$done   = 0;
+
+		foreach ( $ids as $id ) {
+			$post = get_post( $id );
+			if ( ! $post || 'publish' !== $post->post_status ) {
+				// Unpublished, deleted, or no longer a type the engines can see.
+				Grades::forget( $id );
+				continue;
+			}
+			$item = $this->item( (int) $id, isset( $search[ $id ] ) ? $search[ $id ] : array(), false );
+			if ( ! $item ) {
+				Grades::forget( $id );
+				continue;
+			}
+			Grades::record( (int) $id, array(
+				'needsWork' => $this->needs_work( $item ),
+				'flags'     => count( (array) $item['flags'] ) + (int) $item['moreFlags'],
+				'stake'     => (int) $item['stake'],
+				'coverage'  => isset( $item['coverage']['state'] ) ? (string) $item['coverage']['state'] : '',
+				'hasFocus'  => ! empty( $item['focus'] ),
+				'hash'      => Grades::hash( $post, ! empty( $item['focus'] ) ? (string) $item['focus']['query'] : '' ),
+			) );
+			$done++;
+		}
+
+		return $done;
+	}
+
+	/**
 	 * Rebuild rows for named posts only.
 	 *
 	 * The expensive half of {@see all()} is per row — each one renders and reads
@@ -351,36 +577,13 @@ final class Worklist {
 		return $out;
 	}
 
-	/**
-	 * Which posts get a row, in the order they earn one: everything the engines
-	 * reported first (those can be ranked by what a fix is worth), then the most
-	 * recently edited content, so a site with no search data still has a list.
-	 *
-	 * @param array $search Search rows keyed by post ID.
-	 * @return array<int,int> Post IDs.
+	/*
+	 * ⛔ candidates() lived here. It picked which posts got a row — everything
+	 * the engines reported, then the most recently edited content, capped at
+	 * MAX_ITEMS — and its cap was the reason the list could never cover a whole
+	 * site. The stored grades replaced it: every published page is graded by the
+	 * sweep, and the ranked order comes out of an indexed query {@see Grades::page()}.
 	 */
-	private function candidates( array $search ) {
-		$ids = array_keys( $search );
-
-		$recent = get_posts(
-			array(
-				'post_type'        => $this->post_types(),
-				'post_status'      => 'publish',
-				'numberposts'      => self::MAX_ITEMS,
-				'orderby'          => 'modified',
-				'order'            => 'DESC',
-				'fields'           => 'ids',
-				'suppress_filters' => false,
-			)
-		);
-
-		foreach ( (array) $recent as $id ) {
-			if ( ! in_array( (int) $id, $ids, true ) ) {
-				$ids[] = (int) $id;
-			}
-		}
-		return $ids;
-	}
 
 	/**
 	 * The content types this site treats as agent-visible — the same set the

@@ -107,6 +107,17 @@ final class Hub {
 				),
 				'capabilities' => count( $envelope['capabilities'] ),
 				'apis'         => count( $envelope['apis'] ),
+				// The dashboard tile's public/sign-in split — an endpoint with
+				// no auth scheme (or 'none') is an open door; anything else
+				// wants a key. The same per-endpoint auth the envelope states.
+				'apisPublic'   => count(
+					array_filter(
+						$envelope['apis'],
+						static function ( $api ) {
+							return ! isset( $api['auth']['type'] ) || '' === $api['auth']['type'] || 'none' === $api['auth']['type'];
+						}
+					)
+				),
 				// `tools` counts what the site HAS, not what it anonymously publishes — this card is
 				// the owner's inventory of their own site, and an AUTHORISED agent really can run all
 				// of them. Counting only published tools would read 0 the moment abilities stopped
@@ -170,10 +181,59 @@ final class Hub {
 		);
 	}
 
+	/**
+	 * The ids of the plugins Agentimus itself describes — read from the roster,
+	 * so a provider that grows past its card is counted here the moment it is
+	 * added there, and no name is written twice.
+	 *
+	 * @return string[]
+	 */
+	private static function described_ids() {
+		$ids = array();
+		foreach ( \Agentimus\Integrations\Plugins\Provider::ROSTER as $class ) {
+			$ids[] = (string) $class::ID;
+		}
+		return $ids;
+	}
+
+	/**
+	 * How many PUBLISHED runnable tools only read, or change something.
+	 *
+	 * ⚠️ Published only, and that is the whole point. These two numbers sit beside
+	 * a switch that decides what is announced, so counting tools nobody announces
+	 * makes the switch describe work it would not do: on this site the total said
+	 * "13 jobs would stop being announced" when the true answer was six.
+	 *
+	 * @param array $tools     A resource's tools.
+	 * @param bool  $read_only Count the reading ones, or the changing ones.
+	 * @return int
+	 */
+	private static function count_kind( $tools, $read_only ) {
+		$n = 0;
+		foreach ( self::of_kind( (array) $tools, 'tool' ) as $tool ) {
+			if ( isset( $tool['public'] ) && ! $tool['public'] ) {
+				continue;
+			}
+			$hint = isset( $tool['annotations']['readOnlyHint'] ) ? (bool) $tool['annotations']['readOnlyHint'] : false;
+			if ( $hint === (bool) $read_only ) {
+				++$n;
+			}
+		}
+		return $n;
+	}
+
 	private static function resource_row( $resource, array $suppressed = array() ) {
 		$provider = isset( $resource['provider']['plugin'] ) ? $resource['provider']['plugin'] : '';
 		$ours     = function_exists( 'plugin_basename' ) ? plugin_basename( AGENTIMUS_FILE ) : 'agentimus/agentimus.php';
-		$auto     = ( '' !== $provider && $provider === $ours );
+		$mine     = ( '' !== $provider && $provider === $ours );
+
+		// Two very different things wear Agentimus's name as their provider, and
+		// telling the owner they are the same thing is a lie either way round:
+		// an adapter FOUND something by scanning the site, or a hand-written
+		// provider DESCRIBES a plugin Agentimus recognises. Only the plugin
+		// roster knows which — a described resource carries a roster id.
+		$described = $mine && in_array( (string) $resource['id'], self::described_ids(), true );
+		$auto      = $mine && ! $described;
 		// Which built-in engine found an auto resource — so the UI can show
 		// "Found via the REST API / Abilities API" and link it to the engine status.
 		// The AbilitiesApi adapter mints ids as `abilities-<ns>`; everything else
@@ -189,8 +249,21 @@ final class Hub {
 			'description'  => $resource['description'],
 			'version'      => $resource['version'],
 			'provider'     => $provider,
-			// True when Agentimus's own adapter registered it (auto-discovery), not a third-party plugin declaring itself.
+			// True when one of Agentimus's own ADAPTERS found it by scanning.
 			'auto'         => $auto,
+			// Agentimus's OWN surface, told apart from everyone else's — his call,
+			// 2026-08-15: we never mix ourselves in with the plugins we describe.
+			// Read from the abilities namespace we register under, not a literal,
+			// so renaming it cannot leave this behind.
+			'own'          => ( 'abilities-' . \Agentimus\Abilities\Registrar::CATEGORY ) === (string) $resource['id'],
+			// The site's OWN content. It has no switch here on purpose — Content
+			// types steers it — so the row says where it is steered from instead
+			// of leaving an absence for the owner to puzzle over.
+			'siteContent'  => 'wordpress-core' === (string) $resource['id'],
+			// True when Agentimus DESCRIBES a plugin it recognises. Neither the
+			// plugin declaring itself nor a scan — a third thing, and the one the
+			// Plugins tab promises.
+			'described'    => $described,
 			'engine'       => $engine,
 			// True when the owner has suppressed this Resource from served output.
 			'suppressed'   => in_array( $resource['id'], $suppressed, true ),
@@ -218,6 +291,11 @@ final class Hub {
 			// them made every "tools" number on screen overstate itself — the
 			// Agentimus group read "25 tools" for 21 tools and 4 documents.
 			'tools'        => count( self::of_kind( $resource['tools'], 'tool' ) ),
+			// The split an owner needs before deciding: how many of these only
+			// look at something, and how many change it. Counted from each tool's
+			// own read-only hint, never from its name.
+			'reads'        => self::count_kind( $resource['tools'], true ),
+			'changes'      => self::count_kind( $resource['tools'], false ),
 			'docs'         => count( self::of_kind( $resource['tools'], 'resource' ) ),
 			// The names behind those counts. "25 tools" with nothing to open was a
 			// dead end: the card counted 42 and listed only the 7 published ones,

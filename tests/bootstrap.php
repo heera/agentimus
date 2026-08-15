@@ -227,6 +227,9 @@ namespace {
 	$GLOBALS['_af_flush_count'] = 0;
 	if ( ! function_exists( 'is_admin' ) )              { function is_admin() { return ! empty( $GLOBALS['_af_is_admin'] ); } }
 	if ( ! function_exists( 'flush_rewrite_rules' ) )   { function flush_rewrite_rules( $hard = true ) { $GLOBALS['_af_flush_count'] = (int) ( $GLOBALS['_af_flush_count'] ?? 0 ) + 1; return true; } }
+	// The admin colour scheme the user picked — read by SchemeInk::active_surface().
+	$GLOBALS['_af_user_options'] = array();
+	if ( ! function_exists( 'get_user_option' ) )       { function get_user_option( $k, $user = 0 ) { return array_key_exists( $k, $GLOBALS['_af_user_options'] ) ? $GLOBALS['_af_user_options'][ $k ] : false; } }
 	if ( ! function_exists( 'add_option' ) )            { function add_option( $k, $v ) { $GLOBALS['_af_options'][ $k ] = $v; return true; } }
 	if ( ! function_exists( 'delete_option' ) )         { function delete_option( $k ) { unset( $GLOBALS['_af_options'][ $k ] ); return true; } }
 	// Users exist when listed in $_af_users (id => object|true); unknown ids resolve false like core.
@@ -237,6 +240,17 @@ namespace {
 	if ( ! function_exists( 'get_lastpostmodified' ) )  { function get_lastpostmodified( $tz = 'gmt' ) { return (string) ( $GLOBALS['_af_lastpostmodified'] ?? '2026-01-01 00:00:00' ); } }
 	if ( ! function_exists( 'get_post' ) )              { function get_post( $id = 0 ) { if ( is_object( $id ) ) { return $id; } $id = (int) $id; if ( ! $id ) { $id = (int) ( $GLOBALS['_af_current_post_id'] ?? 0 ); } return isset( $GLOBALS['_af_posts'][ $id ] ) ? $GLOBALS['_af_posts'][ $id ] : null; } }
 	if ( ! function_exists( 'post_type_exists' ) )      { function post_type_exists( $t ) { return in_array( (string) $t, (array) ( $GLOBALS['_af_post_types_exist'] ?? array() ), true ); } }
+	// A registered type answers as public + REST by default; a test that cares about
+	// rest_base, `public` or `show_in_rest` declares the object itself.
+	// The Abilities API's registry: ability name => category slug. Only the two
+	// getters the adapter reads are modelled.
+	if ( ! function_exists( 'wp_get_abilities' ) ) { function wp_get_abilities() { $out = array(); foreach ( (array) ( $GLOBALS['_af_abilities'] ?? array() ) as $name => $category ) { $out[] = new class( (string) $name, (string) $category ) { private $n; private $c; public function __construct( $n, $c ) { $this->n = $n; $this->c = $c; } public function get_name() { return $this->n; } public function get_category() { return $this->c; } public function get_meta() { return array(); } }; } return $out; } }
+	// The Abilities API's category registry: slug => label. A test that wants the
+	// vendor's own name for a group declares it here; absent means unregistered.
+	if ( ! function_exists( 'wp_get_ability_categories' ) ) { function wp_get_ability_categories() { $out = array(); foreach ( (array) ( $GLOBALS['_af_ability_categories'] ?? array() ) as $name => $label ) { $out[ $name ] = new class( (string) $name, (string) $label ) { private $n; private $l; public function __construct( $n, $l ) { $this->n = $n; $this->l = $l; } public function get_name() { return $this->n; } public function get_label() { return $this->l; } }; } return $out; } }
+	if ( ! function_exists( 'get_post_type_object' ) ) { function get_post_type_object( $t ) { $reg = (array) ( $GLOBALS['_af_post_type_objects'] ?? array() ); if ( isset( $reg[ (string) $t ] ) ) { return (object) $reg[ (string) $t ]; } return post_type_exists( $t ) ? (object) array( 'public' => true, 'show_in_rest' => true, 'rest_base' => (string) $t ) : null; } }
+	// Keyed by name like WP's own 'names' output, so a caller can unset() one.
+	if ( ! function_exists( 'get_post_types' ) )        { function get_post_types( $args = array(), $output = 'names' ) { $all = (array) ( $GLOBALS['_af_public_post_types'] ?? array( 'post' => 'post', 'page' => 'page', 'attachment' => 'attachment' ) ); return $all; } }
 	// Records every call's args, and can answer a QUEUE when a test needs two
 	// different results from two different queries (Media::search runs a title
 	// pass then an alt pass). Falls back to the single-value form every other
@@ -307,7 +321,7 @@ namespace {
 	// function_exists() guard is exercised on the no-blocks path.
 	if ( ! function_exists( 'strip_shortcodes' ) )      { function strip_shortcodes( $content ) { return preg_replace( '/\[[^\]]*\]/', '', (string) $content ); } }
 	if ( ! function_exists( 'wp_trim_words' ) )         { function wp_trim_words( $text, $num_words = 55, $more = null ) { $words = preg_split( '/\s+/', trim( (string) $text ), -1, PREG_SPLIT_NO_EMPTY ); if ( count( $words ) > $num_words ) { $words = array_slice( $words, 0, $num_words ); $text = implode( ' ', $words ) . ( null === $more ? '…' : $more ); } else { $text = implode( ' ', $words ); } return $text; } }
-	function _af_reset_options() { $GLOBALS['_af_options'] = array(); $GLOBALS['_af_filters'] = array(); $GLOBALS['_af_did_actions'] = array(); $GLOBALS['_af_posts'] = array(); $GLOBALS['_af_postmeta'] = array(); $GLOBALS['_af_terms'] = array(); $GLOBALS['_af_taxonomies'] = array( 'category', 'post_tag' ); $GLOBALS['_af_is_admin'] = false; $GLOBALS['_af_flush_count'] = 0; $GLOBALS['_af_cache'] = array(); $GLOBALS['_af_transients'] = array(); unset( $GLOBALS['_af_transients_on'] ); $GLOBALS['_af_http_queue'] = array(); $GLOBALS['_af_http_last'] = null; $GLOBALS['_af_http_calls'] = array(); $GLOBALS['_af_mail'] = array(); unset( $GLOBALS['_af_mail_ok'] ); unset( $GLOBALS['_af_user_can'] ); unset( $GLOBALS['_af_available_post_types'], $GLOBALS['_af_current_post_id'], $GLOBALS['_af_is_singular'], $GLOBALS['_af_is_front_page'], $GLOBALS['_af_categories'], $GLOBALS['_af_post_types_exist'], $GLOBALS['_af_get_posts'], $GLOBALS['_af_get_posts_queue'], $GLOBALS['_af_get_posts_calls'] ); unset( $GLOBALS['_af_attachments'], $GLOBALS['_af_is_paged'], $GLOBALS['_af_is_category'], $GLOBALS['_af_is_tag'], $GLOBALS['_af_is_tax'], $GLOBALS['_af_is_post_type_archive'], $GLOBALS['_af_is_author'], $GLOBALS['_af_queried_object'], $GLOBALS['_af_queried_object_id'], $GLOBALS['_af_term_link'], $GLOBALS['_af_query_vars'], $GLOBALS['_af_core_sitemaps'] ); }
+	function _af_reset_options() { $GLOBALS['_af_options'] = array(); $GLOBALS['_af_filters'] = array(); $GLOBALS['_af_did_actions'] = array(); $GLOBALS['_af_posts'] = array(); $GLOBALS['_af_postmeta'] = array(); $GLOBALS['_af_terms'] = array(); $GLOBALS['_af_taxonomies'] = array( 'category', 'post_tag' ); $GLOBALS['_af_is_admin'] = false; $GLOBALS['_af_flush_count'] = 0; $GLOBALS['_af_cache'] = array(); $GLOBALS['_af_transients'] = array(); unset( $GLOBALS['_af_transients_on'] ); $GLOBALS['_af_http_queue'] = array(); $GLOBALS['_af_http_last'] = null; $GLOBALS['_af_http_calls'] = array(); $GLOBALS['_af_mail'] = array(); unset( $GLOBALS['_af_mail_ok'] ); unset( $GLOBALS['_af_user_can'] ); unset( $GLOBALS['_af_available_post_types'], $GLOBALS['_af_current_post_id'], $GLOBALS['_af_is_singular'], $GLOBALS['_af_is_front_page'], $GLOBALS['_af_categories'], $GLOBALS['_af_post_types_exist'], $GLOBALS['_af_post_type_objects'], $GLOBALS['_af_ability_categories'], $GLOBALS['_af_abilities'], $GLOBALS['_af_get_posts'], $GLOBALS['_af_get_posts_queue'], $GLOBALS['_af_get_posts_calls'] ); unset( $GLOBALS['_af_attachments'], $GLOBALS['_af_is_paged'], $GLOBALS['_af_is_category'], $GLOBALS['_af_is_tag'], $GLOBALS['_af_is_tax'], $GLOBALS['_af_is_post_type_archive'], $GLOBALS['_af_is_author'], $GLOBALS['_af_queried_object'], $GLOBALS['_af_queried_object_id'], $GLOBALS['_af_term_link'], $GLOBALS['_af_query_vars'], $GLOBALS['_af_core_sitemaps'] ); }
 	// Transient stubs. Default: always-miss, so cached endpoint bodies (e.g. security.txt)
 	// recompute deterministically in tests. A test that needs to exercise real transient
 	// state (the bot-verifier budget/circuit-breaker counters) opts in by setting
@@ -317,7 +331,7 @@ namespace {
 	if ( ! function_exists( 'delete_transient' ) )      { function delete_transient( $k ) { unset( $GLOBALS['_af_transients'][ $k ] ); return true; } }
 	// Cron stubs (BotRanges' catch-up scheduling): nothing is ever scheduled in tests.
 	if ( ! function_exists( 'wp_next_scheduled' ) )     { function wp_next_scheduled( $h ) { return false; } }
-	if ( ! function_exists( 'wp_schedule_single_event' ) ) { function wp_schedule_single_event( $t, $h ) { return true; } }
+	if ( ! function_exists( 'wp_schedule_single_event' ) ) { function wp_schedule_single_event( $t, $h, $args = array() ) { if ( isset( $GLOBALS['_af_cron_events'] ) ) { $GLOBALS['_af_cron_events'][] = array( 'at' => (int) $t, 'hook' => (string) $h, 'single' => true ); } return true; } }
 	// Site-wide term query (used by Topics::suggestions() / LlmsText::topics()); empty
 	// unless a test seeds $GLOBALS['_af_get_terms'].
 	if ( ! function_exists( 'get_terms' ) )             { function get_terms( $args = array() ) { return isset( $GLOBALS['_af_get_terms'] ) ? $GLOBALS['_af_get_terms'] : array(); } }

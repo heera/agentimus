@@ -60,6 +60,42 @@ final class SchemeInk {
 	}
 
 	/**
+	 * The ACTIVE scheme's own surface colour, straight from WordPress.
+	 *
+	 * colors[1] is the menu/surface tone (colors[0] is the darker bar above it);
+	 * a scheme registering only one colour falls back to that.
+	 *
+	 * This exists because WordPress RETUNES schemes. Midnight was #363b3f for
+	 * years and became #333c42 in 7.1 — same slug, different colour, and the
+	 * owner has one install of each. Anything keyed to the slug alone paints
+	 * one of them wrong.
+	 *
+	 * @return string Lowercase #rrggbb, or '' when there is nothing usable.
+	 */
+	public static function active_surface() {
+		$scheme = get_user_option( 'admin_color' );
+		if ( ! is_string( $scheme ) || '' === $scheme ) {
+			return '';
+		}
+
+		global $_wp_admin_css_colors;
+		$colors = isset( $_wp_admin_css_colors[ $scheme ]->colors )
+			? (array) $_wp_admin_css_colors[ $scheme ]->colors
+			: array();
+
+		$hex = '';
+		if ( isset( $colors[1] ) ) {
+			$hex = (string) $colors[1];
+		} elseif ( isset( $colors[0] ) ) {
+			$hex = (string) $colors[0];
+		}
+
+		$hex = strtolower( trim( $hex ) );
+
+		return preg_match( '/\A#[0-9a-f]{6}\z/', $hex ) ? $hex : '';
+	}
+
+	/**
 	 * Turn a scheme colour into a card-surface tint: the scheme's HUE at card
 	 * depth, saturated enough to actually read as that colour. Three moves:
 	 *

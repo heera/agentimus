@@ -23,6 +23,8 @@ import GoogleIndexPanel from './components/GoogleIndexPanel.vue';
 import SearchPerformance from './components/SearchPerformance.vue';
 import SearchOpportunities from './components/SearchOpportunities.vue';
 import AgentAccess from './components/AgentAccess.vue';
+import IntegrationsPanel from './components/integrations/IntegrationsPanel.vue';
+import AnnouncementsPanel from './components/integrations/AnnouncementsPanel.vue';
 import ReviewMenu from './components/ReviewMenu.vue';
 import OnboardingWizard from './components/OnboardingWizard.vue';
 import AboutPanel from './components/AboutPanel.vue';
@@ -56,7 +58,7 @@ const LEGACY_HASHES = { today: 'findings', attention: 'findings', 'ai-traffic': 
 
 export default {
   name: 'AgentimusApp',
-  components: { ScoreRail, SettingsForm, ReadinessPanel, DiscoveryHub, ActivityPanel, AudiencePanel, SurfaceTiles, SiteSystems, WhatsNew, ReviewAsk, AssistantLauncher, AssistantDrawer, AiTrafficPanel, RequestLog, EdgePanel, BingPanel, GoogleIndexPanel, SearchPerformance, SearchOpportunities, AgentAccess, ReviewMenu, OnboardingWizard, AboutPanel, ConfirmDialog, VisibilityPanel, TodayPanel, ContentWorklist },
+  components: { ScoreRail, SettingsForm, ReadinessPanel, DiscoveryHub, ActivityPanel, AudiencePanel, SurfaceTiles, SiteSystems, WhatsNew, ReviewAsk, AssistantLauncher, AssistantDrawer, AiTrafficPanel, RequestLog, EdgePanel, BingPanel, GoogleIndexPanel, SearchPerformance, SearchOpportunities, AgentAccess, IntegrationsPanel, AnnouncementsPanel, ReviewMenu, OnboardingWizard, AboutPanel, ConfirmDialog, VisibilityPanel, TodayPanel, ContentWorklist },
   // The styled hover bubble (shared with the activity tables) — the score rail's
   // rung and next-step hints use it instead of slow, unthemeable native titles.
   props: {
@@ -77,7 +79,7 @@ export default {
     // Dashboard is where a cold load lands. Findings is reachable — its tab, and
     // #findings — but it is not the default: opening the plugin on a worklist
     // puts a to-do list in front of someone who came to look at something.
-    let startTab = ['findings', 'dashboard', ...activityTabs, 'agent-access', 'visibility', 'settings', 'readiness', 'discovery', 'about'].includes(fromHash) ? fromHash : 'dashboard';
+    let startTab = ['findings', 'dashboard', ...activityTabs, 'agent-access', 'integrations', 'announcements', 'visibility', 'settings', 'readiness', 'discovery', 'about'].includes(fromHash) ? fromHash : 'dashboard';
     if (activityTabs.includes(startTab) && !actOn) startTab = 'dashboard';
     return {
       api: createApi(this.boot),
@@ -95,7 +97,11 @@ export default {
       refreshingFindings: false,
       // The per-item worklist. NOT in the boot payload — every row parses a
       // page — so it is fetched the first time Today is looked at.
-      worklist: { items: [], counts: {}, capped: false, total: 0, noSearchData: 0, searchState: '' },
+      worklist: { items: [], counts: {}, total: 0, page: 1, per: 20, grading: 0, noSearchData: 0, searchState: '' },
+      // Which tab and page the list is currently showing. Held here, not in the
+      // panel, because the panel asks the App to fetch and the two must agree
+      // about what was asked for.
+      worklistWhere: { filter: 'fixable', page: 1 },
       worklistPreview: this.boot.worklistPreview || { published: 0, withSearch: 0, setAside: 0, searchState: '' },
       worklistLoaded: false,
       // When the list was read, and whether something has probably changed
@@ -274,12 +280,6 @@ export default {
       s.identity = id;
       return JSON.stringify(s);
     },
-    // Third-party DECLARED resources the owner can publish/suppress. Our own
-    // auto-discovery (wordpress-core, REST stubs, abilities) is curated elsewhere.
-    providerResources() {
-      const list = (this.discovery && this.discovery.resources) || [];
-      return list.filter((r) => !r.auto);
-    },
     // The quill's state, LIVE: the two switches exist in this SPA's own settings
     // object, so flipping them must light the quill (and retire the popover's
     // stale advice) without a reload. providerReady stays from boot — the AI
@@ -388,6 +388,16 @@ export default {
           label: 'Agent Access',
           badge: this.agentAccessUnseen,
         },
+        // What the site connects TO — services receiving its reports, plugins it
+        // describes. It sits under the acting screens: connections are standing
+        // arrangements, the noun form of what the screens above show happening.
+        // The connections group, set apart by its own rule (his call): the
+        // screens above show the site being READ; these two are the site
+        // SPEAKING — standing arrangements and the record of what went out.
+        { id: 'integrations', label: 'Integrations', divided: true },
+        // The outgoing record: what announcing has queued, sent, or couldn't.
+        // Data lives here, connections live on Integrations — the boundary law.
+        { id: 'announcements', label: 'Announcements' },
         // The meta pair below the rule: configuration and reference, set
         // apart from the working screens. Settings moved here from the
         // controls' gear (his call): the right-side icons are stateless
@@ -420,6 +430,7 @@ export default {
         providersPublic: typeof c.resourcesRegistered === 'number' ? c.resources || 0 : null,
         capabilities: c.capabilities || 0,
         apis: c.apis || 0,
+        apisPublic: typeof c.apisPublic === 'number' ? c.apisPublic : null,
         tools: c.tools || 0,
         toolsPublic: typeof c.toolsPublished === 'number' ? c.toolsPublished : null,
       };
@@ -466,6 +477,15 @@ export default {
             title: 'Agent Access',
             audience: 'machines',
             description: 'What AI assistants did on your site — keys created and used, abilities run. A record, not a guard.',
+          },
+          integrations: {
+            // HIS pagehead lines, verbatim — the screen's contract with the mock.
+            title: 'Integrations',
+            description: 'What Agentimus connects to — services that receive your reports, and the plugins it describes to AI assistants on your behalf.',
+          },
+          announcements: {
+            title: 'Announcements',
+            description: 'Every announcement your site has sent, will send, or couldn’t — the whole record. A failure names its reason and waits for you; nothing is dropped in silence.',
           },
           visibility: {
             title: 'Visibility',
@@ -803,6 +823,10 @@ export default {
         log: ['M3 4.2h10', 'M3 8h10', 'M3 11.8h6'],
         // A key: this screen is about the credentials that reach the machine surface.
         'agent-access': ['M9.9 6.1a2.6 2.6 0 1 0 3.7 3.7 2.6 2.6 0 0 0-3.7-3.7Z', 'M9.9 9.8 4 15.7', 'M6.4 13.2l1.6 1.6'],
+        // A plug: this screen is about what the site connects to.
+        integrations: ['M6 1.8v3.4M10 1.8v3.4', 'M4.6 5.2h6.8v2.4a3.4 3.4 0 0 1-6.8 0Z', 'M8 11v3.2'],
+        // A megaphone: this screen is about what the site said out loud.
+        announcements: ['M2.6 9.6V6.4l8-3.6v10.4Z', 'M10.6 5.6a3.2 3.2 0 0 1 2.8 2.4', 'M4.8 10l1 3.6'],
         about: ['M8 14.2A6.2 6.2 0 1 0 8 1.8a6.2 6.2 0 0 0 0 12.4Z', 'M8 7.4v3.4', 'M8 5.2h.01'],
       }[id] || [];
     },
@@ -849,6 +873,17 @@ export default {
     // over whatever tab is active — no need to switch to Settings first.
     openClientManager() {
       if (this.$refs.settingsForm) this.$refs.settingsForm.openClientManager();
+    },
+    // Search Performance just asked an engine and re-read the answer. The
+    // worklist below it is carved from that same snapshot, so it has to read
+    // again too — otherwise the two cards sit one above the other quoting
+    // different moments, and the lower one's own lead ("the same numbers
+    // reported above") stops being true.
+    // ⚠️ It reloads with its OWN engine pick, not the one that was polled: the
+    // two cards carry separate switches, and a Bing poll must never quietly
+    // swing this card over to Bing.
+    refreshSearchOpps() {
+      if (this.$refs.searchOpps) this.$refs.searchOpps.loadSearch();
     },
     // Hide one edge-conflict pin: optimistic removal here, the server records
     // it. The pin returns only if that conflict ends and later starts again.
@@ -1314,10 +1349,13 @@ export default {
     // Read the content worklist. Called by the section itself, not on page
     // load: thirty rows means thirty pages parsed, and an owner who never
     // scrolls that far should never pay for it.
-    async loadWorklist() {
+    async loadWorklist(where) {
+      const filter = (where && where.filter) || this.worklistWhere.filter;
+      const page = (where && where.page) || 1;
       this.refreshingWorklist = true;
       try {
-        this.worklist = await this.api.getWorklist();
+        this.worklist = await this.api.getWorklist(filter, page);
+        this.worklistWhere = { filter, page };
         this.worklistLoaded = true;
         this.worklistAt = Date.now();
         this.worklistStale = false;
@@ -2059,7 +2097,6 @@ export default {
           :debug="debug"
           :endpoints="endpoints"
           :rest-namespaces-detected="restNamespacesDetected"
-          :provider-resources="providerResources"
           :profile-dirty="profileDirty"
           :profile-saving="profileSaving"
           :profile-saved="profileSaved"
@@ -2099,7 +2136,8 @@ export default {
           :refreshing="refreshingDiscovery"
           @refresh="refreshDiscovery"
           @navigate="goTo"
-        />
+          :settings="settings"
+          />
         <!-- Findings: the front door. Every open finding, already merged and ranked
              by the server, so the first screen answers the only question anyone
              arrives with. Everything else on this page stays exactly as it is. -->
@@ -2135,7 +2173,7 @@ export default {
         <section v-if="nextSteps && tab === 'dashboard'" class="ar-card ar-next" aria-label="Worth a look next">
           <div class="ar-next__head">
             <div>
-              <h2 class="ar-next__title">Worth a look next</h2>
+              <h2 class="ar-next__title">Worth a Look Next</h2>
               <p class="ar-next__sub">Setup is done. These three rooms are where Agentimus earns its keep — in priority order.</p>
             </div>
             <button type="button" class="ar-linkbtn" @click="dismissNextSteps">Got it — hide this</button>
@@ -2153,9 +2191,9 @@ export default {
               <span class="ar-next__n" aria-hidden="true">2</span>
               <div class="ar-next__body">
                 <strong>Cloudflare</strong>
-                <p>If Cloudflare fronts your site, connect it under Data sources — you’ll see which AI visitors get served, cached, or turned away before your site ever sees them.</p>
+                <p>If Cloudflare fronts your site, connect it under Data Sources — you’ll see which AI visitors get served, cached, or turned away before your site ever sees them.</p>
               </div>
-              <button type="button" class="ar-btn ar-btn--ghost ar-btn--small" @click="goTo({ tab: 'settings', anchor: 'ar-sec-cloudflare' })">Open Data sources</button>
+              <button type="button" class="ar-btn ar-btn--ghost ar-btn--small" @click="goTo({ tab: 'settings', anchor: 'ar-sec-cloudflare' })">Open Data Sources</button>
             </li>
             <li>
               <span class="ar-next__n" aria-hidden="true">3</span>
@@ -2299,6 +2337,22 @@ export default {
           @seen="agentAccessUnseen = 0"
           @flash="flash"
         />
+        <!-- Always mounted, like agent-access: the nav lists it unconditionally,
+             so its hash always has somewhere to land. Fetches on first reveal
+             and re-reads on every return (the freshness rule). -->
+        <IntegrationsPanel
+          v-show="tab === 'integrations'"
+          :api="api"
+          :active="tab === 'integrations'"
+          @flash="flash"
+        />
+        <!-- The ledger beside it: same always-mounted shape, same freshness rule. -->
+        <AnnouncementsPanel
+          v-show="tab === 'announcements'"
+          :api="api"
+          :active="tab === 'announcements'"
+          @flash="flash"
+        />
         <!-- Always mounted: the screen is a room whose tenants each carry
              their own key. The citations tenant is gated by its toggle
              (checks-on), the index and performance cards by their data-source
@@ -2337,12 +2391,14 @@ export default {
           :api="api"
           :active="tab === 'visibility' && visView === 'performance'"
           @navigate="goTo"
+          @polled="refreshSearchOpps"
         />
         <!-- The worklist carved from that same report, directly below it —
              moved here from Readiness (1.36): how search went, then what to
              do about it, one view. It announces its state up so Readiness's
              pointer card can say what waits here without fetching anything. -->
         <SearchOpportunities
+          ref="searchOpps"
           v-show="tab === 'visibility' && visView === 'performance'"
           :api="api"
           :active="tab === 'visibility' && visView === 'performance'"

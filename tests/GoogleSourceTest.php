@@ -141,6 +141,42 @@ PEM;
 	}
 
 	/**
+	 * Search Console counts its Image, Video and News tabs separately from the
+	 * combined "All" tab, and answers about "All" when nothing is named. The
+	 * surface is now always stated rather than left to the default, so the rows
+	 * that come back can be stored under the surface they actually describe.
+	 */
+	public function test_search_analytics_names_the_all_tab_by_default() {
+		$GLOBALS['_af_http_queue'][] = array(
+			'response' => array( 'code' => 200 ),
+			'body'     => (string) wp_json_encode( array( 'rows' => array() ) ),
+		);
+		( new Client() )->search_analytics( 'tok', 'sc-domain:example.test', '2026-06-01', '2026-07-27' );
+
+		$this->assertStringContainsString( '"type":"web"', (string) $GLOBALS['_af_http_last']['args']['body'] );
+	}
+
+	public function test_search_analytics_asks_for_a_named_surface() {
+		$GLOBALS['_af_http_queue'][] = array(
+			'response' => array( 'code' => 200 ),
+			'body'     => (string) wp_json_encode( array( 'rows' => array() ) ),
+		);
+		( new Client() )->search_analytics( 'tok', 'sc-domain:example.test', '2026-06-01', '2026-07-27', 'image' );
+
+		$this->assertStringContainsString( '"type":"image"', (string) $GLOBALS['_af_http_last']['args']['body'] );
+	}
+
+	/**
+	 * Two surfaces are left out on purpose, and both would break something if
+	 * they crept in: Discover has no query at all, so its rows cannot live in a
+	 * table keyed by query; Google News is a separate product almost no owner
+	 * publishes to, and an always-empty line asks a question with no answer.
+	 */
+	public function test_the_extra_surfaces_leave_out_discover_and_google_news() {
+		$this->assertSame( array( 'image', 'video', 'news' ), Module::EXTRA_SURFACES );
+	}
+
+	/**
 	 * One short answer must end the walk. Nearly every site lands here, and a
 	 * second request against a window Google has already finished reporting is
 	 * quota spent on nothing.
