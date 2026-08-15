@@ -116,8 +116,15 @@ export default {
       if (!core || !Array.isArray(core.capabilities)) return [];
       return core.capabilities.map((c) => (typeof c === 'string' ? c : c.id)).filter(Boolean);
     },
+    // The "sign-in" cell's ANSWER, so it must never repeat the cell's own word —
+    // it read "sign-in: sign-in", which tells the owner nothing twice. Name the
+    // door when the site has one; otherwise say the thing that is true whatever
+    // the door turns out to be. ⛔ Never name a mechanism the site has not set
+    // up: with no MCP server, McpSurface leaves this empty on purpose.
     mcpAuthLabel() {
-      return this.mcp.auth === 'oauth' ? 'OAuth' : 'sign-in';
+      if (this.mcp.auth === 'oauth') return 'OAuth';
+      if (this.mcp.auth === 'application-password') return 'Application password';
+      return 'Required';
     },
     // The summary strip's server cell: the one place server identity lives.
     mcpServerLabel() {
@@ -594,11 +601,12 @@ export default {
     <section id="ar-wd-tools" class="ar-card">
       <h2 class="ar-card__title">Things assistants can do</h2>
       <p class="ar-card__lead">
-        What an assistant can actually run here, grouped by whatever offers it. Almost everything in
-        this list needs a sign-in first. The addresses under each group are the ways in. An assistant
-        that has not signed in sees far less — only what you publish, listed at the bottom of this
-        card. Letting assistants connect to Agentimus itself is a separate switch, under
-        Settings → Discovery, and it is off unless you turn it on.
+        What an assistant can actually run here, grouped by whatever offers it. Every one of them
+        needs a sign-in first — each plugin checks who is asking before it answers. The addresses
+        under each group are the ways in. An assistant that has not signed in can still read the
+        list you publish, at the bottom of this card, but it cannot run anything on it. Letting
+        assistants connect to Agentimus itself is a separate switch, under Settings → Discovery,
+        and it is off unless you turn it on.
       </p>
 
       <!-- ONE total, stated once; the groups below PARTITION it (they visibly add up).
@@ -610,7 +618,10 @@ export default {
           <strong :class="counts.tools > 0 ? 'is-on' : 'is-off'">{{ counts.tools }}</strong>
         </div>
         <div class="ar-wd-mcp__cell">
-          <span>public</span><strong>{{ typeof counts.toolsPublished === 'number' ? counts.toolsPublished : '—' }}</strong>
+          <!-- "public" alone, sitting beside "sign-in", read as "these 67 are
+               open to anyone". They are LISTED in a file anyone can read, which
+               is a different sentence — the same one the panel below now uses. -->
+          <span>in public file</span><strong>{{ typeof counts.toolsPublished === 'number' ? counts.toolsPublished : '—' }}</strong>
         </div>
         <div class="ar-wd-mcp__cell">
           <span>sign-in</span><strong>{{ counts.tools > 0 ? mcpAuthLabel : '—' }}</strong>
@@ -741,14 +752,21 @@ export default {
       </div>
       </div>
 
-      <!-- A DIFFERENT list from the groups above: the tools an anonymous agent
-           is handed, not the ones a signed-in agent can run. Both render as
-           identical rows, so its own panel is what keeps the two apart. -->
+      <!-- A DIFFERENT list from the groups above: the tools NAMED in the public
+           file, not a second set of tools. Both render as identical rows, so
+           its own panel is what keeps the two apart.
+           ⛔ It used to read "Published for anonymous assistants", which invited
+           the reading that a stranger could RUN these. They can be read by
+           anyone and run by nobody without a sign-in — the same two questions
+           that had 32 of them stamped "public" in the document itself. The
+           heading names the file; the note says the rest. -->
       <div v-if="tools.length" class="ar-wd-sect">
       <p class="ar-wd-lhead">
-        Published for anonymous assistants
+        Listed in your public file
         <span class="ar-wd-group__count">{{ tools.length }}</span>
-        <span class="ar-wd-lhead__note">in /.well-known/mcp.json</span>
+        <span class="ar-wd-lhead__note">
+          anyone can read /.well-known/mcp.json — running one still needs a sign-in
+        </span>
       </p>
       <ul class="ar-wd-tools">
         <li v-for="t in tools" :key="t.name" class="ar-wd-tool">
