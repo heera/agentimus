@@ -8354,3 +8354,20 @@ a.ar-work__name { color: var(--ar-accent); }
 .ar-fold.ar-wd-grp.is-off > summary::before { border-left-color: var(--ar-ink-faint); }
 .ar-fold.ar-wd-grp.is-off .ar-wd-grp__names code,
 .ar-fold.ar-wd-grp.is-off .ar-wd-grp__names span { color: var(--ar-ink-faint); }
+
+/* Numbered job names (his ask, 2026-08-15). A counter rather than markup: the
+   list is already a list, so the numbers are presentation and belong here. Mono
+   and right-aligned in a fixed gutter, so 1 and 23 line up down the same edge
+   and the names still start on one line — the count is a quiet aid, never a
+   column competing with the thing it counts. */
+.ar-wd-grp__names { counter-reset: ar-joblist; }
+.ar-wd-grp__names li { counter-increment: ar-joblist; }
+.ar-wd-grp__names li::before {
+  content: counter(ar-joblist);
+  flex: 0 0 20px;
+  text-align: right;
+  font-family: var(--ar-mono);
+  font-size: 10.5px;
+  color: var(--ar-ink-faint);
+  opacity: 0.7;
+}
