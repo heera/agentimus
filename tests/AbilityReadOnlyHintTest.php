@@ -97,8 +97,8 @@ final class AbilityReadOnlyHintTest extends TestCase {
 	}
 
 	/** What running it takes, from the two facts that decide it. */
-	private function auth( bool $advertised, bool $read_only ): string {
-		return (string) $this->call( 'auth_for', $advertised, $read_only );
+	private function auth(): string {
+		return (string) $this->call( 'auth_for' );
 	}
 
 	/**
@@ -124,16 +124,28 @@ final class AbilityReadOnlyHintTest extends TestCase {
 	 * anyone may run it.
 	 */
 	public function test_an_advertised_tool_that_changes_something_still_needs_a_sign_in() {
-		$this->assertSame( 'wp', $this->auth( true, false ) );
+		$this->assertSame( 'wp', $this->auth() );
 	}
 
-	public function test_an_advertised_tool_that_only_reads_is_open_to_anyone() {
-		$this->assertSame( 'none', $this->auth( true, true ) );
+	/**
+	 * ⛔ THE SECOND HALF OF THE SAME BUG, found 2026-08-16. "Advertised AND
+	 * read-only ⇒ no sign-in needed" was still wrong: on a site running
+	 * WooCommerce, FluentCRM, FluentBoards, AIOSEO and WP Mail SMTP it put 32
+	 * tools in the public document as open to anyone — woocommerce/orders-query
+	 * among them, gated by wc_rest_check_post_permissions(). Read-only means a
+	 * tool does not write; it says nothing about whether what it reads is public,
+	 * and someone's customer orders are not.
+	 *
+	 * ⭐ The Abilities API registers every ability WITH a permission callback, so
+	 * there is no ungated ability to describe. A sign-in is the only honest
+	 * answer, whatever the two marks say.
+	 */
+	public function test_a_tool_that_only_reads_still_needs_a_sign_in() {
+		$this->assertSame( 'wp', $this->auth(), 'Read-only is not public. Every ability has a gate.' );
 	}
 
 	public function test_anything_the_vendor_did_not_advertise_needs_a_sign_in() {
-		$this->assertSame( 'wp', $this->auth( false, true ), 'Read-only says nothing about WHO may read.' );
-		$this->assertSame( 'wp', $this->auth( false, false ) );
+		$this->assertSame( 'wp', $this->auth(), 'Read-only says nothing about WHO may read.' );
 	}
 
 	/* -- 5. The owner's veto ------------------------------------------------ */
@@ -197,7 +209,7 @@ final class AbilityReadOnlyHintTest extends TestCase {
 			$this->published( $resource ),
 			'The reading job is untouched; only the changing one leaves.'
 		);
-		$this->assertSame( 'none', $resource['auth']['type'], 'With nothing changing left, the group is open again — honestly.' );
+		$this->assertSame( 'basic', $resource['auth']['type'], 'Still a sign-in: reading a gated ability is not open to anyone.' );
 		$this->assertCount( 2, $resource['tools'], 'The owner still sees both on their own screen; only the served list is trimmed.' );
 	}
 }

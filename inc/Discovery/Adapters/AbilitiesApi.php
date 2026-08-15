@@ -141,7 +141,7 @@ final class AbilitiesApi {
 			//      us to advertise it, not to promise anyone may run it.
 			$read_only  = self::read_only_hint( $ability, $name );
 			$advertised = self::advertised( $ability ) && ! ( $hold_back && ! $read_only );
-			$auth       = self::auth_for( $advertised, $read_only );
+			$auth       = self::auth_for();
 
 			// Only what is actually served decides the group's own line.
 			if ( $advertised ) {
@@ -238,22 +238,36 @@ final class AbilitiesApi {
 	/**
 	 * What running this tool takes. Ours to say, and never louder than the truth.
 	 *
-	 * Anyone may call a tool that is BOTH advertised by its vendor AND only reads.
-	 * Everything else needs a signed-in user: an ability nobody advertised, and —
-	 * the case that started this — a tool that CHANGES something, however its
-	 * vendor marked it. WooCommerce marks product-delete public; that is a request
-	 * to list it, not a promise that anyone may run it.
+	 * ⛔ ALWAYS a sign-in, and the reason is in the Abilities API itself: every
+	 * ability is registered WITH a permission callback. There is no such thing as
+	 * an ungated ability, so "anyone may run this" is a sentence we can never
+	 * honestly write about one.
+	 *
+	 * ⚠️ WHAT THIS REPLACED, and why it was wrong twice. The rule used to read
+	 * "advertised AND read-only ⇒ no sign-in needed". The first half of that was
+	 * corrected once already, when marking writes public published five ways to
+	 * change a shop as open to anyone. The read half survived and was just as
+	 * wrong: on a site running WooCommerce, FluentCRM, FluentBoards, AIOSEO and
+	 * WP Mail SMTP it put THIRTY-TWO tools in the public document under "no
+	 * sign-in needed" — among them woocommerce/orders-query, gated by
+	 * wc_rest_check_post_permissions(), fluent-crm/list-contacts, and
+	 * fluent-boards/list-boards, whose own description says it returns the boards
+	 * "visible to the current user". A stranger calling any of them is refused.
+	 *
+	 * ⭐ Read-only was never the question. Read-only says a tool does not WRITE;
+	 * it says nothing about whether the thing it reads is public, and someone's
+	 * customer orders are not. The vendor's `mcp.public` mark is not the question
+	 * either — that one asks us to list the tool, which we do.
 	 *
 	 * Under-claiming costs an agent one unnecessary auth header. Over-claiming
 	 * walks it into a 401 and misinforms every reader of the document. Those are
-	 * not symmetric.
+	 * not symmetric, and the screen already says it in words: every tool on the
+	 * Discovery page sits under the heading "For a signed-in assistant".
 	 *
-	 * @param bool $advertised Whether the vendor advertises it.
-	 * @param bool $read_only  Whether it only reads.
-	 * @return string 'none' when anyone may call it, 'wp' when it needs a sign-in.
+	 * @return string Always 'wp' — an ability is gated by its own permission callback.
 	 */
-	private static function auth_for( $advertised, $read_only ) {
-		return ( $advertised && $read_only ) ? 'none' : 'wp';
+	private static function auth_for() {
+		return 'wp';
 	}
 
 	/**

@@ -759,9 +759,13 @@ export default {
           <div class="ar-wd-tool__meta">
             <span v-if="t.annotations && t.annotations.readOnlyHint" class="ar-wd-badge">read-only</span>
             <span v-if="t.inputSchema && Object.keys(t.inputSchema).length" class="ar-wd-badge ar-wd-badge--schema">schema</span>
-            <span class="ar-wd-auth" :class="t.auth === 'none' ? 'is-open' : 'is-locked'">
-              {{ t.auth === 'none' ? 'public' : t.auth }}
-            </span>
+            <!-- ⭐ Only the exception is worth a chip. Every ability is gated by
+                 its own permission callback, so this reads "sign-in" on every
+                 row under a heading that already says "For a signed-in
+                 assistant" — a badge that never varies is furniture. It shows
+                 only when something really is open to anyone, and it never
+                 prints the raw scheme name: "wp" is our word, not the owner's. -->
+            <span v-if="t.auth === 'none'" class="ar-wd-auth is-open">public</span>
           </div>
         </li>
       </ul>
