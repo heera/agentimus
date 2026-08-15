@@ -49,6 +49,7 @@ export default {
 
 <template>
   <IntegrationCard
+    brand="linkedin"
     mark="In"
     name="LinkedIn"
     blurb="Posts your announcements through an app you own. LinkedIn receives no events — only what you queue on Sharing."

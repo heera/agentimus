@@ -36,6 +36,7 @@ export default {
 
 <template>
   <IntegrationCard
+    brand="telegram"
     mark="Tg"
     name="Telegram"
     blurb="Events as messages from a bot you own — wherever you use Telegram, your site's news finds you."

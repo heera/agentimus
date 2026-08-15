@@ -39,8 +39,9 @@ export default {
 
 <template>
   <IntegrationCard
+    brand="x"
     mark="X"
-    name="X (Twitter)"
+    name="Twitter"
     blurb="Posts your announcements through an app you own. X receives no events — only what you queue on Sharing."
     :chip="chip"
     :action="action"

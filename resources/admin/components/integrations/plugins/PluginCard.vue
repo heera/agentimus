@@ -11,7 +11,22 @@
  */
 import IntegrationCard from '../IntegrationCard.vue';
 
-// Two letters standing in for logos we don't ship (and must not imitate).
+// The vendor's own mark where we hold a faithful one (brandMarks.js). A
+// provider missing from here keeps its monogram below — an honest stand-in
+// beats a drawing that only resembles somebody's logo.
+const BRANDS = {
+  woocommerce: 'woocommerce',
+  fluentcart: 'fluentcart',
+  fluentcrm: 'fluentcrm',
+  fluentsupport: 'fluentsupport',
+  fluentforms: 'fluentforms',
+  fluentbooking: 'fluentbooking',
+  fluentcommunity: 'fluentcommunity',
+  edd: 'edd',
+};
+
+// Two letters for anything the registry has no mark for — nothing today, but
+// the roster grows, and a new provider must not ship a blank tile.
 const MARKS = {
   woocommerce: 'Wc',
   fluentcart: 'Ct',
@@ -30,6 +45,9 @@ export default {
     plugin: { type: Object, required: true }, // { id, name, blurb, present }
   },
   computed: {
+    brand() {
+      return BRANDS[this.plugin.id] || '';
+    },
     mark() {
       return MARKS[this.plugin.id] || (this.plugin.name || '?').slice(0, 2);
     },
@@ -43,5 +61,5 @@ export default {
 </script>
 
 <template>
-  <IntegrationCard :mark="mark" :name="plugin.name" :blurb="plugin.blurb" :chip="chip" />
+  <IntegrationCard :brand="brand" :mark="mark" :name="plugin.name" :blurb="plugin.blurb" :chip="chip" />
 </template>

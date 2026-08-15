@@ -39,6 +39,7 @@ export default {
 
 <template>
   <IntegrationCard
+    brand="webhook"
     mark="Wh"
     name="Webhook"
     blurb="For every tool this shelf doesn't name. Agentimus sends each event to one web address you paste — automation services like Zapier, Make and n8n catch it there and turn it into anything: an email, a task, a row in Notion. Developers get the same events as signed JSON for their own code."

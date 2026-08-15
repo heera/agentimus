@@ -36,6 +36,7 @@ export default {
 
 <template>
   <IntegrationCard
+    brand="discord"
     mark="Dc"
     name="Discord"
     blurb="The same events, posted to a channel on a server you run — the team room for creators and communities that live on Discord."

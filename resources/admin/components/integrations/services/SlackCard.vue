@@ -36,6 +36,7 @@ export default {
 
 <template>
   <IntegrationCard
+    brand="slack"
     mark="Sl"
     name="Slack"
     blurb="New findings, impostor alerts and the weekly digest, posted into a channel you pick — your site speaking up where your team already works."

@@ -173,8 +173,10 @@ final class IntegrationsRestTest extends TestCase {
 	public function test_the_plugins_roster_lists_every_provider_in_card_order() {
 		$payload = $this->rest()->status();
 
+		// The running order the screen shows (his call, 2026-08-15): the Fluent
+		// family, then WooCommerce, then EDD, then whatever joins later.
 		$this->assertSame(
-			array( 'woocommerce', 'fluentcart', 'fluentforms', 'fluentcrm', 'fluentbooking', 'fluentcommunity', 'fluentsupport', 'edd' ),
+			array( 'fluentcart', 'fluentforms', 'fluentcrm', 'fluentbooking', 'fluentcommunity', 'fluentsupport', 'woocommerce', 'edd' ),
 			array_column( $payload['plugins'], 'id' )
 		);
 		foreach ( $payload['plugins'] as $row ) {

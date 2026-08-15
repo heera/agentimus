@@ -150,6 +150,7 @@ final class Announcements {
 			'created_at'   => time(),
 			'status'       => 'queued',
 			'sent_at'      => 0,
+			'failed_at'    => 0,
 			'error'        => '',
 		);
 		self::store_rows( $rows );
@@ -189,6 +190,7 @@ final class Announcements {
 		$rows[ $id ]['status']       = 'queued';
 		$rows[ $id ]['scheduled_at'] = time();
 		$rows[ $id ]['error']        = '';
+		$rows[ $id ]['failed_at']    = 0;
 		self::store_rows( $rows );
 
 		add_action( self::CRON, array( $this, 'dispatch' ) );
@@ -234,6 +236,10 @@ final class Announcements {
 			if ( is_wp_error( $verdict ) ) {
 				$rows[ $id ]['status'] = 'failed';
 				$rows[ $id ]['error']  = substr( trim( $verdict->get_error_message() ), 0, 300 );
+				// WHEN it failed is a fact of its own: an overdue row's attempt
+				// can land hours after the minute it was promised, and the
+				// screen must not pass one off as the other.
+				$rows[ $id ]['failed_at'] = time();
 			} else {
 				$rows[ $id ]['status']  = 'sent';
 				$rows[ $id ]['sent_at'] = time();

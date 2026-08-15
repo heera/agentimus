@@ -36,15 +36,20 @@ final class Rest {
 	/**
 	 * The provider cards, in the order the PLUGINS tab shows them. Each class
 	 * answers present() + describe(); adding a provider is adding a line here.
+	 *
+	 * The order is deliberate (his call, 2026-08-15): the Fluent family first,
+	 * then WooCommerce, then Easy Digital Downloads, then everything added
+	 * later. A new provider joins the end unless it belongs to one of those
+	 * groups — the roster is a running order, not an alphabet.
 	 */
 	const PLUGINS = array(
-		Plugins\WooCommerce::class,
 		Plugins\FluentCart::class,
 		Plugins\FluentForms::class,
 		Plugins\FluentCrm::class,
 		Plugins\FluentBooking::class,
 		Plugins\FluentCommunity::class,
 		Plugins\FluentSupport::class,
+		Plugins\WooCommerce::class,
 		Plugins\Edd::class,
 	);
 
@@ -200,18 +205,42 @@ final class Rest {
 	 */
 	private function announcements_page( $page ) {
 		$read = ( new Announcements( $this->settings ) )->rows( $page, self::ANNOUNCEMENTS_PER_PAGE );
+		// The same answer the editor's Share tab shows as its link preview —
+		// featured image → the site-wide default → the entity image. One
+		// resolver, so the preview here can never disagree with that one.
+		$seo = new \Agentimus\Seo( $this->settings );
 
 		$rows = array();
 		foreach ( $read['rows'] as $row ) {
-			$title  = $row['post_id'] ? get_the_title( $row['post_id'] ) : '';
+			// The column names content, not posts — a page or any CPT can be
+			// announced. And an absence names itself: a deleted entry is not
+			// an untitled one, and neither is an announcement never tied to
+			// one at all.
+			$entry = $row['post_id'] ? get_post( (int) $row['post_id'] ) : null;
+			$title = $entry ? (string) get_the_title( $entry ) : '';
+			if ( '' === $title ) {
+				if ( $entry ) {
+					$title = __( '(untitled)', 'agentimus' );
+				} else {
+					$title = $row['post_id'] ? __( '(deleted)', 'agentimus' ) : __( '(no content)', 'agentimus' );
+				}
+			}
+			$image = $entry ? $seo->social_image( $entry ) : null;
+
 			$rows[] = array(
 				'id'          => (int) $row['id'],
 				'network'     => (string) $row['network'],
 				'postId'      => (int) $row['post_id'],
-				'postTitle'   => '' !== $title ? $title : __( '(no post)', 'agentimus' ),
+				'postTitle'   => $title,
+				'postUrl'     => $entry ? (string) get_permalink( $entry ) : '',
+				'image'       => $image ? (string) $image['url'] : '',
+				'imageAlt'    => $image ? (string) $image['alt'] : '',
 				'body'        => (string) $row['body'],
 				'scheduledAt' => (int) $row['scheduled_at'],
 				'sentAt'      => (int) $row['sent_at'],
+				// 0 on rows that failed before this was recorded — the screen
+				// then says it didn't go without inventing a minute for it.
+				'failedAt'    => isset( $row['failed_at'] ) ? (int) $row['failed_at'] : 0,
 				'status'      => (string) $row['status'],
 				'error'       => (string) $row['error'],
 			);

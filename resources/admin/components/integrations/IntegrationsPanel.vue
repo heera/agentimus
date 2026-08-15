@@ -36,6 +36,7 @@ import SheetsCard from './services/SheetsCard.vue';
 import XCard from './services/XCard.vue';
 import LinkedInCard from './services/LinkedInCard.vue';
 import PluginCard from './plugins/PluginCard.vue';
+import BrandMark from '../BrandMark.vue';
 import { copyText } from '../../js/clipboard.js';
 import { formatDate, relTimeShort } from '../../js/wpDate.js';
 import { confirm } from '../../js/confirm.js';
@@ -45,7 +46,7 @@ const DEV_GUIDE = 'https://heera.github.io/agentimus/developer/integrate-your-pl
 
 export default {
   name: 'IntegrationsPanel',
-  components: { CardSkeleton, IntegrationCard, WebhookCard, TelegramCard, SlackCard, DiscordCard, SheetsCard, XCard, LinkedInCard, PluginCard },
+  components: { CardSkeleton, BrandMark, IntegrationCard, WebhookCard, TelegramCard, SlackCard, DiscordCard, SheetsCard, XCard, LinkedInCard, PluginCard },
   props: {
     api: { type: Object, default: null },
     // Rendered with v-show; fetch on first reveal, re-read on every return.
@@ -795,7 +796,8 @@ export default {
 
             <article class="ar-int__card">
               <div class="ar-int__head">
-                <h3 class="ar-int__name">X (Twitter)</h3>
+                <span class="ar-int__mark is-brand" aria-hidden="true"><BrandMark brand="x" /></span>
+                <h3 class="ar-int__name">Twitter</h3>
                 <span class="ar-int__chip" :class="{ 'is-on': sharing.x.active }">
                   {{ sharing.x.active ? 'Announcing' : (sharing.x.connected ? 'Off' : 'No app yet') }}
                 </span>
@@ -830,7 +832,10 @@ export default {
                 </p>
                 <p v-if="sharing.x.refreshError" class="ar-int__note is-err">Renewal refused — announcing is paused. Reconnect on Services.</p>
                 <p v-if="shareError" class="ar-int__moderr" role="alert">{{ shareError }}</p>
-                <p v-if="sharing.x.active" class="ar-int__note">{{ xStateLine() }}</p>
+                <!-- Bad news TAKES the state line's seat, never stacks on top
+                     of it: while the grant is refused, "no announcements yet"
+                     is a fact about a card that cannot announce at all. -->
+                <p v-if="sharing.x.active && !sharing.x.refreshError" class="ar-int__note">{{ xStateLine() }}</p>
                 <div class="ar-int__foot ar-int__foot--fill">
                   <button
                     v-if="!sharing.x.enabled"
@@ -852,6 +857,7 @@ export default {
 
             <article class="ar-int__card">
               <div class="ar-int__head">
+                <span class="ar-int__mark is-brand" aria-hidden="true"><BrandMark brand="linkedin" /></span>
                 <h3 class="ar-int__name">LinkedIn</h3>
                 <span class="ar-int__chip" :class="{ 'is-on': sharing.linkedin.active, 'is-err': sharing.linkedin.connected && sharing.linkedin.expired }">
                   {{ sharing.linkedin.active ? 'Announcing' : (sharing.linkedin.connected ? (sharing.linkedin.expired ? 'Reconnect' : 'Off') : 'No app yet') }}
@@ -871,6 +877,7 @@ export default {
               <template v-if="!sharing.linkedin.connected">
                 <p class="ar-int__blurb">
                   Announcing on LinkedIn runs through an app you own — connect it once on Services.
+                  LinkedIn needs you to have a Page before it will make that app.
                 </p>
                 <div class="ar-int__foot ar-int__foot--fill">
                   <button type="button" class="ar-btn ar-btn--ghost" @click="openLinkedIn">
@@ -892,7 +899,8 @@ export default {
                   LinkedIn's access lasts about sixty days and doesn't renew itself — reconnect by {{ liReconnectBy() }}.
                 </p>
                 <p v-if="shareError" class="ar-int__moderr" role="alert">{{ shareError }}</p>
-                <p v-if="sharing.linkedin.active" class="ar-int__note">{{ liStateLine() }}</p>
+                <!-- Same law as X's card: the paused sentence owns the line. -->
+                <p v-if="sharing.linkedin.active && !sharing.linkedin.expired" class="ar-int__note">{{ liStateLine() }}</p>
                 <div class="ar-int__foot ar-int__foot--fill">
                   <button
                     v-if="!sharing.linkedin.enabled"
@@ -913,6 +921,7 @@ export default {
             </article>
             <article class="ar-int__card">
               <div class="ar-int__head">
+                <span class="ar-int__mark is-brand" aria-hidden="true"><BrandMark brand="telegram" /></span>
                 <h3 class="ar-int__name">Telegram</h3>
                 <span class="ar-int__chip" :class="{ 'is-on': sharing.telegram.active }">
                   {{ sharing.telegram.active ? 'Announcing' : (sharing.telegram.hasToken ? 'Off' : 'No bot yet') }}
@@ -950,15 +959,32 @@ export default {
                 </p>
                 <div class="ar-field">
                   <label for="ar-int-tg-share-channel">Channel</label>
-                  <input
-                    id="ar-int-tg-share-channel"
-                    v-model="shareTg.channel"
-                    type="text"
-                    class="ar-input"
-                    autocomplete="off"
-                    placeholder="@yourchannel"
-                    :disabled="shareSaving"
-                  />
+                  <!-- Save rides IN the field, on the right edge: the button
+                       belongs to the one value it writes, not to the card's
+                       foot where it sat beside an unrelated action. It shows
+                       only once announcing is on — before that, turning it on
+                       IS the save. -->
+                  <div class="ar-field__group">
+                    <input
+                      id="ar-int-tg-share-channel"
+                      v-model="shareTg.channel"
+                      type="text"
+                      class="ar-input"
+                      autocomplete="off"
+                      placeholder="@yourchannel"
+                      :disabled="shareSaving"
+                    />
+                    <button
+                      v-if="sharing.telegram.enabled"
+                      type="button"
+                      class="ar-field__act"
+                      :disabled="shareSaving || shareTg.channel === sharing.telegram.channel"
+                      aria-label="Save the channel"
+                      @click="saveTelegramSharing(true)"
+                    >
+                      <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4.8 3.8h11l4.4 4.4v11a1.4 1.4 0 0 1-1.4 1.4H4.8a1.4 1.4 0 0 1-1.4-1.4V5.2a1.4 1.4 0 0 1 1.4-1.4Z" /><path d="M16.6 20.6v-7H7.4v7" /><path d="M7.4 3.8v4.6h6.4" /></svg>
+                    </button>
+                  </div>
                   <p class="ar-field__hint">
                     <code>@name</code> for a public channel you run, or a private one’s
                     <code>-100…</code> number. Add the bot to the channel as an admin first —
@@ -979,9 +1005,13 @@ export default {
                 <p v-if="shareError" class="ar-int__moderr" role="alert">{{ shareError }}</p>
                 <p v-if="sharing.telegram.active" class="ar-int__note">{{ sharingStateLine() }}</p>
                 <div class="ar-int__foot ar-int__foot--fill">
-                  <button type="button" class="ar-btn" :disabled="shareSaving" @click="saveTelegramSharing(true)">
-                    {{ sharing.telegram.enabled ? 'Save' : 'Turn on announcing' }}
-                  </button>
+                  <button
+                    v-if="!sharing.telegram.enabled"
+                    type="button"
+                    class="ar-btn"
+                    :disabled="shareSaving"
+                    @click="saveTelegramSharing(true)"
+                  >Turn on announcing</button>
                   <button
                     v-if="sharing.telegram.active"
                     type="button"
@@ -1268,10 +1298,21 @@ export default {
                 <!-- LinkedIn -->
                 <template v-else-if="panel === 'linkedin'">
                   <template v-if="!sharing.linkedin.connected">
+                    <!-- The prerequisite states itself BEFORE the steps, not
+                         inside a fold: LinkedIn will not issue credentials at
+                         all without a Page, and an owner who learns that on
+                         LinkedIn's site has already been sent on a dead
+                         errand (his own hands, 2026-08-15). -->
+                    <p class="ar-int__panellead">
+                      <strong>You need a LinkedIn Page first.</strong> LinkedIn only issues app credentials
+                      to an app attached to a Page you administer — a personal profile alone can't create
+                      one. Making a Page is free and takes a minute. Your announcements still post to
+                      <em>your own</em> feed, not the Page's; the Page exists only so the app can be made.
+                    </p>
                     <details class="ar-fold ar-fold--guide">
                       <summary>Creating your LinkedIn app, step by step</summary>
                       <ol class="ar-guide">
-                        <li>Sign in at <code>developer.linkedin.com</code> and create an <strong>App</strong> — it asks for a LinkedIn Page to associate; your company page (or one you create) works.</li>
+                        <li>Sign in at <code>developer.linkedin.com</code> and create an <strong>App</strong> — it requires a LinkedIn <strong>Page</strong> to associate, and you must administer that Page.</li>
                         <li>On the app's <strong>Products</strong> tab, add <strong>Share on LinkedIn</strong> and <strong>Sign In with LinkedIn using OpenID Connect</strong> — both are free, self-serve, and approved on request.</li>
                         <li>On the <strong>Auth</strong> tab, paste the <strong>Callback URL</strong> from below under Authorized redirect URLs.</li>
                         <li>Copy the <strong>Client ID</strong> and <strong>Client Secret</strong> from the same Auth tab into the fields below.</li>
