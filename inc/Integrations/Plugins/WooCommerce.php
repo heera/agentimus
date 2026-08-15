@@ -9,10 +9,9 @@
  * "REST API namespace published via discovery", which tells an assistant
  * nothing.
  *
- * ⭐ ONLY WHAT THIS SITE REALLY HAS. Each endpoint is named only when the thing
- * that serves it exists here: the Store API's own class for the first, the
- * registered product post type for the second. Nothing is advertised because
- * WooCommerce is "usually" a certain shape.
+ * ⭐ ONLY WHAT THIS SITE REALLY HAS. The address is named only when the thing
+ * that serves it exists here — the Store API's own class. Nothing is advertised
+ * because WooCommerce is "usually" a certain shape.
  *
  * ⚠️ AND THE CHECK MUST NOT CHANGE WITH THE KIND OF REQUEST. Asking the REST
  * server for its route map looks like the stricter test and is in fact a worse
@@ -27,8 +26,8 @@
  * ⛔ NEVER THE ADMIN ROUTES. `wc/v3/*` is WooCommerce's authenticated
  * management API — it answers 401 to a machine that has no key, and a discovery
  * document that points at it is sending assistants at a locked door. Only the
- * public, read-only surfaces are named: the Store API (which WooCommerce
- * publishes for exactly this purpose, no login) and the product pages.
+ * public, read-only surface is named: the Store API, which WooCommerce
+ * publishes for exactly this purpose and serves without a login.
  *
  * Registering at the default priority is what keeps the generic stub away: the
  * REST auto-adapter runs at 99 and fills gaps only, so a namespace described
@@ -51,11 +50,13 @@ final class WooCommerce {
 	/** The class that serves it. Present or absent in every context alike. */
 	const STORE_CLASS = '\Automattic\WooCommerce\StoreApi\StoreApi';
 
-	/** The product post type's own read route, for the pages a person also reads. */
-	const PAGES_URL = '/wp-json/wp/v2/product';
-
-	/** The post type behind that route. */
-	const PAGES_TYPE = 'product';
+	// ⛔ NOT the plain /wp/v2/product route. It was here, and it was one thing
+	// said twice: the WordPress Core row already advertises /wp/v2 and lists
+	// content.product.read, so products were described in two rows meaning the
+	// same door. Dropping it loses nothing — this site's own schema for the
+	// Store API carries name, permalink, description, prices, images, stock,
+	// sku and categories, so an assistant that wants the readable page has the
+	// permalink right there. One row, one job.
 
 	/**
 	 * Hook the store's description onto the discovery collection.
@@ -82,8 +83,7 @@ final class WooCommerce {
 
 	/**
 	 * The store as one discovery resource, or an empty array when there is
-	 * nothing true to say. Pure enough to test: it reads presence and the live
-	 * route map, nothing else.
+	 * nothing true to say.
 	 *
 	 * @return array
 	 */
@@ -108,8 +108,8 @@ final class WooCommerce {
 	}
 
 	/**
-	 * The read-only endpoints this site actually serves. Each is named only when
-	 * the thing that answers it is here.
+	 * The read-only endpoints this site actually serves — named only when the
+	 * thing that answers them is here.
 	 *
 	 * @return array<int,array>
 	 */
@@ -123,16 +123,6 @@ final class WooCommerce {
 				'methods'     => array( 'GET' ),
 				'auth'        => 'none',
 				'description' => __( 'Browse products, with their prices, stock and images.', 'agentimus' ),
-			);
-		}
-
-		if ( post_type_exists( self::PAGES_TYPE ) ) {
-			$endpoints[] = array(
-				'url'         => self::PAGES_URL,
-				'type'        => 'rest',
-				'methods'     => array( 'GET' ),
-				'auth'        => 'none',
-				'description' => __( 'Product pages as content — name, description and permalink.', 'agentimus' ),
 			);
 		}
 

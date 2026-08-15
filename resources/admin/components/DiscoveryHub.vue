@@ -351,10 +351,9 @@ export default {
     <section id="ar-wd-providers" class="ar-card">
       <h2 class="ar-card__title">Registered Providers</h2>
       <p class="ar-card__lead">
-        Everything this site tells AI assistants about itself. Each row is a provider — a source that
-        declares what the site offers — from three places: things <strong>provided by your
-        plugins</strong>, plugins Agentimus <strong>describes</strong> because it knows them, and
-        things Agentimus <strong>found automatically</strong> by scanning the site.
+        Everything AI assistants can learn about your site, in one list. Each row is one thing they
+        can read or do. The three groups below only say <strong>where each row came from</strong> —
+        every row counts the same.
       </p>
 
       <p v-if="!resources.length" class="ar-wd-empty">
@@ -366,8 +365,11 @@ export default {
         <!-- Provided by plugins — what a plugin deliberately declared. -->
         <div v-if="declared.length" class="ar-wd-group">
           <h3 class="ar-wd-group__title">
-            Provided by your plugins <span class="ar-wd-group__count">{{ declared.length }}</span>
+            Plugins that describe themselves <span class="ar-wd-group__count">{{ declared.length }}</span>
           </h3>
+          <p class="ar-wd-engines">
+            The plugin wrote these lines itself. Agentimus passes them on unchanged.
+          </p>
           <ul class="ar-wd-list">
             <ProviderRow v-for="r in declared" :key="r.id" :r="r" :brief-held="r.id !== firstHeldId" />
           </ul>
@@ -379,10 +381,11 @@ export default {
              it is shown open rather than folded away. -->
         <div v-if="describedByAgentimus.length" class="ar-wd-group">
           <h3 class="ar-wd-group__title">
-            Described by Agentimus <span class="ar-wd-group__count">{{ describedByAgentimus.length }}</span>
+            Plugins Agentimus describes for you <span class="ar-wd-group__count">{{ describedByAgentimus.length }}</span>
           </h3>
           <p class="ar-wd-engines">
-            Plugins Agentimus knows. It writes the description; the plugin does not have to.
+            Agentimus recognises these plugins and writes the description itself, so they work
+            without the plugin doing anything.
           </p>
           <ul class="ar-wd-list">
             <ProviderRow v-for="r in describedByAgentimus" :key="r.id" :r="r" :brief-held="r.id !== firstHeldId" />
@@ -398,9 +401,13 @@ export default {
             @click="showAuto = !showAuto"
           >
             <span class="ar-wd-group__caret" :class="{ 'is-open': showAuto }" aria-hidden="true">▸</span>
-            Found automatically by Agentimus
+            Found by looking at your site
             <span class="ar-wd-group__count">{{ autoDiscovered.length }}</span>
           </button>
+          <p class="ar-wd-engines">
+            Nobody described these. Agentimus read what your site already publishes: your content,
+            and the jobs your plugins registered with WordPress.
+          </p>
           <p v-if="engineChips.length" class="ar-wd-engines">
             Agentimus checked:
             <span

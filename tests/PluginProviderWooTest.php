@@ -35,17 +35,10 @@ final class PluginProviderWooTest extends TestCase {
 		$this->forgetWoo();
 	}
 
-	/** A whole store: the Store API class present, and the product type registered. */
+	/** A whole store: the Store API class is what serves the one address named. */
 	private function wholeStore() {
 		$this->haveStoreApi();
 		$GLOBALS['_af_post_types_exist'] = array( 'product' );
-	}
-
-	/** The Store API's own class, which is what serves wc/store. */
-	private function haveStoreApi() {
-		if ( ! class_exists( '\\Automattic\\WooCommerce\\StoreApi\\StoreApi' ) ) {
-			eval( 'namespace Automattic\\WooCommerce\\StoreApi; class StoreApi {}' ); // phpcs:ignore Squiz.PHP.Eval.Discouraged -- the only way to test both sides of class_exists in one process.
-		}
 	}
 
 	/**
@@ -132,9 +125,9 @@ final class PluginProviderWooTest extends TestCase {
 
 		$urls = array_column( $resource['endpoints'], 'url' );
 		$this->assertSame(
-			array( '/wp-json/wc/store/v1/products', '/wp-json/wp/v2/product' ),
+			array( '/wp-json/wc/store/v1/products' ),
 			$urls,
-			'The public storefront API first, then the product pages.'
+			'One row, one job. /wp/v2/product is the WordPress Core row\'s door, not this one\'s.'
 		);
 		foreach ( $resource['endpoints'] as $endpoint ) {
 			$this->assertSame( 'none', $endpoint['auth'], 'Everything advertised is readable without a login.' );
@@ -151,7 +144,29 @@ final class PluginProviderWooTest extends TestCase {
 		$second = WooCommerce::resource();
 
 		$this->assertSame( $first, $second );
-		$this->assertCount( 2, $first['endpoints'], 'An admin page and a REST call must describe the same store.' );
+		$this->assertCount( 1, $first['endpoints'], 'An admin page and a REST call must describe the same store.' );
+	}
+
+	/**
+	 * ⛔ Products must not be described twice. WordPress Core already advertises
+	 * /wp/v2 and lists content.product.read, so a second row pointing at
+	 * /wp/v2/product said one thing in two places — and confused a reader who
+	 * then had to work out whether they were the same door.
+	 */
+	public function test_the_plain_content_route_is_left_to_the_wordpress_core_row() {
+		$this->haveWoo();
+		$this->wholeStore();
+
+		$json = wp_json_encode( WooCommerce::resource() );
+
+		$this->assertStringNotContainsString( 'wp/v2/product', $json );
+	}
+
+	/** The Store API's own class, which is what serves wc/store. */
+	private function haveStoreApi() {
+		if ( ! class_exists( '\\Automattic\\WooCommerce\\StoreApi\\StoreApi' ) ) {
+			eval( 'namespace Automattic\\WooCommerce\\StoreApi; class StoreApi {}' ); // phpcs:ignore Squiz.PHP.Eval.Discouraged -- the only way to test both sides of class_exists in one process.
+		}
 	}
 
 	/* ---- ⛔ the locked door ------------------------------------------------ */
