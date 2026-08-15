@@ -210,7 +210,13 @@ final class Registrar {
 		wp_register_ability_category(
 			self::CATEGORY,
 			array(
-				'label'       => __( 'Agentimus — AI visibility', 'agentimus' ),
+				// ⭐ His call, 2026-08-16: just the name. It is the heading over our own
+				// group of jobs on the Discovery page, beside a badge that already says
+				// Agentimus — "Agentimus — AI visibility" there said it twice and read
+				// long next to every vendor's short name. The MCP SERVER name keeps the
+				// longer form: that one appears in an assistant's list of servers, where
+				// a plugin name alone says nothing about what it offers.
+				'label'       => __( 'Agentimus', 'agentimus' ),
 				'description' => __( 'Read — and, when the owner allows writes, improve — this site’s AI/agent readiness, traffic, bot activity, per-page readability and discovery output.', 'agentimus' ),
 			)
 		);
