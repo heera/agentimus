@@ -7827,3 +7827,57 @@ a.ar-work__name { color: var(--ar-accent); }
   fill: none; stroke: currentColor; stroke-width: 1.7;
   stroke-linecap: round; stroke-linejoin: round;
 }
+
+/* ---------------------------------------------------------------------------
+   Search Opportunities: each group folds, in the SAME dress the Google-index
+   groups wear (his call, 2026-08-15) — the shared .ar-fold box, its drawn
+   caret, the label with its count in parentheses. One control per group, not
+   one per card: a group whose banner says "nothing to do here" is a stack of
+   receipts, and twelve folds would be twelve clicks to answer one question.
+   --------------------------------------------------------------------------- */
+.ar-opp__group { margin: 12px 0; }
+/* A heading in the outline, the summary's own type on screen. */
+.ar-opp__foldtitle { margin: 0; font: inherit; color: inherit; }
+/* The group's threshold note lives inside the fold now, so it must not carry
+   the top margin it wore as a section-level aside. */
+.ar-opp__group .ar-card__note { margin-top: 12px; }
+/* The group's own qualifiers ride the summary line: the rank chip it always
+   had, and — when nothing in the group can be acted on — that fact, so the
+   fold is safe to leave closed. */
+.ar-opp__group > summary .ar-opp__pos { font-weight: 400; }
+.ar-opp__groupcount {
+  font-family: var(--ar-mono); font-size: 10.5px; font-weight: 400;
+  color: var(--ar-ink-faint);
+}
+
+/* The split-search finding announces itself as a SECTION, not as one more
+   fold (his call, 2026-08-15): the folds above are a worklist's groups, this
+   is a finding the Findings screen links straight into, and every row in it
+   holds a live decision — it never collapses, so it must never look
+   collapsible. Its head wears the quiet-note dress the rest of the plugin
+   uses for an aside — surface-2 behind a left rule, no second border — so it
+   frames the section without becoming a card inside a card. */
+.ar-clsn { margin-top: 30px; }
+.ar-clsn__intro {
+  padding: 13px 16px 14px;
+  padding-right: max(16px, 100% - 96ch);
+  border-left: 2px solid var(--ar-line-strong);
+  border-radius: 0 var(--ar-radius) var(--ar-radius) 0;
+  background: var(--ar-surface-2);
+}
+.ar-clsn__band { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+/* The mark IS the thing: one search forking to two pages. Amber, like the
+   count beside it — a split is a cost, not a verdict. */
+.ar-clsn__mark {
+  flex: 0 0 auto; display: inline-flex; align-items: center; justify-content: center;
+  width: 30px; height: 30px; border-radius: 8px;
+  color: var(--ar-warn);
+  background: color-mix(in srgb, var(--ar-warn) 10%, transparent);
+  border: 1px solid color-mix(in srgb, var(--ar-warn) 26%, var(--ar-line));
+}
+.ar-clsn__mark svg { width: 17px; height: 17px; display: block; }
+.ar-clsn__title {
+  margin: 0; font-size: 14.5px; font-weight: 700; letter-spacing: -0.01em;
+  color: var(--ar-ink);
+}
+.ar-clsn__why { margin: 8px 0 0; font-size: 12.5px; line-height: 1.55; color: var(--ar-ink-soft); }
