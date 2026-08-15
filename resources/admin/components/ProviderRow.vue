@@ -86,6 +86,12 @@ export default {
       <!-- Three sources, three sentences. "Found automatically" belongs only to
            what a scanner actually found: a plugin Agentimus recognises and
            describes was not discovered, it was written. -->
+      <!-- No switch here, and the reason said out loud rather than left as a
+           gap: this row is steered from another screen. -->
+      <p v-if="r.siteContent" class="ar-wd-prov__held">
+        Chosen in Settings → Content types, not here — ticking a kind of content brings its
+        categories and tags along with it.
+      </p>
       <p class="ar-wd-prov__provider">
         <span v-if="r.described">Agentimus wrote this</span>
         <span v-else-if="r.auto">Agentimus found this · {{ foundWhere }}</span>

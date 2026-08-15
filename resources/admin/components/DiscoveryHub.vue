@@ -277,11 +277,14 @@ export default {
   methods: {
     // Published unless the owner said otherwise — the boundary the spec calls
     // owner authority, and the same list the settings screen used to write.
-    // ⭐ We never sit among the plugins we describe: Agentimus's own row leads
-    // every list on this page, and wears its own mark. A stable sort, so the
-    // order everything else was given is untouched.
+    // ⭐ The fixed things first, the ones you can act on after — his call,
+    // 2026-08-15. Ours leads (we never sit among the plugins we describe), then
+    // everything with no switch (the site's own content, and a group whose
+    // plugin published nothing), then the rows an owner can actually work.
+    // Stable, so the order everything else was given is untouched.
     ownFirst(list) {
-      return [...list].sort((a, b) => (b.own ? 1 : 0) - (a.own ? 1 : 0));
+      const rank = (r) => (r.own ? 0 : (this.controllable(r) ? 2 : 1));
+      return [...list].sort((a, b) => rank(a) - rank(b));
     },
     isPublished(id) {
       const sup = Array.isArray(this.settings.suppressed_resources) ? this.settings.suppressed_resources : [];

@@ -256,6 +256,10 @@ final class Hub {
 			// Read from the abilities namespace we register under, not a literal,
 			// so renaming it cannot leave this behind.
 			'own'          => ( 'abilities-' . \Agentimus\Abilities\Registrar::CATEGORY ) === (string) $resource['id'],
+			// The site's OWN content. It has no switch here on purpose — Content
+			// types steers it — so the row says where it is steered from instead
+			// of leaving an absence for the owner to puzzle over.
+			'siteContent'  => 'wordpress-core' === (string) $resource['id'],
 			// True when Agentimus DESCRIBES a plugin it recognises. Neither the
 			// plugin declaring itself nor a scan — a third thing, and the one the
 			// Plugins tab promises.
