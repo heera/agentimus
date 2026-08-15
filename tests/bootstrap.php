@@ -227,6 +227,9 @@ namespace {
 	$GLOBALS['_af_flush_count'] = 0;
 	if ( ! function_exists( 'is_admin' ) )              { function is_admin() { return ! empty( $GLOBALS['_af_is_admin'] ); } }
 	if ( ! function_exists( 'flush_rewrite_rules' ) )   { function flush_rewrite_rules( $hard = true ) { $GLOBALS['_af_flush_count'] = (int) ( $GLOBALS['_af_flush_count'] ?? 0 ) + 1; return true; } }
+	// The admin colour scheme the user picked — read by SchemeInk::active_surface().
+	$GLOBALS['_af_user_options'] = array();
+	if ( ! function_exists( 'get_user_option' ) )       { function get_user_option( $k, $user = 0 ) { return array_key_exists( $k, $GLOBALS['_af_user_options'] ) ? $GLOBALS['_af_user_options'][ $k ] : false; } }
 	if ( ! function_exists( 'add_option' ) )            { function add_option( $k, $v ) { $GLOBALS['_af_options'][ $k ] = $v; return true; } }
 	if ( ! function_exists( 'delete_option' ) )         { function delete_option( $k ) { unset( $GLOBALS['_af_options'][ $k ] ); return true; } }
 	// Users exist when listed in $_af_users (id => object|true); unknown ids resolve false like core.

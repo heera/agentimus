@@ -11,6 +11,8 @@
 namespace Agentimus\Tests;
 
 use Agentimus\Admin;
+use Agentimus\SchemeInk;
+use Agentimus\Settings;
 use PHPUnit\Framework\TestCase;
 
 final class AdminSchemeInkTest extends TestCase {
@@ -107,5 +109,56 @@ final class AdminSchemeInkTest extends TestCase {
 			Admin::scheme_ink( '#096484' ),
 			Admin::card_ink_for( 'some-custom-scheme', '#096484' )
 		);
+	}
+
+	/**
+	 * The body stamp reports the scheme's REGISTERED surface, so a dark dialect
+	 * keys off the colour WordPress is actually serving. Midnight is the whole
+	 * reason: it was #363b3f for years and is #333c42 from WP 7.1 — same slug,
+	 * two different nights, and the owner runs one install of each.
+	 */
+	public function test_active_surface_reports_the_registered_colour() {
+		$this->with_scheme( 'midnight', array( '#25282b', '#363b3f', '#69a8bb', '#e14d43' ) );
+		$this->assertSame( '#363b3f', SchemeInk::active_surface(), 'The older Midnight.' );
+
+		$this->with_scheme( 'midnight', array( '#232a2e', '#333c42', '#69a8bb', '#cf4339' ) );
+		$this->assertSame( '#333c42', SchemeInk::active_surface(), 'WP 7.1 retuned it.' );
+	}
+
+	public function test_active_surface_falls_back_to_the_bar_colour() {
+		$this->with_scheme( 'oneoff', array( '#445566' ) );
+		$this->assertSame( '#445566', SchemeInk::active_surface() );
+	}
+
+	public function test_active_surface_is_empty_when_there_is_nothing_usable() {
+		$this->with_scheme( 'broken', array( 'not-a-colour' ) );
+		$this->assertSame( '', SchemeInk::active_surface() );
+
+		$this->with_scheme( 'missing', array() );
+		$this->assertSame( '', SchemeInk::active_surface() );
+	}
+
+	/**
+	 * The class is the colour, so a dialect can name the night it was mixed
+	 * for; an unusable scheme adds nothing rather than a broken selector.
+	 */
+	public function test_body_class_carries_the_colour() {
+		$admin = new Admin( new Settings() );
+
+		$this->with_scheme( 'midnight', array( '#25282b', '#363b3f' ) );
+		$this->assertSame( 'wp-admin agentimus-scheme-363b3f', $admin->scheme_body_class( 'wp-admin' ) );
+
+		$this->with_scheme( 'midnight', array( '#232a2e', '#333c42' ) );
+		$this->assertSame( 'wp-admin agentimus-scheme-333c42', $admin->scheme_body_class( 'wp-admin' ) );
+
+		$this->with_scheme( 'broken', array( 'nope' ) );
+		$this->assertSame( 'wp-admin', $admin->scheme_body_class( 'wp-admin' ) );
+	}
+
+	/** Register a scheme as core does and make it the current user's choice. */
+	private function with_scheme( $slug, array $colors ) {
+		global $_wp_admin_css_colors;
+		$_wp_admin_css_colors                       = array( $slug => (object) array( 'colors' => $colors ) );
+		$GLOBALS['_af_user_options']['admin_color'] = $slug;
 	}
 }
