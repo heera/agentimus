@@ -491,6 +491,16 @@ export default {
           <span class="ar-wd-switch__track" aria-hidden="true"></span>
           <span class="ar-wd-rule__text">
             <strong>Never publish jobs that change something</strong>
+            <!-- Say WHOSE decision this is. Without it the switch reads as a
+                 contradiction (he read it that way): we follow the vendor on
+                 what to advertise, and here we appear to overrule them. Two
+                 different people are deciding — the plugin says what it offers,
+                 the owner says what their own site announces — and the screen
+                 has to name that or it looks like we changed our mind. -->
+            <small>
+              Your call, not the plugin’s. These plugins asked to have them listed; this keeps them
+              out of your public files anyway. Off unless you switch it on.
+            </small>
             <small>{{ changingJobsNote }}</small>
           </span>
         </label>
