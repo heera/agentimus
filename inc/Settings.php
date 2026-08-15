@@ -99,6 +99,7 @@ final class Settings {
 			'rest_namespaces'  => array(), // Owner-curated REST namespaces to publish in discovery (opt-in; empty = none).
 			'oauth_auth_server' => '',     // Optional OAuth authorization-server URL; when set, serve RFC 9728 protected-resource metadata. Never fabricate RFC 8414.
 			'suppressed_resources' => array(), // Owner opt-OUT: ids of provider-registered Resources to hide from all output. Declared Resources default to published (spec §04), so empty = publish everything a provider declared.
+			'hold_back_changing_jobs' => false, // Owner opt-OUT, one tick for all of them: keep every job that CHANGES something out of the public documents, whatever its plugin marked. Default false, because publication is the vendor's call (see Discovery\Adapters\AbilitiesApi::advertised) — this is the owner's veto on top, the same shape as post_types_vetoed: the owner's no outranks a plugin's yes on their own site. Read-only jobs are untouched, and a signed-in assistant still finds everything the proper way.
 			'identity'         => array(
 				'entity_type'   => 'Person', // Person, or an Organization subtype (Organization, LocalBusiness, Store, …) — see entity_types().
 				'name'          => get_bloginfo( 'name' ),

@@ -196,6 +196,32 @@ final class Hub {
 		return $ids;
 	}
 
+	/**
+	 * How many PUBLISHED runnable tools only read, or change something.
+	 *
+	 * ⚠️ Published only, and that is the whole point. These two numbers sit beside
+	 * a switch that decides what is announced, so counting tools nobody announces
+	 * makes the switch describe work it would not do: on this site the total said
+	 * "13 jobs would stop being announced" when the true answer was six.
+	 *
+	 * @param array $tools     A resource's tools.
+	 * @param bool  $read_only Count the reading ones, or the changing ones.
+	 * @return int
+	 */
+	private static function count_kind( $tools, $read_only ) {
+		$n = 0;
+		foreach ( self::of_kind( (array) $tools, 'tool' ) as $tool ) {
+			if ( isset( $tool['public'] ) && ! $tool['public'] ) {
+				continue;
+			}
+			$hint = isset( $tool['annotations']['readOnlyHint'] ) ? (bool) $tool['annotations']['readOnlyHint'] : false;
+			if ( $hint === (bool) $read_only ) {
+				++$n;
+			}
+		}
+		return $n;
+	}
+
 	private static function resource_row( $resource, array $suppressed = array() ) {
 		$provider = isset( $resource['provider']['plugin'] ) ? $resource['provider']['plugin'] : '';
 		$ours     = function_exists( 'plugin_basename' ) ? plugin_basename( AGENTIMUS_FILE ) : 'agentimus/agentimus.php';
@@ -256,6 +282,11 @@ final class Hub {
 			// them made every "tools" number on screen overstate itself — the
 			// Agentimus group read "25 tools" for 21 tools and 4 documents.
 			'tools'        => count( self::of_kind( $resource['tools'], 'tool' ) ),
+			// The split an owner needs before deciding: how many of these only
+			// look at something, and how many change it. Counted from each tool's
+			// own read-only hint, never from its name.
+			'reads'        => self::count_kind( $resource['tools'], true ),
+			'changes'      => self::count_kind( $resource['tools'], false ),
 			'docs'         => count( self::of_kind( $resource['tools'], 'resource' ) ),
 			// The names behind those counts. "25 tools" with nothing to open was a
 			// dead end: the card counted 42 and listed only the 7 published ones,

@@ -8266,3 +8266,29 @@ a.ar-work__name { color: var(--ar-accent); }
    on the row rather than on a baseline it no longer has. */
 .ar-rail-regcard__icon { display: inline-flex; align-items: center; }
 .ar-rail-regcard__icon svg { width: 15px; height: 15px; display: block; }
+
+/* The publish card's two parts: a quiet heading over each half, so "read" and
+   "run" are told apart before anyone reaches for a switch. */
+.ar-prov-part {
+  margin: 18px 0 8px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ar-ink-faint);
+}
+.ar-prov-part:first-of-type { margin-top: 10px; }
+/* A group whose plugin published nothing: the row stays so the owner sees
+   everything their site holds, without a switch that could change nothing. */
+.ar-prov-none {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 10px;
+  margin: 0;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--ar-line);
+  color: var(--ar-ink-faint);
+}
+.ar-prov-none strong { color: var(--ar-ink-soft); font-weight: 600; }
+.ar-prov-none span { font-size: 12px; }

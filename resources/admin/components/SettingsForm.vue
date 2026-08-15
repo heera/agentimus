@@ -45,7 +45,8 @@ export default {
     debug: { type: Object, default: () => ({}) },
     endpoints: { type: Object, default: () => ({}) },
     restNamespacesDetected: { type: Array, default: () => [] },
-    providerResources: { type: Array, default: () => [] },
+    readableResources: { type: Array, default: () => [] },
+    jobResources: { type: Array, default: () => [] },
     profileDirty: { type: Boolean, default: false },
     profileSaving: { type: Boolean, default: false },
     profileSaved: { type: Boolean, default: false },
@@ -102,6 +103,18 @@ export default {
     },
   },
   computed: {
+    // Name what the tick would actually take away, counted from this site — a
+    // switch whose effect you have to guess is a switch nobody dares touch.
+    changingJobsNote() {
+      const n = this.jobResources.reduce((sum, r) => sum + (r.changes || 0), 0);
+      if (!n) return 'Nothing here changes anything, so this would take nothing away.';
+      if (this.settings.hold_back_changing_jobs) {
+        return n === 1 ? '1 job is being kept out of the public files.' : n + ' jobs are being kept out of the public files.';
+      }
+      return n === 1
+        ? 'Would stop announcing 1 job that changes something.'
+        : 'Would stop announcing ' + n + ' jobs that change something.';
+    },
     // The Verified-bots registry as one list: built-ins (toggleable) then the owner's
     // custom entries (removable). Mirrors VerifierRegistry::entries() server-side.
     verifierRows() {
@@ -895,6 +908,18 @@ export default {
       if (i === -1) list.push(id); // now suppressed
       else list.splice(i, 1); // back to published
     },
+    // "2 things to read", in the owner's words rather than a spec's count.
+    readableWhat(r) {
+      const n = (r.capabilities && r.capabilities.length) || 0;
+      return n === 1 ? '1 thing to read' : n + ' things to read';
+    },
+    // "2 read · 5 change" — the split that decides whether someone switches it off.
+    jobsWhat(r) {
+      const parts = [];
+      if (r.reads) parts.push(r.reads + ' read');
+      if (r.changes) parts.push(r.changes + ' change');
+      return parts.length ? parts.join(' · ') : 'nothing published';
+    },
     providerLabel(plugin) {
       return plugin ? String(plugin).split('/')[0] : '';
     },
@@ -1509,34 +1534,68 @@ export default {
       </section>
 
       <!-- Provider integrations ---------------------------------------- -->
-      <section v-if="providerResources.length" class="ar-card">
-        <h2 class="ar-card__title">Provider Integrations</h2>
+      <section v-if="readableResources.length || jobResources.length" class="ar-card">
+        <h2 class="ar-card__title">What your plugins offer AI assistants</h2>
         <p class="ar-card__lead">
-          Resources that installed plugins declared for AI assistants. Each is <strong>published by default</strong> —
-          switch off any you'd rather not advertise. You decide whether it's listed; the plugin decides what it says.
+          Each one is published unless you switch it off. You can switch things off, never on —
+          what a plugin keeps to itself stays that way.
         </p>
 
-        <label v-for="r in providerResources" :key="r.id" class="ar-toggle ar-toggle--rich">
-          <input type="checkbox" :checked="isPublished(r.id)" @change="togglePublish(r.id)" />
-          <span class="ar-toggle__track" aria-hidden="true"></span>
-          <span class="ar-toggle__text">
-            <strong>{{ r.title }}</strong>
-            <small class="ar-prov-meta">
-              <code>{{ r.type }}</code>
-              <span v-if="r.provider" class="ar-prov">{{ providerLabel(r.provider) }}</span>
-              <span v-if="r.capabilities && r.capabilities.length">{{ r.capabilities.length }} capabilit{{ r.capabilities.length === 1 ? 'y' : 'ies' }}</span>
-              <span v-if="r.hasAgent">agent card</span>
-            </small>
-          </span>
-          <span class="ar-signal-state" :class="isPublished(r.id) ? 'is-allow' : 'is-block'">
-            {{ isPublished(r.id) ? 'Published' : 'Suppressed' }}
-          </span>
-        </label>
+        <template v-if="readableResources.length">
+          <h3 class="ar-prov-part">Things assistants can read</h3>
+          <label v-for="r in readableResources" :key="r.id" class="ar-toggle ar-toggle--rich">
+            <input type="checkbox" :checked="isPublished(r.id)" @change="togglePublish(r.id)" />
+            <span class="ar-toggle__track" aria-hidden="true"></span>
+            <span class="ar-toggle__text">
+              <strong>{{ r.title }}</strong>
+              <small class="ar-prov-meta">
+                <span>{{ readableWhat(r) }}</span>
+                <span v-if="r.provider" class="ar-prov">{{ providerLabel(r.provider) }}</span>
+              </small>
+            </span>
+            <span class="ar-signal-state" :class="isPublished(r.id) ? 'is-allow' : 'is-block'">
+              {{ isPublished(r.id) ? 'Published' : 'Switched off' }}
+            </span>
+          </label>
+        </template>
+
+        <template v-if="jobResources.length">
+          <h3 class="ar-prov-part">Jobs assistants can run</h3>
+          <!-- A group whose plugin published nothing keeps its row and loses its
+               switch: the owner sees everything their site holds, and a switch
+               that cannot change anything is worse than none. -->
+          <template v-for="r in jobResources">
+            <label v-if="!r.notPublic" :key="r.id" class="ar-toggle ar-toggle--rich">
+              <input type="checkbox" :checked="isPublished(r.id)" @change="togglePublish(r.id)" />
+              <span class="ar-toggle__track" aria-hidden="true"></span>
+              <span class="ar-toggle__text">
+                <strong>{{ r.title }}</strong>
+                <small class="ar-prov-meta"><span>{{ jobsWhat(r) }}</span></small>
+              </span>
+              <span class="ar-signal-state" :class="isPublished(r.id) ? 'is-allow' : 'is-block'">
+                {{ isPublished(r.id) ? 'Published' : 'Switched off' }}
+              </span>
+            </label>
+            <p v-else :key="r.id + '-held'" class="ar-prov-none">
+              <strong>{{ r.title }}</strong>
+              <span>nothing published — this plugin keeps all of these to itself</span>
+            </p>
+          </template>
+
+          <label class="ar-toggle ar-toggle--rich ar-toggle--nested">
+            <input v-model="settings.hold_back_changing_jobs" type="checkbox" />
+            <span class="ar-toggle__track" aria-hidden="true"></span>
+            <span class="ar-toggle__text">
+              <strong>Never publish jobs that change something</strong>
+              <small>{{ changingJobsNote }}</small>
+            </span>
+          </label>
+        </template>
 
         <p class="ar-card__note">
-          <strong>This controls listing, not access.</strong>
-          Suppressing removes a resource from discovery, the agent card and the REST mirror — but the
-          plugin and its endpoints keep working exactly as before. It changes what AI assistants are told, not what the site does.
+          <strong>This changes what your site announces, not what it can do.</strong>
+          Switching something off takes it out of the public files. The plugin keeps working exactly
+          as before, and an assistant that signs in still finds it.
         </p>
       </section>
     </div>

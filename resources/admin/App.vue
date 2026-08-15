@@ -280,11 +280,17 @@ export default {
       s.identity = id;
       return JSON.stringify(s);
     },
-    // Third-party DECLARED resources the owner can publish/suppress. Our own
-    // auto-discovery (wordpress-core, REST stubs, abilities) is curated elsewhere.
-    providerResources() {
+    // What the owner can switch off, in the two parts the settings card shows:
+    // things assistants can READ, and jobs they can RUN. The site's own content
+    // (wordpress-core) is steered by Content types instead, and a bare REST stub
+    // is the owner's own opt-in already — neither belongs here.
+    readableResources() {
       const list = (this.discovery && this.discovery.resources) || [];
-      return list.filter((r) => !r.auto);
+      return list.filter((r) => !r.auto && r.type !== 'agent');
+    },
+    jobResources() {
+      const list = (this.discovery && this.discovery.resources) || [];
+      return list.filter((r) => r.type === 'agent');
     },
     // The quill's state, LIVE: the two switches exist in this SPA's own settings
     // object, so flipping them must light the quill (and retire the popover's
@@ -2103,7 +2109,8 @@ export default {
           :debug="debug"
           :endpoints="endpoints"
           :rest-namespaces-detected="restNamespacesDetected"
-          :provider-resources="providerResources"
+          :readable-resources="readableResources"
+          :job-resources="jobResources"
           :profile-dirty="profileDirty"
           :profile-saving="profileSaving"
           :profile-saved="profileSaved"

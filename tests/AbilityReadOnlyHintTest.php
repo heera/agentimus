@@ -135,4 +135,69 @@ final class AbilityReadOnlyHintTest extends TestCase {
 		$this->assertSame( 'wp', $this->auth( false, true ), 'Read-only says nothing about WHO may read.' );
 		$this->assertSame( 'wp', $this->auth( false, false ) );
 	}
+
+	/* -- 5. The owner's veto ------------------------------------------------ */
+
+	/**
+	 * Build a namespace's resource the way provide() does, with two abilities the
+	 * vendor advertises: one that reads, one that changes something.
+	 *
+	 * @param bool $hold_back The owner's tick.
+	 * @return array
+	 */
+	private function group( bool $hold_back ): array {
+		// Both advertised by their vendor. The read-only one SAYS SO, the way a
+		// real plugin does — WooCommerce declares the annotation on its query
+		// tools rather than leaving it to be guessed from the name.
+		$advertised = array( 'mcp' => array( 'public' => true ), 'show_in_rest' => true );
+		$reads      = $advertised + array( 'annotations' => array( 'readonly' => true ) );
+		$changes    = $advertised + array( 'annotations' => array( 'readonly' => false ) );
+		$items      = array(
+			array( 'name' => 'shop/products-query', 'ability' => $this->ability( $reads ) ),
+			array( 'name' => 'shop/product-delete', 'ability' => $this->ability( $changes ) ),
+		);
+
+		$m = new \ReflectionMethod( AbilitiesApi::class, 'resource_for' );
+		\_af_accessible( $m );
+		return $m->invoke( new AbilitiesApi(), 'shop', $items, $hold_back );
+	}
+
+	/** Which tool names the served document would carry. */
+	private function published( array $resource ): array {
+		$out = array();
+		foreach ( $resource['tools'] as $tool ) {
+			if ( ! empty( $tool['public'] ) ) {
+				$out[] = $tool['name'];
+			}
+		}
+		return $out;
+	}
+
+	public function test_without_the_veto_the_vendors_choice_stands() {
+		$resource = $this->group( false );
+
+		$this->assertSame(
+			array( 'shop/products-query', 'shop/product-delete' ),
+			$this->published( $resource ),
+			'The vendor advertised both, so both are published.'
+		);
+		$this->assertSame( 'basic', $resource['auth']['type'], 'A published tool that changes something means the group needs a sign-in.' );
+	}
+
+	/**
+	 * ⭐ HIS RULE, the owner's half: publication is the vendor's call, but on
+	 * their own site the owner's no outranks a plugin's yes — the same rule
+	 * post_types_vetoed already states for content.
+	 */
+	public function test_the_veto_removes_only_the_jobs_that_change_something() {
+		$resource = $this->group( true );
+
+		$this->assertSame(
+			array( 'shop/products-query' ),
+			$this->published( $resource ),
+			'The reading job is untouched; only the changing one leaves.'
+		);
+		$this->assertSame( 'none', $resource['auth']['type'], 'With nothing changing left, the group is open again — honestly.' );
+		$this->assertCount( 2, $resource['tools'], 'The owner still sees both on their own screen; only the served list is trimmed.' );
+	}
 }

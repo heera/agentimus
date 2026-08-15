@@ -97,19 +97,26 @@ final class AbilitiesApi {
 			$by_namespace[ $namespace ][] = array( 'name' => $name, 'ability' => $ability );
 		}
 
+		// The owner's one veto, read once: keep every job that CHANGES something
+		// out of the public documents, whatever its plugin marked. Publication is
+		// the vendor's call; this is the owner's no on top of it, and on their own
+		// site their no wins — the rule post_types_vetoed already states.
+		$hold_back = (bool) ( new \Agentimus\Settings() )->get( 'hold_back_changing_jobs', false );
+
 		foreach ( $by_namespace as $namespace => $items ) {
-			$registry->register( $this->resource_for( $namespace, $items ) );
+			$registry->register( $this->resource_for( $namespace, $items, $hold_back ) );
 		}
 	}
 
 	/**
 	 * Build one discovery resource for a namespace's abilities.
 	 *
-	 * @param string $namespace Namespace slug.
-	 * @param array[] $items    Each {name, ability}.
+	 * @param string  $namespace Namespace slug.
+	 * @param array[] $items     Each {name, ability}.
+	 * @param bool    $hold_back The owner's veto on jobs that change something.
 	 * @return array
 	 */
-	private function resource_for( $namespace, $items ) {
+	private function resource_for( $namespace, $items, $hold_back = false ) {
 		$tools     = array();
 		$abilities = array();
 		$skills    = array();
@@ -132,8 +139,8 @@ final class AbilitiesApi {
 			//      CHANGES something is never "no sign-in needed", whoever marked
 			//      it public: WooCommerce marks product-delete public, which asks
 			//      us to advertise it, not to promise anyone may run it.
-			$advertised = self::advertised( $ability );
 			$read_only  = self::read_only_hint( $ability, $name );
+			$advertised = self::advertised( $ability ) && ! ( $hold_back && ! $read_only );
 			$auth       = self::auth_for( $advertised, $read_only );
 
 			// Only what is actually served decides the group's own line.
