@@ -137,6 +137,7 @@ final class Plugin {
 		( new Integrations\Events( $this->settings ) )->register(); // The listeners that feed that queue, + the daily findings diff. Same inertness.
 		( new Integrations\Rest( $this->settings ) )->register(); // The Integrations screen's routes — unconditional, they are how the webhook gets connected.
 		( new Integrations\Announcements( $this->settings ) )->register(); // The scheduled-announcements drain. Inert — not one hook — until a row is queued.
+		Integrations\Plugins\WooCommerce::register(); // Describes a present store to AI assistants. One line per provider that has grown past its card; the rest of the roster is presence only, and says nothing.
 		( new ReviewBadge( $this->settings ) )->register(); // Review-queue count on the admin menu + Heartbeat live updates (admin-only; no-ops on the front end).
 		( new Abilities\AdapterBootstrap( $this->settings ) )->register(); // Boots the bundled MCP Adapter when the owner opts in (inert otherwise).
 		( new Abilities\Registrar( $this->settings ) )->register(); // Exposes our own read capabilities to the WP admin AI + MCP (no-ops pre-6.9).
