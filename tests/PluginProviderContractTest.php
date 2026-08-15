@@ -208,6 +208,82 @@ final class PluginProviderContractTest extends TestCase {
 		$this->assertTrue( TestMisbehavingProvider::describe()['describes'] );
 	}
 
+	/* ---- standing down is not describing --------------------------------- */
+
+	/**
+	 * ⭐⭐ THE CARD MUST REPORT THE DOCUMENT, NOT THE INTENTION. A provider stands
+	 * down when a plugin's own voice already names its address — that is the rule
+	 * `provide()` keeps, and the whole point of it is that we then say NOTHING.
+	 * The card counted the resource we would have registered, so a plugin
+	 * described entirely by its vendor's own adapter still wore our tick.
+	 *
+	 * It went unnoticed on wpftest because the one provider it happens to affect
+	 * also folds in a post type, which is a real description and keeps the tick
+	 * honest by luck. A provider that stood down with no public post type — the
+	 * next one written — would have claimed a description it never made.
+	 */
+	public function test_a_provider_that_stood_down_does_not_claim_the_description() {
+		$rival = new TestRegistry(
+			array(
+				'someone-else' => array(
+					'endpoints' => array( array( 'url' => '/wp-json/good/v1/things' ) ),
+				),
+			)
+		);
+
+		$this->assertFalse(
+			TestMisbehavingProvider::describe( $rival )['describes'],
+			'Another plugin owns that address, so provide() says nothing — and neither may the card.'
+		);
+	}
+
+	/**
+	 * ⚠️ The mirror image, and the reason the rule skips our own row: this same
+	 * question is asked AFTER a full collection, when our address IS in the
+	 * document — under our own id. Reading that as a rival would make every
+	 * provider report that it had stood down, turning the whole roster off.
+	 */
+	public function test_finding_our_own_row_is_not_finding_a_rival() {
+		$ours = new TestRegistry(
+			array(
+				'test-misbehaving' => array(
+					'endpoints' => array( array( 'url' => '/wp-json/good/v1/things' ) ),
+				),
+			)
+		);
+
+		$this->assertTrue(
+			TestMisbehavingProvider::describe( $ours )['describes'],
+			'That row is ours. We are the description, not a duplicate of it.'
+		);
+	}
+
+	/**
+	 * Standing down silences the RESOURCE, not the post types: a provider whose
+	 * address someone else owns can still be folding its content into what the
+	 * site advertises, and that is a description worth the tick.
+	 */
+	public function test_standing_down_still_leaves_a_folded_post_type_described() {
+		$GLOBALS['_af_post_types_exist'] = array( 'thing' );
+		$rival                           = new TestRegistry(
+			array(
+				'someone-else' => array(
+					'endpoints' => array( array( 'url' => '/wp-json/good/v1/things' ) ),
+				),
+			)
+		);
+
+		$this->assertTrue(
+			TestFoldingProvider::describe( $rival )['describes'],
+			'The address is theirs; the content type is still ours to advertise.'
+		);
+	}
+
+	/** With no view of the document, our own answer is the only honest one. */
+	public function test_without_a_registry_the_card_reports_what_we_would_say() {
+		$this->assertTrue( TestMisbehavingProvider::describe( null )['describes'] );
+	}
+
 	/**
 	 * ⚠️ THE ROUTE IS READ, NEVER GUESSED. Easy Digital Downloads registers the
 	 * type `download` and serves it at `edd-downloads`; a provider that built the
@@ -269,6 +345,45 @@ final class TestMisbehavingProvider extends Provider {
 			array( 'url' => '/wp-json/good/v1/things', 'description' => 'Public.' ),
 			array( 'url' => '/wp-json/locked/v3/things', 'auth' => 'basic', 'description' => 'Needs a key.' ),
 		);
+	}
+}
+
+/** Present, with BOTH a public address and a content type of its own. */
+final class TestFoldingProvider extends Provider {
+	const ID = 'test-folding';
+	public static function present() {
+		return true;
+	}
+	protected static function name() {
+		return 'Folding';
+	}
+	protected static function blurb() {
+		return 'An address someone else may own, and content of its own.';
+	}
+	protected static function endpoints() {
+		return array( array( 'url' => '/wp-json/good/v1/things', 'description' => 'Public.' ) );
+	}
+	protected static function post_types() {
+		return array( 'thing' );
+	}
+}
+
+/** The collector, as much of it as the stand-down rule reads. */
+final class TestRegistry {
+
+	/** @var array<string,array> */
+	private $resources;
+
+	/**
+	 * @param array<string,array> $resources Resources keyed by id, as the real one keys them.
+	 */
+	public function __construct( array $resources ) {
+		$this->resources = $resources;
+	}
+
+	/** @return array<string,array> */
+	public function resources() {
+		return $this->resources;
 	}
 }
 

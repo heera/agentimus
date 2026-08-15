@@ -186,9 +186,15 @@ abstract class Provider {
 	}
 
 	/**
-	 * Whether some earlier provider already advertised one of these addresses.
+	 * Whether SOMEONE ELSE already advertised one of these addresses.
 	 *
-	 * @param object $registry  The collector, mid-collection.
+	 * ⭐ Our own row is skipped. `provide()` asks this before registering, so we
+	 * are never in the registry at that moment and the skip costs nothing there —
+	 * but {@see in_the_document()} asks the same question AFTER a full collection,
+	 * where finding our own address and reading it as a rival would make every
+	 * provider report that it had stood down.
+	 *
+	 * @param object $registry  The collector.
 	 * @param array  $endpoints The addresses we were about to name.
 	 * @return bool
 	 */
@@ -200,7 +206,10 @@ abstract class Provider {
 		foreach ( $endpoints as $endpoint ) {
 			$ours[] = untrailingslashit( (string) $endpoint['url'] );
 		}
-		foreach ( (array) $registry->resources() as $existing ) {
+		foreach ( (array) $registry->resources() as $id => $existing ) {
+			if ( (string) $id === (string) static::ID ) {
+				continue;
+			}
 			if ( empty( $existing['endpoints'] ) || ! is_array( $existing['endpoints'] ) ) {
 				continue;
 			}
@@ -270,17 +279,62 @@ abstract class Provider {
 	 * is behind a login — and the card claimed otherwise for all five. A plugin
 	 * being here is not the same as us having anything to say about it.
 	 *
+	 * @param object|null $registry The collected registry, when the caller has
+	 *                              one. Given it, the card can tell a description
+	 *                              we made from one we stood down from; without
+	 *                              it, it can only report what we would say.
 	 * @return array{id:string,name:string,blurb:string,present:bool,describes:bool}
 	 */
-	public static function describe() {
+	public static function describe( $registry = null ) {
 		$present = static::present();
 		return array(
 			'id'        => static::ID,
 			'name'      => static::name(),
 			'blurb'     => static::blurb(),
 			'present'   => $present,
-			'describes' => $present && ( array() !== static::resource() || array() !== static::live_post_types() ),
+			'describes' => $present && ( self::in_the_document( $registry ) || array() !== static::live_post_types() ),
 		);
+	}
+
+	/**
+	 * Whether OUR resource is really in the document this site serves.
+	 *
+	 * ⚠️ NOT "would we register one". `provide()` STANDS DOWN when a plugin's own
+	 * voice already owns the address, and this card used to count the intention
+	 * instead of the outcome: on wpftest the `agentimus-adapter-fluentcart`
+	 * plugin names the product route, so our provider says nothing there — and
+	 * the tile still read "Described". It was true on that site only by accident,
+	 * because the product post type folds in separately; a provider that stood
+	 * down AND registered no public post type would have claimed a description it
+	 * never made.
+	 *
+	 * ⭐ It asks the SAME question `provide()` asks, through the same method, so
+	 * the card and the document can never disagree about who described what. ⛔ Not
+	 * "is our id in the registry": that would make the card depend on our own
+	 * registration having already run this request, which is true of a page load
+	 * and not of every caller.
+	 *
+	 * ⚠️ The registry is HANDED IN, never fetched. Reaching for the singleton here
+	 * would force the whole collection at card-drawing time — freezing the
+	 * document before a provider that boots later has had its say, and (the way
+	 * it was caught) making the answer depend on whether something else had
+	 * already collected this request.
+	 *
+	 * @param object|null $registry The collected registry, or null when the caller
+	 *                              has none — with no view of what else is in the
+	 *                              document there is nothing that could have stood
+	 *                              us down, so our own answer stands.
+	 * @return bool
+	 */
+	private static function in_the_document( $registry = null ) {
+		$resource = static::resource();
+		if ( array() === $resource ) {
+			return false;
+		}
+		if ( ! is_object( $registry ) ) {
+			return true;
+		}
+		return ! self::already_described( $registry, $resource['endpoints'] );
 	}
 
 	/**

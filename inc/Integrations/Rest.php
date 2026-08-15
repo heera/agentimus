@@ -1108,9 +1108,15 @@ final class Rest {
 			);
 		}
 
+		// One collection for the whole roster, handed to each card. A provider
+		// STANDS DOWN when a plugin's own voice already names its address, and a
+		// card that never saw the document would report the description we meant
+		// to make rather than the one that is actually being served.
+		$document = \Agentimus\Discovery\Registry::instance()->collect();
+
 		$plugins = array();
 		foreach ( Plugins\Provider::ROSTER as $class ) {
-			$plugins[] = $class::describe();
+			$plugins[] = $class::describe( $document );
 		}
 
 		$dispatcher = new Dispatcher( $this->settings );
