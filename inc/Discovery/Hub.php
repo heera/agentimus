@@ -190,7 +190,7 @@ final class Hub {
 	 */
 	private static function described_ids() {
 		$ids = array();
-		foreach ( \Agentimus\Integrations\Rest::PLUGINS as $class ) {
+		foreach ( \Agentimus\Integrations\Plugins\Provider::ROSTER as $class ) {
 			$ids[] = (string) $class::ID;
 		}
 		return $ids;

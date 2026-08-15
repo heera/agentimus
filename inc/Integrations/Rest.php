@@ -33,26 +33,6 @@ final class Rest {
 	/** Ledger rows per page on the Announcements screen. */
 	const ANNOUNCEMENTS_PER_PAGE = 20;
 
-	/**
-	 * The provider cards, in the order the PLUGINS tab shows them. Each class
-	 * answers present() + describe(); adding a provider is adding a line here.
-	 *
-	 * The order is deliberate (his call, 2026-08-15): the Fluent family first,
-	 * then WooCommerce, then Easy Digital Downloads, then everything added
-	 * later. A new provider joins the end unless it belongs to one of those
-	 * groups — the roster is a running order, not an alphabet.
-	 */
-	const PLUGINS = array(
-		Plugins\FluentCart::class,
-		Plugins\FluentForms::class,
-		Plugins\FluentCrm::class,
-		Plugins\FluentBooking::class,
-		Plugins\FluentCommunity::class,
-		Plugins\FluentSupport::class,
-		Plugins\WooCommerce::class,
-		Plugins\Edd::class,
-	);
-
 	/** @var Settings */
 	private $settings;
 
@@ -1103,7 +1083,7 @@ final class Rest {
 		}
 
 		$plugins = array();
-		foreach ( self::PLUGINS as $class ) {
+		foreach ( Plugins\Provider::ROSTER as $class ) {
 			$plugins[] = $class::describe();
 		}
 
