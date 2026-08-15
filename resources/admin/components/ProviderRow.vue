@@ -40,8 +40,12 @@ export default {
       <p v-else-if="!r.suppressed && r.notPublic" class="ar-wd-prov__held">
         Held back for the same reason as above — its tools need a signed-in user.
       </p>
+      <!-- Three sources, three sentences. "Found automatically" belongs only to
+           what a scanner actually found: a plugin Agentimus recognises and
+           describes was not discovered, it was written. -->
       <p class="ar-wd-prov__provider">
-        <span v-if="r.auto">Found automatically · via the {{ r.engine }}</span>
+        <span v-if="r.described">Described by Agentimus</span>
+        <span v-else-if="r.auto">Found automatically · via the {{ r.engine }}</span>
         <span v-else>Provided by <code>{{ r.provider }}</code></span>
       </p>
 

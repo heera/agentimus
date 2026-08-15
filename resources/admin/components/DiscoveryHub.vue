@@ -167,8 +167,13 @@ export default {
     resources() {
       return this.data.resources || [];
     },
+    // Three buckets, no row in two of them: a plugin declared it, Agentimus
+    // describes it, or a scan found it.
     declared() {
-      return this.resources.filter((r) => !r.auto);
+      return this.resources.filter((r) => !r.auto && !r.described);
+    },
+    describedByAgentimus() {
+      return this.resources.filter((r) => r.described);
     },
     autoDiscovered() {
       return this.resources.filter((r) => r.auto);
@@ -214,7 +219,11 @@ export default {
     // full; later rows defer to it. Two identical paragraphs back to back
     // taught nothing twice. Render order, not payload order.
     firstHeldId() {
-      const held = [...this.declared, ...this.autoDiscovered].filter((r) => !r.suppressed && r.notPublic);
+      // Same order the groups render in, so the full explanation lands on the
+      // first held row an owner actually reads.
+      const held = [...this.declared, ...this.describedByAgentimus, ...this.autoDiscovered].filter(
+        (r) => !r.suppressed && r.notPublic
+      );
       return held.length ? held[0].id : '';
     },
     notices() {
@@ -343,8 +352,9 @@ export default {
       <h2 class="ar-card__title">Registered Providers</h2>
       <p class="ar-card__lead">
         Everything this site tells AI assistants about itself. Each row is a provider — a source that
-        declares what the site offers — from two places: things <strong>provided by your
-        plugins</strong>, and things Agentimus <strong>found automatically</strong> by scanning the site.
+        declares what the site offers — from three places: things <strong>provided by your
+        plugins</strong>, plugins Agentimus <strong>describes</strong> because it knows them, and
+        things Agentimus <strong>found automatically</strong> by scanning the site.
       </p>
 
       <p v-if="!resources.length" class="ar-wd-empty">
@@ -360,6 +370,22 @@ export default {
           </h3>
           <ul class="ar-wd-list">
             <ProviderRow v-for="r in declared" :key="r.id" :r="r" :brief-held="r.id !== firstHeldId" />
+          </ul>
+        </div>
+
+        <!-- Described by Agentimus — a plugin it recognises, written by hand.
+             Neither declared by that plugin nor found by a scan, and saying
+             either would be untrue. This is what the Plugins tab promises, so
+             it is shown open rather than folded away. -->
+        <div v-if="describedByAgentimus.length" class="ar-wd-group">
+          <h3 class="ar-wd-group__title">
+            Described by Agentimus <span class="ar-wd-group__count">{{ describedByAgentimus.length }}</span>
+          </h3>
+          <p class="ar-wd-engines">
+            Plugins Agentimus knows. It writes the description; the plugin does not have to.
+          </p>
+          <ul class="ar-wd-list">
+            <ProviderRow v-for="r in describedByAgentimus" :key="r.id" :r="r" :brief-held="r.id !== firstHeldId" />
           </ul>
         </div>
 

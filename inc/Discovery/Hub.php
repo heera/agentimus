@@ -181,10 +181,33 @@ final class Hub {
 		);
 	}
 
+	/**
+	 * The ids of the plugins Agentimus itself describes — read from the roster,
+	 * so a provider that grows past its card is counted here the moment it is
+	 * added there, and no name is written twice.
+	 *
+	 * @return string[]
+	 */
+	private static function described_ids() {
+		$ids = array();
+		foreach ( \Agentimus\Integrations\Rest::PLUGINS as $class ) {
+			$ids[] = (string) $class::ID;
+		}
+		return $ids;
+	}
+
 	private static function resource_row( $resource, array $suppressed = array() ) {
 		$provider = isset( $resource['provider']['plugin'] ) ? $resource['provider']['plugin'] : '';
 		$ours     = function_exists( 'plugin_basename' ) ? plugin_basename( AGENTIMUS_FILE ) : 'agentimus/agentimus.php';
-		$auto     = ( '' !== $provider && $provider === $ours );
+		$mine     = ( '' !== $provider && $provider === $ours );
+
+		// Two very different things wear Agentimus's name as their provider, and
+		// telling the owner they are the same thing is a lie either way round:
+		// an adapter FOUND something by scanning the site, or a hand-written
+		// provider DESCRIBES a plugin Agentimus recognises. Only the plugin
+		// roster knows which — a described resource carries a roster id.
+		$described = $mine && in_array( (string) $resource['id'], self::described_ids(), true );
+		$auto      = $mine && ! $described;
 		// Which built-in engine found an auto resource — so the UI can show
 		// "Found via the REST API / Abilities API" and link it to the engine status.
 		// The AbilitiesApi adapter mints ids as `abilities-<ns>`; everything else
@@ -200,8 +223,12 @@ final class Hub {
 			'description'  => $resource['description'],
 			'version'      => $resource['version'],
 			'provider'     => $provider,
-			// True when Agentimus's own adapter registered it (auto-discovery), not a third-party plugin declaring itself.
+			// True when one of Agentimus's own ADAPTERS found it by scanning.
 			'auto'         => $auto,
+			// True when Agentimus DESCRIBES a plugin it recognises. Neither the
+			// plugin declaring itself nor a scan — a third thing, and the one the
+			// Plugins tab promises.
+			'described'    => $described,
 			'engine'       => $engine,
 			// True when the owner has suppressed this Resource from served output.
 			'suppressed'   => in_array( $resource['id'], $suppressed, true ),

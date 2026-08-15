@@ -172,7 +172,12 @@ final class AbilitiesApi {
 
 		return array(
 			'id'           => 'abilities-' . sanitize_key( $namespace ),
-			'title'        => ucfirst( $namespace ) . ' abilities',
+			// The namespace VERBATIM, never title-cased. ucfirst() turned real
+			// vendor names into misspellings — "Woocommerce", "Mailpoet", "Ai" —
+			// and put two spellings of one vendor on the same screen. A namespace
+			// is a slug, not a name: printing it as it is can never be wrong, and
+			// there is no honest way to derive a brand's capitalisation from one.
+			'title'        => $namespace . ' abilities',
 			'type'         => 'agent',
 			// Registered either way, so the Discovery screen can still show the owner what their
 			// site exposes — but kept out of every SERVED surface when it is all sign-in-only.
@@ -190,8 +195,8 @@ final class AbilitiesApi {
 			// application password is HTTP Basic auth over REST.
 			'auth'         => array( 'type' => $needs_auth ? 'basic' : 'none' ),
 			'agent'        => array(
-				'name'        => ucfirst( $namespace ) . ' Agent',
-				'description' => sprintf( '%s capabilities exposed as MCP tools.', ucfirst( $namespace ) ),
+				'name'        => $namespace . ' Agent',
+				'description' => sprintf( '%s capabilities exposed as MCP tools.', $namespace ),
 				'skills'      => $skills,
 				'endpoint'    => '',
 				'auth'        => $needs_auth ? 'wp' : '',

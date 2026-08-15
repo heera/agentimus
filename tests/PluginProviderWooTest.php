@@ -58,6 +58,28 @@ final class PluginProviderWooTest extends TestCase {
 		}
 	}
 
+	/**
+	 * A collected registry holding exactly one resource. The Registry dispatches
+	 * the hook's callbacks itself, so the callback is placed the way WordPress
+	 * would hold it (same shape DiscoveryDispatchTest uses).
+	 */
+	private function registryHolding( array $resource ) {
+		$hook            = new \stdClass();
+		$hook->callbacks = array(
+			10 => array(
+				'woo' => array(
+					'function'      => static function ( $registry ) use ( $resource ) {
+						$registry->register( $resource );
+					},
+					'accepted_args' => 1,
+				),
+			),
+		);
+		$GLOBALS['wp_filter'][ AGENTIMUS_CANONICAL_HOOK ] = $hook;
+
+		return \Agentimus\Discovery\Registry::instance()->collect();
+	}
+
 	private function forgetWoo() {
 		unset( $GLOBALS['_af_post_types_exist'] );
 	}
@@ -182,5 +204,30 @@ final class PluginProviderWooTest extends TestCase {
 		$this->assertSame( 'woocommerce', $card['id'] );
 		$this->assertSame( 'WooCommerce', $card['name'] );
 		$this->assertArrayHasKey( 'present', $card );
+	}
+
+	/* ---- how the screen must file it ------------------------------------- */
+
+	/**
+	 * ⭐ Three sources, not two. Agentimus's name sits on the provider line of
+	 * BOTH what a scanner found and what a hand-written provider describes, so
+	 * the roster is what tells them apart. Getting this wrong put "Found
+	 * automatically · via the REST API" under a store nothing ever scanned.
+	 */
+	public function test_a_described_plugin_is_not_filed_as_a_scan() {
+		$this->haveWoo();
+		$this->wholeStore();
+
+		$rows = \Agentimus\Discovery\Hub::data( new \Agentimus\Settings(), $this->registryHolding( WooCommerce::resource() ) )['resources'];
+		$row  = null;
+		foreach ( $rows as $candidate ) {
+			if ( 'woocommerce' === $candidate['id'] ) {
+				$row = $candidate;
+			}
+		}
+
+		$this->assertNotNull( $row, 'The store must reach the screen.' );
+		$this->assertTrue( $row['described'], 'Agentimus wrote this description; it did not find it.' );
+		$this->assertFalse( $row['auto'], 'Filing it as a scan names an engine that never ran.' );
 	}
 }
