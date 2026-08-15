@@ -623,6 +623,21 @@ a.ar-int__act:hover {
   font-size: 13px;
 }
 
+/* Every state leads with its own mark, all one size, on the same left edge —
+   a column of shapes the eye reads before it reads a word. Each one is
+   pressable and each one says something the row cannot: what "queued" waits
+   for, why a sent stamp can differ from the minute chosen, and the network's
+   own sentence when it refused. */
+.ar-ann__info svg {
+  width: 15px;
+  height: 15px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.7;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
 /* The reason, on an info mark. Hover or focus shows it; nothing is truncated,
    and no row grows to hold a sentence the network wrote. */
 .ar-ann__tipwrap {
@@ -634,11 +649,16 @@ a.ar-int__act:hover {
   appearance: none;
   cursor: help;
   display: inline-flex;
+  flex: none;
   padding: 0;
   border: 0;
   background: transparent;
-  color: var(--ar-bad);
+  color: var(--ar-ink-faint);
 }
+
+.ar-ann__info.is-queued { color: var(--ar-accent); }
+.ar-ann__info.is-sent   { color: var(--ar-good); }
+.ar-ann__info.is-failed { color: var(--ar-bad); }
 
 .ar-ann__info svg {
   width: 15px;
@@ -687,9 +707,14 @@ a.ar-int__act:hover {
    instead of stretching each state's sentence to a different length. Its
    width lives with the other column widths above. */
 .ar-ann__acts {
+  /* One width for a hand, declared once: the finished row's label is exactly
+     the pair — two hands and the gap between them — so every row's action
+     block starts and ends on the same two edges. */
+  --ar-ann-hand: 86px;
+  --ar-ann-gap: 8px;
   display: flex;
   justify-content: flex-end;
-  gap: 8px;
+  gap: var(--ar-ann-gap);
 }
 
 /* One word, no icon: a small outline button — square-cornered, not a pill —
@@ -706,6 +731,10 @@ a.ar-int__act:hover {
   letter-spacing: 0.07em;
   text-transform: uppercase;
   white-space: nowrap;
+  /* One width for every hand in the column (his call): Send now beside
+     Cancel, Try again beside Remove — a ragged pair reads as two different
+     kinds of thing when they are the same kind. */
+  min-width: var(--ar-ann-hand, 86px);
   padding: 4px 9px;
   border-radius: 3px;
   background: transparent;
@@ -716,6 +745,25 @@ a.ar-int__act:hover {
 .ar-ann__act.is-stop  { color: var(--ar-warn); }
 .ar-ann__act.is-retry { color: var(--ar-accent); }
 .ar-ann__act.is-drop  { color: var(--ar-bad); }
+
+/* The finished row's label: the buttons' own metrics so the column stays a
+   column, no border so it can never be mistaken for one of them. */
+.ar-ann__done {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: calc(var(--ar-ann-hand, 86px) * 2 + var(--ar-ann-gap, 8px));
+  padding: 5px 9px;
+  border: 1px solid transparent;
+  border-radius: 3px;
+  font-family: var(--ar-mono);
+  font-size: 9.5px;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  color: var(--ar-good);
+  background: color-mix(in srgb, var(--ar-good) 10%, transparent);
+}
 
 .ar-ann__act:hover:not(:disabled) { background: color-mix(in srgb, currentColor 14%, transparent); }
 .ar-ann__act:disabled { opacity: 0.45; cursor: default; }

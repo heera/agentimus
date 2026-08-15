@@ -200,6 +200,48 @@ final class Announcements {
 	}
 
 	/**
+	 * Send a QUEUED row NOW — the owner overruling their own clock.
+	 *
+	 * It sends THAT row and nothing else. Running the whole drain would have
+	 * been one line, but then one button on one row could push two other
+	 * overdue promises out with it, and an announcement the owner did not
+	 * choose to send this minute is the one thing this queue must never do.
+	 *
+	 * A refusal comes back as the network's own sentence, and the row keeps
+	 * the failure exactly as a scheduled attempt would: a send that did not
+	 * happen must never report as one.
+	 *
+	 * @param int $id Row id.
+	 * @return true|\WP_Error
+	 */
+	public function send_now( $id ) {
+		$rows = self::rows_raw();
+		if ( ! isset( $rows[ $id ] ) || 'queued' !== $rows[ $id ]['status'] ) {
+			return new \WP_Error( 'agentimus_announce_row', __( 'Only a queued announcement can be sent now.', 'agentimus' ) );
+		}
+
+		$verdict = $this->send( $rows[ $id ] );
+		// Re-read: the send took time, and another tick may have written here.
+		$rows = self::rows_raw();
+		if ( ! isset( $rows[ $id ] ) ) {
+			return is_wp_error( $verdict ) ? $verdict : true;
+		}
+
+		if ( is_wp_error( $verdict ) ) {
+			$rows[ $id ]['status']    = 'failed';
+			$rows[ $id ]['error']     = substr( trim( $verdict->get_error_message() ), 0, 300 );
+			$rows[ $id ]['failed_at'] = time();
+			self::store_rows( self::capped( $rows ) );
+			return $verdict;
+		}
+
+		$rows[ $id ]['status']  = 'sent';
+		$rows[ $id ]['sent_at'] = time();
+		self::store_rows( self::capped( $rows ) );
+		return true;
+	}
+
+	/**
 	 * Remove a FINISHED row from the ledger. A queued row is not removable —
 	 * that is cancel's word, and the two must not blur.
 	 *

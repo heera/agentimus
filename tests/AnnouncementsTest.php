@@ -112,6 +112,64 @@ final class AnnouncementsTest extends TestCase {
 		$this->assertSame( 'queued', $rows[ $future ]['status'], 'The future is left alone.' );
 	}
 
+	public function test_send_now_sends_that_row_and_retires_its_future_slot() {
+		$this->arm_telegram();
+		$engine = $this->engine();
+
+		$early = $engine->queue( array( 'network' => 'telegram', 'body' => 'early', 'at' => time() + 7200 ) );
+		$other = $engine->queue( array( 'network' => 'telegram', 'body' => 'other', 'at' => time() - 10 ) );
+
+		// ONE reply available: if send_now drained the whole queue, the second
+		// row would consume it and this test would notice.
+		$GLOBALS['_af_http_queue'] = array(
+			array( 'response' => array( 'code' => 200 ), 'body' => '{"ok":true}', 'headers' => array() ),
+		);
+		$this->assertTrue( $engine->send_now( $early ) );
+
+		$rows = get_option( Announcements::OPTION );
+		$this->assertSame( 'sent', $rows[ $early ]['status'], 'The row the owner pressed went.' );
+		$this->assertGreaterThan( 0, $rows[ $early ]['sent_at'] );
+		$this->assertSame( 'queued', $rows[ $other ]['status'], 'No other promise rides along with it.' );
+
+		// Its own future slot must be spent: the tick booked for the original
+		// minute finds nothing to send, so nothing goes out twice.
+		$GLOBALS['_af_http_last'] = null;
+		$engine->dispatch();
+		$rows = get_option( Announcements::OPTION );
+		$this->assertSame( 'sent', $rows[ $early ]['status'], 'Still sent — never re-queued by the later tick.' );
+	}
+
+	public function test_send_now_refuses_anything_that_is_not_queued() {
+		$this->arm_telegram();
+		$engine = $this->engine();
+
+		$id                        = $engine->queue( array( 'network' => 'telegram', 'body' => 'x', 'at' => time() + 60 ) );
+		$GLOBALS['_af_http_queue'] = array(
+			array( 'response' => array( 'code' => 200 ), 'body' => '{"ok":true}', 'headers' => array() ),
+		);
+		$engine->send_now( $id );
+
+		$again = $engine->send_now( $id );
+		$this->assertInstanceOf( '\\WP_Error', $again, 'A sent row cannot be sent again.' );
+	}
+
+	public function test_send_now_reports_a_refusal_rather_than_claiming_a_send() {
+		$this->arm_telegram();
+		$engine = $this->engine();
+
+		$id                        = $engine->queue( array( 'network' => 'telegram', 'body' => 'x', 'at' => time() + 3600 ) );
+		$GLOBALS['_af_http_queue'] = array(
+			array( 'response' => array( 'code' => 429 ), 'body' => '{"description":"Too Many Requests"}', 'headers' => array() ),
+		);
+
+		$verdict = $engine->send_now( $id );
+		$this->assertInstanceOf( '\\WP_Error', $verdict, 'A send that did not happen must not report as one.' );
+
+		$rows = get_option( Announcements::OPTION );
+		$this->assertSame( 'failed', $rows[ $id ]['status'] );
+		$this->assertGreaterThan( 0, $rows[ $id ]['failed_at'], 'The failure records its own minute.' );
+	}
+
 	public function test_a_past_moment_means_now_not_never() {
 		$this->arm_telegram();
 

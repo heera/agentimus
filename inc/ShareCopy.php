@@ -373,6 +373,14 @@ final class ShareCopy {
 						'default'           => false,
 						'sanitize_callback' => 'rest_sanitize_boolean',
 					),
+					// "Just the standing, please." The panel asks for this after
+					// it queues something and whenever it comes back to the
+					// screen — no drafting, no preview, one option read.
+					'lines'   => array(
+						'type'              => 'boolean',
+						'default'           => false,
+						'sanitize_callback' => 'rest_sanitize_boolean',
+					),
 				),
 			)
 		);
@@ -393,6 +401,14 @@ final class ShareCopy {
 		$post = get_post( absint( $request['post'] ) );
 		if ( ! $post || ! in_array( $post->post_type, Content::post_types(), true ) ) {
 			return new \WP_Error( 'agentimus_not_found', __( 'That content is not available.', 'agentimus' ), array( 'status' => 404 ) );
+		}
+
+		// The standing alone: the panel's cheapest question, and the one it
+		// asks most often. A queued promise becomes a sent one minutes after
+		// the tab was drawn, and an editor left open must not keep saying
+		// "queued" for a post that already went out.
+		if ( rest_sanitize_boolean( $request['lines'] ) ) {
+			return rest_ensure_response( $this->announce_standing( $post->ID ) );
 		}
 
 		$networks = self::networks();
@@ -436,8 +452,36 @@ final class ShareCopy {
 				'published'     => 'publish' === $post->post_status,
 				'preview'       => $this->preview( $post ),
 				'networks'      => $cards,
-				'announceLines' => $this->announce_lines( $post->ID ),
-			)
+			) + $this->announce_standing( $post->ID )
+		);
+	}
+
+	/**
+	 * This post's announcing standing: a sentence per network, plus the one
+	 * number the panel needs to decide whether to watch — the soonest queued
+	 * moment across every network, or 0 when nothing is owed.
+	 *
+	 * The number is what keeps the watching honest: a promise due in a minute
+	 * is worth re-reading (and each read wakes wp-cron, so the watching helps
+	 * the sending); a promise due next Tuesday is a calendar, and nobody polls
+	 * a calendar.
+	 *
+	 * @param int $post_id Post id.
+	 * @return array{announceLines:array<string,string>,announceNextAt:int}
+	 */
+	private function announce_standing( $post_id ) {
+		$engine = new Integrations\Announcements( $this->settings );
+		$next   = 0;
+		foreach ( Integrations\Announcements::NETWORKS as $network ) {
+			$queued = (int) $engine->post_network_state( $post_id, $network )['queuedAt'];
+			if ( $queued && ( 0 === $next || $queued < $next ) ) {
+				$next = $queued;
+			}
+		}
+
+		return array(
+			'announceLines'  => $this->announce_lines( $post_id ),
+			'announceNextAt' => $next,
 		);
 	}
 
@@ -717,8 +761,12 @@ final class ShareCopy {
     var MARKS = { x: 'X', facebook: 'Fb', linkedin: 'In', reddit: 'Rd', whatsapp: 'Wa', telegram: 'Tg' };
     // The card's memory: this post's standing with the network, one server-
     // written sentence (queued promise > parked failure > last success).
+    // Always drawn, hidden while empty: this line APPEARS the moment the
+    // owner queues something, and a node that has to be created on refresh is
+    // a node the refresh has to know where to put.
     var aLine = ctx.announceLine(net.key);
-    var announce = aLine ? '<p class="agentimus-sc__announce">' + esc(aLine) + '</p>' : '';
+    var announce = '<p class="agentimus-sc__announce" data-announce="' + esc(net.key) + '"' +
+      (aLine ? '' : ' hidden') + '>' + esc(aLine) + '</p>';
 
     item.innerHTML =
       '<div class="agentimus-sc__head">' +
@@ -798,6 +846,9 @@ final class ShareCopy {
             queueBtn.textContent = CFG.i18n.queuedTick;
             setTimeout(function(){ queueBtn.textContent = CFG.i18n.queueIt; }, 2400);
             ctx.note(CFG.i18n.queuedNote);
+            // The act must ring where it lands: the card's own standing line
+            // states the promise, without a reload.
+            ctx.refreshLines();
           })
           .catch(function(){ queueBtn.disabled = false; ctx.note(CFG.i18n.error); });
       });
@@ -841,12 +892,50 @@ final class ShareCopy {
     var loaded = false, busy = false, permalink = '', postTitle = '';
     var previewData = {};
 
-    var announceLines = {};
+    var announceLines = {}, announceNextAt = 0, lineTimer = null, lastLineRead = 0;
+
+    // Re-read the standing and repaint each card's line in place. Cheap by
+    // design: no drafting, no preview, one option read on the server.
+    function refreshLines(force){
+      if (!loaded || !ctx.id()) { return; }
+      // A window regaining focus can fire in bursts; the standing does not
+      // change that fast.
+      var now = Date.now();
+      if (!force && now - lastLineRead < 10000) { return; }
+      lastLineRead = now;
+      post({ post: ctx.id(), lines: true })
+        .then(function(res){
+          if (!res.ok || !res.body) { return; }
+          announceLines = res.body.announceLines || {};
+          announceNextAt = parseInt(res.body.announceNextAt, 10) || 0;
+          var nodes = grid.querySelectorAll('[data-announce]');
+          for (var i = 0; i < nodes.length; i++) {
+            var line = announceLines[nodes[i].getAttribute('data-announce')] || '';
+            nodes[i].textContent = line;
+            nodes[i].hidden = !line;
+          }
+          armLineWatch();
+        })
+        .catch(function(){});
+    }
+
+    // Watch ONLY while a promise is due (or about to be): the send happens on
+    // a cron tick, an idle editor makes no requests, so this re-read is also
+    // what wakes the tick. A promise days out is a calendar — nobody polls a
+    // calendar.
+    function armLineWatch(){
+      if (lineTimer) { clearTimeout(lineTimer); lineTimer = null; }
+      if (!announceNextAt) { return; }
+      if (announceNextAt * 1000 - Date.now() > 60000) { return; }
+      lineTimer = setTimeout(function(){ refreshLines(true); }, 15000);
+    }
+
     var ctx = {
       id: function(){ return parseInt(box.getAttribute('data-post'), 10); },
       permalink: function(){ return permalink; },
       title: function(){ return postTitle; },
       announceLine: function(key){ return announceLines[key] || ''; },
+      refreshLines: function(){ refreshLines(true); },
       preview: function(opener){ openPreview(previewData, opener); },
       note: function(t){ note.textContent = t; }
     };
@@ -865,6 +954,8 @@ final class ShareCopy {
           note.textContent = CFG.i18n.localNote;
           grid.innerHTML = '';
           announceLines = res.body.announceLines || {};
+          announceNextAt = parseInt(res.body.announceNextAt, 10) || 0;
+          lastLineRead = Date.now();
           previewData = res.body.preview || {};
           (res.body.networks || []).forEach(function(net){ grid.appendChild(card(net, ctx)); });
           if (res.body.published === false) {
@@ -873,9 +964,18 @@ final class ShareCopy {
           } else {
             foot.hidden = true;
           }
+          armLineWatch();
         })
         .catch(function(){ busy = false; note.textContent = CFG.i18n.error; });
     }
+
+    // Coming back to the screen is the other moment the standing can be
+    // stale: the editor sat open while the queue drained. One read on return,
+    // none while away — the freshness rule the rest of the plugin keeps.
+    document.addEventListener('visibilitychange', function(){
+      if (!document.hidden) { refreshLines(false); }
+    });
+    window.addEventListener('focus', function(){ refreshLines(false); });
 
     if (window.IntersectionObserver) {
       var io = new IntersectionObserver(function(entries){

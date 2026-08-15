@@ -64,10 +64,24 @@ export default {
   },
   mounted() {
     if (this.active) this.load();
+    // Coming BACK to this browser tab is a return like any other: the queue
+    // moves on while the tab sits in the background — a row queued from the
+    // editor in another tab, a promise that came due and went out — and this
+    // ledger must not be the last place to hear it. One read on return, none
+    // while away.
+    this._onReturn = () => {
+      if (!this.active || !this.loaded || document.hidden) return;
+      if (Date.now() - (this._lastRead || 0) < 10000) return; // focus fires in bursts
+      this.load();
+    };
+    document.addEventListener('visibilitychange', this._onReturn);
+    window.addEventListener('focus', this._onReturn);
   },
   beforeUnmount() {
     this.stopPoll();
     if (this._unEsc) this._unEsc();
+    document.removeEventListener('visibilitychange', this._onReturn);
+    window.removeEventListener('focus', this._onReturn);
   },
   methods: {
     async load(page = this.page) {
@@ -84,6 +98,7 @@ export default {
       }
     },
     apply(data) {
+      this._lastRead = Date.now();
       this.rows = data.rows || [];
       this.total = data.total || 0;
       this.page = data.page || 1;
@@ -123,6 +138,19 @@ export default {
       });
       if (ok) this.act('cancel', id);
     },
+    // Sending early is public speech happening NOW, on the owner's word
+    // rather than on the clock they set — the one action here that cannot be
+    // taken back at all, so it asks the plainest question in the file.
+    async askSend(row) {
+      const ok = await confirm({
+        title: 'Post this now?',
+        message: `It goes out to ${this.networkWord(row.network)} immediately, instead of waiting for ${this.stamp(row.scheduledAt)}. A post can’t be unsent.`,
+        confirmLabel: 'Post it now',
+        cancelLabel: 'Wait for the time',
+        tone: 'danger',
+      });
+      if (ok) this.act('send', row.id);
+    },
     async askRemove(id) {
       const ok = await confirm({
         title: 'Remove this from the record?',
@@ -143,10 +171,19 @@ export default {
         this.$emit(
           'flash',
           'success',
-          { cancel: 'Cancelled — it will not be posted.', retry: 'Queued again — it goes out with the next tick.', remove: 'Removed from the record.' }[action]
+          {
+            cancel: 'Cancelled — it will not be posted.',
+            retry: 'Queued again — it goes out on your site’s next visit.',
+            remove: 'Removed from the record.',
+            send: 'Sent — it went out just now.',
+          }[action]
         );
       } catch (e) {
         this.$emit('flash', 'error', e.message || 'That didn’t work — reload and try again.');
+        // A refusal can still have CHANGED the row — a Send now that the
+        // network turned down parks it as failed. Re-read, or the screen
+        // keeps showing a promise the server has already given up on.
+        this.load();
       } finally {
         this.acting = 0;
       }
@@ -158,11 +195,28 @@ export default {
     // haven't happened yet. The finished rows carry a real stamp instead.
     dueIn(seconds) {
       const m = Math.round((seconds * 1000 - Date.now()) / 60000);
-      if (m < 1) return 'with the next tick';
+      // "with the next tick" was our word for wp-cron, not the owner's word
+      // for anything. What is actually true, said plainly: the minute has
+      // arrived, and a sleeping site posts when someone next visits it.
+      if (m < 1) return 'on your site’s next visit — its minute has arrived';
       if (m < 60) return `in ${m}m`;
       const h = Math.round(m / 60);
       if (h < 24) return `in ${h}h`;
       return `in ${Math.round(h / 24)}d`;
+    },
+    // What each state's mark says when you ask it. Every row carries one, and
+    // each one earns its place: the queued mark explains the one mechanic
+    // nobody guesses (a sleeping site posts when someone next visits it), the
+    // sent mark explains why its stamp can differ from the minute that was
+    // chosen, and the failed mark carries the network's own sentence.
+    stateHint(row) {
+      if ('queued' === row.status) {
+        return 'Waits for its minute. If the site is asleep then, it goes out on the site’s next visit instead.';
+      }
+      if ('sent' === row.status) {
+        return 'The moment it really went out — which can be later than the minute you chose, if the site was asleep.';
+      }
+      return row.error || 'The network refused it, and did not say why.';
     },
     // The badge carries the whole name — no logo beside it to say half of it.
     networkWord(id) {
@@ -254,11 +308,29 @@ export default {
                    sentence has to make room for a button. -->
               <td class="ar-ann__statuscell">
                 <div class="ar-ann__state">
+                  <!-- Every state leads with a mark, and each mark is its
+                       own shape: a clock waits, a tick went, a warning
+                       didn't. Only the failed one is a control (it holds the
+                       network's sentence) — one glyph must never mean both
+                       "read me" and "nothing to press here", so the shapes
+                       differ, not just the colour. -->
                   <template v-if="row.status === 'queued'">
+                    <span class="ar-ann__tipwrap">
+                      <button type="button" class="ar-ann__info is-queued" :aria-label="stateHint(row)">
+                        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9.2" /><path d="M12 7.4V12l3.1 1.9" /></svg>
+                      </button>
+                      <span class="ar-ann__tip" aria-hidden="true">{{ stateHint(row) }}</span>
+                    </span>
                     <span class="ar-ann__st is-queued">Queued</span>
                     <span class="ar-ann__why">Goes out {{ dueIn(row.scheduledAt) }}</span>
                   </template>
                   <template v-else-if="row.status === 'sent'">
+                    <span class="ar-ann__tipwrap">
+                      <button type="button" class="ar-ann__info is-sent" :aria-label="stateHint(row)">
+                        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9.2" /><path d="M8 12.3l2.7 2.7L16.2 9.5" /></svg>
+                      </button>
+                      <span class="ar-ann__tip" aria-hidden="true">{{ stateHint(row) }}</span>
+                    </span>
                     <span class="ar-ann__st is-sent">Sent at</span>
                     <span class="ar-ann__why">{{ stamp(row.sentAt) }}</span>
                   </template>
@@ -267,27 +339,42 @@ export default {
                        every row around it. A row that failed before we
                        recorded the minute says so by having none. -->
                   <template v-else>
-                    <span class="ar-ann__st is-failed">{{ row.failedAt ? 'Failed at' : 'Failed' }}</span>
-                    <span class="ar-ann__why">
-                      <span v-if="row.failedAt">{{ stamp(row.failedAt) }}</span>
-                      <span v-if="row.error" class="ar-ann__tipwrap">
-                        <button type="button" class="ar-ann__info" :aria-label="'Why it didn’t go: ' + row.error">
-                          <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9.4" /><path d="M12 11.2v5.4" /><path d="M12 7.7h.01" /></svg>
-                        </button>
-                        <span class="ar-ann__tip" aria-hidden="true">{{ row.error }}</span>
-                      </span>
+                    <!-- The failure's mark IS the door to its reason: it
+                         leads the line like the others, and it is the only
+                         one you can press. -->
+                    <span class="ar-ann__tipwrap">
+                      <button type="button" class="ar-ann__info is-failed" :aria-label="stateHint(row)">
+                        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9.2" /><path d="M12 7.6v5.2" /><path d="M12 16.4h.01" /></svg>
+                      </button>
+                      <span class="ar-ann__tip" aria-hidden="true">{{ stateHint(row) }}</span>
                     </span>
+                    <span class="ar-ann__st is-failed">{{ row.failedAt ? 'Failed at' : 'Failed' }}</span>
+                    <span v-if="row.failedAt" class="ar-ann__why">{{ stamp(row.failedAt) }}</span>
                   </template>
                 </div>
               </td>
               <td class="ar-ann__actcell">
                 <div class="ar-ann__acts">
-                  <button
-                    v-if="row.status === 'queued'"
-                    type="button" class="ar-ann__act is-stop"
-                    :disabled="acting === row.id"
-                    @click="askCancel(row.id)"
-                  >Cancel</button>
+                  <!-- A finished row keeps the column's rhythm without
+                       pretending to offer a hand: the same box the buttons
+                       wear, with no outline — every control in this column
+                       has one, so the absence of one is the tell. -->
+                  <span v-if="row.status === 'sent'" class="ar-ann__done">Completed Successfully</span>
+                  <template v-if="row.status === 'queued'">
+                    <!-- The owner's own clock, overruled by the owner: the
+                         accent hand, because sending is the thing this queue
+                         exists to do. -->
+                    <button
+                      type="button" class="ar-ann__act is-retry"
+                      :disabled="acting === row.id"
+                      @click="askSend(row)"
+                    >Send now</button>
+                    <button
+                      type="button" class="ar-ann__act is-stop"
+                      :disabled="acting === row.id"
+                      @click="askCancel(row.id)"
+                    >Cancel</button>
+                  </template>
                   <template v-if="row.status === 'failed'">
                     <button
                       type="button" class="ar-ann__act is-retry"

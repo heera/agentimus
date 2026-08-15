@@ -183,6 +183,9 @@ final class Rest {
 			);
 		} elseif ( 'cancel' === $action ) {
 			$verdict = $engine->cancel( $id );
+		} elseif ( 'send' === $action ) {
+			// The owner overruling their own clock. One row, this minute.
+			$verdict = $engine->send_now( $id );
 		} elseif ( 'retry' === $action ) {
 			$verdict = $engine->retry( $id );
 		} elseif ( 'remove' === $action ) {
