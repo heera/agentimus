@@ -347,7 +347,8 @@ final class Rest {
 			if ( 'connect' === $action || 'save' === $action ) {
 				return $this->save_url_service(
 					$request,
-					'slack',
+					'connect' === $action,
+					Slack::class,
 					__( 'That doesn’t look like a Slack webhook URL. In Slack, add the “Incoming Webhooks” app to a channel and paste the https:// URL it gives you.', 'agentimus' )
 				);
 			}
@@ -359,7 +360,8 @@ final class Rest {
 			if ( 'connect' === $action || 'save' === $action ) {
 				return $this->save_url_service(
 					$request,
-					'discord',
+					'connect' === $action,
+					Discord::class,
 					__( 'That doesn’t look like a Discord webhook URL. In your server: Server Settings → Integrations → Webhooks → New Webhook, pick the channel, and paste the https:// URL it gives you.', 'agentimus' )
 				);
 			}
@@ -498,15 +500,21 @@ final class Rest {
 		// What must be proved: a fresh connect, a new token, or a chat the
 		// stored connection has never delivered to.
 		$stored_chat = Telegram::config( $this->settings )['chat'];
+		$proved      = true;
 		if ( $connect || '' !== $token ) {
 			$verdict = Telegram::verify( '' !== $token ? $token : Telegram::token(), $chat );
 		} elseif ( $chat !== $stored_chat ) {
 			$verdict = Telegram::verify( Telegram::token(), $chat );
 		} else {
 			$verdict = true;
+			$proved  = false;
 		}
 		if ( is_wp_error( $verdict ) ) {
 			return new \WP_Error( $verdict->get_error_code(), $verdict->get_error_message(), array( 'status' => 400 ) );
+		}
+		if ( $proved ) {
+			// A message did land, so the card's honesty line starts truthful.
+			Telegram::record_success();
 		}
 
 		if ( '' !== $token ) {
@@ -857,6 +865,8 @@ final class Rest {
 			if ( is_wp_error( $verdict ) ) {
 				return new \WP_Error( $verdict->get_error_code(), $verdict->get_error_message(), array( 'status' => 400 ) );
 			}
+			// Rows did land, so the card's honesty line starts truthful.
+			Sheets::record_success();
 		}
 
 		$this->store(
@@ -897,16 +907,22 @@ final class Rest {
 	/* -- The URL-shaped services (Slack, Discord) ----------------------------- */
 
 	/**
-	 * Connect or save a service whose whole credential is a pasted URL. No
-	 * secret to mint, no proof call to make — the URL either answers the first
-	 * delivery or the card's honesty line says it didn't.
+	 * Connect or save a service whose whole credential is a pasted URL. There
+	 * is no secret to mint, so the URL is the only thing that can be wrong —
+	 * which is exactly why a connect proves the road first: one real one-line
+	 * message must land before anything is stored. A save re-proves only a
+	 * CHANGED url; a mere checkbox edit posts nothing at all.
 	 *
-	 * @param \WP_REST_Request $request   The request.
-	 * @param string           $prefix    The service's settings key prefix (= its id).
-	 * @param string           $bad_url   The plain-words error for a URL that isn't one.
+	 * ⛔ A failed proof stores NOTHING. A bad re-connect must leave a working
+	 * connection standing, the way Telegram's and Sheets' doors already do.
+	 *
+	 * @param \WP_REST_Request $request The request.
+	 * @param bool             $connect Whether this is the connect action.
+	 * @param string           $service The service class (Slack, Discord) — its ID is its settings prefix.
+	 * @param string           $bad_url The plain-words error for a URL that isn't one.
 	 * @return \WP_REST_Response|\WP_Error
 	 */
-	private function save_url_service( $request, $prefix, $bad_url ) {
+	private function save_url_service( $request, $connect, $service, $bad_url ) {
 		$url = self::clean_url( $request->get_param( 'url' ) );
 		if ( '' === $url ) {
 			return new \WP_Error( 'agentimus_bad_url', $bad_url, array( 'status' => 400 ) );
@@ -915,6 +931,19 @@ final class Rest {
 		$events = $this->events_param( $request );
 		if ( is_wp_error( $events ) ) {
 			return $events;
+		}
+
+		$prefix = $service::ID;
+
+		// What must be proved: a fresh connect, or a URL this connection has
+		// never posted to.
+		if ( $connect || $url !== $service::config( $this->settings )['url'] ) {
+			$verdict = $service::verify( $url );
+			if ( is_wp_error( $verdict ) ) {
+				return new \WP_Error( $verdict->get_error_code(), $verdict->get_error_message(), array( 'status' => 400 ) );
+			}
+			// A message did land, so the card's honesty line starts truthful.
+			$service::record_success();
 		}
 
 		$this->store(

@@ -5,7 +5,9 @@
  * The connection mirrors Slack's: a webhook URL minted inside the owner's
  * server (Server Settings → Integrations → Webhooks), pasted here, the URL
  * being the whole credential by Discord's design. Same collapse law: no URL,
- * no connection.
+ * no connection — and the same proof on connect: the URL takes one real
+ * one-line message before anything is stored, so "Connected" is never a claim
+ * about a webhook that has been revoked, deleted or mistyped.
  *
  * Delivery is a formatter over the shared pipeline: each envelope becomes one
  * EMBED — a titled card with the event's fact as its description and the site
@@ -100,6 +102,25 @@ final class Discord {
 		return true;
 	}
 
+	/* -- The proof ------------------------------------------------------------ */
+
+	/**
+	 * Prove the road before the connection claims to exist: one real POST of a
+	 * one-line message to the pasted URL. Discord's own answer to a webhook
+	 * that no longer exists is a 404 saying "Unknown Webhook" — a sentence the
+	 * owner can act on, and one worth hearing at connect time rather than days
+	 * later under an event nobody watched arrive.
+	 *
+	 * @param string $url The pasted webhook URL.
+	 * @return true|\WP_Error True when Discord took the message.
+	 */
+	public static function verify( $url ) {
+		return self::post(
+			(string) $url,
+			array( 'content' => __( 'Agentimus connected. This channel now receives the events you picked — change them, or disconnect, any time on the Integrations screen.', 'agentimus' ) )
+		);
+	}
+
 	/* -- Delivery ------------------------------------------------------------- */
 
 	/**
@@ -116,13 +137,26 @@ final class Discord {
 			return new \WP_Error( 'agentimus_discord_unconfigured', __( 'Discord is not configured.', 'agentimus' ) );
 		}
 
-		$body = wp_json_encode( array( 'embeds' => array( self::embed( (string) $event, $envelope ) ) ) );
+		return self::post( $config['url'], array( 'embeds' => array( self::embed( (string) $event, $envelope ) ) ) );
+	}
+
+	/**
+	 * The one POST both the proof and every delivery make: JSON to the pasted
+	 * URL, a short leash, no redirects. The proof IS a delivery of a shorter
+	 * message, so one call site holds both — and one grammar answers for both.
+	 *
+	 * @param string $url     The webhook URL.
+	 * @param array  $payload The message, already in Discord's shape.
+	 * @return true|\WP_Error True on a 2xx; a WP_Error repeating Discord's own words when it gave any.
+	 */
+	private static function post( $url, array $payload ) {
+		$body = wp_json_encode( $payload );
 		if ( ! is_string( $body ) ) {
-			return new \WP_Error( 'agentimus_discord_body', __( 'The event could not be encoded.', 'agentimus' ) );
+			return new \WP_Error( 'agentimus_discord_body', __( 'The message could not be encoded.', 'agentimus' ) );
 		}
 
 		$response = wp_remote_post(
-			$config['url'],
+			$url,
 			array(
 				'timeout'     => self::TIMEOUT,
 				'redirection' => 0,
@@ -132,7 +166,14 @@ final class Discord {
 		);
 
 		if ( is_wp_error( $response ) ) {
-			return $response;
+			return new \WP_Error(
+				'agentimus_discord_unreachable',
+				sprintf(
+					/* translators: %s: the transport error, e.g. a timeout. */
+					__( 'Discord could not be reached: %s', 'agentimus' ),
+					$response->get_error_message()
+				)
+			);
 		}
 
 		$code = (int) wp_remote_retrieve_response_code( $response );

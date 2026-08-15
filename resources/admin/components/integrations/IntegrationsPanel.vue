@@ -541,7 +541,7 @@ export default {
           url: this.sl.url,
           events: this.sl.events,
         }));
-        this.$emit('flash', 'success', wasConnected ? 'Slack settings saved.' : 'Slack connected.');
+        this.$emit('flash', 'success', wasConnected ? 'Slack settings saved.' : 'Slack connected — the channel just got its first message.');
         this.closePanel();
       } catch (e) {
         this.formError = e.message || 'Could not save the Slack connection.';
@@ -561,7 +561,7 @@ export default {
           url: this.dc.url,
           events: this.dc.events,
         }));
-        this.$emit('flash', 'success', wasConnected ? 'Discord settings saved.' : 'Discord connected.');
+        this.$emit('flash', 'success', wasConnected ? 'Discord settings saved.' : 'Discord connected — the channel just got its first message.');
         this.closePanel();
       } catch (e) {
         this.formError = e.message || 'Could not save the Discord connection.';
@@ -1098,13 +1098,15 @@ export default {
               <p v-else-if="panel === 'slack'" class="ar-int__panellead">
                 Slack calls this an <strong>incoming webhook</strong>: in Slack, add the
                 “Incoming Webhooks” app to the channel you want, and it hands you a URL. Paste it
-                here and each event arrives in that channel as one message. Mattermost and
-                Rocket.Chat speak the same format — their URLs work too.
+                here and each event arrives in that channel as one message — connecting posts one
+                test message there to prove the road works. Mattermost and Rocket.Chat speak the
+                same format — their URLs work too.
               </p>
               <p v-else-if="panel === 'discord'" class="ar-int__panellead">
                 In your server: <strong>Server Settings → Integrations → Webhooks → New
                 Webhook</strong>, pick the channel, copy its URL and paste it here. Each event
-                arrives in that channel as one embed.
+                arrives in that channel as one embed — connecting posts one test message there to
+                prove the road works.
               </p>
               <p v-else-if="panel === 'sheets'" class="ar-int__panellead">
                 Each event becomes one row appended to a spreadsheet you own — a history that

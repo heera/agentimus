@@ -9,6 +9,14 @@
  * and these tests hold that for every URL-shaped service, plus the door's
  * service routing itself.
  *
+ * A well-shaped URL was the same lie one step later: Slack and Discord were
+ * the only services that stored a connection without ever calling it, so a
+ * revoked or mistyped webhook read CONNECTED until some real event failed
+ * days later. Both now prove the road on connect — and these tests hold the
+ * whole rule: the proof lands before anything is stored, a bounce refuses in
+ * the service's own words, a bad re-connect leaves a working connection
+ * standing, and a mere checkbox edit posts nothing at all.
+ *
  * @package Agentimus\Tests
  */
 
@@ -16,6 +24,10 @@ namespace Agentimus\Tests;
 
 use Agentimus\Settings;
 use Agentimus\Integrations\Rest;
+use Agentimus\Integrations\Services\Slack;
+use Agentimus\Integrations\Services\Discord;
+use Agentimus\Integrations\Services\Telegram;
+use Agentimus\Integrations\Services\Sheets;
 use PHPUnit\Framework\TestCase;
 
 final class IntegrationsRestTest extends TestCase {
@@ -38,6 +50,36 @@ final class IntegrationsRestTest extends TestCase {
 
 	private function rest() {
 		return new Rest( new Settings() );
+	}
+
+	/** The one response the next call gets. */
+	private function answers( $code, $body = '' ) {
+		$GLOBALS['_af_http_queue'] = array(
+			array(
+				'response' => array( 'code' => (int) $code ),
+				'body'     => (string) $body,
+				'headers'  => array(),
+			),
+		);
+	}
+
+	/** A connection already stored and working, the way a returning owner's is. */
+	private function stored( $prefix, $url, array $events = array( 'digest_sent' ) ) {
+		$saved                                      = isset( $GLOBALS['_af_options'][ Settings::OPTION ] ) ? (array) $GLOBALS['_af_options'][ Settings::OPTION ] : array();
+		$saved['integrations']                      = array_merge(
+			isset( $saved['integrations'] ) ? (array) $saved['integrations'] : array(),
+			array(
+				$prefix . '_enabled' => true,
+				$prefix . '_url'     => $url,
+				$prefix . '_events'  => $events,
+			)
+		);
+		$GLOBALS['_af_options'][ Settings::OPTION ] = $saved;
+	}
+
+	/** What is actually stored right now, whatever the payload claimed. */
+	private function integrations() {
+		return (array) ( new Settings() )->get( 'integrations', array() );
 	}
 
 	/* ---- the URL gate ------------------------------------------------------- */
@@ -81,7 +123,11 @@ final class IntegrationsRestTest extends TestCase {
 		$this->assertSame( 'agentimus_bad_url', $verdict->get_error_code() );
 	}
 
-	public function test_slack_connect_with_a_real_url_connects() {
+	/* ---- the connect proof -------------------------------------------------- */
+
+	public function test_slack_connect_proves_the_road_before_it_stores() {
+		$this->answers( 200, 'ok' );
+
 		$payload = $this->rest()->act(
 			$this->request( array( 'service' => 'slack', 'action' => 'connect', 'url' => 'https://hooks.slack.com/services/T0/B0/x', 'events' => array( 'digest_sent' ) ) )
 		);
@@ -89,6 +135,166 @@ final class IntegrationsRestTest extends TestCase {
 		$this->assertIsArray( $payload );
 		$this->assertTrue( $payload['slack']['enabled'] );
 		$this->assertSame( array( 'digest_sent' ), $payload['slack']['events'] );
+
+		$last = $GLOBALS['_af_http_last'];
+		$this->assertSame( 'https://hooks.slack.com/services/T0/B0/x', $last['url'], 'A connect proves the road.' );
+		$body = json_decode( $last['args']['body'], true );
+		$this->assertStringContainsString( 'Agentimus connected', $body['text'], 'The proof is one plain line, not a formatted event.' );
+		$this->assertArrayNotHasKey( 'blocks', $body );
+		$this->assertGreaterThan( 0, Slack::state()['lastDeliveredAt'], 'A message landed, so the card starts truthful.' );
+	}
+
+	public function test_slack_connect_refuses_a_bounced_webhook_and_stores_nothing() {
+		$this->answers( 404, 'no_service' );
+
+		$verdict = $this->rest()->act(
+			$this->request( array( 'service' => 'slack', 'action' => 'connect', 'url' => 'https://hooks.slack.com/services/T0/B0/dead', 'events' => array( 'digest_sent' ) ) )
+		);
+
+		$this->assertInstanceOf( \WP_Error::class, $verdict );
+		$this->assertSame( 'agentimus_slack_status', $verdict->get_error_code() );
+		$this->assertSame( 'Slack answered 404: no_service', $verdict->get_error_message(), 'Slack\'s own word rides into the refusal.' );
+		$this->assertSame( 400, $verdict->get_error_data()['status'] );
+
+		$integrations = $this->integrations();
+		$this->assertFalse( $integrations['slack_enabled'] ?? false, 'A webhook that bounced is not a connection.' );
+		$this->assertSame( '', $integrations['slack_url'] ?? '', 'Nothing is written until the road answers.' );
+	}
+
+	public function test_a_bounced_reconnect_leaves_the_standing_connection_alone() {
+		$this->stored( 'slack', 'https://hooks.slack.com/services/T0/B0/good' );
+		$this->answers( 404, 'no_service' );
+
+		$verdict = $this->rest()->act(
+			$this->request( array( 'service' => 'slack', 'action' => 'connect', 'url' => 'https://hooks.slack.com/services/T0/B0/typo', 'events' => array( 'digest_sent' ) ) )
+		);
+
+		$this->assertInstanceOf( \WP_Error::class, $verdict );
+		$integrations = $this->integrations();
+		$this->assertTrue( $integrations['slack_enabled'], 'A bad re-connect must not take down a working one.' );
+		$this->assertSame( 'https://hooks.slack.com/services/T0/B0/good', $integrations['slack_url'] );
+	}
+
+	public function test_a_slack_save_with_an_unchanged_url_posts_nothing() {
+		$this->stored( 'slack', 'https://hooks.slack.com/services/T0/B0/x' );
+
+		$payload = $this->rest()->act(
+			$this->request(
+				array(
+					'service' => 'slack',
+					'action'  => 'save',
+					'url'     => 'https://hooks.slack.com/services/T0/B0/x',
+					'events'  => array( 'digest_sent', 'impostor_flagged' ),
+				)
+			)
+		);
+
+		$this->assertIsArray( $payload );
+		$this->assertSame( array( 'digest_sent', 'impostor_flagged' ), $payload['slack']['events'] );
+		$this->assertNull( $GLOBALS['_af_http_last'], 'A checkbox edit is not a new road — nothing is posted.' );
+	}
+
+	public function test_a_slack_save_with_a_changed_url_re_proves() {
+		$this->stored( 'slack', 'https://hooks.slack.com/services/T0/B0/old' );
+		$this->answers( 200, 'ok' );
+
+		$payload = $this->rest()->act(
+			$this->request(
+				array(
+					'service' => 'slack',
+					'action'  => 'save',
+					'url'     => 'https://hooks.slack.com/services/T0/B0/new',
+					'events'  => array( 'digest_sent' ),
+				)
+			)
+		);
+
+		$this->assertIsArray( $payload );
+		$this->assertSame( 'https://hooks.slack.com/services/T0/B0/new', $GLOBALS['_af_http_last']['url'], 'A changed url is a road nobody has walked.' );
+		$this->assertSame( 'https://hooks.slack.com/services/T0/B0/new', $this->integrations()['slack_url'] );
+	}
+
+	public function test_discord_connect_proves_the_road_before_it_stores() {
+		$this->answers( 204 );
+
+		$payload = $this->rest()->act(
+			$this->request( array( 'service' => 'discord', 'action' => 'connect', 'url' => 'https://discord.com/api/webhooks/1/x', 'events' => array( 'digest_sent' ) ) )
+		);
+
+		$this->assertIsArray( $payload );
+		$this->assertTrue( $payload['discord']['enabled'] );
+
+		$last = $GLOBALS['_af_http_last'];
+		$this->assertSame( 'https://discord.com/api/webhooks/1/x', $last['url'] );
+		$body = json_decode( $last['args']['body'], true );
+		$this->assertStringContainsString( 'Agentimus connected', $body['content'], 'Discord\'s plain field, not an embed.' );
+		$this->assertArrayNotHasKey( 'embeds', $body );
+		$this->assertGreaterThan( 0, Discord::state()['lastDeliveredAt'] );
+	}
+
+	public function test_discord_connect_refuses_a_deleted_webhook_and_stores_nothing() {
+		$this->answers( 404, '{"message": "Unknown Webhook", "code": 10015}' );
+
+		$verdict = $this->rest()->act(
+			$this->request( array( 'service' => 'discord', 'action' => 'connect', 'url' => 'https://discord.com/api/webhooks/1/gone', 'events' => array( 'digest_sent' ) ) )
+		);
+
+		$this->assertInstanceOf( \WP_Error::class, $verdict );
+		$this->assertSame( 'Discord answered 404: Unknown Webhook', $verdict->get_error_message(), 'Discord names the fault; we repeat it.' );
+
+		$integrations = $this->integrations();
+		$this->assertFalse( $integrations['discord_enabled'] ?? false );
+		$this->assertSame( '', $integrations['discord_url'] ?? '' );
+	}
+
+	public function test_a_discord_save_with_an_unchanged_url_posts_nothing() {
+		$this->stored( 'discord', 'https://discord.com/api/webhooks/1/x' );
+
+		$payload = $this->rest()->act(
+			$this->request(
+				array(
+					'service' => 'discord',
+					'action'  => 'save',
+					'url'     => 'https://discord.com/api/webhooks/1/x',
+					'events'  => array( 'digest_sent', 'robots_policy_changed' ),
+				)
+			)
+		);
+
+		$this->assertIsArray( $payload );
+		$this->assertSame( array( 'digest_sent', 'robots_policy_changed' ), $payload['discord']['events'] );
+		$this->assertNull( $GLOBALS['_af_http_last'] );
+	}
+
+	public function test_a_discord_save_with_a_changed_url_re_proves() {
+		$this->stored( 'discord', 'https://discord.com/api/webhooks/1/old' );
+		$this->answers( 204 );
+
+		$this->rest()->act(
+			$this->request(
+				array(
+					'service' => 'discord',
+					'action'  => 'save',
+					'url'     => 'https://discord.com/api/webhooks/2/new',
+					'events'  => array( 'digest_sent' ),
+				)
+			)
+		);
+
+		$this->assertSame( 'https://discord.com/api/webhooks/2/new', $GLOBALS['_af_http_last']['url'] );
+	}
+
+	public function test_a_transport_failure_names_the_service_it_could_not_reach() {
+		$GLOBALS['_af_http_queue'] = array( new \WP_Error( 'http_request_failed', 'cURL error 28: Operation timed out' ) );
+
+		$verdict = $this->rest()->act(
+			$this->request( array( 'service' => 'slack', 'action' => 'connect', 'url' => 'https://hooks.slack.com/services/T0/B0/x', 'events' => array( 'digest_sent' ) ) )
+		);
+
+		$this->assertInstanceOf( \WP_Error::class, $verdict );
+		$this->assertSame( 'agentimus_slack_unreachable', $verdict->get_error_code() );
+		$this->assertStringContainsString( 'Slack could not be reached', $verdict->get_error_message() );
+		$this->assertStringContainsString( 'Operation timed out', $verdict->get_error_message(), 'The transport\'s own words survive the wrapping.' );
 	}
 
 	/* ---- the door's routing ------------------------------------------------- */
@@ -166,6 +372,61 @@ final class IntegrationsRestTest extends TestCase {
 		$this->assertTrue( $payload['sheets']['hasKey'] );
 		$this->assertSame( 'agentimus@project.iam.gserviceaccount.com', $payload['sheets']['saEmail'] );
 		$this->assertStringContainsString( 'sheets.googleapis.com', $GLOBALS['_af_http_last']['url'], 'A connect proves the road.' );
+		$this->assertGreaterThan( 0, Sheets::state()['lastDeliveredAt'], 'Rows landed, so the card starts truthful.' );
+	}
+
+	/* ---- the telegram door -------------------------------------------------- */
+
+	public function test_telegram_connect_records_the_message_it_just_delivered() {
+		$GLOBALS['_af_http_queue'] = array(
+			array( 'response' => array( 'code' => 200 ), 'body' => '{"ok":true}', 'headers' => array() ), // getMe.
+			array( 'response' => array( 'code' => 200 ), 'body' => '{"ok":true}', 'headers' => array() ), // The test message.
+		);
+
+		$payload = $this->rest()->act(
+			$this->request(
+				array(
+					'service' => 'telegram',
+					'action'  => 'connect',
+					'token'   => '111:token-abc',
+					'chat'    => '123456789',
+					'events'  => array( 'digest_sent' ),
+				)
+			)
+		);
+
+		$this->assertIsArray( $payload );
+		$this->assertTrue( $payload['telegram']['enabled'] );
+		$this->assertGreaterThan( 0, Telegram::state()['lastDeliveredAt'], 'The test message landed — the card says so.' );
+	}
+
+	public function test_a_telegram_save_that_moves_only_checkboxes_neither_sends_nor_claims_a_delivery() {
+		$saved                                      = array(
+			'integrations' => array(
+				'telegram_enabled' => true,
+				'telegram_chat'    => '123456789',
+				'telegram_events'  => array( 'digest_sent' ),
+				'telegram_tier'    => 'all',
+			),
+		);
+		$GLOBALS['_af_options'][ Settings::OPTION ] = $saved;
+		$GLOBALS['_af_options'][ Telegram::TOKEN_OPTION ] = '111:token-abc';
+
+		$payload = $this->rest()->act(
+			$this->request(
+				array(
+					'service' => 'telegram',
+					'action'  => 'save',
+					'chat'    => '123456789',
+					'events'  => array( 'digest_sent', 'impostor_flagged' ),
+				)
+			)
+		);
+
+		$this->assertIsArray( $payload );
+		$this->assertSame( array( 'digest_sent', 'impostor_flagged' ), $payload['telegram']['events'] );
+		$this->assertNull( $GLOBALS['_af_http_last'], 'A checkbox edit sends nothing.' );
+		$this->assertSame( 0, Telegram::state()['lastDeliveredAt'], 'Nothing was delivered, so nothing is claimed.' );
 	}
 
 	/* ---- the provider roster ------------------------------------------------ */

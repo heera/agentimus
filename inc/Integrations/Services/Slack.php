@@ -9,6 +9,10 @@
  * receivers (Mattermost, Rocket.Chat) speak the same payload, so the URL is
  * validated as a URL, never pinned to Slack's hostname.
  *
+ * Connecting proves the road: the pasted URL takes one real one-line message
+ * before anything is stored, so "Connected" is never a claim about a webhook
+ * that has been revoked, deleted or mistyped.
+ *
  * Delivery is a formatter over the shared pipeline: each envelope becomes one
  * Block Kit message — a section that says the thing, and a context line that
  * names the site it came from — plus the plain-text fallback Slack shows in
@@ -91,6 +95,25 @@ final class Slack {
 		return true;
 	}
 
+	/* -- The proof ------------------------------------------------------------ */
+
+	/**
+	 * Prove the road before the connection claims to exist: one real POST of a
+	 * one-line message to the pasted URL. A webhook that was mistyped, revoked
+	 * or deleted with its channel answers HERE — not days later, in a failure
+	 * line under an event nobody watched arrive. The URL being the whole
+	 * credential is exactly why this matters: there is nothing else to check.
+	 *
+	 * @param string $url The pasted incoming-webhook URL.
+	 * @return true|\WP_Error True when Slack took the message.
+	 */
+	public static function verify( $url ) {
+		return self::post(
+			(string) $url,
+			array( 'text' => __( 'Agentimus connected. This channel now receives the events you picked — change them, or disconnect, any time on the Integrations screen.', 'agentimus' ) )
+		);
+	}
+
 	/* -- Delivery ------------------------------------------------------------- */
 
 	/**
@@ -107,18 +130,34 @@ final class Slack {
 			return new \WP_Error( 'agentimus_slack_unconfigured', __( 'Slack is not configured.', 'agentimus' ) );
 		}
 
-		$body = wp_json_encode(
+		return self::post(
+			$config['url'],
 			array(
 				'text'   => self::fallback( (string) $event, $envelope ),
 				'blocks' => self::blocks( (string) $event, $envelope ),
 			)
 		);
+	}
+
+	/**
+	 * The one POST both the proof and every delivery make: JSON to the pasted
+	 * URL, a short leash, no redirects. Telegram splits this (its proof calls
+	 * getMe, its deliveries call sendMessage); here the proof IS a delivery of
+	 * a shorter message, so one call site holds both — and one grammar answers
+	 * for both.
+	 *
+	 * @param string $url     The webhook URL.
+	 * @param array  $payload The message, already in Slack's shape.
+	 * @return true|\WP_Error True on a 2xx; a WP_Error repeating Slack's own words when it gave any.
+	 */
+	private static function post( $url, array $payload ) {
+		$body = wp_json_encode( $payload );
 		if ( ! is_string( $body ) ) {
-			return new \WP_Error( 'agentimus_slack_body', __( 'The event could not be encoded.', 'agentimus' ) );
+			return new \WP_Error( 'agentimus_slack_body', __( 'The message could not be encoded.', 'agentimus' ) );
 		}
 
 		$response = wp_remote_post(
-			$config['url'],
+			$url,
 			array(
 				'timeout'     => self::TIMEOUT,
 				'redirection' => 0,
@@ -128,7 +167,14 @@ final class Slack {
 		);
 
 		if ( is_wp_error( $response ) ) {
-			return $response;
+			return new \WP_Error(
+				'agentimus_slack_unreachable',
+				sprintf(
+					/* translators: %s: the transport error, e.g. a timeout. */
+					__( 'Slack could not be reached: %s', 'agentimus' ),
+					$response->get_error_message()
+				)
+			);
 		}
 
 		$code = (int) wp_remote_retrieve_response_code( $response );
