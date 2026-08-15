@@ -793,7 +793,7 @@ export default {
                     on this screen.
                   </p>
                   <div class="ar-ask-grid">
-                    <button v-for="a in askAi.assistants" :key="a.label" type="button" class="ar-ask" @click="askAssistant(a)">
+                    <button v-for="a in askAi.assistants" :key="a.label" type="button" class="ar-ask ar-newtab" @click="askAssistant(a)">
                       <span class="ar-ask__mark" aria-hidden="true">
                         <svg viewBox="0 0 24 24" width="15" height="15" aria-hidden="true" focusable="false"><path :d="a.icon" fill="currentColor" /></svg>
                       </span>

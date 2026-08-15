@@ -430,7 +430,7 @@ export default {
             <tbody>
               <tr v-for="p in topPages" :key="p.page_url">
                 <td class="ar-perf__q">
-                  <a v-if="p.edit_url" :href="p.edit_url" class="ar-perf__page">{{ p.title }}</a>
+                  <a v-if="p.edit_url" :href="p.edit_url" target="_blank" rel="noopener" class="ar-perf__page">{{ p.title }}</a>
                   <span v-else>{{ p.title }}</span>
                 </td>
                 <td class="ar-perf__n">{{ num(p.impressions) }}</td>

@@ -208,7 +208,7 @@ export default {
                  token (which keeps its secret valid — rolling would not), add the
                  one permission, done. Nobody should need to research this line. -->
             <span class="ar-warn">Last purge failed: {{ summary.lastPurgeError }} — the token may lack the Cache Purge permission.
-              <a href="https://dash.cloudflare.com/profile/api-tokens" target="_blank" rel="noopener">Edit the token in Cloudflare ↗</a>
+              <a href="https://dash.cloudflare.com/profile/api-tokens" target="_blank" rel="noopener">Edit the token in Cloudflare</a>
               and add Zone → Cache Purge → Purge. Editing keeps the stored token valid.</span>
           </template>
           <template v-else-if="purgeNote">

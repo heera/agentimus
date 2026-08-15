@@ -15,10 +15,11 @@ import { confirm } from '../js/confirm.js';
 import { formatDate, formatTime } from '../js/wpDate.js';
 import { copyText } from '../js/clipboard.js';
 import ConnectionRail from './ConnectionRail.vue';
+import CardSkeleton from './CardSkeleton.vue';
 
 export default {
   name: 'GoogleCard',
-  components: { ConnectionRail },
+  components: { ConnectionRail, CardSkeleton },
   props: {
     api: { type: Object, default: null },
     active: { type: Boolean, default: false },
@@ -205,12 +206,24 @@ export default {
     </p>
 
     <ConnectionRail
+      service="Google"
       :connected="!!(google && google.connected)"
       :checked="googleChecked"
       :label="google ? google.property : ''"
       :polled-text="googlePolledText()"
       :last-error="(google && google.lastError) || ''"
       idle-note="Read-only — a key you mint, talking straight to Google. No middleman, ever."
+    />
+
+    <!-- The card's body arrives all at once when the status read answers, and
+         a one-line "checking…" card leaping into a wall of settings shoves
+         every card below it down the page. The placeholder holds roughly the
+         room the real body will need, button included (his call, 2026-08-15). -->
+    <CardSkeleton
+      v-if="!googleChecked"
+      lead=""
+      :lines="['92%', '78%', '64%', '86%']"
+      action
     />
 
     <p v-if="googleError" class="ar-field__hint ar-warn">{{ googleError }}</p>
@@ -339,14 +352,18 @@ export default {
             Reading property <code>{{ google.analytics.property }}</code> — total readers,
             visits and page views for the same window the dashboard reports. This is what
             turns “People” on the dashboard from two routes into everyone.
+            Stopping keeps every number already stored; People falls back to the two routes
+            this site can see on its own, and the key itself keeps working for Search Console.
           </p>
           <p v-if="google.analytics.lastError" class="ar-field__hint ar-ga4__err">{{ google.analytics.lastError }}</p>
           <!-- Danger family, like Disconnect above: both END a data feed, and a
                stop-action in Cancel's white reads weaker than what it does. The
                real severity gap (a dead credential vs a retypeable property ID)
                is carried by the words, not by dressing one stop as harmless. -->
+          <!-- "Stop reading" completes the sentence above it, which opens
+               "Reading property …". A refusal ("Don't read") names no act. -->
           <button type="button" class="ar-btn ar-btn--danger ar-btn--small" :disabled="ga4Busy" @click="disconnectGoogleAnalytics">
-            {{ ga4Busy ? 'Working…' : 'Stop reading Analytics' }}
+            {{ ga4Busy ? 'Working…' : 'Stop reading' }}
           </button>
         </template>
         <template v-else>

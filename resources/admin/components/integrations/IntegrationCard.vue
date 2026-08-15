@@ -68,7 +68,7 @@ export default {
         :href="actionHref"
         target="_blank"
         rel="noopener"
-      >{{ action }} <span class="ar-int__ext" aria-hidden="true">&#8599;</span></a>
+      >{{ action }}</a>
       <button v-else-if="action" type="button" class="ar-int__act" @click="$emit('act')">
         {{ action }}
       </button>

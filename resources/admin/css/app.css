@@ -290,15 +290,12 @@
    the score identity. Content cards to the left stay neutral. */
 :root[data-ar-theme="dark"] .ar-rail-card { border-color: var(--ar-chrome-line); }
 :root[data-ar-theme="dark"] .ar-rail-card__label { color: var(--ar-chrome); }
-/* The light card's paper-mix gloss goes invisible on the dark surface — re-key it. */
-:root[data-ar-theme="dark"] .ar-rail-card--readiness .ar-rail-card__gloss { color: var(--ar-ink-soft); }
 :root[data-ar-theme="dark"] .ar-rail-card.ar-rail-card--readiness {
   background: var(--ar-surface); border-color: var(--ar-chrome-line);
 }
-:root[data-ar-theme="dark"] .ar-rail-card--readiness .ar-rail-gauge__track { stroke: var(--ar-line-strong); }
-:root[data-ar-theme="dark"] .ar-rail-card--readiness .ar-rail-gauge__num { color: var(--ar-ink); }
-/* The card's supporting text was paper-tinted for the old ink ground — paper
-   is near-black now, so those lines re-ink from the grays. */
+/* The tier/rung text outside the readiness card is paper-tinted for the old
+   ink ground — paper is near-black now, so those lines re-ink from the grays.
+   (The readiness card itself no longer needs this: it names --rail-face.) */
 :root[data-ar-theme="dark"] .ar-rail-tier__name { color: var(--ar-ink); }
 :root[data-ar-theme="dark"] .ar-rail-tier__sub { color: var(--ar-ink-faint); }
 :root[data-ar-theme="dark"] .ar-rung { color: color-mix(in srgb, var(--ar-ink) 55%, transparent); }
@@ -324,12 +321,8 @@
 /* The brand A drew its legs in paper on the ink tile; on the dark tile they
    re-ink light (the gold crossbar needs no help). */
 :root[data-ar-theme="dark"] .ar__logo-line { stroke: var(--ar-ink); }
-:root[data-ar-theme="dark"] .ar-rail-card--readiness .ar-rail-gauge__fill[data-tone="good"] { stroke: var(--ar-chrome); }
 :root[data-ar-theme="dark"] .ar-rail-tier[data-state="top"] .ar-rail-tier__name,
-:root[data-ar-theme="dark"] .ar-rung[data-state="done"],
-:root[data-ar-theme="dark"] .ar-rail-card--readiness .ar-rail-allgood { color: var(--ar-chrome); }
-:root[data-ar-theme="dark"] .ar-rail-card--readiness .ar-rail-link { color: var(--ar-chrome); }
-:root[data-ar-theme="dark"] .ar-rail-card--readiness .ar-rail-link:hover { color: var(--ar-chrome-bright); }
+:root[data-ar-theme="dark"] .ar-rung[data-state="done"] { color: var(--ar-chrome); }
 /* The app is transparent in light mode (it sits on wp-admin's own gray); in
    dark it must paint its own ground or the admin backdrop shines through. */
 :root[data-ar-theme="dark"] #agentimus-app,
@@ -355,6 +348,34 @@
   :is(input:not([type="checkbox"]):not([type="radio"]):not([type="range"]), textarea, select):focus {
   border-color: var(--ar-accent);
 }
+/* The same for the LIGHT theme, which never got the twin: a key file, a doc
+   link, a "view the file" all fell back to wp-admin's blue underline while the
+   dark theme had been painting them in the accent since 1.35 (2026-08-15).
+   :where() again — zero specificity, so the rail's own ink, the .ar-go rule and
+   every other class-styled link still outrank it. Underline on hover only,
+   matching the in-app links; the ↗ is what says this one leaves. */
+/* Class-less only. This was written for prose links — an anchor that carries
+   a class already has a dress, and repainting it here means every styled link
+   in the app has to defend itself against a rule it never asked for (the
+   masthead lost that fight).
+
+   The :not() rides INSIDE :where() so it costs nothing: the selector keeps the
+   plain `a` weight it has always had, which is exactly what it needs to beat
+   wp-admin's own `a { color: #2271b1 }` on source order. Written as
+   :where(a:not([class])) the whole thing falls to zero and core wins — a prose
+   link goes admin-blue. Measured, not guessed. */
+:where(#agentimus-app, .ar-modal, .ar-drawer) a:where(:not([class])) {
+  color: var(--ar-accent);
+  text-decoration: none;
+}
+:where(#agentimus-app, .ar-modal, .ar-drawer) a:where(:not([class])):hover,
+:where(#agentimus-app, .ar-modal, .ar-drawer) a:where(:not([class])):focus-visible {
+  color: color-mix(in srgb, var(--ar-accent) 55%, var(--ar-ink));
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
+}
+
 /* Bare anchors — prose links that carry no .ar-* class — otherwise inherit
    wp-admin's link blue, a stranger at night. :where() keeps this at element
    specificity so every class-styled link still outranks it. */
@@ -458,6 +479,12 @@
   transition: opacity 0.15s;
 }
 .ar__brand:hover { opacity: 0.82; }
+/* The masthead is a link, but it is not prose: the app-wide bare-anchor hover
+   was drawing a rule under the version line (his catch, 2026-08-15). Its own
+   `text-decoration: none` could not win — a hover selector outranks a plain
+   class — so the hover state says it itself. Fading is the whole feedback. */
+.ar__brand:hover,
+.ar__brand:focus-visible { text-decoration: none; color: inherit; }
 /* As a real <a> the masthead inherits wp-admin's global a:focus blue ring (it
    fires on right-click too); silence that and keep OUR ring for keyboard focus.
    A logo-link isn't prose either — no text selection on click. */
@@ -1221,7 +1248,12 @@
 /* The next-step CTA: always a single centred line — clip with an ellipsis rather
    than wrap, since the check label that fills it varies in length. */
 .ar-rail-next {
-  display: block; width: 100%; text-align: center;
+  /* The box is the words, not the row (his call, 2026-08-15). At width:100%
+     the button spanned the card, so the tooltip fired anywhere along an empty
+     line — and a pointer that far from the text has not asked for anything.
+     max-content + auto margins keeps it centred; max-width:100% keeps the
+     ellipsis below working when the label is long. */
+  display: block; width: max-content; margin-inline: auto; text-align: center;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   /* Belt and braces with `.ar__rail > * { min-width: 0 }`: a button won't shrink past its
      own content unless told to, however roomy the box around it. */
@@ -1229,7 +1261,7 @@
 }
 /* A per-post content gap has no in-app page to jump to, so the next-step reads as a
    plain informational line (no arrow, no link) rather than a click that goes nowhere. */
-.ar-rail-next--info { margin: 11px 0 0; font-family: var(--ar-mono); font-size: 12px; color: color-mix(in srgb, var(--ar-paper) 50%, transparent); }
+.ar-rail-next--info { margin: 11px auto 0; font-family: var(--ar-mono); font-size: 12px; color: color-mix(in srgb, var(--ar-paper) 50%, transparent); }
 
 /* Dark variant of the Readiness rail card. Double class so it outranks the base
    .ar-rail-card background regardless of source order. Scheme-aware: on a
@@ -1237,7 +1269,7 @@
    on this card, the buttons and the editable chips — those dark surfaces take
    the scheme's flavour while the rest of the app keeps the designed palette. */
 .ar-rail-card.ar-rail-card--readiness { background: var(--ar-ink); border-color: var(--ar-ink); }
-.ar-rail-card--readiness .ar-rail-card__label { color: color-mix(in srgb, var(--ar-paper) 50%, transparent); }
+.ar-rail-card--readiness .ar-rail-card__label { color: color-mix(in srgb, var(--rail-face) 50%, transparent); }
 /* The label's gloss — dash-joined to the kicker on ONE line, masthead-and-tagline.
    Upright serif (the card's own title voice, honoured by every platform's stack),
    tracking and caps reset from the mono kicker it sits beside. */
@@ -1246,7 +1278,12 @@
   font-size: 12px; letter-spacing: 0; text-transform: none; white-space: nowrap;
   color: var(--ar-ink-faint);
 }
-.ar-rail-card--readiness .ar-rail-card__gloss { color: color-mix(in srgb, var(--ar-paper) 52%, transparent); }
+/* 78%, not 52% (his call, 2026-08-15): the gloss is the line that says what
+   the card IS, and at half-paper it read as disabled beside a kicker that had
+   just taken the accent. */
+/* 70% (his call, 2026-08-15) — the gloss and the score numeral now share one
+   value, so the card's title line and its headline read as one voice. */
+.ar-rail-card--readiness .ar-rail-card__gloss { color: color-mix(in srgb, var(--rail-face) 70%, transparent); }
 
 /* Folded depth under a toggle's one-line description (Verify bot identities):
    the plain sentence stays; the methods paragraph waits behind the fold. */
@@ -1273,11 +1310,12 @@
   font-size: 12.5px; line-height: 1.6; color: var(--ar-ink-soft);
 }
 .ar-toggle__more > small strong { color: var(--ar-ink); }
-.ar-rail-card--readiness .ar-rail-gauge__track { stroke: color-mix(in srgb, var(--ar-paper) 15%, transparent); }
-.ar-rail-card--readiness .ar-rail-gauge__num { color: color-mix(in srgb, var(--ar-paper) 62%, transparent); }
-.ar-rail-card--readiness .ar-rail-allgood { color: var(--ar-good-on-ink); }
+.ar-rail-card--readiness .ar-rail-gauge__track { stroke: color-mix(in srgb, var(--rail-face) 15%, transparent); }
+/* (The gauge numeral was veiled to 62% paper here; the palette block below
+   owns it now and gives it the card's full face.) */
+.ar-rail-card--readiness .ar-rail-allgood { color: var(--rail-good); }
 /* Brightened gauge tones for contrast on the dark card. */
-.ar-rail-card--readiness .ar-rail-gauge__fill[data-tone="good"] { stroke: var(--ar-good-on-ink); }
+.ar-rail-card--readiness .ar-rail-gauge__fill[data-tone="good"] { stroke: var(--rail-good); }
 .ar-rail-card--readiness .ar-rail-gauge__fill[data-tone="ok"] { stroke: var(--ar-warn-on-ink); }
 .ar-rail-card--readiness .ar-rail-gauge__fill[data-tone="low"] { stroke: var(--ar-bad-on-ink); }
 .ar-rail-card--readiness .ar-rail-link { color: var(--ar-teal-on-ink); }
@@ -1376,6 +1414,16 @@
    out over the page. The ellipsis on .ar-rail-next never got a chance to do its job.
    Letting the cards shrink to their column is what lets the label clip as intended. */
 .ar__rail > * { min-width: 0; }
+
+/* HOW LOUD THE RAIL READS (his call, 2026-08-15). One dial, inherited by every
+   card in the column. On the light theme's ink card, paper at 88% is right.
+   At night the same 88% of a near-white ink (#dde0e2) put this small mono type
+   at 8.5:1 — technically fine, physically harsh: a column of filenames and
+   rung labels glaring off a dark card. 74% lands at ~6.5:1, still well clear
+   of AA for body text and no longer the brightest thing in the room. */
+.ar__rail { --rail-read: 88%; }
+:root[data-ar-theme="dark"] .ar__rail { --rail-read: 74%; }
+
 .ar-rail-card {
   background: var(--ar-surface);
   border: 1px solid var(--ar-line);
@@ -1391,7 +1439,9 @@
   color: var(--ar-ink-faint);
 }
 .ar-rail-link {
-  appearance: none; background: none; border: 0; padding: 10px 0 0; cursor: pointer;
+  /* Margin, not padding: the 10px above the words is spacing from the rung
+     list, and must not be part of what the pointer can hover. */
+  appearance: none; background: none; border: 0; padding: 0; margin-top: 10px; cursor: pointer;
   font-family: var(--ar-mono); font-size: 12px; color: var(--ar-accent);
 }
 /* No underline-on-hover — feedback is the colour shift (brightened on the dark
@@ -1420,12 +1470,22 @@
 .ar-rail-links { margin: 0; padding: 0; list-style: none; display: grid; gap: 9px; }
 .ar-rail-links a {
   display: inline-flex; align-items: center; gap: 7px;
-  font-family: var(--ar-mono); font-size: 12.5px; color: var(--ar-ink); text-decoration: none;
+  /* 88% ink, the same key the readiness card's rung labels are set at (his
+     catch, 2026-08-15). At full ink these file names were as bright as the
+     score numeral itself — the loudest thing in the rail was a list of
+     filenames. One level for the whole rail. */
+  font-family: var(--ar-mono); font-size: 12.5px; text-decoration: none;
+  color: color-mix(in srgb, var(--ar-ink) var(--rail-read), transparent);
 }
 .ar-rail-links a::before { content: "↳"; color: var(--ar-accent); }
 /* Every link here opens in a new tab — the ↗ answers the ↳ and says so up
    front. \FE0E pins the text glyph so no platform swaps in an emoji. */
-.ar-rail-links a::after { content: "\2197\FE0E"; font-size: 10.5px; color: var(--ar-ink-faint); transition: color 0.15s; }
+/* Higher specificity than the app-wide outbound mark on purpose: this list
+   draws its own ↗, at its own size, in its own ink. */
+/* The doubled class is deliberate: this list draws its own ↗, at its own size
+   and ink, and must outrank the app-wide outbound mark that comes later in
+   this file — same specificity would have let source order decide. */
+#agentimus-app .ar-rail-links.ar-rail-links a::after { content: "\2197\FE0E"; font-size: 10.5px; margin-left: 0; opacity: 1; vertical-align: baseline; color: var(--ar-ink-faint); transition: color 0.15s; }
 .ar-rail-links a:hover { color: var(--ar-accent); }
 .ar-rail-links a:hover::after { color: var(--ar-accent); }
 
@@ -3317,7 +3377,9 @@ select.ar-input {
   font: inherit; color: var(--ar-accent); text-decoration: none; border-radius: 8px;
   transition: color 0.15s ease, background-color 0.15s ease;
 }
-.ar-linkbtn:hover { color: var(--ar-ink); background: var(--ar-hover); }
+/* ⛔ The pill is gone (see the one hover rule further down): a background on
+   an inline control has to bleed past its own word to look deliberate, and
+   that bleed paints over the sentence around it. */
 .ar-linkbtn:focus-visible { outline: 2px solid var(--ar-accent); outline-offset: 2px; }
 
 /* One hover language across the app: these text buttons used to answer with a
@@ -5520,6 +5582,9 @@ button.ar-act-more:hover { color: var(--ar-ink); }
 .ar-skel__tiles { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
 .ar-skel__box { height: 58px; border-radius: var(--ar-radius); }
 .ar-skel__line { height: 13px; border-radius: 4px; }
+/* The button's ghost: the house height, this screen's width, and the same
+   right edge the real one will land on — so nothing slides when it arrives. */
+.ar-skel__action { height: 40px; width: 150px; justify-self: end; border-radius: var(--ar-radius); }
 /* A ghost the height of one dashboard big-card panel, so those cards hold
    their loaded shape while their poll is in flight instead of leaping from a
    one-line wait to a wall of panels. Heights measured off the loaded cards:
@@ -7664,10 +7729,15 @@ a.ar-work__name { color: var(--ar-accent); }
   color: var(--ar-ink); font-variant-numeric: tabular-nums;
 }
 
+/* The rule divides the CARD; the measure holds the SENTENCE. They were one
+   box, so the dashed line stopped at 82ch and read as a half-drawn border
+   (his catch, 2026-08-15). Two boxes: the <p> spans the card and carries the
+   rule, the <span> inside it keeps the reading width. */
 .ar-rd__note {
   margin: 20px 0 0; padding-top: 12px; border-top: 1px dashed var(--ar-line-strong);
-  font-size: 12px; line-height: 1.55; color: var(--ar-ink-faint); max-width: 82ch;
+  font-size: 12px; line-height: 1.55; color: var(--ar-ink-faint);
 }
+.ar-rd__note > span { display: block; max-width: 82ch; }
 
 @container (max-width: 720px) {
   .ar-rd__hero { font-size: 42px; }
@@ -7881,3 +7951,294 @@ a.ar-work__name { color: var(--ar-accent); }
   color: var(--ar-ink);
 }
 .ar-clsn__why { margin: 8px 0 0; font-size: 12.5px; line-height: 1.55; color: var(--ar-ink-soft); }
+
+/* ---------------------------------------------------------------------------
+   IN-APP NAVIGATION — one rule for every link that keeps you inside the app
+   (his call, 2026-08-15). The plugin already owned two marks: → goes somewhere
+   in here, ↗ leaves. What it did not own was the INLINE case, so those links
+   were bare <a>s wearing wp-admin's blue underline — a local screen dressed as
+   an outward hyperlink.
+
+   The rule a reader learns once: NO MARK = you stay here, ↗ = you leave.
+   In prose, accent + weight carries it (a glyph mid-sentence breaks the
+   reading line); standing alone at the end of a card, the link types its own →.
+   ⛔ No underline, ever — the underline is wp-admin's, not ours.
+   --------------------------------------------------------------------------- */
+.ar-go,
+#agentimus-app a.ar-go,
+#agentimus-app a.ar-go:link,
+#agentimus-app a.ar-go:visited {
+  /* It is a <button> now (AppLink) — an <a href> made the browser advertise an
+     address in its status bar, so an in-app view change looked like a link to
+     somewhere else. The button has to be un-buttoned back to text. */
+  appearance: none;
+  background: none;
+  border: 0;
+  padding: 0;
+  font: inherit;
+  cursor: pointer;
+  color: var(--ar-accent);
+  font-weight: 600;
+  text-decoration: none;
+  /* ⛔ NO hover pill on an inline link. A background wide enough to look
+     deliberate has to bleed past the word (its padding handed back as negative
+     margin), and that bleed paints straight over the words on either side —
+     his call, 2026-08-15. The hover cue is the ink alone. */
+  transition: color 0.15s ease;
+}
+/* ONE hover for every in-app navigation in the plugin — the inline kind and
+   the standalone kind alike (his call, 2026-08-15; .ar-linkbtn's own pill is
+   retired below). Colour alone was too quiet to see in the light theme, so the
+   underline arrives WITH it: it is the one cue that cannot paint over the
+   words on either side, and keeping it for hover only means the resting state
+   still never looks like wp-admin's own blue links. */
+.ar-go:hover,
+.ar-go:focus-visible,
+#agentimus-app a.ar-go:hover,
+#agentimus-app a.ar-go:focus-visible,
+.ar-linkbtn:hover,
+.ar-linkbtn:focus-visible {
+  color: color-mix(in srgb, var(--ar-accent) 55%, var(--ar-ink));
+  background: none;
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
+}
+/* The standalone form shares the ink and the weight; it keeps its own spacing. */
+.ar-linkbtn { font-weight: 600; }
+
+/* ⛔ NO blanket recolour of classless links. There was one here — a "net" so a
+   link added later could not leak wp-admin's blue — and it reached straight
+   into the rail's endpoint list, which already had a considered look of its
+   own, and repainted it (2026-08-15). A net that changes things nobody asked
+   about is not a net. In-app navigation says so explicitly: .ar-go / AppLink.
+   */
+
+/* Data Sources: one button width for the WHOLE screen (his call, 2026-08-15).
+   Every card here offers the same kind of act — connect a source, stop one —
+   so a column of cards should answer with a column of identical buttons; two
+   widths made the wider one read as the heavier act. The padding comes in a
+   step, and the width is set so the longest label ("Disconnecting…") still
+   fits without stretching anything. */
+/* Width is this screen's rule; HEIGHT is the house's. Trimming the padding to
+   slim these buttons dropped them to 28px while every other button in the
+   plugin stands at 40 — measured, 2026-08-15. The width alone does the
+   aligning now, and the house padding is left alone. */
+[data-group="sources"] .ar-btn--small {
+  min-width: 150px;
+}
+/* Every card here ends the same way: the stop sits at the FAR RIGHT of its own
+   line, with room above it (his call, 2026-08-15). It is the card's exit — an
+   exit belongs at the end and apart, not pressed against the last thing it
+   would be mistaken for a part of. */
+[data-group="sources"] .ar-card > .ar-btn--danger,
+[data-group="sources"] .ar-ga4 > .ar-btn--danger {
+  display: block;
+  margin: 20px 0 0 auto;
+}
+
+/* ---------------------------------------------------------------------------
+   OUTBOUND LINKS — the other half of the rule: every link that leaves this
+   app wears ↗, and NONE of them types it by hand any more (34 hand-typed
+   arrows removed on 2026-08-15; two outbound links were even wearing → , the
+   in-app mark). The glyph comes from the one thing that is always true of an
+   outward link — it opens a new tab — so a link added later cannot forget it.
+   --------------------------------------------------------------------------- */
+#agentimus-app a[target="_blank"]::after,
+:is(.ar-modal, .ar-drawer) a[target="_blank"]::after {
+  content: "\2197";
+  margin-left: 0.28em;
+  font-size: 0.85em;
+  line-height: 1;
+  vertical-align: 1px;
+  opacity: 0.75;
+}
+/* No structural exceptions (audited 2026-08-15). The :has(> svg) / :has(> img)
+   pair was written for icon-ONLY links, but CSS cannot see the difference
+   between "an icon" and "an icon and three words" — and the audit found the
+   app has no icon-only outbound link at all, while "Open in editor" (icon +
+   words) was silently losing its mark to the guard. Button-shaped links keep
+   it too: "Get a key ↗" is still a word with a mark beside it.
+
+   The escape hatch is a class, not a shape, so opting out is a decision
+   someone made rather than a side effect of the markup. */
+#agentimus-app a[target="_blank"].ar-nomark::after,
+:is(.ar-modal, .ar-drawer) a[target="_blank"].ar-nomark::after { content: none; }
+
+/* A new tab is a new tab whoever opens it: these controls are <button>s that
+   call window.open, so the attribute selector above can never see them. They
+   name the promise themselves via this class. */
+#agentimus-app .ar-newtab::after,
+:is(.ar-modal, .ar-drawer) .ar-newtab::after {
+  content: "\2197";
+  margin-left: 0.28em;
+  font-size: 0.85em;
+  line-height: 1;
+  vertical-align: 1px;
+  opacity: 0.75;
+}
+
+/* ---------------------------------------------------------------------------
+   THE TOOLTIP — one in the whole plugin (promoted out of the announcements
+   ledger, 2026-08-15, when the data-source cards needed the same thing).
+
+   A mark you can press, and a bubble that says the part the line has no room
+   for: the network's own refusal, the technical original behind a plain
+   sentence. ⛔ Never a native title= (his standing rule) — the sentence lives
+   in aria-label for a screen reader and in the bubble for everyone else.
+   --------------------------------------------------------------------------- */
+.ar-tipwrap { position: relative; display: inline-flex; }
+.ar-tipbtn {
+  appearance: none; cursor: help; display: inline-flex; flex: none;
+  /* A box with no text of its own puts its BOTTOM edge on a baseline row's
+     baseline — which rides it high. Centre it against the line instead. */
+  align-self: center;
+  padding: 0; border: 0; background: transparent;
+  color: var(--ar-ink-faint);
+}
+.ar-tipbtn svg {
+  width: 15px; height: 15px; fill: none; stroke: currentColor; stroke-width: 1.7;
+  stroke-linecap: round; stroke-linejoin: round;
+}
+.ar-tip {
+  position: absolute; left: 50%; bottom: calc(100% + 8px); z-index: 5;
+  width: max-content; max-width: 280px; padding: 8px 11px;
+  transform: translateX(-50%);
+  background: var(--ar-ink); color: var(--ar-surface);
+  border: 1px solid var(--ar-line-strong); border-radius: var(--ar-radius);
+  box-shadow: 0 10px 26px -14px color-mix(in srgb, var(--ar-shade) 70%, transparent);
+  font-size: 12px; font-weight: 400; line-height: 1.45; text-align: left;
+  white-space: normal; text-transform: none; letter-spacing: 0;
+  opacity: 0; pointer-events: none; transition: opacity 0.12s ease;
+}
+.ar-tipbtn:hover + .ar-tip,
+.ar-tipbtn:focus-visible + .ar-tip { opacity: 1; }
+@media (prefers-reduced-motion: reduce) { .ar-tip { transition: none; } }
+
+/* ---------------------------------------------------------------------------
+   THE READINESS RAIL — his palette, 2026-08-15. Same card, same size, same
+   layout: only the ink and the bullets change.
+
+   What was wrong: the two loudest facts were dimmed and the two quiet ones
+   were shouting. The score itself sat at 62% paper while every rung label and
+   value was full accent green — so four rows that all say "fine" out-shouted
+   the number they roll up into, and "11 to fix", the only thing on the card
+   anyone can act on, was greyer than both.
+   --------------------------------------------------------------------------- */
+/* TWO TOKENS, ONE CARD (2026-08-15). Everything below used to name
+   --ar-paper and --ar-good-on-ink directly, which is right only while this
+   card is the LIGHT theme's ink panel. At night the card becomes --ar-surface
+   and the rail's green becomes --ar-chrome, so paper-keyed text turned
+   near-black ON a dark card and the band word kept a green its own ring had
+   already left (his catch, 2026-08-15). The card now names its own face and
+   its own green once; both themes set them, and nothing here can drift again. */
+.ar-rail-card--readiness {
+  --rail-face: var(--ar-paper);
+  --rail-good: var(--ar-good-on-ink);
+  /* The card reads QUIETER than the rest of the rail by day (his catch,
+     2026-08-15), because by day it is the one inverted surface in the column:
+     cream type on near-black. The pale cards beside it sit at the same 12:1
+     and are fine — dark on light is what the whole admin runs at — but light
+     on dark at that ratio blooms, worst of all on 12.5px mono. Same number,
+     different physics, so it gets its own. */
+  --rail-read: 76%;
+}
+:root[data-ar-theme="dark"] .ar-rail-card--readiness {
+  --rail-face: var(--ar-ink);
+  --rail-good: var(--ar-chrome);
+  /* At night this card is no longer inverted — it is the same surface as its
+     neighbours, so it reads at the rail's own level. */
+  --rail-read: 74%;
+}
+
+/* The kicker names the card; it earns the accent. */
+.ar-rail-card--readiness .ar-rail-card__label { color: var(--rail-good); }
+/* The score is the headline — full paper, no veil. */
+.ar-rail-card--readiness .ar-rail-gauge__num { color: color-mix(in srgb, var(--rail-face) 70%, transparent); }
+/* The rungs read as a list again: plain paper for the words and the numbers,
+   so the only colour left on a row means something. */
+.ar-rail-card--readiness .ar-rung__name,
+.ar-rail-card--readiness .ar-rung__count { color: color-mix(in srgb, var(--rail-face) var(--rail-read), transparent); }
+/* The one actionable mark on the card wears the one warning colour. */
+.ar-rail-card--readiness .ar-rung__todo { color: var(--ar-warn-on-ink); }
+
+/* The bullets are RINGS, never filled discs (his call). The state still shows
+   — it moves into the ring's own colour rather than its fill, so nothing is
+   lost: green ring = done, amber = in progress, faint = not yet. */
+.ar-rail-card--readiness .ar-rung__tick,
+.ar-rail-card--readiness .ar-rung[data-state="done"] .ar-rung__tick {
+  background: transparent;
+  border-width: 2px;
+  border-color: color-mix(in srgb, var(--rail-face) 40%, transparent);
+}
+.ar-rail-card--readiness .ar-rung[data-state="done"] .ar-rung__tick { border-color: var(--rail-good); }
+.ar-rail-card--readiness .ar-rung[data-state="current"] .ar-rung__tick { border-color: var(--ar-warn-on-ink); }
+/* The half-dot the "current" state used to draw inside the ring would fill it
+   again — the ring's colour says it now. */
+.ar-rail-card--readiness .ar-rung[data-state="current"] .ar-rung__tick::after { content: none; }
+
+/* One green for the card: the next step stops being a different teal from
+   everything above it. */
+.ar-rail-card--readiness .ar-rail-link { color: var(--rail-good); }
+.ar-rail-card--readiness .ar-rail-link:hover { color: color-mix(in srgb, var(--rail-good) 70%, var(--rail-face)); }
+
+/* The band word takes the gauge's colour (his call, 2026-08-15). It used to be
+   coloured by the READY/CLIMB state alone, so a 97% site read "Excellent" in
+   plain white beside a green ring — the label and the thing it labels saying
+   two different things. The blocked states keep their own colours below; they
+   are about reachability, not about a score. */
+.ar-rail-card--readiness .ar-rail-tier[data-tone="good"] .ar-rail-tier__name { color: var(--rail-good); }
+.ar-rail-card--readiness .ar-rail-tier[data-tone="ok"] .ar-rail-tier__name { color: var(--ar-warn-on-ink); }
+.ar-rail-card--readiness .ar-rail-tier[data-tone="low"] .ar-rail-tier__name { color: var(--ar-bad-on-ink); }
+/* Blocked outranks tone: "Not reachable" is not a score. */
+.ar-rail-card--readiness .ar-rail-tier[data-state="floor"] .ar-rail-tier__name { color: var(--ar-bad-on-ink); }
+.ar-rail-card--readiness .ar-rail-tier[data-state="local"] .ar-rail-tier__name { color: var(--ar-warn-on-ink); }
+
+/* The rail cards' label mark (his pick, 2026-08-15): the plugin's one mark
+   shape — rounded square, glyph in the accent, its own faint wash and a
+   hairline — a step smaller than the Integrations tile, because the rail is
+   the quietest column on the screen and the label still has to lead. */
+.ar-rail-card__label--mark {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  /* 4px, not the 11px a text-only label carries. The tile is 7px taller than
+     the line it replaced, and the rail is already taller than the sticky
+     viewport it sits in — so the mark pays for itself out of its own margin
+     rather than pushing the footer off the bottom (his catch, 2026-08-15).
+     It also reads right: a gap measured under a 15px line looks wider under a
+     22px tile. */
+  margin-bottom: 4px;
+}
+.ar-rail-card__mark {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
+  color: var(--ar-accent);
+  background: var(--ar-accent-wash);
+  /* The same accent-tinted hairline the dashboard tiles wear — a plain
+     --ar-line is warm sand against this cool wash, and the two tile families
+     sit on the same screen. */
+  border: 1px solid color-mix(in srgb, var(--ar-accent) 22%, var(--ar-line));
+}
+/* 12px, not 13 — the same glyph size .ar-sys__mark uses beside DOORS and
+   SIGNALS on this very screen. Both are section labels in the same
+   uppercase-mono dress, so they are one object, measured alike. */
+.ar-rail-card__mark svg { width: 12px; height: 12px; display: block; }
+
+/* The registrations row wears its whole state (his call, 2026-08-15).
+   The alert state already coloured the entire row amber; the valid state
+   coloured only the tick and left the words in plain ink — so "all good" and
+   "something's wrong" were not the same kind of sentence. Now both say it the
+   same way: ring, words and arrow together. */
+.ar-rail-regcard.is-ok { color: var(--ar-good); }
+.ar-rail-regcard.is-ok .ar-rail-regcard__go { color: var(--ar-good); }
+.ar-rail-regcard__text { font-weight: 500; }
+/* The ring is drawn, so the icon box is a box, not a line of text — centre it
+   on the row rather than on a baseline it no longer has. */
+.ar-rail-regcard__icon { display: inline-flex; align-items: center; }
+.ar-rail-regcard__icon svg { width: 15px; height: 15px; display: block; }

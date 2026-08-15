@@ -25,6 +25,15 @@ export default {
   },
   emits: ['navigate'],
   computed: {
+    /* The same button does two different things: a config fix opens the tool
+       in a NEW TAB (window.open in openNext), a per-post gap walks to another
+       screen of this app. One arrow for both was a promise it broke half the
+       time, so the glyph says which one this is (audit, 2026-08-15). */
+    nextGlyph() {
+      const a = this.aeoNext && this.aeoNext.action;
+      return a && a.href ? '\u2197' : '\u2192';
+    },
+
     circumference() {
       return 2 * Math.PI * 52;
     },
@@ -161,7 +170,15 @@ export default {
             <!-- The blocked verdict (blog_public off) reads differently by context:
                  on a live site it's the red master-switch alarm; on a local site
                  it's a calm to-do for launch day, not a failure. -->
-            <div class="ar-rail-tier" :data-state="aeo.blocked ? (siteIsLocal ? 'local' : 'floor') : (aeo.ready ? 'top' : 'climb')">
+            <!-- The band carries the gauge's own tone as well as its state:
+                 "Excellent" beside a green ring was rendering white, because
+                 "climb" (anything short of fully ready) was doing the colouring
+                 — so the word and the ring it labels disagreed. -->
+            <div
+              class="ar-rail-tier"
+              :data-state="aeo.blocked ? (siteIsLocal ? 'local' : 'floor') : (aeo.ready ? 'top' : 'climb')"
+              :data-tone="aeoTone"
+            >
               <strong class="ar-rail-tier__name">{{ aeo.blocked ? (siteIsLocal ? 'Not public yet' : 'Not reachable') : aeo.band }}</strong>
               <!-- Only the blocked states earn a second line — they explain the
                    em-dash gauge. On the healthy path "fully agent-ready" was a
@@ -223,7 +240,7 @@ export default {
             @focus="showRailTip($event, aeoNextTip, aeoNextTipHint)"
             @blur="hideUaTip"
             @click="openNext"
-          >Next: {{ aeoNext.title }} →</button>
+          >Next: {{ aeoNext.title }} {{ nextGlyph }}</button>
           <p
             v-else-if="aeoNext"
             class="ar-rail-next ar-rail-next--info"
@@ -240,7 +257,22 @@ export default {
         </div>
 
         <div class="ar-rail-card">
-          <p class="ar-rail-card__label">Live endpoints</p>
+          <!-- The mark wears the plugin's one shape for a mark: a soft rounded
+               square, glyph in the accent on its own faint wash. ⛔ never a
+               filled disc — a solid circle already means "state" here (the
+               connection rails' dot, the readiness rungs' done tick), and a
+               green disc beside a list of files would read as a health light
+               claiming something it cannot know. -->
+          <p class="ar-rail-card__label ar-rail-card__label--mark">
+            <span class="ar-rail-card__mark" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M12 3.2a8.8 8.8 0 1 0 0 17.6 8.8 8.8 0 0 0 0-17.6Z" />
+                <path d="M3.4 12h17.2" />
+                <path d="M12 3.2c2.3 2.4 3.5 5.5 3.5 8.8s-1.2 6.4-3.5 8.8c-2.3-2.4-3.5-5.5-3.5-8.8S9.7 5.6 12 3.2Z" />
+              </svg>
+            </span>
+            Live endpoints
+          </p>
           <ul class="ar-rail-links">
             <li><a :href="endpoints.llms" target="_blank" rel="noopener">llms.txt</a></li>
             <li><a :href="endpoints.llmsFull" target="_blank" rel="noopener">llms-full.txt</a></li>
@@ -249,7 +281,17 @@ export default {
         </div>
 
         <div v-if="discoveryDocs.length" class="ar-rail-card">
-          <p class="ar-rail-card__label">Discovery docs</p>
+          <p class="ar-rail-card__label ar-rail-card__label--mark">
+            <span class="ar-rail-card__mark" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M6.2 3.4h8l4 4v13.2H6.2Z" />
+                <path d="M14 3.4v4.2h4" />
+                <path d="M9 12.4h6" />
+                <path d="M9 16.2h4.2" />
+              </svg>
+            </span>
+            Discovery docs
+          </p>
           <ul class="ar-rail-links">
             <li v-for="d in discoveryDocs" :key="d.label">
               <a :href="d.url" target="_blank" rel="noopener">{{ d.label }}</a>
@@ -266,7 +308,16 @@ export default {
           v-tip="validation.ok ? 'See what’s registered' : 'Review registration issues'"
           @click="go({ tab: 'discovery', anchor: validation.ok ? 'ar-wd-providers' : 'ar-wd-validation' })"
         >
-          <span class="ar-rail-regcard__icon" aria-hidden="true">{{ validation.ok ? '✓' : '⚠' }}</span>
+          <!-- A drawn ring, not a text glyph: ✓ and ⚠ come from two different
+               places in the font stack and never sat on the same baseline or
+               at the same weight. One ring, one stroke, both states. -->
+          <span class="ar-rail-regcard__icon" aria-hidden="true">
+            <svg viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="9" cy="9" r="7.4" />
+              <path v-if="validation.ok" d="M5.9 9.3l2.2 2.2 4-4.6" />
+              <template v-else><path d="M9 5.4v4.4" /><path d="M9 12.5h.01" /></template>
+            </svg>
+          </span>
           <span class="ar-rail-regcard__text">{{ validation.ok ? 'All registrations are valid' : `${validation.count} ${validation.count === 1 ? 'issue' : 'issues'} to fix` }}</span>
           <span class="ar-rail-regcard__go" aria-hidden="true">→</span>
         </button>

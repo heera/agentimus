@@ -315,21 +315,21 @@ export default {
                        "read me" and "nothing to press here", so the shapes
                        differ, not just the colour. -->
                   <template v-if="row.status === 'queued'">
-                    <span class="ar-ann__tipwrap">
-                      <button type="button" class="ar-ann__info is-queued" :aria-label="stateHint(row)">
+                    <span class="ar-tipwrap">
+                      <button type="button" class="ar-tipbtn is-queued" :aria-label="stateHint(row)">
                         <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9.2" /><path d="M12 7.4V12l3.1 1.9" /></svg>
                       </button>
-                      <span class="ar-ann__tip" aria-hidden="true">{{ stateHint(row) }}</span>
+                      <span class="ar-tip" aria-hidden="true">{{ stateHint(row) }}</span>
                     </span>
                     <span class="ar-ann__st is-queued">Queued</span>
                     <span class="ar-ann__why">Goes out {{ dueIn(row.scheduledAt) }}</span>
                   </template>
                   <template v-else-if="row.status === 'sent'">
-                    <span class="ar-ann__tipwrap">
-                      <button type="button" class="ar-ann__info is-sent" :aria-label="stateHint(row)">
+                    <span class="ar-tipwrap">
+                      <button type="button" class="ar-tipbtn is-sent" :aria-label="stateHint(row)">
                         <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9.2" /><path d="M8 12.3l2.7 2.7L16.2 9.5" /></svg>
                       </button>
-                      <span class="ar-ann__tip" aria-hidden="true">{{ stateHint(row) }}</span>
+                      <span class="ar-tip" aria-hidden="true">{{ stateHint(row) }}</span>
                     </span>
                     <span class="ar-ann__st is-sent">Sent at</span>
                     <span class="ar-ann__why">{{ stamp(row.sentAt) }}</span>
@@ -342,11 +342,11 @@ export default {
                     <!-- The failure's mark IS the door to its reason: it
                          leads the line like the others, and it is the only
                          one you can press. -->
-                    <span class="ar-ann__tipwrap">
-                      <button type="button" class="ar-ann__info is-failed" :aria-label="stateHint(row)">
+                    <span class="ar-tipwrap">
+                      <button type="button" class="ar-tipbtn is-failed" :aria-label="stateHint(row)">
                         <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9.2" /><path d="M12 7.6v5.2" /><path d="M12 16.4h.01" /></svg>
                       </button>
-                      <span class="ar-ann__tip" aria-hidden="true">{{ stateHint(row) }}</span>
+                      <span class="ar-tip" aria-hidden="true">{{ stateHint(row) }}</span>
                     </span>
                     <span class="ar-ann__st is-failed">{{ row.failedAt ? 'Failed at' : 'Failed' }}</span>
                     <span v-if="row.failedAt" class="ar-ann__why">{{ stamp(row.failedAt) }}</span>

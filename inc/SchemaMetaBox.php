@@ -110,13 +110,13 @@ final class SchemaMetaBox {
 			printf(
 				'<a href="%s" target="_blank" rel="noopener">%s</a>',
 				esc_url( 'https://search.google.com/test/rich-results?url=' . rawurlencode( $url ) ),
-				esc_html__( 'Google Rich Results test ↗', 'agentimus' )
+				esc_html__( 'Google Rich Results test', 'agentimus' )
 			);
 			echo ' &nbsp;·&nbsp; ';
 			printf(
 				'<a href="%s" target="_blank" rel="noopener">%s</a>',
 				esc_url( 'https://validator.schema.org/#url=' . rawurlencode( $url ) ),
-				esc_html__( 'Schema.org validator ↗', 'agentimus' )
+				esc_html__( 'Schema.org validator', 'agentimus' )
 			);
 			echo '</p>';
 		}
@@ -148,6 +148,10 @@ JS;
 			. '.agentimus-schema-box__bar{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:6px}'
 			. '.agentimus-schema-box__reflect{color:#646970;font-size:12px}'
 			. '.agentimus-schema-box__code{margin:0;padding:12px 14px;max-height:420px;overflow:auto;background:#f6f7f7;border:1px solid #dcdcde;border-radius:4px;font-family:Menlo,Consolas,monospace;font-size:12.5px;line-height:1.55;white-space:pre;tab-size:2}'
-			. '.agentimus-schema-box__tools{margin:10px 0 0;font-size:13px}';
+			. '.agentimus-schema-box__tools{margin:10px 0 0;font-size:13px}'
+			// The outbound mark is drawn, not typed. It used to live INSIDE the
+			// translated label, where a translator can drop it and a new link can
+			// forget it; keyed off target=_blank it is simply always true.
+			. '.agentimus-schema-box__tools a[target="_blank"]::after{content:"\\2197";margin-left:.28em;font-size:.85em;line-height:1;vertical-align:1px;opacity:.75}';
 	}
 }

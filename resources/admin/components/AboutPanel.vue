@@ -500,7 +500,7 @@ export default {
         tab and change any default under
         <button type="button" class="ar-linkbtn" @click="$emit('navigate', { tab: 'settings' })">Settings</button>.
         New here? The full
-        <a class="ar-linkbtn" href="https://heera.github.io/agentimus/" target="_blank" rel="noopener">documentation ↗</a>
+        <a class="ar-linkbtn" href="https://heera.github.io/agentimus/" target="_blank" rel="noopener">documentation</a>
         walks through every feature, step by step.
       </p>
 
@@ -639,12 +639,12 @@ export default {
         </div>
         <div class="ar-about-proto__fact">
           <span class="ar-about-proto__k">Validates against</span>
-          <a v-if="schemaUrl" class="ar-about-proto__v" :href="schemaUrl" target="_blank" rel="noopener">JSON Schema ↗</a>
+          <a v-if="schemaUrl" class="ar-about-proto__v" :href="schemaUrl" target="_blank" rel="noopener">JSON Schema</a>
           <span v-else class="ar-about-proto__v">JSON Schema</span>
         </div>
         <div class="ar-about-proto__fact">
           <span class="ar-about-proto__k">Specification</span>
-          <a v-if="specUrl" class="ar-about-proto__v" :href="specUrl" target="_blank" rel="noopener">Read the spec ↗</a>
+          <a v-if="specUrl" class="ar-about-proto__v" :href="specUrl" target="_blank" rel="noopener">Read the spec</a>
           <span v-else class="ar-about-proto__v">Open spec</span>
         </div>
       </div>
@@ -686,9 +686,9 @@ export default {
         online, and the source is on GitHub.
       </p>
       <p class="ar-card__lead">
-        <a class="ar-linkbtn" href="https://heera.github.io/agentimus/" target="_blank" rel="noopener">Documentation ↗</a>
+        <a class="ar-linkbtn" href="https://heera.github.io/agentimus/" target="_blank" rel="noopener">Documentation</a>
         &nbsp;·&nbsp;
-        <a class="ar-linkbtn" href="https://github.com/heera/agentimus" target="_blank" rel="noopener">GitHub ↗</a>
+        <a class="ar-linkbtn" href="https://github.com/heera/agentimus" target="_blank" rel="noopener">GitHub</a>
       </p>
     </section>
   </div>

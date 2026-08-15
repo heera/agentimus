@@ -12,16 +12,23 @@
 export default {
   name: 'CardSkeleton',
   props: {
+    // The single line that says what is loading. Pass '' where something else
+    // on the card already says it (the data-source cards' status rail does).
     lead: { type: String, default: 'Loading…' },
+    // The bars' widths — more of them for a card whose loaded body is tall,
+    // so the placeholder holds roughly the room the real thing will take.
+    lines: { type: Array, default: () => ['88%', '72%', '80%'] },
+    // A card that ends in a button holds that button's space too, or the whole
+    // page still jumps at the last moment.
+    action: { type: Boolean, default: false },
   },
 };
 </script>
 
 <template>
   <div class="ar-skel ar-skel--card" aria-busy="true">
-    <p class="ar-card__lead">{{ lead }}</p>
-    <span class="ar-skel__line" style="width: 88%"></span>
-    <span class="ar-skel__line" style="width: 72%"></span>
-    <span class="ar-skel__line" style="width: 80%"></span>
+    <p v-if="lead" class="ar-card__lead">{{ lead }}</p>
+    <span v-for="(w, i) in lines" :key="i" class="ar-skel__line" :style="{ width: w }"></span>
+    <span v-if="action" class="ar-skel__action"></span>
   </div>
 </template>

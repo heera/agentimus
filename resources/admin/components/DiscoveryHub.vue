@@ -274,7 +274,7 @@ export default {
         <div class="ar-wd-canonical">
           <span class="ar-wd-canonical__method">GET</span>
           <span class="ar-wd-canonical__path">{{ discoveryPath }}</span>
-          <a class="ar-wd-canonical__ext" :href="discoveryUrl" target="_blank" rel="noopener" aria-label="Open discovery.json in a new tab">↗</a>
+          <a class="ar-wd-canonical__ext" :href="discoveryUrl" target="_blank" rel="noopener" aria-label="Open discovery.json in a new tab"></a>
         </div>
         <button type="button" class="ar-btn" :disabled="refreshing" @click="$emit('refresh')">
           {{ refreshing ? 'Scanning…' : 'Re-scan' }}
@@ -542,7 +542,7 @@ export default {
         <ul v-if="docRows.length" class="ar-wd-tools">
           <li v-for="d in docRows" :key="d.name" class="ar-wd-tool">
             <div class="ar-wd-tool__id">
-              <a v-if="d.url" class="ar-wd-doclink" :href="d.url" target="_blank" rel="noopener"><code>{{ d.name }}</code><span class="ar-wd-ext" aria-hidden="true">↗</span></a>
+              <a v-if="d.url" class="ar-wd-doclink" :href="d.url" target="_blank" rel="noopener"><code>{{ d.name }}</code></a>
               <code v-else>{{ d.name }}</code>
               <span v-if="d.title" class="ar-wd-tool__title">{{ d.title }}</span>
             </div>
@@ -640,7 +640,7 @@ export default {
       </p>
       <ul class="ar-wd-wk">
         <li v-for="w in wellKnownRows" :key="w.name">
-          <a :href="w.url" target="_blank" rel="noopener"><code>/.well-known/{{ w.name }}</code><span class="ar-wd-ext" aria-hidden="true">↗</span></a>
+          <a :href="w.url" target="_blank" rel="noopener"><code>/.well-known/{{ w.name }}</code></a>
           <span v-if="w.spec" class="ar-wd-src ar-wd-src--spec">{{ w.spec }}</span>
           <!-- ON DISK stays the exception that changes what an owner would do:
                the web server answers it and we never override it. The quiet

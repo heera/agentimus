@@ -2145,7 +2145,7 @@ export default {
             <strong class="ar-dbgcard__title">{{ debug.message }}</strong>
             <p v-if="debug.fix" class="ar-dbgcard__fix">
               {{ debug.fix }}
-              <a v-if="debug.fixUrl" :href="debug.fixUrl" target="_blank" rel="noopener">How to fix ↗</a>
+              <a v-if="debug.fixUrl" :href="debug.fixUrl" target="_blank" rel="noopener">How to fix</a>
             </p>
           </template>
         </div>

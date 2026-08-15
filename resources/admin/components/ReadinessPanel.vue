@@ -389,7 +389,7 @@ export default {
             :href="c.action.href"
             target="_blank"
             rel="noopener"
-          >{{ c.action.label }} ↗</a>
+          >{{ c.action.label }}</a>
           <button
             v-else-if="c.action"
             type="button"
@@ -405,7 +405,7 @@ export default {
             :href="l.href"
             target="_blank"
             rel="noopener"
-          >{{ l.label }} ↗</a>
+          >{{ l.label }}</a>
         </li>
       </ul>
     </div>
@@ -476,7 +476,7 @@ export default {
             <small>{{ issue.why }}</small>
             <ul class="ar-optcheck__pages">
               <li v-for="p in issue.pages" :key="p.id" class="ar-optcheck__row">
-                <a :href="p.url" target="_blank" rel="noopener" class="ar-optcheck__page">{{ p.title }} ↗</a>
+                <a :href="p.url" target="_blank" rel="noopener" class="ar-optcheck__page">{{ p.title }}</a>
                 <button
                   type="button"
                   class="ar-optcheck__aside"
@@ -514,7 +514,7 @@ export default {
         <ul class="ar-optcheck__pages">
           <li v-for="p in optimizeIgnored" :key="p.id" class="ar-optcheck__row">
             <div class="ar-optcheck__asided">
-              <a :href="p.url" target="_blank" rel="noopener" class="ar-optcheck__page ar-optcheck__page--muted">{{ p.title }} ↗</a>
+              <a :href="p.url" target="_blank" rel="noopener" class="ar-optcheck__page ar-optcheck__page--muted">{{ p.title }}</a>
               <!-- What it was flagged for, so the aside list keeps the "why" the
                    worklist knew. No flags = nothing to say (it passes everything now). -->
               <small v-if="p.flags && p.flags.length" class="ar-optcheck__flags">{{ p.flags.join(' · ') }}</small>
@@ -596,7 +596,7 @@ export default {
                 <div v-if="cachedChecks.length" class="ar-live-cache" role="alert">
                   <strong class="ar-live-cache__title">A cache is sitting in front of your AI endpoints</strong>
                   <p>{{ cachedVia }} returned a <em>stored</em> copy of {{ cachedChecks.length }} endpoint{{ cachedChecks.length > 1 ? 's' : '' }} ({{ cachedNames }}), so those agent fetches never reach WordPress. Your <strong>Activity log under-counts</strong> real AI traffic, and freshness-sensitive endpoints (the change feed, page markdown) can go <strong>stale</strong>.</p>
-                  <p class="ar-live-cache__fix"><strong>Fix:</strong> bypass cache for <code>*.md</code>, <code>/llms.txt</code>, <code>/.well-known/*</code> and <code>*changes.json</code> at your CDN/proxy. <a href="https://heera.github.io/agentimus/user-manual/caching.html" target="_blank" rel="noopener">How to fix it ↗</a></p>
+                  <p class="ar-live-cache__fix"><strong>Fix:</strong> bypass cache for <code>*.md</code>, <code>/llms.txt</code>, <code>/.well-known/*</code> and <code>*changes.json</code> at your CDN/proxy. <a href="https://heera.github.io/agentimus/user-manual/caching.html" target="_blank" rel="noopener">How to fix it</a></p>
                   <p class="ar-live-cache__fix">Can’t change your cache? Turn on <button type="button" class="ar-linkbtn" @click="$emit('navigate', { tab: 'settings', anchor: 'ar-feat-bypass_shared_cache' })">Keep AI endpoints out of your cache</button> in Settings — Agentimus asks caches not to store these, which works with any cache that respects <code>Cache-Control</code> (most do).</p>
                 </div>
 
@@ -664,11 +664,11 @@ export default {
                   <strong v-else class="ar-live-cache__title ar-live-cache__title--bad">{{ exposedLeaking.length }} file{{ exposedLeaking.length > 1 ? 's are' : ' is' }} publicly downloadable</strong>
                   <p v-if="isLocal">Nothing is public on a local site — but {{ exposedLeaking.length > 1 ? 'these files' : 'this file' }} would be downloadable once you deploy. <strong>Delete {{ exposedLeaking.length > 1 ? 'them' : 'it' }}</strong> or add a block rule before going live.</p>
                   <p v-else>Anyone can fetch {{ exposedLeaking.length > 1 ? 'these' : 'this' }} — they may hold passwords, keys or private data. <strong>Delete {{ exposedLeaking.length > 1 ? 'them' : 'it' }} from your server</strong>, or block the path at your CDN/webserver.</p>
-                  <p class="ar-live-cache__fix"><strong>How to block:</strong> <a href="https://heera.github.io/agentimus/user-manual/exposure.html#blocking-exposed-files" target="_blank" rel="noopener">Nginx / Apache / Cloudflare rules ↗</a></p>
+                  <p class="ar-live-cache__fix"><strong>How to block:</strong> <a href="https://heera.github.io/agentimus/user-manual/exposure.html#blocking-exposed-files" target="_blank" rel="noopener">Nginx / Apache / Cloudflare rules</a></p>
                 </div>
                 <div v-if="exposedEmpty.length" class="ar-live-cache" role="alert">
                   <strong class="ar-live-cache__title">{{ exposedEmpty.length }} reachable but empty file{{ exposedEmpty.length > 1 ? 's' : '' }}</strong>
-                  <p>{{ exposedEmpty.length > 1 ? 'These are' : 'This is' }} publicly reachable but currently <strong>empty (0 bytes)</strong>, so {{ exposedEmpty.length > 1 ? 'they leak' : 'it leaks' }} nothing yet — but a file like <code>debug.log</code> can fill up later. Worth blocking or removing anyway. <a href="https://heera.github.io/agentimus/user-manual/exposure.html#blocking-exposed-files" target="_blank" rel="noopener">How to block ↗</a></p>
+                  <p>{{ exposedEmpty.length > 1 ? 'These are' : 'This is' }} publicly reachable but currently <strong>empty (0 bytes)</strong>, so {{ exposedEmpty.length > 1 ? 'they leak' : 'it leaks' }} nothing yet — but a file like <code>debug.log</code> can fill up later. Worth blocking or removing anyway. <a href="https://heera.github.io/agentimus/user-manual/exposure.html#blocking-exposed-files" target="_blank" rel="noopener">How to block</a></p>
                 </div>
                 <div v-if="exposure && !exposedRows.length" class="ar-live-allclear">
                   <strong>✓ All clear.</strong> None of the {{ exposureResults.length }} checked path{{ exposureResults.length === 1 ? '' : 's' }} {{ exposureResults.length === 1 ? 'is' : 'are' }} publicly readable.

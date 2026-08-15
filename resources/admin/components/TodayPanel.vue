@@ -240,7 +240,7 @@ export default {
                  reads as a different KIND of thing rather than a quieter one —
                  the waiting rows say "look", not "fix", in their label. -->
             <div v-if="row.action" class="ar-today__act">
-              <button type="button" class="ar-btn ar-btn--sm" @click="go(row.action)">{{ row.action.label }}</button>
+              <button type="button" class="ar-btn ar-btn--sm" :class="{ 'ar-newtab': !!row.action.url }" @click="go(row.action)">{{ row.action.label }}</button>
             </div>
           </li>
         </ul>

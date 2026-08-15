@@ -600,7 +600,10 @@ a.ar-int__act:hover {
    its info mark. */
 .ar-ann__state {
   display: flex;
-  align-items: baseline;
+  /* Centred, not baselined: the row holds a 15px mark with no text in it, and
+     a baseline row puts such a box's BOTTOM edge on the baseline — which sat
+     the mark ~4px above the words beside it. Measured, not guessed. */
+  align-items: center;
   gap: 7px;
 }
 
@@ -628,7 +631,7 @@ a.ar-int__act:hover {
    pressable and each one says something the row cannot: what "queued" waits
    for, why a sent stamp can differ from the minute chosen, and the network's
    own sentence when it refused. */
-.ar-ann__info svg {
+.ar-tipbtn svg {
   width: 15px;
   height: 15px;
   fill: none;
@@ -638,68 +641,12 @@ a.ar-int__act:hover {
   stroke-linejoin: round;
 }
 
-/* The reason, on an info mark. Hover or focus shows it; nothing is truncated,
-   and no row grows to hold a sentence the network wrote. */
-.ar-ann__tipwrap {
-  position: relative;
-  display: inline-flex;
-}
+/* The state marks wear the shared tooltip (.ar-tipwrap / .ar-tipbtn / .ar-tip
+   in app.css); only their colours belong to this screen. */
+.ar-tipbtn.is-queued { color: var(--ar-accent); }
+.ar-tipbtn.is-sent   { color: var(--ar-good); }
+.ar-tipbtn.is-failed { color: var(--ar-bad); }
 
-.ar-ann__info {
-  appearance: none;
-  cursor: help;
-  display: inline-flex;
-  flex: none;
-  padding: 0;
-  border: 0;
-  background: transparent;
-  color: var(--ar-ink-faint);
-}
-
-.ar-ann__info.is-queued { color: var(--ar-accent); }
-.ar-ann__info.is-sent   { color: var(--ar-good); }
-.ar-ann__info.is-failed { color: var(--ar-bad); }
-
-.ar-ann__info svg {
-  width: 15px;
-  height: 15px;
-  fill: none;
-  stroke: currentColor;
-  stroke-width: 1.7;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-}
-
-.ar-ann__tip {
-  position: absolute;
-  left: 50%;
-  bottom: calc(100% + 8px);
-  z-index: 5;
-  width: max-content;
-  max-width: 260px;
-  padding: 8px 11px;
-  transform: translateX(-50%);
-  background: var(--ar-ink);
-  color: var(--ar-surface);
-  border: 1px solid var(--ar-line-strong);
-  border-radius: var(--ar-radius);
-  box-shadow: 0 10px 26px -14px color-mix(in srgb, var(--ar-shade) 70%, transparent);
-  font-size: 12px;
-  line-height: 1.45;
-  text-align: left;
-  white-space: normal;
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity 0.12s ease;
-}
-
-.ar-ann__info:hover + .ar-ann__tip,
-.ar-ann__info:focus-visible + .ar-ann__tip {
-  opacity: 1;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .ar-ann__tip { transition: none; }
 }
 
 

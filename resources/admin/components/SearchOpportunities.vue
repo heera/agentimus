@@ -556,7 +556,7 @@ export default {
               <span class="ar-check__rule" aria-hidden="true"></span>
               <div class="ar-opp__body">
                 <div class="ar-opp__top">
-                  <a v-if="card.edit_url" :href="card.edit_url" class="ar-opp__title">{{ card.title }}</a>
+                  <a v-if="card.edit_url" :href="card.edit_url" target="_blank" rel="noopener" class="ar-opp__title">{{ card.title }}</a>
                   <span v-else class="ar-opp__title">{{ card.title }}</span>
                   <code class="ar-opp__path">{{ card.path }}</code>
                   <!-- Both worklists pointing at one page is worth saying: it
@@ -642,16 +642,16 @@ export default {
                        "open in editor" means the same thing on every screen. NOT
                        "open the post": every other link here goes to the editor,
                        and the one that reads like the front end must not. -->
-                  <a v-if="card.waiting && card.open_url" :href="card.open_url" target="_blank" rel="noopener" class="ar-opp__edit">Open in editor ↗</a>
+                  <a v-if="card.waiting && card.open_url" :href="card.open_url" target="_blank" rel="noopener" class="ar-opp__edit">Open in editor</a>
                   <template v-if="!card.waiting">
-                    <a v-if="card.doorless === 'home' && card.general_url" :href="card.general_url" target="_blank" rel="noopener" class="ar-opp__edit is-primary">Edit site title &amp; tagline ↗</a>
-                    <a v-if="card.edit_url" :href="card.edit_url" target="_blank" rel="noopener" class="ar-opp__edit is-primary">Improve meta title &amp; description ↗</a>
-                    <a v-if="group.key === 'almost' && card.links_url" :href="card.links_url" target="_blank" rel="noopener" class="ar-opp__edit">Add internal links ↗</a>
+                    <a v-if="card.doorless === 'home' && card.general_url" :href="card.general_url" target="_blank" rel="noopener" class="ar-opp__edit is-primary">Edit site title &amp; tagline</a>
+                    <a v-if="card.edit_url" :href="card.edit_url" target="_blank" rel="noopener" class="ar-opp__edit is-primary">Improve meta title &amp; description</a>
+                    <a v-if="group.key === 'almost' && card.links_url" :href="card.links_url" target="_blank" rel="noopener" class="ar-opp__edit">Add internal links</a>
                   </template>
                   <!-- Readability survives, waiting or not: it belongs to the
                        OTHER worklist, and that one really does still have work.
                        "Your side is done" was a statement about search. -->
-                  <a v-if="cardFlags(card) && card.read_url" :href="card.read_url" target="_blank" rel="noopener" class="ar-opp__edit">Check readability ↗</a>
+                  <a v-if="cardFlags(card) && card.read_url" :href="card.read_url" target="_blank" rel="noopener" class="ar-opp__edit">Check readability</a>
                   <button
                     v-if="card.page_id || card.page_url"
                     type="button"
@@ -721,7 +721,7 @@ export default {
         </div>
         <div v-for="p in c.pages" :key="p.url" class="ar-clsn__row" :data-page-key="p.postId || p.url">
           <div class="ar-clsn__main">
-            <a :href="p.editUrl || p.url" class="ar-clsn__t">{{ p.title }}</a>
+            <a :href="p.editUrl || p.url" target="_blank" rel="noopener" class="ar-clsn__t">{{ p.title }}</a>
             <span class="ar-clsn__path">{{ p.url.replace(/^https?:\/\/[^/]+/, '') || '/' }}</span>
           </div>
           <span class="ar-clsn__nums">
@@ -732,7 +732,7 @@ export default {
           <span class="ar-clsn__bar" aria-hidden="true"><i :style="{ width: Math.round(p.share * 100) + '%' }"></i></span>
           <span v-if="p.winner" class="ar-clsn__win">Earns the click</span>
           <span v-else class="ar-clsn__acts">
-            <a v-if="p.editUrl" class="ar-clsn__act" :href="p.editUrl">Open to edit →</a>
+            <a v-if="p.editUrl" class="ar-clsn__act" :href="p.editUrl" target="_blank" rel="noopener">Open to edit</a>
             <button
               type="button"
               class="ar-clsn__act"
@@ -773,7 +773,7 @@ export default {
       <ul class="ar-optcheck__pages">
         <li v-for="p in searchAside" :key="p.id || p.url" class="ar-optcheck__row" :data-aside-key="p.id || p.url">
           <div class="ar-optcheck__asided">
-            <a :href="p.url" target="_blank" rel="noopener" class="ar-optcheck__page ar-optcheck__page--muted">{{ p.title }} ↗</a>
+            <a :href="p.url" target="_blank" rel="noopener" class="ar-optcheck__page ar-optcheck__page--muted">{{ p.title }}</a>
           </div>
           <button
             type="button"
