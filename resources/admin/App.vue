@@ -280,18 +280,6 @@ export default {
       s.identity = id;
       return JSON.stringify(s);
     },
-    // What the owner can switch off, in the two parts the settings card shows:
-    // things assistants can READ, and jobs they can RUN. The site's own content
-    // (wordpress-core) is steered by Content types instead, and a bare REST stub
-    // is the owner's own opt-in already — neither belongs here.
-    readableResources() {
-      const list = (this.discovery && this.discovery.resources) || [];
-      return list.filter((r) => !r.auto && r.type !== 'agent');
-    },
-    jobResources() {
-      const list = (this.discovery && this.discovery.resources) || [];
-      return list.filter((r) => r.type === 'agent');
-    },
     // The quill's state, LIVE: the two switches exist in this SPA's own settings
     // object, so flipping them must light the quill (and retire the popover's
     // stale advice) without a reload. providerReady stays from boot — the AI
@@ -2109,8 +2097,6 @@ export default {
           :debug="debug"
           :endpoints="endpoints"
           :rest-namespaces-detected="restNamespacesDetected"
-          :readable-resources="readableResources"
-          :job-resources="jobResources"
           :profile-dirty="profileDirty"
           :profile-saving="profileSaving"
           :profile-saved="profileSaved"
@@ -2150,7 +2136,8 @@ export default {
           :refreshing="refreshingDiscovery"
           @refresh="refreshDiscovery"
           @navigate="goTo"
-        />
+          :settings="settings"
+          />
         <!-- Findings: the front door. Every open finding, already merged and ranked
              by the server, so the first screen answers the only question anyone
              arrives with. Everything else on this page stays exactly as it is. -->

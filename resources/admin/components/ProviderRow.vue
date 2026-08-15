@@ -8,7 +8,13 @@ export default {
     // True when an earlier row already carries the full sign-in explanation —
     // this row defers to it instead of repeating the same paragraph verbatim.
     briefHeld: { type: Boolean, default: false },
+    // True when this row is the owner's to switch off. The site's own content and
+    // a bare data door are not: one is steered by Content types, the other is
+    // already an opt-in.
+    controllable: { type: Boolean, default: false },
+    published: { type: Boolean, default: true },
   },
+  emits: ['toggle-publish'],
   computed: {
     // The badge in the owner's words. The type is the spec's vocabulary (and on
     // a declared row, the vendor's own choice) — it stays exactly as written in
@@ -51,8 +57,17 @@ export default {
         <!-- A row listed with no caveat reads as "this is live". These two say otherwise, and they
              are different things: `suppressed` is the OWNER's own choice, `notPublic` is the
              provider stating that nobody anonymous could use it anyway. -->
-        <span v-if="r.suppressed" class="ar-wd-held">Not published · you turned it off</span>
+        <!-- The switch says "you turned it off" better than a chip could, so the
+             chip stays only for the case the owner did NOT choose. -->
+        <span v-if="!controllable && r.suppressed" class="ar-wd-held">Not published · you turned it off</span>
         <span v-else-if="r.notPublic" class="ar-wd-held">Not published · sign-in required</span>
+        <!-- In place, on the row it governs: the switch sits where the thing it
+             controls is read, so nobody has to hold two screens in their head. -->
+        <label v-if="controllable" class="ar-wd-switch" @click.stop>
+          <input type="checkbox" :checked="published" @change="$emit('toggle-publish', r.id)" />
+          <span class="ar-wd-switch__track" aria-hidden="true"></span>
+          <span class="screen-reader-text">Announce {{ r.title }} publicly</span>
+        </label>
       </div>
       <p v-if="r.description" class="ar-wd-prov__desc">{{ r.description }}</p>
       <!-- Say WHY, not just that. An owner seeing "not published" with no reason will assume

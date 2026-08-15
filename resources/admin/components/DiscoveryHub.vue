@@ -23,6 +23,10 @@ export default {
   components: { ProviderRow },
   props: {
     data: { type: Object, default: () => ({}) },
+    // The live settings object. Mutating it is how every switch in this app saves:
+    // App.vue autosaves from a signature of the whole object, so there is no list
+    // to keep in sync and a new switch can never be silently forgotten.
+    settings: { type: Object, default: () => ({}) },
     refreshing: { type: Boolean, default: false },
   },
   emits: ['refresh', 'navigate'],
@@ -171,6 +175,33 @@ export default {
     },
     // Three buckets, no row in two of them: a plugin declared it, Agentimus
     // describes it, or a scan found it.
+    // Rows the owner may switch off. Not the site's own content (Content types
+    // steers that) and not a bare data door (already an opt-in of its own).
+    controllable() {
+      // ⛔ And never on a row that publishes nothing anyway — a group whose
+      // plugin advertised none of its jobs cannot be switched any further off,
+      // and a switch that cannot change anything is worse than none (his call
+      // when we prototyped this list).
+      return (r) => !(r.auto && r.type !== 'agent') && !r.notPublic;
+    },
+    // What the "never publish changing jobs" tick would actually take away RIGHT
+    // NOW — so it must skip groups already switched off, or it promises to stop
+    // work that is not happening.
+    changingJobsNote() {
+      const n = this.resources
+        .filter((r) => r.type === 'agent' && this.isPublished(r.id))
+        .reduce((sum, r) => sum + (r.changes || 0), 0);
+      if (!n) return 'Nothing being announced changes anything, so this would take nothing away.';
+      if (this.settings.hold_back_changing_jobs) {
+        return n === 1 ? '1 job is being kept out of the public files.' : n + ' jobs are being kept out of the public files.';
+      }
+      return n === 1
+        ? 'Would stop announcing 1 job that changes something.'
+        : 'Would stop announcing ' + n + ' jobs that change something.';
+    },
+    hasJobGroups() {
+      return this.resources.some((r) => r.type === 'agent');
+    },
     declared() {
       return this.resources.filter((r) => !r.auto && !r.described);
     },
@@ -243,6 +274,19 @@ export default {
     },
   },
   methods: {
+    // Published unless the owner said otherwise — the boundary the spec calls
+    // owner authority, and the same list the settings screen used to write.
+    isPublished(id) {
+      const sup = Array.isArray(this.settings.suppressed_resources) ? this.settings.suppressed_resources : [];
+      return sup.indexOf(id) === -1;
+    },
+    togglePublish(id) {
+      if (!Array.isArray(this.settings.suppressed_resources)) this.settings.suppressed_resources = [];
+      const list = this.settings.suppressed_resources;
+      const i = list.indexOf(id);
+      if (i === -1) list.push(id);
+      else list.splice(i, 1);
+    },
     toggleTools(key, open) {
       this.openTools = { ...this.openTools, [key]: !!open };
     },
@@ -383,7 +427,7 @@ export default {
             These plugins tell us what they offer. We show it in their own words.
           </p>
           <ul class="ar-wd-list">
-            <ProviderRow v-for="r in declared" :key="r.id" :r="r" :brief-held="r.id !== firstHeldId" />
+            <ProviderRow v-for="r in declared" :key="r.id" :r="r" :brief-held="r.id !== firstHeldId" :controllable="controllable(r)" :published="isPublished(r.id)" @toggle-publish="togglePublish" />
           </ul>
         </details>
 
@@ -400,7 +444,7 @@ export default {
             Agentimus knows these plugins, so it writes their part for them. They do nothing.
           </p>
           <ul class="ar-wd-list">
-            <ProviderRow v-for="r in describedByAgentimus" :key="r.id" :r="r" :brief-held="r.id !== firstHeldId" />
+            <ProviderRow v-for="r in describedByAgentimus" :key="r.id" :r="r" :brief-held="r.id !== firstHeldId" :controllable="controllable(r)" :published="isPublished(r.id)" @toggle-publish="togglePublish" />
           </ul>
         </details>
 
@@ -426,9 +470,26 @@ export default {
             >{{ e.label }} {{ e.ok ? '✓' : '✕' }}</span>
           </p>
           <ul class="ar-wd-list">
-            <ProviderRow v-for="r in autoDiscovered" :key="r.id" :r="r" :brief-held="r.id !== firstHeldId" />
+            <ProviderRow v-for="r in autoDiscovered" :key="r.id" :r="r" :brief-held="r.id !== firstHeldId" :controllable="controllable(r)" :published="isPublished(r.id)" @toggle-publish="togglePublish" />
           </ul>
         </details>
+
+        <!-- The one rule that spans every group above, so it sits under them all
+             rather than inside any one fold. -->
+        <label v-if="hasJobGroups" class="ar-wd-rule">
+          <input v-model="settings.hold_back_changing_jobs" type="checkbox" />
+          <span class="ar-wd-switch__track" aria-hidden="true"></span>
+          <span class="ar-wd-rule__text">
+            <strong>Never publish jobs that change something</strong>
+            <small>{{ changingJobsNote }}</small>
+          </span>
+        </label>
+
+        <p class="ar-card__note">
+          <strong>This changes what your site announces, not what it can do.</strong>
+          Switching something off takes it out of the public files. The plugin keeps working
+          exactly as before, and an assistant that signs in still finds it.
+        </p>
       </template>
     </section>
 

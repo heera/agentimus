@@ -8292,3 +8292,34 @@ a.ar-work__name { color: var(--ar-accent); }
 }
 .ar-prov-none strong { color: var(--ar-ink-soft); font-weight: 600; }
 .ar-prov-none span { font-size: 12px; }
+
+/* The publish switch, ON the row it governs (his call, 2026-08-15: the control
+   belongs where the thing is read, not on a second screen). Small, at the end
+   of the row's head line, so it never competes with the name. */
+.ar-wd-switch { margin-left: auto; flex: 0 0 auto; display: inline-flex; align-items: center; cursor: pointer; }
+.ar-wd-switch input { position: absolute; opacity: 0; width: 0; height: 0; }
+.ar-wd-switch__track {
+  position: relative; display: block; width: 34px; height: 19px;
+  background: var(--ar-line-strong); border-radius: 999px; transition: background 0.18s;
+}
+.ar-wd-switch__track::after {
+  content: ""; position: absolute; top: 2px; left: 2px; width: 15px; height: 15px;
+  background: #fff; border-radius: 50%; transition: transform 0.18s;
+}
+.ar-wd-switch input:checked + .ar-wd-switch__track { background: var(--ar-good); }
+.ar-wd-switch input:checked + .ar-wd-switch__track::after { transform: translateX(15px); }
+.ar-wd-switch input:focus-visible + .ar-wd-switch__track { outline: 2px solid var(--ar-accent); outline-offset: 2px; }
+/* The one rule under all the groups: a switch and two lines, set apart from the
+   folds above it by its own top rule. */
+.ar-wd-rule {
+  display: flex; align-items: flex-start; gap: 12px;
+  margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--ar-line);
+  cursor: pointer;
+}
+.ar-wd-rule input { position: absolute; opacity: 0; width: 0; height: 0; }
+.ar-wd-rule .ar-wd-switch__track { margin-top: 1px; flex: 0 0 auto; }
+.ar-wd-rule input:checked + .ar-wd-switch__track { background: var(--ar-good); }
+.ar-wd-rule input:checked + .ar-wd-switch__track::after { transform: translateX(15px); }
+.ar-wd-rule__text { display: flex; flex-direction: column; gap: 2px; }
+.ar-wd-rule__text strong { font-size: 13.5px; font-weight: 600; color: var(--ar-ink); }
+.ar-wd-rule__text small { font-size: 12px; color: var(--ar-ink-soft); }
