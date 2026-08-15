@@ -437,15 +437,15 @@ export default {
          is where the dashboard's "Capabilities" tile lands, so its number connects to
          rows you can count — the way Providers lands on the provider cards. -->
     <section v-if="capabilityRows.length" id="ar-wd-capabilities" class="ar-card">
-      <h2 class="ar-card__title">Capabilities <span class="ar-card__count">{{ capabilityRows.length }}</span></h2>
+      <h2 class="ar-card__title">What assistants may read <span class="ar-card__count">{{ capabilityRows.length }}</span></h2>
       <!-- "read or do" invited the owner's own question — "are these tools?". The
            verb stays (a plugin can declare a create capability — the demo site
            does), so the next sentence answers the question outright instead. -->
       <p class="ar-card__lead">
-        The specific things AI assistants may read or do, gathered from the providers above — one row each,
-        so this list is exactly the <strong>{{ capabilityRows.length }}</strong> your dashboard counts.
-        These are permissions, not tools: each names what an API allows and who declares it. The
-        tools an assistant can run are their own list below, under <strong>For a signed-in assistant</strong>.
+        One row for each kind of thing an assistant is allowed to look at, taken from the rows above.
+        This is a list of permissions, not a list of buttons: it says what is allowed and who allows
+        it, not what an assistant can press. The things they can actually <em>do</em> are further
+        down, under <strong>For a signed-in assistant</strong>.
       </p>
       <!-- Scrolls inside a fixed height rather than growing without limit. Most
            of these are one per public REST post type and taxonomy, so the length
@@ -464,12 +464,13 @@ export default {
         </li>
       </ul>
       <p v-if="capsOverflow" class="ar-wd-scrollnote">
-        Showing the first few — scroll the list for all {{ capabilityRows.length }}.
+        Scroll the list to see all {{ capabilityRows.length }}.
       </p>
       <p v-if="ownContentCapabilities.length" class="ar-card__note ar-card__note--wide">
-        <strong>Your own site's content</strong> ({{ ownContentCapabilities.join(', ') }}) is steered by
+        <strong>Your own content</strong> ({{ ownContentCapabilities.join(', ') }}) is chosen by
         <button type="button" class="ar-linkbtn" @click="$emit('navigate', { tab: 'settings', anchor: 'ar-content-types' })">Settings → Content types</button>
-        — each ticked type brings its public taxonomies too. The rest are declared by the plugins that own them.
+        — ticking a kind of content brings its categories and tags along too. The rest come from the
+        plugins that own them.
       </p>
     </section>
 
@@ -477,10 +478,11 @@ export default {
          here). Same endpoints listed on the provider cards, gathered so the number has
          its own home instead of sharing the providers section. -->
     <section v-if="apiRows.length" id="ar-wd-apis" class="ar-card">
-      <h2 class="ar-card__title">APIs <span class="ar-card__count">{{ apiRows.length }}</span></h2>
+      <h2 class="ar-card__title">Addresses assistants can ask <span class="ar-card__count">{{ apiRows.length }}</span></h2>
       <p class="ar-card__lead">
-        The endpoints AI assistants can call directly — one row each, so this list is exactly the
-        <strong>{{ apiRows.length }}</strong> your dashboard counts. Each belongs to the provider named beside it.
+        The web addresses an AI assistant can fetch to get data from your site, one row each. The
+        name beside an address says which row above it belongs to, and the tag at the end says
+        whether anyone can read it or a sign-in is needed.
       </p>
       <div v-for="a in apiRows" :key="a.url" class="ar-wd-canonical ar-wd-mcp-endpoint">
         <span class="ar-wd-canonical__method">{{ a.type }}</span>
@@ -492,13 +494,13 @@ export default {
 
     <!-- MCP & tools -->
     <section id="ar-wd-tools" class="ar-card">
-      <h2 class="ar-card__title">MCP &amp; Tools</h2>
+      <h2 class="ar-card__title">Things assistants can do</h2>
       <p class="ar-card__lead">
-        The tools a signed-in assistant can run on this site, grouped by what provides them — the
-        groups add up to the total. Each group names the doors that serve it, and the endpoints
-        beneath are those doors' addresses. Anonymous assistants are a separate story: only tools you
-        publish appear in <code>/.well-known/mcp.json</code>, listed at the bottom. Running
-        Agentimus’s own MCP server is its own switch (Settings → Discovery, off by default).
+        What an assistant can actually run here, grouped by whatever offers it. Almost everything in
+        this list needs a sign-in first. The addresses under each group are the ways in. An assistant
+        that has not signed in sees far less — only what you publish, listed at the bottom of this
+        card. Letting assistants connect to Agentimus itself is a separate switch, under
+        Settings → Discovery, and it is off unless you turn it on.
       </p>
 
       <!-- ONE total, stated once; the groups below PARTITION it (they visibly add up).
@@ -506,14 +508,14 @@ export default {
            "14 + 16 = 30". -->
       <div class="ar-wd-mcp">
         <div class="ar-wd-mcp__cell">
-          <span>assistant tools</span>
+          <span>things to do</span>
           <strong :class="counts.tools > 0 ? 'is-on' : 'is-off'">{{ counts.tools }}</strong>
         </div>
         <div class="ar-wd-mcp__cell">
           <span>public</span><strong>{{ typeof counts.toolsPublished === 'number' ? counts.toolsPublished : '—' }}</strong>
         </div>
         <div class="ar-wd-mcp__cell">
-          <span>auth</span><strong>{{ counts.tools > 0 ? mcpAuthLabel : '—' }}</strong>
+          <span>sign-in</span><strong>{{ counts.tools > 0 ? mcpAuthLabel : '—' }}</strong>
         </div>
         <div class="ar-wd-mcp__cell">
           <span>MCP server</span>
@@ -660,13 +662,13 @@ export default {
            aren't on Agentimus's scoped server) — citing either here would sit
            beside the other and read as a contradiction. -->
       <p v-else-if="counts.tools > 0" class="ar-wd-empty">
-        Nothing is listed here because every tool on this site requires sign-in, and sign-in-only
-        tools are deliberately not advertised in the public documents — an anonymous reader gets no map
-        of your tooling. An assistant holding real credentials still discovers and runs them the proper way.
+        Nothing is listed because everything here needs a sign-in, and we do not announce those
+        publicly — a stranger would get a map of your tools and no way to use them. An assistant that
+        signs in still finds them.
       </p>
       <p v-else class="ar-wd-empty">
-        No tools for AI assistants yet. They come from the WordPress Abilities API (in core from 6.9, or the
-        Abilities API plugin on older versions) or an MCP-aware plugin — once abilities are registered, they appear here.
+        Nothing for assistants to do here yet. These come from your plugins: once one registers a job
+        with WordPress, it shows up in this list by itself.
       </p>
     </section>
 
@@ -675,9 +677,10 @@ export default {
     <section class="ar-card">
       <h2 class="ar-card__title">Well-Known Documents</h2>
       <p class="ar-card__lead">
-        The standard addresses an AI assistant looks for first. Agentimus serves every one of these —
-        if a real file on your server answers one instead, it is marked <strong>on disk</strong>,
-        because that file wins and nothing here can override it.
+        The addresses an AI assistant checks first, because every site keeps them in the same place.
+        Agentimus answers all of them — unless a real file on your server answers one instead, which
+        is marked <strong>on disk</strong>,
+        because a real file always wins and nothing here can change that.
       </p>
       <ul class="ar-wd-wk">
         <li v-for="w in wellKnownRows" :key="w.name">

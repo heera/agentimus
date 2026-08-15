@@ -10,6 +10,23 @@ export default {
     briefHeld: { type: Boolean, default: false },
   },
   computed: {
+    // The badge in the owner's words. The type is the spec's vocabulary (and on
+    // a declared row, the vendor's own choice) — it stays exactly as written in
+    // the served file. This is only what a shop owner is shown.
+    // ⛔ Anything we have no plain word for prints as it came: inventing a
+    // friendly label for a word we do not know is how a screen starts lying.
+    typeLabel() {
+      const plain = {
+        agent: 'tools',
+        content: 'content',
+        commerce: 'shop',
+        crm: 'contacts',
+        scheduling: 'bookings',
+        search: 'search',
+        media: 'media',
+      };
+      return plain[this.r.type] || this.r.type;
+    },
     // The engine names are the specs' own ("REST API", "Abilities API"). On a
     // screen read by shop owners they need saying in words, once, here.
     foundWhere() {
@@ -27,9 +44,9 @@ export default {
     <div class="ar-wd-prov__body">
       <div class="ar-wd-prov__head">
         <strong>{{ r.title }}</strong>
-        <span class="ar-wd-type">{{ r.type }}</span>
+        <span class="ar-wd-type">{{ typeLabel }}</span>
         <!-- Only flag the agent card when the type isn't already "agent" — avoids a redundant double badge. -->
-        <span v-if="r.hasAgent && r.type !== 'agent'" class="ar-wd-type ar-wd-type--agent">agent card</span>
+        <span v-if="r.hasAgent && r.type !== 'agent'" class="ar-wd-type ar-wd-type--agent">introduces itself</span>
         <span v-if="r.version" class="ar-wd-ver">v{{ r.version }}</span>
         <!-- A row listed with no caveat reads as "this is live". These two say otherwise, and they
              are different things: `suppressed` is the OWNER's own choice, `notPublic` is the
