@@ -4534,7 +4534,27 @@ button.ar-wd-stat:focus-visible { outline: 2px solid var(--ar-accent); outline-o
 /* A provider group: the row, plus the tool names it can reveal. Its own class
    rather than .ar-wd-tool, because that one is a flex ROW and this needs to be
    a column holding a row and a list. */
-.ar-wd-grp { border-bottom: 1px solid var(--ar-line); }
+/* The tool groups wear the shared .ar-fold box, so they read as the same
+   disclosure the provider groups do. The old bottom rule belonged to a stacked
+   list; inside a bordered box it drew a line under a line. */
+.ar-wd-grp { border-bottom: 0; }
+/* A list of folds is a stack of boxes, not a ruled list. */
+.ar-wd-tools--folds { border: 0; }
+.ar-wd-tools--folds > li { border: 0; padding: 0; }
+/* A group with no names to reveal: same box, same line, no caret and no
+   pointer — it is a statement, not a control. */
+.ar-fold.is-static { background: var(--ar-surface-2); }
+.ar-fold__static {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  flex-wrap: wrap;
+  margin: 0;
+  padding: 11px 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ar-ink);
+}
 .ar-wd-grp__row {
   display: flex; align-items: center; gap: 10px; width: 100%;
   padding: 12px 4px; border: 0; background: none; font: inherit;

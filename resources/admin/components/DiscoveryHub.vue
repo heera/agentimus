@@ -243,8 +243,8 @@ export default {
     },
   },
   methods: {
-    toggleTools(key) {
-      this.openTools = { ...this.openTools, [key]: !this.openTools[key] };
+    toggleTools(key, open) {
+      this.openTools = { ...this.openTools, [key]: !!open };
     },
     // Does the capability list actually overflow its box? Measured, not
     // guessed from a row count: macOS hides the overlay scrollbar at rest, so
@@ -538,31 +538,35 @@ export default {
           tools, grouped by what provides them
         </span>
       </p>
-      <ul class="ar-wd-tools">
-        <li v-for="g in toolGroups" :key="g.key" class="ar-wd-grp">
-          <!-- Openable only when we actually have the names: a caret that
-               reveals nothing is worse than no caret. -->
-          <component
-            :is="g.list.length ? 'button' : 'div'"
-            :type="g.list.length ? 'button' : null"
-            class="ar-wd-grp__row"
-            :class="{ 'is-static': !g.list.length }"
-            :aria-expanded="g.list.length ? String(!!openTools[g.key]) : null"
-            @click="g.list.length && toggleTools(g.key)"
+      <!-- The SAME fold the provider groups wear (his call, 2026-08-15): one
+           disclosure in this plugin, not one per section. A group with no names
+           to reveal keeps the box and loses the caret — a caret that opens onto
+           nothing is worse than no caret. -->
+      <ul class="ar-wd-tools ar-wd-tools--folds">
+        <li v-for="g in toolGroups" :key="g.key">
+          <details
+            v-if="g.list.length"
+            class="ar-fold ar-wd-grp"
+            :open="!!openTools[g.key]"
+            @toggle="toggleTools(g.key, $event.target.open)"
           >
-            <span v-if="g.list.length" class="ar-wd-group__caret" :class="{ 'is-open': openTools[g.key] }" aria-hidden="true">▸</span>
-            <span class="ar-wd-tool__id">
-              <code>{{ g.title }}</code>
-              <span class="ar-wd-tool__title">via {{ g.doors.join(' · ') }}</span>
-            </span>
-            <span class="ar-wd-badge">{{ g.tools }} {{ g.tools === 1 ? 'tool' : 'tools' }}</span>
-          </component>
-          <ul v-if="g.list.length" v-show="openTools[g.key]" class="ar-wd-grp__names">
-            <li v-for="t in g.list" :key="t.name">
-              <code>{{ t.name }}</code>
-              <span v-if="t.title">{{ t.title }}</span>
-            </li>
-          </ul>
+            <summary>
+              <h4 class="ar-wd-foldtitle">{{ g.title }} ({{ g.tools }})</h4>
+              <span class="ar-wd-lhead__note">via {{ g.doors.join(' · ') }}</span>
+            </summary>
+            <ul class="ar-wd-grp__names">
+              <li v-for="t in g.list" :key="t.name">
+                <code>{{ t.name }}</code>
+                <span v-if="t.title">{{ t.title }}</span>
+              </li>
+            </ul>
+          </details>
+          <div v-else class="ar-fold ar-wd-grp is-static">
+            <p class="ar-fold__static">
+              <span class="ar-wd-foldtitle">{{ g.title }} ({{ g.tools }})</span>
+              <span class="ar-wd-lhead__note">via {{ g.doors.join(' · ') }}</span>
+            </p>
+          </div>
         </li>
       </ul>
       </div>
