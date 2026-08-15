@@ -647,9 +647,6 @@ a.ar-int__act:hover {
 .ar-tipbtn.is-sent   { color: var(--ar-good); }
 .ar-tipbtn.is-failed { color: var(--ar-bad); }
 
-}
-
-
 /* The hands, in their own column at the edge — they line up down the table
    instead of stretching each state's sentence to a different length. Its
    width lives with the other column widths above. */
