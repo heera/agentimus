@@ -1089,6 +1089,7 @@ export default {
                 Each event arrives at your URL as one JSON POST. The
                 <code>X-Agentimus-Signature</code> header carries an HMAC-SHA256 of the body, signed
                 with the secret below — check it and you know the event came from this site.
+                Connecting sends one test event there first, to prove the road works.
               </p>
               <p v-else-if="panel === 'telegram'" class="ar-int__panellead">
                 Telegram delivery is a <strong>bot</strong> you own: message

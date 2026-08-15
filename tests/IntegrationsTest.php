@@ -265,7 +265,9 @@ namespace Agentimus\Tests {
 			$this->assertGreaterThanOrEqual( $before + Dispatcher::backoff( 1 ), $queue[0]['next_at'] );
 
 			$state = Webhook::state();
-			$this->assertSame( 'cURL error 28', $state['lastError'] );
+			// The card's honesty line names what could not be reached — a bare
+			// "cURL error 28" under a card is a string with no subject.
+			$this->assertSame( 'The webhook URL could not be reached: cURL error 28', $state['lastError'] );
 			$this->assertGreaterThan( 0, $state['lastErrorAt'] );
 		}
 

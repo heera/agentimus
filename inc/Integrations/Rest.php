@@ -361,8 +361,13 @@ final class Rest {
 	}
 
 	/**
-	 * Connect (mint the secret) or save (keep it): store the URL + event
-	 * choices, switch the connection on.
+	 * Connect (mint the secret) or save (keep it): prove the road, then store
+	 * the URL + event choices and switch the connection on.
+	 *
+	 * ⛔ A failed proof stores NOTHING — see the block below. Until 08-16 this
+	 * door stored a connection without ever calling the URL, so a mistyped or
+	 * dead receiver read CONNECTED while no event could ever arrive; the same
+	 * defect was closed for Slack and Discord a day earlier.
 	 *
 	 * @param \WP_REST_Request $request The request.
 	 * @param bool             $mint    Whether to mint a fresh secret (connect).
@@ -389,6 +394,23 @@ final class Rest {
 			$mint = true;
 		}
 
+		// What must be proved: a fresh connect, or a URL this connection has
+		// never posted to. A checkbox-only save posts nothing — the road was
+		// proved when it was laid, and re-proving it would put a test event in
+		// the owner's relay every time they tick a box.
+		$secret = $mint ? Webhook::new_secret() : Webhook::secret();
+		if ( $mint || $url !== Webhook::config( $this->settings )['url'] ) {
+			$verdict = Webhook::verify( $url, $secret );
+			if ( is_wp_error( $verdict ) ) {
+				// ⛔ Nothing is stored — not the URL, not the secret, not the
+				// switch. A refused proof must leave a working connection
+				// standing, exactly as Slack's and Discord's doors do.
+				return new \WP_Error( $verdict->get_error_code(), $verdict->get_error_message(), array( 'status' => 400 ) );
+			}
+			// An event did land, so the card's honesty line starts truthful.
+			Webhook::record_success();
+		}
+
 		$all                 = $this->settings->all();
 		$all['integrations'] = array_merge(
 			is_array( $all['integrations'] ) ? $all['integrations'] : array(),
@@ -400,7 +422,11 @@ final class Rest {
 		);
 		$this->settings->update( $all );
 
-		$secret = $mint ? Webhook::mint_secret() : '';
+		if ( $mint ) {
+			Webhook::keep_secret( $secret );
+		} else {
+			$secret = '';
+		}
 
 		// The pipeline registered (or stood down) at boot from the OLD state;
 		// bring the schedules in line with the state that now holds.

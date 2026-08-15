@@ -9,13 +9,19 @@
  * and these tests hold that for every URL-shaped service, plus the door's
  * service routing itself.
  *
- * A well-shaped URL was the same lie one step later: Slack and Discord were
- * the only services that stored a connection without ever calling it, so a
- * revoked or mistyped webhook read CONNECTED until some real event failed
- * days later. Both now prove the road on connect — and these tests hold the
- * whole rule: the proof lands before anything is stored, a bounce refuses in
- * the service's own words, a bad re-connect leaves a working connection
- * standing, and a mere checkbox edit posts nothing at all.
+ * A well-shaped URL was the same lie one step later: Slack and Discord stored
+ * a connection without ever calling it, so a revoked or mistyped webhook read
+ * CONNECTED until some real event failed days later. Both now prove the road
+ * on connect — and these tests hold the whole rule: the proof lands before
+ * anything is stored, a bounce refuses in the service's own words, a bad
+ * re-connect leaves a working connection standing, and a mere checkbox edit
+ * posts nothing at all.
+ *
+ * ⚠️ They were NOT the only two. That claim stood here for a day and was
+ * wrong: the outgoing webhook — the service whose URL is typed by hand rather
+ * than minted in a vendor's console — had the same defect and no test to
+ * catch it. It proves on connect as of 08-16, and carries the extra promise
+ * the others have nothing to make: a refused proof keeps no secret either.
  *
  * @package Agentimus\Tests
  */
@@ -28,6 +34,7 @@ use Agentimus\Integrations\Services\Slack;
 use Agentimus\Integrations\Services\Discord;
 use Agentimus\Integrations\Services\Telegram;
 use Agentimus\Integrations\Services\Sheets;
+use Agentimus\Integrations\Services\Webhook;
 use PHPUnit\Framework\TestCase;
 
 final class IntegrationsRestTest extends TestCase {
@@ -294,6 +301,120 @@ final class IntegrationsRestTest extends TestCase {
 		$this->assertInstanceOf( \WP_Error::class, $verdict );
 		$this->assertSame( 'agentimus_slack_unreachable', $verdict->get_error_code() );
 		$this->assertStringContainsString( 'Slack could not be reached', $verdict->get_error_message() );
+		$this->assertStringContainsString( 'Operation timed out', $verdict->get_error_message(), 'The transport\'s own words survive the wrapping.' );
+	}
+
+	/* ---- the webhook's proof ------------------------------------------------ */
+
+	public function test_webhook_connect_proves_the_road_before_it_stores() {
+		$this->answers( 200, 'ok' );
+
+		$payload = $this->rest()->act(
+			$this->request( array( 'action' => 'connect', 'url' => 'https://hooks.example.test/in', 'events' => array( 'digest_sent' ) ) )
+		);
+
+		$this->assertIsArray( $payload );
+		$this->assertTrue( $payload['webhook']['enabled'] );
+
+		$last = $GLOBALS['_af_http_last'];
+		$this->assertSame( 'https://hooks.example.test/in', $last['url'], 'A connect proves the road.' );
+		$this->assertSame( Webhook::TEST_EVENT, $last['args']['headers']['X-Agentimus-Event'] );
+
+		$body = json_decode( $last['args']['body'], true );
+		$this->assertSame( array( 'event', 'version', 'site', 'at', 'data' ), array_keys( $body ), 'The proof wears the same envelope as every real event.' );
+
+		// The secret the proof signed with is the secret that was kept: a mint
+		// that stored first and proved second would pass every other assertion
+		// here and still hand the receiver a signature it can never check.
+		$this->assertSame(
+			Webhook::sign( $last['args']['body'], Webhook::secret() ),
+			$last['args']['headers']['X-Agentimus-Signature']
+		);
+		$this->assertSame( $payload['secret'], Webhook::secret(), 'The plaintext shown once is the one now stored.' );
+		$this->assertGreaterThan( 0, Webhook::state()['lastDeliveredAt'], 'An event landed, so the card starts truthful.' );
+	}
+
+	public function test_webhook_connect_refuses_a_dead_receiver_and_keeps_neither_url_nor_secret() {
+		$this->answers( 500 );
+
+		$verdict = $this->rest()->act(
+			$this->request( array( 'action' => 'connect', 'url' => 'https://hooks.example.test/dead', 'events' => array( 'digest_sent' ) ) )
+		);
+
+		$this->assertInstanceOf( \WP_Error::class, $verdict );
+		$this->assertSame( 'agentimus_webhook_status', $verdict->get_error_code() );
+		$this->assertSame( 'The webhook URL answered 500.', $verdict->get_error_message() );
+		$this->assertSame( 400, $verdict->get_error_data()['status'] );
+
+		$integrations = $this->integrations();
+		$this->assertFalse( $integrations['webhook_enabled'] ?? false, 'A receiver that never answered is not a connection.' );
+		$this->assertSame( '', $integrations['webhook_url'] ?? '' );
+		$this->assertFalse( Webhook::has_secret(), 'A secret nobody took must not outlive the refusal.' );
+	}
+
+	public function test_a_bounced_webhook_reconnect_leaves_the_standing_connection_and_its_secret_alone() {
+		$this->stored( 'webhook', 'https://hooks.example.test/good' );
+		Webhook::keep_secret( 'the-secret-the-receiver-already-has' );
+		$this->answers( 404 );
+
+		$verdict = $this->rest()->act(
+			$this->request( array( 'action' => 'connect', 'url' => 'https://hooks.example.test/typo', 'events' => array( 'digest_sent' ) ) )
+		);
+
+		$this->assertInstanceOf( \WP_Error::class, $verdict );
+		$integrations = $this->integrations();
+		$this->assertTrue( $integrations['webhook_enabled'], 'A bad re-connect must not take down a working one.' );
+		$this->assertSame( 'https://hooks.example.test/good', $integrations['webhook_url'] );
+		$this->assertSame( 'the-secret-the-receiver-already-has', Webhook::secret(), 'The working receiver can still check what it is sent.' );
+	}
+
+	public function test_a_webhook_save_that_moves_only_checkboxes_posts_nothing() {
+		$this->stored( 'webhook', 'https://hooks.example.test/in' );
+		Webhook::keep_secret( 'kept' );
+		$GLOBALS['_af_http_last'] = null;
+
+		$payload = $this->rest()->act(
+			$this->request( array( 'action' => 'save', 'url' => 'https://hooks.example.test/in', 'events' => array( 'digest_sent', 'finding_opened' ) ) )
+		);
+
+		$this->assertIsArray( $payload );
+		$this->assertNull( $GLOBALS['_af_http_last'], 'Ticking a box must not put a test event in the owner\'s relay.' );
+		$this->assertSame( array( 'digest_sent', 'finding_opened' ), $this->integrations()['webhook_events'] );
+		$this->assertSame( 'kept', Webhook::secret(), 'A save keeps the secret the receiver already knows.' );
+		$this->assertArrayNotHasKey( 'secret', $payload, 'The plaintext appears once, at the connect that made it.' );
+	}
+
+	public function test_a_webhook_save_with_a_changed_url_proves_the_new_one_with_the_secret_it_already_has() {
+		$this->stored( 'webhook', 'https://hooks.example.test/old' );
+		Webhook::keep_secret( 'unchanged-secret' );
+		$this->answers( 200, 'ok' );
+
+		$payload = $this->rest()->act(
+			$this->request( array( 'action' => 'save', 'url' => 'https://hooks.example.test/new', 'events' => array( 'digest_sent' ) ) )
+		);
+
+		$this->assertIsArray( $payload );
+		$last = $GLOBALS['_af_http_last'];
+		$this->assertSame( 'https://hooks.example.test/new', $last['url'], 'A URL this connection has never posted to must answer first.' );
+		$this->assertSame(
+			Webhook::sign( $last['args']['body'], 'unchanged-secret' ),
+			$last['args']['headers']['X-Agentimus-Signature'],
+			'Moving the address does not rotate the credential.'
+		);
+		$this->assertSame( 'https://hooks.example.test/new', $this->integrations()['webhook_url'] );
+		$this->assertSame( 'unchanged-secret', Webhook::secret() );
+	}
+
+	public function test_a_webhook_transport_failure_names_what_could_not_be_reached() {
+		$GLOBALS['_af_http_queue'] = array( new \WP_Error( 'http_request_failed', 'cURL error 28: Operation timed out' ) );
+
+		$verdict = $this->rest()->act(
+			$this->request( array( 'action' => 'connect', 'url' => 'https://hooks.example.test/in', 'events' => array( 'digest_sent' ) ) )
+		);
+
+		$this->assertInstanceOf( \WP_Error::class, $verdict );
+		$this->assertSame( 'agentimus_webhook_unreachable', $verdict->get_error_code() );
+		$this->assertStringContainsString( 'The webhook URL could not be reached', $verdict->get_error_message() );
 		$this->assertStringContainsString( 'Operation timed out', $verdict->get_error_message(), 'The transport\'s own words survive the wrapping.' );
 	}
 
