@@ -31,7 +31,7 @@ final class AbilityGroupTitleTest extends TestCase {
 
 	protected function tearDown(): void {
 		\_af_reset_options();
-		unset( $GLOBALS['_af_ability_categories'] );
+		unset( $GLOBALS['_af_ability_categories'], $GLOBALS['_af_abilities'] );
 	}
 
 	/** One group member, in the shape resource_for() receives. */
@@ -119,11 +119,80 @@ final class AbilityGroupTitleTest extends TestCase {
 
 	/** ⛔ Never ucfirst() a slug: that is how "Woocommerce" and "Ai" happened. */
 	public function test_no_category_registry_at_all_still_names_the_group_honestly() {
-		unset( $GLOBALS['_af_ability_categories'] );
+		unset( $GLOBALS['_af_ability_categories'], $GLOBALS['_af_abilities'] );
 
 		$this->assertSame(
 			'Jobs from “woocommerce”',
 			$this->title( 'woocommerce', array( $this->item( 'woocommerce/orders-query', 'woocommerce' ) ) )
+		);
+	}
+	/**
+	 * ⚠️ THE ONE THAT GOT THROUGH, caught on his dev site. MailPoet registers its
+	 * two abilities under WOOCOMMERCE's category. The first version of this rule
+	 * only asked "do they agree on one category", so the document carried two
+	 * different resources both titled "Jobs from WooCommerce" — and MailPoet's
+	 * jobs wore WooCommerce's name. A name that points at two things is not a
+	 * name.
+	 */
+	public function test_a_borrowed_category_never_names_the_borrower() {
+		$GLOBALS['_af_ability_categories'] = array( 'woocommerce' => 'WooCommerce' );
+		$GLOBALS['_af_abilities']          = array(
+			'woocommerce/orders-query'   => 'woocommerce',
+			'woocommerce/products-query' => 'woocommerce',
+			'mailpoet/list-templates'    => 'woocommerce',
+			'mailpoet/get-status'        => 'woocommerce',
+		);
+
+		$this->assertSame(
+			'Jobs from “mailpoet”',
+			$this->title( 'mailpoet', array(
+				$this->item( 'mailpoet/list-templates', 'woocommerce' ),
+				$this->item( 'mailpoet/get-status', 'woocommerce' ),
+			) ),
+			'MailPoet filed under someone else\'s name; it keeps its own slug.'
+		);
+
+		$this->assertSame(
+			'Jobs from WooCommerce',
+			$this->title( 'woocommerce', array(
+				$this->item( 'woocommerce/orders-query', 'woocommerce' ),
+			) ),
+			'The category IS WooCommerce\'s group, so their name still stands — the borrowing does not cost them it.'
+		);
+	}
+
+	/**
+	 * ⭐ The other half: a plugin may name its category something other than its
+	 * namespace, and that name is still theirs so long as nobody else files under
+	 * it. WordPress core's readable abilities sit under "Site" this way.
+	 */
+	public function test_a_differently_named_category_is_used_when_nobody_else_shares_it() {
+		$GLOBALS['_af_ability_categories'] = array( 'site' => 'Site' );
+		$GLOBALS['_af_abilities']          = array(
+			'core/get-site-info'        => 'site',
+			'core/get-environment-info' => 'site',
+			'shop/products-query'       => 'shop',
+		);
+
+		$this->assertSame(
+			'Jobs from Site',
+			$this->title( 'core', array(
+				$this->item( 'core/get-site-info', 'site' ),
+				$this->item( 'core/get-environment-info', 'site' ),
+			) )
+		);
+	}
+
+	public function test_a_differently_named_category_shared_with_another_group_is_refused() {
+		$GLOBALS['_af_ability_categories'] = array( 'site' => 'Site' );
+		$GLOBALS['_af_abilities']          = array(
+			'core/get-site-info' => 'site',
+			'other/peek'         => 'site',
+		);
+
+		$this->assertSame(
+			'Jobs from “core”',
+			$this->title( 'core', array( $this->item( 'core/get-site-info', 'site' ) ) )
 		);
 	}
 }

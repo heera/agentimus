@@ -250,7 +250,7 @@ final class AbilitiesApi {
 	 * @return string
 	 */
 	private static function group_title( $namespace, $items ) {
-		$label = self::shared_category_label( $items );
+		$label = self::shared_category_label( $namespace, $items );
 
 		if ( '' !== $label ) {
 			/* translators: %s: a plugin's own name for a group of jobs, e.g. "AIOSEO — Posts". */
@@ -269,10 +269,19 @@ final class AbilitiesApi {
 	 * category registered without a label. We publish their name or their slug —
 	 * never a third thing we made up.
 	 *
-	 * @param array $items The group's abilities.
+	 * ⚠️ THE ONE THAT GOT THROUGH. A category can be BORROWED: MailPoet files its
+	 * two abilities under WooCommerce's category, so a rule that only asked "do
+	 * they agree on one category" titled two different groups "Jobs from
+	 * WooCommerce" — one of them MailPoet's. A name is only a name if it points at
+	 * one thing. So the label is used when the category IS this group (its slug is
+	 * the namespace) or when nobody else files under it; a borrowed one names
+	 * nobody and the borrower keeps its slug.
+	 *
+	 * @param string $namespace The name prefix these abilities share.
+	 * @param array  $items     The group's abilities.
 	 * @return string
 	 */
-	private static function shared_category_label( $items ) {
+	private static function shared_category_label( $namespace, $items ) {
 		if ( ! function_exists( 'wp_get_ability_categories' ) ) {
 			return '';
 		}
@@ -293,6 +302,11 @@ final class AbilitiesApi {
 		}
 
 		$wanted = key( $seen );
+
+		if ( $wanted !== $namespace && ! self::category_belongs_only_to( $wanted, $namespace ) ) {
+			return '';
+		}
+
 		foreach ( (array) wp_get_ability_categories() as $key => $category ) {
 			$name = is_object( $category ) ? self::read( $category, 'get_name', (string) $key ) : (string) $key;
 			if ( $name !== $wanted ) {
@@ -307,6 +321,45 @@ final class AbilitiesApi {
 		}
 
 		return '';
+	}
+
+	/**
+	 * Whether a category is used by this namespace and no other.
+	 *
+	 * ⚠️ Every REGISTERED ability counts here, including the ones we skip further
+	 * up (no REST route, filtered out). A name shared with something we don't show
+	 * is still shared, and the question being asked is whose name it is — not
+	 * what we happen to publish.
+	 *
+	 * @param string $category  The category slug.
+	 * @param string $namespace The namespace claiming it.
+	 * @return bool
+	 */
+	private static function category_belongs_only_to( $category, $namespace ) {
+		if ( ! function_exists( 'wp_get_abilities' ) ) {
+			return false; // Cannot establish it is theirs alone, so do not claim it.
+		}
+
+		foreach ( (array) wp_get_abilities() as $ability ) {
+			$name = (string) self::read( $ability, 'get_name' );
+			if ( '' === $name ) {
+				continue;
+			}
+
+			$owner = strpos( $name, '/' ) ? substr( $name, 0, strpos( $name, '/' ) ) : $name;
+			if ( $owner === $namespace ) {
+				continue;
+			}
+
+			$theirs = self::read( $ability, 'get_category', '' );
+			$theirs = is_object( $theirs ) ? self::read( $theirs, 'get_name', '' ) : (string) $theirs;
+
+			if ( $theirs === $category ) {
+				return false;
+			}
+		}
+
+		return true;
 	}
 
 	/**
