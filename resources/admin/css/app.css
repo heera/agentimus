@@ -8323,3 +8323,16 @@ a.ar-work__name { color: var(--ar-accent); }
 .ar-wd-rule__text { display: flex; flex-direction: column; gap: 2px; }
 .ar-wd-rule__text strong { font-size: 13.5px; font-weight: 600; color: var(--ar-ink); }
 .ar-wd-rule__text small { font-size: 12px; color: var(--ar-ink-soft); }
+
+/* ⭐ Agentimus is never one of the plugins it describes (his call, 2026-08-15).
+   Its own row leads every list on this page and is set apart: the accent bar
+   instead of the neutral one, its name said outright, and a rule under it so
+   the eye reads "ours, then theirs" rather than one long list. */
+.ar-wd-ours {
+  font-family: var(--ar-mono); font-size: 10px; letter-spacing: 0.04em;
+  padding: 1px 7px; border-radius: 999px;
+  color: var(--ar-accent); border: 1px solid color-mix(in srgb, var(--ar-accent) 45%, transparent);
+}
+.ar-wd-prov.is-ours .ar-wd-prov__bar { background: var(--ar-accent); }
+.ar-wd-prov.is-ours { padding-bottom: 14px; border-bottom: 1px solid var(--ar-line-strong); }
+.ar-fold.ar-wd-grp.is-ours { border-color: color-mix(in srgb, var(--ar-accent) 40%, var(--ar-line-strong)); }

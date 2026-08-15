@@ -251,6 +251,11 @@ final class Hub {
 			'provider'     => $provider,
 			// True when one of Agentimus's own ADAPTERS found it by scanning.
 			'auto'         => $auto,
+			// Agentimus's OWN surface, told apart from everyone else's — his call,
+			// 2026-08-15: we never mix ourselves in with the plugins we describe.
+			// Read from the abilities namespace we register under, not a literal,
+			// so renaming it cannot leave this behind.
+			'own'          => ( 'abilities-' . \Agentimus\Abilities\Registrar::CATEGORY ) === (string) $resource['id'],
 			// True when Agentimus DESCRIBES a plugin it recognises. Neither the
 			// plugin declaring itself nor a scan — a third thing, and the one the
 			// Plugins tab promises.

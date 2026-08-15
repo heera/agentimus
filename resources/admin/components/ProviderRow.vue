@@ -45,11 +45,14 @@ export default {
 </script>
 
 <template>
-  <li class="ar-wd-prov">
+  <li class="ar-wd-prov" :class="{ 'is-ours': r.own }">
     <div class="ar-wd-prov__bar" aria-hidden="true"></div>
     <div class="ar-wd-prov__body">
       <div class="ar-wd-prov__head">
         <strong>{{ r.title }}</strong>
+        <!-- Ours, said plainly and set apart — never one of the plugins we
+             describe, and never mixed in among them. -->
+        <span v-if="r.own" class="ar-wd-ours">Agentimus</span>
         <span class="ar-wd-type">{{ typeLabel }}</span>
         <!-- Only flag the agent card when the type isn't already "agent" — avoids a redundant double badge. -->
         <span v-if="r.hasAgent && r.type !== 'agent'" class="ar-wd-type ar-wd-type--agent">introduces itself</span>

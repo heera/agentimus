@@ -133,6 +133,7 @@ export default {
       const servers = this.mcp.servers || [];
       return this.resources
         .filter((r) => (r.tools || 0) > 0)
+        .sort((a, b) => (b.own ? 1 : 0) - (a.own ? 1 : 0))
         .map((r) => {
           // The adapter flattens ability names (ns/tool → ns-tool) when it serves
           // them over MCP, so a namespace prefix match tells us whether a detected
@@ -149,7 +150,7 @@ export default {
           // Tools only: the attachable documents have their own section below,
           // the way MCP itself splits tools/list from resources/list.
           const list = (r.toolList || []).filter((t) => 'resource' !== t.kind);
-          return { key: r.id, title: r.title, tools: r.tools, doors, list };
+          return { key: r.id, title: r.title, tools: r.tools, doors, list, own: !!r.own };
         });
     },
     // The doors' addresses — connection info only, deliberately without counts.
@@ -276,6 +277,12 @@ export default {
   methods: {
     // Published unless the owner said otherwise — the boundary the spec calls
     // owner authority, and the same list the settings screen used to write.
+    // ⭐ We never sit among the plugins we describe: Agentimus's own row leads
+    // every list on this page, and wears its own mark. A stable sort, so the
+    // order everything else was given is untouched.
+    ownFirst(list) {
+      return [...list].sort((a, b) => (b.own ? 1 : 0) - (a.own ? 1 : 0));
+    },
     isPublished(id) {
       const sup = Array.isArray(this.settings.suppressed_resources) ? this.settings.suppressed_resources : [];
       return sup.indexOf(id) === -1;
@@ -427,7 +434,7 @@ export default {
             These plugins tell us what they offer. We show it in their own words.
           </p>
           <ul class="ar-wd-list">
-            <ProviderRow v-for="r in declared" :key="r.id" :r="r" :brief-held="r.id !== firstHeldId" :controllable="controllable(r)" :published="isPublished(r.id)" @toggle-publish="togglePublish" />
+            <ProviderRow v-for="r in ownFirst(declared)" :key="r.id" :r="r" :brief-held="r.id !== firstHeldId" :controllable="controllable(r)" :published="isPublished(r.id)" @toggle-publish="togglePublish" />
           </ul>
         </details>
 
@@ -444,7 +451,7 @@ export default {
             Agentimus knows these plugins, so it writes their part for them. They do nothing.
           </p>
           <ul class="ar-wd-list">
-            <ProviderRow v-for="r in describedByAgentimus" :key="r.id" :r="r" :brief-held="r.id !== firstHeldId" :controllable="controllable(r)" :published="isPublished(r.id)" @toggle-publish="togglePublish" />
+            <ProviderRow v-for="r in ownFirst(describedByAgentimus)" :key="r.id" :r="r" :brief-held="r.id !== firstHeldId" :controllable="controllable(r)" :published="isPublished(r.id)" @toggle-publish="togglePublish" />
           </ul>
         </details>
 
@@ -470,7 +477,7 @@ export default {
             >{{ e.label }} {{ e.ok ? '✓' : '✕' }}</span>
           </p>
           <ul class="ar-wd-list">
-            <ProviderRow v-for="r in autoDiscovered" :key="r.id" :r="r" :brief-held="r.id !== firstHeldId" :controllable="controllable(r)" :published="isPublished(r.id)" @toggle-publish="togglePublish" />
+            <ProviderRow v-for="r in ownFirst(autoDiscovered)" :key="r.id" :r="r" :brief-held="r.id !== firstHeldId" :controllable="controllable(r)" :published="isPublished(r.id)" @toggle-publish="togglePublish" />
           </ul>
         </details>
 
@@ -608,11 +615,13 @@ export default {
           <details
             v-if="g.list.length"
             class="ar-fold ar-wd-grp"
+            :class="{ 'is-ours': g.own }"
             :open="!!openTools[g.key]"
             @toggle="toggleTools(g.key, $event.target.open)"
           >
             <summary>
               <h4 class="ar-wd-foldtitle">{{ g.title }} ({{ g.tools }})</h4>
+              <span v-if="g.own" class="ar-wd-ours">Agentimus</span>
               <span class="ar-wd-lhead__note">via {{ g.doors.join(' · ') }}</span>
             </summary>
             <ul class="ar-wd-grp__names">
@@ -622,7 +631,7 @@ export default {
               </li>
             </ul>
           </details>
-          <div v-else class="ar-fold ar-wd-grp is-static">
+          <div v-else class="ar-fold ar-wd-grp is-static" :class="{ 'is-ours': g.own }">
             <p class="ar-fold__static">
               <span class="ar-wd-foldtitle">{{ g.title }} ({{ g.tools }})</span>
               <span class="ar-wd-lhead__note">via {{ g.doors.join(' · ') }}</span>
