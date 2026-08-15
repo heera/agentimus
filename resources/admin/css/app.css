@@ -3912,6 +3912,20 @@ html { scrollbar-gutter: stable; }
 .ar-next__body strong { display: block; font-size: 13.5px; margin-bottom: 2px; }
 .ar-next__body p { margin: 0; font-size: 12.5px; line-height: 1.5; color: var(--ar-ink-soft); max-width: 70ch; }
 .ar-next__list .ar-btn { flex: 0 0 auto; }
+/* The three actions share ONE width. Each row is its own flex line, so a button
+   would otherwise be as wide as its own label and "Open Visibility" would draw a
+   narrower box than the two below it. Subgrid lets every <li> share the <ol>'s
+   column tracks, so the action column is sized once — to the longest label — and
+   all three buttons fill it. Sized by the text rather than by a pixel number, so
+   editing a label cannot silently break the alignment. Where subgrid is
+   unsupported the flex layout above still stands. Wide layout only: below 640px
+   the rows stack and there is no column to share. */
+@supports (grid-template-columns: subgrid) {
+  @media (min-width: 641px) {
+    .ar-next__list { display: grid; grid-template-columns: max-content minmax(0, 1fr) max-content; }
+    .ar-next__list li { grid-column: 1 / -1; display: grid; grid-template-columns: subgrid; }
+  }
+}
 @media (max-width: 640px) {
   .ar-next__list li { flex-direction: column; align-items: flex-start; gap: 9px; }
 }
