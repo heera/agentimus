@@ -66,6 +66,12 @@ final class RestScoreTest extends RestTestCase {
 			);
 		}
 
+		// ⚠️ The bulk action reads the SWEPT grades now, not a sample parsed in
+		// the request — so pages nobody has read yet are, correctly, not pages
+		// this endpoint will act on. Production has the cron; the test says it.
+		\Agentimus\Grades::maybe_install();
+		( new \Agentimus\Worklist( new \Agentimus\Settings() ) )->sweep( 200 );
+
 		$req = new \WP_REST_Request( 'POST', '/agentimus/v1/optimize/ignore-issue' );
 		$req->set_body_params( array( 'issue' => 'words' ) );
 		$res = rest_get_server()->dispatch( $req );

@@ -2438,7 +2438,8 @@ final class Registrar {
 						'action'   => array( 'type' => array( 'object', 'null' ), 'additionalProperties' => true ),
 					)
 				),
-				'graded'   => self::i(),
+				'graded'   => self::i( 'How many published posts and pages the citability grade covers. The WHOLE site, not a sample — it was the 25 most recently edited until 1.37.0.' ),
+				'grading'  => self::i( 'How many published pages have not been read yet. Above zero means `graded` and `content` describe part of the site, not all of it.' ),
 				// The report shipped these two from the start; the schema did not,
 				// and additionalProperties:true let the gap hide — declared keys
 				// are the only ones a schema-trusting client knows exist.

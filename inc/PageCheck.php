@@ -160,13 +160,90 @@ final class PageCheck {
 	 * @return string[] Non-pass check labels.
 	 */
 	public static function flags( \WP_Post $post ) {
+		$out = self::summarize( self::analyze( $post ) );
+		return $out['flags'];
+	}
+
+	/**
+	 * One page's citability, reduced to the three facts the grade store keeps.
+	 *
+	 * PURE, and it takes ROWS rather than a post on purpose: {@see analyze()}
+	 * renders the page, and everything that wants a piece of that — the worklist
+	 * row, the stored grade, the Optimized pillar, the by-issue list — has to be
+	 * served from ONE render.
+	 *
+	 * `points` is the per-check average as 0–100 (pass 1, warn ½, fail 0) — the
+	 * number the Optimized pillar averages across the site. Rounding to a whole
+	 * point per page costs at most half a point on the pillar and buys a smallint
+	 * column. `checks` rides along so a caller can tell "scored zero" apart from
+	 * "no check ran", which are not the same claim.
+	 *
+	 * @param array $rows analyze() rows.
+	 * @return array{points:int,checks:int,flags:array<int,string>,ids:array<int,string>}
+	 */
+	public static function summarize( array $rows ) {
+		$pts   = 0.0;
+		$n     = 0;
 		$flags = array();
-		foreach ( (array) self::analyze( $post ) as $check ) {
-			if ( isset( $check['status'] ) && 'pass' !== $check['status'] ) {
-				$flags[] = (string) $check['label'];
+		$ids   = array();
+
+		foreach ( (array) $rows as $r ) {
+			if ( ! isset( $r['status'] ) ) {
+				continue;
+			}
+			++$n;
+			$status = (string) $r['status'];
+			$pts   += 'pass' === $status ? 1.0 : ( 'warn' === $status ? 0.5 : 0.0 );
+			if ( 'pass' !== $status ) {
+				$flags[] = isset( $r['label'] ) ? (string) $r['label'] : '';
+				$ids[]   = isset( $r['id'] ) ? (string) $r['id'] : '';
 			}
 		}
-		return $flags;
+
+		return array(
+			'points' => $n > 0 ? (int) round( $pts / $n * 100 ) : 0,
+			'checks' => $n,
+			'flags'  => array_values( array_filter( $flags ) ),
+			'ids'    => array_values( array_filter( $ids ) ),
+		);
+	}
+
+	/**
+	 * The name of the PROBLEM a check id stands for, for a screen rebuilding a
+	 * by-issue list out of stored ids rather than out of a fresh render.
+	 *
+	 * Every check has exactly one non-pass label, so this is one-to-one. It is
+	 * translated HERE, at read time, which is why the store keeps ids and not
+	 * words: a site that changes language must not need re-grading to be
+	 * readable again.
+	 *
+	 * ⚠️ An id with no entry — a check added through `agentimus_page_checks` by
+	 * an add-on — returns its own id rather than an empty heading. Silence would
+	 * read as "no issue"; the raw id at least names something.
+	 * {@see \Agentimus\Tests\PageCheckIssueLabelTest} holds this map to the
+	 * checks it describes.
+	 *
+	 * @param string $id Check id.
+	 * @return string
+	 */
+	public static function issue_label( $id ) {
+		$map = array(
+			'words'          => __( 'Not enough substance yet', 'agentimus' ),
+			'summary'        => __( 'No opening summary', 'agentimus' ),
+			'evidence'       => __( 'Short on specifics', 'agentimus' ),
+			'sources'        => __( 'No outbound sources', 'agentimus' ),
+			'headings'       => __( 'No headings', 'agentimus' ),
+			'heading_order'  => __( 'Heading order', 'agentimus' ),
+			'passages'       => __( 'One long block', 'agentimus' ),
+			'reading_ease'   => __( 'Low reading ease', 'agentimus' ),
+			'link_density'   => __( 'Mostly links', 'agentimus' ),
+			'alt_text'       => __( 'Image alt text', 'agentimus' ),
+			'media'          => __( 'Media without context', 'agentimus' ),
+			'featured_image' => __( 'No featured image', 'agentimus' ),
+			'freshness'      => __( 'Getting stale', 'agentimus' ),
+		);
+		$id = (string) $id;
+		return isset( $map[ $id ] ) ? $map[ $id ] : $id;
 	}
 
 	/**

@@ -33,8 +33,15 @@ defined( 'ABSPATH' ) || exit;
 
 final class Grades {
 
-	/** @var string Schema version — bump on any structural change. */
-	const VERSION = '1';
+	/**
+	 * @var string Schema version — bump on any structural change.
+	 *
+	 * 2: gradeable/points/flag_ids, so the Optimized pillar can be scored over
+	 *    the WHOLE site from this table instead of over a 25-post sample taken
+	 *    fresh in a page load. The sweep already ran every one of those checks
+	 *    and threw the result away.
+	 */
+	const VERSION = '2';
 
 	/** @var string Option recording the installed schema version. */
 	const VERSION_OPTION = 'agentimus_grades_db_version';
@@ -93,18 +100,35 @@ final class Grades {
 			stake int(10) unsigned NOT NULL DEFAULT 0,
 			coverage varchar(20) NOT NULL DEFAULT '',
 			has_focus tinyint(1) NOT NULL DEFAULT 0,
+			gradeable tinyint(1) NOT NULL DEFAULT 0,
+			points smallint(5) unsigned NOT NULL DEFAULT 0,
+			flag_ids varchar(191) NOT NULL DEFAULT '',
 			content_hash char(32) NOT NULL DEFAULT '',
 			graded_at datetime DEFAULT NULL,
 			PRIMARY KEY  (post_id),
 			KEY rank_order (needs_work, stake),
-			KEY graded (graded_at)
+			KEY graded (graded_at),
+			KEY scoring (gradeable, points)
 		) $collate;" );
 
-		foreach ( array( 'post_id', 'needs_work', 'flags', 'stake', 'coverage', 'has_focus', 'content_hash', 'graded_at' ) as $column ) {
+		foreach ( array( 'post_id', 'needs_work', 'flags', 'stake', 'coverage', 'has_focus', 'gradeable', 'points', 'flag_ids', 'content_hash', 'graded_at' ) as $column ) {
 			$found = $wpdb->get_var( $wpdb->prepare( "SHOW COLUMNS FROM $table LIKE %s", $column ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- table name from our own prefix helper.
 			if ( null === $found ) {
 				return;
 			}
+		}
+
+		// ⚠️⚠️ EVERY EXISTING ROW IS NOW A LIE ABOUT THE NEW COLUMNS — dbDelta
+		// fills them with defaults, so an upgraded site would report `points = 0`
+		// for pages that were never scored and hand the Optimized pillar a site
+		// full of zeroes. Clearing `graded_at` puts every row back in the sweep's
+		// queue: `remaining()` counts them, every screen already says "still
+		// reading your content", and the pillar reports NO DATA rather than a
+		// wrong number until the sweep has actually looked.
+		//
+		// ⛔ Never replace this with a default that merely looks plausible.
+		if ( '' !== (string) get_option( self::VERSION_OPTION, '' ) ) {
+			$wpdb->query( "UPDATE $table SET graded_at = NULL" ); // phpcs:ignore WordPress.DB -- our own table, no user input.
 		}
 
 		update_option( self::VERSION_OPTION, self::VERSION );
@@ -160,6 +184,12 @@ final class Grades {
 	 * database error into the owner's log every time they save a post, which is
 	 * how a plugin gets blamed for something nobody can see.
 	 *
+	 * ⚠️ Every READ asks it too, since the Optimized pillar started reading this
+	 * table: a report can run before `register()` has installed it, and an
+	 * unguarded SELECT against a missing table is that same log entry for
+	 * something the owner cannot act on. Readers answer "nothing known yet",
+	 * which is true and is already a state the screens say out loud.
+	 *
 	 * @return bool
 	 */
 	private static function installed() {
@@ -183,10 +213,11 @@ final class Grades {
 		$table = self::name();
 
 		$wpdb->query( $wpdb->prepare( // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- our own table.
-			"INSERT INTO $table (post_id, needs_work, flags, stake, coverage, has_focus, content_hash, graded_at)
-			VALUES (%d, %d, %d, %d, %s, %d, %s, %s)
+			"INSERT INTO $table (post_id, needs_work, flags, stake, coverage, has_focus, gradeable, points, flag_ids, content_hash, graded_at)
+			VALUES (%d, %d, %d, %d, %s, %d, %d, %d, %s, %s, %s)
 			ON DUPLICATE KEY UPDATE needs_work = VALUES(needs_work), flags = VALUES(flags), stake = VALUES(stake),
-				coverage = VALUES(coverage), has_focus = VALUES(has_focus), content_hash = VALUES(content_hash),
+				coverage = VALUES(coverage), has_focus = VALUES(has_focus), gradeable = VALUES(gradeable),
+				points = VALUES(points), flag_ids = VALUES(flag_ids), content_hash = VALUES(content_hash),
 				graded_at = VALUES(graded_at)",
 			$post_id,
 			empty( $grade['needsWork'] ) ? 0 : 1,
@@ -194,6 +225,13 @@ final class Grades {
 			max( 0, (int) ( isset( $grade['stake'] ) ? $grade['stake'] : 0 ) ),
 			substr( (string) ( isset( $grade['coverage'] ) ? $grade['coverage'] : '' ), 0, 20 ),
 			empty( $grade['hasFocus'] ) ? 0 : 1,
+			// ⚠️ Stored WITHOUT the owner's set-aside folded in. Set-aside is a
+			// decision they change from the screen; baking it into a swept column
+			// would leave the score reading a judgement they had already undone.
+			// Every query here applies the ledger itself, at read time.
+			empty( $grade['gradeable'] ) ? 0 : 1,
+			min( 100, max( 0, (int) ( isset( $grade['points'] ) ? $grade['points'] : 0 ) ) ),
+			substr( self::pack_ids( isset( $grade['flagIds'] ) ? (array) $grade['flagIds'] : array() ), 0, 191 ),
 			(string) ( isset( $grade['hash'] ) ? $grade['hash'] : '' ),
 			gmdate( 'Y-m-d H:i:s' )
 		) );
@@ -282,7 +320,7 @@ final class Grades {
 	public static function remaining( array $types ) {
 		global $wpdb;
 
-		if ( empty( $types ) ) {
+		if ( empty( $types ) || ! self::installed() ) {
 			return 0;
 		}
 		$table   = self::name();
@@ -368,7 +406,7 @@ final class Grades {
 		global $wpdb;
 
 		$out = array( 'fixable' => 0, 'clear' => 0, 'setAside' => 0 );
-		if ( empty( $types ) ) {
+		if ( empty( $types ) || ! self::installed() ) {
 			return $out;
 		}
 
@@ -396,6 +434,192 @@ final class Grades {
 	}
 
 	/**
+	 * Flagged check ids, stored so they can be counted without re-rendering a
+	 * page. Comma-wrapped on both ends (`,words,summary,`) — an unwrapped list
+	 * cannot be matched in SQL without `summary` also hitting `no_summary`, and
+	 * even though the tally below is done in PHP, a column that is only safe
+	 * when nobody writes the obvious query is a trap left lying around.
+	 *
+	 * @param array<int,string> $ids Check ids.
+	 * @return string
+	 */
+	private static function pack_ids( array $ids ) {
+		$ids = array_values( array_unique( array_filter( array_map( 'strval', $ids ) ) ) );
+		return $ids ? ',' . implode( ',', $ids ) . ',' : '';
+	}
+
+	/**
+	 * @param string $packed A pack_ids() string.
+	 * @return array<int,string>
+	 */
+	private static function unpack_ids( $packed ) {
+		return array_values( array_filter( explode( ',', (string) $packed ) ) );
+	}
+
+	/**
+	 * The Optimized pillar, over the WHOLE site.
+	 *
+	 * ⭐ This is what the grade store bought, a second time. The pillar used to
+	 * average a sample of the 25 most recently modified posts, parsed fresh in a
+	 * page load — the only shape possible before this table existed. So the
+	 * Readiness card could say "every graded post and page is ready for AI to
+	 * quote" over eighteen items while the content list, on the next screen,
+	 * held twelve pages with content flags. Both true of what they measured; one
+	 * of them written as though it spoke for the site.
+	 *
+	 * Every number here is the same measurement the sweep already performs, read
+	 * back instead of recomputed: `points` is {@see \Agentimus\PageCheck::summarize()},
+	 * and the issue tally is its flagged ids.
+	 *
+	 * ⚠️ `graded_at IS NOT NULL` is load-bearing. A page the sweep has not
+	 * reached yet must not be averaged in as a zero — {@see remaining()} is how a
+	 * screen says the reading is unfinished, and `score => null` is how this says
+	 * it has nothing to claim yet.
+	 *
+	 * @param array<int,string> $types Post types to consider.
+	 * @param array<int,int>    $aside Post IDs the owner set aside.
+	 * @param int               $per   Most affected posts kept per issue.
+	 * @return array{score:int|null,posts:int,issues:array<string,array{count:int,posts:array<int,int>}>}
+	 */
+	public static function optimize( array $types, array $aside, $per = 6 ) {
+		global $wpdb;
+
+		$out = array( 'score' => null, 'posts' => 0, 'issues' => array() );
+		if ( empty( $types ) || ! self::installed() ) {
+			return $out;
+		}
+
+		$table   = self::name();
+		$holders = implode( ',', array_fill( 0, count( $types ), '%s' ) );
+		$aside   = array_values( array_unique( array_filter( array_map( 'intval', $aside ) ) ) );
+		$in      = $aside ? implode( ',', $aside ) : '0';
+		$where   = "p.post_status = 'publish' AND p.post_type IN ($holders)
+			AND g.gradeable = 1 AND g.graded_at IS NOT NULL AND g.post_id NOT IN ($in)";
+
+		// The score in one aggregate — no row ever reaches PHP for this half, so
+		// a site with ten thousand posts costs the same as one with ten.
+		$row = $wpdb->get_row( $wpdb->prepare( // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- our own table; ids cast to int, everything else bound.
+			"SELECT COUNT(*) AS n, AVG(g.points) AS avg_points
+			FROM $table g INNER JOIN {$wpdb->posts} p ON p.ID = g.post_id
+			WHERE $where",
+			$types
+		), ARRAY_A );
+
+		$n = (int) ( isset( $row['n'] ) ? $row['n'] : 0 );
+		if ( $n < 1 ) {
+			return $out; // Nothing read yet, or nothing article-like to read.
+		}
+		$out['posts'] = $n;
+		$out['score'] = (int) round( (float) $row['avg_points'] );
+
+		// The tally needs the ids themselves, so these rows do reach PHP — but
+		// only the FLAGGED ones, which is the minority by design and the whole
+		// point of the column being empty when a page is clean.
+		$rows = $wpdb->get_results( $wpdb->prepare( // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- our own table; ids cast to int, everything else bound.
+			"SELECT g.post_id, g.flag_ids
+			FROM $table g INNER JOIN {$wpdb->posts} p ON p.ID = g.post_id
+			WHERE $where AND g.flag_ids <> ''
+			ORDER BY g.stake DESC, g.post_id DESC",
+			$types
+		), ARRAY_A );
+
+		$per = max( 1, (int) $per );
+		foreach ( (array) $rows as $r ) {
+			foreach ( self::unpack_ids( isset( $r['flag_ids'] ) ? $r['flag_ids'] : '' ) as $id ) {
+				if ( ! isset( $out['issues'][ $id ] ) ) {
+					$out['issues'][ $id ] = array( 'count' => 0, 'posts' => array() );
+				}
+				++$out['issues'][ $id ]['count'];
+				// ⚠️ The COUNT is the whole truth; the post list is a sample of it,
+				// ordered by what a fix is worth. A caller printing the list must
+				// not print its length as the count.
+				if ( count( $out['issues'][ $id ]['posts'] ) < $per ) {
+					$out['issues'][ $id ]['posts'][] = (int) $r['post_id'];
+				}
+			}
+		}
+
+		return $out;
+	}
+
+	/**
+	 * Every published, gradeable page a given check flags — the WHOLE set, not a
+	 * preview and not a sample.
+	 *
+	 * This is what "set all aside" acts on, so it has to agree with the count the
+	 * owner read before clicking. It used to walk the 25-post sample, which meant
+	 * a button under "Low reading ease · 12" could quietly park only the handful
+	 * of those twelve that happened to be recently edited.
+	 *
+	 * ⭐ The comma-wrapping done by {@see pack_ids()} is what makes this LIKE safe:
+	 * `,summary,` cannot match inside `,no_summary,`.
+	 *
+	 * @param array<int,string> $types Post types to consider.
+	 * @param array<int,int>    $aside Post IDs already set aside.
+	 * @param string            $flag  Check id.
+	 * @return array<int,int>
+	 */
+	public static function posts_with_flag( array $types, array $aside, $flag ) {
+		global $wpdb;
+
+		$flag = (string) $flag;
+		if ( empty( $types ) || '' === $flag || ! self::installed() ) {
+			return array();
+		}
+
+		$table   = self::name();
+		$holders = implode( ',', array_fill( 0, count( $types ), '%s' ) );
+		$aside   = array_values( array_unique( array_filter( array_map( 'intval', $aside ) ) ) );
+		$in      = $aside ? implode( ',', $aside ) : '0';
+
+		$args   = $types;
+		$args[] = '%,' . $wpdb->esc_like( $flag ) . ',%';
+
+		return array_map( 'intval', (array) $wpdb->get_col( $wpdb->prepare( // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- our own table; ids cast to int, everything else bound.
+			"SELECT g.post_id
+			FROM $table g INNER JOIN {$wpdb->posts} p ON p.ID = g.post_id
+			WHERE p.post_status = 'publish' AND p.post_type IN ($holders)
+				AND g.gradeable = 1 AND g.graded_at IS NOT NULL AND g.post_id NOT IN ($in)
+				AND g.flag_ids LIKE %s
+			ORDER BY g.stake DESC, g.post_id DESC",
+			$args
+		) ) );
+	}
+
+	/**
+	 * The flagged check ids already stored for these posts.
+	 *
+	 * Lets a screen say what a page was flagged for without re-rendering it —
+	 * the set-aside list used to re-analyze up to 25 of its rows for exactly
+	 * this, and silently listed the rest without any flags at all.
+	 *
+	 * @param array<int,int> $post_ids Post IDs.
+	 * @return array<int,array<int,string>> post_id => check ids.
+	 */
+	public static function flag_ids_for( array $post_ids ) {
+		global $wpdb;
+
+		$post_ids = array_values( array_unique( array_filter( array_map( 'intval', $post_ids ) ) ) );
+		if ( ! $post_ids || ! self::installed() ) {
+			return array();
+		}
+
+		$table = self::name();
+		$in    = implode( ',', $post_ids );
+
+		$rows = $wpdb->get_results( // phpcs:ignore WordPress.DB -- our own table; every id cast to int above.
+			"SELECT post_id, flag_ids FROM $table WHERE post_id IN ($in) AND graded_at IS NOT NULL",
+			ARRAY_A
+		);
+
+		$out = array();
+		foreach ( (array) $rows as $r ) {
+			$out[ (int) $r['post_id'] ] = self::unpack_ids( isset( $r['flag_ids'] ) ? $r['flag_ids'] : '' );
+		}
+		return $out;
+	}
+
+	/**
 	 * The fixable bucket split by WHAT it is asking for: pages with content
 	 * flags, and pages whose only problem is that they do not answer the search
 	 * they are found for.
@@ -417,7 +641,7 @@ final class Grades {
 		global $wpdb;
 
 		$out = array( 'flagged' => 0, 'unanswered' => 0 );
-		if ( empty( $types ) ) {
+		if ( empty( $types ) || ! self::installed() ) {
 			return $out;
 		}
 
@@ -452,7 +676,7 @@ final class Grades {
 	public static function without_search( array $types ) {
 		global $wpdb;
 
-		if ( empty( $types ) ) {
+		if ( empty( $types ) || ! self::installed() ) {
 			return 0;
 		}
 		$table   = self::name();

@@ -51,6 +51,48 @@ namespace Agentimus\Tests {
 			}
 		}
 
+		/**
+		 * An empty grade store.
+		 *
+		 * The Optimized pillar reads the swept grades now instead of parsing a
+		 * sample in the request, so Score::report() and ignored_list() both touch
+		 * the database — which this unit harness does not have. Answering nothing
+		 * is the honest fixture: a site whose sweep has read no page yet, where
+		 * the pillar is N/A and the set-aside rows list without flags. The SHAPE
+		 * is what this file is about, and the shape has to hold in that state too.
+		 */
+		private function empty_grade_store(): void {
+			$GLOBALS['wpdb'] = new class() {
+				public $prefix = 'wp_';
+				public $posts  = 'wp_posts';
+				public function prepare( $sql, ...$args ) {
+					return $sql;
+				}
+				public function esc_like( $text ) {
+					return addcslashes( (string) $text, '_%\\' );
+				}
+				public function get_var( $sql ) {
+					return 0;
+				}
+				public function get_col( $sql ) {
+					return array();
+				}
+				public function get_row( $sql, $output = null ) {
+					return array( 'n' => 0, 'avg_points' => null );
+				}
+				public function get_results( $sql, $output = null ) {
+					return array();
+				}
+				public function query( $sql ) {
+					return 0;
+				}
+			};
+		}
+
+		public function tear_down(): void {
+			unset( $GLOBALS['wpdb'] );
+		}
+
 		/** The score sub-schema inside read-readiness's registered output schema. */
 		private function score_schema(): array {
 			$this->ensure_capture_stub();
@@ -84,6 +126,7 @@ namespace Agentimus\Tests {
 
 		public function test_the_score_report_is_fully_declared() {
 			$schema = $this->score_schema();
+			$this->empty_grade_store();
 
 			$this->assertFalse(
 				$schema['additionalProperties'],
@@ -105,6 +148,7 @@ namespace Agentimus\Tests {
 		public function test_a_worklist_row_and_a_set_aside_row_are_fully_declared() {
 			$schema = $this->score_schema();
 			$this->ensure_link_stubs();
+			$this->empty_grade_store();
 
 			$GLOBALS['_af_posts'][11] = new \WP_Post(
 				array(

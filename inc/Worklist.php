@@ -532,17 +532,22 @@ final class Worklist {
 				Grades::forget( $id );
 				continue;
 			}
-			$item = $this->item( (int) $id, isset( $search[ $id ] ) ? $search[ $id ] : array(), false );
+			$item = $this->item( (int) $id, isset( $search[ $id ] ) ? $search[ $id ] : array(), false, true );
 			if ( ! $item ) {
 				Grades::forget( $id );
 				continue;
 			}
+			$grade = isset( $item['grade'] ) ? (array) $item['grade'] : array();
 			Grades::record( (int) $id, array(
 				'needsWork' => $this->needs_work( $item ),
 				'flags'     => count( (array) $item['flags'] ) + (int) $item['moreFlags'],
 				'stake'     => (int) $item['stake'],
 				'coverage'  => isset( $item['coverage']['state'] ) ? (string) $item['coverage']['state'] : '',
 				'hasFocus'  => ! empty( $item['focus'] ),
+				// The citability half — measured in the same render as the rest.
+				'points'    => isset( $grade['points'] ) ? (int) $grade['points'] : 0,
+				'flagIds'   => isset( $grade['ids'] ) ? (array) $grade['ids'] : array(),
+				'gradeable' => ! empty( $grade['gradeable'] ),
 				'hash'      => Grades::hash( $post, ! empty( $item['focus'] ) ? (string) $item['focus']['query'] : '' ),
 			) );
 			$done++;
@@ -663,9 +668,15 @@ final class Worklist {
 	 * @param int   $id     Post ID.
 	 * @param array $rows   That post's search rows, best first.
 	 * @param bool  $aside  Whether it is set aside.
+	 * @param bool  $grade  Also return the `grade` block the STORE keeps —
+	 *                      citability points, flagged check ids, gradeability.
+	 *                      ⛔ Off for every screen: those three are the sweep's
+	 *                      business, and a payload that carries them invites a
+	 *                      surface to read a stored fact it should be asking the
+	 *                      store for. Only {@see sweep()} asks for them.
 	 * @return array|null
 	 */
-	private function item( $id, array $rows, $aside ) {
+	private function item( $id, array $rows, $aside, $grade = false ) {
 		$post = get_post( $id );
 		if ( ! $post || 'publish' !== $post->post_status ) {
 			return null;
@@ -751,12 +762,18 @@ final class Worklist {
 			$cov = Focus::coverage( $post, $focus['query'], $html );
 		}
 
-		$flags = PageCheck::flags( $post );
+		// ⚠️ ONE analyze() for the whole row. It renders the page, and three
+		// different consumers want a piece of it — the flag labels shown here,
+		// the citability points the Optimized pillar averages, and the flagged
+		// ids the by-issue list is rebuilt from. Asking twice would double the
+		// only genuinely expensive thing this method does.
+		$summary = PageCheck::summarize( PageCheck::analyze( $post ) );
+		$flags   = $summary['flags'];
 
 		$type  = get_post_type_object( $post->post_type );
 		$title = html_entity_decode( wp_strip_all_tags( get_the_title( $post ) ), ENT_QUOTES, 'UTF-8' );
 
-		return array(
+		$out = array(
 			'id'       => (int) $post->ID,
 			// When this row was true of. A screen holding the list can ask which
 			// posts have been edited since — one indexed query — instead of
@@ -776,6 +793,22 @@ final class Worklist {
 			'setAside' => (bool) $aside,
 			'stake'    => $this->stake( $focus, $cov ),
 		);
+
+		if ( $grade ) {
+			// Not for the screen — for the store. The sweep hands these to Grades
+			// so the Optimized pillar can be scored over the whole site without
+			// re-rendering a single page. ⛔ Gradeability is asked with an EMPTY
+			// set-aside list: whether a page is article-like is a fact about the
+			// page, while set-aside is a decision the owner reverses from a
+			// button, and the two must not be baked into one column.
+			$out['grade'] = array(
+				'points'    => (int) $summary['points'],
+				'ids'       => $summary['ids'],
+				'gradeable' => Gradeability::is_gradeable( $post, array() ),
+			);
+		}
+
+		return $out;
 	}
 
 	/**

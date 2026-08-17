@@ -11,8 +11,10 @@
 namespace Agentimus\Tests\Integration;
 
 use Agentimus\Cache;
+use Agentimus\Grades;
 use Agentimus\Score;
 use Agentimus\Settings;
+use Agentimus\Worklist;
 use Agentimus\Visibility\Runner;
 use Agentimus\Visibility\Settings as VisibilitySettings;
 use Agentimus\Visibility\Store;
@@ -22,8 +24,27 @@ final class ScoreDbTest extends DbTestCase {
 
 	public function set_up(): void {
 		parent::set_up();
+		// ⭐ The Optimized pillar reads SWEPT grades now — it no longer parses a
+		// sample inside the request — so this suite needs the store to exist and
+		// {@see regrade()} to have run before any score means anything.
+		delete_option( Grades::VERSION_OPTION );
+		Grades::install();
 		delete_transient( Cache::OPTIMIZE ); // Force a fresh content sample per test.
 		delete_transient( Cache::LLMS_WORDS );
+	}
+
+	/**
+	 * Read every published page and drop the cached score.
+	 *
+	 * ⚠️ Publishing a post no longer changes the score on its own. The pillar
+	 * averages what the SWEEP has read, so a test that publishes and asks
+	 * immediately is asking about pages nobody has looked at — and correctly
+	 * gets "no data yet". In production the cron does this; here it is said out
+	 * loud, which is also the honest picture of when a score actually moves.
+	 */
+	private function regrade() {
+		( new Worklist( new Settings() ) )->sweep( 200 );
+		delete_transient( Cache::OPTIMIZE );
 	}
 
 	private function post( $content ) {
@@ -45,7 +66,7 @@ final class ScoreDbTest extends DbTestCase {
 		// A substantial, citable post (figures + a cited source) and a thin one.
 		$this->post( str_repeat( 'A concrete point backed by a real figure: 42% in 2024. ', 30 ) . '<a href="https://example.org/study">source</a>' );
 		$this->post( 'Too short to cite.' );
-		delete_transient( Cache::OPTIMIZE );
+		$this->regrade();
 
 		$r = ( new Score( new Settings() ) )->report();
 
@@ -92,7 +113,7 @@ final class ScoreDbTest extends DbTestCase {
 		};
 		add_filter( 'agentimus_citability_post_types', $capture );
 
-		delete_transient( Cache::OPTIMIZE );
+		$this->regrade();
 		( new Score( new Settings() ) )->report();
 
 		remove_filter( 'agentimus_post_types', $agentize );
@@ -109,7 +130,7 @@ final class ScoreDbTest extends DbTestCase {
 		// it only populates for a user who can edit — mirror the admin-boot context.
 		$this->post( 'Too short.' );
 		wp_set_current_user( self::factory()->user->create( array( 'role' => 'administrator' ) ) );
-		delete_transient( Cache::OPTIMIZE );
+		$this->regrade();
 
 		$r = ( new Score( new Settings() ) )->report();
 
@@ -132,7 +153,7 @@ final class ScoreDbTest extends DbTestCase {
 		$blog = self::factory()->post->create( array( 'post_type' => 'page', 'post_status' => 'publish', 'post_content' => 'Latest posts from the blog appear below in the loop.' ) );
 		update_option( 'page_for_posts', (int) $blog );
 		wp_set_current_user( self::factory()->user->create( array( 'role' => 'administrator' ) ) );
-		delete_transient( Cache::OPTIMIZE );
+		$this->regrade();
 
 		$r = ( new Score( new Settings() ) )->report();
 		update_option( 'page_for_posts', 0 );
@@ -161,7 +182,7 @@ final class ScoreDbTest extends DbTestCase {
 		// would catch an exclusion that fires too broadly.
 		$thin = self::factory()->post->create( array( 'post_type' => 'page', 'post_status' => 'publish', 'post_title' => 'Ordinary thin page', 'post_content' => 'A very short page indeed.' ) );
 		wp_set_current_user( self::factory()->user->create( array( 'role' => 'administrator' ) ) );
-		delete_transient( Cache::OPTIMIZE );
+		$this->regrade();
 
 		$r = ( new Score( new Settings() ) )->report();
 		delete_option( 'woocommerce_cart_page_id' );
@@ -190,7 +211,7 @@ final class ScoreDbTest extends DbTestCase {
 		// the gate must key on missing prose, not on the mere presence of a widget.
 		$mixed = self::factory()->post->create( array( 'post_type' => 'page', 'post_status' => 'publish', 'post_title' => 'About our bookings', 'post_content' => '[acme_bookings_calendar] We take bookings all year round for the workshop, the studio and the annexe. Slots open thirty days ahead and close two days before each event, so plan ahead if you need a weekend.' ) );
 		wp_set_current_user( self::factory()->user->create( array( 'role' => 'administrator' ) ) );
-		delete_transient( Cache::OPTIMIZE );
+		$this->regrade();
 
 		$r = ( new Score( new Settings() ) )->report();
 
@@ -215,6 +236,7 @@ final class ScoreDbTest extends DbTestCase {
 		$all = $s->all();
 		$all['optimize_ignored'] = array( $id );
 		$s->update( $all );
+		$this->regrade();
 
 		$r = ( new Score( new Settings() ) )->report();
 
@@ -244,6 +266,7 @@ final class ScoreDbTest extends DbTestCase {
 		$all = $s->all();
 		$all['optimize_ignored'] = array( $id );
 		$s->update( $all );
+		$this->regrade();
 
 		$row = null;
 		foreach ( ( new Score( new Settings() ) )->report()['ignored'] as $p ) {
@@ -268,6 +291,8 @@ final class ScoreDbTest extends DbTestCase {
 			$ids[] = $this->post( 'Too short.' );
 		}
 
+		$this->regrade();
+
 		$score = new Score( new Settings() );
 		$issue = null;
 		foreach ( $score->report()['content'] as $c ) {
@@ -284,6 +309,90 @@ final class ScoreDbTest extends DbTestCase {
 		foreach ( $ids as $id ) {
 			$this->assertContains( (int) $id, $uncapped, 'the full set includes pages past the preview cap' );
 		}
+	}
+
+	/**
+	 * ⭐⭐ THE PILLAR COVERS THE WHOLE SITE, NOT THE LAST 25 EDITS.
+	 *
+	 * His catch, 2026-08-18: Readiness said "every graded post and page is ready
+	 * for AI to quote" over 18 items while the content list, one screen away,
+	 * held pages with content flags. The card was reading a sample of the 25 most
+	 * recently modified posts and describing it in words that spoke for the site.
+	 *
+	 * The fixture is built to fail under that sample and pass under the store:
+	 * the thin pages are published FIRST, so twenty-six later posts push them
+	 * clean out of any recency window. If this ever goes green with a sampled
+	 * score again, it will be because the sample got bigger — not because the
+	 * measurement got honest.
+	 */
+	public function test_the_optimized_pillar_grades_pages_the_old_recency_sample_could_never_see() {
+		wp_set_current_user( self::factory()->user->create( array( 'role' => 'administrator' ) ) );
+
+		// The offenders, oldest of all.
+		$old_thin = array( $this->post( 'Too short.' ), $this->post( 'Also too short.' ) );
+
+		// Twenty-six later posts — one more than the sample ever took, so the two
+		// above are unreachable by recency.
+		for ( $i = 0; $i < 26; $i++ ) {
+			$this->post( str_repeat( 'A concrete point backed by a real figure: 42% in 2024. ', 30 ) . '<a href="https://example.org/study">source</a>' );
+		}
+
+		$this->regrade();
+		$r = ( new Score( new Settings() ) )->report();
+
+		$this->assertSame( 28, (int) $r['graded'], 'every published page is graded, not a window of them' );
+		$this->assertSame( 0, (int) $r['grading'], 'the sweep read everything, so no page is outstanding' );
+
+		$words = null;
+		foreach ( $r['content'] as $c ) {
+			if ( 'words' === (string) $c['id'] ) {
+				$words = $c;
+			}
+		}
+		$this->assertNotNull( $words, 'the thin pages must reach the report at all' );
+
+		$flagged = array_map( 'intval', $words['pages'] ? wp_list_pluck( $words['pages'], 'id' ) : array() );
+		foreach ( $old_thin as $id ) {
+			$this->assertContains( (int) $id, $flagged, 'a page outside the last 25 edits still counts against the score' );
+		}
+
+		// And the number itself is an average over all 28, so two thin pages in
+		// twenty-eight cannot read as a perfect site.
+		$optimized = null;
+		foreach ( $r['rungs'] as $g ) {
+			if ( 'optimized' === $g['key'] ) {
+				$optimized = $g;
+			}
+		}
+		$this->assertNotNull( $optimized );
+		$this->assertLessThan( 100, (int) $optimized['score'], 'flagged pages must cost the pillar something' );
+		$this->assertStringNotContainsString( 'recently edited', (string) $optimized['note'], 'the note must not describe a sample the score no longer takes' );
+	}
+
+	/**
+	 * A page nobody has read yet is not a page that scored zero.
+	 *
+	 * ⚠️ This is the failure mode the migration guards against: dbDelta fills the
+	 * new columns with defaults, and averaging those in would hand a site a
+	 * cellar-full of zeroes for pages the sweep had simply not reached.
+	 */
+	public function test_an_unswept_site_reports_no_grade_rather_than_a_bad_one() {
+		$this->post( str_repeat( 'A concrete point backed by a real figure: 42% in 2024. ', 30 ) );
+		delete_transient( Cache::OPTIMIZE ); // Deliberately NOT regrade() — nothing swept.
+
+		$r = ( new Score( new Settings() ) )->report();
+
+		$this->assertSame( 0, (int) $r['graded'], 'nothing has been read' );
+		$this->assertGreaterThan( 0, (int) $r['grading'], 'and the report says how much is outstanding' );
+
+		$optimized = null;
+		foreach ( $r['rungs'] as $g ) {
+			if ( 'optimized' === $g['key'] ) {
+				$optimized = $g;
+			}
+		}
+		$this->assertNotNull( $optimized );
+		$this->assertNull( $optimized['score'], 'unread is N/A, never a zero — blend() redistributes the weight' );
 	}
 
 	public function test_cited_is_not_measured_once_ai_visibility_is_disabled() {
@@ -558,7 +667,7 @@ final class ScoreDbTest extends DbTestCase {
 		// Unclosed tags, nested lists, a script and a bare img — the DOM parse must
 		// tolerate it, and the whole report must still return rather than fatal.
 		$this->post( '<div><p>unclosed <b>bold <ul><li>item</div></p> <script>1 < 2</script> <img src=x onerror=alert(1)>' );
-		delete_transient( Cache::OPTIMIZE );
+		$this->regrade();
 
 		$r = ( new Score( new Settings() ) )->report();
 		$this->assertIsInt( $r['score'] ); // Reached the end — no fatal on messy markup.

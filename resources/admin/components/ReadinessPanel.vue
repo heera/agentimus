@@ -14,6 +14,11 @@ export default {
     optimize: { type: Array, default: () => [] }, // Content worklist behind the Optimized rung.
     optimizeIgnored: { type: Array, default: () => [] }, // Pages set aside as "not cited content".
     optimizeGraded: { type: Number, default: 0 }, // How many pages were actually graded.
+    // How many published pages the sweep has not read yet. Above zero means this
+    // card is describing PART of the site, which is a different claim from the
+    // finished one — and the only thing that separates an honest all-clear from
+    // an early one.
+    optimizeGrading: { type: Number, default: 0 },
     refreshing: { type: Boolean, default: false },
     liveConfig: { type: Object, default: () => ({}) },
     isLocal: { type: Boolean, default: false },
@@ -67,7 +72,28 @@ export default {
       const scope = graded ? `up to ${pages} of your ${graded} graded pieces` : `${pages} ${pages === 1 ? 'piece' : 'pieces'}`;
       const verb = pages === 1 ? 'has' : 'have';
       const kindsPart = kinds === 1 ? 'one kind of issue' : `${kinds} kinds of issue`;
-      return `There's ${kindsPart} across your recent posts and pages — ${scope} ${verb} something worth fixing. The most common is “${top.label}”.`;
+      // ⚠️ "across your content", not "across your recent posts and pages". The
+      // grade is read from the store now and covers every published article-like
+      // page; the old wording described a 25-post recency sample and stayed on
+      // screen after the measurement underneath it had stopped being one.
+      return `There's ${kindsPart} across your content — ${scope} ${verb} something worth fixing. The most common is “${top.label}”.`;
+    },
+    // The all-clear, and it has to be careful about WHAT it is clearing.
+    //
+    // ⚠️ This line used to read "Every graded post and page is ready for AI to
+    // quote" over an 18-item recency sample, on a site where twelve pages
+    // carried content flags — an all-clear written as though it spoke for the
+    // whole site. The grade now DOES cover the whole site, which earns the
+    // sentence, but only once the sweep has actually read it: until then this
+    // says how much is still unread rather than declaring the site clean early.
+    optimizeClear() {
+      const left = Number(this.optimizeGrading || 0);
+      const graded = Number(this.optimizeGraded || 0);
+      if (left > 0) {
+        const n = left.toLocaleString();
+        return `Nothing flagged in the ${graded.toLocaleString()} read so far — still reading your content, ${n} ${left === 1 ? 'page has' : 'pages have'} not been looked at yet.`;
+      }
+      return `Every published post and page is ready for AI to quote. Anything set aside is listed below.`;
     },
     // Show the section whenever there's anything to act on — issues, or set-aside pages.
     hasOptimizeSection() {
@@ -425,8 +451,14 @@ export default {
             or set aside anything that isn’t meant to be cited.
           </p>
         </div>
+        <!-- ⚠️ "still to read" sits BETWEEN the two counts, and it is not
+             decoration. Everything else on this card describes the graded
+             pages; while the sweep is behind, that is a part of the site, and
+             the one number saying so has to be beside the number it qualifies —
+             not only in the all-clear line, which is invisible whenever there
+             are issues to show. -->
         <span class="ar-checkgroup__count">
-          {{ optimizeGraded }} graded<template v-if="optimizeIgnored.length"> · {{ optimizeIgnored.length }} set aside</template>
+          {{ optimizeGraded }} graded<template v-if="optimizeGrading > 0"> · {{ optimizeGrading }} still to read</template><template v-if="optimizeIgnored.length"> · {{ optimizeIgnored.length }} set aside</template>
         </span>
       </div>
 
@@ -440,7 +472,7 @@ export default {
            equivalent per page. -->
       <!-- Nothing flagged. Said here rather than inside the disclosure, which is
            the one place an all-clear must never hide. -->
-      <p v-if="!optimize.length" class="ar-optcheck__clear">Every graded post and page is ready for AI to quote. Anything set aside is listed below.</p>
+      <p v-if="!optimize.length" class="ar-optcheck__clear">{{ optimizeClear }}</p>
 
       <div v-if="optimize.length" class="ar-optsum">
         <p class="ar-optsum__lead">{{ optimizeSummary }}</p>

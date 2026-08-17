@@ -2120,6 +2120,7 @@ export default {
           :optimize="optimizeWork"
           :optimize-ignored="optimizeIgnored"
           :optimize-graded="(aeo && aeo.graded) || 0"
+          :optimize-grading="(aeo && aeo.grading) || 0"
           :refreshing="refreshingReadiness"
           :live-config="liveConfig"
           :is-local="isLocal"

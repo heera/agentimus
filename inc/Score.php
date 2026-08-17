@@ -10,7 +10,10 @@
  *   Readable  (15) — content comes back clean            ├ the readiness ladder
  *   Trusted   (25) — it can identify & trust the source ┘  (= "agent-ready")
  *   Optimized (30) — content written to be cited: the per-page {@see PageCheck}
- *                    signals, averaged over a cached sample of posts.
+ *                    signals, averaged over EVERY published article-like page,
+ *                    read back from the {@see Grades} store the sweep fills.
+ *                    ⚠️ It was a 25-post recency sample until 2026-08-18; the
+ *                    number moved when it stopped being one, and it should have.
  *   Cited     (15) — measured citation: the AI-Visibility "seen in answers" rate.
  *
  * A pillar with no data yet (no published posts to grade; citation checks not set up)
@@ -44,9 +47,6 @@ final class Score {
 	const FINDABLE_IDS = array( 'public', 'permalinks', 'robots', 'sitemap', 'robots_sitemap' );
 	const READABLE_IDS = array( 'llms', 'llms_words', 'llms_full', 'llms_full_size', 'schema', 'post_types', 'topics' );
 	const TRUSTED_IDS  = array( 'about', 'expertise', 'same_as', 'entity_image', 'entity_role', 'security_txt', 'ai_usage' );
-
-	/** How many recent posts the Optimize pillar samples (each is parsed). */
-	const OPTIMIZE_SAMPLE = 25;
 
 	/** Cap on affected pages listed per issue in the content worklist. */
 	const WORKLIST_POSTS_PER_ISSUE = 6;
@@ -156,6 +156,12 @@ final class Score {
 			'actions'  => $this->actions( $readiness, $optimize, $measure ),
 			'content'  => $this->content_worklist( $optimize ),
 			'graded'   => (int) $optimize['posts'],
+			// ⚠️ How many published pages the sweep has NOT read yet. Without it a
+			// screen cannot tell "every page is clean" from "we have only looked
+			// at some of them" — and now that `graded` counts the whole site
+			// rather than a deliberate sample, that difference is the only thing
+			// standing between an honest all-clear and an early one.
+			'grading'  => Grades::remaining( Gradeability::post_types() ),
 			'ignored'  => $this->ignored_list(),
 		);
 	}
@@ -361,65 +367,91 @@ final class Score {
 		return $result;
 	}
 
+	/**
+	 * ⭐ READ FROM THE GRADE STORE, over the WHOLE site — not computed here over
+	 * a sample.
+	 *
+	 * This used to parse the 25 most recently modified posts inside whatever
+	 * request asked for the score, because that was the only affordable shape
+	 * before the grade table existed. The cost of that shape was not speed, it
+	 * was TRUTH: the Readiness card said "every graded post and page is ready
+	 * for AI to quote" about eighteen items, on a site where twelve pages
+	 * carried content flags, directly above a list that said so.
+	 *
+	 * The sweep already runs exactly these checks on every published page and
+	 * stores the result. Reading it back makes the pillar mean "this site"
+	 * rather than "this site's last 25 edits", and costs one indexed query.
+	 *
+	 * ⚠️ `score => null` when the sweep has read nothing yet — N/A, so blend()
+	 * redistributes the weight rather than scoring the site zero for pages
+	 * nobody has looked at. Same answer a commerce-only site gets, and for the
+	 * same reason: no article-like content to grade is not a bad grade.
+	 *
+	 * @return array{score:int|null,posts:int,issues:array<string,array>}
+	 */
 	private function compute_optimize() {
-		$ids = $this->sample_ids();
-		if ( empty( $ids ) ) {
-			// No article-like content to grade (e.g. a commerce-only site) → the Optimize
-			// pillar is N/A (null), so blend() redistributes its weight instead of scoring 0.
+		$types = Gradeability::post_types();
+		if ( empty( $types ) ) {
 			return array( 'score' => null, 'posts' => 0, 'issues' => array() );
 		}
 
-		$sum    = 0.0;
-		$graded = 0;
+		$read = Grades::optimize( $types, $this->ignored_ids(), self::WORKLIST_POSTS_PER_ISSUE );
+		if ( $read['posts'] < 1 ) {
+			return array( 'score' => null, 'posts' => 0, 'issues' => array() );
+		}
+
 		$issues = array();
-		foreach ( (array) $ids as $id ) {
-			$post = get_post( (int) $id );
-			if ( ! $post || ! Gradeability::is_gradeable( $post, $this->ignored_ids() ) ) {
-				continue;
-			}
-			$rows  = PageCheck::analyze( $post );
-			$pts   = 0.0;
-			$count = 0;
-			foreach ( $rows as $r ) {
-				++$count;
-				$pts += self::points( (string) $r['status'] );
-				if ( 'pass' !== $r['status'] ) {
-					$key = (string) $r['id'];
-					if ( ! isset( $issues[ $key ] ) ) {
-						$issues[ $key ] = array( 'count' => 0, 'label' => (string) $r['label'], 'posts' => array(), 'types' => array() );
-					}
-					++$issues[ $key ]['count'];
-					// Per-type tally, so the worklist can say "3 Posts, 1 Page"
-					// instead of calling every flagged item a "page".
-					$type = (string) $post->post_type;
-					$issues[ $key ]['types'][ $type ] = 1 + ( isset( $issues[ $key ]['types'][ $type ] ) ? (int) $issues[ $key ]['types'][ $type ] : 0 );
-					// Collect the affected posts (capped) so the worklist — and the
-					// action's fix link — can point straight at each post's editor.
-					if ( count( $issues[ $key ]['posts'] ) < self::WORKLIST_POSTS_PER_ISSUE ) {
-						$issues[ $key ]['posts'][] = (int) $id;
-					}
-				}
-			}
-			if ( $count > 0 ) {
-				$sum += $pts / $count;
-				++$graded;
-			}
+		foreach ( $read['issues'] as $id => $issue ) {
+			// The label is resolved HERE, from the id, so a stored grade never
+			// carries translated words it would have to be re-swept to update.
+			$issues[ (string) $id ] = array(
+				'count' => (int) $issue['count'],
+				'label' => PageCheck::issue_label( $id ),
+				'posts' => array_map( 'intval', (array) $issue['posts'] ),
+				// Per-type tally, so the worklist can say "3 Posts, 1 Page"
+				// instead of calling every flagged item a "page". Counted from
+				// the sampled posts, which is all this line is ever used to name.
+				'types' => self::type_tally( (array) $issue['posts'] ),
+			);
 		}
 
 		return array(
-			'score'  => $graded > 0 ? (int) round( $sum / $graded * 100 ) : null,
-			'posts'  => $graded,
+			'score'  => $read['score'],
+			'posts'  => (int) $read['posts'],
 			'issues' => $issues,
 		);
 	}
 
+	/**
+	 * How many of these posts are of each type. Reads the post objects already
+	 * in WordPress's cache from the query above — no rendering, no parsing.
+	 *
+	 * @param array<int,int> $ids Post IDs.
+	 * @return array<string,int>
+	 */
+	private static function type_tally( array $ids ) {
+		$out = array();
+		foreach ( $ids as $id ) {
+			$type = (string) get_post_type( (int) $id );
+			if ( '' === $type ) {
+				continue;
+			}
+			$out[ $type ] = 1 + ( isset( $out[ $type ] ) ? (int) $out[ $type ] : 0 );
+		}
+		return $out;
+	}
+
 	private function optimize_note( array $optimize ) {
 		if ( null === $optimize['score'] ) {
-			return __( 'No published posts to grade yet — publish your first post and this rung starts measuring.', 'agentimus' );
+			return __( 'No published posts read yet — this rung starts measuring as soon as your content has been looked at.', 'agentimus' );
 		}
 		return sprintf(
-			/* translators: %d: number of posts/pages sampled. */
-			_n( 'How easily an AI can read, quote and credit your %d most recently edited post or page.', 'How easily an AI can read, quote and credit your %d most recently edited posts and pages.', (int) $optimize['posts'], 'agentimus' ),
+			// ⚠️ "your %d" — the whole graded site now, NOT "your %d most recently
+			// edited". The words moved with the measurement; a note that still
+			// said "recently edited" over a site-wide average would be the same
+			// lie the old sample told, only quieter.
+			/* translators: %d: number of posts/pages graded. */
+			_n( 'How easily an AI can read, quote and credit your %d published post or page.', 'How easily an AI can read, quote and credit all %d of your published posts and pages.', (int) $optimize['posts'], 'agentimus' ),
 			(int) $optimize['posts']
 		);
 	}
@@ -530,40 +562,8 @@ final class Score {
 	}
 
 	/**
-	 * The grading sample: the most recently modified article-like posts. One
-	 * definition, used by the score pass and by the set-a-whole-check-aside
-	 * action, so "all pages tripping this check" always means the same pages
-	 * the worklist counted.
-	 *
-	 * @return int[]
-	 */
-	private function sample_ids() {
-		$types = Gradeability::post_types();
-		if ( empty( $types ) ) {
-			return array();
-		}
-		return array_map(
-			'intval',
-			(array) get_posts(
-				array(
-					'post_type'   => $types,
-					'post_status' => 'publish',
-					'numberposts' => self::OPTIMIZE_SAMPLE,
-					'orderby'     => 'modified',
-					'order'       => 'DESC',
-					'fields'      => 'ids',
-					// `suppress_filters` is deliberately NOT set: get_posts() already defaults it to
-					// true (wp-includes/post.php), so naming it here changed nothing and only tripped
-					// the VIP rule that prohibits setting it explicitly.
-				)
-			)
-		);
-	}
-
-	/**
-	 * Every sampled page a given content check flags — the full set, not the
-	 * worklist's capped preview. Feeds the "set all aside" action, and runs at
-	 * click time only, so it takes no cache and adds no serve-path cost.
+	 * Every published, gradeable page a given content check flags — the full set,
+	 * not the worklist's capped preview. Feeds the "set all aside" action.
 	 *
 	 * @param string $issue_id PageCheck check id (e.g. 'featured_image').
 	 * @return int[]
@@ -573,20 +573,11 @@ final class Score {
 		if ( '' === $issue_id ) {
 			return array();
 		}
-		$out = array();
-		foreach ( $this->sample_ids() as $id ) {
-			$post = get_post( $id );
-			if ( ! $post || ! Gradeability::is_gradeable( $post, $this->ignored_ids() ) ) {
-				continue;
-			}
-			foreach ( PageCheck::analyze( $post ) as $r ) {
-				if ( $issue_id === (string) $r['id'] && 'pass' !== (string) $r['status'] ) {
-					$out[] = $id;
-					break;
-				}
-			}
-		}
-		return $out;
+		// ⚠️ The WHOLE set, from the store. It used to walk the 25-post sample —
+		// so "set all aside" under a count of twelve could park only the four of
+		// them that happened to be recent, and report success. A bulk action has
+		// to act on the number the owner read before they pressed it.
+		return Grades::posts_with_flag( Gradeability::post_types(), $this->ignored_ids(), $issue_id );
 	}
 
 	/** Post IDs the owner set aside as "not cited content". */
@@ -602,9 +593,15 @@ final class Score {
 	 * @return array<int,array<string,mixed>>
 	 */
 	private function ignored_list() {
-		$out      = array();
-		$analyzed = 0;
-		foreach ( $this->ignored_ids() as $id ) {
+		$ids = $this->ignored_ids();
+		// ⭐ Read back, not re-analyzed. This used to render up to 25 of these
+		// pages just to name what they were flagged for, and list every one after
+		// that with NO flags — so a long set-aside list quietly changed its own
+		// meaning halfway down. The sweep already knows.
+		$stored = Grades::flag_ids_for( $ids );
+
+		$out = array();
+		foreach ( $ids as $id ) {
 			$post = get_post( $id );
 			if ( ! $post || 'publish' !== $post->post_status ) {
 				continue;
@@ -613,18 +610,12 @@ final class Score {
 			if ( '' === $edit ) {
 				continue;
 			}
-			// What this page was flagged for at the moment it's listed — so "set
-			// aside" rows still say why they were on the worklist. Bounded to the
-			// sample's own size so a huge aside list stays cheap: rows past the
-			// bound simply list without flags rather than re-analyzing without limit.
+			// What this page was flagged for — so "set aside" rows still say why
+			// they were on the worklist. Empty means the sweep has not read this
+			// one yet, which the screens already state elsewhere.
 			$flags = array();
-			if ( $analyzed < self::OPTIMIZE_SAMPLE ) {
-				++$analyzed;
-				foreach ( PageCheck::analyze( $post ) as $r ) {
-					if ( 'pass' !== (string) $r['status'] ) {
-						$flags[] = (string) $r['label'];
-					}
-				}
+			foreach ( ( isset( $stored[ (int) $id ] ) ? $stored[ (int) $id ] : array() ) as $flag_id ) {
+				$flags[] = PageCheck::issue_label( $flag_id );
 			}
 			$out[] = array(
 				'id'    => $id,
