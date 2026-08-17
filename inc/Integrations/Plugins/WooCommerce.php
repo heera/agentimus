@@ -34,9 +34,12 @@ final class WooCommerce extends Provider {
 	/** The class that serves it. Present or absent in every context alike. */
 	const STORE_CLASS = '\Automattic\WooCommerce\StoreApi\StoreApi';
 
-	public static function present() {
-		return class_exists( 'WooCommerce' );
-	}
+	/**
+	 * WooCommerce's main class, read from `includes/class-woocommerce.php:55`.
+	 * ⛔ No constant fallback: `WC_VERSION` is defined by that same class file, so
+	 * it would prove nothing the class does not already prove.
+	 */
+	const CLASSES = array( 'WooCommerce' );
 
 	protected static function name() {
 		return 'WooCommerce';

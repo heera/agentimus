@@ -55,14 +55,57 @@ abstract class Provider {
 	/** This provider's id in the roster, the card and the discovery document. */
 	const ID = '';
 
+	/**
+	 * The classes that mean "this plugin is running here". Any one of them.
+	 *
+	 * ⭐ NAMES ARE DATA, and this is why. Nine providers each wrote their own
+	 * `present()`, and one of them named a constant that has never existed in any
+	 * release of the plugin it describes (`FLUENTSUPPORT_PLUGIN_PATH`; Fluent
+	 * Support defines `FLUENT_SUPPORT_*`). Nothing failed, because the OTHER half
+	 * of that probe worked — a dead fallback is invisible until the day it is all
+	 * you have. As a list, every name is one row a test can walk.
+	 *
+	 * @var string[]
+	 */
+	const CLASSES = array();
+
+	/**
+	 * The constants that mean the same thing — a build whose autoloader has not
+	 * run yet still defines these, so they catch what the class probe misses.
+	 *
+	 * @var string[]
+	 */
+	const CONSTANTS = array();
+
 	/* -- What a subclass answers -------------------------------------------- */
 
 	/**
 	 * Whether the plugin is active on this site.
 	 *
+	 * ⭐ Written ONCE, off the declared names, so "how do we know a plugin is
+	 * here" has one answer for the whole roster instead of nine. A provider with a
+	 * stranger question to ask may still override this.
+	 *
+	 * ⛔ Only names the VENDOR controls — a class they ship, a constant they
+	 * define. ⛔ Never `is_plugin_active()`: that reads a folder name the owner can
+	 * rename, needs an admin-only file loaded, and says nothing about whether the
+	 * plugin's code is really running.
+	 *
 	 * @return bool
 	 */
-	abstract public static function present();
+	public static function present() {
+		foreach ( static::CLASSES as $class ) {
+			if ( class_exists( $class ) ) {
+				return true;
+			}
+		}
+		foreach ( static::CONSTANTS as $constant ) {
+			if ( defined( $constant ) ) {
+				return true;
+			}
+		}
+		return false;
+	}
 
 	/**
 	 * The plugin's name, as its makers spell it.

@@ -23,15 +23,10 @@ final class FluentBoards extends Provider {
 
 	const ID = 'fluentboards';
 
-	/**
-	 * Whether the plugin is active here. The class is the primary probe; the
-	 * version constant catches a build whose autoloader hasn't run yet.
-	 *
-	 * @return bool
-	 */
-	public static function present() {
-		return class_exists( 'FluentBoards\App\App' ) || defined( 'FLUENT_BOARDS_PLUGIN_VERSION' );
-	}
+	/** Read from FluentBoards' own bootstrap: `fluent-boards.php:23`, `app/App.php:3`. */
+	const CLASSES = array( 'FluentBoards\\App\\App' );
+
+	const CONSTANTS = array( 'FLUENT_BOARDS_PLUGIN_VERSION' );
 
 	protected static function name() {
 		return 'FluentBoards';

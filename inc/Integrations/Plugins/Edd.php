@@ -26,14 +26,12 @@ final class Edd extends Provider {
 	const DOWNLOAD_TYPE = 'download';
 
 	/**
-	 * Whether the plugin is active here. The class is the primary probe; the
-	 * version constant catches a build whose autoloader hasn't run yet.
-	 *
-	 * @return bool
+	 * Read from EDD's own bootstrap: `includes/class-easy-digital-downloads.php:13`
+	 * declares the class and line 367 defines the constant.
 	 */
-	public static function present() {
-		return class_exists( 'Easy_Digital_Downloads' ) || defined( 'EDD_VERSION' );
-	}
+	const CLASSES = array( 'Easy_Digital_Downloads' );
+
+	const CONSTANTS = array( 'EDD_VERSION' );
 
 	protected static function name() {
 		return 'Easy Digital Downloads';

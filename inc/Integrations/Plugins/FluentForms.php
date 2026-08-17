@@ -18,15 +18,10 @@ final class FluentForms extends Provider {
 
 	const ID = 'fluentforms';
 
-	/**
-	 * Whether the plugin is active here. The class is the primary probe; the
-	 * version constant catches a build whose autoloader hasn't run yet.
-	 *
-	 * @return bool
-	 */
-	public static function present() {
-		return defined( 'FLUENTFORM' ) || class_exists( 'FluentForm\\App\\App' );
-	}
+	/** Read from Fluent Forms' own bootstrap: `fluentform.php:17`, `app/App.php:3`. */
+	const CLASSES = array( 'FluentForm\\App\\App' );
+
+	const CONSTANTS = array( 'FLUENTFORM' );
 
 	protected static function name() {
 		return 'Fluent Forms';

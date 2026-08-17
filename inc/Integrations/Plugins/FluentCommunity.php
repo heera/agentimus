@@ -7,6 +7,13 @@
  * spaces. That is what an assistant can usefully be told — the rooms this
  * community has, so it can answer "what is discussed here".
  *
+ * ⚠️ …on a site whose community is OPEN, which is the only site it was probed
+ * on. That address is not public the way a storefront is: it is public while the
+ * portal's access level says so, and a members-only community refuses it with a
+ * 401. This provider does not try to know that — it names the address, and
+ * {@see \Agentimus\Discovery\Reachability} proves it before the site publishes
+ * it. See {@see endpoints()} for why that is where the decision belongs.
+ *
  * ⛔ Only spaces. The feeds route answers 200 as well, but a feed is members'
  * posts, and a community's posts are not the site owner's to hand out wholesale
  * to every reader of a public document. Naming the rooms is a description;
@@ -27,15 +34,10 @@ final class FluentCommunity extends Provider {
 	/** The public list of spaces — verified 200 without a login. */
 	const SPACES_URL = '/wp-json/fluent-community/v2/spaces';
 
-	/**
-	 * Whether the plugin is active here. The class is the primary probe; the
-	 * version constant catches a build whose autoloader hasn't run yet.
-	 *
-	 * @return bool
-	 */
-	public static function present() {
-		return class_exists( 'FluentCommunity\App\App' ) || defined( 'FLUENT_COMMUNITY_PLUGIN_VERSION' );
-	}
+	/** Read from FluentCommunity's own bootstrap: `fluent-community.php:17`, `app/App.php:3`. */
+	const CLASSES = array( 'FluentCommunity\\App\\App' );
+
+	const CONSTANTS = array( 'FLUENT_COMMUNITY_PLUGIN_VERSION' );
 
 	protected static function name() {
 		return 'FluentCommunity';
@@ -68,6 +70,25 @@ final class FluentCommunity extends Provider {
 		return array( 'community.spaces.read' );
 	}
 
+	/**
+	 * ⚠️⚠️ THIS ADDRESS IS NOT PUBLIC THE WAY A STOREFRONT IS, and for one session
+	 * it was fixed here by reading FluentCommunity's own `Helper::isPublicAccessible()`.
+	 * That code was correct and is deliberately gone.
+	 *
+	 * ⭐⭐ HIS RULE, and it is the better engineering: *"you know this plugin's
+	 * settings, that is why you could decide — but this will not work for plugins
+	 * Agentimus finds automatically. We must figure out the right way as if we know
+	 * nothing about a plugin, everything at runtime."* A fix that needs us to have
+	 * read one vendor's source is a fix that protects one vendor, and there are
+	 * thousands.
+	 *
+	 * So this provider goes back to naming the address, and {@see
+	 * \Agentimus\Discovery\Reachability} decides whether it is published — by
+	 * asking the route's own permission check as nobody, and by making one real
+	 * anonymous request. Verified on a live site: with the community set to
+	 * members-only that address answers 401 and the general check marks it
+	 * `refused-a-stranger`, with no FluentCommunity knowledge anywhere in the path.
+	 */
 	protected static function endpoints() {
 		return array(
 			array(

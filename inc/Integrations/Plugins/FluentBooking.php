@@ -18,15 +18,10 @@ final class FluentBooking extends Provider {
 
 	const ID = 'fluentbooking';
 
-	/**
-	 * Whether the plugin is active here. The class is the primary probe; the
-	 * version constant catches a build whose autoloader hasn't run yet.
-	 *
-	 * @return bool
-	 */
-	public static function present() {
-		return class_exists( 'FluentBooking\\App\\App' ) || defined( 'FLUENT_BOOKING_VERSION' );
-	}
+	/** Read from FluentBooking's own bootstrap: `fluent-booking.php:22`, `app/App.php:3`. */
+	const CLASSES = array( 'FluentBooking\\App\\App' );
+
+	const CONSTANTS = array( 'FLUENT_BOOKING_VERSION' );
 
 	protected static function name() {
 		return 'FluentBooking';

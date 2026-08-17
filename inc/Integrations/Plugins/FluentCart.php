@@ -28,15 +28,10 @@ final class FluentCart extends Provider {
 	/** The store's own product type — public, and the readable half of the shop. */
 	const PRODUCT_TYPE = 'fluent-products';
 
-	/**
-	 * Whether the plugin is active here. The class is the primary probe; the
-	 * version constant catches a build whose autoloader hasn't run yet.
-	 *
-	 * @return bool
-	 */
-	public static function present() {
-		return class_exists( 'FluentCart\App\App' ) || defined( 'FLUENTCART_VERSION' );
-	}
+	/** Read from FluentCart's own bootstrap: `fluent-cart.php:18`, `app/App.php:3`. */
+	const CLASSES = array( 'FluentCart\\App\\App' );
+
+	const CONSTANTS = array( 'FLUENTCART_VERSION' );
 
 	protected static function name() {
 		return 'FluentCart';

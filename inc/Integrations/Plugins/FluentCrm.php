@@ -18,15 +18,10 @@ final class FluentCrm extends Provider {
 
 	const ID = 'fluentcrm';
 
-	/**
-	 * Whether the plugin is active here. The class is the primary probe; the
-	 * version constant catches a build whose autoloader hasn't run yet.
-	 *
-	 * @return bool
-	 */
-	public static function present() {
-		return defined( 'FLUENTCRM' ) || class_exists( 'FluentCrm\\App\\App' );
-	}
+	/** Read from FluentCRM's own bootstrap: `fluent-crm.php:20`, `app/App.php:3`. */
+	const CLASSES = array( 'FluentCrm\\App\\App' );
+
+	const CONSTANTS = array( 'FLUENTCRM' );
 
 	protected static function name() {
 		return 'FluentCRM';

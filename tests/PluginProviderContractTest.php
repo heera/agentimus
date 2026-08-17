@@ -136,10 +136,16 @@ final class PluginProviderContractTest extends TestCase {
 
 	/**
 	 * ⚠️ THE ONE THAT BIT ME. FluentCommunity declared type "community", which is
-	 * not in the spec's vocabulary, so the registry threw the WHOLE resource away
-	 * — correctly, and with a clear message nobody was reading. On a live site it
-	 * simply never appeared. A type is one word in one method, which is exactly
-	 * the kind of thing a person gets wrong and a test should not let through.
+	 * not in the vocabulary, and the registry threw the WHOLE resource away. On a
+	 * live site it simply never appeared. A type is one word in one method, which
+	 * is exactly the kind of thing a person gets wrong and a test should not let
+	 * through.
+	 *
+	 * ⭐ A third party no longer loses its row for that word — an undeclared kind
+	 * is marked `x-` and published. ⛔ But that is a courtesy to somebody else's
+	 * plugin, not a licence for OUR providers: we ship the vocabulary, so a
+	 * provider of ours needing a new kind adds the word to it. An `x-` token from
+	 * our own roster would be this plugin inventing a word for a vendor.
 	 */
 	public function test_every_provider_declares_a_type_the_registry_will_accept() {
 		foreach ( $this->roster() as $class ) {
@@ -147,10 +153,10 @@ final class PluginProviderContractTest extends TestCase {
 			\_af_accessible( $m );
 			$type = (string) $m->invoke( null );
 
-			$known = in_array( $type, \Agentimus\Discovery\Resource::TYPES, true );
-			$this->assertTrue(
-				$known || 0 === strpos( $type, 'x-' ),
-				$class . ' declares type "' . $type . '", which the registry would refuse. Use a known type or an x-vendor extension.'
+			$this->assertContains(
+				$type,
+				\Agentimus\Discovery\Resource::TYPES,
+				$class . ' declares type "' . $type . '", which is not one of the kinds we ship. Use a known kind, or add the word to Resource::TYPES.'
 			);
 		}
 	}
@@ -317,11 +323,113 @@ final class PluginProviderContractTest extends TestCase {
 		$this->assertSame( array(), $this->endpoints_of( \Agentimus\Integrations\Plugins\Edd::class ), 'No REST route, no address to give.' );
 	}
 
+	/**
+	 * ⭐ HOW WE KNOW A PLUGIN IS HERE, proved once instead of nine times. Every
+	 * provider now declares the names it recognises and the base does the asking,
+	 * so this covers the whole roster's presence rule.
+	 */
+	public function test_presence_is_decided_by_the_declared_names() {
+		$this->assertFalse( TestNamedProvider::present(), 'Neither name is here yet.' );
+
+		define( 'AGENTIMUS_TEST_VENDOR_VERSION', '1.0.0' );
+		$this->assertTrue( TestNamedProvider::present(), 'A declared constant is enough on its own.' );
+
+		$this->assertTrue( TestClassNamedProvider::present(), 'So is a declared class.' );
+		$this->assertFalse( TestUnnamedProvider::present(), 'A provider that names nothing is never here.' );
+	}
+
+	/**
+	 * ⚠️ THE ONE THAT WAS ALREADY WRONG IN SHIPPED CODE. FluentSupport's fallback
+	 * named `FLUENTSUPPORT_PLUGIN_PATH`, a constant no release of that plugin has
+	 * ever defined — invisible, because the class probe beside it worked. A test
+	 * cannot know a vendor's real names, so it checks the two things it can: that
+	 * a provider recognises the plugin by SOMETHING, and that every name is a name
+	 * (the typo class is caught by reading the vendor's bootstrap, and each
+	 * provider's docblock cites the file and line it was read from).
+	 */
+	public function test_every_provider_knows_the_plugin_by_a_name_of_its_own() {
+		foreach ( $this->roster() as $class ) {
+			$names = array_merge( (array) $class::CLASSES, (array) $class::CONSTANTS );
+
+			$this->assertNotEmpty( $names, $class . ' must recognise its plugin by at least one class or constant.' );
+			foreach ( $names as $name ) {
+				$this->assertIsString( $name, $class . ' declared a name that is not a string.' );
+				$this->assertNotSame( '', trim( $name ), $class . ' declared an empty name.' );
+				$this->assertDoesNotMatchRegularExpression( '/\s/', $name, $class . ' declared "' . $name . '", which cannot be a class or a constant.' );
+			}
+			foreach ( (array) $class::CONSTANTS as $constant ) {
+				$this->assertSame(
+					strtoupper( $constant ),
+					$constant,
+					$class . ' declares constant "' . $constant . '" — constants are upper case, so this one is probably not the vendor\'s.'
+				);
+			}
+		}
+	}
+
+	/**
+	 * ⭐⭐ A PROVIDER NAMES AN ADDRESS; IT DOES NOT DECIDE THE SITE PUBLISHES IT.
+	 *
+	 * ⚠️ FluentCommunity's spaces route is the case that taught this. It answers a
+	 * stranger only while that community's access level is "public", so we were
+	 * advertising members-only communities as open doors. It was fixed here first,
+	 * by reading FluentCommunity's own settings helper — and that fix was REMOVED
+	 * on purpose: it protected one vendor we had read the source of, and said
+	 * nothing about the plugins Agentimus finds by itself.
+	 *
+	 * The rule now lives in {@see \Agentimus\Discovery\Reachability}, which knows
+	 * no plugin from any other, and the publication gate is
+	 * {@see \Agentimus\Discovery\Envelope::published_resources()}. This test only
+	 * holds the line that a provider is allowed to name its address plainly.
+	 */
+	public function test_a_provider_names_its_address_and_lets_the_site_prove_it() {
+		$this->assertSame(
+			array( \Agentimus\Integrations\Plugins\FluentCommunity::SPACES_URL ),
+			array_column( $this->endpoints_of( \Agentimus\Integrations\Plugins\FluentCommunity::class ), 'url' ),
+			'No vendor-specific gate here any more — the general check decides.'
+		);
+	}
+
 	/** A provider's endpoints as it hands them up, before the base makes them safe. */
 	private function endpoints_of( $class ) {
 		$m = new \ReflectionMethod( $class, 'endpoints' );
 		\_af_accessible( $m );
 		return (array) $m->invoke( null );
+	}
+}
+
+/** Recognises its plugin by a constant nothing has defined yet. */
+final class TestNamedProvider extends Provider {
+	const ID        = 'test-named';
+	const CONSTANTS = array( 'AGENTIMUS_TEST_VENDOR_VERSION' );
+	protected static function name() {
+		return 'Named';
+	}
+	protected static function blurb() {
+		return 'Known by the constant its plugin defines.';
+	}
+}
+
+/** Recognises its plugin by a class — this test file's own, so it is really there. */
+final class TestClassNamedProvider extends Provider {
+	const ID      = 'test-class-named';
+	const CLASSES = array( TestRegistry::class );
+	protected static function name() {
+		return 'Class Named';
+	}
+	protected static function blurb() {
+		return 'Known by the class its plugin ships.';
+	}
+}
+
+/** Declares nothing, so it is never anywhere. */
+final class TestUnnamedProvider extends Provider {
+	const ID = 'test-unnamed';
+	protected static function name() {
+		return 'Unnamed';
+	}
+	protected static function blurb() {
+		return 'Recognises nothing.';
 	}
 }
 
