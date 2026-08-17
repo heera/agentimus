@@ -2167,6 +2167,22 @@ export default {
           @set-aside="setAsideItem"
           @navigate="goTo"
         />
+        <!-- Once-per-release highlights, dashboard only — never a site-wide notice.
+             ⭐ FIRST OF THE THREE CARDS (his call, 2026-08-17). It is the only one
+             that is PERISHABLE: it wears "just updated", it is about a change that
+             happened moments ago, and dismissing it stores the version so it never
+             comes back. "Worth a Look Next" below names the same three rooms today
+             as it did last month, and stays until dismissed. A card that matters
+             only right now outranks a card that matters equally on any day.
+             ⛔ No fresh-install conflict to weigh: whats_new() is gated on
+             `agentimus_onboarded`, so a new site gets the wizard, never release
+             notes ({@see \Agentimus\Admin::whats_new()}). -->
+        <WhatsNew
+          v-if="whatsNew.show && tab === 'dashboard'"
+          :data="whatsNew"
+          :api="api"
+          @dismiss="whatsNew.show = false"
+        />
         <!-- The post-setup map: the rooms a new owner would otherwise never
              find, in priority order. The owner chooses — nothing navigates
              without their click. Dismiss is for good. -->
@@ -2205,13 +2221,6 @@ export default {
             </li>
           </ol>
         </section>
-        <!-- Once-per-release highlights, dashboard only — never a site-wide notice. -->
-        <WhatsNew
-          v-if="whatsNew.show && tab === 'dashboard'"
-          :data="whatsNew"
-          :api="api"
-          @dismiss="whatsNew.show = false"
-        />
         <!-- The review ask — the server only sets show once the plugin has
              earned it; every answer dismisses (later for a month, the rest
              for good). -->
