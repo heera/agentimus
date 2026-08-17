@@ -1136,6 +1136,25 @@ export default {
                 as an Editor, then paste the spreadsheet’s ID below. Connecting appends a header
                 row and one test row to prove the road works.
               </p>
+              <!-- ⚠️ X AND LINKEDIN USED TO END THE CHAIN HERE, with no lead at all —
+                   and `.ar-modal__head` always draws a bottom border, so on those two
+                   the rule landed tight under a bare title and read as an orphaned
+                   underline rather than a divider (his catch, 2026-08-17). The fix is
+                   the missing sentence, not a border exception: every OTHER service
+                   says what it is at the top of its own dialog, and these two were
+                   simply the ones that never got the line written. -->
+              <p v-else-if="panel === 'x'" class="ar-int__panellead">
+                X delivery is an <strong>app you own</strong>, made on X’s developer platform.
+                You paste its Client ID here and approve the connection on X itself — the
+                connection is OAuth with PKCE, so no secret is stored on this site. X receives
+                no events: nothing is posted until you queue it on <strong>Sharing</strong>.
+              </p>
+              <p v-else-if="panel === 'linkedin'" class="ar-int__panellead">
+                LinkedIn delivery is an <strong>app you own</strong>, made on LinkedIn’s developer
+                platform. You paste its Client ID and Secret here, then approve the connection on
+                LinkedIn. Announcements post to <em>your own</em> feed. LinkedIn receives no
+                events: nothing is posted until you queue it on <strong>Sharing</strong>.
+              </p>
             </div>
 
             <div class="ar-modal__body">

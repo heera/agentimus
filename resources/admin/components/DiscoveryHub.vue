@@ -36,13 +36,13 @@ export default {
     // is to describe the site, not to open on its problems; the held-back count
     // in the summary is the way to those, and it is one click.
     // openParts: which of the two sections the owner has shut. Absent = open.
-    return { openGroups: {}, openParts: {}, copiedDoor: '', capsOverflow: false, rowFilter: 'all' };
+    return { openGroups: {}, openParts: {}, copiedDoor: '', capsOverflow: false, toolsOverflow: false, rowFilter: 'all' };
   },
   mounted() {
-    this.$nextTick(this.measureCaps);
+    this.$nextTick(this.measureBoxes);
   },
   updated() {
-    this.measureCaps();
+    this.measureBoxes();
   },
   computed: {
     endpoints() {
@@ -420,6 +420,14 @@ export default {
       const el = this.$refs.capsBox;
       const over = !!(el && el.scrollHeight > el.clientHeight + 2);
       if (over !== this.capsOverflow) this.capsOverflow = over;
+    },
+    // Both capped lists, measured the same way — the tools list is the one that
+    // actually overflows in practice (67 rows on a nine-plugin site).
+    measureBoxes() {
+      this.measureCaps();
+      const el = this.$refs.toolsBox;
+      const over = !!(el && el.scrollHeight > el.clientHeight + 2);
+      if (over !== this.toolsOverflow) this.toolsOverflow = over;
     },
     // A summary stat → its section. We're already on the discovery tab, so route
     // through the app's own goTo (via 'navigate') for the shared smooth-scroll +
@@ -951,7 +959,11 @@ export default {
           anyone can read /.well-known/mcp.json — running one still needs a sign-in
         </span>
       </p>
-      <ul class="ar-wd-tools">
+      <!-- ⚠️ CAPPED, like the capabilities list beside it. This one had no bound
+           at all, which was backwards: the 6-row list was capped and the 67-row
+           list ran free, stretching the card past every other panel on the
+           screen (his catch, 2026-08-17, on a nine-plugin site). -->
+      <ul ref="toolsBox" class="ar-wd-tools ar-wd-scrollbox">
         <li v-for="t in tools" :key="t.name" class="ar-wd-tool">
           <div class="ar-wd-tool__id">
             <code>{{ t.name }}</code>
@@ -959,7 +971,14 @@ export default {
           </div>
           <div class="ar-wd-tool__meta">
             <span v-if="t.annotations && t.annotations.readOnlyHint" class="ar-wd-badge">read-only</span>
-            <span v-if="t.inputSchema && Object.keys(t.inputSchema).length" class="ar-wd-badge ar-wd-badge--schema">schema</span>
+            <!-- ⛔ THE `schema` BADGE IS GONE (his catch): every tool that reaches
+                 this list declares an input schema — 67 of 67 on agentimus-site —
+                 so it printed on every row and distinguished nothing. Same rule
+                 that already dropped the KIND badge from this section: a label
+                 that never varies inside its own section is furniture. It was
+                 also the wrong KIND of fact — "read-only" answers "can this
+                 change my site?", which the owner acts on; "schema" describes
+                 the tool's wire format, which they do not. -->
             <!-- ⭐ Only the exception is worth a chip. Every ability is gated by
                  its own permission callback, so this reads "sign-in" on every
                  row under a heading that already says "For a signed-in
@@ -970,6 +989,9 @@ export default {
           </div>
         </li>
       </ul>
+      <p v-if="toolsOverflow" class="ar-wd-scrollnote">
+        Scroll the list to see all {{ tools.length }}.
+      </p>
       </div>
       <!-- Two different empty states: tools can exist but be deliberately withheld
            from anonymous discovery (all sign-in-only since 1.20.0) — saying "none
