@@ -7154,16 +7154,42 @@ a.ar-about-proto__v:hover { text-decoration: underline; }
    two screens read as one plugin and the caret is the fold's own drawn
    triangle rather than a second one of ours. */
 .ar-work__fold { margin: 0 0 10px; }
-.ar-work__fold > summary { align-items: flex-start; gap: 10px; padding: 12px 0; font-weight: 400; }
+/* ⚠️ A GRID, not the wrapping flex the other folds use — and this row cannot go
+   back to flex. A flex line breaks on each item's HYPOTHETICAL size (its
+   max-content), never on the width it would shrink to, so the moment a title
+   plus its search phrase was longer than the free space the whole text block
+   dropped to a second line and left the caret STRANDED ALONE on the first —
+   then pushed the state pill onto a third. On a phone every row did it, because
+   at that width no row's max-content ever fits. Three columns cannot break:
+   `minmax(0, 1fr)` lets the middle one shrink and wrap inside itself, which is
+   where wrapping belongs. (The pill's `justify-self` has always been written
+   for a grid; the flex base was quietly ignoring it.) */
+.ar-work__fold > summary {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: start;
+  gap: 10px;
+  padding: 12px 0;
+  font-weight: 400;
+}
 /* The caret centres on the TITLE LINE, not on the summary — the summary is two
    lines tall (title, then the gist), so centring on it would float the caret
    between them. The sum is pinned rather than guessed: the fold's triangle is
    8px tall (4px top + 4px bottom border), the title line is held at 21px
    below, so (21 − 8) / 2 = 6.5px. Change one, change the other. */
-.ar-work__fold > summary::before { margin-top: 6.5px; flex: none; }
+.ar-work__fold > summary::before { margin-top: 6.5px; }
 .ar-work__fold[open] > summary { margin-bottom: 12px; }
-/* The title carries the weight in this fold, not the summary line as a whole. */
-.ar-work__summain { flex: 1 1 auto; min-width: 0; }
+/* ⚠️ `min-width: 0` is the whole reason the middle column can shrink — without
+   it a grid item floors at its min-content width and the row overflows sideways
+   instead of wrapping. */
+.ar-work__summain { min-width: 0; }
+/* Narrow: the pill stops being a column of its own and takes a line under the
+   text, still aligned to it. The caret keeps the title company — it is never
+   alone on a line at any width, which is the whole point of the grid. */
+@media (max-width: 700px) {
+  .ar-work__fold > summary { grid-template-columns: auto minmax(0, 1fr); }
+  .ar-work__fold > summary .ar-work__state { grid-column: 2; justify-self: start; margin-top: 6px; }
+}
 /* One line, aligned with the title above it. ⚠️ The focus label must NOT claim
    a full row here (as `.ar-work__forlabel` does in the opened body): on its own
    line it left the separator that follows it stranded at the head of the next
