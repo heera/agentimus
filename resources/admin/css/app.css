@@ -4816,6 +4816,12 @@ button.ar-wd-stat:focus-visible { outline: 2px solid var(--ar-accent); outline-o
 .ar-wd-tool {
   display: flex; align-items: center; justify-content: space-between; gap: 12px;
   padding: 12px 4px; border-bottom: 1px solid var(--ar-line);
+  /* ⚠️ WRAPS, because the meta side can carry a long line. `.ar-wd-tool__meta` is
+     flex: 0 0 auto, so without this the row keeps ONE line and squeezes the meta
+     text into a sliver — measured on agentimus-site.test, where a capability
+     declared by three shops rendered 427px tall, one word per line, overflowing
+     its box. Wrapping drops the meta to its own line instead: 80px, no overflow. */
+  flex-wrap: wrap;
 }
 /* A provider group: the row, plus the tool names it can reveal. Its own class
    rather than .ar-wd-tool, because that one is a flex ROW and this needs to be
@@ -4862,7 +4868,7 @@ button.ar-wd-stat:focus-visible { outline: 2px solid var(--ar-accent); outline-o
 .ar-wd-tool__id { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
 .ar-wd-tool__id code { font-size: 12.5px; color: var(--ar-ink); }
 .ar-wd-tool__title { font-size: 12px; color: var(--ar-ink-soft); }
-.ar-wd-tool__meta { display: flex; align-items: center; gap: 7px; flex: 0 0 auto; }
+.ar-wd-tool__meta { display: flex; align-items: center; gap: 7px; flex: 0 0 auto; min-width: 0; }
 .ar-wd-badge {
   font-family: var(--ar-mono); font-size: 9.5px; letter-spacing: 0.06em; color: var(--ar-ink-soft);
   border: 1px solid var(--ar-line-strong); padding: 2px 7px; border-radius: 3px;

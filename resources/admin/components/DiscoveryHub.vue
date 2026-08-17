@@ -69,21 +69,30 @@ export default {
       return Math.max(0, (c.tools || 0) - c.toolsPublished);
     },
     // One row per capability token, built from the published union (so the row count
-    // is exactly counts.capabilities) with the declaring provider named. token → the
+    // is exactly counts.capabilities) with the declaring providers named. token → the
     // full dotted name; verb → its last segment (read / create); provider → who declares
-    // it (the first published resource that lists it).
+    // it.
+    // ⚠️⚠️ EVERY declarer, not the first one. This took `.find()` and named a single
+    // owner, which is right on a site with one shop and a borrowed name on a site
+    // with three: agentimus-site.test declares `commerce.products.read` from
+    // FluentCart, WooCommerce AND EDD, and the row credited FluentCart alone — so
+    // turning FluentCart off would leave the capability standing with its stated
+    // source gone. Same mistake as MailPoet filed under WooCommerce's name: a row
+    // that names one vendor for what several provide is telling the owner something
+    // untrue about their own site.
     capabilityRows() {
       const norm = (c) => (typeof c === 'string' ? c : (c && c.id) || '');
       const union = this.capabilities.map(norm).filter(Boolean);
       return union.map((token) => {
-        const owner = this.resources.find(
-          (r) => Array.isArray(r.capabilities) && r.capabilities.map(norm).indexOf(token) !== -1
-        );
+        const owners = this.resources
+          .filter((r) => Array.isArray(r.capabilities) && r.capabilities.map(norm).indexOf(token) !== -1)
+          .map((r) => r.title)
+          .filter(Boolean);
         const parts = token.split('.');
         return {
           token,
           verb: parts[parts.length - 1] || 'read',
-          provider: owner ? owner.title : '—',
+          provider: owners.length ? owners.join(' · ') : '—',
         };
       });
     },
