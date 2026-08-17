@@ -553,6 +553,17 @@ final class Worklist {
 			$done++;
 		}
 
+		// ⚠️ The sweep is now an INPUT to the cached Optimized pillar, which it
+		// never was while that pillar parsed its own sample in the request. Left
+		// unbusted, the score and the by-issue list would keep describing
+		// whatever the store held when the cache was warmed — so reading more of
+		// the site would visibly change nothing, and `graded` could sit beside a
+		// freshly-read "0 still to read" contradicting it. Once per run, not once
+		// per row: a chunk is one advance in what this site knows about itself.
+		if ( $done > 0 ) {
+			Cache::forget( Cache::OPTIMIZE );
+		}
+
 		return $done;
 	}
 

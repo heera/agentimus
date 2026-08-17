@@ -161,7 +161,9 @@ final class Score {
 			// at some of them" — and now that `graded` counts the whole site
 			// rather than a deliberate sample, that difference is the only thing
 			// standing between an honest all-clear and an early one.
-			'grading'  => Grades::remaining( Gradeability::post_types() ),
+			// ⛔ Taken from the SAME cached snapshot as `graded`, never re-read
+			// here: two numbers describing one moment must be measured at it.
+			'grading'  => (int) ( isset( $optimize['grading'] ) ? $optimize['grading'] : 0 ),
 			'ignored'  => $this->ignored_list(),
 		);
 	}
@@ -392,12 +394,20 @@ final class Score {
 	private function compute_optimize() {
 		$types = Gradeability::post_types();
 		if ( empty( $types ) ) {
-			return array( 'score' => null, 'posts' => 0, 'issues' => array() );
+			return array( 'score' => null, 'posts' => 0, 'issues' => array(), 'grading' => 0 );
 		}
+
+		// ⚠️ Read in the SAME breath as the grades themselves, and cached with
+		// them. `grading` used to be taken fresh in report() while `posts` came
+		// from this cached payload, so mid-sweep the card could say "11 graded ·
+		// 0 still to read" when 64 were graded — two true numbers from two
+		// different instants, which is a contradiction on screen and the exact
+		// species of bug this whole change exists to remove.
+		$outstanding = Grades::remaining( $types );
 
 		$read = Grades::optimize( $types, $this->ignored_ids(), self::WORKLIST_POSTS_PER_ISSUE );
 		if ( $read['posts'] < 1 ) {
-			return array( 'score' => null, 'posts' => 0, 'issues' => array() );
+			return array( 'score' => null, 'posts' => 0, 'issues' => array(), 'grading' => $outstanding );
 		}
 
 		$issues = array();
@@ -416,9 +426,10 @@ final class Score {
 		}
 
 		return array(
-			'score'  => $read['score'],
-			'posts'  => (int) $read['posts'],
-			'issues' => $issues,
+			'score'   => $read['score'],
+			'posts'   => (int) $read['posts'],
+			'issues'  => $issues,
+			'grading' => $outstanding,
 		);
 	}
 

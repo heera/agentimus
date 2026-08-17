@@ -474,10 +474,17 @@ export default {
            the one place an all-clear must never hide. -->
       <p v-if="!optimize.length" class="ar-optcheck__clear">{{ optimizeClear }}</p>
 
+      <!-- ⭐ A LINK, not a button. It goes to another screen in this same page —
+           it changes nothing, commits nothing, and can be left as easily as it
+           was taken. A filled button promises an action; spending one on
+           navigation teaches an owner to distrust the ones that do act. Same
+           chevron language the Dashboard and Activity cards use to point at a
+           fuller screen, so all three read as one gesture. -->
       <div v-if="optimize.length" class="ar-optsum">
         <p class="ar-optsum__lead">{{ optimizeSummary }}</p>
-        <button type="button" class="ar-btn ar-btn--small" @click="$emit('navigate', { tab: 'findings', anchor: 'ar-work' })">
+        <button type="button" class="ar-linkbtn" @click="$emit('navigate', { tab: 'findings', anchor: 'ar-work' })">
           Work through them page by page
+          <svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 4l4 4-4 4" /></svg>
         </button>
       </div>
 
@@ -587,8 +594,9 @@ export default {
       </div>
       <div class="ar-optsum">
         <p class="ar-optsum__lead">This worklist lives on Visibility → Search now, directly under the search report it reads from — the numbers above the to-dos.</p>
-        <button type="button" class="ar-btn ar-btn--small" @click="$emit('navigate', { tab: 'visibility', view: 'performance', anchor: 'ar-group-search' })">
+        <button type="button" class="ar-linkbtn" @click="$emit('navigate', { tab: 'visibility', view: 'performance', anchor: 'ar-group-search' })">
           Open Search Opportunities
+          <svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 4l4 4-4 4" /></svg>
         </button>
       </div>
     </div>

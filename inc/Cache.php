@@ -74,6 +74,22 @@ final class Cache {
 	}
 
 	/**
+	 * Drop ONE cached value.
+	 *
+	 * {@see flush()} is for "the site's content or settings changed, so nothing
+	 * we derived from them is safe". This is the narrower case: one producer
+	 * advanced its own input and only its own answer is stale — the grading
+	 * sweep finishing a chunk, for instance. Flushing everything there would
+	 * throw away llms.txt and the sitemap every minute during a long sweep.
+	 *
+	 * @param string $key Transient key.
+	 * @return void
+	 */
+	public static function forget( $key ) {
+		delete_transient( $key );
+	}
+
+	/**
 	 * Try to acquire a short-lived build lock so only ONE request runs an expensive,
 	 * post-count-scaling generation on a cold cache; a concurrent caller gets false and
 	 * should serve a fallback (a stale copy, or a lighter document) instead of piling a

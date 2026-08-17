@@ -395,6 +395,58 @@ final class ScoreDbTest extends DbTestCase {
 		$this->assertNull( $optimized['score'], 'unread is N/A, never a zero — blend() redistributes the weight' );
 	}
 
+	/**
+	 * Reading more of the site has to CHANGE the score.
+	 *
+	 * ⚠️ The sweep became an input to the cached Optimized pillar the moment
+	 * that pillar stopped parsing its own sample. Nothing used to bust that
+	 * cache on a grade write — because nothing needed to — so a finished sweep
+	 * would visibly change nothing until the transient expired, and `graded`
+	 * could sit next to a freshly-read "0 still to read" contradicting it.
+	 *
+	 * Deliberately does NOT call regrade(): that clears the transient, which is
+	 * the very thing under test.
+	 */
+	public function test_a_finished_sweep_is_visible_without_waiting_for_the_cache() {
+		$this->post( str_repeat( 'A concrete point backed by a real figure: 42% in 2024. ', 30 ) );
+		$this->post( str_repeat( 'Another concrete point, with a figure: 17% in 2025. ', 30 ) );
+
+		// Warm the cache while nothing has been read.
+		$before = ( new Score( new Settings() ) )->report();
+		$this->assertSame( 0, (int) $before['graded'], 'precondition: nothing swept yet' );
+		$this->assertSame( 2, (int) $before['grading'], 'precondition: both pages outstanding' );
+
+		( new Worklist( new Settings() ) )->sweep( 200 );
+
+		$after = ( new Score( new Settings() ) )->report();
+		$this->assertSame( 2, (int) $after['graded'], 'the sweep must reach the score without a cache flush' );
+		$this->assertSame( 0, (int) $after['grading'], 'and nothing is left outstanding' );
+	}
+
+	/**
+	 * The two numbers describe ONE moment.
+	 *
+	 * `graded` comes from the cached grade read and `grading` used to be taken
+	 * fresh in report(), so mid-sweep the card could print "11 graded · 0 still
+	 * to read" while sixty-four were graded — both true, neither of the same
+	 * instant. Seen on wpftest before it was fixed.
+	 */
+	public function test_graded_and_still_to_read_are_measured_at_the_same_instant() {
+		for ( $i = 0; $i < 4; $i++ ) {
+			$this->post( str_repeat( 'A concrete point backed by a real figure: 42% in 2024. ', 30 ) );
+		}
+
+		( new Worklist( new Settings() ) )->sweep( 2 ); // Half the site, on purpose.
+
+		$r = ( new Score( new Settings() ) )->report();
+		$this->assertGreaterThan( 0, (int) $r['grading'], 'a half-swept site has pages outstanding' );
+		$this->assertSame(
+			4,
+			(int) $r['graded'] + (int) $r['grading'],
+			'graded + still-to-read must account for every published page, or the two were read at different times'
+		);
+	}
+
 	public function test_cited_is_not_measured_once_ai_visibility_is_disabled() {
 		$this->enable_visibility(); // Tracking is on; it's the provider key that's gone.
 		// "Set up, ran, then removed the key": a completed run with a mention sits in the

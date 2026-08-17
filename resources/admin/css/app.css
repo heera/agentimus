@@ -5499,10 +5499,24 @@ button.ar-act-more:hover { color: var(--ar-ink); }
   display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap;
   margin: 22px 0 0; padding-top: 16px; border-top: 1px solid var(--ar-line);
 }
-.ar-card__more .ar-linkbtn { display: inline-flex; align-items: center; gap: 4px; font-weight: 600; }
-.ar-card__more .ar-linkbtn svg { transition: transform 0.18s ease; }
-.ar-card__more .ar-linkbtn:hover svg { transform: translateX(2px); }
-@media (prefers-reduced-motion: reduce) { .ar-card__more .ar-linkbtn svg { transition: none; } }
+/* ⭐ ONE definition of "this link opens another screen", shared rather than
+   copied — the Readiness cards point at Findings and at Visibility → Search
+   with exactly this gesture, and a second copy is how two links to two screens
+   start looking like two different kinds of thing. */
+.ar-card__more .ar-linkbtn,
+.ar-optsum .ar-linkbtn { display: inline-flex; align-items: center; gap: 4px; font-weight: 600; }
+.ar-card__more .ar-linkbtn svg,
+.ar-optsum .ar-linkbtn svg { transition: transform 0.18s ease; }
+.ar-card__more .ar-linkbtn:hover svg,
+.ar-optsum .ar-linkbtn:hover svg { transform: translateX(2px); }
+@media (prefers-reduced-motion: reduce) {
+  .ar-card__more .ar-linkbtn svg,
+  .ar-optsum .ar-linkbtn svg { transition: none; }
+}
+/* The link sits on its own line under the lead, so it starts at the card's own
+   left edge — ar-linkbtn's inline margin is for a link inside a sentence. */
+.ar-optsum .ar-linkbtn { margin-left: 0; padding-left: 0; }
+.ar-optsum .ar-linkbtn:hover { text-decoration: underline; text-underline-offset: 3px; }
 .ar-card__morenote { font-size: 12px; color: var(--ar-ink-faint); }
 
 /* AI traffic screen: the cards stack, and the report card's title carries a refresh. */
