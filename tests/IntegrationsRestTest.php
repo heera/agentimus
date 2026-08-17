@@ -565,7 +565,7 @@ final class IntegrationsRestTest extends TestCase {
 		// The running order the screen shows (his call, 2026-08-15): the Fluent
 		// family, then WooCommerce, then EDD, then whatever joins later.
 		$this->assertSame(
-			array( 'fluentcart', 'fluentforms', 'fluentcrm', 'fluentbooking', 'fluentcommunity', 'fluentsupport', 'fluentboards', 'woocommerce', 'edd' ),
+			array( 'fluentcart', 'fluentforms', 'fluentcrm', 'fluentbooking', 'fluentcommunity', 'fluentsupport', 'fluentboards', 'woocommerce' ),
 			array_column( $payload['plugins'], 'id' )
 		);
 		foreach ( $payload['plugins'] as $row ) {

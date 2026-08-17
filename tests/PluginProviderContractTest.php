@@ -295,6 +295,11 @@ final class PluginProviderContractTest extends TestCase {
 	 * type `download` and serves it at `edd-downloads`; a provider that built the
 	 * address out of the type's name would have advertised a 404 on every EDD
 	 * site and looked entirely right doing it.
+	 *
+	 * ⭐ EDD is no longer in the roster (removed 2026-08-17), and this rule is
+	 * proved against a LOCAL provider so it cannot leave with a vendor. The
+	 * anecdote above stays because it is the reason the rule exists, not a fact
+	 * about what we ship.
 	 */
 	public function test_a_type_route_comes_from_the_type_and_not_from_its_name() {
 		$GLOBALS['_af_post_types_exist']  = array( 'download' );
@@ -302,7 +307,7 @@ final class PluginProviderContractTest extends TestCase {
 			'download' => array( 'public' => true, 'show_in_rest' => true, 'rest_base' => 'edd-downloads' ),
 		);
 
-		$urls = array_column( $this->endpoints_of( \Agentimus\Integrations\Plugins\Edd::class ), 'url' );
+		$urls = array_column( $this->endpoints_of( TestTypeRouteProvider::class ), 'url' );
 		$this->assertSame( array( '/wp-json/wp/v2/edd-downloads' ), $urls );
 	}
 
@@ -315,12 +320,12 @@ final class PluginProviderContractTest extends TestCase {
 		$GLOBALS['_af_post_type_objects'] = array(
 			'download' => array( 'public' => false, 'show_in_rest' => true, 'rest_base' => 'edd-downloads' ),
 		);
-		$this->assertSame( array(), $this->endpoints_of( \Agentimus\Integrations\Plugins\Edd::class ), 'Private stays private.' );
+		$this->assertSame( array(), $this->endpoints_of( TestTypeRouteProvider::class ), 'Private stays private.' );
 
 		$GLOBALS['_af_post_type_objects'] = array(
 			'download' => array( 'public' => true, 'show_in_rest' => false, 'rest_base' => 'edd-downloads' ),
 		);
-		$this->assertSame( array(), $this->endpoints_of( \Agentimus\Integrations\Plugins\Edd::class ), 'No REST route, no address to give.' );
+		$this->assertSame( array(), $this->endpoints_of( TestTypeRouteProvider::class ), 'No REST route, no address to give.' );
 	}
 
 	/**
@@ -395,6 +400,24 @@ final class PluginProviderContractTest extends TestCase {
 		$m = new \ReflectionMethod( $class, 'endpoints' );
 		\_af_accessible( $m );
 		return (array) $m->invoke( null );
+	}
+}
+
+/**
+ * Reads its address from a post type's own registration rather than building it
+ * from the type's name. Local to this file so the rule survives any vendor
+ * leaving the roster — see test_a_type_route_comes_from_the_type_and_not_from_its_name.
+ */
+final class TestTypeRouteProvider extends Provider {
+	const ID = 'test-type-route';
+	protected static function name() {
+		return 'Type Route';
+	}
+	protected static function blurb() {
+		return 'Its address comes from the type, not the type\'s name.';
+	}
+	protected static function endpoints() {
+		return self::type_endpoint( 'download', 'Browse the downloads.' );
 	}
 }
 

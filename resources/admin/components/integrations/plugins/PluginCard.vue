@@ -31,7 +31,6 @@ const BRANDS = {
   fluentbooking: 'fluentbooking',
   fluentcommunity: 'fluentcommunity',
   fluentboards: 'fluentboards',
-  edd: 'edd',
 };
 
 // Two letters for anything the registry has no mark for — nothing today, but

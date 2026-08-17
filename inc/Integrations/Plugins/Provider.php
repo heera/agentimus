@@ -49,7 +49,6 @@ abstract class Provider {
 		FluentSupport::class,
 		FluentBoards::class,
 		WooCommerce::class,
-		Edd::class,
 	);
 
 	/** This provider's id in the roster, the card and the discovery document. */
