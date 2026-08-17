@@ -174,6 +174,33 @@ final class Worklist {
 	}
 
 	/**
+	 * The three bucket counts, what the fixable bucket is asking for, and how
+	 * much of the site has not been read yet. No page is parsed — these are the
+	 * grade store's own numbers, the same ones the chips carry.
+	 *
+	 * ⭐ Public because the FRONT DOOR has to be able to speak for this list.
+	 * It used to count from a sample of its own (Score's 25 most recently
+	 * modified posts, content flags only) and so said "nothing needs your
+	 * attention" on a site whose Worth Fixing chip read 36. Two counts of one
+	 * thing is one count too many; this is the one.
+	 *
+	 * @return array{fixable:int,clear:int,setAside:int,flagged:int,unanswered:int,grading:int}
+	 */
+	public function tally() {
+		$types = $this->post_types();
+		$aside = $this->set_aside_ids();
+
+		return array_merge(
+			Grades::counts( $types, $aside ),
+			Grades::fixable_split( $types, $aside ),
+			// ⚠️ The tally's honesty about itself: until the sweep has finished,
+			// `fixable` is a count over PART of the site. A caller that prints
+			// the number without this one is making the finished claim.
+			array( 'grading' => Grades::remaining( $types ) )
+		);
+	}
+
+	/**
 	 * Whether a row is asking for something. A page answering its search with no
 	 * content flags is finished, and saying so is how the list stays short.
 	 *

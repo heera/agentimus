@@ -396,6 +396,54 @@ final class Grades {
 	}
 
 	/**
+	 * The fixable bucket split by WHAT it is asking for: pages with content
+	 * flags, and pages whose only problem is that they do not answer the search
+	 * they are found for.
+	 *
+	 * Exclusive, and flags lead — the same rule the row badge uses, so a page
+	 * with both is counted once, under the edits it can actually be given. The
+	 * two add up to `counts()['fixable']`, which is the only reason they are
+	 * safe to print side by side.
+	 *
+	 * This exists because the front door had no way to describe this list in the
+	 * list's own terms. It described a 25-post sample instead, and so could
+	 * report silence while the list showed thirty-six rows.
+	 *
+	 * @param array<int,string> $types Post types to consider.
+	 * @param array<int,int>    $aside Post IDs the owner has set aside.
+	 * @return array{flagged:int,unanswered:int}
+	 */
+	public static function fixable_split( array $types, array $aside ) {
+		global $wpdb;
+
+		$out = array( 'flagged' => 0, 'unanswered' => 0 );
+		if ( empty( $types ) ) {
+			return $out;
+		}
+
+		$table   = self::name();
+		$holders = implode( ',', array_fill( 0, count( $types ), '%s' ) );
+		$aside   = array_values( array_unique( array_filter( array_map( 'intval', $aside ) ) ) );
+		$in      = $aside ? implode( ',', $aside ) : '0';
+
+		$rows = $wpdb->get_results( $wpdb->prepare( // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- our own table; ids cast to int, everything else bound.
+			"SELECT
+				SUM(CASE WHEN g.flags > 0 THEN 1 ELSE 0 END) AS flagged,
+				SUM(CASE WHEN g.flags = 0 THEN 1 ELSE 0 END) AS unanswered
+			FROM $table g INNER JOIN {$wpdb->posts} p ON p.ID = g.post_id
+			WHERE p.post_status = 'publish' AND p.post_type IN ($holders)
+				AND g.needs_work = 1 AND g.post_id NOT IN ($in)",
+			$types
+		), ARRAY_A );
+
+		$row = isset( $rows[0] ) ? $rows[0] : array();
+		return array(
+			'flagged'    => (int) ( isset( $row['flagged'] ) ? $row['flagged'] : 0 ),
+			'unanswered' => (int) ( isset( $row['unanswered'] ) ? $row['unanswered'] : 0 ),
+		);
+	}
+
+	/**
 	 * How many graded pages have no search reaching them.
 	 *
 	 * @param array<int,string> $types Post types to consider.

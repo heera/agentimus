@@ -75,6 +75,29 @@ final class GradesDbTest extends DbTestCase {
 		) );
 	}
 
+	/**
+	 * A grade with the flag count and the coverage set INDEPENDENTLY.
+	 *
+	 * grade() above ties them together, which is fine for order and paging but
+	 * cannot express the row this whole split is about: no flags at all, and a
+	 * search the page does not answer.
+	 *
+	 * @param int    $id       Post ID.
+	 * @param bool   $needs    Whether it needs work.
+	 * @param int    $flags    How many content flags it carries.
+	 * @param string $coverage A Coverage state.
+	 */
+	private function store( $id, $needs, $flags, $coverage ) {
+		Grades::record( $id, array(
+			'needsWork' => $needs,
+			'flags'     => $flags,
+			'stake'     => 10,
+			'coverage'  => $coverage,
+			'hasFocus'  => true,
+			'hash'      => 'h' . $id,
+		) );
+	}
+
 	/* --------------------------------------------------------------- schema */
 
 	public function test_install_creates_the_table() {
@@ -189,6 +212,67 @@ final class GradesDbTest extends DbTestCase {
 		$this->assertSame( array( $fix ), Grades::page( 'fixable', $this->types, array( $parked ), 1, 20 )['ids'] );
 		$this->assertSame( array( $parked ), Grades::page( 'setAside', $this->types, array( $parked ), 1, 20 )['ids'] );
 		$this->assertSame( array( $clear ), Grades::page( 'clear', $this->types, array( $parked ), 1, 20 )['ids'] );
+	}
+
+	/* ------------------------------------------------- what the count is OF */
+
+	/**
+	 * The two halves the front door prints beside the count.
+	 *
+	 * They have to add up to `fixable`, or the finding is describing a different
+	 * list from the one its button opens — which is the fault the split exists
+	 * to close. The front door used to count a 25-post sample of its own and
+	 * could report silence while Worth Fixing read 36.
+	 */
+	public function test_the_fixable_split_adds_up_and_edits_win_over_coverage() {
+		$edits  = $this->post( 'Needs an edit' );
+		$search = $this->post( 'Answers nothing' );
+		$both   = $this->post( 'Needs both' );
+		$fine   = $this->post( 'Fine' );
+		$parked = $this->post( 'Parked' );
+
+		$this->store( $edits, true, 2, 'answered' );
+		$this->store( $search, true, 0, 'barely' );
+		$this->store( $both, true, 3, 'missing' );
+		$this->store( $fine, false, 0, 'answered' );
+		$this->store( $parked, true, 1, 'barely' );
+
+		$counts = Grades::counts( $this->types, array( $parked ) );
+		$split  = Grades::fixable_split( $this->types, array( $parked ) );
+
+		$this->assertSame( 3, $counts['fixable'] );
+		// A page with both problems is still one page to open, counted under the
+		// edits it can actually be given — the same flags-lead rule the row badge
+		// uses, so the finding and the row can never describe it differently.
+		$this->assertSame( 2, $split['flagged'] );
+		$this->assertSame( 1, $split['unanswered'] );
+		$this->assertSame(
+			$counts['fixable'],
+			$split['flagged'] + $split['unanswered'],
+			'The halves a finding prints must add up to the number above them.'
+		);
+	}
+
+	/**
+	 * One count, read by both screens. The chips on Your Content and the finding
+	 * on the front door are the same number by construction now, not by two
+	 * subsystems happening to agree.
+	 */
+	public function test_the_tally_is_the_one_count_both_screens_read() {
+		$fix = $this->post( 'Needs work' );
+		$this->post( 'Never read' );
+		$this->store( $fix, true, 1, 'barely' );
+
+		$tally = ( new Worklist( new Settings() ) )->tally();
+
+		$this->assertSame( 1, $tally['fixable'] );
+		$this->assertSame( 1, $tally['flagged'] );
+		$this->assertSame( 0, $tally['unanswered'] );
+		// ⚠️ The number that stops the count reading as finished. A page nobody
+		// has read yet is not a page with nothing wrong, and a front door that
+		// cannot tell those apart is the one that says "nothing needs your
+		// attention" about a site it has not looked at.
+		$this->assertSame( 1, $tally['grading'] );
 	}
 
 	/* ---------------------------------------------------- staleness + sweep */

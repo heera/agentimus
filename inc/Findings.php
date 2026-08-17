@@ -99,7 +99,7 @@ final class Findings {
 	/** @var array|null Memoized opportunities report — three sources read it. */
 	private $opportunities = null;
 
-	/** @var array|null Memoized score report — read by content_issues() and the worklist finding. */
+	/** @var array|null Memoized score report — read by never_measured() for the Cited rung. */
 	private $score_report = null;
 
 	/**
@@ -831,100 +831,91 @@ final class Findings {
 	}
 
 	/**
-	 * Per-page content issues, summarised as one finding. The individual issues
-	 * belong on the page worklist; the front door only needs to say how much
-	 * there is and which kind dominates.
+	 * The content worklist, summarised as one finding. The individual rows
+	 * belong on Your Content; the front door only needs to say how much there
+	 * is and what kind of work it is.
+	 *
+	 * ⭐ It counts the WORKLIST now, not a sample of its own. It used to read
+	 * Score's optimize sample — the 25 most recently modified posts, graded on
+	 * content flags only — while the Worth Fixing chip counted every published
+	 * item and included pages that do not answer their search. On a site whose
+	 * recent 25 are clean the front door therefore said "Nothing needs your
+	 * attention right now" directly above a list of thirty-six rows.
+	 *
+	 * Both numbers were true of what they measured, which is exactly the
+	 * problem: an owner cannot be asked to hold two populations in their head
+	 * to reconcile one screen. One count, read by both.
 	 *
 	 * @return array<int,array>
 	 */
 	private function content_issues() {
-		$report = $this->score_report();
-		$issues = array();
-		foreach ( (array) ( isset( $report['content'] ) ? $report['content'] : array() ) as $issue ) {
-			$label = isset( $issue['label'] ) ? (string) $issue['label'] : '';
-			$count = (int) ( isset( $issue['count'] ) ? $issue['count'] : 0 );
-			if ( '' !== $label && $count > 0 ) {
-				$issues[ $label ] = $count;
-			}
-		}
-		if ( ! $issues ) {
+		$tally = ( new Worklist( $this->settings ) )->tally();
+
+		$n = (int) $tally['fixable'];
+		if ( $n < 1 ) {
 			return array();
 		}
-		arsort( $issues );
 
-		$kinds  = count( $issues );
-		$graded = (int) ( isset( $report['graded'] ) ? $report['graded'] : 0 );
-		$pages  = max( $issues );
-
-		// Every post named by any issue, deduplicated — a page with three
-		// problems is still one page to open, and the button now lands on a
-		// list of pages rather than a list of issue kinds.
-		$affected = array();
-		foreach ( (array) ( isset( $report['content'] ) ? $report['content'] : array() ) as $issue ) {
-			// Each row carries `pages` as objects, not bare ids — the Optimize
-			// card renders their titles and edit links.
-			foreach ( (array) ( isset( $issue['pages'] ) ? $issue['pages'] : array() ) as $page ) {
-				$affected[] = (int) ( is_array( $page ) ? ( isset( $page['id'] ) ? $page['id'] : 0 ) : $page );
-			}
-		}
-		$affected = array_values( array_unique( array_filter( $affected ) ) );
-
+		// The bucket in its own terms, and only the halves that exist — a chip
+		// reading "0 do not answer their search" teaches nothing and makes the
+		// finding look padded.
 		$evidence = array();
-		$i        = 0;
-		foreach ( $issues as $label => $count ) {
-			if ( $i++ >= 3 ) {
-				break;
-			}
-			$evidence[] = sprintf( '%s · %s', $label, number_format_i18n( $count ) );
+		if ( $tally['flagged'] > 0 ) {
+			$evidence[] = sprintf(
+				/* translators: %s: how many posts and pages have content issues to edit. */
+				_n( '%s needs an edit', '%s need an edit', (int) $tally['flagged'], 'agentimus' ),
+				number_format_i18n( (int) $tally['flagged'] )
+			);
 		}
-		if ( $kinds > 3 ) {
-			/* translators: %d: how many further issue kinds exist beyond those listed. */
-			$evidence[] = sprintf( __( '+%d more', 'agentimus' ), $kinds - 3 );
+		if ( $tally['unanswered'] > 0 ) {
+			$evidence[] = sprintf(
+				/* translators: %s: how many posts and pages do not answer the search they are found for. */
+				_n( '%s does not answer its search', '%s do not answer their search', (int) $tally['unanswered'], 'agentimus' ),
+				number_format_i18n( (int) $tally['unanswered'] )
+			);
+		}
+
+		$points = array(
+			__( 'Each one is a small edit, or a passage that answers the search.', 'agentimus' ),
+			__( 'Set aside anything that is not meant to be quoted.', 'agentimus' ),
+		);
+		if ( $tally['grading'] > 0 ) {
+			// ⚠️ Said out loud, in the finding's own voice: a count taken over
+			// part of the site is a different claim from the finished one, and
+			// the number WILL move when the sweep catches up.
+			$points[] = sprintf(
+				/* translators: %s: how many published items have not been read yet. */
+				_n(
+					'Still reading your content — %s item has not been looked at yet, so this number may move.',
+					'Still reading your content — %s items have not been looked at yet, so this number may move.',
+					(int) $tally['grading'],
+					'agentimus'
+				),
+				number_format_i18n( (int) $tally['grading'] )
+			);
 		}
 
 		return array(
 			$this->row(
 				'content_issues',
 				self::WORTH,
-				$graded > 0
-					? sprintf(
-						// "Pieces", not "pages": the graded sample is posts, pages and
-						// anything else published — a blog whose 19 graded items are
-						// all posts must not be told about "19 pages".
-						/* translators: 1: pieces with the most common issue, 2: pieces graded. */
-						_n( 'Up to %1$s of your %2$s recent posts and pages has something worth fixing', 'Up to %1$s of your %2$s recent posts and pages have something worth fixing', $pages, 'agentimus' ),
-						number_format_i18n( $pages ),
-						number_format_i18n( $graded )
-					)
-					: sprintf(
-						/* translators: %s: pieces affected by the most common issue. */
-						_n( '%s piece has something worth fixing', '%s pieces have something worth fixing', $pages, 'agentimus' ),
-						number_format_i18n( $pages )
-					),
 				sprintf(
-					// This line grounds the headline's "pieces" in plain words.
-					/* translators: %d: how many distinct kinds of content issue were found. */
-					_n( 'One kind of issue, across your recent posts and pages.', '%d kinds of issue, across your recent posts and pages.', $kinds, 'agentimus' ),
-					$kinds
+					// The chip on Your Content says "Worth Fixing" over this exact
+					// number. Same words for the same count, deliberately: the two
+					// screens disagreeing about how much work there is was the
+					// whole fault.
+					/* translators: %s: how many posts and pages are worth fixing. */
+					_n( '%s post or page is worth fixing', '%s posts and pages are worth fixing', $n, 'agentimus' ),
+					number_format_i18n( $n )
 				),
+				__( 'Either the page needs an edit, or it does not answer the search it is found for.', 'agentimus' ),
 				$evidence,
-				$this->go(
-					$affected
-						? sprintf(
-							/* translators: %d: how many pages have an issue. */
-							_n( 'Show me that page', 'Show me those %d pages', count( $affected ), 'agentimus' ),
-							count( $affected )
-						)
-						: __( 'See the issues', 'agentimus' ),
-					$affected ? 'findings' : 'readiness',
-					'',
-					$affected ? 'ar-work' : 'ar-group-optimized',
-					$affected
-				),
-				array(
-					__( 'Each one is a small edit in the post editor.', 'agentimus' ),
-					__( 'Set aside anything that is not meant to be quoted.', 'agentimus' ),
-				)
+				// No page handover. This finding counts the WHOLE list, and the
+				// list's own Worth Fixing tab already holds exactly these rows —
+				// handing over a subset would put a shorter list under a longer
+				// number, which is the fault one level down.
+				$this->go( __( 'Look at my content', 'agentimus' ), 'findings', '', 'ar-work' ),
+				$points
 			),
 		);
 	}

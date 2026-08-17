@@ -256,10 +256,33 @@ export default {
       if (said[0].q === said[1].q) return '';
       return said.map((s) => `${s.name} shows it most for “${s.q}”.`).join(' ');
     },
+    // What this row is asking for — and it is two different asks, one of which
+    // this badge could not see. A row is in Worth Fixing when it has content
+    // flags OR its search is not answered (see needsWork, and Worklist's
+    // needs_work behind it). Counting only the flags meant a row admitted on
+    // coverage alone came out at zero and printed "nothing to fix" — in the
+    // warn colour, inside the Worth Fixing tab, beside its own ✕ mark saying
+    // the opposite. Seen live on heera.it: five of the first eight rows.
+    //
+    // Flags lead when there are any: they are the list of edits to make. With
+    // none, the coverage verdict IS the ask, so it says so in its own words
+    // rather than being averaged into a count — "barely answered" and "add a
+    // summary" are not interchangeable jobs, and a shared number would imply
+    // they were.
     stateChip(i) {
       const n = (i.flags ? i.flags.length : 0) + (i.moreFlags || 0);
-      if (!n) return 'nothing to fix';
-      return `${n} ${1 === n ? 'thing' : 'things'} to fix`;
+      if (n) return `${n} ${1 === n ? 'thing' : 'things'} to fix`;
+      return this.coverAsk(i.coverage && i.coverage.state) || 'nothing to fix';
+    },
+    // The four coverage states, minus the one that asks for nothing. Anything
+    // unrecognised returns '' and the badge falls back — a new state must not
+    // be able to invent a demand this screen cannot explain.
+    coverAsk(state) {
+      return {
+        scattered: 'answer is scattered',
+        barely: 'barely answered',
+        missing: 'search not answered',
+      }[state] || '';
     },
     // A tab is now a different question for the server, not a different filter
     // over the same pile — so it costs a fetch, and always starts at page one.
@@ -317,10 +340,13 @@ export default {
       }
       return out;
     },
+    // Whether the badge wears the warn colour. Derived from the badge's own
+    // WORDS rather than re-deciding the rule beside it: the two used to be
+    // computed separately and drifted apart, which is how a warn-coloured pill
+    // ended up reading "nothing to fix". One source, so they cannot disagree
+    // again — whatever stateChip finds to ask for is what gets coloured.
     needsWork(i) {
-      if (i.flags && i.flags.length) return true;
-      const s = i.coverage && i.coverage.state;
-      return !!s && 'answered' !== s;
+      return 'nothing to fix' !== this.stateChip(i);
     },
     coverMark(state) {
       return { answered: '●', scattered: '◐', barely: '○', missing: '✕' }[state] || '';
