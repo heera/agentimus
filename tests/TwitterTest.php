@@ -25,10 +25,10 @@ namespace Agentimus\Tests;
 use Agentimus\Settings;
 use Agentimus\Integrations\Announcements;
 use Agentimus\Integrations\Connections;
-use Agentimus\Integrations\Services\X;
+use Agentimus\Integrations\Services\Twitter;
 use PHPUnit\Framework\TestCase;
 
-final class XTest extends TestCase {
+final class TwitterTest extends TestCase {
 
 	protected function setUp(): void {
 		\_af_reset_options();
@@ -45,7 +45,7 @@ final class XTest extends TestCase {
 	/** A standing grant, as a completed exchange would have stored it. */
 	private function connect( $expires_in = 7200 ) {
 		Connections::store(
-			X::ID,
+			Twitter::ID,
 			array(
 				'client_id'     => 'client-abc',
 				'access_token'  => 'access-1',
@@ -67,7 +67,7 @@ final class XTest extends TestCase {
 	/* -- No secret, ever -------------------------------------------------------- */
 
 	public function test_begin_builds_a_pkce_authorize_url_and_stores_only_the_client_id() {
-		$url = X::begin( 'client-abc' );
+		$url = Twitter::begin( 'client-abc' );
 
 		$this->assertIsString( $url );
 		$this->assertStringContainsString( 'code_challenge_method=S256', $url );
@@ -75,12 +75,12 @@ final class XTest extends TestCase {
 		$this->assertStringContainsString( 'client_id=client-abc', $url );
 		$this->assertStringNotContainsString( 'client_secret', $url );
 
-		$row = Connections::read( X::ID );
+		$row = Connections::read( Twitter::ID );
 		$this->assertSame( array( 'client_id' => 'client-abc' ), $row, 'Only the id — the grant arrives with complete().' );
 	}
 
 	public function test_begin_without_a_client_id_is_refused() {
-		$verdict = X::begin( '  ' );
+		$verdict = Twitter::begin( '  ' );
 
 		$this->assertInstanceOf( \WP_Error::class, $verdict );
 		$this->assertSame( 'agentimus_x_client', $verdict->get_error_code() );
@@ -89,34 +89,34 @@ final class XTest extends TestCase {
 	/* -- The state is single-use --------------------------------------------------- */
 
 	public function test_complete_burns_the_state_and_refuses_a_replay() {
-		X::begin( 'client-abc' );
+		Twitter::begin( 'client-abc' );
 		$state = $this->minted_state();
 
 		$GLOBALS['_af_http_queue'] = array(
 			array( 'response' => array( 'code' => 200 ), 'body' => '{"access_token":"access-1","refresh_token":"refresh-1","expires_in":7200}', 'headers' => array() ),
 			array( 'response' => array( 'code' => 200 ), 'body' => '{"data":{"username":"heera_it"}}', 'headers' => array() ),
 		);
-		$this->assertTrue( X::complete( 'code-1', $state ) );
-		$this->assertSame( 'heera_it', X::connection()['handle'] );
-		$this->assertTrue( X::connected() );
+		$this->assertTrue( Twitter::complete( 'code-1', $state ) );
+		$this->assertSame( 'heera_it', Twitter::connection()['handle'] );
+		$this->assertTrue( Twitter::connected() );
 
-		$replay = X::complete( 'code-1', $state );
+		$replay = Twitter::complete( 'code-1', $state );
 		$this->assertInstanceOf( \WP_Error::class, $replay );
 		$this->assertSame( 'agentimus_x_state', $replay->get_error_code() );
 	}
 
 	public function test_a_refused_exchange_stores_no_grant() {
-		X::begin( 'client-abc' );
+		Twitter::begin( 'client-abc' );
 		$state = $this->minted_state();
 
 		$GLOBALS['_af_http_queue'] = array(
 			array( 'response' => array( 'code' => 400 ), 'body' => '{"error":"invalid_request","error_description":"Value passed for the authorization code was invalid."}', 'headers' => array() ),
 		);
-		$verdict = X::complete( 'bad-code', $state );
+		$verdict = Twitter::complete( 'bad-code', $state );
 
 		$this->assertInstanceOf( \WP_Error::class, $verdict );
 		$this->assertStringContainsString( 'authorization code', $verdict->get_error_message(), 'X’s own words travel.' );
-		$this->assertFalse( X::connected() );
+		$this->assertFalse( Twitter::connected() );
 	}
 
 	/* -- Rotation is survival -------------------------------------------------------- */
@@ -127,10 +127,10 @@ final class XTest extends TestCase {
 		$GLOBALS['_af_http_queue'] = array(
 			array( 'response' => array( 'code' => 200 ), 'body' => '{"access_token":"access-2","refresh_token":"refresh-2","expires_in":7200}', 'headers' => array() ),
 		);
-		$token = X::access_token();
+		$token = Twitter::access_token();
 
 		$this->assertSame( 'access-2', $token );
-		$this->assertSame( 'refresh-2', X::connection()['refresh_token'], 'The rotated token IS the connection now.' );
+		$this->assertSame( 'refresh-2', Twitter::connection()['refresh_token'], 'The rotated token IS the connection now.' );
 	}
 
 	public function test_a_renewal_answer_without_a_refresh_token_keeps_the_old_one() {
@@ -139,16 +139,16 @@ final class XTest extends TestCase {
 		$GLOBALS['_af_http_queue'] = array(
 			array( 'response' => array( 'code' => 200 ), 'body' => '{"access_token":"access-2","expires_in":7200}', 'headers' => array() ),
 		);
-		X::access_token();
+		Twitter::access_token();
 
-		$this->assertSame( 'refresh-1', X::connection()['refresh_token'] );
+		$this->assertSame( 'refresh-1', Twitter::connection()['refresh_token'] );
 	}
 
 	public function test_a_fresh_access_token_is_used_without_a_renewal() {
 		$this->connect( 7200 );
 		$GLOBALS['_af_http_last'] = null;
 
-		$this->assertSame( 'access-1', X::access_token() );
+		$this->assertSame( 'access-1', Twitter::access_token() );
 		$this->assertNull( $GLOBALS['_af_http_last'], 'Two good hours left — nothing on the wire.' );
 	}
 
@@ -160,18 +160,18 @@ final class XTest extends TestCase {
 		$GLOBALS['_af_http_queue'] = array(
 			array( 'response' => array( 'code' => 400 ), 'body' => '{"error":"invalid_request","error_description":"Refresh token has been revoked."}', 'headers' => array() ),
 		);
-		$verdict = X::access_token();
+		$verdict = Twitter::access_token();
 
 		$this->assertInstanceOf( \WP_Error::class, $verdict );
-		$this->assertStringContainsString( 'revoked', X::connection()['refresh_error'], 'The card can say why announcing paused.' );
+		$this->assertStringContainsString( 'revoked', Twitter::connection()['refresh_error'], 'The card can say why announcing paused.' );
 	}
 
 	/* -- The 280 is weighed at the queue --------------------------------------------------- */
 
 	public function test_tweet_length_weighs_every_url_at_twenty_three() {
-		$this->assertSame( 23, X::tweet_length( 'https://heera.it/a-very-long-address-that-would-never-fit-in-twenty-three-characters' ) );
-		$this->assertSame( 5 + 1 + 23, X::tweet_length( 'Hello https://heera.it/post' ) );
-		$this->assertSame( 3, X::tweet_length( 'abc' ) );
+		$this->assertSame( 23, Twitter::tweet_length( 'https://heera.it/a-very-long-address-that-would-never-fit-in-twenty-three-characters' ) );
+		$this->assertSame( 5 + 1 + 23, Twitter::tweet_length( 'Hello https://heera.it/post' ) );
+		$this->assertSame( 3, Twitter::tweet_length( 'abc' ) );
 	}
 
 	public function test_the_queue_refuses_an_overweight_draft_whole() {
@@ -230,13 +230,13 @@ final class XTest extends TestCase {
 	}
 
 	public function test_sharing_active_needs_both_the_switch_and_the_grant() {
-		$this->assertFalse( X::sharing_active( new Settings() ) );
+		$this->assertFalse( Twitter::sharing_active( new Settings() ) );
 		$this->enable_sharing();
-		$this->assertFalse( X::sharing_active( new Settings() ), 'A switch with no grant is not active.' );
+		$this->assertFalse( Twitter::sharing_active( new Settings() ), 'A switch with no grant is not active.' );
 		$this->connect();
-		$this->assertTrue( X::sharing_active( new Settings() ) );
-		X::forget();
-		$this->assertFalse( X::sharing_active( new Settings() ), 'The grant leaving halts the use.' );
+		$this->assertTrue( Twitter::sharing_active( new Settings() ) );
+		Twitter::forget();
+		$this->assertFalse( Twitter::sharing_active( new Settings() ), 'The grant leaving halts the use.' );
 	}
 
 	/* -- Helpers -------------------------------------------------------------------------------- */
@@ -244,8 +244,8 @@ final class XTest extends TestCase {
 	/** The state minted by the last begin() — read from the transient shim. */
 	private function minted_state() {
 		foreach ( array_keys( $GLOBALS['_af_transients'] ) as $key ) {
-			if ( 0 === strpos( (string) $key, X::STATE_TRANSIENT ) ) {
-				return substr( (string) $key, strlen( X::STATE_TRANSIENT ) );
+			if ( 0 === strpos( (string) $key, Twitter::STATE_TRANSIENT ) ) {
+				return substr( (string) $key, strlen( Twitter::STATE_TRANSIENT ) );
 			}
 		}
 		$this->fail( 'No oauth state was minted.' );

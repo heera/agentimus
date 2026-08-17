@@ -34,9 +34,18 @@ use Agentimus\Integrations\Connections;
 
 defined( 'ABSPATH' ) || exit;
 
-final class X {
+final class Twitter {
 
-	/** This connection's id in the store, settings and queue rows. */
+	/**
+	 * This connection's id in the store, settings and queue rows.
+	 *
+	 * ⛔ STAYS `'x'`, and the mismatch with the class name is deliberate. This is a
+	 * PERSISTED slug: it sits in {@see \Agentimus\Integrations\Announcements::NETWORKS},
+	 * on every announcement-ledger row, and in the settings and token keys. Changing it
+	 * would orphan the owner's announcement history and disconnect a live grant, so it
+	 * would need a migration over existing rows to buy nothing a reader can see.
+	 * A constant named `Twitter::ID` holding `'x'` is honest and costs nothing.
+	 */
 	const ID = 'x';
 
 	/** X's OAuth endpoints and API root. */

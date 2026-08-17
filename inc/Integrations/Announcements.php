@@ -95,7 +95,7 @@ final class Announcements {
 		if ( 'telegram' === $network && ! Telegram::sharing_active( $this->settings ) ) {
 			return new \WP_Error( 'agentimus_announce_off', __( 'Announcing by Telegram is not set up — turn it on under Integrations → Sharing first.', 'agentimus' ) );
 		}
-		if ( 'x' === $network && ! Services\X::sharing_active( $this->settings ) ) {
+		if ( 'x' === $network && ! Services\Twitter::sharing_active( $this->settings ) ) {
 			return new \WP_Error( 'agentimus_announce_off', __( 'Announcing on X is not set up — turn it on under Integrations → Sharing first.', 'agentimus' ) );
 		}
 		if ( 'linkedin' === $network && ! Services\LinkedIn::sharing_active( $this->settings ) ) {
@@ -122,14 +122,14 @@ final class Announcements {
 				)
 			);
 		}
-		if ( 'x' === $network && Services\X::tweet_length( $body ) > Services\X::LIMIT ) {
+		if ( 'x' === $network && Services\Twitter::tweet_length( $body ) > Services\Twitter::LIMIT ) {
 			return new \WP_Error(
 				'agentimus_announce_long',
 				sprintf(
 					/* translators: 1: X's limit, 2: the draft's weighted length. */
 					__( 'Longer than X allows — the limit is %1$d and this draft weighs %2$d. Trim it before it’s promised.', 'agentimus' ),
-					Services\X::LIMIT,
-					Services\X::tweet_length( $body )
+					Services\Twitter::LIMIT,
+					Services\Twitter::tweet_length( $body )
 				)
 			);
 		}
@@ -422,7 +422,7 @@ final class Announcements {
 			return Telegram::announce( $row['body'] );
 		}
 		if ( 'x' === $row['network'] ) {
-			return Services\X::announce( $row['body'] );
+			return Services\Twitter::announce( $row['body'] );
 		}
 		if ( 'linkedin' === $row['network'] ) {
 			return Services\LinkedIn::announce( $row['body'] );

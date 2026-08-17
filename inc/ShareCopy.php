@@ -589,7 +589,7 @@ final class ShareCopy {
 			'canSchedule'      => current_user_can( 'manage_options' ),
 			'schedulable'      => array(
 				'telegram' => Integrations\Services\Telegram::sharing_active( new Settings() ),
-				'x'        => Integrations\Services\X::sharing_active( new Settings() ),
+				'x'        => Integrations\Services\Twitter::sharing_active( new Settings() ),
 				'linkedin' => Integrations\Services\LinkedIn::sharing_active( new Settings() ),
 			),
 			'sparkSvg'    => '<svg class="agentimus-assist__icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M12 3l1.9 4.7L18.6 9l-4.7 1.9L12 15.6 10.1 10.9 5.4 9l4.7-1.3z"/></svg>',

@@ -287,9 +287,9 @@ final class Rest {
 				return $this->disconnect_telegram();
 			}
 		}
-		if ( Services\X::ID === $service ) {
+		if ( Services\Twitter::ID === $service ) {
 			if ( 'authorize' === $action ) {
-				$url = Services\X::begin( (string) $request->get_param( 'client_id' ) );
+				$url = Services\Twitter::begin( (string) $request->get_param( 'client_id' ) );
 				if ( is_wp_error( $url ) ) {
 					return new \WP_Error( $url->get_error_code(), $url->get_error_message(), array( 'status' => 400 ) );
 				}
@@ -634,11 +634,11 @@ final class Rest {
 		// is WRITTEN ON THE CONNECTION for the panel to show on arrival: an
 		// OAuth dead-end page with no exit is a trap.
 		if ( '' !== $code && '' !== $state ) {
-			$verdict = Services\X::complete( $code, $state );
+			$verdict = Services\Twitter::complete( $code, $state );
 			if ( is_wp_error( $verdict ) ) {
-				$row                  = \Agentimus\Integrations\Connections::read( Services\X::ID );
+				$row                  = \Agentimus\Integrations\Connections::read( Services\Twitter::ID );
 				$row['connect_error'] = substr( $verdict->get_error_message(), 0, 300 );
-				\Agentimus\Integrations\Connections::store( Services\X::ID, $row );
+				\Agentimus\Integrations\Connections::store( Services\Twitter::ID, $row );
 			}
 		}
 
@@ -660,7 +660,7 @@ final class Rest {
 	private function save_x_sharing( $request ) {
 		$enabled = ! empty( $request->get_param( 'enabled' ) );
 
-		if ( $enabled && ! Services\X::connected() ) {
+		if ( $enabled && ! Services\Twitter::connected() ) {
 			return new \WP_Error(
 				'agentimus_x_disconnected',
 				__( 'Connect X first — on the Services tab. Announcing posts through your own app.', 'agentimus' ),
@@ -680,7 +680,7 @@ final class Rest {
 	 * @return \WP_REST_Response|\WP_Error
 	 */
 	private function test_x_sharing() {
-		if ( ! Services\X::sharing_active( $this->settings ) ) {
+		if ( ! Services\Twitter::sharing_active( $this->settings ) ) {
 			return new \WP_Error(
 				'agentimus_x_sharing_off',
 				__( 'Turn announcing on first — the test posts to the connected account.', 'agentimus' ),
@@ -688,7 +688,7 @@ final class Rest {
 			);
 		}
 
-		$verdict = Services\X::announce( __( 'A test from Agentimus — announcements this site schedules will appear here like this.', 'agentimus' ) );
+		$verdict = Services\Twitter::announce( __( 'A test from Agentimus — announcements this site schedules will appear here like this.', 'agentimus' ) );
 		if ( is_wp_error( $verdict ) ) {
 			return new \WP_Error( $verdict->get_error_code(), $verdict->get_error_message(), array( 'status' => 400 ) );
 		}
@@ -703,8 +703,8 @@ final class Rest {
 	 * @return \WP_REST_Response
 	 */
 	private function disconnect_x() {
-		Services\X::revoke();
-		Services\X::forget();
+		Services\Twitter::revoke();
+		Services\Twitter::forget();
 		$this->store( array( 'x_share_enabled' => false ) );
 		return rest_ensure_response( $this->payload() );
 	}
@@ -1187,14 +1187,14 @@ final class Rest {
 					'lastSentAt' => isset( $announce['networks']['telegram'] ) ? $announce['networks']['telegram']['lastSentAt'] : 0,
 				),
 				'x'        => array(
-					'enabled'      => Services\X::sharing_config( $this->settings )['enabled'],
-					'connected'    => Services\X::connected(),
-					'active'       => Services\X::sharing_active( $this->settings ),
-					'handle'       => Services\X::connection()['handle'],
-					'refreshError' => Services\X::connection()['refresh_error'],
-					'connectError' => Services\X::connection()['connect_error'],
-					'callbackUrl'  => Services\X::callback_url(),
-					'hasClientId'  => '' !== Services\X::connection()['client_id'],
+					'enabled'      => Services\Twitter::sharing_config( $this->settings )['enabled'],
+					'connected'    => Services\Twitter::connected(),
+					'active'       => Services\Twitter::sharing_active( $this->settings ),
+					'handle'       => Services\Twitter::connection()['handle'],
+					'refreshError' => Services\Twitter::connection()['refresh_error'],
+					'connectError' => Services\Twitter::connection()['connect_error'],
+					'callbackUrl'  => Services\Twitter::callback_url(),
+					'hasClientId'  => '' !== Services\Twitter::connection()['client_id'],
 					'queued'       => isset( $announce['networks']['x'] ) ? $announce['networks']['x']['queued'] : 0,
 					'lastSentAt'   => isset( $announce['networks']['x'] ) ? $announce['networks']['x']['lastSentAt'] : 0,
 				),
