@@ -106,6 +106,23 @@ export default {
     modalTitle() {
       return { webhook: 'Webhook', telegram: 'Telegram', x: 'X (Twitter)', linkedin: 'LinkedIn', slack: 'Slack', discord: 'Discord', sheets: 'Google Sheets' }[this.panel] || '';
     },
+    // The Google Cloud project the borrowed key belongs to, read out of the
+    // service account's own address. ⭐ This is PARSING, not guessing: Google's
+    // format is fixed — <name>@<project-id>.iam.gserviceaccount.com — so the
+    // project id IS that substring. '' when the address doesn't match that
+    // shape, and then the link below simply omits the project rather than
+    // sending the owner to a wrong one.
+    sheetsProject() {
+      const email = (this.sheets && this.sheets.saEmail) || '';
+      const m = /@([^.@\s]+)\.iam\.gserviceaccount\.com$/.exec(email.trim());
+      return m ? m[1] : '';
+    },
+    // Deep-linked when we know the project, plain when we don't — the console's
+    // own project picker then does the asking, which is better than guessing.
+    sheetsApiUrl() {
+      const base = 'https://console.cloud.google.com/apis/library/sheets.googleapis.com';
+      return this.sheetsProject ? `${base}?project=${encodeURIComponent(this.sheetsProject)}` : base;
+    },
   },
   watch: {
     active(on) {
@@ -1379,6 +1396,20 @@ export default {
 
                 <!-- Slack -->
                 <template v-else-if="panel === 'slack'">
+                  <!-- Same doctrine as Telegram's: the recipe lives where the
+                       fields are, closed until asked, and gone once connected.
+                       Written from a real first-time run (2026-08-17) — every
+                       step here is one that actually cost time. -->
+                  <details v-if="!slack.enabled" class="ar-fold ar-fold--guide">
+                    <summary>Never made a Slack webhook? About two minutes</summary>
+                    <ol class="ar-guide">
+                      <li>Go to <code>api.slack.com/apps</code> → <strong>Create New App</strong> → <strong>Blank app</strong>. (Slack used to call this “From scratch”. Don’t pick “AI agent” or “Starter app” — they set up things you don’t need.)</li>
+                      <li>Name it, then choose <strong>your own workspace</strong>. ⚠️ A community workspace you merely belong to won’t let you install an app, and test messages would land in front of everyone there.</li>
+                      <li>In the left sidebar: <strong>Features → Incoming Webhooks</strong>, and switch <strong>Activate Incoming Webhooks</strong> on. Adding this grants the one permission needed — you don’t add any scopes by hand.</li>
+                      <li>Scroll down → <strong>Add New Webhook to Workspace</strong> → pick a channel → <strong>Allow</strong>. A quiet channel, or a message to yourself, is the kindest choice: everything sent here is real.</li>
+                      <li>Copy the URL it gives you (it starts <code>https://hooks.slack.com/services/</code>) and paste it below.</li>
+                    </ol>
+                  </details>
                   <div class="ar-field">
                     <label for="ar-int-sl-url">Webhook URL</label>
                     <input
@@ -1407,6 +1438,15 @@ export default {
 
                 <!-- Discord -->
                 <template v-else-if="panel === 'discord'">
+                  <details v-if="!discord.enabled" class="ar-fold ar-fold--guide">
+                    <summary>Never made a Discord webhook? About a minute</summary>
+                    <ol class="ar-guide">
+                      <li>You need a server you <strong>administer</strong> — a server you merely joined won’t let you make a webhook. No server of your own? The <strong>+</strong> at the bottom of Discord’s server list makes a private one in seconds.</li>
+                      <li>Right-click the channel you want → <strong>Edit Channel</strong> → <strong>Integrations</strong> → <strong>Webhooks</strong> → <strong>New Webhook</strong>. (Server Settings → Integrations gets you to the same place.)</li>
+                      <li>Check the channel is the one you meant, then <strong>Copy Webhook URL</strong> and paste it below.</li>
+                      <li>Made more than one by accident? Delete the spare — each is a working way into your server.</li>
+                    </ol>
+                  </details>
                   <div class="ar-field">
                     <label for="ar-int-dc-url">Webhook URL</label>
                     <input
@@ -1435,6 +1475,32 @@ export default {
 
                 <!-- Google Sheets -->
                 <template v-else-if="panel === 'sheets'">
+                  <!-- ⛔⛔ THE PREREQUISITE STATES ITSELF BEFORE THE STEPS, and not
+                       inside a fold — the same rule LinkedIn's Page requirement
+                       follows, for the same reason. Sheets is a SEPARATE Google
+                       API from Search Console: sharing the sheet perfectly and
+                       holding a working key still fails while it is switched
+                       off, and Google answers that with a 403 that looks exactly
+                       like "not shared". On 2026-08-17 that cost his own hands
+                       ten minutes of re-sharing a correctly shared sheet. A
+                       prerequisite learned from the failure is a dead errand. -->
+                  <p v-if="!sheets.enabled" class="ar-int__panellead">
+                    <strong>Turn on the Google Sheets API first.</strong> Your Google connection
+                    proves the key works, but Sheets is a different API and each one is switched
+                    on separately. Until it is on, every attempt fails — and Google’s refusal
+                    reads like a sharing problem, so it is easy to lose time on the wrong fix.
+                    <a :href="sheetsApiUrl" target="_blank" rel="noopener noreferrer">Open it in the Google Cloud console</a>{{ sheetsProject ? '' : ' and pick the project your key belongs to' }}<template v-if="sheetsProject"> for project <code>{{ sheetsProject }}</code></template>, then press Enable.
+                  </p>
+                  <details v-if="!sheets.enabled" class="ar-fold ar-fold--guide">
+                    <summary>Setting the sheet up, step by step</summary>
+                    <ol class="ar-guide">
+                      <li>Enable the <strong>Google Sheets API</strong> for your project (the link above goes straight there). It usually takes effect in seconds.</li>
+                      <li>Make a spreadsheet — <code>sheets.new</code> makes a blank one.</li>
+                      <li>Hit <strong>Share</strong> and add <template v-if="sheets.saEmail"><code>{{ sheets.saEmail }}</code></template><template v-else>the service account’s email above</template> as an <strong>Editor</strong>. Viewer is not enough — it appends rows. Leave “Notify people” unchecked: a service account has no inbox.</li>
+                      <li>Leave <strong>General access</strong> on <em>Restricted</em>. The sheet stays private; the service account is a named guest, like any collaborator.</li>
+                      <li>Copy the sheet’s URL from your browser and paste it below — the long code between <code>/d/</code> and <code>/edit</code> is taken from it for you.</li>
+                    </ol>
+                  </details>
                   <div class="ar-field">
                     <label for="ar-int-sh-id">Spreadsheet ID</label>
                     <input
