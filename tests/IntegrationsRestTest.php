@@ -146,7 +146,13 @@ final class IntegrationsRestTest extends TestCase {
 		$last = $GLOBALS['_af_http_last'];
 		$this->assertSame( 'https://hooks.slack.com/services/T0/B0/x', $last['url'], 'A connect proves the road.' );
 		$body = json_decode( $last['args']['body'], true );
-		$this->assertStringContainsString( 'Agentimus connected', $body['text'], 'The proof is one plain line, not a formatted event.' );
+		$this->assertStringContainsString( 'test message', $body['text'], 'The proof is one plain line, not a formatted event.' );
+		// ⛔ THE RULE THIS GUARDS (found by the 2026-08-17 Slack walkthrough): the proof
+		// is posted by verify(), which runs BEFORE store(). A connect that posts its
+		// message and then fails to save leaves the owner holding a message that says
+		// they are connected when they are not — which is exactly what happened, once.
+		// The message may state what it PROVES (the road) and never a stored state.
+		$this->assertStringNotContainsString( 'Agentimus connected', $body['text'], 'The proof must never claim a connection it has not stored.' );
 		$this->assertArrayNotHasKey( 'blocks', $body );
 		$this->assertGreaterThan( 0, Slack::state()['lastDeliveredAt'], 'A message landed, so the card starts truthful.' );
 	}
@@ -234,7 +240,8 @@ final class IntegrationsRestTest extends TestCase {
 		$last = $GLOBALS['_af_http_last'];
 		$this->assertSame( 'https://discord.com/api/webhooks/1/x', $last['url'] );
 		$body = json_decode( $last['args']['body'], true );
-		$this->assertStringContainsString( 'Agentimus connected', $body['content'], 'Discord\'s plain field, not an embed.' );
+		$this->assertStringContainsString( 'test message', $body['content'], 'Discord\'s plain field, not an embed.' );
+		$this->assertStringNotContainsString( 'Agentimus connected', $body['content'], 'The proof must never claim a connection it has not stored.' );
 		$this->assertArrayNotHasKey( 'embeds', $body );
 		$this->assertGreaterThan( 0, Discord::state()['lastDeliveredAt'] );
 	}

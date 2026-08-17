@@ -289,7 +289,8 @@ final class TelegramTest extends TestCase {
 		$this->assertSame( 'https://api.telegram.org/bot111:token-abc/sendMessage', $last['url'] );
 		$body = json_decode( $last['args']['body'], true );
 		$this->assertSame( '123456789', $body['chat_id'] );
-		$this->assertStringContainsString( 'Agentimus connected', $body['text'], 'The test message explains itself.' );
+		$this->assertStringContainsString( 'test message', $body['text'], 'The test message explains itself.' );
+		$this->assertStringNotContainsString( 'Agentimus connected', $body['text'], 'The proof must never claim a connection it has not stored.' );
 	}
 
 	/* ---- delivery ----------------------------------------------------------- */

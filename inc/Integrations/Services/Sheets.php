@@ -178,7 +178,7 @@ final class Sheets {
 					self::when( time() ),
 					'connected',
 					'',
-					__( 'Agentimus connected — new rows append below as events happen.', 'agentimus' ),
+					__( 'Agentimus test row — your site can reach this sheet. The Integrations screen says whether the connection was saved. New rows append below as events happen.', 'agentimus' ),
 					home_url( '/' ),
 				),
 			)

@@ -228,7 +228,7 @@ final class Webhook {
 			Events::envelope(
 				self::TEST_EVENT,
 				array(
-					'message' => __( 'Agentimus connected. The events you picked will arrive here as signed JSON.', 'agentimus' ),
+					'message' => __( 'Agentimus test event — your site can reach this URL. The Integrations screen says whether the connection was saved. The events you picked arrive here as signed JSON.', 'agentimus' ),
 				)
 			)
 		);

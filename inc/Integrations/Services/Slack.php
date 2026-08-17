@@ -110,7 +110,7 @@ final class Slack {
 	public static function verify( $url ) {
 		return self::post(
 			(string) $url,
-			array( 'text' => __( 'Agentimus connected. This channel now receives the events you picked — change them, or disconnect, any time on the Integrations screen.', 'agentimus' ) )
+			array( 'text' => __( 'Agentimus test message — your site can reach this channel. The Integrations screen says whether the connection was saved, and is where you change events or disconnect.', 'agentimus' ) )
 		);
 	}
 

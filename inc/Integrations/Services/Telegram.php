@@ -195,7 +195,7 @@ final class Telegram {
 		$verdict = self::send(
 			self::token(),
 			$channel,
-			__( 'Agentimus connected. Announcements you schedule will be posted here.', 'agentimus' )
+			__( 'Agentimus test message — your site can reach this chat. The Integrations screen says whether the connection was saved. Announcements you schedule will be posted here.', 'agentimus' )
 		);
 		if ( is_wp_error( $verdict ) ) {
 			return new \WP_Error(
@@ -300,7 +300,7 @@ final class Telegram {
 		$verdict = self::send(
 			$token,
 			$chat,
-			__( 'Agentimus connected. This chat now receives the events you picked — change them, or disconnect, any time on the Integrations screen.', 'agentimus' )
+			__( 'Agentimus test message — your site can reach this chat. The Integrations screen says whether the connection was saved, and is where you change events or disconnect.', 'agentimus' )
 		);
 		if ( is_wp_error( $verdict ) ) {
 			return new \WP_Error(
