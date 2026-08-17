@@ -41,9 +41,19 @@ export default {
     tileIcon,
     // Every tile carries its third line (his alignment ruling): the split
     // when there is one, the plain "N public" when nothing is held back.
+    // ⚠️⚠️ "SIGN-IN ONLY" WAS WRONG, and wrong in the same way the Discovery
+    // screen's own stat row was (fixed 2026-08-17). A thing can be missing from
+    // your public files for three different reasons — it needs a sign-in, the
+    // owner switched it off, or its address failed the daily reachability check —
+    // and only the first is a sign-in. "Held back" is the one phrase true of all
+    // three, and it is the phrase the Discovery screen's filter uses, so a tile
+    // and the screen it jumps to now name the same thing the same way.
     splitLine(publicCount, held) {
       if (typeof publicCount !== 'number') return '';
-      return held > 0 ? `${publicCount} public · ${held} sign-in only` : `${publicCount} public`;
+      // ⭐ "listed / not listed" — the one pair the Discovery screen these tiles
+      // jump to now uses everywhere. A tile and its destination must not name one
+      // state two ways.
+      return held > 0 ? `${publicCount} listed · ${held} not listed` : `${publicCount} listed`;
     },
   },
 };

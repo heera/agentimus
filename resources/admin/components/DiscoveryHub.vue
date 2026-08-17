@@ -1,6 +1,7 @@
 <script>
 import ProviderRow from './ProviderRow.vue';
 import { copyText } from '../js/clipboard.js';
+import { authWords, isOpenToAnyone } from '../js/authWords.js';
 
 // One plain-words line per well-known address — what the file is FOR, in the
 // owner's language, not the spec's. Keyed by served name; a row without an
@@ -9,7 +10,7 @@ const WK_NOTES = {
   'discovery.json': 'Everything this site tells AI assistants, gathered in one file.',
   'agent-card.json': 'A card that introduces this site to AI assistants.',
   'agent.json': 'The same introduction card, at its older address.',
-  'mcp.json': 'Announces this site’s MCP server and the tools it offers.',
+  'mcp.json': 'Lists this site’s MCP server and the tools it offers.',
   'openapi.json': 'Describes the public API in a form software can read.',
   'api-catalog': 'A short list of the APIs this site offers.',
   'agent-skills': 'Lists the skills AI assistants can use on this site.',
@@ -31,15 +32,11 @@ export default {
   },
   emits: ['refresh', 'navigate'],
   data() {
-    // Every group is a fold, and every fold starts closed — the same call he
-    // made for the Search Opportunities groups. Three named boxes with their
-    // counts is a screen you can read in one look; three open lists is one you
-    // have to scroll past to reach the rest of the page. Keyed by group, never
-    // by index, so a refresh cannot reopen a different section than the one the
-    // owner opened.
-    // openTools: which tool groups have been expanded. Closed by default —
-    // 42 names at once buries the provider rows that are the point of this list.
-    return { openGroups: {}, copiedDoor: '', openTools: {}, capsOverflow: false };
+    // rowFilter: which rows the list shows. 'all' by default — the screen's job
+    // is to describe the site, not to open on its problems; the held-back count
+    // in the summary is the way to those, and it is one click.
+    // openParts: which of the two sections the owner has shut. Absent = open.
+    return { openGroups: {}, openParts: {}, copiedDoor: '', capsOverflow: false, rowFilter: 'all' };
   },
   mounted() {
     this.$nextTick(this.measureCaps);
@@ -90,10 +87,20 @@ export default {
         };
       });
     },
-    // One row per API — matched to its provider by endpoint URL so the count
-    // (counts.apis) has a countable home, the way capabilities do. base → the URL;
-    // provider → whichever registered provider exposes that endpoint.
-    apiRows() {
+    // ⭐⭐ THE ADDRESSES, GATHERED — restored 2026-08-17 after he compared the
+    // merged screen against the old one. Deleting the "Addresses assistants can
+    // ask" card was half right: it DID repeat the rows, but a summary of things
+    // scattered down a list is not the same thing as a duplicate, and losing it
+    // turned one glance into one click per row. ⛔ It is not the old card back:
+    // it sits INSIDE "Things Assistants Can Read", above the rows it summarises,
+    // rather than in a card of its own further down the page.
+    //
+    // ⭐ PUBLISHED ONLY, and that is what makes the number honest: this is the
+    // list your public file actually carries, so it counts 5 while the section
+    // counts 6 rows — the sixth being the address the daily check refused. Each
+    // number is labelled with what it counts, and the odd one out explains itself
+    // on its own row below.
+    publishedAddresses() {
       return (this.data.apis || []).map((a) => {
         const url = a.base || '';
         const owner = this.resources.find(
@@ -103,10 +110,31 @@ export default {
         return {
           url,
           type: String(a.type || 'rest').toUpperCase(),
-          auth: authType === 'none' ? 'public' : authType,
+          // ⛔ Never the raw scheme. This chip read "apikey" four pixels from a
+          // state pill saying "Needs a key" — one fact, two labels, one of them
+          // machine vocabulary handed to a shop owner.
+          auth: authWords(authType),
+          open: isOpenToAnyone(authType),
           provider: owner ? owner.title : '',
         };
       });
+    },
+    // The daily check itself, in one sentence — so "nothing is held back" can be told
+    // apart from "nothing has ever been checked".
+    reachability() {
+      return this.data.reachability || null;
+    },
+    reachabilityNote() {
+      const r = this.reachability;
+      if (!r) return '';
+      if (r.error) return r.error;
+      if (!r.checkedAt) return 'These addresses have not been checked yet. The first check runs in the background shortly after a plugin is activated.';
+      if (r.stale) return 'The background check has not run for over two days, so these addresses are unverified rather than verified. Check that WordPress cron is running on this site.';
+      // ⛔ One number for what was held back, never a reason — the rows below give
+      // each address its own, and a summary that guessed at a shared reason said
+      // "refused a visitor" about an address that simply no longer exists.
+      const held = r.checked - r.open;
+      return `Checked ${r.checked} ${r.checked === 1 ? 'address' : 'addresses'} in the background: ${r.open} open to anyone${held ? `, ${held} not listed` : ''}.`;
     },
     // The subset of capabilities that come from the site's OWN content (the auto-
     // discovered WordPress Core provider) — the ones the owner steers from Content
@@ -133,44 +161,85 @@ export default {
       if (servers.length === 1) return servers[0].name || 'Detected';
       return this.mcp.available ? 'Detected' : 'None';
     },
-    // The PARTITION: one group per tool-bearing provider (same titles as the
-    // "Registered providers" list above), each naming the doors that serve it.
-    // Group counts add up to the summary total — the only arithmetic on the card.
-    toolGroups() {
-      const servers = this.mcp.servers || [];
+    /* ── The one list ──────────────────────────────────────────────────────
+     * Two groups, and they answer the two questions an owner has: what can an
+     * assistant READ here, and what can it DO. ⛔ Not "who told us" — that was
+     * the old top-level split, and it organised the screen around a question
+     * almost nobody asks. ⛔ Not by state either: published/held-back re-sorts
+     * itself whenever anything changes, so the screen would never look the same
+     * twice; state is a pill and a filter, not a structure.
+     * ⭐ One rule decides which group a row is in, so no row is ever in two:
+     * anything with jobs is a "do", everything else is a "read".
+     */
+    // ⭐ Running order, his call: WordPress's own namespace first, then ours, then
+    // whatever the plugins registered — foundation, then host, then guests. Stable
+    // within each rank, so the order everything else was given is untouched.
+    doRows() {
+      const rank = (r) => ('abilities-core' === r.id ? 0 : (r.own ? 1 : 2));
       return this.resources
         .filter((r) => (r.tools || 0) > 0)
-        .sort((a, b) => (b.own ? 1 : 0) - (a.own ? 1 : 0))
-        .map((r) => {
-          // The adapter flattens ability names (ns/tool → ns-tool) when it serves
-          // them over MCP, so a namespace prefix match tells us whether a detected
-          // server carries this group's tools.
-          const ns = String(r.id || '').replace(/^abilities-/, '');
-          const doors = [];
-          servers.forEach((s) => {
-            const list = s.tool_list || [];
-            if (ns && list.some((t) => String(t.name || '').indexOf(ns + '-') === 0)) {
-              doors.push(s.name || 'the MCP server');
-            }
-          });
-          doors.push('the Abilities API');
-          // Tools only: the attachable documents have their own section below,
-          // the way MCP itself splits tools/list from resources/list.
-          const list = (r.toolList || []).filter((t) => 'resource' !== t.kind);
-          return {
-            key: r.id,
-            title: r.title,
-            tools: r.tools,
-            doors,
-            list,
-            own: !!r.own,
-            // Switched off ABOVE, in the providers list. These jobs still exist
-            // and a signed-in assistant can still run them — what stopped is the
-            // announcing, and this section has to say so rather than look
-            // identical to a group that is being announced.
-            off: !this.isPublished(r.id),
-          };
+        .sort((a, b) => rank(a) - rank(b));
+    },
+    readRows() {
+      return this.ownFirst(this.resources.filter((r) => !(r.tools || 0)));
+    },
+    // Each filter carries its own count, because the strip that used to state
+    // those counts IS this control now. ⭐ The tone stays with the number whether
+    // the filter is pressed or not: green means published and amber means held
+    // back, and a colour that changed with selection would be decoration.
+    rowFilters() {
+      // ⭐ "listed / not listed" — the one pair the whole screen now uses for this
+      // state. It replaced "published / held back" here so the filter, the pills,
+      // the stats and the dashboard tiles all say the same two words.
+      return [
+        { key: 'all', label: 'everything', count: this.resources.length, tone: '' },
+        { key: 'pub', label: 'listed', count: this.publishedRowCount, tone: 'is-on' },
+        { key: 'held', label: 'not listed', count: this.heldRowCount, tone: this.heldRowCount > 0 ? 'is-held' : '' },
+      ];
+    },
+    // In the owner's terms: is this row in the files an assistant reads? Three
+    // different things keep it out and they all count the same here — the owner's
+    // own switch, a provider that publishes nothing anonymously, and an address
+    // the daily check could not open.
+    rowIsPublished() {
+      return (r) => {
+        if (this.controllable(r) ? !this.isPublished(r.id) : r.suppressed) return false;
+        if (r.notPublic) return false;
+        return !(r.endpoints || []).some((e) => e.open && e.open.published === false);
+      };
+    },
+    publishedRowCount() {
+      return this.resources.filter(this.rowIsPublished).length;
+    },
+    heldRowCount() {
+      return this.resources.length - this.publishedRowCount;
+    },
+    // ⛔ An empty filter result is a dead end; a sentence is an answer.
+    emptyFilterNote() {
+      if (this.rowFilter === 'held') return 'Everything in this group is listed.';
+      if (this.rowFilter === 'pub') return 'Nothing in this group is listed right now.';
+      return 'Nothing here yet.';
+    },
+    // The ways in to one row's jobs. Only the hub can see the detected servers,
+    // so the row is told rather than left to work it out.
+    doorsFor() {
+      const servers = this.mcp.servers || [];
+      return (r) => {
+        if (!(r.tools || 0)) return [];
+        // The adapter flattens ability names (ns/tool → ns-tool) when it serves
+        // them over MCP, so a namespace prefix match tells us whether a detected
+        // server carries this row's jobs.
+        const ns = String(r.id || '').replace(/^abilities-/, '');
+        const doors = [];
+        servers.forEach((s) => {
+          const list = s.tool_list || [];
+          if (ns && list.some((t) => String(t.name || '').indexOf(ns + '-') === 0)) {
+            doors.push(s.name || 'the MCP server');
+          }
         });
+        doors.push('the Abilities API');
+        return doors;
+      };
     },
     // The doors' addresses — connection info only, deliberately without counts.
     doorRows() {
@@ -193,8 +262,6 @@ export default {
     resources() {
       return this.data.resources || [];
     },
-    // Three buckets, no row in two of them: a plugin declared it, Agentimus
-    // describes it, or a scan found it.
     // Rows the owner may switch off. Not the site's own content (Content types
     // steers that) and not a bare data door (already an opt-in of its own).
     controllable() {
@@ -210,34 +277,27 @@ export default {
     changingJobsNote() {
       const n = this.resources
         .filter((r) => r.type === 'agent' && this.isPublished(r.id))
-        .reduce((sum, r) => sum + (r.changes || 0), 0);
-      if (!n) return 'Nothing being announced changes anything, so this would take nothing away.';
+        // ⚠️ announcedChanges, not changes: this switch can only stop announcing
+        // what is announced, so counting a group's unannounced jobs would make it
+        // promise work it will not do. `changes` counts every job in the group,
+        // for the group's own line — two questions, two fields.
+        .reduce((sum, r) => sum + (r.announcedChanges || 0), 0);
+      // ⭐ "listed", like the rest of the screen — this used "announced" and "kept
+      // out of the public files" for the same state the pills call "not listed".
+      if (!n) return 'No listed job changes anything, so this would take nothing away.';
       if (this.settings.hold_back_changing_jobs) {
-        return n === 1 ? '1 job is being kept out of the public files.' : n + ' jobs are being kept out of the public files.';
+        return n === 1 ? '1 job is not listed because of this.' : n + ' jobs are not listed because of this.';
       }
       return n === 1
-        ? 'Would stop announcing 1 job that changes something.'
-        : 'Would stop announcing ' + n + ' jobs that change something.';
-    },
-    // Any group the owner switched off, so the section can say so once at the top
-    // instead of leaving it to be noticed row by row.
-    someJobsOff() {
-      return this.toolGroups.some((g) => g.off);
+        ? 'Would stop listing 1 job that changes something.'
+        : 'Would stop listing ' + n + ' jobs that change something.';
     },
     hasJobGroups() {
       return this.resources.some((r) => r.type === 'agent');
     },
-    declared() {
-      return this.resources.filter((r) => !r.auto && !r.described);
-    },
-    describedByAgentimus() {
-      return this.resources.filter((r) => r.described);
-    },
-    autoDiscovered() {
-      return this.resources.filter((r) => r.auto);
-    },
-    // The auto-discovery engines as compact status chips, shown inline in the
-    // "Found automatically" group header (so engine + its results sit together).
+    // The auto-discovery engines as compact status chips. ⛔ They no longer head a
+    // group of their own: which engine found a row is that row's own footnote now,
+    // and this pair only answers "did Agentimus look at all".
     engineChips() {
       return this.adapters.map((a) => ({
         label: String((a && (a.title || a.id)) || 'Adapter').replace(' (auto-discovery)', '').replace('WordPress ', ''),
@@ -277,9 +337,9 @@ export default {
     // full; later rows defer to it. Two identical paragraphs back to back
     // taught nothing twice. Render order, not payload order.
     firstHeldId() {
-      // Same order the groups render in, so the full explanation lands on the
-      // first held row an owner actually reads.
-      const held = [...this.declared, ...this.describedByAgentimus, ...this.autoDiscovered].filter(
+      // Render order, not payload order: reads come before dos on the screen, so
+      // the full explanation lands on the first held row an owner actually meets.
+      const held = [...this.readRows, ...this.doRows].filter(
         (r) => !r.suppressed && r.notPublic
       );
       return held.length ? held[0].id : '';
@@ -321,8 +381,26 @@ export default {
       if (i === -1) list.push(id);
       else list.splice(i, 1);
     },
-    toggleTools(key, open) {
-      this.openTools = { ...this.openTools, [key]: !!open };
+    // ⭐ OPEN unless the owner shut it. These two sections are what the card is
+    // for; a closed one would make the screen look empty. `openParts` remembers a
+    // deliberate close, keyed by section so a re-render cannot swap them.
+    partOpen(key) {
+      return this.openParts[key] !== false;
+    },
+    onPartToggle(key, event) {
+      this.openParts = { ...this.openParts, [key]: !!event.target.open };
+    },
+    // A stat jumping to a section must not land on a closed one.
+    openPart(key) {
+      if (this.openParts[key] === false) this.openParts = { ...this.openParts, [key]: true };
+    },
+    // The rows this filter leaves standing. ⛔ Filtering, never re-sorting: the
+    // list keeps one order whatever is selected, so a row is always where it was
+    // last time.
+    visible(rows) {
+      if (this.rowFilter === 'pub') return rows.filter(this.rowIsPublished);
+      if (this.rowFilter === 'held') return rows.filter((r) => !this.rowIsPublished(r));
+      return rows;
     },
     // Does the capability list actually overflow its box? Measured, not
     // guessed from a row count: macOS hides the overlay scrollbar at rest, so
@@ -338,6 +416,15 @@ export default {
     // through the app's own goTo (via 'navigate') for the shared smooth-scroll +
     // flash, rather than a bespoke scroll here.
     jumpTo(anchor) {
+      // ⛔ Never scroll someone to a section they cannot see. The tools and APIs
+      // stats land inside the two folds, so a stat pressed while its section is
+      // shut would flash an empty summary line and nothing else.
+      // ⚠️ The address list lives INSIDE the read fold, so its anchor has to open
+      // that fold too — and the "held back" filter hides it, so clear that as well
+      // or the stat scrolls to a list that is not on the page.
+      if ('ar-wd-read' === anchor || 'ar-wd-apis' === anchor) this.openPart('read');
+      if ('ar-wd-apis' === anchor && 'held' === this.rowFilter) this.rowFilter = 'all';
+      if ('ar-wd-do' === anchor) this.openPart('do');
       this.$emit('navigate', { tab: 'discovery', anchor });
     },
     async copyDoor(d) {
@@ -379,23 +466,46 @@ export default {
            (the "Registration status" card that would receive the jump renders only then);
            at zero it's a plain, calm cell. -->
       <div class="ar-wd-stats ar-wd-stats--fill">
+        <!-- ⚠️⚠️ THIS SAID THE SAME THREE NUMBERS AS THE STRIP 200px BELOW IT, IN
+             DIFFERENT WORDS, AND ONE OF THEM WAS WRONG. It read "7 public · 4
+             sign-in only" while the strip read "published 7 · held back 4" — and
+             of those four, one is a dead address and one the owner switched off,
+             so only two were ever "sign-in only". ⭐ A summary may repeat a number
+             the page states again below (that is what a summary is for); it may
+             never repeat it in different words, and it may never be wrong. Same
+             words as the control that owns the split.
+             ⛔ "providers" and "sources describing your site" are gone too: the
+             section is no longer called that, and a stat whose label names a
+             heading that does not exist sends the reader looking for it. -->
         <button type="button" class="ar-wd-stat is-link" @click="jumpTo('ar-wd-providers')">
           <strong>{{ providersRegistered }}</strong>
-          <span>providers</span>
-          <small v-if="providersHeld > 0">{{ counts.resources }} public · {{ providersHeld }} sign-in only</small>
-          <small v-else>Sources describing your site</small>
+          <span>things offered</span>
+          <small v-if="providersHeld > 0">{{ counts.resources }} listed · {{ providersHeld }} not listed</small>
+          <small v-else>Everything assistants can read or run</small>
         </button>
         <button type="button" class="ar-wd-stat is-link" @click="jumpTo('ar-wd-capabilities')">
           <strong>{{ counts.capabilities }}</strong>
           <span>capabilities</span>
           <small>What AI assistants may read or do</small>
         </button>
-        <button type="button" class="ar-wd-stat is-link" @click="jumpTo('ar-wd-tools')">
+        <!-- ⭐ Each stat lands where its number can be COUNTED. Now that one list
+             holds everything, that means the group inside it, not a section of
+             its own: tools land on the "can do" group, APIs on the "can read"
+             one — never all three on the same anchor, which would make two of
+             them read as decoration. -->
+        <button type="button" class="ar-wd-stat is-link" @click="jumpTo('ar-wd-do')">
           <strong>{{ counts.tools }}</strong>
           <span>tools</span>
-          <small v-if="toolsHeld > 0">{{ counts.toolsPublished }} public · {{ toolsHeld }} sign-in only</small>
+          <!-- Same correction: the 33 are not all "sign-in only" — four of them
+               are a group the owner switched off. What is true of all 33 is only
+               that your public file does not list them. -->
+          <small v-if="toolsHeld > 0">{{ counts.toolsPublished }} listed · {{ toolsHeld }} not listed</small>
           <small v-else>Actions AI assistants can run</small>
         </button>
+        <!-- ⚠️ Back to the address list, not the section. Pointed at the section it
+             landed on a heading reading 6 while the stat said 5 — they count
+             different things (rows vs addresses), and a number that lands beside a
+             different number is the fault this row exists to avoid. -->
         <button type="button" class="ar-wd-stat is-link" @click="jumpTo('ar-wd-apis')">
           <strong>{{ counts.apis }}</strong>
           <span>APIs</span>
@@ -426,87 +536,194 @@ export default {
            not a glossary strip on the endpoint card. -->
     </section>
 
-    <!-- Registered providers — the SOURCES. Capabilities (below) are declared by
-         these, so providers read first, then what they expose. -->
+    <!-- ⭐⭐ ONE LIST, split by the question an owner actually has (his call,
+         2026-08-17). This section replaces three: the provider inventory folded
+         by HOW WE FOUND IT, a separate list of addresses, and a separate list of
+         jobs — which between them described the same thing up to three times.
+         Provenance is not a structure, it is one grey line at the bottom of a row.
+         ⛔ NOT grouped by vendor (one WooCommerce row holding its address AND its
+         jobs): `Jobs from "core"` and `Your site's content` are both WordPress,
+         and only a person knows that — the code would infer it from a slug, the
+         same guess that once filed MailPoet's jobs under WooCommerce's name. -->
     <section id="ar-wd-providers" class="ar-card">
-      <h2 class="ar-card__title">Registered Providers</h2>
+      <!-- Title Case, like every other card title on the screen — his convention,
+           stated 2026-08-17. It also rhymes with the dashboard's "What Your Site
+           Runs", which is the same question asked of the site's own software. -->
+      <h2 class="ar-card__title">What Your Site Offers AI Assistants</h2>
       <p class="ar-card__lead">
-        Everything an AI assistant can learn about your site. Each row is something it can read or
-        do. The three groups below only say <strong>who told us</strong> — every row counts the same.
+        Everything an assistant can read or run here, one row each. Open a row for its addresses,
+        its jobs and where it came from.
       </p>
 
       <p v-if="!resources.length" class="ar-wd-empty">
-        Nothing here yet. Agentimus fills this in by itself as it reads your site, and a plugin that
+        Nothing here yet. Agentimus fills this in by itself as it reads your site. And a plugin that
         knows how to introduce itself adds its own rows when you install it.
       </p>
 
       <template v-else>
-        <!-- All three groups wear the plugin's one fold (.ar-fold), the same
-             boxed disclosure the Search Opportunities groups wear: his call,
-             2026-08-15, and for the same reason — the described group has one
-             row today and a roster's worth coming, so it cannot be the one
-             section that grows without a lid. Closed by default, like those
-             groups: three named boxes with their counts read in one look,
-             three open lists have to be scrolled past. -->
+        <!-- ⭐⭐ THE SUMMARY IS THE FILTER — his question, 2026-08-17: "why is only
+             Held Back clickable?". There was no good answer. Three cells looked
+             identical and one behaved differently, and worse, a separate row of
+             chips underneath already did that same filtering: two controls for
+             one job, touching each other. Now every cell is the same kind of
+             thing — a count you can press — so there is nothing left to explain.
+             ⛔ The list still never reorders itself; filtering is all this does. -->
+        <div class="ar-wd-sum" role="group" aria-label="Show which rows">
+          <button
+            v-for="f in rowFilters"
+            :key="f.key"
+            type="button"
+            class="ar-wd-sum__cell"
+            :aria-pressed="String(rowFilter === f.key)"
+            @click="rowFilter = f.key"
+          >
+            <span>{{ f.label }}</span>
+            <strong :class="f.tone">{{ f.count }}</strong>
+          </button>
+        </div>
+
+        <!-- ⛔ No "addresses checked" cell beside those: this sentence already
+             carries the same numbers, and a count stated twice invites the reader
+             to look for the difference between them. -->
+        <p v-if="reachabilityNote" class="ar-wd-reach__note">{{ reachabilityNote }}</p>
+
+        <!-- ⭐⭐ EACH GROUP IS ITS OWN PANEL, and its heading is a real heading.
+             His read, 2026-08-17: "both sections are mild in terms of being
+             noticeable, no clear separation". They were — `.ar-wd-lhead` is an
+             11px faint uppercase label, quieter than the rows beneath it, so two
+             sections that are the whole point of the screen read as one long
+             list. `.ar-wd-sect` is the answer this plugin already found once, on
+             the MCP card: "headers alone left the sections reading as one long
+             list; a bordered panel makes each one a thing you can see the edges
+             of." -->
+        <!-- ⚠️⚠️ TWO LEVELS OF DISCLOSURE, and they must never look alike. The
+             SECTION fold is a bordered box that hides half the screen; a ROW
+             opens a line to show one thing's detail. Outer is a box with a
+             triangle, inner is a name with a chevron, and the outer starts OPEN —
+             these two sections are the card's content, not an offer to see it,
+             so collapsing is for getting one out of the way, never a door you
+             must find. -->
         <details
-          v-if="declared.length"
-          class="ar-fold ar-wd-group"
-          :open="!!openGroups.declared"
-          @toggle="openGroups.declared = $event.target.open"
+          id="ar-wd-read"
+          class="ar-fold ar-wd-part"
+          :open="partOpen('read')"
+          @toggle="onPartToggle('read', $event)"
         >
+          <!-- ⚠️ THE FILTERED COUNT, NOT THE TOTAL. Under "Held back" these
+               headings read 6 and 5 while showing 1 and 3 — a number beside a
+               heading has one job, which is to count the rows under it, and one
+               that cannot be counted is worse than none. The totals are not lost:
+               the strip above states all three.
+               ⭐ A real heading inside the summary, the way the Search
+               Opportunities groups do it: a line that reads as a heading on
+               screen has to be one in the outline too. -->
           <summary>
-            <h3 class="ar-wd-foldtitle">Plugins that describe themselves ({{ declared.length }})</h3>
+            <h3 class="ar-wd-part__title">
+              Things Assistants Can Read
+              <span class="ar-wd-group__count">{{ visible(readRows).length }}</span>
+            </h3>
           </summary>
-          <p class="ar-wd-engines">
-            These plugins tell us what they offer. We show it in their own words.
+          <!-- Full width, his call: a definition is not a sidebar remark, and a
+               measure that stops halfway across a wide card leaves a ragged
+               column of grey beside a list that runs the whole width. -->
+          <!-- ⭐ Rewritten for a reader whose English is a second language: no
+               metaphor ("a community's rooms"), no sentence over 20 words, and the
+               26-word claim about proving split into steps you can follow. -->
+          <p class="ar-card__note ar-card__note--wide">
+            A web address an assistant can get data from — your posts, a product list, a community’s
+            spaces. We test each one every day: we send a real request with no sign-in. If it works,
+            we mark the address <strong>open to anyone</strong>.
           </p>
-          <ul class="ar-wd-list">
-            <ProviderRow v-for="r in ownFirst(declared)" :key="r.id" :r="r" :brief-held="r.id !== firstHeldId" :controllable="controllable(r)" :published="isPublished(r.id)" @toggle-publish="togglePublish" />
+          <!-- ⛔ Hidden under the "held back" filter: a list of what IS published,
+               sitting above rows chosen for not being published, would answer a
+               question nobody just asked. -->
+          <div v-if="publishedAddresses.length && rowFilter !== 'held'" id="ar-wd-apis" class="ar-wd-addrs">
+            <p class="ar-wd-lhead">
+              Addresses assistants can ask
+              <span class="ar-wd-group__count">{{ publishedAddresses.length }}</span>
+              <span class="ar-wd-lhead__note">what your public file contains</span>
+            </p>
+            <!-- ⭐ ITS OWN, LIGHTER ROW — not the bordered card the doors wear. As
+                 cards these five took 34% of the section at 49px each, against
+                 74px for the rows that are the actual inventory, so the recap read
+                 as a second list of similar things rather than a summary of the
+                 first. ⛔ A summary that competes with what it summarises has
+                 stopped being one. -->
+            <ul class="ar-wd-addrs__list">
+              <li v-for="a in publishedAddresses" :key="a.url">
+                <span class="ar-wd-addrs__type">{{ a.type }}</span>
+                <code>{{ a.url }}</code>
+                <span v-if="a.provider" class="ar-wd-addrs__src">{{ a.provider }}</span>
+                <span class="ar-wd-auth" :class="a.open ? 'is-open' : 'is-locked'">{{ a.auth }}</span>
+              </li>
+            </ul>
+          </div>
+          <!-- ⚠️ THE ROWS HAVE TO BE RE-ANNOUNCED HERE. The section's own heading is
+               three blocks up — past the lead, past the recap — so after that
+               address list the rows simply began, and a reader could not tell
+               whether they were more addresses, or what they were at all. ⛔ NO
+               COUNT on this line: the section heading above already states it, and
+               the same number twice is the fault we just spent the morning
+               removing. The "do" section needs none of this — nothing interrupts
+               between its lead and its rows. -->
+          <!-- ⛔ Was "What offers them" — a heading made of a pronoun, so the
+               reader has to look back to find what "them" means. -->
+          <p v-if="visible(readRows).length" class="ar-wd-lhead">
+            Where these come from
+            <span class="ar-wd-lhead__note">open one to see its check and where it came from</span>
+          </p>
+          <ul v-if="visible(readRows).length" class="ar-wd-list">
+            <ProviderRow v-for="r in visible(readRows)" :key="r.id" :r="r" :brief-held="r.id !== firstHeldId" :controllable="controllable(r)" :published="isPublished(r.id)" :doors="doorsFor(r)" @toggle-publish="togglePublish" />
           </ul>
+          <p v-else class="ar-wd-empty">{{ emptyFilterNote }}</p>
         </details>
 
         <details
-          v-if="describedByAgentimus.length"
-          class="ar-fold ar-wd-group"
-          :open="!!openGroups.described"
-          @toggle="openGroups.described = $event.target.open"
+          id="ar-wd-do"
+          class="ar-fold ar-wd-part"
+          :open="partOpen('do')"
+          @toggle="onPartToggle('do', $event)"
         >
           <summary>
-            <h3 class="ar-wd-foldtitle">Plugins Agentimus describes for you ({{ describedByAgentimus.length }})</h3>
+            <h3 class="ar-wd-part__title">
+              Things Assistants Can Do
+              <span class="ar-wd-group__count">{{ visible(doRows).length }}</span>
+            </h3>
           </summary>
-          <p class="ar-wd-engines">
-            Agentimus knows these plugins, so it writes their part for them. They do nothing.
+          <!-- ⭐ SAY WHAT THE THING IS, then how it is reached — his note that the
+               sentence which finally made "job" clear to him was the one naming
+               the machinery. Named once, in words an owner can carry: a job is
+               asked for and carried out; an address is fetched. And the answer to
+               "does a job mean writing?" is put where the question arises. -->
+          <!-- ⭐ Was a sentence fragment with a dash-list, then a 30-word sentence
+               using "a stranger" as a metaphor. Now: a definition with a subject
+               and a verb, an example list introduced properly, and "someone who
+               has not signed in" said outright. -->
+          <p class="ar-card__note ar-card__note--wide">
+            A job is something an assistant asks your site to do. For example: find a number, write
+            a description, or update a product. Plugins register jobs with WordPress, and an
+            assistant reaches them through your MCP connection.
+            <strong>Every job needs a sign-in first</strong>, even the ones that only read. Someone
+            who has not signed in can never run one. Letting assistants connect to Agentimus itself
+            is a separate switch under Settings → Discovery, off unless you turn it on.
           </p>
-          <ul class="ar-wd-list">
-            <ProviderRow v-for="r in ownFirst(describedByAgentimus)" :key="r.id" :r="r" :brief-held="r.id !== firstHeldId" :controllable="controllable(r)" :published="isPublished(r.id)" @toggle-publish="togglePublish" />
+          <ul v-if="visible(doRows).length" class="ar-wd-list">
+            <!-- ⛔ No kind badge in this group: every row in it is jobs, and the
+                 heading three lines up already says so. -->
+            <ProviderRow v-for="r in visible(doRows)" :key="r.id" :r="r" :brief-held="r.id !== firstHeldId" :controllable="controllable(r)" :published="isPublished(r.id)" :doors="doorsFor(r)" :show-kind="false" @toggle-publish="togglePublish" />
           </ul>
+          <p v-else class="ar-wd-empty">{{ emptyFilterNote }}</p>
         </details>
 
-        <details
-          v-if="autoDiscovered.length"
-          class="ar-fold ar-wd-group"
-          :open="!!openGroups.auto"
-          @toggle="openGroups.auto = $event.target.open"
-        >
-          <summary>
-            <h3 class="ar-wd-foldtitle">Found by looking at your site ({{ autoDiscovered.length }})</h3>
-          </summary>
-          <p class="ar-wd-engines">
-            Nobody told us about these. Agentimus found them by reading your own site.
-          </p>
-          <p v-if="engineChips.length" class="ar-wd-engines">
-            Agentimus checked:
-            <span
-              v-for="e in engineChips"
-              :key="e.label"
-              class="ar-wd-engine"
-              :class="e.ok ? 'is-on' : 'is-off'"
-            >{{ e.label }} {{ e.ok ? '✓' : '✕' }}</span>
-          </p>
-          <ul class="ar-wd-list">
-            <ProviderRow v-for="r in ownFirst(autoDiscovered)" :key="r.id" :r="r" :brief-held="r.id !== firstHeldId" :controllable="controllable(r)" :published="isPublished(r.id)" @toggle-publish="togglePublish" />
-          </ul>
-        </details>
+        <p v-if="engineChips.length" class="ar-wd-engines">
+          Agentimus looked for these automatically:
+          <span
+            v-for="e in engineChips"
+            :key="e.label"
+            class="ar-wd-engine"
+            :class="e.ok ? 'is-on' : 'is-off'"
+          >{{ e.label }} {{ e.ok ? '✓' : '✕' }}</span>
+        </p>
 
         <!-- The one rule that spans every group above, so it sits under them all
              rather than inside any one fold. -->
@@ -522,17 +739,17 @@ export default {
                  the owner says what their own site announces — and the screen
                  has to name that or it looks like we changed our mind. -->
             <small>
-              Your call, not the plugin’s. These plugins asked to have them listed; this keeps them
-              out of your public files anyway. Off unless you switch it on.
+              Your choice, not the plugin’s. These plugins asked to have them listed. This leaves
+              them unlisted anyway. Off unless you switch it on.
             </small>
             <small>{{ changingJobsNote }}</small>
           </span>
         </label>
 
         <p class="ar-card__note">
-          <strong>This changes what your site announces, not what it can do.</strong>
-          Switching something off takes it out of the public files. The plugin keeps working
-          exactly as before, and an assistant that signs in still finds it.
+          <strong>This changes what your site lists, not what it can do.</strong>
+          Switching something off means it is not listed. The plugin keeps working exactly as
+          before, and an assistant that signs in still finds it.
         </p>
       </template>
     </section>
@@ -542,15 +759,23 @@ export default {
          is where the dashboard's "Capabilities" tile lands, so its number connects to
          rows you can count — the way Providers lands on the provider cards. -->
     <section v-if="capabilityRows.length" id="ar-wd-capabilities" class="ar-card">
-      <h2 class="ar-card__title">What assistants may read <span class="ar-card__count">{{ capabilityRows.length }}</span></h2>
-      <!-- "read or do" invited the owner's own question — "are these tools?". The
-           verb stays (a plugin can declare a create capability — the demo site
-           does), so the next sentence answers the question outright instead. -->
+      <!-- ⚠️⚠️ THIS CARD SAID TWO UNTRUE THINGS AT ONCE, both caught by him asking
+           whether it made sense. ① "What Assistants May READ" — while the list
+           holds `scheduling.booking.create`, which is not a read. A title that is
+           wrong for even one row of its own list is a title that has to change,
+           and the old comment here admitted the verb was a problem rather than
+           fixing it. ② It sent the reader to "For a signed-in assistant", a
+           heading that no longer exists — the merge folded those groups into the
+           rows and this pointer was left aiming at nothing. ⛔ Deleting a section
+           means hunting every sentence that named it. -->
+      <h2 class="ar-card__title">What Those Rows Allow <span class="ar-card__count">{{ capabilityRows.length }}</span></h2>
       <p class="ar-card__lead">
-        One row for each kind of thing an assistant is allowed to look at, taken from the rows above.
-        This is a list of permissions, not a list of buttons: it says what is allowed and who allows
-        it, not what an assistant can press. The things they can actually <em>do</em> are further
-        down, under <strong>For a signed-in assistant</strong>.
+        One line for each kind of thing the rows above allow, and this is where their number comes
+        from. These are the words your document uses to state permission —
+        <code>commerce.products.read</code> means “read this shop’s products”. They are not buttons:
+        what an assistant can actually run sits on the rows themselves, under
+        <strong>Things Assistants Can Do</strong>. Most only read, but a plugin may declare a create
+        or an update too.
       </p>
       <!-- Scrolls inside a fixed height rather than growing without limit. Most
            of these are one per public REST post type and taxonomy, so the length
@@ -571,42 +796,35 @@ export default {
       <p v-if="capsOverflow" class="ar-wd-scrollnote">
         Scroll the list to see all {{ capabilityRows.length }}.
       </p>
+      <!-- ⛔ The thirteen `content.*.read` tokens are gone from this sentence. They
+           were a 36-word wall of code inside a paragraph, and every one of them is
+           already a row in the list directly above — listing them again made the
+           note both unreadable and redundant. The count says how many; the rows
+           say which. -->
       <p v-if="ownContentCapabilities.length" class="ar-card__note ar-card__note--wide">
-        <strong>Your own content</strong> ({{ ownContentCapabilities.join(', ') }}) is chosen by
-        <button type="button" class="ar-linkbtn" @click="$emit('navigate', { tab: 'settings', anchor: 'ar-content-types' })">Settings → Content types</button>
-        — ticking a kind of content brings its categories and tags along too. The rest come from the
-        plugins that own them.
+        <strong>{{ ownContentCapabilities.length }} of these come from your own content.</strong>
+        You choose them in
+        <button type="button" class="ar-linkbtn" @click="$emit('navigate', { tab: 'settings', anchor: 'ar-content-types' })">Settings → Content types</button>.
+        When you tick a kind of content, its categories and tags are included too. The rest come
+        from the plugins that own them.
       </p>
     </section>
 
-    <!-- APIs — the ENDPOINTS agents call, one countable row each (the APIs stat lands
-         here). Same endpoints listed on the provider cards, gathered so the number has
-         its own home instead of sharing the providers section. -->
-    <section v-if="apiRows.length" id="ar-wd-apis" class="ar-card">
-      <h2 class="ar-card__title">Addresses assistants can ask <span class="ar-card__count">{{ apiRows.length }}</span></h2>
-      <p class="ar-card__lead">
-        The web addresses an AI assistant can fetch to get data from your site, one row each. The
-        name beside an address says which row above it belongs to, and the tag at the end says
-        whether anyone can read it or a sign-in is needed.
-      </p>
-      <div v-for="a in apiRows" :key="a.url" class="ar-wd-canonical ar-wd-mcp-endpoint">
-        <span class="ar-wd-canonical__method">{{ a.type }}</span>
-        <span class="ar-wd-canonical__path">{{ a.url }}</span>
-        <span v-if="a.provider" class="ar-wd-cap-src">{{ a.provider }}</span>
-        <span class="ar-wd-auth" :class="a.auth === 'public' ? 'is-open' : 'is-locked'">{{ a.auth }}</span>
-      </div>
-    </section>
-
-    <!-- MCP & tools -->
+    <!-- The MCP server itself: the door, not what is behind it. The jobs moved up
+         into their own rows, so what is left here is connection business — which
+         server, how you sign in, which files it offers, and what a stranger can
+         read of it. -->
     <section id="ar-wd-tools" class="ar-card">
-      <h2 class="ar-card__title">Things assistants can do</h2>
+      <h2 class="ar-card__title">The MCP Connection</h2>
+      <!-- ⚠️ ITS SECOND SENTENCE IS GONE. It said "an assistant that has not
+           signed in can read the list you publish… but it cannot run anything on
+           it" — and the note sitting directly on that list, further down this
+           same card, says exactly that: "anyone can read /.well-known/mcp.json —
+           running one still needs a sign-in". ⭐ Of two places that say the same
+           thing, the one ON the thing wins; the lead only has to get you there. -->
       <p class="ar-card__lead">
-        What an assistant can actually run here, grouped by whatever offers it. Every one of them
-        needs a sign-in first — each plugin checks who is asking before it answers. The addresses
-        under each group are the ways in. An assistant that has not signed in can still read the
-        list you publish, at the bottom of this card, but it cannot run anything on it. Letting
-        assistants connect to Agentimus itself is a separate switch, under Settings → Discovery,
-        and it is off unless you turn it on.
+        How an assistant connects to run the jobs listed above, and what it can see before it signs
+        in.
       </p>
 
       <!-- ONE total, stated once; the groups below PARTITION it (they visibly add up).
@@ -623,8 +841,15 @@ export default {
                is a different sentence — the same one the panel below now uses. -->
           <span>in public file</span><strong>{{ typeof counts.toolsPublished === 'number' ? counts.toolsPublished : '—' }}</strong>
         </div>
+        <!-- ⚠️ IT IS A FACT ABOUT THE SERVER, NOT ABOUT THE JOBS BESIDE IT. Two
+             cells here count tools and two describe the MCP server, and they were
+             dressed identically — so "sign-in: OAuth" read as "all 42 of these
+             need OAuth". They do not: OAuth is how an assistant gets in through
+             the MCP door, and the same jobs are also reachable with an
+             application password through WordPress's own abilities route. Naming
+             the door in the label is the whole fix. -->
         <div class="ar-wd-mcp__cell">
-          <span>sign-in</span><strong>{{ counts.tools > 0 ? mcpAuthLabel : '—' }}</strong>
+          <span>MCP sign-in</span><strong>{{ counts.tools > 0 ? mcpAuthLabel : '—' }}</strong>
         </div>
         <div class="ar-wd-mcp__cell">
           <span>MCP server</span>
@@ -632,63 +857,9 @@ export default {
         </div>
       </div>
 
-      <!-- The partition: provider groups, same names as "Registered providers" above. -->
-      <!-- Three panels, not three headings in one column. Headers alone left
-           the sections reading as one long list; a bordered panel makes each
-           one a thing you can see the edges of. Border only, surface unchanged
-           — these always hold text, and a step of separation here is paid out
-           of the legibility of what reads on it (the same reason .ar-fold
-           drops back to the plain surface the moment it opens). -->
-      <div v-if="toolGroups.length" class="ar-wd-sect">
-      <p class="ar-wd-lhead">
-        For a signed-in assistant
-        <span class="ar-wd-group__count">{{ counts.tools }}</span>
-        <span class="ar-wd-lhead__note">
-          tools, grouped by what provides them
-        </span>
-        <!-- Said once at the top as well as on each dimmed group: an owner who
-             switched something off above should not have to spot it row by row. -->
-        <span v-if="someJobsOff" class="ar-wd-held">some are not announced — you switched them off above</span>
-      </p>
-      <!-- The SAME fold the provider groups wear (his call, 2026-08-15): one
-           disclosure in this plugin, not one per section. A group with no names
-           to reveal keeps the box and loses the caret — a caret that opens onto
-           nothing is worse than no caret. -->
-      <ul class="ar-wd-tools ar-wd-tools--folds">
-        <li v-for="g in toolGroups" :key="g.key">
-          <details
-            v-if="g.list.length"
-            class="ar-fold ar-wd-grp"
-            :class="{ 'is-ours': g.own, 'is-off': g.off }"
-            :open="!!openTools[g.key]"
-            @toggle="toggleTools(g.key, $event.target.open)"
-          >
-            <summary>
-              <h4 class="ar-wd-foldtitle">{{ g.title }} ({{ g.tools }})</h4>
-              <span v-if="g.own" class="ar-wd-ours">Agentimus</span>
-              <span v-if="g.off" class="ar-wd-held">Not announced · you switched this off</span>
-              <span class="ar-wd-lhead__note">via {{ g.doors.join(' · ') }}</span>
-            </summary>
-            <p v-if="g.off" class="ar-wd-prov__held">
-              You switched this off in the list above, so none of it appears in your public files.
-              These jobs still work: an assistant that signs in can run them exactly as before.
-            </p>
-            <ul class="ar-wd-grp__names">
-              <li v-for="t in g.list" :key="t.name">
-                <code>{{ t.name }}</code>
-                <span v-if="t.title">{{ t.title }}</span>
-              </li>
-            </ul>
-          </details>
-          <div v-else class="ar-fold ar-wd-grp is-static" :class="{ 'is-ours': g.own, 'is-off': g.off }">
-            <p class="ar-fold__static">
-              <span class="ar-wd-foldtitle">{{ g.title }} ({{ g.tools }})</span>
-              <span class="ar-wd-lhead__note">via {{ g.doors.join(' · ') }}</span>
-            </p>
-          </div>
-        </li>
-      </ul>
-      </div>
+      <!-- ⛔ The per-provider job groups that stood here are GONE, not moved twice:
+           each provider's jobs now live inside that provider's own row above, so
+           this card never repeats a name the list has already given. -->
 
       <!-- Documents live APART from the tools — MCP itself keeps the two lists
            apart (tools/list vs resources/list), and a "documents" chip inside a
@@ -729,9 +900,12 @@ export default {
            "Where they connect" left "they" dangling — it could as easily have
            meant the tools — so the header names the referent instead. -->
       <div v-if="doorRows.length" class="ar-wd-sect">
+      <!-- ⛔ "The doors named above" was a metaphor a reader has to decode, on top
+           of a backward reference. These are the addresses an assistant connects
+           to; say that. -->
       <p class="ar-wd-lhead">
-        The doors named above
-        <span class="ar-wd-lhead__note">where an assistant connects — signed in, so copy rather than open</span>
+        Addresses an assistant connects to
+        <span class="ar-wd-lhead__note">a sign-in is needed, so copy the address instead of opening it</span>
       </p>
       <div v-for="d in doorRows" :key="d.url" class="ar-wd-canonical ar-wd-mcp-endpoint">
         <span class="ar-wd-canonical__method">{{ d.badge }}</span>
@@ -795,10 +969,12 @@ export default {
            server's tools) while the site-wide inventory is 17 (core's abilities
            aren't on Agentimus's scoped server) — citing either here would sit
            beside the other and read as a contradiction. -->
+      <!-- ⛔ Does not re-argue the policy: the rows above already say why a
+           sign-in-only group stays out of the public file. An empty state says
+           what is empty and what still works, and stops. -->
       <p v-else-if="counts.tools > 0" class="ar-wd-empty">
-        Nothing is listed because everything here needs a sign-in, and we do not announce those
-        publicly — a stranger would get a map of your tools and no way to use them. An assistant that
-        signs in still finds them.
+        Nothing is listed here, because every job on this site needs a sign-in. An assistant that
+        signs in still finds them all.
       </p>
       <p v-else class="ar-wd-empty">
         Nothing for assistants to do here yet. These come from your plugins: once one registers a job
@@ -810,11 +986,12 @@ export default {
          compact chip in the right rail). -->
     <section class="ar-card">
       <h2 class="ar-card__title">Well-Known Documents</h2>
+      <!-- ⭐ Was one 33-word sentence with a dash, a relative clause and a reason
+           clause stacked on each other. Three short sentences say the same thing. -->
       <p class="ar-card__lead">
         The addresses an AI assistant checks first, because every site keeps them in the same place.
-        Agentimus answers all of them — unless a real file on your server answers one instead, which
-        is marked <strong>on disk</strong>,
-        because a real file always wins and nothing here can change that.
+        Agentimus answers all of them. If a real file on your server answers one instead, we mark it
+        <strong>on disk</strong> — a real file always wins, and nothing here can change that.
       </p>
       <ul class="ar-wd-wk">
         <li v-for="w in wellKnownRows" :key="w.name">

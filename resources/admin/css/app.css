@@ -282,9 +282,8 @@
 :root[data-ar-theme="dark"] .ar__tab:hover { color: var(--ar-ink); }
 
 
-:root[data-ar-theme="dark"] .ar-about-priv__cell--head {
-  background: var(--ar-surface-2); border-color: var(--ar-line-strong);
-}
+/* (.ar-about-priv__cell--head needs no dark block any more — it stopped being an
+   inverted panel and now shares its siblings' ground and ink in both themes.) */
 :root[data-ar-theme="dark"] .ar-about-snippet { background: #0d1114; color: var(--ar-ink-soft); }
 /* The rail is where the violet chrome lives: card borders, section labels,
    the score identity. Content cards to the left stay neutral. */
@@ -1301,7 +1300,12 @@
 /* The unfolded depth sits in the same quiet inset the readiness fix-notes
    use: the raised tone, a hairline, and a reading measure — a card, not a
    loose paragraph bleeding into the section (his call, 2026-08-12). */
-.ar-toggle__more > small {
+/* ⭐ `.ar-toggle__note` is the same box for a fold whose content is a LIST. ⛔ A
+   <ul> inside <small> is invalid HTML — small is phrasing content — and the
+   longest explanations on this screen are lists written as sentences, so they
+   need an element that can legally hold one. */
+.ar-toggle__more > small,
+.ar-toggle__more > .ar-toggle__note {
   display: block;
   padding: 10px 14px;
   background: var(--ar-surface-2);
@@ -1309,7 +1313,13 @@
   border-radius: 8px;
   font-size: 12.5px; line-height: 1.6; color: var(--ar-ink-soft);
 }
-.ar-toggle__more > small strong { color: var(--ar-ink); }
+.ar-toggle__more > small strong,
+.ar-toggle__more > .ar-toggle__note strong { color: var(--ar-ink); }
+.ar-toggle__note > p { margin: 0 0 8px; }
+.ar-toggle__note > p:last-child { margin-bottom: 0; }
+/* One line per item, so three ways of checking read as three things. */
+.ar-toggle__note ul { margin: 0 0 8px; padding: 0 0 0 18px; display: grid; gap: 5px; }
+.ar-toggle__note li { margin: 0; }
 .ar-rail-card--readiness .ar-rail-gauge__track { stroke: color-mix(in srgb, var(--rail-face) 15%, transparent); }
 /* (The gauge numeral was veiled to 62% paper here; the palette block below
    owns it now and gives it the card's full face.) */
@@ -4436,8 +4446,264 @@ button.ar-wd-stat:focus-visible { outline: 2px solid var(--ar-accent); outline-o
 .ar-wd-prov { display: flex; gap: 14px; padding: 16px 4px; border-bottom: 1px solid var(--ar-line); }
 .ar-wd-prov__bar { flex: 0 0 auto; width: 3px; border-radius: 2px; background: var(--ar-accent); }
 .ar-wd-prov__body { flex: 1; min-width: 0; }
-.ar-wd-prov__head { display: flex; flex-wrap: wrap; align-items: center; gap: 9px; }
+/* The head is a row of THREE things and only the first is a button: the toggle
+   takes the free width, the state and the switch keep their own. A control
+   inside a button would be invalid markup, and publishing must never be a click
+   that also unfolds the row.
+   ⭐ THE SWITCH COLUMN IS RESERVED WHETHER OR NOT THE ROW HAS ONE. As a flex row
+   the pills landed at a different x depending on whether a switch followed them,
+   so no two rows' states lined up and the eye could not run down the column that
+   matters most. A fixed last column costs one empty cell on the few rows the
+   owner cannot switch. */
+/* ⚠️⚠️ EVERY CHILD IS PLACED BY HAND, in both layouts. Left to auto-placement,
+   the narrow rule only pinned the switch's ROW — so the switch took column 1 and
+   the name was squeezed into what was left, one word per line, with the toggle
+   floating to the right of its own switch. A grid child whose position matters
+   gets both coordinates or it gets neither. */
+.ar-wd-prov__head {
+  display: grid; grid-template-columns: minmax(0, 1fr) auto 40px;
+  align-items: center; gap: 9px 10px;
+}
 .ar-wd-prov__head strong { font-size: 14.5px; font-weight: 600; }
+.ar-wd-prov__toggle {
+  grid-column: 1; grid-row: 1;
+  min-width: 0; display: block; text-align: left;
+  background: none; border: 0; padding: 0; margin: 0; font: inherit; color: inherit; cursor: pointer;
+}
+.ar-wd-prov__head .ar-wd-state { grid-column: 2; grid-row: 1; }
+.ar-wd-prov__head .ar-wd-switch { grid-column: 3; grid-row: 1; justify-self: end; }
+/* A switch the owner cannot move: the same control, visibly fixed. Muted so it
+   does not invite a click, but still legible as on-or-off — the state is the
+   point; only the ability to change it is missing. */
+.ar-wd-switch.is-fixed { cursor: default; }
+.ar-wd-switch.is-fixed .ar-wd-switch__track { opacity: 0.55; }
+/* Narrow: the state drops to its own line under the name, full width, rather
+   than squeezing the name to nothing. The switch keeps the top-right corner —
+   it is the only control here, and it must stay where a thumb expects it. */
+@container (max-width: 700px) {
+  .ar-wd-prov__head { grid-template-columns: minmax(0, 1fr) auto; }
+  .ar-wd-prov__head .ar-wd-switch { grid-column: 2; grid-row: 1; }
+  .ar-wd-prov__head .ar-wd-state { grid-column: 1 / -1; grid-row: 2; justify-self: start; }
+}
+.ar-wd-prov__toggle:focus-visible { outline: 2px solid var(--ar-accent); outline-offset: 3px; border-radius: 3px; }
+.ar-wd-prov__name { display: flex; flex-wrap: wrap; align-items: center; gap: 9px; }
+/* A caret that says the row opens, and turns when it has. Drawn in CSS rather
+   than shipped as a glyph so it inherits the ink of whatever theme it lands in. */
+.ar-wd-prov__caret {
+  flex: 0 0 auto; width: 7px; height: 7px; border-right: 1.5px solid var(--ar-ink-faint);
+  border-bottom: 1.5px solid var(--ar-ink-faint); transform: rotate(-45deg); margin-right: 2px;
+}
+.ar-wd-prov.is-expanded .ar-wd-prov__caret { transform: rotate(45deg); }
+.ar-wd-prov__toggle:hover .ar-wd-prov__caret { border-color: var(--ar-ink); }
+.ar-wd-prov__detail { margin-top: 2px; }
+/* One state per row, in words. ⛔ Colour is never the only carrier — each pill
+   says what it means, so it survives a colour-blind reader and a screenshot. */
+.ar-wd-state {
+  flex: 0 0 auto; font-size: 11.5px; padding: 2px 9px; border-radius: 999px;
+  border: 1px solid var(--ar-line-strong); color: var(--ar-ink-soft); white-space: nowrap;
+}
+.ar-wd-state.is-open { color: var(--ar-good); border-color: var(--ar-good-tint); background: var(--ar-good-wash); }
+.ar-wd-state.is-held, .ar-wd-state.is-off { color: var(--ar-warn); border-color: var(--ar-warn-tint); background: var(--ar-warn-wash); }
+/* The jobs a row offers, listed inside it. Columns where there is room — 23
+   names in one column is a scroll; in three or four it is a block you take in at
+   once. `auto-fill` with a floor means the count follows the width, so nothing
+   here needs a breakpoint of its own. */
+.ar-wd-jobs {
+  margin: 12px 0 2px; padding: 0; list-style: none;
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(232px, 1fr));
+  gap: 8px; align-content: start;
+}
+/* ⭐ A CARD EACH, and a bordered one — his call, 2026-08-17: bare two-line text
+   in a grid is a list with gaps in it, not a design. ⛔ BORDER ONLY, no fill:
+   every step of separation is paid out of the legibility of what reads on it,
+   and a card that always holds a sentence is exactly where that bill comes due
+   (the same reason .ar-fold drops to the plain surface the moment it opens).
+   The fill is spent on HOVER instead, where it earns something. */
+.ar-wd-jobs li {
+  display: grid; gap: 3px; align-content: start; min-width: 0;
+  padding: 9px 11px; border: 1px solid var(--ar-line); border-radius: var(--ar-radius);
+  font-size: 12.5px;
+}
+.ar-wd-jobs li:hover { border-color: var(--ar-line-strong); background: var(--ar-surface-2); }
+/* ⭐ The one thing worth finding in twenty-three cards, marked in FORM as well as
+   in words: a job that changes the site carries a warn-coloured edge, so "which
+   of these touch my content" is answered by looking rather than by reading every
+   card. The chip still says it in words — colour is never the only carrier. */
+.ar-wd-jobs li.is-write { border-left: 2px solid var(--ar-warn-tint); padding-left: 10px; }
+/* The name and its marker, on the card's own bottom line. */
+.ar-wd-jobs__foot { display: flex; align-items: center; gap: 8px; min-width: 0; }
+/* ⚠️⚠️ wp-admin styles every <code> with its own grey background and padding.
+   Inside a grid or flex parent that box stretches the whole column, so all 23
+   job names rendered as full-width grey bars — a list of machine names read as a
+   column of disabled input fields. The mono face is what says "this is a machine
+   string"; it does not need a box, and a box it did not ask for is worse than
+   none. Reset explicitly rather than hoping specificity holds. */
+/* ⚠️⚠️ THIS LIST GROWS EVERY TIME WE LAY OUT A `code`, and it has caught us
+   twice: wp-admin puts a grey background and padding on every `<code>`, and any
+   `code` that is a flex or grid item stretches that box the full width, so a
+   machine string renders as a disabled-looking input field. ⛔ Adding a new
+   `code` inside a flex row without adding it here is a bug you will see in a
+   screenshot, not in the diff. */
+.ar-wd-jobs code,
+.ar-wd-eps code,
+.ar-wd-addrs__list code {
+  background: none; padding: 0; border-radius: 0;
+  overflow-wrap: anywhere; min-width: 0;
+}
+/* The identifier is the SECOND thing on the card, and it looks like it: mono,
+   small, faint. It is what a developer copies, not what an owner reads. */
+.ar-wd-jobs code { font-size: 11px; color: var(--ar-ink-faint); }
+.ar-wd-eps code { font-size: 12px; color: var(--ar-ink); }
+.ar-wd-jobs__title { color: var(--ar-ink); font-size: 13px; line-height: 1.4; }
+/* Pushed to the right of its own column, so the markers form a readable edge
+   instead of landing wherever the name happens to end. */
+.ar-wd-jobs__changes {
+  flex: 0 0 auto; margin-left: auto;
+  font-family: var(--ar-mono); font-size: 9.5px; letter-spacing: 0.06em;
+  color: var(--ar-warn); border: 1px solid var(--ar-warn-tint); background: var(--ar-warn-wash);
+  padding: 1px 6px; border-radius: 3px;
+}
+.ar-wd-ep__verdict { flex: 1 1 100%; font-size: 12px; color: var(--ar-ink-soft); }
+/* The age sits a step behind the verdict it dates — same line where there is
+   room, its own when there is not. */
+.ar-wd-ep__when { color: var(--ar-ink-faint); }
+/* What the verdict means for the owner — its own line, because it answers a
+   different question from the finding above it. */
+.ar-wd-ep__means { display: block; margin-top: 4px; color: var(--ar-ink-soft); }
+
+/* ⭐ NOT IN YOUR PUBLIC FILES, said in form as well as in words — his call. The
+   row recedes so a glance down the list separates what is live from what is not,
+   without reading a single pill. ⛔ The pill itself is exempt: the row goes quiet,
+   the REASON does not, or the treatment would hide the thing it is flagging.
+   ⚠️ Text drops one tier only (ink → soft), never an `opacity` on the whole row:
+   opacity would fade the pill and the switch with it, and a control you can still
+   press must never look disabled. */
+.ar-wd-prov.is-quiet .ar-wd-prov__head strong,
+.ar-wd-prov.is-quiet .ar-wd-prov__desc { color: var(--ar-ink-soft); }
+.ar-wd-prov.is-quiet .ar-wd-prov__bar { background: var(--ar-line-strong); }
+.ar-wd-prov.is-quiet .ar-wd-type { color: var(--ar-ink-faint); border-color: var(--ar-line); background: transparent; }
+.ar-wd-eps li.is-held code { color: var(--ar-ink-soft); text-decoration: line-through; }
+.ar-wd-prov__doors { color: var(--ar-ink-faint); }
+
+/* The counts ARE the filter — one segmented control, every cell the same kind of
+   thing. ⛔ Never a mixed strip again: a row of identical-looking cells where only
+   some respond is a screen asking a question it has no answer to. */
+/* ⚠️ THE SEAM IS `--ar-line-strong` HERE, NOT `--ar-line` — and that is not a
+   different style from the settings tabs, it is the same apparent contrast on a
+   different ground. Those tabs draw `--ar-line` against the plain surface, where
+   it reads; these cells sit on the RAISED surface, where the very same colour is
+   9 points away and disappears (measured: seam rgb(57,67,74) on cells
+   rgb(48,57,64)). ⭐ Match a separator to the ground it lands on, never to the
+   token another component happened to use. */
+.ar-wd-sum {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(132px, 1fr)); gap: 1px;
+  margin: 14px 0 0; background: var(--ar-line-strong); border: 1px solid var(--ar-line-strong);
+  border-radius: var(--ar-radius); overflow: hidden;
+}
+.ar-wd-sum__cell {
+  background: var(--ar-surface-2); padding: 9px 13px; text-align: left;
+  border: 0; font: inherit; color: inherit; cursor: pointer;
+}
+.ar-wd-sum__cell span {
+  display: block; font-family: var(--ar-mono); font-size: 9.5px;
+  letter-spacing: 0.09em; text-transform: uppercase; color: var(--ar-ink-faint);
+}
+.ar-wd-sum__cell strong {
+  display: block; font-size: 15.5px; margin-top: 3px; font-variant-numeric: tabular-nums;
+  color: var(--ar-ink-soft);
+}
+/* The number keeps its meaning in both states — green is published, amber is held
+   back. Selection is carried by the GROUND and the underline, never by recolouring
+   the figure, which would make the colour read as "selected" rather than "these
+   are the ones nobody can see". */
+.ar-wd-sum__cell strong.is-on { color: var(--ar-good); }
+.ar-wd-sum__cell strong.is-held { color: var(--ar-warn); }
+.ar-wd-sum__cell:hover { background: var(--ar-field); }
+.ar-wd-sum__cell:hover span { color: var(--ar-ink-soft); }
+/* ⭐ SELECTION IS MARKED THE WAY THIS PLUGIN MARKS SELECTION: a white fill and an
+   accent along the TOP edge — his call, 2026-07-19, the same pair
+   `.ar-subnav__item.is-active` wears. I had reached for a bottom underline, which
+   belongs to the top-level nav (`.ar__tab`) and to nothing else. A segmented strip
+   inside a card is sub-nav, and a screen with two different ways of saying
+   "this one is selected" makes the reader learn the same idea twice.
+   ⚠️ An inset shadow, not a border: a border would change the cell's height and
+   push every unselected neighbour out of line. */
+.ar-wd-sum__cell[aria-pressed="true"] {
+  background: var(--ar-surface); box-shadow: inset 0 2px 0 0 var(--ar-accent);
+}
+.ar-wd-sum__cell[aria-pressed="true"] span { color: var(--ar-ink); }
+.ar-wd-sum__cell[aria-pressed="true"] strong { color: var(--ar-ink); }
+.ar-wd-sum__cell[aria-pressed="true"] strong.is-on { color: var(--ar-good); }
+.ar-wd-sum__cell[aria-pressed="true"] strong.is-held { color: var(--ar-warn); }
+.ar-wd-sum__cell:focus-visible { outline: 2px solid var(--ar-accent); outline-offset: -2px; }
+/* One panel per group — the panel itself is `.ar-wd-sect`, which already owns the
+   border, radius, padding and top margin. ⛔ This rule sets NONE of those again:
+   two single-class selectors both declaring padding is decided by which one sits
+   later in the file, and a layout that depends on line numbers is a layout that
+   breaks the next time someone reorders a stylesheet.
+   ⭐ What is left is the part `.ar-wd-sect` has no opinion about: the heading is a
+   HEADING — 15px, ink, its own weight — not the 11px faint uppercase label the
+   MCP card's sub-lists wear. Those name a list inside a card; these name half of
+   what the screen is about, and a header quieter than the rows beneath it cannot
+   separate anything. */
+.ar-wd-part__title {
+  display: flex; align-items: center; gap: 4px; flex-wrap: wrap;
+  margin: 0; font-size: 15px; font-weight: 650; color: var(--ar-ink);
+  letter-spacing: -0.005em;
+}
+/* ⚠️⚠️ THE TWO CARETS MUST NOT READ ALIKE, or the screen has one gesture meaning
+   two things. The SECTION's is `.ar-fold`'s own triangle at the far left of a
+   bordered box — shutting it puts half the card away. A ROW's is a small chevron
+   beside a name inside that box, and it only ever reveals detail about that one
+   thing. Outer hides a place, inner opens a thing. */
+.ar-wd-part > summary { padding: 12px 0 11px; }
+/* ⭐ THE COUNT GOES TO THE RIGHT EDGE AND CARRIES THE ACCENT — his call. Sitting
+   against the title it read as punctuation on the end of a sentence; at the far
+   right it becomes a column, so two sections' numbers can be compared without
+   reading either heading. The heading takes the free width for it to be pushed
+   across. */
+.ar-wd-part > summary > .ar-wd-part__title { flex: 1 1 auto; min-width: 0; }
+.ar-wd-part__title .ar-wd-group__count {
+  margin-left: auto; font-size: 11px;
+  color: var(--ar-accent);
+  border-color: color-mix(in srgb, var(--ar-accent) 30%, var(--ar-surface));
+  background: color-mix(in srgb, var(--ar-accent) 9%, var(--ar-surface));
+}
+.ar-wd-part[open] > summary { border-bottom: 1px solid var(--ar-line); }
+.ar-wd-part[open] { padding-bottom: 6px; }
+/* The lead sits between the summary and the list, not hard against either. */
+.ar-wd-part > .ar-card__note { margin: 12px 0 0; }
+/* ⭐ The lead is a NOTICE, full width — his call. It wears `.ar-card__note--wide`,
+   the plugin's own notice block, rather than a bespoke paragraph: one notice
+   style on the screen, and the measure runs the whole card so the definition
+   does not leave a ragged grey column beside a full-width list. */
+/* The list's first row would otherwise draw a rule a hairline under the lead. */
+.ar-wd-part > .ar-wd-list { margin-top: 10px; }
+/* The gathered addresses, above the rows they summarise. Quieter than the rows —
+   it is a recap, not the inventory — and its own rule closes it off so the first
+   provider row does not read as the fifth address. */
+.ar-wd-addrs { margin: 14px 0 4px; padding-bottom: 14px; border-bottom: 1px solid var(--ar-line); }
+.ar-wd-addrs > .ar-wd-lhead { margin: 0 0 6px; }
+/* A recap reads as a LIST, not as cards: no border, no fill, one tight line each.
+   ⭐ The transport label keeps a fixed column so every URL starts at the same x —
+   a ragged left edge is what makes a scannable list unscannable. */
+.ar-wd-addrs__list { margin: 0; padding: 0; list-style: none; display: grid; gap: 1px; }
+.ar-wd-addrs__list li {
+  display: flex; align-items: center; gap: 10px; min-width: 0;
+  padding: 3px 2px; border-radius: 3px;
+}
+.ar-wd-addrs__list li:hover { background: var(--ar-surface-2); }
+.ar-wd-addrs__type {
+  flex: 0 0 auto; width: 34px;
+  font-family: var(--ar-mono); font-size: 9px; letter-spacing: 0.08em; color: var(--ar-ink-faint);
+}
+.ar-wd-addrs__list code { flex: 1 1 auto; min-width: 0; font-size: 11.5px; color: var(--ar-ink); overflow-wrap: anywhere; }
+.ar-wd-addrs__src { flex: 0 0 auto; font-size: 11.5px; color: var(--ar-ink-soft); }
+.ar-wd-addrs__list .ar-wd-auth { flex: 0 0 auto; }
+/* The label that re-announces the rows after the recap interrupts them. Its list
+   follows immediately, so it keeps its own bottom margin tight. */
+.ar-wd-part > .ar-wd-lhead { margin: 16px 0 0; }
+.ar-wd-part > .ar-wd-lhead + .ar-wd-list { margin-top: 6px; }
 .ar-wd-type {
   font-family: var(--ar-mono); font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase;
   color: var(--ar-accent); border: 1px solid color-mix(in srgb, var(--ar-accent) 28%, var(--ar-surface)); background: color-mix(in srgb, var(--ar-accent) 7%, var(--ar-surface)); padding: 2px 7px; border-radius: 3px;
@@ -4454,8 +4720,14 @@ button.ar-wd-stat:focus-visible { outline: 2px solid var(--ar-accent); outline-o
   background: var(--ar-surface-2); border: 1px solid var(--ar-line); padding: 3px 8px; border-radius: 3px;
 }
 
-.ar-wd-eps { margin: 11px 0 0; padding: 0; list-style: none; display: grid; gap: 7px; }
-.ar-wd-eps li { display: flex; align-items: center; gap: 9px; flex-wrap: wrap; }
+/* Addresses wear the same card as the jobs beside them — one open row, one row
+   grammar. They were bare flex lines while the jobs were cards, which read as
+   two different screens stacked. */
+.ar-wd-eps { margin: 12px 0 0; padding: 0; list-style: none; display: grid; gap: 8px; }
+.ar-wd-eps li {
+  display: flex; align-items: center; gap: 9px; flex-wrap: wrap;
+  padding: 9px 11px; border: 1px solid var(--ar-line); border-radius: var(--ar-radius);
+}
 .ar-wd-ep__type {
   font-family: var(--ar-mono); font-size: 9.5px; letter-spacing: 0.1em; text-transform: uppercase;
   color: var(--ar-ink-faint); border: 1px solid var(--ar-line-strong); padding: 2px 6px; border-radius: 3px;
@@ -4597,6 +4869,17 @@ button.ar-wd-stat:focus-visible { outline: 2px solid var(--ar-accent); outline-o
 }
 .ar-wd-badge--schema { color: var(--ar-accent); border-color: color-mix(in srgb, var(--ar-accent) 28%, var(--ar-surface)); background: color-mix(in srgb, var(--ar-accent) 7%, var(--ar-surface)); }
 .ar-wd-cap-src { font-size: 12px; color: var(--ar-ink-soft); }
+
+/* Addresses held back because a real anonymous request could not open them. The
+   list sits UNDER the published ones and is quieter than them: it is an account
+   of an absence, not a fault to alarm anyone. */
+.ar-wd-reach__note { margin: 12px 0 0; font-size: 12.5px; color: var(--ar-ink-soft); }
+.ar-wd-reach { margin-top: 18px; padding-top: 16px; border-top: 1px solid var(--ar-line); }
+.ar-wd-reach__title { margin: 0 0 4px; font-size: 14px; font-weight: 600; color: var(--ar-ink); }
+.ar-wd-reach__row { margin-top: 10px; padding: 10px 12px; border: 1px solid var(--ar-line); border-radius: 6px; background: var(--ar-surface-2); }
+.ar-wd-reach__head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.ar-wd-reach__why { margin: 6px 0 0; font-size: 12.5px; color: var(--ar-ink-soft); }
+
 .ar-card__count {
   font-family: var(--ar-mono); font-size: 12px; font-weight: 600; color: var(--ar-ink-soft);
   border: 1px solid var(--ar-line-strong); border-radius: 999px; padding: 1px 9px; margin-left: 6px; vertical-align: middle;
@@ -5727,15 +6010,18 @@ button.ar-act-more:hover { color: var(--ar-ink); }
 }
 .ar-about-priv__cell h3 { margin: 0 0 6px; font-size: 13.5px; color: var(--ar-ink); }
 .ar-about-priv__cell p { margin: 0; font-size: 12.5px; line-height: 1.6; color: var(--ar-ink-soft); }
+/* The lead cell used to be an INVERTED panel — ink ground, paper text — which
+   dark could not follow (it has no darker ground to invert onto) and which cost
+   this cell its legibility there. It is the same reading text as its siblings,
+   so it now sits on the same ground in BOTH themes and takes its rank from the
+   icon, the flex layout and a stronger line. That leaves no colour for a theme
+   block to have to re-state, which is what went wrong before. */
 .ar-about-priv__cell--head {
-  display: flex; gap: 14px; align-items: flex-start; background: var(--ar-ink); border-color: var(--ar-ink);
+  display: flex; gap: 14px; align-items: flex-start; border-color: var(--ar-line-strong);
 }
-.ar-about-priv__cell--head h3 { color: var(--ar-paper); }
-.ar-about-priv__cell--head p { color: color-mix(in srgb, var(--ar-paper) 72%, transparent); }
-.ar-about-priv__cell--head .ar-linkbtn { color: var(--ar-teal-on-ink); }
 .ar-about-priv__icon {
   flex: 0 0 auto; display: inline-flex; align-items: center; justify-content: center;
-  width: 34px; height: 34px; border-radius: 50%; color: var(--ar-good-on-ink); background: color-mix(in srgb, var(--ar-good-on-ink) 14%, transparent);
+  width: 34px; height: 34px; border-radius: 50%; color: var(--ar-good); background: color-mix(in srgb, var(--ar-good) 14%, transparent);
 }
 .ar-about-not { margin: 10px 0 0; padding: 0; list-style: none; display: grid; gap: 5px; }
 .ar-about-not li { position: relative; padding-left: 20px; font-size: 12px; color: var(--ar-ink-soft); }
@@ -8312,7 +8598,17 @@ a.ar-work__name { color: var(--ar-accent); }
    belongs where the thing is read, not on a second screen). Small, at the end
    of the row's head line, so it never competes with the name. */
 .ar-wd-switch { margin-left: auto; flex: 0 0 auto; display: inline-flex; align-items: center; cursor: pointer; }
-.ar-wd-switch input { position: absolute; opacity: 0; width: 0; height: 0; }
+/* ⚠️⚠️ THE ATTRIBUTE SELECTOR IS LOAD-BEARING, and the `:disabled` twin doubly so.
+   wp-admin ships `input[type=checkbox]:disabled { opacity: .7 }` at specificity
+   (0,2,1); our old `.ar-wd-switch input` was (0,1,1) and lost, so a DISABLED
+   switch un-hid its native checkbox — dashicon tick and all — sitting inside our
+   own track. Measured: live inputs computed opacity 0, disabled ones 0.7, and the
+   width came back as 16px. ⛔ Never hide a form control with a single-class
+   selector: wp-admin's element+state rules outrank it. */
+.ar-wd-switch input[type="checkbox"],
+.ar-wd-switch input[type="checkbox"]:disabled {
+  position: absolute; opacity: 0; width: 0; height: 0; min-width: 0; margin: 0; border: 0;
+}
 .ar-wd-switch__track {
   position: relative; display: block; width: 34px; height: 19px;
   background: var(--ar-line-strong); border-radius: 999px; transition: background 0.18s;
@@ -8342,18 +8638,13 @@ a.ar-work__name { color: var(--ar-accent); }
    the sentence that explains whose decision this is. */
 .ar-wd-rule__text small + small { color: var(--ar-ink-faint); }
 
-/* ⭐ Agentimus is never one of the plugins it describes (his call, 2026-08-15).
-   Its own row leads every list on this page and is set apart: the accent bar
-   instead of the neutral one, its name said outright, and a rule under it so
-   the eye reads "ours, then theirs" rather than one long list. */
-.ar-wd-ours {
-  font-family: var(--ar-mono); font-size: 10px; letter-spacing: 0.04em;
-  padding: 1px 7px; border-radius: 999px;
-  color: var(--ar-accent); border: 1px solid color-mix(in srgb, var(--ar-accent) 45%, transparent);
-}
+/* ⭐ Agentimus is never one of the plugins it describes (his call, 2026-08-15) —
+   its row still leads its group and still wears the accent bar. ⛔ The "Agentimus"
+   CHIP is gone (his call, 2026-08-17): the row is titled "Jobs from Agentimus", so
+   the chip said the same word twice, and we cannot badge any other vendor
+   honestly — badging only ourselves was special pleading. Being set apart is now
+   the bar and the order, not a label. */
 .ar-wd-prov.is-ours .ar-wd-prov__bar { background: var(--ar-accent); }
-.ar-wd-prov.is-ours { padding-bottom: 14px; border-bottom: 1px solid var(--ar-line-strong); }
-.ar-fold.ar-wd-grp.is-ours { border-color: color-mix(in srgb, var(--ar-accent) 40%, var(--ar-line-strong)); }
 
 /* A group the owner switched off, said in colour as well as in words (his call,
    2026-08-15): recessed ground, muted edge, quieter title. Not opacity — that
