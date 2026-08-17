@@ -619,11 +619,10 @@ export default {
         />
       </div>
       <p class="ar-card__lead">
-        Whether Google's index holds this site's pages — not how they rank or earn
-        (that's Search Performance below), just whether they're in. Everything finds
-        pages through this one index: classic Google Search that people use, and the
-        AI surfaces (AI Overviews, AI Mode, Gemini) alike — fixing a page here helps
-        both audiences at once.
+        Whether Google’s index holds this site’s pages. Not how they rank or earn — that
+        is Search Performance below — only whether they are in. Everything finds pages
+        through this one index: the classic Google Search people use, and the AI surfaces
+        (AI Overviews, AI Mode, Gemini). So fixing a page here helps both audiences at once.
       </p>
 
       <div class="ar-mcp-rail" data-state="running">
@@ -897,7 +896,7 @@ export default {
               </p>
             </template>
             <p class="ar-gidx__lookuphint">
-              Answers come from the stored daily checks, not a live call — this is
+              Answers come from the stored daily checks, not a live call. This is
               your own record of what Google said, not a new question to Google.
               A page not checked yet says so. When the stored answer isn't fresh
               enough, <strong>Re-check</strong> on the answer asks Google live,

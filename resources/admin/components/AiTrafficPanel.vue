@@ -519,7 +519,7 @@ export default {
     <section v-if="gaOn" class="ar-card ar-rd ar-rd--all">
       <h2 class="ar-card__title">
         Everyone Who Visited
-        <span class="ar-card__tag">last {{ audience.window }} days</span>
+        <span class="ar-card__tag">Last {{ audience.window }} days</span>
       </h2>
       <p class="ar-card__lead">
         Every visitor, however they found you. A visit is one person’s trip to your
@@ -570,7 +570,7 @@ export default {
     <section v-if="gaOn && allPages.length" class="ar-card ar-rd">
       <h2 class="ar-card__title">
         Busiest Pages
-        <span class="ar-card__tag">last {{ audience.window }} days</span>
+        <span class="ar-card__tag">Last {{ audience.window }} days</span>
       </h2>
       <p class="ar-card__lead">Your whole site, busiest first — everyone, not only AI.</p>
       <ul class="ar-rd__list ar-rd__list--wide">

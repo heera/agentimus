@@ -77,9 +77,9 @@ export default {
   <div class="ar-ipcheck">
     <div class="ar-ipcheck__head">Check an IP address</div>
     <p class="ar-ipcheck__intro">
-      Paste any IP to see which search engine it really belongs to — a live reverse-DNS lookup,
-      independent of the review queue. Needs no setting turned on, and works the same with or
-      without a CDN — you give it the address directly, so there’s no proxy to see through.
+      Paste any IP address to see which search engine it really belongs to. This is a live
+      reverse-DNS lookup, separate from the review queue. It needs no setting turned on, and
+      works the same with or without a CDN, because you give it the address directly.
     </p>
     <form class="ar-ipcheck__row" @submit.prevent="check">
       <input

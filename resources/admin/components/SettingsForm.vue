@@ -916,8 +916,8 @@ export default {
         <h2 class="ar-card__title">Features</h2>
         <p class="ar-card__lead">
           The files and signals your site publishes for AI, so assistants can find, read and cite
-          your content properly. Each switch adds or removes exactly one of them — what it publishes
-          is named right under it — and the everyday defaults are already on.
+          your content properly. Each switch adds or removes exactly one of them. The text under a
+          switch names what it publishes. The everyday ones are already on.
         </p>
 
         <template v-for="f in features" :key="f.key">
@@ -976,7 +976,7 @@ export default {
             <span class="ar-toggle__track" aria-hidden="true"></span>
             <span class="ar-toggle__text">
               <strong>Find missed AI sources (diagnostic)</strong>
-              <small>“Traffic from AI” only counts assistants it recognises, and a miss leaves no trace. Turn this on and Agentimus also lists the referrers it <em>couldn’t</em> name — so you can see whether an assistant is being overlooked. Records the site name and <code>utm_source</code> tag only: still no IPs, nothing sent anywhere. It writes a row for every visit referred from another site, so switch it on for a week, read the list under More → Visitors, then switch it off.</small>
+              <small>“Traffic from AI” only counts assistants it knows, and a miss leaves no trace. Turn this on and Agentimus also lists the sites it <em>could not</em> name. You can then see whether an assistant is being missed. It records the site name and the <code>utm_source</code> tag only — still no IP addresses, nothing sent anywhere. It writes a row for every visit that came from another site, so turn it on for a week, read the list under More → Visitors, then turn it off.</small>
             </span>
           </label>
 
@@ -1027,8 +1027,8 @@ export default {
           <!-- The cap outranks the period: a busy site can hit the ceiling long before a record
                is old enough to expire, and the oldest go anyway. Saying "keep for 90 days" without
                this reads as a promise the cap can break. -->
-          The size cap wins over the period: on a busy site the log can reach it before records are
-          old enough to expire, and the oldest are removed anyway.
+          The size cap comes first, before the time limit. On a busy site the log can reach the cap
+          before records are old enough to expire. The oldest are then removed anyway.
           The Dashboard always reports on the last <strong>{{ Math.min(30, settings.activity_retention_days || 30) }} days</strong>.
           <template v-if="(settings.activity_retention_days || 30) > 30">
             Keeping {{ settings.activity_retention_days }} days gives the <em>Request Log</em> a deeper history to page
@@ -1048,10 +1048,10 @@ export default {
       <section id="ar-sec-digest" class="ar-card">
         <h2 class="ar-card__title">Weekly Email</h2>
         <p class="ar-card__lead">
-          Once a week, Agentimus emails you a short note about what AI did on your site: AI reads,
-          readers arriving from AI answers, impostors caught, and your readiness score. It is built only
-          from the data already stored on your site and sent with WordPress’s own mail — nothing else
-          leaves your server. A week with nothing to report sends nothing.
+          Once a week, Agentimus emails you a short note about what AI did on your site. It covers
+          AI reads, readers who arrived from AI answers, impostors caught, and your readiness score.
+          It is built only from data already stored on your site, and sent with WordPress’s own mail.
+          Nothing else leaves your server. A week with nothing to report sends nothing.
         </p>
 
         <label id="ar-feat-digest_enabled" class="ar-toggle">
@@ -1113,12 +1113,14 @@ export default {
            hide agent fetches from the log and serve stale AI files. -->
       <section id="ar-sec-caching" class="ar-card">
         <h2 class="ar-card__title">Caching &amp; CDN</h2>
+        <!-- ⭐ Was a 72-word sentence: two problems, each with its own parenthesis,
+             joined by a dash and a colon. Two problems want two sentences. -->
         <p class="ar-card__lead">
-          A full-page cache or CDN in front of your site (Cloudflare, an Nginx or Varnish cache, a caching
-          plugin) speeds up your pages — but it can get between AI and Agentimus two ways: it can serve stored
-          copies of your AI files (so fetches of them aren’t logged and the files go stale), and it can hide the
-          visitors AI sends you (so “Traffic from AI” under-counts). These settings handle both. None of them
-          matter if nothing caches your site.
+          A cache or CDN in front of your site makes your pages faster. Cloudflare, Nginx, Varnish and
+          caching plugins all do this. But a cache can come between AI and Agentimus in two ways. It can
+          serve saved copies of your AI files, so those files fall out of date and we never see them being read.
+          And it can hide the visitors AI sends you, so “Traffic from AI” counts too few. The settings
+          here deal with both. If nothing caches your site, none of them matter.
         </p>
 
         <label :inert="!settings.enable_activity" id="ar-feat-enable_referral_beacon" class="ar-toggle">
@@ -1126,7 +1128,7 @@ export default {
           <span class="ar-toggle__track" aria-hidden="true"></span>
           <span class="ar-toggle__text">
             <strong>CDN mode — count AI visits in the browser</strong>
-            <small>Turn on only if your site sits behind a full-page cache/CDN (e.g. Cloudflare “Cache Everything”). It counts “Traffic from AI” in the visitor’s browser so the number survives the cache. Adds a tiny counting script to your pages. A few visitors — those using an ad-blocker or a privacy-focused browser that blocks scripts like this — won’t be counted, so read the total as a minimum, never an over-count.</small>
+            <small>Turn this on only if a full-page cache or CDN sits in front of your site — for example Cloudflare with “Cache Everything”. It counts “Traffic from AI” in the visitor’s browser, so the number survives the cache. It adds a small counting script to your pages. Some visitors block scripts like this, with an ad-blocker or a privacy browser, and are not counted. So read the total as a minimum, never as too high.</small>
           </span>
         </label>
 
@@ -1135,7 +1137,7 @@ export default {
           <span class="ar-toggle__track" aria-hidden="true"></span>
           <span class="ar-toggle__text">
             <strong>Keep AI files out of your cache</strong>
-            <small>If a cache or CDN sits in front of your site, it can serve stored copies of your AI files (<code>llms.txt</code>, the <code>.well-known</code> docs, the change feed) — so those fetches never reach WordPress, the log under-counts them, and the change feed can go stale. Turn this on and Agentimus asks caches not to store those files (a <code>no-store</code> header), so each fetch reaches WordPress and is counted and current. It works with any cache that respects that header; a cache told to “cache everything” or ignore origin headers still needs a rule set there. If nothing sits in front of your site, leave it off — it trades a little edge-caching on those files.</small>
+            <small>A cache in front of your site can serve saved copies of your AI files: <code>llms.txt</code>, the <code>.well-known</code> docs and the change feed. Those reads never reach WordPress, so the log counts too few and the change feed can fall out of date. Turn this on and Agentimus asks caches not to store those files. Every read then reaches WordPress, and is counted and current. This works with any cache that respects the request. A cache told to “cache everything”, or to ignore your server, still needs its own rule. If nothing sits in front of your site, leave this off: it gives up a little speed on those files.</small>
           </span>
         </label>
 
@@ -1144,7 +1146,7 @@ export default {
           <span class="ar-toggle__track" aria-hidden="true"></span>
           <span class="ar-toggle__text">
             <strong>Refresh AI files when content changes</strong>
-            <small>When you publish or edit a post, your page cache refreshes that page — but not your AI files, so a cache can keep serving a stale <code>llms.txt</code>, change feed or <code>.md</code> twin until its own timer runs out. Turn this on and Agentimus asks every cache it can find (WP Rocket, Nginx Helper, W3 Total Cache, LiteSpeed, WP Super Cache, Cache Enabler…) to drop those files on each content change, so AI assistants never get a stale copy after an edit. On by default; it does nothing if no page cache is installed. This keeps files <em>fresh</em> — it doesn’t change the log count (for that, use the switch above).</small>
+            <small>When you publish or edit a post, your page cache refreshes that page. It does not refresh your AI files. So a cache can keep serving an old <code>llms.txt</code>, change feed or <code>.md</code> copy until its own timer ends. Turn this on and Agentimus asks every cache it can find to drop those files after each change — WP Rocket, Nginx Helper, W3 Total Cache, LiteSpeed, WP Super Cache, Cache Enabler and others. AI assistants then never get an old copy after an edit. On by default. It does nothing if you have no page cache. This keeps files <em>current</em>; it does not change the log count. For that, use the switch above.</small>
           </span>
         </label>
       </section>
@@ -1201,8 +1203,8 @@ export default {
         <p class="ar-card__lead">
           Adds a one-line summary to your content’s AI data — the structured data (JSON-LD
           <code>description</code>) and the plain-text (<code>.md</code>) version — so assistants
-          summarise and cite it correctly. You write it in the editor; blank pages fall back to the
-          excerpt. Stands aside for a dedicated SEO plugin, like the rest of Agentimus.
+          summarise and cite it correctly. You write it in the editor. If you leave it blank, the
+          page’s excerpt is used instead. If you run an SEO plugin, Agentimus lets that plugin lead.
         </p>
 
         <label id="ar-feat-enable_ai_description" class="ar-toggle">
@@ -1210,7 +1212,7 @@ export default {
           <span class="ar-toggle__track" aria-hidden="true"></span>
           <span class="ar-toggle__text">
             <strong>Add a description to your content’s AI data</strong>
-            <small>Shows an “AI description” box in the editor.</small>
+            <small>Adds an “AI description” field to the editor, in the <em>AI Description &amp; Topics</em> box.</small>
           </span>
         </label>
 
@@ -1250,7 +1252,7 @@ export default {
           <span class="ar-toggle__track" aria-hidden="true"></span>
           <span class="ar-toggle__text">
             <strong>Social share cards</strong>
-            <small>Adds the tags (Open Graph) that give a shared link its preview in social and chat apps: title, description and image — the featured image, or your Site Icon when a page has none.</small>
+            <small>Adds the tags (Open Graph) that give a shared link its preview in social and chat apps: a title, a description and an image. The image is the page’s featured image, or your Site Icon when a page has none.</small>
           </span>
         </label>
 
@@ -1283,7 +1285,7 @@ export default {
 
       <!-- Browser tools (WebMCP) — master toggle + per-tool expose/hide - -->
       <section id="ar-sec-webmcp" class="ar-card">
-        <h2 class="ar-card__title">Browser Tools <span class="ar-card__tag">experimental</span></h2>
+        <h2 class="ar-card__title">Browser Tools <span class="ar-card__tag">Experimental</span></h2>
         <p class="ar-card__lead">
           Lets an AI assistant working inside a browser call your site’s read-only tools (like site
           search) directly, via the emerging <strong>WebMCP</strong> browser standard. It adds a
@@ -1453,7 +1455,7 @@ export default {
         <h2 class="ar-card__title">Discovery — REST APIs</h2>
         <p class="ar-card__lead">
           REST APIs detected on your site. Publish the ones AI assistants should use; internal or admin
-          APIs (analytics, telemetry, admin) are best left off. Nothing is published unless you tick it.
+          APIs — analytics, usage tracking, admin — are best left off. Nothing is published unless you tick it.
         </p>
         <div class="ar-types-bar">
           <input
@@ -1723,7 +1725,7 @@ export default {
                 <span class="ar-toggle__track" aria-hidden="true"></span>
                 <span class="ar-toggle__text">
                   <strong>Response header</strong>
-                  <small>Attaches an invisible “do not train” tag to every page your site serves, so an AI crawler gets the signal directly — even if it never reads your robots.txt.</small>
+                  <small>Attaches an invisible “do not train” tag to every page your site serves. An AI crawler then gets the signal directly, even if it never reads your robots.txt.</small>
                 </span>
               </label>
 
@@ -1732,7 +1734,7 @@ export default {
                 <span class="ar-toggle__track" aria-hidden="true"></span>
                 <span class="ar-toggle__text">
                   <strong>Opt-out file</strong>
-                  <small>Publishes a small standard file that formally declares your content off-limits for AI training — the machine-readable format AI companies check, and the one that lines up with EU text-and-data-mining rules. <a :href="tdmrepUrl" target="_blank" rel="noopener">View the file</a>.</small>
+                  <small>Publishes a small standard file that declares your content off-limits for AI training. This is the format AI companies check, and the one that matches EU text-and-data-mining rules. <a :href="tdmrepUrl" target="_blank" rel="noopener">View the file</a>.</small>
                 </span>
               </label>
 
@@ -1741,7 +1743,7 @@ export default {
                 <span class="ar-toggle__track" aria-hidden="true"></span>
                 <span class="ar-toggle__text">
                   <strong>Also send a “noai” header</strong>
-                  <small>An extra page header asking AI tools not to use your text or images. It isn’t an official standard — only some platforms honor it — so treat it as a harmless bonus signal on top of the two above.</small>
+                  <small>An extra page header asking AI tools not to use your text or images. It is not an official standard, and only some platforms follow it. Treat it as a harmless extra signal on top of the two above.</small>
                 </span>
               </label>
 
@@ -1749,21 +1751,21 @@ export default {
                 <label for="ar-tdm-policy">AI-usage policy URL <span class="ar-field__tag">optional</span></label>
                 <input id="ar-tdm-policy" v-model="settings.tdm_policy_url" type="url" class="ar-input" placeholder="https://example.com/ai-policy" />
                 <small class="ar-field__hint">
-                  A link to your own page spelling out your AI terms — e.g. “training allowed only with a
-                  licence; email us.” When set, the header and opt-out file point AI companies to it so they
-                  know your conditions or how to ask permission. Leave it blank for a plain “no” — your
-                  opt-out still works exactly the same without it.
+                  A link to your own page setting out your AI terms. For example: “training allowed only
+                  with a licence; email us.” When you set it, the header and the opt-out file point AI
+                  companies to that page, so they know your terms and how to ask permission. Leave it
+                  blank for a plain “no” — your opt-out works exactly the same without it.
                 </small>
               </div>
             </details>
           </div>
 
           <p v-else class="ar-card__note">
-            AI training is allowed, so no opt-out signals are published — on the web, no signal already
-            means “allowed”. To opt out, turn off <strong>Allow AI training</strong> above: that publishes a
-            no-training signal in robots.txt, a response header, and <code>/.well-known/tdmrep.json</code> at
-            once. To keep specific crawlers out while staying open, list them under
-            <strong>Block specific crawlers</strong> above.
+            AI training is allowed, so nothing is published to refuse it. On the web, saying nothing
+            already means “allowed”. To refuse, turn off <strong>Allow AI training</strong> above. That
+            publishes a no-training signal in three places at once: robots.txt, a page header, and
+            <code>/.well-known/tdmrep.json</code>. To keep certain crawlers out while staying open to the
+            rest, list them under <strong>Block specific crawlers</strong> above.
           </p>
         </div>
       </section>
@@ -1791,11 +1793,12 @@ export default {
             <span class="ar-toggle__track" aria-hidden="true"></span>
             <span class="ar-toggle__text">
               <strong>Auto-deny spoofed / legacy-device crawlers</strong>
-              <small>Turn away crawlers caught lying about who they are. Two kinds: crawlers disguised as ancient phones
-              (old Nokia/BlackBerry handsets — a classic scanner trick, shown as “Likely spoof/scanner” in your
-              activity log), and — with <strong>Verify bot identities</strong> on — <strong>proven impostors</strong>:
-              clients claiming a verified bot (Googlebot, GPTBot…) whose address conclusively fails that operator's
-              own published check. Fail-open: an unclear result never denies anyone.</small>
+              <small>Turn away crawlers caught lying about who they are. There are two kinds. First, crawlers
+              pretending to be very old phones — old Nokia and BlackBerry handsets, a common scanner trick. Your
+              activity log shows these as “Likely spoof/scanner”. Second, with <strong>Verify bot
+              identities</strong> on, <strong>proven impostors</strong>: a visitor claiming to be a verified bot
+              such as Googlebot or GPTBot, whose address clearly fails that operator's own check. An unclear
+              result never turns anyone away.</small>
             </span>
           </label>
 
@@ -1893,10 +1896,10 @@ export default {
       <section id="ar-sec-verify" class="ar-card">
         <h2 class="ar-card__title">Bot Identity <span class="ar-field__tag">optional</span></h2>
         <p class="ar-card__lead">
-          A User-Agent name is just a claim — anyone can call themselves Googlebot. The checks here look
-          past the name: verify the crawlers whose operators publish a way to check, see the network every
-          other crawler really belongs to, and look up any single address. Fail-open by design — an unclear
-          answer never punishes anyone.
+          A User-Agent name is only a claim — anyone can call themselves Googlebot. The checks here look
+          past the name. They verify the crawlers whose operators publish a way to check. They show which
+          network every other crawler really belongs to. And they let you look up any single address. An
+          unclear answer never counts against anyone.
         </p>
 
         <!-- Verification is not gated by blocking: on its own it flags impersonators in
@@ -1907,9 +1910,9 @@ export default {
           <span class="ar-toggle__text">
             <strong>Verify bot identities</strong>
             <small>
-              When a visitor claims to be a known crawler, check the claim is real — the one check that catches a
-              scanner copying a crawler's name. A confirmed fake is flagged for review as an
-              <strong>Impersonator</strong>; a slow or failed lookup never drops a real crawler.
+              When a visitor claims to be a known crawler, check that the claim is real. This is the one check
+              that catches a scanner copying a crawler's name. A proven fake is flagged for review as an
+              <strong>Impersonator</strong>. A slow or failed lookup never turns away a real crawler.
               <!-- The depth lives behind a fold (his call, 2026-08-12: the full
                    paragraph inline read as a wall). Same details/summary grammar
                    as Crawler Policy's "Publishing channels". -->
@@ -1921,18 +1924,43 @@ export default {
              2026-08-12). Sibling, indented to the toggle's text column. -->
         <details class="ar-toggle__more">
           <summary class="ar-linkbtn">How the checks work</summary>
-          <small>
-                It covers the crawlers in the <strong>Verified bots</strong> list below, three ways, depending on what
-                each operator publishes: <strong>reverse DNS</strong> (Googlebot, Bingbot…) checked live per visitor;
-                <strong>published IP ranges</strong> (GPTBot, PerplexityBot…) checked against a list refreshed daily in
-                the background — never while serving a page, so an unreachable publisher costs nothing; and
-                <strong>cryptographic signatures</strong> (Web Bot Auth), crawlers that sign their requests, as
-                Google's crawler and OpenAI already do — checked mathematically on your server, the strongest proof of
-                the three. Works whether or not blocking is on; if blocking <em>is</em> on (with the spoofed-crawlers
-                block), a proven fake is refused at your AI files outright. <strong>Behind a proxy or CDN?</strong> On
-                Cloudflare it works automatically — Agentimus reads the real visitor IP. Another proxy may need the
-                true client IP passed through.
-          </small>
+          <!-- ⭐⭐ WAS ONE 82-WORD SENTENCE — the longest on the whole screen, and
+               the pattern behind most of the long ones: a LIST written as prose.
+               Three ways of checking, separated by semicolons, each with its own
+               parenthesis and its own dash. Splitting it into shorter sentences
+               would not have been enough; three things need three lines. -->
+          <div class="ar-toggle__note">
+            <p>
+              Agentimus can confirm that a visitor claiming to be a known crawler really is that
+              crawler. It checks the ones in the <strong>Verified bots</strong> list below. There are
+              three ways, and which one it uses depends on what each operator publishes.
+            </p>
+            <ul>
+              <li>
+                <strong>Reverse DNS</strong> — Googlebot, Bingbot and similar. Checked live, for each
+                visitor.
+              </li>
+              <li>
+                <strong>Published IP ranges</strong> — GPTBot, PerplexityBot and similar. Checked
+                against a list we refresh once a day in the background, never while a page is being
+                served. So a publisher whose file is offline costs your visitors nothing.
+              </li>
+              <li>
+                <strong>Signed requests</strong> — Web Bot Auth. Some crawlers sign every request, as
+                Google's crawler and OpenAI already do. Your own server checks the signature. This is
+                the strongest proof of the three.
+              </li>
+            </ul>
+            <p>
+              This works whether blocking is on or off. If blocking is on and you block spoofed
+              crawlers, a proven fake is refused at your AI files.
+            </p>
+            <p>
+              <strong>Behind a proxy or CDN?</strong> On Cloudflare this works by itself, because
+              Agentimus reads the real visitor address. Another proxy may need to pass the true
+              visitor address through.
+            </p>
+          </div>
         </details>
 
         <!-- The Verified-bots registry: which bots this site can verify, and how. Owner-
@@ -1955,10 +1983,11 @@ export default {
                  then the action row: the live "what's still missing" line on the left
                  and the button on the right. -->
             <small class="ar-field__hint ar-verreg__intro">
-              Use the crawler's exact name from its User-Agent (3+ characters — a short generic word would
-              mis-claim other crawlers), plus at least one source from the operator's own docs: the domain its
-              reverse DNS must land in, and/or its published IP-ranges file (fetched once to confirm it's
-              real when you add). Saved with the settings.
+              Use the crawler's exact name from its User-Agent. It needs 3 characters or more, because a
+              short everyday word would wrongly match other crawlers. Then add at least one source from
+              the operator's own docs: the domain its reverse DNS must land in, its published IP-ranges
+              file, or both. Agentimus fetches that file once, as you add it, to confirm it is real.
+              Saved with the settings.
             </small>
             <!-- "one of the two" belongs to the PAIR, so neither field may claim to be
                  individually "(optional)" — that read as "you can skip both". -->
@@ -2136,10 +2165,10 @@ export default {
       <section id="ar-sec-agent-access" class="ar-card">
         <h2 class="ar-card__title">Agent Access</h2>
         <p class="ar-card__lead">
-          The other side of Exposure: not what your site reveals, but who reaches in. An
-          application password lets a program act as you through WordPress’s API — and it keeps
-          working even after you change your password, which is exactly why one appearing
-          unannounced is worth knowing about.
+          The other side of Exposure: not what your site gives out, but who can get in. An
+          application password lets a program act as you through WordPress’s API. It keeps working
+          even after you change your password. That is why one appearing without warning is worth
+          knowing about.
         </p>
 
         <label id="ar-aa-events" class="ar-toggle">

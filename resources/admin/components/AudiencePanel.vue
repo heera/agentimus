@@ -113,7 +113,7 @@ export default {
       <div>
         <h2 id="ar-aud-title" class="ar-card__title">
           Who Reached Your Site
-          <span class="ar-card__tag">last {{ window }} days</span>
+          <span class="ar-card__tag">Last {{ window }} days</span>
         </h2>
         <p class="ar-card__lead">
           Two audiences, counted separately because they are not the same thing and

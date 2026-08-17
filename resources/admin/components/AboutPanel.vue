@@ -529,19 +529,20 @@ export default {
     <section id="ar-about-features" class="ar-card">
       <h2 class="ar-card__title">What It Does</h2>
       <p class="ar-card__lead">
-        Agentimus does two things for the age of AI assistants. <strong>First, it makes your site legible and
-        citable</strong> — it publishes the documents AI assistants look for, offers your content in machine-readable
-        formats, and adds trust signals, then rolls it all into one AEO/GEO score with the next thing to improve.
-        <strong>Second, it lets the AI tools you already use operate your site over MCP</strong> — flip on the
-        built-in Model Context Protocol server and Claude, Cursor or Codex can read your readiness, traffic and
-        crawler data; allow writes with a separate switch and the same assistant can draft and edit posts and pages —
-        categories, tags, featured image, AI topics and descriptions and all — and, behind a third switch,
-        publish them. Every write runs as the signed-in user, permission-checked and audited, so nobody opens
-        wp-admin to get a post out.
+        Agentimus does two things for the age of AI assistants. <strong>First, it makes your site easy for AI to
+        read and quote.</strong> It publishes the documents AI assistants look for. It offers your content in
+        formats machines can read. And it adds signals that show your site is genuine. All of that becomes one
+        AEO/GEO score, with the next thing to improve named for you.
+        <strong>Second, it lets the AI tools you already use run your site over MCP.</strong> Turn on the built-in
+        Model Context Protocol server, and Claude, Cursor or Codex can read your readiness, traffic and crawler
+        data. A separate switch allows writing: the same assistant can then draft and edit posts and pages, with
+        their categories, tags, featured image, AI topics and descriptions. A third switch lets it publish. Every
+        write runs as the signed-in user, is permission-checked, and is recorded. So nobody has to open wp-admin
+        to get a post out.
       </p>
       <p class="ar-card__lead">
-        Everything here is on by default unless marked otherwise (the write and MCP features are off until you
-        turn them on); see the live documents on the
+        Everything here is on by default unless marked otherwise. The write and MCP features are the exception —
+        they stay off until you turn them on. See the live documents on the
         <button type="button" class="ar-linkbtn" @click="$emit('navigate', { tab: 'discovery' })">Discovery</button>
         tab and change any default under
         <button type="button" class="ar-linkbtn" @click="$emit('navigate', { tab: 'settings' })">Settings</button>.
@@ -600,26 +601,27 @@ export default {
           <div>
             <h3>What Leaves Your Server: Nothing by Default</h3>
             <p>
-              No phone-home, no telemetry, no remote config. Outbound calls come only from opt-in
-              features, all off by default, each using a credential you provide (stored encrypted at
-              rest, masked in the admin). <strong>Citation checks</strong>: queries the assistants you
-              chose (OpenAI, Perplexity, Gemini, Claude) with your own AI keys to check whether they
-              cite you. <strong>At Cloudflare</strong>: one hourly poll of Cloudflare’s analytics API
-              with your own read-only token — nothing about your site is sent, numbers only come back.
-              <strong>In Bing’s Index</strong>: one daily poll of Bing Webmaster Tools with your own
-              read-only key — plus the page lookups you run by hand — same direction, numbers in only. <strong>Search Performance</strong>: one
-              daily poll of Google Search Console with your own service-account key — Agentimus signs in
-              directly from your server, with no third party in between, and only your own search
-              statistics come back. <strong>Visitors</strong>: the same key, granted Viewer on your
-              GA4 property, reads your own visit totals once a day — nothing about your visitors
-              goes out. <strong>Verify bot identities</strong>:
-              makes small DNS lookups and, once a day, downloads the public crawler-IP lists crawler
-              operators publish (Google’s googlebot.json, OpenAI’s gptbot.json, …) so impostors can be
-              caught — only those public files are fetched, and nothing about your site or your
-              visitors is ever sent. The “Verify live” readiness check still runs in <em>your
-              browser</em> against your own URLs. And one email: the <strong>weekly digest</strong> —
-              on by default, stopped with one click — goes only to the inbox you chose, carrying your
-              own numbers and nothing else.
+              Agentimus never calls home. No usage tracking, and no settings fetched from anywhere else.
+              Calls out of your server come only from features you switch on yourself. All of them are off
+              to begin with, and each uses a key you provide, stored encrypted on your server and masked in
+              the admin. <strong>Citation checks</strong>: asks the assistants you chose — OpenAI,
+              Perplexity, Gemini, Claude — with your own AI keys, to see whether they cite you.
+              <strong>At Cloudflare</strong>: one hourly read of Cloudflare’s analytics with your own
+              read-only token. Nothing about your site is sent; only numbers come back.
+              <strong>In Bing’s Index</strong>: one daily read of Bing Webmaster Tools with your own
+              read-only key, plus the page lookups you run by hand. Again, numbers come in and nothing
+              goes out. <strong>Search Performance</strong>: one daily read of Google Search Console with
+              your own service-account key. Agentimus signs in directly from your server, with no other
+              company in between, and only your own search statistics come back.
+              <strong>Visitors</strong>: the same key, given Viewer access to your GA4 property, reads
+              your own visit totals once a day. Nothing about your visitors goes out.
+              <strong>Verify bot identities</strong>: makes small DNS lookups. Once a day it also
+              downloads the crawler-IP lists that crawler operators publish — Google’s googlebot.json,
+              OpenAI’s gptbot.json and others — so impostors can be caught. Only those public files are
+              fetched. Nothing about your site or your visitors is ever sent. The “Verify live” readiness
+              check still runs in <em>your browser</em>, against your own URLs. And one email: the
+              <strong>weekly digest</strong>, on by default and stopped with one click, goes only to the
+              inbox you chose, carrying your own numbers and nothing else.
             </p>
           </div>
         </div>
@@ -627,8 +629,8 @@ export default {
         <div class="ar-about-priv__cell">
           <h3>What’s Published Publicly</h3>
           <p>
-            The documents under “What it does” — that’s the whole point, and they describe only published,
-            public content. See the live list on the
+            The documents listed under “What It Does”. Publishing them is the whole purpose of Agentimus,
+            and they describe only content that is already public. See the live list on the
             <button type="button" class="ar-linkbtn" @click="$emit('navigate', { tab: 'discovery' })">Discovery</button>
             tab.
           </p>
@@ -641,10 +643,11 @@ export default {
             user-agent, and the time. Plus <em>daily aggregate counts</em> of human visits referred by AI
             assistants — a total per day, source and landing page, never a row that stands for one person.
             Kept for a period you choose (30 days by default), pruned nightly, under a size cap that always
-            applies. The optional Cloudflare, Bing and Google connections add three more local tables —
-            hourly per-crawler counts, daily index numbers, and the latest window of search performance
-            (which search, which of your pages, how many times shown and clicked). All aggregates the
-            engines themselves report: no searcher identity exists in those APIs, let alone here.
+            applies. The optional Cloudflare, Bing and Google connections add three more local tables. They
+            hold hourly counts per crawler, daily index numbers, and the most recent search performance:
+            which search, which of your pages, how many times it was shown, and how many clicks it got.
+            These are all totals the engines themselves report. Those services never say who searched, so
+            no such thing reaches your site either.
           </p>
           <ul class="ar-about-not">
             <li>No IP addresses in the log</li>
@@ -652,15 +655,16 @@ export default {
             <li>No emails</li>
             <li>No query strings or full URLs</li>
           </ul>
-          <p class="ar-about-priv__foot">No PII and no GDPR footprint by default. Two optional settings add to
-            that, both off unless you switch them on.
-            <strong>Store IP addresses for flagged clients</strong> can record IPs, but only for crawlers flagged as
-            impersonators or spoofs, kept briefly on your own server and deleted when you switch it off.
-            <strong>Find missed AI sources</strong> records, for visits it could not attribute to a known assistant,
-            the name of the site the reader came from and the <code>utm_source</code> tag on the link — that tag is
-            the single piece of a query string Agentimus ever stores, and it is kept as a daily count, never against a
-            visit. Enable either and you take on that data (disclose it in your privacy policy). Your signing key is
-            stored un-autoloaded and never leaves the server. Uninstalling removes the tables, settings and key.</p>
+          <p class="ar-about-priv__foot">No personal data by default, and nothing that GDPR applies to. Two optional
+            settings change that, and both stay off unless you switch them on.
+            <strong>Store IP addresses for flagged clients</strong> can record IP addresses, but only for crawlers
+            flagged as impostors or scanners. They are kept briefly on your own server, and deleted when you switch
+            the setting off. <strong>Find missed AI sources</strong> handles visits it could not trace to a known
+            assistant. For those it records the name of the site the reader came from, and the
+            <code>utm_source</code> tag on the link. That tag is the only part of a query string Agentimus ever
+            stores, and it is kept as a daily count, never against one visit. Turn either on and that data becomes
+            yours to declare, so name it in your privacy policy. Your signing key never leaves the server, and is
+            not loaded on every page. Uninstalling removes the tables, the settings and the key.</p>
         </div>
       </div>
     </section>

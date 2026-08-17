@@ -274,7 +274,7 @@ export default {
     </section>
     <!-- Off: one quiet pointer, no form, no nagging. -->
     <section v-else-if="!connected" class="ar-card ar-card--muted">
-      <h2 class="ar-card__title">In Bing's index <span class="ar-card__tag">Off</span></h2>
+      <h2 class="ar-card__title">In Bing's Index <span class="ar-card__tag">Off</span></h2>
       <p class="ar-card__lead ar-bing__offlead">
         Bing is the index ChatGPT search reads today — Copilot too. Connect it and this card
         shows how much of your site that index holds, and warns you when something keeps
@@ -299,7 +299,7 @@ export default {
 
       <section class="ar-card">
         <div class="ar-card__titlewrap">
-          <h2 class="ar-card__title">In Bing's index <span class="ar-card__tag">last {{ summary.days }} days</span></h2>
+          <h2 class="ar-card__title">In Bing's Index <span class="ar-card__tag">Last {{ summary.days }} days</span></h2>
           <RefreshCrank
             :busy="loading"
             :aria-label="loading ? 'Re-reading Bing index data…' : 'Re-read Bing index data'"

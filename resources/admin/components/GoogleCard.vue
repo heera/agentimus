@@ -198,10 +198,10 @@ export default {
     <h2 class="ar-card__title">Google</h2>
     <p class="ar-card__lead">
       Google Search Console knows which queries bring your pages to searchers — and
-      which pages under-earn their rankings. Connect it and
+      which pages get fewer clicks than their ranking deserves. Connect it and
       <button type="button" class="ar-linkbtn" @click="$emit('navigate', { tab: 'visibility', view: 'performance', anchor: 'ar-group-search' })">Search Opportunities</button> turns those numbers into a worklist,
-      each entry wired to the exact field that fixes it — and the Visibility screen
-      checks daily that your key pages are actually in Google's index, the index
+      with every entry linked to the exact field that fixes it. The Visibility screen also
+      checks daily that your key pages really are in Google’s index — the same index
       AI Overviews and Gemini read.
     </p>
 
@@ -295,13 +295,13 @@ export default {
         Stored like your other secrets — encrypted, never shown again, and sent nowhere
         except Google’s own API. Unlike other plugins, there is no “connect with Google”
         button here on purpose: those route your data through the plugin maker’s server.
-        This key is yours, minted in your own Google Cloud, revocable there any time.
+        This key is yours. You create it in your own Google Cloud, and you can cancel it there any time.
       </p>
       <p class="ar-field__hint ar-google__reassure">
         <strong>Five minutes, once.</strong> It looks like a lot because it happens in Google’s
-        console, but nothing here costs money, nothing touches your website, and every step is
-        undoable — you’re creating a robot account and letting it <em>read</em> your search
-        statistics. Delete the key any time and this stops working; nothing else changes.
+        console. But nothing here costs money, nothing touches your website, and every step can
+        be undone. You are creating a robot account and letting it <em>read</em> your search
+        statistics. Delete the key any time and this stops working. Nothing else changes.
       </p>
       <p class="ar-field__hint">
         <strong>Before you start:</strong> your site needs to be a verified property in
@@ -326,8 +326,7 @@ export default {
       <p class="ar-field__hint">
         One key, read-only, one daily poll of query-level search performance. Numbers are
         stored in your own database, so your history keeps growing where Google’s own
-        window ends. The key stays revocable in your Google Cloud console; the granted
-        access stays visible in Search Console’s user list<template v-if="google.saEmail"> under
+        window ends. You can cancel the key any time in your Google Cloud console, and the access you granted stays visible in Search Console’s user list<template v-if="google.saEmail"> under
         <code>{{ google.saEmail }}</code></template>.
       </p>
       <!-- Analytics rides this same key ({@see Settings::disconnect() —
@@ -352,8 +351,8 @@ export default {
             Reading property <code>{{ google.analytics.property }}</code> — total readers,
             visits and page views for the same window the dashboard reports. This is what
             turns “People” on the dashboard from two routes into everyone.
-            Stopping keeps every number already stored; People falls back to the two routes
-            this site can see on its own, and the key itself keeps working for Search Console.
+            Stopping keeps every number already stored. People then goes back to the two routes
+            this site can see on its own, and the key keeps working for Search Console.
           </p>
           <p v-if="google.analytics.lastError" class="ar-field__hint ar-ga4__err">{{ google.analytics.lastError }}</p>
           <!-- Danger family, like Disconnect above: both END a data feed, and a

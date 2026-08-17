@@ -216,8 +216,8 @@ export default {
                 </ul>
                 <p v-else class="ar-cm__none">Nothing ignored yet — clients you dismiss from the review bell wait here, in case you change your mind.</p>
                 <p v-if="data.ignored.length" class="ar-cm__note">
-                  An ignored client also returns on its own if its traffic materially grows;
-                  un-ignoring just brings it back to the review bell sooner (if it still visits).
+                  An ignored client comes back on its own if its traffic grows a lot.
+                  Un-ignoring only brings it back to the review bell sooner, if it still visits.
                 </p>
               </div>
             </template>

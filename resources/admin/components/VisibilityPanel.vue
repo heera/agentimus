@@ -851,11 +851,11 @@ export default {
 
             <h3 class="ar-work__intro-title">Do AI Answers Name Your Site?</h3>
             <p class="ar-work__intro-lead">
-              Write the questions your site should be the answer to — or let AI suggest
-              a spread — and Agentimus puts them to ChatGPT, Perplexity, Gemini and
-              Claude on a schedule, through your own AI keys. Each answer is graded —
-              mentioned, linked, or a rival named instead — and the verdicts build your
-              history and the “Cited” rung of your score.
+              Write the questions your site should be the answer to, or let AI suggest a
+              set for you. Agentimus then puts them to ChatGPT, Perplexity, Gemini and
+              Claude on a schedule, using your own AI keys. Each answer is graded: you
+              were mentioned, you were linked, or a rival was named instead. Those
+              verdicts build your history and the “Cited” rung of your score.
             </p>
 
             <button type="button" class="ar-btn" @click="setChecks(true)">Set up citation checks</button>
@@ -1162,9 +1162,9 @@ export default {
               <strong>Why its own keys, and not your WordPress AI connector?</strong> A visibility check is
               graded on the <strong>sources each assistant cited</strong> in its answer, and it compares
               <strong>several assistants side by side</strong>. WordPress’s shared AI connector hands back the
-              answer text only — the cited sources are dropped — and points at a single provider, so it can’t
-              run this check. Talking to each assistant directly is the only way to see who it cited. (This is
-              also why citation checks work on WordPress older than 7.0, where that connector doesn’t exist.)
+              answer text only, and drops the sources. It also points at a single provider. So it cannot run
+              this check. Talking to each assistant directly is the only way to see who it cited. This is also
+              why citation checks work on WordPress older than 7.0, where that connector does not exist.
             </p>
             <div class="agv-engines">
               <div class="agv-engine agv-engine--head">
@@ -1230,9 +1230,9 @@ export default {
 
             <p class="ar-card__note ar-card__note--wide">
               <strong>Already added a key under Settings → AI?</strong> You still need one here. WordPress’s shared
-              connectors hand back the answer text only — they drop the list of sources an assistant cited, and those
-              sources are what a visibility check grades. Reading them needs each assistant’s own API, so these keys are
-              kept separate. They stay on your server and are only used to run your checks.
+              connectors hand back the answer text only. They drop the list of sources an assistant cited, and those
+              sources are what a visibility check grades. Reading them needs each assistant’s own API, so these keys
+              are kept separate. They stay on your server, and are only used to run your checks.
             </p>
           </section>
 

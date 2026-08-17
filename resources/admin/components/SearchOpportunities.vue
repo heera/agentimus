@@ -470,10 +470,9 @@ export default {
         rankings deserve. New queries land here as {{ searchSourceLabel }} reports them.
       </template>
       <template v-else-if="searchMedianReason === 'unclicked'">
-        Nothing sits on page two waiting for a push. Click rates can’t be judged yet —
-        your page-one results are being shown but hardly clicked, so there is no normal
-        click rate here to measure any single page against, and none is called
-        under-earning on a
+        Nothing sits on page two waiting for a push. Click rates cannot be judged yet. Your
+        page-one results are being shown but hardly clicked, so there is no normal click rate
+        here to measure a page against. No page is called under-earning on a
         guess.<template v-if="searchBothConnected"> Switch above for the other engine’s view.</template>
       </template>
       <template v-else>
@@ -630,7 +629,7 @@ export default {
                        Settings → General; any other doorless address (an archive, a
                        gone permalink) has no single lever, so no lever is named. -->
                   <span v-if="card.doorless === 'home'" class="ar-opp__noeditor">This is your homepage — searchers see your site title and tagline as its title; its description comes from your theme.</span>
-                  <span v-else-if="card.doorless" class="ar-opp__noeditor">No post behind this address — WordPress builds this page from other content (an archive, or an address that no longer exists), so there is no editor to open.</span>
+                  <span v-else-if="card.doorless" class="ar-opp__noeditor">There is no post behind this address. WordPress builds this page from other content — an archive, or an address that no longer exists — so there is no editor to open.</span>
                   <!-- A finished card keeps a door and loses the instructions.
                        Every fix link lands ON a field, so it asks for an edit —
                        and "Add internal links" asks for the very lever that
@@ -670,8 +669,8 @@ export default {
           <p v-if="group.key === 'seen' && searchMedian" class="ar-card__note">
             “Not clicked enough” means a click rate below <strong>{{ searchCtrBar }}%</strong> —
             well under the <strong>{{ searchMedian }}%</strong> your own page-one results
-            typically get. Both numbers are your site’s own, not an industry figure, and a page
-            has to fall clearly short before it’s listed rather than merely below average.
+            typically get. Both numbers are your site’s own, not an industry figure. And a page has
+            to fall clearly short to be listed here, not merely below average.
           </p>
         </details>
       </template>
@@ -708,9 +707,9 @@ export default {
         <span class="ar-opp__pos is-two">{{ searchCollisions.length }} split search{{ searchCollisions.length === 1 ? '' : 'es' }}</span>
       </div>
       <p class="ar-clsn__why">
-        These searches show more than one of your pages, and none of them wins the click —
-        the clicks divide, so each page ranks lower than one page would. Keep one page as
-        the answer for each search; the others can point to it, or answer something it doesn’t.
+        These searches show more than one of your pages, and none of them wins the click. The
+        clicks split between them, so each page ranks lower than one page would. Keep one page
+        as the answer for each search. The others can point to it, or answer something else.
       </p>
       </div>
 
@@ -744,10 +743,10 @@ export default {
       </div>
 
       <p class="ar-card__note">
-        Open a weaker page and either point it at the winner — the editor’s internal-link
-        panel suggests the link — or make it answer something the winner doesn’t. Set aside
-        parks the page on this worklist’s ledger below, and it stops being counted against
-        the search.
+        Open a weaker page and do one of two things. Point it at the winner — the editor’s
+        internal-link panel suggests the link — or make it answer something the winner does
+        not. “Set this aside” moves the page to the ledger below, and it stops being counted
+        against the search.
         <template v-if="searchCollisionsTotal > searchCollisions.length">
           Showing the {{ searchCollisions.length }} heaviest splits of {{ searchCollisionsTotal }}.
         </template>

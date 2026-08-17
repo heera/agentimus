@@ -771,14 +771,14 @@ export default {
 
 <template>
       <section id="ar-sec-mcp" class="ar-card">
-        <h2 class="ar-card__title">MCP Server <span class="ar-card__tag">experimental</span></h2>
+        <h2 class="ar-card__title">MCP Server <span class="ar-card__tag">Experimental</span></h2>
         <p class="ar-card__lead">
           Lets AI assistants you already use — Claude, Cursor, ChatGPT and others — use this
           site’s tools over the <strong>Model Context Protocol</strong>. Most of them ask you
-          for approval and you say yes; the ones that can’t ask use a token instead. Either
-          way a connected assistant acts as your WordPress user: it can only do what that user
-          could on these screens — reading only, unless you allow writing below. Nothing
-          becomes public.
+          for approval and you say yes. The ones that cannot ask use a token instead. Either
+          way, a connected assistant acts as your WordPress user. It can only do what that user
+          could do on these screens, and it can only read, unless you allow writing below.
+          Nothing becomes public.
         </p>
 
         <p v-if="mcpServer.abilitiesAvailable === false" class="ar-field__hint">
@@ -808,7 +808,7 @@ export default {
             <span class="ar-toggle__track" aria-hidden="true"></span>
             <span class="ar-toggle__text">
               <strong>Let connected agents write</strong>
-              <small>Adds write tools: draft and edit posts and pages — including categories, tags and the featured image — set their AI topics and descriptions, and apply Readiness fixes (a fixed list of safe switches — it can only turn documented features on, never loosen a protection). An assistant still acts as the signed-in user and can never do more than that user could in the editor. Every write lands under <AppLink to="#agent-access">Agent Access</AppLink>.</small>
+              <small>Adds write tools. An assistant can then draft and edit posts and pages, including their categories, tags and featured image, and set their AI topics and descriptions. It can also apply Readiness fixes. Those fixes are a fixed list of safe switches: it can turn documented features on, and never weaken a protection. An assistant still acts as the signed-in user, and can never do more than that user could do in the editor. Every write is listed under <AppLink to="#agent-access">Agent Access</AppLink>.</small>
             </span>
           </label>
           <div :inert="!settings.enable_agent_writes" class="ar-webmcp-tools">
@@ -817,7 +817,7 @@ export default {
               <span class="ar-toggle__track" aria-hidden="true"></span>
               <span class="ar-toggle__text">
                 <strong>Let agents publish without your review</strong>
-                <small>Lets an assistant put content live (and it still needs a user allowed to publish). Off — the safe default — means assistants only create drafts and pending posts for you to review; editing something already published follows that user’s normal edit permission either way.</small>
+                <small>Lets an assistant put content live. It still needs a user who is allowed to publish. Off is the safe default: assistants then only create drafts and pending posts for you to review. Either way, editing something already published follows that user’s normal edit permission.</small>
               </span>
             </label>
           </div>
@@ -827,9 +827,9 @@ export default {
              writing", "approve ChatGPT") strands the reader in front of greyed
              switches and an invisible connect block. -->
         <p v-if="!settings.enable_mcp_server" class="ar-card__note ar-card__note--wide">
-          Everything here is off right now. The order: turn on the server above and save —
-          your connect address and setup steps appear on this card, assistants like ChatGPT
-          and Claude can then ask for your approval, and each one you approve is listed here.
+          Everything here is off right now. The order is: turn on the server above and save.
+          Your connect address and setup steps then appear on this card. Assistants like ChatGPT
+          and Claude can now ask for your approval, and each one you approve is listed here.
           After that, allow writing above if you want them drafting.
         </p>
 
@@ -1164,10 +1164,10 @@ export default {
                     </span>
                   </div>
                   <p class="ar-field__hint">
-                    WordPress shows a password only at the moment it’s created — if you kept one
-                    (a password manager, usually), paste it and the setup below completes
-                    instantly. It keeps the name it was created under; the name field on the
-                    left doesn’t apply to it.
+                    WordPress shows a password only at the moment it is created. If you kept one —
+                    in a password manager, usually — paste it here and the setup below completes
+                    at once. It keeps the name it was created under, so the name field on the
+                    left does not apply to it.
                   </p>
                 </div>
               </div>
@@ -1179,9 +1179,9 @@ export default {
               </p>
             </div>
             <p v-else class="ar-field__hint">
-              This site can’t issue <strong>application passwords</strong> (WordPress turns them off
-              without HTTPS, and some security plugins disable them) — and without them AI tools
-              have no way to sign in here, so connecting won’t work until that changes.
+              This site cannot issue <strong>application passwords</strong>. WordPress turns them off
+              on sites without HTTPS, and some security plugins disable them. Without them, AI tools
+              have no way to sign in here, so connecting will not work until that changes.
             </p>
           </div>
 

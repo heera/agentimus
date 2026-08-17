@@ -185,7 +185,7 @@ export default {
         <ol class="ar-mcp-recipe__steps">
           <li>In Cloudflare, open <a href="https://dash.cloudflare.com/profile/api-tokens" target="_blank" rel="noopener"><code>My Profile → API Tokens</code></a> → Create Token.</li>
           <li>Give it one permission: <code>Zone → Analytics → Read</code>, for this site’s zone only.</li>
-          <li>Optional: also add <code>Zone → Cache Purge → Purge</code>. Then publishing a post clears its stale copies from Cloudflare’s cache, and the edge panel gets a Purge button.</li>
+          <li>Optional: also add <code>Zone → Cache Purge → Purge</code>. Then publishing a post clears its old copies from Cloudflare’s cache, and the Cloudflare panel gets a Purge button.</li>
           <li>Paste it here. Agentimus finds the zone by itself.</li>
         </ol>
       </div>
@@ -207,7 +207,7 @@ export default {
         <span class="ar-toggle__track" aria-hidden="true"></span>
         <span class="ar-toggle__text">
           <strong>Clear Cloudflare’s cache when content changes</strong>
-          <small>When you publish or edit, the changed pages — the post itself, the front page, the AI files — are cleared from Cloudflare’s edge, the one cache no caching plugin can reach. Needs the <code>Cache Purge</code> permission on the token; without it the attempt is refused and Agentimus stops asking until you fix the token and press Purge once. Turn this off to keep the token analytics-only — the Purge button on the Request Log’s edge panel still works either way.</small>
+          <small>When you publish or edit, the changed pages are cleared from Cloudflare: the post itself, the front page and your AI files. This is the one cache no caching plugin can reach. It needs the <code>Cache Purge</code> permission on your token. Without it, the attempt is refused, and Agentimus stops asking until you fix the token and press Purge once. Turn this off to keep the token read-only. Either way, the Purge button on the Request Log’s Cloudflare panel still works.</small>
         </span>
       </label>
       <button type="button" class="ar-btn ar-btn--danger ar-btn--small" :disabled="cfDisconnecting" @click="disconnectCloudflare">

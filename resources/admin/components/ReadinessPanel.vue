@@ -440,7 +440,7 @@ export default {
            equivalent per page. -->
       <!-- Nothing flagged. Said here rather than inside the disclosure, which is
            the one place an all-clear must never hide. -->
-      <p v-if="!optimize.length" class="ar-optcheck__clear">Every graded post and page reads as citable. Anything set aside is listed below.</p>
+      <p v-if="!optimize.length" class="ar-optcheck__clear">Every graded post and page is ready for AI to quote. Anything set aside is listed below.</p>
 
       <div v-if="optimize.length" class="ar-optsum">
         <p class="ar-optsum__lead">{{ optimizeSummary }}</p>

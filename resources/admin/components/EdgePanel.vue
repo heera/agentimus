@@ -161,8 +161,8 @@ export default {
     <section v-else-if="!connected" class="ar-card ar-card--muted">
       <h2 class="ar-card__title">At Cloudflare <span class="ar-card__tag">Off</span></h2>
       <p class="ar-card__lead ar-edge__offlead">
-        Cloudflare answers many AI requests before they reach this log — this card can show
-        them, and warn you when the edge disagrees with your policy.
+        Cloudflare answers many AI requests before they reach this log. This card can show
+        them, and warn you when Cloudflare disagrees with your policy.
         <button type="button" class="ar-linkbtn" @click="goSettings">
           Connect Cloudflare in Settings → Data Sources
         </button>
@@ -274,9 +274,9 @@ export default {
         </template>
 
         <p class="ar-card__note ar-cf-note">
-          Cloudflare’s Free plan keeps hourly numbers for a few days — Agentimus copies them
+          Cloudflare’s Free plan keeps hourly numbers for a few days only. Agentimus copies them
           into your own database every hour, so this history keeps growing and stays yours.
-          On a very busy site the counts are close estimates, not exact — Cloudflare counts
+          On a very busy site the counts are close estimates, not exact: Cloudflare counts
           a sample of requests, not every one.
         </p>
       </section>
