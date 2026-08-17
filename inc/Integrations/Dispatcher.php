@@ -123,6 +123,9 @@ final class Dispatcher {
 			'envelope' => $envelope,
 			'attempts' => 0,
 			'next_at'  => 0,
+			// When it joined the queue — the only way to tell "due in 30 seconds"
+			// from "due since Tuesday because cron never ran". {@see stalled_for()}.
+			'queued_at' => time(),
 		);
 
 		// FIFO cap: over the ceiling, the oldest rows yield to the newest.
@@ -269,6 +272,54 @@ final class Dispatcher {
 	 * @param string $service Service id.
 	 * @return int
 	 */
+	/**
+	 * How long this service's oldest DUE row has been waiting, in seconds — 0
+	 * when nothing of its is overdue.
+	 *
+	 * ⭐⭐ WHY THIS EXISTS. Events are queued and delivered by WP cron, and WP
+	 * cron only runs when a request reaches PHP. On a CDN-cached site almost
+	 * nothing does: on heera.it (2026-08-17) even `wp-cron.php` was served from
+	 * Cloudflare's cache, so the queue simply sat there. The card said CONNECTED,
+	 * the connect proof had arrived, and events silently never did — and the
+	 * owner had no way to tell that from a broken integration. A queue depth
+	 * alone cannot say it either: "3 waiting" is normal 30 seconds after an
+	 * event and alarming three days after one.
+	 *
+	 * ⛔ A row whose next_at is in the FUTURE is excluded: it is serving its own
+	 * retry backoff, which is the system working, not stalling.
+	 * ⛔ A row with no queued_at (enqueued by a build before this field) is
+	 * skipped rather than guessed at — it reports nothing instead of a number
+	 * that might be invented.
+	 *
+	 * @param string $service Service id.
+	 * @return int Seconds the oldest due row has waited, or 0.
+	 */
+	public function stalled_for( $service ) {
+		$now    = time();
+		$oldest = 0;
+		foreach ( $this->queue() as $row ) {
+			if ( ! is_array( $row ) ) {
+				continue;
+			}
+			$owner = isset( $row['service'] ) ? (string) $row['service'] : Webhook::ID;
+			if ( $owner !== (string) $service ) {
+				continue;
+			}
+			$next = isset( $row['next_at'] ) ? (int) $row['next_at'] : 0;
+			if ( $next > $now ) {
+				continue; // Waiting on its own backoff, not on a stalled cron.
+			}
+			$since = isset( $row['queued_at'] ) ? (int) $row['queued_at'] : $next;
+			if ( $since <= 0 ) {
+				continue; // Cannot tell — so it says nothing.
+			}
+			if ( 0 === $oldest || $since < $oldest ) {
+				$oldest = $since;
+			}
+		}
+		return $oldest > 0 ? max( 0, $now - $oldest ) : 0;
+	}
+
 	public function depth_for( $service ) {
 		$n = 0;
 		foreach ( $this->queue() as $row ) {

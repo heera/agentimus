@@ -327,6 +327,47 @@ final class Sheets {
 	 * @param string $body Google's response body.
 	 * @return \WP_Error
 	 */
+	/**
+	 * Google's machine-readable reason for a refusal — `error.details[].reason`,
+	 * the field that tells SERVICE_DISABLED from a sheet that was never shared.
+	 * '' when Google gave none, which is itself the answer: no reason offered.
+	 *
+	 * ⭐ The `details` array is read first because it is the authoritative field;
+	 * `error.status` is a coarser bucket (a disabled API also reports itself as
+	 * PERMISSION_DENIED there, which is exactly how one problem got mistaken for
+	 * another).
+	 *
+	 * @param string $body Google's response body.
+	 * @return string The reason token, or ''.
+	 */
+	private static function google_reason( $body ) {
+		$json = json_decode( (string) $body, true );
+		if ( ! is_array( $json ) || ! isset( $json['error'] ) || ! is_array( $json['error'] ) ) {
+			return '';
+		}
+		$details = isset( $json['error']['details'] ) && is_array( $json['error']['details'] ) ? $json['error']['details'] : array();
+		foreach ( $details as $detail ) {
+			if ( is_array( $detail ) && ! empty( $detail['reason'] ) ) {
+				return (string) $detail['reason'];
+			}
+		}
+		return isset( $json['error']['status'] ) ? (string) $json['error']['status'] : '';
+	}
+
+	/**
+	 * Google's own sentence, clipped — quoted verbatim wherever we cannot better
+	 * it. Its SERVICE_DISABLED message carries the exact enable link for the
+	 * owner's project, which is worth more than anything we could write.
+	 *
+	 * @param string $body Google's response body.
+	 * @return string
+	 */
+	private static function google_message( $body ) {
+		$json = json_decode( (string) $body, true );
+		$msg  = is_array( $json ) && isset( $json['error']['message'] ) ? trim( (string) $json['error']['message'] ) : '';
+		return '' !== $msg ? substr( $msg, 0, 300 ) : __( '(no message)', 'agentimus' );
+	}
+
 	private static function map_error( $code, $body ) {
 		if ( 404 === $code ) {
 			return new \WP_Error(
@@ -335,6 +376,51 @@ final class Sheets {
 			);
 		}
 		if ( 403 === $code ) {
+			// ⛔⛔ GOOGLE SAYS 403 FOR AT LEAST THREE DIFFERENT PROBLEMS, and they
+			// need three different fixes. This branch used to assert the sharing
+			// one and never look at $body — so on 2026-08-17 a site whose Sheets
+			// API was simply switched off was told, for ten minutes, to share a
+			// sheet it had already shared with the right address as an Editor.
+			// A wrong diagnosis is worse than none: it sends the owner to fix
+			// something that is not broken. Google names the real reason in the
+			// body; read it, and never claim a cause it did not give.
+			$reason = self::google_reason( $body );
+
+			if ( 'SERVICE_DISABLED' === $reason ) {
+				return new \WP_Error(
+					'agentimus_sheets_api_off',
+					sprintf(
+						/* translators: %s: Google's own message, which carries the exact enable link for this project. */
+						__( 'The Google Sheets API is switched off for this Google Cloud project. Sharing is not the problem — turn the API on, then connect again. Google says: %s', 'agentimus' ),
+						self::google_message( $body )
+					)
+				);
+			}
+
+			if ( 'ACCESS_TOKEN_SCOPE_INSUFFICIENT' === $reason ) {
+				return new \WP_Error(
+					'agentimus_sheets_scope',
+					__( 'The Google key this site holds is not allowed to write to Sheets. Sharing is not the problem — reconnect Google under Data Sources, which mints the key again with the right permission.', 'agentimus' )
+				);
+			}
+
+			// A reason we do not have words for is REPEATED, never guessed at —
+			// the same rule the fallback below follows for every other status.
+			if ( '' !== $reason && 'PERMISSION_DENIED' !== $reason && 'IAM_PERMISSION_DENIED' !== $reason ) {
+				return new \WP_Error(
+					'agentimus_sheets_status',
+					sprintf(
+						/* translators: 1: Google's machine-readable reason, 2: Google's own message. */
+						__( 'Google Sheets refused this (%1$s): %2$s', 'agentimus' ),
+						$reason,
+						self::google_message( $body )
+					)
+				);
+			}
+
+			// No reason given, or a plain permission denial: the sheet really was
+			// never shared. This is the common case, and now the only one that
+			// claims to be it.
 			$email = self::sa_email();
 			return new \WP_Error(
 				'agentimus_sheets_access',

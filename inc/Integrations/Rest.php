@@ -1134,6 +1134,7 @@ final class Rest {
 				'events'    => $config['events'],
 				'hasSecret' => Webhook::has_secret(),
 				'queued'    => $dispatcher->depth_for( Webhook::ID ),
+				'stalledFor' => $dispatcher->stalled_for( Webhook::ID ),
 				'state'     => Webhook::state(),
 			),
 			'telegram' => array(
@@ -1143,6 +1144,7 @@ final class Rest {
 				'tier'     => $telegram['tier'],
 				'hasToken' => Telegram::has_token(),
 				'queued'   => $dispatcher->depth_for( Telegram::ID ),
+				'stalledFor' => $dispatcher->stalled_for( Telegram::ID ),
 				'state'    => Telegram::state(),
 			),
 			'slack'    => array(
@@ -1150,6 +1152,7 @@ final class Rest {
 				'url'     => $slack['url'],
 				'events'  => $slack['events'],
 				'queued'  => $dispatcher->depth_for( Slack::ID ),
+				'stalledFor' => $dispatcher->stalled_for( Slack::ID ),
 				'state'   => Slack::state(),
 			),
 			'discord'  => array(
@@ -1157,6 +1160,7 @@ final class Rest {
 				'url'     => $discord['url'],
 				'events'  => $discord['events'],
 				'queued'  => $dispatcher->depth_for( Discord::ID ),
+				'stalledFor' => $dispatcher->stalled_for( Discord::ID ),
 				'state'   => Discord::state(),
 			),
 			'sheets'   => array(
@@ -1169,6 +1173,7 @@ final class Rest {
 				'hasKey'      => Sheets::has_key(),
 				'saEmail'     => Sheets::sa_email(),
 				'queued'      => $dispatcher->depth_for( Sheets::ID ),
+				'stalledFor' => $dispatcher->stalled_for( Sheets::ID ),
 				'state'       => Sheets::state(),
 			),
 			'events'   => $catalog,

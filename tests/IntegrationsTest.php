@@ -183,6 +183,46 @@ namespace Agentimus\Tests {
 
 		/* ---- the signature --------------------------------------------------- */
 
+		/**
+		 * ⭐ THE GAP THIS CLOSES, found on heera.it 2026-08-17: events ride WP cron,
+		 * WP cron only runs when a request reaches PHP, and on a CDN-cached site
+		 * almost nothing does — even wp-cron.php came back from Cloudflare's cache.
+		 * The queue sat there while the card read CONNECTED. A depth alone cannot
+		 * tell that story: "3 waiting" is normal after 30 seconds and alarming
+		 * after three days. This is the number that separates them.
+		 */
+		public function test_a_queue_that_cron_never_drained_can_say_how_long_it_waited() {
+			$this->connect();
+			$dispatcher = new Dispatcher( $this->settings() );
+			$dispatcher->enqueue( 'digest_sent', Events::envelope( 'digest_sent', array() ) );
+
+			// Fresh: due in a moment, and NOT news.
+			$this->assertSame( 1, $dispatcher->depth_for( Webhook::ID ) );
+			$this->assertLessThan( 5, $dispatcher->stalled_for( Webhook::ID ), 'A row queued just now has waited no time at all.' );
+
+			// The same row, two hours older and still undelivered.
+			$queue = get_option( Dispatcher::QUEUE_OPTION );
+			$queue[0]['queued_at'] = time() - ( 2 * HOUR_IN_SECONDS );
+			update_option( Dispatcher::QUEUE_OPTION, $queue );
+			$this->assertGreaterThan( 7000, $dispatcher->stalled_for( Webhook::ID ), 'A row due for two hours has been waiting two hours.' );
+
+			// ⛔ A row serving its own retry backoff is the system WORKING, so it
+			// must never be counted as a stall.
+			$queue[0]['next_at'] = time() + 600;
+			update_option( Dispatcher::QUEUE_OPTION, $queue );
+			$this->assertSame( 0, $dispatcher->stalled_for( Webhook::ID ), 'Backing off is not stalling.' );
+
+			// ⛔ A row from a build before queued_at existed reports nothing rather
+			// than a number it cannot know.
+			$queue[0]['next_at'] = 0;
+			unset( $queue[0]['queued_at'] );
+			update_option( Dispatcher::QUEUE_OPTION, $queue );
+			$this->assertSame( 0, $dispatcher->stalled_for( Webhook::ID ), 'Unknown must read as unknown, never as zero-but-fine or an invented age.' );
+
+			// And another service's stalled rows are not this one's problem.
+			$this->assertSame( 0, $dispatcher->stalled_for( 'slack' ) );
+		}
+
 		public function test_delivery_signs_the_exact_transmitted_body() {
 			$this->connect();
 			$GLOBALS['_af_http_queue'] = array( array( 'response' => array( 'code' => 200 ), 'body' => '', 'headers' => array() ) );

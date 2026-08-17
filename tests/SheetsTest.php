@@ -299,6 +299,53 @@ final class SheetsTest extends TestCase {
 		);
 	}
 
+	/**
+	 * ⛔ THE BUG THIS GUARDS, found by the 2026-08-17 walkthrough on heera.it: a
+	 * 403 was read as "the sheet isn't shared" without ever looking at the body.
+	 * The sheet WAS shared, correctly, as an Editor — the Sheets API was simply
+	 * switched off for the project. The owner spent ten minutes re-sharing a
+	 * sheet that needed nothing done to it.
+	 *
+	 * Google says 403 for at least three different problems and names the real
+	 * one in `error.details[].reason`. A wrong diagnosis is worse than none.
+	 */
+	public function test_a_403_says_which_of_googles_three_refusals_it_was() {
+		$this->connect();
+
+		// 1. The API is off. ⛔ Must NOT talk about sharing.
+		$disabled = '{"error":{"code":403,"status":"PERMISSION_DENIED",'
+			. '"message":"Google Sheets API has not been used in project 42 before or it is disabled. Enable it by visiting https://console.developers.google.com/apis/api/sheets.googleapis.com/overview?project=42 then retry.",'
+			. '"details":[{"@type":"type.googleapis.com/google.rpc.ErrorInfo","reason":"SERVICE_DISABLED"}]}}';
+		$GLOBALS['_af_http_queue'] = array( array( 'response' => array( 'code' => 403 ), 'body' => $disabled, 'headers' => array() ) );
+		$err                       = Sheets::deliver( Events::DIGEST_SENT, $this->envelope( Events::DIGEST_SENT, array() ) );
+		$this->assertSame( 'agentimus_sheets_api_off', $err->get_error_code() );
+		$this->assertStringNotContainsString( 'Share', $err->get_error_message(), 'Sharing is not the problem, so it must not be the instruction.' );
+		$this->assertStringContainsString( 'console.developers.google.com', $err->get_error_message(), 'Google’s own message carries the enable link for THIS project.' );
+
+		// 2. The key cannot write to Sheets.
+		$scope = '{"error":{"code":403,"status":"PERMISSION_DENIED","message":"Request had insufficient authentication scopes.",'
+			. '"details":[{"reason":"ACCESS_TOKEN_SCOPE_INSUFFICIENT"}]}}';
+		$GLOBALS['_af_http_queue'] = array( array( 'response' => array( 'code' => 403 ), 'body' => $scope, 'headers' => array() ) );
+		$err                       = Sheets::deliver( Events::DIGEST_SENT, $this->envelope( Events::DIGEST_SENT, array() ) );
+		$this->assertSame( 'agentimus_sheets_scope', $err->get_error_code() );
+		$this->assertStringNotContainsString( 'Share', $err->get_error_message() );
+
+		// 3. A reason we have no words for is REPEATED, never guessed at.
+		$odd = '{"error":{"code":403,"message":"Something new","details":[{"reason":"BRAND_NEW_REASON"}]}}';
+		$GLOBALS['_af_http_queue'] = array( array( 'response' => array( 'code' => 403 ), 'body' => $odd, 'headers' => array() ) );
+		$err                       = Sheets::deliver( Events::DIGEST_SENT, $this->envelope( Events::DIGEST_SENT, array() ) );
+		$this->assertStringContainsString( 'BRAND_NEW_REASON', $err->get_error_message(), 'An unknown reason names itself rather than being filed under a known one.' );
+		$this->assertStringContainsString( 'Something new', $err->get_error_message() );
+
+		// 4. A plain permission denial still gets the sharing sentence — the
+		//    common case keeps its good error, and is now the ONLY case claiming it.
+		$denied = '{"error":{"code":403,"status":"PERMISSION_DENIED","message":"The caller does not have permission"}}';
+		$GLOBALS['_af_http_queue'] = array( array( 'response' => array( 'code' => 403 ), 'body' => $denied, 'headers' => array() ) );
+		$err                       = Sheets::deliver( Events::DIGEST_SENT, $this->envelope( Events::DIGEST_SENT, array() ) );
+		$this->assertSame( 'agentimus_sheets_access', $err->get_error_code() );
+		$this->assertStringContainsString( 'agentimus@project.iam.gserviceaccount.com', $err->get_error_message() );
+	}
+
 	public function test_any_other_failure_repeats_googles_own_words() {
 		$this->connect();
 		$GLOBALS['_af_http_queue'] = array(
