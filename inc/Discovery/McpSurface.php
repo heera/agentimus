@@ -152,7 +152,8 @@ final class McpSurface {
 	}
 
 	/**
-	 * Deduped union of every resource's MCP tools.
+	 * Deduped union of every resource's PUBLISHED MCP tools — what mcp.json serves,
+	 * and what the Discovery screen shows under "Listed in your public file".
 	 *
 	 * @param array[] $resources Resources.
 	 * @return array[]
@@ -172,10 +173,23 @@ final class McpSurface {
 				if ( isset( $tool['kind'] ) && 'resource' === $tool['kind'] ) {
 					continue;
 				}
+				// ⛔ THE PUBLICATION BOUNDARY IS PER TOOL, not per resource. A vendor
+				// with a mixed hand — some abilities marked `mcp.public`, some not —
+				// publishes exactly the hand they dealt. Envelope::wire_resource()
+				// draws this line for discovery.json; without it here, a kept-back
+				// tool rode into mcp.json on a published group, carrying its full
+				// description and input schema.
+				if ( isset( $tool['public'] ) && ! (bool) $tool['public'] ) {
+					continue;
+				}
 				$seen[ $name ] = true;
-				// `kind` is internal — same reason Envelope::wire_resource() strips
-				// it from discovery.json: this document has consumers too.
-				unset( $tool['kind'] );
+				// `kind`, `public` and `uri` are internal — same reason
+				// Envelope::wire_resource() strips them from discovery.json: this
+				// document has consumers too. ⛔ `public` is the dangerous one:
+				// printed beside `"auth": "wp"` on the same tool, the word says
+				// "anyone may run this" to whoever reads the document — the exact
+				// misreading that once shipped 32 tools as "no sign-in needed".
+				unset( $tool['kind'], $tool['public'], $tool['uri'] );
 				$tools[] = $tool;
 			}
 		}

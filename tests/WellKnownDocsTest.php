@@ -332,4 +332,81 @@ final class WellKnownDocsTest extends TestCase {
 			$this->assertArrayNotHasKey( 'public', $r, 'The internal publication flag must not reach the wire.' );
 		}
 	}
+
+	/* -- The publication boundary is drawn per TOOL, on every surface ------- */
+
+	/**
+	 * A vendor with a MIXED hand — some abilities marked `mcp.public`, some not —
+	 * publishes exactly the hand they dealt. discovery.json already draws that line
+	 * per tool ({@see Envelope::wire_resource()}); mcp.json must draw the same one.
+	 *
+	 * The group as a whole IS published, because at least one tool is advertised,
+	 * so a resource-level check can never catch this: the kept-back tool rides in
+	 * on a published resource, carrying its full description and input schema.
+	 */
+	public function test_mcp_json_does_not_publish_a_tool_the_vendor_kept_back() {
+		Registry::instance()->register(
+			array(
+				'id'    => 'abilities-mixed',
+				'title' => 'Mixed',
+				'type'  => 'agent',
+				'tools' => array(
+					array(
+						'name'        => 'mixed/list-products',
+						'title'       => 'List products',
+						'description' => 'The vendor asked us to advertise this one.',
+						'public'      => true,
+						'inputSchema' => array( 'type' => 'object' ),
+					),
+					array(
+						'name'        => 'mixed/delete-everything',
+						'title'       => 'Delete everything',
+						'description' => 'Internals the vendor deliberately kept back.',
+						'public'      => false,
+						'inputSchema' => array( 'type' => 'object' ),
+					),
+				),
+			)
+		);
+
+		$mcp = $this->envelope()->mcp_json();
+
+		$this->assertStringContainsString( 'mixed/list-products', $mcp, 'What the vendor advertised must be published.' );
+		$this->assertStringNotContainsString( 'mixed/delete-everything', $mcp, 'What the vendor kept back must not be.' );
+		$this->assertStringNotContainsString( 'deliberately kept back', $mcp, 'Nor may its description leak there.' );
+	}
+
+	/**
+	 * `public` and `uri` are the admin's keys, for the same reason `kind` is — and
+	 * `public` is the dangerous one to leak. Printed beside `"auth": "wp"` on the
+	 * same tool, the word says "anyone may run this" to a machine reading the
+	 * document, which is the exact misreading that once shipped 32 tools as "no
+	 * sign-in needed" ({@see \Agentimus\Discovery\Adapters\AbilitiesApi}).
+	 */
+	public function test_served_tools_do_not_leak_the_admin_only_keys() {
+		Registry::instance()->register(
+			array(
+				'id'    => 'abilities-shop',
+				'title' => 'Shop jobs',
+				'type'  => 'agent',
+				'tools' => array(
+					array(
+						'name'        => 'shop/list-orders',
+						'title'       => 'List orders',
+						'description' => 'Reads the order list.',
+						'inputSchema' => array( 'type' => 'object' ),
+					),
+				),
+			)
+		);
+
+		$doc = json_decode( $this->envelope()->mcp_json(), true );
+		$this->assertNotEmpty( $doc['tools'] );
+		foreach ( $doc['tools'] as $tool ) {
+			$this->assertArrayNotHasKey( 'public', $tool, 'The internal publication flag must not reach the wire.' );
+			$this->assertArrayNotHasKey( 'uri', $tool, 'The admin-only document link must not reach the wire.' );
+			$this->assertArrayNotHasKey( 'kind', $tool, 'Already stripped — kept here so it stays stripped.' );
+			$this->assertArrayHasKey( 'auth', $tool, 'What running it takes is the honest answer, and it stays.' );
+		}
+	}
 }
