@@ -72,10 +72,31 @@ final class Registry {
 	 * @return true|\WP_Error True on success, WP_Error describing a fatal field.
 	 */
 	public function add( $raw ) {
+		$asked_for = is_array( $raw ) && isset( $raw['type'] ) ? Resource::type_token( $raw['type'] ) : '';
+
 		$resource = Resource::normalize( $raw );
 		if ( is_wp_error( $resource ) ) {
 			$this->notices[] = array( 'level' => 'error', 'message' => $resource->get_error_message() );
 			return $resource;
+		}
+
+		// A word nobody declared was marked rather than refused ({@see
+		// Resource::extension_type()}). The entry is published either way; this is
+		// how the owner — and, through them, whoever wrote the plugin — finds out
+		// that one word was changed, which words would not have been, and how to
+		// declare a new kind on purpose.
+		if ( '' !== $asked_for && $resource['type'] !== $asked_for ) {
+			$this->notices[] = array(
+				'level'   => 'warning',
+				'message' => sprintf(
+					/* translators: 1: resource id, 2: the type the plugin asked for, 3: the type published instead, 4: comma-separated list of known types. */
+					__( 'Resource "%1$s" asked to be a "%2$s", which is not a kind this site knows, so it was published as "%3$s" — the form reserved for a kind outside the list. Nothing was lost. The known kinds are: %4$s. To add "%2$s" as a kind of its own, declare it with the agentimus_resource_types filter.', 'agentimus' ),
+					$resource['id'],
+					$asked_for,
+					$resource['type'],
+					implode( ', ', Resource::types() )
+				),
+			);
 		}
 
 		$id = $resource['id'];

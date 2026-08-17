@@ -209,21 +209,84 @@ final class Envelope {
 
 		$suppressed = $this->suppressed_ids();
 
-		return array_values(
+		$kept = array();
+		foreach ( $resources as $resource ) {
+			// The OWNER's decision.
+			if ( in_array( $resource['id'], $suppressed, true ) ) {
+				continue;
+			}
+			// The PROVIDER's decision: a resource nobody anonymous could ever use. See
+			// Resource::normalize()'s `public` field, and AbilitiesApi, which sets it false for
+			// abilities that all require sign-in.
+			if ( isset( $resource['public'] ) && ! (bool) $resource['public'] ) {
+				continue;
+			}
+
+			// THE SITE'S OWN ANSWER, and the newest of the three. An endpoint published
+			// as needing no sign-in is a claim about somebody else's door; this drops
+			// the ones a real anonymous request could not open. Nothing is fetched
+			// here — {@see Reachability} decides in the background and this reads its
+			// verdict.
+			$had_addresses = ! empty( $resource['endpoints'] );
+			$resource      = self::proved_endpoints( $resource );
+			if ( $had_addresses && self::says_nothing( $resource ) ) {
+				continue;
+			}
+
+			$kept[] = $resource;
+		}
+
+		return $kept;
+	}
+
+	/**
+	 * The same resource with any address we could not prove open struck out.
+	 *
+	 * ⭐ Per ENDPOINT, not per resource: a plugin naming two addresses, one open
+	 * and one locked down after an update, keeps the one that still answers.
+	 *
+	 * @param array $resource One collected resource.
+	 * @return array
+	 */
+	private static function proved_endpoints( array $resource ) {
+		if ( empty( $resource['endpoints'] ) || ! is_array( $resource['endpoints'] ) ) {
+			return $resource;
+		}
+
+		$resource['endpoints'] = array_values(
 			array_filter(
-				$resources,
-				static function ( $r ) use ( $suppressed ) {
-					// The OWNER's decision.
-					if ( in_array( $r['id'], $suppressed, true ) ) {
-						return false;
+				$resource['endpoints'],
+				static function ( $endpoint ) use ( $resource ) {
+					if ( ! Reachability::claims_to_be_open( $endpoint, $resource ) ) {
+						return true; // We are not claiming it is open, so there is nothing to prove.
 					}
-					// The PROVIDER's decision: a resource nobody anonymous could ever use. See
-					// Resource::normalize()'s `public` field, and AbilitiesApi, which sets it false for
-					// abilities that all require sign-in.
-					return ! isset( $r['public'] ) || (bool) $r['public'];
+					return Reachability::may_advertise( isset( $endpoint['url'] ) ? $endpoint['url'] : '' );
 				}
 			)
 		);
+
+		return $resource;
+	}
+
+	/**
+	 * Whether a resource has anything left worth publishing.
+	 *
+	 * ⚠️ Asked ONLY of a resource that arrived with addresses, so a group that
+	 * never had one — every abilities group is exactly that — is never dropped by
+	 * it. A plugin that describes itself without naming a door made that choice
+	 * itself, and it is not ours to overrule.
+	 *
+	 * @param array $resource One collected resource, after {@see proved_endpoints()}.
+	 * @return bool
+	 */
+	private static function says_nothing( array $resource ) {
+		if ( ! empty( $resource['endpoints'] ) ) {
+			return false;
+		}
+		if ( ! empty( $resource['tools'] ) || ! empty( $resource['abilities'] ) ) {
+			return false;
+		}
+		return empty( $resource['agent']['skills'] );
 	}
 
 	/**

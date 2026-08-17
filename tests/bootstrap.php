@@ -321,7 +321,7 @@ namespace {
 	// function_exists() guard is exercised on the no-blocks path.
 	if ( ! function_exists( 'strip_shortcodes' ) )      { function strip_shortcodes( $content ) { return preg_replace( '/\[[^\]]*\]/', '', (string) $content ); } }
 	if ( ! function_exists( 'wp_trim_words' ) )         { function wp_trim_words( $text, $num_words = 55, $more = null ) { $words = preg_split( '/\s+/', trim( (string) $text ), -1, PREG_SPLIT_NO_EMPTY ); if ( count( $words ) > $num_words ) { $words = array_slice( $words, 0, $num_words ); $text = implode( ' ', $words ) . ( null === $more ? '…' : $more ); } else { $text = implode( ' ', $words ); } return $text; } }
-	function _af_reset_options() { $GLOBALS['_af_options'] = array(); $GLOBALS['_af_filters'] = array(); $GLOBALS['_af_did_actions'] = array(); $GLOBALS['_af_posts'] = array(); $GLOBALS['_af_postmeta'] = array(); $GLOBALS['_af_terms'] = array(); $GLOBALS['_af_taxonomies'] = array( 'category', 'post_tag' ); $GLOBALS['_af_is_admin'] = false; $GLOBALS['_af_flush_count'] = 0; $GLOBALS['_af_cache'] = array(); $GLOBALS['_af_transients'] = array(); unset( $GLOBALS['_af_transients_on'] ); $GLOBALS['_af_http_queue'] = array(); $GLOBALS['_af_http_last'] = null; $GLOBALS['_af_http_calls'] = array(); $GLOBALS['_af_mail'] = array(); unset( $GLOBALS['_af_mail_ok'] ); unset( $GLOBALS['_af_user_can'] ); unset( $GLOBALS['_af_available_post_types'], $GLOBALS['_af_current_post_id'], $GLOBALS['_af_is_singular'], $GLOBALS['_af_is_front_page'], $GLOBALS['_af_categories'], $GLOBALS['_af_post_types_exist'], $GLOBALS['_af_post_type_objects'], $GLOBALS['_af_ability_categories'], $GLOBALS['_af_abilities'], $GLOBALS['_af_get_posts'], $GLOBALS['_af_get_posts_queue'], $GLOBALS['_af_get_posts_calls'] ); unset( $GLOBALS['_af_attachments'], $GLOBALS['_af_is_paged'], $GLOBALS['_af_is_category'], $GLOBALS['_af_is_tag'], $GLOBALS['_af_is_tax'], $GLOBALS['_af_is_post_type_archive'], $GLOBALS['_af_is_author'], $GLOBALS['_af_queried_object'], $GLOBALS['_af_queried_object_id'], $GLOBALS['_af_term_link'], $GLOBALS['_af_query_vars'], $GLOBALS['_af_core_sitemaps'] ); }
+	function _af_reset_options() { $GLOBALS['_af_options'] = array(); $GLOBALS['_af_filters'] = array(); $GLOBALS['_af_did_actions'] = array(); $GLOBALS['_af_posts'] = array(); $GLOBALS['_af_postmeta'] = array(); $GLOBALS['_af_terms'] = array(); $GLOBALS['_af_taxonomies'] = array( 'category', 'post_tag' ); $GLOBALS['_af_is_admin'] = false; $GLOBALS['_af_flush_count'] = 0; $GLOBALS['_af_cache'] = array(); $GLOBALS['_af_transients'] = array(); unset( $GLOBALS['_af_transients_on'] ); $GLOBALS['_af_http_queue'] = array(); $GLOBALS['_af_http_last'] = null; $GLOBALS['_af_http_calls'] = array(); $GLOBALS['_af_mail'] = array(); unset( $GLOBALS['_af_mail_ok'] ); unset( $GLOBALS['_af_user_can'] ); unset( $GLOBALS['_af_available_post_types'], $GLOBALS['_af_current_post_id'], $GLOBALS['_af_is_singular'], $GLOBALS['_af_is_front_page'], $GLOBALS['_af_categories'], $GLOBALS['_af_post_types_exist'], $GLOBALS['_af_post_type_objects'], $GLOBALS['_af_ability_categories'], $GLOBALS['_af_abilities'], $GLOBALS['_af_get_posts'], $GLOBALS['_af_get_posts_queue'], $GLOBALS['_af_get_posts_calls'] ); unset( $GLOBALS['_af_rest_routes'], $GLOBALS['_af_rest_namespaces'], $GLOBALS['_af_current_user_id'] ); unset( $GLOBALS['_af_attachments'], $GLOBALS['_af_is_paged'], $GLOBALS['_af_is_category'], $GLOBALS['_af_is_tag'], $GLOBALS['_af_is_tax'], $GLOBALS['_af_is_post_type_archive'], $GLOBALS['_af_is_author'], $GLOBALS['_af_queried_object'], $GLOBALS['_af_queried_object_id'], $GLOBALS['_af_term_link'], $GLOBALS['_af_query_vars'], $GLOBALS['_af_core_sitemaps'] ); }
 	// Transient stubs. Default: always-miss, so cached endpoint bodies (e.g. security.txt)
 	// recompute deterministically in tests. A test that needs to exercise real transient
 	// state (the bot-verifier budget/circuit-breaker counters) opts in by setting
@@ -332,6 +332,26 @@ namespace {
 	// Cron stubs (BotRanges' catch-up scheduling): nothing is ever scheduled in tests.
 	if ( ! function_exists( 'wp_next_scheduled' ) )     { function wp_next_scheduled( $h ) { return false; } }
 	if ( ! function_exists( 'wp_schedule_single_event' ) ) { function wp_schedule_single_event( $t, $h, $args = array() ) { if ( isset( $GLOBALS['_af_cron_events'] ) ) { $GLOBALS['_af_cron_events'][] = array( 'at' => (int) $t, 'hook' => (string) $h, 'single' => true ); } return true; } }
+	if ( ! function_exists( 'wp_schedule_event' ) )     { function wp_schedule_event( $t, $rec, $h, $args = array() ) { if ( isset( $GLOBALS['_af_cron_events'] ) ) { $GLOBALS['_af_cron_events'][] = array( 'at' => (int) $t, 'hook' => (string) $h, 'single' => false ); } return true; } }
+	// Who is asking. 0 — nobody signed in — unless a test says otherwise; that is
+	// the state Reachability requires before it will record a verdict.
+	if ( ! function_exists( 'get_current_user_id' ) )   { function get_current_user_id() { return isset( $GLOBALS['_af_current_user_id'] ) ? (int) $GLOBALS['_af_current_user_id'] : 0; } }
+	if ( ! function_exists( '__return_true' ) )         { function __return_true() { return true; } }
+	if ( ! function_exists( '__return_false' ) )        { function __return_false() { return false; } }
+	// The REST route table, as much of it as anything here reads: a test seeds
+	// $GLOBALS['_af_rest_routes'] with route => handlers.
+	if ( ! function_exists( 'rest_get_server' ) ) {
+		function rest_get_server() {
+			return new class() {
+				public function get_routes() {
+					return isset( $GLOBALS['_af_rest_routes'] ) ? (array) $GLOBALS['_af_rest_routes'] : array();
+				}
+				public function get_namespaces() {
+					return isset( $GLOBALS['_af_rest_namespaces'] ) ? (array) $GLOBALS['_af_rest_namespaces'] : array();
+				}
+			};
+		}
+	}
 	// Site-wide term query (used by Topics::suggestions() / LlmsText::topics()); empty
 	// unless a test seeds $GLOBALS['_af_get_terms'].
 	if ( ! function_exists( 'get_terms' ) )             { function get_terms( $args = array() ) { return isset( $GLOBALS['_af_get_terms'] ) ? $GLOBALS['_af_get_terms'] : array(); } }

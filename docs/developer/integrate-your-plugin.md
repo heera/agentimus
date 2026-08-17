@@ -79,7 +79,7 @@ if ( class_exists( 'Agentimus_Discovery' ) ) {
 |-------|----------|-------|
 | `id` | Yes | Unique lowercase slug matching `^[a-z0-9](-?[a-z0-9]+)*$`. A duplicate id logs a warning and the later registration wins. |
 | `title` | Yes | Human label. |
-| `type` | Yes | One of the controlled vocabulary below, **or** an `x-<vendor>-<name>` extension token. |
+| `type` | Yes | One of the controlled vocabulary below, an `x-<vendor>-<name>` extension token, or a kind you declared yourself (see below). |
 | `description` | | Short string. |
 | `version` | | Your plugin version. |
 | `capabilities` | | `string[]` of dot-notation **intent** verbs, e.g. `scheduling.booking.create`. Folded into the site-wide capability union. |
@@ -93,7 +93,20 @@ if ( class_exists( 'Agentimus_Discovery' ) ) {
 | `docs` | | A documentation URL. |
 | `provider` | | **Auto** — derived from the calling file's location and overwrites anything you pass. Do not set it. |
 
-**`type` controlled vocabulary:** `content`, `commerce`, `scheduling`, `courses`, `forms`, `crm`, `auth`, `search`, `media`, `messaging`, `analytics`, `payments`, `directory`, `agent`. Anything else must be an `x-<vendor>-<name>` token (e.g. `x-acme-loyalty`).
+**`type` controlled vocabulary:** `content`, `commerce`, `scheduling`, `courses`, `forms`, `crm`, `auth`, `search`, `media`, `messaging`, `analytics`, `payments`, `directory`, `agent`.
+
+**Need a kind that isn't there?** Declare it, and it is published exactly as you wrote it:
+
+```php
+add_filter( 'agentimus_resource_types', function ( $types ) {
+	$types[] = 'loyalty';
+	return $types;
+} );
+```
+
+Or use an `x-<vendor>-<name>` token (e.g. `x-acme-loyalty`) without declaring anything.
+
+If you use a word nobody declared, **your resource is still published** — the word is marked as an extension (`community` becomes `x-community`) and a warning on **Discovery Hub → Registration Status** names the word, what it became, and this filter. You never lose an entry over one word.
 
 **`endpoints[].type`:** `rest`, `graphql`, `mcp`, `openapi`, `a2a`, `soap`, `rpc`.
 

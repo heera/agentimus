@@ -106,7 +106,17 @@ add_action(
  *  title         (required) human label
  *  type          (required) one of: content, commerce, scheduling, courses,
  *                forms, crm, auth, search, media, messaging, analytics,
- *                payments, directory, agent — or an "x-vendor-name" extension
+ *                payments, directory, agent — or an "x-vendor-name" extension,
+ *                or a kind you declare yourself:
+ *
+ *                    add_filter( 'agentimus_resource_types', function ( $types ) {
+ *                        $types[] = 'loyalty';
+ *                        return $types;
+ *                    } );
+ *
+ *                A word nobody declared is MARKED, not refused: "community" is
+ *                published as "x-community" and the change is named on the
+ *                Discovery Hub. You never lose a resource over one word.
  *  description   string
  *  version       string
  *  capabilities  string[]  dot-notation intent verbs

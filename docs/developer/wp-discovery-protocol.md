@@ -105,6 +105,26 @@ content   commerce   scheduling   courses   forms   crm      auth
 search    media      messaging    analytics payments directory agent
 ```
 
+**Adding a kind of your own.** If none of those words fits, declare yours — it is
+then published exactly as you wrote it:
+
+```php
+add_filter( 'agentimus_resource_types', function ( $types ) {
+	$types[] = 'loyalty';
+	return $types;
+} );
+```
+
+The filter adds; it cannot remove a built-in kind, so no plugin can change what
+another plugin publishes.
+
+**If you use a word nobody declared**, your resource is still published — the
+word is marked as an extension (`community` → `x-community`) and a warning on
+**Discovery Hub → Registration Status** names the word, what it became, and this
+filter. Your entry never disappears for one wrong word. The mark is what keeps a
+deliberate new kind (declared, published as written) distinguishable from a typo
+(`comerce`), which would otherwise silently match nothing forever.
+
 `endpoints[].type` — the transport. `rest` is the default when omitted:
 
 ```

@@ -38,6 +38,56 @@ final class Resource {
 	const API_TYPES = array( 'rest', 'graphql', 'openapi', 'soap', 'rpc' );
 
 	/**
+	 * Every kind this site knows: the built-in vocabulary, plus any kind a plugin
+	 * has declared for itself.
+	 *
+	 * ⭐ HIS CALL, 2026-08-16: a plugin author must be able to add a new kind — and
+	 * so must we, when this plugin grows one. A fixed list of fourteen words is a
+	 * closed door, and the whole point of the registration hook is that we do not
+	 * decide for a vendor what their thing is.
+	 *
+	 * ⭐ DECLARING A KIND IS THE DIFFERENCE. A plugin that adds its word here means
+	 * it; a plugin that simply sends a word we have never heard of has probably
+	 * mistyped one of ours (`comerce`, `store`). The first is published verbatim;
+	 * the second is marked `x-` and its author told ({@see extension_type()}). One
+	 * line of setup separates a deliberate new kind from a typo, which is exactly
+	 * what the index needs to stay answerable.
+	 *
+	 * ⛔ The filter ADDS. It is handed an empty array, not the built-ins, so no
+	 * plugin can remove `commerce` from under another plugin — a filter that
+	 * returned its own list instead of merging would otherwise silently re-mark
+	 * every other resource on the site and change what this site publishes.
+	 *
+	 * @return string[]
+	 */
+	public static function types() {
+		$types = self::TYPES;
+
+		/**
+		 * Kinds of resource this site knows, beyond the built-in vocabulary.
+		 *
+		 *     add_filter( 'agentimus_resource_types', function ( $types ) {
+		 *         $types[] = 'loyalty';
+		 *         return $types;
+		 *     } );
+		 *
+		 * Each must be a lowercase slug. The built-in kinds are always known and
+		 * cannot be removed here.
+		 *
+		 * @param string[] $types Additional kinds. Empty to start.
+		 */
+		foreach ( (array) apply_filters( 'agentimus_resource_types', array() ) as $added ) {
+			$added = self::type_token( $added );
+			if ( '' === $added || in_array( $added, $types, true ) ) {
+				continue;
+			}
+			$types[] = $added;
+		}
+
+		return $types;
+	}
+
+	/**
 	 * Validate and normalize a raw registration array.
 	 *
 	 * @param array $raw Author-supplied entry.
@@ -65,13 +115,24 @@ final class Resource {
 			return new \WP_Error( 'wpd_resource_title', sprintf( __( 'Resource "%s" is missing a title.', 'agentimus' ), $id ) );
 		}
 
-		// --- type (required, controlled) ----------------------------------- //
-		$type = isset( $raw['type'] ) ? sanitize_key( (string) $raw['type'] ) : '';
-		if ( ! in_array( $type, self::TYPES, true ) && ! preg_match( '/^x-[a-z0-9-]+$/', $type ) ) {
+		// --- type (required; an undeclared kind is marked, not refused) ----- //
+		$type = self::type_token( isset( $raw['type'] ) ? $raw['type'] : '' );
+		if ( '' !== $type && ! in_array( $type, self::types(), true ) && ! preg_match( '/^x-[a-z0-9-]+$/', $type ) ) {
+			$type = self::extension_type( $type );
+		}
+		if ( '' === $type ) {
+			$asked = isset( $raw['type'] ) && is_scalar( $raw['type'] ) ? trim( (string) $raw['type'] ) : '';
 			return new \WP_Error(
 				'wpd_resource_type',
-				/* translators: 1: resource id, 2: supplied type. */
-				sprintf( __( 'Resource "%1$s" has an unknown type "%2$s". Use a known type or an "x-vendor-name" extension.', 'agentimus' ), $id, $type )
+				'' === $asked
+					/* translators: %s: resource id. */
+					? sprintf( __( 'Resource "%s" is missing a type.', 'agentimus' ), $id )
+					: sprintf(
+						/* translators: 1: resource id, 2: supplied type. */
+						__( 'Resource "%1$s" has a type ("%2$s") with no word in it. Use a known kind, or an "x-name" extension.', 'agentimus' ),
+						$id,
+						$asked
+					)
 			);
 		}
 
@@ -114,6 +175,69 @@ final class Resource {
 	/* ---------------------------------------------------------------------- *
 	 *  Field coercers
 	 * ---------------------------------------------------------------------- */
+
+	/**
+	 * A word outside the vocabulary, written in the form the standard reserves
+	 * for exactly that: `x-<word>`.
+	 *
+	 * ⭐ HIS CALL, 2026-08-16: mark it and keep the entry. Refusing the type used
+	 * to throw away the WHOLE resource, so one wrong word made a plugin vanish
+	 * from the document — FluentCommunity said "community" and its row simply was
+	 * not there. A plugin loses nothing for a word we don't know, and the reader
+	 * still gets the entry.
+	 *
+	 * ⛔ And still not a free-for-all. The known words are what makes the index
+	 * answerable ("every commerce resource on every site"); letting any word
+	 * through would mean a typo — `comerce`, `store` — never matches anything and
+	 * nobody is ever told. The `x-` mark keeps the two apart: a reader can always
+	 * tell a known kind from a word this plugin made up.
+	 *
+	 * ⭐ A plugin that MEANT its new kind never lands here: it declares the word
+	 * with `agentimus_resource_types` ({@see types()}) and is published verbatim.
+	 * This path is for the word nobody declared, which is usually a mistake.
+	 *
+	 * The mark is not applied silently — {@see \Agentimus\Discovery\Registry::add()}
+	 * records a warning naming the word, what happened to it, and how to declare a
+	 * kind on purpose.
+	 *
+	 * @param string $type A kind that is not one this site knows.
+	 * @return string The `x-` token, or '' when there is nothing usable to mark.
+	 */
+	public static function extension_type( $type ) {
+		$token = self::type_token( $type );
+		// '' is nothing to mark, and so is a bare 'x': both `x-` and `x` fold to
+		// it, and neither is a kind — publishing "x-x" would be marking a word
+		// that was never there.
+		if ( '' === $token || 'x' === $token ) {
+			return '';
+		}
+		// Already marked: re-marking would publish "x-x-loyalty".
+		if ( 0 === strpos( $token, 'x-' ) ) {
+			return $token;
+		}
+		return 'x-' . $token;
+	}
+
+	/**
+	 * One kind, written the one way this file compares kinds.
+	 *
+	 * ⭐ BOTH SIDES FOLD THE SAME WAY, and that is the whole job. `sanitize_key()`
+	 * keeps underscores and the token form does not, so a plugin that declared
+	 * `my_kind` and then registered a resource of type `my_kind` would have failed
+	 * to match its OWN declaration — the word would have been marked `x-my-kind`
+	 * while the vocabulary held `my_kind`. Folding every run of anything that is
+	 * not a letter or digit into one hyphen, on both sides, removes that class of
+	 * bug rather than documenting it.
+	 *
+	 * @param mixed $type Whatever an author wrote.
+	 * @return string A `[a-z0-9-]` token, or '' when nothing is left of it.
+	 */
+	public static function type_token( $type ) {
+		if ( ! is_scalar( $type ) ) {
+			return ''; // An array or an object is not a word.
+		}
+		return trim( preg_replace( '/[^a-z0-9]+/', '-', strtolower( (string) $type ) ), '-' );
+	}
 
 	/**
 	 * Normalize endpoints. Strings become `{url, type:"rest"}`; arrays are

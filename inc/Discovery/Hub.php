@@ -91,6 +91,10 @@ final class Hub {
 			'abilitiesEndpoint' => self::abilities_endpoint(),
 			'adapters'     => self::adapters(),
 			'notices'      => $registry->notices(),
+			// The daily "do these doors really open" run, so the owner can see it is
+			// happening — and, when it is not, that the addresses below are
+			// unverified rather than verified.
+			'reachability' => self::reachability(),
 			'counts'       => array(
 				'resources'    => count( $envelope['resources'] ),
 				// The admin tile shows the REGISTERED number (matching the provider list
@@ -162,6 +166,121 @@ final class Hub {
 	 * @return array
 	 */
 	/**
+	 * The state of the daily check itself.
+	 *
+	 * @return array{checkedAt:int,error:string,skipped:int,stale:bool,checked:int,refused:int,unknown:int}
+	 */
+	private static function reachability() {
+		$data  = Reachability::data();
+		$rows  = (array) $data['addresses'];
+		$count = static function ( $state ) use ( $rows ) {
+			return count(
+				array_filter(
+					$rows,
+					static function ( $r ) use ( $state ) {
+						return isset( $r['state'] ) && $state === $r['state'];
+					}
+				)
+			);
+		};
+
+		return array(
+			'checkedAt' => (int) $data['checked_at'],
+			'error'     => (string) $data['error'],
+			'skipped'   => (int) $data['skipped'],
+			'stale'     => Reachability::is_stale(),
+			'checked'   => count( $rows ),
+			'open'      => $count( 'public' ),
+			'refused'   => $count( 'refused' ),
+			'unknown'   => $count( 'unknown' ),
+		);
+	}
+
+	/**
+	 * What we know about whether one advertised address really opens for a
+	 * stranger — and, when it does not, the sentence the owner needs.
+	 *
+	 * ⭐ THE POINT OF THE `label`. An address that fails its check leaves the
+	 * served document; if the admin screen said nothing, the owner would see a
+	 * plugin they installed simply not appear and have no way to find out why.
+	 * ⛔ A silence must name itself.
+	 *
+	 * @param array $endpoint One endpoint.
+	 * @param array $resource Its resource.
+	 * @return array{state:string,why:string,label:string,published:bool,checkedAt:int}
+	 */
+	private static function openness( $endpoint, array $resource ) {
+		$url = isset( $endpoint['url'] ) ? (string) $endpoint['url'] : '';
+
+		// We are not claiming this one is open, so there is nothing to prove and
+		// nothing to say.
+		if ( ! Reachability::claims_to_be_open( $endpoint, $resource ) ) {
+			return array( 'state' => 'not-claimed', 'why' => '', 'label' => '', 'published' => true, 'checkedAt' => 0 );
+		}
+
+		$record = Reachability::record( $url );
+		if ( null === $record ) {
+			return array(
+				'state'     => 'unchecked',
+				'why'       => '',
+				'label'     => __( 'Not checked yet. It is published meanwhile — not having looked is not a reason to hide it.', 'agentimus' ),
+				'published' => true,
+				'checkedAt' => 0,
+			);
+		}
+
+		$sentences = array(
+			'declared-open'               => __( 'Open to anyone — the plugin registered this route as needing no sign-in.', 'agentimus' ),
+			'answered'                    => __( 'Open to anyone — a real request with no login got through.', 'agentimus' ),
+			'allowed-a-stranger'          => __( 'Open to anyone — the plugin’s own permission check let a stranger in.', 'agentimus' ),
+			'refused-a-stranger'          => __( 'A request with no login is refused here.', 'agentimus' ),
+			'gone'                        => __( 'Nothing answers at this address any more.', 'agentimus' ),
+			'no-route'                    => __( 'This site has nothing registered at this address.', 'agentimus' ),
+			'could-not-reach'             => __( 'The check could not reach this address at all.', 'agentimus' ),
+			'no-permission-check'         => __( 'This route has no permission check, so nobody can say who may read it.', 'agentimus' ),
+			'unreadable-permission-check' => __( 'This route’s permission check cannot be run, so it cannot be trusted.', 'agentimus' ),
+			'permission-check-errored'    => __( 'The plugin’s own permission check errored when it was asked.', 'agentimus' ),
+		);
+
+		/**
+		 * ⭐ WHAT IT MEANS FOR THE OWNER — the half the verdict was missing.
+		 * "Nothing answers at this address any more" states a finding and leaves a
+		 * person holding it: is my site broken, is this my job to fix, does it come
+		 * back? Every one of those has an answer, and all three fit in a sentence.
+		 * ⭐ The last clause matters most: this heals itself. Nobody has to come back
+		 * and press anything.
+		 */
+		// ⭐ PLAIN WORDS, SHORT SENTENCES. These were written in idiom — "puts it
+		// back by itself", "we stopped pointing assistants at it", "a door that
+		// turns them away" — which a reader whose English is a second language has
+		// to decode before they can act. Same facts, said directly, and every one
+		// still ends with what happens next.
+		$means = array(
+			'refused-a-stranger'          => __( 'That is correct if this content is private. We do not list it, so assistants are not sent to a page that will refuse them. If it opens to visitors later, the next daily check lists it again.', 'agentimus' ),
+			'gone'                        => __( 'Nothing on your site is broken. The plugin still offers this address, but it does not answer, so we do not send assistants to it. If it answers again, the next daily check lists it again.', 'agentimus' ),
+			'no-route'                    => __( 'Nothing on your site is broken. The plugin offers this address but never registered it, so there is nothing there to read. If that changes, the next daily check lists it again.', 'agentimus' ),
+			'could-not-reach'             => __( 'This may be a problem with the check, not with the address: your site could not be reached at all. We try again every day.', 'agentimus' ),
+			'no-permission-check'         => __( 'We do not list it, because we cannot tell who is allowed to read it. The plugin author needs to fix this. We check again every day.', 'agentimus' ),
+			'unreadable-permission-check' => __( 'We do not list it, because we cannot tell who is allowed to read it. The plugin author needs to fix this. We check again every day.', 'agentimus' ),
+			'permission-check-errored'    => __( 'We do not list it, because we cannot tell who is allowed to read it. The plugin author needs to fix this. We check again every day.', 'agentimus' ),
+		);
+
+		$why = isset( $record['why'] ) ? (string) $record['why'] : '';
+
+		return array(
+			'state'     => isset( $record['state'] ) ? (string) $record['state'] : 'unknown',
+			'why'       => $why,
+			'label'     => isset( $sentences[ $why ] ) ? $sentences[ $why ] : __( 'This address could not be shown to be readable without a sign-in.', 'agentimus' ),
+			'means'     => isset( $means[ $why ] ) ? $means[ $why ] : '',
+			// The status a real anonymous request came back with, when there was one:
+			// the difference between an opinion and a measurement.
+			'code'      => isset( $record['code'] ) ? (int) $record['code'] : 0,
+			'published' => Reachability::may_advertise( $url ),
+			'checkedAt' => isset( $record['checked_at'] ) ? (int) $record['checked_at'] : 0,
+		);
+	}
+
+	/**
 	 * The entries of one kind — 'tool' (runnable) or 'resource' (a document an
 	 * assistant attaches). Anything unmarked is a tool: only the abilities
 	 * adapter knows about resources, and a third-party provider's plain list
@@ -197,21 +316,31 @@ final class Hub {
 	}
 
 	/**
-	 * How many PUBLISHED runnable tools only read, or change something.
+	 * How many runnable tools only read, or change something.
 	 *
-	 * ⚠️ Published only, and that is the whole point. These two numbers sit beside
-	 * a switch that decides what is announced, so counting tools nobody announces
-	 * makes the switch describe work it would not do: on this site the total said
-	 * "13 jobs would stop being announced" when the true answer was six.
+	 * ⚠️⚠️ TWO DIFFERENT QUESTIONS SHARE THIS METHOD, and answering both with one
+	 * number put a visible lie on the screen: a group of 4 jobs read
+	 * "4 jobs · 1 only read, 1 change something", because only 2 of the 4 were
+	 * announced and the counts were announced-only while the total was not.
 	 *
-	 * @param array $tools     A resource's tools.
-	 * @param bool  $read_only Count the reading ones, or the changing ones.
+	 * ⭐ WHICH ONE YOU WANT DEPENDS ON WHAT THE NUMBER SITS BESIDE:
+	 *   • $announced_only TRUE — beside the "never publish jobs that change
+	 *     something" switch. That switch can only ever un-announce something
+	 *     already announced, so counting the rest made it describe work it would
+	 *     not do ("13 jobs would stop being announced" when the answer was six).
+	 *   • $announced_only FALSE — beside a group's own total, where the reader is
+	 *     being told what is IN the group. Every job in it counts, announced or
+	 *     not, or the parts do not add up to the whole three words earlier.
+	 *
+	 * @param array $tools          A resource's tools.
+	 * @param bool  $read_only      Count the reading ones, or the changing ones.
+	 * @param bool  $announced_only Only tools the vendor asked to have listed.
 	 * @return int
 	 */
-	private static function count_kind( $tools, $read_only ) {
+	private static function count_kind( $tools, $read_only, $announced_only = true ) {
 		$n = 0;
 		foreach ( self::of_kind( (array) $tools, 'tool' ) as $tool ) {
-			if ( isset( $tool['public'] ) && ! $tool['public'] ) {
+			if ( $announced_only && isset( $tool['public'] ) && ! $tool['public'] ) {
 				continue;
 			}
 			$hint = isset( $tool['annotations']['readOnlyHint'] ) ? (bool) $tool['annotations']['readOnlyHint'] : false;
@@ -276,11 +405,16 @@ final class Hub {
 			'notPublic'    => isset( $resource['public'] ) && ! $resource['public'],
 			'capabilities' => $resource['capabilities'],
 			'endpoints'    => array_map(
-				static function ( $endpoint ) {
+				static function ( $endpoint ) use ( $resource ) {
 					return array(
 						'url'  => $endpoint['url'],
 						'type' => $endpoint['type'],
 						'auth' => '' !== $endpoint['auth'] ? $endpoint['auth'] : 'none',
+						// ⭐ Why an address the owner can see here may not be in the
+						// served document. An address dropped for failing its check
+						// would otherwise just be missing, and a silence the owner
+						// cannot account for is worse than the wrong row.
+						'open' => self::openness( $endpoint, $resource ),
 					);
 				},
 				$resource['endpoints']
@@ -294,8 +428,16 @@ final class Hub {
 			// The split an owner needs before deciding: how many of these only
 			// look at something, and how many change it. Counted from each tool's
 			// own read-only hint, never from its name.
-			'reads'        => self::count_kind( $resource['tools'], true ),
-			'changes'      => self::count_kind( $resource['tools'], false ),
+			// ⭐ ALL of them, so `reads + changes === tools` on every row. The row's
+			// own line puts the three numbers in one sentence, and two of them
+			// counting a smaller set than the third printed "4 jobs · 1 only read,
+			// 1 change something".
+			'reads'        => self::count_kind( $resource['tools'], true, false ),
+			'changes'      => self::count_kind( $resource['tools'], false, false ),
+			// ⚠️ ANNOUNCED ONLY, and kept apart on purpose: this one sits beside the
+			// "never publish jobs that change something" switch, which can only
+			// un-announce what is announced.
+			'announcedChanges' => self::count_kind( $resource['tools'], false, true ),
 			'docs'         => count( self::of_kind( $resource['tools'], 'resource' ) ),
 			// The names behind those counts. "25 tools" with nothing to open was a
 			// dead end: the card counted 42 and listed only the 7 published ones,
@@ -310,6 +452,16 @@ final class Hub {
 							'kind'  => ( isset( $tool['kind'] ) && 'resource' === $tool['kind'] ) ? 'resource' : 'tool',
 							// Resources carry their public address so the admin can link them.
 							'uri'   => isset( $tool['uri'] ) ? (string) $tool['uri'] : '',
+							// ⭐ Per job, not just per group. The row already counts how many
+							// change something; now that the jobs are listed ON that row, the
+							// owner can see WHICH ones — the one question they weigh before
+							// announcing a group. Read from the tool's own hint, the same
+							// source the counts beside it come from, so a row and its total
+							// can never disagree.
+							// ⚠️ A MISSING hint means "changes", exactly as count_kind() reads
+							// it two methods up. Defaulting the other way would make one job
+							// count as a read in the total and print as a change on the row.
+							'reads' => isset( $tool['annotations']['readOnlyHint'] ) && (bool) $tool['annotations']['readOnlyHint'],
 						);
 					},
 					(array) $resource['tools']

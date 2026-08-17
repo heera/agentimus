@@ -207,6 +207,108 @@ final class EnvelopeTest extends TestCase {
 		$this->assertSame( self::CORE, array_keys( $this->build() ) );
 	}
 
+	/* -- The publication gate: an unproven door is not advertised ------------ */
+
+	/**
+	 * Store one reachability verdict, the way a cron run would have.
+	 *
+	 * @param string $url   Site-relative address.
+	 * @param string $state public | refused | unknown.
+	 */
+	private function verdict( string $url, string $state ) {
+		add_filter(
+			'agentimus_reachability',
+			static function () use ( $url, $state ) {
+				return array(
+					'checked_at' => time(),
+					'ran_as'     => 0,
+					'error'      => '',
+					'skipped'    => 0,
+					'addresses'  => array( $url => array( 'state' => $state, 'why' => 'test', 'code' => 200, 'checked_at' => time() ) ),
+				);
+			}
+		);
+	}
+
+	/**
+	 * ⭐ THE WHOLE POINT. `auth: none` is a claim about somebody else's door, and
+	 * a claim a real anonymous request could not back up never reaches a served
+	 * document — not discovery.json, not apis[], not the api-catalog, because all
+	 * three derive from this one gate.
+	 */
+	public function test_an_address_proved_shut_is_dropped_from_every_served_surface() {
+		$this->verdict( '/wp-json/wc/store/v1', 'refused' );
+
+		$env = $this->build();
+
+		$urls = array();
+		foreach ( $env['resources'] as $resource ) {
+			foreach ( $resource['endpoints'] as $endpoint ) {
+				$urls[] = $endpoint['url'];
+			}
+		}
+		$this->assertNotContains( 'https://example.test/wp-json/wc/store/v1', $urls );
+		$this->assertSame( array( 'shop' ), array_column( $env['apis'], 'id' ) );
+		$this->assertSame( 'apikey', $env['apis'][0]['auth']['type'], 'Only the one we never claimed was open survives.' );
+	}
+
+	/** ⛔ An endpoint we honestly publish as locked makes no claim, so it is never touched. */
+	public function test_an_address_we_never_called_open_is_left_alone() {
+		$this->verdict( '/wp-json/wc/v3', 'refused' ); // A verdict on the apikey one.
+
+		$apis = $this->build()['apis'];
+
+		$this->assertCount( 2, $apis, 'We claimed nothing about it, so there was nothing to disprove.' );
+	}
+
+	/** ⭐ Per endpoint, not per resource: the open half of a plugin survives the shut half. */
+	public function test_only_the_address_that_failed_is_dropped() {
+		$this->verdict( '/wp-json/wc/store/v1', 'unknown' );
+
+		$env = $this->build();
+
+		$this->assertCount( 1, $env['resources'], 'The resource stays — it still has an address.' );
+		$this->assertSame(
+			array( 'https://example.test/wp-json/wc/v3' ),
+			array_column( $env['resources'][0]['endpoints'], 'url' )
+		);
+	}
+
+	/** A resource whose every address failed has nothing left to say, so it says nothing. */
+	public function test_a_resource_that_loses_every_address_leaves_the_document() {
+		\_af_reset_registry();
+		Registry::instance()->register(
+			array(
+				'id'        => 'lonely',
+				'title'     => 'Lonely',
+				'type'      => 'content',
+				'endpoints' => array( array( 'url' => '/wp-json/lonely/v1', 'type' => 'rest', 'auth' => 'none' ) ),
+			)
+		);
+		$this->verdict( '/wp-json/lonely/v1', 'refused' );
+
+		$this->assertSame( array(), $this->build()['resources'] );
+	}
+
+	/**
+	 * ⚠️ …but a group that never had an address is not "lost" one. Every abilities
+	 * group is exactly that shape, and dropping them would empty the tools surface.
+	 */
+	public function test_a_resource_that_never_had_an_address_is_untouched() {
+		\_af_reset_registry();
+		Registry::instance()->register(
+			array(
+				'id'        => 'abilities-acme',
+				'title'     => 'Jobs from acme',
+				'type'      => 'agent',
+				'abilities' => array( 'acme/do-a-thing' ),
+			)
+		);
+		$this->verdict( '/wp-json/nothing/to/do/with/it', 'refused' );
+
+		$this->assertSame( array( 'abilities-acme' ), array_column( $this->build()['resources'], 'id' ) );
+	}
+
 	private function api_by_id( array $apis, string $id ) {
 		foreach ( $apis as $api ) {
 			if ( $id === $api['id'] ) {

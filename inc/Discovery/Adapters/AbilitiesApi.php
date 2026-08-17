@@ -219,8 +219,17 @@ final class AbilitiesApi {
 			// Registered either way, so the Discovery screen can still show the owner what their
 			// site exposes — but kept out of every SERVED surface when it is all sign-in-only.
 			'public'       => $publish_gated || $any_advertised,
+			// ⚠️⚠️ THIS SENTENCE IS PUBLISHED. It goes into discovery.json and mcp.json,
+			// where strangers and machines read it — and it used to end "…listed
+			// further down, under 'For a signed-in assistant'", which is the name of a
+			// card on OUR ADMIN SCREEN. Every site running Agentimus was telling the
+			// open internet to look further down a page it cannot see.
+			// ⭐ THE RULE IT BROKE: a served document is written for its reader. Admin
+			// furniture — "below", "above", "on this screen", the name of one of our
+			// own cards — can never appear in one, because the reader is not standing
+			// where we are.
 			/* translators: %d: how many jobs this plugin registered. */
-			'description'  => sprintf( _n( '%d thing an AI assistant can do here. It is listed further down, under “For a signed-in assistant”.', '%d things an AI assistant can do here. They are listed further down, under “For a signed-in assistant”.', count( $items ), 'agentimus' ), count( $items ) ),
+			'description'  => sprintf( _n( '%d job an AI assistant can run here, once it signs in.', '%d jobs an AI assistant can run here, once it signs in.', count( $items ), 'agentimus' ), count( $items ) ),
 			'abilities'    => $abilities,
 			'tools'        => $tools,
 			// The resource inherits the strictest requirement of the tools inside it. Left unset it
@@ -388,8 +397,9 @@ final class AbilitiesApi {
 	 *
 	 * Under-claiming costs an agent one unnecessary auth header. Over-claiming
 	 * walks it into a 401 and misinforms every reader of the document. Those are
-	 * not symmetric, and the screen already says it in words: every tool on the
-	 * Discovery page sits under the heading "For a signed-in assistant".
+	 * not symmetric, and the screen already says it in words: the Discovery page's
+	 * "Things Assistants Can Do" section states that every job needs a sign-in
+	 * first, including the ones that only read.
 	 *
 	 * @return string Always 'wp' — an ability is gated by its own permission callback.
 	 */

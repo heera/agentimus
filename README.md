@@ -124,7 +124,9 @@ if ( class_exists( 'Agentimus_Discovery' ) ) {
 
 **Resource fields:** `id` (req, slug), `title` (req), `type` (req — `content`,
 `commerce`, `scheduling`, `courses`, `forms`, `crm`, `auth`, `search`, `media`,
-`messaging`, `analytics`, `payments`, `directory`, `agent`, or `x-vendor-name`),
+`messaging`, `analytics`, `payments`, `directory`, `agent`, or `x-vendor-name`;
+add your own kind with the `agentimus_resource_types` filter — an undeclared word
+is marked `x-` and published, never dropped),
 `description`, `version`, `capabilities[]`, `endpoints[]` (`{url, type, methods[],
 auth, description}`), `schemas[]`, `auth` (`{type, oidc, scopes[], docs}`),
 `agent` (`{name, description, skills[{id,description}], endpoint, auth}`),

@@ -98,6 +98,29 @@ add_action(
 add_filter( 'agentimus_schema_url', fn( $url ) => $url );
 
 /**
+ * Kinds of resource this site knows, beyond the built-in vocabulary (content,
+ * commerce, scheduling, courses, forms, crm, auth, search, media, messaging,
+ * analytics, payments, directory, agent).
+ *
+ * Declare a kind here and it is published exactly as you wrote it. A word nobody
+ * declared is MARKED rather than refused — "community" is published as
+ * "x-community", with a warning on the Discovery Hub naming the change — so no
+ * plugin ever loses its entry over one word.
+ *
+ * The filter ADDS: it is handed an empty array, and a built-in kind cannot be
+ * removed, so no plugin can change what another plugin publishes.
+ *
+ * @param string[] $types Additional kinds.
+ */
+add_filter(
+	'agentimus_resource_types',
+	function ( $types ) {
+		$types[] = 'loyalty';
+		return $types;
+	}
+);
+
+/**
  * The whole assembled discovery.json envelope. Add x-<vendor> keys for vendor
  * extensions — the unprefixed namespace is reserved for the spec.
  *
