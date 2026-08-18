@@ -32,3 +32,28 @@ jobs:
 
       - name: Run unit tests
         run: composer test
+
+  readme:
+    name: readme.txt caps
+    runs-on: ubuntu-latest
+    # Its own job, not a step in the matrix: this is one cheap parse and there is
+    # no reason to run it four times, once per PHP version.
+    #
+    # ⚠️ It exists because 1.37.0 shipped a 2,703-word Description and WordPress
+    # .org truncated it 169 words into the required "External services"
+    # disclosure. The cap was known; the MEASUREMENT was wrong — WP.org folds
+    # every non-standard section into the Description before applying it, so
+    # counting the Description block alone reads comfortably under while the real
+    # figure is over. The directory truncates silently rather than refusing the
+    # import, so nothing fails until a human notices the pink box.
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Set up PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+          coverage: none
+
+      - name: Check readme.txt against WordPress.org's caps
+        run: php dev/check-readme-caps.php readme.txt
