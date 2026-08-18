@@ -56,4 +56,4 @@ jobs:
           coverage: none
 
       - name: Check readme.txt against WordPress.org's caps
-        run: php dev/check-readme-caps.php readme.txt
+        run: php bin/check-readme-caps.php readme.txt
