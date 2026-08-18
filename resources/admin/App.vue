@@ -99,7 +99,7 @@ export default {
       refreshingFindings: false,
       // The per-item worklist. NOT in the boot payload — every row parses a
       // page — so it is fetched the first time Today is looked at.
-      worklist: { items: [], counts: {}, total: 0, page: 1, per: 20, grading: 0, noSearchData: 0, searchState: '' },
+      worklist: { items: [], counts: {}, total: 0, page: 1, per: 20, grading: 0, rechecking: 0, noSearchData: 0, searchState: '' },
       // Which tab and page the list is currently showing. Held here, not in the
       // panel, because the panel asks the App to fetch and the two must agree
       // about what was asked for.
@@ -2233,6 +2233,7 @@ export default {
           :optimize-ignored="optimizeIgnored"
           :optimize-graded="(aeo && aeo.graded) || 0"
           :optimize-grading="(aeo && aeo.grading) || 0"
+          :optimize-rechecking="(aeo && aeo.rechecking) || 0"
           :optimize-scope="(aeo && aeo.scope) || null"
           :refreshing="refreshingReadiness"
           :live-config="liveConfig"

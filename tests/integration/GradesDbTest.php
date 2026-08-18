@@ -294,7 +294,57 @@ final class GradesDbTest extends DbTestCase {
 		Grades::mark_stale( $id );
 
 		$this->assertSame( array( $id ), Grades::ungraded( $this->types, 10 ), 'An edited page has to be read again.' );
-		$this->assertSame( 1, Grades::remaining( $this->types ) );
+		// ⚠️ "Still to read" means NEVER read — a page whose verdict predates an
+		// edit has one, it is simply out of date. Counting it here put the same
+		// page in two totals at once ("88 graded · 1 still to read" on 88 pages)
+		// and, worse, was the number that made the card drop it from every list.
+		$this->assertSame( 0, Grades::remaining( $this->types ), 'It has a grade; it is being re-read, not read for the first time.' );
+		$this->assertSame( 1, Grades::rechecking( $this->types ), 'The re-read the sweep owes has its own count.' );
+	}
+
+	/**
+	 * ⭐ THE BUG THIS TEST EXISTS FOR — his report, 2026-08-19.
+	 *
+	 * Open a page from Readiness → Optimize Your Content, fix ONE of the things
+	 * it is flagged for, come back: the whole page vanished from the card, as
+	 * though every complaint about it had been answered. Refresh later and it is
+	 * back, still carrying the issues nobody fixed.
+	 *
+	 * Saving marked the grade out of date, and every read of the store dropped
+	 * rows without a current grade — so an edit deleted the page's verdict
+	 * instead of ageing it. The card then reported a success it had never
+	 * verified, and the Optimized pillar moved because a page left the average,
+	 * not because anything improved.
+	 *
+	 * The last reading is kept until the sweep replaces it: out of date is a
+	 * state the screen can say out loud, and missing is not.
+	 */
+	public function test_an_edited_page_keeps_its_verdict_until_the_sweep_reads_it_again() {
+		$id = $this->post( 'Two things wrong with it' );
+		Grades::record( $id, array(
+			'needsWork' => true,
+			'flags'     => 2,
+			'stake'     => 10,
+			'coverage'  => 'on_page',
+			'hasFocus'  => true,
+			'points'    => 60,
+			'flagIds'   => array( 'summary', 'headings' ),
+			'gradeable' => true,
+			'hash'      => 'h' . $id,
+		) );
+
+		$before = Grades::optimize( $this->types, array() );
+		$this->assertSame( 1, $before['posts'] );
+		$this->assertSame( array( $id ), $before['issues']['summary']['posts'] );
+
+		Grades::mark_stale( $id ); // ← what save_post does.
+
+		$after = Grades::optimize( $this->types, array() );
+		$this->assertSame( 1, $after['posts'], 'A page you edited is still a page that was graded.' );
+		$this->assertSame( array( $id ), $after['issues']['summary']['posts'], 'It must not leave the card as if it were fixed.' );
+		$this->assertSame( 60, $after['score'], 'The pillar must not move because a page dropped out of the average.' );
+		$this->assertSame( array( $id ), $after['pending'], '…but the card has to be able to say the verdict is older than the edit.' );
+		$this->assertSame( array( $id ), Grades::posts_with_flag( $this->types, array(), 'summary' ), 'Set All Aside has to see it too.' );
 	}
 
 	public function test_forgetting_a_page_removes_it_from_every_answer() {

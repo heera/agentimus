@@ -184,6 +184,13 @@ export default {
     grading() {
       return Number(this.data.grading) || 0;
     },
+    // …and how many were edited AFTER they were read. Every row below is
+    // re-read as this page is built, so each verdict is current — but the ORDER
+    // and the counts beside the tabs come from the stored reading, which for
+    // these pages describes the draft before the edit.
+    rechecking() {
+      return Number(this.data.rechecking) || 0;
+    },
     shown() {
       // A finding's subset wins over the tab: it was chosen deliberately and
       // the pages in it may sit across two tabs.
@@ -202,6 +209,12 @@ export default {
         // whole site, which is the fault this screen exists to avoid.
         bits.push(
           `Still reading your content — ${this.grading.toLocaleString()} ${this.grading === 1 ? 'item has' : 'items have'} not been looked at yet, so this order may still change.`
+        );
+      }
+      if (this.rechecking > 0) {
+        const n = this.rechecking.toLocaleString();
+        bits.push(
+          `${this.rechecking === 1 ? 'One page you edited is' : `${n} pages you edited are`} being read again — what each row says is current, but the order and the counts above still come from the earlier reading.`
         );
       }
       if (this.data.noSearchData) {

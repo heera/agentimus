@@ -5203,6 +5203,14 @@ a:hover > .ar-wd-ext { color: var(--ar-accent); }
 .ar-optcheck__page { flex: 0 1 auto; min-width: 0; font-size: 13px; color: var(--ar-accent); text-decoration: none; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .ar-optcheck__page:hover, .ar-optcheck__page:focus-visible { text-decoration: underline; }
 .ar-optcheck__page--muted { color: var(--ar-ink-soft); }
+/* "re-reading" — this page was saved after the verdict beside it was measured.
+   Faint mono, the same small-caps idiom as the row's action but in ink-faint, so
+   it reads as a STATE of the row and never as a second button to press. */
+.ar-optcheck__pending {
+  flex: 0 0 auto; font-family: var(--ar-mono); font-size: 10px;
+  letter-spacing: 0.08em; text-transform: uppercase; white-space: nowrap;
+  color: var(--ar-ink-faint);
+}
 .ar-optcheck__more { margin: 7px 0 0; font-family: var(--ar-mono); font-size: 11px; color: var(--ar-ink-faint); }
 /* Set-aside / set-all-aside / restore actions — one treatment for all three: a quiet
    uppercase accent label, right-pinned, no chrome. Identical padding is what keeps every

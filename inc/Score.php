@@ -147,15 +147,15 @@ final class Score {
 		}
 
 		return array(
-			'score'    => $score,
-			'band'     => self::band( $blocked ? 0 : $score ),
-			'blocked'  => $blocked,
-			'ready'    => $ready,
-			'measured' => $track && null !== $measure['score'],
-			'rungs'    => $rungs,
-			'actions'  => $this->actions( $readiness, $optimize, $measure ),
-			'content'  => $this->content_worklist( $optimize ),
-			'graded'   => (int) $optimize['posts'],
+			'score'      => $score,
+			'band'       => self::band( $blocked ? 0 : $score ),
+			'blocked'    => $blocked,
+			'ready'      => $ready,
+			'measured'   => $track && null !== $measure['score'],
+			'rungs'      => $rungs,
+			'actions'    => $this->actions( $readiness, $optimize, $measure ),
+			'content'    => $this->content_worklist( $optimize ),
+			'graded'     => (int) $optimize['posts'],
 			// ⚠️ How many published pages the sweep has NOT read yet. Without it a
 			// screen cannot tell "every page is clean" from "we have only looked
 			// at some of them" — and now that `graded` counts the whole site
@@ -163,8 +163,14 @@ final class Score {
 			// standing between an honest all-clear and an early one.
 			// ⛔ Taken from the SAME cached snapshot as `graded`, never re-read
 			// here: two numbers describing one moment must be measured at it.
-			'grading'  => (int) ( isset( $optimize['grading'] ) ? $optimize['grading'] : 0 ),
-			'ignored'  => $this->ignored_list(),
+			'grading'    => (int) ( isset( $optimize['grading'] ) ? $optimize['grading'] : 0 ),
+			// ⚠️ How many of the `graded` pages were edited after they were read.
+			// They keep their place in `content` — a verdict that is out of date is
+			// still the last thing anybody actually measured, and dropping those
+			// rows made a page look mended the moment one of its issues was fixed.
+			// This is the number that stops the rest of the card reading as today's.
+			'rechecking' => (int) ( isset( $optimize['rechecking'] ) ? $optimize['rechecking'] : 0 ),
+			'ignored'    => $this->ignored_list(),
 			// ⭐ WHAT was graded, in the site's own words — and what was checked
 			// but deliberately not graded.
 			//
@@ -177,7 +183,7 @@ final class Score {
 			// explaining the difference, is the same contradiction this whole
 			// change exists to remove. An all-clear also can't name "posts and
 			// pages" on a site that graded four kinds of thing.
-			'scope'    => $this->optimize_scope(),
+			'scope'      => $this->optimize_scope(),
 		);
 	}
 
@@ -440,7 +446,7 @@ final class Score {
 		$off   = empty( Content::check_post_types() );
 		$types = $off ? Gradeability::last_known_post_types() : Gradeability::post_types();
 		if ( empty( $types ) ) {
-			return array( 'score' => null, 'posts' => 0, 'issues' => array(), 'grading' => 0 );
+			return array( 'score' => null, 'posts' => 0, 'issues' => array(), 'grading' => 0, 'rechecking' => 0, 'pending' => array() );
 		}
 
 		// ⚠️ Read in the SAME breath as the grades themselves, and cached with
@@ -456,9 +462,19 @@ final class Score {
 		// a count that can never reach zero.
 		$outstanding = $off ? 0 : Grades::remaining( $types );
 
+		// Pages whose verdict is older than the owner's last edit — saved, and
+		// waiting for the sweep to read them again. Same breath, same cached
+		// payload, same reason: it is printed beside `posts` and a number taken
+		// at another instant can contradict the one next to it.
+		//
+		// ⛔ Zero while checking is off, for the reason above it: no sweep is
+		// coming, so there is no re-reading to promise. The card says the whole
+		// card is an older reading in that state.
+		$rechecking = $off ? 0 : Grades::rechecking( $types );
+
 		$read = Grades::optimize( $types, $this->ignored_ids(), self::WORKLIST_POSTS_PER_ISSUE );
 		if ( $read['posts'] < 1 ) {
-			return array( 'score' => null, 'posts' => 0, 'issues' => array(), 'grading' => $outstanding );
+			return array( 'score' => null, 'posts' => 0, 'issues' => array(), 'grading' => $outstanding, 'rechecking' => $rechecking, 'pending' => array() );
 		}
 
 		$issues = array();
@@ -477,10 +493,14 @@ final class Score {
 		}
 
 		return array(
-			'score'   => $read['score'],
-			'posts'   => (int) $read['posts'],
-			'issues'  => $issues,
-			'grading' => $outstanding,
+			'score'      => $read['score'],
+			'posts'      => (int) $read['posts'],
+			'issues'     => $issues,
+			'grading'    => $outstanding,
+			'rechecking' => $rechecking,
+			// Which of the pages named above carry a verdict older than the edit,
+			// so each row can say so where it stands.
+			'pending'    => array_map( 'intval', (array) $read['pending'] ),
 		);
 	}
 
@@ -561,7 +581,8 @@ final class Score {
 	 * @return array<int,array<string,mixed>>
 	 */
 	private function content_worklist( array $optimize ) {
-		$issues = isset( $optimize['issues'] ) ? $optimize['issues'] : array();
+		$issues  = isset( $optimize['issues'] ) ? $optimize['issues'] : array();
+		$pending = isset( $optimize['pending'] ) ? array_map( 'intval', (array) $optimize['pending'] ) : array();
 		uasort(
 			$issues,
 			static function ( $a, $b ) {
@@ -582,6 +603,9 @@ final class Score {
 					'id'    => (int) $pid,
 					'title' => '' !== $title ? $title : __( '(untitled)', 'agentimus' ),
 					'url'   => $edit,
+					// TRUE when this verdict was measured before the owner's last
+					// save. The row stays — this is what stops it posing as current.
+					'stale' => in_array( (int) $pid, $pending, true ),
 				);
 			}
 			if ( empty( $pages ) ) {

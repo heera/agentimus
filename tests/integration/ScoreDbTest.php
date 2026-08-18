@@ -144,6 +144,56 @@ final class ScoreDbTest extends DbTestCase {
 		$this->assertStringContainsString( 'post.php', (string) $issue['pages'][0]['url'] );
 	}
 
+	/**
+	 * ⭐ HIS REPORT, 2026-08-19 — the whole round trip, the way he drove it.
+	 *
+	 * Open a flagged page from Readiness → Optimize Your Content, fix one thing,
+	 * leave the editor open, come back. The card dropped the page the instant it
+	 * was saved: every complaint about it gone, nothing said, and the Optimized
+	 * pillar moved because a page had left the average. A while later the sweep
+	 * read it again and the same page came back, with the issues nobody had
+	 * touched still on it.
+	 *
+	 * This walks the real hooks — wp_update_post fires save_post, which busts the
+	 * cache and marks the grade out of date — so it fails if the store ever goes
+	 * back to treating "edited since" as "never read".
+	 */
+	public function test_a_page_you_just_edited_keeps_its_place_and_says_it_is_being_re_read() {
+		wp_set_current_user( self::factory()->user->create( array( 'role' => 'administrator' ) ) );
+		$id = $this->post( 'Too short.' );
+		$this->regrade();
+
+		$before = ( new Score( new Settings() ) )->report();
+		$this->assertNotEmpty( $before['content'], 'a thin post is flagged to begin with' );
+		$this->assertSame( $id, (int) $before['content'][0]['pages'][0]['id'] );
+		$this->assertFalse( $before['content'][0]['pages'][0]['stale'] );
+		$this->assertSame( 0, (int) $before['rechecking'] );
+		$graded = (int) $before['graded'];
+		$score  = $before['rungs'][3]['score'];
+
+		// He fixes ONE of the things the page is flagged for and saves. Still thin,
+		// so the page still belongs on this card — which is the point.
+		wp_update_post( array( 'ID' => $id, 'post_content' => 'Still too short, but now it opens with a summary line.' ) );
+
+		$after = ( new Score( new Settings() ) )->report();
+		$this->assertNotEmpty( $after['content'], '⛔ the page must not leave the card on a save' );
+		$this->assertSame( $id, (int) $after['content'][0]['pages'][0]['id'] );
+		$this->assertTrue( $after['content'][0]['pages'][0]['stale'], 'the row has to say the verdict predates the edit' );
+		$this->assertSame( 1, (int) $after['rechecking'] );
+		$this->assertSame( 0, (int) $after['grading'], 'it has been read — it is being re-read, which is a different sentence' );
+		$this->assertSame( $graded, (int) $after['graded'], 'an edit is not a page leaving the graded set' );
+		$this->assertSame( $score, $after['rungs'][3]['score'], 'the pillar must not move because a row dropped out of the average' );
+
+		// A reading is booked rather than waiting for the hourly beat.
+		$this->assertNotFalse( wp_next_scheduled( Grades::CRON ), 'saving a post books the sweep that answers "did I fix it?"' );
+
+		// …and once the sweep has read it, the mark clears itself.
+		$this->regrade();
+		$done = ( new Score( new Settings() ) )->report();
+		$this->assertSame( 0, (int) $done['rechecking'] );
+		$this->assertFalse( $done['content'][0]['pages'][0]['stale'] );
+	}
+
 	public function test_empty_and_structural_pages_are_excluded_from_grading() {
 		// An empty page — theme-rendered front page, a page-builder/form page, a
 		// placeholder: 0 extractable words, so not an article to grade.

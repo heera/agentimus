@@ -120,6 +120,19 @@ final class Worklist {
 	/**
 	 * A post was saved: its grade is now a statement about an older version.
 	 *
+	 * ⭐ And book a reading, rather than leaving it to the hourly beat. The
+	 * moment somebody edits a page is the moment they come back to the screen
+	 * that sent them there, and "your verdict will refresh within the hour" is
+	 * not an answer to "did I fix it?". The verdict stays visible and marked
+	 * while it waits {@see Grades::mark_stale()}; this is what keeps that wait
+	 * to about a minute.
+	 *
+	 * ⚠️ Self-throttling, and it has to be: an import saving four hundred posts
+	 * calls this four hundred times. WordPress refuses a single event whose hook
+	 * already has one scheduled within ten minutes of it — including the next
+	 * turn of the hourly sweep — so a storm books one run, and a save just after
+	 * a run was already due books nothing at all.
+	 *
 	 * @param int      $post_id Post ID.
 	 * @param \WP_Post $post    The post.
 	 * @return void
@@ -134,6 +147,7 @@ final class Worklist {
 			return;
 		}
 		Grades::mark_stale( $post_id );
+		wp_schedule_single_event( time() + MINUTE_IN_SECONDS, Grades::CRON );
 	}
 
 	/**
@@ -377,6 +391,11 @@ final class Worklist {
 			// claim from the finished one, and only this number can say which is
 			// on screen.
 			'grading'      => Grades::remaining( $types ),
+			// …and the other half of it. Each ROW below is re-read to build this
+			// payload, so its verdict is current; the RANK and the tab counts are
+			// read from the store, which for a page edited since it was swept
+			// still describes the earlier draft.
+			'rechecking'   => Grades::rechecking( $types ),
 			'noSearchData' => Grades::without_search( $types ),
 			'searchState'  => $this->search_state(),
 			'engine'       => $this->engine_label(),

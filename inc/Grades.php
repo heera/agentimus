@@ -278,6 +278,23 @@ final class Grades {
 	 * Called on save, where the owner is waiting for the editor to come back and
 	 * rendering their page again would be felt. The sweep picks it up.
 	 *
+	 * ⭐⭐ THE LAST READING IS KEPT. Only the fingerprint is cleared, which is
+	 * what puts the page back in {@see ungraded()}'s queue.
+	 *
+	 * This used to clear `graded_at` as well, and that one NULL was read by every
+	 * query in this file as "nothing is known about this page" — so saving a post
+	 * DELETED its verdict rather than ageing it. Fix one of the four things a
+	 * page is flagged for, come back to Readiness → Optimize Your Content, and
+	 * the whole page had vanished from the card: a success nobody had verified,
+	 * announced about three issues still sitting in the editor. It reappeared
+	 * whenever the sweep next ran, with those three intact.
+	 *
+	 * It cost the pillar too. A page leaving the average moves the score for a
+	 * reason that has nothing to do with the site getting better or worse.
+	 *
+	 * An out-of-date verdict is a state a screen can NAME ({@see rechecking()}).
+	 * A missing one can only be mistaken for good news.
+	 *
 	 * @param int $post_id Post ID.
 	 * @return void
 	 */
@@ -288,21 +305,24 @@ final class Grades {
 		}
 		$table = self::name();
 		$wpdb->query( $wpdb->prepare( // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- our own table.
-			"UPDATE $table SET graded_at = NULL, content_hash = '' WHERE post_id = %d",
+			"UPDATE $table SET content_hash = '' WHERE post_id = %d",
 			(int) $post_id
 		) );
 	}
 
 	/**
-	 * Published posts with no usable grade yet — never-graded ones FIRST.
+	 * Published posts the sweep owes a reading — never-graded ones FIRST.
 	 *
-	 * "No usable grade" is a missing row OR one whose graded_at was cleared by a
-	 * save. The hash is checked by the caller, which is the only place that knows
-	 * what the post says now.
+	 * Three kinds of row qualify: no row at all, one whose `graded_at` was
+	 * cleared by a schema migration (its columns are defaults, not measurements),
+	 * and one whose fingerprint a save emptied ({@see mark_stale()}). The last
+	 * kind still HAS a verdict and every reader still shows it — being in this
+	 * queue is a statement about what the sweep must do next, never about what
+	 * the screens may say meanwhile.
 	 *
-	 * ⚠️ `g.post_id IS NULL DESC` is the whole fairness of the sweep, and it was
-	 * missing. Saving a post clears its grade, so an edit puts an ALREADY-KNOWN
-	 * page back in this queue — and the order used to be `post_modified DESC`,
+	 * ⚠️ The never-graded-first ordering is the whole fairness of the sweep, and
+	 * it was missing. Saving a post re-queues it, so an edit puts an
+	 * ALREADY-KNOWN page back here — and the order used to be `post_modified DESC`,
 	 * which put it at the FRONT, ahead of everything never read. On a site that
 	 * edits all day (a store touching product rows, a busy newsroom) the
 	 * re-grades can arrive faster than a 20-a-minute chunk drains them, and the
@@ -332,8 +352,8 @@ final class Grades {
 			"SELECT p.ID FROM {$wpdb->posts} p
 			LEFT JOIN $table g ON g.post_id = p.ID
 			WHERE p.post_status = 'publish' AND p.post_type IN ($holders)
-				AND (g.post_id IS NULL OR g.graded_at IS NULL)
-			ORDER BY (g.post_id IS NULL) DESC, p.post_modified DESC
+				AND (g.post_id IS NULL OR g.graded_at IS NULL OR g.content_hash = '')
+			ORDER BY (g.post_id IS NULL OR g.graded_at IS NULL) DESC, p.post_modified DESC
 			LIMIT %d",
 			array_merge( $types, array( $limit ) )
 		) );
@@ -390,11 +410,16 @@ final class Grades {
 	}
 
 	/**
-	 * How many published posts are still waiting for a grade.
+	 * How many published posts have never been read.
 	 *
 	 * The screen's honesty about itself: a list ranked over 40 of 300 pages is
 	 * not the same claim as one ranked over all of them, and only this number
 	 * lets it say which it is.
+	 *
+	 * ⚠️ NEVER read, not "not currently up to date". A page whose verdict
+	 * predates an edit is counted by {@see rechecking()} and by no other number
+	 * here — it is already inside `graded`, and counting it twice would print
+	 * "88 graded · 1 still to read" on a site with 88 published pages.
 	 *
 	 * @param array<int,string> $types Post types to consider.
 	 * @return int
@@ -413,6 +438,39 @@ final class Grades {
 			LEFT JOIN $table g ON g.post_id = p.ID
 			WHERE p.post_status = 'publish' AND p.post_type IN ($holders)
 				AND (g.post_id IS NULL OR g.graded_at IS NULL)",
+			$types
+		) );
+	}
+
+	/**
+	 * How many published pages carry a verdict older than the owner's last edit.
+	 *
+	 * The other half of {@see remaining()}, and the one the screens were missing.
+	 * These pages keep their place in every list — their reading is simply a
+	 * reading of an earlier draft, which a card can say and must not imply is
+	 * current.
+	 *
+	 * ⚠️ Measured in the same breath as `graded` and cached in the same payload
+	 * {@see \Agentimus\Score::compute_optimize()}. Two numbers printed side by
+	 * side and taken at different instants can contradict each other on screen.
+	 *
+	 * @param array<int,string> $types Post types to consider.
+	 * @return int
+	 */
+	public static function rechecking( array $types ) {
+		global $wpdb;
+
+		if ( empty( $types ) || ! self::installed() ) {
+			return 0;
+		}
+		$table   = self::name();
+		$holders = implode( ',', array_fill( 0, count( $types ), '%s' ) );
+
+		return (int) $wpdb->get_var( $wpdb->prepare( // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- our own table; every value bound.
+			"SELECT COUNT(*) FROM {$wpdb->posts} p
+			INNER JOIN $table g ON g.post_id = p.ID
+			WHERE p.post_status = 'publish' AND p.post_type IN ($holders)
+				AND g.graded_at IS NOT NULL AND g.content_hash = ''",
 			$types
 		) );
 	}
@@ -558,15 +616,21 @@ final class Grades {
 	 * screen says the reading is unfinished, and `score => null` is how this says
 	 * it has nothing to claim yet.
 	 *
+	 * ⭐ It is NEVER-read that this excludes, which is not the same as out of
+	 * date. A page the owner edited a minute ago is answered for out of the last
+	 * reading and listed in `pending`, so the card can mark the verdict as older
+	 * than the edit. Dropping it instead is how a fixed-one-issue page used to
+	 * leave the card looking mended {@see mark_stale()}.
+	 *
 	 * @param array<int,string> $types Post types to consider.
 	 * @param array<int,int>    $aside Post IDs the owner set aside.
 	 * @param int               $per   Most affected posts kept per issue.
-	 * @return array{score:int|null,posts:int,issues:array<string,array{count:int,posts:array<int,int>}>}
+	 * @return array{score:int|null,posts:int,issues:array<string,array{count:int,posts:array<int,int>}>,pending:array<int,int>}
 	 */
 	public static function optimize( array $types, array $aside, $per = 6 ) {
 		global $wpdb;
 
-		$out = array( 'score' => null, 'posts' => 0, 'issues' => array() );
+		$out = array( 'score' => null, 'posts' => 0, 'issues' => array(), 'pending' => array() );
 		if ( empty( $types ) || ! self::installed() ) {
 			return $out;
 		}
@@ -598,15 +662,19 @@ final class Grades {
 		// only the FLAGGED ones, which is the minority by design and the whole
 		// point of the column being empty when a page is clean.
 		$rows = $wpdb->get_results( $wpdb->prepare( // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- our own table; ids cast to int, everything else bound.
-			"SELECT g.post_id, g.flag_ids
+			"SELECT g.post_id, g.flag_ids, g.content_hash
 			FROM $table g INNER JOIN {$wpdb->posts} p ON p.ID = g.post_id
 			WHERE $where AND g.flag_ids <> ''
 			ORDER BY g.stake DESC, g.post_id DESC",
 			$types
 		), ARRAY_A );
 
-		$per = max( 1, (int) $per );
+		$per     = max( 1, (int) $per );
+		$pending = array();
 		foreach ( (array) $rows as $r ) {
+			// An empty fingerprint is a save the sweep has not caught up with:
+			// this verdict describes the draft before the owner's last edit.
+			$stale = '' === (string) ( isset( $r['content_hash'] ) ? $r['content_hash'] : '' );
 			foreach ( self::unpack_ids( isset( $r['flag_ids'] ) ? $r['flag_ids'] : '' ) as $id ) {
 				if ( ! isset( $out['issues'][ $id ] ) ) {
 					$out['issues'][ $id ] = array( 'count' => 0, 'posts' => array() );
@@ -617,9 +685,15 @@ final class Grades {
 				// not print its length as the count.
 				if ( count( $out['issues'][ $id ]['posts'] ) < $per ) {
 					$out['issues'][ $id ]['posts'][] = (int) $r['post_id'];
+					if ( $stale ) {
+						$pending[ (int) $r['post_id'] ] = true;
+					}
 				}
 			}
 		}
+		// Only the pages actually named above: a caller marks rows with this, and
+		// a list of ids it never printed would be a count it cannot show.
+		$out['pending'] = array_map( 'intval', array_keys( $pending ) );
 
 		return $out;
 	}

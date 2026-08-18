@@ -29,6 +29,16 @@ export default {
     // finished one — and the only thing that separates an honest all-clear from
     // an early one.
     optimizeGrading: { type: Number, default: 0 },
+    // How many graded pages were edited after they were read. Their rows STAY
+    // on this card — a verdict that predates an edit is still the last thing
+    // anybody measured — and each one is marked where it stands.
+    //
+    // ⚠️ This card used to lose the page instead. Fix one of the four things a
+    // page is flagged for, come back, and the whole page had gone: an all-clear
+    // about three issues still open in the editor, which came back the moment
+    // the sweep next ran. Out of date is a state a screen can say; missing
+    // only ever reads as good news.
+    optimizeRechecking: { type: Number, default: 0 },
     refreshing: { type: Boolean, default: false },
     liveConfig: { type: Object, default: () => ({}) },
     isLocal: { type: Boolean, default: false },
@@ -121,6 +131,14 @@ export default {
       if (left > 0) {
         const n = left.toLocaleString();
         return `Nothing flagged in the ${graded.toLocaleString()} read so far — still reading your content, ${n} ${left === 1 ? 'page has' : 'pages have'} not been looked at yet.`;
+      }
+      // Everything has been read, but some of it was read before the owner's
+      // last edit. ⛔ Not an all-clear: the pages they just worked on are the
+      // ones this card has the least right to speak for.
+      const again = Number(this.optimizeRechecking || 0);
+      if (again > 0) {
+        const n = again.toLocaleString();
+        return `Nothing flagged in ${this.gradedScope} as ${graded === 1 ? 'it was' : 'they were'} last read. ${again === 1 ? 'One page you edited since is' : `${n} pages you edited since are`} being read again.`;
       }
       // ⚠️ "post and page" was hardcoded, and stopped being true the moment a
       // site graded anything else: an all-clear that names two kinds of content
@@ -524,7 +542,7 @@ export default {
              not only in the all-clear line, which is invisible whenever there
              are issues to show. -->
         <span class="ar-checkgroup__count">
-          {{ optimizeGraded }} graded<template v-if="optimizeGrading > 0"> · {{ optimizeGrading }} still to read</template><template v-if="optimizeIgnored.length"> · {{ optimizeIgnored.length }} set aside</template>
+          {{ optimizeGraded }} graded<template v-if="optimizeRechecking > 0"> · {{ optimizeRechecking }} being re-read</template><template v-if="optimizeGrading > 0"> · {{ optimizeGrading }} still to read</template><template v-if="optimizeIgnored.length"> · {{ optimizeIgnored.length }} set aside</template>
         </span>
       </div>
 
@@ -609,6 +627,13 @@ export default {
             <ul class="ar-optcheck__pages">
               <li v-for="p in issue.pages" :key="p.id" class="ar-optcheck__row">
                 <a :href="p.url" target="_blank" rel="noopener" class="ar-optcheck__page">{{ p.title }}</a>
+                <!-- ⭐ The one word that stops this row lying in either direction.
+                     You edited the page; this verdict was measured before that
+                     edit, and the sweep has not read it again yet. Dropping the
+                     row instead (what this card used to do) announced a fix
+                     nobody had checked; showing it unmarked would claim the
+                     complaint still stands. -->
+                <span v-if="p.stale" class="ar-optcheck__pending">re-reading</span>
                 <button
                   type="button"
                   class="ar-optcheck__aside"

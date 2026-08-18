@@ -4,6 +4,9 @@ The full release history. The readme.txt shipped to WordPress.org keeps only
 the most recent releases (its Changelog section has a 5,000-word cap); this
 file is the complete record.
 
+## 1.38.0
+* Fixed: fixing one thing on a page no longer makes the whole page disappear from Optimize Your Content. Saving a post used to erase what Agentimus knew about it, so a page you had half-fixed left the card as though nothing were wrong with it — and turned up again later with the untouched issues still on it. The page keeps its place now and says it is being read again, the card counts how many are, and the reading happens within about a minute of your save instead of whenever the next sweep came round. Your Optimized score also stops moving for the wrong reason: a page you edited never drops out of the average while it waits.
+
 ## 1.37.0
 * New: Agentimus can tell you when something happens. Send its reports to Telegram, Slack, Discord, a Google Sheet, or any address of your own. Choose the moments you care about — a new finding, a bot you have not seen before, the weekly digest. They arrive where you already look. Every service stays yours: your bot, your channel, your sheet. Agentimus keeps no account of its own, and nothing is sent until you switch it on.
 * New: announce a new post by itself, to X and to LinkedIn. Write the post, and Agentimus offers the words. You approve them, or you edit them first. Each connection is an app you own, so the post comes from you and not from us. A ledger shows what went out, what is still queued, and what failed. Anything that failed says why.

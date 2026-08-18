@@ -2415,12 +2415,12 @@ final class Registrar {
 	private static function score_schema() {
 		return self::obj(
 			array(
-				'score'    => self::i(),
-				'band'     => self::s(),
-				'blocked'  => self::b(),
-				'ready'    => self::b(),
-				'measured' => self::b(),
-				'rungs'    => self::arr(
+				'score'      => self::i(),
+				'band'       => self::s(),
+				'blocked'    => self::b(),
+				'ready'      => self::b(),
+				'measured'   => self::b(),
+				'rungs'      => self::arr(
 					array(
 						'key'    => self::s(),
 						'label'  => self::s(),
@@ -2434,7 +2434,7 @@ final class Registrar {
 						'view'   => self::s( 'On a signal rung only: which sub-view of the destination tab to open.' ),
 					)
 				),
-				'actions'  => self::arr(
+				'actions'    => self::arr(
 					array(
 						'id'       => self::s(),
 						'pillar'   => self::s(),
@@ -2444,9 +2444,10 @@ final class Registrar {
 						'action'   => array( 'type' => array( 'object', 'null' ), 'additionalProperties' => true ),
 					)
 				),
-				'graded'   => self::i( 'How many published items the citability grade covers. Which CONTENT TYPES those are is in `scope.graded` — never assume posts and pages; a site can grade Pages and Docs, or have switched Posts off entirely. The WHOLE site, not a sample — it was the 25 most recently edited until 1.37.0.' ),
-				'grading'  => self::i( 'How many published pages have not been read yet. Above zero means `graded` and `content` describe part of the site, not all of it.' ),
-				'scope'    => self::obj(
+				'graded'     => self::i( 'How many published items the citability grade covers. Which CONTENT TYPES those are is in `scope.graded` — never assume posts and pages; a site can grade Pages and Docs, or have switched Posts off entirely. The WHOLE site, not a sample — it was the 25 most recently edited until 1.37.0.' ),
+				'grading'    => self::i( 'How many published pages have NEVER been read. Above zero means `graded` and `content` describe part of the site, not all of it.' ),
+				'rechecking' => self::i( 'How many of the `graded` pages were edited after they were read. Their rows stay in `content`, each marked `stale`, and the sweep re-reads them within about a minute. ⛔ Never report a page here as fixed: its verdict describes the draft before the owner’s last save, which is exactly the edit they are asking about.' ),
+				'scope'      => self::obj(
 					array(
 						'graded'    => array(
 							'type'        => 'array',
@@ -2467,7 +2468,7 @@ final class Registrar {
 				// The report shipped these two from the start; the schema did not,
 				// and additionalProperties:true let the gap hide — declared keys
 				// are the only ones a schema-trusting client knows exist.
-				'content'  => self::arr(
+				'content'    => self::arr(
 					array(
 						'id'         => self::s( 'The content check id (e.g. "summary", "freshness").' ),
 						'label'      => self::s(),
@@ -2479,13 +2480,17 @@ final class Registrar {
 								'id'    => self::i(),
 								'title' => self::s(),
 								'url'   => self::s( 'The page’s EDIT link.' ),
+								'stale' => array(
+									'type'        => 'boolean',
+									'description' => 'TRUE when this page was saved after the verdict was measured — the flag describes the draft BEFORE that edit, and the sweep has not read it again yet. Re-read the page (agentimus-check-page) before telling anyone it still has this problem.',
+								),
 							),
 							'The affected pages, capped per issue.'
 						),
 					),
 					'The per-page content worklist behind the Optimized rung, most common issue first.'
 				),
-				'ignored'  => self::arr(
+				'ignored'    => self::arr(
 					array(
 						'id'    => self::i(),
 						'title' => self::s(),
