@@ -155,6 +155,17 @@ export default {
     checkingOff() {
       return !!(this.optimizeScope && this.optimizeScope.off);
     },
+    // ⭐ When EVERY graded page is being read again there is nothing for a
+    // per-row mark to distinguish — and a mark on every row is not a signal, it
+    // is wallpaper. That is exactly the state after an upgrade that changes a
+    // check: the whole site is re-read at once. The header already says so in
+    // one place; the rows go quiet and get their marks back when only SOME of
+    // them are waiting, which is the case the mark exists for.
+    allBeingReadAgain() {
+      const again = Number(this.optimizeRechecking || 0);
+      const graded = Number(this.optimizeGraded || 0);
+      return again > 0 && graded > 0 && again >= graded;
+    },
     // The kinds of content behind this card's numbers, written the way a person
     // would say them. Falls back to the old wording when the server has not sent
     // a scope (an older cached score payload), never to a blank.
@@ -547,7 +558,7 @@ export default {
              not only in the all-clear line, which is invisible whenever there
              are issues to show. -->
         <span class="ar-checkgroup__count">
-          {{ optimizeGraded }} graded<template v-if="optimizeRechecking > 0"> · {{ optimizeRechecking }} being re-read</template><template v-if="optimizeGrading > 0"> · {{ optimizeGrading }} still to read</template><template v-if="optimizeIgnored.length"> · {{ optimizeIgnored.length }} set aside</template>
+          {{ optimizeGraded }} graded<template v-if="optimizeRechecking > 0"> · {{ optimizeRechecking }} being read again</template><template v-if="optimizeGrading > 0"> · {{ optimizeGrading }} still to read</template><template v-if="optimizeIgnored.length"> · {{ optimizeIgnored.length }} set aside</template>
         </span>
       </div>
 
@@ -632,13 +643,24 @@ export default {
             <ul class="ar-optcheck__pages">
               <li v-for="p in issue.pages" :key="p.id" class="ar-optcheck__row">
                 <a :href="p.url" target="_blank" rel="noopener" class="ar-optcheck__page">{{ p.title }}</a>
-                <!-- ⭐ The one word that stops this row lying in either direction.
+                <!-- ⭐ The mark that stops this row lying in either direction.
                      You edited the page; this verdict was measured before that
                      edit, and the sweep has not read it again yet. Dropping the
                      row instead (what this card used to do) announced a fix
                      nobody had checked; showing it unmarked would claim the
-                     complaint still stands. -->
-                <span v-if="p.stale" class="ar-optcheck__pending">re-reading</span>
+                     complaint still stands.
+                     ⚠️ It said "RE-READING", which his eye caught immediately:
+                     beside a page title that reads as an instruction to the
+                     READER, and it never says who is doing the reading. The
+                     verb is ours, in the card's own vocabulary ("still to
+                     read", "graded"), and the tip carries the whole sentence
+                     for anyone who wants it — a two-word tag cannot hold a
+                     because-clause, and should not try. -->
+                <span
+                  v-if="p.stale && !allBeingReadAgain"
+                  class="ar-optcheck__pending"
+                  v-tip="'You edited this page after Agentimus last read it. What this row says was true of the earlier version — it is being read again now, usually within a minute.'"
+                >reading again</span>
                 <button
                   type="button"
                   class="ar-optcheck__aside"
