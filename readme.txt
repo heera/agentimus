@@ -4,7 +4,7 @@ Tags: ai-agents, mcp, agent-readiness, llms-txt, ai-seo
 Requires at least: 6.0
 Tested up to: 7.1
 Requires PHP: 7.4
-Stable tag: 1.37.0-dev29
+Stable tag: 1.37.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -21,6 +21,11 @@ Agentimus is an all-in-one AI SEO plugin for the age of AI agents — AEO (Answe
 By default it makes no outbound requests, collects no analytics, and logs no IP addresses — everything runs on your own site. Three optional, off-by-default features change that only when you enable them: **Citation checks**, **Verify bot identities** and **Store IP addresses** (each disclosed in full under *External services*).
 
 **📖 Full documentation** — a plain-English manual and developer reference, step-by-step guides for every feature: https://heera.github.io/agentimus/
+
+**One screen that says what needs you**
+
+* **Findings** — everything open across your site in one ranked list: pages losing a click they already earn, and anything the setup checks caught. It is ordered by what each one costs you, and every row carries the button that lands on the fix. The count in the nav only ever measures work you can actually do something about.
+* **Your Content** — one row per post, page or product: what it is found for, whether it answers that, and anything else it needs. Set aside anything that was never meant to be quoted, and it stays listed rather than silently dropped.
 
 **With an SEO plugin — or instead of one**
 
@@ -40,6 +45,11 @@ By default it makes no outbound requests, collects no analytics, and logs no IP 
 * **Idea → draft without leaving wp-admin** — a spark button opens the writing assistant: pick posts or pages, describe what you want, shape the outline it proposes, then preview the complete draft — real editor blocks, AI description, topics, categories, tags. A page is written as a page: no invented sections, no image slots. Nothing is saved until you click **Create draft**, and it never publishes.
 * **Ask AI in the editor — one block, a selection, or the whole post** — rewrite or extend the block you're in; select several and change them with one instruction; or ask about the whole post and get back a list of proposed edits — rewrite this, delete that, add a section here — each with its reason, to accept or reject one at a time. Blocks the plan doesn't name are never touched, and undo steps back through everything.
 * **Images where you write** — alt-filled placeholders in drafts, **Generate image from the alt text** on every image block, a **Featured image (AI)** sidebar panel — or pick from your library. Runs on WordPress's built-in AI Client (7.0+) — Agentimus never sees your key — and every AI button hides until a provider is set up.
+
+**Tell your team — and announce what you publish**
+
+* **Reports where you already look (opt-in)** — send Agentimus's reports to Telegram, Slack, Discord, a Google Sheet, or any address of your own (a webhook). Choose the moments that matter: a new finding, a bot you have not seen before, the weekly digest. Every service stays yours — your bot, your channel, your sheet — and nothing is sent until you switch it on.
+* **Announce a new post (opt-in)** — Agentimus offers the words for X and LinkedIn, and you approve them or edit them first. Each connection is an app you own, so the post comes from you and not from us. A ledger shows what went out, what is still queued, and what failed, with the reason.
 
 **Control — who may use your content**
 
@@ -85,7 +95,7 @@ By default it makes no outbound requests, collects no analytics, and logs no IP 
 
 * A one-screen score of how machine-readable your site is, with a plain-English checklist of what's enabled and what's still missing.
 * **Agent preview** — open it from the Readiness tab to see the exact JSON-LD *and* Markdown an AI agent receives for the whole site or any page, then copy it. It shows what would ship even when the feature is off, and a matching read-only preview sits in the post editor.
-* **AI Readability tips** — as you write, a panel flags what makes a page hard for an assistant to read and cite: thin content, missing headings, no opening summary, a nav-heavy page, images without alt text. Editor-only — nothing shows to visitors.
+* **Readability tips** — as you write, a panel flags what makes a page hard to read, section and quote: thin content, missing headings, no opening summary, a nav-heavy page, images without alt text. Most of those serve search engines and screen readers exactly as much as AI assistants, and the panel says so. Editor-only — nothing shows to visitors.
 
 **Machine discovery (forward-looking)**
 
@@ -95,6 +105,7 @@ Everything above is read by search engines and AI tools **today**. This part is 
 * **/.well-known/agent-card.json** and **/.well-known/mcp.json** — an A2A agent card and an MCP manifest, generated automatically.
 * **Standards-aligned `.well-known` endpoints** — an RFC 9727 `api-catalog`, plus — *only when the capability actually exists* — an MCP server card and an Agent Skills index. **Response signing** (Web Bot Auth / HTTP Message Signatures, RFC 9421) signs them with an Ed25519 key that never leaves your server, so agents can verify they came from you; on by default.
 * **WordPress Abilities API** — the same read-only tools are registered as WordPress abilities, so its built-in AI — and, with the MCP adapter, external agents — can read them, each gated by the same capability as its screen. A separate, off-by-default switch adds the write abilities above.
+* **The plugins you run, described** — a WooCommerce store says it sells products; FluentCart, FluentCommunity and Fluent Support say what they hold. Plugins that keep everything behind a login are named as such, because a plugin with nothing public has nothing to pass on. You can switch off anything you would rather not announce.
 * **Zero-config auto-discovery** — reads your REST namespaces, public post types and the Abilities API, so a site is described even when no plugin declares itself; the **Discovery Hub** screen shows what an agent sees, and you decide what is published.
 
 **Why it's useful**
@@ -201,7 +212,7 @@ Only if you say so, twice. The MCP server starts read-only; a second switch — 
 
 = Can AI help me write the description, topics and fixes? =
 
-Yes, if you're on WordPress 7.0 and have set up an AI provider under Settings → AI. Then **Draft with AI** appears on the AI description field, **Suggest with AI** on the Topics field, and **Fix with AI** on any AI Readability row that needs work. Agentimus asks *your* AI through WordPress's shared connectors — it never sees or stores your API key, and nothing is sent anywhere if you haven't set a provider up (the buttons simply don't appear). Every suggestion arrives as ordinary editable text in the field: you read it, change it, and save the post yourself. Nothing is written for you.
+Yes, if you're on WordPress 7.0 and have set up an AI provider under Settings → AI. Then **Draft with AI** appears on the AI description field, **Suggest with AI** on the Topics field, and **Fix with AI** on any Readability row that needs work. Agentimus asks *your* AI through WordPress's shared connectors — it never sees or stores your API key, and nothing is sent anywhere if you haven't set a provider up (the buttons simply don't appear). Every suggestion arrives as ordinary editable text in the field: you read it, change it, and save the post yourself. Nothing is written for you.
 
 = Can AI write a whole post for me? =
 
@@ -256,8 +267,11 @@ Yes — there is no minified-only code. The admin interface is built from Vue 3 
 9. Visibility → Citations — an opt-in, bring-your-own-key scoreboard showing whether ChatGPT, Perplexity, Gemini and Claude mention and link each brand, product or person you track: seen-in-answers and linked-your-site rates, rank against each item's own rivals, and question-by-question results with the sources each engine cited.
 10. Discovery Hub — everything your site tells AI agents, in one place: the providers describing it, the read capabilities they expose, the public APIs, and the MCP & tools surface — your own MCP server alongside the WordPress Abilities API, with the tools each carries. Each summary tile jumps to its own countable list, and any registration problem is listed with a plain-English fix.
 11. The writing assistant — a spark button on every Agentimus screen opens the drawer: choose what you are writing (a post, a page, or one of your own content types — a page gets no invented sections and no tags), describe it in your own words, then draft it straight away or shape the outline first. Preview the fully dressed draft, create it as a draft and land straight in the editor. Nothing is saved until you say so, and it never publishes.
-12. In the post editor — the "Agentimus" box, AI Readability tab: a per-page pass/warn check of what makes the page hard for an assistant to read and cite — enough substance, an opening summary, specifics and cited sources, section headings and their order, quotable passages, reading ease, prose vs links, image alt text, video and audio, the featured image, and freshness. Each row that needs work offers "Fix with AI", which drafts a concrete fix using the AI provider you set up in WordPress. Two more tabs sit alongside it: JSON-LD and Share.
-13. Findings — one front door for everything open across your site, ranked by what each one costs: pages losing a click they already earn, and anything the setup checks caught. Every row says what to do and carries the button that lands on the fix. Beneath it, your content one row at a time — what each page is found for, whether it answers that, and anything else it needs — with whatever is not meant to be cited set aside.
+12. In the post editor — the "Agentimus" box, Readability tab: a per-page pass/warn check of what makes the page hard to read, section and quote — for AI assistants, for search engines and for people alike — enough substance, an opening summary, specifics and cited sources, section headings and their order, quotable passages, reading ease, prose vs links, image alt text, video and audio, the featured image and whether it is described, and freshness. The rows an AI can draft a fix for — a thin page, a missing opening summary, an over-long block — carry a "Fix with AI" button once you have set a provider up in WordPress. Two more tabs sit alongside it: JSON-LD and Share.
+13. Findings — one front door for everything open across your site, ranked by what each one costs: pages losing a click they already earn, and anything the setup checks caught. Every row says what to do and carries the button that lands on the fix, and anything filed under “when you have time” can be put away with a count of what you put away. Beneath it, your content one row at a time — what each page is found for, whether it answers that, and anything else it needs. It covers every kind of content you publish, and the line above the list says which kinds are being checked.
+
+14. Integrations → Services — where Agentimus sends its reports. A new finding, a caught impostor, the weekly digest and three more moments can go to Telegram, Slack, Discord, a Google Sheet, or any address of your own as signed JSON. Each service is one you own — your bot, your channel, your sheet — and every connection is tested before it is saved, so a card never claims to be connected when nothing would arrive. All of it is off until you switch it on.
+15. Integrations → Plugins — what your other plugins tell AI assistants about your site, on your behalf. A WooCommerce store says it sells products; FluentCart says it has store and checkout pages; FluentCommunity says it holds community spaces. Plugins that keep everything behind a login are listed too, saying exactly that — a plugin with nothing public has nothing to pass on, and naming it is more use than leaving it out. Any plugin can describe itself the same way through one hook, with no dependency on Agentimus.
 
 == External services ==
 
@@ -284,6 +298,28 @@ The same setting verifies **Web Bot Auth** signatures — the standard where an 
 URL-like strings in the plugin's output are labels, not requests — the discovery documents' `$schema` value names the format (never fetched), and the `example.com` URLs in `examples/` are documentation placeholders.
 
 == Changelog ==
+
+= 1.37.0 =
+* New: Agentimus can tell you when something happens. Send its reports to Telegram, Slack, Discord, a Google Sheet, or any address of your own. Choose the moments you care about — a new finding, a bot you have not seen before, the weekly digest. They arrive where you already look. Every service stays yours: your bot, your channel, your sheet. Agentimus keeps no account of its own, and nothing is sent until you switch it on.
+* New: announce a new post by itself, to X and to LinkedIn. Write the post, and Agentimus offers the words. You approve them, or you edit them first. Each connection is an app you own, so the post comes from you and not from us. A ledger shows what went out, what is still queued, and what failed. Anything that failed says why.
+* New: the plugins you run now describe themselves to AI assistants. A WooCommerce store says it sells products. FluentCart, FluentCommunity and Fluent Support say what they hold, and Easy Digital Downloads joins them. The screen also names the plugins that keep everything behind a login. Those have nothing to pass on, and saying so is more use than leaving them off the list. You can switch off anything you would rather not announce, even when the plugin that added it wants it on.
+* Changed: Your Content checks every kind of content you publish. It used to read posts and pages and nothing else, whatever your site was made of. A shop's products were never looked at. Now it covers everything you publish, and a gear on Your Content says which kinds. You can change that there. Products are checked for the searches they are found for. They are never graded as writing. A product page is short on purpose, so "this needs more substance" would be the wrong advice on one.
+* Changed: the Optimized score reads your whole site. It used to read your 25 most recently edited posts and call that the site. On most sites this number will move when you update. The list of pages worth fixing will also be longer. The pages were always there; nothing was looking at them.
+* Fixed: two screens counted the same work differently. Your Content said 36 pages were worth fixing while the front door said nothing needed attention. One counted the whole site, the other a sample. They read one count now.
+* Improved: every page gets read, not only the recent ones. Editing a page used to push it ahead of pages nobody had ever looked at. On a busy site the oldest content could wait forever. First reads come first now. Once everything has been read, the oldest verdicts are refreshed quietly in the background — a few an hour, so a small host never feels it.
+* New: suggestions you can put away. Anything filed under "when you have time" can be dismissed. You get a count of what you put away, and a way to bring each one back. Nothing that costs you something can be hidden.
+* New: Get Help and Report an Issue, in the More menu. Get Help opens the WordPress support forum. Report an Issue opens the right form on GitHub with your setup already filled in — versions, theme, cache. The first reply is then an answer instead of a question. Both open in a new tab, and neither sends anything from your site.
+* New: What's New, whenever you want it. The release notes used to disappear the moment you dismissed the card, and the changelog went with them. They now live in the More menu for good, with every earlier release underneath.
+* New: the Agentimus box in the editor introduces itself. With all three of its panels switched off the box used to disappear entirely, so a first-timer never learned the editor could offer any of it. It now names the three things it adds and the switch that turns each one on.
+* Fixed: the Agentimus box in the editor says what is switched off. With only one of its three panels enabled it rendered no tabs at all, so it looked broken rather than configured. It now names the missing tabs and the switch that brings each one back.
+* New: the featured image is checked for a description of its own. It is drawn by your theme, so it never appeared in the content Agentimus reads — a picture with no alt text sailed past every check. It is read from the media library now, and named by file so you know which one to open.
+* Changed: the editor panel is called Readability, not AI Readability. Twelve of its fourteen checks serve search engines and screen readers as much as AI — alt text, headings, thin content, freshness — and it says so now.
+* Improved: the page checks say which part of the page they mean. "One long block" named only the longest paragraph, so a page with three of them warned once, you fixed one, and the warning came back with a different number. It now says how many run long and quotes the opening words of each. A missing image description names the file. A skipped heading level names the heading it happens at. And alt text that is only the file name — "screen-shot-2016-09-15-at-5-00-13-am" — no longer counts as a description of the picture.
+* Improved: Discovery says only what is true. A job that needs a sign-in is no longer described as needing none. A capability with three owners names all three. A group of jobs wears the name its vendor gave it. Where a vendor holds something back, Agentimus holds it back too. The screen also asks each door as a stranger would, before calling it open.
+* Improved: the search worklist reads both engines honestly. Every page is asked about, not a busy handful. Long lists are paged instead of cut off. Each row shows what Google says and what Bing says, side by side. The two are never merged into one number that belongs to neither.
+* Improved: Agentimus sits at the top of your admin menu, above Posts. Its mark now takes the colour of your admin colour scheme. It used to be a fixed grey that suited only one of them.
+* Fixed: a connection proves itself before it claims to be connected. A test message could post before the connection was stored, and report success on a connection that was never saved. A refusal is also named: a 403 from Google does not always mean "you did not share the sheet". A webhook proves the road before it says the road is open.
+* Fixed: a stalled background job looked healthy. If WordPress stopped running scheduled work, the queue simply appeared quiet. It says so now.
 
 = 1.36.0 =
 * New: the Dashboard says what your site runs. Four panels state every system's standing in one look — the doors agents use, the signals you announce, what search shows, and what your writing holds — each led by one number, each ending in the link that opens the full screen. The numbers are the same ones the nav and the screens already show, read from the same payloads, so the card can never disagree with the report it points into; and a switched-off system is stated rather than hidden, because off is information.
@@ -347,17 +383,10 @@ URL-like strings in the plugin's output are labels, not requests — the discove
 * Improved: the search worklist's fine print now names its terms — which title it means (the SEO title in the "Search & AI" box, or the post title when that field is empty), that set-aside covers both engines, and that a fixed page's card clears when later reports improve, not when you press Save.
 * New: IndexNow — publishing, editing or removing a post can announce the changed address to search engines the moment it happens: one standard ping that Bing (the index ChatGPT search and Copilot read), Yandex and other participating engines all listen to. Off by default, one switch on the Bing card; only the changed addresses are sent, and a key file at /<key>.txt proves the pings are yours. Works for every public post type — and content that lives outside posts (a plugin's own catalog tables) can join with one line: do_action( 'agentimus_announce_url', $url ).
 * New: the Found by AI Search card answers "does Bing know my sitemap?" — Bing's own record of your registered sitemaps, when it last read them and how many URLs they carried, in Bing's own dates. The IndexNow status gets its own honest line there too.
-
-= 1.33.0 =
-* New: Classic search, measured — Search Performance and Search Opportunities screens for Bing Webmaster Tools and Google Search Console: what people searched, how often you appeared, and which pages sit one improvement from page one. Every number is the engine's own, and automated probe traffic is named, never blended in.
-* New: In Google's Index — a daily watchlist plus a whole-site rotation through Google's URL Inspection: every verdict in Google's own words, problems grouped with Search Console deep links, any page's answer one lookup away — plus week-on-week trend, Google Discover, and the health of the sitemap you registered.
-* New: Found by AI Search — how much of your site Bing's index holds and how cleanly its crawler gets in; ChatGPT search and Copilot read this index today.
-* New: Cloudflare edge panel (opt-in, your own token) — what the edge answered or blocked before your server ever saw the request, with a warning when the edge disagrees with your crawler policy.
-* New: a setup wizard on first visit, and an agent-ready front door — SKILL.md, auth.md, and an MCP handshake that answers strangers politely.
-* Fixed: the promoted XML sitemap now serves at WordPress's standard /wp-sitemap.xml, and the old addresses redirect to it — a moved sitemap had been silently failing search-console registrations.
-* Improved: every data screen names whose behavior it counts — people or machines — and every external data pull is chunked or budgeted, resumes after failure, and reports what happened in words.
-
 == Upgrade Notice ==
+
+= 1.37.0 =
+Your Optimized score now reads your whole site, not its 25 most recent edits — on most sites the number will move, and more pages will be listed as worth fixing. Two new checks can add warnings too: alt text that is only a file name, and a featured image with no description. Nothing broke; nothing was looking at any of it before. Also: reports to Telegram, Slack, Discord, Sheets or your own address; announcing to X and LinkedIn; your plugins described to AI assistants; the editor's AI Readability panel is now Readability. No breaking changes.
 
 = 1.36.0 =
 Findings — one front door for everything open across your site, ranked by what each thing costs you, every row carrying the button that lands on the fix. Light and dark, hand-tuned and keyed to your admin colour scheme, following your device unless you say otherwise. Search Opportunities moves under the search report it reads from, on Visibility → Search, and Readiness keeps a pointer to it. Bing gains a daily traffic series and a live per-page question; Analytics can ride the Search Console key you already connected. Every data screen re-reads when you come back to it. No breaking changes.

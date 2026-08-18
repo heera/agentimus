@@ -616,36 +616,44 @@ final class Admin {
 			'show'    => $show,
 			'items'   => array(
 				array(
-					'title' => 'Findings — one front door for what needs you',
-					'text'  => 'The score could read 99 and "Excellent" while five separate screens quietly held work you had never seen. Findings gathers all of it into one ranked list — pages losing a click they already earn, plus anything the setup checks caught — ordered by what each one actually costs you, and every row carries the button that lands on the fix. It sits in the bar with its own count, and that count only ever measures work you can do something about; anything merely waiting on a later report gets a quiet dot instead.',
+					'title' => 'Agentimus Can Tell You When Something Happens',
+					'text'  => 'Send its reports to Telegram, Slack, Discord, a Google Sheet, or any address of your own. Choose the moments you care about — a new finding, a bot you have not seen before, the weekly digest — and they arrive where you already look. Every service stays yours: your bot, your channel, your sheet. Agentimus keeps no account of its own, and nothing is sent until you switch it on.',
 				),
 				array(
-					'title' => 'Page-builder pages tell the truth',
-					'text'  => 'On a page Elementor or Beaver Builder owns, the visible body never lived in the WordPress content — so the .md twin, the description fallback and the readability grade could all read a body no visitor sees. Every machine surface now asks the builder for the real rendered page, and an agent trying to replace the body of a builder-owned page is refused with the reason and the fields that do work there. Divi, Bricks, Oxygen, WPBakery and SiteOrigin pages get the same write protection.',
+					'title' => 'Announce a New Post by Itself',
+					'text'  => 'Write the post, and Agentimus offers the words for X and LinkedIn. You approve them, or you edit them first. Each connection is an app you own, so the post comes from you and not from us. A ledger shows what went out, what is still queued, and what failed — and anything that failed says why.',
 				),
 				array(
-					'title' => 'The Dashboard says what your site runs',
-					'text'  => 'Four panels state every system\'s standing in one look — the doors agents use, the signals you announce, what search shows, and what your writing holds — each led by one number, each ending in the link that opens the full screen. The numbers are the same ones the nav and the screens already show, so the card can never disagree with the report it points into; a switched-off system is stated rather than hidden, because off is information.',
+					'title' => 'Your Plugins Describe Themselves to AI Assistants',
+					'text'  => 'A WooCommerce store says it sells products. FluentCart, FluentCommunity and Fluent Support say what they hold, and Easy Digital Downloads joins them. The screen also names the plugins that keep everything behind a login: those have nothing to pass on, and saying so is more use than leaving them off the list. You can switch off anything you would rather not announce, even when the plugin that added it wants it on.',
 				),
 				array(
-					'title' => 'Pages splitting one search are now a finding',
-					'text'  => 'The engine can only send a search to one page at a time, so when several of your pages keep appearing for the same query they take turns — and every turn a weaker page takes is a click the strong one loses. Findings names the heaviest splits, and Visibility → Search lists each one with the page that earns the click stated outright and one decision on every other: point it at the winner, or set it aside. Asserted only from the engine\'s own numbers — thin data never accuses a page.',
+					'title' => 'Your Content Checks Everything You Publish',
+					'text'  => 'It used to read posts and pages and nothing else, whatever your site was made of — so a shop\'s products were never looked at. Now it covers everything you publish, and a gear on Your Content says which kinds and lets you change it. Products are checked for the searches they are found for, but never graded as writing: a product page is short on purpose, so "this needs more substance" would be the wrong advice on one.',
 				),
 				array(
-					'title' => 'Light and dark, and your device decides',
-					'text'  => 'The toggle shows the mode you are switching to. Dark is a hand-tuned palette rather than an inverted light one, and it speaks your WordPress admin colour scheme\'s own dialect, so it sits with the rest of your admin instead of fighting it. A choice you make by hand holds until your system next changes; after that your device\'s own rhythm wins again, silently.',
+					'title' => 'The Optimized Score Reads Your Whole Site',
+					'text'  => 'It used to read your 25 most recently edited posts and call that the site. On most sites this number will move now, and the list of pages worth fixing will be longer than it was. The pages were always there; nothing was looking at them. Two screens also stopped disagreeing: Your Content and the front door read one count.',
 				),
 				array(
-					'title' => 'The search worklist moved to its numbers',
-					'text'  => 'Search Opportunities — the list that turns Search Console figures into to-dos — now sits directly under the search report it reads from, on Visibility → Search, instead of at the bottom of Readiness. Readiness keeps a pointer to it. How search went, then what to do about it, in one view.',
+					'title' => 'Every Page Gets Read, Not Only the Recent Ones',
+					'text'  => 'Editing a page used to push it ahead of pages nobody had ever looked at, so on a busy site the oldest content could wait forever. First reads come first now. Once everything has been read, the oldest verdicts are refreshed quietly in the background — a few an hour, so a small host never feels it.',
 				),
 				array(
-					'title' => 'Bing counted daily, and Analytics on the key you already have',
-					'text'  => 'Bing\'s human traffic now carries a day-by-day series with a week-on-week trend and your site\'s true totals — its query endpoints only report weekly buckets, so the daily numbers come from the traffic-stats endpoint instead. You can also ask Bing about a single page on the spot. And if Google Search Console is connected, Analytics can read visitor numbers from that same key, fetching the first ones right away rather than tomorrow.',
+					'title' => 'Suggestions You Can Put Away',
+					'text'  => 'Anything filed under "when you have time" can be dismissed. You get a count of what you put away and a way to bring each one back. Nothing that costs you something can be hidden.',
 				),
 				array(
-					'title' => 'People and machines, never added together',
-					'text'  => 'Every data surface now says which one it is counting. The AI traffic screen is Visitors, its cards say "people", and a page view is no longer called a read. The request log is the machine side, Visitors is the human side, the dashboard states both — and the two are never summed, because they are not the same thing.',
+					'title' => 'Get Help, Report an Issue, and This Page Whenever You Want It',
+					'text'  => 'The More menu now has both doors. Get Help opens the WordPress support forum. Report an Issue opens the right form on GitHub with your setup already filled in, so the first reply is an answer instead of a question. These release notes live there too — they used to disappear the moment you dismissed the card, and the changelog went with them.',
+				),
+				array(
+					'title' => 'The Editor Panel Speaks to Search Engines Too',
+					'text'  => 'It used to be called AI Readability. Twelve of its fourteen checks are ones a classic SEO tool runs as well — thin content, headings and their order, image alt text, reading ease, freshness — so it is called Readability now and says who each check is for. Two checks are new: alt text that is only a file name no longer counts as a description, and your featured image is checked for one as well. Every row that names a problem now says where on the page it is, and quotes the words to look for.',
+				),
+				array(
+					'title' => 'Discovery Says Only What Is True',
+					'text'  => 'A job that needs a sign-in is no longer described as needing none. A capability with three owners names all three. A group of jobs wears the name its vendor gave it, and where a vendor holds something back, Agentimus holds it back too. The screen also asks each door as a stranger would, before calling it open.',
 				),
 			),
 		);
