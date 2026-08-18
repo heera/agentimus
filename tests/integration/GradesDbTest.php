@@ -398,6 +398,48 @@ final class GradesDbTest extends DbTestCase {
 		$this->assertFalse( Grades::stored( array( $id ) )[ $id ]['stale'] );
 	}
 
+	/**
+	 * ⭐⭐ A RELEASE THAT CHANGES A CHECK RE-READS THE SITE — and shows the old
+	 * reading while it does.
+	 *
+	 * Adding a check, or moving a threshold, changes what every stored verdict
+	 * MEANS. Nothing noticed: only a schema change or a content edit ever
+	 * invalidated a grade, so the site would have gone on answering in the
+	 * previous release's words with nothing on screen saying so.
+	 *
+	 * ⛔ And the fix must not be v2's fix. That migration cleared `graded_at`
+	 * across the table, which emptied every list the moment somebody upgraded —
+	 * an owner with 36 pages to fix saw none of them. Ageing a verdict is a fact
+	 * about our reading; deleting it is a claim about their site.
+	 */
+	public function test_a_verdict_from_a_different_set_of_checks_is_re_read_but_still_shown() {
+		$id = $this->post( 'Graded under the old checks' );
+		$this->grade( $id, true, 10 );
+		$this->assertSame( array(), Grades::ungraded( $this->types, 10 ), 'Fresh under the current checks.' );
+
+		// The next release moves a threshold or adds a check.
+		$next_release = static function () {
+			return 'the-next-release';
+		};
+		add_filter( 'agentimus_page_ruleset', $next_release );
+
+		$this->assertSame( array( $id ), Grades::ungraded( $this->types, 10 ), 'The site has to be read again under the checks it now runs.' );
+		$this->assertSame( 1, Grades::rechecking( $this->types ), 'And say how much of itself it is re-reading.' );
+		$this->assertSame( 0, Grades::remaining( $this->types ), '⛔ Not "never looked at" — it was read, by different checks.' );
+
+		$stored = Grades::stored( array( $id ) )[ $id ];
+		$this->assertTrue( $stored['stale'], 'Anything repeating this verdict must be told not to.' );
+		$this->assertSame( 2, (int) $stored['flags'], '…and the verdict itself is still here to show.' );
+		$this->assertSame( array( $id ), Grades::page( 'fixable', $this->types, array(), 1, 20 )['ids'], '⛔ The owner’s list must not empty itself on upgrade.' );
+		$this->assertSame( 1, Grades::counts( $this->types, array() )['fixable'] );
+
+		remove_filter( 'agentimus_page_ruleset', $next_release );
+		$this->grade( $id, true, 10 ); // The sweep catches up under the current checks.
+		$this->assertSame( array(), Grades::ungraded( $this->types, 10 ) );
+		$this->assertSame( 0, Grades::rechecking( $this->types ) );
+		$this->assertFalse( Grades::stored( array( $id ) )[ $id ]['stale'] );
+	}
+
 	public function test_forgetting_a_page_removes_it_from_every_answer() {
 		$id = $this->post( 'Deleted later' );
 		$this->grade( $id, true, 10 );

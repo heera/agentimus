@@ -253,7 +253,23 @@ final class PageCheck {
 	 * @return string
 	 */
 	public static function issue_label( $id ) {
-		$map = array(
+		$map = self::issue_labels();
+		$id  = (string) $id;
+		return isset( $map[ $id ] ) ? $map[ $id ] : $id;
+	}
+
+	/**
+	 * Every built-in check id, with the name of the problem it stands for.
+	 *
+	 * One map, two readers: the label lookup above, and {@see ruleset()}, which
+	 * needs the ID LIST and must not keep a second copy of it — a fingerprint
+	 * that can fall out of step with the checks it fingerprints is worse than
+	 * none, because it fails silently and in the safe-looking direction.
+	 *
+	 * @return array<string,string> id => problem name.
+	 */
+	public static function issue_labels() {
+		return array(
 			'words'          => __( 'Not enough substance yet', 'agentimus' ),
 			'summary'        => __( 'No opening summary', 'agentimus' ),
 			'evidence'       => __( 'Short on specifics', 'agentimus' ),
@@ -269,8 +285,80 @@ final class PageCheck {
 			'featured_alt'   => __( 'Featured image not described', 'agentimus' ),
 			'freshness'      => __( 'Getting stale', 'agentimus' ),
 		);
-		$id = (string) $id;
-		return isset( $map[ $id ] ) ? $map[ $id ] : $id;
+	}
+
+	/**
+	 * A fingerprint of WHAT THESE CHECKS ARE — the missing half of a stored grade.
+	 *
+	 * ⭐⭐ A grade is an answer to a question, and the store kept the answer while
+	 * forgetting the question. Adding a check, or moving a threshold, changed
+	 * what "worth fixing" means on every page — and nothing re-read anything,
+	 * because only a schema change or a content edit ever invalidated a verdict.
+	 * 1.37.0 escaped it by accident: the grade table was NEW in that release, so
+	 * every site was swept from empty. The next release to touch a check would
+	 * have shipped a site full of verdicts from the previous one, with no sign
+	 * that anything was out of date.
+	 *
+	 * ⭐ DERIVED, never hand-bumped. It is built from the two things that decide
+	 * what a check says — the set of check ids and the thresholds they judge
+	 * against — so adding, removing or re-tuning a check moves it by itself.
+	 * "Remember to bump the constant" is exactly the step that gets forgotten,
+	 * and forgetting it here is invisible: every screen keeps answering, in the
+	 * old checks' words.
+	 *
+	 * ⚠️ The class constants are read whole, on purpose. A new one is far more
+	 * likely to be a threshold than not, and the cost of being wrong is one
+	 * background re-read of content that keeps its verdicts on screen the entire
+	 * time — while the cost of missing a real change is a site quietly graded by
+	 * checks it no longer runs.
+	 *
+	 * ⛔ Never store the labels. Words are translated at read time; a site that
+	 * switches language must not need re-grading to be legible.
+	 *
+	 * @return string 12 hex characters — short enough for a column, wide enough
+	 *                that no two check sets meet by accident.
+	 */
+	public static function ruleset() {
+		// ⚠️ Keyed on the filter's answer rather than memoised outright: an
+		// add-on registering its checks late would otherwise be told the
+		// fingerprint it changed, from before it changed it. The reflection and
+		// the hash — the only parts worth caching — still run once per answer.
+		static $cache = array();
+		static $own   = null;
+
+		if ( null === $own ) {
+			$ids = array_keys( self::issue_labels() );
+			sort( $ids );
+
+			// Every threshold this class judges by, name and value, in a stable order.
+			$constants = ( new \ReflectionClass( __CLASS__ ) )->getConstants();
+			ksort( $constants );
+			$scalars = array();
+			foreach ( $constants as $name => $value ) {
+				if ( is_scalar( $value ) ) {
+					$scalars[] = $name . '=' . ( is_bool( $value ) ? (int) $value : (string) $value );
+				}
+			}
+			$own = implode( ',', $ids ) . '|' . implode( ',', $scalars );
+		}
+
+		/**
+		 * Add to the fingerprint of the check set.
+		 *
+		 * An add-on appending checks through `agentimus_page_checks` changes what
+		 * a grade MEANS, and this is how it says so — returning a new string
+		 * re-reads the site under the new checks. ⛔ It must be stable between
+		 * requests: a value that changes on every call would re-grade for ever.
+		 *
+		 * @param string $extra Anything else that decides what the checks say.
+		 */
+		$extra = (string) apply_filters( 'agentimus_page_ruleset', '' );
+		if ( isset( $cache[ $extra ] ) ) {
+			return $cache[ $extra ];
+		}
+
+		$cache[ $extra ] = substr( md5( $own . '|' . $extra ), 0, 12 );
+		return $cache[ $extra ];
 	}
 
 	/**

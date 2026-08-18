@@ -40,8 +40,12 @@ final class Grades {
 	 *    the WHOLE site from this table instead of over a 25-post sample taken
 	 *    fresh in a page load. The sweep already ran every one of those checks
 	 *    and threw the result away.
+	 * 3: ruleset — WHICH checks produced each verdict {@see \Agentimus\PageCheck::ruleset()}.
+	 *    A grade is an answer, and the store kept it while forgetting the
+	 *    question: adding a check or moving a threshold changed what every
+	 *    stored verdict meant, and nothing re-read a page.
 	 */
-	const VERSION = '2';
+	const VERSION = '3';
 
 	/** @var string Option recording the installed schema version. */
 	const VERSION_OPTION = 'agentimus_grades_db_version';
@@ -144,6 +148,7 @@ final class Grades {
 			gradeable tinyint(1) NOT NULL DEFAULT 0,
 			points smallint(5) unsigned NOT NULL DEFAULT 0,
 			flag_ids varchar(191) NOT NULL DEFAULT '',
+			ruleset varchar(32) NOT NULL DEFAULT '',
 			content_hash char(32) NOT NULL DEFAULT '',
 			graded_at datetime DEFAULT NULL,
 			PRIMARY KEY  (post_id),
@@ -152,7 +157,7 @@ final class Grades {
 			KEY scoring (gradeable, points)
 		) $collate;" );
 
-		foreach ( array( 'post_id', 'needs_work', 'flags', 'stake', 'coverage', 'has_focus', 'gradeable', 'points', 'flag_ids', 'content_hash', 'graded_at' ) as $column ) {
+		foreach ( array( 'post_id', 'needs_work', 'flags', 'stake', 'coverage', 'has_focus', 'gradeable', 'points', 'flag_ids', 'ruleset', 'content_hash', 'graded_at' ) as $column ) {
 			$found = $wpdb->get_var( $wpdb->prepare( "SHOW COLUMNS FROM $table LIKE %s", $column ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- table name from our own prefix helper.
 			if ( null === $found ) {
 				return;
@@ -160,19 +165,33 @@ final class Grades {
 		}
 
 		// ⚠️⚠️ EVERY EXISTING ROW IS NOW A LIE ABOUT THE NEW COLUMNS — dbDelta
-		// fills them with defaults, so an upgraded site would report `points = 0`
-		// for pages that were never scored and hand the Optimized pillar a site
-		// full of zeroes. Clearing `graded_at` puts every row back in the sweep's
-		// queue: `remaining()` counts them, every screen already says "still
-		// reading your content", and the pillar reports NO DATA rather than a
-		// wrong number until the sweep has actually looked.
+		// fills them with defaults, so an upgraded site holds verdicts whose
+		// `ruleset` is empty and whose `points` may be a zero nobody measured.
 		//
-		// ⛔ Never replace this with a default that merely looks plausible.
-		if ( '' !== (string) get_option( self::VERSION_OPTION, '' ) ) {
-			$wpdb->query( "UPDATE $table SET graded_at = NULL" ); // phpcs:ignore WordPress.DB -- our own table, no user input.
-		}
-
+		// ⭐ It no longer needs a migration to say so. An empty `ruleset` cannot
+		// match the current one, so every such row is already in the sweep's
+		// queue {@see ungraded()}, already counted as owed {@see rechecking()},
+		// and already marked for anything reading it {@see stored()}.
+		//
+		// ⛔ AND ITS VERDICT STAYS ON SCREEN while it waits. v2 cleared
+		// `graded_at` across the table here, which emptied every list on the site
+		// the moment somebody upgraded — an owner who had 36 pages to fix saw
+		// none, and "still reading your content" underneath. Ageing a verdict and
+		// deleting it are not the same act: the first is a fact about our
+		// reading, the second is a claim about their site. The pillar is safe
+		// either way — it only averages `gradeable = 1` rows, which a row from
+		// before that column never is.
 		update_option( self::VERSION_OPTION, self::VERSION );
+
+		// ⚠️⚠️ EVERY READ IN THIS FILE ANSWERS "nothing known" UNTIL THE LINE
+		// ABOVE RUNS — installed() compares that option — so anything that asked
+		// the store earlier in this same request got an empty answer, and the
+		// Optimized pillar CACHES its answer for an hour. Seen live on the first
+		// upgrade to v3: the worklist was healthy (39 pages to fix) while
+		// Readiness read "0 graded" beside it, and would have for the rest of the
+		// hour. A migration changes what every read returns; a cache holding an
+		// answer from before it is a different subsystem's stale opinion.
+		Cache::forget( Cache::OPTIMIZE );
 	}
 
 	/**
@@ -254,12 +273,12 @@ final class Grades {
 		$table = self::name();
 
 		$wpdb->query( $wpdb->prepare( // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- our own table.
-			"INSERT INTO $table (post_id, needs_work, flags, stake, coverage, has_focus, gradeable, points, flag_ids, content_hash, graded_at)
-			VALUES (%d, %d, %d, %d, %s, %d, %d, %d, %s, %s, %s)
+			"INSERT INTO $table (post_id, needs_work, flags, stake, coverage, has_focus, gradeable, points, flag_ids, ruleset, content_hash, graded_at)
+			VALUES (%d, %d, %d, %d, %s, %d, %d, %d, %s, %s, %s, %s)
 			ON DUPLICATE KEY UPDATE needs_work = VALUES(needs_work), flags = VALUES(flags), stake = VALUES(stake),
 				coverage = VALUES(coverage), has_focus = VALUES(has_focus), gradeable = VALUES(gradeable),
-				points = VALUES(points), flag_ids = VALUES(flag_ids), content_hash = VALUES(content_hash),
-				graded_at = VALUES(graded_at)",
+				points = VALUES(points), flag_ids = VALUES(flag_ids), ruleset = VALUES(ruleset),
+				content_hash = VALUES(content_hash), graded_at = VALUES(graded_at)",
 			$post_id,
 			empty( $grade['needsWork'] ) ? 0 : 1,
 			max( 0, (int) ( isset( $grade['flags'] ) ? $grade['flags'] : 0 ) ),
@@ -273,6 +292,11 @@ final class Grades {
 			empty( $grade['gradeable'] ) ? 0 : 1,
 			min( 100, max( 0, (int) ( isset( $grade['points'] ) ? $grade['points'] : 0 ) ) ),
 			substr( self::pack_ids( isset( $grade['flagIds'] ) ? (array) $grade['flagIds'] : array() ), 0, 191 ),
+			// ⭐ WHICH checks said this. Written here rather than passed in: every
+			// caller is recording the result of a reading that just happened, so
+			// the answer is always "the checks as they are right now", and asking
+			// callers to state it would only create a way to state it wrongly.
+			PageCheck::ruleset(),
 			(string) ( isset( $grade['hash'] ) ? $grade['hash'] : '' ),
 			gmdate( 'Y-m-d H:i:s' )
 		) );
@@ -334,12 +358,14 @@ final class Grades {
 	/**
 	 * Published posts the sweep owes a reading — never-graded ones FIRST.
 	 *
-	 * Four kinds of row qualify: no row at all, one whose `graded_at` was cleared
+	 * Five kinds of row qualify: no row at all, one whose `graded_at` was cleared
 	 * by a schema migration (its columns are defaults, not measurements), one
-	 * whose fingerprint a save emptied ({@see mark_stale()}), and one whose
-	 * verdict this schema cannot read ({@see UNREADABLE_SQL}) — which is how a
-	 * store that missed a migration repairs itself instead of quietly ranking
-	 * pages for reasons it can no longer state. The last two still HAVE a
+	 * whose fingerprint a save emptied ({@see mark_stale()}), one judged by a
+	 * different set of checks than the ones this site runs now
+	 * ({@see \Agentimus\PageCheck::ruleset()}), and one whose verdict this schema
+	 * cannot read ({@see UNREADABLE_SQL}) — the last two being how a store
+	 * repairs itself instead of quietly ranking pages by a question nobody asks
+	 * any more. The last three still HAVE a
 	 * verdict and every reader still shows it: being in this queue is a
 	 * statement about what the sweep must do next, never about what the screens
 	 * may say meanwhile.
@@ -376,10 +402,10 @@ final class Grades {
 			"SELECT p.ID FROM {$wpdb->posts} p
 			LEFT JOIN $table g ON g.post_id = p.ID
 			WHERE p.post_status = 'publish' AND p.post_type IN ($holders)
-				AND (g.post_id IS NULL OR g.graded_at IS NULL OR g.content_hash = '' OR " . self::UNREADABLE_SQL . ")
+				AND (g.post_id IS NULL OR g.graded_at IS NULL OR g.content_hash = '' OR g.ruleset <> %s OR " . self::UNREADABLE_SQL . ")
 			ORDER BY (g.post_id IS NULL OR g.graded_at IS NULL) DESC, p.post_modified DESC
 			LIMIT %d",
-			array_merge( $types, array( $limit ) )
+			array_merge( $types, array( PageCheck::ruleset(), $limit ) )
 		) );
 
 		return array_map( 'intval', (array) $ids );
@@ -494,8 +520,8 @@ final class Grades {
 			"SELECT COUNT(*) FROM {$wpdb->posts} p
 			INNER JOIN $table g ON g.post_id = p.ID
 			WHERE p.post_status = 'publish' AND p.post_type IN ($holders)
-				AND g.graded_at IS NOT NULL AND (g.content_hash = '' OR " . self::UNREADABLE_SQL . ')',
-			$types
+				AND g.graded_at IS NOT NULL AND (g.content_hash = '' OR g.ruleset <> %s OR " . self::UNREADABLE_SQL . ')',
+			array_merge( $types, array( PageCheck::ruleset() ) )
 		) );
 	}
 
@@ -686,7 +712,7 @@ final class Grades {
 		// only the FLAGGED ones, which is the minority by design and the whole
 		// point of the column being empty when a page is clean.
 		$rows = $wpdb->get_results( $wpdb->prepare( // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- our own table; ids cast to int, everything else bound.
-			"SELECT g.post_id, g.flag_ids, g.content_hash
+			"SELECT g.post_id, g.flags, g.points, g.flag_ids, g.ruleset, g.content_hash, g.graded_at
 			FROM $table g INNER JOIN {$wpdb->posts} p ON p.ID = g.post_id
 			WHERE $where AND g.flag_ids <> ''
 			ORDER BY g.stake DESC, g.post_id DESC",
@@ -696,9 +722,11 @@ final class Grades {
 		$per     = max( 1, (int) $per );
 		$pending = array();
 		foreach ( (array) $rows as $r ) {
-			// An empty fingerprint is a save the sweep has not caught up with:
-			// this verdict describes the draft before the owner's last edit.
-			$stale = '' === (string) ( isset( $r['content_hash'] ) ? $r['content_hash'] : '' );
+			// ⚠️ THE SAME question the row-level reader asks, through the same
+			// method. This used to test the fingerprint alone, so a release that
+			// changed the checks re-read seventy-seven pages while every row on
+			// the card still presented its verdict as today's.
+			$stale = self::is_stale_row( $r );
 			foreach ( self::unpack_ids( isset( $r['flag_ids'] ) ? $r['flag_ids'] : '' ) as $id ) {
 				if ( ! isset( $out['issues'][ $id ] ) ) {
 					$out['issues'][ $id ] = array( 'count' => 0, 'posts' => array() );
@@ -800,6 +828,39 @@ final class Grades {
 	}
 
 	/**
+	 * Whether a stored row must not be repeated — ONE definition, in PHP.
+	 *
+	 * ⭐⭐ Because there were two for an afternoon, and they disagreed. The card's
+	 * rows knew about a save and knew nothing about a release that changed the
+	 * checks, so seventy-seven pages were being re-read while not one row said
+	 * so. Two answers to "can I trust this?" is the same fault as two counts of
+	 * one thing: whichever a screen happens to ask is the one it believes.
+	 *
+	 * ⚠️ The SQL twin is {@see UNREADABLE_SQL} plus the ruleset and hash tests
+	 * the queues apply — SQL cannot call this, so the two are written next to
+	 * each other and changed together.
+	 *
+	 * @param array<string,mixed> $r One raw stored row.
+	 * @return bool
+	 */
+	private static function is_stale_row( array $r ) {
+		$read = isset( $r['graded_at'] ) && null !== $r['graded_at'] && '' !== (string) $r['graded_at'];
+		if ( ! $read ) {
+			return true; // Never looked at — a place in the ranking, not a verdict.
+		}
+		if ( '' === (string) ( isset( $r['content_hash'] ) ? $r['content_hash'] : '' ) ) {
+			return true; // Saved since it was read {@see mark_stale()}.
+		}
+		if ( PageCheck::ruleset() !== (string) ( isset( $r['ruleset'] ) ? $r['ruleset'] : '' ) ) {
+			return true; // Judged by a different set of checks than this site runs.
+		}
+		// Written by an older schema: flags counted, and not one of them named.
+		return (int) ( isset( $r['flags'] ) ? $r['flags'] : 0 ) > 0
+			&& '' === (string) ( isset( $r['flag_ids'] ) ? $r['flag_ids'] : '' )
+			&& 0 === (int) ( isset( $r['points'] ) ? $r['points'] : 0 );
+	}
+
+	/**
 	 * Everything the store holds about these pages — no page is read.
 	 *
 	 * ⭐ What the by-issue card, the tab counts and the ranking are all built
@@ -836,7 +897,7 @@ final class Grades {
 		// row" for the never-read ones would make it print a page with no verdict
 		// as a page with no problems.
 		$rows = $wpdb->get_results( // phpcs:ignore WordPress.DB -- our own table; every id cast to int above.
-			"SELECT post_id, needs_work, flags, stake, coverage, has_focus, gradeable, points, flag_ids, content_hash, graded_at
+			"SELECT post_id, needs_work, flags, stake, coverage, has_focus, gradeable, points, flag_ids, ruleset, content_hash, graded_at
 			FROM $table WHERE post_id IN ($in)",
 			ARRAY_A
 		);
@@ -844,9 +905,6 @@ final class Grades {
 		$out = array();
 		foreach ( (array) $rows as $r ) {
 			$read = null !== $r['graded_at'] && '' !== (string) $r['graded_at'];
-			// The same fingerprint UNREADABLE_SQL matches, in PHP — one shape, two
-			// languages, and a comment on each so they are changed together.
-			$unreadable = (int) $r['flags'] > 0 && '' === (string) $r['flag_ids'] && 0 === (int) $r['points'];
 
 			$out[ (int) $r['post_id'] ] = array(
 				'needsWork' => ! empty( $r['needs_work'] ),
@@ -857,10 +915,7 @@ final class Grades {
 				'gradeable' => ! empty( $r['gradeable'] ),
 				'points'    => (int) $r['points'],
 				'flagIds'   => self::unpack_ids( isset( $r['flag_ids'] ) ? $r['flag_ids'] : '' ),
-				// Never read · saved since it was read · written by an older
-				// schema. Three ways of being the same instruction: read it again
-				// before repeating any of this.
-				'stale'     => ! $read || '' === (string) $r['content_hash'] || $unreadable,
+				'stale'     => self::is_stale_row( $r ),
 				'gradedAt'  => $read ? (string) $r['graded_at'] : '',
 			);
 		}
