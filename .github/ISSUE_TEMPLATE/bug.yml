@@ -25,10 +25,9 @@ body:
   - type: dropdown
     id: role
     attributes:
-      label: How would you describe yourself?
-      description: Only so a reply can be pitched right — it changes what you can be asked for, never how fast you are answered.
+      label: About you
+      description: Optional — only so a reply can be pitched right.
       options:
-        - Rather not say
         - Site owner
         - Developer
         - Building this for a client

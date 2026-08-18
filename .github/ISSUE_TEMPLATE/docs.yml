@@ -16,3 +16,15 @@ body:
       description: Drag a screenshot in if it is easier to show than to say.
     validations:
       required: true
+  - type: dropdown
+    id: role
+    attributes:
+      label: About you
+      description: Optional — only so a reply can be pitched right.
+      options:
+        - Site owner
+        - Developer
+        - Building this for a client
+        - Not sure
+    validations:
+      required: false
