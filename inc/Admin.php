@@ -621,7 +621,7 @@ final class Admin {
 				),
 				array(
 					'title' => 'A Verdict Now Remembers Which Checks Made It',
-					'text'  => 'A grade is an answer to a question, and Agentimus was keeping the answer while forgetting the question — so a page graded by last month\'s checks kept that verdict for good. Every verdict now records the checks behind it, and when a release changes them your content is read again, keeping what it last said on screen while it waits. ⚠️ Expect your counts to move once after this upgrade: that is the old answer being corrected, not new problems appearing.',
+					'text'  => 'A grade is an answer to a question, and Agentimus was keeping the answer while forgetting the question — so a page graded by last month\'s checks kept that verdict for good. Every verdict now records the checks behind it, and when a release changes them your content is read again, keeping what it last said on screen while it waits. Expect your counts to move once after this upgrade — that is the old answer being corrected, not new problems appearing.',
 				),
 				array(
 					'title' => 'The Featured Image Is Judged on the Page You Serve',

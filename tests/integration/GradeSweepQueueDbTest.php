@@ -159,6 +159,30 @@ final class GradeSweepQueueDbTest extends DbTestCase {
 		);
 	}
 
+	/**
+	 * ⭐⭐ THE BEAT HAS TO SURVIVE AN UPDATE.
+	 *
+	 * The hourly sweep was booked in activate() and nowhere else — and an update
+	 * never activates anything. So every site that UPGRADED into the grade store
+	 * had no beat reading its content: the backlog only moved when somebody
+	 * opened Your Content, which is the very screen that reports the backlog. It
+	 * could say "75 still to be read" for days about a queue nothing was
+	 * draining. Seen on heera.it, 2026-08-19.
+	 */
+	public function test_the_sweep_beat_reschedules_itself_after_an_update() {
+		wp_clear_scheduled_hook( Grades::CRON ); // The state an upgraded site is in.
+		$this->assertFalse( wp_next_scheduled( Grades::CRON ) );
+
+		( new Worklist( new Settings() ) )->register(); // What every request does.
+
+		$this->assertNotFalse( wp_next_scheduled( Grades::CRON ), 'An upgraded site must get the beat back on its next request.' );
+
+		// …and booking it again changes nothing: idempotent, once per site.
+		$when = wp_next_scheduled( Grades::CRON );
+		( new Worklist( new Settings() ) )->register();
+		$this->assertSame( $when, wp_next_scheduled( Grades::CRON ) );
+	}
+
 	/** Two overlapping cron ticks must never render the same chunk twice. */
 	public function test_a_second_run_stands_down_while_one_holds_the_lock() {
 		$this->post();

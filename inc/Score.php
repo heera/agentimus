@@ -470,7 +470,10 @@ final class Score {
 		// ⛔ Zero while checking is off, for the reason above it: no sweep is
 		// coming, so there is no re-reading to promise. The card says the whole
 		// card is an older reading in that state.
-		$rechecking = $off ? 0 : Grades::rechecking( $types );
+		// ⚠️ GRADEABLE ONLY — the same population `posts` counts two lines down.
+		// Without that, heera.it's card read "75 graded · 88 being read again":
+		// both numbers true of what they measured, and the pair impossible.
+		$rechecking = $off ? 0 : Grades::rechecking( $types, true, $this->ignored_ids() );
 
 		$read = Grades::optimize( $types, $this->ignored_ids(), self::WORKLIST_POSTS_PER_ISSUE );
 		if ( $read['posts'] < 1 ) {
@@ -485,10 +488,14 @@ final class Score {
 				'count' => (int) $issue['count'],
 				'label' => PageCheck::issue_label( $id ),
 				'posts' => array_map( 'intval', (array) $issue['posts'] ),
-				// Per-type tally, so the worklist can say "3 Posts, 1 Page"
-				// instead of calling every flagged item a "page". Counted from
-				// the sampled posts, which is all this line is ever used to name.
-				'types' => self::type_tally( (array) $issue['posts'] ),
+					// Per-type tally, so the worklist can say "3 Posts, 1 Page"
+					// instead of calling every flagged item a "page".
+					// ⚠️ From the STORE, over every flagged page — not from the
+					// handful sampled below. Naming it from the sample printed
+					// "6 Posts" above "Showing 6 of 22".
+					'types' => isset( $issue['types'] ) && $issue['types']
+						? (array) $issue['types']
+						: self::type_tally( (array) $issue['posts'] ),
 			);
 		}
 

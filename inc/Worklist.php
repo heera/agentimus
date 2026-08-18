@@ -86,6 +86,19 @@ final class Worklist {
 		// hooks below: deleting a post fires deleted_post, and a write against a
 		// table that is not there is a database error in the owner's log.
 		Grades::maybe_install();
+		// ⭐⭐ SELF-HEALING, and it has to be. The hourly sweep was scheduled in
+		// activate() alone — and an UPDATE never activates anything, so every
+		// site that upgraded into the grade store (rather than installing fresh)
+		// has been running without the beat that reads its content. The backlog
+		// then only moves when somebody opens Your Content, which is exactly the
+		// screen that reports the backlog: it can say "75 still to be read" for
+		// days and be describing a queue nothing was draining. Seen on heera.it,
+		// 2026-08-19, 75 pages pending and the number barely moving.
+		//
+		// Idempotent by construction — {@see Grades::schedule()} books nothing
+		// when the event already exists — and one wp_next_scheduled() is an
+		// autoloaded-option read. Same shape as BotRanges and RouteProbe.
+		Grades::schedule();
 
 		add_action( Grades::CRON, array( $this, 'sweep_and_continue' ) );
 

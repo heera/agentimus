@@ -504,10 +504,32 @@ final class Grades {
 	 * {@see \Agentimus\Score::compute_optimize()}. Two numbers printed side by
 	 * side and taken at different instants can contradict each other on screen.
 	 *
-	 * @param array<int,string> $types Post types to consider.
+	 * ⚠️⚠️ …AND THEY MUST COUNT THE SAME POPULATION. Caught on heera.it minutes
+	 * after 1.38.0 went up: the card read "75 graded · 88 being read again",
+	 * because `graded` counts only what is GRADEABLE for quoting while this
+	 * counted every checked page. Both numbers were true of what they measured
+	 * and the pair was nonsense — more pages being re-read than exist. Same
+	 * instant is half the law; same set is the other half.
+	 *
+	 * ⚠️⚠️ AND THE SET-ASIDE LEDGER IS PART OF THE POPULATION. Caught twice on
+	 * heera.it, an hour apart, because the first fix only did half of it: his
+	 * card read "75 graded · 86 being read again" and 86 was exactly 75 + the 11
+	 * pages he had set aside. `graded` is gradeable AND not-set-aside; a count
+	 * standing beside it has to be both, or the pair is arithmetic nobody can
+	 * follow. ⛔ Excusing a page from the score excuses it from every number the
+	 * score prints.
+	 *
+	 * @param array<int,string> $types     Post types to consider.
+	 * @param bool              $gradeable Only pages the citability grade covers
+	 *                                     — what the Optimize card's `graded`
+	 *                                     counts. The content worklist wants the
+	 *                                     wider set, because its own totals do.
+	 * @param array<int,int>    $aside     Post IDs the owner set aside, excluded
+	 *                                     the same way {@see optimize()} excludes
+	 *                                     them from `posts`.
 	 * @return int
 	 */
-	public static function rechecking( array $types ) {
+	public static function rechecking( array $types, $gradeable = false, array $aside = array() ) {
 		global $wpdb;
 
 		if ( empty( $types ) || ! self::installed() ) {
@@ -515,12 +537,17 @@ final class Grades {
 		}
 		$table   = self::name();
 		$holders = implode( ',', array_fill( 0, count( $types ), '%s' ) );
+		$only    = $gradeable ? ' AND g.gradeable = 1' : '';
+		$aside   = array_values( array_unique( array_filter( array_map( 'intval', $aside ) ) ) );
+		if ( $aside ) {
+			$only .= ' AND g.post_id NOT IN (' . implode( ',', $aside ) . ')'; // Ints only, cast above.
+		}
 
 		return (int) $wpdb->get_var( $wpdb->prepare( // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- our own table; every value bound.
 			"SELECT COUNT(*) FROM {$wpdb->posts} p
 			INNER JOIN $table g ON g.post_id = p.ID
 			WHERE p.post_status = 'publish' AND p.post_type IN ($holders)
-				AND g.graded_at IS NOT NULL AND (g.content_hash = '' OR g.ruleset <> %s OR " . self::UNREADABLE_SQL . ')',
+				AND g.graded_at IS NOT NULL $only AND (g.content_hash = '' OR g.ruleset <> %s OR " . self::UNREADABLE_SQL . ')',
 			array_merge( $types, array( PageCheck::ruleset() ) )
 		) );
 	}
@@ -712,7 +739,7 @@ final class Grades {
 		// only the FLAGGED ones, which is the minority by design and the whole
 		// point of the column being empty when a page is clean.
 		$rows = $wpdb->get_results( $wpdb->prepare( // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- our own table; ids cast to int, everything else bound.
-			"SELECT g.post_id, g.flags, g.points, g.flag_ids, g.ruleset, g.content_hash, g.graded_at
+			"SELECT g.post_id, g.flags, g.points, g.flag_ids, g.ruleset, g.content_hash, g.graded_at, p.post_type
 			FROM $table g INNER JOIN {$wpdb->posts} p ON p.ID = g.post_id
 			WHERE $where AND g.flag_ids <> ''
 			ORDER BY g.stake DESC, g.post_id DESC",
@@ -729,9 +756,18 @@ final class Grades {
 			$stale = self::is_stale_row( $r );
 			foreach ( self::unpack_ids( isset( $r['flag_ids'] ) ? $r['flag_ids'] : '' ) as $id ) {
 				if ( ! isset( $out['issues'][ $id ] ) ) {
-					$out['issues'][ $id ] = array( 'count' => 0, 'posts' => array() );
+					$out['issues'][ $id ] = array( 'count' => 0, 'posts' => array(), 'types' => array() );
 				}
 				++$out['issues'][ $id ]['count'];
+				// ⚠️ Tallied over EVERY flagged row, not the sample kept below. The
+				// card names this count in the site's own nouns ("22 Posts"), and
+				// naming it from the six rows it happens to show said "6 Posts"
+				// directly above "Showing 6 of 22" — two numbers for one thing,
+				// the smaller one first. Seen on heera.it, 2026-08-19.
+				$type = (string) ( isset( $r['post_type'] ) ? $r['post_type'] : '' );
+				if ( '' !== $type ) {
+					$out['issues'][ $id ]['types'][ $type ] = 1 + ( isset( $out['issues'][ $id ]['types'][ $type ] ) ? (int) $out['issues'][ $id ]['types'][ $type ] : 0 );
+				}
 				// ⚠️ The COUNT is the whole truth; the post list is a sample of it,
 				// ordered by what a fix is worth. A caller printing the list must
 				// not print its length as the count.

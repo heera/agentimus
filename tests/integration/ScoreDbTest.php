@@ -194,6 +194,92 @@ final class ScoreDbTest extends DbTestCase {
 		$this->assertFalse( $done['content'][0]['pages'][0]['stale'] );
 	}
 
+	/**
+	 * ⚠️⚠️ TWO NUMBERS SIDE BY SIDE MUST COUNT THE SAME POPULATION.
+	 *
+	 * Caught on heera.it minutes after 1.38.0 went up: the Optimize card read
+	 * "75 graded · 88 being read again". `graded` counts only what is gradeable
+	 * for quoting; the re-read count was counting every checked page. Both were
+	 * true of what they measured, and together they said more pages were being
+	 * re-read than existed.
+	 */
+	public function test_being_read_again_never_exceeds_the_pages_it_is_counted_against() {
+		wp_set_current_user( self::factory()->user->create( array( 'role' => 'administrator' ) ) );
+		$article = $this->post( str_repeat( 'A plain sentence about a plain thing. ', 30 ) );
+		// A page with nothing to grade for quoting — structural, not an article.
+		$empty = self::factory()->post->create( array( 'post_type' => 'page', 'post_status' => 'publish', 'post_content' => '' ) );
+		$this->regrade();
+
+		$before = ( new Score( new Settings() ) )->report();
+		$this->assertGreaterThan( 0, (int) $before['graded'] );
+
+		// Everything the site checks goes back in the queue.
+		Grades::mark_stale( $article );
+		Grades::mark_stale( $empty );
+		delete_transient( Cache::OPTIMIZE );
+
+		$after = ( new Score( new Settings() ) )->report();
+		$this->assertLessThanOrEqual(
+			(int) $after['graded'],
+			(int) $after['rechecking'],
+			'⛔ More pages being read again than the card says it graded is an impossible pair, whatever each number means on its own.'
+		);
+	}
+
+	/**
+	 * ⚠️⚠️ HIS CARD, TWICE: "75 graded · 86 being read again" — and 86 was 75 plus
+	 * the 11 pages he had set aside. Excusing a page from the score excuses it
+	 * from every number the score prints, not only from the average.
+	 */
+	public function test_a_page_set_aside_is_not_counted_as_being_read_again() {
+		wp_set_current_user( self::factory()->user->create( array( 'role' => 'administrator' ) ) );
+		$keep  = $this->post( str_repeat( 'A plain sentence about a plain thing. ', 30 ) );
+		$aside = $this->post( str_repeat( 'Another plain sentence about another plain thing. ', 30 ) );
+		$this->regrade();
+
+		$settings = new Settings();
+		$all      = $settings->all(); // Partial updates reset unset settings — merge into all().
+		$all['optimize_ignored'] = array( $aside );
+		$settings->update( $all );
+
+		Grades::mark_stale( $keep );
+		Grades::mark_stale( $aside );
+		delete_transient( Cache::OPTIMIZE );
+
+		$r = ( new Score( new Settings() ) )->report();
+		$this->assertSame( 1, (int) $r['rechecking'], 'The set-aside page is out of this count, like every other number here.' );
+		$this->assertLessThanOrEqual( (int) $r['graded'], (int) $r['rechecking'] );
+	}
+
+	/**
+	 * ⚠️ HIS CARD, 2026-08-19: "Featured image not described · 6 Posts" printed
+	 * directly above "Showing 6 of 22". The chip named the count from the six
+	 * rows the card happens to SHOW, not from the twenty-two pages the check
+	 * flags — two numbers for one thing, with the smaller one first and in
+	 * bigger type.
+	 */
+	public function test_the_issue_label_counts_every_flagged_page_not_the_sample() {
+		wp_set_current_user( self::factory()->user->create( array( 'role' => 'administrator' ) ) );
+		// More thin posts than the card samples per issue (six).
+		for ( $i = 0; $i < 9; $i++ ) {
+			$this->post( 'Too short.' );
+		}
+		$this->regrade();
+
+		$r     = ( new Score( new Settings() ) )->report();
+		$issue = null;
+		foreach ( $r['content'] as $row ) {
+			if ( 'words' === $row['id'] ) {
+				$issue = $row;
+			}
+		}
+		$this->assertNotNull( $issue, 'Nine thin posts should flag the substance check.' );
+
+		$this->assertSame( 9, (int) $issue['count'] );
+		$this->assertLessThan( 9, count( $issue['pages'] ), 'The card samples fewer than it counts — which is the whole trap.' );
+		$this->assertStringContainsString( '9', (string) $issue['countLabel'], 'The label names the twenty-two, never the six.' );
+	}
+
 	public function test_empty_and_structural_pages_are_excluded_from_grading() {
 		// An empty page — theme-rendered front page, a page-builder/form page, a
 		// placeholder: 0 extractable words, so not an article to grade.
