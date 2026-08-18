@@ -38,7 +38,7 @@ Your brief and preview survive a page reload or an accidental Esc — they're he
 > If your WordPress defines **Content Guidelines**, the assistant follows them automatically — your brief outranks them, and they outrank the neutral default. Same rule as every other AI surface in Agentimus.
 
 {: .note }
-> The assistant also writes against the same bar the editor's **AI Readability** panel grades: a liftable opening summary, quotable paragraph lengths, plain sentences, and real cited sources. A fresh draft should open with those checks green — anything the panel still flags (a missing featured image, say) has its usual one-click fix right on the warning.
+> The assistant also writes against the same bar the editor's **Readability** panel grades: a liftable opening summary, quotable paragraph lengths, plain sentences, and real cited sources. A fresh draft should open with those checks green — anything the panel still flags (a missing featured image, say) has its usual one-click fix right on the warning.
 
 ## Images: placeholders, then one click each
 
@@ -46,7 +46,7 @@ The assistant plans images but doesn't paste them into your text sight-unseen. A
 
 - **Generate image from the alt text** — a button in every image block's toolbar turns its alt text into a generated image, saved to your media library with the alt text kept. Rewrite the alt, generate again.
 - **Featured image (AI)** — a panel in the document sidebar drafts a hero image from the post's title.
-- **The check that closes the loop** — the AI Readability panel's *No featured image* warning carries its own **Generate with AI** button, so the gap and its fix live on the same row.
+- **The check that closes the loop** — the Readability panel's *No featured image* warning carries its own **Generate with AI** button, so the gap and its fix live on the same row.
 - **Or use the library** — every placeholder is a normal image block; pick from your media library as always.
 
 {: .warning }

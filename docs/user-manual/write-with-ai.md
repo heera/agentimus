@@ -6,7 +6,7 @@ nav_order: 12
 
 # Write with AI
 
-**Write with AI** is an optional helper that lets the AI you've connected to WordPress draft two of Agentimus's fields for you as you write — the **AI description** and **Topics for AI** — and suggest concrete fixes for the **AI Readability** warnings on a page. Every suggestion lands as editable text that you review; nothing is ever saved for you.
+**Write with AI** is an optional helper that lets the AI you've connected to WordPress draft two of Agentimus's fields for you as you write — the **AI description** and **Topics for AI** — and suggest concrete fixes for the **Readability** warnings on a page. Every suggestion lands as editable text that you review; nothing is ever saved for you.
 
 It's off until you connect an AI provider, so on a site without AI set up you won't see any of it.
 
@@ -34,13 +34,13 @@ In both cases the result drops in as ordinary, editable text (or chips) — acce
 
 ## Fix with AI — the readability warnings
 
-Open the **Agentimus → AI Readability** panel in the editor. Every check that's passing shows a green tick and nothing else. Every **warning** now carries a **"Fix with AI"** button that drafts a concrete fix for *that* issue:
+Open the **Agentimus → Readability** panel in the editor. Every check that's passing shows a green tick and nothing else. Every **warning** now carries a **"Fix with AI"** button that drafts a concrete fix for *that* issue:
 
 | Warning | What the AI drafts | How you apply it |
 |---|---|---|
 | No opening summary | A one-sentence lead for the page | **Apply** inserts it as the first paragraph (undo with Ctrl/Cmd + Z) |
 | No headings | A suggested H2/H3 outline | **Copy** and place the headings yourself |
-| One long block | The long paragraph rewritten as shorter ones | **Copy** and replace the block |
+| Long blocks | The long paragraph rewritten as shorter ones | **Copy** and replace the block |
 | Nothing concrete to quote | Specifics you could add (a statistic, an example, a source) | **Copy** — then find and verify a real figure before you publish |
 | Thin content | A short outline of what's missing | **Copy** — write the sections in your own words |
 | No featured image | A featured image generated from the post's title | **Generate with AI** creates it and sets it as featured — needs an image-capable provider plan |
@@ -59,4 +59,4 @@ Only the **opening summary** and the **featured image** act in one click — one
 - [MCP server]({% link user-manual/mcp-server.md %}) — the *other* way AI writes here: an external agent creating and editing whole posts over a connection (opt-in, off by default).
 - [Structured data]({% link user-manual/structured-data.md %}) — where the AI description feeds.
 - [Topics for AI]({% link user-manual/topics-for-ai.md %}) — the topics the assist drafts.
-- [Readiness]({% link user-manual/readiness.md %}) — the AI Readability checks the "Fix with AI" buttons act on.
+- [Readiness]({% link user-manual/readiness.md %}) — the Readability checks the "Fix with AI" buttons act on.

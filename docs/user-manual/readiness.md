@@ -101,14 +101,24 @@ On this tab each rung group shows a small tally like `5/5` and takes the colour 
 
 The three rungs above grade your *site's* setup. The fourth score rung, **Optimized**, grades your *pages* — how easy each article is for an AI to read and quote — and its worklist lives right here on the Readiness tab (click the **Optimized** rung on the Dashboard score card to jump to it).
 
-Agentimus samples your recent **articles** and checks each for what makes content citable:
+Agentimus reads **every published page** and checks each for what makes content citable:
 
 - **Thin content** — too little text for an agent to work with (under about 100 words).
 - **Nothing concrete to quote** — no figures, dates or cited sources; answer engines lift specifics, so give them one.
 - **Quotable passages** — an over-long paragraph an engine can't cleanly lift; break it up.
 - **Freshness** — a substantial page untouched for a couple of years reads as stale.
 
-Issues are grouped, and each lists the exact posts and pages affected as links straight to their editors — so fixing them is one click away. The same checks appear per-page in the editor's **AI Readability** panel while you write.
+Issues are grouped, and each lists the exact posts and pages affected as links straight to their editors — so fixing them is one click away. The same checks appear per-page in the editor's **Readability** panel while you write.
+
+### Your whole site, not a sample of it
+
+Until 1.37.0 this rung read your **25 most recently edited posts** and treated that as the site. It now reads every published page.
+
+If you updated from an earlier version, expect the number to move. Expect the list of pages worth fixing to be longer too — often much longer. Nothing broke, and nothing about your content changed. Those pages were always there; nothing had been looking at them.
+
+The reading happens in the background rather than while you wait, a few pages at a time. On a large site it can take from minutes to hours. While it is still going, the card says how many pages are left to read. That way you can tell "this is the whole site" from "this is what has been read so far". The oldest verdicts are also refreshed quietly over time, so a page graded months ago does not keep an answer nobody has re-checked.
+
+**What is checked and what is graded are not the same set.** Agentimus checks every kind of content you publish — including products — for the searches each page is found for. It grades only writing for citability. The card names the kinds of content behind its numbers. A shop owner is never left wondering why a hundred products are checked and none are graded.
 
 **Articles only.** Optimize grades the content that's *meant* to be cited — posts, pages and doc-like content. It deliberately leaves out **commerce products** (a product page is short by design), **commerce plugins' own pages** — the cart, checkout and account pages a shop plugin designates and renders — and **structural pages** with no real text of their own: your Posts page, a theme-rendered front page, a form or page-builder page, or any page that is just a shortcode or plugin block with next to no authored prose. None of those are articles, so they're never wrongly flagged as "thin".
 
@@ -151,8 +161,16 @@ Because it has to grade what an *agent* sees, Verify live fetches **anonymously*
 
 A companion **Agent preview** button lets you see the exact JSON-LD and Markdown Agentimus emits for your site or any single post — handy for confirming the structured data behind the Readable and Trusted rungs. It reads that data straight from WordPress, so unlike Verify live it fetches nothing and never appears in your log.
 
-## Per-page AI Readability (in the editor)
+## Per-page Readability (in the editor)
 
-The Readiness report grades the whole *site*. Its per-page companion lives in the post editor: an **AI Readability** panel (in the "Agentimus" box, alongside the JSON-LD preview) that grades the page you're writing. It flags what makes a single page hard for an agent to read and cite — thin content, missing headings, no opening summary, a nav-heavy page, or images without alt text — each as a plain pass or "to improve". It's editor-only (nothing shows to visitors) and can be turned off under Settings → **Discovery** → *AI readability tips*.
+The Readiness report grades the whole *site*. Its per-page companion lives in the post editor: a **Readability** panel (in the "Agentimus" box, alongside the JSON-LD preview) that grades the page you're writing. It flags what makes a single page hard to read, section and quote — thin content, missing headings, no opening summary, a nav-heavy page, or images without alt text (the featured image included) — each as a plain pass or "to improve". It's editor-only (nothing shows to visitors) and can be turned off under Settings → **Discovery** → *Readability tips*.
+
+**It is not only for AI.** Twelve of its fourteen checks are ones a classic SEO tool runs too: thin content, headings and their order, image alt text, reading ease, outbound sources, link density, the featured image, whether that featured image is described, and freshness. An image with no alt text is invisible to an assistant, to a screen reader and to image search alike. Only the quotable-passage length and the video/audio context line are specific to AI. The panel names all three audiences on the checks where all three apply, so nothing here reads as an AI nicety you can skip.
+
+### The featured image
+
+Your featured image is drawn by your **theme**, not by the post content — so for a long time nothing checked it, and a picture with no description passed silently. It now has its own row.
+
+The check asks whether the picture carries a description **of its own**, read from the media library, and it names the file so you know which one to open. It deliberately does not judge what your theme finally renders: doing that would mean fetching the page on every editor load, and it cannot be guessed either — a theme may substitute the post title inline in its template, where no filter can see it. A fallback to the post title also describes the *article*, not the *picture*, so the advice holds regardless.
 
 The reading-ease grade is deliberately fair to real writing. Sentences end at block boundaries, so a bullet list is never scored as one enormous sentence. A page's own recurring subject terms are read as *familiar* words — "security" on a security article isn't charged five syllables every use — while a page dense with many *different* heavy words still grades hard. And code samples are never graded as prose: code still counts toward substance, but identifiers aren't scored as words, and a page that is mostly code skips the grade honestly rather than mis-scoring its few prose lines. The verdicts explain themselves, too: a pass names the terms it treated as familiar, and a warn ends by naming the page's heaviest words — so you know exactly what to simplify.

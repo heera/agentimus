@@ -37,3 +37,5 @@ Every email ends with a **one-click stop link** — it works without logging in,
 ## If it never arrives
 
 Three things to check, in order: your spam folder; whether the week was genuinely quiet (see above); and whether your site can send email at all — WordPress's built-in mail is unreliable on many hosts, and an SMTP plugin (WP Mail SMTP, FluentSMTP or similar) fixes that for every email your site sends, not just this one. The test button surfaces delivery errors directly, so it's the fastest way to tell "quiet week" apart from "mail is broken".
+
+The digest can also be sent somewhere other than your inbox. Under [Integrations](integrations.html), *Weekly digest sent* is one of the moments you can forward to Telegram, Slack, Discord, a Google Sheet or an address of your own.

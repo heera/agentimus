@@ -8,7 +8,7 @@ Announcing a post is its own small chore: the same story has to be retold six di
 
 ## Where to find it
 
-In the post editor, open the **Agentimus** panel (the box that also holds JSON-LD and AI Readability) and pick the **Share** tab. You'll find one card per network — **X (Twitter), Facebook, LinkedIn, WhatsApp, Telegram and Reddit** — plus the post's link preview beside them, drawn from the same card image a real share would show.
+In the post editor, open the **Agentimus** panel (the box that also holds JSON-LD and Readability) and pick the **Share** tab. You'll find one card per network — **X (Twitter), Facebook, LinkedIn, WhatsApp, Telegram and Reddit** — plus the post's link preview beside them, drawn from the same card image a real share would show.
 
 ## What each card holds
 

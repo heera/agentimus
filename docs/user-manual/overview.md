@@ -120,5 +120,19 @@ Now that you know what Agentimus is for, the rest of this manual walks through u
 - **Crawler policy and AI access** — declaring your content-usage signals and deciding which bots are welcome.
 - **The activity log** — seeing which AI crawlers and agents actually fetch your content.
 - **The MCP server** — approving Claude, Claude Code, Cursor, ChatGPT or Codex to read your reports and, if you opt in, draft, edit and publish for you.
+- **[Integrations](integrations.html)** — sending Agentimus's reports to Telegram, Slack, Discord, a Google Sheet or an address of your own.
+- **[Announcing a post](announcing.html)** — telling X and LinkedIn about a new post, in words you approve first.
+
+## When you need help
+
+Two doors sit at the foot of the **More** menu, and they lead to different places on purpose.
+
+**Get Help** opens the WordPress support forum for the plugin, where a person answers. That is the right door for a question, for "is this normal", or for anything you are not sure how to describe. The forum cannot be filled in from a link. So if you need to say what your site is running, **About** has a *Copy setup details* button. It gathers the versions, theme, cache and connected services for you.
+
+**Report an Issue** opens the matching form on the plugin's GitHub repository, with your setup already attached. That is the right door for something that is broken, an idea, or a mistake in this documentation. It needs a free GitHub account, and that is what lets a reply reach you.
+
+Nothing is sent from your site by either door. Agentimus composes the link and your browser opens it; you post under your own account.
+
+The same menu also holds **What's New**, which you can open whenever you like. It no longer disappears once you dismiss the card after an update, and every earlier release sits underneath it.
 
 If you take just one action after reading this page, run the setup wizard and add a sentence about who you are — that single line is the most valuable thing an AI assistant reads about your site.

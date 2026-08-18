@@ -70,7 +70,7 @@ Yes, if you're on **WordPress 7.0** and have connected an AI provider under **Se
 
 - **Draft with AI** on the **AI description** field — writes the one-sentence summary of the page.
 - **Draft with AI** on the **Topics for AI** field — suggests the page's key topics as chips.
-- **Fix with AI** on any **AI Readability** row that is warning or failing — drafts a concrete fix for that specific issue.
+- **Fix with AI** on any **Readability** row that is warning or failing — drafts a concrete fix for that specific issue.
 
 Everything goes through WordPress's own shared connectors, so **Agentimus never sees or stores your API key** — the key stays in WordPress. If you haven't set up a provider, the buttons simply don't appear; nothing breaks and nothing nags you. And every suggestion arrives as ordinary editable text: you read it, change it if you want, and save it yourself. Nothing is written to your site on your behalf. See the **Write with AI** page for the details.
 
