@@ -58,7 +58,13 @@ for ( $i = 1; $i < count( $parts ); $i += 2 ) {
 }
 
 $caps = array(
-	array( 'Description (all folded sections)', $description, 2500, 'words' ),
+	// ⚠️ 2,400 NOT 2,500, and the difference is measured, not cautious. When
+	// WordPress.org truncated 1.37.0 it cut at ITS 2,500-word mark; the text it
+	// kept measures 2,449 by str_word_count here. So this counter runs ~2% low
+	// against theirs — it counts the raw markdown, they count after their own
+	// processing. A readme at "2,447 of 2,500" by this script was really sitting
+	// ON their line, and stayed truncated. 2,400 here is ~2,450 there.
+	array( 'Description (all folded sections)', $description, 2400, 'words' ),
 	array( 'Changelog',                          $changelog,   5000, 'words' ),
 	array( 'Upgrade Notice (newest entry)',      $notice,       600, 'chars' ),
 );
