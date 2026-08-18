@@ -24,8 +24,8 @@ By default it makes no outbound requests, collects no analytics, and logs no IP 
 
 **One screen that says what needs you**
 
-* **Findings** — everything open across your site in one ranked list: pages losing a click they already earn, and anything the setup checks caught — ordered by what each costs you, every row carrying the button that lands on the fix. The nav count only ever measures work you can act on.
-* **Your Content** — one row per post, page or product: what it is found for, whether it answers that, and anything else it needs. Set aside anything never meant to be quoted and it stays listed rather than silently dropped.
+* **Findings** — everything open across your site in one ranked list: pages losing a click they already earn, and anything the setup checks caught — ordered by what each costs you, every row carrying the button that lands on the fix. The nav count only measures work you can act on.
+* **Your Content** — one row per post, page or product: what it is found for, whether it answers that, and anything else it needs. Set aside anything never meant to be quoted and it stays listed, not silently dropped.
 
 **With an SEO plugin — or instead of one**
 
@@ -38,11 +38,11 @@ By default it makes no outbound requests, collects no analytics, and logs no IP 
 * **Connect by approving, not by pasting keys** — an assistant asks *you* for permission on a consent page on your own site; you choose **Read only** or **Read and write**, and each gets its own key and Disconnect. OAuth 2.1 with PKCE, nothing brokered by a third party; a revocable **shared token** covers clients that can't ask.
 * **Read your site's data** — connected agents run the read-only tools — score, AI traffic, request log, bot identification, page previews — and your llms.txt, discovery and agent-card documents are offered as readable **resources**.
 * **Draft, edit and publish posts — behind two more switches** — turn on **Let connected agents write** and an agent can create and edit posts and pages fully dressed (categories, tags, featured image, AI topics and descriptions), apply Readiness fixes, and reuse pictures from your media library. A third switch lets it publish; otherwise it leaves drafts for review.
-* **Safe by construction** — every write runs as the signed-in WordPress user, never exceeding their permissions, and is recorded under **More → Agent Access**. With the switch off, the write tools do not exist.
+* **Safe by construction** — every write runs as the signed-in WordPress user, never exceeding their permissions, and is recorded under **More → Agent Access**. Nothing is public, and with the switch off the write tools do not exist.
 
 **Write with AI in wp-admin — the built-in assistant (opt-in)**
 
-* **Idea → draft without leaving wp-admin** — a spark button opens the writing assistant: describe what you want, shape the outline it proposes, then preview the complete draft — real editor blocks, AI description, topics, categories, tags. A page is written as a page: no invented sections. Nothing is saved until you click **Create draft**, and it never publishes.
+* **Idea → draft without leaving wp-admin** — a spark button opens the writing assistant: describe what you want, shape the outline it proposes, then preview the complete draft — real blocks, AI description, topics, categories, tags. A page is written as a page: no invented sections. Nothing is saved until you click **Create draft**, and it never publishes.
 * **Ask AI in the editor — one block, a selection, or the whole post** — rewrite or extend the block you're in, change several with one instruction, or ask about the whole post and get a list of proposed edits, each with its reason, to accept or reject one at a time. Blocks the plan doesn't name are never touched.
 * **Images where you write** — alt-filled placeholders in drafts, **Generate image from the alt text** on every image block, a **Featured image (AI)** panel — or pick from your library. Runs on WordPress's built-in AI Client (7.0+); Agentimus never sees your key, and every AI button hides until a provider is set up.
 
@@ -54,7 +54,7 @@ By default it makes no outbound requests, collects no analytics, and logs no IP 
 **Control — who may use your content**
 
 * **robots.txt content-signals + AI-training blocklist** — declare your content-usage policy and block model-training crawlers (GPTBot, CCBot, ClaudeBot, Google-Extended, Bytespider, …) by name, while leaving read/cite bots free.
-* **Block scanners & scrapers (opt-in hard block)** — robots rules are a polite request; this enforces them, returning 403 to the user-agents on your denylist. Your **always-allowed** list is never blocked: pre-trust well-known assistants with one click, search engines are recognised automatically, and SSL-renewal requests stay reachable.
+* **Block scanners & scrapers (opt-in hard block)** — robots rules are a polite request; this enforces them, returning 403 to the user-agents on your denylist. Your **always-allowed** list is never blocked: pre-trust well-known assistants with one click, search engines are recognised automatically, and SSL renewals stay reachable.
 
 **Reduce exposure — what your site reveals to bots**
 
@@ -67,14 +67,14 @@ By default it makes no outbound requests, collects no analytics, and logs no IP 
 * **Request Log** — every recorded request, one row each. Filter by client, endpoint, network, user-agent and date to see what a single bot fetched.
 * **Agent Access** — who *authenticates and acts*: assistants approved, keys created or revoked, abilities run, requests refused. A record, not a guard — it names the key, never the person.
 * **Traffic from AI** — the real visitors an AI assistant sent you, day by day, by assistant and landing page — aggregate counts only, never a row for one person, no IP. An opt-in **CDN mode** keeps counts accurate behind a cache.
-* **Edge traffic (Cloudflare, opt-in)** — what Cloudflare answered or blocked before your server saw the request: cache hits and edge blocks no server-side log can see.
+* **Edge traffic (Cloudflare, opt-in)** — what Cloudflare answered or blocked before your server saw the request: cache hits and edge blocks no server-side log can see. It warns when the edge disagrees with your policy.
 * **You decide how long it's kept** — retention, nightly auto-delete and a hard size cap, so the log never outgrows your host.
 * **Citation checks (opt-in)** — track **each brand, product or person you choose** across ChatGPT, Perplexity, Gemini and Claude: whether it is **mentioned, linked, and how it ranks against rivals**. Off by default; **bring your own API key** (the one feature that makes an outbound request — see *External services*).
 
 **Classic search, measured — Bing & Google (opt-in)**
 
-* **Search Performance & Opportunities** — connect Bing Webmaster Tools and/or Google Search Console (a key held on your own server, no third-party proxy) and see what people searched, how often you appeared, and which pages sit one improvement from page one. Every number is the engine's own, never estimated, and probe traffic is named rather than blended in.
-* **In the index — Google's and Bing's** — whether the indexes behind AI Overviews, Gemini, ChatGPT search and Copilot actually hold your pages: the whole site in rotation, every verdict in the engine's own words, problems grouped with deep links to the fix, any page re-checked live — plus week-on-week trend, Google Discover, and the health of your registered sitemap.
+* **Search Performance & Opportunities** — connect Bing Webmaster Tools and/or Google Search Console (a key held on your own server, no third-party proxy) and see what people searched, how often you appeared, and which pages sit one improvement from page one. Every number is the engine's own, never estimated; probe traffic is named, not blended in.
+* **In the index — Google's and Bing's** — whether the indexes behind AI Overviews, Gemini, ChatGPT search and Copilot hold your pages: the whole site in rotation, every verdict in the engine's own words, problems grouped with deep links to the fix, any page re-checked live — plus week-on-week trend, Google Discover, and your registered sitemap's health.
 
 **Content — clean, machine-readable output**
 
@@ -82,7 +82,7 @@ By default it makes no outbound requests, collects no analytics, and logs no IP 
 * **/llms.txt** & **/llms-full.txt** — an [llmstxt.org](https://llmstxt.org) index of your pages, topics and recent posts, plus a full-text edition an agent ingests in one request.
 * **JSON-LD** — WebSite + Person/Organization, plus BlogPosting and BreadcrumbList on posts. **Defers to Yoast, Rank Math, SEOPress, AIOSEO and The SEO Framework**, so never duplicate schema.
 * **Topics for AI** — say what each post is about in plain words; they become the JSON-LD `keywords` and a line in the page's `.md`. Type your own or fill them from tags and categories. Nothing shows on the page.
-* **AI description** — a one-line summary per post; it becomes the JSON-LD `description`, the lead of its `.md`, and its `<meta name="description">` unless an SEO plugin owns it. Blank uses the excerpt.
+* **AI description** — a one-line summary per post; it becomes the JSON-LD `description`, the lead of its `.md`, and its `<meta name="description">` unless an SEO plugin owns it. Blank uses the excerpt; a sub-switch keeps it out of your `<head>`.
 * **XML sitemap** — with no SEO plugin, Agentimus serves your sitemap at `/wp-sitemap.xml` and advertises it in robots.txt and llms.txt; with one, it links theirs.
 * **Change feed** — `/agentimus-changes.json` lists added, updated and removed pages (with `?since=`), so an assistant re-checks only what changed.
 
