@@ -601,24 +601,25 @@ final class Score {
 
 	/**
 	 * A short, plain imperative for a content check — what to do about it, at the group
-	 * level (the per-post specifics live in each post's AI Readability panel). Pure.
+	 * level (the per-post specifics live in each post's Readability panel). Pure.
 	 *
 	 * @param string $id PageCheck check id.
 	 * @return string
 	 */
 	private static function content_guidance( $id ) {
 		$map = array(
-			'words'          => __( 'Expand it — an agent has little to read or cite.', 'agentimus' ),
+			'words'          => __( 'Expand it — an agent has little to read, and search sees a thin page.', 'agentimus' ),
 			'summary'        => __( 'Open with a line that states what the page is about.', 'agentimus' ),
 			'evidence'       => __( 'Add a figure, a statistic, or a cited source.', 'agentimus' ),
 			'sources'        => __( 'Cite a source — link where its facts come from.', 'agentimus' ),
-			'headings'       => __( 'Add H2/H3 headings so an agent can section it.', 'agentimus' ),
+			'headings'       => __( 'Add H2/H3 headings so agents, readers and search can see its parts.', 'agentimus' ),
 			'heading_order'  => __( 'Fix the heading levels so they don’t skip.', 'agentimus' ),
 			'passages'       => __( 'Break the long block into shorter, quotable paragraphs.', 'agentimus' ),
 			'reading_ease'   => __( 'Simplify the prose — shorter sentences, plainer words.', 'agentimus' ),
 			'link_density'   => __( 'Add prose or trim link lists — it reads as navigation.', 'agentimus' ),
-			'alt_text'       => __( 'Describe images with alt text.', 'agentimus' ),
+			'alt_text'       => __( 'Describe images — for assistants, screen readers and image search.', 'agentimus' ),
 			'featured_image' => __( 'Set a featured image so link previews have a picture.', 'agentimus' ),
+			'featured_alt'   => __( 'Describe the featured image — image search and screen readers use it.', 'agentimus' ),
 			'freshness'      => __( 'Refresh it — engines favour current pages.', 'agentimus' ),
 		);
 		return isset( $map[ $id ] ) ? $map[ $id ] : __( 'Open it in the editor — the Agentimus box shows what to improve.', 'agentimus' );

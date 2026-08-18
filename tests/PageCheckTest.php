@@ -22,6 +22,13 @@ final class PageCheckTest extends TestCase {
 		return (array) $m->invoke( null, $stats );
 	}
 
+	/** The raw return — a check may decline to produce a row at all. */
+	private function raw( string $method, array $stats ) {
+		$m = new \ReflectionMethod( PageCheck::class, $method );
+		\_af_accessible( $m );
+		return $m->invoke( null, $stats );
+	}
+
 	/* -- Cited sources ------------------------------------------------------ */
 
 	public function test_sources_wants_an_outbound_link_on_substantive_pages() {
@@ -451,5 +458,250 @@ final class PageCheckTest extends TestCase {
 			array( 'status' => 'warn' ),
 		);
 		$this->assertSame( array( 'pass' => 1, 'warn' => 2, 'fail' => 0 ), PageCheck::summary( $rows ) );
+	}
+
+	/* -- Naming the offender ------------------------------------------------- */
+
+	/**
+	 * ⭐ THE ROW HAS TO SAY WHICH PARAGRAPH. It used to report max() alone — so a
+	 * page with three long blocks warned about "~239 words", the owner fixed that
+	 * one, and the warning returned saying "~184". Nothing in the sentence had
+	 * told them there was ever more than one. Walked live on heera.it 2026-08-18;
+	 * it cost a whole round of edits.
+	 */
+	public function test_a_page_with_several_long_blocks_says_how_many_and_where_each_starts() {
+		$long_a = 'Alpha opens the first overlong block here ' . str_repeat( 'and it keeps going on ', 40 );
+		$long_b = 'Bravo opens the second overlong block here ' . str_repeat( 'and it also keeps going ', 40 );
+		$stats  = PageCheck::stats( '<p>' . $long_a . '</p><p>short one</p><p>' . $long_b . '</p>', false );
+
+		$row = $this->check( 'check_passages', $stats );
+
+		$this->assertSame( 'warn', $row['status'] );
+		$this->assertSame( '2 long blocks', $row['label'], 'The label must not say "One" when there are two.' );
+		$this->assertStringContainsString( '2 paragraphs run over', $row['detail'], 'The count is the whole point.' );
+		$this->assertStringContainsString( 'Alpha opens the first overlong block', $row['detail'] );
+		$this->assertStringContainsString( 'Bravo opens the second overlong block', $row['detail'] );
+	}
+
+	/** One offender still reads as one, and still says where it starts. */
+	public function test_a_single_long_block_names_its_opening_words() {
+		$stats = PageCheck::stats( '<p>Charlie opens the only overlong block here ' . str_repeat( 'and on it goes ', 45 ) . '</p>', false );
+
+		$row = $this->check( 'check_passages', $stats );
+
+		$this->assertSame( 'warn', $row['status'] );
+		$this->assertSame( 'One long block', $row['label'] );
+		$this->assertStringContainsString( 'Charlie opens the only overlong block', $row['detail'] );
+	}
+
+	/**
+	 * ⛔ A caller holding only counts (any hand-built stats array) must still get
+	 * the plain sentence — never an empty "It starts ." where the words would be.
+	 */
+	public function test_a_stats_array_without_the_openings_still_reads_as_a_sentence() {
+		$row = $this->check( 'check_passages', array( 'words' => 900, 'paragraphs' => array( 40, 300 ) ) );
+
+		$this->assertSame( 'warn', $row['status'] );
+		$this->assertStringContainsString( '~300 words', $row['detail'] );
+		$this->assertStringNotContainsString( '“”', $row['detail'], 'An empty quote is worse than no quote.' );
+	}
+
+	/** The picture is named, because "1 of 3" cannot be acted on. */
+	public function test_missing_alt_text_names_the_file() {
+		$stats = PageCheck::stats(
+			'<p>Body.</p><img src="https://x.test/wp-content/uploads/river-at-dusk.png?v=2"><img src="/a/described.jpg" alt="A described one">',
+			false
+		);
+
+		$row = $this->check( 'check_alt_text', $stats );
+
+		$this->assertSame( 'warn', $row['status'] );
+		$this->assertStringContainsString( 'river-at-dusk.png', $row['detail'], 'Name the file; the owner is scanning a media library.' );
+		$this->assertStringContainsString( '1 of 2 images has no alt text', $row['detail'], 'One missing takes the singular verb.' );
+		$this->assertStringNotContainsString( '?v=2', $row['detail'], 'A query string is noise in a file name.' );
+		$this->assertStringNotContainsString( 'described.jpg', $row['detail'], 'Only the ones actually missing alt text.' );
+	}
+
+	/** ⛔ No "(s)". A count of one reads as one. */
+	public function test_counts_are_written_as_singular_or_plural_never_with_a_bracketed_s() {
+		$one_link = $this->check( 'check_sources', array( 'words' => 800, 'outbound_links' => 1 ) );
+		$this->assertStringContainsString( '1 outbound link ', $one_link['detail'] );
+		$this->assertStringNotContainsString( '(s)', $one_link['detail'] );
+
+		$one_heading = $this->check( 'check_headings', array( 'words' => 900, 'headings' => array( 2 ) ) );
+		$this->assertStringContainsString( '1 heading gives', $one_heading['detail'] );
+		$this->assertStringNotContainsString( '(s)', $one_heading['detail'] );
+
+		$many = $this->check( 'check_headings', array( 'words' => 900, 'headings' => array( 2, 2, 3 ) ) );
+		$this->assertStringContainsString( '3 headings give', $many['detail'] );
+	}
+
+	/** A skipped heading level names the heading it happens at. */
+	public function test_a_heading_jump_names_the_heading() {
+		$stats = PageCheck::stats( '<h2>Getting started</h2><p>a</p><h4>Swapping implementations here</h4>', false );
+
+		$row = $this->check( 'check_heading_order', $stats );
+
+		$this->assertSame( 'warn', $row['status'] );
+		$this->assertStringContainsString( 'H2 → H4', $row['detail'] );
+		$this->assertStringContainsString( 'Swapping implementations here', $row['detail'], '"H2 → H4" alone is unactionable on a page with nine headings.' );
+	}
+
+	/** ⛔ And a caller with levels but no text still gets a whole sentence. */
+	public function test_a_heading_jump_without_text_still_reads_cleanly() {
+		$row = $this->check( 'check_heading_order', array( 'headings' => array( 2, 4 ) ) );
+
+		$this->assertSame( 'warn', $row['status'] );
+		$this->assertStringContainsString( 'H2 → H4', $row['detail'] );
+		$this->assertStringNotContainsString( '“”', $row['detail'] );
+		$this->assertStringNotContainsString( '.  ', $row['detail'], 'A missing clause must not leave a double space.' );
+	}
+
+	/**
+	 * ⚠️ "1 of 1 images has no alt text" — both numbers said one, the noun said
+	 * many, and the file name then said it a second time. Seen on a real post
+	 * (heera.it, 2026-08-18). Each count combination gets its own true sentence.
+	 */
+	public function test_the_alt_text_count_reads_as_a_sentence_at_every_ratio() {
+		$only = $this->check( 'check_alt_text', PageCheck::stats( '<p>x</p><img src="/u/GetSetGo.png">', false ) );
+		$this->assertStringNotContainsString( '1 of 1', $only['detail'] );
+		$this->assertStringStartsWith( 'No description on', $only['detail'], 'With one image, naming it IS the sentence.' );
+
+		$all = $this->check( 'check_alt_text', PageCheck::stats( '<p>x</p><img src="/u/a.png"><img src="/u/b.png"><img src="/u/c.png">', false ) );
+		$this->assertStringContainsString( 'None of the 3 images has alt text', $all['detail'] );
+		$this->assertStringNotContainsString( '3 of 3', $all['detail'] );
+
+		$some = $this->check( 'check_alt_text', PageCheck::stats( '<p>x</p><img src="/u/a.png"><img src="/u/b.png"><img src="/u/c.png" alt="c">', false ) );
+		$this->assertStringContainsString( '2 of 3 images have no alt text', $some['detail'], 'Two missing takes the plural verb.' );
+	}
+
+	/**
+	 * ⭐ ALT TEXT THAT IS ONLY THE FILE NAME IS AN ABSENCE WEARING THE ATTRIBUTE.
+	 * The check used to see `alt` present and pass the page; an assistant reading
+	 * "screen-shot-2016-09-15-at-5-00-13-am" learns nothing. His own post caught
+	 * it (heera.it post 2276, 2026-08-18).
+	 */
+	public function test_alt_text_that_is_just_the_file_name_does_not_pass() {
+		$row = $this->check( 'check_alt_text', PageCheck::stats(
+			'<p>x</p><img src="https://heera.it/wp-content/uploads/2016/09/Screen-Shot-2016-09-15-at-5.00.13-AM-e1473894420914.png" alt="screen-shot-2016-09-15-at-5-00-13-am">',
+			false
+		) );
+
+		$this->assertSame( 'warn', $row['status'], 'The attribute being present is not the same as the image being described.' );
+		$this->assertStringContainsString( 'described only by its file name', $row['detail'] );
+		// ⭐ THE FILE, NOT THE ALT. An owner cannot open a string: he read the alt
+		// back, went to the media library and described a DIFFERENT picture.
+		$this->assertStringContainsString( 'Screen-Shot-2016-09-15-at-5.00.13-AM.png', $row['detail'], 'Name the file the owner has to open.' );
+		$this->assertStringNotContainsString( 'e1473894420914', $row['detail'], 'WordPress\'s edit suffix is not part of the name the library lists.' );
+	}
+
+	/**
+	 * ⛔ THE FALSE POSITIVE THIS MUST NEVER HAVE. A descriptive file name with a
+	 * matching descriptive alt is GOOD writing, not a slug — the tell is that a
+	 * description has spaces in it.
+	 */
+	public function test_a_real_description_matching_its_file_name_still_passes() {
+		$row = $this->check( 'check_alt_text', PageCheck::stats( '<p>x</p><img src="/u/red-fox-in-snow.jpg" alt="Red fox in snow">', false ) );
+
+		$this->assertSame( 'pass', $row['status'] );
+	}
+
+	/** WordPress size and edit suffixes must not hide a file-name alt. */
+	public function test_a_resized_file_name_is_still_recognised() {
+		$row = $this->check( 'check_alt_text', PageCheck::stats( '<p>x</p><img src="/u/holiday-shot-760x480.jpg" alt="holiday-shot">', false ) );
+
+		$this->assertSame( 'warn', $row['status'] );
+	}
+
+	/** Both kinds on one page are both reported, in one sentence each. */
+	public function test_a_missing_description_and_a_file_name_alt_are_both_named() {
+		$row = $this->check( 'check_alt_text', PageCheck::stats( '<p>x</p><img src="/u/plain.png"><img src="/u/my-photo-2.jpg" alt="my-photo-2">', false ) );
+
+		$this->assertSame( 'warn', $row['status'] );
+		$this->assertStringContainsString( 'plain.png', $row['detail'] );
+		$this->assertStringContainsString( 'my-photo-2', $row['detail'] );
+	}
+
+	/** The closing instruction agrees with how many there are. */
+	public function test_the_replace_instruction_agrees_with_the_count() {
+		$two = $this->check( 'check_alt_text', PageCheck::stats( '<p>x</p><img src="/u/dsc-0091.jpg" alt="dsc-0091"><img src="/u/img-4432.png" alt="img-4432">', false ) );
+
+		$this->assertStringContainsString( 'Replace their alt text', $two['detail'] );
+		$this->assertStringNotContainsString( 'Replace its alt text', $two['detail'] );
+		$this->assertStringContainsString( 'dsc-0091.jpg', $two['detail'], 'Both files are named, not just counted.' );
+	}
+
+	/**
+	 * ⛔ THE SECOND FALSE POSITIVE, found by scanning his live site before this
+	 * shipped: alt="table" on table.png. It matches the file name and has no
+	 * spaces, but a person may simply have typed the word — "you copied the file
+	 * name" is an accusation we cannot support for a single common word. Only a
+	 * multi-part slug is machine-made beyond doubt.
+	 */
+	public function test_a_single_word_alt_is_never_called_a_file_name() {
+		foreach ( array( 'table', 'logo', 'diagram', 'screenshot' ) as $word ) {
+			$row = $this->check( 'check_alt_text', PageCheck::stats( '<p>x</p><img src="/u/' . $word . '.png" alt="' . $word . '">', false ) );
+			$this->assertSame( 'pass', $row['status'], sprintf( 'alt="%s" is terse, not proof of a copied file name.', $word ) );
+		}
+
+		// The multi-part slugs it exists to catch are untouched by that guard.
+		foreach ( array( 'dsc-0091', 'img-4432', 'holiday-shot' ) as $slug ) {
+			$row = $this->check( 'check_alt_text', PageCheck::stats( '<p>x</p><img src="/u/' . $slug . '.jpg" alt="' . $slug . '">', false ) );
+			$this->assertSame( 'warn', $row['status'], sprintf( 'alt="%s" is a file name.', $slug ) );
+		}
+	}
+
+	/* -- The featured image's own description ------------------------------- */
+
+	/**
+	 * ⭐ THE GAP THE PANEL NEVER COVERED. The featured image is drawn by the
+	 * THEME, so it never appears in the content this class parses — a picture
+	 * with no description sailed past every check. His catch, 2026-08-18.
+	 *
+	 * ⛔ The claim is deliberately about the ATTACHMENT, not the rendered page.
+	 * Judging the render would need an HTTP request from a panel that runs on
+	 * every editor load, and it cannot be inferred either: the-alpha substitutes
+	 * the post title inline in single.php rather than through a filter, so
+	 * get_the_post_thumbnail() in wp-admin returns alt="" and would accuse a page
+	 * that IS described. "No description of its own" is true either way.
+	 */
+	public function test_a_featured_image_with_no_description_is_reported() {
+		$row = $this->check( 'check_featured_alt', array(
+			'featured_expected' => true,
+			'featured'          => true,
+			'featured_alt'      => '',
+			'featured_file'     => 'laravel-development.jpg',
+		) );
+
+		$this->assertSame( 'warn', $row['status'] );
+		$this->assertStringContainsString( 'laravel-development.jpg', $row['detail'], 'Name the file the owner has to open.' );
+		$this->assertStringContainsString( 'screen readers', $row['detail'], 'It is not an AI-only concern.' );
+	}
+
+	/** A described featured image passes, and a file-name alt does not. */
+	public function test_the_featured_image_description_is_judged_like_any_other() {
+		$good = $this->check( 'check_featured_alt', array(
+			'featured_expected' => true, 'featured' => true,
+			'featured_alt' => 'The Laravel framework logo on a red banner', 'featured_file' => 'laravel-development.jpg',
+		) );
+		$this->assertSame( 'pass', $good['status'] );
+
+		$slug = $this->check( 'check_featured_alt', array(
+			'featured_expected' => true, 'featured' => true,
+			'featured_alt' => 'dsc-0091', 'featured_file' => 'dsc-0091.jpg',
+		) );
+		$this->assertSame( 'warn', $slug['status'] );
+		$this->assertStringContainsString( 'described only by its file name', $slug['detail'] );
+	}
+
+	/**
+	 * ⛔ NO ROW when there is nothing to judge. A green "nothing to check here"
+	 * sitting under "No featured image" is two rows discussing one absence.
+	 */
+	public function test_the_row_is_absent_rather_than_green_when_there_is_no_featured_image() {
+		$this->assertNull( $this->raw( 'check_featured_alt', array( 'featured_expected' => true, 'featured' => false ) ) );
+		$this->assertNull( $this->raw( 'check_featured_alt', array( 'featured_expected' => false ) ) );
+		// A caller holding only counts must not be told its image is undescribed.
+		$this->assertNull( $this->raw( 'check_featured_alt', array( 'featured_expected' => true, 'featured' => true ) ) );
 	}
 }

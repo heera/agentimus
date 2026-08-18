@@ -261,6 +261,21 @@ final class Findings {
 		foreach ( $types as $type ) {
 			$names[] = 1 === (int) $n ? Content::singular( $type ) : Content::label( $type );
 		}
+
+		// ⚠️ Two plugins can label a type identically — WooCommerce and FluentCart
+		// both call theirs "Products" — and the sentence then stutters without
+		// saying which is which. The vendor's name is added ONLY where the label
+		// collides; on every other site this changes nothing.
+		$counts = array_count_values( $names );
+		foreach ( $names as $i => $name ) {
+			if ( $counts[ $name ] > 1 ) {
+				$source = Content::source( $types[ $i ] );
+				if ( '' !== $source ) {
+					$names[ $i ] = sprintf( '%1$s (%2$s)', $name, $source );
+				}
+			}
+		}
+
 		if ( 1 === count( $names ) ) {
 			return $names[0];
 		}

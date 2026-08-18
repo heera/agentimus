@@ -93,6 +93,31 @@ final class PageCheck {
 		$stats['featured']          = has_post_thumbnail( $post );
 		$stats['featured_expected'] = post_type_supports( $post->post_type, 'thumbnail' ) && current_theme_supports( 'post-thumbnails' );
 
+		// ⭐ THE FEATURED IMAGE IS DRAWN BY THE THEME, so it never appears in the
+		// content this class parses — which is why nothing ever reported it. It is
+		// read here from the ATTACHMENT instead.
+		//
+		// ⛔ Deliberately NOT judged on what the theme renders. Checking that would
+		// mean fetching the front-end page, and a panel that runs on every editor
+		// load must not make an HTTP request. Nor can it be inferred: the-alpha
+		// substitutes the post title inline in single.php, not through a filter, so
+		// get_the_post_thumbnail() called from wp-admin returns alt="" and would
+		// accuse a page that is in fact described.
+		//
+		// ⭐ So the claim is narrowed to one this CAN prove: the picture has no
+		// description OF ITS OWN. That is true whatever the theme does — and a
+		// theme falling back to the post title describes the article, not the
+		// picture, so the advice holds there too.
+		$stats['featured_alt']  = '';
+		$stats['featured_file'] = '';
+		if ( ! empty( $stats['featured'] ) ) {
+			$thumb_id = (int) get_post_thumbnail_id( $post );
+			if ( $thumb_id ) {
+				$stats['featured_alt']  = trim( (string) get_post_meta( $thumb_id, '_wp_attachment_image_alt', true ) );
+				$stats['featured_file'] = self::library_name( (string) wp_get_attachment_url( $thumb_id ) );
+			}
+		}
+
 		// The owner's own notes about this page's media.
 		$items      = MediaContext::items_for( $post );
 		$described  = 0;
@@ -136,6 +161,7 @@ final class PageCheck {
 			self::check_alt_text( $stats ),
 			self::check_media( $stats ),
 			self::check_featured_image( $stats ),
+			self::check_featured_alt( $stats ),
 			self::check_freshness( $stats ),
 		);
 
@@ -234,12 +260,13 @@ final class PageCheck {
 			'sources'        => __( 'No outbound sources', 'agentimus' ),
 			'headings'       => __( 'No headings', 'agentimus' ),
 			'heading_order'  => __( 'Heading order', 'agentimus' ),
-			'passages'       => __( 'One long block', 'agentimus' ),
+			'passages'       => __( 'Long blocks', 'agentimus' ),
 			'reading_ease'   => __( 'Low reading ease', 'agentimus' ),
 			'link_density'   => __( 'Mostly links', 'agentimus' ),
 			'alt_text'       => __( 'Image alt text', 'agentimus' ),
 			'media'          => __( 'Media without context', 'agentimus' ),
 			'featured_image' => __( 'No featured image', 'agentimus' ),
+			'featured_alt'   => __( 'Featured image not described', 'agentimus' ),
 			'freshness'      => __( 'Getting stale', 'agentimus' ),
 		);
 		$id = (string) $id;
@@ -263,13 +290,25 @@ final class PageCheck {
 		// Concrete, quotable specifics: numbers, percentages, dates, amounts.
 		$figures = (int) preg_match_all( '/\d[\d.,]*%?/', $text );
 
-		$headings   = array();
+		$headings     = array();
+		$heading_text = array(); // same order as $headings, so index N describes level N
 		$paragraphs = array();
+		// ⭐ WHICH paragraph, not just how long the worst one is. A page can hold
+		// several over the line, and the row used to report only max() — so an
+		// owner fixed one, the warning came back with a different number, and it
+		// read as "nothing happened". Found by walking heera.it, 2026-08-18.
+		// Only the offenders are kept, so a long page costs a handful of strings.
+		$long_paras = array();
 		$links      = 0;
 		$link_words = 0;
 		$outbound   = 0;
 		$images     = 0;
 		$images_no_alt = 0;
+		$images_slug_alt = 0;
+		$slug_alt_names  = array();
+		// Same idea for pictures: "1 of 3 images" cannot be acted on without
+		// hunting. The file name is what the owner sees in the media library.
+		$no_alt_names  = array();
 		$captions   = 0;
 		$transcript = false;
 		$media      = array();
@@ -284,6 +323,10 @@ final class PageCheck {
 				$tag = strtolower( $node->nodeName );
 				if ( preg_match( '/^h([1-6])$/', $tag, $m ) ) {
 					$headings[] = (int) $m[1];
+					// ⭐ Kept beside the levels rather than folded into them:
+					// $s['headings'] is a list of LEVELS that several checks read
+					// and count, and widening it would change every one of them.
+					$heading_text[] = self::opening_words( $node->textContent, 6 );
 					// "Transcript" as a section heading — the plainest way an author
 					// writes one, and it costs nothing to recognise.
 					if ( self::is_transcript_label( $node->textContent ) ) {
@@ -303,7 +346,14 @@ final class PageCheck {
 						$transcript = true;
 					}
 				} elseif ( 'p' === $tag ) {
-					$paragraphs[] = self::word_count( $node->textContent );
+					$para_words   = self::word_count( $node->textContent );
+					$paragraphs[] = $para_words;
+					if ( $para_words > self::LONG_PARAGRAPH_WORDS ) {
+						$long_paras[] = array(
+							'words' => $para_words,
+							'opens' => self::opening_words( $node->textContent ),
+						);
+					}
 				} elseif ( 'a' === $tag ) {
 					++$links;
 					$link_words += self::word_count( $node->textContent );
@@ -316,6 +366,21 @@ final class PageCheck {
 					// marker for a decorative image (WAI) — intentional, so don't flag it.
 					if ( ! $node->hasAttribute( 'alt' ) ) {
 						++$images_no_alt;
+						$name = self::image_name( (string) $node->getAttribute( 'src' ) );
+						if ( '' !== $name ) {
+							$no_alt_names[] = $name;
+						}
+					} elseif ( self::is_filename_alt( (string) $node->getAttribute( 'alt' ), (string) $node->getAttribute( 'src' ) ) ) {
+						++$images_slug_alt;
+						// ⚠️ THE FILE, NOT THE ALT. Quoting the alt back looked right —
+						// it is the string being replaced — but an owner cannot open a
+						// string. He read "screen-shot-2016-09-15-at-5-00-13-am", went
+						// to the media library and set the alt on a DIFFERENT picture
+						// (the featured image), because nothing in the sentence said
+						// which file to open. heera.it, 2026-08-18. For a file-name alt
+						// the two are near-identical anyway, so the file wins: it is
+						// what the library lists and what its search matches.
+						$slug_alt_names[] = self::library_name( (string) $node->getAttribute( 'src' ) );
 					}
 				}
 			}
@@ -368,7 +433,12 @@ final class PageCheck {
 			'words'          => $words,
 			'figures'        => $figures,
 			'headings'       => $headings,   // heading levels in document order
+			'heading_text'   => $heading_text, // their opening words, same order
 			'paragraphs'     => $paragraphs, // per-paragraph word counts
+			'long_paragraphs' => $long_paras, // only those over the limit: words + opening words
+			'images_no_alt_names' => $no_alt_names,
+			'images_slug_alt'     => $images_slug_alt,
+			'images_slug_alt_names' => $slug_alt_names,
 			'links'          => $links,
 			'link_words'     => $link_words,
 			'outbound_links' => $outbound,
@@ -401,14 +471,14 @@ final class PageCheck {
 				'words',
 				__( 'Enough substance', 'agentimus' ),
 				'pass',
-				sprintf( /* translators: %d: word count. */ __( '%d words — enough for an AI assistant to extract and cite.', 'agentimus' ), $words )
+				sprintf( /* translators: %d: word count. */ __( '%d words — enough for an AI assistant to extract and cite, and enough for a search engine to treat as a real page.', 'agentimus' ), $words )
 			);
 		}
 		return self::row(
 			'words',
 			__( 'Not enough substance yet', 'agentimus' ),
 			'warn',
-			sprintf( /* translators: 1: word count, 2: the minimum. */ __( 'Only %1$d words. Below ~%2$d an AI assistant has little to work with — expand the page or merge it.', 'agentimus' ), $words, self::MIN_WORDS )
+			sprintf( /* translators: 1: word count, 2: the minimum. */ __( 'Only %1$d words. Below ~%2$d an AI assistant has little to work with, and a search engine sees a thin page — expand it or merge it into another.', 'agentimus' ), $words, self::MIN_WORDS )
 		);
 	}
 
@@ -419,13 +489,13 @@ final class PageCheck {
 		}
 		$lead = ! empty( $s['paragraphs'] ) ? (int) $s['paragraphs'][0] : 0;
 		if ( ! empty( $s['has_excerpt'] ) || $lead >= self::SUMMARY_MIN_WORDS ) {
-			return self::row( 'summary', __( 'Opening summary', 'agentimus' ), 'pass', __( 'Has an excerpt or a solid first paragraph an AI assistant can use as the summary.', 'agentimus' ) );
+			return self::row( 'summary', __( 'Opening summary', 'agentimus' ), 'pass', __( 'Has an excerpt or a solid first paragraph — the line an AI assistant quotes and a search result shows.', 'agentimus' ) );
 		}
 		return self::row(
 			'summary',
 			__( 'No opening summary', 'agentimus' ),
 			'warn',
-			__( 'The page does not start with a clear summary. Add an excerpt, or a first paragraph that says what the page is about.', 'agentimus' )
+			__( 'The page does not start with a clear summary. Add an excerpt, or a first paragraph that says what the page is about — it is the line assistants quote and search results show.', 'agentimus' )
 		);
 	}
 
@@ -443,7 +513,7 @@ final class PageCheck {
 			'evidence',
 			__( 'Short on specifics', 'agentimus' ),
 			'warn',
-			__( 'No figures, dates, or outbound sources. AI assistants lift and cite specifics — add a statistic, a concrete detail, or a link to a source you build on.', 'agentimus' )
+			__( 'No figures, dates, or outbound sources. Specifics are what an AI assistant lifts and credits, and what a reader trusts — add a statistic, a concrete detail, or a link to a source you build on.', 'agentimus' )
 		);
 	}
 
@@ -456,7 +526,7 @@ final class PageCheck {
 		}
 		$outbound = (int) ( isset( $s['outbound_links'] ) ? $s['outbound_links'] : 0 );
 		if ( $outbound >= 1 ) {
-			return self::row( 'sources', __( 'Cited sources', 'agentimus' ), 'pass', sprintf( /* translators: %d: outbound link count. */ __( '%d outbound link(s) — the page shows where its facts come from.', 'agentimus' ), $outbound ) );
+			return self::row( 'sources', __( 'Cited sources', 'agentimus' ), 'pass', sprintf( /* translators: %d: outbound link count. */ _n( '%d outbound link — the page shows where its facts come from.', '%d outbound links — the page shows where its facts come from.', (int) $outbound, 'agentimus' ), $outbound ) );
 		}
 		return self::row(
 			'sources',
@@ -468,30 +538,184 @@ final class PageCheck {
 
 	private static function check_headings( array $s ) {
 		if ( (int) $s['words'] < self::HEADINGS_MIN_WORDS || ! empty( $s['headings'] ) ) {
-			return self::row( 'headings', __( 'Section headings', 'agentimus' ), 'pass', empty( $s['headings'] ) ? __( 'Short enough to read without headings.', 'agentimus' ) : sprintf( /* translators: %d: heading count. */ __( '%d heading(s) give the page navigable structure.', 'agentimus' ), count( $s['headings'] ) ) );
+			return self::row( 'headings', __( 'Section headings', 'agentimus' ), 'pass', empty( $s['headings'] ) ? __( 'Short enough to read without headings.', 'agentimus' ) : sprintf( /* translators: %d: heading count. */ _n( '%d heading gives the page navigable structure.', '%d headings give the page navigable structure.', count( $s['headings'] ), 'agentimus' ), count( $s['headings'] ) ) );
 		}
 		return self::row(
 			'headings',
 			__( 'No headings', 'agentimus' ),
 			'warn',
-			__( 'A long page with no headings is one big block of text. Add H2/H3 headings so an AI assistant can find and quote each part.', 'agentimus' )
+			__( 'A long page with no headings is one big block of text. Add H2/H3 headings so an AI assistant can find and quote each part, and so readers and search engines can see how the page is organised.', 'agentimus' )
 		);
 	}
 
 	private static function check_heading_order( array $s ) {
-		$prev = 0;
-		foreach ( (array) $s['headings'] as $level ) {
+		$texts = isset( $s['heading_text'] ) ? (array) $s['heading_text'] : array();
+		$prev  = 0;
+		foreach ( (array) $s['headings'] as $i => $level ) {
 			if ( $prev && $level > $prev + 1 ) {
+				// WHICH heading. "H2 → H4" is true and unactionable on a page with
+				// nine headings; the words are what the owner scrolls to find.
+				$at = isset( $texts[ $i ] ) && '' !== $texts[ $i ]
+					/* translators: %s: the heading's opening words, quoted. */
+					? ' ' . sprintf( __( 'It happens at %s.', 'agentimus' ), self::quoted( $texts[ $i ] ) )
+					: '';
 				return self::row(
 					'heading_order',
 					__( 'Heading order', 'agentimus' ),
 					'warn',
-					sprintf( /* translators: 1: from level, 2: to level. */ __( 'Heading levels jump (H%1$d → H%2$d). Don’t skip levels — it breaks the outline an AI assistant builds from the page.', 'agentimus' ), (int) $prev, (int) $level )
+					sprintf( /* translators: 1: from level, 2: to level, 3: where it happens (may be empty). */ __( 'Heading levels jump (H%1$d → H%2$d).%3$s Don’t skip levels — it breaks the outline an AI assistant builds from the page, and the one a screen reader announces.', 'agentimus' ), (int) $prev, (int) $level, $at )
 				);
 			}
 			$prev = (int) $level;
 		}
 		return self::row( 'heading_order', __( 'Heading order', 'agentimus' ), 'pass', __( 'Heading levels nest without skips.', 'agentimus' ) );
+	}
+
+	/**
+	 * The first few words of a passage, so a row can say WHICH one it means.
+	 * An owner searches the editor for these words; eight is enough to land on
+	 * the right block and short enough to sit in a narrow meta box.
+	 *
+	 * @param string $text  Passage text.
+	 * @param int    $limit How many words to keep.
+	 * @return string
+	 */
+	/**
+	 * Curly quotes around a fragment — the panel already speaks in curly quotes,
+	 * and straight ones beside them read as a different voice.
+	 *
+	 * @param string $text Fragment.
+	 * @return string
+	 */
+	private static function quoted( $text ) {
+		return '“' . $text . '”';
+	}
+
+	/**
+	 * "a, b and c" — written the way a person says it. ⛔ Not a comma-joined
+	 * machine list: this sentence is read aloud in an owner's head.
+	 *
+	 * @param array $items Already-formatted items.
+	 * @return string
+	 */
+	private static function and_list( array $items ) {
+		$items = array_values( array_filter( $items ) );
+		$n     = count( $items );
+		if ( $n < 2 ) {
+			return $n ? $items[0] : '';
+		}
+		$last = array_pop( $items );
+		/* translators: 1: all items but the last, comma-joined. 2: the last item. */
+		return sprintf( __( '%1$s and %2$s', 'agentimus' ), implode( ', ', $items ), $last );
+	}
+
+	private static function opening_words( $text, $limit = 8 ) {
+		$text = trim( (string) preg_replace( '/\s+/u', ' ', (string) $text ) );
+		if ( '' === $text ) {
+			return '';
+		}
+		$parts = explode( ' ', $text );
+		if ( count( $parts ) <= $limit ) {
+			return $text;
+		}
+		return implode( ' ', array_slice( $parts, 0, $limit ) ) . '…';
+	}
+
+	/**
+	 * The file name as the media library lists it — WordPress's size suffix
+	 * (-760x480) and edit suffix (-e1473894420914) stripped, so the name in the
+	 * sentence is the name the owner can search for.
+	 *
+	 * @param string $src Image src attribute.
+	 * @return string
+	 */
+	private static function library_name( $src ) {
+		$src = (string) preg_replace( '/[?#].*$/', '', trim( (string) $src ) );
+		if ( '' === $src || 0 === strpos( $src, 'data:' ) ) {
+			return '';
+		}
+		$name = rawurldecode( basename( $src ) );
+		$ext  = '';
+		if ( preg_match( '/(\.[a-z0-9]{2,5})$/i', $name, $m ) ) {
+			$ext  = $m[1];
+			$name = substr( $name, 0, -strlen( $ext ) );
+		}
+		$name = (string) preg_replace( '/-e\d{8,}$/', '', $name );
+		$name = (string) preg_replace( '/-\d+x\d+$/', '', $name );
+		$name .= $ext;
+		return strlen( $name ) > 48 ? substr( $name, 0, 47 ) . '…' : $name;
+	}
+
+	/**
+	 * Alt text that is only the file name — "screen-shot-2016-09-15-at-5-00-13-am"
+	 * on Screen-Shot-2016-09-15-at-5.00.13-AM.png. The attribute is present, so
+	 * the old check called the image described and passed; an assistant reading
+	 * it learns nothing at all. ⭐ Found on a real post (heera.it, 2026-08-18).
+	 *
+	 * ⛔ A matching name is NOT enough on its own: "red-fox-in-snow.jpg" with alt
+	 * "Red fox in snow" is a good description that happens to match. The tell is
+	 * that a DESCRIPTION HAS SPACES — so a spaceless alt that normalises to the
+	 * file name is the file name, and anything a person wrote is left alone.
+	 *
+	 * @param string $alt The alt attribute.
+	 * @param string $src The src attribute.
+	 * @return bool
+	 */
+	private static function is_filename_alt( $alt, $src ) {
+		$alt = trim( (string) $alt );
+		if ( '' === $alt || preg_match( '/\s/u', $alt ) ) {
+			return false;
+		}
+		$src = (string) preg_replace( '/[?#].*$/', '', trim( (string) $src ) );
+		if ( '' === $src || 0 === strpos( $src, 'data:' ) ) {
+			return false;
+		}
+		$base = rawurldecode( basename( $src ) );
+		$base = (string) preg_replace( '/\.[a-z0-9]{2,5}$/i', '', $base ); // extension
+		$base = (string) preg_replace( '/-e\d{8,}$/', '', $base );          // WordPress edit suffix
+		$base = (string) preg_replace( '/-\d+x\d+$/', '', $base );         // WordPress size suffix
+		if ( '' === $base ) {
+			return false;
+		}
+		// ⛔ A SINGLE COMMON WORD IS NOT PROOF. alt="table" on table.png matches,
+		// but a person may simply have typed the word — and "you copied the file
+		// name" is then an accusation we cannot support. Only a multi-part slug
+		// (screen-shot-2016-09-15-…, dsc-0091, img-4432) is machine-made beyond
+		// doubt. Caught by scanning heera.it before shipping this: 2 pages
+		// matched and one of them was this exact false positive.
+		$slug = self::slugify( $alt );
+		if ( false === strpos( $slug, '-' ) ) {
+			return false;
+		}
+		return $slug === self::slugify( $base );
+	}
+
+	/**
+	 * Lowercase, non-alphanumerics folded to single hyphens — so a file name and
+	 * the slug WordPress made from it compare equal.
+	 *
+	 * @param string $text Text.
+	 * @return string
+	 */
+	private static function slugify( $text ) {
+		return trim( (string) preg_replace( '/[^a-z0-9]+/', '-', strtolower( (string) $text ) ), '-' );
+	}
+
+	/**
+	 * A picture's file name, as the media library shows it. Query strings and
+	 * directories are noise here — the owner is scanning a list of names.
+	 *
+	 * @param string $src Image src attribute.
+	 * @return string
+	 */
+	private static function image_name( $src ) {
+		$src = trim( (string) $src );
+		if ( '' === $src || 0 === strpos( $src, 'data:' ) ) {
+			return '';
+		}
+		$path = (string) preg_replace( '/[?#].*$/', '', $src );
+		$name = rawurldecode( basename( $path ) );
+		return strlen( $name ) > 48 ? substr( $name, 0, 47 ) . '…' : $name;
 	}
 
 	private static function check_passages( array $s ) {
@@ -500,11 +724,58 @@ final class PageCheck {
 		}
 		$longest = (int) max( (array) $s['paragraphs'] );
 		if ( $longest > self::LONG_PARAGRAPH_WORDS ) {
+			// ⚠️ stats() supplies the offenders; a hand-built stats array (tests,
+			// and any caller that only has counts) still gets the old sentence
+			// rather than an empty one. The COUNT comes from the same array the
+			// warning came from, so the two can never disagree.
+			$long  = isset( $s['long_paragraphs'] ) ? (array) $s['long_paragraphs'] : array();
+			$opens = array();
+			foreach ( $long as $para ) {
+				if ( ! empty( $para['opens'] ) ) {
+					$opens[] = $para['opens'];
+				}
+			}
+			$count = count( $long );
+
+			if ( $count > 1 ) {
+				// ⭐ Only three openings are named. A page with nine long blocks
+				// needs a rewrite, not a nine-item list in a narrow panel.
+				$shown = array_slice( $opens, 0, 3 );
+				$listed = self::and_list( array_map( array( __CLASS__, 'quoted' ), $shown ) );
+				// ⛔ Not "…, and 2 more" bolted onto an and-list — "A, B and C, and
+				// 2 more" is two conjunctions in one breath. Naming the three as
+				// THE FIRST three says the same thing in one clause, and it is
+				// true: they come in document order.
+				$where = '';
+				if ( $shown ) {
+					$where = count( $opens ) > count( $shown )
+						/* translators: %s: the opening words of the first three long paragraphs, already quoted and joined. */
+						? sprintf( __( 'The first three start %s.', 'agentimus' ), $listed )
+						/* translators: %s: the opening words of each long paragraph, already quoted and joined. */
+						: sprintf( __( 'They start %s.', 'agentimus' ), $listed );
+				}
+				return self::row(
+					'passages',
+					sprintf( /* translators: %d: how many paragraphs are too long. */ __( '%d long blocks', 'agentimus' ), $count ),
+					'warn',
+					trim( sprintf(
+						/* translators: 1: how many paragraphs, 2: the threshold, 3: the longest one's word count. */
+						__( '%1$d paragraphs run over ~%2$d words. The longest is ~%3$d.', 'agentimus' ),
+						$count,
+						self::LONG_PARAGRAPH_WORDS,
+						$longest
+					) . ' ' . $where . ' ' . __( 'Break each one into shorter blocks, so an AI assistant can lift a clean, self-contained passage — and a reader can skim them.', 'agentimus' ) )
+				);
+			}
+
+			$where = $opens
+				? sprintf( /* translators: %s: the paragraph's opening words, quoted. */ __( 'It starts %s.', 'agentimus' ), self::quoted( $opens[0] ) ) . ' '
+				: '';
 			return self::row(
 				'passages',
 				__( 'One long block', 'agentimus' ),
 				'warn',
-				sprintf( /* translators: 1: word count, 2: the threshold. */ __( 'A paragraph runs ~%1$d words. Break blocks over ~%2$d into shorter ones, so an AI assistant can lift a clean, self-contained passage.', 'agentimus' ), $longest, self::LONG_PARAGRAPH_WORDS )
+				sprintf( /* translators: 1: word count, 2: where it starts (may be empty), 3: the threshold. */ __( 'A paragraph runs ~%1$d words. %2$sBreak blocks over ~%3$d into shorter ones, so an AI assistant can lift a clean, self-contained passage — and a reader can skim it.', 'agentimus' ), $longest, $where, self::LONG_PARAGRAPH_WORDS )
 			);
 		}
 		return self::row( 'passages', __( 'Quotable passages', 'agentimus' ), 'pass', __( 'Paragraphs are a quotable length — easy to lift a clean passage from.', 'agentimus' ) );
@@ -604,7 +875,7 @@ final class PageCheck {
 					'link_density',
 					__( 'Mostly links', 'agentimus' ),
 					'warn',
-					sprintf( /* translators: %d: percentage. */ __( 'About %d%% of the words are inside links — this reads more like navigation than content. Add prose or trim the link lists.', 'agentimus' ), (int) round( $ratio * 100 ) )
+					sprintf( /* translators: %d: percentage. */ __( 'About %d%% of the words are inside links — this reads more like navigation than content. Assistants and search engines both have little here to index or quote. Add prose or trim the link lists.', 'agentimus' ), (int) round( $ratio * 100 ) )
 				);
 			}
 		}
@@ -612,14 +883,101 @@ final class PageCheck {
 	}
 
 	private static function check_alt_text( array $s ) {
+		// An alt that is only the file name is an absence wearing the attribute:
+		// it must name itself rather than pass. Reported after the truly missing
+		// ones, because a missing description is the bigger gap.
+		$slugged = (int) ( isset( $s['images_slug_alt'] ) ? $s['images_slug_alt'] : 0 );
+		$slug_line = '';
+		if ( $slugged > 0 ) {
+			$slug_shown = array_slice( array_filter( (array) ( isset( $s['images_slug_alt_names'] ) ? $s['images_slug_alt_names'] : array() ) ), 0, 2 );
+			// ⭐ Lead with the file when we have it: the first thing the owner does
+			// is find the picture, and only then edit its text.
+			if ( 1 === $slugged && $slug_shown ) {
+				$slug_line = sprintf(
+					/* translators: %s: the image file name, quoted. */
+					__( '%s is described only by its file name, which tells an assistant nothing.', 'agentimus' ),
+					self::quoted( $slug_shown[0] )
+				) . ' ';
+			} elseif ( $slug_shown ) {
+				$slug_line = sprintf(
+					/* translators: 1: how many images, 2: their file names, quoted and joined. */
+					__( '%1$d images are described only by their file names, which tell an assistant nothing — %2$s.', 'agentimus' ),
+					$slugged,
+					self::and_list( array_map( array( __CLASS__, 'quoted' ), $slug_shown ) )
+				) . ' ';
+			} else {
+				$slug_line = sprintf(
+					/* translators: %d: how many images are described only by their file name. */
+					_n(
+						'%d image is described only by its file name, which tells an assistant nothing.',
+						'%d images are described only by their file names, which tell an assistant nothing.',
+						$slugged,
+						'agentimus'
+					),
+					$slugged
+				) . ' ';
+			}
+		}
+
 		if ( (int) $s['images_no_alt'] > 0 ) {
+			// ⭐ WHICH picture. "1 of 3" sent the owner hunting through the post;
+			// the file name is what they already see in the media library. Three
+			// at most — past that the answer is "describe them all".
+			$shown = array_slice( (array) ( isset( $s['images_no_alt_names'] ) ? $s['images_no_alt_names'] : array() ), 0, 3 );
+			$names = $shown
+				? sprintf(
+					/* translators: %s: image file names, already quoted and joined. */
+					__( 'No description on %s.', 'agentimus' ),
+					self::and_list( array_map( array( __CLASS__, 'quoted' ), $shown ) )
+				) . ' '
+				: '';
+
+			// ⚠️ "1 of 1 images has no alt text" — seen on a real post (heera.it,
+			// 2026-08-18). Both numbers say one and the noun says many. When every
+			// image is missing its description, "N of N" is arithmetic nobody
+			// needs: say it plainly instead.
+			$missing = (int) $s['images_no_alt'];
+			$total   = (int) $s['images'];
+			if ( $missing >= $total ) {
+				// ⭐ One image, and we know its name: "The image has no alt text.
+				// No description on “x.png”." says it twice. The name alone is the
+				// shorter true sentence.
+				$count_line = 1 === $total
+					? ( $shown ? '' : __( 'The image has no alt text.', 'agentimus' ) )
+					: sprintf(
+						/* translators: %d: how many images are on the page. */
+						__( 'None of the %d images has alt text.', 'agentimus' ),
+						$total
+					);
+			} else {
+				$count_line = sprintf(
+					/* translators: 1: how many images lack alt text, 2: how many images in total. */
+					_n( '%1$d of %2$d images has no alt text.', '%1$d of %2$d images have no alt text.', $missing, 'agentimus' ),
+					$missing,
+					$total
+				);
+			}
 			return self::row(
 				'alt_text',
 				__( 'Image alt text', 'agentimus' ),
 				'warn',
-				sprintf( /* translators: 1: missing count, 2: total. */ __( '%1$d of %2$d image(s) have no alt text. AI assistants can’t read pixels — describe each image so its meaning survives.', 'agentimus' ), (int) $s['images_no_alt'], (int) $s['images'] )
+				trim( $count_line . ' ' . $names . $slug_line . __( 'AI assistants can’t read pixels. Neither can screen readers, and image search leans on the same words. Describe each image so its meaning survives.', 'agentimus' ) )
 			);
 		}
+		if ( $slugged > 0 ) {
+			return self::row(
+				'alt_text',
+				__( 'Image alt text', 'agentimus' ),
+				'warn',
+				trim( $slug_line . _n(
+					'Replace its alt text with a short sentence about what the picture shows — for assistants, for screen readers and for image search alike.',
+					'Replace their alt text with short sentences about what each picture shows — for assistants, for screen readers and for image search alike.',
+					$slugged,
+					'agentimus'
+				) )
+			);
+		}
+
 		$detail = (int) $s['images'] > 0 ? __( 'Every image has alt text.', 'agentimus' ) : __( 'No images to describe.', 'agentimus' );
 		return self::row( 'alt_text', __( 'Image alt text', 'agentimus' ), 'pass', $detail );
 	}
@@ -1214,6 +1572,59 @@ final class PageCheck {
 		return (bool) preg_match( $pattern, $text );
 	}
 
+	/**
+	 * Does the featured image carry a description of its own? Separate from
+	 * {@see check_featured_image()} on purpose: "No featured image" and "the
+	 * featured image has no description" are different problems with different
+	 * fixes, and one row cannot wear both labels honestly.
+	 *
+	 * @param array $s Page stats.
+	 * @return array|null Null when there is nothing to judge — normalize() drops it.
+	 */
+	private static function check_featured_alt( array $s ) {
+		$label = __( 'Featured image description', 'agentimus' );
+
+		// ⛔ NO ROW AT ALL when there is nothing to judge — no featured image, a
+		// type that has none, or a caller that did not read the attachment. A
+		// green "nothing to check here" sitting directly under "No featured
+		// image" is two rows discussing one absence.
+		if ( empty( $s['featured_expected'] ) || empty( $s['featured'] ) || ! array_key_exists( 'featured_alt', $s ) ) {
+			return null;
+		}
+
+		$alt  = trim( (string) $s['featured_alt'] );
+		$file = (string) ( isset( $s['featured_file'] ) ? $s['featured_file'] : '' );
+		$name = '' !== $file ? self::quoted( $file ) : __( 'the featured image', 'agentimus' );
+
+		if ( '' === $alt ) {
+			return self::row(
+				'featured_alt',
+				__( 'Featured image not described', 'agentimus' ),
+				'warn',
+				sprintf(
+					/* translators: %s: the image file name, quoted. */
+					__( '%s has no description of its own. Add alt text in the media library — assistants, screen readers and image search all rely on it, and a theme that falls back to the post title describes the article, not the picture.', 'agentimus' ),
+					$name
+				)
+			);
+		}
+
+		if ( self::is_filename_alt( $alt, $file ) ) {
+			return self::row(
+				'featured_alt',
+				__( 'Featured image not described', 'agentimus' ),
+				'warn',
+				sprintf(
+					/* translators: %s: the image file name, quoted. */
+					__( '%s is described only by its file name, which tells an assistant nothing. Replace its alt text with a short sentence about what the picture shows.', 'agentimus' ),
+					$name
+				)
+			);
+		}
+
+		return self::row( 'featured_alt', $label, 'pass', __( 'The featured image carries its own description.', 'agentimus' ) );
+	}
+
 	private static function check_featured_image( array $s ) {
 		// Only expected where the content type and theme actually offer one —
 		// skip honestly instead of nagging about a box that isn't there.
@@ -1248,7 +1659,7 @@ final class PageCheck {
 				'freshness',
 				__( 'Getting stale', 'agentimus' ),
 				'warn',
-				sprintf( /* translators: %d: months since last update. */ __( 'Last updated about %d months ago. AI assistants favour current sources — a refresh (even a dated review note) helps this page stay citable.', 'agentimus' ), $months )
+				sprintf( /* translators: %d: months since last update. */ __( 'Last updated about %d months ago. AI assistants favour current sources, and so does search — a refresh (even a dated review note) helps this page stay citable.', 'agentimus' ), $months )
 			);
 		}
 		return self::row( 'freshness', __( 'Freshness', 'agentimus' ), 'pass', __( 'Recently enough updated to read as current.', 'agentimus' ) );

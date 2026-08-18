@@ -35,7 +35,7 @@
  * which posts it at the chosen time with the owner's own credentials.
  *
  * Gated by the `enable_share_copy` setting (on by default — an authoring aid
- * with no front-end output, same posture as the AI Readability panel) plus the
+ * with no front-end output, same posture as the Readability panel) plus the
  * `agentimus_share_copy_enabled` filter as a code-level override. Off means
  * off everywhere: the tab is not composed AND the REST route refuses.
  *

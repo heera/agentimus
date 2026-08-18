@@ -255,7 +255,7 @@ final class Assist {
 			return new \WP_Error( 'agentimus_not_found', __( 'That content is not available.', 'agentimus' ), array( 'status' => 404 ) );
 		}
 		if ( ! $this->settings->enabled( 'enable_page_checks' ) ) {
-			return new \WP_Error( 'agentimus_field_off', __( 'AI Readability is turned off.', 'agentimus' ), array( 'status' => 400 ) );
+			return new \WP_Error( 'agentimus_field_off', __( 'Readability is turned off.', 'agentimus' ), array( 'status' => 400 ) );
 		}
 		if ( ! self::ai_available() ) {
 			return new \WP_Error( 'agentimus_ai_unavailable', __( 'No AI provider is configured. Add one under Settings → AI.', 'agentimus' ), array( 'status' => 503 ) );
@@ -664,7 +664,7 @@ final class Assist {
     return true;
   }
 
-  // ---- AI Readability: "Fix with AI" on warn/fail rows ----
+  // ---- Readability: "Fix with AI" on warn/fail rows ----
   // The readability panel is server-rendered AND re-rendered over REST after each save, so
   // the click is delegated on the document (survives innerHTML replacement) not bound per button.
   function canInsertBlocks(){
@@ -791,7 +791,7 @@ JS;
 			. '.agentimus-assist__btn.is-busy .agentimus-assist__icon{animation:agentimus-assist-spin 1s linear infinite}'
 			. '.agentimus-assist__note{font-size:12px;color:#646970;line-height:1.5}'
 			. '.agentimus-assist__note.is-error{color:#d63638}'
-			// AI Readability "Fix with AI" affordance.
+			// Readability "Fix with AI" affordance.
 			. '.agentimus-pc__fix{display:inline-flex;align-items:center;gap:4px;margin-top:6px;background:none;border:1px solid #c3c4c7;border-radius:3px;padding:2px 8px;font-size:12px;color:#2271b1;cursor:pointer}'
 			. '.agentimus-pc__fix:hover{border-color:#2271b1;background:#f6f7f7}'
 			. '.agentimus-pc__fix .agentimus-assist__icon{color:#8073a6}'

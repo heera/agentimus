@@ -92,7 +92,17 @@ export default {
     // "Posts, Pages and Products" — written the way a person would say it, not
     // as a comma-joined machine list.
     scopeNames() {
-      const names = this.scopeOn.map((t) => t.label);
+      // ⚠️ TWO PLUGINS CAN NAME A TYPE THE SAME THING. On a site with both
+      // WooCommerce and FluentCart this read "Posts, Pages, Downloads, Products
+      // and Products" — a stutter that also told the owner nothing about which
+      // Products was which (found live, 2026-08-18). The vendor's name is only
+      // added where the label actually collides: putting it on every row would
+      // turn a sentence into a manifest.
+      const labels = this.scopeOn.map((t) => t.label);
+      const clashes = new Set(labels.filter((l, i) => labels.indexOf(l) !== i));
+      const names = this.scopeOn.map((t) => (
+        clashes.has(t.label) && t.source ? `${t.label} (${t.source})` : t.label
+      ));
       if (!names.length) return '';
       if (names.length === 1) return names[0];
       return `${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}`;

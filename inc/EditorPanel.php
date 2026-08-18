@@ -57,7 +57,7 @@ final class EditorPanel {
 	}
 
 	/**
-	 * Register the route the editor polls to refresh the AI Readability rows after a
+	 * Register the route the editor polls to refresh the Readability rows after a
 	 * save. The block editor saves without a page reload, so the server-rendered box
 	 * would otherwise stay stale until a manual refresh; this returns the same markup
 	 * the meta box renders. Gated per post by the edit_post capability.
@@ -84,7 +84,7 @@ final class EditorPanel {
 	}
 
 	/**
-	 * GET /agentimus/v1/page-check/{id} — the AI Readability rows for a saved post,
+	 * GET /agentimus/v1/page-check/{id} — the Readability rows for a saved post,
 	 * as the markup the meta box would render. `enabled:false` when the section is
 	 * off (the editor simply leaves the panel as-is).
 	 *
@@ -117,25 +117,68 @@ final class EditorPanel {
 	 *
 	 * @return array<string,array{label:string,render:callable}>
 	 */
+	private function catalogue() {
+		return array(
+			'readability' => array(
+				// ⭐ NOT "AI Readability". Twelve of its fourteen rows are checks a
+				// classic SEO tool runs too — alt text, headings, heading order,
+				// thin content, freshness — and naming only one audience taught
+				// owners that alt text was an AI nicety they could skip. His call,
+				// 2026-08-18. The audience is stated once in the panel's lead
+				// instead, so each row can stay short.
+				'label'  => __( 'Readability', 'agentimus' ),
+				// ⭐ The TAB and its SWITCH are different words, so a note that
+				// only named the tab would send someone hunting for "JSON-LD" in a
+				// settings list that says "Rich data for search". Both, always.
+				'switch' => __( 'Readability tips', 'agentimus' ),
+				'blurb'  => __( 'How easily this page can be read, sectioned and quoted — by AI assistants, by search engines and by people.', 'agentimus' ),
+				'on'     => $this->readability->is_enabled(),
+				'render' => array( $this->readability, 'render_meta_box' ),
+			),
+			'schema'      => array(
+				'label'  => __( 'JSON-LD', 'agentimus' ),
+				'switch' => __( 'Rich data for search', 'agentimus' ),
+				'blurb'  => __( 'The structured description this page publishes, exactly as a search engine or an assistant receives it.', 'agentimus' ),
+				'on'     => $this->schema->is_enabled(),
+				'render' => array( $this->schema, 'render_meta_box' ),
+			),
+			'share'       => array(
+				'label'  => __( 'Share', 'agentimus' ),
+				'switch' => __( 'Share drafts', 'agentimus' ),
+				'blurb'  => __( 'Ready-to-post drafts for X, LinkedIn, Facebook and more, written from the post itself.', 'agentimus' ),
+				'on'     => $this->share->is_enabled(),
+				'render' => array( $this->share, 'render_meta_box' ),
+			),
+		);
+	}
+
+	/**
+	 * The sections that are switched OFF — what the box is missing, so it can say
+	 * so instead of looking broken. ⚠️ A panel with one section renders no tab
+	 * bar at all, so an owner with two of three switched off sees an unlabelled
+	 * box and reasonably concludes it is broken. He did, 2026-08-18.
+	 *
+	 * @return array<string,array<string,string>>
+	 */
+	private function missing() {
+		$out = array();
+		foreach ( $this->catalogue() as $key => $section ) {
+			if ( empty( $section['on'] ) ) {
+				$out[ $key ] = $section;
+			}
+		}
+		return $out;
+	}
+
 	private function sections() {
 		$sections = array();
-		if ( $this->readability->is_enabled() ) {
-			$sections['readability'] = array(
-				'label'  => __( 'AI Readability', 'agentimus' ),
-				'render' => array( $this->readability, 'render_meta_box' ),
-			);
-		}
-		if ( $this->schema->is_enabled() ) {
-			$sections['schema'] = array(
-				'label'  => __( 'JSON-LD', 'agentimus' ),
-				'render' => array( $this->schema, 'render_meta_box' ),
-			);
-		}
-		if ( $this->share->is_enabled() ) {
-			$sections['share'] = array(
-				'label'  => __( 'Share', 'agentimus' ),
-				'render' => array( $this->share, 'render_meta_box' ),
-			);
+		foreach ( $this->catalogue() as $key => $section ) {
+			if ( ! empty( $section['on'] ) ) {
+				$sections[ $key ] = array(
+					'label'  => $section['label'],
+					'render' => $section['render'],
+				);
+			}
 		}
 		return $sections;
 	}
@@ -145,9 +188,12 @@ final class EditorPanel {
 	 * section is enabled.
 	 */
 	public function add_meta_box() {
-		if ( empty( $this->sections() ) ) {
-			return;
-		}
+		// ⛔ NO EARLY RETURN when everything is switched off. It used to bail,
+		// and the box simply vanished — a first-timer had no clue the editor
+		// could offer any of this, and someone who had switched it off had
+		// nothing to switch back on. His call, 2026-08-18. The box stays and
+		// explains itself instead; WordPress's own Screen Options still hides
+		// it for anyone who truly wants it gone.
 		foreach ( Content::post_types() as $type ) {
 			add_meta_box(
 				'agentimus-panel',
@@ -172,6 +218,12 @@ final class EditorPanel {
 
 		echo '<div class="agentimus-panel">';
 
+		if ( ! $sections ) {
+			$this->render_intro();
+			echo '</div>';
+			return;
+		}
+
 		if ( $tabbed ) {
 			echo '<div class="agentimus-panel__tabs" role="tablist">';
 			$first = true;
@@ -186,6 +238,14 @@ final class EditorPanel {
 			}
 			echo '</div>';
 		}
+
+		// ⭐ AN ABSENCE MUST NAME ITSELF, AND DO IT WHERE THE ABSENCE IS. This sat
+		// at the foot of the box at first — fourteen rows below the tab bar it was
+		// talking about, which is nowhere near where anyone looks for a missing
+		// tab. His catch, 2026-08-18. Directly under the tabs it reads as a
+		// caption on the row of tabs; with only one section enabled there is no
+		// tab bar at all, and it takes that empty place instead.
+		$this->render_missing( $tabbed );
 
 		$first = true;
 		foreach ( $sections as $key => $section ) {
@@ -204,6 +264,99 @@ final class EditorPanel {
 	}
 
 	/**
+	 * What this box offers, for an editor where none of it is switched on. Not a
+	 * nag — it names the three things and the switch that brings each one back,
+	 * then gets out of the way the moment any of them is on.
+	 */
+	private function render_intro() {
+		echo '<div class="agentimus-panel__intro">';
+		// ⭐ The lead explains the pill ONCE, so each card can carry the switch
+		// name bare instead of repeating "Switch:" three times.
+		echo '<p class="agentimus-panel__introlead">'
+			. esc_html__( 'Agentimus can add three things to this editor. All of them are switched off right now — the name beside each one is its switch.', 'agentimus' )
+			. '</p>';
+
+		echo '<ul class="agentimus-panel__introlist">';
+		foreach ( $this->catalogue() as $section ) {
+			printf(
+				'<li class="agentimus-panel__introitem">'
+					. '<span class="agentimus-panel__introhead">'
+						. '<span class="agentimus-panel__introname">%1$s</span>'
+						. '<span class="agentimus-panel__introswitch">%2$s</span>'
+					. '</span>'
+					. '<span class="agentimus-panel__introblurb">%3$s</span>'
+				. '</li>',
+				esc_html( $section['label'] ),
+				esc_html( $section['switch'] ),
+				esc_html( $section['blurb'] )
+			);
+		}
+		echo '</ul>';
+
+		echo '<p class="agentimus-panel__introfoot">'
+			. esc_html__( 'Turn any of them on under Settings → Discovery → Features.', 'agentimus' )
+			. '</p>';
+		echo '</div>';
+	}
+
+	/**
+	 * The one-line note about switched-off sections. Nothing is printed when all
+	 * three are on — which is the default, so most sites never see this.
+	 */
+	private function render_missing( $tabbed = false ) {
+		$missing = $this->missing();
+		if ( ! $missing ) {
+			return;
+		}
+
+		$tabs    = array();
+		$switches = array();
+		foreach ( $missing as $section ) {
+			$tabs[]    = $section['label'];
+			$switches[] = '“' . $section['switch'] . '”';
+		}
+
+		// ⭐ The TAB NAMES carry the emphasis. They are what the reader is looking
+		// for and failing to find, so they have to be the part the eye lands on —
+		// the rest of the sentence is instructions, and instructions are read
+		// second. Both halves are escaped before they meet the template.
+		$note = sprintf(
+			/* translators: 1: the names of the switched-off tabs, emphasised. 2: the matching switch names, quoted. */
+			_n(
+				'The %1$s tab is switched off. Turn on %2$s under Settings → Discovery → Features.',
+				'The %1$s tabs are switched off. Turn on %2$s under Settings → Discovery → Features.',
+				count( $missing ),
+				'agentimus'
+			),
+			'<strong>' . esc_html( self::and_list( $tabs ) ) . '</strong>',
+			esc_html( self::and_list( $switches ) )
+		);
+
+		printf(
+			'<p class="agentimus-panel__off%1$s">%2$s</p>',
+			$tabbed ? '' : ' is-alone',
+			wp_kses_post( $note ) // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- both inserted values are escaped above; only <strong> survives kses.
+		);
+	}
+
+	/**
+	 * "a, b and c" — the way a person says it, not a comma-joined machine list.
+	 *
+	 * @param array $items Already-formatted items.
+	 * @return string
+	 */
+	private static function and_list( array $items ) {
+		$items = array_values( array_filter( $items ) );
+		$n     = count( $items );
+		if ( $n < 2 ) {
+			return $n ? $items[0] : '';
+		}
+		$last = array_pop( $items );
+		/* translators: 1: all items but the last, comma-joined. 2: the last item. */
+		return sprintf( __( '%1$s and %2$s', 'agentimus' ), implode( ', ', $items ), $last );
+	}
+
+	/**
 	 * Enqueue the combined panel + section assets — only on the editor for a
 	 * covered post type, and only when a section is enabled. Same no-build inline
 	 * pattern the sections used before.
@@ -214,9 +367,15 @@ final class EditorPanel {
 		if ( 'post.php' !== $hook && 'post-new.php' !== $hook ) {
 			return;
 		}
-		if ( empty( $this->sections() ) ) {
-			return;
-		}
+		// ⛔ NO SECTIONS-EMPTY GUARD HERE EITHER. It used to bail alongside the
+		// one in add_meta_box(), which was consistent while the box did not
+		// render at all. Now that it renders an empty state, bailing here left
+		// that state with NO STYLESHEET — names, switch pills and blurbs ran
+		// together as one unbroken line. Seen live, 2026-08-18.
+		// ⚠️ My own preview harness had injected the CSS by hand, so it looked
+		// right there and only there. The scripts below are self-guarding: the
+		// tab binder finds no tabs, and the REST refresh returns early with no
+		// readability pane.
 		$screen = function_exists( 'get_current_screen' ) ? get_current_screen() : null;
 		if ( ! $screen || ! in_array( $screen->post_type, Content::post_types(), true ) ) {
 			return;
@@ -319,6 +478,36 @@ JS;
 		return '#agentimus-panel .postbox-header{background:#fbfbfc}'
 			. '.agentimus-mbbadge{display:inline-flex;align-items:center;gap:5px;margin-left:12px;margin-right:auto;font-size:11px;font-weight:400;color:#996a00;line-height:1;vertical-align:middle}'
 			. '.agentimus-panel__tabs{display:flex;gap:16px;border-bottom:1px solid #dcdcde;margin:0 0 14px;padding:0}'
+			// The switched-off note: below everything, above a hairline, quiet
+			// enough to read as information rather than a warning.
+			// ⚠️ PLAIN GREY 12px WAS INVISIBLE — it sat directly under a tab bar and
+			// read as more chrome, so the one line explaining a missing tab was the
+			// easiest thing in the box to skip. His call, 2026-08-18. Core's own
+			// info-notice colours: recognisable at a glance, and blue rather than
+			// amber because a switched-off feature is a state, not a fault.
+			. '.agentimus-panel__off{display:block;margin:0 0 14px;padding:9px 12px;background:#f0f6fc;border-left:4px solid #72aee6;border-radius:2px;color:#2c3338;font-size:12px;line-height:1.6}'
+			. '.agentimus-panel__off strong{font-weight:600;color:#1d2327}'
+			// With one section there is no tab bar above it, so it takes that place
+			// with a little more air rather than hugging the box edge.
+			. '.agentimus-panel__off.is-alone{margin:2px 0 14px}'
+			// The empty state. Plain and welcoming rather than tinted like the
+			// switched-off note: nothing is wrong here, there is simply nothing
+			// switched on yet. One card per thing, so the three are weighed
+			// against each other rather than read as a paragraph.
+			. '.agentimus-panel__introlead{margin:0 0 14px;font-size:13px;line-height:1.6;color:#1d2327;max-width:64em}'
+			. '.agentimus-panel__introlist{display:grid;gap:10px;margin:0 0 14px;padding:0;list-style:none}'
+			. '.agentimus-panel__introitem{padding:12px 14px;background:#f6f7f7;border:1px solid #f0f0f1;border-radius:4px}'
+			// ⛔ NOT space-between. This box is full-width, so pushing the pill to
+			// the far edge left a hand's width of nothing between a name and its
+			// own switch — two related things reading as unrelated. It sits
+			// directly after the name instead.
+			. '.agentimus-panel__introhead{display:flex;align-items:baseline;gap:9px;margin-bottom:4px}'
+			. '.agentimus-panel__introname{font-weight:600;font-size:13px;color:#1d2327}'
+			// ⚠️ flex:0 0 auto + nowrap, or a long switch name gets squeezed and
+			// breaks mid-word — the exact bug the NEW badge had tonight.
+			. '.agentimus-panel__introswitch{flex:0 0 auto;white-space:nowrap;font-size:11px;line-height:1.6;color:#50575e;background:#fff;border:1px solid #dcdcde;border-radius:999px;padding:1px 9px}'
+			. '.agentimus-panel__introblurb{display:block;font-size:12px;line-height:1.6;color:#50575e}'
+			. '.agentimus-panel__introfoot{margin:0;font-size:12px;color:#646970}'
 			. '.agentimus-panel__tab{appearance:none;background:none;border:0;border-bottom:2px solid transparent;padding:6px 2px;margin-bottom:-1px;cursor:pointer;font-size:13px;color:#646970}'
 			. '.agentimus-panel__tab:hover{color:#1d2327}'
 			. '.agentimus-panel__tab.is-active{color:#1d2327;border-bottom-color:#2271b1;font-weight:600}'

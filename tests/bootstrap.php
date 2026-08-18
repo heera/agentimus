@@ -133,6 +133,26 @@ namespace {
 		if ( ! function_exists( 'esc_html' ) )              { function esc_html( $s ) { return htmlspecialchars( (string) $s, ENT_QUOTES ); } }
 		if ( ! function_exists( 'esc_attr' ) )              { function esc_attr( $s ) { return htmlspecialchars( (string) $s, ENT_QUOTES ); } }
 		if ( ! function_exists( 'esc_html__' ) )            { function esc_html__( $s, $d = null ) { return htmlspecialchars( (string) $s, ENT_QUOTES ); } }
+		// The echoing twins. Absent until a test rendered a template that used
+		// them (ShareCopy's meta box, 2026-08-18) and died on the call rather
+		// than on an assertion.
+		// Asset enqueueing, recorded rather than performed — so a test can ask
+		// WHAT a screen enqueued. Added 2026-08-18, after two copies of the same
+		// "bail when nothing is enabled" guard shipped an unstyled panel.
+		// The admin screen object, settable per test. ⚠️ MUST live here, in the
+		// GLOBAL namespace: declared inside a namespaced test method it becomes
+		// Agentimus\Tests\get_current_screen() and function_exists() stays false.
+		if ( ! function_exists( 'wp_create_nonce' ) )       { function wp_create_nonce( $a = -1 ) { return 'test-nonce'; } }
+		if ( ! function_exists( 'get_current_screen' ) )    { function get_current_screen() { return isset( $GLOBALS['_af_screen'] ) ? $GLOBALS['_af_screen'] : null; } }
+		if ( ! function_exists( 'wp_register_style' ) )     { function wp_register_style( $h, $s = false, $d = array(), $v = null ) { return true; } }
+		if ( ! function_exists( 'wp_enqueue_style' ) )      { function wp_enqueue_style( $h ) { $GLOBALS['_af_styles'][] = $h; } }
+		if ( ! function_exists( 'wp_add_inline_style' ) )   { function wp_add_inline_style( $h, $css ) { $GLOBALS['_af_inline_css'] = ( isset( $GLOBALS['_af_inline_css'] ) ? $GLOBALS['_af_inline_css'] : '' ) . $css; return true; } }
+		if ( ! function_exists( 'wp_register_script' ) )    { function wp_register_script( $h, $s = false, $d = array(), $v = null, $f = false ) { return true; } }
+		if ( ! function_exists( 'wp_enqueue_script' ) )     { function wp_enqueue_script( $h ) { $GLOBALS['_af_scripts'][] = $h; } }
+		if ( ! function_exists( 'wp_add_inline_script' ) )  { function wp_add_inline_script( $h, $js ) { $GLOBALS['_af_inline_js'] = ( isset( $GLOBALS['_af_inline_js'] ) ? $GLOBALS['_af_inline_js'] : '' ) . $js; return true; } }
+		if ( ! function_exists( 'esc_html_e' ) )            { function esc_html_e( $s, $d = null ) { echo esc_html__( $s, $d ); } }
+		if ( ! function_exists( 'esc_attr_e' ) )            { function esc_attr_e( $s, $d = null ) { echo htmlspecialchars( (string) $s, ENT_QUOTES ); } }
+		if ( ! function_exists( '_e' ) )                    { function _e( $s, $d = null ) { echo (string) $s; } }
 		if ( ! function_exists( 'esc_attr__' ) )            { function esc_attr__( $s, $d = null ) { return htmlspecialchars( (string) $s, ENT_QUOTES ); } }
 	if ( ! function_exists( 'sanitize_key' ) )          { function sanitize_key( $k ) { return preg_replace( '/[^a-z0-9_\-]/', '', strtolower( (string) $k ) ); } }
 	if ( ! function_exists( 'sanitize_text_field' ) )   { function sanitize_text_field( $s ) { return trim( preg_replace( '/\s+/', ' ', wp_strip_all_tags( (string) $s ) ) ); } }

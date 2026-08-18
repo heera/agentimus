@@ -6891,8 +6891,15 @@ a.ar-about-proto__v:hover { text-decoration: underline; }
 
 /* "New" on a row the owner has not read. The nav badge sends them here asking "which one?" —
    a faint row tint alone is too easy to lose on a long list, so the answer is spelled out. */
+/* ⚠️ A FLEX ITEM, not an inline badge — .ar-aa__what is display:flex, so this
+   shrinks like any other item, and that parent's `overflow-wrap: anywhere`
+   (there so a long ability name can break) then breaks the single word NEW
+   into "NE / W". Seen on agentimus/read-search-opportunities, 2026-08-18.
+   ⭐ The icon on the other side already carries `flex: 0 0 auto`; the fix is
+   the same one, applied to the child that was missed. `nowrap` states the
+   intent on its own, so a future layout change cannot re-break the word. */
 .ar-aa__new {
-  display: inline-block; margin-left: 6px; vertical-align: 1px;
+  display: inline-block; flex: 0 0 auto; white-space: nowrap; vertical-align: 1px;
   font-family: var(--ar-mono); font-size: 9px; font-weight: 700;
   text-transform: uppercase; letter-spacing: 0.06em;
   padding: 2px 5px; border-radius: 999px;

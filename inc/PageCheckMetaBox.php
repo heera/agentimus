@@ -77,6 +77,9 @@ final class PageCheckMetaBox {
 			: esc_html__( 'Looks good — nothing to improve.', 'agentimus' );
 
 		echo '<p class="agentimus-pc__head">' . esc_html( $head ) . '</p>';
+		// The audience, stated ONCE. Every row below then says what to do without
+		// having to re-justify who it is for.
+		echo '<p class="agentimus-pc__lead">' . esc_html__( 'How easily this page can be read, sectioned and quoted — by AI assistants, by search engines and by people.', 'agentimus' ) . '</p>';
 		echo '<p class="agentimus-pc__reflect">' . esc_html__( 'Updates when you save.', 'agentimus' ) . '</p>';
 
 		echo '<ul class="agentimus-pc__list">';
@@ -129,6 +132,9 @@ final class PageCheckMetaBox {
 	 */
 	public static function css() {
 		return '.agentimus-pc__head{margin:0 0 2px;font-weight:600;font-size:13px}'
+			// The audience line: quieter than the head, above the "updates when you
+			// save" note, and it wraps rather than squeezing the list.
+			. '.agentimus-pc__lead{margin:0 0 4px;font-size:12px;line-height:1.5;color:#50575e}'
 			. '.agentimus-pc__list{margin:0;padding:0;list-style:none}'
 			. '.agentimus-pc__row{display:flex;gap:9px;align-items:flex-start;padding:7px 0;border-top:1px solid #f0f0f1;font-size:13px}'
 			. '.agentimus-pc__row:first-child{border-top:0}'

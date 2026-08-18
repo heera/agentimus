@@ -81,12 +81,15 @@ export default {
       // else published (same wording as the finding this mirrors).
       const scope = graded ? `up to ${pages} of your ${graded} graded pieces` : `${pages} ${pages === 1 ? 'piece' : 'pieces'}`;
       const verb = pages === 1 ? 'has' : 'have';
-      const kindsPart = kinds === 1 ? 'one kind of issue' : `${kinds} kinds of issue`;
+      // ⚠️ "There's 8 kinds of issue" — the verb has to agree with the count,
+      // not sit fixed in the template. Caught in a screenshot, which is where
+      // copy bugs finally become visible.
+      const kindsPart = kinds === 1 ? `There's one kind of issue` : `There are ${kinds} kinds of issue`;
       // ⚠️ "across your content", not "across your recent posts and pages". The
       // grade is read from the store now and covers every published article-like
       // page; the old wording described a 25-post recency sample and stayed on
       // screen after the measurement underneath it had stopped being one.
-      return `There's ${kindsPart} across your content — ${scope} ${verb} something worth fixing. The most common is “${top.label}”.`;
+      return `${kindsPart} across your content — ${scope} ${verb} something worth fixing. The most common is “${top.label}”.`;
     },
     // The all-clear, and it has to be careful about WHAT it is clearing.
     //
