@@ -73,8 +73,27 @@ final class ReviewBadge {
 	}
 
 	/**
-	 * The bubble markup — core's update-count classes, so core's CSS styles it
-	 * (same red circle the Plugins menu wears).
+	 * The bubble markup — core's classes, so core's CSS styles it and we ship no
+	 * CSS of our own for it.
+	 *
+	 * ⚠️⚠️ `awaiting-mod`, NOT `update-plugins`, and the difference is invisible
+	 * until the menu is the one you are on. Core's current-item rule reads:
+	 *
+	 *     #adminmenu li a.wp-has-current-submenu .update-plugins,
+	 *     #adminmenu li.current a .awaiting-mod
+	 *
+	 * `.update-plugins` is only covered when the anchor carries
+	 * `wp-has-current-submenu` — which every core menu has, because they all
+	 * register submenus. This one does not (the whole screen is one SPA), so on
+	 * our own page the bubble fell through to the base rule and was painted the
+	 * scheme's highlight colour… on a row already painted the scheme's highlight
+	 * colour. Measured live 2026-08-18: row rgb(56,88,233), bubble
+	 * rgb(56,88,233), and the number floated there with no pill at all.
+	 * `.awaiting-mod` is the branch keyed on `li.current` alone, so it fits a
+	 * menu with no submenu — and it reads true: this is a queue awaiting review.
+	 *
+	 * ⛔ Do not "modernise" this back to update-plugins. It looks more correct
+	 * and is wrong on exactly one screen: ours.
 	 *
 	 * @param int $count Pending review count, >= 1.
 	 * @return string
@@ -82,7 +101,7 @@ final class ReviewBadge {
 	public static function bubble( $count ) {
 		$count = (int) $count;
 		return sprintf(
-			'<span class="update-plugins count-%1$d"><span class="plugin-count" aria-hidden="false">%2$s</span></span>',
+			'<span class="awaiting-mod count-%1$d"><span class="pending-count" aria-hidden="false">%2$s</span></span>',
 			$count,
 			esc_html( number_format_i18n( $count ) )
 		);
@@ -174,22 +193,26 @@ final class ReviewBadge {
 	 */
 	public static function inline_js() {
 		return '(function($){'
+			// ⚠️ The classes here MUST match {@see bubble()} — this rebuilds the
+			// same markup client-side, and a mismatch would leave the live count
+			// updating an element core no longer styles. See bubble()'s note for
+			// why it is awaiting-mod and not update-plugins.
 			. 'window.agentimusReviewBadge=function(count){'
 			. 'var name=document.querySelector("#toplevel_page_agentimus .wp-menu-name");'
 			. 'if(!name){return;}'
-			. 'var bubble=name.querySelector(".update-plugins");'
+			. 'var bubble=name.querySelector(".awaiting-mod");'
 			. 'count=parseInt(count,10)||0;'
 			. 'if(count<1){if(bubble){bubble.remove();}return;}'
 			. 'if(!bubble){'
 			. 'bubble=document.createElement("span");'
 			. 'var inner=document.createElement("span");'
-			. 'inner.className="plugin-count";'
+			. 'inner.className="pending-count";'
 			. 'inner.setAttribute("aria-hidden","false");'
 			. 'bubble.appendChild(inner);'
 			. 'name.appendChild(bubble);'
 			. '}'
-			. 'bubble.className="update-plugins count-"+count;'
-			. 'bubble.querySelector(".plugin-count").textContent=String(count);'
+			. 'bubble.className="awaiting-mod count-"+count;'
+			. 'bubble.querySelector(".pending-count").textContent=String(count);'
 			. '};'
 			. 'if(!$){return;}'
 			. '$(document).on("heartbeat-send",function(e,data){data.agentimus_review=1;});'

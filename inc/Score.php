@@ -165,6 +165,44 @@ final class Score {
 			// here: two numbers describing one moment must be measured at it.
 			'grading'  => (int) ( isset( $optimize['grading'] ) ? $optimize['grading'] : 0 ),
 			'ignored'  => $this->ignored_list(),
+			// ⭐ WHAT was graded, in the site's own words — and what was checked
+			// but deliberately not graded.
+			//
+			// The checking scope can now be wider than the gradeable one: a store
+			// checks its products for the search they are found for, and grades
+			// none of them for quoting, because a product page is short by design
+			// and "this is thin" is bad advice on one. Both facts are true and
+			// they sit on adjacent screens, so the card has to SAY so — a count
+			// of 75 next to a content list holding 400 products, with nothing
+			// explaining the difference, is the same contradiction this whole
+			// change exists to remove. An all-clear also can't name "posts and
+			// pages" on a site that graded four kinds of thing.
+			'scope'    => $this->optimize_scope(),
+		);
+	}
+
+	/**
+	 * The names behind the Optimize card's numbers: the types it grades, and the
+	 * types it checks without grading.
+	 *
+	 * @return array{graded:array<int,string>,notGraded:array<int,string>}
+	 */
+	private function optimize_scope() {
+		$checked = Content::check_post_types();
+		$off     = empty( $checked );
+		// While checking is off the numbers describe the LAST reading, so the
+		// names have to describe that same reading — not an empty list, which
+		// would read as "nothing was ever graded" over a card full of grades.
+		$graded  = $off ? Gradeability::last_known_post_types() : Gradeability::post_types();
+
+		return array(
+			'graded'    => array_values( array_map( array( Content::class, 'label' ), $graded ) ),
+			'notGraded' => array_values( array_map( array( Content::class, 'label' ), array_diff( $checked, $graded ) ) ),
+			// ⚠️ An explicit flag, not "both lists are empty". Since the lists now
+			// stay populated while checking is off, emptiness no longer implies
+			// anything — and a screen that has to infer this fact would infer it
+			// wrongly the moment either list changes shape again.
+			'off'       => $off,
 		);
 	}
 
@@ -392,7 +430,15 @@ final class Score {
 	 * @return array{score:int|null,posts:int,issues:array<string,array>}
 	 */
 	private function compute_optimize() {
-		$types = Gradeability::post_types();
+		// ⭐⭐ The owner has switched every content type off. The pillar must NOT
+		// simply go N/A here: blend() redistributes an N/A pillar's weight, so a
+		// site could RAISE its score by declining to be looked at — the one
+		// incentive this plugin must never create. Instead the store is read back
+		// over everything this site could check, which returns the grades of the
+		// last real sweep: the score neither rises nor is punished for a decision
+		// about what to read NEXT, and the card says it is an older reading.
+		$off   = empty( Content::check_post_types() );
+		$types = $off ? Gradeability::last_known_post_types() : Gradeability::post_types();
 		if ( empty( $types ) ) {
 			return array( 'score' => null, 'posts' => 0, 'issues' => array(), 'grading' => 0 );
 		}
@@ -403,7 +449,12 @@ final class Score {
 		// 0 still to read" when 64 were graded — two true numbers from two
 		// different instants, which is a contradiction on screen and the exact
 		// species of bug this whole change exists to remove.
-		$outstanding = Grades::remaining( $types );
+		//
+		// ⛔ Zero while checking is off, never the real backlog: "still to read"
+		// is a promise that the sweep is coming, and with every type switched off
+		// it is not. A number that counts work nobody will do is the same lie as
+		// a count that can never reach zero.
+		$outstanding = $off ? 0 : Grades::remaining( $types );
 
 		$read = Grades::optimize( $types, $this->ignored_ids(), self::WORKLIST_POSTS_PER_ISSUE );
 		if ( $read['posts'] < 1 ) {
@@ -456,15 +507,48 @@ final class Score {
 		if ( null === $optimize['score'] ) {
 			return __( 'No published posts read yet — this rung starts measuring as soon as your content has been looked at.', 'agentimus' );
 		}
+		$n = (int) $optimize['posts'];
 		return sprintf(
-			// ⚠️ "your %d" — the whole graded site now, NOT "your %d most recently
-			// edited". The words moved with the measurement; a note that still
-			// said "recently edited" over a site-wide average would be the same
-			// lie the old sample told, only quieter.
-			/* translators: %d: number of posts/pages graded. */
-			_n( 'How easily an AI can read, quote and credit your %d published post or page.', 'How easily an AI can read, quote and credit all %d of your published posts and pages.', (int) $optimize['posts'], 'agentimus' ),
-			(int) $optimize['posts']
+			// ⚠️ "your %1$d" — the whole graded site now, NOT "your %1$d most
+			// recently edited". The words moved with the measurement; a note that
+			// still said "recently edited" over a site-wide average would be the
+			// same lie the old sample told, only quieter.
+			//
+			// ⚠️ And the NOUN is the graded scope, not the words "posts and
+			// pages". That pair was hardcoded, so a site that graded Pages and
+			// Docs — or had switched Posts off — read a sentence naming content
+			// it had not graded.
+			/* translators: 1: number of items graded, 2: the kinds of content graded, e.g. "Pages" or "Posts and Docs". */
+			_n( 'How easily an AI can read, quote and credit your %1$d published %2$s.', 'How easily an AI can read, quote and credit all %1$d of your published %2$s.', $n, 'agentimus' ),
+			$n,
+			self::graded_noun( $n )
 		);
+	}
+
+	/**
+	 * The kinds of content behind the Optimized pillar's numbers, named for a
+	 * sentence. Mirrors {@see \Agentimus\Findings::scope_noun()} — the two
+	 * sentences sit on adjacent screens over the same measurement, so they must
+	 * name it the same way.
+	 *
+	 * @param int $n How many items — decides singular or plural.
+	 * @return string
+	 */
+	private static function graded_noun( $n ) {
+		$types = Gradeability::post_types();
+		if ( ! $types || count( $types ) > 3 ) {
+			return _n( 'piece of content', 'pieces of content', (int) $n, 'agentimus' );
+		}
+		$names = array();
+		foreach ( $types as $type ) {
+			$names[] = 1 === (int) $n ? Content::singular( $type ) : Content::label( $type );
+		}
+		if ( 1 === count( $names ) ) {
+			return $names[0];
+		}
+		$last = array_pop( $names );
+		/* translators: 1: comma-separated list of content types, 2: the last one. */
+		return sprintf( __( '%1$s and %2$s', 'agentimus' ), implode( ', ', $names ), $last );
 	}
 
 	/**

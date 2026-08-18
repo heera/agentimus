@@ -33,8 +33,11 @@ export default {
     pick: { type: Object, default: null },
     // The tab was away long enough that a post may have been edited elsewhere.
     stale: { type: Boolean, default: false },
+    // [{ slug, label, source, count, on, blocked }] — what this site CAN check
+    // and what it does. The gear edits it; the line under the head states it.
+    checkTypes: { type: Array, default: () => [] },
   },
-  emits: ['load', 'set-aside'],
+  emits: ['load', 'set-aside', 'open-scope'],
   data() {
     return {
       // Post IDs a finding asked for. Null means "show everything".
@@ -77,6 +80,31 @@ export default {
     },
   },
   computed: {
+    // Types this site could check, whether or not it is checking them. The
+    // ones it CANNOT check ride along in the payload for the panel's own
+    // "cannot be checked" group, and must never be counted here.
+    scopeAll() {
+      return this.checkTypes.filter((t) => !t.blocked);
+    },
+    scopeOn() {
+      return this.scopeAll.filter((t) => t.on);
+    },
+    // "Posts, Pages and Products" — written the way a person would say it, not
+    // as a comma-joined machine list.
+    scopeNames() {
+      const names = this.scopeOn.map((t) => t.label);
+      if (!names.length) return '';
+      if (names.length === 1) return names[0];
+      return `${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}`;
+    },
+    // ⚠️ Every type switched off. The line used to render only when something
+    // WAS checked, so turning everything off made the one sentence explaining
+    // the empty list disappear along with the list — the screen's own
+    // explanation vanishing exactly when it was needed. Off is a state this
+    // card states, not one it goes quiet about.
+    checkingOff() {
+      return this.scopeAll.length > 0 && this.scopeOn.length === 0;
+    },
     items() {
       const base = Array.isArray(this.data.items) ? this.data.items : [];
       if (!this.extraRows.length) return base;
@@ -478,19 +506,70 @@ export default {
           whether it answers that, and anything else it needs.
         </p>
       </div>
-      <button
-        v-if="loaded"
-        type="button"
-        class="ar-linkbtn"
-        :disabled="busy"
-        @click="$emit('load')"
-      >{{ busy ? 'Checking…' : 'Check again' }}</button>
+      <div class="ar-work__actions">
+        <button
+          v-if="loaded"
+          type="button"
+          class="ar-linkbtn"
+          :disabled="busy"
+          @click="$emit('load')"
+        >{{ busy ? 'Checking…' : 'Check again' }}</button>
+        <!-- ⛔ No native title — tipGuard owns tooltips in this app, and a
+             browser tooltip here would be the one control that behaved
+             differently from every other. The aria-label is what a screen
+             reader gets either way. -->
+        <button
+          v-if="scopeAll.length"
+          v-tip="'Choose what gets checked'"
+          type="button"
+          class="ar-iconbtn"
+          aria-label="Choose what gets checked"
+          aria-haspopup="dialog"
+          :disabled="busy"
+          @click="$emit('open-scope')"
+        >
+          <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor"
+               stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z" />
+            <circle cx="12" cy="12" r="3" />
+          </svg>
+        </button>
+      </div>
+    </div>
+
+    <!-- What this list covers, stated where the list is. Without it the rows
+         silently meant posts and pages, and a store owner had no way to learn
+         that their products were never in it. -->
+    <p v-if="scopeAll.length" class="ar-scope" :class="{ 'is-off': checkingOff }">
+      <template v-if="checkingOff">
+        <span class="ar-scope__k">Checking</span>
+        <span class="ar-scope__v">Nothing</span>
+        <span class="ar-scope__n">— no content types are selected</span>
+      </template>
+      <template v-else-if="!checkingOff">
+        <span class="ar-scope__k">Checking</span>
+        <span class="ar-scope__v">{{ scopeNames }}</span>
+        <span v-if="scopeAll.length > 1" class="ar-scope__n">— {{ scopeOn.length }} of {{ scopeAll.length }} kinds of content</span>
+      </template>
+    </p>
+
+    <!-- Off is not empty. Without this the card fell through to its opening
+         invitation — a button offering to read content it had just been told
+         not to read. -->
+    <div v-if="checkingOff" class="ar-work__idle">
+      <p>
+        Nothing is being checked, so there is nothing to list. Your grades are kept —
+        switch a content type back on and its rows come straight back, with no re-reading.
+      </p>
+      <button type="button" class="ar-btn ar-btn--small" @click="$emit('open-scope')">
+        Choose what gets checked
+      </button>
     </div>
 
     <!-- The opening state. It costs a page parse per row, so it is asked for —
          but it opens with what is already known, so the invitation is grounded
          in this site rather than being a bare button on an empty panel. -->
-    <div v-if="!loaded" class="ar-work__intro">
+    <div v-if="!loaded && !checkingOff" class="ar-work__intro">
       <svg class="ar-work__intro-mark" viewBox="0 0 48 48" width="44" height="44" fill="none"
            stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
         <rect x="8" y="5" width="26" height="34" rx="3" />
@@ -531,7 +610,7 @@ export default {
       </p>
     </div>
 
-    <template v-else>
+    <template v-else-if="!checkingOff">
       <!-- Editing happens in another tab. Coming back, the screen asks the
            database which of these posts have moved on — one indexed query, no
            page read — and re-reads only those. What it CANNOT fix by itself is

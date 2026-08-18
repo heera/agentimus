@@ -35,6 +35,167 @@ final class Content {
 	}
 
 	/**
+	 * ⭐⭐ CHECKING IS NOT ADVERTISING, and the two scopes answer to different
+	 * defaults for a reason that is not a preference.
+	 *
+	 * {@see post_types()} below governs what LEAVES the site — llms.txt, the .md
+	 * twins, schema, discovery. Widening that silently would publish every custom
+	 * type an owner ever installed, so it is opt-in and defaults to posts and
+	 * pages.
+	 *
+	 * This governs what is READ FOR THE OWNER — the worklist, the sweep, the
+	 * findings. It publishes nothing: the findings tool is behind `can_manage`
+	 * and appears on no public surface. Reading a product to tell its owner it
+	 * never answers the search it is found for leaks precisely nothing, so the
+	 * privacy argument that justifies the narrow default over there has no force
+	 * here, and refusing to look is simply a worse dashboard.
+	 *
+	 * ⚠️ The two used to be one setting, and the worklist honoured NEITHER — it
+	 * carried its own hardcoded `array('post','page')`, so ticking Products in
+	 * Settings changed nothing and unticking Posts changed nothing either.
+	 *
+	 * @return string[]
+	 */
+	public static function checkable() {
+		// Every public type with a page of its own. Attachments are the one real
+		// exclusion: a media item's own page has no authored content to read.
+		$out = self::available();
+
+		/**
+		 * The content types this site can check at all.
+		 *
+		 * @param string[] $out Post-type slugs eligible for checking.
+		 */
+		$out = (array) apply_filters( 'agentimus_checkable_post_types', $out );
+		return array_values( array_unique( array_filter( array_map( 'strval', $out ) ) ) );
+	}
+
+	/**
+	 * Why a type would START switched off — '' when it would start on.
+	 *
+	 * ⭐ Nothing is made UNREACHABLE by either reason. His rule is that the
+	 * plugin decides what a thing IS and the owner decides what happens to it,
+	 * so a type we would not have chosen still appears, still ticks on, and says
+	 * why it was left off. Refusing to show it at all would leave an owner with
+	 * a question and nowhere to ask it.
+	 *
+	 * @param string $post_type Post-type slug.
+	 * @return string A sentence for the panel, or ''.
+	 */
+	public static function check_default_off_reason( $post_type ) {
+		$obj = get_post_type_object( $post_type );
+
+		// The VENDOR's own declaration, not a guess at their slug: a type kept
+		// out of the site's own search is a template library, a building block,
+		// a container — reachable, but not something anybody goes looking for.
+		// Real content (posts, pages, products, docs) leaves this false.
+		if ( $obj && ! empty( $obj->exclude_from_search ) ) {
+			return __( 'The plugin that added this keeps it out of your site’s own search, so it starts off. Tick it to check these too.', 'agentimus' );
+		}
+
+		// ⭐ His standing constraint: nothing this plugin does may cost a site
+		// its performance, and most of them are on shared hosting. Reading a page
+		// is the one genuinely expensive thing here, so an update that silently
+		// queued twelve thousand renders is exactly the bill nobody asked for.
+		if ( self::published_count( $post_type ) > self::CHECK_AUTO_MAX ) {
+			return __( 'There’s a lot of this, and reading it all takes a while — so it’s your call, not ours. Tick it whenever you want it checked.', 'agentimus' );
+		}
+
+		return '';
+	}
+
+	/**
+	 * The content types this site actually checks: everything eligible, minus
+	 * what the owner switched off.
+	 *
+	 * ⭐ Stored as REFUSALS, never as a positive list. A saved "yes" list is a
+	 * snapshot of the plugins installed the day it was saved, so a type added
+	 * next month would sit unchecked until somebody remembered a settings screen
+	 * they had forgotten. Storing the "no" means new content types join on their
+	 * own and the owner's decisions still outlive the plugin that made them —
+	 * the same reasoning `post_types_vetoed` is built on.
+	 *
+	 * ⚠️ Deliberately cheap: one option and the registered types, no COUNT
+	 * queries. The sweep, the worklist and every save go through here, and a
+	 * resolver that counted posts would put a query on paths that must stay
+	 * free. Size is decided ONCE per type {@see note_new_checkable_types()}.
+	 *
+	 * @return string[]
+	 */
+	public static function check_post_types() {
+		$types = self::checkable();
+		$off   = (array) ( new Settings() )->get( 'check_types_off', array() );
+		if ( $off ) {
+			$types = array_values( array_diff( $types, array_map( 'sanitize_key', $off ) ) );
+		}
+		return $types;
+	}
+
+	/**
+	 * @var int Published items above which a newly-seen type starts switched OFF.
+	 *
+	 * ⭐ His standing constraint: nothing this plugin does may cost the site its
+	 * performance, and most of these sites are on shared hosting. Reading a page
+	 * is the one genuinely expensive thing here, so a plugin update that
+	 * silently queued twelve thousand product renders would be exactly the bill
+	 * nobody asked for. Under this many items the owner never meets the choice;
+	 * over it, the type is offered with its count in plain sight and one tick
+	 * starts it.
+	 */
+	const CHECK_AUTO_MAX = 1000;
+
+	/**
+	 * Decide the default for any eligible type nobody has decided about yet.
+	 *
+	 * ⚠️ ADMIN ONLY, and once per type ever. This is the one place a published
+	 * count is taken, because it is the one decision that needs one; every other
+	 * caller reads the resolved list. A type is recorded as seen whichever way
+	 * it goes, so the owner's later change is never overwritten by this running
+	 * again.
+	 *
+	 * @param Settings $settings Settings store.
+	 * @return void
+	 */
+	public static function note_new_checkable_types( Settings $settings ) {
+		$seen = (array) $settings->get( 'check_types_seen', array() );
+		$new  = array_values( array_diff( self::checkable(), $seen ) );
+		if ( ! $new ) {
+			return;
+		}
+
+		$off = (array) $settings->get( 'check_types_off', array() );
+
+		// ⛔⛔ THE SIZE GUARD MUST NEVER SWITCH OFF SOMETHING THE SITE WAS ALREADY
+		// CHECKING. On the first run every eligible type is "new", because nothing
+		// has been decided about anything yet — so without this, upgrading a site
+		// with more than CHECK_AUTO_MAX published posts would silently STOP
+		// checking its posts. A guard meant to protect a big site from work it
+		// never asked for would have taken away work it already had, on exactly
+		// the sites least able to notice.
+		//
+		// The old scope was posts and pages ({@see Settings::default_post_types()},
+		// the same pair the worklist hardcoded before this release), so on the
+		// first seeding those are recorded as decided-ON whatever their size. The
+		// guard then applies only to types that are genuinely new to this site.
+		$grandfathered = empty( $seen ) ? Settings::default_post_types() : array();
+
+		foreach ( $new as $slug ) {
+			if ( ! in_array( $slug, $grandfathered, true ) && '' !== self::check_default_off_reason( $slug ) ) {
+				$off[] = $slug;
+			}
+			$seen[] = $slug;
+		}
+
+		// ⚠️ Merged into the FULL settings array: update() sanitizes what it is
+		// given and writes the result whole, so a partial array silently resets
+		// every unset boolean on the site.
+		$all                      = $settings->all();
+		$all['check_types_seen']  = array_values( array_unique( $seen ) );
+		$all['check_types_off']   = array_values( array_unique( $off ) );
+		$settings->update( $all );
+	}
+
+	/**
 	 * The post types Agentimus actually exposes: the configured selection
 	 * (intersected with what's available), falling back to the privacy-safe
 	 * default (posts + pages) — never silently to every public type, which
@@ -145,10 +306,13 @@ final class Content {
 	/**
 	 * Published-item count for a post type (cheap; from wp_count_posts).
 	 *
+	 * Public because the size guard and the scope panel both need it — and both
+	 * ask on a screen or a cron tick, never on a page load.
+	 *
 	 * @param string $post_type Post type slug.
 	 * @return int
 	 */
-	private static function published_count( $post_type ) {
+	public static function published_count( $post_type ) {
 		$counts = wp_count_posts( $post_type );
 		return ( is_object( $counts ) && isset( $counts->publish ) ) ? (int) $counts->publish : 0;
 	}

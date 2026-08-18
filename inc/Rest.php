@@ -255,6 +255,24 @@ final class Rest {
 			)
 		);
 
+		// Put a suggestion away, or bring it back. ⛔ Only LATER-tier findings can
+		// be hidden — the filter that enforces it lives in Findings::all(), so a
+		// crafted request naming an urgent id stores a dismissal that never hides
+		// anything rather than burying a live problem.
+		register_rest_route(
+			self::NAMESPACE,
+			'/findings/dismiss',
+			array(
+				'methods'             => \WP_REST_Server::CREATABLE,
+				'callback'            => array( $this, 'dismiss_finding' ),
+				'permission_callback' => array( $this, 'can_manage' ),
+				'args'                => array(
+					'id'     => array( 'type' => 'string', 'required' => true ),
+					'hidden' => array( 'type' => 'boolean', 'default' => true ),
+				),
+			)
+		);
+
 		register_rest_route(
 			self::NAMESPACE,
 			'/readiness',
@@ -842,6 +860,44 @@ final class Rest {
 	 * @param \WP_REST_Request $request The request.
 	 * @return \WP_REST_Response
 	 */
+	/**
+	 * Hide a suggestion, or bring it back.
+	 *
+	 * Returns the rebuilt findings payload rather than an acknowledgement: the
+	 * screen has to show the ledger count change in the same beat as the row
+	 * leaving, and a client that had to re-fetch could show one without the other.
+	 *
+	 * @param \WP_REST_Request $request The request.
+	 * @return \WP_REST_Response
+	 */
+	public function dismiss_finding( \WP_REST_Request $request ) {
+		$id     = sanitize_key( (string) $request->get_param( 'id' ) );
+		$hidden = (bool) $request->get_param( 'hidden' );
+		if ( '' === $id ) {
+			return new \WP_REST_Response( array( 'message' => __( 'No finding was named.', 'agentimus' ) ), 400 );
+		}
+
+		// ⚠️ Merged into the FULL settings array: update() sanitises what it is
+		// given and writes the result whole, so a partial body would reset every
+		// unset boolean on the site.
+		$all  = $this->settings->all();
+		$list = isset( $all['findings_dismissed'] ) && is_array( $all['findings_dismissed'] )
+			? array_map( 'sanitize_key', array_map( 'strval', $all['findings_dismissed'] ) )
+			: array();
+
+		$list = $hidden
+			? array_values( array_unique( array_merge( $list, array( $id ) ) ) )
+			: array_values( array_diff( $list, array( $id ) ) );
+
+		$all['findings_dismissed'] = $list;
+		$this->settings->update( $all );
+
+		return new \WP_REST_Response(
+			array( 'findings' => ( new Findings( $this->settings ) )->all() ),
+			200
+		);
+	}
+
 	public function worklist_changed( \WP_REST_Request $request ) {
 		$seen = (array) $request->get_param( 'seen' );
 		if ( ! $seen ) {

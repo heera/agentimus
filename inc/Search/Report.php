@@ -330,6 +330,11 @@ final class Report {
 			'seenNotClicked' => array(),
 			'collisions'     => array(),
 			'collisionsTotal' => 0,
+			// How many measured pages this report is NOT speaking about, because
+			// their content type is switched off for checking. An absence has to
+			// name itself: rows quietly vanishing from a worklist is how somebody
+			// concludes their traffic did.
+			'outOfScope'     => 0,
 		);
 
 		$connected = $state['sources']['bing']['connected'] || $state['sources']['google']['connected'];
@@ -344,7 +349,23 @@ final class Report {
 		$all        = $core->all();
 		$aside      = ( isset( $all['search_ignored'] ) && is_array( $all['search_ignored'] ) ) ? array_map( 'intval', $all['search_ignored'] ) : array();
 		$aside_urls = ( isset( $all['search_ignored_urls'] ) && is_array( $all['search_ignored_urls'] ) ) ? array_map( 'strval', $all['search_ignored_urls'] ) : array();
-		$report     = Opportunities::build( Table::snapshot( $state['source'] ), $aside, $aside_urls );
+
+		// ⭐ ONE SCOPE for the whole screen. These worklists used to answer to
+		// nothing: an owner could switch Products off, watch Your Content stop
+		// listing them, and still be told here that a product was one push from
+		// page one. Two universes on one screen, with nothing on it explaining
+		// the difference — the same fault as the counts that disagreed.
+		//
+		// ⛔ NOT the performance report, which is next door and stays whole. That
+		// one reports the traffic a site actually got; hiding real numbers because
+		// of a preference about what to WORK ON would be a different lie.
+		//
+		// Read once and shared with the collision pass below — it used to take the
+		// same snapshot twice.
+		$scoped     = self::in_check_scope( Table::snapshot( $state['source'] ) );
+		$rows       = $scoped['rows'];
+		$out['outOfScope'] = $scoped['dropped'];
+		$report     = Opportunities::build( $rows, $aside, $aside_urls );
 		$has_work = $report['counts']['opportunities'] > 0;
 
 		$out['state']          = $has_work ? 'ready' : ( $report['judged'] ? 'clear' : 'too_thin' );
@@ -380,11 +401,85 @@ final class Report {
 		// list, so a page parked on the Optimize ledger stops being counted
 		// against a search here too. The wire carries the heaviest few; the
 		// total says what was held back (no silent caps).
-		$collisions             = Collisions::build( Table::snapshot( $state['source'] ), $aside, $aside_urls );
+		$collisions             = Collisions::build( $rows, $aside, $aside_urls );
 		$out['collisionsTotal'] = count( $collisions );
 		$out['collisions']      = array_map( array( Collisions::class, 'wire' ), array_slice( $collisions, 0, 5 ) );
 
 		return $out;
+	}
+
+	/**
+	 * Keep only the measured rows this site is actually checking.
+	 *
+	 * ⭐ A row with NO post behind it always stays — the home page, an archive, a
+	 * permalink that has since gone. No content type governs those, so a decision
+	 * about content types cannot speak for them, and dropping them would hide the
+	 * one page most sites care about most.
+	 *
+	 * ⚠️ Costs NOTHING on the ordinary site. When every checkable type is checked
+	 * — the default, and what most sites will always run — this returns the rows
+	 * untouched without asking the database anything. The one query it can run is
+	 * a single indexed lookup of the distinct page ids in the snapshot, not one
+	 * per row.
+	 *
+	 * ⭐ PUBLIC because the admin's own route builds its report from a second
+	 * snapshot of its own ({@see \Agentimus\Search\Rest::report()}). One filter,
+	 * two callers: a copy of this rule that drifted would put the owner's screen
+	 * and an assistant's answer in disagreement about which pages exist.
+	 *
+	 * @param array $rows Snapshot rows.
+	 * @return array{rows:array,dropped:int}
+	 */
+	public static function in_check_scope( array $rows ) {
+		$checked = \Agentimus\Content::check_post_types();
+		$all     = \Agentimus\Content::checkable();
+		sort( $checked );
+		sort( $all );
+		if ( $checked === $all ) {
+			return array( 'rows' => $rows, 'dropped' => 0 );
+		}
+
+		$ids = array();
+		foreach ( $rows as $row ) {
+			$id = isset( $row['page_id'] ) ? (int) $row['page_id'] : 0;
+			if ( $id > 0 ) {
+				$ids[ $id ] = true;
+			}
+		}
+		if ( ! $ids ) {
+			return array( 'rows' => $rows, 'dropped' => 0 );
+		}
+
+		global $wpdb;
+		$ids   = array_map( 'intval', array_keys( $ids ) );
+		$in    = implode( ',', $ids );
+		$types = (array) $wpdb->get_results( // phpcs:ignore WordPress.DB.PreparedSQL.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- ids cast to int above.
+			"SELECT ID, post_type FROM {$wpdb->posts} WHERE ID IN ($in)",
+			ARRAY_A
+		);
+		$map = array();
+		foreach ( $types as $row ) {
+			$map[ (int) $row['ID'] ] = (string) $row['post_type'];
+		}
+
+		$kept    = array();
+		$dropped = array();
+		foreach ( $rows as $row ) {
+			$id = isset( $row['page_id'] ) ? (int) $row['page_id'] : 0;
+			// Unknown id → keep. A row we cannot resolve is not a row we know to
+			// be out of scope, and guessing "exclude" would silently delete a page
+			// from the owner's worklist on the strength of a missing join.
+			if ( $id < 1 || ! isset( $map[ $id ] ) || in_array( $map[ $id ], $checked, true ) ) {
+				$kept[] = $row;
+				continue;
+			}
+			$dropped[ $id ] = true;
+		}
+
+		// PAGES held back, not rows: one page can hold a dozen query rows, and
+		// "12 pages are not being checked" beside a site with two products would
+		// read as a miscount.
+		return array( 'rows' => $kept, 'dropped' => count( $dropped ) );
 	}
 
 	/**

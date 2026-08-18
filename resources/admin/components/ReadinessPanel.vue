@@ -14,6 +14,16 @@ export default {
     optimize: { type: Array, default: () => [] }, // Content worklist behind the Optimized rung.
     optimizeIgnored: { type: Array, default: () => [] }, // Pages set aside as "not cited content".
     optimizeGraded: { type: Number, default: 0 }, // How many pages were actually graded.
+    // { graded: [...labels], notGraded: [...labels] } — what this card's numbers
+    // cover, and what the site checks without grading.
+    //
+    // ⚠️ Defaults to NULL, not to a pair of empty arrays. "Nothing is checked"
+    // and "this payload predates the scope field" would look identical as empty
+    // arrays, and the first is a sentence this card says out loud — so a stale
+    // cached score would announce that the owner had switched checking off.
+    // Null means "not told", and every reader below falls back rather than
+    // claiming something it was never handed.
+    optimizeScope: { type: Object, default: null },
     // How many published pages the sweep has not read yet. Above zero means this
     // card is describing PART of the site, which is a different claim from the
     // finished one — and the only thing that separates an honest all-clear from
@@ -89,15 +99,68 @@ export default {
     optimizeClear() {
       const left = Number(this.optimizeGrading || 0);
       const graded = Number(this.optimizeGraded || 0);
+      // Switched off by the owner, which is not the same as "nothing to say".
+      // ⛔ Never an all-clear: this card knows nothing about the site right now,
+      // and "everything is ready to quote" over content nobody read would be the
+      // most confident lie on the screen.
+      if (this.checkingOff) {
+        return `Content checking is off — no content types are selected, so this is your last reading of ${this.gradedScope}, not today’s. Nothing new is being read.`;
+      }
+      // Nothing to grade at all — a shop whose published content is products.
+      // ⚠️ This card used to vanish entirely in that case, while Your Content
+      // next door showed hundreds of rows: an absence that read as "the plugin
+      // has nothing to say about my content" when the truth is that these
+      // checks don't apply to what this site publishes. An absence has to name
+      // itself.
+      if (!graded && left === 0 && ((this.optimizeScope && this.optimizeScope.notGraded) || []).length) {
+        return `Nothing here is graded for quoting — what you publish is checked on Your Content instead, for the searches each page is found for.`;
+      }
       if (left > 0) {
         const n = left.toLocaleString();
         return `Nothing flagged in the ${graded.toLocaleString()} read so far — still reading your content, ${n} ${left === 1 ? 'page has' : 'pages have'} not been looked at yet.`;
       }
-      return `Every published post and page is ready for AI to quote. Anything set aside is listed below.`;
+      // ⚠️ "post and page" was hardcoded, and stopped being true the moment a
+      // site graded anything else: an all-clear that names two kinds of content
+      // on a site with four is a claim about less than it measured. The scope
+      // says what was actually read.
+      return `Everything published in ${this.gradedScope} is ready for AI to quote. Anything set aside is listed below.`;
+    },
+    // The owner has switched every content type off — checking is off, which is
+    // not the same as clean. Only ever true when the server actually said so.
+    checkingOff() {
+      return !!(this.optimizeScope && this.optimizeScope.off);
+    },
+    // The kinds of content behind this card's numbers, written the way a person
+    // would say them. Falls back to the old wording when the server has not sent
+    // a scope (an older cached score payload), never to a blank.
+    gradedScope() {
+      const names = (this.optimizeScope && this.optimizeScope.graded) || [];
+      if (!names.length) return 'your posts and pages';
+      if (names.length === 1) return `your ${names[0]}`;
+      return `your ${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}`;
+    },
+    // Content this site checks but never grades for quoting — products, and
+    // anything else a commerce plugin owns. Named on the card because the
+    // content list next door is full of them and this count includes none.
+    notGradedNote() {
+      const names = (this.optimizeScope && this.optimizeScope.notGraded) || [];
+      if (!names.length) return '';
+      const list = names.length === 1
+        ? names[0]
+        : `${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}`;
+      return `${list} aren’t graded for quoting — those pages are short by design, so “needs more substance” would be the wrong advice. They’re still checked on Your Content for the searches they’re found for.`;
     },
     // Show the section whenever there's anything to act on — issues, or set-aside pages.
     hasOptimizeSection() {
-      return this.optimize.length > 0 || this.optimizeIgnored.length > 0;
+      // The third case is a site with nothing gradeable — a shop. It has no
+      // issues and no set-aside pages, so the card used to disappear beside a
+      // content list full of rows. It shows, and says why it is empty.
+      const nothingToGrade = !this.optimizeGraded
+        && ((this.optimizeScope && this.optimizeScope.notGraded) || []).length > 0;
+      // …and the fourth: the owner switched checking off. A card that simply
+      // disappeared would leave the screen reading as though this site had no
+      // content worth a word about it.
+      return this.optimize.length > 0 || this.optimizeIgnored.length > 0 || nothingToGrade || this.checkingOff;
     },
     livePass() {
       return this.live ? this.live.filter((r) => r.ok).length : 0;
@@ -473,6 +536,33 @@ export default {
       <!-- Nothing flagged. Said here rather than inside the disclosure, which is
            the one place an all-clear must never hide. -->
       <p v-if="!optimize.length" class="ar-optcheck__clear">{{ optimizeClear }}</p>
+
+      <!-- Only when there ARE issues: optimizeClear already carries this
+           sentence for the empty case, and printing it twice would read as two
+           different systems both apologising. The notice cannot be skipped
+           though — every number on this card is a memory while checking is off,
+           and a card that looks live is worse than one that admits it is not. -->
+      <p v-if="checkingOff && optimize.length" class="ar-card__note ar-card__note--wide">
+        <strong>Content checking is off.</strong> These are the grades from your last
+        reading of {{ gradedScope }} — nothing new is being read, and nothing here will
+        change until you choose what to check.
+      </p>
+
+      <!-- ⛔ Not a sentence pointing at a control on another screen. "Open the
+           gear on Your Content" asks the reader to go and hunt for a 28px icon;
+           the button that opens the dialog belongs where the problem is named. -->
+      <div v-if="checkingOff" class="ar-optsum">
+        <button
+          type="button"
+          class="ar-btn ar-btn--small"
+          @click="$emit('navigate', { tab: 'findings', anchor: 'ar-work', open: 'checkScope' })"
+        >Choose what to check</button>
+      </div>
+
+      <!-- Shown only when this site actually checks something it doesn't grade.
+           A site of posts and pages never reads an explanation for a difference
+           it doesn't have. -->
+      <p v-if="notGradedNote" class="ar-card__note ar-card__note--wide">{{ notGradedNote }}</p>
 
       <!-- ⭐ A LINK, not a button. It goes to another screen in this same page —
            it changes nothing, commits nothing, and can be left as easily as it

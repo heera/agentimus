@@ -45,6 +45,9 @@ final class Findings {
 	/** Evidence chips shown per finding before the rest are counted. */
 	const MAX_EVIDENCE = 4;
 
+	/** @var array<int,string>|null Memoized dismissed ids. */
+	private $dismissed = null;
+
 	/** A decision only the owner can make, or a live trust problem. */
 	const URGENT = 'urgent';
 
@@ -127,6 +130,7 @@ final class Findings {
 			'near_page_one'   => 'near_page_one',
 			'seen_not_chosen' => 'seen_not_chosen',
 			'split_searches'  => 'split_searches',
+			'checking_off'    => 'checking_off',
 			'content_issues'  => 'content_issues',
 			'config_gap'      => 'config_gaps',
 			'never_measured'  => 'never_measured',
@@ -169,6 +173,21 @@ final class Findings {
 		}
 		usort( $open, $by_weight );
 		usort( $waiting, $by_weight );
+
+		// ⛔ HIDDEN ONES COME OUT FIRST, and only the tier that may be hidden.
+		// A dismissible urgent finding is a way to bury a live trust problem, so
+		// LATER — "worth knowing, costs nothing today" — is the only tier this
+		// applies to. That is not a convention, it is the definition of the tier.
+		$hidden = array();
+		$keep   = array();
+		foreach ( $open as $row ) {
+			if ( self::LATER === $row['tier'] && in_array( (string) $row['id'], $this->dismissed_ids(), true ) ) {
+				$hidden[] = $row;
+				continue;
+			}
+			$keep[] = $row;
+		}
+		$open  = $keep;
 		$found = array_merge( array_slice( $open, 0, self::MAX ), $waiting );
 
 		$counts = array( self::URGENT => 0, self::WORTH => 0, self::LATER => 0, self::WAITING => 0 );
@@ -195,6 +214,13 @@ final class Findings {
 			'clear'    => $this->clear_lines(),
 			'failed'   => $failed,
 			'counts'   => $counts,
+			// ⭐ NEVER A HIDDEN LEDGER. The rows the owner put away travel WITH
+			// the ones they kept, so the screen can carry a visible count and
+			// hand any of them back. The same rule the set-aside list already
+			// follows: a plugin that quietly stops mentioning something has
+			// stopped being trustworthy about everything else it does not
+			// mention either.
+			'hidden'   => array_values( $hidden ),
 		);
 
 		/**
@@ -206,6 +232,58 @@ final class Findings {
 		 */
 		$payload = apply_filters( self::FILTER, $payload, $this->settings );
 		return is_array( $payload ) ? $payload : array( 'findings' => array(), 'resolved' => null, 'clear' => array(), 'failed' => array(), 'counts' => $counts );
+	}
+
+	/**
+	 * The kinds of content this site checks, named the way a sentence needs them.
+	 *
+	 * ⭐ Read from the live scope, never written down. Any fixed phrase here is
+	 * wrong on some site: "posts and pages" on a shop, "pages" the moment posts
+	 * come back. Past three kinds it stops listing and says "pieces of content" —
+	 * a sentence that names six content types has stopped being a sentence.
+	 *
+	 * Labels are used as the post type declares them (WordPress capitalises them),
+	 * which is how the by-issue rows already print "3 Posts, 1 Page".
+	 *
+	 * @param int $n How many items — decides singular or plural.
+	 * @return string
+	 */
+	private static function scope_noun( $n ) {
+		$types = Content::check_post_types();
+		if ( ! $types ) {
+			return _n( 'piece of content', 'pieces of content', (int) $n, 'agentimus' );
+		}
+		if ( count( $types ) > 3 ) {
+			return _n( 'piece of content', 'pieces of content', (int) $n, 'agentimus' );
+		}
+
+		$names = array();
+		foreach ( $types as $type ) {
+			$names[] = 1 === (int) $n ? Content::singular( $type ) : Content::label( $type );
+		}
+		if ( 1 === count( $names ) ) {
+			return $names[0];
+		}
+		$last = array_pop( $names );
+		return sprintf(
+			/* translators: 1: comma-separated list of content types, 2: the last one. */
+			__( '%1$s and %2$s', 'agentimus' ),
+			implode( ', ', $names ),
+			$last
+		);
+	}
+
+	/**
+	 * Findings the owner has put away.
+	 *
+	 * @return array<int,string>
+	 */
+	private function dismissed_ids() {
+		if ( null === $this->dismissed ) {
+			$raw             = (array) $this->settings->get( 'findings_dismissed', array() );
+			$this->dismissed = array_values( array_filter( array_map( 'sanitize_key', array_map( 'strval', $raw ) ) ) );
+		}
+		return $this->dismissed;
 	}
 
 	/**
@@ -270,8 +348,15 @@ final class Findings {
 	 * @param string $anchor Optional DOM id to scroll to on arrival.
 	 * @return array
 	 */
-	private function go( $label, $tab, $view = '', $anchor = '', array $pages = array() ) {
+	private function go( $label, $tab, $view = '', $anchor = '', array $pages = array(), $open = '' ) {
 		$out = array( 'label' => $label, 'tab' => $tab, 'view' => $view, 'anchor' => $anchor );
+		// ⭐ A door, not a direction. Some findings are answered in a dialog, and
+		// scrolling somebody to the card that holds the control — then leaving
+		// them to spot a 28px gear — is a button that stops one step short of
+		// what it promised. `open` names the panel to open on arrival.
+		if ( '' !== (string) $open ) {
+			$out['open'] = (string) $open;
+		}
 		// The pages this finding actually counted. A finding that says "4 pages"
 		// and then hands over thirty rows has made the reader do the counting
 		// again; with these, the list arrives showing exactly those four.
@@ -700,8 +785,19 @@ final class Findings {
 	 */
 	private function resolved() {
 		$wins = array();
+		// ⚠️ The scope is applied on the way OUT as well as on the way in. The
+		// tracker only records pages in scope, but a page can go out of scope
+		// after its baseline was taken — and a win announced for a page the owner
+		// has since switched off is the same contradiction one step later.
+		$checked = Content::check_post_types();
 		foreach ( Search\Progress::resolved() as $win ) {
 			$id    = (int) $win['page_id'];
+			if ( $id > 0 ) {
+				$type = get_post_type( $id );
+				if ( $type && ! in_array( (string) $type, $checked, true ) ) {
+					continue;
+				}
+			}
 			$title = $id > 0
 				? html_entity_decode( wp_strip_all_tags( (string) get_the_title( $id ) ), ENT_QUOTES, 'UTF-8' )
 				: (string) wp_parse_url( (string) $win['page_url'], PHP_URL_PATH );
@@ -848,6 +944,46 @@ final class Findings {
 	 *
 	 * @return array<int,array>
 	 */
+	/**
+	 * The owner has switched every content type off.
+	 *
+	 * ⚠️ This row exists because of what happens WITHOUT it. `content_issues()`
+	 * reads the live scope, so with nothing checked it returns nothing and the
+	 * worklist finding simply disappears — while the Readiness card next door
+	 * goes on showing the same pages from the last reading, because the score is
+	 * deliberately held at its last known value so switching checking off cannot
+	 * raise it. Two surfaces, one subject, opposite answers.
+	 *
+	 * ⛔ It does NOT re-list the old findings here. A to-do list that cannot be
+	 * refreshed is worse than an honest gap: the pages may have been fixed, and
+	 * nothing is watching them. One row, saying the one true thing, with the way
+	 * to undo it.
+	 *
+	 * @return array<int,array>
+	 */
+	private function checking_off() {
+		// Only when the site HAS content it could check. A site with no eligible
+		// content types is not a site that switched anything off.
+		if ( ! Content::checkable() || Content::check_post_types() ) {
+			return array();
+		}
+
+		return array(
+			$this->row(
+				'checking_off',
+				self::LATER,
+				__( 'Nothing about your content is being checked', 'agentimus' ),
+				__( 'Every kind of content is switched off, so no page is being read.', 'agentimus' ),
+				array( __( 'Your Content · nothing selected', 'agentimus' ) ),
+				$this->go( __( 'Choose what to check', 'agentimus' ), 'findings', '', 'ar-work', array(), 'checkScope' ),
+				array(
+					__( 'Your grades are kept — switch a type back on and its rows come straight back.', 'agentimus' ),
+					__( 'Until then, anything about your pages here is from the last reading.', 'agentimus' ),
+				)
+			),
+		);
+	}
+
 	private function content_issues() {
 		$tally = ( new Worklist( $this->settings ) )->tally();
 
@@ -904,9 +1040,16 @@ final class Findings {
 					// number. Same words for the same count, deliberately: the two
 					// screens disagreeing about how much work there is was the
 					// whole fault.
-					/* translators: %s: how many posts and pages are worth fixing. */
-					_n( '%s post or page is worth fixing', '%s posts and pages are worth fixing', $n, 'agentimus' ),
-					number_format_i18n( $n )
+					//
+					// ⚠️ The NOUN is the checked scope, never the words "posts and
+					// pages". That pair was hardcoded here, so a site that had
+					// switched Posts off was told how many "posts and pages" needed
+					// fixing over a count containing no posts at all — the same
+					// fault as the all-clear on the Readiness card, in its twin.
+					/* translators: 1: how many items are worth fixing, 2: the kinds of content checked, e.g. "Pages" or "Posts and Products". */
+					_n( '%1$s %2$s is worth fixing', '%1$s %2$s are worth fixing', $n, 'agentimus' ),
+					number_format_i18n( $n ),
+					self::scope_noun( $n )
 				),
 				__( 'Either the page needs an edit, or it does not answer the search it is found for.', 'agentimus' ),
 				$evidence,
@@ -998,6 +1141,31 @@ final class Findings {
 	 */
 	private function never_measured() {
 		$report = $this->score_report();
+
+		// ⛔ SWITCHED OFF IS AN ANSWER. Citation checks are opt-in, and this row
+		// asked a site that had them off to go and set them up — for ever, with
+		// no way to say no.
+		//
+		// ⚠️ This replaced two cleverer gates, and the simpler rule is the right
+		// one. The first waited for the readiness rungs to be clear, on the
+		// theory that "have you measured?" is premature on a half-configured
+		// site. The second remembered the moment somebody switched the feature
+		// off. Both missed the case that actually matters: an owner who turned it
+		// off BEFORE either gate existed has no recorded transition and no
+		// perfect readiness score, so both gates let the nag through — which is
+		// every site that had already made the decision.
+		//
+		// Read the current value and the ambiguity stops mattering: whether they
+		// declined or never looked, they are not asking for this. The feature
+		// introduces itself on the Visibility screen, in onboarding and on the
+		// About page — a front-door row is not what makes it discoverable, it is
+		// only what makes it unavoidable.
+		//
+		// What is left is a finding that means exactly what its title says: the
+		// checks are ON and no reading has ever been taken.
+		if ( ! $this->settings->get( 'enable_visibility', false ) ) {
+			return array();
+		}
 
 		// The Cited rung is only BUILT when citation tracking is switched on, so
 		// "no rung" and "rung with no score" are both "never measured" — and the

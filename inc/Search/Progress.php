@@ -70,7 +70,11 @@ final class Progress {
 			return;
 		}
 
-		$rows = Table::snapshot( $source );
+		// ⭐ The SAME scope every other worklist answers to. Without it this would
+		// go on tracking pages the owner has switched off, and then announce that
+		// one of them had climbed — a win for a page that was never on their list.
+		$scoped = Report::in_check_scope( Table::snapshot( $source ) );
+		$rows   = $scoped['rows'];
 		if ( ! $rows ) {
 			return;
 		}

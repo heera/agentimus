@@ -34,7 +34,7 @@ export default {
     score: { type: Object, default: null },
     busy: { type: Boolean, default: false },
   },
-  emits: ['navigate', 'refresh', 'seen'],
+  emits: ['navigate', 'refresh', 'seen', 'dismiss'],
   computed: {
     rows() {
       return Array.isArray(this.findings.findings) ? this.findings.findings : [];
@@ -44,6 +44,11 @@ export default {
     // by the headline, which is the exact miscount this tier exists to end.
     open() {
       return this.rows.filter((r) => 'later' !== r.tier && 'waiting' !== r.tier);
+    },
+    // Suggestions the owner put away. Carried, counted and reversible — never
+    // silently dropped, which is the same rule the set-aside ledger follows.
+    hidden() {
+      return Array.isArray(this.findings.hidden) ? this.findings.hidden : [];
     },
     // Worth knowing, costs nothing today — below the divider.
     later() {
@@ -153,11 +158,14 @@ export default {
       }
       // `pages` travels with it: a finding that counted four pages hands those
       // four over, so the list it lands on shows them rather than everything.
+      // `open` travels too: some answers live in a dialog, and landing beside
+      // the control that opens it is one step short of the button's promise.
       this.$emit('navigate', {
         tab: action.tab,
         view: action.view || '',
         anchor: action.anchor || '',
         pages: action.pages || null,
+        open: action.open || '',
       });
     },
   },
@@ -239,8 +247,29 @@ export default {
                  still somewhere to go, and a text link beside five solid buttons
                  reads as a different KIND of thing rather than a quieter one —
                  the waiting rows say "look", not "fix", in their label. -->
+            <!-- ⛔ Only on "later" rows, and the server enforces it too. A hide
+                 control on an urgent finding would be a way to bury a live
+                 problem; on a suggestion it is simply an answer. -->
+            <button
+              v-if="row.tier === 'later'"
+              v-tip="'Put this suggestion away'"
+              type="button"
+              class="ar-iconbtn ar-today__hide"
+              :aria-label="`Put away: ${row.title}`"
+              :disabled="busy"
+              @click="$emit('dismiss', { id: row.id, hidden: true })"
+            >
+              <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor"
+                   stroke-width="1.6" stroke-linecap="round" aria-hidden="true"><path d="M3 8h10" /></svg>
+            </button>
             <div v-if="row.action" class="ar-today__act">
-              <button type="button" class="ar-btn ar-btn--sm" :class="{ 'ar-newtab': !!row.action.url }" @click="go(row.action)">{{ row.action.label }}</button>
+              <!-- ⚠️ `ar-btn--small`, not `ar-btn--sm`. The short form was a
+                   class that exists nowhere in the stylesheet, so every finding's
+                   button silently rendered at FULL size — 12px in a column fixed
+                   at 214px — and the longest label hung 9px outside its own
+                   background. A modifier that does not exist fails silently and
+                   looks deliberate, which is why it survived. -->
+              <button type="button" class="ar-btn ar-btn--small" :class="{ 'ar-newtab': !!row.action.url }" @click="go(row.action)">{{ row.action.label }}</button>
             </div>
           </li>
         </ul>
@@ -251,6 +280,23 @@ export default {
         <span class="ar-today__clear-mark" aria-hidden="true">✓</span>
         <span>{{ line }}<button type="button" class="ar-linkbtn" @click="$emit('navigate', { tab: 'readiness' })">See the checks</button></span>
       </p>
+
+      <!-- The ledger. A count the owner can open and undo, because a plugin that
+           quietly stops mentioning things has stopped being trustworthy about
+           everything else it has not mentioned either. -->
+      <details v-if="hidden.length" class="ar-fold ar-today__hidden">
+        <summary>
+          {{ hidden.length }} {{ hidden.length === 1 ? 'suggestion' : 'suggestions' }} you put away
+        </summary>
+        <ul class="ar-today__hiddenlist">
+          <li v-for="row in hidden" :key="row.id">
+            <span>{{ row.title }}</span>
+            <button type="button" class="ar-linkbtn" :disabled="busy" @click="$emit('dismiss', { id: row.id, hidden: false })">
+              Bring it back
+            </button>
+          </li>
+        </ul>
+      </details>
 
       <!-- A source that couldn't be read. Named, so a missing finding is visible. -->
       <p v-if="failed.length" class="ar-today__failed">

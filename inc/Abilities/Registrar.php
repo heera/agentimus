@@ -994,6 +994,7 @@ final class Registrar {
 						'Searches that several pages are splitting: the engine sends one search to one page at a time, so competing pages take turns and every turn a weaker page takes is a click the strong one loses. The heaviest few, ranked by showings.'
 					),
 					'collisionsTotal' => self::i( 'How many split searches exist in total; the list above carries the heaviest few.' ),
+					'outOfScope'      => self::i( 'How many measured PAGES this report deliberately says nothing about, because the owner switched their content type off for checking. Above zero means these lists cover part of the measured site, not all of it — the pages are not missing, they are excluded on purpose. Pages with no post behind them (the home page, archives) are never excluded, since no content type governs them.' ),
 				)
 			),
 			function ( $input ) {
@@ -1039,7 +1040,7 @@ final class Registrar {
 							),
 							'action'   => array(
 								'type'                 => array( 'object', 'null' ),
-								'description'          => 'Where the fix lives: { label, tab, view, anchor }, plus `url` for an outward destination or `pages` (post ids) when the landing list should show exactly the pages this finding counted. Null when there is nothing to open.',
+								'description'          => 'Where the fix lives: { label, tab, view, anchor }, plus `url` for an outward destination, `pages` (post ids) when the landing list should show exactly the pages this finding counted, or `open` naming a panel the owner\u2019s screen opens on arrival (e.g. "checkScope"). Null when there is nothing to open.',
 								'additionalProperties' => true,
 							),
 							'check'    => self::s( 'On a config_gap finding only: the readiness check id behind it (feed it to apply-fix).' ),
@@ -1073,6 +1074,11 @@ final class Registrar {
 							'later'   => self::i(),
 							'waiting' => self::i( 'Carried but never counted as open work — no edit can clear a waiting row.' ),
 						)
+					),
+					'hidden'   => array(
+						'type'        => 'array',
+						'items'       => array( 'type' => 'object', 'additionalProperties' => true ),
+						'description' => 'Findings the OWNER has put away — same shape as `findings`, and never counted in `counts`. Only "later" rows can be here; urgent and worth ones can never be hidden. ⛔ Do not re-raise these to the owner as if they were new: they are a decision, not an oversight. They travel with the payload rather than being dropped so nothing is ever silently withheld.',
 					),
 				)
 			),
@@ -2438,8 +2444,26 @@ final class Registrar {
 						'action'   => array( 'type' => array( 'object', 'null' ), 'additionalProperties' => true ),
 					)
 				),
-				'graded'   => self::i( 'How many published posts and pages the citability grade covers. The WHOLE site, not a sample — it was the 25 most recently edited until 1.37.0.' ),
+				'graded'   => self::i( 'How many published items the citability grade covers. Which CONTENT TYPES those are is in `scope.graded` — never assume posts and pages; a site can grade Pages and Docs, or have switched Posts off entirely. The WHOLE site, not a sample — it was the 25 most recently edited until 1.37.0.' ),
 				'grading'  => self::i( 'How many published pages have not been read yet. Above zero means `graded` and `content` describe part of the site, not all of it.' ),
+				'scope'    => self::obj(
+					array(
+						'graded'    => array(
+							'type'        => 'array',
+							'items'       => array( 'type' => 'string' ),
+							'description' => 'The content types behind `graded` and `content`, by their display names — what the citability grade actually covers on this site.',
+						),
+						'notGraded' => array(
+							'type'        => 'array',
+							'items'       => array( 'type' => 'string' ),
+							'description' => 'Content types this site CHECKS but never grades for quoting — products and the like, short by design. They carry no citability verdict here; they are still checked for the searches they are found for. ⛔ Never read an empty citability result for one of these as a bad grade.',
+						),
+						'off'       => array(
+							'type'        => 'boolean',
+							'description' => 'TRUE when the owner has switched every content type off. `graded`, `content` and the Optimized pillar then describe the LAST completed reading, not the site today, and nothing new is being read — `grading` is 0 because no sweep is coming, not because the site is finished. ⛔ Never report this state as an up-to-date measurement.',
+						),
+					)
+				),
 				// The report shipped these two from the start; the schema did not,
 				// and additionalProperties:true let the gap hide — declared keys
 				// are the only ones a schema-trusting client knows exist.

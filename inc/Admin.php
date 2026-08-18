@@ -100,7 +100,20 @@ final class Admin {
 			self::SLUG,
 			array( $this, 'render' ),
 			$this->menu_icon_uri(),
-			81
+			/**
+			 * Where the menu sits. Just above Posts — his call: this is a screen
+			 * an owner opens daily, and at 81 it sat below Settings where nobody
+			 * looks twice.
+			 *
+			 * ⚠️ A STRING, and fractional on purpose. Menu positions are array
+			 * keys: a plain integer that another plugin already used REPLACES it,
+			 * and the loser is whichever registered second — a silent way to
+			 * delete somebody else's menu. A fraction nobody else is likely to
+			 * pick avoids the collision entirely.
+			 *
+			 * @param string $position add_menu_page position.
+			 */
+			(string) apply_filters( 'agentimus_menu_position', '4.9127' )
 		);
 	}
 
@@ -113,7 +126,28 @@ final class Admin {
 	 * @return string
 	 */
 	private function menu_icon_uri() {
-		$svg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="#a7aaad" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="2.6" y="2.6" width="18.8" height="18.8" rx="5.4"/><path d="M8.4 16.6 12 8 15.6 16.6"/><path d="M9.9 13.6H14.1"/></svg>';
+		// ⚠️ Stroke 2.1, not 1.7. Its neighbours in a real sidebar are SOLID
+		// glyphs, and a hairline outline beside them has roughly a third of the
+		// ink — it reads as disabled rather than as quiet, whatever colour it is
+		// given (his catch, 2026-08-18, with FluentCart sitting above it).
+		//
+		// ⛔ The crossbar is NOT in here. This shape is masked, so it can only
+		// ever be one colour; the gold bar is painted separately by
+		// {@see menu_icon_style()} so the brand keeps one note of its own.
+		$svg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="#000" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><rect x="2.2" y="2.2" width="19.6" height="19.6" rx="5.6"/><path d="M8.1 17 12 7.4 15.9 17"/></svg>';
+		return 'data:image/svg+xml;base64,' . base64_encode( $svg );
+	}
+
+	/**
+	 * The brand's gold crossbar, painted over the masked mark.
+	 *
+	 * One colour that survives every scheme and every state, so the item is
+	 * findable at a glance without opting out of the sidebar's own language.
+	 *
+	 * @return string
+	 */
+	private function menu_bar_uri() {
+		$svg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.4 13.2H14.6" stroke="#e0b24c" stroke-width="2.1" stroke-linecap="round"/></svg>';
 		return 'data:image/svg+xml;base64,' . base64_encode( $svg );
 	}
 
@@ -153,12 +187,24 @@ final class Admin {
 		$sel    = '#adminmenu #toplevel_page_' . self::SLUG;
 		$handle = self::HANDLE . '-menu';
 
+		$bar = $this->menu_bar_uri();
+
+		// ⚠️⚠️ `currentColor`, NEVER a literal. This used to hardcode
+		// rgba(240,246,252,.6) at rest and #fff on hover — two values invented
+		// for the default scheme and applied to all nine. On a light admin scheme
+		// a 60%-white icon is very nearly invisible, and on every scheme the
+		// hover/current transition was ours rather than WordPress's.
+		//
+		// WordPress already sets `color` on this exact pseudo-element, per scheme
+		// AND per state, for its own dashicons. Inheriting it means the mark
+		// dims, brightens and recolours in step with every other icon in the
+		// sidebar for free — which is what makes it look native rather than
+		// switched off. ⛔ Do not "fix" this back to a colour value.
 		$css = $sel . ' .wp-menu-image{background-image:none!important;position:relative}'
-			. $sel . ' .wp-menu-image::before{content:"";position:absolute;inset:0;background-color:rgba(240,246,252,.6);-webkit-mask:url("' . $uri . '") center/21px no-repeat;mask:url("' . $uri . '") center/21px no-repeat}'
-			. $sel . ':hover .wp-menu-image::before,'
-			. $sel . '.current .wp-menu-image::before,'
-			. $sel . '.wp-has-current-submenu .wp-menu-image::before,'
-			. $sel . '.opensub .wp-menu-image::before{background-color:#fff}';
+			. $sel . ' .wp-menu-image::before{content:"";position:absolute;inset:0;background-color:currentColor;-webkit-mask:url("' . $uri . '") center/21px no-repeat;mask:url("' . $uri . '") center/21px no-repeat}'
+			// The gold bar rides on top, painted rather than masked, so it keeps
+			// its colour while everything under it follows the scheme.
+			. $sel . ' .wp-menu-image::after{content:"";position:absolute;inset:0;background:url("' . $bar . '") center/21px no-repeat}';
 
 		wp_register_style( $handle, false, array(), AGENTIMUS_VERSION );
 		wp_enqueue_style( $handle );
@@ -621,6 +667,15 @@ final class Admin {
 	}
 
 	private function bootstrap_data() {
+		// ⭐ Before anything below reads the checking scope. A content type this
+		// site has never decided about gets its default here — on, unless it is
+		// large enough that reading it should be the owner's own call — so the
+		// panel, the readiness card and the score all describe one settled state
+		// rather than three views of a decision still being made. Runs an
+		// array_diff on each load of THIS screen and nothing more; the counts
+		// behind the size guard are taken only for a genuinely new type.
+		Content::note_new_checkable_types( $this->settings );
+
 		return array(
 			'restUrl'     => esc_url_raw( rest_url( Rest::NAMESPACE ) ),
 			'nonce'       => wp_create_nonce( 'wp_rest' ),
@@ -658,6 +713,14 @@ final class Admin {
 			// knowing something true about the site rather than an empty panel
 			// with a button on it.
 			'worklistPreview' => ( new Worklist( $this->settings ) )->preview(),
+			// What the gear on Your Content opens: which kinds of content are
+			// read for the owner, and which cannot be.
+			'checkTypes'  => $this->check_post_type_cards(),
+			// The two doors out: Get Help (the forum) and Report an Issue
+			// (GitHub). Composed here rather than fetched, so the dialogs open
+			// with the facts already true — and so the block the owner READS is
+			// the same string the URL carries.
+			'support'     => Support::payload(),
 			'discovery'   => Discovery\Hub::data( $this->settings, Discovery\Registry::instance() ),
 			'restNamespacesDetected' => Discovery\Adapters\RestApi::detected(),
 			'entityTypes'   => $this->settings->entity_types(),
@@ -918,6 +981,67 @@ final class Admin {
 				'taxonomies' => array_values( array_unique( $taxes ) ),
 			);
 		}
+		return $out;
+	}
+
+	/**
+	 * The CHECKING scope, for the gear on Your Content: every content type this
+	 * site could read for the owner, whether it is being read, and how much of it
+	 * there is.
+	 *
+	 * ⚠️ Two different questions live on two screens and must not be confused.
+	 * Settings → Content Types curates what LEAVES the site. This decides what
+	 * the plugin READS for the owner, publishes nothing, and therefore defaults
+	 * to everything eligible. {@see Content::check_post_types()}
+	 *
+	 * `blocked` types are shown with their reason rather than omitted: a type
+	 * that is simply missing reads as a bug, and the one thing an owner cannot
+	 * do is ask about something they were never shown.
+	 *
+	 * @return array<int,array{slug:string,label:string,source:string,count:int,on:bool,blocked:string}>
+	 */
+	private function check_post_type_cards() {
+		$eligible = Content::checkable();
+		$on       = Content::check_post_types();
+		$out      = array();
+
+		foreach ( $eligible as $slug ) {
+			$is_on = in_array( $slug, $on, true );
+			$out[] = array(
+				'slug'    => $slug,
+				'label'   => Content::label( $slug ),
+				'source'  => Content::source( $slug ),
+				'count'   => Content::published_count( $slug ),
+				'on'      => $is_on,
+				// Why this one starts off — a big catalogue, or a type its own
+				// plugin keeps out of site search. Only ever shown on an unticked
+				// card: an owner who has ticked it anyway has settled the question
+				// and does not need it re-argued every time they open the panel.
+				'note'    => $is_on ? '' : Content::check_default_off_reason( $slug ),
+				'blocked' => '',
+			);
+		}
+
+		// Public, reachable, and still not checkable. Only attachments land here
+		// — shown rather than omitted, because "why isn't my media in this list"
+		// is a question the panel should answer before it is asked.
+		foreach ( get_post_types( array( 'public' => true ), 'names' ) as $slug ) {
+			if ( in_array( (string) $slug, $eligible, true ) ) {
+				continue;
+			}
+			$out[] = array(
+				'slug'    => (string) $slug,
+				'label'   => Content::label( (string) $slug ),
+				'source'  => Content::source( (string) $slug ),
+				'count'   => 0,
+				'on'      => false,
+				'note'    => '',
+				'blocked' => 'attachment' === (string) $slug
+					? __( 'Media files have no page of their own to read.', 'agentimus' )
+					: __( 'This kind of content has no page an answer engine could read.', 'agentimus' ),
+			);
+		}
+
 		return $out;
 	}
 

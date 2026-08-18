@@ -1015,7 +1015,7 @@ export default {
                 <details v-if="!sharing.telegram.enabled" class="ar-fold ar-fold--guide">
                   <summary>Setting up the channel, step by step</summary>
                   <ol class="ar-guide">
-                    <li>In Telegram: <strong>New Channel</strong> — name it for your readers.</li>
+                    <li>In Telegram — the <a href="https://web.telegram.org/" target="_blank" rel="noopener">web app</a> works too if you’d rather not install it — choose <strong>New Channel</strong> and name it for your readers.</li>
                     <li>Make it <strong>Public</strong> and claim its <code>t.me/…</code> link — the part after <code>t.me/</code> goes in the field above.</li>
                     <li>Open the channel → its name → <strong>Administrators → Add Admin</strong> → your bot, with <strong>Post Messages</strong> allowed.</li>
                   </ol>
@@ -1209,10 +1209,10 @@ export default {
                   <details v-if="!telegram.hasToken" class="ar-fold ar-fold--guide">
                     <summary>Never made a bot? The whole thing takes about three minutes</summary>
                     <ol class="ar-guide">
-                      <li>In Telegram, open <code>@BotFather</code> and send <code>/newbot</code> — give the bot a name, then a username ending in <code>bot</code>.</li>
+                      <li>In Telegram, open <a href="https://t.me/BotFather" target="_blank" rel="noopener"><code>@BotFather</code></a> and send <code>/newbot</code> — give the bot a name, then a username ending in <code>bot</code>.</li>
                       <li>BotFather answers with a <strong>token</strong> — the long <code>123456:ABC…</code> code. That’s what you paste below. Lost it? <code>/mybots</code> → your bot → API Token.</li>
                       <li><strong>Message your new bot once</strong> — open it and press Start. Telegram only lets a bot write to someone who wrote first.</li>
-                      <li>For the <strong>chat id</strong>: message <code>@userinfobot</code> and it replies with your number.</li>
+                      <li>For the <strong>chat id</strong>: message <a href="https://t.me/userinfobot" target="_blank" rel="noopener"><code>@userinfobot</code></a> and it replies with your number.</li>
                     </ol>
                   </details>
                   <div class="ar-field">
@@ -1287,7 +1287,7 @@ export default {
                     <details class="ar-fold ar-fold--guide">
                       <summary>Creating your X app, step by step</summary>
                       <ol class="ar-guide">
-                        <li>Sign in at <code>developer.x.com</code> and create your developer account. X meters API posting with <strong>credits</strong> — each announcement spends a little; their console states the price.</li>
+                        <li>Sign in at <a href="https://developer.x.com" target="_blank" rel="noopener"><code>developer.x.com</code></a> and create your developer account. X meters API posting with <strong>credits</strong> — each announcement spends a little; their console states the price.</li>
                         <li>Create a <strong>Project</strong> and an <strong>App</strong> inside it — names are yours to pick.</li>
                         <li>In the app's <strong>User authentication settings</strong>: turn on <strong>OAuth 2.0</strong>, set the type to <strong>Public client</strong>, and paste the <strong>Callback URL</strong> from below.</li>
                         <li>Copy the app's <strong>Client ID</strong> into the field below — there is no secret to copy; this connection doesn't use one.</li>
@@ -1346,13 +1346,14 @@ export default {
                     <p class="ar-int__panellead">
                       <strong>You need a LinkedIn Page first.</strong> LinkedIn only issues app credentials
                       to an app attached to a Page you administer — a personal profile alone can't create
-                      one. Making a Page is free and takes a minute. Your announcements still post to
+                      one. <a href="https://www.linkedin.com/company/setup/new/" target="_blank" rel="noopener">Creating
+                      one</a> is free and takes a minute. Your announcements still post to
                       <em>your own</em> feed, not the Page's; the Page exists only so the app can be made.
                     </p>
                     <details class="ar-fold ar-fold--guide">
                       <summary>Creating your LinkedIn app, step by step</summary>
                       <ol class="ar-guide">
-                        <li>Sign in at <code>developer.linkedin.com</code> and create an <strong>App</strong> — it requires a LinkedIn <strong>Page</strong> to associate, and you must administer that Page.</li>
+                        <li>Sign in at <a href="https://developer.linkedin.com" target="_blank" rel="noopener"><code>developer.linkedin.com</code></a> and create an <strong>App</strong> — it requires a LinkedIn <strong>Page</strong> to associate, and you must administer that Page.</li>
                         <li>On the app's <strong>Products</strong> tab, add <strong>Share on LinkedIn</strong> and <strong>Sign In with LinkedIn using OpenID Connect</strong> — both are free, self-serve, and approved on request.</li>
                         <li>On the <strong>Auth</strong> tab, paste the <strong>Callback URL</strong> from below under Authorized redirect URLs.</li>
                         <li>Copy the <strong>Client ID</strong> and <strong>Client Secret</strong> from the same Auth tab into the fields below.</li>
@@ -1422,8 +1423,8 @@ export default {
                   <details v-if="!slack.enabled" class="ar-fold ar-fold--guide">
                     <summary>Never made a Slack webhook? About two minutes</summary>
                     <ol class="ar-guide">
-                      <li>Go to <code>api.slack.com/apps</code> → <strong>Create New App</strong> → <strong>Blank app</strong>. (Slack used to call this “From scratch”. Don’t pick “AI agent” or “Starter app” — they set up things you don’t need.)</li>
-                      <li>Name it, then choose <strong>your own workspace</strong>. ⚠️ A community workspace you merely belong to won’t let you install an app, and test messages would land in front of everyone there.</li>
+                      <li>Go to <a href="https://api.slack.com/apps" target="_blank" rel="noopener"><code>api.slack.com/apps</code></a> → <strong>Create New App</strong> → <strong>Blank app</strong>. (Slack used to call this “From scratch”. Don’t pick “AI agent” or “Starter app” — they set up things you don’t need.)</li>
+                      <li>Name it, then choose <strong>your own workspace</strong> — no workspace of your own? <a href="https://slack.com/get-started" target="_blank" rel="noopener">Making one is free</a> and takes a minute. ⚠️ A community workspace you merely belong to won’t let you install an app, and test messages would land in front of everyone there.</li>
                       <li>In the left sidebar: <strong>Features → Incoming Webhooks</strong>, and switch <strong>Activate Incoming Webhooks</strong> on. Adding this grants the one permission needed — you don’t add any scopes by hand.</li>
                       <li>Scroll down → <strong>Add New Webhook to Workspace</strong> → pick a channel → <strong>Allow</strong>. A quiet channel, or a message to yourself, is the kindest choice: everything sent here is real.</li>
                       <li>Copy the URL it gives you (it starts <code>https://hooks.slack.com/services/</code>) and paste it below.</li>
@@ -1460,7 +1461,7 @@ export default {
                   <details v-if="!discord.enabled" class="ar-fold ar-fold--guide">
                     <summary>Never made a Discord webhook? About a minute</summary>
                     <ol class="ar-guide">
-                      <li>You need a server you <strong>administer</strong> — a server you merely joined won’t let you make a webhook. No server of your own? The <strong>+</strong> at the bottom of Discord’s server list makes a private one in seconds.</li>
+                      <li>Open Discord — the <a href="https://discord.com/channels/@me" target="_blank" rel="noopener">web app</a> does all of this, no install needed. You need a server you <strong>administer</strong>: one you merely joined won’t let you make a webhook. No server of your own? The <strong>+</strong> at the bottom of the server list makes a private one in seconds.</li>
                       <li>Right-click the channel you want → <strong>Edit Channel</strong> → <strong>Integrations</strong> → <strong>Webhooks</strong> → <strong>New Webhook</strong>. (Server Settings → Integrations gets you to the same place.)</li>
                       <li>Check the channel is the one you meant, then <strong>Copy Webhook URL</strong> and paste it below.</li>
                       <li>Made more than one by accident? Delete the spare — each is a working way into your server.</li>
@@ -1514,7 +1515,7 @@ export default {
                     <summary>Setting the sheet up, step by step</summary>
                     <ol class="ar-guide">
                       <li>Enable the <strong>Google Sheets API</strong> for your project (the link above goes straight there). It usually takes effect in seconds.</li>
-                      <li>Make a spreadsheet — <code>sheets.new</code> makes a blank one.</li>
+                      <li>Make a spreadsheet — <a href="https://sheets.new" target="_blank" rel="noopener"><code>sheets.new</code></a> makes a blank one.</li>
                       <li>Hit <strong>Share</strong> and add <template v-if="sheets.saEmail"><code>{{ sheets.saEmail }}</code></template><template v-else>the service account’s email above</template> as an <strong>Editor</strong>. Viewer is not enough — it appends rows. Leave “Notify people” unchecked: a service account has no inbox.</li>
                       <li>Leave <strong>General access</strong> on <em>Restricted</em>. The sheet stays private; the service account is a named guest, like any collaborator.</li>
                       <li>Copy the sheet’s URL from your browser and paste it below — the long code between <code>/d/</code> and <code>/edit</code> is taken from it for you.</li>

@@ -92,6 +92,9 @@ final class Settings {
 			'llms_full_max_kb' => 900, // Hard byte budget for /llms-full.txt (KB): generation stops cleanly here and links the index. Deliberately UNDER 1024, not at it: a ~1 MB body sits exactly at the common memcached item ceiling, so with the key + serialization overhead the object cache silently REJECTS it — then every request re-runs the full build. 900 KB leaves headroom so the document actually caches. Filterable higher for sites whose cache (or lack of one) can take it.
 			'post_types'       => self::default_post_types(),
 			'post_types_vetoed'    => array(), // Types a PLUGIN switched on that the owner has switched back off. Separate from post_types because the two answer different questions: post_types is "what I chose", this is "what I refused". Applied LAST, after the agentimus_post_types filter, so the owner's no outranks a plugin's yes on their own site. Deliberately NOT intersected with the registered types on save (post_types is): a veto must outlive the plugin's absence, or deactivating it for a week and saving anything would silently forget the refusal and the type would come back advertised on reactivation.
+			'findings_dismissed'   => array(), // Finding ids the owner has put away from the Findings screen. ⛔ Only LATER-tier findings can ever land here ({@see \Agentimus\Findings::all()}) — a dismissible urgent row would be a way to bury a live trust problem. Never a hidden ledger either: the rows travel with the payload and the screen carries a visible "N hidden" count with a way to bring each one back.
+			'check_types_off'      => array(), // The CHECKING scope's refusals — content types the owner (or the size guard) switched off for the worklist and the grading sweep. Empty means "check everything eligible", which is the default on purpose: this scope publishes nothing (the findings are behind can_manage), so the privacy argument that keeps post_types narrow has no force here. Stored as refusals, never as a positive list, so a type installed next month joins on its own instead of waiting for someone to revisit a settings screen. {@see \Agentimus\Content::check_post_types()}
+			'check_types_seen'     => array(), // Types the size guard has already decided a default for. Separate from the refusals because "switched off" and "never decided about" are different facts: without this, a type the owner deliberately turned back ON would be turned off again by the guard on the next admin load. {@see \Agentimus\Content::note_new_checkable_types()}
 			'evergreen_categories' => array(), // Category term IDs whose posts are exempt from the content "freshness" check — timeless content (references, tutorials, legal) that doesn't go stale with age. Empty = every post is age-checked.
 			'optimize_ignored'     => array(), // Post IDs the owner marked "not cited content" from the Optimize worklist — pages that aren't meant to be quoted (landing/utility/index). Left out of citability grading entirely; always shown as a visible "set aside" count so the score stays honest.
 			'search_ignored'       => array(), // Post IDs set aside from the Search Opportunities worklist — pages the owner doesn't want search suggestions for. Its OWN list, not shared with optimize_ignored: "don't grade this for citability" and "don't suggest search fixes for this" are different judgements. Shown inside the Search Opportunities section so it is never a hidden ledger.
@@ -840,6 +843,15 @@ final class Settings {
 		// Kept VERBATIM — no intersect with what is registered today. See the
 		// default's note: a veto has to survive the vetoed plugin being away.
 		$clean['post_types_vetoed'] = $this->sanitize_list( isset( $input['post_types_vetoed'] ) ? $input['post_types_vetoed'] : array(), 'sanitize_key' );
+
+		// The CHECKING scope, stored as refusals and as "already decided about".
+		// Verbatim for the same reason as the veto above: a decision about a type
+		// has to outlive the plugin that registered it being switched off for a
+		// week, or reactivating it would silently start reading twelve thousand
+		// pages nobody asked to have read.
+		$clean['findings_dismissed'] = $this->sanitize_list( isset( $input['findings_dismissed'] ) ? $input['findings_dismissed'] : array(), 'sanitize_key' );
+		$clean['check_types_off']  = $this->sanitize_list( isset( $input['check_types_off'] ) ? $input['check_types_off'] : array(), 'sanitize_key' );
+		$clean['check_types_seen'] = $this->sanitize_list( isset( $input['check_types_seen'] ) ? $input['check_types_seen'] : array(), 'sanitize_key' );
 
 		$available           = Content::available();
 		$requested           = $this->sanitize_list( isset( $input['post_types'] ) ? $input['post_types'] : array(), 'sanitize_key' );

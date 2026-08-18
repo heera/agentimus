@@ -52,6 +52,18 @@ final class Worklist {
 	/** Content flags shown per row before the rest are counted. */
 	const MAX_FLAGS = 3;
 
+	/** @var string Option holding the sweep's run lock (a start time). */
+	const SWEEP_LOCK = 'agentimus_sweep_lock';
+
+	/**
+	 * @var int Seconds before a held sweep lock is treated as abandoned.
+	 *
+	 * Comfortably longer than {@see Grades::SWEEP_SECONDS} so a healthy slow run
+	 * is never robbed mid-chunk, and short enough that a run killed by a host's
+	 * execution limit cannot wedge the sweep until someone notices.
+	 */
+	const SWEEP_LOCK_TTL = 300;
+
 	/** @var Settings */
 	private $settings;
 
@@ -91,11 +103,16 @@ final class Worklist {
 	 * but a site with three hundred ungraded pages should not take three hundred
 	 * hours to finish, so a full chunk books the next one a minute out.
 	 *
+	 * ⛔ ONLY the initial fill chases itself. The re-grade horizon rides the
+	 * hourly beat and never books a follow-up: a site that has read all of its
+	 * content must not then re-read it at a page a minute for ever. That single
+	 * condition is the difference between a background job and a treadmill.
+	 *
 	 * @return void
 	 */
 	public function sweep_and_continue() {
-		$done = $this->sweep();
-		if ( $done >= Grades::SWEEP_CHUNK ) {
+		$run = $this->sweep_run();
+		if ( 'fill' === $run['mode'] && $run['more'] ) {
 			wp_schedule_single_event( time() + MINUTE_IN_SECONDS, Grades::CRON );
 		}
 	}
@@ -514,18 +531,95 @@ final class Worklist {
 	 * @return int How many were graded.
 	 */
 	public function sweep( $limit = null ) {
+		$run = $this->sweep_run( $limit );
+		return $run['done'];
+	}
+
+	/**
+	 * The sweep, with the two facts {@see sweep_and_continue()} needs back:
+	 * which queue this run drew from, and whether that queue still has more.
+	 *
+	 * ⭐ Two guards stand between this and the shared hosting most of these
+	 * sites live on, because rendering a page is the one genuinely expensive
+	 * thing this plugin does:
+	 *
+	 *  - A run lock, so two cron ticks can never render the same chunk twice
+	 *    over. WP's own cron guard usually prevents it; "usually" is not a
+	 *    guarantee an owner's server should have to rely on.
+	 *  - A time budget. The chunk bounds how many pages are read, this bounds
+	 *    how long that may take, and on a slow host the second one is what
+	 *    actually protects the request.
+	 *
+	 * @param int|null $limit How many; the sweep's own chunk by default.
+	 * @return array{done:int,mode:string,more:bool}
+	 */
+	private function sweep_run( $limit = null ) {
+		$idle = array( 'done' => 0, 'mode' => 'fill', 'more' => false );
+
+		if ( ! self::acquire_sweep_lock() ) {
+			return $idle;
+		}
+
+		try {
+			return $this->sweep_locked( $limit );
+		} finally {
+			self::release_sweep_lock();
+		}
+	}
+
+	/**
+	 * The sweep proper, inside the run lock.
+	 *
+	 * @param int|null $limit How many; the sweep's own chunk by default.
+	 * @return array{done:int,mode:string,more:bool}
+	 */
+	private function sweep_locked( $limit = null ) {
+		// ⭐ Before the queue is chosen, never after. A site whose owner has not
+		// opened the dashboard since installing a shop still gets the size guard
+		// applied here — the cron is what would otherwise have queued twelve
+		// thousand product renders, so this is the path that has to be safe on
+		// its own. Costs an array_diff on every run and a COUNT only in the one
+		// run where a content type is genuinely new.
+		Content::note_new_checkable_types( $this->settings );
+
 		$types = $this->post_types();
-		$ids   = Grades::ungraded( $types, null === $limit ? Grades::SWEEP_CHUNK : (int) $limit );
+		$chunk = null === $limit ? Grades::SWEEP_CHUNK : max( 0, (int) $limit );
+
+		// Never read for the first time, before anything is read again: content
+		// nobody has looked at is what the "still to read" count is promising.
+		$mode = 'fill';
+		$ids  = Grades::ungraded( $types, $chunk );
 		if ( ! $ids ) {
-			return 0;
+			// Nothing waiting. Spend the tick on the oldest verdicts instead —
+			// this is the ONLY place the horizon runs, so a site still filling
+			// never pays for it.
+			$mode = 'refresh';
+			$ids  = Grades::stale_graded( $types, $chunk );
+		}
+		if ( ! $ids ) {
+			return array( 'done' => 0, 'mode' => $mode, 'more' => false );
 		}
 
 		// Read once for the whole chunk: the snapshot is shared by every row, and
 		// re-reading it per post would be the expensive half of this loop.
 		$search = $this->search_by_post();
 		$done   = 0;
+		// ⭐ The budget is the CRON's, not every caller's. An explicit limit is
+		// somebody asking for a known amount of work — a test, a re-check, a
+		// WP-CLI run — and quietly serving them half of it because a shared host
+		// was slow would be the plugin lying about what it did. The unattended
+		// path is the one that has to protect the site.
+		$deadline = null === $limit ? microtime( true ) + Grades::SWEEP_SECONDS : 0.0;
 
 		foreach ( $ids as $id ) {
+			// ⚠️ Checked BEFORE each page, not after: the point is to never
+			// START work that could overrun, and one page can cost a second on
+			// the hosting this exists for. A run that stops early leaves the
+			// rest in the queue, and the next tick picks them up — the only
+			// cost of a slow host is more ticks, never a failed request.
+			if ( $deadline > 0.0 && $done > 0 && microtime( true ) >= $deadline ) {
+				break;
+			}
 			$post = get_post( $id );
 			if ( ! $post || 'publish' !== $post->post_status ) {
 				// Unpublished, deleted, or no longer a type the engines can see.
@@ -564,7 +658,47 @@ final class Worklist {
 			Cache::forget( Cache::OPTIMIZE );
 		}
 
-		return $done;
+		return array(
+			'done' => $done,
+			'mode' => $mode,
+			// The QUEUE handed back a full chunk, so assume there is more of it —
+			// not "we graded a full chunk", which goes false the moment the time
+			// budget cuts in or a few rows turn out to be deleted, and would park
+			// a half-read site on the hourly beat for the rest of the day. Every
+			// path through the loop either records a grade or forgets the row, so
+			// a chase can never repeat the same work.
+			'more' => count( $ids ) >= $chunk,
+		);
+	}
+
+	/**
+	 * Take the sweep's run lock, stealing one whose run has plainly died.
+	 *
+	 * Deliberately NOT the {@see PollLock} trait: that one carries a `poll_now()`
+	 * built around a provider call this has no equivalent of, and inheriting a
+	 * public method that would fatal if anyone called it is a worse trade than
+	 * fifteen lines here. The lock's shape — an option holding a start time,
+	 * stolen once stale — is the same, on purpose.
+	 *
+	 * @return bool Whether this caller now holds the lock.
+	 */
+	private static function acquire_sweep_lock() {
+		$held = (int) get_option( self::SWEEP_LOCK, 0 );
+		if ( $held > 0 && ( time() - $held ) < self::SWEEP_LOCK_TTL ) {
+			return false;
+		}
+		// autoload false: read once an hour by cron, never by a page load.
+		update_option( self::SWEEP_LOCK, time(), false );
+		return true;
+	}
+
+	/**
+	 * Release the sweep's run lock.
+	 *
+	 * @return void
+	 */
+	private static function release_sweep_lock() {
+		delete_option( self::SWEEP_LOCK );
 	}
 
 	/**
@@ -629,16 +763,29 @@ final class Worklist {
 	 */
 
 	/**
-	 * The content types this site treats as agent-visible — the same set the
-	 * rest of the plugin describes, so the worklist can never grade something
-	 * that never reaches a machine surface.
+	 * The content types this site checks.
+	 *
+	 * ⚠️ This used to read `apply_filters('agentimus_post_types', array('post',
+	 * 'page'), array())` — a hardcoded pair wearing a filter's clothes. It
+	 * honoured neither the owner's selection nor their veto, and no provider
+	 * could reach it either: the filter's second argument is the list of
+	 * available types, and this passed an EMPTY array, so the one callback that
+	 * folds a plugin's types in ({@see Integrations\Plugins\Provider}) could
+	 * never match. A store could tick Products in Settings, watch the Products
+	 * provider light up on the Integrations screen, and still have every product
+	 * silently absent from this list.
+	 *
+	 * ⭐ It also has to be the SAME set {@see Gradeability::post_types()} builds
+	 * on. The two are asked of one table: this fills it, that reads it, and when
+	 * they disagreed `Grades::remaining()` counted pages the sweep would never
+	 * reach — so "still to read" could never fall to zero and the Readiness card
+	 * carried a permanent apology for work that was never going to happen.
 	 *
 	 * @return array<int,string>
 	 */
 	private function post_types() {
-		$types = (array) apply_filters( 'agentimus_post_types', array( 'post', 'page' ), array() );
-		$types = array_values( array_filter( array_map( 'strval', $types ), 'post_type_exists' ) );
-		return $types ? $types : array( 'post' );
+		$types = Content::check_post_types();
+		return array_values( array_filter( array_map( 'strval', $types ), 'post_type_exists' ) );
 	}
 
 	/**
@@ -815,7 +962,15 @@ final class Worklist {
 			$out['grade'] = array(
 				'points'    => (int) $summary['points'],
 				'ids'       => $summary['ids'],
-				'gradeable' => Gradeability::is_gradeable( $post, array() ),
+				// ⚠️ BOTH halves of the question, because the checking scope is
+				// now wider than the gradeable one. is_gradeable() answers "is
+				// this page article-like" — it never looks at the post type, so
+				// a product with real prose in it came back true and was stored
+				// as gradeable-for-quoting. Nothing read it wrongly (every query
+				// filters by type first), but a stored fact that is not true is
+				// a trap for whoever reads it next.
+				'gradeable' => in_array( (string) $post->post_type, Gradeability::post_types(), true )
+					&& Gradeability::is_gradeable( $post, array() ),
 			);
 		}
 

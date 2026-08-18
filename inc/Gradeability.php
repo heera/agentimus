@@ -42,7 +42,46 @@ final class Gradeability {
 			array( 'product', 'product_variation', 'download', 'shop_order', 'shop_coupon', 'fluent-products' )
 		);
 
-		$types = array_values( array_diff( Content::post_types(), $commerce ) );
+		// ⭐ The CHECKING scope, not the advertising one. The sweep fills the
+		// grade table from that set, and this reads the table back — two
+		// different universes over one table is how "still to read" ended up
+		// counting pages nothing would ever read. What is advertised to
+		// assistants is a separate question with a separate answer
+		// ({@see Content::post_types()}), and it does not belong in a judgement
+		// about which of the owner's content is worth grading for quoting.
+		$types = array_values( array_diff( Content::check_post_types(), $commerce ) );
+
+		/**
+		 * The exact post types graded for content citability, after commerce is removed.
+		 *
+		 * @param string[] $types Post-type slugs to grade.
+		 */
+		return array_values( (array) apply_filters( 'agentimus_citability_post_types', $types ) );
+	}
+
+	/**
+	 * The same question asked of everything this site COULD check, ignoring what
+	 * the owner has switched off.
+	 *
+	 * ⭐ Exists for one case: the owner has switched checking off entirely. The
+	 * pillar must not be redistributed away then — that would let a site RAISE
+	 * its score by declining to be looked at, which is the one incentive this
+	 * plugin must never create. Reading the store over this wider set returns the
+	 * grades of the last real sweep: the score neither rises nor is punished, and
+	 * the card says out loud that it is describing an older reading.
+	 *
+	 * ⛔ Never used to decide what to GRADE — only what to read back. Nothing is
+	 * swept from this set.
+	 *
+	 * @return string[]
+	 */
+	public static function last_known_post_types() {
+		$commerce = (array) apply_filters(
+			'agentimus_commerce_post_types',
+			array( 'product', 'product_variation', 'download', 'shop_order', 'shop_coupon', 'fluent-products' )
+		);
+
+		$types = array_values( array_diff( Content::checkable(), $commerce ) );
 
 		/**
 		 * The exact post types graded for content citability, after commerce is removed.

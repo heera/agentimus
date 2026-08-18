@@ -213,10 +213,21 @@ final class Rest {
 			// Always sent, even with no report: a page held back must stay visible
 			// (and restorable) whatever the engines are reporting today.
 			'set_aside' => $this->set_aside_rows(),
+			// Measured pages this screen is deliberately silent about, because
+			// their content type is switched off for checking. Stated, never
+			// silent: rows vanishing from a worklist is how somebody concludes
+			// their traffic did.
+			'out_of_scope' => 0,
 		);
 
 		if ( '' !== $source ) {
-			$rows   = Table::snapshot( $source );
+			// ⭐ The SAME scope filter the MCP payload and the Findings screen use.
+			// This route builds its own report from its own snapshot, so without
+			// this the owner's screen would list pages an assistant had been told
+			// were out of scope — one site, two answers.
+			$scoped = Report::in_check_scope( Table::snapshot( $source ) );
+			$rows   = $scoped['rows'];
+			$out['out_of_scope'] = $scoped['dropped'];
 			$report = Opportunities::build( $rows, $this->set_aside(), $this->set_aside_urls() );
 
 			$report['almost_there']    = $this->enrich_group( $report['almost_there'], Opportunities::KIND_NEAR, $source );

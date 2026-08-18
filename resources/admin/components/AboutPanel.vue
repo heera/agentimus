@@ -1,10 +1,14 @@
 <script>
+import { copyText } from '../js/clipboard.js';
 import SelectMenu from './SelectMenu.vue';
 
 export default {
   name: 'AboutPanel',
   components: { SelectMenu },
   props: {
+    // { facts, factsLean, … } — the same block the report dialog attaches, so
+    // the two can never describe the site differently.
+    support: { type: Object, default: () => ({}) },
     version: { type: String, default: '' },
     // { name, version, hook, specUrl, schemaUrl } — sourced from PHP so it
     // mirrors the real constants instead of hand-copied strings.
@@ -19,6 +23,7 @@ export default {
   data() {
     return {
       openFaq: 0,
+      setupCopied: false,
       // The "On this page" menu doubles as a position indicator: this holds the
       // anchor of the section currently under the header, kept in sync by the
       // scrollspy — scrolling moves it, picking from the menu jumps to it.
@@ -437,6 +442,12 @@ export default {
     clearTimeout(this._spyT);
   },
   methods: {
+    async copySetup() {
+      await copyText(this.support.factsLean || '');
+      this.setupCopied = true;
+      clearTimeout(this._setupTimer);
+      this._setupTimer = setTimeout(() => { this.setupCopied = false; }, 2000);
+    },
     toggleFaq(i) { this.openFaq = this.openFaq === i ? -1 : i; },
     // A pick is a command: jump there and show the destination at once. The
     // spy is locked until the smooth scroll settles (scrollend where it
@@ -740,6 +751,25 @@ export default {
         &nbsp;·&nbsp;
         <a class="ar-linkbtn" href="https://github.com/heera/agentimus" target="_blank" rel="noopener">GitHub</a>
       </p>
+
+      <!-- ⭐ The one thing a support thread is always missing. WordPress.org
+           cannot be pre-filled by anyone, so a forum post carries these numbers
+           only if the person pastes them — and its own posting guide asks for
+           "your server environment" without being able to say what yours is.
+           It lives HERE rather than in front of Get Help: a form standing
+           between somebody and asking for help is a worse trade than a button
+           a reply can point at. -->
+      <div v-if="support && support.facts" class="ar-about-setup">
+        <h3 class="ar-about-setup__title">Your setup</h3>
+        <p class="ar-about-setup__lead">
+          What this install is running. Paste it into a support thread — it saves the first
+          reply being a question back.
+        </p>
+        <pre class="ar-facts">{{ support.factsLean }}</pre>
+        <button type="button" class="ar-btn ar-btn--small" @click="copySetup">
+          {{ setupCopied ? 'Copied ✓' : 'Copy setup details' }}
+        </button>
+      </div>
     </section>
   </div>
 </template>

@@ -32,6 +32,8 @@ import ConfirmDialog from './components/ConfirmDialog.vue';
 import VisibilityPanel from './components/VisibilityPanel.vue';
 import TodayPanel from './components/TodayPanel.vue';
 import ContentWorklist from './components/ContentWorklist.vue';
+import CheckScopePanel from './components/CheckScopePanel.vue';
+import SupportDialog from './components/SupportDialog.vue';
 
 // Live updates: poll the same /activity endpoint the Refresh button uses, on a
 // gentle interval. Polling (not SSE/WebSockets) on purpose — it works on any
@@ -58,7 +60,7 @@ const LEGACY_HASHES = { today: 'findings', attention: 'findings', 'ai-traffic': 
 
 export default {
   name: 'AgentimusApp',
-  components: { ScoreRail, SettingsForm, ReadinessPanel, DiscoveryHub, ActivityPanel, AudiencePanel, SurfaceTiles, SiteSystems, WhatsNew, ReviewAsk, AssistantLauncher, AssistantDrawer, AiTrafficPanel, RequestLog, EdgePanel, BingPanel, GoogleIndexPanel, SearchPerformance, SearchOpportunities, AgentAccess, IntegrationsPanel, AnnouncementsPanel, ReviewMenu, OnboardingWizard, AboutPanel, ConfirmDialog, VisibilityPanel, TodayPanel, ContentWorklist },
+  components: { ScoreRail, SettingsForm, ReadinessPanel, DiscoveryHub, ActivityPanel, AudiencePanel, SurfaceTiles, SiteSystems, WhatsNew, ReviewAsk, AssistantLauncher, AssistantDrawer, AiTrafficPanel, RequestLog, EdgePanel, BingPanel, GoogleIndexPanel, SearchPerformance, SearchOpportunities, AgentAccess, IntegrationsPanel, AnnouncementsPanel, ReviewMenu, OnboardingWizard, AboutPanel, ConfirmDialog, VisibilityPanel, TodayPanel, ContentWorklist, CheckScopePanel, SupportDialog },
   // The styled hover bubble (shared with the activity tables) — the score rail's
   // rung and next-step hints use it instead of slow, unthemeable native titles.
   props: {
@@ -208,6 +210,16 @@ export default {
       notices: [],
       ringReady: false,
       savedSnapshot: JSON.stringify(this.boot.settings || {}),
+      // What Your Content reads, and the panel behind its gear. Kept in App
+      // state rather than read from the frozen boot payload, so a save can
+      // update the line under the heading without a page reload.
+      checkTypes: Array.isArray(this.boot.checkTypes) ? this.boot.checkTypes : [],
+      scopeOpen: false,
+      scopeSaving: false,
+      // The two doors out, and the release notes on demand. '' = closed.
+      supportMode: '',
+      whatsNewOpen: false,
+      support: this.boot.support || { repo: '', forum: '', kinds: [], facts: '', factsLean: '' },
     };
   },
   computed: {
@@ -405,7 +417,19 @@ export default {
         // SCREEN among them wore a selected state its neighbours could
         // never have. In the menu, selected state is native grammar.
         { id: 'settings', label: 'Settings', divided: true },
-        { id: 'about', label: 'About Agentimus' },
+        // ⭐ THREE BANDS, not two. Settings used to share a band with About as
+        // "the meta pair", which was true when help was one row. With four, the
+        // grouping has to say what each band IS: screens you work in, the site's
+        // configuration, then the things that only answer a question. Settings
+        // alone between two rules is the whole of that middle claim.
+        { id: 'about', label: 'About Agentimus', divided: true },
+        // ⛔ NOT tabs. These three open something over the screen you are on —
+        // a reference you glance at and close, or a door out of the app. Giving
+        // them tab ids would put a "current page" state on a dialog and leave
+        // the nav claiming you were somewhere you had already left.
+        { id: 'whatsnew', label: 'What’s New', action: 'whatsnew' },
+        { id: 'help', label: 'Get Help', action: 'help', ext: true },
+        { id: 'report', label: 'Report an Issue', action: 'report', ext: true },
       ];
     },
     // True when the screen you're on lives inside the menu, so "More" can carry the active
@@ -717,6 +741,24 @@ export default {
       // `disabled` already blocks the click, but a keyboard "Enter" on an aria-disabled
       // element still fires in some browsers — refuse it here too.
       if (t.disabled) return;
+      // An entry that opens something rather than going somewhere. The menu
+      // closes either way, but the tab must not move: these render over
+      // whatever screen you were reading.
+      if (t.action) {
+        this._moreSuppress = true;
+        this.moreOpen = false;
+        if ('whatsnew' === t.action) this.whatsNewOpen = true;
+        // ⛔ NO DIALOG on the way to asking for help. It was there to hand over
+        // the setup block, since WordPress.org cannot be pre-filled by anyone —
+        // but that put a form in front of the one path that should be fastest,
+        // and most people would have clicked past it anyway. The forum's own
+        // new-topic page already asks for "your server environment"; what it
+        // cannot do is TELL somebody their PHP version, so the copy button moved
+        // to About, where that question is answered and where a reply can point.
+        if ('help' === t.action) window.open(this.support.forum, '_blank', 'noopener');
+        if ('report' === t.action) this.supportMode = 'issue';
+        return;
+      }
       // The tab watcher closes the menu; setting it here too would be redundant. Suppress
       // hover until the pointer leaves, or the menu we just navigated away from springs
       // straight back open under the cursor.
@@ -828,6 +870,13 @@ export default {
         // A megaphone: this screen is about what the site said out loud.
         announcements: ['M2.6 9.6V6.4l8-3.6v10.4Z', 'M10.6 5.6a3.2 3.2 0 0 1 2.8 2.4', 'M4.8 10l1 3.6'],
         about: ['M8 14.2A6.2 6.2 0 1 0 8 1.8a6.2 6.2 0 0 0 0 12.4Z', 'M8 7.4v3.4', 'M8 5.2h.01'],
+        // A star: what changed in this release. Not a bell — nothing here is a
+        // notification, and a bell already means the review queue in this app.
+        whatsnew: ['M8 1.8 9.7 5.6 13.8 6l-3 2.9.8 4.1L8 11.1 4.4 13l.8-4.1-3-2.9 4.1-.4Z'],
+        // A speech bubble: somebody answers you there.
+        help: ['M2.5 3.5h11v7.5h-6L4 13.5V11H2.5Z'],
+        // A flag: something raised for the maintainer to look at.
+        report: ['M3.5 13.5v-11', 'M3.5 3h7l-1.4 2.2L10.5 7.5h-7'],
       }[id] || [];
     },
     /**
@@ -896,7 +945,14 @@ export default {
       // A new journey ends any anchor-hold from the previous one — two
       // correctors aiming at different targets would fight over the viewport.
       if (this._unHold) this._unHold();
-      let { tab, anchor, view, log, ai, pages } = typeof target === 'string' ? { tab: target } : target || {};
+      let { tab, anchor, view, log, ai, pages, open } = typeof target === 'string' ? { tab: target } : target || {};
+      // A finding whose answer lives in a dialog opens it on arrival. Scrolling
+      // somebody to the card that holds the control and leaving them to find a
+      // 28px gear is a button that stops one step short of what it said.
+      // ⛔ Named panels only — never an arbitrary component name off the wire.
+      if ('checkScope' === open) {
+        this.scopeOpen = true;
+      }
       // Renamed screens keep their old ids working HERE too, not only in the
       // hash: a stale emitter asking for 'today' used to set a tab no panel
       // matches — a blank screen wearing a dead URL.
@@ -1365,6 +1421,39 @@ export default {
         this.refreshingWorklist = false;
       }
     },
+    // Save which kinds of content get checked, then re-read the list under the
+    // new scope.
+    //
+    // ⚠️ Sends the WHOLE settings object, like every other save in this app:
+    // the endpoint sanitises what it is given and writes the result entire, so a
+    // partial body would quietly reset every boolean on the site.
+    //
+    // The list is reloaded because it is now a list of different things. Leaving
+    // the old rows up under a changed scope line is the same species of lie the
+    // whole change exists to remove — and the counts beside it would be counting
+    // a set the screen is no longer showing.
+    async saveCheckScope(off) {
+      if (this.scopeSaving) return;
+      this.scopeSaving = true;
+      try {
+        this.settings.check_types_off = off;
+        const res = await this.api.saveSettings(this.settings);
+        this.savedSnapshot = JSON.stringify(res.settings);
+        this.checkTypes = this.checkTypes.map((t) => (
+          t.blocked ? t : { ...t, on: !off.includes(t.slug) }
+        ));
+        this.scopeOpen = false;
+        // Readiness and the score both read the grade store over this scope.
+        this.readiness = res.readiness || this.readiness;
+        if (res.score) this.aeo = res.score;
+        this.silentRefreshFindings();
+        if (this.worklistLoaded) await this.loadWorklist();
+      } catch (e) {
+        this.flash('error', e.message);
+      } finally {
+        this.scopeSaving = false;
+      }
+    },
     // Ask the database which of the rows on screen describe a post that has
     // been edited since — one indexed query, no page read — and rebuild only
     // those. Editing happens in another tab, so without this the screen shows
@@ -1437,6 +1526,24 @@ export default {
       this.refreshingFindings = true;
       try {
         this.findings = await this.api.getFindings();
+      } catch (e) {
+        this.flash('error', e.message);
+      } finally {
+        this.refreshingFindings = false;
+      }
+    },
+    // Put a suggestion away, or bring it back.
+    //
+    // The server returns the whole rebuilt findings payload rather than an
+    // acknowledgement, so the row leaving and the "N put away" count changing
+    // land together. Rebuilding locally would have been two guesses about what
+    // the server thinks, and the two would eventually disagree.
+    async dismissFinding({ id, hidden }) {
+      if (this.refreshingFindings) return;
+      this.refreshingFindings = true;
+      try {
+        const res = await this.api.dismissFinding(id, hidden);
+        if (res && res.findings) this.findings = res.findings;
       } catch (e) {
         this.flash('error', e.message);
       } finally {
@@ -1927,7 +2034,12 @@ export default {
               <svg v-else class="ar__more-icon" viewBox="0 0 16 16" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                 <path v-for="(d, i) in moreIcon(t.id)" :key="i" :d="d" />
               </svg>
-              <span class="ar__more-item-label">{{ t.label }}</span>
+              <!-- ⭐ The outbound mark on a BUTTON. The app's ↗ comes from
+                   a[target="_blank"], which a <button> can never match, so these
+                   name the promise themselves with .ar-newtab — the same escape
+                   the findings row uses. Without it, two of these rows leave the
+                   site with no warning at all. -->
+              <span class="ar__more-item-label" :class="{ 'ar-newtab': t.ext }">{{ t.label }}</span>
               <!-- Unread agent-access events. A new application password is the one thing here
                    worth pulling someone's eye across the screen for. -->
               <span v-if="t.badge" class="ar__more-item-badge">{{ t.badge }}</span>
@@ -2121,6 +2233,7 @@ export default {
           :optimize-ignored="optimizeIgnored"
           :optimize-graded="(aeo && aeo.graded) || 0"
           :optimize-grading="(aeo && aeo.grading) || 0"
+          :optimize-scope="(aeo && aeo.scope) || null"
           :refreshing="refreshingReadiness"
           :live-config="liveConfig"
           :is-local="isLocal"
@@ -2148,6 +2261,7 @@ export default {
           :score="aeo"
           :busy="refreshingFindings"
           @navigate="goTo"
+          @dismiss="dismissFinding"
           @refresh="refreshFindings"
           @seen="dismissResolved"
         />
@@ -2164,9 +2278,30 @@ export default {
           :stale="worklistStale"
           :busy="refreshingWorklist"
           :setting-aside="settingAside"
+          :check-types="checkTypes"
           @load="loadWorklist"
           @set-aside="setAsideItem"
           @navigate="goTo"
+          @open-scope="scopeOpen = true"
+        />
+        <WhatsNew
+          v-if="whatsNewOpen"
+          mode="panel"
+          :data="whatsNew"
+          :api="api"
+          @close="whatsNewOpen = false"
+        />
+        <SupportDialog
+          v-if="supportMode"
+          :data="support"
+          @close="supportMode = ''"
+        />
+        <CheckScopePanel
+          v-if="scopeOpen"
+          :types="checkTypes"
+          :busy="scopeSaving"
+          @close="scopeOpen = false"
+          @save="saveCheckScope"
         />
         <!-- Once-per-release highlights, dashboard only — never a site-wide notice.
              ⭐ FIRST OF THE THREE CARDS (his call, 2026-08-17). It is the only one
@@ -2182,6 +2317,7 @@ export default {
           v-if="whatsNew.show && tab === 'dashboard'"
           :data="whatsNew"
           :api="api"
+          @open-panel="whatsNewOpen = true"
           @dismiss="whatsNew.show = false"
         />
         <!-- The post-setup map: the rooms a new owner would otherwise never
@@ -2421,6 +2557,7 @@ export default {
           :active="tab === 'about'"
           :version="version"
           :protocol="protocol"
+          :support="support"
           @navigate="goTo"
         />
       </div>

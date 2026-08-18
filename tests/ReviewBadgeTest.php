@@ -28,10 +28,25 @@ final class ReviewBadgeTest extends TestCase {
 
 	/* -- Bubble markup ------------------------------------------------------ */
 
-	public function test_bubble_uses_core_update_count_classes() {
+	public function test_bubble_uses_the_core_class_that_covers_a_menu_without_a_submenu() {
+		// ⚠️⚠️ `awaiting-mod`, NOT `update-plugins`. Core's current-item rule is
+		//
+		//     #adminmenu li a.wp-has-current-submenu .update-plugins,
+		//     #adminmenu li.current a .awaiting-mod
+		//
+		// so `.update-plugins` is styled on the current item ONLY when the menu
+		// has a submenu. This one has none, and the bubble fell through to the
+		// base rule — painted the scheme's highlight colour, on a row already
+		// painted the scheme's highlight colour. Measured live: row and bubble
+		// both rgb(56,88,233), no pill visible at all.
+		//
+		// ⛔ If this test is ever "modernised" back to update-plugins, the badge
+		// goes invisible on exactly one screen — the plugin's own — which is the
+		// screen nobody thinks to check.
 		$html = ReviewBadge::bubble( 3 );
-		$this->assertStringContainsString( 'class="update-plugins count-3"', $html );
-		$this->assertStringContainsString( '<span class="plugin-count" aria-hidden="false">3</span>', $html );
+		$this->assertStringContainsString( 'class="awaiting-mod count-3"', $html );
+		$this->assertStringNotContainsString( 'update-plugins', $html );
+		$this->assertStringContainsString( '<span class="pending-count" aria-hidden="false">3</span>', $html );
 	}
 
 	public function test_decorate_leaves_the_title_alone_at_zero() {
@@ -130,7 +145,12 @@ final class ReviewBadgeTest extends TestCase {
 		$js = ReviewBadge::inline_js();
 		$this->assertStringContainsString( 'data.agentimus_review=1', $js );
 		$this->assertStringContainsString( 'toplevel_page_agentimus', $js );
-		$this->assertStringContainsString( 'update-plugins count-', $js );
+		// The live updater rebuilds the same markup client-side, so its classes
+		// must match {@see ReviewBadge::bubble()} exactly — a mismatch leaves the
+		// heartbeat updating an element core no longer styles.
+		$this->assertStringContainsString( 'awaiting-mod count-', $js );
+		$this->assertStringContainsString( '.pending-count', $js );
+		$this->assertStringNotContainsString( 'update-plugins', $js );
 	}
 
 	public function test_listener_publishes_the_painter_for_the_spa() {

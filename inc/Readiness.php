@@ -452,7 +452,7 @@ final class Readiness {
 				'warn',
 				__( 'Off. The full-text file gives an AI your whole site’s writing in one download.', 'agentimus' ),
 				__( 'Enable “/llms-full.txt full text” under Settings → Features so an assistant can read your whole site in one download instead of crawling page by page.', 'agentimus' ),
-				$this->nav( __( 'Turn on the full-text file', 'agentimus' ), 'ar-feat-enable_llms_full' )
+				$this->nav( __( 'Turn on full-text file', 'agentimus' ), 'ar-feat-enable_llms_full' )
 			);
 	}
 
@@ -1076,7 +1076,7 @@ final class Readiness {
 			/* translators: %s: sitemap URL. */
 			sprintf( __( 'A sitemap exists (%s) but isn’t advertised in robots.txt, so crawlers may not find it.', 'agentimus' ), $sitemap['url'] ),
 			__( 'Turn on “robots.txt rules” under Settings → Features so Agentimus advertises your sitemap to crawlers.', 'agentimus' ),
-			$this->nav( __( 'Turn on robots.txt rules', 'agentimus' ), 'ar-feat-enable_robots' )
+			$this->nav( __( 'Turn on crawler rules', 'agentimus' ), 'ar-feat-enable_robots' )
 		);
 	}
 

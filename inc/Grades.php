@@ -59,6 +59,26 @@ final class Grades {
 	const SWEEP_CHUNK = 20;
 
 	/**
+	 * @var int Seconds one sweep run may spend grading, whatever the chunk says.
+	 *
+	 * ⭐ For the shared hosting most of this plugin's sites live on. The chunk
+	 * bounds how MANY pages a run reads; this bounds how LONG it may take, and
+	 * the two are not the same on a host where rendering one page costs a
+	 * second. Whichever is reached first ends the run — a slow host simply
+	 * grades fewer per tick and takes more ticks, instead of running its cron
+	 * request into the execution limit.
+	 */
+	const SWEEP_SECONDS = 10;
+
+	/**
+	 * @var int Days after which a verdict is re-read, once nothing is waiting.
+	 *
+	 * Only the idle beat spends this {@see stale_graded()}. Nothing on a site
+	 * still filling its table is delayed by it.
+	 */
+	const REGRADE_AFTER_DAYS = 30;
+
+	/**
 	 * The fully-prefixed table name.
 	 *
 	 * @return string
@@ -274,11 +294,25 @@ final class Grades {
 	}
 
 	/**
-	 * Published posts with no usable grade yet, oldest content first.
+	 * Published posts with no usable grade yet — never-graded ones FIRST.
 	 *
 	 * "No usable grade" is a missing row OR one whose graded_at was cleared by a
 	 * save. The hash is checked by the caller, which is the only place that knows
 	 * what the post says now.
+	 *
+	 * ⚠️ `g.post_id IS NULL DESC` is the whole fairness of the sweep, and it was
+	 * missing. Saving a post clears its grade, so an edit puts an ALREADY-KNOWN
+	 * page back in this queue — and the order used to be `post_modified DESC`,
+	 * which put it at the FRONT, ahead of everything never read. On a site that
+	 * edits all day (a store touching product rows, a busy newsroom) the
+	 * re-grades can arrive faster than a 20-a-minute chunk drains them, and the
+	 * pages nobody has ever looked at are overtaken for ever: the tail starves
+	 * while the card promises it is "still reading your content".
+	 *
+	 * Never-graded content is a set that only shrinks, so putting it first makes
+	 * the backlog drain monotonically no matter how much editing happens beside
+	 * it. Within each group the order stays newest-first, which is what an owner
+	 * expects to see filled in first.
 	 *
 	 * @param array<int,string> $types Post types to consider.
 	 * @param int               $limit How many.
@@ -299,9 +333,57 @@ final class Grades {
 			LEFT JOIN $table g ON g.post_id = p.ID
 			WHERE p.post_status = 'publish' AND p.post_type IN ($holders)
 				AND (g.post_id IS NULL OR g.graded_at IS NULL)
-			ORDER BY p.post_modified DESC
+			ORDER BY (g.post_id IS NULL) DESC, p.post_modified DESC
 			LIMIT %d",
 			array_merge( $types, array( $limit ) )
+		) );
+
+		return array_map( 'intval', (array) $ids );
+	}
+
+	/**
+	 * The oldest verdicts still on the books — the re-grade horizon.
+	 *
+	 * A grade is only ever refreshed by an edit ({@see mark_stale}), so a page
+	 * nobody has touched keeps its verdict for ever. That is fine for the half
+	 * that reads the content, and wrong for the half that reads SEARCH: a page
+	 * can lose the query it used to answer without a character of it changing.
+	 *
+	 * ⭐ This runs ONLY when nothing is waiting to be graded for the first time,
+	 * and only ever on the hourly beat — never with the one-minute follow-up the
+	 * initial fill uses. A site still filling pays nothing for it, and a site
+	 * that has finished spends cron ticks it was already burning to find an empty
+	 * queue. On a very large site a full lap takes longer than the horizon
+	 * itself; that is the intended behaviour, not a shortfall — the oldest
+	 * verdict is always the one being refreshed, and the work never piles up.
+	 *
+	 * @param array<int,string> $types Post types to consider.
+	 * @param int               $limit How many.
+	 * @param int               $days  Re-read a verdict older than this.
+	 * @return array<int,int> Post IDs, oldest verdict first.
+	 */
+	public static function stale_graded( array $types, $limit, $days = self::REGRADE_AFTER_DAYS ) {
+		global $wpdb;
+
+		$limit = max( 0, (int) $limit );
+		if ( 0 === $limit || empty( $types ) || ! self::installed() ) {
+			return array();
+		}
+		$table   = self::name();
+		$holders = implode( ',', array_fill( 0, count( $types ), '%s' ) );
+		// ⚠️ UTC, because {@see record()} stamps graded_at with gmdate() — NOT
+		// current_time(). A site-local cutoff here would be off by the site's
+		// offset in the direction that re-reads content early.
+		$before  = gmdate( 'Y-m-d H:i:s', time() - max( 1, (int) $days ) * DAY_IN_SECONDS );
+
+		$ids = $wpdb->get_col( $wpdb->prepare( // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- our own table; every value bound.
+			"SELECT p.ID FROM {$wpdb->posts} p
+			INNER JOIN $table g ON g.post_id = p.ID
+			WHERE p.post_status = 'publish' AND p.post_type IN ($holders)
+				AND g.graded_at IS NOT NULL AND g.graded_at < %s
+			ORDER BY g.graded_at ASC
+			LIMIT %d",
+			array_merge( $types, array( $before, $limit ) )
 		) );
 
 		return array_map( 'intval', (array) $ids );

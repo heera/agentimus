@@ -250,6 +250,10 @@ namespace {
 	if ( ! function_exists( 'wp_get_ability_categories' ) ) { function wp_get_ability_categories() { $out = array(); foreach ( (array) ( $GLOBALS['_af_ability_categories'] ?? array() ) as $name => $label ) { $out[ $name ] = new class( (string) $name, (string) $label ) { private $n; private $l; public function __construct( $n, $l ) { $this->n = $n; $this->l = $l; } public function get_name() { return $this->n; } public function get_label() { return $this->l; } }; } return $out; } }
 	if ( ! function_exists( 'get_post_type_object' ) ) { function get_post_type_object( $t ) { $reg = (array) ( $GLOBALS['_af_post_type_objects'] ?? array() ); if ( isset( $reg[ (string) $t ] ) ) { return (object) $reg[ (string) $t ]; } return post_type_exists( $t ) ? (object) array( 'public' => true, 'show_in_rest' => true, 'rest_base' => (string) $t ) : null; } }
 	// Keyed by name like WP's own 'names' output, so a caller can unset() one.
+	// Theme + object-cache surface for the support facts block (overridable so a
+	// test can put a site on a named theme or a persistent cache).
+	if ( ! function_exists( 'wp_get_theme' ) )          { function wp_get_theme( $stylesheet = '' ) { return new class { public function get( $k ) { $v = $GLOBALS['_af_theme'] ?? array( 'Name' => 'Twenty Twenty-Five', 'Version' => '1.0' ); return (string) ( $v[ $k ] ?? '' ); } }; } }
+	if ( ! function_exists( 'wp_using_ext_object_cache' ) ) { function wp_using_ext_object_cache( $using = null ) { return ! empty( $GLOBALS['_af_ext_object_cache'] ); } }
 	if ( ! function_exists( 'get_post_types' ) )        { function get_post_types( $args = array(), $output = 'names' ) { $all = (array) ( $GLOBALS['_af_public_post_types'] ?? array( 'post' => 'post', 'page' => 'page', 'attachment' => 'attachment' ) ); return $all; } }
 	// Records every call's args, and can answer a QUEUE when a test needs two
 	// different results from two different queries (Media::search runs a title
@@ -409,6 +413,14 @@ namespace Agentimus {
 					: array( 'post', 'page' );
 			}
 			public static function post_types() { return self::available(); }
+			// The CHECKING scope. In the real class it starts from every public
+			// type and subtracts the owner's refusals, which is a wider set than
+			// post_types() — here they coincide, because these tests only care
+			// that callers ask the right question, not what a live registry says.
+			public static function checkable() { return self::available(); }
+			public static function check_post_types() { return self::checkable(); }
+			public static function published_count( $post_type ) { return 0; }
+			public static function note_new_checkable_types( $settings ) {}
 			public static function source( $post_type ) { return ''; }
 			// The llms.txt index walks these three; empty sections keep the generated
 			// index to its header + about block, which is all the probe tests need.

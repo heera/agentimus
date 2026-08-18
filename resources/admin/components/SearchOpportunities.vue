@@ -183,6 +183,11 @@ export default {
       const s = (this.search && this.search.sources) || {};
       return !!(s.bing && s.bing.hasData && s.google && s.google.hasData);
     },
+    // Measured pages excluded by the checking scope. Named on the screen, never
+    // silently dropped.
+    outOfScope() {
+      return Number((this.search && this.search.out_of_scope) || 0);
+    },
     searchGroups() {
       const r = (this.search && this.search.report) || {};
       return [
@@ -410,6 +415,18 @@ export default {
       {{ searchSourceLabel }} has no single report pairing searches with pages, so
       Agentimus fetches that page by page — for your {{ searchPageCap }} busiest pages,
       to keep the daily check small. This worklist can only see those.
+    </p>
+
+    <!-- Pages this screen is deliberately silent about. It sits above everything
+         because it changes what every count below MEANS — and because a worklist
+         that quietly shrank is how somebody concludes their traffic did. -->
+    <p v-if="outOfScope > 0" class="ar-checkgroup__blurb ar-opp__state">
+      <strong>{{ outOfScope.toLocaleString() }}
+      {{ outOfScope === 1 ? 'measured page is' : 'measured pages are' }} left out of
+      everything below</strong>, because you switched their kind of content off for
+      checking. They still get traffic and Search Performance above still counts it —
+      this screen just isn’t asking you to work on them. The gear on Your Content
+      changes what’s checked.
     </p>
 
     <!-- When most of the reported demand is machines, that IS the finding, and

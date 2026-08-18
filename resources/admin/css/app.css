@@ -3515,6 +3515,26 @@ select.ar-input {
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 
+/* ---- The checking scope (the gear on Your Content) ---------------------- */
+/* Reuses the .ar-type card wholesale — one control language for "pick some
+   content types", whichever panel is asking. Only three things are new: how
+   much of a type there is, why a type cannot be picked at all, and the count
+   in the modal footer. */
+.ar-type__n {
+  font-family: var(--ar-mono); font-size: 10px; color: var(--ar-ink-faint);
+  font-variant-numeric: tabular-nums; white-space: nowrap;
+}
+/* Not a control, and it must not look like one: dashed, quiet, no pointer. */
+.ar-type.is-locked {
+  background: var(--ar-surface-2); border-style: dashed; cursor: default;
+  align-items: flex-start;
+}
+.ar-type.is-locked .ar-type__label { color: var(--ar-ink-faint); font-weight: 500; }
+.ar-type__why { font-size: 11px; line-height: 1.4; color: var(--ar-ink-faint); }
+/* The footer count sits opposite the buttons — .ar-modal__actions is flex-end,
+   so this is what holds it to the left rather than a second flex container. */
+.ar-modal__actions .ar-types-count { margin-right: auto; }
+
 /* ---- Tag input ---------------------------------------------------------- */
 /* The field itself is a plain .ar-input and the chips flow BELOW it, so a chip list can
    never change the input's height — it stays row-aligned with the plain inputs next to it
@@ -7129,6 +7149,42 @@ a.ar-about-proto__v:hover { text-decoration: underline; }
 .ar-work__title { font-family: var(--ar-serif); font-size: 21px; font-weight: 600; margin: 0 0 4px; color: var(--ar-ink); }
 .ar-work__sub { margin: 0; font-size: 13px; color: var(--ar-ink-soft); max-width: 66ch; }
 
+/* "Check again" and the scope gear, as one group. flex:0 0 auto so the pair is
+   never the thing that shrinks when the heading wraps. */
+.ar-work__actions { display: flex; align-items: center; gap: 2px; flex: 0 0 auto; }
+/* Icon button — the same conventions as .ar-modal__fade-btn (28px, faint ink
+   lifting on hover, accent focus ring), so every round icon control in the app
+   behaves identically. */
+.ar-iconbtn {
+  appearance: none; cursor: pointer; display: flex; align-items: center; justify-content: center;
+  width: 28px; height: 28px; padding: 0; margin: 0; border: 0; border-radius: 999px;
+  background: transparent; color: var(--ar-ink-faint);
+  transition: color 0.15s ease, background 0.15s ease;
+}
+.ar-iconbtn:hover:not(:disabled) { color: var(--ar-ink); background: var(--ar-surface-2); }
+.ar-iconbtn:focus-visible { outline: 2px solid var(--ar-accent); outline-offset: 2px; }
+.ar-iconbtn:disabled { opacity: 0.5; cursor: default; }
+
+/* The scope line STATES what is being checked; the gear changes it. Deliberately
+   not a link: the one thing an owner comes to this card to press is "Check
+   again", and a second action beside it competed with that. */
+.ar-scope {
+  display: flex; align-items: baseline; gap: 6px; flex-wrap: wrap;
+  margin: 0; padding: 10px 26px; border-bottom: 1px solid var(--ar-line);
+  background: var(--ar-surface-2); font-size: 12.5px; color: var(--ar-ink-soft);
+}
+.ar-scope__k {
+  font-family: var(--ar-mono); font-size: 10px; letter-spacing: 0.08em;
+  text-transform: uppercase; color: var(--ar-ink-faint);
+}
+.ar-scope__v { color: var(--ar-ink); font-weight: 600; }
+.ar-scope__n { font-family: var(--ar-mono); font-variant-numeric: tabular-nums; color: var(--ar-ink-faint); }
+/* Nothing selected. Amber, not red: the owner chose this, it is not a fault —
+   but it is the reason the card below is empty, so it has to carry more weight
+   than the ordinary state does. */
+.ar-scope.is-off { background: var(--ar-warn-wash); border-bottom-color: var(--ar-warn-tint); }
+.ar-scope.is-off .ar-scope__v { color: var(--ar-warn-deep); }
+
 .ar-work__idle { padding: 22px 26px 26px; display: flex; flex-direction: column; gap: 12px; align-items: flex-start; }
 .ar-work__idle p { margin: 0; font-size: 13px; color: var(--ar-ink-soft); }
 
@@ -7481,10 +7537,96 @@ a.ar-work__name { color: var(--ar-accent); }
    A min-width lets the longest label push past it — "Set up AI Visibility"
    outgrew "Open the worklist" and the column went ragged again. Fixing the
    column and filling it means every button matches whatever labels arrive. */
+/* 214px, and MEASURED rather than assumed: every action label the plugin can put
+   here was rendered at this button's exact type (11px mono, 0.08em tracking,
+   uppercase). The widest is "Turn on robots.txt rules" at 181px against the
+   192px content box this leaves — 11px of room, and the rest far more.
+   ⚠️ It was 4px too narrow until 2026-08-18, for one label, in one condition:
+   the button asked for a size class that did not exist (`ar-btn--sm`; the
+   stylesheet has only `--small`), so it rendered at 12px instead of 11px. */
 .ar-today__act { width: 214px; min-width: 0; }
 .ar-today__act .ar-btn { width: 100%; min-width: 0; padding-left: 10px; padding-right: 10px; }
+/* ⚠️ The safety net, because a measured width is only ever true for the labels
+   that exist today IN ENGLISH — a translation of any of them can be half as long
+   again, and no fixed width survives that. A fixed width plus the `nowrap` this
+   inherits from .ar-btn is a promise the next label cannot be asked to keep, and
+   the failure mode is the ugly one: the pill ends and the letters keep going, so
+   it reads as a rendering fault rather than as a long label. Wrapping costs a
+   second line and is correct for a label nobody has written yet. */
+.ar-today__act .ar-btn { white-space: normal; line-height: 1.35; text-wrap: balance; }
 @media (max-width: 782px) {
   .ar-today__act, .ar-today__act .ar-btn { width: auto; }
+}
+
+/* ---- The two doors out: Get Help / Report an Issue ---------------------- */
+/* The facts block is STATED, NOT TYPED. No field border and no caret, because it
+   is something the plugin knows about this site rather than a draft the reporter
+   fills in — a version number somebody edited by hand is worse than none, since
+   it gets believed. */
+.ar-facts {
+  margin: 0; padding: 10px 12px; border-radius: var(--ar-radius);
+  background: var(--ar-surface-2); border: 1px solid var(--ar-line);
+  font-family: var(--ar-mono); font-size: 11.5px; line-height: 1.6;
+  color: var(--ar-ink-soft); overflow-x: auto; white-space: pre;
+}
+/* Amber, not red: needing an account is a condition of the destination, not a
+   fault of the site — but it has to carry more weight than a hint, because
+   meeting it at a sign-in wall AFTER typing is how a report gets abandoned. */
+.ar-warnline {
+  margin: 0; padding: 9px 12px; border-radius: var(--ar-radius);
+  background: var(--ar-warn-wash); color: var(--ar-warn-deep);
+  font-size: 12px; line-height: 1.5;
+}
+.ar-warnline strong { color: inherit; }
+.ar-support { gap: 16px; }
+/* What's New in its on-demand shell. The card next door has its own type scale
+   for a wide grid; a dialog is one column, so the items read as a short list. */
+.ar-wn__ver {
+  margin: 0 0 4px; font-family: var(--ar-mono); font-size: 10.5px;
+  letter-spacing: 0.08em; text-transform: uppercase; color: var(--ar-ink-faint);
+}
+.ar-wn__list { display: flex; flex-direction: column; gap: 16px; }
+.ar-wn__item { display: flex; flex-direction: column; gap: 4px; }
+.ar-wn__itemtitle {
+  margin: 0; font-family: var(--ar-serif); font-size: 15px; font-weight: 600; color: var(--ar-ink);
+}
+.ar-wn__itemtext { margin: 0; font-size: 13px; line-height: 1.6; color: var(--ar-ink-soft); }
+/* The older releases, in the same scroll rather than behind a second modal. The
+   rule above it is the seam between "what this release did", written by hand,
+   and "what every release did", read from the readme. */
+/* The setup block on About. Its own band under the links, because "what am I
+   running" is a different question from "where do I read more". */
+.ar-about-setup {
+  margin: 20px 0 0; padding-top: 18px; border-top: 1px solid var(--ar-line);
+  display: flex; flex-direction: column; gap: 8px; align-items: flex-start;
+}
+.ar-about-setup__title { margin: 0; font-family: var(--ar-serif); font-size: 16px; font-weight: 600; color: var(--ar-ink); }
+.ar-about-setup__lead { margin: 0; font-size: 13px; line-height: 1.55; color: var(--ar-ink-soft); max-width: 62ch; }
+.ar-about-setup .ar-facts { align-self: stretch; }
+
+.ar-wn__older { margin-top: 4px; padding-top: 14px; border-top: 1px solid var(--ar-line); }
+.ar-wn__oldernote { margin: 8px 0 4px; font-size: 12px; line-height: 1.5; color: var(--ar-ink-faint); }
+.ar-wn__older .ar-chlog__entry { margin-top: 14px; }
+.ar-support__foot { margin-right: auto; font-size: 12px; color: var(--ar-ink-faint); }
+
+/* The put-away control. It lives in the row's own grid rather than beside the
+   action button, so a row with no action still has somewhere to put it — and it
+   stays quiet until the row is hovered or it is focused, because a suggestion
+   should not arrive already offering to be dismissed. */
+.ar-today__hide { grid-column: 3; justify-self: end; opacity: 0; transition: opacity 0.15s ease, color 0.15s ease, background 0.15s ease; }
+.ar-today__row:hover .ar-today__hide,
+.ar-today__hide:focus-visible { opacity: 1; }
+/* ⚠️ Touch has no hover, so the control would be unreachable on a phone —
+   permanently visible there instead. */
+@media (hover: none) { .ar-today__hide { opacity: 1; } }
+
+/* The ledger. Never a hidden one: the count is always on screen, and every row
+   in it can be brought back. */
+.ar-today__hidden { margin: 4px 26px 16px; }
+.ar-today__hiddenlist { list-style: none; margin: 8px 0 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.ar-today__hiddenlist li {
+  display: flex; align-items: baseline; justify-content: space-between; gap: 14px;
+  font-size: 13px; color: var(--ar-ink-soft);
 }
 
 /* Check again and the score share one line. The "Setup score" caption is gone:
