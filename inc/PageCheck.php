@@ -56,6 +56,21 @@ final class PageCheck {
 	/** Flesch Reading Ease bands: at/above OK reads general-audience; below HARD
 	 *  is university-level prose. (English-only — the formula fits no other
 	 *  language, and the check says so instead of mis-grading.) */
+	/**
+	 * @var int Average words per sentence at or below which the sentences are
+	 *          NOT what is holding a page's reading ease down.
+	 *
+	 * ⭐ His catch, 2026-08-19, on a 798-word piece about Composer supply-chain
+	 * security: the row said "shorter sentences and plainer words" over prose
+	 * averaging 11 words a sentence. Half that advice could not be followed —
+	 * there was nothing to shorten — and advice you cannot act on teaches an
+	 * owner to skim the row. Measured on that page: sentences cost the score 11
+	 * points and the vocabulary cost it 180. Fifteen is where plain-English
+	 * guidance puts a normal sentence, and the Flesch term itself charges barely
+	 * a point per word — so at or under it, the sentences are not the story.
+	 */
+	const SENTENCE_PLAIN = 15;
+
 	const READING_EASE_OK   = 50;
 	const READING_EASE_HARD = 30;
 
@@ -925,7 +940,27 @@ final class PageCheck {
 			: __( 'college-level prose', 'agentimus' );
 		// floor, not round: a 49.5 must never display as "score 50" on a warn row
 		// — the number shown should stay below the pass bar the row failed.
-		$detail = sprintf( /* translators: 1: Flesch score, 2: difficulty band. */ __( 'Reading-ease score %1$d — %2$s. Shorter sentences and plainer words make passages easier for AI assistants to lift and for readers to trust.', 'agentimus' ), (int) floor( $familiar ), $band );
+		// ⭐ WHICH HALF is holding the score down. Flesch has two terms — sentence
+		// length and word length — and telling an author to shorten sentences
+		// that already average eleven words is advice with nothing behind it.
+		$sentences = (int) ( isset( $s['sentences'] ) ? $s['sentences'] : 0 );
+		$prose     = (int) ( isset( $s['prose_words'] ) ? $s['prose_words'] : 0 );
+		$per       = $sentences > 0 ? (int) round( $prose / $sentences ) : 0;
+
+		$detail = ( $per > 0 && $per <= self::SENTENCE_PLAIN )
+			? sprintf(
+				/* translators: 1: Flesch score, 2: difficulty band, 3: average words per sentence. */
+				__( 'Reading-ease score %1$d — %2$s. Your sentences are already short (%3$d words on average), so it is the vocabulary carrying this: plainer words, where the subject allows them, make passages easier for AI assistants to lift and for readers to trust.', 'agentimus' ),
+				(int) floor( $familiar ),
+				$band,
+				$per
+			)
+			: sprintf(
+				/* translators: 1: Flesch score, 2: difficulty band. */
+				__( 'Reading-ease score %1$d — %2$s. Shorter sentences and plainer words make passages easier for AI assistants to lift and for readers to trust.', 'agentimus' ),
+				(int) floor( $familiar ),
+				$band
+			);
 		$heavy  = isset( $s['heavy_words'] ) ? array_slice( array_keys( (array) $s['heavy_words'] ), 0, 3 ) : array();
 		if ( $heavy ) {
 			$detail .= ' ' . sprintf(

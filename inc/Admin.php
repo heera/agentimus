@@ -633,7 +633,7 @@ final class Admin {
 				),
 				array(
 					'title' => 'The Content Checks Say Who They Are For',
-					'text'  => 'Twelve of the fourteen are the classic on-page work a search engine and a screen reader need — headings, alt text, thin content, reading ease, freshness — and only the editor panel said so. Readiness, your score and the manual say it now. Naming one audience invited you to weigh the work against your opinion of AI, when most of it pays either way.',
+					'text'  => 'Twelve of the fourteen are the classic on-page work a search engine and a screen reader need — headings, alt text, thin content, reading ease, freshness — and only the editor panel said so. Readiness, your score and the manual say it now. Naming one audience invited you to weigh the work against your opinion of AI, when most of it pays either way. The reading-ease row also stopped asking for work you had already done: it names the half actually holding the score down, instead of advising shorter sentences at a page whose sentences are already short.',
 				),
 			),
 		);

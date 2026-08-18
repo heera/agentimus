@@ -695,6 +695,40 @@ final class PageCheckTest extends TestCase {
 	}
 
 	/**
+	 * ⭐ HIS CATCH, 2026-08-19, on a live post about Composer supply-chain
+	 * security: the row advised "shorter sentences and plainer words" over prose
+	 * averaging eleven words a sentence. Half of that could not be followed —
+	 * there was nothing to shorten — and on that page the sentences cost the
+	 * score 11 points while the vocabulary cost it 180. A row that asks for work
+	 * the page has already done teaches an owner to skim it.
+	 */
+	public function test_the_reading_ease_row_names_the_half_that_is_actually_off() {
+		$dense_but_short = $this->check( 'check_reading_ease', array(
+			'english'      => true,
+			'prose_words'  => 753,
+			'words'        => 785,
+			'sentences'    => 67,   // 11 words a sentence — nothing to shorten.
+			'syllables'    => 1604, // …and 2.13 syllables a word, which is the story.
+			'heavy_words'  => array( 'immutability' => 2, 'organizations' => 2 ),
+		) );
+
+		$this->assertSame( 'warn', $dense_but_short['status'] );
+		$this->assertStringContainsString( 'already short', $dense_but_short['detail'] );
+		$this->assertStringContainsString( '11 words on average', $dense_but_short['detail'] );
+		$this->assertStringNotContainsString( 'Shorter sentences', $dense_but_short['detail'], '⛔ Never ask for work the page has already done.' );
+
+		// …and where the sentences ARE long, the original advice stands.
+		$long_sentences = $this->check( 'check_reading_ease', array(
+			'english'     => true,
+			'prose_words' => 800,
+			'words'       => 800,
+			'sentences'   => 20,   // 40 words a sentence.
+			'syllables'   => 1400, // 1.75 — ordinary vocabulary.
+		) );
+		$this->assertStringContainsString( 'Shorter sentences', $long_sentences['detail'] );
+	}
+
+	/**
 	 * ⭐⭐ THE FALSE PASS, and it took reading the served page to see it. The
 	 * owner wrote a description; the theme serves the post title instead. The
 	 * media library looks perfect, every assistant and screen reader gets the
