@@ -14,9 +14,9 @@ Make your site agent-ready: AI SEO (AEO/GEO), llms.txt & bot control — be foun
 
 Agentimus is an all-in-one AI SEO plugin for the age of AI agents — AEO (Answer Engine Optimization) and GEO (Generative Engine Optimization) in one place. It does two things.
 
-**It makes your site legible and citable.** It helps AI assistants like ChatGPT, Claude and Perplexity find your site, read it correctly, and cite it in your own words — and shows you which AI bots are actually visiting. **You don't need to understand AI or web standards to use it:** a setup wizard walks you through everything in about a minute, then it runs on its own.
+**It makes your site legible and citable.** It helps AI assistants like ChatGPT, Claude and Perplexity find your site, read it correctly and cite it in your own words — and shows you which AI bots are visiting. **You don't need to understand AI or web standards:** a setup wizard walks you through it in about a minute, then it runs on its own.
 
-**And it lets the AI tools you already use operate your site.** Turn on the built-in Model Context Protocol (MCP) server and Claude Code, Claude Desktop, Cursor or Codex can read your reports and — behind two more opt-in switches — **draft, edit and publish posts** for you, every write running as the signed-in user, permission-checked and audited. All three switches are off by default. Prefer to stay in wp-admin? A built-in **writing assistant** drafts and revises posts there.
+**And it lets the AI tools you already use operate your site.** Turn on the built-in Model Context Protocol (MCP) server and Claude Code, Claude Desktop, Cursor or Codex can read your reports and — behind two more opt-in switches — **draft, edit and publish posts**, every write running as the signed-in user, permission-checked and audited. All three are off by default. Prefer wp-admin? A built-in **writing assistant** drafts and revises posts there.
 
 By default it makes no outbound requests, collects no analytics, and logs no IP addresses — everything runs on your own site. Three optional, off-by-default features change that only when you enable them: **Citation checks**, **Verify bot identities** and **Store IP addresses** (each disclosed in full under *External services*).
 
@@ -24,37 +24,37 @@ By default it makes no outbound requests, collects no analytics, and logs no IP 
 
 **One screen that says what needs you**
 
-* **Findings** — everything open across your site in one ranked list: pages losing a click they already earn, and anything the setup checks caught. It is ordered by what each one costs you, and every row carries the button that lands on the fix. The count in the nav only ever measures work you can actually do something about.
-* **Your Content** — one row per post, page or product: what it is found for, whether it answers that, and anything else it needs. Set aside anything that was never meant to be quoted, and it stays listed rather than silently dropped.
+* **Findings** — everything open across your site in one ranked list: pages losing a click they already earn, and anything the setup checks caught — ordered by what each costs you, every row carrying the button that lands on the fix. The nav count only ever measures work you can act on.
+* **Your Content** — one row per post, page or product: what it is found for, whether it answers that, and anything else it needs. Set aside anything never meant to be quoted and it stays listed rather than silently dropped.
 
 **With an SEO plugin — or instead of one**
 
-* **No SEO plugin? You don't need one.** Agentimus covers the search basics itself: per-page SEO titles, social share cards (Open Graph), canonical links, meta descriptions, and an XML sitemap carrying the last-changed dates core's own leaves out.
-* **Already running Yoast, Rank Math, SEOPress, AIOSEO or The SEO Framework?** It detects them and steps aside on every overlapping surface — titles, cards, schema, sitemap. No duplicate tags, ever: it adds only the AI layer your SEO plugin doesn't cover.
+* **No SEO plugin? You don't need one.** Agentimus covers the search basics: per-page SEO titles, social share cards (Open Graph), canonical links, meta descriptions, and an XML sitemap carrying the last-changed dates core's own leaves out.
+* **Already running Yoast, Rank Math, SEOPress, AIOSEO or The SEO Framework?** It detects them and steps aside on every overlapping surface — titles, cards, schema, sitemap. No duplicate tags: it adds only the AI layer your SEO plugin doesn't cover.
 
 **Operate your site from your AI agent (MCP) — opt-in**
 
-* **A Model Context Protocol server on your own site** — one switch (Settings → Discovery) runs an MCP server at `/wp-json/agentimus/v1/mcp`; the whole library ships with the plugin, nothing extra to install.
-* **Connect by approving, not by pasting keys** — an assistant asks *you* for permission on a consent page on your own site; you choose **Read only** or **Read and write**, and each approved assistant gets its own key and its own Disconnect. Standards-based (OAuth 2.1 with PKCE), nothing brokered by a third party; a revocable **shared token** covers clients that can't ask.
-* **Read your site's data** — connected agents run the read-only tools (readiness/AEO-GEO score, AI traffic, request log, bot identification, page / JSON-LD / Markdown previews) — and your llms.txt, discovery and agent-card documents are offered as readable **resources**, attachable like a file.
-* **Draft, edit and publish posts — behind two more switches** — turn on **Let connected agents write** and the agent can create and edit posts and pages fully dressed (categories, tags, featured image, AI topics and descriptions) and apply Readiness fixes; it can search your media library by title or alt text to reuse a picture you already have. Turn on a third switch and it may publish, otherwise it leaves drafts for your review.
-* **Safe by construction** — every write runs as the signed-in WordPress user, never exceeding their permissions, and is recorded under **More → Agent Access**. Nothing is public, and with the write switch off the write tools don't exist on any surface.
+* **A Model Context Protocol server on your own site** — one switch runs an MCP server at `/wp-json/agentimus/v1/mcp`; the library ships with the plugin, nothing extra to install.
+* **Connect by approving, not by pasting keys** — an assistant asks *you* for permission on a consent page on your own site; you choose **Read only** or **Read and write**, and each gets its own key and Disconnect. OAuth 2.1 with PKCE, nothing brokered by a third party; a revocable **shared token** covers clients that can't ask.
+* **Read your site's data** — connected agents run the read-only tools (score, AI traffic, request log, bot identification, page previews), and your llms.txt, discovery and agent-card documents are offered as readable **resources**, attachable like a file.
+* **Draft, edit and publish posts — behind two more switches** — turn on **Let connected agents write** and an agent can create and edit posts and pages fully dressed (categories, tags, featured image, AI topics and descriptions), apply Readiness fixes, and reuse pictures from your media library. A third switch lets it publish; otherwise it leaves drafts for review.
+* **Safe by construction** — every write runs as the signed-in WordPress user, never exceeding their permissions, and is recorded under **More → Agent Access**. With the write switch off, the write tools do not exist.
 
 **Write with AI in wp-admin — the built-in assistant (opt-in)**
 
-* **Idea → draft without leaving wp-admin** — a spark button opens the writing assistant: pick posts or pages, describe what you want, shape the outline it proposes, then preview the complete draft — real editor blocks, AI description, topics, categories, tags. A page is written as a page: no invented sections, no image slots. Nothing is saved until you click **Create draft**, and it never publishes.
-* **Ask AI in the editor — one block, a selection, or the whole post** — rewrite or extend the block you're in; select several and change them with one instruction; or ask about the whole post and get back a list of proposed edits — rewrite this, delete that, add a section here — each with its reason, to accept or reject one at a time. Blocks the plan doesn't name are never touched, and undo steps back through everything.
-* **Images where you write** — alt-filled placeholders in drafts, **Generate image from the alt text** on every image block, a **Featured image (AI)** sidebar panel — or pick from your library. Runs on WordPress's built-in AI Client (7.0+) — Agentimus never sees your key — and every AI button hides until a provider is set up.
+* **Idea → draft without leaving wp-admin** — a spark button opens the writing assistant: describe what you want, shape the outline it proposes, then preview the complete draft — real editor blocks, AI description, topics, categories, tags. A page is written as a page: no invented sections. Nothing is saved until you click **Create draft**, and it never publishes.
+* **Ask AI in the editor — one block, a selection, or the whole post** — rewrite or extend the block you're in, change several with one instruction, or ask about the whole post and get a list of proposed edits — each with its reason, to accept or reject one at a time. Blocks the plan doesn't name are never touched, and undo steps back through everything.
+* **Images where you write** — alt-filled placeholders in drafts, **Generate image from the alt text** on every image block, a **Featured image (AI)** panel — or pick from your library. Runs on WordPress's built-in AI Client (7.0+); Agentimus never sees your key, and every AI button hides until a provider is set up.
 
 **Tell your team — and announce what you publish**
 
-* **Reports where you already look (opt-in)** — send Agentimus's reports to Telegram, Slack, Discord, a Google Sheet, or any address of your own (a webhook). Choose the moments that matter: a new finding, a bot you have not seen before, the weekly digest. Every service stays yours — your bot, your channel, your sheet — and nothing is sent until you switch it on.
-* **Announce a new post (opt-in)** — Agentimus offers the words for X and LinkedIn, and you approve them or edit them first. Each connection is an app you own, so the post comes from you and not from us. A ledger shows what went out, what is still queued, and what failed, with the reason.
+* **Reports where you already look (opt-in)** — send Agentimus's reports to Telegram, Slack, Discord, a Google Sheet or any address of your own. Choose the moments that matter: a new finding, an unfamiliar bot, the weekly digest. Every service stays yours — your bot, your channel, your sheet — and nothing is sent until you switch it on.
+* **Announce a new post (opt-in)** — Agentimus offers the words for X and LinkedIn; you approve them or edit them first. Each connection is an app you own, so the post comes from you, not from us. A ledger shows what went out, what is queued and what failed, with the reason.
 
 **Control — who may use your content**
 
-* **robots.txt content-signals + AI-training blocklist** — declare your content-usage policy and block named model-training crawlers (GPTBot, CCBot, ClaudeBot, Google-Extended, Bytespider, …) by name, while leaving read/cite bots free.
-* **Block scanners & scrapers (opt-in hard block)** — robots rules are a polite request; this enforces them, returning 403 to the user-agents on your denylist. Your **always-allowed** list is never blocked: pre-trust well-known AI assistants with one click; major search engines are recognised automatically, and SSL-renewal requests always stay reachable.
+* **robots.txt content-signals + AI-training blocklist** — declare your content-usage policy and block model-training crawlers (GPTBot, CCBot, ClaudeBot, Google-Extended, Bytespider, …) by name, while leaving read/cite bots free.
+* **Block scanners & scrapers (opt-in hard block)** — robots rules are a polite request; this enforces them, returning 403 to the user-agents on your denylist. Your **always-allowed** list is never blocked: pre-trust well-known assistants with one click, search engines are recognised automatically, and SSL-renewal requests stay reachable.
 
 **Reduce exposure — what your site reveals to bots**
 
@@ -62,29 +62,29 @@ By default it makes no outbound requests, collects no analytics, and logs no IP 
 
 **Visibility — who is reading you**
 
-* **Agent activity log** — a dashboard of which AI crawlers and agents actually fetch your content and endpoints (GPTBot, Claude, Perplexity, Googlebot, …), recorded first-party in your own database, with no IP logging by default (an optional setting stores IPs for flagged crawlers only).
-* **Activity to review** — a nav-bar queue surfaces clients worth a second look — new, unusually high-volume, or spoofing — with one-click **Block** or **Allow**. Nothing is blocked unless you choose to.
-* **Request Log** — every recorded request, one row each, under *More → Request Log*. Filter by client, endpoint, network, user-agent and date to see exactly what a single bot fetched.
-* **Agent Access** — the other side of the log: who *authenticates to and acts on* the machine surface (*More → Agent Access*): assistants approved, keys created or revoked, abilities run, requests refused. A record, not a guard — it names the key used, never the person.
-* **Traffic from AI** — the mirror of the crawler log: the real visitors an AI assistant sent you, day by day, by assistant and by landing page (*More → Readers*) — daily aggregate counts, never a row for one person, no IP. An opt-in **CDN mode** keeps counts accurate behind a full-page cache.
-* **Edge traffic (Cloudflare, opt-in)** — what Cloudflare answered or blocked *before your server ever saw the request* — the cache hits and edge blocks no server-side log can see — read with your own token, and it warns when the edge disagrees with your policy.
-* **You decide how long it's kept** — retention, nightly auto-delete, and a hard size cap that always applies, so the log can never outgrow your host.
-* **Citation checks (opt-in)** — on the Visibility screen, track **each brand, product or person you choose** across ChatGPT, Perplexity, Gemini and Claude: whether it gets **mentioned, linked, and how it ranks against its rivals** — over time, against the questions your audience actually types. Off by default; **you bring your own API key** (the one feature that makes an outbound request — see *External services*).
+* **Agent activity log** — which AI crawlers and agents actually fetch your content and endpoints (GPTBot, Claude, Perplexity, Googlebot, …), recorded first-party, with no IP logging by default.
+* **Activity to review** — a nav-bar queue surfaces clients worth a second look — new, high-volume or spoofing — with one-click **Block** or **Allow**. Nothing is blocked unless you say so.
+* **Request Log** — every recorded request, one row each. Filter by client, endpoint, network, user-agent and date to see exactly what a single bot fetched.
+* **Agent Access** — who *authenticates and acts*: assistants approved, keys created or revoked, abilities run, requests refused. A record, not a guard — it names the key, never the person.
+* **Traffic from AI** — the real visitors an AI assistant sent you, day by day, by assistant and landing page — aggregate counts only, never a row for one person, no IP. An opt-in **CDN mode** keeps counts accurate behind a full-page cache.
+* **Edge traffic (Cloudflare, opt-in)** — what Cloudflare answered or blocked *before your server saw the request* — cache hits and edge blocks no server-side log can see. Read with your own token.
+* **You decide how long it's kept** — retention, nightly auto-delete and a hard size cap, so the log can never outgrow your host.
+* **Citation checks (opt-in)** — track **each brand, product or person you choose** across ChatGPT, Perplexity, Gemini and Claude: whether it is **mentioned, linked, and how it ranks against rivals**, against the questions your audience actually types. Off by default; **bring your own API key** (the one feature that makes an outbound request — see *External services*).
 
 **Classic search, measured — Bing & Google (opt-in)**
 
-* **Search Performance & Opportunities** — connect Bing Webmaster Tools and/or Google Search Console (a key held on your own server, no third-party proxy) and see what people searched, how often you appeared, and which pages sit one improvement from page one. Every number is the engine's own — never estimated — and automated probe traffic is named, not blended in.
-* **In the index — Google's and Bing's** — whether the indexes behind AI Overviews, Gemini, ChatGPT search and Copilot actually hold your pages: the whole site in rotation, every verdict in the engine's own words, problems grouped with deep links to where the fix lives, any page's answer one lookup away or re-checked live on the spot — plus week-on-week trend, Google Discover, and the health of the sitemap you registered.
+* **Search Performance & Opportunities** — connect Bing Webmaster Tools and/or Google Search Console (a key held on your own server, no third-party proxy) and see what people searched, how often you appeared, and which pages sit one improvement from page one. Every number is the engine's own, never estimated, and probe traffic is named rather than blended in.
+* **In the index — Google's and Bing's** — whether the indexes behind AI Overviews, Gemini, ChatGPT search and Copilot actually hold your pages: the whole site in rotation, every verdict in the engine's own words, problems grouped with deep links to the fix, any page re-checked live — plus week-on-week trend, Google Discover, and the health of your registered sitemap.
 
 **Content — clean, machine-readable output**
 
-* **Markdown delivery** — request any page as clean markdown by appending `.md` to its URL. (An `Accept: text/markdown` mode also exists, off by default.)
-* **/llms.txt** & **/llms-full.txt** — an [llmstxt.org](https://llmstxt.org) index of your pages, topics and recent posts, plus a full-text edition an agent can ingest in a single request.
-* **JSON-LD** — WebSite + Person/Organization, plus BlogPosting and BreadcrumbList on posts. Automatically **defers to Yoast, Rank Math, SEOPress, AIOSEO and The SEO Framework** so you never ship duplicate schema.
-* **Topics for AI** — say what each post is about in plain words, right in the editor; those topics become the JSON-LD `keywords` and a line in the page's `.md`, so assistants understand each page's subject. Type your own, or let Agentimus fill them in from the post's own tags and categories. Nothing shows on the visible page.
-* **AI description** — write a one-line summary of each post in the editor; it becomes the JSON-LD `description`, the lead of the page's `.md`, and the page's `<meta name="description">` (replacing your theme's, unless an SEO plugin owns it). Blank falls back to the excerpt. A sub-switch can keep it out of your `<head>`.
-* **XML sitemap** — with no SEO plugin, Agentimus serves your sitemap (index + paginated sub-sitemaps, with last-changed dates) at WordPress's standard `/wp-sitemap.xml` address, and advertises it in robots.txt and llms.txt; with one installed, it links theirs instead.
-* **Change feed** — a JSON feed at `/agentimus-changes.json` lists recently added, updated and removed pages (with a `?since=` filter), so an assistant re-checks only what changed. On by default, advertised in discovery.
+* **Markdown delivery** — request any page as clean markdown by appending `.md` to its URL. An `Accept: text/markdown` mode also exists, off by default.
+* **/llms.txt** & **/llms-full.txt** — an [llmstxt.org](https://llmstxt.org) index of your pages, topics and recent posts, plus a full-text edition an agent ingests in one request.
+* **JSON-LD** — WebSite + Person/Organization, plus BlogPosting and BreadcrumbList on posts. **Defers to Yoast, Rank Math, SEOPress, AIOSEO and The SEO Framework** so you never ship duplicate schema.
+* **Topics for AI** — say what each post is about in plain words; they become the JSON-LD `keywords` and a line in the page's `.md`. Type your own or let Agentimus fill them in from tags and categories. Nothing shows on the visible page.
+* **AI description** — a one-line summary per post; it becomes the JSON-LD `description`, the lead of its `.md`, and its `<meta name="description">` unless an SEO plugin owns it. Blank falls back to the excerpt.
+* **XML sitemap** — with no SEO plugin, Agentimus serves your sitemap at `/wp-sitemap.xml` and advertises it in robots.txt and llms.txt; with one installed, it links theirs.
+* **Change feed** — a JSON feed at `/agentimus-changes.json` lists added, updated and removed pages (with `?since=`), so an assistant re-checks only what changed.
 
 **Identity & contact**
 
@@ -94,19 +94,19 @@ By default it makes no outbound requests, collects no analytics, and logs no IP 
 **Readiness report**
 
 * A one-screen score of how machine-readable your site is, with a plain-English checklist of what's enabled and what's still missing.
-* **Agent preview** — open it from the Readiness tab to see the exact JSON-LD *and* Markdown an AI agent receives for the whole site or any page, then copy it. It shows what would ship even when the feature is off, and a matching read-only preview sits in the post editor.
+* **Agent preview** — see the exact JSON-LD *and* Markdown an AI agent receives for the whole site or any page, then copy it. It shows what would ship even when the feature is off, and a matching preview sits in the post editor.
 * **Readability tips** — as you write, a panel flags what makes a page hard to read, section and quote: thin content, missing headings, no opening summary, a nav-heavy page, images without alt text. Most of those serve search engines and screen readers exactly as much as AI assistants, and the panel says so. Editor-only — nothing shows to visitors.
 
 **Machine discovery (forward-looking)**
 
 Everything above is read by search engines and AI tools **today**. This part is forward-looking — the conventions the agent ecosystem is converging on (`.well-known`, A2A agent cards, MCP-shaped tools), putting identity, capabilities and APIs in one predictable place:
 
-* **/.well-known/discovery.json** — an owner-curated document describing the site's identity, capabilities, APIs and agent cards. Other plugins can declare themselves through one optional hook.
+* **/.well-known/discovery.json** — an owner-curated document describing the site's identity, capabilities, APIs and agent cards. Other plugins declare themselves through one optional hook.
 * **/.well-known/agent-card.json** and **/.well-known/mcp.json** — an A2A agent card and an MCP manifest, generated automatically.
-* **Standards-aligned `.well-known` endpoints** — an RFC 9727 `api-catalog`, plus — *only when the capability actually exists* — an MCP server card and an Agent Skills index. **Response signing** (Web Bot Auth / HTTP Message Signatures, RFC 9421) signs them with an Ed25519 key that never leaves your server, so agents can verify they came from you; on by default.
-* **WordPress Abilities API** — the same read-only tools are registered as WordPress abilities, so its built-in AI — and, with the MCP adapter, external agents — can read them, each gated by the same capability as its screen. A separate, off-by-default switch adds the write abilities above.
-* **The plugins you run, described** — a WooCommerce store says it sells products; FluentCart, FluentCommunity and Fluent Support say what they hold. Plugins that keep everything behind a login are named as such, because a plugin with nothing public has nothing to pass on. You can switch off anything you would rather not announce.
-* **Zero-config auto-discovery** — reads your REST namespaces, public post types and the Abilities API, so a site is described even when no plugin declares itself; the **Discovery Hub** screen shows what an agent sees, and you decide what is published.
+* **Standards-aligned `.well-known` endpoints** — an RFC 9727 `api-catalog`, plus — *only when the capability exists* — an MCP server card and an Agent Skills index. **Response signing** (RFC 9421 / Web Bot Auth) uses an Ed25519 key that never leaves your server, so agents can verify they came from you.
+* **WordPress Abilities API** — the same read-only tools are registered as WordPress abilities, each gated by the capability of its screen, so its built-in AI can read them. A separate off-by-default switch adds the write abilities.
+* **The plugins you run, described** — a WooCommerce store says it sells products; FluentCart, FluentCommunity and Fluent Support say what they hold. Plugins that keep everything behind a login are named as such — nothing public means nothing to pass on. Switch off anything you would rather not announce.
+* **Zero-config auto-discovery** — reads your REST namespaces, public post types and the Abilities API, so a site is described even when no plugin declares itself. The **Discovery Hub** shows what an agent sees, and you decide what is published.
 
 **Why it's useful**
 
