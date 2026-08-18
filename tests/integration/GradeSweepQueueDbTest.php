@@ -73,14 +73,33 @@ final class GradeSweepQueueDbTest extends DbTestCase {
 
 	/** Within the never-graded group the newest is still first: what an owner expects to fill in first. */
 	public function test_newest_first_within_the_never_graded_group() {
+		global $wpdb;
+
 		$older = $this->post();
-		wp_update_post( array( 'ID' => $older, 'post_modified' => '2020-01-01 00:00:00', 'post_modified_gmt' => '2020-01-01 00:00:00' ) );
+		// ⚠️ NOT wp_update_post(). It stamps post_modified with the current time
+		// on every update and discards whatever you passed — so the line meant to
+		// age this post left both rows on the same timestamp, the ORDER BY had
+		// nothing to sort on, and the test passed or failed on whatever MySQL
+		// happened to return. It failed in CI and passed nowhere, because there
+		// was no ordering to observe. Write the column directly.
+		$wpdb->update(
+			$wpdb->posts,
+			array( 'post_modified' => '2020-01-01 00:00:00', 'post_modified_gmt' => '2020-01-01 00:00:00' ),
+			array( 'ID' => $older )
+		);
+		clean_post_cache( $older );
+
 		$newer = $this->post();
 
 		$queue = array_map( 'intval', Grades::ungraded( array( 'post' ), 10 ) );
 
-		$this->assertSame( $newer, $queue[0] );
-		$this->assertSame( $older, $queue[1] );
+		// Stated as a pair, so a failure says which way round it went rather than
+		// just naming two post ids.
+		$this->assertSame(
+			array( $newer, $older ),
+			array_slice( $queue, 0, 2 ),
+			'Never-graded content is queued newest-modified first.'
+		);
 	}
 
 	/** The horizon only sees verdicts older than it — and reads the oldest first. */
