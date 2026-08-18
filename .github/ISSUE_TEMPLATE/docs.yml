@@ -19,7 +19,7 @@ body:
   - type: dropdown
     id: role
     attributes:
-      label: About you
+      label: Describe Yourself
       description: Optional — only so a reply can be pitched right.
       options:
         - Site owner

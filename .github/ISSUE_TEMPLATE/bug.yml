@@ -14,23 +14,23 @@ body:
         Instead: …
     validations:
       required: true
-  - type: textarea
-    id: env
-    attributes:
-      label: Setup
-      description: Filled in for you if you came from the plugin. Please leave it as it is.
-      render: text
-    validations:
-      required: false
   - type: dropdown
     id: role
     attributes:
-      label: About you
+      label: Describe Yourself
       description: Optional — only so a reply can be pitched right.
       options:
         - Site owner
         - Developer
         - Building this for a client
         - Not sure
+    validations:
+      required: false
+  - type: textarea
+    id: env
+    attributes:
+      label: Environment details
+      description: Filled in for you if you came from the plugin. Please leave it as it is.
+      render: text
     validations:
       required: false

@@ -11,8 +11,8 @@ body:
   - type: textarea
     id: env
     attributes:
-      label: Setup
-      description: Filled in for you if you came from the plugin.
+      label: Environment details
+      description: Filled in for you if you came from the plugin. Please leave it as it is.
       render: text
     validations:
       required: false
