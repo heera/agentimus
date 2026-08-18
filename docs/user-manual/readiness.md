@@ -99,7 +99,7 @@ On this tab each rung group shows a small tally like `5/5` and takes the colour 
 
 ## Optimize your content
 
-The three rungs above grade your *site's* setup. The fourth score rung, **Optimized**, grades your *pages* — how easy each article is for an AI to read and quote — and its worklist lives right here on the Readiness tab (click the **Optimized** rung on the Dashboard score card to jump to it).
+The three rungs above grade your *site's* setup. The fourth score rung, **Optimized**, grades your *pages* — how easy each article is to read, quote and credit, for an assistant and for the search engine and screen reader that want the same things — and its worklist lives right here on the Readiness tab (click the **Optimized** rung on the Dashboard score card to jump to it).
 
 Agentimus reads **every published page** and checks each for what makes content citable:
 
@@ -108,7 +108,7 @@ Agentimus reads **every published page** and checks each for what makes content 
 - **Quotable passages** — an over-long paragraph an engine can't cleanly lift; break it up.
 - **Freshness** — a substantial page untouched for a couple of years reads as stale.
 
-Issues are grouped, and each lists the exact posts and pages affected as links straight to their editors — so fixing them is one click away. The same checks appear per-page in the editor's **Readability** panel while you write.
+Issues are grouped, and each lists the exact posts and pages affected as links straight to their editors — so fixing them is one click away. The same checks appear per-page in the editor's **Readability** panel while you write — and most of them (headings, alt text, thin content, reading ease, freshness) are the classic on-page work a search engine and a screen reader need too, so none of it is a bet on AI alone.
 
 ### Your whole site, not a sample of it
 

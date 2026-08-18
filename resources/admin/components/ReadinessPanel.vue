@@ -144,7 +144,11 @@ export default {
       // site graded anything else: an all-clear that names two kinds of content
       // on a site with four is a claim about less than it measured. The scope
       // says what was actually read.
-      return `Everything published in ${this.gradedScope} is ready for AI to quote. Anything set aside is listed below.`;
+      // ⚠️ Not "ready for AI" alone. Most of these checks are what a search
+      // engine and a screen reader need as well, and a card that names one
+      // audience invites an owner to weigh the work against their opinion of
+      // that audience rather than against what it actually buys.
+      return `Everything published in ${this.gradedScope} reads well for an assistant, a search engine and a screen reader alike. Anything set aside is listed below.`;
     },
     // The owner has switched every content type off — checking is off, which is
     // not the same as clean. Only ever true when the server actually said so.
@@ -531,7 +535,8 @@ export default {
         <div class="ar-checkgroup__text">
           <h3 class="ar-checkgroup__name">Optimize Your Content</h3>
           <p class="ar-checkgroup__blurb">
-            Pages an answer engine would find harder to read or quote. Open one to fix it in the editor,
+            Pages that are harder to read, quote or credit — for an answer engine, and for the search
+            engine and screen reader that want the same things. Open one to fix it in the editor,
             or set aside anything that isn’t meant to be cited.
           </p>
         </div>

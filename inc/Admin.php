@@ -616,44 +616,24 @@ final class Admin {
 			'show'    => $show,
 			'items'   => array(
 				array(
-					'title' => 'Agentimus Can Tell You When Something Happens',
-					'text'  => 'Send its reports to Telegram, Slack, Discord, a Google Sheet, or any address of your own. Choose the moments you care about — a new finding, a bot you have not seen before, the weekly digest — and they arrive where you already look. Every service stays yours: your bot, your channel, your sheet. Agentimus keeps no account of its own, and nothing is sent until you switch it on.',
+					'title' => 'The Page You Half-Fixed Stays on the List',
+					'text'  => 'Fix one thing on a page and the whole page used to disappear from Optimize Your Content, as though nothing were wrong with it — then turn up again later with the untouched issues still there. Saving a post erased what Agentimus knew about it. The page keeps its place now and says it is being read again, and that reading happens within about a minute of your save.',
 				),
 				array(
-					'title' => 'Announce a New Post by Itself',
-					'text'  => 'Write the post, and Agentimus offers the words for X and LinkedIn. You approve them, or you edit them first. Each connection is an app you own, so the post comes from you and not from us. A ledger shows what went out, what is still queued, and what failed — and anything that failed says why.',
+					'title' => 'A Verdict Now Remembers Which Checks Made It',
+					'text'  => 'A grade is an answer to a question, and Agentimus was keeping the answer while forgetting the question — so a page graded by last month\'s checks kept that verdict for good. Every verdict now records the checks behind it, and when a release changes them your content is read again, keeping what it last said on screen while it waits. ⚠️ Expect your counts to move once after this upgrade: that is the old answer being corrected, not new problems appearing.',
 				),
 				array(
-					'title' => 'Your Plugins Describe Themselves to AI Assistants',
-					'text'  => 'A WooCommerce store says it sells products. FluentCart, FluentCommunity and Fluent Support say what they hold, and Easy Digital Downloads joins them. The screen also names the plugins that keep everything behind a login: those have nothing to pass on, and saying so is more use than leaving them off the list. You can switch off anything you would rather not announce, even when the plugin that added it wants it on.',
+					'title' => 'The Featured Image Is Judged on the Page You Serve',
+					'text'  => 'That picture is drawn by your theme, so nothing Agentimus could read told it how the picture reaches a reader. It now reads a couple of your own pages in the background, once per theme. An image served with no description at all is named as the failure it is; a theme that stands the post title in for a missing one says so — and if your theme ignores the description you wrote, that is named as the thing to fix, instead of your content being blamed for a picture you had already described.',
 				),
 				array(
-					'title' => 'Your Content Checks Everything You Publish',
-					'text'  => 'It used to read posts and pages and nothing else, whatever your site was made of — so a shop\'s products were never looked at. Now it covers everything you publish, and a gear on Your Content says which kinds and lets you change it. Products are checked for the searches they are found for, but never graded as writing: a product page is short on purpose, so "this needs more substance" would be the wrong advice on one.',
+					'title' => 'An Assistant Can Find the Work, Not Just Be Told a Number',
+					'text'  => 'A connected assistant could rewrite a page but had no way to learn which page — the findings tool named a number and handed back a link to a screen. There is a tool for the list itself now: which pages need work, everything each is flagged for, whether it answers the search it is found for, and how old that reading is. It can also set the two fields that decide how a page appears in a search result, and read the categories and tags your site already uses, so it stops inventing a second "New features".',
 				),
 				array(
-					'title' => 'The Optimized Score Reads Your Whole Site',
-					'text'  => 'It used to read your 25 most recently edited posts and call that the site. On most sites this number will move now, and the list of pages worth fixing will be longer than it was. The pages were always there; nothing was looking at them. Two screens also stopped disagreeing: Your Content and the front door read one count.',
-				),
-				array(
-					'title' => 'Every Page Gets Read, Not Only the Recent Ones',
-					'text'  => 'Editing a page used to push it ahead of pages nobody had ever looked at, so on a busy site the oldest content could wait forever. First reads come first now. Once everything has been read, the oldest verdicts are refreshed quietly in the background — a few an hour, so a small host never feels it.',
-				),
-				array(
-					'title' => 'Suggestions You Can Put Away',
-					'text'  => 'Anything filed under "when you have time" can be dismissed. You get a count of what you put away and a way to bring each one back. Nothing that costs you something can be hidden.',
-				),
-				array(
-					'title' => 'Get Help, Report an Issue, and This Page Whenever You Want It',
-					'text'  => 'The More menu now has both doors. Get Help opens the WordPress support forum. Report an Issue opens the right form on GitHub with your setup already filled in, so the first reply is an answer instead of a question. These release notes live there too — they used to disappear the moment you dismissed the card, and the changelog went with them.',
-				),
-				array(
-					'title' => 'The Editor Panel Speaks to Search Engines Too',
-					'text'  => 'It used to be called AI Readability. Twelve of its fourteen checks are ones a classic SEO tool runs as well — thin content, headings and their order, image alt text, reading ease, freshness — so it is called Readability now and says who each check is for. Two checks are new: alt text that is only a file name no longer counts as a description, and your featured image is checked for one as well. Every row that names a problem now says where on the page it is, and quotes the words to look for.',
-				),
-				array(
-					'title' => 'Discovery Says Only What Is True',
-					'text'  => 'A job that needs a sign-in is no longer described as needing none. A capability with three owners names all three. A group of jobs wears the name its vendor gave it, and where a vendor holds something back, Agentimus holds it back too. The screen also asks each door as a stranger would, before calling it open.',
+					'title' => 'The Content Checks Say Who They Are For',
+					'text'  => 'Twelve of the fourteen are the classic on-page work a search engine and a screen reader need — headings, alt text, thin content, reading ease, freshness — and only the editor panel said so. Readiness, your score and the manual say it now. Naming one audience invited you to weigh the work against your opinion of AI, when most of it pays either way.',
 				),
 			),
 		);

@@ -538,8 +538,14 @@ final class Score {
 			// pages". That pair was hardcoded, so a site that graded Pages and
 			// Docs — or had switched Posts off — read a sentence naming content
 			// it had not graded.
+			// ⚠️ AND THE AUDIENCE IS NOT ONLY AI. Twelve of the fourteen checks
+			// behind this number — headings, alt text, thin content, reading ease,
+			// freshness — are what a search engine and a screen reader need too.
+			// Naming only assistants made the whole rung look like a bet on one
+			// kind of visitor, and let an owner who is unsure about AI dismiss
+			// work that pays either way.
 			/* translators: 1: number of items graded, 2: the kinds of content graded, e.g. "Pages" or "Posts and Docs". */
-			_n( 'How easily an AI can read, quote and credit your %1$d published %2$s.', 'How easily an AI can read, quote and credit all %1$d of your published %2$s.', $n, 'agentimus' ),
+			_n( 'How easily an assistant, a search engine or a screen reader can read, quote and credit your %1$d published %2$s.', 'How easily an assistant, a search engine or a screen reader can read, quote and credit all %1$d of your published %2$s.', $n, 'agentimus' ),
 			$n,
 			self::graded_noun( $n )
 		);

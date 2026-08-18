@@ -45,6 +45,9 @@ use Agentimus\Description;
 use Agentimus\Cache;
 use Agentimus\CachePurge;
 use Agentimus\PageCheck;
+use Agentimus\Focus;
+use Agentimus\Seo;
+use Agentimus\Worklist;
 
 defined( 'ABSPATH' ) || exit;
 
@@ -197,6 +200,19 @@ final class ContentWriter {
 					);
 				return new \WP_Error( 'agentimus_builder_page', $message, array( 'status' => 409 ) );
 			}
+		}
+
+		// ⛔ Refused, never quietly dropped. On a site where an SEO plugin owns
+		// titles we do not serve ours, so storing one would be a value nothing
+		// reads — and a write that reports success for a field it discarded is
+		// the shape of every "I set it and nothing happened" bug. Checked BEFORE
+		// anything is written, so no half of this call lands.
+		if ( isset( $input['seo_title'] ) && ! Seo::title_ui_enabled() ) {
+			return new \WP_Error(
+				'agentimus_seo_titles_elsewhere',
+				__( 'An SEO plugin owns titles on this site, so Agentimus does not set them — storing this one would put a value nowhere anything reads it. Set the title in that plugin. Every other field in this call still works.', 'agentimus' ),
+				array( 'status' => 409 )
+			);
 		}
 
 		$postarr = array( 'ID' => $post->ID );
@@ -556,6 +572,41 @@ final class ContentWriter {
 		if ( isset( $input['topics_derive'] ) ) {
 			update_post_meta( $post_id, Topics::META_DERIVE, Topics::sanitize_flag( $input['topics_derive'] ) );
 		}
+
+		// ⭐ The two fields that decide how this page appears in a search result —
+		// which search it is FOR, and the title that result shows. An agent could
+		// write, dress and grade a post to full marks and not reach either of
+		// them; they were the last step of the job the write tools stopped short
+		// of {@see \Agentimus\Focus}, {@see \Agentimus\Seo}.
+		$rejudged = false;
+		if ( isset( $input['focus'] ) ) {
+			$focus = Focus::sanitize( $input['focus'] );
+			if ( '' === $focus ) {
+				delete_post_meta( $post_id, Focus::META );
+			} else {
+				update_post_meta( $post_id, Focus::META, wp_slash( $focus ) );
+			}
+			$rejudged = true;
+		}
+		if ( isset( $input['seo_title'] ) ) {
+			$title = Seo::sanitize_title( (string) $input['seo_title'] );
+			if ( '' === $title ) {
+				delete_post_meta( $post_id, Seo::META_TITLE );
+			} else {
+				update_post_meta( $post_id, Seo::META_TITLE, wp_slash( $title ) );
+			}
+			$rejudged = true;
+		}
+
+		// ⚠️ BOTH change the VERDICT without changing a word of the page: the
+		// focus is the search a row is measured against, and the SEO title is the
+		// title that measurement reads. A meta-only write never fires `save_post`,
+		// so nothing else would have marked the stored grade out of date — the
+		// screens would have gone on judging this page against the search it used
+		// to be for.
+		if ( $rejudged ) {
+			Worklist::regrade_soon( $post_id );
+		}
 	}
 
 	/**
@@ -590,6 +641,10 @@ final class ContentWriter {
 				$post instanceof \WP_Post ? PageCheck::analyze( $post ) : array()
 			),
 			'topics'        => is_array( $topics ) ? array_values( $topics ) : array(),
+			// The two search fields, read back so a caller can see what stood
+			// after the write rather than assume its own input took.
+			'focus'         => (string) get_post_meta( $post_id, Focus::META, true ),
+			'seoTitle'      => Seo::title_ui_enabled() ? (string) get_post_meta( $post_id, Seo::META_TITLE, true ) : '',
 			'categories'    => self::term_names( $post_id, 'category' ),
 			'tags'          => self::term_names( $post_id, 'post_tag' ),
 			'featuredImage' => $thumb_id > 0

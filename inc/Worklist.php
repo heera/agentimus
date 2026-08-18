@@ -146,6 +146,23 @@ final class Worklist {
 			Grades::forget( $post_id );
 			return;
 		}
+		self::regrade_soon( $post_id );
+	}
+
+	/**
+	 * This page's verdict is out of date — keep it on screen, and book the
+	 * reading that replaces it.
+	 *
+	 * ⭐ Public because SAVING IS NOT THE ONLY WAY. An agent writing the focus
+	 * keyword or the SEO title through the abilities changes what the page is
+	 * measured against without touching a word of it — and a meta-only write
+	 * never fires `save_post`, so nothing here would have noticed. Every path
+	 * that invalidates a verdict says so through this one method.
+	 *
+	 * @param int $post_id Post ID.
+	 * @return void
+	 */
+	public static function regrade_soon( $post_id ) {
 		Grades::mark_stale( $post_id );
 		wp_schedule_single_event( time() + MINUTE_IN_SECONDS, Grades::CRON );
 	}

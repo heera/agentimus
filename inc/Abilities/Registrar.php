@@ -71,6 +71,7 @@ use Agentimus\Bing\Summary as BingSummary;
 use Agentimus\Google\Settings as GoogleSettings;
 use Agentimus\Google\Index as GoogleIndex;
 use Agentimus\Worklist;
+use Agentimus\Seo;
 
 defined( 'ABSPATH' ) || exit;
 
@@ -86,7 +87,7 @@ final class Registrar {
 	 * so renaming one here still fails a test instead of silently changing the
 	 * public tool name.
 	 */
-	const WRITE_SLUGS = array( 'create-content', 'update-content', 'write-description', 'write-topics', 'apply-fix' );
+	const WRITE_SLUGS = array( 'create-content', 'update-content', 'write-description', 'write-topics', 'write-search-fields', 'apply-fix' );
 
 	/** @var Settings */
 	private $settings;
@@ -1255,6 +1256,131 @@ final class Registrar {
 			$manage
 		);
 
+		$this->add(
+			'read-terms',
+			__( 'List the site’s categories and tags', 'agentimus' ),
+			'Returns the categories and tags THIS site already uses, with the exact names create-content and '
+				. 'update-content expect. Those tools take terms by NAME, and a name typed from memory does not '
+				. 'match one that exists — "New Features" and "New features" are two different categories, and '
+				. 'the second one gets created. Read this first and reuse what is here. '
+				. '`field` on each group is the input field it maps to (`categories`, `tags`), `count` is how '
+				. 'many published items already carry the term, and `total` says how many exist when the list '
+				. 'is capped — narrow it with `search` rather than assuming you have seen them all. '
+				. '`notSettable` names public taxonomies this content type has that the write tools do NOT '
+				. 'touch: they exist on the site, and nothing here can put a page in one.',
+			array(
+				'type'                 => 'object',
+				'properties'           => array(
+					'post_type' => self::s( 'Which content type’s taxonomies to list. Defaults to "post".' ),
+					'search'    => self::s( 'Only terms whose name contains this. Use it on a site with hundreds.' ),
+					'per'       => self::i( 'Terms per group (default 100, capped at 200).' ),
+				),
+				'additionalProperties' => false,
+				// Every argument is optional, so "no input at all" is the natural
+				// ask — and without this default a bare call is refused at the
+				// input gate {@see no_input()}.
+				'default'              => new \stdClass(),
+			),
+			self::obj(
+				array(
+					'postType'    => self::s( 'The content type these groups belong to.' ),
+					'taxonomies'  => self::arr(
+						array(
+							'field'        => self::s( 'The create-content / update-content input field for this group: "categories" or "tags".' ),
+							'taxonomy'     => self::s( 'WordPress’s own name for it.' ),
+							'label'        => self::s( 'What this site calls it.' ),
+							'hierarchical' => self::b( 'TRUE when terms can have parents (categories do; tags do not).' ),
+							'total'        => self::i( 'How many terms exist. Larger than the list below means the list was capped.' ),
+							'canCreate'    => self::b( 'Whether the connected user may create a NEW term here. FALSE means an unknown name will be REFUSED, not quietly added — send names from this list.' ),
+							'terms'        => self::arr(
+								array(
+									'id'     => self::i(),
+									'name'   => self::s( 'Send this string, exactly as it appears here.' ),
+									'slug'   => self::s(),
+									'count'  => self::i( 'Published items already carrying it.' ),
+									'parent' => self::i( '0 when top-level; only meaningful on a hierarchical group.' ),
+								)
+							),
+						)
+					),
+					'notSettable' => self::arr(
+						array(
+							'taxonomy' => self::s(),
+							'label'    => self::s(),
+						),
+						'Public taxonomies this content type has that the write tools cannot set. ⛔ Never tell an owner a page was filed in one of these.'
+					),
+				)
+			),
+			function ( $input ) {
+				$in   = is_array( $input ) ? $input : array();
+				$type = isset( $in['post_type'] ) ? sanitize_key( (string) $in['post_type'] ) : 'post';
+				if ( ! post_type_exists( $type ) ) {
+					return new \WP_Error( 'agentimus_bad_type', __( 'That content type does not exist on this site.', 'agentimus' ), array( 'status' => 400 ) );
+				}
+				$search = isset( $in['search'] ) ? trim( (string) $in['search'] ) : '';
+				$per    = isset( $in['per'] ) ? (int) $in['per'] : 0;
+				$per    = $per > 0 ? min( 200, $per ) : 100;
+
+				$groups   = array();
+				$settable = array();
+				foreach ( ContentWriter::TAXONOMY_FIELDS as $field => $taxonomy ) {
+					if ( ! is_object_in_taxonomy( $type, $taxonomy ) ) {
+						continue; // This type does not use it — say nothing rather than an empty group.
+					}
+					$settable[] = $taxonomy;
+					$tax        = get_taxonomy( $taxonomy );
+					$args       = array( 'taxonomy' => $taxonomy, 'hide_empty' => false, 'number' => $per, 'orderby' => 'count', 'order' => 'DESC' );
+					if ( '' !== $search ) {
+						$args['search'] = $search;
+					}
+					$terms = get_terms( $args );
+					$total = (int) wp_count_terms( array( 'taxonomy' => $taxonomy, 'hide_empty' => false ) );
+
+					$rows = array();
+					foreach ( is_wp_error( $terms ) ? array() : $terms as $term ) {
+						$rows[] = array(
+							'id'     => (int) $term->term_id,
+							'name'   => (string) $term->name,
+							'slug'   => (string) $term->slug,
+							'count'  => (int) $term->count,
+							'parent' => (int) $term->parent,
+						);
+					}
+					$groups[] = array(
+						'field'        => (string) $field,
+						'taxonomy'     => (string) $taxonomy,
+						'label'        => $tax ? (string) $tax->labels->name : (string) $taxonomy,
+						'hierarchical' => (bool) ( $tax && $tax->hierarchical ),
+						'total'        => '' !== $search ? count( $rows ) : $total,
+						// ⭐ Said out loud, because it changes what an agent should
+						// DO: without the create cap an unknown name comes back as
+						// an error from the write tools, not as a new term.
+						'canCreate'    => (bool) ( $tax && current_user_can( $tax->cap->edit_terms ) ),
+						'terms'        => $rows,
+					);
+				}
+
+				$others = array();
+				foreach ( get_object_taxonomies( $type, 'objects' ) as $tax ) {
+					if ( empty( $tax->public ) || in_array( (string) $tax->name, $settable, true ) ) {
+						continue;
+					}
+					$others[] = array(
+						'taxonomy' => (string) $tax->name,
+						'label'    => (string) $tax->labels->name,
+					);
+				}
+
+				return array(
+					'postType'    => $type,
+					'taxonomies'  => $groups,
+					'notSettable' => $others,
+				);
+			},
+			$manage
+		);
+
 		/* -- Per-page authoring aids ----------------------------------------- */
 
 		$this->add(
@@ -1886,6 +2012,11 @@ final class Registrar {
 						'type'        => 'boolean',
 						'description' => 'Whether this page should ALSO derive topics from its tags & categories.',
 					),
+					// The two search fields, so one call can finish a page rather
+					// than leaving the last step to a tool nobody thinks to look
+					// for {@see write-search-fields, which is these two alone}.
+					'focus'         => self::s( 'The search this page should answer — what every worklist row measures it against. Comma-separate several; the first is the one it is judged on. Empty string clears the choice. ⚠️ Changing it marks the page’s stored verdict out of date until the sweep reads it again.' ),
+					'seo_title'     => self::s( 'The title a search result shows, instead of the post title. Empty string clears it. ⛔ On a site where an SEO plugin owns titles the WHOLE call is refused rather than storing a value nothing serves — omit this field there; every other one still works.' ),
 				),
 				array( 'post_id' )
 			),
@@ -1953,6 +2084,52 @@ final class Registrar {
 				);
 				if ( isset( $input['derive'] ) ) {
 					$args['topics_derive'] = $input['derive'];
+				}
+				return ( new ContentWriter( $this->settings ) )->update( $args );
+			},
+			array( $this, 'can_edit_post' ),
+			false
+		);
+
+		$this->add(
+			'write-search-fields',
+			__( 'Set the search a page answers', 'agentimus' ),
+			'Sets the two fields that decide how ONE post/page appears in a search result, neither of which '
+				. 'lives in its content: the FOCUS — the search the page should answer, which every worklist '
+				. 'row and the editor’s own panel measure it against — and the SEO TITLE, the words a result '
+				. 'shows instead of the post title. An agent could write, dress and grade a page to full marks '
+				. 'and reach neither. '
+				. 'Pass either field alone; an empty string clears it (the focus falls back to whatever search '
+				. 'engines report for the page, the title falls back to the post title). Several searches go in '
+				. 'one comma-separated string, and the FIRST is the one a row is judged on. '
+				. '⛔ `seo_title` is refused outright when an SEO plugin owns titles on this site — writing it '
+				. 'would store a value nothing serves. '
+				. '⚠️ Both change what the page is MEASURED against without changing a word of it, so the '
+				. 'stored verdict is marked out of date and the page is read again within about a minute: '
+				. 'read-content-issues will show it as `stale` until then.',
+			self::obj(
+				array(
+					'post_id'   => self::i( 'The post/page ID.' ),
+					'focus'     => self::s( 'The search this page should answer. Comma-separate several — the first is the one it is judged on. Empty string clears the choice.' ),
+					'seo_title' => self::s( 'The title a search result shows. Empty string clears it, falling back to the post title.' ),
+				),
+				array( 'post_id' )
+			),
+			$summary,
+			function ( $input ) {
+				$input = is_array( $input ) ? $input : array();
+				if ( isset( $input['seo_title'] ) && ! Seo::title_ui_enabled() ) {
+					return new \WP_Error(
+						'agentimus_seo_titles_elsewhere',
+						__( 'An SEO plugin owns titles on this site, so Agentimus does not set them — writing this field would store a value nothing serves. Set the title in that plugin instead. The focus keyword still works here.', 'agentimus' ),
+						array( 'status' => 409 )
+					);
+				}
+				$args = array( 'post_id' => isset( $input['post_id'] ) ? (int) $input['post_id'] : 0 );
+				foreach ( array( 'focus', 'seo_title' ) as $field ) {
+					if ( isset( $input[ $field ] ) ) {
+						$args[ $field ] = (string) $input[ $field ];
+					}
 				}
 				return ( new ContentWriter( $this->settings ) )->update( $args );
 			},
@@ -2029,6 +2206,11 @@ final class Registrar {
 			// needed changing: the findings tool named a number and handed back a
 			// screen anchor, and check-page wanted an id nothing would give it.
 			self::CATEGORY . '/read-content-issues',
+			// Read-only, and it exists FOR the write tier — the same reason
+			// search-media is here. The write tools take categories and tags by
+			// NAME, so an agent without this list types one from memory and mints
+			// a duplicate of a term the site already has.
+			self::CATEGORY . '/read-terms',
 			self::CATEGORY . '/check-page',
 			self::CATEGORY . '/preview-schema',
 			self::CATEGORY . '/preview-markdown',
@@ -2533,6 +2715,8 @@ final class Registrar {
 					'type'  => 'array',
 					'items' => self::s(),
 				),
+				'focus'         => self::s( 'The search this page is measured against — the author’s own choice, empty when none is set and the reported search stands in.' ),
+				'seoTitle'      => self::s( 'The title search results show for this page. Empty when none is set, and ALWAYS empty when an SEO plugin owns titles on this site — in which case this field is not the one that decides them.' ),
 				'categories'    => array(
 					'type'  => 'array',
 					'items' => self::s(),

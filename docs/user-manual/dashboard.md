@@ -265,7 +265,7 @@ The score is a ladder of **five rungs**, each shown as a percentage:
 - **Findable** — an agent can reach and crawl your site (public, pretty permalinks, `robots.txt`, sitemap).
 - **Readable** — what it crawls comes back clean and structured (`llms.txt`, the full-text edition, schema, Topics for AI).
 - **Trusted** — it can identify you and trust the source (your profile, expertise, an entity image/logo, security and AI-usage signals).
-- **Optimized** — your individual pages are easy for an AI to read and quote (see *[Optimize your content](readiness.html)* on the Readiness page).
+- **Optimized** — your individual pages are easy to read, quote and credit, for an assistant and for the search engine and screen reader that want the same things (see *[Optimize your content](readiness.html)* on the Readiness page).
 - **Cited** — AI engines actually name you in their answers. This rung appears **only when you turn on "Track AI citations"** (see *[AI Visibility](ai-visibility.html)*); until then the score is a clean four-rung ladder.
 
 The three readiness rungs — Findable, Readable, Trusted — are the original **"agent-ready"** milestone: when all three reach 100%, your site is fully agent-ready. Each rung links straight to where you act on it — the readiness rungs and Optimized open their section on the **Readiness** tab; Cited opens **AI Visibility**.
