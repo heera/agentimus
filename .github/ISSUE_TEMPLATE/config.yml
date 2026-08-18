@@ -1,0 +1,14 @@
+# ⛔ Blank issues off, on purpose. Every report then arrives through a form that
+# already asks the three questions a maintainer would otherwise have to ask, and
+# drive-by junk has to answer them too — which is most of what stops it.
+blank_issues_enabled: false
+
+contact_links:
+  - name: Get help on the WordPress support forum
+    url: https://wordpress.org/support/plugin/agentimus/
+    about: >-
+      Questions, "how do I", "is this normal" — answered by a person, and you may
+      already have the account. GitHub is for defects and ideas that change the code.
+  - name: Documentation
+    url: https://heera.github.io/agentimus/
+    about: Step-by-step guides for every feature, plus the developer reference.

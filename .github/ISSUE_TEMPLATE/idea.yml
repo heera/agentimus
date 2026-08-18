@@ -1,0 +1,19 @@
+name: An idea
+description: Something the plugin could do that it does not do yet.
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What would you like it to do?
+      description: What you are trying to achieve matters more than how it should work — the problem tends to have better solutions than the one we each think of first.
+    validations:
+      required: true
+  - type: textarea
+    id: env
+    attributes:
+      label: Setup
+      description: Filled in for you if you came from the plugin.
+      render: text
+    validations:
+      required: false

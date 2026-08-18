@@ -1,0 +1,18 @@
+name: Something else
+description: It does not fit the other forms.
+labels: ["needs-triage"]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What is it?
+    validations:
+      required: true
+  - type: textarea
+    id: env
+    attributes:
+      label: Setup
+      description: Filled in for you if you came from the plugin.
+      render: text
+    validations:
+      required: false

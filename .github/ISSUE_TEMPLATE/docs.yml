@@ -1,0 +1,18 @@
+name: The documentation is wrong or missing
+description: A guide that misled you, or a gap where you expected an answer.
+labels: ["documentation"]
+body:
+  - type: input
+    id: where
+    attributes:
+      label: Which page?
+      placeholder: https://heera.github.io/agentimus/…
+    validations:
+      required: false
+  - type: textarea
+    id: what
+    attributes:
+      label: What was wrong, or what were you looking for?
+      description: Drag a screenshot in if it is easier to show than to say.
+    validations:
+      required: true

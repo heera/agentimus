@@ -1,0 +1,37 @@
+name: Something is broken
+description: A feature does not do what it says, or errors.
+labels: ["bug"]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened?
+      description: What you did, what you expected, and what happened instead. A screenshot helps — drag it straight into this box.
+      placeholder: |
+        1. I opened …
+        2. I clicked …
+        Expected: …
+        Instead: …
+    validations:
+      required: true
+  - type: textarea
+    id: env
+    attributes:
+      label: Setup
+      description: Filled in for you if you came from the plugin. Please leave it as it is.
+      render: text
+    validations:
+      required: false
+  - type: dropdown
+    id: role
+    attributes:
+      label: How would you describe yourself?
+      description: Only so a reply can be pitched right — it changes what you can be asked for, never how fast you are answered.
+      options:
+        - Rather not say
+        - Site owner
+        - Developer
+        - Building this for a client
+        - Not sure
+    validations:
+      required: false

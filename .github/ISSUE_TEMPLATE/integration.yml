@@ -1,0 +1,26 @@
+name: An integration won't connect
+description: Slack, Discord, Telegram, X, LinkedIn, Sheets, a webhook, or a search source.
+labels: ["bug", "integration"]
+body:
+  - type: input
+    id: service
+    attributes:
+      label: Which one?
+      placeholder: Slack / Discord / Telegram / X / LinkedIn / Google Sheets / webhook / Bing / Search Console
+    validations:
+      required: true
+  - type: textarea
+    id: what
+    attributes:
+      label: What happens when you try to connect?
+      description: The exact message on screen, if there is one — drag a screenshot straight into this box. ⛔ Never paste a token, webhook URL or API key, and blank them out of any screenshot: anyone reading this issue can use them.
+    validations:
+      required: true
+  - type: textarea
+    id: env
+    attributes:
+      label: Setup
+      description: Filled in for you if you came from the plugin. Please leave it as it is.
+      render: text
+    validations:
+      required: false
