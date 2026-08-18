@@ -71,6 +71,14 @@ final class GradesDbTest extends DbTestCase {
 			'stake'     => $stake,
 			'coverage'  => $needs ? 'on_page' : 'answered',
 			'hasFocus'  => $focus,
+			// ⚠️ The ids and the points BELONG with the flag count: they come from
+			// one reading of the page, and a row carrying flags it cannot name is
+			// a contradiction the sweep now re-reads {@see Grades::UNREADABLE_SQL}.
+			// A fixture that writes one without the others is testing a row this
+			// code cannot produce.
+			'flagIds'   => $needs ? array( 'summary', 'headings' ) : array(),
+			'points'    => $needs ? 60 : 100,
+			'gradeable' => true,
 			'hash'      => 'h' . $id,
 		) );
 	}
@@ -94,6 +102,10 @@ final class GradesDbTest extends DbTestCase {
 			'stake'     => 10,
 			'coverage'  => $coverage,
 			'hasFocus'  => true,
+			// Named flags, one id each — the shape a real reading writes.
+			'flagIds'   => array_slice( array( 'summary', 'headings', 'sources', 'evidence' ), 0, max( 0, (int) $flags ) ),
+			'points'    => $flags > 0 ? 60 : 100,
+			'gradeable' => true,
 			'hash'      => 'h' . $id,
 		) );
 	}
@@ -345,6 +357,45 @@ final class GradesDbTest extends DbTestCase {
 		$this->assertSame( 60, $after['score'], 'The pillar must not move because a page dropped out of the average.' );
 		$this->assertSame( array( $id ), $after['pending'], '…but the card has to be able to say the verdict is older than the edit.' );
 		$this->assertSame( array( $id ), Grades::posts_with_flag( $this->types, array(), 'summary' ), 'Set All Aside has to see it too.' );
+	}
+
+	/**
+	 * ⭐ A verdict written by an older schema repairs itself.
+	 *
+	 * Found on a real site while driving the content-issues tool: seventeen pages
+	 * ranked as "worth fixing" carrying a flag COUNT and not one flag id — rows
+	 * from before the store kept ids and points, left behind by a migration that
+	 * never reached that site. The screens hid it (they re-render every row they
+	 * print); anything reading the store got a page that needs work for no
+	 * reason it could state.
+	 *
+	 * ⛔ The row is not hidden and not deleted. It goes back in the queue, says
+	 * it cannot be trusted meanwhile, and one reading ends the state for good.
+	 */
+	public function test_a_verdict_this_schema_cannot_read_is_re_read_rather_than_believed() {
+		$id = $this->post( 'Graded by an older version' );
+		Grades::record( $id, array(
+			'needsWork' => true,
+			'flags'     => 2,       // Two things wrong…
+			'flagIds'   => array(), // …and not one of them named.
+			'points'    => 0,
+			'gradeable' => false,
+			'stake'     => 10,
+			'coverage'  => '',
+			'hasFocus'  => false,
+			'hash'      => 'h' . $id,
+		) );
+
+		$this->assertSame( array( $id ), Grades::ungraded( $this->types, 10 ), 'It has to be read again — nothing else can say what is wrong with it.' );
+		$this->assertSame( 1, Grades::rechecking( $this->types ), 'And be counted as a reading the site still owes.' );
+		$this->assertSame( 0, Grades::remaining( $this->types ), 'It was read once, so it is not “never looked at”.' );
+		$this->assertTrue( Grades::stored( array( $id ) )[ $id ]['stale'], '⛔ Anything reading this row must be told not to repeat it.' );
+
+		// One real reading ends it — the row can never be queued for ever.
+		$this->store( $id, true, 2, 'barely' );
+		$this->assertSame( array(), Grades::ungraded( $this->types, 10 ) );
+		$this->assertSame( 0, Grades::rechecking( $this->types ) );
+		$this->assertFalse( Grades::stored( array( $id ) )[ $id ]['stale'] );
 	}
 
 	public function test_forgetting_a_page_removes_it_from_every_answer() {

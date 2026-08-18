@@ -46,6 +46,27 @@ final class Grades {
 	/** @var string Option recording the installed schema version. */
 	const VERSION_OPTION = 'agentimus_grades_db_version';
 
+	/**
+	 * A verdict THIS schema cannot read — SQL, because three queries must agree.
+	 *
+	 * ⭐⭐ Found by driving the content-issues tool against a real site: seventeen
+	 * pages ranked as "worth fixing" while recording no reason at all — no
+	 * flagged check ids, no citability points, not even gradeable. Verdicts
+	 * written before the store learned to keep those three, left behind when the
+	 * migration that was meant to clear them did not reach this site. The screens
+	 * never showed it because they re-render every row they print; anything
+	 * reading the STORE gets a row that says a page needs work and cannot say
+	 * what for.
+	 *
+	 * ⛔ Not a general "looks inconsistent" test — it is a CONTRADICTION, and a
+	 * narrow one. The flag count and the flagged ids come from a single reading
+	 * of the page, so "two things wrong, and not one of them named" cannot
+	 * describe a row this code wrote. `points = 0` is the third guard: a real
+	 * page carrying flags still passes other checks, so a row a re-read repairs
+	 * leaves this set for good and no page can be queued for ever.
+	 */
+	const UNREADABLE_SQL = "(g.flags > 0 AND g.flag_ids = '' AND g.points = 0)";
+
 	/** @var string The sweep's cron hook. */
 	const CRON = 'agentimus_grade_sweep';
 
@@ -313,12 +334,15 @@ final class Grades {
 	/**
 	 * Published posts the sweep owes a reading — never-graded ones FIRST.
 	 *
-	 * Three kinds of row qualify: no row at all, one whose `graded_at` was
-	 * cleared by a schema migration (its columns are defaults, not measurements),
-	 * and one whose fingerprint a save emptied ({@see mark_stale()}). The last
-	 * kind still HAS a verdict and every reader still shows it — being in this
-	 * queue is a statement about what the sweep must do next, never about what
-	 * the screens may say meanwhile.
+	 * Four kinds of row qualify: no row at all, one whose `graded_at` was cleared
+	 * by a schema migration (its columns are defaults, not measurements), one
+	 * whose fingerprint a save emptied ({@see mark_stale()}), and one whose
+	 * verdict this schema cannot read ({@see UNREADABLE_SQL}) — which is how a
+	 * store that missed a migration repairs itself instead of quietly ranking
+	 * pages for reasons it can no longer state. The last two still HAVE a
+	 * verdict and every reader still shows it: being in this queue is a
+	 * statement about what the sweep must do next, never about what the screens
+	 * may say meanwhile.
 	 *
 	 * ⚠️ The never-graded-first ordering is the whole fairness of the sweep, and
 	 * it was missing. Saving a post re-queues it, so an edit puts an
@@ -352,7 +376,7 @@ final class Grades {
 			"SELECT p.ID FROM {$wpdb->posts} p
 			LEFT JOIN $table g ON g.post_id = p.ID
 			WHERE p.post_status = 'publish' AND p.post_type IN ($holders)
-				AND (g.post_id IS NULL OR g.graded_at IS NULL OR g.content_hash = '')
+				AND (g.post_id IS NULL OR g.graded_at IS NULL OR g.content_hash = '' OR " . self::UNREADABLE_SQL . ")
 			ORDER BY (g.post_id IS NULL OR g.graded_at IS NULL) DESC, p.post_modified DESC
 			LIMIT %d",
 			array_merge( $types, array( $limit ) )
@@ -470,7 +494,7 @@ final class Grades {
 			"SELECT COUNT(*) FROM {$wpdb->posts} p
 			INNER JOIN $table g ON g.post_id = p.ID
 			WHERE p.post_status = 'publish' AND p.post_type IN ($holders)
-				AND g.graded_at IS NOT NULL AND g.content_hash = ''",
+				AND g.graded_at IS NOT NULL AND (g.content_hash = '' OR " . self::UNREADABLE_SQL . ')',
 			$types
 		) );
 	}
@@ -771,6 +795,74 @@ final class Grades {
 		$out = array();
 		foreach ( (array) $rows as $r ) {
 			$out[ (int) $r['post_id'] ] = self::unpack_ids( isset( $r['flag_ids'] ) ? $r['flag_ids'] : '' );
+		}
+		return $out;
+	}
+
+	/**
+	 * Everything the store holds about these pages — no page is read.
+	 *
+	 * ⭐ What the by-issue card, the tab counts and the ranking are all built
+	 * from, handed over whole so a caller can describe a row without paying for
+	 * a render. The screen renders its rows because it shows live detail (which
+	 * words are missing, which passage answers the search); a caller that only
+	 * needs "what is wrong with this page, and is that still true?" — the MCP
+	 * content-issues tool — must not have to render thirty pages to be told.
+	 *
+	 * ⚠️ `stale` is the honesty of every row built from this, and it means ONE
+	 * thing to whoever reads it: do not repeat this verdict, read the page
+	 * again. Three states earn it — the owner saved the page since it was read
+	 * {@see mark_stale()}, the page has never been read (a migration cleared the
+	 * stamp), or the verdict was written by an older schema and cannot be read
+	 * now {@see UNREADABLE_SQL}. ⛔ Never drop those rows to hide it: a page
+	 * missing from a list reads as a page with nothing wrong.
+	 *
+	 * @param array<int,int> $post_ids Post IDs.
+	 * @return array<int,array<string,mixed>> post_id => stored verdict.
+	 */
+	public static function stored( array $post_ids ) {
+		global $wpdb;
+
+		$post_ids = array_values( array_unique( array_filter( array_map( 'intval', $post_ids ) ) ) );
+		if ( ! $post_ids || ! self::installed() ) {
+			return array();
+		}
+
+		$table = self::name();
+		$in    = implode( ',', $post_ids );
+
+		// ⚠️ Every row asked for, graded or not. A caller ranking rows out of this
+		// table has ALREADY been handed these ids by page(); answering "no such
+		// row" for the never-read ones would make it print a page with no verdict
+		// as a page with no problems.
+		$rows = $wpdb->get_results( // phpcs:ignore WordPress.DB -- our own table; every id cast to int above.
+			"SELECT post_id, needs_work, flags, stake, coverage, has_focus, gradeable, points, flag_ids, content_hash, graded_at
+			FROM $table WHERE post_id IN ($in)",
+			ARRAY_A
+		);
+
+		$out = array();
+		foreach ( (array) $rows as $r ) {
+			$read = null !== $r['graded_at'] && '' !== (string) $r['graded_at'];
+			// The same fingerprint UNREADABLE_SQL matches, in PHP — one shape, two
+			// languages, and a comment on each so they are changed together.
+			$unreadable = (int) $r['flags'] > 0 && '' === (string) $r['flag_ids'] && 0 === (int) $r['points'];
+
+			$out[ (int) $r['post_id'] ] = array(
+				'needsWork' => ! empty( $r['needs_work'] ),
+				'flags'     => (int) $r['flags'],
+				'stake'     => (int) $r['stake'],
+				'coverage'  => (string) $r['coverage'],
+				'hasFocus'  => ! empty( $r['has_focus'] ),
+				'gradeable' => ! empty( $r['gradeable'] ),
+				'points'    => (int) $r['points'],
+				'flagIds'   => self::unpack_ids( isset( $r['flag_ids'] ) ? $r['flag_ids'] : '' ),
+				// Never read · saved since it was read · written by an older
+				// schema. Three ways of being the same instruction: read it again
+				// before repeating any of this.
+				'stale'     => ! $read || '' === (string) $r['content_hash'] || $unreadable,
+				'gradedAt'  => $read ? (string) $r['graded_at'] : '',
+			);
 		}
 		return $out;
 	}

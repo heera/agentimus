@@ -70,6 +70,7 @@ use Agentimus\Bing\Settings as BingSettings;
 use Agentimus\Bing\Summary as BingSummary;
 use Agentimus\Google\Settings as GoogleSettings;
 use Agentimus\Google\Index as GoogleIndex;
+use Agentimus\Worklist;
 
 defined( 'ABSPATH' ) || exit;
 
@@ -1257,6 +1258,139 @@ final class Registrar {
 		/* -- Per-page authoring aids ----------------------------------------- */
 
 		$this->add(
+			'read-content-issues',
+			__( 'Find the pages worth fixing', 'agentimus' ),
+			'Returns the site’s content worklist — WHICH pages need work, and what is wrong with each — ranked '
+				. 'over the whole site (pages needing work first, then by what a fix is worth) and paginated. This '
+				. 'is the list read-findings summarises when it says "N Posts and Pages are worth fixing": start '
+				. 'there for what to do next, come here for the pages themselves. Every row carries the post id, '
+				. 'so it is also how you aim the other tools — check-page for a full fresh reading of one page, '
+				. 'update-content / write-description / write-topics to fix it. '
+				. 'Three exclusive buckets, chosen with `filter`: "fixable" (the default — pages asking for '
+				. 'something), "clear" (read, nothing to fix), "setAside" (pages the owner excused; ⛔ never '
+				. 'suggest editing these, the exclusion is a decision, not an oversight). `counts` tallies all '
+				. 'three over the whole site and is the SAME count the owner’s screen shows. '
+				. 'A row asks for one of two different things, and both must be read: `issues` lists the content '
+				. 'checks it fails (each with the id check-page uses), while `coverage` says whether it answers '
+				. 'the search it is found for — a row with an EMPTY `issues` list and coverage "barely" or '
+				. '"missing" is not a clean page, it is a page whose words never answer its search. '
+				. 'No page is rendered to build this: every verdict is one the background sweep already measured, '
+				. 'which is what makes paging through a whole site affordable. The cost is that a verdict has an '
+				. 'age — `stale` is TRUE when the owner saved that page after it was read, so its issues describe '
+				. 'the earlier draft. ⛔ Never report a stale row as broken or as fixed; re-read that one page '
+				. 'with check-page and say what THAT found. `grading` (never read) and `rechecking` (read, then '
+				. 'edited) say how much of the site these numbers cannot speak for — above zero, this is a list '
+				. 'over part of the site and must be described as one.',
+			array(
+				'type'                 => 'object',
+				'properties'           => array(
+					'filter' => array(
+						'type'        => 'string',
+						'enum'        => array( 'fixable', 'clear', 'setAside' ),
+						'description' => 'Which bucket to list. Defaults to "fixable" — the pages asking for something.',
+						'default'     => 'fixable',
+					),
+					'page'   => self::i( '1-based page number. Defaults to 1; `total` and `per` say how many pages exist.' ),
+					'per'    => self::i( 'Rows per page (default 20, capped at 30).' ),
+				),
+				'additionalProperties' => false,
+				// ⚠️ EVERY parameter here is optional, which makes "no input at all"
+				// the most natural way to ask — and without this default that call
+				// is refused at the input gate ("input is not of type object"),
+				// because a read ability runs over REST as a GET and a query string
+				// cannot express an empty object. The same trap {@see no_input()}
+				// documents for the no-argument abilities; an ability with only
+				// optional arguments walks into it too.
+				'default'              => new \stdClass(),
+			),
+			self::obj(
+				array(
+					'items'        => self::arr(
+						array(
+							'id'        => self::i( 'Post ID — feed this to check-page, update-content, write-description, write-topics.' ),
+							'title'     => self::s(),
+							'postType'  => self::s( 'The post type SLUG, for the write tools.' ),
+							'typeLabel' => self::s( 'What this site calls one of these ("Post", "Product", "Doc").' ),
+							'url'       => self::s( 'The public permalink.' ),
+							'editUrl'   => self::s( 'The owner’s edit screen, for handing back a link a person can open.' ),
+							'modified'  => self::s( 'When the post was last saved (GMT). Compare with `readAt` to see how far behind the verdict is.' ),
+							'needsWork' => self::b( 'Whether this row is asking for something at all — true for every row of the "fixable" bucket.' ),
+							'issues'    => self::arr(
+								array(
+									'id'    => self::s( 'The content check id ("summary", "headings", "reading_ease"…), as check-page reports it.' ),
+									'label' => self::s( 'The problem in the site’s own words.' ),
+								),
+								'EVERY content check this page fails — not a preview. An empty list with needsWork true means the content is fine and the SEARCH half is what is wrong; read `coverage`.'
+							),
+							'points'    => self::i( 'Citability score 0–100 for this page: the share of content checks it passes. Only meaningful for article-like content.' ),
+							'coverage'  => array(
+								'type'        => 'string',
+								'enum'        => array( 'answered', 'scattered', 'barely', 'missing', '' ),
+								'description' => 'How well the page answers the search in `search`. answered = one passage carries the whole search; scattered = the words are all on the page but never together; barely = some of them; missing = none. Empty string when there is no search to judge it against — which is not a verdict, and must never be reported as a bad one.',
+							),
+							'search'    => array(
+								'type'                 => array( 'object', 'null' ),
+								'description'          => 'The search this page is judged on, or null when neither the author chose one nor a search engine reported one. `chosen` true = the AUTHOR named it (then `engine` is empty and the numbers are zero unless that search is also reported); false = the search engine named it, and `engine` says which. position/impressions/clicks are that engine’s own figures.',
+								'properties'           => array(
+									'query'       => self::s(),
+									'chosen'      => self::b(),
+									'engine'      => self::s(),
+									'position'    => self::n(),
+									'impressions' => self::i(),
+									'clicks'      => self::i(),
+								),
+								'additionalProperties' => false,
+							),
+							'stake'     => self::i( 'What fixing this page is worth: impressions already being earned, scaled by how far the page is from answering the search that earns them. The ranking’s tie-breaker — a page that already answers has nothing at stake however busy it is.' ),
+							'setAside'  => self::b( 'The owner excused this page from the worklist. ⛔ Never propose editing it unless they ask.' ),
+							'stale'     => self::b( 'TRUE when this verdict must not be repeated: the owner saved the page after it was read, the page has not been read yet, or the verdict was written by an older version of these checks. In all three cases `issues`, `coverage` and `points` describe something other than the page as it stands. ⛔ Re-read it with check-page and report what THAT found. The background sweep repairs these by itself, usually within a minute.' ),
+							'readAt'    => self::s( 'When the sweep last read this page (GMT), or empty when it never has — in which case this row is a place in the ranking, not a verdict.' ),
+						),
+						'One row per page, in the site’s own ranked order — the same order the owner sees.'
+					),
+					'filter'       => self::s( 'The bucket these rows came from.' ),
+					'page'         => self::i(),
+					'per'          => self::i(),
+					'total'        => self::i( 'Rows in THIS bucket across the whole site — not the number returned.' ),
+					'counts'       => self::obj(
+						array(
+							'fixable'  => self::i( 'Pages asking for something.' ),
+							'clear'    => self::i( 'Pages read with nothing to fix.' ),
+							'setAside' => self::i( 'Pages the owner excused.' ),
+						)
+					),
+					'grading'      => self::i( 'Published pages the sweep has NEVER read. Above zero means this ranking covers part of the site — say so rather than presenting it as the whole.' ),
+					'rechecking'   => self::i( 'Pages read, then edited by the owner. They keep their place with `stale` true; the sweep re-reads them within about a minute.' ),
+					'noSearchData' => self::i( 'How many pages no search engine has reported yet. Their `coverage` is empty for want of a search, not for want of quality — normal for recent posts, and normal for a whole site while a source is still working through it.' ),
+					'engine'       => self::s( 'Whose search figures these are ("Google", "Bing"), or empty when no search source is connected — in which case every `search` here is one the AUTHOR chose.' ),
+					'types'        => array(
+						'type'        => 'array',
+						'items'       => self::s(),
+						'description' => 'The post-type slugs this list covers — what the owner has chosen to check. A type absent from here is not being checked at all, so its pages are missing from every count above by decision.',
+					),
+				)
+			),
+			function ( $input ) {
+				// A bare call arrives as the empty object the schema defaults to,
+				// never as an array — read it as "no arguments", not as a shape to
+				// index into.
+				$in       = is_array( $input ) ? $input : array();
+				$worklist = new Worklist( $this->settings );
+				// One chunk before answering, exactly as the owner's screen does:
+				// on a site whose sweep has not run, an empty list would otherwise
+				// read as "nothing needs fixing" — the most expensive lie this
+				// tool could tell. Time-bounded by the sweep's own budget.
+				$worklist->sweep();
+				return $worklist->issues(
+					isset( $in['filter'] ) ? (string) $in['filter'] : 'fixable',
+					isset( $in['page'] ) ? (int) $in['page'] : 1,
+					isset( $in['per'] ) ? (int) $in['per'] : 0
+				);
+			},
+			$manage
+		);
+
+		$this->add(
 			'check-page',
 			__( 'Check a page’s AI readability', 'agentimus' ),
 			'Checks ONE post/page’s readability for AI: grades how easily an AI can read, section and cite it — '
@@ -1890,6 +2024,11 @@ final class Registrar {
 			self::CATEGORY . '/read-search-performance',
 			self::CATEGORY . '/read-search-opportunities',
 			self::CATEGORY . '/identify-bot',
+			// ⭐ The finder, listed BEFORE the per-page reading it aims. Until it
+			// existed an agent could change a page but never learn which page
+			// needed changing: the findings tool named a number and handed back a
+			// screen anchor, and check-page wanted an id nothing would give it.
+			self::CATEGORY . '/read-content-issues',
 			self::CATEGORY . '/check-page',
 			self::CATEGORY . '/preview-schema',
 			self::CATEGORY . '/preview-markdown',

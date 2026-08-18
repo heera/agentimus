@@ -408,6 +408,139 @@ final class Worklist {
 		return is_array( $payload ) ? $payload : array( 'items' => array(), 'counts' => array(), 'total' => 0 );
 	}
 
+	/**
+	 * The same list, for something that cannot look at a screen.
+	 *
+	 * ⭐⭐ WHY THIS EXISTS. An agent connected over MCP could change a page but
+	 * never find out which page needed changing: the findings tool said "36
+	 * Posts and Pages are worth fixing" and handed back a UI anchor — no ids —
+	 * while check-page needed a post id there was no way to obtain. This is the
+	 * missing half. Same ranking, same three buckets, same counts as the screen
+	 * {@see page()}, because a list that disagreed with the owner's would make
+	 * the agent and the owner argue about a site neither could see whole.
+	 *
+	 * ⭐ It reads NO page. Every verdict here is one the sweep already measured
+	 * and stored, so an agent can walk three hundred pages of content for the
+	 * price of two indexed queries a page — where the screen renders its rows
+	 * because it shows live detail (which words are missing, which passage
+	 * answers the search). The detail hand-off is check-page, one page at a
+	 * time, which is exactly the tool that had no way to be aimed.
+	 *
+	 * ⚠️ Because the verdicts are stored, each row says HOW OLD it is: `stale`
+	 * marks a page saved since it was read. ⛔ Never present a stale row's
+	 * issues as today's truth — re-read that one page instead.
+	 *
+	 * @param string $filter 'fixable' | 'clear' | 'setAside'.
+	 * @param int    $page   1-based page number.
+	 * @param int    $per    Rows per page.
+	 * @return array
+	 */
+	public function issues( $filter, $page = 1, $per = self::PER_PAGE ) {
+		$filter = in_array( $filter, array( 'fixable', 'clear', 'setAside' ), true ) ? $filter : 'fixable';
+		// Same clamp as the screen: absent means "the normal page size", never one row.
+		$per    = (int) $per > 0 ? min( self::MAX_ITEMS, (int) $per ) : self::PER_PAGE;
+		$page   = max( 1, (int) $page );
+
+		$types  = $this->post_types();
+		$aside  = $this->set_aside_ids();
+		$slice  = Grades::page( $filter, $types, $aside, $page, $per );
+		$stored = Grades::stored( $slice['ids'] );
+		$search = $this->search_by_post();
+		$engine = $this->engine_label();
+
+		// One query for the posts and one for their meta, rather than a pair per
+		// row — the focus lives in post meta, so priming it is the difference
+		// between two queries and forty.
+		if ( $slice['ids'] && function_exists( '_prime_post_caches' ) ) {
+			_prime_post_caches( $slice['ids'], false, true );
+		}
+
+		$items = array();
+		foreach ( $slice['ids'] as $id ) {
+			$post = get_post( $id );
+			if ( ! $post || 'publish' !== $post->post_status ) {
+				continue; // Unpublished under us; the sweep will forget it.
+			}
+			// ⚠️ Missing means the store has no row at all for a page its own
+			// ranking just handed back — impossible today (page() joins this
+			// table) and treated as "unread" rather than "fine" if it ever
+			// happens. An empty verdict must never print as a clean one.
+			$g = isset( $stored[ $id ] ) ? $stored[ $id ] : array( 'stale' => true );
+			list( $chosen, $best ) = $this->focus_choice( $post, isset( $search[ $id ] ) ? $search[ $id ] : array() );
+
+			$type  = get_post_type_object( $post->post_type );
+			$title = html_entity_decode( wp_strip_all_tags( get_the_title( $post ) ), ENT_QUOTES, 'UTF-8' );
+
+			$items[] = array(
+				'id'        => (int) $post->ID,
+				'title'     => '' !== trim( $title ) ? $title : __( '(untitled)', 'agentimus' ),
+				'postType'  => (string) $post->post_type,
+				'typeLabel' => $type ? (string) $type->labels->singular_name : (string) $post->post_type,
+				'url'       => (string) get_permalink( $post ),
+				'editUrl'   => (string) get_edit_post_link( $post->ID, 'raw' ),
+				'modified'  => (string) $post->post_modified_gmt,
+				'needsWork' => ! empty( $g['needsWork'] ),
+				// ⭐ ALL of them, never the screen's first three. A row that says
+				// "and 2 more" is readable to a person who can click it open and
+				// useless to something that has to act on the list it was given.
+				'issues'    => self::issue_rows( isset( $g['flagIds'] ) ? (array) $g['flagIds'] : array() ),
+				'points'    => isset( $g['points'] ) ? (int) $g['points'] : 0,
+				'coverage'  => isset( $g['coverage'] ) ? (string) $g['coverage'] : '',
+				'search'    => $best ? array(
+					'query'       => (string) $best['query'],
+					// Whether the AUTHOR chose this search or the engine reported it.
+					'chosen'      => (bool) $chosen['chosen'],
+					'engine'      => (bool) $chosen['chosen'] ? '' : $engine,
+					'position'    => isset( $best['position'] ) ? round( (float) $best['position'], 1 ) : 0.0,
+					'impressions' => isset( $best['impressions'] ) ? (int) $best['impressions'] : 0,
+					'clicks'      => isset( $best['clicks'] ) ? (int) $best['clicks'] : 0,
+				) : null,
+				'stake'     => isset( $g['stake'] ) ? (int) $g['stake'] : 0,
+				'setAside'  => in_array( (int) $post->ID, $aside, true ),
+				'stale'     => ! empty( $g['stale'] ),
+				'readAt'    => isset( $g['gradedAt'] ) ? (string) $g['gradedAt'] : '',
+			);
+		}
+
+		return array(
+			'items'        => $items,
+			'filter'       => $filter,
+			'page'         => $page,
+			'per'          => $per,
+			'total'        => (int) $slice['total'],
+			'counts'       => Grades::counts( $types, $aside ),
+			'grading'      => Grades::remaining( $types ),
+			'rechecking'   => Grades::rechecking( $types ),
+			'noSearchData' => Grades::without_search( $types ),
+			'engine'       => $engine,
+			'types'        => array_values( $types ),
+		);
+	}
+
+	/**
+	 * Flagged check ids, each with the name of the problem it stands for.
+	 *
+	 * The id is what a caller acts on and the label is what it can say out loud;
+	 * handing over one without the other makes something invent the other half.
+	 *
+	 * @param array<int,string> $ids Check ids.
+	 * @return array<int,array{id:string,label:string}>
+	 */
+	private static function issue_rows( array $ids ) {
+		$out = array();
+		foreach ( $ids as $id ) {
+			$id = (string) $id;
+			if ( '' === $id ) {
+				continue;
+			}
+			$out[] = array(
+				'id'    => $id,
+				'label' => PageCheck::issue_label( $id ),
+			);
+		}
+		return $out;
+	}
+
 	/** @var int Searches shown per engine on an opened row before the rest are counted. */
 	const MAX_ENGINE_ROWS = 5;
 
@@ -853,26 +986,30 @@ final class Worklist {
 	 *                      store for. Only {@see sweep()} asks for them.
 	 * @return array|null
 	 */
-	private function item( $id, array $rows, $aside, $grade = false ) {
-		$post = get_post( $id );
-		if ( ! $post || 'publish' !== $post->post_status ) {
-			return null;
-		}
-
-		$html  = $this->rendered( $post );
-		$focus = null;
-		$cov   = null;
-
-		// The author's own choice wins, so this row and the editor's panel can
-		// never disagree about what the page is for. Without a choice, the search
-		// that brings the most people stands in.
-		// A page may now be for SEVERAL searches. This screen judges one, so it
-		// takes the first — the one the author put first. The editor is where
-		// the rest are measured. {@see Focus::primary()}
+	/**
+	 * WHICH search this page is judged on, and the numbers reported against it.
+	 *
+	 * The author's own choice wins, so a row and the editor's panel can never
+	 * disagree about what the page is for. Without a choice, the search that
+	 * brings the most people stands in. A page may be for SEVERAL searches; a
+	 * row judges one — the one the author put first {@see Focus::primary()} —
+	 * and the editor is where the rest are measured.
+	 *
+	 * ⭐ Extracted so the rendered row and the render-free one the MCP
+	 * content-issues tool builds cannot drift apart. Two surfaces naming
+	 * different searches for one page would be the same species of fault as two
+	 * surfaces counting the same work differently.
+	 *
+	 * @param \WP_Post $post The post.
+	 * @param array    $rows That post's search rows, best first.
+	 * @return array{0:array,1:array|null} The focus meta, and the winning row (null when there is none).
+	 */
+	private function focus_choice( $post, array $rows ) {
 		$chosen          = Focus::for_post( $post );
 		$chosen['all']   = $chosen['query'];
 		$chosen['query'] = Focus::primary( $post );
-		$best            = null;
+
+		$best = null;
 		if ( $chosen['chosen'] && '' !== $chosen['query'] ) {
 			foreach ( $rows as $row ) {
 				if ( $row['query'] === $chosen['query'] ) {
@@ -893,6 +1030,21 @@ final class Worklist {
 		} elseif ( $rows ) {
 			$best = $rows[0];
 		}
+
+		return array( $chosen, $best );
+	}
+
+	private function item( $id, array $rows, $aside, $grade = false ) {
+		$post = get_post( $id );
+		if ( ! $post || 'publish' !== $post->post_status ) {
+			return null;
+		}
+
+		$html  = $this->rendered( $post );
+		$focus = null;
+		$cov   = null;
+
+		list( $chosen, $best ) = $this->focus_choice( $post, $rows );
 
 		// Every search the author chose, each with its own verdict — the editor
 		// measures them all, and a row that showed only the first was quietly

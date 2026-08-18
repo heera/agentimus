@@ -226,7 +226,7 @@ On WordPress 6.9+ (Abilities API) Agentimus registers its abilities via `wp_regi
 
 **Read (always registered), annotated read-only.** Each carries the same capability check as the screen it comes from (`manage_options`, or `edit_post` for the per-post ones):
 
-`agentimus/read-readiness`, `read-findings`, `read-audience`, `read-ai-visibility`, `read-ai-traffic`, `read-request-log`, `read-edge-traffic`, `read-search-visibility`, `read-google-index`, `read-search-performance`, `read-search-opportunities`, `identify-bot`, `check-page`, `preview-schema`, `preview-markdown`, `scan-exposed-files`, `suggest-internal-links`, `search-media`.
+`agentimus/read-readiness`, `read-findings`, `read-audience`, `read-ai-visibility`, `read-ai-traffic`, `read-request-log`, `read-edge-traffic`, `read-search-visibility`, `read-google-index`, `read-search-performance`, `read-search-opportunities`, `identify-bot`, `read-content-issues`, `check-page`, `preview-schema`, `preview-markdown`, `scan-exposed-files`, `suggest-internal-links`, `search-media`.
 
 **Write (registered only while BOTH `enable_mcp_server` and `enable_agent_writes` are on — off by default; off means the abilities don't exist on any surface):**
 
