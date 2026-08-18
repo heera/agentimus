@@ -734,6 +734,12 @@ final class Worklist {
 		// run where a content type is genuinely new.
 		Content::note_new_checkable_types( $this->settings );
 
+		// Keep the served-page answer current, from the one place that is allowed
+		// to want an HTTP request. ⛔ It only QUEUES one — this run grades with
+		// whatever is already stored, and a probe that has never run means the
+		// featured-image check falls back to the claim needing no fetch.
+		ThemeImageProbe::maybe_schedule();
+
 		$types = $this->post_types();
 		$chunk = null === $limit ? Grades::SWEEP_CHUNK : max( 0, (int) $limit );
 

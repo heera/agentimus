@@ -20,12 +20,26 @@
 namespace Agentimus\Tests;
 
 use Agentimus\PageCheck;
+use Agentimus\ThemeImageProbe;
 use PHPUnit\Framework\TestCase;
 
 final class PageCheckRulesetTest extends TestCase {
 
 	protected function tearDown(): void {
-		unset( $GLOBALS['_af_filters']['agentimus_page_ruleset'] );
+		unset( $GLOBALS['_af_filters']['agentimus_page_ruleset'], $GLOBALS['_af_filters'][ ThemeImageProbe::FILTER ] );
+	}
+
+	/** The probe's stored answer, injected through its own documented seam. */
+	private function probe( $described, $bare ) {
+		add_filter( ThemeImageProbe::FILTER, static function () use ( $described, $bare ) {
+			return array(
+				'checked_at' => 1,
+				'error'      => '',
+				'theme'      => 'whatever',
+				'described'  => $described,
+				'bare'       => $bare,
+			);
+		} );
 	}
 
 	public function test_it_is_a_short_stable_fingerprint() {
@@ -54,7 +68,11 @@ final class PageCheckRulesetTest extends TestCase {
 			}
 		}
 
-		$expected = substr( md5( implode( ',', $ids ) . '|' . implode( ',', $scalars ) . '|' ), 0, 12 );
+		// ⚠️ The theme's own answer is the third ingredient — what the SERVED page
+		// does with a featured image's description decides what that check says
+		// {@see \Agentimus\ThemeImageProbe::signature()}. Empty here: nothing has
+		// probed in a unit run, which is its own honest state.
+		$expected = substr( md5( implode( ',', $ids ) . '|' . implode( ',', $scalars ) . '|' . ThemeImageProbe::signature() . '|' ), 0, 12 );
 		$this->assertSame( $expected, PageCheck::ruleset() );
 
 		// And prove the thresholds are genuinely in the mix: the ids alone are a
@@ -86,6 +104,25 @@ final class PageCheckRulesetTest extends TestCase {
 		foreach ( $emitted as $id ) {
 			$this->assertContains( $id, $known, "The analyzer emits `$id` and the fingerprint has never heard of it." );
 		}
+	}
+
+	/**
+	 * ⭐ A THEME IS PART OF THE RULE. The featured-image check judges what the
+	 * served page does with a description, so switching theme — or switching on
+	 * an accessibility plugin that starts supplying alt text — changes what that
+	 * check says about every page. Without this, an owner could fix their theme
+	 * and keep the old complaints until they edited each post by hand.
+	 */
+	public function test_what_the_theme_does_with_alt_text_is_part_of_the_fingerprint() {
+		$unprobed = PageCheck::ruleset();
+
+		$this->probe( ThemeImageProbe::USES_LIBRARY, ThemeImageProbe::USES_TITLE );
+		$one = PageCheck::ruleset();
+		$this->assertNotSame( $unprobed, $one, 'Reading the served page is new knowledge about what the check means.' );
+
+		unset( $GLOBALS['_af_filters'][ ThemeImageProbe::FILTER ] );
+		$this->probe( ThemeImageProbe::USES_TITLE, ThemeImageProbe::USES_NOTHING );
+		$this->assertNotSame( $one, PageCheck::ruleset(), 'A theme that answers differently grades differently.' );
 	}
 
 	public function test_an_add_on_that_changes_the_checks_can_say_so() {

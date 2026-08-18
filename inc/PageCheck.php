@@ -108,6 +108,14 @@ final class PageCheck {
 		// description OF ITS OWN. That is true whatever the theme does — and a
 		// theme falling back to the post title describes the article, not the
 		// picture, so the advice holds there too.
+		// ⭐ …and what the THEME does with that description is read from the probe
+		// {@see ThemeImageProbe}, which asked the served page once, in cron, on
+		// this site's own theme. One option read here, no HTTP: the claim gets to
+		// be about the page a reader receives without any check ever fetching one.
+		$theme                   = ThemeImageProbe::data();
+		$stats['served_alt']     = null === $theme ? '' : (string) $theme['described'];
+		$stats['served_alt_bare'] = null === $theme ? '' : (string) $theme['bare'];
+
 		$stats['featured_alt']  = '';
 		$stats['featured_file'] = '';
 		if ( ! empty( $stats['featured'] ) ) {
@@ -352,7 +360,14 @@ final class PageCheck {
 		 *
 		 * @param string $extra Anything else that decides what the checks say.
 		 */
-		$extra = (string) apply_filters( 'agentimus_page_ruleset', '' );
+		// ⭐ WHAT THE THEME DOES IS PART OF THE RULE. The featured-image check
+		// judges the served page through {@see ThemeImageProbe}, so a theme
+		// switch — or an accessibility plugin that starts supplying alt text —
+		// changes what that check says about every page on the site. Folding the
+		// probe's answer in here is what sends those pages back to be read: fix
+		// your theme and the old complaints clear themselves, instead of standing
+		// until somebody edits each post.
+		$extra = ThemeImageProbe::signature() . '|' . (string) apply_filters( 'agentimus_page_ruleset', '' );
 		if ( isset( $cache[ $extra ] ) ) {
 			return $cache[ $extra ];
 		}
@@ -1684,7 +1699,58 @@ final class PageCheck {
 		$file = (string) ( isset( $s['featured_file'] ) ? $s['featured_file'] : '' );
 		$name = '' !== $file ? self::quoted( $file ) : __( 'the featured image', 'agentimus' );
 
+		// What the SERVED page does with a description — for pages that have one,
+		// and for pages that don't. Empty means nobody has looked, and every
+		// branch below falls back to the claim that needs no fetch.
+		$served_described = (string) ( isset( $s['served_alt'] ) ? $s['served_alt'] : '' );
+		$served_bare      = (string) ( isset( $s['served_alt_bare'] ) ? $s['served_alt_bare'] : '' );
+
+		// ⭐⭐ THE FALSE PASS. The owner wrote a description, and their theme
+		// serves the article's title instead — so the picture reaches every
+		// assistant and screen reader undescribed while the media library looks
+		// perfect. Nothing could see this until the page itself was read.
+		if ( '' !== $alt && ThemeImageProbe::USES_TITLE === $served_described ) {
+			return self::row(
+				'featured_alt',
+				__( 'Featured image not described', 'agentimus' ),
+				'warn',
+				sprintf(
+					/* translators: %s: the image file name, quoted. */
+					__( 'You described %s, but your theme serves the post title as the description instead — it does not use the media library’s alt text at all. The description you wrote never reaches a reader. This is a theme fix, not a content one.', 'agentimus' ),
+					$name
+				)
+			);
+		}
+
 		if ( '' === $alt ) {
+			// The picture has no description of its own. What that MEANS on the
+			// page depends on the theme, and now we know which case this is.
+			if ( ThemeImageProbe::USES_NOTHING === $served_bare ) {
+				return self::row(
+					'featured_alt',
+					__( 'Featured image not described', 'agentimus' ),
+					'fail',
+					sprintf(
+						/* translators: %s: the image file name, quoted. */
+						__( '%s reaches readers with no description at all: your theme was checked on one of this site’s own pages and it prints an empty alt where a picture has none of its own. Add alt text in the media library; assistants, screen readers and image search all rely on it.', 'agentimus' ),
+						$name
+					)
+				);
+			}
+			if ( ThemeImageProbe::USES_TITLE === $served_bare ) {
+				return self::row(
+					'featured_alt',
+					__( 'Featured image not described', 'agentimus' ),
+					'warn',
+					sprintf(
+						/* translators: %s: the image file name, quoted. */
+						__( '%s has no description of its own, so your theme stands the post title in its place — which describes the article, not the picture. Add alt text in the media library and the theme will use it.', 'agentimus' ),
+						$name
+					)
+				);
+			}
+			// Nobody has read the served page yet: the narrowed claim, which is
+			// true whatever the theme turns out to do.
 			return self::row(
 				'featured_alt',
 				__( 'Featured image not described', 'agentimus' ),
@@ -1710,7 +1776,18 @@ final class PageCheck {
 			);
 		}
 
-		return self::row( 'featured_alt', $label, 'pass', __( 'The featured image carries its own description.', 'agentimus' ) );
+		// Described, and — where the page has been read — described where it
+		// counts. The second sentence is only added when it was actually checked;
+		// a pass that claims more than was measured is the fault this whole probe
+		// exists to end.
+		return self::row(
+			'featured_alt',
+			$label,
+			'pass',
+			ThemeImageProbe::USES_LIBRARY === $served_described
+				? __( 'The featured image carries its own description, and this site’s pages serve it.', 'agentimus' )
+				: __( 'The featured image carries its own description.', 'agentimus' )
+		);
 	}
 
 	private static function check_featured_image( array $s ) {

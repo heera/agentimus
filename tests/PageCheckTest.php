@@ -695,6 +695,85 @@ final class PageCheckTest extends TestCase {
 	}
 
 	/**
+	 * ⭐⭐ THE FALSE PASS, and it took reading the served page to see it. The
+	 * owner wrote a description; the theme serves the post title instead. The
+	 * media library looks perfect, every assistant and screen reader gets the
+	 * article's title where the picture should be described, and the old check —
+	 * which could only see the library — called it a pass.
+	 */
+	public function test_a_theme_that_ignores_the_description_is_named_as_the_problem() {
+		$row = $this->check( 'check_featured_alt', array(
+			'featured_expected' => true,
+			'featured'          => true,
+			'featured_alt'      => 'The Laravel framework logo on a red banner',
+			'featured_file'     => 'laravel-development.jpg',
+			'served_alt'        => \Agentimus\ThemeImageProbe::USES_TITLE,
+			'served_alt_bare'   => \Agentimus\ThemeImageProbe::USES_TITLE,
+		) );
+
+		$this->assertSame( 'warn', $row['status'] );
+		$this->assertStringContainsString( 'never reaches a reader', $row['detail'] );
+		// ⛔ And it says WHOSE fault it is. Telling an owner to describe a picture
+		// they already described is advice that cannot be followed.
+		$this->assertStringContainsString( 'theme fix', $row['detail'] );
+	}
+
+	/**
+	 * With no description of its own, what the page SERVES decides the verdict:
+	 * an empty alt is a real failure, and a theme standing the post title in its
+	 * place is a lesser one — the picture is undescribed, but something is there.
+	 */
+	public function test_an_undescribed_picture_is_judged_by_what_the_page_serves() {
+		$empty = $this->check( 'check_featured_alt', array(
+			'featured_expected' => true, 'featured' => true, 'featured_alt' => '',
+			'featured_file'     => 'laravel-development.jpg',
+			'served_alt'        => \Agentimus\ThemeImageProbe::USES_LIBRARY,
+			'served_alt_bare'   => \Agentimus\ThemeImageProbe::USES_NOTHING,
+		) );
+		$this->assertSame( 'fail', $empty['status'], 'Read, and served with nothing at all — that is provable now.' );
+		$this->assertStringContainsString( 'no description at all', $empty['detail'] );
+
+		$title = $this->check( 'check_featured_alt', array(
+			'featured_expected' => true, 'featured' => true, 'featured_alt' => '',
+			'featured_file'     => 'laravel-development.jpg',
+			'served_alt'        => \Agentimus\ThemeImageProbe::USES_LIBRARY,
+			'served_alt_bare'   => \Agentimus\ThemeImageProbe::USES_TITLE,
+		) );
+		$this->assertSame( 'warn', $title['status'] );
+		$this->assertStringContainsString( 'title in its place', $title['detail'] );
+	}
+
+	/**
+	 * ⛔ FAIL-OPEN. Nothing has read the served page, so the check says the one
+	 * thing it can prove and never a worse verdict on the strength of a fetch
+	 * that did not happen.
+	 */
+	public function test_with_no_reading_of_the_page_the_claim_stays_the_narrow_one() {
+		$row = $this->check( 'check_featured_alt', array(
+			'featured_expected' => true, 'featured' => true, 'featured_alt' => '',
+			'featured_file'     => 'laravel-development.jpg',
+		) );
+
+		$this->assertSame( 'warn', $row['status'], 'Never fail on an unread page.' );
+		$this->assertStringContainsString( 'no description of its own', $row['detail'] );
+	}
+
+	/** A pass says more only when the page was actually read. */
+	public function test_the_pass_claims_the_served_page_only_when_it_was_read() {
+		$described = array(
+			'featured_expected' => true, 'featured' => true,
+			'featured_alt'      => 'The Laravel framework logo on a red banner',
+			'featured_file'     => 'laravel-development.jpg',
+		);
+		$this->assertStringNotContainsString( 'serve', $this->check( 'check_featured_alt', $described )['detail'] );
+
+		$described['served_alt'] = \Agentimus\ThemeImageProbe::USES_LIBRARY;
+		$read = $this->check( 'check_featured_alt', $described );
+		$this->assertSame( 'pass', $read['status'] );
+		$this->assertStringContainsString( 'pages serve it', $read['detail'] );
+	}
+
+	/**
 	 * ⛔ NO ROW when there is nothing to judge. A green "nothing to check here"
 	 * sitting under "No featured image" is two rows discussing one absence.
 	 */

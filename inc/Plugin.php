@@ -98,6 +98,7 @@ final class Plugin {
 		MarkdownCache::register();
 		BotRanges::boot(); // Daily refresh of published bot-IP-range files (self-heals its schedule).
 		RouteProbe::watch(); // Async self-check of /llms.txt and the home <head>; re-queued when the plugin/theme mix changes.
+		ThemeImageProbe::watch(); // Async: what the SERVED page does with a featured image's description — asked once per theme, never inside a check.
 		Discovery\Reachability::watch(); // Daily: does every address we advertise as open really answer a stranger? Read path never fetches.
 		Activity\IdentityProbe::watch(); // Async look at the home page a self-declared crawler names in its own UA; queued only when one is on the review queue.
 		McpToken::watch(); // Bearer connection-token auth, honored only on the MCP route.
@@ -427,6 +428,7 @@ final class Plugin {
 		Grades::unschedule(); // The stored grades stay: they describe his content, not our schedule.
 		BotRanges::clear_schedule();
 		RouteProbe::clear_schedule();
+		ThemeImageProbe::clear_schedule();
 		Discovery\Reachability::clear_schedule(); // The verdicts stay: they describe the site's doors, not our schedule.
 		Activity\IdentityProbe::clear_schedule();
 		wp_clear_scheduled_hook( 'agentimus_warm_llms_full' );
