@@ -142,8 +142,19 @@ final class PageCheckMetaBox {
 			. '.agentimus-pc__row.is-pass .agentimus-pc__mark{background:#00a32a}'
 			. '.agentimus-pc__row.is-warn .agentimus-pc__mark{background:#dba617}'
 			. '.agentimus-pc__row.is-fail .agentimus-pc__mark{background:#d63638}'
-			. '.agentimus-pc__text{display:block}'
+			// ⭐ A MEASURE, not the window. This box sits in the editor's meta-box
+			// area, which is as wide as the screen — so on a 2000px display a
+			// verdict ran the whole way across in one line and stopped being
+			// readable at all (his catch, 2026-08-19). 68ch is inside the 45-75
+			// characters typography has settled on for body text, and it CAPS
+			// rather than sets: a narrow editor, a phone or a sidebar never sees
+			// it, because max-width can only ever take width away.
+			. '.agentimus-pc__text{display:block;max-width:68ch}'
 			. '.agentimus-pc__detail{display:block;color:#646970;margin-top:2px}'
+			// The two paragraphs above the list are the same sentence-shaped
+			// content and take the same measure — a capped list under a
+			// full-width lead reads as two different panels.
+			. '.agentimus-pc__lead,.agentimus-pc__reflect{max-width:68ch}'
 			. '.agentimus-pc__reflect{color:#646970;font-size:12px;margin:0 0 10px}'
 			// The featured row's one-click, dressed like the Fix-with-AI button but
 			// styled here (its own class keeps it out of that handler's reach).

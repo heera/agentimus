@@ -1029,8 +1029,12 @@ JS;
 			// The intro as an alert-shaped card: accent on the left edge, the
 			// lead, the how, and the drafting-source pill in one quiet callout.
 			. '.agentimus-sc__intro-card{background:var(--asc-card);border:1px solid var(--asc-line-soft);border-left:3px solid var(--asc-accent);border-radius:8px;padding:14px 16px 12px;margin:2px 0 14px;box-shadow:0 1px 2px rgba(16,24,40,.04)}'
-			. '.agentimus-sc__lead{font-size:14px;font-weight:600;color:var(--asc-ink);letter-spacing:-.01em;margin:0 0 3px}'
-			. '.agentimus-sc__intro{color:var(--asc-soft);font-size:12.5px;line-height:1.6;margin:0 0 9px}'
+			// ⭐ The same measure the Readability list takes {@see \Agentimus\PageCheckMetaBox::css()}.
+			// These two tabs share one box, so a reader switching between them must
+			// not find the line length doubling: capped at 557px there and running
+			// 1170px here was one panel that reads and one that does not.
+			. '.agentimus-sc__lead{font-size:14px;font-weight:600;color:var(--asc-ink);letter-spacing:-.01em;margin:0 0 3px;max-width:68ch}'
+			. '.agentimus-sc__intro{color:var(--asc-soft);font-size:12.5px;line-height:1.6;margin:0 0 9px;max-width:68ch}'
 			. '.agentimus-sc__note{display:inline-flex;align-items:center;gap:7px;font-size:12px;color:var(--asc-soft);background:var(--asc-field);border:1px solid var(--asc-line);border-radius:999px;padding:5px 14px;margin:0}'
 			. '.agentimus-sc__note:empty{display:none}'
 			. '.agentimus-sc__note::before{content:"";flex:none;width:6px;height:6px;border-radius:50%;background:var(--asc-accent)}'
