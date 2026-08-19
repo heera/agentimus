@@ -26,7 +26,13 @@ final class SchemeInk {
 
 	/** Hand-picked card-depth surface per core admin scheme (contrast ratio noted). */
 	const SCHEME_INKS = array(
-		'light'     => '#333333', // neutral grey scheme → neutral dark (5:1)
+		// HIS PICK, 2026-08-20: the Light scheme's OWN colour, not a dark tuned
+		// to it — so the buttons, chips and score card wear the grey the
+		// scheme actually paints. The ONLY light entry in this map, and the
+		// one case where an "ink" surface is lighter than the text on it:
+		// schemes.css re-keys the label for this scheme (13.2:1), because
+		// app.css writes every ink surface in --ar-paper.
+		'light'     => '#e5e5e5', // the scheme's own grey; label re-keyed dark
 		'modern'    => '#1e1e1e', // its own menu colour, already card-depth
 		'blue'      => '#07485f', // #096484 deepened just past the bar (4.3:1)
 		'coffee'    => '#46403c', // EXACT menu colour (4.5:1)

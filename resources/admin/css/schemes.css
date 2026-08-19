@@ -478,11 +478,22 @@ body.admin-color-light {
    ⛔ --ghost and --danger are left out: they paint themselves at night and are
    not ink surfaces. */
 :root[data-ar-theme="dark"] body.admin-color-light .ar-btn:not(.ar-btn--ghost):not(.ar-btn--danger),
-:root[data-ar-theme="dark"] body.admin-color-light .ar-tags__chip {
-  background: #333333; color: #f5f5f5; border-color: #333333;
+:root[data-ar-theme="dark"] body.admin-color-light .ar-tags__chip { --ar-ink: #e5e5e5; }
+
+/* ⭐ AND THE INK SURFACES THEMSELVES, IN BOTH MODES. app.css writes every one
+   of them in --ar-paper, which assumes the ink is DARK — true of all eight
+   schemes but this one, whose ink is now the scheme's own grey. So the label
+   is re-keyed here: #1e1e1e on #e5e5e5 is 13.2:1, and his hover takes the
+   accent (5.0:1) with the ground held still, rather than app.css's dive to
+   --ar-ink-hard, which on a light button means black.
+   ⛔ :root … body earns enough specificity to outrank the night repaint at
+   :root[data-ar-theme="dark"] .ar-btn without being written twice. */
+:root body.admin-color-light .ar-btn:not(.ar-btn--ghost):not(.ar-btn--danger),
+:root body.admin-color-light .ar-tags__chip {
+  background: var(--ar-ink); color: #1e1e1e; border-color: var(--ar-ink);
 }
-:root[data-ar-theme="dark"] body.admin-color-light .ar-btn:not(.ar-btn--ghost):not(.ar-btn--danger):hover:not(:disabled) {
-  background: #1e1e1e; border-color: #1e1e1e; box-shadow: none;
+:root body.admin-color-light .ar-btn:not(.ar-btn--ghost):not(.ar-btn--danger):hover:not(:disabled) {
+  background: var(--ar-ink); color: var(--ar-accent); box-shadow: none;
 }
 /* ⚠️ AND THE BRAND TILE, WHICH IS THE SAME KIND OF SURFACE. app.css paints it
    from --ar-ink with the A cut out in --ar-paper, and at night flips both — so
@@ -503,7 +514,11 @@ body.admin-color-light {
 :root[data-ar-theme="dark"] body.admin-color-light .ar-srcpick__btn.is-on {
   background: var(--ar-ink); color: var(--ar-paper);
 }
-:root[data-ar-theme="dark"] body.admin-color-light .ar-btn--ghost { --ar-ink: #333333; }
+/* ⛔ The ghost button is the one .ar-btn that reads --ar-ink as TEXT, not as a
+   ground — so the scheme ink reaches it too, and now that the ink is a light
+   grey its label would be #e5e5e5 on white. It keeps the dark it always had,
+   in both modes. */
+:root body.admin-color-light .ar-btn--ghost { --ar-ink: #333333; }
 
 /* ---- Light — the readiness rug -------------------------------------------
    His pick, 2026-08-20, given as the two rugs side by side: by day a light
@@ -526,11 +541,12 @@ body.admin-color-light {
    assumption is false: this is the single card in the app whose ground flips
    with the mode, so it is the single place they can be wrong. */
 :root:not([data-ar-theme="dark"]) body.admin-color-light .ar-rail-card.ar-rail-card--readiness {
-  background: #e5e5e5;        /* his value — a step under the cards, not white */
-  border-color: #e5e5e5;
+  /* ⛔ No background here: the rug's ground IS --ar-ink, and inc/SchemeInk.php
+     now paints this scheme's ink #e5e5e5 — one value for the card, the buttons
+     and the chips, which is what makes them agree. */
   --rail-face: #1e1e1e;       /* 13.2:1 — the scheme's ink is now the rug's too */
   --rail-read: 82%;           /* 7.6:1 for the rung names and their counts */
-  --rail-good: #146b64;       /* 5.0:1 — ring, dots, band word, kicker */
+  --rail-good: #6e6e6e;       /* his pick — ring, dots, band word, kicker */
   --ar-warn-on-ink: #856010;  /* 4.5:1 — "119 to fix" is small type, so it earns the floor */
   --ar-bad-on-ink: #b23928;   /* 4.6:1 */
   --ar-teal-on-ink: #146b64;  /* the card's links, on a light ground now */
