@@ -503,10 +503,6 @@ final class AgentAccessDbTest extends DbTestCase {
 
 	public function test_guessing_ability_names_cannot_flood_the_table() {
 		$this->skip_without_abilities();
-		// Core _doing_it_wrong()s when asked for an ability that does not exist — which is precisely
-		// what enumeration does. Harmless in production (silent unless WP_DEBUG), but WP_UnitTestCase
-		// fails a test that triggers one undeclared.
-		$this->setExpectedIncorrectUsage( 'WP_Abilities_Registry::get_registered' );
 		wp_set_current_user( 0 );
 
 		// THE cardinality guard. The probed name is attacker-supplied. Storing it would let a name
@@ -515,6 +511,22 @@ final class AgentAccessDbTest extends DbTestCase {
 		for ( $i = 0; $i < 200; $i++ ) {
 			$this->run_ability( "acme/guess-$i", array() );
 		}
+
+		// ⚠️ WHETHER CORE COMPLAINS ABOUT THE GUESSED NAME IS CORE'S BUSINESS, AND IT
+		// CHANGED UNDER US. WP 7.0's run controller called wp_get_ability() straight
+		// out, so the registry _doing_it_wrong()'d on every unknown name and this test
+		// had to declare that it expected one. WP 7.1 asks wp_has_ability() first:
+		//
+		//     $ability = wp_has_ability( $request['name'] ) ? wp_get_ability( ... ) : null;
+		//
+		// so the registry is never reached and the notice never fires — which failed the
+		// test on the very WordPress it was meant to protect against. (Caught 2026-08-19
+		// the day 7.1 shipped: the CI jobs that had picked up 7.1 failed while the ones
+		// still on 7.0.3 passed, which reads exactly like a flake and is not one.)
+		// ⭐ So: tolerate either. Drop the notice if core raised one, require nothing if
+		// it did not. What this test is actually about is the three assertions below —
+		// they run identically on both versions.
+		unset( $this->caught_doing_it_wrong['WP_Abilities_Registry::get_registered'] );
 
 		$rows = Store::recent( 500, Events::KIND_ABILITY_PROBED );
 		$this->assertCount( 1, $rows, '200 guessed names must produce ONE row, not 200.' );
