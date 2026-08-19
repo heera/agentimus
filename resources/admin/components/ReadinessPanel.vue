@@ -14,6 +14,13 @@ export default {
     optimize: { type: Array, default: () => [] }, // Content worklist behind the Optimized rung.
     optimizeIgnored: { type: Array, default: () => [] }, // Pages set aside as "not cited content".
     optimizeGraded: { type: Number, default: 0 }, // How many pages were actually graded.
+    // How many of those actually carry an issue. ⛔ NOT derivable from the issue
+    // groups on this card: they overlap, so their sum counts a page once per
+    // issue and their largest counts it once. The store knows; this is it.
+    optimizeFlagged: { type: Number, default: 0 },
+    // Whether this site's scheduled work is actually running. Every count on
+    // this card is a promise that something in the background will move it.
+    cron: { type: Object, default: null },
     // { graded: [...labels], notGraded: [...labels] } — what this card's numbers
     // cover, and what the site checks without grading.
     //
@@ -78,18 +85,25 @@ export default {
     optimizeTopIssue() {
       return this.optimize.reduce((top, i) => (!top || Number(i.count || 0) > Number(top.count || 0) ? i : top), null);
     },
-    // "Up to N", not a sum: one page can carry several issues, so adding the
-    // counts would claim more pages than the site has. The largest single count
-    // is the only figure that is certainly true of real pages.
+    // ⚠️ HIS SCREEN, 2026-08-19: this read "up to 65 of your 103 graded pieces"
+    // while 84 of them carried a flag. Summing the issue groups was rightly
+    // rejected — one page can carry three — but the largest group was then
+    // printed as a CEILING, and it is the floor: every page in the second group
+    // that is not in the first is one more page with something wrong. The store
+    // counts the pages; this prints that count and nothing derived.
     optimizeSummary() {
       const top = this.optimizeTopIssue;
       if (!top) return '';
       const kinds = this.optimize.length;
-      const pages = Number(top.count || 0);
       const graded = Number(this.optimizeGraded || 0);
+      const flagged = Number(this.optimizeFlagged || 0);
+      // The fallback is a FLOOR and says so — a payload built before this number
+      // existed must not go back to claiming a ceiling it never measured.
+      const pages = flagged || Number(top.count || 0);
+      const floor = flagged ? '' : 'at least ';
       // "Pieces", not "pages" — the graded sample is posts, pages and anything
       // else published (same wording as the finding this mirrors).
-      const scope = graded ? `up to ${pages} of your ${graded} graded pieces` : `${pages} ${pages === 1 ? 'piece' : 'pieces'}`;
+      const scope = graded ? `${floor}${pages} of your ${graded} graded pieces` : `${floor}${pages} ${pages === 1 ? 'piece' : 'pieces'}`;
       const verb = pages === 1 ? 'has' : 'have';
       // ⚠️ "There's 8 kinds of issue" — the verb has to agree with the count,
       // not sit fixed in the template. Caught in a screenshot, which is where

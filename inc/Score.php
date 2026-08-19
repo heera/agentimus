@@ -156,6 +156,13 @@ final class Score {
 			'actions'    => $this->actions( $readiness, $optimize, $measure ),
 			'content'    => $this->content_worklist( $optimize ),
 			'graded'     => (int) $optimize['posts'],
+			// ⭐ How many of the `graded` actually have something wrong. Without
+			// it a screen can only reach for the largest issue group — which is
+			// the FLOOR of that number, and was printed as its ceiling ("up to
+			// 65 of your 103" on a site where 84 pages carried a flag).
+			// ⛔ Not derivable from `content`: the groups overlap, so their sum
+			// counts a page once per issue and their maximum counts it once.
+			'flagged'    => (int) ( isset( $optimize['flagged'] ) ? $optimize['flagged'] : 0 ),
 			// ⚠️ How many published pages the sweep has NOT read yet. Without it a
 			// screen cannot tell "every page is clean" from "we have only looked
 			// at some of them" — and now that `graded` counts the whole site
@@ -446,7 +453,7 @@ final class Score {
 		$off   = empty( Content::check_post_types() );
 		$types = $off ? Gradeability::last_known_post_types() : Gradeability::post_types();
 		if ( empty( $types ) ) {
-			return array( 'score' => null, 'posts' => 0, 'issues' => array(), 'grading' => 0, 'rechecking' => 0, 'pending' => array() );
+			return array( 'score' => null, 'posts' => 0, 'flagged' => 0, 'issues' => array(), 'grading' => 0, 'rechecking' => 0, 'pending' => array() );
 		}
 
 		// ⚠️ Read in the SAME breath as the grades themselves, and cached with
@@ -477,7 +484,7 @@ final class Score {
 
 		$read = Grades::optimize( $types, $this->ignored_ids(), self::WORKLIST_POSTS_PER_ISSUE );
 		if ( $read['posts'] < 1 ) {
-			return array( 'score' => null, 'posts' => 0, 'issues' => array(), 'grading' => $outstanding, 'rechecking' => $rechecking, 'pending' => array() );
+			return array( 'score' => null, 'posts' => 0, 'flagged' => 0, 'issues' => array(), 'grading' => $outstanding, 'rechecking' => $rechecking, 'pending' => array() );
 		}
 
 		$issues = array();
@@ -502,6 +509,11 @@ final class Score {
 		return array(
 			'score'      => $read['score'],
 			'posts'      => (int) $read['posts'],
+			// ⚠️ Pages, not issues. The card names the biggest issue GROUP beside
+			// the graded total, and a group is not a page count — one page can
+			// carry three. Read in the same breath as `posts`, from the same
+			// rows, so the pair can never describe two different moments.
+			'flagged'    => (int) $read['flagged'],
 			'issues'     => $issues,
 			'grading'    => $outstanding,
 			'rechecking' => $rechecking,

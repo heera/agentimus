@@ -280,6 +280,41 @@ final class ScoreDbTest extends DbTestCase {
 		$this->assertStringContainsString( '9', (string) $issue['countLabel'], 'The label names the twenty-two, never the six.' );
 	}
 
+	/**
+	 * HIS CARD, 2026-08-19: "up to 65 of your 103 graded pieces have something
+	 * worth fixing" — while 84 of them did. Summing the issue groups was rightly
+	 * refused (a page failing three checks is in three groups), but the largest
+	 * group was then printed as a ceiling, and it is the FLOOR.
+	 */
+	public function test_the_pages_with_something_wrong_are_counted_as_pages() {
+		wp_set_current_user( self::factory()->user->create( array( 'role' => 'administrator' ) ) );
+		// A described featured image on every post, so the universal flags stay
+		// out of the way and each post is flagged for its OWN failing.
+		$image = self::factory()->attachment->create_object(
+			array( 'file' => 'described.jpg', 'post_mime_type' => 'image/jpeg' ),
+			0,
+			array( 'post_title' => 'Described' )
+		);
+		update_post_meta( $image, '_wp_attachment_image_alt', 'A picture with a description of its own.' );
+
+		$thin  = $this->post( 'Too short.' );
+		$bare  = $this->post( str_repeat( 'A plain sentence about a plain thing that cites nothing at all. ', 40 ) );
+		foreach ( array( $thin, $bare ) as $id ) {
+			set_post_thumbnail( $id, $image );
+		}
+		$this->regrade();
+
+		$r       = ( new Score( new Settings() ) )->report();
+		$biggest = 0;
+		foreach ( $r['content'] as $issue ) {
+			$biggest = max( $biggest, (int) $issue['count'] );
+		}
+
+		$this->assertSame( 2, (int) $r['flagged'], 'Two pages have something wrong — however many checks each fails.' );
+		$this->assertGreaterThan( $biggest, (int) $r['flagged'], 'The largest issue group is the floor of this number, never the whole of it.' );
+		$this->assertLessThanOrEqual( (int) $r['graded'], (int) $r['flagged'], 'It can never exceed what was read.' );
+	}
+
 	public function test_empty_and_structural_pages_are_excluded_from_grading() {
 		// An empty page — theme-rendered front page, a page-builder/form page, a
 		// placeholder: 0 extractable words, so not an article to grade.

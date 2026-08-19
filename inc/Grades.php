@@ -707,7 +707,7 @@ final class Grades {
 	public static function optimize( array $types, array $aside, $per = 6 ) {
 		global $wpdb;
 
-		$out = array( 'score' => null, 'posts' => 0, 'issues' => array(), 'pending' => array() );
+		$out = array( 'score' => null, 'posts' => 0, 'flagged' => 0, 'issues' => array(), 'pending' => array() );
 		if ( empty( $types ) || ! self::installed() ) {
 			return $out;
 		}
@@ -745,6 +745,16 @@ final class Grades {
 			ORDER BY g.stake DESC, g.post_id DESC",
 			$types
 		), ARRAY_A );
+
+		// ⚠️ HOW MANY PAGES ACTUALLY HAVE SOMETHING WRONG — one row each, whatever
+		// it is flagged for. The card used to name the BIGGEST ISSUE GROUP as
+		// though it were the page count ("up to 65 of your 103"), because summing
+		// the groups double-counts a page carrying three issues. Both readings
+		// were wrong in the same direction: the largest group is the FLOOR, never
+		// the ceiling, and on his site 65 stood in for 84.
+		// ⛔ Counted here, from the rows this query already returned — same
+		// instant, same population as `posts`, no second query to disagree with.
+		$out['flagged'] = count( (array) $rows );
 
 		$per     = max( 1, (int) $per );
 		$pending = array();

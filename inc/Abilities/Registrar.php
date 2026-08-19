@@ -2768,6 +2768,14 @@ final class Registrar {
 					)
 				),
 				'graded'     => self::i( 'How many published items the citability grade covers. Which CONTENT TYPES those are is in `scope.graded` — never assume posts and pages; a site can grade Pages and Docs, or have switched Posts off entirely. The WHOLE site, not a sample — it was the 25 most recently edited until 1.37.0.' ),
+				'cron'       => self::obj(
+					array(
+						'lastRun' => self::i( 'Unix time when WordPress’s own scheduled-job pass last reached this plugin. 0 = never seen.' ),
+						'due'     => self::i( 'How many of this plugin’s scheduled jobs are past their time right now.' ),
+						'overdue' => array( 'type' => 'boolean', 'description' => self::s( 'TRUE when jobs are due AND the pass has not been seen for hours — this site’s background work is not running, usually a host blocking the loopback request to /wp-cron.php. ⛔ Never read a stalled count (`grading`, `rechecking`) as a promise on such a site: nothing is coming to move it unless somebody opens wp-admin.' ) ),
+					)
+				),
+				'flagged'    => self::i( 'How many of the `graded` pages carry at least one content issue — PAGES, one each, however many issues a page has. ⛔ Never add up the `content` group counts to get this: the groups overlap, so a page failing three checks is counted three times; and never take the largest group either, which is this number’s FLOOR. `graded` minus this is how many were read and found clean.' ),
 				'grading'    => self::i( 'How many published pages have NEVER been read. Above zero means `graded` and `content` describe part of the site, not all of it.' ),
 				'rechecking' => self::i( 'How many of the `graded` pages were edited after they were read. Their rows stay in `content`, each marked `stale`, and the sweep re-reads them within about a minute. ⛔ Never report a page here as fixed: its verdict describes the draft before the owner’s last save, which is exactly the edit they are asking about.' ),
 				'scope'      => self::obj(
