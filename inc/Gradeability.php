@@ -92,6 +92,39 @@ final class Gradeability {
 	}
 
 	/**
+	 * Whether this exact page is GRADED FOR QUOTING — both halves of the question,
+	 * in one place: a type this site grades, AND an article rather than a container.
+	 *
+	 * ⭐ Two readers depend on the same answer, which is why it stopped being two
+	 * expressions. The sweep stores it as the `gradeable` column the Optimized
+	 * pillar is averaged over, and the substance check reads it to know whether
+	 * "write more" is advice this page's owner can act on. A page the score
+	 * excuses must not be billed for its length on the next screen along.
+	 *
+	 * ⛔ Asked with an EMPTY set-aside list, like the stored column: whether a
+	 * page is article-like is a fact about the page, while set-aside is a
+	 * decision the owner reverses from a button. The two must not be baked
+	 * into one answer.
+	 *
+	 * @param \WP_Post    $post     The post.
+	 * @param string|null $measured Its rendered body, when the caller already has it.
+	 * @return bool
+	 */
+	public static function is_graded_for_quoting( \WP_Post $post, $measured = null ) {
+		$types = self::post_types();
+		if ( empty( $types ) ) {
+			// ⚠️ Checking switched off entirely. What a page IS does not change
+			// because nothing is reading it just now — and answering "nothing is
+			// gradeable" here would quietly retire the substance check on every
+			// page of the site. Nothing is swept in this state, so this only ever
+			// answers a screen. {@see last_known_post_types()}.
+			$types = self::last_known_post_types();
+		}
+		return in_array( (string) $post->post_type, $types, true )
+			&& self::is_gradeable( $post, array(), $measured );
+	}
+
+	/**
 	 * Whether a sampled post is a real article whose content can be graded for citability.
 	 * Excludes the structural and empty pages that would otherwise read as false positives:
 	 *
@@ -103,11 +136,16 @@ final class Gradeability {
 	 *  - The owner's set-aside: pages marked "not cited content" from the worklist.
 	 *  - Any page with no extractable text.
 	 *
-	 * @param \WP_Post $post        The sampled post.
-	 * @param int[]    $ignored_ids Post IDs the owner set aside from grading (Score's ledger).
+	 * @param \WP_Post    $post        The sampled post.
+	 * @param int[]       $ignored_ids Post IDs the owner set aside from grading (Score's ledger).
+	 * @param string|null $measured    The post's rendered body, when the caller has
+	 *                                 already produced it. Rendering is the expensive
+	 *                                 half of this question and several callers ask it
+	 *                                 in the same breath as a full page analysis — one
+	 *                                 render, two readers.
 	 * @return bool
 	 */
-	public static function is_gradeable( \WP_Post $post, array $ignored_ids ) {
+	public static function is_gradeable( \WP_Post $post, array $ignored_ids, $measured = null ) {
 		if ( (int) $post->ID === (int) get_option( 'page_for_posts' ) ) {
 			return false;
 		}
@@ -130,7 +168,8 @@ final class Gradeability {
 		if ( in_array( (int) $post->ID, $ignored_ids, true ) ) {
 			return false;
 		}
-		if ( str_word_count( wp_strip_all_tags( (string) Content::markdown_source( $post ) ) ) < 1 ) {
+		$body = null === $measured ? Content::markdown_source( $post ) : $measured;
+		if ( str_word_count( wp_strip_all_tags( (string) $body ) ) < 1 ) {
 			return false;
 		}
 		/**

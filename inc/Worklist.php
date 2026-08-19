@@ -1176,8 +1176,11 @@ final class Worklist {
 				// as gradeable-for-quoting. Nothing read it wrongly (every query
 				// filters by type first), but a stored fact that is not true is
 				// a trap for whoever reads it next.
-				'gradeable' => in_array( (string) $post->post_type, Gradeability::post_types(), true )
-					&& Gradeability::is_gradeable( $post, array() ),
+				// ⭐ Asked through the shared predicate, because the substance
+				// check now reads the same answer: the column the score is
+				// averaged over and the flag the worklist prints must not be
+				// able to disagree about whether a page is an article.
+				'gradeable' => Gradeability::is_graded_for_quoting( $post ),
 			);
 		}
 

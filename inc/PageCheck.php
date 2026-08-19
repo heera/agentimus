@@ -24,6 +24,23 @@ final class PageCheck {
 	/** Below this word count a page is "thin" — little for an agent to extract. */
 	const MIN_WORDS = 100;
 
+	/**
+	 * The substance check applies only to pages this site grades for quoting.
+	 *
+	 * ⭐ A container — the Posts page, a cart, a form page, a product — is not an
+	 * article, and "write more" is the one piece of advice its owner cannot act
+	 * on: the words on it belong to whatever renders it. Grading excuses those
+	 * pages already {@see \Agentimus\Gradeability::is_graded_for_quoting()}; the
+	 * worklist was still billing them for their length on the next screen along.
+	 *
+	 * ⚠️ A CONSTANT because {@see ruleset()} is derived from these, and this is a
+	 * change to what a check SAYS. Declaring the rule here is what moves the
+	 * fingerprint and sends every stored verdict back to be read under it — a
+	 * behaviour change that left no trace in the fingerprint would fix the check
+	 * while every page kept the old check's flag until somebody edited it.
+	 */
+	const SUBSTANCE_ARTICLES_ONLY = true;
+
 	/** Only expect headings once content is long enough to need sectioning. */
 	const HEADINGS_MIN_WORDS = 300;
 
@@ -100,6 +117,12 @@ final class PageCheck {
 		// Recency is a post fact, not a content fact — fold it in after the pure parse.
 		$stats['age_days']  = self::age_days( $post );
 		$stats['evergreen'] = self::is_evergreen( $post );
+		// Whether this site grades this page for quoting at all — a post fact too,
+		// and the one the substance check needs. ⭐ Handed the render above rather
+		// than making its own: the gradeability question renders the body to find
+		// out whether there is one, and this method must not render twice on an
+		// editor load.
+		$stats['gradeable'] = Gradeability::is_graded_for_quoting( $post, $measured );
 		// The site language is a runtime fact too: the reading-ease formula only
 		// fits English, and the check skips honestly elsewhere.
 		$stats['english'] = 0 === stripos( (string) get_locale(), 'en' );
@@ -583,6 +606,18 @@ final class PageCheck {
 
 	private static function check_words( array $s ) {
 		$words = (int) $s['words'];
+
+		// ⛔ Not an article — so its length is not this owner's to answer for.
+		// {@see SUBSTANCE_ARTICLES_ONLY}. An ABSENT verdict judges normally: the
+		// unknown case must leave the check running, never silently retire it.
+		if ( self::SUBSTANCE_ARTICLES_ONLY && isset( $s['gradeable'] ) && ! $s['gradeable'] ) {
+			return self::row(
+				'words',
+				__( 'Substance', 'agentimus' ),
+				'pass',
+				__( 'Not measured — this page is not written as an article. A blog index, a form, a cart or a product gets its words from whatever fills it, so its length is not yours to answer for.', 'agentimus' )
+			);
+		}
 
 		if ( $words >= self::MIN_WORDS ) {
 			return self::row(

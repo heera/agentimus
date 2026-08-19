@@ -215,6 +215,27 @@ final class PageCheckTest extends TestCase {
 		$this->assertSame( 'pass', $this->check( 'check_words', array( 'words' => 500 ) )['status'] );
 	}
 
+	/**
+	 * HIS SITE, 2026-08-19: the Blog page and a form page were counted among the
+	 * pages "worth fixing" and told "Not enough substance yet" — the exact advice
+	 * Gradeability excuses a container from being given, because the words on it
+	 * belong to whatever renders it. The score excused them; the worklist billed
+	 * them.
+	 */
+	public function test_substance_is_not_asked_of_a_page_the_site_does_not_grade() {
+		$container = $this->check( 'check_words', array( 'words' => 12, 'gradeable' => false ) );
+		$this->assertSame( 'pass', $container['status'], 'A container is not thin — it is not an article.' );
+		$this->assertNotSame( 'Not enough substance yet', $container['label'], 'It must not be told it is thin.' );
+
+		// An article of the same length is still thin, and still says so.
+		$this->assertSame( 'warn', $this->check( 'check_words', array( 'words' => 12, 'gradeable' => true ) )['status'] );
+
+		// ⛔ And an ABSENT verdict judges normally. A missing key must never be
+		// read as "not gradeable" — that would retire the check site-wide in
+		// silence, which is the failure nobody would see.
+		$this->assertSame( 'warn', $this->check( 'check_words', array( 'words' => 12 ) )['status'] );
+	}
+
 	public function test_headings_only_expected_on_long_content() {
 		// Long content, no headings → warn.
 		$this->assertSame( 'warn', $this->check( 'check_headings', array( 'words' => 800, 'headings' => array() ) )['status'] );
