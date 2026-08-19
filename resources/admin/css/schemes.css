@@ -266,53 +266,64 @@
 }
 
 /* ---- Light — THE ONE SCHEME THAT LOOKS THE SAME IN BOTH MODES -------------
-   His call, 2026-08-19: on wp-admin's Light scheme the plugin keeps one grey
-   palette whichever way the toggle stands. Every other block here is dark-only,
-   because light mode wears the designed cream everywhere; this scheme is the
-   exception, and it is the reason the first selector has no theme in it.
+   His call, 2026-08-19: on wp-admin's Light scheme the plugin keeps one
+   palette whichever way the toggle stands. Every other block here is
+   dark-only, because light mode wears the designed cream everywhere; this
+   scheme is the exception, and it is why the first selector carries no theme.
 
-   ⚠️ So it must beat the CREAM at :root (it does — a body class outranks :root)
-   AND the dark palette at :root[data-ar-theme="dark"] (the second block, which
-   is why the grounds are restated there rather than inherited).
-   ⭐ The toggle still does something: the ink steps down a shade in dark, which
-   is the honest amount of change a scheme with one ground can offer. ⛔ What it
-   must NOT do is flip the ink light — the ground stays grey, and light text on
-   #d9d9d9 is unreadable at any weight.
+   ⚠️⚠️ FIRST CUT WAS WRONG, and it is worth naming so nobody rebuilds it: the
+   greys were assigned paper #e8e8e8 / surface #d9d9d9, which put the CARD
+   BELOW THE PAGE — 85.1% lightness under 91.0%. Every other palette in this
+   plugin lifts the card OFF the page (cream: page 92.9 → card 98.4; dark:
+   page 10.6 → card 17.1), and a recessed card reads as dirty rather than
+   designed. He said he did not like it; the measurement said why.
+
+   ⭐ So the card is the lightest thing here too. The page is wp-admin's own
+   Light body (#e5e5e5) so the plugin's canvas is continuous with the chrome
+   around it, and the card sits 18 luminance points above it — a stronger lift
+   than the cream palette's 11, which is this SCHEME's idiom: WordPress's own
+   Light boxes are white on that same grey. A dialect should speak its room's
+   dialect, not the base's.
+
+   ⚠️ It must beat the CREAM at :root (a body class outranks :root) AND the
+   dark palette at :root[data-ar-theme="dark"] — which is why the second block
+   restates the grounds rather than inheriting them.
+   ⭐ The toggle still does something honest: the ink steps down a shade.
+   ⛔ What it must NOT do is flip the ink light. The ground stays near-white,
+   and light text on it is unreadable at any weight.
    -------------------------------------------------------------------------- */
 body.admin-color-light {
-  --ar-paper: #e8e8e8;   /* his greys, with the canvas a step lighter than the */
-  --ar-surface: #d9d9d9; /* cards so a card still reads as raised.             */
-  --ar-surface-2: #cecece;
-  --ar-field: var(--ar-surface); /* Same as the base light palette: the border does the separating. */
-  --ar-ink: #2b2b2b;      /* 10.0:1 on the cards. */
-  --ar-ink-soft: #5c5c5c; /*  4.7:1 */
-  --ar-ink-faint: #767676;/*  3.2:1 — the quietest label, and no quieter. */
-  --ar-line: #c3c3c3;
-  --ar-line-strong: #b1b1b1;
-  /* The cream palette's gold reads green-ish against a neutral grey; this is
-     the same brass pulled toward the ground's neutrality. */
-  --ar-note-gold: #a8842f;
-  --ar-note-glow: #d8b76a;
+  --ar-paper: #e5e5e5;   /* wp-admin's own Light body — one continuous canvas. */
+  --ar-surface: #fbfbfb; /* the card, lifted: +18 luminance points. */
+  --ar-surface-2: #f1f1f1;
+  --ar-field: #f4f4f4;   /* a hair under the card, so an input reads as a well. */
+  --ar-ink: #1e1e1e;      /* 16.1:1 on the card. */
+  --ar-ink-soft: #5a5a5a; /*  6.7:1 */
+  --ar-ink-faint: #737373;/*  4.6:1 — the quietest label still clears the floor. */
+  --ar-line: #dedede;
+  --ar-line-strong: #c9c9c9;
 }
-/* Dark mode on the Light scheme: the SAME room with the lights left on, and
+/* Dark mode on the Light scheme: the same room with the lights left on, and
    only the ink steps down. */
 :root[data-ar-theme="dark"] body.admin-color-light {
-  --ar-paper: #e8e8e8;
-  --ar-surface: #d9d9d9;
-  --ar-surface-2: #cecece;
-  --ar-field: var(--ar-surface);
-  --ar-ink: #171717;      /* 12.7:1 */
-  --ar-ink-soft: #4a4a4a; /*  6.3:1 */
-  --ar-ink-faint: #666666;/*  4.1:1 */
-  --ar-line: #bdbdbd;
-  --ar-line-strong: #a9a9a9;
-  --ar-note-gold: #96741f;
-  --ar-note-glow: #d8b76a;
+  --ar-paper: #e5e5e5;
+  --ar-surface: #fbfbfb;
+  --ar-surface-2: #f1f1f1;
+  --ar-field: #f4f4f4;
+  --ar-ink: #101010;      /* 18.4:1 */
+  --ar-ink-soft: #474747; /*  9.0:1 */
+  --ar-ink-faint: #666666;/*  5.5:1 */
+  --ar-line: #d6d6d6;
+  --ar-line-strong: #bfbfbf;
+  /* ⛔ The dark palette's gold is picked for a dark ground; on a near-white
+     card it washes out. The light palette's own gold takes over with it. */
+  --ar-note-gold: var(--ar-warn-deep);
+  --ar-note-glow: #ebc98a;
 }
-/* ⛔ THE TWO HARD COLOURS DARK MODE PAINTS. Everything else the app draws comes
-   from the tokens above and re-derives on its own, but these two are literals
-   in app.css — a near-black snippet and a dark-mode drawer — and a light ground
-   is the one case where they would land as a black box on a grey card. */
+/* ⛔ THE HARD COLOURS DARK MODE PAINTS. Everything else the app draws comes
+   from the tokens above and re-derives on its own, but these are literals in
+   app.css — a near-black snippet and a dark form-control key — and a light
+   ground is the one case where they land as a black box on a white card. */
 :root[data-ar-theme="dark"] body.admin-color-light .ar-about-snippet {
   background: #f2f2f2; color: var(--ar-ink-soft);
 }
