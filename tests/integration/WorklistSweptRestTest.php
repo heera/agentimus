@@ -46,6 +46,51 @@ final class WorklistSweptRestTest extends RestTestCase {
 	}
 
 	/**
+	 * HIS MOVE, 2026-08-19: he opened the list narrowed to "Featured image not
+	 * described", fixed the first page, came back — and the row was still under
+	 * a heading saying these are the pages flagged it.
+	 *
+	 * ⭐ The row STAYING is right: a row that vanishes the moment it is fixed is
+	 * a fix nobody got to see, which is the failure this plugin already
+	 * corrected once in the score. What was missing is the row saying it has
+	 * left the filter. The rows are rendered live while the list is SELECTED
+	 * from the stored verdicts, so a page fixed a minute ago is picked by the
+	 * store and comes back clean — and now says which.
+	 *
+	 * ⛔ The whole id list, never the three labels a row shows: a page with four
+	 * flags hides one behind "+2 more", and a label test would call it fixed.
+	 */
+	public function test_a_row_says_when_it_no_longer_carries_the_check_it_was_listed_for() {
+		wp_set_current_user( $this->admin );
+		delete_option( Grades::VERSION_OPTION );
+		Grades::install();
+
+		$thin = self::factory()->post->create( array(
+			'post_title'   => 'Thin for now',
+			'post_content' => 'Too short.',
+			'post_status'  => 'publish',
+		) );
+		$this->get_worklist(); // Reads it: the store now says this page is thin.
+
+		// The owner fixes it. The verdict ages; nothing re-reads it yet.
+		wp_update_post( array(
+			'ID'           => $thin,
+			'post_content' => wp_slash( '<p>' . str_repeat( 'A plain sentence about a plain thing that goes on a while. ', 40 ) . '</p>' ),
+		) );
+
+		// ⚠️ THE PATH THE SCREEN ACTUALLY TAKES. Coming back from the editor it
+		// does NOT re-fetch the list — it asks which of the rows it is holding
+		// have moved on and replaces those in place, which is why the row is
+		// still on screen at all. (Re-fetching would have swept the page first
+		// and dropped it, and then he would never have seen the fix land.)
+		$rows = ( new \Agentimus\Worklist( new \Agentimus\Settings() ) )->rows_for( array( $thin ) );
+
+		$this->assertCount( 1, $rows, 'It is still the row the screen is holding.' );
+		$this->assertIsArray( $rows[0]['flagIds'] );
+		$this->assertNotContains( 'words', $rows[0]['flagIds'], 'And it now says it no longer carries the check the list was narrowed to.' );
+	}
+
+	/**
 	 * ⛔ And a settled site must report zero, or the screen re-reads its
 	 * findings on every visit to a list that changed nothing.
 	 */

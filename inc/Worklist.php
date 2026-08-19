@@ -1197,6 +1197,15 @@ final class Worklist {
 			'coverage' => $cov,
 			'flags'    => array_slice( $flags, 0, self::MAX_FLAGS ),
 			'moreFlags' => max( 0, count( $flags ) - self::MAX_FLAGS ),
+			// ⭐ The ids behind those labels, WHOLE — never the three the row
+			// shows. A screen narrowed to one check has to be able to tell that
+			// a row no longer carries it, and testing the visible labels would
+			// call a page fixed because its fourth flag was the one hidden
+			// behind "+2 more".
+			// ⚠️ From THIS render, not from the store: a page fixed a minute ago
+			// is already clean here while the stored verdict still says
+			// otherwise, which is exactly the moment the owner is looking.
+			'flagIds'  => array_values( (array) $summary['ids'] ),
 			'setAside' => (bool) $aside,
 			'stake'    => $this->stake( $focus, $cov ),
 		);

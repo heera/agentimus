@@ -129,6 +129,14 @@ export default {
     counts() {
       return this.data.counts || {};
     },
+    // How many rows on screen have stopped carrying the narrowed check. The
+    // header says "the 55 pages flagged X" and was fetched before the owner
+    // fixed any of them — this is what keeps that sentence true without
+    // pulling the row they just fixed out from under them.
+    fixedHere() {
+      if (!this.data.issue) return 0;
+      return this.shown.filter((row) => this.noLongerFlagged(row)).length;
+    },
     // How many pages the source behind these rows can speak about at all.
     // 0 means "every page" — Google reports query x page directly.
     pageCap() {
@@ -339,6 +347,18 @@ export default {
     },
     // A tab is now a different question for the server, not a different filter
     // over the same pile — so it costs a fetch, and always starts at page one.
+    // ⭐ This row no longer carries the check the list was narrowed to — the
+    // owner has just fixed it, and the row is still here on purpose: a row that
+    // vanishes the moment it is fixed is a fix nobody got to see, which is the
+    // failure this plugin already corrected once in the score.
+    // ⛔ Tested on ids, never on the visible labels: a row shows three and
+    // counts the rest as "+2 more", so a label test would call a page fixed
+    // because the flag that matters happened to be in the tail.
+    noLongerFlagged(row) {
+      const issue = this.data.issue;
+      if (!issue || !Array.isArray(row.flagIds)) return false;
+      return row.flagIds.indexOf(issue) === -1;
+    },
     pickFilter(key) {
       if (key === this.filter && !this.picked) return;
       this.picked = null;
@@ -672,6 +692,10 @@ export default {
            the server with the rows, so it can only ever describe what arrived. -->
       <p v-else-if="data.issue" class="ar-work__picked">
         Showing the {{ data.total }} {{ data.total === 1 ? 'page' : 'pages' }} flagged “{{ data.issueLabel || (issue && issue.label) }}”.
+        <!-- ⚠️ The count above was taken when this list was fetched. Fix one of
+             them and it is one too many — said here rather than left to be
+             noticed, and the row itself stays put and marked. -->
+        <template v-if="fixedHere"> {{ fixedHere === 1 ? 'One of them is' : `${fixedHere} of them are` }} fixed since you opened it.</template>
         <button type="button" class="ar-linkbtn" @click="$emit('clear-issue')">Show everything</button>
       </p>
 
@@ -709,6 +733,16 @@ export default {
                 <span class="ar-work__rowtitle">
                   <span class="ar-work__type">{{ i.type }}</span>
                   <a class="ar-work__name" :href="i.edit || i.url" target="_blank" rel="noopener" @click.stop>{{ i.title }}</a>
+                  <!-- ⭐ You fixed the thing this list was narrowed to, and the
+                       row stayed so you could see that. ⛔ It does NOT take the
+                       badge on the right: that seat belongs to the worst thing
+                       still true of the page, and a page can be done with this
+                       check and still be barely answering its search. -->
+                  <span
+                    v-if="noLongerFlagged(i)"
+                    class="ar-work__fixed"
+                    v-tip="'This page no longer flags the check this list was narrowed to. It stays here so you can see the fix landed; it will be gone the next time you open the list.'"
+                  >fixed</span>
                 </span>
 
                 <span class="ar-work__gist">

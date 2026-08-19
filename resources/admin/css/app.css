@@ -4084,6 +4084,16 @@ html { scrollbar-gutter: stable; }
 /* Shown only when this site's background jobs are demonstrably not running. A
    quiet note, never an alarm: the work still gets done, just by the owner's own
    visits instead of a schedule. Gold at the panel convention's 8%. */
+/* "fixed" — this row no longer carries the check the list was narrowed to. Quiet
+   and green: it is an acknowledgement, not a warning, and it must not compete
+   with the row's own badge, which still names the worst thing left. */
+.ar-work__fixed {
+  flex: 0 0 auto; margin-left: 6px; padding: 1px 6px; border-radius: 4px;
+  font-family: var(--ar-mono); font-size: 10.5px; letter-spacing: .02em; text-transform: uppercase;
+  color: var(--ar-good); border: 1px solid color-mix(in srgb, var(--ar-good) 35%, var(--ar-line));
+  background: color-mix(in srgb, var(--ar-good) 10%, transparent);
+}
+
 /* One example and the way in, on a by-issue group. The pages themselves live in
    Your Content, narrowed to the check — this row is the shortest path to either. */
 .ar-optcheck__go {
