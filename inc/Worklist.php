@@ -254,10 +254,16 @@ final class Worklist {
 		return array_merge(
 			Grades::counts( $types, $aside ),
 			Grades::fixable_split( $types, $aside ),
-			// ⚠️ The tally's honesty about itself: until the sweep has finished,
-			// `fixable` is a count over PART of the site. A caller that prints
-			// the number without this one is making the finished claim.
-			array( 'grading' => Grades::remaining( $types ) )
+			// ⚠️ The tally's honesty about itself, BOTH HALVES. `grading` is
+			// content nobody has read; `rechecking` is content read under an
+			// older set of checks and queued to be read again. Either one means
+			// `fixable` is a count that will move, and a caller printing the
+			// number without them is making the finished claim. ⛔ Both exclude
+			// the set-aside, like every count they stand beside.
+			array(
+				'grading'    => Grades::remaining( $types ),
+				'rechecking' => Grades::rechecking( $types, false, $aside ),
+			)
 		);
 	}
 
@@ -425,7 +431,12 @@ final class Worklist {
 			// payload, so its verdict is current; the RANK and the tab counts are
 			// read from the store, which for a page edited since it was swept
 			// still describes the earlier draft.
-			'rechecking'   => Grades::rechecking( $types ),
+			// ⚠️ NOT SET-ASIDE, like every count beside it. A page the owner
+			// excused is out of `counts` and out of the rows, so counting it as
+			// "being read again" describes a population nothing else on this
+			// payload measures — the arithmetic that read "75 graded · 86 being
+			// read again" on his card, one screen along.
+			'rechecking'   => Grades::rechecking( $types, false, $aside ),
 			'noSearchData' => Grades::without_search( $types ),
 			'searchState'  => $this->search_state(),
 			'engine'       => $this->engine_label(),
@@ -539,8 +550,20 @@ final class Worklist {
 			'per'          => $per,
 			'total'        => (int) $slice['total'],
 			'counts'       => Grades::counts( $types, $aside ),
+			// ⚠️ WHAT THIS LIST IS, when it is not all of it. `counts` describes
+			// the whole bucket and `total` describes the rows — the two disagree
+			// on purpose while an issue filter is on, and this is the only thing
+			// that explains the gap. A screen showing 60 rows under a chip
+			// reading 68 with nothing saying why is the contradiction again.
+			'issue'        => (string) $issue,
+			'issueLabel'   => '' === (string) $issue ? '' : PageCheck::issue_label( (string) $issue ),
 			'grading'      => Grades::remaining( $types ),
-			'rechecking'   => Grades::rechecking( $types ),
+			// ⚠️ NOT SET-ASIDE, like every count beside it. A page the owner
+			// excused is out of `counts` and out of the rows, so counting it as
+			// "being read again" describes a population nothing else on this
+			// payload measures — the arithmetic that read "75 graded · 86 being
+			// read again" on his card, one screen along.
+			'rechecking'   => Grades::rechecking( $types, false, $aside ),
 			'noSearchData' => Grades::without_search( $types ),
 			'engine'       => $engine,
 			'types'        => array_values( $types ),

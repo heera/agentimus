@@ -1408,13 +1408,25 @@ export default {
     async loadWorklist(where) {
       const filter = (where && where.filter) || this.worklistWhere.filter;
       const page = (where && where.page) || 1;
+      // ⚠️ Carried EXPLICITLY, and cleared by passing an empty string — not by
+      // omitting it. A narrowing that survives because nobody mentioned it is
+      // how a list ends up showing one check's pages under the whole bucket's
+      // chips, which is the contradiction this feature exists to avoid.
+      const issue = where && 'issue' in where ? (where.issue || '') : this.worklistWhere.issue || '';
       this.refreshingWorklist = true;
       try {
-        this.worklist = await this.api.getWorklist(filter, page);
-        this.worklistWhere = { filter, page };
+        this.worklist = await this.api.getWorklist(filter, page, issue);
+        this.worklistWhere = { filter, page, issue };
         this.worklistLoaded = true;
         this.worklistAt = Date.now();
         this.worklistStale = false;
+        // ⚠️⚠️ THIS REQUEST CHANGED THE DATA. Loading the list reads a chunk of
+        // pages first, so its counts are newer than the finding sitting above it
+        // on the same screen — which is how "69 Posts and Pages are worth
+        // fixing" ended up over chips reading 68 (his site, 2026-08-19: a page
+        // was re-read between the two and came back clean). Only when the sweep
+        // actually did something: a settled site pays for nothing.
+        if (Number(this.worklist.swept || 0) > 0) this.silentRefreshFindings();
       } catch (e) {
         this.flash('error', e.message);
       } finally {

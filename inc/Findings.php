@@ -1049,6 +1049,23 @@ final class Findings {
 				number_format_i18n( (int) $tally['grading'] )
 			);
 		}
+		// ⚠️ THE OTHER HALF OF THE SAME HONESTY, and the one that was missing.
+		// `grading` is content nobody has read; this is content read under an
+		// older set of checks and queued to be read again — on his site the
+		// evening this shipped, 49 of 89. Both make the number above a moving
+		// one, and only one of them was saying so.
+		if ( $tally['rechecking'] > 0 ) {
+			$points[] = sprintf(
+				/* translators: %s: how many pages are being read again. */
+				_n(
+					'Reading %s page again after a change, so this number may move.',
+					'Reading %s pages again after a change, so this number may move.',
+					(int) $tally['rechecking'],
+					'agentimus'
+				),
+				number_format_i18n( (int) $tally['rechecking'] )
+			);
+		}
 
 		return array(
 			$this->row(
