@@ -1697,15 +1697,53 @@
   background: color-mix(in srgb, var(--ar-accent) 8%, var(--ar-surface));
   border: 1px solid color-mix(in srgb, var(--ar-accent) 28%, var(--ar-surface));
 }
+/* ⭐⭐ BLOCKS, NOT COLUMNS OF PROSE. Two 1fr columns across a full-width card
+   put ~110 characters on a line — nearly double a readable measure — and left
+   the two columns' paragraphs starting and ending at different heights, so
+   nothing on the card lined up with anything. Each item is its own bordered
+   block now: the measure is set by the block (~50 characters), the blocks align
+   by their edges whatever length their text is, and the browser decides how
+   many fit. His law from the editor box, applied here — a card holds a measure,
+   not the window. */
+/* ⭐⭐ A GRID OF EQUAL ROWS, each item a block with its own mark.
+   Three shapes were tried on his screen before this one. Two 1fr columns of
+   bare prose put ~110 characters on a line and let the columns' paragraphs
+   start and end at different heights, so nothing lined up. Capping the block
+   width fixed the measure and left a dead band down the right of a wide card.
+   Flowing multicol filled the width but balanced by content height, so the
+   columns ended at three different places and read as a jumble.
+   A grid ends all three: rows are equal height by construction, blocks align by
+   their edges, the mark gives the eye a column of anchors down the left, and
+   the whole thing fills the card. ⛔ The 420px floor is what keeps two columns
+   on a normal screen rather than four thin ones. */
 .ar-whatsnew__grid {
-  display: grid; grid-template-columns: 1fr 1fr; gap: 14px 26px; margin-top: 16px;
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(420px, 1fr));
+  gap: 10px; margin-top: 14px;
 }
-.ar-whatsnew__itemtitle { display: block; font-size: 13.5px; color: var(--ar-ink); margin-bottom: 3px; }
-.ar-whatsnew__itemtext { margin: 0; font-size: 12.5px; line-height: 1.55; color: var(--ar-ink-soft); }
+.ar-whatsnew__item {
+  display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 12px; align-items: start;
+  padding: 14px 16px 15px; border-radius: 11px;
+  border: 1px solid var(--ar-line);
+  background: color-mix(in srgb, var(--ar-accent) 2%, var(--ar-surface-2));
+}
+.ar-whatsnew__mark {
+  flex: 0 0 auto; width: 34px; height: 34px; border-radius: 9px; display: grid; place-items: center;
+  color: var(--ar-accent);
+  background: color-mix(in srgb, var(--ar-accent) 10%, var(--ar-surface));
+  border: 1px solid color-mix(in srgb, var(--ar-accent) 26%, var(--ar-surface));
+}
+.ar-whatsnew__words { min-width: 0; }
+.ar-whatsnew__itemtitle {
+  display: block; font-size: 14px; line-height: 1.35; color: var(--ar-ink); margin-bottom: 5px;
+  letter-spacing: -0.005em;
+}
+.ar-whatsnew__itemtext { margin: 0; font-size: 12.5px; line-height: 1.6; color: var(--ar-ink-soft); }
 .ar-whatsnew__foot { display: flex; align-items: center; justify-content: flex-end; gap: 16px; margin-top: 16px; }
 .ar-whatsnew__gotit { font-size: 12.5px; padding: 7px 18px; }
 @media (max-width: 720px) {
-  .ar-whatsnew__grid { grid-template-columns: 1fr; }
+  /* One column on a phone — the floor above would otherwise ask for a width the
+     screen does not have. */
+  .ar-whatsnew__grid { grid-template-columns: minmax(0, 1fr); }
 }
 
 /* The review ask — What's-New family: one row of words, one row of answers. */

@@ -37,7 +37,29 @@ export default {
       logEntries: null, // null = never fetched; [] = fetched, empty.
     };
   },
+  computed: {
+    // ⭐ One mark per item, so the eye has a column of anchors down the left of
+    // the card instead of five equal walls of text. Keyed by what the item is
+    // ABOUT, chosen with the copy, with a fallback so an item that names no
+    // icon still draws something rather than collapsing the row.
+    // ⛔ All in one accent, never a colour each: the palette here carries
+    // meaning elsewhere in this plugin, and a rainbow of tiles would spend it
+    // on decoration.
+    icons() {
+      return {
+        page: 'M7 3h7l4 4v14H7z M14 3v4h4',
+        image: 'M4 5h16v14H4z M8.5 11a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3z M4 16l4.5-4 3.5 3 3-2.5L20 17',
+        shield: 'M12 3l7 3v6c0 4-3 6.5-7 9-4-2.5-7-5-7-9V6z M9 12l2 2 4-4',
+        link: 'M10 13a4 4 0 0 0 5.7 0l2.3-2.3a4 4 0 0 0-5.7-5.7L11 6.3 M14 11a4 4 0 0 0-5.7 0L6 13.3a4 4 0 0 0 5.7 5.7L13 17.7',
+        search: 'M11 18a7 7 0 1 0 0-14 7 7 0 0 0 0 14z M20 20l-4-4',
+        clock: 'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18z M12 7v5l3 2',
+      };
+    },
+  },
   methods: {
+    iconPath(item) {
+      return this.icons[item && item.icon] || this.icons.page;
+    },
     // The fold opening IS the request. ⛔ Not on dialog open: most people come
     // here for this release and never touch the older ones.
     onOlder(e) {
@@ -152,8 +174,15 @@ export default {
 
     <div class="ar-whatsnew__grid">
       <div v-for="(item, i) in data.items" :key="i" class="ar-whatsnew__item">
-        <strong class="ar-whatsnew__itemtitle">{{ item.title }}</strong>
-        <p class="ar-whatsnew__itemtext">{{ item.text }}</p>
+        <span class="ar-whatsnew__mark" aria-hidden="true">
+          <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+            <path :d="iconPath(item)" />
+          </svg>
+        </span>
+        <div class="ar-whatsnew__words">
+          <strong class="ar-whatsnew__itemtitle">{{ item.title }}</strong>
+          <p class="ar-whatsnew__itemtext">{{ item.text }}</p>
+        </div>
       </div>
     </div>
 

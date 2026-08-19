@@ -614,26 +614,44 @@ final class Admin {
 		return array(
 			'version' => AGENTIMUS_VERSION,
 			'show'    => $show,
+			// ⭐⭐ WHAT A CARD IS FOR, and it is not the changelog. Each of these
+			// used to run sixty to ninety words — the release note's whole
+			// argument, in the plugin's own vocabulary ("verdict", "graded",
+			// "the sweep"), five times over. His question, and it was the right
+			// one: does that make sense to somebody who is not us? A card gets
+			// one line about what is different for the reader, and a second only
+			// when there is something to expect or do. The full story already
+			// lives in the changelog, one click away, which is where an owner
+			// who wants it will go.
+			// ⛔ No internal words. If a sentence needs "verdict" or "sweep" to
+			// stand up, it is the changelog's sentence, not this one.
+			// ⭐ Titles are Title Case, the standing rule for every title this
+			// plugin writes.
 			'items'   => array(
 				array(
-					'title' => 'The Page You Half-Fixed Stays on the List',
-					'text'  => 'Fix one thing on a page and the whole page used to disappear from Optimize Your Content, as though nothing were wrong with it — then turn up again later with the untouched issues still there. Saving a post erased what Agentimus knew about it. The page keeps its place now and says it is being read again, and that reading happens within about a minute of your save.',
+					'icon'  => 'clock',
+					'title' => 'Your Content Gets Read Even If Your Host Never Runs Background Jobs',
+					'text'  => 'Many hosts never run WordPress\'s scheduled tasks, so the reading that keeps your lists current never happened — and nothing said so. Agentimus now does that reading itself while you are signed in.',
 				),
 				array(
-					'title' => 'A Verdict Now Remembers Which Checks Made It',
-					'text'  => 'A grade is an answer to a question, and Agentimus was keeping the answer while forgetting the question — so a page graded by last month\'s checks kept that verdict for good. Every verdict now records the checks behind it, and when a release changes them your content is read again, keeping what it last said on screen while it waits. Expect your counts to move once after this upgrade — that is the old answer being corrected, not new problems appearing.',
+					'icon'  => 'page',
+					'title' => 'Fix a Page and You Can See It Worked',
+					'text'  => 'The page you just fixed keeps its place in the list, marked as done, instead of vanishing before you can tell the fix landed.',
 				),
 				array(
-					'title' => 'The Featured Image Is Judged on the Page You Serve',
-					'text'  => 'That picture is drawn by your theme, so nothing Agentimus could read told it how the picture reaches a reader. It now reads a couple of your own pages in the background, once per theme. An image served with no description at all is named as the failure it is; a theme that stands the post title in for a missing one says so — and if your theme ignores the description you wrote, that is named as the thing to fix, instead of your content being blamed for a picture you had already described.',
+					'icon'  => 'search',
+					'title' => 'Work Through One Issue at a Time',
+					'text'  => '"Featured image not described · 60" now opens all sixty pages in your content list, ranked and paged, instead of showing six of them and stopping.',
 				),
 				array(
-					'title' => 'An Assistant Can Find the Work, Not Just Be Told a Number',
-					'text'  => 'A connected assistant could rewrite a page but had no way to learn which page — the findings tool named a number and handed back a link to a screen. There is a tool for the list itself now: which pages need work, everything each is flagged for, whether it answers the search it is found for, and how old that reading is. It can also set the two fields that decide how a page appears in a search result, and read the categories and tags your site already uses, so it stops inventing a second "New features".',
+					'icon'  => 'shield',
+					'title' => 'The Numbers Agree With Each Other',
+					'text'  => 'A few counts could differ by one from screen to screen, or start counting the page you were looking at instead of your whole site. They read the same measure now.',
 				),
 				array(
-					'title' => 'The Content Checks Say Who They Are For',
-					'text'  => 'Twelve of the fourteen are the classic on-page work a search engine and a screen reader need — headings, alt text, thin content, reading ease, freshness — and only the editor panel said so. Readiness, your score and the manual say it now. Naming one audience invited you to weigh the work against your opinion of AI, when most of it pays either way. The reading-ease row also stopped asking for work you had already done: it names the half actually holding the score down, instead of advising shorter sentences at a page whose sentences are already short.',
+					'icon'  => 'image',
+					'title' => 'Advice You Can Act On',
+					'text'  => 'Pages WordPress builds for you — your blog index, a cart — are no longer told they are too short. And a page is no longer told to climb a search another of your own pages is already winning.',
 				),
 			),
 		);
