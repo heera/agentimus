@@ -96,6 +96,11 @@ final class Plugin {
 		CachePurge::boot();
 		IndexNow::boot(); // Re-reads its switch at queue time — registration is unconditional.
 		MarkdownCache::register();
+		// Scheduled work on a site whose loopback is blocked: the owner's own
+		// browser asks for the jobs that are overdue. ⛔ Registered for every
+		// request, not just our screens — a site with no working cron is not
+		// healed by a mechanism that only runs while somebody watches it.
+		Cron::register();
 		BotRanges::boot(); // Daily refresh of published bot-IP-range files (self-heals its schedule).
 		RouteProbe::watch(); // Async self-check of /llms.txt and the home <head>; re-queued when the plugin/theme mix changes.
 		ThemeImageProbe::watch(); // Async: what the SERVED page does with a featured image's description — asked once per theme, never inside a check.

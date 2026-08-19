@@ -178,6 +178,13 @@ final class Score {
 			// This is the number that stops the rest of the card reading as today's.
 			'rechecking' => (int) ( isset( $optimize['rechecking'] ) ? $optimize['rechecking'] : 0 ),
 			'ignored'    => $this->ignored_list(),
+			// ⭐ Whether this site's scheduled work is actually happening. Every
+			// number above it — graded, still to read, being read again — is a
+			// promise that a background job will move it. On a host whose
+			// loopback is blocked that promise is false, and a card that keeps
+			// counting without saying so is the frozen number he sat in front of
+			// for an evening. {@see \Agentimus\Cron}.
+			'cron'       => Cron::health(),
 			// ⭐ WHAT was graded, in the site's own words — and what was checked
 			// but deliberately not graded.
 			//

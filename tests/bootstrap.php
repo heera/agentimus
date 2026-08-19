@@ -157,6 +157,11 @@ namespace {
 	if ( ! function_exists( 'sanitize_key' ) )          { function sanitize_key( $k ) { return preg_replace( '/[^a-z0-9_\-]/', '', strtolower( (string) $k ) ); } }
 	if ( ! function_exists( 'sanitize_text_field' ) )   { function sanitize_text_field( $s ) { return trim( preg_replace( '/\s+/', ' ', wp_strip_all_tags( (string) $s ) ) ); } }
 	if ( ! function_exists( 'wp_unslash' ) )            { function wp_unslash( $v ) { return is_string( $v ) ? stripslashes( $v ) : $v; } }
+	// The cron array is an option in real WordPress; here it is whatever a test
+	// put in $GLOBALS['_af_cron'] — empty by default, which is the honest answer
+	// for a stub site: nothing scheduled, so nothing due.
+	if ( ! function_exists( '_get_cron_array' ) )       { function _get_cron_array() { return isset( $GLOBALS['_af_cron'] ) ? $GLOBALS['_af_cron'] : array(); } }
+	if ( ! function_exists( 'wp_doing_cron' ) )         { function wp_doing_cron() { return ! empty( $GLOBALS['_af_doing_cron'] ); } }
 	if ( ! function_exists( 'sanitize_textarea_field' ) ) { function sanitize_textarea_field( $s ) { return trim( wp_strip_all_tags( (string) $s ) ); } }
 	if ( ! function_exists( 'sanitize_file_name' ) )    { function sanitize_file_name( $n ) { return preg_replace( '/[^A-Za-z0-9._\-]/', '', (string) $n ); } }
 	if ( ! function_exists( 'sanitize_email' ) )        { function sanitize_email( $e ) { $e = trim( (string) $e ); return filter_var( $e, FILTER_VALIDATE_EMAIL ) ? $e : ''; } }

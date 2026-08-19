@@ -219,7 +219,26 @@ final class Rest {
 					'filter' => array( 'type' => 'string', 'required' => false ),
 					'page'   => array( 'type' => 'integer', 'required' => false ),
 					'per'    => array( 'type' => 'integer', 'required' => false ),
+					// One check's pages, for the by-issue hand-off. Same reason as
+					// `filter` for not using an enum here: it would be checked
+					// before the permission callback.
+					'issue'  => array( 'type' => 'string', 'required' => false ),
 				),
+			)
+		);
+
+		// The nudge {@see \Agentimus\Cron}: run this plugin's overdue scheduled
+		// jobs, in a request of the owner's browser's making, on a site whose
+		// own loopback to /wp-cron.php never arrives. ⛔ Ours only, budgeted,
+		// and one runner at a time — the endpoint is a door onto work that was
+		// already due, never a way to make work happen sooner.
+		register_rest_route(
+			self::NAMESPACE,
+			'/cron/run',
+			array(
+				'methods'             => \WP_REST_Server::EDITABLE,
+				'callback'            => array( $this, 'run_cron' ),
+				'permission_callback' => array( $this, 'can_manage' ),
 			)
 		);
 
@@ -983,13 +1002,47 @@ final class Rest {
 		// Grading happens on cron, but a screen that has just been opened on a
 		// fresh site would sit empty waiting for it. One chunk here means the
 		// first look already has rows, and the sweep carries on behind.
-		$worklist->sweep();
+		$swept = (int) $worklist->sweep();
+
+		$out = $worklist->page(
+			(string) $request->get_param( 'filter' ),
+			(int) $request->get_param( 'page' ),
+			(int) $request->get_param( 'per' ),
+			(string) $request->get_param( 'issue' )
+		);
+
+		// ⚠️⚠️ HOW MANY PAGES THIS VERY REQUEST RE-READ — and it is not a
+		// statistic, it is a warning to the screen. The chunk above runs BEFORE
+		// the counts below are taken, so on any site with a backlog these counts
+		// are newer than the finding sitting above this list on the same screen.
+		// His site, 2026-08-19: "69 Posts and Pages are worth fixing" over chips
+		// reading 68, because one page had just been re-read and cleared. Above
+		// zero means: whatever else is showing these numbers is now out of date.
+		$out['swept'] = $swept;
+
+		return rest_ensure_response( $out );
+	}
+
+	/**
+	 * POST /cron/run — run this plugin's overdue scheduled jobs here and now.
+	 *
+	 * ⭐ The answer says what happened and what is left, because the caller is a
+	 * loop: one page view drains a few chunks and the next takes the rest. A
+	 * bare "ok" would leave the browser guessing whether to come back.
+	 *
+	 * @return \WP_REST_Response
+	 */
+	public function run_cron() {
+		$out = Cron::run_due();
 
 		return rest_ensure_response(
-			$worklist->page(
-				(string) $request->get_param( 'filter' ),
-				(int) $request->get_param( 'page' ),
-				(int) $request->get_param( 'per' )
+			array(
+				'ran'       => (int) $out['ran'],
+				'remaining' => (int) $out['remaining'],
+				// "busy" is not a failure: another tab or a real cron pass holds
+				// the lock, which is the mechanism working, not refusing.
+				'skipped'   => (string) $out['skipped'],
+				'health'    => Cron::health(),
 			)
 		);
 	}

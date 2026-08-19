@@ -4081,6 +4081,22 @@ html { scrollbar-gutter: stable; }
   margin: 0; font-family: var(--ar-serif); font-size: 16px; font-weight: 600; color: var(--ar-ink);
 }
 .ar-checkgroup__blurb { margin: 2px 0 0; font-size: 12.5px; line-height: 1.4; color: var(--ar-ink-soft); }
+/* Shown only when this site's background jobs are demonstrably not running. A
+   quiet note, never an alarm: the work still gets done, just by the owner's own
+   visits instead of a schedule. Gold at the panel convention's 8%. */
+/* One example and the way in, on a by-issue group. The pages themselves live in
+   Your Content, narrowed to the check — this row is the shortest path to either. */
+.ar-optcheck__go {
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: 8px;
+}
+.ar-optcheck__go .ar-optcheck__all { margin-left: auto; }
+
+.ar-checkgroup__note {
+  margin: 10px 0 0; padding: 8px 10px; border-radius: 6px;
+  font-size: 12.5px; line-height: 1.45; color: var(--ar-ink-soft);
+  border: 1px solid color-mix(in srgb, var(--ar-warn) 30%, var(--ar-line));
+  background: color-mix(in srgb, var(--ar-warn) 8%, var(--ar-surface));
+}
 .ar-checkgroup__count {
   flex: 0 0 auto; font-family: var(--ar-mono); font-size: 13px; font-weight: 600; color: var(--ar-ink-soft);
 }

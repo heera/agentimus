@@ -115,6 +115,23 @@ export default {
       // screen after the measurement underneath it had stopped being one.
       return `${kindsPart} across your content — ${scope} ${verb} something worth fixing. The most common is “${top.label}”.`;
     },
+    // Said plainly, and only when it is true of this site.
+    //
+    // ⭐ It names what is happening INSTEAD, because something is: the reading
+    // now happens while the owner is in the admin. A warning with no "and so"
+    // reads as a dead end, and this one has an answer — it is just slower than
+    // a working host, and it stops when they log out.
+    cronStalled() {
+      if (!this.cron || !this.cron.overdue) return '';
+      const left = Number(this.optimizeGrading || 0) + Number(this.optimizeRechecking || 0);
+      if (!left) return '';
+      const pages = `${left.toLocaleString()} ${left === 1 ? 'page' : 'pages'}`;
+      // ⛔ NOT "your host isn't running background jobs". We can prove the jobs
+      // have not run; we cannot prove WHY, and on a cached site the likeliest
+      // reason is that a cache hit never runs PHP, so nothing checks the queue.
+      // Blaming the host for that would be a guess printed as a finding.
+      return `Scheduled jobs haven’t run on this site for a while, so Agentimus is doing the reading itself while you’re signed in — ${pages} left.`;
+    },
     // The all-clear, and it has to be careful about WHAT it is clearing.
     //
     // ⚠️ This line used to read "Every graded post and page is ready for AI to
@@ -575,6 +592,12 @@ export default {
           {{ optimizeGraded }} graded<template v-if="optimizeRechecking > 0"> · {{ optimizeRechecking }} being read again</template><template v-if="optimizeGrading > 0"> · {{ optimizeGrading }} still to read</template><template v-if="optimizeIgnored.length"> · {{ optimizeIgnored.length }} set aside</template>
         </span>
       </div>
+      <!-- ⚠️ The counts above promise that something is coming to move them. On
+           a host that blocks WordPress's own background jobs nothing is, and a
+           card that keeps counting in silence is the frozen number he sat in
+           front of for an evening. It only appears when both halves are true:
+           work is due AND the jobs are demonstrably not running. -->
+      <p v-if="cronStalled" class="ar-checkgroup__note">{{ cronStalled }}</p>
 
       <!-- The summary IS the card now. This list used to be nine rows deep, each
            unfolding its own pages, with the set-aside ledger below it — so
