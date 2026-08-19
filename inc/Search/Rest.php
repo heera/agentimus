@@ -228,7 +228,11 @@ final class Rest {
 			$scoped = Report::in_check_scope( Table::snapshot( $source ) );
 			$rows   = $scoped['rows'];
 			$out['out_of_scope'] = $scoped['dropped'];
-			$report = Opportunities::build( $rows, $this->set_aside(), $this->set_aside_urls() );
+			// Built FIRST and handed to the worklist below — the search a page is
+			// losing to its own sibling belongs to the split, not to the climb
+			// list. Same rule, same order, as the Findings report next door.
+			$collisions = Collisions::build( $rows, $this->set_aside(), $this->set_aside_urls() );
+			$report     = Opportunities::build( $rows, $this->set_aside(), $this->set_aside_urls(), $collisions );
 
 			$report['almost_there']    = $this->enrich_group( $report['almost_there'], Opportunities::KIND_NEAR, $source );
 			$report['seen_not_chosen'] = $this->enrich_group( $report['seen_not_chosen'], Opportunities::KIND_SEEN, $source );
@@ -236,7 +240,6 @@ final class Rest {
 			// Searches several pages are splitting — same snapshot, same
 			// set-aside list. The wire carries the heaviest few and the total
 			// says what was held back (no silent caps).
-			$collisions                  = Collisions::build( $rows, $this->set_aside(), $this->set_aside_urls() );
 			$report['collisions']        = array_map( array( Collisions::class, 'wire' ), array_slice( $collisions, 0, 5 ) );
 			$report['collisions_total']  = count( $collisions );
 

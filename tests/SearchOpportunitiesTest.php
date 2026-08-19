@@ -56,6 +56,54 @@ final class SearchOpportunitiesTest extends TestCase {
 		$this->assertSame( 1, $report['counts']['opportunities'] );
 	}
 
+	/**
+	 * HIS SCREEN, 2026-08-19: "4 pages are one push from page one" counted a page
+	 * sitting at #13.8 for a search its own sibling held at #6.1 — while the
+	 * split row two rows below said to point that page AT the sibling. Following
+	 * the first makes the second worse, and both were on one screen.
+	 */
+	public function test_a_search_a_page_is_losing_to_its_sibling_is_not_a_climb() {
+		$rows = array(
+			// The split: one search, two pages of this site, neither owning it.
+			$this->row( 'block gptbot wordpress', 6.1, 1890, 41, 11, 'https://example.test/winner/' ),
+			$this->row( 'block gptbot wordpress', 13.8, 520, 6, 12, 'https://example.test/loser/' ),
+			// The loser's OWN search, split with nobody.
+			$this->row( 'robots txt content signals', 11.2, 380, 6, 12, 'https://example.test/loser/' ),
+		);
+
+		$report = Opportunities::build( $rows );
+
+		$cards = array();
+		foreach ( $report['almost_there'] as $card ) {
+			$cards[ (int) $card['page_id'] ] = array_column( $card['queries'], 'query' );
+		}
+
+		$this->assertArrayHasKey( 12, $cards, 'The page keeps its place — it still has a search of its own.' );
+		$this->assertSame( array( 'robots txt content signals' ), $cards[12], 'The lost search leaves the climb list; the split row owns it.' );
+		// ⚠️ And the page's numbers are rebuilt from what is left, or the card
+		// would quote demand it has just been told to give up.
+		foreach ( $report['almost_there'] as $card ) {
+			if ( 12 === (int) $card['page_id'] ) {
+				$this->assertSame( 380, (int) $card['impressions'] );
+			}
+		}
+	}
+
+	public function test_a_page_whose_only_search_is_a_lost_one_leaves_the_worklist() {
+		$rows = array(
+			$this->row( 'block gptbot wordpress', 6.1, 1890, 41, 11, 'https://example.test/winner/' ),
+			$this->row( 'block gptbot wordpress', 13.8, 520, 6, 12, 'https://example.test/loser/' ),
+		);
+
+		$report = Opportunities::build( $rows );
+		$ids    = array_column( $report['almost_there'], 'page_id' );
+
+		$this->assertNotContains( 12, $ids, 'Nothing left to advise, so no card.' );
+		// ⛔ And the count must move with the list — a header counting a page the
+		// list does not show is the contradiction this whole change removes.
+		$this->assertSame( count( $report['almost_there'] ), (int) $report['counts']['almost'] );
+	}
+
 	public function test_thin_and_off_band_rows_are_not_opportunities() {
 		// One page each: this is about judging a search on its own merits, and
 		// rows sharing a page would (correctly) be judged as that page's total.

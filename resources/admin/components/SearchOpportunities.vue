@@ -724,9 +724,10 @@ export default {
         <span class="ar-opp__pos is-two">{{ searchCollisions.length }} split search{{ searchCollisions.length === 1 ? '' : 'es' }}</span>
       </div>
       <p class="ar-clsn__why">
-        These searches show more than one of your pages, and none of them wins the click. The
-        clicks split between them, so each page ranks lower than one page would. Keep one page
-        as the answer for each search. The others can point to it, or answer something else.
+        These searches show more than one of your pages. The engine shows one at a time, so
+        they take turns, and the clicks split between them — each page ranks lower than one
+        page would. Keep one page as the answer for each search. The others can point to it,
+        or answer something else.
       </p>
       </div>
 

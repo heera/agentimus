@@ -70,10 +70,16 @@ final class Opportunities {
 	/**
 	 * Build the report from a snapshot.
 	 *
-	 * @param array $rows           Snapshot rows ({@see Table::snapshot()}).
-	 * @param array $set_aside      Post IDs the owner set aside (the shared Optimize list).
-	 * @param array $set_aside_urls URL keys ({@see Pages::key()}) set aside for pages that
-	 *                              map to no post — the only identity such a page has.
+	 * @param array      $rows           Snapshot rows ({@see Table::snapshot()}).
+	 * @param array      $set_aside      Post IDs the owner set aside (the shared Optimize list).
+	 * @param array      $set_aside_urls URL keys ({@see Pages::key()}) set aside for pages that
+	 *                                   map to no post — the only identity such a page has.
+	 * @param array|null $collisions     {@see Collisions::build()} rows, when the caller has
+	 *                                   already built them over this same snapshot. NULL means
+	 *                                   build them here — ⛔ never "skip the check": a search a
+	 *                                   page is losing to its own sibling must leave this
+	 *                                   worklist whoever is asking, or one door advises the
+	 *                                   climb another door says to abandon.
 	 * @return array {
 	 *     almost_there:    array<int,array> page cards,
 	 *     seen_not_chosen: array<int,array> page cards,
@@ -81,9 +87,18 @@ final class Opportunities {
 	 *     counts:          array{opportunities:int,almost:int,seen:int,set_aside:int},
 	 * }
 	 */
-	public static function build( array $rows, array $set_aside = array(), array $set_aside_urls = array() ) {
+	public static function build( array $rows, array $set_aside = array(), array $set_aside_urls = array(), $collisions = null ) {
 		$set_aside      = array_map( 'intval', $set_aside );
 		$set_aside_urls = array_map( array( Pages::class, 'key' ), array_map( 'strval', $set_aside_urls ) );
+
+		// ⛔ THE SEARCHES THIS SITE IS SPLITTING WITH ITSELF. A page holding the
+		// weaker half of one is not "one push from page one" for it — the push is
+		// exactly what the split row asks them NOT to make. Read from the caller's
+		// own collision pass where there is one, so a screen showing both never
+		// computes the same split twice or disagrees with itself about who won.
+		$lost = Collisions::losing_pairs(
+			null === $collisions ? Collisions::build( $rows, $set_aside, $set_aside_urls ) : (array) $collisions
+		);
 
 		// 1. Measure the machine traffic BEFORE discarding it. Dropping it silently
 		// leaves an empty worklist next to a Search Performance screen full of big
@@ -184,6 +199,16 @@ final class Opportunities {
 			if ( ( $page_id > 0 && in_array( $page_id, $set_aside, true ) )
 				|| ( '' !== $url_key && in_array( $url_key, $set_aside_urls, true ) ) ) {
 				$hidden_pages[ $key ] = true;
+				continue;
+			}
+
+			// The searches this page is losing to a sibling leave the worklist —
+			// and if that is all it had, so does the page. ⚠️ Its totals are
+			// rebuilt from what survives, because 4b judges a page on its whole
+			// demand, and demand it is being told to give up is not demand it
+			// can act on.
+			$page = self::without_lost( $page, $lost );
+			if ( ! $page['rows'] ) {
 				continue;
 			}
 
@@ -405,6 +430,53 @@ final class Opportunities {
 			return $b['impressions'] <=> $a['impressions'];
 		} );
 		return $out;
+	}
+
+	/**
+	 * One page's rows minus the searches it is LOSING in a split, with its
+	 * totals rebuilt from what is left.
+	 *
+	 * ⭐ It rebuilds rather than subtracts: `pos_weight` is an impression-weighted
+	 * sum, so a position carried over from the old total and divided by the new
+	 * impressions would be a rank the page never held.
+	 *
+	 * @param array $page One {@see page_index()} entry.
+	 * @param array $lost {@see Collisions::losing_pairs()}.
+	 * @return array The same shape, possibly with fewer rows.
+	 */
+	private static function without_lost( array $page, array $lost ) {
+		if ( ! $lost ) {
+			return $page;
+		}
+		$by_id  = (int) $page['page_id'] > 0 ? self::page_key( (int) $page['page_id'], '' ) : '';
+		$by_url = '' === (string) $page['page_url'] ? '' : self::page_key( 0, (string) $page['page_url'] );
+
+		$kept = array();
+		foreach ( $page['rows'] as $row ) {
+			$query = (string) $row['query'];
+			if ( '' !== $by_id && isset( $lost[ Collisions::lost_key( $by_id, $query ) ] ) ) {
+				continue;
+			}
+			if ( '' !== $by_url && isset( $lost[ Collisions::lost_key( $by_url, $query ) ] ) ) {
+				continue;
+			}
+			$kept[] = $row;
+		}
+		if ( count( $kept ) === count( $page['rows'] ) ) {
+			return $page;
+		}
+
+		$page['rows']        = $kept;
+		$page['impressions'] = 0;
+		$page['clicks']      = 0;
+		$page['pos_weight']  = 0.0;
+		foreach ( $kept as $row ) {
+			$impr                 = (int) $row['impressions'];
+			$page['impressions'] += $impr;
+			$page['clicks']      += (int) $row['clicks'];
+			$page['pos_weight']  += ( (float) $row['position'] ) * $impr;
+		}
+		return $page;
 	}
 
 	/**

@@ -177,6 +177,61 @@ final class Collisions {
 	}
 
 	/**
+	 * The (page, search) pairs a page is LOSING — every competing page in a
+	 * split except the one earning the click.
+	 *
+	 * ⭐⭐ Exists because the front door contradicted itself. A page sitting at
+	 * #13.8 for a search its own sibling holds at #6.1 was counted under
+	 * "one push from page one" — advice to climb — on the same screen as the
+	 * split row saying to point it at the winner instead. Both rows were true of
+	 * what they measured, and following the first makes the second worse.
+	 *
+	 * The mirror of the law already written into {@see wire()}: never advise
+	 * editing the winner, and never advise a loser to climb the search it is
+	 * losing. The split row owns that search; the climb list must not.
+	 *
+	 * ⚠️ Keyed BOTH ways — by post id and by URL — because a snapshot can carry
+	 * the same page with and without an id, and a pair that fails to match is a
+	 * contradiction that quietly comes back.
+	 *
+	 * @param array $collisions {@see build()} rows.
+	 * @return array<string,bool> Lookup keys, {@see lost_key()}.
+	 */
+	public static function losing_pairs( array $collisions ) {
+		$out = array();
+		foreach ( $collisions as $collision ) {
+			$query = strtolower( trim( (string) $collision['query'] ) );
+			foreach ( (array) $collision['pages'] as $page ) {
+				if ( ! empty( $page['winner'] ) ) {
+					continue; // The page earning the click has nothing to answer for.
+				}
+				$id  = (int) ( isset( $page['page_id'] ) ? $page['page_id'] : 0 );
+				$url = (string) ( isset( $page['url'] ) ? $page['url'] : '' );
+				if ( $id > 0 ) {
+					$out[ self::lost_key( Opportunities::page_key( $id, '' ), $query ) ] = true;
+				}
+				if ( '' !== $url ) {
+					$out[ self::lost_key( Opportunities::page_key( 0, $url ), $query ) ] = true;
+				}
+			}
+		}
+		return $out;
+	}
+
+	/**
+	 * One lookup key for {@see losing_pairs()} — the page key a worklist groups
+	 * by, and the search as the engine reported it (case-folded, never stemmed,
+	 * the same rule the split detector itself follows).
+	 *
+	 * @param string $page_key {@see Opportunities::page_key()}.
+	 * @param string $query    The search.
+	 * @return string
+	 */
+	public static function lost_key( $page_key, $query ) {
+		return $page_key . "\n" . strtolower( trim( (string) $query ) );
+	}
+
+	/**
 	 * One split search, flattened for the wire — titles resolved the way the
 	 * opportunity cards resolve theirs, so both doors (the admin screen's REST
 	 * and the Findings report) tell the same story in the same words.

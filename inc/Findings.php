@@ -529,7 +529,11 @@ final class Findings {
 					__( '%d pages are splitting one search', 'agentimus' ),
 					$n
 				),
-				__( 'They all appear for the same search — none of them wins the click.', 'agentimus' ),
+				// ⛔ NOT "none of them wins the click" — the card this row opens
+				// crowns a winner, by clicks then position, and states the rule.
+				// A front door contradicting the screen behind it teaches an
+				// owner to trust neither.
+				__( 'The engine shows one of them at a time, so they take turns — and the weaker turns cost clicks.', 'agentimus' ),
 				array(
 					sprintf(
 						/* translators: 1: the search query, 2: formatted impression count, 3: formatted click count. */

@@ -365,7 +365,12 @@ final class Report {
 		$scoped     = self::in_check_scope( Table::snapshot( $state['source'] ) );
 		$rows       = $scoped['rows'];
 		$out['outOfScope'] = $scoped['dropped'];
-		$report     = Opportunities::build( $rows, $aside, $aside_urls );
+		// Built FIRST, and handed to the worklist: a search two of this site's
+		// pages are splitting belongs to the split row, so the weaker page must
+		// not also be listed as one push from page one for it. One pass, one
+		// verdict about who is winning, both sections reading it.
+		$collisions = Collisions::build( $rows, $aside, $aside_urls );
+		$report     = Opportunities::build( $rows, $aside, $aside_urls, $collisions );
 		$has_work = $report['counts']['opportunities'] > 0;
 
 		$out['state']          = $has_work ? 'ready' : ( $report['judged'] ? 'clear' : 'too_thin' );
@@ -401,7 +406,6 @@ final class Report {
 		// list, so a page parked on the Optimize ledger stops being counted
 		// against a search here too. The wire carries the heaviest few; the
 		// total says what was held back (no silent caps).
-		$collisions             = Collisions::build( $rows, $aside, $aside_urls );
 		$out['collisionsTotal'] = count( $collisions );
 		$out['collisions']      = array_map( array( Collisions::class, 'wire' ), array_slice( $collisions, 0, 5 ) );
 
