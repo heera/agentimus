@@ -461,6 +461,26 @@ body.admin-color-light {
    choice that belongs to a dark card, not to this one. */
 :root[data-ar-theme="dark"] body.admin-color-light .ar-today__score-n { color: var(--ar-good); }
 
+/* ⚠️ THREE MORE THE FAST SWEEP COULD NOT SEE. .ar-btn transitions its
+   background over 0.15s, and reading a computed style straight after flipping
+   the mode reads the value MID-FLIGHT — both reads landed on the same stale
+   colour and the pair looked equal. Re-measured with the transition allowed to
+   land, these came out:
+   · the nav tabs read one step fainter at night (--ar-ink-soft, not
+     --ar-ink-faint) — and that rule also outranks .is-active, so the tab you
+     are actually on lost its ink,
+   · the rail's links sit at 74% of the ink at night against 88% by day,
+   · and the fields take wp-admin's own border by day (it outranks .ar-input)
+     but ours at night. One border, ours, in both. */
+:root[data-ar-theme="dark"] body.admin-color-light .ar__tab { color: var(--ar-ink-faint); }
+:root[data-ar-theme="dark"] body.admin-color-light .ar__tab:hover { color: var(--ar-ink-soft); }
+:root[data-ar-theme="dark"] body.admin-color-light .ar__tab.is-active { color: var(--ar-ink); }
+:root[data-ar-theme="dark"] body.admin-color-light .ar__rail { --rail-read: 88%; }
+:root body.admin-color-light :is(#agentimus-app, .ar-modal, .ar-drawer)
+  :is(input:not([type="checkbox"]):not([type="radio"]):not([type="range"]), textarea, select) {
+  border-color: var(--ar-line-strong);
+}
+
 /* ⛔⛔ AND THE INK SURFACES WITH THEM — the buttons and the chips.
    These do not take their colour from the room, they take it from the SCHEME:
    inc/Admin.php paints --ar-ink onto .ar-btn / .ar-tags__chip / the rug from
@@ -477,8 +497,26 @@ body.admin-color-light {
    scheme already follows.
    ⛔ --ghost and --danger are left out: they paint themselves at night and are
    not ink surfaces. */
+/* ⭐⭐ THE INK SURFACES FOLLOW THE RUG. His rule, stated twice: the buttons wear
+   the same ground the score card wears, so when the rug turns to his charcoal
+   at night they turn with it — they are one family, and the mode moves the
+   family, not the card alone. The label inverts with the ground (11.6:1), and
+   hover takes the teal drawn FOR an ink ground: the day accent lands at 2.0:1
+   on #333333, which is no hover at all.
+   ⛔ The rail cards' 22px glyph tile is NOT in this list — his call, 2026-08-20,
+   shown as a black square he did not want. It is a mark on a card that stays
+   light in both modes, not a surface you press, so it keeps the day grey
+   throughout. Only the things you act on follow the rug. */
 :root[data-ar-theme="dark"] body.admin-color-light .ar-btn:not(.ar-btn--ghost):not(.ar-btn--danger),
-:root[data-ar-theme="dark"] body.admin-color-light .ar-tags__chip { --ar-ink: #e5e5e5; }
+:root[data-ar-theme="dark"] body.admin-color-light .ar-tags__chip {
+  --ar-ink: #333333;
+  background: #333333;
+  border-color: #333333;
+  color: #f5f5f5;
+}
+:root[data-ar-theme="dark"] body.admin-color-light .ar-btn:not(.ar-btn--ghost):not(.ar-btn--danger):hover:not(:disabled) {
+  background: #333333; color: var(--ar-teal-on-ink);
+}
 
 /* ⭐ AND THE INK SURFACES THEMSELVES, IN BOTH MODES. app.css writes every one
    of them in --ar-paper, which assumes the ink is DARK — true of all eight
@@ -519,6 +557,15 @@ body.admin-color-light {
    grey its label would be #e5e5e5 on white. It keeps the dark it always had,
    in both modes. */
 :root body.admin-color-light .ar-btn--ghost { --ar-ink: #333333; }
+/* ⚠️ And it is FILLED at night by the generic .ar-btn repaint, which outranks
+   .ar-btn--ghost — #f1f1f1 here against a transparent button by day, on a card
+   that never darkened. Hover likewise dives to a dark slate. Both restated. */
+:root[data-ar-theme="dark"] body.admin-color-light .ar-btn--ghost {
+  background: transparent; border-color: var(--ar-line-strong);
+}
+:root[data-ar-theme="dark"] body.admin-color-light .ar-btn--ghost:hover:not(:disabled) {
+  background: var(--ar-paper); border-color: var(--ar-line-strong); box-shadow: none;
+}
 
 /* His pick, 2026-08-20: the little glyph tile on the rail cards takes the same
    treatment as the buttons and chips — the scheme's own grey with a dark mark,
