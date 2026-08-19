@@ -302,7 +302,7 @@ body.admin-color-light {
   --ar-paper: #f5f5f5;
   --ar-surface: #fbfbfb;
   --ar-surface-2: #f1f1f1;
-  --ar-field: #f4f4f4;
+  --ar-field: #ffffff;  /* wp-admin paints fields white by day and outranks .ar-input; the night rule outranks wp-admin. Same white either way. */
   /* ⚠️ Measured against the PANEL, the darkest of the three grounds, because
      text sits on all of them. */
   --ar-ink: #1e1e1e;      /* 14.8:1 on a panel · 16.1:1 on a card */
@@ -322,7 +322,7 @@ body.admin-color-light {
   --ar-paper: #f5f5f5;
   --ar-surface: #fbfbfb;
   --ar-surface-2: #f1f1f1;
-  --ar-field: #f4f4f4;
+  --ar-field: #ffffff;  /* wp-admin paints fields white by day and outranks .ar-input; the night rule outranks wp-admin. Same white either way. */
   --ar-ink: #1e1e1e;
   --ar-ink-soft: #5a5a5a;
   --ar-ink-faint: #6f6f6f;
@@ -342,6 +342,49 @@ body.admin-color-light {
   --ar-chrome: #146b64;
   --ar-chrome-bright: #146b64;
   --ar-chrome-line: var(--ar-line);
+
+  /* ⛔⛔ AND EVERY STATE COLOUR WITH THEM — the leak he found, and the one that
+     shows how far this goes. The night palette redeclares 43 tokens; this
+     scheme adopts none of its grounds, so 29 of them stayed night values in a
+     room that is still the day's. His case: the "last time's numbers" strip
+     paints from --ar-warn-wash, which at night is a wash mixed FOR a dark
+     ground, so a cream notice came out charcoal on a white card. The same was
+     true of every good/warn/bad/info wash, tint and deep on the screen.
+     ⭐ These are the day's own values, lifted from :root — restated rather than
+     inherited, because a plain body class cannot outrank :root[data-ar-theme].
+     ⚠️ Keep them generated from that block if it ever moves; a hand-copied
+     palette is a palette that drifts.
+     ⛔ Not in this list, deliberately: the grounds, inks, lines and the note
+     gold above, which this scheme sets for itself. */
+  --ar-accent: #146b64;
+  --ar-good: #2f7a4c;
+  --ar-warn: #ad7b18;
+  --ar-bad: #b93c2b;
+  --ar-info: #2f5f9e;
+  --ar-hover: color-mix(in srgb, #8bc34a 22%, transparent);
+  --ar-good-wash: #eef5f0;
+  --ar-good-tint: #bcdcc6;
+  --ar-good-strong: #2f9e5e;
+  --ar-good-deep: #1d7a45;
+  --ar-warn-wash: #f7f1df;
+  --ar-warn-tint: #e6d5a8;
+  --ar-warn-deep: #96690f;
+  --ar-bad-wash: #f8ebe8;
+  --ar-bad-tint: #e6c1b9;
+  --ar-bad-strong: #c0392b;
+  --ar-bad-deep: #8c2f22;
+  --ar-info-wash: #e9eff7;
+  --ar-info-tint: #c3d2e6;
+  --ar-info-strong: #3a6ea5;
+  --ar-info-deep: #2c5680;
+  --ar-accent-wash: #f0f6f4;
+  --ar-accent-soft: #e3efec;
+  --ar-teal-on-ink: #57b6a6;
+  --ar-teal-on-ink-hover: #6fc7b8;
+  --ar-on-signal: #fff;
+  --ar-ink-hard: #000;
+  --ar-shade: #1b1913;
+  --ar-skel-sheen: rgba(255, 255, 255, 0.45);
 }
 /* ⭐ "Keep everything the same" reaches the rail itself. Two night rules paint
    every rail card from the chrome — the section labels and the card borders —
@@ -355,13 +398,22 @@ body.admin-color-light {
    it does on every other scheme by day — and that hands its colours back their
    proper ground: --ar-good-on-ink (5.7:1 here) and --ar-warn-on-ink (6.6:1)
    were drawn for a dark card, with none of the compromise the daytime rug
-   forces at #6e6e6e, where nothing coloured can reach 4.5 in either direction. */
+   forces on a mid-grey ground, where nothing coloured can reach 4.5 in
+   either direction. */
 :root[data-ar-theme="dark"] body.admin-color-light .ar-rail-card.ar-rail-card--readiness {
   background: #333333;   /* his value — the charcoal, not a true black */
   border-color: #333333;
   --rail-face: #f2f2f2;  /* 11.7:1 on the charcoal — the veils below all clear the floor */
   --rail-read: 76%;      /* the light theme's own reading for an inverted card */
   --rail-good: #5cc08a;
+  /* ⛔ AND THE CHROME WITH THEM. The band word ("Excellent") and the settled
+     rungs do not read --rail-good — app.css gives them --ar-chrome at night,
+     which this scheme re-keyed to its day teal for the rail labels standing on
+     WHITE cards. On the charcoal that same teal lands at 2.0:1 and the word
+     all but disappears. --ar-teal-on-ink is the palette's own teal for exactly
+     this ground: 5.3:1, and re-keyed inside the card so the white cards keep
+     theirs. */
+  --ar-chrome: var(--ar-teal-on-ink);
 }
 /* ⛔ The night rule for rail labels names --ar-chrome and outranks the card's
    own --rail-good, so the kicker is said again here — otherwise the one green
@@ -377,50 +429,113 @@ body.admin-color-light {
 :root[data-ar-theme="dark"] body.admin-color-light .ar-about-snippet {
   background: #f2f2f2; color: var(--ar-ink-soft);
 }
+/* ⛔⛔ AND THE ROOM ITSELF IS STILL A LIGHT ROOM. app.css tells the browser
+   color-scheme:dark at night, which is right everywhere else and wrong here:
+   it flips every browser-DRAWN default under a ground that never darkened.
+   The visible cost was on Discovery — a <button> that sets no colour of its own
+   let the UA pick, so its big number came out WHITE on a near-white tile. Also
+   select arrows, scrollbars, focus rings. */
+:root[data-ar-theme="dark"] body.admin-color-light #agentimus-app,
+:root[data-ar-theme="dark"] body.admin-color-light .ar-modal,
 :root[data-ar-theme="dark"] body.admin-color-light .ar-drawer { color-scheme: light; }
 
-/* ---- Light — the readiness rug, and everything standing on it -------------
-   His pick, 2026-08-19: the score card's ground goes to #6e6e6e on this scheme
-   — a mid grey where every other scheme inks it near-black.
-
-   ⚠️⚠️ THAT MOVES THE FLOOR UNDER EVERY COLOUR ON THE CARD, and the values it
-   inherits were tuned for near-black. Measured on #6e6e6e before touching
-   anything: the rung text landed at 3.05:1, the score number at 2.83:1, and
-   the green at 1.03:1 — a dark sage on a mid grey is very nearly the same
-   luminance, which is exactly why it looked washed out. Nothing was broken;
-   the card simply moved and its palette did not.
-
-   ⭐ So the face goes white and the veils lift, and the colour moves to where
-   colour can still be seen: the ring, the dots and the band word are graphics
-   and large type, which read at 3:1, while every small line takes a near-white
-   tint of its colour instead. ⛔ A green that clears 4.5:1 on this ground is
-   #e8f4e9 — 94% white, and no longer green. On a mid grey you can have the
-   colour or the contrast in small type, not both.
-   -------------------------------------------------------------------------- */
-:root:not([data-ar-theme="dark"]) body.admin-color-light .ar-rail-card.ar-rail-card--readiness {
-  --ar-ink: #6e6e6e;      /* the rug */
-  --rail-face: #ffffff;   /* white, so the veils below still clear the floor */
-  --rail-read: 92%;       /* 4.6:1 for the rung names and counts */
-  --rail-good: #a3d3a9;   /* 3.0:1 — the ring, the dots, the band word */
+/* ⛔ The last three night recipes that assume a dark room, handed back the
+   day's own — found by diffing every painted element against itself in the
+   other mode, screen by screen, not by looking:
+   · the Worth-knowing note (night casts it from --ar-note-gold at 8%/55%, day
+     from --ar-note-glow at 8%/85% — same tokens here, different recipe),
+   · the danger button (night gives it the on-ink salmon, for a dark ground),
+   · the hairlines between rows in the six big cards (night warms them). */
+:root[data-ar-theme="dark"] body.admin-color-light .ar-aud__note {
+  --ar-note: color-mix(in srgb, var(--ar-note-glow) 8%, var(--ar-surface-2));
+  border-color: color-mix(in srgb, var(--ar-note-glow) 85%, var(--ar-line));
 }
-/* The headline takes the full face (5.1:1) instead of the near-black card's
-   70% veil, and the strap line follows it up. */
-:root:not([data-ar-theme="dark"]) body.admin-color-light .ar-rail-card--readiness .ar-rail-gauge__num { color: var(--rail-face); }
-:root:not([data-ar-theme="dark"]) body.admin-color-light .ar-rail-card--readiness .ar-rail-card__gloss { color: color-mix(in srgb, var(--rail-face) 90%, transparent); }
-/* The two small coloured lines — the kicker and the one actionable count —
-   keep their hue as a tint rather than a colour, because at this depth a
-   readable green and a readable amber are both nearly white.
-   ⚠️ AND THERE IS NO WAY ROUND IT: #6e6e6e sits almost exactly mid-luminance
-   (0.153), so 4.5:1 downward needs near-black and upward needs near-white.
-   Measured both directions before settling for tints. A rug at #555555 would
-   let a real green (#a7d5ad) clear 4.5 with white text at 7.5:1 — his call,
-   one value.
-   ⭐ The kicker keeps a shade MORE green than the rest (3.9:1) on purpose: it
-   is an eyebrow whose words are repeated by the strap line beside it, so
-   colour is the only job it has, and at 4.2 it went white and the two halves
-   of that line read as one run. */
-:root:not([data-ar-theme="dark"]) body.admin-color-light .ar-rail-card--readiness .ar-rail-card__label { color: #cfe9d4; }
-:root:not([data-ar-theme="dark"]) body.admin-color-light .ar-rail-card--readiness .ar-rung__todo { color: #f0e0bb; }
+:root[data-ar-theme="dark"] body.admin-color-light .ar-btn--danger {
+  background: transparent; color: var(--ar-bad); border-color: var(--ar-bad);
+}
+:root[data-ar-theme="dark"] body.admin-color-light .ar-sys__rows li,
+:root[data-ar-theme="dark"] body.admin-color-light .ar-aud__rows li {
+  border-color: var(--ar-line);
+}
+/* And the Findings score, which at night drops its green for plain ink — a
+   choice that belongs to a dark card, not to this one. */
+:root[data-ar-theme="dark"] body.admin-color-light .ar-today__score-n { color: var(--ar-good); }
+
+/* ⛔⛔ AND THE INK SURFACES WITH THEM — the buttons and the chips.
+   These do not take their colour from the room, they take it from the SCHEME:
+   inc/Admin.php paints --ar-ink onto .ar-btn / .ar-tags__chip / the rug from
+   the curated map (#333333 here) — and guards that to light mode only, because
+   on every other scheme the night palette owns the whole token set and a
+   scheme ink would have put dark ink on dark buttons.
+   ⚠️ This scheme is the exception the guard did not foresee: it keeps the day's
+   palette at night, so the guard drops the charcoal and app.css's night rule
+   repaints the button from --ar-surface-2 — a raised charcoal in the night
+   palette, but #f1f1f1 here — with a label from --ar-ink, light there and
+   #1e1e1e here. The result was a pale button carrying a pale-ground label.
+   ⭐ His pick, 2026-08-20, as a dev-tools edit of the readiness actions: the
+   same charcoal button in both modes, 11.6:1 — which is the law the whole
+   scheme already follows.
+   ⛔ --ghost and --danger are left out: they paint themselves at night and are
+   not ink surfaces. */
+:root[data-ar-theme="dark"] body.admin-color-light .ar-btn:not(.ar-btn--ghost):not(.ar-btn--danger),
+:root[data-ar-theme="dark"] body.admin-color-light .ar-tags__chip {
+  background: #333333; color: #f5f5f5; border-color: #333333;
+}
+:root[data-ar-theme="dark"] body.admin-color-light .ar-btn:not(.ar-btn--ghost):not(.ar-btn--danger):hover:not(:disabled) {
+  background: #1e1e1e; border-color: #1e1e1e; box-shadow: none;
+}
+/* ⚠️ AND THE BRAND TILE, WHICH IS THE SAME KIND OF SURFACE. app.css paints it
+   from --ar-ink with the A cut out in --ar-paper, and at night flips both — so
+   on this scheme the header mark went from a near-black tile by day to a pale
+   one at night, the one piece of chrome that changed when the mode did.
+   ⭐ The day's own two lines, restated: this scheme's mode changes the rug and
+   nothing else. */
+:root[data-ar-theme="dark"] body.admin-color-light .ar__mark,
+:root[data-ar-theme="dark"] body.admin-color-light .ar-wiz__welcome-mark--brand {
+  background: var(--ar-ink); color: var(--ar-paper);
+}
+:root[data-ar-theme="dark"] body.admin-color-light .ar__logo-line { stroke: var(--ar-paper); }
+/* The last two the mode still moved, found by diffing every painted element on
+   the screen against itself in the other mode rather than by looking:
+   the source picker's ON pill (an ink pill by day, the accent at night) and the
+   ghost button's label, which by day reads the SCHEME ink #333333 that Admin.php
+   scopes to .ar-btn and at night fell back to the body's own ink. */
+:root[data-ar-theme="dark"] body.admin-color-light .ar-srcpick__btn.is-on {
+  background: var(--ar-ink); color: var(--ar-paper);
+}
+:root[data-ar-theme="dark"] body.admin-color-light .ar-btn--ghost { --ar-ink: #333333; }
+
+/* ---- Light — the readiness rug -------------------------------------------
+   His pick, 2026-08-20, given as the two rugs side by side: by day a light
+   slab, by night his charcoal. That settles a compromise this block used to
+   spend forty lines apologising for. The rug was #6e6e6e — a MID grey, and mid
+   grey is the one ground where colour cannot be seen at all: 4.5:1 downward
+   wants near-black, upward wants near-white, so the green and the amber both
+   went out as near-white tints (#cfe9d4, #f0e0bb) and stopped being green and
+   amber. The card was never broken; it had simply moved and its palette had
+   not followed.
+
+   ⭐ On #e8e8e8 they are just themselves again: the ring, the band word and
+   the kicker take the scheme's own teal at 5.2:1, the one actionable count
+   takes a real gold at 4.5:1, and every veil the card already draws — the
+   score number at 70%, the strap line, the ring's track — lands where it was
+   designed to land. Nothing here overrides a child rule any more.
+
+   ⛔ The *-on-ink colours are re-keyed here and ONLY here. Their names state
+   the assumption they were drawn under, and on this one scheme by day that
+   assumption is false: this is the single card in the app whose ground flips
+   with the mode, so it is the single place they can be wrong. */
+:root:not([data-ar-theme="dark"]) body.admin-color-light .ar-rail-card.ar-rail-card--readiness {
+  background: #e5e5e5;        /* his value — a step under the cards, not white */
+  border-color: #e5e5e5;
+  --rail-face: #1e1e1e;       /* 13.2:1 — the scheme's ink is now the rug's too */
+  --rail-read: 82%;           /* 7.6:1 for the rung names and their counts */
+  --rail-good: #146b64;       /* 5.0:1 — ring, dots, band word, kicker */
+  --ar-warn-on-ink: #856010;  /* 4.5:1 — "119 to fix" is small type, so it earns the floor */
+  --ar-bad-on-ink: #b23928;   /* 4.6:1 */
+  --ar-teal-on-ink: #146b64;  /* the card's links, on a light ground now */
+  --ar-teal-on-ink-hover: #0f544f;
+}
 
 /* ---- Fresh & Midnight — the Worth-knowing card's gold (his picks
    2026-08-12): a grey-warmed sand against their cool charcoal and slate,

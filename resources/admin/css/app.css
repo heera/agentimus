@@ -233,6 +233,35 @@
   --ar-shade: #000;
   --ar-skel-sheen: rgba(255, 255, 255, 0.05);
 }
+/* ⛔⛔ AND THESE SAME TOKENS AGAIN, MIXED ONE LEVEL DOWN.
+   Every value above is a plain colour except the handful repeated here, which
+   are DERIVED — a state colour mixed into var(--ar-surface), the ground. A
+   derived custom property resolves where it is DECLARED, so declared on :root
+   they all mix into the ROOT's ground, and a scheme dialect that re-keys the
+   ground on <body> (schemes.css: blue, ectoplasm, ocean, sunrise, light) never
+   reaches them. Every wash and tint on those five was therefore mixed into the
+   DEFAULT night surface and floated a shade off the card it was painting.
+   ⭐ Restating them on <body> costs nothing and fixes all five at once: same
+   formulas, resolved against whatever ground is actually in force. A dialect
+   that wants its own value still outranks this (it carries a class).
+   ⚠️ Keep this list in step with the block above — anything up there written as
+   a mix of another token belongs down here too. */
+:root[data-ar-theme="dark"] body {
+  --ar-good: var(--ar-accent);
+  --ar-chrome: var(--ar-accent);
+  --ar-chrome-line: color-mix(in srgb, #8ab685 24%, var(--ar-line));
+  --ar-good-wash: color-mix(in srgb, var(--ar-good) 10%, var(--ar-surface));
+  --ar-good-tint: color-mix(in srgb, var(--ar-good) 26%, var(--ar-surface));
+  --ar-warn-wash: color-mix(in srgb, var(--ar-warn) 10%, var(--ar-surface));
+  --ar-warn-tint: color-mix(in srgb, var(--ar-warn) 26%, var(--ar-surface));
+  --ar-bad-wash: color-mix(in srgb, var(--ar-bad) 10%, var(--ar-surface));
+  --ar-bad-tint: color-mix(in srgb, var(--ar-bad) 26%, var(--ar-surface));
+  --ar-info-wash: color-mix(in srgb, var(--ar-info) 10%, var(--ar-surface));
+  --ar-info-tint: color-mix(in srgb, var(--ar-info) 26%, var(--ar-surface));
+  --ar-accent-wash: color-mix(in srgb, var(--ar-accent) 12%, var(--ar-surface));
+  --ar-accent-soft: color-mix(in srgb, var(--ar-accent) 20%, var(--ar-surface));
+}
+
 /* ---- Teleported surfaces re-ink themselves -----------------------------
    Every dialog, drawer and toast is <Teleport to="body">, because a modal
    rendered inside a panel is clipped by its ancestors' overflow. The cost is
@@ -2112,6 +2141,19 @@
   padding: 14px 16px; border: 1px solid var(--ar-line); border-left-width: 3px;
   border-radius: 4px; background: var(--ar-surface-2);
 }
+/* ⚠️ HIS CATCH, 2026-08-20: stacked straight into a card body, these blocks
+   land FLUSH. They carry no flow spacing of their own because they were written
+   for parents that supply it — .ar-edge-pins is a grid with gap:12px — and Bing's
+   index card stacks three of them as plain siblings: the AI-search pin, the
+   connection rail, the numbers. Two blocks sharing a ground and touching read as
+   one block, which is what "congested" is.
+   ⛔ Scoped to the ADJACENCY, never to the blocks themselves: a margin on
+   .ar-mcp-rail would double against every parent that already spaces it. */
+.ar-edge-pin + .ar-mcp-rail,
+.ar-edge-pin + .ar-wd-stats,
+.ar-edge-pin + .ar-wd-empty,
+.ar-mcp-rail + .ar-wd-stats,
+.ar-mcp-rail + .ar-wd-empty { margin-top: 12px; }
 .ar-edge-pin--warn { border-left-color: var(--ar-warn); }
 .ar-edge-pin--info { border-left-color: var(--ar-info); }
 .ar-edge-pin__badge {
@@ -7922,13 +7964,16 @@ a.ar-work__name { color: var(--ar-accent); }
    keeps them in the palette while marking them as things you press. Hex first
    for browsers without color-mix; the mix refines it where supported.
    --------------------------------------------------------------------------- */
-:root {
+/* ⛔ On <body>, not :root — these mix the accent into the line colour, and a
+   scheme dialect re-keys both on the body. Declared at :root they would freeze
+   against the default palette and the pills would wear another scheme's edge. */
+body {
   --ar-line-control: color-mix(in srgb, var(--ar-accent) 28%, var(--ar-line));        /* accent 28% into --ar-line */
   --ar-line-control-strong: color-mix(in srgb, var(--ar-accent) 48%, var(--ar-line)); /* accent 48%, for hover */
   --ar-line-control-soft: color-mix(in srgb, var(--ar-accent) 18%, var(--ar-line));   /* accent 18%, for a resting bell */
 }
 @supports (color: color-mix(in srgb, red, blue)) {
-  :root {
+  body {
     --ar-line-control: color-mix(in srgb, var(--ar-accent) 28%, var(--ar-line));
     --ar-line-control-strong: color-mix(in srgb, var(--ar-accent) 48%, var(--ar-line));
     --ar-line-control-soft: color-mix(in srgb, var(--ar-accent) 18%, var(--ar-line));
