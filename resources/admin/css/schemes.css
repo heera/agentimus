@@ -329,6 +329,49 @@ body.admin-color-light {
 }
 :root[data-ar-theme="dark"] body.admin-color-light .ar-drawer { color-scheme: light; }
 
+/* ---- Light — the readiness rug, and everything standing on it -------------
+   His pick, 2026-08-19: the score card's ground goes to #6e6e6e on this scheme
+   — a mid grey where every other scheme inks it near-black.
+
+   ⚠️⚠️ THAT MOVES THE FLOOR UNDER EVERY COLOUR ON THE CARD, and the values it
+   inherits were tuned for near-black. Measured on #6e6e6e before touching
+   anything: the rung text landed at 3.05:1, the score number at 2.83:1, and
+   the green at 1.03:1 — a dark sage on a mid grey is very nearly the same
+   luminance, which is exactly why it looked washed out. Nothing was broken;
+   the card simply moved and its palette did not.
+
+   ⭐ So the face goes white and the veils lift, and the colour moves to where
+   colour can still be seen: the ring, the dots and the band word are graphics
+   and large type, which read at 3:1, while every small line takes a near-white
+   tint of its colour instead. ⛔ A green that clears 4.5:1 on this ground is
+   #e8f4e9 — 94% white, and no longer green. On a mid grey you can have the
+   colour or the contrast in small type, not both.
+   -------------------------------------------------------------------------- */
+:root:not([data-ar-theme="dark"]) body.admin-color-light .ar-rail-card.ar-rail-card--readiness {
+  --ar-ink: #6e6e6e;      /* the rug */
+  --rail-face: #ffffff;   /* white, so the veils below still clear the floor */
+  --rail-read: 92%;       /* 4.6:1 for the rung names and counts */
+  --rail-good: #a3d3a9;   /* 3.0:1 — the ring, the dots, the band word */
+}
+/* The headline takes the full face (5.1:1) instead of the near-black card's
+   70% veil, and the strap line follows it up. */
+:root:not([data-ar-theme="dark"]) body.admin-color-light .ar-rail-card--readiness .ar-rail-gauge__num { color: var(--rail-face); }
+:root:not([data-ar-theme="dark"]) body.admin-color-light .ar-rail-card--readiness .ar-rail-card__gloss { color: color-mix(in srgb, var(--rail-face) 90%, transparent); }
+/* The two small coloured lines — the kicker and the one actionable count —
+   keep their hue as a tint rather than a colour, because at this depth a
+   readable green and a readable amber are both nearly white.
+   ⚠️ AND THERE IS NO WAY ROUND IT: #6e6e6e sits almost exactly mid-luminance
+   (0.153), so 4.5:1 downward needs near-black and upward needs near-white.
+   Measured both directions before settling for tints. A rug at #555555 would
+   let a real green (#a7d5ad) clear 4.5 with white text at 7.5:1 — his call,
+   one value.
+   ⭐ The kicker keeps a shade MORE green than the rest (3.9:1) on purpose: it
+   is an eyebrow whose words are repeated by the strap line beside it, so
+   colour is the only job it has, and at 4.2 it went white and the two halves
+   of that line read as one run. */
+:root:not([data-ar-theme="dark"]) body.admin-color-light .ar-rail-card--readiness .ar-rail-card__label { color: #cfe9d4; }
+:root:not([data-ar-theme="dark"]) body.admin-color-light .ar-rail-card--readiness .ar-rung__todo { color: #f0e0bb; }
+
 /* ---- Fresh & Midnight — the Worth-knowing card's gold (his picks
    2026-08-12): a grey-warmed sand against their cool charcoal and slate,
    where the base #c2a157 ran too brassy. Fresh keeps the base dark for
