@@ -293,33 +293,83 @@
    and light text on it is unreadable at any weight.
    -------------------------------------------------------------------------- */
 body.admin-color-light {
-  --ar-paper: #e5e5e5;   /* wp-admin's own Light body — one continuous canvas. */
-  --ar-surface: #fbfbfb; /* the card, lifted: +18 luminance points. */
-  --ar-surface-2: #f1f1f1;
-  --ar-field: #f4f4f4;   /* a hair under the card, so an input reads as a well. */
-  --ar-ink: #1e1e1e;      /* 16.1:1 on the card. */
-  --ar-ink-soft: #5a5a5a; /*  6.7:1 */
-  --ar-ink-faint: #737373;/*  4.6:1 — the quietest label still clears the floor. */
-  --ar-line: #dedede;
-  --ar-line-strong: #c9c9c9;
-}
-/* Dark mode on the Light scheme: the same room with the lights left on, and
-   only the ink steps down. */
-:root[data-ar-theme="dark"] body.admin-color-light {
-  --ar-paper: #e5e5e5;
+  /* ⚠️ HIS THIRD ROUND, and the values are sampled from the screen he pointed
+     at rather than chosen: page #f5f5f5, card #fbfbfb, panel #f1f1f1, borders
+     #e4e4e4. My second round dropped the desk to #d9d9d9 for 27 luminance
+     points of lift; he wanted the opposite — 5 points, where a card is a sheet
+     laid on paper of nearly the same shade and the border does the separating.
+     ⛔ Do not "restore contrast" here: the near-flat ground IS the choice. */
+  --ar-paper: #f5f5f5;
   --ar-surface: #fbfbfb;
   --ar-surface-2: #f1f1f1;
   --ar-field: #f4f4f4;
-  --ar-ink: #101010;      /* 18.4:1 */
-  --ar-ink-soft: #474747; /*  9.0:1 */
-  --ar-ink-faint: #666666;/*  5.5:1 */
-  --ar-line: #d6d6d6;
-  --ar-line-strong: #bfbfbf;
+  /* ⚠️ Measured against the PANEL, the darkest of the three grounds, because
+     text sits on all of them. */
+  --ar-ink: #1e1e1e;      /* 14.8:1 on a panel · 16.1:1 on a card */
+  --ar-ink-soft: #5a5a5a; /*  6.1:1 · 6.7:1 */
+  --ar-ink-faint: #6f6f6f;/*  4.5:1 · 4.9:1 — the floor, held on the worst ground */
+  --ar-line: #e4e4e4;
+  --ar-line-strong: #d2d2d2;
+}
+/* Dark mode on the Light scheme: THE SAME ROOM, UNCHANGED — his call,
+   2026-08-19, and it replaced an earlier one. The ink used to step down a
+   shade here so the toggle did something; he asked for the palette to be
+   identical and the score card to be the only thing that moves. So every
+   value below is the day's, restated — ⛔ not inherited, because the base dark
+   palette at :root outranks a plain body class and would otherwise take the
+   grounds back. */
+:root[data-ar-theme="dark"] body.admin-color-light {
+  --ar-paper: #f5f5f5;
+  --ar-surface: #fbfbfb;
+  --ar-surface-2: #f1f1f1;
+  --ar-field: #f4f4f4;
+  --ar-ink: #1e1e1e;
+  --ar-ink-soft: #5a5a5a;
+  --ar-ink-faint: #6f6f6f;
+  --ar-line: #e4e4e4;
+  --ar-line-strong: #d2d2d2;
   /* ⛔ The dark palette's gold is picked for a dark ground; on a near-white
      card it washes out. The light palette's own gold takes over with it. */
   --ar-note-gold: var(--ar-warn-deep);
   --ar-note-glow: #ebc98a;
+  /* ⛔ AND THE RAIL'S IDENTITY, which is declared at :root for the night and so
+     arrives from a palette this scheme never adopted — a green (#8ab685) drawn
+     for a charcoal card, landing at 2.2:1 on a white one.
+     ⚠️⚠️ NAMED AS A LITERAL, not as var(--ar-accent): the accent token is
+     itself redeclared by the dark palette at :root, so pointing at it here
+     fetched the night green straight back — the bug this line exists to fix,
+     wearing the fix's own clothes. */
+  --ar-chrome: #146b64;
+  --ar-chrome-bright: #146b64;
+  --ar-chrome-line: var(--ar-line);
 }
+/* ⭐ "Keep everything the same" reaches the rail itself. Two night rules paint
+   every rail card from the chrome — the section labels and the card borders —
+   and on this scheme the day's answer is a quiet grey label and a plain line.
+   ⛔ The readiness card is not included: its own rule below is one class more
+   specific, which is what leaves the rug the only thing that moves. */
+:root[data-ar-theme="dark"] body.admin-color-light .ar-rail-card { border-color: var(--ar-line); }
+:root[data-ar-theme="dark"] body.admin-color-light .ar-rail-card__label { color: var(--ar-ink-faint); }
+/* ⭐ THE ONE THING THAT CHANGES AT NIGHT ON THIS SCHEME: the rug. Everything
+   else above is the day's, restated. The card inverts to his charcoal, the way
+   it does on every other scheme by day — and that hands its colours back their
+   proper ground: --ar-good-on-ink (5.7:1 here) and --ar-warn-on-ink (6.6:1)
+   were drawn for a dark card, with none of the compromise the daytime rug
+   forces at #6e6e6e, where nothing coloured can reach 4.5 in either direction. */
+:root[data-ar-theme="dark"] body.admin-color-light .ar-rail-card.ar-rail-card--readiness {
+  background: #333333;   /* his value — the charcoal, not a true black */
+  border-color: #333333;
+  --rail-face: #f2f2f2;  /* 11.7:1 on the charcoal — the veils below all clear the floor */
+  --rail-read: 76%;      /* the light theme's own reading for an inverted card */
+  --rail-good: #5cc08a;
+}
+/* ⛔ The night rule for rail labels names --ar-chrome and outranks the card's
+   own --rail-good, so the kicker is said again here — otherwise the one green
+   on a black card would come from the base dark palette, which this scheme
+   never adopted. */
+:root[data-ar-theme="dark"] body.admin-color-light .ar-rail-card--readiness .ar-rail-card__label { color: #5cc08a; }
+:root[data-ar-theme="dark"] body.admin-color-light .ar-rail-card--readiness .ar-rung__todo { color: #e0b24c; }
+
 /* ⛔ THE HARD COLOURS DARK MODE PAINTS. Everything else the app draws comes
    from the tokens above and re-derives on its own, but these are literals in
    app.css — a near-black snippet and a dark form-control key — and a light
