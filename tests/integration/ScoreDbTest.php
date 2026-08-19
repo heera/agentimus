@@ -315,6 +315,30 @@ final class ScoreDbTest extends DbTestCase {
 		$this->assertLessThanOrEqual( (int) $r['graded'], (int) $r['flagged'], 'It can never exceed what was read.' );
 	}
 
+	/**
+	 * HIS QUESTION, 2026-08-19, and it was a fair one: he fixed the featured
+	 * image this card asked about, watched the page leave Readiness, and found
+	 * it still listed as worth fixing next door — for a search problem he had
+	 * not touched. Nothing was broken: this card lists CONTENT issues, and a
+	 * page whose only problem is that its words do not answer its search has
+	 * none, so it is simply absent. What was broken is that the card never said
+	 * so, and used the front door's exact phrase for a smaller number.
+	 */
+	public function test_the_card_can_name_the_pages_it_is_not_showing() {
+		wp_set_current_user( self::factory()->user->create( array( 'role' => 'administrator' ) ) );
+		$this->post( 'Thin', 'Too short.' ); // A content issue: this card's business.
+		$this->regrade();
+
+		$r = ( new Score( new Settings() ) )->report();
+
+		$this->assertArrayHasKey( 'unanswered', $r, 'Without it the card cannot admit what it leaves out.' );
+		$this->assertSame( 0, (int) $r['unanswered'], 'No search data here, so nothing is in that half.' );
+		// ⛔ And it is never folded into the count this card DOES show — two
+		// measurements over two populations added together is a third number
+		// that reconciles with neither.
+		$this->assertGreaterThan( 0, (int) $r['flagged'] );
+	}
+
 	public function test_empty_and_structural_pages_are_excluded_from_grading() {
 		// An empty page — theme-rendered front page, a page-builder/form page, a
 		// placeholder: 0 extractable words, so not an article to grade.

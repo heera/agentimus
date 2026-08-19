@@ -163,6 +163,11 @@ final class Score {
 			// ⛔ Not derivable from `content`: the groups overlap, so their sum
 			// counts a page once per issue and their maximum counts it once.
 			'flagged'    => (int) ( isset( $optimize['flagged'] ) ? $optimize['flagged'] : 0 ),
+			// How many pages are worth fixing for a reason this card cannot show
+			// {@see compute_optimize()}. ⛔ Never added to `flagged`: they are
+			// different measurements over different populations, and adding them
+			// would invent a third number nobody could reconcile with either.
+			'unanswered' => (int) ( isset( $optimize['unanswered'] ) ? $optimize['unanswered'] : 0 ),
 			// ⚠️ How many published pages the sweep has NOT read yet. Without it a
 			// screen cannot tell "every page is clean" from "we have only looked
 			// at some of them" — and now that `graded` counts the whole site
@@ -460,7 +465,7 @@ final class Score {
 		$off   = empty( Content::check_post_types() );
 		$types = $off ? Gradeability::last_known_post_types() : Gradeability::post_types();
 		if ( empty( $types ) ) {
-			return array( 'score' => null, 'posts' => 0, 'flagged' => 0, 'issues' => array(), 'grading' => 0, 'rechecking' => 0, 'pending' => array() );
+			return array( 'score' => null, 'posts' => 0, 'flagged' => 0, 'unanswered' => 0, 'issues' => array(), 'grading' => 0, 'rechecking' => 0, 'pending' => array() );
 		}
 
 		// ⚠️ Read in the SAME breath as the grades themselves, and cached with
@@ -491,7 +496,7 @@ final class Score {
 
 		$read = Grades::optimize( $types, $this->ignored_ids(), self::WORKLIST_POSTS_PER_ISSUE );
 		if ( $read['posts'] < 1 ) {
-			return array( 'score' => null, 'posts' => 0, 'flagged' => 0, 'issues' => array(), 'grading' => $outstanding, 'rechecking' => $rechecking, 'pending' => array() );
+			return array( 'score' => null, 'posts' => 0, 'flagged' => 0, 'unanswered' => 0, 'issues' => array(), 'grading' => $outstanding, 'rechecking' => $rechecking, 'pending' => array() );
 		}
 
 		$issues = array();
@@ -516,6 +521,16 @@ final class Score {
 		return array(
 			'score'      => $read['score'],
 			'posts'      => (int) $read['posts'],
+			// ⭐⭐ THE PAGES THIS CARD DOES NOT SPEAK FOR. It lists content
+			// issues; a page whose only problem is that its words do not answer
+			// the search it is found for has none, so it is not here at all —
+			// and the owner who just fixed this card's complaint on such a page
+			// watched it vanish from Readiness while the front door still called
+			// it worth fixing. Both were right about what they measured; neither
+			// said which. This is the number that lets the card name the half it
+			// is not showing, and it comes from the SAME split the front door
+			// prints, over the same population.
+			'unanswered' => (int) Grades::fixable_split( Content::check_post_types(), $this->ignored_ids() )['unanswered'],
 			// ⚠️ Pages, not issues. The card names the biggest issue GROUP beside
 			// the graded total, and a group is not a page count — one page can
 			// carry three. Read in the same breath as `posts`, from the same

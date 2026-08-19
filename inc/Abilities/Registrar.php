@@ -2772,6 +2772,7 @@ final class Registrar {
 					)
 				),
 				'graded'     => self::i( 'How many published items the citability grade covers. Which CONTENT TYPES those are is in `scope.graded` — never assume posts and pages; a site can grade Pages and Docs, or have switched Posts off entirely. The WHOLE site, not a sample — it was the 25 most recently edited until 1.37.0.' ),
+				'unanswered' => self::i( 'How many published pages are worth fixing for a reason `content` CANNOT show — their words do not answer the search they are found for, which is not a content check and so appears in no group above. ⛔ Never add this to `flagged`: different measurements over different populations. read-content-issues lists these rows (an empty `issues` with a `coverage` of "barely" or "missing").' ),
 				'cron'       => self::obj(
 					array(
 						'lastRun' => self::i( 'Unix time when WordPress’s own scheduled-job pass last reached this plugin. 0 = never seen.' ),

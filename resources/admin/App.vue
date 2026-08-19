@@ -2274,6 +2274,7 @@ export default {
           :optimize-ignored="optimizeIgnored"
           :optimize-graded="(aeo && aeo.graded) || 0"
           :optimize-flagged="(aeo && aeo.flagged) || 0"
+          :optimize-unanswered="(aeo && aeo.unanswered) || 0"
           :cron="(aeo && aeo.cron) || null"
           :optimize-grading="(aeo && aeo.grading) || 0"
           :optimize-rechecking="(aeo && aeo.rechecking) || 0"

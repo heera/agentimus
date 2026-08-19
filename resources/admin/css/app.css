@@ -4139,6 +4139,12 @@ html { scrollbar-gutter: stable; }
 }
 .ar-optcheck__go .ar-optcheck__all { margin-left: auto; }
 
+/* The half the Optimize card cannot show. Quiet — it is a signpost, not a
+   warning — and it sits directly under the sentence whose scope it completes. */
+.ar-optsum__elsewhere {
+  margin: 6px 0 0; font-size: 12.5px; line-height: 1.5; color: var(--ar-ink-faint);
+}
+
 .ar-checkgroup__note {
   margin: 10px 0 0; padding: 8px 10px; border-radius: 6px;
   font-size: 12.5px; line-height: 1.45; color: var(--ar-ink-soft);

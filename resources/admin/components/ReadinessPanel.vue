@@ -18,6 +18,9 @@ export default {
     // groups on this card: they overlap, so their sum counts a page once per
     // issue and their largest counts it once. The store knows; this is it.
     optimizeFlagged: { type: Number, default: 0 },
+    // Pages worth fixing for something this card does not measure — their words
+    // do not answer the search they are found for.
+    optimizeUnanswered: { type: Number, default: 0 },
     // Whether this site's scheduled work is actually running. Every count on
     // this card is a promise that something in the background will move it.
     cron: { type: Object, default: null },
@@ -109,11 +112,17 @@ export default {
       // not sit fixed in the template. Caught in a screenshot, which is where
       // copy bugs finally become visible.
       const kindsPart = kinds === 1 ? `There's one kind of issue` : `There are ${kinds} kinds of issue`;
+      // ⛔ NOT "have something worth fixing". Those are the front door's words
+      // for a bigger number — every page needing an edit AND every page whose
+      // words do not answer its search — and this card counts only the first.
+      // One phrase over two different counts on two screens is how somebody
+      // fixes the thing this card asked for, watches the page leave, and finds
+      // it still listed as worth fixing next door. {@see notCountedHere}
       // ⚠️ "across your content", not "across your recent posts and pages". The
       // grade is read from the store now and covers every published article-like
       // page; the old wording described a 25-post recency sample and stayed on
       // screen after the measurement underneath it had stopped being one.
-      return `${kindsPart} across your content — ${scope} ${verb} something worth fixing. The most common is “${top.label}”.`;
+      return `${kindsPart} across your content — ${scope} ${verb} one of them. The most common is “${top.label}”.`;
     },
     // Said plainly, and only when it is true of this site.
     //
@@ -131,6 +140,18 @@ export default {
       // reason is that a cache hit never runs PHP, so nothing checks the queue.
       // Blaming the host for that would be a guess printed as a finding.
       return `Scheduled jobs haven’t run on this site for a while, so Agentimus is doing the reading itself while you’re signed in — ${pages} left.`;
+    },
+    // ⭐⭐ THE HALF THIS CARD CANNOT SHOW, said out loud and pointed at.
+    // A page whose only problem is that it does not answer its search has no
+    // content issue, so it is in none of the groups here — it is simply absent,
+    // which is exactly what it looks like from the outside: fixed. His words,
+    // 2026-08-19: "I didn't fix that search issue, so why doesn't Readiness
+    // show me?" It never did; it only ever showed content issues, and never
+    // said so.
+    notCountedHere() {
+      const n = Number(this.optimizeUnanswered || 0);
+      if (!n) return '';
+      return `${n} more ${n === 1 ? 'page is' : 'pages are'} worth fixing for a different reason — ${n === 1 ? 'its words do' : 'their words do'} not answer the search ${n === 1 ? 'it is' : 'they are'} found for. That is not a content check, so ${n === 1 ? 'it is' : 'they are'} on Your Content rather than here.`;
     },
     // The all-clear, and it has to be careful about WHAT it is clearing.
     //
@@ -646,6 +667,7 @@ export default {
            fuller screen, so all three read as one gesture. -->
       <div v-if="optimize.length" class="ar-optsum">
         <p class="ar-optsum__lead">{{ optimizeSummary }}</p>
+        <p v-if="notCountedHere" class="ar-optsum__elsewhere">{{ notCountedHere }}</p>
         <button type="button" class="ar-linkbtn" @click="$emit('navigate', { tab: 'findings', anchor: 'ar-work' })">
           Work through them page by page
           <svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 4l4 4-4 4" /></svg>
