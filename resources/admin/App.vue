@@ -324,10 +324,18 @@ export default {
     optimizeWork() {
       return (this.aeo && this.aeo.content) || [];
     },
-    // Total page-fixes across it (a page with two issues is two fixes) — the
-    // rung row's "N to fix" chip, since the Next line only names the top issue.
+    // ⛔⛔ HIS CATCH, 2026-08-20: the rug's "N to fix" chip. This SUMMED the
+    // issue groups, which is the one thing Score.php says never to do — "the
+    // groups overlap, so their sum counts a page once per issue and their
+    // maximum counts it once". On wpftest it printed 119 while 100 pages
+    // carried a flag and those pages held 152 flags between them: not the
+    // pages, not the fixes, but the sum of the groups the card happens to
+    // list, which is a number nobody can reconcile with anything on screen.
+    // ⭐ It reads the store's own page count now — measured in the same query
+    // as the score beside it, so the chip and the Optimize card cannot
+    // disagree. THE LAW: two surfaces counting the same thing read ONE count.
     optimizeTotal() {
-      return this.optimizeWork.reduce((n, i) => n + Number(i.count || 0), 0);
+      return Number((this.aeo && this.aeo.flagged) || 0);
     },
     // Pages the owner set aside as "not cited content" (excluded from grading).
     optimizeIgnored() {

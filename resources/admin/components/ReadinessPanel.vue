@@ -80,10 +80,6 @@ export default {
       const status = ['fail', 'warn'].find((s) => this.groups.some((g) => g.status === s)) || 'pass';
       return { pass, total, status };
     },
-    // Total page-fixes across the content worklist (a page with two issues is two fixes).
-    optimizeTotal() {
-      return this.optimize.reduce((n, i) => n + Number(i.count || 0), 0);
-    },
     // The issue affecting the most pages — the one worth naming in a summary.
     optimizeTopIssue() {
       return this.optimize.reduce((top, i) => (!top || Number(i.count || 0) > Number(top.count || 0) ? i : top), null);
