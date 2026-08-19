@@ -520,6 +520,19 @@ body.admin-color-light {
    in both modes. */
 :root body.admin-color-light .ar-btn--ghost { --ar-ink: #333333; }
 
+/* His pick, 2026-08-20: the little glyph tile on the rail cards takes the same
+   treatment as the buttons and chips — the scheme's own grey with a dark mark,
+   instead of the accent wash and its accent-tinted hairline. 13.2:1 for a
+   glyph that only needs 3.
+   ⚠️ The grey is spelled out here rather than read from --ar-ink: the tile is
+   not in Admin::SCHEME_SCOPE, so the ink it inherits is the body's #1e1e1e.
+   If SchemeInk's 'light' entry ever moves, move this with it. */
+:root body.admin-color-light .ar-rail-card__mark {
+  color: #1e1e1e;
+  background: #e5e5e5;
+  border-color: #e5e5e5;
+}
+
 /* ---- Light — the readiness rug -------------------------------------------
    His pick, 2026-08-20, given as the two rugs side by side: by day a light
    slab, by night his charcoal. That settles a compromise this block used to
