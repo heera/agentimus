@@ -677,38 +677,33 @@ export default {
               >{{ busyIssue === issue.id ? 'Setting aside…' : 'Set All Aside' }}</button>
             </div>
             <small>{{ issue.why }}</small>
-            <ul class="ar-optcheck__pages">
-              <li v-for="p in issue.pages" :key="p.id" class="ar-optcheck__row">
-                <a :href="p.url" target="_blank" rel="noopener" class="ar-optcheck__page">{{ p.title }}</a>
-                <!-- ⭐ The mark that stops this row lying in either direction.
-                     You edited the page; this verdict was measured before that
-                     edit, and the sweep has not read it again yet. Dropping the
-                     row instead (what this card used to do) announced a fix
-                     nobody had checked; showing it unmarked would claim the
-                     complaint still stands.
-                     ⚠️ It said "RE-READING", which his eye caught immediately:
-                     beside a page title that reads as an instruction to the
-                     READER, and it never says who is doing the reading. The
-                     verb is ours, in the card's own vocabulary ("still to
-                     read", "graded"), and the tip carries the whole sentence
-                     for anyone who wants it — a two-word tag cannot hold a
-                     because-clause, and should not try. -->
+            <!-- ⭐⭐ ONE example and a way in, NOT a window onto the list.
+                 This used to print six pages under "Showing 6 of 60", which is
+                 an arbitrary slice of somebody's work and a second, poorer copy
+                 of Your Content — no ranking by what a fix is worth, no search
+                 context, no paging, and a duplicate Set aside on every row. The
+                 count is the diagnosis and belongs here; the pages belong in the
+                 one list built for working through pages, now narrowed to this
+                 check. The example keeps the group about real content rather
+                 than a number, and is the short way in when you only want one. -->
+            <div class="ar-optcheck__go">
+              <template v-if="issue.pages.length">
+                <a :href="issue.pages[0].url" target="_blank" rel="noopener" class="ar-optcheck__page">{{ issue.pages[0].title }}</a>
                 <span
-                  v-if="p.stale && !allBeingReadAgain"
+                  v-if="issue.pages[0].stale && !allBeingReadAgain"
                   class="ar-optcheck__pending"
                   v-tip="'You edited this page after Agentimus last read it. What this row says was true of the earlier version — it is being read again now, usually within a minute.'"
                 >reading again</span>
-                <button
-                  type="button"
-                  class="ar-optcheck__aside"
-                  :disabled="busyIgnore === p.id"
-                  @click="setAside(p, true)"
-                >Set Aside</button>
-              </li>
-            </ul>
-            <p v-if="issue.pages.length < issue.count" class="ar-optcheck__more">
-              Showing {{ issue.pages.length }} of {{ issue.count }}.
-            </p>
+              </template>
+              <button
+                type="button"
+                class="ar-linkbtn ar-optcheck__all"
+                @click="$emit('navigate', { tab: 'findings', anchor: 'ar-work', issue: { id: issue.id, label: issue.label, count: issue.count } })"
+              >
+                {{ issue.count === 1 ? 'Show me that page' : `Show me all ${issue.count}` }}
+                <svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 4l4 4-4 4" /></svg>
+              </button>
+            </div>
           </div>
         </li>
       </ul>

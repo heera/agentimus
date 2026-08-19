@@ -94,6 +94,105 @@ final class ContentIssuesDbTest extends DbTestCase {
 		}
 	}
 
+	/**
+	 * HIS SITE, 2026-08-19: the Blog page and a form page sat in "worth fixing"
+	 * reading "Not enough substance yet" — while the Optimized pillar excused
+	 * both as containers. One surface excused them, the next billed them, and
+	 * the advice was the one thing their owner could not act on: the words on a
+	 * Posts page belong to the loop the theme renders.
+	 */
+	public function test_a_container_page_is_never_billed_for_its_length() {
+		$blog = (int) self::factory()->post->create( array(
+			'post_type'    => 'page',
+			'post_status'  => 'publish',
+			'post_title'   => 'Blog',
+			'post_content' => 'Latest posts appear below.',
+		) );
+		update_option( 'page_for_posts', $blog );
+		$thin = $this->post( 'Thin', 'Too short.' ); // The positive control.
+		$this->sweep();
+		update_option( 'page_for_posts', 0 );
+
+		$rows = array_merge( $this->issues( 'fixable' )['items'], $this->issues( 'clear' )['items'] );
+		$by   = array();
+		foreach ( $rows as $row ) {
+			$by[ (int) $row['id'] ] = array_column( $row['issues'], 'id' );
+		}
+
+		$this->assertArrayHasKey( $blog, $by, 'The container is still READ and still listed — only its length goes unjudged.' );
+		$this->assertNotContains( 'words', $by[ $blog ], 'A container is not thin; it is not an article.' );
+		// ⛔ The check is skipped for containers, not retired: a real article of
+		// the same length still says so, or this "fix" silenced the whole site.
+		$this->assertArrayHasKey( $thin, $by );
+		$this->assertContains( 'words', $by[ $thin ], 'A thin ARTICLE must still be told it is thin.' );
+	}
+
+	/**
+	 * ⚠️ HIS SCREEN, 2026-08-19, minutes after the upgrade: "69 Posts and Pages
+	 * are worth fixing" above a list whose own chips read 68 — because half the
+	 * site was being read again under the new checks and the number was moving
+	 * under him. The front door already said so for pages nobody had read; this
+	 * is the other half of the same honesty.
+	 */
+	public function test_the_front_door_says_when_pages_are_being_read_again() {
+		$id = $this->post( 'Thin', 'Too short.' );
+		$this->sweep();
+		\Agentimus\Grades::mark_stale( $id );
+
+		$row = null;
+		foreach ( ( new \Agentimus\Findings( new Settings() ) )->all()['findings'] as $finding ) {
+			if ( 'content_issues' === $finding['id'] ) {
+				$row = $finding;
+			}
+		}
+
+		$this->assertNotNull( $row, 'One thin post is still a worklist.' );
+		$said = array_filter(
+			(array) $row['points'],
+			static function ( $point ) {
+				return false !== strpos( (string) $point, 'again' );
+			}
+		);
+		$this->assertNotEmpty( $said, 'A number that is about to move has to say so where it is printed.' );
+	}
+
+	/**
+	 * ⭐ The by-issue card names a count; this is where that count is walked.
+	 * Before it, "60 pages flag Featured image not described" led either to six
+	 * arbitrary names or to the whole 68-row list to re-derive which sixty.
+	 */
+	public function test_one_check_narrows_the_same_list() {
+		$thin = $this->post( 'Thin', 'Too short.' );
+		$this->post( 'Fuller', str_repeat( 'A plain sentence about a plain thing that cites nothing. ', 40 ) );
+		$this->sweep();
+
+		$all   = $this->issues( 'fixable' );
+		$words = ( new Worklist( new Settings() ) )->issues( 'fixable', 1, 20, 'words' );
+
+		$this->assertGreaterThan( (int) $words['total'], (int) $all['total'], 'One check is fewer pages than every check.' );
+		$this->assertSame( array( $thin ), array_column( $words['items'], 'id' ) );
+		$this->assertSame( 'words', $words['issue'] );
+		$this->assertNotSame( '', $words['issueLabel'], 'The list has to be able to say what it was narrowed to.' );
+		// ⚠️ The bucket counts still describe the WHOLE bucket — they disagree
+		// with `total` on purpose, and `issueLabel` is what explains the gap.
+		$this->assertSame( $all['counts'], $words['counts'] );
+	}
+
+	/**
+	 * ⛔ An id no check owns must empty the list, never quietly widen it back to
+	 * everything — a screen saying "60 pages flagged X" over the whole bucket is
+	 * the failure that looks like success.
+	 */
+	public function test_a_check_nothing_owns_returns_nothing() {
+		$this->post( 'Thin', 'Too short.' );
+		$this->sweep();
+
+		$out = ( new Worklist( new Settings() ) )->issues( 'fixable', 1, 20, 'no_such_check' );
+
+		$this->assertSame( 0, (int) $out['total'] );
+		$this->assertSame( array(), $out['items'] );
+	}
+
 	public function test_the_counts_are_the_ones_the_owner_sees() {
 		$this->post( 'Thin', 'Too short.' );
 		$this->post( 'Fuller', str_repeat( 'A concrete point backed by a real figure: 42% in 2024. ', 40 ) );

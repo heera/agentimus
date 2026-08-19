@@ -390,7 +390,7 @@ final class Worklist {
 	 * @param int    $per    Rows per page.
 	 * @return array
 	 */
-	public function page( $filter, $page = 1, $per = self::PER_PAGE ) {
+	public function page( $filter, $page = 1, $per = self::PER_PAGE, $issue = '' ) {
 		$filter = in_array( $filter, array( 'fixable', 'clear', 'setAside' ), true ) ? $filter : 'fixable';
 		// ⚠️ A missing or zero size means "use the normal page size", NOT "one
 		// row". Clamping with max(1, …) turned an absent parameter into a
@@ -401,7 +401,16 @@ final class Worklist {
 
 		$types = $this->post_types();
 		$aside = $this->set_aside_ids();
-		$slice = Grades::page( $filter, $types, $aside, $page, $per );
+		// ⭐ A check id narrows the SAME query rather than fetching a bundle of
+		// ids: the by-issue card can name sixty pages and this walks them twenty
+		// at a time, ranked and paged like every other view of this list.
+		// ⛔ Passed through UNVALIDATED on purpose. An id nothing flags matches
+		// no rows, so a bad one empties the list — the safe direction. Dropping
+		// it instead would widen the list back to the whole bucket while the
+		// screen still said "sixty pages flagged X", which is the failure that
+		// looks like success. The doors that take it from outside answer 400
+		// for an id no check owns.
+		$slice = Grades::page( $filter, $types, $aside, $page, $per, (string) $issue );
 
 		$search = $this->search_by_post();
 		// Both engines, read once for the whole page rather than once per row.
@@ -419,6 +428,13 @@ final class Worklist {
 			'items'        => $items,
 			'counts'       => Grades::counts( $types, $aside ),
 			'filter'       => $filter,
+			// ⚠️ WHAT THIS LIST IS, when it is not all of it. `counts` describes
+			// the whole bucket and `total` describes these rows — while an issue
+			// filter is on the two disagree ON PURPOSE, and this is the only
+			// thing that explains the gap. Sixty rows under a chip reading 68
+			// with nothing saying why is the same contradiction in a new place.
+			'issue'        => (string) $issue,
+			'issueLabel'   => '' === (string) $issue ? '' : PageCheck::issue_label( (string) $issue ),
 			'page'         => $page,
 			'per'          => $per,
 			'total'        => (int) $slice['total'],
@@ -476,7 +492,7 @@ final class Worklist {
 	 * @param int    $per    Rows per page.
 	 * @return array
 	 */
-	public function issues( $filter, $page = 1, $per = self::PER_PAGE ) {
+	public function issues( $filter, $page = 1, $per = self::PER_PAGE, $issue = '' ) {
 		$filter = in_array( $filter, array( 'fixable', 'clear', 'setAside' ), true ) ? $filter : 'fixable';
 		// Same clamp as the screen: absent means "the normal page size", never one row.
 		$per    = (int) $per > 0 ? min( self::MAX_ITEMS, (int) $per ) : self::PER_PAGE;
@@ -484,7 +500,10 @@ final class Worklist {
 
 		$types  = $this->post_types();
 		$aside  = $this->set_aside_ids();
-		$slice  = Grades::page( $filter, $types, $aside, $page, $per );
+		// ⭐ The same narrowing the owner's screen gets. An assistant told "60
+		// pages flag Featured image not described" could only walk the whole
+		// list and re-derive which sixty; now it asks for them.
+		$slice  = Grades::page( $filter, $types, $aside, $page, $per, (string) $issue );
 		$stored = Grades::stored( $slice['ids'] );
 		$search = $this->search_by_post();
 		$engine = $this->engine_label();

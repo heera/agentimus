@@ -103,7 +103,7 @@ export default {
       // Which tab and page the list is currently showing. Held here, not in the
       // panel, because the panel asks the App to fetch and the two must agree
       // about what was asked for.
-      worklistWhere: { filter: 'fixable', page: 1 },
+      worklistWhere: { filter: 'fixable', page: 1, issue: '' },
       worklistPreview: this.boot.worklistPreview || { published: 0, withSearch: 0, setAside: 0, searchState: '' },
       worklistLoaded: false,
       // When the list was read, and whether something has probably changed
@@ -158,6 +158,9 @@ export default {
       logPreset: null,
       // { pages: [id], seq } — the subset a finding asked the worklist to show.
       workPick: null,
+      // Which check the worklist is narrowed to, if any: { id, label, count }.
+      // Null is the whole bucket.
+      workIssue: null,
       // The Visibility screen's current view — announced by the panel, so
       // screen-mates can seat themselves on the right one (the two search
       // cards ride the Search view, whose id stays 'performance'; the two
@@ -945,7 +948,7 @@ export default {
       // A new journey ends any anchor-hold from the previous one — two
       // correctors aiming at different targets would fight over the viewport.
       if (this._unHold) this._unHold();
-      let { tab, anchor, view, log, ai, pages, open } = typeof target === 'string' ? { tab: target } : target || {};
+      let { tab, anchor, view, log, ai, pages, open, issue } = typeof target === 'string' ? { tab: target } : target || {};
       // A finding whose answer lives in a dialog opens it on arrival. Scrolling
       // somebody to the card that holds the control and leaving them to find a
       // 28px gear is a button that stops one step short of what it said.
@@ -990,6 +993,14 @@ export default {
       if (pages && pages.length) {
         this._logSeq = (this._logSeq || 0) + 1;
         this.workPick = { pages, seq: this._logSeq };
+      }
+      // A by-issue group handing over its whole set. ⭐ Not a bundle of ids like
+      // a finding does: the server narrows the same query, so sixty pages arrive
+      // ranked and paged exactly like every other view of this list — a bundle
+      // caps at thirty and re-reads every page to build them.
+      if (issue && issue.id) {
+        this.workIssue = { ...issue };
+        this.loadWorklist({ filter: 'fixable', page: 1, issue: issue.id });
       }
       const sameTab = tab && this.tab === tab;
       if (tab) this.tab = tab;
@@ -2304,6 +2315,7 @@ export default {
         <ContentWorklist
           :api="api"
           :pick="workPick"
+          :issue="workIssue"
           v-show="tab === 'findings'"
           :data="worklist"
           :preview="worklistPreview"
@@ -2313,6 +2325,7 @@ export default {
           :setting-aside="settingAside"
           :check-types="checkTypes"
           @load="loadWorklist"
+          @clear-issue="() => { workIssue = null; loadWorklist({ filter: 'fixable', page: 1, issue: '' }); }"
           @set-aside="setAsideItem"
           @navigate="goTo"
           @open-scope="scopeOpen = true"

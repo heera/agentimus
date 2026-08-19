@@ -63,8 +63,13 @@ export function createApi(boot) {
     // The list is ranked and paged on the server now: it covers every published
     // page, not the thirty one request could afford to read, so the tab and the
     // page number have to travel with the ask.
-    getWorklist: (filter = 'fixable', page = 1) =>
-      request(`/worklist?filter=${encodeURIComponent(filter)}&page=${Number(page) || 1}`),
+    // `issue` narrows the same list to one check's pages — the by-issue card's
+    // "Show me all 60". Empty means the whole bucket.
+    getWorklist: (filter = 'fixable', page = 1, issue = '') =>
+      request(
+        `/worklist?filter=${encodeURIComponent(filter)}&page=${Number(page) || 1}`
+          + (issue ? `&issue=${encodeURIComponent(issue)}` : '')
+      ),
     getWorklistRows: (ids) => request(`/worklist/rows?ids=${ids.map(Number).join(',')}`),
     // { id: modified } as the screen last saw it → rebuilt rows for whatever
     // has changed since, and nothing when nothing has.

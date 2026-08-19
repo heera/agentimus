@@ -1418,6 +1418,7 @@ final class Registrar {
 					),
 					'page'   => self::i( '1-based page number. Defaults to 1; `total` and `per` say how many pages exist.' ),
 					'per'    => self::i( 'Rows per page (default 20, capped at 30).' ),
+					'issue'  => self::s( 'Only pages flagging ONE check — the id from a row’s `issues[].id`, or from read-readiness’s `content[].id` (e.g. "featured_alt"). This is how you walk the pages behind "60 items flag Featured image not described" instead of paging the whole list and re-deriving which sixty. `total` then counts the narrowed set while `counts` still describes the whole bucket — the two disagree on purpose, and `issueLabel` names what the narrowing is. ⛔ An id no check owns matches nothing and returns an empty list; it never silently widens back to everything.' ),
 				),
 				'additionalProperties' => false,
 				// ⚠️ EVERY parameter here is optional, which makes "no input at all"
@@ -1485,6 +1486,8 @@ final class Registrar {
 							'setAside' => self::i( 'Pages the owner excused.' ),
 						)
 					),
+					'issue'        => self::s( 'The check id this list was narrowed to, or empty for the whole bucket. Echoed back so a caller paging through can be sure it is still walking the same set.' ),
+					'issueLabel'   => self::s( 'That check’s problem name in the site’s language ("Featured image not described"), or empty. ⭐ It is why `total` can be smaller than `counts.fixable` without the two contradicting each other.' ),
 					'grading'      => self::i( 'Published pages the sweep has NEVER read. Above zero means this ranking covers part of the site — say so rather than presenting it as the whole.' ),
 					'rechecking'   => self::i( 'Pages read, then edited by the owner. They keep their place with `stale` true; the sweep re-reads them within about a minute.' ),
 					'noSearchData' => self::i( 'How many pages no search engine has reported yet. Their `coverage` is empty for want of a search, not for want of quality — normal for recent posts, and normal for a whole site while a source is still working through it.' ),
@@ -1510,7 +1513,8 @@ final class Registrar {
 				return $worklist->issues(
 					isset( $in['filter'] ) ? (string) $in['filter'] : 'fixable',
 					isset( $in['page'] ) ? (int) $in['page'] : 1,
-					isset( $in['per'] ) ? (int) $in['per'] : 0
+					isset( $in['per'] ) ? (int) $in['per'] : 0,
+					isset( $in['issue'] ) ? (string) $in['issue'] : ''
 				);
 			},
 			$manage

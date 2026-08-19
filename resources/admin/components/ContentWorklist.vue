@@ -31,13 +31,15 @@ export default {
     settingAside: { type: Number, default: 0 },
     // { pages: [id], seq } — a finding handing over the exact rows it counted.
     pick: { type: Object, default: null },
+    // The check this list is narrowed to, from the by-issue card: { id, label, count }.
+    issue: { type: Object, default: null },
     // The tab was away long enough that a post may have been edited elsewhere.
     stale: { type: Boolean, default: false },
     // [{ slug, label, source, count, on, blocked }] — what this site CAN check
     // and what it does. The gear edits it; the line under the head states it.
     checkTypes: { type: Array, default: () => [] },
   },
-  emits: ['load', 'set-aside', 'open-scope'],
+  emits: ['load', 'set-aside', 'open-scope', 'clear-issue'],
   data() {
     return {
       // Post IDs a finding asked for. Null means "show everything".
@@ -661,6 +663,16 @@ export default {
           set aside, or no longer published. The finding catches up on its next check.
         </template>
         <button type="button" class="ar-linkbtn" @click="showEverything">Show everything</button>
+      </p>
+
+      <!-- ⚠️ NARROWED, AND IT SAYS SO. The chips above count the whole bucket
+           while these rows are one check's — the two disagree on purpose, and a
+           list that shows 60 rows under a chip reading 68 without a word is the
+           contradiction this feature was built to avoid. The label comes from
+           the server with the rows, so it can only ever describe what arrived. -->
+      <p v-else-if="data.issue" class="ar-work__picked">
+        Showing the {{ data.total }} {{ data.total === 1 ? 'page' : 'pages' }} flagged “{{ data.issueLabel || (issue && issue.label) }}”.
+        <button type="button" class="ar-linkbtn" @click="$emit('clear-issue')">Show everything</button>
       </p>
 
       <div v-else class="ar-work__tabs">
