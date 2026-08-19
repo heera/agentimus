@@ -1502,7 +1502,14 @@ export default {
         // The row's own state, without re-parsing every page to learn one bit.
         const row = this.worklist.items.find((i) => i.id === id);
         if (row) row.setAside = aside;
-        this.recountWorklist();
+        this.moveOneRowBetweenBuckets(row, aside);
+        // ⚠️ AND THE FINDING ABOVE IT. This list and the "N Posts and Pages are
+        // worth fixing" row share one screen, and the row is built server-side
+        // from this very ledger — so setting a page aside left the chips reading
+        // one number and the sentence above them another, until the owner
+        // happened to leave the tab and come back. One cheap GET, and the whole
+        // screen tells one story.
+        this.silentRefreshFindings();
         this.flash('success', aside ? 'Set aside.' : 'Back in the list.');
       } catch (e) {
         this.flash('error', e.message);
@@ -1510,16 +1517,27 @@ export default {
         this.settingAside = 0;
       }
     },
-    // Keep the chips honest after a local change, using the same rule the
-    // server used — the numbers must still add up to the rows on screen.
-    recountWorklist() {
-      const counts = { fixable: 0, clear: 0, setAside: 0 };
-      this.worklist.items.forEach((i) => {
-        const needs = (i.flags && i.flags.length) || (i.coverage && i.coverage.state && 'answered' !== i.coverage.state);
-        if (i.setAside) counts.setAside += 1;
-        else if (needs) counts.fixable += 1;
-        else counts.clear += 1;
-      });
+    // One row changed bucket, so move ONE from the chip it left to the chip it
+    // joined.
+    //
+    // ⛔⛔ NEVER RE-TALLY THE LOADED ROWS. These chips are site-wide counts the
+    // server takes over every published page; `items` is the twenty rows of the
+    // page you happen to be on. Recounting them replaced "94 · 18 · 18" with
+    // "19 · 0 · 1" the instant anything was set aside — a page's tally wearing
+    // the site's label, directly under a finding that still said 93. Caught by
+    // clicking Set aside on his own screen, 2026-08-19.
+    //
+    // The delta is exact and needs no request: the row's flags and coverage say
+    // which bucket it was in, and set-aside is the bucket it moves to.
+    moveOneRowBetweenBuckets(row, aside) {
+      if (!row) return;
+      const counts = { ...(this.worklist.counts || {}) };
+      const needs = (row.flags && row.flags.length) || (row.coverage && row.coverage.state && 'answered' !== row.coverage.state);
+      const from = needs ? 'fixable' : 'clear';
+      const down = aside ? from : 'setAside';
+      const up = aside ? 'setAside' : from;
+      counts[down] = Math.max(0, Number(counts[down] || 0) - 1);
+      counts[up] = Number(counts[up] || 0) + 1;
       this.worklist = { ...this.worklist, counts };
     },
     async refreshFindings() {
@@ -2245,7 +2263,7 @@ export default {
           @refresh="refreshReadiness"
           @navigate="goTo"
           @flash="flash"
-          @score-updated="(s) => { aeo = s; }"
+          @score-updated="(s) => { aeo = s; silentRefreshFindings(); }"
         />
         <DiscoveryHub
           v-show="tab === 'discovery'"
