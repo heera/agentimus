@@ -171,6 +171,153 @@
 :root[data-ar-theme="dark"] body.admin-color-midnight.agentimus-scheme-363b3f .ar-btn:hover:not(:disabled):not(.ar-btn--danger) { background: #535a61; }
 :root[data-ar-theme="dark"] body.admin-color-midnight.agentimus-scheme-363b3f .ar-about-snippet { background: #232629; }
 
+/* ---- Blue — WP's mid blue. His anchors; the ink family is the same hue at a
+   fraction of its saturation, so the text reads as the room's own. */
+:root[data-ar-theme="dark"] body.admin-color-blue {
+  --ar-paper: #14293c;
+  --ar-surface: #1e4362;
+  --ar-surface-2: #214c6e;
+  --ar-field: #224c70; /* surface, lightness +3.5 — the same step every block here uses. */
+  --ar-ink: #d2d7da;
+  --ar-ink-soft: #a7afb7;
+  --ar-ink-faint: #85919b;
+  --ar-line: #2e5679;
+  --ar-line-strong: #3d698d;
+  /* The grey-warmed sand Fresh and Midnight take — these grounds are
+     cool, and the base brass ran hot on them. */
+  --ar-note-gold: #b2a484;
+  --ar-note-glow: #b2a484;
+}
+:root[data-ar-theme="dark"] body.admin-color-blue .ar-btn:hover:not(:disabled):not(.ar-btn--danger) { background: #275a82; }
+:root[data-ar-theme="dark"] body.admin-color-blue .ar-about-snippet { background: #0f1f2d; }
+:root[data-ar-theme="dark"] body.admin-color-blue .ar-aud__note {
+  border-color: color-mix(in srgb, var(--ar-note-gold) 32%, var(--ar-line));
+}
+
+/* ---- Ectoplasm — the violet key. Its ground is the most saturated of the four, so
+   the inks carry the least colour of any block here — a violet text on a violet
+   ground reads as a haze. */
+:root[data-ar-theme="dark"] body.admin-color-ectoplasm {
+  --ar-paper: #2a1b3e;
+  --ar-surface: #3a2853;
+  --ar-surface-2: #3f2d57;
+  --ar-field: #422e5f; /* surface, lightness +3.5 — the same step every block here uses. */
+  --ar-ink: #cbc8d0;
+  --ar-ink-soft: #9d97a5;
+  --ar-ink-faint: #827b8c;
+  --ar-line: #4d3969;
+  --ar-line-strong: #5e497c;
+  /* The grey-warmed sand Fresh and Midnight take — these grounds are
+     cool, and the base brass ran hot on them. */
+  --ar-note-gold: #b2a484;
+  --ar-note-glow: #b2a484;
+}
+:root[data-ar-theme="dark"] body.admin-color-ectoplasm .ar-btn:hover:not(:disabled):not(.ar-btn--danger) { background: #4b3668; }
+:root[data-ar-theme="dark"] body.admin-color-ectoplasm .ar-about-snippet { background: #201530; }
+:root[data-ar-theme="dark"] body.admin-color-ectoplasm .ar-aud__note {
+  border-color: color-mix(in srgb, var(--ar-note-gold) 32%, var(--ar-line));
+}
+
+/* ---- Ocean — the muted teal. The quietest ground of the set, so its ink family
+   sits closest to neutral. */
+:root[data-ar-theme="dark"] body.admin-color-ocean {
+  --ar-paper: #263438;
+  --ar-surface: #2f444a;
+  --ar-surface-2: #39535a;
+  --ar-field: #364e55; /* surface, lightness +3.5 — the same step every block here uses. */
+  --ar-ink: #d3d6d7;
+  --ar-ink-soft: #aaafb1;
+  --ar-ink-faint: #8a9294;
+  --ar-line: #41585f;
+  --ar-line-strong: #516b72;
+  /* The grey-warmed sand Fresh and Midnight take — these grounds are
+     cool, and the base brass ran hot on them. */
+  --ar-note-gold: #b2a484;
+  --ar-note-glow: #b2a484;
+}
+:root[data-ar-theme="dark"] body.admin-color-ocean .ar-btn:hover:not(:disabled):not(.ar-btn--danger) { background: #43616a; }
+:root[data-ar-theme="dark"] body.admin-color-ocean .ar-about-snippet { background: #1e292c; }
+:root[data-ar-theme="dark"] body.admin-color-ocean .ar-aud__note {
+  border-color: color-mix(in srgb, var(--ar-note-gold) 32%, var(--ar-line));
+}
+
+/* ---- Sunrise — the warm red. ⚠️ The brightest surface of the four (his pick), which
+   is why its inks run lighter than the others' — the same ratios cost more
+   lightness on a ground this near the middle. */
+:root[data-ar-theme="dark"] body.admin-color-sunrise {
+  --ar-paper: #433030;
+  --ar-surface: #693634;
+  --ar-surface-2: #643e3c;
+  --ar-field: #753c3a; /* surface, lightness +3.5 — the same step every block here uses. */
+  --ar-ink: #e0dcdb;
+  --ar-ink-soft: #bbb2b1;
+  --ar-ink-faint: #a09392;
+  --ar-line: #7e4846;
+  --ar-line-strong: #915856;
+  /* Coffee's quieter bronze, not the cool schemes' sand: this ground is
+     already warm, and the sand doubled it. */
+  --ar-note-gold: #af9a6d;
+  --ar-note-glow: #af9a6d;
+}
+:root[data-ar-theme="dark"] body.admin-color-sunrise .ar-btn:hover:not(:disabled):not(.ar-btn--danger) { background: #744846; }
+:root[data-ar-theme="dark"] body.admin-color-sunrise .ar-about-snippet { background: #372727; }
+:root[data-ar-theme="dark"] body.admin-color-sunrise .ar-aud__note {
+  border-color: color-mix(in srgb, var(--ar-note-gold) 32%, var(--ar-line));
+}
+
+/* ---- Light — THE ONE SCHEME THAT LOOKS THE SAME IN BOTH MODES -------------
+   His call, 2026-08-19: on wp-admin's Light scheme the plugin keeps one grey
+   palette whichever way the toggle stands. Every other block here is dark-only,
+   because light mode wears the designed cream everywhere; this scheme is the
+   exception, and it is the reason the first selector has no theme in it.
+
+   ⚠️ So it must beat the CREAM at :root (it does — a body class outranks :root)
+   AND the dark palette at :root[data-ar-theme="dark"] (the second block, which
+   is why the grounds are restated there rather than inherited).
+   ⭐ The toggle still does something: the ink steps down a shade in dark, which
+   is the honest amount of change a scheme with one ground can offer. ⛔ What it
+   must NOT do is flip the ink light — the ground stays grey, and light text on
+   #d9d9d9 is unreadable at any weight.
+   -------------------------------------------------------------------------- */
+body.admin-color-light {
+  --ar-paper: #e8e8e8;   /* his greys, with the canvas a step lighter than the */
+  --ar-surface: #d9d9d9; /* cards so a card still reads as raised.             */
+  --ar-surface-2: #cecece;
+  --ar-field: var(--ar-surface); /* Same as the base light palette: the border does the separating. */
+  --ar-ink: #2b2b2b;      /* 10.0:1 on the cards. */
+  --ar-ink-soft: #5c5c5c; /*  4.7:1 */
+  --ar-ink-faint: #767676;/*  3.2:1 — the quietest label, and no quieter. */
+  --ar-line: #c3c3c3;
+  --ar-line-strong: #b1b1b1;
+  /* The cream palette's gold reads green-ish against a neutral grey; this is
+     the same brass pulled toward the ground's neutrality. */
+  --ar-note-gold: #a8842f;
+  --ar-note-glow: #d8b76a;
+}
+/* Dark mode on the Light scheme: the SAME room with the lights left on, and
+   only the ink steps down. */
+:root[data-ar-theme="dark"] body.admin-color-light {
+  --ar-paper: #e8e8e8;
+  --ar-surface: #d9d9d9;
+  --ar-surface-2: #cecece;
+  --ar-field: var(--ar-surface);
+  --ar-ink: #171717;      /* 12.7:1 */
+  --ar-ink-soft: #4a4a4a; /*  6.3:1 */
+  --ar-ink-faint: #666666;/*  4.1:1 */
+  --ar-line: #bdbdbd;
+  --ar-line-strong: #a9a9a9;
+  --ar-note-gold: #96741f;
+  --ar-note-glow: #d8b76a;
+}
+/* ⛔ THE TWO HARD COLOURS DARK MODE PAINTS. Everything else the app draws comes
+   from the tokens above and re-derives on its own, but these two are literals
+   in app.css — a near-black snippet and a dark-mode drawer — and a light ground
+   is the one case where they would land as a black box on a grey card. */
+:root[data-ar-theme="dark"] body.admin-color-light .ar-about-snippet {
+  background: #f2f2f2; color: var(--ar-ink-soft);
+}
+:root[data-ar-theme="dark"] body.admin-color-light .ar-drawer { color-scheme: light; }
+
 /* ---- Fresh & Midnight — the Worth-knowing card's gold (his picks
    2026-08-12): a grey-warmed sand against their cool charcoal and slate,
    where the base #c2a157 ran too brassy. Fresh keeps the base dark for
