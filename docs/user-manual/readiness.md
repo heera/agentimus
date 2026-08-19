@@ -108,7 +108,7 @@ Agentimus reads **every published page** and checks each for what makes content 
 - **Quotable passages** — an over-long paragraph an engine can't cleanly lift; break it up.
 - **Freshness** — a substantial page untouched for a couple of years reads as stale.
 
-Issues are grouped, and each lists the exact posts and pages affected as links straight to their editors — so fixing them is one click away. The same checks appear per-page in the editor's **Readability** panel while you write — and most of them (headings, alt text, thin content, reading ease, freshness) are the classic on-page work a search engine and a screen reader need too, so none of it is a bet on AI alone.
+Issues are grouped, and each lists the exact posts and pages affected as links straight to their editors — so fixing them is one click away. A group shows a handful; **Show me all N** hands that check's whole set to **Your Content**, ranked and paged twenty at a time, with the search each page is found for. Fix the thing that list was opened for and the row keeps its place, marked as done, rather than disappearing before you can see the fix land — and the heading says its count was taken before you started. The same checks appear per-page in the editor's **Readability** panel while you write — and most of them (headings, alt text, thin content, reading ease, freshness) are the classic on-page work a search engine and a screen reader need too, so none of it is a bet on AI alone.
 
 ### Your whole site, not a sample of it
 
@@ -116,7 +116,9 @@ Until 1.37.0 this rung read your **25 most recently edited posts** and treated t
 
 If you updated from an earlier version, expect the number to move. Expect the list of pages worth fixing to be longer too — often much longer. Nothing broke, and nothing about your content changed. Those pages were always there; nothing had been looking at them.
 
-The reading happens in the background rather than while you wait, a few pages at a time. On a large site it can take from minutes to hours. While it is still going, the card says how many pages are left to read. That way you can tell "this is the whole site" from "this is what has been read so far". The oldest verdicts are also refreshed quietly over time, so a page graded months ago does not keep an answer nobody has re-checked.
+The reading happens in the background rather than while you wait, a few pages at a time, and again within about a minute of you saving a page. On a large site the first pass can take from minutes to hours.
+
+It does not depend on WordPress's scheduled jobs working. WordPress asks itself to run background work on each page view, and on many hosts that ask never arrives — a page served from a cache never runs PHP, and some hosts block the internal request outright — so the reading would never happen and nothing would say so. Agentimus watches its own jobs, and when one is overdue it does that work while you are on an Agentimus screen. A site whose scheduled jobs run normally loads nothing extra, and a run stands down the moment WordPress starts one of its own, joining core's own lock so the same job can never run twice at once. While it is still going, the card says how many pages are left to read. That way you can tell "this is the whole site" from "this is what has been read so far". The oldest verdicts are also refreshed quietly over time, so a page graded months ago does not keep an answer nobody has re-checked.
 
 **What is checked and what is graded are not the same set.** Agentimus checks every kind of content you publish — including products — for the searches each page is found for. It grades only writing for citability. The card names the kinds of content behind its numbers. A shop owner is never left wondering why a hundred products are checked and none are graded.
 

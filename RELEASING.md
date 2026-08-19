@@ -11,6 +11,30 @@ works — just do the steps in order. 🙂
 
 ---
 
+## The order to do it in
+
+Heera's rule, set 2026-08-20. The site proves the build before the repo records
+it, and the robots prove the repo before a tag makes it public:
+
+1. **Build a test zip first**, numbered `X.Y.Z-dev1` — a *dev* number, not the
+   real one — and install it on heera.it.
+2. **Only once it's good there**, commit and push the work. Leave the dev
+   number in place for now.
+3. **Wait for the checks on GitHub to go green.** All of them, not most.
+4. **Then** write the real number `X.Y.Z` in the three places, commit that, and
+   push it. Wait for green again.
+5. **Ask before tagging.** The tag is the point of no return — pushing one
+   publishes to WordPress.org by itself.
+6. **Tag it**, and check it landed.
+
+⚠️ The tag must point at the commit that already says `X.Y.Z`. WordPress.org
+reads the version out of the plugin file, so tagging a `-dev1` commit would
+publish a dev build to everybody.
+
+(Working with Claude Code: it follows this order and stops at step 5 to ask.)
+
+---
+
 ## Before you start
 
 Make sure of three things:
@@ -123,7 +147,9 @@ both turn **green** (a green check ✓). Nothing is published to WordPress.org y
 
 ## Step 6 — The magic step: tag it 🚀
 
-This is the step that actually publishes to WordPress.org. Run:
+This is the step that actually publishes to WordPress.org. Only do it once the
+checks on GitHub are **green** and the three places already say the real number
+(not `-dev1`). Run:
 
 ```
 git tag 1.5.1

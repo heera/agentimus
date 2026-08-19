@@ -161,6 +161,12 @@ A few features are **off by default** and only run when you ask: the AI Visibili
 
 If you turn something on and it doesn't seem to appear, it is almost always working: the AI files are cached for up to an hour, so open the file directly (e.g. `yoursite.com/llms.txt`) and refresh, or use the Readiness report's **Verify live** button to see exactly what an AI tool receives right now.
 
+## Does Agentimus need WordPress's scheduled jobs (WP-Cron)?
+
+No. Reading your content for the Optimized rung is background work, and on many hosts WordPress's scheduled jobs never run: a page served from a cache never runs PHP, so the request that would have started them never arrives, and some hosts block that internal request outright. On those sites the reading would simply never happen, and nothing on any screen would say so.
+
+Agentimus watches its own jobs instead. When one is overdue it does that work while you are on an Agentimus screen — nothing else on the page waits for it. If your scheduled jobs do run normally, Agentimus adds nothing: it stands down the moment WordPress starts a run of its own, and joins WordPress's own lock so the same job can never run twice at once.
+
 ## Does it work with page builders and custom post types?
 
 Yes. Agentimus was built to cover real-world sites, not just plain posts and pages.

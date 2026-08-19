@@ -33,6 +33,8 @@ Only that tier can be hidden. Anything that costs you something — a page losin
 
 Beneath the ranked list sits the **content worklist**: one row per post, page or anything else you publish, saying what that piece is actually found for, whether it answers that, and anything else it needs. Anything not meant to be cited can be **set aside** — parked on its own ledger, listed and counted rather than merely absent, so "not meant to be cited" stays a decision you can review instead of a hole in a list.
 
+Opening it from an issue on [Readiness](readiness.html) narrows the list to that one check — the heading says which check, how many pages carry it and how to get back to the whole list — and hands you every page it flags, ranked and paged, rather than the handful the card can show. Fix what the list was opened for and the row keeps its place, marked as done: a row that vanished the moment you fixed it would be a fix you never saw land. The counts above the list always describe your whole site, not the rows currently on screen.
+
 ### Which content is checked
 
 From 1.37.0 the worklist covers **every kind of content you publish**, not only posts and pages. Before that it read posts and pages whatever your site was made of, so a shop's products were never looked at.
