@@ -426,6 +426,18 @@ final class Registrar {
 					// 1.30.0 shipped exactly that bug (verifyOn arrived, the schema never did).
 					'verifyOn'      => self::b( 'Whether Web Bot Auth signature verification is on.' ),
 					'identifyOn'    => self::b( 'Whether "identify every bot" (network attribution) is on.' ),
+					// ⛔ AND THE SORT, for the same reason — 1.40.0 shipped the same bug a
+					// second time: sorting added `sort`/`offset` to the response and this
+					// schema did not learn them, so the ability rejected its own output.
+					// How these rows are ordered, echoed back so a caller can render its own
+					// header state from the answer rather than from what it asked for.
+					'sort'          => self::obj(
+						array(
+							'by'  => self::s( 'Which column the rows are ordered by: at, client, endpoint, ua or status.' ),
+							'dir' => self::s( '"asc" or "desc".' ),
+						)
+					),
+					'offset'        => self::i( 'Rows skipped before this page. Always 0 in the default (newest-first) order, which pages by cursor instead.' ),
 				)
 			),
 			function ( $input ) {

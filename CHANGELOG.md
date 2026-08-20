@@ -4,6 +4,9 @@ The full release history. The readme.txt shipped to WordPress.org keeps only
 the most recent releases (its Changelog section has a 5,000-word cap); this
 file is the complete record.
 
+## 1.40.1
+* Fixed: bugs regarding the request log as a connected assistant reads it. 1.40.0 taught that screen to sort, and its answer grew two new fields — which order the rows are in, and how far down the list this page starts. The assistant-facing tool had not been told to expect them, so it refused its own reply and an assistant asking about your crawlers got an error instead of your log. Your own screens were never affected, which is why it went unnoticed. If you use Claude, ChatGPT or another MCP client with this site, it reads again.
+
 ## 1.40.0
 * Fixed: bugs regarding the impostor count — your dashboard could report "0 caught faking an identity" while your site was catching crawlers forging an identity and turning them away. That figure counted the review queue, which is a list you can dismiss from, rather than the log that records what actually happened, so it fell back to zero as soon as a report was cleared. It reads the log now, over the same days the card counts.
 * Fixed: bugs regarding the dashboard's drill-downs — clicking a number opened the Request Log with the filters shown but not applied, so "4 caught faking an identity" arrived as all 165 requests. It affected the first visit to that screen in a session, which is why it was easy to miss. Those rows now open exactly what they counted, over the same window.

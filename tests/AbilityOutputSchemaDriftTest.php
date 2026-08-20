@@ -39,19 +39,40 @@ namespace Agentimus\Tests {
 			}
 		}
 
-		/** Every top-level key Repository::log() returns. Mirror of its return literal. */
-		private const LOG_KEYS = array(
-			'rows',
-			'total',
-			'perPage',
-			'cursor',
-			'hasMore',
-			'retentionDays',
-			'autoPrune',
-			'maxRows',
-			'verifyOn',
-			'identifyOn',
-		);
+		/**
+		 * Every top-level key Repository::log() returns — READ OUT OF THE SOURCE,
+		 * never listed here.
+		 *
+		 * ⛔ THIS USED TO BE A HAND-WRITTEN CONSTANT "mirroring the return literal",
+		 * and that is precisely how the bug this file exists to prevent shipped a
+		 * SECOND time. A mirror only catches the schema falling behind the mirror;
+		 * nothing caught the mirror falling behind the code. 1.30.0 added
+		 * verifyOn/identifyOn, 1.40.0 added sort/offset, and both times these tests
+		 * stayed green while the ability rejected its own output in the field.
+		 * Deriving the list means a key added to log() is a key this test demands.
+		 */
+		private function log_keys(): array {
+			$src = file_get_contents( dirname( __DIR__ ) . '/inc/Activity/Repository.php' );
+			$this->assertNotFalse( $src, 'Could not read Repository.php to derive the log keys.' );
+
+			// The body of log(), then its return literal, then the keys at that level.
+			$body = strstr( $src, 'public static function log( array $args = array() ) {' );
+			$this->assertNotFalse( $body, 'Repository::log() moved or was renamed — this test cannot see it.' );
+			$ret = strstr( $body, "\n\t\treturn array(" );
+			$this->assertNotFalse( $ret, 'Repository::log() no longer ends in a `return array(` literal.' );
+			$ret = substr( $ret, 0, strpos( $ret, "\n\t\t);" ) );
+
+			preg_match_all( "/^\t\t\t'([a-zA-Z]+)'\s*=>/m", $ret, $m );
+			$keys = $m[1];
+
+			// A parse that finds nothing must FAIL, not quietly pass everything.
+			$this->assertGreaterThan(
+				6,
+				count( $keys ),
+				'Derived suspiciously few keys from Repository::log() — the literal was reformatted and this test is no longer reading it.'
+			);
+			return $keys;
+		}
 
 		private function output_schema(): array {
 			$this->ensure_capture_stub();
@@ -75,7 +96,7 @@ namespace Agentimus\Tests {
 				'Top-level output allows undeclared keys — this test expects the strict mode that made the 1.30.0 bug possible.'
 			);
 
-			foreach ( self::LOG_KEYS as $key ) {
+			foreach ( $this->log_keys() as $key ) {
 				$this->assertArrayHasKey(
 					$key,
 					$schema['properties'],

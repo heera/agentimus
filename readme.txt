@@ -299,6 +299,9 @@ URL-like strings in the plugin's output are labels, not requests — the discove
 
 == Changelog ==
 
+= 1.40.1 =
+* Fixed: bugs regarding the request log as a connected assistant reads it. 1.40.0 taught that screen to sort, and its answer grew two new fields — which order the rows are in, and how far down the list this page starts. The assistant-facing tool had not been told to expect them, so it refused its own reply and an assistant asking about your crawlers got an error instead of your log. Your own screens were never affected, which is why it went unnoticed. If you use Claude, ChatGPT or another MCP client with this site, it reads again.
+
 = 1.40.0 =
 * Fixed: bugs regarding the impostor count — your dashboard could report "0 caught faking an identity" while your site was catching crawlers forging an identity and turning them away. That figure counted the review queue, which is a list you can dismiss from, rather than the log that records what actually happened, so it fell back to zero as soon as a report was cleared. It reads the log now, over the same days the card counts.
 * Fixed: bugs regarding the dashboard's drill-downs — clicking a number opened the Request Log with the filters shown but not applied, so "4 caught faking an identity" arrived as all 165 requests. It affected the first visit to that screen in a session, which is why it was easy to miss. Those rows now open exactly what they counted, over the same window.
@@ -368,6 +371,9 @@ URL-like strings in the plugin's output are labels, not requests — the discove
 For older releases, see the full history: https://github.com/heera/agentimus/blob/main/CHANGELOG.md
 
 == Upgrade Notice ==
+
+= 1.40.1 =
+Fixed a bug regarding the request log as a connected AI assistant reads it: 1.40.0's new sorting added two fields the assistant-facing tool had not been told about, so it refused its own reply and an assistant got an error instead of your log. Nothing you see in the browser was affected. No breaking changes.
 
 = 1.40.0 =
 Fixed bugs regarding the impostor count and the dashboard's drill-downs: your site could report "0 caught faking an identity" while it was catching and refusing them, and clicking a number opened an unfiltered list. Two Light-scheme faults are fixed too — an accent colour nothing could read, and a row that vanished when you hovered it. The Request Log's filters now take several values at once and every column sorts. No breaking changes.

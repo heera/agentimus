@@ -930,25 +930,15 @@ final class Admin {
 			// ⭐ Titles are Title Case, the standing rule for every title this
 			// plugin writes.
 			'items'   => array(
+				// ⛔ A PATCH GETS ITS OWN ITEM, not the last release's four. The card
+				// re-shows whenever AGENTIMUS_VERSION changes, so leaving 1.40.0's
+				// list here would greet an owner with news they have already read,
+				// under a heading claiming it is new — the fault he caught on the
+				// 1.40.0-dev4 build, where 1.39.0's items sat under a 1.40.0 title.
 				array(
 					'icon'  => 'shield',
-					'title' => 'Your Site Was Catching Fakes and Reporting None',
-					'text'  => 'The dashboard could say "0 caught faking an identity" while your site was catching crawlers forging one and turning them away. It counts what actually happened now, and the number opens the requests behind it.',
-				),
-				array(
-					'icon'  => 'link',
-					'title' => 'A Number You Click Now Shows You That Number',
-					'text'  => 'Opening the Request Log from a dashboard row used to arrive unfiltered — you clicked four requests and got all of them. Each row now opens exactly what it counted, over the same days.',
-				),
-				array(
-					'icon'  => 'search',
-					'title' => 'Filter by More Than One Thing, and Sort Any Column',
-					'text'  => 'The Request Log takes two crawlers at once, or everything spoofed or refused, and every column sorts your whole filtered list rather than the page on screen. Visitors can hold two assistants side by side.',
-				),
-				array(
-					'icon'  => 'image',
-					'title' => 'Agentimus Matches Your Admin Colours',
-					'text'  => 'One colour per WordPress colour scheme, in light and dark, whichever WordPress you run. On the Light scheme, two things that could not be read against the page are fixed.',
+					'title' => 'Connected Assistants Can Read Your Request Log Again',
+					'text'  => 'The tool an AI assistant uses to read your crawler log stopped answering in 1.40.0. Nothing you see in the browser was affected.',
 				)
 			),
 		);
