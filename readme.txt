@@ -4,7 +4,7 @@ Tags: ai-agents, mcp, agent-readiness, llms-txt, ai-seo
 Requires at least: 6.0
 Tested up to: 7.1
 Requires PHP: 7.4
-Stable tag: 1.40.0
+Stable tag: 1.40.1
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -300,7 +300,7 @@ URL-like strings in the plugin's output are labels, not requests — the discove
 == Changelog ==
 
 = 1.40.1 =
-* Fixed: bugs regarding the request log as a connected assistant reads it. 1.40.0 taught that screen to sort, and its answer grew two new fields — which order the rows are in, and how far down the list this page starts. The assistant-facing tool had not been told to expect them, so it refused its own reply and an assistant asking about your crawlers got an error instead of your log. Your own screens were never affected, which is why it went unnoticed. If you use Claude, ChatGPT or another MCP client with this site, it reads again.
+* Fixed: a bug regarding the request log as a connected assistant reads it. 1.40.0 taught that screen to sort, and its answer grew two new fields — which order the rows are in, and how far down the list this page starts. The assistant-facing tool had not been told to expect them, so it refused its own reply and an assistant asking about your crawlers got an error instead of your log. Your own screens were never affected, which is why it went unnoticed. If you use Claude, ChatGPT or another MCP client with this site, it reads again.
 
 = 1.40.0 =
 * Fixed: bugs regarding the impostor count — your dashboard could report "0 caught faking an identity" while your site was catching crawlers forging an identity and turning them away. That figure counted the review queue, which is a list you can dismiss from, rather than the log that records what actually happened, so it fell back to zero as soon as a report was cleared. It reads the log now, over the same days the card counts.
