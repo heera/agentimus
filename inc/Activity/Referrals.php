@@ -18,6 +18,7 @@
 
 namespace Agentimus\Activity;
 
+use Agentimus\Activity\Repository;
 use Agentimus\Settings;
 
 defined( 'ABSPATH' ) || exit;
@@ -470,7 +471,9 @@ final class Referrals {
 	 */
 	public static function report( array $args = array() ) {
 		$range  = self::clamp_range( $args );
-		$source = isset( $args['source'] ) ? substr( sanitize_text_field( (string) $args['source'] ), 0, 40 ) : '';
+		// ⛔ Passed through RAW: source_sql() sanitises and clamps each entry, and
+		// pre-flattening a list to one string here is how the second filter was lost.
+		$source = isset( $args['source'] ) ? $args['source'] : '';
 		$path   = isset( $args['path'] ) ? substr( (string) $args['path'], 0, 190 ) : '';
 		$path   = '' === $path ? '' : self::clean_path( '/' === substr( $path, 0, 1 ) ? $path : '/' . $path );
 
@@ -621,16 +624,43 @@ final class Referrals {
 		) );
 	}
 
+	/**
+	 * The `source` filter, as a WHERE fragment — one assistant, or several.
+	 *
+	 * ⭐ REUSED, NOT REWRITTEN: the request log's multi-pick landed first, so the
+	 * meaning of "several" comes from {@see Repository::as_list()} and is pinned
+	 * by its tests. Both callers below share this, so the report and the day
+	 * drill-down can never disagree about what a list of assistants means.
+	 * ⛔ An empty list adds NOTHING — never `IN ()`, which is a syntax error.
+	 *
+	 * @param mixed $value  Array or comma-separated string from the request.
+	 * @param array $params Bound parameters, appended to in place.
+	 * @return string SQL fragment beginning with ' AND ', or ''.
+	 */
+	private static function source_sql( $value, array &$params ) {
+		$sources = array();
+		foreach ( Repository::as_list( $value ) as $one ) {
+			// Same clamp the single-value path always used: the column is varchar(40).
+			$sources[] = substr( sanitize_text_field( $one ), 0, 40 );
+		}
+		if ( ! $sources ) {
+			return '';
+		}
+		if ( 1 === count( $sources ) ) {
+			$params[] = $sources[0];
+			return ' AND source = %s';
+		}
+		$params = array_merge( $params, $sources );
+		return ' AND source IN (' . implode( ', ', array_fill( 0, count( $sources ), '%s' ) ) . ')';
+	}
+
 	private static function aggregate( $from, $to, $source, $path ) {
 		global $wpdb;
 		$table = self::name();
 
 		$where  = 'day >= %s AND day <= %s';
 		$params = array( $from, $to );
-		if ( '' !== $source ) {
-			$where   .= ' AND source = %s';
-			$params[] = $source;
-		}
+		$where .= self::source_sql( $source, $params );
 		if ( '' !== $path ) {
 			// A PREFIX match, like the request log's User-Agent filter: `LIKE 'x%'` can use
 			// the index, `'%x%'` cannot, and a landing path is read left-to-right anyway.
@@ -713,16 +743,15 @@ final class Referrals {
 		global $wpdb;
 		$table = self::name();
 
-		$source = isset( $args['source'] ) ? substr( sanitize_text_field( (string) $args['source'] ), 0, 40 ) : '';
+		// ⛔ Passed through RAW: source_sql() sanitises and clamps each entry, and
+		// pre-flattening a list to one string here is how the second filter was lost.
+		$source = isset( $args['source'] ) ? $args['source'] : '';
 		$path   = isset( $args['path'] ) ? substr( (string) $args['path'], 0, 190 ) : '';
 		$limit  = empty( $args['full'] ) ? self::DAY_TOP : self::DAY_MAX;
 
 		$where  = 'day = %s';
 		$params = array( $date );
-		if ( '' !== $source ) {
-			$where   .= ' AND source = %s';
-			$params[] = $source;
-		}
+		$where .= self::source_sql( $source, $params );
 		if ( '' !== $path ) {
 			$where   .= ' AND path LIKE %s';
 			$params[] = $wpdb->esc_like( $path ) . '%';

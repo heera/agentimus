@@ -1,5 +1,6 @@
 <script>
 import TagInput from './TagInput.vue';
+import SelectMenu from './SelectMenu.vue';
 
 /**
  * Setup wizard. Two entry points share these screens:
@@ -12,7 +13,7 @@ import TagInput from './TagInput.vue';
  */
 export default {
   name: 'OnboardingWizard',
-  components: { TagInput },
+  components: { TagInput, SelectMenu },
   props: {
     open: { type: Boolean, default: false },
     settings: { type: Object, default: () => ({}) },
@@ -116,6 +117,18 @@ export default {
       if (this.proofState === 'pick') return "Now let's prove it";
       if (this.proofState === 'timeout') return 'Nothing arrived yet';
       return '';
+    },
+    /**
+     * ⚠️ The wizard offers TWO of the four types the settings screen does, with
+     * its own plain-English labels — the choice here is "who is this", not a
+     * schema.org picker. Values stay schema.org's, so what the wizard writes and
+     * what Settings reads are the same strings.
+     */
+    entityTypeOptions() {
+      return [
+        { value: 'Person', label: 'A person' },
+        { value: 'Organization', label: 'An organization' },
+      ];
     },
     isOrg() {
       return this.entityType !== 'Person';
@@ -499,11 +512,12 @@ export default {
                   <p class="ar-modal__lead">{{ introLead }}</p>
 
                   <div class="ar-field">
-                    <label for="ar-wiz-type">This site represents</label>
-                    <select id="ar-wiz-type" v-model="entityType" class="ar-input">
-                      <option value="Person">A person</option>
-                      <option value="Organization">An organization</option>
-                    </select>
+                    <label id="ar-wiz-lbl-type">This site represents</label>
+                    <SelectMenu
+                      v-model="entityType"
+                      :options="entityTypeOptions"
+                      aria-label="This site represents"
+                    />
                   </div>
 
                   <div class="ar-field">

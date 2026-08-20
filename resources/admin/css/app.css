@@ -289,11 +289,33 @@
 :root[data-ar-theme="dark"] .ar-wiz__welcome-mark--brand {
   background: var(--ar-surface-2); color: var(--ar-ink);
 }
+/* ⭐ --ar-btn-ground, so a room can move the button without naming it twice.
+   The default IS --ar-surface-2, which is what every room used before this and
+   what all but one still resolve to. A scheme that wants its buttons on its own
+   bar declares the token ONCE and both the rest and the hover below follow it —
+   the alternative was a literal here and a second literal in the hover, which is
+   the per-room table we just retired. */
 :root[data-ar-theme="dark"] .ar-btn {
-  background: var(--ar-surface-2); color: var(--ar-ink); border-color: var(--ar-line-strong);
+  background: var(--ar-btn-ground, var(--ar-surface-2)); color: var(--ar-ink); border-color: var(--ar-line-strong);
 }
+/* ⭐ HIS CALL, 2026-08-20: the night hover is the DAY's gesture, read from the
+   other end — "no border but enhance bg color". Light lifts a dark button 12%
+   toward white and leaves its edge alone (inc/Admin.php); this does the same to
+   whatever ground the room is wearing. It replaces a literal plus a border
+   brightening, and with it the EIGHT per-room hover values schemes.css used to
+   carry — each room now lifts from its own --ar-surface-2, in its own hue.
+   ⛔ The border is deliberately NOT re-keyed: changing the ground and the edge
+   together was two gestures for one event, and the day only ever made one.
+   ⚠️ admin-color-light writes its own hover at a higher specificity and is
+   untouched — its button holds the ground still and moves the LABEL instead. */
+/* ⚠️ --ar-btn-hover overrides the lift for a room the formula does not suit, and
+   --ar-btn-hover-ink comes with it: a room that names its own hover ground owns
+   the contrast on it, and the resting label is not guaranteed to survive the
+   move. Both default to exactly what every other room already does. */
 :root[data-ar-theme="dark"] .ar-btn:hover:not(:disabled) {
-  background: #3a454d; border-color: var(--ar-ink-faint); box-shadow: none;
+  background: var(--ar-btn-hover, color-mix(in srgb, var(--ar-btn-ground, var(--ar-surface-2)) 88%, #fff));
+  color: var(--ar-btn-hover-ink, var(--ar-ink));
+  box-shadow: none;
 }
 :root[data-ar-theme="dark"] .ar-srcpick__btn.is-on {
   background: var(--ar-accent); color: var(--ar-on-signal);
@@ -382,6 +404,23 @@
    :where() again — zero specificity, so the rail's own ink, the .ar-go rule and
    every other class-styled link still outrank it. Underline on hover only,
    matching the in-app links; the ↗ is what says this one leaves. */
+/* ⛔ AND THE POINTER STATE, which the rule above never covered. wp-admin's
+   colour-scheme sheet (colors-css, #4 in the head — ours is #15) paints
+   `a:hover, a:focus, a:active` in the scheme's HIGHLIGHT — #0096dd on blue —
+   at (0,1,1). Every app link that takes its colour from a plain class sits at
+   (0,1,0) and lost the pointer state to a blue nothing here chose: his catch,
+   2026-08-20, on the Google-index rows, where a link rested in the scheme's
+   navy and turned light blue under the cursor.
+   ⭐ (0,1,1) here as well, so it comes down to source order — and ours loads
+   eleven sheets later. :where() keeps the scope free, which makes this a floor
+   rather than a ceiling.
+   ⚠️ WRITTEN ABOVE every component's own hover rule, deliberately. Equal weight
+   loses to whatever comes later in this file, so .ar__brand, .ar-rail-foot__link
+   and .ar-clsn__act keep the hover colours they chose — checked, all three
+   declare one. Anything that wants its own gets it by being written below. */
+:where(#agentimus-app, .ar-modal, .ar-drawer) a:is(:hover, :focus, :active) {
+  color: var(--ar-accent);
+}
 /* Class-less only. This was written for prose links — an anchor that carries
    a class already has a dress, and repainting it here means every styled link
    in the app has to defend itself against a rule it never asked for (the
@@ -1199,8 +1238,14 @@
 .ar-rail-readiness { display: flex; align-items: center; gap: 15px; }
 /* The gauge + tier block doubles as a quiet link to the full readiness report:
    button reset, no underline, just a faint brighten on hover. */
+/* ⚠️ width:auto, NOT 100%. This is a BUTTON — the gauge and the band word jump
+   to the readiness report — and at full width it claimed the empty third of the
+   row to their right, so the pointer lit the whole line up while hovering
+   nothing. His catch, 2026-08-20. inline-flex keeps the gauge and the tier on
+   one line while the box shrinks to what is actually clickable: 56% of the card
+   instead of 87%. */
 .ar-rail-readiness--link {
-  width: 100%; margin: 0; padding: 0; border: 0; background: transparent;
+  width: auto; display: inline-flex; margin: 0; padding: 0; border: 0; background: transparent;
   color: inherit; text-align: left; text-decoration: none; cursor: pointer;
   transition: filter 0.15s ease;
 }
@@ -1251,21 +1296,29 @@
   display: flex; align-items: center; gap: 9px; width: 100%;
   margin: 0; padding: 0; border: 0; background: transparent;
   font: inherit; color: inherit; text-align: left; text-decoration: none;
-  cursor: pointer; transition: filter 0.15s ease;
+  cursor: pointer;
 }
-.ar-rung__btn:hover { filter: brightness(1.18); }
+/* ⛔ NOT `filter: brightness()`, which is what sat here until 2026-08-20. It
+   MULTIPLIES every channel, so it can only ever lift LIGHT ink off a dark
+   ground — which is all this rug was when the rule was written. 1.39.0 gave the
+   Light scheme a light slab by day, and against #1e1e1e ink x1.18 is a 5/255
+   step that moves the text TOWARD its ground: the row silently stopped
+   answering the pointer on exactly one scheme, and nothing failed to say so.
+   ⭐ The fix is stated in --rail-face, which is ALWAYS this card's contrasting
+   ink whichever ground it has, so lifting the veil to full ink comes forward in
+   BOTH directions. Same idiom as every other veil in this card. The hover rule
+   itself lives beside that base colour, further down. */
 .ar-rung__btn:focus-visible { outline: 2px solid currentColor; outline-offset: 3px; border-radius: 4px; }
 /* The Optimized rung has no tab to jump to (it's per-post), so it's a plain stat row. */
 .ar-rung__btn--static { cursor: default; }
-.ar-rung__btn--static:hover { filter: none; }
 .ar-rung__tick {
   position: relative; flex: 0 0 auto; width: 13px; height: 13px;
   border-radius: 50%; border: 1.5px solid currentColor;
 }
-.ar-rung__name { flex: 1; min-width: 0; }
+.ar-rung__name { flex: 1; min-width: 0; transition: color 0.15s ease; }
 /* A fixed right-aligned slot ("100%" wide), so the percentages hold a perfect
    column and the todo chips right-align against it without wobbling it. */
-.ar-rung__count { font-size: 11px; opacity: 0.85; flex: 0 0 auto; min-width: 4ch; text-align: right; }
+.ar-rung__count { font-size: 11px; opacity: 0.85; flex: 0 0 auto; min-width: 4ch; text-align: right; transition: color 0.15s ease; }
 .ar-rung[data-state="done"] { color: var(--ar-good-on-ink); }
 .ar-rung[data-state="done"] .ar-rung__tick { background: currentColor; }
 .ar-rung[data-state="current"] { color: var(--ar-warn-on-ink); }
@@ -1495,7 +1548,7 @@
   display: flex; align-items: center; gap: 9px; width: 100%;
   padding: 13px 18px; appearance: none; text-align: left; cursor: pointer;
   font-family: var(--ar-mono); font-size: 12.5px; color: var(--ar-ink-soft);
-  transition: border-color 0.15s ease;
+  transition: border-color 0.15s ease, color 0.15s ease;
 }
 .ar-rail-regcard__icon { flex: 0 0 auto; }
 .ar-rail-regcard__text { flex: 1; min-width: 0; }
@@ -1505,6 +1558,17 @@
 .ar-rail-regcard.is-alert .ar-rail-regcard__icon,
 .ar-rail-regcard.is-alert .ar-rail-regcard__go { color: var(--ar-warn); }
 .ar-rail-regcard:hover { border-color: var(--ar-line-strong); }
+/* ⭐ HIS CALL, 2026-08-20: this row answers the pointer the way the discovery-doc
+   links above it do — the same --ar-accent, so the whole rail speaks in one
+   colour and the card follows whatever scheme is worn. Token, not a literal.
+   ⛔ Scoped to .is-ok. On the alert state the amber IS the message, and a hover
+   that repainted it would say something different for as long as the pointer
+   sat there.
+   ⛔ The ✓ ring keeps --ar-good: it is a verdict, not an affordance. Where a
+   scheme's good and accent are one colour (ocean, blue) it moves anyway; where
+   they are not, it should stay put. */
+.ar-rail-regcard.is-ok:hover,
+.ar-rail-regcard.is-ok:hover .ar-rail-regcard__go { color: var(--ar-accent); }
 .ar-rail-regcard:focus-visible { outline: 2px solid var(--ar-accent); outline-offset: 2px; }
 .ar-rail-links { margin: 0; padding: 0; list-style: none; display: grid; gap: 9px; }
 .ar-rail-links a {
@@ -3367,7 +3431,6 @@ select.ar-input {
   border: 1px solid var(--ar-line-strong);
   border-radius: var(--ar-radius);
   background: var(--ar-paper);
-  box-shadow: 0 1px 3px color-mix(in srgb, var(--ar-shade) 6%, transparent);
 }
 .ar-svc:first-of-type { margin-top: 6px; }
 .ar-svc__row { display: flex; flex-wrap: wrap; gap: 8px; }
@@ -3672,9 +3735,31 @@ select.ar-input {
   font-family: var(--ar-mono); font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase;
   padding: 12px 26px; border-radius: var(--ar-radius); white-space: nowrap;
   background: var(--ar-ink); color: var(--ar-paper); border: 1px solid var(--ar-ink);
-  transition: transform 0.12s, background 0.15s, box-shadow 0.15s;
+  transition: transform 0.12s, background 0.22s ease, box-shadow 0.15s;
 }
-.ar-btn:hover:not(:disabled) { background: var(--ar-ink-hard); box-shadow: 0 6px 18px -8px color-mix(in srgb, var(--ar-shade) 70%, transparent); }
+/* ⛔ NO DROP SHADOW — his call, 2026-08-20, the last one left in the app. Every
+   ink-bearing scheme already had box-shadow:none written into its hover by
+   Admin.php, and the Light scheme states it too; this base rule served the
+   default scheme alone, so a button cast on hover there and nowhere else.
+   ⭐ AND THE GROUND LIFTS INSTEAD OF DIVING. Without the shadow the old hover
+   was invisible: --ar-ink-hard is #000 and the default button rests on #1b1913,
+   a 1.20:1 move on a near-black. This is the same 12%-toward-white step every
+   other scheme already gets from Admin.php — #1b1913 -> #36352f, 1.43:1 — so
+   the default scheme now answers the pointer the way the other nine do.
+   ⚠️ --ar-ink-hard is left alone: it is still the app's true black elsewhere. */
+.ar-btn:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--ar-ink) 88%, #fff); box-shadow: none;
+  /* ⭐ THE LIFT IS MOTION, NOT MORE COLOUR — his call, 2026-08-20: the ground
+     move alone "is not very obvious". It cannot simply go further: the label
+     sits ON this ground, so every step the ground rises the label loses. At
+     today's 12% ocean's night hover is already 4.04:1; at 18% it is 3.47. One
+     pixel of travel reads immediately and costs nothing.
+     ⛔ DECLARED HERE AND NOT IN THE NIGHT RULE, deliberately. .ar-btn:active
+     takes translateY(1px) at the same weight and comes later, so it still wins
+     the press. Put this in :root[data-ar-theme="dark"] .ar-btn:hover instead and
+     that rule outranks :active, and the button stops answering the click. */
+  transform: translateY(-1px);
+}
 .ar-btn:active:not(:disabled) { transform: translateY(1px); }
 /* A label that swaps to a longer busy form ("Refresh" → "Refreshing…") reserves
    the longer form's width up front via an invisible twin (data-reserve), so the
@@ -4140,15 +4225,19 @@ html { scrollbar-gutter: stable; }
   display: flex; align-items: center; gap: 11px;
   padding: 0 4px 11px;
 }
-/* A slim full-width 1px divider, colour-keyed to the rung's status (pass / warn /
-   fail) so the header reads as one signal with its dot and count. */
+/* A slim full-width 1px divider under the group header — the ordinary line, the
+   same one every other card in the app draws.
+   ⛔ IT USED TO BE STATUS-KEYED — green at 55% for a passing group, gold at 50%,
+   red at 50% — on the idea that the header should "read as one signal with its
+   dot and count". His call, 2026-08-20: it should not. A divider is structure,
+   not a verdict; the dot, the count and the pills already say the verdict three
+   times, and a fourth in the furniture made a passing card look tinted and a
+   failing one look alarmed before a word had been read.
+   ⭐ One line, every status, every scheme, both modes. */
 .ar-checkgroup__head::after {
   content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 1px;
   background: var(--ar-line-strong);
 }
-.ar-checkgroup.is-pass .ar-checkgroup__head::after { background: color-mix(in srgb, var(--ar-good) 55%, transparent); }
-.ar-checkgroup.is-warn .ar-checkgroup__head::after { background: color-mix(in srgb, var(--ar-warn) 50%, transparent); }
-.ar-checkgroup.is-fail .ar-checkgroup__head::after { background: color-mix(in srgb, var(--ar-bad) 50%, transparent); }
 .ar-checkgroup__rung {
   flex: 0 0 auto; width: 9px; height: 9px; border-radius: 50%;
   background: var(--ar-line-strong);
@@ -4244,8 +4333,20 @@ html { scrollbar-gutter: stable; }
   background: none; border: 0; cursor: pointer;
   font-family: var(--ar-mono); font-size: 11px; letter-spacing: 0.04em;
   color: var(--ar-accent);
+  /* ⛔ The rest of this rule dresses a BUTTON — background:none, border:0 — and
+     the element is an <a>. Without this the browser's own underline was on at
+     rest, so the :hover rule below asked for an underline that was already
+     there and the link answered the pointer by doing nothing. His catch,
+     2026-08-20; it was the only link in the app underlined at rest. */
+  text-decoration: none;
 }
-.ar-check__action:hover { text-decoration: underline; }
+/* The same underline the in-app prose links draw, so a hover reads the same
+   wherever it happens. */
+.ar-check__action:hover {
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
+}
 .ar-check__action:focus-visible { outline: 2px solid var(--ar-accent); outline-offset: 3px; border-radius: 3px; }
 /* The status tag sits on the first text line even though the row is top-aligned. */
 .ar-check__tag { margin-top: 1px; }
@@ -4446,9 +4547,16 @@ html { scrollbar-gutter: stable; }
 .ar-wd-stat small { margin-top: 2px; font-size: 11px; line-height: 1.3; color: var(--ar-ink-soft); }
 .ar-wd-stat.is-bad strong { color: var(--ar-bad); }
 /* A clickable stat: reset the button chrome, add a quiet hover so it reads as a
-   jump link to its own section. */
-button.ar-wd-stat { border: 0; font: inherit; cursor: pointer; transition: background 0.12s; }
-button.ar-wd-stat:hover { background: color-mix(in srgb, var(--ar-accent) 7%, var(--ar-surface)); }
+   jump link to its own section.
+   ⭐ THE SAME GROUND STEP THE DASHBOARD TILES TAKE — his call, 2026-08-20. It
+   replaces a 7% accent wash, which was this one surface hovering in a colour
+   nothing else used. --ar-surface-2 is the raised surface every scheme already
+   declares, so it moves in each mode's own direction.
+   ⛔ NO translateY here, unlike the tiles: these cells sit in a 1px grid gap
+   over --ar-line with overflow:hidden, so a cell that travels opens a seam in
+   the strip it belongs to. The ground alone. */
+button.ar-wd-stat { border: 0; font: inherit; cursor: pointer; transition: background 0.15s; }
+button.ar-wd-stat:hover { background: var(--ar-surface-2); }
 button.ar-wd-stat:focus-visible { outline: 2px solid var(--ar-accent); outline-offset: -2px; }
 /* A stat count that doesn't divide evenly into a fixed grid (the Discovery hub's
    five totals) flex-fills instead, so the last row stretches to the full width
@@ -4732,9 +4840,16 @@ button.ar-wd-stat:focus-visible { outline: 2px solid var(--ar-accent); outline-o
   margin: 14px 0 0; background: var(--ar-line-strong); border: 1px solid var(--ar-line-strong);
   border-radius: var(--ar-radius); overflow: hidden;
 }
+/* ⭐ ONE GROUND FOR EVERY CELL — his call, 2026-08-20. They used to rest on
+   --ar-surface-2 and the selected one alone took --ar-surface, so the strip read
+   as one lit cell among darker ones. Now the row is a single sheet and selection
+   is carried by the accent along the top edge and the ink, nothing else.
+   ⚠️ The 1px gaps show --ar-line-strong through, so uniform cells still read as
+   separate presses rather than one white block. */
 .ar-wd-sum__cell {
-  background: var(--ar-surface-2); padding: 9px 13px; text-align: left;
+  background: var(--ar-surface); padding: 9px 13px; text-align: left;
   border: 0; font: inherit; color: inherit; cursor: pointer;
+  transition: background 0.15s;
 }
 .ar-wd-sum__cell span {
   display: block; font-family: var(--ar-mono); font-size: 9.5px;
@@ -4745,21 +4860,27 @@ button.ar-wd-stat:focus-visible { outline: 2px solid var(--ar-accent); outline-o
   color: var(--ar-ink-soft);
 }
 /* The number keeps its meaning in both states — green is published, amber is held
-   back. Selection is carried by the GROUND and the underline, never by recolouring
+   back. Selection is carried by the TOP ACCENT and the ink, never by recolouring
    the figure, which would make the colour read as "selected" rather than "these
    are the ones nobody can see". */
 .ar-wd-sum__cell strong.is-on { color: var(--ar-good); }
 .ar-wd-sum__cell strong.is-held { color: var(--ar-warn); }
-.ar-wd-sum__cell:hover { background: var(--ar-field); }
+/* ⚠️ --ar-field resolves to --ar-surface on most schemes, which is now the
+   resting ground — the hover would have been invisible. It takes the same
+   surface-2 step the dashboard tiles and the discovery stats use. */
+.ar-wd-sum__cell:hover { background: var(--ar-surface-2); }
 .ar-wd-sum__cell:hover span { color: var(--ar-ink-soft); }
-/* ⭐ SELECTION IS MARKED THE WAY THIS PLUGIN MARKS SELECTION: a white fill and an
-   accent along the TOP edge — his call, 2026-07-19, the same pair
+/* ⭐ SELECTION IS MARKED THE WAY THIS PLUGIN MARKS SELECTION: an accent along the
+   TOP edge — his call, 2026-07-19, the same mark
    `.ar-subnav__item.is-active` wears. I had reached for a bottom underline, which
    belongs to the top-level nav (`.ar__tab`) and to nothing else. A segmented strip
    inside a card is sub-nav, and a screen with two different ways of saying
    "this one is selected" makes the reader learn the same idea twice.
    ⚠️ An inset shadow, not a border: a border would change the cell's height and
-   push every unselected neighbour out of line. */
+   push every unselected neighbour out of line.
+   ⚠️ The ground is restated here even though it now matches the resting cell —
+   it comes after :hover and so holds the selected cell still under the pointer,
+   which is what stops the current tab from answering a press it already made. */
 .ar-wd-sum__cell[aria-pressed="true"] {
   background: var(--ar-surface); box-shadow: inset 0 2px 0 0 var(--ar-accent);
 }
@@ -5093,7 +5214,7 @@ a:hover > .ar-wd-ext { color: var(--ar-accent); }
   appearance: none; cursor: pointer; text-align: left;
   display: flex; align-items: center; gap: 12px;
   padding: 14px 16px; border: 1px solid var(--ar-line); border-radius: var(--ar-radius);
-  background: var(--ar-surface); transition: border-color 0.15s, box-shadow 0.15s, transform 0.12s;
+  background: var(--ar-surface); transition: border-color 0.15s, background 0.15s, transform 0.12s;
 }
 /* The tile's mark: an accent-tinted chip, quiet enough not to shout four times
    in a row; the number stays the loudest thing on the tile. */
@@ -5107,11 +5228,19 @@ a:hover > .ar-wd-ext { color: var(--ar-accent); }
 .ar-dash-tile__body { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
 /* "6 PROVIDERS" — the number leads and the label rides its baseline. */
 .ar-dash-tile__row { display: inline-flex; align-items: baseline; gap: 7px; }
-.ar-dash-tile:hover { border-color: var(--ar-line-strong); box-shadow: 0 5px 16px -9px color-mix(in srgb, var(--ar-shade) 40%, transparent); }
-/* Dark: a shadow on near-black is invisible and line→line-strong is a step
-   nobody sees — the hover cue becomes a surface lift instead. */
+/* ⛔ NO SHADOW — his call, 2026-08-20, the same one he made about the buttons.
+   ⭐ The cue is the pixel of travel instead, which is what every button in the
+   app now does, so a card and a button answer the pointer the same way. The
+   border step stays; the dark rule below already lifts the surface and needs
+   nothing. ⚠️ :active sits at the same weight and comes after, so the press
+   still wins the transform. */
+.ar-dash-tile:hover {
+  border-color: var(--ar-line-strong); background: var(--ar-surface-2); transform: translateY(-1px);
+}
+/* Dark keeps its own BORDER step — line→line-strong is a move nobody sees on
+   near-black — but the ground is now the base rule's job in both modes: the
+   surface-2 lift was written here first, and the day simply joined it. */
 :root[data-ar-theme="dark"] .ar-dash-tile:hover {
-  background: var(--ar-surface-2);
   border-color: color-mix(in srgb, var(--ar-ink) 14%, var(--ar-line));
 }
 .ar-dash-tile:active { transform: translateY(1px); }
@@ -6285,6 +6414,17 @@ a.ar-about-proto__v:hover { text-decoration: underline; }
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 .ar-log .ar-act-table { min-width: 0; }
+/* ⭐ THE HEADER HOLDS STILL — his call, 2026-08-21: sorting "resize[s] and UI
+   shifts". Auto layout measures whatever content this page happens to hold, so
+   every sort re-proportioned the table. Fixed layout takes the widths from the
+   <colgroup> and never measures a cell, so the geometry is identical in every
+   order. ⚠️ Only the LOG table: the dashboard's shares this class and its
+   columns are sized by their content on purpose. */
+.ar-log__table { table-layout: fixed; }
+/* Under fixed layout the column owns the width, so the "absorb the slack" trick
+   (width:100% + max-width:0) is inert — the cell just needs to clip. */
+.ar-log__table td.ar-act-table__uacol { width: auto; max-width: none; overflow: hidden; text-overflow: ellipsis; }
+.ar-log__table th, .ar-log__table td { overflow: hidden; text-overflow: ellipsis; }
 .ar-log .ar-act-table td:last-child, .ar-log .ar-act-table th:last-child { text-align: right; padding-right: 10px; width: 24ch; min-width: 24ch; }
 
 .ar-log__filters {
@@ -6342,6 +6482,25 @@ a.ar-about-proto__v:hover { text-decoration: underline; }
    name. Slim by design: one short word, hairline border, no fill — the table is
    scanned, and a row of loud chips is harder to read than a quiet column. */
 .ar-log__statuscol { width: 92px; white-space: nowrap; }
+/* ⭐ A sortable header is a button filling its cell, so the whole label is the
+   target rather than the few pixels of text. The mark holds its column whether
+   or not this is the sorted one, so the labels never shuffle sideways when the
+   sort moves. */
+.ar-log__sort {
+  appearance: none; background: none; border: 0; padding: 0; margin: 0;
+  font: inherit; color: inherit; letter-spacing: inherit; text-transform: inherit;
+  cursor: pointer; display: inline-flex; align-items: center; gap: 5px;
+}
+.ar-log__sort:hover { color: var(--ar-ink); }
+.ar-log__sort:focus-visible { outline: 2px solid var(--ar-accent); outline-offset: 3px; }
+/* Both halves are drawn at rest so every sortable column LOOKS sortable; the
+   inactive pair is faint enough not to compete with the label it follows. */
+.ar-log__sortmark { display: inline-flex; width: 9px; height: 12px; flex: 0 0 auto; }
+.ar-log__sortmark path { fill: currentColor; opacity: 0.3; transition: opacity 0.15s ease, fill 0.15s ease; }
+.ar-log__sort:hover .ar-log__sortmark path { opacity: 0.55; }
+.ar-log__sortmark path.is-on,
+.ar-log__sort:hover .ar-log__sortmark path.is-on { fill: var(--ar-accent); opacity: 1; }
+th.is-sorted .ar-log__sort { color: var(--ar-ink); }
 .ar-log__mark {
   display: block; width: max-content; padding: 0 5px; border-radius: 3px;
   font-family: var(--ar-mono); font-size: 9.5px; line-height: 16px; letter-spacing: 0.06em;
@@ -7168,7 +7327,15 @@ a.ar-about-proto__v:hover { text-decoration: underline; }
 /* Deliberately quiet: the score answers "is my setup right", which is not the
    question this screen exists to answer. It stays available, never dominant. */
 .ar-today__score { text-align: right; white-space: nowrap; }
-.ar-today__score-n { display: block; font-family: var(--ar-mono); font-size: 15px; font-weight: 600; color: var(--ar-good); font-variant-numeric: tabular-nums; }
+/* ⚠️ --ar-accent, not --ar-good. This number has ONE class and no state
+   variant: it is green at 99/100 and green at 12/100, so the colour was telling
+   you nothing — it only looked like a verdict. Anything whose colour never
+   changes with what it reports is chrome, and chrome follows the scheme.
+   ⛔ Not a licence to sweep every unconditional --ar-good in this file: most of
+   them ARE conditional, just in the markup rather than the selector — the dot
+   beside a verified log line only renders when the line is verified. This one
+   renders always. */
+.ar-today__score-n { display: block; font-family: var(--ar-mono); font-size: 15px; font-weight: 600; color: var(--ar-accent); font-variant-numeric: tabular-nums; }
 .ar-today__score-l { display: block; font-size: 10px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ar-ink-faint); }
 .ar-today__refresh { font-size: 12px; }
 
@@ -8090,10 +8257,30 @@ body {
 /* One row shape, three rows a side, separated by hairlines rather than gaps:
    a list this short reads faster as a small table than as floating lines. */
 .ar-aud__rows { list-style: none; margin: 0; padding: 0; }
-.ar-aud__rows li {
+/* The row's layout moved off the <li> and onto .ar-aud__row, because a row that
+   can be walked into has to be a BUTTON — and a button cannot be the list item
+   without losing the border that separates it. Same split .ar-act-rank makes. */
+.ar-aud__rows li { border-bottom: 1px solid var(--ar-line); }
+.ar-aud__row {
   display: flex; align-items: baseline; gap: 12px; font-size: 13px;
-  padding: 7px 0; border-bottom: 1px solid var(--ar-line);
+  padding: 7px 0; width: 100%;
+  appearance: none; background: none; border: 0; margin: 0;
+  font: inherit; color: inherit; text-align: left;
 }
+/* ⭐ A row that goes somewhere SAYS SO AT REST — his call, 2026-08-21: "make
+   these look like on page nav link". The label wears the app's link language
+   (--ar-accent, underline on hover at the same offset .ar-linkbtn uses), so it
+   is discoverable without hovering to find out. ⛔ The NUMBER stays ink: it is
+   the fact, not the invitation — "just the text portions", his words.
+   ⛔ The trailing <em>s opt out of the underline and keep their own colour: the
+   trend is green or red because it is a direction, and "not recording" is faint
+   because it is an absence. Neither is part of the link. */
+.ar-aud__row.is-go { cursor: pointer; }
+.ar-aud__row.is-go .ar-aud__row-l { color: var(--ar-accent); }
+.ar-aud__row.is-go:hover .ar-aud__row-l { text-decoration: underline; text-underline-offset: 3px; }
+.ar-aud__row.is-go .ar-aud__trend,
+.ar-aud__row.is-go .ar-aud__off { text-decoration: none; }
+.ar-aud__row.is-go:focus-visible { outline: 2px solid var(--ar-accent); outline-offset: 3px; }
 .ar-aud__rows li:first-child { border-top: 1px solid var(--ar-line); }
 .ar-aud__row-n {
   flex: 0 0 auto; min-width: 3.4ch; text-align: right;
@@ -8794,25 +8981,41 @@ body {
   --rail-read: 74%;
 }
 
-/* The kicker names the card; it earns the accent. */
-.ar-rail-card--readiness .ar-rail-card__label { color: var(--rail-good); }
+/* The kicker names the card; it earns the accent — and the weight, his call
+   2026-08-20, so the smallest type on the card is not also the thinnest. */
+.ar-rail-card--readiness .ar-rail-card__label { color: var(--rail-good); font-weight: 600; }
 /* The score is the headline — full paper, no veil. */
 .ar-rail-card--readiness .ar-rail-gauge__num { color: color-mix(in srgb, var(--rail-face) 70%, transparent); }
 /* The rungs read as a list again: plain paper for the words and the numbers,
    so the only colour left on a row means something. */
 .ar-rail-card--readiness .ar-rung__name,
 .ar-rail-card--readiness .ar-rung__count { color: color-mix(in srgb, var(--rail-face) var(--rail-read), transparent); }
+/* Hover drops the veil: the row comes forward to full ink. ⭐ Works on either
+   ground because --rail-face IS the ground's opposite — ~36/255 on the light
+   slab, the same on the charcoal. ⛔ The static rung is excluded rather than
+   undone: it does not navigate, so it must not offer to. */
+.ar-rail-card--readiness .ar-rung__btn:not(.ar-rung__btn--static):hover .ar-rung__name,
+.ar-rail-card--readiness .ar-rung__btn:not(.ar-rung__btn--static):hover .ar-rung__count { color: var(--rail-face); }
 /* The one actionable mark on the card wears the one warning colour. */
 .ar-rail-card--readiness .ar-rung__todo { color: var(--ar-warn-on-ink); }
 
 /* The bullets are RINGS, never filled discs (his call). The state still shows
    — it moves into the ring's own colour rather than its fill, so nothing is
    lost: green ring = done, amber = in progress, faint = not yet. */
-.ar-rail-card--readiness .ar-rung__tick,
+/* ⚠️ THE BULLETS AND THE ARC WEAR THE CARD'S OWN IDENTITY, --rail-good, and a
+   round trip on 2026-08-20 is why this comment exists. They were given
+   WordPress's highlight (#567958) as a literal, then a white line either side to
+   make 1.89:1 findable, then the line was dropped at night where the green
+   already reads. His verdict on the result was "looks ugly", and his fix was the
+   night's own arrangement in both modes: one colour for the band word, the ring
+   and the bullets, and nothing drawn around it.
+   ⛔ So the marks follow the card, not the scheme. The scheme's highlight still
+   dresses the app everywhere else — it is --ar-accent — but this card already
+   speaks in one colour and does not want a second. */.ar-rail-card--readiness .ar-rung__tick,
 .ar-rail-card--readiness .ar-rung[data-state="done"] .ar-rung__tick {
   background: transparent;
   border-width: 2px;
-  border-color: color-mix(in srgb, var(--rail-face) 40%, transparent);
+  border-color: var(--rail-good);
 }
 .ar-rail-card--readiness .ar-rung[data-state="done"] .ar-rung__tick { border-color: var(--rail-good); }
 .ar-rail-card--readiness .ar-rung[data-state="current"] .ar-rung__tick { border-color: var(--ar-warn-on-ink); }
@@ -8861,12 +9064,27 @@ body {
   width: 22px;
   height: 22px;
   border-radius: 6px;
-  color: var(--ar-accent);
-  background: var(--ar-accent-wash);
-  /* The same accent-tinted hairline the dashboard tiles wear — a plain
-     --ar-line is warm sand against this cool wash, and the two tile families
-     sit on the same screen. */
-  border: 1px solid color-mix(in srgb, var(--ar-accent) 22%, var(--ar-line));
+  /* ⭐ The same quiet neutral .ar-sys__mark wears beside DOORS and SIGNALS.
+     These two are one object — same 22px square, same 6px radius, the same
+     uppercase-mono section label beside them, on the same screen — and the rule
+     below already sizes this glyph to match that one.
+     ⛔ NOT a copy of that rule's three values. .ar-sys__mark is --ar-surface on
+     an --ar-surface-2 panel; this card's ground IS --ar-surface, so those same
+     values paint the tile the colour of the card behind it. What transfers is
+     the RELATIONSHIP: each mark takes the rung NEXT TO its own ground.
+     ⚠️ --ar-paper sat here for half a day and was wrong, in a way one mode hid.
+     In Light the ladder runs surface-2 < paper < surface, so paper was a 6/255
+     nudge and looked right. In dark, paper is the FLOOR — the page canvas — and
+     the same token became a 38/255 pit next to the systems mark's 12. His catch,
+     2026-08-20, on the blue scheme at night.
+     ⭐ --ar-surface-2 is the adjacent rung in BOTH modes, so the step matches
+     the systems mark to the channel: 5/7/11 by day, 3/9/12 by night. The SIGN
+     is opposite and cannot not be — this mark's ground is the very token that
+     mark uses as its tile — but at 22px behind a hairline it is the weight that
+     reads, not which side of the ground it sits on. */
+  background: var(--ar-surface-2);
+  border: 1px solid var(--ar-line);
+  color: var(--ar-ink-soft);
 }
 /* 12px, not 13 — the same glyph size .ar-sys__mark uses beside DOORS and
    SIGNALS on this very screen. Both are section labels in the same
@@ -8935,7 +9153,17 @@ body {
   content: ""; position: absolute; top: 2px; left: 2px; width: 15px; height: 15px;
   background: #fff; border-radius: 50%; transition: transform 0.18s;
 }
-.ar-wd-switch input:checked + .ar-wd-switch__track { background: var(--ar-good); }
+/* ⚠️ --ar-accent, NOT --ar-good, and the same for .ar-wd-rule below. These are
+   CONTROLS — the thing you press to turn a source on — and .ar-toggle__track,
+   the switch on every Settings row, has always painted its on-state in the
+   accent. This one said "good" instead, and for as long as the accent was teal
+   and good was green the two were near enough that nobody saw it. Re-keying the
+   accent to the admin scheme's colour (2026-08-20) pulled them apart: Settings
+   went blue while these stayed green, on the same install, in the same session.
+   ⛔ The STATUS pills beside them — "Anyone can read this", .ar-wd-state.is-open
+   — keep --ar-good, and should. Those report a fact about the world; a switch
+   reports what you chose. Different jobs, different tokens. */
+.ar-wd-switch input:checked + .ar-wd-switch__track { background: var(--ar-accent); }
 .ar-wd-switch input:checked + .ar-wd-switch__track::after { transform: translateX(15px); }
 .ar-wd-switch input:focus-visible + .ar-wd-switch__track { outline: 2px solid var(--ar-accent); outline-offset: 2px; }
 /* The one rule under all the groups: a switch and two lines, set apart from the
@@ -8947,7 +9175,7 @@ body {
 }
 .ar-wd-rule input { position: absolute; opacity: 0; width: 0; height: 0; }
 .ar-wd-rule .ar-wd-switch__track { margin-top: 1px; flex: 0 0 auto; }
-.ar-wd-rule input:checked + .ar-wd-switch__track { background: var(--ar-good); }
+.ar-wd-rule input:checked + .ar-wd-switch__track { background: var(--ar-accent); }
 .ar-wd-rule input:checked + .ar-wd-switch__track::after { transform: translateX(15px); }
 .ar-wd-rule__text { display: flex; flex-direction: column; gap: 2px; }
 .ar-wd-rule__text strong { font-size: 13.5px; font-weight: 600; color: var(--ar-ink); }

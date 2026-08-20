@@ -24,23 +24,105 @@ final class SchemeInk {
 	 *  too bright for the muted text on it. */
 	const CARD_LUMA = 0.14;
 
-	/** Hand-picked card-depth surface per core admin scheme (contrast ratio noted). */
+	/** HSL lightness above which a scheme's MENU counts as bright, and the ink
+	 *  has to echo the scheme's dark anchor instead of sitting under the menu.
+	 *  Between WP 7.1's sunrise menu (0.36, dark) and classic blue's (0.49,
+	 *  bright) — the two cases his eye separated. */
+	const BRIGHT_MENU_L = 0.42;
+
+	/**
+	 * The scheme-flavoured surface for the buttons, chips and readiness rug,
+	 * KEYED BY colors[0] — the first swatch WordPress registers.
+	 *
+	 * ⚠️ colors[0] and NOT "the menu colour", because there is no stable slot
+	 * for the menu. Verified against WordPress's own colors.scss: $base-color is
+	 * colors[1] for six core schemes, colors[2] for classic blue, and colors[0]
+	 * for light and modern. colors[0] is the one slot that is stable AND unique
+	 * per scheme-and-generation — 14 keys, no collisions.
+	 *
+	 * ⚠️ And not by SLUG, which is how this was written until 2026-08-20.
+	 * WordPress RETUNES schemes: 7.1 moved every core bar, so `sunrise` kept
+	 * handing back a dark mixed for the OLD #b43c38 on installs whose bar is
+	 * #6f2724. Keyed by colour, a stale entry stops matching and the rule takes
+	 * over — degraded, not wrong.
+	 *
+	 * ⭐ HIS RULE, 2026-08-20, from looking at both generations side by side:
+	 *
+	 *   BRIGHT menu  -> the ink IS the menu colour. Nothing that carries light
+	 *                   text can approach a bright menu, so stop trying: take
+	 *                   the colour, and the light text it already carries goes
+	 *                   with it.
+	 *   DARK menu    -> sit just under the menu. ⛔ Never ON colors[0]: that is
+	 *                   deeper than the deepest thing on screen and reads as a
+	 *                   hole — the thing he rejected on sunrise (#6f2724).
+	 */
 	const SCHEME_INKS = array(
-		// HIS PICK, 2026-08-20: the Light scheme's OWN colour, not a dark tuned
-		// to it — so the buttons, chips and score card wear the grey the
-		// scheme actually paints. The ONLY light entry in this map, and the
-		// one case where an "ink" surface is lighter than the text on it:
-		// schemes.css re-keys the label for this scheme (13.2:1), because
-		// app.css writes every ink surface in --ar-paper.
-		'light'     => '#e5e5e5', // the scheme's own grey; label re-keyed dark
-		'modern'    => '#1e1e1e', // its own menu colour, already card-depth
-		'blue'      => '#07485f', // #096484 deepened just past the bar (4.3:1)
-		'coffee'    => '#46403c', // EXACT menu colour (4.5:1)
-		'ectoplasm' => '#413256', // EXACT menu colour (5.2:1)
-		'midnight'  => '#25282b', // EXACT menu colour (6.7:1)
-		'ocean'     => '#3a4a4f', // #627c83 deepened to the bar (4.1:1)
-		'sunrise'   => '#7e2a27', // #b43c38 deepened to the bar (4.2:1)
+		// ---- WordPress before 7.1 ----
+		'#096484' => '#245278', // blue      — his call 2026-08-20: ONE blue for every
+		                        //             generation, so this is the 7.1 bar (8.09:1)
+		'#627c83' => '#39535a', // ocean     — his call 2026-08-20: ONE ocean for every
+		                        //             generation, so this is the 7.1 bar (8.07:1)
+		'#b43c38' => '#8a312d', // sunrise   — his call 2026-08-20: ONE sunrise for every
+		                        //             generation, so this is the 7.1 bar (8.07:1)
+		'#46403c' => '#46403c', // coffee    — dark menu; EXACT bar (4.5:1)
+		'#413256' => '#432e5f', // ectoplasm — his pick 2026-08-20: the 7.1 value, for both
+		'#25282b' => '#25282b', // midnight  — dark menu; EXACT bar (6.7:1)
+
+		// ---- WP 7.1 — every menu here is dark. Some sit just under it; blue,
+		//      ocean and sunrise wear the bar ITSELF, his call 2026-08-20 — all
+		//      three clear 8:1 on the cream card, so the deepening bought contrast
+		//      nobody needed and cost the scheme's own colour. ----
+		'#183751' => '#245278', // blue      — his pick 2026-08-20: the EXACT bar, not a deepening (8.09:1)
+		'#382e27' => '#4e4036', // coffee
+		'#392751' => '#432e5f', // ectoplasm
+		'#232a2e' => '#2d353a', // midnight
+		'#2b3f44' => '#39535a', // ocean     — his pick 2026-08-20: the EXACT bar, not a deepening (8.07:1)
+		'#6f2724' => '#8a312d', // sunrise   — his pick 2026-08-20: the EXACT bar (8.07:1)
+
+		// ---- unchanged across both ----
+		'#e5e5e5' => '#ebeaea', // light  — HIS PICK 2026-08-20, a shade above the
+		                        //          scheme's own grey: this IS the rail's ground
+		'#1e1e1e' => '#1e1e1e', // modern — its own menu colour, already card-depth
 	);
+
+	/**
+	 * The BRIGHT surface for a scheme whose menu is bright — the colour the app's
+	 * ink surfaces take instead of a dark.
+	 *
+	 * ⭐ HIS CALL, 2026-08-20, settled by pointing at it rather than describing
+	 * it: on the brighter blue the buttons AND the readiness rug are the menu's
+	 * own colour, with the light text they already had. Every dark I derived to
+	 * "go with" a bright menu landed somewhere nobody chose, and both halves of
+	 * my compromise were wrong too — flipping the rug's text dark stranded its
+	 * greens and golds, and leaving the rug out dropped it to the app's neutral
+	 * #1b1913, a colour belonging to no scheme at all.
+	 *
+	 * ⚠️ The rug still needs two of its own tokens re-keyed WHITE alongside this
+	 * ({@see Admin::scheme_css()}): --rail-face and --rail-good are mixed against
+	 * a dark card, and on a bright one the band word, the kicker and the ring all
+	 * disappear into the ground. The gold "N to fix" is left alone — it reads.
+	 *
+	 * ⚠️ SCHEME_INKS keeps its dark value for these schemes, and is still used:
+	 * the GHOST button paints `color: var(--ar-ink)` on the PAGE, not on the ink,
+	 * so it needs the dark one or it is 2.4:1 text.
+	 *
+	 * Keyed by colors[0], like SCHEME_INKS.
+	 */
+	const SCHEME_SURFACES = array(
+		// ⛔ EMPTY, AND THAT IS THE FINISHED STATE — his call across three sittings
+		// on 2026-08-20: "just one for all". Blue, ocean and sunrise each wore a
+		// bright pre-7.1 menu and each has been collapsed onto its own 7.1 bar, so
+		// no scheme dresses its surfaces in a bright menu any more.
+		// ⚠️ The array is kept rather than deleted because card_surface_for() is
+		// this table's only reader and returning '' for everything is exactly what
+		// the dark-menu path expects. A scheme that ever needs the bright treatment
+		// again adds one line here and nothing else changes.
+		// ⚠️ Which does mean the BRIGHT branch of Admin::scheme_css() is now
+		// unreachable. Left standing deliberately, and flagged to him — it is a
+		// separate deletion, not a side effect of this one.
+	);
+
+
 
 	/**
 	 * The card surface for a scheme: the curated map for the core schemes
@@ -49,8 +131,11 @@ final class SchemeInk {
 	 * default "fresh" — which keeps the designed warm ink.
 	 *
 	 * @param string $scheme Scheme slug from the user's profile, e.g. "coffee".
-	 * @param string $base   The scheme's registered base colour (colors[0]),
-	 *                       used only for the unlisted-scheme fallback.
+	 *                       Used ONLY to spot the default "fresh"; the ink itself
+	 *                       is chosen by colour, never by slug.
+	 * @param string $base   The scheme's registered base colour (colors[0]) —
+	 *                       what this install actually paints, and the key the
+	 *                       curated map is looked up by.
 	 * @return string Card-depth hex, or '' (default scheme / nothing usable).
 	 */
 	public static function card_ink_for( $scheme, $base ) {
@@ -58,11 +143,134 @@ final class SchemeInk {
 		if ( '' === $scheme || 'fresh' === $scheme ) {
 			return '';
 		}
-		if ( isset( self::SCHEME_INKS[ $scheme ] ) ) {
-			return self::SCHEME_INKS[ $scheme ];
+		$base = strtolower( trim( (string) $base ) );
+		if ( isset( self::SCHEME_INKS[ $base ] ) ) {
+			return self::SCHEME_INKS[ $base ];
 		}
 
-		return self::scheme_ink( (string) $base );
+		// Unmeasured scheme: apply the rule. The menu is a best guess for one we
+		// have never seen — colors[1] holds it for six of the eight core schemes
+		// — and $base (colors[0]) is the anchor.
+		return self::derive_ink( self::registered_menu( $scheme, $base ), $base );
+	}
+
+	/**
+	 * May this scheme's colour stand in for GREEN on the wordless verdict marks?
+	 *
+	 * ⭐ HIS CALL, 2026-08-20: on a scheme that is not green, a green "pass" bar
+	 * is the one loud thing on a page whose whole job is to show you what needs
+	 * attention. Quieting it to the scheme's own colour lets the gold and the red
+	 * do that work alone.
+	 *
+	 * ⛔ BUT ONLY WHERE THE COLOUR CAN CARRY IT, and this is not a style question.
+	 * Sunrise's ink is hue 3 — FOUR degrees from --ar-bad. Re-keyed there, every
+	 * passing check would paint red and read as a failure. Coffee's sits between
+	 * warn and bad. Light, modern, midnight's brighter variation and ocean's are
+	 * near-neutral: a verdict mark in grey is the "off" state, which means "we
+	 * did not look", not "this is fine".
+	 *
+	 * So the guard is computed, not a hand list — a future WordPress retune moves
+	 * these colours (it already has, twice) and a list would quietly go stale:
+	 *
+	 *   saturation >= 14%   or the mark is grey and says nothing
+	 *   lightness 15–62%    or it cannot be seen on the card
+	 *   >= 25deg from BOTH --ar-warn (40) and --ar-bad (7)
+	 *
+	 * ⭐ THE SATURATION GATE IS 14% AND NOT 20%, his call 2026-08-20 on the
+	 * brighter ocean: he looked at a green pass-bar beside a grey-green scheme
+	 * and asked for the scheme's colour, and the number that was refusing it was
+	 * drawn from the dark inks rather than measured against this one. #738e96 is
+	 * 14.3% saturated and reads as a colour on the card, not as an "off" state.
+	 * ⚠️ 14% and not, say, 10% — that is the whole margin. WP 7.1's midnight sits
+	 * at 12.6%, its older one at 7.5% and coffee's older bar at 7.7%, and those
+	 * ARE greys: a verdict mark in grey says "we did not look", not "this is
+	 * fine". The gate admits exactly one more colour than it did, and it was
+	 * chosen by listing every ink and surface the app can emit and reading where
+	 * the line had to fall.
+	 *
+	 * ⭐ THE CEILING IS 62% AND NOT 55%, his call 2026-08-20 on the brighter
+	 * blue. A bright menu's surface is LIGHT by definition — that is what makes
+	 * it bright — so a ceiling drawn for the dark-menu inks was refusing the one
+	 * family it was never measured against. #52accc sits at 56%. The gates that
+	 * actually protect a verdict mark are the other two, and they still hold:
+	 * ocean's brighter surface (#738e96) is 14% saturated and stays green,
+	 * sunrise's (#cf4944) is hue 2 and stays green. Only the blue passes.
+	 * ⚠️ #52accc is 2.5:1 on the cream card — under the 3:1 floor for a graphic.
+	 * His call, made twice, with the number on the table: the mark is redundant
+	 * beside the PASS pill that names the same verdict in words.
+	 *
+	 * ⚠️ Applies to the WORDLESS marks only — the rule beside a check, the group
+	 * rung, the totals dot. The worded pills ("Anyone can read this", PASS) keep
+	 * --ar-good: their colour is redundant beside the word, and they sit next to
+	 * accent-coloured switches, where sharing a colour would erase the difference
+	 * between what you chose and what is true.
+	 *
+	 * @param string $ink The colour the accent actually takes — the ink on a
+	 *                    dark-menu scheme, the SURFACE on a bright one.
+	 * @return bool
+	 */
+	public static function verdict_can_take( $ink ) {
+		$ink = ltrim( strtolower( trim( (string) $ink ) ), '#' );
+		if ( ! preg_match( '/\A[0-9a-f]{6}\z/', $ink ) ) {
+			return false;
+		}
+		$rgb = array_map( 'hexdec', str_split( $ink, 2 ) );
+		$max = max( $rgb ) / 255;
+		$min = min( $rgb ) / 255;
+		$l   = ( $max + $min ) / 2;
+		$d   = $max - $min;
+		if ( $d <= 0 ) {
+			return false;
+		}
+		$sat = $l > 0.5 ? $d / ( 2 - $max - $min ) : $d / ( $max + $min );
+		if ( $sat < 0.14 || $l < 0.15 || $l > 0.62 ) {
+			return false;
+		}
+		$hue = self::hue_of( $rgb );
+		foreach ( array( 40.0, 7.0 ) as $taken ) {
+			$gap = fmod( abs( $hue - $taken ), 360 );
+			if ( min( $gap, 360 - $gap ) < 25 ) {
+				return false;
+			}
+		}
+
+		return true;
+	}
+
+	/**
+	 * The bright surface for a scheme, or '' when the ink serves.
+	 *
+	 * @param string $base colors[0].
+	 * @return string
+	 */
+	public static function card_surface_for( $base ) {
+		$base = strtolower( trim( (string) $base ) );
+
+		return isset( self::SCHEME_SURFACES[ $base ] ) ? self::SCHEME_SURFACES[ $base ] : '';
+	}
+
+	/**
+	 * The warn colour paired with a bright surface, or '' to keep the default.
+	 *
+	 * @param string $base colors[0].
+	 * @return string
+	 */
+	/**
+	 * The scheme's menu tone, best-effort: colors[1] where it exists, else the
+	 * given fallback. ⚠️ Only used for schemes the curated map has never seen —
+	 * the core ones never reach it.
+	 *
+	 * @param string $scheme   Scheme slug.
+	 * @param string $fallback Used when colors[1] is missing.
+	 * @return string
+	 */
+	private static function registered_menu( $scheme, $fallback ) {
+		global $_wp_admin_css_colors;
+		$hex = isset( $_wp_admin_css_colors[ $scheme ]->colors[1] )
+			? strtolower( trim( (string) $_wp_admin_css_colors[ $scheme ]->colors[1] ) )
+			: '';
+
+		return preg_match( '/\A#[0-9a-f]{6}\z/', $hex ) ? $hex : $fallback;
 	}
 
 	/**
@@ -99,6 +307,143 @@ final class SchemeInk {
 		$hex = strtolower( trim( $hex ) );
 
 		return preg_match( '/\A#[0-9a-f]{6}\z/', $hex ) ? $hex : '';
+	}
+
+	/**
+	 * Hue in degrees from an RGB triplet.
+	 *
+	 * @param array $rgb Three 0-255 channels.
+	 * @return float
+	 */
+	private static function hue_of( $rgb ) {
+		$r   = $rgb[0] / 255;
+		$g   = $rgb[1] / 255;
+		$b   = $rgb[2] / 255;
+		$max = max( $r, $g, $b );
+		$min = min( $r, $g, $b );
+		$d   = $max - $min;
+		if ( $d <= 0 ) {
+			return 0.0;
+		}
+		if ( $max === $r ) {
+			$h = fmod( ( $g - $b ) / $d, 6 );
+		} elseif ( $max === $g ) {
+			$h = ( $b - $r ) / $d + 2;
+		} else {
+			$h = ( $r - $g ) / $d + 4;
+		}
+
+		return fmod( $h * 60 + 360, 360 );
+	}
+
+	/**
+	 * Can this colour be read AS TEXT on the app's light card?
+	 *
+	 * ⭐ The gate for WordPress's own highlight, colors[2] — his idea, 2026-08-20:
+	 * the colour the admin menu paints on the current item is the scheme author
+	 * saying "this one", which is exactly what an accent means. It is used for
+	 * links, tab underlines, numbers and the verdict marks, so the bar is the
+	 * body-text floor rather than the graphic one.
+	 *
+	 * ⚠️ Seven of the nine core schemes clear it — ectoplasm 5.50, fresh 5.08,
+	 * coffee 4.88, ocean 4.83, light 4.82, sunrise 4.51, blue 4.50. Midnight's
+	 * #69a8bb (2.61) and modern's #7b90ff (2.84) do not: they were mixed to sit
+	 * on a dark menu, not on paper. Those fall back to the derived ink, which is
+	 * what they wear today.
+	 *
+	 * @param string $hex Candidate colour.
+	 * @return bool
+	 */
+	public static function carries_text( $hex ) {
+		$hex = strtolower( trim( (string) $hex ) );
+		if ( ! preg_match( '/\A#[0-9a-f]{6}\z/', $hex ) ) {
+			return false;
+		}
+
+		return self::contrast( $hex, self::INK_TEXT ) >= 4.5;
+	}
+
+	/**
+	 * WCAG contrast ratio between two hex colours.
+	 *
+	 * @param string $a First colour.
+	 * @param string $b Second colour.
+	 * @return float
+	 */
+	private static function contrast( $a, $b ) {
+		$lum = static function ( $hex ) {
+			$rgb = array_map( 'hexdec', str_split( ltrim( $hex, '#' ), 2 ) );
+			$out = 0.0;
+			foreach ( array( 0.2126, 0.7152, 0.0722 ) as $i => $weight ) {
+				$c    = $rgb[ $i ] / 255;
+				$c    = $c <= 0.03928 ? $c / 12.92 : pow( ( $c + 0.055 ) / 1.055, 2.4 );
+				$out += $weight * $c;
+			}
+
+			return $out;
+		};
+		$la = $lum( $a );
+		$lb = $lum( $b );
+
+		return ( max( $la, $lb ) + 0.05 ) / ( min( $la, $lb ) + 0.05 );
+	}
+
+	/** The light theme's --ar-paper — the text every ink surface carries. */
+	const INK_TEXT = '#fffdf7';
+
+	/**
+	 * The ink for a menu colour we have not measured — HIS RULE, 2026-08-20,
+	 * given after looking at both generations of blue and sunrise side by side.
+	 *
+	 * A card ink has one job it cannot negotiate: be dark enough to carry light
+	 * text and coloured status badges. Where it sits RELATIVE to the chrome then
+	 * depends on how bright the chrome is, and the two cases want opposite moves:
+	 *
+	 *  - BRIGHT menu (sunrise #cf4944; classic blue and ocean took this path
+	 *    until 2026-08-20, when he collapsed each to a single colour):
+	 *    nothing that carries light text can come near it, so the ink echoes the
+	 *    scheme's own DARK ANCHOR — colors[0], the tone the chrome already shows
+	 *    in its current-item block. In classic blue that is #096484, and the ink
+	 *    beside it reads as belonging to the room rather than dropped into it.
+	 *
+	 *  - DARK menu (every WP 7.1 bar): the anchor is now DARKER than the menu,
+	 *    and an ink taken there goes deeper than the deepest thing on screen —
+	 *    it reads as a hole. He rejected exactly that on sunrise (#6f2724) and
+	 *    picked the tone just under the menu instead. So: blend toward the
+	 *    anchor, do not land on it.
+	 *
+	 * @param string $menu   The colour the menu actually paints.
+	 * @param string $anchor colors[0], the darker bar — '' when unavailable.
+	 * @return string Card-depth hex, or ''.
+	 */
+	public static function derive_ink( $menu, $anchor ) {
+		$menu   = strtolower( trim( (string) $menu ) );
+		$anchor = strtolower( trim( (string) $anchor ) );
+		if ( ! preg_match( '/\A#[0-9a-f]{6}\z/', $menu ) ) {
+			return '';
+		}
+		$rgb = array_map( 'hexdec', str_split( ltrim( $menu, '#' ), 2 ) );
+		$l   = ( max( $rgb ) + min( $rgb ) ) / 2 / 255;
+
+		if ( $l > self::BRIGHT_MENU_L ) {
+			// Bright menu — the ink IS the menu. ⛔ Do not deepen: every attempt
+			// to find a dark that "goes with" a bright menu lands somewhere
+			// nobody chose, and he settled it by pointing at the answer —
+			// buttons the same blue as the sidebar.
+			return $menu;
+		}
+
+		// Dark menu — sit just under it. ⛔ Not ON the anchor: that is the hole.
+		if ( ! preg_match( '/\A#[0-9a-f]{6}\z/', $anchor ) ) {
+			return self::scheme_ink( $menu );
+		}
+		$a = array_map( 'hexdec', str_split( ltrim( $anchor, '#' ), 2 ) );
+		$m = array();
+		foreach ( $rgb as $i => $c ) {
+			$m[] = (int) round( $c + ( $a[ $i ] - $c ) * 0.40 );
+		}
+
+		return sprintf( '#%02x%02x%02x', $m[0], $m[1], $m[2] );
 	}
 
 	/**

@@ -35,8 +35,56 @@
    A scheme with no block here falls back to the charcoal base — nothing
    breaks. Values below are Heera's hand-tuned picks (paper/surface anchors)
    with the rest of each family derived to match.
+
+   HOW THIS FILE IS ORDERED — his call, 2026-08-20, and it is a layout to
+   follow, not a suggestion. One scheme, one section, nothing of that scheme
+   anywhere else in the file:
+
+     ===== SCHEME ==========================================
+     -- Scheme · both variations ---------------------------
+        rules on body.admin-color-<slug> alone: the gold, the note frame,
+        anything true of the scheme whichever WordPress registered it
+     -- Scheme · WP 7.1 — …  (agentimus-scheme-<hex>) ------
+        its tokens, then its one literal (the About snippet)
+     -- Scheme · before 7.1 — …  (agentimus-scheme-<hex>) --
+        the same, for the other ground
+
+   WHY IT IS SAFE TO READ IN THAT ORDER rather than in cascade order: a
+   scheme-wide selector is one class lighter than a variation's, so the room
+   always wins on SPECIFICITY, never on which line came last. And two rooms of
+   the same scheme are mutually exclusive — <body> carries one
+   `agentimus-scheme-<hex>` — so their order relative to each other cannot
+   decide anything either. ⛔ That licence stops at the section edge: inside a
+   block, order still matters (see Light, where several same-weight rules stack
+   deliberately), so move whole rules between sections, never within one.
+
+   ⚠️ A value shared by two schemes is WRITTEN OUT IN BOTH — the note gold
+   #b2a484 appears in four sections. One rule listing four slugs would be
+   shorter and would break the rule above the moment a scheme needed its own.
    ========================================================================= */
 
+/* ===========================================================================
+   FRESH — the default. Keeps the base dark; only its gold is its own.
+   ======================================================================== */
+/* THE WORTH-KNOWING CARD'S GOLD — his pick, 2026-08-12: a grey-warmed sand
+   against Fresh's cool charcoal, where the base #c2a157 ran too brassy.
+   ⭐ The same value appears in the MIDNIGHT, BLUE and OCEAN sections. It is
+   written out once per scheme rather than shared in one rule across them, so
+   every section reads on its own — the price is four copies of one hex, and
+   that is the trade this file makes throughout. */
+:root[data-ar-theme="dark"] body.admin-color-fresh {
+  --ar-note-gold: #b2a484;
+  --ar-note-glow: #b2a484;
+}
+/* Same step-darker frame as Modern's (his call, 2026-08-12): the sand at the
+   base 55% still framed too bright on the cool grounds. */
+:root[data-ar-theme="dark"] body.admin-color-fresh .ar-aud__note {
+  border-color: color-mix(in srgb, var(--ar-note-gold) 32%, var(--ar-line));
+}
+
+/* ===========================================================================
+   MODERN — WP 7.1’s neutral near-black.
+   ======================================================================== */
 /* ---- Default (slug: modern) — WP 7.1's neutral near-black ---------------- */
 :root[data-ar-theme="dark"] body.admin-color-modern {
   --ar-paper: #151515;
@@ -56,7 +104,6 @@
   --ar-note-glow: #d2bd8e;
 }
 /* The two hue-carrying literals in the dark overrides go neutral with it. */
-:root[data-ar-theme="dark"] body.admin-color-modern .ar-btn:hover:not(:disabled):not(.ar-btn--danger) { background: #383838; }
 /* The parchment gold at the base 55% made a bright frame on the near-black —
    the card's border sits a step darker here (his call, 2026-08-12). */
 :root[data-ar-theme="dark"] body.admin-color-modern .ar-aud__note {
@@ -71,6 +118,9 @@
 }
 :root[data-ar-theme="dark"] body.admin-color-modern .ar-about-snippet { background: #111111; }
 
+/* ===========================================================================
+   COFFEE — the warm brown key.
+   ======================================================================== */
 /* ---- Coffee — the same idea in that scheme's warm brown key -------------- */
 :root[data-ar-theme="dark"] body.admin-color-coffee {
   --ar-paper: #202020;
@@ -112,7 +162,6 @@
   --ar-note-gold: #af9a6d;
   --ar-note-glow: #af9a6d;
 }
-:root[data-ar-theme="dark"] body.admin-color-coffee .ar-btn:hover:not(:disabled):not(.ar-btn--danger) { background: #4a453f; }
 :root[data-ar-theme="dark"] body.admin-color-coffee .ar-about-snippet { background: #181715; }
 /* Coffee's card, his hue pair (2026-08-12): the ground casts from a brighter
    brass (#cda54e) than the bronze the text wears, and the frame is a flat
@@ -125,6 +174,28 @@
   border-color: #776e58;
 }
 
+/* ===========================================================================
+   MIDNIGHT — two grounds; only the older one needs a block.
+   ======================================================================== */
+
+/* -- Midnight · both variations --------------------------------------------- */
+/* THE WORTH-KNOWING CARD'S GOLD — his pick, 2026-08-12, the same sand Fresh
+   takes: against Midnight's cool slate the base #c2a157 ran too brassy.
+   ⭐ Slug-only, so it holds on BOTH of Midnight's grounds — the older grey
+   below has a key of its own and wears this gold on top of it.
+   ⚠️ The sand was picked on that darker ground. Worth his eye on 7.1's, but it
+   is his value and stays until he moves it. */
+:root[data-ar-theme="dark"] body.admin-color-midnight {
+  --ar-note-gold: #b2a484;
+  --ar-note-glow: #b2a484;
+}
+/* Same step-darker frame as Modern's (his call, 2026-08-12): the sand at the
+   base 55% still framed too bright on the cool grounds. */
+:root[data-ar-theme="dark"] body.admin-color-midnight .ar-aud__note {
+  border-color: color-mix(in srgb, var(--ar-note-gold) 32%, var(--ar-line));
+}
+
+/* -- Midnight · before 7.1 — the flat grey  (agentimus-scheme-363b3f) ------- */
 /* ---- Midnight, the OLDER one — his surface pick #3c4146 -------------------
    Keyed to the COLOUR, not the slug. WordPress retuned Midnight in 7.1: it was
    #363b3f for years (still is on heera.it) and is #333c42 now, and the two are
@@ -165,14 +236,49 @@
   --ar-line: #51575e;
   --ar-line-strong: #5e666e;
 }
-/* The two hue-carrying literals in app.css's dark overrides, re-keyed: a
-   button's hover has to sit ABOVE its own surface-2, and on this lighter
-   ground the base #3a454d would have darkened it instead. */
-:root[data-ar-theme="dark"] body.admin-color-midnight.agentimus-scheme-363b3f .ar-btn:hover:not(:disabled):not(.ar-btn--danger) { background: #535a61; }
+/* The hue-carrying literal left in app.css's dark overrides: the About snippet
+   sits below the page. ⭐ The button hover that used to be re-keyed here is
+   gone — it lifts from --ar-surface-2 by rule now, which on this lighter ground
+   goes UP as it should, the thing the old base literal #3a454d got wrong. */
 :root[data-ar-theme="dark"] body.admin-color-midnight.agentimus-scheme-363b3f .ar-about-snippet { background: #232629; }
 
+/* ===========================================================================
+   BLUE — one room, every generation.
+   ======================================================================== */
+
+/* -- Blue · both variations ------------------------------------------------- */
+/* The grey-warmed sand Fresh and Midnight take — these grounds are cool, and the
+   base brass ran hot on them. ⭐ EVERY blue WordPress has ever shipped is cool,
+   so this one value holds whichever of them is being served. */
+:root[data-ar-theme="dark"] body.admin-color-blue {
+  --ar-note-gold: #b2a484;
+  --ar-note-glow: #b2a484;
+}
+:root[data-ar-theme="dark"] body.admin-color-blue .ar-aud__note {
+  border-color: color-mix(in srgb, var(--ar-note-gold) 32%, var(--ar-line));
+}
+
+/* -- Blue · every variation ------------------------------------------------ */
 /* ---- Blue — WP's mid blue. His anchors; the ink family is the same hue at a
-   fraction of its saturation, so the text reads as the room's own. */
+   fraction of its saturation, so the text reads as the room's own.
+
+   ⭐ ONE ROOM FOR EVERY GENERATION — his call, 2026-08-20: "just one for all".
+   Everything here is mixed for #245278, the dark slate menu WP 7.1 registers,
+   and it now serves the older palette too — the one that registered #4796b3 and
+   painted its menu #52accc, a LIGHT blue. That second room existed, with his own
+   anchors in it, and it is gone: neither install we can look at is older than
+   7.1, so it was a room nobody could hold against a screen.
+   ⚠ WHAT THAT COSTS, said plainly: a pre-7.1 install now wears a night mixed
+   for a menu it is not showing. The two are the same hue family — #245278 is
+   207deg/54%, #4796b3 196deg/43% — near enough that one room covers both, which
+   is the trade he chose over a room that could not be verified.
+   ⭐ The class is still stamped server-side from what WordPress registers; this
+   block simply no longer asks for it. {@see Agentimus\Admin::scheme_body_class}
+
+   ⛔ NOTE THE ASYMMETRY WITH MIDNIGHT, and do not "correct" it: Midnight still
+   carries two rooms, keyed to #363b3f and to its 7.1 colour, because each was
+   measured against the WordPress of its day. Blue is one room by his decision,
+   not by an oversight in the keying. */
 :root[data-ar-theme="dark"] body.admin-color-blue {
   --ar-paper: #14293c;
   --ar-surface: #1e4362;
@@ -183,17 +289,38 @@
   --ar-ink-faint: #85919b;
   --ar-line: #2e5679;
   --ar-line-strong: #3d698d;
-  /* The grey-warmed sand Fresh and Midnight take — these grounds are
-     cool, and the base brass ran hot on them. */
-  --ar-note-gold: #b2a484;
-  --ar-note-glow: #b2a484;
 }
-:root[data-ar-theme="dark"] body.admin-color-blue .ar-btn:hover:not(:disabled):not(.ar-btn--danger) { background: #275a82; }
 :root[data-ar-theme="dark"] body.admin-color-blue .ar-about-snippet { background: #0f1f2d; }
-:root[data-ar-theme="dark"] body.admin-color-blue .ar-aud__note {
-  border-color: color-mix(in srgb, var(--ar-note-gold) 32%, var(--ar-line));
+/* ⭐ AND THE ACCENT, the same catch on the room he actually runs — 7.1's Blue.
+   ⚠ IT DID NOT MOVE FOR THE ARITHMETIC. The green reads 4.48:1 on this card —
+   a hair under the floor, not the outright failure it was on the bright-blue
+   room that used to live below this one. It moves for the reason he gave: a
+   green pass mark on a navy room is a second hue with nothing to explain it.
+   ⚠ THE SCHEME'S OWN BLUE, LIFTED. #437aa8 is this menu's highlight and what
+   light mode already wears, but only 2.26:1 here, so it rises at its own hue and
+   saturation (207.3°, 43%) from L 46% to 75%: #a4c2db, 5.55:1 on the card, 7.99
+   on the page, 4.86 on --ar-surface-2. As a GROUND it carries --ar-on-signal
+   (#14120e) at 10.05:1 — the four places app.css paints text on the accent.
+   ⛔ --ar-chrome-line names the accent as a LITERAL because the base night rule
+   mixes the green literal, not var(--ar-accent); a room that re-keys the accent
+   and leaves this one out keeps a green hairline. */
+:root[data-ar-theme="dark"] body.admin-color-blue {
+  --ar-accent: #a4c2db;
+  --ar-good: var(--ar-accent);
+  --ar-chrome: var(--ar-accent);
+  --ar-chrome-bright: #c1d5e6; /* 6.85:1 — the step above the accent */
+  --ar-chrome-line: color-mix(in srgb, #a4c2db 24%, var(--ar-line));
+  --ar-good-wash: color-mix(in srgb, var(--ar-good) 10%, var(--ar-surface));
+  --ar-good-tint: color-mix(in srgb, var(--ar-good) 26%, var(--ar-surface));
+  --ar-accent-wash: color-mix(in srgb, var(--ar-accent) 12%, var(--ar-surface));
+  --ar-accent-soft: color-mix(in srgb, var(--ar-accent) 20%, var(--ar-surface));
 }
 
+/* ===========================================================================
+   ECTOPLASM — two grounds share one room; only the highlight differs.
+   ======================================================================== */
+
+/* -- Ectoplasm · both variations -------------------------------------------- */
 /* ---- Ectoplasm — the violet key. Its ground is the most saturated of the four, so
    the inks carry the least colour of any block here — a violet text on a violet
    ground reads as a haze. */
@@ -212,14 +339,65 @@
   --ar-note-gold: #b2a484;
   --ar-note-glow: #b2a484;
 }
-:root[data-ar-theme="dark"] body.admin-color-ectoplasm .ar-btn:hover:not(:disabled):not(.ar-btn--danger) { background: #4b3668; }
 :root[data-ar-theme="dark"] body.admin-color-ectoplasm .ar-about-snippet { background: #201530; }
 :root[data-ar-theme="dark"] body.admin-color-ectoplasm .ar-aud__note {
   border-color: color-mix(in srgb, var(--ar-note-gold) 32%, var(--ar-line));
 }
 
-/* ---- Ocean — the muted teal. The quietest ground of the set, so its ink family
-   sits closest to neutral. */
+/* -- Ectoplasm · before 7.1 — the lime highlight  (agentimus-scheme-523f6d) -- */
+/* ⭐ HIS CALL, 2026-08-20, from heera.it: "--ar-accent: #a3b745 in dark mode".
+   That is this generation's colors[2] — the lime WordPress paints on the current
+   menu item — and at night it is the better colour by measurement as well as by
+   provenance: 5.85:1 on this card against the base green's 5.66, 7.11 on the page
+   against 6.88.
+
+   ⛔ THE ROOM ITSELF IS SHARED, only the accent is not. Both ectoplasms sit on
+   the same violet ground, so the block above serves either; what changed between
+   generations is the highlight, and 7.1's is #646c3e — an olive that measures
+   2.34:1 here. It stays on the base green, which is why this is keyed to the
+   colour rather than to the slug.
+
+   ⚠️ AND THE TWO THAT MUST MOVE WITH IT. --ar-good and --ar-chrome are declared
+   FROM the accent at :root, not at body, so they resolve there and would have
+   been left on the night green — this file's own header says so at the top. The
+   washes are mixes of --ar-good and need restating for the same reason.
+   ⛔ Light mode is untouched: #a3b745 is 2.19:1 on the cream card, so
+   carries_text() refuses it there and the ink #413256 (11.37:1) keeps the job. */
+:root[data-ar-theme="dark"] body.admin-color-ectoplasm.agentimus-scheme-523f6d {
+  --ar-accent: #a3b745;
+  --ar-good: var(--ar-accent);
+  --ar-chrome: var(--ar-accent);
+  --ar-chrome-bright: #b3c462; /* the base pair's +8.2 L step, at this hue — 6.83:1 */
+  --ar-chrome-line: color-mix(in srgb, #a3b745 24%, var(--ar-line));
+  --ar-good-wash: color-mix(in srgb, var(--ar-good) 10%, var(--ar-surface));
+  --ar-good-tint: color-mix(in srgb, var(--ar-good) 26%, var(--ar-surface));
+  --ar-accent-wash: color-mix(in srgb, var(--ar-accent) 12%, var(--ar-surface));
+  --ar-accent-soft: color-mix(in srgb, var(--ar-accent) 20%, var(--ar-surface));
+}
+
+/* ===========================================================================
+   OCEAN — two grounds, one slug, and ONE night: they are the same teal.
+   ======================================================================== */
+
+/* -- Ocean · both variations ------------------------------------------------ */
+/* ⭐ ONE NIGHT FOR BOTH GROUNDS, and Ocean got here first. Its two menus are
+   1.0deg apart — #39535a is hue 192.7, #738e96 is 193.7, the same teal — so
+   rotating for the older one and re-solving at the same luminance returned this
+   room UNCHANGED, to the byte: two rooms would have been two copies of one
+   palette. Blue reached the same place from the other direction on 2026-08-20,
+   by his decision rather than by the arithmetic, and every scheme in this file
+   is now heading for one room apiece.
+   ⛔ WHAT THE OLDER MENU DIFFERS IN IS LIGHTNESS, 28.8% against 52.0%, and that
+   is the one thing a night must not inherit from a menu. A room mixed at the
+   bright menu's own lightness was measured on 2026-08-20 and could not carry
+   the palette at all: --ar-accent 2.40:1 on its card, --ar-warn 2.81,
+   --ar-bad 2.12 — every state under the floor, with only hue telling a pass
+   from a failure. The ceiling was the ground itself: on a #576c72 card, pure
+   BLACK reaches 3.79:1 and pure white 5.54:1, so nothing on it could pass.
+   ⭐ On this room the same tokens read 4.45 · 5.20 · 3.93, and the ink family
+   goes 5.30 -> 7.02:1. His call, 2026-08-20: "apply same way like blue".
+   ⚠️ This replaces a ladder he set by eye on heera.it against the bright menu.
+   It was the right instinct for a LIGHT ground and the wrong ground to have. */
 :root[data-ar-theme="dark"] body.admin-color-ocean {
   --ar-paper: #263438;
   --ar-surface: #2f444a;
@@ -230,20 +408,61 @@
   --ar-ink-faint: #8a9294;
   --ar-line: #41585f;
   --ar-line-strong: #516b72;
-  /* The grey-warmed sand Fresh and Midnight take — these grounds are
-     cool, and the base brass ran hot on them. */
+}
+/* The grey-warmed sand Fresh and Midnight take — these grounds are cool, and the
+   base brass ran hot on them. ⭐ Slug-only: both Oceans are cool, so this one
+   value serves whichever WordPress is being worn. Same split Blue and Midnight
+   make. */
+:root[data-ar-theme="dark"] body.admin-color-ocean {
   --ar-note-gold: #b2a484;
   --ar-note-glow: #b2a484;
 }
-:root[data-ar-theme="dark"] body.admin-color-ocean .ar-btn:hover:not(:disabled):not(.ar-btn--danger) { background: #43616a; }
-:root[data-ar-theme="dark"] body.admin-color-ocean .ar-about-snippet { background: #1e292c; }
 :root[data-ar-theme="dark"] body.admin-color-ocean .ar-aud__note {
   border-color: color-mix(in srgb, var(--ar-note-gold) 32%, var(--ar-line));
 }
+/* The hue-carrying literal left in app.css's dark overrides: the About snippet
+   sits below the page. ⭐ Slug-only with the room itself.
+   ⚠️ The button is worth knowing about here. Its resting ground is
+   --ar-surface-2, which on Ocean IS the bar (#39535a) — his pick for the ink in
+   light mode, arriving at the night button by a different road. The hover lifts
+   from it by rule; there is no per-room value to keep in step. */
+:root[data-ar-theme="dark"] body.admin-color-ocean .ar-about-snippet { background: #1e292c; }
+/* ⚠️ AND THE HOVER LABEL, which the lift had quietly broken: --ar-ink #d3d6d7
+   reads 4.04:1 on the hovered ground (#51686e), under the floor, while the
+   resting button is a comfortable 5.30:1. The ground is derived and correct —
+   it is the label that has to move with it. Same mechanism sunrise carries. */
+:root[data-ar-theme="dark"] body.admin-color-ocean
+  .ar-btn:not(.ar-btn--ghost):not(.ar-btn--danger) { --ar-btn-hover-ink: #eef0f0; }
 
+/* ===========================================================================
+   SUNRISE — one room, every generation.
+   ======================================================================== */
+
+/* -- Sunrise · both variations ---------------------------------------------- */
+/* Coffee's quieter bronze, not the cool schemes' sand: this ground is already
+   warm, and the sand doubled it. ⭐ Slug-only — both Sunrises are warm reds, so
+   one bronze serves either. Same split Blue, Midnight and Ocean make. */
+:root[data-ar-theme="dark"] body.admin-color-sunrise {
+  --ar-note-gold: #af9a6d;
+  --ar-note-glow: #af9a6d;
+}
+:root[data-ar-theme="dark"] body.admin-color-sunrise .ar-aud__note {
+  border-color: color-mix(in srgb, var(--ar-note-gold) 32%, var(--ar-line));
+}
+
+/* -- Sunrise · every variation ---------------------------------------------- */
 /* ---- Sunrise — the warm red. ⚠️ The brightest surface of the four (his pick), which
    is why its inks run lighter than the others' — the same ratios cost more
-   lightness on a ground this near the middle. */
+   lightness on a ground this near the middle.
+   ⭐ ONE ROOM FOR EVERY GENERATION — his call, 2026-08-20, the third and last
+   scheme to be collapsed. Everything here is mixed for #8a312d, WP 7.1's deep
+   red bar; the older palette, which registered #b43c38 and painted its menu a
+   bright #cf4944, now wears it too. That room had his own anchors in it
+   (--ar-surface #a24744, --ar-paper #7e3838) and it is gone with the rest.
+   ⚠️ ⛔ IT WAS ALSO THE WORST-CARRYING ROOM IN THIS FILE, and losing it is a
+   gain the arithmetic already argued for: on that bright ground the night's
+   status family read --ar-accent/--ar-good 2.59:1, --ar-warn 3.02, --ar-bad
+   2.29 — every state under the floor. This room clears them. */
 :root[data-ar-theme="dark"] body.admin-color-sunrise {
   --ar-paper: #433030;
   --ar-surface: #693634;
@@ -254,17 +473,36 @@
   --ar-ink-faint: #a09392;
   --ar-line: #7e4846;
   --ar-line-strong: #915856;
-  /* Coffee's quieter bronze, not the cool schemes' sand: this ground is
-     already warm, and the sand doubled it. */
-  --ar-note-gold: #af9a6d;
-  --ar-note-glow: #af9a6d;
 }
-:root[data-ar-theme="dark"] body.admin-color-sunrise .ar-btn:hover:not(:disabled):not(.ar-btn--danger) { background: #744846; }
 :root[data-ar-theme="dark"] body.admin-color-sunrise .ar-about-snippet { background: #372727; }
-:root[data-ar-theme="dark"] body.admin-color-sunrise .ar-aud__note {
-  border-color: color-mix(in srgb, var(--ar-note-gold) 32%, var(--ar-line));
+/* ⭐ HIS PICK, 2026-08-20, set by eye and arrived at in three steps: the bar
+   itself (#8a312d, what this scheme wears in light), then #754341, then this.
+   ⚠️ WHAT THE LAST STEP BOUGHT: #754341 sat 1.21:1 from the card it rests on, so
+   the button was held by its border rather than by its own ground. #8b4c49 is
+   lighter at the same warmth and separates on the ground itself.
+   ⚠️ Ocean rests its buttons on its bar for free: its --ar-surface-2 IS the bar.
+   Sunrise's surface-2 is #643e3c, so this scheme names its own ground.
+   ⭐ AND THE HOVER IS NAMED HERE, the one room in the file that needs to be:
+   #a45a57, his pick 2026-08-20. The derived lift (12% toward white) washed this
+   ground out — the most saturated in the file, so the mix cost it 8 points of
+   saturation and landed on a dusty pink. This rises at the SAME saturation
+   instead (31% both), 1.29:1.
+   ⛔ AND THE LABEL WITH IT. --ar-ink #e0dcdb reads 3.69:1 on that hover, under
+   the floor, so the ink goes near-white for the hovered state only: #fafafa,
+   4.81:1. The ground is his and the readability is paid for on the other side —
+   ⛔ do not "simplify" this back to one declaration.
+   ⛔ --ghost and --danger are held out. They paint themselves, and a ghost on the
+   bar would be a solid red slab where the design wants the quiet option. */
+:root[data-ar-theme="dark"] body.admin-color-sunrise
+  .ar-btn:not(.ar-btn--ghost):not(.ar-btn--danger) {
+  --ar-btn-ground: #8b4c49;
+  --ar-btn-hover: #a45a57;
+  --ar-btn-hover-ink: #fafafa;
 }
 
+/* ===========================================================================
+   LIGHT — the one scheme that looks the same in both modes.
+   ======================================================================== */
 /* ---- Light — THE ONE SCHEME THAT LOOKS THE SAME IN BOTH MODES -------------
    His call, 2026-08-19: on wp-admin's Light scheme the plugin keeps one
    palette whichever way the toggle stands. Every other block here is
@@ -421,7 +659,6 @@ body.admin-color-light {
    never adopted. */
 :root[data-ar-theme="dark"] body.admin-color-light .ar-rail-card--readiness .ar-rail-card__label { color: #5cc08a; }
 :root[data-ar-theme="dark"] body.admin-color-light .ar-rail-card--readiness .ar-rung__todo { color: #e0b24c; }
-
 /* ⛔ THE HARD COLOURS DARK MODE PAINTS. Everything else the app draws comes
    from the tokens above and re-derives on its own, but these are literals in
    app.css — a near-black snippet and a dark form-control key — and a light
@@ -438,7 +675,6 @@ body.admin-color-light {
 :root[data-ar-theme="dark"] body.admin-color-light #agentimus-app,
 :root[data-ar-theme="dark"] body.admin-color-light .ar-modal,
 :root[data-ar-theme="dark"] body.admin-color-light .ar-drawer { color-scheme: light; }
-
 /* ⛔ The last three night recipes that assume a dark room, handed back the
    day's own — found by diffing every painted element against itself in the
    other mode, screen by screen, not by looking:
@@ -460,7 +696,6 @@ body.admin-color-light {
 /* And the Findings score, which at night drops its green for plain ink — a
    choice that belongs to a dark card, not to this one. */
 :root[data-ar-theme="dark"] body.admin-color-light .ar-today__score-n { color: var(--ar-good); }
-
 /* ⚠️ THREE MORE THE FAST SWEEP COULD NOT SEE. .ar-btn transitions its
    background over 0.15s, and reading a computed style straight after flipping
    the mode reads the value MID-FLIGHT — both reads landed on the same stale
@@ -480,7 +715,6 @@ body.admin-color-light {
   :is(input:not([type="checkbox"]):not([type="radio"]):not([type="range"]), textarea, select) {
   border-color: var(--ar-line-strong);
 }
-
 /* ⛔⛔ AND THE INK SURFACES WITH THEM — the buttons and the chips.
    These do not take their colour from the room, they take it from the SCHEME:
    inc/Admin.php paints --ar-ink onto .ar-btn / .ar-tags__chip / the rug from
@@ -497,41 +731,42 @@ body.admin-color-light {
    scheme already follows.
    ⛔ --ghost and --danger are left out: they paint themselves at night and are
    not ink surfaces. */
-/* ⭐⭐ THE INK SURFACES FOLLOW THE RUG. His rule, stated twice: the buttons wear
-   the same ground the score card wears, so when the rug turns to his charcoal
-   at night they turn with it — they are one family, and the mode moves the
-   family, not the card alone. The label inverts with the ground (11.6:1), and
-   hover takes the teal drawn FOR an ink ground: the day accent lands at 2.0:1
-   on #333333, which is no hover at all.
+/* ⭐⭐ THE INK SURFACES ARE THE CHARCOAL IN BOTH MODES — his call, 2026-08-20:
+   "use same scheme like dark mode but only keep the rail's bg light".
+   ⛔ THIS REPLACES "the ink surfaces follow the rug", which was his earlier rule
+   and is now deliberately broken FOR THIS SCHEME ONLY: by day the rug stays
+   light and the buttons go charcoal anyway, so they are no longer one family.
+   Do not "restore" the pairing — the split is the instruction.
+   ⚠️ WHAT IT REPLACED, kept for the numbers: by day the buttons were the
+   scheme's own grey (#e5e5e5, from Admin.php's curated map) with a #1e1e1e
+   label at 13.2:1, hovering to the accent with the ground held still. The
+   charcoal reads 11.6:1 with its #f5f5f5 label, and hover takes the teal drawn
+   FOR an ink ground: the day accent lands at 2.0:1 on #333333, no hover at all.
    ⛔ The rail cards' 22px glyph tile is NOT in this list — his call, 2026-08-20,
    shown as a black square he did not want. It is a mark on a card that stays
    light in both modes, not a surface you press, so it keeps the day grey
    throughout. Only the things you act on follow the rug. */
-:root[data-ar-theme="dark"] body.admin-color-light .ar-btn:not(.ar-btn--ghost):not(.ar-btn--danger),
-:root[data-ar-theme="dark"] body.admin-color-light .ar-tags__chip {
+:root body.admin-color-light .ar-btn:not(.ar-btn--ghost):not(.ar-btn--danger),
+:root body.admin-color-light .ar-tags__chip {
   --ar-ink: #333333;
   background: #333333;
   border-color: #333333;
   color: #f5f5f5;
 }
-:root[data-ar-theme="dark"] body.admin-color-light .ar-btn:not(.ar-btn--ghost):not(.ar-btn--danger):hover:not(:disabled) {
-  background: #333333; color: var(--ar-teal-on-ink);
-}
-
-/* ⭐ AND THE INK SURFACES THEMSELVES, IN BOTH MODES. app.css writes every one
-   of them in --ar-paper, which assumes the ink is DARK — true of all eight
-   schemes but this one, whose ink is now the scheme's own grey. So the label
-   is re-keyed here: #1e1e1e on #e5e5e5 is 13.2:1, and his hover takes the
-   accent (5.0:1) with the ground held still, rather than app.css's dive to
-   --ar-ink-hard, which on a light button means black.
-   ⛔ :root … body earns enough specificity to outrank the night repaint at
-   :root[data-ar-theme="dark"] .ar-btn without being written twice. */
-:root body.admin-color-light .ar-btn:not(.ar-btn--ghost):not(.ar-btn--danger),
-:root body.admin-color-light .ar-tags__chip {
-  background: var(--ar-ink); color: #1e1e1e; border-color: var(--ar-ink);
-}
+/* ⭐ AND IT HOVERS LIKE EVERY OTHER SCHEME — his call, 2026-08-20: "don't just
+   change the color of button, maybe lift up with shadowy color". It used to hold
+   the ground still and swap the label to teal, which was the one button in the
+   app that answered the pointer without moving.
+   ⚠️ The lift is the file's own 12%-toward-white step, resolved here rather than
+   derived: #333333 -> #474747, a 1.36:1 move, in the same band as the night
+   rooms. The label stays #f5f5f5 (8.52:1 on the lift) instead of turning teal —
+   other schemes do not recolour their label either.
+   ⛔ NO SHADOW — his call, 2026-08-20, after seeing one. The ground alone does
+   the lifting, which is what every ink-bearing scheme already does: Admin.php
+   writes box-shadow:none into all of their hovers. app.css's drop shadow is
+   left standing for the default scheme only. */
 :root body.admin-color-light .ar-btn:not(.ar-btn--ghost):not(.ar-btn--danger):hover:not(:disabled) {
-  background: var(--ar-ink); color: var(--ar-accent); box-shadow: none;
+  background: #474747; color: #f5f5f5; box-shadow: none;
 }
 /* ⚠️ AND THE BRAND TILE, WHICH IS THE SAME KIND OF SURFACE. app.css paints it
    from --ar-ink with the A cut out in --ar-paper, and at night flips both — so
@@ -566,20 +801,13 @@ body.admin-color-light {
 :root[data-ar-theme="dark"] body.admin-color-light .ar-btn--ghost:hover:not(:disabled) {
   background: var(--ar-paper); border-color: var(--ar-line-strong); box-shadow: none;
 }
-
-/* His pick, 2026-08-20: the little glyph tile on the rail cards takes the same
-   treatment as the buttons and chips — the scheme's own grey with a dark mark,
-   instead of the accent wash and its accent-tinted hairline. 13.2:1 for a
-   glyph that only needs 3.
-   ⚠️ The grey is spelled out here rather than read from --ar-ink: the tile is
-   not in Admin::SCHEME_SCOPE, so the ink it inherits is the body's #1e1e1e.
-   If SchemeInk's 'light' entry ever moves, move this with it. */
-:root body.admin-color-light .ar-rail-card__mark {
-  color: #1e1e1e;
-  background: #e5e5e5;
-  border-color: #e5e5e5;
-}
-
+/* ⛔ The Light-scheme grey that used to sit here is GONE, deliberately. It gave
+   this one scheme a hand-picked #1e1e1e-on-#e5e5e5 tile while every other scheme
+   kept an accent wash — one mark wearing two unrelated costumes depending on a
+   setting. app.css now states the mark in tokens (--ar-paper / --ar-line /
+   --ar-ink-soft), so every scheme here re-keys it for free and it always matches
+   .ar-sys__mark on the same screen. ⛔ Don't reintroduce a literal for one
+   scheme; move the tokens instead. */
 /* ---- Light — the readiness rug -------------------------------------------
    His pick, 2026-08-20, given as the two rugs side by side: by day a light
    slab, by night his charcoal. That settles a compromise this block used to
@@ -612,21 +840,21 @@ body.admin-color-light {
   --ar-teal-on-ink: #146b64;  /* the card's links, on a light ground now */
   --ar-teal-on-ink-hover: #0f544f;
 }
-
-/* ---- Fresh & Midnight — the Worth-knowing card's gold (his picks
-   2026-08-12): a grey-warmed sand against their cool charcoal and slate,
-   where the base #c2a157 ran too brassy. Fresh keeps the base dark for
-   everything else; Midnight has its own key above and takes this gold on top
-   of it (the sand was picked on the darker ground — worth his eye on the new
-   one, but it is his value and stays until he moves it). */
-:root[data-ar-theme="dark"] body.admin-color-fresh,
-:root[data-ar-theme="dark"] body.admin-color-midnight {
-  --ar-note-gold: #b2a484;
-  --ar-note-glow: #b2a484;
-}
-/* Same step-darker frame as Modern's (his call, 2026-08-12): the sand at the
-   base 55% still framed too bright on the cool grounds. */
-:root[data-ar-theme="dark"] body.admin-color-fresh .ar-aud__note,
-:root[data-ar-theme="dark"] body.admin-color-midnight .ar-aud__note {
-  border-color: color-mix(in srgb, var(--ar-note-gold) 32%, var(--ar-line));
+/* The score block's hover, turned around for this one ground. It is a button —
+   the whole gauge + band word jumps to the readiness report — and it announces
+   that with `filter: brightness(1.08)`, which MULTIPLIES: above 1 it walks every
+   colour toward WHITE. On the charcoal rug that is away from the ground and
+   reads. On this light slab it is toward the ground, and the hover washes out
+   instead of coming forward — 9/255, in the wrong direction.
+   ⭐ Deepening is the same gesture mirrored: 20/255 the other way.
+   ⛔ A filter and not an explicit colour, unlike the rungs beneath it. This
+   block is TONE-COLOURED — the band word is one hue at "top", another at
+   "floor", another at "local", and the ring's arc tracks the score the same way
+   — so naming a hover colour would need one rule per state and would flatten
+   the very thing the colour is saying. Multiplying keeps every hue and only
+   moves its depth. The rungs are the opposite case: their ink is a near-black
+   veil, which multiplication cannot darken (4/255), so they lift the veil
+   instead. Two mechanisms because the two blocks are built differently. */
+:root:not([data-ar-theme="dark"]) body.admin-color-light .ar-rail-readiness--link:hover {
+  filter: brightness(0.82);
 }

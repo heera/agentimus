@@ -118,7 +118,15 @@ export default {
       // grade is read from the store now and covers every published article-like
       // page; the old wording described a 25-post recency sample and stayed on
       // screen after the measurement underneath it had stopped being one.
-      return `${kindsPart} across your content — ${scope} ${verb} one of them. The most common is “${top.label}”.`;
+      // ⚠️ HIS SITE, 2026-08-20: with ONE kind of issue this still said "one
+      // of them … the most common is X" — a superlative over a set of one, and a
+      // "them" with a single referent. Two lines up, kindsPart and verb already
+      // agree with their counts; the tail was the one clause that did not.
+      // When there is one kind, name it and stop ranking it.
+      const tail = kinds === 1
+        ? `${verb} it: “${top.label}”`
+        : `${verb} one of them. The most common is “${top.label}”`;
+      return `${kindsPart} across your content — ${scope} ${tail}.`;
     },
     // Said plainly, and only when it is true of this site.
     //

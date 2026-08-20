@@ -388,7 +388,11 @@ export default {
       </p>
 
       <div class="ar-perf__cols">
-        <div class="ar-perf__col">
+        <!-- ⭐ Named so the dashboard's "N clicks from …" row can land HERE. That
+             row asks "what did people come looking for", and this column is the
+             answer; it used to arrive at Search Opportunities, which is a list of
+             pages to FIX — a different question wearing the same number. -->
+        <div id="ar-perf-searched" class="ar-perf__col">
           <p class="ar-perf__eyebrow">What was searched for</p>
           <table class="ar-perf__table">
             <thead>

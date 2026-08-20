@@ -56,8 +56,11 @@ export default {
       fetchError: '',
       // What the user is editing. Applied to the server only on Filter / Enter / Clear —
       // typing a path prefix should not fire a query per keystroke.
-      filters: { from: '', to: '', source: '', path: '' },
-      applied: { from: '', to: '', source: '', path: '' },
+      // ⭐ `source` is a LIST, matching the request log's filters — same
+      // component, same meaning of "several" (Repository::as_list on the server).
+      // `path` stays single: it is a prefix match, not a set.
+      filters: { from: '', to: '', source: [], path: '' },
+      applied: { from: '', to: '', source: [], path: '' },
       // The open day in the By-Day strip, as an index into strip; -1 = closed.
       // The same modal contract every chart in the app keeps (Bing's bars).
       selectedDay: -1,
@@ -283,7 +286,7 @@ export default {
     // Filter press. `isDefault` is the server's own answer to "is this still the default
     // window?" — without it we'd offer to Clear a filter nobody set.
     hasFilters() {
-      return !!this.applied.source || !!this.applied.path || (!!this.report && !this.range.isDefault);
+      return this.applied.source.length > 0 || !!this.applied.path || (!!this.report && !this.range.isDefault);
     },
     // Says what the cards actually cover, since the range is no longer always "last 30 days".
     rangeLabel() {
@@ -295,7 +298,11 @@ export default {
     // What narrows the report right now, in the words the user chose.
     filterSummary() {
       const bits = [];
-      if (this.applied.source) bits.push(this.applied.source);
+      // Names them while the list is short enough to read, then counts. Same
+      // judgement the picker's own trigger makes.
+      if (this.applied.source.length) {
+        bits.push(this.applied.source.length > 2 ? `${this.applied.source.length} assistants` : this.applied.source.join(' + '));
+      }
       if (this.applied.path) bits.push(`pages under ${this.applied.path}`);
       return bits.join(' · ');
     },
@@ -332,7 +339,12 @@ export default {
     preset(p) {
       if (!p) return;
       const { seq, ...keys } = p;
-      this.filters = { from: '', to: '', source: '', path: '', ...keys };
+      // Normalised like the request log's: a linking screen writes `source: 'ChatGPT'`
+      // and the picker expects a list.
+      if (undefined !== keys.source && !Array.isArray(keys.source)) {
+        keys.source = keys.source ? [keys.source] : [];
+      }
+      this.filters = { from: '', to: '', source: [], path: '', ...keys };
       this.apply();
     },
     logUnknown() {
@@ -362,7 +374,7 @@ export default {
       this.dayCache = {};
       try {
         const params = {};
-        Object.entries(this.applied).forEach(([k, v]) => { if (v) params[k] = v; });
+        Object.entries(this.applied).forEach(([k, v]) => { if (Array.isArray(v) ? v.length : v) params[k] = v; });
         const [report, facets] = await Promise.all([
           this.api.getAiTraffic(params),
           this.sources.length ? Promise.resolve({ sources: this.sources }) : this.api.getAiTrafficFacets(),
@@ -385,8 +397,8 @@ export default {
       this.load();
     },
     reset() {
-      this.filters = { from: '', to: '', source: '', path: '' };
-      this.applied = { from: '', to: '', source: '', path: '' };
+      this.filters = { from: '', to: '', source: [], path: '' };
+      this.applied = { from: '', to: '', source: [], path: '' };
       this.load();
     },
 
@@ -425,7 +437,7 @@ export default {
       this.dayCache = { ...this.dayCache, [date]: { ...this.day(date), loading: true, error: '' } };
       try {
         const params = {};
-        if (this.applied.source) params.source = this.applied.source;
+        if (this.applied.source.length) params.source = this.applied.source;
         if (this.applied.path) params.path = this.applied.path;
         if (full) params.full = '1';
         const res = await this.api.getAiTrafficDay(date, params);
@@ -689,7 +701,7 @@ export default {
                the person, and the relationship is what the label has to say. -->
           <div class="ar-log__field">
             <span class="ar-log__label">Sent by</span>
-            <SelectMenu v-model="filters.source" :options="sourceOptions" aria-label="Filter by the assistant that sent them" />
+            <SelectMenu v-model="filters.source" :options="sourceOptions" multiple aria-label="Filter by the assistants that sent them" />
           </div>
           <div class="ar-log__field ar-log__field--ua">
             <span class="ar-log__label">Landing page starts with</span>
@@ -733,7 +745,7 @@ export default {
          Top-clients pair: where the visits came from, and where they landed.
          Honors the same filters and range as the overview above. -->
     <section v-if="!error && report && total" class="ar-card ar-ai">
-      <h2 class="ar-card__title">Top Sources &amp; Landing Pages <span v-if="rangeLabel" class="ar-card__tag">{{ rangeLabel }}</span></h2>
+      <h2 id="ar-ai-sources" class="ar-card__title">Top Sources &amp; Landing Pages <span v-if="rangeLabel" class="ar-card__tag">{{ rangeLabel }}</span></h2>
       <!-- Says PEOPLE, in its own lead. The page subtitle says it once at the
            top, which is off-screen by the time anyone reaches this card — and a
            list reading "ChatGPT 7" beside a column of page paths is the exact

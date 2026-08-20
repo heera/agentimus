@@ -146,6 +146,12 @@ final class Repository {
 			// is what these cards cover, `retention` is what still exists (and what the Request
 			// log can page through). The UI must not use one where it means the other.
 			'window'     => $window,
+			// ⭐ The window's FIRST DAY, shipped beside the totals it produced. A
+			// screen that links from one of those numbers has to filter the target
+			// by the same span, and recomputing this date in the browser would put
+			// the boundary in a second timezone. {@see Audience::from_stats()}
+			'since'      => substr( $month, 0, 10 ),
+			'today'      => gmdate( 'Y-m-d' ),
 			'retention'  => self::retention_days(),
 			'autoPrune'  => self::auto_prune(),
 			'maxRows'    => self::max_rows(),
@@ -155,6 +161,17 @@ final class Repository {
 				'month'  => self::count_since( $month ),
 				'all'    => (int) $wpdb->get_var( "SELECT COUNT(*) FROM $table" ), // phpcs:ignore WordPress.DB, PluginCheck.Security.DirectDB.UnescapedDBParameter -- $table is our own prefix-derived table name (not user input); SQL identifiers can't be bound via prepare().
 				'agents' => (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(DISTINCT agent) FROM $table WHERE refused = 0 AND hit_at >= %s", $month ) ), // phpcs:ignore WordPress.DB, PluginCheck.Security.DirectDB.UnescapedDBParameter -- $table is our own prefix-derived table name; the value is bound via prepare().
+				// ⭐⭐ COUNTED HERE, BESIDE THE NUMBERS IT SITS NEXT TO — his rule,
+				// 2026-08-21: one source of truth, no surface counting for itself.
+				// This is the log, the same table, the same $month boundary and the
+				// same instant as the three totals above, so the Machines card can
+				// never again disagree with the Requests screen beneath it.
+				// ⛔ It replaced a count taken from the REVIEW QUEUE, which is a
+				// different population: the queue holds what still needs a decision,
+				// so a dismissed impostor left it and the headline fell back to
+				// zero — on his site, 11 forgeries in the window read as "0 caught
+				// faking an identity". A queue is a to-do list; this is a record.
+				'impostors' => self::count_since( $month, 2 ),
 			),
 			// Rows in each breakdown are filterable (a site may want more or fewer),
 			// clamped to a sane 1–200: agentimus_activity_{clients,endpoints}_limit.
@@ -176,10 +193,69 @@ final class Repository {
 	 * @param string $threshold GMT datetime.
 	 * @return int
 	 */
-	private static function count_since( $threshold ) {
+	/**
+	 * Rows grouped by a whitelisted column over a window, busiest first.
+	 *
+	 * ⭐⭐ ONE DEFINITION OF "COUNT BY CLIENT", his rule 2026-08-21. The weekly
+	 * digest used to carry its own copy of this query with its own window; two
+	 * hand-written aggregates of the same thing agree only until one is edited.
+	 * The dashboard's breakdown and the digest's now differ in ARGUMENTS — the
+	 * window each asks about — and in nothing else.
+	 *
+	 * ⛔ refused = 0, like every read total: a turned-away request fetched
+	 * nothing and must never inflate a client's hits. {@see count_between()} for
+	 * the one deliberate exception (verdict counts, which DO include refusals).
+	 *
+	 * @param string $column 'agent' or 'endpoint' (anything else falls back to 'agent').
+	 * @param string $from   GMT threshold, inclusive.
+	 * @param int    $limit  Max rows.
+	 * @param string $to     Optional GMT upper bound, exclusive. Open-ended when ''.
+	 * @return array<int,array{label:string,hits:int}>
+	 */
+	public static function counts_by( $column, $from, $limit, $to = '' ) {
+		global $wpdb;
+		$table  = Table::name();
+		$column = in_array( $column, array( 'agent', 'endpoint' ), true ) ? $column : 'agent';
+
+		// phpcs:disable WordPress.DB, PluginCheck.Security.DirectDB.UnescapedDBParameter -- $table is our own prefix-derived table name and $column is whitelisted just above; SQL identifiers cannot be bound via prepare(), and every VALUE is.
+		if ( '' === $to ) {
+			$rows = $wpdb->get_results(
+				$wpdb->prepare( "SELECT $column AS label, COUNT(*) AS hits FROM $table WHERE refused = 0 AND hit_at >= %s GROUP BY $column ORDER BY hits DESC LIMIT %d", $from, $limit ),
+				ARRAY_A
+			);
+		} else {
+			$rows = $wpdb->get_results(
+				$wpdb->prepare( "SELECT $column AS label, COUNT(*) AS hits FROM $table WHERE refused = 0 AND hit_at >= %s AND hit_at < %s GROUP BY $column ORDER BY hits DESC LIMIT %d", $from, $to, $limit ),
+				ARRAY_A
+			);
+		}
+		// phpcs:enable WordPress.DB, PluginCheck.Security.DirectDB.UnescapedDBParameter
+
+		return array_map(
+			static function ( $r ) {
+				return array(
+					'label' => (string) $r['label'],
+					'hits'  => (int) $r['hits'],
+				);
+			},
+			(array) $rows
+		);
+	}
+
+	private static function count_since( $threshold, $verdict = null ) {
 		global $wpdb;
 		$table = Table::name();
-		return (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM $table WHERE refused = 0 AND hit_at >= %s", $threshold ) ); // phpcs:ignore WordPress.DB, PluginCheck.Security.DirectDB.UnescapedDBParameter -- $table is our own prefix-derived table name; the value is bound via prepare().
+		// phpcs:disable WordPress.DB, PluginCheck.Security.DirectDB.UnescapedDBParameter -- $table is our own prefix-derived table name; every value is bound via prepare().
+		if ( null === $verdict ) {
+			return (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM $table WHERE refused = 0 AND hit_at >= %s", $threshold ) );
+		}
+		// ⛔ SAME SPLIT AS count_between(), deliberately: a verdict count INCLUDES
+		// refusals. A forgery that was turned away is exactly what that number
+		// reports, and excluding it is the bug Guard::maybe_block() documents —
+		// switching enforcement on used to make the site's own security signal
+		// read zero.
+		return (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM $table WHERE hit_at >= %s AND verdict = %d", $threshold, $verdict ) );
+		// phpcs:enable WordPress.DB, PluginCheck.Security.DirectDB.UnescapedDBParameter
 	}
 
 	/**
@@ -226,11 +302,8 @@ final class Repository {
 		$days  = self::report_days();
 		$start = gmdate( 'Y-m-d 00:00:00', time() - ( $days - 1 ) * DAY_IN_SECONDS );
 
-		// phpcs:disable WordPress.DB, PluginCheck.Security.DirectDB.UnescapedDBParameter -- $table is our own prefix-derived table and $column is whitelisted just above; SQL identifiers can't be bound via prepare(), only the values ($since/$start/$limit), which are.
-		$rows        = $wpdb->get_results(
-			$wpdb->prepare( "SELECT $column AS label, COUNT(*) AS hits FROM $table WHERE refused = 0 AND hit_at >= %s GROUP BY $column ORDER BY hits DESC LIMIT %d", $since, $limit ),
-			ARRAY_A
-		);
+		$rows = self::counts_by( $column, $since, $limit );
+		// phpcs:disable WordPress.DB, PluginCheck.Security.DirectDB.UnescapedDBParameter -- $table is our own prefix-derived table and $column is whitelisted just above; SQL identifiers can't be bound via prepare(), only the values ($start), which are.
 		// One bounded pass (distinct labels x days) for every label's per-day counts; the
 		// top-N are picked out below, aligned to a gap-filled day list.
 		$series_rows = $wpdb->get_results(
@@ -545,6 +618,43 @@ final class Repository {
 	 * @param array $args from, to (Y-m-d), agent, endpoint, network, verdict, ua, before, per_page.
 	 * @return array{rows:array,total:int,perPage:int,cursor:?int,hasMore:bool,retentionDays:int,autoPrune:bool,maxRows:int,verifyOn:bool,identifyOn:bool}
 	 */
+	/**
+	 * One filter value, or several, as a clean list.
+	 *
+	 * ⭐ ONE PLACE THAT DECIDES WHAT "SEVERAL" MEANS, so the REST layer, the MCP
+	 * ability and any future caller cannot disagree about it. Accepts an array or
+	 * a comma-separated string (what a query string can carry), trims each part,
+	 * drops the empties and de-duplicates — a picker that sends the same value
+	 * twice must not widen the SQL by a redundant OR.
+	 *
+	 * ⚠️ PUBLIC because it is the contract, not a detail: it is what every caller
+	 * means by "several", and it is pinned by tests so the meaning cannot drift.
+	 * Pure — no DB — like {@see trend_pct()}.
+	 *
+	 * @param mixed $value Array, comma-separated string, or scalar.
+	 * @return array<int,string> Values, in the order given, never containing ''.
+	 */
+	public static function as_list( $value ) {
+		if ( is_array( $value ) ) {
+			$parts = $value;
+		} elseif ( is_scalar( $value ) ) {
+			$parts = explode( ',', (string) $value );
+		} else {
+			return array();
+		}
+		$out = array();
+		foreach ( $parts as $p ) {
+			if ( ! is_scalar( $p ) ) {
+				continue;
+			}
+			$p = trim( (string) $p );
+			if ( '' !== $p && ! in_array( $p, $out, true ) ) {
+				$out[] = $p;
+			}
+		}
+		return $out;
+	}
+
 	public static function log( array $args = array() ) {
 		global $wpdb;
 		$table    = Table::name();
@@ -570,21 +680,54 @@ final class Repository {
 		$where  = array( 'hit_at >= %s', 'hit_at < %s' );
 		$params = array( $start, $end );
 
+		// ⭐⭐ EVERY VALUE FILTER TAKES A LIST — his call, 2026-08-21: one choice per
+		// control "is not very flexible". A single value still works and still
+		// compiles to `col = %s`; a list compiles to IN (...). ⛔ An empty list is
+		// NO filter, never `IN ()` — which is a syntax error in MySQL and would
+		// have turned "clear the picker" into a 500.
 		foreach ( array( 'agent', 'endpoint', 'network' ) as $col ) {
-			if ( isset( $args[ $col ] ) && '' !== $args[ $col ] ) {
+			$vals = self::as_list( isset( $args[ $col ] ) ? $args[ $col ] : '' );
+			if ( ! $vals ) {
+				continue;
+			}
+			if ( 1 === count( $vals ) ) {
 				$where[]  = "$col = %s";
-				$params[] = (string) $args[ $col ];
+				$params[] = $vals[0];
+			} else {
+				$where[] = "$col IN (" . implode( ', ', array_fill( 0, count( $vals ), '%s' ) ) . ')';
+				$params  = array_merge( $params, $vals );
 			}
 		}
-		if ( isset( $args['verdict'] ) && '' !== $args['verdict'] && null !== $args['verdict'] ) {
-			// 'refused' is an OUTCOME, not a verdict value — it shares this control
-			// because "was this client turned away?" is the same question the
-			// verification filter answers, asked one step further along.
-			if ( 'refused' === $args['verdict'] ) {
-				$where[] = 'refused = 1';
-			} else {
-				$where[]  = 'verdict = %d';
-				$params[] = (int) $args['verdict'];
+		// 'refused' is an OUTCOME, not a verdict value — it shares this control
+		// because "was this client turned away?" is the same question the
+		// verification filter answers, asked one step further along.
+		// ⚠️ So a multi-pick here can mix the two: "Spoofed OR Refused" is a
+		// perfectly ordinary thing to ask, and they live in different columns.
+		// The parts are OR'd inside one bracketed group, which then AND's with
+		// every other filter — pick two verifications and you widen that control,
+		// you do not widen the query.
+		$verdicts = self::as_list( isset( $args['verdict'] ) ? $args['verdict'] : '' );
+		if ( $verdicts ) {
+			$parts = array();
+			$ints  = array();
+			foreach ( $verdicts as $v ) {
+				if ( 'refused' === $v ) {
+					$parts[] = 'refused = 1';
+					continue;
+				}
+				if ( is_numeric( $v ) ) {
+					$ints[] = (int) $v;
+				}
+			}
+			if ( $ints ) {
+				$ints    = array_values( array_unique( $ints ) );
+				$parts[] = 1 === count( $ints )
+					? 'verdict = %d'
+					: 'verdict IN (' . implode( ', ', array_fill( 0, count( $ints ), '%d' ) ) . ')';
+				$params  = array_merge( $params, $ints );
+			}
+			if ( $parts ) {
+				$where[] = '(' . implode( ' OR ', $parts ) . ')';
 			}
 		}
 		if ( ! empty( $args['ua'] ) ) {
@@ -609,11 +752,54 @@ final class Repository {
 			$wpdb->prepare( "SELECT COUNT(*) FROM $table WHERE $filter_sql", $filter_params )
 		);
 
+		// ⭐⭐ SORTING, AND THE PAGING THAT FOLLOWS IT — his call, 2026-08-21:
+		// "sortable all". The default (newest first) keeps KEYSET paging: `id <
+		// cursor` is exact, never drifts when rows arrive mid-read, and never
+		// makes the database count past what it skips.
+		// ⛔ A keyset cursor cannot survive a different sort — `id < n` says
+		// nothing about where you were in a list ordered by agent — so any other
+		// column pages by OFFSET instead. The mode follows the sort rather than
+		// the two being configured apart, because a cursor carried into a sorted
+		// query is the kind of bug that looks like "some rows are missing".
+		// ⚠️ Every sorted query still ends `, id DESC`: without a tiebreak, two
+		// rows from the same client land in an order MySQL is free to change
+		// between pages, which drops or repeats rows across a page boundary.
+		$sortable = array(
+			'at'       => 'hit_at',
+			'client'   => 'agent',
+			'endpoint' => 'endpoint',
+			'ua'       => 'ua',
+			// Status is two columns on screen — refused first, then the verdict —
+			// so it is two columns in the ORDER BY, in that reading order.
+			'status'   => 'refused, verdict',
+		);
+		$sort_by  = isset( $args['orderby'] ) && isset( $sortable[ $args['orderby'] ] ) ? (string) $args['orderby'] : 'at';
+		$sort_dir = ( isset( $args['order'] ) && 'asc' === strtolower( (string) $args['order'] ) ) ? 'ASC' : 'DESC';
+		$keyset   = ( 'at' === $sort_by && 'DESC' === $sort_dir );
+		$offset   = $keyset ? 0 : max( 0, (int) ( isset( $args['offset'] ) ? $args['offset'] : 0 ) );
+
+		if ( $keyset ) {
+			$order_sql = 'id DESC';
+			$tail_sql  = 'LIMIT %d';
+			$tail_args = array( $per_page + 1 );
+		} else {
+			$cols      = explode( ',', $sortable[ $sort_by ] );
+			$order_sql = implode( ', ', array_map( static function ( $c ) use ( $sort_dir ) {
+				return trim( $c ) . ' ' . $sort_dir;
+			}, $cols ) ) . ', id DESC';
+			$tail_sql  = 'LIMIT %d OFFSET %d';
+			$tail_args = array( $per_page + 1, $offset );
+			// An offset page is cut from the FILTERED set, never from the cursor's
+			// narrowed one — $page_sql adds `id < before`, which has no meaning here.
+			$page_sql  = $filter_sql;
+			$params    = $filter_params;
+		}
+
 		// Fetch one extra row to learn whether another page exists, without a second query.
 		$rows = $wpdb->get_results(
 			$wpdb->prepare(
-				"SELECT id, endpoint, agent, ua, network, verdict, signer, refused, hit_at FROM $table WHERE $page_sql ORDER BY id DESC LIMIT %d",
-				array_merge( $params, array( $per_page + 1 ) )
+				"SELECT id, endpoint, agent, ua, network, verdict, signer, refused, hit_at FROM $table WHERE $page_sql ORDER BY $order_sql $tail_sql",
+				array_merge( $params, $tail_args )
 			),
 			ARRAY_A
 		);
@@ -631,8 +817,14 @@ final class Repository {
 			'rows'          => array_map( array( self::class, 'hit_row' ), $rows ),
 			'total'         => $total,
 			'perPage'       => $per_page,
-			'cursor'        => $has_more && $last ? (int) $last['id'] : null,
+			// ⛔ A cursor ONLY in keyset mode. Handing one back from a sorted page
+			// would invite the caller to page with a value that cannot locate it.
+			'cursor'        => ( $keyset && $has_more && $last ) ? (int) $last['id'] : null,
 			'hasMore'       => $has_more,
+			// What the caller asked for, echoed back so a screen can render its
+			// own header state from the answer rather than from what it hoped.
+			'sort'          => array( 'by' => $sort_by, 'dir' => strtolower( $sort_dir ) ),
+			'offset'        => $offset,
 			// So the UI can say what it cannot show. `autoPrune` decides whether
 			// `retentionDays` is a deletion horizon at all, or merely the setting's value.
 			'retentionDays' => $days,

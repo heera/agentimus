@@ -116,8 +116,11 @@ export function createApi(boot) {
     // query string keeps the request readable in the browser's network panel.
     getActivityLog: (params = {}) => {
       const qs = Object.entries(params)
-        .filter(([, v]) => v !== '' && v !== null && v !== undefined)
-        .map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(v)}`)
+        // ⛔ An empty ARRAY is as absent as an empty string — a multi-pick filter
+        // with nothing ticked must not send `agent=`, which reads on the wire
+        // like a filter for the empty string.
+        .filter(([, v]) => (Array.isArray(v) ? v.length > 0 : v !== '' && v !== null && v !== undefined))
+        .map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(Array.isArray(v) ? v.join(',') : v)}`)
         .join('&');
       return request(`/activity/log${qs ? `?${qs}` : ''}`);
     },

@@ -144,6 +144,17 @@ export default {
       if (!pieces.length && !url) return 'Add at least one source — a reverse-DNS domain and/or a published IP-ranges URL.';
       return '';
     },
+    /**
+     * The schema.org type this site declares. ⚠️ The VALUE stays schema.org's own
+     * CamelCase — it is written into JSON-LD — while the label is spaced for
+     * reading, which is the whole reason these are objects rather than strings.
+     */
+    entityTypeOptions() {
+      return this.entityTypes.map((t) => ({
+        value: t,
+        label: t.replace(/([a-z])([A-Z])/g, '$1 $2'),
+      }));
+    },
     retentionOptions() {
       return this.retentionChoices.map((d) => ({
         value: d,
@@ -1510,10 +1521,12 @@ export default {
         <div class="ar-id-block">
           <div class="ar-grid">
           <div class="ar-field">
-            <label for="ar-type">Entity type</label>
-            <select id="ar-type" v-model="identity.entity_type" class="ar-input">
-              <option v-for="t in entityTypes" :key="t" :value="t">{{ t.replace(/([a-z])([A-Z])/g, '$1 $2') }}</option>
-            </select>
+            <label id="ar-lbl-type">Entity type</label>
+            <SelectMenu
+              v-model="identity.entity_type"
+              :options="entityTypeOptions"
+              aria-label="Entity type"
+            />
           </div>
           <div class="ar-field">
             <label for="ar-name">Name</label>

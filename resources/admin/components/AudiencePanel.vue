@@ -57,6 +57,49 @@ export default {
     // over that total never said which. Two owners read the same words and one
     // of them is wrong about what the number covers. The name is short enough
     // to live in the label, so it costs no line and no caption.
+    // ⭐⭐ WHERE EACH ROW LANDS — his call, 2026-08-21: a number that can be
+    // walked into should be walkable. Each returns a goTo() address or null,
+    // and null is a deliberate answer, not a missing one: a row links only
+    // where the destination can actually ANSWER it.
+    //  · clients   → the Top Clients card, which names the ones this counts
+    //  · impostors → the Request Log, pre-filtered to spoofed verdicts
+    //  · search    → Search Performance, the engines' own report
+    //  · AI        → the Visitors screen, the same place the footer goes
+    // ⛔ A zero never links. Landing on an empty filtered list is a dead end
+    //   that reads as a broken screen — and "0 caught faking an identity" with
+    //   nowhere to go is the honest shape when nothing was caught.
+    clientsGo() {
+      const m = this.machines;
+      return m && m.enabled && m.agents > 0 ? { tab: 'dashboard', anchor: 'ar-act-clients' } : null;
+    },
+    impostorsGo() {
+      const m = this.machines;
+      if (!m || !(m.impostors > 0)) return null;
+      // ⛔ The DATES travel with the filter. This card counts one window; the
+      // Request Log defaults to everything it still retains, so without them the
+      // row landed on a longer list than the number you clicked — his catch,
+      // 2026-08-21. The boundary is the server's own (Repository::stats), never
+      // recomputed here, or the two would disagree across a timezone.
+      return { tab: 'log', log: { verdict: '2', from: m.from || '', to: m.to || '' } };
+    },
+    // ⛔ Lands on WHAT WAS SEARCHED FOR, not on Search Opportunities. Both live
+    // on that screen, but this row counts arrivals and the reader's next question
+    // is "looking for what?" — Opportunities answers "which pages need work",
+    // which is a different question that happens to share the number.
+    searchGo() {
+      const s = this.people && this.people.search;
+      return s && s.connected && s.clicks > 0
+        ? { tab: 'visibility', view: 'performance', anchor: 'ar-perf-searched' }
+        : null;
+    },
+    // ⛔ Lands on the AI card, not the top of Visitors. That screen opens with
+    // "Everyone Who Visited" and "Busiest Pages" — the whole audience — so this
+    // row used to hand over a number about assistants and then show a screen
+    // about everybody, leaving the reader to find the part they clicked.
+    aiGo() {
+      const a = this.people && this.people.ai;
+      return a && a.visits > 0 ? { tab: 'visitors', anchor: 'ar-ai-sources' } : null;
+    },
     // "clicks", not "from" — this row is the ENGINES' own click count, not a
     // visit this site measured. Calling it a visit would put it in the same
     // unit as the sessions row below it and invite exactly the addition the
@@ -172,10 +215,17 @@ export default {
         <p class="ar-aud__group">Where they came from</p>
         <ul class="ar-aud__rows">
           <li>
-            <span class="ar-aud__row-n">{{ n(people.search.clicks) }}</span>
-            <span class="ar-aud__row-l">{{ searchLabel }}</span>
+            <component :is="searchGo ? 'button' : 'div'" :type="searchGo ? 'button' : null"
+              class="ar-aud__row" :class="{ 'is-go': searchGo }"
+              @click="searchGo && $emit('navigate', searchGo)">
+              <span class="ar-aud__row-n">{{ n(people.search.clicks) }}</span>
+              <span class="ar-aud__row-l">{{ searchLabel }}</span>
+            </component>
           </li>
           <li>
+            <component :is="aiGo ? 'button' : 'div'" :type="aiGo ? 'button' : null"
+              class="ar-aud__row" :class="{ 'is-go': aiGo }"
+              @click="aiGo && $emit('navigate', aiGo)">
             <span class="ar-aud__row-n">{{ n(people.ai.visits) }}</span>
             <span class="ar-aud__row-l">
               referred by AI answers
@@ -193,6 +243,7 @@ export default {
                 <template v-else>{{ 'up' === aiTrend.dir ? '▲' : '▼' }}{{ aiTrend.pct }}%</template>
               </em>
             </span>
+            </component>
           </li>
         </ul>
 
@@ -219,18 +270,26 @@ export default {
         <p class="ar-aud__group">Who did the fetching</p>
         <ul class="ar-aud__rows">
           <li>
-            <span class="ar-aud__row-n">{{ n(machines.agents) }}</span>
-            <span class="ar-aud__row-l">
-              different clients
-              <em v-if="!machines.enabled" class="ar-aud__off">not recording</em>
-            </span>
+            <component :is="clientsGo ? 'button' : 'div'" :type="clientsGo ? 'button' : null"
+              class="ar-aud__row" :class="{ 'is-go': clientsGo }"
+              @click="clientsGo && $emit('navigate', clientsGo)">
+              <span class="ar-aud__row-n">{{ n(machines.agents) }}</span>
+              <span class="ar-aud__row-l">
+                different clients
+                <em v-if="!machines.enabled" class="ar-aud__off">not recording</em>
+              </span>
+            </component>
           </li>
           <!-- "caught" — the count is conclusive spoof verdicts only, and it
                under-reports by design. Without that word a zero reads as "nobody
                is faking", which is a claim the measurement cannot support. -->
           <li :class="{ 'is-bad': machines.impostors > 0 }">
-            <span class="ar-aud__row-n">{{ n(machines.impostors) }}</span>
-            <span class="ar-aud__row-l">caught faking an identity</span>
+            <component :is="impostorsGo ? 'button' : 'div'" :type="impostorsGo ? 'button' : null"
+              class="ar-aud__row" :class="{ 'is-go': impostorsGo }"
+              @click="impostorsGo && $emit('navigate', impostorsGo)">
+              <span class="ar-aud__row-n">{{ n(machines.impostors) }}</span>
+              <span class="ar-aud__row-l">caught faking an identity</span>
+            </component>
           </li>
         </ul>
 

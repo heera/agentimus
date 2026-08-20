@@ -791,7 +791,9 @@ export default {
         </p>
       </section>
 
-      <section class="ar-card">
+      <!-- ⭐ Named so the Audience card's "N different clients" row can land here:
+           that number counts the clients, this card is where they are listed. -->
+      <section id="ar-act-clients" class="ar-card">
         <h2 class="ar-card__title">Top Clients <span class="ar-card__tag">Last {{ data.window || 30 }} days</span></h2>
         <p class="ar-card__lead">
           Who does the reading — the clients behind those hits: AI assistants, crawlers and browsers,

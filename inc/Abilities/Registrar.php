@@ -1201,6 +1201,8 @@ final class Registrar {
 							'today'     => self::i(),
 							'agents'    => self::i( 'Distinct agents, by the name each declared.' ),
 							'impostors' => self::i( 'Clients caught claiming an identity verification did not support.' ),
+							'from'      => self::s( 'First day of the window these four numbers cover (YYYY-MM-DD, UTC).' ),
+							'to'        => self::s( 'Last day of that window — today, in UTC.' ),
 						)
 					),
 					'limits'   => self::arr(

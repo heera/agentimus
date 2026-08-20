@@ -253,12 +253,21 @@ final class Module {
 					'agent'    => array( 'type' => 'string' ),
 					'endpoint' => array( 'type' => 'string' ),
 					'network'  => array( 'type' => 'string' ),
-					// 0 = unchecked/inconclusive, 1 = verified, 2 = spoofed.
-					'verdict'  => array( 'type' => 'integer' ),
+					// 0 = unchecked/inconclusive, 1 = verified, 2 = spoofed, or the
+					// outcome "refused" — and now a comma-separated list of them.
+					// ⛔ Typed string, not integer: `2,refused` is a legal value and
+					// an integer type would have rejected it at the door, before the
+					// handler could say WHICH token was wrong.
+					'verdict'  => array( 'type' => 'string' ),
 					// Prefix match only — see Repository::log().
 					'ua'       => array( 'type' => 'string' ),
 					'before'   => array( 'type' => 'integer' ),
 					'per_page' => array( 'type' => 'integer' ),
+					// Sorting. 'at' (newest first) is the default and the only one
+					// that pages by cursor; the rest page by offset. {@see Repository::log()}
+					'orderby'  => array( 'type' => 'string' ),
+					'order'    => array( 'type' => 'string' ),
+					'offset'   => array( 'type' => 'integer' ),
 				),
 			)
 		);
@@ -854,29 +863,85 @@ final class Module {
 			);
 		}
 
-		foreach ( array( 'agent', 'endpoint', 'network', 'ua' ) as $key ) {
-			$value = sanitize_text_field( (string) $request->get_param( $key ) );
-			if ( '' !== $value ) {
-				// The columns are varchar(64)/(128)/(255); a longer needle can never match,
-				// so clamp rather than hand the database a pointless comparison.
-				$args[ $key ] = substr( $value, 0, 255 );
+		// ⭐ THE VALUE FILTERS TAKE A LIST — "ChatGPT,Cursor" narrows to either.
+		// ⛔ `ua` is NOT one of them: it is a prefix match, and a list of prefixes
+		// is a different question ("starts with any of these") that the index
+		// cannot answer the same way. One needle, as before.
+		foreach ( array( 'agent', 'endpoint', 'network' ) as $key ) {
+			$raw = (string) $request->get_param( $key );
+			if ( '' === $raw ) {
+				continue;
+			}
+			$parts = array();
+			foreach ( explode( ',', $raw ) as $part ) {
+				$part = sanitize_text_field( $part );
+				if ( '' !== $part ) {
+					// The columns are varchar(64)/(128)/(255); a longer needle can never match,
+					// so clamp rather than hand the database a pointless comparison.
+					$parts[] = substr( $part, 0, 255 );
+				}
+			}
+			if ( $parts ) {
+				$args[ $key ] = $parts;
 			}
 		}
 
-		$verdict = $request->get_param( 'verdict' );
-		if ( null !== $verdict && '' !== $verdict ) {
-			$verdict = (int) $verdict;
-			if ( $verdict < 0 || $verdict > 2 ) {
+		$ua = sanitize_text_field( (string) $request->get_param( 'ua' ) );
+		if ( '' !== $ua ) {
+			$args['ua'] = substr( $ua, 0, 255 );
+		}
+
+		// ⚠️ Validated per TOKEN, not on the joined string: one bad entry in a
+		// list is still a typo the owner should be told about, and a silent drop
+		// would quietly widen the result set instead of narrowing it.
+		$verdict = (string) $request->get_param( 'verdict' );
+		if ( '' !== $verdict ) {
+			$picked = array();
+			foreach ( explode( ',', $verdict ) as $token ) {
+				$token = trim( $token );
+				if ( '' === $token ) {
+					continue;
+				}
+				if ( 'refused' === $token ) {
+					$picked[] = 'refused';
+					continue;
+				}
+				if ( ! preg_match( '/^[0-2]$/', $token ) ) {
+					return new \WP_Error(
+						'agentimus_bad_verdict',
+						__( 'Verdict must be 0 (unchecked), 1 (verified), 2 (spoofed) or "refused".', 'agentimus' ),
+						array( 'status' => 400 )
+					);
+				}
+				$picked[] = (int) $token;
+			}
+			if ( $picked ) {
+				$args['verdict'] = $picked;
+			}
+		}
+
+		// ⛔ Whitelisted, not passed through: an ORDER BY is an SQL identifier and
+		// can never be bound as a value. An unknown column is not an error the
+		// owner can act on, so it falls back to the default rather than 400ing —
+		// but a MISSPELLED order ('ascending') would silently reverse the list,
+		// so that one is refused.
+		$orderby = strtolower( trim( (string) $request->get_param( 'orderby' ) ) );
+		if ( '' !== $orderby && in_array( $orderby, array( 'at', 'client', 'endpoint', 'ua', 'status' ), true ) ) {
+			$args['orderby'] = $orderby;
+		}
+		$order = strtolower( trim( (string) $request->get_param( 'order' ) ) );
+		if ( '' !== $order ) {
+			if ( ! in_array( $order, array( 'asc', 'desc' ), true ) ) {
 				return new \WP_Error(
-					'agentimus_bad_verdict',
-					__( 'Verdict must be 0 (unchecked), 1 (verified) or 2 (spoofed).', 'agentimus' ),
+					'agentimus_bad_order',
+					__( 'Order must be "asc" or "desc".', 'agentimus' ),
 					array( 'status' => 400 )
 				);
 			}
-			$args['verdict'] = $verdict;
+			$args['order'] = $order;
 		}
 
-		foreach ( array( 'before', 'per_page' ) as $key ) {
+		foreach ( array( 'before', 'per_page', 'offset' ) as $key ) {
 			$value = $request->get_param( $key );
 			if ( null !== $value && '' !== $value ) {
 				$args[ $key ] = (int) $value; // Repository clamps both.

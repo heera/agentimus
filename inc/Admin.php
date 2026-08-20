@@ -27,7 +27,7 @@ final class Admin {
 	 * design language. Scoping the --ar-ink override to these selectors re-inks
 	 * just them; class selectors also reach UI teleported to <body> (modals).
 	 */
-	const SCHEME_SCOPE = '.ar-btn,.ar-tags__chip,.ar-rail-card.ar-rail-card--readiness';
+	const SCHEME_SCOPE = '.ar-btn,.ar-tags__chip,.ar-rail-card.ar-rail-card--readiness,.ar-srcpick__btn.is-on';
 
 	/** @var Settings */
 	private $settings;
@@ -536,22 +536,324 @@ final class Admin {
 			return '';
 		}
 
+		// ⚠️ colors[0] — the FIRST swatch, used purely as a stable key. Verified
+		// against WordPress's own colors.scss: the menu is colors[1] for six core
+		// schemes, colors[2] for classic blue and colors[0] for light and modern,
+		// so there is no slot that always holds the menu. colors[0] is the slot
+		// that is stable and unique per scheme-and-generation.
+		// ⛔ Not active_surface(): that answers "which colour is this scheme
+		// wearing" for the body stamp, and on classic blue it returns #4796b3,
+		// which is neither the menu nor a key here.
 		global $_wp_admin_css_colors;
-		$base = isset( $_wp_admin_css_colors[ $scheme ]->colors[0] ) ? $_wp_admin_css_colors[ $scheme ]->colors[0] : '';
+		$base = isset( $_wp_admin_css_colors[ $scheme ]->colors[0] )
+			? (string) $_wp_admin_css_colors[ $scheme ]->colors[0]
+			: '';
 		$ink  = self::card_ink_for( $scheme, $base );
 		if ( '' === $ink ) {
 			return '';
 		}
+		$surface = SchemeInk::card_surface_for( $base );
 
-		// LIGHT MODE ONLY. This re-declared --ar-ink is a scheme-tinted DARK for
-		// the light theme's ink surfaces; the dark theme keeps the whole token
-		// set to itself — without this guard, a non-default scheme painted dark
-		// ink onto dark buttons (found on every scheme except fresh, which
-		// emits nothing and so never showed it).
+		// ⭐⭐ colors[2] — WORDPRESS'S OWN HIGHLIGHT, and his idea, 2026-08-20. He
+		// pointed at the admin menu's CURRENT item — the one WordPress paints to
+		// say "you are here" — and asked for that colour in the app's links, tab
+		// underlines, numbers and everywhere a green used to be. It is the right
+		// source: every other value here is derived, and this one is the scheme's
+		// author saying which colour means "this one".
+		//
+		// ⚠️ Only where it can carry TEXT on the page. Seven of the nine core
+		// schemes clear 4.5:1 on the cream card — ectoplasm 5.50, fresh 5.08,
+		// coffee 4.88, ocean 4.83, light 4.82, sunrise 4.51, blue 4.50 — and two
+		// do not: midnight's #69a8bb is 2.61:1 and modern's #7b90ff 2.84:1, both
+		// mixed to sit on a DARK menu, not on paper. Those keep the derived ink,
+		// which is what they have today, so the fallback is not a downgrade.
+		// ⛔ Not on a bright-menu scheme. There the accent is the menu colour by
+		// his earlier call, and a third colour would undo it.
+		$highlight = isset( $_wp_admin_css_colors[ $scheme ]->colors[2] )
+			? (string) $_wp_admin_css_colors[ $scheme ]->colors[2]
+			: '';
+
 		$light = ':root:not([data-ar-theme="dark"]) ';
 		$scope = $light . implode( ',' . $light, explode( ',', self::SCHEME_SCOPE ) );
 
-		return $scope . '{--ar-ink:' . $ink . '}';
+		// ⛔ #e8e8e8 AND NOT #ffffff, for two reasons that are really one. The
+		// score block is a button — the gauge and the band word jump to the
+		// readiness report — and app.css announces that with
+		// `filter: brightness(1.08)`. brightness() MULTIPLIES, so on pure white it
+		// is a no-op: 255 x 1.08 clips back to 255 and the whole row reacts to the
+		// pointer by doing nothing. His catch.
+		// ⭐ #e8e8e8 lifts to #fbfbfb — a 1.18:1 change, which reads — and is the
+		// calmer face he asked for in the same breath. A multiplicative filter
+		// needs headroom, and a value at the end of its range has none.
+		$face       = '#e8e8e8';
+		// ⚠️ AND --rail-read:100%. The rungs are drawn as --rail-face behind a 74%
+		//    veil, and that veil was HIERARCHY while the kicker and the band word
+		//    were a green: two colours, one of them quieter. Once those went to
+		//    the same face, the veil stopped separating anything and just made
+		//    the rung rows look dimmed beside every other line on the card — his
+		//    catch. With one face for the card, the rungs read at full strength.
+		// ⛔ AND THE HOVER NEEDS SOMEWHERE TO GO. app.css lifts a rung on hover by
+		//    dropping its veil — `color: var(--rail-face)` — which only reads while
+		//    the resting state IS veiled. --rail-read:100% makes the resting state
+		//    already --rail-face, so that rule resolves to the colour it started
+		//    from and the row stops answering the pointer. A value at the end of
+		//    its range has no headroom left — the same lesson as the pure-white
+		//    face. ⭐ So the lift goes ABOVE the face, to white.
+		// ⭐ AND THE SCORE BLOCK WITH THEM — his call, 2026-08-20: "make sure
+		//    rails each line use same bright hover color including the Excellent
+		//    line". That row lifted by `filter: brightness(1.08)` instead, which
+		//    took #e8e8e8 to #fbfbfb — a different white from the rungs' #ffffff,
+		//    on the same card, under the same pointer. Naming the colour makes
+		//    every line answer identically; the filter still runs underneath and
+		//    is a no-op on a value already at 255.
+		// ⛔ The gold is deliberately NOT in here. "N to fix" is the one thing on
+		//    the card that means something, and it stays its own colour whether or
+		//    not the row is under the pointer — his words: it "should remain
+		//    bright".
+		// ⚠️ (0,6,0) — app.css's own hover rule is (0,5,0).
+		$rug_hover = $light . '.ar-rail-card--readiness'
+			. ' .ar-rung__btn:not(.ar-rung__btn--static):hover :is(.ar-rung__name,.ar-rung__count),'
+			. $light . '.ar-rail-card--readiness'
+			. ' .ar-rail-readiness--link:hover :is(.ar-rail-tier__name,.ar-rail-gauge__num)';
+
+		// ⭐ HIS PATTERN, 2026-08-20, after watching me chase a card border, then a
+		//    chart bar, then a picker, one at a time: they all read --ar-accent.
+		//    Re-key the TOKEN and every one of them follows — 234 references in
+		//    app.css, plus --ar-accent-wash and --ar-accent-soft, which are mixed
+		//    from it. Stop patching elements.
+		//
+		// ⚠️ LIGHT MODE ONLY, and that is what makes it safe. In light,
+		//    --ar-good / --ar-warn / --ar-bad carry their OWN values (#2f7a4c,
+		//    #ad7b18, #b93c2b), so success stays green and a warning stays gold.
+		//    At night they are ALIASED to --ar-accent, and doing this there would
+		//    turn every PASS badge and every ring the scheme's colour.
+		//
+		// ⚠️ THE INK on a dark menu, THE SURFACE on a bright one — $accent_hue
+		//    below. His call, 2026-08-20, and it replaced mine: I had both blues
+		//    taking the deep ink so the accent would read as text, and the result
+		//    was a bright button beside a dark link with nothing to explain the
+		//    difference. One colour per scheme, on the surfaces AND the accent,
+		//    is what he asked for: "same as classic blue theme in light mode".
+		//    ⚠️ The number, on the table and overruled twice: #52accc is 2.54:1
+		//    on the cream card, under the 4.5 floor for text and the 3 for a
+		//    graphic. What it buys is one colour where there were two.
+		// ⚠️ Declared at :root, not on the app. --ar-accent-wash and
+		//    --ar-accent-soft are color-mixes of --ar-accent written in the :root
+		//    block, so they resolve against :root's value: overriding the accent
+		//    further down left the washes teal while everything else went blue.
+		//    Re-keying at the same level fixes all three in one declaration.
+		// ⚠️ AND the two washes, explicitly. In light mode app.css writes them as
+		//    hand-picked teal LITERALS (#f0f6f4 / #e3efec), not as mixes of the
+		//    accent — only the dark blocks derive them — so re-keying the accent
+		//    alone left every wash teal while its own colour went blue. Same 12%
+		//    and 20% formulas the dark blocks use, against whatever surface is in
+		//    force.
+		// The colour every accent-driven thing takes: the ink on a dark menu, the
+		// SURFACE on a bright one, and WordPress's own highlight where that reads
+		// on paper — see $highlight above.
+		$accent_hue = '' !== $surface
+			? $surface
+			: ( SchemeInk::carries_text( $highlight ) ? $highlight : $ink );
+
+		// ⭐⭐ THE GREEN ITSELF, not a list of the things wearing it. His call,
+		//    2026-08-20: "just apply this color where a green color was before,
+		//    including All registrations are valid text."
+		//
+		//    This replaces a $verdict block that named six selectors — the rule
+		//    beside a check, the group rung and its count, the totals dot and its
+		//    number, the rail's registration card — and still missed the up-delta
+		//    arrows, the live dot and the PASS pills, which he could see and I
+		//    could not until he pointed. Every one of them paints --ar-good. Re-key
+		//    the token and the list stops existing. His own law, from earlier the
+		//    same day: stop patching elements.
+		//
+		// ⛔ ONLY WHERE THE COLOUR CAN CARRY THE MEANING — verdict_can_take() is
+		//    unchanged and is what makes this safe. Sunrise's highlight is hue 29,
+		//    eleven degrees from --ar-warn; light's is hue 20; coffee's 27. On
+		//    those a passing check would paint as a warning, so they keep the
+		//    designed green. Ocean's #567958 is hue 123 and 17% saturated: a green
+		//    that means what green means.
+		// ⚠️ AND THE TWO MIXES WITH IT. --ar-good-wash and --ar-good-tint are the
+		//    pill's ground and border; left behind they would frame the new colour
+		//    in the old one. Same 10% / 26% formulas the dark block uses.
+		// ⛔ --ar-good-strong and --ar-good-deep are deliberately NOT re-keyed:
+		//    they are emphasis steps picked by hand against the designed green,
+		//    and deriving them here would be inventing two values to fix a problem
+		//    nobody has reported. Worth his eye if a screen ever shows all four.
+		$good = SchemeInk::verdict_can_take( $accent_hue )
+			? '--ar-good:' . $accent_hue . ';'
+				. '--ar-good-wash:color-mix(in srgb,' . $accent_hue . ' 10%,var(--ar-surface));'
+				. '--ar-good-tint:color-mix(in srgb,' . $accent_hue . ' 26%,var(--ar-surface));'
+			: '';
+
+		// ⛔ AND NOTHING IS RE-KEYED IF IT CANNOT CARRY TEXT. His catch 2026-08-20
+		//    on the Light scheme: its highlight (#c64606) misses the floor, so the
+		//    line above fell back to $ink — and on THIS scheme the ink is a near
+		//    white. The app was emitting --ar-accent:#e5e5e5, an accent nothing
+		//    could read, on links, tab underlines, numbers and chart bars.
+		// ⭐ The fallback is to emit nothing at all, which leaves app.css's own
+		//    #146b64 standing — his value for this scheme, and the designed teal
+		//    every unmeasured scheme already gets. A guard, not a special case:
+		//    any future scheme whose ink is bright lands the same way.
+		// ⚠️ $good keeps its own gate (verdict_can_take) and is inside this
+		//    string, so it falls with it — correct, since a verdict mark nothing
+		//    can read is worse than a green one.
+		// ⛔ AND NOT ON A SCHEME WHOSE INK IS BRIGHT — the Light scheme, which
+		//    schemes.css dresses by hand and which already exempts itself from the
+		//    hover re-key below for the same reason. Its highlight is #c64606, a
+		//    strong orange that DOES carry text, so the rule above would have
+		//    keyed the whole app to it: links, tab underlines, numbers, chart
+		//    bars. His call 2026-08-20: this scheme wears the designed teal
+		//    #146b64 in both modes, the value its night block already restates,
+		//    and the one thing its mode changes is the rug.
+		$accent = ( SchemeInk::carries_text( $accent_hue ) && ! self::is_bright( $ink ) )
+			? ':root:not([data-ar-theme="dark"]){'
+				. $good
+				. '--ar-accent:' . $accent_hue . ';'
+				. '--ar-accent-wash:color-mix(in srgb,' . $accent_hue . ' 12%,var(--ar-surface));'
+				. '--ar-accent-soft:color-mix(in srgb,' . $accent_hue . ' 20%,var(--ar-surface))'
+				. '}'
+			: '';
+
+		// ⭐ THE RUG WEARS WHITE ON EVERY SCHEME-COLOURED GROUND — his call,
+		//    2026-08-20, pointing at the classic ocean's rug: "apply this straight,
+		//    use same color on lines and same hover effect."
+		//
+		//    This landed in three steps and the middle one was mine to get wrong.
+		//    It began as SCHEME_RAIL_WHITE, a named list holding both blues. I read
+		//    his next screenshot as "make the classic ones green" and deleted the
+		//    list; he meant the opposite — that the treatment the brighter rooms
+		//    had should reach the classic ones too. So: no list, no branch, no
+		//    ground test. A rug that has taken a scheme's colour wears white.
+		//    ⛔ The ONE rug that keeps the green is the default's, because "fresh"
+		//    returns before any of this and never reaches a re-key at all.
+		//
+		// ⚠️ --rail-read:100% IS THE HALF THAT IS EASY TO MISS. A rug's rung names
+		//    are drawn as --rail-face behind a 76% veil, mixed for a DARK card.
+		//    Painting the face white and leaving the veil on composites it back
+		//    down: on ocean's brighter ground the names came out at 2.84:1 while
+		//    the band word beside them sat at full strength — one colour at two
+		//    brightnesses, which reads as "dimmed" rather than as hierarchy. At
+		//    100% the whole card speaks once. His words: "use same color on lines".
+		//
+		// ⛔ #e8e8e8 AND NOT #ffffff, for the reason he caught on blue: the score
+		//    block announces itself with `filter: brightness(1.08)`, which
+		//    MULTIPLIES, so on pure white it is a no-op and the row stops answering
+		//    the pointer. #e8e8e8 lifts to #fbfbfb and still reads as white.
+		//
+		// ⚠️ What it measures. On the dark inks it is comfortable — 8.2:1 and up.
+		//    On a bright surface it is not: 2.87:1 on sunrise's #cf4944, where the
+		//    green it replaces could not reach a floor either. Raised with him with
+		//    the numbers; his call. (Ocean's #738e96 and blue's #52accc measured
+		//    3.48 and 2.58 here before 2026-08-20 retired both.)
+		// ⛔ AND NONE OF IT ON A BRIGHT INK — his catch 2026-08-20, hovering
+		//    "Findable" on the Light scheme: the row went WHITE and vanished. Both
+		//    halves above are drawn for a rug that is DARK. The face re-key is
+		//    already outranked by that scheme's own block, but the hover is not —
+		//    it names elements app.css alone would have handled, and #ffffff on a
+		//    #ebeaea slab is 1.1:1.
+		// ⭐ Emitting nothing restores app.css's own rung hover, `color:
+		//    var(--rail-face)`, which drops the 82% veil to the full #1e1e1e —
+		//    the same "come forward" gesture, correct on a light ground because
+		//    the face it lifts to is dark. The score block above it already
+		//    deepens by filter for the same reason.
+		$rug_white = self::is_bright( $ink )
+			? ''
+			: $light . '.ar-rail-card.ar-rail-card--readiness'
+				. '{--rail-face:' . $face . ';--rail-good:' . $face . ';--rail-read:100%}'
+				. $rug_hover . '{color:#ffffff}';
+
+		if ( '' === $surface ) {
+			// The ordinary case: a dark menu, and its ink dresses everything.
+			$css = $scope . '{--ar-ink:' . $ink . '}' . $accent;
+
+			// ⛔ …but NOT app.css's hover. It dives to --ar-ink-hard, which is
+			//    #000 by day, so a navy or brown button turns BLACK under the
+			//    pointer and throws its hue away — his catch on the dark blue:
+			//    "changes button to black, which is also not in sync".
+			// ⭐ A dark surface LIGHTENS instead, by the mirror of what a bright
+			//    one does. 88% toward white is a 1.35–1.46:1 shift across every
+			//    ink we emit, against 1.28:1 for the bright case — the same
+			//    gesture, read the same way, from either end.
+			// ⚠️ Skipped when the ink is itself bright: that is the Light scheme,
+			//    which schemes.css already dresses by hand, and this would
+			//    override it.
+			if ( ! self::is_bright( $ink ) ) {
+				$css .= $light . '.ar-btn:not(.ar-btn--ghost):not(.ar-btn--danger):hover:not(:disabled)'
+					. '{background:color-mix(in srgb,' . $ink . ' 88%,#fff);box-shadow:none}';
+			}
+
+			return $css . $rug_white;
+		}
+
+		// ---- A BRIGHT menu. His call: the surfaces ARE the menu's colour ----
+		//
+		// ⭐ AND SO IS THE ACCENT — $accent fires here exactly as it does on a
+		//    dark menu, only keyed to the SURFACE. His words, 2026-08-20:
+		//    "#52accc apply this to accent color in bright blue in light mode,
+		//    same as classic blue theme in light mode".
+		//    ⛔ This reverses two earlier attempts, and both failure modes are
+		//    worth keeping written down. Accent := the dark ink put TWO blues on
+		//    one screen — bright buttons beside dark links, chips, bars and
+		//    switches, with nothing to explain which was which. Accent left at
+		//    the app's teal put a blue scheme beside a green app. One colour, on
+		//    the surfaces and the accent alike, is the only version that reads as
+		//    a decision rather than an accident.
+		//    ⚠️ What it costs, measured: #52accc is 2.54:1 on the cream card, and
+		//    the white knob on a switch track reads 2.58:1 against its own track,
+		//    so an enabled switch is a weaker signal than it was. Raised with him
+		//    twice; his call both times.
+		$css = $scope . '{--ar-ink:' . $surface . '}' . $accent . $rug_white;
+
+		// The one coloured thing left on the rug: "N to fix". Its default
+		// --ar-warn-on-ink is mixed for a DARK card and vanishes on a bright one —
+		// 1.31:1 on blue, 1.76:1 on ocean. This is the gold that survives being
+		// put on any of the three (1.59 / 2.14 / 2.75).
+		// ⚠️ Still under every floor, and knowingly so: a saturated gold on a
+		// mid-tone ground cannot reach 3:1 without turning into cream and ceasing
+		// to read as the warning colour. The count is legible by position and size.
+		// ⛔ ONE VALUE, not a map. It used to be SCHEME_SURFACE_WARN keyed by
+		// colors[0], with two of the three schemes left without an entry and
+		// sitting at their broken defaults. A rule that covers every bright ground
+		// is both shorter and more honest than a table with holes in it.
+		$css .= $light . '.ar-rail-card--readiness .ar-rung__todo{color:#f8c350}';
+
+		// ⛔ The GHOST button keeps the DARK ink. It is the one control that
+		//    paints `color: var(--ar-ink)` on the PAGE rather than on the ink, so
+		//    the bright value would be 2.4:1 text on classic blue.
+		$css .= $light . '.ar-btn--ghost{color:' . $ink . '}';
+
+		// ⭐ Hover DEEPENS the surface and leaves the label alone.
+		//    ⛔ Not app.css's --ar-ink-hard, which is #000 by day and turned a
+		//       bright button black under the pointer.
+		//    ⛔ And not schemes.css's move for the Light scheme either, which
+		//       holds the ground and swaps the label to --ar-accent. That works
+		//       on Light's neutral grey; on a coloured surface the teal accent
+		//       fights the hue — his catch, on the blue: "the color goes out of
+		//       sync". A coloured button should deepen, not change hue.
+		//    ⭐ It also reads BETTER on hover, not worse: darkening under light
+		//       text lifts the label from 2.27:1 to 2.90:1 on the brighter blue,
+		//       while the surface itself shifts 1.28:1 — enough to feel.
+		$css .= $light . '.ar-btn:not(.ar-btn--ghost):not(.ar-btn--danger):hover:not(:disabled)'
+			. '{background:color-mix(in srgb,' . $surface . ' 88%,#000);box-shadow:none}';
+
+		return $css;
+	}
+
+	/**
+	 * Is a colour light enough that a hover should DEEPEN it rather than lift it?
+	 *
+	 * @param string $hex Colour.
+	 * @return bool
+	 */
+	private static function is_bright( $hex ) {
+		$hex = ltrim( strtolower( trim( (string) $hex ) ), '#' );
+		if ( ! preg_match( '/\A[0-9a-f]{6}\z/', $hex ) ) {
+			return false;
+		}
+		$rgb = array_map( 'hexdec', str_split( $hex, 2 ) );
+
+		return ( ( max( $rgb ) + min( $rgb ) ) / 2 / 255 ) > SchemeInk::BRIGHT_MENU_L;
 	}
 
 	/**
@@ -629,30 +931,25 @@ final class Admin {
 			// plugin writes.
 			'items'   => array(
 				array(
-					'icon'  => 'clock',
-					'title' => 'Your Content Gets Read Even If Your Host Never Runs Background Jobs',
-					'text'  => 'Many hosts never run WordPress\'s scheduled tasks, so the reading that keeps your lists current never happened — and nothing said so. Agentimus now does that reading itself while you are signed in.',
+					'icon'  => 'shield',
+					'title' => 'Your Site Was Catching Fakes and Reporting None',
+					'text'  => 'The dashboard could say "0 caught faking an identity" while your site was catching crawlers forging one and turning them away. It counts what actually happened now, and the number opens the requests behind it.',
 				),
 				array(
-					'icon'  => 'page',
-					'title' => 'Fix a Page and You Can See It Worked',
-					'text'  => 'The page you just fixed keeps its place in the list, marked as done, instead of vanishing before you can tell the fix landed.',
+					'icon'  => 'link',
+					'title' => 'A Number You Click Now Shows You That Number',
+					'text'  => 'Opening the Request Log from a dashboard row used to arrive unfiltered — you clicked four requests and got all of them. Each row now opens exactly what it counted, over the same days.',
 				),
 				array(
 					'icon'  => 'search',
-					'title' => 'Work Through One Issue at a Time',
-					'text'  => '"Featured image not described · 60" now opens all sixty pages in your content list, ranked and paged, instead of showing six of them and stopping.',
-				),
-				array(
-					'icon'  => 'shield',
-					'title' => 'The Numbers Agree With Each Other',
-					'text'  => 'A few counts could differ by one from screen to screen, or start counting the page you were looking at instead of your whole site. They read the same measure now.',
+					'title' => 'Filter by More Than One Thing, and Sort Any Column',
+					'text'  => 'The Request Log takes two crawlers at once, or everything spoofed or refused, and every column sorts your whole filtered list rather than the page on screen. Visitors can hold two assistants side by side.',
 				),
 				array(
 					'icon'  => 'image',
-					'title' => 'Advice You Can Act On',
-					'text'  => 'Pages WordPress builds for you — your blog index, a cart — are no longer told they are too short. And a page is no longer told to climb a search another of your own pages is already winning.',
-				),
+					'title' => 'Agentimus Matches Your Admin Colours',
+					'text'  => 'One colour per WordPress colour scheme, in light and dark, whichever WordPress you run. On the Light scheme, two things that could not be read against the page are fixed.',
+				)
 			),
 		);
 	}

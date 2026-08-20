@@ -305,7 +305,6 @@ export default {
           type="button"
           class="ar-rail-card ar-rail-regcard"
           :class="validation.ok ? 'is-ok' : 'is-alert'"
-          v-tip="validation.ok ? 'See what’s registered' : 'Review registration issues'"
           @click="go({ tab: 'discovery', anchor: validation.ok ? 'ar-wd-providers' : 'ar-wd-validation' })"
         >
           <!-- A drawn ring, not a text glyph: ✓ and ⚠ come from two different

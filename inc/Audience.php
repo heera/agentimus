@@ -64,7 +64,18 @@ final class Audience {
 			// Clients caught claiming an identity that verification did not
 			// support. Part of the machine picture, and nothing else on screen
 			// carries it next to a headline count.
-			'impostors' => self::impostor_count( $stats ),
+			// ⛔ READ, NOT RECOMPUTED. It arrives in the same totals array as the
+			// three numbers above it, from the same window and the same query
+			// moment — see Repository::stats(). This file used to count it for
+			// itself out of the review queue and reported zero while the log held
+			// eleven.
+			'impostors' => isset( $totals['impostors'] ) ? (int) $totals['impostors'] : 0,
+			// ⛔ The SPAN these four numbers describe, so a link out of them can
+			// narrow its destination to the same days. Without it, "4 caught faking
+			// an identity" landed on a log showing every impostor ever retained —
+			// a different number under the heading you just clicked.
+			'from'      => isset( $stats['since'] ) ? (string) $stats['since'] : '',
+			'to'        => isset( $stats['today'] ) ? (string) $stats['today'] : '',
 		);
 
 		return array(
@@ -396,31 +407,6 @@ final class Audience {
 		);
 	}
 
-	/**
-	 * Clients whose claimed identity failed verification, if the queue holds any.
-	 *
-	 * @param array $stats The stats payload.
-	 * @return int
-	 */
-	private static function impostor_count( array $stats ) {
-		$threats = isset( $stats['threats'] ) && is_array( $stats['threats'] ) ? $stats['threats'] : array();
-
-		// The queue's own tally, when it is there.
-		if ( isset( $threats['counts']['spoof'] ) && is_numeric( $threats['counts']['spoof'] ) ) {
-			return (int) $threats['counts']['spoof'];
-		}
-
-		// Otherwise count the verdicts. `sources` is capped for display, so this
-		// can only ever UNDER-report — which is the right direction to be wrong
-		// in for a number that accuses someone of forging an identity.
-		$n = 0;
-		foreach ( (array) ( isset( $threats['sources'] ) ? $threats['sources'] : array() ) as $row ) {
-			if ( is_array( $row ) && isset( $row['verdict'] ) && 'spoofed' === $row['verdict'] ) {
-				$n++;
-			}
-		}
-		return $n;
-	}
 
 	/**
 	 * What these numbers cannot say — shipped WITH them, not in a docs page.

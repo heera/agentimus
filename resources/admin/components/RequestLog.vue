@@ -34,7 +34,9 @@ export default {
   emits: ['flash'],
   data() {
     return {
-      filters: { from: '', to: '', agent: '', endpoint: '', network: '', ua: '', verdict: '' },
+      // ⭐ The four value filters are LISTS — his call, 2026-08-21. `from`/`to`/`ua`
+      // stay single: a date range already IS a range, and `ua` is a prefix match.
+      filters: { from: '', to: '', agent: [], endpoint: [], network: [], ua: '', verdict: [] },
       // Distinct values seen in the retained window; fetched once, alongside the first page.
       facets: { agents: [], endpoints: [], networks: [] },
       rows: [],
@@ -50,7 +52,18 @@ export default {
       // pushed them a full screen further away than they need to be.
       perPage: 25,
       // Cursor of the page we're on, plus the trail behind it, so "Newer" can reverse.
-      before: 0,
+      // Where this page starts. In the default order that is a keyset CURSOR
+      // (an id); under any other sort it is an OFFSET. One field, because the
+      // pager asks the same question either way: "where am I".
+      pos: 0,
+      // ⛔ Every load takes a ticket; only the newest one may write. Two loads
+      // can be in flight at once — a drill-down starts a filtered read while the
+      // reveal's unfiltered one is still out — and without this the SLOWER
+      // response wins whichever it is, which is how a filtered screen ends up
+      // showing an unfiltered count.
+      reqSeq: 0,
+      // ⭐ 'at' + desc is the default AND the only cursor-paged order.
+      sort: { by: 'at', dir: 'desc' },
       trail: [],
       loading: false,
       loaded: false,
@@ -59,7 +72,8 @@ export default {
   },
   computed: {
     hasFilters() {
-      return Object.values(this.filters).some((v) => v !== '');
+      // An empty LIST is no filter, exactly as an empty string is.
+      return Object.values(this.filters).some((v) => (Array.isArray(v) ? v.length > 0 : v !== ''));
     },
     // Only meaningful once "identify every bot" has attributed something. Read from the
     // facets, not the current page — a filtered page can be all-blank while the site does
@@ -102,11 +116,36 @@ export default {
         ? 'No network — the lookup couldn’t attribute this visitor to an organisation. Common for home broadband, small hosts and anything behind a privacy proxy.'
         : 'No network — “Identify every bot” is off, so visitors aren’t looked up. Turn it on in Settings → AI Access to see which organisation each one belongs to.';
     },
+    // Cursor paging can only count pages it has walked; offset paging knows
+    // exactly where it is. Both answer in ROWS, so the line reads the same.
+    keyset() {
+      return 'at' === this.sort.by && 'desc' === this.sort.dir;
+    },
+    pageStart() {
+      return this.keyset ? this.trail.length * this.perPage : this.pos;
+    },
     pageFrom() {
-      return this.rows.length ? this.trail.length * this.perPage + 1 : 0;
+      return this.rows.length ? this.pageStart + 1 : 0;
     },
     pageTo() {
-      return this.trail.length * this.perPage + this.rows.length;
+      return this.pageStart + this.rows.length;
+    },
+    // The columns, in the order they are drawn. `key` is what the server sorts by.
+    columns() {
+      // ⭐ `w` is the DECLARED width, and it is why the header stops moving.
+      // With table-layout:fixed these are the whole story — the browser never
+      // measures the cells — so a sort that brings longer values onto the page
+      // cannot re-proportion the table under the pointer. ⛔ User-Agent has no
+      // width on purpose: it takes whatever is left, which is the one column
+      // that should absorb the slack rather than fight for it.
+      return [
+        { key: 'client', label: 'Client', w: '18%' },
+        { key: 'status', label: 'Status', cls: 'ar-log__statuscol', w: '96px' },
+        { key: 'endpoint', label: 'Endpoint', w: '20%' },
+        ...(this.hasNetwork ? [{ key: '', label: 'Network', w: '14%' }] : []),
+        { key: 'ua', label: 'User-Agent' },
+        { key: 'at', label: 'Requested at', w: '17%' },
+      ];
     },
   },
   watch: {
@@ -123,17 +162,33 @@ export default {
         return;
       }
       this.$nextTick(() => {
-        if (!this.loading) this.load(this.before);
+        if (!this.loading) this.load(this.pos);
       });
     },
     // A dashboard row's drill-down: start from clean filters, apply the preset
     // keys, and refetch if the log has already loaded once (first reveal picks
     // the filters up by itself).
+    // ⛔ ALWAYS re-reads, never "only if we have loaded once". The active
+    // watcher above is declared first and therefore fires first, so on a FIRST
+    // visit it had already started an UNFILTERED load by the time these filters
+    // arrived — and the old `if (this.loaded)` guard then declined to correct
+    // it. His catch, 2026-08-21: "4 caught faking an identity" landed on all 165
+    // rows. The ticket in load() makes the superseded read harmless.
     preset(p) {
       if (!p) return;
       const { seq, ...keys } = p;
-      this.filters = { from: '', to: '', agent: '', endpoint: '', network: '', ua: '', verdict: '', ...keys };
-      if (this.loaded) this.apply();
+      // ⚠️ A preset is written by whoever links here (a dashboard row sends
+      // `{ verdict: '2' }`), so it arrives in the SINGLE shape. Normalise it —
+      // otherwise the picker gets a string where it expects a list and shows
+      // nothing as ticked while the query is filtered.
+      const listed = {};
+      Object.keys(keys).forEach((k) => {
+        listed[k] = ['agent', 'endpoint', 'network', 'verdict'].includes(k) && !Array.isArray(keys[k])
+          ? (keys[k] === '' || keys[k] === null || keys[k] === undefined ? [] : [keys[k]])
+          : keys[k];
+      });
+      this.filters = { ...{ from: '', to: '', agent: [], endpoint: [], network: [], ua: '', verdict: [] }, ...listed };
+      this.apply();
     },
   },
   mounted() {
@@ -155,17 +210,25 @@ export default {
         this.facets = { agents: [], endpoints: [], networks: [] };
       }
     },
-    async load(before = 0) {
+    async load(pos = 0) {
       if (!this.api) return;
       if (!this.loaded) this.loadFacets();
       this.loading = true;
       this.error = '';
+      const seq = ++this.reqSeq;
       try {
         const res = await this.api.getActivityLog({
           ...this.filters,
-          before: before || '',
+          // ⛔ The paging key follows the SORT, never both at once: a cursor
+          // means nothing in a list ordered by client, and sending both would
+          // let the server pick — which is how rows go missing.
+          ...(this.keyset ? { before: pos || '' } : { offset: pos || 0 }),
           per_page: this.perPage,
+          orderby: this.sort.by,
+          order: this.sort.dir,
         });
+        // A superseded read must not repaint the screen it lost.
+        if (seq !== this.reqSeq) return;
         this.rows = res.rows || [];
         this.total = res.total || 0;
         this.hasMore = !!res.hasMore;
@@ -175,9 +238,10 @@ export default {
         this.identifyOn = !!res.identifyOn;
         this.autoPrune = res.autoPrune !== false;
         this.maxRows = res.maxRows || 50000;
-        this.before = before;
+        this.pos = pos;
         this.loaded = true;
       } catch (e) {
+        if (seq !== this.reqSeq) return;
         // A 400 from a malformed date arrives here with the server's own message; show it
         // rather than a generic failure, because it tells the owner exactly what to fix.
         this.error = (e && e.message) || 'Unable to load the request log.';
@@ -185,21 +249,37 @@ export default {
         this.total = 0;
         this.hasMore = false;
       } finally {
-        this.loading = false;
+        if (seq === this.reqSeq) this.loading = false;
       }
     },
     apply() {
       this.trail = [];
       this.load(0);
     },
+    // ⭐ Clicking a header sorts the WHOLE filtered set, not the page on screen —
+    // sorting 50 visible rows while calling it "sorted" is the lie this avoids.
+    // Same column toggles direction; a new one starts at its natural end: newest
+    // first for a time, A→Z for a name.
+    sortBy(key) {
+      if (!key) return;
+      this.sort = this.sort.by === key
+        ? { by: key, dir: 'asc' === this.sort.dir ? 'desc' : 'asc' }
+        : { by: key, dir: 'at' === key ? 'desc' : 'asc' };
+      this.trail = [];
+      this.load(0);
+    },
+    sortState(key) {
+      if (!key || this.sort.by !== key) return 'none';
+      return 'asc' === this.sort.dir ? 'ascending' : 'descending';
+    },
     reset() {
-      this.filters = { from: '', to: '', agent: '', endpoint: '', network: '', ua: '', verdict: '' };
+      this.filters = { from: '', to: '', agent: [], endpoint: [], network: [], ua: '', verdict: [] };
       this.apply();
     },
     older() {
-      if (!this.cursor) return;
-      this.trail.push(this.before);
-      this.load(this.cursor);
+      if (!this.hasMore) return;
+      this.trail.push(this.pos);
+      this.load(this.keyset ? this.cursor : this.pos + this.perPage);
     },
     newer() {
       if (!this.trail.length) return;
@@ -209,7 +289,10 @@ export default {
     // "this row looks odd" to "show me everything this client did".
     pivot(key, value) {
       if (!value) return;
-      this.filters[key] = value;
+      // Clicking a cell REPLACES that control's selection rather than adding to
+      // it: "show me everything this client did" is a fresh question, not a
+      // widening of the one already on screen.
+      this.filters[key] = Array.isArray(this.filters[key]) ? [value] : value;
       this.apply();
     },
     verdictLabel(v) {
@@ -299,19 +382,19 @@ export default {
       <div class="ar-log__row">
         <div class="ar-log__field">
           <span class="ar-log__label">Client</span>
-          <SelectMenu v-model="filters.agent" :options="agentOptions" aria-label="Filter by client" />
+          <SelectMenu v-model="filters.agent" :options="agentOptions" multiple aria-label="Filter by client" />
         </div>
         <div class="ar-log__field">
           <span class="ar-log__label">Endpoint</span>
-          <SelectMenu v-model="filters.endpoint" :options="endpointOptions" mono aria-label="Filter by endpoint" />
+          <SelectMenu v-model="filters.endpoint" :options="endpointOptions" multiple mono aria-label="Filter by endpoint" />
         </div>
         <div v-if="hasNetwork" class="ar-log__field">
           <span class="ar-log__label">Network</span>
-          <SelectMenu v-model="filters.network" :options="networkOptions" mono aria-label="Filter by network" />
+          <SelectMenu v-model="filters.network" :options="networkOptions" multiple mono aria-label="Filter by network" />
         </div>
         <div class="ar-log__field">
           <span class="ar-log__label">Verification</span>
-          <SelectMenu v-model="filters.verdict" :options="verdictOptions" aria-label="Filter by verification" />
+          <SelectMenu v-model="filters.verdict" :options="verdictOptions" multiple aria-label="Filter by verification" />
         </div>
         <div class="ar-log__field ar-log__field--ua">
           <span class="ar-log__label">User-Agent starts with</span>
@@ -352,19 +435,42 @@ export default {
 
     <div v-else class="ar-act-feedwrap">
       <div class="ar-act-reqs">
-        <table class="ar-act-table ar-act-table--cards">
+        <table class="ar-act-table ar-act-table--cards ar-log__table">
+          <!-- One declaration of the geometry, shared by every row and every
+               sort. Without it each page re-measured its own content and the
+               header shifted every time the order changed. -->
+          <colgroup>
+            <col v-for="c in columns" :key="'col-' + c.label" :style="c.w ? { width: c.w } : null" />
+          </colgroup>
           <thead>
             <tr>
-              <th scope="col">Client</th>
-              <!-- Identity/outcome marks get their OWN column so they line up down
-                   the table instead of drifting with each client name's length. -->
-              <th scope="col" class="ar-log__statuscol">Status</th>
-              <th scope="col">Endpoint</th>
-              <th v-if="hasNetwork" scope="col">Network</th>
-              <th scope="col">User-Agent</th>
-              <!-- "Requested at", not "Seen": a refused row was requested but never
-                   served, and the column must be true for both kinds of row. -->
-              <th scope="col">Requested at</th>
+              <!-- ⭐ Every column sorts, so every header is a button — except
+                   Network, which is only present on some sites and carries no
+                   server-side order of its own. aria-sort tells a screen reader
+                   which one is active and which way. -->
+              <th
+                v-for="c in columns"
+                :key="c.label"
+                scope="col"
+                :class="[c.cls, { 'is-sortable': c.key, 'is-sorted': c.key && sort.by === c.key }]"
+                :aria-sort="sortState(c.key)"
+              >
+                <button v-if="c.key" type="button" class="ar-log__sort" @click="sortBy(c.key)">
+                  {{ c.label }}
+                  <!-- ⭐ BOTH ARROWS, ALWAYS — his reference, 2026-08-21. A mark
+                       that appears only on the sorted column tells you where you
+                       ARE but never that the others can be sorted at all; a
+                       stacked pair says "this is a control" at rest, and lights
+                       the half that is active. -->
+                  <span class="ar-log__sortmark" aria-hidden="true">
+                    <svg width="9" height="12" viewBox="0 0 8 12">
+                      <path d="M4 0.6l3.2 4h-6.4z" :class="{ 'is-on': sort.by === c.key && 'asc' === sort.dir }" />
+                      <path d="M4 11.4l-3.2-4h6.4z" :class="{ 'is-on': sort.by === c.key && 'desc' === sort.dir }" />
+                    </svg>
+                  </span>
+                </button>
+                <template v-else>{{ c.label }}</template>
+              </th>
             </tr>
           </thead>
           <tbody>

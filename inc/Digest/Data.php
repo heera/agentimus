@@ -22,7 +22,6 @@ namespace Agentimus\Digest;
 
 use Agentimus\Activity\Referrals;
 use Agentimus\Activity\Repository;
-use Agentimus\Activity\Table;
 use Agentimus\AgentAccess\Store;
 use Agentimus\Readiness;
 use Agentimus\Score;
@@ -118,23 +117,15 @@ final class Data {
 		return Repository::count_between( $from, $to, $verdict );
 	}
 
-	/** Top clients by request count in [$from, $to). */
+	/**
+	 * Top clients by request count in [$from, $to).
+	 *
+	 * ⛔ NOT ITS OWN QUERY ANY MORE — his rule, 2026-08-21. This file used to
+	 * hand-write the same GROUP BY the dashboard's breakdown runs; they agreed
+	 * only by coincidence of both being written correctly on the same day.
+	 */
 	private static function by_client( $from, $to, $limit ) {
-		global $wpdb;
-		$table = Table::name();
-		$rows  = $wpdb->get_results( // phpcs:ignore WordPress.DB, PluginCheck.Security.DirectDB.UnescapedDBParameter -- $table is our own prefix-derived table name; every value is bound via prepare().
-			$wpdb->prepare( "SELECT agent AS label, COUNT(*) AS hits FROM $table WHERE refused = 0 AND hit_at >= %s AND hit_at < %s GROUP BY agent ORDER BY hits DESC LIMIT %d", $from, $to, $limit ),
-			ARRAY_A
-		);
-		return array_map(
-			static function ( $r ) {
-				return array(
-					'label' => (string) $r['label'],
-					'hits'  => (int) $r['hits'],
-				);
-			},
-			(array) $rows
-		);
+		return Repository::counts_by( 'agent', $from, $limit, $to );
 	}
 
 	/** Referral totals for an inclusive Y-m-d day range, via the public report API. */

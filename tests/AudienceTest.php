@@ -84,26 +84,50 @@ final class AudienceTest extends TestCase {
 		$this->assertContains( 'machines-endpoints', array_column( $out['limits'], 'key' ) );
 	}
 
-	public function test_impostors_come_from_the_queue_tally() {
-		$out = Audience::from_stats( $this->stats() );
-		$this->assertSame( 3, $out['machines']['impostors'] );
+	/**
+	 * ⭐⭐ ONE SOURCE. The impostor figure is READ from the same totals array as
+	 * fetches/today/agents — the log, one window, one query moment — and is never
+	 * recomputed here.
+	 *
+	 * ⛔ THIS REPLACES TWO TESTS THAT PINNED THE BUG. They asserted the count came
+	 * from the REVIEW QUEUE's tally, and failing that, from counting 'spoofed'
+	 * rows in the queue's capped `sources` list. Both were faithful to the code
+	 * and both were wrong about the world: the queue holds what still needs a
+	 * DECISION, so a dismissed impostor left it and the headline fell back to
+	 * zero. On heera.it, 2026-08-21, the log held 11 forgeries inside the card's
+	 * own 30-day window while the card read "0 caught faking an identity" — a
+	 * false all-clear on a security number, found by him remembering the
+	 * notifications it contradicted.
+	 */
+	public function test_impostors_are_read_from_the_totals_not_recounted() {
+		$out = Audience::from_stats( $this->stats( array( 'totals' => array( 'impostors' => 11 ) ) ) );
+		$this->assertSame( 11, $out['machines']['impostors'] );
 	}
 
-	public function test_impostors_fall_back_to_counting_verdicts() {
+	/**
+	 * ⛔ And the queue can never speak for it again. A payload whose queue says
+	 * one thing and whose totals say another must report the TOTALS — this is the
+	 * exact shape that shipped the zero.
+	 */
+	public function test_the_review_queue_cannot_override_the_logged_count() {
 		$out = Audience::from_stats(
 			$this->stats(
 				array(
+					'totals'  => array( 'impostors' => 11 ),
 					'threats' => array(
-						'sources' => array(
-							array( 'verdict' => 'spoofed' ),
-							array( 'verdict' => 'heavy' ),
-							array( 'verdict' => 'spoofed' ),
-						),
+						'counts'  => array( 'spoof' => 0 ),
+						'sources' => array( array( 'verdict' => 'heavy' ) ),
 					),
 				)
 			)
 		);
-		$this->assertSame( 2, $out['machines']['impostors'] );
+		$this->assertSame( 11, $out['machines']['impostors'] );
+	}
+
+	/** An absent figure reports zero rather than inventing one. */
+	public function test_a_missing_impostor_total_reads_zero() {
+		$out = Audience::from_stats( $this->stats() );
+		$this->assertSame( 0, $out['machines']['impostors'] );
 	}
 
 	/**
