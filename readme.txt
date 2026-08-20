@@ -299,6 +299,18 @@ URL-like strings in the plugin's output are labels, not requests — the discove
 
 == Changelog ==
 
+= 1.40.0 =
+* Fixed: bugs regarding the impostor count — your dashboard could report "0 caught faking an identity" while your site was catching crawlers forging an identity and turning them away. That figure counted the review queue, which is a list you can dismiss from, rather than the log that records what actually happened, so it fell back to zero as soon as a report was cleared. It reads the log now, over the same days the card counts.
+* Fixed: bugs regarding the dashboard's drill-downs — clicking a number opened the Request Log with the filters shown but not applied, so "4 caught faking an identity" arrived as all 165 requests. It affected the first visit to that screen in a session, which is why it was easy to miss. Those rows now open exactly what they counted, over the same window.
+* Fixed: on WordPress's Light admin colour scheme, Agentimus coloured its links, tab underlines, numbers and chart bars with that scheme's orange highlight — and on WordPress before 7.1, with a grey so pale nothing could be read against the page. It keeps its own colour there now.
+* Fixed: on the Light scheme, hovering a line on the readiness card turned it white on an almost-white card and it disappeared. The lift was drawn for the dark card and had never been mirrored for the light one.
+* New: the Request Log's Client, Endpoint, Network and Verification filters each take more than one value — two crawlers at once, or everything spoofed or refused — and every column sorts the whole filtered set rather than the page on screen. The Visitors report's "Sent by" takes several assistants too, so two can be read side by side.
+* Improved: every number on the dashboard's Humans and Machines cards is now a link, and each one lands where it is answered. "Clicks from Google + Bing" opens what people actually searched for; "referred by AI answers" opens which assistants sent them and where they landed.
+* Improved: Agentimus wears one colour per admin colour scheme, whichever WordPress you run. Blue, Ocean and Sunrise each kept a second set of colours for the palette WordPress shipped before 7.1; each is now a single colour taken from that scheme's own bar, in light and dark alike.
+* Improved: buttons and cards answer the pointer the same way across the plugin — the surface lifts, nothing casts a shadow, and the Request Log's header holds still instead of resizing the table under your cursor as you sort.
+* Fixed: your content summary no longer says "the most common is X" when there is only one kind of issue to name.
+* Improved: "This site represents" and "Entity type" read as plain English — "A person", "An organization", "Blog Posting" — instead of the raw values written into your structured data.
+
 = 1.39.0 =
 * Fixed: the score card's “N to fix” chip said a number nobody could reconcile with the screen. It added up the issue groups, so a page carrying three issues counted three times — 119 on a site where 82 pages needed work. It counts pages now, the same number the Optimize card names.
 * New: your content gets read even when your host never runs WordPress's scheduled jobs. WordPress asks itself for a background run on each page view, and on many hosts that ask never arrives — a blocked internal request, or a cached page that never runs PHP — so the reading never happened and nothing on any screen said so. Agentimus now notices when its own jobs are overdue and runs them from the screen you are already on. Nothing else on the page slows down, a site whose jobs run normally loads nothing at all, and a run stands down the moment WordPress starts one of its own.
@@ -356,6 +368,9 @@ URL-like strings in the plugin's output are labels, not requests — the discove
 For older releases, see the full history: https://github.com/heera/agentimus/blob/main/CHANGELOG.md
 
 == Upgrade Notice ==
+
+= 1.40.0 =
+Fixed bugs regarding the impostor count and the dashboard's drill-downs: your site could report "0 caught faking an identity" while it was catching and refusing them, and clicking a number opened an unfiltered list. Two Light-scheme faults are fixed too — an accent colour nothing could read, and a row that vanished when you hovered it. The Request Log's filters now take several values at once and every column sorts. No breaking changes.
 
 = 1.39.0 =
 Your content now gets read even if your host never runs WordPress's scheduled jobs — many never do, and nothing used to say so. Working through one issue now opens every page that check flags rather than six of them, and a page you fix says so instead of vanishing from the list. Several counts that disagreed from one screen to the next read the same measure now, so a few of your numbers will move once. No breaking changes.

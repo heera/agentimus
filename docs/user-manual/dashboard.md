@@ -215,7 +215,11 @@ Open it from **More → Request Log** in the nav bar. (The occasional screens �
 
 The Dashboard answers *who* visited and *how much*. The Request Log answers **what a particular bot actually fetched** — the question the summary cards can't, because they show clients and endpoints as two separate lists.
 
-Filter by **Client** and **Endpoint** together and you get the intersection: every page GPTBot asked for, or every bot that pulled `llms-full.txt`. You can also filter by **User-Agent** (matches from the *start* of the string), by **Network** once bot identification is on, by **Verification** (verified / spoofed / unchecked), and by a date range.
+Filter by **Client** and **Endpoint** together and you get the intersection: every page GPTBot asked for, or every bot that pulled `llms-full.txt`. You can also filter by **User-Agent** (matches from the *start* of the string), by **Network** once bot identification is on, by **Verification** (verified / spoofed / unchecked / refused), and by a date range.
+
+**Client, Endpoint, Network and Verification each take more than one value.** Tick two clients and you see both — the picker stays open while you choose, says "2 selected" once you pass one, and "Any" clears it. Picking several *widens that one control*: two clients means either client, while every other filter still has to match. Verification can mix a verdict with an outcome — "spoofed **or** refused" is one tick each. **User-Agent** and the dates stay single: the first matches from the start of the string, and a date range is already a range.
+
+**Every column sorts.** Click a header to order the whole filtered set — not just the page on screen — and click again to reverse it. Newest-first is the default; the small stacked arrows on each header show which column is active and which way.
 
 Clicking a client or endpoint in the table filters the whole log onto that value — the quickest route from "that row looks odd" to "show me everything this client did".
 

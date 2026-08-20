@@ -4,6 +4,18 @@ The full release history. The readme.txt shipped to WordPress.org keeps only
 the most recent releases (its Changelog section has a 5,000-word cap); this
 file is the complete record.
 
+## 1.40.0
+* Fixed: bugs regarding the impostor count — your dashboard could report "0 caught faking an identity" while your site was catching crawlers forging an identity and turning them away. That figure counted the review queue, which is a list you can dismiss from, rather than the log that records what actually happened, so it fell back to zero as soon as a report was cleared. It reads the log now, over the same days the card counts.
+* Fixed: bugs regarding the dashboard's drill-downs — clicking a number opened the Request Log with the filters shown but not applied, so "4 caught faking an identity" arrived as all 165 requests. It affected the first visit to that screen in a session, which is why it was easy to miss. Those rows now open exactly what they counted, over the same window.
+* Fixed: on WordPress's Light admin colour scheme, Agentimus coloured its links, tab underlines, numbers and chart bars with that scheme's orange highlight — and on WordPress before 7.1, with a grey so pale nothing could be read against the page. It keeps its own colour there now.
+* Fixed: on the Light scheme, hovering a line on the readiness card turned it white on an almost-white card and it disappeared. The lift was drawn for the dark card and had never been mirrored for the light one.
+* New: the Request Log's Client, Endpoint, Network and Verification filters each take more than one value — two crawlers at once, or everything spoofed or refused — and every column sorts the whole filtered set rather than the page on screen. The Visitors report's "Sent by" takes several assistants too, so two can be read side by side.
+* Improved: every number on the dashboard's Humans and Machines cards is now a link, and each one lands where it is answered. "Clicks from Google + Bing" opens what people actually searched for; "referred by AI answers" opens which assistants sent them and where they landed.
+* Improved: Agentimus wears one colour per admin colour scheme, whichever WordPress you run. Blue, Ocean and Sunrise each kept a second set of colours for the palette WordPress shipped before 7.1; each is now a single colour taken from that scheme's own bar, in light and dark alike.
+* Improved: buttons and cards answer the pointer the same way across the plugin — the surface lifts, nothing casts a shadow, and the Request Log's header holds still instead of resizing the table under your cursor as you sort.
+* Fixed: your content summary no longer says "the most common is X" when there is only one kind of issue to name.
+* Improved: "This site represents" and "Entity type" read as plain English — "A person", "An organization", "Blog Posting" — instead of the raw values written into your structured data.
+
 ## 1.39.0
 * Fixed: the score card's “N to fix” chip said a number nobody could reconcile with the screen. It added up the issue groups, so a page carrying three issues counted three times — 119 on a site where 82 pages needed work. It counts pages now, the same number the Optimize card names.
 * Improved: Agentimus sits more comfortably in whichever WordPress admin colour scheme you use, in light and in dark.
