@@ -255,10 +255,16 @@ final class Module {
 					'network'  => array( 'type' => 'string' ),
 					// 0 = unchecked/inconclusive, 1 = verified, 2 = spoofed, or the
 					// outcome "refused" — and now a comma-separated list of them.
-					// ⛔ Typed string, not integer: `2,refused` is a legal value and
-					// an integer type would have rejected it at the door, before the
-					// handler could say WHICH token was wrong.
-					'verdict'  => array( 'type' => 'string' ),
+					// ⛔ BOTH TYPES, and the integer is not vestigial. A query string
+					// can only carry text, so the screen sends `2,refused`; but a
+					// caller inside PHP passes a real int, and WP validates the
+					// declared type BEFORE this route's handler runs — so declaring
+					// string alone turned `verdict => 0` into a 400 with
+					// rest_invalid_param, which is a rejection the handler never saw
+					// and could not explain. Caught by ActivityLogRestTest on 2026-08-21.
+					// ⚠️ The handler casts to string and validates per token, so both
+					// shapes land on the same check.
+					'verdict'  => array( 'type' => array( 'string', 'integer' ) ),
 					// Prefix match only — see Repository::log().
 					'ua'       => array( 'type' => 'string' ),
 					'before'   => array( 'type' => 'integer' ),
