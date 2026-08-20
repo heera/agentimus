@@ -47,6 +47,11 @@ jobs:
         image: mysql:8.0
         env:
           MYSQL_ROOT_PASSWORD: root
+          # ⭐ The service makes the test database itself, on startup. That is the
+          # whole reason this job no longer installs a MySQL client: the only
+          # thing the old one did was `mysqladmin create`. PHP talks to the
+          # server over mysqli, which setup-php already provides.
+          MYSQL_DATABASE: wordpress_test
         ports:
           - 3306:3306
         options: >-
@@ -58,33 +63,15 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
-      # ubuntu-latest no longer ships Subversion (used to export the WP test library)
-      # or a MySQL client (used to create the test DB) — install both.
-      #
-      # ⚠️ WRAPPED IN A TIMEOUT AND RETRIED, because this step is where the runners
-      # actually fail. 2026-08-19: three jobs of six sat in apt for 32 minutes while
-      # their siblings finished the WHOLE run in two — and an earlier job that night
-      # sat there four hours before it was cancelled. It is always this step, never
-      # the tests, and an unbounded apt turns a mirror hiccup into a blocked release.
-      # ⭐ Four minutes then start again: a bad mirror costs seconds, and a runner
-      # that is truly broken fails the job in twelve minutes instead of hanging until
-      # GitHub's six-hour ceiling.
-      - name: Install system dependencies
-        timeout-minutes: 13
-        run: |
-          for attempt in 1 2 3; do
-            echo "::group::apt attempt $attempt"
-            if timeout 240 sudo apt-get update -qq \
-               && timeout 240 sudo apt-get install -y --no-install-recommends subversion default-mysql-client; then
-              echo "::endgroup::"; exit 0
-            fi
-            echo "::endgroup::"
-            echo "apt attempt $attempt did not finish in time — retrying"
-            sleep 10
-          done
-          echo "::error::apt failed three times; this is the runner, not the plugin"
-          exit 1
-
+      # ⛔ NOTHING IS INSTALLED FROM apt HERE, and nothing should be added back.
+      # This job used to fetch Subversion (to export the WP test library) and a
+      # MySQL client (to create the test DB), and that step is where the runners
+      # actually failed: on 2026-08-19 three jobs of six sat in apt for 32 minutes
+      # while their siblings finished the WHOLE run in two, and an earlier job that
+      # night sat there four hours before it was cancelled. It was never the tests.
+      # Both needs were removed instead of bounded — the test library comes down as
+      # a tarball (bin/install-wp-tests.sh) and the MySQL service creates its own
+      # database (MYSQL_DATABASE above, with skip-db-create below).
       - name: Set up PHP ${{ matrix.php }}
         uses: shivammathur/setup-php@v2
         with:
@@ -97,7 +84,9 @@ jobs:
         run: composer install --prefer-dist --no-progress
 
       - name: Install the WordPress test suite
-        run: bash bin/install-wp-tests.sh wordpress_test root root 127.0.0.1:3306 ${{ matrix.wp }}
+        # The trailing `true` is skip-db-create — the service container already
+        # made wordpress_test, and creating it here would want a MySQL client.
+        run: bash bin/install-wp-tests.sh wordpress_test root root 127.0.0.1:3306 ${{ matrix.wp }} true
 
       - name: Run integration tests
         run: composer test:integration

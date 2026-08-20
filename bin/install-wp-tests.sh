@@ -25,9 +25,13 @@ TMPDIR=$(echo "$TMPDIR" | sed -e "s/\/$//")
 WP_TESTS_DIR=${WP_TESTS_DIR-$TMPDIR/wordpress-tests-lib}
 WP_CORE_DIR=${WP_CORE_DIR-$TMPDIR/wordpress}
 
+# ⚠️ -L, because the archives below are served by a redirect: without it this
+# wrote the redirect body to disk and the extract failed on a file that looked
+# like it had downloaded fine. -f so an HTTP error is an error rather than a
+# saved 404 page, -S so it says which one.
 download() {
 	if [ "$(which curl)" ]; then
-		curl -s "$1" > "$2";
+		curl -fsSL "$1" > "$2";
 	elif [ "$(which wget)" ]; then
 		wget -nv -O "$2" "$1"
 	else
@@ -61,6 +65,59 @@ else
 fi
 set -ex
 
+# The WordPress test library, fetched as ONE tarball from the wordpress-develop
+# git mirror instead of exported with an svn client. Same tree, no client to
+# install first — and installing that client is what cost a release night on
+# 2026-08-19, when `apt-get install subversion` stalled three runners of six.
+#
+# ⚠️ The mirror normalises every tag to THREE components: svn's `tags/7.1` is
+# `7.1.0` here, while `tags/6.8.1` keeps its own name. Branches are named the
+# same on both sides. Get this wrong and the fetch 404s on exactly the
+# every-other-release versions.
+case "$WP_TESTS_TAG" in
+	trunk)
+		WP_DEVELOP_REF="heads/trunk"
+		;;
+	branches/*)
+		WP_DEVELOP_REF="heads/${WP_TESTS_TAG#branches/}"
+		;;
+	tags/*)
+		WP_DEVELOP_TAG="${WP_TESTS_TAG#tags/}"
+		case "$WP_DEVELOP_TAG" in
+			*.*.*) ;;
+			*) WP_DEVELOP_TAG="$WP_DEVELOP_TAG.0" ;;
+		esac
+		WP_DEVELOP_REF="tags/$WP_DEVELOP_TAG"
+		;;
+	*)
+		echo "Could not work out which wordpress-develop ref answers '$WP_TESTS_TAG'" >&2
+		exit 1
+		;;
+esac
+
+WP_DEVELOP_DIR=${WP_DEVELOP_DIR-$TMPDIR/wordpress-develop}
+
+# Both callers below want something out of that tree, and neither should pull it
+# twice.
+#
+# ⭐ Diffed against `svn export tags/7.1` before this replaced it: includes/ is
+# byte-identical, and data/ differs by ONE entry — data/plugins/hello-dolly, an
+# EMPTY directory, which git cannot represent and so no tarball can carry. No
+# file is missing. Nothing in tests/integration reads DIR_TESTDATA, so nothing
+# here wants it; if a future test ever does, mkdir it rather than going back to
+# an svn client.
+fetch_wp_develop() {
+	if [ -d "$WP_DEVELOP_DIR/tests/phpunit/includes" ]; then
+		return
+	fi
+	rm -rf "$WP_DEVELOP_DIR"
+	mkdir -p "$WP_DEVELOP_DIR"
+	download "https://github.com/WordPress/wordpress-develop/archive/refs/${WP_DEVELOP_REF}.tar.gz" "$TMPDIR/wordpress-develop.tar.gz"
+	# ⛔ The whole tree, not a --wildcards filter naming just the two directories:
+	# --wildcards is GNU tar only, and these also run on macOS, where tar is BSD.
+	tar --strip-components=1 -zxmf "$TMPDIR/wordpress-develop.tar.gz" -C "$WP_DEVELOP_DIR"
+}
+
 install_wp() {
 	if [ -d "$WP_CORE_DIR" ]; then
 		return;
@@ -68,10 +125,17 @@ install_wp() {
 	mkdir -p "$WP_CORE_DIR"
 
 	if [[ $WP_VERSION == 'nightly' || $WP_VERSION == 'trunk' ]]; then
-		mkdir -p "$TMPDIR/wordpress-trunk"
-		rm -rf "$TMPDIR/wordpress-trunk/*"
-		svn export --quiet https://core.svn.wordpress.org/trunk "$TMPDIR/wordpress-trunk/wordpress"
-		mv "$TMPDIR/wordpress-trunk/wordpress/*" "$WP_CORE_DIR"
+		# The BUILT nightly — the same tree `svn export core.svn/trunk` used to
+		# hand back. ⛔ NOT wordpress-develop's src/: that is the unbuilt source,
+		# and the suite would boot core with its scripts and styles uncompiled.
+		# ⚠️ Nothing in the CI matrix asks for nightly, so this path is not
+		# exercised on every push the way the tagged ones are.
+		rm -rf "$TMPDIR/wordpress-nightly"
+		download https://wordpress.org/nightly-builds/wordpress-latest.zip "$TMPDIR/wordpress-nightly.zip"
+		unzip -q -o "$TMPDIR/wordpress-nightly.zip" -d "$TMPDIR/wordpress-nightly"
+		# ⭐ The glob sits OUTSIDE the quotes. Quoted, it is a literal asterisk and
+		# the move silently copied nothing — the line this replaces had that bug.
+		mv "$TMPDIR/wordpress-nightly/wordpress/"* "$WP_CORE_DIR"
 	else
 		if [ "$WP_VERSION" == 'latest' ]; then
 			local ARCHIVE_NAME='latest'
@@ -102,13 +166,14 @@ install_test_suite() {
 
 	if [ ! -d "$WP_TESTS_DIR" ]; then
 		mkdir -p "$WP_TESTS_DIR"
-		rm -rf "$WP_TESTS_DIR/{includes,data}"
-		svn export --quiet --ignore-externals https://develop.svn.wordpress.org/${WP_TESTS_TAG}/tests/phpunit/includes/ "$WP_TESTS_DIR/includes"
-		svn export --quiet --ignore-externals https://develop.svn.wordpress.org/${WP_TESTS_TAG}/tests/phpunit/data/ "$WP_TESTS_DIR/data"
+		fetch_wp_develop
+		cp -r "$WP_DEVELOP_DIR/tests/phpunit/includes" "$WP_TESTS_DIR/includes"
+		cp -r "$WP_DEVELOP_DIR/tests/phpunit/data" "$WP_TESTS_DIR/data"
 	fi
 
 	if [ ! -f wp-tests-config.php ]; then
-		download https://develop.svn.wordpress.org/${WP_TESTS_TAG}/wp-tests-config-sample.php "$WP_TESTS_DIR"/wp-tests-config.php
+		fetch_wp_develop
+		cp "$WP_DEVELOP_DIR/wp-tests-config-sample.php" "$WP_TESTS_DIR"/wp-tests-config.php
 		WP_CORE_DIR=$(echo "$WP_CORE_DIR" | sed "s:/\+$::")
 		sed $ioption "s:dirname( __FILE__ ) . '/src/':'$WP_CORE_DIR/':" "$WP_TESTS_DIR"/wp-tests-config.php
 		sed $ioption "s:__DIR__ . '/src/':'$WP_CORE_DIR/':" "$WP_TESTS_DIR"/wp-tests-config.php
