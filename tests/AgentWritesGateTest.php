@@ -76,6 +76,7 @@ namespace Agentimus\Tests {
 			'agentimus/write-description',
 			'agentimus/write-topics',
 			'agentimus/apply-fix',
+			'agentimus/set-aside-page',
 		);
 
 		private function server_args( array $settings ): array {

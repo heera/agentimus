@@ -87,7 +87,7 @@ final class Registrar {
 	 * so renaming one here still fails a test instead of silently changing the
 	 * public tool name.
 	 */
-	const WRITE_SLUGS = array( 'create-content', 'update-content', 'write-description', 'write-topics', 'write-search-fields', 'apply-fix' );
+	const WRITE_SLUGS = array( 'create-content', 'update-content', 'write-description', 'write-topics', 'write-search-fields', 'apply-fix', 'set-aside-page' );
 
 	/** @var Settings */
 	private $settings;
@@ -2233,6 +2233,71 @@ final class Registrar {
 			function ( $input ) {
 				return ( new Fixer( $this->settings ) )->apply( isset( $input['check_id'] ) ? (string) $input['check_id'] : '' );
 			},
+			$manage,
+			false
+		);
+
+		$this->add(
+			'set-aside-page',
+			__( 'Set a page aside, or put it back', 'agentimus' ),
+			'Marks ONE page as not-cited content — a landing page, a utility page, an index — so no content '
+				. 'check grades it and it stops appearing on the worklist. Or puts it back, with aside=false. '
+				. 'This is the THIRD thing to do with a row from read-content-issues: fix it, leave it, or say '
+				. 'it is fine as it is. Use it when a flagged page is not meant to be quoted in the first place, '
+				. 'so the flags are describing a page doing its job. '
+				. 'Nothing about the page changes — it stays published exactly as it is; what changes is whether '
+				. 'it is judged, and therefore the site’s content score. Set-aside pages are not hidden: the '
+				. 'owner sees them in their own list with a live count. '
+				. '⛔ NOT A WAY TO CLEAR THE LIST. Setting a page aside because fixing it is hard, or to make a '
+				. 'number look better, quietly removes real work from the owner’s view — the count they read '
+				. 'afterwards is one you changed. Set aside only what the OWNER would call not-cited content, '
+				. 'and when unsure, leave the page flagged and say why you are unsure. '
+				. 'One page per call, both directions. There is no bulk form: setting aside every page a check '
+				. 'flags is a large, quiet action, and it stays with the owner, behind the confirmation their '
+				. 'own screen shows them. '
+				. 'Returns the page’s state now and the three worklist counts — the same counts '
+				. 'read-content-issues reports, so quote these rather than adjusting a number yourself.',
+			self::obj(
+				array(
+					'post_id' => self::i( 'The page to set aside or put back — the `id` from any read-content-issues row.' ),
+					'aside'   => array(
+						'type'        => 'boolean',
+						'description' => 'True (the default) sets the page aside; false puts it back into grading.',
+						'default'     => true,
+					),
+				),
+				array( 'post_id' )
+			),
+			self::obj(
+				array(
+					'postId'  => self::i( 'The page acted on.' ),
+					'title'   => self::s( 'Its title, for saying out loud which page this was.' ),
+					'aside'   => self::b( 'Whether it is set aside NOW — the state after the call, not the change.' ),
+					'changed' => self::b( 'Whether THIS call is what put it there. False means it was already in that state and nothing was written; report that honestly rather than as a change.' ),
+					'message' => self::s( 'What happened, in the site’s own words.' ),
+					'counts'  => self::obj(
+						array(
+							'fixable'  => self::i( 'Pages asking for something.' ),
+							'clear'    => self::i( 'Pages read with nothing to fix.' ),
+							'setAside' => self::i( 'Pages the owner excused.' ),
+						),
+						array(),
+						false
+					),
+				)
+			),
+			function ( $input ) {
+				$in = is_array( $input ) ? $input : array();
+				return ( new Triage( $this->settings ) )->set_aside(
+					isset( $in['post_id'] ) ? (int) $in['post_id'] : 0,
+					isset( $in['aside'] ) ? (bool) $in['aside'] : true
+				);
+			},
+			// ⭐ manage_options, NOT can_edit_post — deliberately unlike the authoring
+			// tools beside it. This does not edit a page; it changes what the SITE's
+			// content score is measured over. The REST route the owner's own click
+			// takes ({@see Rest::optimize_ignore}) requires the same capability, so
+			// the ability is exactly as reachable as the button, and no more.
 			$manage,
 			false
 		);
