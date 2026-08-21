@@ -235,6 +235,43 @@ final class Worklist {
 	}
 
 	/**
+	 * One page's title, as every surface of this list says it.
+	 *
+	 * ⛔ THE ONE OWNER, for the same reason {@see counts()} is. Titles arrive from
+	 * the database entity-encoded — `Php Dynamic Getter &#038; Setter` — and a
+	 * caller that skips this says a different name for the same page than the row
+	 * it was handed. Caught live on heera.it 2026-08-22: the set-aside tool
+	 * answered with the raw title while `read-content-issues` answered decoded,
+	 * so an agent reading a row and then acting on it got two names for post 1024.
+	 * ⚠️ An agent does not render HTML — it repeats what it is given, into prose
+	 * and sometimes back into a write.
+	 *
+	 * @param \WP_Post|int $post Post or ID.
+	 * @return string Decoded, tag-free, never empty.
+	 */
+	public static function title_of( $post ) {
+		$title = html_entity_decode( wp_strip_all_tags( get_the_title( $post ) ), ENT_QUOTES, 'UTF-8' );
+		return '' !== trim( $title ) ? $title : __( '(untitled)', 'agentimus' );
+	}
+
+	/**
+	 * The three exclusive bucket counts — fixable, clear, setAside — over the
+	 * whole site.
+	 *
+	 * ⛔ THE ONE OWNER of this trio. Everything that quotes them comes here: the
+	 * chips, `read-content-issues`, `tally()` below, and the set-aside ability's
+	 * answer after a write. His law — two surfaces counting the same thing must
+	 * read ONE count — and the way it gets broken is never a wrong sum, it is a
+	 * second caller assembling the same numbers from its own idea of which post
+	 * types and which parked ids are in scope. There is one idea of that, here.
+	 *
+	 * @return array{fixable:int,clear:int,setAside:int}
+	 */
+	public function counts() {
+		return Grades::counts( $this->post_types(), $this->set_aside_ids() );
+	}
+
+	/**
 	 * The three bucket counts, what the fixable bucket is asking for, and how
 	 * much of the site has not been read yet. No page is parsed — these are the
 	 * grade store's own numbers, the same ones the chips carry.
@@ -252,7 +289,7 @@ final class Worklist {
 		$aside = $this->set_aside_ids();
 
 		return array_merge(
-			Grades::counts( $types, $aside ),
+			$this->counts(),
 			Grades::fixable_split( $types, $aside ),
 			// ⚠️ The tally's honesty about itself, BOTH HALVES. `grading` is
 			// content nobody has read; `rechecking` is content read under an
@@ -426,7 +463,7 @@ final class Worklist {
 
 		$payload = array(
 			'items'        => $items,
-			'counts'       => Grades::counts( $types, $aside ),
+			'counts'       => $this->counts(),
 			'filter'       => $filter,
 			// ⚠️ WHAT THIS LIST IS, when it is not all of it. `counts` describes
 			// the whole bucket and `total` describes these rows — while an issue
@@ -529,11 +566,11 @@ final class Worklist {
 			list( $chosen, $best ) = $this->focus_choice( $post, isset( $search[ $id ] ) ? $search[ $id ] : array() );
 
 			$type  = get_post_type_object( $post->post_type );
-			$title = html_entity_decode( wp_strip_all_tags( get_the_title( $post ) ), ENT_QUOTES, 'UTF-8' );
+			$title = self::title_of( $post );
 
 			$items[] = array(
 				'id'        => (int) $post->ID,
-				'title'     => '' !== trim( $title ) ? $title : __( '(untitled)', 'agentimus' ),
+				'title'     => $title,
 				'postType'  => (string) $post->post_type,
 				'typeLabel' => $type ? (string) $type->labels->singular_name : (string) $post->post_type,
 				'url'       => (string) get_permalink( $post ),
@@ -568,7 +605,7 @@ final class Worklist {
 			'page'         => $page,
 			'per'          => $per,
 			'total'        => (int) $slice['total'],
-			'counts'       => Grades::counts( $types, $aside ),
+			'counts'       => $this->counts(),
 			// ⚠️ WHAT THIS LIST IS, when it is not all of it. `counts` describes
 			// the whole bucket and `total` describes the rows — the two disagree
 			// on purpose while an issue filter is on, and this is the only thing
@@ -1178,7 +1215,7 @@ final class Worklist {
 		$flags   = $summary['flags'];
 
 		$type  = get_post_type_object( $post->post_type );
-		$title = html_entity_decode( wp_strip_all_tags( get_the_title( $post ) ), ENT_QUOTES, 'UTF-8' );
+		$title = self::title_of( $post );
 
 		$out = array(
 			'id'       => (int) $post->ID,
@@ -1186,7 +1223,7 @@ final class Worklist {
 			// posts have been edited since — one indexed query — instead of
 			// re-reading thirty pages to discover that one changed.
 			'modified' => (string) $post->post_modified_gmt,
-			'title'    => '' !== trim( $title ) ? $title : __( '(untitled)', 'agentimus' ),
+			'title'    => $title,
 			// Named, because "Pages" would be a lie on a site whose content is
 			// Products, Docs or Recipes — and the owner needs to know which of
 			// their things this row is.
