@@ -758,7 +758,20 @@ final class Admin {
 		//       other lookup here asks "what colour is this scheme", which slugs
 		//       go stale about; this one asks "is this the scheme the palette was
 		//       drawn on", which is an identity and cannot be retuned away.
-		$accent = ( 'fresh' !== $scheme && SchemeInk::carries_text( $accent_hue ) && SchemeInk::carries_colour( $accent_hue ) && ! self::is_bright( $ink ) )
+		// ⛔⛔ AND NOT ON "light" EITHER, BY NAME — and this replaced a booby trap.
+		//    That scheme was held out by `! is_bright( $ink )` alone, which was
+		//    true only while its ink happened to sit above 0.42. On 2026-08-21 he
+		//    asked for #656363 (0.3922) and the guard would have silently opened:
+		//    its highlight is #c64606, a strong orange that DOES carry text, so
+		//    the whole app would have keyed to it the moment the ink went a shade
+		//    deeper. ⭐ A brightness number was never the right question. "This is
+		//    the scheme schemes.css dresses by hand, in both modes" is an
+		//    IDENTITY — the same reasoning as fresh's above — so it is stated as
+		//    one and the ink is free to be any depth he likes.
+		//    ⚠️ is_bright() stays in the condition: it still guards any FUTURE
+		//    scheme whose ink is too bright to carry these, which is a different
+		//    question from this one.
+		$accent = ( 'fresh' !== $scheme && 'light' !== $scheme && SchemeInk::carries_text( $accent_hue ) && SchemeInk::carries_colour( $accent_hue ) && ! self::is_bright( $ink ) )
 			? ':root:not([data-ar-theme="dark"]){'
 				. $good
 				. '--ar-accent:' . $accent_hue . ';'
@@ -843,7 +856,9 @@ final class Admin {
 			// ⚠️ Skipped when the ink is itself bright: that is the Light scheme,
 			//    which schemes.css already dresses by hand, and this would
 			//    override it.
-			if ( ! self::is_bright( $ink ) ) {
+			// ⚠️ AND NOT FOR "light", whose own day hover DEEPENS (schemes.css) —
+			// emitting a lighten here would be a rule that only ever loses.
+			if ( 'light' !== $scheme && ! self::is_bright( $ink ) ) {
 				$css .= $light . '.ar-btn:not(.ar-btn--ghost):not(.ar-btn--danger):hover:not(:disabled)'
 					. '{background:color-mix(in srgb,' . $ink . ' 88%,#fff);box-shadow:none}';
 			}

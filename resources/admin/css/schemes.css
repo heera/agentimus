@@ -179,6 +179,35 @@
   border-color: #776e58;
 }
 
+/* -- Coffee · the rug by day ------------------------------------------------- */
+/* ⭐ HIS CALL, 2026-08-21: "apply the same colour rule in coffee light mode."
+   The fourth rug to take the treatment blue started — the identity colour back
+   on --rail-good, --rail-face left white because it carries the rung names,
+   their counts and the score number.
+   ⭐ THE VALUE IS THIS SCHEME'S OWN NIGHT ACCENT, #98ba87 (the base sage pulled
+   14 degrees toward yellow, his 2026-08-13 round). So the card wears one green
+   whichever way the toggle sits — which is what the two screenshots he sent
+   were: the same rail, green after dark and white by day.
+   ⭐ AND IT IS THE CHEAPEST OF THE FOUR: 4.60:1 on the 7.1 light ink #4e4036 and
+   4.72 on the older #46403c — both OVER the floor, where blue and ocean landed
+   at 4.25 and put their kicker under it. One rule covers both generations: the
+   inks differ, the green does not, and both clear.
+   ⛔ The hover matches the GESTURE, not the step: #aec9a1 is +0.08 L at this
+   hue for a 1.20:1 lift, the same move blue's word makes at 1.21. */
+:root:not([data-ar-theme="dark"]) body.admin-color-coffee .ar-rail-card.ar-rail-card--readiness {
+  --rail-good: #98ba87;
+}
+:root:not([data-ar-theme="dark"]) body.admin-color-coffee
+  .ar-rail-card--readiness .ar-rail-readiness--link:hover .ar-rail-tier__name {
+  color: #aec9a1;
+}
+/* The score number comes to full strength instead of past it — see the note in
+   the BLUE section. */
+:root:not([data-ar-theme="dark"]) body.admin-color-coffee
+  .ar-rail-card--readiness .ar-rail-readiness--link:hover .ar-rail-gauge__num {
+  color: var(--rail-face);
+}
+
 /* ===========================================================================
    MIDNIGHT — two grounds; only the older one needs a block.
    ======================================================================== */
@@ -309,16 +338,133 @@
    ⛔ --ar-chrome-line names the accent as a LITERAL because the base night rule
    mixes the green literal, not var(--ar-accent); a room that re-keys the accent
    and leaves this one out keeps a green hairline. */
+/* ⭐ AND THE RAIL KEEPS A GREEN OF ITS OWN — his call, 2026-08-21, given as the
+   two rails side by side: "apply this in blue light/dark mode: #a0c49c … I
+   think it should be --ar-chrome: #a0c49c in dark mode."
+   ⛔ SO THE CHROME LEAVES THE ACCENT HERE. Everything above still holds — the
+   scheme's blue is the accent, the good mark and the washes — but the score
+   card's identity (its ring, band word, kicker, rung ticks and "Next:" line)
+   goes back to a green, one step lighter than the base night sage.
+   ⚠️ It costs nothing at night: 5.34:1 on this room's card against the pale
+   blue's 5.56. ⚠️ Its light-mode twin is the expensive one — see the rug rule
+   at the end of this section.
+   ⚠️ --ar-chrome-bright and --ar-chrome-line are LEFT ON THE BLUE, deliberately
+   and flagged to him: the first is the focus step declared as "above the
+   accent" and the second is the card hairline, and both read as the scheme
+   rather than as the score card. If the green should carry them too, they are
+   two more lines here — not a silent consequence of this one. */
 :root[data-ar-theme="dark"] body.admin-color-blue {
-  --ar-accent: #a4c2db;
+  /* ⭐ THE WHOLE NIGHT ACCENT IS THE GREEN — his call, 2026-08-21, minutes after
+     asking for the chrome alone: "in blue, in dark mode, set accent to
+     #a0c49c". So the room stops carrying two identities and the pale blue
+     #a4c2db is retired; --ar-good and every wash below follow the token.
+     ⚠️ IT COSTS ESSENTIALLY NOTHING, measured against what it replaces: card
+     5.34:1 (was 5.56), raised 4.68 (4.87), page 6.84 (7.12), text ON the accent
+     9.68 (10.08), and the switch knob actually improves, 1.86 -> 1.93.
+     ⛔ THIS REVERSES THE NOTE ABOVE, which argued the green out of this room on
+     the grounds that "a green pass mark on a navy room is a second hue with
+     nothing to explain it". His answer is that the green is now the ONLY hue
+     here — accent, good and chrome are one value — so there is no second one
+     left to explain. The paragraph above is kept because its arithmetic is
+     still the record of why #437aa8 could not serve. */
+  --ar-accent: #a0c49c;
   --ar-good: var(--ar-accent);
+  /* One value again, so this points at the token instead of naming it twice. */
   --ar-chrome: var(--ar-accent);
-  --ar-chrome-bright: #c1d5e6; /* 6.85:1 — the step above the accent */
-  --ar-chrome-line: color-mix(in srgb, #a4c2db 24%, var(--ar-line));
+  /* ⚠️ BOTH OF THESE MOVED WITH THE ACCENT, and had to. This one is defined as
+     "the step above the accent" — the base night pair's own +0.082 L, taken at
+     this hue — and a pale BLUE step above a green accent was the mismatch left
+     over from the previous round. */
+  --ar-chrome-bright: #b9d4b6;
+  /* ⛔ Still a LITERAL, for the reason written above: the base night rule mixes
+     the green hex rather than var(--ar-accent), so a room that re-keys the
+     accent and leaves this out keeps a hairline nobody chose. */
+  --ar-chrome-line: color-mix(in srgb, #a0c49c 24%, var(--ar-line));
   --ar-good-wash: color-mix(in srgb, var(--ar-good) 10%, var(--ar-surface));
   --ar-good-tint: color-mix(in srgb, var(--ar-good) 26%, var(--ar-surface));
   --ar-accent-wash: color-mix(in srgb, var(--ar-accent) 12%, var(--ar-surface));
   --ar-accent-soft: color-mix(in srgb, var(--ar-accent) 20%, var(--ar-surface));
+}
+/* -- Blue · the app by day --------------------------------------------------- */
+/* ⭐ THE DAY ACCENT IS THE SCHEME'S HIGHLIGHT — his call, 2026-08-21: "set blue
+   light accent: #437aa8". That is `colors[2]`, WordPress's own current-item
+   colour for this scheme, and what light mode already paints its menu with.
+   ⛔⛔ THIS IS A DELIBERATE OVERRULE OF THE GATE, and the number is why it has to
+   be written here rather than in PHP. Admin::scheme_css() prefers colors[2]
+   wherever it CARRIES TEXT, and this is the one core scheme that misses:
+   #437aa8 is 4.4999:1 on the cream card against a 4.5 floor — four
+   ten-thousandths short, which the arc's notes already record as deliberate. It
+   is 4.02:1 on the page ground. The ink it replaces read 8.09:1.
+   ⭐ So the gate stays exactly as it is — no epsilon, no special case in the
+   maths — and this scheme states its own preference in its own section, where
+   the cost is visible next to it. A future WordPress retune of blue moves the
+   registered value and this line, not the rule.
+   ⚠️ ALL THREE, or the washes stay keyed to the deep ink: app.css writes them as
+   teal literals in light mode and Admin.php re-mixes them from whatever it
+   chose, so overriding --ar-accent alone leaves two blues in the wash.
+   ⛔ --ar-good IS DELIBERATELY LEFT ON THE INK (#245278, 8.09:1). It carries the
+   wordless verdict marks — the tick, the totals dot, the group rung — where a
+   4.5-marginal blue would be the weakest thing on the screen, and it is a
+   different question from what a link wears. Flagged to him; one line here if
+   he wants them one colour. */
+:root:not([data-ar-theme="dark"]) body.admin-color-blue {
+  --ar-accent: #437aa8;
+  --ar-accent-wash: color-mix(in srgb, #437aa8 12%, var(--ar-surface));
+  --ar-accent-soft: color-mix(in srgb, #437aa8 20%, var(--ar-surface));
+}
+
+/* -- Blue · the rug by day -------------------------------------------------- */
+/* ⭐ THE SAME GREEN BY DAY, his call in the same breath: "apply this in blue
+   light/dark mode". By day this rug wears the white treatment Admin.php emits
+   for every scheme-coloured ground (--rail-face and --rail-good both #e8e8e8);
+   this puts the identity green back on --rail-good alone.
+   ⛔ --rail-face IS DELIBERATELY LEFT WHITE. It carries the rung names, their
+   counts and the score number — the card's reading matter — and the green is
+   the card's IDENTITY: the ring, the band word, the kicker, the ticks and the
+   "Next:" line. Re-keying the face too would paint the whole card green.
+   ⚠️⚠️ WHAT IT COSTS, and he has the number: #a0c49c is 4.26:1 on this
+   scheme's light ink #245278, where the #e8e8e8 it replaces was 6.71. The ring,
+   the ticks and the band word are fine — a graphic and large text both answer
+   to 3:1 — but the KICKER ("AEO / GEO") and the "Next:" line are small text and
+   land under the 4.5 floor. Raised with him; ⛔ do not "fix" it by quietly
+   splitting the token into two, which is the thing this file keeps undoing. */
+:root:not([data-ar-theme="dark"]) body.admin-color-blue .ar-rail-card.ar-rail-card--readiness {
+  --rail-good: #a0c49c;
+}
+
+/* ⛔ AND THE HOVER LIFTS WITHIN THE HUE — his catch 2026-08-21, "in blue light
+   the hover is not appropriate": the band word rested GREEN and jumped to WHITE
+   under the pointer while the ring beside it stayed green.
+   ⚠️ NOT A BUG IN THE HOVER — a rule that outlived its ground. Admin.php emits
+   `color:#ffffff` for every scheme-coloured rug, and it is right there: that rug
+   has --rail-face AND --rail-good both at #e8e8e8, so every line lifts #e8e8e8
+   -> #ffffff, one gesture, no hue in it. Putting the identity green back on
+   --rail-good left that line lifting from a colour to a non-colour.
+   ⭐ So the word lifts to the STEP ABOVE ITS OWN GREEN — the same +0.082 L pair
+   this file uses for --ar-chrome-bright, and the same value blue's night block
+   now names. #a0c49c -> #b9d4b6 is 1.21:1, a shade under the 1.28-1.36 the
+   rooms move their grounds by, and app.css's `filter: brightness(1.08)` on the
+   whole block lifts the RING with it, so the row answers as one thing.
+   ⛔ .ar-rail-gauge__num IS DELIBERATELY LEFT ON WHITE. It rests at 70% of
+   --rail-face, which is still the near-white — so white is a lift for it and
+   the same hue it already had. Only the word rests on a colour. */
+:root:not([data-ar-theme="dark"]) body.admin-color-blue
+  .ar-rail-card--readiness .ar-rail-readiness--link:hover .ar-rail-tier__name {
+  color: #b9d4b6;
+}
+/* ⛔ AND THE SCORE NUMBER STOPS GOING PURE WHITE — his call 2026-08-21, chosen
+   from the three on the table: "the number/99 changes to white."
+   ⭐ It rests at 70% of --rail-face and now lifts to the FACE ITSELF, so it
+   comes to full strength without becoming whiter than the card's own white.
+   Same gesture, one step shorter. ⚠️ The rungs still lift to #ffffff and cannot
+   do otherwise: --rail-read is 100% here, so they already sit AT the face and
+   white is the only headroom left above it. That means the number and the rungs
+   now lift to two different whites on one card — raised with him with that
+   spelled out, and taken. ⛔ Do not "harmonise" it by dropping the rungs back to
+   a veil: that is the hierarchy he removed on 2026-08-20. */
+:root:not([data-ar-theme="dark"]) body.admin-color-blue
+  .ar-rail-card--readiness .ar-rail-readiness--link:hover .ar-rail-gauge__num {
+  color: var(--rail-face);
 }
 
 /* ===========================================================================
@@ -343,6 +489,57 @@
      cool, and the base brass ran hot on them. */
   --ar-note-gold: #b2a484;
   --ar-note-glow: #b2a484;
+}
+/* ⭐ THE NIGHT ACCENT IS AN OLIVE, AND THE RAIL A LIGHTER ONE — his call,
+   2026-08-21: "in ecto dark, set accent to #7c8841 and ar--crome to #95a353".
+   It puts this room's night in the same hue family as the lime he gave its DAY
+   rug (#b0c35b) and as its own pre-7.1 room's #a3b745, instead of the base sage
+   that belongs to the charcoal schemes.
+   ⭐⭐ AND THE CHROME SPLITS OFF THE ACCENT, which is the part that saves it.
+   Everywhere else at night the two are one value; here the identity sits a step
+   and a half above the accent, so the rail — ring, band word, kicker — reads
+   where the accent alone would not:
+
+       accent #7c8841   page 4.12:1   card 3.39:1   raised 3.16:1
+       chrome #95a353   page 5.77:1   card 4.75:1   raised 4.43:1
+
+   ⚠️⚠️ WHAT IT STILL COSTS, and he has the numbers: the ACCENT is under the 4.5
+   text floor on both the card and the raised ground, and the PASS pill — which
+   reads --ar-good, and --ar-good aliases the accent at night — lands at 3.03:1,
+   exactly on the graphic floor. What this replaced read 5.66 / 5.28 / 4.79.
+   ⛔ So the accent's reach is the thing to watch, not the rail: links, tab
+   underlines, numbers, chart bars and every verdict mark take #7c8841.
+   ⭐ The same hue two stops lighter is already in this file — #a3b745, his own
+   08-20 pick for the pre-7.1 room below, reads 5.85 here — if he ever wants the
+   family without the cost.
+   ⛔ SLUG-LEVEL ON PURPOSE, so the variation below still wins for the older
+   generation: that room keeps the #a3b745 he chose for it. */
+:root[data-ar-theme="dark"] body.admin-color-ectoplasm {
+  --ar-accent: #7c8841;
+  /* ⛔ NOT var(--ar-accent) EITHER — his call, 2026-08-21, and it is the one
+     that answers the cost written above. The verdict marks were riding the
+     accent at 3.39:1 on the card and 3.03 on the PASS pill; on #95a446 they
+     read 4.77 / 4.15, so a "pass" is legible again while the accent stays the
+     deeper olive he chose for links and bars. ⚠️ --ar-good-wash and
+     --ar-good-tint are mixes of this token and follow it without being named. */
+  --ar-good: #95a446;
+  /* ⛔ NOT var(--ar-accent) — his value, and the only room in this file where
+     the rail identity and the accent are deliberately two colours. ⚠️ It sits a
+     hair under --ar-good (4.75 vs 4.77 on the card) and is a different hue by
+     two degrees: they are separate decisions that happened to land together. */
+  --ar-chrome: #95a353;
+  /* The base pair's +0.082 L step, taken above the CHROME rather than the
+     accent, because that is what this token is a step above here: 5.84:1 on the
+     card, a 1.23:1 lift. */
+  --ar-chrome-bright: #a7b46c;
+  /* ⛔ A LITERAL, like every other room that re-keys: the base night rule mixes
+     the green hex, not the token. Mixed from the CHROME — it is the rail card's
+     own hairline, and it belongs to the identity, not to the accent. */
+  --ar-chrome-line: color-mix(in srgb, #95a353 24%, var(--ar-line));
+  --ar-good-wash: color-mix(in srgb, var(--ar-good) 10%, var(--ar-surface));
+  --ar-good-tint: color-mix(in srgb, var(--ar-good) 26%, var(--ar-surface));
+  --ar-accent-wash: color-mix(in srgb, var(--ar-accent) 12%, var(--ar-surface));
+  --ar-accent-soft: color-mix(in srgb, var(--ar-accent) 20%, var(--ar-surface));
 }
 :root[data-ar-theme="dark"] body.admin-color-ectoplasm .ar-about-snippet { background: #201530; }
 :root[data-ar-theme="dark"] body.admin-color-ectoplasm .ar-aud__note {
@@ -378,6 +575,58 @@
   --ar-good-tint: color-mix(in srgb, var(--ar-good) 26%, var(--ar-surface));
   --ar-accent-wash: color-mix(in srgb, var(--ar-accent) 12%, var(--ar-surface));
   --ar-accent-soft: color-mix(in srgb, var(--ar-accent) 20%, var(--ar-surface));
+}
+
+/* -- Ectoplasm · the rug by day ---------------------------------------------- */
+/* ⭐ HIS PICK, 2026-08-21: "#b0c35b, set in light mode of Ecto". The third rug to
+   take the treatment blue started — the identity colour back on --rail-good,
+   --rail-face left white because it carries the rung names, their counts and the
+   score number.
+   ⭐ AND IT IS THE ONE THAT COSTS NOTHING: #b0c35b reads 6.02:1 on this scheme's
+   light ink #432e5f, where blue and ocean landed at 4.25 and put their kicker
+   under the floor. The purple is deep enough to carry a lime; the two blue-greens
+   were not. (The #e8e8e8 it replaces was 9.55.)
+   ⚠️ ONE RULE COVERS BOTH GENERATIONS — SCHEME_INKS maps #413256 and #392751 to
+   the same light ink #432e5f, so unlike this scheme's NIGHT, its day has one
+   room and needs no agentimus-scheme- variation.
+   ⛔ The hover matches blue's GESTURE, not blue's step. A +0.082 L step lands at
+   1.14:1 here because this green rests darker; #c6d388 is 1.21:1, the same lift
+   blue's word makes, which is what the eye actually reads. */
+:root:not([data-ar-theme="dark"]) body.admin-color-ectoplasm .ar-rail-card.ar-rail-card--readiness {
+  --rail-good: #b0c35b;
+}
+:root:not([data-ar-theme="dark"]) body.admin-color-ectoplasm
+  .ar-rail-card--readiness .ar-rail-readiness--link:hover .ar-rail-tier__name {
+  color: #c6d388;
+}
+/* The score number comes to full strength instead of past it — see the note in
+   the BLUE section. */
+:root:not([data-ar-theme="dark"]) body.admin-color-ectoplasm
+  .ar-rail-card--readiness .ar-rail-readiness--link:hover .ar-rail-gauge__num {
+  color: var(--rail-face);
+}
+
+/* ⭐ AND THE ✓ ON THE REGISTRATIONS CARD WEARS THE BRIGHTER OLIVE — his call,
+   2026-08-21, chosen from three: "the light mode should show the same colour
+   style in All registrations … using its chrome/accent colour, or maybe
+   --ar-good."
+   ⚠️ WHY ONLY THE MARK. That row is one value today — ✓, text and arrow all on
+   --ar-good, which on this scheme by day is #646c3e, its own light accent, at
+   5.50:1. It already IS the theme colour; what the night card has and this one
+   lacks is a mark that reads brighter than the words beside it. Every lighter
+   olive in the family fails as TEXT on the cream card — the night accent 3.78,
+   the night good 2.69, the night chrome 2.70, the day rail's lime 1.91.
+   ⭐ THE RING IS A GRAPHIC, so it answers to 3:1 rather than 4.5, and #7c8841
+   clears that at 3.78 while the words keep the value that carries them. One
+   spot of the scheme's colour, nothing pushed under a floor.
+   ⛔ THE TEXT AND THE ARROW ARE NOT IN THIS RULE, deliberately: they are the
+   sentence, and a sentence answers to 4.5. ⛔ Nor is the hover, which takes
+   --ar-accent for the whole row by app.css's own rule and should keep doing so.
+   ⚠️ Ectoplasm only. The same idea would suit any scheme whose day accent is
+   dark, but the value is this one's; a second scheme is a second line. */
+:root:not([data-ar-theme="dark"]) body.admin-color-ectoplasm
+  .ar-rail-regcard.is-ok .ar-rail-regcard__icon {
+  color: #7c8841;
 }
 
 /* ===========================================================================
@@ -438,6 +687,41 @@
    it is the label that has to move with it. Same mechanism sunrise carries. */
 :root[data-ar-theme="dark"] body.admin-color-ocean
   .ar-btn:not(.ar-btn--ghost):not(.ar-btn--danger) { --ar-btn-hover-ink: #eef0f0; }
+
+/* -- Ocean · the rug by day -------------------------------------------------- */
+/* ⭐ THE SAME TREATMENT BLUE TOOK, on his word 2026-08-21: "apply same style in
+   light mode of ocean". By day this rug wears Admin.php's white treatment
+   (--rail-face and --rail-good both #e8e8e8); the identity green goes back on
+   --rail-good alone, and --rail-face stays white because it carries the rung
+   names, their counts and the score number — the card's reading matter.
+   ⚠️⚠️ SAME COST AS BLUE'S, and the same number almost exactly: #a0c49c is
+   4.25:1 on this scheme's light ink #39535a, where the #e8e8e8 it replaces was
+   6.70. The ring, the ticks and the band word are fine — a graphic and large
+   text both answer to 3:1 — but the KICKER and the "Next:" line are small text
+   and land under 4.5. Raised with him on the blue and taken again here. */
+:root:not([data-ar-theme="dark"]) body.admin-color-ocean .ar-rail-card.ar-rail-card--readiness {
+  --rail-good: #a0c49c;
+}
+
+/* The same lift, for the same reason — see the note in the BLUE section. */
+:root:not([data-ar-theme="dark"]) body.admin-color-ocean
+  .ar-rail-card--readiness .ar-rail-readiness--link:hover .ar-rail-tier__name {
+  color: #b9d4b6;
+}
+/* ⛔ AND THE SCORE NUMBER STOPS GOING PURE WHITE — his call 2026-08-21, chosen
+   from the three on the table: "the number/99 changes to white."
+   ⭐ It rests at 70% of --rail-face and now lifts to the FACE ITSELF, so it
+   comes to full strength without becoming whiter than the card's own white.
+   Same gesture, one step shorter. ⚠️ The rungs still lift to #ffffff and cannot
+   do otherwise: --rail-read is 100% here, so they already sit AT the face and
+   white is the only headroom left above it. That means the number and the rungs
+   now lift to two different whites on one card — raised with him with that
+   spelled out, and taken. ⛔ Do not "harmonise" it by dropping the rungs back to
+   a veil: that is the hierarchy he removed on 2026-08-20. */
+:root:not([data-ar-theme="dark"]) body.admin-color-ocean
+  .ar-rail-card--readiness .ar-rail-readiness--link:hover .ar-rail-gauge__num {
+  color: var(--rail-face);
+}
 
 /* ===========================================================================
    SUNRISE — one room, every generation.
@@ -748,9 +1032,11 @@ body.admin-color-light {
    inc/SchemeInk.php scopes the ink to exactly those selectors, so DAY NEEDS NO
    RULE HERE AT ALL. What is left below is the night, which still wants the
    charcoal, and one hover.
-   ⚠️ WHAT THE DAY MEASURES NOW: #f5f5f5 on #6e6e6e is 4.68:1 — over the floor,
+   ⚠️ WHAT THE DAY MEASURES NOW: #f5f5f5 on the ink is 5.47:1 — over the floor,
    and the price of a mid grey (the charcoal read 11.6:1). Its earlier pale
-   version read 13.2:1 the other way round.
+   version read 13.2:1 the other way round. ⭐ Written as "the ink" and not as a
+   hex on purpose: that value has moved twice in one evening (#ebeaea ->
+   #6e6e6e -> #656363) and a number pinned to a hex goes stale with it.
    ⛔ The rail cards' 22px glyph tile is still NOT in this list — his call,
    2026-08-20, shown as a black square he did not want. It is a mark on a card,
    not a surface you press. Only the things you act on follow the rug. */
@@ -779,12 +1065,12 @@ body.admin-color-light {
 /* ⛔ AND THE DAY HOVER DEEPENS, where every dark ink lifts. This is the app's
    OWN rule for the case, not a new one: Admin.php lifts a hover 88% toward
    white on a dark ink and deepens it 88% toward black on a bright one, and
-   is_bright() calls #6e6e6e bright (0.4314 against a 0.42 threshold).
+   a mid grey is the bright end of what this app calls an ink.
    ⚠️ THE NUMBER IS WHY THE RULE EXISTS. The label sits ON this ground, so every
-   step the ground RISES the label loses — app.css's base lift takes #6e6e6e to
-   #7f7f7f and the #f5f5f5 label down to 3.67:1, under the floor. Deepening is
-   the same gesture mirrored: #616161, and the label goes UP to 5.68:1. The
-   ground itself shifts 1.21:1, a shade under the 1.28–1.36 the night rooms
+   step the ground RISES the label loses — app.css's base lift takes the ink to
+   #777676 and the #f5f5f5 label down to 4.15:1, under the floor. Deepening is
+   the same gesture mirrored: #595757, and the label goes UP to 6.58:1. The
+   ground itself shifts 1.20:1, a shade under the 1.28–1.36 the night rooms
    move, and app.css's translateY(-1px) — the part he said actually reads —
    still runs underneath, because this rule names only a background.
    ⭐ Derived from the token, not from a hex, so it follows the ink if it moves. */
@@ -804,13 +1090,13 @@ body.admin-color-light {
    carry, which is exactly why that path stays fenced off for this scheme (see
    the is_bright guard in scheme_css). He asked for the button's colour, not
    WordPress's.
-   ⚠️ AND ALL THREE, because in light mode app.css writes the two washes as
-   hand-picked teal LITERALS (#f0f6f4 / #e3efec) rather than mixes — re-keying
-   the accent alone leaves every wash teal beside a grey. Same 12% / 20%
-   formulas Admin.php uses. ⚠️ Declared at BODY level, which outranks the :root
-   block those literals live in, and inherits everywhere the app paints.
-   ⚠️ WHAT IT MEASURES: #6e6e6e is 4.93:1 on a card (#fbfbfb) and 4.51:1 on the
-   panel (#f1f1f1) — over the floor on both, and the panel is the tight one.
+   ⚠️ AND ALL THREE, because the accent's two washes are mixes OF the accent —
+   re-keying it alone would leave every wash keyed to a colour this scheme no
+   longer wears. Same 12% / 20% formulas Admin.php uses. ⚠️ Declared at BODY
+   level, which outranks the :root block they are declared in, and inherits
+   everywhere the app paints. (Those two were hand-picked teal literals in
+   app.css until 2026-08-21, when they became mixes for the same reason.)
+   ⚠️ The measurements live with the value itself, just below.
    ⛔ DAY ONLY. At night the slabs are #333333, and an accent there would be
    near-black links; the night keeps the designed teal. ⚠️ This does mean the
    mode now changes more than the rug on this scheme — it changes the rug, the
@@ -840,9 +1126,14 @@ body.admin-color-light {
   border-color: var(--ar-bad-deep);
 }
 :root:not([data-ar-theme="dark"]) body.admin-color-light {
-  --ar-accent: #6e6e6e;
-  --ar-accent-wash: color-mix(in srgb, #6e6e6e 12%, var(--ar-surface));
-  --ar-accent-soft: color-mix(in srgb, #6e6e6e 20%, var(--ar-surface));
+  /* ⚠️ #656363 SINCE 2026-08-21, tracking the ink he moved in the same breath.
+     These two are ONE decision — his instruction was "same colour from
+     button/rail bg" — so they move together or the room stops speaking once.
+     ⭐ The step down bought contrast everywhere: 5.77:1 on a card and 5.28 on
+     the panel, where #6e6e6e read 4.93 and 4.51. */
+  --ar-accent: #656363;
+  --ar-accent-wash: color-mix(in srgb, #656363 12%, var(--ar-surface));
+  --ar-accent-soft: color-mix(in srgb, #656363 20%, var(--ar-surface));
 }
 /* ⚠️ AND THE BRAND TILE, WHICH IS THE SAME KIND OF SURFACE. app.css paints it
    from --ar-ink with the A cut out in --ar-paper, and at night flips both — so
@@ -885,15 +1176,16 @@ body.admin-color-light {
    .ar-sys__mark on the same screen. ⛔ Don't reintroduce a literal for one
    scheme; move the tokens instead. */
 /* ---- Light — the readiness rug -------------------------------------------
-   HIS PICK, 2026-08-21: the day rug is the MID GREY #6e6e6e again (painted by
-   inc/SchemeInk.php as this scheme's ink), and by night it stays his charcoal.
+   HIS PICK, 2026-08-21: the day rug is a MID GREY again (painted by
+   inc/SchemeInk.php as this scheme's ink — #6e6e6e when he chose this, #656363
+   since), and by night it stays his charcoal.
    ⚠️ THIS REVERSES 08-20, which had put a light #ebeaea slab here — and it is
    worth knowing WHY the light slab existed, because the reason is still true:
 
    ⛔ MID GREY IS THE ONE GROUND WHERE COLOUR CANNOT BE SEEN AT ALL. Measured on
-   #6e6e6e, every mark this card paints fails the floor — the green 2.27:1, the
-   teal 2.10, the amber 2.58, and the day teal/gold/red this block used to
-   re-key sit at 1.24, 1.12 and 1.17. 4.5:1 downward wants near-black, upward
+   this ink, every mark this card paints fails the floor — the green 2.66:1, the
+   teal 2.46, the amber 3.02, and the day teal/gold/red this block used to
+   re-key sit near 1.2. 4.5:1 downward wants near-black, upward
    wants near-white, and a colour is neither. That is what sank the FIRST
    #6e6e6e rug: its green and amber degraded into near-white tints (#cfe9d4,
    #f0e0bb) and stopped being green and amber.
@@ -910,7 +1202,7 @@ body.admin-color-light {
    colours stand instead; they are drawn for an ink ground, which this is again. */
 :root:not([data-ar-theme="dark"]) body.admin-color-light .ar-rail-card.ar-rail-card--readiness {
   /* ⛔ No background here: the rug's ground IS --ar-ink, and inc/SchemeInk.php
-     paints this scheme's ink #6e6e6e. ⚠️ The BUTTONS and CHIPS do not follow it
+     paints this scheme's ink. ⚠️ The BUTTONS and CHIPS do not follow it
      — they are pinned to #333333 by the rule above, his call 2026-08-20 ("the
      split is the instruction"), in both modes. */
   --rail-face: #f2f2f2;       /* 4.55:1 — and the same face the night rug uses */

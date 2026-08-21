@@ -419,7 +419,12 @@ export default {
         this.confetti = [];
         return;
       }
-      const colors = ['#146b64', '#2f7a4c', '#ad7b18', '#b93c2b', '#d98a2b'];
+      // ⚠️ THE FIRST ONE READS THE TOKEN, not a hex. It was '#146b64', a copy of
+      // the light accent — and on 2026-08-21 that accent moved to #4c7647,
+      // leaving this the one place in the app still painting the retired teal.
+      // A copy of a token is a copy that goes stale; the other four are the
+      // status colours, which have not moved and are left as they were.
+      const colors = ['var(--ar-accent)', '#2f7a4c', '#ad7b18', '#b93c2b', '#d98a2b'];
       const pieces = [];
       for (let i = 0; i < 22; i++) {
         pieces.push({

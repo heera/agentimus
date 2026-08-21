@@ -160,9 +160,13 @@ final class SchemeInk {
 		// ⚠️ 0.4314 vs BRIGHT_MENU_L 0.42 — eleven thousandths. That margin is
 		//    what keeps is_bright() true here, and is_bright() is what keeps this
 		//    scheme's accent on the designed teal instead of its #c64606 orange
-		//    highlight. #6c6c6c is the darkest grey that still counts as bright;
-		//    #6b6b6b flips and takes the whole app orange. ⛔ Do not "round" this.
-		'#e5e5e5' => '#6e6e6e', // light  — the mid grey, his call 2026-08-21
+		//    highlight. ⭐⭐ THAT LANDMINE IS DEFUSED as of the same evening: he
+		//    asked for #656363, which measures 0.3922 and WOULD have flipped it,
+		//    so the exemption moved off is_bright() and onto the slug in
+		//    Admin::scheme_css() — where it always belonged, since "this is the
+		//    scheme schemes.css dresses by hand" is an identity, not a
+		//    brightness. The ink is now free to be any depth.
+		'#e5e5e5' => '#656363', // light  — his call 2026-08-21, a step down from #6e6e6e
 		// ⭐ modern (the DEFAULT scheme) — ONE CARD, NOT TWO. His call 2026-08-21:
 		//    "make the rail's bg as its dark mode looks". This scheme's ink
 		//    surfaces used to be its menu colour #1e1e1e by day and its night

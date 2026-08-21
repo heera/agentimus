@@ -345,14 +345,14 @@ final class AdminSchemeInkTest extends TestCase {
 		// ⭐ These two paint their menu with colors[0], not colors[1] — which is
 		// exactly the fallback active_surface() already makes. Both generations
 		// must still land on his picks.
-		$this->assertSame( '#6e6e6e', Admin::card_ink_for( 'light', '#e5e5e5' ) );
-		// ⛔⛔ AND THE ELEVEN THOUSANDTHS THIS SCHEME HANGS ON. is_bright() is what
-		// exempts `light` from the accent re-key, and its highlight is #c64606 — a
-		// strong orange that DOES carry text, so losing the exemption keys the
-		// whole app to it. #6e6e6e sits at 0.4314 against a 0.42 threshold.
-		// #6c6c6c is the darkest grey that still counts as bright; #6b6b6b flips.
+		$this->assertSame( '#656363', Admin::card_ink_for( 'light', '#e5e5e5' ) );
+		// ⛔⛔ THE EXEMPTION IS BY SLUG NOW, NOT BY BRIGHTNESS — and that is the
+		// point of this assertion. `light` used to be held out only because its ink
+		// happened to measure above is_bright()'s 0.42; #656363 is 0.3922 and would
+		// have opened the gate onto its #c64606 highlight, a strong orange that DOES
+		// carry text (asserted below). The ink is free to be any depth now.
 		$light_css = $this->scheme_css( 'light', array( '#e5e5e5', '#6a6a6a', '#c64606', '#007cba' ) );
-		$this->assertStringContainsString( '--ar-ink:#6e6e6e', $light_css );
+		$this->assertStringContainsString( '--ar-ink:#656363', $light_css );
 		$this->assertStringNotContainsString( '--ar-accent', $light_css );
 		$this->assertStringNotContainsString( '--rail-face', $light_css );
 		$this->assertTrue( SchemeInk::carries_text( '#c64606' ), 'the orange this exemption holds back' );

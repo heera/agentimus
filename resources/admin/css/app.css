@@ -53,7 +53,24 @@
   --ar-line-strong: #d3cab2;
 
   /* Signal */
-  --ar-accent: #146b64;
+  /* ⭐ #4c7647 SINCE 2026-08-21, was the teal #146b64 — his call, after the day
+     rug went to #8ab685: "in light mode, bars and other colours don't match the
+     rug's new colour … should it be accent with something like #60955a?"
+     ⭐ HIS FAMILY IS EXACTLY RIGHT — #60955a is hue 113.9, the SAME hue as the
+     rug's sage, which is why it would match. What it cannot do is carry text:
+     3.47:1 on the card and 3.10 on the page, where this token paints links, tab
+     underlines, numbers and section labels. #4c7647 is that same hue and
+     saturation two stops down — the lightest value on this ramp that clears the
+     floor on BOTH grounds (5.17 card / 4.62 page).
+     ⚠️ IT ENDS THE DAY/NIGHT SPLIT this palette has always had — teal by day,
+     green at night — so the inverted rug stops being the one green thing in a
+     teal room. ⛔ Only for the rooms that keep the designed palette (fresh,
+     modern, midnight, an unmeasured scheme); every scheme that re-keys its
+     accent is untouched, and the Light scheme still names the teal by hand.
+     ⚠️ 29 DEGREES FROM --ar-good (#2f7a4c, hue 143) — close enough that "the
+     accent" and "a pass" now read as one family. Raised with him; if they should
+     stay distinguishable, --ar-good is the one to move, not this. */
+  --ar-accent: #4c7647;
   --ar-good: #2f7a4c;
   --ar-warn: #ad7b18;
   --ar-bad: #b93c2b;
@@ -97,12 +114,32 @@
      deep on-light values. */
   --ar-teal-on-ink: #57b6a6;
   --ar-teal-on-ink-hover: #6fc7b8;
-  --ar-good-on-ink: #5cc08a;
+  /* ⭐ #8ab685 SINCE 2026-08-21, was #5cc08a — his call: "in the default light
+     mode set --ar-good-on-ink: #8ab685, because I see this colour on the rail in
+     default/modern dark mode but different in light mode."
+     ⚠️ HE IS DESCRIBING ONE CARD IN TWO MODES. The readiness rug is the app's
+     only inverted surface by day, and it took its green from HERE while its
+     night twin takes --ar-chrome, which is the base night accent #8ab685. Same
+     dark card, same ring, two different greens depending on the mode — and the
+     mode is not supposed to change that card's identity, only its neighbours'.
+     ⭐ IT COSTS ALMOST NOTHING, measured on every ground whose day rug reads
+     this token (the rooms that lend no colour, so Admin.php emits no white-out):
+     modern 6.92 -> 6.73, fresh 6.23 -> 6.07, midnight 5.57 -> 5.42, and the
+     unmeasured-scheme fallback 7.83 -> 7.62. All still far over the floor.
+     ⛔ Light-palette only in effect: at night the rug names --ar-chrome and the
+     tier/rung rules below are re-inked by the dark block, so nothing after dark
+     reads this. */
+  --ar-good-on-ink: #8ab685;
   --ar-warn-on-ink: #e0b24c;
   --ar-bad-on-ink: #e08a72;
   /* Accent washes (hover/selected fills behind accent-bordered controls). */
-  --ar-accent-wash: #f0f6f4;
-  --ar-accent-soft: #e3efec;
+  /* ⭐ MIXES, NOT LITERALS, since 2026-08-21. These were hand-picked teals; with
+     the accent moved they had to be re-picked anyway, and Admin.php already
+     re-declares them as these exact 12%/20% mixes whenever a scheme re-keys the
+     accent. Writing them the same way here leaves one owner instead of two, and
+     they resolve against whatever ground is actually in force. */
+  --ar-accent-wash: color-mix(in srgb, var(--ar-accent) 12%, var(--ar-surface));
+  --ar-accent-soft: color-mix(in srgb, var(--ar-accent) 20%, var(--ar-surface));
   /* Text on a signal-coloured fill, and ink pushed past itself (the black a
      hovered ink button deepens to). Both flip with the theme. */
   --ar-on-signal: #fff;
@@ -116,9 +153,26 @@
   --ar-skel-sheen: rgba(255, 255, 255, 0.45);
 
   --ar-radius: 4px;
-  /* Shared height for the nav bar and the page-head below it, so the two strips
-     are always exactly the same height. Change here, both follow. */
+  /* The nav bar's height. ⚠️ It USED to be shared with the page-head below it —
+     one token, two strips, always identical. They split on 2026-08-21 (his call:
+     "on a 16-inch it should be visible by default, if needed reduce a few pixels
+     at the very top of the page") because the rail column is 742px of cards and
+     needs the whole viewport under the header to show its last line. */
   --ar-bar-h: 72px;
+  /* The page-head strip below the nav bar. ⭐ 60px, not the nav's 72: the title
+     and its one-line intro measure 44px together, so this still centres them
+     with 8px of air either side, and the 12px it gives back go to the rail.
+     ⛔ ANY RULE THAT POSITIONS SOMETHING BELOW BOTH STRIPS MUST ADD THE TWO
+     TOKENS, never double one of them — the sticky rail offset and the anchor
+     scroll-margin both did exactly that and are updated with this. */
+  --ar-head-h: 60px;
+  /* The air between the header and the first row of content. ⛔ IT IS A TOKEN
+     BECAUSE TWO RULES NEED IT: .ar__body sets it as padding, and the sticky rail
+     has to ADD it to its own offset or it pins flush to the header while every
+     card beside it keeps the gap — his catch 2026-08-21, "the right sidebar is a
+     little bit above the left section". Level at scroll 0 and 14px too high from
+     the first scroll onward, which is exactly the shape of that bug. */
+  --ar-body-top: 17px;
   /* WP admin-bar height — the sticky header sits flush below it. 32px on desktop; 46px in
      the responsive-admin band; 0 once the bar stops being fixed (≤600px) and scrolls away. */
   --ar-adminbar: 32px;
@@ -1210,7 +1264,7 @@
      shorter than the nav above it, whatever the per-tab text. A row now: the
      title/intro column on the left, a tools slot on the right edge that a
      panel can teleport into (the About search lives there, always in reach). */
-  height: var(--ar-bar-h);
+  height: var(--ar-head-h);
   display: flex; align-items: center; gap: 18px;
   padding: 0 34px;
   background: var(--ar-surface);
@@ -1464,7 +1518,12 @@
 }
 
 /* ---- Body / cards ------------------------------------------------------- */
-.ar__body { padding: 26px 34px; }
+/* ⭐ 14px of air under the header, not 26 — his call 2026-08-21, the other half
+   of making the rail's last line land above the fold on a 16-inch screen. The
+   two strips give back 12px and this gives back 12 more; together they are the
+   24px the credit was short by, taken from whitespace rather than from the
+   11px gaps between the rail cards, which he ruled out by name. */
+.ar__body { padding: var(--ar-body-top) 34px 26px; }
 .ar__body.is-railed {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 286px;
@@ -1498,7 +1557,19 @@
 /* The rail sticks below the sticky header and flows with the page (no internal scroll
    or scrollbar) — the main column is always taller, so the whole rail stays reachable
    as you scroll. */
-.ar__rail { position: sticky; top: calc(var(--ar-adminbar) + 2 * var(--ar-bar-h)); display: grid; gap: 11px; align-content: start; padding-bottom: 6px; }
+/* ⛔ THE COLUMN IS NOT A SCROLL BOX, and that was tried and rejected the same
+   evening. Capping it with `max-height: calc(100vh - top)` + overflow only fits
+   once the rail is PINNED; at the top of the page it still starts lower than
+   its sticky offset, so the credit was clipped exactly where he looked — "this
+   is the default view, same as before". It also traded a page scroll for a
+   column scroll, which is not a fix, and made the rail a clipping context that
+   sheared the focus rings off cards filling its width to the pixel.
+   ⭐ What keeps the credit on screen is the ONE rule on .ar-rail-foot instead —
+   see it below. */
+/* ⚠️ THE OFFSET IS HEADER + THE PAGE'S OWN TOP GAP. Dropping --ar-body-top from
+   this calc pins the column flush under the header while the content column
+   keeps its air, so the two stop agreeing the moment you scroll. */
+.ar__rail { position: sticky; top: calc(var(--ar-adminbar) + var(--ar-bar-h) + var(--ar-head-h) + var(--ar-body-top)); display: grid; gap: 14px; align-content: start; padding-bottom: 6px; }
 /* A grid item's min-width defaults to `auto`, so it refuses to shrink below its content's
    min-content width — and a <button> ignores its own `overflow: hidden` when contributing
    to that minimum. So one long next-step label ("Next: AI Visibility is failing")
@@ -1567,6 +1638,30 @@
    ⛔ The ✓ ring keeps --ar-good: it is a verdict, not an affordance. Where a
    scheme's good and accent are one colour (ocean, blue) it moves anyway; where
    they are not, it should stay put. */
+/* ⛔⛔ AND IT NEEDS A GROUND, because the colour alone changes NOTHING on almost
+   every scheme — his catch 2026-08-21: "the hover should follow the same rule …
+   consistent and visible."
+   ⚠️⚠️ THE ROW ALREADY RESTS ON --ar-good (see the rail section far below,
+   `.ar-rail-regcard.is-ok`), and at night the base palette declares
+   `--ar-good: var(--ar-accent)`. So on eleven of the twelve night rooms this
+   rule repaints the row the colour it was already wearing: a NO-OP, not a weak
+   hover. Only ectoplasm moves, and only since its good and accent were split
+   (#95a446 -> #7c8841, 1.36:1). By day it depends on whether verdict_can_take()
+   let --ar-good take the scheme colour — where it did, same no-op.
+   ⛔ THE FIX IS NOT A DIFFERENT COLOUR. Any text colour that reliably moves
+   would have to leave the accent, and the accent is the point: his 08-20 note
+   below says this row answers the pointer the way the discovery links above it
+   do. A GROUND moves without touching that.
+   ⭐ 1.15–1.26:1 of ground on every room in both modes — the band the button
+   hovers already move in — and it is derived from --ar-accent, so it stays ONE
+   rule and follows whatever scheme is worn. ⛔ Not a hand-picked colour per
+   scheme: this file spent the whole arc removing those.
+   ⭐ The border joins it, keyed to the accent rather than to --ar-line-strong,
+   so the whole card answers as one object. */
+.ar-rail-regcard.is-ok:hover {
+  background: var(--ar-accent-wash);
+  border-color: var(--ar-accent-soft);
+}
 .ar-rail-regcard.is-ok:hover,
 .ar-rail-regcard.is-ok:hover .ar-rail-regcard__go { color: var(--ar-accent); }
 .ar-rail-regcard:focus-visible { outline: 2px solid var(--ar-accent); outline-offset: 2px; }
@@ -1721,7 +1816,7 @@
   /* Small screens: the nav above already wraps taller here, so the desktop
      height-lock pairing is moot — let the strip grow and show the whole
      tagline instead of ellipsis-truncating it. */
-  .ar__pagehead { padding: 12px 16px; height: auto; min-height: var(--ar-bar-h); flex-wrap: wrap; row-gap: 10px; }
+  .ar__pagehead { padding: 12px 16px; height: auto; min-height: var(--ar-head-h); flex-wrap: wrap; row-gap: 10px; }
   .ar__pagehead-desc { white-space: normal; overflow: visible; text-overflow: clip; }
   /* The tools slot takes its own full-width row under the title (a wrapping
      flex row wraps before it shrinks — title and tools never share a line
@@ -4066,7 +4161,7 @@ html { scrollbar-gutter: stable; }
 #agentimus-app .ar-about section[id],
 #agentimus-app .ar-about .ar-about-screen[id],
 #agentimus-app .ar-about .ar-about-feat[id] {
-  scroll-margin-top: calc((2 * var(--ar-bar-h)) + 12px);
+  scroll-margin-top: calc(var(--ar-bar-h) + var(--ar-head-h) + 12px);
 }
 .ar-about-screen { padding: 16px 0 4px; }
 .ar-about-screen + .ar-about-screen { border-top: 1px solid var(--ar-line); }
@@ -5296,14 +5391,30 @@ a:hover > .ar-wd-ext { color: var(--ar-accent); }
 }
 .ar-act-bar:hover .ar-act-bar__fill { filter: brightness(0.92); }
 .ar-act-bar:focus-visible { outline: 2px solid var(--ar-accent); outline-offset: 2px; }
+/* ⭐ 0.82, AND THE NEWEST DAY AT FULL — his call 2026-08-21, pointing at the
+   index chart: "the dimmed version looks better for the eyes." That chart
+   (.ar-bing__bar) has done this from the start; these two never did, so the same
+   kind of strip read at two different weights depending on which screen you were
+   on. ⛔ It is opacity, not a second colour: the bars stay --ar-accent and the
+   whole run re-derives when a scheme re-keys.
+   ⭐ WHY :last-child EARNS FULL STRENGTH — it is TODAY. The one bar that is
+   still being written reads at the value the others are quieted from, so the
+   run has a head without needing a second hue. */
 .ar-act-bar__fill {
   width: 100%; min-height: 2px; border-radius: 2px 2px 0 0;
-  background: var(--ar-accent); transition: height 0.4s cubic-bezier(0.22, 1, 0.36, 1), filter 0.2s ease;
+  background: var(--ar-accent); opacity: 0.82;
+  transition: height 0.4s cubic-bezier(0.22, 1, 0.36, 1), filter 0.2s ease;
 }
-.ar-act-bar__fill.is-zero { background: var(--ar-line); }
+.ar-act-bar:last-child .ar-act-bar__fill { opacity: 1; }
+/* ⛔ The empty-day stubs are exempt: they paint --ar-line, a hairline that has
+   nothing left to give. */
+.ar-act-bar__fill.is-zero { background: var(--ar-line); opacity: 1; }
 /* The selected day's bar is highlighted (darker, richer) so it stands out —
    the other bars keep their normal colour rather than washing out. */
-.ar-act-bar.is-active .ar-act-bar__fill { filter: brightness(0.7); }
+/* ⚠️ AND THE SELECTED DAY LEAVES THE VEIL, like the index chart's .is-active.
+   Deepening a bar that is also dimmed reads as "further away", which is the
+   opposite of chosen. */
+.ar-act-bar.is-active .ar-act-bar__fill { filter: brightness(0.7); opacity: 1; }
 
 /* Phones: 30 columns squeeze below a usable tap size, so the charts keep their
    bars touch-wide and scroll sideways instead. The scroller is rtl so it OPENS
@@ -5761,12 +5872,17 @@ button.ar-act-more:hover { color: var(--ar-ink); }
 .ar-act-sparkwrap--ref .ar-refspark { margin: 0; }
 /* Each bar is a real <button> — click opens that day's report, same as the
    endpoint-activity chart. Zero-days are disabled but keep their title. */
+/* The same veil the endpoint strip and the index chart wear — see the note on
+   .ar-act-bar__fill. Newest day at full strength; the selected one leaves it. */
 .ar-refspark__bar {
   appearance: none; border: 0; padding: 0; cursor: pointer;
   flex: 1 1 0; min-height: 2px; border-radius: 2px 2px 0 0; background: var(--ar-accent);
+  opacity: 0.82;
   transition: height 0.4s cubic-bezier(0.22, 1, 0.36, 1), filter 0.12s ease;
 }
+.ar-refspark__bar:last-child { opacity: 1; }
 .ar-refspark__bar:hover:not(:disabled), .ar-refspark__bar.is-active { filter: brightness(0.72); }
+.ar-refspark__bar.is-active { opacity: 1; }
 .ar-refspark__bar:focus-visible { outline: 2px solid var(--ar-accent); outline-offset: 2px; }
 .ar-refspark__bar.is-zero { background: var(--ar-line); height: 2px !important; cursor: default; }
 
@@ -8695,7 +8811,20 @@ body {
    which is the wrong note for the first thing on the page — they are the
    premise, not a footnote. Their quietness comes from being small and from
    sitting above the cards, not from being greyed. */
-.ar-dash-sum { margin-top: 4px; }
+/* ⛔ NO TOP MARGIN — his catch 2026-08-21, "the rail looks a bit above", and he
+   was right where I had twice measured wrong. I compared the two COLUMNS
+   (.ar__main and .ar__rail, both at 178) and called it level; what he could see
+   is the two painted CARD EDGES, and a bare `margin-top: 4px` here put the first
+   tile's border at 182 while the rail card's border is the column top itself.
+   Four pixels, on the first thing on the page, against a card the same size and
+   radius directly beside it — which is exactly where four pixels read.
+   ⭐ THE LESSON, and it is the second time tonight: measure what PAINTS, not
+   what contains. A wrapper agreeing with a wrapper says nothing about the edges
+   the eye actually lines up.
+   ⚠️ What it costs: when the What's New card is on screen the tiles now sit 4px
+   closer to it — the page grid's own 22px row gap, unpadded. That gap was never
+   the reason for this margin; nothing recorded a reason at all. */
+
 /* Breathing room before the privacy line, and less after it: the line belongs
    to the tiles above it, not to the card below. The page grid's own 22px row
    gap is what separated them, so it is pulled back rather than added to. */
