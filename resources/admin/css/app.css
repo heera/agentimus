@@ -5376,6 +5376,10 @@ a:hover > .ar-wd-ext { color: var(--ar-accent); }
 .ar-dash-tile:active { transform: translateY(1px); }
 .ar-dash-tile:focus-visible { outline: 2px solid var(--ar-accent); outline-offset: 2px; }
 .ar-dash-tile__k { font-family: var(--ar-mono); font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--ar-ink-faint); }
+/* The plural marker on an acronym key, held out of the uppercase above so
+   "APIs" does not render "APIS". text-transform inherits, so a child can opt
+   back out of it — which is the whole mechanism here. */
+.ar-dash-tile__pl { text-transform: lowercase; }
 .ar-dash-tile__v { font-family: var(--ar-mono); font-size: 24px; font-weight: 600; line-height: 1; color: var(--ar-ink); }
 .ar-dash-tile__v[data-tone="good"] { color: var(--ar-good); }
 .ar-dash-tile__v[data-tone="ok"] { color: var(--ar-warn); }

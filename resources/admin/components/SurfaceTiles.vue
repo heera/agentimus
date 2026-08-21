@@ -91,7 +91,12 @@ export default {
           <strong class="ar-dash-tile__v">{{ summary.capabilities }}</strong>
           <span class="ar-dash-tile__k">Capabilities</span>
         </span>
-        <span class="ar-dash-tile__sub">What AI assistants may read or do</span>
+        <!-- ⚠️ THE COMMA IS LOAD-BEARING. The two lines are one sentence, and
+             every OTHER tile's second sub-line is a count ("1 listed · 2 not
+             listed") — a separate fact. Without the comma this one reads as a
+             continuation that lost its punctuation: "may read or do declared in
+             discovery.json". His catch, from his own dashboard. -->
+        <span class="ar-dash-tile__sub">What AI assistants may read or do,</span>
         <!-- No auth attaches to a capability name, so no split exists to
              state — the third line is WHERE an agent reads them instead. -->
         <span class="ar-dash-tile__sub">declared in discovery.json</span>
@@ -102,7 +107,15 @@ export default {
       <span class="ar-dash-tile__body">
         <span class="ar-dash-tile__row">
           <strong class="ar-dash-tile__v">{{ summary.apis }}</strong>
-          <span class="ar-dash-tile__k">APIs</span>
+          <!-- ⛔ THE ONLY LABEL ON THIS ROW WHOSE LOWERCASE LETTER MEANS
+               SOMETHING. .ar-dash-tile__k uppercases every key, which is right
+               for Providers, Capabilities and Tools — ordinary words that lose
+               nothing. "APIs" is an acronym plus a plural marker, and uppercased
+               it renders APIS, which stops reading as a plural and starts
+               reading as a word. The `s` is held out of the transform rather
+               than the transform dropped: the row's caps rhythm is the design,
+               and this is how a caps-set acronym plural is normally handled. -->
+          <span class="ar-dash-tile__k">API<span class="ar-dash-tile__pl">s</span></span>
         </span>
         <span class="ar-dash-tile__sub">Endpoints AI assistants can access</span>
         <span v-if="splitLine(summary.apisPublic, dashApisHeld)" class="ar-dash-tile__sub">{{ splitLine(summary.apisPublic, dashApisHeld) }}</span>
