@@ -1191,7 +1191,8 @@ final class Assistant {
 	 */
 	public static function parse_meta( $text, $type = '', $shape = self::SHAPE_ARTICLE ) {
 		$data = self::json_object( $text );
-		return self::sanitize_meta( $data, $type, $shape );
+		// ⭐ TRUE: this is the model's own output on its way in.
+		return self::sanitize_meta( $data, $type, $shape, true );
 	}
 
 	/**
@@ -1201,8 +1202,19 @@ final class Assistant {
 	 *
 	 * @param mixed $data Dressing-shaped input.
 	 * @return array|\WP_Error
+	 *
+	 * ⛔ $generated IS THE TITLE-CASE SWITCH, and it defaults to FALSE on purpose
+	 * — his catch 2026-08-21, after typing a banner title in sentence case and
+	 * finding it saved Title Cased. Titles::case()'s own docblock already drew the
+	 * line: "a title an AGENT or the OWNER supplies as content is THEIR text and
+	 * is never run through this." This sanitiser is shared by BOTH directions —
+	 * model output arriving via parse_*(), and payloads the owner edited arriving
+	 * via $request->get_param() — so casing unconditionally here broke that law on
+	 * every request path. ⭐ Only the parse_*() callers pass true; a future caller
+	 * that forgets the flag leaves the owner's text alone, which is the safe way
+	 * round for a rule about not touching what isn't ours.
 	 */
-	public static function sanitize_meta( $data, $type = '', $shape = self::SHAPE_ARTICLE ) {
+	public static function sanitize_meta( $data, $type = '', $shape = self::SHAPE_ARTICLE, $generated = false ) {
 		$terms  = self::terms_for( $type, $shape );
 		$images = self::wants_images( $type, $shape );
 		$title = is_array( $data ) ? sanitize_text_field( (string) ( $data['title'] ?? '' ) ) : '';
@@ -1214,8 +1226,9 @@ final class Assistant {
 			);
 		}
 		return array(
-			// The standing rule here too — the meta call proposes the title.
-			'title'       => Titles::case( $title ),
+			// The standing rule here too — the meta call proposes the title, but
+			// ONLY when it is the model proposing it. See $generated above.
+			'title'       => $generated ? Titles::case( $title ) : $title,
 			'excerpt'     => sanitize_text_field( (string) ( $data['excerpt'] ?? '' ) ),
 			'description' => mb_substr( sanitize_text_field( (string) ( $data['description'] ?? '' ) ), 0, 200 ),
 			'topics'      => self::clean_list( $data['topics'] ?? array(), self::MAX_TOPICS ),
@@ -1459,7 +1472,8 @@ final class Assistant {
 				array( 'status' => 502 )
 			);
 		}
-		return self::sanitize_outline( $data );
+		// ⭐ TRUE: this is the model's own output on its way in.
+		return self::sanitize_outline( $data, true );
 	}
 
 	/**
@@ -1471,8 +1485,19 @@ final class Assistant {
 	 *
 	 * @param mixed $data Outline-shaped input.
 	 * @return array|\WP_Error
+	 *
+	 * ⛔ $generated IS THE TITLE-CASE SWITCH, and it defaults to FALSE on purpose
+	 * — his catch 2026-08-21, after typing a banner title in sentence case and
+	 * finding it saved Title Cased. Titles::case()'s own docblock already drew the
+	 * line: "a title an AGENT or the OWNER supplies as content is THEIR text and
+	 * is never run through this." This sanitiser is shared by BOTH directions —
+	 * model output arriving via parse_*(), and payloads the owner edited arriving
+	 * via $request->get_param() — so casing unconditionally here broke that law on
+	 * every request path. ⭐ Only the parse_*() callers pass true; a future caller
+	 * that forgets the flag leaves the owner's text alone, which is the safe way
+	 * round for a rule about not touching what isn't ours.
 	 */
-	public static function sanitize_outline( $data ) {
+	public static function sanitize_outline( $data, $generated = false ) {
 		$bad = new \WP_Error(
 			'agentimus_ai_bad_output',
 			__( 'The AI didn’t return a usable outline — please try again.', 'agentimus' ),
@@ -1502,8 +1527,9 @@ final class Assistant {
 			return $bad;
 		}
 		return array(
-			// The standing rule again: every generated title is Title Case.
-			'title'    => Titles::case( $title ),
+			// The standing rule again: every GENERATED title is Title Case — and
+			// an outline the owner edited and sent back is not one. See $generated.
+			'title'    => $generated ? Titles::case( $title ) : $title,
 			'sections' => $sections,
 		);
 	}
@@ -2449,7 +2475,11 @@ final class Assistant {
 				array( 'status' => 502 )
 			);
 		}
-		return self::sanitize_draft( $data );
+		// ⭐ TRUE in the LAST slot: this is the model's own output on its way in.
+		// ⚠️ The type and shape must be threaded through explicitly — a bare
+		// `sanitize_draft( $data, true )` sets $type to true, not $generated, and
+		// silently stops title-casing the model. A test caught exactly that here.
+		return self::sanitize_draft( $data, $type, $shape, true );
 	}
 
 	/**
@@ -2461,8 +2491,19 @@ final class Assistant {
 	 *
 	 * @param mixed $data Draft-shaped input.
 	 * @return array|\WP_Error
+	 *
+	 * ⛔ $generated IS THE TITLE-CASE SWITCH, and it defaults to FALSE on purpose
+	 * — his catch 2026-08-21, after typing a banner title in sentence case and
+	 * finding it saved Title Cased. Titles::case()'s own docblock already drew the
+	 * line: "a title an AGENT or the OWNER supplies as content is THEIR text and
+	 * is never run through this." This sanitiser is shared by BOTH directions —
+	 * model output arriving via parse_*(), and payloads the owner edited arriving
+	 * via $request->get_param() — so casing unconditionally here broke that law on
+	 * every request path. ⭐ Only the parse_*() callers pass true; a future caller
+	 * that forgets the flag leaves the owner's text alone, which is the safe way
+	 * round for a rule about not touching what isn't ours.
 	 */
-	public static function sanitize_draft( $data, $type = '', $shape = self::SHAPE_ARTICLE ) {
+	public static function sanitize_draft( $data, $type = '', $shape = self::SHAPE_ARTICLE, $generated = false ) {
 		$terms  = self::terms_for( $type, $shape );
 		$images = self::wants_images( $type, $shape );
 		if ( ! is_array( $data ) ) {
@@ -2486,9 +2527,10 @@ final class Assistant {
 		}
 
 		return array(
-			// The standing rule: a title the plugin generates is Title Case —
-			// the prompt asks for it, Titles::case() guarantees it.
-			'title'       => Titles::case( $title ),
+			// The standing rule: a title the plugin GENERATES is Title Case — the
+			// prompt asks for it, Titles::case() guarantees it. ⛔ A draft the owner
+			// edited and sent back is not generated. See $generated above.
+			'title'       => $generated ? Titles::case( $title ) : $title,
 			'excerpt'     => sanitize_text_field( (string) ( $data['excerpt'] ?? '' ) ),
 			'content'     => $content,
 			'description' => mb_substr( sanitize_text_field( (string) ( $data['description'] ?? '' ) ), 0, 200 ),
