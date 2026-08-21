@@ -976,7 +976,12 @@ final class Admin {
 				// here that every owner on WordPress 7.1's default scheme actually
 				// saw, and it went wrong in the release before this one.
 				array(
-					'icon'  => 'page',
+					// ⭐ The APPEARANCE mark for the appearance item — and it also
+					// keeps four tiles on four different marks. The icon is the only
+					// thing telling one tile from the next here (they all share the
+					// one accent, by design), so a repeat inside a set of four spends
+					// the only distinction the card has.
+					'icon'  => 'image',
 					'title' => 'Agentimus Keeps Its Colour on the Default Scheme',
 					'text'  => 'If the plugin looked black and grey after the last update, that is fixed — your charts, links and numbers have their colour back.',
 				),
