@@ -966,16 +966,35 @@ final class Admin {
 			// ⭐ Titles are Title Case, the standing rule for every title this
 			// plugin writes.
 			'items'   => array(
-				// ⛔ A PATCH GETS ITS OWN ITEM, not the last release's four. The card
-				// re-shows whenever AGENTIMUS_VERSION changes, so leaving 1.40.0's
-				// list here would greet an owner with news they have already read,
-				// under a heading claiming it is new — the fault he caught on the
-				// 1.40.0-dev4 build, where 1.39.0's items sat under a 1.40.0 title.
+				// ⛔ EVERY RELEASE REWRITES THIS LIST, not just the ones that add
+				// features. The card re-shows whenever AGENTIMUS_VERSION changes, so
+				// leaving the last release's items here would greet an owner with news
+				// they have already read, under a heading claiming it is new — the
+				// fault he caught on the 1.40.0-dev4 build, where 1.39.0's items sat
+				// under a 1.40.0 title.
+				// ⭐ His call for 1.41.0: the colour fix leads. It is the one thing
+				// here that every owner on WordPress 7.1's default scheme actually
+				// saw, and it went wrong in the release before this one.
+				array(
+					'icon'  => 'page',
+					'title' => 'Agentimus Keeps Its Colour on the Default Scheme',
+					'text'  => 'If the plugin looked black and grey after the last update, that is fixed — your charts, links and numbers have their colour back.',
+				),
 				array(
 					'icon'  => 'shield',
-					'title' => 'Connected Assistants Can Read Your Request Log Again',
-					'text'  => 'The tool an AI assistant uses to read your crawler log stopped answering in 1.40.0. Nothing you see in the browser was affected.',
-				)
+					'title' => 'Your Assistant Can Set a Page Aside',
+					'text'  => 'A connected assistant can now mark a page as one you never meant to be quoted — a contact page, an index — so it stops counting against your content score. It can do one page at a time; clearing a whole check at once is still yours alone.',
+				),
+				array(
+					'icon'  => 'search',
+					'title' => 'Sharper Questions for Your Crawler Log',
+					'text'  => 'An assistant can ask about several crawlers at once, or everything spoofed and everything refused together — the same way your own screen filters.',
+				),
+				array(
+					'icon'  => 'page',
+					'title' => 'Titles You Type Stay as You Typed Them',
+					'text'  => 'The assistant capitalises the titles it writes for you. It had been recapitalising the ones you typed yourself, and it leaves those alone now.',
+				),
 			),
 		);
 	}

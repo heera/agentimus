@@ -299,6 +299,15 @@ URL-like strings in the plugin's output are labels, not requests — the discove
 
 == Changelog ==
 
+= 1.41.0 =
+* Fixed: on WordPress 7.1's default admin colour scheme, Agentimus lost its colour — chart bars, links, tab underlines and numbers all turned black, and the readiness ring washed out to near-white. 7.1 made “Default” a new scheme whose highlight is too pale to read as text, so Agentimus fell back to that scheme's near-black ink — which passed the check for being readable precisely because there is no colour in it. Readable and coloured are two questions now, and a scheme with no usable colour keeps Agentimus's own.
+* New: a connected assistant can set a page aside, the same as you can. It could already tell you which pages need work and fix them, but not say the third thing you say constantly — that a page is fine as it is, because it was never meant to be quoted. A contact page, a landing page, an index. Set aside by an assistant behaves exactly as it does from your screen: the page is untouched, it stays published, and it lands in your Set Aside list with the count beside it. One page per call, in both directions — setting aside everything a check flags is still yours alone, behind the confirmation that names the number.
+* New: an assistant can filter your request log the way your own screen does — several crawlers at once, or everything spoofed and everything refused together. The Client, Endpoint, Network and Verification filters each took a single value, so an assistant could not ask a question your screen already answers.
+* Fixed: a page title reached a connected assistant with its punctuation still written as code — an ampersand you typed arriving as `&#038;`. An assistant does not draw a web page, it repeats what it is handed, so that title could come back to you inside something it wrote.
+* Fixed: the in-admin assistant no longer recapitalises a title you typed yourself. It title-cases the ones it writes, which is the rule — but that had leaked onto titles arriving from you, so something you named in sentence case saved with capitals you never asked for.
+* Fixed: on the Sunrise scheme, a failing check no longer reads as a lighter shade of the card it sits on. That card is a deep red by day and the failure mark it inherited was almost the same red — visible, but not an alarm. Its chart bars take that red now too, instead of the green they shared with every other scheme.
+* Improved: each admin colour scheme carries one colour of its own through Agentimus, in light and in dark, and the dashboard's two columns start level with each other.
+
 = 1.40.1 =
 * Fixed: a bug regarding the request log as a connected assistant reads it. 1.40.0 taught that screen to sort, and its answer grew two new fields — which order the rows are in, and how far down the list this page starts. The assistant-facing tool had not been told to expect them, so it refused its own reply and an assistant asking about your crawlers got an error instead of your log. Your own screens were never affected, which is why it went unnoticed. If you use Claude, ChatGPT or another MCP client with this site, it reads again.
 
@@ -371,6 +380,9 @@ URL-like strings in the plugin's output are labels, not requests — the discove
 For older releases, see the full history: https://github.com/heera/agentimus/blob/main/CHANGELOG.md
 
 == Upgrade Notice ==
+
+= 1.41.0 =
+Agentimus keeps its own colour on WordPress 7.1's default admin scheme — 1.40.0 turned its charts, links and numbers black there. A connected AI assistant can now set a page aside as one you never meant to be quoted, one page at a time, and can filter your request log by several crawlers at once. Titles you type yourself are no longer recapitalised. No breaking changes.
 
 = 1.40.1 =
 Fixed a bug regarding the request log as a connected AI assistant reads it: 1.40.0's new sorting added two fields the assistant-facing tool had not been told about, so it refused its own reply and an assistant got an error instead of your log. Nothing you see in the browser was affected. No breaking changes.
