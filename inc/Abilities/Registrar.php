@@ -387,13 +387,19 @@ final class Registrar {
 				array(
 					'from'     => self::date( 'Start date (YYYY-MM-DD).' ),
 					'to'       => self::date( 'End date (YYYY-MM-DD).' ),
-					'agent'    => self::s( 'Exact detected agent name.' ),
-					'endpoint' => self::s( 'Exact endpoint path.' ),
-					'network'  => self::s( 'Exact owning network (only populated when "identify every bot" is on).' ),
+					'agent'    => self::slist( 'Exact detected agent name, or a list of them (OR-ed).' ),
+					'endpoint' => self::slist( 'Exact endpoint path, or a list of them (OR-ed).' ),
+					'network'  => self::slist( 'Exact owning network, or a list of them (OR-ed). Only populated when "identify every bot" is on.' ),
 					'verdict'  => array(
-						'type'        => 'integer',
-						'enum'        => array( 0, 1, 2 ),
-						'description' => '0 = unchecked, 1 = verified real engine, 2 = spoofed impersonator.',
+						// ⛔ NO enum: it would reject the list form. The handler keeps
+						// only 0, 1, 2 and "refused" and drops anything else, so a bad
+						// value narrows nothing rather than erroring.
+						'type'        => array( 'integer', 'string', 'array' ),
+						'items'       => array( 'type' => array( 'integer', 'string' ) ),
+						'description' => '0 = unchecked, 1 = verified real engine, 2 = spoofed impersonator, '
+							. 'or "refused" = turned away at the door and never served. One value or a list (OR-ed). '
+							. '⚠️ "refused" is an OUTCOME, not a verdict, and lives in its own column — mixing it with '
+							. 'a verdict in one list is allowed and means exactly what it reads like.',
 					),
 					'ua'       => self::s( 'User-agent prefix to match.' ),
 					'before'   => self::i( 'Pagination cursor: return rows with id below this (use the previous page’s "cursor").' ),
@@ -442,13 +448,53 @@ final class Registrar {
 			),
 			function ( $input ) {
 				$args = array();
-				foreach ( array( 'from', 'to', 'agent', 'endpoint', 'network', 'ua' ) as $k ) {
+				// Single-value filters, unchanged.
+				foreach ( array( 'from', 'to', 'ua' ) as $k ) {
 					if ( isset( $input[ $k ] ) && '' !== (string) $input[ $k ] ) {
 						$args[ $k ] = (string) $input[ $k ];
 					}
 				}
-				if ( isset( $input['verdict'] ) && '' !== (string) $input['verdict'] ) {
-					$args['verdict'] = (int) $input['verdict'];
+				// ⭐ ONE VALUE OR A LIST. The store reads both — a scalar becomes
+				//    `col = %s`, a list becomes IN (...) — so this hands the shape
+				//    straight through rather than flattening it.
+				// ⛔ AN EMPTY LIST IS NOT A FILTER. `IN ()` is a MySQL syntax error,
+				//    and "the caller cleared the picker" must mean no narrowing, not
+				//    a 500. Dropping empties here keeps that true before the store
+				//    ever sees it.
+				foreach ( array( 'agent', 'endpoint', 'network' ) as $k ) {
+					if ( ! isset( $input[ $k ] ) ) {
+						continue;
+					}
+					if ( is_array( $input[ $k ] ) ) {
+						$vals = array_values( array_filter( array_map( 'strval', $input[ $k ] ), 'strlen' ) );
+						if ( $vals ) {
+							$args[ $k ] = $vals;
+						}
+						continue;
+					}
+					if ( '' !== (string) $input[ $k ] ) {
+						$args[ $k ] = (string) $input[ $k ];
+					}
+				}
+				// ⭐ THE VERDICT IS A CLOSED SET, so it is normalised here rather than
+				//    by an enum — an enum on the property would have rejected the list
+				//    form outright. 0/1/2 are verdicts; "refused" is an outcome in
+				//    another column, and the store OR's the two inside one group.
+				// ⚠️ A scalar still arrives as a scalar, so an existing caller sending
+				//    `verdict: 0` gets the identical query it always did.
+				if ( isset( $input['verdict'] ) ) {
+					$raw  = is_array( $input['verdict'] ) ? $input['verdict'] : array( $input['verdict'] );
+					$keep = array();
+					foreach ( $raw as $v ) {
+						if ( 'refused' === $v ) {
+							$keep[] = 'refused';
+						} elseif ( is_numeric( $v ) && in_array( (int) $v, array( 0, 1, 2 ), true ) ) {
+							$keep[] = (int) $v;
+						}
+					}
+					if ( $keep ) {
+						$args['verdict'] = is_array( $input['verdict'] ) ? $keep : $keep[0];
+					}
 				}
 				if ( isset( $input['before'] ) ) {
 					$args['before'] = (int) $input['before'];
@@ -2521,6 +2567,32 @@ final class Registrar {
 	/** A string property, optionally described. */
 	private static function s( $description = '' ) {
 		return '' === $description ? array( 'type' => 'string' ) : array( 'type' => 'string', 'description' => $description );
+	}
+
+	/**
+	 * A filter that takes ONE value or a LIST of them.
+	 *
+	 * ⭐ HIS CALL, 2026-08-21: the screens have taken lists on these controls since
+	 * 1.40.0, and the tool an assistant uses still took a single value — so an
+	 * agent could not ask a question the owner's own screen answers.
+	 * ⛔ BACKWARD COMPATIBLE BY CONSTRUCTION: `string` stays in the type union and
+	 * comes FIRST, so every existing caller passing one value validates and
+	 * behaves exactly as before. Activity\Repository::log() has compiled a scalar
+	 * to `col = %s` and a list to `IN (...)` since the same release, so the store
+	 * needed nothing — this was only ever the declared contract lagging behind.
+	 * ⚠️ No top-level `enum` here: an enum would reject the array form outright.
+	 * Where the values are closed (verdict) the handler normalises instead, which
+	 * is checked by a test rather than by the schema.
+	 *
+	 * @param string $description Human description.
+	 * @return array
+	 */
+	private static function slist( $description ) {
+		return array(
+			'type'        => array( 'string', 'array' ),
+			'items'       => array( 'type' => 'string' ),
+			'description' => $description,
+		);
 	}
 
 	/** An integer property, optionally described. */
