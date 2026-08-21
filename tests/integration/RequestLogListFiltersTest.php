@@ -15,8 +15,19 @@ use Agentimus\Activity\Table;
 
 final class RequestLogListFiltersTest extends \WP_UnitTestCase {
 
-	/** Run the ability's own handler, exactly as the adapter would. */
+	/**
+	 * Run the ability's own handler, exactly as the adapter would.
+	 *
+	 * ⛔ SKIPS BELOW THE ABILITIES API. WP 6.0 has no wp_get_ability(), and the
+	 * whole MCP surface self-gates there — so on that floor this file has nothing
+	 * to assert rather than something to fail. The same guard every other ability
+	 * test in this directory uses; CI's PHP 7.4 / WP 6.0 job is what it is for,
+	 * and it is the job that caught this one missing.
+	 */
 	private function call( array $input ) {
+		if ( ! function_exists( 'wp_get_ability' ) ) {
+			$this->markTestSkipped( 'Needs the Abilities API (WP 6.9+); the feature self-gates below that.' );
+		}
 		$ability = wp_get_ability( 'agentimus/read-request-log' );
 		$this->assertNotNull( $ability, 'The ability is registered.' );
 		return $ability->execute( $input );
